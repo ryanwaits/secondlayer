@@ -9,6 +9,7 @@ import {
 	DUPLICATE_READS_WINDOW_MS,
 	type DetectedInsight,
 	type InsightRule,
+	KEY_UNUSED_DAYS,
 	PAGE_CAP_ROWS,
 	POLLING_LOOKBACK_MS,
 	POLLING_MAX_STDDEV_RATIO,
@@ -73,6 +74,14 @@ export interface AccountRuleInput {
 	balanceUsdMicros: bigint;
 	/** Positive ledger charges in the last 24 hours. */
 	burnPerDayUsdMicros: bigint;
+	/** Active keys the user made themselves (`account` product). */
+	keys: {
+		id: string;
+		name: string;
+		prefix: string;
+		createdAt: Date;
+		lastUsedAt: Date | null;
+	}[];
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────
@@ -643,6 +652,75 @@ const creditsRunway: InsightRule<AccountRuleInput> = {
 	},
 };
 
+// ── key_unused ─────────────────────────────────────────────────────────
+
+const keyUnused: InsightRule<AccountRuleInput> = {
+	id: "key_unused",
+	evaluate(input) {
+		const stale = input.keys
+			.map((key) => {
+				const since = key.lastUsedAt ?? key.createdAt;
+				return {
+					key,
+					since,
+					days: Math.floor((input.now.getTime() - since.getTime()) / DAY_MS),
+				};
+			})
+			.filter((entry) => entry.days >= KEY_UNUSED_DAYS)
+			.sort((a, b) => a.since.getTime() - b.since.getTime());
+		if (stale.length === 0) return null;
+
+		const one = stale.length === 1;
+		const names = stale.map((entry) => entry.key.name);
+		return {
+			rule: "key_unused",
+			severity: "costs",
+			impact: stale.length,
+			resource: RESOURCE,
+			line: one
+				? `${names[0]} hasn't read anything in ${stale[0]?.days} days`
+				: `${stale.length} keys haven't read anything in ${KEY_UNUSED_DAYS}+ days`,
+			meta: one
+				? `created ${utcDay(stale[0]?.key.createdAt as Date)}`
+				: names.join(", "),
+			lead: "A key nobody uses is the one nobody notices when it leaks.",
+			body: one
+				? "It still works, and every row it reads is billed to you. Revoke it if nothing runs with it."
+				: "They still work, and every row they read is billed to you. Revoke them if nothing runs with them.",
+			evidence: [
+				{
+					kind: "table",
+					title: "Unused keys",
+					columns: ["Key", "Last read"],
+					rows: stale.map(({ key }) => [
+						`${key.name} (${key.prefix}…)`,
+						key.lastUsedAt ? utcDay(key.lastUsedAt) : "never",
+					]),
+				},
+			],
+			handoff: {
+				prompt: handoffPrompt({
+					subject: "My Secondlayer API keys",
+					observed: stale.map(
+						({ key, days }) =>
+							`${key.name} (${key.prefix}…) has not read anything in ${days} days`,
+					),
+					lookAt:
+						"Check whether anything still runs with these keys, and revoke the ones nothing uses",
+				}),
+				commands: [],
+			},
+			how: {
+				detector: `account key with no reads for ${KEY_UNUSED_DAYS} days or more`,
+				facts: stale.map(({ key, days }): [string, string] => [
+					key.name,
+					`${days} days idle, ${key.lastUsedAt ? `last read ${utcDateTime(key.lastUsedAt)}` : `never read, created ${utcDateTime(key.createdAt)}`}`,
+				]),
+			},
+		};
+	},
+};
+
 export const ACCOUNT_RULES: InsightRule<AccountRuleInput>[] = [
 	duplicateReads,
 	pollingLoop,
@@ -651,4 +729,5 @@ export const ACCOUNT_RULES: InsightRule<AccountRuleInput>[] = [
 	backfill,
 	capPace,
 	creditsRunway,
+	keyUnused,
 ];

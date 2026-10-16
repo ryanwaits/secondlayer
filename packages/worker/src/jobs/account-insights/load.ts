@@ -108,6 +108,14 @@ export async function loadAccountInput(
 		.where("usd_micros", ">", "0")
 		.executeTakeFirst();
 
+	const keyRows = await db
+		.selectFrom("api_keys")
+		.select(["id", "name", "key_prefix", "created_at", "last_used_at"])
+		.where("account_id", "=", accountId)
+		.where("product", "=", "account")
+		.where("status", "=", "active")
+		.execute();
+
 	const [caps, spentMonth, balance, burn] = await Promise.all([
 		getCaps(db, accountId),
 		getMonthlyCreditsSpend(db, accountId, now),
@@ -154,6 +162,13 @@ export async function loadAccountInput(
 		},
 		balanceUsdMicros: balance,
 		burnPerDayUsdMicros: burn,
+		keys: keyRows.map((k) => ({
+			id: k.id,
+			name: k.name ?? k.key_prefix,
+			prefix: k.key_prefix,
+			createdAt: k.created_at,
+			lastUsedAt: k.last_used_at,
+		})),
 	};
 }
 

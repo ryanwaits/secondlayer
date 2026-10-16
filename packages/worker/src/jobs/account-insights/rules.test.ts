@@ -26,6 +26,7 @@ function input(over: Partial<AccountRuleInput> = {}): AccountRuleInput {
 		},
 		balanceUsdMicros: 50_000_000n,
 		burnPerDayUsdMicros: 0n,
+		keys: [],
 		...over,
 	};
 }
@@ -442,6 +443,57 @@ describe("credits_runway", () => {
 			input({ balanceUsdMicros: 0n, burnPerDayUsdMicros: 1_000_000n }),
 		);
 		expect(out?.line).toBe("Credits run out in about 0 days");
+	});
+});
+
+describe("key_unused", () => {
+	const daysAgo = (n: number) => new Date(NOW.getTime() - n * 86_400_000);
+	const key = (
+		name: string,
+		createdDaysAgo: number,
+		usedDaysAgo: number | null,
+	) => ({
+		id: `id-${name}`,
+		name,
+		prefix: `sl_${name}`,
+		createdAt: daysAgo(createdDaysAgo),
+		lastUsedAt: usedDaysAgo === null ? null : daysAgo(usedDaysAgo),
+	});
+
+	test("fires for a key last used 45 days ago and names it", () => {
+		const out = fire("key_unused", input({ keys: [key("ci-bot", 90, 45)] }));
+		expect(out?.severity).toBe("costs");
+		expect(out?.line).toBe("ci-bot hasn't read anything in 45 days");
+	});
+
+	test("does not fire for a key used 3 days ago", () => {
+		expect(
+			fire("key_unused", input({ keys: [key("busy", 90, 3)] })),
+		).toBeNull();
+	});
+
+	test("does not fire for a key created 10 days ago and never used", () => {
+		expect(
+			fire("key_unused", input({ keys: [key("fresh", 10, null)] })),
+		).toBeNull();
+	});
+
+	test("fires for a key created 40 days ago and never used", () => {
+		const out = fire("key_unused", input({ keys: [key("dusty", 40, null)] }));
+		expect(out?.line).toBe("dusty hasn't read anything in 40 days");
+		expect(out?.evidence[0]).toMatchObject({
+			rows: [["dusty (sl_dusty…)", "never"]],
+		});
+	});
+
+	test("groups several stale keys into a plural line, oldest first", () => {
+		const out = fire(
+			"key_unused",
+			input({ keys: [key("newer", 90, 35), key("older", 120, 80)] }),
+		);
+		expect(out?.line).toBe("2 keys haven't read anything in 30+ days");
+		expect(out?.meta).toBe("older, newer");
+		expect(out?.impact).toBe(2);
 	});
 });
 

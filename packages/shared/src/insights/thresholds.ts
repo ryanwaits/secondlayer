@@ -65,6 +65,8 @@ export const BACKFILL_FULL_PAGE_RATIO = 0.9;
 /** A day under this many rows is never called a backfill, however full its pages. */
 export const BACKFILL_MIN_DAY_ROWS = 100_000;
 export const CREDITS_RUNWAY_WARN_DAYS = 7;
+/** An account key idle this many days (or unused since creation) is flagged. */
+export const KEY_UNUSED_DAYS = 30;
 
 // ── Lifecycle ──────────────────────────────────────────────────────────
 /** A resolved insight stays visible as "recovered" for this long. */
