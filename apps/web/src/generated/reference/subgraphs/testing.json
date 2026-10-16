@@ -58,7 +58,7 @@
 			"description": "Build a typed event payload based on the source filter type.\nReturns the payload the handler will receive.",
 			"source": {
 				"file": "packages/subgraphs/src/runtime/runner.ts",
-				"line": 177
+				"line": 178
 			},
 			"overloads": [
 				{

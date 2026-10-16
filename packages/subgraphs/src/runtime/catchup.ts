@@ -1,5 +1,8 @@
 import { getTargetDb, sql } from "@secondlayer/shared/db";
-import { getSubgraph } from "@secondlayer/shared/db/queries/subgraphs";
+import {
+	getSubgraph,
+	pgSchemaName,
+} from "@secondlayer/shared/db/queries/subgraphs";
 import { BillingPausedError } from "@secondlayer/shared/index-http";
 import { logger } from "@secondlayer/shared/logger";
 import { billingPausedCode } from "@secondlayer/shared/schemas";
@@ -21,6 +24,7 @@ import {
 	decoderNamesForSubgraph,
 	usesDecodedIndexPlane,
 } from "./decoder-bound.ts";
+import { maybeRecordHealthSnapshot } from "./health.ts";
 import { StatsAccumulator } from "./stats.ts";
 
 const LOG_INTERVAL = 1000;
@@ -329,6 +333,15 @@ export async function catchUpSubgraph(
 			}
 			chainTip = bound.tip;
 		}
+		await maybeRecordHealthSnapshot(targetDb, {
+			subgraphId: subgraphRow.id,
+			subgraphName,
+			schemaName: subgraphRow.schema_name ?? pgSchemaName(subgraphName),
+			lastProcessedBlock,
+			chainTip,
+			totalProcessed: Number(subgraphRow.total_processed),
+			totalErrors: Number(subgraphRow.total_errors),
+		});
 		if (chainTip <= 0 || lastProcessedBlock >= chainTip) return 0;
 
 		const subgraphStart = Number(subgraphRow.start_block) || 1;

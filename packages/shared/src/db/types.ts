@@ -411,7 +411,26 @@ export interface SubgraphHealthSnapshotsTable {
 	total_processed: number;
 	total_errors: number;
 	last_processed_block: number | null;
+	chain_tip: string | number | null;
+	rows_written_total: string | number | null;
+	storage_bytes: string | number | null;
 	captured_at: Generated<Date>;
+}
+
+/** Handler errors grouped by fingerprint. Cap 50/subgraph. */
+export interface SubgraphErrorGroupsTable {
+	id: Generated<string>;
+	subgraph_name: string;
+	fingerprint: string;
+	source_name: string;
+	event_type: string | null;
+	message: string;
+	frame: string | null;
+	count: Generated<string | number>;
+	sample_tx_id: string | null;
+	sample_block_height: string | number | null;
+	first_seen: Generated<Date>;
+	last_seen: Generated<Date>;
 }
 
 export interface ProcessedStripeEventsTable {
@@ -1003,6 +1022,7 @@ export interface Database {
 	subgraph_processing_stats: SubgraphProcessingStatsTable;
 	subgraph_gaps: SubgraphGapsTable;
 	subgraph_violations: SubgraphViolationsTable;
+	subgraph_error_groups: SubgraphErrorGroupsTable;
 	subgraph_operations: SubgraphOperationsTable;
 	processed_stripe_events: ProcessedStripeEventsTable;
 	account_spend_caps: AccountSpendCapsTable;

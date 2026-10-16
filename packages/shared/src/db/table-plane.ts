@@ -87,6 +87,7 @@ export const TABLE_TO_DB = {
 	subgraph_health_snapshots: "target",
 	subgraph_gaps: "target",
 	subgraph_violations: "target",
+	subgraph_error_groups: "target",
 	subgraph_processing_stats: "target",
 	account_credits: "target",
 	// ── TARGET: archive fetch gate charge log ──

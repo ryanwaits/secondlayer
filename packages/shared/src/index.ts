@@ -16,6 +16,7 @@ export { logger } from "./logger.ts";
 
 export * from "./schemas/index.ts";
 export * from "./subgraphs/spec.ts";
+export * from "./subgraphs/health.ts";
 export * from "./webhooks/chain-envelopes.ts";
 
 export * as crypto from "./crypto/hmac.ts";

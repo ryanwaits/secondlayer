@@ -13,6 +13,7 @@ import type {
 } from "../types.ts";
 import { decodeClarityValue, decodeEventData } from "./clarity.ts";
 import type { SubgraphContext } from "./context.ts";
+import { recordHandlerError } from "./error-groups.ts";
 import { validatePrintPayload } from "./print-validate.ts";
 import { abortsBlock } from "./realm.ts";
 import { type MatchedTx, printContractId } from "./source-matcher.ts";
@@ -650,6 +651,14 @@ export async function runHandlers(
 			if (abortsBlock(err)) throw err;
 			ctx.rollbackTo(checkpoint);
 			errors++;
+			void recordHandlerError({
+				subgraphName: subgraph.name,
+				sourceName,
+				eventType: event?.type ?? null,
+				txId: tx.tx_id,
+				blockHeight: ctx.block.height,
+				err,
+			});
 			logger.error("Subgraph handler error", {
 				subgraph: subgraph.name,
 				sourceName,
