@@ -17,6 +17,7 @@ import {
 	POLLING_MIN_DURATION_MS,
 	POLLING_MIN_EMPTY_RATIO,
 	POLLING_MIN_REQUESTS,
+	REVOKED_KEY_ACTIVE_MS,
 	SERVER_ERRORS_MIN_5XX,
 	handoffPrompt,
 	plural,
@@ -82,6 +83,17 @@ export interface AccountRuleInput {
 		prefix: string;
 		createdAt: Date;
 		lastUsedAt: Date | null;
+	}[];
+	/** Calls with a revoked account key in the last 24 hours, one entry per key. */
+	revokedKeyCalls: {
+		keyId: string;
+		name: string;
+		prefix: string;
+		revokedAt: Date | null;
+		calls: number;
+		lastAt: Date;
+		/** Paths by call count, most first, at most 3. */
+		topPaths: { path: string; calls: number }[];
 	}[];
 }
 
@@ -757,6 +769,69 @@ const keyUnused: InsightRule<AccountRuleInput> = {
 	},
 };
 
+// ── revoked_key_in_use ─────────────────────────────────────────────────
+
+const revokedKeyInUse: InsightRule<AccountRuleInput> = {
+	id: "revoked_key_in_use",
+	evaluate(input) {
+		const active = input.revokedKeyCalls.filter(
+			(k) => input.now.getTime() - k.lastAt.getTime() <= REVOKED_KEY_ACTIVE_MS,
+		);
+		if (active.length === 0) return null;
+
+		const revoked = (k: (typeof active)[number]) =>
+			`was revoked${k.revokedAt ? ` on ${utcDay(k.revokedAt)}` : ""}`;
+		const one = active.length === 1 ? active[0] : undefined;
+		return {
+			rule: "revoked_key_in_use",
+			severity: "losing",
+			impact: active.reduce((sum, k) => sum + k.calls, 0),
+			resource: RESOURCE,
+			line: one
+				? `${one.name} ${revoked(one)} and is still being called`
+				: `${active.length} revoked keys are still being called`,
+			meta: one
+				? `${plural(one.calls, "call")} in 24 hours · mostly ${one.topPaths[0]?.path}`
+				: active.map((k) => k.name).join(", "),
+			lead: "Something still runs with a key you revoked, and every call it makes fails.",
+			body: "Make a new key and replace the revoked one wherever it is configured: an app's environment, a scheduled job, or the CLI (sl login). The calls stop failing as soon as it reads with the new key.",
+			evidence: [
+				{
+					kind: "table",
+					title: "Revoked keys still in use",
+					columns: ["Key", "Revoked", "Calls (24h)", "Last call", "Paths"],
+					rows: active.map((k) => [
+						`${k.name} (${k.prefix}…)`,
+						k.revokedAt ? utcDay(k.revokedAt) : "unknown",
+						number(k.calls),
+						utcDateTime(k.lastAt),
+						k.topPaths.map((p) => p.path).join(", "),
+					]),
+				},
+			],
+			handoff: {
+				prompt: handoffPrompt({
+					subject: "My Secondlayer API keys",
+					observed: active.map(
+						(k) =>
+							`${k.name} (${k.prefix}…) ${revoked(k)} and was called ${plural(k.calls, "time")} in the last 24 hours, mostly ${k.topPaths[0]?.path}`,
+					),
+					lookAt:
+						"Find where each revoked key is still configured (app environment variables, scheduled jobs, CLI config) and replace it with a new key",
+				}),
+				commands: [],
+			},
+			how: {
+				detector: `account key with status revoked, called within the last ${REVOKED_KEY_ACTIVE_MS / MINUTE_MS} minutes (calls answer 401 KEY_REVOKED)`,
+				facts: active.map((k): [string, string] => [
+					k.name,
+					`${k.calls} calls in 24h, last ${utcDateTime(k.lastAt)}`,
+				]),
+			},
+		};
+	},
+};
+
 export const ACCOUNT_RULES: InsightRule<AccountRuleInput>[] = [
 	duplicateReads,
 	pollingLoop,
@@ -766,4 +841,5 @@ export const ACCOUNT_RULES: InsightRule<AccountRuleInput>[] = [
 	capPace,
 	creditsRunway,
 	keyUnused,
+	revokedKeyInUse,
 ];

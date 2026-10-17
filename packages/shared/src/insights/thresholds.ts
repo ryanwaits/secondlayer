@@ -69,6 +69,9 @@ export const BACKFILL_MIN_DAY_ROWS = 100_000;
 export const CREDITS_RUNWAY_WARN_DAYS = 7;
 /** An account key idle this many days (or unused since creation) is flagged. */
 export const KEY_UNUSED_DAYS = 30;
+/** A revoked key called within this long is still in use; older calls only
+ *  count toward the 24h evidence, so the insight clears once calls stop. */
+export const REVOKED_KEY_ACTIVE_MS = 3_600_000;
 
 // ── Lifecycle ──────────────────────────────────────────────────────────
 /** A resolved insight stays visible as "recovered" for this long. */

@@ -27,6 +27,7 @@ function input(over: Partial<AccountRuleInput> = {}): AccountRuleInput {
 		balanceUsdMicros: 50_000_000n,
 		burnPerDayUsdMicros: 0n,
 		keys: [],
+		revokedKeyCalls: [],
 		...over,
 	};
 }
@@ -560,6 +561,74 @@ describe("key_unused", () => {
 		expect(out?.line).toBe("2 keys haven't read anything in 30+ days");
 		expect(out?.meta).toBe("older, newer");
 		expect(out?.impact).toBe(2);
+	});
+});
+
+describe("revoked_key_in_use", () => {
+	const revoked = (
+		name: string,
+		calls: number,
+		lastMinutesAgo: number,
+		paths: string[] = ["/v1/index/transactions"],
+		revokedAt: Date | null = new Date("2026-10-17T09:00:00.000Z"),
+	) => ({
+		keyId: `id-${name}`,
+		name,
+		prefix: `sl_${name}`,
+		revokedAt,
+		calls,
+		lastAt: new Date(NOW.getTime() - lastMinutesAgo * MIN),
+		topPaths: paths.map((path) => ({ path, calls: 1 })),
+	});
+
+	test("fires for a revoked key called 5 minutes ago and names it", () => {
+		const out = fire(
+			"revoked_key_in_use",
+			input({ revokedKeyCalls: [revoked("sharko-barko", 153, 5)] }),
+		);
+		expect(out?.severity).toBe("losing");
+		expect(out?.line).toBe(
+			"sharko-barko was revoked on Oct 17 and is still being called",
+		);
+		expect(out?.meta).toContain("153 calls in 24 hours");
+		expect(out?.meta).toContain("/v1/index/transactions");
+	});
+
+	test("clears once the last call is over an hour old", () => {
+		expect(
+			rule("revoked_key_in_use").evaluate(
+				input({ revokedKeyCalls: [revoked("quiet", 40, 61)] }),
+			),
+		).toBeNull();
+	});
+
+	test("groups several active keys into a plural line and table", () => {
+		const out = fire(
+			"revoked_key_in_use",
+			input({
+				revokedKeyCalls: [revoked("a", 10, 3), revoked("b", 5, 20)],
+			}),
+		);
+		expect(out?.line).toBe("2 revoked keys are still being called");
+		expect(out?.evidence[0]).toMatchObject({ kind: "table" });
+		const table = out?.evidence[0] as { rows: string[][] };
+		expect(table.rows).toHaveLength(2);
+	});
+
+	test("omits the revoked day when it is unknown", () => {
+		const out = fire(
+			"revoked_key_in_use",
+			input({
+				revokedKeyCalls: [revoked("old", 3, 2, ["/v1/index/blocks"], null)],
+			}),
+		);
+		expect(out?.line).toBe("old was revoked and is still being called");
+	});
+
+	test("does not fire without revoked-key calls", () => {
+		expect(
+			rule("revoked_key_in_use").evaluate(input({ revokedKeyCalls: [] })),
+		).toBeNull();
 	});
 });
 

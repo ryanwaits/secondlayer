@@ -81,6 +81,7 @@ export const OVERVIEW_ACCOUNT_RULES = [
 	"server_errors",
 	"cap_pace",
 	"credits_runway",
+	"revoked_key_in_use",
 ];
 
 /** The column labels over the webhook rows; they name the unit the numbers count. */

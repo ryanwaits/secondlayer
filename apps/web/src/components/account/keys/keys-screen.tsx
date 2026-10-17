@@ -457,7 +457,7 @@ export function KeysBody({
 }
 
 /** The reasons the Keys tab shows. */
-const KEY_RULES = ["key_unused"];
+const KEY_RULES = ["key_unused", "revoked_key_in_use"];
 
 /** /account/keys: every key on the account, and a new one when you need it. */
 export function KeysScreen() {
@@ -504,7 +504,10 @@ export function KeysScreen() {
 	return (
 		<KeysBody
 			keys={keys}
-			insights={staleOwnKey ? forAccountRules(allInsights, KEY_RULES) : []}
+			insights={forAccountRules(
+				allInsights,
+				staleOwnKey ? KEY_RULES : ["revoked_key_in_use"],
+			)}
 			now={now}
 			freshPrefix={freshPrefix}
 			onNew={() => setCreating(true)}

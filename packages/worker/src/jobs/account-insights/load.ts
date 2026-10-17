@@ -64,6 +64,22 @@ export async function loadAccountInput(
 		.where("created_at", ">=", since1h)
 		.execute();
 
+	const revokedRows = await db
+		.selectFrom("api_failed_requests as f")
+		.innerJoin("api_keys as k", "k.id", "f.api_key_id")
+		.select([
+			"k.id as key_id",
+			"f.path",
+			"f.created_at",
+			"k.name",
+			"k.key_prefix",
+			"k.revoked_at",
+		])
+		.where("f.account_id", "=", accountId)
+		.where("f.code", "=", "KEY_REVOKED")
+		.where("f.created_at", ">=", since24h)
+		.execute();
+
 	const paid = await db
 		.selectFrom("usage_ledger")
 		.select((eb) => [
@@ -131,6 +147,34 @@ export async function loadAccountInput(
 		usdMicros: BigInt(d.usd_micros ?? "0"),
 	}));
 
+	const revokedByKey = new Map<
+		string,
+		{
+			keyId: string;
+			name: string;
+			prefix: string;
+			revokedAt: Date | null;
+			calls: number;
+			lastAt: Date;
+			paths: Map<string, number>;
+		}
+	>();
+	for (const r of revokedRows) {
+		const entry = revokedByKey.get(r.key_id) ?? {
+			keyId: r.key_id,
+			name: r.name ?? r.key_prefix,
+			prefix: r.key_prefix,
+			revokedAt: r.revoked_at,
+			calls: 0,
+			lastAt: r.created_at,
+			paths: new Map<string, number>(),
+		};
+		entry.calls += 1;
+		if (r.created_at > entry.lastAt) entry.lastAt = r.created_at;
+		entry.paths.set(r.path, (entry.paths.get(r.path) ?? 0) + 1);
+		revokedByKey.set(r.key_id, entry);
+	}
+
 	return {
 		now,
 		requests: requestRows.map((r) => ({
@@ -169,6 +213,15 @@ export async function loadAccountInput(
 			createdAt: k.created_at,
 			lastUsedAt: k.last_used_at,
 		})),
+		revokedKeyCalls: [...revokedByKey.values()]
+			.map(({ paths, ...k }) => ({
+				...k,
+				topPaths: [...paths]
+					.map(([path, calls]) => ({ path, calls }))
+					.sort((a, b) => b.calls - a.calls)
+					.slice(0, 3),
+			}))
+			.sort((a, b) => b.calls - a.calls),
 	};
 }
 
