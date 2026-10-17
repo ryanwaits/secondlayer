@@ -13,6 +13,7 @@ import {
 	type OverviewFirstWave,
 	OverviewSubgraphsSlot,
 	SUBGRAPH_HEAD,
+	checklistApplies,
 	overviewSettled,
 } from "./overview-section";
 import {
@@ -528,5 +529,23 @@ describe("OverviewBody table and strip", () => {
 		);
 		expect(table).toContain("sbtc-flows");
 		expect(parts(render()).table).not.toContain("Rows written, 24h");
+	});
+});
+
+describe("checklistApplies", () => {
+	test("an account that never made a key gets the checklist", () => {
+		expect(checklistApplies("first", false)).toBe(true);
+	});
+
+	test("an account with a key, even one that has not read yet, gets the normal Overview", () => {
+		expect(checklistApplies("active", false)).toBe(false);
+	});
+
+	test("an account whose keys are all revoked gets the normal Overview", () => {
+		expect(checklistApplies("none_active", false)).toBe(false);
+	});
+
+	test("the first key's flow stays up until its Done", () => {
+		expect(checklistApplies("active", true)).toBe(true);
 	});
 });

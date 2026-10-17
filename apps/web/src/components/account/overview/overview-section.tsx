@@ -34,6 +34,7 @@ import { daysLeft, daysLeftLabel } from "@/lib/account-health";
 import type { Insight } from "@/lib/insights";
 import { forAccountRules, useInsights } from "@/lib/insights-store";
 import {
+	type KeyState,
 	type OnboardingProgress,
 	READ_COMMAND,
 	keyState,
@@ -525,6 +526,15 @@ export function OverviewBody({
 }
 
 /**
+ * The checklist is for an account that has never made a key. Once one exists
+ * (made just now, or long ago and maybe revoked since), the Overview shows its
+ * normal screens; the name-a-key flow stays up until its Done.
+ */
+export function checklistApplies(state: KeyState, flowOpen: boolean): boolean {
+	return state === "first" || flowOpen;
+}
+
+/**
  * The new-account checklist for the Overview, or null when it does not apply.
  * The name-a-key flow stays up through the key being made (the keys list
  * changes under it) until its Done.
@@ -545,12 +555,11 @@ function useOnboarding({
 	const [flowOpen, setFlowOpen] = useState(false);
 	const [made, setMade] = useState<string | null>(null);
 	// The flow opens the first time we see an account that never had a key, and
-	// stays open when that changes under it. An account that revoked its keys
-	// is established: no checklist, no forced flow.
+	// stays open when that changes under it.
 	if (state === "first" && !flowOpen && made === null) {
 		setFlowOpen(true);
 	}
-	if (keys === null || state === "none_active") return null;
+	if (keys === null || !checklistApplies(state, flowOpen)) return null;
 	if (!settled && progress.key) return null;
 
 	const newest = countedKeys(keys, now).at(-1);
