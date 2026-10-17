@@ -1,43 +1,21 @@
-import type { KeyState } from "@/lib/onboarding";
 import Link from "next/link";
 import type { ReactNode } from "react";
 
-/** The line over a screen that needs a key to show anything: where to get one. */
-export function KeyFirstLine() {
+/** Rows only: reads need a key. A link to Keys, never a button (the button lives on Keys). */
+export function ReadsKeyLine({ state }: { state: "first" | "none_active" }) {
 	return (
-		<div className="ob-key">
+		<p className="ob-key">
 			<span className="ob-key-text">
 				<span className="dash-dot hi" />
-				You need a key first. Everything here reads with it.
+				{state === "first"
+					? "Reads need a key."
+					: "No active key. New reads need one."}
 			</span>
-			<Link href="/account" className="acct-btn solid small">
-				New key
+			<Link href="/account/keys" className="dash-link">
+				Make one on Keys ›
 			</Link>
-		</div>
+		</p>
 	);
-}
-
-/** An established account with every key revoked: nothing stopped, reads need a new key. */
-export function NoActiveKeyLine() {
-	return (
-		<div className="ob-key">
-			<span className="ob-key-text">
-				<span className="dash-dot hi" />
-				No active key. Webhooks and subgraphs keep running; calls with a revoked
-				key get a 401.
-			</span>
-			<Link href="/account/keys" className="acct-btn solid small">
-				New key
-			</Link>
-		</div>
-	);
-}
-
-/** The key line for a screen that reads with a key, or nothing when one is active. */
-export function KeyLine({ state }: { state: KeyState }) {
-	if (state === "first") return <KeyFirstLine />;
-	if (state === "none_active") return <NoActiveKeyLine />;
-	return null;
 }
 
 export interface ChecklistStep {

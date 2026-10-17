@@ -13,14 +13,12 @@ import {
 	type ResourceRowLabels,
 } from "@/components/dashboard/shell/resource-row";
 import { StatusSentence } from "@/components/dashboard/shell/status-sentence";
-import { ensureKeys, useAccountData } from "@/lib/account-data";
 import type { Insight } from "@/lib/insights";
 import {
 	forAccountRules,
 	forResource,
 	useInsights,
 } from "@/lib/insights-store";
-import { type KeyState, keyState as keyStateOf } from "@/lib/onboarding";
 import {
 	groupDigits,
 	handlerErrors24h,
@@ -201,8 +199,6 @@ export interface SubgraphsListBodyProps {
 	insights?: readonly Insight[];
 	/** Account-level insights about this page (the stack not answering). */
 	pageInsights?: readonly Insight[];
-	/** Where the account stands on keys of its own. */
-	keyState?: KeyState;
 }
 
 /** The page insight sits above every state, so it shows even when the list can't load. */
@@ -223,7 +219,6 @@ function SubgraphsListContent({
 	health,
 	notice,
 	insights = [],
-	keyState = "active",
 }: Omit<SubgraphsListBodyProps, "pageInsights">) {
 	if (items === null) {
 		if (notice?.kind === "starting") {
@@ -245,7 +240,7 @@ function SubgraphsListContent({
 		}
 		return <ChartSkeleton height={120} />;
 	}
-	if (items.length === 0) return <SubgraphsEmptyState keyState={keyState} />;
+	if (items.length === 0) return <SubgraphsEmptyState />;
 
 	const healthReady = items.every((s) => health[s.name] !== undefined);
 	const failing = items.filter(
@@ -284,13 +279,8 @@ export function SubgraphsListSection() {
 	const notice = useSubgraphsPoll();
 	const { list, health } = useSubgraphsCache();
 	const { data: insights } = useInsights();
-	const { keys } = useAccountData();
-	useEffect(() => {
-		ensureKeys();
-	}, []);
 	return (
 		<SubgraphsListBody
-			keyState={keyStateOf(keys, new Date())}
 			items={list?.data ?? null}
 			health={healthByName(health)}
 			notice={notice}

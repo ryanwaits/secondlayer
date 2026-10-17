@@ -32,8 +32,8 @@ import { InsightStack } from "@/components/dashboard/insight/insight-stack";
 import { Breadcrumb } from "@/components/dashboard/shell/breadcrumb";
 import { DashboardTabs } from "@/components/dashboard/shell/dashboard-tabs";
 import {
-	KeyFirstLine,
 	PlaceholderRows,
+	ReadsKeyLine,
 } from "@/components/dashboard/shell/onboarding";
 import {
 	ResourceRow,
@@ -1782,8 +1782,8 @@ const META: Record<StoryId, Meta> = {
 			},
 			{
 				id: "key-first",
-				label: "Key-first line",
-				render: () => <KeyFirstLine />,
+				label: "Reads key line",
+				render: () => <ReadsKeyLine state="first" />,
 			},
 			{
 				id: "placeholders",
@@ -1806,14 +1806,14 @@ const META: Record<StoryId, Meta> = {
 				render: () => <RowsEmptyDemo firstRun={false} />,
 			},
 			{
-				id: "subgraphs-no-key",
-				label: "Subgraphs, no key",
-				render: () => <SubgraphsEmptyState keyState="first" />,
+				id: "subgraphs-empty",
+				label: "Subgraphs, empty",
+				render: () => <SubgraphsEmptyState />,
 			},
 		],
-		usage: "<KeyFirstLine />",
+		usage: '<ReadsKeyLine state="first" />',
 		dos: [
-			"Show the key-first line only while the account has no key of its own.",
+			"Show the reads key line only on screens that read, while the account has no active key.",
 			"Keep placeholder rows faint, hidden from readers and not clickable.",
 		],
 		donts: ["Mint a key for the user. They name it for where it runs."],

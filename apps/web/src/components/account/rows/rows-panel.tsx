@@ -8,7 +8,7 @@ import {
 import { Legend } from "@/components/dashboard/charts/legend";
 import { Meter } from "@/components/dashboard/charts/meter";
 import { ActionableInsights } from "@/components/dashboard/insight/insight-actions";
-import { KeyLine } from "@/components/dashboard/shell/onboarding";
+import { ReadsKeyLine } from "@/components/dashboard/shell/onboarding";
 import { Skel } from "@/components/dashboard/shell/skel";
 import { StatusSentence } from "@/components/dashboard/shell/status-sentence";
 import { ensureKeys, refreshRows, useAccountData } from "@/lib/account-data";
@@ -52,6 +52,7 @@ const ROWS_RULES = [
 	"backfill",
 	"server_errors",
 	"allowance_exhausted",
+	"revoked_key_in_use",
 ];
 
 function ServerErrors({ errors }: { errors: RowsError[] }) {
@@ -122,6 +123,9 @@ export interface RowsBodyProps {
 	keyState?: KeyState;
 }
 
+const hasRevokedKeyInUse = (insights: readonly Insight[]) =>
+	insights.some((i) => i.rule === "revoked_key_in_use");
+
 /** Nothing read this month and nothing on record. */
 const isUnused = (data: RowsResponse) =>
 	data.allowance.usedThisMonth === 0 && data.daily.length === 0;
@@ -130,9 +134,11 @@ const isUnused = (data: RowsResponse) =>
 function EmptyRows({
 	data,
 	keyState,
+	insights,
 }: {
 	data: RowsResponse;
 	keyState: KeyState;
+	insights: readonly Insight[];
 }) {
 	return (
 		<div className="bl-body">
@@ -142,8 +148,12 @@ function EmptyRows({
 			>
 				No reads yet.
 			</StatusSentence>
+			<ActionableInsights insights={insights} />
 			{keyState === "first" || keyState === "none_active" ? (
-				<KeyLine state={keyState} />
+				// The revoked-key insight says it better than the plain line.
+				hasRevokedKeyInUse(insights) ? null : (
+					<ReadsKeyLine state={keyState} />
+				)
 			) : (
 				<CliLine command={READ_COMMAND} />
 			)}
@@ -183,7 +193,8 @@ export function RowsBody({
 		);
 	}
 
-	if (isUnused(data)) return <EmptyRows data={data} keyState={keyState} />;
+	if (isUnused(data))
+		return <EmptyRows data={data} keyState={keyState} insights={insights} />;
 
 	const { allowance } = data;
 	const copy = statusCopy(allowance);
@@ -195,6 +206,9 @@ export function RowsBody({
 			<StatusSentence tone="ok" sub={copy.sub}>
 				{copy.sentence}
 			</StatusSentence>
+			{keyState === "none_active" && !hasRevokedKeyInUse(insights) ? (
+				<ReadsKeyLine state="none_active" />
+			) : null}
 
 			<section className="dash-panel bl-panel" aria-label="Rows per day">
 				<div className="dash-panel-h">

@@ -187,15 +187,56 @@ describe("RowsBody for a new account", () => {
 		expect(html).toContain("Your first read shows up here");
 		expect(html).toContain("0 of 1M free rows");
 		expect(html).toContain("sl index ft-transfers --limit 5");
-		expect(html).not.toContain("You need a key first.");
+		expect(html).not.toContain("Reads need a key.");
 	});
 
-	test("asks for a key first when there is none", () => {
+	test("says reads need a key and links to Keys when there is none", () => {
 		const html = renderToStaticMarkup(
 			<RowsBody {...base} status="ok" data={unused} keyState="first" />,
 		);
-		expect(html).toContain("You need a key first.");
+		expect(html).toContain("Reads need a key.");
+		expect(html).toContain('href="/account/keys"');
 		expect(html).not.toContain("sl index ft-transfers");
+		expect(html).not.toContain("acct-btn");
+	});
+});
+
+describe("RowsBody after every key was revoked", () => {
+	const loop = FIXTURE_INSIGHTS.find((i) => i.rule === "duplicate_reads");
+	if (!loop) throw new Error("missing fixture");
+	const revokedInUse = {
+		...loop,
+		id: "ins_revoked_key_in_use",
+		rule: "revoked_key_in_use",
+		line: "A revoked key is still being called.",
+	};
+
+	test("keeps the month's data and adds the no-active-key line", () => {
+		const html = renderToStaticMarkup(
+			<RowsBody
+				{...base}
+				status="ok"
+				data={exhausted}
+				keyState="none_active"
+			/>,
+		);
+		expect(html).toContain("No active key. New reads need one.");
+		expect(html).toContain('href="/account/keys"');
+		expect(html).toContain("Rows per day");
+	});
+
+	test("shows the revoked-key insight instead of the line", () => {
+		const html = renderToStaticMarkup(
+			<RowsBody
+				{...base}
+				status="ok"
+				data={exhausted}
+				keyState="none_active"
+				insights={[revokedInUse]}
+			/>,
+		);
+		expect(html).toContain("A revoked key is still being called.");
+		expect(html).not.toContain("No active key. New reads need one.");
 	});
 });
 

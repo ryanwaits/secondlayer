@@ -209,7 +209,7 @@ describe("KeysTable", () => {
 
 	test("ends with the faint note about revoked and lost keys", () => {
 		expect(render([key({ id: "a" })])).toContain(
-			"Revoked keys are hidden. Lost a key? Revoke it and make another: we only ever show a key once.",
+			"Lost a key? Revoke it and make another: we only ever show a key once.",
 		);
 	});
 });
@@ -239,16 +239,34 @@ describe("KeysBody for a new account", () => {
 		expect(html).toContain('aria-hidden="true"');
 	});
 
-	test("an account that revoked every key gets the no-active-key line, not first-run", () => {
-		const html = body([key({ status: "revoked" })]);
-		expect(html).toContain("No active key.");
-		expect(html).not.toContain("You need a key first");
-		expect(html).not.toContain("laptop");
+	test("an account that revoked every key gets one New key button and an empty row", () => {
+		const html = body([
+			key({ id: "a", status: "revoked", name: "laptop-old" }),
+			key({ id: "b", status: "revoked", name: "ci-old" }),
+		]);
+		expect(html).not.toContain("No keys yet.");
+		expect(html).toContain("No active keys.");
+		expect(html.match(/>New key</g)).toHaveLength(1);
+		expect(html).toContain("Your next key shows up here.");
+		expect(html).toContain("Show 2 revoked");
+		expect(html).not.toContain("ob-key");
+		expect(html).not.toContain("aria-hidden");
+	});
+
+	test("a revoked key still being called turns the header to an alarm", () => {
+		const loop = FIXTURE_INSIGHTS.find((i) => i.rule === "duplicate_reads");
+		if (!loop) throw new Error("missing fixture");
+		const html = body(
+			[key({ status: "revoked" })],
+			[{ ...loop, rule: "revoked_key_in_use" }],
+		);
+		expect(html).toContain("No active keys, and one is still called.");
+		expect(html).toContain("dash-dot alarm");
 	});
 
 	test("an account that never made a key gets the first-run placeholder", () => {
 		const html = body([]);
-		expect(html).not.toContain("No active key.");
+		expect(html).not.toContain("No active keys.");
 		expect(html).toContain("laptop");
 	});
 

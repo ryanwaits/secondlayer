@@ -164,19 +164,46 @@ function nameList(names: string[]): string {
 }
 
 export interface KeysSentence {
-	tone: "ok" | "hi" | "idle";
+	tone: "ok" | "hi" | "idle" | "alarm";
 	text: string;
 	sub?: string;
 }
 
+/** The user's own keys that were revoked (docs keys never count). */
+export function revokedOwnKeys(keys: ApiKey[] | null): ApiKey[] {
+	return (keys ?? []).filter(
+		(k) =>
+			isOwnKey(k.product) && k.product !== "docs" && k.status === "revoked",
+	);
+}
+
 /** The Keys screen's one-line answer: are your keys in use, and which are not. */
-export function keysSentence(keys: ApiKey[] | null, now: Date): KeysSentence {
+export function keysSentence(
+	keys: ApiKey[] | null,
+	now: Date,
+	opts: { revokedInUse?: boolean } = {},
+): KeysSentence {
 	const counted = countedKeys(keys, now);
 	if (counted.length === 0) {
+		const revoked = revokedOwnKeys(keys).length;
+		if (revoked === 0) {
+			return {
+				tone: "idle",
+				text: "No keys yet.",
+				sub: "A key lets the SDK, the CLI and plain HTTP calls read your data. Make one per place it runs, so revoking one never breaks the others.",
+			};
+		}
+		if (opts.revokedInUse) {
+			return {
+				tone: "alarm",
+				text: "No active keys, and one is still called.",
+				sub: "Something still reads with a key you revoked, and every call it makes fails. Make a new key and swap it in where the old one lives.",
+			};
+		}
 		return {
 			tone: "idle",
-			text: "No keys yet.",
-			sub: "A key lets the SDK, the CLI and your agents read your data. Make one per place it runs, so revoking one never breaks the others.",
+			text: "No active keys.",
+			sub: `${revoked === 1 ? "You revoked your only key." : `You revoked all ${revoked}.`} Reads need a new key; anything still calling with an old one gets a 401. Webhooks and subgraphs don't use keys and keep running.`,
 		};
 	}
 	const stale = staleKeys(counted, now);

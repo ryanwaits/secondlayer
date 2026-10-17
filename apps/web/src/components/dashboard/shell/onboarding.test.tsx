@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { hasNoKey, onboardingProgress } from "@/lib/onboarding";
 import type { ApiKey } from "@/lib/types";
 import { renderToStaticMarkup } from "react-dom/server";
-import { Checklist, KeyFirstLine, PlaceholderRows } from "./onboarding";
+import { Checklist, PlaceholderRows, ReadsKeyLine } from "./onboarding";
 
 const NOW = new Date("2026-10-15T12:00:00.000Z");
 
@@ -18,14 +18,20 @@ const key = (patch: Partial<ApiKey>): ApiKey => ({
 	...patch,
 });
 
-describe("KeyFirstLine", () => {
-	test("says a key comes first and links New key to the account", () => {
-		const html = renderToStaticMarkup(<KeyFirstLine />);
-		expect(html).toContain(
-			"You need a key first. Everything here reads with it.",
-		);
-		expect(html).toContain('href="/account"');
-		expect(html).toContain("New key");
+describe("ReadsKeyLine", () => {
+	test("first run says reads need a key and links to Keys, not a button", () => {
+		const html = renderToStaticMarkup(<ReadsKeyLine state="first" />);
+		expect(html).toContain("Reads need a key.");
+		expect(html).toContain('href="/account/keys"');
+		expect(html).toContain("Make one on Keys");
+		expect(html).not.toContain("acct-btn");
+	});
+
+	test("all keys revoked says new reads need one", () => {
+		const html = renderToStaticMarkup(<ReadsKeyLine state="none_active" />);
+		expect(html).toContain("No active key. New reads need one.");
+		expect(html).toContain('href="/account/keys"');
+		expect(html).not.toContain("acct-btn");
 	});
 });
 

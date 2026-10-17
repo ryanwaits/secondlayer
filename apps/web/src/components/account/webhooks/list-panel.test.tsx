@@ -182,17 +182,11 @@ describe("WebhooksListBody for a new account", () => {
 		expect(html).toContain("aria-hidden");
 	});
 
-	test("the key-first line shows only while there is no key", () => {
-		expect(render({ rows: [], keyState: "first" })).toContain(
-			"You need a key first.",
-		);
-		expect(render({ rows: [] })).not.toContain("You need a key first.");
-	});
-
-	test("an account that revoked every key sees the no-active-key line", () => {
-		const html = render({ rows: [], keyState: "none_active" });
-		expect(html).toContain("No active key.");
-		expect(html).not.toContain("You need a key first.");
+	test("the empty state never mentions keys", () => {
+		const html = render({ rows: [] });
+		expect(html).not.toContain("Reads need a key");
+		expect(html).not.toContain("No active key");
+		expect(html).not.toContain("You need a key");
 	});
 });
 

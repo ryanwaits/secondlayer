@@ -3,10 +3,7 @@
 import { LazyBandBarChart } from "@/components/charts/lazy";
 import { Sparkline } from "@/components/dashboard/charts/sparkline";
 import { ActionableInsights } from "@/components/dashboard/insight/insight-actions";
-import {
-	NoActiveKeyLine,
-	PlaceholderRows,
-} from "@/components/dashboard/shell/onboarding";
+import { PlaceholderRows } from "@/components/dashboard/shell/onboarding";
 import { StatusSentence } from "@/components/dashboard/shell/status-sentence";
 import {
 	ensureKeys,
@@ -31,6 +28,7 @@ import {
 	keyForLabel,
 	keyWhy,
 	keysSentence,
+	revokedOwnKeys,
 } from "./key-view";
 import { NewKeyFlow } from "./new-key-flow";
 
@@ -40,7 +38,7 @@ export const FRESH_MS = 9_000;
 const PREFIX_LENGTH = 14;
 
 const FOOTER =
-	"Revoked keys are hidden. Lost a key? Revoke it and make another: we only ever show a key once.";
+	"Lost a key? Revoke it and make another: we only ever show a key once.";
 
 function KeySub({
 	k,
@@ -302,6 +300,34 @@ function MadeForYou({
 	);
 }
 
+/** The empty row once every key is revoked, with the revoked ones a click away. */
+function NoActiveRows({ keys }: { keys: ApiKey[] }) {
+	const [open, setOpen] = useState(false);
+	const gone = revokedOwnKeys(keys).sort((a, b) =>
+		b.createdAt.localeCompare(a.createdAt),
+	);
+	return (
+		<>
+			<p className="ky-gone">Your next key shows up here.</p>
+			<button
+				type="button"
+				className="ky-made"
+				aria-expanded={open}
+				onClick={() => setOpen((v) => !v)}
+			>
+				<span>{open ? "Hide revoked" : `Show ${gone.length} revoked`}</span>
+			</button>
+			{open
+				? gone.map((k) => (
+						<p key={k.id} className="ky-gone">
+							{k.name} ({k.prefix}…)
+						</p>
+					))
+				: null}
+		</>
+	);
+}
+
 /** The keys table: yours, then the ones made for you, which can't be revoked here. */
 export function KeysTable({
 	keys,
@@ -387,7 +413,9 @@ export function KeysTable({
 			{own.length === 0 && revoked.length === 0 && state === "first" ? (
 				<PlaceholderRows rows={[{ name: "laptop" }, { name: "ci" }]} />
 			) : null}
-			{state === "none_active" ? <NoActiveKeyLine /> : null}
+			{state === "none_active" && own.length === 0 ? (
+				<NoActiveRows keys={keys} />
+			) : null}
 			{rows}
 			<MadeForYou keys={grouped.madeForYou} now={now} defaultOpen={madeOpen} />
 			<p className="ky-foot">{FOOTER}</p>
@@ -422,7 +450,9 @@ export function KeysBody({
 	const sentence =
 		keys === null
 			? { tone: "idle" as const, text: "Loading your keys.", sub: undefined }
-			: keysSentence(keys, now);
+			: keysSentence(keys, now, {
+					revokedInUse: insights.some((i) => i.rule === "revoked_key_in_use"),
+				});
 	return (
 		<div className="ky-body">
 			<div className="ky-top">

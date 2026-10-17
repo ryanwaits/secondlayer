@@ -118,6 +118,31 @@ describe("keysSentence", () => {
 		expect(out.sub).toBe("ci and old haven't read anything in 35 days");
 	});
 
+	test("the first-run copy never mentions agents", () => {
+		const out = keysSentence([], NOW);
+		expect(out.tone).toBe("idle");
+		expect(out.sub).not.toContain("agents");
+	});
+
+	test("every key revoked counts them and says webhooks keep running", () => {
+		const gone = (id: string) => key({ id, status: "revoked" });
+		const two = keysSentence([gone("a"), gone("b")], NOW);
+		expect(two.tone).toBe("idle");
+		expect(two.text).toBe("No active keys.");
+		expect(two.sub).toContain("You revoked all 2.");
+		expect(keysSentence([gone("a")], NOW).sub).toContain(
+			"You revoked your only key.",
+		);
+	});
+
+	test("a revoked key still being called turns the header to an alarm", () => {
+		const out = keysSentence([key({ status: "revoked" })], NOW, {
+			revokedInUse: true,
+		});
+		expect(out.tone).toBe("alarm");
+		expect(out.text).toBe("No active keys, and one is still called.");
+	});
+
 	test("a docs key is not counted", () => {
 		const docs = used({ id: "d", product: "docs" });
 		expect(keysSentence([docs], NOW).text).toBe("No keys yet.");

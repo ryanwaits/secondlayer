@@ -7,16 +7,11 @@ import {
 } from "@/components/dashboard/charts/heat-strip";
 import { Legend } from "@/components/dashboard/charts/legend";
 import { ActionableInsights } from "@/components/dashboard/insight/insight-actions";
-import {
-	KeyLine,
-	PlaceholderRows,
-} from "@/components/dashboard/shell/onboarding";
+import { PlaceholderRows } from "@/components/dashboard/shell/onboarding";
 import { StatusSentence } from "@/components/dashboard/shell/status-sentence";
-import { ensureKeys, useAccountData } from "@/lib/account-data";
 import { heatGrid } from "@/lib/dashboard-charts";
 import type { Insight } from "@/lib/insights";
 import { forAccountRules, useInsights } from "@/lib/insights-store";
-import { type KeyState, keyState as keyStateOf } from "@/lib/onboarding";
 import { useFirstSettle } from "@/lib/use-first-settle";
 import { hostOf } from "@/lib/webhooks-data";
 import { poll, refreshList, refreshSummary } from "@/lib/webhooks-store";
@@ -136,7 +131,7 @@ await sl.webhooks.create({
   ],
 });`;
 
-function EmptyState({ keyState }: { keyState: KeyState }) {
+function EmptyState() {
 	return (
 		<div className="wl-empty">
 			<StatusSentence tone="idle">No webhooks yet.</StatusSentence>
@@ -145,7 +140,6 @@ function EmptyState({ keyState }: { keyState: KeyState }) {
 				create one with the SDK, so the filter lives in your code and your
 				reviews.
 			</p>
-			<KeyLine state={keyState} />
 			<div className="wh-cli nk-block">
 				<code className="wh-cli-code">{CREATE_EXAMPLE}</code>
 				<CopyButton code={CREATE_EXAMPLE} inline label="Copy" />
@@ -234,8 +228,6 @@ export interface WebhooksListBodyProps {
 	hours: readonly string[];
 	notice: ListNotice | null;
 	onOpenHour: (id: string, hourIso: string) => void;
-	/** The account has no key of its own yet. */
-	keyState?: KeyState;
 	/** The hourly summary has loaded. Defaults to true. */
 	summaryLoaded?: boolean;
 	/** Account-level insights about this page (the stack not answering). */
@@ -247,7 +239,6 @@ export function WebhooksListBody({
 	hours,
 	notice,
 	onOpenHour,
-	keyState = "active",
 	summaryLoaded = true,
 	pageInsights = [],
 }: WebhooksListBodyProps) {
@@ -295,9 +286,7 @@ export function WebhooksListBody({
 				<p className="acct-error">{notice.message}</p>
 			) : null}
 
-			{rows !== null && rows.length === 0 ? (
-				<EmptyState keyState={keyState} />
-			) : null}
+			{rows !== null && rows.length === 0 ? <EmptyState /> : null}
 
 			{rows !== null && rows.length > 0 ? (
 				<>
@@ -347,15 +336,10 @@ export function WebhooksListSection() {
 	// the state line says "Counting…", so nothing moves when the summary or
 	// insights arrive.
 	const ready = useFirstSettle(rows !== null);
-	const { keys } = useAccountData();
 	const { data: insights } = useInsights();
-	useEffect(() => {
-		ensureKeys();
-	}, []);
 	return (
 		<WebhooksListBody
 			pageInsights={forAccountRules(insights, ["stack_unreachable_webhooks"])}
-			keyState={keyStateOf(keys, new Date())}
 			rows={ready ? rows : null}
 			hours={hours}
 			summaryLoaded={summaryLoaded}
