@@ -64,6 +64,23 @@ export async function loadAccountInput(
 		.where("created_at", ">=", since1h)
 		.execute();
 
+	const stackRows = await db
+		.selectFrom("api_failed_requests")
+		.select(["method", "path", "status", "created_at"])
+		.where("account_id", "=", accountId)
+		.where("status", "in", [502, 503, 504])
+		// 503 while the stack is created or woken is normal, not an outage.
+		.where("message", "not in", ["provisioning", "starting"])
+		.where((eb) =>
+			eb.or([
+				eb("path", "like", "/api/webhooks%"),
+				eb("path", "like", "/api/subgraphs%"),
+			]),
+		)
+		.where("created_at", ">=", since1h)
+		.orderBy("created_at", "asc")
+		.execute();
+
 	const revokedRows = await db
 		.selectFrom("api_failed_requests as f")
 		.innerJoin("api_keys as k", "k.id", "f.api_key_id")
@@ -188,6 +205,12 @@ export async function loadAccountInput(
 			createdAt: r.created_at,
 		})),
 		failed5xx: failedRows.map((r) => ({
+			path: r.path,
+			status: r.status,
+			createdAt: r.created_at,
+		})),
+		stackFailures: stackRows.map((r) => ({
+			method: r.method,
 			path: r.path,
 			status: r.status,
 			createdAt: r.created_at,

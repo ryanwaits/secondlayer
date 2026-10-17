@@ -20,6 +20,8 @@ import {
 	POLLING_STALE_INTERVALS,
 	REVOKED_KEY_ACTIVE_MS,
 	SERVER_ERRORS_MIN_5XX,
+	STACK_UNREACHABLE_ACTIVE_MS,
+	STACK_UNREACHABLE_MIN_FAILURES,
 	handoffPrompt,
 	plural,
 	utcDateTime,
@@ -51,6 +53,13 @@ export interface AccountRuleInput {
 	requests: RequestLogRow[];
 	/** 5xx answers recorded for this account in the last hour. */
 	failed5xx: { path: string; status: number; createdAt: Date }[];
+	/** Gateway calls to the hosted stack that got no answer, last hour, oldest first. */
+	stackFailures: {
+		method: string;
+		path: string;
+		status: number;
+		createdAt: Date;
+	}[];
 	/** The month's first paid `rows.delivered` row, and what followed. */
 	allowance: {
 		firstPaidAt: Date | null;
@@ -454,6 +463,163 @@ const serverErrors: InsightRule<AccountRuleInput> = {
 	},
 };
 
+// ── stack_unreachable ──────────────────────────────────────────────────
+
+type StackPage = "all" | "webhooks" | "subgraphs";
+
+const stackPath = (path: string): "webhooks" | "subgraphs" =>
+	path.startsWith("/api/webhooks") ? "webhooks" : "subgraphs";
+
+const STACK_MINUTES = 60;
+
+/** Copy is tense-neutral: a recovered insight keeps its last-fired payload. */
+const STACK_COPY: Record<
+	StackPage,
+	{
+		rule: string;
+		line: (n: number) => string;
+		meta: (n: number, window: string) => string;
+		body: string;
+	}
+> = {
+	all: {
+		rule: "stack_unreachable",
+		line: (n) => `Your hosted stack didn't answer ${plural(n, "call")}`,
+		meta: (_n, window) => window,
+		body: "Calls to your webhooks and subgraphs got a 502 while we couldn't reach the stack that runs them. It restarts on its own, and you weren't billed for these calls.",
+	},
+	webhooks: {
+		rule: "stack_unreachable_webhooks",
+		line: () => "Webhook changes didn't reach your stack",
+		meta: (n, window) => `${plural(n, "call")} · ${window}`,
+		body: "Listing, pausing and editing webhooks failed while we couldn't reach your stack. Any change in the table below didn't go through, so send it again. Deliveries go out from inside the stack; check Deliveries for this window.",
+	},
+	subgraphs: {
+		rule: "stack_unreachable_subgraphs",
+		line: () => "Subgraph queries didn't reach your stack",
+		meta: (n, window) => `${plural(n, "call")} · ${window}`,
+		body: "Queries and deploys got a 502 while we couldn't reach your stack. Run them again; your subgraph data stays where it is.",
+	},
+};
+
+/** "17:42" (utcTime without its zone suffix, for places that say UTC once). */
+const clock = (date: Date): string => utcTime(date).replace(" UTC", "");
+
+function stackUnreachable(
+	page: StackPage,
+	input: AccountRuleInput,
+): DetectedInsight | null {
+	const failures =
+		page === "all"
+			? input.stackFailures
+			: input.stackFailures.filter((f) => stackPath(f.path) === page);
+	if (failures.length < STACK_UNREACHABLE_MIN_FAILURES) return null;
+
+	const times = failures.map((f) => f.createdAt.getTime());
+	const first = new Date(Math.min(...times));
+	const last = new Date(Math.max(...times));
+	if (input.now.getTime() - last.getTime() > STACK_UNREACHABLE_ACTIVE_MS) {
+		return null;
+	}
+	const sameMinute = clock(first) === clock(last);
+	const window = sameMinute
+		? `at ${clock(first)} UTC`
+		: `${clock(first)} to ${clock(last)} UTC`;
+
+	const count = (p: "webhooks" | "subgraphs") =>
+		input.stackFailures.filter((f) => stackPath(f.path) === p).length;
+	const links =
+		page === "all"
+			? [
+					{
+						label: "Webhooks",
+						href: "/account/webhooks",
+						count: count("webhooks"),
+					},
+					{
+						label: "Subgraphs",
+						href: "/account/subgraphs",
+						count: count("subgraphs"),
+					},
+				].filter((l) => l.count > 0)
+			: [
+					{
+						label: "All on Overview",
+						href: "/account",
+						count: input.stackFailures.length,
+					},
+				];
+
+	// Cell i covers the whole minute now - (59 - i) minutes.
+	const nowMinute = Math.floor(input.now.getTime() / MINUTE_MS);
+	const failed = new Array<boolean>(STACK_MINUTES).fill(false);
+	for (const t of times) {
+		const slot = STACK_MINUTES - 1 - (nowMinute - Math.floor(t / MINUTE_MS));
+		if (slot >= 0 && slot < STACK_MINUTES) failed[slot] = true;
+	}
+
+	const copy = STACK_COPY[page];
+	const n = failures.length;
+	return {
+		rule: copy.rule,
+		severity: "losing",
+		impact: n,
+		resource: RESOURCE,
+		line: copy.line(n),
+		meta: copy.meta(n, window),
+		lead: "Our fault, not yours.",
+		body: copy.body,
+		evidence: [
+			{ kind: "links", title: "Where", links },
+			{
+				kind: "minutes",
+				title: "Calls that failed, last hour",
+				failed,
+				labels: [
+					clock(
+						new Date(input.now.getTime() - (STACK_MINUTES - 1) * MINUTE_MS),
+					),
+					`${clock(input.now)} now`,
+				],
+			},
+			{
+				kind: "table",
+				title: "Calls that failed",
+				columns: ["Time (UTC)", "Call", "Answer"],
+				rows: [...failures]
+					.reverse()
+					.slice(0, 8)
+					.map((f) => [clock(f.createdAt), `${f.method} ${f.path}`, f.status]),
+			},
+		],
+		// No hand-off: the fault is ours, so the card shows no hand-off block.
+		handoff: { prompt: "", commands: [] },
+		how: {
+			detector: `${STACK_UNREACHABLE_MIN_FAILURES} or more calls to the hosted stack answered 502, 503 or 504 (not while it was starting) in the last hour, the newest within ${STACK_UNREACHABLE_ACTIVE_MS / MINUTE_MS} minutes`,
+			facts: [
+				["calls", String(n)],
+				["window", window],
+				["paths", [...new Set(failures.map((f) => f.path))].join(", ")],
+			],
+		},
+	};
+}
+
+const stackUnreachableAll: InsightRule<AccountRuleInput> = {
+	id: "stack_unreachable",
+	evaluate: (input) => stackUnreachable("all", input),
+};
+
+const stackUnreachableWebhooks: InsightRule<AccountRuleInput> = {
+	id: "stack_unreachable_webhooks",
+	evaluate: (input) => stackUnreachable("webhooks", input),
+};
+
+const stackUnreachableSubgraphs: InsightRule<AccountRuleInput> = {
+	id: "stack_unreachable_subgraphs",
+	evaluate: (input) => stackUnreachable("subgraphs", input),
+};
+
 // ── allowance_exhausted ────────────────────────────────────────────────
 
 const allowanceExhausted: InsightRule<AccountRuleInput> = {
@@ -842,6 +1008,9 @@ export const ACCOUNT_RULES: InsightRule<AccountRuleInput>[] = [
 	duplicateReads,
 	pollingLoop,
 	serverErrors,
+	stackUnreachableAll,
+	stackUnreachableWebhooks,
+	stackUnreachableSubgraphs,
 	allowanceExhausted,
 	backfill,
 	capPace,

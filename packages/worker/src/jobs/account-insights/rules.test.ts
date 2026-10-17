@@ -16,6 +16,7 @@ function input(over: Partial<AccountRuleInput> = {}): AccountRuleInput {
 		now: NOW,
 		requests: [],
 		failed5xx: [],
+		stackFailures: [],
 		allowance: { firstPaidAt: null, paidRows: 0, paidUsdMicros: 0n },
 		monthRows: 0,
 		rowsByDay: [],
@@ -646,6 +647,93 @@ describe("revoked_key_in_use", () => {
 	});
 });
 
+describe("stack_unreachable", () => {
+	const failure = (
+		path: string,
+		minutesAgo: number,
+		status = 502,
+		method = "GET",
+	) => ({ method, path, status, createdAt: at(minutesAgo) });
+	const mixed = [
+		failure("/api/subgraphs", 30),
+		failure("/api/subgraphs/a", 20),
+		failure("/api/webhooks", 10),
+		failure("/api/subgraphs/b", 5),
+		failure("/api/webhooks", 2),
+	];
+
+	test("fires for all three pages with their own counts", () => {
+		const all = fire("stack_unreachable", input({ stackFailures: mixed }));
+		expect(all?.severity).toBe("losing");
+		expect(all?.line).toContain("5 calls");
+		const links = all?.evidence.find((e) => e.kind === "links");
+		expect(links?.kind === "links" && links.links).toEqual([
+			{ label: "Webhooks", href: "/account/webhooks", count: 2 },
+			{ label: "Subgraphs", href: "/account/subgraphs", count: 3 },
+		]);
+		const hooks = fire(
+			"stack_unreachable_webhooks",
+			input({ stackFailures: mixed }),
+		);
+		expect(hooks?.meta).toContain("2 calls");
+		const graphs = fire(
+			"stack_unreachable_subgraphs",
+			input({ stackFailures: mixed }),
+		);
+		expect(graphs?.meta).toContain("3 calls");
+	});
+
+	test("clears when the newest failure is older than 10 minutes", () => {
+		const old = [failure("/api/webhooks", 30), failure("/api/webhooks", 11)];
+		for (const id of [
+			"stack_unreachable",
+			"stack_unreachable_webhooks",
+			"stack_unreachable_subgraphs",
+		]) {
+			expect(rule(id).evaluate(input({ stackFailures: old }))).toBeNull();
+		}
+	});
+
+	test("one failure is a blip", () => {
+		const one = [failure("/api/webhooks", 1)];
+		expect(
+			rule("stack_unreachable").evaluate(input({ stackFailures: one })),
+		).toBeNull();
+	});
+
+	test("a page with no failures stays quiet and its link is dropped from Overview", () => {
+		const graphsOnly = [
+			failure("/api/subgraphs", 4),
+			failure("/api/subgraphs", 3),
+		];
+		expect(
+			rule("stack_unreachable_webhooks").evaluate(
+				input({ stackFailures: graphsOnly }),
+			),
+		).toBeNull();
+		const all = rule("stack_unreachable").evaluate(
+			input({ stackFailures: graphsOnly }),
+		);
+		const links = all?.evidence.find((e) => e.kind === "links");
+		expect(links?.kind === "links" && links.links.map((l) => l.label)).toEqual([
+			"Subgraphs",
+		]);
+	});
+
+	test("has no hand-off and a 60-minute strip marking failed minutes", () => {
+		const out = rule("stack_unreachable").evaluate(
+			input({ stackFailures: mixed }),
+		);
+		expect(out?.handoff.prompt).toBe("");
+		const strip = out?.evidence.find((e) => e.kind === "minutes");
+		if (strip?.kind !== "minutes") throw new Error("no minutes evidence");
+		expect(strip.failed).toHaveLength(60);
+		const marked = strip.failed.flatMap((f, i) => (f ? [59 - i] : []));
+		expect(marked.sort((a, b) => a - b)).toEqual([2, 5, 10, 20, 30]);
+		expect(strip.labels[1]).toBe("18:00 now");
+	});
+});
+
 describe("hand-off prompts and copy", () => {
 	test("every rule fired in this file", () => {
 		const ids = new Set(collected.map((c) => c.rule));
@@ -655,6 +743,8 @@ describe("hand-off prompts and copy", () => {
 	test("no prompt contains code", () => {
 		for (const insight of collected) {
 			const prompt = insight.handoff.prompt;
+			// Our-fault insights carry no hand-off at all.
+			if (prompt === "") continue;
 			for (const banned of ["```", "`", "{", "=>", "function", "import"]) {
 				expect(prompt, `${insight.rule}: ${banned}`).not.toContain(banned);
 			}
