@@ -8400,9 +8400,6 @@ button.sg-sort:focus-visible {
 .ob-key-text .dash-dot {
 	transform: translateY(-1px);
 }
-.ob-key .acct-btn {
-	text-decoration: none;
-}
 .ob-steps {
 	display: grid;
 	max-width: 640px;

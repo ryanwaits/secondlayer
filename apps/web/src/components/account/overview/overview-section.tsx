@@ -292,7 +292,7 @@ export function OnboardingSentence({
 		return (
 			<StatusSentence
 				tone="idle"
-				sub="The SDK, the CLI and your agents all read with it. The first 1M rows each month are free, no card needed."
+				sub="The SDK, the CLI and plain HTTP calls all read with it. The first 1M rows each month are free, no card needed."
 			>
 				Make a key to start.
 			</StatusSentence>
