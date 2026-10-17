@@ -164,34 +164,6 @@ export async function loadAccountInput(
 		usdMicros: BigInt(d.usd_micros ?? "0"),
 	}));
 
-	const revokedByKey = new Map<
-		string,
-		{
-			keyId: string;
-			name: string;
-			prefix: string;
-			revokedAt: Date | null;
-			calls: number;
-			lastAt: Date;
-			paths: Map<string, number>;
-		}
-	>();
-	for (const r of revokedRows) {
-		const entry = revokedByKey.get(r.key_id) ?? {
-			keyId: r.key_id,
-			name: r.name ?? r.key_prefix,
-			prefix: r.key_prefix,
-			revokedAt: r.revoked_at,
-			calls: 0,
-			lastAt: r.created_at,
-			paths: new Map<string, number>(),
-		};
-		entry.calls += 1;
-		if (r.created_at > entry.lastAt) entry.lastAt = r.created_at;
-		entry.paths.set(r.path, (entry.paths.get(r.path) ?? 0) + 1);
-		revokedByKey.set(r.key_id, entry);
-	}
-
 	return {
 		now,
 		requests: requestRows.map((r) => ({
@@ -236,16 +208,65 @@ export async function loadAccountInput(
 			createdAt: k.created_at,
 			lastUsedAt: k.last_used_at,
 		})),
-		revokedKeyCalls: [...revokedByKey.values()]
-			.map(({ paths, ...k }) => ({
-				...k,
-				topPaths: [...paths]
-					.map(([path, calls]) => ({ path, calls }))
-					.sort((a, b) => b.calls - a.calls)
-					.slice(0, 3),
-			}))
-			.sort((a, b) => b.calls - a.calls),
+		revokedKeyCalls: groupRevokedCalls(revokedRows),
 	};
+}
+
+/**
+ * Where `secondlayer login` and `whoami` check a saved login. A revoked key
+ * failing there is someone checking it (the CLI then signs in again), not a
+ * job still running with it, so it never counts as the key being in use.
+ */
+const LOGIN_CHECK_PATHS: ReadonlySet<string> = new Set(["/api/accounts/me"]);
+
+/** `KEY_REVOKED` failures, one entry per key, most-called first. */
+export function groupRevokedCalls(
+	rows: readonly {
+		key_id: string;
+		path: string;
+		created_at: Date;
+		name: string | null;
+		key_prefix: string;
+		revoked_at: Date | null;
+	}[],
+): AccountRuleInput["revokedKeyCalls"] {
+	const byKey = new Map<
+		string,
+		{
+			keyId: string;
+			name: string;
+			prefix: string;
+			revokedAt: Date | null;
+			calls: number;
+			lastAt: Date;
+			paths: Map<string, number>;
+		}
+	>();
+	for (const r of rows) {
+		if (LOGIN_CHECK_PATHS.has(r.path)) continue;
+		const entry = byKey.get(r.key_id) ?? {
+			keyId: r.key_id,
+			name: r.name ?? r.key_prefix,
+			prefix: r.key_prefix,
+			revokedAt: r.revoked_at,
+			calls: 0,
+			lastAt: r.created_at,
+			paths: new Map<string, number>(),
+		};
+		entry.calls += 1;
+		if (r.created_at > entry.lastAt) entry.lastAt = r.created_at;
+		entry.paths.set(r.path, (entry.paths.get(r.path) ?? 0) + 1);
+		byKey.set(r.key_id, entry);
+	}
+	return [...byKey.values()]
+		.map(({ paths, ...k }) => ({
+			...k,
+			topPaths: [...paths]
+				.map(([path, calls]) => ({ path, calls }))
+				.sort((a, b) => b.calls - a.calls)
+				.slice(0, 3),
+		}))
+		.sort((a, b) => b.calls - a.calls);
 }
 
 /**
