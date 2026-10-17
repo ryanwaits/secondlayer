@@ -77,17 +77,44 @@ async function runTokenLogin(): Promise<void> {
 	success(`Logged in as ${account.email} (${target})`);
 }
 
+export interface LoginCheckDeps {
+	readSession: typeof readSession;
+	/** Resolves if the server accepts the token; throws CliHttpError when it doesn't. */
+	verify: (target: string, token: string) => Promise<unknown>;
+}
+
+const defaultLoginCheckDeps: LoginCheckDeps = {
+	readSession,
+	verify: (target, token) =>
+		httpAt(target, "/api/accounts/me", { bearer: token }),
+};
+
 /**
  * The "already logged in" check shared by both flows. False means stop: the
  * caller has already said why.
  */
-async function shouldContinueLogin(
+export async function shouldContinueLogin(
 	target: string,
 	options: LoginOptions,
+	deps: LoginCheckDeps = defaultLoginCheckDeps,
 ): Promise<boolean> {
 	if (options.force) return true;
-	const existing = await readSession(target);
+	const existing = await deps.readSession(target);
 	if (!existing) return true;
+	try {
+		await deps.verify(target, existing.token);
+	} catch (err) {
+		if (
+			err instanceof CliHttpError &&
+			(err.status === 401 || err.status === 403)
+		) {
+			info(
+				`Your saved login for ${existing.email} stopped working (revoked or expired). Signing in again.`,
+			);
+			return true;
+		}
+		// Offline or a server error: we can't tell, so keep the saved login.
+	}
 	info(`Already logged in as ${existing.email} (${target}).`);
 	const hint =
 		"Run 'secondlayer logout' first, or re-run with --force to switch accounts.";

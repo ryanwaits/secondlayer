@@ -47,6 +47,29 @@ function nextStepHint(status: number | undefined): string | undefined {
 	return undefined;
 }
 
+/** The message for a rejected credential, or null when the failure is not an auth one. */
+export function authFailureMessage(
+	code: string | undefined,
+	status: number | undefined,
+	ossMode: boolean,
+): { message: string; hint: string } | null {
+	if (code === "KEY_REVOKED") {
+		return {
+			message: "Your saved login was revoked.",
+			hint: "Run `secondlayer login` to sign in again. If you set SECONDLAYER_API_KEY, replace it with a key from /account/keys.",
+		};
+	}
+	if (code === "SESSION_EXPIRED" || status === 401) {
+		return {
+			message: "Authentication required.",
+			hint: ossMode
+				? "Set INSTANCE_TOKEN from `secondlayer init`."
+				: "Run `secondlayer login` to re-authenticate.",
+		};
+	}
+	return null;
+}
+
 /**
  * Shared error handler. Maps typed codes to user-facing, actionable hints.
  */
@@ -56,15 +79,14 @@ export function handleApiError(err: unknown, action: string): never {
 			? err.status
 			: undefined;
 
-	if (
-		(err instanceof CliHttpError && err.code === "SESSION_EXPIRED") ||
-		status === 401
-	) {
-		printError("Authentication required.", {
-			hint: isOssMode()
-				? "Set INSTANCE_TOKEN from `secondlayer init`."
-				: "Run `secondlayer login` to re-authenticate.",
-		});
+	const code =
+		err instanceof ApiError || err instanceof CliHttpError
+			? err.code
+			: undefined;
+
+	const auth = authFailureMessage(code, status, isOssMode());
+	if (auth) {
+		printError(auth.message, { hint: auth.hint });
 		process.exit(1);
 	}
 

@@ -63,8 +63,28 @@ export class StacksApiClient {
 				"statusCode" in error.response
 					? error.response.statusCode
 					: undefined;
+			const responseBody =
+				typeof error === "object" &&
+				error !== null &&
+				"response" in error &&
+				typeof error.response === "object" &&
+				error.response !== null &&
+				"body" in error.response
+					? error.response.body
+					: undefined;
 			const message = error instanceof Error ? error.message : String(error);
 
+			if (
+				statusCode === 401 &&
+				typeof responseBody === "object" &&
+				responseBody !== null &&
+				"code" in responseBody &&
+				responseBody.code === "KEY_REVOKED"
+			) {
+				throw new Error(
+					"Your saved login was revoked. Run `secondlayer login` to sign in again.",
+				);
+			}
 			if (statusCode === 401) {
 				throw new Error(
 					isOssMode()
