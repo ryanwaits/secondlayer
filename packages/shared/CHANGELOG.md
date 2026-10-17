@@ -1,5 +1,11 @@
 # @secondlayer/shared
 
+## 13.9.0
+
+### Minor Changes
+
+- Add `ApiKeyRevokedError` (`KEY_REVOKED`, 401), `api_failed_requests.api_key_id` and `accounts.internal` migrations, the `REVOKED_KEY_ACTIVE_MS` and `POLLING_FOLLOW_GAP_MS` insight thresholds, and list insights once per resource and rule.
+
 ## 13.8.0
 
 ### Minor Changes
