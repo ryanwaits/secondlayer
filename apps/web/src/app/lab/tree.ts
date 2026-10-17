@@ -18,6 +18,11 @@ export const STORY_INDEX = [
 	{ id: "resource-row", group: "Dashboard", title: "Resource row" },
 	{ id: "webhook-header", group: "Dashboard", title: "Webhook header" },
 	{ id: "webhook-payload", group: "Dashboard", title: "Delivery payload" },
+	{
+		id: "webhook-listens-for",
+		group: "Dashboard",
+		title: "Webhook listens for",
+	},
 	{ id: "account-rows", group: "Dashboard", title: "Rows screen" },
 	{ id: "account-keys", group: "Dashboard", title: "Keys screen" },
 	{ id: "account-onboarding", group: "Dashboard", title: "New account" },

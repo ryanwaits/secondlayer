@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { FIXTURE_INSIGHTS } from "@/lib/insights.fixtures";
 import { renderToStaticMarkup } from "react-dom/server";
+import { describeTrigger } from "./describe-trigger";
 import { WebhookDetailBody } from "./detail-panel";
 import type { Range } from "./view";
 import { activityFor, attempt, detail } from "./webhook.fixtures";
@@ -141,31 +142,65 @@ describe("WebhookDetailBody chart", () => {
 	});
 });
 
+/** The markup's visible text: tags dropped, so inline code reads as part of its line. */
+const textOf = (html: string) => html.replace(/<[^>]+>/g, "");
+
+const FASTPOOL_ADDRESS = "SP21YTSM60CAY6D011EZVEVNKXVW8FVZE198XEFFP";
+
 describe("WebhookDetailBody listens for", () => {
-	test("renders the trigger sentence and says it is defined in code", () => {
-		const html = render({
-			webhook: detail({
-				triggers: [
-					{
-						type: "stx_transfer",
-						sender: "SP21YTSM60CAY6D011EZVEVNKXVW8FVZE198XEFFP",
-					},
-				],
-			}),
-		});
-		expect(html).toContain("Any STX transfer sent by SP21YT…EFFP");
-		expect(html).toContain("Defined in code");
+	const html = render({
+		webhook: detail({
+			triggers: [{ type: "stx_transfer", sender: FASTPOOL_ADDRESS }],
+		}),
+	});
+
+	test("a trigger is one row with its type and one-line summary", () => {
+		expect(textOf(html)).toContain("STX transfers sent by SP21YT…EFFP");
+		expect(html).toContain('<span class="lf-type">stx_transfer</span>');
+		expect(html).toContain('aria-expanded="false"');
+	});
+
+	test("its details section is in the markup but closed", () => {
+		expect(html).toMatch(/class="lf-det" data-scope="[^"]*" hidden=""/);
+		expect(html).toContain("Fires on every STX transfer");
+	});
+
+	test("offers Copy for agent and no longer says filters are defined in code", () => {
+		expect(html).toContain("Copy for agent");
+		expect(html).toContain("What gets copied");
+		expect(html).not.toContain("Defined in code");
+	});
+
+	test("each focus phrase is a focus link named by the generator's ref", () => {
+		const trigger = { type: "stx_transfer", sender: FASTPOOL_ADDRESS } as const;
+		const focus = describeTrigger(trigger, 0, [trigger]).prose.find(
+			(segment) => segment.focus,
+		)?.focus;
+		expect(focus).toBe("sender");
+		expect(html).toContain(
+			`<button type="button" class="flink" data-focus="${focus}" aria-pressed="false">`,
+		);
+	});
+
+	test("shows the code plainly until the rendered frame arrives", () => {
+		expect(html).toContain('<pre class="lf-pre">');
+		expect(html).not.toContain("// !ref");
 	});
 });
 
 describe("WebhookDetailBody unfiltered trigger", () => {
-	test("omits the daily volume clause when nothing has matched", () => {
-		const html = render({
-			webhook: detail({ triggers: [{ type: "sbtc_deposit" }] }),
-			activity: activityFor(0),
-		});
-		expect(html).toContain("matches every sBTC deposit on chain.");
-		expect(html).not.toContain("events a day");
+	const html = render({
+		webhook: detail({ triggers: [{ type: "sbtc_deposit" }] }),
+		activity: activityFor(0),
+	});
+
+	test("the row says it matches every event of its type", () => {
+		expect(textOf(html)).toContain("Every sBTC deposit on chain");
+	});
+
+	test("the hidden details say there are no filters, without a daily volume when nothing matched", () => {
+		expect(textOf(html)).toContain("No filters");
+		expect(html).not.toContain("a day");
 	});
 });
 

@@ -3,6 +3,11 @@ import { AccountChip, AccountMenuPanel } from "@/components/account-menu";
 import { SubgraphsEmptyState } from "@/components/account/subgraphs/empty-state";
 import { SchemaView } from "@/components/account/subgraphs/schema-view";
 import { exampleDetail } from "@/components/account/subgraphs/subgraph.fixtures";
+import { ListensFor } from "@/components/account/webhooks/listens-for";
+import {
+	activityFor,
+	detail,
+} from "@/components/account/webhooks/webhook.fixtures";
 import { Choice } from "@/components/choice";
 import { Code } from "@/components/code/code";
 import { CodeTabs } from "@/components/code/code-tabs";
@@ -86,6 +91,11 @@ export type Story = (typeof STORY_INDEX)[number] & {
 	dos?: string[];
 	donts?: string[];
 };
+
+const FASTPOOL_SIGNERS = [
+	"SP21YTSM60CAY6D011EZVEVNKXVW8FVZE198XEFFP.fastpool-1-signer-manager",
+	"SPMPMA1V6P430M8C91QS1G9XJ95S59JS1TZFZ4Q4.fastpool-max500-signer-manager",
+];
 
 const STREAM_SETUP = `const client = createStreamsClient({ apiKey });
 await client.events.consume({
@@ -1260,6 +1270,59 @@ const META: Record<StoryId, Meta> = {
 			"<PayloadView webhookId={webhook.id} deliveryId={latest.id} triggers={webhook.triggers} responseBody={latest.responseBody} statusCode={latest.statusCode} host={hostOf(webhook.url)} />",
 		dos: ["Mount it only when the row is open; it fetches that one delivery."],
 		donts: ["Fold, summarize or syntax-highlight the JSON."],
+	},
+	"webhook-listens-for": {
+		src: [
+			"apps/web/src/components/account/webhooks/listens-for.tsx",
+			"apps/web/src/components/account/webhooks/describe-trigger.ts",
+		],
+		rule: "Each trigger is one closed row. Details opens a sentence whose phrases focus the code they describe.",
+		variants: [
+			{
+				id: "fastpool",
+				label: "Two print triggers",
+				render: () => (
+					<ListensFor
+						webhook={detail({
+							id: "wh_fastpool",
+							name: "fastpool-pox5-test",
+							triggers: [
+								{
+									type: "print_event",
+									contractId: "SP000000000000000000002Q6VF78.pox-5",
+									where: { signer: FASTPOOL_SIGNERS },
+								},
+								{
+									type: "print_event",
+									contractId: "SP000000000000000000002Q6VF78.pox-5",
+									where: { "signer-manager": FASTPOOL_SIGNERS },
+								},
+							],
+						})}
+						activity={activityFor(4)}
+					/>
+				),
+			},
+			{
+				id: "unfiltered",
+				label: "Unfiltered",
+				render: () => (
+					<ListensFor
+						webhook={detail({
+							id: "wh_unfiltered",
+							name: "every-deposit",
+							triggers: [{ type: "sbtc_deposit" }],
+						})}
+						activity={activityFor(4)}
+					/>
+				),
+			},
+		],
+		usage: "<ListensFor webhook={webhook} activity={activity} />",
+		dos: ["Click a highlighted phrase to dim every other code row."],
+		donts: [
+			"Write a trigger's sentence by hand: it comes from describeTrigger.",
+		],
 	},
 	"charts-bars": {
 		src: [

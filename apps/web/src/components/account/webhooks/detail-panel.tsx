@@ -41,10 +41,10 @@ import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { AttemptTimeline } from "./attempt-timeline";
 import { AsleepNotice } from "./list-panel";
+import { ListensFor } from "./listens-for";
 import { PayloadView, answeredAttempt } from "./payload-view";
 import { displayStatus, formatEventCell, shortenName } from "./shared";
 import { WebhookDetailSkeleton } from "./skeletons";
-import { TriggersBox } from "./triggers";
 import {
 	RANGES,
 	type Range,
@@ -618,15 +618,8 @@ export function WebhookDetailBody({
 				/>
 			) : null}
 
-			<div className="wd-two">
-				<section className="dash-panel" aria-label="Listens for">
-					<span className="dash-label">Listens for</span>
-					<TriggersBox triggers={webhook.triggers} activity={activity} />
-					<span className="wd-faint">
-						Defined in code. Filters can't change in place: create a new webhook
-						with the SDK, then delete this one.
-					</span>
-				</section>
+			<div className="wd-stack">
+				<ListensFor webhook={webhook} activity={activity} />
 				{quiet ? (
 					<p className="wd-faint">
 						No deliveries yet. This webhook delivers on the first matching event

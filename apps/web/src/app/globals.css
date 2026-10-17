@@ -7061,11 +7061,10 @@ button.dash-row {
 	font-variant-numeric: tabular-nums;
 	color: var(--ink);
 }
-.wd-two {
+.wd-stack {
 	display: grid;
-	grid-template-columns: minmax(0, 1fr) minmax(0, 1.6fr);
-	gap: 56px;
-	align-items: start;
+	gap: 40px;
+	min-width: 0;
 }
 .wd-faint {
 	font-size: 12.5px;
@@ -7268,53 +7267,146 @@ button.dash-row {
 	overflow-wrap: anywhere;
 	color: var(--sub);
 }
-.wd-triggers {
+/* Listens for: one closed row per trigger; Details opens a docs-style section. */
+.lf {
 	display: grid;
-	gap: 10px;
+	gap: 14px;
+	min-width: 0;
+	align-content: start;
 }
-.wd-trigger {
-	display: grid;
-	gap: 8px;
-	padding: 12px 16px;
-	border: 1px solid var(--line);
-	border-radius: 8px;
-	font: 400 12.5px / 1.7 var(--font-mono-stack);
-	color: var(--sub);
+.lf-h {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	gap: 12px;
+	min-height: 13px;
 }
-.wd-trigger p {
-	margin: 0;
-	color: var(--ink);
-}
-.wd-trigger dl {
-	display: grid;
-	grid-template-columns: auto 1fr;
-	gap: 2px 14px;
-	margin: 0;
-}
-.wd-trigger dl > div {
-	display: contents;
-}
-.wd-trigger dt {
+.lf-count {
+	font: 400 12px / 1 var(--font-sans-stack);
 	color: var(--faint);
 }
-.wd-trigger dd {
-	margin: 0;
-	overflow-wrap: anywhere;
+.lf-rows {
+	display: grid;
 }
-.wd-op {
-	color: var(--faint);
+.lf-trig {
+	border-top: 1px solid var(--line);
 }
-.wd-chip {
-	justify-self: start;
-	padding: 1px 6px;
+.lf-trig:last-child {
+	border-bottom: 1px solid var(--line);
+}
+.lf-row {
+	width: 100%;
+	display: grid;
+	grid-template-columns: auto minmax(0, 1fr) auto;
+	gap: 14px;
+	align-items: center;
+	padding: 12px 0;
+	text-align: left;
+	font: inherit;
+	color: inherit;
+	background: none;
+	border: 0;
+	cursor: pointer;
+}
+.lf-type {
+	display: inline-flex;
+	align-items: center;
+	height: 22px;
+	padding: 0 7px;
 	border: 1px solid var(--line);
 	border-radius: 4px;
-	font: 500 12px / 1.5 var(--font-mono-stack);
+	font: 500 12px / 1 var(--font-mono-stack);
+	color: var(--ink);
+	white-space: nowrap;
+}
+.lf-line {
+	min-width: 0;
+	font-size: 14.5px;
+	color: var(--ink);
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+.lf-line code,
+.lf-prose code {
+	font-family: var(--font-mono-stack);
+	font-size: 0.92em;
+}
+.lf-toggle {
+	font: 400 13px / 1 var(--font-sans-stack);
+	color: var(--pri-ink);
+	white-space: nowrap;
+}
+.lf-row:hover .lf-toggle {
+	text-decoration: underline;
+}
+.lf-det {
+	display: grid;
+	gap: 14px;
+	padding: 2px 0 20px;
+}
+.lf-det[hidden] {
+	display: none;
+}
+.lf-prose {
+	margin: 0;
+	max-width: 720px;
+	font-size: 16px;
+	line-height: 1.75;
+}
+.lf-prose code {
+	font-size: 14px;
+}
+.lf-pre {
+	margin: 0;
+	padding: 12px 14px;
+	border: 1px solid var(--line);
+	border-radius: 8px;
+	font: 400 13px / 22px var(--font-mono-stack);
+	color: var(--ink);
+	overflow-x: auto;
+}
+.lf-foot {
+	display: flex;
+	justify-content: space-between;
+	align-items: baseline;
+	gap: 6px 16px;
+	flex-wrap: wrap;
+}
+.lf-note {
+	margin: 0;
+	max-width: 640px;
+	font-size: 13px;
+	color: var(--faint);
+}
+.lf-peek summary {
+	cursor: pointer;
+	font-size: 13px;
+	color: var(--sub);
+	list-style: none;
+}
+.lf-peek summary::-webkit-details-marker {
+	display: none;
+}
+.lf-peek summary:hover {
 	color: var(--ink);
 }
-.wd-trigger p.wd-warn {
-	font: 400 12.5px / 1.5 var(--font-sans-stack);
+.lf-peek pre {
+	margin: 10px 0 0;
+	padding: 14px 16px;
+	border: 1px solid var(--line);
+	border-radius: 8px;
+	font: 400 12.5px / 1.65 var(--font-mono-stack);
 	color: var(--sub);
+	white-space: pre-wrap;
+	overflow-wrap: anywhere;
+	max-height: 420px;
+	overflow-y: auto;
+}
+@media (max-width: 760px) {
+	.lf-line {
+		white-space: normal;
+	}
 }
 .wd-skel {
 	display: grid;
@@ -7325,8 +7417,7 @@ button.dash-row {
 }
 
 @media (max-width: 900px) {
-	.wl-row,
-	.wd-two {
+	.wl-row {
 		grid-template-columns: minmax(0, 1fr);
 		gap: 20px;
 	}
