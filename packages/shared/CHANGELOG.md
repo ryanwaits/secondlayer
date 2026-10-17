@@ -1,5 +1,11 @@
 # @secondlayer/shared
 
+## 13.10.0
+
+### Minor Changes
+
+- Add `minutes` and `links` insight evidence kinds, and the `STACK_UNREACHABLE_MIN_FAILURES`, `STACK_UNREACHABLE_ACTIVE_MS` and `POLLING_STALE_INTERVALS` insight thresholds.
+
 ## 13.9.0
 
 ### Minor Changes
