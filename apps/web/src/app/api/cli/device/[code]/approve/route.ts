@@ -2,7 +2,7 @@ import { ApiError, apiRequest, getSessionFromRequest } from "@/lib/api";
 import { isSameOrigin } from "@/lib/same-origin";
 import { NextResponse } from "next/server";
 
-/** Approve a CLI sign-in: the API mints the machine's key when the CLI next polls. Session cookie only, from this site's own pages. */
+/** Approve a CLI sign-in: the API opens the machine's session when the CLI next polls. Session cookie only, from this site's own pages. */
 export async function POST(
 	req: Request,
 	context: { params: Promise<{ code: string }> },
@@ -15,15 +15,11 @@ export async function POST(
 		return NextResponse.json({ error: "Sign in first" }, { status: 401 });
 	}
 	const { code } = await context.params;
-	const body = (await req.json().catch(() => ({}))) as { name?: unknown };
-	const name =
-		typeof body.name === "string" ? body.name.trim().slice(0, 64) : "";
-	if (!name)
-		return NextResponse.json({ error: "Name the key" }, { status: 400 });
+
 	try {
 		await apiRequest(`/api/cli/device/${encodeURIComponent(code)}/approve`, {
 			method: "POST",
-			body: { name },
+			body: {},
 			sessionToken,
 		});
 		return NextResponse.json({ status: "approved" });
