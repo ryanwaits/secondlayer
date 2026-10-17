@@ -158,15 +158,20 @@ describe("webhooks dashboard proxy", () => {
 		});
 	}
 
-	test("GET :id/deliveries/:deliveryId is refused → 405, no fetch", async () => {
-		const { calls } = stubFetch(() => new Response("{}", { status: 200 }));
+	test("GET :id/deliveries/:deliveryId is forwarded (one delivery's payload)", async () => {
+		const { calls } = stubFetch(
+			() => new Response(JSON.stringify({ id: "d1" }), { status: 200 }),
+		);
 		const { GET } = await import("./route");
 		const res = await GET(
 			req({ cookie: "sl_session=tok" }),
 			ctx(["wh_1", "deliveries", "d1"]),
 		);
-		expect(res.status).toBe(405);
-		expect(calls.length).toBe(0);
+		expect(res.status).toBe(200);
+		expect(calls.length).toBe(1);
+		expect(calls[0]?.url.endsWith("/api/webhooks/wh_1/deliveries/d1")).toBe(
+			true,
+		);
 	});
 
 	test("GET :id/deliveries/:deliveryId/anything deeper is refused → 405", async () => {

@@ -39,7 +39,8 @@ function isAllowed(method: Method, segments: string[]): boolean {
 		) {
 			return true;
 		}
-		return false;
+		// one delivery, read when a dashboard row is opened
+		return segments.length === 3 && segments[1] === "deliveries";
 	}
 	if (method === "POST") {
 		return (

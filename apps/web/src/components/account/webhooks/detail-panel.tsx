@@ -41,6 +41,7 @@ import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { AttemptTimeline } from "./attempt-timeline";
 import { AsleepNotice } from "./list-panel";
+import { PayloadView } from "./payload-view";
 import { displayStatus, formatEventCell, shortenName } from "./shared";
 import { WebhookDetailSkeleton } from "./skeletons";
 import { TriggersBox } from "./triggers";
@@ -365,10 +366,12 @@ function DeliveriesChart({
 // ── Deliveries ───────────────────────────────────────────────────────────
 
 function DeliveriesPanel({
+	webhook,
 	rows,
 	hour,
 	onClearHour,
 }: {
+	webhook: Pick<WebhookDetail, "id" | "url" | "triggers">;
 	/** Null while the hour's window is still loading. */
 	rows: readonly DeliveryRow[] | null;
 	hour: { label: string } | null;
@@ -439,6 +442,7 @@ function DeliveriesPanel({
 								key={key}
 								attempts={attempts}
 								latest={latest}
+								webhook={webhook}
 								open={open === key}
 								onToggle={() => setOpen(open === key ? null : key)}
 							/>
@@ -462,11 +466,13 @@ function DeliveriesPanel({
 function DeliveryRowView({
 	attempts,
 	latest,
+	webhook,
 	open,
 	onToggle,
 }: {
 	attempts: DeliveryRow[];
 	latest: DeliveryRow;
+	webhook: Pick<WebhookDetail, "id" | "url" | "triggers">;
 	open: boolean;
 	onToggle: () => void;
 }) {
@@ -510,6 +516,14 @@ function DeliveryRowView({
 				<tr className="exp">
 					<td colSpan={5}>
 						<AttemptTimeline attempts={attempts} />
+						<PayloadView
+							webhookId={webhook.id}
+							deliveryId={latest.id}
+							triggers={webhook.triggers}
+							responseBody={latest.responseBody ?? null}
+							statusCode={latest.statusCode}
+							host={hostOf(webhook.url)}
+						/>
 					</td>
 				</tr>
 			) : null}
@@ -618,6 +632,7 @@ export function WebhookDetailBody({
 					</p>
 				) : (
 					<DeliveriesPanel
+						webhook={webhook}
 						rows={hour ? hourDeliveries : deliveries}
 						hour={hour}
 						onClearHour={onClearHour}

@@ -53,6 +53,7 @@ import {
 	KeysDemo,
 	OverviewDemo,
 	OverviewOnboardingDemo,
+	PayloadViewDemo,
 	RowsDemo,
 	RowsEmptyDemo,
 	StackedCostDemo,
@@ -1239,6 +1240,26 @@ const META: Record<StoryId, Meta> = {
 		usage: `<TitleRow name={name} tone="ok" managedBy={webhook.managedBy} onRename={rename} />`,
 		dos: ["Hover the name to reveal Rename; Enter saves, Esc cancels."],
 		donts: ["Offer Rename when `managedBy` is set."],
+	},
+	"webhook-payload": {
+		src: ["apps/web/src/components/account/webhooks/payload-view.tsx"],
+		rule: "An opened delivery shows what we sent and what the receiver sent back, as plain indented JSON. Values the trigger filtered on are marked; a long string clamps to one line with a +N that expands it.",
+		variants: [
+			{
+				id: "kept",
+				label: "Payload kept",
+				render: () => <PayloadViewDemo kept />,
+			},
+			{
+				id: "cleaned",
+				label: "Payload cleaned up",
+				render: () => <PayloadViewDemo kept={false} />,
+			},
+		],
+		usage:
+			"<PayloadView webhookId={webhook.id} deliveryId={latest.id} triggers={webhook.triggers} responseBody={latest.responseBody} statusCode={latest.statusCode} host={hostOf(webhook.url)} />",
+		dos: ["Mount it only when the row is open; it fetches that one delivery."],
+		donts: ["Fold, summarize or syntax-highlight the JSON."],
 	},
 	"charts-bars": {
 		src: [

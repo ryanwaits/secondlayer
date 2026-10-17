@@ -33,6 +33,7 @@ import {
 	exampleRows,
 } from "@/components/account/subgraphs/subgraph.fixtures";
 import { TitleRow } from "@/components/account/webhooks/detail-panel";
+import { PayloadPanel } from "@/components/account/webhooks/payload-view";
 import { type AmountOption, AmountPicker } from "@/components/amount-picker";
 import { MonoStackedBarChart } from "@/components/charts/mono-stacked-bar-chart";
 import { Choice } from "@/components/choice";
@@ -52,6 +53,7 @@ import {
 	toggleSort,
 	withFilter,
 } from "@/lib/subgraph-view";
+import type { ChainTrigger } from "@secondlayer/sdk";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
@@ -481,6 +483,95 @@ export function WebhookHeaderDemo({
 				setSaved(next);
 				return true;
 			}}
+		/>
+	);
+}
+
+const PAYLOAD_STORY_SENT = {
+	type: "chain.print_event.apply",
+	timestamp: "2026-10-16T17:39:14.000Z",
+	data: {
+		event: {
+			data: {
+				topic: "print",
+				value: {
+					topic: "unstake",
+					signer:
+						"SPMPMA1V6P430M8C91QS1G9XJ95S59JS1TZFZ4Q4.fastpool-max500-signer-manager",
+					staker: "SP134V7CBZZ4C356R2WTNE1522GGCZJ6YRN2A5SWG",
+					"amount-ustx": "100000000000",
+					"unlock-cycle": "146",
+					"first-reward-cycle": "143",
+					"unlock-burn-height": "972650",
+				},
+				raw_value:
+					"0x0c000000070b616d6f756e742d75737478010000000000000000000000174876e8001266697273742d7265776172642d6379636c65010000000000000000000000000000008f067369676e65720616296a283b358830510c486f90c13d924b92a6590e1e66617374706f6f6c2d6d61783530302d7369676e65722d6d616e61676572067374616b65720516464d9d8bffc8c194d817355704a21420cfc8dec505746f7069630d00000007756e7374616b6512756e6c6f636b2d6275726e2d68656967687401000000000000000000000000000ed76a0c756e6c6f636b2d6379636c650100000000000000000000000000000092",
+				contract_id: "SP000000000000000000002Q6VF78.pox-5",
+			},
+			type: "contract_event",
+			tx_id:
+				"0x9b5aa03c09d0c7f0939d0398e60ac7a521b23c3ce92a9781e9bbfe86604dcc41",
+			event_index: 2,
+		},
+		tx_id: "0x9b5aa03c09d0c7f0939d0398e60ac7a521b23c3ce92a9781e9bbfe86604dcc41",
+		action: "apply",
+		trigger: "print_event",
+		canonical: true,
+		block_hash:
+			"0xb2b876c112e5525d2ce463732a34ecd64ad7507cbdf85f21a26a050028b89d1d",
+		block_time: "2026-10-16T17:39:03.000Z",
+		block_height: 9227006,
+	},
+};
+
+const PAYLOAD_STORY_TRIGGERS: ChainTrigger[] = [
+	{
+		type: "print_event",
+		contractId: "SP000000000000000000002Q6VF78.pox-5",
+		where: {
+			signer: [
+				"SP21YTSM60CAY6D011EZVEVNKXVW8FVZE198XEFFP.fastpool-1-signer-manager",
+				"SPMPMA1V6P430M8C91QS1G9XJ95S59JS1TZFZ4Q4.fastpool-max500-signer-manager",
+			],
+		},
+	},
+];
+
+/** An opened delivery row's payload viewer, from a real delivery with no network. `kept: false` is a delivery whose payload was cleaned up. */
+export function PayloadViewDemo({ kept }: { kept: boolean }) {
+	const response = JSON.stringify({
+		args: {},
+		data: PAYLOAD_STORY_SENT,
+		headers: { host: "postman-echo.com", "content-type": "application/json" },
+		url: "https://postman-echo.com/post",
+	});
+	return (
+		<PayloadPanel
+			load={{
+				status: "ok",
+				detail: {
+					id: "d1",
+					attempt: 1,
+					statusCode: 200,
+					durationMs: 163,
+					dispatchedAt: "2026-10-16T17:39:14.000Z",
+					errorMessage: null,
+					responseBody: response,
+					responseHeaders: null,
+					outboxId: null,
+					outboxStatus: null,
+					eventType: "print_event",
+					txId: PAYLOAD_STORY_SENT.data.tx_id,
+					blockHeight: PAYLOAD_STORY_SENT.data.block_height,
+					blockTime: PAYLOAD_STORY_SENT.data.block_time,
+					eventIndex: 2,
+					payload: kept ? PAYLOAD_STORY_SENT : null,
+				},
+			}}
+			triggers={PAYLOAD_STORY_TRIGGERS}
+			responseBody={response}
+			statusCode={200}
+			host="postman-echo.com"
 		/>
 	);
 }

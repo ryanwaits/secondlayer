@@ -7178,15 +7178,95 @@ button.dash-row {
 .wd-more:hover {
 	text-decoration: underline;
 }
-.wd-body {
-	margin: 0;
-	padding: 12px 14px;
+/* ── Payload viewer: a delivery's sent payload and the receiver's response ── */
+.pv {
+	margin-top: 14px;
 	border: 1px solid var(--line);
 	border-radius: 8px;
-	font: 400 12px / 1.6 var(--font-mono-stack);
+	overflow: hidden;
+}
+.pv-bar {
+	display: flex;
+	align-items: center;
+	gap: 14px;
+	height: 40px;
+	padding: 0 8px 0 14px;
+	box-shadow: inset 0 -1px 0 var(--line);
+}
+.pv-bar .tabbar {
+	height: 100%;
+	box-shadow: none;
+}
+.pv-copy {
+	margin-left: auto;
+	padding: 6px 11px;
+	border: 1px solid var(--line);
+	border-radius: 999px;
+	background: none;
+	color: var(--ink);
+	font: 400 12px / 1 var(--font-sans-stack);
+	cursor: pointer;
+}
+.pv-copy:hover {
+	border-color: var(--pri);
+	color: var(--pri-ink);
+}
+.pv-body {
+	min-height: 120px;
+	max-height: 460px;
+	overflow: auto;
+	padding: 12px 14px;
+	font: 400 12.5px / 21px var(--font-mono-stack);
 	color: var(--sub);
+}
+.pv-note {
+	margin: 10px 0 0;
+	font-size: 13px;
+	color: var(--faint);
+}
+.pv-note-in {
+	margin: 0;
+	padding: 10px 14px 0;
+}
+.j {
+	white-space: pre;
+}
+.j .p {
+	color: var(--faint);
+}
+.j .key,
+.j .b {
+	color: var(--sub);
+}
+.j .s,
+.j .n {
+	color: var(--ink);
+}
+.j .m {
+	background: var(--hi);
+	color: var(--on-hi);
+	padding: 0 2px;
+}
+.j .m * {
+	color: inherit;
+}
+.j .pv-more {
+	margin-left: 4px;
+	padding: 0;
+	border: 0;
+	background: none;
+	color: var(--pri-ink);
+	font: inherit;
+	font-size: 11.5px;
+	cursor: pointer;
+}
+.j .pv-more:hover {
+	text-decoration: underline;
+}
+.pv .raw {
 	white-space: pre-wrap;
 	overflow-wrap: anywhere;
+	color: var(--sub);
 }
 .wd-triggers {
 	display: grid;
