@@ -40,10 +40,12 @@ export function InsightCard({
 					</p>
 				</div>
 			) : null}
-			<HandoffBlock
-				prompt={insight.handoff.prompt}
-				commands={insight.handoff.commands}
-			/>
+			{insight.handoff.prompt ? (
+				<HandoffBlock
+					prompt={insight.handoff.prompt}
+					commands={insight.handoff.commands}
+				/>
+			) : null}
 			<details className="ins-how">
 				<summary>How we worked this out</summary>
 				<pre className="ins-raw">

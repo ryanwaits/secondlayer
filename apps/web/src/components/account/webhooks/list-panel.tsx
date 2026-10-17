@@ -6,6 +6,7 @@ import {
 	HeatStripSkeleton,
 } from "@/components/dashboard/charts/heat-strip";
 import { Legend } from "@/components/dashboard/charts/legend";
+import { ActionableInsights } from "@/components/dashboard/insight/insight-actions";
 import {
 	KeyLine,
 	PlaceholderRows,
@@ -13,6 +14,8 @@ import {
 import { StatusSentence } from "@/components/dashboard/shell/status-sentence";
 import { ensureKeys, useAccountData } from "@/lib/account-data";
 import { heatGrid } from "@/lib/dashboard-charts";
+import type { Insight } from "@/lib/insights";
+import { forAccountRules, useInsights } from "@/lib/insights-store";
 import { type KeyState, keyState as keyStateOf } from "@/lib/onboarding";
 import { useFirstSettle } from "@/lib/use-first-settle";
 import { hostOf } from "@/lib/webhooks-data";
@@ -235,6 +238,8 @@ export interface WebhooksListBodyProps {
 	keyState?: KeyState;
 	/** The hourly summary has loaded. Defaults to true. */
 	summaryLoaded?: boolean;
+	/** Account-level insights about this page (the stack not answering). */
+	pageInsights?: readonly Insight[];
 }
 
 export function WebhooksListBody({
@@ -244,6 +249,7 @@ export function WebhooksListBody({
 	onOpenHour,
 	keyState = "active",
 	summaryLoaded = true,
+	pageInsights = [],
 }: WebhooksListBodyProps) {
 	const active = rows?.filter((r) => r.webhook.lastDeliveryAt !== null) ?? [];
 	const quiet = rows?.filter((r) => r.webhook.lastDeliveryAt === null) ?? [];
@@ -256,6 +262,8 @@ export function WebhooksListBody({
 					them with <code>sl webhooks</code>.
 				</p>
 			</div>
+
+			<ActionableInsights insights={pageInsights} />
 
 			{rows === null && notice === null ? <WebhooksListSkeleton /> : null}
 
@@ -340,11 +348,13 @@ export function WebhooksListSection() {
 	// insights arrive.
 	const ready = useFirstSettle(rows !== null);
 	const { keys } = useAccountData();
+	const { data: insights } = useInsights();
 	useEffect(() => {
 		ensureKeys();
 	}, []);
 	return (
 		<WebhooksListBody
+			pageInsights={forAccountRules(insights, ["stack_unreachable_webhooks"])}
 			keyState={keyStateOf(keys, new Date())}
 			rows={ready ? rows : null}
 			hours={hours}

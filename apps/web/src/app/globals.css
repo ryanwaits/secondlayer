@@ -6445,6 +6445,53 @@ pre.ins-raw .k {
 	font-size: inherit;
 	color: var(--faint);
 }
+.ins-minutes {
+	display: grid;
+	grid-template-columns: repeat(60, 1fr);
+	gap: 2px;
+	margin: 8px 0 6px;
+}
+.ins-minutes span {
+	height: 22px;
+	border-radius: 2px;
+	background: var(--soft);
+}
+.ins-minutes span.bad {
+	background: var(--alarm);
+}
+.ins-minutes-axis {
+	display: flex;
+	justify-content: space-between;
+	font: 400 10.5px / 1.2 var(--font-mono-stack);
+	color: var(--faint);
+}
+.ins-links {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+	margin: 8px 0 4px;
+}
+.ins-links a {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	padding: 7px 11px;
+	border: 1px solid var(--line);
+	border-radius: 999px;
+	font-size: 13px;
+	line-height: 1;
+	color: var(--ink);
+	text-decoration: none;
+}
+.ins-links a span {
+	font-family: var(--font-mono-stack);
+	color: var(--faint);
+}
+@media (max-width: 720px) {
+	.ins-minutes span {
+		height: 16px;
+	}
+}
 @media (max-width: 720px) {
 	.ins-grid {
 		grid-template-columns: 1fr;

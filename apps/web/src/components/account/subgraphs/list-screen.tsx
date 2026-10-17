@@ -2,7 +2,10 @@
 
 import { ChartSkeleton } from "@/components/charts/chart-skeleton";
 import { Sparkline } from "@/components/dashboard/charts/sparkline";
-import { InsightActions } from "@/components/dashboard/insight/insight-actions";
+import {
+	ActionableInsights,
+	InsightActions,
+} from "@/components/dashboard/insight/insight-actions";
 import { InsightCard } from "@/components/dashboard/insight/insight-card";
 import {
 	ResourceRow,
@@ -12,7 +15,11 @@ import {
 import { StatusSentence } from "@/components/dashboard/shell/status-sentence";
 import { ensureKeys, useAccountData } from "@/lib/account-data";
 import type { Insight } from "@/lib/insights";
-import { forResource, useInsights } from "@/lib/insights-store";
+import {
+	forAccountRules,
+	forResource,
+	useInsights,
+} from "@/lib/insights-store";
 import { type KeyState, keyState as keyStateOf } from "@/lib/onboarding";
 import {
 	groupDigits,
@@ -192,17 +199,32 @@ export interface SubgraphsListBodyProps {
 	health: Record<string, SubgraphHealthData | undefined>;
 	notice: ListNotice | null;
 	insights?: readonly Insight[];
+	/** Account-level insights about this page (the stack not answering). */
+	pageInsights?: readonly Insight[];
 	/** Where the account stands on keys of its own. */
 	keyState?: KeyState;
 }
 
+/** The page insight sits above every state, so it shows even when the list can't load. */
 export function SubgraphsListBody({
+	pageInsights = [],
+	...props
+}: SubgraphsListBodyProps) {
+	return (
+		<>
+			<ActionableInsights insights={pageInsights} />
+			<SubgraphsListContent {...props} />
+		</>
+	);
+}
+
+function SubgraphsListContent({
 	items,
 	health,
 	notice,
 	insights = [],
 	keyState = "active",
-}: SubgraphsListBodyProps) {
+}: Omit<SubgraphsListBodyProps, "pageInsights">) {
 	if (items === null) {
 		if (notice?.kind === "starting") {
 			return (
@@ -273,6 +295,7 @@ export function SubgraphsListSection() {
 			health={healthByName(health)}
 			notice={notice}
 			insights={insights}
+			pageInsights={forAccountRules(insights, ["stack_unreachable_subgraphs"])}
 		/>
 	);
 }

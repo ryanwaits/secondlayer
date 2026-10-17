@@ -41,6 +41,20 @@ export type InsightEvidence =
 			kind: "timeline";
 			title: string;
 			steps: { what: string; at: string; note?: string; failed: boolean }[];
+	  }
+	| {
+			/** One cell per minute, oldest first; `true` = calls failed that minute. */
+			kind: "minutes";
+			title: string;
+			failed: boolean[];
+			/** Labels under the first and last cell, e.g. ["17:42", "18:41 now"]. */
+			labels: [string, string];
+	  }
+	| {
+			/** Places in the dashboard this insight also concerns, with a count each. */
+			kind: "links";
+			title: string;
+			links: { label: string; href: string; count: number }[];
 	  };
 export interface Insight {
 	id: string;

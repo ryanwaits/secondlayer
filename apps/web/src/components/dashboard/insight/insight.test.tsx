@@ -235,4 +235,47 @@ describe("Evidence", () => {
 		expect(html.match(/class="ok"/g)).toHaveLength(1);
 		expect(html).toContain("--n:3");
 	});
+
+	test("minutes renders one cell per minute and marks the failed ones", () => {
+		const failed = Array.from({ length: 60 }, (_, i) => i === 3 || i === 58);
+		const html = render({
+			kind: "minutes",
+			title: "Calls that failed, last hour",
+			failed,
+			labels: ["17:01", "18:00 now"],
+		});
+		expect(html.match(/<span/g)?.length).toBe(60 + 2);
+		expect(html.match(/class="bad"/g)).toHaveLength(2);
+		expect(html).toContain("2 of 60 minutes had failed calls");
+		expect(html).toContain("18:00 now");
+	});
+
+	test("links renders each label with its href and count", () => {
+		const html = render({
+			kind: "links",
+			title: "Where",
+			links: [
+				{ label: "Webhooks", href: "/account/webhooks", count: 2 },
+				{ label: "Subgraphs", href: "/account/subgraphs", count: 3 },
+			],
+		});
+		expect(html).toContain('href="/account/webhooks"');
+		expect(html).toContain("Webhooks");
+		expect(html).toContain('href="/account/subgraphs"');
+		expect(html).toContain("<span>3</span>");
+	});
+});
+
+describe("InsightCard without a hand-off", () => {
+	test("an empty prompt renders no hand-off block", () => {
+		const base = byRule("receiver_down");
+		const withPrompt = renderToStaticMarkup(<InsightCard insight={base} />);
+		expect(withPrompt).toContain("Hand off to your agent");
+		const html = renderToStaticMarkup(
+			<InsightCard
+				insight={{ ...base, handoff: { prompt: "", commands: [] } }}
+			/>,
+		);
+		expect(html).not.toContain("Hand off to your agent");
+	});
 });

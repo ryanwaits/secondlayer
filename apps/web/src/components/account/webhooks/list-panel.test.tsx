@@ -195,3 +195,37 @@ describe("WebhooksListBody for a new account", () => {
 		expect(html).not.toContain("You need a key first.");
 	});
 });
+
+describe("WebhooksListBody page insight", () => {
+	const stack: Insight = {
+		id: "ins_stack_unreachable_webhooks",
+		rule: "stack_unreachable_webhooks",
+		severity: "losing",
+		impact: 3,
+		resource: { kind: "account", id: "account", name: "Account" },
+		line: "Webhook changes did not reach your stack",
+		lead: "Our fault, not yours.",
+		body: "We couldn't reach the stack.",
+		evidence: [],
+		handoff: { prompt: "", commands: [] },
+		how: { detector: "stack calls", facts: [] },
+		createdAt: "2026-10-15T18:00:00.000Z",
+	};
+
+	test("shows the stack insight above the list", () => {
+		const html = render({ pageInsights: [stack] });
+		expect(html).toContain(stack.line);
+		expect(html.indexOf(stack.line)).toBeLessThan(
+			html.indexOf("sbtc-deposits"),
+		);
+	});
+
+	test("shows it even when the list could not load", () => {
+		const html = render({
+			rows: null,
+			notice: { kind: "error", message: "boom" },
+			pageInsights: [stack],
+		});
+		expect(html).toContain(stack.line);
+	});
+});

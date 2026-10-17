@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import type { Insight } from "@/lib/insights";
 import { FIXTURE_INSIGHTS } from "@/lib/insights.fixtures";
 import { renderToStaticMarkup } from "react-dom/server";
 import { GridView, type GridViewProps } from "./data-grid";
@@ -350,5 +351,47 @@ describe("SubgraphsListBody before health lands", () => {
 		);
 		expect(html).not.toContain("Checking your subgraphs.");
 		expect(html).toContain("1 subgraph needs attention.");
+	});
+});
+
+describe("SubgraphsListBody page insight", () => {
+	const stack: Insight = {
+		id: "ins_stack_unreachable_subgraphs",
+		rule: "stack_unreachable_subgraphs",
+		severity: "losing",
+		impact: 3,
+		resource: { kind: "account", id: "account", name: "Account" },
+		line: "Subgraph queries did not reach your stack",
+		lead: "Our fault, not yours.",
+		body: "We couldn't reach the stack.",
+		evidence: [],
+		handoff: { prompt: "", commands: [] },
+		how: { detector: "stack calls", facts: [] },
+		createdAt: "2026-10-15T18:00:00.000Z",
+	};
+
+	test("shows the stack insight above the list", () => {
+		const html = renderToStaticMarkup(
+			<SubgraphsListBody
+				items={exampleList}
+				health={{}}
+				notice={null}
+				pageInsights={[stack]}
+			/>,
+		);
+		expect(html).toContain(stack.line);
+	});
+
+	test("shows it when the list could not load", () => {
+		const html = renderToStaticMarkup(
+			<SubgraphsListBody
+				items={null}
+				health={{}}
+				notice={{ kind: "error", message: "boom" }}
+				pageInsights={[stack]}
+			/>,
+		);
+		expect(html).toContain(stack.line);
+		expect(html).toContain("Couldn&#x27;t load your subgraphs.");
 	});
 });

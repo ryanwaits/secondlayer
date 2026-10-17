@@ -4,6 +4,7 @@ import {
 } from "@/components/charts/lazy";
 import { barsRows } from "@/lib/dashboard-charts";
 import type { InsightEvidence } from "@/lib/insights";
+import Link from "next/link";
 import { Legend } from "../charts/legend";
 
 type SeriesEvidence = Extract<InsightEvidence, { kind: "series" }>;
@@ -137,6 +138,34 @@ export function Evidence({ item }: { item: InsightEvidence }) {
 								</>
 							) : null}
 						</div>
+					))}
+				</div>
+			) : null}
+			{item.kind === "minutes" ? (
+				<div className="ins-minutes-wrap">
+					<div
+						className="ins-minutes"
+						role="img"
+						aria-label={`${item.failed.filter(Boolean).length} of ${item.failed.length} minutes had failed calls`}
+					>
+						{item.failed.map((bad, i) => (
+							// biome-ignore lint/suspicious/noArrayIndexKey: cells are positional minutes
+							<span key={i} className={bad ? "bad" : undefined} />
+						))}
+					</div>
+					<div className="ins-minutes-axis">
+						<span>{item.labels[0]}</span>
+						<span>{item.labels[1]}</span>
+					</div>
+				</div>
+			) : null}
+			{item.kind === "links" ? (
+				<div className="ins-links">
+					{item.links.map((l) => (
+						<Link key={l.href} href={l.href}>
+							{l.label}
+							<span>{l.count.toLocaleString("en-US")}</span>
+						</Link>
 					))}
 				</div>
 			) : null}
