@@ -1,5 +1,11 @@
 # @secondlayer/cli
 
+## 22.0.1
+
+### Patch Changes
+
+- `secondlayer login` checks a saved login with the server and signs in again when it was revoked or expired, a revoked key says "Your saved login was revoked", and the login prompt says the one-time code is for checking in the browser, not copying.
+
 ## 22.0.0
 
 ### Major Changes
