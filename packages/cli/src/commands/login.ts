@@ -230,12 +230,12 @@ export async function runDeviceLogin(
 		process.exit(1);
 	}
 
-	info(`First copy your one-time code: ${start.userCode}`);
+	info(`Your one-time code: ${start.userCode}`);
 	const readline = process.stdin.isTTY
 		? createInterface({ input: process.stdin })
 		: null;
 	if (readline) {
-		info("Press Enter to open secondlayer.tools in your browser...");
+		info("Press Enter to open the sign-in page, then check the code matches.");
 		readline.once("line", () => openBrowser(start.verificationUrl));
 	}
 	info(dim(`Or open ${start.verificationUrl}`));
