@@ -534,8 +534,9 @@ describe.skipIf(!HAS_DB)("state_writes read", () => {
 			}>`EXPLAIN ${query}`.execute(trx);
 			return rows.map((r) => r["QUERY PLAN"]).join("\n");
 		});
+		// A busier table can tip the planner to a bitmap scan on the same index.
 		expect(plan).toMatch(
-			/Index (Only )?Scan using transactions_block_height_idx on transactions/,
+			/Index (Only )?Scan using transactions_block_height_idx on transactions|Bitmap Index Scan on transactions_block_height_idx/,
 		);
 	});
 
