@@ -35,7 +35,10 @@ import {
 	getAccountById,
 	setStripeCustomerId,
 } from "@secondlayer/platform/db/queries/accounts";
-import { failedRequestsByPath } from "@secondlayer/platform/db/queries/api-failed-requests";
+import {
+	READ_PATH_PREFIXES,
+	failedRequestsByPath,
+} from "@secondlayer/platform/db/queries/api-failed-requests";
 import {
 	type RowsDay,
 	burnRateUsdMicros,
@@ -558,10 +561,12 @@ app.get("/rows", async (c) => {
 		rowsDaily(db, accountId, 30, now),
 		rowsHourlyToday(db, accountId, now),
 		rowsPerCallHistogram(db, accountId, 30, now),
+		// Reads only: billing, keys and hosted-stack failures belong to their own pages.
 		failedRequestsByPath(
 			db,
 			accountId,
 			new Date(now.getTime() - 24 * 60 * 60 * 1000),
+			READ_PATH_PREFIXES,
 		),
 	]);
 

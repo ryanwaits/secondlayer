@@ -59,12 +59,20 @@ export type FailedRequestGroup = {
 	last: string; // ISO
 };
 
+/** Index and Streams: the paths the Rows page reports on. */
+export const READ_PATH_PREFIXES: readonly string[] = [
+	"/v1/index/",
+	"/v1/streams/",
+];
+
 /** The account's failed requests since `since`, grouped by status, code and
- *  path, most frequent first (top 20). */
+ *  path, most frequent first (top 20). `pathPrefixes` keeps only paths that
+ *  start with one of them, so a page reports only its own surface. */
 export async function failedRequestsByPath(
 	db: Kysely<Database>,
 	accountId: string,
 	since: Date,
+	pathPrefixes?: readonly string[],
 ): Promise<FailedRequestGroup[]> {
 	const rows = await db
 		.selectFrom("api_failed_requests")
@@ -77,6 +85,15 @@ export async function failedRequestsByPath(
 		])
 		.where("account_id", "=", accountId)
 		.where("created_at", ">=", since)
+		.$if(pathPrefixes !== undefined, (qb) =>
+			qb.where((eb) =>
+				eb.or(
+					(pathPrefixes ?? []).map((prefix) =>
+						eb("path", "like", `${prefix}%`),
+					),
+				),
+			),
+		)
 		.groupBy(["status", "code", "path"])
 		.orderBy("count", "desc")
 		.orderBy("path")

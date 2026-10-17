@@ -1,6 +1,7 @@
 import { afterAll, describe, expect, test } from "bun:test";
 import { getDb } from "@secondlayer/shared/db";
 import {
+	READ_PATH_PREFIXES,
 	failedRequestsByPath,
 	getFailedRequest,
 	insertFailedRequest,
@@ -122,5 +123,38 @@ describe.skipIf(!HAS_DB)("failedRequestsByPath", () => {
 				last: recent.toISOString(),
 			},
 		]);
+	});
+
+	test("path prefixes keep only that surface's failures", async () => {
+		const acct = await makeAccount();
+		const recent = new Date(Date.now() - 60_000);
+		for (const [id, path, status] of [
+			["r1", "/v1/index/transactions", 400],
+			["r2", "/v1/streams/events", 503],
+			["r3", "/api/billing/topup", 400],
+			["r4", "/api/subgraphs", 502],
+		] as const) {
+			await insertFailedRequest(db, {
+				...row(acct, `req_${id}_${acct}`, recent),
+				status,
+				path,
+			});
+		}
+		const reads = await failedRequestsByPath(
+			db,
+			acct,
+			new Date(Date.now() - 3_600_000),
+			READ_PATH_PREFIXES,
+		);
+		expect(reads.map((g) => g.path).sort()).toEqual([
+			"/v1/index/transactions",
+			"/v1/streams/events",
+		]);
+		const all = await failedRequestsByPath(
+			db,
+			acct,
+			new Date(Date.now() - 3_600_000),
+		);
+		expect(all).toHaveLength(4);
 	});
 });
