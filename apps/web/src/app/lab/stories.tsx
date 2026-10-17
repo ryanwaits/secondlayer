@@ -1798,17 +1798,17 @@ const META: Record<StoryId, Meta> = {
 			{
 				id: "rows-no-key",
 				label: "Rows, no key",
-				render: () => <RowsEmptyDemo noKey />,
+				render: () => <RowsEmptyDemo firstRun />,
 			},
 			{
 				id: "rows-key",
 				label: "Rows, key made",
-				render: () => <RowsEmptyDemo noKey={false} />,
+				render: () => <RowsEmptyDemo firstRun={false} />,
 			},
 			{
 				id: "subgraphs-no-key",
 				label: "Subgraphs, no key",
-				render: () => <SubgraphsEmptyState noKey />,
+				render: () => <SubgraphsEmptyState keyState="first" />,
 			},
 		],
 		usage: "<KeyFirstLine />",

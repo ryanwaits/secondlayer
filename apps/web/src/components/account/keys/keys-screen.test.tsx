@@ -239,6 +239,19 @@ describe("KeysBody for a new account", () => {
 		expect(html).toContain('aria-hidden="true"');
 	});
 
+	test("an account that revoked every key gets the no-active-key line, not first-run", () => {
+		const html = body([key({ status: "revoked" })]);
+		expect(html).toContain("No active key.");
+		expect(html).not.toContain("You need a key first");
+		expect(html).not.toContain("laptop");
+	});
+
+	test("an account that never made a key gets the first-run placeholder", () => {
+		const html = body([]);
+		expect(html).not.toContain("No active key.");
+		expect(html).toContain("laptop");
+	});
+
 	test("a docs-only account still has no keys of its own", () => {
 		expect(
 			body([key({ product: "docs", expiresAt: hoursFromNow(5) })]),

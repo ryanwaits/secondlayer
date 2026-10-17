@@ -1,3 +1,4 @@
+import type { KeyState } from "@/lib/onboarding";
 import Link from "next/link";
 import type { ReactNode } from "react";
 
@@ -14,6 +15,29 @@ export function KeyFirstLine() {
 			</Link>
 		</div>
 	);
+}
+
+/** An established account with every key revoked: nothing stopped, reads need a new key. */
+export function NoActiveKeyLine() {
+	return (
+		<div className="ob-key">
+			<span className="ob-key-text">
+				<span className="dash-dot hi" />
+				No active key. Webhooks and subgraphs keep running; calls with a revoked
+				key get a 401.
+			</span>
+			<Link href="/account/keys" className="acct-btn solid small">
+				New key
+			</Link>
+		</div>
+	);
+}
+
+/** The key line for a screen that reads with a key, or nothing when one is active. */
+export function KeyLine({ state }: { state: KeyState }) {
+	if (state === "first") return <KeyFirstLine />;
+	if (state === "none_active") return <NoActiveKeyLine />;
+	return null;
 }
 
 export interface ChecklistStep {

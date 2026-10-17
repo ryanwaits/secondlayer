@@ -13,7 +13,7 @@ import { StatusSentence } from "@/components/dashboard/shell/status-sentence";
 import { ensureKeys, useAccountData } from "@/lib/account-data";
 import type { Insight } from "@/lib/insights";
 import { forResource, useInsights } from "@/lib/insights-store";
-import { hasNoKey } from "@/lib/onboarding";
+import { type KeyState, keyState as keyStateOf } from "@/lib/onboarding";
 import {
 	groupDigits,
 	handlerErrors24h,
@@ -192,8 +192,8 @@ export interface SubgraphsListBodyProps {
 	health: Record<string, SubgraphHealthData | undefined>;
 	notice: ListNotice | null;
 	insights?: readonly Insight[];
-	/** The account has no key of its own yet. */
-	noKey?: boolean;
+	/** Where the account stands on keys of its own. */
+	keyState?: KeyState;
 }
 
 export function SubgraphsListBody({
@@ -201,7 +201,7 @@ export function SubgraphsListBody({
 	health,
 	notice,
 	insights = [],
-	noKey = false,
+	keyState = "active",
 }: SubgraphsListBodyProps) {
 	if (items === null) {
 		if (notice?.kind === "starting") {
@@ -223,7 +223,7 @@ export function SubgraphsListBody({
 		}
 		return <ChartSkeleton height={120} />;
 	}
-	if (items.length === 0) return <SubgraphsEmptyState noKey={noKey} />;
+	if (items.length === 0) return <SubgraphsEmptyState keyState={keyState} />;
 
 	const healthReady = items.every((s) => health[s.name] !== undefined);
 	const failing = items.filter(
@@ -268,7 +268,7 @@ export function SubgraphsListSection() {
 	}, []);
 	return (
 		<SubgraphsListBody
-			noKey={hasNoKey(keys, new Date())}
+			keyState={keyStateOf(keys, new Date())}
 			items={list?.data ?? null}
 			health={healthByName(health)}
 			notice={notice}

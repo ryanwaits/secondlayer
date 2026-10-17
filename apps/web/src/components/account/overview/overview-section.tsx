@@ -36,6 +36,7 @@ import { forAccountRules, useInsights } from "@/lib/insights-store";
 import {
 	type OnboardingProgress,
 	READ_COMMAND,
+	keyState,
 	onboardingProgress,
 } from "@/lib/onboarding";
 import type { RowsResponse } from "@/lib/rows";
@@ -538,14 +539,17 @@ function useOnboarding({
 	settled: boolean;
 }): OverviewOnboarding | null {
 	const progress = onboardingProgress(keys, now, pushed);
+	const state = keyState(keys, now);
 	const [flowOpen, setFlowOpen] = useState(false);
 	const [made, setMade] = useState<string | null>(null);
-	// The flow opens the first time we see an account with no key, and stays
-	// open when that changes under it.
-	if (keys !== null && !progress.key && !flowOpen && made === null) {
+	// The flow opens the first time we see an account that never had a key, and
+	// stays open when that changes under it. An account that revoked its keys
+	// is established: no checklist, no forced flow.
+	if (state === "first" && !flowOpen && made === null) {
 		setFlowOpen(true);
 	}
-	if (keys === null || (!settled && progress.key)) return null;
+	if (keys === null || state === "none_active") return null;
+	if (!settled && progress.key) return null;
 
 	const newest = countedKeys(keys, now).at(-1);
 	return {

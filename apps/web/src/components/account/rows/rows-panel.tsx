@@ -8,14 +8,18 @@ import {
 import { Legend } from "@/components/dashboard/charts/legend";
 import { Meter } from "@/components/dashboard/charts/meter";
 import { ActionableInsights } from "@/components/dashboard/insight/insight-actions";
-import { KeyFirstLine } from "@/components/dashboard/shell/onboarding";
+import { KeyLine } from "@/components/dashboard/shell/onboarding";
 import { Skel } from "@/components/dashboard/shell/skel";
 import { StatusSentence } from "@/components/dashboard/shell/status-sentence";
 import { ensureKeys, refreshRows, useAccountData } from "@/lib/account-data";
 import { barsRows } from "@/lib/dashboard-charts";
 import type { Insight } from "@/lib/insights";
 import { forAccountRules, useInsights } from "@/lib/insights-store";
-import { READ_COMMAND, hasNoKey } from "@/lib/onboarding";
+import {
+	type KeyState,
+	READ_COMMAND,
+	keyState as keyStateOf,
+} from "@/lib/onboarding";
 import {
 	type RowsError,
 	type RowsResponse,
@@ -115,7 +119,7 @@ export interface RowsBodyProps {
 	now: Date;
 	onRetry: () => void;
 	/** The account has no key of its own yet: the empty screen asks for one first. */
-	noKey?: boolean;
+	keyState?: KeyState;
 }
 
 /** Nothing read this month and nothing on record. */
@@ -125,10 +129,10 @@ const isUnused = (data: RowsResponse) =>
 /** A new account's Rows: what will show up here, and the one step to get it. */
 function EmptyRows({
 	data,
-	noKey,
+	keyState,
 }: {
 	data: RowsResponse;
-	noKey: boolean;
+	keyState: KeyState;
 }) {
 	return (
 		<div className="bl-body">
@@ -138,7 +142,11 @@ function EmptyRows({
 			>
 				No reads yet.
 			</StatusSentence>
-			{noKey ? <KeyFirstLine /> : <CliLine command={READ_COMMAND} />}
+			{keyState === "first" || keyState === "none_active" ? (
+				<KeyLine state={keyState} />
+			) : (
+				<CliLine command={READ_COMMAND} />
+			)}
 			<section className="dash-panel bl-panel" aria-label="Rows per day">
 				<span className="dash-label">Rows per day</span>
 				<div className="ob-chart-empty">Your first read shows up here</div>
@@ -161,7 +169,7 @@ export function RowsBody({
 	insights = [],
 	now,
 	onRetry,
-	noKey = false,
+	keyState = "active",
 }: RowsBodyProps) {
 	if (status === "not_loaded" || (status === "ok" && !data)) return null;
 	if (status === "failed" || !data) {
@@ -175,7 +183,7 @@ export function RowsBody({
 		);
 	}
 
-	if (isUnused(data)) return <EmptyRows data={data} noKey={noKey} />;
+	if (isUnused(data)) return <EmptyRows data={data} keyState={keyState} />;
 
 	const { allowance } = data;
 	const copy = statusCopy(allowance);
@@ -332,7 +340,7 @@ export function RowsSection() {
 			insights={forAccountRules(allInsights, ROWS_RULES)}
 			now={now}
 			onRetry={load}
-			noKey={hasNoKey(keys, now)}
+			keyState={keyStateOf(keys, now)}
 		/>
 	);
 }

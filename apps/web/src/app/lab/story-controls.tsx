@@ -734,7 +734,7 @@ export function RowsDemo({ exhausted }: { exhausted: boolean }) {
 }
 
 /** A new account's empty Rows screen, with and without a key. */
-export function RowsEmptyDemo({ noKey }: { noKey: boolean }) {
+export function RowsEmptyDemo({ firstRun }: { firstRun: boolean }) {
 	const data = rowsStoryData(false);
 	return (
 		<RowsBody
@@ -749,7 +749,7 @@ export function RowsEmptyDemo({ noKey }: { noKey: boolean }) {
 			}}
 			now={ROWS_STORY_NOW}
 			onRetry={() => {}}
-			noKey={noKey}
+			keyState={firstRun ? "first" : "active"}
 		/>
 	);
 }

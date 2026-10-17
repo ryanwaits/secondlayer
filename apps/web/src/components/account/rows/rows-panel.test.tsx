@@ -192,7 +192,7 @@ describe("RowsBody for a new account", () => {
 
 	test("asks for a key first when there is none", () => {
 		const html = renderToStaticMarkup(
-			<RowsBody {...base} status="ok" data={unused} noKey />,
+			<RowsBody {...base} status="ok" data={unused} keyState="first" />,
 		);
 		expect(html).toContain("You need a key first.");
 		expect(html).not.toContain("sl index ft-transfers");

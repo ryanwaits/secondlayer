@@ -7,13 +7,13 @@ import {
 } from "@/components/dashboard/charts/heat-strip";
 import { Legend } from "@/components/dashboard/charts/legend";
 import {
-	KeyFirstLine,
+	KeyLine,
 	PlaceholderRows,
 } from "@/components/dashboard/shell/onboarding";
 import { StatusSentence } from "@/components/dashboard/shell/status-sentence";
 import { ensureKeys, useAccountData } from "@/lib/account-data";
 import { heatGrid } from "@/lib/dashboard-charts";
-import { hasNoKey } from "@/lib/onboarding";
+import { type KeyState, keyState as keyStateOf } from "@/lib/onboarding";
 import { useFirstSettle } from "@/lib/use-first-settle";
 import { hostOf } from "@/lib/webhooks-data";
 import { poll, refreshList, refreshSummary } from "@/lib/webhooks-store";
@@ -133,7 +133,7 @@ await sl.webhooks.create({
   ],
 });`;
 
-function EmptyState({ noKey }: { noKey: boolean }) {
+function EmptyState({ keyState }: { keyState: KeyState }) {
 	return (
 		<div className="wl-empty">
 			<StatusSentence tone="idle">No webhooks yet.</StatusSentence>
@@ -142,7 +142,7 @@ function EmptyState({ noKey }: { noKey: boolean }) {
 				create one with the SDK, so the filter lives in your code and your
 				reviews.
 			</p>
-			{noKey ? <KeyFirstLine /> : null}
+			<KeyLine state={keyState} />
 			<div className="wh-cli nk-block">
 				<code className="wh-cli-code">{CREATE_EXAMPLE}</code>
 				<CopyButton code={CREATE_EXAMPLE} inline label="Copy" />
@@ -232,7 +232,7 @@ export interface WebhooksListBodyProps {
 	notice: ListNotice | null;
 	onOpenHour: (id: string, hourIso: string) => void;
 	/** The account has no key of its own yet. */
-	noKey?: boolean;
+	keyState?: KeyState;
 	/** The hourly summary has loaded. Defaults to true. */
 	summaryLoaded?: boolean;
 }
@@ -242,7 +242,7 @@ export function WebhooksListBody({
 	hours,
 	notice,
 	onOpenHour,
-	noKey = false,
+	keyState = "active",
 	summaryLoaded = true,
 }: WebhooksListBodyProps) {
 	const active = rows?.filter((r) => r.webhook.lastDeliveryAt !== null) ?? [];
@@ -287,7 +287,9 @@ export function WebhooksListBody({
 				<p className="acct-error">{notice.message}</p>
 			) : null}
 
-			{rows !== null && rows.length === 0 ? <EmptyState noKey={noKey} /> : null}
+			{rows !== null && rows.length === 0 ? (
+				<EmptyState keyState={keyState} />
+			) : null}
 
 			{rows !== null && rows.length > 0 ? (
 				<>
@@ -343,7 +345,7 @@ export function WebhooksListSection() {
 	}, []);
 	return (
 		<WebhooksListBody
-			noKey={hasNoKey(keys, new Date())}
+			keyState={keyStateOf(keys, new Date())}
 			rows={ready ? rows : null}
 			hours={hours}
 			summaryLoaded={summaryLoaded}
