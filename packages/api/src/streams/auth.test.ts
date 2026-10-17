@@ -15,10 +15,15 @@ const tokens: StreamsTokenStore = {
 			: undefined,
 };
 
-function app(allowAnon?: boolean) {
+function app(
+	allowAnon?: boolean,
+	findRevoked?: (
+		raw: string,
+	) => Promise<{ id: string; account_id: string } | null>,
+) {
 	const a = new Hono<StreamsEnv>();
 	a.onError(errorHandler);
-	a.use("*", streamsBearerAuth({ tokens, allowAnon }));
+	a.use("*", streamsBearerAuth({ tokens, allowAnon, findRevoked }));
 	a.get("/x", (c) =>
 		c.json({ ok: true, tenant: c.get("streamsTenant") ?? null }),
 	);
@@ -62,6 +67,26 @@ describe("streamsBearerAuth", () => {
 		};
 		expect(body.details?.env_var).toBe("INSTANCE_TOKEN");
 		expect(body.details?.hint).toContain("secondlayer init");
+	});
+
+	test("a revoked account key is refused as KEY_REVOKED", async () => {
+		const res = await app(false, async () => ({
+			id: "k1",
+			account_id: "a1",
+		})).request("/x", { headers: { authorization: "Bearer revoked-key" } });
+		expect(res.status).toBe(401);
+		const body = (await res.json()) as { code: string; error: string };
+		expect(body.code).toBe("KEY_REVOKED");
+		expect(body.error).toBe("API key has been revoked");
+	});
+
+	test("an unknown key still reads as unrecognized when no revoked key matches", async () => {
+		const res = await app(false, async () => null).request("/x", {
+			headers: { authorization: "Bearer nope" },
+		});
+		expect(res.status).toBe(401);
+		const body = (await res.json()) as { error: string };
+		expect(body.error).toBe("Unrecognized API key");
 	});
 
 	test("a valid key resolves the tenant", async () => {

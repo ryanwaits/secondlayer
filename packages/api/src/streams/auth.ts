@@ -1,7 +1,14 @@
-import { AuthorizationError } from "@secondlayer/shared/errors";
+import {
+	ApiKeyRevokedError,
+	AuthorizationError,
+} from "@secondlayer/shared/errors";
 import { INTERNAL_STREAMS_TENANT_ID } from "@secondlayer/shared/index-internal-auth";
 import type { MiddlewareHandler } from "hono";
-import { createApiKeyTokenStore } from "../auth/api-key-store.ts";
+import {
+	type RevokedAccountKey,
+	createApiKeyTokenStore,
+	findRevokedAccountKey,
+} from "../auth/api-key-store.ts";
 import {
 	allowsAnonymousRead,
 	bearerToken,
@@ -26,6 +33,9 @@ export type StreamsEnv = {
 		/** Unset on an anonymous loopback read — Streams has no tenant then. */
 		streamsTenant?: StreamsTenant;
 		streamsTip: StreamsTip;
+		/** Set only so the error envelope can attribute a revoked-key failure.
+		 *  Never authorizes anything. */
+		revokedApiKey?: RevokedAccountKey;
 		/** Rows in the page just served; read by the request log. */
 		rowsServed?: number;
 		/** Set by the credits gate when a free account is on pay-as-you-go:
@@ -99,6 +109,8 @@ export function streamsBearerAuth(opts?: {
 	/** Override the read-plane policy (`allowsAnonymousRead`). Tests pin it;
 	 *  routes should let the policy decide. */
 	allowAnon?: boolean;
+	/** Tests inject; defaults to the DB lookup. */
+	findRevoked?: (rawToken: string) => Promise<RevokedAccountKey | null>;
 }): MiddlewareHandler<StreamsEnv> {
 	const tokens = opts?.tokens ?? DEFAULT_STREAMS_TOKEN_STORE;
 	const requiredScope = opts?.requiredScope ?? STREAMS_READ_SCOPE;
@@ -125,6 +137,13 @@ export function streamsBearerAuth(opts?: {
 			if (allowAnon) {
 				await next();
 				return;
+			}
+			const revoked = await (opts?.findRevoked ?? findRevokedAccountKey)(
+				rawToken,
+			);
+			if (revoked) {
+				c.set("revokedApiKey", revoked);
+				throw new ApiKeyRevokedError();
 			}
 			throw invalidCredentialError();
 		}

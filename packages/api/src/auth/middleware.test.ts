@@ -48,6 +48,9 @@ const mockGetDb = () => mockDb as any;
 function createApp() {
 	const app = new Hono();
 	app.onError((err, c) => {
+		// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
+		if ((err as any).code === "KEY_REVOKED")
+			return c.json({ error: err.message, code: "KEY_REVOKED" }, 401);
 		if (err.message.includes("revoked"))
 			return c.json({ error: err.message }, 403);
 		// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
@@ -89,10 +92,12 @@ describe("requireAuth middleware", () => {
 		expect(res.status).toBe(401);
 	});
 
-	test("revoked key → 403", async () => {
+	test("revoked account key → 401 KEY_REVOKED", async () => {
 		const app = createApp();
 		mockExecuteTakeFirst.mockResolvedValue({
 			id: "test-id",
+			account_id: "acct-1",
+			product: "account",
 			status: "revoked",
 			key_hash: "x",
 			// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
@@ -102,7 +107,8 @@ describe("requireAuth middleware", () => {
 				Authorization: "Bearer sk-sl_00000000000000000000000000000001",
 			},
 		});
-		expect(res.status).toBe(403);
+		expect(res.status).toBe(401);
+		expect(((await res.json()) as { code: string }).code).toBe("KEY_REVOKED");
 	});
 
 	test("sentinel-product key → 401 (account keys only)", async () => {

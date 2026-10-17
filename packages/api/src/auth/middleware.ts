@@ -1,5 +1,6 @@
 import { getDb as _getDb, sql } from "@secondlayer/shared/db";
 import {
+	ApiKeyRevokedError,
 	AuthenticationError,
 	AuthorizationError,
 } from "@secondlayer/shared/errors";
@@ -116,7 +117,13 @@ export function requireAuth(opts?: {
 			}
 
 			if (keyRecord.status === "revoked") {
-				throw new AuthorizationError("API key has been revoked");
+				if (keyRecord.product === "account") {
+					c.set("revokedApiKey", {
+						id: keyRecord.id,
+						account_id: keyRecord.account_id,
+					});
+				}
+				throw new ApiKeyRevokedError();
 			}
 
 			if (keyRecord.status !== "active") {

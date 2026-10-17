@@ -38,6 +38,7 @@ export type FailedRequestRecord = {
 	message: string;
 	query: Record<string, unknown>;
 	origin: string | null;
+	api_key_id?: string | null;
 };
 
 /** Incoming `X-Request-Id` values matching this are reused. */

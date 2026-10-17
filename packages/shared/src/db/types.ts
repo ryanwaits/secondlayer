@@ -1519,6 +1519,8 @@ export interface ApiFailedRequestsTable {
 	message: Generated<string>;
 	query: Record<string, unknown>;
 	origin: string | null;
+	/** Revoked account key the request presented (`KEY_REVOKED` only). */
+	api_key_id: string | null;
 	created_at: Generated<Date>;
 }
 

@@ -1,5 +1,8 @@
 import { describe, expect, test } from "bun:test";
-import { ValidationError } from "@secondlayer/shared/errors";
+import {
+	ApiKeyRevokedError,
+	ValidationError,
+} from "@secondlayer/shared/errors";
 import type { InstanceMode } from "@secondlayer/shared/mode";
 import { Hono } from "hono";
 import { createApiApp } from "../create-app.ts";
@@ -33,6 +36,9 @@ function app(
 		});
 	}
 	hono.get("/ok", (c) => c.json({ ok: true }));
+	hono.get("/revoked", () => {
+		throw new ApiKeyRevokedError();
+	});
 	hono.get("/validation", () => {
 		throw new ValidationError("bad");
 	});
@@ -198,6 +204,29 @@ describe("failed-request recording", () => {
 		);
 		await a.request("/nf");
 		expect(r.rows[0]?.account_id).toBe("acct-2");
+	});
+
+	test("a revoked key's failure is recorded under its account with the key id", async () => {
+		const r = recorder();
+		const a = app("platform", r.record, (c) =>
+			c.set("revokedApiKey", { id: "k1", account_id: "a1" }),
+		);
+		const res = await a.request("/revoked");
+		expect(res.status).toBe(401);
+		expect(r.rows).toHaveLength(1);
+		expect(r.rows[0]).toMatchObject({
+			account_id: "a1",
+			api_key_id: "k1",
+			status: 401,
+			code: "KEY_REVOKED",
+		});
+	});
+
+	test("an ordinary failure records no key id", async () => {
+		const r = recorder();
+		const a = app("platform", r.record, (c) => c.set("accountId", "acct-1"));
+		await a.request("/nf");
+		expect(r.rows[0]?.api_key_id).toBeNull();
 	});
 
 	test("no resolved account records nothing", async () => {

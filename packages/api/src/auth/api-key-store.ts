@@ -23,6 +23,25 @@ export type ProductTokenStore<TTenant> = {
 	get(rawToken: string): TTenant | undefined | Promise<TTenant | undefined>;
 };
 
+export type RevokedAccountKey = { id: string; account_id: string };
+
+/** A revoked `account` key behind this raw token, or null. Only called on
+ *  the failure path (the token did not authenticate), platform only. */
+export async function findRevokedAccountKey(
+	rawToken: string,
+	getDb: typeof defaultGetDb = defaultGetDb,
+): Promise<RevokedAccountKey | null> {
+	if (!isPlatformMode() || !rawToken.startsWith("sk-sl_")) return null;
+	const row = await getDb()
+		.selectFrom("api_keys")
+		.select(["id", "account_id"])
+		.where("key_hash", "=", hashToken(rawToken))
+		.where("product", "=", "account")
+		.where("status", "=", "revoked")
+		.executeTakeFirst();
+	return row ?? null;
+}
+
 export type ProductScope = "streams" | "index" | "sentinel" | "chain-read";
 
 type ApiKeyRecord = {

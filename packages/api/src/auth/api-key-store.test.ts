@@ -1,6 +1,10 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { getDb } from "@secondlayer/shared/db";
-import { type ProductTenant, createApiKeyTokenStore } from "./api-key-store.ts";
+import {
+	type ProductTenant,
+	createApiKeyTokenStore,
+	findRevokedAccountKey,
+} from "./api-key-store.ts";
 import { hashToken } from "./keys.ts";
 
 const HAS_DB = !!process.env.DATABASE_URL;
@@ -99,6 +103,43 @@ describe("createApiKeyTokenStore", () => {
 					.where("account_id", "=", accountId)
 					.execute();
 				await db.deleteFrom("accounts").where("id", "=", accountId).execute();
+			});
+
+			test("findRevokedAccountKey matches only revoked account keys", async () => {
+				const insertKey = async (
+					product: "account" | "docs",
+					status: "active" | "revoked",
+				) => {
+					const raw = `sk-sl_revoked_lookup_${crypto.randomUUID()}`;
+					const row = await db
+						.insertInto("api_keys")
+						.values({
+							key_hash: hashToken(raw),
+							key_prefix: raw.slice(0, 14),
+							account_id: accountId,
+							ip_address: "test",
+							product,
+							tier: "free",
+							status,
+						})
+						.returning("id")
+						.executeTakeFirstOrThrow();
+					return { raw, id: row.id };
+				};
+				const revoked = await insertKey("account", "revoked");
+				expect(await findRevokedAccountKey(revoked.raw)).toEqual({
+					id: revoked.id,
+					account_id: accountId,
+				});
+				expect(
+					await findRevokedAccountKey(
+						(await insertKey("account", "active")).raw,
+					),
+				).toBeNull();
+				expect(
+					await findRevokedAccountKey((await insertKey("docs", "revoked")).raw),
+				).toBeNull();
+				expect(await findRevokedAccountKey("sk-sl_unknown_key")).toBeNull();
 			});
 
 			test("a legacy paid-tier pin on the DB row resolves to free, not the pin", async () => {

@@ -9,6 +9,7 @@ import {
 } from "@secondlayer/shared/error-envelope";
 import type { InstanceMode } from "@secondlayer/shared/mode";
 import type { Context, MiddlewareHandler } from "hono";
+import type { RevokedAccountKey } from "../auth/api-key-store.ts";
 import { getRequestId } from "./request-id.ts";
 
 export { DEFAULT_CODE_BY_STATUS, FEEDBACK_URL, redactQuery };
@@ -76,7 +77,8 @@ export function errorEnvelope(opts: {
 		});
 
 		if (!record || res.status === 429) return;
-		const accountId = resolveAccountId(c);
+		const revoked = c.get("revokedApiKey") as RevokedAccountKey | undefined;
+		const accountId = resolveAccountId(c) ?? revoked?.account_id;
 		if (!accountId) return;
 		const row: FailedRequestRecord = {
 			request_id: id,
@@ -91,6 +93,7 @@ export function errorEnvelope(opts: {
 					: "",
 			query: redactQuery(new URL(c.req.url).searchParams),
 			origin: normalizeOrigin(c.req.header("x-sl-origin")),
+			api_key_id: revoked?.id ?? null,
 		};
 		// Fire-and-forget: never delays or alters the response.
 		void (async () => record(row))().catch(warnRecordFailure);

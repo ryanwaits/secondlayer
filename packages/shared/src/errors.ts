@@ -10,6 +10,7 @@ export const ErrorCodes = {
 	NOT_FOUND: "NOT_FOUND",
 	// Tenant lifecycle (CLI surfaces these verbatim)
 	KEY_ROTATED: "KEY_ROTATED",
+	KEY_REVOKED: "KEY_REVOKED",
 	TENANT_SUSPENDED: "TENANT_SUSPENDED",
 	NO_TENANT_FOR_PROJECT: "NO_TENANT_FOR_PROJECT",
 	INSTANCE_EXISTS: "INSTANCE_EXISTS",
@@ -90,6 +91,16 @@ export class AuthorizationError extends SecondLayerError {
 	}
 }
 
+/** A real account key that was revoked. Distinct from an unknown key so the
+ *  caller (and the account's error log) can tell which one it is. */
+export class ApiKeyRevokedError extends SecondLayerError {
+	constructor() {
+		super("KEY_REVOKED", "API key has been revoked", undefined, {
+			hint: "Make a new key at https://secondlayer.tools/account/keys and replace the revoked one wherever it is configured.",
+		});
+	}
+}
+
 export class RateLimitError extends SecondLayerError {
 	constructor(message: string) {
 		super("RATE_LIMIT_ERROR", message);
@@ -161,6 +172,7 @@ export const CODE_TO_STATUS: Record<
 	NOT_FOUND: 404,
 	VALIDATION_ERROR: 400,
 	KEY_ROTATED: 401,
+	KEY_REVOKED: 401,
 	TENANT_SUSPENDED: 423,
 	NO_TENANT_FOR_PROJECT: 404,
 	INSTANCE_EXISTS: 409,
