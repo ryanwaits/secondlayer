@@ -64,6 +64,10 @@ export const POLLING_STALE_INTERVALS = 3;
 export const POLLING_FOLLOW_GAP_MS = 10_000;
 export const POLLING_MIN_EMPTY_RATIO = 0.8;
 export const SERVER_ERRORS_MIN_5XX = 3;
+/** Failed stack calls in the last hour before we say the stack didn't answer (one is a blip). */
+export const STACK_UNREACHABLE_MIN_FAILURES = 2;
+/** A failure this recent (10 minutes) means the stack is still not answering. */
+export const STACK_UNREACHABLE_ACTIVE_MS = 600_000;
 export const BACKFILL_DAY_SHARE = 0.25;
 export const BACKFILL_FULL_PAGE_RATIO = 0.9;
 /** A day under this many rows is never called a backfill, however full its pages. */
