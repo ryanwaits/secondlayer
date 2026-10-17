@@ -354,6 +354,9 @@ export interface AccountsTable {
 	email: string | null;
 	/** True for anonymous self-serve accounts until claimed via magic link. */
 	ghost: Generated<boolean>;
+	/** First-party service account: usage priced at $0, never gated on
+	 *  credits. Set by ops only. */
+	internal: Generated<boolean>;
 	/** Stacks principal owning a wallet-ghost account. */
 	wallet_principal: string | null;
 	display_name: string | null;

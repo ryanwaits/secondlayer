@@ -11,6 +11,7 @@ import {
 	getMonthlyCreditsSpend,
 } from "@secondlayer/platform/db/queries/account-credits";
 import { getCaps } from "@secondlayer/platform/db/queries/account-spend-caps";
+import { isInternalAccount } from "@secondlayer/platform/db/queries/accounts";
 import { monthlyQuantity } from "@secondlayer/platform/db/queries/usage-ledger";
 import { getDb } from "@secondlayer/shared/db";
 import { isPlatformMode } from "@secondlayer/shared/mode";
@@ -40,7 +41,7 @@ export type Credited = { accountId: string; balance: bigint };
  *
  * Spend cap: once this month's credit spend reaches the account's monthly
  * cap, stop granting the unthrottled lane (the hard stop metering itself
- * enforces is in `meter()`).
+ * enforces is in `meter()`). An internal account is always credited.
  */
 export async function resolveCreditedAccount(
 	accountId: string | undefined,
@@ -49,7 +50,11 @@ export async function resolveCreditedAccount(
 	if (!isPlatformMode() || !accountId || tier === "internal") return undefined;
 	const db = getDb();
 	const balance = await getCredits(db, accountId);
-	if (balance < MIN_CREDITED_USD_MICROS) return undefined;
+	if (balance < MIN_CREDITED_USD_MICROS) {
+		return (await isInternalAccount(db, accountId))
+			? { accountId, balance }
+			: undefined;
+	}
 
 	const caps = await getCaps(db, accountId);
 	if (caps?.monthly_cap_cents != null) {
@@ -121,7 +126,8 @@ export type ReadRefusalBody = InsufficientCreditsBody | SpendCapReachedBody;
  *      top-up hint/link — the same error code the archive fetch gate's 402
  *      uses, `routes/archive.ts`).
  *
- * No-op (never refuses — returns `null`) for anon, internal, or self-host:
+ * No-op (never refuses — returns `null`) for anon, internal (key tier or
+ * account), or self-host:
  * the allowance is an account concept, and only platform mode meters reads
  * at all. A read that starts under the allowance is never refused here even
  * if it will straddle it — the free rows and the cap are both allowance-
@@ -141,6 +147,7 @@ export async function checkRowsAllowance(
 		now,
 	);
 	if (usedThisMonth < ROWS_DELIVERED_MONTHLY_ALLOWANCE) return null;
+	if (await isInternalAccount(db, accountId)) return null;
 
 	const caps = await getCaps(db, accountId);
 	if (caps?.monthly_cap_cents != null) {

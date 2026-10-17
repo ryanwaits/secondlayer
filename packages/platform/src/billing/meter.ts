@@ -9,6 +9,7 @@ import {
 	recordCreditsSpend,
 } from "../db/queries/account-credits.ts";
 import { getCaps } from "../db/queries/account-spend-caps.ts";
+import { isInternalAccount } from "../db/queries/accounts.ts";
 import {
 	SENTINEL_UNIT_PREFIX,
 	claimLedgerEntry,
@@ -33,7 +34,8 @@ import {
  * tripped spend cap, which applies to every unit) does not throw — the row is
  * written with `debited: false` so the gap is visible, never silently served
  * free. Hosted-stack units (`CLAMPED_UNITS`) take what the balance has left
- * on a short charge, so the balance reaches 0 and the stack stops.
+ * on a short charge, so the balance reaches 0 and the stack stops. An
+ * internal account's usage is written at $0 and never debited.
  *
  * `db` may be a plain `Kysely<Database>` or an existing `Transaction<Database>`
  * (Postgres SAVEPOINT) — the archive fetch gate calls `meter()` once per
@@ -145,7 +147,9 @@ export async function meter(
 	const occurredAt = input.occurredAt ?? new Date();
 
 	return withTransaction(db, async (trx) => {
-		const priced = await priceUnit(trx, input, occurredAt);
+		const priced = (await isInternalAccount(trx, input.accountId))
+			? { usdMicros: 0n, viaAllowance: false }
+			: await priceUnit(trx, input, occurredAt);
 
 		const { row, claimed } = await claimLedgerEntry(trx, {
 			accountId: input.accountId,

@@ -15,6 +15,20 @@ export async function upsertAccount(
 		.executeTakeFirstOrThrow();
 }
 
+/** First-party service account (`accounts.internal`): usage is recorded at
+ *  $0 and no balance, floor or cap stops it. */
+export async function isInternalAccount(
+	db: Kysely<Database>,
+	accountId: string,
+): Promise<boolean> {
+	const row = await db
+		.selectFrom("accounts")
+		.select("internal")
+		.where("id", "=", accountId)
+		.executeTakeFirst();
+	return row?.internal === true;
+}
+
 /** Trim + lowercase. `upsertAccount` does not normalize; callers that take an
  *  email from another system (Sentinel) normalize first so one address is one
  *  account. */

@@ -12,6 +12,7 @@ import {
 	debitCredits,
 	getCreditRefill,
 	getCredits,
+	getCreditsStatus,
 	getMonthlyCreditsSpend,
 	recordCreditsSpend,
 	setCreditRefill,
@@ -122,5 +123,26 @@ describe.skipIf(!HAS_DB)("credit refill settings", () => {
 		});
 		expect(off.belowUsdMicros).toBeNull();
 		expect(off.packUsd).toBeNull();
+	});
+});
+
+describe.skipIf(!HAS_DB)("getCreditsStatus", () => {
+	test("an empty balance stops a normal account", async () => {
+		expect(await getCreditsStatus(db, accountId)).toEqual({
+			ok: false,
+			reason: "credits",
+		});
+	});
+
+	test("an internal account may always run, with no balance", async () => {
+		await db
+			.updateTable("accounts")
+			.set({ internal: true })
+			.where("id", "=", accountId)
+			.execute();
+		expect(await getCreditsStatus(db, accountId)).toEqual({
+			ok: true,
+			reason: null,
+		});
 	});
 });

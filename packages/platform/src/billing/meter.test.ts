@@ -563,3 +563,42 @@ describe.skipIf(!HAS_DB)("meter — sentinel units and grants", () => {
 		});
 	});
 });
+
+describe.skipIf(!HAS_DB)("meter — internal accounts", () => {
+	test("usage is recorded at $0 and the balance is never touched", async () => {
+		await db
+			.updateTable("accounts")
+			.set({ internal: true })
+			.where("id", "=", accountId)
+			.execute();
+		const now = new Date();
+		for (const [unit, quantity] of [
+			["rows.delivered", ROWS_DELIVERED_MONTHLY_ALLOWANCE + 10],
+			["memory.gb_hour", 0.25],
+			["webhook.event", 1_000],
+		] as const) {
+			const result = await meter(db, {
+				accountId,
+				unit,
+				quantity,
+				source: "test",
+				idempotencyKey: randomUUID(),
+				occurredAt: now,
+			});
+			expect(result.usdMicros).toBe(0n);
+			expect(result.debited).toBe(true);
+		}
+		const rows = await db
+			.selectFrom("usage_ledger")
+			.select(["unit", "usd_micros"])
+			.where("account_id", "=", accountId)
+			.execute();
+		expect(rows.map((r) => [r.unit, Number(r.usd_micros)]).sort()).toEqual([
+			["memory.gb_hour", 0],
+			["rows.delivered", 0],
+			["webhook.event", 0],
+		]);
+		expect(await getCredits(db, accountId)).toBe(0n);
+		expect(await getMonthlyCreditsSpend(db, accountId)).toBe(0n);
+	});
+});

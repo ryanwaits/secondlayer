@@ -3,6 +3,7 @@ import { sql } from "kysely";
 import type { Kysely } from "kysely";
 import { isOverMonthlyCreditCap } from "../../billing/prices.ts";
 import { getCaps } from "./account-spend-caps.ts";
+import { isInternalAccount } from "./accounts.ts";
 
 /**
  * Prepaid credits — the balance `meter()` (`../billing/meter.ts`) debits for
@@ -167,13 +168,14 @@ export type CreditsStopReason = "credits" | "cap";
  * both `/internal/keys/introspect` (gateway) and `/internal/accounts/credits`
  * (the provisioner's 5-minute poll) answer with: a positive balance AND not
  * over the monthly spend cap. A cap that let the stack keep billing would
- * not be a cap.
+ * not be a cap. Internal accounts always may.
  */
 export async function getCreditsStatus(
 	db: Kysely<Database>,
 	accountId: string,
 	now: Date = new Date(),
 ): Promise<{ ok: boolean; reason: CreditsStopReason | null }> {
+	if (await isInternalAccount(db, accountId)) return { ok: true, reason: null };
 	if ((await getCredits(db, accountId)) <= 0n) {
 		return { ok: false, reason: "credits" };
 	}

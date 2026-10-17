@@ -9,7 +9,11 @@ import {
 } from "@secondlayer/platform/db/queries/account-credits";
 import { upsertCaps } from "@secondlayer/platform/db/queries/account-spend-caps";
 import { getDb } from "@secondlayer/shared/db";
-import { checkRowsAllowance, meterRowsDelivered } from "./read-credits.ts";
+import {
+	checkRowsAllowance,
+	meterRowsDelivered,
+	resolveCreditedAccount,
+} from "./read-credits.ts";
 
 const HAS_DB = !!process.env.DATABASE_URL;
 
@@ -184,6 +188,29 @@ describe.skipIf(!HAS_DB)(
 			await meterRowsDelivered(id, ROWS_DELIVERED_MONTHLY_ALLOWANCE, "test");
 			await upsertCaps(db, id, { monthly_cap_cents: 0 });
 			expect(await checkRowsAllowance(id, "internal")).toBeNull();
+		});
+
+		test("an internal account reads past the free rows with no balance, unthrottled", async () => {
+			const row = await db
+				.insertInto("accounts")
+				.values({
+					email: `read-credits-internal-${crypto.randomUUID().slice(0, 8)}@example.com`,
+					internal: true,
+				})
+				.returning("id")
+				.executeTakeFirstOrThrow();
+			ids.push(row.id);
+			await meterRowsDelivered(
+				row.id,
+				ROWS_DELIVERED_MONTHLY_ALLOWANCE + 10,
+				"test",
+			);
+			expect(await getCredits(db, row.id)).toBe(0n);
+			expect(await checkRowsAllowance(row.id, "free")).toBeNull();
+			expect(await resolveCreditedAccount(row.id, "free")).toEqual({
+				accountId: row.id,
+				balance: 0n,
+			});
 		});
 
 		test("raising the cap re-allows the read", async () => {
