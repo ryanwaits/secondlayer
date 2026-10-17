@@ -17,6 +17,7 @@ import {
 	POLLING_MIN_DURATION_MS,
 	POLLING_MIN_EMPTY_RATIO,
 	POLLING_MIN_REQUESTS,
+	POLLING_STALE_INTERVALS,
 	REVOKED_KEY_ACTIVE_MS,
 	SERVER_ERRORS_MIN_5XX,
 	handoffPrompt,
@@ -302,6 +303,11 @@ const pollingLoop: InsightRule<AccountRuleInput> = {
 			if (mean <= 0 || stddev(gaps, mean) >= POLLING_MAX_STDDEV_RATIO * mean) {
 				continue;
 			}
+			// The window still holds a loop that stopped (a revoked key, a job
+			// turned off): only a loop that polled recently is still running.
+			if (input.now.getTime() - last > POLLING_STALE_INTERVALS * mean) {
+				continue;
+			}
 			const empty = polls.filter((p) =>
 				p.every((r) => servedRows(r) === 0),
 			).length;
@@ -322,7 +328,7 @@ const pollingLoop: InsightRule<AccountRuleInput> = {
 
 		// Calls per minute for the last hour, split by whether rows came back.
 		const minutes = 60;
-		const end = Math.floor(last.getTime() / MINUTE_MS) * MINUTE_MS;
+		const end = Math.floor(input.now.getTime() / MINUTE_MS) * MINUTE_MS;
 		const withRows = new Array<number>(minutes).fill(0);
 		const emptyCalls = new Array<number>(minutes).fill(0);
 		for (const r of rows) {

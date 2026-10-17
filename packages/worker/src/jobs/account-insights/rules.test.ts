@@ -265,6 +265,20 @@ describe("polling_loop", () => {
 		expect(out?.how.facts).toContainEqual(["calls", "14"]);
 	});
 
+	test("a loop that stopped polling no longer fires", () => {
+		// 10-minute loop over 5 hours that stopped 50 minutes ago.
+		const stopped = poll(30, 10, () => true).map((r) => ({
+			...r,
+			createdAt: new Date(r.createdAt.getTime() - 50 * MIN),
+		}));
+		expect(fire("polling_loop", input({ requests: stopped }))).toBeNull();
+		const recent = poll(30, 10, () => true).map((r) => ({
+			...r,
+			createdAt: new Date(r.createdAt.getTime() - 20 * MIN),
+		}));
+		expect(fire("polling_loop", input({ requests: recent }))).not.toBeNull();
+	});
+
 	test("needs at least 5 requests", () => {
 		expect(
 			fire("polling_loop", input({ requests: poll(4, 30, () => true) })),
