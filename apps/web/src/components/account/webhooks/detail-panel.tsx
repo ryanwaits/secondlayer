@@ -41,7 +41,7 @@ import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { AttemptTimeline } from "./attempt-timeline";
 import { AsleepNotice } from "./list-panel";
-import { PayloadView } from "./payload-view";
+import { PayloadView, answeredAttempt } from "./payload-view";
 import { displayStatus, formatEventCell, shortenName } from "./shared";
 import { WebhookDetailSkeleton } from "./skeletons";
 import { TriggersBox } from "./triggers";
@@ -476,6 +476,7 @@ function DeliveryRowView({
 	open: boolean;
 	onToggle: () => void;
 }) {
+	const answered = answeredAttempt(attempts);
 	return (
 		<>
 			<tr
@@ -520,8 +521,9 @@ function DeliveryRowView({
 							webhookId={webhook.id}
 							deliveryId={latest.id}
 							triggers={webhook.triggers}
-							responseBody={latest.responseBody ?? null}
-							statusCode={latest.statusCode}
+							responseBody={answered.responseBody ?? null}
+							statusCode={answered.statusCode}
+							responseIsLatest={answered.id === latest.id}
 							host={hostOf(webhook.url)}
 						/>
 					</td>

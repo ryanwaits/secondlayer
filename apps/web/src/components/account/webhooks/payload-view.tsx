@@ -72,6 +72,15 @@ export function parseBody(
 	}
 }
 
+/** The attempt whose response the Response tab shows: the newest that got
+ *  one, else the newest attempt. `attempts` is oldest first. */
+export function answeredAttempt<T extends { responseBody?: string | null }>(
+	attempts: readonly T[],
+): T {
+	const newest = attempts[attempts.length - 1] as T;
+	return [...attempts].reverse().find((a) => a.responseBody) ?? newest;
+}
+
 function kb(text: string): string {
 	return `${(new TextEncoder().encode(text).length / 1024).toFixed(1)} KB`;
 }
@@ -234,9 +243,12 @@ export function PayloadView({
 interface PayloadPanelProps {
 	load: Load;
 	triggers: readonly ChainTrigger[];
-	/** The row's own copy of the response, shown if the detail has none. */
+	/** The response of the attempt shown on the Response tab. */
 	responseBody: string | null;
 	statusCode: number | null;
+	/** True when that attempt is the one the fetched detail describes, so the
+	 *  detail's (untruncated-by-the-list) body may stand in for `responseBody`. */
+	responseIsLatest: boolean;
 	host: string;
 }
 
@@ -246,6 +258,7 @@ export function PayloadPanel({
 	triggers,
 	responseBody,
 	statusCode,
+	responseIsLatest,
 	host,
 }: PayloadPanelProps) {
 	const [chosen, setChosen] = useState<Tab | null>(null);
@@ -253,7 +266,9 @@ export function PayloadPanel({
 	const payload = detail?.payload ?? null;
 	const gone = load.status === "ok" && payload === null;
 	const tab: Tab = chosen ?? (gone ? "response" : "sent");
-	const response = detail?.responseBody ?? responseBody;
+	const response = responseIsLatest
+		? (detail?.responseBody ?? responseBody)
+		: responseBody;
 	const sentText = payload === null ? null : JSON.stringify(payload, null, 2);
 	const parsed = parseBody(response);
 

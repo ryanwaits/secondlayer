@@ -571,6 +571,7 @@ export function PayloadViewDemo({ kept }: { kept: boolean }) {
 			triggers={PAYLOAD_STORY_TRIGGERS}
 			responseBody={response}
 			statusCode={200}
+			responseIsLatest
 			host="postman-echo.com"
 		/>
 	);

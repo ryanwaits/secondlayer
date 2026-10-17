@@ -1,7 +1,14 @@
 import { describe, expect, test } from "bun:test";
 import type { ChainTrigger } from "@secondlayer/sdk";
 import { renderToStaticMarkup } from "react-dom/server";
-import { JsonView, clampString, markMatcher, parseBody } from "./payload-view";
+import {
+	JsonView,
+	PayloadPanel,
+	answeredAttempt,
+	clampString,
+	markMatcher,
+	parseBody,
+} from "./payload-view";
 
 // A real delivery: the fastpool unstake print event.
 const SENT = {
@@ -128,5 +135,41 @@ describe("parseBody", () => {
 	test("JSON parses and an empty body is null", () => {
 		expect(parseBody('{"a":1}')).toEqual({ json: { a: 1 } });
 		expect(parseBody(null)).toBeNull();
+	});
+});
+
+describe("the Response tab after a retry", () => {
+	const attempts = [
+		{ id: "a1", statusCode: 502, responseBody: "bad gateway" },
+		{ id: "a2", statusCode: null, responseBody: null },
+	];
+
+	test("a timed-out final retry still shows the earlier attempt's body and status", () => {
+		const answered = answeredAttempt(attempts);
+		expect(answered.id).toBe("a1");
+		const html = renderToStaticMarkup(
+			<PayloadPanel
+				load={{
+					status: "ok",
+					detail: { payload: null, responseBody: null } as never,
+				}}
+				triggers={[]}
+				responseBody={answered.responseBody}
+				statusCode={answered.statusCode}
+				responseIsLatest={answered.id === "a2"}
+				host="example.com"
+			/>,
+		);
+		expect(html).toContain("Response 502");
+		expect(html).toContain("bad gateway");
+	});
+
+	test("with no body on any attempt the newest attempt answers", () => {
+		expect(
+			answeredAttempt([
+				{ id: "a1", responseBody: null },
+				{ id: "a2", responseBody: null },
+			]).id,
+		).toBe("a2");
 	});
 });
