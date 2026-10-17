@@ -58,6 +58,8 @@ export const POLLING_MIN_DURATION_MS = 3_600_000;
 export const POLLING_MIN_REQUESTS = 5;
 export const POLLING_LOOKBACK_MS: number = 6 * 3_600_000;
 export const POLLING_MAX_STDDEV_RATIO = 0.2;
+/** A request this soon after the previous one is a cursor-follow page of the same poll. */
+export const POLLING_FOLLOW_GAP_MS = 10_000;
 export const POLLING_MIN_EMPTY_RATIO = 0.8;
 export const SERVER_ERRORS_MIN_5XX = 3;
 export const BACKFILL_DAY_SHARE = 0.25;

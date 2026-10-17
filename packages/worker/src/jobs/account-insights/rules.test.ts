@@ -250,6 +250,20 @@ describe("polling_loop", () => {
 		).toBeNull();
 	});
 
+	test("a cursor-follow page after a hit is part of the same poll", () => {
+		// 10-minute loop; two polls find a row and follow the cursor a second
+		// later to an empty page. Those 1-second gaps must not read as erratic.
+		const requests = poll(12, 10, (i) => i % 6 !== 0).flatMap((r, i) =>
+			i % 6 === 0
+				? [r, request({ at: new Date(r.createdAt.getTime() + 1000), rows: 0 })]
+				: [r],
+		);
+		const out = fire("polling_loop", input({ requests }));
+		expect(out?.line).toContain("every 600 seconds");
+		expect(out?.how.facts).toContainEqual(["polls", "12"]);
+		expect(out?.how.facts).toContainEqual(["calls", "14"]);
+	});
+
 	test("needs at least 5 requests", () => {
 		expect(
 			fire("polling_loop", input({ requests: poll(4, 30, () => true) })),

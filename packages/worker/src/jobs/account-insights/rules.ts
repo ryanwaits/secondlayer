@@ -11,6 +11,7 @@ import {
 	type InsightRule,
 	KEY_UNUSED_DAYS,
 	PAGE_CAP_ROWS,
+	POLLING_FOLLOW_GAP_MS,
 	POLLING_LOOKBACK_MS,
 	POLLING_MAX_STDDEV_RATIO,
 	POLLING_MIN_DURATION_MS,
@@ -240,47 +241,72 @@ function stddev(values: number[], mean: number): number {
 	return Math.sqrt(variance);
 }
 
+/**
+ * Requests split into polls. A request within `POLLING_FOLLOW_GAP_MS` of the
+ * previous one is the loop following a cursor after a hit, not a new poll.
+ */
+function pollsOf(rows: RequestLogRow[]): RequestLogRow[][] {
+	const polls: RequestLogRow[][] = [];
+	let previous: RequestLogRow | undefined;
+	for (const row of rows) {
+		const current = polls[polls.length - 1];
+		if (
+			current &&
+			previous &&
+			row.createdAt.getTime() - previous.createdAt.getTime() <
+				POLLING_FOLLOW_GAP_MS
+		) {
+			current.push(row);
+		} else {
+			polls.push([row]);
+		}
+		previous = row;
+	}
+	return polls;
+}
+
 const pollingLoop: InsightRule<AccountRuleInput> = {
 	id: "polling_loop",
 	evaluate(input) {
 		const since = input.now.getTime() - POLLING_LOOKBACK_MS;
 		let best: {
 			rows: RequestLogRow[];
+			polls: number;
 			meanMs: number;
 			empty: number;
 		} | null = null;
 
 		for (const all of groupRequests(input.requests).values()) {
 			const rows = all.filter((r) => r.createdAt.getTime() >= since);
-			if (rows.length < POLLING_MIN_REQUESTS) continue;
-			const first = rows[0]?.createdAt.getTime() ?? 0;
-			const last = rows[rows.length - 1]?.createdAt.getTime() ?? 0;
+			const polls = pollsOf(rows);
+			if (polls.length < POLLING_MIN_REQUESTS) continue;
+			const starts = polls.map((p) => p[0]?.createdAt.getTime() ?? 0);
+			const first = starts[0] ?? 0;
+			const last = starts[starts.length - 1] ?? 0;
 			if (last - first < POLLING_MIN_DURATION_MS) continue;
 
-			const gaps = rows
-				.slice(1)
-				.map(
-					(r, i) => r.createdAt.getTime() - (rows[i]?.createdAt.getTime() ?? 0),
-				);
+			const gaps = starts.slice(1).map((t, i) => t - (starts[i] ?? 0));
 			const mean = gaps.reduce((a, b) => a + b, 0) / gaps.length;
 			if (mean <= 0 || stddev(gaps, mean) >= POLLING_MAX_STDDEV_RATIO * mean) {
 				continue;
 			}
-			const empty = rows.filter((r) => servedRows(r) === 0).length;
-			if (empty / rows.length < POLLING_MIN_EMPTY_RATIO) continue;
-			if (!best || rows.length > best.rows.length) {
-				best = { rows, meanMs: mean, empty };
+			const empty = polls.filter((p) =>
+				p.every((r) => servedRows(r) === 0),
+			).length;
+			if (empty / polls.length < POLLING_MIN_EMPTY_RATIO) continue;
+			if (!best || polls.length > best.polls) {
+				best = { rows, polls: polls.length, meanMs: mean, empty };
 			}
 		}
 		if (!best) return null;
 
-		const { rows, meanMs, empty } = best;
+		const { rows, polls, meanMs, empty } = best;
 		const path = rows[0]?.pathTemplate ?? "";
 		const first = rows[0]?.createdAt ?? input.now;
 		const last = rows[rows.length - 1]?.createdAt ?? input.now;
 		const hours = (last.getTime() - first.getTime()) / 3_600_000;
 		const everySeconds = Math.max(1, Math.round(meanMs / 1000));
-		const emptyPercent = Math.round((empty / rows.length) * 100);
+		const emptyPercent = Math.round((empty / polls) * 100);
 
 		// Calls per minute for the last hour, split by whether rows came back.
 		const minutes = 60;
@@ -303,7 +329,7 @@ const pollingLoop: InsightRule<AccountRuleInput> = {
 			line: `${path} is polled every ${everySeconds} seconds and mostly returns nothing`,
 			meta: `${emptyPercent}% empty over ${hours.toFixed(1)} hours`,
 			lead: "A loop is asking again and again for data that is not there yet.",
-			body: `One request was repeated every ${everySeconds} seconds for ${hours.toFixed(1)} hours, and ${emptyPercent}% of the answers had no rows. Empty answers are free, but they hide when real data arrives. Index can hold a request open until new data arrives, so the loop can wait instead of asking.`,
+			body: `One request was repeated every ${everySeconds} seconds for ${hours.toFixed(1)} hours, and ${emptyPercent}% of the polls came back empty. Empty answers are free, but they hide when real data arrives. Index can hold a request open until new data arrives, so the loop can wait instead of asking.`,
 			evidence: [
 				{
 					kind: "series",
@@ -324,7 +350,7 @@ const pollingLoop: InsightRule<AccountRuleInput> = {
 					subject: "My Secondlayer account",
 					observed: [
 						`calls ${path} with the same query every ${everySeconds} seconds`,
-						`${plural(rows.length, "call")} over ${hours.toFixed(1)} hours, and ${emptyPercent}% of them returned no rows`,
+						`${plural(polls, "poll")} over ${hours.toFixed(1)} hours, and ${emptyPercent}% of them returned no rows`,
 					],
 					lookAt:
 						"Check which job runs this loop, and whether it should wait for new data or run on a longer schedule",
@@ -332,10 +358,11 @@ const pollingLoop: InsightRule<AccountRuleInput> = {
 				commands: [],
 			},
 			how: {
-				detector: `one request repeated at a steady interval (spread under ${Math.round(POLLING_MAX_STDDEV_RATIO * 100)}% of the mean) for ${POLLING_MIN_DURATION_MS / 3_600_000} hour or more, with ${Math.round(POLLING_MIN_EMPTY_RATIO * 100)}% or more empty answers`,
+				detector: `one request repeated at a steady interval (spread under ${Math.round(POLLING_MAX_STDDEV_RATIO * 100)}% of the mean) for ${POLLING_MIN_DURATION_MS / 3_600_000} hour or more, with ${Math.round(POLLING_MIN_EMPTY_RATIO * 100)}% or more empty polls; a request within ${POLLING_FOLLOW_GAP_MS / 1000} seconds of the previous one is a cursor page of the same poll`,
 				facts: [
 					["path", path],
 					["interval", `${everySeconds}s`],
+					["polls", String(polls)],
 					["calls", String(rows.length)],
 					["empty share", `${emptyPercent}%`],
 				],
