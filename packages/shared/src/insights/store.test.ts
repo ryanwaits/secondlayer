@@ -176,7 +176,7 @@ describe.skipIf(!HAS_DB)("insight store", () => {
 		expect(after.find((i) => i.resource.id === id)).toBeUndefined();
 	});
 
-	test("a new incident after resolution is a separate row", async () => {
+	test("a new incident after resolution lists once, as the open row", async () => {
 		const id = `${tag}-again`;
 		await recordEvaluation(
 			db,
@@ -193,7 +193,64 @@ describe.skipIf(!HAS_DB)("insight store", () => {
 			[key(id)],
 		);
 		const rows = (await ours(NULL_SCOPE)).filter((i) => i.resource.id === id);
-		expect(rows.map((r) => r.severity).sort()).toEqual(["losing", "recovered"]);
+		expect(rows.map((r) => r.severity)).toEqual(["losing"]);
+	});
+
+	test("two recovered incidents of one rule list once, the latest", async () => {
+		const id = `${tag}-twice`;
+		const first = new Date("2026-10-16T20:00:00.000Z");
+		const second = new Date("2026-10-17T09:00:00.000Z");
+		for (const [at, line] of [
+			[first, "First"],
+			[second, "Second"],
+		] as const) {
+			await recordEvaluation(
+				db,
+				NULL_SCOPE,
+				[detected({ resourceId: id, line })],
+				[key(id)],
+				at,
+			);
+			await recordEvaluation(db, NULL_SCOPE, [], [key(id)], at);
+			await recordEvaluation(db, NULL_SCOPE, [], [key(id)], at);
+		}
+		const rows = (
+			await ours(NULL_SCOPE, new Date(second.getTime() + 3600_000))
+		).filter((i) => i.resource.id === id);
+		expect(rows.map((r) => [r.severity, r.line])).toEqual([
+			["recovered", "Second"],
+		]);
+	});
+
+	test("dismissing the latest incident never surfaces an older one", async () => {
+		const id = `${tag}-dismiss-latest`;
+		const at = new Date("2026-10-16T20:00:00.000Z");
+		await recordEvaluation(
+			db,
+			NULL_SCOPE,
+			[detected({ resourceId: id })],
+			[key(id)],
+			at,
+		);
+		await recordEvaluation(db, NULL_SCOPE, [], [key(id)], at);
+		await recordEvaluation(db, NULL_SCOPE, [], [key(id)], at);
+		await recordEvaluation(
+			db,
+			NULL_SCOPE,
+			[detected({ resourceId: id })],
+			[key(id)],
+			at,
+		);
+		const later = new Date(at.getTime() + 3600_000);
+		const open = (await ours(NULL_SCOPE, later)).find(
+			(i) => i.resource.id === id,
+		);
+		expect(open?.severity).toBe("losing");
+		await dismissInsight(db, NULL_SCOPE, open?.id ?? "", later);
+		const rows = (await ours(NULL_SCOPE, later)).filter(
+			(i) => i.resource.id === id,
+		);
+		expect(rows).toEqual([]);
 	});
 
 	test("dismissed insights are hidden", async () => {

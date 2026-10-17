@@ -128,7 +128,8 @@ export async function listOpenResources(
 
 /**
  * Open rows plus rows resolved within `RECOVERED_VISIBLE_MS`, minus dismissed
- * and muted ones. Resolved rows come back as `recovered`. Ranked.
+ * and muted ones. Resolved rows come back as `recovered`. One row per
+ * (resource, rule): the open incident, else the latest recovered one. Ranked.
  */
 export async function listInsights(
 	db: Kysely<Database>,
@@ -147,12 +148,16 @@ export async function listInsights(
 		resolved_at: Date | null;
 	}>`
 		SELECT i.id, i.rule, i.severity, i.impact, i.payload, i.first_seen_at, i.resolved_at
-		FROM insights i
-		WHERE ${scopeWhere(scope, sql.ref("i.account_id"))}
-			AND i.dismissed_at IS NULL
-			AND (i.resolved_at IS NULL OR i.resolved_at > ${since})
-			${filter.kind ? sql`AND i.resource_kind = ${filter.kind}` : sql``}
-			${filter.id ? sql`AND i.resource_id = ${filter.id}` : sql``}
+		FROM (
+			SELECT DISTINCT ON (resource_kind, resource_id, rule) *
+			FROM insights
+			WHERE ${scopeWhere(scope)}
+				AND (resolved_at IS NULL OR resolved_at > ${since})
+				${filter.kind ? sql`AND resource_kind = ${filter.kind}` : sql``}
+				${filter.id ? sql`AND resource_id = ${filter.id}` : sql``}
+			ORDER BY resource_kind, resource_id, rule, resolved_at DESC NULLS FIRST
+		) i
+		WHERE i.dismissed_at IS NULL
 			AND NOT EXISTS (
 				SELECT 1 FROM insight_mutes m
 				WHERE ${scopeWhere(scope, sql.ref("m.account_id"))}
