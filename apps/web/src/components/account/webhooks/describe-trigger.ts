@@ -165,11 +165,14 @@ const fallbackPhrase = (field: string, value: unknown): Phrase => [
 
 // ── Describe ──────────────────────────────────────────────────────────────
 
+/** A where key's ref is its position, never its text: print keys can hold characters a ref name can't. */
+const whereRef = (index: number): string => `where-${index}`;
+
 type Part = {
 	/** Focus ref; the code rows of `fields` carry it. */
 	ref: string;
 	phrase: Phrase;
-	/** Source fields this phrase covers (`where.{key}` for where keys). */
+	/** Source fields this phrase covers (`where-{i}` for the i-th where key). */
 	fields: string[];
 };
 
@@ -216,8 +219,8 @@ function buildParts(trigger: Fields, keys: string[]): Part[] {
 			Object.entries(value as Record<string, string | string[]>).forEach(
 				([whereKey, whereValue], i) => {
 					parts.push({
-						ref: `where.${whereKey}`,
-						fields: [`where.${whereKey}`],
+						ref: whereRef(i),
+						fields: [whereRef(i)],
 						phrase: [
 							text(i === 0 ? "where " : "and "),
 							code(whereKey),
@@ -361,10 +364,10 @@ function sourceRows(trigger: Fields, refOf: (field: string) => string): Row[] {
 			continue;
 		}
 		add("      where: {");
-		for (const [whereKey, whereValue] of Object.entries(
+		for (const [index, [whereKey, whereValue]] of Object.entries(
 			value as Record<string, string | string[]>,
-		)) {
-			const ref = refOf(`where.${whereKey}`);
+		).entries()) {
+			const ref = refOf(whereRef(index));
 			if (Array.isArray(whereValue)) {
 				add(`        ${objectKey(whereKey)}: [`, ref);
 				for (const v of whereValue) add(`          ${JSON.stringify(v)},`, ref);

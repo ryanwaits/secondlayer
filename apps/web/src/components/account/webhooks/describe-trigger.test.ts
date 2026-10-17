@@ -149,7 +149,7 @@ const fastpool = [
 
 /** Row refs a field's code can carry: its own, a range, or a merged asset/rune. */
 function coveringRefs(trigger: Record<string, unknown>, field: string) {
-	if (field.startsWith("where.")) return [field];
+	if (field.startsWith("where-")) return [field];
 	if (field === "minAmount" || field === "maxAmount")
 		return [
 			field,
@@ -184,7 +184,7 @@ describe("invariants over every fixture", () => {
 				.filter((k) => k !== "type")
 				.flatMap((k) =>
 					k === "where"
-						? Object.keys(fixture.where as object).map((w) => `where.${w}`)
+						? Object.keys(fixture.where as object).map((_, i) => `where-${i}`)
 						: [k],
 				);
 			if (!fields.length) expect(focus).toEqual([]);
@@ -202,6 +202,38 @@ describe("invariants over every fixture", () => {
 			expect(all).not.toContain("—");
 		});
 	}
+});
+
+describe("ref names", () => {
+	const REF_NAME = /^[A-Za-z0-9_-]+$/;
+	const refsIn = (source: string) =>
+		[...source.matchAll(/\/\/ !ref\(\d+:\d+\) (\S+)/g)].map((m) => m[1]);
+
+	test("every ref emitted for every fixture is a name the code renderer accepts", () => {
+		const fixtures = [...GOLDEN.map(([f]) => [t(f)]), fastpool];
+		for (const all of fixtures)
+			all.forEach((trigger, i) => {
+				const d = describeTrigger(trigger, i, all, 1200);
+				const refs = [
+					...d.prose.flatMap((s) => (s.focus ? [s.focus] : [])),
+					...refsIn(d.source),
+				];
+				for (const ref of refs) expect(ref).toMatch(REF_NAME);
+			});
+	});
+
+	test("a where key with odd characters still gets a plain ref", () => {
+		const trigger = t({
+			type: "print_event",
+			contractId: POX5,
+			where: { "a?b": "1", "c!d": "2" },
+		});
+		const d = describeTrigger(trigger, 0, [trigger]);
+		expect(d.prose.flatMap((s) => (s.focus ? [s.focus] : []))).toContain(
+			"where-1",
+		);
+		expect(d.source).toContain("// !ref(1:1) where-0");
+	});
 });
 
 describe("fields without a phrase", () => {
@@ -291,7 +323,7 @@ describe("source", () => {
 				"      // !ref(1:1) contractId",
 				`      contractId: "${POX5}",`,
 				"      where: {",
-				"        // !ref(1:4) where.signer",
+				"        // !ref(1:4) where-0",
 				"        signer: [",
 				`          "${FP1}",`,
 				`          "${FP2}",`,
