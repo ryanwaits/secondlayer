@@ -181,7 +181,7 @@ test("no output contains an em dash and every url is a same-origin path", () => 
 		),
 	];
 	for (const o of outputs) {
-		expect(JSON.stringify(o)).not.toContain("—");
+		expect(JSON.stringify(o)).not.toMatch(/\u2014/);
 		expect(o.url.startsWith("/")).toBe(true);
 		expect(o.url.startsWith("//")).toBe(false);
 	}

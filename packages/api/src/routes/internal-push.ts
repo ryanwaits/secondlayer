@@ -1,5 +1,5 @@
 /**
- * `POST /internal/push` — the workload host reports facts about one account
+ * `POST /internal/push`: the workload host reports facts about one account
  * that only it can see: a hosted subgraph that stopped, and replays that
  * finished on the tenant's stack. This route builds the copy and sends the
  * push, once per signal (see `pushOnce`). Tenant insights are never forwarded
