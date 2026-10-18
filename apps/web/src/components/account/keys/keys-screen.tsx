@@ -5,6 +5,7 @@ import { Sparkline } from "@/components/dashboard/charts/sparkline";
 import { ActionableInsights } from "@/components/dashboard/insight/insight-actions";
 import { PlaceholderRows } from "@/components/dashboard/shell/onboarding";
 import { StatusSentence } from "@/components/dashboard/shell/status-sentence";
+import { useCompact } from "@/components/mobile/use-compact";
 import {
 	ensureApps,
 	ensureKeys,
@@ -20,7 +21,9 @@ import { shortCount } from "@/lib/subgraph-view";
 import type { ApiKey, ConnectedApp } from "@/lib/types";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { AccountCompactHeader } from "../compact-account";
 import { AppsTable } from "./apps-table";
+import { KeysCompact } from "./compact-keys";
 import {
 	agoShort,
 	dayLabels,
@@ -499,6 +502,7 @@ const KEY_RULES = ["key_unused", "revoked_key_in_use"];
 export function KeysScreen() {
 	const { keys, apps } = useAccountData();
 	const { data: allInsights } = useInsights();
+	const compact = useCompact();
 	const [creating, setCreating] = useState(false);
 	const [freshPrefix, setFreshPrefix] = useState<string | null>(null);
 	const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -532,6 +536,15 @@ export function KeysScreen() {
 	// The unused-key note is re-checked every 5 minutes; once no listed key is
 	// stale (say, it was just revoked) it would only be out of date.
 	const staleOwnKey = hasStaleOwnKey(keys, now);
+
+	if (compact) {
+		return (
+			<>
+				<AccountCompactHeader current="keys" />
+				<KeysCompact keys={keys} now={now} />
+			</>
+		);
+	}
 
 	const existingNames = groupKeys(keys, now)
 		.own.filter((k) => k.product !== "docs")

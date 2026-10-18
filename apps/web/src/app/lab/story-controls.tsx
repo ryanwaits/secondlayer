@@ -1,8 +1,18 @@
 "use client";
 
 import { BillingBody } from "@/components/account/billing/billing-screen";
+import {
+	TopupSheetBody,
+	UsageBody,
+} from "@/components/account/billing/compact-usage";
 import { LimitsAndEmails } from "@/components/account/billing/limits-and-emails";
+import { AccountSegments } from "@/components/account/compact-account";
 import { AddCredits, useCheckout } from "@/components/account/credits-panel";
+import {
+	KeySheetBody,
+	KeysCompactList,
+	keySheetHead,
+} from "@/components/account/keys/compact-keys";
 import {
 	EXAMPLE_KEYS,
 	EXAMPLE_KEYS_STALE,
@@ -73,7 +83,7 @@ import {
 import { Logo } from "@/components/logo";
 import { HoldButton } from "@/components/mobile/hold-button";
 import { ShareFixSheet } from "@/components/mobile/share/share-fix-sheet";
-import { Sheet } from "@/components/mobile/sheet";
+import { Sheet, SheetPanel } from "@/components/mobile/sheet";
 import { SwipeGroup, SwipeRow } from "@/components/mobile/swipe-row";
 import type { Insight } from "@/lib/insights";
 import { FIXTURE_INSIGHTS } from "@/lib/insights.fixtures";
@@ -87,6 +97,8 @@ import {
 	withFilter,
 } from "@/lib/subgraph-view";
 import type { SubgraphListItem } from "@/lib/subgraphs-store";
+import type { ApiKey } from "@/lib/types";
+import type { DailySpend } from "@/lib/usage";
 import type { WebhookTestResult } from "@secondlayer/sdk";
 import type { ChainTrigger } from "@secondlayer/sdk";
 import Link from "next/link";
@@ -1440,5 +1452,182 @@ export function SubgraphSheetDemo({
 			}
 			onShare={withShare ? () => {} : undefined}
 		/>
+	);
+}
+
+const ACCOUNT_NOW = new Date("2026-10-17T12:00:00.000Z");
+
+/** Daily spend: `early` a day for days 1 to 10, `late` a day for days 11 to 17. */
+function accountDaily(early: number, late: number): DailySpend[] {
+	return Array.from({ length: 17 }, (_, i) => ({
+		date: `2026-10-${String(i + 1).padStart(2, "0")}`,
+		unit: "rows.delivered",
+		usdMicros: String(Math.round((i < 10 ? early : late) * 1_000_000)),
+	}));
+}
+
+const ACCOUNT_USAGE = {
+	healthy: {
+		billing: {
+			creditsUsdMicros: "38400000",
+			spentThisMonthUsdMicros: "14200000",
+		},
+		capUsd: 50 as number | null,
+		daily: accountDaily(0.83, 0.843),
+		rows: "3200000",
+		rate: "2000000",
+	},
+	"near-cap": {
+		billing: {
+			creditsUsdMicros: "9900000",
+			spentThisMonthUsdMicros: "40100000",
+		},
+		capUsd: 50 as number | null,
+		daily: accountDaily(2.26, 2.5),
+		rows: "8400000",
+		rate: "2360000",
+	},
+	"no-cap": {
+		billing: {
+			creditsUsdMicros: "38400000",
+			spentThisMonthUsdMicros: "14200000",
+		},
+		capUsd: null as number | null,
+		daily: accountDaily(0.83, 0.843),
+		rows: "3200000",
+		rate: "2000000",
+	},
+};
+
+type AccountScenario = keyof typeof ACCOUNT_USAGE;
+
+function accountUsageProps(scenario: AccountScenario) {
+	const s = ACCOUNT_USAGE[scenario];
+	return {
+		now: ACCOUNT_NOW,
+		billing: s.billing,
+		capUsd: s.capUsd,
+		usage: [
+			{ unit: "rows.delivered", quantity: s.rows, usdMicros: "0" },
+			{ unit: "webhook.event", quantity: "300400", usdMicros: "0" },
+		],
+		daily: s.daily,
+		burn: { rateDayUsdMicros: s.rate, windowHours: 24 },
+		service: { state: "running" as const, lastChargedAt: null, memory24h: [] },
+	};
+}
+
+/** A fake checkout: picks an amount, never leaves the Lab. */
+function useLabCheckout() {
+	const [amount, setAmount] = useState(25);
+	return {
+		amount,
+		valid: true,
+		choose: (next: number | null) => next !== null && setAmount(next),
+		busy: false,
+		error: null,
+		checkout: async () => {
+			toast("Opens Stripe Checkout, then returns here");
+		},
+	};
+}
+
+/** The phone Usage screen, with a top-up sheet that opens from the button. */
+export function LocalAccountUsage({ scenario }: { scenario: AccountScenario }) {
+	const [open, setOpen] = useState(false);
+	const co = useLabCheckout();
+	const props = accountUsageProps(scenario);
+	return (
+		<>
+			<AccountSegments current="usage" onSelect={() => {}} />
+			<UsageBody {...props} onTopUp={() => setOpen(true)} />
+			<Sheet
+				open={open}
+				onClose={() => setOpen(false)}
+				eyebrow="Balance $9.90"
+				title="Top up"
+			>
+				<TopupSheetBody co={co} billing={props.billing} burn={props.burn} />
+			</Sheet>
+			<LabToaster />
+		</>
+	);
+}
+
+/** The top-up sheet's markup at a fixed height. */
+export function TopupSheetDemo() {
+	const co = useLabCheckout();
+	const props = accountUsageProps("near-cap");
+	return (
+		<>
+			<SheetPanel eyebrow="Balance $9.90" title="Top up" detent="auto">
+				<TopupSheetBody co={co} billing={props.billing} burn={props.burn} />
+			</SheetPanel>
+			<LabToaster />
+		</>
+	);
+}
+
+const ACCOUNT_KEYS: ApiKey[] = [
+	...EXAMPLE_KEYS_STALE.filter((k) =>
+		["prod-indexer", "laptop", "old-indexer"].includes(k.name),
+	),
+];
+
+/** The phone key list; a row opens its sheet, where a full hold revokes the key. */
+export function LocalAccountKeys() {
+	const [openId, setOpenId] = useState<string | null>(null);
+	const [revoked, setRevoked] = useState<string[]>([]);
+	const keys = ACCOUNT_KEYS.map((k) =>
+		revoked.includes(k.id) ? { ...k, status: "revoked" as const } : k,
+	);
+	const open = keys.find((k) => k.id === openId);
+	return (
+		<>
+			<AccountSegments current="keys" onSelect={() => {}} />
+			<KeysCompactList keys={keys} now={KEYS_EXAMPLE_NOW} onOpen={setOpenId} />
+			{open ? (
+				<Sheet
+					open
+					onClose={() => setOpenId(null)}
+					{...keySheetHead(open, KEYS_EXAMPLE_NOW)}
+				>
+					<KeySheetBody
+						k={open}
+						now={KEYS_EXAMPLE_NOW}
+						onRevoke={() => {
+							setRevoked((r) => [...r, open.id]);
+							toast.success(`Revoked ${open.name}. Calls with it now get 401.`);
+							setOpenId(null);
+						}}
+					/>
+				</Sheet>
+			) : null}
+			<LabToaster />
+		</>
+	);
+}
+
+/** The key sheet's markup; holding to the end revokes the key locally. */
+export function KeySheetDemo({
+	revoked: startRevoked = false,
+}: { revoked?: boolean }) {
+	const [revoked, setRevoked] = useState(startRevoked);
+	const base = ACCOUNT_KEYS[1] as ApiKey;
+	const key: ApiKey = revoked ? { ...base, status: "revoked" } : base;
+	return (
+		<>
+			<SheetPanel {...keySheetHead(key, KEYS_EXAMPLE_NOW)} detent="auto">
+				<KeySheetBody
+					k={key}
+					now={KEYS_EXAMPLE_NOW}
+					onRevoke={() => {
+						setRevoked(true);
+						toast.success(`Revoked ${key.name}. Calls with it now get 401.`);
+					}}
+				/>
+			</SheetPanel>
+			<LabToaster />
+		</>
 	);
 }

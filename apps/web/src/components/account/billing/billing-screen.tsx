@@ -11,6 +11,7 @@ import { Legend } from "@/components/dashboard/charts/legend";
 import { Meter } from "@/components/dashboard/charts/meter";
 import { ActionableInsights } from "@/components/dashboard/insight/insight-actions";
 import { StatusSentence } from "@/components/dashboard/shell/status-sentence";
+import { useCompact } from "@/components/mobile/use-compact";
 import {
 	type Billing,
 	type TopupReturn,
@@ -54,6 +55,7 @@ import {
 import { poll } from "@/lib/webhooks-store";
 import { type ReactNode, useEffect, useState } from "react";
 import { toast } from "sonner";
+import { AccountCompactHeader } from "../compact-account";
 import {
 	AddCredits,
 	ReturnNotice,
@@ -61,6 +63,7 @@ import {
 	useTopupReturn,
 } from "../credits-panel";
 import { ByUnitTable } from "./by-unit-table";
+import { UsageCompact } from "./compact-usage";
 import { CreditsAddedTable } from "./credits-added";
 import { LimitsAndEmails } from "./limits-and-emails";
 import { RatesTable } from "./rates-table";
@@ -355,6 +358,7 @@ export function BillingScreen({ ret }: { ret: TopupReturn | null }) {
 	const { data: allInsights } = useInsights();
 	const st = useTopupReturn(ret);
 	const co = useCheckout();
+	const compact = useCompact();
 	const [pendingCap, setPendingCap] = useState<number | null | undefined>();
 	const now = new Date();
 	const month = monthParam(currentUtcMonth(now));
@@ -392,6 +396,26 @@ export function BillingScreen({ ret }: { ret: TopupReturn | null }) {
 		const result = await updateCap(next == null ? null : next * 100);
 		setPendingCap(undefined);
 		if (!result) toast.error("Couldn't update your spend cap");
+	}
+
+	if (compact) {
+		return (
+			<>
+				<AccountCompactHeader current="usage" />
+				<UsageCompact
+					now={now}
+					billing={billing}
+					capUsd={capUsd}
+					alertPct={caps?.alertThresholdPct}
+					usage={usage[month]}
+					daily={daily[month]}
+					burn={burn}
+					service={service}
+					notice={st ? <ReturnNotice st={st} billing={billing} /> : null}
+					co={co}
+				/>
+			</>
+		);
 	}
 
 	const stopped = service?.state === "stopped";

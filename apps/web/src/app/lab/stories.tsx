@@ -67,8 +67,11 @@ import {
 	BillingDemo,
 	HeatStripDemo,
 	HoldButtonDemo,
+	KeySheetDemo,
 	KeysDemo,
 	LabToaster,
+	LocalAccountKeys,
+	LocalAccountUsage,
 	LocalSubgraphsList,
 	LocalWebhookDetail,
 	LocalWebhooksList,
@@ -82,6 +85,7 @@ import {
 	SubgraphGridDemo,
 	SubgraphSheetDemo,
 	SwipeRowDemo,
+	TopupSheetDemo,
 	WebhookHeaderDemo,
 } from "./story-controls";
 import { STORY_INDEX, type StoryId } from "./tree";
@@ -2045,6 +2049,86 @@ const META: Record<StoryId, Meta> = {
 		donts: [
 			"No actions and no CLI commands on a phone.",
 			"No integrity row until the API has the field.",
+		],
+	},
+	"mobile-account": {
+		src: [
+			"apps/web/src/components/account/compact-account.tsx",
+			"apps/web/src/components/account/billing/compact-usage.tsx",
+			"apps/web/src/components/account/keys/compact-keys.tsx",
+		],
+		rule: "On a phone, Account shows spend against the cap with a top-up, and a key is revoked by holding the button for 1.2 seconds.",
+		width: { min: 320, max: 430, value: 390 },
+		variants: [
+			{
+				id: "usage-healthy",
+				label: "Usage, $14.20 of $50",
+				render: () => (
+					<PhoneColumn>
+						<LocalAccountUsage scenario="healthy" />
+					</PhoneColumn>
+				),
+			},
+			{
+				id: "usage-near-cap",
+				label: "Usage, near the cap",
+				render: () => (
+					<PhoneColumn>
+						<LocalAccountUsage scenario="near-cap" />
+					</PhoneColumn>
+				),
+			},
+			{
+				id: "usage-no-cap",
+				label: "Usage, no cap",
+				render: () => (
+					<PhoneColumn>
+						<LocalAccountUsage scenario="no-cap" />
+					</PhoneColumn>
+				),
+			},
+			{
+				id: "topup-sheet",
+				label: "Top-up sheet",
+				render: () => (
+					<PhoneColumn>
+						<TopupSheetDemo />
+					</PhoneColumn>
+				),
+			},
+			{
+				id: "keys",
+				label: "Keys, one unused 41 days",
+				render: () => (
+					<PhoneColumn>
+						<LocalAccountKeys />
+					</PhoneColumn>
+				),
+			},
+			{
+				id: "key-sheet",
+				label: "Key sheet, hold to revoke",
+				render: () => (
+					<PhoneColumn>
+						<KeySheetDemo />
+					</PhoneColumn>
+				),
+			},
+			{
+				id: "key-revoked",
+				label: "Key sheet, revoked",
+				render: () => (
+					<PhoneColumn>
+						<KeySheetDemo revoked />
+					</PhoneColumn>
+				),
+			},
+		],
+		usage:
+			"<UsageCompact {...usage} co={checkout} />\n<KeysCompact keys={keys} now={now} />",
+		donts: [
+			"No key creation on a phone.",
+			"Top up goes through Stripe Checkout; never take a card here.",
 		],
 	},
 	"mobile-share": {

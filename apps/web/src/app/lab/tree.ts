@@ -38,6 +38,7 @@ export const STORY_INDEX = [
 	{ id: "mobile-insights", group: "Dashboard", title: "Mobile insights" },
 	{ id: "mobile-webhooks", group: "Dashboard", title: "Mobile webhooks" },
 	{ id: "mobile-subgraphs", group: "Dashboard", title: "Mobile subgraphs" },
+	{ id: "mobile-account", group: "Dashboard", title: "Account (phone)" },
 	{ id: "mobile-share", group: "Dashboard", title: "Mobile share fix" },
 	{ id: "insight-card", group: "Dashboard", title: "Insight card" },
 	{ id: "insight-stack", group: "Dashboard", title: "Insight stack" },
