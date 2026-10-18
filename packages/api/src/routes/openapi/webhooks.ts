@@ -580,10 +580,10 @@ const insightsPaths = {
 	"/api/insights/{id}/snooze": {
 		post: {
 			tags: ["webhooks"],
-			summary: "Snooze an insight",
+			summary: "Snooze an insight until a time",
 			"x-nav-title": "Snooze",
 			description:
-				"Hides this insight until `until`. It shows again then, or earlier if you remove the snooze.",
+				"Hides this insight until the time you give, at most 7 days ahead. It shows again then, or earlier if you remove the snooze.",
 			security: WRITE_SECURITY,
 			parameters: [INSIGHT_ID_PARAM],
 			requestBody: jsonBody({

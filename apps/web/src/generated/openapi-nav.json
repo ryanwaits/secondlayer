@@ -720,7 +720,7 @@
 			{
 				"anchor": "snooze-insight",
 				"method": "POST",
-				"title": "Snooze an insight"
+				"title": "Snooze an insight until a time"
 			},
 			{
 				"anchor": "unsnooze-insight",

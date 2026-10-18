@@ -12457,6 +12457,16 @@
 			}
 		},
 		{
+			"path": "/api/insights/{id}/snooze",
+			"method": "POST",
+			"tip": {
+				"kind": "endpoint",
+				"summary": "Hides this insight until the time you give, at most 7 days ahead.",
+				"route": "/docs/api/webhooks",
+				"anchor": "snooze-insight"
+			}
+		},
+		{
 			"path": "/api/insights/{id}/expected",
 			"method": "POST",
 			"tip": {
