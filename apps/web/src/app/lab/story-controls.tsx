@@ -32,8 +32,25 @@ import {
 	exampleColumns,
 	exampleRows,
 } from "@/components/account/subgraphs/subgraph.fixtures";
+import { WebhookCompactDetail } from "@/components/account/webhooks/compact-detail";
+import { WebhooksCompactList } from "@/components/account/webhooks/compact-list";
 import { TitleRow } from "@/components/account/webhooks/detail-panel";
 import { PayloadPanel } from "@/components/account/webhooks/payload-view";
+import {
+	type WebhookRowModel,
+	rowModel,
+} from "@/components/account/webhooks/rows";
+import {
+	countByDisplayStatus,
+	displayStatus,
+} from "@/components/account/webhooks/shared";
+import {
+	FIXTURE_HOURS,
+	activityFor,
+	attempt,
+	detail,
+	summary,
+} from "@/components/account/webhooks/webhook.fixtures";
 import { type AmountOption, AmountPicker } from "@/components/amount-picker";
 import { MonoStackedBarChart } from "@/components/charts/mono-stacked-bar-chart";
 import { Choice } from "@/components/choice";
@@ -56,6 +73,7 @@ import {
 	toggleSort,
 	withFilter,
 } from "@/lib/subgraph-view";
+import type { WebhookTestResult } from "@secondlayer/sdk";
 import type { ChainTrigger } from "@secondlayer/sdk";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -1118,3 +1136,179 @@ export function HoldButtonDemo() {
 		</div>
 	);
 }
+
+const PHONE_SERIES = {
+	delivered: new Array<number>(168).fill(3),
+	failed: new Array<number>(168).fill(0),
+};
+
+function phoneRow(
+	over: Parameters<typeof summary>[0],
+	state?: WebhookRowModel["state"],
+): WebhookRowModel {
+	const model = rowModel(summary(over), PHONE_SERIES, FIXTURE_HOURS, []);
+	return state ? { ...model, state } : model;
+}
+
+const PHONE_ROWS_HEALTHY: WebhookRowModel[] = [
+	phoneRow({ id: "wh_1", name: "sbtc-deposits" }),
+	phoneRow({ id: "wh_2", name: "amm-swaps" }),
+	phoneRow({ id: "wh_3", name: "nft-mints" }),
+	phoneRow({ id: "wh_4", name: "pox-stackers", status: "paused" }),
+];
+
+const PHONE_ROWS_FAILING: WebhookRowModel[] = [
+	phoneRow(
+		{
+			id: "wh_1",
+			name: "sbtc-deposits",
+			status: "paused",
+			circuitOpenedAt: "2026-10-15T11:40:00.000Z",
+			circuitFailures: 20,
+		},
+		{ tone: "alarm", text: "Server not answering · 214 waiting", bad: true },
+	),
+	...PHONE_ROWS_HEALTHY.slice(1, 3),
+];
+
+/** The phone list with local state, so swipe, Pause and Undo work with no server. */
+export function LocalWebhooksList({
+	failing: oneFailing,
+}: { failing: boolean }) {
+	const [rows, setRows] = useState(
+		oneFailing ? PHONE_ROWS_FAILING : PHONE_ROWS_HEALTHY,
+	);
+	const setPaused = (id: string, paused: boolean) =>
+		setRows((all) =>
+			all.map((r) =>
+				r.webhook.id === id
+					? {
+							...r,
+							webhook: {
+								...r.webhook,
+								status: paused ? "paused" : "active",
+								circuitOpenedAt: null,
+								circuitFailures: 0,
+							},
+							state: paused
+								? { tone: "idle", text: "Paused", bad: false }
+								: { tone: "ok", text: "Delivering", bad: false },
+						}
+					: r,
+			),
+		);
+	return (
+		<>
+			<WebhooksCompactList
+				rows={rows}
+				failing={countByDisplayStatus(
+					rows.map((r) => r.webhook),
+					"error",
+				)}
+				busyId={null}
+				onOpen={() => {}}
+				onTogglePause={(row) => {
+					const { id, name } = row.webhook;
+					if (displayStatus(row.webhook) === "active") {
+						setPaused(id, true);
+						toast(`Paused ${name}. Events wait for you.`, {
+							duration: 5000,
+							action: { label: "Undo", onClick: () => setPaused(id, false) },
+						});
+					} else {
+						setPaused(id, false);
+						toast.success(`Resumed ${name}`);
+					}
+				}}
+			/>
+			<LabToaster />
+		</>
+	);
+}
+
+/** The phone detail with a local test and resume, so the three steps can be walked. */
+export function LocalWebhookDetail({
+	failing: startsFailing,
+	tested = false,
+}: { failing: boolean; tested?: boolean }) {
+	const [webhook, setWebhook] = useState(
+		detail(startsFailing ? FAILING_DETAIL : { name: "sbtc-deposits" }),
+	);
+	const [test, setTest] = useState<{
+		busy: boolean;
+		result: WebhookTestResult | null;
+	}>({ busy: false, result: tested ? TEST_PASSED : null });
+	const failing = displayStatus(webhook) === "error";
+	const failedHours = FIXTURE_HOURS.slice(-3);
+	const activity = activityFor(3, {
+		waiting: failing ? 214 : 0,
+		hours: FIXTURE_HOURS.map((hour) => ({
+			hour,
+			delivered: failing && failedHours.includes(hour) ? 0 : 3,
+			waiting: 0,
+			gaveUp: 0,
+			failed: failing && failedHours.includes(hour) ? 6 : 0,
+		})),
+	});
+	const rows = [
+		attempt({
+			id: "d_4",
+			statusCode: failing ? 502 : 200,
+			durationMs: failing ? 30_000 : 184,
+			blockHeight: 9_000_004,
+		}),
+		attempt({
+			id: "d_3",
+			statusCode: failing ? 502 : 200,
+			durationMs: failing ? 30_000 : 171,
+			blockHeight: 9_000_003,
+		}),
+		attempt({ id: "d_2", blockHeight: 9_000_002 }),
+		attempt({ id: "d_1", blockHeight: 9_000_001 }),
+	];
+	return (
+		<>
+			<WebhookCompactDetail
+				webhook={webhook}
+				activity={activity}
+				deliveries={rows}
+				pauseBusy={false}
+				onTogglePause={() =>
+					setWebhook((w) =>
+						w.status === "paused"
+							? {
+									...w,
+									status: "active",
+									circuitOpenedAt: null,
+									circuitFailures: 0,
+									lastError: null,
+								}
+							: { ...w, status: "paused" },
+					)
+				}
+				test={test}
+				onTest={() => {
+					setTest({ busy: false, result: TEST_PASSED });
+					toast.success("Test got 200 in 184 ms");
+				}}
+			/>
+			<LabToaster />
+		</>
+	);
+}
+
+const TEST_PASSED: WebhookTestResult = {
+	ok: true,
+	statusCode: 200,
+	error: null,
+	durationMs: 184,
+	deliveryId: "d_test",
+};
+
+const FAILING_DETAIL = {
+	name: "sbtc-deposits",
+	status: "paused",
+	circuitOpenedAt: "2026-10-15T11:40:00.000Z",
+	circuitFailures: 20,
+	lastError: "502 Bad Gateway",
+} as const;

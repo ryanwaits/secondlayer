@@ -69,6 +69,8 @@ import {
 	HoldButtonDemo,
 	KeysDemo,
 	LabToaster,
+	LocalWebhookDetail,
+	LocalWebhooksList,
 	OverviewDemo,
 	OverviewOnboardingDemo,
 	PayloadViewDemo,
@@ -1920,6 +1922,67 @@ const META: Record<StoryId, Meta> = {
 		usage:
 			"<InsightsScreen />\n<InsightSheet insight={insight} onClose={close} />",
 		donts: ["No hand-off block on a phone.", "No cause below 0.85 confidence."],
+	},
+	"mobile-webhooks": {
+		src: [
+			"apps/web/src/components/account/webhooks/compact-list.tsx",
+			"apps/web/src/components/account/webhooks/compact-detail.tsx",
+		],
+		rule: "On a phone a failing webhook shows the way back: test, resume, replay.",
+		width: { min: 320, max: 430, value: 390 },
+		variants: [
+			{
+				id: "list-healthy",
+				label: "List, healthy",
+				render: () => (
+					<PhoneColumn>
+						<LocalWebhooksList failing={false} />
+					</PhoneColumn>
+				),
+			},
+			{
+				id: "list-failing",
+				label: "List, one failing",
+				render: () => (
+					<PhoneColumn>
+						<LocalWebhooksList failing />
+					</PhoneColumn>
+				),
+			},
+			{
+				id: "detail-failing",
+				label: "Detail, failing, not tested",
+				render: () => (
+					<PhoneColumn>
+						<LocalWebhookDetail failing />
+					</PhoneColumn>
+				),
+			},
+			{
+				id: "detail-tested",
+				label: "Detail, test passed",
+				render: () => (
+					<PhoneColumn>
+						<LocalWebhookDetail failing tested />
+					</PhoneColumn>
+				),
+			},
+			{
+				id: "detail-healthy",
+				label: "Detail, healthy",
+				render: () => (
+					<PhoneColumn>
+						<LocalWebhookDetail failing={false} />
+					</PhoneColumn>
+				),
+			},
+		],
+		usage:
+			"<WebhooksCompactList rows={rows} failing={n} onTogglePause={pause} />\n<WebhookCompactDetail webhook={w} test={test} onTest={send} />",
+		donts: [
+			"No CLI commands on a phone.",
+			"Replay stays disabled until the replay sheet ships.",
+		],
 	},
 	"mobile-share": {
 		src: [

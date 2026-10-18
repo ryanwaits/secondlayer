@@ -9,17 +9,26 @@ import { Legend } from "@/components/dashboard/charts/legend";
 import { ActionableInsights } from "@/components/dashboard/insight/insight-actions";
 import { PlaceholderRows } from "@/components/dashboard/shell/onboarding";
 import { StatusSentence } from "@/components/dashboard/shell/status-sentence";
+import { useCompact } from "@/components/mobile/use-compact";
 import { heatGrid } from "@/lib/dashboard-charts";
 import type { Insight } from "@/lib/insights";
 import { forAccountRules, useInsights } from "@/lib/insights-store";
 import { useFirstSettle } from "@/lib/use-first-settle";
-import { hostOf } from "@/lib/webhooks-data";
-import { poll, refreshList, refreshSummary } from "@/lib/webhooks-store";
+import { hostOf, pauseWebhook, resumeWebhook } from "@/lib/webhooks-data";
+import {
+	applyWebhook,
+	poll,
+	refreshList,
+	refreshSummary,
+} from "@/lib/webhooks-store";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { toast } from "sonner";
+import { WebhooksCompactList } from "./compact-list";
+import { describeFailure } from "./detail-panel";
 import { ToneDot, type WebhookRowModel, useWebhookRows } from "./rows";
-import { shortenName } from "./shared";
+import { countByDisplayStatus, displayStatus, shortenName } from "./shared";
 import { WebhooksListSkeleton } from "./skeletons";
 import { WaitingBlock } from "./waiting";
 
@@ -337,6 +346,69 @@ export function WebhooksListSection() {
 	// insights arrive.
 	const ready = useFirstSettle(rows !== null);
 	const { data: insights } = useInsights();
+	const compact = useCompact();
+	const [busyId, setBusyId] = useState<string | null>(null);
+
+	async function onTogglePause(row: WebhookRowModel) {
+		const { id, name } = row.webhook;
+		const resuming = displayStatus(row.webhook) !== "active";
+		setBusyId(id);
+		const res = resuming ? await resumeWebhook(id) : await pauseWebhook(id);
+		setBusyId(null);
+		if (res.kind !== "ok") {
+			toast.error("Couldn't change this webhook", {
+				description: describeFailure(res),
+			});
+			return;
+		}
+		applyWebhook(res.data);
+		const label = shortenName(name);
+		if (resuming) {
+			toast.success(`Resumed ${label}`);
+			return;
+		}
+		toast(`Paused ${label}. Events wait for you.`, {
+			duration: 5000,
+			action: {
+				label: "Undo",
+				onClick: () => {
+					void resumeWebhook(id).then((undone) => {
+						if (undone.kind === "ok") applyWebhook(undone.data);
+					});
+				},
+			},
+		});
+	}
+
+	if (compact) {
+		if (rows === null && notice?.kind === "asleep") return <AsleepNotice />;
+		if (rows === null && notice?.kind === "no_credits") {
+			return (
+				<Notice tone="stop" title="Deliveries are paused until you add credits">
+					Your webhooks are kept; delivery resumes where it stopped.
+				</Notice>
+			);
+		}
+		if (rows === null && notice?.kind === "error") {
+			return <p className="acct-error">{notice.message}</p>;
+		}
+		return (
+			<WebhooksCompactList
+				rows={ready ? rows : null}
+				failing={
+					rows
+						? countByDisplayStatus(
+								rows.map((r) => r.webhook),
+								"error",
+							)
+						: 0
+				}
+				busyId={busyId}
+				onOpen={(id) => router.push(`/account/webhooks/${id}`)}
+				onTogglePause={onTogglePause}
+			/>
+		);
+	}
 	return (
 		<WebhooksListBody
 			pageInsights={forAccountRules(insights, ["stack_unreachable_webhooks"])}

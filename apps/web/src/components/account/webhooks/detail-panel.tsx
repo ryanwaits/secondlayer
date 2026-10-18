@@ -7,6 +7,7 @@ import { Legend } from "@/components/dashboard/charts/legend";
 import { ActionableInsights } from "@/components/dashboard/insight/insight-actions";
 import { Breadcrumb } from "@/components/dashboard/shell/breadcrumb";
 import { dotClass } from "@/components/dashboard/shell/status-sentence";
+import { useCompact } from "@/components/mobile/use-compact";
 import { formatDate } from "@/lib/account-data";
 import { barsRows } from "@/lib/dashboard-charts";
 import { type Insight, rankInsights } from "@/lib/insights";
@@ -18,6 +19,7 @@ import {
 	pauseWebhook,
 	renameWebhook,
 	resumeWebhook,
+	testWebhook,
 } from "@/lib/webhooks-data";
 import type { WebhooksResult } from "@/lib/webhooks-data";
 import {
@@ -34,12 +36,14 @@ import type {
 	DeliveryRow,
 	WebhookActivity,
 	WebhookDetail,
+	WebhookTestResult,
 } from "@secondlayer/sdk";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { AttemptTimeline } from "./attempt-timeline";
+import { WebhookCompactDetail } from "./compact-detail";
 import { AsleepNotice } from "./list-panel";
 import { ListensFor } from "./listens-for";
 import { PayloadView, answeredAttempt } from "./payload-view";
@@ -71,7 +75,7 @@ const VISIBLE_GROUPS = 10;
 const RANGE_OPTIONS = RANGES.map((value) => ({ value, label: value }));
 
 /** A one-line, user-facing reason for anything short of `{ kind: "ok" }`. */
-function describeFailure(
+export function describeFailure(
 	res: Exclude<WebhooksResult<unknown>, { kind: "ok" }>,
 ): string {
 	if (res.kind === "rate_limited") {
@@ -304,7 +308,7 @@ function Facts({
 const BAND_NOTE =
 	'No "usual range" band: under 1 event an hour is too little to call anything unusual. The band shows up once there\'s enough volume.';
 
-function DeliveriesChart({
+export function DeliveriesChart({
 	activity,
 	days,
 	range,
@@ -658,6 +662,11 @@ export function WebhookDetailSection({ id }: { id: string }) {
 	const range: Range = pickedRange ?? (outage === null ? "7d" : "48h");
 
 	const [pauseBusy, setPauseBusy] = useState(false);
+	const compact = useCompact();
+	const [test, setTest] = useState<{
+		busy: boolean;
+		result: WebhookTestResult | null;
+	}>({ busy: false, result: null });
 
 	fastActivity.current = (activity?.waiting ?? 0) > 0;
 	useEffect(() => {
@@ -791,6 +800,26 @@ export function WebhookDetailSection({ id }: { id: string }) {
 		});
 	}
 
+	async function onTest() {
+		setTest({ busy: true, result: null });
+		const res = await testWebhook(id);
+		if (res.kind === "ok") {
+			setTest({ busy: false, result: res.data });
+			if (res.data.ok) {
+				toast.success(
+					`Test got ${res.data.statusCode} in ${res.data.durationMs} ms`,
+				);
+			} else {
+				toast.error("The test failed", {
+					description: res.data.error ?? `HTTP ${res.data.statusCode}`,
+				});
+			}
+			return;
+		}
+		setTest({ busy: false, result: null });
+		toast.error("Couldn't send a test", { description: describeFailure(res) });
+	}
+
 	async function onRename(name: string): Promise<boolean> {
 		const res = await renameWebhook(id, name);
 		if (res.kind === "ok") {
@@ -802,6 +831,20 @@ export function WebhookDetailSection({ id }: { id: string }) {
 			description: describeFailure(res),
 		});
 		return false;
+	}
+
+	if (compact) {
+		return (
+			<WebhookCompactDetail
+				webhook={webhook}
+				activity={activity}
+				deliveries={deliveries}
+				pauseBusy={pauseBusy}
+				onTogglePause={onTogglePause}
+				test={test}
+				onTest={onTest}
+			/>
+		);
 	}
 
 	return (
