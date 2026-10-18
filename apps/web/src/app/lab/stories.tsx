@@ -45,6 +45,11 @@ import {
 } from "@/components/dashboard/shell/status-sentence";
 import { ViewCommand } from "@/components/dashboard/shell/view-command";
 import { Callout } from "@/components/docs/callout";
+import { InsightSheetBody } from "@/components/mobile/insights/insight-sheet";
+import {
+	EmptyState,
+	LocalInsightsScreen,
+} from "@/components/mobile/insights/insights-screen";
 import { MobileHeader, MobileTabBar } from "@/components/mobile/mobile-shell";
 import { ButtonLink, Eyebrow, StatusDot } from "@/components/site";
 import { ChainStatusView } from "@/components/site/chain-status";
@@ -1735,6 +1740,65 @@ const META: Record<StoryId, Meta> = {
 		],
 		usage: `<Sparkline points={points} fails={fails} title="Deliveries, last 48 hours" />
 <Meter used={used} total={total} label="Free rows used" left="640k used" right="1M free" />`,
+	},
+	"mobile-insights": {
+		src: [
+			"apps/web/src/components/mobile/insights/insights-screen.tsx",
+			"apps/web/src/components/mobile/insights/insight-row.tsx",
+			"apps/web/src/components/mobile/insights/insight-sheet.tsx",
+		],
+		rule: "On a phone, Insights is an inbox: swipe to snooze until tomorrow or mark done, each with Undo; tap for the sheet.",
+		width: { min: 320, max: 430, value: 390 },
+		variants: [
+			{
+				id: "open",
+				label: "Open list",
+				render: () => (
+					<PhoneColumn>
+						<LocalInsightsScreen initial={FIXTURE_INSIGHTS} />
+					</PhoneColumn>
+				),
+			},
+			{
+				id: "sheet-cause",
+				label: "Sheet body with cause",
+				render: () => (
+					<PhoneColumn>
+						<div className="m-sheet-body">
+							<InsightSheetBody insight={insightFor("receiver_down")} />
+						</div>
+					</PhoneColumn>
+				),
+			},
+			{
+				id: "sheet-no-cause",
+				label: "Sheet body without cause",
+				render: () => (
+					<PhoneColumn>
+						<div className="m-sheet-body">
+							<InsightSheetBody insight={insightFor("dns_retries_recovered")} />
+						</div>
+					</PhoneColumn>
+				),
+			},
+			{
+				id: "empty",
+				label: "Empty",
+				render: () => (
+					<PhoneColumn>
+						<div className="m-ins">
+							<EmptyState
+								title="Nothing to tell you yet"
+								text="When something changes on your stack, like a failing server, a key reading on repeat or spend running ahead, it shows up here, with the likely cause."
+							/>
+						</div>
+					</PhoneColumn>
+				),
+			},
+		],
+		usage:
+			"<InsightsScreen />\n<InsightSheet insight={insight} onClose={close} />",
+		donts: ["No hand-off block on a phone.", "No cause below 0.85 confidence."],
 	},
 	"insight-card": {
 		src: [

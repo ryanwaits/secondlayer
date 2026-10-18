@@ -129,3 +129,44 @@ export function severityDot(severity: InsightSeverity): SeverityDot {
 			return "idle";
 	}
 }
+
+/** The one-word name of a severity, as the phone list shows it. */
+export const SEVERITY_WORD: Record<InsightSeverity, string> = {
+	losing: "Losing data",
+	will_fail: "Will fail",
+	costs: "Costs money",
+	recovered: "Recovered",
+};
+
+const ACCOUNT_PAGES: Record<string, { href: string; name: string }> = {
+	server_errors: { href: "/account/rows", name: "Rows" },
+	duplicate_reads: { href: "/account/rows", name: "Rows" },
+	polling_loop: { href: "/account/rows", name: "Rows" },
+	backfill: { href: "/account/rows", name: "Rows" },
+	allowance_exhausted: { href: "/account/rows", name: "Rows" },
+	key_unused: { href: "/account/keys", name: "Keys" },
+	revoked_key_in_use: { href: "/account/keys", name: "Keys" },
+	cap_pace: { href: "/account/credits", name: "Billing" },
+	credits_runway: { href: "/account/credits", name: "Billing" },
+	stack_unreachable_webhooks: { href: "/account/webhooks", name: "Webhooks" },
+	stack_unreachable_subgraphs: {
+		href: "/account/subgraphs",
+		name: "Subgraphs",
+	},
+};
+
+/** The dashboard page an insight is about. */
+export function insightHref(insight: Insight): string {
+	const { kind, id } = insight.resource;
+	if (kind === "webhook") return `/account/webhooks/${encodeURIComponent(id)}`;
+	if (kind === "subgraph") {
+		return `/account/subgraphs/${encodeURIComponent(id)}`;
+	}
+	return ACCOUNT_PAGES[insight.rule]?.href ?? "/account";
+}
+
+/** What the sheet's primary button opens: the resource, or the page for an account rule. */
+export function insightTargetName(insight: Insight): string {
+	if (insight.resource.kind !== "account") return insight.resource.name;
+	return ACCOUNT_PAGES[insight.rule]?.name ?? "Overview";
+}

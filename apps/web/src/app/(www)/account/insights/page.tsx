@@ -2,11 +2,15 @@
 
 import { InsightActions } from "@/components/dashboard/insight/insight-actions";
 import { InsightStack } from "@/components/dashboard/insight/insight-stack";
+import { InsightsScreen } from "@/components/mobile/insights/insights-screen";
+import { useCompact } from "@/components/mobile/use-compact";
 import { rankInsights } from "@/lib/insights";
 import { useInsights } from "@/lib/insights-store";
 
 export default function InsightsPage() {
 	const { data } = useInsights();
+	const compact = useCompact();
+	if (compact) return <InsightsScreen />;
 	const open = rankInsights(data.filter((i) => !i.resolvedAt));
 	if (open.length === 0) {
 		return (

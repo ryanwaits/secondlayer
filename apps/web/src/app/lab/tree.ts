@@ -34,6 +34,7 @@ export const STORY_INDEX = [
 	{ id: "charts-lines", group: "Dashboard", title: "Context lines" },
 	{ id: "charts-spend", group: "Dashboard", title: "Spend" },
 	{ id: "charts-small", group: "Dashboard", title: "Small charts" },
+	{ id: "mobile-insights", group: "Dashboard", title: "Mobile insights" },
 	{ id: "insight-card", group: "Dashboard", title: "Insight card" },
 	{ id: "insight-stack", group: "Dashboard", title: "Insight stack" },
 	{ id: "handoff", group: "Dashboard", title: "Hand off" },

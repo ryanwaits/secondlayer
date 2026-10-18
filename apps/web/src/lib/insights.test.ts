@@ -3,6 +3,8 @@ import {
 	type Insight,
 	autoOpenId,
 	causeText,
+	insightHref,
+	insightTargetName,
 	rankInsights,
 	severityDot,
 } from "./insights";
@@ -91,5 +93,52 @@ describe("severityDot", () => {
 		expect(severityDot("will_fail")).toBe("hi");
 		expect(severityDot("costs")).toBe("costs");
 		expect(severityDot("recovered")).toBe("idle");
+	});
+});
+
+describe("insightHref", () => {
+	const account = (rule: string): Insight =>
+		make({ rule, resource: { kind: "account", id: "a", name: "Account" } });
+
+	test("webhooks and subgraphs link to their own page", () => {
+		expect(
+			insightHref(
+				make({ resource: { kind: "webhook", id: "wh 1", name: "x" } }),
+			),
+		).toBe("/account/webhooks/wh%201");
+		expect(
+			insightHref(
+				make({ resource: { kind: "subgraph", id: "sg", name: "x" } }),
+			),
+		).toBe("/account/subgraphs/sg");
+	});
+
+	test("every account rule lands on the page that explains it", () => {
+		const expected: Record<string, string> = {
+			server_errors: "/account/rows",
+			duplicate_reads: "/account/rows",
+			polling_loop: "/account/rows",
+			backfill: "/account/rows",
+			allowance_exhausted: "/account/rows",
+			key_unused: "/account/keys",
+			revoked_key_in_use: "/account/keys",
+			cap_pace: "/account/credits",
+			credits_runway: "/account/credits",
+			stack_unreachable_webhooks: "/account/webhooks",
+			stack_unreachable_subgraphs: "/account/subgraphs",
+		};
+		for (const [rule, href] of Object.entries(expected)) {
+			expect(insightHref(account(rule)), rule).toBe(href);
+		}
+	});
+
+	test("an unknown account rule falls back to the overview", () => {
+		expect(insightHref(account("brand_new_rule"))).toBe("/account");
+		expect(insightTargetName(account("brand_new_rule"))).toBe("Overview");
+	});
+
+	test("the button names the resource, or the page for an account rule", () => {
+		expect(insightTargetName(account("key_unused"))).toBe("Keys");
+		expect(insightTargetName(byRule("receiver_down"))).toBe("sbtc-deposits");
 	});
 });

@@ -130,7 +130,8 @@ export function extraCount(
 /** Remove optimistically, call the server, and put it back if that fails. */
 async function removeThenCall(
 	id: string,
-	action: "dismiss" | "expected",
+	action: "dismiss" | "expected" | "snooze",
+	body?: unknown,
 ): Promise<boolean> {
 	const removed = current().data.find((i) => i.id === id);
 	if (!removed) return false;
@@ -140,6 +141,12 @@ async function removeThenCall(
 			`/api/insights/${encodeURIComponent(id)}/${action}`,
 			{
 				method: "POST",
+				...(body === undefined
+					? {}
+					: {
+							headers: { "Content-Type": "application/json" },
+							body: JSON.stringify(body),
+						}),
 			},
 		);
 		if (res.ok) return true;
@@ -159,6 +166,36 @@ export function dismiss(id: string): Promise<boolean> {
 /** "This is expected": stop raising this rule for this resource. */
 export function markExpected(id: string): Promise<boolean> {
 	return removeThenCall(id, "expected");
+}
+
+/** Hide this insight until `until`, even if the rule fires again before then. */
+export function snooze(id: string, until: Date): Promise<boolean> {
+	return removeThenCall(id, "snooze", { until: until.toISOString() });
+}
+
+/** Undo a dismiss or a snooze: put the insight back, then tell the server. */
+export async function restore(
+	insight: Insight,
+	action: "dismiss" | "snooze",
+): Promise<boolean> {
+	if (!current().data.some((i) => i.id === insight.id)) {
+		set({ ...current(), data: rankInsights([...current().data, insight]) });
+	}
+	try {
+		const res = await fetch(
+			`/api/insights/${encodeURIComponent(insight.id)}/${action}`,
+			{ method: "DELETE" },
+		);
+		if (res.ok) return true;
+	} catch {
+		// Falls through to the rollback.
+	}
+	set({
+		...current(),
+		data: current().data.filter((i) => i.id !== insight.id),
+	});
+	void refreshInsights();
+	return false;
 }
 
 /** Refresh now, then every 30 s while the tab is visible. Returns a stop function. */

@@ -2,8 +2,9 @@ import { ApiError, apiRequest, getSessionFromRequest } from "@/lib/api";
 import { NextResponse } from "next/server";
 
 /**
- * Dismiss an insight, or mark it expected (and undo that). The id carries the
- * side that owns it: `t:<uuid>` is the stack's, `a:<uuid>` the account's.
+ * Dismiss, snooze or mark an insight expected, and undo each. The snooze POST
+ * forwards `{ until }`; the rest send no body. The id carries the side that
+ * owns it: `t:<uuid>` is the stack's, `a:<uuid>` the account's.
  */
 
 const UUID_RE = /^[0-9a-f-]{36}$/;
@@ -27,8 +28,8 @@ async function handle(
 	const { id: prefixed, action } = await params;
 	const allowed =
 		method === "POST"
-			? action === "dismiss" || action === "expected"
-			: action === "expected";
+			? action === "dismiss" || action === "expected" || action === "snooze"
+			: action === "expected" || action === "dismiss" || action === "snooze";
 	if (!allowed) return invalid("Invalid action");
 
 	const parts = decodeURIComponent(prefixed).split(":");
@@ -38,11 +39,24 @@ async function handle(
 	}
 	if (!id || !UUID_RE.test(id)) return invalid("Invalid insight id");
 
+	let body: { until: string } | undefined;
+	if (method === "POST" && action === "snooze") {
+		let raw: { until?: unknown } | null;
+		try {
+			raw = await req.json();
+		} catch {
+			return invalid("Invalid body");
+		}
+		if (typeof raw?.until !== "string") return invalid("Invalid body");
+		body = { until: raw.until };
+	}
+
 	const base = prefix === "t" ? "/api/insights" : "/api/accounts/insights";
 	try {
 		const result = await apiRequest<unknown>(`${base}/${id}/${action}`, {
 			method,
 			sessionToken,
+			body,
 		});
 		return NextResponse.json(result);
 	} catch (e) {

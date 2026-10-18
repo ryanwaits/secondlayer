@@ -8,6 +8,8 @@ import {
 	insightsSnapshot,
 	markExpected,
 	refreshInsights,
+	restore,
+	snooze,
 	topLine,
 } from "./insights-store";
 import { FIXTURE_INSIGHTS } from "./insights.fixtures";
@@ -120,6 +122,69 @@ describe("store", () => {
 		expect(calls[0]?.method).toBe("POST");
 		expect(calls[0]?.url).toBe(`/api/insights/${id}/expected`);
 		expect(insightsSnapshot().data.some((i) => i.id === id)).toBe(false);
+	});
+
+	test("snooze posts the until time, removes optimistically and rolls back on failure", async () => {
+		stubFetch(() => list());
+		await refreshInsights();
+		const id = FIXTURE_INSIGHTS[0]?.id ?? "";
+		const until = new Date("2026-10-19T09:00:00.000Z");
+		let sent: RequestInit | undefined;
+		const calls = stubFetch((url, init) => {
+			if (url.endsWith("/snooze")) sent = init;
+			return url.endsWith("/snooze")
+				? new Response("{}", { status: 200 })
+				: list();
+		});
+		expect(await snooze(id, until)).toBe(true);
+		expect(calls[0]?.url).toBe(`/api/insights/${id}/snooze`);
+		expect(calls[0]?.method).toBe("POST");
+		expect(JSON.parse(String(sent?.body))).toEqual({
+			until: until.toISOString(),
+		});
+		expect(insightsSnapshot().data.some((i) => i.id === id)).toBe(false);
+
+		const other = FIXTURE_INSIGHTS[1]?.id ?? "";
+		stubFetch((url) =>
+			url.endsWith("/snooze") ? new Response("{}", { status: 500 }) : list(),
+		);
+		expect(await snooze(other, until)).toBe(false);
+		expect(insightsSnapshot().data.some((i) => i.id === other)).toBe(true);
+	});
+
+	test("restore sends DELETE and puts the insight back", async () => {
+		stubFetch(() => list());
+		await refreshInsights();
+		const insight = FIXTURE_INSIGHTS[0];
+		if (!insight) throw new Error("fixture");
+		stubFetch(() => new Response("{}", { status: 200 }));
+		await dismiss(insight.id);
+		expect(insightsSnapshot().data.some((i) => i.id === insight.id)).toBe(
+			false,
+		);
+		const calls = stubFetch(() => new Response("{}", { status: 200 }));
+		expect(await restore(insight, "dismiss")).toBe(true);
+		expect(calls[0]?.method).toBe("DELETE");
+		expect(calls[0]?.url).toBe(`/api/insights/${insight.id}/dismiss`);
+		expect(insightsSnapshot().data.some((i) => i.id === insight.id)).toBe(true);
+	});
+
+	test("a failed restore removes the insight again", async () => {
+		stubFetch(() => list());
+		await refreshInsights();
+		const insight = FIXTURE_INSIGHTS[0];
+		if (!insight) throw new Error("fixture");
+		stubFetch(() => new Response("{}", { status: 200 }));
+		await snooze(insight.id, new Date(Date.now() + 3600_000));
+		stubFetch((url) =>
+			url.endsWith("/snooze")
+				? new Response("{}", { status: 500 })
+				: new Response(JSON.stringify({ data: [] }), { status: 200 }),
+		);
+		expect(await restore(insight, "snooze")).toBe(false);
+		expect(insightsSnapshot().data.some((i) => i.id === insight.id)).toBe(
+			false,
+		);
 	});
 
 	test("a failed refresh keeps the good data", async () => {

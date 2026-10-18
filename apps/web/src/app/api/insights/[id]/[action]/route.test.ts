@@ -15,6 +15,14 @@ function req(method: string, cookie = "sl_session=tok"): Request {
 	});
 }
 
+function snoozeReq(body: string): Request {
+	return new Request("http://localhost/api/insights/x/snooze", {
+		method: "POST",
+		headers: { cookie: "sl_session=tok", "Content-Type": "application/json" },
+		body,
+	});
+}
+
 function ctx(id: string, action: string) {
 	return { params: Promise.resolve({ id, action }) };
 }
@@ -85,15 +93,59 @@ describe("insight action route", () => {
 		expect(calls).toEqual([]);
 	});
 
-	test("an unknown action, or DELETE dismiss, is 400", async () => {
+	test("an unknown action is 400 on POST and DELETE", async () => {
 		const calls = stubFetch();
 		const { POST, DELETE } = await import("./route");
 		expect((await POST(req("POST"), ctx(`t:${UUID}`, "purge"))).status).toBe(
 			400,
 		);
 		expect(
-			(await DELETE(req("DELETE"), ctx(`t:${UUID}`, "dismiss"))).status,
+			(await DELETE(req("DELETE"), ctx(`t:${UUID}`, "purge"))).status,
 		).toBe(400);
+		expect(calls).toEqual([]);
+	});
+
+	test("DELETE dismiss and DELETE snooze are forwarded", async () => {
+		const calls = stubFetch();
+		const { DELETE } = await import("./route");
+		for (const action of ["dismiss", "snooze"]) {
+			const res = await DELETE(req("DELETE"), ctx(`t:${UUID}`, action));
+			expect(res.status).toBe(200);
+		}
+		expect(calls.map((c) => c.url.split("/").pop())).toEqual([
+			"dismiss",
+			"snooze",
+		]);
+		expect(calls.every((c) => c.method === "DELETE")).toBe(true);
+	});
+
+	test("POST snooze forwards the until body", async () => {
+		const bodies: string[] = [];
+		globalThis.fetch = (async (_url: string, init?: RequestInit) => {
+			bodies.push(String(init?.body));
+			return new Response("{}", { status: 200 });
+		}) as typeof fetch;
+		const { POST } = await import("./route");
+		const until = "2026-10-19T09:00:00.000Z";
+		const res = await POST(
+			snoozeReq(JSON.stringify({ until })),
+			ctx(`t:${UUID}`, "snooze"),
+		);
+		expect(res.status).toBe(200);
+		expect(JSON.parse(bodies[0] ?? "{}")).toEqual({ until });
+	});
+
+	test("POST snooze without until, or with a bad body, is 400", async () => {
+		const calls = stubFetch();
+		const { POST } = await import("./route");
+		for (const raw of [
+			JSON.stringify({}),
+			JSON.stringify({ until: 5 }),
+			"{x",
+		]) {
+			const res = await POST(snoozeReq(raw), ctx(`t:${UUID}`, "snooze"));
+			expect(res.status).toBe(400);
+		}
 		expect(calls).toEqual([]);
 	});
 
