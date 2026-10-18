@@ -160,7 +160,7 @@ export function UsageBody({
 	const projection = daily ? monthProjection(daily, now) : null;
 	const projectedEnd = projection?.projectedEnd ?? spent;
 	const fill = capUsd ? (spent / capUsd) * 100 : 0;
-	const paceEnd = capUsd ? (projectedEnd / capUsd) * 100 : 0;
+	const paceEnd = capUsd ? Math.min(100, (projectedEnd / capUsd) * 100) : 0;
 
 	const balance = billing ? Number(billing.creditsUsdMicros) : 0;
 	const rateDay = burn ? Number(burn.rateDayUsdMicros) : 0;
