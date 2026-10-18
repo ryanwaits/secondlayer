@@ -1,5 +1,14 @@
 # @secondlayer/shared
 
+## 13.13.0
+
+### Minor Changes
+
+- Insights can be snoozed until a time (`snoozeInsight`, `unsnoozeInsight`) and a dismiss can be undone (`undismissInsight`); `listInsights` hides snoozed insights until their time passes.
+- 893a076: `recordEvaluation` returns the insights a pass newly opened, and the `push_sent` table records pushes already sent so a repeated signal never pushes twice.
+- e5db74b: Web push storage: `push_subscriptions` and `push_prefs` tables with their row types, for the installed phone app's notifications.
+- 4485f94: Webhook replays are recorded with live progress (`GET /api/webhooks/{id}/replays/{replay_id}`, recent replays account-wide), outbox rows carry their replay id, the one-replay-at-a-time check holds across processes, and dead events can be requeued in one call by webhook, by replay, or since a time.
+
 ## 13.12.0
 
 ### Minor Changes

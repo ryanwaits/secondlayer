@@ -12,6 +12,18 @@ The MCP server now runs at `https://api.secondlayer.tools/mcp`, so an agent need
 
 ## Accounts — October 2026
 
+### Your dashboard on your phone
+
+On a phone, your account opens as an app with five tabs: Pulse, Insights, Webhooks, Subgraphs and Account. Pulse shows what needs you, the last 24 hours of deliveries and today's spend. You can pause, resume, test and replay a webhook, and revoke a key by holding its button. Add it to your Home Screen to install it. On a computer nothing changes.
+
+### Push when ingestion breaks
+
+The installed app can notify you when a webhook can't reach your server, a hosted subgraph stops ingesting or stops serving, or a replay you started finishes. Turn it on and pick what you get under Account, then Push. Spend and key alerts stay off unless you turn them on. Self-hosted instances send push once `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` and `VAPID_SUBJECT` are set; without them push stays off.
+
+### Snooze an insight until tomorrow
+
+`POST /api/insights/:id/snooze` with `{ "until": "<time>" }` hides an insight for up to 7 days, and `DELETE` on the same path shows it again. `DELETE /api/insights/:id/dismiss` undoes a dismiss.
+
 ### Keys get their own tab
 
 Keys is a tab in your dashboard now. Each key shows the rows it read over 30 days, and a key you made that hasn't read anything in 30 days gets a note so you can revoke it. A new key is shown once, with how to use it from the CLI, your environment, the SDK or an agent. An account holds up to 50 active keys, and you can make 20 an hour. Your first key is one you name; sign-in no longer makes one called "Default".
@@ -33,6 +45,14 @@ Pause or delete every webhook and subgraph and your hosted stack stops within mi
 Your monthly spend cap now stops your hosted stack too, not only reads past the free 1M rows. At the cap, webhooks stop delivering, subgraphs stop indexing and archive fetches answer `402 spend_cap_reached` until the next month or until you raise the cap. See [Spend cap](/docs/authentication#spend-cap).
 
 ## Webhooks — October 2026
+
+### Watch a replay finish
+
+A replay now has a record you can follow. `GET /api/webhooks/:id/replays/:replayId` returns how many events it queued, how many are sent and how many are still pending; when it finishes it adds how many were delivered and how many gave up. `GET /api/webhooks/replays` lists recent replays across your webhooks. Only one replay scans per webhook at a time, even across restarts.
+
+### Requeue what gave up in one call
+
+`POST /api/webhooks/:id/dead/requeue` sends every delivery that gave up back to the queue, optionally only those from one replay (`replayId`) or since a time (`since`). After an outage, use this instead of replaying the range: deliveries that were waiting go out on their own once you resume, and a replay would send them twice.
 
 ### One email when a webhook is down
 

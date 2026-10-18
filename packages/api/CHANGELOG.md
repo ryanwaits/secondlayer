@@ -1,5 +1,21 @@
 # @secondlayer/api
 
+## 1.59.0
+
+### Minor Changes
+
+- 4485f94: Webhook replays are recorded with live progress (`GET /api/webhooks/{id}/replays/{replay_id}`, recent replays account-wide), outbox rows carry their replay id, the one-replay-at-a-time check holds across processes, and dead events can be requeued in one call by webhook, by replay, or since a time.
+
+### Patch Changes
+
+- Updated dependencies
+- Updated dependencies [893a076]
+- Updated dependencies [e5db74b]
+- Updated dependencies [4485f94]
+  - @secondlayer/shared@13.13.0
+  - @secondlayer/subgraphs@7.7.0
+  - @secondlayer/platform@0.9.1
+
 ## 1.58.0
 
 ### Minor Changes

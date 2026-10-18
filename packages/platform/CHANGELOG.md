@@ -1,5 +1,15 @@
 # @secondlayer/platform
 
+## 0.9.1
+
+### Patch Changes
+
+- Updated dependencies
+- Updated dependencies [893a076]
+- Updated dependencies [e5db74b]
+- Updated dependencies [4485f94]
+  - @secondlayer/shared@13.13.0
+
 ## 0.9.0
 
 ### Minor Changes
