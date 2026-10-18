@@ -1,5 +1,12 @@
 # @secondlayer/worker
 
+## 1.4.25
+
+### Patch Changes
+
+- Updated dependencies [3c50af1]
+  - @secondlayer/platform@0.9.2
+
 ## 1.4.24
 
 ### Patch Changes

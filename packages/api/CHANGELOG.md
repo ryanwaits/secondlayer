@@ -1,5 +1,13 @@
 # @secondlayer/api
 
+## 1.59.1
+
+### Patch Changes
+
+- 3c50af1: Sentinel's check meter: `sentinel.check_run` is $0.25 a check ($0.75 for a deep check, quantity 3), accepted on `/internal/meters` and `/internal/sentinel/affordable` (short name `check_run`). `sentinel.run` and `sentinel.deep_audit` are retired: `/internal/meters` refuses new charges on them with a 400, and their prices stay so existing ledger rows still price and render.
+- Updated dependencies [3c50af1]
+  - @secondlayer/platform@0.9.2
+
 ## 1.59.0
 
 ### Minor Changes
