@@ -406,33 +406,35 @@ describe.skipIf(!HAS_DB)("authorize", () => {
 		);
 	});
 
-	test("plain PKCE, no PKCE, a wrong resource or another response type go back as errors with state and iss", async () => {
+	test("plain PKCE, no PKCE, a wrong resource, another response type or a long state: a 400 page, never a redirect", async () => {
 		const clientId = await registered();
-		for (const [over, error] of [
-			[
-				{ code_challenge_method: "plain", code_challenge: VERIFIER },
-				"invalid_request",
-			],
-			[{ code_challenge_method: null }, "invalid_request"],
-			[{ code_challenge: null }, "invalid_request"],
-			[{ code_challenge: "short" }, "invalid_request"],
-			[{ resource: null }, "invalid_target"],
-			[{ resource: "https://evil.example/mcp" }, "invalid_target"],
-			[{ resource: ORIGIN }, "invalid_target"],
-			[{ response_type: "token" }, "unsupported_response_type"],
+		for (const [over, says] of [
+			[{ code_challenge_method: "plain", code_challenge: VERIFIER }, "PKCE"],
+			[{ code_challenge_method: null }, "PKCE"],
+			[{ code_challenge: null }, "PKCE"],
+			[{ code_challenge: "short" }, "PKCE"],
+			[{ resource: null }, "resource"],
+			[{ resource: "https://evil.example/mcp" }, "resource"],
+			[{ resource: ORIGIN }, "resource"],
+			[{ response_type: "token" }, "response_type=code"],
+			[{ state: "s".repeat(513) }, "state is too long"],
 		] as const) {
 			const r = await authorize(
 				clientId,
 				over as Record<string, string | null>,
 			);
-			expect(r.status, JSON.stringify(over)).toBe(302);
-			const back = new URL(r.headers.get("location") ?? "");
-			expect(`${back.origin}${back.pathname}`).toBe(REDIRECT);
-			expect(back.searchParams.get("error")).toBe(error);
-			expect(back.searchParams.get("state")).toBe("st-1");
-			expect(back.searchParams.get("iss")).toBe(ORIGIN);
-			expect(back.searchParams.get("code")).toBeNull();
+			expect(r.status, JSON.stringify(over)).toBe(400);
+			expect(r.headers.get("location"), JSON.stringify(over)).toBeNull();
+			expect(r.headers.get("content-type")).toContain("text/html");
+			expect(await r.text()).toContain(says);
 		}
+		// Nothing was stored for the consent page to answer.
+		const pending = await db
+			.selectFrom("oauth_requests")
+			.select("id")
+			.where("client_id", "=", clientId)
+			.execute();
+		expect(pending).toEqual([]);
 	});
 });
 

@@ -22,8 +22,9 @@ import { allowedRedirect, clientNameProblem, rateKeyOf } from "./validate.ts";
  * one-time code for tokens at `/oauth/token`.
  *
  *   - PKCE S256 only. `redirect_uri` is matched exactly against the
- *     registered list before anything else: a bad client or redirect gets a
- *     400 page, never a redirect.
+ *     registered list. Every authorize refusal is a 400 page, never a
+ *     redirect; only the consent page's answer (approve or deny) goes back
+ *     to the registered URI, with `state` and `iss`.
  *   - `resource` (RFC 8707) is required and must be `<origin>/mcp`.
  *   - Mounted at the root, outside `/api`: CORS `*` with no credentials, and
  *     the token endpoint is form-encoded, which `/api`'s JSON-only write rule
@@ -266,39 +267,30 @@ export function createOauthRouter(): Hono {
 			return errorPage(
 				"This app's redirect address does not match the one it registered.",
 			);
+		// Every refusal before consent is a page here, never a redirect: a
+		// registered redirect is still a URL anyone can register, so sending
+		// errors to it would make this endpoint a redirector. Only the
+		// person's answer on the consent page goes back to the app.
 		const state = q.get("state");
-		const back = (error: string, description: string) =>
-			new Response(null, {
-				status: 302,
-				headers: {
-					Location: redirectWith(
-						redirectUri,
-						{
-							error,
-							error_description: description,
-							state: state && state.length <= MAX_STATE ? state : null,
-						},
-						origin,
-					),
-					...NO_STORE,
-				},
-			});
 		if (state !== null && state.length > MAX_STATE)
-			return back("invalid_request", "state is too long.");
+			return errorPage("This sign-in request is malformed: state is too long.");
 		if (q.get("response_type") !== "code")
-			return back("unsupported_response_type", "Only response_type=code.");
+			return errorPage(
+				"This app sent an unsupported request: only response_type=code.",
+			);
 		const challenge = q.get("code_challenge") ?? "";
 		if (
 			q.get("code_challenge_method") !== "S256" ||
 			!CHALLENGE_RE.test(challenge)
 		)
-			return back(
-				"invalid_request",
-				"PKCE is required: code_challenge with code_challenge_method=S256.",
+			return errorPage(
+				"This app's sign-in is missing PKCE: code_challenge with code_challenge_method=S256 is required.",
 			);
 		const resource = resourceOf(origin);
 		if (q.get("resource") !== resource)
-			return back("invalid_target", `resource must be ${resource}.`);
+			return errorPage(
+				`This app asked for the wrong resource: it must be ${resource}.`,
+			);
 
 		// One scope: an unknown scope is ignored, not an error (D10).
 		const requestId = await createOauthRequest(getDb(), {
