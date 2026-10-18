@@ -244,4 +244,51 @@ describe.skipIf(!HAS_DB)("POST /internal/webhook-incidents", () => {
 		expect(await res.json()).toEqual({ opened: 1, resolved: 0 });
 		expect(sent).toHaveLength(0);
 	});
+
+	describe("push", () => {
+		async function claimedKeys(acct: string): Promise<string[]> {
+			const rows = await db
+				.selectFrom("push_sent")
+				.select("key")
+				.where("account_id", "=", acct)
+				.execute();
+			return rows.map((r) => r.key).sort();
+		}
+		async function incidentIds(acct: string): Promise<string[]> {
+			const rows = await db
+				.selectFrom("webhook_incident_alerts")
+				.select("id")
+				.where("account_id", "=", acct)
+				.execute();
+			return rows.map((r) => `webhook_incident:${r.id}`).sort();
+		}
+
+		test("a new incident claims one push keyed by the incident, even without an email", async () => {
+			const acct = await makeAccount(null);
+			await post(report(acct, ["a"], ["a"]));
+			const keys = await claimedKeys(acct);
+			expect(keys).toHaveLength(1);
+			expect(keys).toEqual(await incidentIds(acct));
+		});
+
+		test("the same outage reported again claims no further push", async () => {
+			const acct = await makeAccount(
+				`owner-${crypto.randomUUID()}@example.com`,
+			);
+			await post(report(acct, ["a"], ["a"]));
+			await post(report(acct, ["a"], ["a"]));
+			expect(await claimedKeys(acct)).toHaveLength(1);
+		});
+
+		test("an email retry does not claim a push for the incident again", async () => {
+			const acct = await makeAccount(
+				`owner-${crypto.randomUUID()}@example.com`,
+			);
+			failSends = 1;
+			await post(report(acct, ["a"], ["a"]));
+			await post(report(acct, ["a"], ["a"]));
+			expect(sent).toHaveLength(2);
+			expect(await claimedKeys(acct)).toHaveLength(1);
+		});
+	});
 });

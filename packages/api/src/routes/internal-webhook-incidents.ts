@@ -14,6 +14,8 @@ import {
 	recordAttempts,
 	syncIncidents,
 } from "@secondlayer/platform/db/queries/webhook-incident-alerts";
+import { webhookFailingPush } from "@secondlayer/platform/push/copy";
+import { pushOnce } from "@secondlayer/platform/push/once";
 import { logger } from "@secondlayer/shared";
 import { getDb } from "@secondlayer/shared/db";
 import { sendEmail } from "@secondlayer/shared/email";
@@ -84,6 +86,21 @@ app.post("/", async (c) => {
 		{ webhookIds: body.webhookIds, down },
 		observedAt,
 	);
+
+	// One push per outage, for incidents that opened this tick only. Email
+	// retries re-select due rows; the push must not follow them.
+	const downById = new Map(down.map((d) => [d.id, d]));
+	for (const row of opened) {
+		const d = downById.get(row.webhook_id);
+		if (!d) continue;
+		await pushOnce(
+			db,
+			account.id,
+			`webhook_incident:${row.id}`,
+			"webhook_failing",
+			webhookFailingPush(d),
+		);
+	}
 
 	// Everything open and not yet emailed goes out in one email: this tick's new
 	// incidents plus earlier ones whose send failed. Resolved incidents are
