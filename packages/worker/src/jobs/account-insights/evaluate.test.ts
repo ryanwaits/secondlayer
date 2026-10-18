@@ -146,6 +146,72 @@ describe.skipIf(!HAS_DB)("evaluateAccountInsights", () => {
 		);
 	});
 
+	describe("push", () => {
+		type Call = { key: string; kind: string; url: string };
+		function recorder() {
+			const calls: Call[] = [];
+			const push = (async (_db, _acct, key, kind, payload) => {
+				calls.push({ key, kind, url: payload.url });
+				return "sent";
+			}) as NonNullable<Parameters<typeof evaluateAccountInsights>[2]>["push"];
+			return { calls, push };
+		}
+		const load =
+			(kind: "unreachable" | "allowance") => async (id: string, now: Date) => {
+				const base = await loadAccountInput(db, id, now);
+				if (kind === "unreachable") {
+					return {
+						...base,
+						stackFailures: [1, 2, 3].map((i) => ({
+							method: "GET",
+							path: "/api/subgraphs",
+							status: 502,
+							createdAt: new Date(now.getTime() - i * 60_000),
+						})),
+					};
+				}
+				return {
+					...base,
+					allowance: {
+						firstPaidAt: new Date(now.getTime() - 3_600_000),
+						paidRows: 1000,
+						paidUsdMicros: 5000n,
+					},
+				};
+			};
+
+		test("an insight with a push preference pushes once when it opens, not on the next pass", async () => {
+			const accountId = await makeAccount();
+			const { calls, push } = recorder();
+			await evaluateAccountInsights(db, accountId, {
+				load: load("unreachable"),
+				push,
+			});
+			const subgraphs = calls.filter((c) => c.kind === "subgraph_not_serving");
+			expect(subgraphs.length).toBeGreaterThan(0);
+			expect(subgraphs.every((c) => c.key.startsWith("insight:"))).toBe(true);
+			expect(subgraphs.some((c) => c.url === "/account/subgraphs")).toBe(true);
+			const before = calls.length;
+			await evaluateAccountInsights(db, accountId, {
+				load: load("unreachable"),
+				push,
+			});
+			expect(calls).toHaveLength(before);
+		});
+
+		test("an insight with no push preference is stored but never pushed", async () => {
+			const accountId = await makeAccount();
+			const { calls, push } = recorder();
+			await evaluateAccountInsights(db, accountId, {
+				load: load("allowance"),
+				push,
+			});
+			const rules = (await listInsights(db, { accountId })).map((i) => i.rule);
+			expect(rules).toContain("allowance_exhausted");
+			expect(calls).toEqual([]);
+		});
+	});
+
 	test("loads a spend cap and balance into the billing rules", async () => {
 		const accountId = await makeAccount();
 		await db
