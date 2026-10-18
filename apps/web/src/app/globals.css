@@ -9471,3 +9471,6 @@ button.sg-sort:focus-visible {
 .mwh-chart {
 	min-width: 0;
 }
+.mwh-chart .dash-panel {
+	margin-top: 0;
+}
