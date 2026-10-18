@@ -13,7 +13,7 @@ import {
 	setOwner,
 } from "./session-cache";
 import { clearSubgraphsData } from "./subgraphs-store";
-import type { ApiKey, CreditAdded } from "./types";
+import type { ApiKey, ConnectedApp, CreditAdded } from "./types";
 import {
 	type Burn,
 	type DailySpend,
@@ -58,6 +58,8 @@ export type Caps = {
 type State = {
 	billing: Billing | null;
 	keys: ApiKey[] | null;
+	/** Apps signed in to the hosted MCP (OAuth grants). */
+	apps: ConnectedApp[] | null;
 	usage: UsageByMonth;
 	/** Day-by-day spend, keyed by month like `usage` — only the requested
 	 *  month's chart data. */
@@ -79,6 +81,7 @@ type State = {
 const EMPTY: State = {
 	billing: null,
 	keys: null,
+	apps: null,
 	usage: {},
 	daily: {},
 	burn: null,
@@ -297,6 +300,37 @@ export function refreshKeys(): Promise<void> {
 /** For a screen mounting: load keys unless another screen just did. */
 export function ensureKeys(): Promise<void> {
 	return isFresh("keys") ? Promise.resolve() : refreshKeys();
+}
+
+export function refreshApps(): Promise<void> {
+	return shared("apps", async () => {
+		try {
+			const res = await fetch("/api/oauth/grants");
+			if (!res.ok) return;
+			const data = (await res.json()) as { grants: ConnectedApp[] };
+			set({ apps: data.grants });
+			markFresh("apps");
+		} catch {
+			// Keep what we had; the list retries on the next open.
+		}
+	});
+}
+
+/** For a screen mounting: load connected apps unless another screen just did. */
+export function ensureApps(): Promise<void> {
+	return isFresh("apps") ? Promise.resolve() : refreshApps();
+}
+
+/** Revoke an app: its tokens stop working at once. */
+export async function revokeApp(id: string): Promise<void> {
+	const res = await fetch(`/api/oauth/grants/${encodeURIComponent(id)}`, {
+		method: "DELETE",
+	});
+	if (!res.ok) {
+		const data = (await res.json().catch(() => ({}))) as { error?: string };
+		throw new Error(data.error ?? "Couldn't revoke that app");
+	}
+	await refreshApps();
 }
 
 /** Forget everything on sign-out so the next account never sees it. */

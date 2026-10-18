@@ -33,6 +33,15 @@ export interface ApiKey {
 	rowsDaily?: number[];
 }
 
+/** An app signed in to the hosted MCP with OAuth, from `GET /api/oauth/grants`. */
+export interface ConnectedApp {
+	id: string;
+	/** The name the app registered itself with: its own claim, unverified. */
+	clientName: string;
+	createdAt: string;
+	lastUsedAt: string | null;
+}
+
 /** One top-up or grant from `GET /api/billing/credits`. Mirrors `CreditAdded`
  *  in `packages/platform/src/db/queries/usage-ledger.ts`. */
 export interface CreditAdded {

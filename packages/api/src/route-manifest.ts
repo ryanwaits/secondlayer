@@ -43,6 +43,9 @@ export const HOSTED_ROUTE_FIXTURES = [
 	{ method: "POST", path: "/oauth/register" },
 	{ method: "GET", path: "/oauth/authorize" },
 	{ method: "POST", path: "/oauth/token" },
+	// The consent page's answers and connected apps (sessions only).
+	{ method: "GET", path: "/api/oauth/requests/oar_fixture" },
+	{ method: "GET", path: "/api/oauth/grants" },
 ] as const;
 
 /** Gate-g Slice D deletions + the x402 rail — 404 in oss and platform alike. */

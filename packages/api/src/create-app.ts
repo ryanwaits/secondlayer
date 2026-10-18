@@ -39,6 +39,7 @@ import internalSentinelRouter from "./routes/internal-sentinel.ts";
 import internalTenantKeyRouter from "./routes/internal-tenant-key.ts";
 import internalWebhookIncidentsRouter from "./routes/internal-webhook-incidents.ts";
 import nodeRouter from "./routes/node.ts";
+import oauthConsentRouter from "./routes/oauth-consent.ts";
 import openApiRouter from "./routes/openapi.ts";
 import proofsRouter from "./routes/proofs.ts";
 import publicContactRouter from "./routes/public-contact.ts";
@@ -176,6 +177,10 @@ export function createApiApp(mode: InstanceMode): Hono {
 		// At the root, outside `/api`: its own `*` CORS without credentials,
 		// and a form-encoded token endpoint the `/api` JSON rule would refuse.
 		app.route("/", createOauthRouter());
+		// The consent page's answers and the account's connected apps:
+		// browser sessions only (keys and app tokens get 403).
+		app.use("/api/oauth/*", ipRateLimit(60, "oauth-consent"));
+		app.route("/api/oauth", oauthConsentRouter);
 		app.route("/api/keys", keysRouter);
 		app.use("/api/auth/*", ipRateLimit(10));
 		app.route("/api/auth", authRouter);

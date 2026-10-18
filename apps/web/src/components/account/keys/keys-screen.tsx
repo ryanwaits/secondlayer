@@ -6,6 +6,7 @@ import { ActionableInsights } from "@/components/dashboard/insight/insight-actio
 import { PlaceholderRows } from "@/components/dashboard/shell/onboarding";
 import { StatusSentence } from "@/components/dashboard/shell/status-sentence";
 import {
+	ensureApps,
 	ensureKeys,
 	formatDate,
 	revokeKey,
@@ -16,9 +17,10 @@ import type { Insight } from "@/lib/insights";
 import { forAccountRules, useInsights } from "@/lib/insights-store";
 import { keyState } from "@/lib/onboarding";
 import { shortCount } from "@/lib/subgraph-view";
-import type { ApiKey } from "@/lib/types";
+import type { ApiKey, ConnectedApp } from "@/lib/types";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { AppsTable } from "./apps-table";
 import {
 	agoShort,
 	dayLabels,
@@ -429,6 +431,8 @@ export interface KeysBodyProps {
 	insights?: readonly Insight[];
 	now: Date;
 	freshPrefix?: string | null;
+	/** Apps signed in to the hosted MCP; omitted, the section is not shown. */
+	apps?: ConnectedApp[] | null;
 	/** The create flow, when it is open. */
 	flow?: React.ReactNode;
 	onNew: () => void;
@@ -442,6 +446,7 @@ export function KeysBody({
 	insights = [],
 	now,
 	freshPrefix,
+	apps,
 	flow,
 	onNew,
 	initialOpen,
@@ -482,6 +487,7 @@ export function KeysBody({
 				initialOpen={initialOpen}
 				madeOpen={madeOpen}
 			/>
+			{apps !== undefined ? <AppsTable apps={apps} now={now} /> : null}
 		</div>
 	);
 }
@@ -491,7 +497,7 @@ const KEY_RULES = ["key_unused", "revoked_key_in_use"];
 
 /** /account/keys: every key on the account, and a new one when you need it. */
 export function KeysScreen() {
-	const { keys } = useAccountData();
+	const { keys, apps } = useAccountData();
 	const { data: allInsights } = useInsights();
 	const [creating, setCreating] = useState(false);
 	const [freshPrefix, setFreshPrefix] = useState<string | null>(null);
@@ -500,6 +506,7 @@ export function KeysScreen() {
 
 	useEffect(() => {
 		ensureKeys();
+		ensureApps();
 	}, []);
 	useEffect(
 		() => () => {
@@ -540,6 +547,7 @@ export function KeysScreen() {
 			)}
 			now={now}
 			freshPrefix={freshPrefix}
+			apps={apps}
 			onNew={() => setCreating(true)}
 			flow={
 				creating ? (

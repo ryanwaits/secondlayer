@@ -137,6 +137,8 @@ export const OPERATION_IDS: Record<string, string> = {
 	"GET /api/billing/status": "getBillingStatus",
 	"POST /api/public/credits/checkout": "createCreditsCheckout",
 	"POST /v1/feedback": "submitFeedback",
+	"GET /api/oauth/grants": "listConnectedApps",
+	"DELETE /api/oauth/grants/{id}": "revokeConnectedApp",
 };
 
 const HTTP_METHODS = ["get", "post", "put", "patch", "delete"] as const;
@@ -647,7 +649,12 @@ function platformSpec(): typeof OPENAPI_SPEC {
 			KEYED_PREFIXES.some((p) => key === p || key.startsWith(`${p}/`));
 		paths[key] = keyed ? keyedOperations(value) : value;
 	}
-	Object.assign(paths, platformMeterPaths(), platformFeedbackPaths());
+	Object.assign(
+		paths,
+		platformMeterPaths(),
+		platformFeedbackPaths(),
+		platformConnectedAppsPaths(),
+	);
 	return {
 		...OPENAPI_SPEC,
 		info: {
@@ -673,6 +680,11 @@ function platformSpec(): typeof OPENAPI_SPEC {
 			{
 				name: "feedback",
 				description: "Problem reports from API callers.",
+			},
+			{
+				name: "mcp",
+				description:
+					"The hosted MCP endpoint and the apps signed in to it with OAuth.",
 			},
 		],
 		components: {
@@ -757,6 +769,105 @@ function platformFeedbackPaths(): Record<string, unknown> {
 					"400": jsonError(ERROR_400),
 					"401": jsonError(ERROR_401),
 					"429": jsonError(ERROR_429),
+				},
+			},
+		},
+	};
+}
+
+const SESSION_ONLY =
+	"A signed-in browser session only (`ss-sl_*`). An API key or an app's own OAuth token gets 403, so no key and no app can list or revoke apps.";
+
+const CONNECTED_APP = {
+	type: "object",
+	required: ["id", "clientName", "createdAt", "lastUsedAt"],
+	properties: {
+		id: { type: "string", format: "uuid", description: "The grant id." },
+		clientName: {
+			type: "string",
+			description:
+				"The name the app registered itself with. Its own claim, unverified.",
+		},
+		createdAt: {
+			type: "string",
+			format: "date-time",
+			description: "When the account allowed it.",
+		},
+		lastUsedAt: {
+			type: ["string", "null"],
+			format: "date-time",
+			description: "Its last token use, to the minute.",
+		},
+	},
+	example: {
+		id: "6f1c2a7e-3b4d-4e5f-8a9b-0c1d2e3f4a5b",
+		clientName: "Claude Code",
+		createdAt: "2026-10-18T12:00:00.000Z",
+		lastUsedAt: "2026-10-18T12:05:00.000Z",
+	},
+};
+
+/** Apps signed in to the hosted MCP with OAuth (the keys page's Apps list). */
+function platformConnectedAppsPaths(): Record<string, unknown> {
+	return {
+		"/api/oauth/grants": {
+			get: {
+				tags: ["mcp"],
+				summary: "List connected apps",
+				"x-nav-title": "Connected apps",
+				description: `Apps the account allowed to use the hosted MCP. ${SESSION_ONLY}`,
+				security: WRITE_SECURITY,
+				responses: {
+					"200": json200(
+						{
+							type: "object",
+							required: ["grants"],
+							properties: {
+								grants: { type: "array", items: CONNECTED_APP },
+							},
+							example: { grants: [CONNECTED_APP.example] },
+						},
+						"The account's live grants, newest first.",
+					),
+					"401": jsonError("No session"),
+					"403": jsonError("Not a browser session"),
+				},
+			},
+		},
+		"/api/oauth/grants/{id}": {
+			delete: {
+				tags: ["mcp"],
+				summary: "Revoke a connected app",
+				"x-nav-title": "Revoke an app",
+				description: `Ends the grant: its access tokens stop working at once and its refresh token is refused. ${SESSION_ONLY}`,
+				security: WRITE_SECURITY,
+				parameters: [
+					{
+						name: "id",
+						in: "path",
+						required: true,
+						description: "The grant id from the list.",
+						schema: { type: "string", format: "uuid" },
+					},
+				],
+				responses: {
+					"200": json200(
+						{
+							type: "object",
+							properties: {
+								revoked: {
+									type: "string",
+									format: "uuid",
+									description: "The grant that was revoked.",
+								},
+							},
+							example: { revoked: "6f1c2a7e-3b4d-4e5f-8a9b-0c1d2e3f4a5b" },
+						},
+						"Revoked.",
+					),
+					"401": jsonError("No session"),
+					"403": jsonError("Not a browser session"),
+					"404": jsonError("No such app on this account"),
 				},
 			},
 		},

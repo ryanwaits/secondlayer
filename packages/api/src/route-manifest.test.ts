@@ -235,7 +235,8 @@ describe("route manifest", () => {
 			if (
 				path.startsWith("/api/archive") ||
 				path.startsWith("/api/billing") ||
-				path.startsWith("/api/public/credits")
+				path.startsWith("/api/public/credits") ||
+				path.startsWith("/api/oauth/grants")
 			) {
 				continue;
 			}

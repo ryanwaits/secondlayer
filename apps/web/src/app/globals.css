@@ -1081,6 +1081,25 @@ a mark {
 	cursor: default;
 }
 
+/* MCP OAuth consent: the app names itself, so its name is marked unverified. */
+.oauth-consent-unverified {
+	font-family: var(--font-sans-stack);
+	font-size: 0.875rem;
+	font-weight: 400;
+	color: var(--text-muted);
+}
+
+.oauth-consent-host {
+	font-family: var(--font-mono-stack);
+	font-size: 13px;
+	color: var(--text-main);
+	overflow-wrap: anywhere;
+}
+
+.login-title strong {
+	overflow-wrap: anywhere;
+}
+
 /* Account: the nav chip and menu, the keys/credits sheets, and the
    /account/keys + /account/credits pages. One set of parts serves all three.
    Fresh results (a new key, credits added) and the no-credits warning share
@@ -7987,6 +8006,26 @@ button.ky-click:focus-visible,
 .ky-faint {
 	font-size: 12px;
 	color: var(--faint);
+}
+/* Apps signed in to the hosted MCP: name, last use, revoke. */
+.ky-apps {
+	display: grid;
+	gap: 12px;
+	min-width: 0;
+}
+.ky-apps > .dash-label {
+	margin: 0;
+}
+.ky-arow {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) 96px 72px;
+	gap: 20px;
+	align-items: center;
+	padding: 16px 0;
+	border-bottom: 1px solid var(--line);
+}
+.ky-arow.ky-head {
+	padding: 0 0 10px;
 }
 .ky-sub {
 	display: flex;
