@@ -9468,6 +9468,12 @@ button.sg-sort:focus-visible {
 .mwh-btn.is-wide {
 	flex: 1;
 }
+.mwh-lbl small {
+	display: block;
+	margin-top: 2px;
+	font-size: 12px;
+	color: var(--faint);
+}
 .mwh-chart {
 	min-width: 0;
 }
@@ -9955,4 +9961,313 @@ button.sg-sort:focus-visible {
 	overflow-wrap: anywhere;
 	font: 500 19px / 1.2 var(--font-mono-stack);
 	letter-spacing: -0.02em;
+}
+
+/* Mobile status pill, Activity drawer and replay sheet. Looks at every width; the Lab frames them. */
+.mrp-dot {
+	display: inline-block;
+	flex: none;
+	width: 8px;
+	height: 8px;
+	border-radius: 50%;
+	background: var(--ok);
+}
+.mrp-dot.is-bad {
+	background: var(--alarm);
+}
+.mrp-dot.is-ring {
+	background: transparent;
+	box-shadow: inset 0 0 0 1.5px var(--sub);
+}
+.mrp-dot.is-run {
+	background: transparent;
+	border: 1.5px solid var(--ink);
+	border-right-color: transparent;
+	animation: mrp-spin 1s linear infinite;
+}
+@keyframes mrp-spin {
+	to {
+		transform: rotate(360deg);
+	}
+}
+@keyframes m-pill-pop {
+	from {
+		transform: scale(0.85);
+		opacity: 0;
+	}
+}
+.m-pill {
+	display: inline-flex;
+	flex: none;
+	align-items: center;
+	gap: 6px;
+	height: 28px;
+	padding: 0 10px;
+	border: 1px solid var(--line);
+	border-radius: 999px;
+	background: var(--paper);
+	color: var(--ink);
+	font: inherit;
+	font-size: 12.5px;
+	font-weight: 500;
+	white-space: nowrap;
+	font-variant-numeric: tabular-nums;
+	cursor: pointer;
+	/* Runs when the pill mounts, which is when the set of items changes. */
+	animation: m-pill-pop 0.24s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.m-pill:focus-visible {
+	outline: 2px solid var(--pri);
+	outline-offset: 2px;
+}
+.m-pill-more {
+	font: 400 11px var(--font-mono-stack);
+	color: var(--faint);
+}
+.m-act-body,
+.mrp {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr);
+	gap: 12px;
+	min-width: 0;
+}
+.m-act-sec {
+	display: grid;
+	gap: 12px;
+	min-width: 0;
+}
+.m-act-sec + .m-act-sec {
+	padding-top: 10px;
+	border-top: 1px solid var(--line);
+}
+.m-act-sec > b {
+	font-size: 15px;
+	font-weight: 500;
+}
+.m-act-group {
+	overflow: hidden;
+	border: 1px solid var(--line);
+	border-radius: 8px;
+}
+.m-act-kv {
+	display: flex;
+	justify-content: space-between;
+	gap: 12px;
+	padding: 11px 14px;
+	font-size: 14px;
+	font-variant-numeric: tabular-nums;
+}
+.m-act-kv + .m-act-kv {
+	border-top: 1px solid var(--line);
+}
+.m-act-kv > :first-child {
+	color: var(--sub);
+}
+.m-act-kv > :last-child {
+	min-width: 0;
+	text-align: right;
+	overflow-wrap: anywhere;
+}
+.m-act-p,
+.mrp-p {
+	margin: 0;
+	font-size: 14px;
+	line-height: 1.45;
+	color: var(--sub);
+}
+.m-act-hint {
+	margin: -4px 0 0;
+	font-size: 12px;
+	text-align: center;
+	color: var(--faint);
+}
+.mrp-mono {
+	font-family: var(--font-mono-stack);
+}
+.mrp-btn {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 100%;
+	min-height: 44px;
+	padding: 0 14px;
+	border: 1px solid var(--line);
+	border-radius: 4px;
+	background: var(--paper);
+	color: var(--ink);
+	font: inherit;
+	font-size: 15px;
+	font-weight: 500;
+	text-decoration: none;
+	cursor: pointer;
+}
+.mrp-btn.is-pri {
+	border-color: var(--pri);
+	background: var(--pri);
+	color: #fff;
+}
+.mrp-btn:disabled {
+	opacity: 0.45;
+	cursor: default;
+}
+.mrp-btn:focus-visible {
+	outline: 2px solid var(--pri);
+	outline-offset: 2px;
+}
+.mrp-note {
+	display: grid;
+	gap: 4px;
+	padding: 12px 14px;
+	border: 1px solid var(--line);
+	border-radius: 8px;
+	font-size: 14px;
+	line-height: 1.4;
+}
+.mrp-note b {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	font-weight: 500;
+}
+.mrp-note span {
+	color: var(--sub);
+}
+.mrp-radios {
+	overflow: hidden;
+	border: 1px solid var(--line);
+	border-radius: 8px;
+}
+.mrp-radio {
+	display: grid;
+	grid-template-columns: 18px minmax(0, 1fr);
+	gap: 12px;
+	width: 100%;
+	min-height: 44px;
+	padding: 11px 14px;
+	border: 0;
+	background: var(--paper);
+	color: var(--ink);
+	font: inherit;
+	text-align: left;
+	cursor: pointer;
+}
+.mrp-radio + .mrp-radio {
+	border-top: 1px solid var(--line);
+}
+.mrp-radio:focus-visible {
+	outline: 2px solid var(--pri);
+	outline-offset: -2px;
+}
+.mrp-ring {
+	width: 18px;
+	height: 18px;
+	margin-top: 1px;
+	border: 1.5px solid var(--line);
+	border-radius: 50%;
+}
+.mrp-radio[aria-checked="true"] .mrp-ring {
+	border: 5px solid var(--pri);
+}
+.mrp-radio-text {
+	display: grid;
+	gap: 2px;
+	min-width: 0;
+}
+.mrp-radio-text b {
+	font-size: 14px;
+	font-weight: 500;
+}
+.mrp-radio-text span {
+	font: 11.5px var(--font-mono-stack);
+	color: var(--sub);
+}
+.mrp-est {
+	margin: 0;
+	font: 13px var(--font-mono-stack);
+	font-variant-numeric: tabular-nums;
+}
+.mrp-prog {
+	display: grid;
+	gap: 8px;
+	padding: 14px;
+	border: 1px solid var(--line);
+	border-radius: 8px;
+}
+.mrp-n {
+	font: 500 26px var(--font-mono-stack);
+	letter-spacing: -0.02em;
+	font-variant-numeric: tabular-nums;
+}
+.mrp-n small {
+	font: 400 14px var(--font-sans-stack);
+	letter-spacing: 0;
+	color: var(--sub);
+}
+.mrp-n .is-bad {
+	color: var(--alarm);
+}
+.mrp-track {
+	height: 6px;
+	overflow: hidden;
+	border: 1px solid var(--line);
+	border-radius: 999px;
+	background: var(--soft);
+}
+.mrp-track i {
+	display: block;
+	height: 100%;
+	background: var(--ink);
+	transition: width 0.5s linear;
+}
+.mrp-s {
+	font-size: 12.5px;
+	line-height: 1.4;
+	color: var(--sub);
+}
+.mrp-steps {
+	overflow: hidden;
+	border: 1px solid var(--line);
+	border-radius: 8px;
+}
+.mrp-step {
+	display: grid;
+	grid-template-columns: 22px minmax(0, 1fr) auto;
+	align-items: center;
+	gap: 8px;
+	padding: 10px 14px;
+	font-size: 14px;
+}
+.mrp-step + .mrp-step {
+	border-top: 1px solid var(--line);
+}
+.mrp-ix {
+	display: grid;
+	place-items: center;
+	width: 20px;
+	height: 20px;
+	border: 1px solid var(--line);
+	border-radius: 50%;
+	font: 11px var(--font-mono-stack);
+	color: var(--sub);
+}
+.mrp-step.is-done .mrp-ix {
+	border-color: var(--ok);
+	background: var(--ok);
+	color: var(--paper);
+}
+.mrp-dim {
+	color: var(--sub);
+}
+.mrp-aside {
+	font: 12px var(--font-mono-stack);
+	color: var(--faint);
+}
+@media (prefers-reduced-motion: reduce) {
+	.m-pill,
+	.mrp-dot.is-run {
+		animation: none;
+	}
+	.mrp-track i {
+		transition: none;
+	}
 }

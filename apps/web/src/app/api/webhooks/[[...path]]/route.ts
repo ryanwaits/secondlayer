@@ -5,10 +5,10 @@ import type { Agent } from "undici";
 
 /**
  * Proxy to the hosted webhooks API for the signed-in account's dashboard. The
- * dashboard reads, pauses, resumes, renames (a name-only PATCH) and sends a
- * test event. Create, edit, replay, requeue, rotate and delete happen in the
- * CLI/SDK and never go through here; an allowlist enforces that at the route
- * level, not just in the UI.
+ * dashboard reads, pauses, resumes, renames (a name-only PATCH), sends a
+ * test event, replays a block range and requeues dead events. Create, edit,
+ * rotate and delete happen in the CLI/SDK and never go through here; an
+ * allowlist enforces that at the route level, not just in the UI.
  *
  * Forwards with `fetch` directly (not `apiRequest`, which drops response
  * headers) so a `503`'s `Retry-After` reaches the client — the list/detail
@@ -39,15 +39,23 @@ function isAllowed(method: Method, segments: string[]): boolean {
 		) {
 			return true;
 		}
-		// one delivery, read when a dashboard row is opened
-		return segments.length === 3 && segments[1] === "deliveries";
+		if (segments.length === 2 && segments[1] === "replays") return true;
+		// one delivery, read when a dashboard row is opened; one replay's progress
+		return (
+			segments.length === 3 &&
+			(segments[1] === "deliveries" || segments[1] === "replays")
+		);
 	}
 	if (method === "POST") {
+		if (segments.length === 3) {
+			return segments[1] === "dead" && segments[2] === "requeue";
+		}
 		return (
 			segments.length === 2 &&
 			(segments[1] === "pause" ||
 				segments[1] === "resume" ||
-				segments[1] === "test")
+				segments[1] === "test" ||
+				segments[1] === "replay")
 		);
 	}
 	// PATCH: rename one webhook
@@ -80,6 +88,57 @@ function nameOnlyBody(body: unknown): string | null {
 		: null;
 }
 
+const REPLAY_ID_RE = /^[0-9a-f]{16}$/;
+
+/** True when `body` is a plain object whose keys are all in `allowed`. */
+function onlyKeys(body: unknown, allowed: readonly string[]): boolean {
+	return (
+		typeof body === "object" &&
+		body !== null &&
+		!Array.isArray(body) &&
+		Object.keys(body).every((key) => allowed.includes(key))
+	);
+}
+
+/** The cleaned replay request when `body` is `{ fromBlock, toBlock, force? }`; else null. */
+function replayBody(
+	body: unknown,
+): { fromBlock: number; toBlock: number; force?: string } | null {
+	if (!onlyKeys(body, ["fromBlock", "toBlock", "force"])) return null;
+	const { fromBlock, toBlock, force } = body as Record<string, unknown>;
+	if (!Number.isInteger(fromBlock) || !Number.isInteger(toBlock)) return null;
+	const from = fromBlock as number;
+	const to = toBlock as number;
+	if (from < 0 || to < 0 || from > to) return null;
+	if (force === undefined) return { fromBlock: from, toBlock: to };
+	if (typeof force !== "string" || force.length < 1 || force.length > 64) {
+		return null;
+	}
+	return { fromBlock: from, toBlock: to, force };
+}
+
+/** The cleaned bulk-requeue request when `body` is `{}` or has `replayId` / `since`; else null. */
+function requeueBody(
+	body: unknown,
+): { replayId?: string; since?: string } | null {
+	if (!onlyKeys(body, ["replayId", "since"])) return null;
+	const { replayId, since } = body as Record<string, unknown>;
+	const out: { replayId?: string; since?: string } = {};
+	if (replayId !== undefined) {
+		if (typeof replayId !== "string" || !REPLAY_ID_RE.test(replayId)) {
+			return null;
+		}
+		out.replayId = replayId;
+	}
+	if (since !== undefined) {
+		if (typeof since !== "string" || Number.isNaN(Date.parse(since))) {
+			return null;
+		}
+		out.since = since;
+	}
+	return out;
+}
+
 function badSegment() {
 	return NextResponse.json({ error: "Invalid request path" }, { status: 400 });
 }
@@ -102,16 +161,27 @@ async function handle(
 		Authorization: `Bearer ${sessionToken}`,
 	};
 	let body: string | undefined;
-	if (method === "PATCH") {
+	const bodyParser =
+		method === "PATCH"
+			? (parsed: unknown) => {
+					const name = nameOnlyBody(parsed);
+					return name === null ? null : { name };
+				}
+			: method === "POST" && segments[1] === "replay"
+				? replayBody
+				: method === "POST" && segments[1] === "dead"
+					? requeueBody
+					: null;
+	if (bodyParser) {
 		let parsed: unknown;
 		try {
 			parsed = await req.json();
 		} catch {
 			return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
 		}
-		const name = nameOnlyBody(parsed);
-		if (name === null) return notAvailable();
-		body = JSON.stringify({ name });
+		const clean = bodyParser(parsed);
+		if (clean === null) return notAvailable();
+		body = JSON.stringify(clean);
 		headers["Content-Type"] = "application/json";
 	}
 

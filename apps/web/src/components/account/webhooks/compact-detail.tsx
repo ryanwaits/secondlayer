@@ -1,13 +1,24 @@
 "use client";
 
+import {
+	recoveryStep3,
+	runningReplayFor,
+	useMinutesLeft,
+	useRecentReplays,
+} from "@/lib/replays";
+import { getReplays, requeueDead } from "@/lib/webhooks-data";
 import type {
 	DeliveryRow,
 	WebhookActivity,
 	WebhookDetail,
 	WebhookTestResult,
 } from "@secondlayer/sdk";
+import type { ReplayProgress } from "@secondlayer/shared/schemas/webhooks";
+import { useEffect, useRef, useState } from "react";
+import { toast } from "sonner";
 import { DeliveriesChart } from "./deliveries-chart";
 import { describeTrigger } from "./describe-trigger";
+import { ReplayProgressView, ReplaySheet } from "./replay-sheet";
 import { ToneDot } from "./rows";
 import { displayStatus, shortenName } from "./shared";
 import { ageShort, isOk, outageStartIndex, utcClock } from "./view";
@@ -20,6 +31,19 @@ export interface WebhookCompactDetailProps {
 	onTogglePause: () => void;
 	test: { busy: boolean; result: WebhookTestResult | null };
 	onTest: () => void;
+}
+
+/** What the phone detail needs beyond the webhook itself. */
+export interface CompactReplayProps {
+	/** Keep the recovery steps on screen: the webhook was failing and may since have been resumed. */
+	showRecovery: boolean;
+	/** Dead events since it last succeeded; null until read. */
+	dead: { count: number } | null;
+	/** The bulk requeue of step 3: in flight, or how many went out. */
+	requeue: { busy: boolean; requeued: number | null; onRequeue: () => void };
+	/** This webhook's replay while it runs. */
+	replay: { progress: ReplayProgress; minutesLeft: number | null } | null;
+	onReplay: () => void;
 }
 
 const RECENT_ROWS = 4;
@@ -92,12 +116,14 @@ function Step({
 	done,
 	label,
 	bad,
+	hint,
 	children,
 }: {
 	index: number;
 	done: boolean;
 	label: string;
 	bad?: boolean;
+	hint?: string;
 	children?: React.ReactNode;
 }) {
 	return (
@@ -105,7 +131,10 @@ function Step({
 			<span className="mwh-ix" aria-hidden="true">
 				{done ? "✓" : index}
 			</span>
-			<span className={`mwh-lbl${bad ? " is-bad" : ""}`}>{label}</span>
+			<span className={`mwh-lbl${bad ? " is-bad" : ""}`}>
+				{label}
+				{hint ? <small>{hint}</small> : null}
+			</span>
 			{children}
 		</div>
 	);
@@ -117,10 +146,13 @@ function Recovery({
 	pauseBusy,
 	onTest,
 	onTogglePause,
+	dead,
+	requeue,
 }: Pick<
 	WebhookCompactDetailProps,
 	"webhook" | "test" | "pauseBusy" | "onTest" | "onTogglePause"
->) {
+> &
+	Pick<CompactReplayProps, "dead" | "requeue">) {
 	const tested = test.result?.ok === true;
 	const failed = test.result !== null && !test.result.ok;
 	const paused = webhook.status === "paused";
@@ -129,6 +161,8 @@ function Recovery({
 		: failed
 			? `Test failed: ${test.result?.statusCode ?? test.result?.error ?? "no answer"}`
 			: "Send a test event";
+	const resumed = !paused;
+	const step3 = dead ? recoveryStep3(dead) : null;
 	return (
 		<>
 			<div className="mwh-sec">
@@ -150,23 +184,47 @@ function Recovery({
 				</Step>
 				<Step
 					index={2}
-					done={false}
+					done={resumed}
 					label={paused ? "Resume deliveries" : "Deliveries are not paused"}
 				>
-					<button
-						type="button"
-						className="mwh-btn"
-						disabled={!tested || !paused || pauseBusy}
-						onClick={onTogglePause}
-					>
-						Resume
-					</button>
+					{resumed ? null : (
+						<button
+							type="button"
+							className="mwh-btn"
+							disabled={!tested || pauseBusy}
+							onClick={onTogglePause}
+						>
+							Resume
+						</button>
+					)}
 				</Step>
-				<Step index={3} done={false} label="Replay what failed">
-					<button type="button" className="mwh-btn" disabled>
-						Replay
-					</button>
-				</Step>
+				{step3?.kind === "nothing" ? (
+					<Step
+						index={3}
+						done={resumed}
+						label="Nothing gave up"
+						hint="Waiting events went out when you resumed."
+					/>
+				) : requeue.requeued !== null ? (
+					<Step
+						index={3}
+						done
+						label={`Requeued ${requeue.requeued.toLocaleString("en-US")}`}
+					/>
+				) : (
+					<Step index={3} done={false} label="Requeue what gave up">
+						<button
+							type="button"
+							className="mwh-btn"
+							disabled={!resumed || step3 === null || requeue.busy}
+							onClick={requeue.onRequeue}
+						>
+							{step3?.kind === "requeue"
+								? `Requeue ${step3.count.toLocaleString("en-US")}`
+								: "Requeue"}
+						</button>
+					</Step>
+				)}
 			</div>
 			{tested ? null : (
 				<p className="m-sub mwh-hint">
@@ -178,8 +236,8 @@ function Recovery({
 	);
 }
 
-/** The phone detail: what is wrong, the steps back to delivering, and the last day. */
-export function WebhookCompactDetail({
+/** The phone detail: what is wrong, the steps back to delivering, and the last day. Pure; `WebhookCompactDetail` feeds it. */
+export function WebhookCompactDetailView({
 	webhook,
 	activity,
 	deliveries,
@@ -187,9 +245,13 @@ export function WebhookCompactDetail({
 	onTogglePause,
 	test,
 	onTest,
-}: WebhookCompactDetailProps) {
+	showRecovery,
+	dead,
+	requeue,
+	replay,
+	onReplay,
+}: WebhookCompactDetailProps & CompactReplayProps) {
 	const status = displayStatus(webhook);
-	const failing = status === "error";
 	const sentence = triggerSentence(webhook);
 	const waiting = activity?.waiting ?? 0;
 	return (
@@ -220,13 +282,15 @@ export function WebhookCompactDetail({
 				) : null}
 			</div>
 
-			{failing ? (
+			{showRecovery ? (
 				<Recovery
 					webhook={webhook}
 					test={test}
 					pauseBusy={pauseBusy}
 					onTest={onTest}
 					onTogglePause={onTogglePause}
+					dead={dead}
+					requeue={requeue}
 				/>
 			) : (
 				<div className="mwh-btns">
@@ -246,8 +310,28 @@ export function WebhookCompactDetail({
 					>
 						{test.busy ? "Sending…" : "Send test"}
 					</button>
+					<button type="button" className="mwh-btn is-wide" onClick={onReplay}>
+						Replay
+					</button>
 				</div>
 			)}
+
+			{replay ? (
+				<>
+					<div className="mwh-sec">
+						<b>Replay</b>
+						<span>
+							blocks {replay.progress.fromBlock.toLocaleString("en-US")} →{" "}
+							{replay.progress.toBlock.toLocaleString("en-US")}
+						</span>
+					</div>
+					<ReplayProgressView
+						progress={replay.progress}
+						minutesLeft={replay.minutesLeft}
+						onRequeue={() => {}}
+					/>
+				</>
+			) : null}
 
 			{activity ? (
 				<>
@@ -259,7 +343,7 @@ export function WebhookCompactDetail({
 							activity={activity}
 							days={undefined}
 							range="24h"
-							losing={failing}
+							losing={status === "error"}
 						/>
 					</div>
 				</>
@@ -292,5 +376,76 @@ export function WebhookCompactDetail({
 				</>
 			) : null}
 		</div>
+	);
+}
+
+/**
+ * The phone detail with replay and requeue wired in. Everything that talks to
+ * the replay API lives here, so it only runs on a phone.
+ */
+export function WebhookCompactDetail(props: WebhookCompactDetailProps) {
+	const { webhook } = props;
+	const failing = displayStatus(webhook) === "error";
+	// Resuming ends "failing", but the steps stay until the requeue is done.
+	const recovering = useRef(false);
+	if (failing) recovering.current = true;
+
+	const [dead, setDead] = useState<{
+		count: number;
+		since: string | null;
+	} | null>(null);
+	const [requeueBusy, setRequeueBusy] = useState(false);
+	const [requeued, setRequeued] = useState<number | null>(null);
+	const [sheetOpen, setSheetOpen] = useState(false);
+	const replays = useRecentReplays();
+	const running = runningReplayFor(replays, webhook.id);
+	const minutesLeft = useMinutesLeft(running);
+	const id = webhook.id;
+
+	useEffect(() => {
+		let cancelled = false;
+		getReplays(id).then((res) => {
+			if (!cancelled && res.kind === "ok") {
+				setDead(res.data.ranges.deadSinceFailing);
+			}
+		});
+		return () => {
+			cancelled = true;
+		};
+	}, [id]);
+
+	const onRequeue = async () => {
+		if (requeueBusy) return;
+		setRequeueBusy(true);
+		const res = await requeueDead(id, { since: dead?.since ?? undefined });
+		setRequeueBusy(false);
+		if (res.kind !== "ok") {
+			toast.error("Couldn't requeue", {
+				description:
+					res.kind === "error" ? res.message : "Try again in a moment.",
+			});
+			return;
+		}
+		const n = res.data.requeued.toLocaleString("en-US");
+		toast.success(`Requeued ${n}. They go out with live events.`);
+		setRequeued(res.data.requeued);
+	};
+
+	return (
+		<>
+			<WebhookCompactDetailView
+				{...props}
+				showRecovery={failing || recovering.current}
+				dead={dead}
+				requeue={{ busy: requeueBusy, requeued, onRequeue }}
+				replay={running ? { progress: running, minutesLeft } : null}
+				onReplay={() => setSheetOpen(true)}
+			/>
+			<ReplaySheet
+				webhook={webhook}
+				open={sheetOpen}
+				onClose={() => setSheetOpen(false)}
+			/>
+		</>
 	);
 }

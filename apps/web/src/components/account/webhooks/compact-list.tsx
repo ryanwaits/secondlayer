@@ -2,6 +2,13 @@
 
 import { Skel } from "@/components/dashboard/shell/skel";
 import { SwipeGroup, SwipeRow } from "@/components/mobile/swipe-row";
+import {
+	replayPercent,
+	runningReplayFor,
+	useRecentReplays,
+} from "@/lib/replays";
+import { useState } from "react";
+import { ReplaySheet } from "./replay-sheet";
 import { ToneDot, type WebhookRowModel } from "./rows";
 import { displayStatus, shortenName } from "./shared";
 import { ageShort } from "./view";
@@ -48,7 +55,7 @@ function RowSkeleton() {
 	);
 }
 
-/** The phone list: swipe a webhook left to pause or resume it, tap to open it. */
+/** The phone list: swipe a webhook left to pause, resume or replay it, tap to open it. */
 export function WebhooksCompactList({
 	rows,
 	failing,
@@ -56,6 +63,10 @@ export function WebhooksCompactList({
 	onOpen,
 	onTogglePause,
 }: WebhooksCompactListProps) {
+	const replays = useRecentReplays();
+	const [replayFor, setReplayFor] = useState<WebhookRowModel["webhook"] | null>(
+		null,
+	);
 	if (rows === null) {
 		return (
 			<div className="mwh">
@@ -90,6 +101,7 @@ export function WebhooksCompactList({
 					{rows.map((row) => {
 						const { webhook, state } = row;
 						const running = displayStatus(webhook) === "active";
+						const replaying = runningReplayFor(replays, webhook.id);
 						return (
 							<SwipeRow
 								key={webhook.id}
@@ -108,18 +120,33 @@ export function WebhooksCompactList({
 											if (busyId === null) onTogglePause(row);
 										},
 									},
+									{
+										label: "Replay",
+										tone: "pri",
+										onAction: () => setReplayFor(webhook),
+									},
 								]}
 							>
 								<div className="mwh-row">
-									<ToneDot tone={state.tone} />
+									{replaying ? (
+										<span className="mrp-dot is-run" aria-hidden="true" />
+									) : (
+										<ToneDot tone={state.tone} />
+									)}
 									<span className="mwh-main">
 										<span className="mwh-name" title={webhook.name}>
 											{shortenName(webhook.name)}
 										</span>
-										<span className={`mwh-state${state.bad ? " is-bad" : ""}`}>
-											{state.text}
+										<span
+											className={`mwh-state${state.bad && !replaying ? " is-bad" : ""}`}
+										>
+											{replaying
+												? `Replaying ${replayPercent(replaying)}%`
+												: state.text}
 										</span>
-										{state.tone === "ok" && webhook.lastDeliveryAt ? (
+										{state.tone === "ok" &&
+										!replaying &&
+										webhook.lastDeliveryAt ? (
 											<span className="mwh-last">
 												last {ageShort(webhook.lastDeliveryAt)}
 											</span>
@@ -132,7 +159,16 @@ export function WebhooksCompactList({
 					})}
 				</div>
 			</SwipeGroup>
-			<p className="m-sub mwh-hint">Swipe left on a webhook for Pause.</p>
+			<p className="m-sub mwh-hint">
+				Swipe left on a webhook for Pause and Replay.
+			</p>
+			{replayFor ? (
+				<ReplaySheet
+					webhook={replayFor}
+					open
+					onClose={() => setReplayFor(null)}
+				/>
+			) : null}
 		</div>
 	);
 }

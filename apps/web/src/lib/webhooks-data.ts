@@ -6,6 +6,11 @@ import type {
 	WebhookSummary,
 	WebhookTestResult,
 } from "@secondlayer/sdk";
+import type {
+	ReplayProgress,
+	ReplayRanges,
+	ReplayResult,
+} from "@secondlayer/shared/schemas/webhooks";
 
 /**
  * Client-only fetchers for /account/webhooks, calling the dashboard's own
@@ -175,6 +180,54 @@ export function testWebhook(
 	return request<WebhookTestResult>(`/${encodeURIComponent(id)}/test`, {
 		method: "POST",
 	});
+}
+
+function postJson<T>(path: string, body: unknown): Promise<WebhooksResult<T>> {
+	return request<T>(path, {
+		method: "POST",
+		headers: { "Content-Type": "application/json" },
+		body: JSON.stringify(body),
+	});
+}
+
+/** Replay a block range. A 409 (a scan is already running) comes back as an
+ *  `error` carrying the API's text. */
+export function startReplay(
+	id: string,
+	range: { fromBlock: number; toBlock: number },
+): Promise<WebhooksResult<ReplayResult>> {
+	return postJson<ReplayResult>(`/${encodeURIComponent(id)}/replay`, range);
+}
+
+/** A webhook's recent replays, plus the range presets and what gave up. */
+export function getReplays(
+	id: string,
+): Promise<WebhooksResult<{ data: ReplayProgress[]; ranges: ReplayRanges }>> {
+	return request(`/${encodeURIComponent(id)}/replays`);
+}
+
+export function getReplay(
+	id: string,
+	replayId: string,
+): Promise<WebhooksResult<ReplayProgress>> {
+	return request<ReplayProgress>(
+		`/${encodeURIComponent(id)}/replays/${encodeURIComponent(replayId)}`,
+	);
+}
+
+/** Replays running now or started in the last 24 hours, across the account. */
+export function getRecentReplays(): Promise<
+	WebhooksResult<{ data: ReplayProgress[] }>
+> {
+	return request("/replays?_limit=20");
+}
+
+/** Requeue dead events: those of one replay, those since a time, or all. */
+export function requeueDead(
+	id: string,
+	opts: { replayId?: string; since?: string },
+): Promise<WebhooksResult<{ requeued: number }>> {
+	return postJson(`/${encodeURIComponent(id)}/dead/requeue`, opts);
 }
 
 /** Rename a webhook. Only the label changes. A 409 (a Sentinel-managed name,

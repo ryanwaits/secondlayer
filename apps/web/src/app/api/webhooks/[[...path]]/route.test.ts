@@ -251,12 +251,133 @@ describe("webhooks dashboard proxy", () => {
 		});
 	}
 
-	test("POST :id/replay is not in the allowlist → 405, no fetch", async () => {
+	function postReq(body: unknown): Request {
+		return new Request("http://localhost/api/webhooks/wh_1/replay", {
+			method: "POST",
+			headers: { cookie: "sl_session=tok", "content-type": "application/json" },
+			body: JSON.stringify(body),
+		});
+	}
+
+	test("POST :id/replay with a valid range is forwarded with that exact body and a JSON content type", async () => {
+		const { calls } = stubFetch(
+			() => new Response(JSON.stringify({ replayId: "r" }), { status: 202 }),
+		);
+		const { POST } = await import("./route");
+		const res = await POST(
+			postReq({ fromBlock: 100, toBlock: 200 }),
+			ctx(["wh_1", "replay"]),
+		);
+		expect(res.status).toBe(202);
+		expect(calls[0]?.url.endsWith("/api/webhooks/wh_1/replay")).toBe(true);
+		expect(calls[0]?.init?.body).toBe(
+			JSON.stringify({ fromBlock: 100, toBlock: 200 }),
+		);
+		expect(new Headers(calls[0]?.init?.headers).get("Content-Type")).toBe(
+			"application/json",
+		);
+	});
+
+	test("POST :id/replay passes a force string through", async () => {
+		const { calls } = stubFetch(() => new Response("{}", { status: 202 }));
+		const { POST } = await import("./route");
+		await POST(
+			postReq({ fromBlock: 1, toBlock: 2, force: "again" }),
+			ctx(["wh_1", "replay"]),
+		);
+		expect(calls[0]?.init?.body).toBe(
+			JSON.stringify({ fromBlock: 1, toBlock: 2, force: "again" }),
+		);
+	});
+
+	for (const [name, body] of [
+		["an extra key", { fromBlock: 1, toBlock: 2, url: "https://x.dev" }],
+		["fromBlock after toBlock", { fromBlock: 5, toBlock: 2 }],
+		["a negative block", { fromBlock: -1, toBlock: 2 }],
+		["a fractional block", { fromBlock: 1.5, toBlock: 2 }],
+		["a missing toBlock", { fromBlock: 1 }],
+		["an empty force", { fromBlock: 1, toBlock: 2, force: "" }],
+		["no body object", []],
+	] as const) {
+		test(`POST :id/replay with ${name} → 405, no fetch`, async () => {
+			const { calls } = stubFetch(() => new Response("{}", { status: 200 }));
+			const { POST } = await import("./route");
+			const res = await POST(postReq(body), ctx(["wh_1", "replay"]));
+			expect(res.status).toBe(405);
+			expect(calls.length).toBe(0);
+		});
+	}
+
+	test("POST :id/replay with an unparseable body → 400, no fetch", async () => {
 		const { calls } = stubFetch(() => new Response("{}", { status: 200 }));
 		const { POST } = await import("./route");
 		const res = await POST(
-			req({ method: "POST", cookie: "sl_session=tok" }),
+			new Request("http://localhost/api/webhooks/wh_1/replay", {
+				method: "POST",
+				headers: { cookie: "sl_session=tok" },
+				body: "{nope",
+			}),
 			ctx(["wh_1", "replay"]),
+		);
+		expect(res.status).toBe(400);
+		expect(calls.length).toBe(0);
+	});
+
+	for (const body of [
+		{},
+		{ replayId: "0123456789abcdef" },
+		{ since: "2026-10-18T10:00:00.000Z" },
+	]) {
+		test(`POST :id/dead/requeue with ${JSON.stringify(body)} is forwarded`, async () => {
+			const { calls } = stubFetch(
+				() => new Response(JSON.stringify({ requeued: 3 }), { status: 200 }),
+			);
+			const { POST } = await import("./route");
+			const res = await POST(postReq(body), ctx(["wh_1", "dead", "requeue"]));
+			expect(res.status).toBe(200);
+			expect(calls[0]?.url.endsWith("/api/webhooks/wh_1/dead/requeue")).toBe(
+				true,
+			);
+			expect(calls[0]?.init?.body).toBe(JSON.stringify(body));
+		});
+	}
+
+	for (const [name, body] of [
+		["a bad replayId", { replayId: "nope" }],
+		["a bad since", { since: "yesterday" }],
+		["an extra key", { replayId: "0123456789abcdef", force: "x" }],
+	] as const) {
+		test(`POST :id/dead/requeue with ${name} → 405, no fetch`, async () => {
+			const { calls } = stubFetch(() => new Response("{}", { status: 200 }));
+			const { POST } = await import("./route");
+			const res = await POST(postReq(body), ctx(["wh_1", "dead", "requeue"]));
+			expect(res.status).toBe(405);
+			expect(calls.length).toBe(0);
+		});
+	}
+
+	for (const path of [
+		["replays"],
+		["wh_1", "replays"],
+		["wh_1", "replays", "0123456789abcdef"],
+	]) {
+		test(`GET ${path.join("/")} is forwarded`, async () => {
+			const { calls } = stubFetch(() => new Response("{}", { status: 200 }));
+			const { GET } = await import("./route");
+			const res = await GET(req({ cookie: "sl_session=tok" }), ctx(path));
+			expect(res.status).toBe(200);
+			expect(calls[0]?.url.endsWith(`/api/webhooks/${path.join("/")}`)).toBe(
+				true,
+			);
+		});
+	}
+
+	test("GET :id/replays/:replayId/anything deeper is refused → 405", async () => {
+		const { calls } = stubFetch(() => new Response("{}", { status: 200 }));
+		const { GET } = await import("./route");
+		const res = await GET(
+			req({ cookie: "sl_session=tok" }),
+			ctx(["wh_1", "replays", "abc", "x"]),
 		);
 		expect(res.status).toBe(405);
 		expect(calls.length).toBe(0);
