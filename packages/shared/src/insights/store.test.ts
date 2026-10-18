@@ -12,6 +12,7 @@ import {
 	unmuteRule,
 	unsnoozeInsight,
 } from "./store.ts";
+import { CLEAR_STREAK_TO_RESOLVE } from "./thresholds.ts";
 import type { DetectedInsight } from "./types.ts";
 
 const HAS_DB = !!process.env.DATABASE_URL;
@@ -98,6 +99,28 @@ describe.skipIf(!HAS_DB)("insight store", () => {
 		expect(rows[0]?.line).toBe("Updated line");
 		expect(rows[0]?.impact).toBe(99);
 		expect(rows[0]?.severity).toBe("losing");
+	});
+
+	test("only an insert counts as opened: a repeat does not, a re-fire after resolving does", async () => {
+		const id = `${tag}-opened`;
+		const fire = () =>
+			recordEvaluation(
+				db,
+				NULL_SCOPE,
+				[detected({ resourceId: id })],
+				[key(id)],
+			);
+		const first = await fire();
+		expect(first.opened).toHaveLength(1);
+		expect(first.opened[0]?.id).toMatch(/^[0-9a-f-]{36}$/);
+		expect(first.opened[0]?.resource.id).toBe(id);
+		expect((await fire()).opened).toHaveLength(0);
+		for (let i = 0; i < CLEAR_STREAK_TO_RESOLVE; i++) {
+			await recordEvaluation(db, NULL_SCOPE, [], [key(id)]);
+		}
+		const again = await fire();
+		expect(again.opened).toHaveLength(1);
+		expect(again.opened[0]?.id).not.toBe(first.opened[0]?.id);
 	});
 
 	test("one clean pass keeps it open, two resolve it", async () => {

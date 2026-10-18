@@ -122,6 +122,7 @@ export const TABLE_TO_DB = {
 	// ── TARGET: web push subscriptions + per-account toggles ──
 	push_subscriptions: "target",
 	push_prefs: "target",
+	push_sent: "target",
 	// ── BOTH ──
 	service_heartbeats: "both",
 } satisfies Record<keyof Database, DbPlane>;

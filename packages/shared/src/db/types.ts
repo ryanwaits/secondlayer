@@ -1116,6 +1116,7 @@ export interface Database {
 	feedback_tickets: FeedbackTicketsTable;
 	push_subscriptions: PushSubscriptionsTable;
 	push_prefs: PushPrefsTable;
+	push_sent: PushSentTable;
 }
 
 export interface ServiceHeartbeatsTable {
@@ -1270,6 +1271,14 @@ export interface PushPrefsTable {
 }
 
 export type PushPrefs = Selectable<PushPrefsTable>;
+
+/** A push already sent, keyed by what it was about; debounces repeat signals. */
+export interface PushSentTable {
+	account_id: string;
+	key: string;
+	kind: string;
+	sent_at: Generated<Date>;
+}
 
 export type CliDeviceLoginStatus =
 	| "pending"

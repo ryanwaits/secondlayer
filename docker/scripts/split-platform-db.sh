@@ -106,6 +106,7 @@ CONTROL_TABLES=(
   feedback_tickets
   push_subscriptions
   push_prefs
+  push_sent
   contact_requests
 )
 

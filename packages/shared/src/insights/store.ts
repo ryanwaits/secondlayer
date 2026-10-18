@@ -50,6 +50,10 @@ function toPayload(insight: DetectedInsight): Payload {
  * and resolves once the streak reaches `CLEAR_STREAK_TO_RESOLVE`. A rule that
  * was skipped (missing data) must stay out of `evaluatedKeys` so it never
  * counts toward clearing.
+ *
+ * Returns the insights this pass newly opened (inserted, not updated). A
+ * re-fire after a resolve is a fresh insert and counts. Nothing stored or
+ * listed depends on the return value.
  */
 export async function recordEvaluation(
 	db: Kysely<Database>,
@@ -57,10 +61,11 @@ export async function recordEvaluation(
 	fired: DetectedInsight[],
 	evaluatedKeys: EvaluatedKey[],
 	now: Date = new Date(),
-): Promise<void> {
-	await db.transaction().execute(async (trx) => {
+): Promise<{ opened: Array<DetectedInsight & { id: string }> }> {
+	return db.transaction().execute(async (trx) => {
+		const opened: Array<DetectedInsight & { id: string }> = [];
 		for (const insight of fired) {
-			await sql`
+			const { rows } = await sql<{ id: string; inserted: boolean }>`
 				INSERT INTO insights
 					(account_id, resource_kind, resource_id, rule, severity, impact,
 					 payload, first_seen_at, last_seen_at)
@@ -77,7 +82,10 @@ export async function recordEvaluation(
 					impact = EXCLUDED.impact,
 					last_seen_at = EXCLUDED.last_seen_at,
 					clear_streak = 0
+				RETURNING id, (xmax = 0) AS inserted
 			`.execute(trx);
+			const row = rows[0];
+			if (row?.inserted) opened.push({ ...insight, id: row.id });
 		}
 
 		const firedKeys = new Set(
@@ -103,6 +111,7 @@ export async function recordEvaluation(
 					AND resolved_at IS NULL
 			`.execute(trx);
 		}
+		return { opened };
 	});
 }
 
