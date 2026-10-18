@@ -456,6 +456,7 @@ export interface InsightsTable {
 	clear_streak: Generated<number>;
 	resolved_at: Date | null;
 	dismissed_at: Date | null;
+	snoozed_until: Date | null;
 }
 
 /** "Expected": mutes one rule for one resource until removed. */

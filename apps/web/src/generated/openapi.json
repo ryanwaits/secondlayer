@@ -19331,6 +19331,298 @@
 						}
 					}
 				}
+			},
+			"delete": {
+				"operationId": "undismissInsight",
+				"tags": [
+					"webhooks"
+				],
+				"summary": "Undo dismissing an insight",
+				"x-nav-title": "Undismiss",
+				"description": "Shows a dismissed insight again.",
+				"security": [
+					{
+						"bearerAuth": []
+					}
+				],
+				"parameters": [
+					{
+						"name": "id",
+						"in": "path",
+						"required": true,
+						"schema": {
+							"type": "string"
+						},
+						"description": "Insight id (UUID), as returned by the insights list."
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "Shown again",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"required": [
+										"ok"
+									],
+									"properties": {
+										"ok": {
+											"type": "boolean",
+											"description": "Always `true`."
+										}
+									},
+									"example": {
+										"ok": true
+									}
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "A parameter, filter, cursor or body field was refused; `code` says which",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "This bind requires the instance token, and it was missing or wrong",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "No insight with this id",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"415": {
+						"description": "Missing or non-JSON `Content-Type` (`UNSUPPORTED_MEDIA_TYPE`) — writes must send `Content-Type: application/json`",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/api/insights/{id}/snooze": {
+			"post": {
+				"operationId": "snoozeInsight",
+				"tags": [
+					"webhooks"
+				],
+				"summary": "Snooze an insight",
+				"x-nav-title": "Snooze",
+				"description": "Hides this insight until `until`. It shows again then, or earlier if you remove the snooze.",
+				"security": [
+					{
+						"bearerAuth": []
+					}
+				],
+				"parameters": [
+					{
+						"name": "id",
+						"in": "path",
+						"required": true,
+						"schema": {
+							"type": "string"
+						},
+						"description": "Insight id (UUID), as returned by the insights list."
+					}
+				],
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"required": [
+									"until"
+								],
+								"properties": {
+									"until": {
+										"type": "string",
+										"format": "date-time",
+										"description": "When it shows again. Must be in the next 7 days."
+									}
+								},
+								"example": {
+									"until": "2026-10-19T09:00:00.000Z"
+								}
+							}
+						}
+					}
+				},
+				"responses": {
+					"200": {
+						"description": "Snoozed",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"required": [
+										"ok"
+									],
+									"properties": {
+										"ok": {
+											"type": "boolean",
+											"description": "Always `true`."
+										}
+									},
+									"example": {
+										"ok": true
+									}
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "`until` is not a time in the next 7 days (`VALIDATION_ERROR`)",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "This bind requires the instance token, and it was missing or wrong",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "No insight with this id",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"415": {
+						"description": "Missing or non-JSON `Content-Type` (`UNSUPPORTED_MEDIA_TYPE`) — writes must send `Content-Type: application/json`",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					}
+				}
+			},
+			"delete": {
+				"operationId": "unsnoozeInsight",
+				"tags": [
+					"webhooks"
+				],
+				"summary": "Remove an insight's snooze",
+				"x-nav-title": "Unsnooze",
+				"description": "Shows a snoozed insight again now.",
+				"security": [
+					{
+						"bearerAuth": []
+					}
+				],
+				"parameters": [
+					{
+						"name": "id",
+						"in": "path",
+						"required": true,
+						"schema": {
+							"type": "string"
+						},
+						"description": "Insight id (UUID), as returned by the insights list."
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "Shown again",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"required": [
+										"ok"
+									],
+									"properties": {
+										"ok": {
+											"type": "boolean",
+											"description": "Always `true`."
+										}
+									},
+									"example": {
+										"ok": true
+									}
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "A parameter, filter, cursor or body field was refused; `code` says which",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "This bind requires the instance token, and it was missing or wrong",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "No insight with this id",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"415": {
+						"description": "Missing or non-JSON `Content-Type` (`UNSUPPORTED_MEDIA_TYPE`) — writes must send `Content-Type: application/json`",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					}
+				}
 			}
 		},
 		"/api/insights/{id}/expected": {

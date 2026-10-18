@@ -16,7 +16,10 @@ export {
 	muteRule,
 	purgeResolved,
 	recordEvaluation,
+	snoozeInsight,
+	undismissInsight,
 	unmuteRule,
+	unsnoozeInsight,
 } from "./store.ts";
 export { maybeLabel } from "./label.ts";
 export { evaluateTenantInsights, runRules } from "./evaluate.ts";

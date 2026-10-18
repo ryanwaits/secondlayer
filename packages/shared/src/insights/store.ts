@@ -128,7 +128,7 @@ export async function listOpenResources(
 
 /**
  * Open rows plus rows resolved within `RECOVERED_VISIBLE_MS`, minus dismissed
- * and muted ones. Resolved rows come back as `recovered`. One row per
+ * snoozed and muted ones. Resolved rows come back as `recovered`. One row per
  * (resource, rule): the open incident, else the latest recovered one. Ranked.
  */
 export async function listInsights(
@@ -158,6 +158,7 @@ export async function listInsights(
 			ORDER BY resource_kind, resource_id, rule, resolved_at DESC NULLS FIRST
 		) i
 		WHERE i.dismissed_at IS NULL
+			AND (i.snoozed_until IS NULL OR i.snoozed_until <= ${now})
 			AND NOT EXISTS (
 				SELECT 1 FROM insight_mutes m
 				WHERE ${scopeWhere(scope, sql.ref("m.account_id"))}
@@ -195,6 +196,49 @@ export async function dismissInsight(
 	if (!UUID_RE.test(id)) return false;
 	const result = await sql`
 		UPDATE insights SET dismissed_at = ${now}
+		WHERE id = ${id}::uuid AND ${scopeWhere(scope)}
+	`.execute(db);
+	return Number(result.numAffectedRows ?? 0) > 0;
+}
+
+/** Hide the current incident until `until`. Returns false when the id is not in scope. */
+export async function snoozeInsight(
+	db: Kysely<Database>,
+	scope: InsightScope,
+	id: string,
+	until: Date,
+): Promise<boolean> {
+	if (!UUID_RE.test(id)) return false;
+	const result = await sql`
+		UPDATE insights SET snoozed_until = ${until}
+		WHERE id = ${id}::uuid AND ${scopeWhere(scope)}
+	`.execute(db);
+	return Number(result.numAffectedRows ?? 0) > 0;
+}
+
+/** Show a snoozed insight again now. Returns false when the id is not in scope. */
+export async function unsnoozeInsight(
+	db: Kysely<Database>,
+	scope: InsightScope,
+	id: string,
+): Promise<boolean> {
+	if (!UUID_RE.test(id)) return false;
+	const result = await sql`
+		UPDATE insights SET snoozed_until = NULL
+		WHERE id = ${id}::uuid AND ${scopeWhere(scope)}
+	`.execute(db);
+	return Number(result.numAffectedRows ?? 0) > 0;
+}
+
+/** Show a dismissed insight again. Returns false when the id is not in scope. */
+export async function undismissInsight(
+	db: Kysely<Database>,
+	scope: InsightScope,
+	id: string,
+): Promise<boolean> {
+	if (!UUID_RE.test(id)) return false;
+	const result = await sql`
+		UPDATE insights SET dismissed_at = NULL
 		WHERE id = ${id}::uuid AND ${scopeWhere(scope)}
 	`.execute(db);
 	return Number(result.numAffectedRows ?? 0) > 0;

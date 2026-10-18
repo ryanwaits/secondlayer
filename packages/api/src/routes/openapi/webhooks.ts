@@ -564,6 +564,60 @@ const insightsPaths = {
 				"404": INSIGHT_NOT_FOUND,
 			}),
 		},
+		delete: {
+			tags: ["webhooks"],
+			summary: "Undo dismissing an insight",
+			"x-nav-title": "Undismiss",
+			description: "Shows a dismissed insight again.",
+			security: WRITE_SECURITY,
+			parameters: [INSIGHT_ID_PARAM],
+			responses: writeResponses({
+				"200": json200(OK_SCHEMA, "Shown again"),
+				"404": INSIGHT_NOT_FOUND,
+			}),
+		},
+	},
+	"/api/insights/{id}/snooze": {
+		post: {
+			tags: ["webhooks"],
+			summary: "Snooze an insight",
+			"x-nav-title": "Snooze",
+			description:
+				"Hides this insight until `until`. It shows again then, or earlier if you remove the snooze.",
+			security: WRITE_SECURITY,
+			parameters: [INSIGHT_ID_PARAM],
+			requestBody: jsonBody({
+				type: "object",
+				required: ["until"],
+				properties: {
+					until: {
+						type: "string",
+						format: "date-time",
+						description: "When it shows again. Must be in the next 7 days.",
+					},
+				},
+				example: { until: "2026-10-19T09:00:00.000Z" },
+			}),
+			responses: writeResponses({
+				"200": json200(OK_SCHEMA, "Snoozed"),
+				"400": jsonError(
+					"`until` is not a time in the next 7 days (`VALIDATION_ERROR`)",
+				),
+				"404": INSIGHT_NOT_FOUND,
+			}),
+		},
+		delete: {
+			tags: ["webhooks"],
+			summary: "Remove an insight's snooze",
+			"x-nav-title": "Unsnooze",
+			description: "Shows a snoozed insight again now.",
+			security: WRITE_SECURITY,
+			parameters: [INSIGHT_ID_PARAM],
+			responses: writeResponses({
+				"200": json200(OK_SCHEMA, "Shown again"),
+				"404": INSIGHT_NOT_FOUND,
+			}),
+		},
 	},
 	"/api/insights/{id}/expected": {
 		post: {

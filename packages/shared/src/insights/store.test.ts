@@ -7,7 +7,10 @@ import {
 	muteRule,
 	purgeResolved,
 	recordEvaluation,
+	snoozeInsight,
+	undismissInsight,
 	unmuteRule,
+	unsnoozeInsight,
 } from "./store.ts";
 import type { DetectedInsight } from "./types.ts";
 
@@ -302,6 +305,87 @@ describe.skipIf(!HAS_DB)("insight store", () => {
 		expect(
 			(await ours(NULL_SCOPE)).find((i) => i.resource.id === id),
 		).toBeDefined();
+	});
+
+	async function seedOne(
+		id: string,
+		scope: { accountId: string | null } = NULL_SCOPE,
+	) {
+		await recordEvaluation(
+			db,
+			scope,
+			[detected({ resourceId: id })],
+			[key(id)],
+		);
+		const row = (await ours(scope)).find((i) => i.resource.id === id);
+		return row?.id ?? "";
+	}
+
+	test("a snoozed insight is hidden until its time, then shows again", async () => {
+		const id = `${tag}-snooze`;
+		const rowId = await seedOne(id);
+		const now = new Date();
+		const hour = 60 * 60 * 1000;
+		expect(
+			await snoozeInsight(
+				db,
+				NULL_SCOPE,
+				rowId,
+				new Date(now.getTime() + hour),
+			),
+		).toBe(true);
+		const hidden = await ours(NULL_SCOPE, now);
+		expect(hidden.find((i) => i.resource.id === id)).toBeUndefined();
+		const later = await ours(NULL_SCOPE, new Date(now.getTime() + 2 * hour));
+		expect(later.find((i) => i.resource.id === id)).toBeDefined();
+	});
+
+	test("a re-fire keeps the snooze", async () => {
+		const id = `${tag}-snooze-refire`;
+		const rowId = await seedOne(id);
+		const until = new Date(Date.now() + 60 * 60 * 1000);
+		await snoozeInsight(db, NULL_SCOPE, rowId, until);
+		await recordEvaluation(
+			db,
+			NULL_SCOPE,
+			[detected({ resourceId: id, line: "Fired again" })],
+			[key(id)],
+		);
+		expect(
+			(await ours(NULL_SCOPE)).find((i) => i.resource.id === id),
+		).toBeUndefined();
+	});
+
+	test("unsnooze shows it now", async () => {
+		const id = `${tag}-unsnooze`;
+		const rowId = await seedOne(id);
+		await snoozeInsight(db, NULL_SCOPE, rowId, new Date(Date.now() + 3600_000));
+		expect(await unsnoozeInsight(db, NULL_SCOPE, rowId)).toBe(true);
+		expect(
+			(await ours(NULL_SCOPE)).find((i) => i.resource.id === id),
+		).toBeDefined();
+	});
+
+	test("undismiss shows a dismissed insight again", async () => {
+		const id = `${tag}-undismiss`;
+		const rowId = await seedOne(id);
+		await dismissInsight(db, NULL_SCOPE, rowId);
+		expect(
+			(await ours(NULL_SCOPE)).find((i) => i.resource.id === id),
+		).toBeUndefined();
+		expect(await undismissInsight(db, NULL_SCOPE, rowId)).toBe(true);
+		expect(
+			(await ours(NULL_SCOPE)).find((i) => i.resource.id === id),
+		).toBeDefined();
+	});
+
+	test("snooze is scoped", async () => {
+		const rowId = await seedOne(`${tag}-snooze-scope`, SCOPE_A);
+		expect(
+			await snoozeInsight(db, SCOPE_B, rowId, new Date(Date.now() + 3600_000)),
+		).toBe(false);
+		expect(await unsnoozeInsight(db, SCOPE_B, rowId)).toBe(false);
+		expect(await undismissInsight(db, SCOPE_B, rowId)).toBe(false);
 	});
 
 	test("unknown or malformed ids report false", async () => {

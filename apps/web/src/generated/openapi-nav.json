@@ -713,6 +713,21 @@
 				"title": "Dismiss an insight"
 			},
 			{
+				"anchor": "undismiss-insight",
+				"method": "DELETE",
+				"title": "Undo dismissing an insight"
+			},
+			{
+				"anchor": "snooze-insight",
+				"method": "POST",
+				"title": "Snooze an insight"
+			},
+			{
+				"anchor": "unsnooze-insight",
+				"method": "DELETE",
+				"title": "Remove an insight's snooze"
+			},
+			{
 				"anchor": "mark-insight-expected",
 				"method": "POST",
 				"title": "Mark an insight expected"

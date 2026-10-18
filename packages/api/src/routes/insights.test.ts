@@ -170,6 +170,79 @@ describe.skipIf(!HAS_DB)("insight actions", () => {
 		).toBe(true);
 	});
 
+	function snooze(id: string, until: unknown, raw?: string) {
+		return app().request(`/api/insights/${id}/snooze`, {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: raw ?? JSON.stringify({ until }),
+		});
+	}
+
+	async function rowFor(suffix: string) {
+		await seed([detected(suffix)]);
+		return mine((await list()).body.data).find(
+			(r) => r.resource.id === `${tag}-${suffix}`,
+		);
+	}
+
+	const inHours = (h: number) =>
+		new Date(Date.now() + h * 3600_000).toISOString();
+
+	test("snooze hides the insight, and removing the snooze shows it", async () => {
+		const row = await rowFor("snooze");
+		const res = await snooze(row?.id ?? "", inHours(5));
+		expect(res.status).toBe(200);
+		expect(await res.json()).toEqual({ ok: true });
+		const hidden = mine((await list()).body.data).some(
+			(r) => r.resource.id === `${tag}-snooze`,
+		);
+		expect(hidden).toBe(false);
+
+		expect((await post(`${row?.id}/snooze`, "DELETE")).status).toBe(200);
+		expect(
+			mine((await list()).body.data).some(
+				(r) => r.resource.id === `${tag}-snooze`,
+			),
+		).toBe(true);
+	});
+
+	test("removing the dismissal shows a dismissed insight again", async () => {
+		const row = await rowFor("undismiss");
+		await post(`${row?.id}/dismiss`);
+		expect(
+			mine((await list()).body.data).some(
+				(r) => r.resource.id === `${tag}-undismiss`,
+			),
+		).toBe(false);
+		expect((await post(`${row?.id}/dismiss`, "DELETE")).status).toBe(200);
+		expect(
+			mine((await list()).body.data).some(
+				(r) => r.resource.id === `${tag}-undismiss`,
+			),
+		).toBe(true);
+	});
+
+	test("snooze rejects a time in the past or more than 7 days ahead", async () => {
+		const row = await rowFor("snooze-bounds");
+		expect((await snooze(row?.id ?? "", inHours(-1))).status).toBe(400);
+		expect((await snooze(row?.id ?? "", inHours(8 * 24))).status).toBe(400);
+		expect((await snooze(row?.id ?? "", "not a time")).status).toBe(400);
+		expect((await snooze(row?.id ?? "", undefined)).status).toBe(400);
+	});
+
+	test("snooze rejects malformed JSON", async () => {
+		const row = await rowFor("snooze-json");
+		const res = await snooze(row?.id ?? "", null, "{nope");
+		expect(res.status).toBe(400);
+	});
+
+	test("snooze on an unknown id is 404", async () => {
+		const res = await snooze(randomUUID(), inHours(2));
+		expect(res.status).toBe(404);
+		expect((await post(`${randomUUID()}/snooze`, "DELETE")).status).toBe(404);
+		expect((await post(`${randomUUID()}/dismiss`, "DELETE")).status).toBe(404);
+	});
+
 	test("unknown and malformed ids are 404", async () => {
 		for (const id of [randomUUID(), "not-a-uuid"]) {
 			for (const [suffix, method] of [
