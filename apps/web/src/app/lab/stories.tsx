@@ -72,12 +72,16 @@ import {
 	LabToaster,
 	LocalAccountKeys,
 	LocalAccountUsage,
+	LocalReplaySheet,
 	LocalSubgraphsList,
 	LocalWebhookDetail,
 	LocalWebhooksList,
 	OverviewDemo,
 	OverviewOnboardingDemo,
+	PILL_REPLAY_AND_STALLED,
 	PayloadViewDemo,
+	PillHeaderDemo,
+	PillStatesDemo,
 	RowsDemo,
 	RowsEmptyDemo,
 	SheetDemo,
@@ -1987,7 +1991,87 @@ const META: Record<StoryId, Meta> = {
 			"<WebhooksCompactList rows={rows} failing={n} onTogglePause={pause} />\n<WebhookCompactDetail webhook={w} test={test} onTest={send} />",
 		donts: [
 			"No CLI commands on a phone.",
-			"Replay stays disabled until the replay sheet ships.",
+			"Requeue stays disabled until the webhook is resumed.",
+		],
+	},
+	"mobile-replay": {
+		src: [
+			"apps/web/src/components/account/webhooks/replay-sheet.tsx",
+			"apps/web/src/components/mobile/status-pill.tsx",
+			"apps/web/src/components/mobile/activity-sheet.tsx",
+		],
+		rule: "Start a replay from a phone, watch the same sheet turn into progress, and see what is going on from a pill next to the title.",
+		width: { min: 320, max: 430, value: 390 },
+		variants: [
+			{
+				id: "picker",
+				label: "Picker",
+				render: () => (
+					<PhoneColumn>
+						<LocalReplaySheet start="picker" />
+					</PhoneColumn>
+				),
+			},
+			{
+				id: "gated",
+				label: "Gated, server failing",
+				render: () => (
+					<PhoneColumn>
+						<LocalReplaySheet start="gated" />
+					</PhoneColumn>
+				),
+			},
+			{
+				id: "running",
+				label: "Running 38%",
+				render: () => (
+					<PhoneColumn>
+						<LocalReplaySheet start="running" />
+					</PhoneColumn>
+				),
+			},
+			{
+				id: "done",
+				label: "Done, 22 gave up",
+				render: () => (
+					<PhoneColumn>
+						<LocalReplaySheet start="done" />
+					</PhoneColumn>
+				),
+			},
+			{
+				id: "pill",
+				label: "Pill: replay + stalled chain",
+				render: () => (
+					<PhoneColumn>
+						<PillHeaderDemo items={PILL_REPLAY_AND_STALLED} />
+					</PhoneColumn>
+				),
+			},
+			{
+				id: "pill-states",
+				label: "Pill states",
+				render: () => (
+					<PhoneColumn>
+						<PillStatesDemo />
+					</PhoneColumn>
+				),
+			},
+			{
+				id: "activity",
+				label: "Activity drawer, two sections",
+				render: () => (
+					<PhoneColumn>
+						<PillHeaderDemo items={PILL_REPLAY_AND_STALLED} openDrawer />
+					</PhoneColumn>
+				),
+			},
+		],
+		usage:
+			"<ReplaySheet webhook={w} open={open} onClose={close} />\n<StatusPillView items={activities(...)} onOpen={openActivity} />",
+		donts: [
+			"Never key the sheet by status or replay id; progress updates values only.",
+			"No gave up count while a replay is running.",
 		],
 	},
 	"mobile-subgraphs": {

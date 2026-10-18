@@ -7,7 +7,9 @@ import { useWebhooksCache } from "@/lib/webhooks-store";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { type ReactNode, useEffect, useState } from "react";
+import { StatusPill } from "./status-pill";
 import { TabIcon } from "./tab-icons";
+import { useCompact } from "./use-compact";
 
 export type MobileTabId =
 	| "pulse"
@@ -98,9 +100,10 @@ export function newInsightCount(
 	).length;
 }
 
-/** Plan 305 renders the status pill (replay, chain) here. */
+/** The status pill (running replay, chain problem). Phone only: nothing mounts, polls or subscribes above 640px. */
 export function StatusPillSlot(): ReactNode {
-	return null;
+	const compact = useCompact();
+	return compact ? <StatusPill /> : null;
 }
 
 export function MobileTabBar({

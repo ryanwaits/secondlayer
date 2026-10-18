@@ -52,10 +52,15 @@ import {
 	exampleList,
 	exampleRows,
 } from "@/components/account/subgraphs/subgraph.fixtures";
-import { WebhookCompactDetail } from "@/components/account/webhooks/compact-detail";
+import { WebhookCompactDetailView } from "@/components/account/webhooks/compact-detail";
 import { WebhooksCompactList } from "@/components/account/webhooks/compact-list";
 import { TitleRow } from "@/components/account/webhooks/detail-panel";
 import { PayloadPanel } from "@/components/account/webhooks/payload-view";
+import {
+	ReplayBody,
+	type ReplayView,
+	replayTitle,
+} from "@/components/account/webhooks/replay-sheet";
 import {
 	type WebhookRowModel,
 	rowModel,
@@ -81,10 +86,14 @@ import {
 	PlaceholderRows,
 } from "@/components/dashboard/shell/onboarding";
 import { Logo } from "@/components/logo";
+import { ActivitySheet } from "@/components/mobile/activity-sheet";
 import { HoldButton } from "@/components/mobile/hold-button";
 import { ShareFixSheet } from "@/components/mobile/share/share-fix-sheet";
 import { Sheet, SheetPanel } from "@/components/mobile/sheet";
+import { StatusPillView } from "@/components/mobile/status-pill";
 import { SwipeGroup, SwipeRow } from "@/components/mobile/swipe-row";
+import type { Activity } from "@/lib/activity";
+import { EMPTY_TIP } from "@/lib/chain-tip";
 import type { Insight } from "@/lib/insights";
 import { FIXTURE_INSIGHTS } from "@/lib/insights.fixtures";
 import type { RowsDay, RowsResponse } from "@/lib/rows";
@@ -101,6 +110,10 @@ import type { ApiKey } from "@/lib/types";
 import type { DailySpend } from "@/lib/usage";
 import type { WebhookTestResult } from "@secondlayer/sdk";
 import type { ChainTrigger } from "@secondlayer/sdk";
+import type {
+	ReplayProgress,
+	ReplayRanges,
+} from "@secondlayer/shared/schemas/webhooks";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
@@ -1292,9 +1305,14 @@ export function LocalWebhookDetail({
 		attempt({ id: "d_2", blockHeight: 9_000_002 }),
 		attempt({ id: "d_1", blockHeight: 9_000_001 }),
 	];
+	const [requeued, setRequeued] = useState<number | null>(null);
+	const [replayOpen, setReplayOpen] = useState(false);
+	// Resuming ends "failing", but the steps stay until the requeue is done.
+	const recovering = useRef(false);
+	if (failing) recovering.current = true;
 	return (
 		<>
-			<WebhookCompactDetail
+			<WebhookCompactDetailView
 				webhook={webhook}
 				activity={activity}
 				deliveries={rows}
@@ -1317,6 +1335,23 @@ export function LocalWebhookDetail({
 					setTest({ busy: false, result: TEST_PASSED });
 					toast.success("Test got 200 in 184 ms");
 				}}
+				showRecovery={failing || recovering.current}
+				dead={{ count: 3 }}
+				requeue={{
+					busy: false,
+					requeued,
+					onRequeue: () => {
+						setRequeued(3);
+						toast.success("Requeued 3. They go out with live events.");
+					},
+				}}
+				replay={null}
+				onReplay={() => setReplayOpen(true)}
+			/>
+			<LocalReplaySheet
+				start="picker"
+				open={replayOpen}
+				onClose={() => setReplayOpen(false)}
 			/>
 			<LabToaster />
 		</>
@@ -1631,3 +1666,317 @@ export function KeySheetDemo({
 		</>
 	);
 }
+
+/* ---------- Replay and status pill ---------- */
+
+const REPLAY_RANGES: ReplayRanges = {
+	tip: 9_612_408,
+	presets: [
+		{ blocks: 100, fromBlock: 9_612_309, toBlock: 9_612_408, knownEvents: 380 },
+		{
+			blocks: 1000,
+			fromBlock: 9_611_409,
+			toBlock: 9_612_408,
+			knownEvents: 3812,
+		},
+		{
+			blocks: 10000,
+			fromBlock: 9_602_409,
+			toBlock: 9_612_408,
+			knownEvents: 84_210,
+		},
+	],
+	deadSinceFailing: { since: null, count: 22 },
+};
+
+const REPLAY_TOTAL = 3812;
+const REPLAY_GAVE_UP = 22;
+
+function replayProgress(patch: Partial<ReplayProgress> = {}): ReplayProgress {
+	return {
+		replayId: "0123456789abcdef",
+		webhookId: "wh_1",
+		status: "running",
+		fromBlock: 9_611_409,
+		toBlock: 9_612_408,
+		total: REPLAY_TOTAL,
+		processed: 1452,
+		pending: REPLAY_TOTAL - 1452,
+		delivered: null,
+		gaveUp: null,
+		startedAt: "2026-10-18T10:00:00.000Z",
+		finishedAt: null,
+		error: null,
+		...patch,
+	};
+}
+
+const replayDone = (gaveUp: number): ReplayProgress =>
+	replayProgress({
+		status: "done",
+		processed: REPLAY_TOTAL,
+		pending: 0,
+		delivered: REPLAY_TOTAL - gaveUp,
+		gaveUp,
+		finishedAt: "2026-10-18T10:07:00.000Z",
+	});
+
+type ReplayStart = "picker" | "gated" | "running" | "done";
+
+/**
+ * The replay sheet with a fake server: pick a range, watch it run, see it
+ * finish, requeue what gave up. It has the same shape as `ReplaySheet` (one
+ * `Sheet`, only its body changes), so the "Tick" button shows that progress
+ * updates never replay the slide-up. Ticks also run on a timer when `ticking`.
+ */
+export function LocalReplaySheet({
+	start,
+	open: controlledOpen,
+	onClose,
+	ticking = false,
+}: {
+	start: ReplayStart;
+	open?: boolean;
+	onClose?: () => void;
+	ticking?: boolean;
+}) {
+	const [ownOpen, setOwnOpen] = useState(true);
+	const open = controlledOpen ?? ownOpen;
+	const close = onClose ?? (() => setOwnOpen(false));
+	const [selected, setSelected] = useState(1000);
+	const [progress, setProgress] = useState<ReplayProgress | null>(
+		start === "running"
+			? replayProgress()
+			: start === "done"
+				? replayDone(REPLAY_GAVE_UP)
+				: null,
+	);
+	const [requeueBusy, setRequeueBusy] = useState(false);
+
+	const tick = useCallback(() => {
+		setProgress((p) => {
+			if (!p) return p;
+			if (p.status === "scanning") return { ...p, status: "running" };
+			if (p.status !== "running") return p;
+			const processed = Math.min(p.total, p.processed + 190);
+			if (processed < p.total) {
+				return { ...p, processed, pending: p.total - processed };
+			}
+			const gaveUp = p.gaveUp === 0 ? 0 : REPLAY_GAVE_UP;
+			return {
+				...p,
+				status: "done",
+				processed: p.total,
+				pending: 0,
+				delivered: p.total - gaveUp,
+				gaveUp,
+				finishedAt: "2026-10-18T10:07:00.000Z",
+			};
+		});
+	}, []);
+
+	useEffect(() => {
+		if (!ticking) return;
+		const id = setInterval(tick, 1200);
+		return () => clearInterval(id);
+	}, [ticking, tick]);
+
+	let view: ReplayView;
+	if (progress) {
+		view = {
+			kind: "progress",
+			progress,
+			minutesLeft:
+				progress.status === "running"
+					? Math.max(1, Math.round((progress.total - progress.processed) / 640))
+					: null,
+			requeueBusy,
+		};
+	} else if (start === "gated") {
+		view = { kind: "gated" };
+	} else {
+		view = { kind: "picker", ranges: REPLAY_RANGES, selected, busy: false };
+	}
+
+	return (
+		<>
+			<div style={{ display: "flex", gap: 8, padding: 16 }}>
+				<button
+					type="button"
+					className="btn"
+					onClick={() => setOwnOpen(true)}
+					style={{ justifySelf: "start" }}
+				>
+					Open sheet
+				</button>
+				<button type="button" className="btn" data-lab="tick" onClick={tick}>
+					Tick
+				</button>
+			</div>
+			<Sheet
+				open={open}
+				onClose={close}
+				eyebrow={<span className="mrp-mono">sbtc-deposits</span>}
+				title={replayTitle(view)}
+			>
+				<div className="mrp">
+					<ReplayBody
+						view={view}
+						onClose={close}
+						onSelect={setSelected}
+						onStart={() => {
+							setProgress(replayProgress({ status: "scanning", processed: 0 }));
+							setTimeout(tick, 600);
+						}}
+						onRequeue={() => {
+							setRequeueBusy(true);
+							setTimeout(() => {
+								setRequeueBusy(false);
+								toast.success(
+									`Requeued ${REPLAY_GAVE_UP}. They go out with live events.`,
+								);
+								setProgress(
+									replayProgress({
+										gaveUp: 0,
+										processed: REPLAY_TOTAL - REPLAY_GAVE_UP,
+										pending: REPLAY_GAVE_UP,
+									}),
+								);
+							}, 400);
+						}}
+					/>
+				</div>
+			</Sheet>
+			<LabToaster />
+		</>
+	);
+}
+
+const STALLED_4: Activity = {
+	kind: "chain",
+	state: { kind: "stalled", minutes: 4, bitcoinSince: null },
+	level: 2,
+};
+const BEHIND_18: Activity = {
+	kind: "chain",
+	state: { kind: "behind", blocks: 18 },
+	level: 1,
+};
+const OFFLINE: Activity = {
+	kind: "chain",
+	state: { kind: "unreachable" },
+	level: 4,
+};
+const REPLAY_RUNNING: Activity = {
+	kind: "replay",
+	progress: replayProgress(),
+};
+const REPLAY_FINISHED: Activity = {
+	kind: "replay",
+	progress: replayDone(REPLAY_GAVE_UP),
+};
+
+const PILL_TIP = {
+	...EMPTY_TIP,
+	height: 9_612_408,
+	nodeTip: 9_612_426,
+	bitcoin: 972_418,
+	bitcoinSeenAt: Date.now() - 3 * 60_000,
+};
+
+/** The status pill beside a screen title, with the Activity drawer behind it. */
+export function PillHeaderDemo({
+	items,
+	openDrawer = false,
+}: {
+	items: readonly Activity[];
+	openDrawer?: boolean;
+}) {
+	const [open, setOpen] = useState(openDrawer);
+	const [shown, setShown] = useState(items);
+	return (
+		<>
+			{/* The header hides itself above 640px; the Lab shows it at any width. */}
+			<header className="m-head" style={{ display: "block" }}>
+				<div className="m-head-row">
+					<h1 className="m-title">Webhooks</h1>
+					<StatusPillView items={shown} onOpen={() => setOpen(true)} />
+				</div>
+			</header>
+			<ActivitySheet
+				open={open}
+				onClose={() => setOpen(false)}
+				items={shown}
+				tip={PILL_TIP}
+				now={Date.now()}
+				webhookName={() => "sbtc-deposits"}
+				onDismissChain={() =>
+					setShown((all) => all.filter((a) => a.kind !== "chain"))
+				}
+				onClear={() =>
+					setShown((all) => all.filter((a) => a.kind !== "replay"))
+				}
+			/>
+		</>
+	);
+}
+
+/** Every label the pill can wear, one title row each. */
+export function PillStatesDemo() {
+	const rows: Array<[string, readonly Activity[]]> = [
+		["Replay running", [REPLAY_RUNNING]],
+		[
+			"Replay queued",
+			[
+				{
+					kind: "replay",
+					progress: replayProgress({
+						status: "scanning",
+						processed: 0,
+					}),
+				},
+			],
+		],
+		["Stalled", [STALLED_4]],
+		["Behind", [BEHIND_18]],
+		["Offline", [OFFLINE]],
+		["Replay done", [REPLAY_FINISHED]],
+		[
+			"Replay failed",
+			[
+				{
+					kind: "replay",
+					progress: replayProgress({
+						status: "failed",
+						error: "scan timed out",
+					}),
+				},
+			],
+		],
+		["Replay and a stalled chain", [REPLAY_RUNNING, STALLED_4]],
+	];
+	return (
+		<div style={{ display: "grid", gap: 14, padding: "12px 20px" }}>
+			{rows.map(([label, items]) => (
+				<div
+					key={label}
+					style={{
+						display: "flex",
+						alignItems: "center",
+						justifyContent: "space-between",
+						gap: 12,
+					}}
+				>
+					<span style={{ fontSize: 13, color: "var(--sub)" }}>{label}</span>
+					<StatusPillView items={items} onOpen={() => {}} />
+				</div>
+			))}
+		</div>
+	);
+}
+
+/** A running replay and a stalled chain: the pill reads "Replay 38%" with "+1". */
+export const PILL_REPLAY_AND_STALLED: readonly Activity[] = [
+	REPLAY_RUNNING,
+	STALLED_4,
+];
