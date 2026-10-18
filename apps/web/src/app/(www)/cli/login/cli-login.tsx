@@ -5,12 +5,56 @@ import { signInThen } from "@/lib/safe-next";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 
+/** The product that started the sign-in; absent is `sl login`. */
+export type CliProduct = "sentinel";
+
 type View =
 	| { kind: "loading" }
-	| { kind: "review"; clientName: string }
-	| { kind: "approved"; clientName: string }
-	| { kind: "cancelled" }
-	| { kind: "expired" };
+	| { kind: "review"; clientName: string; product?: CliProduct }
+	| { kind: "approved"; clientName: string; product?: CliProduct }
+	| { kind: "cancelled"; product?: CliProduct }
+	| { kind: "expired"; product?: CliProduct };
+
+const CLIENT_NAME_MAX = 64;
+
+/** Control characters, zero-width marks and bidi overrides: they can hide or
+ *  reorder what the reader sees, so a name can't pose as another. */
+function isUnsafeCodePoint(cp: number): boolean {
+	return (
+		cp < 0x20 ||
+		(cp >= 0x7f && cp <= 0x9f) ||
+		cp === 0x061c ||
+		(cp >= 0x200b && cp <= 0x200f) ||
+		(cp >= 0x202a && cp <= 0x202e) ||
+		(cp >= 0x2060 && cp <= 0x2069) ||
+		cp === 0xfeff
+	);
+}
+
+/**
+ * `clientName` is whatever the requesting machine sent. Show it as plain
+ * text: no control or bidi characters, whitespace collapsed, length capped.
+ */
+export function displayClientName(raw: string): string {
+	// Line breaks and tabs become spaces first, so words stay apart.
+	const kept = Array.from(raw.replace(/\s+/g, " "))
+		.filter((ch) => !isUnsafeCodePoint(ch.codePointAt(0) ?? 0))
+		.join("")
+		.replace(/ {2,}/g, " ")
+		.trim();
+	const chars = Array.from(kept);
+	if (chars.length === 0) return "an unnamed machine";
+	return chars.length > CLIENT_NAME_MAX
+		? `${chars.slice(0, CLIENT_NAME_MAX).join("")}…`
+		: kept;
+}
+
+const COPY = {
+	sl: { name: "sl", login: "sl login" },
+	sentinel: { name: "Sentinel", login: "sentinel login" },
+} as const;
+
+const copyFor = (product?: CliProduct) => COPY[product ?? "sl"];
 
 /** The card is pure so each state can be rendered and checked on its own. */
 export function CliLoginCard({
@@ -39,12 +83,36 @@ export function CliLoginCard({
 						}}
 					>
 						<span className="login-eyebrow">Command line</span>
-						<h1 className="login-title">Approve sl on {view.clientName}?</h1>
-						<p className="cli-login-lead">
-							This signs sl in with your account on that machine, until you run{" "}
-							<code>sl logout</code> there. Check the code matches your
-							terminal.
-						</p>
+						{view.product === "sentinel" ? (
+							<>
+								<h1 className="login-title">
+									Approve <strong>Sentinel</strong> on{" "}
+									{displayClientName(view.clientName)}?
+								</h1>
+								<p className="cli-login-device">
+									Machine name as reported by the device. It is not checked.
+								</p>
+								<p className="cli-login-lead">
+									This signs Sentinel in with your account on that machine,
+									until you run <code>sentinel logout</code> there.
+								</p>
+								<p className="cli-login-warn">
+									Only approve a code you started. Check it matches your
+									terminal.
+								</p>
+							</>
+						) : (
+							<>
+								<h1 className="login-title">
+									Approve sl on {displayClientName(view.clientName)}?
+								</h1>
+								<p className="cli-login-lead">
+									This signs sl in with your account on that machine, until you
+									run <code>sl logout</code> there. Check the code matches your
+									terminal.
+								</p>
+							</>
+						)}
 						<span className="login-label">Code in your terminal</span>
 						<p className="cli-login-code">{code}</p>
 						{error && <p className="login-error">{error}</p>}
@@ -64,7 +132,7 @@ export function CliLoginCard({
 				{view.kind === "approved" && (
 					<div className="login-sent">
 						<p className="login-sent-title">
-							You're signed in on {view.clientName}.
+							You're signed in on {displayClientName(view.clientName)}.
 						</p>
 						<p className="login-sent-desc">Close this tab.</p>
 					</div>
@@ -72,14 +140,16 @@ export function CliLoginCard({
 				{view.kind === "cancelled" && (
 					<div className="login-sent">
 						<p className="login-sent-title">Cancelled.</p>
-						<p className="login-sent-desc">sl stays signed out.</p>
+						<p className="login-sent-desc">
+							{copyFor(view.product).name} stays signed out.
+						</p>
 					</div>
 				)}
 				{view.kind === "expired" && (
 					<div className="login-sent">
 						<p className="login-sent-title">This code expired.</p>
 						<p className="login-sent-desc">
-							Run <code>sl login</code> again.
+							Run <code>{copyFor(view.product).login}</code> again.
 						</p>
 					</div>
 				)}
@@ -116,14 +186,16 @@ export function CliLogin() {
 				if (!res.ok) throw new Error("gone");
 				const attempt = (await res.json()) as {
 					clientName: string;
+					product?: string | null;
 					status: string;
 				};
 				if (!live) return;
+				const product = attempt.product === "sentinel" ? "sentinel" : undefined;
 				if (attempt.status !== "pending") {
-					setView({ kind: "expired" });
+					setView({ kind: "expired", product });
 					return;
 				}
-				setView({ kind: "review", clientName: attempt.clientName });
+				setView({ kind: "review", clientName: attempt.clientName, product });
 			} catch {
 				if (live) setView({ kind: "expired" });
 			}
@@ -148,14 +220,18 @@ export function CliLogin() {
 					},
 				);
 				if (res.status === 404 || res.status === 409) {
-					setView({ kind: "expired" });
+					setView({ kind: "expired", product: view.product });
 					return;
 				}
 				if (!res.ok) throw new Error("failed");
 				setView(
 					action === "approve"
-						? { kind: "approved", clientName: view.clientName }
-						: { kind: "cancelled" },
+						? {
+								kind: "approved",
+								clientName: view.clientName,
+								product: view.product,
+							}
+						: { kind: "cancelled", product: view.product },
 				);
 			} catch {
 				setError("Something went wrong. Try again.");

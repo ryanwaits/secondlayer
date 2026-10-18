@@ -123,8 +123,11 @@ function post(path: string, body: unknown, bearer?: string) {
 	});
 }
 
-async function start(clientName = "ryans-macbook") {
-	const res = await post("/api/cli/device", { clientName });
+async function start(clientName = "ryans-macbook", product?: string) {
+	const res = await post("/api/cli/device", {
+		clientName,
+		...(product ? { product } : {}),
+	});
 	expect(res.status).toBe(200);
 	return (await res.json()) as {
 		deviceCode: string;
@@ -152,6 +155,38 @@ describe.skipIf(!HAS_DB)("CLI device login", () => {
 			.executeTakeFirstOrThrow();
 		expect(row.device_code_hash).toBe(hashToken(d.deviceCode));
 		expect(row.device_code_hash).not.toBe(d.deviceCode);
+	});
+
+	test("start stores product sentinel; without it the attempt has none", async () => {
+		const sentinel = await start("ryans-macbook", "sentinel");
+		const plain = await start();
+		const rows = await db
+			.selectFrom("cli_device_logins")
+			.select(["user_code", "product"])
+			.where("user_code", "in", [sentinel.userCode, plain.userCode])
+			.execute();
+		const byCode = new Map(rows.map((r) => [r.user_code, r.product]));
+		expect(byCode.get(sentinel.userCode)).toBe("sentinel");
+		expect(byCode.get(plain.userCode)).toBeNull();
+	});
+
+	test("an unknown product is refused (400) and stores nothing", async () => {
+		const before = await db
+			.selectFrom("cli_device_logins")
+			.select((eb) => eb.fn.countAll<string>().as("n"))
+			.executeTakeFirstOrThrow();
+		for (const product of ["Sentinel", "sl", "<b>x</b>", 1, ""]) {
+			const res = await post("/api/cli/device", {
+				clientName: "ryans-macbook",
+				product,
+			});
+			expect(res.status).toBe(400);
+		}
+		const after = await db
+			.selectFrom("cli_device_logins")
+			.select((eb) => eb.fn.countAll<string>().as("n"))
+			.executeTakeFirstOrThrow();
+		expect(after.n).toBe(before.n);
 	});
 
 	test("polling before approval is pending (428)", async () => {
@@ -271,9 +306,22 @@ describe.skipIf(!HAS_DB)("CLI device login", () => {
 			headers: { authorization: `Bearer ${session}` },
 		});
 		expect(res.status).toBe(200);
-		const body = (await res.json()) as { clientName: string; status: string };
+		const body = (await res.json()) as {
+			clientName: string;
+			product: string | null;
+			status: string;
+		};
 		expect(body.clientName).toBe("ryans-macbook");
+		expect(body.product).toBeNull();
 		expect(body.status).toBe("pending");
+
+		const s = await start("ryans-macbook", "sentinel");
+		const sres = await app.request(`/api/cli/device/${s.userCode}`, {
+			headers: { authorization: `Bearer ${session}` },
+		});
+		expect(((await sres.json()) as { product: string }).product).toBe(
+			"sentinel",
+		);
 
 		const missing = await app.request("/api/cli/device/BCDF-GHJK", {
 			headers: { authorization: `Bearer ${session}` },

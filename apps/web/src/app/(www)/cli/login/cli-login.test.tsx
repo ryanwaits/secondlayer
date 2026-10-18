@@ -11,7 +11,7 @@ mock.module("next/navigation", () => ({
 	permanentRedirect: () => {},
 }));
 
-const { CliLoginCard } = await import("./cli-login");
+const { CliLoginCard, displayClientName } = await import("./cli-login");
 
 const noop = () => {};
 const props = {
@@ -59,5 +59,87 @@ describe("CliLoginCard", () => {
 		);
 		expect(expired).toContain("This code expired.");
 		expect(expired).toContain("sl login");
+	});
+
+	test("plain review keeps the sl wording and no Sentinel lines", async () => {
+		const html = await renderAsync(
+			<CliLoginCard
+				{...props}
+				view={{ kind: "review", clientName: "ryans-macbook" }}
+			/>,
+		);
+		expect(html).toContain("sl logout");
+		expect(html).not.toContain("Sentinel");
+		expect(html).not.toContain("Only approve a code you started");
+		expect(html).not.toContain("reported by the device");
+	});
+
+	test("sentinel review names Sentinel, its logout, and warns", async () => {
+		const html = await renderAsync(
+			<CliLoginCard
+				{...props}
+				view={{
+					kind: "review",
+					clientName: "ryans-macbook",
+					product: "sentinel",
+				}}
+			/>,
+		);
+		expect(html).toContain("Approve <strong>Sentinel</strong> on");
+		expect(html).toContain("ryans-macbook?");
+		expect(html).toContain("<code>sentinel logout</code>");
+		expect(html).not.toContain("sl logout");
+		expect(html).toContain("Only approve a code you started");
+		expect(html).toContain("reported by the device");
+		expect(html).toContain("WDJB-MJHT");
+	});
+
+	test("sentinel cancelled and expired name Sentinel", async () => {
+		const cancelled = await renderAsync(
+			<CliLoginCard
+				{...props}
+				view={{ kind: "cancelled", product: "sentinel" }}
+			/>,
+		);
+		expect(cancelled).toContain("Sentinel stays signed out.");
+		const expired = await renderAsync(
+			<CliLoginCard
+				{...props}
+				view={{ kind: "expired", product: "sentinel" }}
+			/>,
+		);
+		expect(expired).toContain("sentinel login");
+	});
+
+	test("a hostile client name renders as escaped plain text", async () => {
+		const html = await renderAsync(
+			<CliLoginCard
+				{...props}
+				view={{
+					kind: "review",
+					clientName: '<img src=x onerror="alert(1)">',
+					product: "sentinel",
+				}}
+			/>,
+		);
+		expect(html).not.toContain("<img");
+		expect(html).toContain("&lt;img");
+	});
+});
+
+describe("displayClientName", () => {
+	test("strips control, zero-width and bidi characters", () => {
+		expect(displayClientName("ryans\u202Ekoobcam")).toBe("ryanskoobcam");
+		expect(displayClientName("a\u0000b\u001bc\u007fd\u200Be\u2066f")).toBe(
+			"abcdef",
+		);
+		expect(displayClientName("my\n\tmac")).toBe("my mac");
+	});
+
+	test("caps the length and names an empty result", () => {
+		const long = "x".repeat(200);
+		expect(displayClientName(long)).toBe(`${"x".repeat(64)}…`);
+		expect(displayClientName("\u202E\u200B ")).toBe("an unnamed machine");
+		expect(displayClientName("ryans-macbook")).toBe("ryans-macbook");
 	});
 });

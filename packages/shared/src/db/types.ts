@@ -1238,13 +1238,18 @@ export type CliDeviceLoginStatus =
 	| "denied"
 	| "consumed";
 
-/** One browser sign-in attempt from `sl login`. Only the hash of the CLI's
- *  device code is stored; the key is minted when the CLI polls after approval. */
+/** The product that started a CLI sign-in; null is `sl login`. */
+export type CliDeviceProduct = "sentinel";
+
+/** One browser sign-in attempt from `sl login` (or `sentinel login`). Only the
+ *  hash of the CLI's device code is stored; the session is opened when the CLI
+ *  polls after approval. */
 export interface CliDeviceLoginsTable {
 	id: Generated<string>;
 	device_code_hash: string;
 	user_code: string;
 	client_name: string;
+	product: CliDeviceProduct | null;
 	status: Generated<CliDeviceLoginStatus>;
 	account_id: string | null;
 	key_name: string | null;

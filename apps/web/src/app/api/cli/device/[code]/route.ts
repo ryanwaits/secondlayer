@@ -14,6 +14,7 @@ export async function GET(
 	try {
 		const attempt = await apiRequest<{
 			clientName: string;
+			product: "sentinel" | null;
 			status: string;
 			expiresAt: string;
 		}>(`/api/cli/device/${encodeURIComponent(code)}`, { sessionToken });

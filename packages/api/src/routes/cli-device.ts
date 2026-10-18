@@ -9,6 +9,8 @@ import { InvalidJSONError } from "../middleware/error.ts";
 
 /**
  * Browser sign-in for the CLI (`sl login`), modeled on RFC 8628.
+ * `sentinel login` uses the same flow with `product: "sentinel"`, so the
+ * approval page names Sentinel.
  *
  * The CLI creates an attempt (`POST /`) and polls `POST /token` with its secret
  * device code. A signed-in user approves the short user code in the browser
@@ -25,6 +27,8 @@ const USER_CODE_LENGTH = 8;
 
 const CreateSchema = z.object({
 	clientName: z.string().trim().min(1).max(64),
+	// A closed set: the page's wording keys off it, so never free text.
+	product: z.enum(["sentinel"]).optional(),
 });
 const TokenSchema = z.object({ deviceCode: z.string().min(1).max(256) });
 
@@ -81,7 +85,7 @@ function parseUserCode(raw: string): string {
 
 // Start an attempt (no auth)
 app.post("/", async (c) => {
-	const { clientName } = CreateSchema.parse(await readJson(c));
+	const { clientName, product } = CreateSchema.parse(await readJson(c));
 	const db = getDb();
 	const deviceCode = generateDeviceCode();
 	const expiresAt = new Date(Date.now() + EXPIRES_IN_SECONDS * 1000);
@@ -95,6 +99,7 @@ app.post("/", async (c) => {
 				device_code_hash: hashToken(deviceCode),
 				user_code: userCode,
 				client_name: clientName,
+				product: product ?? null,
 				expires_at: expiresAt,
 			})
 			.onConflict((oc) => oc.column("user_code").doNothing())
@@ -180,13 +185,14 @@ app.get("/:userCode", requireAuth(), async (c) => {
 	requireSession(c);
 	const row = await getDb()
 		.selectFrom("cli_device_logins")
-		.select(["client_name", "status", "expires_at"])
+		.select(["client_name", "product", "status", "expires_at"])
 		.where("user_code", "=", parseUserCode(c.req.param("userCode")))
 		.where("expires_at", ">", sql<Date>`now()`)
 		.executeTakeFirst();
 	if (!row) throw new NotFoundError("Unknown or expired code");
 	return c.json({
 		clientName: row.client_name,
+		product: row.product,
 		status: row.status,
 		expiresAt: row.expires_at.toISOString(),
 	});
