@@ -104,6 +104,8 @@ CONTROL_TABLES=(
   insights
   insight_mutes
   feedback_tickets
+  push_subscriptions
+  push_prefs
   contact_requests
 )
 

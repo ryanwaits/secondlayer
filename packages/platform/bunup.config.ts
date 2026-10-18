@@ -12,6 +12,8 @@ const config: DefineConfigItem = defineConfig({
 		"src/db/queries/api-request-log.ts",
 		"src/db/queries/webhook-incident-alerts.ts",
 		"src/db/queries/oauth.ts",
+		"src/db/queries/push.ts",
+		"src/push/send.ts",
 		"src/billing/prices.ts",
 		"src/billing/meter.ts",
 		"src/billing/runway.ts",
@@ -26,6 +28,6 @@ const config: DefineConfigItem = defineConfig({
 	sourcemap: "linked",
 	minify: false,
 	splitting: false,
-	external: ["@secondlayer/shared", "kysely", "zod"],
+	external: ["@secondlayer/shared", "kysely", "web-push", "zod"],
 }) as DefineConfigItem;
 export default config;

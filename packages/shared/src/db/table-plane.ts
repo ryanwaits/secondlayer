@@ -119,6 +119,9 @@ export const TABLE_TO_DB = {
 	insight_mutes: "target",
 	// ── TARGET: hosted problem reports ──
 	feedback_tickets: "target",
+	// ── TARGET: web push subscriptions + per-account toggles ──
+	push_subscriptions: "target",
+	push_prefs: "target",
 	// ── BOTH ──
 	service_heartbeats: "both",
 } satisfies Record<keyof Database, DbPlane>;

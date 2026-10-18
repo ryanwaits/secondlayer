@@ -1114,6 +1114,8 @@ export interface Database {
 	insights: InsightsTable;
 	insight_mutes: InsightMutesTable;
 	feedback_tickets: FeedbackTicketsTable;
+	push_subscriptions: PushSubscriptionsTable;
+	push_prefs: PushPrefsTable;
 }
 
 export interface ServiceHeartbeatsTable {
@@ -1239,6 +1241,35 @@ export interface WebhookIncidentAlertsTable {
 }
 
 export type WebhookIncidentAlert = Selectable<WebhookIncidentAlertsTable>;
+
+/** One browser/device push subscription; the endpoint is unique. */
+export interface PushSubscriptionsTable {
+	id: Generated<string>;
+	account_id: string;
+	endpoint: string;
+	p256dh: string;
+	auth: string;
+	user_agent: string | null;
+	created_at: Generated<Date>;
+	last_success_at: Date | null;
+	failed_count: Generated<number>;
+}
+
+export type PushSubscription = Selectable<PushSubscriptionsTable>;
+
+/** Per-account push toggles. A missing row means the column defaults. */
+export interface PushPrefsTable {
+	account_id: string;
+	webhook_failing: Generated<boolean>;
+	subgraph_stopped: Generated<boolean>;
+	subgraph_not_serving: Generated<boolean>;
+	replay_done: Generated<boolean>;
+	spend_cap: Generated<boolean>;
+	key_repeat: Generated<boolean>;
+	updated_at: Generated<Date>;
+}
+
+export type PushPrefs = Selectable<PushPrefsTable>;
 
 export type CliDeviceLoginStatus =
 	| "pending"

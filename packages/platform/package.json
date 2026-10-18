@@ -44,6 +44,14 @@
 			"types": "./dist/db/queries/oauth.d.ts",
 			"import": "./dist/db/queries/oauth.js"
 		},
+		"./db/queries/push": {
+			"types": "./dist/db/queries/push.d.ts",
+			"import": "./dist/db/queries/push.js"
+		},
+		"./push/send": {
+			"types": "./dist/push/send.d.ts",
+			"import": "./dist/push/send.js"
+		},
 		"./billing/prices": {
 			"types": "./dist/billing/prices.d.ts",
 			"import": "./dist/billing/prices.js"
@@ -71,10 +79,12 @@
 	"dependencies": {
 		"@secondlayer/shared": "workspace:*",
 		"kysely": "0.28.17",
+		"web-push": "3.6.7",
 		"zod": "^4.3.6"
 	},
 	"devDependencies": {
 		"@types/bun": "latest",
+		"@types/web-push": "3.6.4",
 		"bunup": "0.16.32",
 		"typescript": "^5"
 	}
