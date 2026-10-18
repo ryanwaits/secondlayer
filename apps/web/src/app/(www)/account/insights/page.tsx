@@ -1,29 +1,17 @@
 "use client";
 
-import { InsightActions } from "@/components/dashboard/insight/insight-actions";
-import { InsightStack } from "@/components/dashboard/insight/insight-stack";
 import { InsightsScreen } from "@/components/mobile/insights/insights-screen";
-import { useCompact } from "@/components/mobile/use-compact";
-import { rankInsights } from "@/lib/insights";
-import { useInsights } from "@/lib/insights-store";
+import { COMPACT_QUERY, useCompact } from "@/components/mobile/use-compact";
+import { useRouter } from "next/navigation";
+import { useEffect } from "react";
 
+/** The phone's Insights tab. Desktop has no Insights page: wider windows go to the Overview. */
 export default function InsightsPage() {
-	const { data } = useInsights();
 	const compact = useCompact();
-	if (compact) return <InsightsScreen />;
-	const open = rankInsights(data.filter((i) => !i.resolvedAt));
-	if (open.length === 0) {
-		return (
-			<p className="acct-muted">
-				Nothing needs a look. Insights show up here when something on your stack
-				changes.
-			</p>
-		);
-	}
-	return (
-		<InsightStack
-			insights={open}
-			footer={(i) => <InsightActions insight={i} />}
-		/>
-	);
+	const router = useRouter();
+	useEffect(() => {
+		// Read the media query directly: useCompact() is false during hydration.
+		if (!window.matchMedia(COMPACT_QUERY).matches) router.replace("/account");
+	}, [router]);
+	return compact ? <InsightsScreen /> : null;
 }
