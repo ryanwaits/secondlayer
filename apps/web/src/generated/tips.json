@@ -12437,6 +12437,46 @@
 			}
 		},
 		{
+			"path": "/api/webhooks/replays",
+			"method": "GET",
+			"tip": {
+				"kind": "endpoint",
+				"summary": "Replays still scanning or delivering, plus any started in the last 24 hours, across every webhook on this instance.",
+				"route": "/docs/api/webhooks",
+				"anchor": "list-recent-webhook-replays"
+			}
+		},
+		{
+			"path": "/api/webhooks/{id}/replays",
+			"method": "GET",
+			"tip": {
+				"kind": "endpoint",
+				"summary": "The webhook's last 10 replays with live progress, newest first, and the block ranges a new replay can start from.",
+				"route": "/docs/api/webhooks",
+				"anchor": "list-webhook-replays"
+			}
+		},
+		{
+			"path": "/api/webhooks/{id}/replays/{replay_id}",
+			"method": "GET",
+			"tip": {
+				"kind": "endpoint",
+				"summary": "Where one replay stands: how many events it queued, how many are done, and once nothing is left pending, how many delivered and how many gave up.",
+				"route": "/docs/api/webhooks",
+				"anchor": "get-webhook-replay"
+			}
+		},
+		{
+			"path": "/api/webhooks/{id}/dead/requeue",
+			"method": "POST",
+			"tip": {
+				"kind": "endpoint",
+				"summary": "Moves dead events back to pending with their attempt counts reset, at live priority.",
+				"route": "/docs/api/webhooks",
+				"anchor": "requeue-dead-webhook-events"
+			}
+		},
+		{
 			"path": "/api/insights",
 			"method": "GET",
 			"tip": {

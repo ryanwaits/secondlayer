@@ -53,7 +53,7 @@ describe("api reference pages", () => {
 			streams: 6,
 			proofs: 9,
 			subgraphs: 24,
-			webhooks: 20,
+			webhooks: 24,
 			instance: 8,
 		});
 	});

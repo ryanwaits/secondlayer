@@ -8006,6 +8006,236 @@
 					"scannedCount": 4870
 				}
 			},
+			"WebhookReplayProgress": {
+				"title": "Webhook replay progress",
+				"type": "object",
+				"description": "Live state of one replay. While it runs, `delivered` and `gaveUp` are `null`; they are set once no event is left pending.",
+				"required": [
+					"replayId",
+					"webhookId",
+					"status",
+					"fromBlock",
+					"toBlock",
+					"total",
+					"processed",
+					"pending",
+					"delivered",
+					"gaveUp",
+					"startedAt",
+					"finishedAt",
+					"error"
+				],
+				"properties": {
+					"replayId": {
+						"type": "string",
+						"description": "16 hex characters."
+					},
+					"webhookId": {
+						"type": "string",
+						"description": "Webhook id (UUID)."
+					},
+					"status": {
+						"type": "string",
+						"enum": [
+							"scanning",
+							"running",
+							"done",
+							"failed"
+						],
+						"description": "`scanning` while the range is read, `running` while events deliver, `done` when none are pending, `failed` if the scan broke."
+					},
+					"fromBlock": {
+						"type": "integer",
+						"description": "First block, inclusive."
+					},
+					"toBlock": {
+						"type": "integer",
+						"description": "Last block, inclusive."
+					},
+					"total": {
+						"type": "integer",
+						"description": "Events the replay queued."
+					},
+					"processed": {
+						"type": "integer",
+						"description": "Events delivered or given up on: `total` minus `pending`."
+					},
+					"pending": {
+						"type": "integer",
+						"description": "Events still waiting to be delivered or retried."
+					},
+					"delivered": {
+						"type": [
+							"integer",
+							"null"
+						],
+						"description": "Events delivered. `null` until the replay is done."
+					},
+					"gaveUp": {
+						"type": [
+							"integer",
+							"null"
+						],
+						"description": "Events that used up their retries. `null` until the replay is done."
+					},
+					"startedAt": {
+						"type": "string",
+						"description": "ISO 8601 time it started."
+					},
+					"finishedAt": {
+						"type": [
+							"string",
+							"null"
+						],
+						"description": "ISO 8601 time it finished. `null` while it runs."
+					},
+					"error": {
+						"type": [
+							"string",
+							"null"
+						],
+						"description": "Why the scan failed. `null` otherwise."
+					}
+				},
+				"example": {
+					"replayId": "a41f09c3d27e8b65",
+					"webhookId": "3f1c2a9e-8b7d-4c21-9a55-6e0d4b2f7c18",
+					"status": "done",
+					"fromBlock": 8650000,
+					"toBlock": 8700000,
+					"total": 312,
+					"processed": 312,
+					"pending": 0,
+					"delivered": 309,
+					"gaveUp": 3,
+					"startedAt": "2026-09-22T14:00:02.000Z",
+					"finishedAt": "2026-09-22T14:06:40.000Z",
+					"error": null
+				}
+			},
+			"WebhookReplayRanges": {
+				"title": "Webhook replay ranges",
+				"type": "object",
+				"description": "Where a new replay can start, counted back from the last block the evaluator processed.",
+				"required": [
+					"tip",
+					"presets",
+					"deadSinceFailing"
+				],
+				"properties": {
+					"tip": {
+						"type": [
+							"integer",
+							"null"
+						],
+						"description": "Last block the evaluator processed. `null` before it has run, and then `presets` is empty."
+					},
+					"presets": {
+						"type": "array",
+						"description": "Ranges of the last 100, 1,000 and 10,000 blocks.",
+						"items": {
+							"type": "object",
+							"required": [
+								"blocks",
+								"fromBlock",
+								"toBlock",
+								"knownEvents"
+							],
+							"properties": {
+								"blocks": {
+									"type": "integer",
+									"enum": [
+										100,
+										1000,
+										10000
+									],
+									"description": "Blocks in the range."
+								},
+								"fromBlock": {
+									"type": "integer",
+									"description": "First block."
+								},
+								"toBlock": {
+									"type": "integer",
+									"description": "Last block, the tip."
+								},
+								"knownEvents": {
+									"type": "integer",
+									"description": "Events this webhook has queued in the range. A lower bound: delivered events are deleted after 7 days."
+								}
+							}
+						}
+					},
+					"deadSinceFailing": {
+						"type": "object",
+						"description": "Dead events since the webhook last succeeded, which is what a bulk requeue brings back.",
+						"required": [
+							"since",
+							"count"
+						],
+						"properties": {
+							"since": {
+								"type": [
+									"string",
+									"null"
+								],
+								"description": "ISO 8601 time of the last success. `null` when it has never succeeded, so every dead event counts."
+							},
+							"count": {
+								"type": "integer",
+								"description": "Dead events since then."
+							}
+						}
+					}
+				},
+				"example": {
+					"tip": 8700076,
+					"presets": [
+						{
+							"blocks": 100,
+							"fromBlock": 8699977,
+							"toBlock": 8700076,
+							"knownEvents": 4
+						},
+						{
+							"blocks": 1000,
+							"fromBlock": 8699077,
+							"toBlock": 8700076,
+							"knownEvents": 31
+						},
+						{
+							"blocks": 10000,
+							"fromBlock": 8690077,
+							"toBlock": 8700076,
+							"knownEvents": 305
+						}
+					],
+					"deadSinceFailing": {
+						"since": "2026-09-22T13:10:00.000Z",
+						"count": 3
+					}
+				}
+			},
+			"RequeueDeadRequest": {
+				"title": "Requeue dead events request",
+				"type": "object",
+				"description": "Narrows which dead events requeue. An empty object requeues them all.",
+				"properties": {
+					"replayId": {
+						"type": "string",
+						"pattern": "^[0-9a-f]{16}$",
+						"description": "Only dead events created by this replay."
+					},
+					"since": {
+						"type": "string",
+						"format": "date-time",
+						"description": "Only dead events that failed at or after this time."
+					}
+				},
+				"example": {
+					"replayId": "a41f09c3d27e8b65"
+				}
+			},
 			"WebhookTestResult": {
 				"title": "Webhook test result",
 				"type": "object",
@@ -18831,7 +19061,7 @@
 				],
 				"summary": "Replay a block range",
 				"x-nav-title": "Replay",
-				"description": "Queues historical events in a block range for redelivery, capped at 100,000 blocks. Replays are idempotent: the same range yields the same `replayId` and delivers nothing twice unless `force` is set. They drain through a 10% share of the outbox so live traffic keeps priority, and never move the live cursor. Replays deliver the normal `chain.<type>.apply` envelope.",
+				"description": "Queues historical events in a block range for redelivery, capped at 100,000 blocks. Replays are idempotent: the same range yields the same `replayId` and delivers nothing twice unless `force` is set. They drain through a 10% share of the outbox so live traffic keeps priority, and never move the live cursor. Replays deliver the normal `chain.<type>.apply` envelope. Watch one with `GET /api/webhooks/{id}/replays/{replay_id}`.",
 				"security": [
 					{
 						"bearerAuth": []
@@ -18899,6 +19129,16 @@
 							}
 						}
 					},
+					"409": {
+						"description": "A replay of this webhook is still scanning its range",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
 					"415": {
 						"description": "Missing or non-JSON `Content-Type` (`UNSUPPORTED_MEDIA_TYPE`) — writes must send `Content-Type: application/json`",
 						"content": {
@@ -18911,6 +19151,376 @@
 					},
 					"500": {
 						"description": "The replay could not be queued (`INTERNAL_ERROR`)",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/api/webhooks/replays": {
+			"get": {
+				"operationId": "listRecentWebhookReplays",
+				"tags": [
+					"webhooks"
+				],
+				"summary": "List recent replays across webhooks",
+				"x-nav-title": "Recent replays",
+				"description": "Replays still scanning or delivering, plus any started in the last 24 hours, across every webhook on this instance. Newest first.",
+				"security": [
+					{
+						"bearerAuth": []
+					}
+				],
+				"parameters": [
+					{
+						"name": "_limit",
+						"in": "query",
+						"required": false,
+						"schema": {
+							"type": "integer"
+						},
+						"description": "Page size, 1 to 50. Default 20."
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "Recent replays with live progress",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"required": [
+										"data"
+									],
+									"properties": {
+										"data": {
+											"type": "array",
+											"items": {
+												"$ref": "#/components/schemas/WebhookReplayProgress"
+											},
+											"description": "Recent replays, newest first."
+										}
+									},
+									"example": {
+										"data": [
+											{
+												"replayId": "a41f09c3d27e8b65",
+												"webhookId": "3f1c2a9e-8b7d-4c21-9a55-6e0d4b2f7c18",
+												"status": "done",
+												"fromBlock": 8650000,
+												"toBlock": 8700000,
+												"total": 312,
+												"processed": 312,
+												"pending": 0,
+												"delivered": 309,
+												"gaveUp": 3,
+												"startedAt": "2026-09-22T14:00:02.000Z",
+												"finishedAt": "2026-09-22T14:06:40.000Z",
+												"error": null
+											}
+										]
+									}
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "This bind requires the instance token, and it was missing or wrong",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/api/webhooks/{id}/replays": {
+			"get": {
+				"operationId": "listWebhookReplays",
+				"tags": [
+					"webhooks"
+				],
+				"summary": "List a webhook's replays and replay ranges",
+				"x-nav-title": "Webhook replays",
+				"description": "The webhook's last 10 replays with live progress, newest first, and the block ranges a new replay can start from. Ranges count back from the last block the evaluator processed.",
+				"security": [
+					{
+						"bearerAuth": []
+					}
+				],
+				"parameters": [
+					{
+						"name": "id",
+						"in": "path",
+						"required": true,
+						"schema": {
+							"type": "string"
+						},
+						"description": "Webhook id (UUID), as returned by create or list."
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "Replays and ranges for this webhook",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"required": [
+										"data",
+										"ranges"
+									],
+									"properties": {
+										"data": {
+											"type": "array",
+											"items": {
+												"$ref": "#/components/schemas/WebhookReplayProgress"
+											},
+											"description": "Up to 10 replays, newest first."
+										},
+										"ranges": {
+											"$ref": "#/components/schemas/WebhookReplayRanges"
+										}
+									},
+									"example": {
+										"data": [
+											{
+												"replayId": "a41f09c3d27e8b65",
+												"webhookId": "3f1c2a9e-8b7d-4c21-9a55-6e0d4b2f7c18",
+												"status": "done",
+												"fromBlock": 8650000,
+												"toBlock": 8700000,
+												"total": 312,
+												"processed": 312,
+												"pending": 0,
+												"delivered": 309,
+												"gaveUp": 3,
+												"startedAt": "2026-09-22T14:00:02.000Z",
+												"finishedAt": "2026-09-22T14:06:40.000Z",
+												"error": null
+											}
+										],
+										"ranges": {
+											"tip": 8700076,
+											"presets": [
+												{
+													"blocks": 100,
+													"fromBlock": 8699977,
+													"toBlock": 8700076,
+													"knownEvents": 4
+												},
+												{
+													"blocks": 1000,
+													"fromBlock": 8699077,
+													"toBlock": 8700076,
+													"knownEvents": 31
+												},
+												{
+													"blocks": 10000,
+													"fromBlock": 8690077,
+													"toBlock": 8700076,
+													"knownEvents": 305
+												}
+											],
+											"deadSinceFailing": {
+												"since": "2026-09-22T13:10:00.000Z",
+												"count": 3
+											}
+										}
+									}
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "This bind requires the instance token, and it was missing or wrong",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "No webhook with this id",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/api/webhooks/{id}/replays/{replay_id}": {
+			"get": {
+				"operationId": "getWebhookReplay",
+				"tags": [
+					"webhooks"
+				],
+				"summary": "Get a replay's progress",
+				"x-nav-title": "Replay progress",
+				"description": "Where one replay stands: how many events it queued, how many are done, and once nothing is left pending, how many delivered and how many gave up. Poll it while the replay drains.",
+				"security": [
+					{
+						"bearerAuth": []
+					}
+				],
+				"parameters": [
+					{
+						"name": "id",
+						"in": "path",
+						"required": true,
+						"schema": {
+							"type": "string"
+						},
+						"description": "Webhook id (UUID), as returned by create or list."
+					},
+					{
+						"name": "replay_id",
+						"in": "path",
+						"required": true,
+						"schema": {
+							"type": "string"
+						},
+						"description": "Replay id, the `replayId` from the replay response (16 hex characters)."
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "The replay's progress",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/WebhookReplayProgress"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "This bind requires the instance token, and it was missing or wrong",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "No webhook with this id, or no replay with this id on it",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/api/webhooks/{id}/dead/requeue": {
+			"post": {
+				"operationId": "requeueDeadWebhookEvents",
+				"tags": [
+					"webhooks"
+				],
+				"summary": "Requeue dead events in bulk",
+				"x-nav-title": "Requeue dead events",
+				"description": "Moves dead events back to pending with their attempt counts reset, at live priority. With no body it requeues every dead event of the webhook; `replayId` narrows it to one replay and `since` to events that failed at or after that time. A replay that gets events back returns to running, so its progress tracks the retry.",
+				"security": [
+					{
+						"bearerAuth": []
+					}
+				],
+				"parameters": [
+					{
+						"name": "id",
+						"in": "path",
+						"required": true,
+						"schema": {
+							"type": "string"
+						},
+						"description": "Webhook id (UUID), as returned by create or list."
+					}
+				],
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/components/schemas/RequeueDeadRequest"
+							}
+						}
+					}
+				},
+				"responses": {
+					"200": {
+						"description": "Events requeued",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"required": [
+										"requeued"
+									],
+									"properties": {
+										"requeued": {
+											"type": "integer",
+											"description": "Dead events moved back to pending."
+										}
+									},
+									"example": {
+										"requeued": 14
+									}
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "A parameter, filter, cursor or body field was refused; `code` says which",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "This bind requires the instance token, and it was missing or wrong",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "No webhook with this id",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"415": {
+						"description": "Missing or non-JSON `Content-Type` (`UNSUPPORTED_MEDIA_TYPE`) — writes must send `Content-Type: application/json`",
 						"content": {
 							"application/json": {
 								"schema": {

@@ -198,11 +198,14 @@ export const API_PAGES: ApiPage[] = [
 			},
 			{
 				title: "Recovery",
-				summary: "Requeue dead events and replay a block range.",
+				summary: "Requeue dead events, replay a block range and watch it.",
 				paths: [
 					"/api/webhooks/{id}/dead",
 					"/api/webhooks/{id}/dead/*",
 					"/api/webhooks/{id}/replay",
+					"/api/webhooks/replays",
+					"/api/webhooks/{id}/replays",
+					"/api/webhooks/{id}/replays/*",
 				],
 			},
 			{

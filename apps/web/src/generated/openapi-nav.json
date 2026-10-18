@@ -634,6 +634,10 @@
 			{
 				"anchor": "webhook-replay-result-object",
 				"title": "The Webhook replay object"
+			},
+			{
+				"anchor": "webhook-replay-progress-object",
+				"title": "The Webhook replay progress object"
 			}
 		],
 		"endpoints": [
@@ -701,6 +705,26 @@
 				"anchor": "replay-webhook",
 				"method": "POST",
 				"title": "Replay a block range"
+			},
+			{
+				"anchor": "list-recent-webhook-replays",
+				"method": "GET",
+				"title": "List recent replays across webhooks"
+			},
+			{
+				"anchor": "list-webhook-replays",
+				"method": "GET",
+				"title": "List a webhook's replays and replay ranges"
+			},
+			{
+				"anchor": "get-webhook-replay",
+				"method": "GET",
+				"title": "Get a replay's progress"
+			},
+			{
+				"anchor": "requeue-dead-webhook-events",
+				"method": "POST",
+				"title": "Requeue dead events in bulk"
 			},
 			{
 				"anchor": "list-insights",
