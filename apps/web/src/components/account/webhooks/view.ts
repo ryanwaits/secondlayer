@@ -1,4 +1,8 @@
-import { type WebhookActivityDay, formatRelative } from "@/lib/webhooks-data";
+import {
+	type WebhookActivityDay,
+	type WebhooksResult,
+	formatRelative,
+} from "@/lib/webhooks-data";
 import type {
 	DeliveryRow,
 	WebhookActivity,
@@ -318,4 +322,18 @@ export function hourWindow(
 		to: new Date(start + HOUR_MS).toISOString(),
 		label: `${HOUR_LABEL.format(new Date(start))} · ${clock(start)}:00–${clock(start + HOUR_MS)}:00 UTC`,
 	};
+}
+
+/** A one-line, user-facing reason for anything short of `{ kind: "ok" }`. */
+export function describeFailure(
+	res: Exclude<WebhooksResult<unknown>, { kind: "ok" }>,
+): string {
+	if (res.kind === "rate_limited") {
+		return `Too many requests. Try again in ${res.retryAfter}s.`;
+	}
+	if (res.kind === "starting") return "Your hosted stack is still starting.";
+	if (res.kind === "no_credits") return "Add credits to do that.";
+	if (res.kind === "asleep") return "Your hosted stack is asleep.";
+	if (res.kind === "not_found") return "That webhook wasn't found.";
+	return res.message;
 }

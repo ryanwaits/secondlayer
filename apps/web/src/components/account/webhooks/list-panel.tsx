@@ -26,10 +26,10 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { WebhooksCompactList } from "./compact-list";
-import { describeFailure } from "./detail-panel";
 import { ToneDot, type WebhookRowModel, useWebhookRows } from "./rows";
 import { countByDisplayStatus, displayStatus, shortenName } from "./shared";
 import { WebhooksListSkeleton } from "./skeletons";
+import { describeFailure } from "./view";
 import { WaitingBlock } from "./waiting";
 
 /** The list polls this often while the tab is visible, so new webhooks and

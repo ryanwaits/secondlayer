@@ -6,8 +6,8 @@ import type {
 	WebhookDetail,
 	WebhookTestResult,
 } from "@secondlayer/sdk";
+import { DeliveriesChart } from "./deliveries-chart";
 import { describeTrigger } from "./describe-trigger";
-import { DeliveriesChart } from "./detail-panel";
 import { ToneDot } from "./rows";
 import { displayStatus, shortenName } from "./shared";
 import { ageShort, isOk, outageStartIndex, utcClock } from "./view";

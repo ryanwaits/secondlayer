@@ -44,6 +44,7 @@ import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { AttemptTimeline } from "./attempt-timeline";
 import { WebhookCompactDetail } from "./compact-detail";
+import { DeliveriesChart } from "./deliveries-chart";
 import { AsleepNotice } from "./list-panel";
 import { ListensFor } from "./listens-for";
 import { PayloadView, answeredAttempt } from "./payload-view";
@@ -53,6 +54,7 @@ import {
 	RANGES,
 	type Range,
 	deliveryStats,
+	describeFailure,
 	groupAttempts,
 	hourWindow,
 	isOk,
@@ -73,20 +75,6 @@ const WINDOW_FRESH_MS = 60_000;
 const VISIBLE_GROUPS = 10;
 
 const RANGE_OPTIONS = RANGES.map((value) => ({ value, label: value }));
-
-/** A one-line, user-facing reason for anything short of `{ kind: "ok" }`. */
-export function describeFailure(
-	res: Exclude<WebhooksResult<unknown>, { kind: "ok" }>,
-): string {
-	if (res.kind === "rate_limited") {
-		return `Too many requests. Try again in ${res.retryAfter}s.`;
-	}
-	if (res.kind === "starting") return "Your hosted stack is still starting.";
-	if (res.kind === "no_credits") return "Add credits to do that.";
-	if (res.kind === "asleep") return "Your hosted stack is asleep.";
-	if (res.kind === "not_found") return "That webhook wasn't found.";
-	return res.message;
-}
 
 type DetailNotice =
 	| { kind: "starting" }
@@ -300,70 +288,6 @@ function Facts({
 			{fact("Receiver", hostOf(webhook.url))}
 			{fact("Created", formatDate(webhook.createdAt))}
 		</div>
-	);
-}
-
-// ── Chart ────────────────────────────────────────────────────────────────
-
-const BAND_NOTE =
-	'No "usual range" band: under 1 event an hour is too little to call anything unusual. The band shows up once there\'s enough volume.';
-
-export function DeliveriesChart({
-	activity,
-	days,
-	range,
-	losing,
-}: {
-	activity: WebhookActivity;
-	days: readonly WebhookActivityDay[] | undefined;
-	range: Range;
-	/** A losing insight is on the page, so mark where the outage began. */
-	losing: boolean;
-}) {
-	const bars = rangeBars(range, activity, days);
-	const hourly = range !== "30d";
-	const outage = losing ? outageStartIndex(activity.hours) : null;
-	const outageHour = outage === null ? undefined : activity.hours[outage]?.hour;
-	const markIndex = outage === null ? -1 : outage - bars.offset;
-	const mark =
-		hourly && outageHour && markIndex >= 0
-			? { index: markIndex, label: `Failures start ${utcClock(outageHour)}` }
-			: undefined;
-	const showBandNote = range !== "7d" && hourly && !activity.usualByHourOfDay;
-	return (
-		<section className="dash-panel" aria-label="Deliveries">
-			<div className="dash-panel-h">
-				<span className="dash-label">
-					Deliveries per {hourly ? "hour" : "day"}
-				</span>
-				<Legend
-					items={[
-						{
-							swatch: "square",
-							label: "Delivered",
-							color: "var(--ch-a)",
-						},
-						{ swatch: "square", label: "Failed" },
-						...(bars.band
-							? [{ swatch: "band" as const, label: "Usual for this hour" }]
-							: []),
-					]}
-				/>
-			</div>
-			{bars.rows.length === 0 ? (
-				<ChartSkeleton height={180} />
-			) : (
-				<LazyBandBarChart
-					rows={barsRows(bars.rows, { band: bars.band ?? undefined })}
-					height={180}
-					xLabels={bars.labels}
-					pointLabels={bars.pointLabels}
-					mark={mark}
-					seriesNames={{ n: "Delivered", p: "", f: "Failed" }}
-				/>
-			)}
-			{showBandNote ? <span className="wd-faint">{BAND_NOTE}</span> : null}
-		</section>
 	);
 }
 
