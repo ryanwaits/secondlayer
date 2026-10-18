@@ -58,6 +58,11 @@ const nextConfig: NextConfig = {
 					},
 				],
 			},
+			// A new service worker ships on the next visit, not after a day in cache.
+			{
+				source: "/sw.js",
+				headers: [{ key: "Cache-Control", value: "no-cache" }],
+			},
 			{
 				source: "/lab/frame/:path*",
 				headers: [{ key: "X-Frame-Options", value: "SAMEORIGIN" }],

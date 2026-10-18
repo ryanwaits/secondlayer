@@ -34,6 +34,10 @@ import {
 	exampleWebhooks,
 	serverErrorsInsight,
 } from "@/components/account/overview/overview.fixtures";
+import {
+	type PushPrefValues,
+	PushSettingsView,
+} from "@/components/account/push/push-settings";
 import { RowsBody } from "@/components/account/rows/rows-panel";
 import { SubgraphsCompactList } from "@/components/account/subgraphs/compact-list";
 import {
@@ -96,6 +100,7 @@ import type { Activity } from "@/lib/activity";
 import { EMPTY_TIP } from "@/lib/chain-tip";
 import type { Insight } from "@/lib/insights";
 import { FIXTURE_INSIGHTS } from "@/lib/insights.fixtures";
+import type { PushState } from "@/lib/push-client";
 import type { RowsDay, RowsResponse } from "@/lib/rows";
 import {
 	DEFAULT_SORT,
@@ -1639,6 +1644,34 @@ export function LocalAccountKeys() {
 				</Sheet>
 			) : null}
 			<LabToaster />
+		</>
+	);
+}
+
+const PUSH_DEFAULTS: PushPrefValues = {
+	webhookFailing: true,
+	subgraphStopped: true,
+	subgraphNotServing: true,
+	replayDone: true,
+	spendCap: false,
+	keyRepeat: false,
+};
+
+/** The phone's Push segment in one device state; the switches flip locally. */
+export function LocalPushSettings({ state }: { state: PushState }) {
+	const [prefs, setPrefs] = useState(PUSH_DEFAULTS);
+	const [current, setCurrent] = useState(state);
+	return (
+		<>
+			<AccountSegments current="push" onSelect={() => {}} />
+			<PushSettingsView
+				state={current}
+				prefs={prefs}
+				ios={state === "needs_install"}
+				onToggle={(key) => setPrefs((p) => ({ ...p, [key]: !p[key] }))}
+				onTurnOn={() => setCurrent("on")}
+				onTurnOff={() => setCurrent("off")}
+			/>
 		</>
 	);
 }

@@ -3,7 +3,7 @@
 import { Choice } from "@/components/choice";
 import { useRouter } from "next/navigation";
 
-export type AccountSegment = "usage" | "keys";
+export type AccountSegment = "usage" | "keys" | "push";
 
 /** The phone's Account segments, in order. Each is its own route. */
 export const ACCOUNT_SEGMENTS: readonly {
@@ -13,6 +13,7 @@ export const ACCOUNT_SEGMENTS: readonly {
 }[] = [
 	{ id: "usage", label: "Usage", href: "/account/credits" },
 	{ id: "keys", label: "Keys", href: "/account/keys" },
+	{ id: "push", label: "Push", href: "/account/push" },
 ];
 
 /** The segmented control without the router, so tests and the Lab render it. */
@@ -41,7 +42,7 @@ export function AccountSegments({
 	);
 }
 
-/** Under the shell's "Account" title: switches between Usage and Keys. */
+/** Under the shell's "Account" title: switches between Usage, Keys and Push. */
 export function AccountCompactHeader({ current }: { current: AccountSegment }) {
 	const router = useRouter();
 	return (

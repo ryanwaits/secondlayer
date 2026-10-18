@@ -72,6 +72,7 @@ import {
 	LabToaster,
 	LocalAccountKeys,
 	LocalAccountUsage,
+	LocalPushSettings,
 	LocalReplaySheet,
 	LocalSubgraphsList,
 	LocalWebhookDetail,
@@ -2140,8 +2141,9 @@ const META: Record<StoryId, Meta> = {
 			"apps/web/src/components/account/compact-account.tsx",
 			"apps/web/src/components/account/billing/compact-usage.tsx",
 			"apps/web/src/components/account/keys/compact-keys.tsx",
+			"apps/web/src/components/account/push/push-settings.tsx",
 		],
-		rule: "On a phone, Account shows spend against the cap with a top-up, and a key is revoked by holding the button for 1.2 seconds.",
+		rule: "On a phone, Account shows spend against the cap with a top-up, a key is revoked by holding the button for 1.2 seconds, and Push turns notifications on for this device.",
 		width: { min: 320, max: 430, value: 390 },
 		variants: [
 			{
@@ -2195,6 +2197,42 @@ const META: Record<StoryId, Meta> = {
 				render: () => (
 					<PhoneColumn>
 						<KeySheetDemo />
+					</PhoneColumn>
+				),
+			},
+			{
+				id: "push-on",
+				label: "Push, on",
+				render: () => (
+					<PhoneColumn>
+						<LocalPushSettings state="on" />
+					</PhoneColumn>
+				),
+			},
+			{
+				id: "push-off",
+				label: "Push, off",
+				render: () => (
+					<PhoneColumn>
+						<LocalPushSettings state="off" />
+					</PhoneColumn>
+				),
+			},
+			{
+				id: "push-needs-install",
+				label: "Push, needs the home screen",
+				render: () => (
+					<PhoneColumn>
+						<LocalPushSettings state="needs_install" />
+					</PhoneColumn>
+				),
+			},
+			{
+				id: "push-unavailable",
+				label: "Push, not set up on this server",
+				render: () => (
+					<PhoneColumn>
+						<LocalPushSettings state="unavailable" />
 					</PhoneColumn>
 				),
 			},

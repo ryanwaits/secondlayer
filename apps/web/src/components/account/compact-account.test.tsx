@@ -177,13 +177,14 @@ describe("phone keys", () => {
 });
 
 describe("account segments", () => {
-	test("two segments, the current one checked", () => {
+	test("three segments, the current one checked", () => {
 		const html = renderToStaticMarkup(
 			<AccountSegments current="keys" onSelect={() => {}} />,
 		);
-		expect(html.match(/type="radio"/g)).toHaveLength(2);
+		expect(html.match(/type="radio"/g)).toHaveLength(3);
 		expect(checkedRadios(html)).toEqual({ "account-segment": "keys" });
 		expect(html).toContain("Usage");
 		expect(html).toContain("Keys");
+		expect(html).toContain("Push");
 	});
 });
