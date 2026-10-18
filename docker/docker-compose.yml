@@ -125,6 +125,9 @@ services:
       NODE_ENV: production
       DATA_DIR: /data
       RESEND_API_KEY: ${RESEND_API_KEY:-}
+      VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY:-}
+      VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY:-}
+      VAPID_SUBJECT: ${VAPID_SUBJECT:-}
       EMAIL_FROM: ${EMAIL_FROM:-secondlayer <noreply@secondlayer.tools>}
       CONTACT_NOTIFY_EMAIL: ${CONTACT_NOTIFY_EMAIL:-}
       # Docs search finder (POST /api/public/docs-find embeds the query). Unset
@@ -406,6 +409,9 @@ services:
       # the api service uses. Unset RESEND_API_KEY → every alert job skips
       # sending and logs a warning, never throws.
       RESEND_API_KEY: ${RESEND_API_KEY:-}
+      VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY:-}
+      VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY:-}
+      VAPID_SUBJECT: ${VAPID_SUBJECT:-}
       EMAIL_FROM: ${EMAIL_FROM:-secondlayer <noreply@secondlayer.tools>}
       # Feedback-ticket classifier (shared classify). Unset → offline rules:
       # undecided tickets route to human with no model answers stored.

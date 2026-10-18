@@ -48,6 +48,7 @@ import publicContactRouter from "./routes/public-contact.ts";
 import publicCreditsRouter from "./routes/public-credits.ts";
 import publicDocsFindRouter from "./routes/public-docs-find.ts";
 import publicWaitlistRouter from "./routes/public-waitlist.ts";
+import pushRouter from "./routes/push.ts";
 import statusRouter from "./routes/status.ts";
 import streamsRouter from "./routes/streams.ts";
 import subgraphsRouter from "./routes/subgraphs.ts";
@@ -76,6 +77,8 @@ const ACCOUNT_PATHS = [
 	"/api/accounts/*",
 	"/api/billing",
 	"/api/billing/*",
+	"/api/push",
+	"/api/push/*",
 	"/api/archive",
 	"/api/archive/*",
 	"/api/auth/logout",
@@ -222,6 +225,7 @@ export function createApiApp(mode: InstanceMode): Hono {
 		for (const path of ACCOUNT_PATHS) app.use(path, resourceAuth);
 		app.route("/api/accounts", accountsRouter);
 		app.route("/api/billing", billingRouter);
+		app.route("/api/push", pushRouter);
 		app.route("/api/archive", archiveRouter);
 		// Hosted problem reports: an agent sends back the request_id from an
 		// error body plus what it was trying to do. Self-hosted instances point
