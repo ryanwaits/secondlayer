@@ -10,6 +10,11 @@ export const viewport: Viewport = {
 	width: "device-width",
 	initialScale: 1,
 	viewportFit: "cover",
+	// DESIGN.md paper, light and dark.
+	themeColor: [
+		{ media: "(prefers-color-scheme: light)", color: "#ffffff" },
+		{ media: "(prefers-color-scheme: dark)", color: "#1c1b19" },
+	],
 };
 
 const geist = Geist({
@@ -29,6 +34,11 @@ export const metadata: Metadata = {
 	metadataBase: new URL("https://www.secondlayer.tools"),
 	title: "secondlayer",
 	description: "Instant data for apps on Bitcoin. Proof included.",
+	appleWebApp: {
+		capable: true,
+		title: "Secondlayer",
+		statusBarStyle: "default",
+	},
 	openGraph: {
 		title: "secondlayer",
 		description: "Instant data for apps on Bitcoin. Proof included.",
