@@ -1,5 +1,7 @@
 export type {
 	EmailCta,
+	EmailStatus,
+	EmailTone,
 	FactRow,
 	RenderedEmail,
 	RenderEmailInput,

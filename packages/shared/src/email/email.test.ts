@@ -77,6 +77,43 @@ describe("renderEmail", () => {
 		expect(html).toContain("letter-spacing");
 		expect(text).toContain("Code: 123456");
 	});
+
+	test("preheader rides hidden in the html and stays out of the text", () => {
+		const { html, text } = renderEmail({
+			heading: "Heading",
+			preheader: "Expires in 15 minutes.",
+			paragraphs: ["A paragraph."],
+		});
+		expect(html).toContain("display: none");
+		expect(html).toContain("Expires in 15 minutes.");
+		expect(text).not.toContain("Expires in 15 minutes.");
+	});
+
+	test("a status shows as a chip in the figure bar and a line in text", () => {
+		const { html, text } = renderEmail({
+			heading: "Heading",
+			paragraphs: ["A paragraph."],
+			facts: [{ label: "Balance", value: "$0.00" }],
+			figure: "credits",
+			status: { tone: "alarm", text: "Stopped" },
+		});
+		expect(html).toContain("credits");
+		expect(html).toContain("sl-dot-alarm");
+		expect(text).toContain("Stopped");
+	});
+
+	test("every email ends with the brand footer in both parts", () => {
+		const { html, text } = renderEmail({
+			heading: "Heading",
+			paragraphs: ["A paragraph."],
+			footnote: "Why you got this.",
+		});
+		expect(html).toContain("Instant data for apps on Bitcoin");
+		expect(
+			text.endsWith("Secondlayer · Instant data for apps on Bitcoin"),
+		).toBe(true);
+		expect(text).toContain("Why you got this.");
+	});
 });
 
 describe("sendEmail", () => {

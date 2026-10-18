@@ -14,117 +14,210 @@ import { renderEmail } from "./render.ts";
 
 const OUT_DIR = join(import.meta.dir, "../../../../email-previews");
 
+const CREDITS = "https://secondlayer.tools/account/credits";
+const BALANCE_FOOTNOTE =
+	"You get this because balance alerts are on. Turn them off on your credits page.";
+const CAP_FOOTNOTE =
+	"You set this cap. Change it or turn it off on your credits page.";
+const STACK_STOPS =
+	"Your hosted stack stops at $0. Webhooks hold events instead of delivering, and subgraphs pause indexing, until you add credits.";
+const WEBHOOK_FOOTNOTE =
+	"One email per outage. If it recovers and fails again, we'll email again.";
+const REINDEX_FOOTNOTE =
+	"You get this because reindex emails are on for your account.";
+
 const examples: Record<string, ReturnType<typeof renderEmail>> = {
-	"login-code": renderEmail({
-		heading: "Your login code",
-		paragraphs: ["Or click below to sign in directly:"],
+	"sign-in-code": renderEmail({
+		heading: "Your sign-in code",
+		preheader: "Expires in 15 minutes.",
+		paragraphs: [
+			"Enter this code where you started signing in, or use the button.",
+		],
 		code: "482913",
+		status: { tone: "neutral", text: "Expires in 15 minutes" },
 		cta: {
 			label: "Sign in to secondlayer",
 			url: "https://secondlayer.tools/auth/verify?token=example-token",
 		},
 		footnote:
-			"This expires in 15 minutes. If you didn't request this, you can safely ignore this email.",
+			"Didn't ask to sign in? Ignore this email. Nobody gets in without this code or link.",
 	}),
 
 	"balance-low": renderEmail({
 		heading: "About 6 days of credit left",
-		paragraphs: [
-			"Your hosted stack stops when your balance reaches $0. Webhooks stop delivering (events are held) and subgraphs stop indexing, until you add credits.",
-		],
+		preheader: "$3.20 left at $0.52/day. Runs out around Oct 24.",
+		paragraphs: [STACK_STOPS],
 		facts: [
 			{ label: "Balance", value: "$3.20" },
 			{ label: "Spending", value: "$0.52/day" },
-			{ label: "Runs out around", value: "Oct 4" },
+			{ label: "Runs out around", value: "Oct 24" },
 		],
-		cta: {
-			label: "Add credits",
-			url: "https://secondlayer.tools/account/credits",
-		},
-		footnote:
-			"You get this because balance alerts are on. Turn them off on your credits page.",
+		figure: "credits",
+		status: { tone: "neutral", text: "Low balance" },
+		cta: { label: "Add credits", url: CREDITS },
+		footnote: BALANCE_FOOTNOTE,
 	}),
 
 	"balance-crit": renderEmail({
 		heading: "Under 2 days of credit left",
-		paragraphs: [
-			"Your hosted stack stops when your balance reaches $0. Webhooks stop delivering (events are held) and subgraphs stop indexing, until you add credits.",
-		],
+		preheader: "$0.45 left at $0.52/day. Runs out around Oct 19.",
+		paragraphs: [STACK_STOPS],
 		facts: [
 			{ label: "Balance", value: "$0.45" },
 			{ label: "Spending", value: "$0.52/day" },
-			{ label: "Runs out around", value: "Sep 29" },
+			{ label: "Runs out around", value: "Oct 19" },
 			{ label: "Runs out in about", value: "18 hours" },
 		],
-		cta: {
-			label: "Add credits",
-			url: "https://secondlayer.tools/account/credits",
-		},
-		footnote:
-			"You get this because balance alerts are on. Turn them off on your credits page.",
+		figure: "credits",
+		status: { tone: "neutral", text: "Critical balance" },
+		cta: { label: "Add credits", url: CREDITS },
+		footnote: BALANCE_FOOTNOTE,
 	}),
 
 	"balance-stopped": renderEmail({
 		heading: "Your hosted stack stopped",
+		preheader: "Balance reached $0. Events are held, nothing is lost.",
 		paragraphs: [
-			"Your balance reached $0, so your hosted stack stopped. Webhook events are held and delivered after you add credits, and subgraphs resume where they left off. It starts again within 5 minutes of a top-up.",
+			"Your balance reached $0. Webhook events are held and go out after you add credits. Subgraphs pick up where they left off.",
+			"Everything restarts within 5 minutes of a top-up.",
 		],
 		facts: [
 			{ label: "Balance", value: "$0.00" },
-			{ label: "Stopped at", value: "Sep 28 14:32 UTC" },
+			{ label: "Stopped at", value: "Oct 19 14:32 UTC" },
 		],
-		cta: {
-			label: "Add credits",
-			url: "https://secondlayer.tools/account/credits",
-		},
-		footnote:
-			"You get this because balance alerts are on. Turn them off on your credits page.",
+		figure: "credits",
+		status: { tone: "alarm", text: "Stopped" },
+		cta: { label: "Add credits", url: CREDITS },
+		footnote: BALANCE_FOOTNOTE,
 	}),
 
 	"spend-cap-threshold": renderEmail({
-		heading: "You've used 80% of your monthly spend cap",
+		heading: "You've used 80% of your monthly cap",
+		preheader: "$8.00 of $10.00. Resets Nov 1.",
 		paragraphs: [
-			"You've spent $8.00 this month, 80% of your $10.00 monthly cap. When you reach the cap, hosted Index and Streams reads past your free 1M rows pause and your hosted stack stops, so webhooks stop delivering, until Oct 1 or until you raise the cap.",
+			"At the cap, hosted Index and Streams reads past your free 1M rows pause and your hosted stack stops until Nov 1, or until you raise it.",
 		],
 		facts: [
 			{ label: "Spent this month", value: "$8.00" },
 			{ label: "Cap", value: "$10.00" },
-			{ label: "Resets", value: "Oct 1" },
+			{ label: "Resets", value: "Nov 1" },
 		],
-		cta: {
-			label: "Change your cap",
-			url: "https://secondlayer.tools/account/credits#cap",
-		},
+		figure: "spend cap",
+		status: { tone: "neutral", text: "80% of cap" },
+		cta: { label: "Change your cap", url: `${CREDITS}#cap` },
+		footnote: CAP_FOOTNOTE,
 	}),
 
 	"spend-cap-frozen": renderEmail({
-		heading: "You reached your monthly spend cap",
+		heading: "You reached your monthly cap",
+		preheader: "Hosted stack paused until Nov 1. Your balance is untouched.",
 		paragraphs: [
-			"You've spent $10.00 this month and reached your monthly cap. Hosted Index and Streams reads past your free 1M rows are paused, and your hosted stack stops within minutes: webhooks stop delivering and subgraphs stop indexing. Both resume on Oct 1 or when you raise the cap. Your balance is untouched.",
+			"Hosted Index and Streams reads past your free 1M rows are paused. Your hosted stack stops within minutes: webhooks hold events and subgraphs pause.",
+			"Both resume Nov 1, or as soon as you raise the cap. Your balance is untouched.",
 		],
 		facts: [
 			{ label: "Spent this month", value: "$10.00" },
 			{ label: "Cap", value: "$10.00" },
-			{ label: "Resets", value: "Oct 1" },
+			{ label: "Resets", value: "Nov 1" },
 		],
+		figure: "spend cap",
+		status: { tone: "neutral", text: "Cap reached, paused" },
+		cta: { label: "Raise your cap", url: `${CREDITS}#cap` },
+		footnote: CAP_FOOTNOTE,
+	}),
+
+	"top-up-declined": renderEmail({
+		heading: "Auto top-up is off",
+		preheader: "We won't retry. Add credits or update your card.",
+		paragraphs: [
+			"We tried to add $25.00 to your balance and your card was declined. We turned auto top-up off and won't try again.",
+			"Add credits or update your card, then turn it back on.",
+		],
+		facts: [{ label: "Refill", value: "$25.00" }],
+		figure: "auto top-up",
+		status: { tone: "alarm", text: "Card declined" },
+		cta: { label: "Add credits", url: CREDITS },
+		footnote: "You get this because auto top-up was on.",
+	}),
+
+	"webhook-incident-one": renderEmail({
+		heading: `"whale-alerts" can't reach your server`,
+		preheader:
+			"Failing since Oct 18, 09:05 UTC. Events are safe, we keep retrying.",
+		paragraphs: [
+			"Every delivery to hooks.acme.dev has failed since Oct 18, 09:05 UTC. Your events are safe: we retry for up to 3 days before anything moves to dead letters.",
+			"Once your server answers, queued deliveries go out on their own.",
+		],
+		facts: [
+			{ label: "Webhook", value: "whale-alerts" },
+			{ label: "Receiver", value: "hooks.acme.dev" },
+			{ label: "Failing since", value: "Oct 18, 09:05 UTC" },
+			{ label: "Failed attempts in a row", value: "37" },
+			{ label: "Last error", value: "connect ECONNREFUSED 443" },
+		],
+		figure: "webhook · whale-alerts",
+		status: { tone: "alarm", text: "Failing" },
 		cta: {
-			label: "Raise your cap",
-			url: "https://secondlayer.tools/account/credits#cap",
+			label: "Open the webhook",
+			url: "https://secondlayer.tools/account/webhooks/example-id",
 		},
+		footnote: WEBHOOK_FOOTNOTE,
 	}),
 
 	"reindex-complete-clean": renderEmail({
-		heading: "Reindex complete: my-subgraph",
-		paragraphs: [
-			'Your subgraph "my-subgraph" finished reindexing: 128,402 blocks, 54,910 events, no errors.',
+		heading: "my-subgraph finished reindexing",
+		preheader: "128,402 blocks, 54,910 events, no errors.",
+		paragraphs: ["It's serving queries from the new data now."],
+		facts: [
+			{ label: "Blocks", value: "128,402" },
+			{ label: "Events", value: "54,910" },
+			{ label: "Errors", value: "0" },
 		],
+		figure: "subgraph · my-subgraph",
+		status: { tone: "ok", text: "Complete, no errors" },
+		cta: {
+			label: "Open the subgraph",
+			url: "https://secondlayer.tools/account/subgraphs/my-subgraph",
+		},
+		footnote: REINDEX_FOOTNOTE,
 	}),
 
 	"reindex-complete-errors": renderEmail({
-		heading: "Reindex complete: my-subgraph",
+		heading: "my-subgraph finished with 3 errors",
+		preheader: "128,402 blocks, 54,910 events, 3 handler errors.",
 		paragraphs: [
-			'Your subgraph "my-subgraph" finished reindexing: 128,402 blocks, 54,910 events, 3 errors.',
+			"3 events failed in your handlers. Everything else is indexed.",
 		],
+		facts: [
+			{ label: "Blocks", value: "128,402" },
+			{ label: "Events", value: "54,910" },
+			{ label: "Errors", value: "3" },
+		],
+		figure: "subgraph · my-subgraph",
+		status: { tone: "alarm", text: "Complete, 3 errors" },
+		cta: {
+			label: "See the errors",
+			url: "https://secondlayer.tools/account/subgraphs/my-subgraph",
+		},
+		footnote: REINDEX_FOOTNOTE,
+	}),
+
+	"contact-request": renderEmail({
+		heading: "New contact request",
+		preheader: "We're moving off our own indexer and want history from genesis",
+		paragraphs: [],
+		quote:
+			"We're moving off our own indexer and want history from genesis plus webhooks for our sBTC flows. Can we talk volume pricing?",
+		figure: "contact · ctc_7a91b2",
+		facts: [
+			{ label: "Name", value: "Dana Ortiz" },
+			{ label: "Email", value: "dana@acme.dev" },
+			{ label: "Company", value: "Acme Labs" },
+			{ label: "Volume", value: "10M+ rows/mo" },
+			{ label: "From page", value: "/pricing" },
+			{ label: "Reference", value: "ctc_7a91b2" },
+		],
+		footnote: "Reply to this email to answer Dana.",
 	}),
 };
 
