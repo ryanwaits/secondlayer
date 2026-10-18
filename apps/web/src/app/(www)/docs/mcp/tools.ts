@@ -12,7 +12,18 @@ export type McpTool = {
 	group: string;
 	description: string;
 	hostedOnly?: boolean;
+	/** On the hosted server at api.secondlayer.tools/mcp. */
+	remote?: boolean;
 };
+
+/** The note a tool row carries after its first sentence. */
+export function toolNote(tool: McpTool): string {
+	if (tool.remote === false)
+		return tool.hostedOnly
+			? " Local only, against the hosted API."
+			: " Local only.";
+	return tool.hostedOnly ? " Hosted only." : "";
+}
 
 /** Reader-facing heading per registry group. A group not listed here still
  *  renders, under its capitalized id, so a new group never drops off the page. */
@@ -96,9 +107,8 @@ export function mcpToolsMarkdown(): string {
 	for (const { title, tools } of toolGroups()) {
 		lines.push(`### ${title}`, "", "| Tool | What it does |", "| --- | --- |");
 		for (const tool of tools) {
-			const note = tool.hostedOnly ? " Hosted only." : "";
 			lines.push(
-				`| \`${tool.name}\` | ${cell(firstSentence(tool.description))}${note} |`,
+				`| \`${tool.name}\` | ${cell(firstSentence(tool.description))}${toolNote(tool)} |`,
 			);
 		}
 		lines.push("");

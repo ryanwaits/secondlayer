@@ -3,6 +3,13 @@
 
 Notable changes to Secondlayer and its SDKs. Entries dated before August 2026 describe the hosted service as it worked then (per-row read metering, API keys, `402` past the free window); it was withdrawn in August 2026 and has since returned, with hosted Index, Streams, subgraphs and webhooks at `api.secondlayer.tools` on an account key and prepaid [credits](/docs/authentication), while on a self-hosted instance reads stay yours and unmetered and archive bootstrap, backfill and reindex draw [credits](/docs/authentication#archive-credits).
 
+{/* new: 2026-10-18 */}
+## MCP — October 2026
+
+### Connect an agent with a URL
+
+The MCP server now runs at `https://api.secondlayer.tools/mcp`, so an agent needs no install and no key in its config. Run `claude mcp add --transport http secondlayer https://api.secondlayer.tools/mcp`, and the first call opens a browser page where you sign in and allow the app. It carries the read tools (Index, Streams, Contracts, subgraph scaffolds), and its reads use your credits like a key's. Apps you allowed are listed under Apps on your Keys tab, where you can revoke one. Clients without OAuth can send an account key as the bearer. See [Connect](/docs/mcp#connect).
+
 ## Accounts — October 2026
 
 ### Keys get their own tab

@@ -9,6 +9,19 @@ status, archive verify/bootstrap, and hosted credits/quote. Everything else
 (single-record lookups, mempool, stacking, proofs, live Streams reads) is
 available over REST `/v1` + OpenAPI. There is no `consume` tool.
 
+## Hosted
+
+No install: the hosted API serves the read tools over Streamable HTTP, with a
+browser sign-in.
+
+```bash
+claude mcp add --transport http secondlayer https://api.secondlayer.tools/mcp
+```
+
+Clients without OAuth send `Authorization: Bearer <sk-sl_ key>`. Subgraph
+deploys, webhooks, archive, codegen and instance tools are local only. See
+[/docs/mcp](https://secondlayer.tools/docs/mcp#connect).
+
 ## Install
 
 ```bash

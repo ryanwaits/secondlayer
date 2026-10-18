@@ -5,6 +5,24 @@ agents: Index reads, Streams tip/dumps, the subgraph lifecycle, webhooks, and
 contract discovery/scaffolding. Periphery surfaces (mempool, stacking, proofs,
 live Streams list reads) are REST-only — see the `/v1` OpenAPI spec.
 
+## Hosted (api.secondlayer.tools)
+
+```bash
+claude mcp add --transport http secondlayer https://api.secondlayer.tools/mcp
+```
+
+Or, in any client that speaks Streamable HTTP:
+`{"mcpServers": {"secondlayer": {"type": "http", "url": "https://api.secondlayer.tools/mcp"}}}`.
+
+- The first call gets a 401 naming the OAuth metadata; the client registers
+  itself and the person signs in and allows it once in the browser.
+- Clients without OAuth send `Authorization: Bearer <sk-sl_ key>`.
+- Read tools only: Index, Streams, Contracts, `subgraphs_scaffold`,
+  `account_whoami`. Subgraph deploys, webhooks, archive, codegen and instance
+  tools need the stdio server below. Reads are metered to the account's credits.
+- An app never mints or revokes keys. Revoke it under Apps on
+  secondlayer.tools/account/keys.
+
 ## Stdio Setup
 
 ```json

@@ -1,4 +1,4 @@
-import { firstSentence, resourceRows, toolGroups } from "./tools";
+import { firstSentence, resourceRows, toolGroups, toolNote } from "./tools";
 
 /**
  * The MCP page's tool and resource tables, rendered from the generated
@@ -53,7 +53,7 @@ export function McpTools() {
 										</td>
 										<td>
 											{firstSentence(tool.description)}
-											{tool.hostedOnly ? " Hosted only." : ""}
+											{toolNote(tool)}
 										</td>
 									</tr>
 								))}

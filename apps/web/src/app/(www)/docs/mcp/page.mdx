@@ -6,7 +6,40 @@ Give Claude Code, Cursor, or any MCP client live access to Secondlayer, and teac
 
 ## Connect
 
-The server ships as `@secondlayer/mcp` and speaks **stdio**. Add it to any MCP client (Claude Code, Cursor, Claude Desktop):
+Point your agent at the hosted server and sign in once in the browser. In Claude Code:
+
+```bash
+claude mcp add --transport http secondlayer https://api.secondlayer.tools/mcp
+```
+
+The first call opens a sign-in page: check the app's name and allow it. Reads it makes use your credits, like reads made with a key. The hosted server carries the read tools only, so install the local server when you need to deploy subgraphs or manage webhooks.
+
+### Remote
+
+Any client that speaks Streamable HTTP takes the URL alone:
+
+```json .mcp.json
+{
+  "mcpServers": {
+    "secondlayer": {
+      "type": "http",
+      "url": "https://api.secondlayer.tools/mcp"
+    }
+  }
+}
+```
+
+| Credential | When |
+| --- | --- |
+| Browser sign-in (OAuth) | The default. The client registers itself and opens the consent page. |
+| `Authorization: Bearer <sk-sl_ key>` | A client without OAuth support. |
+
+- An app can't make or revoke keys. Revoke an app under Apps on [/account/keys](/account/keys).
+- Tools marked "Local only" below are not on the hosted server.
+
+### Local
+
+The `@secondlayer/mcp` package runs the server over **stdio**, with every tool:
 
 ```json .mcp.json
 {
@@ -32,7 +65,7 @@ On your box, set these instead of the key ([Self-host](/docs/self-host#use-these
 | `SECONDLAYER_API_URL` | `http://127.0.0.1:3800` |
 | `INSTANCE_TOKEN` | From `.env.local` |
 
-An HTTP transport (`@secondlayer/mcp-http`) adds session management and optional `SECONDLAYER_MCP_SECRET` bearer auth for hosting the server behind a URL.
+The same package's `secondlayer-mcp-http` command serves it over HTTP behind your own URL, with sessions and an optional `SECONDLAYER_MCP_SECRET` bearer.
 
 ### Authentication
 
@@ -80,6 +113,7 @@ bunx skills add ryanwaits/secondlayer --skill secondlayer -y
 The skill is static text that can't see your instance, and MCP can, so install both. Source: [`skills/secondlayer`](https://github.com/ryanwaits/secondlayer/tree/main/skills/secondlayer).
 
 export const agent = `
+- Hosted: 'claude mcp add --transport http secondlayer https://api.secondlayer.tools/mcp'. A 401 names the OAuth metadata; the person signs in once in the browser. Clients without OAuth send 'Authorization: Bearer sk-sl_*'. Read tools only; tools listed "Local only" need the stdio server.
 - Install: 'bunx @secondlayer/mcp' with SECONDLAYER_API_URL and INSTANCE_TOKEN for the instance. For hosted archive and credits tools also set SECONDLAYER_API_KEY.
 - Read first: the 'secondlayer://context' resource (instance state, chain tips, capabilities), plus 'secondlayer://filters' and 'secondlayer://chain-triggers'.
 - Read tools: index_discover to learn event types and filters, then index_events (or index_ft_transfers, index_contract_calls); cursor-paginate.
