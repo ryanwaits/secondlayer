@@ -2,6 +2,13 @@ import { getErrorMessage, logger } from "@secondlayer/shared";
 import { getDb } from "@secondlayer/shared/db";
 import type { OutboxStatus, Webhook } from "@secondlayer/shared/db";
 import {
+	deadSince,
+	knownEventsInRange,
+	listReplays,
+	listWebhookReplays,
+	readReplay,
+} from "@secondlayer/shared/db/queries/webhook-replays";
+import {
 	createWebhook,
 	deleteWebhook,
 	getWebhook,
@@ -17,7 +24,9 @@ import {
 	type ChainTrigger,
 	CreateWebhookRequestSchema,
 	MANAGED_NAME_PREFIXES,
+	type ReplayRanges,
 	ReplayWebhookRequestSchema,
+	RequeueDeadRequestSchema,
 	UpdateWebhookRequestSchema,
 	type WebhookActivityDay,
 	type WebhookAuth,
@@ -58,6 +67,21 @@ const KNOWN_REPLAY_ERRORS = ["fromBlock must be <= toBlock"];
 const REPLAY_RANGE_TOO_LARGE_RE = /^replay range exceeds \d+k? blocks$/;
 const UUID_RE =
 	/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** What a requeue does to a dead outbox row. Shared by the per-row and bulk
+ *  requeue so they can't drift. */
+const REQUEUE_SET = {
+	status: "pending",
+	attempt: 0,
+	failed_at: null,
+	locked_by: null,
+	locked_until: null,
+	// Clear replay flag so a manual requeue drains at live priority,
+	// not throttled through the 10% replay share.
+	is_replay: false,
+} as const;
+
+const REPLAY_PRESET_BLOCKS = [100, 1000, 10000] as const;
 
 function isKnownReplayError(msg: string): boolean {
 	return (
@@ -384,6 +408,29 @@ app.get("/activity", async (c) => {
 	}
 
 	return c.json({ hours, webhooks: [...slots.values()] });
+});
+
+// ── GET /api/webhooks/replays ──────────────────────────────────────
+// Replays in progress or started in the last 24h across the account. Registered
+// before `/:id` for the same reason as `/activity`.
+
+app.get("/replays", async (c) => {
+	const accountId = getTenantScopedAccountId(c);
+	if (accountId === null) return c.json({ error: "Unauthorized" }, 401);
+
+	const db = getDb();
+	const requested = Number.parseInt(c.req.query("_limit") ?? "20", 10);
+	const limit = Math.min(
+		50,
+		Math.max(1, Number.isFinite(requested) ? requested : 20),
+	);
+	const webhooks = await listWebhooks(db, accountId);
+	const data = await listReplays(db, {
+		webhookIds: webhooks.map((w) => w.id),
+		sinceHours: 24,
+		limit,
+	});
+	return c.json({ data });
 });
 
 // ── GET /api/webhooks/:id ──────────────────────────────────────────
@@ -992,17 +1039,7 @@ app.post("/:id/dead/:outboxId/requeue", async (c) => {
 
 	const res = await getDb()
 		.updateTable("webhook_outbox")
-		.set({
-			status: "pending",
-			attempt: 0,
-			next_attempt_at: new Date(),
-			failed_at: null,
-			locked_by: null,
-			locked_until: null,
-			// Clear replay flag so a manual requeue drains at live priority,
-			// not throttled through the 10% replay share.
-			is_replay: false,
-		})
+		.set({ ...REQUEUE_SET, next_attempt_at: new Date() })
 		.where("id", "=", c.req.param("outboxId"))
 		.where("webhook_id", "=", sub.id)
 		.where("status", "=", "dead")
@@ -1010,6 +1047,115 @@ app.post("/:id/dead/:outboxId/requeue", async (c) => {
 	const ok = Number(res.numUpdatedRows ?? 0) > 0;
 	if (!ok) return c.json({ error: "Dead row not found" }, 404);
 	return c.json({ ok: true });
+});
+
+// ── POST /api/webhooks/:id/dead/requeue — bulk requeue ─────────────
+
+app.post("/:id/dead/requeue", async (c) => {
+	const accountId = getTenantScopedAccountId(c);
+	if (accountId === null) return c.json({ error: "Unauthorized" }, 401);
+
+	const raw = await c.req.text();
+	let body: unknown = {};
+	if (raw.trim() !== "") {
+		try {
+			body = JSON.parse(raw);
+		} catch {
+			throw new InvalidJSONError();
+		}
+	}
+	const parsed = RequeueDeadRequestSchema.safeParse(body);
+	if (!parsed.success) {
+		const details = formatWebhookSchemaErrors(parsed.error);
+		return c.json({ error: details.join("; "), details }, 400);
+	}
+	const { replayId, since } = parsed.data;
+
+	const db = getDb();
+	const sub = await getWebhook(db, accountId, c.req.param("id"));
+	if (!sub) return c.json({ error: "Webhook not found" }, 404);
+
+	let q = db
+		.updateTable("webhook_outbox")
+		.set({ ...REQUEUE_SET, next_attempt_at: new Date() })
+		.where("webhook_id", "=", sub.id)
+		.where("status", "=", "dead");
+	if (replayId) q = q.where("replay_id", "=", replayId);
+	if (since) q = q.where("failed_at", ">=", new Date(since));
+	const requeued = Number((await q.executeTakeFirst()).numUpdatedRows ?? 0);
+
+	if (replayId && requeued > 0) {
+		// Track the retry: progress and the final counts start over.
+		await db
+			.updateTable("webhook_replays")
+			.set({
+				status: "running",
+				finished_at: null,
+				delivered: null,
+				gave_up: null,
+			})
+			.where("id", "=", replayId)
+			.where("webhook_id", "=", sub.id)
+			.execute();
+	}
+	return c.json({ requeued });
+});
+
+// ── GET /api/webhooks/:id/replays ──────────────────────────────────
+
+app.get("/:id/replays", async (c) => {
+	const accountId = getTenantScopedAccountId(c);
+	if (accountId === null) return c.json({ error: "Unauthorized" }, 401);
+	const db = getDb();
+	const sub = await getWebhook(db, accountId, c.req.param("id"));
+	if (!sub) return c.json({ error: "Webhook not found" }, 404);
+
+	const [data, state, deadCount] = await Promise.all([
+		listWebhookReplays(db, sub.id, 10),
+		db
+			.selectFrom("trigger_evaluator_state")
+			.select("last_processed_block")
+			.executeTakeFirst(),
+		deadSince(db, sub.id, sub.last_success_at),
+	]);
+	const tip = state ? Number(state.last_processed_block) : null;
+	const presets =
+		tip === null
+			? []
+			: await Promise.all(
+					REPLAY_PRESET_BLOCKS.map(async (blocks) => {
+						const fromBlock = Math.max(0, tip - blocks + 1);
+						return {
+							blocks,
+							fromBlock,
+							toBlock: tip,
+							knownEvents: await knownEventsInRange(db, sub.id, fromBlock, tip),
+						};
+					}),
+				);
+	const ranges: ReplayRanges = {
+		tip,
+		presets,
+		deadSinceFailing: {
+			since: sub.last_success_at?.toISOString() ?? null,
+			count: deadCount,
+		},
+	};
+	return c.json({ data, ranges });
+});
+
+// ── GET /api/webhooks/:id/replays/:replayId ────────────────────────
+
+app.get("/:id/replays/:replayId", async (c) => {
+	const accountId = getTenantScopedAccountId(c);
+	if (accountId === null) return c.json({ error: "Unauthorized" }, 401);
+	const db = getDb();
+	const sub = await getWebhook(db, accountId, c.req.param("id"));
+	if (!sub) return c.json({ error: "Webhook not found" }, 404);
+
+	const progress = await readReplay(db, sub.id, c.req.param("replayId"));
+	if (!progress) return c.json({ error: "Replay not found" }, 404);
+	return c.json(progress);
 });
 
 // ── POST /api/webhooks/:id/replay ──────────────────────────────────

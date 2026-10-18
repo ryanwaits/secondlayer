@@ -52,6 +52,32 @@ const EXAMPLE_TX =
 const SBTC_TOKEN =
 	"SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4.sbtc-token::sbtc-token";
 
+const EXAMPLE_REPLAY_PROGRESS = {
+	replayId: "a41f09c3d27e8b65",
+	webhookId: EXAMPLE_ID,
+	status: "done",
+	fromBlock: 8650000,
+	toBlock: 8700000,
+	total: 312,
+	processed: 312,
+	pending: 0,
+	delivered: 309,
+	gaveUp: 3,
+	startedAt: "2026-09-22T14:00:02.000Z",
+	finishedAt: "2026-09-22T14:06:40.000Z",
+	error: null,
+};
+
+const EXAMPLE_REPLAY_RANGES = {
+	tip: 8700076,
+	presets: [
+		{ blocks: 100, fromBlock: 8699977, toBlock: 8700076, knownEvents: 4 },
+		{ blocks: 1000, fromBlock: 8699077, toBlock: 8700076, knownEvents: 31 },
+		{ blocks: 10000, fromBlock: 8690077, toBlock: 8700076, knownEvents: 305 },
+	],
+	deadSinceFailing: { since: "2026-09-22T13:10:00.000Z", count: 3 },
+};
+
 const EXAMPLE_TRIGGERS = [
 	{
 		type: "ft_transfer",
@@ -944,7 +970,7 @@ export const webhooksPaths = {
 			summary: "Replay a block range",
 			"x-nav-title": "Replay",
 			description:
-				"Queues historical events in a block range for redelivery, capped at 100,000 blocks. Replays are idempotent: the same range yields the same `replayId` and delivers nothing twice unless `force` is set. They drain through a 10% share of the outbox so live traffic keeps priority, and never move the live cursor. Replays deliver the normal `chain.<type>.apply` envelope.",
+				"Queues historical events in a block range for redelivery, capped at 100,000 blocks. Replays are idempotent: the same range yields the same `replayId` and delivers nothing twice unless `force` is set. They drain through a 10% share of the outbox so live traffic keeps priority, and never move the live cursor. Replays deliver the normal `chain.<type>.apply` envelope. Watch one with `GET /api/webhooks/{id}/replays/{replay_id}`.",
 			security: WRITE_SECURITY,
 			parameters: [ID_PARAM],
 			requestBody: jsonBody({
@@ -959,7 +985,130 @@ export const webhooksPaths = {
 					`${ERROR_400}. Also: \`fromBlock\` after \`toBlock\`, or a range over 100,000 blocks`,
 				),
 				"404": NOT_FOUND,
+				"409": jsonError(
+					"A replay of this webhook is still scanning its range",
+				),
 				"500": jsonError("The replay could not be queued (`INTERNAL_ERROR`)"),
+			}),
+		},
+	},
+	"/api/webhooks/replays": {
+		get: {
+			tags: ["webhooks"],
+			summary: "List recent replays across webhooks",
+			"x-nav-title": "Recent replays",
+			description:
+				"Replays still scanning or delivering, plus any started in the last 24 hours, across every webhook on this instance. Newest first.",
+			security: WRITE_SECURITY,
+			parameters: [
+				qp("_limit", "integer", false, "Page size, 1 to 50. Default 20."),
+			],
+			responses: apiReadResponses({
+				"200": json200(
+					{
+						type: "object",
+						required: ["data"],
+						properties: {
+							data: {
+								type: "array",
+								items: { $ref: "#/components/schemas/WebhookReplayProgress" },
+								description: "Recent replays, newest first.",
+							},
+						},
+						example: { data: [EXAMPLE_REPLAY_PROGRESS] },
+					},
+					"Recent replays with live progress",
+				),
+			}),
+		},
+	},
+	"/api/webhooks/{id}/replays": {
+		get: {
+			tags: ["webhooks"],
+			summary: "List a webhook's replays and replay ranges",
+			"x-nav-title": "Webhook replays",
+			description:
+				"The webhook's last 10 replays with live progress, newest first, and the block ranges a new replay can start from. Ranges count back from the last block the evaluator processed.",
+			security: WRITE_SECURITY,
+			parameters: [ID_PARAM],
+			responses: apiReadResponses({
+				"200": json200(
+					{
+						type: "object",
+						required: ["data", "ranges"],
+						properties: {
+							data: {
+								type: "array",
+								items: { $ref: "#/components/schemas/WebhookReplayProgress" },
+								description: "Up to 10 replays, newest first.",
+							},
+							ranges: { $ref: "#/components/schemas/WebhookReplayRanges" },
+						},
+						example: {
+							data: [EXAMPLE_REPLAY_PROGRESS],
+							ranges: EXAMPLE_REPLAY_RANGES,
+						},
+					},
+					"Replays and ranges for this webhook",
+				),
+				"404": NOT_FOUND,
+			}),
+		},
+	},
+	"/api/webhooks/{id}/replays/{replay_id}": {
+		get: {
+			tags: ["webhooks"],
+			summary: "Get a replay's progress",
+			"x-nav-title": "Replay progress",
+			description:
+				"Where one replay stands: how many events it queued, how many are done, and once nothing is left pending, how many delivered and how many gave up. Poll it while the replay drains.",
+			security: WRITE_SECURITY,
+			parameters: [
+				ID_PARAM,
+				pp(
+					"replay_id",
+					"Replay id, the `replayId` from the replay response (16 hex characters).",
+				),
+			],
+			responses: apiReadResponses({
+				"200": json200(
+					{ $ref: "#/components/schemas/WebhookReplayProgress" },
+					"The replay's progress",
+				),
+				"404": jsonError(
+					"No webhook with this id, or no replay with this id on it",
+				),
+			}),
+		},
+	},
+	"/api/webhooks/{id}/dead/requeue": {
+		post: {
+			tags: ["webhooks"],
+			summary: "Requeue dead events in bulk",
+			"x-nav-title": "Requeue dead events",
+			description:
+				"Moves dead events back to pending with their attempt counts reset, at live priority. With no body it requeues every dead event of the webhook; `replayId` narrows it to one replay and `since` to events that failed at or after that time. A replay that gets events back returns to running, so its progress tracks the retry.",
+			security: WRITE_SECURITY,
+			parameters: [ID_PARAM],
+			requestBody: jsonBody({
+				$ref: "#/components/schemas/RequeueDeadRequest",
+			}),
+			responses: writeResponses({
+				"200": json200(
+					{
+						type: "object",
+						required: ["requeued"],
+						properties: {
+							requeued: {
+								type: "integer",
+								description: "Dead events moved back to pending.",
+							},
+						},
+						example: { requeued: 14 },
+					},
+					"Events requeued",
+				),
+				"404": NOT_FOUND,
 			}),
 		},
 	},
@@ -1120,6 +1269,135 @@ export const webhooksSchemas = {
 			enqueuedCount: 312,
 			scannedCount: 4870,
 		},
+	},
+	WebhookReplayProgress: {
+		type: "object",
+		description:
+			"Live state of one replay. While it runs, `delivered` and `gaveUp` are `null`; they are set once no event is left pending.",
+		required: [
+			"replayId",
+			"webhookId",
+			"status",
+			"fromBlock",
+			"toBlock",
+			"total",
+			"processed",
+			"pending",
+			"delivered",
+			"gaveUp",
+			"startedAt",
+			"finishedAt",
+			"error",
+		],
+		properties: {
+			replayId: { type: "string", description: "16 hex characters." },
+			webhookId: { type: "string", description: "Webhook id (UUID)." },
+			status: {
+				type: "string",
+				enum: ["scanning", "running", "done", "failed"],
+				description:
+					"`scanning` while the range is read, `running` while events deliver, `done` when none are pending, `failed` if the scan broke.",
+			},
+			fromBlock: { type: "integer", description: "First block, inclusive." },
+			toBlock: { type: "integer", description: "Last block, inclusive." },
+			total: { type: "integer", description: "Events the replay queued." },
+			processed: {
+				type: "integer",
+				description:
+					"Events delivered or given up on: `total` minus `pending`.",
+			},
+			pending: {
+				type: "integer",
+				description: "Events still waiting to be delivered or retried.",
+			},
+			delivered: {
+				type: ["integer", "null"],
+				description: "Events delivered. `null` until the replay is done.",
+			},
+			gaveUp: {
+				type: ["integer", "null"],
+				description:
+					"Events that used up their retries. `null` until the replay is done.",
+			},
+			startedAt: { type: "string", description: "ISO 8601 time it started." },
+			finishedAt: {
+				type: ["string", "null"],
+				description: "ISO 8601 time it finished. `null` while it runs.",
+			},
+			error: {
+				type: ["string", "null"],
+				description: "Why the scan failed. `null` otherwise.",
+			},
+		},
+		example: EXAMPLE_REPLAY_PROGRESS,
+	},
+	WebhookReplayRanges: {
+		type: "object",
+		description:
+			"Where a new replay can start, counted back from the last block the evaluator processed.",
+		required: ["tip", "presets", "deadSinceFailing"],
+		properties: {
+			tip: {
+				type: ["integer", "null"],
+				description:
+					"Last block the evaluator processed. `null` before it has run, and then `presets` is empty.",
+			},
+			presets: {
+				type: "array",
+				description: "Ranges of the last 100, 1,000 and 10,000 blocks.",
+				items: {
+					type: "object",
+					required: ["blocks", "fromBlock", "toBlock", "knownEvents"],
+					properties: {
+						blocks: {
+							type: "integer",
+							enum: [100, 1000, 10000],
+							description: "Blocks in the range.",
+						},
+						fromBlock: { type: "integer", description: "First block." },
+						toBlock: { type: "integer", description: "Last block, the tip." },
+						knownEvents: {
+							type: "integer",
+							description:
+								"Events this webhook has queued in the range. A lower bound: delivered events are deleted after 7 days.",
+						},
+					},
+				},
+			},
+			deadSinceFailing: {
+				type: "object",
+				description:
+					"Dead events since the webhook last succeeded, which is what a bulk requeue brings back.",
+				required: ["since", "count"],
+				properties: {
+					since: {
+						type: ["string", "null"],
+						description:
+							"ISO 8601 time of the last success. `null` when it has never succeeded, so every dead event counts.",
+					},
+					count: { type: "integer", description: "Dead events since then." },
+				},
+			},
+		},
+		example: EXAMPLE_REPLAY_RANGES,
+	},
+	RequeueDeadRequest: {
+		type: "object",
+		description:
+			"Narrows which dead events requeue. An empty object requeues them all.",
+		properties: {
+			replayId: {
+				type: "string",
+				pattern: "^[0-9a-f]{16}$",
+				description: "Only dead events created by this replay.",
+			},
+			since: {
+				type: "string",
+				format: "date-time",
+				description: "Only dead events that failed at or after this time.",
+			},
+		},
+		example: { replayId: "a41f09c3d27e8b65" },
 	},
 	WebhookTestResult: {
 		type: "object",

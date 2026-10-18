@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { getDb } from "@secondlayer/shared/db";
 import type { InsertWebhookOutbox } from "@secondlayer/shared/db";
-import { __setReplayInFlightForTest } from "@secondlayer/subgraphs/runtime/replay";
+import { createWebhook } from "@secondlayer/shared/db/queries/webhooks";
 import { Hono } from "hono";
 import webhooksRouter, {
 	percentileNearestRank,
@@ -283,7 +283,17 @@ describe.skipIf(SKIP)("Webhooks API validation", () => {
 		});
 		const body = (await created.json()) as { webhook: { id: string } };
 
-		__setReplayInFlightForTest(body.webhook.id, true);
+		const db = getDb();
+		await db
+			.insertInto("webhook_replays")
+			.values({
+				id: "0123456789abcdef",
+				webhook_id: body.webhook.id,
+				from_block: 0,
+				to_block: 10,
+				status: "scanning",
+			})
+			.execute();
 		try {
 			const res = await app.request(`/webhooks/${body.webhook.id}/replay`, {
 				method: "POST",
@@ -294,7 +304,10 @@ describe.skipIf(SKIP)("Webhooks API validation", () => {
 				error: "replay already in progress for this webhook",
 			});
 		} finally {
-			__setReplayInFlightForTest(body.webhook.id, false);
+			await db
+				.deleteFrom("webhook_replays")
+				.where("webhook_id", "=", body.webhook.id)
+				.execute();
 		}
 	});
 
@@ -332,11 +345,304 @@ describe.skipIf(SKIP)("Webhooks API validation", () => {
 			});
 			expect(JSON.stringify(responseBody)).not.toContain("ECONNREFUSED");
 			expect(JSON.stringify(responseBody)).not.toContain("fetch");
+			const record = await getDb()
+				.selectFrom("webhook_replays")
+				.select(["status", "error"])
+				.where("webhook_id", "=", body.webhook.id)
+				.executeTakeFirstOrThrow();
+			expect(record.status).toBe("failed");
+			expect(record.error).toBeTruthy();
 		} finally {
 			if (previousIndexUrl === undefined) {
 				delete process.env.SUBGRAPH_INDEX_API_URL;
 			} else {
 				process.env.SUBGRAPH_INDEX_API_URL = previousIndexUrl;
+			}
+		}
+	});
+
+	test("a replay's progress reads running while rows wait, then done with delivered and gave-up counts", async () => {
+		const webhookId = await createTestWebhook("replay-progress");
+		const db = getDb();
+		const replayId = "1111111111111111";
+		await db
+			.insertInto("webhook_replays")
+			.values({
+				id: replayId,
+				webhook_id: webhookId,
+				from_block: 10,
+				to_block: 20,
+				status: "running",
+				scanned_count: 3,
+				enqueued_count: 3,
+			})
+			.execute();
+		await db
+			.insertInto("webhook_outbox")
+			.values(
+				["a", "b", "c"].map((k) =>
+					outboxRow({
+						webhook_id: webhookId,
+						dedup_key: `replay-progress-${k}`,
+						replay_id: replayId,
+						is_replay: true,
+					}),
+				),
+			)
+			.execute();
+
+		const running = await app.request(
+			`/webhooks/${webhookId}/replays/${replayId}`,
+		);
+		expect(running.status).toBe(200);
+		expect(await running.json()).toMatchObject({
+			replayId,
+			status: "running",
+			total: 3,
+			processed: 0,
+			pending: 3,
+			delivered: null,
+			gaveUp: null,
+		});
+
+		await db
+			.updateTable("webhook_outbox")
+			.set({ status: "delivered", delivered_at: new Date() })
+			.where("webhook_id", "=", webhookId)
+			.where("dedup_key", "in", ["replay-progress-a", "replay-progress-b"])
+			.execute();
+		await db
+			.updateTable("webhook_outbox")
+			.set({ status: "dead", failed_at: new Date() })
+			.where("webhook_id", "=", webhookId)
+			.where("dedup_key", "=", "replay-progress-c")
+			.execute();
+
+		const done = await app.request(
+			`/webhooks/${webhookId}/replays/${replayId}`,
+		);
+		expect(await done.json()).toMatchObject({
+			status: "done",
+			total: 3,
+			processed: 3,
+			pending: 0,
+			delivered: 2,
+			gaveUp: 1,
+		});
+
+		const missing = await app.request(
+			`/webhooks/${webhookId}/replays/2222222222222222`,
+		);
+		expect(missing.status).toBe(404);
+	});
+
+	test("GET /webhooks/replays lists only this account's webhooks' replays", async () => {
+		const mine = await createTestWebhook("replays-mine");
+		const otherAccount = "a5e10000-0000-4000-8000-00000000000a";
+		const db = getDb();
+		await db
+			.insertInto("accounts")
+			.values({ id: otherAccount, email: `${otherAccount}@test.local` })
+			.onConflict((oc) => oc.column("id").doNothing())
+			.execute();
+		const { webhook: theirs } = await createWebhook(db, {
+			accountId: otherAccount,
+			name: "replays-theirs",
+			triggers: [{ type: "stx_transfer" }],
+			url: "https://example.com/webhook",
+		});
+		try {
+			await db
+				.insertInto("webhook_replays")
+				.values([
+					{
+						id: "3333333333333333",
+						webhook_id: mine,
+						from_block: 1,
+						to_block: 2,
+						status: "failed",
+					},
+					{
+						id: "4444444444444444",
+						webhook_id: theirs.id,
+						from_block: 1,
+						to_block: 2,
+						status: "failed",
+					},
+				])
+				.execute();
+
+			const res = await app.request("/webhooks/replays");
+			expect(res.status).toBe(200);
+			const body = (await res.json()) as { data: { replayId: string }[] };
+			const ids = body.data.map((r) => r.replayId);
+			expect(ids).toContain("3333333333333333");
+			expect(ids).not.toContain("4444444444444444");
+		} finally {
+			await db.deleteFrom("webhooks").where("id", "=", theirs.id).execute();
+			await db.deleteFrom("accounts").where("id", "=", otherAccount).execute();
+		}
+	});
+
+	test("bulk requeue puts dead rows back, narrowed by replay, and re-opens that replay", async () => {
+		const webhookId = await createTestWebhook("bulk-requeue");
+		const db = getDb();
+		const replayId = "5555555555555555";
+		await db
+			.insertInto("webhook_replays")
+			.values({
+				id: replayId,
+				webhook_id: webhookId,
+				from_block: 1,
+				to_block: 2,
+				status: "done",
+				enqueued_count: 2,
+				total: 2,
+				delivered: 1,
+				gave_up: 1,
+				finished_at: new Date(),
+			})
+			.execute();
+		const failedAt = new Date();
+		await db
+			.insertInto("webhook_outbox")
+			.values([
+				outboxRow({
+					webhook_id: webhookId,
+					dedup_key: "bulk-replay-dead",
+					status: "dead",
+					failed_at: failedAt,
+					attempt: 7,
+					is_replay: true,
+					replay_id: replayId,
+				}),
+				outboxRow({
+					webhook_id: webhookId,
+					dedup_key: "bulk-live-dead",
+					status: "dead",
+					failed_at: failedAt,
+					attempt: 7,
+				}),
+			])
+			.execute();
+
+		const byReplay = await app.request(`/webhooks/${webhookId}/dead/requeue`, {
+			method: "POST",
+			body: JSON.stringify({ replayId }),
+		});
+		expect(byReplay.status).toBe(200);
+		expect(await byReplay.json()).toEqual({ requeued: 1 });
+
+		const statuses = async () =>
+			Object.fromEntries(
+				(
+					await db
+						.selectFrom("webhook_outbox")
+						.select(["dedup_key", "status", "attempt", "is_replay"])
+						.where("webhook_id", "=", webhookId)
+						.execute()
+				).map((r) => [r.dedup_key, r]),
+			);
+		let rows = await statuses();
+		expect(rows["bulk-replay-dead"]).toMatchObject({
+			status: "pending",
+			attempt: 0,
+			is_replay: false,
+		});
+		expect(rows["bulk-live-dead"]?.status).toBe("dead");
+
+		const record = await db
+			.selectFrom("webhook_replays")
+			.selectAll()
+			.where("id", "=", replayId)
+			.executeTakeFirstOrThrow();
+		expect(record).toMatchObject({
+			status: "running",
+			total: 2,
+			delivered: null,
+			gave_up: null,
+			finished_at: null,
+		});
+
+		const all = await app.request(`/webhooks/${webhookId}/dead/requeue`, {
+			method: "POST",
+			body: JSON.stringify({}),
+		});
+		expect(await all.json()).toEqual({ requeued: 1 });
+		rows = await statuses();
+		expect(rows["bulk-live-dead"]?.status).toBe("pending");
+
+		const bad = await app.request(`/webhooks/${webhookId}/dead/requeue`, {
+			method: "POST",
+			body: JSON.stringify({ replayId: "not-hex" }),
+		});
+		expect(bad.status).toBe(400);
+	});
+
+	test("a webhook's replays come with range presets off the evaluated tip and its dead count", async () => {
+		const webhookId = await createTestWebhook("replay-ranges");
+		const db = getDb();
+		const previous = await db
+			.selectFrom("trigger_evaluator_state")
+			.select("last_processed_block")
+			.executeTakeFirst();
+		await db
+			.insertInto("trigger_evaluator_state")
+			.values({ last_processed_block: 5_000 })
+			.onConflict((oc) =>
+				oc.column("id").doUpdateSet({ last_processed_block: 5_000 }),
+			)
+			.execute();
+		try {
+			await db
+				.insertInto("webhook_outbox")
+				.values([
+					outboxRow({
+						webhook_id: webhookId,
+						dedup_key: "ranges-recent",
+						block_height: 4_990,
+						status: "dead",
+						failed_at: new Date(),
+					}),
+					outboxRow({
+						webhook_id: webhookId,
+						dedup_key: "ranges-old",
+						block_height: 100,
+					}),
+				])
+				.execute();
+
+			const res = await app.request(`/webhooks/${webhookId}/replays`);
+			expect(res.status).toBe(200);
+			const body = (await res.json()) as {
+				data: unknown[];
+				ranges: {
+					tip: number;
+					presets: {
+						blocks: number;
+						fromBlock: number;
+						toBlock: number;
+						knownEvents: number;
+					}[];
+					deadSinceFailing: { since: string | null; count: number };
+				};
+			};
+			expect(body.data).toEqual([]);
+			expect(body.ranges.tip).toBe(5_000);
+			expect(body.ranges.presets).toEqual([
+				{ blocks: 100, fromBlock: 4_901, toBlock: 5_000, knownEvents: 1 },
+				{ blocks: 1000, fromBlock: 4_001, toBlock: 5_000, knownEvents: 1 },
+				{ blocks: 10000, fromBlock: 0, toBlock: 5_000, knownEvents: 2 },
+			]);
+			expect(body.ranges.deadSinceFailing).toEqual({ since: null, count: 1 });
+		} finally {
+			if (previous) {
+				await db
+					.updateTable("trigger_evaluator_state")
+					.set({ last_processed_block: previous.last_processed_block })
+					.execute();
+			} else {
+				await db.deleteFrom("trigger_evaluator_state").execute();
 			}
 		}
 	});
