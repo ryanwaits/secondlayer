@@ -423,6 +423,8 @@ One mechanism owns the page: **scroll-position opacity**.
 **The One-Motion Rule.** If a proposed animation is not the scroll-opacity mechanism, a hover
 color shift, or the header retract, it does not ship on brand surfaces.
 
+**Mobile account exception (≤640px, `/account` only).** Direct manipulation follows the finger: swipe rows, sheet drags, the edge-swipe back. A sheet slides up once when it opens (never again on re-render), a pushed screen slides in, a status pill pops in when it appears. Nothing else moves. Under `prefers-reduced-motion` all of it is instant; the finger-following drag stays because it is input, not animation.
+
 ## 6. Components
 
 ### Logo
@@ -559,6 +561,10 @@ its row in `soft` (a lit reference), until the next click.
 newest first, one row per item: title (500), page (`sub`), "from <heading>" (`faint`), and a ×
 to remove. A row opens its page and leaves a Back to the heading you were under. `Esc` or an
 outside click closes the list. The bar is hidden when it has neither a Back nor any Saved.
+
+### Mobile shell (≤640px)
+
+Same `/account` routes; the layout is chosen by width (`useCompact()`, `(max-width: 640px)`), never by user agent. Bottom tab bar: Pulse · Insights · Webhooks · Subgraphs · Account. Large title 30px/500 with the status pill on its row; detail pages swap it for a blue back link. Badges: red = failing count (Webhooks), yellow = new (Insights). The desktop top bar, footer and chain pill are hidden. Installable: manifest scope `/account`.
 
 ### Chain status (bottom-right pill)
 `<ChainStatus />` (`components/site/chain-status.tsx`), fixed bottom-right on every site and
