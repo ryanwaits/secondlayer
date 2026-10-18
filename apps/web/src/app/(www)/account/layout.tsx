@@ -1,5 +1,6 @@
 "use client";
 
+import { MobileShell } from "@/components/mobile/mobile-shell";
 import { useAuth } from "@/lib/auth";
 import { warmDashboard } from "@/lib/dashboard-warm";
 import { startInsightsPolling } from "@/lib/insights-store";
@@ -11,7 +12,9 @@ import { useEffect, useRef } from "react";
  * view's CLI command live in the top bar (MarketingNav renders them on
  * /account), and Keys lives in the account menu. The
  * keys and credits flows also open as sheets from that menu; these pages are
- * the home for them, and where Stripe returns a top-up.
+ * the home for them, and where Stripe returns a top-up. On phones (≤640px)
+ * the bottom tab bar and large-title header replace the top bar (globals.css
+ * hides it).
  */
 export default function AccountLayout({
 	children,
@@ -71,7 +74,9 @@ export default function AccountLayout({
 
 	return (
 		<div className="acct-page">
-			<main className="acct-main">{children}</main>
+			<MobileShell>
+				<main className="acct-main">{children}</main>
+			</MobileShell>
 		</div>
 	);
 }

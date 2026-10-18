@@ -45,6 +45,7 @@ import {
 } from "@/components/dashboard/shell/status-sentence";
 import { ViewCommand } from "@/components/dashboard/shell/view-command";
 import { Callout } from "@/components/docs/callout";
+import { MobileHeader, MobileTabBar } from "@/components/mobile/mobile-shell";
 import { ButtonLink, Eyebrow, StatusDot } from "@/components/site";
 import { ChainStatusView } from "@/components/site/chain-status";
 import { type ChainTip, EMPTY_TIP } from "@/lib/chain-tip";
@@ -378,6 +379,46 @@ const insightFor = (rule: string) => {
 };
 
 const STORY_BLOCK_GAPS = [8, 11, 7, 9, 14, 8, 6, 9, 10, 8, 7, 12, 9, 8, 9, 10];
+
+/** A 390px phone frame showing the mobile header and tab bar in place. */
+function MobileFrame({
+	pathname,
+	failingWebhooks,
+	newInsights,
+}: {
+	pathname: string;
+	failingWebhooks?: number;
+	newInsights?: number;
+}) {
+	return (
+		<div
+			className="m-lab"
+			style={{
+				width: 390,
+				height: 720,
+				border: "1px solid var(--line)",
+				borderRadius: 8,
+				overflow: "hidden",
+				position: "relative",
+				background: "var(--paper)",
+				color: "var(--ink)",
+			}}
+		>
+			{/* The shell hides itself above 640px; the frame shows it at any width. */}
+			<style>
+				{
+					".m-lab .m-head{display:block}.m-lab .m-head.is-back{display:flex}.m-lab .m-tabbar{display:grid;position:absolute}"
+				}
+			</style>
+			<MobileHeader pathname={pathname} />
+			<MobileTabBar
+				pathname={pathname}
+				failingWebhooks={failingWebhooks}
+				newInsights={newInsights}
+			/>
+		</div>
+	);
+}
 
 const META: Record<StoryId, Meta> = {
 	color: {
@@ -1100,6 +1141,39 @@ const META: Record<StoryId, Meta> = {
 		usage: `<DashboardTabs pathname={pathname} failingWebhooks={1} />
 <ViewCommand command={commandForPath(pathname)} />`,
 		donts: ["Rows change text color on hover, never background."],
+	},
+	"mobile-shell": {
+		src: [
+			"apps/web/src/components/mobile/mobile-shell.tsx",
+			"apps/web/src/components/mobile/tab-icons.tsx",
+		],
+		rule: "On a phone, /account swaps the top bar for a large title and a five-tab bar; the same routes, chosen by width.",
+		variants: [
+			{
+				id: "pulse",
+				label: "Pulse",
+				render: () => (
+					<MobileFrame
+						pathname="/account"
+						failingWebhooks={1}
+						newInsights={2}
+					/>
+				),
+			},
+			{
+				id: "detail",
+				label: "Detail",
+				render: () => <MobileFrame pathname="/account/webhooks/wh_1" />,
+			},
+			{
+				id: "account",
+				label: "Account",
+				render: () => <MobileFrame pathname="/account/keys" />,
+			},
+		],
+		usage: `<MobileHeader pathname={pathname} />
+<MobileTabBar pathname={pathname} failingWebhooks={1} newInsights={2} />`,
+		donts: ["No user-agent sniffing; the layout follows viewport width."],
 	},
 	"chain-status": {
 		src: ["apps/web/src/components/site/chain-status.tsx"],

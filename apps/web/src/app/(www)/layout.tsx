@@ -20,7 +20,10 @@ export default function WwwLayout({ children }: { children: ReactNode }) {
 				position="bottom-right"
 				// Above the chain status pill (34px + 16px inset + a gap).
 				offset={{ bottom: 64, right: 16 }}
-				mobileOffset={{ bottom: 64, right: 16 }}
+				// On phones toasts also clear the account tab bar (sonner's mobile
+				// offset applies under 600px; marketing phones have only the chain
+				// pill, so 84 is safe there too).
+				mobileOffset={{ bottom: 84, right: 16 }}
 				toastOptions={{
 					unstyled: true,
 					classNames: {

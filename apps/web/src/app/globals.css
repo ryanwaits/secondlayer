@@ -8589,3 +8589,115 @@ button.sg-sort:focus-visible {
 .sg-empty > * {
 	min-width: 0;
 }
+
+/* Mobile account (≤640px): bottom tabs, large titles. Plans 297–309. */
+/* Looks are set at every width so the Lab can frame them; only `display` is gated by the media query. */
+.m-head,
+.m-tabbar {
+	display: none;
+}
+.m-head {
+	padding: 8px 20px 10px;
+}
+.m-head-row {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 8px;
+	min-width: 0;
+}
+.m-title {
+	margin: 0;
+	font-size: 30px;
+	font-weight: 500;
+	letter-spacing: -0.025em;
+	line-height: 1.1;
+}
+.m-head.is-back {
+	align-items: center;
+	justify-content: space-between;
+	height: 44px;
+	padding: 0 12px;
+}
+.m-back {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	color: var(--pri-ink);
+	font-size: 15px;
+	height: 36px;
+}
+.m-tabbar {
+	grid-template-columns: repeat(5, 1fr);
+	position: fixed;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	z-index: 40;
+	background: var(--paper);
+	border-top: 1px solid var(--line);
+	padding: 6px max(4px, env(safe-area-inset-right, 0px))
+		calc(6px + env(safe-area-inset-bottom, 0px))
+		max(4px, env(safe-area-inset-left, 0px));
+}
+.m-tab {
+	display: grid;
+	justify-items: center;
+	gap: 3px;
+	font-size: 10.5px;
+	color: var(--faint);
+	position: relative;
+	padding-top: 2px;
+	min-height: 44px;
+}
+.m-tab[aria-current="page"] {
+	color: var(--pri-ink);
+}
+.m-tab svg {
+	width: 22px;
+	height: 22px;
+}
+.m-badge {
+	position: absolute;
+	top: -2px;
+	left: calc(50% + 6px);
+	min-width: 16px;
+	height: 16px;
+	padding: 0 4px;
+	border-radius: 999px;
+	font: 500 10px / 16px var(--font-sans-stack);
+	text-align: center;
+	font-variant-numeric: tabular-nums;
+}
+.m-badge.is-bad {
+	background: var(--alarm);
+	color: #fff;
+}
+.m-badge.is-new {
+	background: var(--hi);
+	color: var(--on-hi);
+}
+@media (max-width: 640px) {
+	.www:has(.acct-page) .marketing-nav.is-dash,
+	.www:has(.acct-page) .site-footer,
+	.www:has(.acct-page) .chain-status {
+		display: none;
+	}
+	.acct-page {
+		padding: env(safe-area-inset-top, 0px) 0 0;
+		padding-left: max(0px, env(safe-area-inset-left, 0px));
+		padding-right: max(0px, env(safe-area-inset-right, 0px));
+	}
+	.acct-main {
+		padding-bottom: calc(76px + env(safe-area-inset-bottom, 0px));
+	}
+	.m-head {
+		display: block;
+	}
+	.m-head.is-back {
+		display: flex;
+	}
+	.m-tabbar {
+		display: grid;
+	}
+}
