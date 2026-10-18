@@ -19,17 +19,22 @@ export async function sendMagicLink(
 	const verifyUrl = `${webUrl}/auth/verify?token=${token}`;
 
 	const { html, text } = renderEmail({
-		heading: "Your login code",
-		paragraphs: ["Or click below to sign in directly:"],
+		heading: "Your sign-in code",
+		preheader: "Expires in 15 minutes.",
+		paragraphs: [
+			"Enter this code where you started signing in, or use the button.",
+		],
 		code,
+		status: { tone: "neutral", text: "Expires in 15 minutes" },
 		cta: { label: "Sign in to secondlayer", url: verifyUrl },
 		footnote:
-			"This expires in 15 minutes. If you didn't request this, you can safely ignore this email.",
+			"Didn't ask to sign in? Ignore this email. Nobody gets in without this code or link.",
 	});
 
+	// Code first so it reads from the notification without opening the email.
 	await sendEmail({
 		to: email,
-		subject: "Your secondlayer login code",
+		subject: `${code} is your secondlayer sign-in code`,
 		html,
 		text,
 	});
