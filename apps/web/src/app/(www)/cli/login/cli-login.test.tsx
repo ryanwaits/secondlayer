@@ -94,6 +94,39 @@ describe("CliLoginCard", () => {
 		expect(html).toContain("WDJB-MJHT");
 	});
 
+	test("sentinel review states the balance Sentinel can use", async () => {
+		const view = {
+			kind: "review",
+			clientName: "ryans-macbook",
+			product: "sentinel",
+		} as const;
+		const html = await renderAsync(
+			<CliLoginCard {...props} view={view} balance="$12.50" />,
+		);
+		expect(html).toContain(
+			"Sentinel can use this account&#x27;s balance (now $12.50) for monitoring and checks.",
+		);
+		const loading = await renderAsync(
+			<CliLoginCard {...props} view={view} balance={null} />,
+		);
+		expect(loading).toContain(
+			"Sentinel can use this account&#x27;s balance for monitoring and checks.",
+		);
+		expect(loading).not.toContain("(now");
+	});
+
+	test("plain review never mentions the balance", async () => {
+		const html = await renderAsync(
+			<CliLoginCard
+				{...props}
+				view={{ kind: "review", clientName: "ryans-macbook" }}
+				balance="$12.50"
+			/>,
+		);
+		expect(html).not.toContain("balance");
+		expect(html).not.toContain("$12.50");
+	});
+
 	test("sentinel cancelled and expired name Sentinel", async () => {
 		const cancelled = await renderAsync(
 			<CliLoginCard

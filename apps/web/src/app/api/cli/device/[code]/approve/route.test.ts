@@ -39,6 +39,36 @@ describe("CLI approve route", () => {
 		).toBe(true);
 	});
 
+	test("a Sentinel approval is one upstream call: the API links in the same transaction", async () => {
+		const calls: { url: string; method?: string }[] = [];
+		globalThis.fetch = (async (url: string, init?: RequestInit) => {
+			calls.push({ url: String(url), method: init?.method });
+			return new Response(JSON.stringify({ status: "approved" }), {
+				status: 200,
+			});
+		}) as typeof fetch;
+		const { POST } = await import("./route");
+		const res = await POST(req(), params);
+		expect(res.status).toBe(200);
+		expect(calls).toHaveLength(1);
+		expect(calls[0].url.endsWith("/api/cli/device/NCQQ-ZGWX/approve")).toBe(
+			true,
+		);
+		expect(calls[0].method).toBe("POST");
+		expect(calls.some((c) => c.url.includes("/internal/sentinel"))).toBe(false);
+	});
+
+	test("an upstream failure is passed through, not reported as approved", async () => {
+		globalThis.fetch = (async () =>
+			new Response(JSON.stringify({ error: "Internal error" }), {
+				status: 500,
+			})) as unknown as typeof fetch;
+		const { POST } = await import("./route");
+		const res = await POST(req(), params);
+		expect(res.status).toBe(500);
+		expect(await res.json()).not.toEqual({ status: "approved" });
+	});
+
 	test("no session cookie is 401 and calls nothing", async () => {
 		const urls: string[] = [];
 		globalThis.fetch = (async (url: string) => {

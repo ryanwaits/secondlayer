@@ -1,6 +1,9 @@
+import { linkSentinelAccount } from "@secondlayer/platform/db/queries/accounts";
 import { getDb, sql } from "@secondlayer/shared/db";
+import type { CliDeviceProduct, Database } from "@secondlayer/shared/db/schema";
 import { AuthorizationError, NotFoundError } from "@secondlayer/shared/errors";
 import { Hono } from "hono";
+import type { Transaction } from "kysely";
 import { z } from "zod";
 import { getClientIp } from "../auth/http.ts";
 import { generateSessionToken, hashToken } from "../auth/keys.ts";
@@ -198,19 +201,31 @@ app.get("/:userCode", requireAuth(), async (c) => {
 	});
 });
 
+/**
+ * Answer a pending attempt. `then` runs in the same transaction as the
+ * answer, so its writes land only if the answer does.
+ */
 async function settle(
 	userCode: string,
 	set: Record<string, unknown>,
+	then?: (
+		trx: Transaction<Database>,
+		row: { product: CliDeviceProduct | null },
+	) => Promise<void>,
 ): Promise<boolean> {
 	const db = getDb();
-	const updated = await db
-		.updateTable("cli_device_logins")
-		.set(set)
-		.where("user_code", "=", userCode)
-		.where("status", "=", "pending")
-		.where("expires_at", ">", sql<Date>`now()`)
-		.returning("id")
-		.executeTakeFirst();
+	const updated = await db.transaction().execute(async (trx) => {
+		const row = await trx
+			.updateTable("cli_device_logins")
+			.set(set)
+			.where("user_code", "=", userCode)
+			.where("status", "=", "pending")
+			.where("expires_at", ">", sql<Date>`now()`)
+			.returning(["id", "product"])
+			.executeTakeFirst();
+		if (row && then) await then(trx, row);
+		return row;
+	});
 	if (updated) return true;
 	const exists = await db
 		.selectFrom("cli_device_logins")
@@ -224,11 +239,17 @@ async function settle(
 
 app.post("/:userCode/approve", requireAuth(), async (c) => {
 	const accountId = requireSession(c);
-	const ok = await settle(parseUserCode(c.req.param("userCode")), {
-		status: "approved",
-		account_id: accountId,
-		approved_at: new Date(),
-	});
+	const ok = await settle(
+		parseUserCode(c.req.param("userCode")),
+		{ status: "approved", account_id: accountId, approved_at: new Date() },
+		// Approving a Sentinel sign-in is the owner's consent for Sentinel to
+		// use this account (and its balance). Kept if already linked.
+		async (trx, row) => {
+			if (row.product === "sentinel") {
+				await linkSentinelAccount(trx, accountId, "consent");
+			}
+		},
+	);
 	if (!ok) {
 		return c.json({ error: "Already answered", code: "CONFLICT" }, 409);
 	}

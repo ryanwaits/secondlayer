@@ -6,7 +6,7 @@ import {
 	expect,
 	test,
 } from "bun:test";
-import { getDb } from "@secondlayer/shared/db";
+import { getDb, sql } from "@secondlayer/shared/db";
 import { generateSessionToken, hashToken } from "../auth/keys.ts";
 import { getRateLimitStore } from "../auth/rate-limit-store.ts";
 import { createApiApp } from "../create-app.ts";
@@ -246,6 +246,106 @@ describe.skipIf(!HAS_DB)("CLI device login", () => {
 		expect(me.status).toBe(200);
 
 		expect((await poll(d.deviceCode)).status).toBe(410);
+	});
+
+	const linkOf = (accountId: string) =>
+		db
+			.selectFrom("sentinel_accounts")
+			.select("via")
+			.where("account_id", "=", accountId)
+			.executeTakeFirst();
+
+	test("approving a Sentinel sign-in links the account by consent; a plain one does not", async () => {
+		const account = await makeAccount();
+		const session = await makeSession(account.id);
+
+		const plain = await start();
+		expect(
+			(await post(`/api/cli/device/${plain.userCode}/approve`, {}, session))
+				.status,
+		).toBe(200);
+		expect(await linkOf(account.id)).toBeUndefined();
+
+		const d = await start("ryans-macbook", "sentinel");
+		expect(
+			(await post(`/api/cli/device/${d.userCode}/approve`, {}, session)).status,
+		).toBe(200);
+		expect(await linkOf(account.id)).toEqual({ via: "consent" });
+		expect((await poll(d.deviceCode)).status).toBe(200);
+	});
+
+	test("denying a Sentinel sign-in links nothing", async () => {
+		const account = await makeAccount();
+		const session = await makeSession(account.id);
+		const d = await start("ryans-macbook", "sentinel");
+		expect(
+			(await post(`/api/cli/device/${d.userCode}/deny`, {}, session)).status,
+		).toBe(200);
+		expect(await linkOf(account.id)).toBeUndefined();
+	});
+
+	test("an already-linked account approves again and keeps its link", async () => {
+		const account = await makeAccount();
+		const session = await makeSession(account.id);
+		await db
+			.insertInto("sentinel_accounts")
+			.values({ account_id: account.id, via: "created" })
+			.execute();
+		for (let i = 0; i < 2; i++) {
+			const d = await start("ryans-macbook", "sentinel");
+			expect(
+				(await post(`/api/cli/device/${d.userCode}/approve`, {}, session))
+					.status,
+			).toBe(200);
+		}
+		expect(await linkOf(account.id)).toEqual({ via: "created" });
+		const n = await db
+			.selectFrom("sentinel_accounts")
+			.select((eb) => eb.fn.countAll<string>().as("n"))
+			.where("account_id", "=", account.id)
+			.executeTakeFirstOrThrow();
+		expect(Number(n.n)).toBe(1);
+	});
+
+	test("the link shares the approval's transaction: a failed link leaves the code pending", async () => {
+		const account = await makeAccount();
+		const session = await makeSession(account.id);
+		const d = await start("ryans-macbook", "sentinel");
+		// Fail the link insert for this one account only.
+		const fn = `cli_device_test_fail_${account.id.replace(/-/g, "")}`;
+		await sql
+			.raw(
+				`CREATE FUNCTION ${fn}() RETURNS trigger LANGUAGE plpgsql AS $$
+				BEGIN
+					IF NEW.account_id = '${account.id}' THEN RAISE EXCEPTION 'link failed'; END IF;
+					RETURN NEW;
+				END $$;
+				CREATE TRIGGER ${fn} BEFORE INSERT ON sentinel_accounts
+					FOR EACH ROW EXECUTE FUNCTION ${fn}();`,
+			)
+			.execute(db);
+		try {
+			const res = await post(
+				`/api/cli/device/${d.userCode}/approve`,
+				{},
+				session,
+			);
+			expect(res.status).toBe(500);
+		} finally {
+			await sql
+				.raw(
+					`DROP TRIGGER IF EXISTS ${fn} ON sentinel_accounts; DROP FUNCTION IF EXISTS ${fn}();`,
+				)
+				.execute(db);
+		}
+		const row = await db
+			.selectFrom("cli_device_logins")
+			.select(["status", "account_id"])
+			.where("user_code", "=", d.userCode)
+			.executeTakeFirstOrThrow();
+		expect(row).toEqual({ status: "pending", account_id: null });
+		expect(await linkOf(account.id)).toBeUndefined();
+		expect((await poll(d.deviceCode)).status).toBe(428);
 	});
 
 	test("deny makes the next poll 403", async () => {
