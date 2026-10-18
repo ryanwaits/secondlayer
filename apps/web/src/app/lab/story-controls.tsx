@@ -44,6 +44,9 @@ import {
 	PlaceholderRows,
 } from "@/components/dashboard/shell/onboarding";
 import { Logo } from "@/components/logo";
+import { HoldButton } from "@/components/mobile/hold-button";
+import { Sheet } from "@/components/mobile/sheet";
+import { SwipeGroup, SwipeRow } from "@/components/mobile/swipe-row";
 import type { RowsDay, RowsResponse } from "@/lib/rows";
 import {
 	DEFAULT_SORT,
@@ -64,6 +67,7 @@ import {
 	useRef,
 	useState,
 } from "react";
+import { Toaster, toast } from "sonner";
 import type { NavItem } from "./tree";
 
 const DESIGN_URL =
@@ -967,5 +971,150 @@ export function BillingDemo({ state }: { state: BillingDemoState }) {
 				/>
 			}
 		/>
+	);
+}
+
+/** Lab-only toast host: the Lab sits outside (www), which mounts the app's one Toaster. */
+function LabToaster() {
+	return (
+		<Toaster
+			position="bottom-center"
+			toastOptions={{
+				unstyled: true,
+				classNames: { toast: "wh-toast", title: "wh-toast-title" },
+			}}
+		/>
+	);
+}
+
+const LONG_ERROR =
+	"POST https://hooks.example.com/stacks/ingest/very/long/path/that/keeps/going -> 500 Internal Server Error: upstream connect error or disconnect/reset before headers. reset reason: connection termination";
+
+/** Opens a `Sheet` from a button; `detents` picks the auto or the half/full variant. */
+export function SheetDemo({ variant }: { variant: "auto" | "detents" }) {
+	const [open, setOpen] = useState(false);
+	return (
+		<div style={{ display: "grid", gap: 12, padding: 16 }}>
+			<button
+				type="button"
+				className="btn"
+				onClick={() => setOpen(true)}
+				style={{ justifySelf: "start" }}
+			>
+				Open sheet
+			</button>
+			<Sheet
+				open={open}
+				onClose={() => setOpen(false)}
+				eyebrow="Webhook · ci-runner"
+				title={variant === "auto" ? "Delivery paused" : "Delivery failed"}
+				detents={variant === "auto" ? "auto" : ["half", "full"]}
+			>
+				{variant === "auto" ? (
+					<p style={{ margin: 0, color: "var(--sub)", fontSize: 14 }}>
+						Deliveries resume when you replay them.
+					</p>
+				) : (
+					<>
+						<pre
+							style={{
+								margin: 0,
+								padding: "10px 12px",
+								border: "1px solid var(--line)",
+								borderRadius: 8,
+								font: "12px/1.55 var(--font-mono-stack)",
+								whiteSpace: "pre-wrap",
+								wordBreak: "break-word",
+								color: "var(--alarm)",
+							}}
+						>
+							{LONG_ERROR}
+						</pre>
+						{[1, 2, 3, 4, 5, 6].map((n) => (
+							<p
+								key={n}
+								style={{ margin: 0, color: "var(--sub)", fontSize: 14 }}
+							>
+								Attempt {n} of 6 failed with the same response.
+							</p>
+						))}
+					</>
+				)}
+			</Sheet>
+			<LabToaster />
+		</div>
+	);
+}
+
+/** Three swipe rows in one group: two with Pause and Replay, one with a lone Revoke. */
+export function SwipeRowDemo() {
+	const rows = [
+		{ id: "a", name: "ci-runner", two: true },
+		{ id: "b", name: "mainnet-prod", two: true },
+		{ id: "c", name: "staging-read", two: false },
+	];
+	return (
+		<div style={{ padding: 16 }}>
+			<div
+				style={{
+					border: "1px solid var(--line)",
+					borderRadius: 8,
+					overflow: "hidden",
+				}}
+			>
+				<SwipeGroup>
+					{rows.map((row) => (
+						<SwipeRow
+							key={row.id}
+							id={row.id}
+							onTap={() => toast(`Opened ${row.name}`)}
+							actions={
+								row.two
+									? [
+											{
+												label: "Pause",
+												tone: "neutral",
+												onAction: () => toast(`Paused ${row.name}`),
+											},
+											{
+												label: "Replay",
+												tone: "pri",
+												onAction: () => toast(`Replaying ${row.name}`),
+											},
+										]
+									: [
+											{
+												label: "Revoke",
+												tone: "alarm",
+												onAction: () => toast(`Revoked ${row.name}`),
+											},
+										]
+							}
+						>
+							<div style={{ padding: 12, borderTop: "1px solid var(--line)" }}>
+								<div style={{ fontSize: 14, fontWeight: 500 }}>{row.name}</div>
+								<div style={{ fontSize: 13, color: "var(--sub)" }}>
+									Last delivery 2m ago
+								</div>
+							</div>
+						</SwipeRow>
+					))}
+				</SwipeGroup>
+			</div>
+			<LabToaster />
+		</div>
+	);
+}
+
+/** One `HoldButton` that toasts when the hold completes. */
+export function HoldButtonDemo() {
+	return (
+		<div style={{ padding: 16 }}>
+			<HoldButton
+				label="Hold to revoke ci-runner"
+				onConfirm={() => toast("Revoked ci-runner.")}
+			/>
+			<LabToaster />
+		</div>
 	);
 }

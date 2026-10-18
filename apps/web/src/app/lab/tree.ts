@@ -40,6 +40,9 @@ export const STORY_INDEX = [
 	{ id: "callout", group: "Content", title: "Callout" },
 	{ id: "subgraph-grid", group: "Content", title: "Subgraph grid" },
 	{ id: "eyebrow-facts", group: "Content", title: "Eyebrow, facts, status" },
+	{ id: "mobile-sheet", group: "Mobile", title: "Sheet" },
+	{ id: "mobile-swipe-row", group: "Mobile", title: "Swipe row" },
+	{ id: "mobile-hold-button", group: "Mobile", title: "Hold to confirm" },
 ] as const;
 
 export type StoryId = (typeof STORY_INDEX)[number]["id"];

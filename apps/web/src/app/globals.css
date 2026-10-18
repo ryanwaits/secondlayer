@@ -8701,3 +8701,218 @@ button.sg-sort:focus-visible {
 		display: grid;
 	}
 }
+
+/* Phone primitives: sheet, swipe row, hold button. Looks at every width; the Lab frames them. */
+.m-sr {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	margin: -1px;
+	padding: 0;
+	overflow: hidden;
+	clip: rect(0 0 0 0);
+	white-space: nowrap;
+	border: 0;
+}
+.m-scrim {
+	position: fixed;
+	inset: 0;
+	z-index: 60;
+	background: rgba(17, 17, 17, 0.28);
+	animation: m-fade 0.2s;
+}
+@media (prefers-color-scheme: dark) {
+	:root:not([data-theme="light"]) .m-scrim {
+		background: rgba(0, 0, 0, 0.5);
+	}
+}
+:root[data-theme="dark"] .m-scrim {
+	background: rgba(0, 0, 0, 0.5);
+}
+.m-sheet {
+	position: fixed;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	z-index: 61;
+	display: flex;
+	flex-direction: column;
+	max-height: 92dvh;
+	padding-bottom: env(safe-area-inset-bottom, 0px);
+	background: var(--paper);
+	color: var(--ink);
+	border-top: 1px solid var(--line);
+	border-radius: 8px 8px 0 0;
+	outline: none;
+	transition: transform 0.26s cubic-bezier(0.2, 0.8, 0.2, 1), height 0.26s
+		cubic-bezier(0.2, 0.8, 0.2, 1);
+	/* Runs once, when the sheet mounts. Never toggle this from state. */
+	animation: m-sheet-up 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.m-sheet.is-half {
+	height: 56dvh;
+}
+.m-sheet.is-full {
+	height: 92dvh;
+}
+.m-sheet.is-drag {
+	transition: none;
+}
+.m-sheet-grab {
+	flex: none;
+	display: grid;
+	place-items: center;
+	height: 26px;
+	cursor: grab;
+	touch-action: none;
+}
+.m-sheet-grab i {
+	width: 36px;
+	height: 5px;
+	border-radius: 999px;
+	background: var(--line);
+}
+.m-sheet-head {
+	display: grid;
+	gap: 4px;
+	flex: none;
+	padding: 0 20px 10px;
+}
+.m-sheet-eyebrow {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	font-size: 12px;
+	color: var(--sub);
+}
+.m-sheet-head h2 {
+	margin: 0;
+	font-size: 20px;
+	font-weight: 500;
+	letter-spacing: -0.015em;
+	line-height: 1.2;
+	text-wrap: balance;
+}
+.m-sheet-body {
+	flex: 1;
+	min-height: 0;
+	overflow-y: auto;
+	display: grid;
+	grid-template-columns: minmax(0, 1fr);
+	grid-auto-rows: max-content;
+	gap: 12px;
+	padding: 0 12px 16px;
+}
+@keyframes m-sheet-up {
+	from {
+		transform: translateY(100%);
+	}
+}
+@keyframes m-fade {
+	from {
+		opacity: 0;
+	}
+}
+.m-row {
+	position: relative;
+	overflow: hidden;
+}
+.m-row-acts {
+	position: absolute;
+	inset: 0 0 0 auto;
+	z-index: 0;
+	display: flex;
+}
+.m-act {
+	display: grid;
+	place-items: center;
+	align-content: center;
+	gap: 2px;
+	width: 76px;
+	padding: 0;
+	border: 0;
+	font-family: inherit;
+	font-size: 12px;
+	font-weight: 500;
+	cursor: pointer;
+}
+.m-act.is-neutral {
+	background: var(--soft);
+	color: var(--ink);
+	border-left: 1px solid var(--line);
+}
+.m-act.is-pri {
+	background: var(--pri);
+	color: var(--on-pri);
+}
+.m-act.is-alarm {
+	background: var(--alarm);
+	color: #fff;
+}
+.m-row-face {
+	position: relative;
+	z-index: 1;
+	width: 100%;
+	background: var(--paper);
+	text-align: left;
+	touch-action: pan-y;
+	transition: transform 0.22s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.m-row-face.is-open {
+	transform: translateX(calc(var(--acts-w) * -1));
+}
+.m-row-face.is-drag {
+	transition: none;
+}
+.m-hold {
+	position: relative;
+	overflow: hidden;
+	width: 100%;
+	height: 46px;
+	padding: 0;
+	border: 1px solid var(--alarm);
+	border-radius: 4px;
+	font-family: inherit;
+	background: var(--paper);
+	color: var(--alarm);
+	font-size: 15px;
+	font-weight: 500;
+	touch-action: none;
+	user-select: none;
+	-webkit-touch-callout: none;
+}
+.m-hold::before {
+	content: "";
+	position: absolute;
+	inset: 0;
+	background: var(--alarm);
+	transform: scaleX(0);
+	transform-origin: left;
+	transition: transform 0.2s ease-out;
+}
+.m-hold.is-holding::before {
+	transform: scaleX(1);
+	transition: transform var(--hold-ms, 1200ms) linear;
+}
+.m-hold span {
+	position: relative;
+	z-index: 1;
+}
+.m-hold.is-holding span {
+	color: #fff;
+}
+.m-hold:disabled {
+	opacity: 0.5;
+}
+@media (prefers-reduced-motion: reduce) {
+	.m-sheet,
+	.m-scrim,
+	.m-row-face {
+		animation: none;
+		transition: none;
+	}
+	/* The fill is the hold's progress feedback, so it keeps its duration. */
+	.m-hold.is-holding::before {
+		transition: transform var(--hold-ms, 1200ms) linear;
+	}
+}

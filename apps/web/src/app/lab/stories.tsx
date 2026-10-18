@@ -56,14 +56,17 @@ import {
 	AmountDemo,
 	BillingDemo,
 	HeatStripDemo,
+	HoldButtonDemo,
 	KeysDemo,
 	OverviewDemo,
 	OverviewOnboardingDemo,
 	PayloadViewDemo,
 	RowsDemo,
 	RowsEmptyDemo,
+	SheetDemo,
 	StackedCostDemo,
 	SubgraphGridDemo,
+	SwipeRowDemo,
 	WebhookHeaderDemo,
 } from "./story-controls";
 import { STORY_INDEX, type StoryId } from "./tree";
@@ -379,6 +382,24 @@ const insightFor = (rule: string) => {
 };
 
 const STORY_BLOCK_GAPS = [8, 11, 7, 9, 14, 8, 6, 9, 10, 8, 7, 12, 9, 8, 9, 10];
+
+/** A 390px phone-width column for the gesture primitives. */
+function PhoneColumn({ children }: { children: ReactNode }) {
+	return (
+		<div
+			style={{
+				width: 390,
+				minHeight: 200,
+				border: "1px solid var(--line)",
+				borderRadius: 8,
+				background: "var(--paper)",
+				color: "var(--ink)",
+			}}
+		>
+			{children}
+		</div>
+	);
+}
 
 /** A 390px phone frame showing the mobile header and tab bar in place. */
 function MobileFrame({
@@ -2272,6 +2293,75 @@ const META: Record<StoryId, Meta> = {
 		usage: `<Eyebrow noun="Index" verb="decodes" />
 <StatusDot state="live" />`,
 		donts: ["Yellow never signals status."],
+	},
+	"mobile-sheet": {
+		src: ["apps/web/src/components/mobile/sheet.tsx"],
+		rule: "A sheet slides up once, then settles where you drag it: up to full, down to half, down again to close.",
+		variants: [
+			{
+				id: "auto",
+				label: "Auto",
+				render: () => (
+					<PhoneColumn>
+						<SheetDemo variant="auto" />
+					</PhoneColumn>
+				),
+			},
+			{
+				id: "detents",
+				label: "Half and full",
+				render: () => (
+					<PhoneColumn>
+						<SheetDemo variant="detents" />
+					</PhoneColumn>
+				),
+			},
+		],
+		usage: `<Sheet open={open} onClose={close} eyebrow="Webhook" title="Delivery failed" detents={["half", "full"]}>
+	{children}
+</Sheet>`,
+		donts: [
+			"Never key the sheet on state; the slide-up would replay.",
+			"Drag the grab handle only; the body scrolls.",
+		],
+	},
+	"mobile-swipe-row": {
+		src: ["apps/web/src/components/mobile/swipe-row.tsx"],
+		rule: "Swipe a row left for one or two actions; one row is open at a time.",
+		variants: [
+			{
+				id: "rows",
+				label: "Rows",
+				render: () => (
+					<PhoneColumn>
+						<SwipeRowDemo />
+					</PhoneColumn>
+				),
+			},
+		],
+		usage: `<SwipeGroup>
+	<SwipeRow id={id} actions={[{ label: "Pause", tone: "neutral", onAction }]} onTap={open}>
+		{face}
+	</SwipeRow>
+</SwipeGroup>`,
+		donts: ["Never more than two actions."],
+	},
+	"mobile-hold-button": {
+		src: ["apps/web/src/components/mobile/hold-button.tsx"],
+		rule: "A destructive action fires only after a 1.2 second hold; letting go cancels.",
+		variants: [
+			{
+				id: "hold",
+				label: "Hold",
+				render: () => (
+					<PhoneColumn>
+						<HoldButtonDemo />
+					</PhoneColumn>
+				),
+			},
+		],
+		usage: `<HoldButton label="Hold to revoke ci-runner" onConfirm={revoke} />`,
+		donts: ["Keep it for destructive actions; a tap is enough elsewhere."],
 	},
 };
 
