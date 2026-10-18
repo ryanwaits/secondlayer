@@ -1,12 +1,17 @@
+import {
+	OAUTH_ACCESS_PREFIX,
+	resolveOauthAccessToken,
+} from "@secondlayer/platform/db/queries/oauth";
 import { getDb as _getDb, sql } from "@secondlayer/shared/db";
 import {
 	ApiKeyRevokedError,
 	AuthenticationError,
 	AuthorizationError,
 } from "@secondlayer/shared/errors";
-import type { MiddlewareHandler } from "hono";
+import type { Context, MiddlewareHandler } from "hono";
 import { isDevMode } from "../lib/dev-mode.ts";
 import { hashToken } from "./keys.ts";
+import { isMcpRequest } from "./oauth/audience.ts";
 import { lookupSession } from "./session.ts";
 
 // Debounce last_used_at updates: tokenHash → last DB write timestamp
@@ -30,6 +35,13 @@ export class GhostKeyReadOnlyError extends Error {
 
 export function requireAuth(opts?: {
 	getDb?: typeof _getDb;
+	/**
+	 * Where an OAuth access token (`oat-sl_`, hosted MCP) is accepted: only
+	 * routes this says yes to, and only on a request the MCP handler made in
+	 * process (oauth/audience.ts). Omitted, never. Key and grant management
+	 * never opt in.
+	 */
+	oauth?: (c: Context) => boolean;
 }): MiddlewareHandler {
 	const getDb = opts?.getDb ?? _getDb;
 	return async (c, next) => {
@@ -182,6 +194,16 @@ export function requireAuth(opts?: {
 					.execute()
 					.catch(() => {}); // fire-and-forget
 			}
+		} else if (raw.startsWith(OAUTH_ACCESS_PREFIX)) {
+			// An app's token: never a session or a key, and refused outright on
+			// a request that did not come from the hosted MCP handler.
+			if (!opts?.oauth?.(c) || !isMcpRequest(c.req.raw)) {
+				throw new AuthenticationError("Invalid token");
+			}
+			const grant = await resolveOauthAccessToken(db, raw);
+			if (!grant) throw new AuthenticationError("Invalid token");
+			c.set("accountId", grant.accountId);
+			c.set("oauthGrantId", grant.grantId);
 		} else {
 			throw new AuthenticationError("Invalid token format");
 		}

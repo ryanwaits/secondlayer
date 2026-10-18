@@ -47,6 +47,7 @@ export type IndexEnv = {
 export type IndexTokenStore = {
 	get(
 		rawToken: string,
+		req?: Request,
 	): IndexTenant | undefined | Promise<IndexTenant | undefined>;
 };
 
@@ -131,7 +132,7 @@ export function indexBearerAuth(opts?: {
 				: missingCredentialError();
 		}
 
-		const tenant = await tokens.get(rawToken);
+		const tenant = await tokens.get(rawToken, c.req.raw);
 		if (!tenant) {
 			// A credential we don't recognize is never fatal where anonymous
 			// access already works — presenting a key must not turn a 200 into

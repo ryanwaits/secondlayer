@@ -31,6 +31,9 @@ type BatchItem = {
 export type BatchDispatch = (
 	path: string,
 	init: { headers: Record<string, string> },
+	/** The batch request itself, so a dispatcher can carry its audience
+	 *  (an MCP-made batch makes MCP-made items: auth/oauth/audience.ts). */
+	parent: Request,
 ) => Promise<Response>;
 
 export function createBatchRouter(dispatch: BatchDispatch) {
@@ -85,7 +88,11 @@ export function createBatchRouter(dispatch: BatchDispatch) {
 						).toString()}`
 					: "";
 				try {
-					const res = await dispatch(`${item.path}${qs}`, { headers });
+					const res = await dispatch(
+						`${item.path}${qs}`,
+						{ headers },
+						c.req.raw,
+					);
 					const parsed = await res
 						.json()
 						.catch(() => ({ error: "non-JSON response" }));

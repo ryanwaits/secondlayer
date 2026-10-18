@@ -1,7 +1,12 @@
+import {
+	OAUTH_ACCESS_PREFIX,
+	resolveOauthAccessToken,
+} from "@secondlayer/platform/db/queries/oauth";
 import { getDb as defaultGetDb, sql } from "@secondlayer/shared/db";
 import { isPlatformMode } from "@secondlayer/shared/mode";
 import { instanceTokenMatches } from "../instance-bind.ts";
 import { hashToken } from "./keys.ts";
+import { isMcpRequest } from "./oauth/audience.ts";
 import { INSTANCE_TENANT_ID } from "./read-plane.ts";
 
 /** Two kinds of caller: `free` is the single metered tier every minted key
@@ -16,11 +21,18 @@ export type ProductTenant<TTier extends ProductTier = ProductTier> = {
 	/** Set only for DB-backed `sk-sl_` keys; absent for static seed tokens
 	 *  and the self-host instance token. */
 	api_key_id?: string;
+	/** Set only for an OAuth access token (hosted MCP); no `api_key_id`. */
+	grant_id?: string;
 	scopes: readonly string[];
 };
 
 export type ProductTokenStore<TTenant> = {
-	get(rawToken: string): TTenant | undefined | Promise<TTenant | undefined>;
+	/** `req` is the request the token came on: an OAuth access token
+	 *  resolves only on one the hosted MCP handler made (oauth/audience.ts). */
+	get(
+		rawToken: string,
+		req?: Request,
+	): TTenant | undefined | Promise<TTenant | undefined>;
 };
 
 export type RevokedAccountKey = { id: string; account_id: string };
@@ -120,6 +132,31 @@ async function lookupAccountApiKey(
 }
 
 /**
+ * An OAuth access token's tenant: hosted only, Index and Streams only, and
+ * only on a request the hosted MCP handler made. Anywhere else it is unknown,
+ * never a fall-through to sessions or keys. Metered like an account key, with
+ * no key id.
+ */
+async function resolveOauthTenant<TTenant extends ProductTenant>(
+	rawToken: string,
+	req: Request | undefined,
+	opts: ApiKeyTokenStoreOptions<TTenant>,
+	getDb: typeof defaultGetDb,
+): Promise<TTenant | undefined> {
+	if (!isPlatformMode() || !isMcpRequest(req)) return undefined;
+	if (opts.product !== "index" && opts.product !== "streams") return undefined;
+	const grant = await resolveOauthAccessToken(getDb(), rawToken);
+	if (!grant) return undefined;
+	return {
+		tenant_id: `account:${grant.accountId}`,
+		account_id: grant.accountId,
+		tier: "free",
+		grant_id: grant.grantId,
+		scopes: [opts.requiredScope],
+	} as unknown as TTenant;
+}
+
+/**
  * Runtime token store: static seed tokens (first-party service credentials)
  * first, then the instance token, then `api_keys` by hash on the metered
  * archive. Every DB-backed key resolves to the single metered `free` tier,
@@ -133,7 +170,10 @@ export function createApiKeyTokenStore<TTenant extends ProductTenant>(
 	const lookupApiKey = opts.lookupApiKey ?? lookupAccountApiKey;
 
 	return {
-		async get(rawToken: string): Promise<TTenant | undefined> {
+		async get(rawToken: string, req?: Request): Promise<TTenant | undefined> {
+			if (rawToken.startsWith(OAUTH_ACCESS_PREFIX)) {
+				return resolveOauthTenant<TTenant>(rawToken, req, opts, getDb);
+			}
 			const seeded = await opts.staticTokens.get(rawToken);
 			if (seeded) return seeded;
 			// OSS only: the instance's own token authenticates every plane. A

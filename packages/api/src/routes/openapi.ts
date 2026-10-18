@@ -137,6 +137,7 @@ export const OPERATION_IDS: Record<string, string> = {
 	"GET /api/billing/status": "getBillingStatus",
 	"POST /api/public/credits/checkout": "createCreditsCheckout",
 	"POST /v1/feedback": "submitFeedback",
+	"POST /mcp": "callHostedMcp",
 	"GET /api/oauth/grants": "listConnectedApps",
 	"DELETE /api/oauth/grants/{id}": "revokeConnectedApp",
 };
@@ -810,6 +811,63 @@ const CONNECTED_APP = {
 /** Apps signed in to the hosted MCP with OAuth (the keys page's Apps list). */
 function platformConnectedAppsPaths(): Record<string, unknown> {
 	return {
+		"/mcp": {
+			post: {
+				tags: ["mcp"],
+				summary: "Hosted MCP endpoint",
+				"x-nav-title": "Hosted MCP",
+				description:
+					"Model Context Protocol over Streamable HTTP, stateless: send one JSON-RPC message per POST and read a JSON reply, with no session header. The bearer is an OAuth access token from the browser sign-in (`oat-sl_*`) or an account key (`sk-sl_*`). Without one, the 401 carries `WWW-Authenticate` naming `/.well-known/oauth-protected-resource/mcp`, which MCP clients use to start the sign-in. Tool calls read Index and Streams and are metered like any read. Body up to 1 MB.",
+				security: WRITE_SECURITY,
+				requestBody: jsonBody({
+					type: "object",
+					required: ["jsonrpc", "method"],
+					properties: {
+						jsonrpc: {
+							type: "string",
+							enum: ["2.0"],
+							description: "Always 2.0.",
+						},
+						id: {
+							type: ["string", "integer"],
+							description: "Echoed in the reply; omit for a notification.",
+						},
+						method: {
+							type: "string",
+							description:
+								"An MCP method, such as `initialize`, `tools/list` or `tools/call`.",
+						},
+						params: { type: "object", description: "The method's parameters." },
+					},
+					example: { jsonrpc: "2.0", id: 1, method: "tools/list" },
+				}),
+				responses: {
+					"200": json200(
+						{
+							type: "object",
+							properties: {
+								jsonrpc: { type: "string", description: "Always 2.0." },
+								id: {
+									type: ["string", "integer"],
+									description: "The request's id.",
+								},
+								result: { type: "object", description: "The method's result." },
+								error: {
+									type: "object",
+									description: "A JSON-RPC error, instead of a result.",
+								},
+							},
+							example: { jsonrpc: "2.0", id: 1, result: { tools: [] } },
+						},
+						"The JSON-RPC reply.",
+					),
+					"202": { description: "A notification was accepted; no body." },
+					"401": jsonError("No credential, or one that is unknown or expired"),
+					"405": jsonError("Only POST: there is no stream or session"),
+					"413": jsonError("Body over 1 MB"),
+				},
+			},
+		},
 		"/api/oauth/grants": {
 			get: {
 				tags: ["mcp"],

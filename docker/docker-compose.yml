@@ -156,6 +156,9 @@ services:
       #   DASHBOARD_URL    -> Stripe success/cancel/return URLs (routes/billing.ts)
       #   DASHBOARD_ORIGINS-> CORS allowlist for credentialed /api/* calls
       WEB_URL: ${WEB_URL:-https://secondlayer.tools}
+      # The hosted MCP's OAuth issuer and resource (`<url>/mcp`). Never taken
+      # from the request's Host.
+      API_PUBLIC_URL: ${API_PUBLIC_URL:-https://api.secondlayer.tools}
       DASHBOARD_URL: ${DASHBOARD_URL:-https://secondlayer.tools}
       DASHBOARD_ORIGINS: ${DASHBOARD_ORIGINS:-https://secondlayer.tools,https://www.secondlayer.tools,https://app.secondlayer.tools,http://localhost:3000}
       # Accounts allowed genesis backfill regardless of plan (curated Explore seeds).

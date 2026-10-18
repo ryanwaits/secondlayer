@@ -5,7 +5,8 @@ import type { InstanceMode } from "@secondlayer/shared/mode";
 import { Hono, type MiddlewareHandler } from "hono";
 import { cors } from "hono/cors";
 import { ipRateLimit, keysRouter, requireAuth } from "./auth/index.ts";
-import { createOauthRouter } from "./auth/oauth/routes.ts";
+import { isMcpRequest, markMcpRequest } from "./auth/oauth/audience.ts";
+import { createOauthRouter, oauthCors } from "./auth/oauth/routes.ts";
 import { v1InstanceGate } from "./auth/read-plane.ts";
 import { instanceTokenAuth } from "./middleware/auth-modes.ts";
 import { requireJsonWrites } from "./middleware/csrf.ts";
@@ -38,6 +39,7 @@ import internalMetersRouter from "./routes/internal-meters.ts";
 import internalSentinelRouter from "./routes/internal-sentinel.ts";
 import internalTenantKeyRouter from "./routes/internal-tenant-key.ts";
 import internalWebhookIncidentsRouter from "./routes/internal-webhook-incidents.ts";
+import { createMcpRouter } from "./routes/mcp.ts";
 import nodeRouter from "./routes/node.ts";
 import oauthConsentRouter from "./routes/oauth-consent.ts";
 import openApiRouter from "./routes/openapi.ts";
@@ -169,8 +171,15 @@ export function createApiApp(mode: InstanceMode): Hono {
 		c.json({ error: "Not Found", code: "NOT_FOUND", path: c.req.path }, 404),
 	);
 
+	// The hosted MCP's `account_whoami` reads `/api/accounts/me` with the
+	// app's OAuth token; no other account route takes one.
 	const resourceAuth: MiddlewareHandler =
-		mode === "oss" ? instanceTokenAuth() : requireAuth();
+		mode === "oss"
+			? instanceTokenAuth()
+			: requireAuth({
+					oauth: (c) =>
+						c.req.method === "GET" && c.req.path === "/api/accounts/me",
+				});
 
 	if (mode === "platform") {
 		// OAuth for the hosted MCP: metadata, registration, authorize, token.
@@ -251,7 +260,23 @@ export function createApiApp(mode: InstanceMode): Hono {
 	app.route("/v1/contracts", contractsRouter);
 	app.route(
 		"/v1/batch",
-		createBatchRouter((path, init) => Promise.resolve(app.request(path, init))),
+		createBatchRouter((path, init, parent) => {
+			const item = new Request(
+				new URL(path, "http://localhost").toString(),
+				init,
+			);
+			if (isMcpRequest(parent)) markMcpRequest(item);
+			return Promise.resolve(app.fetch(item));
+		}),
 	);
+	if (mode === "platform") {
+		// The hosted MCP: stateless, one server per request, every tool call
+		// dispatched back into this app in process (routes/mcp.ts).
+		app.use("/mcp", oauthCors);
+		app.route(
+			"/mcp",
+			createMcpRouter((req) => Promise.resolve(app.fetch(req))),
+		);
+	}
 	return app;
 }

@@ -47,6 +47,7 @@ export type StreamsEnv = {
 export type StreamsTokenStore = {
 	get(
 		rawToken: string,
+		req?: Request,
 	): StreamsTenant | undefined | Promise<StreamsTenant | undefined>;
 };
 
@@ -129,7 +130,7 @@ export function streamsBearerAuth(opts?: {
 			throw missingCredentialError();
 		}
 
-		const tenant = await tokens.get(rawToken);
+		const tenant = await tokens.get(rawToken, c.req.raw);
 		if (!tenant) {
 			// A credential we don't recognize is never fatal where anonymous
 			// access already works — presenting a key must not turn a 200 into
