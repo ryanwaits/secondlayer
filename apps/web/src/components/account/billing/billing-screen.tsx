@@ -298,8 +298,8 @@ export function BillingBody({
 					</ChartBox>
 					{sentinelUsd > 0 ? (
 						<span className="bl-note">
-							Sentinel runs ({dollars(sentinelUsd / MICROS)}) are billed per run
-							and aren't in this line.
+							Sentinel usage ({dollars(sentinelUsd / MICROS)}) is billed per
+							check and event and isn't in this line.
 						</span>
 					) : null}
 				</section>

@@ -131,15 +131,20 @@ prepaid balance pays for both. Its worker meters through the same ledger.
 
 | Unit | Price | Meaning |
 |---|---|---|
-| `sentinel.run` | $1.50 (1,500,000 µ$) | re-verify, reproduce, challenge, ask |
-| `sentinel.deep_audit` | $3.00 (3,000,000 µ$) | deep audit |
+| `sentinel.check_run` | $0.25 (250,000 µ$) | one check run; a deep check is quantity 3 ($0.75) |
 | `sentinel.monitored_event` | $15 per 1M (15 µ$) | chain event on a watched contract |
+| `sentinel.run` (retired) | $1.50 (1,500,000 µ$) | former audit run; history only |
+| `sentinel.deep_audit` (retired) | $3.00 (3,000,000 µ$) | former deep audit; history only |
+
+Sentinel no longer runs audits. The two retired units keep their prices so
+existing ledger rows still price and render. `/internal/meters` refuses new
+charges on them with a 400.
 
 - Free allowances live Sentinel-side (100,000 monitored events per account
   per UTC month). `meter()` has no allowance logic for these units, so the
   price is flat `PRICES[unit] * quantity`.
 - Our own `webhook.event` price is unchanged and has no free allowance.
-- Idempotency keys: `sentinel:run:<runId>`, `sentinel:events:<accountId>:<YYYY-MM-DDTHH>`.
+- Idempotency keys: `sentinel:check:<run key>`, `sentinel:events:<accountId>:<YYYY-MM-DDTHH>`.
   A replay returns the original ledger row, never a second charge.
 - Starter credit: a one-time $5 `grant` (unit `grant`, negative `usd_micros`,
   source `sentinel:<reason>`, key `sentinel:starter:<accountId>`), credited

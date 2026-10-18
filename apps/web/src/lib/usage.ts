@@ -33,6 +33,8 @@ const UNIT_LABEL: Record<string, [string, string]> = {
 	"webhook.event": ["Webhook events", "Hosted webhooks, retries free"],
 	"memory.gb_hour": ["Hosted stack memory", "Webhooks and subgraphs"],
 	"storage.gb_day": ["Hosted stack storage", "Webhooks and subgraphs"],
+	"sentinel.check_run": ["Sentinel checks", "Billed per check"],
+	// Retired: Sentinel no longer runs audits. Kept so older ledger rows render.
 	"sentinel.run": ["Sentinel runs", "Billed per run"],
 	"sentinel.deep_audit": ["Sentinel deep audits", "Billed per audit"],
 	"sentinel.monitored_event": ["Sentinel monitored events", "Chain events"],
@@ -184,6 +186,8 @@ export function rateLabel(unit: string, quantity: string): string {
 			return "$10/1M";
 		case "storage.gb_day":
 			return "$0.25/GB-mo";
+		case "sentinel.check_run":
+			return "$0.25/check";
 		case "sentinel.run":
 			return "$1.50/run";
 		case "sentinel.deep_audit":

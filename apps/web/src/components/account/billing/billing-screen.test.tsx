@@ -124,9 +124,9 @@ describe("BillingBody", () => {
 		expect(html).not.toContain("-$5.00");
 	});
 
-	test("the spend line notes that Sentinel runs are not in it", () => {
+	test("the spend line notes that Sentinel usage is not in it", () => {
 		const html = renderToStaticMarkup(<BillingBody {...base} />);
-		expect(html).toContain("Sentinel runs ($25.50) are billed per run");
+		expect(html).toContain("Sentinel usage ($25.50) is billed per check");
 	});
 
 	test("the credits table shows a 5,000,000 micro grant as +$5.00, newest first", () => {

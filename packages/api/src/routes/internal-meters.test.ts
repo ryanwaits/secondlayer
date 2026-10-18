@@ -426,18 +426,67 @@ describe.skipIf(!HAS_DB)("POST /internal/meters: Sentinel key", () => {
 		const res = await post("test-sentinel-key", [
 			{
 				accountId,
-				unit: "sentinel.run",
+				unit: "sentinel.check_run",
 				quantity: 1,
-				idempotencyKey: `sentinel:run:${accountId}`,
+				idempotencyKey: `sentinel:check:${accountId}`,
 			},
 		]);
 		expect(res.status).toBe(200);
 		const body = (await res.json()) as {
 			results: { usd_micros: number; debited: boolean }[];
 		};
-		expect(body.results[0]?.usd_micros).toBe(1_500_000);
+		expect(body.results[0]?.usd_micros).toBe(250_000);
 		expect(body.results[0]?.debited).toBe(true);
-		expect(await getCredits(db, accountId)).toBe(3_500_000n);
+		expect(await getCredits(db, accountId)).toBe(4_750_000n);
+	});
+
+	test("a deep check (quantity 3) is $0.75, and a replay never charges twice", async () => {
+		await creditCredits(db, accountId, 5_000_000n);
+		const item = {
+			accountId,
+			unit: "sentinel.check_run",
+			quantity: 3,
+			idempotencyKey: `sentinel:check:deep:${accountId}`,
+		};
+		for (let i = 0; i < 2; i++) {
+			const res = await post("test-sentinel-key", [item]);
+			expect(res.status).toBe(200);
+			const body = (await res.json()) as {
+				results: { usd_micros: number }[];
+			};
+			expect(body.results[0]?.usd_micros).toBe(750_000);
+		}
+		expect(await getCredits(db, accountId)).toBe(4_250_000n);
+	});
+
+	test.each(["sentinel.run", "sentinel.deep_audit"])(
+		"retired %s → 400 for the Sentinel key, nothing charged",
+		async (unit) => {
+			await creditCredits(db, accountId, 5_000_000n);
+			const res = await post("test-sentinel-key", [
+				{
+					accountId,
+					unit,
+					quantity: 1,
+					idempotencyKey: `sentinel:run:${unit}:${accountId}`,
+				},
+			]);
+			expect(res.status).toBe(400);
+			expect(JSON.stringify(await res.json())).toContain("retired");
+			expect(await getCredits(db, accountId)).toBe(5_000_000n);
+		},
+	);
+
+	test("retired units are refused for the workload key too", async () => {
+		const res = await post("test-workload-host-key", [
+			{
+				accountId,
+				unit: "sentinel.run",
+				quantity: 1,
+				idempotencyKey: `wl-retired-${accountId}`,
+			},
+		]);
+		expect(res.status).toBe(400);
 	});
 
 	test("sentinel key on a non-sentinel unit → 403, nothing charged (whole batch)", async () => {
@@ -445,9 +494,9 @@ describe.skipIf(!HAS_DB)("POST /internal/meters: Sentinel key", () => {
 		const res = await post("test-sentinel-key", [
 			{
 				accountId,
-				unit: "sentinel.run",
+				unit: "sentinel.check_run",
 				quantity: 1,
-				idempotencyKey: `sentinel:run:mixed:${accountId}`,
+				idempotencyKey: `sentinel:check:mixed:${accountId}`,
 			},
 			{
 				accountId,
@@ -467,15 +516,15 @@ describe.skipIf(!HAS_DB)("POST /internal/meters: Sentinel key", () => {
 		const res = await post("test-sentinel-key", [
 			{
 				accountId,
-				unit: "sentinel.run",
+				unit: "sentinel.check_run",
 				quantity: 1,
-				idempotencyKey: `sentinel:run:b1:${accountId}`,
+				idempotencyKey: `sentinel:check:b1:${accountId}`,
 			},
 			{
 				accountId: unlinked,
-				unit: "sentinel.run",
+				unit: "sentinel.check_run",
 				quantity: 1,
-				idempotencyKey: `sentinel:run:b2:${unlinked}`,
+				idempotencyKey: `sentinel:check:b2:${unlinked}`,
 			},
 		]);
 		expect(res.status).toBe(403);
@@ -497,12 +546,12 @@ describe.skipIf(!HAS_DB)("POST /internal/meters: Sentinel key", () => {
 		await creditCredits(db, unlinked, 5_000_000n);
 		const item = (key: string) => ({
 			accountId: unlinked,
-			unit: "sentinel.run",
+			unit: "sentinel.check_run",
 			quantity: 1,
 			idempotencyKey: key,
 		});
 		expect(
-			(await post("test-sentinel-key", [item(`sentinel:run:u:${unlinked}`)]))
+			(await post("test-sentinel-key", [item(`sentinel:check:u:${unlinked}`)]))
 				.status,
 		).toBe(403);
 		expect(await getCredits(db, unlinked)).toBe(5_000_000n);
@@ -520,7 +569,7 @@ describe.skipIf(!HAS_DB)("POST /internal/meters: Sentinel key", () => {
 		const res = await post("test-sentinel-key", [
 			{
 				accountId,
-				unit: "sentinel.run",
+				unit: "sentinel.check_run",
 				quantity: 1,
 				idempotencyKey: `plain-${accountId}`,
 			},
@@ -551,7 +600,7 @@ describe.skipIf(!HAS_DB)("POST /internal/meters: Sentinel key", () => {
 		const res = await post("test-sentinel-key", [
 			{
 				accountId,
-				unit: "sentinel.run",
+				unit: "sentinel.check_run",
 				quantity: -1,
 				idempotencyKey: `sentinel:neg:${accountId}`,
 			},

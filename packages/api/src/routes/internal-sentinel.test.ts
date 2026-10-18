@@ -520,6 +520,7 @@ describe.skipIf(!HAS_DB)("/internal/sentinel routes", () => {
 			owedUsdMicros: 0,
 			refill: null,
 			prices: {
+				check_run: Number(PRICES["sentinel.check_run"]),
 				run: Number(PRICES["sentinel.run"]),
 				deep_audit: Number(PRICES["sentinel.deep_audit"]),
 				monitored_event: Number(PRICES["sentinel.monitored_event"]),
@@ -547,12 +548,12 @@ describe.skipIf(!HAS_DB)("/internal/sentinel routes", () => {
 
 		const none = await post(app(), "/affordable", {
 			accountId,
-			unit: "sentinel.run",
+			unit: "sentinel.check_run",
 			quantity: 1,
 		});
 		expect(await none.json()).toEqual({
 			ok: false,
-			priceUsdMicros: 1_500_000,
+			priceUsdMicros: 250_000,
 			balanceUsdMicros: 0,
 			reason: "balance",
 		});
@@ -560,31 +561,35 @@ describe.skipIf(!HAS_DB)("/internal/sentinel routes", () => {
 		await creditCredits(db, accountId, 10_000_000n);
 		const ok = await post(app(), "/affordable", {
 			accountId,
-			unit: "run",
+			unit: "check_run",
 			quantity: 2,
 		});
 		expect(await ok.json()).toEqual({
 			ok: true,
-			priceUsdMicros: 3_000_000,
+			priceUsdMicros: 500_000,
 			balanceUsdMicros: 10_000_000,
 		});
 
-		// $2 cap: one $1.50 run fits, two do not.
-		await upsertCaps(db, accountId, { monthly_cap_cents: 200 });
-		const one = await post(app(), "/affordable", {
+		// $1 cap: a $0.75 deep check fits, five checks ($1.25) do not.
+		await upsertCaps(db, accountId, { monthly_cap_cents: 100 });
+		const deep = await post(app(), "/affordable", {
 			accountId,
-			unit: "sentinel.run",
-			quantity: 1,
+			unit: "sentinel.check_run",
+			quantity: 3,
 		});
-		expect(((await one.json()) as { ok: boolean }).ok).toBe(true);
-		const two = await post(app(), "/affordable", {
+		expect(await deep.json()).toEqual({
+			ok: true,
+			priceUsdMicros: 750_000,
+			balanceUsdMicros: 10_000_000,
+		});
+		const five = await post(app(), "/affordable", {
 			accountId,
-			unit: "sentinel.run",
-			quantity: 2,
+			unit: "sentinel.check_run",
+			quantity: 5,
 		});
-		expect(await two.json()).toEqual({
+		expect(await five.json()).toEqual({
 			ok: false,
-			priceUsdMicros: 3_000_000,
+			priceUsdMicros: 1_250_000,
 			balanceUsdMicros: 10_000_000,
 			reason: "cap",
 		});
@@ -592,14 +597,17 @@ describe.skipIf(!HAS_DB)("/internal/sentinel routes", () => {
 		expect(await getCredits(db, accountId)).toBe(10_000_000n);
 	});
 
-	test("affordable rejects non-sentinel units and bad quantities", async () => {
+	test("affordable rejects non-sentinel and retired units, and bad quantities", async () => {
 		const accountId = await makeAccount();
 		for (const bad of [
 			{ unit: "webhook.event", quantity: 1 },
 			{ unit: "rows.delivered", quantity: 1 },
-			{ unit: "sentinel.run", quantity: 0 },
-			{ unit: "sentinel.run", quantity: -1 },
-			{ unit: "sentinel.run", quantity: 1.5 },
+			{ unit: "sentinel.run", quantity: 1 },
+			{ unit: "run", quantity: 1 },
+			{ unit: "sentinel.deep_audit", quantity: 1 },
+			{ unit: "sentinel.check_run", quantity: 0 },
+			{ unit: "sentinel.check_run", quantity: -1 },
+			{ unit: "sentinel.check_run", quantity: 1.5 },
 		]) {
 			const res = await post(app(), "/affordable", { accountId, ...bad });
 			expect(res.status).toBe(400);
@@ -735,7 +743,10 @@ describe.skipIf(!HAS_DB)("/internal/sentinel routes", () => {
 			["/accounts/summary", { accountId: id }],
 			["/accounts/settle", { accountId: id }],
 			["/settings", { accountId: id, monthlyCapCents: 500 }],
-			["/affordable", { accountId: id, unit: "sentinel.run", quantity: 1 }],
+			[
+				"/affordable",
+				{ accountId: id, unit: "sentinel.check_run", quantity: 1 },
+			],
 			["/checkout", { accountId: id, packUsd: 10, returnPath: "/x" }],
 		];
 		for (const [path, body] of attempts) {

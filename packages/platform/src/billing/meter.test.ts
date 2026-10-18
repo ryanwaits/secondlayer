@@ -20,6 +20,8 @@ import {
 	COMMIT_TIER_MONTHLY_USD_MICROS,
 	CREDIT_USD_MICROS_PER_ROW,
 	CREDIT_USD_MICROS_PER_ROW_VOLUME,
+	PRICES,
+	RETIRED_METER_UNITS,
 	ROWS_DELIVERED_MONTHLY_ALLOWANCE,
 } from "./prices.ts";
 
@@ -423,16 +425,24 @@ describe.skipIf(!HAS_DB)("meter — fractional hosted-stack units", () => {
 });
 
 describe.skipIf(!HAS_DB)("meter — sentinel units and grants", () => {
-	test("sentinel.run prices flat at $1.50, sentinel.monitored_event at 15µ$ each", async () => {
+	test("sentinel.check_run is $0.25 a check and $0.75 for a deep check (quantity 3); monitored_event is 15µ$ each", async () => {
 		await creditCredits(db, accountId, 10_000_000n);
-		const run = await meter(db, {
+		const check = await meter(db, {
 			accountId,
-			unit: "sentinel.run",
+			unit: "sentinel.check_run",
 			quantity: 1,
 			source: "test",
-			idempotencyKey: randomUUID(),
+			idempotencyKey: `sentinel:check:${randomUUID()}`,
 		});
-		expect(run.usdMicros).toBe(1_500_000n);
+		expect(check.usdMicros).toBe(250_000n);
+		const deep = await meter(db, {
+			accountId,
+			unit: "sentinel.check_run",
+			quantity: 3,
+			source: "test",
+			idempotencyKey: `sentinel:check:${randomUUID()}`,
+		});
+		expect(deep.usdMicros).toBe(750_000n);
 		const events = await meter(db, {
 			accountId,
 			unit: "sentinel.monitored_event",
@@ -441,7 +451,40 @@ describe.skipIf(!HAS_DB)("meter — sentinel units and grants", () => {
 			idempotencyKey: randomUUID(),
 		});
 		expect(events.usdMicros).toBe(15_000n);
-		expect(await getCredits(db, accountId)).toBe(10_000_000n - 1_515_000n);
+		expect(await getCredits(db, accountId)).toBe(
+			10_000_000n - 250_000n - 750_000n - 15_000n,
+		);
+	});
+
+	test("a replayed check run charges once", async () => {
+		await creditCredits(db, accountId, 10_000_000n);
+		const input = {
+			accountId,
+			unit: "sentinel.check_run" as const,
+			quantity: 3,
+			source: "test",
+			idempotencyKey: `sentinel:check:${randomUUID()}`,
+		};
+		const first = await meter(db, input);
+		const replay = await meter(db, input);
+		expect(first.usdMicros).toBe(750_000n);
+		expect(replay.usdMicros).toBe(750_000n);
+		expect(await getCredits(db, accountId)).toBe(10_000_000n - 750_000n);
+		const rows = await db
+			.selectFrom("usage_ledger")
+			.select("id")
+			.where("account_id", "=", accountId)
+			.where("idempotency_key", "=", input.idempotencyKey)
+			.execute();
+		expect(rows).toHaveLength(1);
+	});
+
+	test("retired audit units still price history rows at their old rates", () => {
+		expect(PRICES["sentinel.run"]).toBe(1_500_000n);
+		expect(PRICES["sentinel.deep_audit"]).toBe(3_000_000n);
+		expect(RETIRED_METER_UNITS.has("sentinel.run")).toBe(true);
+		expect(RETIRED_METER_UNITS.has("sentinel.deep_audit")).toBe(true);
+		expect(RETIRED_METER_UNITS.has("sentinel.check_run")).toBe(false);
 	});
 
 	test("grantCredits credits once; the same key never credits twice", async () => {

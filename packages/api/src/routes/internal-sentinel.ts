@@ -106,19 +106,19 @@ async function sentinelGrantedUsdMicros(
 const DEFAULT_SENTINEL_WEB_URL = "https://runsentinel.app";
 
 type SentinelUnit = Extract<MeterUnit, `sentinel.${string}`>;
+/** Units Sentinel may price or meter today. */
 const SENTINEL_UNITS: SentinelUnit[] = [
-	"sentinel.run",
-	"sentinel.deep_audit",
+	"sentinel.check_run",
 	"sentinel.monitored_event",
 ];
 
-/** One refund never exceeds the largest single Sentinel unit price. */
-export const MAX_REFUND_USD_MICROS = SENTINEL_UNITS.reduce(
-	(max, unit) => (PRICES[unit] > max ? PRICES[unit] : max),
-	0n,
-);
+/** One refund never exceeds the largest single Sentinel unit price. Retired
+ *  audit units count: a refund can still point at an old run's charge. */
+export const MAX_REFUND_USD_MICROS = (Object.keys(PRICES) as MeterUnit[])
+	.filter((unit): unit is SentinelUnit => unit.startsWith("sentinel."))
+	.reduce((max, unit) => (PRICES[unit] > max ? PRICES[unit] : max), 0n);
 
-/** Accept `sentinel.run` or the short `run`. */
+/** Accept `sentinel.check_run` or the short `check_run`. */
 function parseSentinelUnit(raw: unknown): SentinelUnit {
 	if (typeof raw === "string") {
 		const full = raw.startsWith("sentinel.") ? raw : `sentinel.${raw}`;
@@ -383,6 +383,8 @@ export function createInternalSentinelRouter(
 						}
 					: null,
 			prices: {
+				check_run: Number(PRICES["sentinel.check_run"]),
+				// Retired audit prices stay so older Sentinel builds still read them.
 				run: Number(PRICES["sentinel.run"]),
 				deep_audit: Number(PRICES["sentinel.deep_audit"]),
 				monitored_event: Number(PRICES["sentinel.monitored_event"]),

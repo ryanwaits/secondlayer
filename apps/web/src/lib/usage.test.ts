@@ -294,6 +294,9 @@ describe("rateLabel", () => {
 	});
 
 	test("Sentinel units carry their per-unit rate", () => {
+		expect(rateLabel("sentinel.check_run", "3")).toBe("$0.25/check");
+		expect(unitLabel("sentinel.check_run")[0]).toBe("Sentinel checks");
+		// Retired audit units still render older ledger rows.
 		expect(rateLabel("sentinel.run", "17")).toBe("$1.50/run");
 		expect(rateLabel("sentinel.deep_audit", "1")).toBe("$3/audit");
 		expect(rateLabel("sentinel.monitored_event", "1")).toBe("$15/1M");

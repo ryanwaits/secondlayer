@@ -17,7 +17,11 @@
 
 import { timingSafeEqual } from "node:crypto";
 import { meter } from "@secondlayer/platform/billing/meter";
-import { MAX_METER_BATCH, PRICES } from "@secondlayer/platform/billing/prices";
+import {
+	MAX_METER_BATCH,
+	PRICES,
+	RETIRED_METER_UNITS,
+} from "@secondlayer/platform/billing/prices";
 import type { MeterUnit } from "@secondlayer/platform/billing/prices";
 import { sentinelLinkedIds } from "@secondlayer/platform/db/queries/accounts";
 import { getDb } from "@secondlayer/shared/db";
@@ -30,6 +34,10 @@ import { Hono } from "hono";
 import { InvalidJSONError } from "../middleware/error.ts";
 
 const VALID_UNITS = new Set<string>(Object.keys(PRICES));
+/** Units that take new charges: priced, and not retired. */
+const METERABLE_UNITS = [...VALID_UNITS].filter(
+	(unit) => !RETIRED_METER_UNITS.has(unit as MeterUnit),
+);
 
 /** `occurredAt` bounds: a small forward tolerance for clock skew between the
  *  workload host and this server, and a floor matching the hosted-stack
@@ -105,7 +113,12 @@ function parseItem(raw: unknown, index: number): MeterItemInput {
 	}
 	if (!isValidUnit(body.unit)) {
 		throw new ValidationError(
-			`items[${index}].unit must be one of ${[...VALID_UNITS].join(", ")}`,
+			`items[${index}].unit must be one of ${METERABLE_UNITS.join(", ")}`,
+		);
+	}
+	if (RETIRED_METER_UNITS.has(body.unit)) {
+		throw new ValidationError(
+			`items[${index}].unit ${body.unit} is retired and takes no new charges; use one of ${METERABLE_UNITS.join(", ")}`,
 		);
 	}
 	if (typeof body.quantity !== "number" || !Number.isFinite(body.quantity)) {
