@@ -16,7 +16,7 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { registerResources } from "../src/resources.ts";
-import { TOOL_GROUPS } from "../src/tool-groups.ts";
+import { TOOL_GROUPS, isHostedTool } from "../src/tool-groups.ts";
 
 const OUT = join(
 	import.meta.dir,
@@ -65,9 +65,12 @@ type Tool = {
 	group: string;
 	description: string;
 	hostedOnly?: true;
+	/** Served by the hosted MCP endpoint (api.secondlayer.tools/mcp). */
+	remote: boolean;
 };
 const tools: Tool[] = [];
-for (const { group, register, hostedOnly } of TOOL_GROUPS) {
+for (const toolGroup of TOOL_GROUPS) {
+	const { group, register, hostedOnly } = toolGroup;
 	const server = freshServer();
 	register(server);
 	const groupTools: Tool[] = [];
@@ -81,6 +84,7 @@ for (const { group, register, hostedOnly } of TOOL_GROUPS) {
 			group,
 			description,
 			...(hostedOnly ? { hostedOnly } : {}),
+			remote: isHostedTool(toolGroup, name),
 		});
 	}
 	tools.push(...groupTools.sort(byKey((t) => t.name)));

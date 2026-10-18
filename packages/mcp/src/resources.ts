@@ -105,9 +105,9 @@ const PRODUCT_ORDER = [
  * Tools register (via defineTool) before registerResources runs, so the
  * registry is fully populated by the time a context read calls this.
  */
-export function buildCapabilities() {
+export function buildCapabilities(server?: McpServer) {
 	const byPrefix = new Map<string, string[]>();
-	for (const name of getRegisteredToolNames()) {
+	for (const name of getRegisteredToolNames(server)) {
 		const sep = name.indexOf("_");
 		const prefix = sep === -1 ? name : name.slice(0, sep);
 		const tools = byPrefix.get(prefix) ?? [];
@@ -133,7 +133,11 @@ export function buildCapabilities() {
 }
 
 /** Per-product read-auth tiers — what an agent must know before reading. */
-function readAuthTiers(credential: string) {
+function readAuthTiers(credential: string, hosted: boolean) {
+	if (hosted) {
+		const reads = `keyed: every read uses ${credential} and is metered to the account's credits (the first 1M rows each month are free)`;
+		return { index: reads, streams: reads };
+	}
 	const reads = `keyless while the API is only reachable on loopback; ${credential} is required once it is published past loopback`;
 	return {
 		index: reads,
@@ -152,7 +156,13 @@ function credentialLabel(): string {
 
 type ContextDeps = {
 	clientProvider: typeof getClient;
+	/** The hosted MCP endpoint: the caller's own credential, not env. */
+	hosted?: boolean;
+	/** Whose tools to list; omitted, every tool this process registered. */
+	server?: McpServer;
 };
+
+const HOSTED_CREDENTIAL = "the caller's OAuth sign-in (or sk-sl_ account key)";
 
 /**
  * Assemble the live agent context read at connect: who you are, the live
@@ -165,7 +175,7 @@ type ContextDeps = {
 export async function buildContext(
 	deps: ContextDeps = { clientProvider: getClient },
 ) {
-	const credential = credentialLabel();
+	const credential = deps.hosted ? HOSTED_CREDENTIAL : credentialLabel();
 	const unavailable = `unavailable: set ${credential}`;
 	// The SDK says why a field is missing; pass that reason through so the
 	// agent can tell an unreachable API from a rejected token.
@@ -186,7 +196,8 @@ export async function buildContext(
 
 	return {
 		authState: {
-			apiKeySet: Boolean(readApiKey()),
+			// Hosted: the request carried a credential, or it never got here.
+			apiKeySet: deps.hosted ? true : Boolean(readApiKey()),
 		},
 		whatExists: {
 			account: orNull(snap?.account),
@@ -199,15 +210,19 @@ export async function buildContext(
 			activeOperations: orNull(snap?.activeOperations),
 			instance,
 		},
-		whatYouCanDo: buildCapabilities(),
-		readAuthTiers: readAuthTiers(credential),
+		whatYouCanDo: buildCapabilities(deps.server),
+		readAuthTiers: readAuthTiers(credential, Boolean(deps.hosted)),
 		...(snap?.instance?.value?.state === "empty-index"
 			? { nextStep: BOOTSTRAP_STEP }
 			: {}),
 	};
 }
 
-export function registerResources(server: McpServer) {
+export function registerResources(
+	server: McpServer,
+	deps: Omit<ContextDeps, "server"> = { clientProvider: getClient },
+) {
+	const contextDeps: ContextDeps = deps.hosted ? { ...deps, server } : deps;
 	server.resource(
 		"context",
 		"secondlayer://context",
@@ -220,7 +235,7 @@ export function registerResources(server: McpServer) {
 				{
 					uri: "secondlayer://context",
 					mimeType: "application/json",
-					text: JSON.stringify(await buildContext(), null, 2),
+					text: JSON.stringify(await buildContext(contextDeps), null, 2),
 				},
 			],
 		}),
@@ -283,23 +298,26 @@ export function registerResources(server: McpServer) {
 		}),
 	);
 
-	server.resource(
-		"chain-triggers",
-		"secondlayer://chain-triggers",
-		{
-			description:
-				"Chain-webhook trigger types and the filter fields each accepts (for webhooks_create triggers).",
-		},
-		async () => ({
-			contents: [
-				{
-					uri: "secondlayer://chain-triggers",
-					mimeType: "application/json",
-					text: JSON.stringify(CHAIN_TRIGGER_FIELDS, null, 2),
-				},
-			],
-		}),
-	);
+	// Webhook triggers: the hosted MCP has no webhook tools.
+	if (!deps.hosted) {
+		server.resource(
+			"chain-triggers",
+			"secondlayer://chain-triggers",
+			{
+				description:
+					"Chain-webhook trigger types and the filter fields each accepts (for webhooks_create triggers).",
+			},
+			async () => ({
+				contents: [
+					{
+						uri: "secondlayer://chain-triggers",
+						mimeType: "application/json",
+						text: JSON.stringify(CHAIN_TRIGGER_FIELDS, null, 2),
+					},
+				],
+			}),
+		);
+	}
 
 	// Template: 5 camelCased print samples + empirical field list. Host-loadable.
 	// Decoded camel data only — never raw_value hex dumps.
@@ -318,7 +336,7 @@ export function registerResources(server: McpServer) {
 					? variables.contractId[0]
 					: (variables.contractId ?? ""),
 			);
-			const body = await buildSamplesResource(contractId);
+			const body = await buildSamplesResource(contractId, deps.clientProvider);
 			return {
 				contents: [
 					{

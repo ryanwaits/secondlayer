@@ -78,48 +78,69 @@ export function keyHint(baseUrl: string = resolveBaseUrl()): string {
 		: " — set INSTANCE_TOKEN from `sl init` for writes";
 }
 
-/** Raw fetch helper for API endpoints not covered by the SDK. */
-export async function apiRequest<T>(
+/** A raw request to an API endpoint the SDK doesn't cover. */
+export type ApiRequest = <T>(
 	method: string,
 	path: string,
 	body?: unknown,
-): Promise<T> {
-	const baseUrl = resolveBaseUrl();
-	const apiKey = readApiKey();
-	const res = await fetch(`${baseUrl}${path}`, {
-		method,
-		headers: {
-			"Content-Type": "application/json",
-			...(apiKey ? { Authorization: `Bearer ${apiKey}` } : {}),
-		},
-		body: body ? JSON.stringify(body) : undefined,
-	});
-	if (!res.ok) {
-		const text = await res.text().catch(() => "");
-		const needsKey = !apiKey && (res.status === 401 || res.status === 403);
-		let parsed: unknown;
-		try {
-			parsed = text ? JSON.parse(text) : undefined;
-		} catch {
-			parsed = undefined;
-		}
-		const code =
-			parsed &&
-			typeof parsed === "object" &&
-			typeof (parsed as { code?: unknown }).code === "string"
-				? (parsed as { code: string }).code
-				: undefined;
-		throw Object.assign(
-			new Error(
-				(text || `HTTP ${res.status}`) + (needsKey ? keyHint(baseUrl) : ""),
-			),
-			{
-				status: res.status,
-				...(parsed !== undefined ? { body: parsed } : {}),
-				...(code ? { code } : {}),
+) => Promise<T>;
+
+/**
+ * An {@link ApiRequest} against `baseUrl` with `apiKey` as the bearer. A
+ * 401/403 on a keyless request gets a hint naming the key to set.
+ */
+export function createApiRequest(config: {
+	baseUrl: string;
+	apiKey?: string;
+	fetchImpl?: typeof fetch;
+}): ApiRequest {
+	const doFetch = config.fetchImpl ?? ((...args) => fetch(...args));
+	return async <T>(method: string, path: string, body?: unknown) => {
+		const { baseUrl, apiKey } = config;
+		const res = await doFetch(`${baseUrl}${path}`, {
+			method,
+			headers: {
+				"Content-Type": "application/json",
+				...(apiKey ? { Authorization: `Bearer ${apiKey}` } : {}),
 			},
-		);
-	}
-	if (res.status === 204) return undefined as T;
-	return res.json() as Promise<T>;
+			body: body ? JSON.stringify(body) : undefined,
+		});
+		if (!res.ok) {
+			const text = await res.text().catch(() => "");
+			const needsKey = !apiKey && (res.status === 401 || res.status === 403);
+			let parsed: unknown;
+			try {
+				parsed = text ? JSON.parse(text) : undefined;
+			} catch {
+				parsed = undefined;
+			}
+			const code =
+				parsed &&
+				typeof parsed === "object" &&
+				typeof (parsed as { code?: unknown }).code === "string"
+					? (parsed as { code: string }).code
+					: undefined;
+			throw Object.assign(
+				new Error(
+					(text || `HTTP ${res.status}`) + (needsKey ? keyHint(baseUrl) : ""),
+				),
+				{
+					status: res.status,
+					...(parsed !== undefined ? { body: parsed } : {}),
+					...(code ? { code } : {}),
+				},
+			);
+		}
+		if (res.status === 204) return undefined as T;
+		return res.json() as Promise<T>;
+	};
 }
+
+/** Raw fetch helper for API endpoints not covered by the SDK. Reads the base
+ *  URL and key from env on every call. */
+export const apiRequest: ApiRequest = (method, path, body) =>
+	createApiRequest({ baseUrl: resolveBaseUrl(), apiKey: readApiKey() })(
+		method,
+		path,
+		body,
+	);

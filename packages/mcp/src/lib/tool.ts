@@ -10,10 +10,25 @@ interface ToolResult {
 // never drift behind the actual tool surface (a new tool auto-appears). A Set
 // dedupes across repeated createServer() calls in tests.
 const registeredToolNames = new Set<string>();
+/** The same, per server: a hosted server lists only what it registered. */
+const serverToolNames = new WeakMap<McpServer, Set<string>>();
+/** Which tools a server takes (createServer's hosted set); absent = all. */
+const serverToolFilters = new WeakMap<McpServer, (name: string) => boolean>();
 
-/** Tool names registered so far this process (see {@link defineTool}). */
-export function getRegisteredToolNames(): string[] {
-	return [...registeredToolNames];
+/** Tool names registered so far: on `server`, or on any unrestricted server
+ *  in this process (see {@link defineTool}). */
+export function getRegisteredToolNames(server?: McpServer): string[] {
+	return server
+		? [...(serverToolNames.get(server) ?? [])]
+		: [...registeredToolNames];
+}
+
+/** From now on, `server` registers only the tools `allow` accepts. */
+export function restrictTools(
+	server: McpServer,
+	allow: (name: string) => boolean,
+): void {
+	serverToolFilters.set(server, allow);
 }
 
 /** API envelope fields worth handing back to the agent: the machine `code`,
@@ -101,7 +116,14 @@ export function defineTool<T>(
 			};
 		}
 	};
-	registeredToolNames.add(name);
+	const allow = serverToolFilters.get(server);
+	if (allow && !allow(name)) return;
+	// The process-wide list is the env server's; a restricted (hosted) server
+	// keeps its own list only.
+	if (!allow) registeredToolNames.add(name);
+	const names = serverToolNames.get(server) ?? new Set<string>();
+	names.add(name);
+	serverToolNames.set(server, names);
 	(server.tool as (...args: unknown[]) => unknown)(
 		name,
 		description,
