@@ -1025,8 +1025,9 @@ describe.skipIf(!HAS_DB)("/internal/sentinel tokens + keys", () => {
 		expect((await del(`/keys/not-a-uuid?accountId=${a}`)).status).toBe(404);
 	});
 
-	test("resolve: sentinel key → kind key with areas; session → kind session", async () => {
-		const accountId = await makeAccount(`k-${randomUUID()}@example.com`);
+	test("resolve: sentinel key → kind key with areas, no identity; session → kind session with email and linked", async () => {
+		const email = `k-${randomUUID()}@example.com`;
+		const accountId = await makeAccount(email);
 		const k = await mint(accountId);
 		const res = await resolve(k.key);
 		expect(res.status).toBe(200);
@@ -1039,7 +1040,43 @@ describe.skipIf(!HAS_DB)("/internal/sentinel tokens + keys", () => {
 		const session = await makeSession(accountId);
 		const sres = await resolve(session);
 		expect(sres.status).toBe(200);
-		expect(await sres.json()).toEqual({ accountId, kind: "session" });
+		expect(await sres.json()).toEqual({
+			accountId,
+			kind: "session",
+			email,
+			linked: true,
+		});
+	});
+
+	test("resolve: a session's email comes back lowercased", async () => {
+		const id = randomUUID();
+		const accountId = await makeAccount(`MiXeD-${id}@Example.COM`);
+		const body = (await (
+			await resolve(await makeSession(accountId))
+		).json()) as Record<string, unknown>;
+		expect(body.email).toBe(`mixed-${id}@example.com`);
+	});
+
+	test("resolve: an unlinked account's session says linked false", async () => {
+		const email = `k-${randomUUID()}@example.com`;
+		const accountId = await makeAccount(email, false);
+		const res = await resolve(await makeSession(accountId));
+		expect(res.status).toBe(200);
+		expect(await res.json()).toEqual({
+			accountId,
+			kind: "session",
+			email,
+			linked: false,
+		});
+	});
+
+	test("resolve: a session of an account with no email omits email", async () => {
+		const accountId = await makeAccount(null);
+		const body = (await (
+			await resolve(await makeSession(accountId))
+		).json()) as Record<string, unknown>;
+		expect(body).toEqual({ accountId, kind: "session", linked: true });
+		expect("email" in body).toBe(false);
 	});
 
 	test("resolve: expired and revoked sessions, unknown hashes → 404", async () => {

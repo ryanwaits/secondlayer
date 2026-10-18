@@ -11,7 +11,7 @@
  *   POST /settings           { accountId, monthlyCapCents?, refill? }   cap + auto top-up
  *   POST /affordable         { accountId, unit, quantity }              pure check, no debit
  *   POST /checkout           { accountId, packUsd, returnPath }         Stripe Checkout URL
- *   POST /tokens/resolve     { tokenHash }                              SHA-256 hex of a presented ss-sl_/sk-snt_ token
+ *   POST /tokens/resolve     { tokenHash }                              SHA-256 hex of a presented ss-sl_/sk-snt_ token (session: + email, linked)
  *   POST /keys               { accountId, name, areas }                 mint a sentinel agent key (raw key shown once)
  *   GET  /keys?accountId=                                               list the account's active sentinel keys
  *   DELETE /keys/:id?accountId=                                         revoke one of that account's sentinel keys
@@ -537,7 +537,20 @@ export function createInternalSentinelRouter(
 		const db = getDb();
 		const lookup = await lookupSession(db, tokenHash);
 		if (lookup.status === "ok") {
-			return c.json({ accountId: lookup.session.account_id, kind: "session" });
+			// A session is a person who signed in with this email, so Sentinel
+			// can create its user from it. `linked` says whether it may spend.
+			const accountId = lookup.session.account_id;
+			const [account, linked] = await Promise.all([
+				getAccountById(db, accountId),
+				isSentinelLinked(db, accountId),
+			]);
+			const email = account?.email?.trim().toLowerCase();
+			return c.json({
+				accountId,
+				kind: "session",
+				...(email ? { email } : {}),
+				linked,
+			});
 		}
 		const key = await db
 			.selectFrom("api_keys")
