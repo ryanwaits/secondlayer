@@ -63,6 +63,14 @@ describe("shareUrl", () => {
 		expect(url).toContain("%0A");
 	});
 
+	test("opens with the headline and ends with the dashboard link", () => {
+		const text = query(shareUrl("claude", base));
+		expect(text.startsWith("Your receiver is down, not the chain.\n")).toBe(
+			true,
+		);
+		expect(text.endsWith(DASHBOARD)).toBe(true);
+	});
+
 	test("stays within 8,000 characters and keeps the link for a huge prompt", () => {
 		const huge: Insight = {
 			...base,

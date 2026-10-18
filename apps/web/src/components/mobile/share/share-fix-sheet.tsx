@@ -66,7 +66,8 @@ function PreviewLine({ line }: { line: string }) {
 /** What the sheet shows. Rendered alone by the Lab and tests; `Sheet` portals. */
 export function ShareFixBody({ insight }: { insight: Insight }) {
 	const { title, text, url } = buildShareText(insight);
-	const body = text.endsWith(url) ? text.slice(0, -url.length).trimEnd() : text;
+	// `text` starts with the bold title and ends with the link, which has its own row.
+	const body = text.slice(title.length, text.length - url.length).trim();
 	return (
 		<>
 			<div className="m-share-prev">

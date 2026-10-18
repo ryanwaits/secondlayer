@@ -29,7 +29,7 @@ type Parts = { prompt: string; commands: readonly string[] };
 function compose(insight: Insight, { prompt, commands }: Parts): string {
 	const cause = causeText(insight.how);
 	const blocks = [
-		[insight.meta, cause ? `Likely cause: ${cause}` : ""],
+		[insight.lead, insight.meta, cause ? `Likely cause: ${cause}` : ""],
 		[prompt],
 		commands.map((command) => `Check: ${command}`),
 		[shareLinkFor(insight)],
