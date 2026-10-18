@@ -55,3 +55,6 @@ export function settleSheet(
 	}
 	return detent;
 }
+
+/** A pull-to-refresh drag must go this many px down to refresh. */
+export const PULL_REFRESH_DY = 64;

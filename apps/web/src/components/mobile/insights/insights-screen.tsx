@@ -10,10 +10,9 @@ import {
 } from "@/lib/insights-store";
 import { useState } from "react";
 import { Toaster, toast } from "sonner";
-import { ShareFixSheet } from "../share/share-fix-sheet";
 import { SwipeGroup } from "../swipe-row";
 import { InsightRow } from "./insight-row";
-import { InsightSheet } from "./insight-sheet";
+import { useInsightSheets } from "./insight-sheet-host";
 import {
 	isNewInsight,
 	openList,
@@ -44,7 +43,7 @@ function useStoreSource(): InsightsSource {
 }
 
 /** Read once at mount, before the shell stamps the tab as seen. */
-function readSeenAt(): number {
+export function readSeenAt(): number {
 	try {
 		return Number(localStorage.getItem(SEEN_KEY)) || 0;
 	} catch {
@@ -53,9 +52,6 @@ function readSeenAt(): number {
 }
 
 type View = "open" | "resolved";
-
-/** Which sheet is up: the insight, or its Share fix (which replaces it). */
-type SheetState = { kind: "insight" | "share"; id: string } | null;
 
 export function EmptyState({ title, text }: { title: string; text: string }) {
 	return (
@@ -90,13 +86,11 @@ export function InsightsScreen({ source }: { source?: InsightsSource }) {
 	const fromStore = useStoreSource();
 	const { ready, data, snooze, dismiss, restore } = source ?? fromStore;
 	const [view, setView] = useState<View>("open");
-	const [sheet, setSheet] = useState<SheetState>(null);
+	const { open: openSheet, sheets } = useInsightSheets(data);
 	const [seenAt] = useState(readSeenAt);
 
 	const open = openList(data);
 	const list = view === "open" ? open : resolvedList(data);
-	const selected = sheet ? (data.find((i) => i.id === sheet.id) ?? null) : null;
-	const closeSheet = () => setSheet(null);
 
 	const act = async (
 		insight: Insight,
@@ -142,7 +136,7 @@ export function InsightsScreen({ source }: { source?: InsightsSource }) {
 								key={insight.id}
 								insight={insight}
 								isNew={isNewInsight(insight, seenAt)}
-								onOpen={() => setSheet({ kind: "insight", id: insight.id })}
+								onOpen={() => openSheet(insight.id)}
 								onSnooze={() =>
 									void act(insight, "snooze", "Snoozed until tomorrow, 09:00.")
 								}
@@ -158,25 +152,7 @@ export function InsightsScreen({ source }: { source?: InsightsSource }) {
 					</SwipeGroup>
 				</div>
 			)}
-			<InsightSheet
-				insight={sheet?.kind === "insight" ? selected : null}
-				onClose={closeSheet}
-				extraAction={
-					selected && selected.severity !== "recovered" ? (
-						<button
-							type="button"
-							className="btn"
-							onClick={() => setSheet({ kind: "share", id: selected.id })}
-						>
-							Share fix
-						</button>
-					) : null
-				}
-			/>
-			<ShareFixSheet
-				insight={sheet?.kind === "share" ? selected : null}
-				onClose={closeSheet}
-			/>
+			{sheets}
 		</div>
 	);
 }

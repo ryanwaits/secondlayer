@@ -51,6 +51,10 @@ import {
 	LocalInsightsScreen,
 } from "@/components/mobile/insights/insights-screen";
 import { MobileHeader, MobileTabBar } from "@/components/mobile/mobile-shell";
+import {
+	LocalPulse,
+	type PulseBodyProps,
+} from "@/components/mobile/pulse/pulse-screen";
 import { ShareFixBody } from "@/components/mobile/share/share-fix-sheet";
 import { ButtonLink, Eyebrow, StatusDot } from "@/components/site";
 import { ChainStatusView } from "@/components/site/chain-status";
@@ -389,6 +393,75 @@ const insightFor = (rule: string) => {
 };
 
 const STORY_BLOCK_GAPS = [8, 11, 7, 9, 14, 8, 6, 9, 10, 8, 7, 12, 9, 8, 9, 10];
+
+/** Pulse fixtures: 48 hours ending at a fixed "now", with a failing tail for the incident. */
+const PULSE_NOW = new Date("2026-10-18T14:30:00.000Z");
+function pulseProps(
+	state: "incident" | "healthy" | "new",
+): Omit<PulseBodyProps, "onOpen"> {
+	const hours = Array.from({ length: 48 }, (_, i) =>
+		new Date(Date.UTC(2026, 9, 16, 15) + i * 3_600_000).toISOString(),
+	);
+	const failing = state === "incident";
+	const summary = {
+		hours,
+		webhooks: [
+			{
+				id: "wh-deposits",
+				delivered: hours.map((_, i) => (failing && i > 43 ? 4 : 38 + (i % 7))),
+				failed: hours.map((_, i) => (failing && i > 43 ? 30 : 0)),
+			},
+			{
+				id: "wh-transfers",
+				delivered: hours.map((_, i) => 120 + ((i * 13) % 40)),
+				failed: hours.map(() => 0),
+			},
+		],
+	};
+	return {
+		insights: state === "incident" ? FIXTURE_INSIGHTS : [],
+		summary,
+		rows: {
+			allowance: {
+				monthly: 1_000_000,
+				usedThisMonth: state === "new" ? 18_200 : 612_880,
+				exhaustedOn: null,
+				paidRowsThisMonth: 0,
+				paidUsdMicrosThisMonth: "0",
+				resetsOn: "2026-11-01",
+			},
+			daily: [],
+			hourlyToday: [
+				{
+					hour: "2026-10-18T09:00:00.000Z",
+					source: "api",
+					rows: 184_220,
+					calls: 900,
+				},
+			],
+			bySource: [],
+			histogram: [],
+			errors: [],
+		},
+		billing: {
+			creditsUsdMicros: "0",
+			spentThisMonthUsdMicros: state === "new" ? "0" : "40100000",
+		},
+		caps: {
+			monthlyCapCents: 5000,
+			alertThresholdPct: 80,
+			frozenAt: null,
+			alertSentAt: null,
+		},
+		webhookCount: state === "new" ? 0 : 4,
+		subgraphCount: state === "new" ? 0 : 3,
+		isNew: state === "new",
+		loaded: true,
+		now: PULSE_NOW,
+		updated: "just now",
+		seenAt: 0,
+	};
+}
 
 /** A 390px phone-width column for the gesture primitives. */
 function PhoneColumn({ children }: { children: ReactNode }) {
@@ -1742,6 +1815,52 @@ const META: Record<StoryId, Meta> = {
 		],
 		usage: `<Sparkline points={points} fails={fails} title="Deliveries, last 48 hours" />
 <Meter used={used} total={total} label="Free rows used" left="640k used" right="1M free" />`,
+	},
+	"mobile-pulse": {
+		src: [
+			"apps/web/src/components/mobile/pulse/pulse-screen.tsx",
+			"apps/web/src/components/mobile/pulse/pulse-view.ts",
+			"apps/web/src/components/mobile/pulse/use-pull-refresh.ts",
+		],
+		rule: "On a phone, Pulse says what needs you, the last 24 hours and today. The chain shows only as the header pill. Pull down to refresh.",
+		width: { min: 320, max: 430, value: 390 },
+		variants: [
+			{
+				id: "incident",
+				label: "Incident",
+				render: () => (
+					<PhoneColumn>
+						<LocalPulse {...pulseProps("incident")} />
+						<LabToaster />
+					</PhoneColumn>
+				),
+			},
+			{
+				id: "healthy",
+				label: "Healthy",
+				render: () => (
+					<PhoneColumn>
+						<LocalPulse {...pulseProps("healthy")} />
+						<LabToaster />
+					</PhoneColumn>
+				),
+			},
+			{
+				id: "new",
+				label: "New account",
+				render: () => (
+					<PhoneColumn>
+						<LocalPulse {...pulseProps("new")} />
+						<LabToaster />
+					</PhoneColumn>
+				),
+			},
+		],
+		usage: "<PulseScreen />",
+		donts: [
+			"No chain card.",
+			"No keys strip or month chart: that is Overview.",
+		],
 	},
 	"mobile-insights": {
 		src: [
