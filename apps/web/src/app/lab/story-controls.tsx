@@ -975,7 +975,7 @@ export function BillingDemo({ state }: { state: BillingDemoState }) {
 }
 
 /** Lab-only toast host: the Lab sits outside (www), which mounts the app's one Toaster. */
-function LabToaster() {
+export function LabToaster() {
 	return (
 		<Toaster
 			position="bottom-center"

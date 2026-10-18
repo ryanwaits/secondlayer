@@ -10,6 +10,7 @@ import {
 } from "@/lib/insights-store";
 import { useState } from "react";
 import { Toaster, toast } from "sonner";
+import { ShareFixSheet } from "../share/share-fix-sheet";
 import { SwipeGroup } from "../swipe-row";
 import { InsightRow } from "./insight-row";
 import { InsightSheet } from "./insight-sheet";
@@ -53,6 +54,9 @@ function readSeenAt(): number {
 
 type View = "open" | "resolved";
 
+/** Which sheet is up: the insight, or its Share fix (which replaces it). */
+type SheetState = { kind: "insight" | "share"; id: string } | null;
+
 export function EmptyState({ title, text }: { title: string; text: string }) {
 	return (
 		<div className="m-empty">
@@ -86,12 +90,13 @@ export function InsightsScreen({ source }: { source?: InsightsSource }) {
 	const fromStore = useStoreSource();
 	const { ready, data, snooze, dismiss, restore } = source ?? fromStore;
 	const [view, setView] = useState<View>("open");
-	const [openId, setOpenId] = useState<string | null>(null);
+	const [sheet, setSheet] = useState<SheetState>(null);
 	const [seenAt] = useState(readSeenAt);
 
 	const open = openList(data);
 	const list = view === "open" ? open : resolvedList(data);
-	const selected = openId ? (data.find((i) => i.id === openId) ?? null) : null;
+	const selected = sheet ? (data.find((i) => i.id === sheet.id) ?? null) : null;
+	const closeSheet = () => setSheet(null);
 
 	const act = async (
 		insight: Insight,
@@ -137,7 +142,7 @@ export function InsightsScreen({ source }: { source?: InsightsSource }) {
 								key={insight.id}
 								insight={insight}
 								isNew={isNewInsight(insight, seenAt)}
-								onOpen={() => setOpenId(insight.id)}
+								onOpen={() => setSheet({ kind: "insight", id: insight.id })}
 								onSnooze={() =>
 									void act(insight, "snooze", "Snoozed until tomorrow, 09:00.")
 								}
@@ -153,7 +158,25 @@ export function InsightsScreen({ source }: { source?: InsightsSource }) {
 					</SwipeGroup>
 				</div>
 			)}
-			<InsightSheet insight={selected} onClose={() => setOpenId(null)} />
+			<InsightSheet
+				insight={sheet?.kind === "insight" ? selected : null}
+				onClose={closeSheet}
+				extraAction={
+					selected && selected.severity !== "recovered" ? (
+						<button
+							type="button"
+							className="btn"
+							onClick={() => setSheet({ kind: "share", id: selected.id })}
+						>
+							Share fix
+						</button>
+					) : null
+				}
+			/>
+			<ShareFixSheet
+				insight={sheet?.kind === "share" ? selected : null}
+				onClose={closeSheet}
+			/>
 		</div>
 	);
 }

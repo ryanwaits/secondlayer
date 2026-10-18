@@ -51,6 +51,7 @@ import {
 	LocalInsightsScreen,
 } from "@/components/mobile/insights/insights-screen";
 import { MobileHeader, MobileTabBar } from "@/components/mobile/mobile-shell";
+import { ShareFixBody } from "@/components/mobile/share/share-fix-sheet";
 import { ButtonLink, Eyebrow, StatusDot } from "@/components/site";
 import { ChainStatusView } from "@/components/site/chain-status";
 import { type ChainTip, EMPTY_TIP } from "@/lib/chain-tip";
@@ -63,6 +64,7 @@ import {
 	HeatStripDemo,
 	HoldButtonDemo,
 	KeysDemo,
+	LabToaster,
 	OverviewDemo,
 	OverviewOnboardingDemo,
 	PayloadViewDemo,
@@ -1799,6 +1801,55 @@ const META: Record<StoryId, Meta> = {
 		usage:
 			"<InsightsScreen />\n<InsightSheet insight={insight} onClose={close} />",
 		donts: ["No hand-off block on a phone.", "No cause below 0.85 confidence."],
+	},
+	"mobile-share": {
+		src: [
+			"apps/web/src/components/mobile/share/share-fix-sheet.tsx",
+			"apps/web/src/components/mobile/share/share-text.ts",
+			"apps/web/src/components/mobile/share/share-marks.tsx",
+		],
+		rule: "On a phone, Share fix opens Claude, ChatGPT or Cursor with the fix filled in, or hands it to Slack. You read it, then send.",
+		width: { min: 320, max: 430, value: 390 },
+		variants: [
+			{
+				id: "cause",
+				label: "With cause",
+				render: () => (
+					<PhoneColumn>
+						<div className="m-sheet-body">
+							<ShareFixBody insight={insightFor("receiver_down")} />
+						</div>
+						<LabToaster />
+					</PhoneColumn>
+				),
+			},
+			{
+				id: "no-commands",
+				label: "No commands",
+				render: () => (
+					<PhoneColumn>
+						<div className="m-sheet-body">
+							<ShareFixBody
+								insight={{
+									...insightFor("receiver_down"),
+									handoff: {
+										...insightFor("receiver_down").handoff,
+										commands: [],
+									},
+								}}
+							/>
+						</div>
+						<LabToaster />
+					</PhoneColumn>
+				),
+			},
+		],
+		usage:
+			"<ShareFixSheet insight={insight} onClose={close} />\nawait shareLink(title, url)",
+		donts: [
+			"Claude and ChatGPT links are undocumented; keep them in SHARE_TARGETS only.",
+			"No Notes, Mail or Messages tiles.",
+		],
 	},
 	"insight-card": {
 		src: [

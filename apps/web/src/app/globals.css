@@ -9024,3 +9024,90 @@ button.sg-sort:focus-visible {
 	line-height: 1.5;
 	color: var(--sub);
 }
+
+/* Mobile share */
+.m-share-prev {
+	display: grid;
+	gap: 6px;
+	padding: 12px;
+	border: 1px solid var(--line);
+	border-radius: 8px;
+	font-size: 13px;
+}
+.m-share-prev b {
+	font-weight: 500;
+	font-size: 14px;
+}
+.m-share-text {
+	display: grid;
+	gap: 2px;
+	color: var(--sub);
+	line-height: 1.45;
+}
+.m-share-line {
+	white-space: pre-wrap;
+	overflow-wrap: anywhere;
+}
+.m-share-line:empty {
+	height: 6px;
+}
+.m-share-text code {
+	font: 12px var(--font-mono-stack);
+	color: var(--ink);
+}
+.m-share-url {
+	font: 12px var(--font-mono-stack);
+	color: var(--pri-ink);
+	overflow-wrap: anywhere;
+}
+.m-share-targets {
+	display: grid;
+	grid-template-columns: repeat(4, 1fr);
+	padding: 4px 0;
+}
+.m-share-targets .m-share-target {
+	display: grid;
+	justify-items: center;
+	gap: 6px;
+	padding: 0;
+	border: 0;
+	background: none;
+	font: inherit;
+	font-size: 11px;
+	color: var(--sub);
+	text-decoration: none;
+	cursor: pointer;
+}
+.m-share-target i {
+	display: grid;
+	place-items: center;
+	width: 54px;
+	height: 54px;
+	border: 1px solid var(--line);
+	border-radius: 8px;
+	background: var(--soft);
+	color: var(--ink);
+}
+.m-share-copy {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	width: 100%;
+	padding: 12px;
+	border: 1px solid var(--line);
+	border-radius: 8px;
+	background: none;
+	font: inherit;
+	font-size: 13.5px;
+	color: var(--ink);
+	cursor: pointer;
+}
+.m-share-copy svg {
+	color: var(--faint);
+}
+.m-share-hint {
+	margin: 0;
+	text-align: center;
+	font-size: 13px;
+	color: var(--faint);
+}
