@@ -13,6 +13,7 @@ import {
 	type ResourceRowLabels,
 } from "@/components/dashboard/shell/resource-row";
 import { StatusSentence } from "@/components/dashboard/shell/status-sentence";
+import { useCompact } from "@/components/mobile/use-compact";
 import type { Insight } from "@/lib/insights";
 import {
 	forAccountRules,
@@ -35,6 +36,8 @@ import {
 import { useEffect, useState } from "react";
 import { StateCell, insightRowState } from "../webhooks/rows";
 import { ageShort } from "../webhooks/view";
+import { SubgraphsCompactList } from "./compact-list";
+import { SubgraphSheet } from "./compact-sheet";
 import { SubgraphsEmptyState } from "./empty-state";
 
 /** The list and each subgraph's 24-hour health refresh this often while the
@@ -279,6 +282,24 @@ export function SubgraphsListSection() {
 	const notice = useSubgraphsPoll();
 	const { list, health } = useSubgraphsCache();
 	const { data: insights } = useInsights();
+	const compact = useCompact();
+	const [open, setOpen] = useState<string | null>(null);
+	if (compact) {
+		return (
+			<>
+				<SubgraphsCompactList
+					items={list?.data ?? null}
+					health={healthByName(health)}
+					insights={insights}
+					notice={notice}
+					onOpen={setOpen}
+				/>
+				{open ? (
+					<SubgraphSheet name={open} onClose={() => setOpen(null)} />
+				) : null}
+			</>
+		);
+	}
 	return (
 		<SubgraphsListBody
 			items={list?.data ?? null}

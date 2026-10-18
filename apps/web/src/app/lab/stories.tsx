@@ -69,6 +69,7 @@ import {
 	HoldButtonDemo,
 	KeysDemo,
 	LabToaster,
+	LocalSubgraphsList,
 	LocalWebhookDetail,
 	LocalWebhooksList,
 	OverviewDemo,
@@ -79,6 +80,7 @@ import {
 	SheetDemo,
 	StackedCostDemo,
 	SubgraphGridDemo,
+	SubgraphSheetDemo,
 	SwipeRowDemo,
 	WebhookHeaderDemo,
 } from "./story-controls";
@@ -1982,6 +1984,67 @@ const META: Record<StoryId, Meta> = {
 		donts: [
 			"No CLI commands on a phone.",
 			"Replay stays disabled until the replay sheet ships.",
+		],
+	},
+	"mobile-subgraphs": {
+		src: [
+			"apps/web/src/components/account/subgraphs/compact-list.tsx",
+			"apps/web/src/components/account/subgraphs/compact-sheet.tsx",
+		],
+		rule: "On a phone a subgraph is a row you watch: lag, rows, errors. Fixes happen in code.",
+		width: { min: 320, max: 430, value: 390 },
+		variants: [
+			{
+				id: "list",
+				label: "List",
+				render: () => (
+					<PhoneColumn>
+						<LocalSubgraphsList />
+					</PhoneColumn>
+				),
+			},
+			{
+				id: "list-errors",
+				label: "List, one throwing",
+				render: () => (
+					<PhoneColumn>
+						<LocalSubgraphsList only="sbtc-flows" />
+					</PhoneColumn>
+				),
+			},
+			{
+				id: "sheet-half",
+				label: "Sheet, half",
+				render: () => (
+					<PhoneColumn>
+						<SubgraphSheetDemo detent="half" />
+					</PhoneColumn>
+				),
+			},
+			{
+				id: "sheet-full-errors",
+				label: "Sheet, full, errors and Share fix",
+				render: () => (
+					<PhoneColumn>
+						<SubgraphSheetDemo detent="full" withShare />
+					</PhoneColumn>
+				),
+			},
+			{
+				id: "empty",
+				label: "Empty",
+				render: () => (
+					<PhoneColumn>
+						<LocalSubgraphsList empty />
+					</PhoneColumn>
+				),
+			},
+		],
+		usage:
+			"<SubgraphsCompactList items={items} health={health} onOpen={open} />\n<SubgraphSheet name={name} onClose={close} />",
+		donts: [
+			"No actions and no CLI commands on a phone.",
+			"No integrity row until the API has the field.",
 		],
 	},
 	"mobile-share": {

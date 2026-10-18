@@ -25,11 +25,21 @@ import {
 	serverErrorsInsight,
 } from "@/components/account/overview/overview.fixtures";
 import { RowsBody } from "@/components/account/rows/rows-panel";
+import { SubgraphsCompactList } from "@/components/account/subgraphs/compact-list";
+import {
+	SubgraphSheetBody,
+	SubgraphSheetPanel,
+	sheetHead,
+} from "@/components/account/subgraphs/compact-sheet";
 import { GridView } from "@/components/account/subgraphs/data-grid";
 import { SubgraphRows } from "@/components/account/subgraphs/list-screen";
 import {
 	EXAMPLE_NOW,
 	exampleColumns,
+	exampleDetail,
+	exampleErrors,
+	exampleHealth,
+	exampleList,
 	exampleRows,
 } from "@/components/account/subgraphs/subgraph.fixtures";
 import { WebhookCompactDetail } from "@/components/account/webhooks/compact-detail";
@@ -62,8 +72,11 @@ import {
 } from "@/components/dashboard/shell/onboarding";
 import { Logo } from "@/components/logo";
 import { HoldButton } from "@/components/mobile/hold-button";
+import { ShareFixSheet } from "@/components/mobile/share/share-fix-sheet";
 import { Sheet } from "@/components/mobile/sheet";
 import { SwipeGroup, SwipeRow } from "@/components/mobile/swipe-row";
+import type { Insight } from "@/lib/insights";
+import { FIXTURE_INSIGHTS } from "@/lib/insights.fixtures";
 import type { RowsDay, RowsResponse } from "@/lib/rows";
 import {
 	DEFAULT_SORT,
@@ -73,6 +86,7 @@ import {
 	toggleSort,
 	withFilter,
 } from "@/lib/subgraph-view";
+import type { SubgraphListItem } from "@/lib/subgraphs-store";
 import type { WebhookTestResult } from "@secondlayer/sdk";
 import type { ChainTrigger } from "@secondlayer/sdk";
 import Link from "next/link";
@@ -1312,3 +1326,119 @@ const FAILING_DETAIL = {
 	circuitFailures: 20,
 	lastError: "502 Bad Gateway",
 } as const;
+
+/** Subgraphs the phone list shows: at the tip, behind, throwing, reindexing. */
+const PHONE_SUBGRAPHS: SubgraphListItem[] = [
+	...exampleList,
+	{
+		name: "sbtc-flows",
+		version: "2.0.0",
+		status: "active",
+		lastProcessedBlock: 9_218_390,
+		totalRows: 88_410,
+		totalErrors: 1204,
+		tables: ["flows"],
+		blocksRemaining: 1,
+		updatedAt: "2026-10-15T11:59:00Z",
+		createdAt: "2026-09-10T09:00:00Z",
+	},
+	{
+		name: "bns-names",
+		version: "1.0.0",
+		status: "reindexing",
+		lastProcessedBlock: 4_120_000,
+		totalRows: 20_551,
+		totalErrors: 0,
+		tables: ["names"],
+		blocksRemaining: 5_098_411,
+		updatedAt: "2026-10-15T11:58:00Z",
+		createdAt: "2026-10-15T09:00:00Z",
+	},
+];
+
+/** The phone list with a local sheet, so a row opens the facts and Share fix opens the share sheet with no server. */
+export function LocalSubgraphsList({
+	only,
+	empty = false,
+}: { only?: string; empty?: boolean }) {
+	const [open, setOpen] = useState<string | null>(null);
+	const [sharing, setSharing] = useState<Insight | null>(null);
+	const item = PHONE_SUBGRAPHS.find((s) => s.name === open);
+	const flows = item?.name === "sbtc-flows";
+	const health = {
+		"sbtc-deposits": exampleHealth(0),
+		"vault-events": exampleHealth(0),
+		"sbtc-flows": exampleHealth(1204),
+		"bns-names": exampleHealth(0),
+	};
+	const insight = FIXTURE_INSIGHTS.find((i) => i.rule === "handler_errors");
+	return (
+		<>
+			<SubgraphsCompactList
+				items={
+					empty ? [] : PHONE_SUBGRAPHS.filter((s) => !only || s.name === only)
+				}
+				health={health}
+				insights={[]}
+				notice={null}
+				onOpen={setOpen}
+			/>
+			{item ? (
+				<Sheet
+					open
+					onClose={sharing ? () => {} : () => setOpen(null)}
+					detents={["half", "full"]}
+					{...sheetHead(item, health[item.name as keyof typeof health])}
+				>
+					<SubgraphSheetBody
+						item={item}
+						detail={exampleDetail}
+						health={health[item.name as keyof typeof health]}
+						errors={flows ? exampleErrors : []}
+						insights={
+							insight && flows
+								? [
+										{
+											...insight,
+											resource: { ...insight.resource, id: item.name },
+										},
+									]
+								: []
+						}
+						onShare={setSharing}
+					/>
+				</Sheet>
+			) : null}
+			<ShareFixSheet insight={sharing} onClose={() => setSharing(null)} />
+		</>
+	);
+}
+
+/** The sheet's markup for the throwing subgraph, at a fixed detent, with or without Share fix. */
+export function SubgraphSheetDemo({
+	detent,
+	withErrors = true,
+	withShare = false,
+}: { detent: "half" | "full"; withErrors?: boolean; withShare?: boolean }) {
+	const insight = FIXTURE_INSIGHTS.find((i) => i.rule === "handler_errors");
+	return (
+		<SubgraphSheetPanel
+			detent={detent}
+			item={PHONE_SUBGRAPHS[2] as SubgraphListItem}
+			detail={exampleDetail}
+			health={exampleHealth(withErrors ? 1204 : 0)}
+			errors={withErrors ? exampleErrors : []}
+			insights={
+				insight && withShare
+					? [
+							{
+								...insight,
+								resource: { ...insight.resource, id: "sbtc-flows" },
+							},
+						]
+					: []
+			}
+			onShare={withShare ? () => {} : undefined}
+		/>
+	);
+}

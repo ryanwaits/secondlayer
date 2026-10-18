@@ -9474,3 +9474,176 @@ button.sg-sort:focus-visible {
 .mwh-chart .dash-panel {
 	margin-top: 0;
 }
+
+/* Mobile subgraphs */
+.msg {
+	display: grid;
+	gap: 12px;
+	padding: 0 20px 16px;
+	min-width: 0;
+}
+.msg .m-sub {
+	min-width: 0;
+	overflow-wrap: anywhere;
+}
+.msg-group,
+.m-sheet-body > .msg-group {
+	overflow: hidden;
+	border: 1px solid var(--line);
+	border-radius: 8px;
+}
+.msg-row {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	width: 100%;
+	min-height: 44px;
+	padding: 12px 14px;
+	border: 0;
+	background: var(--paper);
+	color: var(--ink);
+	font: inherit;
+	text-align: left;
+	cursor: pointer;
+}
+.msg-row + .msg-row {
+	border-top: 1px solid var(--line);
+}
+.msg-main {
+	display: grid;
+	gap: 2px;
+	flex: 1;
+	min-width: 0;
+}
+.msg-name {
+	overflow: hidden;
+	font: 500 13.5px / 1.3 var(--font-mono-stack);
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+.msg-line {
+	font-size: 13px;
+	line-height: 1.35;
+	color: var(--sub);
+}
+.msg-line.is-bad,
+.msg .is-bad,
+.msg-code .is-bad,
+.msg-v.is-bad {
+	color: var(--alarm);
+}
+.msg-meter {
+	display: block;
+	height: 5px;
+	margin-top: 6px;
+	overflow: hidden;
+	border-radius: 999px;
+	background: var(--soft);
+}
+.msg-meter i {
+	display: block;
+	height: 100%;
+	background: var(--ink);
+}
+.msg-chev {
+	flex: none;
+	color: var(--faint);
+}
+.msg-hint {
+	margin: 0;
+}
+.msg-skel-row {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	padding: 14px;
+}
+.msg-skel-row + .msg-skel-row {
+	border-top: 1px solid var(--line);
+}
+.msg-skel-text,
+.msg-skel-block {
+	display: grid;
+	flex: 1;
+	gap: 8px;
+}
+.msg-title {
+	overflow-wrap: anywhere;
+	font: 500 19px / 1.2 var(--font-mono-stack);
+	letter-spacing: -0.02em;
+}
+.msg-kv {
+	display: flex;
+	align-items: baseline;
+	justify-content: space-between;
+	gap: 12px;
+	padding: 10px 14px;
+	font-size: 13px;
+	color: var(--sub);
+}
+.msg-kv + .msg-kv {
+	border-top: 1px solid var(--line);
+}
+.msg-v {
+	min-width: 0;
+	font: 13px var(--font-mono-stack);
+	font-variant-numeric: tabular-nums;
+	text-align: right;
+	color: var(--ink);
+}
+.msg-err {
+	min-width: 0;
+	overflow: hidden;
+	font: 12px var(--font-mono-stack);
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+.msg-drag {
+	display: none;
+	margin: 0;
+	text-align: center;
+	font-size: 12px;
+	color: var(--faint);
+}
+.m-sheet.is-half .msg-drag {
+	display: block;
+}
+.msg-sec {
+	display: flex;
+	align-items: baseline;
+	justify-content: space-between;
+	gap: 12px;
+	margin-top: 4px;
+}
+.msg-sec b {
+	font-size: 15px;
+	font-weight: 500;
+}
+.msg-sec span {
+	font-size: 12px;
+	color: var(--faint);
+}
+.msg-code {
+	display: grid;
+	gap: 2px;
+	padding: 12px 14px;
+	border: 1px solid var(--line);
+	border-radius: 8px;
+	font: 12px / 1.5 var(--font-mono-stack);
+	overflow-wrap: anywhere;
+}
+.msg-faint {
+	color: var(--faint);
+}
+.msg-share {
+	width: 100%;
+	min-height: 44px;
+	border: 1px solid var(--line);
+	border-radius: 4px;
+	background: var(--paper);
+	color: var(--ink);
+	font: inherit;
+	font-size: 14px;
+	font-weight: 500;
+	cursor: pointer;
+}
