@@ -22,7 +22,17 @@ export const OAUTH_REFRESH_PREFIX = "ort-sl_";
 /** The one scope: use the hosted MCP as the account. */
 export const OAUTH_SCOPE = "mcp";
 
-export const OAUTH_TTL = {
+export interface OauthTtl {
+	readonly accessSeconds: number;
+	readonly refreshMs: number;
+	/** The consent window for an authorize request. */
+	readonly requestMs: number;
+	readonly codeMs: number;
+	/** A registered client that never got a token is dropped after this. */
+	readonly unusedClientMs: number;
+}
+
+export const OAUTH_TTL: OauthTtl = {
 	accessSeconds: 60 * 60,
 	refreshMs: 30 * 24 * 60 * 60 * 1000,
 	/** The consent window for an authorize request. */
@@ -30,7 +40,7 @@ export const OAUTH_TTL = {
 	codeMs: 10 * 60 * 1000,
 	/** A registered client that never got a token is dropped after this. */
 	unusedClientMs: 24 * 60 * 60 * 1000,
-} as const;
+};
 
 /** `grants.last_used_at` is written at most this often per grant. */
 const LAST_USED_GRANULARITY = "1 minute";
@@ -539,7 +549,10 @@ export async function listOauthGrants(
  * never used within a day, and clients with no grant left a refresh lifetime
  * after their last use. Returns the rows deleted.
  */
-export async function purgeOauth(db: Db, now = new Date()): Promise<number> {
+export async function purgeOauth(
+	db: Db,
+	now: Date = new Date(),
+): Promise<number> {
 	const month = new Date(now.getTime() - OAUTH_TTL.refreshMs);
 	const day = new Date(now.getTime() - OAUTH_TTL.unusedClientMs);
 	let n = 0;
