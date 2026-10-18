@@ -292,6 +292,22 @@ describe.skipIf(!HAS_DB)("consent routes (sessions only)", () => {
 		).toEqual([]);
 	});
 
+	test("the limit is per account, not per IP: one busy account doesn't block another", async () => {
+		const busy = await account();
+		const other = await account();
+		const statuses: number[] = [];
+		for (let i = 0; i < 61; i++)
+			statuses.push(
+				(await call("GET", "/api/oauth/grants", busy.session)).status,
+			);
+		expect(statuses.slice(0, 60).every((s) => s === 200)).toBe(true);
+		expect(statuses[60]).toBe(429);
+		// Same (absent) client IP, as every call through the web server has.
+		expect((await call("GET", "/api/oauth/grants", other.session)).status).toBe(
+			200,
+		);
+	});
+
 	test("a malformed request or grant id is 404", async () => {
 		const me = await account();
 		expect(

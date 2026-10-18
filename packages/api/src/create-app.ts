@@ -187,8 +187,9 @@ export function createApiApp(mode: InstanceMode): Hono {
 		// and a form-encoded token endpoint the `/api` JSON rule would refuse.
 		app.route("/", createOauthRouter());
 		// The consent page's answers and the account's connected apps:
-		// browser sessions only (keys and app tokens get 403).
-		app.use("/api/oauth/*", ipRateLimit(60, "oauth-consent"));
+		// browser sessions only (keys and app tokens get 403), limited per
+		// account inside the router. Every call arrives from the web server,
+		// so a per-IP limit there would be one bucket for every user.
 		app.route("/api/oauth", oauthConsentRouter);
 		app.route("/api/keys", keysRouter);
 		app.use("/api/auth/*", ipRateLimit(10));

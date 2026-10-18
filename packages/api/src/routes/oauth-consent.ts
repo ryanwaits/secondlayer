@@ -6,11 +6,16 @@ import {
 	revokeOauthGrant,
 } from "@secondlayer/platform/db/queries/oauth";
 import { getDb } from "@secondlayer/shared/db";
-import { AuthorizationError, NotFoundError } from "@secondlayer/shared/errors";
+import {
+	AuthorizationError,
+	NotFoundError,
+	RateLimitError,
+} from "@secondlayer/shared/errors";
 import { Hono, type MiddlewareHandler } from "hono";
 import { requireAuth } from "../auth/middleware.ts";
 import { issuerOrigin } from "../auth/oauth/config.ts";
 import { redirectWith } from "../auth/oauth/routes.ts";
+import { getRateLimitStore } from "../auth/rate-limit-store.ts";
 
 /**
  * The web consent page's side of the hosted MCP sign-in, and the account's
@@ -18,6 +23,9 @@ import { redirectWith } from "../auth/oauth/routes.ts";
  * token is refused with 403 before it is even looked up, in process or not,
  * so no key and no app can approve a sign-in or list, mint or revoke a grant.
  */
+
+/** Per account, not per IP: every call comes through the web server. */
+const PER_ACCOUNT_PER_MIN = 60;
 
 const REQUEST_ID_RE = /^oar_[A-Za-z0-9_-]{1,64}$/;
 const UUID_RE =
@@ -53,6 +61,25 @@ function requestId(raw: string): string {
 const app = new Hono();
 app.use("*", sessionBearerOnly);
 app.use("*", requireAuth());
+app.use("*", async (c, next) => {
+	const accountId = sessionAccount(c);
+	const r = await getRateLimitStore().check(
+		`oauth-consent:${accountId}`,
+		PER_ACCOUNT_PER_MIN,
+		60_000,
+		{ failClosed: true },
+	);
+	c.header("X-RateLimit-Limit", String(PER_ACCOUNT_PER_MIN));
+	c.header(
+		"X-RateLimit-Remaining",
+		String(Math.max(0, PER_ACCOUNT_PER_MIN - r.count)),
+	);
+	if (!r.allowed) {
+		c.header("Retry-After", String(r.retryAfter));
+		throw new RateLimitError("Too many requests. Try again in a minute.");
+	}
+	await next();
+});
 
 // What the consent page shows for a request still waiting for an answer.
 app.get("/requests/:id", async (c) => {
