@@ -5,6 +5,7 @@ import type { InstanceMode } from "@secondlayer/shared/mode";
 import { Hono, type MiddlewareHandler } from "hono";
 import { cors } from "hono/cors";
 import { ipRateLimit, keysRouter, requireAuth } from "./auth/index.ts";
+import { createOauthRouter } from "./auth/oauth/routes.ts";
 import { v1InstanceGate } from "./auth/read-plane.ts";
 import { instanceTokenAuth } from "./middleware/auth-modes.ts";
 import { requireJsonWrites } from "./middleware/csrf.ts";
@@ -171,6 +172,10 @@ export function createApiApp(mode: InstanceMode): Hono {
 		mode === "oss" ? instanceTokenAuth() : requireAuth();
 
 	if (mode === "platform") {
+		// OAuth for the hosted MCP: metadata, registration, authorize, token.
+		// At the root, outside `/api`: its own `*` CORS without credentials,
+		// and a form-encoded token endpoint the `/api` JSON rule would refuse.
+		app.route("/", createOauthRouter());
 		app.route("/api/keys", keysRouter);
 		app.use("/api/auth/*", ipRateLimit(10));
 		app.route("/api/auth", authRouter);

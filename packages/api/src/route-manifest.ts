@@ -35,6 +35,14 @@ export const HOSTED_ROUTE_FIXTURES = [
 		method: "POST",
 		path: "/v1/chain-read/v2/contracts/call-read/SP000000000000000000002Q6VF78/pox-4/get-pox-info",
 	},
+	// OAuth for the hosted MCP (RFC 8414, 9728, 7591, 6749). The protocol
+	// endpoints are specified by their RFCs, not the OpenAPI document.
+	{ method: "GET", path: "/.well-known/oauth-authorization-server" },
+	{ method: "GET", path: "/.well-known/oauth-protected-resource" },
+	{ method: "GET", path: "/.well-known/oauth-protected-resource/mcp" },
+	{ method: "POST", path: "/oauth/register" },
+	{ method: "GET", path: "/oauth/authorize" },
+	{ method: "POST", path: "/oauth/token" },
 ] as const;
 
 /** Gate-g Slice D deletions + the x402 rail — 404 in oss and platform alike. */
