@@ -487,6 +487,27 @@ describe.skipIf(!HAS_DB)("hosted MCP", () => {
 		expect(out.results?.[0]?.status ?? 400).toBe(400);
 	});
 
+	test("batch_query can't reach key management with encoded dot segments; a normal read still works", async () => {
+		const me = await account();
+		const r = await callTool(me.key, "batch_query", {
+			requests: [
+				{ path: "/v1/index/%2e%2e/%2e%2e/api/keys" },
+				{ path: "/v1/index/%2E%2E/%2E%2E/api/keys" },
+				{ path: "/v1/index/%252e%252e/%252e%252e/api/keys" },
+				{ path: "/v1/../api/keys" },
+				{
+					path: "/v1/index/transactions",
+					params: { from_height: String(height), to_height: String(height) },
+				},
+			],
+		});
+		const out = JSON.parse(r.content[0].text) as {
+			results: { status: number; body: unknown }[];
+		};
+		expect(out.results.map((x) => x.status)).toEqual([400, 400, 400, 400, 200]);
+		expect(JSON.stringify(out.results.slice(0, 4))).not.toContain("sk-sl_");
+	});
+
 	test("concurrent callers with different credentials never see each other's account", async () => {
 		const [a, b] = [await account(), await account()];
 		const rounds = await Promise.all(

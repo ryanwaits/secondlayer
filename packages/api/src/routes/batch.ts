@@ -36,6 +36,32 @@ export type BatchDispatch = (
 	parent: Request,
 ) => Promise<Response>;
 
+/** Escapes that could still turn into a dot, a slash or a backslash once a
+ *  router or handler decodes the path: refused rather than guessed at. */
+const ENCODED_SEPARATOR = /%(?:2e|2f|5c|25)/i;
+
+/**
+ * The exact path and query a batch item dispatches to, or null when it is not
+ * allowed. The check runs on the path as the URL parser resolves it, which
+ * is what the dispatcher fetches: `..` and `%2e%2e` segments are already
+ * collapsed, so a prefix check on the raw string can't be walked out of.
+ */
+export function normalizeBatchPath(raw: string): string | null {
+	if (!raw.startsWith("/") || raw.startsWith("//") || raw.includes("\\"))
+		return null;
+	let url: URL;
+	try {
+		url = new URL(raw, "http://batch.invalid");
+	} catch {
+		return null;
+	}
+	if (url.origin !== "http://batch.invalid") return null;
+	const path = url.pathname;
+	if (path.includes("..") || ENCODED_SEPARATOR.test(path)) return null;
+	if (!ALLOWED_PREFIXES.some((p) => path.startsWith(p))) return null;
+	return `${path}${url.search}`;
+}
+
 export function createBatchRouter(dispatch: BatchDispatch) {
 	const router = new Hono();
 
@@ -66,11 +92,9 @@ export function createBatchRouter(dispatch: BatchDispatch) {
 
 		const results = await Promise.all(
 			requests.map(async (item) => {
-				if (
-					typeof item?.path !== "string" ||
-					!ALLOWED_PREFIXES.some((p) => item.path.startsWith(p)) ||
-					item.path.includes("..")
-				) {
+				const target =
+					typeof item?.path === "string" ? normalizeBatchPath(item.path) : null;
+				if (!target) {
 					return {
 						path: item?.path ?? null,
 						status: 400,
@@ -81,18 +105,14 @@ export function createBatchRouter(dispatch: BatchDispatch) {
 					};
 				}
 				const qs = item.params
-					? `${item.path.includes("?") ? "&" : "?"}${new URLSearchParams(
+					? `${target.includes("?") ? "&" : "?"}${new URLSearchParams(
 							Object.fromEntries(
 								Object.entries(item.params).map(([k, v]) => [k, String(v)]),
 							),
 						).toString()}`
 					: "";
 				try {
-					const res = await dispatch(
-						`${item.path}${qs}`,
-						{ headers },
-						c.req.raw,
-					);
+					const res = await dispatch(`${target}${qs}`, { headers }, c.req.raw);
 					const parsed = await res
 						.json()
 						.catch(() => ({ error: "non-JSON response" }));
