@@ -4,6 +4,7 @@ import type {
 	WebhookActivity,
 	WebhookDetail,
 	WebhookSummary,
+	WebhookTestResult,
 } from "@secondlayer/sdk";
 
 /**
@@ -163,6 +164,15 @@ export function resumeWebhook(
 	id: string,
 ): Promise<WebhooksResult<WebhookDetail>> {
 	return request<WebhookDetail>(`/${encodeURIComponent(id)}/resume`, {
+		method: "POST",
+	});
+}
+
+/** Send one test event to the webhook's server; it is logged as a delivery. */
+export function testWebhook(
+	id: string,
+): Promise<WebhooksResult<WebhookTestResult>> {
+	return request<WebhookTestResult>(`/${encodeURIComponent(id)}/test`, {
 		method: "POST",
 	});
 }

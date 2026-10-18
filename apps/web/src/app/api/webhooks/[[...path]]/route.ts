@@ -5,8 +5,8 @@ import type { Agent } from "undici";
 
 /**
  * Proxy to the hosted webhooks API for the signed-in account's dashboard. The
- * dashboard reads, pauses and resumes, and renames (a name-only PATCH).
- * Create, edit, replay, requeue, test, rotate and delete happen in the
+ * dashboard reads, pauses, resumes, renames (a name-only PATCH) and sends a
+ * test event. Create, edit, replay, requeue, rotate and delete happen in the
  * CLI/SDK and never go through here; an allowlist enforces that at the route
  * level, not just in the UI.
  *
@@ -45,7 +45,9 @@ function isAllowed(method: Method, segments: string[]): boolean {
 	if (method === "POST") {
 		return (
 			segments.length === 2 &&
-			(segments[1] === "pause" || segments[1] === "resume")
+			(segments[1] === "pause" ||
+				segments[1] === "resume" ||
+				segments[1] === "test")
 		);
 	}
 	// PATCH: rename one webhook

@@ -221,7 +221,6 @@ describe("webhooks dashboard proxy", () => {
 	});
 
 	for (const path of [
-		["wh_1", "test"],
 		["wh_1", "rotate-secret"],
 		["wh_1", "dead", "ob_1", "requeue"],
 	]) {
@@ -237,7 +236,7 @@ describe("webhooks dashboard proxy", () => {
 		});
 	}
 
-	for (const action of ["pause", "resume"]) {
+	for (const action of ["pause", "resume", "test"]) {
 		test(`POST :id/${action} is allowed`, async () => {
 			const { calls } = stubFetch(
 				() => new Response(JSON.stringify({ id: "wh_1" }), { status: 200 }),
