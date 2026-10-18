@@ -36,16 +36,36 @@ export async function notifyReindexComplete(
 			.executeTakeFirst();
 		if (!account?.email || !account.notify_reindex_complete) return;
 
-		const subject = `Reindex complete: ${subgraphName}`;
-		const errorsLabel =
-			stats.errors > 0
-				? `${stats.errors.toLocaleString()} errors`
-				: "no errors";
-		const paragraph = `Your subgraph "${subgraphName}" finished reindexing: ${stats.blocks.toLocaleString()} blocks, ${stats.events.toLocaleString()} events, ${errorsLabel}.`;
+		const errors = stats.errors.toLocaleString();
+		const failed = stats.errors > 0;
+		const subject = failed
+			? `Reindex complete with ${errors} errors: ${subgraphName}`
+			: `Reindex complete: ${subgraphName}`;
 
 		const { html, text } = renderEmail({
-			heading: subject,
-			paragraphs: [paragraph],
+			heading: failed
+				? `${subgraphName} finished with ${errors} errors`
+				: `${subgraphName} finished reindexing`,
+			preheader: `${stats.blocks.toLocaleString()} blocks, ${stats.events.toLocaleString()} events, ${failed ? `${errors} handler errors` : "no errors"}.`,
+			paragraphs: [
+				failed
+					? `${errors} events failed in your handlers. Everything else is indexed.`
+					: "It's serving queries from the new data now.",
+			],
+			facts: [
+				{ label: "Blocks", value: stats.blocks.toLocaleString() },
+				{ label: "Events", value: stats.events.toLocaleString() },
+				{ label: "Errors", value: errors },
+			],
+			figure: `subgraph · ${subgraphName}`,
+			status: failed
+				? { tone: "alarm", text: `Complete, ${errors} errors` }
+				: { tone: "ok", text: "Complete, no errors" },
+			cta: {
+				label: failed ? "See the errors" : "Open the subgraph",
+				url: `https://secondlayer.tools/account/subgraphs/${encodeURIComponent(subgraphName)}`,
+			},
+			footnote: "You get this because reindex emails are on for your account.",
 		});
 
 		await sendEmail({ to: account.email, subject, html, text });

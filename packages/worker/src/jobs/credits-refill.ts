@@ -81,6 +81,7 @@ function failureReason(err: unknown): "declined" | "authentication" {
 async function turnOffRefill(
 	accountId: string,
 	reason: "declined" | "authentication",
+	packUsd: number,
 	send: typeof sendEmail,
 ): Promise<void> {
 	const db = getDb();
@@ -91,15 +92,34 @@ async function turnOffRefill(
 		reason === "authentication"
 			? "Auto top-up is off: your card needs authentication"
 			: "Auto top-up is off: your card was declined";
+	const refill = `$${packUsd.toFixed(2)}`;
 	const { html, text } = renderEmail({
-		heading: subject,
-		paragraphs: [
+		heading: "Auto top-up is off",
+		preheader:
 			reason === "authentication"
-				? "We tried to add credits to your balance, but your bank asked for authentication we can't complete automatically."
-				: "We tried to add credits to your balance, but your card was declined.",
-			"We turned auto top-up off and won't try again. Add credits or update your card, then turn auto top-up back on.",
-		],
+				? "Your bank asked for a step we can't do automatically."
+				: "We won't retry. Add credits or update your card.",
+		paragraphs:
+			reason === "authentication"
+				? [
+						`We tried to add ${refill} to your balance and your bank asked for authentication we can't complete on our own. We turned auto top-up off and won't try again.`,
+						"Add credits once by hand to authenticate the card, then turn auto top-up back on.",
+					]
+				: [
+						`We tried to add ${refill} to your balance and your card was declined. We turned auto top-up off and won't try again.`,
+						"Add credits or update your card, then turn it back on.",
+					],
+		facts: [{ label: "Refill", value: refill }],
+		figure: "auto top-up",
+		status: {
+			tone: "alarm",
+			text:
+				reason === "authentication"
+					? "Authentication required"
+					: "Card declined",
+		},
 		cta: { label: "Add credits", url: CREDITS_LINK },
+		footnote: "You get this because auto top-up was on.",
 	});
 	try {
 		await send({ to: account.email, subject, html, text });
@@ -196,6 +216,7 @@ export async function runDueRefills(deps: RefillDeps = {}): Promise<number> {
 			await turnOffRefill(
 				row.accountId,
 				failureReason(err),
+				row.packUsd,
 				deps.sendEmail ?? sendEmail,
 			);
 		}

@@ -47,8 +47,8 @@ describe("buildWebhookIncidentEmail", () => {
 			item({ id: "b", name: "payments", host: "pay.example.com" }),
 		]);
 		expect(email.subject).toBe("2 of your webhooks can't reach your server");
-		expect(email.text).toContain(`"orders" (hooks.example.com)`);
-		expect(email.text).toContain(`"payments" (pay.example.com)`);
+		expect(email.text).toContain("orders: hooks.example.com · since Oct 15");
+		expect(email.text).toContain("payments: pay.example.com · since Oct 15");
 		expect(email.html).toContain("https://secondlayer.tools/account/webhooks");
 		expect(email.html).not.toContain("/account/webhooks/1111");
 		noDashes(email);

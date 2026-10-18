@@ -45,7 +45,7 @@ export function buildWebhookIncidentEmail(incidents: IncidentEmailItem[]): {
 	text: string;
 } {
 	const footnote =
-		"We send one email per outage. If it recovers and fails again, you'll hear from us again.";
+		"One email per outage. If it recovers and fails again, we'll email again.";
 
 	if (incidents.length === 1) {
 		const [one] = incidents as [IncidentEmailItem];
@@ -60,11 +60,14 @@ export function buildWebhookIncidentEmail(incidents: IncidentEmailItem[]): {
 			facts.push({ label: "Last error", value: one.lastError });
 		const { html, text } = renderEmail({
 			heading: title,
+			preheader: `Failing since ${formatUtc(one.failingSince)}. Events are safe, we keep retrying.`,
 			paragraphs: [
-				`Since ${formatUtc(one.failingSince)}, every delivery to ${one.host} has failed. Your events are safe: we keep retrying for up to 3 days before anything moves to dead letters.`,
-				"Once your server answers again, queued deliveries go out on their own.",
+				`Every delivery to ${one.host} has failed since ${formatUtc(one.failingSince)}. Your events are safe: we retry for up to 3 days before anything moves to dead letters.`,
+				"Once your server answers, queued deliveries go out on their own.",
 			],
 			facts,
+			figure: `webhook · ${one.name}`,
+			status: { tone: "alarm", text: "Failing" },
 			cta: {
 				label: "Open the webhook",
 				url: `${WEBHOOKS_URL}/${one.id}`,
@@ -79,17 +82,19 @@ export function buildWebhookIncidentEmail(incidents: IncidentEmailItem[]): {
 	}
 
 	const title = `${incidents.length} of your webhooks can't reach your server`;
-	const list = incidents.map((i) => `"${i.name}" (${i.host})`).join(", ");
 	const { html, text } = renderEmail({
 		heading: title,
+		preheader: `${incidents.map((i) => i.name).join(", ")}. Events are safe.`,
 		paragraphs: [
-			`Every delivery to these receivers is failing: ${list}. Your events are safe: we keep retrying for up to 3 days before anything moves to dead letters.`,
-			"Once your servers answer again, queued deliveries go out on their own.",
+			"Every delivery to these receivers is failing. Your events are safe: we retry for up to 3 days before anything moves to dead letters.",
+			"Once your servers answer, queued deliveries go out on their own.",
 		],
 		facts: incidents.map((i) => ({
 			label: i.name,
-			value: `failing since ${formatUtc(i.failingSince)}`,
+			value: `${i.host} · since ${formatUtc(i.failingSince)}`,
 		})),
+		figure: "webhooks",
+		status: { tone: "alarm", text: `${incidents.length} failing` },
 		cta: { label: "Open your webhooks", url: WEBHOOKS_URL },
 		footnote,
 	});

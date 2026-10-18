@@ -32,7 +32,11 @@ import {
 } from "@secondlayer/platform/db/queries/usage-ledger";
 import { getErrorMessage, logger } from "@secondlayer/shared";
 import { getDb } from "@secondlayer/shared/db";
-import { renderEmail, sendEmail } from "@secondlayer/shared/email";
+import {
+	type EmailStatus,
+	renderEmail,
+	sendEmail,
+} from "@secondlayer/shared/email";
 import { getInstanceMode } from "@secondlayer/shared/mode";
 
 const INTERVAL_MS = 60 * 60 * 1000; // hourly — a runway crossing doesn't
@@ -204,42 +208,59 @@ async function sendBalanceAlert(
 	if (!account.email) return; // no address to alert (ghost account)
 
 	let subject: string;
+	let preheader: string;
 	let paragraphs: string[];
 	let facts: { label: string; value: string }[];
+	let status: EmailStatus;
 
 	if (kind === "stopped") {
+		const stoppedAt = stoppedAtLabel(ctx.now);
 		subject = "Your hosted stack stopped";
+		preheader = "Balance reached $0. Events are held, nothing is lost.";
 		paragraphs = [
-			"Your balance reached $0, so your hosted stack stopped. Webhook events are held and delivered after you add credits, and subgraphs resume where they left off. It starts again within 5 minutes of a top-up.",
+			"Your balance reached $0. Webhook events are held and go out after you add credits. Subgraphs pick up where they left off.",
+			"Everything restarts within 5 minutes of a top-up.",
 		];
 		facts = [
 			{ label: "Balance", value: "$0.00" },
-			{ label: "Stopped at", value: stoppedAtLabel(ctx.now) },
+			{ label: "Stopped at", value: stoppedAt },
 		];
+		status = { tone: "alarm", text: "Stopped" };
 	} else {
 		const days = Math.floor(ctx.runway);
+		const balance = formatUsd(ctx.balance);
+		const rate = formatUsdPerDay(ctx.rateDayUsdMicros);
+		const runsOut = runsOutDate(ctx.now, ctx.runway);
 		subject =
 			kind === "low"
 				? `About ${days} days of credit left`
 				: "Under 2 days of credit left";
+		preheader = `${balance} left at ${rate}. Runs out around ${runsOut}.`;
 		paragraphs = [
-			"Your hosted stack stops when your balance reaches $0. Webhooks stop delivering (events are held) and subgraphs stop indexing, until you add credits.",
+			"Your hosted stack stops at $0. Webhooks hold events instead of delivering, and subgraphs pause indexing, until you add credits.",
 		];
 		facts = [
-			{ label: "Balance", value: formatUsd(ctx.balance) },
-			{ label: "Spending", value: formatUsdPerDay(ctx.rateDayUsdMicros) },
-			{ label: "Runs out around", value: runsOutDate(ctx.now, ctx.runway) },
+			{ label: "Balance", value: balance },
+			{ label: "Spending", value: rate },
+			{ label: "Runs out around", value: runsOut },
 		];
 		if (kind === "crit" && ctx.runway < 1) {
 			const hours = Math.max(1, Math.round(ctx.runway * 24));
 			facts.push({ label: "Runs out in about", value: `${hours} hours` });
 		}
+		status = {
+			tone: "neutral",
+			text: kind === "low" ? "Low balance" : "Critical balance",
+		};
 	}
 
 	const { html, text } = renderEmail({
 		heading: subject,
+		preheader,
 		paragraphs,
 		facts,
+		figure: "credits",
+		status,
 		cta: { label: "Add credits", url: DASHBOARD_LINK },
 		footnote:
 			"You get this because balance alerts are on. Turn them off on your credits page.",

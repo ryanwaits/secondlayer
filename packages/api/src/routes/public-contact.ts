@@ -150,16 +150,20 @@ async function notify(id: string, row: ParsedContact): Promise<boolean> {
 	const volumeLabel = row.volume
 		? VOLUME_LABELS[row.volume]
 		: "volume not given";
+	const reference = `ctc_${id.slice(0, 6)}`;
 	const { html, text } = renderEmail({
 		heading: "New contact request",
-		paragraphs: [row.message],
+		preheader: row.message.slice(0, 90),
+		paragraphs: [],
+		quote: row.message,
+		figure: `contact · ${reference}`,
 		facts: [
 			{ label: "Name", value: row.name },
 			{ label: "Email", value: row.email },
 			{ label: "Company", value: row.company ?? "not given" },
 			{ label: "Volume", value: volumeLabel },
 			{ label: "From page", value: row.source_page ?? "not given" },
-			{ label: "Reference", value: `ctc_${id.slice(0, 6)}` },
+			{ label: "Reference", value: reference },
 		],
 		footnote: `Reply to this email to answer ${row.name.split(/\s+/)[0]}.`,
 	});

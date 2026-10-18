@@ -193,29 +193,42 @@ async function sendCapAlert(
 	// must say both.
 	const subject =
 		kind === "frozen"
-			? "You reached your monthly spend cap"
-			: `You've used ${pct}% of your monthly spend cap`;
+			? "You reached your monthly cap"
+			: `You've used ${pct}% of your monthly cap`;
+	const preheader =
+		kind === "frozen"
+			? `Hosted stack paused until ${resets}. Your balance is untouched.`
+			: `${spent$} of ${cap$}. Resets ${resets}.`;
 	const paragraphs =
 		kind === "frozen"
 			? [
-					`You've spent ${cap$} this month and reached your monthly cap. Hosted Index and Streams reads past your free 1M rows are paused, and your hosted stack stops within minutes: webhooks stop delivering and subgraphs stop indexing. Both resume on ${resets} or when you raise the cap. Your balance is untouched.`,
+					"Hosted Index and Streams reads past your free 1M rows are paused. Your hosted stack stops within minutes: webhooks hold events and subgraphs pause.",
+					`Both resume ${resets}, or as soon as you raise the cap. Your balance is untouched.`,
 				]
 			: [
-					`You've spent ${spent$} this month, ${pct}% of your ${cap$} monthly cap. When you reach the cap, hosted Index and Streams reads past your free 1M rows pause and your hosted stack stops, so webhooks stop delivering, until ${resets} or until you raise the cap.`,
+					`At the cap, hosted Index and Streams reads past your free 1M rows pause and your hosted stack stops until ${resets}, or until you raise it.`,
 				];
 
 	const { html, text } = renderEmail({
 		heading: subject,
+		preheader,
 		paragraphs,
 		facts: [
 			{ label: "Spent this month", value: spent$ },
 			{ label: "Cap", value: cap$ },
 			{ label: "Resets", value: resets },
 		],
+		figure: "spend cap",
+		status: {
+			tone: "neutral",
+			text: kind === "frozen" ? "Cap reached, paused" : `${pct}% of cap`,
+		},
 		cta: {
 			label: kind === "frozen" ? "Raise your cap" : "Change your cap",
 			url: CAP_SETTING_URL,
 		},
+		footnote:
+			"You set this cap. Change it or turn it off on your credits page.",
 	});
 
 	await sendEmail({ to: row.email, subject, html, text });
