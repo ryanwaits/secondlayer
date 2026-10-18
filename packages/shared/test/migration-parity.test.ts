@@ -211,7 +211,10 @@ describe.skipIf(!HAS_DB)("migration upgrade parity", () => {
 			const leftover = Object.keys(fresh).filter(
 				(key) =>
 					(key.startsWith("constraint ") || key.startsWith("index ")) &&
-					key.includes("subscription"),
+					key.includes("subscription") &&
+					// Web push's own table is a browser subscription, not the old
+					// webhook rename.
+					!key.includes("push_subscriptions"),
 			);
 			expect(leftover).toEqual([]);
 		},
