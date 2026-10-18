@@ -1,5 +1,19 @@
 # @secondlayer/api
 
+## 1.57.0
+
+### Minor Changes
+
+- 357e7e1: CLI sign-in takes an optional `product: "sentinel"`. It is stored on the attempt (new nullable `cli_device_logins.product` column, a closed set), and the approval page then names Sentinel, says to run `sentinel logout`, warns to approve only a code you started, and shows the machine name as unchecked text from the device. Any other product value is refused. Without a product the page reads as before.
+
+### Patch Changes
+
+- 289d8ff: Approving a Sentinel CLI sign-in links the account to Sentinel by consent, in the same transaction as the approval, and keeps an existing link as it is. The approval page states the balance Sentinel can use for monitoring and checks.
+- d3cb77d: `/internal/sentinel/tokens/resolve` returns the account's email (lowercased, omitted when the account has none) and `linked` for a session, so Sentinel can create its user on first sign-in. Key resolves are unchanged.
+- Updated dependencies [357e7e1]
+  - @secondlayer/shared@13.11.0
+  - @secondlayer/platform@0.8.11
+
 ## 1.56.10
 
 ### Patch Changes
