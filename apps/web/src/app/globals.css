@@ -9941,16 +9941,6 @@ button.sg-sort:focus-visible {
 	padding: 12px 14px;
 	font-size: 12px;
 }
-.mac-chart .dc-area-a {
-	fill: var(--soft);
-	fill-opacity: 1;
-}
-.mac-chart .dc-stroke-a {
-	stroke: var(--ink);
-}
-.mac-chart .dc-fill-a {
-	fill: var(--ink);
-}
 .mac-chart .dc-svg {
 	border-bottom: 1px solid var(--line);
 	width: 100%;
