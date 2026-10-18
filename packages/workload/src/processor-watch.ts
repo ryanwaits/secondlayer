@@ -75,6 +75,18 @@ export interface SubgraphCursor {
 const isBillingPaused = (sub: SubgraphCursor): boolean =>
 	billingPausedCode(sub.lastError) !== null;
 
+/** A hosted subgraph went from running to stopped. Push-only (plan 309); never an insight. */
+export interface SubgraphStoppedEvent {
+	accountId: string;
+	subgraph: string;
+	/** `error`: the subgraph's own status flipped to `error` (handler errors past the runner's threshold, or another halt). */
+	reason: "out_of_memory" | "crashed" | "stalled" | "error";
+	/** Cursor when it stopped. */
+	height: number;
+	lastError: string | null;
+	at: number;
+}
+
 /** What `docker inspect` says about the processor container. */
 export interface ProcessorState {
 	/** Restarts performed by docker's restart policy since the container was created. */
@@ -102,6 +114,8 @@ export interface ProcessorWatchDeps {
 	/** Stops and removes the processor for a tenant with no subgraphs left. */
 	removeProcessor: (tenant: TenantRow) => Promise<boolean>;
 	now: () => number;
+	/** Fires once per stop. Optional; defaults to a no-op. Must not throw into the watch. */
+	onStopped?: (event: SubgraphStoppedEvent) => void | Promise<void>;
 }
 
 export interface TenantEndpoint {
@@ -370,6 +384,20 @@ export function createProcessorWatch(
 	const handledOom = new Map<string, string>();
 	/** Docker's `RestartCount` as of the previous tick, per account. */
 	const lastRestartCount = new Map<string, number>();
+	/** Each subgraph's status as of the previous tick; a stop is the move to `error`. */
+	const lastStatus = new Map<string, string>();
+
+	async function emitStopped(event: SubgraphStoppedEvent): Promise<void> {
+		try {
+			await deps.onStopped?.(event);
+		} catch (err) {
+			logger.warn("workload.processor.stopped_notify_failed", {
+				accountId: event.accountId,
+				subgraph: event.subgraph,
+				error: err instanceof Error ? err.message : String(err),
+			});
+		}
+	}
 
 	async function checkTenant(
 		tenant: TenantRow,
@@ -388,6 +416,36 @@ export function createProcessorWatch(
 		);
 		// Just removed: nothing left to watch. Just started: a fresh container.
 		if (!processorExists) container = null;
+
+		// A subgraph turning `error` is a stop. First sight and billing pauses
+		// (a deliberate stop) never fire; a watchdog halt records `error` itself.
+		const listedKeys = new Set<string>();
+		for (const sub of listed) {
+			const key = `${tenant.account_id}:${sub.name}`;
+			listedKeys.add(key);
+			const prev = lastStatus.get(key);
+			if (
+				prev !== undefined &&
+				prev !== "error" &&
+				sub.status === "error" &&
+				!isBillingPaused(sub)
+			) {
+				await emitStopped({
+					accountId: tenant.account_id,
+					subgraph: sub.name,
+					reason: "error",
+					height: sub.lastProcessedBlock,
+					lastError: sub.lastError ?? null,
+					at: now,
+				});
+			}
+			lastStatus.set(key, sub.status);
+		}
+		for (const key of lastStatus.keys()) {
+			if (key.startsWith(`${tenant.account_id}:`) && !listedKeys.has(key)) {
+				lastStatus.delete(key);
+			}
+		}
 
 		const subgraphs = listed.filter(
 			(s) => s.status === "active" || (s.status === "reindexing" && !s.queued),
@@ -531,6 +589,15 @@ export function createProcessorWatch(
 				subgraph: sub.name,
 				height: cursor,
 				reason,
+			});
+			lastStatus.set(`${tenant.account_id}:${sub.name}`, "error");
+			await emitStopped({
+				accountId: tenant.account_id,
+				subgraph: sub.name,
+				reason,
+				height: cursor,
+				lastError: null,
+				at: now,
 			});
 		}
 	}

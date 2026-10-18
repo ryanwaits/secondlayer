@@ -25,6 +25,7 @@ import {
 	type ProcessorWatchDeps,
 	STALL_MS,
 	type SubgraphCursor,
+	type SubgraphStoppedEvent,
 	createProcessorReconciler,
 	createProcessorWatch,
 	realProcessorWatchDeps,
@@ -547,6 +548,153 @@ describe.skipIf(!HAS_DB)("processor watch", () => {
 		now += STALL_MS + MINUTE;
 		await tick();
 		expect(restarts).toEqual([healthy]);
+	});
+
+	describe("stopped signal", () => {
+		let stops: SubgraphStoppedEvent[];
+		let onStoppedImpl: (e: SubgraphStoppedEvent) => void;
+		const watch = () => {
+			stops = [];
+			onStoppedImpl = (e) => {
+				stops.push(e);
+			};
+			return createProcessorWatch(cfg(), {
+				...deps(),
+				onStopped: (e) => onStoppedImpl(e),
+			});
+		};
+		const errored = (name: string, height: number, lastError: string) => ({
+			...sub(name, height, "error"),
+			lastError,
+		});
+
+		test("a watchdog halt fires one stalled event and the error listing after it adds nothing", async () => {
+			reset();
+			const id = await seedTenant();
+			subgraphs[id] = [sub("stuck", 10)];
+			const tick = watch();
+
+			await tick();
+			for (let i = 0; i < MAX_RESTARTS_PER_HEIGHT; i++) {
+				tip = (tip ?? 0) + 5;
+				now += STALL_MS + MINUTE;
+				await tick();
+			}
+			expect(halts.map((h) => h.name)).toEqual(["stuck"]);
+			expect(stops).toHaveLength(1);
+			expect(stops[0]).toMatchObject({
+				accountId: id,
+				subgraph: "stuck",
+				reason: "stalled",
+				height: 10,
+			});
+
+			subgraphs[id] = [sub("stuck", 10, "error")];
+			now += 5 * MINUTE;
+			await tick();
+			expect(stops).toHaveLength(1);
+		});
+
+		test("a running subgraph that turns error fires once with its last error", async () => {
+			reset();
+			const id = await seedTenant();
+			subgraphs[id] = [sub("s", 10)];
+			const tick = watch();
+
+			await tick();
+			subgraphs[id] = [errored("s", 42, "handler threw: boom")];
+			await tick();
+			await tick();
+			expect(stops).toHaveLength(1);
+			expect(stops[0]).toMatchObject({
+				accountId: id,
+				subgraph: "s",
+				reason: "error",
+				height: 42,
+				lastError: "handler threw: boom",
+			});
+		});
+
+		test("a subgraph first seen already in error fires nothing", async () => {
+			reset();
+			const id = await seedTenant();
+			subgraphs[id] = [errored("s", 10, "handler threw: boom")];
+			const tick = watch();
+
+			await tick();
+			await tick();
+			expect(stops).toEqual([]);
+		});
+
+		test("a billing pause that flips the status to error fires nothing", async () => {
+			reset();
+			const id = await seedTenant();
+			subgraphs[id] = [sub("s", 10)];
+			const tick = watch();
+
+			await tick();
+			subgraphs[id] = [errored("s", 10, "billing_paused: spend_cap_reached")];
+			await tick();
+			expect(stops).toEqual([]);
+		});
+
+		test("a redeploy re-arms the signal so a later error fires again", async () => {
+			reset();
+			const id = await seedTenant();
+			subgraphs[id] = [sub("s", 10)];
+			const tick = watch();
+
+			await tick();
+			subgraphs[id] = [errored("s", 11, "first")];
+			await tick();
+			expect(stops).toHaveLength(1);
+
+			subgraphs[id] = [sub("s", 12)];
+			await tick();
+			subgraphs[id] = [errored("s", 13, "second")];
+			await tick();
+			expect(stops.map((s) => s.lastError)).toEqual(["first", "second"]);
+		});
+
+		test("one stall fixed by one restart fires nothing", async () => {
+			reset();
+			const id = await seedTenant();
+			subgraphs[id] = [sub("s", 10)];
+			const tick = watch();
+
+			await tick();
+			tip = (tip ?? 0) + 5;
+			now += STALL_MS + MINUTE;
+			await tick();
+			expect(restarts).toEqual([id]);
+
+			subgraphs[id] = [sub("s", 5_000)];
+			tip = (tip ?? 0) + 5;
+			now += 5 * MINUTE;
+			await tick();
+			expect(halts).toEqual([]);
+			expect(stops).toEqual([]);
+		});
+
+		test("a throwing onStopped still halts and the next tenant is still checked", async () => {
+			reset();
+			const first = await seedTenant();
+			const second = await seedTenant();
+			subgraphs[first] = [sub("stuck", 10)];
+			subgraphs[second] = [sub("wedged", 20)];
+			const tick = watch();
+			onStoppedImpl = () => {
+				throw new Error("push down");
+			};
+
+			await tick();
+			for (let i = 0; i < MAX_RESTARTS_PER_HEIGHT; i++) {
+				tip = (tip ?? 0) + 5;
+				now += STALL_MS + MINUTE;
+				await tick();
+			}
+			expect(halts.map((h) => h.name).sort()).toEqual(["stuck", "wedged"]);
+		});
 	});
 
 	const hasSubgraphs = async (id: string) =>
