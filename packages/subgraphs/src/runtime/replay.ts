@@ -1,7 +1,13 @@
 import { createHash } from "node:crypto";
 import { type Database, getTargetDb } from "@secondlayer/shared/db";
 import type { Webhook } from "@secondlayer/shared/db";
+import {
+	beginReplay,
+	failScan,
+	finishScan,
+} from "@secondlayer/shared/db/queries/webhook-replays";
 import { getWebhook } from "@secondlayer/shared/db/queries/webhooks";
+import { getErrorMessage } from "@secondlayer/shared/errors";
 import { logger } from "@secondlayer/shared/logger";
 import type { Kysely } from "kysely";
 import {
@@ -55,40 +61,10 @@ function formatBlockCount(n: number): string {
 	return n % 1000 === 0 ? `${n / 1000}k` : `${n}`;
 }
 
-/**
- * One in-flight replay per webhook at a time. Replay is a synchronous scan
- * (the route awaits it fully before responding), so two concurrent requests
- * for the same webhook would otherwise interleave their scans against the
- * same dedup keyspace. In-memory per-process — replay already isn't
- * horizontally coordinated (see `BATCH_SIZE` keyset pagination above), so
- * this matches its existing single-process assumption.
- */
-const inFlightReplays = new Set<string>();
-
-/** Thrown by {@link replayWebhook} when a replay is already running for the
- *  webhook. The route maps this to 409; `force` does not bypass it — a forced
- *  re-delivery still has to wait for the previous replay to finish. */
-export class ReplayInProgressError extends Error {
-	constructor() {
-		super("replay already in progress for this webhook");
-		this.name = "ReplayInProgressError";
-	}
-}
-
-/**
- * Test-only seam: directly mark (or clear) a webhook as having an in-flight
- * replay. Two real concurrent `replayWebhook` calls race the same DB fetch,
- * so which one wins the guard isn't deterministic in a test; this lets a test
- * exercise the guard (and the route's 409 mapping) without that race.
- * Production code never calls this.
- */
-export function __setReplayInFlightForTest(
-	webhookId: string,
-	inFlight: boolean,
-): void {
-	if (inFlight) inFlightReplays.add(webhookId);
-	else inFlightReplays.delete(webhookId);
-}
+/** Thrown by {@link replayWebhook} when a replay is still scanning for the
+ *  webhook. The database enforces it (a partial unique index on
+ *  `webhook_replays`), so it holds across API processes and restarts. */
+export { ReplayInProgressError } from "@secondlayer/shared/db/queries/webhook-replays";
 
 export interface ReplayInput {
 	accountId: string;
@@ -116,7 +92,10 @@ export interface ReplayResult {
 	scannedCount: number;
 }
 
-export async function replayWebhook(input: ReplayInput): Promise<ReplayResult> {
+export async function replayWebhook(
+	input: ReplayInput,
+	opts?: { source?: BlockSource },
+): Promise<ReplayResult> {
 	if (input.fromBlock > input.toBlock) {
 		throw new Error("fromBlock must be <= toBlock");
 	}
@@ -131,14 +110,28 @@ export async function replayWebhook(input: ReplayInput): Promise<ReplayResult> {
 	const sub = await getWebhook(db, input.accountId, input.webhookId);
 	if (!sub) throw new Error("Webhook not found");
 
-	if (inFlightReplays.has(sub.id)) {
-		throw new ReplayInProgressError();
-	}
-	inFlightReplays.add(sub.id);
+	const replayId = deterministicReplayId(
+		sub.id,
+		input.fromBlock,
+		input.toBlock,
+		input.replayIdSuffix,
+	);
+	await beginReplay(db, {
+		id: replayId,
+		webhookId: sub.id,
+		fromBlock: input.fromBlock,
+		toBlock: input.toBlock,
+	});
 	try {
-		return await replayChainWebhook(db, sub, input);
-	} finally {
-		inFlightReplays.delete(sub.id);
+		const result = await replayChainWebhook(db, sub, input, opts);
+		await finishScan(db, replayId, {
+			scanned: result.scannedCount,
+			enqueued: result.enqueuedCount,
+		});
+		return result;
+	} catch (err) {
+		await failScan(db, replayId, getErrorMessage(err));
+		throw err;
 	}
 }
 

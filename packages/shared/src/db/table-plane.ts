@@ -87,6 +87,7 @@ export const TABLE_TO_DB = {
 	webhooks: "target",
 	webhook_outbox: "target",
 	webhook_deliveries: "target",
+	webhook_replays: "target",
 	trigger_evaluator_state: "target",
 	// ── TARGET: subgraphs + metadata ──
 	subgraphs: "target",

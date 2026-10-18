@@ -348,7 +348,7 @@ function applyRow(
 			replayId,
 			clock,
 		),
-		...(replayId ? { is_replay: true } : {}),
+		...(replayId ? { is_replay: true, replay_id: replayId } : {}),
 		...(blockTime ? { block_time: blockTime } : {}),
 	};
 }

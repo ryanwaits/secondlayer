@@ -71,6 +71,7 @@ CONTROL_TABLES=(
   webhooks
   webhook_outbox
   webhook_deliveries
+  webhook_replays
   trigger_evaluator_state
   subgraphs
   subgraph_operations

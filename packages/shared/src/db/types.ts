@@ -1065,6 +1065,7 @@ export interface Database {
 	webhooks: WebhooksTable;
 	webhook_outbox: WebhookOutboxTable;
 	webhook_deliveries: WebhookDeliveriesTable;
+	webhook_replays: WebhookReplaysTable;
 	trigger_evaluator_state: TriggerEvaluatorStateTable;
 	decoded_events: DecodedEventsTable;
 	decoder_checkpoints: DecoderCheckpointsTable;
@@ -1489,6 +1490,8 @@ export interface WebhookOutboxTable {
 	next_attempt_at: Generated<Date>;
 	status: ColumnType<OutboxStatus, OutboxStatus | undefined, OutboxStatus>;
 	is_replay: Generated<boolean>;
+	/** The replay that created this row; null for live rows. */
+	replay_id: string | null;
 	/** The chain block_time of the matched event/tx. Null for rows written
 	 *  before this column existed, and for the settlement scan path (not yet
 	 *  wired). Lets `delivered_at - block_time` measure end-to-end webhook
@@ -1505,7 +1508,33 @@ export interface WebhookOutboxTable {
 	created_at: Generated<Date>;
 }
 
-export type WebhookOutbox = Selectable<WebhookOutboxTable>;
+export type WebhookReplayStatus = "scanning" | "running" | "done" | "failed";
+
+export interface WebhookReplaysTable {
+	id: string;
+	webhook_id: string;
+	from_block: number | bigint;
+	to_block: number | bigint;
+	status: WebhookReplayStatus;
+	scanned_count: Generated<number>;
+	enqueued_count: Generated<number>;
+	total: number | null;
+	delivered: number | null;
+	gave_up: number | null;
+	error: string | null;
+	started_at: Generated<Date>;
+	finished_at: Date | null;
+}
+export type WebhookReplay = Selectable<WebhookReplaysTable>;
+
+/** `replay_id` is optional on the row type so hand-built rows (the test
+ *  delivery, fixtures) need not carry it; reads still return it. */
+export type WebhookOutbox = Omit<
+	Selectable<WebhookOutboxTable>,
+	"replay_id"
+> & {
+	replay_id?: string | null;
+};
 export type InsertWebhookOutbox = Insertable<WebhookOutboxTable>;
 export type UpdateWebhookOutbox = Updateable<WebhookOutboxTable>;
 

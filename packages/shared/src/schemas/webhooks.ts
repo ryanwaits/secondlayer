@@ -417,6 +417,16 @@ export const ReplayWebhookRequestSchema: z.ZodType<ReplayWebhookRequest> = z
 		path: ["toBlock"],
 	});
 
+export const RequeueDeadRequestSchema: z.ZodType<RequeueDeadRequest> = z.object(
+	{
+		replayId: z
+			.string()
+			.regex(/^[0-9a-f]{16}$/, "replayId must be 16 hex characters")
+			.optional(),
+		since: z.iso.datetime({ offset: true }).optional(),
+	},
+);
+
 export type WebhookStatus = (typeof WEBHOOK_STATUSES)[number];
 /** Webhook kind (mirrors db/types `WebhookKind`). Chain events only. */
 export type WebhookKind = "chain";
@@ -711,6 +721,13 @@ export interface ReplayWebhookRequest {
 
 export type ParsedReplayWebhookRequest = ReplayWebhookRequest;
 
+/** Body of `POST /:id/dead/requeue`. Both fields narrow which dead rows requeue. */
+export interface RequeueDeadRequest {
+	replayId?: string;
+	/** ISO datetime; only dead rows that failed at or after it. */
+	since?: string;
+}
+
 /** A webhook's name, status, format, and URL. */
 export interface WebhookSummary {
 	id: string;
@@ -899,6 +916,42 @@ export interface ReplayResult {
 	replayId: string;
 	enqueuedCount: number;
 	scannedCount: number;
+}
+
+/** Live state of one stored replay. */
+export interface ReplayProgress {
+	replayId: string;
+	webhookId: string;
+	status: "scanning" | "running" | "done" | "failed";
+	fromBlock: number;
+	toBlock: number;
+	/** Events the replay enqueued. */
+	total: number;
+	/** Delivered or gave up (`total - pending`). */
+	processed: number;
+	pending: number;
+	/** Null until the replay finishes. */
+	delivered: number | null;
+	/** Null until the replay finishes. */
+	gaveUp: number | null;
+	startedAt: string;
+	finishedAt: string | null;
+	error: string | null;
+}
+
+/** Range presets for starting a replay, from `GET /:id/replays`. */
+export interface ReplayRanges {
+	/** Last evaluated block; null when the webhook has no evaluator state yet. */
+	tip: number | null;
+	presets: Array<{
+		blocks: 100 | 1000 | 10000;
+		fromBlock: number;
+		toBlock: number;
+		/** Lower bound: delivered rows are deleted after 7 days. */
+		knownEvents: number;
+	}>;
+	/** Dead rows since the webhook last succeeded (all dead rows when it never has). */
+	deadSinceFailing: { since: string | null; count: number };
 }
 
 /** Result of a one-off test delivery (`POST /:id/test`). Logged as a delivery

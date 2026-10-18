@@ -7,6 +7,7 @@ import {
 	describeDbUrl,
 	getTargetDb,
 } from "@secondlayer/shared/db";
+import { finalizeReplays } from "@secondlayer/shared/db/queries/webhook-replays";
 import { getWebhookSigningSecret } from "@secondlayer/shared/db/queries/webhooks";
 import { logger } from "@secondlayer/shared/logger";
 import { listen, targetListenerUrl } from "@secondlayer/shared/queue/listener";
@@ -1048,7 +1049,10 @@ export interface StartEmitterOptions {
 }
 
 async function runRetention(db: Kysely<Database>): Promise<void> {
-	// delivered outbox >7d, deliveries >30d, dead outbox >90d
+	// Replays first: their final counts come from outbox rows the deletes below
+	// remove. Then delivered outbox >7d, deliveries >30d, dead outbox >90d,
+	// finished replay records >90d.
+	await finalizeReplays(db);
 	await sql`
 		DELETE FROM webhook_outbox
 		WHERE status = 'delivered' AND delivered_at < NOW() - interval '7 days'
@@ -1060,6 +1064,10 @@ async function runRetention(db: Kysely<Database>): Promise<void> {
 	await sql`
 		DELETE FROM webhook_outbox
 		WHERE status = 'dead' AND failed_at < NOW() - interval '90 days'
+	`.execute(db);
+	await sql`
+		DELETE FROM webhook_replays
+		WHERE finished_at < NOW() - interval '90 days'
 	`.execute(db);
 }
 
