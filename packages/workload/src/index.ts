@@ -79,6 +79,7 @@ import {
 	up as provisionUp,
 	recoverInterruptedProvisions,
 } from "./provisioner.ts";
+import { createPushWatch, createStoppedReporter } from "./push-watch.ts";
 import { createRateLimiter } from "./rate-limiter.ts";
 import { TenantCache } from "./tenant-cache.ts";
 import {
@@ -94,6 +95,7 @@ const MEMORY_FLUSH_INTERVAL_MS = 60 * 60_000; // hourly (Design)
 const STORAGE_SAMPLE_INTERVAL_MS = 24 * 60 * 60_000; // daily (Design)
 const CREDITS_POLL_INTERVAL_MS = 5 * 60_000; // Design: "every 5 min"
 const WEBHOOK_INCIDENT_INTERVAL_MS = 60_000;
+const PUSH_WATCH_INTERVAL_MS = 60_000;
 const BACKUP_INTERVAL_MS = 24 * 60 * 60_000; // nightly pg_dump per tenant
 const SHUTDOWN_FLUSH_TIMEOUT_MS = 5_000;
 /** Longest shutdown waits for an in-flight tenant upgrade round: one
@@ -208,7 +210,10 @@ async function main(): Promise<void> {
 	);
 	const checkProcessors = createProcessorWatch(
 		provisionerCfg,
-		processorDeps,
+		{
+			...processorDeps,
+			onStopped: createStoppedReporter({ appServerUrl, workloadHostKey }),
+		},
 		processorReconciler,
 	);
 
@@ -567,6 +572,20 @@ async function main(): Promise<void> {
 		});
 	}, WEBHOOK_INCIDENT_INTERVAL_MS);
 
+	// Phone pushes for replays that finished: same loopback read as above, one
+	// internal route on the platform that builds the copy and debounces.
+	const checkPushWatch = createPushWatch(provisionerCfg, {
+		appServerUrl,
+		workloadHostKey,
+	});
+	const pushWatchLoop = setInterval(() => {
+		checkPushWatch().catch((err) => {
+			logger.error("workload.push_watch.tick_failed", {
+				error: err instanceof Error ? err.message : String(err),
+			});
+		});
+	}, PUSH_WATCH_INTERVAL_MS);
+
 	let shuttingDown = false;
 	const shutdown = async () => {
 		if (shuttingDown) return; // a second SIGINT/SIGTERM must not re-enter the flush
@@ -579,6 +598,7 @@ async function main(): Promise<void> {
 		clearInterval(backupLoop);
 		clearInterval(creditsPollLoop);
 		clearInterval(webhookIncidentLoop);
+		clearInterval(pushWatchLoop);
 		await stopFailedRequests();
 		// Before anything else stops: a tenant upgrade round is a child
 		// `docker compose up`; letting it finish avoids a half-recreated stack.
