@@ -6,6 +6,7 @@ import { startCliDeviceLoginsPurgeCron } from "./jobs/cli-device-logins-purge.ts
 import { startCreditsRefillCron } from "./jobs/credits-refill.ts";
 import { startFailedRequestsPurgeCron } from "./jobs/failed-requests-purge.ts";
 import { startFeedbackClassifyCron } from "./jobs/feedback-classify.ts";
+import { startOauthPurgeCron } from "./jobs/oauth-purge.ts";
 import { startRequestLogPurgeCron } from "./jobs/request-log-purge.ts";
 import { startSpendCapAlertCron } from "./jobs/spend-cap-alert.ts";
 
@@ -23,6 +24,7 @@ async function runWorker() {
 		startFailedRequestsPurgeCron(),
 		startRequestLogPurgeCron(),
 		startCliDeviceLoginsPurgeCron(),
+		startOauthPurgeCron(),
 		startFeedbackClassifyCron(),
 		startAccountInsightsCron(),
 	];

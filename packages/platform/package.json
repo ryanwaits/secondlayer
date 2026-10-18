@@ -40,6 +40,10 @@
 			"types": "./dist/db/queries/api-request-log.d.ts",
 			"import": "./dist/db/queries/api-request-log.js"
 		},
+		"./db/queries/oauth": {
+			"types": "./dist/db/queries/oauth.d.ts",
+			"import": "./dist/db/queries/oauth.js"
+		},
 		"./billing/prices": {
 			"types": "./dist/billing/prices.d.ts",
 			"import": "./dist/billing/prices.js"

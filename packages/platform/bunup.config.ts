@@ -11,6 +11,7 @@ const config: DefineConfigItem = defineConfig({
 		"src/db/queries/api-failed-requests.ts",
 		"src/db/queries/api-request-log.ts",
 		"src/db/queries/webhook-incident-alerts.ts",
+		"src/db/queries/oauth.ts",
 		"src/billing/prices.ts",
 		"src/billing/meter.ts",
 		"src/billing/runway.ts",

@@ -1097,6 +1097,12 @@ export interface Database {
 	account_balance_alerts: AccountBalanceAlertsTable;
 	webhook_incident_alerts: WebhookIncidentAlertsTable;
 	cli_device_logins: CliDeviceLoginsTable;
+	oauth_clients: OauthClientsTable;
+	oauth_requests: OauthRequestsTable;
+	oauth_codes: OauthCodesTable;
+	oauth_grants: OauthGrantsTable;
+	oauth_tokens: OauthTokensTable;
+	oauth_refresh_retired: OauthRefreshRetiredTable;
 	sentinel_accounts: SentinelAccountsTable;
 	waitlists: WaitlistsTable;
 	waitlist_signups: WaitlistSignupsTable;
@@ -1260,6 +1266,88 @@ export interface CliDeviceLoginsTable {
 }
 
 export type CliDeviceLogin = Selectable<CliDeviceLoginsTable>;
+
+// --- OAuth for the hosted MCP endpoint ---
+//
+// Codes and tokens are stored as SHA-256 hashes only. See migration
+// `0177_oauth_mcp` and `@secondlayer/platform/db/queries/oauth`.
+
+/** An app that registered itself (RFC 7591). Public clients only: no secret. */
+export interface OauthClientsTable {
+	id: string;
+	/** The app's own claim, validated at registration; shown quoted. */
+	name: string;
+	redirect_uris: string[];
+	created_ip: string | null;
+	created_at: Generated<Date>;
+	/** Set when it first gets tokens; never-used clients are purged. */
+	last_used_at: Date | null;
+}
+
+export type OauthRequestStatus = "pending" | "approved" | "denied";
+
+/** One authorize request waiting for (or answered on) the consent page. */
+export interface OauthRequestsTable {
+	id: string;
+	client_id: string;
+	redirect_uri: string;
+	state: string | null;
+	code_challenge: string;
+	resource: string;
+	status: Generated<OauthRequestStatus>;
+	account_id: string | null;
+	created_at: Generated<Date>;
+	expires_at: Date;
+	answered_at: Date | null;
+}
+
+/** A one-time authorization code, bound to its client, redirect, PKCE
+ *  challenge, resource and account. */
+export interface OauthCodesTable {
+	code_hash: string;
+	client_id: string;
+	account_id: string;
+	redirect_uri: string;
+	code_challenge: string;
+	resource: string;
+	/** The grant its one use made, so a replay can revoke it. */
+	grant_id: string | null;
+	created_at: Generated<Date>;
+	expires_at: Date;
+	used_at: Date | null;
+}
+
+/** What a person allowed one app to do: use the hosted MCP as them. */
+export interface OauthGrantsTable {
+	id: Generated<string>;
+	account_id: string;
+	client_id: string;
+	scope: Generated<string>;
+	resource: string;
+	created_at: Generated<Date>;
+	last_used_at: Date | null;
+	revoked_at: Date | null;
+}
+
+export type OauthTokenKind = "access" | "refresh";
+
+export interface OauthTokensTable {
+	token_hash: string;
+	grant_id: string;
+	kind: OauthTokenKind;
+	created_at: Generated<Date>;
+	expires_at: Date;
+}
+
+/** A refresh token a rotation replaced: presented again, it revokes the grant. */
+export interface OauthRefreshRetiredTable {
+	token_hash: string;
+	grant_id: string;
+	retired_at: Generated<Date>;
+}
+
+export type OauthClient = Selectable<OauthClientsTable>;
+export type OauthGrant = Selectable<OauthGrantsTable>;
 
 /** Accounts Sentinel's service key may touch: created by Sentinel, or the
  *  owner opted in. */

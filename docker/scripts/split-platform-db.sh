@@ -89,6 +89,12 @@ CONTROL_TABLES=(
   account_balance_alerts
   webhook_incident_alerts
   cli_device_logins
+  oauth_clients
+  oauth_requests
+  oauth_codes
+  oauth_grants
+  oauth_tokens
+  oauth_refresh_retired
   sentinel_accounts
   waitlists
   waitlist_signups

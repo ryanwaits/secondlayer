@@ -75,6 +75,12 @@ export const TABLE_TO_DB = {
 	sessions: "target",
 	magic_links: "target",
 	cli_device_logins: "target",
+	oauth_clients: "target",
+	oauth_requests: "target",
+	oauth_codes: "target",
+	oauth_grants: "target",
+	oauth_tokens: "target",
+	oauth_refresh_retired: "target",
 	account_spend_caps: "target",
 	processed_stripe_events: "target",
 	// ── TARGET: webhooks ──
