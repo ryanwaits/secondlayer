@@ -14,6 +14,7 @@ const config: DefineConfigItem = defineConfig({
 		"src/db/queries/oauth.ts",
 		"src/db/queries/push.ts",
 		"src/push/send.ts",
+		"src/push/endpoint.ts",
 		"src/billing/prices.ts",
 		"src/billing/meter.ts",
 		"src/billing/runway.ts",

@@ -19,6 +19,7 @@ import {
 	saveSubscription,
 	upsertPushPrefs,
 } from "@secondlayer/platform/db/queries/push";
+import { isPushServiceEndpoint } from "@secondlayer/platform/push/endpoint";
 import { getDb } from "@secondlayer/shared/db";
 import { Hono } from "hono";
 import { z } from "zod";
@@ -48,7 +49,7 @@ const SubscribeSchema = z.object({
 		.string()
 		.max(1000)
 		.url()
-		.refine((u) => u.startsWith("https://"), "endpoint must be https"),
+		.refine(isPushServiceEndpoint, "endpoint must be a browser push service"),
 	keys: z.object({
 		p256dh: z.string().min(1).max(200),
 		auth: z.string().min(1).max(100),

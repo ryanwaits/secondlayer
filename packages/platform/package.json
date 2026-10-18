@@ -48,6 +48,10 @@
 			"types": "./dist/db/queries/push.d.ts",
 			"import": "./dist/db/queries/push.js"
 		},
+		"./push/endpoint": {
+			"types": "./dist/push/endpoint.d.ts",
+			"import": "./dist/push/endpoint.js"
+		},
 		"./push/send": {
 			"types": "./dist/push/send.d.ts",
 			"import": "./dist/push/send.js"

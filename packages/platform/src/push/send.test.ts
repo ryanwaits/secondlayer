@@ -39,7 +39,7 @@ const payload = {
 };
 const subscribe = (acct: string, name: string) =>
 	saveSubscription(db, acct, {
-		endpoint: `https://push.example/${name}-${crypto.randomUUID()}`,
+		endpoint: `https://fcm.googleapis.com/fcm/send/${name}-${crypto.randomUUID()}`,
 		p256dh: "p256",
 		auth: "auth",
 		userAgent: null,
@@ -123,6 +123,28 @@ describe.skipIf(!HAS_DB)("sendPush", () => {
 		const rows = await listSubscriptions(db, acct);
 		expect(rows).toHaveLength(1);
 		expect(rows[0]?.endpoint).toContain("/ok-");
+	});
+
+	test("a stored endpoint that is not a push service is removed and never called", async () => {
+		const acct = await makeAccount();
+		await saveSubscription(db, acct, {
+			endpoint: "https://169.254.169.254/latest/meta-data",
+			p256dh: "p256",
+			auth: "auth",
+			userAgent: null,
+		});
+		await subscribe(acct, "ok");
+		const called: string[] = [];
+		const result = await sendPush(db, acct, "webhook_failing", payload, {
+			env,
+			send: async (sub) => {
+				called.push(sub.endpoint);
+			},
+		});
+		expect(result).toEqual({ sent: 1, failed: 0, removed: 1 });
+		expect(called).toHaveLength(1);
+		expect(called[0]).toContain("fcm.googleapis.com");
+		expect(await listSubscriptions(db, acct)).toHaveLength(1);
 	});
 
 	test("a server error counts a failure and does not throw", async () => {

@@ -69,7 +69,7 @@ afterAll(async () => {
 });
 
 const subscription = {
-	endpoint: "https://push.example/abc",
+	endpoint: "https://fcm.googleapis.com/fcm/send/abc",
 	keys: { p256dh: "p256", auth: "auth" },
 	userAgent: "test",
 };
@@ -158,14 +158,33 @@ describe.skipIf(!HAS_DB)("push routes", () => {
 		expect(await del.json()).toEqual({ removed: 1 });
 	});
 
-	test("an http endpoint is rejected", async () => {
+	test("only browser push service endpoints are accepted", async () => {
 		const acct = await makeAccount();
 		process.env.VAPID_PUBLIC_KEY = "public-key";
-		const res = await call(acct, "POST", "/subscriptions", {
-			...subscription,
-			endpoint: "http://push.example/abc",
-		});
-		expect(res.status).toBe(400);
+		for (const endpoint of [
+			"http://fcm.googleapis.com/fcm/send/abc",
+			"https://evil.example/x",
+			"https://fcm.googleapis.com.evil.example/x",
+			"https://user:pw@fcm.googleapis.com/x",
+			"https://fcm.googleapis.com:8443/x",
+		]) {
+			const res = await call(acct, "POST", "/subscriptions", {
+				...subscription,
+				endpoint,
+			});
+			expect(res.status, endpoint).toBe(400);
+		}
+		for (const endpoint of [
+			"https://fcm.googleapis.com/fcm/send/abc",
+			"https://web.push.apple.com/abc",
+			"https://updates.push.services.mozilla.com/wpush/v2/abc",
+		]) {
+			const res = await call(acct, "POST", "/subscriptions", {
+				...subscription,
+				endpoint,
+			});
+			expect(res.status, endpoint).toBe(200);
+		}
 	});
 
 	test("subscribing with VAPID unset is a 503", async () => {

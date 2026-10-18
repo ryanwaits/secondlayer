@@ -10,6 +10,7 @@ import {
 	markSent,
 	removeSubscription,
 } from "../db/queries/push.ts";
+import { isPushServiceEndpoint } from "./endpoint.ts";
 
 export interface PushPayload {
 	title: string;
@@ -79,6 +80,12 @@ export async function sendPush(
 	let failed = 0;
 	let removed = 0;
 	for (const sub of subs) {
+		// Defense in depth: never call a stored endpoint that is not a push service.
+		if (!isPushServiceEndpoint(sub.endpoint)) {
+			await removeSubscription(db, sub.id);
+			removed++;
+			continue;
+		}
 		try {
 			await send(
 				{
