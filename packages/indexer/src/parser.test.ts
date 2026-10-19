@@ -144,6 +144,23 @@ describe("parseTransaction", () => {
 		);
 		expect(result?.function_name).toBe("open");
 	});
+
+	test("decodes a multisig token_transfer to its SM sender", async () => {
+		// Mainnet block 57628: 2-of-3 P2SH whose public-key field is flagged
+		// uncompressed. Sender matches the tx's own stx_transfer_event.
+		const tx: TransactionPayload = {
+			txid: "0xb5ce63c05b26bc10dbf9239536b0b2ff4a3b81286a861632d655d7a380923ae5",
+			raw_tx:
+				"0x000000000104010f61a9365d248a6930aa07c93e017d52f731b38000000000000000000000000000000320000000030300a17e6dd3e02da2fd10fb6ba63309de5bb116116ddf39f582620b7a7eb67d1bf337c2393d2de0a1699172e3ed5d6fd550bf68a040ddf3199edfa1a18e5153a692030054b21ab446accff5c5c2735840ee6a1aa56e223af1365d2ba9fb3e821e1a3d336a9b684287fd05bb44297bf88f88048a14dd17adc3112e503795a973cbb8ae8501039e455fb0c57ecf932d983c34dbd6374d8579a0a1be0c52c90d63068a129e62cb00020302000000000005165b139c131c6a870f0d3a8b0459093c433535aeb8000000000001869600000000000000000000000000000000000000000000000000000000000000000000",
+			status: "success",
+			tx_index: 102,
+		};
+
+		const result = await parseTransaction(tx, 57628);
+
+		expect(result?.type).toBe("token_transfer");
+		expect(result?.sender).toBe("SM7P3A9PBMJ8MT9GN83WJFG1FN9FECDKG1ETYCJ0");
+	});
 });
 
 describe("parseVmEvent", () => {

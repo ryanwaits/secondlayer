@@ -241,6 +241,27 @@ describe("multi-sig", () => {
 				(full.auth.spendingCondition as MultiSigSpendingCondition).signer,
 			);
 		});
+
+		test("public-key field flagged uncompressed still carries 33 key bytes", () => {
+			// Mainnet block 57628, tx 0xb5ce63c0…: 2-of-3 P2SH token transfer
+			// whose third field is id 0x01. Consensus encodes every auth-field
+			// key compressed; the id only picks the encoding hashed into the
+			// sighash.
+			const hex =
+				"000000000104010f61a9365d248a6930aa07c93e017d52f731b38000000000000000000000000000000320000000030300a17e6dd3e02da2fd10fb6ba63309de5bb116116ddf39f582620b7a7eb67d1bf337c2393d2de0a1699172e3ed5d6fd550bf68a040ddf3199edfa1a18e5153a692030054b21ab446accff5c5c2735840ee6a1aa56e223af1365d2ba9fb3e821e1a3d336a9b684287fd05bb44297bf88f88048a14dd17adc3112e503795a973cbb8ae8501039e455fb0c57ecf932d983c34dbd6374d8579a0a1be0c52c90d63068a129e62cb00020302000000000005165b139c131c6a870f0d3a8b0459093c433535aeb8000000000001869600000000000000000000000000000000000000000000000000000000000000000000";
+
+			const tx = deserializeTransaction(hex);
+			const cond = tx.auth.spendingCondition as MultiSigSpendingCondition;
+
+			expect(cond.hashMode).toBe(AddressHashMode.P2SH);
+			expect(cond.signaturesRequired).toBe(2);
+			expect(cond.fields[2]).toEqual({
+				type: "publicKey",
+				pubKeyEncoding: 0x01,
+				data: "039e455fb0c57ecf932d983c34dbd6374d8579a0a1be0c52c90d63068a129e62cb",
+			});
+			expect(serializeTransactionHex(tx)).toBe(hex);
+		});
 	});
 
 	describe("build.ts _multisig metadata", () => {

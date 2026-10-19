@@ -66,11 +66,12 @@ function readSpendingCondition(r: BytesReader): SpendingCondition {
 	for (let i = 0; i < fieldCount; i++) {
 		const fieldType = r.readUInt8();
 		if (fieldType <= 0x01) {
-			const keyLen = fieldType === 0x00 ? 33 : 65;
+			// Keys are always 33 bytes on the wire; 0x01 only flags the
+			// uncompressed encoding the sighash uses (StacksPublicKeyBuffer).
 			fields.push({
 				type: "publicKey",
 				pubKeyEncoding: fieldType as 0x00 | 0x01,
-				data: bytesToHex(r.readBytes(keyLen)),
+				data: bytesToHex(r.readBytes(33)),
 			});
 		} else {
 			fields.push({
