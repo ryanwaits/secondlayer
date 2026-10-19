@@ -1,5 +1,11 @@
 # @secondlayer/shared
 
+## 13.13.1
+
+### Patch Changes
+
+- f3d0262: Emails use the warm neutral scale: off-white paper and near-black ink instead of pure white and #111.
+
 ## 13.13.0
 
 ### Minor Changes

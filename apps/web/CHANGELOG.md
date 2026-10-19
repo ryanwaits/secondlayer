@@ -1,5 +1,11 @@
 # @secondlayer/web
 
+## 0.14.3
+
+### Patch Changes
+
+- e2c1a99: Every grey on the site, docs and account pages now reads from one warm neutral scale, from near-white paper to near-black ink, with shadows and scrims mixed from the same ink. Share cards regenerated.
+
 ## 0.14.2
 
 ### Patch Changes
