@@ -1,5 +1,13 @@
 # @secondlayer/api
 
+## 1.59.4
+
+### Patch Changes
+
+- 57996b9: OpenAPI: `signer_aggregate_pubkey` on sBTC `key-rotation` events is documented as the v1 aggregate public key, and as the marker `0xFF || bitcoin block hash` once DKG is disabled, which is not a key to derive addresses from.
+- Updated dependencies [2562474]
+  - @secondlayer/stacks@6.5.0
+
 ## 1.59.3
 
 ### Patch Changes
