@@ -1704,6 +1704,49 @@ export type RuneBalancesListParams = (
 	limit?: number;
 };
 
+/** A Bitcoin output that no transaction spends yet. */
+export type BitcoinOutputUnspent = {
+	txid: string;
+	vout: number;
+	spent: false;
+};
+
+/** A Bitcoin output some transaction spends, in the mempool or in a block. */
+export type BitcoinOutputSpent = {
+	txid: string;
+	vout: number;
+	spent: true;
+	/** Null for a confirmed spend deeper than the blocks a lookup reads
+	 *  (144 below the tip); `note` says so. Still spent. */
+	spending_txid: string | null;
+	/** The spending input's index in `spending_txid`. */
+	spending_vin: number | null;
+	/** In a block of the active chain. */
+	confirmed: boolean;
+	/** Only in the mempool so far. */
+	mempool: boolean;
+	/** Null in the mempool. */
+	block_height: number | null;
+	block_hash: string | null;
+	/** Why the spender is not named, when it isn't. */
+	note?: string;
+};
+
+/** `GET /v1/bitcoin/outspend/{txid}/{vout}`. Narrow on `spent`. */
+export type BitcoinOutspend = BitcoinOutputUnspent | BitcoinOutputSpent;
+
+/** `index.bitcoin`: reads answered live from the instance's Bitcoin node. */
+export interface BitcoinResource {
+	/**
+	 * Whether a Bitcoin output is spent, and by which transaction.
+	 *
+	 * A mempool spend shows on the next read (`mempool: true`); a confirmed
+	 * one names its block. Resolves to `null` on 404: no such transaction,
+	 * no output at `vout`, or an OP_RETURN output.
+	 */
+	outspend(txid: string, vout: number): Promise<BitcoinOutspend | null>;
+}
+
 /** `index.runes` — the rune catalog, activity log, and balances. Runes is
  *  more data on the existing Index plane, not a new product. Not configured
  *  on hosted yet; every feed's `notes` says so when it isn't. Self-host with
@@ -2362,6 +2405,12 @@ export class Index extends BaseClient {
 		},
 	};
 
+	/** Spend status of Bitcoin outputs. See {@link BitcoinResource}. */
+	readonly bitcoin: BitcoinResource = {
+		outspend: (txid: string, vout: number): Promise<BitcoinOutspend | null> =>
+			this.getBitcoinOutspend(txid, vout),
+	};
+
 	private async listFtTransfers(
 		params: FtTransfersListParams & RequestSignal = {},
 	): Promise<FtTransfersEnvelope> {
@@ -2937,6 +2986,16 @@ export class Index extends BaseClient {
 			})}`,
 			undefined,
 			{ signal: params.signal },
+		);
+	}
+
+	private async getBitcoinOutspend(
+		txid: string,
+		vout: number,
+	): Promise<BitcoinOutspend | null> {
+		return this.requestOrNull<BitcoinOutspend>(
+			"GET",
+			`/v1/bitcoin/outspend/${encodeURIComponent(txid)}/${vout}`,
 		);
 	}
 

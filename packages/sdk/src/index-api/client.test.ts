@@ -1027,6 +1027,37 @@ describe("Index Runes accessors", () => {
 		expect(res?.rune.id).toBe("840000:3");
 	});
 
+	test("bitcoin.outspend hits the outspend path", async () => {
+		const answer = { txid: "ab".repeat(32), vout: 1, spent: false as const };
+		const urls = recorder(answer);
+		const res = await new Index({ baseUrl: BASE_URL }).bitcoin.outspend(
+			"ab".repeat(32),
+			1,
+		);
+		expect(urls[0]).toBe(
+			`${BASE_URL}/v1/bitcoin/outspend/${"ab".repeat(32)}/1`,
+		);
+		expect(res).toEqual(answer);
+	});
+
+	test("bitcoin.outspend resolves null on 404", async () => {
+		globalThis.fetch = mock(() =>
+			Promise.resolve({
+				ok: false,
+				status: 404,
+				headers: new Headers(),
+				json: () => Promise.resolve({ error: "no Bitcoin transaction" }),
+				text: () => Promise.resolve('{"error":"no Bitcoin transaction"}'),
+			} as Response),
+		) as unknown as typeof fetch;
+		expect(
+			await new Index({ baseUrl: BASE_URL }).bitcoin.outspend(
+				"ee".repeat(32),
+				0,
+			),
+		).toBeNull();
+	});
+
 	test("runes.get resolves null on 404", async () => {
 		globalThis.fetch = mock(() =>
 			Promise.resolve({

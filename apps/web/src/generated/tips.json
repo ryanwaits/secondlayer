@@ -245,6 +245,74 @@
 			"route": "/docs/sdk-reference/archive",
 			"anchor": "t-ArchiveVerifyResult"
 		},
+		"BitcoinOutputSpent": {
+			"kind": "type",
+			"summary": "A Bitcoin output some transaction spends, in the mempool or in a block.",
+			"fields": [
+				{
+					"name": "txid",
+					"type": "string"
+				},
+				{
+					"name": "vout",
+					"type": "number"
+				},
+				{
+					"name": "spent",
+					"type": "true"
+				},
+				{
+					"name": "spending_txid",
+					"type": "string | null"
+				},
+				{
+					"name": "spending_vin",
+					"type": "number | null"
+				},
+				{
+					"name": "confirmed",
+					"type": "boolean"
+				},
+				{
+					"name": "mempool",
+					"type": "boolean"
+				},
+				{
+					"name": "block_height",
+					"type": "number | null"
+				}
+			],
+			"more": 2,
+			"route": "/docs/sdk-reference/index",
+			"anchor": "t-BitcoinOutputSpent"
+		},
+		"BitcoinOutputUnspent": {
+			"kind": "type",
+			"summary": "A Bitcoin output that no transaction spends yet.",
+			"fields": [
+				{
+					"name": "txid",
+					"type": "string"
+				},
+				{
+					"name": "vout",
+					"type": "number"
+				},
+				{
+					"name": "spent",
+					"type": "false"
+				}
+			],
+			"route": "/docs/sdk-reference/index",
+			"anchor": "t-BitcoinOutputUnspent"
+		},
+		"BitcoinResource.outspend": {
+			"kind": "method",
+			"summary": "Whether a Bitcoin output is spent, and by which transaction.",
+			"sig": "sl.index.bitcoin.outspend(txid: string, vout: number): Promise<BitcoinOutputUnspent | BitcoinOutputSpent | null>",
+			"route": "/docs/sdk-reference/index",
+			"anchor": "m-bitcoin-outspend"
+		},
 		"BlockEnvelope": {
 			"kind": "type",
 			"summary": "One block and the chain tip.",
@@ -5086,6 +5154,13 @@
 			"sig": "sl.contracts.list(params: ContractsListParams): Promise<ContractsEnvelope>",
 			"route": "/docs/sdk-reference/contracts",
 			"anchor": "m-list"
+		},
+		"sl.index.bitcoin.outspend": {
+			"kind": "method",
+			"summary": "Whether a Bitcoin output is spent, and by which transaction.",
+			"sig": "sl.index.bitcoin.outspend(txid: string, vout: number): Promise<BitcoinOutputUnspent | BitcoinOutputSpent | null>",
+			"route": "/docs/sdk-reference/index",
+			"anchor": "m-bitcoin-outspend"
 		},
 		"sl.index.blocks.get": {
 			"kind": "method",
@@ -12104,6 +12179,16 @@
 				"summary": "A value and its MARF inclusion proof as of block tip, from the node (/v2/clarity/marf/{path}?proof=1).",
 				"route": "/docs/api/proofs",
 				"anchor": "get-marf-proof"
+			}
+		},
+		{
+			"path": "/v1/bitcoin/outspend/{txid}/{vout}",
+			"method": "GET",
+			"tip": {
+				"kind": "endpoint",
+				"summary": "Whether one Bitcoin output is spent, and by which transaction, read live from this instance's Bitcoin node.",
+				"route": "/docs/api/index",
+				"anchor": "get-bitcoin-outspend"
 			}
 		},
 		{

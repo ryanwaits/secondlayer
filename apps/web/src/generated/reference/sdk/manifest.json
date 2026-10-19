@@ -13,7 +13,7 @@
 			"slug": "index",
 			"title": "Index",
 			"root": "sl.index",
-			"methodCount": 53
+			"methodCount": 54
 		},
 		{
 			"slug": "subgraphs",
@@ -538,6 +538,9 @@
 		"ArchiveVerifyInput": "/docs/sdk-reference/archive#t-ArchiveVerifyInput",
 		"ArchiveVerifyRangeStatus": "/docs/sdk-reference/archive#t-ArchiveVerifyRangeStatus",
 		"ArchiveVerifyResult": "/docs/sdk-reference/archive#t-ArchiveVerifyResult",
+		"BitcoinOutputSpent": "/docs/sdk-reference/index#t-BitcoinOutputSpent",
+		"BitcoinOutputUnspent": "/docs/sdk-reference/index#t-BitcoinOutputUnspent",
+		"BitcoinResource.outspend": "/docs/sdk-reference/index#m-bitcoin-outspend",
 		"BlockEnvelope": "/docs/sdk-reference/index#t-BlockEnvelope",
 		"BlocksEnvelope": "/docs/sdk-reference/index#t-BlocksEnvelope",
 		"BlocksListParams": "/docs/sdk-reference/index#t-BlocksListParams",
@@ -787,6 +790,7 @@
 		"sl.context": "/docs/sdk-reference/client#m-context",
 		"sl.contracts.get": "/docs/sdk-reference/contracts#m-get",
 		"sl.contracts.list": "/docs/sdk-reference/contracts#m-list",
+		"sl.index.bitcoin.outspend": "/docs/sdk-reference/index#m-bitcoin-outspend",
 		"sl.index.blocks.get": "/docs/sdk-reference/index#m-blocks-get",
 		"sl.index.blocks.list": "/docs/sdk-reference/index#m-blocks-list",
 		"sl.index.blocks.walk": "/docs/sdk-reference/index#m-blocks-walk",
