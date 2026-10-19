@@ -1,5 +1,9 @@
 import { resolve } from "node:path";
-import { Index, type IndexRuneEventKind } from "@secondlayer/sdk";
+import {
+	Index,
+	type IndexOrder,
+	type IndexRuneEventKind,
+} from "@secondlayer/sdk";
 import {
 	DECODED_EVENT_TYPES,
 	type DecodedEventType,
@@ -93,6 +97,15 @@ export function parseRuneSort(
 	return value as (typeof RUNE_SORTS)[number];
 }
 
+/** `--order` for the decoded-event lists: asc (default) or desc. */
+export function parseIndexOrder(value?: string): IndexOrder | undefined {
+	if (value === undefined) return undefined;
+	if (value !== "asc" && value !== "desc") {
+		throw new Error(`invalid --order "${value}"; expected asc or desc`);
+	}
+	return value;
+}
+
 /** `--kind etch,burn` becomes `["rune_etch", "rune_burn"]`. */
 export function parseRuneKinds(
 	value?: string,
@@ -146,6 +159,7 @@ type ListOptions = {
 	toHeight?: string;
 	cursor?: string;
 	limit?: string;
+	order?: string;
 	json?: boolean;
 };
 
@@ -211,7 +225,14 @@ export function registerIndexCommand(program: Command): void {
 			.option("--limit <n>", "Rows per page")
 			.option("--json", "Print the full envelope as JSON");
 
-	rangeFlags(index.command("ft-transfers"))
+	// Decoded-event lists only; contract-calls and transactions page by tx.
+	const orderFlag = (cmd: Command): Command =>
+		cmd.option(
+			"--order <asc|desc>",
+			"asc (default) reads oldest first; desc reads newest first",
+		);
+
+	orderFlag(rangeFlags(index.command("ft-transfers")))
 		.description("List decoded SIP-010 fungible-token transfers")
 		.option("--sender <principal>", "Filter by sender")
 		.option("--recipient <principal>", "Filter by recipient")
@@ -220,6 +241,7 @@ export function registerIndexCommand(program: Command): void {
 				emit(
 					await client().ftTransfers.list({
 						...rangeParams(o),
+						order: parseIndexOrder(o.order),
 						sender: o.sender,
 						recipient: o.recipient,
 					}),
@@ -230,7 +252,7 @@ export function registerIndexCommand(program: Command): void {
 			}
 		});
 
-	rangeFlags(index.command("nft-transfers"))
+	orderFlag(rangeFlags(index.command("nft-transfers")))
 		.description("List decoded SIP-009 non-fungible-token transfers")
 		.option("--sender <principal>", "Filter by sender")
 		.option("--recipient <principal>", "Filter by recipient")
@@ -240,6 +262,7 @@ export function registerIndexCommand(program: Command): void {
 				emit(
 					await client().nftTransfers.list({
 						...rangeParams(o),
+						order: parseIndexOrder(o.order),
 						sender: o.sender,
 						recipient: o.recipient,
 						assetIdentifier: o.assetIdentifier,
@@ -251,7 +274,7 @@ export function registerIndexCommand(program: Command): void {
 			}
 		});
 
-	rangeFlags(index.command("events"))
+	orderFlag(rangeFlags(index.command("events")))
 		.description(
 			"List decoded events by type (stx_*, ft/nft mint/burn, print, …)",
 		)
@@ -272,6 +295,7 @@ export function registerIndexCommand(program: Command): void {
 					await client().events.list({
 						eventType: parseIndexEventType(o.eventType, o.types),
 						...rangeParams(o),
+						order: parseIndexOrder(o.order),
 						sender: o.sender,
 						recipient: o.recipient,
 						assetIdentifier: o.assetIdentifier,

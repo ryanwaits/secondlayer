@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, spyOn, test } from "bun:test";
 import { Command } from "commander";
 import {
+	parseIndexOrder,
 	parseRuneKinds,
 	parseRuneSort,
 	registerIndexCommand,
@@ -184,6 +185,58 @@ describe("rune flag parsing", () => {
 		expect(() => runeBalanceSubject({})).toThrow(msg);
 		expect(() => runeBalanceSubject({ address: "a", outpoint: "t:0" })).toThrow(
 			msg,
+		);
+	});
+});
+
+describe("index event order", () => {
+	let saved: Record<string, string | undefined>;
+	let realFetch: typeof fetch;
+	let urls: URL[];
+
+	beforeEach(() => {
+		saved = {};
+		for (const k of ENV) {
+			saved[k] = process.env[k];
+			Reflect.deleteProperty(process.env, k);
+		}
+		process.env.SECONDLAYER_API_URL = "http://api.test";
+		realFetch = globalThis.fetch;
+		urls = [];
+		globalThis.fetch = (async (input: Parameters<typeof fetch>[0]) => {
+			urls.push(new URL(input instanceof Request ? input.url : String(input)));
+			return Response.json({ events: [], next_cursor: null });
+		}) as typeof fetch;
+	});
+
+	afterEach(() => {
+		globalThis.fetch = realFetch;
+		for (const k of ENV) {
+			if (saved[k] === undefined) Reflect.deleteProperty(process.env, k);
+			else process.env[k] = saved[k];
+		}
+	});
+
+	const run = (...args: string[]) =>
+		program().parseAsync(["node", "secondlayer", "index", ...args]);
+
+	test("--order desc reaches ft-transfers, nft-transfers and events", async () => {
+		await run("ft-transfers", "--order", "desc", "--json");
+		await run("nft-transfers", "--order", "desc", "--json");
+		await run("events", "--event-type", "print", "--order", "desc", "--json");
+		expect(urls.map((u) => u.searchParams.get("order"))).toEqual([
+			"desc",
+			"desc",
+			"desc",
+		]);
+	});
+
+	test("--order accepts asc or desc only", () => {
+		expect(parseIndexOrder("asc")).toBe("asc");
+		expect(parseIndexOrder("desc")).toBe("desc");
+		expect(parseIndexOrder(undefined)).toBeUndefined();
+		expect(() => parseIndexOrder("newest")).toThrow(
+			'invalid --order "newest"; expected asc or desc',
 		);
 	});
 });
