@@ -28,7 +28,6 @@ import type {
 } from "@secondlayer/shared/db";
 import { computeContiguousTip } from "@secondlayer/shared/db/queries/integrity";
 import { logger } from "@secondlayer/shared/logger";
-import { ArchiveReplayClient } from "@secondlayer/shared/node/archive-client";
 import { HiroClient } from "@secondlayer/shared/node/hiro-client";
 import type { GetBlockOptions } from "@secondlayer/shared/node/hiro-client";
 import { HiroPgClient } from "@secondlayer/shared/node/hiro-pg-client";
@@ -59,12 +58,11 @@ const RAW_TX_CONCURRENCY = Number.parseInt(
 );
 const NETWORK = process.env.STACKS_NETWORK || "mainnet";
 const PROGRESS_FILE = "backfill-progress.json";
-/** "local" = read from own DB, "hiro" = HTTP API, "hiro-pg" = direct PG, "archive" = Hiro event archive */
+/** "local" = read from own DB, "hiro" = HTTP API, "hiro-pg" = direct PG */
 const BACKFILL_SOURCE = (process.env.BACKFILL_SOURCE || "hiro") as
 	| "local"
 	| "hiro"
-	| "hiro-pg"
-	| "archive";
+	| "hiro-pg";
 
 const TX_CHUNK_SIZE = 500;
 const EVT_CHUNK_SIZE = 1000;
@@ -287,38 +285,6 @@ async function main() {
 	if (heights.length === 0) {
 		logger.info("Nothing to backfill");
 		await recomputeContiguousAndClose(db);
-		return;
-	}
-
-	// Archive source: stream entire archive once, replay matching heights via /new_block
-	if (BACKFILL_SOURCE === "archive") {
-		const archiveClient = new ArchiveReplayClient();
-		const indexerUrl = `http://localhost:${process.env.PORT || "3700"}`;
-		const gapHeights = new Set(heights);
-		const startTime = Date.now();
-
-		const result = await archiveClient.replayGaps(gapHeights, indexerUrl, {
-			onProgress: (count: number, height: number) => {
-				if (count % 500 === 0) {
-					const elapsed = (Date.now() - startTime) / 1000;
-					logger.info("Batch complete", {
-						height,
-						totalInserted: count,
-						rate: `${(count / elapsed).toFixed(1)} blocks/sec`,
-						remaining: gapHeights.size - count,
-					});
-				}
-			},
-		});
-
-		await recomputeContiguousAndClose(db);
-		const elapsed = (Date.now() - startTime) / 1000;
-		logger.info("Bulk backfill complete", {
-			totalInserted: result.replayed,
-			errors: result.errors,
-			elapsed: `${(elapsed / 3600).toFixed(2)}h`,
-			rate: `${(result.replayed / elapsed).toFixed(1)} blocks/sec`,
-		});
 		return;
 	}
 

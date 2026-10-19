@@ -60,12 +60,7 @@ node anchor.
 Restore Postgres with WAL-G first. If no usable database backup remains, resync
 the local Stacks node and let the indexer ingest the canonical chain; this
 rebuilds canonical blocks/transactions/events but does not retroactively prove
-exact observer callback bytes before journal activation. `BACKFILL_SOURCE=archive`
-remains an optional legacy/provider import path for explicit gap repair, not the
-baseline R2 source of truth. Run it **inside** the indexer container
-(`localhost:3700` ingest), with `ARCHIVE_DIR=/data/archive`,
-`BACKFILL_FROM`/`BACKFILL_TO` set explicitly. (Fixed 2026-05-30 — it previously
-crashed on large gap sets.)
+exact observer callback bytes before journal activation.
 
 ## Restore drill (WAL-G)
 

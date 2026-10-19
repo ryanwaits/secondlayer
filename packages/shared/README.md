@@ -37,4 +37,4 @@ DATABASE_URL=... bun run migrate
 | `@secondlayer/shared/crypto/secrets` | AES-GCM secret envelope |
 | `@secondlayer/shared/crypto/standard-webhooks` | Standard Webhooks signing |
 | `@secondlayer/shared/node` | Stacks node client |
-| `@secondlayer/shared/node/*` | Stacks node clients (hiro-client, local-client, hiro-pg-client, archive-client) |
+| `@secondlayer/shared/node/*` | Stacks node clients (hiro-client, local-client, hiro-pg-client) |

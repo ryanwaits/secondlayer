@@ -100,7 +100,6 @@ Caveat: that public hop is currently plain HTTP, so a header secret crosses the 
 **nginx** (`docker/node-server/nginx/nginx.conf`, `location /`): `proxy_set_header X-Ingest-Secret "<secret>";` — env-templated, secret in node-server's `.env` (uncommitted). Primary live-delivery caller.
 
 **Other internal HTTP callers that must also send the header** (verified — these self-POST, unlike tip-follower/auto-backfill which call `ingestNewBlock` in-process and need nothing):
-- `packages/shared/src/node/archive-client.ts:148` (`replayGaps` → used by `bulk-backfill.ts:290` archive mode)
 - `packages/cli/src/commands/db.ts:568` (CLI backfill)
 
 **Compose** (`docker/docker-compose.yml` indexer env, ~:221): `INDEXER_INGEST_SECRET: ${INDEXER_INGEST_SECRET:-}` + `INDEXER_INGEST_AUTH_MODE: ${INDEXER_INGEST_AUTH_MODE:-off}`.

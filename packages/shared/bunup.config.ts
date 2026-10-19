@@ -62,7 +62,6 @@ const config: DefineConfigItem = defineConfig({
 		"src/node/consensus.ts",
 		"src/node/local-client.ts",
 		"src/node/hiro-pg-client.ts",
-		"src/node/archive-client.ts",
 		"src/node/tx-summary.ts",
 		"src/email/index.ts",
 		"src/classify/index.ts",
