@@ -316,6 +316,26 @@ History starts at the block where your node first sent the `state_writes` observ
 - On your own box this needs a node build that emits state writes. The stock node doesn't yet.
 - Rows bill like event rows.
 
+### Check whether an output is spent
+
+Watch a Bitcoin output, such as a peg or bond UTXO, and learn when it moves and which transaction moved it.
+
+```bash
+curl "$SECONDLAYER_API_URL/v1/bitcoin/outspend/$TXID/0" \
+  -H "Authorization: Bearer $SECONDLAYER_API_KEY"
+```
+
+| Answer | Means |
+| --- | --- |
+| `spent: false` | Still unspent, including in the mempool |
+| `mempool: true` | Spent by `spending_txid`, not yet in a block |
+| `confirmed: true` | Spent in `block_height` |
+| `spending_txid: null` | Spent more than 144 blocks below the tip; `note` says so |
+
+- It reads your Bitcoin node live: Bitcoin Core 24 or later with `txindex=1`.
+- One answer is one row. Poll once per block, or more often to catch a mempool spend.
+- Fields and errors: [Output spend](/docs/api/index#get-bitcoin-outspend).
+
 ## Decoded protocols
 
 Index on contracts everyone shares, with the same verbs and envelope as every other feed. Not products of their own: your contract stays in `consume()` or a [subgraph](/docs/subgraphs).
@@ -470,6 +490,7 @@ export const agent = `
 - State writes: sl.index.stateWrites.list({ blockHeight, contractId, txContext: true }) or 'GET /v1/index/state-writes?block_height=<h>'. Rows have key, value_hex, ordinal, and a null tx_index for block-level writes. Cursor is '<block_height>:<ordinal>'. Rows exist only from the height the node first sent the state_writes observer key.
 - PoX-5: 'GET /v1/index/pox5/events?topic=register-for-bond' or sl.index.pox5.events.walk({ topic, signer }).
 - sBTC: 'GET /v1/index/sbtc/withdrawals/:request_id' has a settlement object. settlement_confirmed null means no sweep observed yet, not a denial. List filter: '?settlement_confirmed=true|false'.
+- Bitcoin outputs: 'GET /v1/bitcoin/outspend/<txid>/<vout>' answers spent, spending_txid, spending_vin, confirmed, mempool, block_height. spending_txid null with a note means spent deeper than 144 blocks below the tip; still treat it as spent. 404 means no such output (or OP_RETURN). Re-read each block; answers change with the mempool and reorgs.
 - Runes: sl.index.runes.list({ search }), runes.get(ref) (null on 404), runes.activity.walk({ address }). Amounts are u128 strings; the Bitcoin tip has 6-confirmation finality.
 `;
 

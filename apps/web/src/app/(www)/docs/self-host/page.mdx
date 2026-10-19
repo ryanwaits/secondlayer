@@ -235,6 +235,7 @@ Compose requires the token, for two reasons:
 | History below your bootstrap floor | A metered [archive backfill](/docs/authentication#archive-fetches) |
 | Webhook limits | Any `max_retries` and `timeout_ms`, no rate limits, egress as your network allows |
 | Proof routes | Witness, burn and Bitcoin-header routes answer `503 PROOFS_UNAVAILABLE` until `PROOF_SIDECAR_URL` points at a proof sidecar. The Bitcoin transaction route reads the bundled bitcoind (full-node profile, `txindex=1`) or the node at `BITCOIN_RPC_URL`, and answers `502 PROOF_SOURCE_ERROR` when it can't reach one |
+| Bitcoin output spends | `/v1/bitcoin/outspend` reads the same node and needs Bitcoin Core 24 or later. It answers `503 BITCOIN_UNAVAILABLE` until `BITCOIN_RPC_URL` is set, and `502 BITCOIN_SOURCE_ERROR` when it can't read the node |
 | Error reports | No `/v1/feedback`. Error bodies link to a GitHub issue instead |
 
 Consumers running on another box: [Deploy your app](/docs/deploy).
