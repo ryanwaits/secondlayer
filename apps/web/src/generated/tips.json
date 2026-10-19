@@ -247,7 +247,7 @@
 		},
 		"BitcoinOutputSpent": {
 			"kind": "type",
-			"summary": "A Bitcoin output some transaction spends, in the mempool or in a block.",
+			"summary": "A Bitcoin output that some transaction spends.",
 			"fields": [
 				{
 					"name": "txid",

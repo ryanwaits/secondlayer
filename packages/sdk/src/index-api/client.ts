@@ -1711,7 +1711,8 @@ export type BitcoinOutputUnspent = {
 	spent: false;
 };
 
-/** A Bitcoin output some transaction spends, in the mempool or in a block. */
+/** A Bitcoin output that some transaction spends. The spend may
+ *  still be in the mempool (`mempool: true`) or in a block. */
 export type BitcoinOutputSpent = {
 	txid: string;
 	vout: number;
