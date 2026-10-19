@@ -135,16 +135,16 @@
 /* Syntax ladder: a token's class sets --shiki-light / --shiki-dark to one step
    of the theme (lib/syntax-theme.ts; a test keeps these hexes in step). */
 .cb .t-ink {
-	--shiki-light: #111111;
-	--shiki-dark: #ece9e2;
+	--shiki-light: #14110d;
+	--shiki-dark: #e8e6e3;
 }
 .cb .t-sub {
-	--shiki-light: #5e5e5e;
-	--shiki-dark: #b0aca2;
+	--shiki-light: #63605c;
+	--shiki-dark: #b3b1ad;
 }
 .cb .t-faint {
-	--shiki-light: #9b9b96;
-	--shiki-dark: #7c786f;
+	--shiki-light: #9d9b97;
+	--shiki-dark: #7c7a76;
 }
 .cb .t-ink,
 .cb .t-sub,
@@ -892,7 +892,7 @@
 	border-radius: 8px;
 	background: var(--paper);
 	color: var(--ink);
-	box-shadow: 0 8px 24px rgb(0 0 0 / 0.08);
+	box-shadow: 0 8px 24px color-mix(in srgb, var(--n-975) 8%, transparent);
 	font: 400 13px / 1.55 var(--font-sans-stack);
 }
 .key-panel p {

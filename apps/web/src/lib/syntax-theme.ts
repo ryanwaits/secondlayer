@@ -16,18 +16,18 @@ type Ladder = {
 };
 
 const LIGHT: Ladder = {
-	ink: "#111111",
-	sub: "#5e5e5e",
-	faint: "#9b9b96",
-	background: "#ffffff",
-	selection: "#e5e5e2",
+	ink: "#14110d",
+	sub: "#63605c",
+	faint: "#9d9b97",
+	background: "#fbfaf7",
+	selection: "#e8e6e3",
 };
 
 const DARK: Ladder = {
-	ink: "#ece9e2",
-	sub: "#b0aca2",
-	faint: "#7c786f",
-	background: "#252420",
+	ink: "#e8e6e3",
+	sub: "#b3b1ad",
+	faint: "#7c7a76",
+	background: "#272520",
 	selection: "#2a2c31",
 };
 

@@ -4,31 +4,45 @@ description: Instant data for apps on Bitcoin. Geist + Geist Mono, "Primaries" c
 register: brand
 colors:
   light:
-    paper: "#ffffff"
-    ink: "#111111"
-    sub: "#5e5e5e"
-    faint: "#9b9b96"
-    line: "#e5e5e2"
-    soft: "#f5f5f2"
+    paper: "#fbfaf7"
+    ink: "#14110d"
+    sub: "#63605c"
+    faint: "#9d9b97"
+    line: "#e8e6e3"
+    soft: "#f5f3f0"
     pri: "#1f45e0"
-    on-pri: "#ffffff"
+    on-pri: "#fbfaf7"
     hi: "#ffcc00"
-    on-hi: "#111111"
+    on-hi: "#14110d"
     ok: "#128a43"
     alarm: "#e3301e"
   dark:
-    paper: "#1c1b19"
-    ink: "#ece9e2"
-    sub: "#b0aca2"
-    faint: "#7c786f"
-    line: "#383631"
-    soft: "#252420"
+    paper: "#1e1b17"
+    ink: "#e8e6e3"
+    sub: "#b3b1ad"
+    faint: "#7c7a76"
+    line: "#393632"
+    soft: "#272520"
     pri: "#3a5bff"
-    on-pri: "#ffffff"
+    on-pri: "#fbfaf7"
     hi: "#efc54a"
-    on-hi: "#141414"
+    on-hi: "#14110d"
     ok: "#5cc28f"
     alarm: "#ff5a47"
+  scale:
+    n-25: "#fbfaf7"
+    n-50: "#f5f3f0"
+    n-100: "#e8e6e3"
+    n-200: "#d6d4d1"
+    n-300: "#b3b1ad"
+    n-400: "#9d9b97"
+    n-500: "#7c7a76"
+    n-600: "#63605c"
+    n-700: "#4a4743"
+    n-800: "#393632"
+    n-900: "#272520"
+    n-950: "#1e1b17"
+    n-975: "#14110d"
   terminal:
     fg: "#d9dbe0"
     muted: "#8b9099"
@@ -125,6 +139,7 @@ name before writing CSS; an unknown `var(--x)` silently voids the whole declarat
 | `ink` | `--ink` | `--text-main`, `--text-prose` |
 | `sub` | `--sub` | `--text-muted` (alpha ramp) |
 | `faint` | `--faint` | none; code punctuation, comments, line numbers |
+| `scale.n-*` | `--n-25` … `--n-975` | none; the neutral scale every role above reads |
 | `line` | `--line` | `--border` |
 | `pri` / `on-pri` | `--pri` / `--on-pri` | `--accent`, `--accent-contrast`, `--blue`, `--teal` |
 | `pri-tint` / `pri-ink` | `--pri-tint` / `--pri-ink` | none; chosen values only |
@@ -157,14 +172,14 @@ figures, as the only imagery. The page whispers; the code demonstrates. Nothing 
 ### Roles
 | Role | Light | Dark | Means |
 |---|---|---|---|
-| paper | `#ffffff` | `#1c1b19` | the page |
-| ink | `#111111` | `#ece9e2` | text, solid structure |
-| sub | `#5e5e5e` | `#b0aca2` | muted text |
-| faint | `#9b9b96` | `#7c786f` | code punctuation, comments, line numbers |
-| line | `#e5e5e2` | `#383631` | hairlines |
-| soft | `#f5f5f2` | `#252420` | raised surface |
-| pri / on-pri | `#1f45e0` / `#ffffff` | `#3a5bff` / `#ffffff` | action: links, primary buttons, focus; one part of a product glyph |
-| hi / on-hi | `#ffcc00` / `#111111` | `#efc54a` / `#141414` | highlight: new, finalized, signed |
+| paper | `#fbfaf7` | `#1e1b17` | the page |
+| ink | `#14110d` | `#e8e6e3` | text, solid structure |
+| sub | `#63605c` | `#b3b1ad` | muted text |
+| faint | `#9d9b97` | `#7c7a76` | code punctuation, comments, line numbers |
+| line | `#e8e6e3` | `#393632` | hairlines |
+| soft | `#f5f3f0` | `#272520` | raised surface |
+| pri / on-pri | `#1f45e0` / `#fbfaf7` | `#3a5bff` / `#fbfaf7` | action: links, primary buttons, focus; one part of a product glyph |
+| hi / on-hi | `#ffcc00` / `#14110d` | `#efc54a` / `#14110d` | highlight: new, finalized, signed |
 | ok | `#128a43` | `#5cc28f` | success state |
 | alarm | `#e3301e` | `#ff5a47` | failures and reorgs only |
 
@@ -321,8 +336,25 @@ guides. A callout counts toward its section's 120-word lead. Most blocks stay pl
 | Before, after | Migration or breaking change | One block with `!diff` |
 | Long file | More than 20 lines of a real file | Title = path, default clamp, `lines=N` for excerpts |
 
-Dark mode is warm charcoal ("Stone"), mirroring light mode's warm off-white; it lifts
-the ground off black so long copy reads at 7.6:1 for `sub`.
+### Neutral scale
+Every grey is one step of one scale: OKLCH hue 82 (warm), lightness 0.985 → 0.18 in 13
+steps (`n-25` … `n-975`), chroma 0.004 at the light end rising to 0.010 at the dark end.
+Nothing is pure white or pure black: paper is `n-25`, ink `n-975`, and text on blue or red
+takes `on-pri` (`n-25`). The tint sits under notice, so the brand reads through every
+surface without competing with blue, yellow and red.
+
+| Role | Light | Dark |
+|---|---|---|
+| paper | `n-25` | `n-950` |
+| soft | `n-50` | `n-900` |
+| line | `n-100` | `n-800` |
+| faint | `n-400` | `n-500` |
+| sub | `n-600` | `n-300` |
+| ink | `n-975` | `n-100` |
+
+Translucent greys (muted text, scrims, shadows, washes) mix `ink` or `n-975` toward
+transparent; never `rgba(0,0,0,…)` or a fresh hex. Dark mode is warm charcoal, lifted off
+black so long copy reads comfortably for `sub`.
 
 ### Named rules
 **Blue acts.** Blue never decorates data. It marks what you can click or do. One
@@ -331,7 +363,8 @@ part its claim is about, the way the logo's top layer is blue (see Product glyph
 **Yellow marks.** Yellow never signals status. It marks new, finalized, signed.
 **Red fails.** Red appears only for failures and reorgs.
 **Neutrals carry the rest.** If it is not an action, a mark, or a failure, it is ink, sub,
-line, or soft. Muted text uses the `sub` role or the ink alpha ramp, never an invented gray.
+line, or soft, all steps of the neutral scale. Muted text uses the `sub` role or the ink alpha
+ramp, never an invented gray.
 **Verbs are not roles.** API method pills use the HTTP verb palette (`--verb-*`): GET green, POST amber, PUT blue, PATCH violet, DELETE red, the convention API tools share. It appears on method pills only and never stands in for pri, hi, ok or alarm.
 
 ## 3. Typography

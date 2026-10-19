@@ -529,7 +529,8 @@ button.docs-nav-item {
 	background: var(--paper);
 	border: 1px solid var(--line);
 	border-radius: 8px;
-	box-shadow: 0 4px 24px rgba(0, 0, 0, 0.06), 0 1px 4px rgba(0, 0, 0, 0.04);
+	box-shadow: 0 4px 24px color-mix(in srgb, var(--n-975) 6%, transparent), 0 1px
+		4px color-mix(in srgb, var(--n-975) 4%, transparent);
 }
 .docs-trail-back {
 	display: flex;
@@ -606,7 +607,8 @@ button.docs-nav-item {
 	background: var(--paper);
 	border: 1px solid var(--line);
 	border-radius: 8px;
-	box-shadow: 0 4px 24px rgba(0, 0, 0, 0.06), 0 1px 4px rgba(0, 0, 0, 0.04);
+	box-shadow: 0 4px 24px color-mix(in srgb, var(--n-975) 6%, transparent), 0 1px
+		4px color-mix(in srgb, var(--n-975) 4%, transparent);
 }
 .docs-trail-row {
 	display: flex;

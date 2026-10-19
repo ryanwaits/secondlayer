@@ -11,7 +11,6 @@
    it never sits white on white: soft on paper, paper on soft bands. */
 .site {
 	--term: var(--soft);
-	--term-raise: var(--paper);
 	--term-line: var(--line);
 	--term-fg: var(--ink);
 	--term-mute: var(--sub);
@@ -335,7 +334,6 @@
 }
 .site .band-soft {
 	--term: var(--paper);
-	--term-raise: var(--soft);
 	background: var(--soft);
 	border-block: 1px solid var(--line);
 }
@@ -1459,7 +1457,8 @@
 	background: var(--paper);
 	border: 1px solid var(--line);
 	border-radius: 8px;
-	box-shadow: 0 4px 24px rgba(0, 0, 0, 0.06), 0 1px 4px rgba(0, 0, 0, 0.04);
+	box-shadow: 0 4px 24px color-mix(in srgb, var(--n-975) 6%, transparent), 0 1px
+		4px color-mix(in srgb, var(--n-975) 4%, transparent);
 	font: 400 12px / 1 var(--font-mono-stack);
 	color: var(--sub);
 	white-space: nowrap;
@@ -1557,7 +1556,8 @@
 	background: var(--paper);
 	border: 1px solid var(--line);
 	border-radius: 8px;
-	box-shadow: 0 4px 24px rgba(0, 0, 0, 0.06), 0 1px 4px rgba(0, 0, 0, 0.04);
+	box-shadow: 0 4px 24px color-mix(in srgb, var(--n-975) 6%, transparent), 0 1px
+		4px color-mix(in srgb, var(--n-975) 4%, transparent);
 	font: 400 12.5px / 1.5 var(--font-sans-stack);
 	color: var(--sub);
 	white-space: normal;

@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 48 48">
-  <style>@media (prefers-color-scheme: dark){.e{fill:#ece9e2}.p{fill:#3a5bff}}</style>
-  <polygon class="e" points="8,23 28,15 40,23 20,31" fill="#111111" opacity="0.24"/>
+  <style>@media (prefers-color-scheme: dark){.e{fill:#e8e6e3}.p{fill:#3a5bff}}</style>
+  <polygon class="e" points="8,23 28,15 40,23 20,31" fill="#14110d" opacity="0.24"/>
   <polygon class="p" points="8,19 28,11 40,19 20,27" fill="#1f45e0"/>
 </svg>

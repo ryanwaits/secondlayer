@@ -1,20 +1,37 @@
 /* Hallmark · genre: modern-minimal · macrostructure: Feature Stack
  * design-system: DESIGN.md · designed-as-app · theme: Quiet Install Page */
 :root {
+	/* Neutral scale: one warm hue (oklch 82), near-white to near-black, chroma
+	   0.004 at the light end to 0.010 at the dark end. Every grey on every
+	   surface is a step here or the ink alpha ramp; nothing else. */
+	--n-25: #fbfaf7;
+	--n-50: #f5f3f0;
+	--n-100: #e8e6e3;
+	--n-200: #d6d4d1;
+	--n-300: #b3b1ad;
+	--n-400: #9d9b97;
+	--n-500: #7c7a76;
+	--n-600: #63605c;
+	--n-700: #4a4743;
+	--n-800: #393632;
+	--n-900: #272520;
+	--n-950: #1e1b17;
+	--n-975: #14110d;
+
 	/* Primaries role tokens */
-	--paper: #ffffff;
-	--ink: #111111;
-	--sub: #5e5e5e;
-	--faint: #9b9b96;
-	--line: #e5e5e2;
-	--soft: #f5f5f2;
+	--paper: var(--n-25);
+	--ink: var(--n-975);
+	--sub: var(--n-600);
+	--faint: var(--n-400);
+	--line: var(--n-100);
+	--soft: var(--n-50);
 	--pri: #1f45e0;
-	--on-pri: #ffffff;
+	--on-pri: var(--n-25);
 	/* A chosen value: a wash of pri, its edge and text in pri. Never a solid fill; solid pri is the action's. */
 	--pri-tint: color-mix(in srgb, var(--pri) 8%, var(--paper));
 	--pri-ink: var(--pri);
 	--hi: #ffcc00;
-	--on-hi: #111111;
+	--on-hi: var(--n-975);
 	--ok: #128a43;
 	--alarm: #e3301e;
 	/* Chart roles: a = the measured series, b/c = lighter steps, mark = what an insight points at (fill only), alarm = failure. Dashboard only. */
@@ -29,52 +46,47 @@
 	--verb-put: #1f6feb;
 	--verb-patch: #6f42c1;
 	--verb-delete: #e3301e;
-	--on-verb: #ffffff;
-	--on-verb-post: #111111;
-	--term: #121316;
-	--term-line: #24262b;
-	--term-mute: #8b9099;
+	--on-verb: var(--n-25);
+	--on-verb-post: var(--n-975);
+	--term: var(--n-975);
+	--term-line: var(--n-900);
+	--term-mute: var(--n-400);
 	--term-acc: #ffd21f;
 
-	--bg: #ffffff;
-	--text-main: #111111;
-	--text-prose: #111111;
-	--docs-prose: rgba(17, 17, 17, 0.74);
-	--text-muted: rgba(17, 17, 17, 0.56);
-	--text-dim: rgba(17, 17, 17, 0.28);
-	--border: #e5e5e2;
-	--border-hover: rgba(17, 17, 17, 0.2);
-	--bg-elevated: #ffffff;
-	--bg-chrome: #f5f5f2;
-	--bg-tab-active: #f5f5f2;
+	--bg: var(--paper);
+	--text-main: var(--ink);
+	--text-prose: var(--ink);
+	--docs-prose: color-mix(in srgb, var(--ink) 74%, transparent);
+	--text-muted: color-mix(in srgb, var(--ink) 56%, transparent);
+	--text-dim: color-mix(in srgb, var(--ink) 28%, transparent);
+	--border: var(--line);
+	--border-hover: color-mix(in srgb, var(--ink) 20%, transparent);
+	--bg-elevated: var(--paper);
+	--bg-chrome: var(--soft);
+	--bg-tab-active: var(--soft);
 	--accent-pink: #1f45e0;
 	--accent: #1f45e0;
 	--accent-hover: #1838c4;
-	--accent-contrast: #ffffff;
+	--accent-contrast: var(--on-pri);
 	--accent-bg: rgba(31, 69, 224, 0.06);
 	--accent-border: rgba(31, 69, 224, 0.24);
 	--accent-glow: rgba(31, 69, 224, 0.06);
-	--ink-demoted: #7d8187;
 	--term-bg: var(--term);
-	--term-raise: #1a1b1f;
 	--term-border: var(--term-line);
-	--term-fg: #d9dbe0;
-	--term-muted: #8b9099;
-	--term-bright: #f5f5f2;
+	--term-fg: var(--n-200);
+	--term-muted: var(--term-mute);
 	--term-teal: var(--term-acc);
 	--term-ok: #3ccb7f;
-	--dot-color: rgba(0, 0, 0, 0.1);
-	--code-bg: rgba(17, 17, 17, 0.05);
+	--code-bg: color-mix(in srgb, var(--ink) 5%, transparent);
 	--code-block-bg: transparent;
-	--nudge-bg: rgba(0, 0, 0, 0.02);
-	--selection-bg: #ededed;
-	--selection-text: #111;
-	--link-underline: #d9d9d9;
-	--link-underline-hover: #666;
-	--copy-btn: rgba(0, 0, 0, 0.25);
-	--copy-btn-hover: rgba(0, 0, 0, 0.5);
-	--copy-btn-hover-bg: rgba(0, 0, 0, 0.04);
-	--focus-ring: rgba(0, 0, 0, 0.22);
+	--selection-bg: var(--n-100);
+	--selection-text: var(--ink);
+	--link-underline: var(--n-200);
+	--link-underline-hover: var(--n-600);
+	--copy-btn: color-mix(in srgb, var(--ink) 25%, transparent);
+	--copy-btn-hover: color-mix(in srgb, var(--ink) 50%, transparent);
+	--copy-btn-hover-bg: color-mix(in srgb, var(--ink) 4%, transparent);
+	--focus-ring: color-mix(in srgb, var(--ink) 22%, transparent);
 
 	--green: #128a43;
 	--green-bg: rgba(34, 197, 94, 0.08);
@@ -90,14 +102,14 @@
 	--teal: #1f45e0;
 	--teal-bg: rgba(31, 69, 224, 0.06);
 
-	/* Writings figure library — role pair validated for light (#fff cards) */
+	/* Writings figure library — role pair validated for light (paper cards) */
 	--fig-role-a: var(--ink);
-	--fig-role-b: rgba(17, 17, 17, 0.42);
-	--fig-role-b-bg: rgba(17, 17, 17, 0.06);
+	--fig-role-b: color-mix(in srgb, var(--ink) 42%, transparent);
+	--fig-role-b-bg: color-mix(in srgb, var(--ink) 6%, transparent);
 	--fig-alarm: #e3301e;
 	--fig-ok: #128a43;
-	--fig-bar: rgba(10, 10, 10, 0.16);
-	--fig-faint: rgba(0, 0, 0, 0.42);
+	--fig-bar: color-mix(in srgb, var(--ink) 16%, transparent);
+	--fig-faint: color-mix(in srgb, var(--ink) 42%, transparent);
 
 	--font-sans-stack: "Geist", ui-sans-serif, system-ui, sans-serif;
 	--font-heading-stack: "Geist", ui-sans-serif, system-ui, sans-serif;
@@ -130,21 +142,21 @@
 
 @media (prefers-color-scheme: dark) {
 	:root {
-		--paper: #1c1b19;
-		--ink: #ece9e2;
-		--sub: #b0aca2;
-		--faint: #7c786f;
-		--line: #383631;
-		--soft: #252420;
+		--paper: var(--n-950);
+		--ink: var(--n-100);
+		--sub: var(--n-300);
+		--faint: var(--n-500);
+		--line: var(--n-800);
+		--soft: var(--n-900);
 		--pri: #3a5bff;
-		--on-pri: #ffffff;
+		--on-pri: var(--n-25);
 		--pri-tint: color-mix(in srgb, var(--pri) 18%, var(--paper));
 		--pri-ink: #93a5ff;
 		/* On a dark ground the lighter chart steps mix toward ink, not paper. */
 		--ch-b: color-mix(in srgb, var(--pri) 55%, var(--ink));
 		--ch-c: color-mix(in srgb, var(--pri) 35%, var(--ink));
 		--hi: #efc54a;
-		--on-hi: #141414;
+		--on-hi: var(--n-975);
 		--ok: #5cc28f;
 		--alarm: #ff5a47;
 		--verb-get: #23864f;
@@ -152,51 +164,46 @@
 		--verb-put: #3a6ff0;
 		--verb-patch: #7d55e0;
 		--verb-delete: #d93a2b;
-		--on-verb: #ffffff;
-		--on-verb-post: #141414;
-		--term: #252420;
-		--term-line: #383631;
-		--term-mute: #b0aca2;
+		--on-verb: var(--n-25);
+		--on-verb-post: var(--n-975);
+		--term: var(--soft);
+		--term-line: var(--line);
+		--term-mute: var(--sub);
 		--term-acc: #e6c15c;
 
-		--bg: #1c1b19;
-		--text-main: #ece9e2;
-		--text-prose: #ece9e2;
-		--docs-prose: rgba(236, 233, 226, 0.8);
-		--text-muted: rgba(236, 233, 226, 0.64);
-		--text-dim: rgba(236, 233, 226, 0.34);
-		--border: #383631;
-		--border-hover: rgba(236, 233, 226, 0.24);
-		--bg-elevated: #1c1b19;
-		--bg-chrome: #252420;
-		--bg-tab-active: #252420;
+		--bg: var(--paper);
+		--text-main: var(--ink);
+		--text-prose: var(--ink);
+		--docs-prose: color-mix(in srgb, var(--ink) 80%, transparent);
+		--text-muted: color-mix(in srgb, var(--ink) 64%, transparent);
+		--text-dim: color-mix(in srgb, var(--ink) 34%, transparent);
+		--border: var(--line);
+		--border-hover: color-mix(in srgb, var(--ink) 24%, transparent);
+		--bg-elevated: var(--paper);
+		--bg-chrome: var(--soft);
+		--bg-tab-active: var(--soft);
 		--accent-bg: rgba(58, 91, 255, 0.12);
 		--accent-border: rgba(58, 91, 255, 0.36);
 		--accent-glow: rgba(58, 91, 255, 0.12);
-		--dot-color: rgba(255, 255, 255, 0.07);
-		--code-bg: rgba(236, 233, 226, 0.08);
+		--code-bg: color-mix(in srgb, var(--ink) 8%, transparent);
 		--code-block-bg: transparent;
 		--term-bg: var(--term);
-		--term-raise: #2c2a26;
 		--term-border: var(--term-line);
-		--term-fg: #e3e0d9;
-		--term-muted: #b0aca2;
-		--term-bright: #f5f2ea;
+		--term-fg: var(--n-100);
+		--term-muted: var(--term-mute);
 		--term-teal: var(--term-acc);
 		--term-ok: #5cc28f;
-		--nudge-bg: rgba(255, 255, 255, 0.02);
-		--selection-bg: #3d3a34;
-		--selection-text: #ececec;
-		--link-underline: #4a4740;
-		--link-underline-hover: #999;
-		--copy-btn: rgba(255, 255, 255, 0.25);
-		--copy-btn-hover: rgba(255, 255, 255, 0.5);
-		--copy-btn-hover-bg: rgba(255, 255, 255, 0.06);
+		--selection-bg: var(--n-800);
+		--selection-text: var(--ink);
+		--link-underline: var(--n-700);
+		--link-underline-hover: var(--n-400);
+		--copy-btn: color-mix(in srgb, var(--ink) 25%, transparent);
+		--copy-btn-hover: color-mix(in srgb, var(--ink) 50%, transparent);
+		--copy-btn-hover-bg: color-mix(in srgb, var(--ink) 6%, transparent);
 		--accent: #3a5bff;
 		--accent-hover: #5c77ff;
-		--accent-contrast: #ffffff;
-		--focus-ring: rgba(255, 255, 255, 0.26);
-		--ink-demoted: #b5b0a6;
+		--accent-contrast: var(--on-pri);
+		--focus-ring: color-mix(in srgb, var(--ink) 26%, transparent);
 
 		--green: #5cc28f;
 		--green-bg: rgba(34, 197, 94, 0.08);
@@ -212,14 +219,14 @@
 		--teal: #3a5bff;
 		--teal-bg: rgba(58, 91, 255, 0.12);
 
-		/* Figure role pair validated for dark (#252420 cards), NOT --accent */
+		/* Figure role pair validated for dark (soft cards), NOT --accent */
 		--fig-role-a: var(--ink);
-		--fig-role-b: rgba(236, 233, 226, 0.45);
-		--fig-role-b-bg: rgba(236, 233, 226, 0.1);
+		--fig-role-b: color-mix(in srgb, var(--ink) 45%, transparent);
+		--fig-role-b-bg: color-mix(in srgb, var(--ink) 10%, transparent);
 		--fig-alarm: #ff5a47;
 		--fig-ok: #5cc28f;
-		--fig-bar: rgba(236, 236, 236, 0.2);
-		--fig-faint: rgba(255, 255, 255, 0.38);
+		--fig-bar: color-mix(in srgb, var(--ink) 20%, transparent);
+		--fig-faint: color-mix(in srgb, var(--ink) 38%, transparent);
 	}
 }
 
@@ -2082,7 +2089,7 @@ html[data-acct-card] .www > :not(.marketing-nav) {
 .palette-overlay {
 	position: fixed;
 	inset: 0;
-	background: rgba(0, 0, 0, 0.12);
+	background: color-mix(in srgb, var(--n-975) 12%, transparent);
 	backdrop-filter: blur(8px);
 	display: flex;
 	justify-content: center;
@@ -2096,7 +2103,8 @@ html[data-acct-card] .www > :not(.marketing-nav) {
 	background: var(--bg);
 	border: 1px solid var(--border);
 	border-radius: 12px;
-	box-shadow: 0 16px 48px rgba(0, 0, 0, 0.08), 0 2px 8px rgba(0, 0, 0, 0.04);
+	box-shadow: 0 16px 48px color-mix(in srgb, var(--n-975) 8%, transparent), 0
+		2px 8px color-mix(in srgb, var(--n-975) 4%, transparent);
 	overflow: hidden;
 }
 
@@ -2158,7 +2166,7 @@ html[data-acct-card] .www > :not(.marketing-nav) {
 
 .palette-item:hover,
 .palette-item.selected {
-	background: rgba(0, 0, 0, 0.03);
+	background: color-mix(in srgb, var(--n-975) 3%, transparent);
 }
 
 .palette-item-label {
@@ -2285,17 +2293,18 @@ html[data-acct-card] .www > :not(.marketing-nav) {
 
 @media (prefers-color-scheme: dark) {
 	.palette-overlay {
-		background: rgba(0, 0, 0, 0.5);
+		background: color-mix(in srgb, var(--n-975) 50%, transparent);
 	}
 
 	.palette {
 		background: var(--soft);
-		box-shadow: 0 16px 48px rgba(0, 0, 0, 0.4), 0 2px 8px rgba(0, 0, 0, 0.2);
+		box-shadow: 0 16px 48px color-mix(in srgb, var(--n-975) 40%, transparent), 0
+			2px 8px color-mix(in srgb, var(--n-975) 20%, transparent);
 	}
 
 	.palette-item:hover,
 	.palette-item.selected {
-		background: rgba(255, 255, 255, 0.04);
+		background: color-mix(in srgb, var(--ink) 4%, transparent);
 	}
 }
 
@@ -2376,19 +2385,19 @@ html[data-acct-card] .www > :not(.marketing-nav) {
 	transition: color 150ms ease, border-color 150ms ease, background-color 150ms
 		ease;
 	z-index: 3;
-	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+	box-shadow: 0 2px 8px color-mix(in srgb, var(--n-975) 10%, transparent);
 }
 
 .agent-prompt-toggle:hover {
-	box-shadow: 0 2px 12px rgba(0, 0, 0, 0.15);
+	box-shadow: 0 2px 12px color-mix(in srgb, var(--n-975) 15%, transparent);
 }
 
 @media (prefers-color-scheme: dark) {
 	.agent-prompt-toggle {
-		box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+		box-shadow: 0 2px 8px color-mix(in srgb, var(--n-975) 40%, transparent);
 	}
 	.agent-prompt-toggle:hover {
-		box-shadow: 0 2px 12px rgba(0, 0, 0, 0.5);
+		box-shadow: 0 2px 12px color-mix(in srgb, var(--n-975) 50%, transparent);
 	}
 }
 
@@ -3791,7 +3800,8 @@ input[type="range"].fig-range {
 	background: var(--bg-elevated);
 	border: 1px solid var(--border);
 	border-radius: 6px;
-	box-shadow: 0 4px 24px rgba(0, 0, 0, 0.06), 0 1px 4px rgba(0, 0, 0, 0.04);
+	box-shadow: 0 4px 24px color-mix(in srgb, var(--n-975) 6%, transparent), 0 1px
+		4px color-mix(in srgb, var(--n-975) 4%, transparent);
 	padding: 9px 12px;
 	font-size: 12.5px;
 	line-height: 1.5;
@@ -4656,7 +4666,8 @@ input[type="range"].fig-range {
 	background: var(--bg-elevated);
 	border: 1px solid var(--border);
 	border-radius: 6px;
-	box-shadow: 0 4px 24px rgba(0, 0, 0, 0.06), 0 1px 4px rgba(0, 0, 0, 0.04);
+	box-shadow: 0 4px 24px color-mix(in srgb, var(--n-975) 6%, transparent), 0 1px
+		4px color-mix(in srgb, var(--n-975) 4%, transparent);
 	padding: 7px 10px;
 	font-family: var(--font-mono-stack);
 	font-size: 11.5px;
@@ -5116,7 +5127,8 @@ input[type="range"].fig-range {
 	background: var(--bg-elevated);
 	border: 1px solid var(--border);
 	border-radius: 8px;
-	box-shadow: 0 8px 28px rgba(0, 0, 0, 0.1), 0 1px 3px rgba(0, 0, 0, 0.05);
+	box-shadow: 0 8px 28px color-mix(in srgb, var(--n-975) 10%, transparent), 0
+		1px 3px color-mix(in srgb, var(--n-975) 5%, transparent);
 	font-size: 13px;
 	line-height: 1.6;
 	color: var(--text-muted);
@@ -5139,7 +5151,8 @@ input[type="range"].fig-range {
 }
 @media (prefers-color-scheme: dark) {
 	.fig-snpop-card {
-		box-shadow: 0 8px 28px rgba(0, 0, 0, 0.5), 0 1px 3px rgba(0, 0, 0, 0.4);
+		box-shadow: 0 8px 28px color-mix(in srgb, var(--n-975) 50%, transparent), 0
+			1px 3px color-mix(in srgb, var(--n-975) 40%, transparent);
 	}
 }
 @media (prefers-reduced-motion: reduce) {
@@ -5705,7 +5718,7 @@ a.acct-strip-link:hover .acct-strip-k {
 	padding: 0 4px;
 	border-radius: 999px;
 	background: var(--alarm);
-	color: #fff;
+	color: var(--on-pri);
 	text-align: center;
 }
 .marketing-nav.is-dash .mnav-right {
@@ -8671,7 +8684,7 @@ button.sg-sort:focus-visible {
 }
 .m-badge.is-bad {
 	background: var(--alarm);
-	color: #fff;
+	color: var(--on-pri);
 }
 .m-badge.is-new {
 	background: var(--hi);
@@ -8718,16 +8731,16 @@ button.sg-sort:focus-visible {
 	position: fixed;
 	inset: 0;
 	z-index: 60;
-	background: rgba(17, 17, 17, 0.28);
+	background: color-mix(in srgb, var(--n-975) 28%, transparent);
 	animation: m-fade 0.2s;
 }
 @media (prefers-color-scheme: dark) {
 	:root:not([data-theme="light"]) .m-scrim {
-		background: rgba(0, 0, 0, 0.5);
+		background: color-mix(in srgb, var(--n-975) 50%, transparent);
 	}
 }
 :root[data-theme="dark"] .m-scrim {
-	background: rgba(0, 0, 0, 0.5);
+	background: color-mix(in srgb, var(--n-975) 50%, transparent);
 }
 .m-sheet {
 	position: fixed;
@@ -8847,7 +8860,7 @@ button.sg-sort:focus-visible {
 }
 .m-act.is-alarm {
 	background: var(--alarm);
-	color: #fff;
+	color: var(--on-pri);
 }
 .m-row-face {
 	position: relative;
@@ -8899,7 +8912,7 @@ button.sg-sort:focus-visible {
 	z-index: 1;
 }
 .m-hold.is-holding span {
-	color: #fff;
+	color: var(--on-pri);
 }
 .m-hold:disabled {
 	opacity: 0.5;
@@ -10104,7 +10117,7 @@ button.sg-sort:focus-visible {
 .mrp-btn.is-pri {
 	border-color: var(--pri);
 	background: var(--pri);
-	color: #fff;
+	color: var(--on-pri);
 }
 .mrp-btn:disabled {
 	opacity: 0.45;
