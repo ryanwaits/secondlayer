@@ -230,16 +230,6 @@ async function route(
 
 	ctx.accountId = introspected.accountId;
 
-	if (!introspected.creditsOk) {
-		return Response.json(
-			{
-				error: "insufficient_credits",
-				top_up_url: "https://www.secondlayer.tools/account/credits",
-			},
-			{ status: 402 },
-		);
-	}
-
 	const bucket = classifyRequest(req.method, url.pathname);
 	const decision = deps.rateLimit?.(introspected.accountId, bucket);
 	if (decision && !decision.allowed) {
@@ -251,14 +241,25 @@ async function route(
 	}
 
 	const state = await deps.resolveTenant(introspected.accountId);
+	// A read against an account with no tenant yet must not provision one —
+	// opening the dashboard's webhooks or subgraphs page shouldn't start a
+	// billed service. Only a write (create/update/delete/pause/deploy/...)
+	// provisions. It also runs before the credits gate, so a new account with
+	// no credits sees an empty dashboard, not a top-up wall.
+	if (state === undefined && bucket === "read") {
+		return emptyRead(url.pathname);
+	}
+	if (!introspected.creditsOk) {
+		return Response.json(
+			{
+				error: "insufficient_credits",
+				top_up_url: "https://www.secondlayer.tools/account/credits",
+			},
+			{ status: 402 },
+		);
+	}
+
 	if (state === undefined) {
-		// A read against an account with no tenant yet must not provision one —
-		// opening the dashboard's webhooks or subgraphs page shouldn't start a
-		// billed service. Only a write (create/update/delete/pause/deploy/...)
-		// provisions.
-		if (bucket === "read") {
-			return emptyRead(url.pathname);
-		}
 		deps.startProvisioning(introspected.accountId);
 		return withRetryAfter(
 			Response.json(

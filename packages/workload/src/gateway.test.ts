@@ -134,24 +134,28 @@ describe("handleGatewayRequest", () => {
 		expect(upstreamCalled).toBe(false);
 	});
 
-	test("credits_ok:false → 402 insufficient_credits before touching the tenant", async () => {
-		let resolveTenantCalled = false;
+	const noCredits = () =>
+		new IntrospectClient({
+			appServerUrl: "https://api.secondlayer.tools",
+			workloadHostKey: "wh-key",
+			fetchImpl: async () =>
+				new Response(
+					JSON.stringify({ account_id: "acct_1", credits_ok: false }),
+					{
+						status: 200,
+						headers: { "content-type": "application/json" },
+					},
+				),
+		});
+
+	test("credits_ok:false, existing stack → 402 insufficient_credits, upstream never called", async () => {
+		let upstreamCalled = false;
 		const deps = baseDeps({
-			introspect: new IntrospectClient({
-				appServerUrl: "https://api.secondlayer.tools",
-				workloadHostKey: "wh-key",
-				fetchImpl: async () =>
-					new Response(
-						JSON.stringify({ account_id: "acct_1", credits_ok: false }),
-						{
-							status: 200,
-							headers: { "content-type": "application/json" },
-						},
-					),
-			}),
-			resolveTenant: async () => {
-				resolveTenantCalled = true;
-				return "running";
+			introspect: noCredits(),
+			resolveTenant: async () => "running",
+			fetchImpl: async () => {
+				upstreamCalled = true;
+				return new Response("ok");
 			},
 		});
 		const res = await handleGatewayRequest(
@@ -164,7 +168,37 @@ describe("handleGatewayRequest", () => {
 		expect(body.top_up_url).toBe(
 			"https://www.secondlayer.tools/account/credits",
 		);
-		expect(resolveTenantCalled).toBe(false);
+		expect(upstreamCalled).toBe(false);
+	});
+
+	test("credits_ok:false, no tenant yet, list read → 200 empty, not 402", async () => {
+		const deps = baseDeps({
+			introspect: noCredits(),
+			resolveTenant: async () => undefined,
+		});
+		const res = await handleGatewayRequest(
+			deps,
+			req({ method: "GET", path: "/api/webhooks", auth: "Bearer sk-sl_good" }),
+		);
+		expect(res.status).toBe(200);
+		expect(await res.json()).toEqual({ data: [] });
+	});
+
+	test("credits_ok:false, no tenant yet, write → 402, never provisions", async () => {
+		let provisionCalls = 0;
+		const deps = baseDeps({
+			introspect: noCredits(),
+			resolveTenant: async () => undefined,
+			startProvisioning: () => {
+				provisionCalls++;
+			},
+		});
+		const res = await handleGatewayRequest(
+			deps,
+			req({ method: "POST", auth: "Bearer sk-sl_good" }),
+		);
+		expect(res.status).toBe(402);
+		expect(provisionCalls).toBe(0);
 	});
 
 	test("no tenant yet → 503 + Retry-After, kicks off provisioning exactly once (write)", async () => {
