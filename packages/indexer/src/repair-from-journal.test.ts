@@ -6,6 +6,7 @@ import {
 	diffHeightAgainstJournal,
 	loadCanonicalJournalPayload,
 	repairHeightFromJournal,
+	shouldRepair,
 	verifyHeightAgainstNode,
 } from "./repair-from-journal.ts";
 import type { NewBlockPayload } from "./types/node-events.ts";
@@ -99,6 +100,21 @@ function stubFetch(raw: Uint8Array): typeof fetch {
 			arrayBuffer: async () => raw.buffer,
 		}) as unknown as Response) as unknown as typeof fetch;
 }
+
+describe("shouldRepair", () => {
+	test("a diverged height is repaired with or without force", () => {
+		expect(shouldRepair("diverged", false)).toBe(true);
+		expect(shouldRepair("diverged", true)).toBe(true);
+	});
+	test("a matching height is re-persisted only under force", () => {
+		expect(shouldRepair("match", false)).toBe(false);
+		expect(shouldRepair("match", true)).toBe(true);
+	});
+	test("a height with no block or journal is never repaired, even under force", () => {
+		expect(shouldRepair("missing_block", true)).toBe(false);
+		expect(shouldRepair("missing_journal", true)).toBe(false);
+	});
+});
 
 describe.skipIf(!HAS_DB)("repair-from-journal", () => {
 	const db = HAS_DB ? getDb() : null;
@@ -212,6 +228,54 @@ describe.skipIf(!HAS_DB)("repair-from-journal", () => {
 		expect(rerun.status).toBe("match");
 		expect(rerun.missingTxIds).toEqual([]);
 		expect(rerun.extraTxIds).toEqual([]);
+	});
+
+	test("re-persisting a matching height restores block metadata a bad rebuild zeroed", async () => {
+		if (!db) throw new Error("missing db");
+		const txid =
+			"0xb0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0";
+		const payload = nodePayload("0xblockForce", [txid]);
+		await seedJournal(db, payload);
+		await persistBlock(db, {
+			block: {
+				height: H,
+				hash: "0xblockForce",
+				parent_hash: "0xparent",
+				burn_block_height: 1,
+				burn_block_hash: "",
+				index_block_hash: "",
+				timestamp: 0,
+				canonical: true,
+			},
+			txs: [
+				{
+					tx_id: txid,
+					block_height: H,
+					tx_index: 0,
+					type: "unknown",
+					sender: "unknown",
+					status: "success",
+					raw_tx: "0x00",
+				},
+			],
+			evts: [],
+			blockHeight: H,
+			network: NETWORK,
+		});
+
+		const diff = await diffHeightAgainstJournal(db, H);
+		expect(diff.status).toBe("match");
+		expect(shouldRepair(diff.status, true)).toBe(true);
+		await repairHeightFromJournal(db, H);
+
+		const block = await db
+			.selectFrom("blocks")
+			.select(["timestamp", "index_block_hash", "burn_block_hash"])
+			.where("height", "=", H)
+			.executeTakeFirstOrThrow();
+		expect(Number(block.timestamp)).toBe(1_700_000_000);
+		expect(block.index_block_hash).toBe(payload.index_block_hash);
+		expect(block.burn_block_hash).toBe(payload.burn_block_hash);
 	});
 
 	test("repairing a height with no journal payload throws instead of guessing", async () => {

@@ -16,6 +16,9 @@
  * payload and prints a table, touching nothing. `--apply` re-persists any
  * height whose tx_id set diverges, through the exact same `persistBlock` path
  * live ingest uses (including its fail-loud completeness assertion).
+ * `--force` also re-persists heights whose tx set already matches: the way
+ * to re-parse rows a parser fix changed (tx type/sender, block timestamp and
+ * hashes) when no tx is missing. Same persist path, same assertion.
  * `--verify-node` additionally recomputes the stored txids' tx merkle root
  * and compares it against the node header — see `checkTxMerkleRoot`.
  *
@@ -27,6 +30,7 @@
  *   bun run packages/indexer/src/repair-from-journal.ts --from 8777879 --to 8964808 --apply
  *   bun run packages/indexer/src/repair-from-journal.ts --from 8777879 --to 8964808 --verify-node
  *   bun run packages/indexer/src/repair-from-journal.ts --from 8777879 --to 8964808 --apply --derive
+ *   bun run packages/indexer/src/repair-from-journal.ts --heights 120,57628 --apply --force
  */
 import {
 	DB_TO_STREAMS_EVENT_TYPE,
@@ -164,6 +168,16 @@ export async function diffHeightAgainstJournal(
 	};
 }
 
+/** Whether a height gets re-persisted: a diverged tx set always, a matching
+ *  one only under `--force` (re-parse after a parser fix). Heights without a
+ *  canonical block or journal payload never: there is nothing to rebuild from. */
+export function shouldRepair(
+	status: HeightDiffStatus,
+	force: boolean,
+): boolean {
+	return status === "diverged" || (force && status === "match");
+}
+
 /** Re-persist a height from its canonical journal payload through the normal
  *  persist path (replace-per-height + the fail-loud completeness assertion).
  *  Throws if the height has no journal payload — never guesses. */
@@ -268,6 +282,8 @@ type Args = {
 	verifyNode: boolean;
 	derive: boolean;
 	nodeUrl: string;
+	/** Re-persist matching heights too (re-parse after a parser fix). */
+	force: boolean;
 };
 
 function parseArgs(argv: string[]): Args {
@@ -277,6 +293,7 @@ function parseArgs(argv: string[]): Args {
 	let apply = false;
 	let verifyNode = false;
 	let derive = false;
+	let force = false;
 	let nodeUrl = process.env.STACKS_NODE_RPC_URL ?? "http://localhost:20443";
 	for (let i = 0; i < argv.length; i++) {
 		const arg = argv[i];
@@ -286,6 +303,7 @@ function parseArgs(argv: string[]): Args {
 		else if (arg === "--apply") apply = true;
 		else if (arg === "--verify-node") verifyNode = true;
 		else if (arg === "--derive") derive = true;
+		else if (arg === "--force") force = true;
 		else if (arg === "--node-url") nodeUrl = argv[++i] ?? nodeUrl;
 	}
 
@@ -305,7 +323,7 @@ function parseArgs(argv: string[]): Args {
 	if (heights.some((h) => !Number.isSafeInteger(h))) {
 		throw new Error("all heights must be safe integers");
 	}
-	return { heights, apply, verifyNode, derive, nodeUrl };
+	return { heights, apply, verifyNode, derive, force, nodeUrl };
 }
 
 async function main(): Promise<void> {
@@ -313,7 +331,7 @@ async function main(): Promise<void> {
 	const db = getSourceDb();
 
 	console.log(
-		`[repair-from-journal] ${args.heights.length} height(s) · ${args.apply ? "APPLY" : "dry-run"}${args.verifyNode ? " · verify-node" : ""}`,
+		`[repair-from-journal] ${args.heights.length} height(s) · ${args.apply ? "APPLY" : "dry-run"}${args.force ? " · force" : ""}${args.verifyNode ? " · verify-node" : ""}`,
 	);
 	console.log(
 		"height".padEnd(12) +
@@ -334,17 +352,15 @@ async function main(): Promise<void> {
 		const diff = await diffHeightAgainstJournal(db, height);
 		let nodeResult: NodeVerifyResult | null = null;
 
-		if (diff.status === "diverged") {
-			diverged += 1;
+		if (diff.status === "diverged") diverged += 1;
+		if (shouldRepair(diff.status, args.force)) {
 			if (args.apply) {
 				await repairHeightFromJournal(db, height);
 				repaired += 1;
 				repairedHeights.push(height);
 			}
-		} else if (
-			diff.status === "missing_block" ||
-			diff.status === "missing_journal"
-		) {
+		}
+		if (diff.status === "missing_block" || diff.status === "missing_journal") {
 			unrepairable += 1;
 		}
 
