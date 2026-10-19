@@ -177,7 +177,29 @@ export interface TransactionPayload {
 		write_length: number;
 	};
 	raw_result?: string;
+	burnchain_op?: BurnchainOpPayload | null;
 }
+
+// Bitcoin-originated op the node turned into a tx (raw_tx "0x00"). One key,
+// named for the op. Only the fields ingest reads are typed.
+export interface BurnchainOpAddress {
+	address: string;
+	address_version: number;
+	address_hash_bytes: string;
+}
+
+export type BurnchainOpType =
+	| "transfer_stx"
+	| "stack_stx"
+	| "delegate_stx"
+	| "vote_for_aggregate_key";
+
+export type BurnchainOpPayload = Partial<
+	Record<
+		BurnchainOpType,
+		{ sender: BurnchainOpAddress } & Record<string, unknown>
+	>
+>;
 
 // Contract call transaction specific fields
 export interface ContractCallTransaction extends TransactionPayload {

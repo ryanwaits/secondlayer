@@ -163,6 +163,91 @@ describe("parseTransaction", () => {
 		expect(result?.type).toBe("token_transfer");
 		expect(result?.sender).toBe("SM7P3A9PBMJ8MT9GN83WJFG1FN9FECDKG1ETYCJ0");
 	});
+
+	// Bitcoin-originated txs carry no Stacks bytes (raw_tx "0x00"); the node
+	// describes them in `burnchain_op`. Trimmed from mainnet blocks 120, 58997.
+	const sender = (address: string) => ({
+		address,
+		address_version: 20,
+		address_hash_bytes: "0x00",
+	});
+
+	test("maps a transfer_stx burnchain op to token_transfer from its sender", async () => {
+		const tx: TransactionPayload = {
+			txid: "0xc0263c14f689ae757290f90765a28314497f52bd22b8bcbf87a12c764dd9d9be",
+			raw_tx: "0x00",
+			status: "success",
+			tx_index: 1,
+			burnchain_op: {
+				transfer_stx: {
+					sender: sender("SMQ5V9ZVGN62G1X3VJNM2MF64SG6JXS8SKVNTGZQ"),
+					recipient: sender("SP2ZP4GJDZJ1FDHTQ963F0292PE9J9752TZJ68F21"),
+					transfered_ustx: 2000,
+					memo: "0x",
+				},
+			},
+		};
+
+		const result = await parseTransaction(tx, 120);
+
+		expect(result?.type).toBe("token_transfer");
+		expect(result?.sender).toBe("SMQ5V9ZVGN62G1X3VJNM2MF64SG6JXS8SKVNTGZQ");
+		expect(result?.contract_id).toBeNull();
+		expect(result?.function_name).toBeNull();
+	});
+
+	test("maps a failed stack_stx burnchain op to a stack-stx contract_call", async () => {
+		const tx: TransactionPayload = {
+			txid: "0xd65308b6b314284c7dca58dd2ad29d2901dd6e5b1ba3cfe2784f4db025ca9a84",
+			raw_tx: "0x00",
+			status: "abort_by_response",
+			tx_index: 3,
+			burnchain_op: {
+				stack_stx: {
+					sender: sender("SM3ZBCHS6W603C6QJJPQFVC49QE9VQ1ZVFQY1DZX7"),
+					reward_addr: "3LuhazHhLxRvuFAgS5CjZs4KmZHytFF4BB",
+					stacked_ustx: 10000000000000,
+					num_cycles: 12,
+				},
+			},
+		};
+
+		const result = await parseTransaction(tx, 58997);
+
+		expect(result?.type).toBe("contract_call");
+		expect(result?.sender).toBe("SM3ZBCHS6W603C6QJJPQFVC49QE9VQ1ZVFQY1DZX7");
+		expect(result?.function_name).toBe("stack-stx");
+		expect(result?.contract_id).toBeNull();
+		expect(result?.status).toBe("abort_by_response");
+	});
+
+	test("maps delegate_stx and vote_for_aggregate_key ops to their boot-contract calls", async () => {
+		const op = (burnchain_op: TransactionPayload["burnchain_op"]) =>
+			parseTransaction(
+				{
+					txid: "0x01",
+					raw_tx: "0x00",
+					status: "success",
+					tx_index: 0,
+					burnchain_op,
+				},
+				1,
+			);
+
+		const delegate = await op({
+			delegate_stx: { sender: sender("SP000000000000000000002Q6VF78") },
+		});
+		const vote = await op({
+			vote_for_aggregate_key: {
+				sender: sender("SP000000000000000000002Q6VF78"),
+			},
+		});
+
+		expect(delegate?.type).toBe("contract_call");
+		expect(delegate?.function_name).toBe("delegate-stx");
+		expect(vote?.type).toBe("contract_call");
+		expect(vote?.function_name).toBe("vote-for-aggregate-public-key");
+	});
 });
 
 describe("parseVmEvent", () => {

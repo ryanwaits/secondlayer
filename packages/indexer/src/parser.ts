@@ -6,9 +6,14 @@ import type {
 	InsertVmEvent,
 } from "@secondlayer/shared/db/schema";
 import { logger } from "@secondlayer/shared/logger";
-import { decodeRawTx } from "@secondlayer/shared/node/tx-summary";
+import {
+	type TxSummary,
+	decodeRawTx,
+} from "@secondlayer/shared/node/tx-summary";
 import { VM_NODE_TO_STORED_TYPE } from "@secondlayer/stacks/filters";
 import type {
+	BurnchainOpPayload,
+	BurnchainOpType,
 	NewBlockPayload,
 	StateWritePayload,
 	TransactionEvent,
@@ -75,6 +80,44 @@ async function fetchTxFromApi(txid: string): Promise<{
 	}
 }
 
+/** Burnchain op → the stored tx type and the boot function the node ran,
+ *  matching how a signed Stacks tx of the same effect is stored. */
+const BURNCHAIN_OP_CALLS: Record<
+	BurnchainOpType,
+	{ txType: "token_transfer" | "contract_call"; functionName: string | null }
+> = {
+	transfer_stx: { txType: "token_transfer", functionName: null },
+	stack_stx: { txType: "contract_call", functionName: "stack-stx" },
+	delegate_stx: { txType: "contract_call", functionName: "delegate-stx" },
+	vote_for_aggregate_key: {
+		txType: "contract_call",
+		functionName: "vote-for-aggregate-public-key",
+	},
+};
+
+/**
+ * Summarize a Bitcoin-originated tx from its `burnchain_op`. contract_id stays
+ * null: which pox contract ran depends on the epoch, which the tx does not
+ * carry. Null for an unknown or senderless op.
+ */
+function summarizeBurnchainOp(
+	op: BurnchainOpPayload | null | undefined,
+): TxSummary | null {
+	if (!op) return null;
+	for (const [name, call] of Object.entries(BURNCHAIN_OP_CALLS)) {
+		const sender = op[name as BurnchainOpType]?.sender?.address;
+		if (typeof sender !== "string") continue;
+		return {
+			txType: call.txType,
+			sender,
+			contractId: null,
+			functionName: call.functionName,
+			functionArgs: null,
+		};
+	}
+	return null;
+}
+
 function blockTimestamp(payload: NewBlockPayload): number {
 	for (const value of [
 		payload.timestamp,
@@ -116,10 +159,12 @@ export async function parseTransaction(
 
 	// Decode raw_tx to extract tx_type and sender_address
 	// The Stacks node events observer sends raw_tx but not tx_type or sender_address
-	// Skip decode for burnchain ops (raw_tx = "0x00" or "0x") — these are Bitcoin-originated
-	// operations with no Stacks transaction bytes
+	// Burnchain ops (raw_tx = "0x00" or "0x") are Bitcoin-originated, with no
+	// Stacks transaction bytes; the node describes them in `burnchain_op`
 	const hasDecodableRawTx = tx.raw_tx && tx.raw_tx.length > 10;
-	let decoded = hasDecodableRawTx ? decodeRawTx(tx.raw_tx, tx.txid) : null;
+	let decoded: TxSummary | null = hasDecodableRawTx
+		? decodeRawTx(tx.raw_tx, tx.txid)
+		: summarizeBurnchainOp(tx.burnchain_op);
 
 	// If decode failed, try fetching from Stacks API only if explicitly enabled.
 	// During genesis sync, decode failures are expected for some legacy tx formats —
