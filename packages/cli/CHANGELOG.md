@@ -1,5 +1,11 @@
 # @secondlayer/cli
 
+## 22.1.0
+
+### Minor Changes
+
+- 14f0af8: `sl verify` lists the exact diverging heights per range and a repair command for each range
+
 ## 22.0.1
 
 ### Patch Changes
