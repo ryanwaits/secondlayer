@@ -30,6 +30,11 @@ import {
 	recentChargedPaths,
 	recordFetch,
 } from "@secondlayer/platform/db/queries/archive-fetches";
+import {
+	ARCHIVE_DATASETS,
+	type ArchiveDataset,
+	assertNeverDataset,
+} from "@secondlayer/shared/archive/datasets";
 import { getDb } from "@secondlayer/shared/db";
 import { Hono } from "hono";
 import {
@@ -41,11 +46,6 @@ import {
 } from "../lib/archive-r2.ts";
 import { getAccountId } from "../lib/ownership.ts";
 import { InvalidJSONError } from "../middleware/error.ts";
-
-/** The three canonical archive datasets (`export-snapshot.ts`'s `CanonicalDataset`,
- *  duplicated as a literal union here rather than imported — this route must
- *  not depend on `@secondlayer/indexer` for its pricing surface). */
-type ArchiveDataset = "blocks" | "transactions" | "events";
 
 /**
  * Price per partition, in USD-micros (1 USD = 1_000_000 micros — matches
@@ -65,9 +65,15 @@ const PRICE_MICROS: Record<ArchiveDataset, bigint> = {
 function meterUnitForDataset(
 	dataset: ArchiveDataset,
 ): "archive.partition" | "archive.partition.events" {
-	return dataset === "events"
-		? "archive.partition.events"
-		: "archive.partition";
+	switch (dataset) {
+		case "blocks":
+		case "transactions":
+			return "archive.partition";
+		case "events":
+			return "archive.partition.events";
+		default:
+			return assertNeverDataset(dataset);
+	}
 }
 
 /** Object key prefix the archive publisher writes under
@@ -85,8 +91,9 @@ function archiveKeyPrefix(): string {
  * Exported for tests; this is the ONLY thing standing between a client and
  * naming its own (cheaper) dataset.
  */
-export const ARCHIVE_PARTITION_KEY_RE =
-	/^(blocks|transactions|events)\/\d+-\d+-[0-9a-f]{16}\.parquet$/;
+export const ARCHIVE_PARTITION_KEY_RE = new RegExp(
+	`^(${ARCHIVE_DATASETS.join("|")})/\\d+-\\d+-[0-9a-f]{16}\\.parquet$`,
+);
 
 /**
  * The signed manifest's `partition.path` is relative

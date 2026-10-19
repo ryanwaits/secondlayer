@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import type { ArchiveDataset } from "./datasets.ts";
 
 /**
  * v1 canonical byte encoding for chain identity — the shape that lets
@@ -227,9 +228,7 @@ export class SemanticDigestRollup {
 	private readonly hasher = createHash("sha256");
 	private count = 0;
 
-	static forDataset(
-		_dataset: "blocks" | "transactions" | "events",
-	): SemanticDigestRollup {
+	static forDataset(_dataset: ArchiveDataset): SemanticDigestRollup {
 		return new SemanticDigestRollup();
 	}
 
@@ -260,7 +259,7 @@ export class SemanticDigestRollup {
  * proving semantic identity independent of file encoding.
  */
 export interface PartitionSemanticDigest {
-	dataset: "blocks" | "transactions" | "events";
+	dataset: ArchiveDataset;
 	from_block: number;
 	to_block: number;
 	row_count: number;

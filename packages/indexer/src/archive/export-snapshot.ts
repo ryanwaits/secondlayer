@@ -10,6 +10,11 @@ import {
 import { dirname, join } from "node:path";
 import { ParquetSchema, ParquetWriter } from "@dsnp/parquetjs";
 import {
+	ARCHIVE_DATASETS,
+	type ArchiveDataset,
+	assertNeverDataset,
+} from "@secondlayer/shared/archive/datasets";
+import {
 	DEFAULT_MIN_FREE_BYTES,
 	waitForDiskSpace,
 } from "@secondlayer/shared/archive/disk-guard";
@@ -70,7 +75,7 @@ const STRING_FIELD = { type: "UTF8", compression: "SNAPPY" } as const;
 const INT32_FIELD = { type: "INT32", compression: "SNAPPY" } as const;
 const INT64_FIELD = { type: "INT64", compression: "SNAPPY" } as const;
 
-export type CanonicalDataset = "blocks" | "transactions" | "events";
+export type CanonicalDataset = ArchiveDataset;
 
 /** Fixed schema for the per-height digest sidecar. Row order is height asc. */
 function createDigestIndexParquetSchema(): ParquetSchema {
@@ -118,6 +123,8 @@ export function createCanonicalParquetSchema(
 				event_type: STRING_FIELD,
 				data_json: STRING_FIELD,
 			});
+		default:
+			return assertNeverDataset(dataset);
 	}
 }
 
@@ -391,11 +398,7 @@ export async function exportCanonicalSnapshot(
 					),
 			});
 			const perHeight = new PerHeightDigestAccumulator();
-			for (const dataset of [
-				"blocks",
-				"transactions",
-				"events",
-			] as const satisfies readonly CanonicalDataset[]) {
+			for (const dataset of ARCHIVE_DATASETS) {
 				const written = await writeDatasetPartition({
 					tx,
 					dataset,
@@ -495,18 +498,17 @@ export async function exportCanonicalSnapshot(
 				digest_spec: SEMANTIC_DIGEST_SPEC_V1,
 			})),
 			digest_index: digestIndex,
-			assurance_ranges: (["blocks", "transactions", "events"] as const).flatMap(
-				(dataset) =>
-					(["sha256:parquet-object", SEMANTIC_DIGEST_SPEC_V1] as const).map(
-						(digest_spec) => ({
-							dataset,
-							from_block: fromBlock,
-							to_block: bound.toBlock,
-							level: "db-reconstructive" as const,
-							source: "postgres-canonical-snapshot" as const,
-							digest_spec,
-						}),
-					),
+			assurance_ranges: ARCHIVE_DATASETS.flatMap((dataset) =>
+				(["sha256:parquet-object", SEMANTIC_DIGEST_SPEC_V1] as const).map(
+					(digest_spec) => ({
+						dataset,
+						from_block: fromBlock,
+						to_block: bound.toBlock,
+						level: "db-reconstructive" as const,
+						source: "postgres-canonical-snapshot" as const,
+						digest_spec,
+					}),
+				),
 			),
 			audit,
 		};
@@ -614,12 +616,18 @@ async function writeDatasetPartition(params: {
 			await writer.appendRow(parquetRow);
 			rollup.appendRowDigest(rowDigest);
 			if (perHeight) {
-				if (dataset === "blocks") {
-					perHeight.setBlockDigest(height, rowDigest);
-				} else if (dataset === "transactions") {
-					perHeight.appendTransactionDigest(height, rowDigest);
-				} else {
-					perHeight.appendEventDigest(height, rowDigest);
+				switch (dataset) {
+					case "blocks":
+						perHeight.setBlockDigest(height, rowDigest);
+						break;
+					case "transactions":
+						perHeight.appendTransactionDigest(height, rowDigest);
+						break;
+					case "events":
+						perHeight.appendEventDigest(height, rowDigest);
+						break;
+					default:
+						assertNeverDataset(dataset);
 				}
 			}
 			rowCount++;
@@ -723,132 +731,160 @@ async function writeDigestIndexPartition(params: {
  * get stringified for Parquet — so the canonical byte encoding sees the
  * original object shape, not a runtime-specific serialization.
  */
-async function* streamDatasetRows(
+function streamDatasetRows(
 	tx: Kysely<Database>,
 	dataset: CanonicalDataset,
 	fromBlock: number,
 	toBlock: number,
 	batchRows: number,
 ): AsyncGenerator<StreamedRow> {
-	if (dataset === "blocks") {
-		let last = fromBlock - 1;
-		while (true) {
-			const rows = await tx
-				.selectFrom("blocks")
-				.select([
-					"height",
-					"hash",
-					"parent_hash",
-					"burn_block_height",
-					"burn_block_hash",
-					"index_block_hash",
-					"timestamp",
-				])
-				.where("canonical", "=", true)
-				.where("height", ">", last)
-				.where("height", "<=", toBlock)
-				.orderBy("height", "asc")
-				.limit(batchRows)
-				.execute();
-			if (rows.length === 0) return;
-			for (const row of rows) {
-				const parquetRow = {
-					height: Number(row.height),
-					hash: row.hash,
-					parent_hash: row.parent_hash,
-					burn_block_height: Number(row.burn_block_height),
-					burn_block_hash: row.burn_block_hash ?? null,
-					index_block_hash: row.index_block_hash ?? null,
-					timestamp: Number(row.timestamp),
-				};
-				const rowDigest = semanticDigest.v1.block({
-					height: parquetRow.height,
-					hash: parquetRow.hash,
-					parent_hash: parquetRow.parent_hash,
-					burn_block_height: parquetRow.burn_block_height,
-					burn_block_hash: parquetRow.burn_block_hash,
-					index_block_hash: parquetRow.index_block_hash,
-					timestamp: parquetRow.timestamp,
-				});
-				yield { parquetRow, rowDigest, height: parquetRow.height };
-			}
-			last = Number(rows[rows.length - 1]?.height);
-		}
+	switch (dataset) {
+		case "blocks":
+			return streamBlockRows(tx, fromBlock, toBlock, batchRows);
+		case "transactions":
+			return streamTransactionRows(tx, fromBlock, toBlock, batchRows);
+		case "events":
+			return streamEventRows(tx, fromBlock, toBlock, batchRows);
+		default:
+			return assertNeverDataset(dataset);
 	}
+}
 
-	if (dataset === "transactions") {
-		let cursor: { height: number; txIndex: number; txId: string } | null = null;
-		while (true) {
-			type TxRow = {
-				tx_id: string;
-				block_height: string | number;
-				tx_index: number;
-				type: string;
-				sender: string;
-				status: string;
-				contract_id: string | null;
-				function_name: string | null;
-				function_args: unknown;
-				raw_result: string | null;
-				raw_tx: string;
+async function* streamBlockRows(
+	tx: Kysely<Database>,
+	fromBlock: number,
+	toBlock: number,
+	batchRows: number,
+): AsyncGenerator<StreamedRow> {
+	let last = fromBlock - 1;
+	while (true) {
+		const rows = await tx
+			.selectFrom("blocks")
+			.select([
+				"height",
+				"hash",
+				"parent_hash",
+				"burn_block_height",
+				"burn_block_hash",
+				"index_block_hash",
+				"timestamp",
+			])
+			.where("canonical", "=", true)
+			.where("height", ">", last)
+			.where("height", "<=", toBlock)
+			.orderBy("height", "asc")
+			.limit(batchRows)
+			.execute();
+		if (rows.length === 0) return;
+		for (const row of rows) {
+			const parquetRow = {
+				height: Number(row.height),
+				hash: row.hash,
+				parent_hash: row.parent_hash,
+				burn_block_height: Number(row.burn_block_height),
+				burn_block_hash: row.burn_block_hash ?? null,
+				index_block_hash: row.index_block_hash ?? null,
+				timestamp: Number(row.timestamp),
 			};
-			const result = await sql<TxRow>`
-				SELECT t.tx_id, t.block_height, t.tx_index, t.type, t.sender, t.status,
-				       t.contract_id, t.function_name, t.function_args, t.raw_result, t.raw_tx
-				  FROM transactions t
-				  JOIN blocks b ON b.height = t.block_height AND b.canonical = true
-				 WHERE t.block_height >= ${fromBlock} AND t.block_height <= ${toBlock}
-				   AND (${cursor === null} OR (t.block_height, t.tx_index, t.tx_id) >
-				        (${cursor?.height ?? 0}, ${cursor?.txIndex ?? 0}, ${cursor?.txId ?? ""}))
-				 ORDER BY t.block_height, t.tx_index, t.tx_id
-				 LIMIT ${batchRows}
-			`.execute(tx);
-			const rows: TxRow[] = result.rows;
-			if (rows.length === 0) return;
-			for (const row of rows) {
-				const blockHeight = Number(row.block_height);
-				const rowDigest = semanticDigest.v1.transaction({
-					tx_id: row.tx_id,
-					block_height: blockHeight,
-					tx_index: row.tx_index,
-					type: row.type,
-					sender: row.sender,
-					status: row.status,
-					contract_id: row.contract_id,
-					function_name: row.function_name,
-					function_args: row.function_args ?? null,
-					raw_result: row.raw_result,
-					raw_tx: row.raw_tx,
-				});
-				const parquetRow = {
-					tx_id: row.tx_id,
-					block_height: blockHeight,
-					tx_index: row.tx_index,
-					type: row.type,
-					sender: row.sender,
-					status: row.status,
-					contract_id: row.contract_id,
-					function_name: row.function_name,
-					function_args_json:
-						row.function_args === null || row.function_args === undefined
-							? null
-							: JSON.stringify(row.function_args),
-					raw_result: row.raw_result,
-					raw_tx: row.raw_tx,
-				};
-				yield { parquetRow, rowDigest, height: blockHeight };
-			}
-			const tail = rows[rows.length - 1];
-			if (tail) {
-				cursor = {
-					height: Number(tail.block_height),
-					txIndex: tail.tx_index,
-					txId: tail.tx_id,
-				};
-			}
+			const rowDigest = semanticDigest.v1.block({
+				height: parquetRow.height,
+				hash: parquetRow.hash,
+				parent_hash: parquetRow.parent_hash,
+				burn_block_height: parquetRow.burn_block_height,
+				burn_block_hash: parquetRow.burn_block_hash,
+				index_block_hash: parquetRow.index_block_hash,
+				timestamp: parquetRow.timestamp,
+			});
+			yield { parquetRow, rowDigest, height: parquetRow.height };
+		}
+		last = Number(rows[rows.length - 1]?.height);
+	}
+}
+
+async function* streamTransactionRows(
+	tx: Kysely<Database>,
+	fromBlock: number,
+	toBlock: number,
+	batchRows: number,
+): AsyncGenerator<StreamedRow> {
+	let cursor: { height: number; txIndex: number; txId: string } | null = null;
+	while (true) {
+		type TxRow = {
+			tx_id: string;
+			block_height: string | number;
+			tx_index: number;
+			type: string;
+			sender: string;
+			status: string;
+			contract_id: string | null;
+			function_name: string | null;
+			function_args: unknown;
+			raw_result: string | null;
+			raw_tx: string;
+		};
+		const result = await sql<TxRow>`
+			SELECT t.tx_id, t.block_height, t.tx_index, t.type, t.sender, t.status,
+			       t.contract_id, t.function_name, t.function_args, t.raw_result, t.raw_tx
+			  FROM transactions t
+			  JOIN blocks b ON b.height = t.block_height AND b.canonical = true
+			 WHERE t.block_height >= ${fromBlock} AND t.block_height <= ${toBlock}
+			   AND (${cursor === null} OR (t.block_height, t.tx_index, t.tx_id) >
+			        (${cursor?.height ?? 0}, ${cursor?.txIndex ?? 0}, ${cursor?.txId ?? ""}))
+			 ORDER BY t.block_height, t.tx_index, t.tx_id
+			 LIMIT ${batchRows}
+		`.execute(tx);
+		const rows: TxRow[] = result.rows;
+		if (rows.length === 0) return;
+		for (const row of rows) {
+			const blockHeight = Number(row.block_height);
+			const rowDigest = semanticDigest.v1.transaction({
+				tx_id: row.tx_id,
+				block_height: blockHeight,
+				tx_index: row.tx_index,
+				type: row.type,
+				sender: row.sender,
+				status: row.status,
+				contract_id: row.contract_id,
+				function_name: row.function_name,
+				function_args: row.function_args ?? null,
+				raw_result: row.raw_result,
+				raw_tx: row.raw_tx,
+			});
+			const parquetRow = {
+				tx_id: row.tx_id,
+				block_height: blockHeight,
+				tx_index: row.tx_index,
+				type: row.type,
+				sender: row.sender,
+				status: row.status,
+				contract_id: row.contract_id,
+				function_name: row.function_name,
+				function_args_json:
+					row.function_args === null || row.function_args === undefined
+						? null
+						: JSON.stringify(row.function_args),
+				raw_result: row.raw_result,
+				raw_tx: row.raw_tx,
+			};
+			yield { parquetRow, rowDigest, height: blockHeight };
+		}
+		const tail = rows[rows.length - 1];
+		if (tail) {
+			cursor = {
+				height: Number(tail.block_height),
+				txIndex: tail.tx_index,
+				txId: tail.tx_id,
+			};
 		}
 	}
+}
 
+async function* streamEventRows(
+	tx: Kysely<Database>,
+	fromBlock: number,
+	toBlock: number,
+	batchRows: number,
+): AsyncGenerator<StreamedRow> {
 	let cursor: { height: number; eventIndex: number; txId: string } | null =
 		null;
 	while (true) {

@@ -1,3 +1,4 @@
+import { ARCHIVE_DATASETS } from "@secondlayer/shared/archive/datasets";
 import { MAX_RANGES_WITHOUT_WINDOW } from "../archive-verify.ts";
 import { BATCH_MAX_ITEMS } from "../batch.ts";
 import {
@@ -421,7 +422,7 @@ export const coreSchemas = {
 					properties: {
 						dataset: {
 							type: "string",
-							enum: ["blocks", "transactions", "events"],
+							enum: [...ARCHIVE_DATASETS],
 						},
 						from_block: { type: "integer" },
 						to_block: { type: "integer" },

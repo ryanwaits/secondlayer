@@ -3,6 +3,8 @@
  * Exit codes match `sl verify`: 0 clean, 1 diverged, 2 unanchored.
  */
 
+import { ARCHIVE_DATASETS } from "../archive/datasets.ts";
+
 export const VERIFY_EXIT = {
 	CLEAN: 0,
 	DIVERGED: 1,
@@ -37,7 +39,7 @@ export function parseVerifyTarget(value: string | undefined): VerifyTarget {
 	);
 }
 
-const RAW_DATASETS = new Set(["blocks", "transactions", "events"]);
+const RAW_DATASETS = new Set<string>(ARCHIVE_DATASETS);
 
 /** Whether an archive/coverage dataset belongs to this verify target. */
 export function datasetMatchesTarget(

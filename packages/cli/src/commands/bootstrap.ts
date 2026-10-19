@@ -5,6 +5,10 @@ import {
 	writeRowsToCopyStream,
 } from "@secondlayer/shared/archive/copy-loader";
 import {
+	ARCHIVE_DATASETS,
+	archiveHeightColumn,
+} from "@secondlayer/shared/archive/datasets";
+import {
 	type RangeDigestDataset,
 	computeRangeDigest,
 } from "@secondlayer/shared/archive/range-digest";
@@ -170,13 +174,9 @@ async function loadPartition(
 	return written;
 }
 
-/** FK order is not optional: transactions reference blocks, events
- *  reference transactions. */
-const LOAD_ORDER: readonly ArchiveDataset[] = [
-	"blocks",
-	"transactions",
-	"events",
-];
+/** FK order is not optional: `ARCHIVE_DATASETS` is ordered so every dataset
+ *  references only datasets before it. */
+const LOAD_ORDER: readonly ArchiveDataset[] = ARCHIVE_DATASETS;
 
 /**
  * Partitions in the exact order the load consumes them: dataset by dataset,
@@ -198,7 +198,7 @@ export function loadOrder<T extends { dataset: string; from_block: number }>(
  *  landed. */
 export function parseVerifyDatasets(value: unknown): RangeDigestDataset[] {
 	if (value === undefined || value === "all") {
-		return ["blocks", "transactions", "events"];
+		return [...ARCHIVE_DATASETS];
 	}
 	if (value === "blocks") return ["blocks"];
 	throw new Error(`--verify must be "all" or "blocks", got "${String(value)}"`);
@@ -209,25 +209,16 @@ export function parseVerifyDatasets(value: unknown): RangeDigestDataset[] {
 async function readHighWater(
 	db: ReturnType<typeof getDb>,
 ): Promise<DatasetHighWater> {
-	const asMark = (value: unknown) =>
-		value === null || value === undefined ? null : Number(value);
-	const blocks = await db
-		.selectFrom("blocks")
-		.select(({ fn }) => fn.max("height").as("max"))
-		.executeTakeFirst();
-	const transactions = await db
-		.selectFrom("transactions")
-		.select(({ fn }) => fn.max("block_height").as("max"))
-		.executeTakeFirst();
-	const events = await db
-		.selectFrom("events")
-		.select(({ fn }) => fn.max("block_height").as("max"))
-		.executeTakeFirst();
-	return {
-		blocks: asMark(blocks?.max),
-		transactions: asMark(transactions?.max),
-		events: asMark(events?.max),
-	};
+	const marks: Partial<DatasetHighWater> = {};
+	for (const dataset of RESUME_DATASETS) {
+		const { rows } = await sql<{ max: string | number | null }>`
+			SELECT max(${sql.ref(archiveHeightColumn(dataset))}) AS max
+			FROM ${sql.table(dataset)}
+		`.execute(db);
+		const max = rows[0]?.max;
+		marks[dataset] = max === null || max === undefined ? null : Number(max);
+	}
+	return marks as DatasetHighWater;
 }
 
 async function truncateDatasetFrom(
@@ -235,15 +226,10 @@ async function truncateDatasetFrom(
 	dataset: ArchiveDataset,
 	from: number,
 ): Promise<void> {
-	if (dataset === "blocks") {
-		await sql`DELETE FROM blocks WHERE height >= ${from}`.execute(db);
-	} else if (dataset === "transactions") {
-		await sql`DELETE FROM transactions WHERE block_height >= ${from}`.execute(
-			db,
-		);
-	} else {
-		await sql`DELETE FROM events WHERE block_height >= ${from}`.execute(db);
-	}
+	await sql`
+		DELETE FROM ${sql.table(dataset)}
+		WHERE ${sql.ref(archiveHeightColumn(dataset))} >= ${from}
+	`.execute(db);
 }
 
 export function attachBootstrapCommand(cmd: Command): Command {

@@ -2,6 +2,7 @@ import { createHash, generateKeyPairSync } from "node:crypto";
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { ParquetSchema, ParquetWriter } from "@dsnp/parquetjs";
+import { assertNeverDataset } from "@secondlayer/shared/archive/datasets";
 import {
 	PerHeightDigestAccumulator,
 	type PerHeightDigestRow,
@@ -108,39 +109,42 @@ const INT32 = { type: "INT32" } as const;
 const INT64 = { type: "INT64" } as const;
 
 function schemaFor(dataset: RangeDigestDataset): ParquetSchema {
-	if (dataset === "blocks") {
-		return new ParquetSchema({
-			height: INT64,
-			hash: STRING,
-			parent_hash: STRING,
-			burn_block_height: INT64,
-			burn_block_hash: { ...STRING, optional: true },
-			index_block_hash: { ...STRING, optional: true },
-			timestamp: INT64,
-		});
+	switch (dataset) {
+		case "blocks":
+			return new ParquetSchema({
+				height: INT64,
+				hash: STRING,
+				parent_hash: STRING,
+				burn_block_height: INT64,
+				burn_block_hash: { ...STRING, optional: true },
+				index_block_hash: { ...STRING, optional: true },
+				timestamp: INT64,
+			});
+		case "transactions":
+			return new ParquetSchema({
+				tx_id: STRING,
+				block_height: INT64,
+				tx_index: INT32,
+				type: STRING,
+				sender: STRING,
+				status: STRING,
+				contract_id: { ...STRING, optional: true },
+				function_name: { ...STRING, optional: true },
+				function_args_json: { ...STRING, optional: true },
+				raw_result: { ...STRING, optional: true },
+				raw_tx: STRING,
+			});
+		case "events":
+			return new ParquetSchema({
+				tx_id: STRING,
+				block_height: INT64,
+				event_index: INT32,
+				event_type: STRING,
+				data_json: STRING,
+			});
+		default:
+			return assertNeverDataset(dataset);
 	}
-	if (dataset === "transactions") {
-		return new ParquetSchema({
-			tx_id: STRING,
-			block_height: INT64,
-			tx_index: INT32,
-			type: STRING,
-			sender: STRING,
-			status: STRING,
-			contract_id: { ...STRING, optional: true },
-			function_name: { ...STRING, optional: true },
-			function_args_json: { ...STRING, optional: true },
-			raw_result: { ...STRING, optional: true },
-			raw_tx: STRING,
-		});
-	}
-	return new ParquetSchema({
-		tx_id: STRING,
-		block_height: INT64,
-		event_index: INT32,
-		event_type: STRING,
-		data_json: STRING,
-	});
 }
 
 /**

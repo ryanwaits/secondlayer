@@ -4,6 +4,7 @@ import {
 	copyStatement,
 	writeRowsToCopyStream,
 } from "@secondlayer/shared/archive/copy-loader";
+import { ARCHIVE_DATASETS } from "@secondlayer/shared/archive/datasets";
 import { closeDb, getRawClient, getSourceDb } from "@secondlayer/shared/db";
 import type { Database } from "@secondlayer/shared/db/schema";
 import type { Kysely } from "kysely";
@@ -39,7 +40,7 @@ import {
 export type RestoreRange = { fromBlock: number; toBlock: number };
 
 export type RestoreResult = {
-	restored: { blocks: number; transactions: number; events: number };
+	restored: Record<CanonicalDataset, number>;
 	partitionsRead: number;
 	proof: {
 		auditComplete: boolean;
@@ -195,8 +196,7 @@ export async function restoreCanonicalSnapshot(params: {
 	}
 
 	// Verify every needed object BEFORE the first insert.
-	const datasets: CanonicalDataset[] = ["blocks", "transactions", "events"];
-	const selected = datasets.flatMap((dataset) =>
+	const selected = ARCHIVE_DATASETS.flatMap((dataset) =>
 		partitionsInRange(manifest, dataset, range),
 	);
 	for (const partition of selected) {
@@ -209,9 +209,12 @@ export async function restoreCanonicalSnapshot(params: {
 	}
 	log(`verified ${selected.length} archive objects`);
 
-	// FK order: blocks, then transactions, then events.
-	const restored = { blocks: 0, transactions: 0, events: 0 };
-	for (const dataset of datasets) {
+	// FK order is ARCHIVE_DATASETS order: every dataset after `blocks` points
+	// only at earlier ones.
+	const restored = Object.fromEntries(
+		ARCHIVE_DATASETS.map((dataset) => [dataset, 0]),
+	) as Record<CanonicalDataset, number>;
+	for (const dataset of ARCHIVE_DATASETS) {
 		for (const partition of partitionsInRange(manifest, dataset, range)) {
 			if (params.resume) {
 				const state = await partitionRowCount(db, dataset, partition);

@@ -28,6 +28,8 @@
  * `assertAllServicesDeclared()` fails a build when a known service is missing.
  */
 
+import { ARCHIVE_DATASETS, type ArchiveDataset } from "./datasets.ts";
+
 export const DERIVED_STAGE_REPORT_SCHEMA_VERSION = 1 as const;
 
 export type ServiceKind =
@@ -36,7 +38,7 @@ export type ServiceKind =
 	| "webhook-runtime"
 	| "protocol-producer";
 
-export type CanonicalInput = "blocks" | "transactions" | "events";
+export type CanonicalInput = ArchiveDataset;
 
 export interface ExternalInput {
 	/** Short name for the dependency: `stacks-node-rpc`, `hiro-extended-api`,
@@ -124,11 +126,9 @@ export function validateServiceManifests(
 ): ManifestValidationIssue[] {
 	const issues: ManifestValidationIssue[] = [];
 	const seen = new Set<string>();
-	const canonicalDatasets: ReadonlySet<CanonicalInput> = new Set([
-		"blocks",
-		"transactions",
-		"events",
-	]);
+	const canonicalDatasets: ReadonlySet<CanonicalInput> = new Set(
+		ARCHIVE_DATASETS,
+	);
 	for (const m of manifests) {
 		if (seen.has(m.name)) {
 			issues.push({ name: m.name, problem: "duplicate service name" });

@@ -1,5 +1,6 @@
 import { once } from "node:events";
 import type { Writable } from "node:stream";
+import { type ArchiveDataset, assertNeverDataset } from "./datasets.ts";
 
 /**
  * Streaming `COPY ... FROM STDIN` loader for canonical archive rows.
@@ -16,8 +17,7 @@ import type { Writable } from "node:stream";
  * two subtly different CSV encoders.
  */
 
-/** The three archive datasets: blocks, transactions, and events. */
-export type ArchiveDataset = "blocks" | "transactions" | "events";
+export type { ArchiveDataset } from "./datasets.ts";
 
 /** Row shapes exactly as the archive's Parquet columns are named. */
 export type ArchiveRow = Record<string, unknown>;
@@ -47,39 +47,42 @@ function asOptionalText(value: unknown): string | null {
 }
 
 export function toCsvLine(dataset: ArchiveDataset, row: ArchiveRow): string {
-	if (dataset === "blocks") {
-		return [
-			csvField(asNumber(row.height)),
-			csvField(asText(row.hash)),
-			csvField(asText(row.parent_hash)),
-			csvField(asNumber(row.burn_block_height)),
-			csvField(asOptionalText(row.burn_block_hash)),
-			csvField(asOptionalText(row.index_block_hash)),
-			csvField(asNumber(row.timestamp)),
-		].join(",");
+	switch (dataset) {
+		case "blocks":
+			return [
+				csvField(asNumber(row.height)),
+				csvField(asText(row.hash)),
+				csvField(asText(row.parent_hash)),
+				csvField(asNumber(row.burn_block_height)),
+				csvField(asOptionalText(row.burn_block_hash)),
+				csvField(asOptionalText(row.index_block_hash)),
+				csvField(asNumber(row.timestamp)),
+			].join(",");
+		case "transactions":
+			return [
+				csvField(asText(row.tx_id)),
+				csvField(asNumber(row.block_height)),
+				csvField(asNumber(row.tx_index)),
+				csvField(asText(row.type)),
+				csvField(asText(row.sender)),
+				csvField(asText(row.status)),
+				csvField(asOptionalText(row.contract_id)),
+				csvField(asOptionalText(row.function_name)),
+				csvField(asOptionalText(row.function_args_json)),
+				csvField(asOptionalText(row.raw_result)),
+				csvField(asText(row.raw_tx)),
+			].join(",");
+		case "events":
+			return [
+				csvField(asText(row.tx_id)),
+				csvField(asNumber(row.block_height)),
+				csvField(asNumber(row.event_index)),
+				csvField(asText(row.event_type)),
+				csvField(asText(row.data_json)),
+			].join(",");
+		default:
+			return assertNeverDataset(dataset);
 	}
-	if (dataset === "transactions") {
-		return [
-			csvField(asText(row.tx_id)),
-			csvField(asNumber(row.block_height)),
-			csvField(asNumber(row.tx_index)),
-			csvField(asText(row.type)),
-			csvField(asText(row.sender)),
-			csvField(asText(row.status)),
-			csvField(asOptionalText(row.contract_id)),
-			csvField(asOptionalText(row.function_name)),
-			csvField(asOptionalText(row.function_args_json)),
-			csvField(asOptionalText(row.raw_result)),
-			csvField(asText(row.raw_tx)),
-		].join(",");
-	}
-	return [
-		csvField(asText(row.tx_id)),
-		csvField(asNumber(row.block_height)),
-		csvField(asNumber(row.event_index)),
-		csvField(asText(row.event_type)),
-		csvField(asText(row.data_json)),
-	].join(",");
 }
 
 /**
@@ -88,13 +91,16 @@ export function toCsvLine(dataset: ArchiveDataset, row: ArchiveRow): string {
  * through every row would be dead weight.
  */
 export function copyStatement(dataset: ArchiveDataset): string {
-	if (dataset === "blocks") {
-		return "COPY blocks (height, hash, parent_hash, burn_block_height, burn_block_hash, index_block_hash, timestamp) FROM STDIN WITH (FORMAT csv, NULL '\\N')";
+	switch (dataset) {
+		case "blocks":
+			return "COPY blocks (height, hash, parent_hash, burn_block_height, burn_block_hash, index_block_hash, timestamp) FROM STDIN WITH (FORMAT csv, NULL '\\N')";
+		case "transactions":
+			return "COPY transactions (tx_id, block_height, tx_index, type, sender, status, contract_id, function_name, function_args, raw_result, raw_tx) FROM STDIN WITH (FORMAT csv, NULL '\\N')";
+		case "events":
+			return "COPY events (tx_id, block_height, event_index, type, data) FROM STDIN WITH (FORMAT csv, NULL '\\N')";
+		default:
+			return assertNeverDataset(dataset);
 	}
-	if (dataset === "transactions") {
-		return "COPY transactions (tx_id, block_height, tx_index, type, sender, status, contract_id, function_name, function_args, raw_result, raw_tx) FROM STDIN WITH (FORMAT csv, NULL '\\N')";
-	}
-	return "COPY events (tx_id, block_height, event_index, type, data) FROM STDIN WITH (FORMAT csv, NULL '\\N')";
 }
 
 /**

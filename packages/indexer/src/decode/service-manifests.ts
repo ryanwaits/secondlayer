@@ -1,4 +1,7 @@
-import type { ServiceManifest } from "@secondlayer/shared/archive/derived-stage-report";
+import type {
+	CanonicalInput,
+	ServiceManifest,
+} from "@secondlayer/shared/archive/derived-stage-report";
 
 /**
  * Decoder service manifests — one entry per built-in protocol producer.
@@ -16,7 +19,13 @@ import type { ServiceManifest } from "@secondlayer/shared/archive/derived-stage-
  * Phase 4 verifier knows what to pin.
  */
 
-const CANONICAL_ALL = ["blocks", "transactions", "events"] as const;
+/** Every archive dataset a decoder reads — not `ARCHIVE_DATASETS`: a dataset
+ *  joins this list only when a decoder actually consumes it. */
+const CANONICAL_ALL = [
+	"blocks",
+	"transactions",
+	"events",
+] as const satisfies readonly CanonicalInput[];
 
 /**
  * Shared external inputs that most decoders take. Extracted so the

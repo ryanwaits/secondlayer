@@ -165,6 +165,10 @@
 			"types": "./dist/src/archive/copy-loader.d.ts",
 			"import": "./dist/src/archive/copy-loader.js"
 		},
+		"./archive/datasets": {
+			"types": "./dist/src/archive/datasets.d.ts",
+			"import": "./dist/src/archive/datasets.js"
+		},
 		"./archive/range-digest": {
 			"types": "./dist/src/archive/range-digest.d.ts",
 			"import": "./dist/src/archive/range-digest.js"

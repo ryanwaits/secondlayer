@@ -1,3 +1,8 @@
+import {
+	ARCHIVE_DATASETS,
+	type ArchiveDataset,
+} from "@secondlayer/shared/archive/datasets";
+
 /**
  * Resume a torn archive import. Bootstrap refuses a finished instance
  * (index_progress present) and a fresh empty DB starts from partition 0.
@@ -13,8 +18,15 @@ export type ArchivePartitionRange = {
 	to_block: number;
 };
 
-export const RESUME_DATASETS = ["blocks", "transactions", "events"] as const;
-export type ResumeDataset = (typeof RESUME_DATASETS)[number];
+export const RESUME_DATASETS = ARCHIVE_DATASETS;
+export type ResumeDataset = ArchiveDataset;
+
+/** The dataset each child's foreign key points at. A truncated parent takes
+ *  its children with it; a child never counts as sealed past its parent. */
+const FK_PARENT: Record<Exclude<ResumeDataset, "blocks">, ResumeDataset> = {
+	transactions: "blocks",
+	events: "transactions",
+};
 
 /** MAX(height) for blocks, MAX(block_height) for the child datasets; null
  *  when the table holds no rows. */
@@ -52,16 +64,12 @@ export function planTornImport(input: {
 		return { action: "fresh" };
 	}
 
-	const truncateFrom: Record<ResumeDataset, number | null> = {
-		blocks: null,
-		transactions: null,
-		events: null,
-	};
-	const skipThrough: Record<ResumeDataset, number> = {
-		blocks: 0,
-		transactions: 0,
-		events: 0,
-	};
+	const truncateFrom = Object.fromEntries(
+		RESUME_DATASETS.map((d) => [d, null]),
+	) as Record<ResumeDataset, number | null>;
+	const skipThrough = Object.fromEntries(
+		RESUME_DATASETS.map((d) => [d, 0]),
+	) as Record<ResumeDataset, number>;
 
 	for (const dataset of RESUME_DATASETS) {
 		const mark = input.highWater[dataset];
@@ -76,36 +84,40 @@ export function planTornImport(input: {
 		truncateFrom[dataset] = torn ? torn.from_block : null;
 	}
 
-	// Cascade down the FK chain: transactions reference blocks, events
-	// reference transactions. A truncated parent takes its children with it
-	// from the same height, and a child can never count as sealed beyond
-	// what its parent has sealed.
+	// Cascade down the FK chain (`FK_PARENT`, walked in load order so a
+	// parent is settled before its children). A truncated parent takes its
+	// children with it from the same height, and a child can never count as
+	// sealed beyond what its parent has sealed.
 	const minDefined = (...values: Array<number | null>) => {
 		const defined = values.filter((v): v is number => v !== null);
 		return defined.length === 0 ? null : Math.min(...defined);
 	};
-	truncateFrom.transactions = minDefined(
-		truncateFrom.blocks,
-		truncateFrom.transactions,
+	const children = RESUME_DATASETS.filter(
+		(d): d is Exclude<ResumeDataset, "blocks"> => d !== "blocks",
 	);
-	truncateFrom.events = minDefined(
-		truncateFrom.transactions,
-		truncateFrom.events,
-	);
+	for (const dataset of children) {
+		truncateFrom[dataset] = minDefined(
+			truncateFrom[FK_PARENT[dataset]],
+			truncateFrom[dataset],
+		);
+	}
 	// Rows a child holds above its parent's sealed boundary are no longer
 	// counted as loaded, so they must go before the reload COPYs them back
 	// or the reload trips the primary key.
-	const capTo = (dataset: ResumeDataset, parentSealed: number) => {
-		if (skipThrough[dataset] <= parentSealed) return;
-		skipThrough[dataset] = parentSealed;
-		truncateFrom[dataset] = minDefined(truncateFrom[dataset], parentSealed + 1);
-	};
-	capTo("transactions", skipThrough.blocks);
-	capTo("events", skipThrough.transactions);
-	truncateFrom.events = minDefined(
-		truncateFrom.transactions,
-		truncateFrom.events,
-	);
+	for (const dataset of children) {
+		const parent = FK_PARENT[dataset];
+		if (skipThrough[dataset] > skipThrough[parent]) {
+			skipThrough[dataset] = skipThrough[parent];
+			truncateFrom[dataset] = minDefined(
+				truncateFrom[dataset],
+				skipThrough[parent] + 1,
+			);
+		}
+		truncateFrom[dataset] = minDefined(
+			truncateFrom[parent],
+			truncateFrom[dataset],
+		);
+	}
 
 	return { action: "resume", truncateFrom, skipThrough };
 }

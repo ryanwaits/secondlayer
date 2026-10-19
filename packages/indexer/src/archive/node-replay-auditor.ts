@@ -1,5 +1,6 @@
 import { mkdir } from "node:fs/promises";
 import { dirname } from "node:path";
+import type { ArchiveDataset } from "@secondlayer/shared/archive/datasets";
 import { closeDb, getSourceDb, sql } from "@secondlayer/shared/db";
 import type { Database } from "@secondlayer/shared/db/schema";
 import {
@@ -171,7 +172,7 @@ export type NodeAttestation = {
 	coverage: { from_block: number; to_block: number };
 	attested_datasets: Array<"blocks" | "transactions">;
 	unattested_datasets: Array<{
-		dataset: "events";
+		dataset: Exclude<ArchiveDataset, "blocks" | "transactions">;
 		reason: string;
 	}>;
 	stats: {

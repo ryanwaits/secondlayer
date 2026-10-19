@@ -42,6 +42,7 @@ const config: DefineConfigItem = defineConfig({
 		"src/coverage/index.ts",
 		"src/runtime/index.ts",
 		"src/archive/copy-loader.ts",
+		"src/archive/datasets.ts",
 		"src/archive/key-registry.ts",
 		"src/archive/reference.ts",
 		"src/archive/root-key.ts",

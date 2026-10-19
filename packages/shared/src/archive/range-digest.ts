@@ -1,6 +1,11 @@
 import { sql } from "kysely";
-import type { Kysely } from "kysely";
+import type { Kysely, RawBuilder } from "kysely";
 import type { Database } from "../db/schema.ts";
+import {
+	ARCHIVE_DATASETS,
+	type ArchiveDataset,
+	assertNeverDataset,
+} from "./datasets.ts";
 
 /**
  * Cheap, SQL-computed digests over a height range — the basis of a verify that
@@ -31,7 +36,7 @@ import type { Database } from "../db/schema.ts";
 
 export const RANGE_DIGEST_SPEC = "md5:sql-identity-v1" as const;
 
-export type RangeDigestDataset = "blocks" | "transactions" | "events";
+export type RangeDigestDataset = ArchiveDataset;
 
 export type RangeDigest = {
 	dataset: RangeDigestDataset;
@@ -50,40 +55,50 @@ export type RangeDigest = {
  * we care about, which is why quick mode leans on it.
  */
 function identityExpression(dataset: RangeDigestDataset) {
-	if (dataset === "blocks") {
-		return sql`md5(
-			height::text || '|' ||
-			hash || '|' ||
-			parent_hash || '|' ||
-			burn_block_height::text || '|' ||
-			coalesce(burn_block_hash, '~') || '|' ||
-			coalesce(index_block_hash, '~')
-		)`;
+	switch (dataset) {
+		case "blocks":
+			return sql`md5(
+				height::text || '|' ||
+				hash || '|' ||
+				parent_hash || '|' ||
+				burn_block_height::text || '|' ||
+				coalesce(burn_block_hash, '~') || '|' ||
+				coalesce(index_block_hash, '~')
+			)`;
+		case "transactions":
+			return sql`md5(
+				tx_id || '|' ||
+				block_height::text || '|' ||
+				tx_index::text || '|' ||
+				type || '|' ||
+				sender || '|' ||
+				status || '|' ||
+				coalesce(contract_id, '~') || '|' ||
+				coalesce(function_name, '~')
+			)`;
+		case "events":
+			return sql`md5(
+				tx_id || '|' ||
+				block_height::text || '|' ||
+				event_index::text || '|' ||
+				type
+			)`;
+		default:
+			return assertNeverDataset(dataset);
 	}
-	if (dataset === "transactions") {
-		return sql`md5(
-			tx_id || '|' ||
-			block_height::text || '|' ||
-			tx_index::text || '|' ||
-			type || '|' ||
-			sender || '|' ||
-			status || '|' ||
-			coalesce(contract_id, '~') || '|' ||
-			coalesce(function_name, '~')
-		)`;
-	}
-	return sql`md5(
-		tx_id || '|' ||
-		block_height::text || '|' ||
-		event_index::text || '|' ||
-		type
-	)`;
 }
 
 function orderExpression(dataset: RangeDigestDataset) {
-	if (dataset === "blocks") return sql`height`;
-	if (dataset === "transactions") return sql`block_height, tx_index, tx_id`;
-	return sql`block_height, event_index, tx_id`;
+	switch (dataset) {
+		case "blocks":
+			return sql`height`;
+		case "transactions":
+			return sql`block_height, tx_index, tx_id`;
+		case "events":
+			return sql`block_height, event_index, tx_id`;
+		default:
+			return assertNeverDataset(dataset);
+	}
 }
 
 /**
@@ -92,10 +107,19 @@ function orderExpression(dataset: RangeDigestDataset) {
  * more reorg history than another would report as diverging.
  */
 function fromExpression(dataset: RangeDigestDataset) {
-	if (dataset === "blocks") {
-		return sql`FROM blocks WHERE canonical = true`;
+	switch (dataset) {
+		case "blocks":
+			return sql`FROM blocks WHERE canonical = true`;
+		case "transactions":
+			return childFrom(sql`transactions`);
+		case "events":
+			return childFrom(sql`events`);
+		default:
+			return assertNeverDataset(dataset);
 	}
-	const table = dataset === "transactions" ? sql`transactions` : sql`events`;
+}
+
+function childFrom(table: RawBuilder<unknown>) {
 	return sql`FROM ${table} AS child
 		JOIN blocks AS b ON b.height = child.block_height AND b.canonical = true
 		WHERE true`;
@@ -141,11 +165,7 @@ export async function computeRangeDigests(
 	db: Kysely<Database>,
 	fromBlock: number,
 	toBlock: number,
-	datasets: readonly RangeDigestDataset[] = [
-		"blocks",
-		"transactions",
-		"events",
-	],
+	datasets: readonly RangeDigestDataset[] = ARCHIVE_DATASETS,
 ): Promise<RangeDigest[]> {
 	const digests: RangeDigest[] = [];
 	for (const dataset of datasets) {

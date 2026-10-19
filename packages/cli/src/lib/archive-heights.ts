@@ -1,3 +1,4 @@
+import { assertNeverDataset } from "@secondlayer/shared/archive/datasets";
 import type { DigestIndexPartition } from "@secondlayer/shared/archive/per-height-digest";
 import {
 	PerHeightDigestAccumulator,
@@ -169,11 +170,16 @@ function partsMatch(
 	a: PerHeightDigestRow,
 	b: PerHeightDigestRow,
 ): boolean {
-	if (dataset === "blocks") return a.block_digest === b.block_digest;
-	if (dataset === "transactions") {
-		return a.transactions_rollup === b.transactions_rollup;
+	switch (dataset) {
+		case "blocks":
+			return a.block_digest === b.block_digest;
+		case "transactions":
+			return a.transactions_rollup === b.transactions_rollup;
+		case "events":
+			return a.events_rollup === b.events_rollup;
+		default:
+			return assertNeverDataset(dataset);
 	}
-	return a.events_rollup === b.events_rollup;
 }
 
 /**

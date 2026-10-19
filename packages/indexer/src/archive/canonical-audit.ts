@@ -2,6 +2,7 @@ import {
 	DEFAULT_BTC_CONFIRMATIONS,
 	finalizedBurnHeight,
 } from "@secondlayer/shared";
+import type { ArchiveDataset } from "@secondlayer/shared/archive/datasets";
 import { closeDb, getSourceDb, sql } from "@secondlayer/shared/db";
 import { findShortBlocks } from "@secondlayer/shared/db/queries/integrity";
 import type { Database } from "@secondlayer/shared/db/schema";
@@ -267,7 +268,7 @@ export async function auditCanonicalCoverageInSnapshot(
 
 async function countCanonicalRows(
 	db: Kysely<Database>,
-	table: "transactions" | "events",
+	table: Exclude<ArchiveDataset, "blocks">,
 	blockColumn: "block_height",
 ): Promise<number> {
 	const { rows } = await sql<CountRow>`

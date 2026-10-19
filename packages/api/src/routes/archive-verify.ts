@@ -9,6 +9,7 @@
  * and is empty under the dual-DB split — digesting it would "verify" nothing.
  */
 
+import { ARCHIVE_DATASETS } from "@secondlayer/shared/archive/datasets";
 import {
 	type RangeComparison,
 	type RangeDigest,
@@ -38,7 +39,7 @@ import { InvalidJSONError } from "../middleware/error.ts";
  *  CLI can still walk the full chain; HTTP must not hold a proxy open for 90s+. */
 export const MAX_RANGES_WITHOUT_WINDOW = 40;
 
-const RAW_DATASETS = new Set<string>(["blocks", "transactions", "events"]);
+const RAW_DATASETS = new Set<string>(ARCHIVE_DATASETS);
 
 export type ArchiveVerifyRouterOptions = {
 	/** Test/SDK seam; production uses global fetch via `loadReference`. */

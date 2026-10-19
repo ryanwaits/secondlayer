@@ -1,11 +1,10 @@
+import type { ArchiveDataset } from "@secondlayer/shared/archive/datasets";
 import type { RangeDigest } from "@secondlayer/shared/archive/range-digest";
 import type { ArchiveStatus } from "@secondlayer/shared/archive/status";
 import type { ArchiveVerifyInput, ArchiveVerifyResult } from "./instance.ts";
 
-export type { ArchiveStatus };
+export type { ArchiveDataset, ArchiveStatus };
 
-/** The three archive datasets: blocks, transactions, and events. */
-export type ArchiveDataset = "blocks" | "transactions" | "events";
 /** Whether an archive purchase is a bootstrap or a repair. */
 export type ArchiveFlow = "bootstrap" | "repair";
 

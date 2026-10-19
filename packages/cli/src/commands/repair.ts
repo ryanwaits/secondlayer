@@ -7,6 +7,7 @@ import {
 	copyStatement,
 	writeRowsToCopyStream,
 } from "@secondlayer/shared/archive/copy-loader";
+import { ARCHIVE_DATASETS } from "@secondlayer/shared/archive/datasets";
 import {
 	type RangeDigest,
 	type RangeDigestDataset,
@@ -206,13 +207,12 @@ async function planRange(
 	return { fixes, extraHeights };
 }
 
-type ChildDataset = "transactions" | "events";
-const CHILD_DATASETS: readonly ChildDataset[] = ["transactions", "events"];
-const REPAIR_DATASETS: readonly RangeDigestDataset[] = [
-	"blocks",
-	"transactions",
-	"events",
-];
+type ChildDataset = Exclude<ArchiveDataset, "blocks">;
+/** Every dataset hanging off `blocks`, in FK (load) order. */
+const CHILD_DATASETS: readonly ChildDataset[] = ARCHIVE_DATASETS.filter(
+	(d): d is ChildDataset => d !== "blocks",
+);
+const REPAIR_DATASETS: readonly RangeDigestDataset[] = ARCHIVE_DATASETS;
 
 /**
  * The child partition covering one height. The publisher partitions every
@@ -395,9 +395,7 @@ async function applyFixes(
 				if (child.dataset !== dataset) continue;
 				const bytes = childBytes.get(path);
 				if (!bytes) continue;
-				const writable = await tx
-					.unsafe(copyStatement(dataset as ArchiveDataset))
-					.writable();
+				const writable = await tx.unsafe(copyStatement(dataset)).writable();
 				applied[dataset] += await writeRowsToCopyStream({
 					writable,
 					dataset,
@@ -1001,7 +999,7 @@ Exit codes:
 				const childPartitions = opts.apply
 					? (reference.manifest.partitions ?? []).filter(
 							(p) =>
-								(p.dataset === "transactions" || p.dataset === "events") &&
+								(CHILD_DATASETS as readonly string[]).includes(p.dataset) &&
 								divergent.some(
 									(d) =>
 										p.from_block <= d.to_block && p.to_block >= d.from_block,

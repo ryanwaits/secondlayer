@@ -54,7 +54,7 @@ export type CanonicalLatestPointer = {
 	snapshot_digest: string;
 	snapshot_path: string;
 	coverage: { from_block: number; to_block: number };
-	counts: { blocks: number; transactions: number; events: number };
+	counts: CanonicalSnapshotManifest["counts"];
 	assurance: string;
 	finality_rule: CanonicalSnapshotManifest["finality_rule"];
 	promoted_at: string;

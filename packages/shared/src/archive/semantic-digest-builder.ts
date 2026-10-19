@@ -1,5 +1,6 @@
 import { type Kysely, sql } from "kysely";
 import type { Database } from "../db/schema.ts";
+import { type ArchiveDataset, assertNeverDataset } from "./datasets.ts";
 import {
 	type PartitionSemanticDigest,
 	SEMANTIC_DIGEST_SPEC_V1,
@@ -19,7 +20,7 @@ import {
  * a matching change there.
  */
 
-export type CanonicalDataset = "blocks" | "transactions" | "events";
+export type CanonicalDataset = ArchiveDataset;
 
 const DEFAULT_BATCH_ROWS = 20_000;
 
@@ -217,13 +218,16 @@ function digestStream(
 	toBlock: number,
 	batchRows: number,
 ): AsyncGenerator<HeightDigest> {
-	if (dataset === "blocks") {
-		return streamBlockDigests(db, fromBlock, toBlock, batchRows);
+	switch (dataset) {
+		case "blocks":
+			return streamBlockDigests(db, fromBlock, toBlock, batchRows);
+		case "transactions":
+			return streamTransactionDigests(db, fromBlock, toBlock, batchRows);
+		case "events":
+			return streamEventDigests(db, fromBlock, toBlock, batchRows);
+		default:
+			return assertNeverDataset(dataset);
 	}
-	if (dataset === "transactions") {
-		return streamTransactionDigests(db, fromBlock, toBlock, batchRows);
-	}
-	return streamEventDigests(db, fromBlock, toBlock, batchRows);
 }
 
 /**
