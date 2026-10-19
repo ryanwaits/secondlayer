@@ -45,7 +45,7 @@ import { toast } from "sonner";
 import { AttemptTimeline } from "./attempt-timeline";
 import { WebhookCompactDetail } from "./compact-detail";
 import { DeliveriesChart } from "./deliveries-chart";
-import { AsleepNotice } from "./list-panel";
+import { AsleepState } from "./list-panel";
 import { ListensFor } from "./listens-for";
 import { PayloadView, answeredAttempt } from "./payload-view";
 import { displayStatus, formatEventCell, shortenName } from "./shared";
@@ -89,21 +89,26 @@ type DetailNotice =
  * this page's notice only when nothing is cached yet for it; once a webhook
  * has loaded, later failures keep retrying behind the last-known page.
  * `not_found` always wins, since a deleted webhook shouldn't keep showing.
+ * `asleep` tracks the stack whether or not a page is cached, since cached
+ * rows can't open a payload on an asleep stack.
  */
 function useDetailPoll(
 	id: string,
 	fastActivityRef: { current: boolean },
-): DetailNotice | null {
+): { notice: DetailNotice | null; asleep: boolean } {
 	const [notice, setNotice] = useState<DetailNotice | null>(null);
+	const [asleep, setAsleep] = useState(false);
 
 	useEffect(() => {
 		setNotice(null);
+		setAsleep(false);
 		return poll(async () => {
 			const res = await refreshDetail(id, {
 				activity: !fastActivityRef.current,
 			});
 			const hasCached = webhooksSnapshot().detail[id] !== undefined;
 			const webhook = res.webhook;
+			setAsleep(webhook.kind === "asleep");
 			if (webhook.kind === "ok") {
 				setNotice(null);
 				return {};
@@ -128,7 +133,7 @@ function useDetailPoll(
 		}, DETAIL_POLL_MS);
 	}, [id, fastActivityRef]);
 
-	return notice;
+	return { notice, asleep };
 }
 
 // ── Title row ────────────────────────────────────────────────────────────
@@ -298,12 +303,14 @@ function DeliveriesPanel({
 	rows,
 	hour,
 	onClearHour,
+	asleep,
 }: {
 	webhook: Pick<WebhookDetail, "id" | "url" | "triggers">;
 	/** Null while the hour's window is still loading. */
 	rows: readonly DeliveryRow[] | null;
 	hour: { label: string } | null;
 	onClearHour: () => void;
+	asleep: boolean;
 }) {
 	const [open, setOpen] = useState<string | null>(null);
 	const [showAll, setShowAll] = useState(false);
@@ -371,6 +378,7 @@ function DeliveriesPanel({
 								attempts={attempts}
 								latest={latest}
 								webhook={webhook}
+								asleep={asleep}
 								open={open === key}
 								onToggle={() => setOpen(open === key ? null : key)}
 							/>
@@ -395,12 +403,14 @@ function DeliveryRowView({
 	attempts,
 	latest,
 	webhook,
+	asleep,
 	open,
 	onToggle,
 }: {
 	attempts: DeliveryRow[];
 	latest: DeliveryRow;
 	webhook: Pick<WebhookDetail, "id" | "url" | "triggers">;
+	asleep: boolean;
 	open: boolean;
 	onToggle: () => void;
 }) {
@@ -448,6 +458,7 @@ function DeliveryRowView({
 						<PayloadView
 							webhookId={webhook.id}
 							deliveryId={latest.id}
+							asleep={asleep}
 							triggers={webhook.triggers}
 							responseBody={answered.responseBody ?? null}
 							statusCode={answered.statusCode}
@@ -479,6 +490,8 @@ export interface WebhookDetailBodyProps {
 	pauseBusy: boolean;
 	onTogglePause: () => void;
 	onRename: (name: string) => Promise<boolean>;
+	/** The last poll found the hosted stack asleep. */
+	stackAsleep: boolean;
 }
 
 export function WebhookDetailBody({
@@ -495,8 +508,13 @@ export function WebhookDetailBody({
 	pauseBusy,
 	onTogglePause,
 	onRename,
+	stackAsleep,
 }: WebhookDetailBodyProps) {
 	const ranked = rankInsights(insights);
+	const paused = webhook.status === "paused";
+	// Only an all-paused stack sleeps; a resume wakes it, so the flag drops
+	// the moment the webhook reads active again instead of on the next poll.
+	const asleep = stackAsleep && paused;
 	const quiet = deliveries.length === 0 && !hour;
 	return (
 		<>
@@ -524,11 +542,11 @@ export function WebhookDetailBody({
 						/>
 						<button
 							type="button"
-							className="wd-btn"
+							className={paused ? "wd-btn nudge" : "wd-btn"}
 							onClick={onTogglePause}
 							disabled={pauseBusy}
 						>
-							{webhook.status === "paused" ? "Resume" : "Pause"}
+							{paused ? "Resume" : "Pause"}
 						</button>
 					</div>
 				</div>
@@ -559,6 +577,7 @@ export function WebhookDetailBody({
 						rows={hour ? hourDeliveries : deliveries}
 						hour={hour}
 						onClearHour={onClearHour}
+						asleep={asleep}
 					/>
 				)}
 			</div>
@@ -572,7 +591,7 @@ export function WebhookDetailSection({ id }: { id: string }) {
 	const search = useSearchParams();
 	const cache = useWebhooksCache();
 	const fastActivity = useRef(false);
-	const notice = useDetailPoll(id, fastActivity);
+	const { notice, asleep: stackAsleep } = useDetailPoll(id, fastActivity);
 
 	const webhook = cache.detail[id]?.data ?? null;
 	const deliveries = cache.deliveries[id]?.data ?? null;
@@ -648,7 +667,7 @@ export function WebhookDetailSection({ id }: { id: string }) {
 	}
 
 	if (!webhook || !deliveries) {
-		if (!webhook && notice?.kind === "asleep") return <AsleepNotice />;
+		if (!webhook && notice?.kind === "asleep") return <AsleepState />;
 		if (!webhook && notice?.kind === "no_credits") {
 			return (
 				<output className="wh-notice stop">
@@ -786,6 +805,7 @@ export function WebhookDetailSection({ id }: { id: string }) {
 			pauseBusy={pauseBusy}
 			onTogglePause={onTogglePause}
 			onRename={onRename}
+			stackAsleep={stackAsleep}
 		/>
 	);
 }

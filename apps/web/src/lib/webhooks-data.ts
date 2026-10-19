@@ -2,6 +2,7 @@ import type {
 	DeadRow,
 	DeliveryRow,
 	WebhookActivity,
+	WebhookDeliveryDetail,
 	WebhookDetail,
 	WebhookSummary,
 	WebhookTestResult,
@@ -128,6 +129,16 @@ export async function getDeliveries(
 	return res.kind === "ok"
 		? { kind: "ok", data: res.data.map(normalizeDeliveryRow) }
 		: res;
+}
+
+/** One delivery with its payload, read when a dashboard row is opened. */
+export function getDelivery(
+	id: string,
+	deliveryId: string,
+): Promise<WebhooksResult<WebhookDeliveryDetail>> {
+	return request<WebhookDeliveryDetail>(
+		`/${encodeURIComponent(id)}/deliveries/${encodeURIComponent(deliveryId)}`,
+	);
 }
 
 export function getDead(id: string): Promise<WebhooksResult<DeadRow[]>> {

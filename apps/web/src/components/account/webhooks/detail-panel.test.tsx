@@ -26,6 +26,7 @@ const render = (props: Partial<Props> = {}) =>
 			pauseBusy={false}
 			onTogglePause={noop}
 			onRename={async () => true}
+			stackAsleep={false}
 			{...props}
 		/>,
 	);
@@ -76,6 +77,8 @@ describe("WebhookDetailBody header", () => {
 		const paused = render({ webhook: detail({ status: "paused" }) });
 		expect(paused).toContain(">Resume<");
 		expect(paused).not.toContain(">Pause<");
+		expect(paused).toContain('class="wd-btn nudge"');
+		expect(render()).not.toContain("nudge");
 	});
 
 	test("the range choice offers 24h, 48h, 7d and 30d", () => {

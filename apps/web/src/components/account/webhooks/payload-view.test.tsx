@@ -173,3 +173,27 @@ describe("the Response tab after a retry", () => {
 		).toBe("a2");
 	});
 });
+
+describe("the payload viewer on an asleep stack", () => {
+	const html = renderToStaticMarkup(
+		<PayloadPanel
+			load={{ status: "asleep" }}
+			triggers={[]}
+			responseBody='{"ok":true}'
+			statusCode={200}
+			responseIsLatest
+			host="example.com"
+		/>,
+	);
+
+	test("opens on the response, which came with the deliveries list", () => {
+		expect(html).toContain('aria-selected="true">Response 200');
+		expect(html).toContain("What example.com sent back");
+		expect(html).not.toContain("Couldn&#x27;t load the payload.");
+	});
+
+	test("disables Sent and says resuming shows it", () => {
+		expect(html).toContain('aria-disabled="true"');
+		expect(html).toContain("Resume this webhook to see what was sent");
+	});
+});

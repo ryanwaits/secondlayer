@@ -1784,6 +1784,53 @@ html[data-acct-card] .www > :not(.marketing-nav) {
 	color: var(--text-muted);
 	max-width: 62ch;
 }
+/* Asleep stack: the list's own rows as faded ghosts, one centered line over
+   them. An empty state, not an alert: nothing failed. */
+.wh-asleep {
+	display: grid;
+	margin-top: 8px;
+	border-top: 1px solid var(--line);
+}
+.wh-asleep-ghosts {
+	grid-area: 1 / 1;
+	opacity: 0.38;
+	pointer-events: none;
+	user-select: none;
+	mask-image: linear-gradient(to bottom, #000 30%, transparent);
+}
+.wh-asleep-ghosts .wl-main {
+	gap: 10px;
+}
+.wh-asleep-c {
+	grid-area: 1 / 1;
+	align-self: center;
+	justify-self: center;
+	display: grid;
+	justify-items: center;
+	gap: 10px;
+	max-width: 44ch;
+	padding: 32px 16px;
+	text-align: center;
+}
+.wh-asleep-t {
+	margin: 0;
+	font: 500 18px / 1.3 var(--font-sans-stack);
+	letter-spacing: -0.01em;
+}
+.wh-asleep-l {
+	margin: 0;
+	font-size: 14px;
+	color: var(--sub);
+	text-wrap: balance;
+}
+.wh-asleep-c .acct-btn {
+	margin-top: 6px;
+}
+.wh-asleep-f {
+	margin: 0;
+	font-size: 12.5px;
+	color: var(--faint);
+}
 .wh-spin {
 	display: inline-block;
 	width: 10px;
@@ -7142,6 +7189,15 @@ button.dash-row {
 	opacity: 0.5;
 	cursor: default;
 }
+/* A paused webhook's Resume: a quiet blue tint, the way back. */
+.wd-btn.nudge {
+	color: var(--pri-ink);
+	border-color: color-mix(in srgb, var(--pri) 45%, var(--line));
+	background: color-mix(in srgb, var(--pri) 6%, var(--paper));
+}
+.wd-btn.nudge:hover {
+	border-color: var(--pri);
+}
 .wd-facts {
 	display: flex;
 	flex-wrap: wrap;
@@ -7280,6 +7336,7 @@ button.dash-row {
 	overflow: hidden;
 }
 .pv-bar {
+	position: relative;
 	display: flex;
 	align-items: center;
 	gap: 14px;
@@ -7304,6 +7361,36 @@ button.dash-row {
 .pv-copy:hover {
 	border-color: var(--pri);
 	color: var(--pri-ink);
+}
+/* Sent is disabled while the stack is asleep; hover or focus says why. The
+   tip hangs off the bar, since the tab bar's overflow would clip it. */
+.pv-bar .tabbar button[aria-disabled="true"] {
+	color: var(--faint);
+	cursor: not-allowed;
+}
+.pv-tip {
+	position: absolute;
+	top: calc(100% + 6px);
+	left: 8px;
+	z-index: 20;
+	padding: 7px 10px;
+	border-radius: 4px;
+	background: var(--ink);
+	color: var(--paper);
+	font: 400 12px / 1.5 var(--font-sans-stack);
+	white-space: nowrap;
+	pointer-events: none;
+	opacity: 0;
+	transition: opacity 0.12s;
+}
+.pv-bar:has([aria-disabled="true"]:hover, [aria-disabled="true"]:focus-visible)
+	.pv-tip {
+	opacity: 1;
+}
+@media (prefers-reduced-motion: reduce) {
+	.pv-tip {
+		transition: none;
+	}
 }
 .pv-body {
 	min-height: 120px;

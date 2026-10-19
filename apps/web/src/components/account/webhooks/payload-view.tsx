@@ -1,7 +1,8 @@
 "use client";
 
+import { getDelivery } from "@/lib/webhooks-data";
 import type { ChainTrigger, WebhookDeliveryDetail } from "@secondlayer/sdk";
-import { Fragment, type ReactNode, useEffect, useState } from "react";
+import { Fragment, type ReactNode, useEffect, useId, useState } from "react";
 
 /**
  * One delivery's payload as readable JSON: what we sent, and what the
@@ -175,34 +176,44 @@ export function JsonView({
 export type Load =
 	| { status: "loading" }
 	| { status: "error" }
+	/** The hosted stack is asleep: the payload lives there, the response
+	 *  came with the deliveries list. */
+	| { status: "asleep" }
 	| { status: "ok"; detail: WebhookDeliveryDetail };
 
 /** Delivery details already read, so reopening a row doesn't refetch. */
 const cache = new Map<string, WebhookDeliveryDetail>();
 
-function useDelivery(webhookId: string, deliveryId: string): Load {
-	const [load, setLoad] = useState<Load>(() => {
-		const hit = cache.get(deliveryId);
-		return hit ? { status: "ok", detail: hit } : { status: "loading" };
-	});
+function initialLoad(deliveryId: string, asleep: boolean): Load {
+	const hit = cache.get(deliveryId);
+	if (hit) return { status: "ok", detail: hit };
+	return asleep ? { status: "asleep" } : { status: "loading" };
+}
+
+/** Reads one delivery, unless the page already knows the stack is asleep
+ *  (a read there never wakes it). Waking re-runs the read. */
+function useDelivery(
+	webhookId: string,
+	deliveryId: string,
+	asleep: boolean,
+): Load {
+	const [load, setLoad] = useState<Load>(() => initialLoad(deliveryId, asleep));
 	useEffect(() => {
-		if (cache.has(deliveryId)) return;
+		const initial = initialLoad(deliveryId, asleep);
+		setLoad(initial);
+		if (initial.status !== "loading") return;
 		let live = true;
-		fetch(
-			`/api/webhooks/${encodeURIComponent(webhookId)}/deliveries/${encodeURIComponent(deliveryId)}`,
-		)
-			.then((res) => (res.ok ? res.json() : Promise.reject(res.status)))
-			.then((detail: WebhookDeliveryDetail) => {
-				cache.set(deliveryId, detail);
-				if (live) setLoad({ status: "ok", detail });
-			})
-			.catch(() => {
-				if (live) setLoad({ status: "error" });
-			});
+		void getDelivery(webhookId, deliveryId).then((res) => {
+			if (res.kind === "ok") cache.set(deliveryId, res.data);
+			if (!live) return;
+			if (res.kind === "ok") setLoad({ status: "ok", detail: res.data });
+			else if (res.kind === "asleep") setLoad({ status: "asleep" });
+			else setLoad({ status: "error" });
+		});
 		return () => {
 			live = false;
 		};
-	}, [webhookId, deliveryId]);
+	}, [webhookId, deliveryId, asleep]);
 	return load;
 }
 
@@ -232,12 +243,17 @@ type Tab = "sent" | "response";
 export function PayloadView({
 	webhookId,
 	deliveryId,
+	asleep,
 	...rest
 }: {
 	webhookId: string;
 	deliveryId: string;
+	/** The page's last poll found the hosted stack asleep. */
+	asleep: boolean;
 } & Omit<PayloadPanelProps, "load">) {
-	return <PayloadPanel load={useDelivery(webhookId, deliveryId)} {...rest} />;
+	return (
+		<PayloadPanel load={useDelivery(webhookId, deliveryId, asleep)} {...rest} />
+	);
 }
 
 interface PayloadPanelProps {
@@ -262,10 +278,14 @@ export function PayloadPanel({
 	host,
 }: PayloadPanelProps) {
 	const [chosen, setChosen] = useState<Tab | null>(null);
+	const tipId = useId();
+	const asleep = load.status === "asleep";
 	const detail = load.status === "ok" ? load.detail : null;
 	const payload = detail?.payload ?? null;
 	const gone = load.status === "ok" && payload === null;
-	const tab: Tab = chosen ?? (gone ? "response" : "sent");
+	const tab: Tab = asleep
+		? "response"
+		: (chosen ?? (gone ? "response" : "sent"));
 	const response = responseIsLatest
 		? (detail?.responseBody ?? responseBody)
 		: responseBody;
@@ -305,7 +325,11 @@ export function PayloadPanel({
 							type="button"
 							role="tab"
 							aria-selected={tab === "sent"}
-							onClick={() => setChosen("sent")}
+							aria-disabled={asleep || undefined}
+							aria-describedby={asleep ? tipId : undefined}
+							onClick={() => {
+								if (!asleep) setChosen("sent");
+							}}
 						>
 							Sent
 							{sentText !== null ? (
@@ -323,6 +347,11 @@ export function PayloadPanel({
 						</button>
 					</div>
 					{copy ? <CopyPill text={copy} /> : null}
+					{asleep ? (
+						<span className="pv-tip" role="tooltip" id={tipId}>
+							Resume this webhook to see what was sent
+						</span>
+					) : null}
 				</div>
 				{gone ? (
 					<p className="pv-note pv-note-in">

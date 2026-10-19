@@ -223,3 +223,13 @@ describe("WebhooksListBody page insight", () => {
 		expect(html).toContain(stack.line);
 	});
 });
+
+describe("WebhooksListBody with the hosted stack asleep", () => {
+	test("shows a centered empty state with Wake it over ghost rows, not a boxed notice", () => {
+		const html = render({ rows: null, notice: { kind: "asleep" } });
+		expect(html).toContain("Your hosted stack is asleep");
+		expect(html).toContain(">Wake it<");
+		expect(html).toContain("wh-asleep-ghosts");
+		expect(html).not.toContain("wh-notice");
+	});
+});

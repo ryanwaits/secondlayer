@@ -603,8 +603,11 @@ const PAYLOAD_STORY_TRIGGERS: ChainTrigger[] = [
 	},
 ];
 
-/** An opened delivery row's payload viewer, from a real delivery with no network. `kept: false` is a delivery whose payload was cleaned up. */
-export function PayloadViewDemo({ kept }: { kept: boolean }) {
+/** An opened delivery row's payload viewer, from a real delivery with no network. `kept: false` is a delivery whose payload was cleaned up; `asleep` is a paused webhook whose hosted stack stopped. */
+export function PayloadViewDemo({
+	kept,
+	asleep = false,
+}: { kept: boolean; asleep?: boolean }) {
 	const response = JSON.stringify({
 		args: {},
 		data: PAYLOAD_STORY_SENT,
@@ -613,27 +616,31 @@ export function PayloadViewDemo({ kept }: { kept: boolean }) {
 	});
 	return (
 		<PayloadPanel
-			load={{
-				status: "ok",
-				detail: {
-					id: "d1",
-					attempt: 1,
-					statusCode: 200,
-					durationMs: 163,
-					dispatchedAt: "2026-10-16T17:39:14.000Z",
-					errorMessage: null,
-					responseBody: response,
-					responseHeaders: null,
-					outboxId: null,
-					outboxStatus: null,
-					eventType: "print_event",
-					txId: PAYLOAD_STORY_SENT.data.tx_id,
-					blockHeight: PAYLOAD_STORY_SENT.data.block_height,
-					blockTime: PAYLOAD_STORY_SENT.data.block_time,
-					eventIndex: 2,
-					payload: kept ? PAYLOAD_STORY_SENT : null,
-				},
-			}}
+			load={
+				asleep
+					? { status: "asleep" }
+					: {
+							status: "ok",
+							detail: {
+								id: "d1",
+								attempt: 1,
+								statusCode: 200,
+								durationMs: 163,
+								dispatchedAt: "2026-10-16T17:39:14.000Z",
+								errorMessage: null,
+								responseBody: response,
+								responseHeaders: null,
+								outboxId: null,
+								outboxStatus: null,
+								eventType: "print_event",
+								txId: PAYLOAD_STORY_SENT.data.tx_id,
+								blockHeight: PAYLOAD_STORY_SENT.data.block_height,
+								blockTime: PAYLOAD_STORY_SENT.data.block_time,
+								eventIndex: 2,
+								payload: kept ? PAYLOAD_STORY_SENT : null,
+							},
+						}
+			}
 			triggers={PAYLOAD_STORY_TRIGGERS}
 			responseBody={response}
 			statusCode={200}

@@ -3,6 +3,7 @@ import { AccountChip, AccountMenuPanel } from "@/components/account-menu";
 import { SubgraphsEmptyState } from "@/components/account/subgraphs/empty-state";
 import { SchemaView } from "@/components/account/subgraphs/schema-view";
 import { exampleDetail } from "@/components/account/subgraphs/subgraph.fixtures";
+import { AsleepState } from "@/components/account/webhooks/list-panel";
 import { ListensFor } from "@/components/account/webhooks/listens-for";
 import {
 	activityFor,
@@ -1453,11 +1454,26 @@ const META: Record<StoryId, Meta> = {
 				label: "Payload cleaned up",
 				render: () => <PayloadViewDemo kept={false} />,
 			},
+			{
+				id: "asleep",
+				label: "Stack asleep",
+				render: () => <PayloadViewDemo kept asleep />,
+			},
 		],
 		usage:
 			"<PayloadView webhookId={webhook.id} deliveryId={latest.id} triggers={webhook.triggers} responseBody={latest.responseBody} statusCode={latest.statusCode} host={hostOf(webhook.url)} />",
 		dos: ["Mount it only when the row is open; it fetches that one delivery."],
 		donts: ["Fold, summarize or syntax-highlight the JSON."],
+	},
+	"webhooks-asleep": {
+		src: ["apps/web/src/components/account/webhooks/list-panel.tsx"],
+		rule: "With every webhook paused the hosted stack stops, and the list lives on it. An empty state stands in: the list's rows as faded ghosts, one centered line, and Wake it.",
+		variants: [
+			{ id: "asleep", label: "Asleep", render: () => <AsleepState /> },
+		],
+		usage: "<AsleepState />",
+		dos: ["Say waking bills again; that's the tradeoff of the button."],
+		donts: ["Wake the stack from a read, or frame asleep as a failure."],
 	},
 	"webhook-listens-for": {
 		src: [
