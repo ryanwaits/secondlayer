@@ -53,7 +53,8 @@ export interface RenderedEmail {
 	text: string;
 }
 
-const LOGO_URL = "https://secondlayer.tools/email/logo.png";
+// www directly: the apex 307s there, and every image fetch would pay for it.
+const LOGO_URL = "https://www.secondlayer.tools/email/logo.png";
 const TAGLINE = "Instant data for apps on Bitcoin";
 
 const SANS =
