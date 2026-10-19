@@ -192,6 +192,8 @@ Two params on the events and contract-call feeds:
 | `contract_id` | Takes a comma-separated set (max 20): one cursor over a protocol's contracts |
 | `tx_context=true` | Puts `tx_sender`, `tx_type`, `tx_status`, `tx_contract_id` and `tx_function_name` on every event in one pass. For `print` events it is the only place the sender lives |
 
+Reads go oldest first. Add `order=desc` on events and ft/nft transfers to see what just happened: page one is the newest rows, and `next_cursor` pages older.
+
 Every list response carries the collection, an opaque [`next_cursor`](hover:next), the chain tip, and a `reorgs` array.
 
 `tip.block_height` is the height committed for the event type you just read, not a global number. Each decoded type runs its own decoder, so two reads can report different tips at once.
