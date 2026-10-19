@@ -85,15 +85,23 @@ function mapTxTypeId(typeId: number): string {
 	}
 }
 
-// Hiro tx status mapping
-function mapTxStatus(status: number): string {
+/**
+ * Hiro `DbTxStatus` → our tx status. Codes from stacks-blockchain-api
+ * src/datastore/common.ts: 1 success, -1 abort_by_response,
+ * -2 abort_by_post_condition. Anything else (0 pending, -3 problematic
+ * skipped, -10.. dropped) is not a mined result we can label, so throw
+ * rather than guess.
+ */
+export function mapTxStatus(status: number): string {
 	switch (status) {
 		case 1:
 			return "success";
-		case 0:
+		case -1:
 			return "abort_by_response";
-		default:
+		case -2:
 			return "abort_by_post_condition";
+		default:
+			throw new Error(`unmapped Hiro tx status ${status}`);
 	}
 }
 
