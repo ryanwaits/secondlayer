@@ -158,6 +158,20 @@ describe.skipIf(!HAS_DB)("canonical snapshot export", () => {
 		}
 	}
 
+	/** One block-level write (null tx_index) and one tx write per height,
+	 *  from `fromHeight` up — `fromHeight` 1 is full coverage, since the node
+	 *  never reports writes for the boot block. */
+	async function seedStateWrites(fromHeight: number, toHeight = 7) {
+		if (!db) throw new Error("missing db");
+		for (let height = fromHeight; height <= toHeight; height++) {
+			await sql`INSERT INTO state_writes (block_height, ordinal, tx_index, key, value_hex)
+				VALUES (${height}, 0, NULL, ${`vm-metadata::${height}`}, '0x00'),
+				       (${height}, 1, 0, ${`vm::SP1.c::1::k${height}`}, ${`0x0${height}`})`.execute(
+				db,
+			);
+		}
+	}
+
 	async function makeOutDir(): Promise<string> {
 		const dir = await mkdtemp(join(tmpdir(), "canonical-export-"));
 		outDirs.push(dir);
@@ -209,6 +223,140 @@ describe.skipIf(!HAS_DB)("canonical snapshot export", () => {
 			expect(file.size).toBe(partition.byte_size);
 		}
 		expect(manifestPath).toContain(snapshotDigest);
+	});
+
+	test("exports state_writes partitions when the instance has full coverage", async () => {
+		if (!db) throw new Error("missing db");
+		await seedStateWrites(1);
+		const outDir = await makeOutDir();
+		const { manifest } = await exportCanonicalSnapshot({
+			network: "testnet",
+			outDir,
+			toBlock: 9,
+			partitionSizeBlocks: 4,
+			db,
+			generatedAt: "2026-01-01T00:00:00.000Z",
+		});
+
+		expect(manifest.counts).toEqual({
+			blocks: 10,
+			transactions: 4,
+			events: 3,
+			state_writes: 14,
+		});
+		expect(manifest.audit.counts.state_writes).toBe(14);
+		const writes = manifest.partitions.filter(
+			(p) => p.dataset === "state_writes",
+		);
+		expect(writes.map((p) => [p.from_block, p.to_block, p.row_count])).toEqual([
+			[0, 3, 6],
+			[4, 7, 8],
+		]);
+		// Collected-but-empty heights are a zero-record range, like events.
+		expect(manifest.zero_record_ranges).toContainEqual({
+			dataset: "state_writes",
+			from_block: 8,
+			to_block: 9,
+		});
+		expect(
+			manifest.assurance_ranges.filter((r) => r.dataset === "state_writes"),
+		).toHaveLength(2);
+		expect(
+			manifest.partition_semantic_digests.filter(
+				(d) => d.dataset === "state_writes",
+			),
+		).toHaveLength(2);
+
+		const first = writes[0];
+		if (!first) throw new Error("missing state_writes partition");
+		const reader = await ParquetReader.openFile(join(outDir, first.path));
+		try {
+			const cursor = reader.getCursor();
+			const rows: Array<Record<string, unknown>> = [];
+			for (let row = await cursor.next(); row; row = await cursor.next()) {
+				rows.push(row as Record<string, unknown>);
+			}
+			expect(
+				rows.map((r) => [Number(r.block_height), Number(r.ordinal)]),
+			).toEqual([
+				[1, 0],
+				[1, 1],
+				[2, 0],
+				[2, 1],
+				[3, 0],
+				[3, 1],
+			]);
+			expect(rows[0]?.tx_index ?? null).toBeNull();
+			expect(Number(rows[1]?.tx_index)).toBe(0);
+			expect(rows[1]?.value_hex).toBe("0x01");
+		} finally {
+			await reader.close();
+		}
+	});
+
+	test("omits state_writes entirely when coverage does not start at block 1", async () => {
+		if (!db) throw new Error("missing db");
+		const generatedAt = "2026-01-01T00:00:00.000Z";
+		const before = await exportCanonicalSnapshot({
+			network: "testnet",
+			outDir: await makeOutDir(),
+			toBlock: 9,
+			partitionSizeBlocks: 4,
+			db,
+			generatedAt,
+		});
+
+		// Collection switched on mid-chain: heights 1–4 were never captured.
+		await seedStateWrites(5);
+		const { manifest, snapshotDigest } = await exportCanonicalSnapshot({
+			network: "testnet",
+			outDir: await makeOutDir(),
+			toBlock: 9,
+			partitionSizeBlocks: 4,
+			db,
+			generatedAt,
+		});
+
+		expect("state_writes" in manifest.counts).toBe(false);
+		expect("state_writes" in manifest.audit.counts).toBe(false);
+		const mentions = [
+			...manifest.partitions,
+			...manifest.zero_record_ranges,
+			...manifest.assurance_ranges,
+			...manifest.partition_semantic_digests,
+		].filter((entry) => entry.dataset === "state_writes");
+		expect(mentions).toEqual([]);
+		// Byte-identical to the export taken before any write was collected.
+		expect(snapshotDigest).toBe(before.snapshotDigest);
+	});
+
+	test("re-export is byte-identical with state_writes", async () => {
+		if (!db) throw new Error("missing db");
+		await seedStateWrites(1);
+		const generatedAt = "2026-01-01T00:00:00.000Z";
+		const [a, b] = [
+			await exportCanonicalSnapshot({
+				network: "testnet",
+				outDir: await makeOutDir(),
+				toBlock: 9,
+				partitionSizeBlocks: 4,
+				db,
+				generatedAt,
+			}),
+			await exportCanonicalSnapshot({
+				network: "testnet",
+				outDir: await makeOutDir(),
+				toBlock: 9,
+				partitionSizeBlocks: 4,
+				db,
+				generatedAt,
+			}),
+		];
+		expect(a.manifest.counts.state_writes).toBe(14);
+		expect(a.snapshotDigest).toBe(b.snapshotDigest);
+		expect(a.manifest.partitions.map((p) => p.sha256)).toEqual(
+			b.manifest.partitions.map((p) => p.sha256),
+		);
 	});
 
 	test("re-exporting the same snapshot reproduces identical bytes and digests", async () => {

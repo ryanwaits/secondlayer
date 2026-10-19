@@ -39,7 +39,9 @@ import { writeJsonFile } from "../streams-bulk/file.ts";
  *     NOT attest execution: `raw_result` / `status` are outcomes the node
  *     does not expose.
  *   - Not attested by this pass: `events` (the node does not expose events at
- *     all — they arrive only via the observer callback). Declared
+ *     all — they arrive only via the observer callback) and `state_writes`
+ *     (checked per block against the MARF state root by `@secondlayer/verify`,
+ *     not by this header replay). Declared
  *     `unattested-by-node` in the report so a consumer cannot mistake silence
  *     for approval.
  *
@@ -456,6 +458,11 @@ export async function runNodeReplayAudit(
 				dataset: "events",
 				reason:
 					"stacks-node does not expose events; they arrive only via the observer callback",
+			},
+			{
+				dataset: "state_writes",
+				reason:
+					"header replay cannot see state writes; @secondlayer/verify checks them per block against the MARF state root",
 			},
 		],
 		stats: {

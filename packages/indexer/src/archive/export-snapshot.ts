@@ -10,7 +10,6 @@ import {
 import { dirname, join } from "node:path";
 import { ParquetSchema, ParquetWriter } from "@dsnp/parquetjs";
 import {
-	ARCHIVE_DATASETS,
 	type ArchiveDataset,
 	assertNeverDataset,
 } from "@secondlayer/shared/archive/datasets";
@@ -42,15 +41,17 @@ import {
 	type CanonicalCoverageAudit,
 	type FinalizedBound,
 	auditCanonicalCoverageInSnapshot,
+	exportableDatasets,
 	resolveFinalizedBound,
 } from "./canonical-audit.ts";
 
 /**
  * v1 canonical archive exporter — the `db-reconstructive` staging slice.
  *
- * One repeatable-read snapshot produces everything: the audit verdict, three
- * Parquet datasets (blocks / transactions / events), and the immutable
- * snapshot manifest. The export REFUSES to run unless the audit inside that
+ * One repeatable-read snapshot produces everything: the audit verdict, the
+ * Parquet datasets (blocks / transactions / events, plus `state_writes` when
+ * the instance holds it from the start — see `exportableDatasets`), and the
+ * immutable snapshot manifest. The export REFUSES to run unless the audit inside that
  * same snapshot reports `continuity.complete` — a partial or broken chain can
  * never become an archive candidate.
  *
@@ -123,6 +124,14 @@ export function createCanonicalParquetSchema(
 				event_type: STRING_FIELD,
 				data_json: STRING_FIELD,
 			});
+		case "state_writes":
+			return new ParquetSchema({
+				block_height: INT64_FIELD,
+				ordinal: INT32_FIELD,
+				tx_index: { ...INT32_FIELD, optional: true },
+				key: STRING_FIELD,
+				value_hex: STRING_FIELD,
+			});
 		default:
 			return assertNeverDataset(dataset);
 	}
@@ -172,7 +181,13 @@ export type CanonicalSnapshotManifest = {
 	genesis: { height: number; hash: string };
 	archive_tip: { height: number; hash: string };
 	source_tip: { height: number; hash: string };
-	counts: { blocks: number; transactions: number; events: number };
+	/** `state_writes` is present only when the snapshot publishes it. */
+	counts: {
+		blocks: number;
+		transactions: number;
+		events: number;
+		state_writes?: number;
+	};
 	partition_size_blocks: number;
 	partitions: CanonicalPartition[];
 	zero_record_ranges: ZeroRecordRange[];
@@ -366,7 +381,15 @@ export async function exportCanonicalSnapshot(
 		const zeroRecordRanges: ZeroRecordRange[] = [];
 		const rangeDigests: RangeDigest[] = [];
 		const digestIndex: DigestIndexPartition[] = [];
-		const counts = { blocks: 0, transactions: 0, events: 0 };
+		// Decided inside the snapshot so the audit, the rows and the manifest
+		// agree on whether `state_writes` is published at all.
+		const datasets = await exportableDatasets(tx, fromBlock);
+		const counts: CanonicalSnapshotManifest["counts"] = {
+			blocks: 0,
+			transactions: 0,
+			events: 0,
+			...(datasets.includes("state_writes") ? { state_writes: 0 } : {}),
+		};
 
 		// A silent multi-hour job is indistinguishable from a hung one. Progress
 		// goes to stderr so the JSON summary on stdout stays pipeable.
@@ -398,7 +421,7 @@ export async function exportCanonicalSnapshot(
 					),
 			});
 			const perHeight = new PerHeightDigestAccumulator();
-			for (const dataset of ARCHIVE_DATASETS) {
+			for (const dataset of datasets) {
 				const written = await writeDatasetPartition({
 					tx,
 					dataset,
@@ -415,10 +438,10 @@ export async function exportCanonicalSnapshot(
 					});
 				} else {
 					partitions.push(written);
-					counts[dataset] += written.row_count;
+					counts[dataset] = (counts[dataset] ?? 0) + written.row_count;
 				}
 			}
-			// The digest sidecar is written AFTER the three datasets so its
+			// The digest sidecar is written AFTER the datasets so its
 			// row set is naturally consistent with the partition contents.
 			const sidecar = await writeDigestIndexPartition({
 				outDir: options.outDir,
@@ -458,7 +481,8 @@ export async function exportCanonicalSnapshot(
 			counts.blocks !== bound.toBlock - fromBlock + 1 ||
 			(audit.coverage.to_block === bound.toBlock &&
 				(counts.transactions !== audit.counts.transactions ||
-					counts.events !== audit.counts.events))
+					counts.events !== audit.counts.events ||
+					counts.state_writes !== audit.counts.state_writes))
 		) {
 			throw new Error(
 				`export/audit row-count mismatch: exported ${JSON.stringify(counts)}, ` +
@@ -498,7 +522,7 @@ export async function exportCanonicalSnapshot(
 				digest_spec: SEMANTIC_DIGEST_SPEC_V1,
 			})),
 			digest_index: digestIndex,
-			assurance_ranges: ARCHIVE_DATASETS.flatMap((dataset) =>
+			assurance_ranges: datasets.flatMap((dataset) =>
 				(["sha256:parquet-object", SEMANTIC_DIGEST_SPEC_V1] as const).map(
 					(digest_spec) => ({
 						dataset,
@@ -626,6 +650,10 @@ async function writeDatasetPartition(params: {
 					case "events":
 						perHeight.appendEventDigest(height, rowDigest);
 						break;
+					case "state_writes":
+						// The per-height sidecar has no state_writes rollup; its
+						// rows are covered by the partition digests only.
+						break;
 					default:
 						assertNeverDataset(dataset);
 				}
@@ -745,6 +773,8 @@ function streamDatasetRows(
 			return streamTransactionRows(tx, fromBlock, toBlock, batchRows);
 		case "events":
 			return streamEventRows(tx, fromBlock, toBlock, batchRows);
+		case "state_writes":
+			return streamStateWriteRows(tx, fromBlock, toBlock, batchRows);
 		default:
 			return assertNeverDataset(dataset);
 	}
@@ -932,6 +962,51 @@ async function* streamEventRows(
 				eventIndex: tail.event_index,
 				txId: tail.tx_id,
 			};
+		}
+	}
+}
+
+async function* streamStateWriteRows(
+	tx: Kysely<Database>,
+	fromBlock: number,
+	toBlock: number,
+	batchRows: number,
+): AsyncGenerator<StreamedRow> {
+	type StateWriteRow = {
+		block_height: string | number;
+		ordinal: number;
+		tx_index: number | null;
+		key: string;
+		value_hex: string;
+	};
+	let cursor: { height: number; ordinal: number } | null = null;
+	while (true) {
+		const result = await sql<StateWriteRow>`
+			SELECT w.block_height, w.ordinal, w.tx_index, w.key, w.value_hex
+			  FROM state_writes w
+			  JOIN blocks b ON b.height = w.block_height AND b.canonical = true
+			 WHERE w.block_height >= ${fromBlock} AND w.block_height <= ${toBlock}
+			   AND (${cursor === null} OR (w.block_height, w.ordinal) >
+			        (${cursor?.height ?? 0}, ${cursor?.ordinal ?? 0}))
+			 ORDER BY w.block_height, w.ordinal
+			 LIMIT ${batchRows}
+		`.execute(tx);
+		const rows: StateWriteRow[] = result.rows;
+		if (rows.length === 0) return;
+		for (const row of rows) {
+			const parquetRow = {
+				block_height: Number(row.block_height),
+				ordinal: row.ordinal,
+				tx_index: row.tx_index,
+				key: row.key,
+				value_hex: row.value_hex,
+			};
+			const rowDigest = semanticDigest.v1.stateWrite(parquetRow);
+			yield { parquetRow, rowDigest, height: parquetRow.block_height };
+		}
+		const tail = rows[rows.length - 1];
+		if (tail) {
+			cursor = { height: Number(tail.block_height), ordinal: tail.ordinal };
 		}
 	}
 }

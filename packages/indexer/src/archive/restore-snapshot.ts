@@ -4,7 +4,11 @@ import {
 	copyStatement,
 	writeRowsToCopyStream,
 } from "@secondlayer/shared/archive/copy-loader";
-import { ARCHIVE_DATASETS } from "@secondlayer/shared/archive/datasets";
+import {
+	ARCHIVE_DATASETS,
+	archiveHeightColumn,
+	manifestPublishes,
+} from "@secondlayer/shared/archive/datasets";
 import { closeDb, getRawClient, getSourceDb } from "@secondlayer/shared/db";
 import type { Database } from "@secondlayer/shared/db/schema";
 import type { Kysely } from "kysely";
@@ -40,7 +44,8 @@ import {
 export type RestoreRange = { fromBlock: number; toBlock: number };
 
 export type RestoreResult = {
-	restored: Record<CanonicalDataset, number>;
+	/** One key per dataset the manifest publishes. */
+	restored: Partial<Record<CanonicalDataset, number>>;
 	partitionsRead: number;
 	proof: {
 		auditComplete: boolean;
@@ -112,8 +117,8 @@ async function partitionRowCount(
 	dataset: CanonicalDataset,
 	partition: CanonicalPartition,
 ): Promise<number> {
-	const table = dataset === "blocks" ? "blocks" : dataset;
-	const column = dataset === "blocks" ? "height" : "block_height";
+	const table = dataset;
+	const column = archiveHeightColumn(dataset);
 	const row = await db
 		.selectFrom(table)
 		.select(({ fn }) => fn.countAll<string>().as("count"))
@@ -128,8 +133,8 @@ async function deletePartitionRows(
 	dataset: CanonicalDataset,
 	partition: CanonicalPartition,
 ): Promise<void> {
-	const table = dataset === "blocks" ? "blocks" : dataset;
-	const column = dataset === "blocks" ? "height" : "block_height";
+	const table = dataset;
+	const column = archiveHeightColumn(dataset);
 	await db
 		.deleteFrom(table)
 		.where(column, ">=", partition.from_block)
@@ -196,7 +201,10 @@ export async function restoreCanonicalSnapshot(params: {
 	}
 
 	// Verify every needed object BEFORE the first insert.
-	const selected = ARCHIVE_DATASETS.flatMap((dataset) =>
+	const datasets = ARCHIVE_DATASETS.filter((dataset) =>
+		manifestPublishes(manifest, dataset),
+	);
+	const selected = datasets.flatMap((dataset) =>
 		partitionsInRange(manifest, dataset, range),
 	);
 	for (const partition of selected) {
@@ -211,15 +219,14 @@ export async function restoreCanonicalSnapshot(params: {
 
 	// FK order is ARCHIVE_DATASETS order: every dataset after `blocks` points
 	// only at earlier ones.
-	const restored = Object.fromEntries(
-		ARCHIVE_DATASETS.map((dataset) => [dataset, 0]),
-	) as Record<CanonicalDataset, number>;
-	for (const dataset of ARCHIVE_DATASETS) {
+	const restored: Partial<Record<CanonicalDataset, number>> = {};
+	for (const dataset of datasets) {
+		restored[dataset] = 0;
 		for (const partition of partitionsInRange(manifest, dataset, range)) {
 			if (params.resume) {
 				const state = await partitionRowCount(db, dataset, partition);
 				if (state === partition.row_count) {
-					restored[dataset] += state;
+					restored[dataset] = (restored[dataset] ?? 0) + state;
 					continue;
 				}
 				if (state > 0) {
@@ -239,7 +246,7 @@ export async function restoreCanonicalSnapshot(params: {
 				path: join(dir, partition.path),
 				log,
 			});
-			restored[dataset] += count;
+			restored[dataset] = (restored[dataset] ?? 0) + count;
 		}
 		log(`restored ${restored[dataset]} ${dataset} rows`);
 	}

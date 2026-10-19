@@ -20,7 +20,8 @@ import type {
  */
 
 /** Every archive dataset a decoder reads — not `ARCHIVE_DATASETS`: a dataset
- *  joins this list only when a decoder actually consumes it. */
+ *  joins this list only when a decoder actually consumes it. No decoder reads
+ *  `state_writes`, so it is left out. */
 const CANONICAL_ALL = [
 	"blocks",
 	"transactions",

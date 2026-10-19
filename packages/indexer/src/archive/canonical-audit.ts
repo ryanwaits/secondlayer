@@ -2,7 +2,12 @@ import {
 	DEFAULT_BTC_CONFIRMATIONS,
 	finalizedBurnHeight,
 } from "@secondlayer/shared";
-import type { ArchiveDataset } from "@secondlayer/shared/archive/datasets";
+import {
+	ARCHIVE_DATASETS,
+	type ArchiveDataset,
+	archiveHeightColumn,
+	isOptionalDataset,
+} from "@secondlayer/shared/archive/datasets";
 import { closeDb, getSourceDb, sql } from "@secondlayer/shared/db";
 import { findShortBlocks } from "@secondlayer/shared/db/queries/integrity";
 import type { Database } from "@secondlayer/shared/db/schema";
@@ -25,6 +30,9 @@ export type CanonicalCoverageAudit = {
 		blocks: number;
 		transactions: number;
 		events: number;
+		/** Present only when the instance holds `state_writes` from the start
+		 *  of the audited range (see `exportableDatasets`). */
+		state_writes?: number;
 	};
 	continuity: CanonicalContinuity;
 	tx_event_height_desync: TxEventHeightDesync;
@@ -162,6 +170,49 @@ export type CanonicalCoverageAuditOptions = {
 type CountRow = { count: string | number };
 
 /**
+ * The datasets an export of `[fromBlock, …]` publishes. Core datasets always;
+ * an optional one (`state_writes`) only when the instance holds it from the
+ * start of the range, measured as its lowest stored height being at or below
+ * `max(fromBlock, 1)` — the node never reports writes for the boot block, so
+ * a genesis export is covered from block 1.
+ *
+ * A dataset that fails this is omitted entirely: no partitions, no
+ * zero-record ranges, no count. Publishing zero-row ranges for heights that
+ * were never collected would tell every consumer the chain wrote nothing
+ * there, which is false.
+ */
+export async function exportableDatasets(
+	db: Kysely<Database>,
+	fromBlock: number,
+): Promise<ArchiveDataset[]> {
+	const datasets: ArchiveDataset[] = [];
+	for (const dataset of ARCHIVE_DATASETS) {
+		if (
+			!isOptionalDataset(dataset) ||
+			(await holdsFromStart(db, dataset, fromBlock))
+		) {
+			datasets.push(dataset);
+		}
+	}
+	return datasets;
+}
+
+async function holdsFromStart(
+	db: Kysely<Database>,
+	dataset: ArchiveDataset,
+	fromBlock: number,
+): Promise<boolean> {
+	const { rows } = await sql<{ min: string | number | null }>`
+		SELECT min(${sql.ref(archiveHeightColumn(dataset))}) AS min
+		FROM ${sql.table(dataset)}
+	`.execute(db);
+	const min = rows[0]?.min;
+	return (
+		min !== null && min !== undefined && Number(min) <= Math.max(fromBlock, 1)
+	);
+}
+
+/**
  * Audit the canonical product database in one repeatable-read snapshot.
  *
  * This intentionally reports `db-reconstructive`: it proves the exported
@@ -219,6 +270,11 @@ export async function auditCanonicalCoverageInSnapshot(
 			"block_height",
 		);
 		const eventCount = await countCanonicalRows(tx, "events", "block_height");
+		const stateWritesCount = (
+			await exportableDatasets(tx, expectedFromBlock)
+		).includes("state_writes")
+			? await countCanonicalRows(tx, "state_writes", "block_height")
+			: undefined;
 		const gaps = await summarizeGaps(tx);
 		const brokenLinks = await summarizeBrokenLinks(tx);
 		const duplicateHeights = await summarizeDuplicateHeights(tx);
@@ -254,6 +310,9 @@ export async function auditCanonicalCoverageInSnapshot(
 				blocks: Number(coverageRow?.block_count ?? 0),
 				transactions: transactionCount,
 				events: eventCount,
+				...(stateWritesCount === undefined
+					? {}
+					: { state_writes: stateWritesCount }),
 			},
 			continuity,
 			tx_event_height_desync: {

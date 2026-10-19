@@ -160,6 +160,45 @@ describe.skipIf(!HAS_DB)("canonical snapshot restore proof", () => {
 		expect(result.proof.reExportedPartitions).toBe(result.partitionsRead);
 	});
 
+	test("restore round-trips state_writes", async () => {
+		if (!db) throw new Error("missing db");
+		for (let height = 1; height <= 9; height++) {
+			await sql`INSERT INTO state_writes (block_height, ordinal, tx_index, key, value_hex)
+				VALUES (${height}, 0, NULL, ${`vm-metadata::${height}`}, '0x00'),
+				       (${height}, 1, 0, ${`vm::SP1.c::1::"k,${height}"`}, ${`0x0${height}`})`.execute(
+				db,
+			);
+		}
+		const { dir, manifest } = await exportSeeded();
+		expect(manifest.counts.state_writes).toBe(18);
+
+		await wipe();
+		const result = await restoreCanonicalSnapshot({
+			dir,
+			manifest,
+			db,
+			range: { fromBlock: 0, toBlock: 9 },
+			proofDir: await makeDir("proof"),
+		});
+		expect(result.restored).toEqual({
+			blocks: 10,
+			transactions: 2,
+			events: 2,
+			state_writes: 18,
+		});
+		expect(result.proof.digestMismatches).toEqual([]);
+		expect(result.proof.digestMatches).toBe(result.partitionsRead);
+
+		const { rows } = await sql<{ tx_index: number | null; key: string }>`
+			SELECT tx_index, key FROM state_writes
+			WHERE block_height = 3 ORDER BY ordinal
+		`.execute(db);
+		expect(rows).toEqual([
+			{ tx_index: null, key: "vm-metadata::3" },
+			{ tx_index: 0, key: 'vm::SP1.c::1::"k,3"' },
+		]);
+	});
+
 	test("COPY encoding survives commas, quotes, and nulls intact", async () => {
 		if (!db) throw new Error("missing db");
 		// Stress the CSV encoder directly, not just via the digest proof: a
