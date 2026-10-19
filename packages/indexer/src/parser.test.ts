@@ -2,11 +2,13 @@ import { describe, expect, test } from "bun:test";
 import {
 	VM_NODE_TO_STORED_TYPE,
 	parseBlock,
+	parseEvent,
 	parseTransaction,
 	parseVmEvent,
 } from "./parser";
 import type {
 	NewBlockPayload,
+	TransactionEvent,
 	TransactionPayload,
 	VmTraceEvent,
 } from "./types/node-events";
@@ -322,5 +324,55 @@ describe("parseVmEvent", () => {
 			7,
 		);
 		expect(parsed?.ordinal).toBe(7);
+	});
+
+	test("drops a trace from a rolled-back tx (committed: false)", () => {
+		const parsed = parseVmEvent(
+			{
+				txid: TX,
+				committed: false,
+				type: "map_set_event",
+				map_set_event: {
+					contract_identifier: "ST.store",
+					map_name: "store",
+					raw_key: "0x0a",
+					raw_value: "0x0b",
+				},
+			},
+			100,
+			0,
+		);
+		expect(parsed).toBeNull();
+	});
+});
+
+describe("parseEvent", () => {
+	// Mainnet block 862: tx 0x7ea12868… aborted by post-condition; the node
+	// still reported its STX burn, flagged committed: false.
+	const rolledBack: TransactionEvent = {
+		txid: "0x7ea12868f16c217d43c9d934a45b72e74461a660449e3c30e7254675768932f1",
+		event_index: 4,
+		committed: false,
+		type: "stx_burn_event",
+		stx_burn_event: {
+			amount: "2000000",
+			sender: "SP1YMQJR0T1P52RT1VVPZZYZEQXQ5HBE6VWR36HFE",
+		},
+	};
+
+	test("drops an event from a rolled-back tx (committed: false)", () => {
+		expect(parseEvent(rolledBack, 862)).toBeNull();
+	});
+
+	test("keeps committed events and events with no committed flag", () => {
+		expect(parseEvent({ ...rolledBack, committed: true }, 862)).toEqual({
+			tx_id: rolledBack.txid,
+			block_height: 862,
+			event_index: 4,
+			type: "stx_burn_event",
+			data: rolledBack.stx_burn_event,
+		});
+		const { committed: _, ...unflagged } = rolledBack;
+		expect(parseEvent(unflagged, 862)?.event_index).toBe(4);
 	});
 });

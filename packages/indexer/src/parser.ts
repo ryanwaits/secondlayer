@@ -210,6 +210,12 @@ export function parseEvent(
 		return null;
 	}
 
+	// Rolled back with its tx (post-condition or response abort). Older nodes
+	// report these; current nodes omit them. Absent flag = committed.
+	if (txEvent.committed === false) {
+		return null;
+	}
+
 	// Extract the actual event data based on type (property name matches type string)
 	const eventData =
 		(txEvent as unknown as Record<string, unknown>)[type] ?? txEvent;
@@ -230,6 +236,9 @@ export function parseVmEvent(
 ): InsertVmEvent | null {
 	const { txid, type } = vmEvent;
 	if (!txid || !type) return null;
+	// Writes and inner calls of a rolled-back tx never happened: an aborted
+	// tx has no vm_events rows, same rule as classic events.
+	if (vmEvent.committed === false) return null;
 	if (!Number.isInteger(arrayIndex) || arrayIndex < 0) {
 		return null;
 	}
