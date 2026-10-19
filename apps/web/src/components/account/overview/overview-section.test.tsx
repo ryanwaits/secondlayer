@@ -211,20 +211,20 @@ describe("OverviewBody for a new account", () => {
 		expect(out).not.toContain("Checking your account.");
 	});
 
-	test("a key that has not read yet checks step one and shows the read command", () => {
+	test("a key that has not read yet checks step one and points at step two", () => {
 		const out = html(guide({ key: true }, "laptop"));
-		expect(out).toContain("Your key works. Read something with it.");
+		expect(out).toContain("Your key works. Read your first rows.");
 		expect(out).toContain(
 			"laptop is ready. It&#x27;s in Keys whenever you need another.",
 		);
-		expect(out).toContain("sl index ft-transfers --limit 5");
+		expect(out).toContain("Read your first rows");
 		expect(out).not.toContain("These fill in as you go.");
 	});
 
-	test("step three links its words to the webhook and subgraph tabs", () => {
-		const out = html(guide({}));
-		expect(out).toContain('href="/account/webhooks"');
-		expect(out).toContain('href="/account/subgraphs"');
+	test("the checklist has two steps: no webhook or subgraph step", () => {
+		const out = html(guide({ key: true }));
+		expect(out).not.toContain("Get events pushed to you");
+		expect(out).not.toContain('href="/account/webhooks"');
 	});
 
 	test("a completed checklist gives way to the normal Overview", () => {
@@ -534,18 +534,22 @@ describe("OverviewBody table and strip", () => {
 
 describe("checklistApplies", () => {
 	test("an account that never made a key gets the checklist", () => {
-		expect(checklistApplies("first", false)).toBe(true);
+		expect(checklistApplies("first", false, false)).toBe(true);
 	});
 
-	test("an account with a key, even one that has not read yet, gets the normal Overview", () => {
-		expect(checklistApplies("active", false)).toBe(false);
+	test("an account with a key that has not read yet gets the checklist", () => {
+		expect(checklistApplies("active", false, false)).toBe(true);
+	});
+
+	test("the first read, a webhook or subgraph, or Skip ends it for good", () => {
+		expect(checklistApplies("active", false, true)).toBe(false);
 	});
 
 	test("an account whose keys are all revoked gets the normal Overview", () => {
-		expect(checklistApplies("none_active", false)).toBe(false);
+		expect(checklistApplies("none_active", false, false)).toBe(false);
 	});
 
 	test("the first key's flow stays up until its Done", () => {
-		expect(checklistApplies("active", true)).toBe(true);
+		expect(checklistApplies("active", true, true)).toBe(true);
 	});
 });

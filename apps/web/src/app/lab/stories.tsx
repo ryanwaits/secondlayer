@@ -1,5 +1,9 @@
 import { RELAYER_READ, TWIN_MINT } from "@/app/robinhood/samples";
 import { AccountChip, AccountMenuPanel } from "@/components/account-menu";
+import {
+	FirstRowsCode,
+	FirstRowsPrompt,
+} from "@/components/account/overview/first-rows-code";
 import { SubgraphsEmptyState } from "@/components/account/subgraphs/empty-state";
 import { SchemaView } from "@/components/account/subgraphs/schema-view";
 import { exampleDetail } from "@/components/account/subgraphs/subgraph.fixtures";
@@ -2439,7 +2443,7 @@ const META: Record<StoryId, Meta> = {
 			"apps/web/src/components/account/overview/overview-section.tsx",
 			"apps/web/src/components/account/rows/rows-panel.tsx",
 		],
-		rule: "A new account has one job: make a key. Every empty screen points at it, then a three-step list walks to the first read and the first push.",
+		rule: "A new account has one job: make a key. Every empty screen points at it, then a two-step list walks to the first read. The first read, a webhook or subgraph, or Skip ends it.",
 		stack: true,
 		variants: [
 			{
@@ -2450,12 +2454,13 @@ const META: Record<StoryId, Meta> = {
 			{
 				id: "overview-key-made",
 				label: "Overview, key made",
-				render: () => <OverviewOnboardingDemo stage="key-made" />,
-			},
-			{
-				id: "overview-reading",
-				label: "Overview, first read done",
-				render: () => <OverviewOnboardingDemo stage="reading" />,
+				render: () => (
+					<OverviewOnboardingDemo
+						stage="key-made"
+						firstRowsCode={<FirstRowsCode />}
+						firstRowsPrompt={<FirstRowsPrompt />}
+					/>
+				),
 			},
 			{
 				id: "key-first",

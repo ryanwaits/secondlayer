@@ -21,6 +21,7 @@ import {
 } from "@/components/account/keys/key.fixtures";
 import { KeysBody } from "@/components/account/keys/keys-screen";
 import { NameStep, RevealStep } from "@/components/account/keys/new-key-flow";
+import { FirstRowsGuide } from "@/components/account/overview/first-rows-guide";
 import {
 	OnboardingSentence,
 	OverviewBody,
@@ -830,14 +831,31 @@ export function RowsEmptyDemo({ firstRun }: { firstRun: boolean }) {
 /** The Overview's new-account checklist at each stage. */
 export function OverviewOnboardingDemo({
 	stage,
-}: { stage: "no-key" | "key-made" | "reading" }) {
+	firstRowsCode,
+	firstRowsPrompt,
+}: {
+	stage: "no-key" | "key-made";
+	firstRowsCode?: ReactNode;
+	firstRowsPrompt?: ReactNode;
+}) {
 	const progress = {
 		key: stage !== "no-key",
-		read: stage === "reading",
+		read: false,
 		push: false,
 		complete: false,
 	};
-	const model = { progress, keyName: "laptop", flow: null };
+	const model = {
+		progress,
+		keyName: "laptop",
+		flow: null,
+		firstRows: firstRowsCode ? (
+			<FirstRowsGuide
+				code={firstRowsCode}
+				prompt={firstRowsPrompt}
+				onSkip={() => {}}
+			/>
+		) : undefined,
+	};
 	return (
 		<>
 			<OnboardingSentence progress={progress} />

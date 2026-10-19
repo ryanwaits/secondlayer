@@ -8588,9 +8588,9 @@ button.sg-sort:focus-visible {
 	color: var(--ink);
 }
 .ob-step.done .ob-num {
-	border-color: var(--ink);
-	background: var(--ink);
-	color: var(--paper);
+	border-color: var(--pri);
+	background: var(--pri);
+	color: var(--on-pri);
 }
 .ob-step-main {
 	display: grid;
@@ -8621,6 +8621,71 @@ button.sg-sort:focus-visible {
 }
 .ob-step-main .wh-cli {
 	margin-top: 6px;
+}
+/* Step 2's first-rows guide: a prompt row, one read three ways, a foot. */
+.fr {
+	display: grid;
+	gap: 12px;
+	margin-top: 8px;
+	min-width: 0;
+}
+.fr .cb {
+	margin: 0;
+}
+.fr-prompt {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: space-between;
+	gap: 8px 16px;
+	padding: 10px 12px 10px 14px;
+	border: 1px solid var(--line);
+	border-radius: 8px;
+	background: var(--soft);
+}
+.fr-prompt p,
+.fr-label {
+	margin: 0;
+	font-size: 13px;
+	color: var(--ink);
+}
+.fr-prompt p span,
+.fr-label span {
+	color: var(--sub);
+}
+.fr-acts {
+	display: flex;
+	gap: 8px;
+}
+.fr-foot {
+	display: flex;
+	flex-wrap: wrap;
+	justify-content: space-between;
+	gap: 8px 16px;
+	font-size: 13px;
+	color: var(--sub);
+}
+.fr-links {
+	display: flex;
+	gap: 16px;
+}
+.fr-links a {
+	color: var(--pri);
+	text-decoration: none;
+}
+.fr-links a:hover {
+	text-decoration: underline;
+}
+.fr-skip {
+	padding: 0;
+	border: 0;
+	background: none;
+	color: var(--sub);
+	font: inherit;
+	cursor: pointer;
+}
+.fr-skip:hover {
+	color: var(--ink);
 }
 .ob-sr {
 	position: absolute;

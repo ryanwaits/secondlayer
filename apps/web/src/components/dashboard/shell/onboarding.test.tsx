@@ -85,7 +85,7 @@ describe("onboarding progress", () => {
 		expect(hasNoKey([key({})], NOW)).toBe(false);
 	});
 
-	test("a key, its first read and a webhook or subgraph complete it", () => {
+	test("a key and then a first read, or a webhook or subgraph, complete it", () => {
 		expect(onboardingProgress([], NOW, false)).toMatchObject({ key: false });
 		expect(onboardingProgress([key({})], NOW, false)).toMatchObject({
 			key: true,
@@ -93,7 +93,7 @@ describe("onboarding progress", () => {
 			complete: false,
 		});
 		const read = [key({ lastUsedAt: "2026-10-15T11:00:00.000Z" })];
-		expect(onboardingProgress(read, NOW, false).complete).toBe(false);
-		expect(onboardingProgress(read, NOW, true).complete).toBe(true);
+		expect(onboardingProgress(read, NOW, false).complete).toBe(true);
+		expect(onboardingProgress([key({})], NOW, true).complete).toBe(true);
 	});
 });

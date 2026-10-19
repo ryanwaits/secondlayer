@@ -1,10 +1,14 @@
-"use client";
-
-import { OverviewSection } from "@/components/account/overview/overview-section";
-import { PulseScreen } from "@/components/mobile/pulse/pulse-screen";
-import { useCompact } from "@/components/mobile/use-compact";
+import { AccountOverview } from "@/components/account/overview/account-overview";
+import {
+	FirstRowsCode,
+	FirstRowsPrompt,
+} from "@/components/account/overview/first-rows-code";
 
 export default function AccountOverviewPage() {
-	const compact = useCompact();
-	return compact ? <PulseScreen /> : <OverviewSection />;
+	return (
+		<AccountOverview
+			firstRowsCode={<FirstRowsCode />}
+			firstRowsPrompt={<FirstRowsPrompt />}
+		/>
+	);
 }

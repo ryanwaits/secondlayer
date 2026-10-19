@@ -31,14 +31,16 @@ import {
 	useAccountData,
 } from "@/lib/account-data";
 import { daysLeft, daysLeftLabel } from "@/lib/account-health";
+import { useAuth } from "@/lib/auth";
 import type { Insight } from "@/lib/insights";
 import { forAccountRules, useInsights } from "@/lib/insights-store";
 import {
 	type KeyState,
 	type OnboardingProgress,
-	READ_COMMAND,
 	keyState,
 	onboardingProgress,
+	onboardingSkipped,
+	skipOnboarding,
 } from "@/lib/onboarding";
 import type { RowsResponse } from "@/lib/rows";
 import { useSubgraphsCache } from "@/lib/subgraphs-store";
@@ -68,9 +70,10 @@ import {
 	type WebhookRowModel,
 	useWebhookRows,
 } from "../webhooks/rows";
-import { CliLine, shortenName } from "../webhooks/shared";
+import { shortenName } from "../webhooks/shared";
 import { ageShort, last24 } from "../webhooks/view";
 import { WaitingGroups } from "../webhooks/waiting";
+import { FirstRowsGuide } from "./first-rows-guide";
 import { cellInsights, stoppedForCredits } from "./overview-view";
 import { PlumbingStrip, PlumbingStripSkeleton } from "./plumbing-strip";
 
@@ -249,10 +252,16 @@ export interface OverviewOnboarding {
 	keyName: string | null;
 	/** The name-a-key flow, while it is open. */
 	flow: ReactNode;
+	/** Step 2's guide: a prompt, then one read three ways. */
+	firstRows?: ReactNode;
 }
 
-export function onboardingSteps({ progress, keyName }: OverviewOnboarding) {
-	const current = !progress.key ? 0 : !progress.read ? 1 : 2;
+export function onboardingSteps({
+	progress,
+	keyName,
+	firstRows,
+}: OverviewOnboarding) {
+	const current = !progress.key ? 0 : 1;
 	const steps: ChecklistStep[] = [
 		{
 			title: "Make a key",
@@ -264,22 +273,10 @@ export function onboardingSteps({ progress, keyName }: OverviewOnboarding) {
 		},
 		{
 			title: "Read your first rows",
-			body: "Five sBTC and token transfers, straight from the chain. Rows are free up to 1M a month.",
+			body: "Straight from the chain, decoded.",
 			done: progress.read,
 			current: current === 1,
-			extra: <CliLine command={READ_COMMAND} />,
-		},
-		{
-			title: "Get events pushed to you",
-			body: (
-				<>
-					A <Link href="/account/webhooks">webhook</Link> posts them to your
-					server. A <Link href="/account/subgraphs">subgraph</Link> turns them
-					into your own tables.
-				</>
-			),
-			done: progress.push,
-			current: current === 2,
+			extra: firstRows,
 		},
 	];
 	return steps;
@@ -299,22 +296,12 @@ export function OnboardingSentence({
 			</StatusSentence>
 		);
 	}
-	if (!progress.read) {
-		return (
-			<StatusSentence
-				tone="ok"
-				sub="Your first read shows up under Rows within a minute."
-			>
-				Your key works. Read something with it.
-			</StatusSentence>
-		);
-	}
 	return (
 		<StatusSentence
 			tone="ok"
-			sub="A webhook posts them to your server. A subgraph turns them into your own tables."
+			sub="One call, three ways to make it. Or hand it to a coding assistant."
 		>
-			Your key is reading. Get events pushed to you next.
+			Your key works. Read your first rows.
 		</StatusSentence>
 	);
 }
@@ -526,12 +513,17 @@ export function OverviewBody({
 }
 
 /**
- * The checklist is for an account that has never made a key. Once one exists
- * (made just now, or long ago and maybe revoked since), the Overview shows its
- * normal screens; the name-a-key flow stays up until its Done.
+ * The checklist is for an account that has not started: no key yet, or a key
+ * that has not read. The first read, the first webhook or subgraph, or Skip
+ * ends it for good. An account whose keys are all revoked gets the normal
+ * screens; the name-a-key flow stays up until its Done.
  */
-export function checklistApplies(state: KeyState, flowOpen: boolean): boolean {
-	return state === "first" || flowOpen;
+export function checklistApplies(
+	state: KeyState,
+	flowOpen: boolean,
+	underway: boolean,
+): boolean {
+	return state === "first" || flowOpen || (state === "active" && !underway);
 }
 
 /**
@@ -544,22 +536,36 @@ function useOnboarding({
 	now,
 	pushed,
 	settled,
+	accountId,
+	firstRowsCode,
+	firstRowsPrompt,
 }: {
 	keys: ApiKey[] | null;
 	now: Date;
 	pushed: boolean;
 	settled: boolean;
+	accountId: string | null;
+	firstRowsCode?: ReactNode;
+	firstRowsPrompt?: ReactNode;
 }): OverviewOnboarding | null {
 	const progress = onboardingProgress(keys, now, pushed);
 	const state = keyState(keys, now);
 	const [flowOpen, setFlowOpen] = useState(false);
 	const [made, setMade] = useState<string | null>(null);
+	const [skipped, setSkipped] = useState(false);
+	useEffect(() => {
+		if (accountId) setSkipped(onboardingSkipped(accountId));
+	}, [accountId]);
 	// The flow opens the first time we see an account that never had a key, and
 	// stays open when that changes under it.
 	if (state === "first" && !flowOpen && made === null) {
 		setFlowOpen(true);
 	}
-	if (keys === null || !checklistApplies(state, flowOpen)) return null;
+	if (
+		keys === null ||
+		!checklistApplies(state, flowOpen, progress.complete || skipped)
+	)
+		return null;
 	if (!settled && progress.key) return null;
 
 	const newest = countedKeys(keys, now).at(-1);
@@ -573,11 +579,27 @@ function useOnboarding({
 				onClose={() => setFlowOpen(false)}
 			/>
 		) : null,
+		firstRows:
+			firstRowsCode && accountId ? (
+				<FirstRowsGuide
+					code={firstRowsCode}
+					prompt={firstRowsPrompt}
+					onSkip={() => {
+						skipOnboarding(accountId);
+						setSkipped(true);
+					}}
+				/>
+			) : undefined,
 	};
 }
 
-/** /account: is everything running, what needs you, what it costs. */
-export function OverviewSection() {
+/** /account: is everything running, what needs you, what it costs. The
+ *  first-rows blocks are server-rendered by the page and passed in. */
+export function OverviewSection({
+	firstRowsCode,
+	firstRowsPrompt,
+}: { firstRowsCode?: ReactNode; firstRowsPrompt?: ReactNode } = {}) {
+	const { account } = useAuth();
 	const { billing, burn, keys, service, rows: rowsData } = useAccountData();
 	const { rows } = useWebhookRows();
 	const { data: insights, status: insightsStatus } = useInsights();
@@ -634,6 +656,9 @@ export function OverviewSection() {
 		// Don't flash the checklist at an account whose webhooks and subgraphs
 		// have not loaded yet. An asleep stack never returns its webhook list.
 		settled: (rows !== null || asleep) && subgraphs !== undefined,
+		accountId: account?.id ?? null,
+		firstRowsCode,
+		firstRowsPrompt,
 	});
 
 	const ready = useFirstSettle(
