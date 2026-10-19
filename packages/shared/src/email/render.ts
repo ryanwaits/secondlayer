@@ -64,28 +64,28 @@ const MONO =
 
 // DESIGN.md roles. Light inline; dark via the head <style> classes below.
 const LIGHT = {
-	paper: "#ffffff",
-	ink: "#111111",
-	sub: "#5e5e5e",
-	faint: "#9b9b96",
-	line: "#e5e5e2",
+	paper: "#fbfaf7",
+	ink: "#14110d",
+	sub: "#63605c",
+	faint: "#9d9b97",
+	line: "#e8e6e3",
 	pri: "#1f45e0",
-	onPri: "#ffffff",
+	onPri: "#fbfaf7",
 	ok: "#128a43",
 	alarm: "#e3301e",
 };
 
 const DARK_STYLE = `
 @media (prefers-color-scheme: dark) {
-  .sl-paper { background: #1c1b19 !important; }
-  .sl-ink { color: #ece9e2 !important; }
-  .sl-sub { color: #b0aca2 !important; }
-  .sl-faint { color: #7c786f !important; }
-  .sl-line { border-color: #383631 !important; }
+  .sl-paper { background: #1e1b17 !important; }
+  .sl-ink { color: #e8e6e3 !important; }
+  .sl-sub { color: #b3b1ad !important; }
+  .sl-faint { color: #7c7a76 !important; }
+  .sl-line { border-color: #393632 !important; }
   .sl-pri { background: #3a5bff !important; }
   .sl-ok { color: #5cc28f !important; }
   .sl-alarm { color: #ff5a47 !important; }
-  .sl-dot-neutral { background: #7c786f !important; }
+  .sl-dot-neutral { background: #7c7a76 !important; }
   .sl-dot-ok { background: #5cc28f !important; }
   .sl-dot-alarm { background: #ff5a47 !important; }
 }`.trim();
