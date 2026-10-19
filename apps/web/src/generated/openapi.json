@@ -4801,7 +4801,7 @@
 							"string",
 							"null"
 						],
-						"description": "New aggregate signer key, on `key-rotation`."
+						"description": "The registry's aggregate-key field, on `key-rotation` (33 bytes, hex). In v1 it is the signers' aggregate public key. Once DKG is disabled (no height set yet) it is the marker `0xFF || bitcoin block hash`, not a key, so do not derive addresses from it."
 					},
 					"signer_threshold": {
 						"type": [
