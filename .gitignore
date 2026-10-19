@@ -75,7 +75,8 @@ plans/
 !/.claude/skills/**
 
 .scaffold-test-*
-packages/subgraphs/test/fixtures/
+packages/subgraphs/test/fixtures/*
+!packages/subgraphs/test/fixtures/replay-*/
 
 # Cadence (local tooling artifacts)
 .cadence/

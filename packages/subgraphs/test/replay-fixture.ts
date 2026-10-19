@@ -1,188 +1,186 @@
 /**
- * SYNTHETIC stand-in for the recorded mainnet replay window.
+ * The recorded mainnet replay window: Stacks 1,230,195..1,230,205.
  *
- * The plan records Stacks 1,230,195..1,230,205 (amm-vault-v2-01 `reserve`,
- * including `reserve[token-wkiki]` at ordinal 19 of 1,230,200): proofs from
- * `/v1/proofs/*` and one single-block `state_writes` SELECT per height from
- * the feeder. On 2026-10-09 the re-syncing feeder had no `state_writes` at
- * 1,230,195 yet, so this module builds a window of the same shape instead:
- * same heights, contract, map and ordinal-19 write, with
+ * Recorded 2026-10-19 by `capture-replay-fixtures.ts` into
+ * `fixtures/replay-1230195/`:
  *
- *   - transactions: mainnet block 8,199,502's first transaction with its
- *     nonce rewritten per (height, index), so every txid is distinct and
- *     every tx still decodes (signatures are not checked here);
- *   - writes: reserve updates plus noise a state feed must drop (account
- *     keys, another contract's map, a block-level var write).
+ *   - blocks/<id>.bin, witnesses/<id>.bin, marf/<path>@<tip>.bin (proof
+ *     bytes) + marf.json (values), epoch2.json, burn.json:
+ *     every answer `BlockVerifier` read from `api.secondlayer.tools/v1/proofs/*`
+ *     to verify the window from `MAINNET_CHECKPOINT` (the window's blocks, the
+ *     parent of 1,230,195, the one MARF ancestry jump, the headers its proofs
+ *     cross, the tenure's burn preimage);
+ *   - writes/<height>.json: each block's `state_writes` rows, from one
+ *     single-block query per height on a node that stores them.
  *
- * The block proofs are not real either: tests verify through a fake verifier
- * whose names check holds the window's true diff. TODO(after feeder v2 passes
- * 1,230,205, ~Oct 17-19): record the real window and swap this module for a
- * loader of those files; replay-e2e.test.ts keeps its assertions.
+ * The window holds one `amm-vault-v2-01` `reserve` write: `reserve[token-wkiki]`
+ * at ordinal 5 of 1,230,200 (the plan 110 regression). Everything else is
+ * noise a state feed must drop (account nonces and balances, other
+ * contracts' maps, `_stx-data::ustx_liquid_supply`).
  */
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
-import { contractPrincipalCV, serializeCV } from "@secondlayer/stacks/clarity";
-import { splitTransactions } from "@secondlayer/stacks/transactions";
-import { txidFromBytes } from "@secondlayer/stacks/utils";
+import { deserializeCV } from "@secondlayer/stacks/clarity";
 import {
-	type BlockVerification,
+	type BlockTransaction,
+	type BurnPreimage,
+	type Bytes,
+	type Epoch2HeaderResponse,
+	type MarfProofResponse,
+	type NakamotoHeader,
+	type ProofSource,
 	type StateWrite,
+	blockId,
+	blockTransactions,
+	hex,
 	parseNakamotoHeader,
+	signerSignatureHash,
 	unhex,
 } from "@secondlayer/verify";
 
+export const DIR = join(import.meta.dir, "fixtures", "replay-1230195");
+
 export const FROM = 1_230_195;
 export const TO = 1_230_205;
-export const WKIKI_HEIGHT = 1_230_200;
-export const WKIKI_ORDINAL = 19;
+export const POOL = "SP102V8P0F7JX67ARQ77WEA3D3CFB5XW39REDT0AM.amm-vault-v2-01";
+export const WKIKI = "SP102V8P0F7JX67ARQ77WEA3D3CFB5XW39REDT0AM.token-wkiki";
 
-const DEPLOYER = "SP102V8P0F7JX67ARQ77WEA3D3CFB5XW39REDT0AM";
-export const POOL = `${DEPLOYER}.amm-vault-v2-01`;
-const OTHER = `${DEPLOYER}.amm-pool-v2-01`;
-const TOKENS = ["token-alex", "token-wstx", "token-wkiki", "token-abtc"];
+const readJson = <T>(file: string): T =>
+	JSON.parse(readFileSync(join(DIR, file), "utf8")) as T;
 
-/** The `reserve` map key for a token, as the node serializes it. */
-export const tokenKey = (name: string): string =>
-	serializeCV(contractPrincipalCV(DEPLOYER, name));
-const uint = (n: bigint) => `01${n.toString(16).padStart(32, "0")}`;
-const stored = (s: string) => Buffer.from(s, "utf8").toString("hex");
+const binaries = (sub: string) =>
+	new Map(
+		readdirSync(join(DIR, sub)).map((f): [string, Bytes] => [
+			f.replace(/\.bin$/, ""),
+			new Uint8Array(readFileSync(join(DIR, sub, f))),
+		]),
+	);
 
+/** A ProofSource over the recording; anything not recorded is a thrown miss. */
+export class FakeProofSource implements ProofSource {
+	readonly blocks = binaries("blocks");
+	readonly witnesses = binaries("witnesses");
+	/** Recorded MARF answers by `<path>@<tip>`: the value, null when absent. */
+	readonly marf = readJson<Record<string, string | null>>("marf.json");
+	readonly marfProofs = binaries("marf");
+	readonly epoch2 =
+		readJson<Record<string, { header: string; consensus_hash: string }>>(
+			"epoch2.json",
+		);
+	readonly burn =
+		readJson<Record<string, { preimage: string; burn_height: number }>>(
+			"burn.json",
+		);
+	readonly writes = new Map<number, StateWrite[]>(
+		readdirSync(join(DIR, "writes")).map((f): [number, StateWrite[]] => [
+			Number(f.replace(/\.json$/, "")),
+			readJson<StateWrite[]>(join("writes", f)),
+		]),
+	);
+
+	getBlock = async (ref: string | number): Promise<Bytes> => {
+		const raw = typeof ref === "string" && this.blocks.get(ref);
+		if (!raw) throw new Error(`no recorded block ${ref}`);
+		return raw;
+	};
+
+	getEpoch2Header = async (id: string): Promise<Epoch2HeaderResponse> => {
+		const h = this.epoch2[id];
+		if (!h) throw new Error(`no recorded epoch 2.x header ${id}`);
+		return { header: unhex(h.header), consensusHash: unhex(h.consensus_hash) };
+	};
+
+	getMarfProof = async (
+		path: string,
+		tip: string,
+	): Promise<MarfProofResponse | null> => {
+		const key = `${path}@${tip}`;
+		if (!(key in this.marf)) throw new Error(`no recorded MARF proof ${key}`);
+		const data = this.marf[key];
+		const proof = this.marfProofs.get(key);
+		if (data == null || !proof) return null;
+		return { data, proof };
+	};
+
+	getWitness = async (id: string): Promise<Bytes> => {
+		const w = this.witnesses.get(id);
+		if (!w) throw new Error(`no recorded witness ${id}`);
+		return w;
+	};
+
+	getBurnPreimage = async (ch: string): Promise<BurnPreimage> => {
+		const b = this.burn[ch];
+		if (!b) throw new Error(`no recorded burn preimage ${ch}`);
+		return { preimage: unhex(b.preimage), burnHeight: b.burn_height };
+	};
+
+	getBitcoinHeaders = async (from: number): Promise<string[]> => {
+		throw new Error(`no recorded Bitcoin headers at ${from}`);
+	};
+
+	getStateWrites = async (height: number): Promise<StateWrite[] | null> =>
+		this.writes.get(height) ?? null;
+}
+
+/** One block of the window, as the indexer would store it. */
 export interface FixtureBlock {
 	height: number;
 	blockId: string;
 	blockHash: string;
+	parentHash: string;
 	timestamp: number;
+	/** The source's burn height claim (below the Bitcoin checkpoint). */
 	burnHeight: number;
-	txs: { txid: string; raw: Uint8Array }[];
+	txs: BlockTransaction[];
 	writes: StateWrite[];
 }
 
-const BASE_TX = (() => {
-	const raw = unhex(
-		readFileSync(
-			join(import.meta.dir, "../../verify/test/fixtures/blocks/8199502.hex"),
-			"utf8",
-		).trim(),
+/** The window, oldest first, from the recorded block bytes and writes. */
+export function recordedWindow(source = new FakeProofSource()): FixtureBlock[] {
+	const headers = new Map<string, NakamotoHeader>();
+	for (const [id, raw] of source.blocks)
+		headers.set(id, parseNakamotoHeader(raw));
+	const byHeight = new Map(
+		[...headers].map(([id, h]) => [Number(h.chainLength), id]),
 	);
-	const body = raw.subarray(parseNakamotoHeader(raw).byteLength);
-	return splitTransactions(body.subarray(4), 2)[0] as Uint8Array;
-})();
-
-/** Single-sig standard auth: the nonce sits after version, chain id, auth
- *  type, hash mode and the 20-byte signer. */
-const NONCE_OFFSET = 1 + 4 + 1 + 1 + 20;
-
-function tx(height: number, index: number) {
-	const raw = BASE_TX.slice();
-	new DataView(raw.buffer, raw.byteOffset).setBigUint64(
-		NONCE_OFFSET,
-		BigInt(height * 100 + index),
-	);
-	return { txid: txidFromBytes(raw), raw };
-}
-
-const hex32 = (seed: string) =>
-	Buffer.from(new Bun.CryptoHasher("sha256").update(seed).digest()).toString(
-		"hex",
-	);
-
-/** The window, oldest first. */
-export function syntheticWindow(): FixtureBlock[] {
 	const blocks: FixtureBlock[] = [];
 	for (let height = FROM; height <= TO; height++) {
-		const writes: StateWrite[] = [];
-		const push = (txIndex: number | null, key: string, value: string) =>
-			writes.push({
-				ordinal: writes.length,
-				tx_index: txIndex,
-				key,
-				value_hex: stored(value),
-			});
-		// Block-level and account noise first, as a block's opening writes are.
-		push(null, `vm::${POOL}::1::last-sync`, uint(BigInt(height)));
-		push(0, "vm-account::SP2J6ZY48GV1EZ5V2V5RB9MP66SW86PYKKNRV9EJ7::19", "00");
-		if (height === WKIKI_HEIGHT) {
-			// Pad to put the plan 110 regression write at ordinal 19.
-			while (writes.length < WKIKI_ORDINAL)
-				push(
-					1,
-					`vm::${OTHER}::0::reserve::${tokenKey("token-alex")}`,
-					`0a${uint(BigInt(writes.length))}`,
-				);
-			push(
-				1,
-				`vm::${POOL}::0::reserve::${tokenKey("token-wkiki")}`,
-				`0a${uint(4_200_000n)}`,
-			);
-		}
-		if (height % 2 === 1) {
-			const token = TOKENS[height % TOKENS.length] as string;
-			push(
-				1,
-				`vm::${POOL}::0::reserve::${tokenKey(token)}`,
-				`0a${uint(BigInt(height))}`,
-			);
-			push(
-				2,
-				`vm::${POOL}::0::reserve::${tokenKey(token)}`,
-				`0a${uint(BigInt(height) + 1n)}`,
-			);
-		}
-		const txCount = Math.max(3, ...writes.map((w) => (w.tx_index ?? 0) + 1));
-		const id = hex32(`synthetic block ${height}`);
+		const id = byHeight.get(height);
+		if (!id) throw new Error(`no recorded block at ${height}`);
+		const header = headers.get(id) as NakamotoHeader;
+		const parent = headers.get(hex(header.parentBlockId));
+		if (!parent) throw new Error(`no recorded parent of ${height}`);
+		const burn = source.burn[hex(header.consensusHash)];
+		if (!burn) throw new Error(`no recorded burn preimage for ${height}`);
+		if (hex(blockId(header)) !== id) throw new Error(`block ${id} mislabeled`);
 		blocks.push({
 			height,
 			blockId: id,
-			blockHash: hex32(`synthetic hash ${height}`),
-			timestamp: 1_735_000_000 + height,
-			burnHeight: 875_000 + Math.floor((height - FROM) / 3),
-			txs: Array.from({ length: txCount }, (_, i) => tx(height, i)),
-			writes,
+			blockHash: hex(signerSignatureHash(header)),
+			parentHash: hex(signerSignatureHash(parent)),
+			timestamp: Number(header.timestamp),
+			burnHeight: burn.burn_height,
+			txs: blockTransactions(source.blocks.get(id) as Bytes, header) ?? [],
+			writes: source.writes.get(height) ?? [],
 		});
 	}
 	return blocks;
 }
 
-/**
- * What `verifyBlock` would report for a fixture block, given the writes a
- * source serves for it: the names check fails as the real one does when a
- * leaf of the block's true diff is not named, or a served write names a key
- * the block did not write.
- */
-export function verifyFixtureBlock(
-	block: FixtureBlock,
-	served: StateWrite[],
-): BlockVerification {
-	const out: BlockVerification = {
-		ok: true,
-		height: block.height,
-		blockId: block.blockId,
-		blockHash: block.blockHash,
-		consensusHash: "cd".repeat(20),
-		timestamp: block.timestamp,
-		burnHeight: block.burnHeight,
-		transactions: block.txs,
-		diff: { named: true, writes: [], carried: [], internal: [] },
-		writes: served,
-		notes: [],
-		failures: [],
+/** A `reserve` write's map key (a contract principal) and stored uint. */
+export function decodeReserveWrite(w: StateWrite): {
+	token: string;
+	amount: bigint;
+} {
+	const keyHex = w.key.split("::").at(-1) as string;
+	const stored = Buffer.from(w.value_hex, "hex").toString("utf8");
+	const key = deserializeCV(keyHex) as { type: string; value: string };
+	// Stored map entries are `some(value)`.
+	const some = deserializeCV(stored) as {
+		type: string;
+		value: { type: string; value: bigint };
 	};
-	const leaves = new Set(block.writes.map((w) => w.key));
-	const named = new Set(served.map((w) => w.key));
-	const hidden = [...leaves].find((k) => !named.has(k));
-	const missing = [...named].find((k) => !leaves.has(k));
-	if (hidden)
-		out.failures.push({
-			step: "names",
-			code: "hidden-write",
-			message: `leaf ${hidden} is not a named write, a carried parent value or MARF bookkeeping`,
-		});
-	else if (missing)
-		out.failures.push({
-			step: "names",
-			code: "missing-write",
-			message: `state write ${missing} has no leaf holding its value`,
-		});
-	out.ok = out.failures.length === 0;
-	return out;
+	if (some.type !== "some" || some.value.type !== "uint")
+		throw new Error(`reserve write ${w.ordinal} is not some(uint)`);
+	return { token: key.value, amount: some.value.value };
 }

@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { getDb, getSourceDb, sql } from "@secondlayer/shared/db";
 import { decodeRawTx } from "@secondlayer/shared/node/tx-summary";
-import { hex } from "@secondlayer/verify";
+import { hex, marfPath } from "@secondlayer/verify";
 import { processBlock } from "../src/runtime/block-processor.ts";
 import {
 	dbStateWritesCoverage,
@@ -13,25 +13,23 @@ import { pgSchemaName } from "../src/schema/utils.ts";
 import type { SubgraphDefinition } from "../src/types.ts";
 import { deriveVerification } from "../src/verification.ts";
 import { compareRows } from "../src/verify/compare.ts";
-import { type ReplayDeps, replayBlocks } from "../src/verify/replay.ts";
+import { type ReplayResult, replaySubgraph } from "../src/verify/replay.ts";
 import {
 	FROM,
-	type FixtureBlock,
+	FakeProofSource,
 	POOL,
 	TO,
-	WKIKI_HEIGHT,
-	WKIKI_ORDINAL,
-	syntheticWindow,
-	tokenKey,
-	verifyFixtureBlock,
+	WKIKI,
+	decodeReserveWrite,
+	recordedWindow,
 } from "./replay-fixture.ts";
 
 /**
- * End to end over the 11-block window: the server path (state_writes in
- * Postgres → PostgresBlockSource feed → processBlock in the realm → flush)
- * and replay (verified blocks → stateWriteEvents → memory store) must agree,
- * and each kind of lie must break its own link. The window is SYNTHETIC until
- * the mainnet recording lands; see replay-fixture.ts.
+ * End to end over the recorded mainnet window (see replay-fixture.ts):
+ * replay verifies every block from `MAINNET_CHECKPOINT` with the recorded
+ * proofs, feeds the named writes to the handler and must agree with the
+ * server path (state_writes in Postgres → PostgresBlockSource feed →
+ * processBlock in the realm → flush). Each kind of lie breaks its own link.
  */
 
 const NAME = "pool-reserves-replay-e2e";
@@ -55,29 +53,93 @@ const CLEAN = handlerCode(
 	'ctx.upsert("reserves", { token: event.key }, { amount: event.value });',
 );
 
-const WINDOW = syntheticWindow();
-const byHeight = new Map(WINDOW.map((b) => [b.height, b]));
+const WINDOW = recordedWindow();
+/** The window's only vault write: reserve[token-wkiki], ordinal 5 of 1,230,200. */
+const VAULT_WRITES = WINDOW.flatMap((b) =>
+	b.writes
+		.filter((w) => w.key.startsWith(`vm::${POOL}::0::reserve::`))
+		.map((w) => ({ height: b.height, write: w })),
+);
+const WKIKI_WRITE = VAULT_WRITES[0] as (typeof VAULT_WRITES)[number];
+const WKIKI_HEIGHT = 1_230_200;
+const WKIKI_RESERVE = decodeReserveWrite(WKIKI_WRITE.write);
+const WKIKI_AMOUNT = WKIKI_RESERVE.amount;
 
-/** A verifier over the fixture; `serve` decides which writes the source names. */
-function fixtureDeps(
-	serve: (b: FixtureBlock) => FixtureBlock["writes"] = (b) => b.writes,
-): ReplayDeps {
-	return {
-		verify: async (h) => {
-			const b = byHeight.get(h) as FixtureBlock;
-			return verifyFixtureBlock(b, serve(b));
-		},
-		burnHeightHint: async () => 0,
-	};
-}
+const replay = (code: string, source = new FakeProofSource()) =>
+	replaySubgraph({ source, handlerCode: code, from: FROM, to: TO });
+
+test("the recording holds one vault write: reserve[token-wkiki] at ordinal 5 of 1,230,200", () => {
+	expect(VAULT_WRITES).toHaveLength(1);
+	expect(WKIKI_WRITE.height).toBe(WKIKI_HEIGHT);
+	expect(WKIKI_WRITE.write.ordinal).toBe(5);
+	expect(WKIKI_RESERVE.token).toBe(WKIKI);
+});
+
+describe("replay verifies the recorded window from the checkpoint", () => {
+	let clean: ReplayResult;
+	beforeAll(async () => {
+		clean = await replay(CLEAN);
+	});
+
+	test("clean: every block verifies and reserve[wkiki] lands at 1,230,200 with the recorded amount", () => {
+		expect(clean.failures).toEqual([]);
+		expect(clean.ok).toBe(true);
+		expect(clean.blocks).toBe(TO - FROM + 1);
+		expect(clean.txs).toBe(WINDOW.reduce((n, b) => n + b.txs.length, 0));
+		// Only the vault's writes reach the handler: the rest is noise.
+		expect(clean.writes).toBe(VAULT_WRITES.length);
+		expect(clean.events).toBe(VAULT_WRITES.length);
+		expect(clean.tables.get("reserves")).toEqual([
+			{
+				token: WKIKI,
+				amount: WKIKI_AMOUNT,
+				_block_height: WKIKI_HEIGHT,
+				_tx_id: `0x${WINDOW.find((b) => b.height === WKIKI_HEIGHT)?.txs[WKIKI_WRITE.write.tx_index as number]?.txid}`,
+			},
+		]);
+	});
+
+	test("a source that drops the ordinal-5 write breaks the inputs link (hidden-write)", async () => {
+		const lying = new FakeProofSource();
+		const named = lying.getStateWrites;
+		lying.getStateWrites = async (h) =>
+			(await named(h))?.filter(
+				(w) => !(h === WKIKI_HEIGHT && w.ordinal === WKIKI_WRITE.write.ordinal),
+			) ?? null;
+		const r = await replay(CLEAN, lying);
+		expect(r.ok).toBe(false);
+		expect(r.failures[0]).toMatchObject({
+			step: "inputs",
+			height: WKIKI_HEIGHT,
+		});
+		expect(r.failures[0]?.unavailable).toBeUndefined();
+		expect(r.failures[0]?.message).toContain(
+			`leaf ${hex(marfPath(WKIKI_WRITE.write.key))} is not a named write`,
+		);
+	});
+
+	test("the same definition with Date.now() in the handler breaks the handlers link", async () => {
+		const r = await replay(
+			handlerCode(
+				'ctx.upsert("reserves", { token: event.key }, { amount: BigInt(Date.now()) });',
+			),
+		);
+		expect(r.failures[0]).toMatchObject({
+			step: "handlers",
+			height: WKIKI_HEIGHT,
+		});
+		expect(r.failures[0]?.message).toContain("NondeterminismError");
+	});
+});
 
 describe.skipIf(!process.env.DATABASE_URL)(
-	"replay agrees with the served subgraph over the window, and catches each lie",
+	"the served subgraph agrees with replay over the window",
 	() => {
 		const source = getSourceDb();
 		const db = getDb();
 		let served: Map<string, Record<string, unknown>[]>;
 		let def: SubgraphDefinition;
+		let replayed: ReplayResult;
 
 		async function cleanup() {
 			const heights = WINDOW.map((b) => b.height);
@@ -107,7 +169,7 @@ describe.skipIf(!process.env.DATABASE_URL)(
 					.values({
 						height: b.height,
 						hash: `0x${b.blockHash}`,
-						parent_hash: "0x00",
+						parent_hash: `0x${b.parentHash}`,
 						burn_block_height: b.burnHeight,
 						index_block_hash: `0x${b.blockId}`,
 						timestamp: b.timestamp,
@@ -155,79 +217,36 @@ describe.skipIf(!process.env.DATABASE_URL)(
 				.raw(`SELECT * FROM "${pgSchemaName(NAME)}"."reserves" ORDER BY "_id"`)
 				.execute(db);
 			served = new Map([["reserves", rows as Record<string, unknown>[]]]);
+			replayed = await replay(CLEAN);
 		});
 
 		afterAll(cleanup);
 
-		test("clean: the replayed table equals the served one; reserve[wkiki] lands at 1,230,200", async () => {
-			const r = await replayBlocks(fixtureDeps(), {
-				handlerCode: CLEAN,
-				from: FROM,
-				to: TO,
-			});
-			expect(r.failures).toEqual([]);
-			expect(r.ok).toBe(true);
-			const cmp = compareRows(def.schema, r, served);
+		test("clean: the replayed table equals the served one; reserve[wkiki] is served at 1,230,200", () => {
+			expect(replayed.ok).toBe(true);
+			const cmp = compareRows(def.schema, replayed, served);
 			expect(cmp.failures).toEqual([]);
+			expect(cmp.tables[0]?.equal).toBe(1);
 			expect(cmp.tables[0]?.digest).toBe(cmp.tables[0]?.servedDigest);
-			const wkiki = served
-				.get("reserves")
-				?.find((row) => String(row.token).endsWith(".token-wkiki"));
-			expect(wkiki).toMatchObject({ amount: "4200000" });
+			const wkiki = served.get("reserves")?.find((row) => row.token === WKIKI);
+			expect(wkiki).toMatchObject({ amount: WKIKI_AMOUNT.toString() });
 			expect(Number(wkiki?._block_height)).toBe(WKIKI_HEIGHT);
-			// Only the vault's reserve writes reach the handler: noise is dropped.
-			expect(r.writes).toBe(
-				WINDOW.flatMap((b) => b.writes).filter((w) =>
-					w.key.startsWith(`vm::${POOL}::`),
-				).length,
-			);
 		});
 
-		test("a tampered served amount breaks the rows link", async () => {
-			const r = await replayBlocks(fixtureDeps(), {
-				handlerCode: CLEAN,
-				from: FROM,
-				to: TO,
-			});
+		test("a tampered served amount breaks the rows link", () => {
 			const tampered = new Map(
 				[...served].map(([t, rows]) => [t, rows.map((row) => ({ ...row }))]),
 			);
 			const row = tampered.get("reserves")?.[0] as Record<string, unknown>;
 			row.amount = "1";
-			const cmp = compareRows(def.schema, r, tampered);
+			const cmp = compareRows(def.schema, replayed, tampered);
 			expect(cmp.failures[0]).toMatchObject({
 				step: "rows",
 				table: "reserves",
 			});
-			expect(cmp.failures[0]?.message).toContain("amount served 1, replayed");
-		});
-
-		test("a source that drops the ordinal-19 write breaks the inputs link (hidden-write)", async () => {
-			const r = await replayBlocks(
-				fixtureDeps((b) =>
-					b.height === WKIKI_HEIGHT
-						? b.writes.filter((w) => w.ordinal !== WKIKI_ORDINAL)
-						: b.writes,
-				),
-				{ handlerCode: CLEAN, from: FROM, to: TO },
+			expect(cmp.failures[0]?.message).toContain(
+				`amount served 1, replayed ${WKIKI_AMOUNT}`,
 			);
-			expect(r.failures[0]).toMatchObject({
-				step: "inputs",
-				height: WKIKI_HEIGHT,
-			});
-			expect(r.failures[0]?.message).toContain(tokenKey("token-wkiki"));
-		});
-
-		test("the same definition with Date.now() in the handler breaks the handlers link", async () => {
-			const r = await replayBlocks(fixtureDeps(), {
-				handlerCode: handlerCode(
-					'ctx.upsert("reserves", { token: event.key }, { amount: BigInt(Date.now()) });',
-				),
-				from: FROM,
-				to: TO,
-			});
-			expect(r.failures[0]).toMatchObject({ step: "handlers" });
-			expect(r.failures[0]?.message).toContain("NondeterminismError");
 		});
 	},
 );
