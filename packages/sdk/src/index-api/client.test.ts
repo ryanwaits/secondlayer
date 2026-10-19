@@ -563,6 +563,19 @@ describe("Index list param forwarding", () => {
 		expect(decodeURIComponent(urls[0])).toContain("fields=value");
 	});
 
+	test("order is forwarded on ft, nft and events lists, and omitted when unset", async () => {
+		const urls = recorder(emptyEvents);
+		const index = new Index({ baseUrl: BASE_URL });
+		await index.ftTransfers.list({ order: "desc" });
+		await index.nftTransfers.list({ order: "desc" });
+		await index.events.list({ eventType: "print", order: "desc" });
+		await index.ftTransfers.list();
+		expect(urls.slice(0, 3).every((url) => url.includes("order=desc"))).toBe(
+			true,
+		);
+		expect(urls[3]).not.toContain("order=");
+	});
+
 	test("events.list forwards event_type + contract_id + from_height", async () => {
 		const urls = recorder(emptyEvents);
 		await new Index({ baseUrl: BASE_URL }).events.list({
@@ -716,6 +729,42 @@ describe("Index walk termination", () => {
 		expect(ids).toEqual(["0x1", "0x2"]);
 		expect(urls.length).toBe(2);
 		expect(urls[1]).toContain("cursor=c2");
+	});
+
+	test("a desc walk sends order=desc on every page and resumes with the desc cursor", async () => {
+		const responses = [
+			{
+				events: [{ tx_id: "0x2" }],
+				next_cursor: "desc:9:0",
+				tip: {},
+				reorgs: [],
+			},
+			{ events: [{ tx_id: "0x1" }], next_cursor: null, tip: {}, reorgs: [] },
+		];
+		const urls: string[] = [];
+		let call = 0;
+		globalThis.fetch = mock((input: string | URL | Request) => {
+			urls.push(typeof input === "string" ? input : input.toString());
+			const body = responses[call++];
+			return Promise.resolve({
+				ok: true,
+				status: 200,
+				headers: new Headers({ "content-type": "application/json" }),
+				json: () => Promise.resolve(body),
+				text: () => Promise.resolve(JSON.stringify(body)),
+			} as Response);
+		}) as unknown as typeof fetch;
+
+		const ids: string[] = [];
+		for await (const ev of new Index({ baseUrl: BASE_URL }).ftTransfers.walk({
+			order: "desc",
+			batchSize: 1,
+		})) {
+			ids.push(ev.tx_id);
+		}
+		expect(ids).toEqual(["0x2", "0x1"]);
+		expect(urls.every((url) => url.includes("order=desc"))).toBe(true);
+		expect(decodeURIComponent(urls[1] ?? "")).toContain("cursor=desc:9:0");
 	});
 
 	test("events.walk stops immediately on empty first page", async () => {

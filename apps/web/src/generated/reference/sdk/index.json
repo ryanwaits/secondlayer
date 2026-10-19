@@ -9,7 +9,7 @@
 			"description": "Callable: `index.ftTransfers(params)` ≡ `index.ftTransfers.list(params)`.",
 			"source": {
 				"file": "packages/sdk/src/index-api/client.ts",
-				"line": 2007
+				"line": 2027
 			},
 			"overloads": [
 				{
@@ -51,10 +51,10 @@
 			"id": "ftTransfers.list",
 			"path": "sl.index.ftTransfers.list",
 			"summary": "Read one page of fungible-token transfers, plus the cursor for the next.",
-			"description": "Read one page of fungible-token transfers, plus the cursor for the next.\n\nFilter by `contractId`, `assetIdentifier`, `sender`, `recipient`, and a height range. Filters are equality only: there is no amount filter. Pass `next_cursor` back as `cursor` to continue. `fields` returns only those columns and narrows the row type; `cursor`, `block_height`, and `event_type` always come back. `reorgs` on the envelope lists forks that overlap the page.",
+			"description": "Read one page of fungible-token transfers, plus the cursor for the next.\n\nFilter by `contractId`, `assetIdentifier`, `sender`, `recipient`, and a height range. Filters are equality only: there is no amount filter. `order: \"desc\"` reads newest first. Pass `next_cursor` back as `cursor` to continue. `fields` returns only those columns and narrows the row type; `cursor`, `block_height`, and `event_type` always come back. `reorgs` on the envelope lists forks that overlap the page.",
 			"source": {
 				"file": "packages/sdk/src/index-api/client.ts",
-				"line": 1862
+				"line": 1882
 			},
 			"overloads": [
 				{
@@ -142,10 +142,10 @@
 			"id": "ftTransfers.walk",
 			"path": "sl.index.ftTransfers.walk",
 			"summary": "Iterate every fungible-token transfer, paging for you.",
-			"description": "Iterate every fungible-token transfer, paging for you.\n\nTakes the same filters as `list`. Not a live index: it does not checkpoint, ignores reorgs, and ends when it catches the tip. `batchSize` defaults to 200 (max 1000); page fetches retry on 429 and 5xx; aborting `signal` rejects the iterator.",
+			"description": "Iterate every fungible-token transfer, paging for you.\n\nTakes the same filters as `list`. Not a live index: it does not checkpoint, ignores reorgs, and ends when it catches the tip, or with `order: \"desc\"` when it reaches `fromHeight` (genesis by default). `batchSize` defaults to 200 (max 1000); page fetches retry on 429 and 5xx; aborting `signal` rejects the iterator.",
 			"source": {
 				"file": "packages/sdk/src/index-api/client.ts",
-				"line": 1871
+				"line": 1891
 			},
 			"overloads": [
 				{
@@ -161,7 +161,7 @@
 					"params": [
 						{
 							"name": "params",
-							"type": "{ cursor?: string | null; fromHeight?: number; toHeight?: number; contractId?: string; sender?: string; recipient?: string; assetIdentifier?: string; fromCursor?: string | null; fields?: readonly (\"cursor\" | \"sender\" | \"recipient\" | \"block_height\" | \"event_type\" | \"block_time\" | \"tx_id\" | \"tx_index\" | \"event_index\" | \"contract_id\" | \"asset_identifier\" | \"amount\")[] } & PageRetryOptions & { batchSize?: number; signal?: AbortSignal } & { fields: readonly F[] }",
+							"type": "{ cursor?: string | null; fromHeight?: number; toHeight?: number; contractId?: string; sender?: string; recipient?: string; assetIdentifier?: string; fromCursor?: string | null; fields?: readonly (\"cursor\" | \"sender\" | \"recipient\" | \"block_height\" | \"event_type\" | \"block_time\" | \"tx_id\" | \"tx_index\" | \"event_index\" | \"contract_id\" | \"asset_identifier\" | \"amount\")[]; order?: IndexOrder } & PageRetryOptions & { batchSize?: number; signal?: AbortSignal } & { fields: readonly F[] }",
 							"required": true,
 							"description": ""
 						}
@@ -200,7 +200,7 @@
 					"params": [
 						{
 							"name": "params",
-							"type": "{ cursor?: string | null; fromHeight?: number; toHeight?: number; contractId?: string; sender?: string; recipient?: string; assetIdentifier?: string; fromCursor?: string | null; fields?: readonly (\"cursor\" | \"sender\" | \"recipient\" | \"block_height\" | \"event_type\" | \"block_time\" | \"tx_id\" | \"tx_index\" | \"event_index\" | \"contract_id\" | \"asset_identifier\" | \"amount\")[] } & PageRetryOptions & { batchSize?: number; signal?: AbortSignal } & { fields: readonly F[] }",
+							"type": "{ cursor?: string | null; fromHeight?: number; toHeight?: number; contractId?: string; sender?: string; recipient?: string; assetIdentifier?: string; fromCursor?: string | null; fields?: readonly (\"cursor\" | \"sender\" | \"recipient\" | \"block_height\" | \"event_type\" | \"block_time\" | \"tx_id\" | \"tx_index\" | \"event_index\" | \"contract_id\" | \"asset_identifier\" | \"amount\")[]; order?: IndexOrder } & PageRetryOptions & { batchSize?: number; signal?: AbortSignal } & { fields: readonly F[] }",
 							"required": true,
 							"description": ""
 						}
@@ -236,7 +236,7 @@
 			"description": "Callable: `index.nftTransfers(params)` ≡ `index.nftTransfers.list(params)`.",
 			"source": {
 				"file": "packages/sdk/src/index-api/client.ts",
-				"line": 2020
+				"line": 2040
 			},
 			"overloads": [
 				{
@@ -278,10 +278,10 @@
 			"id": "nftTransfers.list",
 			"path": "sl.index.nftTransfers.list",
 			"summary": "Read one page of NFT transfers, plus the cursor for the next.",
-			"description": "Read one page of NFT transfers, plus the cursor for the next.\n\nFilter by `contractId`, `assetIdentifier`, `sender`, `recipient`, and a height range. Pass `next_cursor` back as `cursor` to continue. `fields` returns only those columns and narrows the row type; `cursor`, `block_height`, and `event_type` always come back.",
+			"description": "Read one page of NFT transfers, plus the cursor for the next.\n\nFilter by `contractId`, `assetIdentifier`, `sender`, `recipient`, and a height range. `order: \"desc\"` reads newest first. Pass `next_cursor` back as `cursor` to continue. `fields` returns only those columns and narrows the row type; `cursor`, `block_height`, and `event_type` always come back.",
 			"source": {
 				"file": "packages/sdk/src/index-api/client.ts",
-				"line": 1890
+				"line": 1910
 			},
 			"overloads": [
 				{
@@ -369,10 +369,10 @@
 			"id": "nftTransfers.walk",
 			"path": "sl.index.nftTransfers.walk",
 			"summary": "Iterate every NFT transfer, paging for you.",
-			"description": "Iterate every NFT transfer, paging for you.\n\nTakes the same filters as `list`. Not a live index: it does not checkpoint, ignores reorgs, and ends when it catches the tip. `batchSize` defaults to 200 (max 1000); page fetches retry on 429 and 5xx; aborting `signal` rejects the iterator.",
+			"description": "Iterate every NFT transfer, paging for you.\n\nTakes the same filters as `list`. Not a live index: it does not checkpoint, ignores reorgs, and ends when it catches the tip, or with `order: \"desc\"` when it reaches `fromHeight` (genesis by default). `batchSize` defaults to 200 (max 1000); page fetches retry on 429 and 5xx; aborting `signal` rejects the iterator.",
 			"source": {
 				"file": "packages/sdk/src/index-api/client.ts",
-				"line": 1899
+				"line": 1919
 			},
 			"overloads": [
 				{
@@ -388,7 +388,7 @@
 					"params": [
 						{
 							"name": "params",
-							"type": "{ cursor?: string | null; fromHeight?: number; toHeight?: number; contractId?: string; sender?: string; recipient?: string; assetIdentifier?: string; fromCursor?: string | null; fields?: readonly (\"cursor\" | \"sender\" | \"recipient\" | \"block_height\" | \"event_type\" | \"block_time\" | \"tx_id\" | \"tx_index\" | \"event_index\" | \"contract_id\" | \"asset_identifier\" | \"value\")[] } & PageRetryOptions & { batchSize?: number; signal?: AbortSignal } & { fields: readonly F[] }",
+							"type": "{ cursor?: string | null; fromHeight?: number; toHeight?: number; contractId?: string; sender?: string; recipient?: string; assetIdentifier?: string; fromCursor?: string | null; fields?: readonly (\"cursor\" | \"sender\" | \"recipient\" | \"block_height\" | \"event_type\" | \"block_time\" | \"tx_id\" | \"tx_index\" | \"event_index\" | \"contract_id\" | \"asset_identifier\" | \"value\")[]; order?: IndexOrder } & PageRetryOptions & { batchSize?: number; signal?: AbortSignal } & { fields: readonly F[] }",
 							"required": true,
 							"description": ""
 						}
@@ -427,7 +427,7 @@
 					"params": [
 						{
 							"name": "params",
-							"type": "{ cursor?: string | null; fromHeight?: number; toHeight?: number; contractId?: string; sender?: string; recipient?: string; assetIdentifier?: string; fromCursor?: string | null; fields?: readonly (\"cursor\" | \"sender\" | \"recipient\" | \"block_height\" | \"event_type\" | \"block_time\" | \"tx_id\" | \"tx_index\" | \"event_index\" | \"contract_id\" | \"asset_identifier\" | \"value\")[] } & PageRetryOptions & { batchSize?: number; signal?: AbortSignal } & { fields: readonly F[] }",
+							"type": "{ cursor?: string | null; fromHeight?: number; toHeight?: number; contractId?: string; sender?: string; recipient?: string; assetIdentifier?: string; fromCursor?: string | null; fields?: readonly (\"cursor\" | \"sender\" | \"recipient\" | \"block_height\" | \"event_type\" | \"block_time\" | \"tx_id\" | \"tx_index\" | \"event_index\" | \"contract_id\" | \"asset_identifier\" | \"value\")[]; order?: IndexOrder } & PageRetryOptions & { batchSize?: number; signal?: AbortSignal } & { fields: readonly F[] }",
 							"required": true,
 							"description": ""
 						}
@@ -463,7 +463,7 @@
 			"description": "Generic decoded events by `event_type` (the full /v1/index/events surface).\nCallable: `index.events(params)` ≡ `index.events.list(params)`.",
 			"source": {
 				"file": "packages/sdk/src/index-api/client.ts",
-				"line": 2034
+				"line": 2054
 			},
 			"overloads": [
 				{
@@ -505,10 +505,10 @@
 			"id": "events.list",
 			"path": "sl.index.events.list",
 			"summary": "Read one page of decoded events of one type.",
-			"description": "Read one page of decoded events of one type.\n\n`eventType` is required: a decoded type (`ft_transfer`, `print`, ...) or a VM type (`nested_contract_call`, `map_set`, ...), and a literal narrows the row type. Scope with `contractId` (one id or up to 20) or `trait`, never both, plus `assetIdentifier`, `sender`, `recipient`, `functionName`, `caller`, `map`, `varName`, `txId`, and a height range. `txContext: true` joins the submitting transaction onto each event. `fields` returns only those columns and narrows the row type; it saves wire bytes but does not change what you are billed, since rows are metered, not columns.",
+			"description": "Read one page of decoded events of one type.\n\n`eventType` is required: a decoded type (`ft_transfer`, `print`, ...) or a VM type (`nested_contract_call`, `map_set`, ...), and a literal narrows the row type. Scope with `contractId` (one id or up to 20) or `trait`, never both, plus `assetIdentifier`, `sender`, `recipient`, `functionName`, `caller`, `map`, `varName`, `txId`, and a height range. `order: \"desc\"` reads newest first. `txContext: true` joins the submitting transaction onto each event. `fields` returns only those columns and narrows the row type; it saves wire bytes but does not change what you are billed, since rows are metered, not columns.",
 			"source": {
 				"file": "packages/sdk/src/index-api/client.ts",
-				"line": 1920
+				"line": 1940
 			},
 			"overloads": [
 				{
@@ -616,10 +616,10 @@
 			"id": "events.walk",
 			"path": "sl.index.events.walk",
 			"summary": "Iterate every decoded event of one type, paging for you.",
-			"description": "Iterate every decoded event of one type, paging for you.\n\nTakes the same filters as `list`, including `eventType`. Not a live index: it does not checkpoint, ignores reorgs, and ends when it catches the tip. `batchSize` defaults to 200 (max 1000); page fetches retry on 429 and 5xx; aborting `signal` rejects the iterator.",
+			"description": "Iterate every decoded event of one type, paging for you.\n\nTakes the same filters as `list`, including `eventType`. Not a live index: it does not checkpoint, ignores reorgs, and ends when it catches the tip, or with `order: \"desc\"` when it reaches `fromHeight` (genesis by default). `batchSize` defaults to 200 (max 1000); page fetches retry on 429 and 5xx; aborting `signal` rejects the iterator.",
 			"source": {
 				"file": "packages/sdk/src/index-api/client.ts",
-				"line": 1934
+				"line": 1954
 			},
 			"overloads": [
 				{
@@ -639,7 +639,7 @@
 					"params": [
 						{
 							"name": "params",
-							"type": "{ cursor?: string | null; fromHeight?: number; toHeight?: number; contractId?: string | readonly string[]; sender?: string; recipient?: string; assetIdentifier?: string; fromCursor?: string | null; functionName?: string; trait?: string; txContext?: boolean; fields?: readonly (keyof Extract<IndexFtTransfer, { event_type: T; }> & keyof Extract<IndexNftTransfer, { event_type: T; }> & keyof Extract<IndexStxTransfer, { event_type: T; }> & keyof Extract<IndexStxMint, { event_type: T; }> & keyof Extract<IndexStxBurn, { event_type: T; }> & keyof Extract<IndexStxLock, { event_type: T; }> & keyof Extract<IndexFtMint, { event_type: T; }> & keyof Extract<IndexFtBurn, { event_type: T; }> & keyof Extract<IndexNftMint, { event_type: T; }> & keyof Extract<IndexNftBurn, { event_type: T; }> & keyof Extract<IndexPrint, { event_type: T; }> & keyof Extract<IndexNestedContractCall, { event_type: T; }> & keyof Extract<IndexVarSet, { event_type: T; }> & keyof Extract<IndexMapSet, { event_type: T; }> & keyof Extract<IndexMapInsert, { event_type: T; }> & keyof Extract<IndexMapDelete, { event_type: T; }> & string)[]; caller?: string; eventType: T; map?: string; varName?: string; txId?: string } & PageRetryOptions & { batchSize?: number; signal?: AbortSignal } & { fields: readonly F[] }",
+							"type": "{ cursor?: string | null; fromHeight?: number; toHeight?: number; contractId?: string | readonly string[]; sender?: string; recipient?: string; assetIdentifier?: string; fromCursor?: string | null; functionName?: string; trait?: string; txContext?: boolean; fields?: readonly (keyof Extract<IndexFtTransfer, { event_type: T; }> & keyof Extract<IndexNftTransfer, { event_type: T; }> & keyof Extract<IndexStxTransfer, { event_type: T; }> & keyof Extract<IndexStxMint, { event_type: T; }> & keyof Extract<IndexStxBurn, { event_type: T; }> & keyof Extract<IndexStxLock, { event_type: T; }> & keyof Extract<IndexFtMint, { event_type: T; }> & keyof Extract<IndexFtBurn, { event_type: T; }> & keyof Extract<IndexNftMint, { event_type: T; }> & keyof Extract<IndexNftBurn, { event_type: T; }> & keyof Extract<IndexPrint, { event_type: T; }> & keyof Extract<IndexNestedContractCall, { event_type: T; }> & keyof Extract<IndexVarSet, { event_type: T; }> & keyof Extract<IndexMapSet, { event_type: T; }> & keyof Extract<IndexMapInsert, { event_type: T; }> & keyof Extract<IndexMapDelete, { event_type: T; }> & string)[]; caller?: string; order?: IndexOrder; eventType: T; map?: string; varName?: string; txId?: string } & PageRetryOptions & { batchSize?: number; signal?: AbortSignal } & { fields: readonly F[] }",
 							"required": true,
 							"description": ""
 						}
@@ -688,7 +688,7 @@
 					"params": [
 						{
 							"name": "params",
-							"type": "{ cursor?: string | null; fromHeight?: number; toHeight?: number; contractId?: string | readonly string[]; sender?: string; recipient?: string; assetIdentifier?: string; fromCursor?: string | null; functionName?: string; trait?: string; txContext?: boolean; fields?: readonly (keyof Extract<IndexFtTransfer, { event_type: T; }> & keyof Extract<IndexNftTransfer, { event_type: T; }> & keyof Extract<IndexStxTransfer, { event_type: T; }> & keyof Extract<IndexStxMint, { event_type: T; }> & keyof Extract<IndexStxBurn, { event_type: T; }> & keyof Extract<IndexStxLock, { event_type: T; }> & keyof Extract<IndexFtMint, { event_type: T; }> & keyof Extract<IndexFtBurn, { event_type: T; }> & keyof Extract<IndexNftMint, { event_type: T; }> & keyof Extract<IndexNftBurn, { event_type: T; }> & keyof Extract<IndexPrint, { event_type: T; }> & keyof Extract<IndexNestedContractCall, { event_type: T; }> & keyof Extract<IndexVarSet, { event_type: T; }> & keyof Extract<IndexMapSet, { event_type: T; }> & keyof Extract<IndexMapInsert, { event_type: T; }> & keyof Extract<IndexMapDelete, { event_type: T; }> & string)[]; caller?: string; eventType: T; map?: string; varName?: string; txId?: string } & PageRetryOptions & { batchSize?: number; signal?: AbortSignal } & { fields: readonly F[] }",
+							"type": "{ cursor?: string | null; fromHeight?: number; toHeight?: number; contractId?: string | readonly string[]; sender?: string; recipient?: string; assetIdentifier?: string; fromCursor?: string | null; functionName?: string; trait?: string; txContext?: boolean; fields?: readonly (keyof Extract<IndexFtTransfer, { event_type: T; }> & keyof Extract<IndexNftTransfer, { event_type: T; }> & keyof Extract<IndexStxTransfer, { event_type: T; }> & keyof Extract<IndexStxMint, { event_type: T; }> & keyof Extract<IndexStxBurn, { event_type: T; }> & keyof Extract<IndexStxLock, { event_type: T; }> & keyof Extract<IndexFtMint, { event_type: T; }> & keyof Extract<IndexFtBurn, { event_type: T; }> & keyof Extract<IndexNftMint, { event_type: T; }> & keyof Extract<IndexNftBurn, { event_type: T; }> & keyof Extract<IndexPrint, { event_type: T; }> & keyof Extract<IndexNestedContractCall, { event_type: T; }> & keyof Extract<IndexVarSet, { event_type: T; }> & keyof Extract<IndexMapSet, { event_type: T; }> & keyof Extract<IndexMapInsert, { event_type: T; }> & keyof Extract<IndexMapDelete, { event_type: T; }> & string)[]; caller?: string; order?: IndexOrder; eventType: T; map?: string; varName?: string; txId?: string } & PageRetryOptions & { batchSize?: number; signal?: AbortSignal } & { fields: readonly F[] }",
 							"required": true,
 							"description": ""
 						}
@@ -730,7 +730,7 @@
 			"description": "Run a checkpointed, reorg-aware indexer over decoded events.\n\nWrite your rows in `onBatch` and commit `ctx.cursor` in the same transaction; resume with `fromCursor`. Without `fromCursor` or `fromHeight` the API serves only its recent default window, so pass `fromHeight: 0` for a full backfill. A reorg at or below your checkpoint calls `onReorg`, then the loop re-reads from the fork point. Delivery is at-least-once, so keep writes idempotent. With a `sink`, the checkpoint and rollback are handled for you. `finalizedOnly` holds delivery to finalized rows, so no reorg handling is needed. `mode: \"tail\"` (default) keeps polling at the tip; `mode: \"bounded\"` returns on the first empty page. Resolves to `{ cursor, pages, emptyPolls }`.",
 			"source": {
 				"file": "packages/sdk/src/index-api/client.ts",
-				"line": 1948
+				"line": 1968
 			},
 			"overloads": [
 				{
@@ -774,7 +774,7 @@
 			"description": "Read one page of decoded contract calls.\n\nFilter by `contractId` (one id or up to 20) or `trait`, never both, plus `functionName`, `sender`, and a height range. Each row has the function name, arguments, result, and status. Pass `next_cursor` back as `cursor` to continue.",
 			"source": {
 				"file": "packages/sdk/src/index-api/client.ts",
-				"line": 2072
+				"line": 2092
 			},
 			"overloads": [
 				{
@@ -803,7 +803,7 @@
 			"description": "Iterate every decoded contract call, paging for you.\n\nTakes the same filters as `list`. Not a live index: it does not checkpoint, ignores reorgs, and ends when it catches the tip. `batchSize` defaults to 200 (max 1000); page fetches retry on 429 and 5xx; aborting `signal` rejects the iterator.",
 			"source": {
 				"file": "packages/sdk/src/index-api/client.ts",
-				"line": 2078
+				"line": 2098
 			},
 			"overloads": [
 				{
@@ -832,7 +832,7 @@
 			"description": "Run a checkpointed, reorg-aware indexer over contract calls.\n\nWrite your rows in `onBatch` and commit `ctx.cursor` in the same transaction; resume with `fromCursor`. Without `fromCursor` or `fromHeight` the API serves only its recent default window, so pass `fromHeight: 0` for a full backfill. A reorg at or below your checkpoint calls `onReorg`, then the loop re-reads from the fork point. Delivery is at-least-once, so keep writes idempotent. With a `sink`, the checkpoint and rollback are handled for you. `finalizedOnly` holds delivery to finalized rows, so no reorg handling is needed. `mode: \"tail\"` (default) keeps polling at the tip; `mode: \"bounded\"` returns on the first empty page. Resolves to `{ cursor, pages, emptyPolls }`. Calls already carry `sender` and `function_name`, so there is no `txContext`.",
 			"source": {
 				"file": "packages/sdk/src/index-api/client.ts",
-				"line": 2086
+				"line": 2106
 			},
 			"overloads": [
 				{
@@ -861,7 +861,7 @@
 			"description": "Read one page of the canonical block-hash map.\n\nEach row is a block's hash, its parent hash, and its burn-chain anchor. Compare it with your own tables to confirm you follow the current chain.",
 			"source": {
 				"file": "packages/sdk/src/index-api/client.ts",
-				"line": 2120
+				"line": 2140
 			},
 			"overloads": [
 				{
@@ -890,7 +890,7 @@
 			"description": "Iterate every canonical block hash, paging for you.\n\nTakes the same filters as `list`. Not a live index: it does not checkpoint, ignores reorgs, and ends when it catches the tip. `batchSize` defaults to 200 (max 1000); page fetches retry on 429 and 5xx; aborting `signal` rejects the iterator.",
 			"source": {
 				"file": "packages/sdk/src/index-api/client.ts",
-				"line": 2126
+				"line": 2146
 			},
 			"overloads": [
 				{
@@ -919,7 +919,7 @@
 			"description": "Read one page of the contract-state writes each block committed.\n\nRows are the exact key and value writes, in the node's write order (`ordinal`), so you can see which key a transaction changed when events alone do not show it. Filter by `blockHeight` (excludes `fromHeight` and `toHeight`) or `contractId`. `txContext: true` joins the writing transaction. Rows exist only from the height your node first subscribed to state writes.",
 			"source": {
 				"file": "packages/sdk/src/index-api/client.ts",
-				"line": 2142
+				"line": 2162
 			},
 			"overloads": [
 				{
@@ -948,7 +948,7 @@
 			"description": "Iterate every state write, paging for you.\n\nTakes the same filters as `list`. Not a live index: it does not checkpoint, ignores reorgs, and ends when it catches the tip. `batchSize` defaults to 200 (max 1000); page fetches retry on 429 and 5xx; aborting `signal` rejects the iterator.",
 			"source": {
 				"file": "packages/sdk/src/index-api/client.ts",
-				"line": 2148
+				"line": 2168
 			},
 			"overloads": [
 				{
@@ -977,7 +977,7 @@
 			"description": "Read one page of canonical blocks.\n\nEach block has its hash, parent hash, burn-chain anchor, and `block_time`. Filter by a height range.",
 			"source": {
 				"file": "packages/sdk/src/index-api/client.ts",
-				"line": 2165
+				"line": 2185
 			},
 			"overloads": [
 				{
@@ -1006,7 +1006,7 @@
 			"description": "Iterate every canonical block, paging for you.\n\nTakes the same filters as `list`. Not a live index: it does not checkpoint, ignores reorgs, and ends when it catches the tip. `batchSize` defaults to 200 (max 1000); page fetches retry on 429 and 5xx; aborting `signal` rejects the iterator.",
 			"source": {
 				"file": "packages/sdk/src/index-api/client.ts",
-				"line": 2171
+				"line": 2191
 			},
 			"overloads": [
 				{
@@ -1035,7 +1035,7 @@
 			"description": "Get one block by height or hash, or `null`.\n\nResolves to `null` when no such block exists (404).",
 			"source": {
 				"file": "packages/sdk/src/index-api/client.ts",
-				"line": 2177
+				"line": 2197
 			},
 			"overloads": [
 				{
@@ -1064,7 +1064,7 @@
 			"description": "Read one page of full transaction documents.\n\nFilter by `type`, `sender`, `contractId`, and a height range. Each document has the decoded post conditions and the payload for its `tx_type`; enrichment fields are null when the raw transaction cannot be decoded. `fields` returns only those columns and narrows the row type; `cursor`, `block_height`, and `tx_id` always come back.",
 			"source": {
 				"file": "packages/sdk/src/index-api/client.ts",
-				"line": 2195
+				"line": 2215
 			},
 			"overloads": [
 				{
@@ -1109,7 +1109,7 @@
 			"description": "Iterate every transaction document, paging for you.\n\nTakes the same filters as `list`. Not a live index: it does not checkpoint, ignores reorgs, and ends when it catches the tip. `batchSize` defaults to 200 (max 1000); page fetches retry on 429 and 5xx; aborting `signal` rejects the iterator.",
 			"source": {
 				"file": "packages/sdk/src/index-api/client.ts",
-				"line": 2206
+				"line": 2226
 			},
 			"overloads": [
 				{
@@ -1138,7 +1138,7 @@
 			"description": "Get one transaction by id, or `null`.\n\nResolves to `null` when the transaction is not found (404).",
 			"source": {
 				"file": "packages/sdk/src/index-api/client.ts",
-				"line": 2212
+				"line": 2232
 			},
 			"overloads": [
 				{
@@ -1167,7 +1167,7 @@
 			"description": "Get a transaction's inclusion proof, or `null`.\n\nThe proof is the raw transaction, the Nakamoto block header, and the merkle path. Check it yourself with `verifyTransactionProof`; nothing in it needs to be trusted. Resolves to `null` on 404. A 503 (`PROOF_TX_SET_INCOMPLETE` or `PROOF_NODE_UNAVAILABLE`) throws an `ApiError`: the proof cannot be assembled on this deployment right now.",
 			"source": {
 				"file": "packages/sdk/src/index-api/client.ts",
-				"line": 2218
+				"line": 2238
 			},
 			"overloads": [
 				{
@@ -1201,7 +1201,7 @@
 			"description": "Read one page of decoded PoX-4 stacking actions.\n\nOne row per stacking contract call. Filter by `functionName`, `stacker`, `caller`, and a height range. The feed is empty, with a `notes` hint, when the instance's PoX-4 decoder is disabled. For the current PoX, use `pox5.events` and `pox.cycles`.",
 			"source": {
 				"file": "packages/sdk/src/index-api/client.ts",
-				"line": 2240
+				"line": 2260
 			},
 			"overloads": [
 				{
@@ -1230,7 +1230,7 @@
 			"description": "Iterate every PoX-4 stacking action, paging for you.\n\nTakes the same filters as `list`. Not a live index: it does not checkpoint, ignores reorgs, and ends when it catches the tip. `batchSize` defaults to 200 (max 1000); page fetches retry on 429 and 5xx; aborting `signal` rejects the iterator.",
 			"source": {
 				"file": "packages/sdk/src/index-api/client.ts",
-				"line": 2246
+				"line": 2266
 			},
 			"overloads": [
 				{
@@ -1259,7 +1259,7 @@
 			"description": "Read one page of pending, unconfirmed transactions.\n\nFilter by `sender`, `type`, `contractId`, and `functionName`. There is no height filter: rows carry `received_at` and a sequence cursor instead of a block position.",
 			"source": {
 				"file": "packages/sdk/src/index-api/client.ts",
-				"line": 2263
+				"line": 2283
 			},
 			"overloads": [
 				{
@@ -1288,7 +1288,7 @@
 			"description": "Iterate every pending transaction, paging for you.\n\nTakes the same filters as `list`. Not a live index: it does not checkpoint, ignores reorgs, and ends when it catches the tip. `batchSize` defaults to 200 (max 1000); page fetches retry on 429 and 5xx; aborting `signal` rejects the iterator.",
 			"source": {
 				"file": "packages/sdk/src/index-api/client.ts",
-				"line": 2269
+				"line": 2289
 			},
 			"overloads": [
 				{
@@ -1317,7 +1317,7 @@
 			"description": "Get one pending transaction, or `null`.\n\nResolves to `null` once the transaction has confirmed or dropped.",
 			"source": {
 				"file": "packages/sdk/src/index-api/client.ts",
-				"line": 2277
+				"line": 2297
 			},
 			"overloads": [
 				{
@@ -1346,7 +1346,7 @@
 			"description": "Read one page of completed sBTC deposits.\n\nFilter by `sender`, `bitcoinTxid`, and a height range. `confirmed: true` keeps only deposits past the finality boundary. `fields` returns only those columns and narrows the row type; `cursor` and `block_height` always come back.",
 			"source": {
 				"file": "packages/sdk/src/index-api/client.ts",
-				"line": 1181
+				"line": 1199
 			},
 			"overloads": [
 				{
@@ -1391,7 +1391,7 @@
 			"description": "Iterate every completed sBTC deposit, paging for you.\n\nTakes the same filters as `list`. Not a live index: it does not checkpoint, ignores reorgs, and ends when it catches the tip. `batchSize` defaults to 200 (max 1000); page fetches retry on 429 and 5xx; aborting `signal` rejects the iterator.",
 			"source": {
 				"file": "packages/sdk/src/index-api/client.ts",
-				"line": 1190
+				"line": 1208
 			},
 			"overloads": [
 				{
@@ -1420,7 +1420,7 @@
 			"description": "Run a checkpointed, reorg-aware indexer over completed deposits.\n\nDeposits are append-only, so they are safe to mirror. See [`IndexConsumeOptions`](/docs/sdk-reference/index#t-IndexConsumeOptions).",
 			"source": {
 				"file": "packages/sdk/src/index-api/client.ts",
-				"line": 1197
+				"line": 1215
 			},
 			"overloads": [
 				{
@@ -1449,7 +1449,7 @@
 			"description": "Fetch a completed deposit by Bitcoin txid; 404 → null.",
 			"source": {
 				"file": "packages/sdk/src/index-api/client.ts",
-				"line": 1205
+				"line": 1223
 			},
 			"overloads": [
 				{
@@ -1478,7 +1478,7 @@
 			"description": "Read one page of sBTC withdrawals, each with its current status.\n\nFilter by `status` (`REQUESTED`, `ACCEPTED`, `REJECTED`), `sender`, `requestId`, `settlementConfirmed`, and a height range. A row changes as the peg-out moves along, which is why withdrawals have no `consume`. `fields` returns only those columns and narrows the row type; `cursor` and `request_id` always come back.",
 			"source": {
 				"file": "packages/sdk/src/index-api/client.ts",
-				"line": 1213
+				"line": 1231
 			},
 			"overloads": [
 				{
@@ -1523,7 +1523,7 @@
 			"description": "Iterate every sBTC withdrawal, paging for you.\n\nTakes the same filters as `list`. Not a live index: it does not checkpoint, ignores reorgs, and ends when it catches the tip. `batchSize` defaults to 200 (max 1000); page fetches retry on 429 and 5xx; aborting `signal` rejects the iterator.",
 			"source": {
 				"file": "packages/sdk/src/index-api/client.ts",
-				"line": 1222
+				"line": 1240
 			},
 			"overloads": [
 				{
@@ -1552,7 +1552,7 @@
 			"description": "Fetch a withdrawal's full lifecycle by request id; 404 → null.",
 			"source": {
 				"file": "packages/sdk/src/index-api/client.ts",
-				"line": 1226
+				"line": 1244
 			},
 			"overloads": [
 				{
@@ -1581,7 +1581,7 @@
 			"description": "Read one page of the raw sBTC peg event log.\n\nFilter by `topic`, `sender`, `requestId`, `bitcoinTxid`, and a height range. `confirmed: true` keeps only events past the finality boundary.",
 			"source": {
 				"file": "packages/sdk/src/index-api/client.ts",
-				"line": 1240
+				"line": 1258
 			},
 			"overloads": [
 				{
@@ -1610,7 +1610,7 @@
 			"description": "Iterate every sBTC peg event, paging for you.\n\nTakes the same filters as `list`. Not a live index: it does not checkpoint, ignores reorgs, and ends when it catches the tip. `batchSize` defaults to 200 (max 1000); page fetches retry on 429 and 5xx; aborting `signal` rejects the iterator.",
 			"source": {
 				"file": "packages/sdk/src/index-api/client.ts",
-				"line": 1246
+				"line": 1264
 			},
 			"overloads": [
 				{
@@ -1639,7 +1639,7 @@
 			"description": "Run a checkpointed, reorg-aware indexer over the raw peg event log.\n\nThe log is append-only across all six topics. See [`IndexConsumeOptions`](/docs/sdk-reference/index#t-IndexConsumeOptions).",
 			"source": {
 				"file": "packages/sdk/src/index-api/client.ts",
-				"line": 1253
+				"line": 1271
 			},
 			"overloads": [
 				{
@@ -1668,7 +1668,7 @@
 			"description": "Get the all-time sBTC peg scoreboard.\n\nA single aggregate, with no pagination.",
 			"source": {
 				"file": "packages/sdk/src/index-api/client.ts",
-				"line": 1266
+				"line": 1284
 			},
 			"overloads": [
 				{
@@ -1690,7 +1690,7 @@
 			"description": "Read one page of PoX reward cycles, newest first.\n\n`cursor` is a `reward_cycle` number, and the page returns the cycles below it. `next_cursor` is the next cycle number to page from, or `null` at the end. This reports the current PoX (PoX-5); PoX-4 history is not served here, so read `stacking` for it.",
 			"source": {
 				"file": "packages/sdk/src/index-api/client.ts",
-				"line": 1367
+				"line": 1385
 			},
 			"overloads": [
 				{
@@ -1719,7 +1719,7 @@
 			"description": "Iterate every reward cycle, paging for you.\n\nTakes the same filters as `list` (it pages by reward cycle number). Not a live index: it does not checkpoint, ignores reorgs, and ends when it catches the tip. `batchSize` defaults to 200 (max 1000); page fetches retry on 429 and 5xx; aborting `signal` rejects the iterator.",
 			"source": {
 				"file": "packages/sdk/src/index-api/client.ts",
-				"line": 1373
+				"line": 1391
 			},
 			"overloads": [
 				{
@@ -1748,7 +1748,7 @@
 			"description": "Get one reward cycle by number, or `null`.\n\nResolves to `null` on 404: an unknown cycle, or one below pox-5's first\nreward cycle (141), whose PoX-4 history is final and not served here.",
 			"source": {
 				"file": "packages/sdk/src/index-api/client.ts",
-				"line": 1380
+				"line": 1398
 			},
 			"overloads": [
 				{
@@ -1777,7 +1777,7 @@
 			"description": "Read one page of decoded PoX-5 staking events.\n\nFilter by `topic`, `staker`, `signer`, `signerManager`, `bondIndex`, `rewardCycle`, and a height range. `confirmed: true` keeps only rows past the finality boundary. `fields` returns only those columns and narrows the row type; `cursor`, `block_height`, and `topic` always come back.",
 			"source": {
 				"file": "packages/sdk/src/index-api/client.ts",
-				"line": 1481
+				"line": 1499
 			},
 			"overloads": [
 				{
@@ -1822,7 +1822,7 @@
 			"description": "Iterate every PoX-5 event, paging for you.\n\nTakes the same filters as `list`. Not a live index: it does not checkpoint, ignores reorgs, and ends when it catches the tip. `batchSize` defaults to 200 (max 1000); page fetches retry on 429 and 5xx; aborting `signal` rejects the iterator.",
 			"source": {
 				"file": "packages/sdk/src/index-api/client.ts",
-				"line": 1490
+				"line": 1508
 			},
 			"overloads": [
 				{
@@ -1851,7 +1851,7 @@
 			"description": "Run a checkpointed, reorg-aware indexer over PoX-5 events.\n\nThe pox-5 print log is append-only across all 19 topics. See [`IndexConsumeOptions`](/docs/sdk-reference/index#t-IndexConsumeOptions).",
 			"source": {
 				"file": "packages/sdk/src/index-api/client.ts",
-				"line": 1497
+				"line": 1515
 			},
 			"overloads": [
 				{
@@ -1880,7 +1880,7 @@
 			"description": "Read one page of Rune etch, mint, transfer, and burn events.\n\nFilter by `rune` (an id or a name), `address`, `kind`, `txid`, and a height range. The cursor is `<block_height>:<event_index>`, and the envelope's tip is a Bitcoin tip. `notes` says so when Runes is not configured on the instance.",
 			"source": {
 				"file": "packages/sdk/src/index-api/client.ts",
-				"line": 1775
+				"line": 1793
 			},
 			"overloads": [
 				{
@@ -1909,7 +1909,7 @@
 			"description": "Iterate every Rune event, paging for you.\n\nTakes the same filters as `list`. Not a live index: it does not checkpoint, ignores reorgs, and ends when it catches the tip. `batchSize` defaults to 200 (max 1000); page fetches retry on 429 and 5xx; aborting `signal` rejects the iterator.",
 			"source": {
 				"file": "packages/sdk/src/index-api/client.ts",
-				"line": 1781
+				"line": 1799
 			},
 			"overloads": [
 				{
@@ -1938,7 +1938,7 @@
 			"description": "The rune catalog. `search` prefix-matches the name; `sort` is etch\norder (default) or busiest-first.",
 			"source": {
 				"file": "packages/sdk/src/index-api/client.ts",
-				"line": 1758
+				"line": 1776
 			},
 			"overloads": [
 				{
@@ -1967,7 +1967,7 @@
 			"description": "Get one rune by id or name, or `null`.\n\nResolves to `null` on 404: no such rune, or Runes isn't configured on\nthis instance.",
 			"source": {
 				"file": "packages/sdk/src/index-api/client.ts",
-				"line": 1765
+				"line": 1783
 			},
 			"overloads": [
 				{
@@ -1996,7 +1996,7 @@
 			"description": "Current per-outpoint rune balances by address or outpoint.",
 			"source": {
 				"file": "packages/sdk/src/index-api/client.ts",
-				"line": 1767
+				"line": 1785
 			},
 			"overloads": [
 				{
@@ -2025,7 +2025,7 @@
 			"description": "Whether a Bitcoin output is spent, and by which transaction.\n\nA mempool spend shows on the next read (`mempool: true`); a confirmed\none names its block. Resolves to `null` on 404: no such transaction,\nno output at `vout`, or an OP_RETURN output.",
 			"source": {
 				"file": "packages/sdk/src/index-api/client.ts",
-				"line": 1748
+				"line": 1766
 			},
 			"overloads": [
 				{
@@ -2060,7 +2060,7 @@
 			"description": "Get the live vocabulary of what Index can query.\n\nThe discovery doc lists every endpoint and each event type's columns,\nallowed and equality filters, and required-non-null fields. Read it to\nlearn what's queryable (and which types accept `trait`) instead of\nhardcoding.",
 			"source": {
 				"file": "packages/sdk/src/index-api/client.ts",
-				"line": 1989
+				"line": 2009
 			},
 			"rest": "GET /v1/index",
 			"overloads": [
@@ -2083,7 +2083,7 @@
 			"description": "Get the print payload schema a contract actually emits.\n\nLists the topics it emits and each field's observed Clarity, TS, and\ncolumn types. Anonymous read; resolves to `null` on 404.",
 			"source": {
 				"file": "packages/sdk/src/index-api/client.ts",
-				"line": 1999
+				"line": 2019
 			},
 			"rest": "GET /v1/index/contracts/{contractId}/print-schema",
 			"overloads": [
@@ -2844,6 +2844,12 @@
 					"description": ""
 				},
 				{
+					"name": "order",
+					"type": "IndexOrder",
+					"required": false,
+					"description": "`\"desc\"` reads newest first. See [`IndexOrder`](/docs/sdk-reference/index#t-IndexOrder)."
+				},
+				{
 					"name": "trait",
 					"type": "string",
 					"required": false,
@@ -2944,6 +2950,12 @@
 					"type": "string",
 					"required": false,
 					"description": ""
+				},
+				{
+					"name": "order",
+					"type": "IndexOrder",
+					"required": false,
+					"description": "`\"desc\"` reads newest first. See [`IndexOrder`](/docs/sdk-reference/index#t-IndexOrder)."
 				},
 				{
 					"name": "eventType",
@@ -3196,6 +3208,12 @@
 					"type": "number",
 					"required": false,
 					"description": ""
+				},
+				{
+					"name": "order",
+					"type": "IndexOrder",
+					"required": false,
+					"description": "`\"desc\"` reads newest first. See [`IndexOrder`](/docs/sdk-reference/index#t-IndexOrder)."
 				}
 			]
 		},
@@ -3256,6 +3274,12 @@
 					"type": "readonly (\"cursor\" | \"sender\" | \"recipient\" | \"block_height\" | \"event_type\" | \"block_time\" | \"tx_id\" | \"tx_index\" | \"event_index\" | \"contract_id\" | \"asset_identifier\" | \"amount\")[]",
 					"required": false,
 					"description": "Columns to return. The server projects the row, so an unrequested column\nis physically absent — and the narrowing overload on `list` makes reading\none a compile error rather than `undefined` at runtime. Omitting\n`block_time` also lets the server skip the blocks join."
+				},
+				{
+					"name": "order",
+					"type": "IndexOrder",
+					"required": false,
+					"description": "`\"desc\"` reads newest first. See [`IndexOrder`](/docs/sdk-reference/index#t-IndexOrder)."
 				},
 				{
 					"name": "retryCount",
@@ -4865,6 +4889,11 @@
 					"description": ""
 				}
 			]
+		},
+		{
+			"name": "IndexOrder",
+			"summary": "Read direction for decoded-event lists.",
+			"definition": "\"asc\" | \"desc\""
 		},
 		{
 			"name": "IndexPostCondition",
@@ -7447,6 +7476,12 @@
 					"type": "number",
 					"required": false,
 					"description": ""
+				},
+				{
+					"name": "order",
+					"type": "IndexOrder",
+					"required": false,
+					"description": "`\"desc\"` reads newest first. See [`IndexOrder`](/docs/sdk-reference/index#t-IndexOrder)."
 				}
 			]
 		},
@@ -7507,6 +7542,12 @@
 					"type": "readonly (\"cursor\" | \"sender\" | \"recipient\" | \"block_height\" | \"event_type\" | \"block_time\" | \"tx_id\" | \"tx_index\" | \"event_index\" | \"contract_id\" | \"asset_identifier\" | \"value\")[]",
 					"required": false,
 					"description": "Columns to return (see `FtTransfersListParams.fields`)."
+				},
+				{
+					"name": "order",
+					"type": "IndexOrder",
+					"required": false,
+					"description": "`\"desc\"` reads newest first. See [`IndexOrder`](/docs/sdk-reference/index#t-IndexOrder)."
 				},
 				{
 					"name": "retryCount",

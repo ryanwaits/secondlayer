@@ -366,7 +366,7 @@
 						},
 						{
 							"name": "params",
-							"type": "{ limit?: number; filters?: Record<string, string>; fields?: string; sort?: string; order?: string } & { cursor?: string }",
+							"type": "{ limit?: number; filters?: Record<string, string>; fields?: string; order?: string; sort?: string } & { cursor?: string }",
 							"required": false,
 							"description": ""
 						}

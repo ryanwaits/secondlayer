@@ -86,6 +86,7 @@ export type {
 	IndexEventTypeFilters,
 	IndexFtTransfer,
 	IndexNftTransfer,
+	IndexOrder,
 	IndexStxTransfer,
 	IndexStxMint,
 	IndexStxBurn,

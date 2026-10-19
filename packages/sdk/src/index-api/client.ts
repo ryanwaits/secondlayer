@@ -84,6 +84,14 @@ export type FtTransferFields<F extends keyof FtTransfer & string> = Pick<
 	(F | FtTransferAlwaysFields) & keyof FtTransfer
 >;
 
+/**
+ * Read direction for decoded-event lists. `"asc"` (default) reads oldest
+ * first. `"desc"` reads newest first: with no height range, page one is the
+ * newest rows of the last day, and `next_cursor` pages older. A cursor only
+ * resumes under the order that issued it; the API refuses the other order.
+ */
+export type IndexOrder = "asc" | "desc";
+
 /** Column selection, paging, and filters for listing token transfers. */
 export type FtTransfersListParams = {
 	/**
@@ -102,6 +110,8 @@ export type FtTransfersListParams = {
 	recipient?: string;
 	fromHeight?: number;
 	toHeight?: number;
+	/** `"desc"` reads newest first. See {@link IndexOrder}. */
+	order?: IndexOrder;
 };
 
 /** Largest page any Index list route serves. The server clamps `limit` above
@@ -177,6 +187,8 @@ export type NftTransfersListParams = {
 	recipient?: string;
 	fromHeight?: number;
 	toHeight?: number;
+	/** `"desc"` reads newest first. See {@link IndexOrder}. */
+	order?: IndexOrder;
 };
 
 /** `NftTransfersListParams` without `limit`, plus walk options. */
@@ -389,6 +401,8 @@ export type EventsListParams<T extends IndexEventType = IndexEventType> = {
 	txId?: string;
 	fromHeight?: number;
 	toHeight?: number;
+	/** `"desc"` reads newest first. See {@link IndexOrder}. */
+	order?: IndexOrder;
 	/** Restrict to contracts conforming to a trait/standard (e.g. "sip-010").
 	 *  Mutually exclusive with contractId; contract-keyed event types only. */
 	trait?: string;
@@ -430,7 +444,11 @@ export type EventsConsumeParams<
 	// projected row is a real want — it needs the loop to thread it AND the
 	// handler's row type to narrow, which is a larger change than pretending
 	// the option works.
-> = Omit<EventsListParams<T>, "cursor" | "fromCursor" | "limit" | "fields"> &
+	// `order` is omitted too: a consumer tails forward from its checkpoint.
+> = Omit<
+	EventsListParams<T>,
+	"cursor" | "fromCursor" | "limit" | "fields" | "order"
+> &
 	IndexConsumeOptions<IndexEventOf<T>, EventsEnvelope<T>, TTx>;
 
 // ── Contract calls (/v1/index/contract-calls) ──────────────────────
@@ -1819,6 +1837,7 @@ function indexPageQuery(params: {
 	fromHeight?: number;
 	toHeight?: number;
 	fields?: readonly string[];
+	order?: IndexOrder;
 }) {
 	return {
 		cursor: params.cursor,
@@ -1827,6 +1846,7 @@ function indexPageQuery(params: {
 		from_height: params.fromHeight,
 		to_height: params.toHeight,
 		fields: params.fields,
+		order: params.order,
 	};
 }
 
@@ -1857,7 +1877,7 @@ export interface FtTransfersResource {
 	/**
 	 * Read one page of fungible-token transfers, plus the cursor for the next.
 	 *
-	 * Filter by `contractId`, `assetIdentifier`, `sender`, `recipient`, and a height range. Filters are equality only: there is no amount filter. Pass `next_cursor` back as `cursor` to continue. `fields` returns only those columns and narrows the row type; `cursor`, `block_height`, and `event_type` always come back. `reorgs` on the envelope lists forks that overlap the page.
+	 * Filter by `contractId`, `assetIdentifier`, `sender`, `recipient`, and a height range. Filters are equality only: there is no amount filter. `order: "desc"` reads newest first. Pass `next_cursor` back as `cursor` to continue. `fields` returns only those columns and narrows the row type; `cursor`, `block_height`, and `event_type` always come back. `reorgs` on the envelope lists forks that overlap the page.
 	 */
 	list<const F extends keyof FtTransfer & string>(
 		params: FtTransfersListParams & { fields: readonly F[] },
@@ -1866,7 +1886,7 @@ export interface FtTransfersResource {
 	/**
 	 * Iterate every fungible-token transfer, paging for you.
 	 *
-	 * Takes the same filters as `list`. Not a live index: it does not checkpoint, ignores reorgs, and ends when it catches the tip. `batchSize` defaults to 200 (max 1000); page fetches retry on 429 and 5xx; aborting `signal` rejects the iterator.
+	 * Takes the same filters as `list`. Not a live index: it does not checkpoint, ignores reorgs, and ends when it catches the tip, or with `order: "desc"` when it reaches `fromHeight` (genesis by default). `batchSize` defaults to 200 (max 1000); page fetches retry on 429 and 5xx; aborting `signal` rejects the iterator.
 	 */
 	walk<const F extends keyof FtTransfer & string>(
 		params: FtTransfersWalkParams & { fields: readonly F[] },
@@ -1885,7 +1905,7 @@ export interface NftTransfersResource {
 	/**
 	 * Read one page of NFT transfers, plus the cursor for the next.
 	 *
-	 * Filter by `contractId`, `assetIdentifier`, `sender`, `recipient`, and a height range. Pass `next_cursor` back as `cursor` to continue. `fields` returns only those columns and narrows the row type; `cursor`, `block_height`, and `event_type` always come back.
+	 * Filter by `contractId`, `assetIdentifier`, `sender`, `recipient`, and a height range. `order: "desc"` reads newest first. Pass `next_cursor` back as `cursor` to continue. `fields` returns only those columns and narrows the row type; `cursor`, `block_height`, and `event_type` always come back.
 	 */
 	list<const F extends keyof NftTransfer & string>(
 		params: NftTransfersListParams & { fields: readonly F[] },
@@ -1894,7 +1914,7 @@ export interface NftTransfersResource {
 	/**
 	 * Iterate every NFT transfer, paging for you.
 	 *
-	 * Takes the same filters as `list`. Not a live index: it does not checkpoint, ignores reorgs, and ends when it catches the tip. `batchSize` defaults to 200 (max 1000); page fetches retry on 429 and 5xx; aborting `signal` rejects the iterator.
+	 * Takes the same filters as `list`. Not a live index: it does not checkpoint, ignores reorgs, and ends when it catches the tip, or with `order: "desc"` when it reaches `fromHeight` (genesis by default). `batchSize` defaults to 200 (max 1000); page fetches retry on 429 and 5xx; aborting `signal` rejects the iterator.
 	 */
 	walk<const F extends keyof NftTransfer & string>(
 		params: NftTransfersWalkParams & { fields: readonly F[] },
@@ -1915,7 +1935,7 @@ export interface IndexEventsResource {
 	/**
 	 * Read one page of decoded events of one type.
 	 *
-	 * `eventType` is required: a decoded type (`ft_transfer`, `print`, ...) or a VM type (`nested_contract_call`, `map_set`, ...), and a literal narrows the row type. Scope with `contractId` (one id or up to 20) or `trait`, never both, plus `assetIdentifier`, `sender`, `recipient`, `functionName`, `caller`, `map`, `varName`, `txId`, and a height range. `txContext: true` joins the submitting transaction onto each event. `fields` returns only those columns and narrows the row type; it saves wire bytes but does not change what you are billed, since rows are metered, not columns.
+	 * `eventType` is required: a decoded type (`ft_transfer`, `print`, ...) or a VM type (`nested_contract_call`, `map_set`, ...), and a literal narrows the row type. Scope with `contractId` (one id or up to 20) or `trait`, never both, plus `assetIdentifier`, `sender`, `recipient`, `functionName`, `caller`, `map`, `varName`, `txId`, and a height range. `order: "desc"` reads newest first. `txContext: true` joins the submitting transaction onto each event. `fields` returns only those columns and narrows the row type; it saves wire bytes but does not change what you are billed, since rows are metered, not columns.
 	 */
 	list<
 		T extends IndexEventType,
@@ -1929,7 +1949,7 @@ export interface IndexEventsResource {
 	/**
 	 * Iterate every decoded event of one type, paging for you.
 	 *
-	 * Takes the same filters as `list`, including `eventType`. Not a live index: it does not checkpoint, ignores reorgs, and ends when it catches the tip. `batchSize` defaults to 200 (max 1000); page fetches retry on 429 and 5xx; aborting `signal` rejects the iterator.
+	 * Takes the same filters as `list`, including `eventType`. Not a live index: it does not checkpoint, ignores reorgs, and ends when it catches the tip, or with `order: "desc"` when it reaches `fromHeight` (genesis by default). `batchSize` defaults to 200 (max 1000); page fetches retry on 429 and 5xx; aborting `signal` rejects the iterator.
 	 */
 	walk<
 		T extends IndexEventType,

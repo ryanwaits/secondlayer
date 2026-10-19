@@ -1222,7 +1222,7 @@
 					"type": "string"
 				}
 			],
-			"more": 10,
+			"more": 11,
 			"route": "/docs/sdk-reference/index",
 			"anchor": "t-EventsListParams"
 		},
@@ -1263,7 +1263,7 @@
 					"type": "string | null"
 				}
 			],
-			"more": 14,
+			"more": 15,
 			"route": "/docs/sdk-reference/index",
 			"anchor": "t-EventsWalkParams"
 		},
@@ -1389,7 +1389,7 @@
 					"type": "string"
 				}
 			],
-			"more": 2,
+			"more": 3,
 			"route": "/docs/sdk-reference/index",
 			"anchor": "t-FtTransfersListParams"
 		},
@@ -1444,7 +1444,7 @@
 					"type": "string | null"
 				}
 			],
-			"more": 6,
+			"more": 7,
 			"route": "/docs/sdk-reference/index",
 			"anchor": "t-FtTransfersWalkParams"
 		},
@@ -2363,6 +2363,12 @@
 			"more": 9,
 			"route": "/docs/sdk-reference/index",
 			"anchor": "t-IndexNftTransfer"
+		},
+		"IndexOrder": {
+			"kind": "type",
+			"summary": "Read direction for decoded-event lists.",
+			"route": "/docs/sdk-reference/index",
+			"anchor": "t-IndexOrder"
 		},
 		"IndexPox5Event": {
 			"kind": "type",
@@ -3659,7 +3665,7 @@
 					"type": "string"
 				}
 			],
-			"more": 2,
+			"more": 3,
 			"route": "/docs/sdk-reference/index",
 			"anchor": "t-NftTransfersListParams"
 		},
@@ -3714,7 +3720,7 @@
 					"type": "string | null"
 				}
 			],
-			"more": 6,
+			"more": 7,
 			"route": "/docs/sdk-reference/index",
 			"anchor": "t-NftTransfersWalkParams"
 		},
@@ -11766,7 +11772,7 @@
 			"method": "GET",
 			"tip": {
 				"kind": "endpoint",
-				"summary": "One event_type per request, oldest first.",
+				"summary": "One event_type per request, oldest first unless order=desc.",
 				"route": "/docs/api/index",
 				"anchor": "list-events"
 			}
@@ -11776,7 +11782,7 @@
 			"method": "GET",
 			"tip": {
 				"kind": "endpoint",
-				"summary": "Same rows as /v1/index/events?event_type=ft_transfer, oldest first, with a typed row.",
+				"summary": "Same rows as /v1/index/events?event_type=ft_transfer, oldest first unless order=desc, with a typed row.",
 				"route": "/docs/api/index",
 				"anchor": "list-ft-transfers"
 			}
@@ -11786,7 +11792,7 @@
 			"method": "GET",
 			"tip": {
 				"kind": "endpoint",
-				"summary": "Same rows as /v1/index/events?event_type=nft_transfer, oldest first, with a typed row.",
+				"summary": "Same rows as /v1/index/events?event_type=nft_transfer, oldest first unless order=desc, with a typed row.",
 				"route": "/docs/api/index",
 				"anchor": "list-nft-transfers"
 			}

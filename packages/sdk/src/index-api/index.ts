@@ -40,6 +40,7 @@ export type {
 	IndexEventType,
 	IndexFtTransfer,
 	IndexNftTransfer,
+	IndexOrder,
 	IndexStxTransfer,
 	IndexStxMint,
 	IndexStxBurn,

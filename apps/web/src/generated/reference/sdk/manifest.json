@@ -637,6 +637,7 @@
 		"IndexNftBurn": "/docs/sdk-reference/index#t-IndexNftBurn",
 		"IndexNftMint": "/docs/sdk-reference/index#t-IndexNftMint",
 		"IndexNftTransfer": "/docs/sdk-reference/index#t-IndexNftTransfer",
+		"IndexOrder": "/docs/sdk-reference/index#t-IndexOrder",
 		"IndexPostCondition": "/docs/sdk-reference/index#t-IndexPostCondition",
 		"IndexPox5Event": "/docs/sdk-reference/index#t-IndexPox5Event",
 		"IndexPoxCycle": "/docs/sdk-reference/index#t-IndexPoxCycle",
