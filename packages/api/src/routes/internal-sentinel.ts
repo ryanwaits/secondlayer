@@ -384,9 +384,6 @@ export function createInternalSentinelRouter(
 					: null,
 			prices: {
 				check_run: Number(PRICES["sentinel.check_run"]),
-				// Retired audit prices stay so older Sentinel builds still read them.
-				run: Number(PRICES["sentinel.run"]),
-				deep_audit: Number(PRICES["sentinel.deep_audit"]),
 				monitored_event: Number(PRICES["sentinel.monitored_event"]),
 			},
 		});

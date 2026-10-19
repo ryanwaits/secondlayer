@@ -521,8 +521,6 @@ describe.skipIf(!HAS_DB)("/internal/sentinel routes", () => {
 			refill: null,
 			prices: {
 				check_run: Number(PRICES["sentinel.check_run"]),
-				run: Number(PRICES["sentinel.run"]),
-				deep_audit: Number(PRICES["sentinel.deep_audit"]),
 				monitored_event: Number(PRICES["sentinel.monitored_event"]),
 			},
 		});
