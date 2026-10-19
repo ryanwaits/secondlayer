@@ -84,9 +84,9 @@ The archive is published to **two** places and both have to move:
 | Surface | What it is | Written by |
 | --- | --- | --- |
 | R2 bucket | Durable copy under `secondlayer/mainnet/canonical/v1/` | `upload-snapshot`, `promote-snapshot`, `publish-status` |
-| Served tree | `archive.secondlayer.tools`, Caddy static root over the staging dir bind-mounted at `/srv/archive` | the exporter (partitions), plus the pointer mirror below |
+| Served tree | `archive.secondlayer.tools`, Caddy allowlist over the staging dir bind-mounted at `/srv/archive`. Publishes only pointers, manifests (`snapshots/`), `digests/`, `reports/` and `attestations/`; everything else answers 403. Data partitions are R2-only via the fetch gate; CLI <12.2.0 can no longer bootstrap from the official host (mirrors unaffected) | the exporter (partitions, kept on disk but not served), plus the pointer mirror below |
 
-Partitions land in the served tree because the exporter writes them there. The
+Partitions land in the staging dir because the exporter writes them there (Caddy does not serve them). The
 two mutable pointers do not: `latest.json` and `status.json` are PUT to the
 bucket, and reach the served tree only through `ARCHIVE_PUBLIC_DIR`
 (`/data/archive/canonical-v1-staging`, set on the indexer service). Unset it and
