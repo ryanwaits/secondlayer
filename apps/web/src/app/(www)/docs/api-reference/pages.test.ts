@@ -49,7 +49,7 @@ describe("api reference pages", () => {
 		}
 		expect(seen.size).toBe(allEndpoints().length);
 		expect(counts).toEqual({
-			index: 29,
+			index: 30,
 			streams: 6,
 			proofs: 9,
 			subgraphs: 24,

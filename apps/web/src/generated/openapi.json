@@ -29,6 +29,10 @@
 			"description": "Chain proofs to check Index rows without trusting this API: state witnesses, signed blocks, MARF proofs, burn-block preimages, Bitcoin headers. Free."
 		},
 		{
+			"name": "bitcoin",
+			"description": "Reads answered live from this instance's own Bitcoin node: whether an output is spent, and by what."
+		},
+		{
 			"name": "subgraphs",
 			"description": "Reads over deployed subgraphs — rows, counts, aggregates, generated schema and docs"
 		},
@@ -8804,6 +8808,81 @@
 					"proof": "0x00…"
 				}
 			},
+			"BitcoinOutspend": {
+				"title": "Bitcoin output spend",
+				"type": "object",
+				"description": "One output's spend status. An unspent output carries only `txid`, `vout` and `spent`.",
+				"required": [
+					"txid",
+					"vout",
+					"spent"
+				],
+				"properties": {
+					"txid": {
+						"type": "string",
+						"description": "The output's transaction, display order, no `0x`."
+					},
+					"vout": {
+						"type": "integer",
+						"description": "The output's index."
+					},
+					"spent": {
+						"type": "boolean",
+						"description": "True once any transaction spends it, in the mempool or in a block."
+					},
+					"spending_txid": {
+						"type": [
+							"string",
+							"null"
+						],
+						"description": "The spending transaction. Null for a confirmed spend deeper than the blocks a lookup reads; `note` says so."
+					},
+					"spending_vin": {
+						"type": [
+							"integer",
+							"null"
+						],
+						"description": "The index of the spending input in that transaction."
+					},
+					"confirmed": {
+						"type": "boolean",
+						"description": "True when the spend is in a block of the active chain."
+					},
+					"mempool": {
+						"type": "boolean",
+						"description": "True when the spend is only in the mempool so far."
+					},
+					"block_height": {
+						"type": [
+							"integer",
+							"null"
+						],
+						"description": "Height of the block with the spend. Null in the mempool."
+					},
+					"block_hash": {
+						"type": [
+							"string",
+							"null"
+						],
+						"description": "Hash of the block with the spend. Null in the mempool."
+					},
+					"note": {
+						"type": "string",
+						"description": "Present when the answer is incomplete: why the spender is not named."
+					}
+				},
+				"example": {
+					"txid": "f80a188d012dbb733748db003b987cc98fc4a636cbd071734decb298c1bad80b",
+					"vout": 0,
+					"spent": true,
+					"spending_txid": "3b7a6f0c2d9e1a4b5c8d7e6f0a1b2c3d4e5f60718293a4b5c6d7e8f9a0b1c2d3",
+					"spending_vin": 0,
+					"confirmed": true,
+					"mempool": false,
+					"block_height": 968470,
+					"block_hash": "00000000000000000001c3b0d1a9f5e2e5b2a9c2d0f6c7e1b8a4d3c2b1a09f8e"
+				}
+			},
 			"InstanceFeatures": {
 				"title": "Instance feature manifest",
 				"type": "object",
@@ -16595,6 +16674,119 @@
 					},
 					"502": {
 						"description": "The node or proof sidecar could not be reached, or answered with an unexpected status (`PROOF_SOURCE_ERROR`)",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/v1/bitcoin/outspend/{txid}/{vout}": {
+			"get": {
+				"operationId": "getBitcoinOutspend",
+				"tags": [
+					"bitcoin"
+				],
+				"summary": "Bitcoin output spend status",
+				"x-nav-title": "Output spend",
+				"description": "Whether one Bitcoin output is spent, and by which transaction, read live from this instance's Bitcoin node. A spend in the mempool shows on the next read, with `mempool: true`. A confirmed spend names its block. The spender of a confirmed spend is found by reading blocks back from the tip, up to 144 of them. A spend deeper than that answers `spent: true` with a null `spending_txid` and a `note`. Answers can change with the mempool and with reorgs, so they are cached for 2 seconds at most. Hosted: one row per answer, 20 requests per second per key. Self-host needs Bitcoin Core 24 or later with `txindex=1` at `BITCOIN_RPC_URL`.",
+				"security": [
+					{},
+					{
+						"bearerAuth": []
+					}
+				],
+				"parameters": [
+					{
+						"name": "txid",
+						"in": "path",
+						"required": true,
+						"schema": {
+							"type": "string",
+							"pattern": "^(0x)?[0-9a-fA-F]{64}$",
+							"example": "f80a188d012dbb733748db003b987cc98fc4a636cbd071734decb298c1bad80b"
+						},
+						"description": "The txid of the transaction that created the output, display order: 64 hex characters, `0x` optional."
+					},
+					{
+						"name": "vout",
+						"in": "path",
+						"required": true,
+						"schema": {
+							"type": "integer",
+							"minimum": 0,
+							"example": 0
+						},
+						"description": "The output's index in that transaction, from 0."
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "The output's spend status",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/BitcoinOutspend"
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "The txid is not 64 hex characters, or vout is not a non-negative integer (`VALIDATION_ERROR`)",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "This bind requires the instance token, and it was missing or wrong",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "No transaction with that txid, no output at that index, or an `OP_RETURN` output, which can never be spent",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"429": {
+						"description": "Rate limited; retry after `Retry-After` seconds",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"502": {
+						"description": "The Bitcoin node could not be read, or lacks a method this needs (`BITCOIN_SOURCE_ERROR`)",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"503": {
+						"description": "`BITCOIN_UNAVAILABLE`: this instance has no Bitcoin node (`BITCOIN_RPC_URL` unset). `BITCOIN_BUSY`: block reads are at capacity; retry after `Retry-After` seconds",
 						"content": {
 							"application/json": {
 								"schema": {

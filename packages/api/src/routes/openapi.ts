@@ -7,6 +7,7 @@ import {
 	WORKLOAD_OPENAPI_PREFIXES,
 } from "../route-manifest.ts";
 import { FEEDBACK_KINDS } from "./feedback.ts";
+import { bitcoinPaths, bitcoinSchemas } from "./openapi/bitcoin.ts";
 import { corePaths, coreSchemas } from "./openapi/core.ts";
 import { deploymentsPaths, deploymentsSchemas } from "./openapi/deployments.ts";
 import { indexPaths, indexSchemas } from "./openapi/index.ts";
@@ -79,6 +80,7 @@ export const OPERATION_IDS: Record<string, string> = {
 	"GET /v1/proofs/epoch2-header/{index_block_hash}": "getEpoch2Header",
 	"GET /v1/proofs/writes/{height}": "getBlockStateWrites",
 	"GET /v1/proofs/marf/{path}": "getMarfProof",
+	"GET /v1/bitcoin/outspend/{txid}/{vout}": "getBitcoinOutspend",
 	"GET /v1/streams": "discoverStreams",
 	"GET /v1/streams/events": "listStreamEvents",
 	"GET /v1/streams/events/stream": "tailStreamEvents",
@@ -183,6 +185,7 @@ export const SCHEMAS_BY_FILE = {
 	webhooks: webhooksSchemas,
 	node: nodeSchemas,
 	proofs: proofsSchemas,
+	bitcoin: bitcoinSchemas,
 } as const;
 
 const TAG_SCHEMAS = Object.assign({}, ...Object.values(SCHEMAS_BY_FILE));
@@ -262,6 +265,7 @@ const SCHEMA_TITLES: Record<string, string> = {
 	BitcoinTxProof: "Bitcoin transaction proof",
 	MarfProof: "MARF proof",
 	BlockStateWrites: "Block state writes",
+	BitcoinOutspend: "Bitcoin output spend",
 	InstanceCatalog: "Instance catalog",
 	InstanceFeatures: "Instance feature manifest",
 	InstanceMetrics: "Instance metrics",
@@ -308,6 +312,11 @@ export const OPENAPI_SPEC = {
 			name: "proofs",
 			description:
 				"Chain proofs to check Index rows without trusting this API: state witnesses, signed blocks, MARF proofs, burn-block preimages, Bitcoin headers. Free.",
+		},
+		{
+			name: "bitcoin",
+			description:
+				"Reads answered live from this instance's own Bitcoin node: whether an output is spent, and by what.",
 		},
 		{
 			name: "subgraphs",
@@ -630,6 +639,7 @@ export const OPENAPI_SPEC = {
 		...protocolsPaths,
 		...streamsPaths,
 		...proofsPaths,
+		...bitcoinPaths,
 		...deploymentsPaths,
 		...webhooksPaths,
 		...nodePaths,
@@ -649,7 +659,12 @@ export const OPENAPI_SPEC = {
  *  - the credential there is a minted account key, not an instance token.
  */
 function platformSpec(): typeof OPENAPI_SPEC {
-	const KEYED_PREFIXES = ["/v1/streams", "/v1/index", "/v1/proofs"];
+	const KEYED_PREFIXES = [
+		"/v1/streams",
+		"/v1/index",
+		"/v1/proofs",
+		"/v1/bitcoin",
+	];
 	const paths: Record<string, unknown> = {};
 	for (const [key, value] of Object.entries(OPENAPI_SPEC.paths)) {
 		if (isWorkloadPath(key)) continue;
@@ -671,7 +686,7 @@ function platformSpec(): typeof OPENAPI_SPEC {
 		info: {
 			...OPENAPI_SPEC.info,
 			description:
-				"The metered public archive. Index, Streams and Proofs reads require an account API key (`sk-sl_*`) as `Authorization: Bearer`; Proofs are never metered. Discovery GET `/v1/index` and `/v1/streams` stay open. Subgraphs, webhooks and the rest of the workload plane are self-host only and not served here.",
+				"The metered public archive. Index, Streams, Bitcoin and Proofs reads require an account API key (`sk-sl_*`) as `Authorization: Bearer`; Proofs are never metered. Discovery GET `/v1/index` and `/v1/streams` stay open. Subgraphs, webhooks and the rest of the workload plane are self-host only and not served here.",
 		},
 		tags: [
 			...OPENAPI_SPEC.tags.filter(
@@ -706,7 +721,7 @@ function platformSpec(): typeof OPENAPI_SPEC {
 					scheme: "bearer",
 					bearerFormat: "sk-sl_*",
 					description:
-						"Account API key minted by the archive. Required on Index, Streams and Proofs.",
+						"Account API key minted by the archive. Required on Index, Streams, Bitcoin and Proofs.",
 				},
 			},
 		},

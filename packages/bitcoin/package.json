@@ -6,6 +6,7 @@
 	"main": "./src/cli.ts",
 	"exports": {
 		".": "./src/cli.ts",
+		"./block": "./src/block.ts",
 		"./db": "./src/db/types.ts",
 		"./rune": "./src/runes/spaced_rune.ts"
 	},

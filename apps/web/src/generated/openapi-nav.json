@@ -395,6 +395,22 @@
 		]
 	},
 	{
+		"tag": "bitcoin",
+		"objects": [
+			{
+				"anchor": "bitcoin-outspend-object",
+				"title": "The Bitcoin output spend object"
+			}
+		],
+		"endpoints": [
+			{
+				"anchor": "get-bitcoin-outspend",
+				"method": "GET",
+				"title": "Bitcoin output spend status"
+			}
+		]
+	},
+	{
 		"tag": "subgraphs",
 		"objects": [
 			{

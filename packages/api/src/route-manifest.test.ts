@@ -195,6 +195,7 @@ describe("route manifest", () => {
 			"streams",
 			"subgraphs",
 			"proofs",
+			"bitcoin",
 			"instance",
 		]);
 		const features = await app.request("/v1/instance/features");
@@ -216,6 +217,32 @@ describe("route manifest", () => {
 		expect(spec["x-x402"]).toBeUndefined();
 		for (const path of HOSTED_OPENAPI_PATHS) {
 			expect(spec.paths[path], path).toBeUndefined();
+		}
+	});
+
+	// The outspend lookup is mounted in every mode. With no bitcoind it
+	// answers 503 on self-host and 401 without a key on hosted, never the
+	// router's 404.
+	test("the Bitcoin outspend route is mounted in both modes", async () => {
+		const prevRpc = process.env.BITCOIN_RPC_URL;
+		delete process.env.BITCOIN_RPC_URL;
+		try {
+			const fixture = RETAINED_ROUTE_FIXTURES.find((r) =>
+				r.path.startsWith("/v1/bitcoin/outspend/"),
+			);
+			expect(fixture).toBeDefined();
+			const path = fixture?.path ?? "";
+			for (const [mode, status] of [
+				["oss", 503],
+				["platform", 401],
+			] as const) {
+				process.env.INSTANCE_MODE = mode;
+				const res = await createApiApp(mode).request(path);
+				expect(res.status, `${mode} ${path}`).toBe(status);
+			}
+		} finally {
+			if (prevRpc === undefined) delete process.env.BITCOIN_RPC_URL;
+			else process.env.BITCOIN_RPC_URL = prevRpc;
 		}
 	});
 

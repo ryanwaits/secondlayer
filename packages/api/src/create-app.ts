@@ -22,6 +22,7 @@ import authRouter from "./routes/auth.ts";
 import { createBatchRouter } from "./routes/batch.ts";
 import webhooksStripeRouter from "./routes/billing-stripe.ts";
 import billingRouter from "./routes/billing.ts";
+import bitcoinRouter from "./routes/bitcoin.ts";
 import chainReadRouter from "./routes/chain-read.ts";
 import cliDeviceRouter from "./routes/cli-device.ts";
 import contractsRouter from "./routes/contracts.ts";
@@ -149,6 +150,7 @@ export function createApiApp(mode: InstanceMode): Hono {
 		});
 		app.use("/v1/index/*", logRead);
 		app.use("/v1/streams/*", logRead);
+		app.use("/v1/bitcoin/*", logRead);
 	}
 	app.use("/v1/*", publicCors);
 	// Self-host: the read plane is open on a loopback bind and needs the
@@ -262,6 +264,8 @@ export function createApiApp(mode: InstanceMode): Hono {
 	app.route("/v1/archive", archiveVerifyRouter);
 	// Free in every mode: checking a row is never metered.
 	app.route("/v1/proofs", proofsRouter);
+	// Live reads from the instance's own bitcoind; keyed and metered like Index.
+	app.route("/v1/bitcoin", bitcoinRouter);
 	// Subgraph reads are self-host only: hosted runs no subgraphs.
 	if (mode !== "platform") app.route("/v1/subgraphs", v1SubgraphsRouter);
 	app.route("/v1/contracts", contractsRouter);

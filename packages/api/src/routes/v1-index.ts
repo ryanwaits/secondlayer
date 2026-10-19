@@ -31,6 +31,13 @@ const RETAINED_SURFACES = [
 		auth: "open on this instance",
 	},
 	{
+		name: "bitcoin",
+		path: "/v1/bitcoin",
+		description:
+			"Live reads from this instance's Bitcoin node: GET /v1/bitcoin/outspend/{txid}/{vout} says whether an output is spent, and by which transaction.",
+		auth: "open on this instance",
+	},
+	{
 		name: "instance",
 		path: "/v1/instance",
 		description:
@@ -62,6 +69,13 @@ const HOSTED_SURFACES = [
 		auth: "no key needed; free; rate limited per IP, higher per account with a key",
 	},
 	{
+		name: "bitcoin",
+		path: "/v1/bitcoin",
+		description:
+			"Live reads from the Bitcoin node: GET /v1/bitcoin/outspend/{txid}/{vout} says whether an output is spent, and by which transaction.",
+		auth: "bearer required, metered per answer",
+	},
+	{
 		name: "api-keys",
 		path: "/v1/api-keys",
 		description:
@@ -77,7 +91,7 @@ const HOSTED_SURFACES = [
 	},
 ] as const;
 
-/** GET /v1 — surface discovery. Lists the three public surfaces and where
+/** GET /v1 — surface discovery. Lists the public surfaces and where
  *  their per-surface indexes / OpenAPI live. Anonymous, no rate limit. */
 export function createV1IndexRouter() {
 	const router = new Hono();

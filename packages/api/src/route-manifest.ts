@@ -105,6 +105,11 @@ export const RETAINED_ROUTE_FIXTURES = [
 	{ method: "POST", path: "/v1/archive/verify" },
 	{ method: "GET", path: "/v1/streams" },
 	{ method: "GET", path: "/v1/contracts" },
+	// Live reads from the instance's own bitcoind (BITCOIN_RPC_URL).
+	{
+		method: "GET",
+		path: "/v1/bitcoin/outspend/2f3cbf7a1f7cbd1b8b2b4e0e9d3d1c8e7a6b5c4d3e2f1a0b9c8d7e6f5a4b3c2d/0",
+	},
 	{ method: "GET", path: "/v1/instance" },
 	{ method: "GET", path: "/v1/instance/features" },
 	{ method: "GET", path: "/console" },

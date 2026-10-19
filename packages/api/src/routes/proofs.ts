@@ -10,6 +10,7 @@ import {
 import { type Context, Hono, type MiddlewareHandler } from "hono";
 import { getClientIp } from "../auth/http.ts";
 import { getRateLimitStore } from "../auth/rate-limit-store.ts";
+import { bitcoinRpcFromEnv } from "../bitcoin/rpc.ts";
 import {
 	IMMUTABLE_CACHE_CONTROL,
 	MUTABLE_CACHE_CONTROL,
@@ -141,15 +142,6 @@ function hexParam(value: string, name: string, length: number): string {
 		);
 	}
 	return bare.toLowerCase();
-}
-
-/** `BITCOIN_RPC_URL` plus basic auth when both credentials are set. */
-function bitcoinRpcFromEnv(): BitcoinRpcConfig | undefined {
-	const url = process.env.BITCOIN_RPC_URL?.trim();
-	if (!url) return undefined;
-	const username = process.env.BITCOIN_RPC_USERNAME;
-	const password = process.env.BITCOIN_RPC_PASSWORD;
-	return username && password ? { url, auth: { username, password } } : { url };
 }
 
 const toHex = (bytes: Uint8Array) => Buffer.from(bytes).toString("hex");

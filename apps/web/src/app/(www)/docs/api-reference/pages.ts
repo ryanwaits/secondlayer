@@ -26,7 +26,7 @@ export const API_PAGES: ApiPage[] = [
 	{
 		slug: "index",
 		title: "Index API",
-		tags: ["index"],
+		tags: ["index", "bitcoin"],
 		families: [
 			{
 				title: "Events",
@@ -79,6 +79,12 @@ export const API_PAGES: ApiPage[] = [
 				title: "sBTC",
 				summary: "Peg-ins, peg-outs and the peg summary.",
 				paths: ["/v1/index/sbtc/*"],
+			},
+			{
+				title: "Bitcoin outputs",
+				summary: "Whether an output is spent, and by what.",
+				since: "2026-10-19",
+				paths: ["/v1/bitcoin/*"],
 			},
 			{
 				title: "Discovery",
