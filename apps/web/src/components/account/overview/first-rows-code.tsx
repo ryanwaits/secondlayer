@@ -6,7 +6,7 @@ const SBTC = "SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4.sbtc-token";
 
 const CLI = `# Once, if you haven't: save the key for every sl command
 pbpaste | sl login --with-token
-sl index ft-transfers --contract-id ${SBTC} --limit 5`;
+sl index ft-transfers --contract-id ${SBTC} --order desc --limit 5`;
 
 const SDK = `import { SecondLayer } from "@secondlayer/sdk";
 
@@ -16,12 +16,13 @@ const sl = new SecondLayer({ apiKey: process.env.SECONDLAYER_API_KEY });
 const { events } = await sl.index.ftTransfers.list({
   // !mark[/contractId/]
   contractId: "${SBTC}",
+  order: "desc",
   limit: 5,
 });
 
 for (const t of events) console.log(t.sender, t.recipient, t.amount);`;
 
-const HTTP = `curl "https://api.secondlayer.tools/v1/index/ft-transfers?contract_id=${SBTC}&limit=5" \\
+const HTTP = `curl "https://api.secondlayer.tools/v1/index/ft-transfers?contract_id=${SBTC}&order=desc&limit=5" \\
   -H "Authorization: Bearer $SECONDLAYER_API_KEY"`;
 
 /**

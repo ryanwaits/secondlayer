@@ -48,7 +48,7 @@ export function onboardingProgress(
 export const FIRST_ROWS_PROMPT = `I have a Secondlayer API key in \`SECONDLAYER_API_KEY\`.
 
 1. Read https://www.secondlayer.tools/llms.txt to learn the Index API.
-2. Call \`GET https://api.secondlayer.tools/v1/index/ft-transfers?limit=5\` with \`Authorization: Bearer $SECONDLAYER_API_KEY\` and show me the rows.
+2. Call \`GET https://api.secondlayer.tools/v1/index/ft-transfers?limit=5&order=desc\` with \`Authorization: Bearer $SECONDLAYER_API_KEY\` and show me the rows.
 3. Ask me what I'm building, then suggest the endpoints that fit.`;
 
 const skipKey = (accountId: string) => `sl:onboarding-skipped:${accountId}`;
