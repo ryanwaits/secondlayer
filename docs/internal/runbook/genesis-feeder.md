@@ -51,6 +51,7 @@ Temporary Hetzner Cloud box in Falkenstein. One compose project
 | Bitcoin RPC | `peer_host = "37.27.171.220"` port 8332. Allowlist: app-server `65.21.135.94` and this IPv4. Not `0.0.0.0/0`. |
 | Cloud firewall | `stacks-feeder` (`11648111`): TCP 22 from operator `136.62.99.163/32`; TCP 20444 open. 3700 not published. |
 | Watchdog | `docker/feeder/feeder-alert.sh` → `/opt/secondlayer-feeder/feeder-alert.sh`, `secondlayer-feeder-alert.timer` every 5m, Slack webhook in `alert.env`, log `/var/log/secondlayer-feeder-alert.log`. Read-only. `/v2/info` pages after 3 straight misses (IBD holds the chainstate lock); tip stall pages at 60m; a catch-up backlog with no apply for 10m pages. |
+| Watchdog: state_writes | Pages `state_writes behind blocks` when `max(block_height)` trails the indexer height by more than 100 (`FEEDER_STATE_WRITES_LAG_BLOCKS`) for 15m, or `state_writes.min` > 1. First checks: node `Config.toml` `events_keys` still includes `"state_writes"`; indexer logs for state_writes insert errors. Skips silently if the table is absent. Dry run: put stub `docker` (answers `exec` with `1\|<max>\|<rows>`, `inspect` with `true`) and `curl` (`/v2/info`, `/health` JSON) first on `PATH`, set `FEEDER_ALERT_STATE` to a temp file with `sw_lag_since=<old epoch>` and `SLACK_WEBHOOK_URL` to a stub; the page text appears in the stub curl's POST body. |
 
 `ccx43` (64 GB) failed with dedicated-core quota; `cpx62` is the fallback.
 Stacks-node is capped at 24G so scratch Postgres + indexer fit on 32 GB.

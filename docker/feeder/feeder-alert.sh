@@ -15,6 +15,7 @@ LAG_BLOCKS="${FEEDER_LAG_BLOCKS:-100}"
 LAG_SECONDS="${FEEDER_LAG_SECONDS:-900}"
 DISK_WARN_PCT="${FEEDER_DISK_WARN_PCT:-50}"
 WRONG_MIN="${FEEDER_WRONG_MIN:-100000}"
+SW_LAG_BLOCKS="${FEEDER_STATE_WRITES_LAG_BLOCKS:-100}"
 # Catch-up ingest acks the node on journal commit; the applier runs behind.
 # Page when it has unapplied blocks and applied nothing for this long.
 BACKLOG_STALL_SECONDS=600
@@ -53,6 +54,7 @@ disk=$6
 last_page=$7
 paged=$8
 unreadable=$9
+sw_lag_since=${10}
 EOF
 }
 
@@ -190,13 +192,44 @@ if [ "$height" -ge 0 ] && [ "$seen" -ge 0 ] && [ $(( height - seen )) -gt "$LAG_
   fi
 fi
 
-echo "$LOG_TS height=$height seen=$seen backlog=$backlog min=$min_h max=$max_h n=$count disk=${disk_pct}% problems=${#problems[@]}"
+# state_writes must keep pace with blocks: PK (block_height, ordinal) makes
+# min/max index lookups; row estimate from pg_class, never count(*).
+sw_min=-1
+sw_max=-1
+sw_rows=-1
+sw_lag_since=0
+if running "$PG"; then
+  sw_sql=$(docker exec "$PG" psql -U secondlayer -d secondlayer_feeder -tAc \
+    "SET statement_timeout='10s'; SELECT CASE WHEN to_regclass('state_writes') IS NULL THEN '' ELSE (SELECT coalesce(min(block_height),-1) || '|' || coalesce(max(block_height),-1) FROM state_writes) || '|' || (SELECT reltuples::bigint FROM pg_class WHERE oid = 'state_writes'::regclass) END" 2>/dev/null | grep '|' || true)
+  sw_min=$(printf '%s' "$sw_sql" | awk -F'|' '{print $1}' | tr -d ' ')
+  sw_max=$(printf '%s' "$sw_sql" | awk -F'|' '{print $2}' | tr -d ' ')
+  sw_rows=$(printf '%s' "$sw_sql" | awk -F'|' '{print $3}' | tr -d ' ')
+  [[ "$sw_min" =~ ^-?[0-9]+$ ]] || sw_min=-1
+  [[ "$sw_max" =~ ^-?[0-9]+$ ]] || sw_max=-1
+  [[ "$sw_rows" =~ ^-?[0-9]+$ ]] || sw_rows=-1
+fi
+if [ "$sw_max" -ge 0 ]; then
+  if [ "$sw_min" -gt 1 ]; then
+    problems+=("state_writes.min=$sw_min (not from block 1)")
+  fi
+  prev_sw_lag=$(state_get sw_lag_since)
+  [[ "$prev_sw_lag" =~ ^[0-9]+$ ]] || prev_sw_lag=0
+  if [ "$seen" -ge 0 ] && [ $(( seen - sw_max )) -gt "$SW_LAG_BLOCKS" ]; then
+    sw_lag_since="$prev_sw_lag"
+    [ "$sw_lag_since" != "0" ] || sw_lag_since="$now"
+    if [ $(( now - sw_lag_since )) -ge "$LAG_SECONDS" ]; then
+      problems+=("state_writes behind blocks: max=$sw_max indexed=$seen")
+    fi
+  fi
+fi
+
+echo "$LOG_TS height=$height seen=$seen backlog=$backlog min=$min_h max=$max_h n=$count sw_max=$sw_max sw_rows=$sw_rows disk=${disk_pct}% problems=${#problems[@]}"
 
 if [ ${#problems[@]} -eq 0 ]; then
   if [ "$prev_paged" = "1" ]; then
     post_slack "✅ stacks-feeder recovered — height=$height indexer=$seen vm_events min=$min_h max=$max_h n=$count disk=${disk_pct}%" recovery
   fi
-  state_write "$height" "$height_at" "$seen" "$lag_at" "$min_h" "$disk_pct" 0 0 "$unreadable"
+  state_write "$height" "$height_at" "$seen" "$lag_at" "$min_h" "$disk_pct" 0 0 "$unreadable" "$sw_lag_since"
   exit 0
 fi
 
@@ -213,8 +246,8 @@ fi
 
 if [ "$should_page" -eq 1 ]; then
   post_slack "$msg" force
-  state_write "$height" "$height_at" "$seen" "$lag_at" "$min_h" "$disk_pct" "$now" 1 "$unreadable"
+  state_write "$height" "$height_at" "$seen" "$lag_at" "$min_h" "$disk_pct" "$now" 1 "$unreadable" "$sw_lag_since"
 else
-  state_write "$height" "$height_at" "$seen" "$lag_at" "$min_h" "$disk_pct" "$prev_last_page" 1 "$unreadable"
+  state_write "$height" "$height_at" "$seen" "$lag_at" "$min_h" "$disk_pct" "$prev_last_page" 1 "$unreadable" "$sw_lag_since"
 fi
 exit 0
