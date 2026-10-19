@@ -186,7 +186,7 @@ describe("RowsBody for a new account", () => {
 		expect(html).toContain("No reads yet.");
 		expect(html).toContain("Your first read shows up here");
 		expect(html).toContain("0 of 1M free rows");
-		expect(html).toContain("sl index ft-transfers --limit 5");
+		expect(html).toContain("sl index ft-transfers --order desc --limit 5");
 		expect(html).not.toContain("Reads need a key.");
 	});
 
