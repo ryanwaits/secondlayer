@@ -72,7 +72,7 @@ RANGE              DATASET  STATUS        EXPECTED  LOCAL
 These ranges hold different data than the signed archive.
 ```
 
-Verify then names the exact diverging heights per range, read free from the archive's per-height digests, and prints a repair command for each range. `--json` lists every height in `divergent_heights` (`block`, `transactions`, `events`); older snapshots without per-height digests report ranges only.
+Verify then names each diverging block and what differs in it, read free from the archive's per-block digests, and prints a repair command for every diverging range. `--json` lists every height under `divergent_heights`; older snapshots report ranges only.
 
 <Seam page="archive" />
 
