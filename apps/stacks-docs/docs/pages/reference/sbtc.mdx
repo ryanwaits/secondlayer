@@ -34,12 +34,15 @@ await client.sbtc.getTokenUri();  // string | null
 
 ## Signer Set
 
-The current signer set from `sbtc-registry`. The taproot address is where deposits go; it rotates on `key-rotation`, so read it at deposit time rather than caching it.
+The current signer set from `sbtc-registry`. The peg address is where the signers hold BTC and where sweeps pay; it is not a deposit address. It rotates on `key-rotation`, so read it when you need it rather than caching it.
 
 ```typescript
-const pubkey = await client.sbtc.getSignersPublicKey(); // Uint8Array, 33-byte compressed aggregate key
+const set = await client.sbtc.getSignerSet();           // { signerPublicKeys, signaturesRequired, aggregatePubkey, signerPrincipal }
+const pubkey = await client.sbtc.getSignersPublicKey(); // 33-byte aggregate key; throws SbtcV2MarkerError on the 0xFF marker
 const address = await client.sbtc.getSignersAddress();  // "bc1p..." on mainnet, "tb1p..." on testnet
 ```
+
+From Bitcoin height 972,295 the signers lock the peg to the v2 script, `tr(NUMS_V2, multi_a(threshold, signer/0/0, …))`, built from the signer set and threshold. Below it, the peg is v1, `p2tr(aggregate pubkey)`. With no options, `getSignersAddress` picks the format at the node's burn tip. Pass `{ version }` or `{ burnBlockHeight }` to choose; off mainnet, pass `version` or `v2ActivationBurnHeight`. Until the first v2 sweep confirms, the funds are still at the v1 address.
 
 ## Units
 

@@ -3,6 +3,13 @@
 
 Notable changes to Secondlayer and its SDKs. Entries dated before August 2026 describe the hosted service as it worked then (per-row read metering, API keys, `402` past the free window); it was withdrawn in August 2026 and has since returned, with hosted Index, Streams, subgraphs and webhooks at `api.secondlayer.tools` on an account key and prepaid [credits](/docs/authentication), while on a self-hosted instance reads stay yours and unmetered and archive bootstrap, backfill and reindex draw [credits](/docs/authentication#archive-credits).
 
+{/* new: 2026-10-19 */}
+## SDK — October 2026
+
+### sBTC peg address follows the v2 signer format
+
+From Bitcoin height 972,295 the sBTC signers lock the peg to a `multi_a` script built from the registry signer set and threshold, not the aggregate key. `getSignersAddress` in `@secondlayer/stacks/sbtc` now returns the format active at the node's burn tip, or at the height or `version` you pass. `deriveSbtcV2PegOutput` gives the v2 script, scriptPubKey and address for any signer set. Once DKG is disabled the registry's aggregate key becomes a `0xFF` marker, and `getSignersPublicKey` throws `SbtcV2MarkerError` rather than returning it. Until the first v2 sweep confirms, the funds are still at the v1 address.
+
 {/* new: 2026-10-18 */}
 ## MCP — October 2026
 

@@ -59,13 +59,21 @@ function toPubkeyBytes(publicKey: Uint8Array | string): Uint8Array {
 }
 
 /**
- * BIP341 key-path tweak: lift the x-only internal key to a point, add
- * `tapTweakHash(P)·G` (no script tree), and return the x-only output key.
+ * BIP341 output-key tweak: lift the x-only internal key to a point, add
+ * `tapTweakHash(P || merkleRoot)·G`, and return the x-only output key. Leave
+ * `merkleRoot` out for a key-path-only output (no script tree).
  */
-export function taprootTweakPubkey(xonly: Uint8Array): Uint8Array {
+export function taprootTweakPubkey(
+	xonly: Uint8Array,
+	merkleRoot?: Uint8Array,
+): Uint8Array {
 	if (xonly.length !== 32)
 		throw new Error(`Expected 32-byte x-only pubkey, got ${xonly.length}`);
-	const tweak = schnorr.utils.taggedHash("TapTweak", xonly);
+	if (merkleRoot && merkleRoot.length !== 32)
+		throw new Error(`Expected 32-byte merkle root, got ${merkleRoot.length}`);
+	const tweak = merkleRoot
+		? schnorr.utils.taggedHash("TapTweak", xonly, merkleRoot)
+		: schnorr.utils.taggedHash("TapTweak", xonly);
 	const t = BigInt(
 		`0x${Array.from(tweak, (b) => b.toString(16).padStart(2, "0")).join("")}`,
 	);
@@ -95,8 +103,8 @@ export function publicKeyToP2wpkhAddress(
 
 /**
  * Derive the taproot (P2TR, bech32m v1) address for a public key — BIP341
- * key-path spend, no script tree. Accepts a 33-byte compressed key (the
- * parity byte is dropped) or a 32-byte x-only key.
+ * key-path spend, no script tree. Accepts a 33-byte compressed key (prefix
+ * `0x02`/`0x03`; the parity byte is dropped) or a 32-byte x-only key.
  */
 export function publicKeyToP2trAddress(
 	publicKey: Uint8Array | string,
@@ -112,6 +120,10 @@ export function publicKeyToP2trAddress(
 	if (!xonly)
 		throw new Error(
 			`Expected 33-byte compressed or 32-byte x-only pubkey, got ${pubkey.length}`,
+		);
+	if (pubkey.length === 33 && pubkey[0] !== 0x02 && pubkey[0] !== 0x03)
+		throw new Error(
+			`Expected a compressed pubkey prefix 0x02 or 0x03, got 0x${pubkey[0]?.toString(16).padStart(2, "0")}`,
 		);
 	const params = NETWORK_PARAMS[network];
 	const outputKey = taprootTweakPubkey(xonly);

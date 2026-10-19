@@ -1,14 +1,28 @@
 import type { Client } from "../clients/types.ts";
 import {
+	type SbtcPegAddressOptions,
+	type SbtcSignerSet,
 	getBalance,
 	getDecimals,
 	getName,
+	getSignerSet,
 	getSignersAddress,
 	getSignersPublicKey,
 	getSymbol,
 	getTokenUri,
 	getTotalSupply,
 } from "./actions.ts";
+
+export type { SbtcPegAddressOptions, SbtcSignerSet } from "./actions.ts";
+export {
+	assertRegistryAggregateKey,
+	deriveSbtcSigningKey,
+	deriveSbtcV2PegOutput,
+	SBTC_V2_INTERNAL_KEY,
+	SBTC_V2_SIGNING_BURN_HEIGHT_MAINNET,
+	SbtcV2MarkerError,
+	type SbtcV2PegOutput,
+} from "./peg.ts";
 
 export type {
 	CompletedDepositEvent,
@@ -56,10 +70,18 @@ export type SbtcActions = {
 		getSymbol: () => Promise<string>;
 		getDecimals: () => Promise<bigint>;
 		getTokenUri: () => Promise<string | null>;
-		/** Current signer-set aggregate pubkey (33B compressed) from `sbtc-registry`. */
+		/** Current signer set and threshold from `sbtc-registry`. */
+		getSignerSet: () => Promise<SbtcSignerSet>;
+		/**
+		 * Current signer-set aggregate pubkey (33B compressed) from `sbtc-registry`.
+		 * Throws `SbtcV2MarkerError` once the registry holds the v2 marker.
+		 */
 		getSignersPublicKey: () => Promise<Uint8Array>;
-		/** Signers' taproot deposit address, network-aware from `client.chain`. */
-		getSignersAddress: () => Promise<string>;
+		/**
+		 * Signers' peg address (v1 aggregate key or v2 `multi_a`, by Bitcoin
+		 * height), network-aware from `client.chain`.
+		 */
+		getSignersAddress: (options?: SbtcPegAddressOptions) => Promise<string>;
 	};
 };
 
@@ -87,8 +109,10 @@ export function sbtc(): (client: Client) => SbtcActions {
 			getSymbol: () => getSymbol(client),
 			getDecimals: () => getDecimals(client),
 			getTokenUri: () => getTokenUri(client),
+			getSignerSet: () => getSignerSet(client),
 			getSignersPublicKey: () => getSignersPublicKey(client),
-			getSignersAddress: () => getSignersAddress(client),
+			getSignersAddress: (options?: SbtcPegAddressOptions) =>
+				getSignersAddress(client, options),
 		},
 	});
 }
