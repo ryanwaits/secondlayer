@@ -32,11 +32,11 @@ const FEATHER_SRC = `data:image/jpeg;base64,${feather.toString("base64")}`;
 const SIZE = { width: 1200, height: 630 };
 
 // palette: Primaries brand tokens (blue action, yellow highlight, red failure)
-const PAPER = "#ffffff";
-const INK = "#111111";
-const SUB = "#5e5e5e";
-const LINE = "#e5e5e2";
-const SOFT = "#f5f5f2";
+const PAPER = "#fbfaf7";
+const INK = "#14110d";
+const SUB = "#63605c";
+const LINE = "#e8e6e3";
+const SOFT = "#f5f3f0";
 const BLUE = "#1f45e0";
 const YELLOW = "#ffcc00";
 const OK = "#128a43";
@@ -1391,7 +1391,7 @@ const fonts = [
 // right: up to seven lines of the page's first real code block, in the site's
 // syntax ladder, with the token the page marks on yellow. Nothing to set per page.
 
-const FAINT = "#9b9b96";
+const FAINT = "#9d9b97";
 const POSTS_DIR = join(process.cwd(), "src/app/(www)/blog/(post)");
 const EXCERPT_LINES = 7;
 const EXCERPT_CHARS = 38;
