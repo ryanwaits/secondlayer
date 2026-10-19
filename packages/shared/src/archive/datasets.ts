@@ -17,6 +17,7 @@ export const ARCHIVE_DATASETS = [
 	"state_writes",
 ] as const;
 
+/** One archive dataset: blocks, transactions, events or state writes. */
 export type ArchiveDataset = (typeof ARCHIVE_DATASETS)[number];
 
 export function isArchiveDataset(value: string): value is ArchiveDataset {

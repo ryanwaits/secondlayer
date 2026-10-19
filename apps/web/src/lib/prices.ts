@@ -22,7 +22,7 @@ export const WEBHOOK_USD_PER_M = 10;
 
 export const ARCHIVE_PARTITION_USD = 0.05;
 export const ARCHIVE_EVENTS_PARTITION_USD = 0.15;
-export const FREE_REPAIR_PARTITIONS_PER_MONTH = 18;
+export const FREE_REPAIR_PARTITIONS_PER_MONTH = 24;
 
 /** Prepaid credit packs, in dollars (`CREDIT_PACKS_USD` in the API). */
 export const CREDIT_PACKS_USD = [10, 25, 50, 100] as const;

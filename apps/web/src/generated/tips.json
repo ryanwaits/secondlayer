@@ -16,6 +16,12 @@
 			"route": "/docs/sdk-reference/archive",
 			"anchor": "t-ArchiveCreditsBalance"
 		},
+		"ArchiveDataset": {
+			"kind": "type",
+			"summary": "One archive dataset: blocks, transactions, events or state writes.",
+			"route": "/docs/sdk-reference/archive",
+			"anchor": "t-ArchiveDataset"
+		},
 		"ArchiveFetchResult": {
 			"kind": "type",
 			"summary": "Download links for archive partitions and what they cost.",

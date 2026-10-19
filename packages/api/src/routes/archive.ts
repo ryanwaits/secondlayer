@@ -324,11 +324,13 @@ export function createArchiveRouter(options: ArchiveRouterOptions = {}): Hono {
 
 		return c.json({
 			partitions: paths.length,
-			bundles: paths.length / 3,
+			bundles: paths.length / ARCHIVE_DATASETS.length,
 			usd_micros: Number(usdMicros),
 			usd: (Number(usdMicros) / 1_000_000).toFixed(2),
 			free_allowance_applied_micros: Number(freeAllowanceMicros),
-			allowance_remaining_bundles: Math.floor(allowanceRemainingAfter / 3),
+			allowance_remaining_bundles: Math.floor(
+				allowanceRemainingAfter / ARCHIVE_DATASETS.length,
+			),
 			balance_usd_micros: Number(balance),
 			sufficient: balance >= usdMicros,
 		});

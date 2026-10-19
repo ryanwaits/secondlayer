@@ -150,7 +150,7 @@ export const ARCHIVE_GATE_NOT_CONFIGURED_MESSAGE =
 
 /**
  * Total monthly free-repair allowance, in range-bundles — display only,
- * mirrors `ALLOWANCE_MONTHLY_PARTITIONS / 3` in `routes/archive.ts`. The
+ * mirrors `ALLOWANCE_MONTHLY_PARTITIONS / ARCHIVE_DATASETS.length` (24 / 4) in `routes/archive.ts`. The
  * server remains the sole source of the REMAINING count and of every dollar
  * figure; this constant only lets the CLI print "of 6" without echoing back
  * a number the server already sent.

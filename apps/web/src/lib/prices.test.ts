@@ -63,8 +63,8 @@ describe("web price mirror matches the platform table", () => {
 		const api = await Bun.file(
 			`${import.meta.dir}/../../../../packages/api/src/routes/archive.ts`,
 		).text();
-		expect(api).toMatch(/ALLOWANCE_MONTHLY_PARTITIONS = 18;/);
-		expect(web.FREE_REPAIR_PARTITIONS_PER_MONTH).toBe(18);
+		expect(api).toMatch(/ALLOWANCE_MONTHLY_PARTITIONS = 24;/);
+		expect(web.FREE_REPAIR_PARTITIONS_PER_MONTH).toBe(24);
 		const billing = await Bun.file(
 			`${import.meta.dir}/../../../../packages/api/src/routes/billing.ts`,
 		).text();

@@ -363,7 +363,7 @@
 		},
 		{
 			"name": "ArchiveDataset",
-			"summary": "",
+			"summary": "One archive dataset: blocks, transactions, events or state writes.",
 			"definition": "\"events\" | \"blocks\" | \"transactions\" | \"state_writes\""
 		},
 		{
