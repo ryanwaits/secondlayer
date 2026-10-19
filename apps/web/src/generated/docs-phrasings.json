@@ -221,15 +221,16 @@
     ]
   },
   "/docs/archive#check-it": {
-    "hash": "7cac42d974d496a3",
+    "hash": "c973cab1aab29b52",
     "phrasings": [
-      "how to verify archive digests locally",
-      "archive check read only no writes",
-      "do archive digests leave my machine",
-      "verify archive data without uploading anything",
-      "is archive checking safe to run",
-      "archive digest verification privacy",
-      "check archive integrity on local machine"
+      "verify archive partition digests locally",
+      "is archive verification read only",
+      "check archive integrity without uploading data",
+      "compare local digests to archive",
+      "archive checksum validation command",
+      "does archive check send data anywhere",
+      "confirm archive files are not corrupted",
+      "how to validate parquet partition hashes"
     ]
   },
   "/docs/archive#credits": {
@@ -289,16 +290,16 @@
     ]
   },
   "/docs/archive#repair-what-diverges": {
-    "hash": "9d038164fde04478",
+    "hash": "646da3c859f2bd5e",
     "phrasings": [
-      "fix archive mismatch with my index",
-      "repair divergent archive partitions",
-      "is archive repair dry run by default",
-      "how to apply archive repair changes",
-      "archive differs from production index fix",
-      "enable writes when repairing archive",
-      "preview archive repair before applying",
-      "archive repair command default behavior"
+      "fix mismatched archive partitions",
+      "archive digest mismatch repair",
+      "how to resync diverged archive data",
+      "preview archive repair changes before applying",
+      "is archive repair safe to run",
+      "repair command dry run",
+      "archive partition differs from local copy",
+      "how to reconcile archive divergence"
     ]
   },
   "/docs/archive#restore-a-fresh-instance": {
@@ -313,25 +314,29 @@
     ]
   },
   "/docs/archive#targets": {
-    "hash": "d1575164907ed2b0",
+    "hash": "a00373eb18399b6c",
     "phrasings": [
-      "which datasets does archive publish digests for",
-      "archive digests raw datasets only",
-      "archive targets list of datasets",
-      "does archive publish digests for all tables",
-      "three raw datasets archive digest"
+      "which datasets have archive digests",
+      "are derived tables included in archive",
+      "archive digest coverage raw data only",
+      "what tables does the archive publish",
+      "archive published datasets list",
+      "missing digests for derived archive tables",
+      "does archive include computed views",
+      "raw dataset digests archive scope"
     ]
   },
   "/docs/archive#what-the-archive-is": {
-    "hash": "0fbf5b4138ba3668",
+    "hash": "dcf93bf870969b3f",
     "phrasings": [
-      "what is the stacks archive parquet",
-      "immutable digest addressed partitions on r2",
-      "archive snapshot from production index source",
-      "repeatable read snapshot stacks index export",
-      "how is the stacks archive published",
-      "parquet partitions stored in cloudflare r2",
-      "archive data format and storage layout"
+      "what is the stacks archive",
+      "parquet partitions on r2 explained",
+      "archive 50000 blocks per partition",
+      "immutable digest addressed blockchain data",
+      "how is archive snapshot taken",
+      "repeatable read snapshot of stacks index",
+      "archive storage format overview",
+      "where does archive data come from"
     ]
   },
   "/docs/archive#which-command": {
@@ -354,16 +359,16 @@
     ]
   },
   "/docs/authentication#archive-fetches": {
-    "hash": "868a2c53406d7357",
+    "hash": "b51369a06e75fbce",
     "phrasings": [
-      "why are my archive fetches costing credits",
-      "archive bootstrap charges per partition bundle",
-      "how much do signed archive backfills cost",
-      "reindex from public archive credit usage",
-      "estimate credits before fetching archive bundles",
-      "signed public archive fetch billing",
-      "backfill deducted from balance unexpectedly",
-      "bootstrap cost quote before charge"
+      "how much does archive bootstrap cost",
+      "archive backfill charges credits per fetch",
+      "reindex from archive uses credits",
+      "billing for partition bundle downloads",
+      "why are my credits dropping during backfill",
+      "signed archive fetch cost",
+      "do archive downloads count against quota",
+      "how to pay for archive partition fetches"
     ]
   },
   "/docs/authentication#balance-alerts": {
@@ -835,18 +840,16 @@
     ]
   },
   "/docs/index#plain-http": {
-    "hash": "75210e4e54a1c6a6",
+    "hash": "78bd5c70b5f2a81e",
     "phrasings": [
-      "query database over http without sdk",
-      "call database rest api with curl",
-      "how to run sql queries via http request",
-      "access database from client without driver",
-      "http api to fetch rows from database",
-      "no sdk needed to query data over http",
-      "send sql query using http post",
-      "connect to database from javascript fetch",
-      "querying rows with plain http requests",
-      "use database from any language via http"
+      "query index over http without sdk",
+      "curl query stacks index rows",
+      "http api for indexed rows",
+      "call index endpoint from any language",
+      "no sdk http query example",
+      "fetch rows with plain http request",
+      "index rest query without client library",
+      "http client access to index data"
     ]
   },
   "/docs/index#pox-5": {
@@ -1212,16 +1215,16 @@
     ]
   },
   "/docs/sdk-reference": {
-    "hash": "a560b5ebbbdb2c82",
+    "hash": "cd75482fd3e75c95",
     "phrasings": [
-      "secondlayer sdk client methods list",
-      "every method on sdk client",
-      "sdk client api methods reference",
-      "what methods does secondlayer client have",
-      "secondlayer sdk method signatures",
-      "how to call client methods sdk",
-      "secondlayer javascript sdk functions",
-      "sdk methods read from source code"
+      "list of sdk client methods",
+      "what methods does the client expose",
+      "sdk function signatures reference",
+      "which client methods are available",
+      "sdk api methods source code",
+      "find method names in sdk",
+      "client method documentation lookup",
+      "sdk methods cheat sheet"
     ]
   },
   "/docs/sdk-reference/archive": {
