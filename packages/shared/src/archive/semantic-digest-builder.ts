@@ -23,6 +23,9 @@ export type CanonicalDataset = "blocks" | "transactions" | "events";
 
 const DEFAULT_BATCH_ROWS = 20_000;
 
+/** One row's semantic-v1 digest with the height it belongs to. */
+export type HeightDigest = { height: number; digest: string };
+
 interface StreamOptions {
 	batchRows?: number;
 }
@@ -32,7 +35,7 @@ async function* streamBlockDigests(
 	fromBlock: number,
 	toBlock: number,
 	batchRows: number,
-): AsyncGenerator<string> {
+): AsyncGenerator<HeightDigest> {
 	let last = fromBlock - 1;
 	while (true) {
 		const rows = await db
@@ -54,15 +57,19 @@ async function* streamBlockDigests(
 			.execute();
 		if (rows.length === 0) return;
 		for (const row of rows) {
-			yield semanticDigest.v1.block({
-				height: Number(row.height),
-				hash: row.hash,
-				parent_hash: row.parent_hash,
-				burn_block_height: Number(row.burn_block_height),
-				burn_block_hash: row.burn_block_hash ?? null,
-				index_block_hash: row.index_block_hash ?? null,
-				timestamp: Number(row.timestamp),
-			});
+			const height = Number(row.height);
+			yield {
+				height,
+				digest: semanticDigest.v1.block({
+					height,
+					hash: row.hash,
+					parent_hash: row.parent_hash,
+					burn_block_height: Number(row.burn_block_height),
+					burn_block_hash: row.burn_block_hash ?? null,
+					index_block_hash: row.index_block_hash ?? null,
+					timestamp: Number(row.timestamp),
+				}),
+			};
 		}
 		last = Number(rows[rows.length - 1]?.height);
 	}
@@ -73,7 +80,7 @@ async function* streamTransactionDigests(
 	fromBlock: number,
 	toBlock: number,
 	batchRows: number,
-): AsyncGenerator<string> {
+): AsyncGenerator<HeightDigest> {
 	type TxRow = {
 		tx_id: string;
 		block_height: string | number;
@@ -103,19 +110,22 @@ async function* streamTransactionDigests(
 		const rows: TxRow[] = result.rows;
 		if (rows.length === 0) return;
 		for (const row of rows) {
-			yield semanticDigest.v1.transaction({
-				tx_id: row.tx_id,
-				block_height: Number(row.block_height),
-				tx_index: row.tx_index,
-				type: row.type,
-				sender: row.sender,
-				status: row.status,
-				contract_id: row.contract_id,
-				function_name: row.function_name,
-				function_args: row.function_args ?? null,
-				raw_result: row.raw_result,
-				raw_tx: row.raw_tx,
-			});
+			yield {
+				height: Number(row.block_height),
+				digest: semanticDigest.v1.transaction({
+					tx_id: row.tx_id,
+					block_height: Number(row.block_height),
+					tx_index: row.tx_index,
+					type: row.type,
+					sender: row.sender,
+					status: row.status,
+					contract_id: row.contract_id,
+					function_name: row.function_name,
+					function_args: row.function_args ?? null,
+					raw_result: row.raw_result,
+					raw_tx: row.raw_tx,
+				}),
+			};
 		}
 		const tail = rows[rows.length - 1];
 		if (tail) {
@@ -133,7 +143,7 @@ async function* streamEventDigests(
 	fromBlock: number,
 	toBlock: number,
 	batchRows: number,
-): AsyncGenerator<string> {
+): AsyncGenerator<HeightDigest> {
 	type EventRow = {
 		tx_id: string;
 		block_height: string | number;
@@ -157,13 +167,16 @@ async function* streamEventDigests(
 		const rows: EventRow[] = result.rows;
 		if (rows.length === 0) return;
 		for (const row of rows) {
-			yield semanticDigest.v1.event({
-				tx_id: row.tx_id,
-				block_height: Number(row.block_height),
-				event_index: row.event_index,
-				type: row.type,
-				data: row.data ?? null,
-			});
+			yield {
+				height: Number(row.block_height),
+				digest: semanticDigest.v1.event({
+					tx_id: row.tx_id,
+					block_height: Number(row.block_height),
+					event_index: row.event_index,
+					type: row.type,
+					data: row.data ?? null,
+				}),
+			};
 		}
 		const tail = rows[rows.length - 1];
 		if (tail) {
@@ -176,13 +189,34 @@ async function* streamEventDigests(
 	}
 }
 
+/**
+ * Row digests with their heights, in the exporter's total order. Additive:
+ * the per-height sidecar rebuild needs the height the exporter fed its
+ * accumulator, which the digest string alone does not carry.
+ */
+export function streamHeightDigests(
+	db: Kysely<Database>,
+	dataset: CanonicalDataset,
+	fromBlock: number,
+	toBlock: number,
+	options: StreamOptions = {},
+): AsyncGenerator<HeightDigest> {
+	return digestStream(
+		db,
+		dataset,
+		fromBlock,
+		toBlock,
+		options.batchRows ?? DEFAULT_BATCH_ROWS,
+	);
+}
+
 function digestStream(
 	db: Kysely<Database>,
 	dataset: CanonicalDataset,
 	fromBlock: number,
 	toBlock: number,
 	batchRows: number,
-): AsyncGenerator<string> {
+): AsyncGenerator<HeightDigest> {
 	if (dataset === "blocks") {
 		return streamBlockDigests(db, fromBlock, toBlock, batchRows);
 	}
@@ -205,7 +239,7 @@ export async function computePartitionSemanticDigest(
 	options: StreamOptions = {},
 ): Promise<PartitionSemanticDigest> {
 	const rollup = SemanticDigestRollup.forDataset(dataset);
-	for await (const rowDigest of digestStream(
+	for await (const { digest: rowDigest } of digestStream(
 		db,
 		dataset,
 		fromBlock,

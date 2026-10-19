@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { join, resolve, sep } from "node:path";
 import { parseRetryAfter } from "@secondlayer/sdk";
+import type { DigestIndexPartition } from "@secondlayer/shared/archive/per-height-digest";
 import type {
 	ArchivePartition,
 	LoadedReference,
@@ -191,12 +192,16 @@ export async function fetchWithRetry(
 	);
 }
 
+/** What a fetch needs from a manifest entry: where it is and what it must hash to.
+ *  Data partitions and digest-index sidecars both satisfy it. */
+export type FetchablePartition = ArchivePartition | DigestIndexPartition;
+
 /** One re-issue on an expired presigned URL, on top of the transient retries
  *  in `fetchWithRetry`. Isolated so `fetchVerifiedPartition` reads as "get
  *  the bytes" regardless of which path produced them. */
 async function fetchViaGate(
 	gate: ArchiveFetchGate,
-	partition: ArchivePartition,
+	partition: FetchablePartition,
 	retried: boolean,
 	fetchOpts?: Partial<RetryingFetchOptions>,
 ): Promise<Buffer> {
@@ -238,7 +243,7 @@ async function fetchViaGate(
  */
 export async function fetchVerifiedPartition(
 	reference: LoadedReference,
-	partition: ArchivePartition,
+	partition: FetchablePartition,
 	gate?: ArchiveFetchGate,
 	/** Test seam for the transport; production callers leave it unset. */
 	fetchOpts?: Partial<RetryingFetchOptions>,

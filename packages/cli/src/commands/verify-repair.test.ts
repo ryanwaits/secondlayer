@@ -1181,3 +1181,131 @@ describe.skipIf(!HAS_DB)(
 		});
 	},
 );
+
+function runVerifyAgainst(
+	archive: WrittenArchive,
+	opts: { json?: boolean } = {},
+) {
+	return spawnSync(
+		process.execPath,
+		[
+			REPAIR_CLI,
+			"verify",
+			"--public-key",
+			archive.publicPem,
+			"--against",
+			archive.manifestPath,
+			...(opts.json ? ["--json"] : []),
+		],
+		{
+			encoding: "utf8",
+			env: {
+				...process.env,
+				NO_COLOR: "1",
+				SECONDLAYER_API_URL: "http://127.0.0.1:1",
+			},
+		},
+	);
+}
+
+describe.skipIf(!HAS_DB)("verify narrows divergent ranges to heights", () => {
+	const ranges = [
+		{ from_block: 0, to_block: 4 },
+		{ from_block: 5, to_block: 9 },
+		{ from_block: 10, to_block: 14 },
+	];
+	const chain = fixtureChain(0, 14);
+	let archiveDir: string;
+	let indexed: WrittenArchive;
+	let unindexed: WrittenArchive;
+
+	beforeAll(async () => {
+		const db = getDb();
+		archiveDir = await mkdtemp(join(tmpdir(), "sl-verify-heights-"));
+		await clearChain(db);
+		await seedChain(db, chain);
+		const digests = await digestsFor(db, ranges);
+		indexed = await writeArchive(
+			join(archiveDir, "indexed"),
+			chain,
+			ranges,
+			digests,
+			{ digestIndex: true },
+		);
+		unindexed = await writeArchive(
+			join(archiveDir, "unindexed"),
+			chain,
+			ranges,
+			digests,
+		);
+	});
+
+	beforeEach(async () => {
+		const db = getDb();
+		await clearChain(db);
+		await seedChain(db, chain);
+	});
+
+	afterAll(async () => {
+		await clearChain(getDb());
+		await closeDb();
+		if (archiveDir) await rm(archiveDir, { recursive: true, force: true });
+	});
+
+	test("verify names the one tampered height inside a divergent range", async () => {
+		await sql`UPDATE blocks SET hash = 'fork-hash-7' WHERE height = 7`.execute(
+			getDb(),
+		);
+		const res = runVerifyAgainst(indexed, { json: true });
+		expect(res.status).toBe(1);
+		const report = JSON.parse(res.stdout);
+		expect(report.divergent_ranges).toHaveLength(1);
+		const [range] = report.divergent_ranges;
+		expect(range.from_block).toBe(5);
+		expect(range.divergent_heights).toEqual([{ height: 7, parts: ["block"] }]);
+	});
+
+	test("verify names tampered transactions at their height as part transactions", async () => {
+		await sql`UPDATE transactions SET sender = 'SPTAMPERED' WHERE block_height = 12`.execute(
+			getDb(),
+		);
+		const res = runVerifyAgainst(indexed, { json: true });
+		expect(res.status).toBe(1);
+		const report = JSON.parse(res.stdout);
+		const txRange = report.divergent_ranges.find(
+			(r: { dataset: string }) => r.dataset === "transactions",
+		);
+		expect(txRange.divergent_heights).toEqual([
+			{ height: 12, parts: ["transactions"] },
+		]);
+	});
+
+	test("verify prints a repair command for each divergent range", async () => {
+		const db = getDb();
+		await sql`UPDATE blocks SET hash = 'fork-hash-2' WHERE height = 2`.execute(
+			db,
+		);
+		await sql`UPDATE blocks SET hash = 'fork-hash-12' WHERE height = 12`.execute(
+			db,
+		);
+		const res = runVerifyAgainst(indexed);
+		expect(res.status).toBe(1);
+		const printed = res.stdout + res.stderr;
+		expect(printed).toContain("repair --from-block 0 --to-block 4");
+		expect(printed).toContain("repair --from-block 10 --to-block 14");
+		expect(printed).not.toContain("--from-block 5 ");
+		expect(printed).toMatch(/\b2 {2}block\b/);
+	});
+
+	test("verify on a manifest without digest_index reports ranges as before", async () => {
+		await sql`UPDATE blocks SET hash = 'fork-hash-7' WHERE height = 7`.execute(
+			getDb(),
+		);
+		const res = runVerifyAgainst(unindexed, { json: true });
+		expect(res.status).toBe(1);
+		const report = JSON.parse(res.stdout);
+		expect(report.divergent_ranges).toHaveLength(1);
+		expect(report.divergent_ranges[0].divergent_heights).toBeUndefined();
+		expect(report.note).toMatch(/newer snapshot/);
+	});
+});

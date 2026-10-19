@@ -1,12 +1,20 @@
 import { createHash, generateKeyPairSync } from "node:crypto";
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { ParquetSchema, ParquetWriter } from "@dsnp/parquetjs";
+import {
+	PerHeightDigestAccumulator,
+	type PerHeightDigestRow,
+} from "@secondlayer/shared/archive/per-height-digest";
 import type {
 	RangeDigest,
 	RangeDigestDataset,
 } from "@secondlayer/shared/archive/range-digest";
 import { computeRangeDigest } from "@secondlayer/shared/archive/range-digest";
+import {
+	SEMANTIC_DIGEST_SPEC_V1,
+	semanticDigest,
+} from "@secondlayer/shared/archive/semantic-digest";
 import type { getDb } from "@secondlayer/shared/db";
 import { sql } from "@secondlayer/shared/db";
 import { signStreamsBulkManifest } from "@secondlayer/shared/streams-bulk-manifest";
@@ -135,6 +143,79 @@ function schemaFor(dataset: RangeDigestDataset): ParquetSchema {
 	});
 }
 
+/**
+ * The per-height sidecar rows for a range, derived from fixture rows alone
+ * (no database): the same row digests, fed to the same accumulator, in the
+ * exporter's order.
+ */
+export function fixtureHeightRows(
+	chain: FixtureChain,
+	range: { from_block: number; to_block: number },
+): PerHeightDigestRow[] {
+	const inRange = (h: number) => h >= range.from_block && h <= range.to_block;
+	const accumulator = new PerHeightDigestAccumulator();
+	for (const b of chain.blocks.filter((r) => inRange(r.height))) {
+		accumulator.setBlockDigest(b.height, semanticDigest.v1.block(b));
+	}
+	const txs = chain.transactions
+		.filter((t) => inRange(t.block_height))
+		.sort(
+			(a, b) =>
+				a.block_height - b.block_height ||
+				a.tx_index - b.tx_index ||
+				a.tx_id.localeCompare(b.tx_id),
+		);
+	for (const t of txs) {
+		accumulator.appendTransactionDigest(
+			t.block_height,
+			semanticDigest.v1.transaction({
+				tx_id: t.tx_id,
+				block_height: t.block_height,
+				tx_index: t.tx_index,
+				type: t.type,
+				sender: t.sender,
+				status: t.status,
+				contract_id: t.contract_id,
+				function_name: t.function_name,
+				function_args: t.function_args_json
+					? JSON.parse(t.function_args_json)
+					: null,
+				raw_result: t.raw_result,
+				raw_tx: t.raw_tx,
+			}),
+		);
+	}
+	const events = chain.events
+		.filter((e) => inRange(e.block_height))
+		.sort(
+			(a, b) =>
+				a.block_height - b.block_height ||
+				a.event_index - b.event_index ||
+				a.tx_id.localeCompare(b.tx_id),
+		);
+	for (const e of events) {
+		accumulator.appendEventDigest(
+			e.block_height,
+			semanticDigest.v1.event({
+				tx_id: e.tx_id,
+				block_height: e.block_height,
+				event_index: e.event_index,
+				type: e.event_type,
+				data: JSON.parse(e.data_json),
+			}),
+		);
+	}
+	return accumulator.drain(range.from_block, range.to_block);
+}
+
+/** The exporter's sidecar schema (`createDigestIndexParquetSchema`). */
+const DIGEST_INDEX_SCHEMA = new ParquetSchema({
+	height: INT64,
+	block_digest: STRING,
+	transactions_rollup: { ...STRING, optional: true },
+	events_rollup: { ...STRING, optional: true },
+});
+
 export async function seedChain(
 	db: ReturnType<typeof getDb>,
 	chain: FixtureChain,
@@ -182,7 +263,11 @@ export async function writeArchive(
 	chain: FixtureChain,
 	ranges: readonly { from_block: number; to_block: number }[],
 	digests: readonly RangeDigest[],
-	options: { datasets?: readonly RangeDigestDataset[] } = {},
+	options: {
+		datasets?: readonly RangeDigestDataset[];
+		/** Also write `digests/` sidecars and register them as `digest_index`. */
+		digestIndex?: boolean;
+	} = {},
 ): Promise<WrittenArchive> {
 	const datasets = options.datasets ?? ["blocks", "transactions", "events"];
 	const partitions: Array<Record<string, unknown>> = [];
@@ -213,6 +298,31 @@ export async function writeArchive(
 		}
 	}
 
+	const digestIndex: Array<Record<string, unknown>> = [];
+	if (options.digestIndex) {
+		await mkdir(join(root, "digests"), { recursive: true });
+		for (const range of ranges) {
+			const rows = fixtureHeightRows(chain, range);
+			const tmp = join(root, "digests", `.tmp-${range.from_block}.parquet`);
+			const writer = await ParquetWriter.openFile(DIGEST_INDEX_SCHEMA, tmp);
+			for (const row of rows) await writer.appendRow({ ...row });
+			await writer.close();
+			const bytes = await readFile(tmp);
+			const sha256 = createHash("sha256").update(bytes).digest("hex");
+			const relative = `digests/${range.from_block}-${range.to_block}-${sha256.slice(0, 16)}.parquet`;
+			await rename(tmp, join(root, relative));
+			digestIndex.push({
+				from_block: range.from_block,
+				to_block: range.to_block,
+				path: relative,
+				row_count: rows.length,
+				byte_size: bytes.length,
+				sha256,
+				digest_spec: SEMANTIC_DIGEST_SPEC_V1,
+			});
+		}
+	}
+
 	const { publicKey, privateKey } = generateKeyPairSync("ed25519");
 	const privatePem = privateKey
 		.export({ type: "pkcs8", format: "pem" })
@@ -228,6 +338,7 @@ export async function writeArchive(
 				to_block: Math.max(...ranges.map((r) => r.to_block)),
 			},
 			partitions,
+			...(options.digestIndex ? { digest_index: digestIndex } : {}),
 			range_digests: digests,
 		},
 		privatePem,

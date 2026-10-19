@@ -1,3 +1,4 @@
+{/* new: 2026-10-19 */}
 # Archive
 
 Signed chain history. Check yours against it, repair what diverges, or boot a fresh instance from it.
@@ -70,6 +71,8 @@ RANGE              DATASET  STATUS        EXPECTED  LOCAL
 
 These ranges hold different data than the signed archive.
 ```
+
+Verify then names the exact diverging heights per range, read free from the archive's per-height digests, and prints a repair command for each range. `--json` lists every height in `divergent_heights` (`block`, `transactions`, `events`); older snapshots without per-height digests report ranges only.
 
 <Seam page="archive" />
 

@@ -1,3 +1,4 @@
+import type { DigestIndexPartition } from "@secondlayer/shared/archive/per-height-digest";
 import {
 	type RangeComparison,
 	type RangeDigest,
@@ -17,6 +18,11 @@ import {
 } from "@secondlayer/shared/coverage";
 import { getDb } from "@secondlayer/shared/db";
 import type { Command } from "commander";
+import {
+	type DivergentHeight,
+	divergentHeightsForRange,
+	mergeRepairRanges,
+} from "../lib/archive-heights.ts";
 import {
 	checkSignature,
 	loadReference,
@@ -74,6 +80,9 @@ function parseHeight(value: string, flag: string): number {
 	}
 	return parsed;
 }
+
+/** Heights listed per divergent range in human output; --json has them all. */
+const MAX_HEIGHTS_SHOWN = 20;
 
 function statusLabel(status: RangeComparison["status"]): string {
 	if (status === "match") return green("ok");
@@ -163,9 +172,10 @@ Exit codes:
 							process.env.STREAMS_SIGNING_PUBLIC_KEY,
 						allowHostedApi: !isOssMode(),
 					});
-					const { manifest, origin } = await loadReference(opts.against, {
+					const loaded = await loadReference(opts.against, {
 						publicKeyPem: publicKey,
 					});
+					const { manifest, origin } = loaded;
 					const signature = checkSignature(
 						manifest,
 						publicKey,
@@ -362,7 +372,43 @@ Exit codes:
 							actual_rows: s.actual_rows,
 						})),
 					];
-					const diverged = all.filter((c) => c.status !== "match");
+					const diverged: Array<
+						(typeof all)[number] & { divergent_heights?: DivergentHeight[] }
+					> = all.filter((c) => c.status !== "match");
+
+					// Narrow each divergent range to exact heights from the archive's
+					// per-height sidecars (free, read from the reference root).
+					const digestIndex = manifest.digest_index as
+						| DigestIndexPartition[]
+						| undefined;
+					const heightNotes: string[] = [];
+					if (diverged.length > 0 && !digestIndex?.length) {
+						heightNotes.push(
+							"This snapshot has no per-height digests; exact diverging heights need a newer snapshot.",
+						);
+					} else {
+						for (const range of diverged) {
+							try {
+								const heights = await divergentHeightsForRange({
+									db,
+									reference: loaded,
+									digestIndex,
+									dataset: range.dataset,
+									fromBlock: range.from_block,
+									toBlock: range.to_block,
+								});
+								if (heights) range.divergent_heights = heights;
+								else
+									heightNotes.push(
+										`No per-height digests cover ${range.from_block}-${range.to_block}.`,
+									);
+							} catch (err) {
+								heightNotes.push(
+									`Could not narrow ${range.from_block}-${range.to_block} to heights: ${err instanceof Error ? err.message : String(err)}`,
+								);
+							}
+						}
+					}
 					const verdict = reportVerify({
 						target,
 						mode,
@@ -376,6 +422,7 @@ Exit codes:
 						ranges_checked: all.length,
 						semantic_checks: semanticChecks.length,
 						divergent_ranges: diverged,
+						...(heightNotes.length > 0 ? { note: heightNotes.join(" ") } : {}),
 					};
 
 					output({
@@ -409,17 +456,38 @@ Exit codes:
 									]),
 								),
 							);
+							for (const range of diverged) {
+								const heights = range.divergent_heights;
+								if (!heights) continue;
+								console.error("");
+								console.error(
+									`${range.from_block}-${range.to_block} ${range.dataset}: ${heights.length} diverging height${heights.length === 1 ? "" : "s"}`,
+								);
+								for (const h of heights.slice(0, MAX_HEIGHTS_SHOWN)) {
+									console.error(`  ${h.height}  ${h.parts.join(", ")}`);
+								}
+								if (heights.length > MAX_HEIGHTS_SHOWN) {
+									console.error(
+										dim(
+											`  and ${heights.length - MAX_HEIGHTS_SHOWN} more (see --json)`,
+										),
+									);
+								}
+							}
+							if (heightNotes.length > 0) {
+								console.error("");
+								for (const line of heightNotes) console.error(dim(`  ${line}`));
+							}
 							console.error("");
 							console.error(
 								dim(
 									"These ranges hold different data than the signed archive. Repair with:",
 								),
 							);
-							const first = diverged[0];
-							if (first) {
+							for (const range of mergeRepairRanges(diverged)) {
 								console.error(
 									dim(
-										`  secondlayer repair --from-block ${first.from_block} --to-block ${first.to_block}`,
+										`  secondlayer repair --from-block ${range.from_block} --to-block ${range.to_block}`,
 									),
 								);
 							}
