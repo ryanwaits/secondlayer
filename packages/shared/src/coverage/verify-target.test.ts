@@ -38,6 +38,7 @@ describe("verify targets", () => {
 
 	test("dataset filter: raw vs decode vs subgraph vs all", () => {
 		expect(datasetMatchesTarget("blocks", { kind: "raw" })).toBe(true);
+		expect(datasetMatchesTarget("state_writes", { kind: "raw" })).toBe(true);
 		expect(datasetMatchesTarget("ft_transfer", { kind: "raw" })).toBe(false);
 		expect(
 			datasetMatchesTarget("decode:ft_transfer", {

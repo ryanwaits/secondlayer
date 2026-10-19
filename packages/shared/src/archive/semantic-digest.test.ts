@@ -67,6 +67,22 @@ const sampleEvent = {
 	data: { amount: "1000", recipient: "SP456", sender: "SP123" },
 };
 
+const sampleStateWrite = {
+	block_height: 500_000,
+	ordinal: 7,
+	tx_index: 3,
+	key: "vm::SP123.my-contract::1::balance",
+	value_hex: "0x0100000000000000000000000000000064",
+};
+
+const sampleBlockLevelWrite = {
+	block_height: 500_000,
+	ordinal: 0,
+	tx_index: null,
+	key: "vm-metadata::9::contract",
+	value_hex: "0x00",
+};
+
 describe("SEMANTIC_DIGEST_SPEC_V1", () => {
 	test("spec identifier is frozen", () => {
 		expect(SEMANTIC_DIGEST_SPEC_V1).toBe("sha256:semantic-v1");
@@ -125,6 +141,51 @@ describe("v1 encode — pinned bytes", () => {
 				// canonical: amount, recipient, sender
 				'{"amount":"1000","recipient":"SP456","sender":"SP123"}',
 			].join(FIELD_SEP),
+		);
+	});
+});
+
+describe("v1 stateWrite encoding", () => {
+	test("state write encoding is exactly this string", () => {
+		expect(semanticDigest.v1.encodeStateWrite(sampleStateWrite)).toBe(
+			[
+				"500000",
+				"7",
+				"3",
+				"vm::SP123.my-contract::1::balance",
+				"0x0100000000000000000000000000000064",
+			].join(FIELD_SEP),
+		);
+	});
+
+	test("a block-level write encodes its null tx_index as \\x00", () => {
+		expect(semanticDigest.v1.encodeStateWrite(sampleBlockLevelWrite)).toBe(
+			["500000", "0", NULL, "vm-metadata::9::contract", "0x00"].join(FIELD_SEP),
+		);
+	});
+
+	test("stateWrite semantic digest is stable", () => {
+		expect(semanticDigest.v1.stateWrite(sampleStateWrite)).toBe(
+			"b7c6d7245be72d986641ceed6c58fd2322a08f247e47b6c12d43fef5aac97f8b",
+		);
+		expect(semanticDigest.v1.stateWrite(sampleBlockLevelWrite)).toBe(
+			"8d2406737a1728b57086d93f2a223de739ba2e840b10ce372b171ad9fa54cc4a",
+		);
+	});
+});
+
+describe("v1 golden digests", () => {
+	// Pinned as hex, not only as encoded strings: adding an encoder must never
+	// move an existing one's bytes.
+	test("existing encoders' golden digests are unchanged", () => {
+		expect(semanticDigest.v1.block(sampleBlock)).toBe(
+			"2ce2debca37dc57f4e9ec2b9177625e3e428a7089cd083a35b61d8c86692150e",
+		);
+		expect(semanticDigest.v1.transaction(sampleTx)).toBe(
+			"a62ab82c4707ec2cf57d1d61c26dc955c14fb2a1717681ccf8a581588d275a46",
+		);
+		expect(semanticDigest.v1.event(sampleEvent)).toBe(
+			"15e4526a799afde8afaf723da6dd87eb7e2ed5cc8f78265e4b1c8aef7e4f934a",
 		);
 	});
 });

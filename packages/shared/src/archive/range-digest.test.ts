@@ -21,6 +21,9 @@ describe.skipIf(!HAS_DB)("SQL range digests", () => {
 
 	async function clean() {
 		if (!db) return;
+		await sql`DELETE FROM state_writes WHERE block_height BETWEEN ${H} AND ${TO}`.execute(
+			db,
+		);
 		await sql`DELETE FROM events WHERE block_height BETWEEN ${H} AND ${TO}`.execute(
 			db,
 		);
@@ -176,6 +179,36 @@ describe.skipIf(!HAS_DB)("SQL range digests", () => {
 			(r) => r.dataset === "events",
 		);
 		expect(eventsResult?.status).toBe("count-mismatch");
+	});
+
+	test("range digest of state_writes ignores non-canonical blocks", async () => {
+		if (!db) throw new Error("missing db");
+		await sql`INSERT INTO state_writes (block_height, ordinal, tx_index, key, value_hex)
+			VALUES (${H + 2}, 0, NULL, 'k-block', '0x00'), (${H + 2}, 1, 0, 'k-tx', '0x01')`.execute(
+			db,
+		);
+		const before = await computeRangeDigest(db, "state_writes", H, TO);
+		expect(before.row_count).toBe(2);
+		expect(before.digest).not.toBeNull();
+
+		// A fork contender's writes at another height leave the digest alone
+		// once that block is no longer canonical.
+		await sql`INSERT INTO state_writes (block_height, ordinal, tx_index, key, value_hex)
+			VALUES (${H + 3}, 0, NULL, 'k-fork', '0xff')`.execute(db);
+		await sql`UPDATE blocks SET canonical = false WHERE height = ${H + 3}`.execute(
+			db,
+		);
+		const after = await computeRangeDigest(db, "state_writes", H, TO);
+		expect(after.row_count).toBe(2);
+		expect(after.digest).toBe(before.digest as string);
+
+		// A changed value moves the digest even though the key is unchanged.
+		await sql`UPDATE state_writes SET value_hex = '0x02' WHERE block_height = ${H + 2} AND ordinal = 1`.execute(
+			db,
+		);
+		const changed = await computeRangeDigest(db, "state_writes", H, TO);
+		expect(changed.row_count).toBe(2);
+		expect(changed.digest).not.toBe(before.digest as string);
 	});
 
 	test("reports a range the local database does not have at all", () => {

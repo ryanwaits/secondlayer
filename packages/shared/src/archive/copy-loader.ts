@@ -38,6 +38,10 @@ function asNumber(value: unknown): number {
 	return typeof value === "bigint" ? Number(value) : Number(value as number);
 }
 
+function asOptionalNumber(value: unknown): number | null {
+	return value === null || value === undefined ? null : asNumber(value);
+}
+
 function asText(value: unknown): string {
 	return Buffer.isBuffer(value) ? value.toString("utf8") : String(value);
 }
@@ -80,6 +84,14 @@ export function toCsvLine(dataset: ArchiveDataset, row: ArchiveRow): string {
 				csvField(asText(row.event_type)),
 				csvField(asText(row.data_json)),
 			].join(",");
+		case "state_writes":
+			return [
+				csvField(asNumber(row.block_height)),
+				csvField(asNumber(row.ordinal)),
+				csvField(asOptionalNumber(row.tx_index)),
+				csvField(asText(row.key)),
+				csvField(asText(row.value_hex)),
+			].join(",");
 		default:
 			return assertNeverDataset(dataset);
 	}
@@ -98,6 +110,8 @@ export function copyStatement(dataset: ArchiveDataset): string {
 			return "COPY transactions (tx_id, block_height, tx_index, type, sender, status, contract_id, function_name, function_args, raw_result, raw_tx) FROM STDIN WITH (FORMAT csv, NULL '\\N')";
 		case "events":
 			return "COPY events (tx_id, block_height, event_index, type, data) FROM STDIN WITH (FORMAT csv, NULL '\\N')";
+		case "state_writes":
+			return "COPY state_writes (block_height, ordinal, tx_index, key, value_hex) FROM STDIN WITH (FORMAT csv, NULL '\\N')";
 		default:
 			return assertNeverDataset(dataset);
 	}

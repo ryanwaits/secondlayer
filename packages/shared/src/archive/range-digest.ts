@@ -83,6 +83,16 @@ function identityExpression(dataset: RangeDigestDataset) {
 				event_index::text || '|' ||
 				type
 			)`;
+		case "state_writes":
+			// The value is folded to its own md5 so a large write does not
+			// widen the per-row string; the digest still moves with it.
+			return sql`md5(
+				block_height::text || '|' ||
+				ordinal::text || '|' ||
+				coalesce(tx_index::text, '~') || '|' ||
+				key || '|' ||
+				md5(value_hex)
+			)`;
 		default:
 			return assertNeverDataset(dataset);
 	}
@@ -96,6 +106,8 @@ function orderExpression(dataset: RangeDigestDataset) {
 			return sql`block_height, tx_index, tx_id`;
 		case "events":
 			return sql`block_height, event_index, tx_id`;
+		case "state_writes":
+			return sql`block_height, ordinal`;
 		default:
 			return assertNeverDataset(dataset);
 	}
@@ -114,6 +126,8 @@ function fromExpression(dataset: RangeDigestDataset) {
 			return childFrom(sql`transactions`);
 		case "events":
 			return childFrom(sql`events`);
+		case "state_writes":
+			return childFrom(sql`state_writes`);
 		default:
 			return assertNeverDataset(dataset);
 	}

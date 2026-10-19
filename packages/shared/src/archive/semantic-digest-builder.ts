@@ -190,6 +190,52 @@ async function* streamEventDigests(
 	}
 }
 
+async function* streamStateWriteDigests(
+	db: Kysely<Database>,
+	fromBlock: number,
+	toBlock: number,
+	batchRows: number,
+): AsyncGenerator<HeightDigest> {
+	type StateWriteRow = {
+		block_height: string | number;
+		ordinal: number;
+		tx_index: number | null;
+		key: string;
+		value_hex: string;
+	};
+	let cursor: { height: number; ordinal: number } | null = null;
+	while (true) {
+		const result = await sql<StateWriteRow>`
+			SELECT w.block_height, w.ordinal, w.tx_index, w.key, w.value_hex
+			  FROM state_writes w
+			  JOIN blocks b ON b.height = w.block_height AND b.canonical = true
+			 WHERE w.block_height >= ${fromBlock} AND w.block_height <= ${toBlock}
+			   AND (${cursor === null} OR (w.block_height, w.ordinal) >
+			        (${cursor?.height ?? 0}, ${cursor?.ordinal ?? 0}))
+			 ORDER BY w.block_height, w.ordinal
+			 LIMIT ${batchRows}
+		`.execute(db);
+		const rows: StateWriteRow[] = result.rows;
+		if (rows.length === 0) return;
+		for (const row of rows) {
+			yield {
+				height: Number(row.block_height),
+				digest: semanticDigest.v1.stateWrite({
+					block_height: Number(row.block_height),
+					ordinal: row.ordinal,
+					tx_index: row.tx_index,
+					key: row.key,
+					value_hex: row.value_hex,
+				}),
+			};
+		}
+		const tail = rows[rows.length - 1];
+		if (tail) {
+			cursor = { height: Number(tail.block_height), ordinal: tail.ordinal };
+		}
+	}
+}
+
 /**
  * Row digests with their heights, in the exporter's total order. Additive:
  * the per-height sidecar rebuild needs the height the exporter fed its
@@ -225,6 +271,8 @@ function digestStream(
 			return streamTransactionDigests(db, fromBlock, toBlock, batchRows);
 		case "events":
 			return streamEventDigests(db, fromBlock, toBlock, batchRows);
+		case "state_writes":
+			return streamStateWriteDigests(db, fromBlock, toBlock, batchRows);
 		default:
 			return assertNeverDataset(dataset);
 	}

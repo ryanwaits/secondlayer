@@ -35,6 +35,7 @@ import type { ArchiveDataset } from "./datasets.ts";
  *   - blocks:       (height asc)
  *   - transactions: (block_height asc, tx_index asc, tx_id asc)
  *   - events:       (block_height asc, event_index asc, tx_id asc)
+ *   - state_writes: (block_height asc, ordinal asc)
  * Per-partition rollup is `sha256(concat(row_digest_bytes))` in stream order.
  *
  * Test vectors under `packages/shared/src/archive/__fixtures__/semantic-digest/`
@@ -142,6 +143,15 @@ export interface EventDigestInput {
 	data: unknown;
 }
 
+export interface StateWriteDigestInput {
+	block_height: number | bigint;
+	ordinal: number;
+	/** null for a block-level write (no transaction). */
+	tx_index: number | null;
+	key: string;
+	value_hex: string;
+}
+
 function encodeBlock(row: BlockDigestInput): string {
 	return [
 		scalar(row.height),
@@ -180,6 +190,16 @@ function encodeEvent(row: EventDigestInput): string {
 	].join(FIELD_SEP);
 }
 
+function encodeStateWrite(row: StateWriteDigestInput): string {
+	return [
+		scalar(row.block_height),
+		scalar(row.ordinal),
+		scalar(row.tx_index),
+		scalar(row.key),
+		scalar(row.value_hex),
+	].join(FIELD_SEP);
+}
+
 /**
  * v1 per-row digests. Each is `sha256(encoded_row_bytes)` in lowercase hex.
  * The encoded byte form is stable across runtimes; the sha256 is stable
@@ -190,9 +210,11 @@ export interface SemanticDigestV1 {
 	readonly encodeBlock: (row: BlockDigestInput) => string;
 	readonly encodeTransaction: (row: TransactionDigestInput) => string;
 	readonly encodeEvent: (row: EventDigestInput) => string;
+	readonly encodeStateWrite: (row: StateWriteDigestInput) => string;
 	readonly block: (row: BlockDigestInput) => string;
 	readonly transaction: (row: TransactionDigestInput) => string;
 	readonly event: (row: EventDigestInput) => string;
+	readonly stateWrite: (row: StateWriteDigestInput) => string;
 }
 
 export interface SemanticDigestApi {
@@ -205,12 +227,15 @@ export const semanticDigest: SemanticDigestApi = {
 		encodeBlock,
 		encodeTransaction,
 		encodeEvent,
+		encodeStateWrite,
 		block: (row: BlockDigestInput): string =>
 			sha256Hex(textEncoder.encode(encodeBlock(row))),
 		transaction: (row: TransactionDigestInput): string =>
 			sha256Hex(textEncoder.encode(encodeTransaction(row))),
 		event: (row: EventDigestInput): string =>
 			sha256Hex(textEncoder.encode(encodeEvent(row))),
+		stateWrite: (row: StateWriteDigestInput): string =>
+			sha256Hex(textEncoder.encode(encodeStateWrite(row))),
 	},
 };
 
