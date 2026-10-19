@@ -1,3 +1,4 @@
+import { isArchiveDataset } from "@secondlayer/shared/archive/datasets";
 import type { DigestIndexPartition } from "@secondlayer/shared/archive/per-height-digest";
 import {
 	type RangeComparison,
@@ -22,6 +23,7 @@ import {
 	type DivergentHeight,
 	divergentHeightsForRange,
 	mergeRepairRanges,
+	sidecarNarrows,
 } from "../lib/archive-heights.ts";
 import {
 	checkSignature,
@@ -283,6 +285,9 @@ Exit codes:
 					const countChecks: RangeComparison[] = [];
 					if (opts.counts && manifest.partitions) {
 						for (const partition of manifest.partitions) {
+							// A dataset this release does not know (a newer archive's) is
+							// skipped, never counted against another dataset's table.
+							if (!isArchiveDataset(partition.dataset)) continue;
 							if (partition.dataset === "blocks") continue;
 							if (fromBlock !== undefined && partition.to_block < fromBlock)
 								continue;
@@ -290,12 +295,12 @@ Exit codes:
 								continue;
 							const actual = await computeRangeDigest(
 								db,
-								partition.dataset as RangeDigest["dataset"],
+								partition.dataset,
 								partition.from_block,
 								partition.to_block,
 							);
 							countChecks.push({
-								dataset: partition.dataset as RangeDigest["dataset"],
+								dataset: partition.dataset,
 								from_block: partition.from_block,
 								to_block: partition.to_block,
 								status:
@@ -314,6 +319,7 @@ Exit codes:
 					const referenceSemantic: PartitionSemanticDigest[] = (
 						manifest.partition_semantic_digests ?? []
 					).filter((d) => {
+						if (!isArchiveDataset(d.dataset)) return false;
 						if (!datasetMatchesTarget(d.dataset, target)) return false;
 						if (fromBlock !== undefined && d.to_block < fromBlock) return false;
 						if (toBlock !== undefined && d.from_block > toBlock) return false;
@@ -388,6 +394,12 @@ Exit codes:
 						);
 					} else {
 						for (const range of diverged) {
+							if (!sidecarNarrows(range.dataset)) {
+								heightNotes.push(
+									`${range.dataset} ${range.from_block}-${range.to_block} is checked as a whole range: per-height digests carry no ${range.dataset} part.`,
+								);
+								continue;
+							}
 							try {
 								const heights = await divergentHeightsForRange({
 									db,

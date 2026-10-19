@@ -80,16 +80,18 @@ describe("archiveScopeBounds", () => {
 });
 
 describe("bootstrap verification scope", () => {
-	test("post-load digests cover blocks, transactions, and events by default and blocks alone on request", () => {
+	test("post-load digests cover every archive dataset by default and blocks alone on request", () => {
 		expect(parseVerifyDatasets(undefined)).toEqual([
 			"blocks",
 			"transactions",
 			"events",
+			"state_writes",
 		]);
 		expect(parseVerifyDatasets("all")).toEqual([
 			"blocks",
 			"transactions",
 			"events",
+			"state_writes",
 		]);
 		expect(parseVerifyDatasets("blocks")).toEqual(["blocks"]);
 		expect(() => parseVerifyDatasets("tx")).toThrow(/--verify must be/);
@@ -111,6 +113,20 @@ describe("bootstrap verification scope", () => {
 			"t1",
 			"e0",
 			"e1",
+		]);
+	});
+
+	test("state_writes load after blocks, and a dataset this release does not know is never in the load order", () => {
+		const partitions = [
+			{ dataset: "state_writes", from_block: 0, to_block: 99, path: "w0" },
+			{ dataset: "vm_events", from_block: 0, to_block: 99, path: "v0" },
+			{ dataset: "events", from_block: 0, to_block: 99, path: "e0" },
+			{ dataset: "blocks", from_block: 0, to_block: 99, path: "b0" },
+		];
+		expect(loadOrder(partitions).map((p) => p.path)).toEqual([
+			"b0",
+			"e0",
+			"w0",
 		]);
 	});
 });
@@ -237,6 +253,79 @@ describe.skipIf(!HAS_DB)("bootstrap against a real database", () => {
 			.select("last_indexed_block")
 			.executeTakeFirst();
 		expect(Number(progress?.last_indexed_block)).toBe(19);
+	});
+
+	test("a manifest without state_writes bootstraps as before", async () => {
+		const res = runBootstrap(
+			["--against", archive.manifestPath],
+			archive.publicPem,
+		);
+		expect(res.status).toBe(0);
+		const report = JSON.parse(res.stdout);
+		expect(report.rows).toEqual({
+			blocks: 20,
+			transactions: 20,
+			events: 20,
+		});
+		expect(report.verified_datasets).toEqual([
+			"blocks",
+			"transactions",
+			"events",
+		]);
+		expect(report.ranges_verified).toBe(6);
+		const rows = await sql<{
+			n: string;
+		}>`SELECT COUNT(*)::text AS n FROM state_writes`.execute(getDb());
+		expect(Number(rows.rows[0]?.n)).toBe(0);
+	});
+
+	test("bootstrap loads state_writes after blocks", async () => {
+		const db = getDb();
+		await seedChain(db, chain);
+		const digests = await digestsFor(db, ranges, [
+			"blocks",
+			"transactions",
+			"events",
+			"state_writes",
+		]);
+		await clearChain(db);
+		const withWrites = await writeArchive(
+			join(dir, "with-state-writes"),
+			chain,
+			ranges,
+			digests,
+			{ datasets: ["blocks", "transactions", "events", "state_writes"] },
+		);
+
+		const res = runBootstrap(
+			["--against", withWrites.manifestPath],
+			withWrites.publicPem,
+		);
+		expect(res.status).toBe(0);
+		const report = JSON.parse(res.stdout);
+		expect(report.rows).toEqual({
+			blocks: 20,
+			transactions: 20,
+			events: 20,
+			state_writes: 40,
+		});
+		expect(report.verified_datasets).toContain("state_writes");
+		expect(report.ranges_verified).toBe(8);
+		expect(report.divergent_ranges).toBe(0);
+		// The load reports each dataset as it finishes, in FK order.
+		expect(res.stderr.indexOf("  blocks:")).toBeLessThan(
+			res.stderr.indexOf("  state_writes:"),
+		);
+		const writes = await sql<{
+			tx_index: number | null;
+			key: string;
+		}>`SELECT tx_index, key FROM state_writes WHERE block_height = 7 ORDER BY ordinal`.execute(
+			db,
+		);
+		expect(writes.rows).toEqual([
+			{ tx_index: null, key: "vm-metadata::7::burn" },
+			{ tx_index: 0, key: "vm::SP000.c::1::k7" },
+		]);
 	});
 
 	test("--verify blocks skips the child digests and says so in the report", async () => {

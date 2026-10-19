@@ -6,9 +6,11 @@ import type { PerHeightDigestRow } from "@secondlayer/shared/archive/per-height-
 import { closeDb, getDb } from "@secondlayer/shared/db";
 import {
 	compareHeights,
+	divergentHeightsForRange,
 	fetchSidecarRows,
 	localPerHeightDigests,
 	mergeRepairRanges,
+	sidecarNarrows,
 	sidecarsCovering,
 } from "./archive-heights.ts";
 import { loadReference } from "./archive-reference.ts";
@@ -36,6 +38,35 @@ function row(
 }
 
 const covered = [{ from_block: 0, to_block: 9 }];
+
+describe("which datasets the sidecar narrows", () => {
+	test("state_writes ranges stay range-level: the sidecar has no state_writes part", async () => {
+		expect(sidecarNarrows("blocks")).toBe(true);
+		expect(sidecarNarrows("transactions")).toBe(true);
+		expect(sidecarNarrows("events")).toBe(true);
+		expect(sidecarNarrows("state_writes")).toBe(false);
+		// Returns before touching the database or the reference.
+		const heights = await divergentHeightsForRange({
+			db: undefined as never,
+			reference: undefined as never,
+			digestIndex: [
+				{
+					from_block: 0,
+					to_block: 9,
+					path: "digests/0-9.parquet",
+					row_count: 10,
+					byte_size: 1,
+					sha256: "00",
+					digest_spec: "sha256:semantic-v1",
+				},
+			],
+			dataset: "state_writes",
+			fromBlock: 0,
+			toBlock: 9,
+		});
+		expect(heights).toBeNull();
+	});
+});
 
 describe("compareHeights", () => {
 	const archive = new Map([0, 1, 2].map((h) => [h, row(h)]));

@@ -7,9 +7,10 @@ import {
  * Resume a torn archive import. Bootstrap refuses a finished instance
  * (index_progress present) and a fresh empty DB starts from partition 0.
  * A crash mid-COPY leaves rows without progress. Every dataset keeps its own
- * high-water mark because the load runs blocks, then transactions, then
- * events: a crash after the blocks pass leaves blocks at the tip and the child
- * datasets empty, and a single blocks-derived mark would call that complete.
+ * high-water mark because the load runs dataset by dataset (blocks,
+ * transactions, events, state_writes): a crash after the blocks pass leaves
+ * blocks at the tip and the child datasets empty, and a single blocks-derived
+ * mark would call that complete.
  */
 
 export type ArchivePartitionRange = {
@@ -26,6 +27,7 @@ export type ResumeDataset = ArchiveDataset;
 const FK_PARENT: Record<Exclude<ResumeDataset, "blocks">, ResumeDataset> = {
 	transactions: "blocks",
 	events: "transactions",
+	state_writes: "blocks",
 };
 
 /** MAX(height) for blocks, MAX(block_height) for the child datasets; null

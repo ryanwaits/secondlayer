@@ -7,6 +7,8 @@ import {
 import {
 	ARCHIVE_DATASETS,
 	archiveHeightColumn,
+	isArchiveDataset,
+	manifestPublishes,
 } from "@secondlayer/shared/archive/datasets";
 import {
 	type RangeDigestDataset,
@@ -174,6 +176,14 @@ async function loadPartition(
 	return written;
 }
 
+/** `1,000 blocks, 20 transactions, 30 events` — one entry per loaded dataset,
+ *  in load order. */
+function restoredSummary(loaded: Partial<Record<ArchiveDataset, number>>) {
+	return LOAD_ORDER.filter((d) => loaded[d] !== undefined)
+		.map((d) => `${(loaded[d] ?? 0).toLocaleString()} ${d}`)
+		.join(", ");
+}
+
 /** FK order is not optional: `ARCHIVE_DATASETS` is ordered so every dataset
  *  references only datasets before it. */
 const LOAD_ORDER: readonly ArchiveDataset[] = ARCHIVE_DATASETS;
@@ -269,7 +279,7 @@ Exit codes:
 		)
 		.action(async (opts) => {
 			try {
-				const verifyDatasets = parseVerifyDatasets(opts.verify);
+				const requestedVerify = parseVerifyDatasets(opts.verify);
 				const publicKey = await resolveArchivePublicKey({
 					explicitPem: opts.publicKey,
 					envPem:
@@ -281,6 +291,11 @@ Exit codes:
 					publicKeyPem: publicKey,
 				});
 				const signature = checkSignature(reference.manifest, publicKey, false);
+				// Only datasets the archive publishes: one cut before `state_writes`
+				// was collected verifies (and reports) exactly as it always did.
+				const verifyDatasets = requestedVerify.filter((d) =>
+					manifestPublishes(reference.manifest, d),
+				);
 				// No --insecure here. Bootstrap writes an entire chain history into a
 				// database; doing that from an unverified source would poison the
 				// instance at its foundation.
@@ -308,11 +323,25 @@ Exit codes:
 				// scope would then claim less history than the database holds.
 				const fromBlock =
 					opts.fromBlock === undefined ? undefined : Number(opts.fromBlock);
-				const declared = (reference.manifest.partitions ?? []).filter(
+				const inScope = (reference.manifest.partitions ?? []).filter(
 					(p) =>
 						(toBlock === undefined || p.to_block <= toBlock) &&
 						(fromBlock === undefined || p.from_block >= fromBlock),
 				);
+				// A dataset this release does not know (a newer archive's) is left
+				// out of everything — the quote, the totals and the load — so the
+				// operator is never charged or told about rows it will not load.
+				const unknown = [
+					...new Set(
+						inScope.map((p) => p.dataset).filter((d) => !isArchiveDataset(d)),
+					),
+				];
+				if (unknown.length > 0) {
+					warn(
+						`Skipping archive datasets this release does not know: ${unknown.join(", ")}. Upgrade the CLI to load them.`,
+					);
+				}
+				const declared = inScope.filter((p) => isArchiveDataset(p.dataset));
 				if (declared.length === 0) {
 					printError("The archive has no partitions for that range.", {
 						hint: "Check --from-block and --to-block against the manifest's coverage.",
@@ -467,7 +496,14 @@ Exit codes:
 				const nodeTipAtStart = await readNodeTip();
 
 				const rawClient = getRawClient("source");
-				const loaded = { blocks: 0, transactions: 0, events: 0 };
+				// One key per dataset the archive publishes: an archive cut before
+				// `state_writes` was collected restores and reports as it always
+				// did.
+				const loaded = Object.fromEntries(
+					LOAD_ORDER.filter((d) =>
+						manifestPublishes(reference.manifest, d),
+					).map((d) => [d, 0]),
+				) as Partial<Record<ArchiveDataset, number>>;
 				const startedAt = Date.now();
 
 				for (const dataset of LOAD_ORDER) {
@@ -475,17 +511,14 @@ Exit codes:
 						(p) => p.dataset === dataset,
 					);
 					for (const [index, partition] of datasetPartitions.entries()) {
-						loaded[dataset] += await loadPartition(
-							reference,
-							partition,
-							rawClient,
-							gate,
-						);
+						loaded[dataset] =
+							(loaded[dataset] ?? 0) +
+							(await loadPartition(reference, partition, rawClient, gate));
 						const done = index + 1;
 						if (done % 10 === 0 || done === datasetPartitions.length) {
 							const elapsed = (Date.now() - startedAt) / 1000;
 							note(
-								`  ${dataset}: ${done}/${datasetPartitions.length} partitions · ${loaded[dataset].toLocaleString()} rows · ${formatDuration(elapsed)} elapsed`,
+								`  ${dataset}: ${done}/${datasetPartitions.length} partitions · ${(loaded[dataset] ?? 0).toLocaleString()} rows · ${formatDuration(elapsed)} elapsed`,
 							);
 						}
 					}
@@ -604,7 +637,7 @@ Exit codes:
 					human: () => {
 						if (divergent === 0) {
 							success(
-								`Restored ${loaded.blocks.toLocaleString()} blocks, ${loaded.transactions.toLocaleString()} transactions, ${loaded.events.toLocaleString()} events in ${formatDuration(elapsed)}.`,
+								`Restored ${restoredSummary(loaded)} in ${formatDuration(elapsed)}.`,
 							);
 							if (referenceDigests.length > 0) {
 								note(
@@ -667,7 +700,7 @@ Exit codes:
 								)
 								.join(", ");
 							warn(
-								`Restored ${loaded.blocks.toLocaleString()} blocks but ${divergent} ranges do not match the archive (${byDataset}).`,
+								`Restored ${(loaded.blocks ?? 0).toLocaleString()} blocks but ${divergent} ranges do not match the archive (${byDataset}).`,
 							);
 							console.error(
 								dim(

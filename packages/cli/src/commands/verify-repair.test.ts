@@ -813,14 +813,14 @@ describe("repair rewrites a fixed block's transactions and events", () => {
 		expect([...plan.byPartition.keys()]).toEqual(["t0", "e0"]);
 		expect(plan.byPartition.get("t0")?.heights).toEqual([3, 7]);
 		expect(plan.missing).toEqual({ transactions: [], events: [] });
-		expect(plan.rewritable).toEqual([3, 7]);
+		expect(plan.rewritable).toEqual({ transactions: [3, 7], events: [3, 7] });
 	});
 
 	test("a height with no transactions or events partition in the reference is reported as missing, per dataset", () => {
 		const plan = planChildRewrite(partitions, [3, 12]);
 		expect(plan.missing).toEqual({ transactions: [12], events: [12] });
 		expect(plan.byPartition.get("t0")?.heights).toEqual([3]);
-		expect(plan.rewritable).toEqual([3]);
+		expect(plan.rewritable).toEqual({ transactions: [3], events: [3] });
 	});
 
 	test("a height covered by a transactions partition but no events partition is not rewritten underneath at all", () => {
@@ -834,9 +834,48 @@ describe("repair rewrites a fixed block's transactions and events", () => {
 			}),
 		);
 		const plan = planChildRewrite(txOnly, [12]);
-		expect(plan.rewritable).toEqual([]);
+		expect(plan.rewritable).toEqual({ transactions: [], events: [] });
 		expect(plan.byPartition.size).toBe(0);
 		expect(plan.missing).toEqual({ transactions: [], events: [12] });
+	});
+
+	test("state_writes are rewritten on their own partition, independent of the transactions/events pair", () => {
+		const withWrites = partitions.concat(
+			testPartition({
+				dataset: "state_writes",
+				from_block: 0,
+				to_block: 9,
+				path: "w0",
+			}),
+			testPartition({
+				dataset: "state_writes",
+				from_block: 10,
+				to_block: 19,
+				path: "w1",
+			}),
+		);
+		const plan = planChildRewrite(
+			withWrites,
+			[3, 12],
+			["transactions", "events", "state_writes"],
+		);
+		expect(plan.rewritable).toEqual({
+			transactions: [3],
+			events: [3],
+			state_writes: [3, 12],
+		});
+		expect(plan.missing).toEqual({
+			transactions: [12],
+			events: [12],
+			state_writes: [],
+		});
+		expect(plan.byPartition.get("w1")?.heights).toEqual([12]);
+	});
+
+	test("an archive that does not publish state_writes never reports them missing", () => {
+		const plan = planChildRewrite(partitions, [3]);
+		expect(plan.missing).not.toHaveProperty("state_writes");
+		expect(plan.rewritable).not.toHaveProperty("state_writes");
 	});
 });
 
@@ -1307,5 +1346,194 @@ describe.skipIf(!HAS_DB)("verify narrows divergent ranges to heights", () => {
 		expect(report.divergent_ranges).toHaveLength(1);
 		expect(report.divergent_ranges[0].divergent_heights).toBeUndefined();
 		expect(report.note).toMatch(/newer snapshot/);
+	});
+});
+
+function runCli(command: string, args: string[], publicPem: string) {
+	return spawnSync(
+		process.execPath,
+		[REPAIR_CLI, command, "--json", "--public-key", publicPem, ...args],
+		{
+			encoding: "utf8",
+			env: {
+				...process.env,
+				NO_COLOR: "1",
+				SECONDLAYER_API_URL: "http://127.0.0.1:1",
+			},
+		},
+	);
+}
+
+describe.skipIf(!HAS_DB)("state_writes in the archive", () => {
+	const ranges = [
+		{ from_block: 0, to_block: 4 },
+		{ from_block: 5, to_block: 9 },
+	];
+	const datasets = [
+		"blocks",
+		"transactions",
+		"events",
+		"state_writes",
+	] as const;
+	const chain = fixtureChain(0, 9);
+	let archiveDir: string;
+	/** Every dataset, with range digests for every dataset. */
+	let full: WrittenArchive;
+	/** Every dataset, with block digests only — the shape the exporter
+	 *  publishes, where child datasets are checked by `--counts`. */
+	let blockDigests: WrittenArchive;
+
+	beforeAll(async () => {
+		const db = getDb();
+		archiveDir = await mkdtemp(join(tmpdir(), "sl-state-writes-"));
+		await clearChain(db);
+		await seedChain(db, chain);
+		full = await writeArchive(
+			join(archiveDir, "full"),
+			chain,
+			ranges,
+			await digestsFor(db, ranges, datasets),
+			{ datasets, digestIndex: true },
+		);
+		blockDigests = await writeArchive(
+			join(archiveDir, "block-digests"),
+			chain,
+			ranges,
+			await digestsFor(db, ranges, ["blocks"]),
+			{ datasets },
+		);
+	});
+
+	beforeEach(async () => {
+		const db = getDb();
+		await clearChain(db);
+		await seedChain(db, chain);
+	});
+
+	afterAll(async () => {
+		await clearChain(getDb());
+		await closeDb();
+		if (archiveDir) await rm(archiveDir, { recursive: true, force: true });
+	});
+
+	test("repair rewrites a height's state_writes with its block", async () => {
+		const db = getDb();
+		// Height 5 on the losing fork: its block hash and its writes differ.
+		await sql`UPDATE blocks SET hash = 'fork-hash-5' WHERE height = 5`.execute(
+			db,
+		);
+		await sql`UPDATE state_writes SET key = 'fork-key' WHERE block_height = 5 AND ordinal = 1`.execute(
+			db,
+		);
+		await sql`INSERT INTO state_writes (block_height, ordinal, tx_index, key, value_hex)
+			VALUES (5, 2, 0, 'fork-only', '0xff')`.execute(db);
+
+		const res = runCli(
+			"repair",
+			["--yes", "--against", full.manifestPath, "--apply"],
+			full.publicPem,
+		);
+		expect(res.status).toBe(0);
+		const report = JSON.parse(res.stdout);
+		expect(report.status).toBe("repaired");
+		expect(report.rows_written).toEqual({
+			blocks: 1,
+			transactions: 1,
+			events: 1,
+			state_writes: 2,
+		});
+		expect(report.datasets_rewritten).toEqual([...datasets]);
+		expect(report.remaining_by_dataset).toEqual({
+			blocks: 0,
+			transactions: 0,
+			events: 0,
+			state_writes: 0,
+		});
+		const writes = await sql<{
+			ordinal: number;
+			key: string;
+		}>`SELECT ordinal, key FROM state_writes WHERE block_height = 5 ORDER BY ordinal`.execute(
+			db,
+		);
+		expect(writes.rows).toEqual([
+			{ ordinal: 0, key: "vm-metadata::5::burn" },
+			{ ordinal: 1, key: "vm::SP000.c::1::k5" },
+		]);
+	});
+
+	test("verify --counts checks state_writes against state_writes", async () => {
+		await sql`DELETE FROM state_writes WHERE block_height = 3 AND ordinal = 1`.execute(
+			getDb(),
+		);
+		const quick = runCli(
+			"verify",
+			["--against", blockDigests.manifestPath],
+			blockDigests.publicPem,
+		);
+		expect(quick.status).toBe(0);
+
+		const res = runCli(
+			"verify",
+			["--against", blockDigests.manifestPath, "--counts"],
+			blockDigests.publicPem,
+		);
+		expect(res.status).toBe(1);
+		const report = JSON.parse(res.stdout);
+		expect(report.divergent_ranges).toEqual([
+			expect.objectContaining({
+				dataset: "state_writes",
+				from_block: 0,
+				to_block: 4,
+				status: "count-mismatch",
+				expected_rows: 10,
+				actual_rows: 9,
+			}),
+		]);
+	});
+
+	test("verify keeps a divergent state_writes range at range level", async () => {
+		await sql`UPDATE state_writes SET value_hex = '0xee' WHERE block_height = 7 AND ordinal = 1`.execute(
+			getDb(),
+		);
+		const res = runCli(
+			"verify",
+			["--against", full.manifestPath],
+			full.publicPem,
+		);
+		expect(res.status).toBe(1);
+		const report = JSON.parse(res.stdout);
+		expect(report.divergent_ranges).toHaveLength(1);
+		const [range] = report.divergent_ranges;
+		expect(range).toMatchObject({ dataset: "state_writes", from_block: 5 });
+		expect(range.divergent_heights).toBeUndefined();
+		expect(report.note).toMatch(/checked as a whole range/);
+	});
+
+	test("a state_writes partition short a row is rewritten alone while blocks match", async () => {
+		const db = getDb();
+		await sql`DELETE FROM state_writes WHERE block_height = 3 AND ordinal = 1`.execute(
+			db,
+		);
+		const res = runCli(
+			"repair",
+			["--yes", "--against", blockDigests.manifestPath, "--apply"],
+			blockDigests.publicPem,
+		);
+		expect(res.status).toBe(0);
+		const report = JSON.parse(res.stdout);
+		expect(report.status).toBe("repaired");
+		expect(report.datasets_rewritten).toEqual(["state_writes"]);
+		expect(report.rows_written).toEqual({
+			blocks: 0,
+			transactions: 0,
+			events: 0,
+			state_writes: 10,
+		});
+		const rows = await sql<{
+			n: string;
+		}>`SELECT COUNT(*)::text AS n FROM state_writes WHERE block_height BETWEEN 0 AND 4`.execute(
+			db,
+		);
+		expect(Number(rows.rows[0]?.n)).toBe(10);
 	});
 });

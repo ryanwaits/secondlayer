@@ -36,11 +36,35 @@ export type HeightPart =
 
 export type DivergentHeight = { height: number; parts: HeightPart[] };
 
+/** Datasets the per-height sidecar carries a part for. */
+type SidecarDataset = Exclude<CanonicalDataset, "state_writes">;
+
 const PART_FOR_DATASET = {
 	blocks: "block",
 	transactions: "transactions",
 	events: "events",
-} as const satisfies Record<CanonicalDataset, HeightPart>;
+} as const satisfies Record<SidecarDataset, HeightPart>;
+
+/**
+ * Whether the per-height sidecar can narrow a divergent range of this
+ * dataset to heights. The sidecar has no `state_writes` rollup column, so a
+ * `state_writes` range stays a range: it is still verified, just not
+ * narrowed.
+ */
+export function sidecarNarrows(
+	dataset: CanonicalDataset,
+): dataset is SidecarDataset {
+	switch (dataset) {
+		case "blocks":
+		case "transactions":
+		case "events":
+			return true;
+		case "state_writes":
+			return false;
+		default:
+			return assertNeverDataset(dataset);
+	}
+}
 
 /**
  * Rebuild the exporter's sidecar rows from the local database. Feeds the same
@@ -53,7 +77,7 @@ export async function localPerHeightDigests(
 	db: Db,
 	fromBlock: number,
 	toBlock: number,
-	datasets: readonly CanonicalDataset[] = ["blocks", "transactions", "events"],
+	datasets: readonly SidecarDataset[] = ["blocks", "transactions", "events"],
 ): Promise<Map<number, PerHeightDigestRow>> {
 	const accumulator = new PerHeightDigestAccumulator();
 	for await (const { height, digest } of streamHeightDigests(
@@ -135,7 +159,7 @@ export async function fetchSidecarRows(
  * outside them is unknown to the archive, not evidence of divergence.
  */
 export function compareHeights(params: {
-	dataset: CanonicalDataset;
+	dataset: SidecarDataset;
 	fromBlock: number;
 	toBlock: number;
 	local: ReadonlyMap<number, PerHeightDigestRow>;
@@ -166,7 +190,7 @@ export function compareHeights(params: {
 }
 
 function partsMatch(
-	dataset: CanonicalDataset,
+	dataset: SidecarDataset,
 	a: PerHeightDigestRow,
 	b: PerHeightDigestRow,
 ): boolean {
@@ -184,7 +208,7 @@ function partsMatch(
 
 /**
  * Exact diverging heights for one divergent range, or `null` when no sidecar
- * covers it. Fetches and verifies each overlapping sidecar, rebuilds local
+ * covers it or the sidecar carries no part for the dataset (`sidecarNarrows`). Fetches and verifies each overlapping sidecar, rebuilds local
  * digests for the range, and compares the part that matches the range's
  * dataset.
  */
@@ -197,6 +221,7 @@ export async function divergentHeightsForRange(params: {
 	toBlock: number;
 }): Promise<DivergentHeight[] | null> {
 	const { db, reference, dataset, fromBlock, toBlock } = params;
+	if (!sidecarNarrows(dataset)) return null;
 	const sidecars = sidecarsCovering(params.digestIndex, fromBlock, toBlock);
 	if (sidecars.length === 0) return null;
 

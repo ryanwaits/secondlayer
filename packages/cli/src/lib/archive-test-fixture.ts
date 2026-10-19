@@ -22,9 +22,12 @@ import { signStreamsBulkManifest } from "@secondlayer/shared/streams-bulk-manife
 
 /**
  * A tiny signed archive on disk plus the rows it was cut from, for the
- * database-gated bootstrap and repair suites. One block, one transaction, and
- * one event per height; partition boundaries are shared across datasets the
- * way the publisher cuts them.
+ * database-gated bootstrap and repair suites. One block, one transaction, one
+ * event and two state writes (one block-level, one from the transaction) per
+ * height; partition boundaries are shared across datasets the way the
+ * publisher cuts them. Archives carry the core three datasets unless a test
+ * asks for `state_writes`, the way an archive cut before it was collected
+ * does.
  */
 
 export type FixtureBlock = {
@@ -59,17 +62,34 @@ export type FixtureEvent = {
 	data_json: string;
 };
 
+export type FixtureStateWrite = {
+	block_height: number;
+	ordinal: number;
+	tx_index: number | null;
+	key: string;
+	value_hex: string;
+};
+
 export type FixtureChain = {
 	blocks: FixtureBlock[];
 	transactions: FixtureTx[];
 	events: FixtureEvent[];
+	state_writes: FixtureStateWrite[];
 };
+
+/** The datasets an archive carried before `state_writes` existed. */
+export const CORE_DATASETS = ["blocks", "transactions", "events"] as const;
 
 export function fixtureChain(
 	fromHeight: number,
 	toHeight: number,
 ): FixtureChain {
-	const chain: FixtureChain = { blocks: [], transactions: [], events: [] };
+	const chain: FixtureChain = {
+		blocks: [],
+		transactions: [],
+		events: [],
+		state_writes: [],
+	};
 	for (let h = fromHeight; h <= toHeight; h++) {
 		chain.blocks.push({
 			height: h,
@@ -100,6 +120,22 @@ export function fixtureChain(
 			event_type: "stx_transfer",
 			data_json: JSON.stringify({ amount: String(h) }),
 		});
+		chain.state_writes.push(
+			{
+				block_height: h,
+				ordinal: 0,
+				tx_index: null,
+				key: `vm-metadata::${h}::burn`,
+				value_hex: "0x00",
+			},
+			{
+				block_height: h,
+				ordinal: 1,
+				tx_index: 0,
+				key: `vm::SP000.c::1::k${h}`,
+				value_hex: `0x${h.toString(16).padStart(2, "0")}`,
+			},
+		);
 	}
 	return chain;
 }
@@ -141,6 +177,14 @@ function schemaFor(dataset: RangeDigestDataset): ParquetSchema {
 				event_index: INT32,
 				event_type: STRING,
 				data_json: STRING,
+			});
+		case "state_writes":
+			return new ParquetSchema({
+				block_height: INT64,
+				ordinal: INT32,
+				tx_index: { ...INT32, optional: true },
+				key: STRING,
+				value_hex: STRING,
 			});
 		default:
 			return assertNeverDataset(dataset);
@@ -242,10 +286,16 @@ export async function seedChain(
 			db,
 		);
 	}
+	for (const w of chain.state_writes) {
+		await sql`INSERT INTO state_writes (block_height, ordinal, tx_index, key, value_hex)
+			VALUES (${w.block_height}, ${w.ordinal}, ${w.tx_index}, ${w.key}, ${w.value_hex})`.execute(
+			db,
+		);
+	}
 }
 
 export async function clearChain(db: ReturnType<typeof getDb>): Promise<void> {
-	await sql`TRUNCATE events, transactions, blocks, index_progress, sync_scopes CASCADE`.execute(
+	await sql`TRUNCATE state_writes, events, transactions, blocks, index_progress, sync_scopes CASCADE`.execute(
 		db,
 	);
 }
@@ -273,7 +323,7 @@ export async function writeArchive(
 		digestIndex?: boolean;
 	} = {},
 ): Promise<WrittenArchive> {
-	const datasets = options.datasets ?? ["blocks", "transactions", "events"];
+	const datasets = options.datasets ?? CORE_DATASETS;
 	const partitions: Array<Record<string, unknown>> = [];
 	for (const dataset of datasets) {
 		await mkdir(join(root, dataset), { recursive: true });
@@ -359,11 +409,7 @@ export async function writeArchive(
 export async function digestsFor(
 	db: ReturnType<typeof getDb>,
 	ranges: readonly { from_block: number; to_block: number }[],
-	datasets: readonly RangeDigestDataset[] = [
-		"blocks",
-		"transactions",
-		"events",
-	],
+	datasets: readonly RangeDigestDataset[] = CORE_DATASETS,
 ): Promise<RangeDigest[]> {
 	const out: RangeDigest[] = [];
 	for (const dataset of datasets) {

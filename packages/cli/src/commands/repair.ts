@@ -7,7 +7,10 @@ import {
 	copyStatement,
 	writeRowsToCopyStream,
 } from "@secondlayer/shared/archive/copy-loader";
-import { ARCHIVE_DATASETS } from "@secondlayer/shared/archive/datasets";
+import {
+	ARCHIVE_DATASETS,
+	manifestPublishes,
+} from "@secondlayer/shared/archive/datasets";
 import {
 	type RangeDigest,
 	type RangeDigestDataset,
@@ -67,16 +70,17 @@ import { isOssMode } from "../lib/resolve-auth.ts";
  *  4. Rows present locally but absent from the archive are REPORTED, never
  *     deleted — they are referenced by transactions and events, and silently
  *     cascading through a live database is not a repair.
- *  5. A fixed block takes its transactions and events with it. A block row
- *     rewritten to the archive's hash while the old fork's transactions still
- *     hang off that height is not repaired, it is inconsistent in a new way.
+ *  5. A fixed block takes its transactions and events (and its
+ *     `state_writes`, when the reference publishes them) with it. A block row
+ *     rewritten to the archive's hash while the old fork's rows still hang
+ *     off that height is not repaired, it is inconsistent in a new way.
  *     When the reference carries no child partition for a height, the block
  *     is rewritten alone and the run says so and exits incomplete.
- *  6. Blocks matching the archive is not proof nothing is wrong: transactions
- *     and events can go missing underneath an untouched block (the
- *     2026-09-27 incident). Every run also compares local transactions/events
- *     row counts against the manifest and repairs those ranges even when
- *     every block already matches.
+ *  6. Blocks matching the archive is not proof nothing is wrong: child rows
+ *     can go missing underneath an untouched block (the 2026-09-27
+ *     incident). Every run also compares local child row counts against the
+ *     manifest and repairs those ranges even when every block already
+ *     matches.
  */
 
 export const REPAIR_EXIT = {
@@ -212,7 +216,39 @@ type ChildDataset = Exclude<ArchiveDataset, "blocks">;
 const CHILD_DATASETS: readonly ChildDataset[] = ARCHIVE_DATASETS.filter(
 	(d): d is ChildDataset => d !== "blocks",
 );
-const REPAIR_DATASETS: readonly RangeDigestDataset[] = ARCHIVE_DATASETS;
+
+/**
+ * The child datasets that must be rewritten together at a height. Events
+ * reference transactions by `tx_id`, so the two land as a pair or not at
+ * all; `state_writes` reference only their block, so they stand alone.
+ */
+const REWRITE_TOGETHER: Record<ChildDataset, readonly ChildDataset[]> = {
+	transactions: ["transactions", "events"],
+	events: ["transactions", "events"],
+	state_writes: ["state_writes"],
+};
+
+/** The child datasets a reference publishes. An optional dataset it leaves
+ *  out (`state_writes` in an archive cut before it was collected) was never
+ *  published, so its absence is neither "missing" nor a rewrite. */
+function publishedChildren(
+	manifest: LoadedReference["manifest"],
+): ChildDataset[] {
+	return CHILD_DATASETS.filter((d) => manifestPublishes(manifest, d));
+}
+
+/** The datasets a report names: blocks plus every published child. */
+function reportedDatasets(children: readonly ChildDataset[]): ArchiveDataset[] {
+	return ARCHIVE_DATASETS.filter(
+		(d) => d === "blocks" || (children as readonly string[]).includes(d),
+	);
+}
+
+function zeroCounts(
+	datasets: readonly ArchiveDataset[],
+): Partial<Record<ArchiveDataset, number>> {
+	return Object.fromEntries(datasets.map((d) => [d, 0]));
+}
 
 /**
  * The child partition covering one height. The publisher partitions every
@@ -233,48 +269,50 @@ export function childPartitionFor(
 export type ChildRewritePlan = {
 	/** Partition path to the heights it must supply, per child dataset. */
 	byPartition: Map<string, { partition: ArchivePartition; heights: number[] }>;
-	/** Heights the reference cannot rewrite for that dataset. */
-	missing: Record<ChildDataset, number[]>;
-	/** Heights both child datasets can be rewritten for. A height with only
-	 *  one child partition is left alone underneath: events reference
-	 *  transactions, so rewriting one without the other cannot land. */
-	rewritable: number[];
+	/** Heights the reference cannot rewrite, per published child dataset. */
+	missing: Partial<Record<ChildDataset, number[]>>;
+	/** Heights each published child dataset is rewritten at. A height whose
+	 *  `REWRITE_TOGETHER` partner has no partition is left alone underneath:
+	 *  events reference transactions, so rewriting one without the other
+	 *  cannot land. */
+	rewritable: Partial<Record<ChildDataset, number[]>>;
 };
 
 /** Which child partitions a set of fixed heights needs, and which heights
- *  the reference cannot serve. Pure so the incomplete path is testable. */
+ *  the reference cannot serve. Pure so the incomplete path is testable.
+ *  `children` defaults to the core pair; pass `publishedChildren(manifest)`
+ *  to include an optional dataset the reference publishes. */
 export function planChildRewrite(
 	partitions: readonly ArchivePartition[],
 	heights: readonly number[],
+	children: readonly ChildDataset[] = ["transactions", "events"],
 ): ChildRewritePlan {
-	const missing: Record<ChildDataset, number[]> = {
-		transactions: [],
-		events: [],
-	};
+	const missing: Partial<Record<ChildDataset, number[]>> = {};
 	const found = new Map<
 		number,
 		Partial<Record<ChildDataset, ArchivePartition>>
 	>();
-	for (const dataset of CHILD_DATASETS) {
+	for (const dataset of children) {
+		missing[dataset] = [];
 		for (const height of heights) {
 			const partition = childPartitionFor(partitions, dataset, height);
 			if (!partition) {
-				missing[dataset].push(height);
+				missing[dataset]?.push(height);
 				continue;
 			}
 			found.set(height, { ...found.get(height), [dataset]: partition });
 		}
 	}
-	const rewritable = heights.filter((h) => {
-		const entry = found.get(h);
-		return !!entry?.transactions && !!entry?.events;
-	});
+	const rewritable: Partial<Record<ChildDataset, number[]>> = {};
 	const byPartition = new Map<
 		string,
 		{ partition: ArchivePartition; heights: number[] }
 	>();
-	for (const height of rewritable) {
-		for (const dataset of CHILD_DATASETS) {
+	for (const dataset of children) {
+		rewritable[dataset] = heights.filter((h) =>
+			REWRITE_TOGETHER[dataset].every((d) => !!found.get(h)?.[d]),
+		);
+		for (const height of rewritable[dataset] ?? []) {
 			const partition = found.get(height)?.[dataset];
 			if (!partition) continue;
 			const entry = byPartition.get(partition.path) ?? {
@@ -298,20 +336,25 @@ async function* onlyHeights(
 }
 
 type AppliedFixes = {
-	blocks: number;
-	transactions: number;
-	events: number;
-	missing: Record<ChildDataset, number[]>;
-	/** Heights whose transactions and events were actually rewritten. */
-	rewritten: number[];
+	/** Rows written per dataset. */
+	rows: Record<ArchiveDataset, number>;
+	missing: ChildRewritePlan["missing"];
+	/** Heights each child dataset was actually rewritten at. */
+	rewritten: ChildRewritePlan["rewritable"];
 };
 
 /**
  * Write one partition's fixes in a single transaction: the block rows land,
- * the old transactions and events at every fixed height are deleted, and the
+ * the old child rows (transactions, events, and `state_writes` when the
+ * reference publishes them) at every fixed height are deleted, and the
  * archive's rows for those heights are COPYed back in. A partition either
  * lands whole or not at all, so an interrupted repair never leaves a
  * half-corrected range, and no child row ever outlives its block's identity.
+ *
+ * The block upsert never deletes the block row, so its `ON DELETE CASCADE`
+ * children (`state_writes`) are not swept by it: the explicit delete below is
+ * the only thing standing between a replaced block and its losing fork's
+ * writes.
  */
 async function applyFixes(
 	rawClient: ReturnType<typeof getRawClient>,
@@ -321,11 +364,12 @@ async function applyFixes(
 	gate: ArchiveGate | undefined,
 ): Promise<AppliedFixes> {
 	const applied: AppliedFixes = {
-		blocks: 0,
-		transactions: 0,
-		events: 0,
-		missing: { transactions: [], events: [] },
-		rewritten: [],
+		rows: Object.fromEntries(ARCHIVE_DATASETS.map((d) => [d, 0])) as Record<
+			ArchiveDataset,
+			number
+		>,
+		missing: {},
+		rewritten: {},
 	};
 	if (fixes.length === 0) return applied;
 	const bytes = await fetchVerifiedPartition(reference, partition, gate);
@@ -342,10 +386,10 @@ async function applyFixes(
 	const children = planChildRewrite(
 		reference.manifest.partitions ?? [],
 		heights,
+		publishedChildren(reference.manifest),
 	);
 	applied.missing = children.missing;
 	applied.rewritten = children.rewritable;
-	const rewritable = new Set(children.rewritable);
 	// Every child partition is fetched and digest-checked before the
 	// transaction opens, so a bad download never holds a write lock.
 	const childBytes = new Map<string, Buffer>();
@@ -356,12 +400,14 @@ async function applyFixes(
 	await rawClient.begin(async (tx) => {
 		// Only heights the archive can refill lose their children: a stale
 		// fork transaction that stays put is named in the report, while a
-		// deleted one would be a hole nothing names.
-		for (const height of rewritable) {
-			await tx.unsafe("DELETE FROM events WHERE block_height = $1", [height]);
-			await tx.unsafe("DELETE FROM transactions WHERE block_height = $1", [
-				height,
-			]);
+		// deleted one would be a hole nothing names. Children before parents:
+		// events out before the transactions they reference.
+		for (const dataset of [...CHILD_DATASETS].reverse()) {
+			for (const height of children.rewritable[dataset] ?? []) {
+				await tx.unsafe(`DELETE FROM ${dataset} WHERE block_height = $1`, [
+					height,
+				]);
+			}
 		}
 		for (const block of targets) {
 			await tx.unsafe(
@@ -388,20 +434,21 @@ async function applyFixes(
 				],
 			);
 		}
-		applied.blocks = targets.length;
-		// FK order: transactions before events.
+		applied.rows.blocks = targets.length;
+		// FK (load) order: transactions before the events that reference them.
 		for (const dataset of CHILD_DATASETS) {
+			const keep = new Set(children.rewritable[dataset] ?? []);
 			for (const [path, { partition: child }] of children.byPartition) {
 				if (child.dataset !== dataset) continue;
 				const bytes = childBytes.get(path);
 				if (!bytes) continue;
 				const writable = await tx.unsafe(copyStatement(dataset)).writable();
-				applied[dataset] += await writeRowsToCopyStream({
+				applied.rows[dataset] += await writeRowsToCopyStream({
 					writable,
 					dataset,
 					rows: onlyHeights(
 						readPartitionRows(bytes, `repair-${dataset}-${child.from_block}`),
-						rewritable,
+						keep,
 					),
 				});
 			}
@@ -418,14 +465,11 @@ async function reverify(
 	db: ReturnType<typeof getDb>,
 	reference: LoadedReference,
 	ranges: readonly { from_block: number; to_block: number }[],
-): Promise<Record<RangeDigestDataset, number>> {
-	const remaining: Record<RangeDigestDataset, number> = {
-		blocks: 0,
-		transactions: 0,
-		events: 0,
-	};
+	datasets: readonly RangeDigestDataset[],
+): Promise<Partial<Record<RangeDigestDataset, number>>> {
+	const remaining: Partial<Record<RangeDigestDataset, number>> = {};
 	const published = reference.manifest.range_digests ?? [];
-	for (const dataset of REPAIR_DATASETS) {
+	for (const dataset of datasets) {
 		const expected = published.filter(
 			(d) =>
 				d.dataset === dataset &&
@@ -480,36 +524,49 @@ function expectedZeroRows(
 	);
 }
 
+export type ChildRowCount = { expected: number; actual: number };
+
+/** One range's row counts, keyed by every child dataset the reference
+ *  publishes. A dataset the manifest has no count for reports its local
+ *  count as expected, so it never reads as diverging. */
 export type ChildRangeMismatch = {
 	from_block: number;
 	to_block: number;
-	transactions: { expected: number; actual: number };
-	events: { expected: number; actual: number };
+} & Partial<Record<ChildDataset, ChildRowCount>>;
+
+/** Table column labels for the child-only plan. */
+const CHILD_LABEL: Record<ChildDataset, string> = {
+	transactions: "TX",
+	events: "EVENTS",
+	state_writes: "WRITES",
 };
 
 /**
- * Transactions/events ranges whose row count disagrees with the manifest
- * while the covering blocks match it exactly — the shape of the 2026-09-27
- * incident: a transaction re-mined onto the winning fork at a lower height
- * was skipped at insert, then deleted with its losing-fork height, and no
- * block ever changed. `verify --counts` finds the same disagreement; this is
- * repair's own copy of that check, so a standalone `repair --apply` run can
- * fix it without an operator first running `verify`.
+ * Child ranges whose row count disagrees with the manifest while the
+ * covering blocks match it exactly — the shape of the 2026-09-27 incident: a
+ * transaction re-mined onto the winning fork at a lower height was skipped
+ * at insert, then deleted with its losing-fork height, and no block ever
+ * changed. `verify --counts` finds the same disagreement; this is repair's
+ * own copy of that check, so a standalone `repair --apply` run can fix it
+ * without an operator first running `verify`.
  *
- * Scoped to ranges the manifest names a transactions or events partition
- * for. A range where BOTH datasets are zero-record is skipped — nothing to
- * compare there, and any local rows in it are a broken chain elsewhere, out
- * of scope for this check.
+ * Scoped to ranges the manifest names a partition for in one of `children`
+ * (the published child datasets). A range where every one of them is
+ * zero-record is skipped — nothing to compare there, and any local rows in
+ * it are a broken chain elsewhere, out of scope for this check.
  */
 export async function planChildPartitionDivergence(
 	db: ReturnType<typeof getDb>,
 	partitions: readonly ArchivePartition[],
 	zeroRecordRanges: readonly ZeroRecordRange[],
 	inRange: (from: number, to: number) => boolean,
+	children: readonly ChildDataset[] = ["transactions", "events"],
 ): Promise<ChildRangeMismatch[]> {
+	const isChild = (dataset: string): dataset is ChildDataset =>
+		(children as readonly string[]).includes(dataset);
 	const ranges = new Map<string, { from: number; to: number }>();
 	for (const p of partitions) {
-		if (p.dataset !== "transactions" && p.dataset !== "events") continue;
+		if (!isChild(p.dataset)) continue;
 		if (!inRange(p.from_block, p.to_block)) continue;
 		ranges.set(`${p.from_block}-${p.to_block}`, {
 			from: p.from_block,
@@ -519,48 +576,54 @@ export async function planChildPartitionDivergence(
 
 	const mismatches: ChildRangeMismatch[] = [];
 	for (const { from, to } of ranges.values()) {
-		const txPartition = findChildPartition(
-			partitions,
-			"transactions",
-			from,
-			to,
-		);
-		const evPartition = findChildPartition(partitions, "events", from, to);
-		const expectedTx =
-			txPartition?.row_count ??
-			(expectedZeroRows(zeroRecordRanges, "transactions", from, to) ? 0 : null);
-		const expectedEv =
-			evPartition?.row_count ??
-			(expectedZeroRows(zeroRecordRanges, "events", from, to) ? 0 : null);
-		if (expectedTx === null && expectedEv === null) continue;
-
-		const actualTx = (await computeRangeDigest(db, "transactions", from, to))
-			.row_count;
-		const actualEv = (await computeRangeDigest(db, "events", from, to))
-			.row_count;
-		if (
-			(expectedTx !== null && actualTx !== expectedTx) ||
-			(expectedEv !== null && actualEv !== expectedEv)
-		) {
-			mismatches.push({
-				from_block: from,
-				to_block: to,
-				transactions: { expected: expectedTx ?? actualTx, actual: actualTx },
-				events: { expected: expectedEv ?? actualEv, actual: actualEv },
-			});
+		const expected = new Map<ChildDataset, number | null>();
+		for (const dataset of children) {
+			expected.set(
+				dataset,
+				findChildPartition(partitions, dataset, from, to)?.row_count ??
+					(expectedZeroRows(zeroRecordRanges, dataset, from, to) ? 0 : null),
+			);
 		}
+		if ([...expected.values()].every((count) => count === null)) continue;
+
+		const mismatch: ChildRangeMismatch = { from_block: from, to_block: to };
+		let diverged = false;
+		for (const dataset of children) {
+			const actual = (await computeRangeDigest(db, dataset, from, to))
+				.row_count;
+			const want = expected.get(dataset) ?? actual;
+			mismatch[dataset] = { expected: want, actual };
+			if (want !== actual) diverged = true;
+		}
+		if (diverged) mismatches.push(mismatch);
 	}
 	return mismatches;
 }
 
+/** The child datasets a mismatch rewrites: every diverging dataset plus its
+ *  `REWRITE_TOGETHER` partners, in FK order. */
+function childRewritesFor(mismatch: ChildRangeMismatch): ChildDataset[] {
+	const rewrite = new Set<ChildDataset>();
+	for (const dataset of CHILD_DATASETS) {
+		const count = mismatch[dataset];
+		if (!count || count.expected === count.actual) continue;
+		for (const partner of REWRITE_TOGETHER[dataset]) {
+			if (mismatch[partner]) rewrite.add(partner);
+		}
+	}
+	return CHILD_DATASETS.filter((d) => rewrite.has(d));
+}
+
 /**
- * Replace one range's transactions and events outright, together — the
- * covering blocks already match the archive, so there is no block or
- * parent-hash boundary to respect here, only these two child tables for this
- * height range. Both are always rewritten as a pair, even when only one of
- * them actually diverged: events reference transactions by `tx_id`, so
- * clearing transactions without first clearing (and then restoring) events
- * would either violate that foreign key or leave stale events behind.
+ * Replace one range's diverging child rows outright — the covering blocks
+ * already match the archive, so there is no block or parent-hash boundary to
+ * respect here, only child tables for this height range. Transactions and
+ * events are always rewritten as a pair, even when only one of them actually
+ * diverged: events reference transactions by `tx_id`, so clearing
+ * transactions without first clearing (and then restoring) events would
+ * either violate that foreign key or leave stale events behind.
+ * `state_writes` reference only their block, so they are rewritten alone and
+ * only when they diverge.
  */
 async function applyChildRangeFix(
 	rawClient: ReturnType<typeof getRawClient>,
@@ -568,76 +631,67 @@ async function applyChildRangeFix(
 	mismatch: ChildRangeMismatch,
 	gate: ArchiveGate | undefined,
 ): Promise<{
-	transactions: number;
-	events: number;
+	rows: Partial<Record<ChildDataset, number>>;
 	vm_events: { restored: number; dropped: number };
 }> {
 	const partitions = reference.manifest.partitions ?? [];
-	const txPartition = findChildPartition(
-		partitions,
-		"transactions",
-		mismatch.from_block,
-		mismatch.to_block,
-	);
-	const evPartition = findChildPartition(
-		partitions,
-		"events",
-		mismatch.from_block,
-		mismatch.to_block,
-	);
-	const txBytes = txPartition
-		? await fetchVerifiedPartition(reference, txPartition, gate)
-		: null;
-	const evBytes = evPartition
-		? await fetchVerifiedPartition(reference, evPartition, gate)
-		: null;
-
-	const written = {
-		transactions: 0,
-		events: 0,
-		vm_events: { restored: 0, dropped: 0 },
-	};
-	await rawClient.begin(async (tx) => {
-		// The archive carries no `vm_events`, and `vm_events.tx_id` cascades on
-		// delete, so wiping this range's transactions would erase rows that can
-		// never be refetched. Park them for the length of this transaction.
-		await tx.unsafe(
-			"CREATE TEMP TABLE repair_vm_events_keep ON COMMIT DROP AS SELECT * FROM vm_events WHERE block_height BETWEEN $1 AND $2",
-			[mismatch.from_block, mismatch.to_block],
-		);
-		// FK order: events out before transactions, transactions in before events.
-		await tx.unsafe("DELETE FROM events WHERE block_height BETWEEN $1 AND $2", [
+	const rewrite = childRewritesFor(mismatch);
+	const bytes = new Map<ChildDataset, Buffer>();
+	for (const dataset of rewrite) {
+		const partition = findChildPartition(
+			partitions,
+			dataset,
 			mismatch.from_block,
 			mismatch.to_block,
-		]);
-		await tx.unsafe(
-			"DELETE FROM transactions WHERE block_height BETWEEN $1 AND $2",
-			[mismatch.from_block, mismatch.to_block],
 		);
-		if (txBytes) {
-			const writable = await tx
-				.unsafe(copyStatement("transactions"))
-				.writable();
-			written.transactions = await writeRowsToCopyStream({
+		// No partition means the manifest declares the range zero-record:
+		// the local rows are deleted and nothing is copied back.
+		if (partition) {
+			bytes.set(
+				dataset,
+				await fetchVerifiedPartition(reference, partition, gate),
+			);
+		}
+	}
+
+	const written = {
+		rows: Object.fromEntries(rewrite.map((d) => [d, 0])) as Partial<
+			Record<ChildDataset, number>
+		>,
+		vm_events: { restored: 0, dropped: 0 },
+	};
+	const parksVmEvents = rewrite.includes("transactions");
+	await rawClient.begin(async (tx) => {
+		if (parksVmEvents) {
+			// The archive carries no `vm_events`, and `vm_events.tx_id` cascades
+			// on delete, so wiping this range's transactions would erase rows
+			// that can never be refetched. Park them for this transaction.
+			await tx.unsafe(
+				"CREATE TEMP TABLE repair_vm_events_keep ON COMMIT DROP AS SELECT * FROM vm_events WHERE block_height BETWEEN $1 AND $2",
+				[mismatch.from_block, mismatch.to_block],
+			);
+		}
+		// FK order: children out before their parents, parents in first.
+		for (const dataset of [...rewrite].reverse()) {
+			await tx.unsafe(
+				`DELETE FROM ${dataset} WHERE block_height BETWEEN $1 AND $2`,
+				[mismatch.from_block, mismatch.to_block],
+			);
+		}
+		for (const dataset of rewrite) {
+			const partitionBytes = bytes.get(dataset);
+			if (!partitionBytes) continue;
+			const writable = await tx.unsafe(copyStatement(dataset)).writable();
+			written.rows[dataset] = await writeRowsToCopyStream({
 				writable,
-				dataset: "transactions",
+				dataset,
 				rows: readPartitionRows(
-					txBytes,
-					`repair-transactions-${mismatch.from_block}`,
+					partitionBytes,
+					`repair-${dataset}-${mismatch.from_block}`,
 				),
 			});
 		}
-		if (evBytes) {
-			const writable = await tx.unsafe(copyStatement("events")).writable();
-			written.events = await writeRowsToCopyStream({
-				writable,
-				dataset: "events",
-				rows: readPartitionRows(
-					evBytes,
-					`repair-events-${mismatch.from_block}`,
-				),
-			});
-		}
+		if (!parksVmEvents) return;
 		// Restore only rows whose parent transaction is back at the same height.
 		const kept = await tx.unsafe(
 			"SELECT count(*)::int AS n FROM repair_vm_events_keep",
@@ -656,21 +710,22 @@ async function applyChildRangeFix(
 
 /**
  * The whole repair flow for the case where blocks already match the archive
- * and only transactions/events diverge — quote, confirm, apply, re-verify,
- * report, exit. Kept apart from the block-fix flow above: that flow always
- * has bytes to fetch to plan a block replace/insert, so its quote covers
- * dry-run too; this one can plan for free (the mismatch is a local row-count
- * check against the manifest, no partition bytes needed) and only meters
- * when `--apply` actually fetches anything.
+ * and only child rows diverge — quote, confirm, apply, re-verify, report,
+ * exit. Kept apart from the block-fix flow above: that flow always has bytes
+ * to fetch to plan a block replace/insert, so its quote covers dry-run too;
+ * this one can plan for free (the mismatch is a local row-count check
+ * against the manifest, no partition bytes needed) and only meters when
+ * `--apply` actually fetches anything.
  */
 async function runChildOnlyRepair(params: {
 	reference: LoadedReference;
 	childMismatches: ChildRangeMismatch[];
+	children: readonly ChildDataset[];
 	apply: boolean;
 	json: boolean;
 	yes: boolean;
 }): Promise<never> {
-	const { reference, childMismatches, apply, json, yes } = params;
+	const { reference, childMismatches, children, apply, json, yes } = params;
 
 	if (childMismatches.length === 0) {
 		success("Nothing to repair — local data matches the archive.");
@@ -679,21 +734,15 @@ async function runChildOnlyRepair(params: {
 	}
 
 	const partitions = reference.manifest.partitions ?? [];
-	const fetchPaths = childMismatches.flatMap((m) => {
-		const tx = findChildPartition(
-			partitions,
-			"transactions",
-			m.from_block,
-			m.to_block,
-		);
-		const ev = findChildPartition(
-			partitions,
-			"events",
-			m.from_block,
-			m.to_block,
-		);
-		return [tx?.path, ev?.path].filter((p): p is string => p !== undefined);
-	});
+	const fetchPaths = childMismatches.flatMap((m) =>
+		childRewritesFor(m)
+			.map(
+				(dataset) =>
+					findChildPartition(partitions, dataset, m.from_block, m.to_block)
+						?.path,
+			)
+			.filter((p): p is string => p !== undefined),
+	);
 
 	let gate: ArchiveGate | undefined;
 	let quoteLine: string | undefined;
@@ -730,7 +779,8 @@ async function runChildOnlyRepair(params: {
 		gate = createGatedFetcher(fetchPaths, "repair");
 	}
 
-	const applied = { transactions: 0, events: 0 };
+	const applied = zeroCounts(children) as Partial<Record<ChildDataset, number>>;
+	const rewritten = new Set<ChildDataset>();
 	const vmEvents = { restored: 0, dropped: 0 };
 	if (apply) {
 		const rawClient = getRawClient("source");
@@ -741,8 +791,12 @@ async function runChildOnlyRepair(params: {
 				mismatch,
 				gate,
 			);
-			applied.transactions += result.transactions;
-			applied.events += result.events;
+			for (const dataset of CHILD_DATASETS) {
+				const rows = result.rows[dataset];
+				if (rows === undefined) continue;
+				applied[dataset] = (applied[dataset] ?? 0) + rows;
+				rewritten.add(dataset);
+			}
 			vmEvents.restored += result.vm_events.restored;
 			vmEvents.dropped += result.vm_events.dropped;
 		}
@@ -753,26 +807,19 @@ async function runChildOnlyRepair(params: {
 	if (apply) {
 		remaining = 0;
 		for (const mismatch of childMismatches) {
-			const [actualTx, actualEv] = await Promise.all([
-				computeRangeDigest(
+			let stillDiverges = false;
+			for (const dataset of children) {
+				const count = mismatch[dataset];
+				if (!count) continue;
+				const actual = await computeRangeDigest(
 					db,
-					"transactions",
+					dataset,
 					mismatch.from_block,
 					mismatch.to_block,
-				),
-				computeRangeDigest(
-					db,
-					"events",
-					mismatch.from_block,
-					mismatch.to_block,
-				),
-			]);
-			if (
-				actualTx.row_count !== mismatch.transactions.expected ||
-				actualEv.row_count !== mismatch.events.expected
-			) {
-				remaining++;
+				);
+				if (actual.row_count !== count.expected) stillDiverges = true;
 			}
+			if (stillDiverges) remaining++;
 		}
 	}
 	const complete = apply && remaining === 0;
@@ -786,9 +833,7 @@ async function runChildOnlyRepair(params: {
 		local_only_heights: [] as number[],
 		applied: 0,
 		rows_written: { blocks: 0, ...applied },
-		datasets_rewritten: apply
-			? (["transactions", "events"] as const)
-			: ([] as const),
+		datasets_rewritten: CHILD_DATASETS.filter((d) => rewritten.has(d)),
 		heights_missing_child_partitions: [] as number[],
 		child_partition_mismatches: childMismatches,
 		fixes: [] as BlockFix[],
@@ -808,7 +853,9 @@ async function runChildOnlyRepair(params: {
 						`Dropped ${vmEvents.dropped} vm_events row(s) whose transaction is not in the archive; vm_events can't be refetched from the archive.`,
 					);
 				}
-				const written = `${applied.transactions} transactions, ${applied.events} events`;
+				const written = children
+					.map((d) => `${applied[d] ?? 0} ${d}`)
+					.join(", ");
 				if (complete) {
 					success(
 						`Repaired ${childMismatches.length} range(s) (rewrote ${written}); blocks were already correct.`,
@@ -820,26 +867,26 @@ async function runChildOnlyRepair(params: {
 				}
 			} else {
 				warn(
-					`${childMismatches.length} range(s) have transactions/events that diverge from the archive, while their blocks match.`,
+					`${childMismatches.length} range(s) have ${children.join("/")} that diverge from the archive, while their blocks match.`,
 				);
 				console.error("");
 				console.error(
 					formatTable(
 						[
 							"RANGE",
-							"TX EXPECTED",
-							"TX LOCAL",
-							"EVENTS EXPECTED",
-							"EVENTS LOCAL",
+							...children.flatMap((d) => [
+								`${CHILD_LABEL[d]} EXPECTED`,
+								`${CHILD_LABEL[d]} LOCAL`,
+							]),
 						],
 						childMismatches
 							.slice(0, 20)
 							.map((m) => [
 								`${m.from_block}-${m.to_block}`,
-								String(m.transactions.expected),
-								String(m.transactions.actual),
-								String(m.events.expected),
-								String(m.events.actual),
+								...children.flatMap((d) => [
+									String(m[d]?.expected ?? "—"),
+									String(m[d]?.actual ?? "—"),
+								]),
 							]),
 					),
 				);
@@ -875,15 +922,16 @@ Examples:
   $ secondlayer repair --against ./snapshot.json --apply              # write the fix
   $ secondlayer repair --against ./snapshot.json --from-block 8500000 --to-block 8549999
 
-A fixed block is rewritten together with its transactions and events from the
-archive's partitions for that height. When the reference carries no
-transactions or events partition for a height, the block is rewritten alone,
-the run names the height, and it exits 1.
+A fixed block is rewritten together with its transactions and events (and
+state_writes, when the archive publishes them) from the archive's partitions
+for that height. When the reference carries no partition of one of those for
+a height, the block is rewritten alone, the run names the height, and it
+exits 1.
 
-When blocks already match the archive but a transactions or events partition
-does not, that range's transactions and events are replaced outright — there
-is no block or fork boundary to preserve, only stale rows underneath one that
-was never wrong.
+When blocks already match the archive but a child partition does not, that
+range's diverging rows are replaced outright (transactions and events always
+as a pair) — there is no block or fork boundary to preserve, only stale rows
+underneath one that was never wrong.
 
 Exit codes:
   0  nothing to repair, or the repair completed and re-verified clean
@@ -962,6 +1010,10 @@ Exit codes:
 				const divergent = compareRangeDigests(local, referenceDigests).filter(
 					(c) => c.status !== "match",
 				);
+				// Child datasets this reference publishes. An optional one it
+				// leaves out is not repaired, reported, or counted as missing.
+				const children = publishedChildren(reference.manifest);
+				const reported = reportedDatasets(children);
 
 				// Blocks agree with the archive; the chain's shape is fine. But the
 				// 2026-09-27 incident left blocks untouched and only broke
@@ -975,10 +1027,12 @@ Exit codes:
 							| ZeroRecordRange[]
 							| undefined) ?? [],
 						inRange,
+						children,
 					);
 					await runChildOnlyRepair({
 						reference,
 						childMismatches,
+						children,
 						apply: !!opts.apply,
 						json: !!opts.json,
 						yes: !!opts.yes,
@@ -993,13 +1047,13 @@ Exit codes:
 							(d) => d.from_block === p.from_block && d.to_block === p.to_block,
 						),
 				);
-				// `--apply` also rewrites the transactions and events at every
-				// fixed height, so the quote covers the child partitions that
-				// overlap the divergent ranges. A dry-run reads blocks only.
+				// `--apply` also rewrites the child rows at every fixed height, so
+				// the quote covers the child partitions that overlap the divergent
+				// ranges. A dry-run reads blocks only.
 				const childPartitions = opts.apply
 					? (reference.manifest.partitions ?? []).filter(
 							(p) =>
-								(CHILD_DATASETS as readonly string[]).includes(p.dataset) &&
+								(children as readonly string[]).includes(p.dataset) &&
 								divergent.some(
 									(d) =>
 										p.from_block <= d.to_block && p.to_block >= d.from_block,
@@ -1076,12 +1130,11 @@ Exit codes:
 					allExtra.push(...extraHeights);
 				}
 
-				const applied = { blocks: 0, transactions: 0, events: 0 };
-				const missingChild: Record<ChildDataset, number[]> = {
-					transactions: [],
-					events: [],
-				};
-				let childrenRewritten = 0;
+				const applied = zeroCounts(reported);
+				const missingChild = new Map<ChildDataset, number[]>(
+					children.map((d) => [d, []]),
+				);
+				const rewrittenHeights = new Map<ChildDataset, number>();
 				if (opts.apply) {
 					const rawClient = getRawClient("source");
 					for (const { partition, fixes } of planned) {
@@ -1092,41 +1145,54 @@ Exit codes:
 							fixes,
 							gate,
 						);
-						applied.blocks += result.blocks;
-						applied.transactions += result.transactions;
-						applied.events += result.events;
-						missingChild.transactions.push(...result.missing.transactions);
-						missingChild.events.push(...result.missing.events);
-						childrenRewritten += result.rewritten.length;
+						for (const dataset of reported) {
+							applied[dataset] = (applied[dataset] ?? 0) + result.rows[dataset];
+						}
+						for (const dataset of children) {
+							missingChild
+								.get(dataset)
+								?.push(...(result.missing[dataset] ?? []));
+							rewrittenHeights.set(
+								dataset,
+								(rewrittenHeights.get(dataset) ?? 0) +
+									(result.rewritten[dataset]?.length ?? 0),
+							);
+						}
 					}
 				}
 				const missingHeights = [
-					...new Set([...missingChild.transactions, ...missingChild.events]),
+					...new Set([...missingChild.values()].flat()),
 				].sort((a, b) => a - b);
 				// What was actually written, not what the reference could serve:
 				// a height with a transactions partition but no events partition
 				// is left alone underneath, so neither child counts as rewritten.
 				const rewritten: RangeDigestDataset[] = opts.apply
-					? REPAIR_DATASETS.filter(
-							(d) => d === "blocks" || childrenRewritten > 0,
+					? reported.filter(
+							(d) =>
+								d === "blocks" ||
+								(rewrittenHeights.get(d as ChildDataset) ?? 0) > 0,
 						)
 					: [];
 
 				// Re-verify after writing, on every dataset the reference publishes
 				// digests for. Blocks alone would call a stale transactions table
 				// clean.
-				let remainingByDataset: Record<RangeDigestDataset, number> = {
+				let remainingByDataset: Partial<Record<RangeDigestDataset, number>> = {
+					...zeroCounts(reported),
 					blocks: divergent.length,
-					transactions: 0,
-					events: 0,
 				};
 				if (opts.apply) {
-					remainingByDataset = await reverify(db, reference, referenceDigests);
+					remainingByDataset = await reverify(
+						db,
+						reference,
+						referenceDigests,
+						reported,
+					);
 				}
-				const remaining =
-					remainingByDataset.blocks +
-					remainingByDataset.transactions +
-					remainingByDataset.events;
+				const remaining = reported.reduce(
+					(sum, d) => sum + (remainingByDataset[d] ?? 0),
+					0,
+				);
 				const complete =
 					!!opts.apply && remaining === 0 && missingHeights.length === 0;
 
@@ -1138,7 +1204,7 @@ Exit codes:
 						.length,
 					blocks_to_insert: allFixes.filter((f) => f.kind === "insert").length,
 					local_only_heights: allExtra,
-					applied: applied.blocks,
+					applied: applied.blocks ?? 0,
 					rows_written: applied,
 					datasets_rewritten: rewritten,
 					heights_missing_child_partitions: missingHeights,
@@ -1154,8 +1220,8 @@ Exit codes:
 				if (missingHeights.length > 0) {
 					// Name the exact remedy: these heights are consistent on
 					// blocks and stale underneath, and nothing else says so.
-					for (const dataset of CHILD_DATASETS) {
-						const heights = missingChild[dataset];
+					for (const dataset of children) {
+						const heights = missingChild.get(dataset) ?? [];
 						if (heights.length === 0) continue;
 						warn(
 							`  the reference has no ${dataset} partition for ${heights.length} height(s): ${heights.slice(0, 5).join(", ")}${heights.length > 5 ? ", …" : ""}`,
@@ -1165,9 +1231,12 @@ Exit codes:
 						// `bootstrap` refuses a database that already holds a completed
 						// import (`lib/bootstrap-resume.ts`), which every repaired
 						// instance does — it is never the right suggestion here.
+						const lacking = children
+							.filter((d) => missingChild.get(d)?.includes(height))
+							.join("/");
 						console.error(
 							dim(
-								`  the archive has no transactions/events at ${height} either: it cannot be repaired in place; re-ingest ${height} from your own node, or bootstrap a fresh database from the archive`,
+								`  the archive has no ${lacking} at ${height} either: it cannot be repaired in place; re-ingest ${height} from your own node, or bootstrap a fresh database from the archive`,
 							),
 						);
 					}
@@ -1180,21 +1249,23 @@ Exit codes:
 						const replace = report.blocks_to_replace;
 						const insert = report.blocks_to_insert;
 						if (opts.apply) {
-							const written = `${applied.blocks} blocks, ${applied.transactions} transactions, ${applied.events} events`;
+							const written = reported
+								.map((d) => `${applied[d] ?? 0} ${d}`)
+								.join(", ");
 							if (complete) {
 								success(
 									`Repaired ${applied.blocks} heights across ${divergent.length} ranges (rewrote ${written}); re-verified clean on ${rewritten.join(", ")}.`,
 								);
 							} else if (remaining > 0) {
-								const byDataset = REPAIR_DATASETS.map(
-									(d) => `${remainingByDataset[d]} ${d}`,
-								).join(", ");
+								const byDataset = reported
+									.map((d) => `${remainingByDataset[d] ?? 0} ${d}`)
+									.join(", ");
 								warn(
 									`Rewrote ${written} but ${remaining} ranges still diverge (${byDataset}).`,
 								);
 							} else {
 								warn(
-									`Rewrote ${written}; blocks re-verified clean, but transactions and events at ${missingHeights.length} height(s) were not rewritten.`,
+									`Rewrote ${written}; blocks re-verified clean, but child rows at ${missingHeights.length} height(s) were not rewritten.`,
 								);
 							}
 						} else {

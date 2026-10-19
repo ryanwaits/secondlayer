@@ -265,7 +265,12 @@ async function drillPartialRestore(): Promise<void> {
 
 		const fresh = planTornImport({
 			hasIndexProgress: false,
-			highWater: { blocks: null, transactions: null, events: null },
+			highWater: {
+				blocks: null,
+				transactions: null,
+				events: null,
+				state_writes: null,
+			},
 			partitions,
 		});
 		record(
@@ -281,7 +286,12 @@ async function drillPartialRestore(): Promise<void> {
 
 		const torn = planTornImport({
 			hasIndexProgress: false,
-			highWater: { blocks: 149, transactions: 149, events: 149 },
+			highWater: {
+				blocks: 149,
+				transactions: 149,
+				events: 149,
+				state_writes: null,
+			},
 			partitions,
 		});
 		const resumes = torn.action === "resume";
@@ -322,7 +332,12 @@ async function drillPartialRestore(): Promise<void> {
 
 		const completed = planTornImport({
 			hasIndexProgress: true,
-			highWater: { blocks: 299, transactions: 299, events: 299 },
+			highWater: {
+				blocks: 299,
+				transactions: 299,
+				events: 299,
+				state_writes: null,
+			},
 			partitions,
 		});
 		record(
