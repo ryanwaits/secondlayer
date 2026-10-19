@@ -6,6 +6,10 @@ Notable changes to Secondlayer and its SDKs. Entries dated before August 2026 de
 {/* new: 2026-10-19 */}
 ## CLI — October 2026
 
+### The archive is ready for Clarity state writes
+
+Bootstrap, verify and repair now handle a fourth archive dataset, `state_writes`: every Clarity state change each block made, named per key and checkable against the block's state root. The archive starts publishing it once the hosted stack holds it from genesis; until then nothing changes for you, and archives without it bootstrap and verify as before ([archive datasets](/docs/archive)).
+
 ### `secondlayer verify` names the exact blocks that differ
 
 When a range of your local data differs from the signed archive, `secondlayer verify` now lists each diverging block and what differs in it (the block, its transactions or its events), instead of only the 50,000-block range. It reads the archive's per-block digests for free and checks them against the signed manifest. `--json` carries every height under `divergent_heights`, and you get a `secondlayer repair` command for every diverging range, not just the first ([verify against the archive](/docs/archive)).

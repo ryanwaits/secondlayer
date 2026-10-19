@@ -1,5 +1,18 @@
 # @secondlayer/cli
 
+## 22.2.0
+
+### Minor Changes
+
+- c2c008e: `secondlayer bootstrap`, `verify` and `repair` handle the `state_writes` archive dataset: bootstrap loads it after blocks, `verify --counts` checks it, and repair rewrites a fixed height's state writes with its block. Archives without `state_writes` behave as before.
+
+### Patch Changes
+
+- Updated dependencies [c2c008e]
+- Updated dependencies [c2c008e]
+  - @secondlayer/sdk@15.4.1
+  - @secondlayer/shared@13.14.0
+
 ## 22.1.0
 
 ### Minor Changes

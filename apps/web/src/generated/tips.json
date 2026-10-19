@@ -16,12 +16,6 @@
 			"route": "/docs/sdk-reference/archive",
 			"anchor": "t-ArchiveCreditsBalance"
 		},
-		"ArchiveDataset": {
-			"kind": "type",
-			"summary": "The three archive datasets: blocks, transactions, and events.",
-			"route": "/docs/sdk-reference/archive",
-			"anchor": "t-ArchiveDataset"
-		},
 		"ArchiveFetchResult": {
 			"kind": "type",
 			"summary": "Download links for archive partitions and what they cost.",

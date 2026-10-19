@@ -1,5 +1,13 @@
 # @secondlayer/sdk
 
+## 15.4.1
+
+### Patch Changes
+
+- c2c008e: `ArchiveDataset` includes `state_writes`.
+- Updated dependencies [c2c008e]
+  - @secondlayer/shared@13.14.0
+
 ## 15.4.0
 
 ### Minor Changes
