@@ -32,9 +32,19 @@ export type SubgraphSourceResponse = Awaited<
 	ReturnType<Subgraphs["getSource"]>
 >;
 
-/** Map an HTTP status to an actionable next-step hint, when one is obvious. */
-function nextStepHint(status: number | undefined): string | undefined {
+const CREDITS_URL = "https://www.secondlayer.tools/account/credits";
+
+/** Map an HTTP status to an actionable next-step hint, when one is obvious.
+ *  `detail` is the API's error text; a 402 says which billing limit hit. */
+export function nextStepHint(
+	status: number | undefined,
+	detail?: string,
+): string | undefined {
 	if (status === undefined) return undefined;
+	if (status === 402)
+		return detail === "spend_cap_reached"
+			? `You reached your monthly spend cap. Raise it: ${CREDITS_URL}`
+			: `Add credits to create webhooks and deploy subgraphs: ${CREDITS_URL}`;
 	if (status === 403)
 		return "You may not have access — check your active project with `secondlayer whoami`.";
 	if (status === 404)
@@ -91,7 +101,9 @@ export function handleApiError(err: unknown, action: string): never {
 	}
 
 	const detail = err instanceof Error ? err.message : String(err);
-	printError(`Failed to ${action}: ${detail}`, { hint: nextStepHint(status) });
+	printError(`Failed to ${action}: ${detail}`, {
+		hint: nextStepHint(status, detail),
+	});
 	process.exit(1);
 }
 

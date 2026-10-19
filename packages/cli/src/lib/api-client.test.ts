@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { authFailureMessage } from "./api-client.ts";
+import { authFailureMessage, nextStepHint } from "./api-client.ts";
 
 describe("authFailureMessage", () => {
 	test("a revoked key says the login was revoked", () => {
@@ -28,5 +28,23 @@ describe("authFailureMessage", () => {
 
 	test("non-auth failures are not claimed", () => {
 		expect(authFailureMessage("NOT_FOUND", 404, false)).toBeNull();
+	});
+});
+
+describe("nextStepHint", () => {
+	test("a 402 without credits links to adding credits", () => {
+		const hint = nextStepHint(402, "insufficient_credits");
+		expect(hint).toContain("Add credits");
+		expect(hint).toContain("/account/credits");
+	});
+
+	test("a 402 at the spend cap asks to raise the cap", () => {
+		const hint = nextStepHint(402, "spend_cap_reached");
+		expect(hint).toContain("spend cap");
+		expect(hint).toContain("/account/credits");
+	});
+
+	test("no status gives no hint", () => {
+		expect(nextStepHint(undefined)).toBeUndefined();
 	});
 });
