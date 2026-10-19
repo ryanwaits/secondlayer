@@ -1,5 +1,15 @@
 # @secondlayer/subgraphs
 
+## 7.7.1
+
+### Patch Changes
+
+- Updated dependencies [d990835]
+- Updated dependencies [47f4aa7]
+- Updated dependencies [53a8012]
+  - @secondlayer/shared@14.0.0
+  - @secondlayer/stacks@6.5.1
+
 ## 7.7.0
 
 ### Minor Changes

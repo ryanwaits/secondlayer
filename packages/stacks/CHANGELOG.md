@@ -1,5 +1,11 @@
 # @secondlayer/stacks
 
+## 6.5.1
+
+### Patch Changes
+
+- 53a8012: `deserializeTransaction` reads a multisig public-key field flagged uncompressed (id `0x01`) as 33 bytes, matching consensus. Such transactions (e.g. mainnet block 57628) previously failed with a buffer underflow.
+
 ## 6.5.0
 
 ### Minor Changes

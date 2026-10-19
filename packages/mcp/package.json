@@ -1,6 +1,6 @@
 {
 	"name": "@secondlayer/mcp",
-	"version": "11.1.0",
+	"version": "11.1.1",
 	"description": "Give your coding agent direct access to your Stacks data — find contracts, query rows, deploy tables.",
 	"license": "MIT",
 	"repository": {
@@ -37,10 +37,10 @@
 		"@modelcontextprotocol/sdk": "^1.32.1",
 		"@secondlayer/bundler": "^0.7.1",
 		"@secondlayer/scaffold": "^1.6.2",
-		"@secondlayer/sdk": "^15.0.3",
-		"@secondlayer/shared": "^13.12.0",
-		"@secondlayer/stacks": "^6.1.1",
-		"@secondlayer/subgraphs": "^7.0.4",
+		"@secondlayer/sdk": "^15.4.2",
+		"@secondlayer/shared": "^14.0.0",
+		"@secondlayer/stacks": "^6.5.1",
+		"@secondlayer/subgraphs": "^7.7.1",
 		"zod": "^4.3.6"
 	},
 	"devDependencies": {

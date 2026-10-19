@@ -1,5 +1,17 @@
 # @secondlayer/shared
 
+## 14.0.0
+
+### Major Changes
+
+- 47f4aa7: Remove the `./node/archive-client` subpath (`ArchiveReplayClient`). It replayed Hiro event-archive TSVs but misread their Postgres COPY escaping, so the blocks it posted were wrong. Backfill from a node, the Hiro API, `hiro-pg`, or a signed archive (`secondlayer bootstrap`) instead.
+
+### Patch Changes
+
+- d990835: `HiroPgClient` labels Hiro status -1 as `abort_by_response` (it was `abort_by_post_condition`) and throws on codes that are not a mined result instead of guessing.
+- Updated dependencies [53a8012]
+  - @secondlayer/stacks@6.5.1
+
 ## 13.14.0
 
 ### Minor Changes
