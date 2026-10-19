@@ -22,6 +22,16 @@ const rangeFilters = {
 };
 
 /** Height-range subset for endpoints that don't filter by contract (blocks). */
+/** Read direction for the decoded-event tools only. */
+const orderFilter = {
+	order: z
+		.enum(["asc", "desc"])
+		.optional()
+		.describe(
+			"asc (default) reads oldest first; desc reads newest first. A cursor only resumes under the order that issued it.",
+		),
+};
+
 const heightFilters = {
 	fromHeight: rangeFilters.fromHeight,
 	toHeight: rangeFilters.toHeight,
@@ -42,12 +52,14 @@ export function registerIndexTools(
 		toHeight?: number;
 		cursor?: string;
 		limit?: number;
+		order?: "asc" | "desc";
 	}>(
 		server,
 		"index_ft_transfers",
 		"List decoded SIP-010 fungible-token transfers from Index. Reads are keyless.",
 		{
 			...rangeFilters,
+			...orderFilter,
 			sender: z.string().optional().describe("Filter by sender principal"),
 			recipient: z
 				.string()
@@ -73,12 +85,14 @@ export function registerIndexTools(
 		toHeight?: number;
 		cursor?: string;
 		limit?: number;
+		order?: "asc" | "desc";
 	}>(
 		server,
 		"index_nft_transfers",
 		"List decoded SIP-009 non-fungible-token transfers from Index. Reads are keyless.",
 		{
 			...rangeFilters,
+			...orderFilter,
 			sender: z.string().optional().describe("Filter by sender principal"),
 			recipient: z
 				.string()
@@ -105,6 +119,7 @@ export function registerIndexTools(
 		toHeight?: number;
 		cursor?: string;
 		limit?: number;
+		order?: "asc" | "desc";
 	}>(
 		server,
 		"index_events",
@@ -114,6 +129,7 @@ export function registerIndexTools(
 				.enum(INDEX_EVENT_TYPES)
 				.describe("Required. Decoded event type to list."),
 			...rangeFilters,
+			...orderFilter,
 			sender: z.string().optional().describe("Filter by sender principal"),
 			recipient: z
 				.string()

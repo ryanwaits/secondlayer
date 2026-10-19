@@ -85,11 +85,21 @@ describe("index MCP tools", () => {
 				"cursor",
 				"fromHeight",
 				"limit",
+				"order",
 				"recipient",
 				"sender",
 				"toHeight",
 			]);
 		}
+		expect(
+			Object.keys(tools.find((t) => t.name === "index_events")?.schema ?? {}),
+		).toContain("order");
+		// contract-calls pages by tx, so it does not take order.
+		expect(
+			Object.keys(
+				tools.find((t) => t.name === "index_contract_calls")?.schema ?? {},
+			),
+		).not.toContain("order");
 
 		await tools
 			.find((t) => t.name === "index_ft_transfers")
