@@ -1,5 +1,11 @@
 # @secondlayer/api
 
+## 1.59.2
+
+### Patch Changes
+
+- 03ae991: `/internal/sentinel/accounts/summary` returns only the current Sentinel prices (`check_run`, `monitored_event`). The retired `run` and `deep_audit` prices are gone from the summary; they still price old ledger rows.
+
 ## 1.59.1
 
 ### Patch Changes
