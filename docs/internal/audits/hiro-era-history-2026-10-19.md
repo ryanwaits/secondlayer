@@ -18,11 +18,30 @@ exported from prod and inherits every row below.
 
 `transactions_archive` (reorged txs) has the same status mislabels.
 
+## Source boundaries (found by marker search, confirmed by digest diffs)
+
+| Heights | Source | State |
+|---|---|---|
+| 0 – ~7,429,550 | Hiro API Postgres (`hiro-pg-client`) | Hiro shape, status mislabels, NULL hashes |
+| ~7,429,551 – 7,440,673 | Hiro REST API (~11k heights) | `{hex,repr}` values, `raw_result` NULL, NULL hashes |
+| 7,440,674 – 8,739,025 | live node, no journal | tx/events node-shaped; block fields: `timestamp=0` to 7,842,144, `burn_block_hash` NULL to 7,856,108, `index_block_hash` NULL to 8,199,877 |
+| 8,739,026 – tip | live node + `observer_journal` | clean: 2000/2000 digest matches vs journal and vs Hiro TSV |
+
+**Hiro-API islands (443 heights)** inside the live era, planted by
+`repair-fork-block.ts` sourcing from `HiroClient` (fixed by plan 318):
+7,662,338; 7,827,922–7,827,966; 7,827,981–7,828,032; 7,884,701;
+7,973,890–7,973,901; 8,136,347–8,136,673; 8,501,111; 8,524,836; 8,567,288;
+8,654,079; 8,663,166. All below PoX-5 activation (8,665,568).
+
+Hiro's event-replay TSV lacks ~840k heights in 7.44M–8.52M, so it cannot be the
+sole repair source there.
+
 ## What is not wrong
 
 - Successful tx status, sender, type, events and transfers in every era.
 - No events from rolled-back (`committed:false`) txs are stored anywhere in prod.
-- Everything from PoX-5 activation (Stacks 8,665,568) up is node-sourced.
+- Everything from PoX-5 activation (Stacks 8,665,568) up is node-sourced; from
+  8,739,026 up it is digest-verified against raw node payloads.
 
 ## Repair
 
