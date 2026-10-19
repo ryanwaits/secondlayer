@@ -131,6 +131,7 @@ export async function renderCode({
 	// Only a block Copy can take from carries a key slot; output never does.
 	const hasKey =
 		!options.nocopy &&
+		!options.nokey &&
 		!isText &&
 		display.some((l) => KEY_PLACEHOLDERS.some((p) => l.includes(p)));
 	const plan = planAnnotations(parsed, {

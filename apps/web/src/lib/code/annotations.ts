@@ -21,6 +21,8 @@ export type FenceOptions = {
 	/** First line number; `lines` alone starts at 1. */
 	lines?: number;
 	nocopy?: boolean;
+	/** No docs-key slot: the page already has the reader's own key in hand. */
+	nokey?: boolean;
 	wrap?: boolean;
 	/** Clamp height in lines. The renderer applies its own default when absent. */
 	max?: number;
@@ -44,6 +46,7 @@ export function parseFenceOptions(info: string): FenceOptions {
 		const [key, value] = token.split("=");
 		if (key === "lines") options.lines = value ? Number(value) : 1;
 		else if (key === "nocopy") options.nocopy = true;
+		else if (key === "nokey") options.nokey = true;
 		else if (key === "wrap") options.wrap = true;
 		else if (key === "max") options.max = Number(value);
 		else if (key === "exit") options.exit = Number(value);
