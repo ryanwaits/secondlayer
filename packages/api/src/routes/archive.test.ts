@@ -10,6 +10,7 @@ import {
 	creditCredits,
 	getCredits,
 } from "@secondlayer/platform/db/queries/account-credits";
+import type { ArchiveDataset } from "@secondlayer/shared/archive/datasets";
 import { getDb } from "@secondlayer/shared/db";
 import { Hono, type MiddlewareHandler } from "hono";
 import { createApiApp } from "../create-app.ts";
@@ -36,7 +37,7 @@ const FAKE_CONFIG = {
 const PREFIX = "secondlayer/mainnet/canonical/v1";
 
 function partitionPath(
-	dataset: "blocks" | "transactions" | "events",
+	dataset: ArchiveDataset,
 	from: number,
 	to: number,
 	suffix = "0000000000000000",
@@ -47,7 +48,7 @@ function partitionPath(
 /** The manifest-relative form the CLI actually sends (`export-snapshot.ts`'s
  *  `partition.path` — no archive prefix). */
 function relativePartitionPath(
-	dataset: "blocks" | "transactions" | "events",
+	dataset: ArchiveDataset,
 	from: number,
 	to: number,
 	suffix = "0000000000000000",
@@ -138,6 +139,17 @@ describe.skipIf(!HAS_DB)(
 			expect(deriveDatasetFromPath(partitionPath("events", 0, 50_000))).toBe(
 				"events",
 			);
+			expect(
+				deriveDatasetFromPath(partitionPath("state_writes", 0, 50_000)),
+			).toBe("state_writes");
+		});
+
+		test("an unknown dataset path is still rejected", () => {
+			for (const dataset of ["vm_events", "state_write", "state_writes_x"]) {
+				expect(
+					deriveDatasetFromPath(`${dataset}/0-50000-0000000000000000.parquet`),
+				).toBeNull();
+			}
 		});
 
 		test("accepts a manifest-relative path (no archive prefix)", () => {
@@ -429,16 +441,55 @@ describe.skipIf(!HAS_DB)("POST /fetch", () => {
 		expect(await getCredits(db, accountId)).toBe(10_000_000n - 50_000n);
 	});
 
-	test("repair flow: allowance covers up to 18 partitions/month, the 19th is charged", async () => {
+	test("a state_writes partition path is accepted and metered as archive.partition.events", async () => {
+		const accountId = await makeAccount();
+		await creditCredits(db, accountId, 10_000_000n);
+		const app = buildTestApp({ accountId });
+		const path = relativePartitionPath(
+			"state_writes",
+			0,
+			50_000,
+			"5000000000000001",
+		);
+
+		const quote = await postJson(app, "/quote", {
+			flow: "bootstrap",
+			paths: [path],
+		});
+		expect(quote.status).toBe(200);
+		expect(((await quote.json()) as { usd_micros: number }).usd_micros).toBe(
+			150_000,
+		);
+
+		const res = await postJson(app, "/fetch", {
+			flow: "bootstrap",
+			paths: [path],
+		});
+		expect(res.status).toBe(200);
+		const body = (await res.json()) as {
+			urls: Array<{ charged_usd_micros: number }>;
+		};
+		expect(body.urls[0]?.charged_usd_micros).toBe(150_000);
+		const ledger = await db
+			.selectFrom("usage_ledger")
+			.select(["unit", "usd_micros"])
+			.where("account_id", "=", accountId)
+			.execute();
+		expect(ledger.map((r) => [r.unit, Number(r.usd_micros)])).toEqual([
+			["archive.partition.events", 150_000],
+		]);
+	});
+
+	test("repair flow: allowance covers up to 24 partitions/month, the 25th is charged", async () => {
 		const accountId = await makeAccount();
 		await creditCredits(db, accountId, 10_000_000n);
 		const now = new Date("2026-08-16T12:00:00.000Z");
 
-		// Seed 17 already-allowance-used partitions this calendar month.
+		// Seed 23 already-allowance-used partitions this calendar month.
 		const { recordFetch } = await import(
 			"@secondlayer/platform/db/queries/archive-fetches"
 		);
-		for (let i = 0; i < 17; i++) {
+		for (let i = 0; i < 23; i++) {
 			await recordFetch(
 				db,
 				{
@@ -458,22 +509,22 @@ describe.skipIf(!HAS_DB)("POST /fetch", () => {
 		}
 
 		const app = buildTestApp({ accountId });
-		const eighteenth = partitionPath(
+		const twentyFourth = partitionPath(
 			"events",
-			900_000,
-			950_000,
-			"4000000000000018",
+			1_200_000,
+			1_250_000,
+			"4000000000000024",
 		);
-		const nineteenth = partitionPath(
-			"events",
-			950_000,
-			1_000_000,
-			"4000000000000019",
+		const twentyFifth = partitionPath(
+			"state_writes",
+			1_250_000,
+			1_300_000,
+			"4000000000000025",
 		);
 
 		const res = await postJson(app, "/fetch", {
 			flow: "repair",
-			paths: [eighteenth, nineteenth],
+			paths: [twentyFourth, twentyFifth],
 		});
 		expect(res.status).toBe(200);
 		const body = (await res.json()) as {
@@ -482,20 +533,20 @@ describe.skipIf(!HAS_DB)("POST /fetch", () => {
 		const byPath = new Map(
 			body.urls.map((u) => [u.path, u.charged_usd_micros]),
 		);
-		expect(byPath.get(eighteenth)).toBe(0);
-		expect(byPath.get(nineteenth)).toBe(150_000);
+		expect(byPath.get(twentyFourth)).toBe(0);
+		expect(byPath.get(twentyFifth)).toBe(150_000);
 
 		const rows = await db
 			.selectFrom("archive_fetches")
 			.select(["path", "via_allowance", "usd_micros"])
 			.where("account_id", "=", accountId)
-			.where("path", "in", [eighteenth, nineteenth])
+			.where("path", "in", [twentyFourth, twentyFifth])
 			.execute();
 		const rowByPath = new Map(rows.map((r) => [r.path, r]));
-		expect(rowByPath.get(eighteenth)?.via_allowance).toBe(true);
-		expect(Number(rowByPath.get(eighteenth)?.usd_micros)).toBe(0);
-		expect(rowByPath.get(nineteenth)?.via_allowance).toBe(false);
-		expect(Number(rowByPath.get(nineteenth)?.usd_micros)).toBe(150_000);
+		expect(rowByPath.get(twentyFourth)?.via_allowance).toBe(true);
+		expect(Number(rowByPath.get(twentyFourth)?.usd_micros)).toBe(0);
+		expect(rowByPath.get(twentyFifth)?.via_allowance).toBe(false);
+		expect(Number(rowByPath.get(twentyFifth)?.usd_micros)).toBe(150_000);
 	});
 
 	test("batch of 65 paths → 413", async () => {

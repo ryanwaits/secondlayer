@@ -401,7 +401,8 @@
 									"enum": [
 										"blocks",
 										"transactions",
-										"events"
+										"events",
+										"state_writes"
 									]
 								},
 								"from_block": {

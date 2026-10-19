@@ -50,7 +50,9 @@ import { InvalidJSONError } from "../middleware/error.ts";
 /**
  * Price per partition, in USD-micros (1 USD = 1_000_000 micros — matches
  * `usdToMicros`). Founder-approved 2026-08-16:
- * $0.05 for blocks/transactions, $0.15 for events (~7x the rows). Lives in
+ * $0.05 for blocks/transactions, $0.15 for events (~7x the rows).
+ * `state_writes` (founder 2026-10-19) prices and meters as events: a
+ * similar row weight, so no new unit. Lives in
  * `@secondlayer/platform/billing/prices` now — the one price table —
  * read here, never hardcoded twice. Server-only by design:
  * changing a price is an API deploy, never a CLI release.
@@ -59,9 +61,11 @@ const PRICE_MICROS: Record<ArchiveDataset, bigint> = {
 	blocks: PRICES["archive.partition"],
 	transactions: PRICES["archive.partition"],
 	events: PRICES["archive.partition.events"],
+	state_writes: PRICES["archive.partition.events"],
 };
 
-/** The `meter()` unit for a dataset — events price differently from blocks/tx. */
+/** The `meter()` unit for a dataset — events and state_writes price
+ *  differently from blocks/tx. */
 function meterUnitForDataset(
 	dataset: ArchiveDataset,
 ): "archive.partition" | "archive.partition.events" {
@@ -70,6 +74,7 @@ function meterUnitForDataset(
 		case "transactions":
 			return "archive.partition";
 		case "events":
+		case "state_writes":
 			return "archive.partition.events";
 		default:
 			return assertNeverDataset(dataset);
@@ -121,9 +126,9 @@ export function resolveObjectKey(path: string): string {
 /** Batch cap for `/fetch` — the CLI pages larger restores across calls. */
 const MAX_FETCH_BATCH = 64;
 
-/** Monthly free-repair allowance, in partitions (6 bundle-equivalents × 3
+/** Monthly free-repair allowance, in partitions (6 bundle-equivalents × 4
  *  datasets per bundle). `flow: "repair"` only. */
-const ALLOWANCE_MONTHLY_PARTITIONS = 18;
+const ALLOWANCE_MONTHLY_PARTITIONS = 24;
 
 /** Derive the dataset a full R2 object key belongs to, or `null` if the key
  *  doesn't match the archive prefix + partition shape. Never trust a

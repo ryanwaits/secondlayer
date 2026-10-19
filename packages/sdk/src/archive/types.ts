@@ -102,7 +102,7 @@ export type ArchiveClient = {
 	/**
 	 * List a loaded archive's partitions, optionally filtered.
 	 *
-	 * Runs locally on the manifest you already loaded and makes no request. Filter by `dataset` (`blocks`, `transactions`, or `events`) and a block range.
+	 * Runs locally on the manifest you already loaded and makes no request. Filter by `dataset` (`blocks`, `transactions`, `events`, or `state_writes` when the archive publishes it) and a block range.
 	 */
 	partitions(
 		ref: LoadedArchive,
