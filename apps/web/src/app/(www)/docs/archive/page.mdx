@@ -46,7 +46,7 @@ HEIGHT   ACTION   LOCAL         ARCHIVE
 8501111  replace  0xd4deb46c6d  0xedb6ba8322
 ```
 
-Each partition is hashed against the signed digest before any row is read. One transaction per partition, so an interrupted repair leaves no half-corrected range.
+Each partition is hashed against the signed digest before any row is read. A replaced block's transactions, events and state writes are rewritten with it. One transaction per partition, so an interrupted repair leaves no half-corrected range.
 
 <Callout type="warning" title="Heights the archive doesn't have">
 
@@ -186,13 +186,23 @@ Buy with `secondlayer credits buy`. Packs, balance, and how the quote/confirm fl
 
 ### What the archive is
 
-Immutable, digest-addressed Parquet partitions on R2, published from a repeatable-read snapshot of a production Stacks index. Four datasets (blocks, transactions, events, state_writes), partitioned by height. `state_writes` is published once the archive is exported from a stack that holds it from genesis (after the 2026 cutover).
+Immutable, digest-addressed Parquet partitions on R2, published from a repeatable-read snapshot of a production Stacks index, one partition per 50,000 blocks.
+
+| Dataset | One row per |
+| --- | --- |
+| `blocks` | Canonical block |
+| `transactions` | Transaction, in block order |
+| `events` | Event, in block order |
+| `state_writes` | Clarity state change a block made, named per key, so each can be [checked against the block's state root](/docs/verification#check-a-block) |
+
+- `state_writes` appears once the archive is exported from a stack that holds it from genesis, after the December 2026 cutover.
+- Until then a manifest simply leaves it out. That means not published, never empty, and bootstrap, verify and repair skip it.
 
 | Object | Contents |
 | --- | --- |
 | `latest.json` | Signed pointer at the current snapshot. Start here. |
 | `snapshots/<digest>.json` | Signed manifest: coverage, counts, per-object digests, finality rule, audit. |
-| `blocks/`, `transactions/`, `events/`, `state_writes/` | Range-partitioned Parquet, digest in the filename. `state_writes/` only when published. |
+| `blocks/`, `transactions/`, `events/`, `state_writes/` | Range-partitioned Parquet, digest in the filename. Served only through the fetch gate (presigned URLs, see [Credits](#credits)); every other object here is public. |
 | `digests/<range>-<sha16>.parquet` | Per-height sidecar: one row per height with the block digest and rolled-up transaction and event digests. |
 | `attestations/<digest>/node.json` | Signed independent node audit. `coverage` is the attested window; `stats` is exact; `mismatches[]` is a capped sample. |
 | `status.json` | Short-cache operational state: `fresh`, `lagging`, `stale`, `gap`, `failed-audit`, `source-unavailable`. `source.decoder_head` is the running Index decoder; `archive.coverage_to_block` is the last signed publish. |
@@ -215,6 +225,7 @@ What each means: [Verify](/docs/verification#archive-assurance-levels).
 export const agent = `
 - Verify local data: 'secondlayer verify raw --against <latest.json>' (blocks, transactions, events, and state_writes when the manifest publishes it), or 'secondlayer verify all'. Exit 0, 1, 2 as documented; --quick, --deep and --anchor change depth.
 - Repair: 'secondlayer repair --against <archive>' is a dry run; add --apply to write. It names exact heights, refuses unsigned objects, and never deletes local heights the archive lacks.
+- Public on archive.secondlayer.tools: latest.json, status.json, snapshots/, digests/, reports/, attestations/. Data partitions (blocks/, transactions/, events/, state_writes/) answer 403 there; fetch them through bootstrap/repair (the metered gate). Mirrors and local archives are free.
 - A manifest without state_writes partitions has not published that dataset; it is not empty. Bootstrap, verify and repair then skip it. Divergent state_writes ranges are reported per range, not per height.
 - Bootstrap an empty instance: 'secondlayer bootstrap --against <manifest>'. A non-empty database is refused (use 'secondlayer repair'). Flags: --to-block, -y.
 `;
