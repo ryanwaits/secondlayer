@@ -25,7 +25,7 @@ exported from prod and inherits every row below.
 | 0 – ~7,429,550 | Hiro API Postgres (`hiro-pg-client`) | Hiro shape, status mislabels, NULL hashes |
 | ~7,429,551 – 7,440,673 | Hiro REST API (~11k heights) | `{hex,repr}` values, `raw_result` NULL, NULL hashes |
 | 7,440,674 – 8,739,025 | live node, no journal | tx/events node-shaped; block fields: `timestamp=0` to 7,842,144, `burn_block_hash` NULL to 7,856,108, `index_block_hash` NULL to 8,199,877 |
-| 8,739,026 – tip | live node + `observer_journal` | clean: 2000/2000 digest matches vs journal and vs Hiro TSV |
+| 8,739,026 – tip | live node + `observer_journal` | clean: 2000/2000 digest matches against the journal and the Hiro TSV |
 
 **Hiro-API islands (443 heights)** inside the live era, planted by
 `repair-fork-block.ts` sourcing from `HiroClient` (fixed by plan 318):
@@ -53,4 +53,4 @@ re-signed from it. Before cutover, the feeder rolls the 2026-10-19 parser fixes
 
 A pattern repair of statuses (`(err …)` result ⇒ abort_by_response) was tested
 and rejected: ~5% of node-sourced `(err …)` aborts are real post-condition
-aborts. Spike scripts and queries: session scratchpad `spike/`, `status-audit/`.
+aborts. Replay harness: `scripts/ops/hiro-tsv/`.
