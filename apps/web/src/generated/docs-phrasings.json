@@ -741,6 +741,19 @@
       "index data proof against bitcoin anchor"
     ]
   },
+  "/docs/index#check-whether-an-output-is-spent": {
+    "hash": "e03f18af60cced4b",
+    "phrasings": [
+      "how to tell if utxo was spent",
+      "watch bitcoin output for spending transaction",
+      "find which tx spent my utxo",
+      "detect when bitcoin utxo moves",
+      "is my bitcoin output already spent",
+      "track spending of peg utxo",
+      "get spending transaction for bond output",
+      "monitor bitcoin address output spend events"
+    ]
+  },
   "/docs/index#cost-and-history": {
     "hash": "0e7a25e9ff59ca40",
     "phrasings": [
