@@ -234,7 +234,7 @@ export async function seedChain(
 	}
 	for (const e of chain.events) {
 		await sql`INSERT INTO events (tx_id, block_height, event_index, type, data)
-			VALUES (${e.tx_id}, ${e.block_height}, ${e.event_index}, ${e.event_type}, ${e.data_json}::jsonb)`.execute(
+			VALUES (${e.tx_id}, ${e.block_height}, ${e.event_index}, ${e.event_type}, ${e.data_json}::text::jsonb)`.execute(
 			db,
 		);
 	}
