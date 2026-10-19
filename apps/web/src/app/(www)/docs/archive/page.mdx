@@ -106,10 +106,10 @@ Each also lives under `archive`; examples use the short form.
 
 | Target | Checks |
 | --- | --- |
-| `raw` | `blocks`, `transactions`, `events` |
+| `raw` | `blocks`, `transactions`, `events`, `state_writes` |
 | `all` | Every dataset the manifest publishes |
 
-The archive publishes digests for the three `raw` datasets only.
+The archive publishes digests for the `raw` datasets only.
 
 - `decode:<name>` and `subgraph:<name>` parse, but have nothing to compare against yet: exit `2`.
 - To check subgraph rows, run [`secondlayer verify subgraph <name> --replay`](/docs/subgraphs#check-rows).
@@ -186,13 +186,13 @@ Buy with `secondlayer credits buy`. Packs, balance, and how the quote/confirm fl
 
 ### What the archive is
 
-Immutable, digest-addressed Parquet partitions on R2, published from a repeatable-read snapshot of a production Stacks index. Three datasets (blocks, transactions, events), partitioned by height.
+Immutable, digest-addressed Parquet partitions on R2, published from a repeatable-read snapshot of a production Stacks index. Four datasets (blocks, transactions, events, state_writes), partitioned by height. `state_writes` is published once the archive is exported from a stack that holds it from genesis (after the 2026 cutover).
 
 | Object | Contents |
 | --- | --- |
 | `latest.json` | Signed pointer at the current snapshot. Start here. |
 | `snapshots/<digest>.json` | Signed manifest: coverage, counts, per-object digests, finality rule, audit. |
-| `blocks/`, `transactions/`, `events/` | Range-partitioned Parquet, digest in the filename. |
+| `blocks/`, `transactions/`, `events/`, `state_writes/` | Range-partitioned Parquet, digest in the filename. `state_writes/` only when published. |
 | `digests/<range>-<sha16>.parquet` | Per-height sidecar: one row per height with the block digest and rolled-up transaction and event digests. |
 | `attestations/<digest>/node.json` | Signed independent node audit. `coverage` is the attested window; `stats` is exact; `mismatches[]` is a capped sample. |
 | `status.json` | Short-cache operational state: `fresh`, `lagging`, `stale`, `gap`, `failed-audit`, `source-unavailable`. `source.decoder_head` is the running Index decoder; `archive.coverage_to_block` is the last signed publish. |
@@ -213,8 +213,9 @@ What each means: [Verify](/docs/verification#archive-assurance-levels).
 [CLI](/docs/cli) for the full command set; [Verify](/docs/verification) for everything else you can check, from a transaction to a block.
 
 export const agent = `
-- Verify local data: 'secondlayer verify raw --against <latest.json>' (blocks, transactions, events), or 'secondlayer verify all'. Exit 0, 1, 2 as documented; --quick, --deep and --anchor change depth.
+- Verify local data: 'secondlayer verify raw --against <latest.json>' (blocks, transactions, events, and state_writes when the manifest publishes it), or 'secondlayer verify all'. Exit 0, 1, 2 as documented; --quick, --deep and --anchor change depth.
 - Repair: 'secondlayer repair --against <archive>' is a dry run; add --apply to write. It names exact heights, refuses unsigned objects, and never deletes local heights the archive lacks.
+- A manifest without state_writes partitions has not published that dataset; it is not empty. Bootstrap, verify and repair then skip it. Divergent state_writes ranges are reported per range, not per height.
 - Bootstrap an empty instance: 'secondlayer bootstrap --against <manifest>'. A non-empty database is refused (use 'secondlayer repair'). Flags: --to-block, -y.
 `;
 

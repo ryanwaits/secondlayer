@@ -131,7 +131,7 @@ PoX-5 Index is already “the print log, not a position scoreboard.” Scoreboar
 
 The old fork's evaluator hook corrupted `var_set` / `map_*` rows. The fork's storage-layer collector (`events_keys` `"state_writes"`) replaces them for verification: `/new_block.state_writes[] = { tx_index | null, ordinal, key, value_hex }`, every changed MARF leaf in the block, in write order. `key` is the full MARF key (`vm::<contract>::0::map::<hex>`, `vm-account::<addr>::19`); `tx_index` is null for block-level writes.
 
-Ingest stores it 1:1 in `state_writes` (PK `(block_height, ordinal)`, FK `blocks` cascade, no tx FK) in the same transaction as `vm_events`: same replace-per-height, same reorg archive (`state_writes_archive`, id `block_height:ordinal`), same fork flip-back replay. Read: `GET /v1/index/state-writes` (SDK `index.stateWrites`), same source tip, ordinal cursor and height-overlapped reorgs as the vm types. No Streams type, no archive dataset yet.
+Ingest stores it 1:1 in `state_writes` (PK `(block_height, ordinal)`, FK `blocks` cascade, no tx FK) in the same transaction as `vm_events`: same replace-per-height, same reorg archive (`state_writes_archive`, id `block_height:ordinal`), same fork flip-back replay. Read: `GET /v1/index/state-writes` (SDK `index.stateWrites`), same source tip, ordinal cursor and height-overlapped reorgs as the vm types. No Streams type. Archive: `state_writes` is the fourth canonical dataset (`ARCHIVE_DATASETS` in `@secondlayer/shared/archive/datasets`), exported only from an instance that holds it from block 1; see the coverage rule in [canonical-archive.md](./runbook/canonical-archive.md#state_writes-dataset-coverage-rule).
 
 ---
 
@@ -417,7 +417,7 @@ VM Index and Streams pages include reorgs overlapping the resume height, even wh
 
 **Today.** Signed canonical `/new_block` history. Bootstrap/repair from R2. Metered. Payloads are `"*"`-shaped: no `vm_events`.
 
-**After 032 (tip, `vm_events` in our Postgres).** Same archive machine as classic chain data — not a side door. Today `CanonicalDataset` is `"blocks" | "transactions" | "events"` (`export-snapshot.ts` / `restore-snapshot.ts`); bootstrap/repair/verify and metering already run on those partitions. Add `"vm_events"` as a fourth dataset (parquet by `block_height`, FK after `transactions`), same signed snapshot, same `secondlayer bootstrap` / `verify` / `repair`, same prepaid credits. v1 snapshots that lack that dataset stay classic-only. A snapshot **with** `vm_events` only exists after a collecting node filled the table (032), then a publish. Until that gen is promoted, self-host `bootstrap` still cannot invent inner calls.
+**After 032 (tip, `vm_events` in our Postgres).** Same archive machine as classic chain data — not a side door. Every dataset list derives from `ARCHIVE_DATASETS` (`@secondlayer/shared/archive/datasets`: blocks, transactions, events, state_writes) and per-dataset code switches exhaustively, so adding `"vm_events"` (on hold) is: append it (parquet by `block_height`, FK after `transactions`), then follow the compiler errors. Same signed snapshot, same `secondlayer bootstrap` / `verify` / `repair`, same prepaid credits. v1 snapshots that lack that dataset stay classic-only. A snapshot **with** `vm_events` only exists after a collecting node filled the table (032), then a publish. Until that gen is promoted, self-host `bootstrap` still cannot invent inner calls.
 
 ```
 # self-host after keys flip: live ingest has vm_events

@@ -41,6 +41,28 @@ snapshot into that `working_dir`. After catch-up, collapse to one hooked
 follower (feeder chainstate + indexer DB); do not keep a spare IBD box.
 That cutover waits on the eval-hook image on node-server.
 
+## state_writes dataset (coverage rule)
+
+The export includes `state_writes` only when the instance holds it from the
+start of the exported range: `SELECT min(block_height) FROM state_writes` is
+not null and `<= max(from_block, 1)` (the node never reports writes for the
+boot block). Otherwise the dataset is omitted entirely: no partitions, no
+`zero_record_ranges`, no `counts.state_writes`, and the manifest is what it
+was before the dataset existed. Never publish zero-row ranges for heights
+that were never collected.
+
+Prod has no `state_writes` until the cutover, so publishes stay three-dataset
+until then and pick it up automatically after. Before promoting the first
+snapshot that carries it, check `counts.state_writes` against
+`SELECT reltuples FROM pg_class WHERE relname = 'state_writes'`.
+
+Consumers treat a missing `state_writes` as "not published": old manifests
+bootstrap, verify and repair as before. State writes are partitioned and
+digested (sha256 + semantic-v1 `stateWrite`) like events, but the per-height
+sidecar has no rollup for them, so `verify` reports them per range. The node
+auditor lists them `unattested` (checked per block against the MARF root by
+`@secondlayer/verify`). Fetches meter as `archive.partition.events`.
+
 All `bun run packages/indexer/src/archive/…` invocations run **inside** the
 indexer container (`cwd /app`).
 
