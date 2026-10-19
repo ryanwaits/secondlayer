@@ -1,5 +1,11 @@
 # @secondlayer/sdk
 
+## 15.5.0
+
+### Minor Changes
+
+- 01c40f8: `order: "desc"` on `index.events`, `index.ftTransfers` and `index.nftTransfers` `list()`/`walk()` reads newest first. New `IndexOrder` type. `consume()` stays forward-only.
+
 ## 15.4.2
 
 ### Patch Changes

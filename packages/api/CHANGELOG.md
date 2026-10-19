@@ -1,5 +1,14 @@
 # @secondlayer/api
 
+## 1.60.3
+
+### Patch Changes
+
+- Updated dependencies [bb14f5e]
+- Updated dependencies [01c40f8]
+  - @secondlayer/mcp@11.2.0
+  - @secondlayer/sdk@15.5.0
+
 ## 1.60.2
 
 ### Patch Changes

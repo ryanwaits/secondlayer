@@ -1,5 +1,16 @@
 # @secondlayer/cli
 
+## 22.3.0
+
+### Minor Changes
+
+- e2c8ec7: `--order <asc|desc>` on `index events`, `index ft-transfers` and `index nft-transfers`; `desc` reads newest first.
+
+### Patch Changes
+
+- Updated dependencies [01c40f8]
+  - @secondlayer/sdk@15.5.0
+
 ## 22.2.2
 
 ### Patch Changes

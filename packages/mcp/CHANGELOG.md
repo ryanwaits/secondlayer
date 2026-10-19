@@ -1,5 +1,16 @@
 # @secondlayer/mcp
 
+## 11.2.0
+
+### Minor Changes
+
+- bb14f5e: `order` (`asc` | `desc`) on `index_events`, `index_ft_transfers` and `index_nft_transfers`; `desc` reads newest first.
+
+### Patch Changes
+
+- Updated dependencies [01c40f8]
+  - @secondlayer/sdk@15.5.0
+
 ## 11.1.1
 
 ### Patch Changes
