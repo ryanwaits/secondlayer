@@ -8,11 +8,14 @@ import { validateQueryParams } from "../middleware/validation.ts";
 import type { StreamsReorg, StreamsReorgsReader } from "../streams/reorgs.ts";
 import {
 	type IndexCursorInput,
-	encodeIndexCursor,
+	type IndexOrder,
+	encodeOrderedCursor,
+	keysetOp,
 	parseFilter,
 	parseIndexBaseQuery,
 	parseListFilter,
 	readReorgsForEvents,
+	sortDirection,
 	toIsoOrNull,
 } from "./_shared.ts";
 import { type IndexTip, committedHeightForEventTypes } from "./tip.ts";
@@ -30,6 +33,7 @@ const PAGINATION_FILTERS = [
 	"from_cursor",
 	"from_height",
 	"to_height",
+	"order",
 ] as const;
 
 /** Pagination plus the principal/contract filters the transfer types expose. */
@@ -277,6 +281,7 @@ export type IndexEventsQuery = {
 	withTx: boolean;
 	/** Return only these columns (see `ReadIndexEventsParams.fields`). */
 	fields?: readonly string[];
+	order: IndexOrder;
 	cursorPastTip: boolean;
 };
 
@@ -317,6 +322,8 @@ export type ReadIndexEventsParams = {
 	 * skipping the `blocks` join entirely.
 	 */
 	fields?: readonly string[];
+	/** `desc` reads newest first; `after` then means "older than". Default asc. */
+	order?: IndexOrder;
 	db?: Kysely<Database>;
 };
 
@@ -429,8 +436,9 @@ export async function readIndexEvents(
 		// (`bh > X OR (bh = X AND ei > Y)`) is non-sargable: the planner falls
 		// back to bitmap-ANDing the bare event_type index, re-scanning the whole
 		// event-type partition on every page (O(n²) pagination over print).
+		// Desc pages walk the same index backward, so the keyset flips to `<`.
 		predicates.push(
-			sql`(block_height, event_index) > (${params.after.block_height}, ${params.after.event_index})`,
+			sql`(block_height, event_index) ${keysetOp(params.order)} (${params.after.block_height}, ${params.after.event_index})`,
 		);
 	}
 
@@ -478,9 +486,10 @@ export async function readIndexEvents(
 	// That stops being true the moment the column takes more than one value,
 	// which is why the multi-contract and trait scopes never populate `filters`.
 	const leadFilter = config.equalityFilters.find((filter) => filters[filter]);
+	const dir = sortDirection(params.order);
 	const orderBy = leadFilter
-		? sql`${sql.ref(leadFilter)} ASC, block_height ASC, event_index ASC`
-		: sql`block_height ASC, event_index ASC`;
+		? sql`${sql.ref(leadFilter)} ${dir}, block_height ${dir}, event_index ${dir}`
+		: sql`block_height ${dir}, event_index ${dir}`;
 	// Projection: select only the type-specific columns the caller asked for.
 	// The universal columns below are handled separately — `block_height` and
 	// `event_index` are always selected (cursor encoding + reorg-span lookup
@@ -580,10 +589,13 @@ export async function readIndexEvents(
 	return {
 		events,
 		next_cursor: lastEvent
-			? encodeIndexCursor({
-					block_height: Number(lastEvent.block_height),
-					event_index: Number(lastEvent.event_index),
-				})
+			? encodeOrderedCursor(
+					{
+						block_height: Number(lastEvent.block_height),
+						event_index: Number(lastEvent.event_index),
+					},
+					params.order,
+				)
 			: null,
 		span,
 	};
@@ -792,6 +804,7 @@ export async function getIndexEventsResponse(opts: {
 		trait: parsed.trait,
 		withTx: parsed.withTx,
 		fields: parsed.fields,
+		order: parsed.order,
 	});
 	// Prefer the raw span (survives a projection that dropped event_index).
 	// VM pages key on ordinal — overlap by height so a page at H:5
@@ -802,7 +815,8 @@ export async function getIndexEventsResponse(opts: {
 	// A resumed VM feed must report a rollback even if the replacement block
 	// has no matching event, or the next match is at a later height. Returned
 	// rows alone cannot establish that the consumer's checkpoint is canonical.
-	if (vmClock && parsed.cursor) {
+	// Forward feeds only: a desc page reads below its cursor, never past it.
+	if (vmClock && parsed.cursor && parsed.order === "asc") {
 		const end = reorgSpan.at(-1) ?? {
 			block_height: Math.max(parsed.cursor.block_height, parsed.toHeight),
 			event_index: 0,

@@ -231,6 +231,37 @@ describe("Index /events query parsing", () => {
 		expect(parsed.cursor).toEqual({ block_height: 0, event_index: 0 });
 		expect(parsed.fromHeight).toBe(0);
 	});
+
+	test("order=desc is accepted for classic and VM event types", () => {
+		for (const type of ["print", "stx_transfer", "map_set"]) {
+			const parsed = parseIndexEventsQuery(
+				params(`?event_type=${type}&order=desc`),
+				TIP,
+			);
+			expect(parsed.order).toBe("desc");
+		}
+	});
+
+	test("an order other than asc or desc is refused", () => {
+		expect(() =>
+			parseIndexEventsQuery(params("?event_type=print&order=DESC"), TIP),
+		).toThrow("order must be asc or desc");
+	});
+
+	test("a cursor from the other order is refused", () => {
+		expect(() =>
+			parseIndexEventsQuery(
+				params("?event_type=print&from_cursor=desc:10:0"),
+				TIP,
+			),
+		).toThrow("cursor was issued for order=desc");
+		expect(() =>
+			parseIndexEventsQuery(
+				params("?event_type=print&order=desc&cursor=10:0"),
+				TIP,
+			),
+		).toThrow("cursor was issued for order=asc");
+	});
 });
 
 describe("Index /events response", () => {
@@ -477,6 +508,48 @@ describe.skipIf(!HAS_DB)("Index /events DB reads", () => {
 
 		// All three scoped contracts, in chain order, and nothing from SP9.
 		expect(seen).toEqual(["9900:0", "9901:0", "9902:0", "9903:0"]);
+	});
+
+	test("desc pages over /events are newest first, gapless and non-overlapping", async () => {
+		if (!db) throw new Error("missing db");
+		const newest = TIP.block_height - 1;
+		await db
+			.insertInto("decoded_events")
+			.values([
+				ftRow(`${newest - 2}:0`, newest - 2, "SP1.a", "SP1", "SP2", "1"),
+				ftRow(`${newest - 1}:0`, newest - 1, "SP1.a", "SP1", "SP2", "2"),
+				ftRow(`${newest - 1}:4`, newest - 1, "SP1.a", "SP1", "SP2", "3"),
+				ftRow(`${newest}:0`, newest, "SP1.a", "SP1", "SP2", "4"),
+				nftRow(`${newest}:1`, newest),
+			])
+			.execute();
+
+		const seen: string[] = [];
+		const cursors: Array<string | null> = [];
+		let query = "?event_type=ft_transfer&order=desc&limit=3";
+		for (let page = 0; page < 5; page++) {
+			const response = await getIndexEventsResponse({
+				query: params(query),
+				tip: TIP,
+				readEvents: (readParams) => readIndexEvents({ ...readParams, db }),
+			});
+			seen.push(...response.events.map((e) => e.cursor));
+			cursors.push(response.next_cursor);
+			if (!response.next_cursor) break;
+			query = `?event_type=ft_transfer&order=desc&limit=3&cursor=${response.next_cursor}`;
+		}
+
+		expect(seen).toEqual([
+			`${newest}:0`,
+			`${newest - 1}:4`,
+			`${newest - 1}:0`,
+			`${newest - 2}:0`,
+		]);
+		expect(cursors).toEqual([
+			`desc:${newest - 1}:0`,
+			`desc:${newest - 2}:0`,
+			null,
+		]);
 	});
 
 	test("ft_transfer reads match the typed readFtTransfers path", async () => {

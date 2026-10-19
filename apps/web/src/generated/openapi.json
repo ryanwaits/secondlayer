@@ -3661,6 +3661,7 @@
 								"from_cursor",
 								"from_height",
 								"to_height",
+								"order",
 								"contract_id",
 								"sender",
 								"recipient",
@@ -3683,7 +3684,7 @@
 					],
 					"cursor": {
 						"format": "<block_height>:<event_index>",
-						"semantics": "opaque resume token; pass back unchanged to continue. Equals last event's cursor (inclusive on output, exclusive on input)."
+						"semantics": "opaque resume token; pass back unchanged to continue. Equals last event's cursor (inclusive on output, exclusive on input). Under order=desc it carries a `desc:` prefix and resumes only under order=desc."
 					}
 				}
 			},
@@ -10564,7 +10565,7 @@
 				],
 				"summary": "Decoded events by event_type",
 				"x-nav-title": "Events",
-				"description": "One `event_type` per request, oldest first. Which filters and `fields` apply depends on the type; anything a type does not accept is refused.",
+				"description": "One `event_type` per request, oldest first unless `order=desc`. Which filters and `fields` apply depends on the type; anything a type does not accept is refused.",
 				"security": [
 					{},
 					{
@@ -10642,6 +10643,20 @@
 							"type": "integer"
 						},
 						"description": "Last block height to read, inclusive."
+					},
+					{
+						"name": "order",
+						"in": "query",
+						"required": false,
+						"schema": {
+							"type": "string",
+							"enum": [
+								"asc",
+								"desc"
+							],
+							"default": "asc"
+						},
+						"description": "`asc` (default) reads oldest first. `desc` reads newest first: with no height range, page one is the newest rows of the last day. A `desc` page's `next_cursor` starts with `desc:` and pages older; a cursor resumes only under the order that issued it, and the other order is refused with 400."
 					},
 					{
 						"name": "contract_id",
@@ -10804,7 +10819,7 @@
 				],
 				"summary": "Fungible token transfers",
 				"x-nav-title": "FT transfers",
-				"description": "Same rows as `/v1/index/events?event_type=ft_transfer`, oldest first, with a typed row. Filters combine with AND.",
+				"description": "Same rows as `/v1/index/events?event_type=ft_transfer`, oldest first unless `order=desc`, with a typed row. Filters combine with AND.",
 				"security": [
 					{},
 					{
@@ -10851,6 +10866,20 @@
 							"type": "integer"
 						},
 						"description": "Last block height to read, inclusive."
+					},
+					{
+						"name": "order",
+						"in": "query",
+						"required": false,
+						"schema": {
+							"type": "string",
+							"enum": [
+								"asc",
+								"desc"
+							],
+							"default": "asc"
+						},
+						"description": "`asc` (default) reads oldest first. `desc` reads newest first: with no height range, page one is the newest rows of the last day. A `desc` page's `next_cursor` starts with `desc:` and pages older; a cursor resumes only under the order that issued it, and the other order is refused with 400."
 					},
 					{
 						"name": "contract_id",
@@ -10981,7 +11010,7 @@
 				],
 				"summary": "NFT transfers",
 				"x-nav-title": "NFT transfers",
-				"description": "Same rows as `/v1/index/events?event_type=nft_transfer`, oldest first, with a typed row. Filters combine with AND.",
+				"description": "Same rows as `/v1/index/events?event_type=nft_transfer`, oldest first unless `order=desc`, with a typed row. Filters combine with AND.",
 				"security": [
 					{},
 					{
@@ -11028,6 +11057,20 @@
 							"type": "integer"
 						},
 						"description": "Last block height to read, inclusive."
+					},
+					{
+						"name": "order",
+						"in": "query",
+						"required": false,
+						"schema": {
+							"type": "string",
+							"enum": [
+								"asc",
+								"desc"
+							],
+							"default": "asc"
+						},
+						"description": "`asc` (default) reads oldest first. `desc` reads newest first: with no height range, page one is the newest rows of the last day. A `desc` page's `next_cursor` starts with `desc:` and pages older; a cursor resumes only under the order that issued it, and the other order is refused with 400."
 					},
 					{
 						"name": "contract_id",

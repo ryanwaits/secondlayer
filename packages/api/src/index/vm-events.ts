@@ -2,7 +2,12 @@ import { VM_EVENT_TYPES, type VmEventType } from "@secondlayer/shared";
 import { getSourceDb, sql } from "@secondlayer/shared/db";
 import { resolveTraitContractIds } from "@secondlayer/shared/db/queries/contracts";
 import type { RawBuilder } from "kysely";
-import { encodeIndexCursor, toIsoOrNull } from "./_shared.ts";
+import {
+	encodeOrderedCursor,
+	keysetOp,
+	sortDirection,
+	toIsoOrNull,
+} from "./_shared.ts";
 import type {
 	IndexEvent,
 	IndexEventConfig,
@@ -16,6 +21,7 @@ const PAGINATION_FILTERS = [
 	"from_cursor",
 	"from_height",
 	"to_height",
+	"order",
 ] as const;
 
 const VM_COMMON = [...PAGINATION_FILTERS, "contract_id", "tx_id"] as const;
@@ -215,7 +221,7 @@ export async function readVmIndexEvents(
 
 	if (params.after) {
 		predicates.push(
-			sql`(vm.block_height, vm.ordinal) > (${params.after.block_height}, ${params.after.event_index})`,
+			sql`(vm.block_height, vm.ordinal) ${keysetOp(params.order)} (${params.after.block_height}, ${params.after.event_index})`,
 		);
 	}
 
@@ -288,7 +294,7 @@ export async function readVmIndexEvents(
 		LEFT JOIN transactions t
 			ON t.tx_id = vm.tx_id
 		WHERE ${sql.join(predicates, sql` AND `)}
-		ORDER BY vm.block_height ASC, vm.ordinal ASC
+		ORDER BY vm.block_height ${sortDirection(params.order)}, vm.ordinal ${sortDirection(params.order)}
 		LIMIT ${params.limit + 1}
 	`.execute(db);
 
@@ -312,10 +318,13 @@ export async function readVmIndexEvents(
 	return {
 		events: pageRows.map((row) => normalizeVmRow(row, config, wanted)),
 		next_cursor: lastRow
-			? encodeIndexCursor({
-					block_height: Number(lastRow.block_height),
-					event_index: Number(lastRow.event_index),
-				})
+			? encodeOrderedCursor(
+					{
+						block_height: Number(lastRow.block_height),
+						event_index: Number(lastRow.event_index),
+					},
+					params.order,
+				)
 			: null,
 		span,
 	};

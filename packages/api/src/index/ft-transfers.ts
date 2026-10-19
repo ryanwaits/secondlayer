@@ -3,6 +3,7 @@ import type { Kysely } from "kysely";
 import type { StreamsReorg, StreamsReorgsReader } from "../streams/reorgs.ts";
 import {
 	type IndexCursorInput,
+	type IndexOrder,
 	parseFilter,
 	parseIndexBaseQuery,
 	readReorgsForEvents,
@@ -58,6 +59,7 @@ export type FtTransfersQuery = {
 	recipient?: string;
 	/** Return only these columns (validated against FT_TRANSFER_FIELDS). */
 	fields?: readonly string[];
+	order: IndexOrder;
 	cursorPastTip: boolean;
 };
 
@@ -79,6 +81,8 @@ export type ReadFtTransfersParams = {
 	recipient?: string;
 	/** Columns to return; omit for the full row (see ReadIndexEventsParams.fields). */
 	fields?: readonly string[];
+	/** `desc` reads newest first (see ReadIndexEventsParams.order). */
+	order?: IndexOrder;
 	db?: Kysely<Database>;
 };
 
@@ -138,6 +142,7 @@ export async function readFtTransfers(
 		limit: params.limit,
 		filters,
 		fields: params.fields,
+		order: params.order,
 		db: params.db,
 	});
 
@@ -177,6 +182,7 @@ export async function getFtTransfersResponse(opts: {
 		sender: parsed.sender,
 		recipient: parsed.recipient,
 		fields: parsed.fields,
+		order: parsed.order,
 	});
 	// Prefer the raw span (survives a projection that dropped event_index).
 	const reorgs = await readReorgsForEvents(

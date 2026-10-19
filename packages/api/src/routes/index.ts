@@ -158,6 +158,7 @@ const INDEX_COMMON = [
 	"from_cursor",
 	"from_height",
 	"to_height",
+	"order",
 	"contract_id",
 	"sender",
 	"recipient",
@@ -490,7 +491,7 @@ export function createIndexRouter(opts: IndexRouterOptions = {}) {
 			cursor: {
 				format: "<block_height>:<event_index>",
 				semantics:
-					"opaque resume token; pass back unchanged to continue. Equals last event's cursor (inclusive on output, exclusive on input).",
+					"opaque resume token; pass back unchanged to continue. Equals last event's cursor (inclusive on output, exclusive on input). Under order=desc it carries a `desc:` prefix and resumes only under order=desc.",
 			},
 		}),
 	);

@@ -8,6 +8,7 @@ import {
 	ERROR_401,
 	ERROR_429,
 	INDEX_RANGE_PARAMS,
+	ORDER_PARAM,
 	READ_SECURITY,
 	WAIT_PARAM,
 	envelope,
@@ -202,7 +203,7 @@ export const indexPaths = {
 			summary: "Decoded events by event_type",
 			"x-nav-title": "Events",
 			description:
-				"One `event_type` per request, oldest first. Which filters and `fields` apply depends on the type; anything a type does not accept is refused.",
+				"One `event_type` per request, oldest first unless `order=desc`. Which filters and `fields` apply depends on the type; anything a type does not accept is refused.",
 			security: READ_SECURITY,
 			parameters: [
 				{
@@ -222,6 +223,7 @@ export const indexPaths = {
 				),
 				LIMIT,
 				...INDEX_RANGE_PARAMS,
+				ORDER_PARAM,
 				CONTRACT_ID_PARAM,
 				TRAIT_PARAM,
 				qp(
@@ -265,11 +267,12 @@ export const indexPaths = {
 			summary: "Fungible token transfers",
 			"x-nav-title": "FT transfers",
 			description:
-				"Same rows as `/v1/index/events?event_type=ft_transfer`, oldest first, with a typed row. Filters combine with AND.",
+				"Same rows as `/v1/index/events?event_type=ft_transfer`, oldest first unless `order=desc`, with a typed row. Filters combine with AND.",
 			security: READ_SECURITY,
 			parameters: [
 				LIMIT,
 				...INDEX_RANGE_PARAMS,
+				ORDER_PARAM,
 				qp(
 					"contract_id",
 					"string",
@@ -300,11 +303,12 @@ export const indexPaths = {
 			summary: "NFT transfers",
 			"x-nav-title": "NFT transfers",
 			description:
-				"Same rows as `/v1/index/events?event_type=nft_transfer`, oldest first, with a typed row. Filters combine with AND.",
+				"Same rows as `/v1/index/events?event_type=nft_transfer`, oldest first unless `order=desc`, with a typed row. Filters combine with AND.",
 			security: READ_SECURITY,
 			parameters: [
 				LIMIT,
 				...INDEX_RANGE_PARAMS,
+				ORDER_PARAM,
 				qp(
 					"contract_id",
 					"string",
@@ -1772,6 +1776,7 @@ export const indexSchemas = {
 						"from_cursor",
 						"from_height",
 						"to_height",
+						"order",
 						"contract_id",
 						"sender",
 						"recipient",
@@ -1796,7 +1801,7 @@ export const indexSchemas = {
 			cursor: {
 				format: "<block_height>:<event_index>",
 				semantics:
-					"opaque resume token; pass back unchanged to continue. Equals last event's cursor (inclusive on output, exclusive on input).",
+					"opaque resume token; pass back unchanged to continue. Equals last event's cursor (inclusive on output, exclusive on input). Under order=desc it carries a `desc:` prefix and resumes only under order=desc.",
 			},
 		},
 	},

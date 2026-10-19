@@ -1,4 +1,8 @@
-import { EMPTY_RANGE_EVENT_INDEX_SENTINEL } from "@secondlayer/shared";
+import {
+	EMPTY_RANGE_EVENT_INDEX_SENTINEL,
+	encodeStreamsCursor,
+} from "@secondlayer/shared";
+import { sql } from "@secondlayer/shared/db";
 import { ValidationError } from "@secondlayer/shared/errors";
 import { parseCursor, parseNonNegativeInteger } from "../parse-query.ts";
 import {
@@ -121,6 +125,54 @@ export function jsonSafeBigInt<T>(value: T): T {
 
 export { encodeStreamsCursor as encodeIndexCursor } from "@secondlayer/shared";
 
+/** Read direction for the event feeds. `asc` (default) is the forward feed a
+ *  consumer tails; `desc` reads newest first and pages toward genesis. */
+export type IndexOrder = "asc" | "desc";
+
+/** Marks a cursor issued by a `desc` page. Asc cursors stay the bare
+ *  `<block_height>:<event_index>` format; a desc cursor carries its direction
+ *  so it can't be replayed under the other order, which would re-read the
+ *  rows it already returned. */
+const DESC_CURSOR_PREFIX = "desc:";
+
+/** `next_cursor` for a page read in `order`. */
+export function encodeOrderedCursor(
+	cursor: IndexCursorInput,
+	order: IndexOrder | undefined,
+): string {
+	const raw = encodeStreamsCursor(cursor);
+	return order === "desc" ? `${DESC_CURSOR_PREFIX}${raw}` : raw;
+}
+
+/** Keyset comparison for a resume cursor: past it going forward, below it
+ *  going back. */
+export function keysetOp(order: IndexOrder | undefined) {
+	return order === "desc" ? sql`<` : sql`>`;
+}
+
+export function sortDirection(order: IndexOrder | undefined) {
+	return order === "desc" ? sql`DESC` : sql`ASC`;
+}
+
+export function parseOrder(value: string | undefined): IndexOrder {
+	if (value === undefined || value === "asc") return "asc";
+	if (value === "desc") return "desc";
+	throw new ValidationError("order must be asc or desc");
+}
+
+/** Strip a cursor's order marker, refusing one issued under the other order. */
+function cursorForOrder(raw: string, order: IndexOrder): string {
+	const issuedFor: IndexOrder = raw.startsWith(DESC_CURSOR_PREFIX)
+		? "desc"
+		: "asc";
+	if (issuedFor !== order) {
+		throw new ValidationError(
+			`cursor was issued for order=${issuedFor}, but this request is order=${order}; resume with the next_cursor a page in the same order returned`,
+		);
+	}
+	return order === "desc" ? raw.slice(DESC_CURSOR_PREFIX.length) : raw;
+}
+
 /** Shared cursor / height-window parsing for every Index read endpoint.
  *  Resolves cursor vs from_height precedence and the default last-day window. */
 export type IndexBaseQuery<C = IndexCursorInput> = {
@@ -129,6 +181,7 @@ export type IndexBaseQuery<C = IndexCursorInput> = {
 	fromHeight: number;
 	toHeight: number;
 	limit: number;
+	order: IndexOrder;
 	cursorPastTip: boolean;
 };
 
@@ -157,7 +210,12 @@ export function parseIndexBaseQuery<
 		throw new ValidationError("cursor and from_height are mutually exclusive");
 	}
 
-	const cursor = cursorRaw ? parseCursorValue(cursorRaw) : undefined;
+	// Routes without `order` refuse the param before this parse, so they always
+	// resolve to asc.
+	const order = parseOrder(query.get("order") ?? undefined);
+	const cursor = cursorRaw
+		? parseCursorValue(cursorForOrder(cursorRaw, order))
+		: undefined;
 	const requestedFromHeight =
 		fromHeightRaw !== undefined
 			? parseNonNegativeInteger(fromHeightRaw, "from_height")
@@ -180,7 +238,13 @@ export function parseIndexBaseQuery<
 				? tip.block_height
 				: Math.min(requestedToHeight, tip.block_height),
 		limit: parseLimit(query.get("limit") ?? undefined),
-		cursorPastTip: cursor ? cursor.block_height > tip.block_height : false,
+		order,
+		// Only a forward read can run ahead of the tip; a desc cursor pages down
+		// from wherever it sits.
+		cursorPastTip:
+			order === "asc" && cursor
+				? cursor.block_height > tip.block_height
+				: false,
 	};
 }
 
@@ -197,9 +261,16 @@ export async function readReorgsForEvents(
 	opts?: { overlap?: "cursor" | "height" },
 ): Promise<StreamsReorg[]> {
 	const reader = readReorgs ?? EMPTY_STREAMS_REORGS_READER;
-	const firstEvent = events.at(0);
-	const lastEvent = events.at(-1);
-	if (!firstEvent || !lastEvent) return [];
+	const head = events.at(0);
+	const tail = events.at(-1);
+	if (!head || !tail) return [];
+	// A desc page runs newest → oldest; the lookup wants low → high.
+	const [firstEvent, lastEvent] =
+		head.block_height > tail.block_height ||
+		(head.block_height === tail.block_height &&
+			head.event_index > tail.event_index)
+			? [tail, head]
+			: [head, tail];
 	const byHeight = opts?.overlap === "height";
 	return reader({
 		from: {

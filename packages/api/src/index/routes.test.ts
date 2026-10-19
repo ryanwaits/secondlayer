@@ -305,6 +305,31 @@ describe("Stacks Index gateway middleware", () => {
 		expect(body.error).toContain("event_type is required");
 	});
 
+	test("a bad order on the event reads is a 400 validation error", async () => {
+		const app = createApp();
+		for (const path of [
+			"/v1/index/ft-transfers?order=latest",
+			"/v1/index/nft-transfers?order=latest",
+			"/v1/index/events?event_type=print&order=latest",
+		]) {
+			const res = await app.request(path, { headers: authHeaders(FREE_KEY) });
+			expect(res.status).toBe(400);
+			const body = (await res.json()) as { error: string; code: string };
+			expect(body.code).toBe("VALIDATION_ERROR");
+			expect(body.error).toContain("order must be asc or desc");
+		}
+	});
+
+	test("contract-calls does not take order", async () => {
+		const res = await createApp().request(
+			"/v1/index/contract-calls?order=desc",
+			{ headers: authHeaders(FREE_KEY) },
+		);
+		expect(res.status).toBe(400);
+		const body = (await res.json()) as { error: string };
+		expect(body.error).toContain("unknown query param: order");
+	});
+
 	test("GET /events serves a chosen event_type via the injected reader", async () => {
 		const app = new Hono();
 		app.onError(errorHandler);

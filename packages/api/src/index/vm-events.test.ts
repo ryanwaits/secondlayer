@@ -221,6 +221,46 @@ describe.skipIf(!HAS_DB)("Index vm_events read", () => {
 		expect(maps.events[0]?.map).toBe("store");
 	});
 
+	test("desc pages VM events newest ordinal first and resumes below the cursor", async () => {
+		await seed();
+		if (!db) throw new Error("missing db");
+		await db
+			.insertInto("vm_events")
+			.values({
+				tx_id: txId,
+				block_height: H,
+				ordinal: 2,
+				type: "map_set",
+				data: {
+					contract_identifier: "SP.store",
+					map_name: "store",
+					raw_key: "0x0c",
+					raw_value: "0x0d",
+				},
+			})
+			.execute();
+		const first = await readIndexEvents({
+			eventType: "map_set",
+			fromHeight: H,
+			toHeight: H,
+			limit: 1,
+			order: "desc",
+			db,
+		});
+		expect(first.events.map((e) => e.event_index)).toEqual([2]);
+		expect(first.next_cursor).toBe(`desc:${H}:2`);
+		const second = await readIndexEvents({
+			eventType: "map_set",
+			after: { block_height: H, event_index: 2 },
+			fromHeight: H,
+			toHeight: H,
+			limit: 1,
+			order: "desc",
+			db,
+		});
+		expect(second.events.map((e) => e.event_index)).toEqual([1]);
+	});
+
 	test("a row without contract_identifier never reaches a page (requiredNonNull parity)", async () => {
 		await seed();
 		if (!db) throw new Error("missing db");

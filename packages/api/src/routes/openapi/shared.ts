@@ -54,6 +54,18 @@ export const INDEX_RANGE_PARAMS = [
 	qp("to_height", "integer", false, "Last block height to read, inclusive."),
 ];
 
+/** Read direction: the decoded-event reads (`/v1/index/events` and the
+ *  ft/nft transfer aliases) only. */
+export const ORDER_PARAM = {
+	...qp(
+		"order",
+		"string",
+		false,
+		"`asc` (default) reads oldest first. `desc` reads newest first: with no height range, page one is the newest rows of the last day. A `desc` page's `next_cursor` starts with `desc:` and pages older; a cursor resumes only under the order that issued it, and the other order is refused with 400.",
+	),
+	schema: { type: "string", enum: ["asc", "desc"], default: "asc" },
+};
+
 /** Long-poll: `/v1/index/events` and `/v1/index/blocks` only —
  *  not every Index list, so this stays separate from `INDEX_RANGE_PARAMS`
  *  rather than overclaiming support on routes that don't wire it. */

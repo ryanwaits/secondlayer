@@ -41,6 +41,58 @@ describe("Index ft-transfers helpers", () => {
 		expect(parsed.fromHeight).toBe(0);
 	});
 
+	test("order defaults to asc and keeps the same default window under desc", () => {
+		expect(parseFtTransfersQuery(params(""), TIP).order).toBe("asc");
+		const desc = parseFtTransfersQuery(params("?order=desc"), TIP);
+		expect(desc.order).toBe("desc");
+		expect(desc.fromHeight).toBe(TIP.block_height - STREAMS_BLOCKS_PER_DAY);
+		expect(desc.toHeight).toBe(TIP.block_height);
+	});
+
+	test("an order other than asc or desc is refused", () => {
+		expect(() => parseFtTransfersQuery(params("?order=newest"), TIP)).toThrow(
+			"order must be asc or desc",
+		);
+	});
+
+	test("a desc cursor resumes under desc and is refused under asc", () => {
+		const desc = parseFtTransfersQuery(
+			params("?order=desc&cursor=desc:9900:1"),
+			TIP,
+		);
+		expect(desc.cursor).toEqual({ block_height: 9900, event_index: 1 });
+		expect(() =>
+			parseFtTransfersQuery(params("?cursor=desc:9900:1"), TIP),
+		).toThrow("cursor was issued for order=desc");
+	});
+
+	test("an asc cursor is refused under desc", () => {
+		expect(() =>
+			parseFtTransfersQuery(params("?order=desc&cursor=9900:1"), TIP),
+		).toThrow("cursor was issued for order=asc");
+	});
+
+	test("a desc cursor above the tip still reads instead of waiting", () => {
+		const parsed = parseFtTransfersQuery(
+			params(`?order=desc&cursor=desc:${TIP.block_height + 5}:0`),
+			TIP,
+		);
+		expect(parsed.cursorPastTip).toBe(false);
+	});
+
+	test("order is threaded to the reader", async () => {
+		let seen: string | undefined;
+		await getFtTransfersResponse({
+			query: params("?order=desc"),
+			tip: TIP,
+			readTransfers: async (p) => {
+				seen = p.order;
+				return { events: [], next_cursor: null };
+			},
+		});
+		expect(seen).toBe("desc");
+	});
+
 	test("successful responses always include reorgs array", async () => {
 		const response = await getFtTransfersResponse({
 			query: params("?from_height=0"),
@@ -145,6 +197,30 @@ describe("Index ft-transfers field projection", () => {
 			},
 		});
 		expect(ranges).toEqual([{ from: 10, to: 12 }]);
+	});
+
+	test("a desc page's reorg lookup still runs low to high", async () => {
+		const ranges: Array<{ from: string; to: string }> = [];
+		await getFtTransfersResponse({
+			query: params("?order=desc"),
+			tip: TIP,
+			readTransfers: async () => ({
+				events: [],
+				next_cursor: "desc:10:2",
+				span: {
+					from: { block_height: 12, event_index: 5 },
+					to: { block_height: 10, event_index: 2 },
+				},
+			}),
+			readReorgs: async (range) => {
+				ranges.push({
+					from: `${range.from.block_height}:${range.from.event_index}`,
+					to: `${range.to.block_height}:${range.to.event_index}`,
+				});
+				return [];
+			},
+		});
+		expect(ranges).toEqual([{ from: "10:2", to: "12:5" }]);
 	});
 });
 
@@ -301,6 +377,98 @@ describe.skipIf(!HAS_DB)("Index ft-transfers DB reads", () => {
 		]);
 		expect(defaultResponse.reorgs).toEqual([]);
 		expect(fullResponse.reorgs).toEqual([]);
+	});
+
+	test("order=desc with no height range serves the newest rows of the default window first", async () => {
+		if (!db) throw new Error("missing db");
+		const newest = TIP.block_height - 1;
+		await db
+			.insertInto("decoded_events")
+			.values([
+				row(
+					`${OUTSIDE_DEFAULT_WINDOW_HEIGHT}:0`,
+					OUTSIDE_DEFAULT_WINDOW_HEIGHT,
+					"SP1.token",
+					"SP1",
+					"SP2",
+					"10",
+				),
+				row(
+					`${INSIDE_DEFAULT_WINDOW_HEIGHT}:0`,
+					INSIDE_DEFAULT_WINDOW_HEIGHT,
+					"SP1.token",
+					"SP1",
+					"SP2",
+					"20",
+				),
+				row(`${newest}:0`, newest, "SP1.token", "SP1", "SP2", "30"),
+				row(`${newest}:1`, newest, "SP1.token", "SP1", "SP2", "40"),
+			])
+			.execute();
+
+		const response = await getFtTransfersResponse({
+			query: params("?order=desc&limit=2"),
+			tip: TIP,
+			readTransfers: (readParams) => readFtTransfers({ ...readParams, db }),
+		});
+
+		expect(response.events.map((event) => event.cursor)).toEqual([
+			`${newest}:1`,
+			`${newest}:0`,
+		]);
+		expect(response.next_cursor).toBe(`desc:${newest}:0`);
+	});
+
+	test("desc cursor pages are gapless and non-overlapping down to the oldest row", async () => {
+		if (!db) throw new Error("missing db");
+		const all = [
+			row("9900:0", 9900, "SP1.token", "SP1", "SP2", "1"),
+			row("9900:1", 9900, "SP1.token", "SP1", "SP2", "2"),
+			row("9901:0", 9901, "SP1.token", "SP1", "SP2", "3"),
+			row("9902:0", 9902, "SP1.token", "SP1", "SP2", "4"),
+			row("9902:3", 9902, "SP1.token", "SP1", "SP2", "5"),
+		];
+		await db.insertInto("decoded_events").values(all).execute();
+
+		const seen: string[] = [];
+		let query = "?order=desc&from_height=0&limit=2";
+		for (let page = 0; page < 10; page++) {
+			const response = await getFtTransfersResponse({
+				query: params(query),
+				tip: TIP,
+				readTransfers: (readParams) => readFtTransfers({ ...readParams, db }),
+			});
+			seen.push(...response.events.map((event) => event.cursor));
+			if (!response.next_cursor) break;
+			query = `?order=desc&limit=2&cursor=${response.next_cursor}`;
+		}
+
+		expect(seen).toEqual(["9902:3", "9902:0", "9901:0", "9900:1", "9900:0"]);
+	});
+
+	test("desc keeps a contract-led sort newest first", async () => {
+		if (!db) throw new Error("missing db");
+		await db
+			.insertInto("decoded_events")
+			.values([
+				row("9900:0", 9900, "SP1.token", "SP1", "SP2", "1"),
+				row("9901:0", 9901, "SP2.token", "SP1", "SP2", "2"),
+				row("9902:0", 9902, "SP1.token", "SP1", "SP2", "3"),
+			])
+			.execute();
+
+		const result = await readFtTransfers({
+			db,
+			fromHeight: 0,
+			toHeight: 10_000,
+			limit: 10,
+			contractId: "SP1.token",
+			order: "desc",
+		});
+		expect(result.events.map((event) => event.cursor)).toEqual([
+			"9902:0",
+			"9900:0",
+		]);
 	});
 
 	test("fields=amount returns only that column plus the always-kept set, without breaking pagination", async () => {
