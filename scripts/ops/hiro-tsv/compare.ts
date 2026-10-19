@@ -42,7 +42,7 @@ for (let h = from; h <= to; h++) {
 		diffs.missing_archive.push(h);
 		continue;
 	}
-	if (!a) continue;
+	if (!a || !l) continue;
 	if (a.block_digest !== l.block_digest) diffs.block.push(h);
 	if ((a.transactions_rollup ?? null) !== l.transactions_rollup)
 		diffs.transactions.push(h);
