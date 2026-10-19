@@ -191,8 +191,18 @@ export async function repairHeightFromJournal(
 			`repair-from-journal: no journal payload for canonical height ${height}`,
 		);
 	}
-	const { payload } = journal;
+	await persistJournalPayload(db, journal.payload, height);
+}
 
+/** Parse a journaled `/new_block` body and persist it at `height` through the
+ *  normal persist path — the one parse used by every journal-sourced repair.
+ *  A different stored hash at `height` is archived as an orphan by
+ *  `persistBlock`, exactly as on a live reorg. */
+export async function persistJournalPayload(
+	db: Kysely<Database>,
+	payload: NewBlockPayload,
+	height: number,
+): Promise<void> {
 	const block = parseBlock(payload);
 	const txResults = await Promise.all(
 		payload.transactions.map((t) => parseTransaction(t, height)),

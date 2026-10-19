@@ -11,11 +11,16 @@
  * The ordinary ingest path deliberately CANNOT do this: a block arriving for a
  * height we already hold is now staged pending a descendant, which is exactly
  * the protection we want and exactly what blocks a repair. So this tool proves
- * canonicality out-of-band first, then replaces the row directly.
+ * canonicality out-of-band first, then replaces the height directly.
  *
- * Execution events cannot be re-derived from raw node RPC, so the canonical
- * block is sourced from the Hiro API — the documented role for it here (manual
- * backfill/repair only; the live plane stays Hiro-free).
+ * The canonical block is sourced from `observer_journal`, which holds every
+ * `/new_block` body the node sent since 2026-08-11 — fork contenders included.
+ * The canonical block at H is the journal row whose `block_hash` equals block
+ * H+1's `parent_hash`; it is parsed and persisted through the same path as
+ * `repair-from-journal.ts`, so the rows are node-shaped. No journal row means
+ * the height predates the journal (or was never delivered): only an
+ * archive/feeder rebuild can fix it, and this tool exits non-zero without
+ * writing anything.
  *
  * Usage:
  *   bun run packages/indexer/src/repair-fork-block.ts --height 8663166
@@ -24,10 +29,86 @@
  * Dry-run by default: prints what it would replace and why.
  */
 import { closeDb, getSourceDb, sql } from "@secondlayer/shared/db";
+import type { Database } from "@secondlayer/shared/db/schema";
 import { logger } from "@secondlayer/shared/logger";
-import { HiroClient } from "@secondlayer/shared/node/hiro-client";
-import { ingestNewBlock } from "./ingest.ts";
+import type { Kysely } from "kysely";
+import { persistJournalPayload } from "./repair-from-journal.ts";
 import type { NewBlockPayload } from "./types/node-events.ts";
+
+export type ForkRepairPlan = {
+	height: number;
+	stored: { hash: string; canonical: boolean };
+	/** The hash block H+1 names as its parent — the canonical block at H. */
+	canonicalHash: string;
+	payload: NewBlockPayload;
+	alreadyCorrect: boolean;
+};
+
+/** Resolve the canonical block for `height` from the journal, confirmed by the
+ *  canonical child at H+1. Read-only. Throws (never guesses) when the height is
+ *  a gap, has no canonical child, or the journal never captured the block. */
+export async function planForkRepair(
+	db: Kysely<Database>,
+	height: number,
+): Promise<ForkRepairPlan> {
+	const stored = await db
+		.selectFrom("blocks")
+		.select(["hash", "canonical"])
+		.where("height", "=", height)
+		.executeTakeFirst();
+	if (!stored) {
+		throw new Error(`No block stored at ${height} — this is a gap, not a fork`);
+	}
+
+	const child = await db
+		.selectFrom("blocks")
+		.select(["parent_hash"])
+		.where("height", "=", height + 1)
+		.where("canonical", "=", true)
+		.executeTakeFirst();
+	if (!child) {
+		throw new Error(
+			`No canonical block at ${height + 1} to confirm against — refusing`,
+		);
+	}
+
+	const row = await db
+		.selectFrom("observer_journal")
+		.select(["raw_body"])
+		.where("path", "=", "/new_block")
+		.where("block_hash", "=", child.parent_hash)
+		.orderBy("sequence", "desc")
+		.limit(1)
+		.executeTakeFirst();
+	if (!row) {
+		throw new Error(
+			`No journal payload for block ${child.parent_hash} at ${height} (named by ${height + 1}) — only an archive/feeder rebuild can fix this height`,
+		);
+	}
+	const payload = JSON.parse(row.raw_body.toString("utf8")) as NewBlockPayload;
+	if (payload.block_height !== height) {
+		throw new Error(
+			`Journal block ${child.parent_hash} is at height ${payload.block_height}, not ${height} — refusing`,
+		);
+	}
+
+	return {
+		height,
+		stored,
+		canonicalHash: child.parent_hash,
+		payload,
+		alreadyCorrect: stored.hash === child.parent_hash,
+	};
+}
+
+/** Replace the height with the journaled canonical block. The losing block's
+ *  rows are archived as orphans by `persistBlock`, as on a live reorg. */
+export async function applyForkRepair(
+	db: Kysely<Database>,
+	plan: ForkRepairPlan,
+): Promise<void> {
+	await persistJournalPayload(db, plan.payload, plan.height);
+}
 
 function parseArgs(argv: string[]) {
 	let height: number | undefined;
@@ -46,59 +127,22 @@ async function main() {
 	const { height, apply } = parseArgs(process.argv.slice(2));
 	const db = getSourceDb();
 
-	const stored = await db
-		.selectFrom("blocks")
-		.select(["hash", "canonical"])
-		.where("height", "=", height)
-		.executeTakeFirst();
-	if (!stored) {
-		throw new Error(`No block stored at ${height} — this is a gap, not a fork`);
-	}
-
-	const hiro = new HiroClient();
-	// `shared` and `indexer` each declare the observer payload; they are the
-	// same wire shape. bulk-backfill bridges it the same way.
-	const canonical = (await hiro.getBlockForIndexer(
-		height,
-	)) as NewBlockPayload | null;
-	if (!canonical) {
-		throw new Error(`Canonical block ${height} could not be fetched`);
-	}
+	const plan = await planForkRepair(db, height);
 
 	console.log(`height           ${height}`);
 	console.log(
-		`stored           ${stored.hash} (canonical=${stored.canonical})`,
+		`stored           ${plan.stored.hash} (canonical=${plan.stored.canonical})`,
 	);
-	console.log(`canonical        ${canonical.block_hash}`);
-	console.log(`transactions     ${canonical.transactions.length}`);
-	console.log(`events           ${canonical.events.length}`);
+	console.log(`canonical        ${plan.canonicalHash} (journal)`);
+	console.log(`confirmed by     ${height + 1} names it as parent`);
+	console.log(`transactions     ${plan.payload.transactions.length}`);
+	console.log(`events           ${plan.payload.events.length}`);
 
-	if (stored.hash === canonical.block_hash) {
+	if (plan.alreadyCorrect) {
 		console.log("\nAlready correct — nothing to repair.");
 		await closeDb();
 		return;
 	}
-
-	// Independent confirmation before destroying anything: the block ABOVE must
-	// name the canonical block as its parent. Without this we would only be
-	// trading one unverified block for another.
-	const child = await db
-		.selectFrom("blocks")
-		.select(["hash", "parent_hash"])
-		.where("height", "=", height + 1)
-		.where("canonical", "=", true)
-		.executeTakeFirst();
-	if (!child) {
-		throw new Error(
-			`No canonical block at ${height + 1} to confirm against — refusing`,
-		);
-	}
-	if (child.parent_hash !== canonical.block_hash) {
-		throw new Error(
-			`Block ${height + 1} names parent ${child.parent_hash}, not ${canonical.block_hash} — refusing`,
-		);
-	}
-	console.log(`confirmed by     ${height + 1} names it as parent`);
 
 	if (!apply) {
 		console.log("\n(dry-run — pass --apply to replace)");
@@ -107,8 +151,8 @@ async function main() {
 	}
 
 	// One repair per height at a time. Two concurrent applies interleave their
-	// delete/re-ingest transactions and die on the events→transactions FK (seen
-	// live 2026-08-11 when a "killed" ssh repair kept running server-side and a
+	// replace transactions and die on the events→transactions FK (seen live
+	// 2026-08-11 when a "killed" ssh repair kept running server-side and a
 	// retry raced it). Session-scoped: released automatically when this process
 	// exits, however it exits.
 	const lock = await sql<{ acquired: boolean }>`
@@ -120,33 +164,15 @@ async function main() {
 		);
 	}
 
-	// Clear the losing block's rows so ingest sees a clean height and takes the
-	// normal path rather than staging a contender. Children first: neither FK
-	// cascades.
-	await db.transaction().execute(async (tx) => {
-		// Delete events by their TRANSACTION, not just by block_height: an event
-		// row can carry a different block_height than the tx it references (reorg
-		// churn does this), and `events_tx_id_fkey` then blocks the tx delete.
-		await sql`
-			DELETE FROM events
-			WHERE block_height = ${height}
-				 OR tx_id IN (SELECT tx_id FROM transactions WHERE block_height = ${height})
-		`.execute(tx);
-		await sql`DELETE FROM transactions WHERE block_height = ${height}`.execute(
-			tx,
-		);
-		await sql`DELETE FROM blocks WHERE height = ${height}`.execute(tx);
-	});
-
-	const result = await ingestNewBlock(canonical);
-	logger.info("Repaired fork block", { height, result });
+	await applyForkRepair(db, plan);
+	logger.info("Repaired fork block", { height, hash: plan.canonicalHash });
 
 	const after = await db
 		.selectFrom("blocks")
 		.select(["hash", "canonical"])
 		.where("height", "=", height)
 		.executeTakeFirst();
-	const linked = after?.hash === child.parent_hash;
+	const linked = after?.hash === plan.canonicalHash;
 	console.log(
 		`\nnow stored       ${after?.hash} (canonical=${after?.canonical})`,
 	);
@@ -158,11 +184,13 @@ async function main() {
 	await closeDb();
 }
 
-main().catch(async (err) => {
-	console.error(
-		"repair-fork-block failed:",
-		err instanceof Error ? err.message : err,
-	);
-	await closeDb().catch(() => {});
-	process.exit(1);
-});
+if (import.meta.main) {
+	main().catch(async (err) => {
+		console.error(
+			"repair-fork-block failed:",
+			err instanceof Error ? err.message : err,
+		);
+		await closeDb().catch(() => {});
+		process.exit(1);
+	});
+}
