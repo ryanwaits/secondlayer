@@ -247,6 +247,43 @@ for (const path of HAS_DB ? [directPath(), catchUpPath()] : [directPath()])
 			]);
 		});
 
+		test("a flip-back restores the deposed block's timestamp and hashes", async () => {
+			if (!db) throw new Error("missing db");
+			const original = {
+				...payload(H, "0xoriginal", "0xbase"),
+				timestamp: 1_700_000_000 + H,
+				index_block_hash: "0xoriginal-index",
+				burn_block_hash: "0xoriginal-burn",
+			};
+			await ingest(payload(H - 1, "0xbase", "0xancestor"));
+			await ingest(original);
+			await ingest(payload(H, "0xcontender", "0xbase"));
+			await ingest(payload(H + 1, "0xchild-of-contender", "0xcontender"));
+			await ingest(payload(H + 1, "0xchild-of-original", "0xoriginal"));
+			await ingest(payload(H + 2, "0xgrandchild", "0xchild-of-original"));
+
+			await settle();
+			const restored = await db
+				.selectFrom("blocks")
+				.select([
+					"hash",
+					"burn_block_height",
+					"timestamp",
+					"burn_block_hash",
+					"index_block_hash",
+				])
+				.where("height", "=", H)
+				.where("canonical", "=", true)
+				.executeTakeFirst();
+			expect(restored?.hash).toBe("0xoriginal");
+			expect(Number(restored?.burn_block_height)).toBe(
+				original.burn_block_height,
+			);
+			expect(Number(restored?.timestamp)).toBe(original.timestamp);
+			expect(restored?.burn_block_hash).toBe("0xoriginal-burn");
+			expect(restored?.index_block_hash).toBe("0xoriginal-index");
+		});
+
 		test("a losing branch's own child does not depose an incumbent that already has a canonical child", async () => {
 			if (!db) throw new Error("missing db");
 			await ingest(payload(H - 1, "0xbase", "0xancestor"));

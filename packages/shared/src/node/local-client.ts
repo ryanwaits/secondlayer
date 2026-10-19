@@ -147,18 +147,24 @@ export class LocalClient {
 			.orderBy("ordinal", "asc")
 			.execute();
 
+		// height, burn_block_height and timestamp are bigint columns: postgres.js
+		// returns them as strings, which the parser's numeric checks reject
+		// (timestamp silently became 0 on every flip-back).
+		const timestamp = Number(block.timestamp);
 		return {
 			block_hash: block.hash,
-			block_height: block.height,
-			// Not stored in our DB — not needed by parser/deliveries
-			index_block_hash: "",
+			block_height: Number(block.height),
+			// Null on rows ingested before these were persisted; the parser
+			// stores "" as NULL, so the restored row stays honest.
+			index_block_hash: block.index_block_hash ?? "",
 			parent_block_hash: block.parent_hash,
+			// Not stored in our DB — not needed by parser/deliveries
 			parent_index_block_hash: "",
-			burn_block_hash: "",
-			burn_block_height: block.burn_block_height,
-			burn_block_timestamp: block.timestamp,
+			burn_block_hash: block.burn_block_hash ?? "",
+			burn_block_height: Number(block.burn_block_height),
+			burn_block_timestamp: timestamp,
 			miner_txid: "",
-			timestamp: block.timestamp,
+			timestamp,
 			transactions: transactions.map((tx) => {
 				const entry: ReplayTransactionPayload = {
 					txid: tx.tx_id,
