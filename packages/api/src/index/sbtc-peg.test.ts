@@ -200,6 +200,7 @@ describe("sBTC peg helpers", () => {
 			total_withdrawals_rejected: 0,
 			net_peg_flow_sats: "900",
 			total_locked_sats: "900",
+			unmatched_withdrawal_accepts: 0,
 			sbtc_supply_sats: null, // readSbtcSummary never sets this; the response does
 		};
 		const reader: SbtcSummaryReader = async () => SUMMARY;
@@ -231,6 +232,19 @@ describe("sBTC peg helpers", () => {
 			decoderEnabled: false,
 		});
 		expect(disabled.notes).toContain("SBTC_DECODER_ENABLED");
+
+		// Accepts with no create are surfaced as a count and a note.
+		const unmatched = await getSbtcSummaryResponse({
+			tip: TIP,
+			readSbtcSummary: async () => ({
+				...SUMMARY,
+				unmatched_withdrawal_accepts: 2,
+			}),
+			readSbtcSupply: async () => null,
+			decoderEnabled: true,
+		});
+		expect(unmatched.summary.unmatched_withdrawal_accepts).toBe(2);
+		expect(unmatched.notes).toContain("2 withdrawal-accept events have no");
 	});
 
 	test("?confirmed=true clamps to_height to finalized_height", async () => {
@@ -350,6 +364,7 @@ type SeedRow = {
 	sender?: string | null;
 	bitcoin_txid?: string | null;
 	sweep_txid?: string | null;
+	fee?: string | null;
 	canonical?: boolean;
 };
 
@@ -374,7 +389,7 @@ function seed(row: SeedRow) {
 		burn_height: null,
 		signer_bitmap: null,
 		max_fee: null,
-		fee: null,
+		fee: row.fee ?? null,
 		block_height_at_request: null,
 		governance_contract_type: null,
 		governance_new_contract: null,
@@ -875,7 +890,8 @@ describe.skipIf(!HAS_DB)("sBTC peg DB reads", () => {
 					bitcoin_txid: "0xb2",
 					amount: "500",
 				}),
-				// withdrawal req 1: created (700) then accepted (300 out)
+				// withdrawal req 1: created (700) then accepted. Mainnet accepts carry
+				// no amount, only a fee, so 700 + 10 leaves the peg.
 				seed({
 					cursor: "102:0",
 					block_height: 102,
@@ -894,7 +910,8 @@ describe.skipIf(!HAS_DB)("sBTC peg DB reads", () => {
 					event_index: 0,
 					topic: "withdrawal-accept",
 					request_id: 1,
-					amount: "300",
+					amount: null,
+					fee: "10",
 				}),
 				// withdrawal req 2: rejected (counts, no flow)
 				seed({
@@ -937,12 +954,78 @@ describe.skipIf(!HAS_DB)("sBTC peg DB reads", () => {
 			total_withdrawals_requested: 2,
 			total_withdrawals_accepted: 1,
 			total_withdrawals_rejected: 1,
-			// (1000 + 500) deposits − 300 accepted out
-			net_peg_flow_sats: "1200",
-			total_locked_sats: "1200",
+			// (1000 + 500) deposits − (700 create amount + 10 accept fee)
+			net_peg_flow_sats: "790",
+			total_locked_sats: "790",
+			unmatched_withdrawal_accepts: 0,
 			// supply is sourced from the node by getSbtcSummaryResponse, not the DB
 			sbtc_supply_sats: null,
 		});
+	});
+
+	test("summary: subtracts create amount + fee only for canonical accepted requests", async () => {
+		if (!db) throw new Error("missing db");
+		const ev = (
+			n: number,
+			topic: SbtcEventTopic,
+			extra: Partial<SeedRow> = {},
+		) =>
+			seed({
+				cursor: `${n}:0`,
+				block_height: n,
+				tx_id: `0x${n}`,
+				tx_index: 0,
+				event_index: 0,
+				topic,
+				...extra,
+			});
+		await db
+			.insertInto("sbtc_events")
+			.values([
+				ev(100, "completed-deposit", { bitcoin_txid: "0xb1", amount: "10000" }),
+				// req 10: accepted, accept has a null amount and a fee
+				ev(101, "withdrawal-create", { request_id: 10, amount: "3000" }),
+				ev(102, "withdrawal-accept", { request_id: 10, fee: "25" }),
+				// req 11: rejected, never subtracted
+				ev(103, "withdrawal-create", { request_id: 11, amount: "2000" }),
+				ev(104, "withdrawal-reject", { request_id: 11 }),
+				// req 12: pending (created, no accept yet), still in the peg
+				ev(105, "withdrawal-create", { request_id: 12, amount: "1000" }),
+				// req 13: accept whose create is missing, counted but not subtracted
+				ev(106, "withdrawal-accept", { request_id: 13, fee: "40" }),
+				// req 14: the only create is non-canonical, so the accept is unmatched
+				ev(107, "withdrawal-create", {
+					request_id: 14,
+					amount: "500",
+					canonical: false,
+				}),
+				ev(108, "withdrawal-accept", { request_id: 14, fee: "30" }),
+				// req 15: canonical create, but its accept was orphaned
+				ev(109, "withdrawal-create", { request_id: 15, amount: "400" }),
+				ev(110, "withdrawal-accept", {
+					request_id: 15,
+					fee: "20",
+					canonical: false,
+				}),
+				// non-canonical deposit is ignored
+				ev(111, "completed-deposit", {
+					bitcoin_txid: "0xb2",
+					amount: "9999",
+					canonical: false,
+				}),
+			])
+			.execute();
+
+		const summary = await readSbtcSummary({ db });
+		expect(summary.total_deposits).toBe(1);
+		expect(summary.total_withdrawals_requested).toBe(4);
+		expect(summary.total_withdrawals_accepted).toBe(3);
+		expect(summary.total_withdrawals_rejected).toBe(1);
+		// 10000 deposited − (3000 + 25) for req 10 only
+		expect(summary.net_peg_flow_sats).toBe("6975");
+		expect(summary.total_locked_sats).toBe("6975");
+		// reqs 13 and 14
+		expect(summary.unmatched_withdrawal_accepts).toBe(2);
 	});
 
 	test("summary: counts are zero and supply null over an empty table", async () => {
@@ -950,6 +1033,7 @@ describe.skipIf(!HAS_DB)("sBTC peg DB reads", () => {
 		const summary = await readSbtcSummary({ db });
 		expect(summary.total_deposits).toBe(0);
 		expect(summary.net_peg_flow_sats).toBe("0");
+		expect(summary.unmatched_withdrawal_accepts).toBe(0);
 		expect(summary.sbtc_supply_sats).toBeNull();
 	});
 });

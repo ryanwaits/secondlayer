@@ -5412,6 +5412,7 @@
 					"total_withdrawals_rejected",
 					"net_peg_flow_sats",
 					"total_locked_sats",
+					"unmatched_withdrawal_accepts",
 					"sbtc_supply_sats"
 				],
 				"properties": {
@@ -5433,11 +5434,15 @@
 					},
 					"net_peg_flow_sats": {
 						"type": "string",
-						"description": "Sats deposited minus the `amount` on accept events, as a decimal string. An accept with no amount counts as 0, and mainnet accepts carry none, so today this equals total deposited."
+						"description": "Sats still held by the peg, as a decimal string: completed deposits minus, for every accepted withdrawal, the `amount` of its `withdrawal-create` plus the accept's `fee`. Accept events carry no amount, so it is read from the create with the same `request_id`. Pending and rejected requests are not subtracted. Tracks `sbtc_supply_sats` to within deposit fees and unmatched accepts."
 					},
 					"total_locked_sats": {
 						"type": "string",
 						"description": "Same figure as `net_peg_flow_sats`."
+					},
+					"unmatched_withdrawal_accepts": {
+						"type": "integer",
+						"description": "`withdrawal-accept` events with no `withdrawal-create` for their `request_id`. Their amounts are unknown and left out of `net_peg_flow_sats`. `notes` says so when this is above 0."
 					},
 					"sbtc_supply_sats": {
 						"type": [
@@ -5452,8 +5457,9 @@
 					"total_withdrawals_requested": 3408,
 					"total_withdrawals_accepted": 3328,
 					"total_withdrawals_rejected": 78,
-					"net_peg_flow_sats": "756694049870",
-					"total_locked_sats": "756694049870",
+					"net_peg_flow_sats": "247872312898",
+					"total_locked_sats": "247872312898",
+					"unmatched_withdrawal_accepts": 0,
 					"sbtc_supply_sats": "247872312898"
 				}
 			},
@@ -14643,8 +14649,9 @@
 											"total_withdrawals_requested": 3408,
 											"total_withdrawals_accepted": 3328,
 											"total_withdrawals_rejected": 78,
-											"net_peg_flow_sats": "756694049870",
-											"total_locked_sats": "756694049870",
+											"net_peg_flow_sats": "247872312898",
+											"total_locked_sats": "247872312898",
+											"unmatched_withdrawal_accepts": 0,
 											"sbtc_supply_sats": "247872312898"
 										},
 										"tip": {

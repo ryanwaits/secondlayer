@@ -1120,10 +1120,30 @@ export type SbtcSummary = {
 	total_withdrawals_requested: number;
 	total_withdrawals_accepted: number;
 	total_withdrawals_rejected: number;
-	/** SUM(completed-deposit amount) − SUM(withdrawal-accept amount), bigint-safe string. */
+	/**
+	 * BTC that should still sit in the peg, in sats (bigint-safe string):
+	 *
+	 *   SUM(completed-deposit.amount)
+	 *   − SUM(withdrawal-create.amount + withdrawal-accept.fee)
+	 *       over canonical request_ids that have a canonical withdrawal-accept.
+	 *
+	 * A `withdrawal-accept` print carries no `amount`, so the amount comes from the
+	 * `withdrawal-create` of the same request_id. The contract locks `amount +
+	 * max_fee` at create and, on accept, burns it all and mints `max_fee − fee`
+	 * back: the supply drops by `amount + fee`, and the peg pays `amount` to the
+	 * user and `fee` to Bitcoin miners. Pending requests (created, not yet accepted)
+	 * and rejected ones stay in the peg and are not subtracted. Accepts with no
+	 * matching create are not subtracted; they are counted in
+	 * `unmatched_withdrawal_accepts`. Tracks `sbtc_supply_sats` to within deposit
+	 * fees and unmatched accepts.
+	 */
 	net_peg_flow_sats: string;
-	/** Same figure as net_peg_flow_sats: sats deposited minus sats withdrawn-out. */
+	/** Same figure as net_peg_flow_sats: sats still held by the peg. */
 	total_locked_sats: string;
+	/** `withdrawal-accept` events with no canonical `withdrawal-create` for their
+	 *  request_id. Their amounts are unknown, so they are left out of
+	 *  net_peg_flow_sats. 0 when the data is complete. */
+	unmatched_withdrawal_accepts: number;
 	/** Circulating sBTC supply in sats, read authoritatively from the sbtc-token
 	 *  `get-total-supply` contract function via our own node; null when the node is
 	 *  unset/unreachable. Never reconstructed from decoded event deltas. */
@@ -1146,7 +1166,8 @@ type SbtcSummaryDbRow = {
 	total_withdrawals_accepted: string | number;
 	total_withdrawals_rejected: string | number;
 	sum_deposits_sats: string;
-	sum_accepted_sats: string;
+	sum_settled_sats: string;
+	matched_accepts: string | number;
 };
 
 /** Reads authoritative circulating sBTC supply (sats) or null when unavailable. */
@@ -1198,24 +1219,52 @@ export async function readSbtcSummary(opts?: {
 }): Promise<SbtcSummary> {
 	const db = opts?.db ?? getSourceDb();
 
-	// Counts + flow in one pass over canonical peg events. amount is text; cast to
-	// numeric for SUM and return as text. withdrawal-accept rows occasionally lack
-	// an amount → COALESCE to 0 so the SUM doesn't go null mid-aggregate.
+	// One scan of canonical peg events (the CTE is materialized once; the table is
+	// tens of thousands of rows, so no extra index is needed beyond the existing
+	// partial sbtc_events_request_id_idx). withdrawal-accept rows carry no amount,
+	// so each canonical accept is joined to its canonical withdrawal-create on
+	// request_id. DISTINCT ON keeps the join one-to-one if a request_id repeats.
+	// amount/fee are text; cast to numeric for SUM and return as text.
 	const { rows } = await sql<SbtcSummaryDbRow>`
+		WITH peg AS (
+			SELECT topic, request_id, amount, fee
+			FROM sbtc_events
+			WHERE canonical = true
+				AND topic IN ('completed-deposit', 'withdrawal-create', 'withdrawal-accept', 'withdrawal-reject')
+		),
+		creates AS (
+			SELECT DISTINCT ON (request_id) request_id, amount
+			FROM peg
+			WHERE topic = 'withdrawal-create' AND request_id IS NOT NULL
+			ORDER BY request_id
+		),
+		settled AS (
+			SELECT
+				c.amount::numeric + COALESCE(a.fee, '0')::numeric AS out_sats
+			FROM (
+				SELECT DISTINCT ON (request_id) request_id, fee
+				FROM peg
+				WHERE topic = 'withdrawal-accept' AND request_id IS NOT NULL
+				ORDER BY request_id
+			) a
+			JOIN creates c USING (request_id)
+			WHERE c.amount IS NOT NULL
+		)
 		SELECT
 			COUNT(*) FILTER (WHERE topic = 'completed-deposit')::int AS total_deposits,
 			COUNT(*) FILTER (WHERE topic = 'withdrawal-create')::int AS total_withdrawals_requested,
 			COUNT(*) FILTER (WHERE topic = 'withdrawal-accept')::int AS total_withdrawals_accepted,
 			COUNT(*) FILTER (WHERE topic = 'withdrawal-reject')::int AS total_withdrawals_rejected,
 			COALESCE(SUM(COALESCE(amount, '0')::numeric) FILTER (WHERE topic = 'completed-deposit'), 0)::text AS sum_deposits_sats,
-			COALESCE(SUM(COALESCE(amount, '0')::numeric) FILTER (WHERE topic = 'withdrawal-accept'), 0)::text AS sum_accepted_sats
-		FROM sbtc_events
-		WHERE canonical = true
+			(SELECT COALESCE(SUM(out_sats), 0)::text FROM settled) AS sum_settled_sats,
+			(SELECT COUNT(*) FROM settled)::int AS matched_accepts
+		FROM peg
 	`.execute(db);
 	// Single-row aggregate over zero rows still returns one all-zero row.
 	const row = rows[0] as SbtcSummaryDbRow;
 
-	const netFlow = BigInt(row.sum_deposits_sats) - BigInt(row.sum_accepted_sats);
+	const netFlow = BigInt(row.sum_deposits_sats) - BigInt(row.sum_settled_sats);
+	const accepted = Number(row.total_withdrawals_accepted);
 
 	return {
 		total_deposits: Number(row.total_deposits),
@@ -1224,6 +1273,7 @@ export async function readSbtcSummary(opts?: {
 		total_withdrawals_rejected: Number(row.total_withdrawals_rejected),
 		net_peg_flow_sats: netFlow.toString(),
 		total_locked_sats: netFlow.toString(),
+		unmatched_withdrawal_accepts: accepted - Number(row.matched_accepts),
 		// Circulating supply is authoritative on-chain, not reconstructed from
 		// decoded event deltas (token mint/burn coverage is incomplete + the
 		// withdrawal-request burn/mint pairing inflates burns). getSbtcSummaryResponse
@@ -1245,9 +1295,18 @@ export async function getSbtcSummaryResponse(opts: {
 	const reader = opts.readSbtcSummary ?? readSbtcSummary;
 	const readSupply = opts.readSbtcSupply ?? readSbtcTokenSupply;
 	const [summary, sbtcSupply] = await Promise.all([reader(), readSupply()]);
+	const unmatched = summary.unmatched_withdrawal_accepts;
+	const notes = [
+		note,
+		unmatched > 0
+			? `${unmatched} withdrawal-accept event${unmatched === 1 ? " has" : "s have"} no withdrawal-create for their request_id, so ${unmatched === 1 ? "its amount is" : "their amounts are"} not subtracted from net_peg_flow_sats.`
+			: undefined,
+	]
+		.filter(Boolean)
+		.join(" ");
 	return {
 		summary: { ...summary, sbtc_supply_sats: sbtcSupply },
 		tip: opts.tip,
-		...(note ? { notes: note } : {}),
+		...(notes ? { notes } : {}),
 	};
 }

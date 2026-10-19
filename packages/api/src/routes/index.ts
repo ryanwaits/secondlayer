@@ -464,7 +464,7 @@ export function createIndexRouter(opts: IndexRouterOptions = {}) {
 					path: "/v1/index/sbtc/summary",
 					method: "GET",
 					description:
-						"sBTC peg scoreboard — one scalar aggregate over the whole bridge: total_deposits, total_withdrawals_{requested,accepted,rejected}, net_peg_flow_sats, total_locked_sats, and circulating sbtc_supply_sats (mints − burns, null if no token events). All-time canonical totals, no params. Short-cached. Returns summary, tip.",
+						"sBTC peg scoreboard — one scalar aggregate over the whole bridge: total_deposits, total_withdrawals_{requested,accepted,rejected}, net_peg_flow_sats, total_locked_sats, unmatched_withdrawal_accepts, and circulating sbtc_supply_sats (from get-total-supply, null if the node is unreachable). All-time canonical totals, no params. Short-cached. Returns summary, tip.",
 				},
 				{
 					path: "/v1/index/mempool",
