@@ -1,6 +1,5 @@
 "use client";
 
-import { ensureBilling, formatUsd, useAccountData } from "@/lib/account-data";
 import { useAuth } from "@/lib/auth";
 import { signInThen } from "@/lib/safe-next";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -61,7 +60,6 @@ const copyFor = (product?: CliProduct) => COPY[product ?? "sl"];
 export function CliLoginCard({
 	view,
 	code,
-	balance = null,
 	busy,
 	error,
 	onApprove,
@@ -69,8 +67,6 @@ export function CliLoginCard({
 }: {
 	view: View;
 	code: string;
-	/** The account's balance, formatted; null while it loads. */
-	balance?: string | null;
 	busy: boolean;
 	error: string | null;
 	onApprove(): void;
@@ -98,10 +94,8 @@ export function CliLoginCard({
 								</p>
 								<p className="cli-login-lead">
 									This signs Sentinel in with your account on that machine,
-									until you run <code>sentinel logout</code> there.{" "}
-									{balance
-										? `Sentinel can use this account's balance (now ${balance}) for monitoring and checks.`
-										: "Sentinel can use this account's balance for monitoring and checks."}
+									until you run <code>sentinel logout</code> there. Sentinel
+									bills separately and never spends this account's balance.
 								</p>
 								<p className="cli-login-warn">
 									Only approve a code you started. Check it matches your
@@ -172,14 +166,6 @@ export function CliLogin() {
 	const [view, setView] = useState<View>({ kind: "loading" });
 	const [busy, setBusy] = useState(false);
 	const [error, setError] = useState<string | null>(null);
-	const { billing } = useAccountData();
-	const sentinel = view.kind === "review" && view.product === "sentinel";
-
-	// A Sentinel sign-in spends this balance, so the page states it.
-	useEffect(() => {
-		if (sentinel) ensureBilling();
-	}, [sentinel]);
-
 	// Signed out: sign in, then come back to this same code.
 	useEffect(() => {
 		if (!loading && !account) {
@@ -260,7 +246,6 @@ export function CliLogin() {
 		<CliLoginCard
 			view={view}
 			code={code}
-			balance={billing ? formatUsd(billing.creditsUsdMicros) : null}
 			busy={busy}
 			error={error}
 			onApprove={() => answer("approve")}

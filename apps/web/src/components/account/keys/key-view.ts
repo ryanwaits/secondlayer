@@ -75,7 +75,7 @@ export function keyWhy(product: ApiKeyProduct): string {
 		case "tenant":
 			return "Your hosted stack reads the chain with it. Revoking it would stop your webhooks.";
 		case "sentinel":
-			return "Sentinel reads your contracts' history with it, billed per run.";
+			return "Sentinel reads your contracts' history with it. Sentinel bills separately.";
 		default:
 			return "";
 	}
