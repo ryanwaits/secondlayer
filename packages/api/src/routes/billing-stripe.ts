@@ -11,6 +11,12 @@
  * customer.subscription.*) — is acked 2xx with just the idempotency marker,
  * so Stripe never retries events we deliberately no longer handle.
  *
+ * The Stripe account is shared with Sentinel, which bills on its own
+ * subscriptions and tags its objects `metadata.product = "sentinel"`. Those
+ * events are acked and ignored before anything else runs: no marker, no
+ * effect, whatever else their metadata says. Every handler added here must
+ * stay behind that gate.
+ *
  * Important: Hono's default body parser reads JSON, but Stripe signatures
  * are computed over the RAW bytes. We use `c.req.text()` then verify
  * with the SDK, which re-parses internally.
@@ -83,6 +89,13 @@ app.post("/", async (c) => {
 		return c.json({ error: "handler_failed" }, 500);
 	}
 
+	if (outcome === "ignored") {
+		logger.info("Stripe webhook event belongs to Sentinel — ignored", {
+			id: event.id,
+			type: event.type,
+		});
+		return c.json({ received: true });
+	}
 	if (outcome === "duplicate") {
 		logger.info("Stripe webhook event already processed — skipping", {
 			id: event.id,
@@ -93,7 +106,31 @@ app.post("/", async (c) => {
 	return c.json({ received: true });
 });
 
-export type StripeWebhookOutcome = "processed" | "duplicate";
+export type StripeWebhookOutcome = "processed" | "duplicate" | "ignored";
+
+/** Metadata Sentinel puts on its Stripe objects (customers, subscriptions,
+ *  checkout sessions, and the invoices that inherit a subscription's). */
+const SENTINEL_PRODUCT = "sentinel";
+
+type MetadataCarrier = {
+	metadata?: Record<string, string> | null;
+	subscription_details?: { metadata?: Record<string, string> | null } | null;
+	parent?: {
+		subscription_details?: { metadata?: Record<string, string> | null } | null;
+	} | null;
+};
+
+/** True when the event's object belongs to Sentinel: its own metadata, or for
+ *  an invoice the subscription metadata it carries (both Stripe API shapes). */
+export function isSentinelEvent(event: Stripe.Event): boolean {
+	const obj = event.data.object as unknown as MetadataCarrier | null;
+	if (!obj) return false;
+	return [
+		obj.metadata,
+		obj.subscription_details?.metadata,
+		obj.parent?.subscription_details?.metadata,
+	].some((m) => m?.product === SENTINEL_PRODUCT);
+}
 
 /**
  * Marker + effect in ONE transaction. If the handler throws, the whole
@@ -105,6 +142,7 @@ export async function processStripeEvent(
 	db: Kysely<Database>,
 	event: Stripe.Event,
 ): Promise<StripeWebhookOutcome> {
+	if (isSentinelEvent(event)) return "ignored";
 	return db.transaction().execute(async (trx) => {
 		const inserted = await trx
 			.insertInto("processed_stripe_events")
