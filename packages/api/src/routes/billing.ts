@@ -70,7 +70,7 @@ export function isCreditPack(n: number): n is CreditPackUsd {
 }
 
 /** A top-up: any whole-dollar amount in this range (the packs are inside it). Below $5 the card fee
- *  takes too large a share. Shared by the signed-in `/topup` route and Sentinel's `/checkout`. */
+ *  takes too large a share. Used by the signed-in `/topup` route. */
 export const TOPUP_MIN_USD = 5;
 export const TOPUP_MAX_USD = 1000;
 export function isTopupUsd(n: unknown): n is number {
@@ -84,8 +84,7 @@ export function isTopupUsd(n: unknown): n is number {
 
 /**
  * Validate an auto-refill request: `belowUsd: null` turns it off, otherwise
- * `belowUsd >= 1` and `packUsd` one of the credit packs (default 25). Shared
- * by the session route and the Sentinel service route so they can't drift.
+ * `belowUsd >= 1` and `packUsd` one of the credit packs (default 25).
  */
 export function parseRefillInput(body: {
 	belowUsd?: unknown;
@@ -127,7 +126,7 @@ export function parseRefillInput(body: {
 /**
  * Write the monthly spend cap (`null` clears it). Raising the cap mid-cycle
  * unfreezes the account: the user explicitly said "yes, bill more". Shared by
- * `PATCH /api/billing/caps` and the Sentinel service route.
+ * `PATCH /api/billing/caps`.
  */
 export async function applyMonthlyCap(
 	db: Kysely<Database>,
@@ -217,7 +216,7 @@ export async function createCreditsCheckoutSession(opts: {
 	stripe: StripeClient;
 	db: ReturnType<typeof getDb>;
 	account: AccountRow;
-	/** Whole dollars, already validated by the caller (a pack, or a Sentinel top-up amount). */
+	/** Whole dollars, already validated by the caller (a pack, or a custom top-up amount). */
 	usd: number;
 	successUrl: string;
 	cancelUrl: string;

@@ -1,16 +1,11 @@
 /**
- * `/internal/sentinel/*`: the service contract between Sentinel's worker (a
- * product on this platform, with its own sign-in and console) and the shared
- * secondlayer account + prepaid balance underneath it. Server-to-server only.
+ * `/internal/sentinel/*`: the identity contract between Sentinel's worker (a
+ * product on this platform, with its own sign-in, console and Stripe billing)
+ * and the shared secondlayer account underneath it. Server-to-server only.
+ * Money is not here: Sentinel bills on its own Stripe subscriptions.
  *
  *   POST /accounts/resolve   { email }                                  find-or-create (+ linked)
  *   POST /accounts/link      { accountId }                              owner opted in (via consent)
- *   POST /accounts/grant     { accountId, usdMicros, reason, idempotencyKey }   starter, top-up, or run refund
- *   POST /accounts/summary   { accountId }                              balance, owed, cap, refill
- *   POST /accounts/settle    { accountId }                              collect owed sentinel.* usage
- *   POST /settings           { accountId, monthlyCapCents?, refill? }   cap + auto top-up
- *   POST /affordable         { accountId, unit, quantity }              pure check, no debit
- *   POST /checkout           { accountId, packUsd, returnPath }         Stripe Checkout URL
  *   POST /tokens/resolve     { tokenHash }                              SHA-256 hex of a presented ss-sl_/sk-snt_ token (session: + email, linked)
  *   POST /keys               { accountId, name, areas }                 mint a sentinel agent key (raw key shown once)
  *   GET  /keys?accountId=                                               list the account's active sentinel keys
@@ -18,35 +13,19 @@
  *
  * Guard: `SENTINEL_SERVICE_KEY` ONLY (constant-time, unset key authenticates
  * nobody). `WORKLOAD_HOST_KEY` does not open these routes. `/internal/meters`
- * no longer accepts this key: every `sentinel.*` unit is retired. Every route past resolve/link also requires the account to be in
+ * no longer takes this key: every `sentinel.*` unit is retired.
+ * Every route past resolve/link also requires the account to be in
  * `sentinel_accounts` (created by Sentinel, or linked with consent), else 403
- * `account_not_linked`: a leaked key can't touch an arbitrary account. Prices are read from `PRICES`, never hard-coded here.
+ * `account_not_linked`: a leaked key can't touch an arbitrary account.
  */
 
 import { timingSafeEqual } from "node:crypto";
-import {
-	grantCredits,
-	settleOwedSentinel,
-} from "@secondlayer/platform/billing/meter";
-import {
-	PRICES,
-	USD_MICROS_PER_CENT,
-} from "@secondlayer/platform/billing/prices";
-import type { MeterUnit } from "@secondlayer/platform/billing/prices";
-import {
-	getCreditRefill,
-	getCredits,
-	getMonthlyCreditsSpend,
-	setCreditRefill,
-} from "@secondlayer/platform/db/queries/account-credits";
-import { getCaps } from "@secondlayer/platform/db/queries/account-spend-caps";
 import {
 	findOrCreateAccountByEmail,
 	getAccountById,
 	isSentinelLinked,
 	linkSentinelAccount,
 } from "@secondlayer/platform/db/queries/accounts";
-import { owedSentinelUsdMicros } from "@secondlayer/platform/db/queries/usage-ledger";
 import { getDb } from "@secondlayer/shared/db";
 import {
 	AuthenticationError,
@@ -57,17 +36,7 @@ import {
 import { Hono } from "hono";
 import { assertUnderKeyCeiling, mintApiKey } from "../auth/mint.ts";
 import { lookupSession } from "../auth/session.ts";
-import { getStripeOrNull } from "../lib/stripe.ts";
 import { InvalidJSONError } from "../middleware/error.ts";
-import {
-	type StripeClient,
-	TOPUP_MAX_USD,
-	TOPUP_MIN_USD,
-	applyMonthlyCap,
-	createCreditsCheckoutSession,
-	isTopupUsd,
-	parseRefillInput,
-} from "./billing.ts";
 import { bearerToken } from "./internal-meters.ts";
 
 /** Constant-time compare against `SENTINEL_SERVICE_KEY`. An unset key
@@ -85,97 +54,6 @@ export function sentinelServiceKeyMatches(
 	const b = Buffer.from(expected);
 	if (a.length !== b.length) return false;
 	return timingSafeEqual(a, b);
-}
-
-/** Sentinel's starter credit. An account can receive two Sentinel grants, each
- *  under a fixed per-account key: the starter, and a one-time top-up for accounts
- *  that got the earlier $5 starter. Together they never exceed this, ever. */
-export const MAX_GRANT_USD_MICROS = 10_000_000n;
-const GRANT_KEY_KINDS = ["starter", "starter-topup"] as const;
-const grantKeys = (accountId: string) =>
-	GRANT_KEY_KINDS.map((kind) => `sentinel:${kind}:${accountId}`);
-
-/** Sentinel's refund of a wrongly charged run, keyed by that run's id, so a run
- *  is never refunded twice. Not part of the starter total above; each refund is
- *  capped at the largest single Sentinel unit price instead. */
-const REFUND_KEY = /^sentinel:refund:aud_[0-9a-f]+$/;
-
-/** What Sentinel already granted this account, excluding `exceptKey` (a retry of
- *  that grant is idempotent and must not count against itself). */
-async function sentinelGrantedUsdMicros(
-	accountId: string,
-	exceptKey: string,
-): Promise<bigint> {
-	const rows = await getDb()
-		.selectFrom("usage_ledger")
-		.select("usd_micros")
-		.where("account_id", "=", accountId)
-		.where("unit", "=", "grant")
-		.where(
-			"idempotency_key",
-			"in",
-			grantKeys(accountId).filter((k) => k !== exceptKey),
-		)
-		.execute();
-	return rows.reduce((sum, r) => sum - BigInt(String(r.usd_micros)), 0n);
-}
-
-const DEFAULT_SENTINEL_WEB_URL = "https://runsentinel.app";
-
-type SentinelUnit = Extract<MeterUnit, `sentinel.${string}`>;
-/** Units Sentinel may price or meter today. */
-const SENTINEL_UNITS: SentinelUnit[] = [
-	"sentinel.check_run",
-	"sentinel.monitored_event",
-];
-
-/** One refund never exceeds the largest single Sentinel unit price. Retired
- *  audit units count: a refund can still point at an old run's charge. */
-export const MAX_REFUND_USD_MICROS = (Object.keys(PRICES) as MeterUnit[])
-	.filter((unit): unit is SentinelUnit => unit.startsWith("sentinel."))
-	.reduce((max, unit) => (PRICES[unit] > max ? PRICES[unit] : max), 0n);
-
-/** Accept `sentinel.check_run` or the short `check_run`. */
-function parseSentinelUnit(raw: unknown): SentinelUnit {
-	if (typeof raw === "string") {
-		const full = raw.startsWith("sentinel.") ? raw : `sentinel.${raw}`;
-		const hit = SENTINEL_UNITS.find((u) => u === full);
-		if (hit) return hit;
-	}
-	throw new ValidationError(`unit must be one of ${SENTINEL_UNITS.join(", ")}`);
-}
-
-/**
- * Build the Stripe return URL from the allow-listed Sentinel origin plus a
- * path. The path must start with a single `/` (no `//`, no backslash, no
- * control characters) and must resolve to the same origin: anything else is
- * an open-redirect attempt and is refused.
- */
-export function buildReturnUrl(
-	returnPath: unknown,
-	result: "success" | "cancelled",
-	env: NodeJS.ProcessEnv = process.env,
-): string {
-	if (
-		typeof returnPath !== "string" ||
-		!returnPath.startsWith("/") ||
-		returnPath.startsWith("//") ||
-		// biome-ignore lint/suspicious/noControlCharactersInRegex: rejecting control chars is the point
-		/[\\\u0000-\u001f\u007f]/.test(returnPath)
-	) {
-		throw new ValidationError(
-			"returnPath must be a path starting with a single /",
-		);
-	}
-	const origin = new URL(
-		env.SENTINEL_WEB_URL?.trim() || DEFAULT_SENTINEL_WEB_URL,
-	).origin;
-	const url = new URL(returnPath, origin);
-	if (url.origin !== origin) {
-		throw new ValidationError("returnPath must stay on the Sentinel origin");
-	}
-	url.searchParams.set("topup", result);
-	return url.toString();
 }
 
 async function readBody(req: {
@@ -253,10 +131,7 @@ async function requireAccount(accountId: string) {
 	return account;
 }
 
-export function createInternalSentinelRouter(
-	deps: { getStripe?: () => StripeClient | null } = {},
-) {
-	const getStripe = deps.getStripe ?? getStripeOrNull;
+export function createInternalSentinelRouter() {
 	const app = new Hono();
 
 	app.use("*", async (c, next) => {
@@ -304,233 +179,6 @@ export function createInternalSentinelRouter(
 		await requireAccount(accountId);
 		await linkSentinelAccount(getDb(), accountId, "consent");
 		return c.json({ linked: true });
-	});
-
-	app.post("/accounts/grant", async (c) => {
-		const body = await readBody(c.req);
-		const accountId = requireString(body, "accountId");
-		const reason = requireString(body, "reason", 64);
-		if (!/^[a-z0-9._-]+$/i.test(reason)) {
-			throw new ValidationError("reason must be a short slug");
-		}
-		const idempotencyKey = requireString(body, "idempotencyKey");
-		const refund = REFUND_KEY.test(idempotencyKey);
-		if (!refund && !grantKeys(accountId).includes(idempotencyKey)) {
-			throw new ValidationError(
-				'idempotencyKey must be "sentinel:starter:<accountId>", "sentinel:starter-topup:<accountId>" or "sentinel:refund:<runId>"',
-			);
-		}
-		const amount = body.usdMicros;
-		if (
-			typeof amount !== "number" ||
-			!Number.isSafeInteger(amount) ||
-			amount <= 0
-		) {
-			throw new ValidationError("usdMicros must be a positive integer");
-		}
-		const usdMicros = BigInt(amount);
-		if (refund) {
-			if (usdMicros > MAX_REFUND_USD_MICROS) {
-				throw new ValidationError(
-					`usdMicros exceeds the ${MAX_REFUND_USD_MICROS} refund cap (the largest Sentinel unit price)`,
-				);
-			}
-			await requireLinkedAccount(accountId);
-			const result = await grantCredits(getDb(), {
-				accountId,
-				usdMicros,
-				source: "sentinel:refund",
-				idempotencyKey,
-			});
-			return c.json({
-				granted: result.granted,
-				balanceAfter: Number(result.balance),
-			});
-		}
-		if (usdMicros > MAX_GRANT_USD_MICROS) {
-			throw new ValidationError(
-				`usdMicros exceeds the ${MAX_GRANT_USD_MICROS} starter-grant cap`,
-			);
-		}
-		await requireLinkedAccount(accountId);
-		const prior = await sentinelGrantedUsdMicros(accountId, idempotencyKey);
-		if (prior + usdMicros > MAX_GRANT_USD_MICROS) {
-			return c.json(
-				{
-					error: "grant_total_exceeded",
-					message: `Sentinel grants to this account would exceed ${MAX_GRANT_USD_MICROS} in total`,
-				},
-				409,
-			);
-		}
-		const result = await grantCredits(getDb(), {
-			accountId,
-			usdMicros,
-			source: `sentinel:${reason}`,
-			idempotencyKey,
-		});
-		return c.json({
-			granted: result.granted,
-			balanceAfter: Number(result.balance),
-		});
-	});
-
-	app.post("/accounts/summary", async (c) => {
-		const body = await readBody(c.req);
-		const accountId = requireString(body, "accountId");
-		await requireLinkedAccount(accountId);
-		const db = getDb();
-		const [balance, spent, caps, owed, refill] = await Promise.all([
-			getCredits(db, accountId),
-			getMonthlyCreditsSpend(db, accountId),
-			getCaps(db, accountId),
-			owedSentinelUsdMicros(db, accountId),
-			getCreditRefill(db, accountId),
-		]);
-		return c.json({
-			balanceUsdMicros: Number(balance),
-			spentMonthUsdMicros: Number(spent),
-			owedUsdMicros: Number(owed),
-			monthlyCapCents: caps?.monthly_cap_cents ?? null,
-			refill:
-				refill.belowUsdMicros != null && refill.packUsd != null
-					? {
-							belowUsd: Number(refill.belowUsdMicros) / 1_000_000,
-							packUsd: refill.packUsd,
-						}
-					: null,
-		});
-	});
-
-	app.post("/accounts/settle", async (c) => {
-		const body = await readBody(c.req);
-		const accountId = requireString(body, "accountId");
-		await requireLinkedAccount(accountId);
-		const result = await settleOwedSentinel(getDb(), accountId);
-		return c.json({
-			settledUsdMicros: Number(result.settledUsdMicros),
-			owedUsdMicros: Number(result.owedUsdMicros),
-			balanceUsdMicros: Number(result.balanceUsdMicros),
-		});
-	});
-
-	app.post("/settings", async (c) => {
-		const body = await readBody(c.req);
-		const accountId = requireString(body, "accountId");
-
-		// Validate everything before writing anything.
-		let cap: { cents: number | null } | undefined;
-		if (body.monthlyCapCents !== undefined) {
-			const cents = body.monthlyCapCents;
-			if (
-				cents !== null &&
-				(typeof cents !== "number" || !Number.isSafeInteger(cents) || cents < 0)
-			) {
-				throw new ValidationError(
-					"monthlyCapCents must be a non-negative integer or null",
-				);
-			}
-			cap = { cents };
-		}
-		let refill: ReturnType<typeof parseRefillInput> | undefined;
-		if (body.refill !== undefined) {
-			const r = body.refill;
-			if (typeof r !== "object" || r === null || Array.isArray(r)) {
-				throw new ValidationError("refill must be an object");
-			}
-			const input = r as Record<string, unknown>;
-			if (!("belowUsd" in input)) {
-				throw new ValidationError("refill.belowUsd is required (or null)");
-			}
-			refill = parseRefillInput(input);
-			if (!refill.ok) throw new ValidationError(refill.error);
-		}
-
-		await requireLinkedAccount(accountId);
-		const db = getDb();
-		if (cap) await applyMonthlyCap(db, accountId, cap.cents);
-		if (refill?.ok) {
-			await setCreditRefill(db, accountId, {
-				belowUsdMicros: refill.belowUsdMicros,
-				packUsd: refill.packUsd,
-			});
-		}
-		const [caps, current] = await Promise.all([
-			getCaps(db, accountId),
-			getCreditRefill(db, accountId),
-		]);
-		return c.json({
-			monthlyCapCents: caps?.monthly_cap_cents ?? null,
-			refill:
-				current.belowUsdMicros != null && current.packUsd != null
-					? {
-							belowUsd: Number(current.belowUsdMicros) / 1_000_000,
-							packUsd: current.packUsd,
-						}
-					: null,
-		});
-	});
-
-	app.post("/affordable", async (c) => {
-		const body = await readBody(c.req);
-		const accountId = requireString(body, "accountId");
-		const unit = parseSentinelUnit(body.unit);
-		const quantity = body.quantity;
-		if (
-			typeof quantity !== "number" ||
-			!Number.isSafeInteger(quantity) ||
-			quantity <= 0
-		) {
-			throw new ValidationError("quantity must be a positive integer");
-		}
-		await requireLinkedAccount(accountId);
-		const db = getDb();
-		const price = PRICES[unit] * BigInt(quantity);
-		const [balance, spent, caps] = await Promise.all([
-			getCredits(db, accountId),
-			getMonthlyCreditsSpend(db, accountId),
-			getCaps(db, accountId),
-		]);
-		let reason: "balance" | "cap" | undefined;
-		if (balance < price) reason = "balance";
-		else if (
-			caps?.monthly_cap_cents != null &&
-			spent + price > BigInt(caps.monthly_cap_cents) * USD_MICROS_PER_CENT
-		) {
-			reason = "cap";
-		}
-		return c.json({
-			ok: reason === undefined,
-			priceUsdMicros: Number(price),
-			balanceUsdMicros: Number(balance),
-			...(reason ? { reason } : {}),
-		});
-	});
-
-	app.post("/checkout", async (c) => {
-		const body = await readBody(c.req);
-		const accountId = requireString(body, "accountId");
-		// `amountUsd`: any whole-dollar top-up in range; `packUsd` is the older name for the same field.
-		const usd = body.amountUsd ?? body.packUsd;
-		if (!isTopupUsd(usd)) {
-			throw new ValidationError(
-				`amountUsd must be a whole number from ${TOPUP_MIN_USD} to ${TOPUP_MAX_USD}`,
-			);
-		}
-		const successUrl = buildReturnUrl(body.returnPath, "success");
-		const cancelUrl = buildReturnUrl(body.returnPath, "cancelled");
-		const account = await requireLinkedAccount(accountId);
-		const stripe = getStripe();
-		if (!stripe) return c.json({ error: "billing_not_configured" }, 503);
-		const url = await createCreditsCheckoutSession({
-			stripe,
-			db: getDb(),
-			account,
-			usd,
-			successUrl,
-			cancelUrl,
-		});
-		return c.json({ url });
 	});
 
 	// Resolve a presented token (by hash, never the raw token) to the account it

@@ -14,8 +14,7 @@ import {
 	getMonthlyCreditsSpend,
 } from "../db/queries/account-credits.ts";
 import { upsertCaps } from "../db/queries/account-spend-caps.ts";
-import { owedSentinelUsdMicros } from "../db/queries/usage-ledger.ts";
-import { grantCredits, meter, settleOwedSentinel } from "./meter.ts";
+import { grantCredits, meter } from "./meter.ts";
 import {
 	COMMIT_TIER_MONTHLY_USD_MICROS,
 	CREDIT_USD_MICROS_PER_ROW,
@@ -26,16 +25,6 @@ import {
 } from "./prices.ts";
 
 const HAS_DB = !!process.env.DATABASE_URL;
-// Owed-ledger seeds must sit in the current UTC billing month (spend is
-// month-scoped); day 1 < day 2 keeps the "oldest first" ordering.
-const MONTH_START = new Date();
-MONTH_START.setUTCDate(1);
-MONTH_START.setUTCHours(0, 0, 0, 0);
-const MONTH_DAY_1 = MONTH_START.toISOString();
-const MONTH_DAY_2 = new Date(
-	MONTH_START.getTime() + 24 * 60 * 60 * 1000,
-).toISOString();
-
 const db = HAS_DB ? getDb() : (null as never);
 
 const accountIds: string[] = [];
@@ -469,94 +458,6 @@ describe.skipIf(!HAS_DB)("meter — retired sentinel units and grants", () => {
 		]);
 		// A grant is money in, not spend.
 		expect(await getMonthlyCreditsSpend(db, accountId)).toBe(0n);
-	});
-
-	async function owe(unit: string, usdMicros: bigint, at: string, key: string) {
-		await db
-			.insertInto("usage_ledger")
-			.values({
-				account_id: accountId,
-				unit,
-				quantity: 1,
-				usd_micros: usdMicros.toString(),
-				debited: false,
-				source: "test",
-				idempotency_key: key,
-				occurred_at: new Date(at),
-			})
-			.execute();
-	}
-
-	test("owed sums only debited=false sentinel.* rows", async () => {
-		const k = randomUUID();
-		await owe("sentinel.run", 1_500_000n, MONTH_DAY_1, `${k}:a`);
-		await owe("sentinel.monitored_event", 15n, MONTH_DAY_2, `${k}:b`);
-		await owe("webhook.event", 999n, MONTH_DAY_2, `${k}:c`);
-		await owe("rows.delivered", 777n, MONTH_DAY_2, `${k}:d`);
-		expect(await owedSentinelUsdMicros(db, accountId)).toBe(1_500_015n);
-	});
-
-	test("settle pays oldest first while the balance covers each, never touches other units", async () => {
-		const k = randomUUID();
-		await owe("sentinel.deep_audit", 3_000_000n, MONTH_DAY_1, `${k}:a`);
-		await owe("sentinel.run", 1_500_000n, MONTH_DAY_2, `${k}:b`);
-		await owe("rows.delivered", 500_000n, MONTH_DAY_1, `${k}:c`);
-		await creditCredits(db, accountId, 4_000_000n);
-
-		const r1 = await settleOwedSentinel(db, accountId);
-		// oldest ($3) paid; next ($1.50) not covered by the remaining $1 -> stays owed
-		expect(r1).toEqual({
-			settledUsdMicros: 3_000_000n,
-			owedUsdMicros: 1_500_000n,
-			balanceUsdMicros: 1_000_000n,
-		});
-		expect(await getMonthlyCreditsSpend(db, accountId)).toBe(3_000_000n);
-
-		await creditCredits(db, accountId, 1_000_000n);
-		const r2 = await settleOwedSentinel(db, accountId);
-		expect(r2).toEqual({
-			settledUsdMicros: 1_500_000n,
-			owedUsdMicros: 0n,
-			balanceUsdMicros: 500_000n,
-		});
-
-		// Replay settles nothing.
-		const r3 = await settleOwedSentinel(db, accountId);
-		expect(r3.settledUsdMicros).toBe(0n);
-		expect(r3.balanceUsdMicros).toBe(500_000n);
-
-		const other = await db
-			.selectFrom("usage_ledger")
-			.select("debited")
-			.where("idempotency_key", "=", `${k}:c`)
-			.executeTakeFirstOrThrow();
-		expect(other.debited).toBe(false);
-	});
-
-	test("concurrent settles debit each owed row exactly once", async () => {
-		const k = randomUUID();
-		await owe("sentinel.run", 1_500_000n, MONTH_DAY_1, `${k}:a`);
-		await owe("sentinel.run", 1_500_000n, MONTH_DAY_2, `${k}:b`);
-		await creditCredits(db, accountId, 10_000_000n);
-		const results = await Promise.all([
-			settleOwedSentinel(db, accountId),
-			settleOwedSentinel(db, accountId),
-			settleOwedSentinel(db, accountId),
-		]);
-		const total = results.reduce((n, r) => n + r.settledUsdMicros, 0n);
-		expect(total).toBe(3_000_000n);
-		expect(await getCredits(db, accountId)).toBe(7_000_000n);
-		expect(await owedSentinelUsdMicros(db, accountId)).toBe(0n);
-	});
-
-	test("settle with no balance changes nothing", async () => {
-		await owe("sentinel.run", 1_500_000n, MONTH_DAY_1, randomUUID());
-		const r = await settleOwedSentinel(db, accountId);
-		expect(r).toEqual({
-			settledUsdMicros: 0n,
-			owedUsdMicros: 1_500_000n,
-			balanceUsdMicros: 0n,
-		});
 	});
 });
 
