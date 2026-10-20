@@ -124,46 +124,40 @@ Subgraphs and webhooks are self-host only and unmetered.
    2026-09-24). Tip and history cost the same; the archive is the only
    bulk discount.
 
-## Sentinel units (founder, 2026-09-29)
+## Sentinel (founder, 2026-09-29; billing split 2026-10-19)
 
-Sentinel is a product on this platform with its own sign-in and console; one
-prepaid balance pays for both. Its worker meters through the same ledger.
+Sentinel is a product on this platform with its own sign-in and console. It
+shares identity with Secondlayer (account, sign-in, agent keys) and nothing
+else about money: it bills on its own Stripe subscriptions in the shared
+Stripe account. It does not spend the prepaid balance, and no `sentinel.*`
+unit is metered.
 
-| Unit | Price | Meaning |
+| Unit | Price | Status |
 |---|---|---|
-| `sentinel.check_run` | $0.25 (250,000 µ$) | one check run; a deep check is quantity 3 ($0.75) |
-| `sentinel.monitored_event` | $15 per 1M (15 µ$) | chain event on a watched contract |
-| `sentinel.run` (retired) | $1.50 (1,500,000 µ$) | former audit run; history only |
-| `sentinel.deep_audit` (retired) | $3.00 (3,000,000 µ$) | former deep audit; history only |
+| `sentinel.check_run` | $0.25 (250,000 µ$) | retired; history only |
+| `sentinel.monitored_event` | $15 per 1M (15 µ$) | retired; history only |
+| `sentinel.run` | $1.50 (1,500,000 µ$) | retired; history only |
+| `sentinel.deep_audit` | $3.00 (3,000,000 µ$) | retired; history only |
 
-Sentinel no longer runs audits. The two retired units keep their prices so
-existing ledger rows still price and render. `/internal/meters` refuses new
-charges on them with a 400.
-
-- Free allowances live Sentinel-side (100,000 monitored events per account
-  per UTC month). `meter()` has no allowance logic for these units, so the
-  price is flat `PRICES[unit] * quantity`.
-- Our own `webhook.event` price is unchanged and has no free allowance.
-- Idempotency keys: `sentinel:check:<run key>`, `sentinel:events:<accountId>:<YYYY-MM-DDTHH>`.
-  A replay returns the original ledger row, never a second charge.
-- Starter credit: a one-time $5 `grant` (unit `grant`, negative `usd_micros`,
-  source `sentinel:<reason>`, key `sentinel:starter:<accountId>`), credited
-  into the same balance. The grant route accepts only that key and at most $5, so an account gets at most one Sentinel grant, ever.
-- Auth: `SENTINEL_SERVICE_KEY` (never `WORKLOAD_HOST_KEY`). It opens
-  `/internal/sentinel/*` (resolve, link, grant, summary, settle, settings, affordable, checkout) and
-  `/internal/meters` for `sentinel.*` units only. `/internal/meters` rejects a
-  negative `quantity` for every caller.
-- Scope: the key touches only accounts in `sentinel_accounts` (created by Sentinel, or linked via `/internal/sentinel/accounts/link` after the owner consents in Sentinel). Otherwise 403 `account_not_linked`.
-- Owed usage: a `sentinel.*` meter call that finds the balance short is kept as `debited=false`.
-  `summary.owedUsdMicros` sums those rows (Sentinel units only). `/accounts/settle`
-  collects them oldest first while the balance covers each, one transaction per row,
-  so a row can't be settled twice; other units are never touched.
-- `/settings` edits the monthly cap and auto top-up with the same validation as the
-  session routes (`/api/billing/caps`, `/api/billing/refill`).
-- Checkout return URLs use the allow-listed origin `SENTINEL_WEB_URL`
-  (default `https://runsentinel.app`) plus a path starting with a single `/`.
-- The monthly spend cap is checked by `affordable` before a run. `meter()`
-  still applies the cap to `rows.delivered` only.
+- The four units keep their prices so existing ledger rows still price and
+  render. `/internal/meters` refuses new charges on them with a 400, for every
+  key. Sentinel's service key no longer opens `/internal/meters`.
+- Auth: `SENTINEL_SERVICE_KEY` (never `WORKLOAD_HOST_KEY`) opens
+  `/internal/sentinel/*` only: `accounts/resolve`, `accounts/link`,
+  `tokens/resolve` and `keys`. The grant, summary, settle, settings,
+  affordable and checkout routes are removed.
+- Scope: the key touches only accounts in `sentinel_accounts` (created by
+  Sentinel, or linked via `/internal/sentinel/accounts/link` after the owner
+  consents in Sentinel). Otherwise 403 `account_not_linked`.
+- Stripe: one account, two products. Sentinel creates its own customers and
+  subscriptions and tags them `metadata.product = "sentinel"`. This site's
+  webhook (`routes/billing-stripe.ts`) acks and ignores any event whose object
+  carries that tag, and acts only on `kind: credits_topup` and
+  `credits_refill`. This site never deletes, updates or merges Stripe
+  customers it did not create.
+- Cutover: owed usage (`sentinel.*` rows with `debited = false`) is waived with
+  `scripts/ops/waive-sentinel-owed.ts` (dry run by default). Starter grants
+  already credited stay as Secondlayer credit.
 
 ## Capacity at $10k/mo
 
