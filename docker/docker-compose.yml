@@ -144,8 +144,8 @@ services:
       # /internal/accounts/credits — see workloadHostKeyMatches() in
       # routes/internal-meters.ts). Unset → those routes 401 everything.
       WORKLOAD_HOST_KEY: ${WORKLOAD_HOST_KEY:-}
-      # Sentinel's service key for /internal/sentinel/* and Sentinel-unit meters
-      # (see sentinelServiceKeyMatches() in routes/internal-meters.ts). Unset →
+      # Sentinel's service key for /internal/sentinel/* (see
+      # sentinelServiceKeyMatches() in routes/internal-sentinel.ts). Unset →
       # those routes 401 everything. SENTINEL_WEB_URL is the only origin Sentinel
       # checkout may return to.
       SENTINEL_SERVICE_KEY: ${SENTINEL_SERVICE_KEY:-}

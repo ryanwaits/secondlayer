@@ -15,7 +15,6 @@ import { Hono } from "hono";
 import { createApiApp } from "../create-app.ts";
 import { errorHandler } from "../middleware/error.ts";
 import internalMetersRouter, {
-	sentinelServiceKeyMatches,
 	workloadHostKeyMatches,
 } from "./internal-meters.ts";
 
@@ -25,19 +24,13 @@ const db = HAS_DB ? getDb() : (null as never);
 
 const accountIds: string[] = [];
 
-async function makeAccount(linked = false): Promise<string> {
+async function makeAccount(): Promise<string> {
 	const row = await db
 		.insertInto("accounts")
 		.values({ email: null, ghost: true })
 		.returning("id")
 		.executeTakeFirstOrThrow();
 	accountIds.push(row.id);
-	if (linked) {
-		await db
-			.insertInto("sentinel_accounts")
-			.values({ account_id: row.id, via: "created" })
-			.execute();
-	}
 	return row.id;
 }
 
@@ -390,259 +383,86 @@ describe.skipIf(!HAS_DB)("mounted on the platform app", () => {
 	});
 });
 
-describe.skipIf(!HAS_DB)("POST /internal/meters: Sentinel key", () => {
-	let prevSentinelKey: string | undefined;
-
-	beforeEach(async () => {
-		// Sentinel-key items need a linked account; the workload-key tests
-		// below share this account and are unaffected by the link.
-		await db
-			.insertInto("sentinel_accounts")
-			.values({ account_id: accountId, via: "created" })
-			.onConflict((oc) => oc.column("account_id").doNothing())
-			.execute();
-		prevSentinelKey = process.env.SENTINEL_SERVICE_KEY;
-		process.env.SENTINEL_SERVICE_KEY = "test-sentinel-key";
-	});
-
-	afterEach(() => {
-		if (prevSentinelKey === undefined) delete process.env.SENTINEL_SERVICE_KEY;
-		else process.env.SENTINEL_SERVICE_KEY = prevSentinelKey;
-	});
-
-	function post(key: string, items: unknown[]) {
-		return app().request("/internal/meters", {
-			method: "POST",
-			headers: {
-				"content-type": "application/json",
-				authorization: `Bearer ${key}`,
-			},
-			body: JSON.stringify({ items }),
-		});
-	}
-
-	test("sentinel key meters a sentinel.* unit", async () => {
-		await creditCredits(db, accountId, 5_000_000n);
-		const res = await post("test-sentinel-key", [
-			{
-				accountId,
-				unit: "sentinel.check_run",
-				quantity: 1,
-				idempotencyKey: `sentinel:check:${accountId}`,
-			},
-		]);
-		expect(res.status).toBe(200);
-		const body = (await res.json()) as {
-			results: { usd_micros: number; debited: boolean }[];
-		};
-		expect(body.results[0]?.usd_micros).toBe(250_000);
-		expect(body.results[0]?.debited).toBe(true);
-		expect(await getCredits(db, accountId)).toBe(4_750_000n);
-	});
-
-	test("a deep check (quantity 3) is $0.75, and a replay never charges twice", async () => {
-		await creditCredits(db, accountId, 5_000_000n);
-		const item = {
-			accountId,
-			unit: "sentinel.check_run",
-			quantity: 3,
-			idempotencyKey: `sentinel:check:deep:${accountId}`,
-		};
-		for (let i = 0; i < 2; i++) {
-			const res = await post("test-sentinel-key", [item]);
-			expect(res.status).toBe(200);
-			const body = (await res.json()) as {
-				results: { usd_micros: number }[];
-			};
-			expect(body.results[0]?.usd_micros).toBe(750_000);
+describe.skipIf(!HAS_DB)(
+	"POST /internal/meters: retired sentinel units",
+	() => {
+		function post(key: string, items: unknown[]) {
+			return app().request("/internal/meters", {
+				method: "POST",
+				headers: {
+					"content-type": "application/json",
+					authorization: `Bearer ${key}`,
+				},
+				body: JSON.stringify({ items }),
+			});
 		}
-		expect(await getCredits(db, accountId)).toBe(4_250_000n);
-	});
 
-	test.each(["sentinel.run", "sentinel.deep_audit"])(
-		"retired %s → 400 for the Sentinel key, nothing charged",
-		async (unit) => {
-			await creditCredits(db, accountId, 5_000_000n);
-			const res = await post("test-sentinel-key", [
+		test.each([
+			"sentinel.run",
+			"sentinel.deep_audit",
+			"sentinel.check_run",
+			"sentinel.monitored_event",
+		])(
+			"retired %s → 400 for the workload key, nothing charged",
+			async (unit) => {
+				await creditCredits(db, accountId, 5_000_000n);
+				const res = await post("test-workload-host-key", [
+					{
+						accountId,
+						unit,
+						quantity: 1,
+						idempotencyKey: `wl-retired-${unit}-${accountId}`,
+					},
+				]);
+				expect(res.status).toBe(400);
+				expect(JSON.stringify(await res.json())).toContain("retired");
+				expect(await getCredits(db, accountId)).toBe(5_000_000n);
+			},
+		);
+
+		test("the Sentinel service key no longer opens /internal/meters", async () => {
+			const prev = process.env.SENTINEL_SERVICE_KEY;
+			process.env.SENTINEL_SERVICE_KEY = "test-sentinel-key";
+			try {
+				const res = await post("test-sentinel-key", [
+					{
+						accountId,
+						unit: "webhook.event",
+						quantity: 1,
+						idempotencyKey: `sentinel:evt:${accountId}`,
+					},
+				]);
+				expect(res.status).toBe(401);
+			} finally {
+				if (prev === undefined) delete process.env.SENTINEL_SERVICE_KEY;
+				else process.env.SENTINEL_SERVICE_KEY = prev;
+			}
+		});
+
+		test("workload key still meters any live unit", async () => {
+			await creditCredits(db, accountId, 1_000_000n);
+			const res = await post("test-workload-host-key", [
 				{
 					accountId,
-					unit,
-					quantity: 1,
-					idempotencyKey: `sentinel:run:${unit}:${accountId}`,
+					unit: "webhook.event",
+					quantity: 10,
+					idempotencyKey: `wl-${accountId}`,
+				},
+			]);
+			expect(res.status).toBe(200);
+		});
+
+		test("negative quantity → 400 for the workload key", async () => {
+			const res = await post("test-workload-host-key", [
+				{
+					accountId,
+					unit: "webhook.event",
+					quantity: -5,
+					idempotencyKey: `wl-neg-${accountId}`,
 				},
 			]);
 			expect(res.status).toBe(400);
-			expect(JSON.stringify(await res.json())).toContain("retired");
-			expect(await getCredits(db, accountId)).toBe(5_000_000n);
-		},
-	);
-
-	test("retired units are refused for the workload key too", async () => {
-		const res = await post("test-workload-host-key", [
-			{
-				accountId,
-				unit: "sentinel.run",
-				quantity: 1,
-				idempotencyKey: `wl-retired-${accountId}`,
-			},
-		]);
-		expect(res.status).toBe(400);
-	});
-
-	test("sentinel key on a non-sentinel unit → 403, nothing charged (whole batch)", async () => {
-		await creditCredits(db, accountId, 5_000_000n);
-		const res = await post("test-sentinel-key", [
-			{
-				accountId,
-				unit: "sentinel.check_run",
-				quantity: 1,
-				idempotencyKey: `sentinel:check:mixed:${accountId}`,
-			},
-			{
-				accountId,
-				unit: "webhook.event",
-				quantity: 1,
-				idempotencyKey: `sentinel:evt:${accountId}`,
-			},
-		]);
-		expect(res.status).toBe(403);
-		expect(await getCredits(db, accountId)).toBe(5_000_000n);
-	});
-
-	test("batch with one unlinked account → 403 account_not_linked, no item charged", async () => {
-		const unlinked = await makeAccount(false);
-		await creditCredits(db, accountId, 5_000_000n);
-		await creditCredits(db, unlinked, 5_000_000n);
-		const res = await post("test-sentinel-key", [
-			{
-				accountId,
-				unit: "sentinel.check_run",
-				quantity: 1,
-				idempotencyKey: `sentinel:check:b1:${accountId}`,
-			},
-			{
-				accountId: unlinked,
-				unit: "sentinel.check_run",
-				quantity: 1,
-				idempotencyKey: `sentinel:check:b2:${unlinked}`,
-			},
-		]);
-		expect(res.status).toBe(403);
-		expect(await res.json()).toMatchObject({ error: "account_not_linked" });
-		expect(await getCredits(db, accountId)).toBe(5_000_000n);
-		expect(await getCredits(db, unlinked)).toBe(5_000_000n);
-		await db
-			.deleteFrom("usage_ledger")
-			.where("account_id", "=", unlinked)
-			.execute();
-		await db
-			.deleteFrom("account_credits")
-			.where("account_id", "=", unlinked)
-			.execute();
-	});
-
-	test("sentinel key on an unlinked account → 403 (workload key still works there)", async () => {
-		const unlinked = await makeAccount(false);
-		await creditCredits(db, unlinked, 5_000_000n);
-		const item = (key: string) => ({
-			accountId: unlinked,
-			unit: "sentinel.check_run",
-			quantity: 1,
-			idempotencyKey: key,
+			expect(await getCredits(db, accountId)).toBe(0n);
 		});
-		expect(
-			(await post("test-sentinel-key", [item(`sentinel:check:u:${unlinked}`)]))
-				.status,
-		).toBe(403);
-		expect(await getCredits(db, unlinked)).toBe(5_000_000n);
-		await db
-			.deleteFrom("usage_ledger")
-			.where("account_id", "=", unlinked)
-			.execute();
-		await db
-			.deleteFrom("account_credits")
-			.where("account_id", "=", unlinked)
-			.execute();
-	});
-
-	test("sentinel key with a non-sentinel: idempotency key → 400", async () => {
-		const res = await post("test-sentinel-key", [
-			{
-				accountId,
-				unit: "sentinel.check_run",
-				quantity: 1,
-				idempotencyKey: `plain-${accountId}`,
-			},
-		]);
-		expect(res.status).toBe(400);
-	});
-
-	test("workload key is unaffected (still meters any unit)", async () => {
-		await creditCredits(db, accountId, 1_000_000n);
-		const res = await post("test-workload-host-key", [
-			{
-				accountId,
-				unit: "webhook.event",
-				quantity: 10,
-				idempotencyKey: `wl-${accountId}`,
-			},
-		]);
-		expect(res.status).toBe(200);
-	});
-
-	test("wrong key → 401; unset SENTINEL_SERVICE_KEY → 401 for the old value", async () => {
-		expect((await post("nope", [])).status).toBe(401);
-		delete process.env.SENTINEL_SERVICE_KEY;
-		expect((await post("test-sentinel-key", [])).status).toBe(401);
-	});
-
-	test("negative quantity → 400 for the Sentinel key", async () => {
-		const res = await post("test-sentinel-key", [
-			{
-				accountId,
-				unit: "sentinel.check_run",
-				quantity: -1,
-				idempotencyKey: `sentinel:neg:${accountId}`,
-			},
-		]);
-		expect(res.status).toBe(400);
-		expect(await getCredits(db, accountId)).toBe(0n);
-	});
-
-	test("negative quantity → 400 for the workload key", async () => {
-		const res = await post("test-workload-host-key", [
-			{
-				accountId,
-				unit: "webhook.event",
-				quantity: -5,
-				idempotencyKey: `wl-neg-${accountId}`,
-			},
-		]);
-		expect(res.status).toBe(400);
-		expect(await getCredits(db, accountId)).toBe(0n);
-	});
-});
-
-describe("sentinelServiceKeyMatches", () => {
-	test("unset key authenticates nobody", () => {
-		expect(sentinelServiceKeyMatches("anything", {})).toBe(false);
-	});
-
-	test("wrong and right keys", () => {
-		expect(
-			sentinelServiceKeyMatches("wrong", { SENTINEL_SERVICE_KEY: "right" }),
-		).toBe(false);
-		expect(
-			sentinelServiceKeyMatches("right", { SENTINEL_SERVICE_KEY: "right" }),
-		).toBe(true);
-	});
-
-	test("never matches when it equals the workload host key", () => {
-		expect(
-			sentinelServiceKeyMatches("same", {
-				SENTINEL_SERVICE_KEY: "same",
-				WORKLOAD_HOST_KEY: "same",
-			}),
-		).toBe(false);
-	});
-});
+	},
+);

@@ -31,6 +31,7 @@ import {
 	buildReturnUrl,
 	createInternalSentinelRouter,
 	parseAreas,
+	sentinelServiceKeyMatches,
 } from "./internal-sentinel.ts";
 
 const HAS_DB = !!process.env.DATABASE_URL;
@@ -507,7 +508,7 @@ describe.skipIf(!HAS_DB)("/internal/sentinel routes", () => {
 		expect(await getCredits(db, accountId)).toBe(0n);
 	});
 
-	test("summary returns balance, spend, cap and prices from PRICES", async () => {
+	test("summary returns balance, spend, owed, cap and refill", async () => {
 		const accountId = await makeAccount();
 		await creditCredits(db, accountId, 7_000_000n);
 		await upsertCaps(db, accountId, { monthly_cap_cents: 2500 });
@@ -519,10 +520,6 @@ describe.skipIf(!HAS_DB)("/internal/sentinel routes", () => {
 			monthlyCapCents: 2500,
 			owedUsdMicros: 0,
 			refill: null,
-			prices: {
-				check_run: Number(PRICES["sentinel.check_run"]),
-				monitored_event: Number(PRICES["sentinel.monitored_event"]),
-			},
 		});
 	});
 
@@ -1164,5 +1161,29 @@ describe.skipIf(!HAS_DB)("/internal/sentinel tokens + keys", () => {
 	test("GET/DELETE keys require the service key", async () => {
 		expect((await get("/keys?accountId=x", null)).status).toBe(401);
 		expect((await get("/keys?accountId=x", "nope")).status).toBe(401);
+	});
+});
+
+describe("sentinelServiceKeyMatches", () => {
+	test("unset key authenticates nobody", () => {
+		expect(sentinelServiceKeyMatches("anything", {})).toBe(false);
+	});
+
+	test("wrong and right keys", () => {
+		expect(
+			sentinelServiceKeyMatches("wrong", { SENTINEL_SERVICE_KEY: "right" }),
+		).toBe(false);
+		expect(
+			sentinelServiceKeyMatches("right", { SENTINEL_SERVICE_KEY: "right" }),
+		).toBe(true);
+	});
+
+	test("never matches when it equals the workload host key", () => {
+		expect(
+			sentinelServiceKeyMatches("same", {
+				SENTINEL_SERVICE_KEY: "same",
+				WORKLOAD_HOST_KEY: "same",
+			}),
+		).toBe(false);
 	});
 });

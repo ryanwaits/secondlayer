@@ -9,10 +9,9 @@
  * authenticates nobody — every request 401s rather than silently accepting
  * an unauthenticated batch.
  *
- * Sentinel's worker (a separate product on this platform) may also submit,
- * with `SENTINEL_SERVICE_KEY`, but only `sentinel.*` units (403 otherwise).
- * `quantity` must be >= 0 for every caller: a negative quantity would write
- * a negative ledger row and credit the account.
+ * `sentinel.*` units are retired: priced for history, never metered again
+ * (Sentinel bills on its own Stripe subscriptions). `quantity` must be >= 0:
+ * a negative quantity would write a negative ledger row and credit the account.
  */
 
 import { timingSafeEqual } from "node:crypto";
@@ -23,11 +22,9 @@ import {
 	RETIRED_METER_UNITS,
 } from "@secondlayer/platform/billing/prices";
 import type { MeterUnit } from "@secondlayer/platform/billing/prices";
-import { sentinelLinkedIds } from "@secondlayer/platform/db/queries/accounts";
 import { getDb } from "@secondlayer/shared/db";
 import {
 	AuthenticationError,
-	ForbiddenError,
 	ValidationError,
 } from "@secondlayer/shared/errors";
 import { Hono } from "hono";
@@ -59,23 +56,6 @@ export function workloadHostKeyMatches(
 ): boolean {
 	const expected = env.WORKLOAD_HOST_KEY?.trim();
 	if (!expected || provided.length === 0) return false;
-	const a = Buffer.from(provided);
-	const b = Buffer.from(expected);
-	if (a.length !== b.length) return false;
-	return timingSafeEqual(a, b);
-}
-
-/** Constant-time compare against `SENTINEL_SERVICE_KEY`. Same contract as
- *  `workloadHostKeyMatches`: an unset key authenticates nobody. It also never
- *  matches when the configured value equals `WORKLOAD_HOST_KEY`, so the
- *  workload host key can't stand in for the Sentinel key on `/internal/sentinel/*`. */
-export function sentinelServiceKeyMatches(
-	provided: string,
-	env: NodeJS.ProcessEnv = process.env,
-): boolean {
-	const expected = env.SENTINEL_SERVICE_KEY?.trim();
-	if (!expected || provided.length === 0) return false;
-	if (expected === env.WORKLOAD_HOST_KEY?.trim()) return false;
 	const a = Buffer.from(provided);
 	const b = Buffer.from(expected);
 	if (a.length !== b.length) return false;
@@ -183,10 +163,7 @@ const app = new Hono();
 
 app.post("/", async (c) => {
 	const raw = bearerToken(c.req.header("authorization"));
-	const isWorkloadHost = raw !== null && workloadHostKeyMatches(raw);
-	const isSentinel =
-		!isWorkloadHost && raw !== null && sentinelServiceKeyMatches(raw);
-	if (!isWorkloadHost && !isSentinel) {
+	if (raw === null || !workloadHostKeyMatches(raw)) {
 		throw new AuthenticationError("Missing or invalid Authorization header", {
 			hint: "Send the workload host key as `Authorization: Bearer $WORKLOAD_HOST_KEY`.",
 			env_var: "WORKLOAD_HOST_KEY",
@@ -217,32 +194,6 @@ app.post("/", async (c) => {
 	}
 	const items = rawItems.map(parseItem);
 
-	// The Sentinel key moves money only through `sentinel.*` units, and only
-	// under `sentinel:` idempotency keys so it can't pre-claim a key the
-	// workload host will use. Checked for the whole batch before any charge.
-	if (isSentinel) {
-		const linked = await sentinelLinkedIds(getDb(), [
-			...new Set(items.map((i) => i.accountId)),
-		]);
-		for (const item of items) {
-			if (!linked.has(item.accountId)) {
-				return c.json({ error: "account_not_linked" }, 403);
-			}
-		}
-		for (const [index, item] of items.entries()) {
-			if (!item.unit.startsWith("sentinel.")) {
-				throw new ForbiddenError(
-					`items[${index}].unit: the Sentinel key may only meter sentinel.* units`,
-				);
-			}
-			if (!item.idempotencyKey.startsWith("sentinel:")) {
-				throw new ValidationError(
-					`items[${index}].idempotencyKey must start with "sentinel:"`,
-				);
-			}
-		}
-	}
-
 	const db = getDb();
 	const results = await Promise.all(
 		items.map(async (item) => {
@@ -251,8 +202,7 @@ app.post("/", async (c) => {
 				unit: item.unit,
 				quantity: item.quantity,
 				observedQuantity: item.observedQuantity,
-				source:
-					item.source ?? (isSentinel ? "sentinel" : "internal:workload-host"),
+				source: item.source ?? "internal:workload-host",
 				idempotencyKey: item.idempotencyKey,
 				occurredAt: item.occurredAt ? new Date(item.occurredAt) : undefined,
 			});

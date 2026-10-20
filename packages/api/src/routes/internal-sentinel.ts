@@ -6,7 +6,7 @@
  *   POST /accounts/resolve   { email }                                  find-or-create (+ linked)
  *   POST /accounts/link      { accountId }                              owner opted in (via consent)
  *   POST /accounts/grant     { accountId, usdMicros, reason, idempotencyKey }   starter, top-up, or run refund
- *   POST /accounts/summary   { accountId }                              balance, owed, cap, refill, prices
+ *   POST /accounts/summary   { accountId }                              balance, owed, cap, refill
  *   POST /accounts/settle    { accountId }                              collect owed sentinel.* usage
  *   POST /settings           { accountId, monthlyCapCents?, refill? }   cap + auto top-up
  *   POST /affordable         { accountId, unit, quantity }              pure check, no debit
@@ -17,13 +17,13 @@
  *   DELETE /keys/:id?accountId=                                         revoke one of that account's sentinel keys
  *
  * Guard: `SENTINEL_SERVICE_KEY` ONLY (constant-time, unset key authenticates
- * nobody). `WORKLOAD_HOST_KEY` does not open these routes. Metering itself
- * goes through `/internal/meters`, which accepts the same key for `sentinel.*`
- * units. Every route past resolve/link also requires the account to be in
+ * nobody). `WORKLOAD_HOST_KEY` does not open these routes. `/internal/meters`
+ * no longer accepts this key: every `sentinel.*` unit is retired. Every route past resolve/link also requires the account to be in
  * `sentinel_accounts` (created by Sentinel, or linked with consent), else 403
  * `account_not_linked`: a leaked key can't touch an arbitrary account. Prices are read from `PRICES`, never hard-coded here.
  */
 
+import { timingSafeEqual } from "node:crypto";
 import {
 	grantCredits,
 	settleOwedSentinel,
@@ -68,7 +68,24 @@ import {
 	isTopupUsd,
 	parseRefillInput,
 } from "./billing.ts";
-import { bearerToken, sentinelServiceKeyMatches } from "./internal-meters.ts";
+import { bearerToken } from "./internal-meters.ts";
+
+/** Constant-time compare against `SENTINEL_SERVICE_KEY`. An unset key
+ *  authenticates nobody. It also never matches when the configured value
+ *  equals `WORKLOAD_HOST_KEY`, so the workload host key can't stand in for the
+ *  Sentinel key on `/internal/sentinel/*`. */
+export function sentinelServiceKeyMatches(
+	provided: string,
+	env: NodeJS.ProcessEnv = process.env,
+): boolean {
+	const expected = env.SENTINEL_SERVICE_KEY?.trim();
+	if (!expected || provided.length === 0) return false;
+	if (expected === env.WORKLOAD_HOST_KEY?.trim()) return false;
+	const a = Buffer.from(provided);
+	const b = Buffer.from(expected);
+	if (a.length !== b.length) return false;
+	return timingSafeEqual(a, b);
+}
 
 /** Sentinel's starter credit. An account can receive two Sentinel grants, each
  *  under a fixed per-account key: the starter, and a one-time top-up for accounts
@@ -382,10 +399,6 @@ export function createInternalSentinelRouter(
 							packUsd: refill.packUsd,
 						}
 					: null,
-			prices: {
-				check_run: Number(PRICES["sentinel.check_run"]),
-				monitored_event: Number(PRICES["sentinel.monitored_event"]),
-			},
 		});
 	});
 

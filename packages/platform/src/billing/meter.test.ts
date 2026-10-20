@@ -424,67 +424,20 @@ describe.skipIf(!HAS_DB)("meter — fractional hosted-stack units", () => {
 	});
 });
 
-describe.skipIf(!HAS_DB)("meter — sentinel units and grants", () => {
-	test("sentinel.check_run is $0.25 a check and $0.75 for a deep check (quantity 3); monitored_event is 15µ$ each", async () => {
-		await creditCredits(db, accountId, 10_000_000n);
-		const check = await meter(db, {
-			accountId,
-			unit: "sentinel.check_run",
-			quantity: 1,
-			source: "test",
-			idempotencyKey: `sentinel:check:${randomUUID()}`,
-		});
-		expect(check.usdMicros).toBe(250_000n);
-		const deep = await meter(db, {
-			accountId,
-			unit: "sentinel.check_run",
-			quantity: 3,
-			source: "test",
-			idempotencyKey: `sentinel:check:${randomUUID()}`,
-		});
-		expect(deep.usdMicros).toBe(750_000n);
-		const events = await meter(db, {
-			accountId,
-			unit: "sentinel.monitored_event",
-			quantity: 1000,
-			source: "test",
-			idempotencyKey: randomUUID(),
-		});
-		expect(events.usdMicros).toBe(15_000n);
-		expect(await getCredits(db, accountId)).toBe(
-			10_000_000n - 250_000n - 750_000n - 15_000n,
-		);
-	});
-
-	test("a replayed check run charges once", async () => {
-		await creditCredits(db, accountId, 10_000_000n);
-		const input = {
-			accountId,
-			unit: "sentinel.check_run" as const,
-			quantity: 3,
-			source: "test",
-			idempotencyKey: `sentinel:check:${randomUUID()}`,
-		};
-		const first = await meter(db, input);
-		const replay = await meter(db, input);
-		expect(first.usdMicros).toBe(750_000n);
-		expect(replay.usdMicros).toBe(750_000n);
-		expect(await getCredits(db, accountId)).toBe(10_000_000n - 750_000n);
-		const rows = await db
-			.selectFrom("usage_ledger")
-			.select("id")
-			.where("account_id", "=", accountId)
-			.where("idempotency_key", "=", input.idempotencyKey)
-			.execute();
-		expect(rows).toHaveLength(1);
-	});
-
-	test("retired audit units still price history rows at their old rates", () => {
+describe.skipIf(!HAS_DB)("meter — retired sentinel units and grants", () => {
+	test("every sentinel unit is retired and still prices history rows at its old rate", () => {
 		expect(PRICES["sentinel.run"]).toBe(1_500_000n);
 		expect(PRICES["sentinel.deep_audit"]).toBe(3_000_000n);
-		expect(RETIRED_METER_UNITS.has("sentinel.run")).toBe(true);
-		expect(RETIRED_METER_UNITS.has("sentinel.deep_audit")).toBe(true);
-		expect(RETIRED_METER_UNITS.has("sentinel.check_run")).toBe(false);
+		expect(PRICES["sentinel.check_run"]).toBe(250_000n);
+		expect(PRICES["sentinel.monitored_event"]).toBe(15n);
+		for (const unit of [
+			"sentinel.run",
+			"sentinel.deep_audit",
+			"sentinel.check_run",
+			"sentinel.monitored_event",
+		] as const) {
+			expect(RETIRED_METER_UNITS.has(unit)).toBe(true);
+		}
 	});
 
 	test("grantCredits credits once; the same key never credits twice", async () => {

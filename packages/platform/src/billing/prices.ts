@@ -23,11 +23,14 @@ export type MeterUnit =
 	| "sentinel.check_run"
 	| "sentinel.monitored_event";
 
-/** Sentinel units that still price existing ledger rows but take no new
- *  charges: Sentinel no longer runs audits. `/internal/meters` refuses them. */
+/** Units that still price existing ledger rows but take no new charges: every
+ *  `sentinel.*` unit. Sentinel no longer runs audits, and it bills on its own
+ *  Stripe subscriptions rather than this ledger. `/internal/meters` refuses them. */
 export const RETIRED_METER_UNITS: ReadonlySet<MeterUnit> = new Set([
 	"sentinel.run",
 	"sentinel.deep_audit",
+	"sentinel.check_run",
+	"sentinel.monitored_event",
 ]);
 
 /** Flat price per unit of quantity, in USD-micros. `rows.delivered` has its
@@ -49,16 +52,12 @@ export const PRICES: Record<MeterUnit, bigint> = {
 	"storage.gb_day": 8_333n, // ~$0.25/GB-month billed daily (250_000n / 30)
 	"webhook.event": 10n, // $10/1M events; retries are free (never metered)
 
-	// Sentinel product units (Sentinel, founder 2026-09-29). Metered by
-	// Sentinel's worker via /internal/meters with SENTINEL_SERVICE_KEY. Free
-	// allowances live Sentinel-side, so meter() needs no allowance logic.
-	// Retired: Sentinel no longer runs audits. Kept for history only, so
-	// existing ledger rows still price and render. New meters are refused.
+	// Retired Sentinel units (see RETIRED_METER_UNITS). Kept for history only,
+	// so existing ledger rows still price and render. New meters are refused.
 	"sentinel.run": 1_500_000n, // $1.50
 	"sentinel.deep_audit": 3_000_000n, // $3.00
-	// One check run is $0.25. A deep check is quantity 3 ($0.75).
-	"sentinel.check_run": 250_000n,
-	"sentinel.monitored_event": 15n, // $15/1M chain events on watched contracts
+	"sentinel.check_run": 250_000n, // $0.25; a deep check was quantity 3
+	"sentinel.monitored_event": 15n, // $15/1M chain events
 };
 
 /** Hours in a billing month for "$/mo" math (365 × 24 / 12). */
