@@ -1,5 +1,12 @@
 # @secondlayer/workload
 
+## 0.2.18
+
+### Patch Changes
+
+- Updated dependencies [ed0e604]
+  - @secondlayer/platform@0.10.0
+
 ## 0.2.17
 
 ### Patch Changes
