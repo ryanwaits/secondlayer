@@ -74,7 +74,7 @@ networks:
 
 services:
   postgres:
-    image: postgres:17-alpine@sha256:d4bb0a8c1b7bb2e29f976d099e7bfb9a5d8858cffe9e46b35cd302cd1f1f8168
+    image: postgres:17-alpine@sha256:b0f9560a2de083e2cc7382e75f808c7381a32852a7ec49117deedb300e552b24
     environment:
       POSTGRES_USER: secondlayer
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?tenant secret required}

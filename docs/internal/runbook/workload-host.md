@@ -117,7 +117,7 @@ not the only line.
    ```bash
    mkdir -p /opt/secondlayer-workload && cd /opt/secondlayer-workload
    git clone <repo> src && cd src
-   curl -fsSL https://bun.sh/install | bash -s "bun-v1.4.2"
+   curl -fsSL https://bun.sh/install | bash -s "bun-v1.4.3"
    bun install --frozen-lockfile
    # Build the workspace deps the workload package imports from `dist` — skip
    # this and startup fails with

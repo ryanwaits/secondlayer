@@ -136,7 +136,7 @@ services:
     # Pinned (a floating tag drifted to 2.10.2 in prod already and caused a
     # Host-header outage on /api/webhooks) — `header_up Host` in the Caddyfile
     # is valid on both 2.10 and 2.11+, so this isn't blocking an upgrade.
-    image: caddy:2.10.2-alpine@sha256:4c6e91c6ed0e2fa03efd5b44747b625fec79bc9cd06ac5235a779726618e530d
+    image: caddy:2.11.7-alpine@sha256:24ec7b05bc532c7bb57f727030c5056e257ff7138b4b50460306819ff79362bd
     ports:
       - "80:80"
       - "443:443"

@@ -8,8 +8,8 @@ FROM debian:bookworm-slim
 # Pin a known wal-g release. VERIFY the latest at
 # https://github.com/wal-g/wal-g/releases and update both the version and the
 # asset name if it changes.
-ARG WALG_VERSION=v3.0.5
-ARG WALG_ASSET=wal-g-pg-ubuntu-20.04-amd64
+ARG WALG_VERSION=v3.0.9
+ARG WALG_ASSET=wal-g-pg-22.04-amd64
 
 RUN apt-get update \
  && apt-get install -y --no-install-recommends ca-certificates curl postgresql-client \
