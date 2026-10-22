@@ -47,6 +47,13 @@ export function _filterTypeChecks(): void {
 		types: readonly DecodedEventType[];
 		assetIdentifier?: string;
 	}>();
+	// No `extra` adds no keys — a plain literal of the same shape is assignable.
+	const classicLiteral: typeof classicParams = {
+		types: ["ft_transfer"],
+		assetIdentifier:
+			"SP3Y2ZSH8P7D50B0VBTSX11S7XSG24M1VB9YFQA4K.token-aeusdc::aeUSDC",
+	};
+	void classicLiteral;
 
 	const maps = on.mapSet({ contractId: "SP.store" });
 	expectTypeOf(maps.toStreamsParams()).toMatchTypeOf<{

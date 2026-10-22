@@ -373,7 +373,7 @@ export type ProjectionsFor<T extends ChainEventFilterType, S> = {
 			 *  filter uses `trait` (Streams has no trait resolution) or a
 			 *  min/max amount (Streams filters have no amount predicates). */
 			toStreamsParams<
-				Extra extends Record<string, unknown> = Record<string, never>,
+				Extra extends Record<string, unknown> = Record<never, never>,
 			>(
 				extra?: Extra,
 			): T extends VmMember
