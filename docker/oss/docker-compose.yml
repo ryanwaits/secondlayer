@@ -175,8 +175,8 @@ services:
     # — so the digest IS the version pin here. `latest` is retained only as the
     # lookup path; the digest makes it immutable and stops a rebuilt upstream
     # image from swapping the bitcoind binary under a running node.
-    # Digest below = kylemanna/bitcoind:latest as published 2026-07-20.
-    image: kylemanna/bitcoind:latest@sha256:86bbcaa99bf3bf3d5df7fd6d9217b3a41194db4c4e34385064f2cfc9fa7bdf91
+    # Digest below = kylemanna/bitcoind:latest as published 2026-08-30 (Bitcoin Core v31.1.0).
+    image: kylemanna/bitcoind:latest@sha256:ba0034272c85962dac24962312df34c46acafa2c33161b310993c1808ff84bca
     volumes:
       - ${BITCOIN_DATA_DIR:-./data/bitcoin}:/bitcoin/.bitcoin
       # txindex=1 (Runes commitment checks need it) plus the rpcuser/password

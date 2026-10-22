@@ -238,7 +238,7 @@ services:
     restart: unless-stopped
 
   bitcoind:
-    image: kylemanna/bitcoind:latest
+    image: kylemanna/bitcoind:latest@sha256:ba0034272c85962dac24962312df34c46acafa2c33161b310993c1808ff84bca
     volumes:
       - ${BITCOIN_DATA_DIR:-./data/bitcoin}:/bitcoin/.bitcoin
     ports:
