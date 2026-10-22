@@ -1,3 +1,4 @@
+import { decodeClarityValue } from "@secondlayer/sdk";
 import {
 	EMPTY_RANGE_EVENT_INDEX_SENTINEL,
 	encodeStreamsCursor,
@@ -37,6 +38,31 @@ export function parseTxIndexCursor(value: string): IndexTxCursorInput {
 		throw new ValidationError("cursor must use <block_height>:<tx_index>");
 	}
 	return { block_height: blockHeight, tx_index: txIndex };
+}
+
+/** function_args is a JSONB array of hex-encoded ClarityValues. The string
+ *  branch covers pre-2026-08-12 rows that were stored double-encoded (see
+ *  backfill-function-args.ts); post-backfill rows arrive as arrays. Shared by
+ *  the contract-calls, transactions and mempool readers. */
+export function decodeClarityArgs(raw: unknown): unknown[] {
+	let parsed = raw;
+	if (typeof parsed === "string") {
+		try {
+			parsed = JSON.parse(parsed);
+		} catch {
+			return [];
+		}
+	}
+	if (!Array.isArray(parsed)) return [];
+	return parsed.map((arg) =>
+		typeof arg === "string" ? decodeClarityValue(arg) : arg,
+	);
+}
+
+/** raw_result hex → decoded value; null or empty (`0x`) → null. */
+export function decodeClarityResult(raw: string | null): unknown {
+	if (typeof raw === "string" && raw.length > 2) return decodeClarityValue(raw);
+	return null;
 }
 
 // Canonical implementations live in ../parse-query.ts; re-exported here for

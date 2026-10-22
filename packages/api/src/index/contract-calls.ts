@@ -1,4 +1,3 @@
-import { decodeClarityValue } from "@secondlayer/sdk";
 import { getSourceDb, sql } from "@secondlayer/shared/db";
 import { resolveTraitContractIds } from "@secondlayer/shared/db/queries/contracts";
 import type { Database } from "@secondlayer/shared/db/schema";
@@ -7,6 +6,8 @@ import type { Kysely, RawBuilder } from "kysely";
 import type { StreamsReorg } from "../streams/reorgs.ts";
 import {
 	type IndexTxCursorInput,
+	decodeClarityArgs,
+	decodeClarityResult,
 	jsonSafeBigInt,
 	parseFilter,
 	parseIndexBaseQuery,
@@ -146,29 +147,6 @@ function parseTrait(
 	return trait;
 }
 
-/** function_args is a JSONB array of hex-encoded ClarityValues. The string
- *  branch covers pre-2026-08-12 rows that were stored double-encoded (see
- *  backfill-function-args.ts); post-backfill rows arrive as arrays. */
-function decodeArgs(raw: unknown): unknown[] {
-	let parsed = raw;
-	if (typeof parsed === "string") {
-		try {
-			parsed = JSON.parse(parsed);
-		} catch {
-			return [];
-		}
-	}
-	if (!Array.isArray(parsed)) return [];
-	return parsed.map((arg) =>
-		typeof arg === "string" ? decodeClarityValue(arg) : arg,
-	);
-}
-
-function decodeResult(raw: string | null): unknown {
-	if (typeof raw === "string" && raw.length > 2) return decodeClarityValue(raw);
-	return null;
-}
-
 function normalizeRow(row: ContractCallDbRow): ContractCall {
 	const blockHeight = Number(row.block_height);
 	const txIndex = Number(row.tx_index);
@@ -184,8 +162,8 @@ function normalizeRow(row: ContractCallDbRow): ContractCall {
 		function_name: row.function_name,
 		sender: row.sender,
 		status: row.status,
-		args: decodeArgs(row.function_args),
-		result: decodeResult(row.raw_result),
+		args: decodeClarityArgs(row.function_args),
+		result: decodeClarityResult(row.raw_result),
 		result_hex: row.raw_result,
 	});
 }

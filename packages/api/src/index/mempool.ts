@@ -44,12 +44,12 @@
  * long-running explorer's full active set, and is weaker for exhaustive
  * MEV/front-running (which wants every node's view).
  */
-import { decodeClarityValue } from "@secondlayer/sdk";
 import { getSourceDb, sql } from "@secondlayer/shared/db";
 import type { Database } from "@secondlayer/shared/db/schema";
 import { ValidationError } from "@secondlayer/shared/errors";
 import type { Kysely, RawBuilder } from "kysely";
 import {
+	decodeClarityArgs,
 	jsonSafeBigInt,
 	parseFilter,
 	parseLimit,
@@ -145,21 +145,6 @@ type MempoolDbRow = {
 	received_at: Date | string | null;
 };
 
-function decodeArgs(raw: unknown): unknown[] {
-	let parsed = raw;
-	if (typeof parsed === "string") {
-		try {
-			parsed = JSON.parse(parsed);
-		} catch {
-			return [];
-		}
-	}
-	if (!Array.isArray(parsed)) return [];
-	return parsed.map((arg) =>
-		typeof arg === "string" ? decodeClarityValue(arg) : arg,
-	);
-}
-
 function normalizeMempool(row: MempoolDbRow): MempoolTransaction {
 	const decoded = decodeTransaction(row.raw_tx);
 	const txType = decoded?.tx_type ?? row.type;
@@ -182,7 +167,7 @@ function normalizeMempool(row: MempoolDbRow): MempoolTransaction {
 		tx.contract_call = {
 			contract_id: row.contract_id,
 			function_name: row.function_name,
-			function_args: decodeArgs(row.function_args),
+			function_args: decodeClarityArgs(row.function_args),
 		};
 	}
 	if (decoded?.token_transfer) tx.token_transfer = decoded.token_transfer;

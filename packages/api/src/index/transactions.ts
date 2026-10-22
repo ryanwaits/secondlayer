@@ -1,10 +1,11 @@
-import { decodeClarityValue } from "@secondlayer/sdk";
 import { getSourceDb, sql } from "@secondlayer/shared/db";
 import type { Database } from "@secondlayer/shared/db/schema";
 import type { Kysely, RawBuilder } from "kysely";
 import type { StreamsReorg } from "../streams/reorgs.ts";
 import {
 	type IndexTxCursorInput,
+	decodeClarityArgs,
+	decodeClarityResult,
 	jsonSafeBigInt,
 	parseFilter,
 	parseIndexBaseQuery,
@@ -190,23 +191,6 @@ const TRANSACTION_COLUMNS = sql`
 	t.raw_tx
 `;
 
-/** function_args is a JSONB array of hex-encoded ClarityValues. Decode each to
- *  JSON-safe JS (mirrors the contract-calls reader). */
-function decodeArgs(raw: unknown): unknown[] {
-	let parsed = raw;
-	if (typeof parsed === "string") {
-		try {
-			parsed = JSON.parse(parsed);
-		} catch {
-			return [];
-		}
-	}
-	if (!Array.isArray(parsed)) return [];
-	return parsed.map((arg) =>
-		typeof arg === "string" ? decodeClarityValue(arg) : arg,
-	);
-}
-
 /** function_args as the raw array of hex-encoded ClarityValue strings. */
 function rawArgs(raw: unknown): string[] {
 	let parsed = raw;
@@ -219,11 +203,6 @@ function rawArgs(raw: unknown): string[] {
 	}
 	if (!Array.isArray(parsed)) return [];
 	return parsed.filter((a): a is string => typeof a === "string");
-}
-
-function decodeResult(raw: string | null): unknown {
-	if (typeof raw === "string" && raw.length > 2) return decodeClarityValue(raw);
-	return null;
 }
 
 function normalizeTransaction(row: TransactionDbRow): IndexTransaction {
@@ -255,9 +234,9 @@ function normalizeTransaction(row: TransactionDbRow): IndexTransaction {
 		tx.contract_call = {
 			contract_id: row.contract_id,
 			function_name: row.function_name,
-			function_args: decodeArgs(row.function_args),
+			function_args: decodeClarityArgs(row.function_args),
 			function_args_hex: rawArgs(row.function_args),
-			result: decodeResult(row.raw_result),
+			result: decodeClarityResult(row.raw_result),
 			result_hex: row.raw_result,
 		};
 	}
