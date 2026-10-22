@@ -13,7 +13,7 @@ jobs:
     name: Confirm deploy bash lint
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
       - name: Confirm H1 remains wired
         shell: bash
         run: |
@@ -24,7 +24,7 @@ jobs:
     name: Commit message hygiene
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
         with:
           fetch-depth: 0
       - name: Check commit messages
@@ -56,7 +56,7 @@ jobs:
     name: Decision log presence
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
         with:
           fetch-depth: 0
       - name: Confirm decision log for architectural changes
@@ -85,7 +85,7 @@ jobs:
     name: Smoke wiring check
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
       - name: Confirm H3 remains wired
         shell: bash
         run: |
