@@ -1873,6 +1873,14 @@ html[data-acct-card] .www > :not(.marketing-nav) {
 	white-space: pre;
 	font-size: 13px;
 }
+.wh-cli-k {
+	flex: 0 0 auto;
+	min-width: 84px;
+	color: var(--faint);
+	font-size: 11px;
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+}
 .wh-cli-p {
 	color: var(--faint);
 	margin-right: 4px;

@@ -107,9 +107,16 @@ export function formatEventCell(
 
 /** `$ <command>` in a dark box with a copy button, for the commands the web
  *  points at instead of doing itself (create, update). */
-export function CliLine({ command }: { command: string }) {
+export function CliLine({
+	command,
+	label,
+}: {
+	command: string;
+	label?: string;
+}) {
 	return (
 		<div className="wh-cli">
+			{label ? <span className="wh-cli-k">{label}</span> : null}
 			<code className="wh-cli-code">
 				<span className="wh-cli-p">$</span> {command}
 			</code>
