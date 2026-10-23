@@ -7,6 +7,7 @@ import {
 } from "@/components/dashboard/charts/heat-strip";
 import { Legend } from "@/components/dashboard/charts/legend";
 import { ActionableInsights } from "@/components/dashboard/insight/insight-actions";
+import { NameMark } from "@/components/dashboard/shell/name-mark";
 import { PlaceholderRows } from "@/components/dashboard/shell/onboarding";
 import { StatusSentence } from "@/components/dashboard/shell/status-sentence";
 import { useCompact } from "@/components/mobile/use-compact";
@@ -26,7 +27,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { WebhooksCompactList } from "./compact-list";
-import { ToneDot, type WebhookRowModel, useWebhookRows } from "./rows";
+import { type WebhookRowModel, useWebhookRows } from "./rows";
 import { countByDisplayStatus, displayStatus, shortenName } from "./shared";
 import { WebhooksListSkeleton } from "./skeletons";
 import { describeFailure } from "./view";
@@ -214,8 +215,9 @@ function WebhookListRow({
 		<div className="wl-row">
 			<Link href={`/account/webhooks/${webhook.id}`} className="wl-main">
 				<span className="dash-row-name">
-					<ToneDot tone={state.tone} />
-					<span title={webhook.name}>{shortenName(webhook.name)}</span>
+					<span title={webhook.name}>
+						<NameMark tone={state.tone}>{shortenName(webhook.name)}</NameMark>
+					</span>
 					{webhook.managedBy ? (
 						<span
 							className="wl-chip"

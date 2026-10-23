@@ -24,18 +24,19 @@ describe("ResourceRow", () => {
 		]) {
 			expect(html).toContain(cell);
 		}
-		expect(html).toContain("dash-dot alarm");
+		expect(html).toContain("name-flag");
 		expect(html).toContain("sbtc-deposits");
 	});
 
-	test("a healthy row keeps an empty dot slot, not a green dot", () => {
+	test("a healthy row shows no dot and a failing row flags the name", () => {
 		const row = (tone: "ok" | "alarm") =>
 			renderToStaticMarkup(
 				<ResourceRow href="/x" name="sbtc-deposits" tone={tone} />,
 			);
-		expect(row("ok")).toContain("dash-dot none");
-		expect(row("ok")).not.toContain('class="dash-dot"');
-		expect(row("alarm")).toContain("dash-dot alarm");
+		expect(row("ok")).not.toContain("dash-dot");
+		expect(row("ok")).not.toContain("name-flag");
+		expect(row("alarm")).toContain("name-flag");
+		expect(row("alarm")).not.toContain("dash-dot");
 	});
 
 	test("head renders the five labels", () => {

@@ -1,7 +1,8 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
+import { NameMark } from "./name-mark";
 import { Skel } from "./skel";
-import { type Tone, dotClass } from "./status-sentence";
+import type { Tone } from "./status-sentence";
 
 export function ResourceRow({
 	href,
@@ -31,9 +32,9 @@ export function ResourceRow({
 	return (
 		<Link href={href} className="dash-row">
 			<span className="dash-row-name" title={nameTitle}>
-				{/* Healthy is the default and shows no dot; the empty slot keeps names aligned. */}
-				<span className={tone === "ok" ? "dash-dot none" : dotClass(tone)} />
-				<span>{name}</span>
+				<span>
+					<NameMark tone={tone}>{name}</NameMark>
+				</span>
 				{kind ? <em>{kind}</em> : null}
 			</span>
 			<span className="dash-row-state">{state}</span>

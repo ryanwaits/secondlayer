@@ -93,8 +93,9 @@ export function useWebhookRows(): {
 	};
 }
 
-/** Status dot for a tone. */
+/** Status dot for a tone. Healthy shows none. */
 export function ToneDot({ tone }: { tone: RowTone }) {
+	if (tone === "ok") return null;
 	return <span className={dotClass(tone)} />;
 }
 

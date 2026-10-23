@@ -6,7 +6,7 @@ import { Choice } from "@/components/choice";
 import { Legend } from "@/components/dashboard/charts/legend";
 import { ActionableInsights } from "@/components/dashboard/insight/insight-actions";
 import { Breadcrumb } from "@/components/dashboard/shell/breadcrumb";
-import { dotClass } from "@/components/dashboard/shell/status-sentence";
+import { NameMark } from "@/components/dashboard/shell/name-mark";
 import { useCompact } from "@/components/mobile/use-compact";
 import { formatDate } from "@/lib/account-data";
 import { barsRows } from "@/lib/dashboard-charts";
@@ -190,7 +190,6 @@ export function TitleRow({
 	return (
 		<div className="wd-title">
 			<h1>
-				<span className={dotClass(tone)} />
 				{editing ? (
 					<input
 						className="wd-rename-input"
@@ -220,9 +219,11 @@ export function TitleRow({
 						}}
 					/>
 				) : (
-					<span className="wd-name" title={name}>
-						{shortenName(saving ? draft.trim() : name)}
-					</span>
+					<NameMark tone={tone}>
+						<span className="wd-name" title={name}>
+							{shortenName(saving ? draft.trim() : name)}
+						</span>
+					</NameMark>
 				)}
 				{managedBy ? (
 					<span

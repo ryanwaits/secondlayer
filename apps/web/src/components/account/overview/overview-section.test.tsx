@@ -374,12 +374,13 @@ describe("OverviewBody table and strip", () => {
 		// The quiet group's hollow dot is the only dot in the table.
 		expect(table).not.toContain('class="dash-dot"');
 		expect(table).not.toContain("dash-dot alarm");
-		expect(table).toContain("dash-dot none");
+		expect(table).not.toContain("name-flag");
+		expect(table).toContain("dash-dot idle");
 		expect(strip).not.toContain("dash-dot");
 		expect(strip).not.toContain("ins-dot");
 	});
 
-	test("a failing webhook is the red dot in the table and turns the sentence red", () => {
+	test("a failing webhook is the red name box in the table and turns the sentence red", () => {
 		const html = renderToStaticMarkup(
 			<OverviewBody
 				{...exampleOverview(NOW, {
@@ -389,7 +390,7 @@ describe("OverviewBody table and strip", () => {
 		);
 		const { sentence, table, strip } = parts(html);
 		expect(sentence).toContain("1 webhook needs attention.");
-		expect(table).toContain("dash-dot alarm");
+		expect(table).toContain("name-flag");
 		expect(table).toContain("dc-fill-alarm");
 		expect(strip).not.toContain("dash-dot");
 	});

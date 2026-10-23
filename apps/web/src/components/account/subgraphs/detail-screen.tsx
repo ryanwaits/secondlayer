@@ -4,6 +4,7 @@ import { ChartSkeleton } from "@/components/charts/chart-skeleton";
 import { Choice } from "@/components/choice";
 import { ActionableInsights } from "@/components/dashboard/insight/insight-actions";
 import { Breadcrumb } from "@/components/dashboard/shell/breadcrumb";
+import { NameMark } from "@/components/dashboard/shell/name-mark";
 import { Skel } from "@/components/dashboard/shell/skel";
 import { dotClass } from "@/components/dashboard/shell/status-sentence";
 import type { Insight } from "@/lib/insights";
@@ -97,10 +98,9 @@ export function SubgraphDetailBody({
 				<div className="wd-top">
 					<div className="wd-title">
 						<h1>
-							<span
-								className={dotClass(subgraphTone(detail.status, errors24h))}
-							/>
-							<span className="wd-name">{detail.name}</span>
+							<NameMark tone={subgraphTone(detail.status, errors24h)}>
+								<span className="wd-name">{detail.name}</span>
+							</NameMark>
 						</h1>
 					</div>
 				</div>

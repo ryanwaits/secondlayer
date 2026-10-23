@@ -5721,6 +5721,20 @@ a.acct-strip-link:hover .acct-strip-k {
 .dash-dot.none {
 	background: transparent;
 }
+/* Warning and idle dots sit inside the name span, before the text. */
+.dash-row-name > span > .dash-dot {
+	margin-right: 10px;
+	vertical-align: middle;
+}
+/* A failing resource name: light red box, dashed red edge (founder 2026-10-23). */
+.name-flag {
+	display: inline-block;
+	padding: 0 0.3em;
+	border: 1px dashed color-mix(in oklch, var(--alarm) 60%, transparent);
+	border-radius: 4px;
+	background: color-mix(in oklch, var(--alarm) 8%, transparent);
+	line-height: 1.25;
+}
 
 /* Top bar: tabs take the free width, then heartbeat, kbd and the account chip. */
 .dash-tabs {

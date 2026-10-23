@@ -200,6 +200,7 @@ color stays free to mean something.
   `!mark … red` in `text` blocks. Never in source code.
 - `ok` (green) is the diff `+` sign, `✓` output and an exit 0 chip. Removed diff lines are
   `faint`, never red.
+- A failing resource name (webhook, subgraph) sits in a light red box with a dashed red edge instead of a red dot. Healthy shows nothing. This is the only tinted fill outside code.
 - No tinted rows, with one exception: `!mark` lines and lit references take the `soft` row.
 - A product page's code is a figure (see §6, Code figure); there is no separate terminal ground.
 
