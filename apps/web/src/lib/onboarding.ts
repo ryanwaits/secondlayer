@@ -44,6 +44,29 @@ export function onboardingProgress(
 	return { key, read, push: pushed, complete: key && (read || pushed) };
 }
 
+/** Which view the Account page shows. `running` has a webhook or subgraph: the normal page. */
+export type AccountStage =
+	| "loading"
+	| "no_key"
+	| "no_reads"
+	| "reading"
+	| "running";
+
+/** Which new-account view the Account page shows. A skipped account with a
+ *  key, and one whose keys are all revoked, count as `reading`. */
+export function accountStage(
+	keys: ApiKey[] | null,
+	now: Date,
+	pushed: boolean,
+	skipped: boolean,
+): AccountStage {
+	if (keys === null) return "loading";
+	if (keyState(keys, now) === "first") return "no_key";
+	if (pushed) return "running";
+	const { key, read } = onboardingProgress(keys, now, pushed);
+	return key && !read && !skipped ? "no_reads" : "reading";
+}
+
 /** The prompt the first-rows guide hands to a coding assistant: learn the API, make one call, then ask. */
 export const FIRST_ROWS_PROMPT = `I have a Secondlayer API key in \`SECONDLAYER_API_KEY\`.
 

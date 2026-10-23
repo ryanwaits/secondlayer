@@ -2443,24 +2443,29 @@ const META: Record<StoryId, Meta> = {
 			"apps/web/src/components/account/overview/overview-section.tsx",
 			"apps/web/src/components/account/rows/rows-panel.tsx",
 		],
-		rule: "A new account has one job: make a key. Every empty screen points at it, then a two-step list walks to the first read. The first read, a webhook or subgraph, or Skip ends it.",
+		rule: "A new account has one job: make a key. Every empty screen points at it. With a key and no reads, the first-rows guide leads until the first read or Skip; then usage leads until a webhook or subgraph exists.",
 		stack: true,
 		variants: [
 			{
 				id: "overview-no-key",
 				label: "Overview, no key",
-				render: () => <OverviewOnboardingDemo stage="no-key" />,
+				render: () => <OverviewOnboardingDemo stage="no_key" />,
 			},
 			{
 				id: "overview-key-made",
-				label: "Overview, key made",
+				label: "Overview, key, no reads",
 				render: () => (
 					<OverviewOnboardingDemo
-						stage="key-made"
+						stage="no_reads"
 						firstRowsCode={<FirstRowsCode />}
 						firstRowsPrompt={<FirstRowsPrompt />}
 					/>
 				),
+			},
+			{
+				id: "overview-reading",
+				label: "Overview, reading only",
+				render: () => <OverviewOnboardingDemo stage="reading" />,
 			},
 			{
 				id: "key-first",

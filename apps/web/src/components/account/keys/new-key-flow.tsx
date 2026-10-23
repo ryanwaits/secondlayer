@@ -237,7 +237,7 @@ export function RevealStep({
 
 	return (
 		<div
-			className="nk"
+			className="nk nk-reveal"
 			onKeyDown={(e) => {
 				if (e.key !== "Escape") return;
 				if (everCopied) onDone();

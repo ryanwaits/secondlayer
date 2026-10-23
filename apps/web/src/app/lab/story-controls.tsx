@@ -23,12 +23,11 @@ import { KeysBody } from "@/components/account/keys/keys-screen";
 import { NameStep, RevealStep } from "@/components/account/keys/new-key-flow";
 import { FirstRowsGuide } from "@/components/account/overview/first-rows-guide";
 import {
-	OnboardingSentence,
 	OverviewBody,
 	SUBGRAPH_HEAD,
-	onboardingSteps,
 } from "@/components/account/overview/overview-section";
 import {
+	exampleKeys,
 	exampleOverview,
 	exampleStack,
 	exampleSubgraph,
@@ -86,10 +85,6 @@ import { MonoStackedBarChart } from "@/components/charts/mono-stacked-bar-chart"
 import { Choice } from "@/components/choice";
 import { HeatStrip } from "@/components/dashboard/charts/heat-strip";
 import { Legend } from "@/components/dashboard/charts/legend";
-import {
-	Checklist,
-	PlaceholderRows,
-} from "@/components/dashboard/shell/onboarding";
 import { Logo } from "@/components/logo";
 import { ActivitySheet } from "@/components/mobile/activity-sheet";
 import { HoldButton } from "@/components/mobile/hold-button";
@@ -828,48 +823,42 @@ export function RowsEmptyDemo({ firstRun }: { firstRun: boolean }) {
 	);
 }
 
-/** The Overview's new-account checklist at each stage. */
+/** The Overview's three new-account views. */
 export function OverviewOnboardingDemo({
 	stage,
 	firstRowsCode,
 	firstRowsPrompt,
 }: {
-	stage: "no-key" | "key-made";
+	stage: "no_key" | "no_reads" | "reading";
 	firstRowsCode?: ReactNode;
 	firstRowsPrompt?: ReactNode;
 }) {
-	const progress = {
-		key: stage !== "no-key",
-		read: false,
-		push: false,
-		complete: false,
-	};
-	const model = {
-		progress,
-		keyName: "laptop",
-		flow: null,
-		firstRows: firstRowsCode ? (
-			<FirstRowsGuide
-				code={firstRowsCode}
-				prompt={firstRowsPrompt}
-				onSkip={() => {}}
-			/>
-		) : undefined,
-	};
+	const [now] = useState(() => new Date());
+	const read = exampleKeys(now);
+	const unread = read.map((k) => ({ ...k, lastUsedAt: null }));
 	return (
-		<>
-			<OnboardingSentence progress={progress} />
-			<Checklist steps={onboardingSteps(model)} />
-			{stage === "no-key" ? (
-				<PlaceholderRows
-					rows={[
-						{ state: 72, count: 40 },
-						{ state: 58, count: 52 },
-					]}
-					note="These fill in as you go."
-				/>
-			) : null}
-		</>
+		<OverviewBody
+			{...exampleOverview(now, {
+				rows: [],
+				hasSubgraphs: false,
+				keys: stage === "no_key" ? [] : stage === "reading" ? read : unread,
+				billing: { creditsUsdMicros: "0", spentThisMonthUsdMicros: "0" },
+				readUsage: null,
+				stage,
+				onboarding: {
+					keyName: "laptop",
+					flow: null,
+					onCreateKey: () => {},
+					firstRows: firstRowsCode ? (
+						<FirstRowsGuide
+							code={firstRowsCode}
+							prompt={firstRowsPrompt}
+							onSkip={() => {}}
+						/>
+					) : undefined,
+				},
+			})}
+		/>
 	);
 }
 

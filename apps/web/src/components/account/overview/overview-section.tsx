@@ -1,13 +1,11 @@
 "use client";
 
-import { Meter } from "@/components/dashboard/charts/meter";
 import { Ticks } from "@/components/dashboard/charts/ticks";
 import { InsightActions } from "@/components/dashboard/insight/insight-actions";
 import { InsightCard } from "@/components/dashboard/insight/insight-card";
 import {
 	Checklist,
 	type ChecklistStep,
-	PlaceholderRows,
 } from "@/components/dashboard/shell/onboarding";
 import {
 	ResourceRow,
@@ -21,7 +19,6 @@ import {
 	type Billing,
 	type Caps,
 	ensureApps,
-	formatUsd,
 	refreshBilling,
 	refreshCaps,
 	refreshKeys,
@@ -29,15 +26,12 @@ import {
 	refreshUsage,
 	useAccountData,
 } from "@/lib/account-data";
-import { daysLeft, daysLeftLabel } from "@/lib/account-health";
 import { useAuth } from "@/lib/auth";
 import type { Insight } from "@/lib/insights";
 import { useInsights } from "@/lib/insights-store";
 import {
-	type KeyState,
-	type OnboardingProgress,
-	keyState,
-	onboardingProgress,
+	type AccountStage,
+	accountStage,
 	onboardingSkipped,
 	skipOnboarding,
 } from "@/lib/onboarding";
@@ -47,16 +41,11 @@ import type { ApiKey, ConnectedApp } from "@/lib/types";
 import {
 	type Burn,
 	type HostedStack,
-	ROWS_ALLOWANCE,
 	currentUtcMonth,
-	formatRows,
-	monthLabel,
 	monthParam,
-	nextMonthLabel,
 } from "@/lib/usage";
 import { useFirstSettle } from "@/lib/use-first-settle";
 import { poll, refreshList, refreshSummary } from "@/lib/webhooks-store";
-import Link from "next/link";
 import { type ReactNode, useEffect, useState } from "react";
 import { countedKeys } from "../keys/key-view";
 import { NewKeyFlow } from "../keys/new-key-flow";
@@ -75,9 +64,11 @@ import { WaitingGroups } from "../webhooks/waiting";
 import { FirstRowsGuide } from "./first-rows-guide";
 import { KeysBlock } from "./keys-block";
 import { stoppedForCredits } from "./overview-view";
-import { TerminalBlock } from "./terminal-block";
+import { StartBlock } from "./start-block";
+import { CLI_LOGIN_COMMAND, TerminalBlock } from "./terminal-block";
 import { TopNote } from "./top-note";
 import { UsageBlock } from "./usage-block";
+import { type FirstRead, useFirstRead } from "./use-first-read";
 
 /** The webhook rows refresh this often while the tab is visible. */
 const POLL_MS = 30_000;
@@ -190,121 +181,66 @@ function QuietGroup({ models }: { models: WebhookRowModel[] }) {
 	);
 }
 
-function MonthPanel({
-	billing,
-	burn,
-	fresh = false,
-}: {
-	billing: Billing | null;
-	burn: Burn | null;
-	/** A new account: nothing spent, nothing to pay, the free rows untouched. */
-	fresh?: boolean;
-}) {
-	const runway = daysLeftLabel(daysLeft(billing, burn));
-	return (
-		<section className="dash-panel" aria-label="This month">
-			<div className="dash-panel-h">
-				<span className="dash-label">{monthLabel(currentUtcMonth())}</span>
-				<Link href="/account/credits" className="dash-link">
-					Billing ›
-				</Link>
-			</div>
-			{fresh ? (
-				<>
-					<div className="dash-big">
-						$0.00 <span>spent · nothing to pay</span>
-					</div>
-					<Meter
-						used={0}
-						total={ROWS_ALLOWANCE}
-						label="Free rows used this month"
-						left={`0 of ${formatRows(ROWS_ALLOWANCE)} free rows`}
-						right={`resets ${nextMonthLabel(currentUtcMonth())}`}
-					/>
-				</>
-			) : (
-				// The strip's Rows cell carries the meter; this panel is the money.
-				<div className="dash-big">
-					{billing ? formatUsd(billing.spentThisMonthUsdMicros) : "–"}{" "}
-					<span>
-						spent
-						{billing
-							? ` · ${formatUsd(billing.creditsUsdMicros)} left${runway ? `, ${runway}` : ""}`
-							: ""}
-					</span>
-				</div>
-			)}
-		</section>
-	);
-}
-
-/** Where a new account is, for the Overview's checklist. */
+/** What a new account's views need beyond the stage. */
 export interface OverviewOnboarding {
-	progress: OnboardingProgress;
 	/** The key just made, or the newest one, for "<name> is ready". */
 	keyName: string | null;
-	/** The name-a-key flow, while it is open. */
+	/** The name-a-key flow, while it is open. It stays up through the reveal until Done, in every stage. */
 	flow: ReactNode;
-	/** Step 2's guide: a prompt, then one read three ways. */
+	/** Opens the name-a-key flow. */
+	onCreateKey: () => void;
+	/** The first-rows guide: a prompt, then one read three ways. */
 	firstRows?: ReactNode;
 }
 
-export function onboardingSteps({
-	progress,
-	keyName,
-	firstRows,
-}: OverviewOnboarding) {
-	const current = !progress.key ? 0 : 1;
-	const steps: ChecklistStep[] = [
+/** The no-key checklist: make a key, then read. The read waits, faint. */
+export function noKeySteps({
+	flowOpen,
+	onCreateKey,
+}: { flowOpen: boolean; onCreateKey: () => void }): ChecklistStep[] {
+	return [
 		{
 			title: "Make a key",
-			body: progress.key
-				? `${keyName ?? "Your key"} is ready. It's in Keys whenever you need another.`
-				: "One per place it runs: your laptop, CI, an agent.",
-			done: progress.key,
-			current: current === 0,
+			body: "One per place it runs, so revoking one never breaks the others.",
+			done: false,
+			current: true,
+			extra: (
+				<>
+					{flowOpen ? null : (
+						<div>
+							<button
+								type="button"
+								className="acct-btn solid small"
+								onClick={onCreateKey}
+							>
+								Create a key
+							</button>
+						</div>
+					)}
+					<CliLine label="Or terminal" command={CLI_LOGIN_COMMAND} />
+				</>
+			),
 		},
 		{
 			title: "Read your first rows",
 			body: "Straight from the chain, decoded.",
-			done: progress.read,
-			current: current === 1,
-			extra: firstRows,
+			done: false,
+			current: false,
 		},
 	];
-	return steps;
 }
 
-/** The sentence and sub-line over a new account's checklist. */
-export function OnboardingSentence({
-	progress,
-}: { progress: OnboardingProgress }) {
-	if (!progress.key) {
-		return (
-			<StatusSentence
-				tone="idle"
-				sub="The SDK, the CLI and plain HTTP calls all read with it. The first 1M rows each month are free, no card needed."
-			>
-				Make a key to start.
-			</StatusSentence>
-		);
-	}
+/** The sentence and sub-line over a new account with no key. */
+export function OnboardingSentence() {
 	return (
 		<StatusSentence
-			tone="ok"
-			sub="One call, three ways to make it. Or hand it to a coding assistant."
+			tone="idle"
+			sub="The SDK, the CLI and plain HTTP calls all read with it. The first 1M rows each month are free, no card needed."
 		>
-			Your key works. Read your first rows.
+			Make a key to start.
 		</StatusSentence>
 	);
 }
-
-const OVERVIEW_PLACEHOLDERS = [
-	{ state: 72, count: 40 },
-	{ state: 58, count: 52 },
-	{ state: 66, count: 34 },
-	{ state: 48, count: 44 },
-];
 
 /** What the Overview's first paint waits for. Each field is whether that data has loaded (or is known not to exist). */
 export interface OverviewFirstWave {
@@ -356,8 +292,14 @@ export interface OverviewBodyProps {
 	caps?: Caps | null;
 	/** The hosted stack stopped because every webhook is paused. */
 	asleep?: boolean;
-	/** A new account's checklist; the normal Overview shows once it is complete. */
+	/** Which view to show; the normal page is `running`. */
+	stage?: AccountStage;
+	/** A new account's flow and first-rows guide. */
 	onboarding?: OverviewOnboarding | null;
+	/** Whether any subgraph exists. When none does, the start block stands in for the empty section. */
+	hasSubgraphs?: boolean;
+	/** The first read, once it lands while the page is open. */
+	firstRead?: FirstRead | null;
 }
 
 /** The Account page head: the title and what the page is for. */
@@ -388,10 +330,12 @@ export function OverviewBody({
 	now = new Date(),
 	insights = [],
 	asleep = false,
+	stage = "running",
 	onboarding = null,
+	hasSubgraphs = true,
+	firstRead = null,
 	loading = false,
 }: OverviewBodyProps) {
-	const guide = onboarding && !onboarding.progress.complete ? onboarding : null;
 	const active = rows?.filter((r) => r.webhook.lastDeliveryAt !== null) ?? [];
 	const quiet = rows?.filter((r) => r.webhook.lastDeliveryAt === null) ?? [];
 	// Credits ran out and the hosted stack stopped. The webhooks aren't at
@@ -437,9 +381,97 @@ export function OverviewBody({
 		);
 	}
 
-	const sections = (
-		<>
-			<TopNote insights={insights} failing={failing} state={accountState} />
+	const flow = onboarding?.flow ?? null;
+	const usage = (
+		<UsageBlock
+			readUsage={readUsage}
+			billing={billing}
+			burn={burn}
+			caps={caps}
+			stopped={stack?.state === "stopped"}
+			now={now}
+		/>
+	);
+	const keysBlock = <KeysBlock keys={keys} apps={apps} now={now} />;
+	const topNote = (
+		<TopNote insights={insights} failing={failing} state={accountState} />
+	);
+
+	if (stage === "no_key") {
+		return (
+			<div className="ov-page">
+				<OnboardingSentence />
+				{flow}
+				<Checklist
+					steps={noKeySteps({
+						flowOpen: flow !== null,
+						onCreateKey: () => onboarding?.onCreateKey(),
+					})}
+				/>
+				<TerminalBlock />
+			</div>
+		);
+	}
+
+	if (stage === "no_reads") {
+		return (
+			<div className="ov-page">
+				<PageHead />
+				{flow}
+				<section className="ov-section" aria-label="Read your first rows">
+					<div className="ov-section-h">
+						<h2>Read your first rows</h2>
+					</div>
+					<p className="ov-lede">
+						{onboarding?.keyName ? (
+							<>
+								Your key <b>{onboarding.keyName}</b> is ready.
+							</>
+						) : (
+							"Your key is ready."
+						)}{" "}
+						Nothing has read with it yet. This block goes away after the first
+						read.
+					</p>
+					{onboarding?.firstRows}
+				</section>
+				<StartBlock />
+				{usage}
+				<TerminalBlock />
+				{keysBlock}
+			</div>
+		);
+	}
+
+	if (stage === "reading") {
+		return (
+			<div className="ov-page">
+				<PageHead />
+				{flow}
+				{firstRead ? (
+					<output className="ov-lede">
+						✓ First read at {clockTime(firstRead.at)} from{" "}
+						<b>{firstRead.keyName}</b>.
+					</output>
+				) : null}
+				{topNote}
+				{usage}
+				<StartBlock />
+				<TerminalBlock />
+				{keysBlock}
+			</div>
+		);
+	}
+
+	// Running. A section with nothing in it gives way to the start block, once.
+	const webhooksEmpty = rows !== null && rows.length === 0;
+	const start = <StartBlock />;
+
+	return (
+		<div className="ov-page">
+			<PageHead />
+			{flow}
+			{topNote}
 
 			{rows !== null && rows.length > 0 ? (
 				<section className="ov-section" aria-label="Webhooks">
@@ -460,82 +492,48 @@ export function OverviewBody({
 					</div>
 					<CliLine label="Add one" command="sl webhooks create --help" />
 				</section>
+			) : webhooksEmpty ? (
+				start
 			) : null}
 
-			<section className="ov-section" aria-label="Subgraphs">
-				<div className="ov-section-h">
-					<h2>Subgraphs</h2>
-				</div>
-				<div className="dash-rows ov-table">{subgraphs}</div>
-				<CliLine label="Deploy one" command="sl subgraphs deploy --help" />
-			</section>
+			{hasSubgraphs ? (
+				<section className="ov-section" aria-label="Subgraphs">
+					<div className="ov-section-h">
+						<h2>Subgraphs</h2>
+					</div>
+					<div className="dash-rows ov-table">{subgraphs}</div>
+					<CliLine label="Deploy one" command="sl subgraphs deploy --help" />
+				</section>
+			) : webhooksEmpty || rows === null ? null : (
+				start
+			)}
 
-			<UsageBlock
-				readUsage={readUsage}
-				billing={billing}
-				burn={burn}
-				caps={caps}
-				stopped={stack?.state === "stopped"}
-				now={now}
-			/>
+			{usage}
 			<TerminalBlock />
-			<KeysBlock keys={keys} apps={apps} now={now} />
-		</>
-	);
-
-	if (guide) {
-		return (
-			<div className="ov-page">
-				<OnboardingSentence progress={guide.progress} />
-				{guide.flow}
-				<Checklist steps={onboardingSteps(guide)} />
-				{guide.progress.key ? (
-					sections
-				) : (
-					<>
-						<PlaceholderRows
-							rows={OVERVIEW_PLACEHOLDERS}
-							note="These fill in as you go."
-						/>
-						<MonthPanel billing={billing} burn={burn} fresh />
-					</>
-				)}
-			</div>
-		);
-	}
-
-	return (
-		<div className="ov-page">
-			<PageHead />
-			{sections}
+			{keysBlock}
 		</div>
 	);
 }
 
-/**
- * The checklist is for an account that has not started: no key yet, or a key
- * that has not read. The first read, the first webhook or subgraph, or Skip
- * ends it for good. An account whose keys are all revoked gets the normal
- * screens; the name-a-key flow stays up until its Done.
- */
-export function checklistApplies(
-	state: KeyState,
-	flowOpen: boolean,
-	underway: boolean,
-): boolean {
-	return state === "first" || flowOpen || (state === "active" && !underway);
+/** HH:MM in the viewer's clock. */
+function clockTime(at: Date): string {
+	return at.toLocaleTimeString("en-US", {
+		hour: "2-digit",
+		minute: "2-digit",
+		hour12: false,
+	});
 }
 
 /**
- * The new-account checklist for the Overview, or null when it does not apply.
- * The name-a-key flow stays up through the key being made (the keys list
- * changes under it) until its Done.
+ * The new-account pieces for the Overview: which stage the page is in, the
+ * name-a-key flow, and the first-rows guide. The flow opens from Create a key
+ * and stays up through the key being made (the keys list changes under it)
+ * until its Done, whatever stage the page moves to.
  */
 function useOnboarding({
 	keys,
 	now,
 	pushed,
-	settled,
 	accountId,
 	firstRowsCode,
 	firstRowsPrompt,
@@ -543,53 +541,42 @@ function useOnboarding({
 	keys: ApiKey[] | null;
 	now: Date;
 	pushed: boolean;
-	settled: boolean;
 	accountId: string | null;
 	firstRowsCode?: ReactNode;
 	firstRowsPrompt?: ReactNode;
-}): OverviewOnboarding | null {
-	const progress = onboardingProgress(keys, now, pushed);
-	const state = keyState(keys, now);
+}): { stage: AccountStage; onboarding: OverviewOnboarding } {
 	const [flowOpen, setFlowOpen] = useState(false);
 	const [made, setMade] = useState<string | null>(null);
 	const [skipped, setSkipped] = useState(false);
 	useEffect(() => {
 		if (accountId) setSkipped(onboardingSkipped(accountId));
 	}, [accountId]);
-	// The flow opens the first time we see an account that never had a key, and
-	// stays open when that changes under it.
-	if (state === "first" && !flowOpen && made === null) {
-		setFlowOpen(true);
-	}
-	if (
-		keys === null ||
-		!checklistApplies(state, flowOpen, progress.complete || skipped)
-	)
-		return null;
-	if (!settled && progress.key) return null;
 
 	const newest = countedKeys(keys, now).at(-1);
 	return {
-		progress,
-		keyName: made ?? newest?.name ?? null,
-		flow: flowOpen ? (
-			<NewKeyFlow
-				dismissible={false}
-				onCreated={(_key, name) => setMade(name)}
-				onClose={() => setFlowOpen(false)}
-			/>
-		) : null,
-		firstRows:
-			firstRowsCode && accountId ? (
-				<FirstRowsGuide
-					code={firstRowsCode}
-					prompt={firstRowsPrompt}
-					onSkip={() => {
-						skipOnboarding(accountId);
-						setSkipped(true);
-					}}
+		stage: accountStage(keys, now, pushed, skipped),
+		onboarding: {
+			keyName: made ?? newest?.name ?? null,
+			onCreateKey: () => setFlowOpen(true),
+			flow: flowOpen ? (
+				<NewKeyFlow
+					dismissible={false}
+					onCreated={(_key, name) => setMade(name)}
+					onClose={() => setFlowOpen(false)}
 				/>
-			) : undefined,
+			) : null,
+			firstRows:
+				firstRowsCode && accountId ? (
+					<FirstRowsGuide
+						code={firstRowsCode}
+						prompt={firstRowsPrompt}
+						onSkip={() => {
+							skipOnboarding(accountId);
+							setSkipped(true);
+						}}
+					/>
+				) : undefined,
+		},
 	};
 }
 
@@ -658,17 +645,17 @@ export function OverviewSection({
 
 	const subgraphs = useSubgraphsCache().list;
 	const now = new Date();
-	const onboarding = useOnboarding({
+	const hasSubgraphs = (subgraphs?.data.length ?? 0) > 0;
+	const { stage, onboarding } = useOnboarding({
 		keys,
 		now,
-		pushed: (rows?.length ?? 0) > 0 || (subgraphs?.data.length ?? 0) > 0,
-		// Don't flash the checklist at an account whose webhooks and subgraphs
-		// have not loaded yet. An asleep stack never returns its webhook list.
-		settled: (rows !== null || asleep) && subgraphs !== undefined,
+		// An asleep stack never returns its webhook list, but it has webhooks.
+		pushed: (rows?.length ?? 0) > 0 || hasSubgraphs || asleep,
 		accountId: account?.id ?? null,
 		firstRowsCode,
 		firstRowsPrompt,
 	});
+	const firstRead = useFirstRead(stage, keys);
 
 	const ready = useFirstSettle(
 		overviewSettled({
@@ -698,7 +685,10 @@ export function OverviewSection({
 			caps={caps}
 			insights={insights}
 			asleep={asleep}
+			stage={stage}
 			onboarding={onboarding}
+			hasSubgraphs={hasSubgraphs}
+			firstRead={firstRead}
 		/>
 	);
 }

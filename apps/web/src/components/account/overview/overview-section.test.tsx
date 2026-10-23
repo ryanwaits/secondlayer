@@ -1,7 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import type { Insight } from "@/lib/insights";
 import { FIXTURE_INSIGHTS } from "@/lib/insights.fixtures";
-import type { OnboardingProgress } from "@/lib/onboarding";
 import { renderToStaticMarkup } from "react-dom/server";
 import { SubgraphRows } from "../subgraphs/list-screen";
 import { rowModel } from "../webhooks/rows";
@@ -11,7 +10,6 @@ import {
 	type OverviewFirstWave,
 	OverviewSubgraphsSlot,
 	SUBGRAPH_HEAD,
-	checklistApplies,
 	overviewSettled,
 } from "./overview-section";
 import {
@@ -182,60 +180,116 @@ describe("OverviewBody", () => {
 
 describe("OverviewBody for a new account", () => {
 	const flow = <form data-testid="name-step">Name it for where it runs</form>;
-	const guide = (
-		progress: Partial<OnboardingProgress>,
-		keyName: string | null = null,
-	) => ({
-		progress: {
-			key: false,
-			read: false,
-			push: false,
-			complete: false,
-			...progress,
-		},
-		keyName,
-		flow,
-	});
-	const html = (onboarding: ReturnType<typeof guide>) =>
+	const onboarding = {
+		keyName: "laptop",
+		flow: null,
+		onCreateKey: () => {},
+		firstRows: <div data-testid="guide">Using a coding assistant?</div>,
+	};
+	const html = (
+		stage: "no_key" | "no_reads" | "reading",
+		extra: Partial<Parameters<typeof OverviewBody>[0]> = {},
+	) =>
 		renderToStaticMarkup(
-			<OverviewBody {...base} rows={[]} onboarding={onboarding} />,
+			<OverviewBody
+				{...base}
+				rows={[]}
+				hasSubgraphs={false}
+				stage={stage}
+				onboarding={onboarding}
+				{...extra}
+			/>,
 		);
+	const order = (out: string, markers: string[]) => {
+		const at = markers.map((m) => out.indexOf(m));
+		expect(at.every((n) => n > -1)).toBe(true);
+		expect([...at].sort((x, y) => x - y)).toEqual(at);
+	};
 
-	test("no key asks for one, shows the name step and the placeholders", () => {
-		const out = html(guide({}));
+	test("no key asks for one: Create a key, the terminal login, then the terminal block", () => {
+		const out = html("no_key");
 		expect(out).toContain("Make a key to start.");
 		expect(out).toContain(
 			"The first 1M rows each month are free, no card needed.",
 		);
-		expect(out).toContain("Name it for where it runs");
-		expect(out).toContain("These fill in as you go.");
-		expect(out).toContain("$0.00");
-		expect(out).toContain("0 of 1M free rows");
-		expect(out).not.toContain("Checking your account.");
-	});
-
-	test("a key that has not read yet checks step one and points at step two", () => {
-		const out = html(guide({ key: true }, "laptop"));
-		expect(out).toContain("Your key works. Read your first rows.");
+		expect(out).toContain("Create a key");
+		expect(out).toContain("Or terminal");
 		expect(out).toContain(
-			"laptop is ready. It&#x27;s in Keys whenever you need another.",
+			"One per place it runs, so revoking one never breaks the others.",
 		);
-		expect(out).toContain("Read your first rows");
-		expect(out).not.toContain("These fill in as you go.");
+		order(out, [
+			"Make a key to start.",
+			"Create a key",
+			"Read your first rows",
+			'aria-label="Work from your terminal"',
+		]);
+		expect(out).not.toContain('aria-label="Usage and credits"');
+		expect(out).not.toContain('aria-label="Keys and apps"');
+		expect(out).not.toContain("$0.00");
 	});
 
-	test("the checklist has two steps: no webhook or subgraph step", () => {
-		const out = html(guide({ key: true }));
-		expect(out).not.toContain("Get events pushed to you");
-		expect(out).not.toContain('href="/account/webhooks"');
+	test("the Create a key button gives way to the open flow", () => {
+		const out = html("no_key", { onboarding: { ...onboarding, flow } });
+		expect(out).toContain("Name it for where it runs");
+		expect(out).not.toContain("Create a key");
 	});
 
-	test("a completed checklist gives way to the normal Overview", () => {
-		const out = html(
-			guide({ key: true, read: true, push: true, complete: true }),
+	test("a key with no reads leads with the first-rows guide, then the start block, usage, terminal, keys", () => {
+		const out = html("no_reads");
+		expect(out).toContain("Nothing has read with it yet.");
+		expect(out).toContain("<b>laptop</b>");
+		order(out, [
+			'aria-label="Read your first rows"',
+			"Using a coding assistant?",
+			'aria-label="Webhooks and subgraphs"',
+			'aria-label="Usage and credits"',
+			'aria-label="Work from your terminal"',
+			'aria-label="Keys and apps"',
+		]);
+	});
+
+	test("reading only leads with usage, then the start block, terminal, keys", () => {
+		const out = html("reading");
+		expect(out).not.toContain("Nothing has read with it yet.");
+		order(out, [
+			'aria-label="Usage and credits"',
+			'aria-label="Webhooks and subgraphs"',
+			'aria-label="Work from your terminal"',
+			'aria-label="Keys and apps"',
+		]);
+		expect(out).not.toContain("Using a coding assistant?");
+	});
+
+	test("the first read replaces the guide with a line naming the time and key", () => {
+		const out = html("reading", {
+			firstRead: { at: new Date(), keyName: "laptop" },
+		});
+		expect(out).toContain("✓ First read at ");
+		expect(out).toContain("<b>laptop</b>");
+	});
+
+	test("a running account with webhooks but no subgraphs gets the start block in place of subgraphs", () => {
+		const out = renderToStaticMarkup(
+			<OverviewBody {...base} rows={[healthy]} hasSubgraphs={false} />,
 		);
-		expect(out).not.toContain("Your key works");
-		expect(out).toContain("<h1>Account</h1>");
+		expect(out).toContain('aria-label="Webhooks"');
+		expect(out).not.toContain('aria-label="Subgraphs"');
+		expect(out.match(/aria-label="Webhooks and subgraphs"/g)).toHaveLength(1);
+	});
+
+	test("a running account with subgraphs but no webhooks gets the start block once", () => {
+		const out = renderToStaticMarkup(
+			<OverviewBody {...base} rows={[]} hasSubgraphs />,
+		);
+		expect(out).toContain('aria-label="Subgraphs"');
+		expect(out.match(/aria-label="Webhooks and subgraphs"/g)).toHaveLength(1);
+	});
+
+	test("the healthy running page shows no start block", () => {
+		const out = renderToStaticMarkup(
+			<OverviewBody {...base} rows={[healthy]} />,
+		);
+		expect(out).not.toContain('aria-label="Webhooks and subgraphs"');
 	});
 });
 
@@ -443,27 +497,5 @@ describe("OverviewBody sections", () => {
 		expect(withSubgraph).toContain("sbtc-flows");
 		expect(withSubgraph).toContain("sl subgraphs deploy --help");
 		expect(render()).not.toContain("Rows written, 24h");
-	});
-});
-
-describe("checklistApplies", () => {
-	test("an account that never made a key gets the checklist", () => {
-		expect(checklistApplies("first", false, false)).toBe(true);
-	});
-
-	test("an account with a key that has not read yet gets the checklist", () => {
-		expect(checklistApplies("active", false, false)).toBe(true);
-	});
-
-	test("the first read, a webhook or subgraph, or Skip ends it for good", () => {
-		expect(checklistApplies("active", false, true)).toBe(false);
-	});
-
-	test("an account whose keys are all revoked gets the normal Overview", () => {
-		expect(checklistApplies("none_active", false, false)).toBe(false);
-	});
-
-	test("the first key's flow stays up until its Done", () => {
-		expect(checklistApplies("active", true, true)).toBe(true);
 	});
 });

@@ -8008,6 +8008,19 @@ button.dash-row {
 	border: 1px solid var(--line);
 	border-radius: 8px;
 }
+/* The reveal: the key shown once. A pri tint box; what sits inside is paper. */
+.nk-reveal {
+	border-color: var(--pri);
+	background: var(--pri-tint);
+}
+/* The name step's input: transparent, hairline, pri on focus. */
+.nk .acct-input {
+	background: transparent;
+	border-color: var(--line);
+}
+.nk .acct-input:focus {
+	border-color: var(--pri);
+}
 .nk-label {
 	font-size: 13px;
 	font-weight: 500;
@@ -10672,4 +10685,36 @@ button.sg-sort:focus-visible {
 	.mac-tg::after {
 		transition: none;
 	}
+}
+
+/* Webhooks and subgraphs start block: two options, each a line and a command. */
+.ov-opt {
+	display: grid;
+	gap: 8px;
+	max-width: 640px;
+}
+.ov-page .ov-opt h3 {
+	margin: 0;
+	font: 500 15px / 1.3 var(--font-sans-stack);
+}
+.ov-opt p {
+	margin: 0;
+	font-size: 14px;
+	line-height: 1.5;
+	color: var(--sub);
+}
+.ov-aside {
+	margin: 0;
+	font-size: 13px;
+	color: var(--faint);
+}
+.ov-lede {
+	margin: 0;
+	font-size: 14px;
+	line-height: 1.5;
+	color: var(--sub);
+}
+.ov-lede b {
+	font-weight: 500;
+	color: var(--ink);
 }

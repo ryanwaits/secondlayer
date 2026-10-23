@@ -22,6 +22,7 @@ describe("NameStep", () => {
 		);
 		expect(html).toContain("Name it for where it runs");
 		expect(html).toContain("laptop, ci, prod-indexer");
+		expect(html).toContain('value=""');
 		expect(html).toContain("One key per place it runs");
 		expect(html).toContain('maxLength="64"');
 	});
@@ -125,6 +126,10 @@ describe("RevealStep", () => {
 		renderToStaticMarkup(
 			<RevealStep value={KEY} name="laptop" initialTab={tab} onDone={noop} />,
 		);
+
+	test("the reveal box takes the tinted reveal styling", () => {
+		expect(render()).toContain('class="nk nk-reveal"');
+	});
 
 	test("shows the whole key once, with its name and a Copy button", () => {
 		const html = render();
