@@ -94,6 +94,7 @@ import {
 	SubgraphSheetDemo,
 	SwipeRowDemo,
 	TopupSheetDemo,
+	WebhookDetailDemo,
 	WebhookHeaderDemo,
 } from "./story-controls";
 import { STORY_INDEX, type StoryId } from "./tree";
@@ -1415,6 +1416,26 @@ const META: Record<StoryId, Meta> = {
 		usage: `<TitleRow name={name} tone="ok" managedBy={webhook.managedBy} onRename={rename} onOpenDetails={open} />`,
 		dos: ["Hover the name to reveal Rename; Enter saves, Esc cancels."],
 		donts: ["Offer Rename when `managedBy` is set."],
+	},
+	"webhook-detail": {
+		src: ["apps/web/src/components/account/webhooks/detail-panel.tsx"],
+		rule: "The desktop webhook page shows what is wrong, how to fix it and what was sent. The definition opens in a drawer from the name.",
+		variants: [
+			{
+				id: "failing",
+				label: "Failing",
+				render: () => <WebhookDetailDemo failing />,
+			},
+			{
+				id: "healthy",
+				label: "Healthy",
+				render: () => <WebhookDetailDemo failing={false} />,
+			},
+		],
+		usage:
+			"<WebhookDetailBody webhook={webhook} insights={insights} onTest={onTest} test={test} ... />",
+		dos: ["Click the name to open the definition drawer."],
+		donts: ["Put the definition back on the page."],
 	},
 	"webhook-payload": {
 		src: ["apps/web/src/components/account/webhooks/payload-view.tsx"],

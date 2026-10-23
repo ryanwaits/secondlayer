@@ -58,7 +58,10 @@ import {
 } from "@/components/account/subgraphs/subgraph.fixtures";
 import { WebhookCompactDetailView } from "@/components/account/webhooks/compact-detail";
 import { WebhooksCompactList } from "@/components/account/webhooks/compact-list";
-import { TitleRow } from "@/components/account/webhooks/detail-panel";
+import {
+	TitleRow,
+	WebhookDetailBody,
+} from "@/components/account/webhooks/detail-panel";
 import { PayloadPanel } from "@/components/account/webhooks/payload-view";
 import {
 	ReplayBody,
@@ -73,6 +76,7 @@ import {
 	countByDisplayStatus,
 	displayStatus,
 } from "@/components/account/webhooks/shared";
+import type { Range } from "@/components/account/webhooks/view";
 import {
 	FIXTURE_HOURS,
 	activityFor,
@@ -526,6 +530,46 @@ export function AmountDemo({
 			options={options}
 			value={value}
 			onChange={setValue}
+		/>
+	);
+}
+
+/** The desktop webhook page on a failing webhook, with the drawer on its name. */
+export function WebhookDetailDemo({ failing }: { failing: boolean }) {
+	const [range, setRange] = useState<Range>("24h");
+	const base = activityFor(12);
+	const activity = failing
+		? {
+				...base,
+				hours: base.hours.map((h, i, all) =>
+					i >= all.length - 10
+						? { ...h, delivered: 0, failed: 4, gaveUp: 3 }
+						: h,
+				),
+			}
+		: base;
+	const [top] = FIXTURE_INSIGHTS;
+	return (
+		<WebhookDetailBody
+			webhook={detail({ name: "alex-swaps" })}
+			deliveries={[
+				attempt({ id: "d3", statusCode: failing ? 502 : 200 }),
+				attempt({ id: "d2", statusCode: 200, eventIndex: 2 }),
+			]}
+			activity={activity}
+			days={undefined}
+			insights={failing && top ? [top] : []}
+			range={range}
+			onRange={setRange}
+			hour={null}
+			hourDeliveries={null}
+			onClearHour={() => {}}
+			pauseBusy={false}
+			onTogglePause={() => {}}
+			onRename={async () => true}
+			stackAsleep={false}
+			onTest={() => toast("Test sent")}
+			test={{ busy: false, result: null }}
 		/>
 	);
 }

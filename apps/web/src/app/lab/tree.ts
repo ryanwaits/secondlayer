@@ -17,6 +17,7 @@ export const STORY_INDEX = [
 	{ id: "breadcrumb", group: "Dashboard", title: "Breadcrumb" },
 	{ id: "resource-row", group: "Dashboard", title: "Resource row" },
 	{ id: "webhook-header", group: "Dashboard", title: "Webhook header" },
+	{ id: "webhook-detail", group: "Dashboard", title: "Webhook detail" },
 	{ id: "webhook-payload", group: "Dashboard", title: "Delivery payload" },
 	{ id: "webhooks-asleep", group: "Dashboard", title: "Stack asleep" },
 	{

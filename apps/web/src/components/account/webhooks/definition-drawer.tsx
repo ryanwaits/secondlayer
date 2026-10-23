@@ -18,7 +18,6 @@ export function DefinitionSections({
 	return (
 		<>
 			<section className="wd-def">
-				<h3>Listens for</h3>
 				<ListensFor webhook={webhook} activity={activity} />
 			</section>
 			<section className="wd-def">
