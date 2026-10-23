@@ -14,7 +14,7 @@ import { renderEmail } from "./render.ts";
 
 const OUT_DIR = join(import.meta.dir, "../../../../email-previews");
 
-const CREDITS = "https://secondlayer.tools/account/credits";
+const CREDITS = "https://secondlayer.tools/account#usage";
 const BALANCE_FOOTNOTE =
 	"You get this because balance alerts are on. Turn them off on your credits page.";
 const CAP_FOOTNOTE =

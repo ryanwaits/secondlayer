@@ -35,13 +35,13 @@ describe("nextStepHint", () => {
 	test("a 402 without credits links to adding credits", () => {
 		const hint = nextStepHint(402, "insufficient_credits");
 		expect(hint).toContain("Add credits");
-		expect(hint).toContain("/account/credits");
+		expect(hint).toContain("/account#usage");
 	});
 
 	test("a 402 at the spend cap asks to raise the cap", () => {
 		const hint = nextStepHint(402, "spend_cap_reached");
 		expect(hint).toContain("spend cap");
-		expect(hint).toContain("/account/credits");
+		expect(hint).toContain("/account#usage");
 	});
 
 	test("no status gives no hint", () => {

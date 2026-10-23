@@ -32,7 +32,7 @@ export type SubgraphSourceResponse = Awaited<
 	ReturnType<Subgraphs["getSource"]>
 >;
 
-const CREDITS_URL = "https://www.secondlayer.tools/account/credits";
+const CREDITS_URL = "https://www.secondlayer.tools/account#usage";
 
 /** Map an HTTP status to an actionable next-step hint, when one is obvious.
  *  `detail` is the API's error text; a 402 says which billing limit hit. */
@@ -66,7 +66,7 @@ export function authFailureMessage(
 	if (code === "KEY_REVOKED") {
 		return {
 			message: "Your saved login was revoked.",
-			hint: "Run `secondlayer login` to sign in again. If you set SECONDLAYER_API_KEY, replace it with a key from /account/keys.",
+			hint: "Run `secondlayer login` to sign in again. If you set SECONDLAYER_API_KEY, replace it with a key from /account#keys.",
 		};
 	}
 	if (code === "SESSION_EXPIRED" || status === 401) {

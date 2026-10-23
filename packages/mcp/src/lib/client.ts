@@ -74,7 +74,7 @@ export function getArchiveOpsClient(): SecondLayer {
 // a write/account key, so point at where to get one.
 export function keyHint(baseUrl: string = resolveBaseUrl()): string {
 	return isHostedApiUrl(baseUrl)
-		? " — set SECONDLAYER_API_KEY (an sk-sl_ key from secondlayer.tools/account/keys)"
+		? " — set SECONDLAYER_API_KEY (an sk-sl_ key from secondlayer.tools/account#keys)"
 		: " — set INSTANCE_TOKEN from `sl init` for writes";
 }
 

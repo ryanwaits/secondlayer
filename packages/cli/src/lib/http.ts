@@ -142,7 +142,7 @@ export async function httpArchiveOpsAnon<T>(
 
 /** Remedy for every account auth failure: the account key first, the login as the alternative. */
 export const ARCHIVE_AUTH_HINT =
-	"Set SECONDLAYER_API_KEY to your account key (sk-sl_…, from /account/keys), or run `secondlayer login`.";
+	"Set SECONDLAYER_API_KEY to your account key (sk-sl_…, from /account#keys), or run `secondlayer login`.";
 
 /**
  * Credentials your hosted account can validate: `sk-sl_` API keys

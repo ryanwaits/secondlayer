@@ -31,7 +31,7 @@ describe("renderEmail", () => {
 			facts: [{ label: "Balance", value: "$5.00" }],
 			cta: {
 				label: "Add credits",
-				url: "https://secondlayer.tools/account/credits",
+				url: "https://secondlayer.tools/account#usage",
 			},
 			footnote: "A footnote.",
 		});
@@ -41,7 +41,7 @@ describe("renderEmail", () => {
 	test("cta label and url appear in both html and text", () => {
 		const cta = {
 			label: "Add credits",
-			url: "https://secondlayer.tools/account/credits",
+			url: "https://secondlayer.tools/account#usage",
 		};
 		const { html, text } = renderEmail({
 			heading: "Heading",

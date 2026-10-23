@@ -123,7 +123,7 @@ The Streams errors do **not** extend `ApiError` — check them separately when w
 |---|---|---|
 | `422 SOURCE_NOT_HOSTABLE` on deploy | A source other than event filters or `contract_call`/`contract_deploy` | Rewrite the source to a hostable type, or self-host the subgraph |
 | Status `error` after restarts | 3 stall/OOM deaths at one height, so the runtime stopped retrying | Fix the handler or the data at that height, set `startBlock` past it, then redeploy or reindex |
-| `402` on hosted indexing | Prepaid credits are $0 or the monthly spend cap is reached | Top up at `/account/credits` or raise the cap; reads past the free 1M rows pause until then |
+| `402` on hosted indexing | Prepaid credits are $0 or the monthly spend cap is reached | Top up at `/account#usage` or raise the cap; reads past the free 1M rows pause until then |
 
 ## CLI: instance not reachable
 

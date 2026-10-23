@@ -96,7 +96,7 @@ export class AuthorizationError extends SecondLayerError {
 export class ApiKeyRevokedError extends SecondLayerError {
 	constructor() {
 		super("KEY_REVOKED", "API key has been revoked", undefined, {
-			hint: "Make a new key at https://secondlayer.tools/account/keys and replace the revoked one wherever it is configured.",
+			hint: "Make a new key at https://secondlayer.tools/account#keys and replace the revoked one wherever it is configured.",
 		});
 	}
 }

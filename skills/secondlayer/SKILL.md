@@ -114,7 +114,7 @@ loopback. Send the token whenever you have it.
 | Webhook receiver getting unsigned bodies | `format` not set to `standard-webhooks` | `secondlayer webhooks update <name> --format standard-webhooks` |
 | `422 SOURCE_NOT_HOSTABLE` on hosted deploy | A source type other than event filters or `contract_call`/`contract_deploy` | Rewrite the source, or self-host. See `references/troubleshooting.md` |
 | Subgraph status `error` after restarts | 3 stall/OOM deaths at one height | Fix the handler, set `startBlock` past the bad height, redeploy |
-| `402` on hosted indexing | Credits are $0 or the spend cap is reached | Top up at /account/credits or raise the cap |
+| `402` on hosted indexing | Credits are $0 or the spend cap is reached | Top up at /account#usage or raise the cap |
 | Subgraph "stuck" right after deploy | Catching up from `startBlock` | Normal; watch `secondlayer subgraphs status <name> -w`. Use `--start-block` near tip for fast first deploy |
 
 When the user asks "why isn't this working" and the symptom isn't on this list, load `references/troubleshooting.md`.
