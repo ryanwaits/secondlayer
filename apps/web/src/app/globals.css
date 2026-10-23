@@ -5744,111 +5744,13 @@ a.acct-strip-link:hover .acct-strip-k {
 	line-height: 1.25;
 }
 
-/* Top bar: tabs take the free width, then heartbeat, kbd and the account chip. */
-.dash-tabs {
-	display: flex;
-	flex: 1;
-	gap: 22px;
-	align-self: stretch;
-	min-width: 0;
-	overflow-x: auto;
-	scrollbar-width: none;
-}
-.dash-tabs::-webkit-scrollbar {
-	display: none;
-}
-.dash-tabs a {
-	position: relative;
-	display: flex;
-	align-items: center;
-	gap: 6px;
-	font-size: 14px;
-	color: var(--sub);
-	text-decoration: none;
-	white-space: nowrap;
-}
-.dash-tabs a:hover,
-.dash-tabs a[aria-current="page"] {
-	color: var(--ink);
-}
-.dash-tabs a[aria-current="page"]::after {
-	content: "";
-	position: absolute;
-	left: 0;
-	right: 0;
-	bottom: -1px;
-	height: 2px;
-	background: var(--pri);
-}
-.dash-tab-n {
-	font: 500 11px / 16px var(--font-mono-stack);
-	min-width: 16px;
-	height: 16px;
-	padding: 0 4px;
-	border-radius: 999px;
-	background: var(--alarm);
-	color: var(--on-pri);
-	text-align: center;
-}
+/* Top bar: the brand, then the balance chip and the account menu. */
 .marketing-nav.is-dash .mnav-right {
 	gap: 14px;
 	margin-left: 14px;
-}
-
-/* The current view's CLI command: a copy bar in the dashboard nav. Click copies.
- * The wide gap is the old ⌘K chip's slot (chip + nav gap, ~41px), so Copy sits
- * where the chip was and the bar keeps its left edge. ⌘K still opens the palette. */
-.dash-cmd {
-	display: inline-flex;
-	align-items: center;
-	gap: 51px;
-	height: 30px;
-	min-width: 0;
-	padding: 0 12px;
-	border: 1px solid var(--line);
-	border-radius: 4px;
-	background: none;
-	font: 400 12px / 1 var(--font-mono-stack);
-	color: var(--faint);
-	cursor: pointer;
-	white-space: nowrap;
-}
-.dash-cmd code {
-	min-width: 0;
-	overflow: hidden;
-	text-overflow: ellipsis;
-	color: var(--sub);
-}
-.dash-cmd-copy {
-	transition: color 0.12s;
-}
-.dash-cmd:hover .dash-cmd-copy {
-	color: var(--pri);
-}
-/* The tabs keep their room. The bar holds just the command (capped at 34
- * characters) and Copy, and under 900px it hides and the tabs scroll. */
-.marketing-nav.is-dash .dash-tabs {
-	flex: 0 0 auto;
-}
-.marketing-nav.is-dash .mnav-right {
 	flex: 1 1 auto;
 	min-width: 0;
 	justify-content: flex-end;
-}
-.dash-cmd {
-	flex: 0 1 auto;
-	overflow: hidden;
-}
-.dash-cmd code {
-	flex: none;
-}
-.dash-cmd-copy {
-	flex: none;
-}
-@media (max-width: 900px) {
-	.marketing-nav.is-dash .dash-tabs {
-		flex: 1 1 auto;
-	}
 }
 
 /* Breadcrumb */
@@ -5976,9 +5878,6 @@ a.acct-strip-link:hover .acct-strip-k {
 }
 
 @media (max-width: 900px) {
-	.dash-cmd {
-		display: none;
-	}
 	.dash-row-head,
 	.dash-row {
 		grid-template-columns: minmax(0, 1fr) 110px 70px;

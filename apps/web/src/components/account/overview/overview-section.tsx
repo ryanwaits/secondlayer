@@ -18,12 +18,14 @@ import { StatusSentence } from "@/components/dashboard/shell/status-sentence";
 import {
 	type Billing,
 	type Caps,
+	type TopupReturn,
 	ensureApps,
 	refreshBilling,
 	refreshCaps,
 	refreshKeys,
 	refreshRows,
 	refreshUsage,
+	takeTopupReturn,
 	useAccountData,
 } from "@/lib/account-data";
 import { useAuth } from "@/lib/auth";
@@ -46,7 +48,8 @@ import {
 } from "@/lib/usage";
 import { useFirstSettle } from "@/lib/use-first-settle";
 import { poll, refreshList, refreshSummary } from "@/lib/webhooks-store";
-import { type ReactNode, useEffect, useState } from "react";
+import { type ReactNode, useEffect, useRef, useState } from "react";
+import { type ReturnState, useTopupReturn } from "../credits-panel";
 import { countedKeys } from "../keys/key-view";
 import { NewKeyFlow } from "../keys/new-key-flow";
 import {
@@ -300,6 +303,8 @@ export interface OverviewBodyProps {
 	hasSubgraphs?: boolean;
 	/** The first read, once it lands while the page is open. */
 	firstRead?: FirstRead | null;
+	/** Back from Stripe: the top-up's outcome, shown at the top of the usage block. */
+	topup?: ReturnState | null;
 }
 
 /** The Account page head: the title and what the page is for. */
@@ -334,6 +339,7 @@ export function OverviewBody({
 	onboarding = null,
 	hasSubgraphs = true,
 	firstRead = null,
+	topup = null,
 	loading = false,
 }: OverviewBodyProps) {
 	const active = rows?.filter((r) => r.webhook.lastDeliveryAt !== null) ?? [];
@@ -389,6 +395,7 @@ export function OverviewBody({
 			burn={burn}
 			caps={caps}
 			stopped={stack?.state === "stopped"}
+			returnState={topup}
 			now={now}
 		/>
 	);
@@ -474,7 +481,7 @@ export function OverviewBody({
 			{topNote}
 
 			{rows !== null && rows.length > 0 ? (
-				<section className="ov-section" aria-label="Webhooks">
+				<section id="webhooks" className="ov-section" aria-label="Webhooks">
 					<div className="ov-section-h">
 						<h2>Webhooks</h2>
 						<span className="dash-label">Last 24h</span>
@@ -497,7 +504,7 @@ export function OverviewBody({
 			) : null}
 
 			{hasSubgraphs ? (
-				<section className="ov-section" aria-label="Subgraphs">
+				<section id="subgraphs" className="ov-section" aria-label="Subgraphs">
 					<div className="ov-section-h">
 						<h2>Subgraphs</h2>
 					</div>
@@ -513,6 +520,35 @@ export function OverviewBody({
 			{keysBlock}
 		</div>
 	);
+}
+
+/** The blocks a link can point at with `/account#<id>`. */
+const ANCHORS = ["webhooks", "subgraphs", "usage", "keys", "cap"];
+
+/** Scroll to the block named by the URL hash, once, after the first paint of real data. */
+function useScrollToHash(ready: boolean) {
+	const done = useRef(false);
+	useEffect(() => {
+		if (!ready || done.current) return;
+		done.current = true;
+		const id = location.hash.slice(1);
+		if (ANCHORS.includes(id)) {
+			document.getElementById(id)?.scrollIntoView();
+		}
+	}, [ready]);
+}
+
+/** Stripe returns with `?topup=success|cancelled`. Reading it clears it, so
+ *  guard against effects running twice. */
+function useStripeReturn(): ReturnState | null {
+	const [ret, setRet] = useState<TopupReturn | null>(null);
+	const taken = useRef(false);
+	useEffect(() => {
+		if (taken.current) return;
+		taken.current = true;
+		setRet(takeTopupReturn());
+	}, []);
+	return useTopupReturn(ret);
 }
 
 /** HH:MM in the viewer's clock. */
@@ -671,6 +707,9 @@ export function OverviewSection({
 		}),
 	);
 
+	useScrollToHash(ready);
+	const topup = useStripeReturn();
+
 	return (
 		<OverviewBody
 			loading={!ready}
@@ -689,6 +728,7 @@ export function OverviewSection({
 			onboarding={onboarding}
 			hasSubgraphs={hasSubgraphs}
 			firstRead={firstRead}
+			topup={topup}
 		/>
 	);
 }

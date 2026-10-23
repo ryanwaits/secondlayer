@@ -20,7 +20,12 @@ import {
 import { useState } from "react";
 import { toast } from "sonner";
 import { LimitsAndEmails } from "../billing/limits-and-emails";
-import { AddCredits, useCheckout } from "../credits-panel";
+import {
+	AddCredits,
+	ReturnNotice,
+	type ReturnState,
+	useCheckout,
+} from "../credits-panel";
 import { CliLine } from "../webhooks/shared";
 
 const MICROS = 1_000_000;
@@ -42,6 +47,7 @@ export function UsageBlock({
 	burn,
 	caps,
 	stopped = false,
+	returnState = null,
 	now = new Date(),
 }: {
 	readUsage: RowsResponse | null;
@@ -50,10 +56,19 @@ export function UsageBlock({
 	caps: Caps | null;
 	/** The hosted stack is stopped for credits. */
 	stopped?: boolean;
+	/** Back from Stripe: the top-up's outcome. */
+	returnState?: ReturnState | null;
 	now?: Date;
 }) {
 	const co = useCheckout();
-	const [panel, setPanel] = useState<"credits" | "limit" | null>(null);
+	const [panel, setPanel] = useState<"credits" | "limit" | null>(
+		// `/account#cap` lands with Set a limit open. This block only mounts
+		// on the client, after the first data, so reading the hash is safe.
+		() =>
+			typeof location !== "undefined" && location.hash === "#cap"
+				? "limit"
+				: null,
+	);
 	const [pendingCap, setPendingCap] = useState<number | null | undefined>();
 
 	const used = readUsage?.allowance.usedThisMonth ?? 0;
@@ -82,6 +97,7 @@ export function UsageBlock({
 			<div className="ov-section-h">
 				<h2>Usage and credits</h2>
 			</div>
+			{returnState ? <ReturnNotice st={returnState} billing={billing} /> : null}
 			<div className="ov-usage">
 				<div className="ov-usage-cell">
 					<span className="dash-label">Rows this month</span>

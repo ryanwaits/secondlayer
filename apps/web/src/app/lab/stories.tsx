@@ -35,7 +35,6 @@ import {
 import { InsightCard } from "@/components/dashboard/insight/insight-card";
 import { InsightStack } from "@/components/dashboard/insight/insight-stack";
 import { Breadcrumb } from "@/components/dashboard/shell/breadcrumb";
-import { DashboardTabs } from "@/components/dashboard/shell/dashboard-tabs";
 import {
 	PlaceholderRows,
 	ReadsKeyLine,
@@ -48,7 +47,6 @@ import {
 	StatusSentence,
 	type Tone,
 } from "@/components/dashboard/shell/status-sentence";
-import { ViewCommand } from "@/components/dashboard/shell/view-command";
 import { Callout } from "@/components/docs/callout";
 import { InsightSheetBody } from "@/components/mobile/insights/insight-sheet";
 import {
@@ -361,9 +359,6 @@ const SHELL_ROWS: { name: string; tone: Tone; state: string; count: string }[] =
 					: "Delivering, last event 4m ago",
 		count: `${(i + 1) * 137}`,
 	}));
-
-const LONG_COMMAND =
-	"sl webhooks doctor sentinel:SP000000000000000000002Q6VF78.vault:~0123456789abcdef";
 
 /** Deterministic daily rhythm for the chart stories: no randomness, no real data. */
 const wave = (i: number, base: number, swing: number) =>
@@ -1179,12 +1174,8 @@ const META: Record<StoryId, Meta> = {
 		],
 	},
 	"dashboard-shell": {
-		src: [
-			"apps/web/src/components/dashboard/shell/dashboard-tabs.tsx",
-			"apps/web/src/components/dashboard/shell/view-command.tsx",
-			"apps/web/src/components/marketing-nav.tsx",
-		],
-		rule: "Tabs and the view's CLI command in the bar, one sentence of status, and rows that never grow a background.",
+		src: ["apps/web/src/components/marketing-nav.tsx"],
+		rule: "The bar holds the brand, the balance and the account menu; below it, one sentence of status and rows that never grow a background.",
 		stack: true,
 		variants: [
 			{
@@ -1212,8 +1203,7 @@ const META: Record<StoryId, Meta> = {
 							}}
 						>
 							<b style={{ fontWeight: 500 }}>secondlayer</b>
-							<DashboardTabs pathname="/account/webhooks" failingWebhooks={1} />
-							<ViewCommand command={LONG_COMMAND} />
+							<span style={{ flex: 1 }} />
 							<AccountChip
 								account={LAB_ACCOUNT}
 								balance="$29.02"
@@ -1257,8 +1247,7 @@ const META: Record<StoryId, Meta> = {
 				),
 			},
 		],
-		usage: `<DashboardTabs pathname={pathname} failingWebhooks={1} />
-<ViewCommand command={commandForPath(pathname)} />`,
+		usage: "<MarketingNav />",
 		donts: ["Rows change text color on hover, never background."],
 	},
 	"mobile-shell": {
@@ -1327,23 +1316,6 @@ const META: Record<StoryId, Meta> = {
 			},
 		],
 		usage: "<ChainStatus />",
-	},
-	"view-command": {
-		src: ["apps/web/src/components/dashboard/shell/view-command.tsx"],
-		rule: "Names the CLI command for this view, in the bar. Long commands truncate in the middle; a click copies the whole thing.",
-		variants: [
-			{
-				id: "short",
-				label: "Short",
-				render: () => <ViewCommand command="sl webhooks list" />,
-			},
-			{
-				id: "long",
-				label: "Long",
-				render: () => <ViewCommand command={LONG_COMMAND} />,
-			},
-		],
-		usage: '<ViewCommand command="sl webhooks list" />',
 	},
 	breadcrumb: {
 		src: ["apps/web/src/components/dashboard/shell/breadcrumb.tsx"],

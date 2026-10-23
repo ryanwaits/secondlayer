@@ -266,7 +266,7 @@ function ensurePanel(): HTMLElement {
 		'<p class="kp-head"><span class="kp-title"></span></p>' +
 		"<p>A temporary key made for these docs. It fills every sample on this tab, only reads, and stops working after 24 hours.</p>" +
 		'<dl class="mono"><dt>Key</dt><dd class="kp-key ph-no-capture"></dd><dt>Can</dt><dd>Read Streams and Index</dd><dt>Expires</dt><dd class="kp-exp"></dd></dl>' +
-		'<div class="kp-actions"><button type="button" class="kp-forget">Forget key</button><a href="/account/keys">Make a lasting key</a></div>';
+		'<div class="kp-actions"><button type="button" class="kp-forget">Forget key</button><a href="/account#keys">Make a lasting key</a></div>';
 	el.querySelector(".kp-forget")?.addEventListener("click", forget);
 	el.addEventListener("toggle", (e) => {
 		const open = (e as ToggleEvent).newState === "open";

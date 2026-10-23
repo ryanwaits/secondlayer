@@ -67,8 +67,8 @@ describe("AccountMenuPanel", () => {
 
 	test("links Dashboard, Keys and Billing, with no Open account or Webhooks row", () => {
 		expect(panel).toContain('href="/account"');
-		expect(panel).toContain('href="/account/keys"');
-		expect(panel).toContain('href="/account/credits"');
+		expect(panel).toContain('href="/account#keys"');
+		expect(panel).toContain('href="/account#usage"');
 		expect(panel).not.toContain('href="/account/webhooks"');
 		expect(panel).not.toContain("Open account");
 	});

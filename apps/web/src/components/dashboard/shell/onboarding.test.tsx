@@ -22,7 +22,7 @@ describe("ReadsKeyLine", () => {
 	test("first run says reads need a key and links to Keys, not a button", () => {
 		const html = renderToStaticMarkup(<ReadsKeyLine state="first" />);
 		expect(html).toContain("Reads need a key.");
-		expect(html).toContain('href="/account/keys"');
+		expect(html).toContain('href="/account#keys"');
 		expect(html).toContain("Make one on Keys");
 		expect(html).not.toContain("acct-btn");
 	});
@@ -30,7 +30,7 @@ describe("ReadsKeyLine", () => {
 	test("all keys revoked says new reads need one", () => {
 		const html = renderToStaticMarkup(<ReadsKeyLine state="none_active" />);
 		expect(html).toContain("No active key. New reads need one.");
-		expect(html).toContain('href="/account/keys"');
+		expect(html).toContain('href="/account#keys"');
 		expect(html).not.toContain("acct-btn");
 	});
 });

@@ -1,11 +1,8 @@
 "use client";
 
-import { DASHBOARD_TABS } from "@/components/dashboard/shell/dashboard-tabs";
 import {
-	refreshAlerts,
 	refreshBilling,
 	refreshCaps,
-	refreshCredits,
 	refreshKeys,
 	refreshRows,
 	refreshUsage,
@@ -36,59 +33,27 @@ function warmSubgraphs(): void {
 	load(listKey(LIST_HEALTH_HOURS), refreshListAndHealth);
 }
 
-const TABS: Record<string, () => void> = {
-	"/account": () => {
-		const month = monthParam(currentUtcMonth());
-		load("billing", refreshBilling);
-		load("caps", refreshCaps);
-		load("keys", refreshKeys);
-		load(`usage:${month}`, () => refreshUsage(month));
-		load("webhooks:list", () => refreshWebhooks());
-		load("webhooks:summary", refreshWebhookSummary);
-		warmSubgraphs();
-		load("rows", refreshRows);
-	},
-	"/account/rows": () => {
-		load("rows", refreshRows);
-		load("keys", refreshKeys);
-	},
-	"/account/webhooks": () => {
-		load("webhooks:list", () => refreshWebhooks());
-		load("webhooks:summary", refreshWebhookSummary);
-		load("keys", refreshKeys);
-	},
-	"/account/subgraphs": () => {
-		warmSubgraphs();
-		load("keys", refreshKeys);
-	},
-	"/account/keys": () => {
-		load("keys", refreshKeys);
-	},
-	"/account/credits": () => {
-		const month = monthParam(currentUtcMonth());
-		load("billing", refreshBilling);
-		load("caps", refreshCaps);
-		load("credits", refreshCredits);
-		load(`usage:${month}`, () => refreshUsage(month));
-		load("alerts", refreshAlerts);
-	},
-};
-
-/** Start a tab's mount reads so it opens on data. Reads only: never starts a
- *  stopped stack. Unknown hrefs do nothing. */
-export function warmTab(href: string): void {
-	TABS[href]?.();
+/** The account page's reads, which the webhook and subgraph detail pages open with too. */
+function warmAccount(): void {
+	const month = monthParam(currentUtcMonth());
+	load("billing", refreshBilling);
+	load("caps", refreshCaps);
+	load("keys", refreshKeys);
+	load(`usage:${month}`, () => refreshUsage(month));
+	load("webhooks:list", () => refreshWebhooks());
+	load("webhooks:summary", refreshWebhookSummary);
+	warmSubgraphs();
+	load("rows", refreshRows);
 }
 
 let warmed = false;
 
-/** Every tab's reads, once per page load: what the other tabs open with. */
+/** The account page's reads, once per page load, so a detail page opened from
+ *  /account is warm. The Account page reads its own data, so it skips this. */
 export function warmDashboard(except?: string): void {
 	if (warmed) return;
 	warmed = true;
-	for (const tab of DASHBOARD_TABS) {
-		if (tab.href !== except) warmTab(tab.href);
-	}
+	if (except !== "/account") warmAccount();
 }
 
 export function resetWarmForTests(): void {

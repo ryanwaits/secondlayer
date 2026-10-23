@@ -23,6 +23,26 @@ const render = (over: Partial<Parameters<typeof UsageBlock>[0]> = {}) =>
 		/>,
 	);
 
+describe("UsageBlock top-up return", () => {
+	test("a confirmed top-up says so at the top of the block", () => {
+		const html = render({ returnState: { kind: "landed", amount: 25 } });
+		expect(html).toContain("$25.00 added");
+		expect(html).toContain("Stripe confirmed the payment.");
+		expect(html.indexOf("$25.00 added")).toBeLessThan(
+			html.indexOf("Rows this month"),
+		);
+	});
+
+	test("a cancelled checkout says nothing was charged", () => {
+		const html = render({ returnState: { kind: "cancelled" } });
+		expect(html).toContain("Checkout cancelled. Nothing was charged.");
+	});
+
+	test("with no return there is no notice", () => {
+		expect(render()).not.toContain("Checkout cancelled");
+	});
+});
+
 describe("UsageBlock", () => {
 	test("a fresh account shows nothing used, nothing spent and no limit", () => {
 		const html = render();

@@ -357,7 +357,7 @@ export function DocsSidebar() {
 							</Link>
 						) : null}
 						{account ? (
-							<Link href="/account/keys" className="docs-nav-item">
+							<Link href="/account#keys" className="docs-nav-item">
 								Account
 							</Link>
 						) : null}

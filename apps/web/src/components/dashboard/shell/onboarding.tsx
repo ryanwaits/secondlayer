@@ -11,7 +11,7 @@ export function ReadsKeyLine({ state }: { state: "first" | "none_active" }) {
 					? "Reads need a key."
 					: "No active key. New reads need one."}
 			</span>
-			<Link href="/account/keys" className="dash-link">
+			<Link href="/account#keys" className="dash-link">
 				Make one on Keys ›
 			</Link>
 		</p>

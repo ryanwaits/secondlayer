@@ -168,6 +168,15 @@ describe("OverviewBody", () => {
 		expect([...order].sort((x, y) => x - y)).toEqual(order);
 	});
 
+	test("the webhooks, subgraphs, usage and keys blocks carry link anchors", () => {
+		const html = renderToStaticMarkup(
+			<OverviewBody {...base} rows={[healthy]} />,
+		);
+		for (const id of ["webhooks", "subgraphs", "usage", "keys"]) {
+			expect(html).toContain(`id="${id}"`);
+		}
+	});
+
 	test("the old strip and month panel are gone", () => {
 		const html = renderToStaticMarkup(
 			<OverviewBody {...base} rows={[healthy]} />,

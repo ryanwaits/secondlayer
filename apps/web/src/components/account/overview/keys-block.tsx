@@ -31,7 +31,7 @@ export function KeysBlockView({
 	onNew: () => void;
 }) {
 	return (
-		<section className="ov-section" aria-label="Keys and apps">
+		<section id="keys" className="ov-section" aria-label="Keys and apps">
 			<div className="ov-section-h">
 				<h2>Keys and apps</h2>
 				{flow ? null : (

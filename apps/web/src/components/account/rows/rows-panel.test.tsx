@@ -195,7 +195,7 @@ describe("RowsBody for a new account", () => {
 			<RowsBody {...base} status="ok" data={unused} keyState="first" />,
 		);
 		expect(html).toContain("Reads need a key.");
-		expect(html).toContain('href="/account/keys"');
+		expect(html).toContain('href="/account#keys"');
 		expect(html).not.toContain("sl index ft-transfers");
 		expect(html).not.toContain("acct-btn");
 	});
@@ -221,7 +221,7 @@ describe("RowsBody after every key was revoked", () => {
 			/>,
 		);
 		expect(html).toContain("No active key. New reads need one.");
-		expect(html).toContain('href="/account/keys"');
+		expect(html).toContain('href="/account#keys"');
 		expect(html).toContain("Rows per day");
 	});
 

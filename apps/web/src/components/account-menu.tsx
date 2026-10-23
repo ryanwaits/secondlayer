@@ -120,14 +120,14 @@ export function AccountMenuPanel({
 					Dashboard
 				</Link>
 				<Link
-					href="/account/keys"
+					href="/account#keys"
 					className="acct-menu-row"
 					onClick={onNavigate}
 				>
 					Keys
 				</Link>
 				<Link
-					href="/account/credits"
+					href="/account#usage"
 					className="acct-menu-row"
 					onClick={onNavigate}
 				>

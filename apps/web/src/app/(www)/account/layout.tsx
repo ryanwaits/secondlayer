@@ -8,11 +8,10 @@ import { usePathname } from "next/navigation";
 import { useEffect, useRef } from "react";
 
 /**
- * The account pages frame. The tabs, the chain heartbeat and the current
- * view's CLI command live in the top bar (MarketingNav renders them on
- * /account), and Keys lives in the account menu. The
- * keys and credits flows also open as sheets from that menu; these pages are
- * the home for them, and where Stripe returns a top-up. On phones (≤640px)
+ * The account pages frame. The top bar (MarketingNav) holds the brand, the
+ * balance chip and the account menu. The keys and credits flows also open as
+ * sheets from that menu; /account is the home for them, and where Stripe
+ * returns a top-up. On phones (≤640px)
  * the bottom tab bar and large-title header replace the top bar (globals.css
  * hides it).
  */
@@ -33,7 +32,7 @@ export default function AccountLayout({
 		[mayBeSignedIn],
 	);
 
-	// Once signed in, fill the other tabs' stores when the browser is idle so
+	// Once signed in, fill the detail pages' stores when the browser is idle so
 	// the current page's own reads go first. Once per page load.
 	const pathname = usePathname();
 	const pathnameRef = useRef(pathname);

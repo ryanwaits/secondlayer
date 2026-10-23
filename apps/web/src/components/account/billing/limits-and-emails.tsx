@@ -137,7 +137,11 @@ export function LimitsAndEmails({
 	}
 
 	return (
-		<section className="dash-panel bl-panel" aria-label="Limits and emails">
+		<section
+			id="cap"
+			className="dash-panel bl-panel"
+			aria-label="Limits and emails"
+		>
 			<span className="dash-label">Limits and emails</span>
 			<div className="bl-settings">
 				<MonthlyLimitRow

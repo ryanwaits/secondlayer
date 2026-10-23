@@ -1,12 +1,6 @@
 "use client";
 
 import { AccountAvatar, AccountMenu } from "@/components/account-menu";
-import { countByDisplayStatus } from "@/components/account/webhooks/shared";
-import {
-	DASHBOARD_TABS,
-	DashboardTabs,
-} from "@/components/dashboard/shell/dashboard-tabs";
-import { ViewCommand } from "@/components/dashboard/shell/view-command";
 import { Logo } from "@/components/logo";
 import { ProductsMenu } from "@/components/products-menu";
 import {
@@ -16,8 +10,6 @@ import {
 } from "@/lib/account-data";
 import { useAuth } from "@/lib/auth";
 import { PRODUCTS, SITE_LINKS, isActive } from "@/lib/site";
-import { commandForPath } from "@/lib/terminal-command";
-import { useWebhooksCache } from "@/lib/webhooks-store";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -33,14 +25,13 @@ import { useEffect, useState } from "react";
  * account chip; while the session check is in flight a blank chip holds the
  * space, so "Sign in" never flashes at someone who is already signed in.
  *
- * On /account the center links give way to the dashboard tabs, and the chain
- * heartbeat and a ⌘K hint lead the right edge.
+ * On /account the center links give way to nothing: the brand, the balance
+ * chip and the account menu are the whole bar.
  */
 export function MarketingNav() {
 	const pathname = usePathname();
 	const { account, loading, logout } = useAuth();
 	const { billing } = useAccountData();
-	const { list, detail } = useWebhooksCache();
 	const [open, setOpen] = useState(false);
 
 	// Close the sheet on navigation; Escape closes it and scroll locks while
@@ -69,16 +60,6 @@ export function MarketingNav() {
 	// never flash on /account.
 	const onAccount = pathname === "/account" || pathname.startsWith("/account/");
 	const dash = onAccount && (loading || account !== null);
-	const failingWebhooks = list
-		? countByDisplayStatus(list.data, "error")
-		: undefined;
-	const command = dash
-		? commandForPath(
-				pathname,
-				(id) =>
-					detail[id]?.data.name ?? list?.data.find((w) => w.id === id)?.name,
-			)
-		: null;
 
 	return (
 		<nav
@@ -89,9 +70,7 @@ export function MarketingNav() {
 				<Logo size={22} />
 				<span>secondlayer</span>
 			</Link>
-			{dash ? (
-				<DashboardTabs pathname={pathname} failingWebhooks={failingWebhooks} />
-			) : (
+			{dash ? null : (
 				<>
 					<div className="mnav-links">
 						<ProductsMenu className="mnav-products" />
@@ -110,7 +89,6 @@ export function MarketingNav() {
 				</>
 			)}
 			<div className="mnav-right">
-				{dash && command ? <ViewCommand command={command} /> : null}
 				{!loading && !account ? (
 					<Link
 						href="/signin"
@@ -185,22 +163,10 @@ export function MarketingNav() {
 									</span>
 								</div>
 							</div>
-							{dash ? (
-								DASHBOARD_TABS.filter((t) => t.ready).map((t) => (
-									<Link
-										key={t.href}
-										href={t.href}
-										onClick={() => setOpen(false)}
-									>
-										{t.label}
-									</Link>
-								))
-							) : (
-								<Link href="/account" className="acct-btn solid full">
-									Dashboard
-								</Link>
-							)}
-							<Link href="/account/credits" className="acct-btn line full">
+							<Link href="/account" className="acct-btn solid full">
+								Dashboard
+							</Link>
+							<Link href="/account#usage" className="acct-btn line full">
 								Add credits
 							</Link>
 							<button
