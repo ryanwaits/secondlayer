@@ -40,10 +40,10 @@ export function webhookFailingPush(d: {
 }
 
 const ACCOUNT_RULE_URL: Record<string, string> = {
-	stack_unreachable_subgraphs: "/account/subgraphs",
-	cap_pace: "/account/credits",
-	polling_loop: "/account/rows",
-	duplicate_reads: "/account/rows",
+	stack_unreachable_subgraphs: "/account#subgraphs",
+	cap_pace: "/account#usage",
+	polling_loop: "/account#usage",
+	duplicate_reads: "/account#usage",
 };
 
 export function insightPush(i: {
@@ -104,7 +104,7 @@ export function subgraphStoppedPush(e: {
 	return {
 		title: `${e.subgraph} stopped ingesting`,
 		body,
-		url: "/account/subgraphs",
+		url: "/account#subgraphs",
 		tag: `subgraph:${e.subgraph}`,
 	};
 }

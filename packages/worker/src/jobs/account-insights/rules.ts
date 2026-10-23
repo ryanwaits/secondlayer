@@ -533,12 +533,12 @@ function stackUnreachable(
 			? [
 					{
 						label: "Webhooks",
-						href: "/account/webhooks",
+						href: "/account#webhooks",
 						count: count("webhooks"),
 					},
 					{
 						label: "Subgraphs",
-						href: "/account/subgraphs",
+						href: "/account#subgraphs",
 						count: count("subgraphs"),
 					},
 				].filter((l) => l.count > 0)

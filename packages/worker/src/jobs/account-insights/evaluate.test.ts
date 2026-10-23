@@ -190,7 +190,7 @@ describe.skipIf(!HAS_DB)("evaluateAccountInsights", () => {
 			const subgraphs = calls.filter((c) => c.kind === "subgraph_not_serving");
 			expect(subgraphs.length).toBeGreaterThan(0);
 			expect(subgraphs.every((c) => c.key.startsWith("insight:"))).toBe(true);
-			expect(subgraphs.some((c) => c.url === "/account/subgraphs")).toBe(true);
+			expect(subgraphs.some((c) => c.url === "/account#subgraphs")).toBe(true);
 			const before = calls.length;
 			await evaluateAccountInsights(db, accountId, {
 				load: load("unreachable"),

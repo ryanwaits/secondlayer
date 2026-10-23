@@ -253,7 +253,7 @@ async function route(
 		return Response.json(
 			{
 				error: "insufficient_credits",
-				top_up_url: "https://www.secondlayer.tools/account/credits",
+				top_up_url: "https://www.secondlayer.tools/account#usage",
 			},
 			{ status: 402 },
 		);

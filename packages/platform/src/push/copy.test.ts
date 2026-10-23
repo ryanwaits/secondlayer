@@ -47,10 +47,10 @@ describe("insightPush", () => {
 				rule,
 				resource: { kind: "account", id: "account", name: "account" },
 			}).url;
-		expect(url("stack_unreachable_subgraphs")).toBe("/account/subgraphs");
-		expect(url("cap_pace")).toBe("/account/credits");
-		expect(url("polling_loop")).toBe("/account/rows");
-		expect(url("duplicate_reads")).toBe("/account/rows");
+		expect(url("stack_unreachable_subgraphs")).toBe("/account#subgraphs");
+		expect(url("cap_pace")).toBe("/account#usage");
+		expect(url("polling_loop")).toBe("/account#usage");
+		expect(url("duplicate_reads")).toBe("/account#usage");
 		expect(url("something_else")).toBe("/account");
 	});
 	test("webhook and subgraph resources open their own page", () => {
@@ -132,7 +132,7 @@ describe("subgraphStoppedPush", () => {
 	test("title and url", () => {
 		const p = subgraphStoppedPush({ ...e, reason: "crashed" });
 		expect(p.title).toBe("sbtc-flows stopped ingesting");
-		expect(p.url).toBe("/account/subgraphs");
+		expect(p.url).toBe("/account#subgraphs");
 		expect(p.tag).toBe("subgraph:sbtc-flows");
 	});
 });

@@ -668,8 +668,8 @@ describe("stack_unreachable", () => {
 		expect(all?.line).toContain("5 calls");
 		const links = all?.evidence.find((e) => e.kind === "links");
 		expect(links?.kind === "links" && links.links).toEqual([
-			{ label: "Webhooks", href: "/account/webhooks", count: 2 },
-			{ label: "Subgraphs", href: "/account/subgraphs", count: 3 },
+			{ label: "Webhooks", href: "/account#webhooks", count: 2 },
+			{ label: "Subgraphs", href: "/account#subgraphs", count: 3 },
 		]);
 		const hooks = fire(
 			"stack_unreachable_webhooks",

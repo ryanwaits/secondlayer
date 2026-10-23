@@ -171,7 +171,7 @@ async function checkOneCap(row: CapRow): Promise<void> {
 	}
 }
 
-const CAP_SETTING_URL = "https://secondlayer.tools/account/credits#cap";
+const CAP_SETTING_URL = "https://secondlayer.tools/account#cap";
 
 async function sendCapAlert(
 	row: CapRow,

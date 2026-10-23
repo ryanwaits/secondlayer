@@ -43,7 +43,7 @@ const INTERVAL_MS = 60 * 60 * 1000; // hourly — a runway crossing doesn't
 // need minute-level precision; the hard stop is real-time on the read/
 // provisioner path regardless.
 
-const DASHBOARD_LINK = "https://secondlayer.tools/account/credits";
+const DASHBOARD_LINK = "https://secondlayer.tools/account#usage";
 
 export function startBalanceAlertCron(): () => void {
 	if (getInstanceMode() !== "platform") {

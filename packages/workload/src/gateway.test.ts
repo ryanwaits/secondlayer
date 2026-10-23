@@ -165,9 +165,7 @@ describe("handleGatewayRequest", () => {
 		expect(res.status).toBe(402);
 		const body = (await res.json()) as { error: string; top_up_url: string };
 		expect(body.error).toBe("insufficient_credits");
-		expect(body.top_up_url).toBe(
-			"https://www.secondlayer.tools/account/credits",
-		);
+		expect(body.top_up_url).toBe("https://www.secondlayer.tools/account#usage");
 		expect(upstreamCalled).toBe(false);
 	});
 

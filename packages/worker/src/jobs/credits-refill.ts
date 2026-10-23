@@ -27,7 +27,7 @@ import { getInstanceMode } from "@secondlayer/shared/mode";
 import type Stripe from "stripe";
 import { getStripe } from "./stripe.ts";
 
-const CREDITS_LINK = "https://secondlayer.tools/account/credits";
+const CREDITS_LINK = "https://secondlayer.tools/account#usage";
 
 const INTERVAL_MS = 15 * 60 * 1000;
 
