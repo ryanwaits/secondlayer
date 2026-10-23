@@ -261,7 +261,7 @@ function NotFound({ name }: { name: string }) {
 			/>
 			<p className="sg-missing">
 				No subgraph named <b>{name}</b> on this account.{" "}
-				<Link href="/account/subgraphs" className="dash-link">
+				<Link href="/account#subgraphs" className="dash-link">
 					Back to subgraphs ›
 				</Link>
 			</p>

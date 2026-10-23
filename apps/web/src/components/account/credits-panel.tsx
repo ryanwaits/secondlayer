@@ -186,7 +186,7 @@ export function CreditsCard({
 		<FloatingCard
 			open={open}
 			onClose={onClose}
-			expandHref="/account/credits"
+			expandHref="/account#usage"
 			title="Add credits"
 			subtitle={`Credits go to ${email}`}
 		>

@@ -56,7 +56,7 @@ export function buildPrompt({
 		? AGENT_SETUP.replace(
 				HOSTED_KEY_LINE,
 				() =>
-					`- Key: your "${key.name}" key, \`${key.prefix}…\` (prefix shown; paste the full key from /account/keys)`,
+					`- Key: your "${key.name}" key, \`${key.prefix}…\` (prefix shown; paste the full key from /account#keys)`,
 			)
 		: AGENT_SETUP;
 	const accountBlock = account

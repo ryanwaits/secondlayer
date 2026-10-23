@@ -1133,7 +1133,7 @@ const META: Record<StoryId, Meta> = {
 							}}
 						>
 							<Breadcrumb
-								parent={{ href: "/account/webhooks", label: "Webhooks" }}
+								parent={{ href: "/account#webhooks", label: "Account" }}
 								current="sbtc-deposits-2"
 							/>
 							<StatusSentence tone="alarm" sub="1 of 40 webhooks needs you">
@@ -1225,14 +1225,14 @@ const META: Record<StoryId, Meta> = {
 				label: "Detail",
 				render: () => (
 					<Breadcrumb
-						parent={{ href: "/account/webhooks", label: "Webhooks" }}
+						parent={{ href: "/account#webhooks", label: "Account" }}
 						current="sbtc-deposits"
 					/>
 				),
 			},
 		],
 		usage: `<Breadcrumb
-  parent={{ href: "/account/webhooks", label: "Webhooks" }}
+  parent={{ href: "/account#webhooks", label: "Account" }}
   current={webhook.name}
 />`,
 	},

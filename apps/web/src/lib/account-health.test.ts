@@ -71,7 +71,7 @@ describe("accountProblems", () => {
 			burn: burn(0.35),
 		});
 		expect(problems.map((p) => p.kind)).toEqual(["low_balance"]);
-		expect(problems[0]?.href).toBe("/account/credits");
+		expect(problems[0]?.href).toBe("/account#usage");
 	});
 
 	test("exactly 2 days of burn left is still fine", () => {
@@ -125,7 +125,7 @@ describe("accountProblems", () => {
 			caps: caps("2026-10-01T00:00:00Z"),
 		});
 		expect(problems.map((p) => p.kind)).toEqual(["cap_frozen"]);
-		expect(problems[0]?.href).toBe("/account/credits#cap");
+		expect(problems[0]?.href).toBe("/account#cap");
 	});
 
 	test("failing webhooks are counted and link to the list", () => {
@@ -140,7 +140,7 @@ describe("accountProblems", () => {
 		expect(problems).toHaveLength(1);
 		expect(problems[0]?.kind).toBe("webhook_failing");
 		expect(problems[0]?.label).toBe("2 webhooks need attention");
-		expect(problems[0]?.href).toBe("/account/webhooks");
+		expect(problems[0]?.href).toBe("/account#webhooks");
 	});
 
 	test("a user-paused webhook is not a problem", () => {

@@ -86,7 +86,7 @@ describe("buildPrompt signed in", () => {
 
 	test("names the key by prefix and carries the account block", () => {
 		expect(out).toContain(
-			'- Key: your "laptop" key, `sk-sl_7f3a…` (prefix shown; paste the full key from /account/keys)',
+			'- Key: your "laptop" key, `sk-sl_7f3a…` (prefix shown; paste the full key from /account#keys)',
 		);
 		expect(out).toContain(
 			'My account (use these names, not placeholders):\n- Key: "laptop" sk-sl_7f3a… (prefix only)\n- Webhook sbtc-deposits → hooks.acme.dev (active, 2 failing)',

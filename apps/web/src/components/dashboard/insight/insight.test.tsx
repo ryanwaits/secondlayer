@@ -255,13 +255,13 @@ describe("Evidence", () => {
 			kind: "links",
 			title: "Where",
 			links: [
-				{ label: "Webhooks", href: "/account/webhooks", count: 2 },
-				{ label: "Subgraphs", href: "/account/subgraphs", count: 3 },
+				{ label: "Webhooks", href: "/account#webhooks", count: 2 },
+				{ label: "Subgraphs", href: "/account#subgraphs", count: 3 },
 			],
 		});
-		expect(html).toContain('href="/account/webhooks"');
+		expect(html).toContain('href="/account#webhooks"');
 		expect(html).toContain("Webhooks");
-		expect(html).toContain('href="/account/subgraphs"');
+		expect(html).toContain('href="/account#subgraphs"');
 		expect(html).toContain("<span>3</span>");
 	});
 });

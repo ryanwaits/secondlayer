@@ -693,7 +693,7 @@ export function WebhookDetailSection({ id }: { id: string }) {
 		return (
 			<p className="acct-muted">
 				That webhook doesn't exist, or belongs to a different account. Back to{" "}
-				<Link href="/account/webhooks">Webhooks</Link>.
+				<Link href="/account#webhooks">Webhooks</Link>.
 			</p>
 		);
 	}
@@ -712,7 +712,7 @@ export function WebhookDetailSection({ id }: { id: string }) {
 							stopped.
 						</p>
 					</div>
-					<a className="acct-btn solid small" href="/account/credits">
+					<a className="acct-btn solid small" href="/account#usage">
 						Add credits
 					</a>
 				</output>
@@ -742,7 +742,7 @@ export function WebhookDetailSection({ id }: { id: string }) {
 				{name ? (
 					<>
 						<Breadcrumb
-							parent={{ href: "/account/webhooks", label: "Webhooks" }}
+							parent={{ href: "/account#webhooks", label: "Account" }}
 							current={shortenName(name)}
 							title={name}
 						/>

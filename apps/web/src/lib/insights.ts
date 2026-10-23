@@ -139,18 +139,18 @@ export const SEVERITY_WORD: Record<InsightSeverity, string> = {
 };
 
 const ACCOUNT_PAGES: Record<string, { href: string; name: string }> = {
-	server_errors: { href: "/account/rows", name: "Rows" },
-	duplicate_reads: { href: "/account/rows", name: "Rows" },
-	polling_loop: { href: "/account/rows", name: "Rows" },
-	backfill: { href: "/account/rows", name: "Rows" },
-	allowance_exhausted: { href: "/account/rows", name: "Rows" },
-	key_unused: { href: "/account/keys", name: "Keys" },
-	revoked_key_in_use: { href: "/account/keys", name: "Keys" },
-	cap_pace: { href: "/account/credits", name: "Billing" },
-	credits_runway: { href: "/account/credits", name: "Billing" },
-	stack_unreachable_webhooks: { href: "/account/webhooks", name: "Webhooks" },
+	server_errors: { href: "/account#usage", name: "Rows" },
+	duplicate_reads: { href: "/account#usage", name: "Rows" },
+	polling_loop: { href: "/account#usage", name: "Rows" },
+	backfill: { href: "/account#usage", name: "Rows" },
+	allowance_exhausted: { href: "/account#usage", name: "Rows" },
+	key_unused: { href: "/account#keys", name: "Keys" },
+	revoked_key_in_use: { href: "/account#keys", name: "Keys" },
+	cap_pace: { href: "/account#usage", name: "Billing" },
+	credits_runway: { href: "/account#usage", name: "Billing" },
+	stack_unreachable_webhooks: { href: "/account#webhooks", name: "Webhooks" },
 	stack_unreachable_subgraphs: {
-		href: "/account/subgraphs",
+		href: "/account#subgraphs",
 		name: "Subgraphs",
 	},
 };

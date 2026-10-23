@@ -79,14 +79,14 @@ export function accountProblems(input: HealthInput): Problem[] {
 			label: stopped
 				? "Balance is $0 and your hosted stack is stopped"
 				: "Balance is $0",
-			href: "/account/credits",
+			href: "/account#usage",
 			action: "Add credits",
 		});
 	} else if (days !== null && days < LOW_BALANCE_DAYS) {
 		problems.push({
 			kind: "low_balance",
 			label: `Under ${LOW_BALANCE_DAYS} days of credit left`,
-			href: "/account/credits",
+			href: "/account#usage",
 			action: "Add credits",
 		});
 	}
@@ -95,7 +95,7 @@ export function accountProblems(input: HealthInput): Problem[] {
 		problems.push({
 			kind: "cap_frozen",
 			label: "Your monthly spend cap paused reads past the free rows",
-			href: "/account/credits#cap",
+			href: "/account#cap",
 			action: "Change cap",
 		});
 	}
@@ -105,7 +105,7 @@ export function accountProblems(input: HealthInput): Problem[] {
 		problems.push({
 			kind: "stack_stopped",
 			label: "Your hosted stack is stopped",
-			href: "/account/credits",
+			href: "/account#usage",
 			action: "See why",
 		});
 	}
@@ -118,7 +118,7 @@ export function accountProblems(input: HealthInput): Problem[] {
 				failing === 1
 					? "1 webhook needs attention"
 					: `${failing} webhooks need attention`,
-			href: "/account/webhooks",
+			href: "/account#webhooks",
 			action: "Review",
 		});
 	}

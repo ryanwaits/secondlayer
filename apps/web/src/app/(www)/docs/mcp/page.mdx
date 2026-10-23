@@ -1,5 +1,6 @@
 import { McpResources, McpTools } from "./tool-table";
 
+{/* new: 2026-10-23 */}
 # MCP and skills
 
 Give Claude Code, Cursor, or any MCP client live access to Secondlayer, and teach it the rules for building on it.
@@ -34,7 +35,7 @@ Any client that speaks Streamable HTTP takes the URL alone:
 | Browser sign-in (OAuth) | The default. The client registers itself and opens the consent page. |
 | `Authorization: Bearer <sk-sl_ key>` | A client without OAuth support. |
 
-- An app can't make or revoke keys. Revoke an app under Apps on [/account/keys](/account/keys).
+- An app can't make or revoke keys. Revoke an app under Apps on [/account](/account#keys).
 - Tools marked "Local only" below are not on the hosted server.
 
 ### Local
@@ -49,7 +50,7 @@ The `@secondlayer/mcp` package runs the server over **stdio**, with every tool:
       "args": ["-y", "@secondlayer/mcp"],
       "env": {
         "SECONDLAYER_API_URL": "https://api.secondlayer.tools",
-        "SECONDLAYER_API_KEY": "<sk-sl_ key from /account/keys>"
+        "SECONDLAYER_API_KEY": "<sk-sl_ key from /account#keys>"
       }
     }
   }

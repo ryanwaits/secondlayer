@@ -308,7 +308,7 @@ export function WebhooksListBody({
 					tone="stop"
 					title="Deliveries are paused until you add credits"
 					action={
-						<a className="acct-btn solid small" href="/account/credits">
+						<a className="acct-btn solid small" href="/account#usage">
 							Add credits
 						</a>
 					}

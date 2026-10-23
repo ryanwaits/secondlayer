@@ -115,17 +115,17 @@ describe("insightHref", () => {
 
 	test("every account rule lands on the page that explains it", () => {
 		const expected: Record<string, string> = {
-			server_errors: "/account/rows",
-			duplicate_reads: "/account/rows",
-			polling_loop: "/account/rows",
-			backfill: "/account/rows",
-			allowance_exhausted: "/account/rows",
-			key_unused: "/account/keys",
-			revoked_key_in_use: "/account/keys",
-			cap_pace: "/account/credits",
-			credits_runway: "/account/credits",
-			stack_unreachable_webhooks: "/account/webhooks",
-			stack_unreachable_subgraphs: "/account/subgraphs",
+			server_errors: "/account#usage",
+			duplicate_reads: "/account#usage",
+			polling_loop: "/account#usage",
+			backfill: "/account#usage",
+			allowance_exhausted: "/account#usage",
+			key_unused: "/account#keys",
+			revoked_key_in_use: "/account#keys",
+			cap_pace: "/account#usage",
+			credits_runway: "/account#usage",
+			stack_unreachable_webhooks: "/account#webhooks",
+			stack_unreachable_subgraphs: "/account#subgraphs",
 		};
 		for (const [rule, href] of Object.entries(expected)) {
 			expect(insightHref(account(rule)), rule).toBe(href);

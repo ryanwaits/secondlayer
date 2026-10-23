@@ -107,7 +107,7 @@ describe("WebhooksListBody", () => {
 	test("no credits offers the way to add some", () => {
 		const html = render({ rows: null, notice: { kind: "no_credits" } });
 		expect(html).toContain("Deliveries are paused until you add credits");
-		expect(html).toContain('href="/account/credits"');
+		expect(html).toContain('href="/account#usage"');
 	});
 });
 

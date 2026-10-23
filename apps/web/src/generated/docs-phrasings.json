@@ -35,15 +35,15 @@
     ]
   },
   "/docs#get-started": {
-    "hash": "f2c8fd86039a289e",
+    "hash": "707091d73b79d5c6",
     "phrasings": [
-      "first steps to index bitcoin data",
-      "five commands to get first row",
-      "quick start bitcoin indexing tutorial",
-      "how to check rows against bitcoin",
-      "minimal setup to run first query",
-      "fastest way to try subgraph locally",
-      "why is my first row missing"
+      "how do i get started quickly",
+      "five commands to first bitcoin row",
+      "verify indexed bitcoin data against node",
+      "quickstart bitcoin data setup steps",
+      "how to check data matches bitcoin",
+      "install cli and fetch first row",
+      "beginner setup for bitcoin indexer"
     ]
   },
   "/docs#install-and-set-your-key": {
@@ -1003,14 +1003,14 @@
     ]
   },
   "/docs/mcp#remote": {
-    "hash": "e316f5be7380847e",
+    "hash": "d1d54ae7236f3882",
     "phrasings": [
-      "streamable http mcp client url only",
-      "connect remote mcp server with url",
-      "mcp client without local install url",
-      "streamable http transport mcp setup",
-      "which clients support streamable http mcp",
-      "add remote mcp server by url"
+      "connect mcp client to remote url",
+      "streamable http mcp server url",
+      "mcp remote server setup without install",
+      "use mcp url with claude desktop",
+      "streamable http transport client config",
+      "remote mcp endpoint only url needed"
     ]
   },
   "/docs/mcp#start-here": {
@@ -1215,16 +1215,14 @@
     ]
   },
   "/docs/sdk-reference": {
-    "hash": "cd75482fd3e75c95",
+    "hash": "00c076e2f4730b55",
     "phrasings": [
-      "list of sdk client methods",
+      "list all sdk client methods",
+      "sdk method reference from source code",
       "what methods does the client expose",
-      "sdk function signatures reference",
-      "which client methods are available",
-      "sdk api methods source code",
-      "find method names in sdk",
-      "client method documentation lookup",
-      "sdk methods cheat sheet"
+      "where is sdk api documentation",
+      "every client method listed in sdk",
+      "sdk functions reference overview"
     ]
   },
   "/docs/sdk-reference/archive": {
@@ -2019,16 +2017,15 @@
     ]
   },
   "/docs/subgraphs#deploy": {
-    "hash": "cc7b2bfb7d6722a0",
+    "hash": "8fe56d56b765e1cd",
     "phrasings": [
-      "how do i deploy a subgraph",
-      "where to host my subgraph for free",
-      "is hosted subgraph service the default",
-      "subgraph deployment with no infrastructure to run",
-      "how many private subgraphs per account",
-      "deploy subgraph without operating my own node",
-      "what does hosted subgraph deployment include",
-      "hosted vs self hosted subgraph deploy"
+      "where to deploy my subgraph",
+      "hosted subgraph deployment default setup",
+      "subgraph not deploying what to check",
+      "deploy subgraph without running infrastructure",
+      "do i need to operate subgraph nodes",
+      "one private stack per account hosting",
+      "how to publish subgraph to hosted service"
     ]
   },
   "/docs/subgraphs#handler-context": {
@@ -2347,14 +2344,14 @@
     ]
   },
   "/docs/webhooks#account-webhooks": {
-    "hash": "31fb68b02f425675",
+    "hash": "e52dcbe1a29e5046",
     "phrasings": [
-      "list my hosted account webhooks",
-      "account webhooks endpoint path",
-      "where do i see my webhooks",
-      "hosted account webhook listing api",
-      "get all webhooks for my account",
-      "account webhooks page location"
+      "list webhooks for my account",
+      "see account level webhooks endpoint",
+      "why does account show no webhooks",
+      "view all hosted webhooks in account",
+      "find webhooks attached to my account",
+      "account webhooks api list request"
     ]
   },
   "/docs/webhooks#check-it": {

@@ -1,3 +1,4 @@
+{/* new: 2026-10-23 */}
 # Introduction
 
 Decoded Stacks chain data, backfilled from genesis, reorg-safe and kept current. Trust, and [verify it yourself](/docs/verification).
@@ -72,7 +73,7 @@ You get [raw, signed frames to decode](focus:fork-st-batch), and a [reorg rewind
 
 ## Get started
 
-Five commands from key to a row you can check against Bitcoin. Keys come from [/account/keys](/account/keys).
+Five commands from key to a row you can check against Bitcoin. Keys come from [/account](/account#keys).
 
 Using an agent? `bunx skills add ryanwaits/secondlayer --skill secondlayer -y`
 
@@ -125,7 +126,7 @@ Prefer your own box? [Self-host](/docs/self-host) is the same product on your Po
 
 export const agent = `
 - Quickstart: 'secondlayer subgraphs create my-balances --from-contract <contract id>', then 'secondlayer subgraphs deploy subgraphs/my-balances.ts' with a startBlock set.
-- Hosted: export SECONDLAYER_API_URL=https://api.secondlayer.tools and SECONDLAYER_API_KEY ('sk-sl_*', from /account/keys); read with 'Authorization: Bearer $SECONDLAYER_API_KEY'. Self-hosting: see /docs/self-host.
+- Hosted: export SECONDLAYER_API_URL=https://api.secondlayer.tools and SECONDLAYER_API_KEY ('sk-sl_*', from /account#keys); read with 'Authorization: Bearer $SECONDLAYER_API_KEY'. Self-hosting: see /docs/self-host.
 - Own index: 'secondlayer codegen index --target kysely' for the mirror schema; write a consume() loop that commits rows and the checkpoint in one transaction; handle onReorg by deleting from fork_point_height up.
 - Before deploying, 'secondlayer status' confirms the instance is up and ingesting; 'secondlayer verify all' checks data against the signed archive.
 - After deploying, 'secondlayer verify block <height>' proves a block against Bitcoin from the checkpoint in the CLI.

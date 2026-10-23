@@ -97,7 +97,7 @@ Your hosted stack runs your webhooks and subgraphs, so a webhook-only account ha
 
 ## Spend cap
 
-Set a monthly cap on [your credits page](https://www.secondlayer.tools/account/credits#cap). It counts what you spend in credits this month.
+Set a monthly cap on [your credits page](https://www.secondlayer.tools/account#cap). It counts what you spend in credits this month.
 
 | At | What happens |
 | --- | --- |
@@ -108,7 +108,7 @@ Raise the cap on the same page and reads resume; the stack starts again within 5
 
 ## Balance alerts
 
-At a zero balance your hosted stack stops within minutes: webhooks stop delivering (events are held) and subgraphs stop indexing until you add credits; your tables are kept and it starts again on top-up. Two switches on [your credits page](https://www.secondlayer.tools/account/credits) email you first.
+At a zero balance your hosted stack stops within minutes: webhooks stop delivering (events are held) and subgraphs stop indexing until you add credits; your tables are kept and it starts again on top-up. Two switches on [your credits page](https://www.secondlayer.tools/account#usage) email you first.
 
 | Switch | Emails when |
 | --- | --- |
@@ -152,9 +152,9 @@ A **signing secret** (`whsec_…`) is per-webhook. It verifies an incoming webho
 - Rotate with `secondlayer webhooks rotate-secret`.
 
 export const agent = `
-- Hosted: export SECONDLAYER_API_URL=https://api.secondlayer.tools and SECONDLAYER_API_KEY ('sk-sl_*', from /account/keys). Send it as 'Authorization: Bearer $SECONDLAYER_API_KEY'. The SDK, MCP and CLI pick the key from the host; set the same two variables in CI.
+- Hosted: export SECONDLAYER_API_URL=https://api.secondlayer.tools and SECONDLAYER_API_KEY ('sk-sl_*', from /account#keys). Send it as 'Authorization: Bearer $SECONDLAYER_API_KEY'. The SDK, MCP and CLI pick the key from the host; set the same two variables in CI.
 - Never put the account key in INSTANCE_TOKEN.
-- 1M rows a month are free; set a monthly spend cap and both balance alerts at /account/credits.
+- 1M rows a month are free; set a monthly spend cap and both balance alerts at /account#usage.
 - '402 spend_cap_reached' means the monthly cap is hit; '402 insufficient_credits' means the balance is empty. Raise the cap or buy credits to clear each.
 - The cap covers every charge: at the cap (and at a zero balance) the hosted stack stops, so webhooks stop delivering and subgraphs stop indexing until it is cleared.
 - A hosted stack with no active webhooks and no subgraphs stops itself (never in its first 15 minutes) and restarts on the next request. Pausing every webhook stops its billing.

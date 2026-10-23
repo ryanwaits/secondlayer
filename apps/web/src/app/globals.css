@@ -8440,26 +8440,6 @@ button.ky-click:focus-visible,
 .sg-v.faint {
 	color: var(--faint);
 }
-.sg-act {
-	padding: 0;
-	border: 0;
-	background: none;
-	font: inherit;
-	color: var(--sub);
-	cursor: pointer;
-}
-.sg-act:hover:not(:disabled) {
-	color: var(--pri);
-}
-.sg-act:disabled {
-	color: var(--faint);
-	cursor: default;
-}
-.sg-act:focus-visible {
-	outline: 2px solid var(--pri);
-	outline-offset: 2px;
-	border-radius: 2px;
-}
 .sg-schema {
 	display: grid;
 	gap: 22px;
