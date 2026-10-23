@@ -1,5 +1,4 @@
 import { shortDate } from "@/lib/rows";
-import { shortCount } from "@/lib/subgraph-view";
 import type { ApiKey, ApiKeyProduct } from "@/lib/types";
 import { formatRelative } from "@/lib/webhooks-data";
 
@@ -97,52 +96,6 @@ export function countedKeys(keys: ApiKey[] | null, now: Date): ApiKey[] {
 	return groupKeys(keys, now).own.filter((k) => k.product !== "docs");
 }
 
-/** Stale keys, the longest unused first. */
-export function staleKeys(
-	keys: ApiKey[],
-	now: Date,
-): { key: ApiKey; days: number }[] {
-	return keys
-		.flatMap((key) => {
-			const days = keyFlags(key, now).staleDays;
-			return days === undefined ? [] : [{ key, days }];
-		})
-		.sort((a, b) => b.days - a.days);
-}
-
-/** The key read most recently, or null when none has been used. */
-export function lastReadKey(keys: ApiKey[]): ApiKey | null {
-	let best: ApiKey | null = null;
-	for (const k of keys) {
-		if (!k.lastUsedAt) continue;
-		if (!best || Date.parse(k.lastUsedAt) > Date.parse(best.lastUsedAt ?? ""))
-			best = k;
-	}
-	return best;
-}
-
-/** Rows read with these keys in 30 days; null when the API sent no counts. */
-export function totalRows30d(keys: ApiKey[]): number | null {
-	const counted = keys.filter((k) => k.rows30d !== undefined);
-	if (counted.length === 0) return null;
-	return counted.reduce((sum, k) => sum + (k.rows30d ?? 0), 0);
-}
-
-/** Rows per UTC day summed over the keys, last `points` days; null when no key has a series. */
-export function sumDaily(keys: ApiKey[], points: number): number[] | null {
-	const series = keys.flatMap((k) => (k.rowsDaily ? [k.rowsDaily] : []));
-	if (series.length === 0) return null;
-	const length = Math.max(...series.map((s) => s.length));
-	const total = new Array<number>(length).fill(0);
-	for (const s of series) {
-		const offset = length - s.length;
-		s.forEach((v, i) => {
-			total[offset + i] = (total[offset + i] ?? 0) + v;
-		});
-	}
-	return total.slice(-points);
-}
-
 /** "Oct 13" for each of the last `count` UTC days, ending with `now`'s day. */
 export function dayLabels(now: Date, count = 30): string[] {
 	const day = 86_400_000;
@@ -155,123 +108,10 @@ export function dayLabels(now: Date, count = 30): string[] {
 	);
 }
 
-const keysWord = (n: number) => (n === 1 ? "key" : "keys");
-
-/** "a", "a and b", "a, b and 2 more". */
-function nameList(names: string[]): string {
-	if (names.length <= 2) return names.join(" and ");
-	return `${names.slice(0, 2).join(", ")} and ${names.length - 2} more`;
-}
-
-export interface KeysSentence {
-	tone: "ok" | "hi" | "idle" | "alarm";
-	text: string;
-	sub?: string;
-}
-
 /** The user's own keys that were revoked (docs keys never count). */
 export function revokedOwnKeys(keys: ApiKey[] | null): ApiKey[] {
 	return (keys ?? []).filter(
 		(k) =>
 			isOwnKey(k.product) && k.product !== "docs" && k.status === "revoked",
-	);
-}
-
-/** The Keys screen's one-line answer: are your keys in use, and which are not. */
-export function keysSentence(
-	keys: ApiKey[] | null,
-	now: Date,
-	opts: { revokedInUse?: boolean } = {},
-): KeysSentence {
-	const counted = countedKeys(keys, now);
-	if (counted.length === 0) {
-		const revoked = revokedOwnKeys(keys).length;
-		if (revoked === 0) {
-			return {
-				tone: "idle",
-				text: "No keys yet.",
-				sub: "A key lets the SDK, the CLI and plain HTTP calls read your data. Make one per place it runs, so revoking one never breaks the others.",
-			};
-		}
-		if (opts.revokedInUse) {
-			return {
-				tone: "alarm",
-				text: "No active keys, and one is still called.",
-				sub: "Something still reads with a key you revoked, and every call it makes fails. Make a new key and swap it in where the old one lives.",
-			};
-		}
-		return {
-			tone: "idle",
-			text: "No active keys.",
-			sub: `${revoked === 1 ? "You revoked your only key." : `You revoked all ${revoked}.`} Reads need a new key; anything still calling with an old one gets a 401. Webhooks and subgraphs don't use keys and keep running.`,
-		};
-	}
-	const stale = staleKeys(counted, now);
-	if (stale.length === 0) {
-		return {
-			tone: "ok",
-			text:
-				counted.length === 1
-					? "Your key is in use."
-					: `All ${counted.length} keys in use.`,
-		};
-	}
-	const inUse = counted.length - stale.length;
-	const days = Math.min(...stale.map((s) => s.days));
-	const total = totalRows30d(counted);
-	const names = nameList(stale.map((s) => s.key.name));
-	const verb = stale.length === 1 ? "hasn't" : "haven't";
-	return {
-		tone: "hi",
-		text: `${inUse} ${keysWord(inUse)} in use.`,
-		sub: [
-			`${names} ${verb} read anything in ${days} days`,
-			total === null
-				? null
-				: `${shortCount(total)} rows read with your keys in 30 days`,
-		]
-			.filter(Boolean)
-			.join(" · "),
-	};
-}
-
-export interface OverviewKeys {
-	tone: "ok" | "hi";
-	state: string;
-	/** Rows per day, last 24 days; null when the API sent no series. */
-	spark: number[] | null;
-	count: string;
-	age: string;
-}
-
-/** The Overview's `keys` row; null when the account has no keys of its own. */
-export function overviewKeys(
-	keys: ApiKey[] | null,
-	now: Date,
-): OverviewKeys | null {
-	const counted = countedKeys(keys, now);
-	if (counted.length === 0) return null;
-	const last = lastReadKey(counted);
-	const stale = staleKeys(counted, now)[0];
-	const head = last
-		? `${counted.length} ${keysWord(counted.length)} · ${last.name} read ${agoLong(last.lastUsedAt, now)}`
-		: `${counted.length} ${keysWord(counted.length)} · none read yet`;
-	return {
-		tone: stale ? "hi" : "ok",
-		state: stale
-			? `${head} · ${stale.key.name} unused ${stale.days} days`
-			: head,
-		spark: sumDaily(counted, 24),
-		count: String(counted.length),
-		age: last ? agoShort(last.lastUsedAt, now) : "–",
-	};
-}
-
-/** True when a key you can revoke has been unused 30+ days. The Keys tab
- *  shows the unused-key note only then, so a just-revoked key's note
- *  doesn't linger until the next insight check. */
-export function hasStaleOwnKey(keys: ApiKey[] | null, now: Date): boolean {
-	return groupKeys(keys, now).own.some(
-		(k) => k.product !== "docs" && keyFlags(k, now).staleDays !== undefined,
 	);
 }

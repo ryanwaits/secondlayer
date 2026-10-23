@@ -6,29 +6,7 @@
  * block is `.wh-skel`: one shimmering tone from existing tokens.
  */
 
-import { HeatStripSkeleton } from "@/components/dashboard/charts/heat-strip";
 import { Skel } from "@/components/dashboard/shell/skel";
-
-export function WebhooksListSkeleton() {
-	return (
-		<output className="wl-skel" aria-label="Loading webhooks" aria-busy="true">
-			{Array.from({ length: 3 }).map((_, i) => (
-				// Fixed skeleton row count; position is the identity.
-				// biome-ignore lint/suspicious/noArrayIndexKey: static skeleton rows
-				<div className="wl-row" key={i}>
-					<div className="wl-main">
-						<Skel width="40%" height={18} />
-						<Skel width="70%" />
-						<Skel width="30%" height={12} />
-					</div>
-					{/* Always 8 days: the server render can't read the clock. During the
-					23:00 UTC hour the real strip has 7, a one-row step once a day. */}
-					<HeatStripSkeleton />
-				</div>
-			))}
-		</output>
-	);
-}
 
 export function WebhookDetailSkeleton({
 	hideHead = false,

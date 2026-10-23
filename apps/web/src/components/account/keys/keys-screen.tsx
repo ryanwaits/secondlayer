@@ -2,46 +2,27 @@
 
 import { LazyBandBarChart } from "@/components/charts/lazy";
 import { Sparkline } from "@/components/dashboard/charts/sparkline";
-import { ActionableInsights } from "@/components/dashboard/insight/insight-actions";
 import { PlaceholderRows } from "@/components/dashboard/shell/onboarding";
-import { StatusSentence } from "@/components/dashboard/shell/status-sentence";
-import { useCompact } from "@/components/mobile/use-compact";
-import {
-	ensureApps,
-	ensureKeys,
-	formatDate,
-	revokeKey,
-	useAccountData,
-} from "@/lib/account-data";
+import { formatDate, revokeKey } from "@/lib/account-data";
 import { barsRows } from "@/lib/dashboard-charts";
-import type { Insight } from "@/lib/insights";
-import { forAccountRules, useInsights } from "@/lib/insights-store";
 import { keyState } from "@/lib/onboarding";
 import { shortCount } from "@/lib/subgraph-view";
-import type { ApiKey, ConnectedApp } from "@/lib/types";
+import type { ApiKey } from "@/lib/types";
 import Link from "next/link";
-import { useCallback, useEffect, useRef, useState } from "react";
-import { AccountCompactHeader } from "../compact-account";
-import { AppsTable } from "./apps-table";
-import { KeysCompact } from "./compact-keys";
+
+import { useState } from "react";
 import {
 	agoShort,
 	dayLabels,
 	groupKeys,
-	hasStaleOwnKey,
 	keyFlags,
 	keyForLabel,
 	keyWhy,
-	keysSentence,
 	revokedOwnKeys,
 } from "./key-view";
-import { NewKeyFlow } from "./new-key-flow";
 
 /** How long a just-made key's row keeps its yellow dot. */
 export const FRESH_MS = 9_000;
-/** A key's prefix as the list shows it: `sk-sl_` plus 8 characters. */
-const PREFIX_LENGTH = 14;
-
 const FOOTER =
 	"Lost a key? Revoke it and make another: we only ever show a key once.";
 
@@ -425,153 +406,5 @@ export function KeysTable({
 			<MadeForYou keys={grouped.madeForYou} now={now} defaultOpen={madeOpen} />
 			<p className="ky-foot">{FOOTER}</p>
 		</div>
-	);
-}
-
-export interface KeysBodyProps {
-	/** Null until the list has loaded. */
-	keys: ApiKey[] | null;
-	insights?: readonly Insight[];
-	now: Date;
-	freshPrefix?: string | null;
-	/** Apps signed in to the hosted MCP; omitted, the section is not shown. */
-	apps?: ConnectedApp[] | null;
-	/** The create flow, when it is open. */
-	flow?: React.ReactNode;
-	onNew: () => void;
-	initialOpen?: string | null;
-	madeOpen?: boolean;
-}
-
-/** Keys: one sentence, why a key went quiet, and a row per key. */
-export function KeysBody({
-	keys,
-	insights = [],
-	now,
-	freshPrefix,
-	apps,
-	flow,
-	onNew,
-	initialOpen,
-	madeOpen,
-}: KeysBodyProps) {
-	const sentence =
-		keys === null
-			? { tone: "idle" as const, text: "Loading your keys.", sub: undefined }
-			: keysSentence(keys, now, {
-					revokedInUse: insights.some((i) => i.rule === "revoked_key_in_use"),
-				});
-	return (
-		<div className="ky-body">
-			<div className="ky-top">
-				<StatusSentence tone={sentence.tone} sub={sentence.sub}>
-					{sentence.text}
-				</StatusSentence>
-				{flow ? null : (
-					<button
-						type="button"
-						className="acct-btn solid small"
-						onClick={onNew}
-					>
-						New key
-					</button>
-				)}
-			</div>
-			{flow}
-			{insights.length > 0 ? (
-				<div className="ky-notes">
-					<ActionableInsights insights={insights} />
-				</div>
-			) : null}
-			<KeysTable
-				keys={keys}
-				now={now}
-				freshPrefix={freshPrefix}
-				initialOpen={initialOpen}
-				madeOpen={madeOpen}
-			/>
-			{apps !== undefined ? <AppsTable apps={apps} now={now} /> : null}
-		</div>
-	);
-}
-
-/** The reasons the Keys tab shows. */
-const KEY_RULES = ["key_unused", "revoked_key_in_use"];
-
-/** /account/keys: every key on the account, and a new one when you need it. */
-export function KeysScreen() {
-	const { keys, apps } = useAccountData();
-	const { data: allInsights } = useInsights();
-	const compact = useCompact();
-	const [creating, setCreating] = useState(false);
-	const [freshPrefix, setFreshPrefix] = useState<string | null>(null);
-	const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
-	const now = new Date();
-
-	useEffect(() => {
-		ensureKeys();
-		ensureApps();
-	}, []);
-	useEffect(
-		() => () => {
-			if (timer.current) clearTimeout(timer.current);
-		},
-		[],
-	);
-
-	const markFresh = useCallback((key: string) => {
-		setFreshPrefix(key.slice(0, PREFIX_LENGTH));
-		if (timer.current) clearTimeout(timer.current);
-		timer.current = setTimeout(() => setFreshPrefix(null), FRESH_MS);
-	}, []);
-
-	// An account that never made a key is offered the name step straight away.
-	const firstRun = keyState(keys, now) === "first";
-	const [offered, setOffered] = useState(false);
-	if (firstRun && !offered) {
-		setOffered(true);
-		setCreating(true);
-	}
-
-	// The unused-key note is re-checked every 5 minutes; once no listed key is
-	// stale (say, it was just revoked) it would only be out of date.
-	const staleOwnKey = hasStaleOwnKey(keys, now);
-
-	if (compact) {
-		return (
-			<>
-				<AccountCompactHeader current="keys" />
-				<KeysCompact keys={keys} now={now} />
-			</>
-		);
-	}
-
-	const existingNames = groupKeys(keys, now)
-		.own.filter((k) => k.product !== "docs")
-		.map((k) => k.name);
-	const close = () => setCreating(false);
-
-	return (
-		<KeysBody
-			keys={keys}
-			insights={forAccountRules(
-				allInsights,
-				staleOwnKey ? KEY_RULES : ["revoked_key_in_use"],
-			)}
-			now={now}
-			freshPrefix={freshPrefix}
-			apps={apps}
-			onNew={() => setCreating(true)}
-			flow={
-				creating ? (
-					<NewKeyFlow
-						dismissible={!firstRun}
-						existingNames={existingNames}
-						onCreated={markFresh}
-						onClose={close}
-					/>
-				) : null
-			}
-		/>
 	);
 }

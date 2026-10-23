@@ -1,26 +1,6 @@
 "use client";
 
-import { BillingBody } from "@/components/account/billing/billing-screen";
-import {
-	TopupSheetBody,
-	UsageBody,
-} from "@/components/account/billing/compact-usage";
-import { LimitsAndEmails } from "@/components/account/billing/limits-and-emails";
-import { AccountSegments } from "@/components/account/compact-account";
-import { AddCredits, useCheckout } from "@/components/account/credits-panel";
-import {
-	KeySheetBody,
-	KeysCompactList,
-	keySheetHead,
-} from "@/components/account/keys/compact-keys";
-import {
-	EXAMPLE_KEYS,
-	EXAMPLE_KEYS_STALE,
-	EXAMPLE_NEW_KEY,
-	KEYS_EXAMPLE_NOW,
-} from "@/components/account/keys/key.fixtures";
-import { KeysBody } from "@/components/account/keys/keys-screen";
-import { NameStep, RevealStep } from "@/components/account/keys/new-key-flow";
+import { TopupSheetBody } from "@/components/account/billing/compact-usage";
 import { FirstRowsGuide } from "@/components/account/overview/first-rows-guide";
 import {
 	OverviewBody,
@@ -39,17 +19,8 @@ import {
 	type PushPrefValues,
 	PushSettingsView,
 } from "@/components/account/push/push-settings";
-import { RowsBody } from "@/components/account/rows/rows-panel";
 import { SubgraphCompactDetail } from "@/components/account/subgraphs/compact-detail";
-import {
-	SubgraphCompactRow,
-	SubgraphsCompactList,
-} from "@/components/account/subgraphs/compact-list";
-import {
-	SubgraphSheetBody,
-	SubgraphSheetPanel,
-	sheetHead,
-} from "@/components/account/subgraphs/compact-sheet";
+import { SubgraphCompactRow } from "@/components/account/subgraphs/compact-list";
 import { SubgraphDetailBody } from "@/components/account/subgraphs/detail-screen";
 import type { RowsRange } from "@/components/account/subgraphs/health-panels";
 import { SubgraphRows } from "@/components/account/subgraphs/list-screen";
@@ -58,10 +29,8 @@ import {
 	exampleDetail,
 	exampleErrors,
 	exampleHealth,
-	exampleList,
 } from "@/components/account/subgraphs/subgraph.fixtures";
 import { WebhookCompactDetailView } from "@/components/account/webhooks/compact-detail";
-import { WebhooksCompactList } from "@/components/account/webhooks/compact-list";
 import {
 	TitleRow,
 	WebhookDetailBody,
@@ -72,45 +41,27 @@ import {
 	type ReplayView,
 	replayTitle,
 } from "@/components/account/webhooks/replay-sheet";
-import {
-	type WebhookRowModel,
-	rowModel,
-} from "@/components/account/webhooks/rows";
-import {
-	countByDisplayStatus,
-	displayStatus,
-} from "@/components/account/webhooks/shared";
+import { displayStatus } from "@/components/account/webhooks/shared";
 import type { Range } from "@/components/account/webhooks/view";
 import {
 	FIXTURE_HOURS,
 	activityFor,
 	attempt,
 	detail,
-	summary,
 } from "@/components/account/webhooks/webhook.fixtures";
 import { type AmountOption, AmountPicker } from "@/components/amount-picker";
-import { MonoStackedBarChart } from "@/components/charts/mono-stacked-bar-chart";
 import { Choice } from "@/components/choice";
 import { HeatStrip } from "@/components/dashboard/charts/heat-strip";
-import { Legend } from "@/components/dashboard/charts/legend";
 import { Logo } from "@/components/logo";
 import { ActivitySheet } from "@/components/mobile/activity-sheet";
 import { HoldButton } from "@/components/mobile/hold-button";
-import { ShareFixSheet } from "@/components/mobile/share/share-fix-sheet";
 import { Sheet, SheetPanel } from "@/components/mobile/sheet";
 import { StatusPillView } from "@/components/mobile/status-pill";
-import { SwipeGroup, SwipeRow } from "@/components/mobile/swipe-row";
 import type { Activity } from "@/lib/activity";
 import { EMPTY_TIP } from "@/lib/chain-tip";
-import type { Insight } from "@/lib/insights";
 import { FIXTURE_INSIGHTS } from "@/lib/insights.fixtures";
 import type { PushState } from "@/lib/push-client";
-import type { RowsDay, RowsResponse } from "@/lib/rows";
-import type {
-	SubgraphHealthData,
-	SubgraphListItem,
-} from "@/lib/subgraphs-store";
-import type { ApiKey } from "@/lib/types";
+import type { SubgraphHealthData } from "@/lib/subgraphs-store";
 import type { DailySpend } from "@/lib/usage";
 import type { WebhookTestResult } from "@secondlayer/sdk";
 import type { ChainTrigger } from "@secondlayer/sdk";
@@ -119,6 +70,7 @@ import type {
 	ReplayRanges,
 } from "@secondlayer/shared/schemas/webhooks";
 import Link from "next/link";
+
 import { usePathname, useRouter } from "next/navigation";
 import {
 	type CSSProperties,
@@ -480,37 +432,6 @@ export function HeatStripDemo({
 	);
 }
 
-/** Cost by unit: the stacked bar takes formatter functions, so it needs a client boundary. */
-export function StackedCostDemo({
-	data,
-}: { data: { day: string; rows: number; events: number; storage: number }[] }) {
-	return (
-		<div style={{ display: "grid", gap: 10 }}>
-			<Legend
-				items={[
-					{ swatch: "square", label: "Rows", color: "var(--ch-a)" },
-					{ swatch: "square", label: "Events", color: "var(--ch-b)" },
-					{ swatch: "square", label: "Storage", color: "var(--ch-c)" },
-				]}
-			/>
-			<MonoStackedBarChart
-				data={data}
-				height={150}
-				xAxisDataKey="day"
-				xAxisTicks={[data[0]?.day ?? "", data.at(-1)?.day ?? ""]}
-				xAxisTickFormatter={(v) => String(v)}
-				yAxisTicks={[0, 0.5, 1]}
-				yAxisTickFormatter={(v) => `$${v.toFixed(2)}`}
-				series={[
-					{ dataKey: "rows", name: "Rows", color: "var(--ch-a)" },
-					{ dataKey: "events", name: "Events", color: "var(--ch-b)" },
-					{ dataKey: "storage", name: "Storage", color: "var(--ch-c)" },
-				]}
-			/>
-		</div>
-	);
-}
-
 /** AmountPicker is controlled, so its story needs state a server page cannot hold. */
 export function AmountDemo({
 	name,
@@ -690,100 +611,6 @@ export function PayloadViewDemo({
 	);
 }
 
-const ROWS_STORY_NOW = new Date("2026-10-15T12:00:00.000Z");
-
-/** Made-up reads for the Rows story: a month that runs out of free rows on Oct 6, or one that never does. */
-function rowsStoryData(exhausted: boolean): RowsResponse {
-	const today = Date.UTC(2026, 9, 15);
-	const daily: RowsDay[] = [];
-	let monthRows = 0;
-	let exhaustedOn: string | null = null;
-	for (let i = 0; i < 30; i++) {
-		const date = new Date(today - (29 - i) * 86_400_000)
-			.toISOString()
-			.slice(0, 10);
-		const wobble = (i * 37) % 9;
-		let freeRows = 14_000 + wobble * 3_000;
-		let paidRows = 0;
-		if (exhausted && date >= "2026-10-01") {
-			if (date < "2026-10-06") freeRows = 150_000;
-			else if (date === "2026-10-06") {
-				freeRows = 250_000;
-				paidRows = 400_000;
-			} else {
-				freeRows = 0;
-				paidRows = 30_000 + wobble * 6_000;
-			}
-		}
-		const rows = freeRows + paidRows;
-		if (date >= "2026-10-01") {
-			if (!exhaustedOn && monthRows + rows >= 1_000_000) exhaustedOn = date;
-			monthRows += rows;
-		}
-		daily.push({
-			date,
-			source: "index",
-			rows,
-			freeRows,
-			paidRows,
-			calls: Math.ceil(rows / 400),
-			paidUsdMicros: String(paidRows * 5),
-		});
-	}
-	const paidRows = daily.reduce(
-		(sum, d) => (d.date >= "2026-10-01" ? sum + d.paidRows : sum),
-		0,
-	);
-	return {
-		allowance: {
-			monthly: 1_000_000,
-			usedThisMonth: monthRows,
-			exhaustedOn,
-			paidRowsThisMonth: paidRows,
-			paidUsdMicrosThisMonth: String(paidRows * 5),
-			resetsOn: "2026-11-01",
-		},
-		daily,
-		hourlyToday: [],
-		bySource: [
-			{ source: "index", rows: 1_240_000, calls: 3_100 },
-			{ source: "streams", rows: 310, calls: 8 },
-		],
-		histogram: [
-			{ bucket: "1-9", calls: 1_900, rows: 5_000 },
-			{ bucket: "10-99", calls: 420, rows: 18_000 },
-			{ bucket: "100-499", calls: 260, rows: 70_000 },
-			{ bucket: "500-999", calls: 60, rows: 45_000 },
-			{ bucket: "1000+", calls: 480, rows: 480_000 },
-		],
-		errors: exhausted
-			? [
-					{
-						status: 404,
-						code: "NOT_FOUND",
-						path: `/v1/proofs/tx/${"ab12".repeat(16)}`,
-						count: 12,
-						last: "2026-10-15T09:00:00.000Z",
-					},
-					{
-						status: 400,
-						code: "BAD_REQUEST",
-						path: "/v1/index/events",
-						count: 5,
-						last: "2026-10-15T08:00:00.000Z",
-					},
-					{
-						status: 500,
-						code: "INTERNAL",
-						path: "/v1/index/events",
-						count: 2,
-						last: "2026-10-15T07:00:00.000Z",
-					},
-				]
-			: [],
-	};
-}
-
 /** The desktop subgraph page, healthy or stopped on a throwing handler. The
  *  range toggle needs state, which a server page cannot hold. */
 export function SubgraphDetailDemo({ failing }: { failing: boolean }) {
@@ -832,39 +659,6 @@ export function SubgraphPhoneDemo({ failing }: { failing: boolean }) {
 			errors={failing ? exampleErrors : []}
 			insights={failing && top ? [top] : []}
 			now={EXAMPLE_NOW}
-		/>
-	);
-}
-
-/** The Rows screen: `onRetry` is a function, which a server page cannot pass. */
-export function RowsDemo({ exhausted }: { exhausted: boolean }) {
-	return (
-		<RowsBody
-			status="ok"
-			data={rowsStoryData(exhausted)}
-			now={ROWS_STORY_NOW}
-			onRetry={() => {}}
-		/>
-	);
-}
-
-/** A new account's empty Rows screen, with and without a key. */
-export function RowsEmptyDemo({ firstRun }: { firstRun: boolean }) {
-	const data = rowsStoryData(false);
-	return (
-		<RowsBody
-			status="ok"
-			data={{
-				...data,
-				allowance: { ...data.allowance, usedThisMonth: 0 },
-				daily: [],
-				hourlyToday: [],
-				bySource: [],
-				errors: [],
-			}}
-			now={ROWS_STORY_NOW}
-			onRetry={() => {}}
-			keyState={firstRun ? "first" : "active"}
 		/>
 	);
 }
@@ -1023,143 +817,7 @@ export function OverviewDemo({ state }: { state: OverviewDemoState }) {
 	return <OverviewBody {...props} />;
 }
 
-/** The Keys screen and the create flow: callbacks are functions, which a server page cannot pass. */
-export function KeysDemo({
-	view,
-}: {
-	view:
-		| "all-in-use"
-		| "stale"
-		| "open"
-		| "name"
-		| "name-repeat"
-		| "reveal"
-		| "empty";
-}) {
-	const noop = () => {};
-	if (view === "empty") {
-		return (
-			<KeysBody
-				keys={[]}
-				now={KEYS_EXAMPLE_NOW}
-				onNew={noop}
-				flow={<NameStep onSubmit={noop} />}
-			/>
-		);
-	}
-	if (view === "name" || view === "name-repeat") {
-		return (
-			<NameStep
-				initialName={view === "name-repeat" ? "ci" : ""}
-				existingNames={["prod-indexer", "ci", "laptop"]}
-				onSubmit={noop}
-				onCancel={noop}
-			/>
-		);
-	}
-	if (view === "reveal") {
-		return <RevealStep value={EXAMPLE_NEW_KEY} name="laptop" onDone={noop} />;
-	}
-	return (
-		<KeysBody
-			keys={view === "stale" ? EXAMPLE_KEYS_STALE : EXAMPLE_KEYS}
-			now={KEYS_EXAMPLE_NOW}
-			onNew={noop}
-			initialOpen={view === "open" ? "a1b2c3d4" : null}
-		/>
-	);
-}
-
 export type BillingDemoState = "normal" | "fresh";
-
-const BILLING_NOW = new Date("2026-10-16T12:00:00.000Z");
-
-function billingDaily() {
-	const out = [];
-	for (let d = 1; d <= 16; d++) {
-		const date = `2026-10-${String(d).padStart(2, "0")}`;
-		out.push({
-			date,
-			unit: "memory.gb_hour",
-			usdMicros: String(90_000 + d * 4_000),
-		});
-		out.push({
-			date,
-			unit: "rows.delivered",
-			usdMicros: String((d % 5) * 11_000),
-		});
-	}
-	return out;
-}
-
-/** The Billing screen on example data: the Add credits panel and the limits are live, so the amount row and the limit field can be tried. */
-export function BillingDemo({ state }: { state: BillingDemoState }) {
-	const co = useCheckout();
-	const fresh = state === "fresh";
-	const billing = fresh
-		? { creditsUsdMicros: "0", spentThisMonthUsdMicros: "0" }
-		: { creditsUsdMicros: "28060000", spentThisMonthUsdMicros: "11340000" };
-	const burn = fresh ? null : { rateDayUsdMicros: "146145", windowHours: 24 };
-	const [capUsd, setCapUsd] = useState<number | null>(fresh ? null : 100);
-	return (
-		<BillingBody
-			now={BILLING_NOW}
-			billing={billing}
-			burn={burn}
-			service={
-				fresh ? null : { state: "running", lastChargedAt: null, memory24h: [] }
-			}
-			usage={
-				fresh
-					? []
-					: [
-							{
-								unit: "rows.delivered",
-								quantity: "2400000",
-								usdMicros: "1400000",
-							},
-							{ unit: "memory.gb_hour", quantity: "310", usdMicros: "8680000" },
-							{
-								unit: "webhook.event",
-								quantity: "126000",
-								usdMicros: "1260000",
-							},
-						]
-			}
-			daily={fresh ? [] : billingDaily()}
-			capUsd={capUsd}
-			onCapChange={setCapUsd}
-			credits={
-				fresh
-					? []
-					: [
-							{
-								occurredAt: "2026-10-09T10:00:00.000Z",
-								kind: "topup",
-								source: "stripe",
-								usdMicros: "25000000",
-							},
-							{
-								occurredAt: "2026-10-01T10:00:00.000Z",
-								kind: "grant",
-								source: "welcome",
-								usdMicros: "5000000",
-							},
-						]
-			}
-			addCredits={
-				<AddCredits co={co} billing={billing} burn={burn} stopped={false} />
-			}
-			settings={
-				<LimitsAndEmails
-					capUsd={capUsd}
-					onCapChange={setCapUsd}
-					spentUsd={Number(billing.spentThisMonthUsdMicros) / 1_000_000}
-				/>
-			}
-		/>
-	);
-}
 
 /** Lab-only toast host: the Lab sits outside (www), which mounts the app's one Toaster. */
 export function LabToaster() {
@@ -1233,66 +891,6 @@ export function SheetDemo({ variant }: { variant: "auto" | "detents" }) {
 	);
 }
 
-/** Three swipe rows in one group: two with Pause and Replay, one with a lone Revoke. */
-export function SwipeRowDemo() {
-	const rows = [
-		{ id: "a", name: "ci-runner", two: true },
-		{ id: "b", name: "mainnet-prod", two: true },
-		{ id: "c", name: "staging-read", two: false },
-	];
-	return (
-		<div style={{ padding: 16 }}>
-			<div
-				style={{
-					border: "1px solid var(--line)",
-					borderRadius: 8,
-					overflow: "hidden",
-				}}
-			>
-				<SwipeGroup>
-					{rows.map((row) => (
-						<SwipeRow
-							key={row.id}
-							id={row.id}
-							onTap={() => toast(`Opened ${row.name}`)}
-							actions={
-								row.two
-									? [
-											{
-												label: "Pause",
-												tone: "neutral",
-												onAction: () => toast(`Paused ${row.name}`),
-											},
-											{
-												label: "Replay",
-												tone: "pri",
-												onAction: () => toast(`Replaying ${row.name}`),
-											},
-										]
-									: [
-											{
-												label: "Revoke",
-												tone: "alarm",
-												onAction: () => toast(`Revoked ${row.name}`),
-											},
-										]
-							}
-						>
-							<div style={{ padding: 12, borderTop: "1px solid var(--line)" }}>
-								<div style={{ fontSize: 14, fontWeight: 500 }}>{row.name}</div>
-								<div style={{ fontSize: 13, color: "var(--sub)" }}>
-									Last delivery 2m ago
-								</div>
-							</div>
-						</SwipeRow>
-					))}
-				</SwipeGroup>
-			</div>
-			<LabToaster />
-		</div>
-	);
-}
-
 /** One `HoldButton` that toasts when the hold completes. */
 export function HoldButtonDemo() {
 	return (
@@ -1303,95 +901,6 @@ export function HoldButtonDemo() {
 			/>
 			<LabToaster />
 		</div>
-	);
-}
-
-const PHONE_SERIES = {
-	delivered: new Array<number>(168).fill(3),
-	failed: new Array<number>(168).fill(0),
-};
-
-function phoneRow(
-	over: Parameters<typeof summary>[0],
-	state?: WebhookRowModel["state"],
-): WebhookRowModel {
-	const model = rowModel(summary(over), PHONE_SERIES, FIXTURE_HOURS, []);
-	return state ? { ...model, state } : model;
-}
-
-const PHONE_ROWS_HEALTHY: WebhookRowModel[] = [
-	phoneRow({ id: "wh_1", name: "sbtc-deposits" }),
-	phoneRow({ id: "wh_2", name: "amm-swaps" }),
-	phoneRow({ id: "wh_3", name: "nft-mints" }),
-	phoneRow({ id: "wh_4", name: "pox-stackers", status: "paused" }),
-];
-
-const PHONE_ROWS_FAILING: WebhookRowModel[] = [
-	phoneRow(
-		{
-			id: "wh_1",
-			name: "sbtc-deposits",
-			status: "paused",
-			circuitOpenedAt: "2026-10-15T11:40:00.000Z",
-			circuitFailures: 20,
-		},
-		{ tone: "alarm", text: "Server not answering · 214 waiting", bad: true },
-	),
-	...PHONE_ROWS_HEALTHY.slice(1, 3),
-];
-
-/** The phone list with local state, so swipe, Pause and Undo work with no server. */
-export function LocalWebhooksList({
-	failing: oneFailing,
-}: { failing: boolean }) {
-	const [rows, setRows] = useState(
-		oneFailing ? PHONE_ROWS_FAILING : PHONE_ROWS_HEALTHY,
-	);
-	const setPaused = (id: string, paused: boolean) =>
-		setRows((all) =>
-			all.map((r) =>
-				r.webhook.id === id
-					? {
-							...r,
-							webhook: {
-								...r.webhook,
-								status: paused ? "paused" : "active",
-								circuitOpenedAt: null,
-								circuitFailures: 0,
-							},
-							state: paused
-								? { tone: "idle", text: "Paused", bad: false }
-								: { tone: "ok", text: "Delivering", bad: false },
-						}
-					: r,
-			),
-		);
-	return (
-		<>
-			<WebhooksCompactList
-				rows={rows}
-				failing={countByDisplayStatus(
-					rows.map((r) => r.webhook),
-					"error",
-				)}
-				busyId={null}
-				onOpen={() => {}}
-				onTogglePause={(row) => {
-					const { id, name } = row.webhook;
-					if (displayStatus(row.webhook) === "active") {
-						setPaused(id, true);
-						toast(`Paused ${name}. Events wait for you.`, {
-							duration: 5000,
-							action: { label: "Undo", onClick: () => setPaused(id, false) },
-						});
-					} else {
-						setPaused(id, false);
-						toast.success(`Resumed ${name}`);
-					}
-				}}
-			/>
-			<LabToaster />
-		</>
 	);
 }
 
@@ -1504,122 +1013,6 @@ const FAILING_DETAIL = {
 	lastError: "502 Bad Gateway",
 } as const;
 
-/** Subgraphs the phone list shows: at the tip, behind, throwing, reindexing. */
-const PHONE_SUBGRAPHS: SubgraphListItem[] = [
-	...exampleList,
-	{
-		name: "sbtc-flows",
-		version: "2.0.0",
-		status: "active",
-		lastProcessedBlock: 9_218_390,
-		totalRows: 88_410,
-		totalErrors: 1204,
-		tables: ["flows"],
-		blocksRemaining: 1,
-		updatedAt: "2026-10-15T11:59:00Z",
-		createdAt: "2026-09-10T09:00:00Z",
-	},
-	{
-		name: "bns-names",
-		version: "1.0.0",
-		status: "reindexing",
-		lastProcessedBlock: 4_120_000,
-		totalRows: 20_551,
-		totalErrors: 0,
-		tables: ["names"],
-		blocksRemaining: 5_098_411,
-		updatedAt: "2026-10-15T11:58:00Z",
-		createdAt: "2026-10-15T09:00:00Z",
-	},
-];
-
-/** The phone list with a local sheet, so a row opens the facts and Share fix opens the share sheet with no server. */
-export function LocalSubgraphsList({
-	only,
-	empty = false,
-}: { only?: string; empty?: boolean }) {
-	const [open, setOpen] = useState<string | null>(null);
-	const [sharing, setSharing] = useState<Insight | null>(null);
-	const item = PHONE_SUBGRAPHS.find((s) => s.name === open);
-	const flows = item?.name === "sbtc-flows";
-	const health = {
-		"sbtc-deposits": exampleHealth(0),
-		"vault-events": exampleHealth(0),
-		"sbtc-flows": exampleHealth(1204),
-		"bns-names": exampleHealth(0),
-	};
-	const insight = FIXTURE_INSIGHTS.find((i) => i.rule === "handler_errors");
-	return (
-		<>
-			<SubgraphsCompactList
-				items={
-					empty ? [] : PHONE_SUBGRAPHS.filter((s) => !only || s.name === only)
-				}
-				health={health}
-				insights={[]}
-				notice={null}
-				onOpen={setOpen}
-			/>
-			{item ? (
-				<Sheet
-					open
-					onClose={sharing ? () => {} : () => setOpen(null)}
-					detents={["half", "full"]}
-					{...sheetHead(item, health[item.name as keyof typeof health])}
-				>
-					<SubgraphSheetBody
-						item={item}
-						detail={exampleDetail}
-						health={health[item.name as keyof typeof health]}
-						errors={flows ? exampleErrors : []}
-						insights={
-							insight && flows
-								? [
-										{
-											...insight,
-											resource: { ...insight.resource, id: item.name },
-										},
-									]
-								: []
-						}
-						onShare={setSharing}
-					/>
-				</Sheet>
-			) : null}
-			<ShareFixSheet insight={sharing} onClose={() => setSharing(null)} />
-		</>
-	);
-}
-
-/** The sheet's markup for the throwing subgraph, at a fixed detent, with or without Share fix. */
-export function SubgraphSheetDemo({
-	detent,
-	withErrors = true,
-	withShare = false,
-}: { detent: "half" | "full"; withErrors?: boolean; withShare?: boolean }) {
-	const insight = FIXTURE_INSIGHTS.find((i) => i.rule === "handler_errors");
-	return (
-		<SubgraphSheetPanel
-			detent={detent}
-			item={PHONE_SUBGRAPHS[2] as SubgraphListItem}
-			detail={exampleDetail}
-			health={exampleHealth(withErrors ? 1204 : 0)}
-			errors={withErrors ? exampleErrors : []}
-			insights={
-				insight && withShare
-					? [
-							{
-								...insight,
-								resource: { ...insight.resource, id: "sbtc-flows" },
-							},
-						]
-					: []
-			}
-			onShare={withShare ? () => {} : undefined}
-		/>
-	);
-}
-
 const ACCOUNT_NOW = new Date("2026-10-17T12:00:00.000Z");
 
 /** Daily spend: `early` a day for days 1 to 10, `late` a day for days 11 to 17. */
@@ -1697,28 +1090,6 @@ function useLabCheckout() {
 	};
 }
 
-/** The phone Usage screen, with a top-up sheet that opens from the button. */
-export function LocalAccountUsage({ scenario }: { scenario: AccountScenario }) {
-	const [open, setOpen] = useState(false);
-	const co = useLabCheckout();
-	const props = accountUsageProps(scenario);
-	return (
-		<>
-			<AccountSegments current="usage" onSelect={() => {}} />
-			<UsageBody {...props} onTopUp={() => setOpen(true)} />
-			<Sheet
-				open={open}
-				onClose={() => setOpen(false)}
-				eyebrow="Balance $9.90"
-				title="Top up"
-			>
-				<TopupSheetBody co={co} billing={props.billing} burn={props.burn} />
-			</Sheet>
-			<LabToaster />
-		</>
-	);
-}
-
 /** The top-up sheet's markup at a fixed height. */
 export function TopupSheetDemo() {
 	const co = useLabCheckout();
@@ -1728,46 +1099,6 @@ export function TopupSheetDemo() {
 			<SheetPanel eyebrow="Balance $9.90" title="Top up" detent="auto">
 				<TopupSheetBody co={co} billing={props.billing} burn={props.burn} />
 			</SheetPanel>
-			<LabToaster />
-		</>
-	);
-}
-
-const ACCOUNT_KEYS: ApiKey[] = [
-	...EXAMPLE_KEYS_STALE.filter((k) =>
-		["prod-indexer", "laptop", "old-indexer"].includes(k.name),
-	),
-];
-
-/** The phone key list; a row opens its sheet, where a full hold revokes the key. */
-export function LocalAccountKeys() {
-	const [openId, setOpenId] = useState<string | null>(null);
-	const [revoked, setRevoked] = useState<string[]>([]);
-	const keys = ACCOUNT_KEYS.map((k) =>
-		revoked.includes(k.id) ? { ...k, status: "revoked" as const } : k,
-	);
-	const open = keys.find((k) => k.id === openId);
-	return (
-		<>
-			<AccountSegments current="keys" onSelect={() => {}} />
-			<KeysCompactList keys={keys} now={KEYS_EXAMPLE_NOW} onOpen={setOpenId} />
-			{open ? (
-				<Sheet
-					open
-					onClose={() => setOpenId(null)}
-					{...keySheetHead(open, KEYS_EXAMPLE_NOW)}
-				>
-					<KeySheetBody
-						k={open}
-						now={KEYS_EXAMPLE_NOW}
-						onRevoke={() => {
-							setRevoked((r) => [...r, open.id]);
-							toast.success(`Revoked ${open.name}. Calls with it now get 401.`);
-							setOpenId(null);
-						}}
-					/>
-				</Sheet>
-			) : null}
 			<LabToaster />
 		</>
 	);
@@ -1788,7 +1119,6 @@ export function LocalPushSettings({ state }: { state: PushState }) {
 	const [current, setCurrent] = useState(state);
 	return (
 		<>
-			<AccountSegments current="push" onSelect={() => {}} />
 			<PushSettingsView
 				state={current}
 				prefs={prefs}
@@ -1797,30 +1127,6 @@ export function LocalPushSettings({ state }: { state: PushState }) {
 				onTurnOn={() => setCurrent("on")}
 				onTurnOff={() => setCurrent("off")}
 			/>
-		</>
-	);
-}
-
-/** The key sheet's markup; holding to the end revokes the key locally. */
-export function KeySheetDemo({
-	revoked: startRevoked = false,
-}: { revoked?: boolean }) {
-	const [revoked, setRevoked] = useState(startRevoked);
-	const base = ACCOUNT_KEYS[1] as ApiKey;
-	const key: ApiKey = revoked ? { ...base, status: "revoked" } : base;
-	return (
-		<>
-			<SheetPanel {...keySheetHead(key, KEYS_EXAMPLE_NOW)} detent="auto">
-				<KeySheetBody
-					k={key}
-					now={KEYS_EXAMPLE_NOW}
-					onRevoke={() => {
-						setRevoked(true);
-						toast.success(`Revoked ${key.name}. Calls with it now get 401.`);
-					}}
-				/>
-			</SheetPanel>
-			<LabToaster />
 		</>
 	);
 }

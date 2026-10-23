@@ -13,7 +13,6 @@ mock.module("next/navigation", () => ({
 }));
 
 const { AppsTable } = await import("./apps-table");
-const { KeysBody } = await import("./keys-screen");
 
 const NOW = new Date("2026-10-18T12:00:00.000Z");
 const app = (patch: Partial<ConnectedApp> = {}): ConnectedApp => ({
@@ -50,17 +49,5 @@ describe("AppsTable", () => {
 		expect(renderToStaticMarkup(<AppsTable apps={[]} now={NOW} />)).toContain(
 			"No apps signed in.",
 		);
-	});
-
-	test("the keys page shows the section only when it is given apps", () => {
-		const without = renderToStaticMarkup(
-			<KeysBody keys={[]} now={NOW} onNew={() => {}} />,
-		);
-		expect(without).not.toContain("ky-apps");
-		const withApps = renderToStaticMarkup(
-			<KeysBody keys={[]} apps={[app()]} now={NOW} onNew={() => {}} />,
-		);
-		expect(withApps).toContain("ky-apps");
-		expect(withApps).toContain("“Claude Code”");
 	});
 });

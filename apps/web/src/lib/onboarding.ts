@@ -1,9 +1,6 @@
 import { countedKeys, isOwnKey } from "@/components/account/keys/key-view";
 import type { ApiKey } from "./types";
 
-/** The first read: the five newest transfers, one command, free. */
-export const READ_COMMAND = "sl index ft-transfers --order desc --limit 5";
-
 export interface OnboardingProgress {
 	/** An own key exists. */
 	key: boolean;

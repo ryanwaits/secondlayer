@@ -23,27 +23,6 @@ export type UsageRow = {
  *  read from in the web app. */
 export const ROWS_ALLOWANCE = 1_000_000;
 
-/** Label + sub-line for a usage-table row, by unit. Units missing here (a
- *  future meter, or `topup` which has its own row shape) fall back to their
- *  raw name with no sub-line. */
-const UNIT_LABEL: Record<string, [string, string]> = {
-	"rows.delivered": ["Rows delivered", "Index and Streams, live and history"],
-	"archive.partition": ["Archive partitions", "Blocks and transactions"],
-	"archive.partition.events": ["Archive event partitions", "Events"],
-	"webhook.event": ["Webhook events", "Hosted webhooks, retries free"],
-	"memory.gb_hour": ["Hosted stack memory", "Webhooks and subgraphs"],
-	"storage.gb_day": ["Hosted stack storage", "Webhooks and subgraphs"],
-	"sentinel.check_run": ["Sentinel checks", "Billed per check"],
-	// Retired: Sentinel no longer runs audits. Kept so older ledger rows render.
-	"sentinel.run": ["Sentinel runs", "Billed per run"],
-	"sentinel.deep_audit": ["Sentinel deep audits", "Billed per audit"],
-	"sentinel.monitored_event": ["Sentinel monitored events", "Chain events"],
-};
-
-export function unitLabel(unit: string): [string, string] {
-	return UNIT_LABEL[unit] ?? [unit, ""];
-}
-
 /** Usage rows keyed by `YYYY-MM`, one entry per month the store has fetched. */
 export type UsageByMonth = Record<string, UsageRow[]>;
 
@@ -67,23 +46,6 @@ export function formatRows(n: number | string): string {
 	if (num < 1_000_000) return num.toLocaleString("en-US");
 	const millions = (num / 1_000_000).toFixed(2);
 	return `${millions.replace(/\.00$/, "").replace(/(\.\d)0$/, "$1")}M`;
-}
-
-/** Quantity for a non-`rows.delivered` unit: GB-hour/GB-day units carry
- *  their unit suffix, one decimal, matching the mock ("12.5 GB-h", "1.4
- *  GB-d") — everything else is a whole-count thousands-separated integer. */
-export function formatUnitQuantity(unit: string, quantity: string): string {
-	if (unit === "rows.delivered") return formatRows(quantity);
-	if (unit === "memory.gb_hour") return `${Number(quantity).toFixed(1)} GB-h`;
-	if (unit === "storage.gb_day") return `${Number(quantity).toFixed(1)} GB-d`;
-	return Number(quantity).toLocaleString("en-US");
-}
-
-/** This month's `rows.delivered` from a usage list, or 0 if the unit hasn't
- *  billed anything yet. */
-export function deliveredRowsIn(usage: UsageRow[]): number {
-	const rd = usage.find((u) => u.unit === "rows.delivered");
-	return rd ? Number(rd.quantity) : 0;
 }
 
 // ── Burn, runway, level (Definitions) ──────────────────────────────────
@@ -142,11 +104,6 @@ export function balanceLevel(opts: {
 	return "ok";
 }
 
-/** Days in the UTC month `{year, month}` falls in (`month` 0-indexed). */
-export function daysInUtcMonth(m: Month): number {
-	return new Date(Date.UTC(m.year, m.month + 1, 0)).getUTCDate();
-}
-
 /** "Oct 2027": the UTC month a balance runs out at `rateDayUsdMicros` a day
  *  from `now`, or null when nothing burns. */
 export function runsOutMonth(
@@ -162,47 +119,6 @@ export function runsOutMonth(
 		month: "short",
 		year: "numeric",
 	});
-}
-
-/** The most recent hour in `service.memory24h` (rows are chronological,
- *  oldest → newest from the API), or `null` when the service has no
- *  memory history in the last 24h. */
-export function latestMemoryHour(
-	memory24h: MemoryHourRow[],
-): MemoryHourRow | null {
-	return memory24h.length > 0
-		? (memory24h[memory24h.length - 1] ?? null)
-		: null;
-}
-
-/** Rate label for the Usage table's new Rate column. `rows.delivered` is
- *  the only unit whose label depends on the row's own quantity (free vs.
- *  past the monthly allowance); every other unit is a flat rate. */
-export function rateLabel(unit: string, quantity: string): string {
-	switch (unit) {
-		case "memory.gb_hour":
-			return "$0.028/GB-h";
-		case "webhook.event":
-			return "$10/1M";
-		case "storage.gb_day":
-			return "$0.25/GB-mo";
-		case "sentinel.check_run":
-			return "$0.25/check";
-		case "sentinel.run":
-			return "$1.50/run";
-		case "sentinel.deep_audit":
-			return "$3/audit";
-		case "sentinel.monitored_event":
-			return "$15/1M";
-		case "archive.partition":
-			return "$0.05/partition";
-		case "archive.partition.events":
-			return "$0.15/partition";
-		case "rows.delivered":
-			return Number(quantity) > ROWS_ALLOWANCE ? "$5/1M" : "free";
-		default:
-			return "";
-	}
 }
 
 /** A UTC calendar month, month 0-indexed (matches `Date#getUTCMonth`). */
@@ -227,14 +143,6 @@ export function monthLabel(m: Month): string {
 	return new Date(Date.UTC(m.year, m.month, 1)).toLocaleDateString("en-US", {
 		month: "long",
 		year: "numeric",
-		timeZone: "UTC",
-	});
-}
-
-/** "Sep" — the daily spend chart's axis-label prefix. */
-export function monthShortLabel(m: Month): string {
-	return new Date(Date.UTC(m.year, m.month, 1)).toLocaleDateString("en-US", {
-		month: "short",
 		timeZone: "UTC",
 	});
 }

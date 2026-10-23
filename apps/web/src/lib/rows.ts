@@ -4,9 +4,6 @@
  * fetch, so `bun test` covers it.
  */
 
-import { dollars } from "./billing-view";
-import { formatRows } from "./usage";
-
 export type RowsAllowance = {
 	monthly: number;
 	usedThisMonth: number;
@@ -61,12 +58,6 @@ export type RowsResponse = {
 	errors: RowsError[];
 };
 
-const DAY_MS = 24 * 60 * 60 * 1000;
-
-function utcDate(ms: number): string {
-	return new Date(ms).toISOString().slice(0, 10);
-}
-
 /** "Oct 6" for a `YYYY-MM-DD` UTC date. */
 export function shortDate(date: string): string {
 	return new Date(`${date}T00:00:00.000Z`).toLocaleDateString("en-US", {
@@ -77,30 +68,6 @@ export function shortDate(date: string): string {
 }
 
 export type RowsBar = { date: string; t: string; n: number; p: number };
-
-/** The last 30 UTC days ending with `now`'s day: free rows as `n`, paid as
- *  `p`, summed across sources, zero-filled for days with no reads. The split
- *  is per metered page (a page that crossed the allowance counts as paid),
- *  so it is approximate at the crossing. */
-export function dailyBars(daily: readonly RowsDay[], now: Date): RowsBar[] {
-	const byDate = new Map<string, { n: number; p: number }>();
-	for (const day of daily) {
-		const sum = byDate.get(day.date) ?? { n: 0, p: 0 };
-		sum.n += day.freeRows;
-		sum.p += day.paidRows;
-		byDate.set(day.date, sum);
-	}
-	const today = Date.UTC(
-		now.getUTCFullYear(),
-		now.getUTCMonth(),
-		now.getUTCDate(),
-	);
-	return Array.from({ length: 30 }, (_, i) => {
-		const date = utcDate(today - (29 - i) * DAY_MS);
-		const sum = byDate.get(date);
-		return { date, t: date.slice(5), n: sum?.n ?? 0, p: sum?.p ?? 0 };
-	});
-}
 
 /** Where the "free 1M used up" mark sits: between the exhaustion day's bar
  *  and the next one. The chart draws a mark at a bar's left edge, so that is
@@ -132,69 +99,4 @@ export function xLabels(
 	if (exhaustedOn) add(days.findIndex((d) => d.date === exhaustedOn));
 	add(days.length - 1);
 	return [...labels.entries()].sort((a, b) => a[0] - b[0]);
-}
-
-const fmt = (n: number) => n.toLocaleString("en-US");
-
-/** The status sentence and its sub-line. */
-export function statusCopy(allowance: RowsAllowance): {
-	sentence: string;
-	sub: string;
-} {
-	const sentence = `${formatRows(allowance.usedThisMonth)} rows this month.`;
-	const always = "Block headers are always free.";
-	if (allowance.exhaustedOn) {
-		const paid = dollars(Number(allowance.paidUsdMicrosThisMonth) / 1_000_000);
-		return {
-			sentence,
-			sub: `The free 1M ran out on ${shortDate(allowance.exhaustedOn)}. ${fmt(allowance.paidRowsThisMonth)} paid rows since, ${paid}. ${always}`,
-		};
-	}
-	return {
-		sentence,
-		sub: `${fmt(allowance.usedThisMonth)} of your free 1M used. Resets ${shortDate(allowance.resetsOn)}. ${always}`,
-	};
-}
-
-/** Long hex runs (tx ids, hashes) shortened to 8 characters and an ellipsis. */
-export function shortenPath(path: string): string {
-	return path.replace(/[0-9a-f]{40,}/gi, (hex) => `${hex.slice(0, 8)}…`);
-}
-
-/** Your own mistakes: 4xx only. */
-export function clientErrors(errors: readonly RowsError[]): RowsError[] {
-	return errors.filter((e) => e.status < 500);
-}
-
-/** Failures on our side: 5xx only. */
-export function serverErrors(errors: readonly RowsError[]): RowsError[] {
-	return errors.filter((e) => e.status >= 500);
-}
-
-/** "10× 400 · 15× 404" for the 4xx errors, most frequent status first. */
-export function errorSummary(errors: readonly RowsError[]): string {
-	const byStatus = new Map<number, number>();
-	for (const e of clientErrors(errors)) {
-		byStatus.set(e.status, (byStatus.get(e.status) ?? 0) + e.count);
-	}
-	return [...byStatus.entries()]
-		.sort((a, b) => a[0] - b[0])
-		.map(([status, count]) => `${count}× ${status}`)
-		.join(" · ");
-}
-
-/** Rows per UTC hour from midnight to the current hour, summed across sources
- *  and zero-filled: the Overview row's sparkline. */
-export function hourlyPoints(hourly: readonly RowsHour[], now: Date): number[] {
-	const midnight = Date.UTC(
-		now.getUTCFullYear(),
-		now.getUTCMonth(),
-		now.getUTCDate(),
-	);
-	const points = Array.from({ length: now.getUTCHours() + 1 }, () => 0);
-	for (const h of hourly) {
-		const index = Math.floor((Date.parse(h.hour) - midnight) / 3_600_000);
-		if (index >= 0 && index < points.length) points[index] += h.rows;
-	}
-	return points;
 }

@@ -4,10 +4,9 @@ import {
 	FirstRowsCode,
 	FirstRowsPrompt,
 } from "@/components/account/overview/first-rows-code";
-import { SubgraphsEmptyState } from "@/components/account/subgraphs/empty-state";
 import { SchemaView } from "@/components/account/subgraphs/schema-view";
 import { exampleDetail } from "@/components/account/subgraphs/subgraph.fixtures";
-import { AsleepState } from "@/components/account/webhooks/list-panel";
+import { AsleepState } from "@/components/account/webhooks/asleep-state";
 import { ListensFor } from "@/components/account/webhooks/listens-for";
 import {
 	activityFor,
@@ -17,12 +16,9 @@ import { Choice } from "@/components/choice";
 import { Code } from "@/components/code/code";
 import { CodeTabs } from "@/components/code/code-tabs";
 import { BandBarChart } from "@/components/dashboard/charts/band-bar-chart";
-import { Cadence } from "@/components/dashboard/charts/cadence";
 import { ContextLineChart } from "@/components/dashboard/charts/context-line-chart";
-import { DayStrip } from "@/components/dashboard/charts/day-strip";
 import { HeatStrip } from "@/components/dashboard/charts/heat-strip";
 import { Legend } from "@/components/dashboard/charts/legend";
-import { MemoryBand } from "@/components/dashboard/charts/memory-band";
 import { Meter } from "@/components/dashboard/charts/meter";
 import { Sparkline } from "@/components/dashboard/charts/sparkline";
 import { SpendChart } from "@/components/dashboard/charts/spend-chart";
@@ -48,11 +44,6 @@ import {
 	type Tone,
 } from "@/components/dashboard/shell/status-sentence";
 import { Callout } from "@/components/docs/callout";
-import { InsightSheetBody } from "@/components/mobile/insights/insight-sheet";
-import {
-	EmptyState,
-	LocalInsightsScreen,
-} from "@/components/mobile/insights/insights-screen";
 import { MobileHeader } from "@/components/mobile/mobile-shell";
 import { ShareFixBody } from "@/components/mobile/share/share-fix-sheet";
 import { ButtonLink, Eyebrow, StatusDot } from "@/components/site";
@@ -63,19 +54,12 @@ import { FIXTURE_INSIGHTS, FIXTURE_STACK } from "@/lib/insights.fixtures";
 import type { CSSProperties, ReactNode } from "react";
 import {
 	AmountDemo,
-	BillingDemo,
 	HeatStripDemo,
 	HoldButtonDemo,
-	KeySheetDemo,
-	KeysDemo,
 	LabToaster,
-	LocalAccountKeys,
-	LocalAccountUsage,
 	LocalPushSettings,
 	LocalReplaySheet,
-	LocalSubgraphsList,
 	LocalWebhookDetail,
-	LocalWebhooksList,
 	OverviewDemo,
 	OverviewOnboardingDemo,
 	PILL_REPLAY_AND_STALLED,
@@ -83,14 +67,9 @@ import {
 	PhoneAccountDemo,
 	PillHeaderDemo,
 	PillStatesDemo,
-	RowsDemo,
-	RowsEmptyDemo,
 	SheetDemo,
-	StackedCostDemo,
 	SubgraphDetailDemo,
 	SubgraphPhoneDemo,
-	SubgraphSheetDemo,
-	SwipeRowDemo,
 	TopupSheetDemo,
 	WebhookDetailDemo,
 	WebhookHeaderDemo,
@@ -391,20 +370,11 @@ const STORY_LINE_LABELS: [number, string][] = [
 const STORY_SPEND_DAILY = [
 	0.8, 1.1, 0.9, 1.4, 1.2, 1.0, 1.3, 1.6, 1.2, 1.5, 1.4,
 ];
-const STORY_COST_DAYS = Array.from({ length: 14 }, (_, i) => ({
-	day: `Oct ${i + 1}`,
-	rows: 0.4 + (i % 4) * 0.1,
-	events: 0.2 + (i % 3) * 0.05,
-	storage: 0.1,
-}));
-
 const insightFor = (rule: string) => {
 	const found = FIXTURE_INSIGHTS.find((i) => i.rule === rule);
 	if (!found) throw new Error(`missing insight fixture ${rule}`);
 	return found;
 };
-
-const STORY_BLOCK_GAPS = [8, 11, 7, 9, 14, 8, 6, 9, 10, 8, 7, 12, 9, 8, 9, 10];
 
 /** A 390px phone-width column for the gesture primitives. */
 function PhoneColumn({ children }: { children: ReactNode }) {
@@ -1362,7 +1332,7 @@ const META: Record<StoryId, Meta> = {
 		donts: ["Fold, summarize or syntax-highlight the JSON."],
 	},
 	"webhooks-asleep": {
-		src: ["apps/web/src/components/account/webhooks/list-panel.tsx"],
+		src: ["apps/web/src/components/account/webhooks/asleep-state.tsx"],
 		rule: "With every webhook paused the hosted stack stops, and the list lives on it. An empty state stands in: the list's rows as faded ghosts, one centered line, and Wake it.",
 		variants: [
 			{ id: "asleep", label: "Asleep", render: () => <AsleepState /> },
@@ -1604,11 +1574,6 @@ const META: Record<StoryId, Meta> = {
 					/>
 				),
 			},
-			{
-				id: "stacked",
-				label: "Daily cost by unit",
-				render: () => <StackedCostDemo data={STORY_COST_DAYS} />,
-			},
 		],
 		usage: `<LazySpendChart daily={dailyCosts} daysInMonth={31} monthLabel="Oct" />`,
 	},
@@ -1642,45 +1607,6 @@ const META: Record<StoryId, Meta> = {
 				),
 			},
 			{
-				id: "day-strip",
-				label: "Key reads, 24 days",
-				render: () => (
-					<DayStrip
-						days={[
-							0, 0, 2, 5, 0, 0, 1, 3, 4, 0, 0, 0, 6, 2, 1, 0, 3, 5, 4, 0, 2, 7,
-							3, 1,
-						]}
-						title="Days with key reads, last 24 days"
-					/>
-				),
-			},
-			{
-				id: "memory-band",
-				label: "Hosted stack memory under its size",
-				render: () => (
-					<MemoryBand
-						points={[
-							1.1, 1.2, 1.2, 1.4, 1.6, 1.5, 1.7, 1.9, 1.8, 2.0, 2.1, 2.0, 2.2,
-							2.4, 2.3, 2.5, 2.6, 2.5, 2.7, 2.8, 2.7, 2.9, 3.0, 3.1,
-						]}
-						capacity={4}
-						title="Memory, last 24 hours, against a 4 GB size"
-					/>
-				),
-			},
-			{
-				id: "memory-band-stopped",
-				label: "Hosted stack memory, stopped",
-				render: () => (
-					<MemoryBand
-						points={[2.1, 2.2, 2.4, 2.8, 3.4, 3.9, 4, 4, 0, 0, 0, 0]}
-						capacity={4}
-						stopped
-						title="Memory, last 12 hours, stack stopped"
-					/>
-				),
-			},
-			{
 				id: "meter-over",
 				label: "Meter with paid rows",
 				render: () => (
@@ -1704,11 +1630,6 @@ const META: Record<StoryId, Meta> = {
 						title="Deliveries, last 48 hours"
 					/>
 				),
-			},
-			{
-				id: "cadence",
-				label: "Block cadence",
-				render: () => <Cadence intervals={STORY_BLOCK_GAPS} />,
 			},
 			{
 				id: "meter",
@@ -1803,65 +1724,6 @@ const META: Record<StoryId, Meta> = {
 			"Making a key, a webhook or a subgraph waits for a desk.",
 		],
 	},
-	"mobile-insights": {
-		src: [
-			"apps/web/src/components/mobile/insights/insights-screen.tsx",
-			"apps/web/src/components/mobile/insights/insight-row.tsx",
-			"apps/web/src/components/mobile/insights/insight-sheet.tsx",
-		],
-		rule: "On a phone, Insights is an inbox: swipe to snooze until tomorrow or mark done, each with Undo; tap for the sheet.",
-		width: { min: 320, max: 430, value: 390 },
-		variants: [
-			{
-				id: "open",
-				label: "Open list",
-				render: () => (
-					<PhoneColumn>
-						<LocalInsightsScreen initial={FIXTURE_INSIGHTS} />
-					</PhoneColumn>
-				),
-			},
-			{
-				id: "sheet-cause",
-				label: "Sheet body with cause",
-				render: () => (
-					<PhoneColumn>
-						<div className="m-sheet-body">
-							<InsightSheetBody insight={insightFor("receiver_down")} />
-						</div>
-					</PhoneColumn>
-				),
-			},
-			{
-				id: "sheet-no-cause",
-				label: "Sheet body without cause",
-				render: () => (
-					<PhoneColumn>
-						<div className="m-sheet-body">
-							<InsightSheetBody insight={insightFor("dns_retries_recovered")} />
-						</div>
-					</PhoneColumn>
-				),
-			},
-			{
-				id: "empty",
-				label: "Empty",
-				render: () => (
-					<PhoneColumn>
-						<div className="m-ins">
-							<EmptyState
-								title="Nothing to tell you yet"
-								text="When something changes on your stack, like a failing server, a key reading on repeat or spend running ahead, it shows up here, with the likely cause."
-							/>
-						</div>
-					</PhoneColumn>
-				),
-			},
-		],
-		usage:
-			"<InsightsScreen />\n<InsightSheet insight={insight} onClose={close} />",
-		donts: ["No hand-off block on a phone.", "No cause below 0.85 confidence."],
-	},
 	"mobile-webhooks": {
 		src: [
 			"apps/web/src/components/account/webhooks/compact-list.tsx",
@@ -1870,24 +1732,6 @@ const META: Record<StoryId, Meta> = {
 		rule: "On a phone a failing webhook shows the way back: test, resume, replay.",
 		width: { min: 320, max: 430, value: 390 },
 		variants: [
-			{
-				id: "list-healthy",
-				label: "List, healthy",
-				render: () => (
-					<PhoneColumn>
-						<LocalWebhooksList failing={false} />
-					</PhoneColumn>
-				),
-			},
-			{
-				id: "list-failing",
-				label: "List, one failing",
-				render: () => (
-					<PhoneColumn>
-						<LocalWebhooksList failing />
-					</PhoneColumn>
-				),
-			},
 			{
 				id: "detail-failing",
 				label: "Detail, failing, not tested",
@@ -1917,7 +1761,7 @@ const META: Record<StoryId, Meta> = {
 			},
 		],
 		usage:
-			"<WebhooksCompactList rows={rows} failing={n} onTogglePause={pause} />\n<WebhookCompactDetail webhook={w} test={test} onTest={send} />",
+			"<WebhookCompactRow row={row} />\n<WebhookCompactDetail webhook={w} insights={insights} stackAsleep={false} test={test} onTest={send} />",
 		donts: [
 			"No CLI commands on a phone.",
 			"Requeue stays disabled until the webhook is resumed.",
@@ -2006,56 +1850,11 @@ const META: Record<StoryId, Meta> = {
 	"mobile-subgraphs": {
 		src: [
 			"apps/web/src/components/account/subgraphs/compact-list.tsx",
-			"apps/web/src/components/account/subgraphs/compact-sheet.tsx",
+			"apps/web/src/components/account/subgraphs/compact-detail.tsx",
 		],
 		rule: "On a phone a subgraph is a row you watch: lag, rows, errors. Fixes happen in code.",
 		width: { min: 320, max: 430, value: 390 },
 		variants: [
-			{
-				id: "list",
-				label: "List",
-				render: () => (
-					<PhoneColumn>
-						<LocalSubgraphsList />
-					</PhoneColumn>
-				),
-			},
-			{
-				id: "list-errors",
-				label: "List, one throwing",
-				render: () => (
-					<PhoneColumn>
-						<LocalSubgraphsList only="sbtc-flows" />
-					</PhoneColumn>
-				),
-			},
-			{
-				id: "sheet-half",
-				label: "Sheet, half",
-				render: () => (
-					<PhoneColumn>
-						<SubgraphSheetDemo detent="half" />
-					</PhoneColumn>
-				),
-			},
-			{
-				id: "sheet-full-errors",
-				label: "Sheet, full, errors and Share fix",
-				render: () => (
-					<PhoneColumn>
-						<SubgraphSheetDemo detent="full" withShare />
-					</PhoneColumn>
-				),
-			},
-			{
-				id: "empty",
-				label: "Empty",
-				render: () => (
-					<PhoneColumn>
-						<LocalSubgraphsList empty />
-					</PhoneColumn>
-				),
-			},
 			{
 				id: "page-failing",
 				label: "Page, throwing",
@@ -2077,7 +1876,7 @@ const META: Record<StoryId, Meta> = {
 			},
 		],
 		usage:
-			"<SubgraphsCompactList items={items} health={health} onOpen={open} />\n<SubgraphSheet name={name} onClose={close} />\n<SubgraphCompactDetail detail={detail} health={health} errors={errors} />",
+			"<SubgraphCompactRow item={item} health={health} insights={insights} href={href} />\n<SubgraphCompactDetail detail={detail} health={health} errors={errors} />",
 		donts: [
 			"No actions and no CLI commands on a phone.",
 			"No integrity row until the API has the field.",
@@ -2085,65 +1884,18 @@ const META: Record<StoryId, Meta> = {
 	},
 	"mobile-account": {
 		src: [
-			"apps/web/src/components/account/compact-account.tsx",
 			"apps/web/src/components/account/billing/compact-usage.tsx",
-			"apps/web/src/components/account/keys/compact-keys.tsx",
 			"apps/web/src/components/account/push/push-settings.tsx",
 		],
-		rule: "On a phone, Account shows spend against the cap with a top-up, a key is revoked by holding the button for 1.2 seconds, and Push turns notifications on for this device.",
+		rule: "On a phone, Add credits opens the top-up sheet, and Notifications opens the push settings, which turn notifications on for this device.",
 		width: { min: 320, max: 430, value: 390 },
 		variants: [
-			{
-				id: "usage-healthy",
-				label: "Usage, $14.20 of $50",
-				render: () => (
-					<PhoneColumn>
-						<LocalAccountUsage scenario="healthy" />
-					</PhoneColumn>
-				),
-			},
-			{
-				id: "usage-near-cap",
-				label: "Usage, near the cap",
-				render: () => (
-					<PhoneColumn>
-						<LocalAccountUsage scenario="near-cap" />
-					</PhoneColumn>
-				),
-			},
-			{
-				id: "usage-no-cap",
-				label: "Usage, no cap",
-				render: () => (
-					<PhoneColumn>
-						<LocalAccountUsage scenario="no-cap" />
-					</PhoneColumn>
-				),
-			},
 			{
 				id: "topup-sheet",
 				label: "Top-up sheet",
 				render: () => (
 					<PhoneColumn>
 						<TopupSheetDemo />
-					</PhoneColumn>
-				),
-			},
-			{
-				id: "keys",
-				label: "Keys, one unused 41 days",
-				render: () => (
-					<PhoneColumn>
-						<LocalAccountKeys />
-					</PhoneColumn>
-				),
-			},
-			{
-				id: "key-sheet",
-				label: "Key sheet, hold to revoke",
-				render: () => (
-					<PhoneColumn>
-						<KeySheetDemo />
 					</PhoneColumn>
 				),
 			},
@@ -2183,18 +1935,9 @@ const META: Record<StoryId, Meta> = {
 					</PhoneColumn>
 				),
 			},
-			{
-				id: "key-revoked",
-				label: "Key sheet, revoked",
-				render: () => (
-					<PhoneColumn>
-						<KeySheetDemo revoked />
-					</PhoneColumn>
-				),
-			},
 		],
 		usage:
-			"<UsageCompact {...usage} co={checkout} />\n<KeysCompact keys={keys} now={now} />",
+			"<TopupSheetBody co={checkout} billing={billing} burn={burn} />\n<PushSettings />",
 		donts: [
 			"No key creation on a phone.",
 			"Top up goes through Stripe Checkout; never take a card here.",
@@ -2331,39 +2074,6 @@ const META: Record<StoryId, Meta> = {
 		],
 		usage: "<ActionableInsights insights={insights} />",
 	},
-	"account-rows": {
-		src: [
-			"apps/web/src/components/account/rows/rows-panel.tsx",
-			"apps/web/src/lib/rows.ts",
-		],
-		rule: "One sentence about the free 1M, rows per day with the used-up mark, where rows came from, call sizes, and your own errors.",
-		stack: true,
-		variants: [
-			{
-				id: "exhausted",
-				label: "Free 1M used up",
-				render: () => <RowsDemo exhausted />,
-			},
-			{
-				id: "under-allowance",
-				label: "Under the allowance",
-				render: () => <RowsDemo exhausted={false} />,
-			},
-		],
-		usage: "<RowsSection />",
-		props: [
-			{
-				name: "status",
-				type: '"not_loaded" | "failed" | "ok"',
-				note: "Failed shows the error with Retry; never a blank panel.",
-			},
-			{
-				name: "insights",
-				type: "Insight[]",
-				note: "Notes under the chart. Empty renders nothing.",
-			},
-		],
-	},
 	"account-onboarding": {
 		src: [
 			"apps/web/src/components/dashboard/shell/onboarding.tsx",
@@ -2409,21 +2119,6 @@ const META: Record<StoryId, Meta> = {
 					/>
 				),
 			},
-			{
-				id: "rows-no-key",
-				label: "Rows, no key",
-				render: () => <RowsEmptyDemo firstRun />,
-			},
-			{
-				id: "rows-key",
-				label: "Rows, key made",
-				render: () => <RowsEmptyDemo firstRun={false} />,
-			},
-			{
-				id: "subgraphs-empty",
-				label: "Subgraphs, empty",
-				render: () => <SubgraphsEmptyState />,
-			},
 		],
 		usage: '<ReadsKeyLine state="first" />',
 		dos: [
@@ -2431,27 +2126,6 @@ const META: Record<StoryId, Meta> = {
 			"Keep placeholder rows faint, hidden from readers and not clickable.",
 		],
 		donts: ["Mint a key for the user. They name it for where it runs."],
-	},
-	billing: {
-		src: [
-			"apps/web/src/components/account/billing/billing-screen.tsx",
-			"apps/web/src/components/account/billing/amount-choice.tsx",
-			"apps/web/src/components/account/billing/limits-and-emails.tsx",
-		],
-		rule: "Adding credits sits beside the usage chart. The spend cap is one Monthly limit field, empty for no limit.",
-		stack: true,
-		variants: [
-			{
-				id: "normal",
-				label: "Balance, burn and a limit",
-				render: () => <BillingDemo state="normal" />,
-			},
-			{
-				id: "fresh",
-				label: "New account",
-				render: () => <BillingDemo state="fresh" />,
-			},
-		],
 	},
 	overview: {
 		src: [
@@ -2517,65 +2191,6 @@ const META: Record<StoryId, Meta> = {
 			"Turn webhook rows red when the hosted stack stopped: they are not at fault.",
 		],
 	},
-	"account-keys": {
-		src: [
-			"apps/web/src/components/account/keys/keys-screen.tsx",
-			"apps/web/src/components/account/keys/new-key-flow.tsx",
-			"apps/web/src/components/account/keys/key-view.ts",
-		],
-		rule: "One row per key with the rows it read; a quiet key is named with the days. A new key is shown once, with four ways to use it.",
-		stack: true,
-		variants: [
-			{
-				id: "all-in-use",
-				label: "All in use",
-				render: () => <KeysDemo view="all-in-use" />,
-			},
-			{
-				id: "stale",
-				label: "A key went quiet",
-				render: () => <KeysDemo view="stale" />,
-			},
-			{
-				id: "open",
-				label: "Open row",
-				render: () => <KeysDemo view="open" />,
-			},
-			{
-				id: "name",
-				label: "Name step",
-				render: () => <KeysDemo view="name" />,
-			},
-			{
-				id: "name-repeat",
-				label: "Name already used",
-				render: () => <KeysDemo view="name-repeat" />,
-			},
-			{
-				id: "reveal",
-				label: "Reveal step",
-				render: () => <KeysDemo view="reveal" />,
-			},
-			{
-				id: "empty",
-				label: "No keys yet",
-				render: () => <KeysDemo view="empty" />,
-			},
-		],
-		usage: "<NewKeyFlow existingNames={names} onClose={close} />",
-		props: [
-			{
-				name: "initial",
-				type: "{ key: string; name: string }",
-				note: "Opens on the reveal for a key that already exists.",
-			},
-			{
-				name: "create",
-				type: "(name: string) => Promise<string>",
-				note: "Defaults to the account API. A 403 reads as the key cap, a 429 as the rate limit.",
-			},
-		],
-	},
 	"subgraph-schema": {
 		src: [
 			"apps/web/src/components/account/subgraphs/schema-view.tsx",
@@ -2592,11 +2207,6 @@ const META: Record<StoryId, Meta> = {
 					exampleDetail.tables.transfers ? (
 						<SchemaView table={exampleDetail.tables.transfers} />
 					) : null,
-			},
-			{
-				id: "empty",
-				label: "Empty state",
-				render: () => <SubgraphsEmptyState />,
 			},
 		],
 		usage: "<SchemaView table={detail.tables.transfers} />",
@@ -2836,27 +2446,6 @@ const META: Record<StoryId, Meta> = {
 			"Never key the sheet on state; the slide-up would replay.",
 			"Drag the grab handle only; the body scrolls.",
 		],
-	},
-	"mobile-swipe-row": {
-		src: ["apps/web/src/components/mobile/swipe-row.tsx"],
-		rule: "Swipe a row left for one or two actions; one row is open at a time.",
-		variants: [
-			{
-				id: "rows",
-				label: "Rows",
-				render: () => (
-					<PhoneColumn>
-						<SwipeRowDemo />
-					</PhoneColumn>
-				),
-			},
-		],
-		usage: `<SwipeGroup>
-	<SwipeRow id={id} actions={[{ label: "Pause", tone: "neutral", onAction }]} onTap={open}>
-		{face}
-	</SwipeRow>
-</SwipeGroup>`,
-		donts: ["Never more than two actions."],
 	},
 	"mobile-hold-button": {
 		src: ["apps/web/src/components/mobile/hold-button.tsx"],

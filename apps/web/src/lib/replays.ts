@@ -46,15 +46,6 @@ export function estimateLine(knownEvents: number, lowerBound: boolean): string {
 	return `${lowerBound ? "At least" : "About"} ${knownEvents.toLocaleString("en-US")} events · ${price}`;
 }
 
-/** The step-3 model for a failing webhook: requeue when something gave up, else a done note. */
-export function recoveryStep3(dead: { count: number }):
-	| { kind: "requeue"; count: number }
-	| { kind: "nothing" } {
-	return dead.count > 0
-		? { kind: "requeue", count: dead.count }
-		: { kind: "nothing" };
-}
-
 export function isReplayActive(p: ReplayProgress): boolean {
 	return p.status === "scanning" || p.status === "running";
 }

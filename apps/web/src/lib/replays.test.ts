@@ -3,7 +3,6 @@ import type { ReplayProgress } from "@secondlayer/shared/schemas/webhooks";
 import {
 	estimateLine,
 	minutesLeft,
-	recoveryStep3,
 	replayPercent,
 	runningReplayFor,
 } from "./replays";
@@ -98,15 +97,6 @@ describe("estimateLine", () => {
 	});
 	test("says under a cent below a cent", () => {
 		expect(estimateLine(12, false)).toBe("About 12 events · under $0.01");
-	});
-});
-
-describe("recoveryStep3", () => {
-	test("requeues when something gave up", () => {
-		expect(recoveryStep3({ count: 3 })).toEqual({ kind: "requeue", count: 3 });
-	});
-	test("has nothing to do when nothing gave up", () => {
-		expect(recoveryStep3({ count: 0 })).toEqual({ kind: "nothing" });
 	});
 });
 

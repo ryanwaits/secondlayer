@@ -426,7 +426,7 @@ const MONTH_RE = /^\d{4}-\d{2}$/;
  * last-24h memory — both of the latter always reflect right now, independent
  * of `month`, since the runway and service card never browse the past.
  * Read-only; the ledger is the source of truth, this route only groups it.
- * Consumer: the web account credits page (`apps/web/src/app/account/credits`).
+ * Consumer: the web account credits page (the usage block of `/account`).
  */
 app.get("/usage", async (c) => {
 	const accountId = getAccountId(c);

@@ -130,14 +130,6 @@ export function severityDot(severity: InsightSeverity): SeverityDot {
 	}
 }
 
-/** The one-word name of a severity, as the phone list shows it. */
-export const SEVERITY_WORD: Record<InsightSeverity, string> = {
-	losing: "Losing data",
-	will_fail: "Will fail",
-	costs: "Costs money",
-	recovered: "Recovered",
-};
-
 const ACCOUNT_PAGES: Record<string, { href: string; name: string }> = {
 	server_errors: { href: "/account#usage", name: "Rows" },
 	duplicate_reads: { href: "/account#usage", name: "Rows" },

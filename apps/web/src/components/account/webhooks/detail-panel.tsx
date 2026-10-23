@@ -17,7 +17,6 @@ import {
 	resumeWebhook,
 	testWebhook,
 } from "@/lib/webhooks-data";
-import type { WebhooksResult } from "@/lib/webhooks-data";
 import {
 	applyWebhook,
 	poll,
@@ -34,15 +33,16 @@ import type {
 	WebhookTestResult,
 } from "@secondlayer/sdk";
 import Link from "next/link";
+
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
+import { AsleepState } from "./asleep-state";
 import { AttemptTimeline } from "./attempt-timeline";
 import { WebhookCompactDetail } from "./compact-detail";
 import { DefinitionDrawer } from "./definition-drawer";
 import { DeliveriesChart } from "./deliveries-chart";
 import { describeTrigger } from "./describe-trigger";
-import { AsleepState } from "./list-panel";
 import { PayloadView, answeredAttempt } from "./payload-view";
 import { CliLine, displayStatus, formatEventCell, shortenName } from "./shared";
 import { WebhookDetailSkeleton } from "./skeletons";

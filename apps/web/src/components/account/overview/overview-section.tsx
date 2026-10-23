@@ -13,7 +13,6 @@ import {
 	type ResourceRowLabels,
 	ResourceRowSkeleton,
 } from "@/components/dashboard/shell/resource-row";
-import { Skel } from "@/components/dashboard/shell/skel";
 import { StatusSentence } from "@/components/dashboard/shell/status-sentence";
 import { PullRefresh } from "@/components/mobile/pull-refresh";
 import {

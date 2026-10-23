@@ -1,20 +1,13 @@
 import { describe, expect, test } from "bun:test";
 import {
-	ROWS_ALLOWANCE,
 	addMonths,
 	balanceLevel,
-	daysInUtcMonth,
-	deliveredRowsIn,
 	formatRows,
-	formatUnitQuantity,
-	latestMemoryHour,
 	monthLabel,
 	monthParam,
 	nextMonthLabel,
-	rateLabel,
 	runsOutMonth,
 	runwayDays,
-	unitLabel,
 	withUsageMonth,
 } from "./usage";
 
@@ -34,43 +27,6 @@ describe("formatRows", () => {
 
 	test("accepts a string quantity, matching the API's bigint-as-string shape", () => {
 		expect(formatRows("17840112")).toBe("17.84M");
-	});
-});
-
-describe("formatUnitQuantity", () => {
-	test("rows.delivered goes through formatRows", () => {
-		expect(formatUnitQuantity("rows.delivered", "6410000")).toBe("6.41M");
-	});
-
-	test("GB-hour/GB-day units carry their unit suffix, one decimal", () => {
-		expect(formatUnitQuantity("memory.gb_hour", "12.5")).toBe("12.5 GB-h");
-		expect(formatUnitQuantity("storage.gb_day", "3")).toBe("3.0 GB-d");
-	});
-
-	test("everything else is a thousands-separated whole count", () => {
-		expect(formatUnitQuantity("archive.partition", "12")).toBe("12");
-		expect(formatUnitQuantity("webhook.event", "184213")).toBe("184,213");
-	});
-});
-
-describe("unitLabel", () => {
-	test("labels the three hosted units (044)", () => {
-		expect(unitLabel("webhook.event")).toEqual([
-			"Webhook events",
-			"Hosted webhooks, retries free",
-		]);
-		expect(unitLabel("memory.gb_hour")).toEqual([
-			"Hosted stack memory",
-			"Webhooks and subgraphs",
-		]);
-		expect(unitLabel("storage.gb_day")).toEqual([
-			"Hosted stack storage",
-			"Webhooks and subgraphs",
-		]);
-	});
-
-	test("falls back to the raw unit name with no sub-line", () => {
-		expect(unitLabel("some.future.unit")).toEqual(["some.future.unit", ""]);
 	});
 });
 
@@ -132,25 +88,6 @@ describe("withUsageMonth", () => {
 		const before = { "2026-09": [] };
 		withUsageMonth(before, "2026-08", []);
 		expect(before).toEqual({ "2026-09": [] });
-	});
-});
-
-describe("deliveredRowsIn", () => {
-	test("reads the rows.delivered quantity", () => {
-		expect(
-			deliveredRowsIn([
-				{ unit: "rows.delivered", quantity: "500", usdMicros: "0" },
-			]),
-		).toBe(500);
-	});
-
-	test("is 0 when the unit hasn't billed anything this month", () => {
-		expect(deliveredRowsIn([])).toBe(0);
-		expect(
-			deliveredRowsIn([
-				{ unit: "webhook.event", quantity: "3", usdMicros: "10" },
-			]),
-		).toBe(0);
 	});
 });
 
@@ -244,16 +181,6 @@ describe("balanceLevel", () => {
 	});
 });
 
-describe("daysInUtcMonth", () => {
-	test("September has 30 days", () => {
-		expect(daysInUtcMonth({ year: 2026, month: 8 })).toBe(30);
-	});
-
-	test("February in a non-leap year has 28", () => {
-		expect(daysInUtcMonth({ year: 2026, month: 1 })).toBe(28);
-	});
-});
-
 describe("runsOutMonth", () => {
 	const now = new Date("2026-10-16T12:00:00Z");
 
@@ -268,56 +195,4 @@ describe("runsOutMonth", () => {
 	test("an empty balance runs out this month", () => {
 		expect(runsOutMonth(0, 146_100, now)).toBe("Oct 2026");
 	});
-});
-
-describe("latestMemoryHour", () => {
-	test("the last (most recent) row", () => {
-		const rows = [
-			{ hour: "2026-09-28T10:00:00.000Z", billedGb: 0.5, observedGb: 0.3 },
-			{ hour: "2026-09-28T11:00:00.000Z", billedGb: 0.5, observedGb: 0.31 },
-		];
-		expect(latestMemoryHour(rows)).toBe(rows[1]);
-	});
-
-	test("null for no history", () => {
-		expect(latestMemoryHour([])).toBeNull();
-	});
-});
-
-describe("rateLabel", () => {
-	test("flat rates", () => {
-		expect(rateLabel("memory.gb_hour", "1")).toBe("$0.028/GB-h");
-		expect(rateLabel("webhook.event", "1")).toBe("$10/1M");
-		expect(rateLabel("storage.gb_day", "1")).toBe("$0.25/GB-mo");
-		expect(rateLabel("archive.partition", "1")).toBe("$0.05/partition");
-		expect(rateLabel("archive.partition.events", "1")).toBe("$0.15/partition");
-	});
-
-	test("Sentinel units carry their per-unit rate", () => {
-		expect(rateLabel("sentinel.check_run", "3")).toBe("$0.25/check");
-		expect(unitLabel("sentinel.check_run")[0]).toBe("Sentinel checks");
-		// Retired audit units still render older ledger rows.
-		expect(rateLabel("sentinel.run", "17")).toBe("$1.50/run");
-		expect(rateLabel("sentinel.deep_audit", "1")).toBe("$3/audit");
-		expect(rateLabel("sentinel.monitored_event", "1")).toBe("$15/1M");
-		expect(unitLabel("sentinel.run")[0]).toBe("Sentinel runs");
-	});
-
-	test("rows.delivered is free inside the allowance, $5/1M past it", () => {
-		expect(rateLabel("rows.delivered", "17171")).toBe("free");
-		expect(rateLabel("rows.delivered", String(ROWS_ALLOWANCE + 1))).toBe(
-			"$5/1M",
-		);
-	});
-
-	test("unknown unit has no rate label", () => {
-		expect(rateLabel("topup", "1")).toBe("");
-	});
-});
-
-const WEBHOOK_FLOOR = { usd: 5, gb: 5 / (730 * 0.028) };
-const hour = (billedGb: number, observedGb: number | null) => ({
-	hour: "2026-10-15T12:00:00.000Z",
-	billedGb,
-	observedGb,
 });

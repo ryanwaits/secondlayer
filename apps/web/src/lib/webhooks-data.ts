@@ -14,7 +14,7 @@ import type {
 } from "@secondlayer/shared/schemas/webhooks";
 
 /**
- * Client-only fetchers for /account/webhooks, calling the dashboard's own
+ * Client-only fetchers for the webhook screens, calling the dashboard's own
  * `/api/webhooks/*` proxy (never the platform API directly — same style as
  * `account-data.ts`). Every call maps the proxy's status code to one of a
  * few outcomes the UI actually branches on, instead of throwing: a starting

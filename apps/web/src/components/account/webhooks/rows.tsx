@@ -1,6 +1,5 @@
 "use client";
 
-import { dotClass } from "@/components/dashboard/shell/status-sentence";
 import { type Insight, rankInsights, severityDot } from "@/lib/insights";
 import { forResource, useInsights } from "@/lib/insights-store";
 import { useWebhooksCache } from "@/lib/webhooks-store";
@@ -91,12 +90,6 @@ export function useWebhookRows(): {
 			),
 		),
 	};
-}
-
-/** Status dot for a tone. Healthy shows none. */
-export function ToneDot({ tone }: { tone: RowTone }) {
-	if (tone === "ok") return null;
-	return <span className={dotClass(tone)} />;
 }
 
 /**

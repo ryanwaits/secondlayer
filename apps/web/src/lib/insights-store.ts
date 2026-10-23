@@ -97,16 +97,6 @@ export function forResource(
 	);
 }
 
-/** Account-level insights for the given rules, ranked. */
-export function forAccountRules(
-	data: readonly Insight[],
-	rules: readonly string[],
-): Insight[] {
-	return rankInsights(
-		data.filter((i) => i.resource.kind === "account" && rules.includes(i.rule)),
-	);
-}
-
 /** The worst insight on a resource, or null. */
 export function topLine(
 	data: readonly Insight[],

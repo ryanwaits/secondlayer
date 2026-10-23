@@ -1,6 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
+
 import { ChartSkeleton } from "./chart-skeleton";
 
 /**
@@ -11,11 +12,6 @@ import { ChartSkeleton } from "./chart-skeleton";
  * chunk behind a skeleton sized to each chart's own height, instead of
  * blocking the whole page's first-load JS.
  */
-
-export const LazyMonoStackedBarChart = dynamic(
-	() => import("./mono-stacked-bar-chart").then((m) => m.MonoStackedBarChart),
-	{ ssr: false, loading: () => <ChartSkeleton height={120} /> },
-);
 
 export const LazyMonoAreaLineChart = dynamic(
 	() => import("./mono-area-line-chart").then((m) => m.MonoAreaLineChart),
@@ -40,14 +36,3 @@ export const LazySpendChart = dynamic(
 	() => import("../dashboard/charts/spend-chart").then((m) => m.SpendChart),
 	{ ssr: false, loading: () => <ChartSkeleton height={150} /> },
 );
-
-/** Fetch a chart's chunk now, alongside its data, instead of after the data lands. */
-export function preloadBandBarChart(): void {
-	void import("../dashboard/charts/band-bar-chart");
-}
-export function preloadMonoStackedBarChart(): void {
-	void import("./mono-stacked-bar-chart");
-}
-export function preloadSpendChart(): void {
-	void import("../dashboard/charts/spend-chart");
-}

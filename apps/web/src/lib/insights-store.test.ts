@@ -2,15 +2,11 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import {
 	clearInsights,
 	dismiss,
-	extraCount,
-	forAccountRules,
-	forResource,
 	insightsSnapshot,
 	markExpected,
 	refreshInsights,
 	restore,
 	snooze,
-	topLine,
 } from "./insights-store";
 import { FIXTURE_INSIGHTS } from "./insights.fixtures";
 
@@ -34,49 +30,6 @@ function stubFetch(
 
 const list = (data = FIXTURE_INSIGHTS) =>
 	new Response(JSON.stringify({ data }), { status: 200 });
-
-describe("selectors", () => {
-	test("forResource ranks the insights of one resource, worst first", () => {
-		const rules = forResource(FIXTURE_INSIGHTS, "webhook", "wh-deposits").map(
-			(i) => i.rule,
-		);
-		expect(rules[0]).toBe("receiver_down");
-		expect(rules).not.toContain("filter_cannot_match");
-	});
-
-	test("forResource separates kinds that share an id", () => {
-		expect(forResource(FIXTURE_INSIGHTS, "subgraph", "wh-deposits")).toEqual(
-			[],
-		);
-	});
-
-	test("forAccountRules keeps only the named account rules", () => {
-		const rules = forAccountRules(FIXTURE_INSIGHTS, ["duplicate_reads"]).map(
-			(i) => i.rule,
-		);
-		expect(rules).toEqual(["duplicate_reads"]);
-		expect(forAccountRules(FIXTURE_INSIGHTS, ["receiver_down"])).toEqual([]);
-	});
-
-	test("topLine is the worst insight, extraCount the rest", () => {
-		const count = forResource(
-			FIXTURE_INSIGHTS,
-			"webhook",
-			"wh-deposits",
-		).length;
-		expect(topLine(FIXTURE_INSIGHTS, "webhook", "wh-deposits")?.rule).toBe(
-			"receiver_down",
-		);
-		expect(extraCount(FIXTURE_INSIGHTS, "webhook", "wh-deposits")).toBe(
-			count - 1,
-		);
-	});
-
-	test("an unknown resource has no line and no extras", () => {
-		expect(topLine(FIXTURE_INSIGHTS, "webhook", "nope")).toBeNull();
-		expect(extraCount(FIXTURE_INSIGHTS, "webhook", "nope")).toBe(0);
-	});
-});
 
 describe("store", () => {
 	test("a good refresh fills the store, ranked", async () => {

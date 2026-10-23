@@ -1,5 +1,6 @@
 import type { WebhookSummary } from "@secondlayer/sdk";
 import Link from "next/link";
+
 import { shortenName } from "./shared";
 
 export interface WaitingItem {
@@ -46,26 +47,6 @@ export function groupWaiting(
 	return groups;
 }
 
-/** Who set the waiting webhooks up (when one owner did) and the oldest start. */
-export function waitingMeta(
-	webhooks: readonly Pick<WebhookSummary, "managedBy" | "createdAt">[],
-): { owner: string | null; since: string } {
-	const owners = new Set(webhooks.map((w) => w.managedBy));
-	const only = owners.size === 1 ? [...owners][0] : null;
-	const oldest = webhooks.reduce<string | null>(
-		(min, w) => (min === null || w.createdAt < min ? w.createdAt : min),
-		null,
-	);
-	const since = oldest
-		? new Date(oldest).toLocaleDateString("en-US", {
-				month: "short",
-				day: "numeric",
-				timeZone: "UTC",
-			})
-		: "";
-	return { owner: only ?? null, since };
-}
-
 export function WaitingGroups({
 	webhooks,
 }: { webhooks: readonly WebhookSummary[] }) {
@@ -107,28 +88,5 @@ export function WaitingGroups({
 				);
 			})}
 		</>
-	);
-}
-
-export function WaitingBlock({
-	webhooks,
-}: { webhooks: readonly WebhookSummary[] }) {
-	const { owner, since } = waitingMeta(webhooks);
-	return (
-		<section className="wq" aria-label="Waiting for a first match">
-			<div className="wq-h">
-				<span className="dash-dot idle" aria-hidden="true" />
-				<span className="wq-t">Waiting for a first match</span>
-				<span className="wq-n">{webhooks.length}</span>
-				<span className="wq-meta">
-					{owner ? `set up by ${owner} · ` : ""}since {since}
-				</span>
-			</div>
-			<p className="wq-sub">
-				Each one fires the first block a matching event lands, so quiet until
-				then is normal.
-			</p>
-			<WaitingGroups webhooks={webhooks} />
-		</section>
 	);
 }

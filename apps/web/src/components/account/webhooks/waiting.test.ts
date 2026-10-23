@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { groupWaiting, waitingMeta } from "./waiting";
+import { groupWaiting } from "./waiting";
 
 const DEPLOYER = "SP1A27KFY4XERQCCRCARCYD1CC5N7M6688BSYADJ7";
 const vault = `${DEPLOYER}.v0-vault-sbtc`;
@@ -70,25 +70,5 @@ describe("groupWaiting", () => {
 		const groups = groupWaiting([hook("u", `${vault}:set-impl`)]);
 		expect(groups[0]?.contract).toBe("SP1A27…ADJ7.v0-vault-sbtc");
 		expect(groups[0]?.items[0]?.label).toBe("set-impl");
-	});
-});
-
-describe("waitingMeta", () => {
-	test("one shared owner is named and since is the oldest date", () => {
-		expect(
-			waitingMeta([
-				{ managedBy: "Sentinel", createdAt: "2026-10-02T10:00:00.000Z" },
-				{ managedBy: "Sentinel", createdAt: "2026-09-30T23:30:00.000Z" },
-			]),
-		).toEqual({ owner: "Sentinel", since: "Sep 30" });
-	});
-
-	test("mixed owners name nobody", () => {
-		expect(
-			waitingMeta([
-				{ managedBy: "Sentinel", createdAt: "2026-10-02T10:00:00.000Z" },
-				{ managedBy: null, createdAt: "2026-10-03T10:00:00.000Z" },
-			]).owner,
-		).toBeNull();
 	});
 });

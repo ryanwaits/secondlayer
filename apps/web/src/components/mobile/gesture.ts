@@ -6,8 +6,6 @@
 
 /** Movement under this many px is a tap, not a drag. */
 export const SLOP = 8;
-/** Width of one swipe-row action. */
-export const ROW_ACTION_WIDTH = 76;
 /** A sheet dragged down further than this closes (or drops a detent). */
 export const SHEET_CLOSE_DY = 90;
 /** A sheet dragged up further than this (negative px) expands a detent. */
@@ -25,18 +23,6 @@ export function dragAxis(
 	const ay = Math.abs(dy);
 	if (Math.max(ax, ay) < slop) return null;
 	return ax > ay ? "x" : "y";
-}
-
-/** Past [min, max] the overshoot moves at a quarter speed. */
-export function rubberband(value: number, min: number, max: number): number {
-	if (value > max) return max + (value - max) / 4;
-	if (value < min) return min + (value - min) / 4;
-	return value;
-}
-
-/** Row offset after release: open (-width) when released past half, else closed (0). */
-export function settleRow(offset: number, actionsWidth: number): number {
-	return offset < -actionsWidth / 2 ? -actionsWidth : 0;
 }
 
 export type Detent = "half" | "full";

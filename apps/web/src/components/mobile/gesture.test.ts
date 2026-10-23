@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { dragAxis, rubberband, settleRow, settleSheet } from "./gesture";
+import { dragAxis, settleSheet } from "./gesture";
 
 describe("dragAxis", () => {
 	test("movement under the slop is undecided", () => {
@@ -14,30 +14,6 @@ describe("dragAxis", () => {
 	});
 	test("a diagonal tie goes to y so scrolling wins", () => {
 		expect(dragAxis(10, 10)).toBe("y");
-	});
-});
-
-describe("rubberband", () => {
-	test("overshoot past max moves at a quarter speed", () => {
-		expect(rubberband(20, -152, 0)).toBe(5);
-	});
-	test("overshoot past min moves at a quarter speed", () => {
-		expect(rubberband(-172, -152, 0)).toBe(-157);
-	});
-	test("inside the range is unchanged", () => {
-		expect(rubberband(-80, -152, 0)).toBe(-80);
-	});
-});
-
-describe("settleRow", () => {
-	test("released past half opens fully", () => {
-		expect(settleRow(-80, 152)).toBe(-152);
-	});
-	test("released short of half closes", () => {
-		expect(settleRow(-70, 152)).toBe(0);
-	});
-	test("a positive offset closes", () => {
-		expect(settleRow(10, 152)).toBe(0);
 	});
 });
 

@@ -234,22 +234,6 @@ export function ensureCaps(): Promise<unknown> {
 	return isFresh("caps") ? Promise.resolve() : refreshCaps();
 }
 
-/** The signed-in account's latest top-ups and grants. */
-export function refreshCredits(): Promise<CreditAdded[] | null> {
-	return shared("credits", async () => {
-		try {
-			const res = await fetch("/api/billing/credits");
-			if (!res.ok) return null;
-			const { credits } = (await res.json()) as { credits: CreditAdded[] };
-			set({ credits });
-			markFresh("credits");
-			return credits;
-		} catch {
-			return null;
-		}
-	});
-}
-
 /** Rows delivered for the signed-in account. Keeps the last good data on a
  *  failed refresh and returns null, so the caller can tell a first-load
  *  failure from a stale refresh. */

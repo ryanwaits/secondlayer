@@ -1,10 +1,9 @@
 import { describe, expect, test } from "bun:test";
 import { FIXTURE_INSIGHTS } from "@/lib/insights.fixtures";
-import type { WebhookTestResult } from "@secondlayer/sdk";
 import type { ComponentProps } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { WebhookCompactDetailView } from "./compact-detail";
-import { WebhookCompactRow, WebhooksCompactList } from "./compact-list";
+import { WebhookCompactRow } from "./compact-list";
 import { rowModel } from "./rows";
 import type { Recovery } from "./use-recovery";
 import {
@@ -28,25 +27,6 @@ const tripped = {
 	circuitFailures: 20,
 	lastError: "502 Bad Gateway",
 } as const;
-
-const renderList = (rows: ReturnType<typeof row>[] | null, failing = 0) =>
-	renderToStaticMarkup(
-		<WebhooksCompactList
-			rows={rows}
-			failing={failing}
-			busyId={null}
-			onOpen={() => {}}
-			onTogglePause={() => {}}
-		/>,
-	);
-
-const passed: WebhookTestResult = {
-	ok: true,
-	statusCode: 200,
-	error: null,
-	durationMs: 184,
-	deliveryId: "d_test",
-};
 
 const recovery = (over: Partial<Recovery> = {}): Recovery => ({
 	dead: { count: 3, since: null },
@@ -78,45 +58,6 @@ const renderDetail = (
 			{...over}
 		/>,
 	);
-
-describe("WebhooksCompactList", () => {
-	test("one row per webhook, and the failing count in the subtitle", () => {
-		const html = renderList(
-			[
-				row({ id: "a", name: "alpha", ...tripped }),
-				row({ id: "b", name: "beta", ...tripped }),
-				row({ id: "c", name: "gamma" }),
-			],
-			2,
-		);
-		for (const name of ["alpha", "beta", "gamma"]) expect(html).toContain(name);
-		expect(html).toContain("3 webhooks · 2 failing");
-	});
-
-	test("a paused row swipes to Resume, an active row to Pause", () => {
-		const html = renderList([
-			row({ id: "a", name: "alpha" }),
-			row({ id: "b", name: "beta", status: "paused" }),
-		]);
-		expect(html.split(">Pause<").length - 1).toBe(1);
-		expect(html.split(">Resume<").length - 1).toBe(1);
-	});
-
-	test("every row has two swipe actions, Pause or Resume and Replay", () => {
-		const html = renderList([
-			row({ id: "a", name: "alpha" }),
-			row({ id: "b", name: "beta", status: "paused" }),
-		]);
-		expect(html.split(">Replay<").length - 1).toBe(2);
-		expect(html).toContain("Swipe left on a webhook for Pause and Replay.");
-	});
-
-	test("the empty list says so and shows no command", () => {
-		const html = renderList([]);
-		expect(html).toContain("No webhooks yet");
-		expect(html).not.toContain("sl ");
-	});
-});
 
 describe("WebhookCompactRow", () => {
 	test("links to the webhook's page and shows the 24 hour count", () => {
