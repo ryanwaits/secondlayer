@@ -72,8 +72,16 @@ const SUBGRAPHS_INTRO =
 const WEBHOOKS_INTRO =
 	"Webhooks deliver a signed POST to a URL you run whenever a chain event you named happens.";
 
+/** Installs the secondlayer skill into a coding assistant. */
+export const SKILL_INSTALL_COMMAND =
+	"bunx skills add ryanwaits/secondlayer --skill secondlayer -y";
+
+/** Connects Claude Code to the hosted MCP; it signs in with the account in the browser. */
+export const CLAUDE_CODE_MCP_COMMAND =
+	"claude mcp add --transport http secondlayer https://api.secondlayer.tools/mcp";
+
 export const AGENT_SETUP = `Ensure setup once, skipping any step already done:
-- Skill: \`bunx skills add ryanwaits/secondlayer --skill secondlayer -y\`
+- Skill: \`${SKILL_INSTALL_COMMAND}\`
 - CLI: \`bun add -g @secondlayer/cli\`
 - Instance: \`secondlayer init\` writes \`INSTANCE_TOKEN\`. Loopback \`/v1\` reads need no key.
 - Hosted/archive: export \`SECONDLAYER_API_KEY\` (\`sk-sl_*\`) or buy credits with \`secondlayer credits buy\` (\`balance\`, \`refill\`), then \`secondlayer whoami\``;
