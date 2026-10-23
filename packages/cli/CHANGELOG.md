@@ -1,5 +1,14 @@
 # @secondlayer/cli
 
+## 22.3.1
+
+### Patch Changes
+
+- 524db11: Hints point at the Account page sections (/account#keys, /account#usage) instead of the old pages.
+- This change was reverted in source on 2026-10-23. The version stays published on npm; the next release ships the earlier links again.
+- Updated dependencies [524db11]
+  - @secondlayer/shared@14.0.1
+
 ## 22.3.0
 
 ### Minor Changes
