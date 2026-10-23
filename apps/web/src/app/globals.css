@@ -6804,6 +6804,43 @@ button.dash-row {
 	display: none;
 }
 
+/* Usage and credits: rows meter beside the balance, hairline between. */
+.ov-usage {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	border: 1px solid var(--line);
+	border-radius: 8px;
+}
+.ov-usage-cell {
+	display: grid;
+	gap: 12px;
+	align-content: start;
+	min-width: 0;
+	padding: 16px;
+}
+.ov-usage-cell + .ov-usage-cell {
+	border-left: 1px solid var(--line);
+}
+.ov-usage-s {
+	margin: 0;
+	font-size: 13px;
+	color: var(--sub);
+}
+.ov-usage-btns {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+}
+@media (max-width: 720px) {
+	.ov-usage {
+		grid-template-columns: minmax(0, 1fr);
+	}
+	.ov-usage-cell + .ov-usage-cell {
+		border-left: 0;
+		border-top: 1px solid var(--line);
+	}
+}
+
 /* The strip under the table: what powers the webhooks and subgraphs. One
    hairline box, cells split by hairlines; nothing changes on hover but the
    label's text color. */
