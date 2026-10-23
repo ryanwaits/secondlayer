@@ -1,5 +1,6 @@
 "use client";
 
+import { setRequeuing } from "@/lib/requeuing";
 import { getReplays, requeueDead } from "@/lib/webhooks-data";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -32,8 +33,14 @@ export function useRecovery(id: string): Recovery {
 	const onRequeue = async () => {
 		if (busy) return;
 		setBusy(true);
-		const res = await requeueDead(id, { since: dead?.since ?? undefined });
-		setBusy(false);
+		setRequeuing(id, true);
+		let res: Awaited<ReturnType<typeof requeueDead>>;
+		try {
+			res = await requeueDead(id, { since: dead?.since ?? undefined });
+		} finally {
+			setBusy(false);
+			setRequeuing(id, false);
+		}
 		if (res.kind !== "ok") {
 			toast.error("Couldn't requeue", {
 				description:

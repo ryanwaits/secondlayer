@@ -27,7 +27,9 @@ export type Activity =
 			state: Exclude<ChainState, { kind: "live" }>;
 			level: ChainLevel;
 	  }
-	| { kind: "replay"; progress: ReplayProgress };
+	| { kind: "replay"; progress: ReplayProgress }
+	/** A bulk requeue of what gave up, in flight. It has no progress, only an end. */
+	| { kind: "requeue"; webhookId: string };
 
 export type ActivityDot = "bad" | "ring" | "run" | "ok";
 
@@ -51,6 +53,8 @@ export function activities(input: {
 	replays: readonly ReplayProgress[];
 	cleared: ReadonlySet<string>;
 	now: number;
+	/** Webhooks with a requeue in flight. */
+	requeuing?: readonly string[];
 }): Activity[] {
 	const { chain, dismissedLevel, replays, cleared, now } = input;
 	const level = chainLevel(chain);
@@ -68,6 +72,9 @@ export function activities(input: {
 		.sort(newestFirst);
 	const out: Activity[] = [];
 	if (chainItem && level === 4) out.push(chainItem);
+	for (const webhookId of input.requeuing ?? []) {
+		out.push({ kind: "requeue", webhookId });
+	}
 	for (const progress of live) out.push({ kind: "replay", progress });
 	if (chainItem && level !== 4) out.push(chainItem);
 	for (const progress of finished) out.push({ kind: "replay", progress });
@@ -86,7 +93,8 @@ export function pillLabel(a: Activity): string {
 				return "Offline";
 		}
 	}
-	const p = (a as Extract<Activity, { kind: "replay" }>).progress;
+	if (a.kind === "requeue") return "Requeuing";
+	const p = a.progress;
 	switch (p.status) {
 		case "scanning":
 			return "Replay queued";
@@ -102,6 +110,7 @@ export function pillLabel(a: Activity): string {
 /** The dot beside an item: red for unreachable and failed, a ring for other chain problems, a spinner while running, a check when done. */
 export function activityDot(a: Activity): ActivityDot {
 	if (a.kind === "chain") return a.level === 4 ? "bad" : "ring";
+	if (a.kind === "requeue") return "run";
 	switch (a.progress.status) {
 		case "scanning":
 		case "running":
@@ -115,7 +124,10 @@ export function activityDot(a: Activity): ActivityDot {
 
 /** A stable identity for an item, so React keeps its section across ticks. */
 export function activityKey(a: Activity): string {
-	return a.kind === "chain" ? "chain" : `replay:${a.progress.replayId}`;
+	if (a.kind === "chain") return "chain";
+	return a.kind === "requeue"
+		? `requeue:${a.webhookId}`
+		: `replay:${a.progress.replayId}`;
 }
 
 /** The dismissal after the chain moves: going live clears it (0); otherwise it stays. */

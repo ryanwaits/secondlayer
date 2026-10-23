@@ -13,6 +13,7 @@ import {
 } from "@/lib/activity";
 import { chainState, useChainTip } from "@/lib/chain-tip";
 import { useRecentReplays } from "@/lib/replays";
+import { useRequeuing } from "@/lib/requeuing";
 import { useWebhooksCache } from "@/lib/webhooks-store";
 import { useEffect, useMemo, useState } from "react";
 import { ActivitySheet } from "./activity-sheet";
@@ -91,6 +92,7 @@ export function StatusPillView({
 export function StatusPill() {
 	const tip = useChainTip();
 	const replays = useRecentReplays();
+	const requeuing = useRequeuing();
 	const { list } = useWebhooksCache();
 	const [now, setNow] = useState(() => Date.now());
 	const [dismissedLevel, setDismissedLevel] =
@@ -123,8 +125,9 @@ export function StatusPill() {
 				replays: replays ?? [],
 				cleared,
 				now,
+				requeuing,
 			}),
-		[chain, dismissedLevel, replays, cleared, now],
+		[chain, dismissedLevel, replays, cleared, now, requeuing],
 	);
 
 	// Nothing left to show: close the drawer.

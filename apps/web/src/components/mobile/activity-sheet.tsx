@@ -24,6 +24,7 @@ export function activityTitle(items: readonly Activity[]): string {
 	if (items.length === 0) return "Nothing going on";
 	if (!only) return `${items.length} things going on`;
 	if (only.kind === "chain") return chainHeadline(only.state);
+	if (only.kind === "requeue") return "Requeuing";
 	switch (only.progress.status) {
 		case "done":
 			return "Replay done";
@@ -138,7 +139,7 @@ export function ActivitySheet({
 			<div className="m-act-body">
 				{items.length === 0 ? (
 					<p className="m-act-p">
-						Replays you start and chain problems show up here.
+						Replays, requeues and chain problems show up here.
 					</p>
 				) : null}
 				{items.map((item) =>
@@ -151,6 +152,21 @@ export function ActivitySheet({
 								now={now}
 								onDismiss={onDismissChain}
 							/>
+						</section>
+					) : item.kind === "requeue" ? (
+						<section className="m-act-sec" key={`requeue:${item.webhookId}`}>
+							{several ? <b>Requeue · {webhookName(item.webhookId)}</b> : null}
+							<p className="m-act-p">
+								Sending what gave up from {webhookName(item.webhookId)} again.
+								They go out with live events.
+							</p>
+							<Link
+								className="mrp-btn"
+								href={`/account/webhooks/${encodeURIComponent(item.webhookId)}`}
+								onClick={onClose}
+							>
+								Open {webhookName(item.webhookId)}
+							</Link>
 						</section>
 					) : (
 						<section className="m-act-sec" key={item.progress.replayId}>

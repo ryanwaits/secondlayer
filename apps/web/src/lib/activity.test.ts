@@ -61,7 +61,11 @@ const done = (id: string, finishedAgoMs: number): ReplayProgress =>
 function list(
 	chain: ChainState,
 	replays: ReplayProgress[],
-	extra: { dismissedLevel?: 0 | 1 | 2 | 3 | 4; cleared?: string[] } = {},
+	extra: {
+		dismissedLevel?: 0 | 1 | 2 | 3 | 4;
+		cleared?: string[];
+		requeuing?: string[];
+	} = {},
 ): Activity[] {
 	return activities({
 		chain,
@@ -69,6 +73,7 @@ function list(
 		replays,
 		cleared: new Set(extra.cleared ?? []),
 		now: NOW,
+		requeuing: extra.requeuing,
 	});
 }
 
@@ -76,7 +81,9 @@ const kinds = (items: Activity[]) =>
 	items.map((a) =>
 		a.kind === "chain"
 			? `chain:${a.state.kind}`
-			: `replay:${a.progress.replayId}`,
+			: a.kind === "requeue"
+				? `requeue:${a.webhookId}`
+				: `replay:${a.progress.replayId}`,
 	);
 
 describe("chainLevel", () => {
@@ -90,6 +97,16 @@ describe("chainLevel", () => {
 });
 
 describe("activities ordering", () => {
+	test("a requeue in flight shows as Requeuing with a spinner, before a replay", () => {
+		const items = list(live, [replay({ replayId: "a" })], {
+			requeuing: ["wh_1"],
+		});
+		expect(kinds(items)).toEqual(["requeue:wh_1", "replay:a"]);
+		const [first] = items;
+		if (!first) throw new Error("expected an item");
+		expect(pillLabel(first)).toBe("Requeuing");
+		expect(activityDot(first)).toBe("run");
+	});
 	test("an unreachable chain comes before a running replay", () => {
 		expect(kinds(list(unreachable, [replay({ replayId: "a" })]))).toEqual([
 			"chain:unreachable",
