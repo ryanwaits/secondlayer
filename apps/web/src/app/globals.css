@@ -6711,6 +6711,99 @@ button.dash-row {
 	padding-top: 0;
 }
 
+/* The one-column Account page: a 760px column, sections a beat apart. */
+.ov-page {
+	display: grid;
+	gap: 40px;
+	max-width: 760px;
+	min-width: 0;
+}
+.ov-page > * {
+	min-width: 0;
+}
+.ov-head h1 {
+	margin: 0;
+	font: 500 30px / 1.15 var(--font-sans-stack);
+	letter-spacing: -0.025em;
+}
+.ov-head p {
+	margin: 10px 0 0;
+	font-size: 15px;
+	color: var(--sub);
+}
+.ov-section {
+	display: grid;
+	gap: 14px;
+	align-content: start;
+}
+.ov-section > .dash-rows {
+	margin-top: 0;
+}
+.ov-section-h {
+	display: flex;
+	justify-content: space-between;
+	align-items: baseline;
+	gap: 12px;
+}
+.ov-section-h h2 {
+	margin: 0;
+	font: 500 18px / 1.2 var(--font-sans-stack);
+	letter-spacing: -0.01em;
+}
+
+/* The top note: a hairline card, a status dot, plain text. Notes are
+   siblings, never nested. */
+.ov-notes {
+	display: grid;
+	gap: 12px;
+}
+.ov-note {
+	display: grid;
+	gap: 12px;
+	padding: 16px;
+	border: 1px solid var(--line);
+	border-radius: 8px;
+}
+.ov-note-text {
+	display: flex;
+	gap: 12px;
+	align-items: baseline;
+	margin: 0;
+	font-size: 15px;
+	line-height: 1.5;
+}
+.ov-note-text b {
+	font-weight: 500;
+}
+.ov-note-acts {
+	display: flex;
+	gap: 4px;
+}
+.ov-note-more {
+	margin: 0;
+	font-size: 13px;
+	color: var(--faint);
+}
+.ov-note-prompt .copy-button {
+	margin-left: 0;
+	padding: 0;
+	background: none;
+	color: var(--pri);
+}
+.ov-note-prompt .copy-button:hover {
+	background: none;
+	color: var(--pri);
+	text-decoration: underline;
+}
+.ov-note-prompt .copy-button-label {
+	font: 400 13px / 1.2 var(--font-sans-stack);
+	letter-spacing: 0;
+	text-transform: none;
+}
+.ov-note-prompt .copy-button svg {
+	display: none;
+}
+
 /* The strip under the table: what powers the webhooks and subgraphs. One
    hairline box, cells split by hairlines; nothing changes on hover but the
    label's text color. */
