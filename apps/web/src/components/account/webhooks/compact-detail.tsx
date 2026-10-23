@@ -6,7 +6,6 @@ import {
 	useMinutesLeft,
 	useRecentReplays,
 } from "@/lib/replays";
-import { getReplays, requeueDead } from "@/lib/webhooks-data";
 import type {
 	DeliveryRow,
 	WebhookActivity,
@@ -14,13 +13,13 @@ import type {
 	WebhookTestResult,
 } from "@secondlayer/sdk";
 import type { ReplayProgress } from "@secondlayer/shared/schemas/webhooks";
-import { useEffect, useRef, useState } from "react";
-import { toast } from "sonner";
+import { useRef, useState } from "react";
 import { DeliveriesChart } from "./deliveries-chart";
 import { describeTrigger } from "./describe-trigger";
 import { ReplayProgressView, ReplaySheet } from "./replay-sheet";
 import { ToneDot } from "./rows";
 import { displayStatus, shortenName } from "./shared";
+import { useRecovery } from "./use-recovery";
 import { ageShort, isOk, outageStartIndex, utcClock } from "./view";
 
 export interface WebhookCompactDetailProps {
@@ -390,46 +389,13 @@ export function WebhookCompactDetail(props: WebhookCompactDetailProps) {
 	const recovering = useRef(false);
 	if (failing) recovering.current = true;
 
-	const [dead, setDead] = useState<{
-		count: number;
-		since: string | null;
-	} | null>(null);
-	const [requeueBusy, setRequeueBusy] = useState(false);
-	const [requeued, setRequeued] = useState<number | null>(null);
 	const [sheetOpen, setSheetOpen] = useState(false);
 	const replays = useRecentReplays();
 	const running = runningReplayFor(replays, webhook.id);
 	const minutesLeft = useMinutesLeft(running);
 	const id = webhook.id;
 
-	useEffect(() => {
-		let cancelled = false;
-		getReplays(id).then((res) => {
-			if (!cancelled && res.kind === "ok") {
-				setDead(res.data.ranges.deadSinceFailing);
-			}
-		});
-		return () => {
-			cancelled = true;
-		};
-	}, [id]);
-
-	const onRequeue = async () => {
-		if (requeueBusy) return;
-		setRequeueBusy(true);
-		const res = await requeueDead(id, { since: dead?.since ?? undefined });
-		setRequeueBusy(false);
-		if (res.kind !== "ok") {
-			toast.error("Couldn't requeue", {
-				description:
-					res.kind === "error" ? res.message : "Try again in a moment.",
-			});
-			return;
-		}
-		const n = res.data.requeued.toLocaleString("en-US");
-		toast.success(`Requeued ${n}. They go out with live events.`);
-		setRequeued(res.data.requeued);
-	};
+	const { dead, requeue } = useRecovery(id);
 
 	return (
 		<>
@@ -437,7 +403,7 @@ export function WebhookCompactDetail(props: WebhookCompactDetailProps) {
 				{...props}
 				showRecovery={failing || recovering.current}
 				dead={dead}
-				requeue={{ busy: requeueBusy, requeued, onRequeue }}
+				requeue={requeue}
 				replay={running ? { progress: running, minutesLeft } : null}
 				onReplay={() => setSheetOpen(true)}
 			/>
