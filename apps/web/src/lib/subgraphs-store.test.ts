@@ -1,15 +1,14 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import {
+	WEEK_HEALTH_HOURS,
 	clearSubgraphsData,
 	fetchRows,
-	prefetchFirstPage,
+	newestRow,
 	refreshDetail,
 	refreshErrors,
 	refreshHealth,
 	refreshList,
 	refreshListAndHealth,
-	rememberFirstPage,
-	streamUrl,
 	subgraphsSnapshot,
 } from "./subgraphs-store";
 
@@ -92,15 +91,6 @@ describe("subgraphs store", () => {
 			"/api/subgraphs/vault-events/rows/transfers?_sort=a&_order=desc",
 		);
 	});
-
-	test("the stream url carries the filters", () => {
-		expect(streamUrl("vault-events", "transfers", "kind=burn")).toBe(
-			"/api/subgraphs/vault-events/rows/transfers/stream?kind=burn",
-		);
-		expect(streamUrl("vault-events", "transfers", "")).toBe(
-			"/api/subgraphs/vault-events/rows/transfers/stream",
-		);
-	});
 });
 
 const storage = new Map<string, string>();
@@ -152,29 +142,6 @@ describe("this tab's saved copy", () => {
 	});
 });
 
-describe("first-page cache", () => {
-	const page = { rows: [{ _id: 1, _block_height: 9 }], next_cursor: null };
-
-	test("prefetching a first page stores its rows", async () => {
-		stub(json(page));
-		await prefetchFirstPage("a", "t", "_limit=50");
-		expect(subgraphsSnapshot().firstPage["a/t"]?.data.rows).toEqual(page.rows);
-	});
-
-	test("remembering 21 pages keeps the newest 20", () => {
-		for (let i = 0; i < 21; i++) rememberFirstPage(`s${i}`, "t", page);
-		const keys = Object.keys(subgraphsSnapshot().firstPage);
-		expect(keys).toHaveLength(20);
-		expect(keys).toContain("s20/t");
-	});
-
-	test("signing out empties the remembered pages", () => {
-		rememberFirstPage("a", "t", page);
-		clearSubgraphsData();
-		expect(subgraphsSnapshot().firstPage).toEqual({});
-	});
-});
-
 describe("list with health", () => {
 	const hours = [
 		{ hour: "h", lagBlocks: 0, rowsWritten: 4, errors: 0, eventsHandled: 4 },
@@ -215,5 +182,51 @@ describe("list dedupe", () => {
 		const urls = stub(json({ data: [] }));
 		await Promise.all([refreshList(), refreshList({ health: 24 })]);
 		expect(urls.sort()).toEqual(["/api/subgraphs", "/api/subgraphs?health=24"]);
+	});
+});
+
+describe("health by range", () => {
+	const hourly = (rowsWritten: number) => ({
+		hours: [
+			{
+				hour: "h",
+				lagBlocks: 0,
+				rowsWritten,
+				errors: 0,
+				eventsHandled: 1,
+			},
+		],
+		errors24h: 0,
+	});
+
+	test("the 24h and 7d reads land in separate slices and don't overwrite each other", async () => {
+		stub(json(hourly(4)));
+		await refreshHealth("a");
+		const urls = stub(json(hourly(99)));
+		await refreshHealth("a", WEEK_HEALTH_HOURS);
+		expect(urls).toEqual(["/api/subgraphs/a/health?hours=168"]);
+		const snapshot = subgraphsSnapshot();
+		expect(snapshot.health.a?.data.hours[0]?.rowsWritten).toBe(4);
+		expect(snapshot.healthWeek.a?.data.hours[0]?.rowsWritten).toBe(99);
+	});
+});
+
+describe("newest row", () => {
+	test("asks for one row, newest block first", async () => {
+		const urls = stub(json({ rows: [{ _id: 7 }], next_cursor: null }));
+		const row = await newestRow("vault-events", "transfers");
+		expect(row).toEqual({ _id: 7 });
+		const query = new URL(urls[0] ?? "", "http://x").searchParams;
+		expect(query.get("_limit")).toBe("1");
+		expect(query.get("_sort")).toBe("_block_height");
+		expect(query.get("_order")).toBe("desc");
+		expect(urls[0]).toContain("/api/subgraphs/vault-events/rows/transfers?");
+	});
+
+	test("no rows, or a failed read, is null", async () => {
+		stub(json({ rows: [], next_cursor: null }));
+		expect(await newestRow("a", "t")).toBeNull();
+		stub(json({ error: "x" }, { status: 500 }));
+		expect(await newestRow("a", "t")).toBeNull();
 	});
 });

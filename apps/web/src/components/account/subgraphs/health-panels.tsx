@@ -1,11 +1,7 @@
 "use client";
 
-import { ChartSkeleton } from "@/components/charts/chart-skeleton";
-import {
-	LazyBandBarChart,
-	LazyContextLineChart,
-} from "@/components/charts/lazy";
-import { barsRows } from "@/lib/dashboard-charts";
+import { LazyContextLineChart } from "@/components/charts/lazy";
+import { dailyBuckets } from "@/lib/subgraph-view";
 import type {
 	SubgraphErrorGroup,
 	SubgraphHealthHour,
@@ -26,6 +22,17 @@ export function hourLabels(count: number): [number, string][] {
 	];
 }
 
+/** Tick labels for a window of daily points: the start, the middle and now. */
+export function dayLabels(count: number): [number, string][] {
+	if (count < 2) return [];
+	const middle = Math.floor((count - 1) / 2);
+	return [
+		[0, `-${count}d`],
+		[middle, `-${count - 1 - middle}d`],
+		[count - 1, "now"],
+	];
+}
+
 /** Tooltip heading per hourly point: "14:00 UTC". */
 export function hourPointLabels(
 	hours: readonly SubgraphHealthHour[],
@@ -33,65 +40,50 @@ export function hourPointLabels(
 	return hours.map((h) => `${utcClock(h.hour)} UTC`);
 }
 
-/** Blocks behind the tip, per hour. Under two blocks counts as live. */
-export function BlocksBehindPanel({
-	hours,
-}: { hours: readonly SubgraphHealthHour[] }) {
-	const known = hours.some((h) => h.lagBlocks !== null);
-	return (
-		<section className="dash-panel bl-panel" aria-label="Blocks behind tip">
-			<span className="dash-label">Blocks behind tip · 24h</span>
-			{known ? (
-				<div className="dc-chart">
-					<LazyBandBarChart
-						rows={barsRows(hours.map((h) => ({ n: h.lagBlocks ?? 0 })))}
-						height={150}
-						xLabels={hourLabels(hours.length)}
-						pointLabels={hourPointLabels(hours)}
-						seriesNames={{ n: "Blocks behind", p: "", f: "" }}
-					/>
-				</div>
-			) : (
-				<p className="bl-note">No history yet. It fills in hour by hour.</p>
-			)}
-			<span className="bl-note">Under 2 blocks counts as live.</span>
-		</section>
-	);
-}
+export type RowsRange = "24h" | "7d";
 
-/** Rows the subgraph wrote, per hour. */
+/** "Oct 14": a day's heading in the 7-day tooltip. */
+const dayLabel = (iso: string): string =>
+	new Date(iso).toLocaleDateString("en-US", {
+		month: "short",
+		day: "numeric",
+		timeZone: "UTC",
+	});
+
+/** Rows the subgraph wrote: per hour over 24h, per day over 7d. */
 export function RowsWrittenPanel({
 	hours,
-}: { hours: readonly SubgraphHealthHour[] }) {
+	range,
+}: {
+	hours: readonly SubgraphHealthHour[];
+	range: RowsRange;
+}) {
 	const known = hours.some((h) => h.lagBlocks !== null);
+	const days = range === "7d" ? dailyBuckets(hours) : null;
+	const values = days
+		? days.map((d) => d.rowsWritten)
+		: hours.map((h) => h.rowsWritten);
 	return (
-		<section className="dash-panel bl-panel" aria-label="Rows written per hour">
-			<span className="dash-label">Rows written per hour · 24h</span>
+		<section className="dash-panel bl-panel" aria-label="Rows written">
+			<span className="dash-label">Rows written · {range}</span>
 			{known ? (
 				<div className="dc-chart">
 					<LazyContextLineChart
 						context={[]}
-						values={hours.map((h) => h.rowsWritten)}
+						values={values}
 						contextName=""
 						valueName="Rows written"
 						height={150}
-						xLabels={hourLabels(hours.length)}
-						pointLabels={hourPointLabels(hours)}
+						xLabels={days ? dayLabels(days.length) : hourLabels(hours.length)}
+						pointLabels={
+							days ? days.map((d) => dayLabel(d.start)) : hourPointLabels(hours)
+						}
 					/>
 				</div>
 			) : (
 				<p className="bl-note">No history yet. It fills in hour by hour.</p>
 			)}
 		</section>
-	);
-}
-
-export function HealthPanelsSkeleton() {
-	return (
-		<div className="bl-two even">
-			<ChartSkeleton height={150} />
-			<ChartSkeleton height={150} />
-		</div>
 	);
 }
 

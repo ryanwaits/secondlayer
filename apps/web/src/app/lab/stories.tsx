@@ -90,7 +90,7 @@ import {
 	RowsEmptyDemo,
 	SheetDemo,
 	StackedCostDemo,
-	SubgraphGridDemo,
+	SubgraphDetailDemo,
 	SubgraphSheetDemo,
 	SwipeRowDemo,
 	TopupSheetDemo,
@@ -2642,26 +2642,15 @@ const META: Record<StoryId, Meta> = {
 			},
 		],
 	},
-	"subgraph-grid": {
+	"subgraph-schema": {
 		src: [
-			"apps/web/src/components/account/subgraphs/data-grid.tsx",
-			"apps/web/src/components/account/subgraphs/row-panel.tsx",
 			"apps/web/src/components/account/subgraphs/schema-view.tsx",
+			"apps/web/src/components/account/subgraphs/schema-drawer.tsx",
 			"apps/web/src/lib/subgraph-view.ts",
 		],
-		rule: "Every row keeps the block and transaction it came from. Hover changes text color, never a background; yellow is only the new-row dot.",
+		rule: "A table's columns, types and indexes sit in a drawer, with the newest row and the query commands. The page itself shows no rows.",
 		stack: true,
 		variants: [
-			{
-				id: "rows",
-				label: "Rows",
-				render: () => <SubgraphGridDemo />,
-			},
-			{
-				id: "open-row",
-				label: "Open row",
-				render: () => <SubgraphGridDemo openFirst />,
-			},
 			{
 				id: "schema",
 				label: "Schema",
@@ -2676,25 +2665,29 @@ const META: Record<StoryId, Meta> = {
 				render: () => <SubgraphsEmptyState />,
 			},
 		],
-		usage:
-			'<DataGrid name="sbtc-deposits" table="transfers" columns={columns} rowCount={n} />',
-		props: [
-			{
-				name: "columns",
-				type: "Record<string, { type: string }>",
-				note: "From the subgraph detail. Order and hidden system columns are derived.",
-			},
-			{
-				name: "key",
-				type: "string",
-				note: "Mount with a key per subgraph and table so a switch starts clean.",
-			},
-		],
-		dos: [
-			"Format digit strings, never Number: values can pass 2^53.",
-			"Close the live stream on unmount, sort, filter, page and hidden tabs.",
-		],
+		usage: "<SchemaView table={detail.tables.transfers} />",
+		dos: ["Format digit strings, never Number: values can pass 2^53."],
 		donts: ["Offer Filter on _id, _created_at or jsonb values."],
+	},
+	"subgraph-detail": {
+		src: ["apps/web/src/components/account/subgraphs/detail-screen.tsx"],
+		rule: "The desktop subgraph page shows health, what is wrong and rows written. Click the name or a table for its schema, newest row and query commands in a drawer.",
+		variants: [
+			{
+				id: "failing",
+				label: "Failing",
+				render: () => <SubgraphDetailDemo failing />,
+			},
+			{
+				id: "healthy",
+				label: "Healthy",
+				render: () => <SubgraphDetailDemo failing={false} />,
+			},
+		],
+		usage:
+			"<SubgraphDetailBody detail={detail} health={health} errors={errors} insights={insights} range={range} onRange={setRange} />",
+		dos: ["Open the drawer from the name and from each table row."],
+		donts: ["Put a data grid back on the page; the query command is enough."],
 	},
 	handoff: {
 		src: ["apps/web/src/components/dashboard/insight/handoff-block.tsx"],

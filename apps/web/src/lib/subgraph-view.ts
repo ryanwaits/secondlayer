@@ -282,3 +282,25 @@ export function stateLine(
 		.filter(Boolean)
 		.join(" · ");
 }
+
+/** Rows written in one day-sized window, with the first hour it covers. */
+export interface DailyBucket {
+	start: string;
+	rowsWritten: number;
+}
+
+/** Hourly health folded into 24-hour windows from the oldest hour, so 168
+ *  hours make 7 days. A trailing partial window keeps its shorter sum. */
+export function dailyBuckets(
+	hours: readonly { hour: string; rowsWritten: number }[],
+): DailyBucket[] {
+	const days: DailyBucket[] = [];
+	for (let i = 0; i < hours.length; i += 24) {
+		const window = hours.slice(i, i + 24);
+		days.push({
+			start: window[0]?.hour ?? "",
+			rowsWritten: window.reduce((sum, h) => sum + h.rowsWritten, 0),
+		});
+	}
+	return days;
+}

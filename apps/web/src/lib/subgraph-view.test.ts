@@ -3,6 +3,7 @@ import {
 	DEFAULT_SORT,
 	blocksLabel,
 	canFilter,
+	dailyBuckets,
 	formatBytes,
 	formatCell,
 	gridColumns,
@@ -279,5 +280,33 @@ describe("counts and lag", () => {
 		expect(subgraphTone("active", 2)).toBe("alarm");
 		expect(subgraphTone("error", 0)).toBe("alarm");
 		expect(subgraphTone("reindexing", 0)).toBe("idle");
+	});
+});
+
+describe("dailyBuckets", () => {
+	const hours = (count: number, rowsWritten = 1) =>
+		Array.from({ length: count }, (_, i) => ({
+			hour: new Date(Date.UTC(2026, 9, 1, i)).toISOString(),
+			rowsWritten,
+		}));
+
+	test("168 hours make 7 days", () => {
+		expect(dailyBuckets(hours(168))).toHaveLength(7);
+	});
+
+	test("each day sums its 24 hours", () => {
+		const input = hours(48).map((h, i) => ({ ...h, rowsWritten: i }));
+		const days = dailyBuckets(input);
+		expect(days.map((d) => d.rowsWritten)).toEqual([276, 852]);
+		expect(days[1]?.start).toBe(input[24]?.hour);
+	});
+
+	test("a partial last day keeps its shorter sum", () => {
+		const days = dailyBuckets(hours(30, 2));
+		expect(days.map((d) => d.rowsWritten)).toEqual([48, 12]);
+	});
+
+	test("no hours, no days", () => {
+		expect(dailyBuckets([])).toEqual([]);
 	});
 });

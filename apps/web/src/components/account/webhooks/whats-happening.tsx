@@ -5,6 +5,7 @@ import { Evidence } from "@/components/dashboard/insight/evidence";
 import { type Insight, causeText } from "@/lib/insights";
 import { dismiss } from "@/lib/insights-store";
 import type { WebhookTestResult } from "@secondlayer/sdk";
+import type { ReactNode } from "react";
 import { toast } from "sonner";
 import type { Recovery } from "./use-recovery";
 
@@ -22,23 +23,27 @@ function testLabel(test: TestState): string {
 }
 
 /**
- * The desktop webhook page's answer to "what is wrong": the top insight in
+ * The desktop detail pages' answer to "what is wrong": the top insight in
  * plain words with its evidence, a likely cause when the label is sure enough,
- * and the two jobs that fix it (a test, then the requeue). The insight's own
- * evidence is all it shows; it invents no checks.
+ * and, for a webhook, the two jobs that fix it (a test, then the requeue).
+ * `extra` adds a page's own proof and commands below the evidence. The
+ * insight's own evidence is all it shows; it invents no checks.
  */
 export function WhatsHappening({
 	insight,
 	recovery,
 	onTest,
 	test,
+	extra,
 }: {
 	insight: Insight;
-	recovery: Recovery;
-	onTest: () => void;
-	test: TestState;
+	recovery?: Recovery;
+	onTest?: () => void;
+	test?: TestState;
+	extra?: ReactNode;
 }) {
-	const { dead, requeue } = recovery;
+	const dead = recovery?.dead;
+	const requeue = recovery?.requeue;
 	const cause = causeText(insight.how);
 	// "Got it" and "Dismiss" are the same action: hide it until the rule fires again.
 	async function act() {
@@ -55,45 +60,48 @@ export function WhatsHappening({
 			{insight.evidence.map((item) => (
 				<Evidence key={`${item.kind}-${item.title}`} item={item} />
 			))}
+			{extra}
 			{cause ? (
 				<p className="wd-likely">
 					<b>Likely:</b> {cause}
 				</p>
 			) : null}
-			<div className="ov-note-acts">
-				<button
-					type="button"
-					className="wd-btn"
-					disabled={test.busy}
-					onClick={onTest}
-				>
-					{testLabel(test)}
-				</button>
-				{requeue.requeued !== null ? (
-					<span className="wd-btn wd-btn-done">
-						Requeued {requeue.requeued.toLocaleString("en-US")}
-					</span>
-				) : dead && dead.count > 0 ? (
+			{recovery && requeue && onTest && test ? (
+				<div className="ov-note-acts">
 					<button
 						type="button"
 						className="wd-btn"
-						disabled={requeue.busy}
-						onClick={requeue.onRequeue}
+						disabled={test.busy}
+						onClick={onTest}
 					>
-						{requeue.busy
-							? "Requeuing…"
-							: `Requeue ${dead.count.toLocaleString("en-US")}`}
+						{testLabel(test)}
 					</button>
-				) : null}
-			</div>
+					{requeue.requeued !== null ? (
+						<span className="wd-btn wd-btn-done">
+							Requeued {requeue.requeued.toLocaleString("en-US")}
+						</span>
+					) : dead && dead.count > 0 ? (
+						<button
+							type="button"
+							className="wd-btn"
+							disabled={requeue.busy}
+							onClick={requeue.onRequeue}
+						>
+							{requeue.busy
+								? "Requeuing…"
+								: `Requeue ${dead.count.toLocaleString("en-US")}`}
+						</button>
+					) : null}
+				</div>
+			) : null}
 			<p className="wd-faint wd-why-aside">
 				<span className="ov-note-prompt">
 					<CopyButton
 						code={insight.handoff.prompt}
 						label="Copy the fix as a prompt"
 					/>
-				</span>{" "}
-				Requeue after a test answers 200.
+				</span>
+				{recovery ? " Requeue after a test answers 200." : null}
 			</p>
 			<div className="ov-note-acts">
 				<button type="button" className="ins-act" onClick={() => void act()}>
