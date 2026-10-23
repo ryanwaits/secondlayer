@@ -166,17 +166,23 @@ describe("RevealStep", () => {
 		expect(html).toContain("Keep the key in your environment, never in the");
 	});
 
-	test("the Agent tab is the .mcp.json block with the key prefix", () => {
+	test("the Agent tab is the hosted MCP command, which needs no key", () => {
 		const html = render("agent");
-		expect(html).toContain("@secondlayer/mcp");
-		expect(html).toContain("sk-sl_01234567…");
-		expect(html).toContain("Paste into .mcp.json.");
+		expect(html).toContain(
+			"claude mcp add --transport http secondlayer https://api.secondlayer.tools/mcp",
+		);
+		expect(html).toContain(
+			"Hosted MCP. It signs in with your account in the browser, so this key isn&#x27;t needed.",
+		);
+		// The only whole key on screen is the reveal row.
+		expect(html.split(KEY).length - 1).toBe(1);
+		expect(html).not.toContain("sk-sl_01234567…");
 	});
 
-	test("Copy on Env and Agent carries the whole key; CLI and SDK carry none", () => {
+	test("only Env carries the whole key; Agent, CLI and SDK carry none", () => {
 		const s = useItSnippets(KEY);
 		expect(s.env.copy).toBe(`export SECONDLAYER_API_KEY=${KEY}`);
-		expect(s.agent.copy).toContain(`"SECONDLAYER_API_KEY": "${KEY}"`);
+		expect(s.agent.copy).not.toContain("sk-sl_");
 		expect(s.cli.copy).not.toContain("sk-sl_");
 		expect(s.sdk.copy).not.toContain("sk-sl_");
 	});

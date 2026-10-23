@@ -3,6 +3,7 @@
 import { Choice } from "@/components/choice";
 import { CopyButton } from "@/components/copy-button";
 import { CreateKeyError, createKey } from "@/lib/account-data";
+import { CLAUDE_CODE_MCP_COMMAND } from "@/lib/agent-prompts";
 import { useState } from "react";
 
 /** The most active keys an account can hold. Mirrors the API's default. */
@@ -11,7 +12,7 @@ export const NAME_MAX = 64;
 /** The character counter shows once the name is past this. */
 export const NAME_COUNT_FROM = 48;
 /** A key's prefix as the list shows it: `sk-sl_` plus 8 characters. */
-const PREFIX_LENGTH = 14;
+export const PREFIX_LENGTH = 14;
 
 const EMPTY_NAME_ERROR = "Give the key a name";
 
@@ -67,20 +68,6 @@ export interface UseItSnippet {
 	command: boolean;
 }
 
-const mcpBlock = (apiKey: string) =>
-	`{
-  "mcpServers": {
-    "secondlayer": {
-      "command": "npx",
-      "args": ["-y", "@secondlayer/mcp"],
-      "env": {
-        "SECONDLAYER_API_URL": "https://api.secondlayer.tools",
-        "SECONDLAYER_API_KEY": "${apiKey}"
-      }
-    }
-  }
-}`;
-
 /** The four ways to put a new key to work. The whole key is only ever copied. */
 export function useItSnippets(key: string): Record<UseItTab, UseItSnippet> {
 	const hidden = `${key.slice(0, PREFIX_LENGTH)}…`;
@@ -112,10 +99,10 @@ const sl = new SecondLayer({
 			command: false,
 		},
 		agent: {
-			shown: mcpBlock(hidden),
-			copy: mcpBlock(key),
-			note: "Paste into .mcp.json. A client's env block can't read your shell, so the key goes in literally.",
-			command: false,
+			shown: CLAUDE_CODE_MCP_COMMAND,
+			copy: CLAUDE_CODE_MCP_COMMAND,
+			note: "Hosted MCP. It signs in with your account in the browser, so this key isn't needed.",
+			command: true,
 		},
 	};
 }
