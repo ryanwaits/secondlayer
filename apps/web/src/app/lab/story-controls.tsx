@@ -40,6 +40,7 @@ import {
 	PushSettingsView,
 } from "@/components/account/push/push-settings";
 import { RowsBody } from "@/components/account/rows/rows-panel";
+import { SubgraphCompactDetail } from "@/components/account/subgraphs/compact-detail";
 import {
 	SubgraphCompactRow,
 	SubgraphsCompactList,
@@ -812,6 +813,24 @@ export function SubgraphDetailDemo({ failing }: { failing: boolean }) {
 			insights={failing && top ? [top] : []}
 			range={range}
 			onRange={setRange}
+			now={EXAMPLE_NOW}
+		/>
+	);
+}
+
+/** The phone's subgraph page, healthy or stopped on a throwing handler. */
+export function SubgraphPhoneDemo({ failing }: { failing: boolean }) {
+	const [top] = FIXTURE_INSIGHTS;
+	return (
+		<SubgraphCompactDetail
+			detail={{
+				...exampleDetail,
+				status: failing ? "error" : "active",
+				sync: { ...exampleDetail.sync, blocksRemaining: failing ? 26 : 1 },
+			}}
+			health={exampleHealth(failing ? 3 : 0)}
+			errors={failing ? exampleErrors : []}
+			insights={failing && top ? [top] : []}
 			now={EXAMPLE_NOW}
 		/>
 	);

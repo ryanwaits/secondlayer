@@ -88,6 +88,7 @@ import {
 	SheetDemo,
 	StackedCostDemo,
 	SubgraphDetailDemo,
+	SubgraphPhoneDemo,
 	SubgraphSheetDemo,
 	SwipeRowDemo,
 	TopupSheetDemo,
@@ -2055,9 +2056,28 @@ const META: Record<StoryId, Meta> = {
 					</PhoneColumn>
 				),
 			},
+			{
+				id: "page-failing",
+				label: "Page, throwing",
+				render: () => (
+					<PhoneColumn>
+						<SubgraphPhoneDemo failing />
+						<LabToaster />
+					</PhoneColumn>
+				),
+			},
+			{
+				id: "page-healthy",
+				label: "Page, healthy",
+				render: () => (
+					<PhoneColumn>
+						<SubgraphPhoneDemo failing={false} />
+					</PhoneColumn>
+				),
+			},
 		],
 		usage:
-			"<SubgraphsCompactList items={items} health={health} onOpen={open} />\n<SubgraphSheet name={name} onClose={close} />",
+			"<SubgraphsCompactList items={items} health={health} onOpen={open} />\n<SubgraphSheet name={name} onClose={close} />\n<SubgraphCompactDetail detail={detail} health={health} errors={errors} />",
 		donts: [
 			"No actions and no CLI commands on a phone.",
 			"No integrity row until the API has the field.",
