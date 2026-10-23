@@ -446,7 +446,7 @@ export function createArchiveRouter(options: ArchiveRouterOptions = {}): Hono {
 				return c.json(
 					{
 						error: "spend_cap_reached",
-						message: `You reached your monthly spend cap. Archive fetches are paused until ${nextMonthResetLabel(nowTs)} or until you raise the cap at https://secondlayer.tools/account/credits#cap.`,
+						message: `You reached your monthly spend cap. Archive fetches are paused until ${nextMonthResetLabel(nowTs)} or until you raise the cap at https://secondlayer.tools/account#cap.`,
 					},
 					402,
 				);

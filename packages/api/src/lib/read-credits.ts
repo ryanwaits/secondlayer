@@ -95,7 +95,7 @@ export async function meterRowsDelivered(
 }
 
 function topUpUrl(): string {
-	return `${process.env.DASHBOARD_URL ?? "https://secondlayer.tools"}/account/credits`;
+	return `${process.env.DASHBOARD_URL ?? "https://secondlayer.tools"}/account#usage`;
 }
 
 export type InsufficientCreditsBody = {
@@ -155,7 +155,7 @@ export async function checkRowsAllowance(
 		if (isOverMonthlyCreditCap(spent, caps.monthly_cap_cents)) {
 			return {
 				error: "spend_cap_reached",
-				message: `You reached your monthly spend cap. Reads past your free 1M rows are paused until ${nextMonthResetLabel(now)} or until you raise the cap at https://secondlayer.tools/account/credits#cap.`,
+				message: `You reached your monthly spend cap. Reads past your free 1M rows are paused until ${nextMonthResetLabel(now)} or until you raise the cap at https://secondlayer.tools/account#cap.`,
 			};
 		}
 	}

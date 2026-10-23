@@ -15,7 +15,8 @@ export interface IncidentEmailItem {
 	lastError: string | null;
 }
 
-const WEBHOOKS_URL = "https://secondlayer.tools/account/webhooks";
+const ACCOUNT_URL = "https://secondlayer.tools/account";
+const WEBHOOKS_URL = `${ACCOUNT_URL}#webhooks`;
 
 const MONTHS = [
 	"Jan",
@@ -70,7 +71,7 @@ export function buildWebhookIncidentEmail(incidents: IncidentEmailItem[]): {
 			status: { tone: "alarm", text: "Failing" },
 			cta: {
 				label: "Open the webhook",
-				url: `${WEBHOOKS_URL}/${one.id}`,
+				url: `${ACCOUNT_URL}/webhooks/${one.id}`,
 			},
 			footnote,
 		});

@@ -179,7 +179,7 @@ describe.skipIf(!HAS_DB)(
 			expect(refusal?.error).toBe("spend_cap_reached");
 			if (refusal?.error === "spend_cap_reached") {
 				expect(refusal.message).toContain("monthly spend cap");
-				expect(refusal.message).toContain("account/credits#cap");
+				expect(refusal.message).toContain("account#cap");
 			}
 		});
 
