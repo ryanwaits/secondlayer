@@ -1,6 +1,5 @@
 import { describe, expect, test } from "bun:test";
 import type { Insight } from "@/lib/insights";
-import { forAccountRules } from "@/lib/insights-store";
 import { FIXTURE_INSIGHTS } from "@/lib/insights.fixtures";
 import type { OnboardingProgress } from "@/lib/onboarding";
 import { renderToStaticMarkup } from "react-dom/server";
@@ -8,7 +7,6 @@ import { SubgraphRows } from "../subgraphs/list-screen";
 import { rowModel } from "../webhooks/rows";
 import { FIXTURE_HOURS, summary } from "../webhooks/webhook.fixtures";
 import {
-	OVERVIEW_ACCOUNT_RULES,
 	OverviewBody,
 	type OverviewFirstWave,
 	OverviewSubgraphsSlot,
@@ -56,73 +54,58 @@ const base = {
 const render = (rows: (typeof healthy)[] | null) =>
 	renderToStaticMarkup(<OverviewBody {...base} rows={rows} />);
 
-describe("OverviewBody account insights", () => {
+describe("OverviewBody top note", () => {
 	const byRule = (rule: string): Insight => {
 		const found = FIXTURE_INSIGHTS.find((i) => i.rule === rule);
 		if (!found) throw new Error(`missing fixture ${rule}`);
 		return found;
 	};
+	const cap = byRule("cap_pace");
+	const reads = byRule("duplicate_reads");
 
-	test("the open note's card is the same insight, and read-loop notes stay off Overview", () => {
-		const cap = byRule("cap_pace");
-		const runway: Insight = {
-			...cap,
-			id: "ins-credits-runway",
-			rule: "credits_runway",
-			impact: 3,
-			line: "Credits run out in 9 days",
-			lead: "Your credits run out before the month does.",
-		};
-		const reads = byRule("duplicate_reads");
-		const shown = forAccountRules([reads, runway, cap], OVERVIEW_ACCOUNT_RULES);
-		expect(shown.map((i) => i.id)).toEqual([cap.id, runway.id]);
-
+	test("shows only the worst open insight, with a line naming the next target", () => {
 		const html = renderToStaticMarkup(
-			<OverviewBody {...base} rows={[healthy]} accountInsights={shown} />,
+			<OverviewBody {...base} rows={[healthy]} insights={[reads, cap]} />,
 		);
-		// Both notes list; only the top one (cap pace) is open, with its own lead.
-		expect(html).toContain(cap.line);
-		expect(html).toContain(runway.line);
-		expect(html.match(/class="ins-card"/g)).toHaveLength(1);
 		expect(html).toContain(cap.lead);
-		expect(html).not.toContain(runway.lead);
-		// The read-loop insight belongs to Rows.
-		expect(html).not.toContain(reads.line);
 		expect(html).not.toContain(reads.lead);
-		// The open card sits right after the cap-pace note line.
-		expect(html.indexOf(cap.lead)).toBeGreaterThan(html.indexOf(cap.line));
-		expect(html.indexOf(cap.lead)).toBeLessThan(html.indexOf(runway.line));
+		expect(html).toContain("1 more note, on ");
+		expect(html.match(/aria-label="Note"/g)).toHaveLength(1);
 	});
 
-	const account = FIXTURE_INSIGHTS.find((i) => i.rule === "duplicate_reads");
-
-	test("account insights render as notes under the rows", () => {
-		if (!account) throw new Error("missing fixture");
+	test("the note sits above the webhooks, and notes are never nested", () => {
 		const html = renderToStaticMarkup(
-			<OverviewBody {...base} rows={[healthy]} accountInsights={[account]} />,
+			<OverviewBody {...base} rows={[healthy]} insights={[cap]} />,
 		);
-		expect(html.indexOf(account.line)).toBeGreaterThan(
-			html.indexOf("dash-rows"),
+		expect(html.indexOf(cap.lead)).toBeLessThan(
+			html.indexOf('aria-label="Webhooks"'),
 		);
+		expect(html).not.toContain("ins-card");
 	});
 
-	test("no account insights renders no note", () => {
+	test("a healthy account renders no status card", () => {
 		const html = renderToStaticMarkup(
-			<OverviewBody {...base} rows={[healthy]} accountInsights={[]} />,
+			<OverviewBody {...base} rows={[healthy, second]} insights={[]} />,
 		);
-		expect(html).not.toContain("ins-note");
+		expect(html).not.toContain("ov-note");
+		expect(html).not.toContain("ov-notes");
+		expect(html).not.toContain("dash-dot alarm");
 	});
 });
 
 describe("OverviewBody", () => {
-	test("says everything is delivering and draws a row per active webhook", () => {
+	test("draws the Account head and a row per active webhook, with no status sentence", () => {
 		const html = render([healthy, second, quiet]);
-		expect(html).toContain("Everything is delivering.");
+		expect(html).toContain("<h1>Account</h1>");
+		expect(html).toContain(
+			"This page shows what&#x27;s running, what it costs",
+		);
 		expect(html).toContain('href="/account/webhooks/wh_deposits"');
 		expect(html).toContain('href="/account/webhooks/wh_vault"');
 		expect(html).toContain("Delivered 72 in 24h");
-		expect(html).toContain("3 webhooks");
-		expect(html).toContain("$28.23 in credits");
+		expect(html).toContain("Last 24h");
+		expect(html).not.toContain("Everything is delivering.");
+		expect(html).not.toContain("dash-status");
 	});
 
 	test("webhooks that never matched fold into one quiet group row", () => {
@@ -132,12 +115,12 @@ describe("OverviewBody", () => {
 		expect(html).not.toContain("example-watch");
 	});
 
-	test("a losing insight turns the sentence into a count of what needs attention", () => {
+	test("a failing webhook with no open note gets the you're-on-it card", () => {
 		const losing = rowModel(summary(), series, FIXTURE_HOURS, [
 			FIXTURE_INSIGHTS[0] as never,
 		]);
 		const html = render([losing, second]);
-		expect(html).toContain("1 webhook needs attention.");
+		expect(html).toContain("sbtc-deposits is failing. You&#x27;re on it.");
 		expect(html).toContain("Receiver returning 502 since 16:06");
 		expect(html).toContain("Why");
 	});
@@ -152,28 +135,48 @@ describe("OverviewBody", () => {
 		expect(html).not.toContain(">+2<");
 	});
 
-	test("no webhooks yet is its own sentence, not an error", () => {
-		expect(render([])).toContain("No webhooks yet.");
+	test("no webhooks renders no webhooks section", () => {
+		expect(render([])).not.toContain('aria-label="Webhooks"');
 	});
 
-	test("before the list loads, it does not claim anything is delivering", () => {
+	test("before the list loads, it claims nothing about webhooks", () => {
 		const html = render(null);
-		expect(html).toContain("Checking your account.");
-		expect(html).not.toContain("Everything is delivering.");
+		expect(html).not.toContain('aria-label="Webhooks"');
+		expect(html).not.toContain("is failing");
 	});
 
 	test("the subgraphs slot renders nothing until its screen fills it", () => {
 		expect(renderToStaticMarkup(<OverviewSubgraphsSlot />)).toBe("");
 	});
 
-	test("the month panel keeps the spend line and leaves the meter to the Rows cell", () => {
+	test("the page runs top note, webhooks, subgraphs, usage, terminal, keys", () => {
+		const losing = rowModel(summary(), series, FIXTURE_HOURS, []);
+		const html = renderToStaticMarkup(
+			<OverviewBody
+				{...base}
+				rows={[losing]}
+				insights={[FIXTURE_INSIGHTS[0] as Insight]}
+			/>,
+		);
+		const order = [
+			'aria-label="Note"',
+			'aria-label="Webhooks"',
+			'aria-label="Subgraphs"',
+			'aria-label="Usage and credits"',
+			'aria-label="Work from your terminal"',
+			'aria-label="Keys and apps"',
+		].map((marker) => html.indexOf(marker));
+		expect(order.every((n) => n > -1)).toBe(true);
+		expect([...order].sort((x, y) => x - y)).toEqual(order);
+	});
+
+	test("the old strip and month panel are gone", () => {
 		const html = renderToStaticMarkup(
 			<OverviewBody {...base} rows={[healthy]} />,
 		);
-		expect(html).toContain("$6.21");
-		expect(html).toContain("$28.23 left");
-		const month = html.slice(html.indexOf('aria-label="This month"'));
-		expect(month).not.toContain("dc-meter");
+		expect(html).not.toContain("ov-strip");
+		expect(html).not.toContain('aria-label="This month"');
+		expect(html).not.toContain("Billing ›");
 	});
 });
 
@@ -232,7 +235,7 @@ describe("OverviewBody for a new account", () => {
 			guide({ key: true, read: true, push: true, complete: true }),
 		);
 		expect(out).not.toContain("Your key works");
-		expect(out).toContain("No webhooks yet.");
+		expect(out).toContain("<h1>Account</h1>");
 	});
 });
 
@@ -294,42 +297,29 @@ describe("Overview first paint", () => {
 		);
 	});
 
-	test("the loading skeleton has the webhook header and a strip", () => {
+	test("the loading skeleton has the Account head and the webhook header", () => {
 		const html = renderToStaticMarkup(
 			<OverviewBody
 				{...base}
 				rows={null}
 				loading
-				accountInsights={FIXTURE_INSIGHTS}
+				insights={FIXTURE_INSIGHTS}
 			/>,
 		);
-		expect(html).toContain("Checking your account.");
+		expect(html).toContain("<h1>Account</h1>");
 		expect(html).toContain("Deliveries, 24h");
 		const block = html.slice(html.indexOf("ov-skel"));
 		expect(block.match(/class="dash-row"/g)?.length).toBe(3);
-		expect(block.match(/class="ov-cell"/g)?.length).toBe(3);
 		// Nothing else renders: it would move when the real content lands.
-		expect(html).not.toContain('aria-label="This month"');
-		expect(html).not.toContain("ins-");
+		expect(html).not.toContain("ov-note");
+		expect(html).not.toContain('aria-label="Usage and credits"');
 	});
 });
 
-describe("OverviewBody table and strip", () => {
+describe("OverviewBody sections", () => {
 	const NOW = new Date("2026-10-15T12:00:00.000Z");
 	const render = (over: Partial<Parameters<typeof exampleOverview>[1]> = {}) =>
 		renderToStaticMarkup(<OverviewBody {...exampleOverview(NOW, over)} />);
-	/** The table, the strip and the markup after the strip. */
-	const parts = (html: string) => {
-		const table = html.indexOf('class="dash-rows');
-		const strip = html.indexOf('class="ov-strip"');
-		const end = html.indexOf("</section>", strip);
-		return {
-			sentence: html.slice(0, table),
-			table: html.slice(table, strip),
-			strip: html.slice(strip, end),
-			after: html.slice(end),
-		};
-	};
 	const credits = (micros: string) => ({
 		creditsUsdMicros: micros,
 		spentThisMonthUsdMicros: "1910000",
@@ -340,106 +330,67 @@ describe("OverviewBody table and strip", () => {
 		expect(html).toContain("Webhooks</span><span>State</span>");
 		expect(html).toContain("Deliveries, 24h");
 		expect(html).toContain("Sent, 24h");
-		expect(html).not.toContain("Last 24h");
+		expect(html).toContain("sl webhooks create --help");
 		expect(html).not.toContain(">Resource<");
 	});
 
 	test("webhook rows draw delivery ticks, not a sparkline", () => {
-		const { table } = parts(render());
+		const html = render();
+		const table = html.slice(
+			html.indexOf('aria-label="Webhooks"'),
+			html.indexOf('aria-label="Subgraphs"'),
+		);
 		expect(table).toContain("dc-tick-base");
 		expect(table).not.toContain("dc-stroke-a");
 	});
 
-	test("rows, keys and the hosted stack sit in a strip under the table, before the month", () => {
+	test("a healthy overview shows no status card and no dots on rows", () => {
 		const html = render();
-		const table = html.indexOf("dash-rows");
-		const strip = html.indexOf('class="ov-strip"');
-		const month = html.indexOf('aria-label="This month"');
-		expect(table).toBeGreaterThan(-1);
-		expect(strip).toBeGreaterThan(table);
-		expect(month).toBeGreaterThan(strip);
-		const { strip: cells } = parts(html);
-		expect(cells).toContain("Rows · October");
-		expect(cells).toContain('href="/account/keys"');
-		expect(cells).toContain("Hosted stack");
-		expect(cells).toContain("$0.33");
-		expect(cells).toContain("Free 1M used up · 260,000 paid");
-		expect(cells).toContain("read on 1 of the last 24 days");
-		expect(cells).toContain("dc-meter-over");
-	});
-
-	test("a healthy overview shows no status dots on rows or cells", () => {
-		const { sentence, table, strip } = parts(render());
-		expect(sentence).toContain('class="dash-dot"');
-		// The quiet group's hollow dot is the only dot in the table.
+		expect(html).not.toContain("ov-note");
+		expect(html).not.toContain("name-flag");
+		expect(html).not.toContain("dash-dot alarm");
+		// The quiet group's hollow dot is the only dot in the webhook table.
+		const table = html.slice(
+			html.indexOf('class="dash-rows'),
+			html.indexOf('aria-label="Subgraphs"'),
+		);
 		expect(table).not.toContain('class="dash-dot"');
-		expect(table).not.toContain("dash-dot alarm");
-		expect(table).not.toContain("name-flag");
 		expect(table).toContain("dash-dot idle");
-		expect(strip).not.toContain("dash-dot");
-		expect(strip).not.toContain("ins-dot");
 	});
 
-	test("a failing webhook is the red name box in the table and turns the sentence red", () => {
-		const html = renderToStaticMarkup(
-			<OverviewBody
-				{...exampleOverview(NOW, {
-					rows: exampleWebhooks(NOW, { failing: true }),
-				})}
-			/>,
-		);
-		const { sentence, table, strip } = parts(html);
-		expect(sentence).toContain("1 webhook needs attention.");
-		expect(table).toContain("name-flag");
-		expect(table).toContain("dc-fill-alarm");
-		expect(strip).not.toContain("dash-dot");
+	test("a failing webhook is the red name box in the table and gets the you're-on-it card", () => {
+		const html = render({ rows: exampleWebhooks(NOW, { failing: true }) });
+		expect(html).toContain("name-flag");
+		expect(html).toContain("dc-fill-alarm");
+		expect(html).toContain("sbtc-deposits is failing. You&#x27;re on it.");
 	});
 
-	test("a stopped stack shows the only red dot in the strip", () => {
-		const { table, strip } = parts(
-			render({
-				stack: exampleStack("stopped", NOW),
-				billing: credits("0"),
-			}),
-		);
-		expect(strip.match(/dash-dot alarm/g)).toHaveLength(1);
-		expect(strip).toContain("stopped");
-		expect(strip).toContain("Add credits to start it again.");
-		expect(strip).toContain("dc-stroke-alarm");
-		expect(table).not.toContain("dash-dot alarm");
-	});
-
-	test("a stopped stack turns the sentence red and webhook rows idle", () => {
+	test("a stopped stack with no credits is a top note, and webhook rows go idle", () => {
 		const html = render({
 			stack: exampleStack("stopped", NOW),
 			billing: credits("0"),
 		});
-		const { sentence, table } = parts(html);
-		expect(sentence).toContain("Your hosted stack stopped.");
-		expect(sentence).toContain("dash-dot alarm");
-		expect(sentence).toContain(
-			"Credits ran out, so webhooks aren&#x27;t delivering.",
+		expect(html).toContain("Your hosted stack stopped.");
+		expect(html).toContain(
+			"Credits ran out, so webhooks aren&#x27;t delivering. Add credits to start it again.",
 		);
-		expect(table.match(/Not delivering, stack stopped/g)).toHaveLength(2);
-		expect(table).not.toContain("Delivered ");
+		expect(html).not.toContain("Got it");
+		expect(html).not.toContain("is failing");
+		expect(html.match(/Not delivering, stack stopped/g)).toHaveLength(2);
+		expect(html).not.toContain("Delivered ");
 	});
 
-	test("an asleep account shows no red dot in the strip", () => {
+	test("an asleep account is a top note with no buttons", () => {
 		const html = render({
 			rows: null,
 			asleep: true,
 			stack: exampleStack("stopped", NOW),
 			billing: credits("28090000"),
 		});
-		const { sentence, strip } = parts(html);
-		expect(sentence).toContain("Your hosted stack is asleep.");
-		expect(strip).toContain("asleep");
-		expect(strip).toContain(
-			"Every webhook is paused, so it isn&#x27;t billed.",
-		);
-		expect(strip).toContain("dash-dot idle");
-		expect(strip).not.toContain("dash-dot alarm");
-		expect(strip).not.toContain("dc-stroke-alarm");
+		expect(html).toContain("Your hosted stack is asleep.");
+		expect(html).toContain("Every webhook is paused, so it isn&#x27;t billed.");
+		expect(html).not.toContain("Got it");
+		expect(html).not.toContain("dash-dot alarm");
 	});
 
 	test("a stopped stack with credits left is not called out of credits", () => {
@@ -448,68 +399,30 @@ describe("OverviewBody table and strip", () => {
 		expect(html).not.toContain("Not delivering, stack stopped");
 	});
 
-	test("an active server-errors insight shows in the rows cell and its card is open", () => {
+	test("an open server-errors insight is the top note", () => {
 		const insight = serverErrorsInsight();
-		const html = render({ accountInsights: [insight] });
-		const { strip, after } = parts(html);
-		expect(strip).toContain("ov-flag");
-		expect(strip).toContain("3 requests failed on our side");
-		expect(strip).toContain("ins-dot alarm");
-		expect(strip).toContain("Hide ›");
-		expect(strip).toContain(`aria-controls="ins-panel-${insight.id}"`);
-		expect(after).toContain(
-			`class="ov-strip-card" id="ins-panel-${insight.id}"`,
-		);
-		expect(after).toContain(insight.lead);
-		// It is not also listed as a note above the month.
-		expect(html).not.toContain("ins-note");
+		const html = render({ insights: [insight] });
+		expect(html).toContain(insight.lead);
+		expect(html).toContain("Got it");
+		expect(html).toContain("Dismiss");
 	});
 
-	test("a recovered server-errors insight is one collapsed line", () => {
-		const html = render({ accountInsights: [serverErrorsInsight(true)] });
-		const { strip } = parts(html);
-		expect(strip).toContain("Why ›");
-		expect(strip).toContain("ins-dot idle");
-		expect(strip).toContain("recovered");
-		expect(html).not.toContain("ov-strip-card");
+	test("a recovered server-errors insight is not an open note", () => {
+		const html = render({ insights: [serverErrorsInsight(true)] });
+		expect(html).not.toContain("ov-note");
 	});
 
-	test("money insights stay above the month panel, not in a cell", () => {
-		const cap = FIXTURE_INSIGHTS.find((i) => i.rule === "cap_pace");
-		if (!cap) throw new Error("missing fixture");
-		const html = render({ accountInsights: [cap] });
-		const { strip } = parts(html);
-		expect(strip).not.toContain("ov-flag");
-		expect(html.indexOf(cap.line)).toBeGreaterThan(html.indexOf("</section>"));
-		expect(html.indexOf(cap.line)).toBeLessThan(
-			html.indexOf('aria-label="This month"'),
-		);
+	test("rows, credits and the limit show in the usage block", () => {
+		const html = render();
+		expect(html).toContain("1M free, 260,000 paid");
+		expect(html).toContain("$28.09");
+		expect(html).toContain("sl credits usage");
 	});
 
-	test("a stale key adds a flag in the keys cell with a yellow dot", () => {
-		const [key] = exampleOverview(NOW).keys ?? [];
-		if (!key) throw new Error("missing fixture");
-		const { strip } = parts(
-			render({
-				keys: [
-					key,
-					{
-						...key,
-						id: "k_old",
-						name: "old-indexer",
-						lastUsedAt: new Date(NOW.getTime() - 40 * 86_400_000).toISOString(),
-					},
-				],
-			}),
-		);
-		expect(strip).toContain("old-indexer unused 40 days");
-		expect(strip).toContain("ins-dot hi");
-	});
-
-	test("no keys of your own says so and points at the command", () => {
-		const { strip } = parts(render({ keys: [] }));
-		expect(strip).toContain("None");
-		expect(strip).toContain("sl keys create");
+	test("keys show in the keys block", () => {
+		const html = render();
+		expect(html).toContain("Keys and apps");
+		expect(html).toContain("prod-indexer");
 	});
 
 	test("subgraphs get their own header when there are any", () => {
@@ -523,13 +436,13 @@ describe("OverviewBody table and strip", () => {
 				/>
 			),
 		});
-		const { table } = parts(withSubgraph);
-		expect(table).toContain("Rows written, 24h");
-		expect(table.indexOf("Rows written, 24h")).toBeGreaterThan(
-			table.indexOf("Deliveries, 24h"),
+		expect(withSubgraph).toContain("Rows written, 24h");
+		expect(withSubgraph.indexOf("Rows written, 24h")).toBeGreaterThan(
+			withSubgraph.indexOf("Deliveries, 24h"),
 		);
-		expect(table).toContain("sbtc-flows");
-		expect(parts(render()).table).not.toContain("Rows written, 24h");
+		expect(withSubgraph).toContain("sbtc-flows");
+		expect(withSubgraph).toContain("sl subgraphs deploy --help");
+		expect(render()).not.toContain("Rows written, 24h");
 	});
 });
 

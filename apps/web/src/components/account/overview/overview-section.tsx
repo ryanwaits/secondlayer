@@ -2,10 +2,7 @@
 
 import { Meter } from "@/components/dashboard/charts/meter";
 import { Ticks } from "@/components/dashboard/charts/ticks";
-import {
-	ActionableInsights,
-	InsightActions,
-} from "@/components/dashboard/insight/insight-actions";
+import { InsightActions } from "@/components/dashboard/insight/insight-actions";
 import { InsightCard } from "@/components/dashboard/insight/insight-card";
 import {
 	Checklist,
@@ -22,6 +19,8 @@ import { Skel } from "@/components/dashboard/shell/skel";
 import { StatusSentence } from "@/components/dashboard/shell/status-sentence";
 import {
 	type Billing,
+	type Caps,
+	ensureApps,
 	formatUsd,
 	refreshBilling,
 	refreshCaps,
@@ -33,7 +32,7 @@ import {
 import { daysLeft, daysLeftLabel } from "@/lib/account-health";
 import { useAuth } from "@/lib/auth";
 import type { Insight } from "@/lib/insights";
-import { forAccountRules, useInsights } from "@/lib/insights-store";
+import { useInsights } from "@/lib/insights-store";
 import {
 	type KeyState,
 	type OnboardingProgress,
@@ -44,7 +43,7 @@ import {
 } from "@/lib/onboarding";
 import type { RowsResponse } from "@/lib/rows";
 import { useSubgraphsCache } from "@/lib/subgraphs-store";
-import type { ApiKey } from "@/lib/types";
+import type { ApiKey, ConnectedApp } from "@/lib/types";
 import {
 	type Burn,
 	type HostedStack,
@@ -70,24 +69,18 @@ import {
 	type WebhookRowModel,
 	useWebhookRows,
 } from "../webhooks/rows";
-import { shortenName } from "../webhooks/shared";
+import { CliLine, shortenName } from "../webhooks/shared";
 import { ageShort, last24 } from "../webhooks/view";
 import { WaitingGroups } from "../webhooks/waiting";
 import { FirstRowsGuide } from "./first-rows-guide";
-import { cellInsights, stoppedForCredits } from "./overview-view";
-import { PlumbingStrip, PlumbingStripSkeleton } from "./plumbing-strip";
+import { KeysBlock } from "./keys-block";
+import { stoppedForCredits } from "./overview-view";
+import { TerminalBlock } from "./terminal-block";
+import { TopNote } from "./top-note";
+import { UsageBlock } from "./usage-block";
 
 /** The webhook rows refresh this often while the tab is visible. */
 const POLL_MS = 30_000;
-
-/** The account-level rules the Overview shows; the rest belong to Rows. */
-export const OVERVIEW_ACCOUNT_RULES = [
-	"server_errors",
-	"cap_pace",
-	"credits_runway",
-	"revoked_key_in_use",
-	"stack_unreachable",
-];
 
 /** The column labels over the webhook rows; they name the unit the numbers count. */
 export const WEBHOOK_HEAD: ResourceRowLabels = [
@@ -355,15 +348,33 @@ export interface OverviewBodyProps {
 	keys?: ApiKey[] | null;
 	/** The clock for the keys row; defaults to now. */
 	now?: Date;
-	/** Account-level insights (read errors, spend cap, credits). */
-	accountInsights?: readonly Insight[];
+	/** Every insight the account holds; the top note shows the worst open one. */
+	insights?: readonly Insight[];
+	/** Connected apps (hosted MCP sign-ins); null until they have loaded. */
+	apps?: ConnectedApp[] | null;
+	/** The spend cap; null until it has loaded. */
+	caps?: Caps | null;
 	/** The hosted stack stopped because every webhook is paused. */
 	asleep?: boolean;
 	/** A new account's checklist; the normal Overview shows once it is complete. */
 	onboarding?: OverviewOnboarding | null;
 }
 
-/** The Overview: one sentence, a row per webhook and subgraph, the strip under them, and the month. */
+/** The Account page head: the title and what the page is for. */
+function PageHead() {
+	return (
+		<header className="ov-head">
+			<h1>Account</h1>
+			<p>
+				You create and change things from the CLI, the SDK or a coding
+				assistant. This page shows what&apos;s running, what it costs, and the
+				keys that read.
+			</p>
+		</header>
+	);
+}
+
+/** The Account page: a top note when something needs you, then what is running, what it costs, and the keys. */
 export function OverviewBody({
 	rows,
 	billing,
@@ -372,14 +383,15 @@ export function OverviewBody({
 	readUsage = null,
 	subgraphs = <OverviewSubgraphsSlot />,
 	keys = null,
+	apps = null,
+	caps = null,
 	now = new Date(),
-	accountInsights = [],
+	insights = [],
 	asleep = false,
 	onboarding = null,
 	loading = false,
 }: OverviewBodyProps) {
 	const guide = onboarding && !onboarding.progress.complete ? onboarding : null;
-	const attention = rows?.filter((r) => r.state.tone === "alarm").length ?? 0;
 	const active = rows?.filter((r) => r.webhook.lastDeliveryAt !== null) ?? [];
 	const quiet = rows?.filter((r) => r.webhook.lastDeliveryAt === null) ?? [];
 	// Credits ran out and the hosted stack stopped. The webhooks aren't at
@@ -391,23 +403,23 @@ export function OverviewBody({
 			asleep,
 			creditsUsdMicros: billing.creditsUsdMicros,
 		});
-	const { rest: moneyInsights } = cellInsights(accountInsights);
-
-	const sub = [
-		rows ? plural(rows.length, "webhook") : null,
-		billing ? `${formatUsd(billing.creditsUsdMicros)} in credits` : null,
-	]
-		.filter(Boolean)
-		.join(" · ");
+	const failing = creditsOut
+		? []
+		: (rows ?? [])
+				.filter((r) => r.state.tone === "alarm")
+				.map((r) => ({ id: r.webhook.id, name: r.webhook.name }));
+	const accountState = creditsOut
+		? "credits_out"
+		: rows === null && asleep
+			? "asleep"
+			: null;
 
 	if (loading) {
-		// Nothing renders below the strip: anything there would be an
+		// Nothing renders below the rows: anything there would be an
 		// existing element that moves when the real ones replace this.
 		return (
-			<>
-				<StatusSentence tone="idle" sub={<Skel width={220} />}>
-					Checking your account.
-				</StatusSentence>
+			<div className="ov-page">
+				<PageHead />
 				<output
 					key="ov-skel"
 					className="dash-rows ov-skel"
@@ -421,63 +433,22 @@ export function OverviewBody({
 						<ResourceRowSkeleton key={i} />
 					))}
 				</output>
-				<PlumbingStripSkeleton />
-			</>
+			</div>
 		);
 	}
 
-	return (
+	const sections = (
 		<>
-			{guide ? (
-				<>
-					<OnboardingSentence progress={guide.progress} />
-					{guide.flow}
-					<Checklist steps={onboardingSteps(guide)} />
-				</>
-			) : creditsOut ? (
-				<StatusSentence
-					tone="alarm"
-					sub="Credits ran out, so webhooks aren't delivering. Add credits to start it again."
-				>
-					Your hosted stack stopped.
-				</StatusSentence>
-			) : rows === null && asleep ? (
-				<StatusSentence
-					tone="idle"
-					sub="Every webhook is paused, so it isn't billed. Wake it from Webhooks."
-				>
-					Your hosted stack is asleep.
-				</StatusSentence>
-			) : rows === null ? (
-				<StatusSentence tone="idle" sub={sub || undefined}>
-					Checking your account.
-				</StatusSentence>
-			) : attention > 0 ? (
-				<StatusSentence tone="alarm" sub={sub}>
-					{plural(attention, "webhook")} {attention === 1 ? "needs" : "need"}{" "}
-					attention.
-				</StatusSentence>
-			) : rows.length === 0 ? (
-				<StatusSentence tone="idle" sub={sub}>
-					No webhooks yet.
-				</StatusSentence>
-			) : (
-				<StatusSentence tone="ok" sub={sub}>
-					Everything is delivering.
-				</StatusSentence>
-			)}
+			<TopNote insights={insights} failing={failing} state={accountState} />
 
-			{guide && !guide.progress.key ? (
-				<PlaceholderRows
-					rows={OVERVIEW_PLACEHOLDERS}
-					note="These fill in as you go."
-				/>
-			) : (
-				<>
+			{rows !== null && rows.length > 0 ? (
+				<section className="ov-section" aria-label="Webhooks">
+					<div className="ov-section-h">
+						<h2>Webhooks</h2>
+						<span className="dash-label">Last 24h</span>
+					</div>
 					<div key="ov-rows" className="dash-rows ov-table">
-						{active.length + quiet.length > 0 ? (
-							<ResourceRowHead labels={WEBHOOK_HEAD} />
-						) : null}
+						<ResourceRowHead labels={WEBHOOK_HEAD} />
 						{active.map((model) => (
 							<WebhookRow
 								key={model.webhook.id}
@@ -486,29 +457,58 @@ export function OverviewBody({
 							/>
 						))}
 						<QuietGroup models={quiet} />
-						{subgraphs}
 					</div>
-					<PlumbingStrip
-						rows={readUsage}
-						keys={keys}
-						stack={stack}
-						burn={burn}
-						now={now}
-						insights={accountInsights}
-						asleep={asleep}
-						creditsUsdMicros={billing?.creditsUsdMicros ?? null}
-					/>
-				</>
-			)}
+					<CliLine label="Add one" command="sl webhooks create --help" />
+				</section>
+			) : null}
 
-			<ActionableInsights insights={moneyInsights} />
+			<section className="ov-section" aria-label="Subgraphs">
+				<div className="ov-section-h">
+					<h2>Subgraphs</h2>
+				</div>
+				<div className="dash-rows ov-table">{subgraphs}</div>
+				<CliLine label="Deploy one" command="sl subgraphs deploy --help" />
+			</section>
 
-			<MonthPanel
+			<UsageBlock
+				readUsage={readUsage}
 				billing={billing}
 				burn={burn}
-				fresh={guide !== null && !guide.progress.key}
+				caps={caps}
+				stopped={stack?.state === "stopped"}
+				now={now}
 			/>
+			<TerminalBlock />
+			<KeysBlock keys={keys} apps={apps} now={now} />
 		</>
+	);
+
+	if (guide) {
+		return (
+			<div className="ov-page">
+				<OnboardingSentence progress={guide.progress} />
+				{guide.flow}
+				<Checklist steps={onboardingSteps(guide)} />
+				{guide.progress.key ? (
+					sections
+				) : (
+					<>
+						<PlaceholderRows
+							rows={OVERVIEW_PLACEHOLDERS}
+							note="These fill in as you go."
+						/>
+						<MonthPanel billing={billing} burn={burn} fresh />
+					</>
+				)}
+			</div>
+		);
+	}
+
+	return (
+		<div className="ov-page">
+			<PageHead />
+			{sections}
+		</div>
 	);
 }
 
@@ -600,7 +600,15 @@ export function OverviewSection({
 	firstRowsPrompt,
 }: { firstRowsCode?: ReactNode; firstRowsPrompt?: ReactNode } = {}) {
 	const { account } = useAuth();
-	const { billing, burn, keys, service, rows: rowsData } = useAccountData();
+	const {
+		billing,
+		burn,
+		keys,
+		apps,
+		caps,
+		service,
+		rows: rowsData,
+	} = useAccountData();
 	const { rows } = useWebhookRows();
 	const { data: insights, status: insightsStatus } = useInsights();
 	const month = monthParam(currentUtcMonth());
@@ -609,6 +617,7 @@ export function OverviewSection({
 		refreshBilling();
 		refreshCaps();
 		refreshKeys();
+		ensureApps();
 	}, []);
 
 	// Every 60s while the tab is visible, as the usage page does; this is
@@ -685,7 +694,9 @@ export function OverviewSection({
 			stack={service}
 			readUsage={rowsData}
 			keys={keys}
-			accountInsights={forAccountRules(insights, OVERVIEW_ACCOUNT_RULES)}
+			apps={apps}
+			caps={caps}
+			insights={insights}
 			asleep={asleep}
 			onboarding={onboarding}
 		/>

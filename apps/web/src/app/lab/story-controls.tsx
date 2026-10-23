@@ -913,10 +913,10 @@ export function OverviewDemo({ state }: { state: OverviewDemoState }) {
 		}),
 		"no-keys": exampleOverview(now, { keys: [] }),
 		"our-errors": exampleOverview(now, {
-			accountInsights: [serverErrorsInsight()],
+			insights: [serverErrorsInsight()],
 		}),
 		"our-errors-recovered": exampleOverview(now, {
-			accountInsights: [serverErrorsInsight(true)],
+			insights: [serverErrorsInsight(true)],
 		}),
 		loading: exampleOverview(now, { loading: true }),
 	}[state];
