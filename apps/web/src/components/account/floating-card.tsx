@@ -19,6 +19,7 @@ export function FloatingCard({
 	onExpand,
 	headerActions,
 	ignoreOutside,
+	scrim,
 	footer,
 	children,
 }: {
@@ -40,6 +41,9 @@ export function FloatingCard({
 	/** A pointerdown on a target this returns true for does not close the card
 	 *  (a row that swaps the card's content in place, say). */
 	ignoreOutside?: (target: Element) => boolean;
+	/** A light backdrop under the card, for a card that holds a whole
+	 *  definition rather than a quick job. Off by default. */
+	scrim?: boolean;
 	children: React.ReactNode;
 }) {
 	const cardRef = useRef<HTMLDialogElement>(null);
@@ -84,68 +88,71 @@ export function FloatingCard({
 	if (!open || typeof document === "undefined") return null;
 
 	return createPortal(
-		<dialog
-			ref={cardRef}
-			open
-			className="acct-card"
-			tabIndex={-1}
-			aria-labelledby={titleId}
-		>
-			<header className="acct-card-head">
-				<div>
-					<h2 id={titleId} className="acct-card-title">
-						{title}
-					</h2>
-					{subtitle ? <p className="acct-card-sub">{subtitle}</p> : null}
-				</div>
-				{headerActions}
-				{expandHref ? (
-					<Link
-						href={expandHref}
+		<>
+			{scrim ? <div className="acct-card-scrim" aria-hidden="true" /> : null}
+			<dialog
+				ref={cardRef}
+				open
+				className="acct-card"
+				tabIndex={-1}
+				aria-labelledby={titleId}
+			>
+				<header className="acct-card-head">
+					<div>
+						<h2 id={titleId} className="acct-card-title">
+							{title}
+						</h2>
+						{subtitle ? <p className="acct-card-sub">{subtitle}</p> : null}
+					</div>
+					{headerActions}
+					{expandHref ? (
+						<Link
+							href={expandHref}
+							className="acct-card-icon"
+							aria-label="Open full page"
+							onClick={() => {
+								onExpand?.();
+								onCloseRef.current();
+							}}
+						>
+							<svg
+								width="14"
+								height="14"
+								viewBox="0 0 16 16"
+								fill="none"
+								stroke="currentColor"
+								strokeWidth="1.5"
+								strokeLinecap="round"
+								strokeLinejoin="round"
+								aria-hidden="true"
+							>
+								<path d="M9.5 2.5h4v4M13.5 2.5 9 7M6.5 13.5h-4v-4M2.5 13.5 7 9" />
+							</svg>
+						</Link>
+					) : null}
+					<button
+						type="button"
 						className="acct-card-icon"
-						aria-label="Open full page"
-						onClick={() => {
-							onExpand?.();
-							onCloseRef.current();
-						}}
+						aria-label="Close"
+						onClick={() => onCloseRef.current()}
 					>
 						<svg
-							width="14"
-							height="14"
+							width="16"
+							height="16"
 							viewBox="0 0 16 16"
-							fill="none"
 							stroke="currentColor"
 							strokeWidth="1.5"
 							strokeLinecap="round"
-							strokeLinejoin="round"
 							aria-hidden="true"
 						>
-							<path d="M9.5 2.5h4v4M13.5 2.5 9 7M6.5 13.5h-4v-4M2.5 13.5 7 9" />
+							<path d="M3 3l10 10M13 3L3 13" />
 						</svg>
-					</Link>
-				) : null}
-				<button
-					type="button"
-					className="acct-card-icon"
-					aria-label="Close"
-					onClick={() => onCloseRef.current()}
-				>
-					<svg
-						width="16"
-						height="16"
-						viewBox="0 0 16 16"
-						stroke="currentColor"
-						strokeWidth="1.5"
-						strokeLinecap="round"
-						aria-hidden="true"
-					>
-						<path d="M3 3l10 10M13 3L3 13" />
-					</svg>
-				</button>
-			</header>
-			<div className="acct-card-body">{children}</div>
-			{footer ? <footer className="acct-card-foot">{footer}</footer> : null}
-		</dialog>,
+					</button>
+				</header>
+				<div className="acct-card-body">{children}</div>
+				{footer ? <footer className="acct-card-foot">{footer}</footer> : null}
+			</dialog>
+		</>,
 		document.body,
 	);
 }

@@ -3,6 +3,7 @@ import { FIXTURE_INSIGHTS } from "@/lib/insights.fixtures";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describeTrigger } from "./describe-trigger";
 import { WebhookDetailBody } from "./detail-panel";
+import { ListensFor } from "./listens-for";
 import type { Range } from "./view";
 import { activityFor, attempt, detail } from "./webhook.fixtures";
 
@@ -27,6 +28,8 @@ const render = (props: Partial<Props> = {}) =>
 			onTogglePause={noop}
 			onRename={async () => true}
 			stackAsleep={false}
+			onTest={noop}
+			test={{ busy: false, result: null }}
 			{...props}
 		/>,
 	);
@@ -60,16 +63,43 @@ describe("WebhookDetailBody header", () => {
 	test("the facts name the window they cover", () => {
 		const html = render();
 		for (const label of [
-			"Delivered · 7d",
-			"Gave up · 7d",
-			"Retried · last 100",
-			"p50 / p95 · last 100",
-			"Receiver",
+			"Sent · 24h",
+			"Gave up · 24h",
+			"p50 / p95",
 			"Created",
 		]) {
 			expect(html).toContain(label);
 		}
-		expect(html).toContain("hooks.example.dev");
+		for (const gone of ["Delivered · 7d", "Retried · last 100", ">Receiver<"]) {
+			expect(html).not.toContain(gone);
+		}
+	});
+
+	test("one line says what it listens for and the host it sends to", () => {
+		const html = render({
+			webhook: detail({ triggers: [{ type: "stx_transfer" }] }),
+		});
+		expect(textOf(html)).toContain("→ hooks.example.dev");
+	});
+
+	test("the breadcrumb goes back to the Account page's webhooks", () => {
+		expect(render()).toContain('href="/account#webhooks"');
+	});
+
+	test("the name opens the definition with a tooltip", () => {
+		const html = render();
+		expect(html).toContain('class="name-tip"');
+		expect(html).toContain('data-tip="Click for details"');
+	});
+
+	test("the page carries no definition: that lives in the drawer", () => {
+		const html = render();
+		expect(html).not.toContain("Listens for");
+		expect(html).not.toContain("lf-type");
+	});
+
+	test("the page ends with the replay command", () => {
+		expect(render()).toContain("sl webhooks replay sbtc-deposits --help");
 	});
 
 	test("one Pause button, which reads Resume when paused", () => {
@@ -81,39 +111,42 @@ describe("WebhookDetailBody header", () => {
 		expect(render()).not.toContain("nudge");
 	});
 
-	test("the range choice offers 24h, 48h, 7d and 30d", () => {
+	test("the range choice offers exactly 24h and 7d", () => {
 		const html = render();
-		for (const range of ["24h", "48h", "7d", "30d"]) {
+		for (const range of ["24h", "7d"]) {
 			expect(html).toContain(`<span>${range}</span>`);
+		}
+		for (const range of ["48h", "30d"]) {
+			expect(html).not.toContain(`<span>${range}</span>`);
 		}
 	});
 });
 
-describe("WebhookDetailBody insights", () => {
-	test("two or more insights show the ranked stack header", () => {
+describe("WebhookDetailBody what's happening", () => {
+	test("the top insight leads the page, with no stack header and no agent hand-off", () => {
 		const html = render({ insights: [down as never, tls as never] });
-		expect(html).toContain("2 insights");
-		expect(html).toContain("worst first");
-		expect(html).toContain("Losing events now");
-	});
-
-	test("a single insight shows its note without a stack header", () => {
-		const html = render({ insights: [down as never] });
-		expect(html).toContain("Receiver returning 502 since 16:06");
+		expect(html).toContain("What&#x27;s happening");
+		expect(html).toContain("Your receiver is down, not the chain.");
 		expect(html).not.toContain("worst first");
-		// A losing insight opens on its own: its hand-off is already on the page.
-		expect(html).toContain("Hand off to your agent");
+		expect(html).not.toContain("Hand off to your agent");
 	});
 
-	test("the open card ends in the dismiss actions", () => {
+	test("a failing page offers Send a test", () => {
+		const html = render({ insights: [down as never] });
+		expect(html).toContain(">Send a test<");
+	});
+
+	test("the note ends in Got it and Dismiss, once each", () => {
 		const html = render({ insights: [down as never, tls as never] });
 		expect(html.match(/Got it/g)).toHaveLength(1);
-		expect(html).toContain("This is expected");
+		expect(html.match(/>Dismiss</g)).toHaveLength(1);
+		expect(html).not.toContain("This is expected");
 	});
 
-	test("no insights shows no insight block", () => {
+	test("no insights shows no box", () => {
 		const html = render();
-		expect(html).not.toContain("ins-stack");
+		expect(html).not.toContain("What&#x27;s happening");
+		expect(html).not.toContain(">Send a test<");
 	});
 });
 
@@ -150,12 +183,15 @@ const textOf = (html: string) => html.replace(/<[^>]+>/g, "");
 
 const FASTPOOL_ADDRESS = "SP21YTSM60CAY6D011EZVEVNKXVW8FVZE198XEFFP";
 
-describe("WebhookDetailBody listens for", () => {
-	const html = render({
-		webhook: detail({
-			triggers: [{ type: "stx_transfer", sender: FASTPOOL_ADDRESS }],
-		}),
-	});
+describe("ListensFor", () => {
+	const html = renderToStaticMarkup(
+		<ListensFor
+			webhook={detail({
+				triggers: [{ type: "stx_transfer", sender: FASTPOOL_ADDRESS }],
+			})}
+			activity={activityFor(4)}
+		/>,
+	);
 
 	test("a trigger is one row with its type and one-line summary", () => {
 		expect(textOf(html)).toContain("STX transfers sent by SP21YT…EFFP");
@@ -191,11 +227,13 @@ describe("WebhookDetailBody listens for", () => {
 	});
 });
 
-describe("WebhookDetailBody unfiltered trigger", () => {
-	const html = render({
-		webhook: detail({ triggers: [{ type: "sbtc_deposit" }] }),
-		activity: activityFor(0),
-	});
+describe("ListensFor unfiltered trigger", () => {
+	const html = renderToStaticMarkup(
+		<ListensFor
+			webhook={detail({ triggers: [{ type: "sbtc_deposit" }] })}
+			activity={activityFor(0)}
+		/>,
+	);
 
 	test("the row says it matches every event of its type", () => {
 		expect(textOf(html)).toContain("Every sBTC deposit on chain");

@@ -1412,7 +1412,7 @@ const META: Record<StoryId, Meta> = {
 				),
 			},
 		],
-		usage: `<TitleRow name={name} tone="ok" managedBy={webhook.managedBy} onRename={rename} />`,
+		usage: `<TitleRow name={name} tone="ok" managedBy={webhook.managedBy} onRename={rename} onOpenDetails={open} />`,
 		dos: ["Hover the name to reveal Rename; Enter saves, Esc cancels."],
 		donts: ["Offer Rename when `managedBy` is set."],
 	},

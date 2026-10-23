@@ -1,15 +1,11 @@
 "use client";
 
-import { ChartSkeleton } from "@/components/charts/chart-skeleton";
-import { LazyBandBarChart } from "@/components/charts/lazy";
 import { Choice } from "@/components/choice";
-import { Legend } from "@/components/dashboard/charts/legend";
-import { ActionableInsights } from "@/components/dashboard/insight/insight-actions";
 import { Breadcrumb } from "@/components/dashboard/shell/breadcrumb";
 import { NameMark } from "@/components/dashboard/shell/name-mark";
+import { NameTip } from "@/components/dashboard/shell/name-tip";
 import { useCompact } from "@/components/mobile/use-compact";
 import { formatDate } from "@/lib/account-data";
-import { barsRows } from "@/lib/dashboard-charts";
 import { type Insight, rankInsights } from "@/lib/insights";
 import { forResource, useInsights } from "@/lib/insights-store";
 import { isFresh } from "@/lib/request-cache";
@@ -26,7 +22,6 @@ import {
 	applyWebhook,
 	poll,
 	refreshActivity,
-	refreshDays,
 	refreshDeliveriesWindow,
 	refreshDetail,
 	useWebhooksCache,
@@ -44,14 +39,15 @@ import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { AttemptTimeline } from "./attempt-timeline";
 import { WebhookCompactDetail } from "./compact-detail";
+import { DefinitionDrawer } from "./definition-drawer";
 import { DeliveriesChart } from "./deliveries-chart";
+import { describeTrigger } from "./describe-trigger";
 import { AsleepState } from "./list-panel";
-import { ListensFor } from "./listens-for";
 import { PayloadView, answeredAttempt } from "./payload-view";
-import { displayStatus, formatEventCell, shortenName } from "./shared";
+import { CliLine, displayStatus, formatEventCell, shortenName } from "./shared";
 import { WebhookDetailSkeleton } from "./skeletons";
+import { useRecovery } from "./use-recovery";
 import {
-	RANGES,
 	type Range,
 	deliveryStats,
 	describeFailure,
@@ -59,10 +55,9 @@ import {
 	hourWindow,
 	isOk,
 	outageStartIndex,
-	rangeBars,
-	utcClock,
 	utcStamp,
 } from "./view";
+import { type TestState, WhatsHappening } from "./whats-happening";
 
 /** How often the detail bundle (webhook, deliveries, activity)
  *  refreshes together while the tab is visible. */
@@ -74,7 +69,9 @@ const DAYS_FRESH_MS = 5 * 60_000;
 const WINDOW_FRESH_MS = 60_000;
 const VISIBLE_GROUPS = 10;
 
-const RANGE_OPTIONS = RANGES.map((value) => ({ value, label: value }));
+/** The desktop page charts the last day or the last week; 48h and 30d are gone. */
+const DESKTOP_RANGES: readonly Range[] = ["24h", "7d"];
+const RANGE_OPTIONS = DESKTOP_RANGES.map((value) => ({ value, label: value }));
 
 type DetailNotice =
 	| { kind: "starting" }
@@ -155,12 +152,15 @@ export function TitleRow({
 	tone,
 	managedBy,
 	onRename,
+	onOpenDetails,
 }: {
 	name: string;
 	tone: Tone;
 	managedBy: string | null;
 	/** Resolves true when the new name was saved. */
 	onRename: (name: string) => Promise<boolean>;
+	/** Opens the definition drawer. */
+	onOpenDetails: () => void;
 }) {
 	const [editing, setEditing] = useState(false);
 	const [draft, setDraft] = useState(name);
@@ -219,11 +219,13 @@ export function TitleRow({
 						}}
 					/>
 				) : (
-					<NameMark tone={tone}>
-						<span className="wd-name" title={name}>
-							{shortenName(saving ? draft.trim() : name)}
-						</span>
-					</NameMark>
+					<NameTip tip="Click for details" onOpen={onOpenDetails}>
+						<NameMark tone={tone}>
+							<span className="wd-name" title={name}>
+								{shortenName(saving ? draft.trim() : name)}
+							</span>
+						</NameMark>
+					</NameTip>
 				)}
 				{managedBy ? (
 					<span
@@ -257,7 +259,7 @@ function Facts({
 	activity,
 	deliveries,
 }: {
-	webhook: WebhookDetail;
+	webhook: Pick<WebhookDetail, "createdAt">;
 	activity: WebhookActivity | null;
 	deliveries: readonly DeliveryRow[];
 }) {
@@ -268,33 +270,43 @@ function Facts({
 			<b>{value}</b>
 		</div>
 	);
+	const lastDay = activity?.hours.slice(-24) ?? null;
 	return (
 		<div className="wd-facts">
 			{fact(
-				"Delivered · 7d",
-				activity
-					? sumOf(activity.hours.map((h) => h.delivered)).toLocaleString(
-							"en-US",
-						)
+				"Sent · 24h",
+				lastDay
+					? sumOf(lastDay.map((h) => h.delivered)).toLocaleString("en-US")
 					: "–",
 			)}
 			{fact(
-				"Gave up · 7d",
-				activity
-					? sumOf(activity.hours.map((h) => h.gaveUp)).toLocaleString("en-US")
+				"Gave up · 24h",
+				lastDay
+					? sumOf(lastDay.map((h) => h.gaveUp)).toLocaleString("en-US")
 					: "–",
 			)}
-			{fact("Retried · last 100", stats.retried.toLocaleString("en-US"))}
 			{fact(
-				"p50 / p95 · last 100",
+				"p50 / p95",
 				stats.p50 === null || stats.p95 === null
 					? "–"
 					: `${stats.p50.toLocaleString("en-US")} / ${stats.p95.toLocaleString("en-US")} ms`,
 			)}
-			{fact("Receiver", hostOf(webhook.url))}
 			{fact("Created", formatDate(webhook.createdAt))}
 		</div>
 	);
+}
+
+/** "swap-helper calls → hooks.example.dev": what it listens for, then where it goes. */
+function leadLine(webhook: WebhookDetail): string {
+	const { triggers } = webhook;
+	const first = triggers[0];
+	const host = hostOf(webhook.url);
+	if (!first) return host;
+	const sentence = describeTrigger(first, 0, triggers)
+		.line.map((piece) => piece.text)
+		.join("");
+	const more = triggers.length > 1 ? ` · +${triggers.length - 1} more` : "";
+	return `${sentence}${more} → ${host}`;
 }
 
 // ── Deliveries ───────────────────────────────────────────────────────────
@@ -493,6 +505,8 @@ export interface WebhookDetailBodyProps {
 	onRename: (name: string) => Promise<boolean>;
 	/** The last poll found the hosted stack asleep. */
 	stackAsleep: boolean;
+	onTest: () => void;
+	test: TestState;
 }
 
 export function WebhookDetailBody({
@@ -510,8 +524,13 @@ export function WebhookDetailBody({
 	onTogglePause,
 	onRename,
 	stackAsleep,
+	onTest,
+	test,
 }: WebhookDetailBodyProps) {
 	const ranked = rankInsights(insights);
+	const topInsight = ranked[0];
+	const recovery = useRecovery(webhook.id);
+	const [drawerOpen, setDrawerOpen] = useState(false);
 	const paused = webhook.status === "paused";
 	// Only an all-paused stack sleeps; a resume wakes it, so the flag drops
 	// the moment the webhook reads active again instead of on the next poll.
@@ -520,7 +539,7 @@ export function WebhookDetailBody({
 	return (
 		<>
 			<Breadcrumb
-				parent={{ href: "/account/webhooks", label: "Webhooks" }}
+				parent={{ href: "/account#webhooks", label: "Account" }}
 				current={shortenName(webhook.name)}
 				title={webhook.name}
 			/>
@@ -531,16 +550,9 @@ export function WebhookDetailBody({
 						tone={toneFor(webhook, ranked)}
 						managedBy={webhook.managedBy}
 						onRename={onRename}
+						onOpenDetails={() => setDrawerOpen(true)}
 					/>
 					<div className="wd-actions">
-						<Choice
-							name="wd-range"
-							size="sm"
-							legend="Range"
-							options={RANGE_OPTIONS}
-							value={range}
-							onChange={(value) => onRange(value as Range)}
-						/>
 						<button
 							type="button"
 							className={paused ? "wd-btn nudge" : "wd-btn"}
@@ -551,22 +563,41 @@ export function WebhookDetailBody({
 						</button>
 					</div>
 				</div>
+				<p className="wd-lead">{leadLine(webhook)}</p>
 				<Facts webhook={webhook} activity={activity} deliveries={deliveries} />
 			</header>
 
-			<ActionableInsights insights={ranked} />
-
-			{activity && !quiet ? (
-				<DeliveriesChart
-					activity={activity}
-					days={days}
-					range={range}
-					losing={ranked.some((i) => i.severity === "losing")}
+			{topInsight ? (
+				<WhatsHappening
+					insight={topInsight}
+					recovery={recovery}
+					onTest={onTest}
+					test={test}
 				/>
 			) : null}
 
+			{activity && !quiet ? (
+				<div className="wd-chart">
+					<div className="wd-chart-range">
+						<Choice
+							name="wd-range"
+							size="sm"
+							legend="Range"
+							options={RANGE_OPTIONS}
+							value={range}
+							onChange={(value) => onRange(value as Range)}
+						/>
+					</div>
+					<DeliveriesChart
+						activity={activity}
+						days={days}
+						range={range}
+						losing={ranked.some((i) => i.severity === "losing")}
+					/>
+				</div>
+			) : null}
+
 			<div className="wd-stack">
-				<ListensFor webhook={webhook} activity={activity} />
 				{quiet ? (
 					<p className="wd-faint">
 						No deliveries yet. This webhook delivers on the first matching event
@@ -581,7 +612,17 @@ export function WebhookDetailBody({
 						asleep={asleep}
 					/>
 				)}
+				<section className="wd-replay" aria-label="Replay">
+					<span className="dash-label">Replay</span>
+					<CliLine command={`sl webhooks replay ${webhook.name} --help`} />
+				</section>
 			</div>
+			<DefinitionDrawer
+				webhook={webhook}
+				activity={activity}
+				open={drawerOpen}
+				onClose={() => setDrawerOpen(false)}
+			/>
 		</>
 	);
 }
@@ -602,8 +643,8 @@ export function WebhookDetailSection({ id }: { id: string }) {
 	const insights = forResource(useInsights().data, "webhook", id);
 	const outage = activity ? outageStartIndex(activity.hours) : null;
 	const [pickedRange, setPickedRange] = useState<Range | null>(null);
-	// A page that opens on an outage starts on the 48h view that shows it.
-	const range: Range = pickedRange ?? (outage === null ? "7d" : "48h");
+	// A page that opens on an outage starts on the day view that shows it.
+	const range: Range = pickedRange ?? (outage === null ? "7d" : "24h");
 
 	const [pauseBusy, setPauseBusy] = useState(false);
 	const compact = useCompact();
@@ -619,16 +660,6 @@ export function WebhookDetailSection({ id }: { id: string }) {
 			return {};
 		}, ACTIVITY_POLL_MS);
 	}, [id]);
-
-	useEffect(() => {
-		if (range !== "30d") return;
-		if (
-			webhooksSnapshot().days[id] &&
-			isFresh(`webhooks:days:${id}`, DAYS_FRESH_MS)
-		)
-			return;
-		void refreshDays(id);
-	}, [id, range]);
 
 	const hour = hourWindow(search.get("hour"));
 	const hourFrom = hour?.from;
@@ -807,6 +838,8 @@ export function WebhookDetailSection({ id }: { id: string }) {
 			onTogglePause={onTogglePause}
 			onRename={onRename}
 			stackAsleep={stackAsleep}
+			onTest={onTest}
+			test={test}
 		/>
 	);
 }

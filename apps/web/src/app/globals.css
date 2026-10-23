@@ -1568,6 +1568,13 @@ a.acct-menu-row:hover {
 .acct-card:focus {
 	outline: none;
 }
+/* An optional light backdrop for a card that holds a whole definition. */
+.acct-card-scrim {
+	position: fixed;
+	inset: 0;
+	z-index: 89;
+	background: color-mix(in oklch, var(--ink) 22%, transparent);
+}
 @keyframes acct-card-in {
 	from {
 		transform: translateX(calc(100% + var(--acct-card-inset) + 8px));
@@ -7271,6 +7278,130 @@ button.dash-row {
 .wd-faint {
 	font-size: 12.5px;
 	color: var(--faint);
+}
+.wd-lead {
+	margin: 0;
+	font-size: 14px;
+	color: var(--sub);
+	overflow-wrap: anywhere;
+}
+/* What's happening: the note card, with its evidence and two jobs inside. */
+.wd-why {
+	gap: 14px;
+}
+.wd-likely {
+	margin: 0;
+	font-size: 14px;
+	color: var(--sub);
+}
+.wd-likely b {
+	font-weight: 500;
+	color: var(--ink);
+}
+.wd-why .ov-note-acts {
+	gap: 8px;
+	flex-wrap: wrap;
+}
+.wd-btn-done {
+	color: var(--faint);
+	border-style: dashed;
+}
+.wd-why-aside {
+	margin: 0;
+}
+.wd-why-aside .ov-note-prompt {
+	display: inline;
+}
+/* The range choice sits above the chart, on the legend's row. */
+.wd-chart {
+	display: grid;
+	gap: 8px;
+}
+.wd-chart-range {
+	display: flex;
+	justify-content: flex-end;
+}
+.wd-replay {
+	display: grid;
+	gap: 10px;
+}
+/* A resource name that opens its drawer; a tip shows on hover or focus. */
+.name-tip {
+	position: relative;
+	display: inline-block;
+	max-width: 100%;
+	padding: 0;
+	border: 0;
+	background: none;
+	font: inherit;
+	letter-spacing: inherit;
+	color: inherit;
+	text-align: left;
+	cursor: pointer;
+}
+.name-tip:hover .wd-name,
+.name-tip:focus-visible .wd-name {
+	text-decoration: underline dotted;
+	text-underline-offset: 4px;
+}
+.name-tip:focus-visible {
+	outline: 2px solid var(--pri);
+	outline-offset: 3px;
+	border-radius: 4px;
+}
+.name-tip::after {
+	content: attr(data-tip);
+	position: absolute;
+	left: 0;
+	top: calc(100% + 6px);
+	z-index: 20;
+	padding: 5px 9px;
+	border-radius: 4px;
+	background: var(--ink);
+	color: var(--paper);
+	font: 400 12px / 1.3 var(--font-sans-stack);
+	letter-spacing: 0;
+	white-space: nowrap;
+	pointer-events: none;
+	opacity: 0;
+	transition: opacity 0.12s;
+}
+.name-tip:hover::after,
+.name-tip:focus-visible::after {
+	opacity: 1;
+	transition-delay: 250ms;
+}
+@media (hover: none) {
+	.name-tip::after {
+		display: none;
+	}
+}
+/* The definition drawer's sections. */
+.wd-def {
+	display: grid;
+	gap: 10px;
+	min-width: 0;
+}
+.wd-def h3 {
+	margin: 0;
+	font: 500 10.5px / 1 var(--font-mono-stack);
+	letter-spacing: 0.07em;
+	text-transform: uppercase;
+	color: var(--faint);
+}
+.wd-kv {
+	display: grid;
+	grid-template-columns: max-content minmax(0, 1fr);
+	gap: 8px 16px;
+	margin: 0;
+	font-size: 14px;
+}
+.wd-kv dt {
+	color: var(--faint);
+}
+.wd-kv dd {
+	margin: 0;
+	overflow-wrap: anywhere;
 }
 .wd-panel-title {
 	display: flex;

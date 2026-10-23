@@ -541,6 +541,7 @@ export function WebhookHeaderDemo({
 			name={saved}
 			tone="ok"
 			managedBy={managedBy}
+			onOpenDetails={() => {}}
 			onRename={async (next) => {
 				setSaved(next);
 				return true;
