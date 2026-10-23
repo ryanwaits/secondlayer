@@ -1,5 +1,11 @@
 # @secondlayer/shared
 
+## 14.0.1
+
+### Patch Changes
+
+- 524db11: Hints point at the Account page sections (/account#keys, /account#usage) instead of the old pages.
+
 ## 14.0.0
 
 ### Major Changes

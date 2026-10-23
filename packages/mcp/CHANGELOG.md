@@ -1,5 +1,13 @@
 # @secondlayer/mcp
 
+## 11.2.1
+
+### Patch Changes
+
+- 524db11: Hints point at the Account page sections (/account#keys, /account#usage) instead of the old pages.
+- Updated dependencies [524db11]
+  - @secondlayer/shared@14.0.1
+
 ## 11.2.0
 
 ### Minor Changes

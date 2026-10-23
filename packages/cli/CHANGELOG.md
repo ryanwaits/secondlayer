@@ -1,5 +1,13 @@
 # @secondlayer/cli
 
+## 22.3.1
+
+### Patch Changes
+
+- 524db11: Hints point at the Account page sections (/account#keys, /account#usage) instead of the old pages.
+- Updated dependencies [524db11]
+  - @secondlayer/shared@14.0.1
+
 ## 22.3.0
 
 ### Minor Changes
