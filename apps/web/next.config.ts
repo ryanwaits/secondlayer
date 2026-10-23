@@ -99,15 +99,6 @@ const nextConfig: NextConfig = {
 		// inbound traffic lands on Subscriptions or the migration guide.
 		// (The former /docs → / collapse was reverted: /docs is now the docs site.)
 		return [
-			// Stripe returns issued before /account/credits existed (?topup=…)
-			// still land on it. /account itself is the Overview page. Query
-			// strings carry over to the destination.
-			{
-				source: "/account",
-				has: [{ type: "query", key: "topup" }],
-				destination: "/account/credits",
-				permanent: false,
-			},
 			// Sign-in moved from /login to match its label; shipped links follow.
 			{
 				source: "/login",
