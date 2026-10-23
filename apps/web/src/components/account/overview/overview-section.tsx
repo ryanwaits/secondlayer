@@ -408,7 +408,7 @@ export function OverviewBody({
 						onCreateKey: () => onboarding?.onCreateKey(),
 					})}
 				/>
-				<TerminalBlock />
+				<TerminalBlock login={false} />
 			</div>
 		);
 	}

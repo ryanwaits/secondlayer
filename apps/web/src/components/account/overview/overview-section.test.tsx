@@ -223,6 +223,7 @@ describe("OverviewBody for a new account", () => {
 			"Read your first rows",
 			'aria-label="Work from your terminal"',
 		]);
+		expect(out.match(/npx @secondlayer\/cli login/g)).toHaveLength(1);
 		expect(out).not.toContain('aria-label="Usage and credits"');
 		expect(out).not.toContain('aria-label="Keys and apps"');
 		expect(out).not.toContain("$0.00");

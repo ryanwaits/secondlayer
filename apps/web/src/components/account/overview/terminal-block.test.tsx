@@ -14,4 +14,11 @@ describe("TerminalBlock", () => {
 			"bunx skills add ryanwaits/secondlayer --skill secondlayer -y",
 		);
 	});
+
+	test("login={false} leaves only the Claude Code and skill rows", () => {
+		const html = renderToStaticMarkup(<TerminalBlock login={false} />);
+		expect(html).not.toContain("npx @secondlayer/cli login");
+		expect(html).toContain("claude mcp add");
+		expect(html).toContain("bunx skills add");
+	});
 });
