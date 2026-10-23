@@ -29,6 +29,7 @@ import {
 import {
 	exampleKeys,
 	exampleOverview,
+	exampleRows,
 	exampleStack,
 	exampleSubgraph,
 	exampleWebhooks,
@@ -39,7 +40,10 @@ import {
 	PushSettingsView,
 } from "@/components/account/push/push-settings";
 import { RowsBody } from "@/components/account/rows/rows-panel";
-import { SubgraphsCompactList } from "@/components/account/subgraphs/compact-list";
+import {
+	SubgraphCompactRow,
+	SubgraphsCompactList,
+} from "@/components/account/subgraphs/compact-list";
 import {
 	SubgraphSheetBody,
 	SubgraphSheetPanel,
@@ -885,6 +889,71 @@ export function OverviewOnboardingDemo({
 	);
 }
 
+export type PhoneAccountState =
+	| "healthy"
+	| "failing"
+	| "no_key"
+	| "no_reads"
+	| "reading";
+
+/** The phone's Account page on example data: one variant per state it has to get right. */
+export function PhoneAccountDemo({ state }: { state: PhoneAccountState }) {
+	const [now] = useState(() => new Date());
+	const subgraph = exampleSubgraph(now);
+	const stage =
+		state === "no_key" || state === "no_reads" || state === "reading"
+			? state
+			: "running";
+	const read = exampleKeys(now);
+	const unread = read.map((k) => ({ ...k, lastUsedAt: null }));
+	const early = stage !== "running";
+	return (
+		<>
+			<OverviewBody
+				{...exampleOverview(now, {
+					compact: true,
+					stage,
+					rows: early
+						? []
+						: exampleWebhooks(now, { failing: state === "failing" }),
+					insights: state === "failing" ? FIXTURE_INSIGHTS.slice(0, 2) : [],
+					hasSubgraphs: !early,
+					subgraphs: (
+						<div className="msg-group">
+							<SubgraphCompactRow
+								item={subgraph.item}
+								health={subgraph.health}
+								insights={[]}
+								href={`/account/subgraphs/${subgraph.item.name}`}
+							/>
+						</div>
+					),
+					keys: stage === "no_key" ? [] : stage === "no_reads" ? unread : read,
+					apps: [
+						{
+							id: "app_1",
+							clientName: "Claude Code",
+							createdAt: new Date(
+								now.getTime() - 20 * 86_400_000,
+							).toISOString(),
+							lastUsedAt: new Date(now.getTime() - 3 * 3_600_000).toISOString(),
+						},
+					],
+					onboarding: early
+						? {
+								keyName: "laptop",
+								flow: null,
+								onCreateKey: () => {},
+							}
+						: null,
+					readUsage: stage === "running" ? exampleRows(now) : null,
+				})}
+			/>
+			<LabToaster />
+		</>
+	);
+}
+
 export type OverviewDemoState =
 	| "today"
 	| "webhook-failing"
@@ -1349,9 +1418,6 @@ export function LocalWebhookDetail({
 	];
 	const [requeued, setRequeued] = useState<number | null>(null);
 	const [replayOpen, setReplayOpen] = useState(false);
-	// Resuming ends "failing", but the steps stay until the requeue is done.
-	const recovering = useRef(false);
-	if (failing) recovering.current = true;
 	return (
 		<>
 			<WebhookCompactDetailView
@@ -1377,14 +1443,17 @@ export function LocalWebhookDetail({
 					setTest({ busy: false, result: TEST_PASSED });
 					toast.success("Test got 200 in 184 ms");
 				}}
-				showRecovery={failing || recovering.current}
-				dead={{ count: 3 }}
-				requeue={{
-					busy: false,
-					requeued,
-					onRequeue: () => {
-						setRequeued(3);
-						toast.success("Requeued 3. They go out with live events.");
+				insights={failing ? FIXTURE_INSIGHTS.slice(0, 1) : []}
+				stackAsleep={false}
+				recovery={{
+					dead: { count: 3, since: null },
+					requeue: {
+						busy: false,
+						requeued,
+						onRequeue: () => {
+							setRequeued(3);
+							toast.success("Requeued 3. They go out with live events.");
+						},
 					},
 				}}
 				replay={null}

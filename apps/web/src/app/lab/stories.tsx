@@ -53,11 +53,7 @@ import {
 	EmptyState,
 	LocalInsightsScreen,
 } from "@/components/mobile/insights/insights-screen";
-import { MobileHeader, MobileTabBar } from "@/components/mobile/mobile-shell";
-import {
-	LocalPulse,
-	type PulseBodyProps,
-} from "@/components/mobile/pulse/pulse-screen";
+import { MobileHeader } from "@/components/mobile/mobile-shell";
 import { ShareFixBody } from "@/components/mobile/share/share-fix-sheet";
 import { ButtonLink, Eyebrow, StatusDot } from "@/components/site";
 import { ChainStatusView } from "@/components/site/chain-status";
@@ -84,6 +80,7 @@ import {
 	OverviewOnboardingDemo,
 	PILL_REPLAY_AND_STALLED,
 	PayloadViewDemo,
+	PhoneAccountDemo,
 	PillHeaderDemo,
 	PillStatesDemo,
 	RowsDemo,
@@ -408,75 +405,6 @@ const insightFor = (rule: string) => {
 
 const STORY_BLOCK_GAPS = [8, 11, 7, 9, 14, 8, 6, 9, 10, 8, 7, 12, 9, 8, 9, 10];
 
-/** Pulse fixtures: 48 hours ending at a fixed "now", with a failing tail for the incident. */
-const PULSE_NOW = new Date("2026-10-18T14:30:00.000Z");
-function pulseProps(
-	state: "incident" | "healthy" | "new",
-): Omit<PulseBodyProps, "onOpen"> {
-	const hours = Array.from({ length: 48 }, (_, i) =>
-		new Date(Date.UTC(2026, 9, 16, 15) + i * 3_600_000).toISOString(),
-	);
-	const failing = state === "incident";
-	const summary = {
-		hours,
-		webhooks: [
-			{
-				id: "wh-deposits",
-				delivered: hours.map((_, i) => (failing && i > 43 ? 4 : 38 + (i % 7))),
-				failed: hours.map((_, i) => (failing && i > 43 ? 30 : 0)),
-			},
-			{
-				id: "wh-transfers",
-				delivered: hours.map((_, i) => 120 + ((i * 13) % 40)),
-				failed: hours.map(() => 0),
-			},
-		],
-	};
-	return {
-		insights: state === "incident" ? FIXTURE_INSIGHTS : [],
-		summary,
-		rows: {
-			allowance: {
-				monthly: 1_000_000,
-				usedThisMonth: state === "new" ? 18_200 : 612_880,
-				exhaustedOn: null,
-				paidRowsThisMonth: 0,
-				paidUsdMicrosThisMonth: "0",
-				resetsOn: "2026-11-01",
-			},
-			daily: [],
-			hourlyToday: [
-				{
-					hour: "2026-10-18T09:00:00.000Z",
-					source: "api",
-					rows: 184_220,
-					calls: 900,
-				},
-			],
-			bySource: [],
-			histogram: [],
-			errors: [],
-		},
-		billing: {
-			creditsUsdMicros: "0",
-			spentThisMonthUsdMicros: state === "new" ? "0" : "40100000",
-		},
-		caps: {
-			monthlyCapCents: 5000,
-			alertThresholdPct: 80,
-			frozenAt: null,
-			alertSentAt: null,
-		},
-		webhookCount: state === "new" ? 0 : 4,
-		subgraphCount: state === "new" ? 0 : 3,
-		isNew: state === "new",
-		loaded: true,
-		now: PULSE_NOW,
-		updated: "just now",
-		seenAt: 0,
-	};
-}
-
 /** A 390px phone-width column for the gesture primitives. */
 function PhoneColumn({ children }: { children: ReactNode }) {
 	return (
@@ -495,16 +423,8 @@ function PhoneColumn({ children }: { children: ReactNode }) {
 	);
 }
 
-/** A 390px phone frame showing the mobile header and tab bar in place. */
-function MobileFrame({
-	pathname,
-	failingWebhooks,
-	newInsights,
-}: {
-	pathname: string;
-	failingWebhooks?: number;
-	newInsights?: number;
-}) {
+/** A 390px phone frame showing the mobile header in place. */
+function MobileFrame({ pathname }: { pathname: string }) {
 	return (
 		<div
 			className="m-lab"
@@ -521,16 +441,9 @@ function MobileFrame({
 		>
 			{/* The shell hides itself above 640px; the frame shows it at any width. */}
 			<style>
-				{
-					".m-lab .m-head{display:block}.m-lab .m-head.is-back{display:flex}.m-lab .m-tabbar{display:grid;position:absolute}"
-				}
+				{".m-lab .m-head{display:block}.m-lab .m-head.is-back{display:flex}"}
 			</style>
 			<MobileHeader pathname={pathname} />
-			<MobileTabBar
-				pathname={pathname}
-				failingWebhooks={failingWebhooks}
-				newInsights={newInsights}
-			/>
 		</div>
 	);
 }
@@ -1252,36 +1165,21 @@ const META: Record<StoryId, Meta> = {
 		donts: ["Rows change text color on hover, never background."],
 	},
 	"mobile-shell": {
-		src: [
-			"apps/web/src/components/mobile/mobile-shell.tsx",
-			"apps/web/src/components/mobile/tab-icons.tsx",
-		],
-		rule: "On a phone, /account swaps the top bar for a large title and a five-tab bar; the same routes, chosen by width.",
+		src: ["apps/web/src/components/mobile/mobile-shell.tsx"],
+		rule: "On a phone, /account swaps the top bar for a large title. There is no tab bar: the page is one column, and a webhook or subgraph page pushes with a back link to it.",
 		variants: [
 			{
-				id: "pulse",
-				label: "Pulse",
-				render: () => (
-					<MobileFrame
-						pathname="/account"
-						failingWebhooks={1}
-						newInsights={2}
-					/>
-				),
+				id: "account",
+				label: "Account",
+				render: () => <MobileFrame pathname="/account" />,
 			},
 			{
 				id: "detail",
 				label: "Detail",
 				render: () => <MobileFrame pathname="/account/webhooks/wh_1" />,
 			},
-			{
-				id: "account",
-				label: "Account",
-				render: () => <MobileFrame pathname="/account/keys" />,
-			},
 		],
-		usage: `<MobileHeader pathname={pathname} />
-<MobileTabBar pathname={pathname} failingWebhooks={1} newInsights={2} />`,
+		usage: "<MobileHeader pathname={pathname} />",
 		donts: ["No user-agent sniffing; the layout follows viewport width."],
 	},
 	"chain-status": {
@@ -1842,50 +1740,66 @@ const META: Record<StoryId, Meta> = {
 		usage: `<Sparkline points={points} fails={fails} title="Deliveries, last 48 hours" />
 <Meter used={used} total={total} label="Free rows used" left="640k used" right="1M free" />`,
 	},
-	"mobile-pulse": {
+	"mobile-page": {
 		src: [
-			"apps/web/src/components/mobile/pulse/pulse-screen.tsx",
-			"apps/web/src/components/mobile/pulse/pulse-view.ts",
-			"apps/web/src/components/mobile/pulse/use-pull-refresh.ts",
+			"apps/web/src/components/account/overview/compact-overview.tsx",
+			"apps/web/src/components/mobile/pull-refresh.tsx",
+			"apps/web/src/components/mobile/share/share-fix-row.tsx",
 		],
-		rule: "On a phone, Pulse says what needs you, the last 24 hours and today. The chain shows only as the header pill. Pull down to refresh.",
+		rule: "On a phone, /account is the same one page as the desk: a top note, webhooks, subgraphs, usage and credits, keys and apps. No command anywhere; a note's fix is shared, Add credits and Set a limit open sheets, and keys are revoked by holding. Pull down to refresh.",
 		width: { min: 320, max: 430, value: 390 },
 		variants: [
-			{
-				id: "incident",
-				label: "Incident",
-				render: () => (
-					<PhoneColumn>
-						<LocalPulse {...pulseProps("incident")} />
-						<LabToaster />
-					</PhoneColumn>
-				),
-			},
 			{
 				id: "healthy",
 				label: "Healthy",
 				render: () => (
 					<PhoneColumn>
-						<LocalPulse {...pulseProps("healthy")} />
-						<LabToaster />
+						<PhoneAccountDemo state="healthy" />
 					</PhoneColumn>
 				),
 			},
 			{
-				id: "new",
-				label: "New account",
+				id: "failing",
+				label: "Failing",
 				render: () => (
 					<PhoneColumn>
-						<LocalPulse {...pulseProps("new")} />
-						<LabToaster />
+						<PhoneAccountDemo state="failing" />
+					</PhoneColumn>
+				),
+			},
+			{
+				id: "no-key",
+				label: "No key",
+				render: () => (
+					<PhoneColumn>
+						<PhoneAccountDemo state="no_key" />
+					</PhoneColumn>
+				),
+			},
+			{
+				id: "no-reads",
+				label: "Key, no reads",
+				render: () => (
+					<PhoneColumn>
+						<PhoneAccountDemo state="no_reads" />
+					</PhoneColumn>
+				),
+			},
+			{
+				id: "reading",
+				label: "Reading only",
+				render: () => (
+					<PhoneColumn>
+						<PhoneAccountDemo state="reading" />
 					</PhoneColumn>
 				),
 			},
 		],
-		usage: "<PulseScreen />",
+		usage: "<OverviewSection compact />",
 		donts: [
-			"No chain card.",
-			"No keys strip or month chart: that is Overview.",
+			"No command to copy.",
+			"No terminal block, no tab bar.",
+			"Making a key, a webhook or a subgraph waits for a desk.",
 		],
 	},
 	"mobile-insights": {

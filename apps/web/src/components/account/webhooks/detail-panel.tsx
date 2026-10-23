@@ -814,6 +814,8 @@ export function WebhookDetailSection({ id }: { id: string }) {
 				webhook={webhook}
 				activity={activity}
 				deliveries={deliveries}
+				insights={insights}
+				stackAsleep={stackAsleep}
 				pauseBusy={pauseBusy}
 				onTogglePause={onTogglePause}
 				test={test}

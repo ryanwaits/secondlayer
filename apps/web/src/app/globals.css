@@ -8761,10 +8761,9 @@ button.ky-click:focus-visible,
 	min-width: 0;
 }
 
-/* Mobile account (≤640px): bottom tabs, large titles. Plans 297–309. */
+/* Mobile account (≤640px): large titles over the one Account page. */
 /* Looks are set at every width so the Lab can frame them; only `display` is gated by the media query. */
-.m-head,
-.m-tabbar {
+.m-head {
 	display: none;
 }
 .m-head {
@@ -8798,56 +8797,6 @@ button.ky-click:focus-visible,
 	font-size: 15px;
 	height: 36px;
 }
-.m-tabbar {
-	grid-template-columns: repeat(5, 1fr);
-	position: fixed;
-	left: 0;
-	right: 0;
-	bottom: 0;
-	z-index: 40;
-	background: var(--paper);
-	border-top: 1px solid var(--line);
-	padding: 6px max(4px, env(safe-area-inset-right, 0px))
-		calc(6px + env(safe-area-inset-bottom, 0px))
-		max(4px, env(safe-area-inset-left, 0px));
-}
-.m-tab {
-	display: grid;
-	justify-items: center;
-	gap: 3px;
-	font-size: 10.5px;
-	color: var(--faint);
-	position: relative;
-	padding-top: 2px;
-	min-height: 44px;
-}
-.m-tab[aria-current="page"] {
-	color: var(--pri-ink);
-}
-.m-tab svg {
-	width: 22px;
-	height: 22px;
-}
-.m-badge {
-	position: absolute;
-	top: -2px;
-	left: calc(50% + 6px);
-	min-width: 16px;
-	height: 16px;
-	padding: 0 4px;
-	border-radius: 999px;
-	font: 500 10px / 16px var(--font-sans-stack);
-	text-align: center;
-	font-variant-numeric: tabular-nums;
-}
-.m-badge.is-bad {
-	background: var(--alarm);
-	color: var(--on-pri);
-}
-.m-badge.is-new {
-	background: var(--hi);
-	color: var(--on-hi);
-}
 @media (max-width: 640px) {
 	.www:has(.acct-page) .marketing-nav.is-dash,
 	.www:has(.acct-page) .site-footer,
@@ -8860,16 +8809,13 @@ button.ky-click:focus-visible,
 		padding-right: max(0px, env(safe-area-inset-right, 0px));
 	}
 	.acct-main {
-		padding-bottom: calc(76px + env(safe-area-inset-bottom, 0px));
+		padding-bottom: calc(24px + env(safe-area-inset-bottom, 0px));
 	}
 	.m-head {
 		display: block;
 	}
 	.m-head.is-back {
 		display: flex;
-	}
-	.m-tabbar {
-		display: grid;
 	}
 }
 
@@ -9283,126 +9229,7 @@ button.ky-click:focus-visible,
 	color: var(--faint);
 }
 
-/* Mobile pulse */
-.m-pulse {
-	display: grid;
-	padding: 0 20px 16px;
-}
-.m-pulse-sec {
-	display: flex;
-	align-items: baseline;
-	justify-content: space-between;
-	gap: 8px;
-	padding: 18px 0 6px;
-	font-size: 12px;
-	color: var(--sub);
-}
-.m-pulse-sec b {
-	font-size: 13px;
-	font-weight: 500;
-	color: var(--ink);
-}
-.m-pulse-group,
-.m-pulse-empty {
-	border: 1px solid var(--line);
-	border-radius: 8px;
-	overflow: hidden;
-}
-.m-pulse-row {
-	display: flex;
-	align-items: flex-start;
-	gap: 12px;
-	width: 100%;
-	padding: 12px;
-	border: 0;
-	border-top: 1px solid var(--line);
-	background: var(--paper);
-	color: var(--ink);
-	font: inherit;
-	text-align: left;
-}
-.m-pulse-row:first-child {
-	border-top: 0;
-}
-.m-pulse-row.is-button {
-	cursor: pointer;
-}
-.m-pulse-row .ins-dot {
-	margin-top: 6px;
-}
-.m-pulse-text {
-	display: grid;
-	flex: 1;
-	gap: 2px;
-	min-width: 0;
-}
-.m-pulse-lead {
-	font-size: 14px;
-	font-weight: 500;
-	line-height: 1.35;
-	text-wrap: pretty;
-}
-.m-pulse-lead .m-ins-new {
-	margin-left: 6px;
-	vertical-align: 1px;
-}
-.m-pulse-meta {
-	font-size: 13px;
-	line-height: 1.4;
-	color: var(--sub);
-}
-.m-pulse-chev {
-	align-self: center;
-	flex: none;
-	color: var(--faint);
-}
-.m-pulse-kv {
-	display: flex;
-	justify-content: space-between;
-	gap: 12px;
-	padding: 10px 12px;
-	border-top: 1px solid var(--line);
-	font-size: 13.5px;
-}
-.m-pulse-kv:first-child {
-	border-top: 0;
-}
-.m-pulse-kv span:first-child {
-	color: var(--sub);
-}
-.m-pulse-kv span:last-child {
-	text-align: right;
-	font-variant-numeric: tabular-nums;
-}
-.m-pulse-chart {
-	display: grid;
-	gap: 6px;
-	padding: 12px 12px 8px;
-}
-.m-pulse-cap {
-	font-size: 12px;
-	color: var(--sub);
-}
-.m-pulse-cap .is-bad {
-	color: var(--alarm);
-}
-.m-pulse-empty {
-	display: grid;
-	justify-items: start;
-	gap: 8px;
-	padding: 22px 16px;
-	border-style: dashed;
-}
-.m-pulse-empty b {
-	font-size: 14px;
-	font-weight: 500;
-}
-.m-pulse-empty p {
-	margin: 0;
-	font-size: 13px;
-	line-height: 1.5;
-	color: var(--sub);
-}
+/* Pull to refresh */
 .m-ptr {
 	display: flex;
 	align-items: flex-end;
@@ -9412,6 +9239,103 @@ button.ky-click:focus-visible,
 	overflow: hidden;
 	font-size: 12px;
 	color: var(--sub);
+}
+
+/* Mobile account: the one page, as rows and sheets. */
+.ov-page.ma {
+	gap: 28px;
+	max-width: none;
+	padding: 0 20px 8px;
+}
+.ma-skel {
+	display: grid;
+	gap: 10px;
+}
+.ma-row {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+	width: 100%;
+	min-height: 48px;
+	padding: 0 14px;
+	border: 1px solid var(--line);
+	border-radius: 8px;
+	background: var(--paper);
+	color: var(--ink);
+	font: inherit;
+	font-size: 15px;
+	text-align: left;
+	cursor: pointer;
+}
+.ma-keys {
+	margin: 0;
+	padding: 0;
+	list-style: none;
+	border: 1px solid var(--line);
+	border-radius: 8px;
+	overflow: hidden;
+}
+.ma-key {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+	min-height: 56px;
+	padding: 8px 14px;
+}
+.ma-key + .ma-key {
+	border-top: 1px solid var(--line);
+}
+.ma-key-main {
+	display: grid;
+	gap: 2px;
+	min-width: 0;
+}
+.ma-key-name {
+	overflow: hidden;
+	font: 500 13.5px / 1.3 var(--font-mono-stack);
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+.ma-key-name.is-revoked {
+	color: var(--faint);
+	text-decoration: line-through;
+}
+.ma-key-line {
+	font-size: 13px;
+	color: var(--sub);
+}
+/* The hold sits at the end of its row, not full width. */
+.ma-hold {
+	flex: none;
+}
+.ma-hold .m-hold {
+	width: auto;
+	height: 36px;
+	padding: 0 12px;
+	font-size: 13px;
+}
+/* Share the fix: three assistants and the system share sheet. */
+.m-sharerow {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 4px 14px;
+	font-size: 13px;
+	color: var(--sub);
+}
+.m-sharerow a,
+.m-sharerow button {
+	display: inline-flex;
+	align-items: center;
+	min-height: 36px;
+	padding: 0;
+	border: 0;
+	background: none;
+	color: var(--pri-ink);
+	font: inherit;
+	cursor: pointer;
 }
 
 /* Mobile webhooks */
@@ -9490,11 +9414,129 @@ button.ky-click:focus-visible,
 	flex: 1;
 	gap: 8px;
 }
+.mwh-title {
+	display: flex;
+	align-items: baseline;
+	justify-content: space-between;
+	gap: 12px;
+}
 .mwh-title h2 {
 	margin: 0;
+	min-width: 0;
 	overflow-wrap: anywhere;
 	font: 500 22px / 1.2 var(--font-mono-stack);
 	letter-spacing: -0.02em;
+}
+.mwh-pause {
+	flex: none;
+	min-height: 44px;
+	padding: 0 4px;
+	border: 0;
+	background: none;
+	color: var(--pri-ink);
+	font: inherit;
+	font-size: 15px;
+	cursor: pointer;
+}
+.mwh-pause:disabled {
+	opacity: 0.45;
+	cursor: default;
+}
+/* The four facts: two by two, a hairline between. */
+.mwh-facts {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	border: 1px solid var(--line);
+	border-radius: 8px;
+}
+.mwh-facts > div {
+	display: grid;
+	gap: 3px;
+	min-width: 0;
+	padding: 12px 14px;
+}
+.mwh-facts > div:nth-child(even) {
+	border-left: 1px solid var(--line);
+}
+.mwh-facts > div:nth-child(n + 3) {
+	border-top: 1px solid var(--line);
+}
+.mwh-k {
+	font-size: 12px;
+	color: var(--sub);
+}
+.mwh-v {
+	overflow: hidden;
+	font: 500 16px / 1.3 var(--font-mono-stack);
+	font-variant-numeric: tabular-nums;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+.mwh-v.is-bad {
+	color: var(--alarm);
+}
+/* A delivery row: tap for its payload. */
+.mwh-drow {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+	width: 100%;
+	min-height: 44px;
+	padding: 10px 14px;
+	border: 0;
+	background: var(--paper);
+	color: var(--ink);
+	font: 12.5px var(--font-mono-stack);
+	font-variant-numeric: tabular-nums;
+	text-align: left;
+	cursor: pointer;
+}
+.mwh-drow .is-ok {
+	color: var(--ok);
+}
+.mwh-drow .is-bad {
+	color: var(--alarm);
+}
+.mwh-log > li + li {
+	border-top: 1px solid var(--line);
+}
+.mwh-log {
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+.msg-tables {
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+.msg-tables > li:first-child {
+	border-top: 0;
+}
+.mwh-group > .mwh-link + .mwh-link {
+	border-top: 1px solid var(--line);
+}
+.mwh-link {
+	display: block;
+	color: inherit;
+}
+.mwh-count {
+	flex: none;
+	font: 500 13.5px var(--font-mono-stack);
+	font-variant-numeric: tabular-nums;
+	color: var(--ink);
+}
+.msg-newest {
+	display: grid;
+	gap: 8px;
+	min-width: 0;
+}
+.msg-group > a.msg-row + a.msg-row {
+	border-top: 1px solid var(--line);
+}
+a.msg-row {
+	text-decoration: none;
 }
 .mwh-title .m-sub {
 	margin-top: 4px;

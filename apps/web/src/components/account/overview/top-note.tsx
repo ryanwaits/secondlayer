@@ -1,6 +1,7 @@
 "use client";
 
 import { CopyButton } from "@/components/copy-button";
+import { ShareFixRow } from "@/components/mobile/share/share-fix-row";
 import { type Insight, insightTargetName, rankInsights } from "@/lib/insights";
 import { dismiss } from "@/lib/insights-store";
 import { useState } from "react";
@@ -79,7 +80,12 @@ function Commands({ insight }: { insight: Insight }) {
 function NoteCard({
 	insight,
 	onDone,
-}: { insight: Insight; onDone: (insight: Insight) => void }) {
+	compact,
+}: {
+	insight: Insight;
+	onDone: (insight: Insight) => void;
+	compact: boolean;
+}) {
 	// "Got it" and "Dismiss" are the same action: hide it until the rule fires again.
 	async function act() {
 		onDone(insight);
@@ -101,13 +107,19 @@ function NoteCard({
 					Dismiss
 				</button>
 			</div>
-			<Commands insight={insight} />
-			<span className="ov-note-prompt">
-				<CopyButton
-					code={insight.handoff.prompt}
-					label="Copy the fix as a prompt"
-				/>
-			</span>
+			{compact ? (
+				<ShareFixRow insight={insight} />
+			) : (
+				<>
+					<Commands insight={insight} />
+					<span className="ov-note-prompt">
+						<CopyButton
+							code={insight.handoff.prompt}
+							label="Copy the fix as a prompt"
+						/>
+					</span>
+				</>
+			)}
 		</section>
 	);
 }
@@ -116,7 +128,12 @@ function NoteCard({
 function OnItCard({
 	webhook,
 	remembered,
-}: { webhook: FailingWebhook; remembered: Insight | undefined }) {
+	compact,
+}: {
+	webhook: FailingWebhook;
+	remembered: Insight | undefined;
+	compact: boolean;
+}) {
 	return (
 		<section className="ov-note" aria-label="Note">
 			<p className="ov-note-text">
@@ -126,7 +143,7 @@ function OnItCard({
 					until it delivers again.
 				</span>
 			</p>
-			{remembered ? <Commands insight={remembered} /> : null}
+			{remembered && !compact ? <Commands insight={remembered} /> : null}
 		</section>
 	);
 }
@@ -139,10 +156,13 @@ export function TopNote({
 	insights,
 	failing,
 	state = null,
+	compact = false,
 }: {
 	insights: readonly Insight[];
 	failing: readonly FailingWebhook[];
 	state?: AccountState | null;
+	/** The phone: Share the fix in place of commands and the prompt. */
+	compact?: boolean;
 }) {
 	const [revealed, setRevealed] = useState<string[]>([]);
 	// Notes handled in this visit, so a failing webhook keeps their commands.
@@ -159,6 +179,7 @@ export function TopNote({
 				<OnItCard
 					key={webhook.id}
 					webhook={webhook}
+					compact={compact}
 					remembered={handled.find(
 						(i) =>
 							i.resource.kind === "webhook" &&
@@ -188,6 +209,7 @@ export function TopNote({
 				<NoteCard
 					key={insight.id}
 					insight={insight}
+					compact={compact}
 					onDone={(done) => setHandled((list) => [...list, done])}
 				/>
 			))}

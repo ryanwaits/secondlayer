@@ -213,3 +213,12 @@ export function stackCell(
 		caption: `${gb ? `${gb} GB · ` : ""}runs your webhooks`,
 	};
 }
+
+/** HH:MM in the viewer's clock. */
+export function clockTime(at: Date): string {
+	return at.toLocaleTimeString("en-US", {
+		hour: "2-digit",
+		minute: "2-digit",
+		hour12: false,
+	});
+}

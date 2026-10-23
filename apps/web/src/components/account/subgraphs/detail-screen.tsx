@@ -7,6 +7,7 @@ import { NameMark } from "@/components/dashboard/shell/name-mark";
 import { NameTip } from "@/components/dashboard/shell/name-tip";
 import { Skel } from "@/components/dashboard/shell/skel";
 import { dotClass } from "@/components/dashboard/shell/status-sentence";
+import { useCompact } from "@/components/mobile/use-compact";
 import { type Insight, rankInsights } from "@/lib/insights";
 import { forResource, useInsights } from "@/lib/insights-store";
 import {
@@ -31,6 +32,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { CliLine } from "../webhooks/shared";
 import { WhatsHappening } from "../webhooks/whats-happening";
+import { SubgraphCompactDetail } from "./compact-detail";
 import {
 	HandlerErrorsPanel,
 	type RowsRange,
@@ -273,6 +275,7 @@ export function SubgraphDetailSection({ name }: { name: string }) {
 	const { data: insights } = useInsights();
 	const [missing, setMissing] = useState(false);
 	const [range, setRange] = useState<RowsRange>("24h");
+	const compact = useCompact();
 
 	useEffect(
 		() =>
@@ -320,6 +323,17 @@ export function SubgraphDetailSection({ name }: { name: string }) {
 	if (!data) {
 		if (missing) return <NotFound name={name} />;
 		return <DetailSkeleton name={name} />;
+	}
+
+	if (compact) {
+		return (
+			<SubgraphCompactDetail
+				detail={data}
+				health={healthData}
+				errors={hasErrors ? (errors[name]?.data ?? []) : []}
+				insights={forResource(insights, "subgraph", name)}
+			/>
+		);
 	}
 
 	return (

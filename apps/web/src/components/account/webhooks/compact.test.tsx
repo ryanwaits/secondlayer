@@ -1,13 +1,12 @@
 import { describe, expect, test } from "bun:test";
+import { FIXTURE_INSIGHTS } from "@/lib/insights.fixtures";
 import type { WebhookTestResult } from "@secondlayer/sdk";
+import type { ComponentProps } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import {
-	type CompactReplayProps,
-	WebhookCompactDetail,
-	WebhookCompactDetailView,
-} from "./compact-detail";
-import { WebhooksCompactList } from "./compact-list";
+import { WebhookCompactDetailView } from "./compact-detail";
+import { WebhookCompactRow, WebhooksCompactList } from "./compact-list";
 import { rowModel } from "./rows";
+import type { Recovery } from "./use-recovery";
 import {
 	FIXTURE_HOURS,
 	activityFor,
@@ -49,19 +48,34 @@ const passed: WebhookTestResult = {
 	deliveryId: "d_test",
 };
 
+const recovery = (over: Partial<Recovery> = {}): Recovery => ({
+	dead: { count: 3, since: null },
+	requeue: { busy: false, requeued: null, onRequeue: () => {} },
+	...over,
+});
+
+const [receiverDown] = FIXTURE_INSIGHTS;
+if (!receiverDown) throw new Error("missing insight fixture");
+
 const renderDetail = (
-	over: Parameters<typeof detail>[0] = {},
-	result: WebhookTestResult | null = null,
+	over: Partial<ComponentProps<typeof WebhookCompactDetailView>> = {},
+	webhook: Parameters<typeof detail>[0] = {},
 ) =>
 	renderToStaticMarkup(
-		<WebhookCompactDetail
-			webhook={detail(over)}
+		<WebhookCompactDetailView
+			webhook={detail(webhook)}
 			activity={activityFor(3)}
 			deliveries={[attempt()]}
+			insights={[]}
+			stackAsleep={false}
 			pauseBusy={false}
 			onTogglePause={() => {}}
-			test={{ busy: false, result }}
+			test={{ busy: false, result: null }}
 			onTest={() => {}}
+			recovery={recovery()}
+			replay={null}
+			onReplay={() => {}}
+			{...over}
 		/>,
 	);
 
@@ -104,104 +118,111 @@ describe("WebhooksCompactList", () => {
 	});
 });
 
-describe("WebhookCompactDetail", () => {
-	test("a circuit-paused webhook shows the three steps, Resume and Requeue disabled", () => {
-		const html = renderDetail(tripped);
-		expect(html).toContain("Can&#x27;t reach your server");
-		expect(html).toContain("Get it delivering again");
-		expect(html).toContain("Send a test event");
-		expect(html).toContain("Resume deliveries");
-		expect(html).toContain("Requeue what gave up");
-		expect(html).toMatch(/<button[^>]*disabled=""[^>]*>Resume</);
-		expect(html).toMatch(/<button[^>]*disabled=""[^>]*>Requeue</);
-		expect(html).not.toMatch(/<button[^>]*disabled=""[^>]*>Send test</);
-		expect(html).toContain("Test first.");
+describe("WebhookCompactRow", () => {
+	test("links to the webhook's page and shows the 24 hour count", () => {
+		const html = renderToStaticMarkup(
+			<WebhookCompactRow row={row({ id: "a", name: "alpha" })} />,
+		);
+		expect(html).toContain('href="/account/webhooks/a"');
+		expect(html).toContain("alpha");
+		expect(html).toContain(">48<");
 	});
 
-	test("a passing test reads back and unlocks Resume", () => {
-		const html = renderDetail(tripped, passed);
-		expect(html).toContain("Test got 200 in 184 ms");
-		expect(html).not.toMatch(/<button[^>]*disabled=""[^>]*>Resume</);
-		expect(html).not.toContain("Test first.");
+	test("a failing webhook's name is flagged, not dotted", () => {
+		const html = renderToStaticMarkup(
+			<WebhookCompactRow
+				row={rowModel(
+					summary({ id: "a", name: "alpha", ...tripped }),
+					series,
+					FIXTURE_HOURS,
+					[receiverDown],
+				)}
+			/>,
+		);
+		expect(html).toContain("name-flag");
 	});
 
-	test("a healthy webhook has no recovery steps", () => {
-		const html = renderDetail();
-		expect(html).not.toContain("Get it delivering again");
-		expect(html).toContain("Delivering");
-		expect(html).toContain(">Pause<");
-		expect(html).toContain(">Send test<");
-	});
-
-	test("the trigger renders as plain text", () => {
-		const html = renderDetail({
-			triggers: [{ type: "stx_transfer" }, { type: "ft_transfer" }],
-		});
-		expect(html).not.toContain("[object Object]");
-		expect(html).toContain("+1 more");
+	test("a stopped stack reads as not delivering, not as the webhook's fault", () => {
+		const html = renderToStaticMarkup(
+			<WebhookCompactRow row={row({ id: "a", name: "alpha" })} stopped />,
+		);
+		expect(html).toContain("Not delivering, stack stopped");
+		expect(html).not.toContain("name-flag");
 	});
 });
 
-describe("WebhookCompactDetailView recovery step 3", () => {
-	const recovery = (
-		over: Partial<CompactReplayProps>,
-		webhook: Parameters<typeof detail>[0] = {},
-	) =>
-		renderToStaticMarkup(
-			<WebhookCompactDetailView
-				webhook={detail(webhook)}
-				activity={activityFor(3)}
-				deliveries={[attempt()]}
-				pauseBusy={false}
-				onTogglePause={() => {}}
-				test={{ busy: false, result: passed }}
-				onTest={() => {}}
-				showRecovery
-				dead={{ count: 3 }}
-				requeue={{ busy: false, requeued: null, onRequeue: () => {} }}
-				replay={null}
-				onReplay={() => {}}
-				{...over}
-			/>,
-		);
+describe("WebhookCompactDetailView", () => {
+	test("the facts are a grid of four", () => {
+		const html = renderDetail();
+		for (const label of ["Sent · 24h", "Gave up", "p95", "Since"]) {
+			expect(html).toContain(`>${label}<`);
+		}
+	});
 
-	test("resumed with 3 given up shows an enabled Requeue 3", () => {
-		const html = recovery({});
-		expect(html).toContain("Requeue what gave up");
+	test("a healthy webhook has Pause, Send a test and Replay, and no insight card", () => {
+		const html = renderDetail();
+		expect(html).toContain(">Pause<");
+		expect(html).toContain(">Send a test<");
+		expect(html).toContain(">Replay<");
+		expect(html).not.toContain("What&#x27;s happening");
+	});
+
+	test("a paused webhook offers Resume", () => {
+		expect(renderDetail({}, tripped)).toContain(">Resume<");
+	});
+
+	test("a failing webhook shows What's happening with Send a test, Requeue and Share the fix", () => {
+		const html = renderDetail({ insights: [receiverDown] });
+		expect(html).toContain("What&#x27;s happening");
+		expect(html).toContain(">Send a test<");
 		expect(html).toContain(">Requeue 3<");
-		expect(html).not.toMatch(/<button[^>]*disabled=""[^>]*>Requeue 3</);
+		expect(html).toContain("Share the fix");
+		expect(html).toContain(">Claude<");
+		expect(html).toContain(">More<");
 	});
 
-	test("still paused keeps Requeue disabled", () => {
-		const html = recovery({}, tripped);
-		expect(html).toMatch(/<button[^>]*disabled=""[^>]*>Requeue 3</);
+	test("the phone shows no command and no copy-as-prompt link", () => {
+		const html = renderDetail({ insights: [receiverDown] });
+		expect(html).not.toContain("wh-cli");
+		expect(html).not.toContain("Copy the fix as a prompt");
 	});
 
-	test("nothing given up says so", () => {
-		const html = recovery({ dead: { count: 0 } });
-		expect(html).toContain("Nothing gave up");
-		expect(html).toContain("Waiting events went out when you resumed.");
-		expect(html).not.toContain("Requeue");
+	test("nothing given up leaves no Requeue", () => {
+		const html = renderDetail({
+			insights: [receiverDown],
+			recovery: recovery({ dead: { count: 0, since: null } }),
+		});
+		expect(html).not.toContain(">Requeue");
 	});
 
-	test("after a requeue the step reads back how many went out", () => {
-		const html = recovery({
-			requeue: { busy: false, requeued: 3, onRequeue: () => {} },
+	test("after a requeue the card reads back how many went out", () => {
+		const html = renderDetail({
+			insights: [receiverDown],
+			recovery: recovery({
+				requeue: { busy: false, requeued: 3, onRequeue: () => {} },
+			}),
 		});
 		expect(html).toContain("Requeued 3");
 		expect(html).not.toContain(">Requeue 3<");
 	});
 
-	test("a healthy webhook has an outline Replay button beside Pause and Send test", () => {
-		const html = recovery({ showRecovery: false });
-		expect(html).toContain(">Pause<");
-		expect(html).toContain(">Send test<");
-		expect(html).toContain(">Replay<");
+	test("each delivery is a button that opens its payload", () => {
+		const html = renderDetail();
+		expect(html).toContain("mwh-drow");
+		expect(html).toContain("tap one for its payload");
+	});
+
+	test("the trigger renders as plain text", () => {
+		const html = renderDetail(
+			{},
+			{ triggers: [{ type: "stx_transfer" }, { type: "ft_transfer" }] },
+		);
+		expect(html).not.toContain("[object Object]");
+		expect(html).toContain("+1 more");
 	});
 
 	test("a running replay gets its own section with the block range", () => {
-		const html = recovery({
-			showRecovery: false,
+		const html = renderDetail({
 			replay: {
 				minutesLeft: 4,
 				progress: {

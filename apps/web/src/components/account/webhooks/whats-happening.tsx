@@ -2,6 +2,7 @@
 
 import { CopyButton } from "@/components/copy-button";
 import { Evidence } from "@/components/dashboard/insight/evidence";
+import { ShareFixRow } from "@/components/mobile/share/share-fix-row";
 import { type Insight, causeText } from "@/lib/insights";
 import { dismiss } from "@/lib/insights-store";
 import type { WebhookTestResult } from "@secondlayer/sdk";
@@ -35,7 +36,10 @@ export function WhatsHappening({
 	onTest,
 	test,
 	extra,
+	compact = false,
 }: {
+	/** The phone: Share the fix replaces the copy-as-prompt link. */
+	compact?: boolean;
 	insight: Insight;
 	recovery?: Recovery;
 	onTest?: () => void;
@@ -94,15 +98,19 @@ export function WhatsHappening({
 					) : null}
 				</div>
 			) : null}
-			<p className="wd-faint wd-why-aside">
-				<span className="ov-note-prompt">
-					<CopyButton
-						code={insight.handoff.prompt}
-						label="Copy the fix as a prompt"
-					/>
-				</span>
-				{recovery ? " Requeue after a test answers 200." : null}
-			</p>
+			{compact ? (
+				<ShareFixRow insight={insight} />
+			) : (
+				<p className="wd-faint wd-why-aside">
+					<span className="ov-note-prompt">
+						<CopyButton
+							code={insight.handoff.prompt}
+							label="Copy the fix as a prompt"
+						/>
+					</span>
+					{recovery ? " Requeue after a test answers 200." : null}
+				</p>
+			)}
 			<div className="ov-note-acts">
 				<button type="button" className="ins-act" onClick={() => void act()}>
 					Got it

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { PULL_REFRESH_DY, dragAxis } from "../gesture";
+import { PULL_REFRESH_DY, dragAxis } from "./gesture";
 
 /** The pull is dampened to half the finger's travel, and stops here. */
 const DAMPEN = 0.5;

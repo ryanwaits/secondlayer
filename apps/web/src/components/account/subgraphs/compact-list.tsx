@@ -1,5 +1,6 @@
 "use client";
 
+import { NameMark } from "@/components/dashboard/shell/name-mark";
 import { Skel } from "@/components/dashboard/shell/skel";
 import { StatusSentence } from "@/components/dashboard/shell/status-sentence";
 import type { Insight } from "@/lib/insights";
@@ -14,7 +15,8 @@ import type {
 	SubgraphHealthData,
 	SubgraphListItem,
 } from "@/lib/subgraphs-store";
-import { ToneDot, insightRowState } from "../webhooks/rows";
+import Link from "next/link";
+import { insightRowState } from "../webhooks/rows";
 
 /** Why there is no list to show yet. The same shape `useSubgraphsPoll` returns. */
 export type CompactListNotice =
@@ -70,16 +72,19 @@ function RowSkeleton() {
 	);
 }
 
-function Row({
+/** One subgraph: its name (marked when it needs you), one state line, a meter while it reindexes. A link when `href` is given, else a button. */
+export function SubgraphCompactRow({
 	item,
 	health,
 	insights,
 	onOpen,
+	href,
 }: {
 	item: SubgraphListItem;
 	health: SubgraphHealthData | undefined;
 	insights: readonly Insight[];
-	onOpen: (name: string) => void;
+	onOpen?: (name: string) => void;
+	href?: string;
 }) {
 	const errors24h = handlerErrors24h(health);
 	const top = insights[0];
@@ -93,12 +98,11 @@ function Row({
 			errors24h,
 			item.status,
 		);
-	return (
-		<button type="button" className="msg-row" onClick={() => onOpen(item.name)}>
-			<ToneDot tone={tone} />
+	const face = (
+		<>
 			<span className="msg-main">
 				<span className="msg-name" title={item.name}>
-					{item.name}
+					<NameMark tone={tone}>{item.name}</NameMark>
 				</span>
 				<span className={`msg-line${tone === "alarm" ? " is-bad" : ""}`}>
 					{line}
@@ -110,6 +114,19 @@ function Row({
 				) : null}
 			</span>
 			<Chevron />
+		</>
+	);
+	return href ? (
+		<Link href={href} className="msg-row">
+			{face}
+		</Link>
+	) : (
+		<button
+			type="button"
+			className="msg-row"
+			onClick={() => onOpen?.(item.name)}
+		>
+			{face}
 		</button>
 	);
 }
@@ -176,7 +193,7 @@ export function SubgraphsCompactList({
 			</p>
 			<div className="msg-group">
 				{items.map((item) => (
-					<Row
+					<SubgraphCompactRow
 						key={item.name}
 						item={item}
 						health={health[item.name]}

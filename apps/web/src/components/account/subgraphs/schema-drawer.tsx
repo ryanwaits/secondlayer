@@ -106,7 +106,11 @@ export function SchemaDrawerBody({
 }
 
 /** Reads a table's newest row each time the drawer opens or the table changes. */
-function useNewestRow(name: string, table: string, open: boolean): NewestRow {
+export function useNewestRow(
+	name: string,
+	table: string,
+	open: boolean,
+): NewestRow {
 	const [state, setState] = useState<{ key: string; row: NewestRow }>({
 		key: "",
 		row: { status: "loading" },

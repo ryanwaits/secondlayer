@@ -35,7 +35,8 @@ export async function shareLink(title: string, url: string): Promise<void> {
 	else toast.error("Couldn't copy. Press and hold the link to select it.");
 }
 
-async function shareToSlack(title: string, text: string): Promise<void> {
+/** Hand the fix's text to the phone's share sheet (Slack is in it); copy it when there is none. */
+export async function shareText(title: string, text: string): Promise<void> {
 	if (typeof navigator.share === "function") {
 		try {
 			await navigator.share({ title, text });
@@ -98,7 +99,7 @@ export function ShareFixBody({ insight }: { insight: Insight }) {
 				<button
 					type="button"
 					className="m-share-target"
-					onClick={() => void shareToSlack(title, text)}
+					onClick={() => void shareText(title, text)}
 				>
 					<i>
 						<SlackMark />

@@ -4,7 +4,8 @@ import { FIXTURE_INSIGHTS } from "@/lib/insights.fixtures";
 import { groupDigits, stateLine } from "@/lib/subgraph-view";
 import type { SubgraphListItem } from "@/lib/subgraphs-store";
 import { renderToStaticMarkup } from "react-dom/server";
-import { SubgraphsCompactList } from "./compact-list";
+import { SubgraphCompactDetail } from "./compact-detail";
+import { SubgraphCompactRow, SubgraphsCompactList } from "./compact-list";
 import { SubgraphSheetBody } from "./compact-sheet";
 import {
 	exampleDetail,
@@ -86,7 +87,7 @@ describe("subgraphs compact list", () => {
 		const html = renderList([healthy], {
 			health: { [healthy.name]: exampleHealth(1204) },
 		});
-		expect(html).toContain("alarm");
+		expect(html).toContain("name-flag");
 		expect(html).toContain("msg-line is-bad");
 		expect(
 			renderList([healthy], { health: { [healthy.name]: exampleHealth(0) } }),
@@ -143,5 +144,64 @@ describe("subgraph sheet body", () => {
 		expect(renderSheet({ insights: [insightFor(healthy.name)] })).not.toContain(
 			"Share fix",
 		);
+	});
+});
+
+describe("subgraph compact row", () => {
+	test("on the Account page a row links to its page", () => {
+		const html = renderToStaticMarkup(
+			<SubgraphCompactRow
+				item={healthy}
+				health={undefined}
+				insights={[]}
+				href={`/account/subgraphs/${healthy.name}`}
+			/>,
+		);
+		expect(html).toContain(`href="/account/subgraphs/${healthy.name}"`);
+		expect(html).toContain(healthy.name);
+	});
+
+	test("a failing subgraph's name is flagged, not dotted", () => {
+		const html = renderToStaticMarkup(
+			<SubgraphCompactRow
+				item={healthy}
+				health={undefined}
+				insights={[insightFor(healthy.name)]}
+				onOpen={noop}
+			/>,
+		);
+		expect(html).toContain("name-flag");
+	});
+});
+
+describe("subgraph compact detail", () => {
+	const render = (insights: Insight[] = []) =>
+		renderToStaticMarkup(
+			<SubgraphCompactDetail
+				detail={exampleDetail}
+				health={exampleHealth(0)}
+				errors={exampleErrors}
+				insights={insights}
+			/>,
+		);
+
+	test("shows the facts, the tables and the newest row, with no query command", () => {
+		const html = render();
+		for (const label of ["Behind", "Rows", "Errors", "Storage"]) {
+			expect(html).toContain(`>${label}<`);
+		}
+		for (const table of Object.keys(exampleDetail.tables)) {
+			expect(html).toContain(table);
+		}
+		expect(html).toContain("Newest");
+		expect(html).not.toContain("wh-cli");
+		expect(html).not.toContain("sl subgraphs");
+	});
+
+	test("an open insight shows Share the fix instead of its commands", () => {
+		const html = render([insightFor(exampleDetail.name)]);
+		expect(html).toContain("Share the fix");
+		expect(html).not.toContain("wh-cli");
+		expect(html).not.toContain("Copy the fix as a prompt");
 	});
 });

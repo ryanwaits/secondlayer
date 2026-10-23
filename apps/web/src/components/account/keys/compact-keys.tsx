@@ -1,13 +1,14 @@
 "use client";
 
+import { displayClientName } from "@/app/(www)/cli/login/cli-login";
 import { Sparkline } from "@/components/dashboard/charts/sparkline";
 import { Skel } from "@/components/dashboard/shell/skel";
 import { HoldButton } from "@/components/mobile/hold-button";
 import { Sheet } from "@/components/mobile/sheet";
 import { SwipeGroup, SwipeRow } from "@/components/mobile/swipe-row";
-import { formatDate, revokeKey } from "@/lib/account-data";
+import { formatDate, revokeApp, revokeKey } from "@/lib/account-data";
 import { shortCount } from "@/lib/subgraph-view";
-import type { ApiKey } from "@/lib/types";
+import type { ApiKey, ConnectedApp } from "@/lib/types";
 import { type ReactNode, useState } from "react";
 import { toast } from "sonner";
 import { agoShort, groupKeys, keyFlags, revokedOwnKeys } from "./key-view";
@@ -319,5 +320,109 @@ export function KeysCompact({
 				/>
 			) : null}
 		</>
+	);
+}
+
+function HoldRow({
+	name,
+	line,
+	holdLabel,
+	onConfirm,
+	revoked = false,
+}: {
+	name: string;
+	line: string;
+	holdLabel: string;
+	onConfirm: () => void;
+	revoked?: boolean;
+}) {
+	return (
+		<li className="ma-key">
+			<span className="ma-key-main">
+				<span className={`ma-key-name${revoked ? " is-revoked" : ""}`}>
+					{name}
+				</span>
+				<span className="ma-key-line">{line}</span>
+			</span>
+			{revoked ? null : (
+				<span className="ma-hold">
+					<HoldButton label={holdLabel} onConfirm={onConfirm} />
+				</span>
+			)}
+		</li>
+	);
+}
+
+/**
+ * Keys and connected apps on the Account page's phone layout: one list, each
+ * row ending in a hold that revokes or disconnects. Making a key waits for a
+ * desk.
+ */
+export function KeysAppsCompact({
+	keys,
+	apps,
+	now,
+}: {
+	keys: ApiKey[] | null;
+	apps: ConnectedApp[] | null;
+	now: Date;
+}) {
+	async function revoke(k: ApiKey) {
+		try {
+			await revokeKey(k.id);
+			toast.success(`Revoked ${k.name}. Calls with it now get 401.`);
+		} catch (e) {
+			toast.error(e instanceof Error ? e.message : "Couldn't revoke that key");
+		}
+	}
+	async function disconnect(app: ConnectedApp) {
+		const name = displayClientName(app.clientName);
+		try {
+			await revokeApp(app.id);
+			toast.success(`Disconnected ${name}.`);
+		} catch (e) {
+			toast.error(
+				e instanceof Error ? e.message : "Couldn't disconnect that app",
+			);
+		}
+	}
+	if (keys === null || apps === null) {
+		return (
+			<div className="mac-group">
+				<RowSkeleton />
+				<RowSkeleton />
+			</div>
+		);
+	}
+	const listed = phoneKeys(keys, now);
+	if (listed.length === 0 && apps.length === 0) {
+		return <p className="ov-lede">No keys yet.</p>;
+	}
+	return (
+		<ul className="ma-keys">
+			{listed.map((k) => (
+				<HoldRow
+					key={k.id}
+					name={k.name}
+					line={keyLook(k, now).line}
+					holdLabel="Hold to revoke"
+					revoked={k.status === "revoked"}
+					onConfirm={() => void revoke(k)}
+				/>
+			))}
+			{apps.map((app) => (
+				<HoldRow
+					key={app.id}
+					name={displayClientName(app.clientName)}
+					line={
+						app.lastUsedAt
+							? `App · used ${agoShort(app.lastUsedAt, now)} ago`
+							: "App · never used"
+					}
+					holdLabel="Hold to disconnect"
+					onConfirm={() => void disconnect(app)}
+				/>
+			))}
+		</ul>
 	);
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import { Meter } from "@/components/dashboard/charts/meter";
+import { Sheet } from "@/components/mobile/sheet";
 import {
 	type Billing,
 	type Caps,
@@ -19,6 +20,7 @@ import {
 } from "@/lib/usage";
 import { useState } from "react";
 import { toast } from "sonner";
+import { TopupSheetBody } from "../billing/compact-usage";
 import { LimitsAndEmails } from "../billing/limits-and-emails";
 import {
 	AddCredits,
@@ -49,6 +51,7 @@ export function UsageBlock({
 	stopped = false,
 	returnState = null,
 	now = new Date(),
+	compact = false,
 }: {
 	readUsage: RowsResponse | null;
 	billing: Billing | null;
@@ -59,6 +62,8 @@ export function UsageBlock({
 	/** Back from Stripe: the top-up's outcome. */
 	returnState?: ReturnState | null;
 	now?: Date;
+	/** The phone: the two panels open as bottom sheets, and no command shows. */
+	compact?: boolean;
 }) {
 	const co = useCheckout();
 	const [panel, setPanel] = useState<"credits" | "limit" | null>(
@@ -144,17 +149,48 @@ export function UsageBlock({
 					</div>
 				</div>
 			</div>
-			{panel === "credits" ? (
-				<AddCredits co={co} billing={billing} burn={burn} stopped={stopped} />
-			) : null}
-			{panel === "limit" ? (
-				<LimitsAndEmails
-					capUsd={capUsd}
-					onCapChange={changeCap}
-					spentUsd={spentUsd}
-				/>
-			) : null}
-			<CliLine label="By day" command="sl credits usage" />
+			{compact ? (
+				<>
+					<Sheet
+						open={panel === "credits"}
+						onClose={() => setPanel(null)}
+						eyebrow={`Balance ${billing ? formatUsd(billing.creditsUsdMicros) : "–"}`}
+						title="Add credits"
+					>
+						<TopupSheetBody co={co} billing={billing} burn={burn} />
+					</Sheet>
+					<Sheet
+						open={panel === "limit"}
+						onClose={() => setPanel(null)}
+						title="Monthly limit"
+					>
+						<LimitsAndEmails
+							capUsd={capUsd}
+							onCapChange={changeCap}
+							spentUsd={spentUsd}
+						/>
+					</Sheet>
+				</>
+			) : (
+				<>
+					{panel === "credits" ? (
+						<AddCredits
+							co={co}
+							billing={billing}
+							burn={burn}
+							stopped={stopped}
+						/>
+					) : null}
+					{panel === "limit" ? (
+						<LimitsAndEmails
+							capUsd={capUsd}
+							onCapChange={changeCap}
+							spentUsd={spentUsd}
+						/>
+					) : null}
+					<CliLine label="By day" command="sl credits usage" />
+				</>
+			)}
 			<p className="ov-usage-s">
 				Add credits opens Stripe. One-time payment, nothing auto-renews.
 			</p>

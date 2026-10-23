@@ -15,6 +15,7 @@ import {
 } from "@/components/dashboard/shell/resource-row";
 import { Skel } from "@/components/dashboard/shell/skel";
 import { StatusSentence } from "@/components/dashboard/shell/status-sentence";
+import { PullRefresh } from "@/components/mobile/pull-refresh";
 import {
 	type Billing,
 	type Caps,
@@ -30,7 +31,7 @@ import {
 } from "@/lib/account-data";
 import { useAuth } from "@/lib/auth";
 import type { Insight } from "@/lib/insights";
-import { useInsights } from "@/lib/insights-store";
+import { refreshInsights, useInsights } from "@/lib/insights-store";
 import {
 	type AccountStage,
 	accountStage,
@@ -64,9 +65,10 @@ import {
 import { CliLine, shortenName } from "../webhooks/shared";
 import { ageShort, last24 } from "../webhooks/view";
 import { WaitingGroups } from "../webhooks/waiting";
+import { CompactOverviewBody } from "./compact-overview";
 import { FirstRowsGuide } from "./first-rows-guide";
 import { KeysBlock } from "./keys-block";
-import { stoppedForCredits } from "./overview-view";
+import { clockTime, stoppedForCredits } from "./overview-view";
 import { StartBlock } from "./start-block";
 import { CLI_LOGIN_COMMAND, TerminalBlock } from "./terminal-block";
 import { TopNote } from "./top-note";
@@ -305,6 +307,8 @@ export interface OverviewBodyProps {
 	firstRead?: FirstRead | null;
 	/** Back from Stripe: the top-up's outcome, shown at the top of the usage block. */
 	topup?: ReturnState | null;
+	/** The phone layout: the same blocks as rows and sheets, with no commands. */
+	compact?: boolean;
 }
 
 /** The Account page head: the title and what the page is for. */
@@ -328,7 +332,7 @@ export function OverviewBody({
 	burn,
 	stack,
 	readUsage = null,
-	subgraphs = <OverviewSubgraphsSlot />,
+	subgraphs,
 	keys = null,
 	apps = null,
 	caps = null,
@@ -341,6 +345,7 @@ export function OverviewBody({
 	firstRead = null,
 	topup = null,
 	loading = false,
+	compact = false,
 }: OverviewBodyProps) {
 	const active = rows?.filter((r) => r.webhook.lastDeliveryAt !== null) ?? [];
 	const quiet = rows?.filter((r) => r.webhook.lastDeliveryAt === null) ?? [];
@@ -363,6 +368,35 @@ export function OverviewBody({
 		: rows === null && asleep
 			? "asleep"
 			: null;
+
+	if (compact) {
+		return (
+			<CompactOverviewBody
+				{...{
+					rows,
+					billing,
+					burn,
+					stack,
+					readUsage,
+					subgraphs,
+					keys,
+					apps,
+					caps,
+					now,
+					insights,
+					stage,
+					onboarding,
+					hasSubgraphs,
+					firstRead,
+					topup,
+					loading,
+				}}
+				creditsOut={creditsOut}
+				failing={failing}
+				accountState={accountState}
+			/>
+		);
+	}
 
 	if (loading) {
 		// Nothing renders below the rows: anything there would be an
@@ -387,6 +421,7 @@ export function OverviewBody({
 		);
 	}
 
+	const subgraphRows = subgraphs ?? <OverviewSubgraphsSlot />;
 	const flow = onboarding?.flow ?? null;
 	const usage = (
 		<UsageBlock
@@ -508,7 +543,7 @@ export function OverviewBody({
 					<div className="ov-section-h">
 						<h2>Subgraphs</h2>
 					</div>
-					<div className="dash-rows ov-table">{subgraphs}</div>
+					<div className="dash-rows ov-table">{subgraphRows}</div>
 					<CliLine label="Deploy one" command="sl subgraphs deploy --help" />
 				</section>
 			) : webhooksEmpty || rows === null ? null : (
@@ -549,15 +584,6 @@ function useStripeReturn(): ReturnState | null {
 		setRet(takeTopupReturn());
 	}, []);
 	return useTopupReturn(ret);
-}
-
-/** HH:MM in the viewer's clock. */
-function clockTime(at: Date): string {
-	return at.toLocaleTimeString("en-US", {
-		hour: "2-digit",
-		minute: "2-digit",
-		hour12: false,
-	});
 }
 
 /**
@@ -621,7 +647,13 @@ function useOnboarding({
 export function OverviewSection({
 	firstRowsCode,
 	firstRowsPrompt,
-}: { firstRowsCode?: ReactNode; firstRowsPrompt?: ReactNode } = {}) {
+	compact = false,
+}: {
+	firstRowsCode?: ReactNode;
+	firstRowsPrompt?: ReactNode;
+	/** The phone layout. */
+	compact?: boolean;
+} = {}) {
 	const { account } = useAuth();
 	const {
 		billing,
@@ -710,8 +742,9 @@ export function OverviewSection({
 	useScrollToHash(ready);
 	const topup = useStripeReturn();
 
-	return (
+	const body = (
 		<OverviewBody
+			compact={compact}
 			loading={!ready}
 			// No hosted stack means no webhooks, so there is nothing to wait for.
 			rows={rows ?? (service?.state === "none" ? [] : null)}
@@ -730,5 +763,25 @@ export function OverviewSection({
 			firstRead={firstRead}
 			topup={topup}
 		/>
+	);
+	if (!compact) return body;
+	return (
+		<>
+			<PullRefresh
+				onRefresh={() =>
+					Promise.all([
+						refreshInsights(),
+						refreshList(),
+						refreshSummary(),
+						refreshRows(),
+						refreshBilling(),
+						refreshCaps(),
+						refreshKeys(),
+						refreshUsage(month),
+					])
+				}
+			/>
+			{body}
+		</>
 	);
 }
