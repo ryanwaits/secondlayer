@@ -42,14 +42,19 @@ export function topNotes(
 }
 
 /**
- * Which notes show: the top one, plus any the reader asked for with "Show it".
- * `next` is the one that "Show it" reveals; `more` counts everything behind.
+ * Which notes show. Until a note is handled, the top one shows by itself.
+ * After that, only the ones the reader asked for with "Show it" do: nothing
+ * appears on its own. `next` is the one "Show it" reveals; `more` counts
+ * everything behind.
  */
 export function nextVisible(
 	open: readonly Insight[],
 	revealed: readonly string[],
+	handledAny = false,
 ): { visible: Insight[]; next: Insight | null; more: number } {
-	const visible = open.filter((i, n) => n === 0 || revealed.includes(i.id));
+	const visible = open.filter(
+		(i, n) => (n === 0 && !handledAny) || revealed.includes(i.id),
+	);
 	const rest = open.filter((i) => !visible.includes(i));
 	return { visible, next: rest[0] ?? null, more: rest.length };
 }
@@ -143,11 +148,25 @@ export function TopNote({
 	// Notes handled in this visit, so a failing webhook keeps their commands.
 	const [handled, setHandled] = useState<Insight[]>([]);
 	const { open, unspoken } = topNotes(insights, failing);
-	const { visible, next, more } = nextVisible(open, revealed);
+	// A note whose dismissal failed is back in `open`, so it does not count.
+	const handledAny = handled.some((h) => !open.some((o) => o.id === h.id));
+	const { visible, next, more } = nextVisible(open, revealed, handledAny);
 	if (!state && open.length === 0 && unspoken.length === 0) return null;
 	const note = state ? STATE_NOTES[state] : null;
 	return (
 		<div className="ov-notes">
+			{unspoken.map((webhook) => (
+				<OnItCard
+					key={webhook.id}
+					webhook={webhook}
+					remembered={handled.find(
+						(i) =>
+							i.resource.kind === "webhook" &&
+							i.resource.id === webhook.id &&
+							!open.some((o) => o.id === i.id),
+					)}
+				/>
+			))}
 			{note ? (
 				<section className="ov-note" aria-label="Note">
 					<p className="ov-note-text">
@@ -185,18 +204,6 @@ export function TopNote({
 					</button>
 				</p>
 			) : null}
-			{unspoken.map((webhook) => (
-				<OnItCard
-					key={webhook.id}
-					webhook={webhook}
-					remembered={handled.find(
-						(i) =>
-							i.resource.kind === "webhook" &&
-							i.resource.id === webhook.id &&
-							!open.some((o) => o.id === i.id),
-					)}
-				/>
-			))}
 		</div>
 	);
 }

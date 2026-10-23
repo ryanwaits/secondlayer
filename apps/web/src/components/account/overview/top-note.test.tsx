@@ -57,6 +57,20 @@ describe("TopNote", () => {
 		expect(html).not.toContain("Got it");
 	});
 
+	test("the you're-on-it card comes before the more-notes line", () => {
+		const html = render({
+			insights: [willFail, costs],
+			failing: [{ id: "wh-x", name: "vault-events" }],
+		});
+		expect(html.indexOf("is failing. You&#x27;re on it.")).toBeGreaterThan(-1);
+		expect(html.indexOf("is failing. You&#x27;re on it.")).toBeLessThan(
+			html.indexOf("more note"),
+		);
+		expect(html.indexOf("is failing. You&#x27;re on it.")).toBeLessThan(
+			html.indexOf(willFail.lead),
+		);
+	});
+
 	test("credits out is a state with no buttons", () => {
 		const html = render({ insights: [], failing: [], state: "credits_out" });
 		expect(html).toContain("Your hosted stack stopped.");
@@ -105,6 +119,26 @@ describe("nextVisible", () => {
 		expect(view.visible).toEqual([losing, willFail]);
 		expect(view.next).toEqual(costs);
 		expect(view.more).toBe(1);
+	});
+
+	test("before anything is handled, the top note shows and the rest wait", () => {
+		const view = nextVisible(open, [], false);
+		expect(view.visible).toEqual([losing]);
+		expect(view.more).toBe(open.length - 1);
+	});
+
+	test("once a note is handled, nothing shows until Show it", () => {
+		const view = nextVisible(open, [], true);
+		expect(view.visible).toEqual([]);
+		expect(view.next).toEqual(losing);
+		expect(view.more).toBe(open.length);
+	});
+
+	test("after a reveal, exactly that one card shows", () => {
+		const view = nextVisible(open, [willFail.id], true);
+		expect(view.visible).toEqual([willFail]);
+		expect(view.next).toEqual(losing);
+		expect(view.more).toBe(open.length - 1);
 	});
 
 	test("nothing left behind once all are shown", () => {
