@@ -1,5 +1,11 @@
 # @secondlayer/api
 
+## 1.61.2
+
+### Patch Changes
+
+- Webhooks, contracts and subgraph routes share one lenient `limit`/`offset` clamp; a negative `limit` now falls back to the route default instead of 1.
+
 ## 1.61.1
 
 ### Patch Changes
