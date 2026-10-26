@@ -29,7 +29,11 @@ import {
 	parseRuneRef,
 	readBtcReorgs,
 } from "../bitcoin/db.ts";
-import { parseCursor, parseNonNegativeInteger } from "../parse-query.ts";
+import {
+	parseCursor,
+	parseLimit,
+	parseNonNegativeInteger,
+} from "../parse-query.ts";
 import type { StreamsCursorInput } from "./cursor.ts";
 import { encodeStreamsCursor } from "./cursor.ts";
 import type { StreamsReorg, StreamsReorgsReader } from "./reorgs.ts";
@@ -214,15 +218,6 @@ export type StreamsBitcoinEventsQuery = {
 	cursorPastTip: boolean;
 };
 
-function parseLimit(value: string | undefined): number {
-	if (value === undefined) return 100;
-	const parsed = Number.parseInt(value, 10);
-	if (!Number.isFinite(parsed) || parsed < 1) {
-		throw new ValidationError("limit must be a positive integer");
-	}
-	return Math.min(1000, parsed);
-}
-
 export function parseStreamsBitcoinEventsQuery(
 	query: URLSearchParams,
 	tip: StreamsBitcoinTip,
@@ -269,7 +264,7 @@ export function parseStreamsBitcoinEventsQuery(
 		notTypes: parseBitcoinTypes(query.get("not_types") ?? undefined),
 		rune: runeRaw !== undefined ? parseRuneRef(runeRaw) : undefined,
 		address: query.get("address") ?? undefined,
-		limit: parseLimit(query.get("limit") ?? undefined),
+		limit: parseLimit(query.get("limit") ?? undefined, 100),
 		cursorPastTip: cursor ? cursor.block_height > tip.block_height : false,
 	};
 }

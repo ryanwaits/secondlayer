@@ -20,6 +20,19 @@ export function parseNonNegativeInteger(value: string, name: string): number {
 	return parsed;
 }
 
+/** `?limit=` → positive integer capped at 1000; absent → `defaultLimit`. */
+export function parseLimit(
+	value: string | undefined,
+	defaultLimit: number,
+): number {
+	if (value === undefined) return defaultLimit;
+	const parsed = /^[1-9]\d*$/.test(value) ? Number(value) : Number.NaN;
+	if (!Number.isSafeInteger(parsed)) {
+		throw new ValidationError("limit must be a positive integer");
+	}
+	return Math.min(1000, parsed);
+}
+
 export function parseCursor(value: string): StreamsCursorInput {
 	try {
 		return decodeStreamsCursor(value);

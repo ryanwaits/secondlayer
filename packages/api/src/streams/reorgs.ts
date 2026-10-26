@@ -6,6 +6,7 @@ import {
 	readChainReorgsSince,
 } from "@secondlayer/shared/db/queries/chain-reorgs";
 import { ValidationError } from "@secondlayer/shared/errors";
+import { parseLimit } from "../parse-query.ts";
 import { decodeStreamsCursor } from "./cursor.ts";
 
 export type StreamsReorg = ChainReorgRecord;
@@ -33,18 +34,6 @@ export const DEFAULT_STREAMS_REORGS_READER: StreamsReorgsReader = (range) =>
 export const DEFAULT_STREAMS_REORGS_SINCE_READER: StreamsReorgsSinceReader = (
 	params,
 ) => readChainReorgsSince(params);
-
-function parseLimit(value: string | undefined): number {
-	if (value === undefined) return 100;
-	if (!/^(0|[1-9]\d*)$/.test(value)) {
-		throw new ValidationError("limit must be a positive integer");
-	}
-	const parsed = Number(value);
-	if (!Number.isSafeInteger(parsed) || parsed === 0) {
-		throw new ValidationError("limit must be a positive integer");
-	}
-	return Math.min(1000, parsed);
-}
 
 const UUID_RE =
 	/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -86,7 +75,7 @@ export async function getStreamsReorgsListResponse(opts: {
 	readReorgsSince?: StreamsReorgsSinceReader;
 }): Promise<StreamsReorgsListResponse> {
 	const since = parseReorgsSince(opts.query.get("since"));
-	const limit = parseLimit(opts.query.get("limit") ?? undefined);
+	const limit = parseLimit(opts.query.get("limit") ?? undefined, 100);
 	const readReorgsSince =
 		opts.readReorgsSince ?? DEFAULT_STREAMS_REORGS_SINCE_READER;
 	const reorgs = await readReorgsSince({ since, limit });

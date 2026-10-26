@@ -5,7 +5,11 @@ import {
 } from "@secondlayer/shared";
 import { sql } from "@secondlayer/shared/db";
 import { ValidationError } from "@secondlayer/shared/errors";
-import { parseCursor, parseNonNegativeInteger } from "../parse-query.ts";
+import {
+	parseCursor,
+	parseNonNegativeInteger,
+	parseLimit as parseSharedLimit,
+} from "../parse-query.ts";
 import {
 	EMPTY_STREAMS_REORGS_READER,
 	type StreamsReorg,
@@ -69,13 +73,9 @@ export function decodeClarityResult(raw: string | null): unknown {
 // existing index-surface import sites.
 export { parseCursor, parseNonNegativeInteger };
 
+/** Index surfaces default to 200 rows per page. */
 export function parseLimit(value: string | undefined): number {
-	if (value === undefined) return 200;
-	const parsed = Number.parseInt(value, 10);
-	if (!Number.isFinite(parsed) || parsed < 1) {
-		throw new ValidationError("limit must be a positive integer");
-	}
-	return Math.min(1000, parsed);
+	return parseSharedLimit(value, 200);
 }
 
 export function parseFilter(

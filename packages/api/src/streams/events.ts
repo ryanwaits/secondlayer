@@ -14,7 +14,11 @@ import {
 	type VmEventType,
 } from "@secondlayer/shared";
 import { ValidationError } from "@secondlayer/shared/errors";
-import { parseCursor, parseNonNegativeInteger } from "../parse-query.ts";
+import {
+	parseCursor,
+	parseLimit,
+	parseNonNegativeInteger,
+} from "../parse-query.ts";
 import type { StreamsCursorInput } from "./cursor.ts";
 import {
 	EMPTY_STREAMS_REORGS_READER,
@@ -90,15 +94,6 @@ export function markFinalized(
 
 const STREAMS_EVENT_TYPE_SET = new Set<string>(STREAMS_EVENT_TYPES);
 const VM_EVENT_TYPE_SET = new Set<string>(VM_EVENT_TYPES);
-
-function parseLimit(value: string | undefined): number {
-	if (value === undefined) return 100;
-	const parsed = Number.parseInt(value, 10);
-	if (!Number.isFinite(parsed) || parsed < 1) {
-		throw new ValidationError("limit must be a positive integer");
-	}
-	return Math.min(1000, parsed);
-}
 
 function parseClock(value: string | undefined): "classic" | "vm" {
 	if (value === undefined || value === "classic") return "classic";
@@ -395,7 +390,7 @@ export function parseStreamsEventsQuery(
 			"asset_identifier",
 		),
 		filters: parseFilters(query.get("filters") ?? undefined),
-		limit: parseLimit(query.get("limit") ?? undefined),
+		limit: parseLimit(query.get("limit") ?? undefined, 100),
 		cursorPastTip: cursor ? cursor.block_height > clampedTipHeight : false,
 	};
 }

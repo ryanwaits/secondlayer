@@ -10,6 +10,7 @@ import { ValidationError } from "@secondlayer/shared/errors";
 import { Hono } from "hono";
 import { streamSSE } from "hono/streaming";
 import { validateQueryParams } from "../middleware/validation.ts";
+import { parseLimit } from "../parse-query.ts";
 import {
 	DEFAULT_STREAMS_TOKEN_STORE,
 	type StreamsEnv,
@@ -693,16 +694,12 @@ export function createStreamsRouter(opts: StreamsRouterOptions = {}) {
 		if (resolveStreamsChain(query) === "bitcoin") {
 			const since = query.get("since");
 			if (!since) throw new ValidationError("since is required");
-			const limitRaw = query.get("limit");
-			const limit = limitRaw ? Number(limitRaw) : 100;
-			if (!Number.isSafeInteger(limit) || limit < 1) {
-				throw new ValidationError("limit must be a positive integer");
-			}
+			const limit = parseLimit(query.get("limit") ?? undefined, 100);
 			const readReorgsSince =
 				opts.readBitcoinReorgsSince ?? readStreamsBitcoinReorgsSince;
 			const reorgs = await readReorgsSince({
 				since,
-				limit: Math.min(1000, limit),
+				limit,
 			});
 			const last = reorgs.at(-1);
 			return respondSignedJson(c, {
