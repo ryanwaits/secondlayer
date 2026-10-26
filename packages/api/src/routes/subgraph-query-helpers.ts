@@ -5,6 +5,7 @@ import type {
 	SubgraphColumn,
 	SubgraphSchema,
 } from "@secondlayer/subgraphs/types";
+import { clampLimit, clampOffset } from "../parse-query.ts";
 
 export const SYSTEM_COLUMNS = new Set([
 	"_id",
@@ -169,14 +170,11 @@ export function parseQueryParams(
 			continue;
 		}
 		if (key === "_limit") {
-			limit = Math.min(
-				Math.max(1, Number.parseInt(value, 10) || DEFAULT_LIMIT),
-				MAX_LIMIT,
-			);
+			limit = clampLimit(value, DEFAULT_LIMIT, MAX_LIMIT);
 			continue;
 		}
 		if (key === "_offset") {
-			offset = Math.max(0, Number.parseInt(value, 10) || 0);
+			offset = clampOffset(value);
 			continue;
 		}
 		if (key === "_fields") {

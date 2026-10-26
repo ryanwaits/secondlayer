@@ -53,6 +53,7 @@ import {
 } from "../index/print-schema.ts";
 import { getApiKeyId } from "../lib/ownership.ts";
 import { InvalidJSONError } from "../middleware/error.ts";
+import { clampLimit, clampOffset } from "../parse-query.ts";
 import { SubgraphRegistryCache } from "../subgraphs/cache.ts";
 import { hasNonReplayableWrites } from "../subgraphs/handler-replay-safety.ts";
 import {
@@ -1773,11 +1774,8 @@ app.get("/:subgraphName/gaps", async (c) => {
 
 	const db = getDb();
 	const params = c.req.query();
-	const limit = Math.min(
-		Math.max(1, Number.parseInt(params._limit ?? "50", 10) || 50),
-		MAX_LIMIT,
-	);
-	const offset = Math.max(0, Number.parseInt(params._offset ?? "0", 10) || 0);
+	const limit = clampLimit(params._limit, 50, MAX_LIMIT);
+	const offset = clampOffset(params._offset);
 	const resolvedParam = params.resolved;
 	const unresolvedOnly =
 		resolvedParam === "true" ? false : resolvedParam !== "all";
@@ -1838,10 +1836,7 @@ app.get("/:subgraphName/errors", async (c) => {
 	const { subgraphName } = c.req.param();
 	requireSubgraph(subgraphName);
 
-	const limit = Math.min(
-		Math.max(1, Number.parseInt(c.req.query("limit") ?? "20", 10) || 20),
-		50,
-	);
+	const limit = clampLimit(c.req.query("limit"), 20, 50);
 
 	const rows = await getDb()
 		.selectFrom("subgraph_error_groups")
@@ -1876,10 +1871,7 @@ app.get("/:subgraphName/violations", async (c) => {
 	requireSubgraph(subgraphName);
 
 	const db = getDb();
-	const limit = Math.min(
-		Math.max(1, Number.parseInt(c.req.query("limit") ?? "50", 10) || 50),
-		100,
-	);
+	const limit = clampLimit(c.req.query("limit"), 50, 100);
 
 	const rows = await db
 		.selectFrom("subgraph_violations")

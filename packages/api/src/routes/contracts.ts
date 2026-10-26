@@ -6,6 +6,7 @@ import {
 	listContractsByTrait as defaultListContractsByTrait,
 } from "@secondlayer/shared/db/queries/contracts";
 import { Hono } from "hono";
+import { clampLimit } from "../parse-query.ts";
 
 const CONFORMANCE = new Set<Conformance>(["declared", "inferred", "any"]);
 
@@ -81,11 +82,7 @@ export function createContractsRouter(opts: ContractsRouterOptions = {}) {
 				400,
 			);
 		}
-		const rawLimit = Number.parseInt(c.req.query("limit") ?? "100", 10);
-		const limit = Math.min(
-			Math.max(Number.isNaN(rawLimit) ? 100 : rawLimit, 1),
-			500,
-		);
+		const limit = clampLimit(c.req.query("limit"), 100, 500);
 		const cursor = c.req.query("cursor") || undefined;
 		const includeAbi = c.req.query("include") === "abi";
 

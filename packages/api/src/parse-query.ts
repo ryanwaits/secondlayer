@@ -33,6 +33,23 @@ export function parseLimit(
 	return Math.min(1000, parsed);
 }
 
+/** Lenient page size for non-/v1 routes: garbage or <1 → `defaultLimit`,
+ *  capped at `max`. /v1 index and streams reads use strict `parseLimit`. */
+export function clampLimit(
+	value: string | undefined,
+	defaultLimit: number,
+	max: number,
+): number {
+	const parsed = Number.parseInt(value ?? "", 10);
+	return Math.min(max, parsed >= 1 ? parsed : defaultLimit);
+}
+
+/** Lenient offset for non-/v1 routes: garbage or negative → 0. */
+export function clampOffset(value: string | undefined): number {
+	const parsed = Number.parseInt(value ?? "", 10);
+	return parsed > 0 ? parsed : 0;
+}
+
 export function parseCursor(value: string): StreamsCursorInput {
 	try {
 		return decodeStreamsCursor(value);

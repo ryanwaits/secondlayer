@@ -48,6 +48,7 @@ import {
 } from "../bitcoin/db.ts";
 import { getTenantScopedAccountId } from "../lib/request-scope.ts";
 import { InvalidJSONError } from "../middleware/error.ts";
+import { clampLimit, clampOffset } from "../parse-query.ts";
 
 /**
  * Webhook CRUD routes. Platform mode scopes by accountId from auth.
@@ -284,14 +285,8 @@ app.get("/", async (c) => {
 	if (accountId === null) {
 		return c.json({ error: "Unauthorized" }, 401);
 	}
-	const limit = Math.min(
-		Math.max(Number.parseInt(c.req.query("_limit") ?? "50", 10) || 50, 1),
-		200,
-	);
-	const offset = Math.max(
-		Number.parseInt(c.req.query("_offset") ?? "0", 10) || 0,
-		0,
-	);
+	const limit = clampLimit(c.req.query("_limit"), 50, 200);
+	const offset = clampOffset(c.req.query("_offset"));
 	const rows = await listWebhooks(getDb(), accountId, { limit, offset });
 	return c.json({ data: rows.map(toSummary) });
 });
@@ -419,11 +414,7 @@ app.get("/replays", async (c) => {
 	if (accountId === null) return c.json({ error: "Unauthorized" }, 401);
 
 	const db = getDb();
-	const requested = Number.parseInt(c.req.query("_limit") ?? "20", 10);
-	const limit = Math.min(
-		50,
-		Math.max(1, Number.isFinite(requested) ? requested : 20),
-	);
+	const limit = clampLimit(c.req.query("_limit"), 20, 50);
 	const webhooks = await listWebhooks(db, accountId);
 	const data = await listReplays(db, {
 		webhookIds: webhooks.map((w) => w.id),
