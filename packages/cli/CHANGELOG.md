@@ -1,5 +1,13 @@
 # @secondlayer/cli
 
+## 22.3.2
+
+### Patch Changes
+
+- API: `?limit=` is validated the same way on every index and streams read; malformed values like `10abc`, `1.5` or `1e3` now return 400 instead of being coerced. CLI, MCP and shared: key and credits hints link to `/account/keys` and `/account/credits` again.
+- Updated dependencies
+  - @secondlayer/shared@14.0.2
+
 ## 22.3.1
 
 ### Patch Changes

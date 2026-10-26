@@ -1,6 +1,6 @@
 {
 	"name": "@secondlayer/api",
-	"version": "1.61.0",
+	"version": "1.61.1",
 	"private": true,
 	"type": "module",
 	"main": "./src/index.ts",
@@ -22,7 +22,7 @@
 		"@secondlayer/mcp": "workspace:*",
 		"@secondlayer/platform": "workspace:*",
 		"@secondlayer/sdk": "^15.5.0",
-		"@secondlayer/shared": "^14.0.0",
+		"@secondlayer/shared": "^14.0.2",
 		"@secondlayer/stacks": "^6.5.2",
 		"@secondlayer/subgraphs": "^7.7.1",
 		"ai": "7.0.133",
