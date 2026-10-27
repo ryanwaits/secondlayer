@@ -113,6 +113,27 @@
 	font-size: 12px;
 	color: var(--sub);
 }
+.site .fresh {
+	display: block;
+	margin-top: 2px;
+	font-size: 13px;
+	line-height: 1.6;
+	color: var(--sub);
+}
+.site .fresh b,
+.site .fresh .fresh-v {
+	font-weight: 500;
+	color: var(--ink);
+}
+.site .fresh-dot {
+	display: inline-block;
+	width: 7px;
+	height: 7px;
+	margin-right: 6px;
+	border-radius: 50%;
+	background: var(--hi);
+	vertical-align: 0.05em;
+}
 .site .hl {
 	color: var(--on-hi);
 	padding: 0 0.1em;

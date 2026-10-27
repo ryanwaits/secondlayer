@@ -1,7 +1,7 @@
 "use client";
 
 import NumberFlow from "@number-flow/react";
-import { useEffect, useRef, useState } from "react";
+import { type ReactNode, useEffect, useRef, useState } from "react";
 
 /**
  * Big figure with a caption. SSR renders the final number; on mount it
@@ -9,7 +9,10 @@ import { useEffect, useRef, useState } from "react";
  * roll from the current figure. NumberFlow skips the motion for
  * prefers-reduced-motion, and we skip the snap-down in that case.
  */
-export function Odometer({ value, label }: { value: number; label: string }) {
+export function Odometer({
+	value,
+	label,
+}: { value: number; label: ReactNode }) {
 	const [shown, setShown] = useState(value);
 	const [animated, setAnimated] = useState(true);
 	const mounted = useRef(false);

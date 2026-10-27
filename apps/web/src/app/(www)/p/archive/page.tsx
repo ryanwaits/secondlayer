@@ -1,5 +1,6 @@
 import { Code } from "@/components/code/code";
 import {
+	ArchiveFreshness,
 	ButtonLink,
 	CloseBand,
 	Eyebrow,
@@ -16,6 +17,7 @@ import { ArchiveHero } from "@/components/site/assets";
 import { DownloadIcon, LayersIcon, LockIcon } from "@/components/site/icons";
 import {
 	formatCount,
+	getArchiveFreshness,
 	getLatestPartitions,
 	getSignedCounts,
 	manifestRows,
@@ -153,7 +155,10 @@ const LEVELS: readonly {
 ];
 
 export default async function ArchivePage() {
-	const signed = await getSignedCounts();
+	const [signed, status] = await Promise.all([
+		getSignedCounts(),
+		getArchiveFreshness(),
+	]);
 	const partitions = await getLatestPartitions(signed.snapshotPath);
 	const toBlock = formatCount(signed.toBlock);
 	const blocks = formatCount(signed.blocks);
@@ -173,7 +178,18 @@ export default async function ArchivePage() {
 								Read the docs
 							</ButtonLink>
 						</div>
-						<Odometer value={signed.blocks} label="blocks, zero gaps" />
+						<Odometer
+							value={signed.blocks}
+							label={
+								<ArchiveFreshness
+									toBlock={status?.toBlock ?? signed.toBlock}
+									promotedAt={status?.promotedAt ?? signed.promotedAt}
+									state={status?.state ?? "unknown"}
+									nextPublishAt={status?.nextPublishAt ?? null}
+									behindTip={status?.behindTip ?? null}
+								/>
+							}
+						/>
 					</div>
 					<div className="hero-art">
 						<ArchiveHero counts={signed} partitions={partitions} />
