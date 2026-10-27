@@ -205,7 +205,7 @@ Immutable, digest-addressed Parquet partitions on R2, published from a repeatabl
 | `blocks/`, `transactions/`, `events/`, `state_writes/` | Range-partitioned Parquet, digest in the filename. Served only through the fetch gate (presigned URLs, see [Credits](#credits)); every other object here is public. |
 | `digests/<range>-<sha16>.parquet` | Per-height sidecar: one row per height with the block digest and rolled-up transaction and event digests. |
 | `attestations/<digest>/node.json` | Signed independent node audit. `coverage` is the attested window; `stats` is exact; `mismatches[]` is a capped sample. |
-| `status.json` | Short-cache operational state: `fresh`, `lagging`, `stale`, `gap`, `failed-audit`, `source-unavailable`. `source.decoder_head` is the running Index decoder; `archive.coverage_to_block` is the last signed publish. |
+| `status.json` | Short-cache operational state: `fresh`, `lagging`, `stale`, `gap`, `failed-audit`, `source-unavailable`. `source.decoder_head` is the running Index decoder; `archive.coverage_to_block` is the last signed publish; `next_publish_at` is when the next one starts (UTC). |
 | `reports/incidents/` | Signed incident reports, newest first via `index.json`. |
 
 Publishing is append-only. Each partition carries a SHA-256 over its bytes and a semantic-v1 digest over its canonical encoding. The manifest is ed25519-signed.
