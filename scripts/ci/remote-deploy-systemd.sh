@@ -6,9 +6,11 @@ set -euo pipefail
 
 export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:${HOME:-/root}/.bun/bin:${PATH:-}"
 
-DEPLOY_SCRIPT="/opt/secondlayer/docker/scripts/deploy.sh"
+DEPLOY_SCRIPT="${DEPLOY_SCRIPT:-/opt/secondlayer/docker/scripts/deploy.sh}"
 POLL_TIMEOUT_SECONDS="${DEPLOY_POLL_TIMEOUT_SECONDS:-3600}"
 POLL_INTERVAL_SECONDS="${DEPLOY_POLL_INTERVAL_SECONDS:-15}"
+MAX_TOTAL_SECONDS="${DEPLOY_MAX_TOTAL_SECONDS:-19800}"
+HOLD_NOTE_INTERVAL_SECONDS="${DEPLOY_HOLD_NOTE_INTERVAL_SECONDS:-300}"
 DEPLOY_IMAGE_TAG="${DEPLOY_IMAGE_TAG:-$DEPLOY_SHA}"
 
 if [[ ! "$DEPLOY_UNIT" =~ ^[A-Za-z0-9_.:@-]+$ ]]; then
@@ -45,6 +47,16 @@ unit_property() {
 	local property="$1"
 
 	systemctl show "$UNIT_NAME" --property="$property" --value 2>/dev/null || true
+}
+
+# True while docker/scripts/deploy.sh is waiting on a running archive publish
+# before touching the indexer. The substrings come from its
+# wait_for_archive_publish_idle echo lines; keep them in sync.
+held_by_archive_publish() {
+	local log
+	log="$(journalctl -u "$UNIT_NAME" --no-pager 2>/dev/null || true)"
+	[[ "$log" == *"is running — waiting for it to finish before touching indexer"* ]] \
+		&& [[ "$log" != *"finished — resuming deploy"* ]]
 }
 
 fail_from_unit() {
@@ -84,8 +96,15 @@ JOURNAL_TAIL_INTERVAL_SECONDS="${DEPLOY_JOURNAL_TAIL_INTERVAL_SECONDS:-60}"
 JOURNAL_TAIL_LINES="${DEPLOY_JOURNAL_TAIL_LINES:-40}"
 last_state_key=""
 last_journal_tail_at=$((SECONDS - JOURNAL_TAIL_INTERVAL_SECONDS))
+# The archive-publish hold does not count against the deploy budget: each
+# poll spent held pushes the deadline out by the time since the last poll.
+held_seconds=0
+last_hold_note_at=$((SECONDS - HOLD_NOTE_INTERVAL_SECONDS))
+last_poll_at=$SECONDS
 
-while ((SECONDS < deadline)); do
+while ((SECONDS < deadline && SECONDS < MAX_TOTAL_SECONDS)); do
+	elapsed=$((SECONDS - last_poll_at))
+	last_poll_at=$SECONDS
 	active_state="$(unit_property ActiveState)"
 	sub_state="$(unit_property SubState)"
 	result="$(unit_property Result)"
@@ -97,7 +116,18 @@ while ((SECONDS < deadline)); do
 		last_state_key="$state_key"
 	fi
 
-	if [[ "$active_state" == "active" ]] && (( SECONDS - last_journal_tail_at >= JOURNAL_TAIL_INTERVAL_SECONDS )); then
+	held=false
+	if [[ "$active_state" == "active" ]] && held_by_archive_publish; then
+		held=true
+		deadline=$((deadline + elapsed))
+		held_seconds=$((held_seconds + elapsed))
+		if (( SECONDS - last_hold_note_at >= HOLD_NOTE_INTERVAL_SECONDS )); then
+			echo "⏳ Deploy held by the archive publish for $((held_seconds / 60))m (export running; deploy.sh resumes when it finishes). Not a failure."
+			last_hold_note_at=$SECONDS
+		fi
+	fi
+
+	if [[ "$held" == "false" && "$active_state" == "active" ]] && (( SECONDS - last_journal_tail_at >= JOURNAL_TAIL_INTERVAL_SECONDS )); then
 		echo "--- ${UNIT_NAME} journal (last ${JOURNAL_TAIL_LINES} lines) ---"
 		journalctl -u "$UNIT_NAME" --no-pager -n "$JOURNAL_TAIL_LINES" || true
 		echo "--- end journal tail ---"
@@ -130,4 +160,7 @@ done
 echo "Timed out after ${POLL_TIMEOUT_SECONDS}s waiting for ${UNIT_NAME}; leaving the host unit running for inspection."
 echo "Inspect with: systemctl status ${UNIT_NAME}"
 echo "Follow logs with: journalctl -u ${UNIT_NAME} -f"
+if ((held_seconds > 0)); then
+	echo "(held by the archive publish for $((held_seconds / 60))m)"
+fi
 exit 124
