@@ -53,7 +53,7 @@ fail() {
   # someone fixes it, not a new surprise every week.
   if [ ! -f "$STATE_FILE" ]; then
     touch "$STATE_FILE" 2>/dev/null || true
-    post_slack "🔴 secondlayer archive publish failed at ${stage}: ${detail}"
+    post_slack "🔴 secondlayer archive publish failed at ${stage}: ${detail}" --force
   fi
   exit 1
 }
@@ -156,7 +156,7 @@ fi
 # state.
 case "$STATE" in
   fresh|lagging) ;;
-  *) post_slack "⚠️ secondlayer archive published but status is ${STATE} (through ${COVERAGE})" ;;
+  *) post_slack "⚠️ secondlayer archive published but status is ${STATE} (through ${COVERAGE})" --force ;;
 esac
 
 exit 0

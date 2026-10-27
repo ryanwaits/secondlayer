@@ -31,7 +31,7 @@ echo "$(date -u +%FT%TZ) archive-status exit=$status state=${STATE:-unknown}"
 if [ "$status" -ne 0 ]; then
   if [ ! -f "$STATE_FILE" ]; then
     touch "$STATE_FILE" 2>/dev/null || true
-    post_slack "🔴 secondlayer archive status refresh failed (exit $status)"
+    post_slack "🔴 secondlayer archive status refresh failed (exit $status)" --force
   fi
   exit 1
 fi
@@ -49,7 +49,7 @@ case "$STATE" in
   *)
     if [ ! -f "$STATE_FILE" ]; then
       touch "$STATE_FILE" 2>/dev/null || true
-      post_slack "🔴 secondlayer archive status is ${STATE} — see status.json"
+      post_slack "🔴 secondlayer archive status is ${STATE} — see status.json" --force
     fi
     ;;
 esac
