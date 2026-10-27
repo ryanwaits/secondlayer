@@ -12,7 +12,8 @@ indexer_unchanged() {
   running_image=$(docker inspect -f '{{.Config.Image}}' "$container" 2>/dev/null) || return 1
   running_tag="${running_image##*:}"
   [ -n "$running_tag" ] && [ "$running_tag" != "$running_image" ] || return 1
-  new_image=$($COMPOSE config --images indexer 2>/dev/null | head -n1)
+  # config --images also lists dependency images, so pick by the indexer repository
+  new_image=$($COMPOSE config --images indexer 2>/dev/null | grep -F "${running_image%:*}:" | head -n1)
   [ -n "$new_image" ] || return 1
   [ "$new_image" != "$running_image" ] || return 1 # same reference: compose decides, as before
   running_layers=$(docker image inspect -f '{{json .RootFS.Layers}}' "$(docker inspect -f '{{.Image}}' "$container" 2>/dev/null)" 2>/dev/null) || return 1

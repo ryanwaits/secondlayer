@@ -25,7 +25,10 @@ esac
 
 const COMPOSE = `#!/bin/bash
 case "$*" in
-  "config --images indexer") echo "$NEW_IMAGE" ;;
+  "config --images indexer")
+    echo "postgres:17-alpine"
+    echo "ghcr.io/o/secondlayer-api:bbb"
+    [ -n "$NEW_IMAGE" ] && echo "$NEW_IMAGE" ;;
   "config --hash indexer")
     if [ "$DEPLOY_IMAGE_TAG" = "$RUNNING_TAG" ]; then echo "indexer $PINNED_HASH"; else echo "indexer other"; fi ;;
   *) exit 1 ;;
@@ -82,6 +85,9 @@ describe("indexer_unchanged", () => {
 	});
 	it("a new image reference equal to the running one is changed", () => {
 		expect(probe({ NEW_IMAGE: base.RUNNING_IMAGE })).toBe("changed");
+	});
+	it("dependency images listed before the indexer's do not decide the answer", () => {
+		expect(probe({ NEW_IMAGE: "" })).toBe("changed");
 	});
 	it("a missing container is changed", () => {
 		expect(probe({ NO_CONTAINER: "1" })).toBe("changed");
