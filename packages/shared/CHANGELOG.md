@@ -1,5 +1,11 @@
 # @secondlayer/shared
 
+## 14.1.0
+
+### Minor Changes
+
+- da6c40e: Archive status carries `next_publish_at`, the next scheduled publish in UTC.
+
 ## 14.0.2
 
 ### Patch Changes

@@ -1,5 +1,13 @@
 # @secondlayer/workload
 
+## 0.2.20
+
+### Patch Changes
+
+- Updated dependencies [da6c40e]
+  - @secondlayer/shared@14.1.0
+  - @secondlayer/platform@0.10.2
+
 ## 0.2.19
 
 ### Patch Changes
