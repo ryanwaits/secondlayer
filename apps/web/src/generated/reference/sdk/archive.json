@@ -627,6 +627,12 @@
 					"description": ""
 				},
 				{
+					"name": "next_publish_at",
+					"type": "string",
+					"required": true,
+					"description": "Next scheduled publish start (UTC ISO). Job start, not promotion landing."
+				},
+				{
 					"name": "archive",
 					"type": "{ snapshot_digest: string | null; coverage_to_block: number | null; promoted_at: string | null; signing_key_id: string | null }",
 					"required": true,
