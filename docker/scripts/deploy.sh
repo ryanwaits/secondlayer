@@ -118,6 +118,8 @@ MIGRATION_LOCK_HOLDERS="api indexer decoder worker"
 ARCHIVE_PUBLISH_UNIT="secondlayer-archive-publish.service"
 ARCHIVE_PUBLISH_WAIT_TIMEOUT_SECONDS="${ARCHIVE_PUBLISH_WAIT_TIMEOUT_SECONDS:-21600}"
 ARCHIVE_PUBLISH_POLL_INTERVAL_SECONDS="${ARCHIVE_PUBLISH_POLL_INTERVAL_SECONDS:-60}"
+# shellcheck source=lib/archive-publish-busy.sh
+. "$(dirname "${BASH_SOURCE[0]}")/lib/archive-publish-busy.sh"
 
 # 2026-09-27 and 2026-09-07: a deploy landed mid-export and stopped or
 # recreated secondlayer-indexer-1 (via the migration lock-holder stop, or the
@@ -127,15 +129,18 @@ ARCHIVE_PUBLISH_POLL_INTERVAL_SECONDS="${ARCHIVE_PUBLISH_POLL_INTERVAL_SECONDS:-
 # and the exit-137/retry churn it causes. Checked once, before anything below
 # can touch indexer — the migration-stop path and the bulk recreate both go
 # through this same gate rather than each needing their own.
+# 2026-10-14: the gate never waited. The unit is Type=oneshot, which reports
+# `activating` while running; `systemctl is-active` exits 3 for that and read
+# as idle. archive_publish_busy checks ActiveState instead.
 wait_for_archive_publish_idle() {
-  if ! systemctl is-active --quiet "$ARCHIVE_PUBLISH_UNIT" 2>/dev/null; then
+  if ! archive_publish_busy; then
     return 0
   fi
-  echo "⏳ ${ARCHIVE_PUBLISH_UNIT} is active — waiting for it to finish before touching indexer..."
+  echo "⏳ ${ARCHIVE_PUBLISH_UNIT} is running — waiting for it to finish before touching indexer..."
   local waited=0
-  while systemctl is-active --quiet "$ARCHIVE_PUBLISH_UNIT" 2>/dev/null; do
+  while archive_publish_busy; do
     if [ "$waited" -ge "$ARCHIVE_PUBLISH_WAIT_TIMEOUT_SECONDS" ]; then
-      echo "ERROR: ${ARCHIVE_PUBLISH_UNIT} still active after ${ARCHIVE_PUBLISH_WAIT_TIMEOUT_SECONDS}s — refusing to touch indexer mid-export"
+      echo "ERROR: ${ARCHIVE_PUBLISH_UNIT} still running after ${ARCHIVE_PUBLISH_WAIT_TIMEOUT_SECONDS}s — refusing to touch indexer mid-export"
       return 1
     fi
     sleep "$ARCHIVE_PUBLISH_POLL_INTERVAL_SECONDS"
