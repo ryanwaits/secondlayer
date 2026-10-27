@@ -1,4 +1,10 @@
 import { PLATFORM_API_URL } from "@/lib/api";
+import {
+	type ArchiveFreshnessData,
+	type PartitionNames,
+	lastPartitions,
+	readArchiveFreshness,
+} from "@/lib/archive-freshness";
 import { readEventsTotal } from "@/lib/status-fields";
 
 /**
@@ -20,6 +26,10 @@ export interface SignedCounts {
 	events: number;
 	/** Highest block in the signed set (coverage.to_block). */
 	toBlock: number;
+	/** When the manifest was promoted (ISO); null if the manifest has no date. */
+	promotedAt: string | null;
+	/** Snapshot manifest path (`snapshots/<digest>.json`); null if unknown. */
+	snapshotPath: string | null;
 }
 
 /** 2026-10-07 publish. Used only when the manifest can't be read. */
@@ -28,6 +38,8 @@ const FALLBACK: SignedCounts = {
 	transactions: 29_861_044,
 	events: 294_300_251,
 	toBlock: 9_137_864,
+	promotedAt: "2026-10-07T10:17:49.516Z",
+	snapshotPath: null,
 };
 
 const TIMEOUT_MS = 1500;
@@ -42,6 +54,8 @@ export async function getSignedCounts(): Promise<SignedCounts> {
 		const m = (await res.json()) as {
 			counts?: Partial<Record<"blocks" | "transactions" | "events", number>>;
 			coverage?: { to_block?: number };
+			promoted_at?: string;
+			snapshot_path?: string;
 		};
 		const { blocks, transactions, events } = m.counts ?? {};
 		const toBlock = m.coverage?.to_block;
@@ -52,9 +66,52 @@ export async function getSignedCounts(): Promise<SignedCounts> {
 			typeof toBlock !== "number"
 		)
 			return FALLBACK;
-		return { blocks, transactions, events, toBlock };
+		return {
+			blocks,
+			transactions,
+			events,
+			toBlock,
+			promotedAt: typeof m.promoted_at === "string" ? m.promoted_at : null,
+			snapshotPath:
+				typeof m.snapshot_path === "string" ? m.snapshot_path : null,
+		};
 	} catch {
 		return FALLBACK;
+	}
+}
+
+export const ARCHIVE_STATUS_URL =
+	"https://archive.secondlayer.tools/status.json";
+
+/** The archive's published status, or null on any failure. */
+export async function getArchiveFreshness(): Promise<ArchiveFreshnessData | null> {
+	try {
+		const res = await fetch(ARCHIVE_STATUS_URL, {
+			next: { revalidate: 60 },
+			signal: AbortSignal.timeout(TIMEOUT_MS),
+		});
+		return res.ok ? readArchiveFreshness(await res.json()) : null;
+	} catch {
+		return null;
+	}
+}
+
+/** Newest partition names per dataset from the signed snapshot manifest; null on any failure. */
+export async function getLatestPartitions(
+	snapshotPath: string | null,
+): Promise<PartitionNames | null> {
+	if (!snapshotPath) return null;
+	try {
+		const res = await fetch(
+			`https://archive.secondlayer.tools/${snapshotPath}`,
+			{
+				next: { revalidate: 3600 },
+				signal: AbortSignal.timeout(TIMEOUT_MS),
+			},
+		);
+		return res.ok ? lastPartitions(await res.json()) : null;
+	} catch {
+		return null;
 	}
 }
 

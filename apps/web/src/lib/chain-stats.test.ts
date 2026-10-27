@@ -23,6 +23,8 @@ describe("manifestRows", () => {
 		transactions: 29_861_044,
 		events: 294_300_251,
 		toBlock: 9_137_864,
+		promotedAt: "2026-10-07T10:17:49.516Z",
+		snapshotPath: null,
 	};
 
 	test("shares of the set add up to 100 within rounding", () => {

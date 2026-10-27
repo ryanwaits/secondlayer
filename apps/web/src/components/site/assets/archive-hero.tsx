@@ -1,10 +1,37 @@
-/** Signed partitions and the zero-gap arithmetic. Snapshot figures dated 2026-09-09. */
-export function ArchiveHero() {
+import type { PartitionNames } from "@/lib/archive-freshness";
+import {
+	type SignedCounts,
+	formatCount,
+	manifestRows,
+} from "@/lib/chain-stats";
+
+/** Used when the snapshot manifest can't be read. */
+const STATIC_NAMES: PartitionNames = {
+	blocks: "8940000-8949999-e4ea….parquet",
+	transactions: "8940000-8949999-9b1c….parquet",
+	events: "8940000-8949999-03d7….parquet",
+};
+
+/** Signed partitions and the zero-gap arithmetic, from the signed manifests. */
+export function ArchiveHero({
+	counts,
+	partitions,
+}: {
+	counts: SignedCounts;
+	partitions: PartitionNames | null;
+}) {
+	const names = partitions ?? STATIC_NAMES;
+	const share = (dataset: string) =>
+		`${manifestRows(counts)
+			.find((r) => r.dataset === dataset)
+			?.share.toFixed(2)}%`;
+	const blocks = formatCount(counts.blocks);
+	const span = formatCount(counts.toBlock);
 	return (
 		<svg
 			viewBox="0 0 460 400"
 			role="img"
-			aria-label="Three signed partition files for blocks, transactions and events, sealed by one ed25519 manifest, with the zero-gap arithmetic: 8,948,507 blocks over the span 0 to 8,948,506"
+			aria-label={`Three signed partition files for blocks, transactions and events, sealed by one ed25519 manifest, with the zero-gap arithmetic: ${blocks} blocks over the span 0 to ${span}`}
 		>
 			<g strokeWidth="1">
 				<rect
@@ -37,28 +64,28 @@ export function ArchiveHero() {
 					blocks/
 				</text>
 				<text x="300" y="64" textAnchor="end" className="f-sub">
-					3.15%
+					{share("blocks")}
 				</text>
 				<text x="40" y="83" className="f-sub" fontSize="10.5">
-					8940000-8949999-e4ea….parquet
+					{names.blocks}
 				</text>
 				<text x="40" y="132" className="f-ink">
 					transactions/
 				</text>
 				<text x="300" y="132" textAnchor="end" className="f-sub">
-					10.31%
+					{share("transactions")}
 				</text>
 				<text x="40" y="151" className="f-sub" fontSize="10.5">
-					8940000-8949999-9b1c….parquet
+					{names.transactions}
 				</text>
 				<text x="40" y="200" className="f-ink">
 					events/
 				</text>
 				<text x="300" y="200" textAnchor="end" className="f-sub">
-					86.53%
+					{share("events")}
 				</text>
 				<text x="40" y="219" className="f-sub" fontSize="10.5">
-					8940000-8949999-03d7….parquet
+					{names.events}
 				</text>
 			</g>
 			<g className="s-sub" strokeWidth="1" fill="none">
@@ -89,13 +116,13 @@ export function ArchiveHero() {
 					blocks
 				</text>
 				<text x="440" y="300" textAnchor="end" className="f-ink">
-					8,948,507
+					{blocks}
 				</text>
 				<text x="20" y="326" className="f-sub">
-					span 0 → 8,948,506
+					span 0 → {span}
 				</text>
 				<text x="440" y="326" textAnchor="end" className="f-ink">
-					8,948,507
+					{blocks}
 				</text>
 			</g>
 			<path d="M300 340h140" className="s-ink" strokeWidth="1" />

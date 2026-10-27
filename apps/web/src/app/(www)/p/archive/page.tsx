@@ -14,7 +14,12 @@ import {
 } from "@/components/site";
 import { ArchiveHero } from "@/components/site/assets";
 import { DownloadIcon, LayersIcon, LockIcon } from "@/components/site/icons";
-import { formatCount, getSignedCounts, manifestRows } from "@/lib/chain-stats";
+import {
+	formatCount,
+	getLatestPartitions,
+	getSignedCounts,
+	manifestRows,
+} from "@/lib/chain-stats";
 import { socialMeta } from "@/lib/og";
 import { GITHUB_URL } from "@/lib/site";
 import { PRODUCTS } from "@/lib/site";
@@ -149,6 +154,7 @@ const LEVELS: readonly {
 
 export default async function ArchivePage() {
 	const signed = await getSignedCounts();
+	const partitions = await getLatestPartitions(signed.snapshotPath);
 	const toBlock = formatCount(signed.toBlock);
 	const blocks = formatCount(signed.blocks);
 	return (
@@ -170,7 +176,7 @@ export default async function ArchivePage() {
 						<Odometer value={signed.blocks} label="blocks, zero gaps" />
 					</div>
 					<div className="hero-art">
-						<ArchiveHero />
+						<ArchiveHero counts={signed} partitions={partitions} />
 					</div>
 				</div>
 
