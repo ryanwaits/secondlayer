@@ -120,6 +120,8 @@ ARCHIVE_PUBLISH_WAIT_TIMEOUT_SECONDS="${ARCHIVE_PUBLISH_WAIT_TIMEOUT_SECONDS:-21
 ARCHIVE_PUBLISH_POLL_INTERVAL_SECONDS="${ARCHIVE_PUBLISH_POLL_INTERVAL_SECONDS:-60}"
 # shellcheck source=lib/archive-publish-busy.sh
 . "$(dirname "${BASH_SOURCE[0]}")/lib/archive-publish-busy.sh"
+# shellcheck source=lib/indexer-unchanged.sh
+. "$(dirname "${BASH_SOURCE[0]}")/lib/indexer-unchanged.sh"
 
 # 2026-09-27 and 2026-09-07: a deploy landed mid-export and stopped or
 # recreated secondlayer-indexer-1 (via the migration lock-holder stop, or the
@@ -204,7 +206,16 @@ if ! flock -w "$DB_MAINTENANCE_LOCK_TIMEOUT_SECONDS" 9; then
   exit 1
 fi
 
-wait_for_archive_publish_idle || exit 1
+# An unchanged indexer (same layers, same config, no migration) is left
+# running: recreating it restarts identical code and would kill a running
+# archive export for nothing. Anything else waits for the publish as before.
+KEEP_INDEXER=false
+if [ "$MIGRATIONS_CHANGED" = "false" ] && indexer_unchanged; then
+  KEEP_INDEXER=true
+  echo "✅ indexer unchanged (same image layers and config) — leaving it running; no archive-publish wait"
+else
+  wait_for_archive_publish_idle || exit 1
+fi
 
 # Force-remove orphan containers from removed/renamed services. These are
 # live containers from older deploys whose service no longer exists in the
@@ -313,10 +324,17 @@ rolling_recreate_api() {
 # compose recreates every api replica at once here, before the rolling step,
 # and in-flight reads fail. When api is down (migration path), deps are fine:
 # there is nothing to keep serving yet.
+_bulk_services="$APP_SERVICES_NO_API"
+if [ "$KEEP_INDEXER" = "true" ]; then
+  _bulk_services=""
+  for _svc in $APP_SERVICES_NO_API; do
+    [ "$_svc" = "indexer" ] || _bulk_services="$_bulk_services $_svc"
+  done
+fi
 if [ -n "$($COMPOSE ps -q api 2>/dev/null)" ]; then
-  $COMPOSE up -d --no-build --no-deps --remove-orphans $APP_SERVICES_NO_API
+  $COMPOSE up -d --no-build --no-deps --remove-orphans $_bulk_services
 else
-  $COMPOSE up -d --no-build --remove-orphans $APP_SERVICES_NO_API
+  $COMPOSE up -d --no-build --remove-orphans $_bulk_services
 fi
 rolling_recreate_api || { echo "ERROR: api rolling recreate failed"; exit 1; }
 
