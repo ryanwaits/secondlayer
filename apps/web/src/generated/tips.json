@@ -161,19 +161,19 @@
 					"type": "string"
 				},
 				{
+					"name": "next_publish_at",
+					"type": "string"
+				},
+				{
 					"name": "archive",
 					"type": "…"
 				},
 				{
 					"name": "source",
 					"type": "…"
-				},
-				{
-					"name": "lag",
-					"type": "…"
 				}
 			],
-			"more": 3,
+			"more": 4,
 			"route": "/docs/sdk-reference/archive",
 			"anchor": "t-ArchiveStatus"
 		},
