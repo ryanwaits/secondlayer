@@ -82,6 +82,16 @@ sudo systemctl enable --now \
   secondlayer-archive-status.timer
 ```
 
+### Timer changes
+
+Deploys reset the repo but do not reinstall units. After editing a `.timer` or `.service`, re-copy it and reload:
+
+```bash
+sudo cp /opt/secondlayer/docker/systemd/<unit> /etc/systemd/system/
+sudo systemctl daemon-reload
+systemctl list-timers 'secondlayer-*'
+```
+
 ## Verify
 
 ```bash

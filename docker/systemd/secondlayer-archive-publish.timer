@@ -7,7 +7,7 @@ Description=Run the Secondlayer canonical archive publish cycle twice weekly
 # finalized). A weekly cadence could not — it aged past the age rule on day 5
 # and past the height rule on day ~7, so the archive reported `stale` every
 # week whether or not anything was wrong.
-OnCalendar=Wed,Sun *-*-* 08:00:00
+OnCalendar=Wed,Sun *-*-* 08:00:00 UTC
 AccuracySec=5m
 Persistent=true
 Unit=secondlayer-archive-publish.service

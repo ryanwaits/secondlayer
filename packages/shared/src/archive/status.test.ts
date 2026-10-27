@@ -38,6 +38,25 @@ describe("archive status", () => {
 		expect(status.state).toBe("fresh");
 	});
 
+	test("every state carries next_publish_at from the schedule", () => {
+		const cases: Partial<StatusInputs>[] = [
+			{ sourceTipHeight: 8_745_422 }, // fresh
+			{}, // lagging
+			{ finalizedHeight: 8_900_000 }, // stale
+			{ audit: { complete: false, checkedAt: "2026-08-12T06:30:00.000Z" } },
+		];
+		for (const c of cases) {
+			const status = deriveArchiveStatus(inputs(c));
+			expect(status.next_publish_at).toBe(
+				nextScheduledArchivePublish(NOW).toISOString(),
+			);
+		}
+		expect(
+			deriveArchiveStatus(inputs({ finalizedHeight: 8_900_000 })).state,
+		).toBe("stale");
+		expect(deriveArchiveStatus(inputs()).state).toBe("lagging");
+	});
+
 	test("behind the tip but inside the finality boundary is LAGGING, not stale", () => {
 		// 38 blocks behind the tip, 0 behind finalized. This is the steady state
 		// of a healthy archive and must never read as a problem.

@@ -48,6 +48,8 @@ export type ArchiveStatus = {
 	/** Human-facing one-liner explaining the state, including WHY. */
 	detail: string;
 	generated_at: string;
+	/** Next scheduled publish start (UTC ISO). Job start, not promotion landing. */
+	next_publish_at: string;
 	archive: {
 		snapshot_digest: string | null;
 		coverage_to_block: number | null;
@@ -124,7 +126,7 @@ const DEFAULT_MAX_BLOCKS_BEHIND_FINALIZED = 60_000;
  */
 const DEFAULT_MAX_SECONDS_SINCE_PROMOTION = 5 * 24 * 3_600;
 
-/** systemd `OnCalendar=Wed,Sun *-*-* 08:00:00`. Host is UTC. Job start, not promotion landing. */
+/** systemd `OnCalendar=Wed,Sun *-*-* 08:00:00 UTC`; the timer pins UTC itself, whatever the host zone. Job start, not promotion landing. */
 const PUBLISH_HOUR_UTC = 8;
 const PUBLISH_WEEKDAYS_UTC = new Set([0, 3]);
 
@@ -207,6 +209,7 @@ export function deriveArchiveStatus(inputs: StatusInputs): ArchiveStatus {
 			ARCHIVE_STATUS_SCHEMA_VERSION as typeof ARCHIVE_STATUS_SCHEMA_VERSION,
 		network: inputs.network,
 		generated_at: inputs.now.toISOString(),
+		next_publish_at: nextScheduledArchivePublish(inputs.now).toISOString(),
 		archive: {
 			snapshot_digest: inputs.snapshotDigest,
 			coverage_to_block: inputs.coverageToBlock,
