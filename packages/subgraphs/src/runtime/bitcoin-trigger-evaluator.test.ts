@@ -8,6 +8,7 @@ import {
 	type BitcoinStreamsSource,
 	advanceBitcoinCursor,
 	emitRuneOutbox,
+	hasActiveRuneWebhooks,
 	matchRuneTrigger,
 	referencedRuneEventTypes,
 	runBitcoinEvaluatorOnce,
@@ -105,10 +106,12 @@ function stubSource(opts: {
 	tip: number;
 	events?: RuneStreamsEvent[];
 	nextCursor?: string | null;
-}): BitcoinStreamsSource & { loadEventsCalls: number } {
+}): BitcoinStreamsSource & { getTipCalls: number; loadEventsCalls: number } {
 	const source = {
+		getTipCalls: 0,
 		loadEventsCalls: 0,
 		async getTip() {
+			source.getTipCalls++;
 			return opts.tip;
 		},
 		async loadEvents() {
@@ -193,6 +196,14 @@ describe("matchRuneTrigger", () => {
 	});
 });
 
+describe("hasActiveRuneWebhooks", () => {
+	it("turns true once an active webhook has a Runes trigger", async () => {
+		await makeSub([{ type: "contract_call" }]);
+		await makeSub([{ type: "rune_etch" }]);
+		expect(await hasActiveRuneWebhooks(db)).toBe(true);
+	});
+});
+
 describe("runeSubsOf / referencedRuneEventTypes", () => {
 	it("excludes a webhook whose triggers are all Stacks", async () => {
 		const sub = await makeSub([{ type: "contract_call" }]);
@@ -233,16 +244,30 @@ describe("runBitcoinEvaluatorOnce", () => {
 		expect(await bitcoinCursor()).toBe("968500:2147483647");
 	});
 
-	it("fast-forwards every tick while there are no active Runes webhooks, even with a cursor already set", async () => {
+	it("never reads the Bitcoin feed without active Runes webhooks, and clears the cursor", async () => {
 		await makeSub([{ type: "contract_call" }]); // Stacks-only — invisible here
 		await setBitcoinCursor("968000:0");
 		const source = stubSource({ tip: 968_600 });
 
 		const result = await runBitcoinEvaluatorOnce(db, source);
 
-		expect(result.emitted).toBe(0);
+		expect(result).toEqual({ emitted: 0, advanced: false });
+		expect(source.getTipCalls).toBe(0);
 		expect(source.loadEventsCalls).toBe(0);
-		expect(await bitcoinCursor()).toBe("968600:2147483647");
+		expect(await bitcoinCursor()).toBeNull();
+	});
+
+	it("the first Runes webhook after an idle stretch starts at tip, not from a stale cursor", async () => {
+		await setBitcoinCursor("968000:0");
+		await runBitcoinEvaluatorOnce(db, stubSource({ tip: 968_600 })); // idle: clears
+
+		await makeSub([{ type: "rune_mint" }]);
+		const source = stubSource({ tip: 968_700 });
+		const result = await runBitcoinEvaluatorOnce(db, source);
+
+		expect(result).toEqual({ emitted: 0, advanced: true });
+		expect(source.loadEventsCalls).toBe(0);
+		expect(await bitcoinCursor()).toBe("968700:2147483647");
 	});
 
 	it("loads a page, matches, emits an apply row per match, and advances the cursor", async () => {

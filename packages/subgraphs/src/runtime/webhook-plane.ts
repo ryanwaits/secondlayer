@@ -1,6 +1,7 @@
 import { getTargetDb } from "@secondlayer/shared/db";
 import { listActiveChainWebhooks } from "@secondlayer/shared/db/queries/webhooks";
 import { logger } from "@secondlayer/shared/logger";
+import { hasActiveRuneWebhooks } from "./bitcoin-trigger-evaluator.ts";
 import { handleChainReorg } from "./chain-reorg.ts";
 import { startEmitter } from "./emitter.ts";
 import { startInsightsLoop } from "./insights-loop.ts";
@@ -58,6 +59,7 @@ export async function startWebhookPlane(): Promise<() => Promise<void>> {
 					handleChainReorg(forkHeight, undefined, "bitcoin"),
 				),
 				"bitcoin",
+				() => hasActiveRuneWebhooks(),
 			)
 		: undefined;
 

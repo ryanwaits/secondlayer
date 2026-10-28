@@ -71,6 +71,10 @@ export async function pollReorgsOnce(
 export function startStreamsReorgPoll(
 	onReorg: OnReorg,
 	chain: "stacks" | "bitcoin" = "stacks",
+	/** Skip the fetch while this says nothing needs the feed. `since` holds
+	 *  still meanwhile, so reorgs from the skipped window still arrive on the
+	 *  first poll after it turns true. */
+	needed: () => Promise<boolean> = async () => true,
 ): () => void {
 	const http = createInternalIndexHttpClient();
 
@@ -85,7 +89,9 @@ export function startStreamsReorgPoll(
 		if (!running) return;
 		if (handled.size > 10_000) handled.clear();
 		try {
-			since = await pollReorgsOnce(http, since, onReorg, handled, chain);
+			if (await needed()) {
+				since = await pollReorgsOnce(http, since, onReorg, handled, chain);
+			}
 		} catch (err) {
 			logger.error("Streams reorg poll failed", {
 				error: getErrorMessage(err),

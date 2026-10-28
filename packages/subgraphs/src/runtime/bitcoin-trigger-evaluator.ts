@@ -186,6 +186,14 @@ async function readBitcoinCursor(db: Kysely<Database>): Promise<string | null> {
 	return row?.bitcoin_last_cursor ?? null;
 }
 
+async function clearBitcoinCursor(db: Kysely<Database>): Promise<void> {
+	await db
+		.updateTable("trigger_evaluator_state")
+		.set({ bitcoin_last_cursor: null, updated_at: new Date() })
+		.where("id", "=", true)
+		.execute();
+}
+
 function parseCursorParts(cursor: string): [number, number] {
 	const [height, eventIndex] = cursor.split(":");
 	return [Number(height), Number(eventIndex ?? 0)];
@@ -279,11 +287,23 @@ export type BitcoinEvaluatorTickResult = {
 	advanced: boolean;
 };
 
+/** Whether any active webhook has a Runes trigger. With none, nothing on
+ *  this instance needs the Bitcoin feed, so neither the evaluator nor the
+ *  Bitcoin reorg poll calls it (every instance used to poll `chain=bitcoin`
+ *  every few seconds, Runes webhooks or not). */
+export async function hasActiveRuneWebhooks(
+	db: Kysely<Database> = getTargetDb(),
+): Promise<boolean> {
+	return runeSubsOf(await listActiveChainWebhooks(db)).length > 0;
+}
+
 /**
  * One catch-up pass for Runes webhooks. Forward-looking by design, same as
- * the Stacks evaluator: an uninitialized cursor or zero Runes webhooks fast-
- * forwards straight to tip and emits nothing, so a freshly-created webhook
- * never backfills history. Extracted from the timer loop for testing.
+ * the Stacks evaluator: an uninitialized cursor fast-forwards straight to tip
+ * and emits nothing, so a freshly-created webhook never backfills history.
+ * With zero Runes webhooks it does not read the Bitcoin feed at all and
+ * clears the cursor, so the first Runes webhook starts from tip too.
+ * Extracted from the timer loop for testing.
  */
 export async function runBitcoinEvaluatorOnce(
 	db: Kysely<Database> = getTargetDb(),
@@ -294,12 +314,17 @@ export async function runBitcoinEvaluatorOnce(
 	const generation = getChainReorgGeneration();
 	const chainSubs = await listActiveChainWebhooks(db);
 	const runeSubs = runeSubsOf(chainSubs);
+	const cursor = await readBitcoinCursor(db);
+
+	if (runeSubs.length === 0) {
+		if (cursor !== null) await clearBitcoinCursor(db);
+		return { emitted: 0, advanced: false };
+	}
 
 	const tip = await source.getTip();
 	if (tip <= 0) return { emitted: 0, advanced: false };
 
-	const cursor = await readBitcoinCursor(db);
-	if (cursor === null || runeSubs.length === 0) {
+	if (cursor === null) {
 		const res = await advanceBitcoinCursor(db, tipCursor(tip), generation);
 		return { emitted: 0, advanced: res.advanced };
 	}
