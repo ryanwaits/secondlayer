@@ -96,6 +96,10 @@ export const DOCS_NAV: DocsNavGroup[] = [
 				title: "NFT transfers for a collection",
 				href: "/docs/guides/nft-transfers-for-collection",
 			},
+			{
+				title: "Index a contract into Postgres",
+				href: "/docs/guides/index-contract-into-postgres",
+			},
 		],
 	},
 	{

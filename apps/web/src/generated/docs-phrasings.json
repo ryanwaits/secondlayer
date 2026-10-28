@@ -855,6 +855,75 @@
       "ft transfers by address pricing quota"
     ]
   },
+  "/docs/guides/index-contract-into-postgres": {
+    "hash": "cd3aff5066e729eb",
+    "phrasings": [
+      "index smart contract events into postgres",
+      "stacks contract to postgres table rest api",
+      "watch contract and store rows in database",
+      "postgres indexer config in one file",
+      "auto generate rest api from postgres table",
+      "sync clarity contract events to postgres"
+    ]
+  },
+  "/docs/guides/index-contract-into-postgres#deploy-it": {
+    "hash": "cc1b62278354e37c",
+    "phrasings": [
+      "create api key for indexer deployment",
+      "where to create account keys stacks",
+      "set environment variables for indexer deploy",
+      "deploy stacks postgres indexer steps",
+      "api key missing during deployment error",
+      "generate key on account keys page"
+    ]
+  },
+  "/docs/guides/index-contract-into-postgres#point-it-at-your-contract": {
+    "hash": "67ef7aec667e8931",
+    "phrasings": [
+      "change contract indexer watches to another",
+      "switch indexed contract source address",
+      "index a different smart contract stacks",
+      "update source in indexer config",
+      "watch new clarity contract without rewriting"
+    ]
+  },
+  "/docs/guides/index-contract-into-postgres#read-the-rows": {
+    "hash": "f705775d659b41f0",
+    "phrasings": [
+      "how to read rows from postgres table as paged api",
+      "postgres paginate indexed contract rows",
+      "fetch paged results from postgres table",
+      "expose postgres table through paginated endpoint",
+      "why does my postgres api return only some rows",
+      "read contract data from postgres with pagination",
+      "serve postgres rows as paged api",
+      "query indexed contract rows page by page"
+    ]
+  },
+  "/docs/guides/index-contract-into-postgres#tradeoff": {
+    "hash": "9af9447c4813648a",
+    "phrasings": [
+      "is indexing contract data into postgres expensive",
+      "how do hosted subgraphs bill for queries",
+      "free monthly allowance for hosted subgraph rows",
+      "why are my subgraph query costs rising",
+      "rows read billing hosted subgraph pricing",
+      "postgres indexing cost versus hosted service",
+      "when is self hosting postgres indexer cheaper",
+      "what does hosted subgraph usage cost per month"
+    ]
+  },
+  "/docs/guides/index-contract-into-postgres#try-it-on-real-blocks": {
+    "hash": "b7752989b5a28f08",
+    "phrasings": [
+      "test event handler against real blocks",
+      "run indexer locally before deploying",
+      "replay real chain events through handler",
+      "dry run stacks indexer handler",
+      "try handler on mainnet blocks",
+      "test contract indexer without deploying"
+    ]
+  },
   "/docs/guides/listen-for-contract-events": {
     "hash": "1538609c9eebd577",
     "phrasings": [
@@ -899,6 +968,65 @@
       "catch up missed events after webhook created",
       "webhook starts at chain tip",
       "replay past contract events to webhook"
+    ]
+  },
+  "/docs/guides/nft-transfers-for-collection": {
+    "hash": "7349bb53b4232ce8",
+    "phrasings": [
+      "get all nft transfers for collection",
+      "index nft transfer history stacks contract",
+      "filter nft transfer events by contract",
+      "how to read nft collection transfer events",
+      "list every transfer of an nft collection",
+      "stacks nft transfers decoded and indexed",
+      "query nft sales history per contract",
+      "nft collection history api stacks"
+    ]
+  },
+  "/docs/guides/nft-transfers-for-collection#narrow-it": {
+    "hash": "6735daf2b8381e76",
+    "phrasings": [
+      "nft transfers only returning last day",
+      "set start height for transfer history",
+      "fromheight missing so results only one day",
+      "limit nft transfer query to block range",
+      "how to fetch older nft transfer history",
+      "why do my transfers stop after yesterday",
+      "filter transfers by starting block height"
+    ]
+  },
+  "/docs/guides/nft-transfers-for-collection#page-through-it": {
+    "hash": "b9ca025276a7f5eb",
+    "phrasings": [
+      "paginate nft transfer results with cursor",
+      "pass nextcursor to fetch next page",
+      "api pagination next cursor stacks",
+      "how to get second page of results",
+      "cursor based pagination rest api indexer",
+      "fetch all pages from paged endpoint"
+    ]
+  },
+  "/docs/guides/nft-transfers-for-collection#read-the-token-id": {
+    "hash": "e866b60c413f7a79",
+    "phrasings": [
+      "decode nft token id from transfer",
+      "stacks js decode token id value",
+      "get token id from nft transfer row",
+      "parse clarity uint token id stacks",
+      "why is nft token id missing in rows",
+      "secondlayer stacks decode transfer value",
+      "what does token id 2028 mean"
+    ]
+  },
+  "/docs/guides/nft-transfers-for-collection#tradeoff": {
+    "hash": "9f5661b73725326b",
+    "phrasings": [
+      "hosted api reads monthly allowance pricing",
+      "how much do hosted reads cost",
+      "free tier reads per month stacks indexer",
+      "metered api reads billing limits",
+      "cost of querying indexed nft transfers",
+      "what happens after free monthly reads"
     ]
   },
   "/docs/index": {

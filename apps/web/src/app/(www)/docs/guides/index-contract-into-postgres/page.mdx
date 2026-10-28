@@ -1,0 +1,110 @@
+{/* new: 2026-10-28 */}
+# Index a Stacks contract into Postgres with TypeScript
+
+One file says which contract to watch and which rows to keep, and the table appears with a REST API over it. You write no indexer and no API. One file, one command:
+
+```ts subgraphs/sbtc-transfers.ts
+import { defineSubgraph } from "@secondlayer/subgraphs";
+
+export default defineSubgraph({
+  name: "sbtc-transfers",
+  // !mark
+  startBlock: 9340000,
+  sources: {
+    transfer: {
+      type: "ft_transfer",
+      assetIdentifier:
+        "SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4.sbtc-token::sbtc-token",
+    },
+  },
+  schema: {
+    transfers: {
+      columns: {
+        sender: { type: "principal" },
+        recipient: { type: "principal" },
+        amount: { type: "uint" },
+      },
+    },
+  },
+  handlers: {
+    transfer: (event, ctx) => {
+      ctx.insert("transfers", {
+        sender: event.sender,
+        recipient: event.recipient,
+        amount: event.amount,
+      });
+    },
+  },
+});
+```
+
+```bash
+secondlayer subgraphs deploy subgraphs/sbtc-transfers.ts
+```
+
+A source picks the events, the schema declares the table, and the handler writes one row per event. [Handlers](/docs/subgraphs#handler-context) covers the rest of what a handler can do.
+
+## Try it on real blocks
+
+Run your handler against real chain events before you deploy. It writes nothing and fails if events arrive but no rows come out.
+
+```text ~/sbtc-transfers
+$ secondlayer subgraphs test subgraphs/sbtc-transfers.ts --from 9341300 --to 9341400
+  transfers   459 rows
+              sender=SP1D1M3JDJW1SM95QEEC20HQ  recipient=SP2A7PT3DMWVT2BHHMKQ2T0Y  amount=1000000000
+✓ 459 events → 459 rows across 1 table (blocks 9341300–9341400)
+```
+
+sBTC is busy: 459 events in 100 blocks. That is why the file sets `startBlock`, so the first run backfills a bounded range and not all history.
+
+## Deploy it
+
+Create a key at [/account/keys](/account/keys) and set the two variables from the [Introduction](/docs#get-started). The file must be staged in git first, so a copy exists outside the database.
+
+- `git add` the file, then run the deploy command above.
+- Add `--dry-run` to validate and preview the tables with no changes.
+- Rows serve while the backfill drains ([Check status](/docs/subgraphs#check-status)).
+
+## Read the rows
+
+The table is served as a paged API. From a terminal, newest first:
+
+```bash
+secondlayer subgraphs query sbtc-transfers transfers --sort _block_height --order desc --limit 3
+```
+
+Over HTTP it is `/v1/subgraphs/sbtc-transfers/transfers`. The SDK call, the response envelope, sorting, filters and live streams are under [Read your table](/docs/subgraphs#read-your-table).
+
+## Point it at your contract
+
+Change the source to watch a different contract. A token or NFT contract is an `assetIdentifier`; a contract that prints is scaffolded from its history.
+
+```bash
+secondlayer subgraphs create my-contract \
+  --from-contract SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4.sbtc-registry
+```
+
+- The scaffold reads the contract's indexed prints and writes a typed source per topic ([Typed print payloads](/docs/subgraphs#typed-print-payloads)).
+- Gap: the local `test` compares a source's `topic` with the print's top-level topic, which is `print` for tuple prints. A topic source can show 0 events there while the deployed subgraph matches.
+
+## Tradeoff
+
+Hosted subgraphs bill by the rows they read, with a free monthly allowance ([What it costs](/docs/authentication#what-it-costs)). The tables are Postgres, but hosted serves them over REST and streams, not as a connection string; for direct SQL, [self-host](/docs/self-host).
+
+Every route: [List subgraph rows](/docs/api/subgraphs#list-subgraph-rows). The full file format and what runs hosted: [Subgraphs](/docs/subgraphs#what-runs-hosted).
+
+export const metadata = {
+	title: "Index a Stacks contract into Postgres with TypeScript",
+	description:
+		"Index a Stacks contract into Postgres with one TypeScript file and one command, then read the rows over a REST API you did not write.",
+	alternates: { canonical: "/docs/guides/index-contract-into-postgres" },
+};
+
+export const agent = `
+- One file: defineSubgraph({ name, startBlock, sources, schema, handlers }) from @secondlayer/subgraphs. Deploy: 'secondlayer subgraphs deploy <file>' (needs SECONDLAYER_API_URL and SECONDLAYER_API_KEY; the file must be git-staged or pass --allow-uncommitted). '--dry-run' validates and changes nothing.
+- Always set startBlock: an unbounded first run backfills from genesis and every event row it reads bills.
+- 'secondlayer subgraphs test <file> --from <h> --to <h>' runs the local handler on real events with no deploy. For print_event sources with a topic it compares the print's top-level topic ('print'), so tuple-topic sources can show 0 events locally; the deployed matcher uses the decoded tuple's topic.
+- Hosted sources: event filters, contract_call, contract_deploy (else 422 SOURCE_NOT_HOSTABLE). contract_call sources with functionName need an abi for 'test' (deploy fetches it).
+- Hosted rows are read over REST (/v1/subgraphs/<name>/<table>, sl.subgraphs.rows) or SSE; direct Postgres access is self-host only.
+- Scaffold from a contract's prints: 'secondlayer subgraphs create <name> --from-contract <id>'.
+`;
