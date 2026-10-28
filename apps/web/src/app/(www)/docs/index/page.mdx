@@ -355,6 +355,8 @@ Index on contracts everyone shares, with the same verbs and envelope as every ot
 
 Decoded prints from the `pox-5` boot contract (SIP-045, live since Bitcoin block 960,230), plus per-cycle totals. The print log, not a position scoreboard: positions and payouts are a subgraph you deploy.
 
+One key, one call: [PoX-5 staking data](/data/pox5).
+
 | Read | Route | SDK |
 | --- | --- | --- |
 | All 19 print topics | `/v1/index/pox5/events` | `pox5.events.list` / `walk` / `consume` |
@@ -397,6 +399,8 @@ Event filters:
 ### sBTC
 
 The peg lifecycle, decoded, plus Bitcoin confirmation of sweeps.
+
+One key, one call: [sBTC deposits and withdrawals](/data/sbtc).
 
 - Withdrawals: a `withdrawal-accept` only means the signers committed to a sweep. Your instance checks `sweep_txid` against bitcoind (the bundled full-node profile or an external `BITCOIN_RPC`).
 - Deposits need no check: `completed-deposit` fires after the signers see the confirmations.
@@ -442,6 +446,8 @@ Settlement is verified against your instance's bitcoind, not a custody guarantee
 ### Runes
 
 A catalog of etched runes, a per-rune activity log, and balances, on a Bitcoin tip instead of a Stacks one.
+
+One key, one call: [Runes API](/data/runes).
 
 - A rune's id is `<block>:<transaction index>` of its etch (`840000:3`).
 - Its name is a unique A-Z string. Spacers (`•`) are display only, so `DOG•GO•TO•THE•MOON`, `dog.go.to.the.moon` and `doggotothemoon` are one rune.
