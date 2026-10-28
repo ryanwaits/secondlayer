@@ -141,7 +141,7 @@
 			"description": "Run handlers against pre-built sample payloads in memory (no Index, no\nPostgres). Deploy uses this with print-schema dummy events to refuse\nEMPTY_MAPPING before DDL apply.",
 			"source": {
 				"file": "packages/subgraphs/src/testing/run.ts",
-				"line": 482
+				"line": 489
 			},
 			"overloads": [
 				{
@@ -176,7 +176,7 @@
 			"description": "Apply local handlers to Index rows in memory. Fail-closed: matched events\nwith zero written rows is EMPTY_MAPPING (the bns-names field-mapping shape).",
 			"source": {
 				"file": "packages/subgraphs/src/testing/run.ts",
-				"line": 294
+				"line": 301
 			},
 			"overloads": [
 				{
@@ -205,7 +205,7 @@
 			"description": "Map an Index contract-call row onto the ContractCallEvent handler shape.",
 			"source": {
 				"file": "packages/subgraphs/src/testing/run.ts",
-				"line": 197
+				"line": 204
 			},
 			"overloads": [
 				{
