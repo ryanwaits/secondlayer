@@ -1,5 +1,6 @@
 import {
 	createMagicLink,
+	linkSentinelAccount,
 	upsertAccount,
 	verifyMagicLink,
 	verifyMagicLinkByCode,
@@ -21,9 +22,17 @@ const MagicLinkSchema = z.object({
 	email: z.string().email(),
 });
 
+// A closed set, as on the CLI device route. `sentinel` links an account this
+// request creates; an email that already had one consents elsewhere.
+const ProductSchema = z.enum(["sentinel"]).optional();
+
 const VerifySchema = z.union([
-	z.object({ token: z.string().min(1) }),
-	z.object({ code: z.string().length(6), email: z.string().email() }),
+	z.object({ token: z.string().min(1), product: ProductSchema }),
+	z.object({
+		code: z.string().length(6),
+		email: z.string().email(),
+		product: ProductSchema,
+	}),
 ]);
 
 // IP-based rate limiting for verify endpoint
@@ -91,7 +100,16 @@ app.post("/verify", async (c) => {
 		throw new ValidationError("Invalid or expired code");
 	}
 
+	const existed =
+		parsed.product === "sentinel"
+			? !!(await db
+					.selectFrom("accounts")
+					.select("id")
+					.where("email", "=", email)
+					.executeTakeFirst())
+			: true;
 	const account = await upsertAccount(db, email);
+	if (!existed) await linkSentinelAccount(db, account.id, "created");
 
 	// Create session token
 	const { raw, hash, prefix } = generateSessionToken();
