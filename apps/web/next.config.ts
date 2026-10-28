@@ -189,7 +189,7 @@ const nextConfig: NextConfig = {
 			},
 			{
 				source: "/sbtc",
-				destination: "/docs/index#sbtc",
+				destination: "/data/sbtc",
 				permanent: true,
 			},
 			{
@@ -356,7 +356,7 @@ const nextConfig: NextConfig = {
 			},
 			{
 				source: "/docs/sbtc-settlement",
-				destination: "/docs/index#sbtc",
+				destination: "/data/sbtc",
 				permanent: true,
 			},
 			{
@@ -432,7 +432,7 @@ const nextConfig: NextConfig = {
 			},
 			{
 				source: "/docs/pox5",
-				destination: "https://stacks.secondlayer.tools/guide/pox5",
+				destination: "/data/pox5",
 				permanent: true,
 			},
 		];

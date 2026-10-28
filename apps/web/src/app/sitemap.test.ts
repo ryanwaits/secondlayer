@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { dataPath, liveDataTopics } from "@/lib/data-topics";
 import sitemap from "./sitemap";
 
 const BASE = "https://www.secondlayer.tools";
@@ -14,6 +15,12 @@ describe("sitemap", () => {
 		);
 		expect(docs.length).toBeGreaterThan(0);
 		for (const url of docs) expect(urls).toContain(url);
+	});
+
+	test("lists every live protocol data page", () => {
+		expect(liveDataTopics().length).toBeGreaterThan(0);
+		for (const topic of liveDataTopics())
+			expect(urls).toContain(`${BASE}${dataPath(topic)}`);
 	});
 
 	test("lists each url once", () => {

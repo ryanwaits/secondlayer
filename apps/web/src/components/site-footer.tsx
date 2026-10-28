@@ -1,6 +1,7 @@
 "use client";
 
 import { Logo } from "@/components/logo";
+import { dataPath, liveDataTopics } from "@/lib/data-topics";
 import { GITHUB_URL } from "@/lib/site";
 import { PRODUCTS } from "@/lib/site";
 import Link from "next/link";
@@ -16,6 +17,13 @@ const COLS: { title: string; links: readonly FooterLink[] }[] = [
 	{
 		title: "Products",
 		links: PRODUCTS.map((p) => ({ label: p.noun, href: p.href })),
+	},
+	{
+		title: "Data",
+		links: liveDataTopics().map((t) => ({
+			label: t.eyebrow,
+			href: dataPath(t),
+		})),
 	},
 	{
 		title: "Developers",

@@ -1062,7 +1062,7 @@
 }
 .site-footer-grid {
 	display: grid;
-	grid-template-columns: 1.4fr repeat(3, 1fr);
+	grid-template-columns: 1.4fr repeat(4, 1fr);
 	gap: 32px;
 }
 .site-footer-grid > div {
@@ -2587,6 +2587,11 @@
 	.site.verify .hero {
 		grid-template-columns: minmax(0, 1fr);
 	}
+}
+.site .data-links {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 10px;
 }
 .site .band-ruled {
 	border-top: 1px solid var(--line);

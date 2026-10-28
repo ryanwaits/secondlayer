@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { docsNavPages } from "@/app/(www)/docs/nav";
+import { dataPath, liveDataTopics } from "./data-topics";
 import { SITE, markdownPath } from "./docs-agent";
 import { llmsTxt } from "./llms-txt";
 
@@ -12,6 +13,12 @@ describe("llmsTxt", () => {
 				`- [${page.title}](${SITE}${markdownPath(page.href)}) (${page.group})`,
 			);
 		}
+	});
+
+	test("lists every live protocol data page on the www host", () => {
+		expect(text).toContain("## Protocol data");
+		for (const topic of liveDataTopics())
+			expect(text).toContain(`${SITE}${dataPath(topic)}`);
 	});
 
 	test("links the introduction's markdown twin", () => {

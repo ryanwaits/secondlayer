@@ -1,4 +1,5 @@
 import { docsNavPages } from "@/app/(www)/docs/nav";
+import { dataPath, liveDataTopics } from "@/lib/data-topics";
 import { getPublishedPosts } from "@/lib/writing";
 import type { MetadataRoute } from "next";
 
@@ -34,6 +35,12 @@ export default function sitemap(): MetadataRoute.Sitemap {
 		changeFrequency: "weekly",
 		priority: path === "/docs" ? 0.8 : 0.7,
 	}));
+	// One page per live protocol, from the registry.
+	const data: MetadataRoute.Sitemap = liveDataTopics().map((topic) => ({
+		url: `${BASE}${dataPath(topic)}`,
+		changeFrequency: "monthly",
+		priority: 0.7,
+	}));
 	// Published posts only — drafts and the internal /lab routes stay out.
 	const posts: MetadataRoute.Sitemap = getPublishedPosts().map((post) => ({
 		url: `${BASE}/blog/${post.slug}`,
@@ -41,5 +48,5 @@ export default function sitemap(): MetadataRoute.Sitemap {
 		changeFrequency: "yearly",
 		priority: 0.5,
 	}));
-	return [...staticRoutes, ...docs, ...posts];
+	return [...staticRoutes, ...data, ...docs, ...posts];
 }

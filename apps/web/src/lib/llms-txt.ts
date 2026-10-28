@@ -1,4 +1,5 @@
 import { docsNavPages } from "@/app/(www)/docs/nav";
+import { dataPath, liveDataTopics } from "./data-topics";
 import { SITE, markdownPath } from "./docs-agent";
 
 const INTRO = `# Secondlayer: instant data for apps on Bitcoin
@@ -79,5 +80,9 @@ export function llmsTxt(): string {
 		(page) =>
 			`- [${page.title}](${SITE}${markdownPath(page.href)}) (${page.group})`,
 	);
-	return `${INTRO}\n## Pages\n${pages.join("\n")}\n`;
+	const protocols = liveDataTopics().map(
+		(topic) =>
+			`- [${topic.eyebrow}](${SITE}${dataPath(topic)}): ${topic.description}`,
+	);
+	return `${INTRO}\n## Protocol data\n${protocols.join("\n")}\n\n## Pages\n${pages.join("\n")}\n`;
 }

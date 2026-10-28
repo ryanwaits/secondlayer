@@ -110,7 +110,7 @@ function proseTipProblems(): string[] {
 function productTipProblems(): string[] {
 	const found: string[] = [];
 	const pattern = /\btips=|(?:\/\/|#)\s*!tip\b|\]\(tip[\s"]/;
-	for (const dir of ["p", "verify"])
+	for (const dir of ["p", "verify", "data"])
 		for (const file of new Glob(`${dir}/**/*.{ts,tsx,mdx}`).scanSync(ROOT)) {
 			if (/\.test\.tsx?$/.test(file)) continue;
 			if (pattern.test(source(file)))
