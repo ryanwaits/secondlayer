@@ -1,10 +1,12 @@
 import { Glob } from "bun";
 
-/* Vocs 1.4.1 emits no sitemap. Walk the page files and write one next to the
-   built site (docs/dist) so crawlers find every route. */
+/* Vocs 1.4.1 emits no sitemap. Walk the page files and write one into
+   docs/public before `vocs build`, which copies public/ into whichever output
+   dir it uses (docs/dist locally, .vercel/output/static on Vercel), like
+   robots.txt. */
 const origin = "https://stacks.secondlayer.tools";
 const pagesDir = new URL("../docs/pages/", import.meta.url).pathname;
-const outFile = new URL("../docs/dist/sitemap.xml", import.meta.url).pathname;
+const outFile = new URL("../docs/public/sitemap.xml", import.meta.url).pathname;
 
 export function routeOf(file: string): string {
 	const route = file.replace(/\.mdx$/, "").replace(/(^|\/)index$/, "");
