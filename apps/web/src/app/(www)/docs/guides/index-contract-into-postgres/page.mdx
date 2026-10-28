@@ -46,7 +46,14 @@ A source picks the events, the schema declares the table, and the handler writes
 
 ## Try it on real blocks
 
-Run your handler against real chain events before you deploy. It writes nothing and fails if events arrive but no rows come out.
+Run your handler against real chain events before you deploy. Start in a project that has the package:
+
+```bash
+bun init -y
+bun add @secondlayer/subgraphs
+```
+
+The test writes nothing to your hosted stack (it saves a cassette in `cassettes/`) and fails if events arrive but no rows come out.
 
 ```text ~/sbtc-transfers
 $ secondlayer subgraphs test subgraphs/sbtc-transfers.ts --from 9341300 --to 9341400
@@ -59,7 +66,7 @@ sBTC is busy: 459 events in 100 blocks. That is why the file sets `startBlock`, 
 
 ## Deploy it
 
-Create a key at [/account/keys](/account/keys) and set the two variables from the [Introduction](/docs#get-started). The file must be staged in git first, so a copy exists outside the database.
+Create a key at [/account/keys](/account/keys) and set the two variables from the [Introduction](/docs#get-started). In a git repo the file must be staged first, so a copy exists outside the database; pass `--allow-uncommitted` to skip that check, as in a script.
 
 - `git add` the file, then run the deploy command above.
 - Add `--dry-run` to validate and preview the tables with no changes.
@@ -85,7 +92,8 @@ secondlayer subgraphs create my-contract \
 ```
 
 - The scaffold reads the contract's indexed prints and writes a typed source per topic ([Typed print payloads](/docs/subgraphs#typed-print-payloads)).
-- Preview the result with `--dry-run` before you deploy.
+- The scaffold sets no `startBlock`: set one before you deploy, or the first run backfills all history.
+- Preview with `secondlayer subgraphs deploy <file> --dry-run`.
 
 ## Tradeoff
 

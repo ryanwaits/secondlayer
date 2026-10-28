@@ -93,7 +93,7 @@ Each delivery is one signed POST. The print arrives as `data.event.data.value`, 
 
 A webhook starts at the chain tip and never backfills. To re-deliver a block range over it, [replay](/docs/webhooks#replay). To read past prints once and resume from a block, page [Streams](/docs/streams#read-it-directly) with a cursor.
 
-Hosted webhooks run on your stack, $5 a month at the minimum ([What it costs](/docs/authentication#what-it-costs)). Full request and response: [Create a webhook](/docs/api/webhooks#create-webhook).
+Hosted webhooks run on your stack, $5 a month at the minimum ([What it costs](/docs/authentication#what-it-costs)). Triggers and the create call: [Create a webhook](/docs/webhooks#create-a-webhook).
 
 export const metadata = {
 	title: "Listen for Stacks contract events",
