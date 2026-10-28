@@ -345,7 +345,7 @@ const LAB_TIP: ChainTip = {
 /** The pill in place (not fixed) with its tooltip open, so every state reads at once. */
 const statusRow = (tip: ChainTip) => (
 	<div className="lab-cs">
-		<ChainStatusView tip={tip} now={NOW} />
+		<ChainStatusView tip={tip} now={NOW} open />
 	</div>
 );
 

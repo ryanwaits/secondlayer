@@ -8844,8 +8844,7 @@ button.sg-sort:focus-visible {
 }
 @media (max-width: 640px) {
 	.www:has(.acct-page) .marketing-nav.is-dash,
-	.www:has(.acct-page) .site-footer,
-	.www:has(.acct-page) .chain-status {
+	.www:has(.acct-page) .site-footer {
 		display: none;
 	}
 	.acct-page {

@@ -715,6 +715,3 @@ body:has(.lab) .auth-bar {
 	right: auto;
 	bottom: auto;
 }
-.lab-cs .cstat-tip {
-	display: block;
-}

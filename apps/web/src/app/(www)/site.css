@@ -1462,27 +1462,27 @@
 	stroke: var(--paper);
 }
 /* ── chain status: Stacks and Bitcoin heights, fixed bottom-right ──
-   One row on every page. A floating card, so it carries the one soft shadow
-   floats get; it sits above the docs trail (40) and under tips (60). The
-   brand colors stay on the marks. Down adds a cause segment with a red dot,
-   and the part that stopped turns gray. Nothing here is a link or text to
-   select, so the cursor stays the arrow. */
+   Marketing pages only. At rest it is the Stacks mark (plus the cause when
+   down); hover, focus or a tap reveals the whole pill leftward from the mark.
+   The pill is always laid out at full width and clip-path hides all but the
+   rightmost --rest px, so opening is one interruptible reveal that never
+   moves the mark. Hairline + float shadow come from drop-shadow on the shell
+   so they follow the clipped shape. Sits above the docs trail (40) and under
+   tips (60). Nothing here is a link or text to select: the cursor stays the
+   arrow. */
 .chain-status {
+	--cstat-ease: cubic-bezier(0.23, 1, 0.32, 1);
 	position: fixed;
 	right: calc(16px + env(safe-area-inset-right, 0px));
 	bottom: calc(16px + env(safe-area-inset-bottom, 0px));
 	z-index: 45;
-	display: flex;
-	align-items: center;
-	height: 34px;
-	background: var(--paper);
-	border: 1px solid var(--line);
 	border-radius: 8px;
-	box-shadow: 0 4px 24px color-mix(in srgb, var(--n-975) 6%, transparent), 0 1px
-		4px color-mix(in srgb, var(--n-975) 4%, transparent);
-	font: 400 12px / 1 var(--font-mono-stack);
-	color: var(--sub);
-	white-space: nowrap;
+}
+/* A 44px touch target around the 30px mark. */
+.chain-status::before {
+	content: "";
+	position: absolute;
+	inset: -8px;
 }
 .chain-status,
 .chain-status * {
@@ -1492,12 +1492,30 @@
 	outline: 2px solid var(--pri);
 	outline-offset: 2px;
 }
+.cstat-shell {
+	filter: drop-shadow(1px 0 0 var(--line)) drop-shadow(-1px 0 0 var(--line))
+		drop-shadow(0 1px 0 var(--line)) drop-shadow(0 -1px 0 var(--line))
+		drop-shadow(0 4px 12px color-mix(in srgb, var(--n-975) 7%, transparent));
+}
+.cstat-body {
+	display: flex;
+	align-items: center;
+	height: 30px;
+	background: var(--paper);
+	border-radius: 8px;
+	font: 400 12px / 1 var(--font-mono-stack);
+	color: var(--sub);
+	white-space: nowrap;
+	clip-path: inset(0 0 0 calc(100% - var(--rest, 30px)) round 8px);
+	/* Closing: quicker, no delay. */
+	transition: clip-path 200ms var(--cstat-ease);
+}
 .cstat-seg {
 	display: flex;
 	align-items: center;
 	gap: 7px;
 	height: 100%;
-	padding: 0 11px;
+	padding: 0 8px;
 }
 .cstat-seg + .cstat-seg {
 	border-left: 1px solid var(--line);
@@ -1507,13 +1525,20 @@
 	color: var(--ink);
 	font-variant-numeric: tabular-nums;
 }
+/* Everything the clip hides at rest also fades, sliding 4px toward the mark. */
+.cstat-fade {
+	opacity: 0;
+	transform: translateX(4px);
+	transition: opacity 120ms var(--cstat-ease), transform 120ms var(--cstat-ease);
+}
 .cstat-cause {
-	font: 400 12.5px / 1 var(--font-sans-stack);
+	padding-right: 10px;
+	font: 400 12px / 1 var(--font-sans-stack);
 	color: var(--ink);
 }
 .cstat-dot {
-	width: 7px;
-	height: 7px;
+	width: 6px;
+	height: 6px;
 	flex: none;
 	border-radius: 50%;
 	background: var(--alarm);
@@ -1552,7 +1577,7 @@
 		box-shadow: 0 0 0 0 color-mix(in srgb, var(--cstat-ring) 55%, transparent);
 	}
 	100% {
-		box-shadow: 0 0 0 7px transparent;
+		box-shadow: 0 0 0 6px transparent;
 	}
 }
 /* Down: what stopped turns gray and holds. */
@@ -1565,12 +1590,11 @@
 .chain-status.is-unreachable .cstat-n {
 	color: var(--sub);
 }
-/* The tooltip: above the pill on hover or focus. */
+/* The tooltip: rises from the pill's corner once the reveal lands. */
 .cstat-tip {
 	position: absolute;
 	right: 0;
 	bottom: calc(100% + 8px);
-	display: none;
 	width: 320px;
 	max-width: calc(100vw - 32px);
 	padding: 12px 14px 13px;
@@ -1582,9 +1606,51 @@
 	font: 400 12.5px / 1.5 var(--font-sans-stack);
 	color: var(--sub);
 	white-space: normal;
+	opacity: 0;
+	visibility: hidden;
+	pointer-events: none;
+	transform: translateY(4px) scale(0.98);
+	transform-origin: bottom right;
+	transition: opacity 100ms var(--cstat-ease), transform 100ms var(--cstat-ease),
+		visibility 0s linear 100ms;
 }
-.chain-status:is(:hover, :focus-visible) .cstat-tip {
-	display: block;
+/* Open: 60ms of hover intent, the reveal, then numbers (110ms) and the
+   tooltip (200ms) land in turn. Hover only where hover exists. */
+.chain-status:is(.is-open, :focus-visible) .cstat-body {
+	clip-path: inset(0 0 0 0 round 8px);
+	transition: clip-path 280ms var(--cstat-ease) 60ms;
+}
+.chain-status:is(.is-open, :focus-visible) .cstat-fade {
+	opacity: 1;
+	transform: none;
+	transition: opacity 220ms var(--cstat-ease) 110ms, transform 220ms
+		var(--cstat-ease) 110ms;
+}
+.chain-status:is(.is-open, :focus-visible) .cstat-tip {
+	opacity: 1;
+	visibility: visible;
+	transform: none;
+	transition: opacity 180ms var(--cstat-ease) 200ms, transform 180ms
+		var(--cstat-ease) 200ms, visibility 0s;
+}
+@media (hover: hover) {
+	.chain-status:hover .cstat-body {
+		clip-path: inset(0 0 0 0 round 8px);
+		transition: clip-path 280ms var(--cstat-ease) 60ms;
+	}
+	.chain-status:hover .cstat-fade {
+		opacity: 1;
+		transform: none;
+		transition: opacity 220ms var(--cstat-ease) 110ms, transform 220ms
+			var(--cstat-ease) 110ms;
+	}
+	.chain-status:hover .cstat-tip {
+		opacity: 1;
+		visibility: visible;
+		transform: none;
+		transition: opacity 180ms var(--cstat-ease) 200ms, transform 180ms
+			var(--cstat-ease) 200ms, visibility 0s;
+	}
 }
 .cstat-tip-head {
 	display: grid;
@@ -1629,13 +1695,21 @@
 	font-weight: 500;
 	color: var(--ink);
 }
-/* Phones: a down pill keeps Stacks and the cause. */
+/* Phones: an open down pill keeps Stacks and the cause. */
 @media (max-width: 480px) {
 	.chain-status:not(.is-live) .cstat-bitcoin {
 		display: none;
 	}
 }
+/* Reduced motion: the reveal is instant; fades stay, slides go. */
 @media (prefers-reduced-motion: reduce) {
+	.chain-status .cstat-body {
+		transition: none !important;
+	}
+	.cstat-fade,
+	.cstat-tip {
+		transform: none !important;
+	}
 	.cstat-mark.pulse::after {
 		animation: none;
 	}

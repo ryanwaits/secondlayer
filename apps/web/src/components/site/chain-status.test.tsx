@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { type ChainTip, EMPTY_TIP } from "@/lib/chain-tip";
 import { renderToStaticMarkup } from "react-dom/server";
-import { ChainStatusView } from "./chain-status";
+import { ChainStatusView, showsChainStatus } from "./chain-status";
 
 const NOW = 1_800_000_000_000;
 const TIP: ChainTip = {
@@ -56,9 +56,33 @@ describe("ChainStatusView", () => {
 		expect(html).toContain("2m 0s ago");
 	});
 
+	test("at rest only the mark shows; open reveals the whole pill", () => {
+		expect(view({})).not.toContain("is-open");
+		expect(
+			renderToStaticMarkup(<ChainStatusView tip={TIP} now={NOW} open />),
+		).toContain("is-open");
+	});
+
 	test("the pill has a label a screen reader can read", () => {
 		expect(view({})).toContain(
 			'aria-label="Stacks block 9,226,704, Bitcoin block 971,739."',
 		);
+	});
+});
+
+describe("showsChainStatus", () => {
+	test("marketing pages show the pill", () => {
+		for (const path of ["/", "/pricing", "/verify", "/p/index", "/p/streams"])
+			expect(showsChainStatus(path)).toBe(true);
+	});
+
+	test("docs, blog and account pages don't", () => {
+		for (const path of [
+			"/docs",
+			"/docs/guides/print-events",
+			"/blog",
+			"/account",
+		])
+			expect(showsChainStatus(path)).toBe(false);
 	});
 });
