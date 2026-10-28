@@ -79,7 +79,7 @@ do {
   const page = await index.contractCalls.list({
     contractId,
     functionName: "transfer",
-    fromHeight: 0,
+    fromHeight: cursor ? undefined : 0,
     cursor,
     limit: 1000,
   });
