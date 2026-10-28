@@ -713,6 +713,96 @@
       "project event filter to streams config"
     ]
   },
+  "/docs/guides/contract-function-calls": {
+    "hash": "1c86678d16016c23",
+    "phrasings": [
+      "how to get all calls to a contract function",
+      "filter contract calls by function name",
+      "list history of one function in clarity",
+      "decoded contract function call history api",
+      "find every call to a specific function",
+      "contract call history without scanning all transactions"
+    ]
+  },
+  "/docs/guides/contract-function-calls#narrow-it": {
+    "hash": "f71108f521728885",
+    "phrasings": [
+      "contract call query only returns recent results",
+      "how to fetch older contract calls by start height",
+      "pass fromheight to query older calls",
+      "limit contract call query to start block",
+      "why do my function call results stop after a day",
+      "read contract calls further back in history"
+    ]
+  },
+  "/docs/guides/contract-function-calls#page-through-it": {
+    "hash": "73921b5cd230ac2c",
+    "phrasings": [
+      "paginate results using next cursor",
+      "how to get next page of results",
+      "pass cursor to fetch next page",
+      "nextcursor value missing from response",
+      "pagination contract function calls repeat cursor",
+      "loop through all pages with cursor",
+      "keep fetching after first page results"
+    ]
+  },
+  "/docs/guides/contract-function-calls#tradeoff": {
+    "hash": "74b27e4be9a52f05",
+    "phrasings": [
+      "are hosted api reads metered and billed",
+      "free monthly allowance for api reads",
+      "how much do hosted queries cost",
+      "hosted reads pricing per request",
+      "contract call history cost per read",
+      "is there a limit on hosted api calls"
+    ]
+  },
+  "/docs/guides/decode-print-events": {
+    "hash": "2e39eb6a880081c7",
+    "phrasings": [
+      "decode clarity print events to json",
+      "print event output is raw hex",
+      "parse clarity print output automatically",
+      "where is decoded print event data",
+      "clarity print statement json format",
+      "do i need to decode print events",
+      "raw hex alongside parsed print values"
+    ]
+  },
+  "/docs/guides/decode-print-events#pick-out-one-topic": {
+    "hash": "da28f1c112ee1ea8",
+    "phrasings": [
+      "filter print events by topic",
+      "events feed filters by contract only",
+      "get only one topic from contract events",
+      "how to select a single print topic",
+      "why cant i filter events by topic",
+      "only fetch one print topic from a contract"
+    ]
+  },
+  "/docs/guides/decode-print-events#see-each-topics-fields": {
+    "hash": "5d4cfd8024acceee",
+    "phrasings": [
+      "contract prints different shapes per topic",
+      "what fields does each print topic have",
+      "print event shape varies by topic",
+      "list fields for a clarity print topic",
+      "event data structure differs between topics",
+      "how to see keys of each print topic"
+    ]
+  },
+  "/docs/guides/decode-print-events#tradeoff": {
+    "hash": "b98256afdae5fc4f",
+    "phrasings": [
+      "hosted print event reads metered pricing",
+      "free monthly allowance print event queries",
+      "print events api billing limits",
+      "hosted reads cost per month",
+      "are print event queries charged per request",
+      "monthly quota for hosted event reads"
+    ]
+  },
   "/docs/guides/ft-transfers-by-address": {
     "hash": "b8635435b6aec9ac",
     "phrasings": [
@@ -938,16 +1028,15 @@
     ]
   },
   "/docs/index#plain-http": {
-    "hash": "be7f3240c2cd188f",
+    "hash": "982b9f2a564ce2e5",
     "phrasings": [
-      "query rows over http without sdk",
-      "stacks data with curl request example",
-      "read chain data from any http client",
-      "rest endpoint to query rows",
-      "no sdk needed fetch data url",
-      "how to query database with plain http",
-      "curl example for querying rows",
-      "access indexed data without installing library"
+      "query database over http without sdk",
+      "curl api query rows example",
+      "access data with plain http requests",
+      "do i need an sdk to query",
+      "http client query rows no library",
+      "rest endpoint to fetch table rows",
+      "call api with curl instead of sdk"
     ]
   },
   "/docs/index#pox-5": {

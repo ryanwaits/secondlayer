@@ -1,0 +1,111 @@
+{/* new: 2026-10-28 */}
+# List every call to a Stacks contract function
+
+Every contract call is decoded and indexed, so one function's history is a filtered read. Each row carries its arguments already parsed from Clarity. One key, one call:
+
+<CodeTabs sync="lang">
+
+```bash
+curl "$SECONDLAYER_API_URL/v1/index/contract-calls?contract_id=SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4.sbtc-token&function_name=transfer&from_height=9340000&limit=1" \
+  -H "Authorization: Bearer sk-sl_…"
+```
+
+```ts
+import { Index } from "@secondlayer/sdk";
+
+const index = new Index();
+
+const page = await index.contractCalls.list({
+  contractId: "SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4.sbtc-token",
+  functionName: "transfer",
+  fromHeight: 9340000,
+  limit: 1,
+});
+```
+
+</CodeTabs>
+
+```json response.json status=200
+{
+  "contract_calls": [
+    {
+      "cursor": "9341326:0",
+      "block_height": 9341326,
+      "block_time": "2026-10-28T00:52:36.000Z",
+      "tx_id": "0x385726bb0fe44cac3c127096a28ddd3c5aba20e45e7bb7d09cbba15b9b579d9e",
+      "tx_index": 0,
+      "contract_id": "SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4.sbtc-token",
+      "function_name": "transfer",
+      "sender": "SP2X2S5J0DXXRBR786CVVT15SWZT9T6E5D5YYXXF1",
+      "status": "success",
+      // !mark[/"args"/]
+      "args": ["10514538", "SP2X2S5J0DXXRBR786CVVT15SWZT9T6E5D5YYXXF1", "SP1SYS7ZHE8Z05WGJYF7EHXCYCXSJY0FW75MT7M9Z", null],
+      "result": true,
+      "result_hex": "0x0703"
+    }
+  ],
+  // !mark[/"next_cursor"/]
+  "next_cursor": "9341326:0",
+  "tip": { "block_height": 9348931, "finalized_height": 9348069, "lag_seconds": 18 },
+  "reorgs": []
+}
+```
+
+`args` holds the call's arguments in order, one entry per parameter, as plain JSON. Read the order and names from the contract's ABI: `transfer` takes the amount, sender, recipient, then an optional memo.
+
+## Narrow it
+
+A read with no `from_height` or cursor covers only the last day, so pass a start to go further back.
+
+| Narrow by | Param |
+| --- | --- |
+| One function | `functionName` |
+| Who called it | `sender` |
+| Several contracts | `contractId` as a list (max 20) |
+| Every contract of a standard | `trait`, instead of `contractId` |
+| A block range | `fromHeight`, `toHeight` |
+
+- There is no `status` filter: failed calls come back too, so check each row's `status`.
+- Only calls a transaction makes directly are listed. Calls made from inside another contract are `nested_contract_call` events ([Index](/docs/index#plain-http)).
+- Reads run oldest first; there is no `order` parameter on this feed.
+
+## Page through it
+
+Pass the last `next_cursor` back as the next cursor. It comes back null only on an empty page, which ends the loop.
+
+```ts
+let cursor: string | null = null;
+do {
+  const page = await index.contractCalls.list({
+    contractId,
+    functionName: "transfer",
+    fromHeight: 0,
+    cursor,
+    limit: 1000,
+  });
+  for (const call of page.contract_calls) await save(call);
+  cursor = page.next_cursor;
+} while (cursor);
+```
+
+Pass a start height or a cursor, never both: drop the height once you hold a cursor. For a one-off export, `walk()` does the paging for you; it keeps no checkpoint ([list, walk, consume](/docs/index#list-walk-consume)).
+
+## Tradeoff
+
+Hosted reads are metered, with a free monthly allowance ([What it costs](/docs/authentication#what-it-costs)). A busy function means many rows, so narrow by height before you page.
+
+Every filter and the response schema: [Decoded contract-call transactions](/docs/api/index#list-contract-calls). The decoded feeds are described in [Index](/docs/index).
+
+export const metadata = {
+	title: "List every call to a Stacks contract function",
+	description:
+		"List every call to a Stacks contract function with one API key: filter by contract, function and sender, read decoded arguments, then page with the cursor.",
+	alternates: { canonical: "/docs/guides/contract-function-calls" },
+};
+
+export const agent = `
+- Endpoint: GET /v1/index/contract-calls, top-level calls only (nested calls are nested_contract_call events) (SDK: sl.index.contractCalls.list / .walk / .consume). Filters: contract_id (comma list, max 20) or trait (not both), function_name, sender, from_height, to_height. There is no status filter and no order parameter; reads run oldest first.
+- A read with no from_height and no cursor covers only the last day. Pass from_height (0 for all history), or a cursor. cursor and from_height are mutually exclusive.
+- 'args' is an ordered array of decoded values (uint as a decimal string, optional none as null). Names come from the contract ABI, not the row. 'status' says whether the call succeeded; failed calls are included.
+- Page by passing next_cursor back as cursor; null means the page was empty. walk() keeps no checkpoint and ignores reorgs: use consume() to keep rows.
+`;

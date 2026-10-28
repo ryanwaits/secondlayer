@@ -84,6 +84,10 @@ export const DOCS_NAV: DocsNavGroup[] = [
 				title: "FT transfers by address",
 				href: "/docs/guides/ft-transfers-by-address",
 			},
+			{
+				title: "Calls to a contract function",
+				href: "/docs/guides/contract-function-calls",
+			},
 		],
 	},
 	{
