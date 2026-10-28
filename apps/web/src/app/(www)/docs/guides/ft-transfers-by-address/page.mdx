@@ -1,7 +1,7 @@
 {/* new: 2026-10-28 */}
 # Get every FT transfer for a Stacks address
 
-Fungible-token transfers are decoded and indexed, so an address's history is one filtered read. A transfer has a sender and a recipient, so cover both sides with two calls. One key, one call:
+Fungible-token transfers are decoded and indexed, so an address's history is a filtered read. A transfer has a sender and a recipient, so you read each side with its own call. One key, one call; here is the received side:
 
 <CodeTabs sync="lang">
 

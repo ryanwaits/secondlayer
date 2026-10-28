@@ -714,15 +714,16 @@
     ]
   },
   "/docs/guides/ft-transfers-by-address": {
-    "hash": "a98e996a64c105f2",
+    "hash": "b8635435b6aec9ac",
     "phrasings": [
-      "fungible token transfers by address history",
-      "ft transfer history for wallet address",
-      "list token transfers for an address",
-      "sip 010 token transfers filter by address",
-      "get all ft transfers for address",
-      "token transfer history single api call",
-      "wallet token transfer activity query"
+      "how to get fungible token transfers for an account",
+      "list ft transfers sent to a wallet address",
+      "query token transfer history by address",
+      "why are my ft transfers missing from address history",
+      "filter indexed token transfers by account id",
+      "fetch all ft transfers for a given address",
+      "show incoming and outgoing token transfers per wallet",
+      "decoded ft transfer events for an address query"
     ]
   },
   "/docs/guides/ft-transfers-by-address#both-sides": {
