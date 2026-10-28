@@ -751,17 +751,17 @@
       "fetch every page of transfers"
     ]
   },
-  "/docs/guides/ft-transfers-by-address#what-it-costs": {
-    "hash": "c67ae3a29518bd2f",
+  "/docs/guides/ft-transfers-by-address#tradeoff": {
+    "hash": "71eccf625d01b637",
     "phrasings": [
-      "ft transfers api pricing per row",
-      "how much do hosted reads cost",
-      "free tier row limit for queries",
-      "billing for transfer queries per million rows",
-      "is querying ft transfers free",
-      "hosted api read pricing per million",
-      "cost of fetching token transfers by address",
-      "rows returned billing explained"
+      "are hosted reads metered for ft transfers",
+      "free monthly allowance for hosted reads",
+      "what does ft transfer lookup by address cost",
+      "hosted api reads billing limit",
+      "why am i being charged for ft transfer queries",
+      "how many free ft transfer reads per month",
+      "hosted vs self hosted ft transfer cost tradeoff",
+      "ft transfers by address pricing quota"
     ]
   },
   "/docs/guides/listen-for-contract-events": {

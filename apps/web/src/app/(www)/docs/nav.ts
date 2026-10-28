@@ -80,6 +80,10 @@ export const DOCS_NAV: DocsNavGroup[] = [
 				title: "Listen for contract events",
 				href: "/docs/guides/listen-for-contract-events",
 			},
+			{
+				title: "FT transfers by address",
+				href: "/docs/guides/ft-transfers-by-address",
+			},
 		],
 	},
 	{

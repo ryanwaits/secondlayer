@@ -1,0 +1,106 @@
+{/* new: 2026-10-28 */}
+# Get every FT transfer for a Stacks address
+
+Fungible-token transfers are decoded and indexed, so an address's history is one filtered read. A transfer has a sender and a recipient, so cover both sides with two calls. One key, one call:
+
+<CodeTabs sync="lang">
+
+```bash
+curl "$SECONDLAYER_API_URL/v1/index/ft-transfers?recipient=SP3F3GBGAR8781BF831JT4W7J5DR12ZB15A575DEC&limit=1" \
+  -H "Authorization: Bearer sk-sl_…"
+```
+
+```ts
+import { Index } from "@secondlayer/sdk";
+
+const index = new Index();
+
+const page = await index.ftTransfers.list({
+  recipient: "SP3F3GBGAR8781BF831JT4W7J5DR12ZB15A575DEC",
+  limit: 1,
+});
+```
+
+</CodeTabs>
+
+```json response.json status=200
+{
+  "events": [
+    {
+      "cursor": "9331956:4",
+      "block_height": 9331956,
+      "block_time": "2026-10-27T04:25:47.000Z",
+      "tx_id": "0xf230dcb1f4550142d72e6b07e5f2769c8e533c857d26b1c7dac9a62d6c252804",
+      "tx_index": 2,
+      "event_index": 4,
+      "event_type": "ft_transfer",
+      "contract_id": "SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4.sbtc-token",
+      "asset_identifier": "SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4.sbtc-token::sbtc-token",
+      "sender": "SM1793C4R5PZ4NS4VQ4WMP7SKKYVH8JZEWSZ9HCCR.xyk-pool-sbtc-stx-v-1-1",
+      "recipient": "SP3F3GBGAR8781BF831JT4W7J5DR12ZB15A575DEC",
+      "amount": "152"
+    }
+  ],
+  // !mark[/"next_cursor"/]
+  "next_cursor": "9331956:4",
+  "tip": { "block_height": 9348864, "finalized_height": 9348069, "lag_seconds": 23 },
+  "reorgs": []
+}
+```
+
+## Both sides
+
+There is no single address filter: each side of a transfer is filtered on its own, so make one call per side.
+
+```ts
+const [received, sent] = await Promise.all([
+  index.ftTransfers.list({ recipient: address }),
+  index.ftTransfers.list({ sender: address }),
+]);
+```
+
+- Merge the two lists by `block_height`.
+- A transfer to yourself is in both, so drop repeats by `cursor`.
+
+| Narrow by | Param |
+| --- | --- |
+| One token | `contractId` or `assetIdentifier` |
+| A block range | `fromHeight`, `toHeight` |
+| Newest first | `order: "desc"` |
+
+`amount` is a string, in the token's smallest unit.
+
+## Page through it
+
+Pass the last `next_cursor` back as the next cursor. It comes back null only on an empty page, which ends the loop.
+
+```ts
+let cursor: string | null = null;
+do {
+  const page = await index.ftTransfers.list({ recipient: address, cursor, limit: 1000 });
+  for (const transfer of page.events) await save(transfer);
+  cursor = page.next_cursor;
+} while (cursor);
+```
+
+For a one-off export, `walk()` does the paging for you; it keeps no checkpoint ([list, walk, consume](/docs/index#list-walk-consume)).
+
+## Tradeoff
+
+Hosted reads are metered, with a free monthly allowance ([What it costs](/docs/authentication#what-it-costs)). Request `fields` to trim each row.
+
+Every filter and the response schema: [List FT transfers](/docs/api/index#list-ft-transfers). The decoded feeds are described in [Index](/docs/index).
+
+export const metadata = {
+	title: "Get every FT transfer for a Stacks address",
+	description:
+		"List every fungible-token transfer to or from a Stacks address with one API key: filter by sender or recipient, then page with the cursor.",
+	alternates: { canonical: "/docs/guides/ft-transfers-by-address" },
+};
+
+export const agent = `
+- Endpoint: GET /v1/index/ft-transfers (SDK: sl.index.ftTransfers.list / .walk). Filters: sender, recipient, contract_id, asset_identifier, from_height, to_height, order, fields. There is no 'address' parameter.
+- For both directions of one address, call twice (recipient=, then sender=) and merge by block_height and drop repeats by cursor.
+- Page by passing next_cursor back as cursor; null means the page was empty. A cursor only resumes under the order that issued it.
+- 'amount' is a decimal string in the token's smallest unit. walk() keeps no checkpoint and ignores reorgs: use consume() to keep rows.
+`;
