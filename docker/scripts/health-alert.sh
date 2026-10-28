@@ -5,9 +5,11 @@
 #   WARN     — curl the public status endpoint (non-200, or any service it
 #              reports `unavailable`), check compose for unhealthy/exited
 #              containers, and check Caddy's access log for a /v1 route family
-#              mostly answering 5xx. Pages once per incident, all-clear on
-#              recovery. Proxy signal; a flaky container is not necessarily
-#              an outage.
+#              mostly answering 5xx. Pages once per problem (a new problem
+#              during an open incident pages too), all-clear on recovery.
+#              Container state is a proxy signal and goes through slack-gate;
+#              an unavailable service or a mostly-5xx route is customers
+#              getting errors, so it --force pages.
 #   CRITICAL — the actual product invariant: is the canonical chain tip
 #              advancing. Tip unchanged for 15+ minutes (3 runs at the 5-min
 #              cadence; Stacks blocks target ~5-10s, so 15 minutes of zero
@@ -68,15 +70,18 @@ state_write() {
 }
 
 # ---------------------------------------------------------------------------
-# WARN tier: public status endpoint + compose container health (unchanged
-# from the original single-tier script, just its own state file now).
+# WARN tier: public status endpoint, 5xx rate, compose container health.
+# Each problem carries a key; the state file holds the keys already paged.
 # ---------------------------------------------------------------------------
 problems=()
+keys=()
+force=""
 
 status_body=$(mktemp)
 http_code=$(curl -s -o "$status_body" -w "%{http_code}" --max-time 15 "$STATUS_URL" || echo "000")
 if [ "$http_code" != "200" ]; then
   problems+=("status endpoint $STATUS_URL returned $http_code")
+  keys+=("status")
 else
   down=$(python3 -c "
 import json,sys
@@ -84,6 +89,8 @@ b=json.load(open(sys.argv[1]))
 print(' '.join(s['name'] for s in b.get('services',[]) if s.get('status')=='unavailable'))" "$status_body" 2>/dev/null || true)
   if [ -n "$down" ]; then
     problems+=("status endpoint reports unavailable: $down")
+    for name in $down; do keys+=("unavailable:$name"); done
+    force=1
   fi
 fi
 rm -f "$status_body"
@@ -99,9 +106,11 @@ for l in sys.stdin:
   if r['ts']<cutoff or not u.startswith('/v1/'): continue
   k='/'.join(u.split('/')[:4]); n[k]+=1
   if r['status']>=500: bad[k]+=1
-print(' '.join('%s %d/%d'%(k,bad[k],n[k]) for k in sorted(n) if n[k]>=$FIVEXX_MIN_REQUESTS and bad[k]*2>=n[k]))" 2>/dev/null || true)
+print(' '.join('%s:%d/%d'%(k,bad[k],n[k]) for k in sorted(n) if n[k]>=$FIVEXX_MIN_REQUESTS and bad[k]*2>=n[k]))" 2>/dev/null || true)
   if [ -n "$failing" ]; then
     problems+=("mostly 5xx in the last 5m: $failing")
+    for route in $failing; do keys+=("5xx:${route%%:*}"); done
+    force=1
   fi
 fi
 
@@ -110,6 +119,7 @@ if [ -d "$COMPOSE_DIR" ]; then
     | grep -Ei 'unhealthy|exited|restarting' || true)
   if [ -n "$bad" ]; then
     problems+=("containers: $(echo "$bad" | tr '\n' '; ')")
+    keys+=("containers")
   fi
 fi
 
@@ -123,10 +133,17 @@ else
   warn_exit=1
   msg="🔴 secondlayer prod health: $(printf '%s | ' "${problems[@]}")"
   echo "$(date -u +%FT%TZ) $msg"
-  # Alert once per incident: skip if the state file already exists.
-  if [ ! -f "$WARN_STATE_FILE" ]; then
-    touch "$WARN_STATE_FILE" 2>/dev/null || true
-    post_slack "$msg"
+  # Page once per problem: only when a key appears that the open incident
+  # has not paged yet. (Keying on the incident alone let a deploy blip at
+  # 2026-10-28T14:00Z swallow a bitcoin outage five minutes later.)
+  new=""
+  for k in "${keys[@]}"; do
+    grep -qxF "$k" "$WARN_STATE_FILE" 2>/dev/null || new=1
+  done
+  if [ -n "$new" ]; then
+    { cat "$WARN_STATE_FILE" 2>/dev/null; printf '%s\n' "${keys[@]}"; } | sort -u > "$WARN_STATE_FILE.tmp" \
+      && mv "$WARN_STATE_FILE.tmp" "$WARN_STATE_FILE"
+    post_slack "$msg" ${force:+--force}
   fi
 fi
 
