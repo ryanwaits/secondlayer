@@ -1,0 +1,122 @@
+{/* new: 2026-10-28 */}
+# Get NFT transfers for a Stacks collection
+
+Every NFT transfer is decoded and indexed, so one collection's history is a filtered read. Each row names the token, its sender and its recipient. One key, one call:
+
+<CodeTabs sync="lang">
+
+```bash
+curl "$SECONDLAYER_API_URL/v1/index/nft-transfers?contract_id=SP2N959SER36FZ5QT1CX9BR63W3E8X35WQCMBYYWC.leo-cats&order=desc&limit=1" \
+  -H "Authorization: Bearer sk-sl_…"
+```
+
+```ts
+import { Index } from "@secondlayer/sdk";
+
+const index = new Index();
+
+const page = await index.nftTransfers.list({
+  contractId: "SP2N959SER36FZ5QT1CX9BR63W3E8X35WQCMBYYWC.leo-cats",
+  order: "desc",
+  limit: 1,
+});
+```
+
+</CodeTabs>
+
+```json response.json status=200
+{
+  "events": [
+    {
+      "cursor": "9346444:0",
+      "block_height": 9346444,
+      "block_time": "2026-10-28T12:06:24.000Z",
+      "tx_id": "0xdbe15200c985136b4a673d52e6eb72f0f0fdf1904548820a471c9a8b1287db4f",
+      "tx_index": 0,
+      "event_index": 0,
+      "event_type": "nft_transfer",
+      "contract_id": "SP2N959SER36FZ5QT1CX9BR63W3E8X35WQCMBYYWC.leo-cats",
+      "asset_identifier": "SP2N959SER36FZ5QT1CX9BR63W3E8X35WQCMBYYWC.leo-cats::leo-cats",
+      "sender": "SP3Z7511VWR5WG9J3MAKER3NRZYKWT83K2XTP36EV",
+      "recipient": "SPV9K21TBFAK4KNRJXF5DFP8N7W46G4V9RCJDC22.leo-nft-market-faktory",
+      // !mark[/"value"/]
+      "value": "0x01000000000000000000000000000007ec"
+    }
+  ],
+  // !mark[/"next_cursor"/]
+  "next_cursor": "desc:9346444:0",
+  "tip": { "block_height": 9348996, "finalized_height": 9348069, "lag_seconds": 24 },
+  "reorgs": []
+}
+```
+
+`value` is the token id as a serialized Clarity value in hex, not a plain number. A collection's ids are usually `uint`, which decodes to the number you know from the marketplace.
+
+## Read the token id
+
+Decode `value` with `@secondlayer/stacks`; the row above is token 2028.
+
+```ts
+import { cvToValue, deserializeCV } from "@secondlayer/stacks/clarity";
+
+const value = "0x01000000000000000000000000000007ec"; // a row's value
+
+const tokenId = cvToValue(deserializeCV(value)); // 2028n
+```
+
+## Narrow it
+
+A read with no `fromHeight` or cursor covers only the last day, so pass a start to go further back.
+
+| Narrow by | Param |
+| --- | --- |
+| One collection | `contractId` |
+| One NFT type in a contract | `assetIdentifier` |
+| Who sent it, who received it | `sender`, `recipient` |
+| A block range | `fromHeight`, `toHeight` |
+| Newest first | `order: "desc"` |
+
+- `contractId` is one contract. A contract that defines several NFT types needs `assetIdentifier` to pick one.
+- There is no token id filter: to follow one token, filter on the decoded id after the read.
+- Mints and burns are separate feeds, not transfers ([Index](/docs/index)).
+
+## Page through it
+
+Pass the last `next_cursor` back as the next cursor. It comes back null only on an empty page, which ends the loop.
+
+```ts
+let cursor: string | null = null;
+do {
+  const page = await index.nftTransfers.list({
+    contractId,
+    fromHeight: cursor ? undefined : 0,
+    cursor,
+    limit: 1000,
+  });
+  for (const transfer of page.events) await save(transfer);
+  cursor = page.next_cursor;
+} while (cursor);
+```
+
+Pass a start height or a cursor, never both: drop the height once you hold a cursor. A cursor only resumes under the order that issued it. For a one-off export, `walk()` does the paging for you; it keeps no checkpoint ([list, walk, consume](/docs/index#list-walk-consume)).
+
+## Tradeoff
+
+Hosted reads are metered, with a free monthly allowance ([What it costs](/docs/authentication#what-it-costs)). A popular collection means many rows, so narrow by height before you page, and request `fields` to trim each row.
+
+Every filter and the response schema: [List NFT transfers](/docs/api/index#list-nft-transfers). The decoded feeds are described in [Index](/docs/index).
+
+export const metadata = {
+	title: "Get NFT transfers for a Stacks collection",
+	description:
+		"List every NFT transfer for a Stacks collection with one API key: filter by contract, decode the token id from Clarity, then page with the cursor.",
+	alternates: { canonical: "/docs/guides/nft-transfers-for-collection" },
+};
+
+export const agent = `
+- Endpoint: GET /v1/index/nft-transfers (SDK: sl.index.nftTransfers.list / .walk). Filters: contract_id, asset_identifier, sender, recipient, from_height, to_height, order, fields. There is no token-id filter and no address parameter. SDK contractId is one string.
+- 'value' is the token id as a serialized Clarity value in hex (uint 2028 is 0x01 then 16 bytes). Decode with cvToValue(deserializeCV(value)) from @secondlayer/stacks/clarity (uint becomes bigint).
+- A read with no from_height and no cursor covers only the last day. Pass from_height (0 for all history) or a cursor; cursor and from_height are mutually exclusive (400 VALIDATION_ERROR). A cursor only resumes under the order that issued it.
+- Page by passing next_cursor back as cursor; null means the page was empty. walk() keeps no checkpoint and ignores reorgs: use consume() to keep rows.
+- Transfers only: nft_mint and nft_burn are separate event types on /v1/index/events.
+`;

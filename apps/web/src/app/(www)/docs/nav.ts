@@ -92,6 +92,10 @@ export const DOCS_NAV: DocsNavGroup[] = [
 				title: "Decode print events",
 				href: "/docs/guides/decode-print-events",
 			},
+			{
+				title: "NFT transfers for a collection",
+				href: "/docs/guides/nft-transfers-for-collection",
+			},
 		],
 	},
 	{
