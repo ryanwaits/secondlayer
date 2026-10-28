@@ -109,6 +109,8 @@ class BitcoinDialect extends PostgresJSDialect {
 	}
 }
 
+const CONNECT_TIMEOUT_SECONDS = 5;
+
 let bitcoinDb: Kysely<BitcoinDatabase> | undefined;
 let bitcoinDbResolved = false;
 
@@ -125,7 +127,15 @@ export function getBitcoinDb(): Kysely<BitcoinDatabase> | undefined {
 	if (!url) return undefined;
 	const maxRaw = Number(process.env.BITCOIN_DATABASE_POOL_MAX ?? 10);
 	const max = Number.isFinite(maxRaw) && maxRaw > 0 ? maxRaw : 10;
-	const client = postgres(url, { max });
+	// The bitcoin Postgres runs on this host; a connect that takes seconds is
+	// an outage. postgres.js waits 30s by default, and while the bitcoin plane
+	// was down (2026-10-28 forced test) every Runes read hung that long before
+	// its 503: a stopped container's published port drops packets rather than
+	// refusing them.
+	const client = postgres(url, {
+		max,
+		connect_timeout: CONNECT_TIMEOUT_SECONDS,
+	});
 	bitcoinDb = new Kysely<BitcoinDatabase>({
 		dialect: new BitcoinDialect({ postgres: client }),
 	});
