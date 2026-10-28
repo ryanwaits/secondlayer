@@ -11,7 +11,8 @@ const INTRO = `# Secondlayer: instant data for apps on Bitcoin
 ## Shortest path
 - Agent skill: bunx skills add ryanwaits/secondlayer --skill secondlayer -y
 - MCP: bunx @secondlayer/mcp (set SECONDLAYER_API_KEY)
-- All docs in one file: ${SITE}/llms-full.txt
+- Every endpoint as a markdown URL (~14 KB): ${SITE}/llms-api.txt
+- All guides in one file (~190 KB): ${SITE}/llms-full.txt
 
 ## Start here
 - Hosted: get an account key (sk-sl_*) at ${SITE}/signin. The

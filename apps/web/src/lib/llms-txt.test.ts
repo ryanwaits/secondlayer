@@ -1,7 +1,11 @@
 import { describe, expect, test } from "bun:test";
+import { allEndpoints } from "@/app/(www)/docs/api-reference/spec";
 import { docsNavPages } from "@/app/(www)/docs/nav";
+import { GET as getLlmsApi } from "@/app/llms-api.txt/route";
+import { GET as getLlmsFull } from "@/app/llms-full.txt/route";
 import { dataPath, liveDataTopics } from "./data-topics";
 import { SITE, markdownPath } from "./docs-agent";
+import { endpointMarkdownUrl } from "./llms-api";
 import { llmsTxt } from "./llms-txt";
 
 describe("llmsTxt", () => {
@@ -39,5 +43,41 @@ describe("llmsTxt", () => {
 
 	test("does not mention the removed agent mode", () => {
 		expect(text).not.toContain("mode=agent");
+	});
+
+	test("points at the endpoint list and the guides file with sizes", () => {
+		expect(text).toMatch(/\(~\d+ KB\): .*\/llms-api\.txt/);
+		expect(text).toMatch(/\(~\d+ KB\): .*\/llms-full\.txt/);
+	});
+});
+
+describe("llms-full.txt", () => {
+	test("stays small enough for fetchers: guides only, under 300 KB", async () => {
+		const body = await (await getLlmsFull()).text();
+		expect(Buffer.byteLength(body)).toBeLessThan(300_000);
+		expect(body).toContain("# Start / Introduction");
+		expect(body).not.toContain("SDK reference /");
+		expect(body).not.toContain("# Reference / Changelog");
+	});
+});
+
+describe("llms-api.txt", () => {
+	test("lists every endpoint's markdown URL exactly once", async () => {
+		const body = await (await getLlmsApi()).text();
+		for (const e of allEndpoints()) {
+			const url = endpointMarkdownUrl(e.anchor);
+			expect(body.split(`${url}\n`).length - 1).toBe(1);
+		}
+		expect(body.match(/→ /g)?.length).toBe(allEndpoints().length);
+	});
+
+	test("every URL is on the www or api host", async () => {
+		const body = await (await getLlmsApi()).text();
+		for (const url of body.match(/https?:\/\/\S+/g) ?? []) {
+			expect(
+				url.startsWith("https://www.secondlayer.tools") ||
+					url.startsWith("https://api.secondlayer.tools"),
+			).toBe(true);
+		}
 	});
 });
