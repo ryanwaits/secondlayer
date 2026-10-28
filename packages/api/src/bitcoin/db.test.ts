@@ -242,18 +242,52 @@ describe("connectBreaker", () => {
 		);
 		expect(calls).toBe(1);
 
-		t = 4_999; // still open: no connect attempt
+		t = 9_999; // still open: no connect attempt
 		expect((await acquire().catch((e) => e)).code).toBe(
 			"BITCOIN_DATA_UNAVAILABLE",
 		);
 		expect(calls).toBe(1);
 
-		t = 5_000; // window over: one real attempt, which now succeeds
+		t = 10_000; // window over: one real attempt, which now succeeds
 		up = true;
 		expect(await acquire()).toBe("conn");
 		expect(calls).toBe(2);
 		expect(await acquire()).toBe("conn");
 		expect(calls).toBe(3);
+	});
+
+	test("once the window passes only one call probes; the rest keep failing fast", async () => {
+		let t = 0;
+		let calls = 0;
+		let release: (err: unknown) => void = () => {};
+		const acquire = connectBreaker(
+			() => {
+				calls++;
+				if (calls === 1) return Promise.reject(refused());
+				return new Promise<string>((_, reject) => {
+					release = reject;
+				});
+			},
+			() => t,
+		);
+		await acquire().catch(() => {}); // trip
+
+		t = 10_000;
+		const probe = acquire().catch((e) => e); // in flight
+		const others = await Promise.all(
+			[1, 2, 3].map(() => acquire().catch((e) => e)),
+		);
+		expect(others.map((e) => e.code)).toEqual([
+			"BITCOIN_DATA_UNAVAILABLE",
+			"BITCOIN_DATA_UNAVAILABLE",
+			"BITCOIN_DATA_UNAVAILABLE",
+		]);
+		expect(calls).toBe(2);
+
+		release(refused()); // probe fails: re-opened for another window
+		expect((await probe).code).toBe("BITCOIN_DATA_UNAVAILABLE");
+		await acquire().catch(() => {});
+		expect(calls).toBe(2);
 	});
 
 	test("query-level errors pass through and never open the breaker", async () => {

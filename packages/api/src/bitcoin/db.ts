@@ -91,25 +91,32 @@ function isBitcoinDbUnreachable(err: unknown): boolean {
 }
 
 /** How long to answer 503 without trying to connect after a connect failed.
- *  Without it every read during an outage waits out the connect timeout
- *  (~5s) and queues behind the pool; with it they fail in milliseconds. */
-const BREAKER_OPEN_MS = 5000;
+ *  Longer than the 5s connect timeout, so a sustained outage costs one slow
+ *  probe per window per replica instead of a slow request every few. */
+const BREAKER_OPEN_MS = 10_000;
 
 /**
  * Connect circuit breaker. After an unreachable failure, `acquire` rejects
- * immediately with `BitcoinDataUnavailableError` until `BREAKER_OPEN_MS`
- * passes; the first call after that tries a real connect, which closes the
- * breaker on success or re-opens it on failure. Other errors pass through
- * untouched. `now` is injectable for tests.
+ * immediately with `BitcoinDataUnavailableError` for `BREAKER_OPEN_MS`.
+ * After that ONE call probes with a real connect while every other call keeps
+ * failing fast; the probe closes the breaker on success or re-opens it on
+ * failure. Without it every read during an outage waited out the connect
+ * timeout and queued behind the pool (2026-10-28 forced test). Other errors
+ * pass through untouched. `now` is injectable for tests.
  */
 export function connectBreaker<T>(
 	acquire: () => Promise<T>,
 	now: () => number = Date.now,
 ): () => Promise<T> {
 	let openUntil = 0;
+	let probing = false;
 	let lastFailure: unknown;
 	return async () => {
-		if (now() < openUntil) throw new BitcoinDataUnavailableError(lastFailure);
+		const tripped = openUntil > 0;
+		if (tripped && (now() < openUntil || probing)) {
+			throw new BitcoinDataUnavailableError(lastFailure);
+		}
+		probing = tripped;
 		try {
 			const connection = await acquire();
 			openUntil = 0;
@@ -119,6 +126,8 @@ export function connectBreaker<T>(
 			lastFailure = err;
 			openUntil = now() + BREAKER_OPEN_MS;
 			throw new BitcoinDataUnavailableError(err);
+		} finally {
+			if (tripped) probing = false;
 		}
 	};
 }
