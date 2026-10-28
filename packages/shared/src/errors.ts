@@ -164,6 +164,9 @@ export const CODE_TO_STATUS: Record<
 	// first block lands. Retryable, and not the operator's mistake, so it is a
 	// 503 with a name rather than an opaque 500.
 	CHAIN_DATA_UNAVAILABLE: 503,
+	// The Bitcoin (Runes) database is configured but not reachable. Retryable;
+	// distinct from "not configured", which answers 200 with `notes`.
+	BITCOIN_DATA_UNAVAILABLE: 503,
 	AUTHENTICATION_ERROR: 401,
 	AUTHORIZATION_ERROR: 403,
 	PAYMENT_REQUIRED: 402,

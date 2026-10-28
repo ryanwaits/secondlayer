@@ -7,13 +7,14 @@ import {
 	test,
 } from "bun:test";
 import type { Database as BitcoinDatabase } from "@secondlayer/bitcoin/db";
-import { ValidationError } from "@secondlayer/shared/errors";
+import { CODE_TO_STATUS, ValidationError } from "@secondlayer/shared/errors";
 import { Kysely } from "kysely";
 import { PostgresJSDialect } from "kysely-postgres-js";
 import postgres from "postgres";
 import {
 	_resetBitcoinDbForTests,
 	_resetBitcoinTipCacheForTests,
+	getBitcoinDb,
 	getBitcoinTip,
 	isBitcoinConfigured,
 	parseRuneRef,
@@ -183,3 +184,37 @@ describe.skipIf(!missingTableTestUrl)(
 		});
 	},
 );
+
+// 2026-10-22..28: the API could not resolve the bitcoin Postgres host and
+// every Runes / chain=bitcoin read answered an opaque 500.
+describe("unreachable bitcoin database", () => {
+	const ORIGINAL_URL = process.env.BITCOIN_DATABASE_URL;
+
+	afterEach(() => {
+		if (ORIGINAL_URL === undefined) delete process.env.BITCOIN_DATABASE_URL;
+		else process.env.BITCOIN_DATABASE_URL = ORIGINAL_URL;
+		_resetBitcoinDbForTests();
+		_resetBitcoinTipCacheForTests();
+	});
+
+	for (const [label, url] of [
+		[
+			"unresolvable host",
+			"postgres://u:p@bitcoin-postgres.invalid:5432/bitcoin",
+		],
+		["refused port", "postgres://u:p@127.0.0.1:1/bitcoin"],
+	] as const) {
+		test(`${label} is a retryable 503, not a 500`, async () => {
+			process.env.BITCOIN_DATABASE_URL = url;
+			_resetBitcoinDbForTests();
+			_resetBitcoinTipCacheForTests();
+
+			const err = await getBitcoinTip(getBitcoinDb()).catch((e) => e);
+			expect(err.code).toBe("BITCOIN_DATA_UNAVAILABLE");
+			expect(CODE_TO_STATUS[err.code]).toBe(503);
+			// Readers that tolerate a missing schema still surface the outage.
+			const reorgs = await readBtcReorgs(0, 1, getBitcoinDb()).catch((e) => e);
+			expect(reorgs.code).toBe("BITCOIN_DATA_UNAVAILABLE");
+		});
+	}
+});

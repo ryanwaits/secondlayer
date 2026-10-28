@@ -7,6 +7,7 @@ import {
 	type SbtcWithdrawalStatus,
 } from "../../index/sbtc-peg.ts";
 import {
+	BITCOIN_503,
 	ERROR_400,
 	ERROR_401,
 	ERROR_429,
@@ -196,6 +197,7 @@ function runesEnvelope(
 		"400": jsonError(ERROR_400),
 		"401": jsonError(ERROR_401),
 		"429": jsonError(ERROR_429),
+		"503": jsonError(BITCOIN_503),
 	};
 }
 
@@ -705,6 +707,7 @@ export const protocolsPaths = {
 					"No rune matches this id/name, or Runes isn't configured on this instance (`code: NOT_FOUND`, the latter case also carries `details.notes`)",
 				),
 				"429": jsonError(ERROR_429),
+				"503": jsonError(BITCOIN_503),
 			},
 			"x-codeSamples": [
 				{

@@ -13415,6 +13415,16 @@
 								}
 							}
 						}
+					},
+					"503": {
+						"description": "The Bitcoin (Runes) database is configured but unreachable (`BITCOIN_DATA_UNAVAILABLE`). Retry shortly",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
 					}
 				},
 				"x-codeSamples": [
@@ -13532,6 +13542,16 @@
 					},
 					"429": {
 						"description": "Rate limited; retry after `Retry-After` seconds",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"503": {
+						"description": "The Bitcoin (Runes) database is configured but unreachable (`BITCOIN_DATA_UNAVAILABLE`). Retry shortly",
 						"content": {
 							"application/json": {
 								"schema": {
@@ -13720,6 +13740,16 @@
 								}
 							}
 						}
+					},
+					"503": {
+						"description": "The Bitcoin (Runes) database is configured but unreachable (`BITCOIN_DATA_UNAVAILABLE`). Retry shortly",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
 					}
 				},
 				"x-codeSamples": [
@@ -13857,6 +13887,16 @@
 					},
 					"429": {
 						"description": "Rate limited; retry after `Retry-After` seconds",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"503": {
+						"description": "The Bitcoin (Runes) database is configured but unreachable (`BITCOIN_DATA_UNAVAILABLE`). Retry shortly",
 						"content": {
 							"application/json": {
 								"schema": {
@@ -15166,7 +15206,7 @@
 						}
 					},
 					"503": {
-						"description": "No canonical block indexed yet (`CHAIN_DATA_UNAVAILABLE`). Wait for the indexer to ingest its first block",
+						"description": "No canonical block indexed yet (`CHAIN_DATA_UNAVAILABLE`): wait for the indexer to ingest its first block. With `chain=bitcoin`, the Bitcoin database is configured but unreachable (`BITCOIN_DATA_UNAVAILABLE`): retry shortly",
 						"content": {
 							"application/json": {
 								"schema": {
@@ -15602,6 +15642,16 @@
 								}
 							}
 						}
+					},
+					"503": {
+						"description": "The Bitcoin (Runes) database is configured but unreachable (`BITCOIN_DATA_UNAVAILABLE`). Retry shortly",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
 					}
 				}
 			}
@@ -15802,7 +15852,7 @@
 						}
 					},
 					"503": {
-						"description": "No canonical block indexed yet (`CHAIN_DATA_UNAVAILABLE`). Wait for the indexer to ingest its first block",
+						"description": "No canonical block indexed yet (`CHAIN_DATA_UNAVAILABLE`): wait for the indexer to ingest its first block. With `chain=bitcoin`, the Bitcoin database is configured but unreachable (`BITCOIN_DATA_UNAVAILABLE`): retry shortly",
 						"content": {
 							"application/json": {
 								"schema": {

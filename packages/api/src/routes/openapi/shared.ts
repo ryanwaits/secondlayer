@@ -217,6 +217,8 @@ export const ERROR_401 =
 	"This bind requires the instance token, and it was missing or wrong";
 export const ERROR_404 = "Not found";
 export const ERROR_429 = "Rate limited; retry after `Retry-After` seconds";
+export const BITCOIN_503 =
+	"The Bitcoin (Runes) database is configured but unreachable (`BITCOIN_DATA_UNAVAILABLE`). Retry shortly";
 
 export function jsonError(description: string) {
 	return {

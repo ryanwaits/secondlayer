@@ -5,7 +5,14 @@ import {
 	STREAMS_TIER_CONFIG,
 	STREAMS_TIP_REORG_MARGIN_BLOCKS,
 } from "../../streams/tiers.ts";
-import { ERROR_401, READ_SECURITY, envelope, jsonError, qp } from "./shared.ts";
+import {
+	BITCOIN_503,
+	ERROR_401,
+	READ_SECURITY,
+	envelope,
+	jsonError,
+	qp,
+} from "./shared.ts";
 
 /**
  * Streams: the raw, ordered event firehose (`routes/streams.ts`,
@@ -22,7 +29,7 @@ const FREE_TIER = STREAMS_TIER_CONFIG.free;
 const STREAMS_429 = `Rate limited on the hosted API (${STREAMS_ANON_RATE_LIMIT_PER_SECOND}/s per IP without a key, ${FREE_TIER.rateLimitPerSecond}/s on a free key). Self-hosted instances do not throttle Streams. Retry after \`Retry-After\` seconds`;
 
 const STREAMS_503 =
-	"No canonical block indexed yet (`CHAIN_DATA_UNAVAILABLE`). Wait for the indexer to ingest its first block";
+	"No canonical block indexed yet (`CHAIN_DATA_UNAVAILABLE`): wait for the indexer to ingest its first block. With `chain=bitcoin`, the Bitcoin database is configured but unreachable (`BITCOIN_DATA_UNAVAILABLE`): retry shortly";
 
 /** Headers `respondSignedJson` adds when `STREAMS_SIGNING_PRIVATE_KEY` is set. */
 const SIGNATURE_HEADERS = {
@@ -401,6 +408,7 @@ export const streamsPaths = {
 				),
 				"401": jsonError(ERROR_401),
 				"429": jsonError(STREAMS_429),
+				"503": jsonError(BITCOIN_503),
 			},
 		},
 	},

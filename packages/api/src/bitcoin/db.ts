@@ -15,7 +15,7 @@ import type { Database as BitcoinDatabase } from "@secondlayer/bitcoin/db";
 import { CHECKPOINT_NAME } from "@secondlayer/bitcoin/db";
 import { spacedRuneFromString } from "@secondlayer/bitcoin/rune";
 import { ValidationError } from "@secondlayer/shared/errors";
-import { Kysely } from "kysely";
+import { type Driver, Kysely } from "kysely";
 import { PostgresJSDialect } from "kysely-postgres-js";
 import postgres from "postgres";
 
@@ -50,6 +50,65 @@ function isBitcoinSchemaAbsent(err: unknown): boolean {
 	return code === "42P01" || code === "3D000";
 }
 
+/**
+ * `BITCOIN_DATABASE_URL` is set but its Postgres can't be reached (host
+ * unresolvable, refused, timed out, restarting). A 503 with a name the caller
+ * can retry on, not an opaque 500 — and not the "not configured" `notes`,
+ * which would tell a consumer the data is empty rather than temporarily out
+ * of reach. 2026-10-22..28 this was a 500 on every Runes and `chain=bitcoin`
+ * Streams read.
+ */
+export class BitcoinDataUnavailableError extends Error {
+	readonly code = "BITCOIN_DATA_UNAVAILABLE";
+	constructor(cause: unknown) {
+		super("Bitcoin data is temporarily unavailable. Retry shortly.", {
+			cause,
+		});
+		this.name = "BitcoinDataUnavailableError";
+	}
+}
+
+/** Connection-level failures from postgres.js / Bun's socket layer. Query
+ *  errors (bad SQL, missing table) keep their own codes. `57P03` =
+ *  cannot_connect_now (server starting up). */
+const UNREACHABLE_CODES = new Set([
+	"ENOTFOUND",
+	"EAI_AGAIN",
+	"ECONNREFUSED",
+	"ECONNRESET",
+	"EHOSTUNREACH",
+	"ETIMEDOUT",
+	"CONNECT_TIMEOUT",
+	"CONNECTION_CLOSED",
+	"CONNECTION_ENDED",
+	"CONNECTION_DESTROYED",
+	"57P03",
+]);
+
+function isBitcoinDbUnreachable(err: unknown): boolean {
+	const code = (err as { code?: unknown } | null)?.code;
+	return typeof code === "string" && UNREACHABLE_CODES.has(code);
+}
+
+/** postgres.js connects inside `reserve()`, which Kysely calls to acquire a
+ *  connection, so every reader's connect failure passes through here once. */
+class BitcoinDialect extends PostgresJSDialect {
+	override createDriver(): Driver {
+		const driver = super.createDriver();
+		const acquire = driver.acquireConnection.bind(driver);
+		driver.acquireConnection = async () => {
+			try {
+				return await acquire();
+			} catch (err) {
+				throw isBitcoinDbUnreachable(err)
+					? new BitcoinDataUnavailableError(err)
+					: err;
+			}
+		};
+		return driver;
+	}
+}
+
 let bitcoinDb: Kysely<BitcoinDatabase> | undefined;
 let bitcoinDbResolved = false;
 
@@ -68,7 +127,7 @@ export function getBitcoinDb(): Kysely<BitcoinDatabase> | undefined {
 	const max = Number.isFinite(maxRaw) && maxRaw > 0 ? maxRaw : 10;
 	const client = postgres(url, { max });
 	bitcoinDb = new Kysely<BitcoinDatabase>({
-		dialect: new PostgresJSDialect({ postgres: client }),
+		dialect: new BitcoinDialect({ postgres: client }),
 	});
 	return bitcoinDb;
 }
