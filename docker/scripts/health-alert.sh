@@ -2,9 +2,11 @@
 # Dumb prod health check → Slack. Replaces the AI ops agent as the single
 # alert channel. Two independent tiers:
 #
-#   WARN     — curl the public status endpoint and check compose for
-#              unhealthy/exited containers. Pages once per incident, all-clear
-#              on recovery. Proxy signal; a flaky container is not necessarily
+#   WARN     — curl the public status endpoint (non-200, or any service it
+#              reports `unavailable`), check compose for unhealthy/exited
+#              containers, and check Caddy's access log for a /v1 route family
+#              mostly answering 5xx. Pages once per incident, all-clear on
+#              recovery. Proxy signal; a flaky container is not necessarily
 #              an outage.
 #   CRITICAL — the actual product invariant: is the canonical chain tip
 #              advancing. Tip unchanged for 15+ minutes (3 runs at the 5-min
@@ -25,6 +27,12 @@ set -uo pipefail
 
 COMPOSE_DIR="${COMPOSE_DIR:-/opt/secondlayer/docker}"
 STATUS_URL="${HEALTH_STATUS_URL:-https://api.secondlayer.tools/public/status}"
+CADDY_CONTAINER="${CADDY_CONTAINER:-secondlayer-caddy-1}"
+# A /v1 route family (first three path segments, e.g. /v1/index/runes) with at
+# least this many requests in the last 5 min, at least half of them 5xx.
+# 2026-10-22..28 hosted Runes answered 500 on every read for days and nothing
+# paged: the status endpoint said healthy and no check looked at 5xx.
+FIVEXX_MIN_REQUESTS=10
 
 HEALTH_STATE_DIR="${HEALTH_STATE_DIR:-/var/run}"
 WARN_STATE_FILE="${HEALTH_WARN_STATE_FILE:-$HEALTH_STATE_DIR/secondlayer-health-alert-warn.state}"
@@ -65,9 +73,36 @@ state_write() {
 # ---------------------------------------------------------------------------
 problems=()
 
-http_code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 15 "$STATUS_URL" || echo "000")
+status_body=$(mktemp)
+http_code=$(curl -s -o "$status_body" -w "%{http_code}" --max-time 15 "$STATUS_URL" || echo "000")
 if [ "$http_code" != "200" ]; then
   problems+=("status endpoint $STATUS_URL returned $http_code")
+else
+  down=$(python3 -c "
+import json,sys
+b=json.load(open(sys.argv[1]))
+print(' '.join(s['name'] for s in b.get('services',[]) if s.get('status')=='unavailable'))" "$status_body" 2>/dev/null || true)
+  if [ -n "$down" ]; then
+    problems+=("status endpoint reports unavailable: $down")
+  fi
+fi
+rm -f "$status_body"
+
+if docker inspect "$CADDY_CONTAINER" >/dev/null 2>&1; then
+  failing=$(docker exec "$CADDY_CONTAINER" tail -n 20000 /var/log/caddy/access.log 2>/dev/null | python3 -c "
+import sys,json,time,collections
+cutoff=time.time()-300; n=collections.Counter(); bad=collections.Counter()
+for l in sys.stdin:
+  try: r=json.loads(l)
+  except Exception: continue
+  u=r['request']['uri'].split('?')[0]
+  if r['ts']<cutoff or not u.startswith('/v1/'): continue
+  k='/'.join(u.split('/')[:4]); n[k]+=1
+  if r['status']>=500: bad[k]+=1
+print(' '.join('%s %d/%d'%(k,bad[k],n[k]) for k in sorted(n) if n[k]>=$FIVEXX_MIN_REQUESTS and bad[k]*2>=n[k]))" 2>/dev/null || true)
+  if [ -n "$failing" ]; then
+    problems+=("mostly 5xx in the last 5m: $failing")
+  fi
 fi
 
 if [ -d "$COMPOSE_DIR" ]; then

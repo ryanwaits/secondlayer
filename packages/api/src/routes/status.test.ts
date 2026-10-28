@@ -3,10 +3,12 @@ import {
 	type DecodersHealth,
 	getEnabledDecoderNames,
 } from "@secondlayer/indexer/decode/health";
+import { _resetBitcoinDbForTests } from "../bitcoin/db.ts";
 import type { StreamsTip } from "../streams/tip.ts";
 import statusApp, {
 	NODE_LAG_DEGRADED_SECONDS,
 	nodeStatusFromStreamsTip,
+	publicBitcoinStatus,
 	publicIndexStatusFromDecoderHealth,
 	subgraphProcessorVerdict,
 } from "./status.ts";
@@ -310,5 +312,67 @@ describe("/status and /public/status subgraph_processor gating", () => {
 		expect(
 			statusBody.services.some((s) => s.name === "subgraph_processor"),
 		).toBe(true);
+	});
+});
+
+describe("/public/status bitcoin plane", () => {
+	const ORIGINAL_URL = process.env.BITCOIN_DATABASE_URL;
+
+	afterEach(() => {
+		if (ORIGINAL_URL === undefined) delete process.env.BITCOIN_DATABASE_URL;
+		else process.env.BITCOIN_DATABASE_URL = ORIGINAL_URL;
+		_resetBitcoinDbForTests();
+	});
+
+	test("a readable tip is ok, a failed read is unavailable", () => {
+		const tip = {
+			block_height: 973_558,
+			finalized_height: 973_552,
+			lag_seconds: 40,
+		};
+		expect(publicBitcoinStatus({ status: "fulfilled", value: tip })).toEqual({
+			status: "ok",
+			tip,
+		});
+		expect(
+			publicBitcoinStatus({
+				status: "rejected",
+				reason: new Error("EAI_AGAIN"),
+			}),
+		).toEqual({ status: "unavailable", tip: null });
+	});
+
+	test("unset BITCOIN_DATABASE_URL is not provisioned, not an outage", async () => {
+		delete process.env.BITCOIN_DATABASE_URL;
+		_resetBitcoinDbForTests();
+
+		const body = (await (await statusApp.request("/public/status")).json()) as {
+			bitcoin?: unknown;
+			services: Array<{ name: string }>;
+		};
+		expect(body.bitcoin).toBeUndefined();
+		expect(body.services.some((s) => s.name === "bitcoin")).toBe(false);
+	});
+
+	// The 2026-10-22 outage: the API could not resolve the bitcoin Postgres
+	// host, every Runes read answered 500, and this endpoint said healthy.
+	test("an unreachable bitcoin database degrades the status", async () => {
+		process.env.BITCOIN_DATABASE_URL =
+			"postgres://user:pass@bitcoin-postgres.invalid:5432/bitcoin";
+		_resetBitcoinDbForTests();
+
+		const res = await statusApp.request("/public/status");
+		expect(res.status).toBe(200);
+		const body = (await res.json()) as {
+			status: string;
+			bitcoin: { status: string; tip: unknown };
+			services: Array<{ name: string; status: string }>;
+		};
+		expect(body.bitcoin).toEqual({ status: "unavailable", tip: null });
+		expect(body.services).toContainEqual({
+			name: "bitcoin",
+			status: "unavailable",
+		});
+		expect(body.status).toBe("degraded");
 	});
 });

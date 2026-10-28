@@ -111,6 +111,23 @@ copy**:
 5. Stop and delete Bitcoin containers and `/data/feeder/{ord,btc-pg}` on the
    feeder. The feeder then retires on its own schedule (plan 031).
 
+**How the prod API reaches the Bitcoin Postgres.** The Bitcoin plane is its
+own compose project (`/opt/secondlayer-bitcoin`, the oss compose plus a host
+override). Its Postgres is published on the docker bridge gateway
+(`172.17.0.1:5443`, next to `127.0.0.1:5443`) and the API reads
+`BITCOIN_DATABASE_URL=postgres://…@host.docker.internal:5443/bitcoin`
+(`extra_hosts: host-gateway` on `api` in `docker/docker-compose.yml`). The two
+projects share no docker network on purpose:
+- compose gives a service its name as an alias on every network it joins, so
+  the Bitcoin `postgres` on prod's network would shadow prod's own `postgres`;
+- `secondlayer.service` runs `compose down` on stop, so prod's network is
+  recreated on every reboot and drops any container attached from outside.
+  The original hand-run `docker network connect --alias bitcoin-postgres` was
+  lost that way on 2026-10-22, and hosted Runes plus `chain=bitcoin` Streams
+  answered 500 until 10-28. `/public/status` now reports a `bitcoin` service,
+  and `health-alert.sh` pages on any `unavailable` service and on a /v1 route
+  family that mostly answers 5xx.
+
 Why rebuild: a copy from a network volume hides the local-NVMe timing, and a
 rebuild exercises the same path customers run. Fallback if the rebuild is
 slower than ~2 days: `pg_basebackup` from the feeder, then verify digests.

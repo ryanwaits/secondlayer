@@ -102,6 +102,12 @@ services:
       context: ..
       dockerfile: docker/Dockerfile
       target: api
+    # Host gateway, for a bitcoin plane published on the docker bridge (see
+    # BITCOIN_DATABASE_URL). Not a shared docker network: compose aliases a
+    # service by its name on every network it joins, so the bitcoin project's
+    # `postgres` would shadow this stack's own `postgres`.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     environment:
       INSTANCE_MODE: ${INSTANCE_MODE:-platform}
       # Overridable so split prod can BLANK it (`DATABASE_URL=` in .env) — then a
@@ -118,7 +124,9 @@ services:
       # only). Fails open if Redis is unreachable.
       REDIS_URL: ${REDIS_URL:-redis://redis:6379}
       # Runes reads + `chain=bitcoin` Streams. Unset → those routes answer
-      # "Runes data is not configured".
+      # "Runes data is not configured". A bitcoin plane run as its own compose
+      # project is reached at host.docker.internal (extra_hosts above), see
+      # docs/internal/bitcoin-runtime.md.
       BITCOIN_DATABASE_URL: ${BITCOIN_DATABASE_URL:-}
       PORT: 3800
       LOG_LEVEL: ${LOG_LEVEL:-info}

@@ -10,6 +10,11 @@ import { getGapSummaryBySubgraph } from "@secondlayer/shared/db/queries/subgraph
 import { getInstanceMode } from "@secondlayer/shared/mode";
 import { Hono } from "hono";
 import { sql } from "kysely";
+import {
+	type BitcoinIndexTip,
+	getBitcoinTip,
+	isBitcoinConfigured,
+} from "../bitcoin/db.ts";
 import { eventsTotal } from "../lib/events-total.ts";
 import { readNodeTip } from "../lib/node-tip.ts";
 import {
@@ -55,7 +60,13 @@ type PublicStatusIndex = PublicIndexStatus & {
 type SemanticHealthStatus = "ok" | "degraded" | "unavailable";
 
 type PublicServiceHealth = {
-	name: "api" | "database" | "indexer" | "decoder" | "subgraph_processor";
+	name:
+		| "api"
+		| "database"
+		| "indexer"
+		| "decoder"
+		| "subgraph_processor"
+		| "bitcoin";
 	status: SemanticHealthStatus;
 };
 
@@ -215,6 +226,50 @@ function overallPublicStatus(
 		: "degraded";
 }
 
+/**
+ * The Bitcoin (Runes) plane: is its database answering. Only reported when
+ * `BITCOIN_DATABASE_URL` is set — unset means Runes isn't provisioned here,
+ * which is a normal state, not an outage.
+ *
+ * From 2026-10-22 to 10-28 hosted Runes answered 500 on every read (the API
+ * lost its route to the bitcoin Postgres in a network recreate) while this
+ * endpoint said `healthy`, so the health alert never fired. A tip read that
+ * fails or times out is `unavailable` and degrades the top-level status.
+ */
+export type PublicBitcoinStatus = {
+	status: SemanticHealthStatus;
+	tip: BitcoinIndexTip | null;
+};
+
+export function publicBitcoinStatus(
+	tip: PromiseSettledResult<BitcoinIndexTip | null>,
+): PublicBitcoinStatus {
+	return tip.status === "fulfilled" && tip.value
+		? { status: "ok", tip: tip.value }
+		: { status: "unavailable", tip: null };
+}
+
+// Bounded like `getIndexerHealth`: an unreachable host would otherwise hold
+// the response for the Postgres client's 30s connect timeout.
+const BITCOIN_TIP_TIMEOUT_MS = 2000;
+
+async function readBitcoinTipBounded(): Promise<BitcoinIndexTip> {
+	let timer: ReturnType<typeof setTimeout> | undefined;
+	try {
+		return await Promise.race([
+			getBitcoinTip(),
+			new Promise<never>((_, reject) => {
+				timer = setTimeout(
+					() => reject(new Error("bitcoin tip timeout")),
+					BITCOIN_TIP_TIMEOUT_MS,
+				);
+			}),
+		]);
+	} finally {
+		clearTimeout(timer);
+	}
+}
+
 async function getIndexerHealth(): Promise<{
 	blocksReceivedOutOfOrder?: number;
 } | null> {
@@ -254,6 +309,7 @@ app.get("/public/status", async (c) => {
 		chainIntegrityResult,
 		subgraphProgressResult,
 		nodeTipResult,
+		bitcoinTipResult,
 	] = await Promise.allSettled([
 		sql`SELECT 1`.execute(db),
 		getIndexerHealth(),
@@ -272,6 +328,7 @@ app.get("/public/status", async (c) => {
 			.where("status", "in", ["active", "reindexing"])
 			.executeTakeFirst(),
 		readNodeTip(),
+		isBitcoinConfigured() ? readBitcoinTipBounded() : Promise.resolve(null),
 	]);
 	// Read before the block below — the processor's verdict depends on it.
 	const streamsTipForProgress: StreamsTip | null =
@@ -340,6 +397,9 @@ app.get("/public/status", async (c) => {
 				: null,
 		chainTip,
 	});
+	const bitcoin: PublicBitcoinStatus | null = isBitcoinConfigured()
+		? publicBitcoinStatus(bitcoinTipResult)
+		: null;
 	const services: PublicServiceHealth[] = [
 		{ name: "api", status: "ok" },
 		{
@@ -362,6 +422,7 @@ app.get("/public/status", async (c) => {
 					},
 				]
 			: []),
+		...(bitcoin ? [{ name: "bitcoin" as const, status: bitcoin.status }] : []),
 	];
 
 	// Chain-data integrity: catches a wrong/empty Postgres volume being served
@@ -407,6 +468,7 @@ app.get("/public/status", async (c) => {
 		...(mode !== "platform"
 			? { subgraphProcessor: subgraphProcessorDetail }
 			: {}),
+		...(bitcoin ? { bitcoin } : {}),
 		services,
 		timestamp: new Date().toISOString(),
 	});
