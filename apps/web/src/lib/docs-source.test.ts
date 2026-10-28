@@ -239,3 +239,39 @@ describe("mdxToMarkdown tips", () => {
 		);
 	});
 });
+
+describe("mdxToMarkdown module syntax", () => {
+	test("import and export lines inside fences survive, ts and bash", () => {
+		const md = mdxToMarkdown(
+			[
+				"```ts",
+				'import { Index } from "@secondlayer/sdk";',
+				"export default defineSubgraph({",
+				"```",
+				"",
+				"```bash",
+				"export SECONDLAYER_API_URL=https://api.secondlayer.tools",
+				"```",
+			].join("\n"),
+		);
+		expect(md).toContain('import { Index } from "@secondlayer/sdk";');
+		expect(md).toContain("export default defineSubgraph({");
+		expect(md).toContain(
+			"export SECONDLAYER_API_URL=https://api.secondlayer.tools",
+		);
+	});
+
+	test("top-level import and metadata export outside fences are removed", () => {
+		const md = mdxToMarkdown(
+			[
+				'import { X } from "./x";',
+				"export const metadata = {",
+				'\ttitle: "T",',
+				"};",
+				"",
+				"# Title",
+			].join("\n"),
+		);
+		expect(md).toBe("# Title");
+	});
+});

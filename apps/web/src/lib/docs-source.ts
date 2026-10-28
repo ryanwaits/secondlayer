@@ -90,10 +90,13 @@ export function mdxToMarkdown(source: string): string {
 			// (`[text](tip "words")`) reads as its text.
 			.replace(/\[([^\]]*)\]\((?:hover|focus):[^)]*\)/g, "$1")
 			.replace(/\[([^\]]*)\]\(tip\s+"[^"]*"\)/g, "$1")
-			// `export const metadata = {...}` — build-time only, never content.
-			.replace(/export const metadata\s*=\s*\{[\s\S]*?\n\};?\n?/g, "")
-			.replace(/^export .*$/gm, "")
-			.replace(/^import .*$/gm, "")
+			// MDX module syntax (`export const metadata = {...}`, `import`, `export`)
+			// is build-time only. Fences match first and pass through untouched, so
+			// code samples keep their own import/export lines.
+			.replace(
+				/^(`{3,}|~{3,})[^\n]*\n[\s\S]*?^\1[ \t]*$|^export const metadata\s*=\s*\{[\s\S]*?\n\};?\n?|^export .*$|^import .*$/gm,
+				(m, fence?: string) => (fence ? m : ""),
+			)
 			// "New" marks only feed the sidebar's chip.
 			.replace(new RegExp(NEW_MARK.source, "gm"), "")
 			// Native disclosures: markdown readers get a plain heading.
