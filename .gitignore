@@ -96,3 +96,6 @@ cassettes/
 
 # generated customer-email previews (packages/shared/src/email/preview.ts)
 /email-previews/
+
+# SEO baseline exports (GSC/Bing), local only
+.seo-baseline/
