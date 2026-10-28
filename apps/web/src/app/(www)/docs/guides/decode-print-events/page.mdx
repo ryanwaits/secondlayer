@@ -1,0 +1,149 @@
+{/* new: 2026-10-28 */}
+# Decode Clarity print events
+
+You don't decode them: every print is indexed already parsed from Clarity into JSON, with the raw hex kept beside it. One key, one call:
+
+<CodeTabs sync="lang">
+
+```bash
+curl "$SECONDLAYER_API_URL/v1/index/events?event_type=print&contract_id=SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4.sbtc-registry&order=desc&limit=1" \
+  -H "Authorization: Bearer sk-sl_…"
+```
+
+```ts
+import { Index } from "@secondlayer/sdk";
+
+const index = new Index();
+
+const page = await index.events.list({
+  eventType: "print",
+  contractId: "SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4.sbtc-registry",
+  order: "desc",
+  limit: 1,
+});
+```
+
+</CodeTabs>
+
+```json response.json status=200
+{
+  "events": [
+    {
+      "cursor": "9348740:2",
+      "block_height": 9348740,
+      "block_time": "2026-10-28T17:42:12.000Z",
+      "tx_id": "0xfff08aecc097d418f55b98b10abe2bc6b1785b89b0ed1b80506fc15a375a14f9",
+      "tx_index": 0,
+      "event_index": 2,
+      "event_type": "print",
+      "contract_id": "SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4.sbtc-registry",
+      "payload": {
+        "topic": "print",
+        // !mark[/"value"/]
+        "value": {
+          "amount": "40477",
+          "block-height": "973577",
+          "max-fee": "850",
+          "recipient": { "hashbytes": "0x98cfcc0a22d16a9ce131dd774ee0245a3b10dcfb", "version": "0x04" },
+          "request-id": "4636",
+          "sender": "SPEG24N6F52VPD8001H20TD317GHDD23GGVEZC56",
+          "topic": "withdrawal-create"
+        },
+        // !mark[/"raw_value"/]
+        "raw_value": "0x0c0000000706616d6f756e74…"
+      }
+    }
+  ],
+  "next_cursor": "desc:9348740:2",
+  "tip": { "block_height": 9348932, "finalized_height": 9348069, "lag_seconds": 18 },
+  "reorgs": []
+}
+```
+
+The decoded tuple is `value`: uints are decimal strings, buffers are hex, principals are strings. `raw_value` is the hex you started from, kept so you can check the decode.
+
+## See each topic's fields
+
+A contract prints different shapes under different topics. The print-schema call lists a contract's topics and each field's Clarity and TypeScript type.
+
+<CodeTabs sync="lang">
+
+```bash
+curl "$SECONDLAYER_API_URL/v1/index/contracts/SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4.sbtc-registry/print-schema" \
+  -H "Authorization: Bearer sk-sl_…"
+```
+
+```ts
+const schema = await index.printSchema(
+  "SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4.sbtc-registry",
+);
+```
+
+</CodeTabs>
+
+```json response.json status=200
+{
+  "contract_id": "SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4.sbtc-registry",
+  "topics": [
+    // !collapse(1:1)
+    { "topic": "completed-deposit", "count": 1943, "fields": "…" },
+    {
+      "topic": "withdrawal-create",
+      "count": 29,
+      "fields": [
+        { "name": "amount", "camel_name": "amount", "clarity_type": "uint", "ts_type": "bigint" },
+        // !collapse(1:2)
+        { "name": "block-height", "camel_name": "blockHeight", "clarity_type": "uint", "ts_type": "bigint" },
+        { "name": "max-fee", "camel_name": "maxFee", "clarity_type": "uint", "ts_type": "bigint" },
+        // !mark[/"recipient"/]
+        { "name": "recipient", "camel_name": "recipient", "clarity_type": "(tuple (hashbytes (buff 32)) (version (buff 1)))", "ts_type": "{ hashbytes: string; version: string }" },
+        // !collapse(1:2)
+        { "name": "request-id", "camel_name": "requestId", "clarity_type": "uint", "ts_type": "bigint" },
+        { "name": "sender", "camel_name": "sender", "clarity_type": "principal", "ts_type": "string" }
+      ]
+    },
+    // !collapse(1:3)
+    { "topic": "withdrawal-accept", "count": 17, "fields": "…" },
+    { "topic": "withdrawal-reject", "count": 10, "fields": "…" },
+    { "topic": "key-rotation", "count": 1, "fields": "…" }
+  ],
+  "sampled": true
+}
+```
+
+Fields come back with their Clarity type, so you know `recipient` is a tuple before you parse it. The schema is sampled from indexed prints, so `sampled: true` means older topics may be missing.
+
+## Pick out one topic
+
+The events feed filters by contract, not by topic. Keep the topic you want from the tuple's own `topic` key.
+
+```ts
+const withdrawals = page.events.filter(
+  (event) => event.payload.value?.topic === "withdrawal-create",
+);
+```
+
+- Prints that aren't tuples have no `topic` key; the schema lists them under `*`.
+- To be pushed one topic instead of reading it, a webhook trigger takes `topic` ([Print fields](/docs/webhooks#print-fields)).
+- Page with `next_cursor`, as in [any decoded feed](/docs/index#list-walk-consume).
+
+## Tradeoff
+
+Hosted reads are metered, with a free monthly allowance ([What it costs](/docs/authentication#what-it-costs)). Reading a contract's prints means reading every topic it emits, so a chatty contract costs more rows than the topic you keep.
+
+Every filter and the response schema: [Decoded events by event_type](/docs/api/index#list-events) and [Print payload schemas](/docs/api/index#get-print-schema). The shapes by contract: [Print schemas](/docs/index#print-schemas).
+
+export const metadata = {
+	title: "Decode Clarity print events",
+	description:
+		"Read Stacks contract print events already decoded from Clarity into JSON with one API key, and look up each topic's fields before you parse.",
+	alternates: { canonical: "/docs/guides/decode-print-events" },
+};
+
+export const agent = `
+- Decoded prints: GET /v1/index/events?event_type=print&contract_id=<id> (SDK: sl.index.events.list({ eventType: "print", contractId })). The decoded tuple is payload.value; the original Clarity hex is payload.raw_value. Do not hand-decode raw_value.
+- There is no topic filter on /v1/index/events (it returns 400 'unknown query param'). The contract's own topic is payload.value.topic when the print is a tuple; payload.topic is the event's own label, often just 'print'. Filter client-side, or use a webhook print_event trigger with 'topic'.
+- Field shapes per topic: GET /v1/index/contracts/<id>/print-schema (SDK: sl.index.printSchema(id), null on 404). Sampled: 'sampled: true' means older topics may be absent. Non-tuple or topic-less prints sit under the '*' topic.
+- Decoded values: uint/int are decimal strings, buffers are 0x hex, principals are strings, tuples are objects with Clarity (kebab-case) keys.
+- A read with no from_height and no cursor covers only the last day; order=desc starts from the newest.
+`;

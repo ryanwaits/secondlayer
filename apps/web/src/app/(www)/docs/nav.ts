@@ -88,6 +88,10 @@ export const DOCS_NAV: DocsNavGroup[] = [
 				title: "Calls to a contract function",
 				href: "/docs/guides/contract-function-calls",
 			},
+			{
+				title: "Decode print events",
+				href: "/docs/guides/decode-print-events",
+			},
 		],
 	},
 	{

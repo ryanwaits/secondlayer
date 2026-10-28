@@ -18,7 +18,7 @@ const ROOT = join(import.meta.dir, "..", "..", "app", "(www)");
 const FENCE = /^(`{3,}|~{3,})([^\n]*)\n([\s\S]*?)^\1[ \t]*$/gm;
 
 /** Automatic tips across every guide: past this, a page is tipping what it should be teaching. */
-const GUIDE_TIP_CEILING = 37; // +1 each: listen-for-contract-events (/api/webhooks), ft-transfers-by-address (/v1/index/ft-transfers), contract-function-calls (/v1/index/contract-calls)
+const GUIDE_TIP_CEILING = 39; // +1 each: listen-for-contract-events (/api/webhooks), ft-transfers-by-address (/v1/index/ft-transfers), contract-function-calls (/v1/index/contract-calls); +2 decode-print-events (/v1/index/events, print-schema)
 /** Most prose tips under one `##`. */
 const PROSE_TIPS_PER_SECTION = 2;
 
