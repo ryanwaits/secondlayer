@@ -14,6 +14,7 @@ import postgres from "postgres";
 import {
 	_resetBitcoinDbForTests,
 	_resetBitcoinTipCacheForTests,
+	connectBreaker,
 	getBitcoinDb,
 	getBitcoinTip,
 	isBitcoinConfigured,
@@ -217,4 +218,56 @@ describe("unreachable bitcoin database", () => {
 			expect(reorgs.code).toBe("BITCOIN_DATA_UNAVAILABLE");
 		});
 	}
+});
+
+describe("connectBreaker", () => {
+	const refused = () =>
+		Object.assign(new Error("connect ECONNREFUSED"), { code: "ECONNREFUSED" });
+
+	test("after an unreachable failure it fails fast without connecting, then retries once the window passes", async () => {
+		let t = 0;
+		let calls = 0;
+		let up = false;
+		const acquire = connectBreaker(
+			async () => {
+				calls++;
+				if (!up) throw refused();
+				return "conn";
+			},
+			() => t,
+		);
+
+		expect((await acquire().catch((e) => e)).code).toBe(
+			"BITCOIN_DATA_UNAVAILABLE",
+		);
+		expect(calls).toBe(1);
+
+		t = 4_999; // still open: no connect attempt
+		expect((await acquire().catch((e) => e)).code).toBe(
+			"BITCOIN_DATA_UNAVAILABLE",
+		);
+		expect(calls).toBe(1);
+
+		t = 5_000; // window over: one real attempt, which now succeeds
+		up = true;
+		expect(await acquire()).toBe("conn");
+		expect(calls).toBe(2);
+		expect(await acquire()).toBe("conn");
+		expect(calls).toBe(3);
+	});
+
+	test("query-level errors pass through and never open the breaker", async () => {
+		let calls = 0;
+		const auth = Object.assign(new Error("password authentication failed"), {
+			code: "28P01",
+		});
+		const acquire = connectBreaker(async () => {
+			calls++;
+			throw auth;
+		});
+
+		expect(await acquire().catch((e) => e)).toBe(auth);
+		expect(await acquire().catch((e) => e)).toBe(auth);
+		expect(calls).toBe(2);
+	});
 });

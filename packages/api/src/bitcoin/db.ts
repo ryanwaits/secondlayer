@@ -90,21 +90,47 @@ function isBitcoinDbUnreachable(err: unknown): boolean {
 	return typeof code === "string" && UNREACHABLE_CODES.has(code);
 }
 
+/** How long to answer 503 without trying to connect after a connect failed.
+ *  Without it every read during an outage waits out the connect timeout
+ *  (~5s) and queues behind the pool; with it they fail in milliseconds. */
+const BREAKER_OPEN_MS = 5000;
+
+/**
+ * Connect circuit breaker. After an unreachable failure, `acquire` rejects
+ * immediately with `BitcoinDataUnavailableError` until `BREAKER_OPEN_MS`
+ * passes; the first call after that tries a real connect, which closes the
+ * breaker on success or re-opens it on failure. Other errors pass through
+ * untouched. `now` is injectable for tests.
+ */
+export function connectBreaker<T>(
+	acquire: () => Promise<T>,
+	now: () => number = Date.now,
+): () => Promise<T> {
+	let openUntil = 0;
+	let lastFailure: unknown;
+	return async () => {
+		if (now() < openUntil) throw new BitcoinDataUnavailableError(lastFailure);
+		try {
+			const connection = await acquire();
+			openUntil = 0;
+			return connection;
+		} catch (err) {
+			if (!isBitcoinDbUnreachable(err)) throw err;
+			lastFailure = err;
+			openUntil = now() + BREAKER_OPEN_MS;
+			throw new BitcoinDataUnavailableError(err);
+		}
+	};
+}
+
 /** postgres.js connects inside `reserve()`, which Kysely calls to acquire a
  *  connection, so every reader's connect failure passes through here once. */
 class BitcoinDialect extends PostgresJSDialect {
 	override createDriver(): Driver {
 		const driver = super.createDriver();
-		const acquire = driver.acquireConnection.bind(driver);
-		driver.acquireConnection = async () => {
-			try {
-				return await acquire();
-			} catch (err) {
-				throw isBitcoinDbUnreachable(err)
-					? new BitcoinDataUnavailableError(err)
-					: err;
-			}
-		};
+		driver.acquireConnection = connectBreaker(
+			driver.acquireConnection.bind(driver),
+		);
 		return driver;
 	}
 }
