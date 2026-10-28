@@ -148,5 +148,14 @@
 		"@scure/bip32": "2.0.1",
 		"@scure/bip39": "2.0.1",
 		"@scure/btc-signer": "2.3.0"
-	}
+	},
+	"keywords": [
+		"stacks",
+		"clarity",
+		"typescript",
+		"sbtc",
+		"pox5",
+		"bns",
+		"post-conditions"
+	]
 }

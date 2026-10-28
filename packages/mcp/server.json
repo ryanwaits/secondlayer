@@ -1,0 +1,38 @@
+{
+	"$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+	"name": "io.github.ryanwaits/secondlayer",
+	"description": "MCP server for Stacks chain data: contracts, events, transfers, subgraphs. Key-authenticated.",
+	"repository": {
+		"url": "https://github.com/ryanwaits/secondlayer",
+		"source": "github",
+		"subfolder": "packages/mcp"
+	},
+	"version": "11.2.2",
+	"packages": [
+		{
+			"registryType": "npm",
+			"identifier": "@secondlayer/mcp",
+			"version": "11.2.2",
+			"transport": {
+				"type": "stdio"
+			},
+			"environmentVariables": [
+				{
+					"name": "SECONDLAYER_API_KEY",
+					"description": "Account API key (sk-sl_*) for the hosted API: credits, writes.",
+					"isRequired": false,
+					"isSecret": true,
+					"format": "string"
+				},
+				{
+					"name": "SECONDLAYER_API_URL",
+					"description": "Instance API URL. Use https://api.secondlayer.tools for hosted.",
+					"isRequired": false,
+					"isSecret": false,
+					"format": "string",
+					"default": "http://127.0.0.1:3800"
+				}
+			]
+		}
+	]
+}

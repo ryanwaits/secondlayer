@@ -50,7 +50,7 @@ secondlayer subgraphs deploy subgraphs/my-contract.ts --start-block <recent-bloc
 secondlayer subgraphs query my-contract <table> --sort _block_height --order desc
 ```
 
-To run your own instance, follow [Self-host](https://secondlayer.tools/docs/self-host):
+To run your own instance, follow [Self-host](https://www.secondlayer.tools/docs/self-host):
 `docker compose` from `docker/oss`, with `init`, `observer`, `bootstrap` and
 `verify` below for the steps around it.
 
@@ -260,12 +260,12 @@ const supply = await token.vars.totalSupply.get()
 
 ## Local development
 
-A self-hosted stack runs from `docker/oss` ([Self-host](https://secondlayer.tools/docs/self-host)). For Clarinet, use
+A self-hosted stack runs from `docker/oss` ([Self-host](https://www.secondlayer.tools/docs/self-host)). For Clarinet, use
 `secondlayer devnet connect` / `status` / `logs` / `down` (and `devnet faucet`).
 
 ## Docs
 
-Full reference: https://secondlayer.tools/docs
+Full reference: https://www.secondlayer.tools/docs
 
 ## License
 

@@ -8,7 +8,7 @@
 		"url": "git+https://github.com/ryanwaits/secondlayer.git",
 		"directory": "packages/verify"
 	},
-	"homepage": "https://github.com/ryanwaits/secondlayer/tree/main/packages/verify#readme",
+	"homepage": "https://www.secondlayer.tools/docs/verification",
 	"type": "module",
 	"main": "./dist/index.js",
 	"types": "./dist/index.d.ts",
@@ -39,5 +39,13 @@
 	},
 	"publishConfig": {
 		"access": "public"
-	}
+	},
+	"keywords": [
+		"stacks",
+		"bitcoin",
+		"merkle-proof",
+		"marf",
+		"verify",
+		"light-client"
+	]
 }

@@ -11,7 +11,7 @@ anything you already run — and serve them however you already serve things.
 Run it hosted on `api.secondlayer.tools` (account key, 1M rows free every
 month) or self-host: Postgres plus one container, on your hardware.
 
-See [STRATEGY.md](STRATEGY.md).
+Hosted quickstart: https://www.secondlayer.tools/docs. Self-host: https://www.secondlayer.tools/docs/self-host.
 
 ```bash
 curl "http://127.0.0.1:3800/v1/index/events?event_type=ft_transfer&limit=5"

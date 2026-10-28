@@ -20,7 +20,7 @@ claude mcp add --transport http secondlayer https://api.secondlayer.tools/mcp
 
 Clients without OAuth send `Authorization: Bearer <sk-sl_ key>`. Subgraph
 deploys, webhooks, archive, codegen and instance tools are local only. See
-[/docs/mcp](https://secondlayer.tools/docs/mcp#connect).
+[/docs/mcp](https://www.secondlayer.tools/docs/mcp#connect).
 
 ## Install
 

@@ -1,14 +1,14 @@
 {
 	"name": "@secondlayer/mcp",
 	"version": "11.2.2",
-	"description": "Give your coding agent direct access to your Stacks data — find contracts, query rows, deploy tables.",
+	"description": "MCP server for Stacks chain data: contracts, events, transfers, subgraphs. Key-authenticated.",
 	"license": "MIT",
 	"repository": {
 		"type": "git",
 		"url": "git+https://github.com/ryanwaits/secondlayer.git",
 		"directory": "packages/mcp"
 	},
-	"homepage": "https://github.com/ryanwaits/secondlayer/tree/main/packages/mcp#readme",
+	"homepage": "https://www.secondlayer.tools/docs/mcp",
 	"type": "module",
 	"main": "./dist/index.js",
 	"types": "./dist/index.d.ts",
@@ -49,5 +49,14 @@
 	},
 	"publishConfig": {
 		"access": "public"
-	}
+	},
+	"keywords": [
+		"stacks",
+		"mcp",
+		"mcp-server",
+		"model-context-protocol",
+		"bitcoin",
+		"indexer"
+	],
+	"mcpName": "io.github.ryanwaits/secondlayer"
 }

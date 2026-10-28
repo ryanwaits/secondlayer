@@ -7,7 +7,7 @@
 		"url": "git+https://github.com/ryanwaits/secondlayer.git",
 		"directory": "packages/cli"
 	},
-	"homepage": "https://github.com/ryanwaits/secondlayer/tree/main/packages/cli#readme",
+	"homepage": "https://www.secondlayer.tools/docs/cli",
 	"type": "module",
 	"bin": {
 		"secondlayer": "./dist/cli.js",
@@ -29,7 +29,17 @@
 		"typecheck": "tsc --noEmit",
 		"prepublishOnly": "bun run build"
 	},
-	"keywords": ["stacks", "clarity", "blockchain", "smart-contracts", "cli"],
+	"keywords": [
+		"stacks",
+		"clarity",
+		"blockchain",
+		"smart-contracts",
+		"cli",
+		"indexer",
+		"webhooks",
+		"self-hosted",
+		"archive"
+	],
 	"author": "",
 	"license": "MIT",
 	"dependencies": {
