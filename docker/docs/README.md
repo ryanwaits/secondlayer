@@ -279,6 +279,60 @@ docker compose down && docker compose up -d
 
 ---
 
+## Host Maintenance (patch + reboot)
+
+Proven 2026-10-22. Reboot one host at a time, in this order: feeder →
+workload-host → node-server → app-server. Never node-server and app-server
+together: stacks-node retries undelivered events through event-proxy, so one
+side down is no gap.
+
+**Before:** record indexer `/health/integrity` (`gapCount`), missing canonical
+blocks, decoder lag, Runes checkpoint vs bitcoind tip (Health Checks above).
+
+**Stop by hand.** Containers have a 10s stop timeout, so a plain reboot
+SIGKILLs mid-flush:
+
+```bash
+docker stop -t 600 secondlayer-stacks-node-1     # node-server
+docker stop -t 1200 secondlayer-bitcoind-1       # node-server
+docker stop -t 300 <each postgres container>
+systemctl kill -s SIGINT ord-runes               # feeder + app-server; graceful in ~5s
+```
+
+**Gotchas**
+
+- A pending docker-ce/containerd upgrade restarts dockerd, which kills
+  containers after 10s. `apt-mark hold` the docker packages, upgrade the rest
+  with `NEEDRESTART_SUSPEND=1`, stop gracefully, then unhold, upgrade, reboot.
+- `unless-stopped` + a manual `docker stop` = not restarted on boot. Feeder,
+  node-server and the `secondlayer-bitcoin` project on app-server need an
+  explicit `docker start` after. The app-server main stack returns via
+  `secondlayer.service` (`compose up -d`, which also runs migrate).
+- `secondlayer.service` stops with `compose down`, so `secondlayer_default`
+  is recreated on every app-server reboot. Nothing outside the prod project
+  may depend on attaching to it. The Bitcoin plane is reached through the
+  docker bridge gateway (`host.docker.internal:5443`) for exactly this reason
+  (docs/internal/bitcoin-runtime.md).
+- app-server: pause the runes-watch, health-alert, integrity-alert,
+  archive-status and staging-health timers during the window (false pages).
+- workload-host: a push to main auto-rolls tenants (~10 min); let it finish,
+  and pause `secondlayer-workload-upgrade.timer` during the reboot.
+- decoder and walg sidecars ignore SIGTERM (exit 137 after the timeout).
+  Harmless: checkpointed / WAL re-pushed.
+
+**After app-server is back**, all must hold before resuming the timers:
+
+```bash
+curl -s https://api.secondlayer.tools/public/status   # status healthy, no service "unavailable" (incl. bitcoin)
+curl -s -H "Authorization: Bearer $KEY" "https://api.secondlayer.tools/v1/index/runes?limit=1"     # 200 with rows
+curl -s -H "Authorization: Bearer $KEY" "https://api.secondlayer.tools/v1/streams/tip?chain=bitcoin"  # 200
+```
+
+plus the "before" numbers: `gapCount` 0, decoder lag ~0, Runes checkpoint at
+the bitcoind tip.
+
+---
+
 ## Tip Follower
 
 Polls the stacks-node RPC when blocks stop arriving (node restart, network issues). Only fetches a small window near chain tip — bulk gaps handled by integrity auto-backfill.
