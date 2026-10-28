@@ -2,12 +2,12 @@ import { ApiPage } from "../../api-reference/api-reference";
 
 # Webhooks API
 
-Create webhooks, read their deliveries, and recover what a receiver missed. These endpoints are the `/api/webhooks` write plane of a self-hosted instance; the guide to receiving and verifying is [Webhooks](/docs/webhooks).
+Create webhooks, read their deliveries, and recover what a receiver missed. These endpoints work hosted with your account key and on a self-hosted instance with its instance token; the guide to receiving and verifying is [Webhooks](/docs/webhooks).
 
 <ApiPage slug="webhooks" />
 
 export const agent = `
-- Base: '$SECONDLAYER_API_URL/api/webhooks' with 'Authorization: Bearer $INSTANCE_TOKEN' (self-hosted write plane).
+- Base: '$SECONDLAYER_API_URL/api/webhooks'. Hosted: 'Authorization: Bearer $SECONDLAYER_API_KEY'. Self-hosted: '$INSTANCE_TOKEN'.
 - Verify every delivery's signature with the webhook's signing secret; rotate it with 'POST /api/webhooks/{id}/rotate-secret'.
 - Recover a down receiver: requeue dead events, or replay a block range.
 - One endpoint as markdown: 'https://www.secondlayer.tools/docs/api-reference/<anchor>.md', e.g. create-webhook.

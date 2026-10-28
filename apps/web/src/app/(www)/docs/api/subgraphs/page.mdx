@@ -2,14 +2,14 @@ import { ApiPage } from "../../api-reference/api-reference";
 
 # Subgraphs API
 
-Read your subgraph's tables, describe them, and deploy and operate them. Reading is under `/v1/subgraphs`; deploying and operating is the write plane under `/api/subgraphs` on a self-hosted instance. Envelope and filters are in [REST conventions](/docs/rest-api).
+Read your subgraph's tables, describe them, and deploy and operate them. Reading is under `/v1/subgraphs`; deploying and operating is under `/api/subgraphs`, hosted with your account key or self-hosted with its instance token. Envelope and filters are in [REST conventions](/docs/rest-api).
 
 <ApiPage slug="subgraphs" />
 
 export const agent = `
 - Read: 'GET $SECONDLAYER_API_URL/v1/subgraphs/<name>/<table>' with 'Authorization: Bearer $SECONDLAYER_API_KEY'; page with next_cursor.
 - Describe: '/v1/subgraphs/<name>/schema.json' is the machine-readable schema; '/openapi.json' is a per-subgraph OpenAPI document.
-- Deploy and operate: '/api/subgraphs' is the self-hosted write plane; authenticate with $INSTANCE_TOKEN.
+- Deploy and operate: '/api/subgraphs'. Hosted: 'Authorization: Bearer $SECONDLAYER_API_KEY'. Self-hosted: '$INSTANCE_TOKEN'.
 - One endpoint as markdown: 'https://www.secondlayer.tools/docs/api-reference/<anchor>.md', e.g. list-subgraph-rows.
 `;
 

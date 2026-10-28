@@ -27,7 +27,7 @@ describe("agent prompt", () => {
 	});
 
 	test("a self-hosted endpoint authenticates with the instance token", () => {
-		const prompt = endpointPrompt(endpoint("list-webhooks"));
+		const prompt = endpointPrompt(endpoint("get-contract-abi"));
 		expect(prompt).toContain("Bearer $INSTANCE_TOKEN");
 		expect(prompt).not.toContain("$SECONDLAYER_API_KEY");
 	});

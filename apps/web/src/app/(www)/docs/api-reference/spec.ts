@@ -65,9 +65,9 @@ const SPEC = raw as unknown as Spec;
 
 const METHODS = ["get", "post", "put", "patch", "delete"] as const;
 
-/** Tags that exist only on a self-hosted instance: the `/api` write plane and
- *  the instance catalog. Their examples always use the local base URL. */
-const SELF_HOST_TAGS = new Set(["deployments", "webhooks", "node", "instance"]);
+/** Tags served only by a self-hosted instance: node reads and the instance
+ *  catalog. Webhooks and subgraph deploys also run hosted (same base URL). */
+const SELF_HOST_TAGS = new Set(["node", "instance"]);
 
 /** Query parameters that shape the window rather than filter rows. */
 const PAGING_PARAMS = new Set([

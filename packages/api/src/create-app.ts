@@ -60,8 +60,9 @@ import webhooksRouter from "./routes/webhooks.ts";
 import { apiTelemetry } from "./telemetry/api.ts";
 
 /** Routes that run an operator's workload: deploying and executing handler
- *  code, delivering webhooks. Self-host only: hosted does not run anyone's
- *  workload (STRATEGY.md, "We do not host public subgraphs"). */
+ *  code, delivering webhooks. Mounted only on a self-hosted (non-platform)
+ *  instance; hosted serves them from each account's own stack, routed by
+ *  Caddy (`docker/Caddyfile` `@workload`). */
 const WORKLOAD_PATHS = [
 	"/api/subgraphs",
 	"/api/subgraphs/*",

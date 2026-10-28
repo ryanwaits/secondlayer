@@ -90,11 +90,33 @@ describe("cURL", () => {
 	});
 
 	test("self-hosted-only endpoints ignore the hosted choice", () => {
-		const create = endpoint("create-webhook");
-		expect(create.selfHostOnly).toBe(true);
-		const curl = curlFor(create, "hosted");
-		expect(curl).toContain("http://127.0.0.1:3800/api/webhooks");
+		const instance = endpoint("get-contract-abi");
+		expect(instance.selfHostOnly).toBe(true);
+		const curl = curlFor(instance, "hosted");
+		expect(curl).toContain("http://127.0.0.1:3800/api/node/contracts");
 		expect(curl).toContain("$INSTANCE_TOKEN");
+	});
+
+	test("webhook routes use the hosted base and account key when hosted", () => {
+		const create = endpoint("create-webhook");
+		expect(create.selfHostOnly).toBe(false);
+		const hosted = curlFor(create, "hosted");
+		expect(hosted).toContain("https://api.secondlayer.tools/api/webhooks");
+		expect(hosted).toContain("$SECONDLAYER_API_KEY");
+		const local = curlFor(create, "local");
+		expect(local).toContain("http://127.0.0.1:3800/api/webhooks");
+		expect(local).toContain("$INSTANCE_TOKEN");
+	});
+
+	test("subgraph deploy uses the hosted base and account key when hosted", () => {
+		const deploy = endpoint("deploy-subgraph");
+		expect(deploy.selfHostOnly).toBe(false);
+		const hosted = curlFor(deploy, "hosted");
+		expect(hosted).toContain("https://api.secondlayer.tools/api/subgraphs");
+		expect(hosted).toContain("$SECONDLAYER_API_KEY");
+		const local = curlFor(deploy, "local");
+		expect(local).toContain("http://127.0.0.1:3800/api/subgraphs");
+		expect(local).toContain("$INSTANCE_TOKEN");
 	});
 
 	test("paging params never appear in a generated request", () => {
