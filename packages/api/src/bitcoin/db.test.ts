@@ -224,70 +224,59 @@ describe("connectBreaker", () => {
 	const refused = () =>
 		Object.assign(new Error("connect ECONNREFUSED"), { code: "ECONNREFUSED" });
 
-	test("after an unreachable failure it fails fast without connecting, then retries once the window passes", async () => {
-		let t = 0;
-		let calls = 0;
-		let up = false;
+	/** A breaker over a fake database that is up or down, with the background
+	 *  probe captured instead of put on a timer. */
+	function harness() {
+		const state = { up: false, calls: 0, released: 0 };
+		const probes: Array<() => void> = [];
 		const acquire = connectBreaker(
 			async () => {
-				calls++;
-				if (!up) throw refused();
+				state.calls++;
+				if (!state.up) throw refused();
 				return "conn";
 			},
-			() => t,
-		);
-
-		expect((await acquire().catch((e) => e)).code).toBe(
-			"BITCOIN_DATA_UNAVAILABLE",
-		);
-		expect(calls).toBe(1);
-
-		t = 9_999; // still open: no connect attempt
-		expect((await acquire().catch((e) => e)).code).toBe(
-			"BITCOIN_DATA_UNAVAILABLE",
-		);
-		expect(calls).toBe(1);
-
-		t = 10_000; // window over: one real attempt, which now succeeds
-		up = true;
-		expect(await acquire()).toBe("conn");
-		expect(calls).toBe(2);
-		expect(await acquire()).toBe("conn");
-		expect(calls).toBe(3);
-	});
-
-	test("once the window passes only one call probes; the rest keep failing fast", async () => {
-		let t = 0;
-		let calls = 0;
-		let release: (err: unknown) => void = () => {};
-		const acquire = connectBreaker(
-			() => {
-				calls++;
-				if (calls === 1) return Promise.reject(refused());
-				return new Promise<string>((_, reject) => {
-					release = reject;
-				});
+			async () => {
+				state.released++;
 			},
-			() => t,
+			(probe) => probes.push(probe),
 		);
-		await acquire().catch(() => {}); // trip
+		const runProbe = async () => {
+			await (probes.shift() as () => Promise<void>)();
+		};
+		return { state, probes, acquire, runProbe };
+	}
 
-		t = 10_000;
-		const probe = acquire().catch((e) => e); // in flight
-		const others = await Promise.all(
+	test("only the request that discovers the outage tries to connect; the rest fail fast", async () => {
+		const { state, probes, acquire } = harness();
+
+		expect((await acquire().catch((e) => e)).code).toBe(
+			"BITCOIN_DATA_UNAVAILABLE",
+		);
+		const later = await Promise.all(
 			[1, 2, 3].map(() => acquire().catch((e) => e)),
 		);
-		expect(others.map((e) => e.code)).toEqual([
-			"BITCOIN_DATA_UNAVAILABLE",
-			"BITCOIN_DATA_UNAVAILABLE",
-			"BITCOIN_DATA_UNAVAILABLE",
-		]);
-		expect(calls).toBe(2);
+		expect(later.map((e) => e.code)).toEqual(
+			Array(3).fill("BITCOIN_DATA_UNAVAILABLE"),
+		);
+		expect(state.calls).toBe(1);
+		expect(probes).toHaveLength(1);
+	});
 
-		release(refused()); // probe fails: re-opened for another window
-		expect((await probe).code).toBe("BITCOIN_DATA_UNAVAILABLE");
+	test("a failed background probe reschedules itself; a successful one closes the breaker", async () => {
+		const { state, probes, acquire, runProbe } = harness();
 		await acquire().catch(() => {});
-		expect(calls).toBe(2);
+
+		await runProbe(); // still down
+		expect(probes).toHaveLength(1);
+		expect((await acquire().catch((e) => e)).code).toBe(
+			"BITCOIN_DATA_UNAVAILABLE",
+		);
+
+		state.up = true;
+		await runProbe(); // back up: connects, releases, closes
+		expect(state.released).toBe(1);
+		expect(probes).toHaveLength(0);
+		expect(await acquire()).toBe("conn");
 	});
 
 	test("query-level errors pass through and never open the breaker", async () => {
@@ -295,10 +284,16 @@ describe("connectBreaker", () => {
 		const auth = Object.assign(new Error("password authentication failed"), {
 			code: "28P01",
 		});
-		const acquire = connectBreaker(async () => {
-			calls++;
-			throw auth;
-		});
+		const acquire = connectBreaker(
+			async () => {
+				calls++;
+				throw auth;
+			},
+			async () => {},
+			() => {
+				throw new Error("no probe expected");
+			},
+		);
 
 		expect(await acquire().catch((e) => e)).toBe(auth);
 		expect(await acquire().catch((e) => e)).toBe(auth);

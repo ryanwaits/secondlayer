@@ -90,44 +90,64 @@ function isBitcoinDbUnreachable(err: unknown): boolean {
 	return typeof code === "string" && UNREACHABLE_CODES.has(code);
 }
 
-/** How long to answer 503 without trying to connect after a connect failed.
- *  Longer than the 5s connect timeout, so a sustained outage costs one slow
- *  probe per window per replica instead of a slow request every few. */
-const BREAKER_OPEN_MS = 10_000;
+/** How often an open breaker re-checks the database in the background. */
+const BREAKER_PROBE_MS = 10_000;
+
+/** A healthy connect to this host-local Postgres takes milliseconds; 2s is
+ *  generous and bounds the one request per replica that discovers an outage. */
+const CONNECT_TIMEOUT_SECONDS = 2;
+
+type ProbeScheduler = (probe: () => void) => void;
+
+const scheduleProbe: ProbeScheduler = (probe) => {
+	setTimeout(probe, BREAKER_PROBE_MS).unref?.();
+};
 
 /**
- * Connect circuit breaker. After an unreachable failure, `acquire` rejects
- * immediately with `BitcoinDataUnavailableError` for `BREAKER_OPEN_MS`.
- * After that ONE call probes with a real connect while every other call keeps
- * failing fast; the probe closes the breaker on success or re-opens it on
- * failure. Without it every read during an outage waited out the connect
- * timeout and queued behind the pool (2026-10-28 forced test). Other errors
- * pass through untouched. `now` is injectable for tests.
+ * Connect circuit breaker. The first unreachable failure opens it: from then
+ * every `acquire` rejects immediately with `BitcoinDataUnavailableError`, and
+ * a background probe (never a caller's request) re-connects every
+ * `BREAKER_PROBE_MS` until one succeeds, which closes it. So during an outage
+ * only the request that discovers it waits on the connect timeout. Without
+ * it, every read waited out that timeout and queued behind the pool
+ * (2026-10-28 forced tests). Other errors pass through and never open it.
  */
 export function connectBreaker<T>(
 	acquire: () => Promise<T>,
-	now: () => number = Date.now,
+	release: (connection: T) => Promise<void>,
+	schedule: ProbeScheduler = scheduleProbe,
 ): () => Promise<T> {
-	let openUntil = 0;
-	let probing = false;
+	let open = false;
 	let lastFailure: unknown;
-	return async () => {
-		const tripped = openUntil > 0;
-		if (tripped && (now() < openUntil || probing)) {
-			throw new BitcoinDataUnavailableError(lastFailure);
-		}
-		probing = tripped;
+
+	const probe = async (): Promise<void> => {
 		try {
-			const connection = await acquire();
-			openUntil = 0;
-			return connection;
+			await release(await acquire());
+			open = false;
+		} catch (err) {
+			// Reachable but erroring (bad credentials, say): close, so callers
+			// see the real error instead of a misleading 503.
+			if (!isBitcoinDbUnreachable(err)) {
+				open = false;
+				return;
+			}
+			lastFailure = err;
+			schedule(probe);
+		}
+	};
+
+	return async () => {
+		if (open) throw new BitcoinDataUnavailableError(lastFailure);
+		try {
+			return await acquire();
 		} catch (err) {
 			if (!isBitcoinDbUnreachable(err)) throw err;
 			lastFailure = err;
-			openUntil = now() + BREAKER_OPEN_MS;
+			if (!open) {
+				open = true;
+				schedule(probe);
+			}
 			throw new BitcoinDataUnavailableError(err);
-		} finally {
-			if (tripped) probing = false;
 		}
 	};
 }
@@ -139,12 +159,11 @@ class BitcoinDialect extends PostgresJSDialect {
 		const driver = super.createDriver();
 		driver.acquireConnection = connectBreaker(
 			driver.acquireConnection.bind(driver),
+			driver.releaseConnection.bind(driver),
 		);
 		return driver;
 	}
 }
-
-const CONNECT_TIMEOUT_SECONDS = 5;
 
 let bitcoinDb: Kysely<BitcoinDatabase> | undefined;
 let bitcoinDbResolved = false;
@@ -162,11 +181,9 @@ export function getBitcoinDb(): Kysely<BitcoinDatabase> | undefined {
 	if (!url) return undefined;
 	const maxRaw = Number(process.env.BITCOIN_DATABASE_POOL_MAX ?? 10);
 	const max = Number.isFinite(maxRaw) && maxRaw > 0 ? maxRaw : 10;
-	// The bitcoin Postgres runs on this host; a connect that takes seconds is
-	// an outage. postgres.js waits 30s by default, and while the bitcoin plane
-	// was down (2026-10-28 forced test) every Runes read hung that long before
-	// its 503: a stopped container's published port drops packets rather than
-	// refusing them.
+	// postgres.js waits 30s by default. A stopped container's published port
+	// drops packets rather than refusing them (the host firewall's default),
+	// so a down bitcoin Postgres is a timeout, not an instant refusal.
 	const client = postgres(url, {
 		max,
 		connect_timeout: CONNECT_TIMEOUT_SECONDS,
