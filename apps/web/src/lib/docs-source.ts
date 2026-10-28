@@ -153,16 +153,16 @@ export async function readDocsMarkdown(
 }
 
 /**
- * Docs pages in one file (all of them, or only the given sidebar groups),
+ * Docs pages in one file (all of them, or those `include` accepts),
  * sidebar-ordered, each under an `# href` heading
  * so a model can cite the page a passage came from.
  */
 export async function readAllDocsMarkdown(
-	groups?: readonly string[],
+	include: (page: DocsPage) => boolean = () => true,
 ): Promise<string> {
 	const parts: string[] = [];
 	for (const page of docsPages()) {
-		if (groups && !groups.includes(page.group)) continue;
+		if (!include(page)) continue;
 		const md = await readDocsMarkdown(page.href, { setup: false });
 		if (!md) continue;
 		parts.push(

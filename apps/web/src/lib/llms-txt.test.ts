@@ -56,6 +56,8 @@ describe("llms-full.txt", () => {
 		const body = await (await getLlmsFull()).text();
 		expect(Buffer.byteLength(body)).toBeLessThan(300_000);
 		expect(body).toContain("# Start / Introduction");
+		expect(body).toContain("# Reference / REST conventions");
+		expect(body).toContain("next_cursor");
 		expect(body).not.toContain("SDK reference /");
 		expect(body).not.toContain("# Reference / Changelog");
 	});
