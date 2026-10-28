@@ -75,6 +75,7 @@ describe("docs sidebar invariant", () => {
 		"Start",
 		"Products",
 		"Tools",
+		"Guides",
 		"API reference",
 		"SDK reference",
 		"Reference",

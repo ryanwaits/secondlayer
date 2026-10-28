@@ -713,6 +713,103 @@
       "project event filter to streams config"
     ]
   },
+  "/docs/guides/ft-transfers-by-address": {
+    "hash": "a98e996a64c105f2",
+    "phrasings": [
+      "fungible token transfers by address history",
+      "ft transfer history for wallet address",
+      "list token transfers for an address",
+      "sip 010 token transfers filter by address",
+      "get all ft transfers for address",
+      "token transfer history single api call",
+      "wallet token transfer activity query"
+    ]
+  },
+  "/docs/guides/ft-transfers-by-address#both-sides": {
+    "hash": "8e7825adad25fe06",
+    "phrasings": [
+      "filter ft transfers sender and receiver separately",
+      "ft transfers between two addresses query",
+      "can i filter both from and to in one call",
+      "ft transfer query needs two requests",
+      "how to get transfers from one account to another",
+      "ft transfers sent and received by address",
+      "why does ft transfer filter by only one side",
+      "query fungible token transfers both directions"
+    ]
+  },
+  "/docs/guides/ft-transfers-by-address#page-through-it": {
+    "hash": "09adf79e4f355583",
+    "phrasings": [
+      "ft transfers pagination nextcursor",
+      "how to get next page of results",
+      "paginate ft transfer query",
+      "nextcursor not returning more rows",
+      "loop through all ft transfers pages",
+      "use cursor to fetch following page",
+      "ft transfers api pagination example",
+      "fetch every page of transfers"
+    ]
+  },
+  "/docs/guides/ft-transfers-by-address#what-it-costs": {
+    "hash": "c67ae3a29518bd2f",
+    "phrasings": [
+      "ft transfers api pricing per row",
+      "how much do hosted reads cost",
+      "free tier row limit for queries",
+      "billing for transfer queries per million rows",
+      "is querying ft transfers free",
+      "hosted api read pricing per million",
+      "cost of fetching token transfers by address",
+      "rows returned billing explained"
+    ]
+  },
+  "/docs/guides/listen-for-contract-events": {
+    "hash": "1538609c9eebd577",
+    "phrasings": [
+      "listen for contract print events",
+      "contract emit event webhook trigger",
+      "get notified when contract prints event",
+      "clarity print event webhook setup",
+      "how do contracts emit events on stacks",
+      "contract event notifications to my server",
+      "webhook for smart contract events"
+    ]
+  },
+  "/docs/guides/listen-for-contract-events#narrow-it": {
+    "hash": "c9742eca7ee6abdc",
+    "phrasings": [
+      "filter webhook by print topic",
+      "only match one print topic",
+      "webhook trigger single event topic",
+      "narrow contract event webhook to topic",
+      "webhook matches only specific topic name",
+      "limit webhook to one contract event"
+    ]
+  },
+  "/docs/guides/listen-for-contract-events#read-a-delivery": {
+    "hash": "527496d57447a9b2",
+    "phrasings": [
+      "parse webhook payload data value clarity",
+      "webhook post signature verification",
+      "decode clarity print in webhook body",
+      "where is event data in webhook payload",
+      "data event data value parsed clarity",
+      "verify signed webhook post",
+      "webhook delivery body format"
+    ]
+  },
+  "/docs/guides/listen-for-contract-events#start-and-catch-up": {
+    "hash": "78031cd2e52f12a5",
+    "phrasings": [
+      "webhook missing past events backfill",
+      "start webhook from historical block",
+      "webhook does not backfill old events",
+      "catch up missed events after webhook created",
+      "webhook starts at chain tip",
+      "replay past contract events to webhook"
+    ]
+  },
   "/docs/index": {
     "hash": "bf89fe94d3d986ab",
     "phrasings": [
@@ -840,28 +937,29 @@
     ]
   },
   "/docs/index#plain-http": {
-    "hash": "78bd5c70b5f2a81e",
+    "hash": "be7f3240c2cd188f",
     "phrasings": [
-      "query index over http without sdk",
-      "curl query stacks index rows",
-      "http api for indexed rows",
-      "call index endpoint from any language",
-      "no sdk http query example",
-      "fetch rows with plain http request",
-      "index rest query without client library",
-      "http client access to index data"
+      "query rows over http without sdk",
+      "stacks data with curl request example",
+      "read chain data from any http client",
+      "rest endpoint to query rows",
+      "no sdk needed fetch data url",
+      "how to query database with plain http",
+      "curl example for querying rows",
+      "access indexed data without installing library"
     ]
   },
   "/docs/index#pox-5": {
-    "hash": "7bd279be083732ad",
+    "hash": "4eea501c0be1acf5",
     "phrasings": [
       "pox 5 boot contract decoded prints",
-      "sip 045 pox 5 events",
-      "pox 5 per cycle totals",
-      "stacks pox 5 live bitcoin block 960230",
+      "what is sip 045 pox 5 contract",
+      "per cycle stacking totals pox 5",
+      "reward cycle totals from boot contract",
       "decode pox 5 print events",
-      "pox cycle totals stacking api",
-      "pox 5 boot contract events history"
+      "stacking totals since block 960230",
+      "pox 5 events not showing up",
+      "bitcoin block 960230 boot contract activity"
     ]
   },
   "/docs/index#print-schemas": {
@@ -900,25 +998,27 @@
     ]
   },
   "/docs/index#runes": {
-    "hash": "76ac94afb2864b22",
+    "hash": "1f6f5b6dfa74caa4",
     "phrasings": [
-      "list of etched runes catalog",
+      "list all etched runes catalog",
       "rune activity log per rune",
-      "runes balances on bitcoin tip",
-      "query bitcoin runes etchings api",
-      "rune balance lookup by address",
-      "runes data using bitcoin tip not stacks"
+      "rune balances by address on bitcoin",
+      "find rune etching details",
+      "rune transfer history query",
+      "runes indexed on bitcoin not stacks",
+      "how to get rune balances"
     ]
   },
   "/docs/index#sbtc": {
-    "hash": "27dbec2fe44a137c",
+    "hash": "0edef6ccec5abde4",
     "phrasings": [
-      "sbtc peg in and peg out lifecycle",
+      "sbtc peg in and peg out history",
+      "decode sbtc lifecycle events",
+      "confirm sbtc sweep on bitcoin",
       "sbtc sweep bitcoin confirmation status",
-      "track sbtc deposit to bitcoin confirmation",
-      "decode sbtc peg events",
-      "is sbtc sweep confirmed on bitcoin",
-      "sbtc withdrawal lifecycle states explained"
+      "track sbtc peg lifecycle",
+      "is my sbtc withdrawal swept on bitcoin",
+      "sbtc deposit to withdrawal events decoded"
     ]
   },
   "/docs/index#state-writes": {
@@ -2397,16 +2497,15 @@
     ]
   },
   "/docs/webhooks#create-a-webhook": {
-    "hash": "91b4263b86562e61",
+    "hash": "b94a745f735e662c",
     "phrasings": [
-      "how to set up a webhook for contract calls",
-      "webhook fire on token transfers to my url",
-      "register webhook endpoint for transfer events",
-      "configure webhook triggers for specific addresses",
-      "webhook not posting to my url",
-      "how to subscribe to on chain transfers via webhook",
-      "create webhook filter for function calls",
-      "webhook setup steps for blockchain events"
+      "create webhook for contract call",
+      "webhook fires on token transfer match",
+      "set up webhook url for transfers",
+      "filter webhook by contract function name",
+      "webhook posts to my url on match",
+      "register webhook for address activity",
+      "how to subscribe to chain events"
     ]
   },
   "/docs/webhooks#delivery-lag": {

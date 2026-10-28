@@ -18,7 +18,7 @@ const ROOT = join(import.meta.dir, "..", "..", "app", "(www)");
 const FENCE = /^(`{3,}|~{3,})([^\n]*)\n([\s\S]*?)^\1[ \t]*$/gm;
 
 /** Automatic tips across every guide: past this, a page is tipping what it should be teaching. */
-const GUIDE_TIP_CEILING = 34;
+const GUIDE_TIP_CEILING = 35; // +1: listen-for-contract-events (/api/webhooks)
 /** Most prose tips under one `##`. */
 const PROSE_TIPS_PER_SECTION = 2;
 

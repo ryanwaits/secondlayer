@@ -1,7 +1,7 @@
 import { readAllDocsMarkdown } from "@/lib/docs-source";
 
 /** Sidebar groups that are guides; the generated references are listed in `llms-api.txt` and per-page `.md`. */
-const GUIDE_GROUPS = ["Start", "Products", "Tools"];
+const GUIDE_GROUPS = ["Start", "Products", "Tools", "Guides"];
 
 /** The one reference page agents need to use any endpoint: envelope, cursors, filters, SSE. */
 const REST_CONVENTIONS = "/docs/rest-api";
@@ -11,7 +11,7 @@ const REST_CONVENTIONS = "/docs/rest-api";
  * `llms.txt` is the index an agent reads to orient; this is the corpus it reads
  * to actually answer, without crawling HTML pages and stripping chrome.
  *
- * Guides (Start, Products, Tools) plus the REST conventions page, which is the
+ * The Start, Products, Tools and Guides groups plus the REST conventions page, which is the
  * only home of the response envelope, cursors and the SSE contract. The API and
  * SDK references and the changelog are generated and huge, so they stay out and
  * fetchers don't truncate the guides. Endpoints are listed in `llms-api.txt`; any page is

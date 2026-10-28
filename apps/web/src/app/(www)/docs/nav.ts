@@ -10,7 +10,8 @@ export interface DocsNavGroup {
 }
 
 /**
- * Sidebar information architecture for the docs site: five nouns by altitude.
+ * Sidebar information architecture for the docs site: five nouns by altitude,
+ * then task guides.
  *
  * - **Start** is onboarding: Introduction, Keys and billing, Self-host
  *   (start it, run it in production, size the hardware, upgrade), and Verify:
@@ -24,6 +25,9 @@ export interface DocsNavGroup {
  * - **Tools** is how you drive it: CLI (with its local devnet), SDK (Filters
  *   is a section), Sinks, Deploy your app, and MCP and skills (the generated
  *   tool table plus the agent skill).
+ * - **Guides** are task pages, one search question each, with the question as
+ *   the H1: a short answer with the one call that does it. Slugs live under
+ *   `/docs/guides/`.
  * - **API reference** is the HTTP reference in six pages by job (Index,
  *   Streams, Proofs, Subgraphs, Webhooks, Instance), generated from the
  *   OpenAPI description; the open page lists its endpoints under its row.
@@ -67,6 +71,15 @@ export const DOCS_NAV: DocsNavGroup[] = [
 			{ title: "Sinks", href: "/docs/sinks" },
 			{ title: "Deploy your app", href: "/docs/deploy" },
 			{ title: "MCP and skills", href: "/docs/mcp" },
+		],
+	},
+	{
+		label: "Guides",
+		items: [
+			{
+				title: "Listen for contract events",
+				href: "/docs/guides/listen-for-contract-events",
+			},
 		],
 	},
 	{

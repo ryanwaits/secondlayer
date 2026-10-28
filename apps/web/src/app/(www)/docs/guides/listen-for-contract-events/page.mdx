@@ -1,0 +1,110 @@
+{/* new: 2026-10-28 */}
+# Listen for Stacks contract events
+
+A contract announces what happened by printing an event. A webhook posts each print to a URL you run, as the block lands. One key, one call:
+
+<CodeTabs sync="lang">
+
+```bash
+curl -X POST "$SECONDLAYER_API_URL/api/webhooks" \
+  -H "Authorization: Bearer sk-sl_…" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "sbtc-withdrawals",
+    "url": "https://my-app.com/webhooks/sbtc",
+    "triggers": [{
+      "type": "print_event",
+      "contractId": "SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4.sbtc-registry",
+      "topic": "withdrawal-create"
+    }]
+  }'
+```
+
+```ts
+import { SecondLayer, trigger } from "@secondlayer/sdk";
+
+const sl = new SecondLayer({ apiKey: process.env.SECONDLAYER_API_KEY });
+
+const { webhook, signingSecret } = await sl.webhooks.create({
+  name: "sbtc-withdrawals",
+  url: "https://my-app.com/webhooks/sbtc",
+  triggers: [
+    trigger.printEvent({
+      contractId: "SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4.sbtc-registry",
+      topic: "withdrawal-create",
+    }),
+  ],
+});
+```
+
+</CodeTabs>
+
+```json response.json status=201
+{
+  "webhook": {
+    "id": "65ea1ed2-7b2d-4255-ae82-347fbc1023b3",
+    "name": "sbtc-withdrawals",
+    "status": "active",
+    "kind": "chain",
+    "format": "standard-webhooks",
+    "url": "https://my-app.com/webhooks/sbtc",
+    // !collapse(1:4)
+    "lastDeliveryAt": null,
+    "lastSuccessAt": null,
+    "circuitOpenedAt": null,
+    "circuitFailures": 0,
+    "createdAt": "2026-10-28T17:59:19.072Z",
+    "triggers": [
+      {
+        "type": "print_event",
+        "topic": "withdrawal-create",
+        "contractId": "SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4.sbtc-registry"
+      }
+    ],
+    // !collapse(1:6)
+    "maxRetries": 7,
+    "timeoutMs": 10000,
+    "concurrency": 4,
+    "lastError": null,
+    "receiverCertExpiresAt": null,
+    "warning": null
+  },
+  // !mark[/"signingSecret"/]
+  "signingSecret": "…"
+}
+```
+
+The signing secret comes back once, so store it. Every delivery carries a signature you check with it: [Verify the signature](/docs/webhooks#verify-the-signature).
+
+## Narrow it
+
+The trigger above matches one print topic. Match other prints, or other events:
+
+| To match | Use |
+| --- | --- |
+| Other keys in the print | `where` ([Print fields](/docs/webhooks#print-fields)) |
+| Calls instead of prints | `trigger.contractCall` ([Triggers](/docs/webhooks#triggers)) |
+
+## Read a delivery
+
+Each delivery is one signed POST. The print arrives as `data.event.data.value`, already parsed from Clarity: [Event shapes](/docs/webhooks#event-shapes).
+
+## Start and catch up
+
+A webhook starts at the chain tip and never backfills. To re-deliver a block range over it, [replay](/docs/webhooks#replay). To read past prints once and resume from a block, page [Streams](/docs/streams#read-it-directly) with a cursor.
+
+Hosted webhooks run on your stack, $5 a month at the minimum ([What it costs](/docs/authentication#what-it-costs)). Full request and response: [Create a webhook](/docs/api/webhooks#create-webhook).
+
+export const metadata = {
+	title: "Listen for Stacks contract events",
+	description:
+		"Get a signed POST for every print a Stacks contract emits, with one webhook and one API key. Narrow by topic, then replay history if you need it.",
+	alternates: { canonical: "/docs/guides/listen-for-contract-events" },
+};
+
+export const agent = `
+- Create the webhook with 'POST /api/webhooks' or 'sl.webhooks.create'; the signing secret is in the response once. Store it before doing anything else.
+- A print is a 'print_event' trigger. 'topic' matches the print tuple's own 'topic' key; use 'where' for other keys. The delivered 'event.type' is 'contract_event' and the contract field is 'contract_identifier'.
+- A webhook never backfills. Use 'sl.webhooks.replay' for a block range (max 100,000 blocks), or read history from Streams with a cursor.
+- Verify every delivery's signature before acting on it.
+`;
