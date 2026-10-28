@@ -1,4 +1,7 @@
-/** Known AI crawler user-agent tokens, matched case-insensitively. */
+/**
+ * AI crawler tokens as they appear in real user agents. Google-Extended and
+ * Applebot-Extended are robots.txt tokens only and never show up in a UA.
+ */
 export const AI_BOTS = [
 	"GPTBot",
 	"OAI-SearchBot",
@@ -8,17 +11,19 @@ export const AI_BOTS = [
 	"Claude-SearchBot",
 	"PerplexityBot",
 	"Perplexity-User",
-	"Google-Extended",
-	"Bingbot",
+	"bingbot",
 	"Googlebot",
 	"CCBot",
-	"Applebot-Extended",
+	"Applebot",
 ] as const;
 
-/** Regex source for the proxy matcher's user-agent condition. */
-export const AI_BOT_PATTERN = AI_BOTS.join("|");
+/**
+ * Value for the proxy matcher's user-agent condition. Next evaluates it as
+ * new RegExp(`^${value}$`), case-sensitively, so it must be wrapped in .*.
+ */
+export const AI_BOT_UA_MATCHER = `.*(?:${AI_BOTS.join("|")}).*`;
 
-/** Maps a user-agent header to the AI bot's name, or null for anyone else. */
+/** Maps a user-agent header (case-insensitive) to the AI bot's name, or null for anyone else. */
 export function aiBot(ua: string | null): string | null {
 	if (!ua) return null;
 	const lower = ua.toLowerCase();

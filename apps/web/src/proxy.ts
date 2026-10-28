@@ -38,7 +38,7 @@ export function proxy(request: NextRequest, event: NextFetchEvent) {
 }
 
 // Literals only: Next statically analyzes this. Each user-agent value must equal
-// AI_BOT_PATTERN (asserted in ai-bots.test.ts), so humans never reach the proxy.
+// AI_BOT_UA_MATCHER (asserted in ai-bots.test.ts), so humans never reach the proxy.
 export const config = {
 	matcher: [
 		{
@@ -48,7 +48,7 @@ export const config = {
 					type: "header",
 					key: "user-agent",
 					value:
-						"GPTBot|OAI-SearchBot|ChatGPT-User|ClaudeBot|Claude-User|Claude-SearchBot|PerplexityBot|Perplexity-User|Google-Extended|Bingbot|Googlebot|CCBot|Applebot-Extended",
+						".*(?:GPTBot|OAI-SearchBot|ChatGPT-User|ClaudeBot|Claude-User|Claude-SearchBot|PerplexityBot|Perplexity-User|bingbot|Googlebot|CCBot|Applebot).*",
 				},
 			],
 		},
@@ -59,7 +59,7 @@ export const config = {
 					type: "header",
 					key: "user-agent",
 					value:
-						"GPTBot|OAI-SearchBot|ChatGPT-User|ClaudeBot|Claude-User|Claude-SearchBot|PerplexityBot|Perplexity-User|Google-Extended|Bingbot|Googlebot|CCBot|Applebot-Extended",
+						".*(?:GPTBot|OAI-SearchBot|ChatGPT-User|ClaudeBot|Claude-User|Claude-SearchBot|PerplexityBot|Perplexity-User|bingbot|Googlebot|CCBot|Applebot).*",
 				},
 			],
 		},
