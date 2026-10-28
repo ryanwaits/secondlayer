@@ -227,3 +227,56 @@ describe("toHandlerPayload print camelization", () => {
 		expect(payload.tx).toMatchObject({ txId: "0xabc", sender: "SP2" });
 	});
 });
+
+describe("print topic matching", () => {
+	const topicRun = (topic: string, value: unknown, rowTopic: string) => {
+		const seen: string[] = [];
+		return runSubgraphTest({
+			schema: swaps.schema,
+			handlers: {
+				prints: (
+					event: { topic: string },
+					ctx: { insert: (t: string, r: Record<string, unknown>) => void },
+				) => {
+					seen.push(event.topic);
+					ctx.insert("swaps", { token_x: "x" });
+				},
+			},
+			sources: { prints: { type: "print_event", topic } },
+			events: {
+				prints: [
+					{
+						cursor: "c1",
+						event_type: "print",
+						contract_id: "SP.dex",
+						payload: { topic: rowTopic, value },
+					},
+				],
+			},
+		}).then((result) => ({ result, seen }));
+	};
+
+	test("a topic inside the printed tuple matches and reaches the handler", async () => {
+		const { result, seen } = await topicRun(
+			"withdrawal-create",
+			{ topic: "withdrawal-create", amount: "1" },
+			"print",
+		);
+		expect(result.matched).toBe(1);
+		expect(seen).toEqual(["withdrawal-create"]);
+	});
+
+	test("a non-tuple print still matches the row's top-level topic", async () => {
+		const { result } = await topicRun("foo", "hello", "foo");
+		expect(result.matched).toBe(1);
+	});
+
+	test("a non-matching topic is dropped", async () => {
+		const { result } = await topicRun(
+			"other",
+			{ topic: "withdrawal-create" },
+			"print",
+		);
+		expect(result.matched).toBe(0);
+	});
+});

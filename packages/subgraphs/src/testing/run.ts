@@ -129,9 +129,16 @@ export function toHandlerPayload(
 	const tx = defaultTx(txFromRow(row));
 	if (row.event_type === "print") {
 		const payload = row.payload as { topic?: string | null; value?: unknown };
+		// Mirrors runtime/runner.ts print_event: a tuple's own `topic` wins over
+		// the row's generic top-level "print".
+		const value = payload?.value;
+		const tupleTopic =
+			value && typeof value === "object" && !Array.isArray(value)
+				? (value as Record<string, unknown>).topic
+				: undefined;
 		return {
 			contractId: row.contract_id ?? "",
-			topic: payload?.topic ?? "",
+			topic: tupleTopic ? String(tupleTopic) : (payload?.topic ?? ""),
 			data: (camelizeKeys(payload?.value) as Record<string, unknown>) ?? {},
 			tx,
 		};
