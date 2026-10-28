@@ -52,6 +52,20 @@ install_host_js_deps
 
 cd /opt/secondlayer/docker
 COMPOSE="docker compose -f docker-compose.yml -f docker-compose.hetzner.yml"
+# This deploy owns only its own compose project. Other projects share the
+# host (the Bitcoin plane runs as `secondlayer-bitcoin`, with its own `migrate`
+# service), so raw `docker` cleanup must filter on the project label.
+COMPOSE_PROJECT=$($COMPOSE config --format json | python3 -c 'import json,sys; print(json.load(sys.stdin)["name"])')
+
+# Force-remove this project's one-off (`compose run`) containers, optionally
+# only one service's.
+remove_oneoffs() {
+  docker ps -a -q \
+    --filter "label=com.docker.compose.project=$COMPOSE_PROJECT" \
+    --filter "label=com.docker.compose.oneoff=True" \
+    ${1:+--filter "label=com.docker.compose.service=$1"} \
+    | xargs -r docker rm -f 2>/dev/null || true
+}
 
 # Refuse to deploy against husk databases or a de-bound overlay (the
 # bind-vs-named-volume drift class). See scripts/preflight-data.sh.
@@ -234,8 +248,7 @@ if [ "$MIGRATIONS_CHANGED" = "true" ]; then
   # migration lock — new migrate runs then wait forever. Cleanup BEFORE, not
   # after, so the new migrate run starts with a clean slate.
   echo "🧹 Cleaning up stale one-off migrate containers from prior deploys..."
-  docker ps -a --filter "label=com.docker.compose.oneoff=True" --filter "label=com.docker.compose.service=migrate" -q \
-    | xargs -r docker rm -f 2>/dev/null || true
+  remove_oneoffs migrate
 
   # Terminate every remaining session on the DB. Docker stop should have
   # dropped these, but TCP-half-closed connections can linger with pg
@@ -258,7 +271,7 @@ else
 fi
 
 # Clean up stale one-off containers (from manual `docker compose run` without --rm)
-docker ps -a --filter "label=com.docker.compose.oneoff=True" -q | xargs -r docker rm -f 2>/dev/null || true
+remove_oneoffs
 
 # Wait until at least `$1` api replicas are running AND every one answers
 # /health from inside its network (no host port — api is reached over the
