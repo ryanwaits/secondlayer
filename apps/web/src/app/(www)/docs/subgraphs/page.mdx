@@ -5,6 +5,8 @@ One TypeScript file, and you get a table plus a REST API over it. You don't pick
 
 <Yields page="subgraphs" />
 
+The shortest path for one contract: [Index a Stacks contract into Postgres with TypeScript](/docs/guides/index-contract-into-postgres).
+
 ## Define a subgraph
 
 A subgraph [names its sources](focus:sources), [declares a table](focus:schema), and [writes one handler per source](focus:handlers). The [first run backfills from startBlock](hover:start); new blocks stream in after. This one reads a pool's reserves map, so anyone can rebuild its rows.
