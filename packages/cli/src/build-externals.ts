@@ -18,4 +18,8 @@ export const BUNDLER_EXTERNALS = [
 	"@biomejs/wasm-nodejs",
 	"@stacks/clarinet-sdk",
 	"@secondlayer/clarity-types",
+	// A real dependency (via @secondlayer/bundler). Bundling it inlines
+	// TypeScript's build-machine `__dirname` and its lib lookup then points at
+	// a path that does not exist on users' machines.
+	"typescript",
 ] as const;
