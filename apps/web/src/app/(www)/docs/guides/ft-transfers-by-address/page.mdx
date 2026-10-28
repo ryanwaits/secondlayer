@@ -62,6 +62,8 @@ const [received, sent] = await Promise.all([
 - Merge the two lists by `block_height`.
 - A transfer to yourself is in both, so drop repeats by `cursor`.
 
+A read with no `fromHeight` or cursor covers only the most recent ~17,280 blocks, so pass a start to go further back.
+
 | Narrow by | Param |
 | --- | --- |
 | One token | `contractId` or `assetIdentifier` |
@@ -75,15 +77,22 @@ const [received, sent] = await Promise.all([
 Pass the last `next_cursor` back as the next cursor. It comes back null only on an empty page, which ends the loop.
 
 ```ts
+import type { FtTransfersEnvelope } from "@secondlayer/sdk";
+
 let cursor: string | null = null;
 do {
-  const page = await index.ftTransfers.list({ recipient: address, cursor, limit: 1000 });
+  const page: FtTransfersEnvelope = await index.ftTransfers.list({
+    recipient: address,
+    fromHeight: cursor ? undefined : 0,
+    cursor,
+    limit: 1000,
+  });
   for (const transfer of page.events) await save(transfer);
   cursor = page.next_cursor;
 } while (cursor);
 ```
 
-For a one-off export, `walk()` does the paging for you; it keeps no checkpoint ([list, walk, consume](/docs/index#list-walk-consume)).
+Pass a start height or a cursor, never both: drop the height once you hold a cursor. A cursor only resumes under the order that issued it. For a one-off export, `walk()` does the paging for you; it keeps no checkpoint ([list, walk, consume](/docs/index#list-walk-consume)).
 
 ## Tradeoff
 
@@ -101,6 +110,7 @@ export const metadata = {
 export const agent = `
 - Endpoint: GET /v1/index/ft-transfers (SDK: sl.index.ftTransfers.list / .walk). Filters: sender, recipient, contract_id, asset_identifier, from_height, to_height, order, fields. There is no 'address' parameter.
 - For both directions of one address, call twice (recipient=, then sender=) and merge by block_height and drop repeats by cursor.
+- A read with no from_height and no cursor covers only the most recent ~17,280 blocks. Pass from_height (0 for all history), or a cursor; cursor and from_height are mutually exclusive.
 - Page by passing next_cursor back as cursor; null means the page was empty. A cursor only resumes under the order that issued it.
 - 'amount' is a decimal string in the token's smallest unit. walk() keeps no checkpoint and ignores reorgs: use consume() to keep rows.
 `;
