@@ -60,7 +60,7 @@ const balance = await contract.read.getBalance({ account: "SP3FBR..." });
 const txid = await contract.call.transfer({ to: "SP3FBR...", amount: 100n });
 const entry = await contract.maps.tokenBalances("SP3FBR..."); // value or null
 
-// Build an unsigned transaction for a wallet to sign later, never broadcasts.
+// Build an unsigned transaction for a wallet to sign later. Never broadcasts.
 // publicKey defaults to the client account; fee/nonce are auto-resolved when
 // omitted (see ContractBuildCallOptions for fee/nonce/postConditions/sponsored).
 const tx = await contract.buildCall.transfer(

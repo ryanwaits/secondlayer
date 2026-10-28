@@ -4,7 +4,7 @@ description: "Derive the paired Bitcoin account (BIP84 segwit or BIP86 taproot) 
 
 # Bitcoin addresses from the same mnemonic
 
-Derive the paired BTC account (what Leather/Xverse show next to your Stacks address) with no extra dependencies, BIP84 native segwit or BIP86 taproot, network-aware:
+Derive the paired BTC account (what Leather/Xverse show next to your Stacks address) with no extra dependencies: BIP84 native segwit or BIP86 taproot, network-aware:
 
 ```ts
 import { mnemonicToBitcoinKeys } from "@secondlayer/stacks/accounts";
@@ -15,7 +15,7 @@ btc.address; // bc1p…   (path m/86'/0'/0'/0/0)
 mnemonicToBitcoinKeys(mnemonic, { type: "p2wpkh", network: "testnet" }).address; // tb1q…
 ```
 
-Pure derivation, no Bitcoin transaction building or signing. The pubkey→address helpers (`publicKeyToP2wpkhAddress`, `publicKeyToP2trAddress`, `taprootTweakPubkey`) are exported from `@secondlayer/stacks/bitcoin`, validated against the BIP84/86/341 test vectors.
+Pure derivation: no Bitcoin transaction building or signing. The pubkey→address helpers (`publicKeyToP2wpkhAddress`, `publicKeyToP2trAddress`, `taprootTweakPubkey`) are exported from `@secondlayer/stacks/bitcoin`, validated against the BIP84/86/341 test vectors.
 
 The sBTC extension uses the same machinery to derive the **signers' peg address** (where the signers hold BTC and where sweeps pay) straight from the on-chain registry. It is not a deposit address: deposits use their own P2TR deposit script. Network-aware, so testnet gives `tb1p…` instead of a wrong-network address:
 

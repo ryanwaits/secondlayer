@@ -51,7 +51,7 @@ Pc.principal("SP2J6...")
 
 ## Staking / PoX (SIP-045)
 
-pox-5 locks STX natively, use a staking post-condition, not `.ustx()`.
+pox-5 locks STX natively. Use a staking post-condition, not `.ustx()`.
 
 ```typescript
 Pc.principal(staker).willSendEq(amountUstx).ustxToLock();

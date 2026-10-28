@@ -114,7 +114,7 @@ await client.pox5.registerForBond({
   btcLockup: { sbtcSats: 100_000_000n },
 });
 
-// Proven L1 lockup path, proof fields come from buildTxProof
+// Proven L1 lockup path: proof fields come from buildTxProof
 btcLockup: {
   l1Outputs: [{
     height: proof.height,
@@ -156,7 +156,7 @@ const address = buildLockupAddress(
   },
   "mainnet",
 );
-// bc1q…, send the BTC lockup here
+// bc1q…: send the BTC lockup here
 ```
 
 - `buildLockupScript`: the witness script, a CLTV branch (spendable at `unlockBurnHeight`) and an early-exit branch that must reveal `stakerPreimage(stxAddress)`.

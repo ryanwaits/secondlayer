@@ -72,7 +72,7 @@ A field the target cannot express throws at projection time, naming the surface 
 ```typescript
 const usdc = on.ftTransfer({ assetIdentifier: USDC, minAmount: 1_000_000n });
 usdc.toIndexParams();
-// Error: minAmount cannot be expressed on Index events, amount predicates are
+// Error: minAmount cannot be expressed on Index events: amount predicates are
 // Webhooks/Subgraphs-only; filter client-side on the decoded rows.
 ```
 

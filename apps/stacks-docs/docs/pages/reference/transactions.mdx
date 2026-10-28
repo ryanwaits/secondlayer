@@ -70,7 +70,7 @@ const tx = buildTokenTransfer({
   signaturesRequired: 2,
 });
 
-// Sign sequentially, auto-finalizes when threshold is met
+// Sign sequentially: auto-finalizes when threshold is met
 const partial = signMultiSig(tx, key1, [pk1, pk2, pk3]);
 const full = signMultiSig(partial, key2, [pk1, pk2, pk3]);
 ```

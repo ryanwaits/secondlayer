@@ -93,7 +93,7 @@ await wallet.bns.setPrimary({ name: "alice.btc" });
 // Read zonefile
 const zonefile = await client.bns.getZonefile("alice.btc");
 if (zonefile) console.log(new TextDecoder().decode(zonefile));
-// `null` only means the contract genuinely has no zonefile set, network/HTTP
+// `null` only means the contract genuinely has no zonefile set: network/HTTP
 // failures throw instead of being reported as "no zonefile".
 
 // Update zonefile
