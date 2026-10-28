@@ -1,5 +1,13 @@
 # @secondlayer/subgraphs
 
+## 7.7.2
+
+### Patch Changes
+
+- The webhook plane no longer polls the `chain=bitcoin` tip or reorg feed when no active webhook has a Runes trigger. The first Runes webhook still starts from the current tip.
+- Updated dependencies
+  - @secondlayer/shared@14.1.1
+
 ## 7.7.1
 
 ### Patch Changes

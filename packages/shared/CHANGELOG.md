@@ -1,5 +1,11 @@
 # @secondlayer/shared
 
+## 14.1.1
+
+### Patch Changes
+
+- Map `BITCOIN_DATA_UNAVAILABLE` to HTTP 503, so an unreachable Bitcoin (Runes) database answers a retryable 503 instead of a 500.
+
 ## 14.1.0
 
 ### Minor Changes
