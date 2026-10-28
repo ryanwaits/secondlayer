@@ -1,6 +1,10 @@
+---
+description: "Wait for a Stacks transaction to confirm in TypeScript: poll until mined, N blocks deep, with typed errors for aborts and dropped transactions."
+---
+
 # Wait for confirmation
 
-`waitForTransactionReceipt` polls until a transaction is mined (optionally N confirmations deep) and returns a normalized receipt with the decoded Clarity result. It rejects with typed errors when the tx aborts (`TransactionAbortedError`, receipt attached), drops from the mempool (`TransactionDroppedError`), or times out — and it re-reads block placement every cycle, so reorgs don't strand the wait.
+`waitForTransactionReceipt` polls until a transaction is mined (optionally N confirmations deep) and returns a normalized receipt with the decoded Clarity result. It rejects with typed errors when the tx aborts (`TransactionAbortedError`, receipt attached), drops from the mempool (`TransactionDroppedError`), or times out, and it re-reads block placement every cycle, so reorgs don't strand the wait.
 
 ```ts
 const txid = await client.callContract({ contract, functionName: "mint" });

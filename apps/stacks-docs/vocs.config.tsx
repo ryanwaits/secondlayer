@@ -16,8 +16,10 @@ const D = brand.dark;
 const hover = (r: typeof L) => `color-mix(in srgb, ${r.pri} 86%, ${r.paper})`;
 
 export default defineConfig({
-	title: "stacks",
-	description: "Typed Stacks client for TypeScript. By secondlayer.",
+	title: "@secondlayer/stacks",
+	titleTemplate: "%s · @secondlayer/stacks",
+	description:
+		"Typed Stacks client for TypeScript: contracts, PoX-5, sBTC, BNS, post-conditions.",
 	aiCta: false,
 	baseUrl: "https://stacks.secondlayer.tools",
 	/* Favicon: the secondlayer mark in ink, one per scheme. OG card:

@@ -1,3 +1,8 @@
+---
+description: "API reference for the fluent Pc post-condition builder in TypeScript: assert STX, token and NFT transfers to protect users."
+title: "Stacks post-conditions in TypeScript"
+---
+
 # Post-Conditions
 
 Fluent builder for Stacks post-conditions. Protects users by asserting expected asset transfers.
@@ -46,7 +51,7 @@ Pc.principal("SP2J6...")
 
 ## Staking / PoX (SIP-045)
 
-pox-5 locks STX natively — use a staking post-condition, not `.ustx()`.
+pox-5 locks STX natively, use a staking post-condition, not `.ustx()`.
 
 ```typescript
 Pc.principal(staker).willSendEq(amountUstx).ustxToLock();

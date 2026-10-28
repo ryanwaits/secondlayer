@@ -1,3 +1,7 @@
+---
+description: "API reference for standalone, tree-shakeable Stacks action functions in TypeScript that work without a client instance."
+---
+
 # Actions
 
 Standalone action functions for tree-shakeable imports. These are the same functions available on clients, but usable without a client instance.
@@ -16,7 +20,7 @@ const height = await getBlockHeight(client);
 
 ## Node-Only Reads
 
-`getContractSource` and `getRawBlock` hit a stacks-node's raw RPC (`/v2/contracts/source`, `/v2/blocks/{height}`) — not Hiro's extended API and not a tenant proxy, so `client` needs a direct node transport. `getRawBlock` is distinct from `getBlock` (which reads the indexed extended-API shape): it returns node/consensus fields like `index_block_hash` and `miner_txid`. Both return `null` on a 404 or missing data instead of throwing.
+`getContractSource` and `getRawBlock` hit a stacks-node's raw RPC (`/v2/contracts/source`, `/v2/blocks/{height}`), not Hiro's extended API and not a tenant proxy, so `client` needs a direct node transport. `getRawBlock` is distinct from `getBlock` (which reads the indexed extended-API shape): it returns node/consensus fields like `index_block_hash` and `miner_txid`. Both return `null` on a 404 or missing data instead of throwing.
 
 ```typescript
 import { getContractSource, getRawBlock } from "@secondlayer/stacks/actions";
@@ -56,7 +60,7 @@ const balance = await contract.read.getBalance({ account: "SP3FBR..." });
 const txid = await contract.call.transfer({ to: "SP3FBR...", amount: 100n });
 const entry = await contract.maps.tokenBalances("SP3FBR..."); // value or null
 
-// Build an unsigned transaction for a wallet to sign later — never broadcasts.
+// Build an unsigned transaction for a wallet to sign later, never broadcasts.
 // publicKey defaults to the client account; fee/nonce are auto-resolved when
 // omitted (see ContractBuildCallOptions for fee/nonce/postConditions/sponsored).
 const tx = await contract.buildCall.transfer(

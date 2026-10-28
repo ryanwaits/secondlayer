@@ -1,3 +1,7 @@
+---
+description: "API reference for Stacks utilities in TypeScript: encoding, hashing, address handling, and STX unit conversion."
+---
+
 # Utils
 
 Encoding, hashing, address, and unit conversion utilities.
@@ -19,7 +23,7 @@ bytesToUtf8(bytes);                        // "hello"
 import { sha256, hash160, ripemd160 } from "@secondlayer/stacks/utils";
 
 const h = sha256(data);      // Uint8Array (32 bytes)
-const h160 = hash160(data);  // Uint8Array (20 bytes) — SHA-256 + RIPEMD-160
+const h160 = hash160(data);  // Uint8Array (20 bytes), SHA-256 + RIPEMD-160
 ```
 
 ## Addresses

@@ -1,3 +1,7 @@
+---
+description: "Install @secondlayer/stacks and create a typed Stacks client in TypeScript to read chain data and send transactions on mainnet or testnet."
+---
+
 # Getting started
 
 Install `@secondlayer/stacks` and create a client against a Stacks network.
@@ -118,7 +122,7 @@ const transport = http("https://my-node.example.com", {
 });
 ```
 
-Non-2xx responses throw a typed `HttpRequestError` (`.status` attached) instead of resolving with the error body — check `e.status` rather than reading `client.request(...)`'s return value for failure. Retries cover `5xx`, network errors, and `429`.
+Non-2xx responses throw a typed `HttpRequestError` (`.status` attached) instead of resolving with the error body, check `e.status` rather than reading `client.request(...)`'s return value for failure. Retries cover `5xx`, network errors, and `429`.
 
 ## WebSocket
 

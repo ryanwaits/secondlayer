@@ -1,3 +1,7 @@
+---
+description: "API reference for Clarity values in TypeScript: constructors, serialization, and ABI types for typed Stacks contract calls."
+---
+
 # Clarity
 
 Clarity value constructors, serialization, and ABI type system.
@@ -75,8 +79,8 @@ import type { TypedAbi, ContractTypes, AbiTypesOf } from "@secondlayer/stacks/cl
 
 `sl codegen contracts` emits named per-function type aliases plus a
 `<Contract>Types` bundle, and brands the generated ABI const with
-`TypedAbi<typeof abi, Types>`. The brand is a phantom property — zero runtime
-cost — that brand-aware consumers (`getContract`) resolve via `AbiTypesOf` to
+`TypedAbi<typeof abi, Types>`. The brand is a phantom property, zero runtime
+cost, that brand-aware consumers (`getContract`) resolve via `AbiTypesOf` to
 show the named aliases in hovers and errors. Un-branded `as const` ABIs keep
 working through structural inference.
 

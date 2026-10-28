@@ -1,8 +1,12 @@
+---
+description: "API reference for StackingDAO liquid staking in TypeScript: deposit STX, receive stSTX and withdraw on Stacks mainnet."
+---
+
 # StackingDAO
 
 StackingDAO liquid staking extension. Deposit STX, receive stSTX, earn auto-compounding stacking rewards.
 
-**Mainnet only** — no testnet deployment exists.
+**Mainnet only**, no testnet deployment exists.
 
 ## Setup
 
@@ -53,7 +57,7 @@ await wallet.stackingDao.withdraw({ nftId: 42n });
 ### Instant Withdrawal (idle STX only)
 
 ```typescript
-// Withdraw from idle reserve — instant, no NFT
+// Withdraw from idle reserve, instant, no NFT
 await wallet.stackingDao.withdrawIdle({ ststxAmount: 1_000_000n });
 ```
 
@@ -95,4 +99,4 @@ const shutdown = await client.stackingDao.getShutdownDeposits();
 
 ## Architecture Note
 
-StackingDAO's core contract functions require multiple trait arguments (reserve, commission, staking, direct-helpers). The extension fills these automatically — you only pass your data.
+StackingDAO's core contract functions require multiple trait arguments (reserve, commission, staking, direct-helpers). The extension fills these automatically, you only pass your data.

@@ -1,6 +1,11 @@
+---
+description: "Stake with PoX-5 (SIP-045) in TypeScript: bonds, Bitcoin lockups, proofs and signer grants with typed wallet actions on Stacks."
+title: "PoX-5 staking in TypeScript"
+---
+
 # PoX-5 Bitcoin Staking
 
-Reading bond prints from your instance is on [Index](https://secondlayer.tools/docs/index#pox-5). This page is the wallet and proof side, from `@secondlayer/stacks`.
+Reading bond prints from your instance is on [Index](https://www.secondlayer.tools/docs/index#pox-5). This page is the wallet and proof side, from `@secondlayer/stacks`.
 
 :::info[Wallet actions gate on chain-reported activation.]
 
@@ -109,7 +114,7 @@ await client.pox5.registerForBond({
   btcLockup: { sbtcSats: 100_000_000n },
 });
 
-// Proven L1 lockup path — proof fields come from buildTxProof
+// Proven L1 lockup path, proof fields come from buildTxProof
 btcLockup: {
   l1Outputs: [{
     height: proof.height,
@@ -151,7 +156,7 @@ const address = buildLockupAddress(
   },
   "mainnet",
 );
-// bc1q… — send the BTC lockup here
+// bc1q…, send the BTC lockup here
 ```
 
 - `buildLockupScript`: the witness script, a CLTV branch (spendable at `unlockBurnHeight`) and an early-exit branch that must reveal `stakerPreimage(stxAddress)`.

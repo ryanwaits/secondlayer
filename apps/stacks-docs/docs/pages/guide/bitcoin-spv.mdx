@@ -1,3 +1,7 @@
+---
+description: "Prove a Bitcoin payment inside a Stacks Clarity contract with SPV inclusion proofs built in TypeScript from your own node, no oracle."
+---
+
 # Bitcoin SPV
 
 Prove a Bitcoin payment happened inside a Stacks contract, with no oracle.
@@ -110,7 +114,7 @@ import {
   parseOutputScript,
 } from "@secondlayer/stacks/bitcoin";
 
-// `(leaf, root, tx-index, tx-count, (list 24 (buff 32)))` — never reversed, never a tuple.
+// `(leaf, root, tx-index, tx-count, (list 24 (buff 32)))`, never reversed, never a tuple.
 const args = encodeMerkleProofArgs({ leaf: proof.txidInternal, root, proof: proof.merkle });
 
 // Decode `get-bitcoin-tx-output?`'s `{ script, amount, txid }` tuple, then read the script.
@@ -180,7 +184,7 @@ import { isClarity6Active } from "@secondlayer/stacks/bitcoin";
 // Mainnet client: the height is known, nothing to pass.
 const live = await isClarity6Active(client);
 
-// Any other network has no fixed height — supply one.
+// Any other network has no fixed height, supply one.
 const onDevnet = await isClarity6Active(devnetClient, { activationBurnHeight: 120 });
 ```
 
@@ -192,4 +196,4 @@ Both prove a Bitcoin fact to a contract; neither moves or guards funds. Out-of-r
 
 :::
 
-See also [Verification](https://secondlayer.tools/docs/verification) for inclusion proofs on the *Stacks* side, and the [SDK](https://secondlayer.tools/docs/sdk).
+See also [Verification](https://www.secondlayer.tools/docs/verification) for inclusion proofs on the *Stacks* side, and the [SDK](https://www.secondlayer.tools/docs/sdk).

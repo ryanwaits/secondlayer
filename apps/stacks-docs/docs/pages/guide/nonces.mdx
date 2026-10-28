@@ -1,6 +1,10 @@
+---
+description: "Send many Stacks transactions from one account in TypeScript without nonce collisions, using a mempool-aware nonce manager."
+---
+
 # Nonce management
 
-Stacks' `/v2/accounts` returns only the confirmed nonce — it ignores the mempool. Broadcasting several transactions from one account before the first confirms makes them reuse the same nonce, so every one after the first is rejected (`ConflictingNonceInMempool`). The usual workaround is tracking nonces by hand.
+Stacks' `/v2/accounts` returns only the confirmed nonce, it ignores the mempool. Broadcasting several transactions from one account before the first confirms makes them reuse the same nonce, so every one after the first is rejected (`ConflictingNonceInMempool`). The usual workaround is tracking nonces by hand.
 
 Attach a nonce manager and the SDK hands out sequential nonces across rapid broadcasts:
 
@@ -11,12 +15,12 @@ import { privateKeyToAccount } from "@secondlayer/stacks/accounts";
 
 const client = createWalletClient({
   chain: mainnet,
-  transport: http(),                  // any node — no Secondlayer dependency
+  transport: http(),                  // any node, no Secondlayer dependency
   account: privateKeyToAccount(process.env.KEY!),
   nonceManager: createNonceManager(), // jsonRpcSource + in-memory store
 });
 
-// 20 back-to-back transfers → nonces n, n+1, …, n+19 — no collisions
+// 20 back-to-back transfers → nonces n, n+1, …, n+19, no collisions
 await Promise.all(
   recipients.map((to) => client.transferStx({ to, amount: 1000n })),
 );
@@ -36,7 +40,7 @@ const nonceManager = createNonceManager({
 });
 ```
 
-`postgresStore({ sql })` works the same way. Bring your own client — no global `Bun` reference, so the store stays runtime-agnostic.
+`postgresStore({ sql })` works the same way. Bring your own client, no global `Bun` reference, so the store stays runtime-agnostic.
 
 ### Mempool-aware sources (optional)
 

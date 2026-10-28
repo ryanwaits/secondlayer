@@ -4,7 +4,7 @@
 	"type": "module",
 	"scripts": {
 		"dev": "vocs dev",
-		"build": "vocs build",
+		"build": "vocs build && bun scripts/sitemap.ts",
 		"preview": "vocs preview",
 		"typecheck": "tsc --noEmit",
 		"test": "bun test"

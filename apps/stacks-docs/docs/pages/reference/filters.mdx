@@ -1,3 +1,7 @@
+---
+description: "API reference for Stacks event and transaction filters in TypeScript: describe an event once, reuse it across Index, Streams, Webhooks and Subgraphs."
+---
+
 # Filters
 
 Describe a chain event once, then hand the same filter to Index, Streams, Webhooks, or Subgraphs.
@@ -6,12 +10,12 @@ Describe a chain event once, then hand the same filter to Index, Streams, Webhoo
 
 ## The Four Surfaces
 
-This module only matters alongside a Secondlayer instance. If you use `@secondlayer/stacks` purely as a chain client, skip it. The surfaces are [Secondlayer platform](https://secondlayer.tools/docs) products reached through the `@secondlayer/sdk` client (`sl` below); the platform-side write-up is [secondlayer.tools/docs/sdk#filters](https://secondlayer.tools/docs/sdk#filters).
+This module only matters alongside a Secondlayer instance. If you use `@secondlayer/stacks` purely as a chain client, skip it. The surfaces are [Secondlayer platform](https://www.secondlayer.tools/docs) products reached through the `@secondlayer/sdk` client (`sl` below); the platform-side write-up is [secondlayer.tools/docs/sdk#filters](https://www.secondlayer.tools/docs/sdk#filters).
 
-- **Index** pulls decoded history over HTTP, paginated and cursor-based. `sl.index.events.list(f.toIndexParams())`. [Docs →](https://secondlayer.tools/docs/index)
-- **Streams** consumes events as they land: ordered, resumable, reorg-aware. `sl.streams.events.consume(f.toStreamsParams())`. [Docs →](https://secondlayer.tools/docs/streams)
-- **Webhooks** push matching events to your URL; a chain trigger is the filter half of a webhook. `sl.webhooks.create({ triggers: [f.toChainTrigger()] })`. [Docs →](https://secondlayer.tools/docs/webhooks)
-- **Subgraphs** turn event sources plus handlers into a queryable dataset. `defineSubgraph({ sources: { x: f.toSubgraphSource() } })`. [Docs →](https://secondlayer.tools/docs/subgraphs)
+- **Index** pulls decoded history over HTTP, paginated and cursor-based. `sl.index.events.list(f.toIndexParams())`. [Docs →](https://www.secondlayer.tools/docs/index)
+- **Streams** consumes events as they land: ordered, resumable, reorg-aware. `sl.streams.events.consume(f.toStreamsParams())`. [Docs →](https://www.secondlayer.tools/docs/streams)
+- **Webhooks** push matching events to your URL; a chain trigger is the filter half of a webhook. `sl.webhooks.create({ triggers: [f.toChainTrigger()] })`. [Docs →](https://www.secondlayer.tools/docs/webhooks)
+- **Subgraphs** turn event sources plus handlers into a queryable dataset. `defineSubgraph({ sources: { x: f.toSubgraphSource() } })`. [Docs →](https://www.secondlayer.tools/docs/subgraphs)
 
 ## Build a Filter
 
@@ -68,7 +72,7 @@ A field the target cannot express throws at projection time, naming the surface 
 ```typescript
 const usdc = on.ftTransfer({ assetIdentifier: USDC, minAmount: 1_000_000n });
 usdc.toIndexParams();
-// Error: minAmount cannot be expressed on Index events — amount predicates are
+// Error: minAmount cannot be expressed on Index events, amount predicates are
 // Webhooks/Subgraphs-only; filter client-side on the decoded rows.
 ```
 

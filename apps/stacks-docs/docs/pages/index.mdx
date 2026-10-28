@@ -1,4 +1,6 @@
 ---
+description: "Typed Stacks client for TypeScript: read chains, call contracts, stack with PoX-5, move sBTC, resolve BNS names."
+title: "Typed Stacks client for TypeScript"
 layout: landing
 content:
   width: 100%
@@ -44,30 +46,29 @@ const balance = await client.getBalance({
 | `@secondlayer/stacks/transactions` | Build, sign, serialize transactions, multi-sig |
 | `@secondlayer/stacks/postconditions` | `Pc` fluent builder for post-conditions |
 | `@secondlayer/stacks/utils` | Encoding, hashing, addresses, unit formatting |
-| `@secondlayer/stacks/bitcoin` | Trust-minimized Bitcoin SPV — proof construction, Clarity codecs, verifier (SIP-044) |
-| `@secondlayer/stacks/pox5` | PoX-5 Bitcoin Staking (SIP-045) — bonds, staking, lockup scripts, signer grants |
+| `@secondlayer/stacks/bitcoin` | Trust-minimized Bitcoin SPV, proof construction, Clarity codecs, verifier (SIP-044) |
+| `@secondlayer/stacks/pox5` | PoX-5 Bitcoin Staking (SIP-045), bonds, staking, lockup scripts, signer grants |
 | `@secondlayer/stacks/sbtc` | `sbtc()` client extension: sBTC deposits, balances, withdrawals |
 | `@secondlayer/stacks/filters` | Event and transaction filter builders, re-exported from the root |
-| `@secondlayer/stacks/simnet` | Clarinet simnet transport — same `getContract` client against an in-process VM |
+| `@secondlayer/stacks/simnet` | Clarinet simnet transport, same `getContract` client against an in-process VM |
 
 ### Frozen modules
 
-These ship and work but get no further investment — they may be removed in a
-future major. Prefer Hiro's maintained `@stacks/*` ecosystem for wallet-side
-work; Secondlayer is a data-infrastructure company, not a wallet SDK vendor.
+These ship and work but get no further investment, they may be removed in a
+future major. Wallet connection is frozen. For wallet UI, use `@stacks/connect`.
 
-Nonce coordination is the exception — it is supported and maintained:
+Nonce coordination is the exception, it is supported and maintained:
 it's mempool-aware (built on Secondlayer's data plane) and solves a real
 multi-broadcast gap, which is why it lives here rather than being deferred to
 `@stacks/*`.
 
 | Module | Description |
 |---|---|
-| `@secondlayer/stacks/connect` | Wallet connection — browser extensions + `setProvider` |
-| `@secondlayer/stacks/connect/walletconnect` | WalletConnect v2 — native relay, QR, modal |
-| `@secondlayer/stacks/subscriptions` | WebSocket watch helpers (`watchBlocks`, `watchMempool`, `watchTransaction`) — not a Webhooks product alias |
+| `@secondlayer/stacks/connect` | Wallet connection, browser extensions + `setProvider` |
+| `@secondlayer/stacks/connect/walletconnect` | WalletConnect v2, native relay, QR, modal |
+| `@secondlayer/stacks/subscriptions` | WebSocket watch helpers (`watchBlocks`, `watchMempool`, `watchTransaction`), not a Webhooks product alias |
 | `@secondlayer/stacks/bns` | BNS name registration, resolution, zonefiles |
-| `@secondlayer/stacks/pox` | PoX stacking — solo and delegated |
+| `@secondlayer/stacks/pox` | PoX stacking, solo and delegated |
 | `@secondlayer/stacks/stackingdao` | StackingDAO liquid staking (STX/stSTX) |
 
 </div>

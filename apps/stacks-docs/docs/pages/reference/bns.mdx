@@ -1,3 +1,8 @@
+---
+description: "API reference for BNS v2 on Stacks in TypeScript: resolve, register and manage Bitcoin Name System names."
+title: "BNS v2 names in TypeScript"
+---
+
 # BNS v2
 
 BNS (Bitcoin Name System) v2 extension for name resolution, registration, and management on Stacks.
@@ -34,7 +39,7 @@ const name = await client.bns.getPrimaryName("SP2J6...");
 
 // Check availability
 const available = await client.bns.canRegister("bob.btc");
-// `true` only means the contract call itself resolved to "name unknown" —
+// `true` only means the contract call itself resolved to "name unknown":
 // network/HTTP failures throw instead of being reported as "available".
 
 // Get price (microSTX)
@@ -88,7 +93,7 @@ await wallet.bns.setPrimary({ name: "alice.btc" });
 // Read zonefile
 const zonefile = await client.bns.getZonefile("alice.btc");
 if (zonefile) console.log(new TextDecoder().decode(zonefile));
-// `null` only means the contract genuinely has no zonefile set — network/HTTP
+// `null` only means the contract genuinely has no zonefile set, network/HTTP
 // failures throw instead of being reported as "no zonefile".
 
 // Update zonefile
