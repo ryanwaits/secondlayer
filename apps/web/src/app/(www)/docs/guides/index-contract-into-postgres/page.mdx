@@ -85,11 +85,11 @@ secondlayer subgraphs create my-contract \
 ```
 
 - The scaffold reads the contract's indexed prints and writes a typed source per topic ([Typed print payloads](/docs/subgraphs#typed-print-payloads)).
-- Gap: the local `test` compares a source's `topic` with the print's top-level topic, which is `print` for tuple prints. A topic source can show 0 events there while the deployed subgraph matches.
+- Preview the result with `--dry-run` before you deploy.
 
 ## Tradeoff
 
-Hosted subgraphs bill by the rows they read, with a free monthly allowance ([What it costs](/docs/authentication#what-it-costs)). The tables are Postgres, but hosted serves them over REST and streams, not as a connection string; for direct SQL, [self-host](/docs/self-host).
+A hosted subgraph runs on your hosted stack, with a $10 a month minimum while it runs. Its indexing bills the event and transaction rows it reads, and reading your own subgraph tables is free ([What it costs](/docs/authentication#what-it-costs)). The tables are Postgres, but hosted serves them over REST and streams, not as a connection string; for direct SQL, [self-host](/docs/self-host).
 
 Every route: [List subgraph rows](/docs/api/subgraphs#list-subgraph-rows). The full file format and what runs hosted: [Subgraphs](/docs/subgraphs#what-runs-hosted).
 
@@ -103,7 +103,7 @@ export const metadata = {
 export const agent = `
 - One file: defineSubgraph({ name, startBlock, sources, schema, handlers }) from @secondlayer/subgraphs. Deploy: 'secondlayer subgraphs deploy <file>' (needs SECONDLAYER_API_URL and SECONDLAYER_API_KEY; the file must be git-staged or pass --allow-uncommitted). '--dry-run' validates and changes nothing.
 - Always set startBlock: an unbounded first run backfills from genesis and every event row it reads bills.
-- 'secondlayer subgraphs test <file> --from <h> --to <h>' runs the local handler on real events with no deploy. For print_event sources with a topic it compares the print's top-level topic ('print'), so tuple-topic sources can show 0 events locally; the deployed matcher uses the decoded tuple's topic.
+- 'secondlayer subgraphs test <file> --from <h> --to <h>' runs the local handler on real events with no deploy.
 - Hosted sources: event filters, contract_call, contract_deploy (else 422 SOURCE_NOT_HOSTABLE). contract_call sources with functionName need an abi for 'test' (deploy fetches it).
 - Hosted rows are read over REST (/v1/subgraphs/<name>/<table>, sl.subgraphs.rows) or SSE; direct Postgres access is self-host only.
 - Scaffold from a contract's prints: 'secondlayer subgraphs create <name> --from-contract <id>'.

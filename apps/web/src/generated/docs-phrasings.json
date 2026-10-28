@@ -878,13 +878,15 @@
     ]
   },
   "/docs/guides/index-contract-into-postgres#point-it-at-your-contract": {
-    "hash": "67ef7aec667e8931",
+    "hash": "93d395adc6045ac1",
     "phrasings": [
-      "change contract indexer watches to another",
-      "switch indexed contract source address",
-      "index a different smart contract stacks",
-      "update source in indexer config",
-      "watch new clarity contract without rewriting"
+      "how to index a different contract",
+      "change contract address in indexer config",
+      "watch another smart contract with postgres indexer",
+      "switch which contract gets indexed",
+      "indexer not picking up my contract",
+      "point indexer at my contract address",
+      "update source address for new contract"
     ]
   },
   "/docs/guides/index-contract-into-postgres#read-the-rows": {
@@ -901,16 +903,15 @@
     ]
   },
   "/docs/guides/index-contract-into-postgres#tradeoff": {
-    "hash": "9af9447c4813648a",
+    "hash": "cc9e30dbb761d647",
     "phrasings": [
-      "is indexing contract data into postgres expensive",
-      "how do hosted subgraphs bill for queries",
-      "free monthly allowance for hosted subgraph rows",
-      "why are my subgraph query costs rising",
-      "rows read billing hosted subgraph pricing",
-      "postgres indexing cost versus hosted service",
-      "when is self hosting postgres indexer cheaper",
-      "what does hosted subgraph usage cost per month"
+      "hosted subgraph minimum monthly cost",
+      "is hosted subgraph pricing worth it",
+      "why does hosted subgraph cost 10 a month",
+      "hosted subgraph 10 dollar minimum fee",
+      "subgraph hosting cost tradeoffs",
+      "does hosted indexer charge while running",
+      "hosted vs self hosted indexer pricing"
     ]
   },
   "/docs/guides/index-contract-into-postgres#try-it-on-real-blocks": {
@@ -1156,15 +1157,15 @@
     ]
   },
   "/docs/index#plain-http": {
-    "hash": "982b9f2a564ce2e5",
+    "hash": "b3f17552904e496d",
     "phrasings": [
-      "query database over http without sdk",
-      "curl api query rows example",
-      "access data with plain http requests",
+      "query database rows over http",
+      "call postgres table with curl",
+      "rest api for blockchain data no sdk",
+      "fetch rows from http endpoint no client library",
+      "how to read indexed data with http requests",
       "do i need an sdk to query",
-      "http client query rows no library",
-      "rest endpoint to fetch table rows",
-      "call api with curl instead of sdk"
+      "curl query indexed data endpoint"
     ]
   },
   "/docs/index#pox-5": {
@@ -2282,14 +2283,15 @@
     ]
   },
   "/docs/subgraphs": {
-    "hash": "9a73fcd2d2d660e1",
+    "hash": "de15ae59ced006fc",
     "phrasings": [
-      "typescript file to rest api over table",
-      "generate rest api from typescript config",
-      "subgraph table and rest api setup",
-      "easiest way to index chain data",
-      "define subgraph single file typescript",
-      "turn blockchain events into rest endpoint"
+      "typescript file to database table and api",
+      "generate rest api from typescript schema",
+      "single file typescript subgraph example",
+      "create table and api from one file",
+      "how to set up a subgraph in typescript",
+      "minimal subgraph typescript setup",
+      "auto generate rest endpoint from entity definitions"
     ]
   },
   "/docs/subgraphs#check-it": {
