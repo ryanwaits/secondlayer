@@ -21,7 +21,7 @@ import { TwinsHero } from "./twins-hero";
 import { WaitlistForm } from "./waitlist-form";
 
 export const metadata: Metadata = socialMeta({
-	title: "Stacks to Robinhood Chain · secondlayer",
+	title: "Stacks to Robinhood Chain",
 	description:
 		"Bridge your Stacks token to Robinhood Chain and back. Join the waitlist for the first test rounds.",
 	image: "/og/robinhood.png",

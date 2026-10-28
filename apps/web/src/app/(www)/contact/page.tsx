@@ -4,6 +4,7 @@ import { ContactForm } from "./contact-form";
 
 export const metadata: Metadata = {
 	title: "Contact",
+	alternates: { canonical: "/contact" },
 	description:
 		"Volume pricing, contracts and sizing help. A person reads every message and replies from their own inbox.",
 };
@@ -28,7 +29,7 @@ export default async function ContactPage({
 				<div className="contact-grid">
 					<div className="contact-copy">
 						<Eyebrow noun="Contact" />
-						<h2>Tell us what you're building.</h2>
+						<h1>Tell us what you're building.</h1>
 						<p className="lede">
 							A person reads every message and replies from their own inbox,
 							usually within one business day.

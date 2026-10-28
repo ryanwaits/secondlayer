@@ -3,7 +3,7 @@ import { Suspense } from "react";
 import { CliLogin } from "./cli-login";
 
 export const metadata: Metadata = {
-	title: "Approve sl · secondlayer",
+	title: "Approve sl",
 	robots: { index: false, follow: false },
 };
 

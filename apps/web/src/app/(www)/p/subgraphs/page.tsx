@@ -23,7 +23,7 @@ const LEDE =
 	"Write one TypeScript file. Get Postgres tables, a REST API and client types, backfilled from your start block and held at tip.";
 
 export const metadata: Metadata = socialMeta({
-	title: "Subgraphs · secondlayer",
+	title: "Stacks subgraphs: your contract as a Postgres table",
 	description: LEDE,
 	image: "/og/subgraphs.png",
 	path: "/p/subgraphs",

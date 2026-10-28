@@ -4,7 +4,7 @@ import type { ReactNode } from "react";
 
 // The page is a client component, so its share card lives here.
 export const metadata: Metadata = socialMeta({
-	title: "Sign in · secondlayer",
+	title: "Sign in",
 	description: "Sign in with your email to get an API key.",
 	image: "/og/home.png",
 	path: "/signin",

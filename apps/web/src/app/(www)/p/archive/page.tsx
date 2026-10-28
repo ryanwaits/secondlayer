@@ -34,7 +34,7 @@ const LEDE =
 	"Genesis to tip as signed, digest-addressed partitions. Check a running database against them read-only, repair only the ranges that break, or stand up a fresh box in hours.";
 
 export const metadata: Metadata = socialMeta({
-	title: "Archive · secondlayer",
+	title: "Stacks chain archive: signed history dumps",
 	description: LEDE,
 	image: "/og/archive.png",
 	path: "/p/archive",

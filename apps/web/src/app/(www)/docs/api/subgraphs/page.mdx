@@ -10,11 +10,12 @@ export const agent = `
 - Read: 'GET $SECONDLAYER_API_URL/v1/subgraphs/<name>/<table>' with 'Authorization: Bearer $SECONDLAYER_API_KEY'; page with next_cursor.
 - Describe: '/v1/subgraphs/<name>/schema.json' is the machine-readable schema; '/openapi.json' is a per-subgraph OpenAPI document.
 - Deploy and operate: '/api/subgraphs' is the self-hosted write plane; authenticate with $INSTANCE_TOKEN.
-- One endpoint as markdown: 'https://secondlayer.tools/docs/api-reference/<anchor>.md', e.g. list-subgraph-rows.
+- One endpoint as markdown: 'https://www.secondlayer.tools/docs/api-reference/<anchor>.md', e.g. list-subgraph-rows.
 `;
 
 export const metadata = {
-	title: "Subgraphs API — Secondlayer Docs",
+	title: "Subgraphs API",
 	description:
-		"Every Subgraphs endpoint: read rows, describe a subgraph, deploy and operate it, with parameters and example requests.",
+		"Every Subgraphs endpoint for Stacks: read rows, describe a subgraph, deploy and operate it, with parameters and example requests.",
+	alternates: { canonical: "/docs/api/subgraphs" },
 };

@@ -31,7 +31,7 @@ export function GET(): Response {
 	const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
   <channel>
-    <title>secondlayer writings</title>
+    <title>secondlayer blog</title>
     <link>${BASE}/blog</link>
     <atom:link href="${BASE}/feed.xml" rel="self" type="application/rss+xml"/>
     <description>Long-form, mechanism-first posts on indexers, consumers, and the systems underneath.</description>

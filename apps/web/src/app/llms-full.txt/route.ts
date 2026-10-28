@@ -13,7 +13,7 @@ export const revalidate = 3600;
 export async function GET() {
 	const body = await readAllDocsMarkdown();
 	return new Response(
-		`# Secondlayer docs — full text\n\n> Every page of https://secondlayer.tools/docs, in sidebar order.\n> Index: https://secondlayer.tools/llms.txt\n\n${body}\n`,
+		`# Secondlayer docs — full text\n\n> Every page of https://www.secondlayer.tools/docs, in sidebar order.\n> Index: https://www.secondlayer.tools/llms.txt\n\n${body}\n`,
 		{
 			headers: {
 				"Content-Type": "text/plain; charset=utf-8",

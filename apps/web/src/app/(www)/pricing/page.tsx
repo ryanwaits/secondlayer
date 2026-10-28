@@ -1,3 +1,4 @@
+import { JsonLd } from "@/components/json-ld";
 import {
 	ButtonLink,
 	CloseBand,
@@ -32,11 +33,40 @@ const LEDE =
 	"One meter for chain data, live or history, from Index or Streams. Your hosted stack bills only while it runs. Everything you run yourself costs nothing.";
 
 export const metadata: Metadata = socialMeta({
-	title: "Pricing · secondlayer",
+	title: "Pricing: 1M Stacks rows free every month",
 	description: LEDE,
 	image: "/og/pricing.png",
 	path: "/pricing",
 });
+
+/** Free tier plus the per-1M row rate, from the same constants the page prints. */
+const PRICING_JSON_LD = {
+	"@context": "https://schema.org",
+	"@type": "SoftwareApplication",
+	name: "secondlayer",
+	applicationCategory: "DeveloperApplication",
+	operatingSystem: "Web",
+	url: "https://www.secondlayer.tools/pricing",
+	offers: [
+		{
+			"@type": "Offer",
+			name: `First ${FREE_ROWS_PER_MONTH / 1_000_000}M Stacks rows each month`,
+			price: "0",
+			priceCurrency: "USD",
+		},
+		{
+			"@type": "Offer",
+			name: "Stacks rows past the free allowance, per 1M rows",
+			price: String(ROW_USD_PER_M),
+			priceCurrency: "USD",
+			eligibleQuantity: {
+				"@type": "QuantitativeValue",
+				value: 1_000_000,
+				unitText: "rows",
+			},
+		},
+	],
+};
 
 const FREE_ROWS_LABEL = `${FREE_ROWS_PER_MONTH / 1_000_000}M rows`;
 const MEMORY_USD_PER_GB_MONTH = Math.round(
@@ -129,6 +159,7 @@ export default function PricingPage() {
 
 	return (
 		<main className="site pricing">
+			<JsonLd data={PRICING_JSON_LD} />
 			<div className="shell">
 				<div className="hero">
 					<div className="hero-copy">

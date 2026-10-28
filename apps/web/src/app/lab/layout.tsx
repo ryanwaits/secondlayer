@@ -8,7 +8,7 @@ import "../robinhood/robinhood.css";
 import "./lab.css";
 
 export const metadata: Metadata = {
-	title: "Lab · secondlayer",
+	title: "Lab",
 	robots: { index: false, follow: false },
 };
 

@@ -5,7 +5,7 @@ import {
 	returnedObject,
 } from "./spec";
 
-const SITE = "https://secondlayer.tools";
+const SITE = "https://www.secondlayer.tools";
 
 /** The endpoint's markdown twin: what an agent should read before calling it. */
 export function markdownUrl(anchor: string): string {
@@ -48,7 +48,7 @@ export function objectPrompt(entry: ObjectEntry): string {
 export type PromptPart = { text: string; href?: string; strong?: boolean };
 
 const PROMPT_TOKENS =
-	/(https:\/\/secondlayer\.tools\/docs\/api-reference\/[\w.-]+\.md|\$?SECONDLAYER_API_(?:KEY|URL)|\$INSTANCE_TOKEN)/;
+	/(https:\/\/www\.secondlayer\.tools\/docs\/api-reference\/[\w.-]+\.md|\$?SECONDLAYER_API_(?:KEY|URL)|\$INSTANCE_TOKEN)/;
 
 /** The prompt as display parts: the markdown URL shows as `<anchor>.md` and
  *  links to it, env vars carry weight. Copy still uses the plain string. */

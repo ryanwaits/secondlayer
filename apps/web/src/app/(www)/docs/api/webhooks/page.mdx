@@ -10,11 +10,12 @@ export const agent = `
 - Base: '$SECONDLAYER_API_URL/api/webhooks' with 'Authorization: Bearer $INSTANCE_TOKEN' (self-hosted write plane).
 - Verify every delivery's signature with the webhook's signing secret; rotate it with 'POST /api/webhooks/{id}/rotate-secret'.
 - Recover a down receiver: requeue dead events, or replay a block range.
-- One endpoint as markdown: 'https://secondlayer.tools/docs/api-reference/<anchor>.md', e.g. create-webhook.
+- One endpoint as markdown: 'https://www.secondlayer.tools/docs/api-reference/<anchor>.md', e.g. create-webhook.
 `;
 
 export const metadata = {
-	title: "Webhooks API — Secondlayer Docs",
+	title: "Webhooks API",
 	description:
-		"Every Webhooks endpoint: manage, deliveries and recovery, with parameters and example requests.",
+		"Every Webhooks endpoint for Stacks chain events: manage, deliveries and recovery, with parameters and example requests.",
+	alternates: { canonical: "/docs/api/webhooks" },
 };

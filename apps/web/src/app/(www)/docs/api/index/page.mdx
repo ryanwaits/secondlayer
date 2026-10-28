@@ -9,12 +9,13 @@ Decoded rows over plain HTTP, every endpoint a `GET` under `/v1/index`. Envelope
 export const agent = `
 - Base: 'GET $SECONDLAYER_API_URL/v1/index/<endpoint>' with 'Authorization: Bearer $SECONDLAYER_API_KEY' on hosted; a loopback instance needs no key.
 - List endpoints return a cursor envelope; page by passing next_cursor back as cursor, and undo rows named in reorgs[].
-- One endpoint as markdown: 'https://secondlayer.tools/docs/api-reference/<anchor>.md', e.g. list-ft-transfers.
+- One endpoint as markdown: 'https://www.secondlayer.tools/docs/api-reference/<anchor>.md', e.g. list-ft-transfers.
 - Prefer @secondlayer/sdk (index.*) over hand-rolled paging.
 `;
 
 export const metadata = {
-	title: "Index API — Secondlayer Docs",
+	title: "Stacks API reference: blocks, transactions, events, transfers",
 	description:
-		"Every Index endpoint: decoded events, blocks, transactions, mempool, PoX, Runes and sBTC, with parameters and example requests.",
+		"Every Index endpoint for Stacks: decoded events, blocks, transactions, mempool, PoX, Runes and sBTC, with parameters and example requests.",
+	alternates: { canonical: "/docs/api/index" },
 };

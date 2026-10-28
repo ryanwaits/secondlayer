@@ -309,7 +309,8 @@ The loop refuses to run without `finalizedOnly: true`, at startup, before data f
 | ClickHouse / parquet | No deletes: `capabilities: { finalizedOnly: true }`, dedup on `cursor` |
 
 export const metadata = {
-	title: "Sinks — Secondlayer Docs",
+	title: "Sinks",
 	description:
-		"A destination adapter that owns the checkpoint, the transaction, and the reorg rollback, so your handler only inserts rows. Includes how to write your own.",
+		"A destination adapter for Stacks data that owns the checkpoint, the transaction, and the reorg rollback, so your handler only inserts rows.",
+	alternates: { canonical: "/docs/sinks" },
 };

@@ -133,7 +133,9 @@ export const agent = `
 `;
 
 export const metadata = {
-	title: "Introduction — Secondlayer Docs",
+	// Absolute: the docs layout's title template doesn't reach this sibling page.
+	title: { absolute: "Stacks data API, webhooks and indexers · secondlayer docs" },
 	description:
 		"Decoded Stacks chain data, backfilled and reorg-safe: the five products as one stack, which one to start with, and a key-to-checked-row quickstart.",
+	alternates: { canonical: "/docs" },
 };

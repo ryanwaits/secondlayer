@@ -35,7 +35,9 @@ const LEDE =
 	"Write an indexer against every Stacks event since genesis, in one TypeScript file. Run it on Railway, Render, Fly or your own box. We meter the rows it reads.";
 
 export const metadata: Metadata = socialMeta({
-	title: "Index · secondlayer",
+	title: {
+		absolute: "Stacks indexer in TypeScript, from genesis · secondlayer Index",
+	},
 	description: LEDE,
 	image: "/og/index.png",
 	path: "/p/index",

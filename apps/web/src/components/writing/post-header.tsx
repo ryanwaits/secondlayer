@@ -1,3 +1,4 @@
+import { JsonLd } from "@/components/json-ld";
 import { getPost, longDate } from "@/lib/writing";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -21,6 +22,17 @@ export function PostHeader({ slug }: { slug: string }) {
 
 	return (
 		<header className="writing-header">
+			<JsonLd
+				data={{
+					"@context": "https://schema.org",
+					"@type": "BlogPosting",
+					headline: post.title,
+					description: post.dek,
+					datePublished: `${post.date}T00:00:00Z`,
+					author: { "@type": "Person", name: "Ryan Waits" },
+					url: `https://www.secondlayer.tools/blog/${post.slug}`,
+				}}
+			/>
 			<nav className="writing-eyebrow" aria-label="Breadcrumb">
 				<Link href="/blog">Blog</Link>
 				<span aria-hidden="true">/</span>
@@ -29,7 +41,7 @@ export function PostHeader({ slug }: { slug: string }) {
 			<h1 className="writing-title">{post.title}</h1>
 			<p className="writing-dek">{post.dek}</p>
 			<p className="writing-meta">
-				<span>{longDate(post.date)}</span>
+				<time dateTime={post.date}>{longDate(post.date)}</time>
 				<span>{post.readingTime}</span>
 			</p>
 		</header>

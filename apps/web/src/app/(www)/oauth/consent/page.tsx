@@ -3,7 +3,7 @@ import { Suspense } from "react";
 import { OauthConsent } from "./oauth-consent";
 
 export const metadata: Metadata = {
-	title: "Allow an app · secondlayer",
+	title: "Allow an app",
 	robots: { index: false, follow: false },
 };
 

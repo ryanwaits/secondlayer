@@ -1,7 +1,9 @@
 import { AuthBar } from "@/components/auth-bar";
 import { LazyCommandPalette } from "@/components/command-palette/lazy";
 import { FastAnchorScroll } from "@/components/fast-anchor-scroll";
+import { JsonLd } from "@/components/json-ld";
 import { AuthProvider } from "@/lib/auth";
+import { GITHUB_URL } from "@/lib/site";
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
@@ -27,11 +29,14 @@ export const metadata: Metadata = {
 	// relative to the request URL, which breaks Twitter/Slack/iMessage card
 	// previews on shared links.
 	metadataBase: new URL("https://www.secondlayer.tools"),
-	title: "secondlayer",
+	title: {
+		default: "secondlayer · Stacks indexer: decoded data, webhooks, proofs",
+		template: "%s · secondlayer",
+	},
 	description: "Instant data for apps on Bitcoin. Proof included.",
 	appleWebApp: {
 		capable: true,
-		title: "Secondlayer",
+		title: "secondlayer",
 		statusBarStyle: "default",
 	},
 	openGraph: {
@@ -51,6 +56,26 @@ export const metadata: Metadata = {
 	},
 };
 
+const SITE_URL = "https://www.secondlayer.tools";
+
+const ORGANIZATION = {
+	"@context": "https://schema.org",
+	"@type": "Organization",
+	name: "secondlayer",
+	url: SITE_URL,
+	logo: `${SITE_URL}/logo-light.svg`,
+	description:
+		"secondlayer: a Stacks indexer. Decoded Stacks and Bitcoin Runes data from genesis, hosted webhooks, and tools to index your own app (Index API, Streams, Subgraphs, Webhooks), checkable against Bitcoin. Hosted or self-hosted.",
+	sameAs: [GITHUB_URL, "https://www.npmjs.com/org/secondlayer"],
+};
+
+const WEBSITE = {
+	"@context": "https://schema.org",
+	"@type": "WebSite",
+	name: "secondlayer",
+	url: SITE_URL,
+};
+
 export default function RootLayout({
 	children,
 }: {
@@ -58,6 +83,10 @@ export default function RootLayout({
 }) {
 	return (
 		<html lang="en">
+			<head>
+				<JsonLd data={ORGANIZATION} />
+				<JsonLd data={WEBSITE} />
+			</head>
 			<body
 				className={`${geist.className} ${geist.variable} ${geistMono.variable}`}
 			>

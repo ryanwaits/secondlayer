@@ -3,7 +3,7 @@ import { accountSummary, keyHint } from "./docs-account-summary";
 import { buildPrompt, chipUrl } from "./docs-prompt";
 import type { ApiKey } from "./types";
 
-const pageUrl = "https://secondlayer.tools/docs/streams.md";
+const pageUrl = "https://www.secondlayer.tools/docs/streams.md";
 
 describe("buildPrompt", () => {
 	test("includes the page's agent notes under a rules heading when present", () => {
@@ -39,10 +39,10 @@ describe("buildPrompt", () => {
 			task: "x",
 			pageMd: "",
 			pageUrl,
-			extraUrls: [pageUrl, "https://secondlayer.tools/docs/index.md"],
+			extraUrls: [pageUrl, "https://www.secondlayer.tools/docs/index.md"],
 		});
 		expect(out).toContain(
-			`Read first:\n- ${pageUrl}\n- https://secondlayer.tools/docs/index.md`,
+			`Read first:\n- ${pageUrl}\n- https://www.secondlayer.tools/docs/index.md`,
 		);
 		expect(out.split(pageUrl).length).toBe(2);
 	});
@@ -121,17 +121,19 @@ describe("buildPrompt signed out", () => {
 describe("chipUrl", () => {
 	test("maps pages, headings and endpoints to markdown twins", () => {
 		expect(chipUrl({ href: "/docs/webhooks" })).toBe(
-			"https://secondlayer.tools/docs/webhooks.md",
+			"https://www.secondlayer.tools/docs/webhooks.md",
 		);
 		expect(chipUrl({ href: "/docs/webhooks#retries" })).toBe(
-			"https://secondlayer.tools/docs/webhooks.md#retries",
+			"https://www.secondlayer.tools/docs/webhooks.md#retries",
 		);
 		expect(
 			chipUrl({
 				href: "/docs/api/index#list-pox5-events",
 				sub: "endpoint",
 			}),
-		).toBe("https://secondlayer.tools/docs/api-reference/list-pox5-events.md");
+		).toBe(
+			"https://www.secondlayer.tools/docs/api-reference/list-pox5-events.md",
+		);
 		expect(chipUrl({})).toBeNull();
 	});
 

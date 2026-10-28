@@ -25,7 +25,7 @@ const LEDE =
 	"A signed POST to your URL when a chain event you named lands. Retried while your server is down, rolled back when a fork orphans the block.";
 
 export const metadata: Metadata = socialMeta({
-	title: "Webhooks · secondlayer",
+	title: "Stacks webhooks for contract calls and events",
 	description: LEDE,
 	image: "/og/webhooks.png",
 	path: "/p/webhooks",

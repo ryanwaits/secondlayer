@@ -13,12 +13,13 @@ export const revalidate = 86400;
 
 export const metadata: Metadata = {
 	...socialMeta({
-		title: "Blog · secondlayer",
+		title: "Blog",
 		description: LEDE,
 		image: "/og/writing.png",
 		path: "/blog",
 	}),
 	alternates: {
+		canonical: "/blog",
 		types: { "application/rss+xml": "/feed.xml" },
 	},
 };

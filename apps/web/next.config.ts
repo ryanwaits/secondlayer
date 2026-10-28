@@ -257,6 +257,12 @@ const nextConfig: NextConfig = {
 				permanent: true,
 			},
 			// Quickstart folded into the Introduction's Get started panel.
+			// The introduction is /docs; its .md twin stays at introduction.md.
+			{
+				source: "/docs/introduction",
+				destination: "/docs",
+				permanent: true,
+			},
 			{
 				source: "/docs/quickstart",
 				destination: "/docs#get-started",

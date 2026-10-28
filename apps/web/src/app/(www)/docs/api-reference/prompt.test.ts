@@ -17,7 +17,7 @@ describe("agent prompt", () => {
 	test("a list endpoint reads its markdown, pages by cursor, names its rows and ends there", () => {
 		const prompt = endpointPrompt(endpoint("list-ft-transfers"));
 		expect(prompt).toContain(
-			"Read https://secondlayer.tools/docs/api-reference/list-ft-transfers.md first.",
+			"Read https://www.secondlayer.tools/docs/api-reference/list-ft-transfers.md first.",
 		);
 		expect(prompt).toContain("Call GET /v1/index/ft-transfers");
 		expect(prompt).toContain("Bearer $SECONDLAYER_API_KEY");

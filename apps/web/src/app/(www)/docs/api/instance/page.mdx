@@ -10,11 +10,12 @@ export const agent = `
 - Discovery: 'GET $SECONDLAYER_API_URL/v1' lists every surface this instance serves; 'GET /v1/openapi.json' is the live OpenAPI document.
 - Batch several public reads in one request with 'POST /v1/batch'.
 - Instance endpoints use $INSTANCE_TOKEN on a self-hosted box; a loopback instance needs no key.
-- One endpoint as markdown: 'https://secondlayer.tools/docs/api-reference/<anchor>.md', e.g. batch-read.
+- One endpoint as markdown: 'https://www.secondlayer.tools/docs/api-reference/<anchor>.md', e.g. batch-read.
 `;
 
 export const metadata = {
-	title: "Instance API — Secondlayer Docs",
+	title: "Instance API",
 	description:
-		"Every Instance endpoint: discovery and batch, your instance, the archive check and node reads, with parameters and example requests.",
+		"Every Instance endpoint for Stacks: discovery and batch, your instance, the archive check and node reads, with parameters and example requests.",
+	alternates: { canonical: "/docs/api/instance" },
 };

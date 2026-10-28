@@ -18,7 +18,9 @@ const SUB =
 	"Index Stacks and Runes from their first block, stream new ones as they land, and prove Stacks data back to Bitcoin.";
 
 export const metadata: Metadata = socialMeta({
-	title: "secondlayer · instant data for apps on Bitcoin, proof included",
+	title: {
+		absolute: "secondlayer · Stacks indexer: decoded data, webhooks, proofs",
+	},
 	description: `${SUB} Hosted, or on your own box.`,
 	image: "/og/home.png",
 	path: "/",
@@ -112,8 +114,8 @@ const TILES: readonly { icon: ReactNode; title: string; body: ReactNode }[] = [
 				<path d="M5 7l4 4-4 4M11 16h6" />
 			</TileIcon>
 		),
-		title: "Your agent can drive",
-		body: "CLI · SDK · 50 MCP tools · a skill. Errors carry a request id your agent can report back.",
+		title: "Scriptable end to end",
+		body: "CLI · SDK · 50 MCP tools · a skill. Every error carries a request id you can report.",
 	},
 ];
 

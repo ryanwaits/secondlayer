@@ -16,6 +16,10 @@ import { DocsTrail } from "./trail";
 // twitter image here, so X falls back to that per-page og:image. Title and
 // description fall through to each page's own metadata export.
 export const metadata: Metadata = {
+	title: {
+		default: "Stacks data API, webhooks and indexers · secondlayer docs",
+		template: "%s · secondlayer docs",
+	},
 	openGraph: {
 		siteName: "secondlayer",
 		type: "website",

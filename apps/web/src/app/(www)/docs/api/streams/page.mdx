@@ -10,11 +10,12 @@ export const agent = `
 - Firehose: 'GET $SECONDLAYER_API_URL/v1/streams/events' with 'Authorization: Bearer $SECONDLAYER_API_KEY'; filter by types, contract_id, sender; page forward with next_cursor.
 - Live tail: 'GET /v1/streams/events/stream' is server-sent events; resume with the last cursor you handled.
 - Undo rows named in reorgs[] from the fork point; 'GET /v1/streams/tip' is where the chain ends now.
-- One endpoint as markdown: 'https://secondlayer.tools/docs/api-reference/<anchor>.md', e.g. list-stream-events.
+- One endpoint as markdown: 'https://www.secondlayer.tools/docs/api-reference/<anchor>.md', e.g. list-stream-events.
 `;
 
 export const metadata = {
-	title: "Streams API — Secondlayer Docs",
+	title: "Streams API",
 	description:
-		"Every Streams endpoint: the raw event firehose, the live tail, reorgs and the chain tip, with parameters and example requests.",
+		"Every Streams endpoint for Stacks: the raw event firehose, the live tail, reorgs and the chain tip, with parameters and example requests.",
+	alternates: { canonical: "/docs/api/streams" },
 };

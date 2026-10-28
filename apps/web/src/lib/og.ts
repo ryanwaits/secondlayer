@@ -1,7 +1,11 @@
 import type { Metadata } from "next";
 
 type SocialMetaInput = {
-	title: string;
+	/**
+	 * Page title; the nearest layout's title template adds the brand. Pass
+	 * `{ absolute }` for a title that must render exactly as written.
+	 */
+	title: string | { absolute: string };
 	description: string;
 	/** Path to the 1200x630 share card under /public, e.g. "/og/archive.png" */
 	image: string;
@@ -10,9 +14,9 @@ type SocialMetaInput = {
 };
 
 /**
- * Title, description, and the full Open Graph + Twitter card set for a
- * marketing route. Relative URLs resolve against metadataBase in the root
- * layout.
+ * Title, description, canonical URL, and the full Open Graph + Twitter card
+ * set for a marketing route. Relative URLs resolve against metadataBase in the
+ * root layout.
  */
 export function socialMeta({
 	title,
@@ -20,20 +24,22 @@ export function socialMeta({
 	image,
 	path,
 }: SocialMetaInput): Metadata {
+	const cardTitle = typeof title === "string" ? title : title.absolute;
 	return {
 		title,
 		description,
+		alternates: { canonical: path },
 		openGraph: {
-			title,
+			title: cardTitle,
 			description,
 			url: path,
 			siteName: "secondlayer",
 			type: "website",
-			images: [{ url: image, width: 1200, height: 630, alt: title }],
+			images: [{ url: image, width: 1200, height: 630, alt: cardTitle }],
 		},
 		twitter: {
 			card: "summary_large_image",
-			title,
+			title: cardTitle,
 			description,
 			images: [image],
 		},

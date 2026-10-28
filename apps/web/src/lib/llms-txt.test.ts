@@ -15,7 +15,19 @@ describe("llmsTxt", () => {
 	});
 
 	test("links the introduction's markdown twin", () => {
-		expect(text).toContain("https://secondlayer.tools/docs/introduction.md");
+		expect(text).toContain(
+			"https://www.secondlayer.tools/docs/introduction.md",
+		);
+	});
+
+	test("links only the www host", () => {
+		expect(text).not.toContain("https://secondlayer.tools");
+	});
+
+	test("lists the hosted OpenAPI spec", () => {
+		expect(text).toContain(
+			"Hosted OpenAPI: https://api.secondlayer.tools/v1/openapi.json",
+		);
 	});
 
 	test("does not mention the removed agent mode", () => {

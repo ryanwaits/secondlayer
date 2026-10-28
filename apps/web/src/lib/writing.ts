@@ -114,10 +114,19 @@ export function getAdjacentPosts(slug: string): {
 export function postMeta(slug: string): Metadata {
 	const post = getPost(slug);
 	if (!post) throw new Error(`Unknown writing post: ${slug}`);
-	return socialMeta({
-		title: `${post.title} — secondlayer`,
+	const meta = socialMeta({
+		title: post.title,
 		description: post.dek,
 		image: `/og/writing-${post.slug}.png`,
 		path: `/blog/${post.slug}`,
 	});
+	return {
+		...meta,
+		openGraph: {
+			...meta.openGraph,
+			type: "article",
+			publishedTime: `${post.date}T00:00:00Z`,
+			authors: ["Ryan Waits"],
+		},
+	};
 }

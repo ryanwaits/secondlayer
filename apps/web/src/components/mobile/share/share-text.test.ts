@@ -11,7 +11,7 @@ import {
 const base = FIXTURE_INSIGHTS.find(
 	(i) => i.rule === "receiver_down",
 ) as Insight;
-const DASHBOARD = "https://secondlayer.tools/account/webhooks/wh-deposits";
+const DASHBOARD = "https://www.secondlayer.tools/account/webhooks/wh-deposits";
 const targets = Object.keys(SHARE_TARGETS) as ShareTarget[];
 
 const withConfidence = (confidence: number): Insight => ({

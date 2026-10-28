@@ -242,7 +242,7 @@ export const AGENT_PROMPTS: AgentPromptDefinition[] = [
 		build: () =>
 			withSetup(`${WEBHOOKS_INTRO}
 
-/secondlayer Read https://secondlayer.tools/docs/webhooks.md, then convert my Chainhook predicates to Secondlayer chain webhooks. I will paste each predicate as JSON. Map its \`if_this\` scope to a trigger:
+/secondlayer Read https://www.secondlayer.tools/docs/webhooks.md, then convert my Chainhook predicates to Secondlayer chain webhooks. I will paste each predicate as JSON. Map its \`if_this\` scope to a trigger:
 - \`contract_call\` (contract_identifier, method) -> \`trigger.contractCall({ contractId, functionName, caller, trait })\`
 - \`print_event\` (contract_identifier, contains or matches_regex) -> \`trigger.printEvent({ contractId, topic, trait })\`
 - \`ft_event\` mint, transfer, burn -> \`trigger.ftMint\`, \`trigger.ftTransfer\`, \`trigger.ftBurn\` (assetIdentifier, minAmount, trait)

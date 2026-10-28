@@ -162,7 +162,7 @@ export async function readAllDocsMarkdown(): Promise<string> {
 		const md = await readDocsMarkdown(page.href, { setup: false });
 		if (!md) continue;
 		parts.push(
-			`<!-- source: https://secondlayer.tools${page.href} -->\n` +
+			`<!-- source: https://www.secondlayer.tools${page.href} -->\n` +
 				`# ${page.group} / ${page.title}\n\n${md}`,
 		);
 	}

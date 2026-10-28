@@ -4,30 +4,31 @@ import { SITE, markdownPath } from "./docs-agent";
 const INTRO = `# Secondlayer: instant data for apps on Bitcoin
 
 > Index Stacks and Runes from their first block, stream new ones as they
-> land, and prove Stacks data back to Bitcoin. Bitcoin Runes on self-host today. Hosted on api.secondlayer.tools (Index, Streams, Subgraphs, Webhooks),
+> land, and prove Stacks data back to Bitcoin. Bitcoin Runes hosted and self-host. Hosted on api.secondlayer.tools (Index, Streams, Subgraphs, Webhooks),
 > or self-hosted: Postgres plus one container beside your node.
 
 ## Shortest path
 - Agent skill: bunx skills add ryanwaits/secondlayer --skill secondlayer -y
 - MCP: bunx @secondlayer/mcp (set SECONDLAYER_API_KEY)
-- All docs in one file: https://secondlayer.tools/llms-full.txt
+- All docs in one file: ${SITE}/llms-full.txt
 
 ## Start here
-- Hosted: get an account key (sk-sl_*) at https://secondlayer.tools/signin. The
+- Hosted: get an account key (sk-sl_*) at ${SITE}/signin. The
   SDK, MCP and CLI send SECONDLAYER_API_KEY automatically on api.secondlayer.tools.
 - Self-host: bun add -g @secondlayer/cli && secondlayer init --network mainnet
 - Local API: http://127.0.0.1:3800  (SDK/CLI default)
+- Hosted OpenAPI: https://api.secondlayer.tools/v1/openapi.json
 - OpenAPI on your instance: http://127.0.0.1:3800/v1/openapi.json
-- Docs: https://secondlayer.tools/docs
+- Docs: ${SITE}/docs
 
 ## Products
-- Archive: https://secondlayer.tools/p/archive. Signed history. Check your copy free.
-- Streams: https://secondlayer.tools/p/streams. Every event. You hold the cursor.
-- Index: https://secondlayer.tools/p/index. Typed rows from genesis.
-- Subgraphs: https://secondlayer.tools/p/subgraphs. Your contract, as a table.
-- Webhooks: https://secondlayer.tools/p/webhooks. Your server, told first.
-- Verify: https://secondlayer.tools/verify. Check a block or transaction yourself.
-- Pricing: https://secondlayer.tools/pricing. 1M rows free per month.
+- Archive: ${SITE}/p/archive. Signed history. Check your copy free.
+- Streams: ${SITE}/p/streams. Every event. You hold the cursor.
+- Index: ${SITE}/p/index. Typed rows from genesis.
+- Subgraphs: ${SITE}/p/subgraphs. Your contract, as a table.
+- Webhooks: ${SITE}/p/webhooks. Your server, told first.
+- Verify: ${SITE}/verify. Check a block or transaction yourself.
+- Pricing: ${SITE}/pricing. 1M rows free per month.
 
 ## Auth model
 - Hosted (api.secondlayer.tools): SECONDLAYER_API_KEY (sk-sl_*). The
@@ -63,10 +64,10 @@ const INTRO = `# Secondlayer: instant data for apps on Bitcoin
   return in order with per-item status.
 
 ## Docs
-- https://secondlayer.tools/docs
-- Any page as markdown: append .md — https://secondlayer.tools/docs/streams.md
+- ${SITE}/docs
+- Any page as markdown: append .md — ${SITE}/docs/streams.md
 - SDK agent notes ship in the package: node_modules/@secondlayer/sdk/AGENTS.md
-- Verify: https://secondlayer.tools/docs/verification (check a block or
+- Verify: ${SITE}/docs/verification (check a block or
   transaction yourself, @secondlayer/verify)
 - Env: examples read SECONDLAYER_API_URL and SECONDLAYER_API_KEY. On your own
   box set the URL to http://127.0.0.1:3800

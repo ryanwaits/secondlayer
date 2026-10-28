@@ -9,7 +9,7 @@ const LEDE =
 	"Check a block, its transactions and the state it wrote against the chain itself. No trust in secondlayer, or in any node that served the bytes.";
 
 export const metadata: Metadata = socialMeta({
-	title: "Verify · secondlayer",
+	title: "Verify Stacks data against Bitcoin",
 	description: LEDE,
 	image: "/og/verify.png",
 	path: "/verify",

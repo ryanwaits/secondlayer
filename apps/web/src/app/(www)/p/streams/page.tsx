@@ -25,7 +25,10 @@ const LEDE =
 	"A long-running pull from any point in chain history, one event per line. You decide where to resume, and reorgs are a list you can read.";
 
 export const metadata: Metadata = socialMeta({
-	title: "Streams · secondlayer",
+	title: {
+		absolute:
+			"Stacks event stream, resumable from any block · secondlayer Streams",
+	},
 	description: LEDE,
 	image: "/og/streams.png",
 	path: "/p/streams",

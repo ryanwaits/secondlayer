@@ -4,6 +4,7 @@ import {
 	objectMarkdown,
 	objectsByTag,
 } from "@/app/(www)/docs/api-reference/spec";
+import { SITE } from "@/lib/docs-agent";
 import { docsPages, readDocsMarkdown } from "@/lib/docs-source";
 
 /** One API reference section as markdown: `list-pox5-events` or
@@ -61,11 +62,12 @@ export async function GET(
 		const section = apiReferenceSection(anchor);
 		if (section === null) return new Response("Not found", { status: 404 });
 		return new Response(
-			`<!-- source: https://secondlayer.tools/docs/api-reference#${anchor} -->\n\n${section}\n`,
+			`<!-- source: https://www.secondlayer.tools/docs/api-reference#${anchor} -->\n\n${section}\n`,
 			{
 				headers: {
 					"Content-Type": "text/markdown; charset=utf-8",
 					"Cache-Control": "public, max-age=3600",
+					Link: `<${SITE}/docs/api-reference#${anchor}>; rel="canonical"`,
 				},
 			},
 		);
@@ -80,11 +82,12 @@ export async function GET(
 	}
 
 	return new Response(
-		`<!-- source: https://secondlayer.tools${href} -->\n\n${markdown}\n`,
+		`<!-- source: https://www.secondlayer.tools${href} -->\n\n${markdown}\n`,
 		{
 			headers: {
 				"Content-Type": "text/markdown; charset=utf-8",
 				"Cache-Control": "public, max-age=3600",
+				Link: `<${SITE}${href}>; rel="canonical"`,
 			},
 		},
 	);
