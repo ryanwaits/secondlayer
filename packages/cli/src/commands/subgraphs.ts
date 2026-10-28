@@ -55,6 +55,10 @@ import type {
 	SubgraphQueryParams,
 } from "../lib/api-client.ts";
 import { withDerivedAbis } from "../lib/derive-abi.ts";
+import {
+	scaffoldStartBlock,
+	withStartBlock,
+} from "../lib/scaffold-start-block.ts";
 type SubgraphSpecFormat = "openapi" | "agent" | "markdown";
 import { loadConfig, requireLocalNetwork } from "../lib/config.ts";
 import { parseQueryFilters } from "../lib/filter-params.ts";
@@ -900,15 +904,18 @@ Examples:
 						process.exit(1);
 					}
 					content = await formatCode(
-						generatePrintSchemaSubgraph({
-							contractId: opts.fromContract,
-							name,
-							topics: schema.topics,
-							tablePerTopic: opts.tablePerTopic,
-							// Stamp the inference provenance into the file — `prints`
-							// is empirical, and a reader deserves the sample size.
-							sample: schema.sample,
-						}),
+						withStartBlock(
+							generatePrintSchemaSubgraph({
+								contractId: opts.fromContract,
+								name,
+								topics: schema.topics,
+								tablePerTopic: opts.tablePerTopic,
+								// Stamp the inference provenance into the file — `prints`
+								// is empirical, and a reader deserves the sample size.
+								sample: schema.sample,
+							}),
+							scaffoldStartBlock(schema),
+						),
 					);
 				} else if (opts.trait) {
 					const trait = opts.trait as (typeof TRAIT_STANDARDS)[number];
@@ -1238,6 +1245,10 @@ Examples:
 								}
 							: effectiveDef,
 					);
+
+					if ((validated.startBlock ?? 1) <= 1) {
+						warn("No startBlock: the first deploy backfills from genesis.");
+					}
 
 					if (config.network !== "local") {
 						// ── Remote deploy ──────────────────────────────────────
