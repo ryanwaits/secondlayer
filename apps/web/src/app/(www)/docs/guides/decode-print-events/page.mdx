@@ -113,13 +113,15 @@ const schema = await index.printSchema(
 
 Fields come back with their Clarity type, so you know `recipient` is a tuple before you parse it. The schema is sampled from indexed prints, so `sampled: true` means older topics may be missing.
 
+A uint is a bigint in a subgraph handler (`ts_type`), but a decimal string in REST values.
+
 ## Pick out one topic
 
 The events feed filters by contract, not by topic. Keep the topic you want from the tuple's own `topic` key.
 
 ```ts
 const withdrawals = page.events.filter(
-  (event) => event.payload.value?.topic === "withdrawal-create",
+  (event) => (event.payload.value as { topic?: string } | undefined)?.topic === "withdrawal-create",
 );
 ```
 
@@ -145,5 +147,5 @@ export const agent = `
 - There is no topic filter on /v1/index/events (it returns 400 'unknown query param'). The contract's own topic is payload.value.topic when the print is a tuple; payload.topic is the event's own label, often just 'print'. Filter client-side, or use a webhook print_event trigger with 'topic'.
 - Field shapes per topic: GET /v1/index/contracts/<id>/print-schema (SDK: sl.index.printSchema(id), null on 404). Sampled: 'sampled: true' means older topics may be absent. Non-tuple or topic-less prints sit under the '*' topic.
 - Decoded values: uint/int are decimal strings, buffers are 0x hex, principals are strings, tuples are objects with Clarity (kebab-case) keys.
-- A read with no from_height and no cursor covers only the last day; order=desc starts from the newest.
+- A read with no from_height and no cursor covers only the most recent ~17,280 blocks; order=desc starts from the newest.
 `;

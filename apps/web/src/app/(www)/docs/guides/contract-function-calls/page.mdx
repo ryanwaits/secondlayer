@@ -55,7 +55,7 @@ const page = await index.contractCalls.list({
 
 ## Narrow it
 
-A read with no `from_height` or cursor covers only the last day, so pass a start to go further back.
+A read with no `from_height` or cursor covers only the most recent ~17,280 blocks, so pass a start to go further back.
 
 | Narrow by | Param |
 | --- | --- |
@@ -66,7 +66,7 @@ A read with no `from_height` or cursor covers only the last day, so pass a start
 | A block range | `fromHeight`, `toHeight` |
 
 - There is no `status` filter: failed calls come back too, so check each row's `status`.
-- Only calls a transaction makes directly are listed. Calls made from inside another contract are `nested_contract_call` events ([Index](/docs/index#plain-http)).
+- Only calls a transaction makes directly are listed.
 - Reads run oldest first; there is no `order` parameter on this feed.
 
 ## Page through it
@@ -105,7 +105,7 @@ export const metadata = {
 
 export const agent = `
 - Endpoint: GET /v1/index/contract-calls, top-level calls only (nested calls are nested_contract_call events) (SDK: sl.index.contractCalls.list / .walk / .consume). Filters: contract_id (comma list, max 20) or trait (not both), function_name, sender, from_height, to_height. There is no status filter and no order parameter; reads run oldest first.
-- A read with no from_height and no cursor covers only the last day. Pass from_height (0 for all history), or a cursor. cursor and from_height are mutually exclusive.
+- A read with no from_height and no cursor covers only the most recent ~17,280 blocks. Pass from_height (0 for all history), or a cursor. cursor and from_height are mutually exclusive.
 - 'args' is an ordered array of decoded values (uint as a decimal string, optional none as null). Names come from the contract ABI, not the row. 'status' says whether the call succeeded; failed calls are included.
 - Page by passing next_cursor back as cursor; null means the page was empty. walk() keeps no checkpoint and ignores reorgs: use consume() to keep rows.
 `;

@@ -725,14 +725,15 @@
     ]
   },
   "/docs/guides/contract-function-calls#narrow-it": {
-    "hash": "f71108f521728885",
+    "hash": "552939547d9bd79b",
     "phrasings": [
-      "contract call query only returns recent results",
-      "how to fetch older contract calls by start height",
-      "pass fromheight to query older calls",
-      "limit contract call query to start block",
-      "why do my function call results stop after a day",
-      "read contract calls further back in history"
+      "contract function calls only recent blocks",
+      "function call history missing older blocks",
+      "fromheight parameter for contract calls",
+      "how far back do contract calls go",
+      "query older contract function calls",
+      "limit contract call results to recent blocks",
+      "contract calls no results for old blocks"
     ]
   },
   "/docs/guides/contract-function-calls#page-through-it": {
@@ -782,14 +783,16 @@
     ]
   },
   "/docs/guides/decode-print-events#see-each-topics-fields": {
-    "hash": "5d4cfd8024acceee",
+    "hash": "6d57fb70c2769dbc",
     "phrasings": [
-      "contract prints different shapes per topic",
-      "what fields does each print topic have",
-      "print event shape varies by topic",
-      "list fields for a clarity print topic",
-      "event data structure differs between topics",
-      "how to see keys of each print topic"
+      "how to see fields of each print topic",
+      "decode print event different shapes per topic",
+      "why do print events have different fields",
+      "list fields for each event topic",
+      "contract print events different structure by topic",
+      "how to inspect topic payload fields",
+      "print event data missing fields in topic",
+      "show event schema for every topic"
     ]
   },
   "/docs/guides/decode-print-events#tradeoff": {
@@ -817,29 +820,26 @@
     ]
   },
   "/docs/guides/ft-transfers-by-address#both-sides": {
-    "hash": "8e7825adad25fe06",
+    "hash": "0918dae8e7093258",
     "phrasings": [
-      "filter ft transfers sender and receiver separately",
-      "ft transfers between two addresses query",
-      "can i filter both from and to in one call",
-      "ft transfer query needs two requests",
-      "how to get transfers from one account to another",
-      "ft transfers sent and received by address",
-      "why does ft transfer filter by only one side",
-      "query fungible token transfers both directions"
+      "ft transfers filter by sender and receiver",
+      "get incoming and outgoing ft transfers",
+      "why no address filter for ft transfers",
+      "ft transfers sent and received by account",
+      "one call per side of transfer",
+      "fungible token transfers to and from address",
+      "query both sender and recipient transfers"
     ]
   },
   "/docs/guides/ft-transfers-by-address#page-through-it": {
-    "hash": "09adf79e4f355583",
+    "hash": "b9ca025276a7f5eb",
     "phrasings": [
-      "ft transfers pagination nextcursor",
-      "how to get next page of results",
-      "paginate ft transfer query",
-      "nextcursor not returning more rows",
-      "loop through all ft transfers pages",
-      "use cursor to fetch following page",
-      "ft transfers api pagination example",
-      "fetch every page of transfers"
+      "pagination cursor for ft transfers",
+      "nextcursor how to get next page",
+      "ft transfers api next page cursor",
+      "paginate through all token transfers",
+      "passing cursor to get more results",
+      "ft transfers only first page returned"
     ]
   },
   "/docs/guides/ft-transfers-by-address#tradeoff": {
@@ -867,26 +867,25 @@
     ]
   },
   "/docs/guides/index-contract-into-postgres#deploy-it": {
-    "hash": "cc1b62278354e37c",
+    "hash": "f8babdfb14f70ac1",
     "phrasings": [
-      "create api key for indexer deployment",
-      "where to create account keys stacks",
+      "where to create api key for indexer",
       "set environment variables for indexer deploy",
-      "deploy stacks postgres indexer steps",
-      "api key missing during deployment error",
-      "generate key on account keys page"
+      "indexer deployment missing credentials",
+      "account keys page for api key",
+      "create access key for postgres indexer",
+      "indexer deploy variables from introduction"
     ]
   },
   "/docs/guides/index-contract-into-postgres#point-it-at-your-contract": {
-    "hash": "93d395adc6045ac1",
+    "hash": "cf24e39e2bcdb234",
     "phrasings": [
-      "how to index a different contract",
-      "change contract address in indexer config",
-      "watch another smart contract with postgres indexer",
-      "switch which contract gets indexed",
-      "indexer not picking up my contract",
-      "point indexer at my contract address",
-      "update source address for new contract"
+      "change indexed contract address",
+      "index a different contract into postgres",
+      "switch source contract for indexer",
+      "which contract does indexer watch",
+      "update contract source in indexer config",
+      "point postgres indexer at new contract"
     ]
   },
   "/docs/guides/index-contract-into-postgres#read-the-rows": {
@@ -915,14 +914,14 @@
     ]
   },
   "/docs/guides/index-contract-into-postgres#try-it-on-real-blocks": {
-    "hash": "b7752989b5a28f08",
+    "hash": "ae2508f3aa52f6ee",
     "phrasings": [
-      "test event handler against real blocks",
-      "run indexer locally before deploying",
-      "replay real chain events through handler",
-      "dry run stacks indexer handler",
-      "try handler on mainnet blocks",
-      "test contract indexer without deploying"
+      "test indexer handler on real blocks",
+      "dry run contract indexer before deploy",
+      "replay real chain events locally",
+      "test postgres indexer with live events",
+      "check handler output before deploying",
+      "run indexer against live chain data"
     ]
   },
   "/docs/guides/listen-for-contract-events": {
@@ -961,14 +960,16 @@
     ]
   },
   "/docs/guides/listen-for-contract-events#start-and-catch-up": {
-    "hash": "78031cd2e52f12a5",
+    "hash": "297b69b3abbd364e",
     "phrasings": [
-      "webhook missing past events backfill",
-      "start webhook from historical block",
-      "webhook does not backfill old events",
-      "catch up missed events after webhook created",
-      "webhook starts at chain tip",
-      "replay past contract events to webhook"
+      "webhook missing old contract events",
+      "webhook does not backfill past events",
+      "contract events webhook starts at latest block",
+      "how to get past contract events with webhook",
+      "webhook skipped events before creation",
+      "catch up on missed contract events",
+      "historical events not delivered by webhook",
+      "webhook starting block for contract"
     ]
   },
   "/docs/guides/nft-transfers-for-collection": {
@@ -985,15 +986,15 @@
     ]
   },
   "/docs/guides/nft-transfers-for-collection#narrow-it": {
-    "hash": "6735daf2b8381e76",
+    "hash": "4821056c7927086d",
     "phrasings": [
-      "nft transfers only returning last day",
-      "set start height for transfer history",
-      "fromheight missing so results only one day",
-      "limit nft transfer query to block range",
-      "how to fetch older nft transfer history",
-      "why do my transfers stop after yesterday",
-      "filter transfers by starting block height"
+      "nft collection transfers only recent results",
+      "nft transfers missing older blocks",
+      "fromheight nft transfers collection",
+      "how far back nft transfer history goes",
+      "get older nft transfers for collection",
+      "nft transfer query start block",
+      "nft collection transfers empty for old range"
     ]
   },
   "/docs/guides/nft-transfers-for-collection#page-through-it": {

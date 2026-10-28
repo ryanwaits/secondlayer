@@ -66,7 +66,7 @@ const tokenId = cvToValue(deserializeCV(value)); // 2028n
 
 ## Narrow it
 
-A read with no `fromHeight` or cursor covers only the last day, so pass a start to go further back.
+A read with no `fromHeight` or cursor covers only the most recent ~17,280 blocks, so pass a start to go further back.
 
 | Narrow by | Param |
 | --- | --- |
@@ -85,9 +85,11 @@ A read with no `fromHeight` or cursor covers only the last day, so pass a start 
 Pass the last `next_cursor` back as the next cursor. It comes back null only on an empty page, which ends the loop.
 
 ```ts
+import type { NftTransfersEnvelope } from "@secondlayer/sdk";
+
 let cursor: string | null = null;
 do {
-  const page = await index.nftTransfers.list({
+  const page: NftTransfersEnvelope = await index.nftTransfers.list({
     contractId,
     fromHeight: cursor ? undefined : 0,
     cursor,
@@ -116,7 +118,7 @@ export const metadata = {
 export const agent = `
 - Endpoint: GET /v1/index/nft-transfers (SDK: sl.index.nftTransfers.list / .walk). Filters: contract_id, asset_identifier, sender, recipient, from_height, to_height, order, fields. There is no token-id filter and no address parameter. SDK contractId is one string.
 - 'value' is the token id as a serialized Clarity value in hex (uint 2028 is 0x01 then 16 bytes). Decode with cvToValue(deserializeCV(value)) from @secondlayer/stacks/clarity (uint becomes bigint).
-- A read with no from_height and no cursor covers only the last day. Pass from_height (0 for all history) or a cursor; cursor and from_height are mutually exclusive (400 VALIDATION_ERROR). A cursor only resumes under the order that issued it.
+- A read with no from_height and no cursor covers only the most recent ~17,280 blocks. Pass from_height (0 for all history) or a cursor; cursor and from_height are mutually exclusive (400 VALIDATION_ERROR). A cursor only resumes under the order that issued it.
 - Page by passing next_cursor back as cursor; null means the page was empty. walk() keeps no checkpoint and ignores reorgs: use consume() to keep rows.
 - Transfers only: nft_mint and nft_burn are separate event types on /v1/index/events.
 `;
