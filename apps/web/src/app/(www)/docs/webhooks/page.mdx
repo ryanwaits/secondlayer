@@ -61,7 +61,42 @@ Headers, HMAC and key rotation: [Verify the signature](#verify-the-signature).
 
 ## Coming from Chainhook
 
-Hand your predicates to your agent; it maps each one to a trigger and writes the create commands.
+Each Chainhook predicate becomes one webhook trigger. Create it with your key and one call.
+
+| Chainhook v1 scope | Chainhook v2 event type | Trigger | Note |
+| --- | --- | --- | --- |
+| `contract_call` | `contract_call` | `trigger.contractCall` | `contract_identifier` is `contractId`, `method` is `functionName` |
+| `print_event` | `contract_log` | `trigger.printEvent` | Narrow with `topic` or `where` |
+| `ft_event` transfer, mint, burn | `ft_transfer`, `ft_mint`, `ft_burn` | `trigger.ftTransfer`, `ftMint`, `ftBurn` | `asset_identifier` is `assetIdentifier` |
+| `nft_event` transfer, mint, burn | `nft_transfer`, `nft_mint`, `nft_burn` | `trigger.nftTransfer`, `nftMint`, `nftBurn` | `asset_identifier` is `assetIdentifier` |
+| `stx_event` transfer, mint, lock | `stx_transfer`, `stx_event` | `trigger.stxTransfer`, `stxMint`, `stxLock` | Also `trigger.stxBurn` |
+| `contract_deployment` | `contract_deploy` | `trigger.contractDeploy` | Scope by `deployer` or `contractName` |
+| `txid` | none | none | Read the transaction from `/v1/index/transactions` |
+
+### Convert one predicate
+
+A v1 predicate and its trigger:
+
+```json predicate.json
+{
+  "if_this": {
+    "scope": "contract_call",
+    "contract_identifier": "SP2C2YFP12AJZB4MABJBAJ55XECVS7E4PMMZ89YZR.arkadiko-swap-v2-1",
+    "method": "swap-x-for-y"
+  },
+  "then_that": { "http_post": { "url": "https://my-app.com/hook" } }
+}
+```
+
+```bash
+secondlayer webhooks create arkadiko-swaps \
+  --url https://my-app.com/hook \
+  --trigger '{"type":"contract_call","contractId":"SP2C2YFP12AJZB4MABJBAJ55XECVS7E4PMMZ89YZR.arkadiko-swap-v2-1","functionName":"swap-x-for-y"}'
+```
+
+Deliveries fire on confirmed blocks, and `chain.reorg.rollback` covers orphaned ones. A webhook starts at the chain tip, so use `replay` for history.
+
+Or map them all at once:
 
 <AgentPromptBlock code={getAgentPrompt("migrate-from-chainhook")} />
 

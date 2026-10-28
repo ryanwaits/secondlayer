@@ -2371,14 +2371,29 @@
     ]
   },
   "/docs/webhooks#coming-from-chainhook": {
-    "hash": "6a27841240f1dede",
+    "hash": "af621e68a4c54a37",
     "phrasings": [
       "migrate chainhook predicates to webhooks",
-      "chainhook predicate to trigger mapping",
-      "convert chainhook predicates to create commands",
-      "moving from chainhook to secondlayer webhooks",
-      "chainhook replacement webhook setup",
-      "import existing chainhook predicates agent"
+      "chainhook predicate webhook equivalent",
+      "how do chainhook predicates map to webhooks",
+      "replace chainhook with webhooks",
+      "chainhook to webhook migration guide",
+      "what replaces chainhook predicates",
+      "chainhook webhook trigger mapping",
+      "moving from chainhook to new webhooks"
+    ]
+  },
+  "/docs/webhooks#convert-one-predicate": {
+    "hash": "d0f010820f7a82e9",
+    "phrasings": [
+      "convert a v1 predicate to trigger",
+      "v1 predicate to webhook trigger example",
+      "how to convert a chainhook predicate",
+      "chainhook predicate json example trigger",
+      "upgrade v1 predicate webhook config",
+      "predicate conversion sample code",
+      "single predicate trigger example webhook",
+      "chainhook v1 predicate format example"
     ]
   },
   "/docs/webhooks#create-a-webhook": {
