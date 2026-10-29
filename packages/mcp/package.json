@@ -58,5 +58,5 @@
 		"bitcoin",
 		"indexer"
 	],
-	"mcpName": "io.github.ryanwaits/secondlayer"
+	"mcpName": "tools.secondlayer/secondlayer"
 }
