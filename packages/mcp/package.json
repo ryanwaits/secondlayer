@@ -1,6 +1,6 @@
 {
 	"name": "@secondlayer/mcp",
-	"version": "11.2.3",
+	"version": "11.2.4",
 	"description": "MCP server for Stacks chain data: contracts, events, transfers, subgraphs. Key-authenticated.",
 	"license": "MIT",
 	"repository": {

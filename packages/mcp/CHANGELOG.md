@@ -1,5 +1,11 @@
 # @secondlayer/mcp
 
+## 11.2.4
+
+### Patch Changes
+
+- 3306785: MCP registry name is now `tools.secondlayer/secondlayer`, listing the hosted server at `https://api.secondlayer.tools/mcp` next to the npm package.
+
 ## 11.2.3
 
 ### Patch Changes
