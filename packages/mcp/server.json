@@ -7,12 +7,12 @@
 		"source": "github",
 		"subfolder": "packages/mcp"
 	},
-	"version": "11.2.2",
+	"version": "11.2.3",
 	"packages": [
 		{
 			"registryType": "npm",
 			"identifier": "@secondlayer/mcp",
-			"version": "11.2.2",
+			"version": "11.2.3",
 			"transport": {
 				"type": "stdio"
 			},

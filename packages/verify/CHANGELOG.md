@@ -1,5 +1,13 @@
 # @secondlayer/verify
 
+## 0.6.1
+
+### Patch Changes
+
+- 620be24: Package homepages, keywords and descriptions point at the docs.
+- Updated dependencies [620be24]
+  - @secondlayer/stacks@6.5.3
+
 ## 0.6.0
 
 ### Minor Changes

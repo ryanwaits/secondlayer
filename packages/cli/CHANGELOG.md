@@ -1,5 +1,18 @@
 # @secondlayer/cli
 
+## 22.3.3
+
+### Patch Changes
+
+- 5c751ea: Load typescript from node_modules instead of bundling it: smaller dist, no build-machine path in the published CLI. Scaffolded subgraphs set a start block, and deploy warns when there is none.
+- 620be24: Package homepages, keywords and descriptions point at the docs.
+- Updated dependencies [620be24]
+- Updated dependencies [a04c854]
+  - @secondlayer/sdk@15.5.1
+  - @secondlayer/verify@0.6.1
+  - @secondlayer/subgraphs@7.7.3
+  - @secondlayer/stacks@6.5.3
+
 ## 22.3.2
 
 ### Patch Changes

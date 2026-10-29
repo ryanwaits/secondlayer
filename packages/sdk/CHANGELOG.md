@@ -1,5 +1,15 @@
 # @secondlayer/sdk
 
+## 15.5.1
+
+### Patch Changes
+
+- 620be24: Package homepages, keywords and descriptions point at the docs.
+- Updated dependencies [620be24]
+- Updated dependencies [a04c854]
+  - @secondlayer/subgraphs@7.7.3
+  - @secondlayer/stacks@6.5.3
+
 ## 15.5.0
 
 ### Minor Changes

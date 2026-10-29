@@ -1,5 +1,11 @@
 # @secondlayer/stacks
 
+## 6.5.3
+
+### Patch Changes
+
+- 620be24: Package homepages, keywords and descriptions point at the docs.
+
 ## 6.5.2
 
 ### Patch Changes

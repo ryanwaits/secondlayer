@@ -1,5 +1,15 @@
 # @secondlayer/subgraphs
 
+## 7.7.3
+
+### Patch Changes
+
+- 620be24: Package homepages, keywords and descriptions point at the docs.
+- a04c854: Local `subgraphs test` matches print topics inside the printed tuple, like the deployed runtime.
+- Updated dependencies [620be24]
+  - @secondlayer/verify@0.6.1
+  - @secondlayer/stacks@6.5.3
+
 ## 7.7.2
 
 ### Patch Changes
