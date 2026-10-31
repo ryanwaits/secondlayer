@@ -1,0 +1,41 @@
+name: IndexNow
+
+# Vercel reports each production deploy as a deployment status. Send the pages
+# that deploy changed to IndexNow engines. Never fails a deploy: it runs after.
+on:
+  deployment_status:
+
+permissions:
+  contents: read
+  deployments: read
+
+jobs:
+  submit:
+    if: >-
+      github.event.deployment_status.state == 'success' &&
+      startsWith(github.event.deployment.environment, 'Production')
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          fetch-depth: 0
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: "1.4.3"
+      - name: Submit changed pages
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ENVIRONMENT: ${{ github.event.deployment.environment }}
+          TO: ${{ github.event.deployment.sha }}
+        run: |
+          case "$ENVIRONMENT" in
+            *stacks-docs) site=stacks ;;
+            *secondlayer) site=www ;;
+            *) echo "unknown environment: $ENVIRONMENT"; exit 0 ;;
+          esac
+          # The deploy before this one, so a multi-commit push is covered whole.
+          from=$(gh api -X GET "repos/$GITHUB_REPOSITORY/deployments" \
+            -f environment="$ENVIRONMENT" -f per_page=2 --jq '.[1].sha // empty')
+          [ -n "$from" ] || { echo "no earlier deploy"; exit 0; }
+          bun scripts/indexnow.ts "$site" --from "$from" --to "$TO"
