@@ -1,9 +1,9 @@
-# Secondlayer
+# secondlayer
 
 Your app needs Stacks data that no public API has — your contract, your
 schema, your uptime. Today that means writing an indexer.
 
-Secondlayer is the runtime instead: decoded chain data in your own database,
+secondlayer is the runtime instead: decoded chain data in your own database,
 backfilled from genesis, reorg-safe, kept current. Get tables and a REST API
 out of the box, or stream rows into your own schema — Postgres, SQLite, or
 anything you already run — and serve them however you already serve things.
@@ -99,7 +99,7 @@ docker compose up -d
 
 [OSS quickstart](docker/oss/README.md).
 
-## Built on Secondlayer
+## Built on secondlayer
 
 - [robinhood-bridge](https://github.com/ryanwaits/robinhood-bridge): Stacks
   SIP-010 to Robinhood Chain and back, behind 2-of-2 keys. Demo token only.
