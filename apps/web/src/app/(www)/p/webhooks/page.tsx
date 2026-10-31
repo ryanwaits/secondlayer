@@ -4,6 +4,7 @@ import {
 	CloseBand,
 	Eyebrow,
 	Faq,
+	FurtherReading,
 	Highlight,
 	Meters,
 	Props,
@@ -465,6 +466,26 @@ export default function WebhooksPage() {
 					/>
 				</div>
 			</div>
+
+			<FurtherReading
+				items={[
+					{
+						href: "/docs/guides/listen-for-contract-events",
+						title: "Listen for contract events",
+						body: "A signed POST for every print a contract emits.",
+					},
+					{
+						href: "/docs/guides/handle-reorgs",
+						title: "Handle Stacks reorgs",
+						body: "Undo what an orphaned block delivered.",
+					},
+					{
+						href: "/docs/guides/decode-print-events",
+						title: "Decode Clarity print events",
+						body: "What a print looks like once it's parsed into JSON.",
+					},
+				]}
+			/>
 
 			<CloseBand
 				title={

@@ -5,6 +5,7 @@ import {
 	CloseBand,
 	Eyebrow,
 	Faq,
+	FurtherReading,
 	Highlight,
 	LiveEventsOdometer,
 	Manifest,
@@ -575,6 +576,26 @@ export default async function IndexPage() {
 					/>
 				</div>
 			</div>
+
+			<FurtherReading
+				items={[
+					{
+						href: "/docs/guides/ft-transfers-by-address",
+						title: "FT transfers by address",
+						body: "Every fungible token transfer for one Stacks address.",
+					},
+					{
+						href: "/docs/guides/contract-function-calls",
+						title: "Calls to a contract function",
+						body: "Every call to one function, filtered by contract.",
+					},
+					{
+						href: "/docs/guides/nft-transfers-for-collection",
+						title: "NFT transfers for a collection",
+						body: "Every transfer in a Stacks NFT collection.",
+					},
+				]}
+			/>
 
 			<CloseBand
 				title={

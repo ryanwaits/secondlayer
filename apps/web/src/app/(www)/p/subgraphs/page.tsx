@@ -4,6 +4,7 @@ import {
 	CloseBand,
 	Eyebrow,
 	Faq,
+	FurtherReading,
 	Highlight,
 	Props,
 	RestOfPlatform,
@@ -517,6 +518,26 @@ export default function SubgraphsPage() {
 					/>
 				</div>
 			</div>
+
+			<FurtherReading
+				items={[
+					{
+						href: "/docs/guides/index-contract-into-postgres",
+						title: "Index a contract into Postgres",
+						body: "One TypeScript file and a deploy, start to finish.",
+					},
+					{
+						href: "/docs/guides/decode-print-events",
+						title: "Decode Clarity print events",
+						body: "What a print looks like once it's parsed into JSON.",
+					},
+					{
+						href: "/blog/not-in-any-public-api",
+						title: "Your contract's data isn't in any public API",
+						body: "What that leaves you with, and the indexer we built instead.",
+					},
+				]}
+			/>
 
 			<CloseBand
 				title={

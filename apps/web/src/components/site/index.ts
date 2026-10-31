@@ -2,6 +2,7 @@ export { ButtonLink } from "./button-link";
 export { CloseBand } from "./close-band";
 export { Eyebrow } from "./eyebrow";
 export { Faq } from "./faq";
+export { FurtherReading } from "./further-reading";
 export { Highlight } from "./highlight";
 export { Manifest } from "./manifest";
 export { Meters } from "./meters";

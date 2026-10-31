@@ -4,6 +4,7 @@ import {
 	CloseBand,
 	Eyebrow,
 	Faq,
+	FurtherReading,
 	Highlight,
 	LiveEventsOdometer,
 	Meters,
@@ -456,6 +457,26 @@ export default async function StreamsPage() {
 					/>
 				</div>
 			</div>
+
+			<FurtherReading
+				items={[
+					{
+						href: "/docs/guides/handle-reorgs",
+						title: "Handle Stacks reorgs",
+						body: "Undo rows from an orphaned fork and read forward again.",
+					},
+					{
+						href: "/docs/guides/listen-for-contract-events",
+						title: "Listen for contract events",
+						body: "Have each print posted to your server instead.",
+					},
+					{
+						href: "/blog/resuming-from-the-same-block",
+						title: "Why your indexer resumes from the same block",
+						body: "Why a quiet consumer logs an old cursor and is caught up anyway.",
+					},
+				]}
+			/>
 
 			<CloseBand
 				title={

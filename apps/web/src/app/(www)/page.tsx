@@ -2,6 +2,7 @@ import {
 	ButtonLink,
 	CloseBand,
 	Eyebrow,
+	FurtherReading,
 	Highlight,
 	StatusDot,
 } from "@/components/site";
@@ -10,6 +11,7 @@ import { BrandName } from "@/components/site/brand-name";
 import { ChainLink } from "@/components/site/chain-link";
 import { socialMeta } from "@/lib/og";
 import { PRODUCTS } from "@/lib/site";
+import { getPublishedPosts } from "@/lib/writing";
 import type { Metadata } from "next";
 import Link from "next/link";
 import type { ReactNode } from "react";
@@ -265,6 +267,17 @@ export function HomeView() {
 					</div>
 				</div>
 			</section>
+
+			<FurtherReading
+				items={getPublishedPosts()
+					.slice(-3)
+					.reverse()
+					.map((post) => ({
+						href: `/blog/${post.slug}`,
+						title: post.title,
+						body: post.dek,
+					}))}
+			/>
 
 			<CloseBand
 				title={

@@ -1,5 +1,11 @@
 import { Code } from "@/components/code/code";
-import { ButtonLink, CloseBand, Eyebrow, Highlight } from "@/components/site";
+import {
+	ButtonLink,
+	CloseBand,
+	Eyebrow,
+	FurtherReading,
+	Highlight,
+} from "@/components/site";
 import { VerifyChainArt } from "@/components/site/assets";
 import { BlockChecker } from "@/components/verify/block-checker";
 import { socialMeta } from "@/lib/og";
@@ -401,6 +407,26 @@ export default function VerifyPage() {
 					</div>
 				</div>
 			</div>
+
+			<FurtherReading
+				items={[
+					{
+						href: "/blog/an-index-you-can-check",
+						title: "An index you can check",
+						body: "Why we build for checking, starting with a bridge.",
+					},
+					{
+						href: "/docs/archive",
+						title: "Check your history",
+						body: "Compare a full copy of the chain against the signed archive.",
+					},
+					{
+						href: "/data/pox5",
+						title: "PoX-5 staking data",
+						body: "Stakes, signers and bonds, filterable by reward cycle.",
+					},
+				]}
+			/>
 
 			<CloseBand
 				title="Check a block before you trust it."

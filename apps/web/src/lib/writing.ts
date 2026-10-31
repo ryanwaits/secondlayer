@@ -27,6 +27,8 @@ export type WritingPost = {
 	notes?: "inline" | "popover";
 	/** Drafts render in dev but 404 in production and never hit sitemap/RSS. */
 	status: "draft" | "published";
+	/** Its product page and one guide, linked from the post's footer. */
+	related: readonly { href: string; label: string }[];
 };
 
 export const POSTS: WritingPost[] = [
@@ -39,6 +41,10 @@ export const POSTS: WritingPost[] = [
 		readingTime: "5 min",
 		notes: "popover",
 		status: "published",
+		related: [
+			{ href: "/p/streams", label: "Streams" },
+			{ href: "/docs/guides/handle-reorgs", label: "Handle Stacks reorgs" },
+		],
 	},
 	{
 		slug: "not-in-any-public-api",
@@ -49,6 +55,13 @@ export const POSTS: WritingPost[] = [
 		readingTime: "4 min",
 		notes: "popover",
 		status: "published",
+		related: [
+			{ href: "/p/subgraphs", label: "Subgraphs" },
+			{
+				href: "/docs/guides/index-contract-into-postgres",
+				label: "Index a contract into Postgres",
+			},
+		],
 	},
 	{
 		slug: "an-index-you-can-check",
@@ -59,6 +72,13 @@ export const POSTS: WritingPost[] = [
 		readingTime: "5 min",
 		notes: "popover",
 		status: "published",
+		related: [
+			{ href: "/verify", label: "Verify" },
+			{
+				href: "/docs/guides/decode-print-events",
+				label: "Decode Clarity print events",
+			},
+		],
 	},
 ];
 
