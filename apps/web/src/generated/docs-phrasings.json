@@ -159,29 +159,27 @@
     ]
   },
   "/docs/api/subgraphs": {
-    "hash": "ff4540bb96a97c17",
+    "hash": "7540370ba2c09a69",
     "phrasings": [
-      "deploy a subgraph via api",
-      "describe subgraph tables endpoint",
-      "read rows from subgraph tables",
-      "operate subgraph programmatically",
-      "list subgraph schema tables",
-      "manage subgraph deployments api",
-      "how to query my subgraph data",
-      "subgraph management endpoints"
+      "how to query subgraph tables via api",
+      "describe subgraph schema tables endpoint",
+      "deploy subgraph using api",
+      "operate and monitor subgraph endpoints",
+      "list subgraph tables and columns",
+      "subgraph api authentication and queries",
+      "programmatically deploy and update subgraph"
     ]
   },
   "/docs/api/webhooks": {
-    "hash": "173c49fad5c8f027",
+    "hash": "c95a7b5572b2e23b",
     "phrasings": [
-      "create webhook endpoint for events",
-      "list webhook delivery attempts",
+      "create webhook with api",
+      "fetch webhook delivery history",
       "replay missed webhook deliveries",
-      "retry failed webhook calls",
-      "webhook delivery logs api",
-      "recover events receiver missed",
-      "how to register a webhook url",
-      "webhook api for event notifications"
+      "recover missed webhook events when receiver down",
+      "list webhook deliveries and status codes",
+      "retry failed webhook delivery via api",
+      "webhook api endpoints for receivers"
     ]
   },
   "/docs/archive": {
@@ -853,6 +851,43 @@
       "how many free ft transfer reads per month",
       "hosted vs self hosted ft transfer cost tradeoff",
       "ft transfers by address pricing quota"
+    ]
+  },
+  "/docs/guides/handle-reorgs": {
+    "hash": "f4025eb3d9eadc11",
+    "phrasings": [
+      "how do i handle blockchain reorgs in my database",
+      "orphaned blocks still showing in indexed rows",
+      "rollback indexed data after chain reorg",
+      "indexer data wrong after chain fork",
+      "undo rows from orphaned blocks",
+      "detect chain reorganization in indexer",
+      "reorg handling code for data consumers",
+      "what happens when a block gets orphaned"
+    ]
+  },
+  "/docs/guides/handle-reorgs#pick-the-path-youre-on": {
+    "hash": "8fc1dbd5b617c931",
+    "phrasings": [
+      "which reorg handling approach should i use",
+      "choosing between rollback and finalized reads",
+      "how much reorg rollback code do i need",
+      "streaming versus polling reorg handling choice",
+      "reorg safe reading strategy options",
+      "do i need to handle reorgs at all",
+      "compare reorg handling approaches for consumers"
+    ]
+  },
+  "/docs/guides/handle-reorgs#skip-reorgs-entirely": {
+    "hash": "b0bb8bf88d838695",
+    "phrasings": [
+      "only read finalized blocks to avoid reorgs",
+      "avoid reorg rollback by reading finalized rows",
+      "read data below finalized height only",
+      "skip reorg handling with finalized data",
+      "no reorg handling needed for finalized data",
+      "how to avoid writing reorg rollback logic",
+      "query only finalized rows no undo"
     ]
   },
   "/docs/guides/index-contract-into-postgres": {
@@ -1537,16 +1572,15 @@
     ]
   },
   "/docs/sdk-reference": {
-    "hash": "00c076e2f4730b55",
+    "hash": "861d83b3998ba3ae",
     "phrasings": [
+      "sdk method list for client",
       "what methods does the client expose",
-      "sdk client method list",
-      "how to look up sdk function signatures",
-      "where is the sdk api documentation",
-      "list of all client methods sdk",
-      "find sdk method definitions in source",
-      "which sdk functions are available to call",
-      "sdk methods not documented anywhere"
+      "client sdk function signatures",
+      "find sdk method for querying data",
+      "sdk client api methods overview",
+      "typescript sdk methods reference",
+      "which sdk function fetches blocks"
     ]
   },
   "/docs/sdk-reference/archive": {

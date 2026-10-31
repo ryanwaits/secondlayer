@@ -17,6 +17,7 @@ const EVAL: [query: string, expected: string[]][] = [
 			"/docs/index#reorgs",
 			"/docs/streams#reorg-behavior",
 			"/docs/deploy#make-writes-idempotent",
+			"/docs/guides/handle-reorgs",
 		],
 	],
 	["resume where my consumer stopped", ["/docs/sdk#checkpointed-consumer"]],

@@ -100,6 +100,10 @@ export const DOCS_NAV: DocsNavGroup[] = [
 				title: "Index a contract into Postgres",
 				href: "/docs/guides/index-contract-into-postgres",
 			},
+			{
+				title: "Handle reorgs",
+				href: "/docs/guides/handle-reorgs",
+			},
 		],
 	},
 	{

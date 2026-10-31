@@ -1,0 +1,79 @@
+{/* new: 2026-10-31 */}
+# Handle Stacks reorgs in your indexer
+
+A reorg orphans blocks your tables already hold. Delete your rows from the fork height, inclusive, then read forward again. One key, one call to see them:
+
+<CodeTabs sync="lang">
+
+```bash
+curl "$SECONDLAYER_API_URL/v1/streams/reorgs?since=2026-08-01T00:00:00Z&limit=1" \
+  -H "Authorization: Bearer sk-sl_…"
+```
+
+```ts
+import { SecondLayer } from "@secondlayer/sdk";
+
+const sl = new SecondLayer({ apiKey: process.env.SECONDLAYER_API_KEY });
+
+const page = await sl.streams.reorgs.list({
+  since: "2026-08-01T00:00:00Z",
+  limit: 1,
+});
+```
+
+</CodeTabs>
+
+```json response.json status=200
+{
+  "reorgs": [
+    {
+      "id": "9dba566b-8325-45df-bc17-aed6be93ff70",
+      "detected_at": "2026-08-01T18:30:11.356245Z",
+      // !mark[/"fork_point_height"/]
+      "fork_point_height": 8683934,
+      "old_index_block_hash": "0x500e56fb65237ebec60a6da210135d9e96c9f62e0ff5a07cc2bbb72e34e5f849",
+      "new_index_block_hash": "0x2569032e50f5cc1f783701d992691ab5ab97d56ff4e9a5d58839d5643cc2205a",
+      "orphaned_range": { "from": "8683934:0", "to": "8683935:14" },
+      "new_canonical_tip": "8683934:0"
+    }
+  ],
+  "next_since": "2026-08-01T18:30:11.356245Z~9dba566b-8325-45df-bc17-aed6be93ff70"
+}
+```
+
+Keep rows from the orphaned range and your tables describe a chain that no longer exists.
+
+## Pick the path you're on
+
+How you read decides how much rollback code you write.
+
+| You read with | What happens on a reorg | You do |
+| --- | --- | --- |
+| [A consumer](/docs/index#reorgs) | It rewinds and calls `onReorg` | Delete from the fork height |
+| [A sink](/docs/sinks#rollback-is-height-stamped) | It deletes the rows and rereads | Nothing |
+| [A subgraph](/docs/subgraphs) | Rows are rewritten under new ids | Wait a few blocks before moving money |
+| [A webhook](/docs/webhooks#reorg-rollback) | `chain.reorg.rollback` lists what may have arrived | Undo each entry |
+
+- Delivery after a rewind is at least once, so keep writes idempotent.
+- The fork block itself is re-delivered, which is why the delete is inclusive.
+
+## Skip reorgs entirely
+
+Rows at or below `tip.finalized_height` never reorg, so a consumer that reads only those has nothing to undo. The tradeoff is freshness: `finalizedOnly` holds delivery until each row is final, which can put you hundreds of blocks behind the tip.
+
+Use it for accounting and reports. Keep the rollback path for anything a user watches live. The option is on the [Index consumer](/docs/index#reorgs).
+
+export const metadata = {
+	title: "Handle Stacks reorgs in your indexer",
+	description:
+		"How a Stacks indexer handles reorgs: list them, delete rows from the fork height, read forward again, or read only finalized rows and skip them.",
+	alternates: { canonical: "/docs/guides/handle-reorgs" },
+};
+
+export const agent = `
+- Read reorg history with 'GET /v1/streams/reorgs?since=<iso>' or 'sl.streams.reorgs.list({ since })'. 'since' is required; resume from 'next_since'.
+- Delete from 'fork_point_height' inclusive. The fork block is re-delivered.
+- 'consume' calls 'onReorg'. With a sink, rollback is unconditional and 'onReorg' runs after the sink transaction commits.
+- 'finalizedOnly: true' skips reorgs by holding rows until they reach 'tip.finalized_height'. Do not use it for live views.
+- Writes must be idempotent: delivery is at least once.
+`;
