@@ -9,8 +9,9 @@ import {
 const POSTHOG_CAPTURE = "https://us.i.posthog.com/capture/";
 
 /**
- * Records AI crawler fetches of docs, llms files and product pages. Bots run no
- * client JS, so browser capture never sees them. Always passes through.
+ * Records AI crawler fetches of the pages we want found: home, docs, products,
+ * blog, data, verify, pricing and llms files. Bots run no client JS, so browser
+ * capture never sees them. Always passes through.
  */
 export function proxy(request: NextRequest, event: NextFetchEvent) {
 	const token = process.env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN;
@@ -42,7 +43,7 @@ export function proxy(request: NextRequest, event: NextFetchEvent) {
 export const config = {
 	matcher: [
 		{
-			source: "/:section(docs|p|blog)/:path*",
+			source: "/:section(docs|p|blog|data)/:path*",
 			has: [
 				{
 					type: "header",
@@ -53,7 +54,18 @@ export const config = {
 			],
 		},
 		{
-			source: "/:file(llms.txt|llms-full.txt|llms-api.txt)",
+			source: "/:file(llms.txt|llms-full.txt|llms-api.txt|verify|pricing)",
+			has: [
+				{
+					type: "header",
+					key: "user-agent",
+					value:
+						".*(?:GPTBot|OAI-SearchBot|ChatGPT-User|ClaudeBot|Claude-User|Claude-SearchBot|PerplexityBot|Perplexity-User|bingbot|Googlebot|CCBot|Applebot).*",
+				},
+			],
+		},
+		{
+			source: "/",
 			has: [
 				{
 					type: "header",

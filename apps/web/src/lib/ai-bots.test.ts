@@ -47,8 +47,18 @@ describe("proxy matcher", () => {
 		values.every((value) => new RegExp(`^${value}$`).test(ua));
 
 	test("every user-agent condition equals the exported matcher", () => {
-		expect(values).toHaveLength(2);
+		expect(values).toHaveLength(3);
 		for (const value of values) expect(value).toBe(AI_BOT_UA_MATCHER);
+	});
+
+	test("covers every page that owns a tracked search question", () => {
+		const sources = config.matcher.map((entry) => entry.source);
+		expect(sources).toContain("/");
+		const [sections, files] = sources;
+		for (const section of ["docs", "p", "blog", "data"]) {
+			expect(sections).toContain(section);
+		}
+		for (const page of ["verify", "pricing"]) expect(files).toContain(page);
 	});
 
 	test("matches real crawler user agents the way Next evaluates them", () => {
