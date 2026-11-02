@@ -199,8 +199,12 @@ export const API_PAGES: ApiPage[] = [
 			},
 			{
 				title: "Deliveries",
-				summary: "Send a test and read every attempt.",
-				paths: ["/api/webhooks/{id}/test", "/api/webhooks/{id}/deliveries"],
+				summary: "Send a test, read every attempt and get the signing key.",
+				paths: [
+					"/api/webhooks/{id}/test",
+					"/api/webhooks/{id}/deliveries",
+					"/api/webhooks/signing-key",
+				],
 			},
 			{
 				title: "Recovery",

@@ -1,4 +1,5 @@
 import { getErrorMessage, logger } from "@secondlayer/shared";
+import { getSecondlayerWebhookSigner } from "@secondlayer/shared/crypto/secondlayer-webhook";
 import { getDb } from "@secondlayer/shared/db";
 import type { OutboxStatus, Webhook } from "@secondlayer/shared/db";
 import {
@@ -510,6 +511,27 @@ app.get("/replays", async (c) => {
 		limit,
 	});
 	return c.json({ data });
+});
+
+// ── GET /api/webhooks/signing-key ──────────────────────────────────
+// The public half of the key this stack signs deliveries with. Hosted stacks
+// each hold their own key, so `/public/streams/signing-key` can't verify them.
+// Registered before `/:id` for the same reason as `/activity`.
+
+app.get("/signing-key", (c) => {
+	if (getTenantScopedAccountId(c) === null) {
+		return c.json({ error: "Unauthorized" }, 401);
+	}
+	const signer = getSecondlayerWebhookSigner();
+	if (!signer) {
+		return c.json({ error: "Webhook signing is not enabled" }, 503);
+	}
+	c.header("Cache-Control", "private, max-age=300");
+	return c.json({
+		algorithm: "ed25519",
+		key_id: signer.keyId,
+		public_key_pem: signer.publicKeyPem,
+	});
 });
 
 // ── GET /api/webhooks/:id ──────────────────────────────────────────

@@ -1022,6 +1022,43 @@ export const webhooksPaths = {
 			}),
 		},
 	},
+	"/api/webhooks/signing-key": {
+		get: {
+			tags: ["webhooks"],
+			summary: "Get the key that signs your deliveries",
+			"x-nav-title": "Delivery signing key",
+			description:
+				"The ed25519 public key for checking `x-secondlayer-signature` on deliveries. Each hosted stack has its own key, separate from the one at `GET /public/streams/signing-key`. On testnet, read it from `/testnet/api/webhooks/signing-key`.",
+			security: WRITE_SECURITY,
+			responses: apiReadResponses({
+				"200": json200(
+					{
+						type: "object",
+						required: ["algorithm", "key_id", "public_key_pem"],
+						properties: {
+							algorithm: { type: "string", enum: ["ed25519"] },
+							key_id: {
+								type: "string",
+								description:
+									"Matches the `x-secondlayer-signature-keyid` header on a delivery.",
+							},
+							public_key_pem: {
+								type: "string",
+								description: "The public key, as SPKI PEM.",
+							},
+						},
+						example: {
+							algorithm: "ed25519",
+							key_id: "zbtTD-xWLn3Kklsj",
+							public_key_pem:
+								"-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VwAyEA…\n-----END PUBLIC KEY-----\n",
+						},
+					},
+					"The delivery signing key",
+				),
+			}),
+		},
+	},
 	"/api/webhooks/{id}/replays": {
 		get: {
 			tags: ["webhooks"],

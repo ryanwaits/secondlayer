@@ -728,6 +728,11 @@
 				"title": "List recent replays across webhooks"
 			},
 			{
+				"anchor": "get-webhook-signing-key",
+				"method": "GET",
+				"title": "Get the key that signs your deliveries"
+			},
+			{
 				"anchor": "list-webhook-replays",
 				"method": "GET",
 				"title": "List a webhook's replays and replay ranges"

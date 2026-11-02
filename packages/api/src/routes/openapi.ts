@@ -129,6 +129,7 @@ export const OPERATION_IDS: Record<string, string> = {
 	"POST /api/webhooks/{id}/dead/{outbox_id}/requeue": "requeueDeadWebhookEvent",
 	"POST /api/webhooks/{id}/replay": "replayWebhook",
 	"GET /api/webhooks/replays": "listRecentWebhookReplays",
+	"GET /api/webhooks/signing-key": "getWebhookSigningKey",
 	"GET /api/webhooks/{id}/replays": "listWebhookReplays",
 	"GET /api/webhooks/{id}/replays/{replay_id}": "getWebhookReplay",
 	"POST /api/webhooks/{id}/dead/requeue": "requeueDeadWebhookEvents",

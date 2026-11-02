@@ -12531,6 +12531,16 @@
 			}
 		},
 		{
+			"path": "/api/webhooks/signing-key",
+			"method": "GET",
+			"tip": {
+				"kind": "endpoint",
+				"summary": "The ed25519 public key for checking x-secondlayer-signature on deliveries.",
+				"route": "/docs/api/webhooks",
+				"anchor": "get-webhook-signing-key"
+			}
+		},
+		{
 			"path": "/api/webhooks/{id}/replays",
 			"method": "GET",
 			"tip": {
