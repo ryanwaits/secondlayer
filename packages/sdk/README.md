@@ -585,7 +585,7 @@ Every delivery, any `format`, also carries a universal authenticity
 signature you can verify with one published key, no per-webhook secret. The
 headers are `webhook-id`, `x-secondlayer-signature`, and
 `x-secondlayer-signature-keyid`; the signed content is `` `${webhook-id}.${rawBody}` ``
-(ed25519). Fetch the public key from `GET /public/streams/signing-key`.
+(ed25519). Fetch the public key from `GET /api/webhooks/signing-key`, which takes your account key.
 
 ```typescript
 import { verifySecondlayerSignature } from "@secondlayer/sdk";

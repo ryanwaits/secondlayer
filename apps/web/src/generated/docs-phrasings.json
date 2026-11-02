@@ -2927,16 +2927,16 @@
     ]
   },
   "/docs/webhooks#testnet": {
-    "hash": "a505ec2d79feadcf",
+    "hash": "8203f7f17fac9c01",
     "phrasings": [
       "webhooks on stacks testnet free",
-      "do webhooks work on testnet",
+      "can i test webhooks without paying",
       "stacks testnet webhook setup",
       "use same api key for testnet webhooks",
-      "free webhooks testnet account key",
-      "can i test webhooks without paying",
-      "testnet webhook account key reuse",
-      "stacks testnet event notifications"
+      "free webhook testing stacks network",
+      "how to receive testnet events",
+      "webhook testnet account key reuse",
+      "do webhooks work on testnet"
     ]
   },
   "/docs/webhooks#triggers": {
@@ -2977,15 +2977,16 @@
     ]
   },
   "/docs/webhooks#verify-the-signature": {
-    "hash": "1643f382cbdadc60",
+    "hash": "8f75e2198b35d041",
     "phrasings": [
-      "verify webhook hmac signature",
-      "standard webhooks signature validation",
-      "webhook signature mismatch error",
-      "how to check webhook delivery authenticity",
-      "per webhook hmac secret verification",
-      "validate standard-webhooks headers node",
-      "webhook signature verification code example"
+      "how to verify webhook signature hmac",
+      "webhook payload hmac validation example",
+      "standard webhooks signature verification",
+      "why does webhook signature not match",
+      "validate webhook delivery authenticity",
+      "per webhook secret hmac check",
+      "webhook signature header verify node",
+      "checking webhook request came from provider"
     ]
   }
 }
