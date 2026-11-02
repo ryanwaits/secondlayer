@@ -130,6 +130,46 @@ the production database.
    total must match, with nothing put back by hand.
 7. `/health/integrity` → `shortBlocks` is empty.
 
+## Below the journal: repairing from the feeder
+
+Heights older than our `observer_journal` (~8,739,026 on mainnet) have no
+local payload. The feeder's node has journaled every `/new_block` from genesis,
+so it can supply the true body once it has synced past the damaged height.
+Reviewer/founder-approved only, same gate as the prod repair above.
+
+1. **Precondition.** Feeder `/health` `lastSeenHeight` is above the highest
+   height to repair. Recheck; it advances ~342k heights/day.
+2. **Find all damage.** Compare prod to the feeder by bucket (tx ids and event
+   counts) over the whole pre-journal range, with chunked queries and a load
+   watch. Don't trust a known list alone.
+3. **Export.** For each height pull `raw_body` from the feeder's
+   `observer_journal` by `sequence` range (no `block_height` index: never a
+   full scan). Check `raw_body_sha256`. Write each body, byte for byte, to
+   `<dir>/<height>.json` and `scp` the directory to app-server.
+4. **Dry-run.** In a one-off `docker run` container on `secondlayer_default`
+   (not `docker exec`: deploys recreate the indexer):
+   `repair-from-journal.ts --heights <h1,h2,...> --journal-dir <dir> --verify-node`.
+5. **Apply.** The same command with `--apply --derive`, then every re-derive it
+   prints (step 3 above).
+6. **Verify.** Re-run the dry-run: 0 diverged and 0 merkle mismatches.
+   `/health/integrity` `shortBlocks` is empty.
+7. **Republish** per the next section. The incident report is a public
+   statement: show the founder the text first.
+
+What `--journal-dir` guards:
+
+- The file's `block_hash` (and `index_block_hash`, when stored) must equal
+  our canonical `blocks.hash` at that height. A mismatch fails the run with a
+  non-zero exit and writes nothing: prod holds a different block, which this
+  tool must not paper over.
+- `vm_events` and `state_writes` are dropped from the payload (the feeder
+  captures them; prod does not yet), so repaired blocks match their
+  neighbours.
+- A missing file reports `missing_journal`. A tx stored at the wrong height
+  moves to its true height in the same transaction.
+
+Remove the flag once the v2 cutover makes the journal cover genesis on prod.
+
 ## Republishing the archive after a data repair
 
 A repair above only fixes the source database. The public signed archive and
