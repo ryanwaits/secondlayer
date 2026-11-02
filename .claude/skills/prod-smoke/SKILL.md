@@ -156,7 +156,7 @@ To assert against `chain` exactly, re-read `get-total-supply` with `?tip=<hash a
 
 ```bash
 CID='SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4.sbtc-token'
-ASSET="${CID}::sbtc-token"; ADDR="${CID%.*}"; NAME="${CID#*.}"
+ADDR="${CID%.*}"; NAME="${CID#*.}"
 API=$(ssh app-server 'docker ps --format {{.Names}} | grep -m1 secondlayer-api')
 H=$(ssh app-server 'docker exec secondlayer-postgres-1 psql -U secondlayer -d secondlayer -tAc "SELECT max(height)-50 FROM blocks"')
 
@@ -172,7 +172,7 @@ read decoded_net raw_net <<<$(printf '%s\n' "
 select
  (select coalesce(sum(amount::numeric),0) from decoded_events where event_type='ft_mint' and contract_id='$CID' and canonical and block_height <= $H)
 -(select coalesce(sum(amount::numeric),0) from decoded_events where event_type='ft_burn' and contract_id='$CID' and canonical and block_height <= $H),
- (with d as (select distinct e.block_height,e.tx_id,e.event_index,e.type,(e.data->>'amount')::numeric amt from events e join blocks b on b.height=e.block_height where b.canonical and e.block_height <= $H and e.data->>'asset_identifier'='$ASSET' and e.type in ('ft_mint_event','ft_burn_event'))
+ (with d as (select distinct e.block_height,e.tx_id,e.event_index,e.type,(e.data->>'amount')::numeric amt from events e join blocks b on b.height=e.block_height where b.canonical and e.block_height <= $H and e.data->>'asset_identifier' like '$CID::%' and e.type in ('ft_mint_event','ft_burn_event'))
   select coalesce(sum(amt) filter (where type='ft_mint_event'),0)-coalesce(sum(amt) filter (where type='ft_burn_event'),0) from d);
 " | ssh app-server 'docker exec -i secondlayer-postgres-1 psql -U secondlayer -d secondlayer -tAF" "')
 
@@ -182,23 +182,12 @@ echo "sbtc H=$H chain@tip=$chain decoded_net@H=$decoded_net raw_net@H=$raw_net"
 ```
 `decoded_net != raw_net` at the same `H`: STOP, top-line finding, touch nothing.
 
-Do NOT extend this into a per-type (gross mint vs gross burn) comparison and treat a
-mismatch as a bug without checking the net first. The decoded and raw sides are selected
-by different predicates — decoded by `contract_id`, raw by `data->>'asset_identifier'` —
-so their gross row counts and sums legitimately diverge while the net is exact. A 2026-08
-run saw decoded ft_mint 11,055 rows / 1,230,901,478,297 vs raw 8,560 / 741,317,628,409 and
-decoded ft_burn exactly 2× raw, with the excess forming one mint+burn pair per raw burn
-that cancels in net. All 16,045 decoded positions were distinct (no PK duplication) and
-`decoded_net == raw_net` exactly. Unresolved whether that is paired double-decode or the
-predicate mismatch; the decisive query below times out at 5m and needs bucketing:
-```sql
-SET statement_timeout=0;  -- then bucket by 100k on block_height
-SELECT count(*) FROM decoded_events d
-WHERE d.contract_id='<cid>' AND d.canonical AND d.event_type='ft_burn'
-  AND d.block_height BETWEEN <lo> AND <hi>
-  AND NOT EXISTS (SELECT 1 FROM events e WHERE e.block_height=d.block_height
-                  AND e.tx_id=d.tx_id AND e.event_index=d.event_index AND e.type='ft_burn_event');
-```
+Count every fungible token the contract defines on the raw side (`like '$CID::%'`). sBTC has
+two, `sbtc-token` and `sbtc-token-locked` (pending withdrawals), and `decoded_events` and
+`get-total-supply` both cover the pair. Filtering raw to one asset shows a false gap equal
+to the locked supply, which is what produced a 3,557,361-sat false alarm on 2026-11-02. With
+both tokens counted, gross per-type rows and sums match too: at 9,397,972, 71,999 mints and
+9,585 burns on each side, with equal totals.
 
 ## Phase 5 — known-bug regression probes (each one a past prod incident)
 
