@@ -9,7 +9,6 @@ export const MODULE_IDS = [
 	"decoder",
 	"subgraph",
 	"notification",
-	"verification",
 	"publisher",
 ] as const;
 export type ModuleId = (typeof MODULE_IDS)[number];
@@ -43,7 +42,6 @@ export const DEFAULT_PROFILE: readonly ModuleId[] = [
 	"decoder",
 	"subgraph",
 	"notification",
-	"verification",
 ];
 
 export const PUBLISHER_PROFILE: readonly ModuleId[] = ["publisher"];

@@ -36,7 +36,6 @@ const MODULE_TO_PLANE: Partial<Record<ModuleId, StatusPlane>> = {
 	decoder: "decoder",
 	subgraph: "subgraph",
 	notification: "queue",
-	verification: "coverage",
 };
 
 export function reportRuntimeStatus(input: {

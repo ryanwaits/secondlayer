@@ -15,9 +15,8 @@ describe("lifecycle modules", () => {
 			"decoder",
 			"subgraph",
 			"notification",
-			"verification",
 		]);
-		expect(MODULE_IDS).toHaveLength(7);
+		expect(MODULE_IDS).toHaveLength(6);
 	});
 
 	test("an isolated restart does not start siblings", async () => {
