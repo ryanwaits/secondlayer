@@ -70,3 +70,13 @@ export function isPlatformMode(): boolean {
 export function isOssMode(): boolean {
 	return getInstanceMode() === "oss";
 }
+
+/** The one shared testnet webhook stack (hosted). Off everywhere else. */
+export function isTestnetWebhookStack(): boolean {
+	return process.env.TESTNET_WEBHOOK_STACK === "true";
+}
+
+/** Webhook rows are per-account: platform, or the shared testnet stack. */
+export function isWebhookAccountScoped(): boolean {
+	return isPlatformMode() || isTestnetWebhookStack();
+}

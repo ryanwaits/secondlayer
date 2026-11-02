@@ -1,7 +1,7 @@
 import { type Kysely, sql } from "kysely";
 import { generateSecret } from "../../crypto/hmac.ts";
 import { decryptSecret, encryptSecret } from "../../crypto/secrets.ts";
-import { isPlatformMode } from "../../mode.ts";
+import { isWebhookAccountScoped } from "../../mode.ts";
 import type {
 	Database,
 	InsertWebhook,
@@ -43,7 +43,7 @@ export async function createWebhook(
 ): Promise<CreateWebhookResult> {
 	const signingSecret = generateSecret();
 	const row: InsertWebhook = {
-		account_id: isPlatformMode() ? input.accountId : "",
+		account_id: isWebhookAccountScoped() ? input.accountId : "",
 		project_id: input.projectId ?? null,
 		name: input.name,
 		status: "active",
@@ -75,7 +75,7 @@ export async function listWebhooks(
 	opts?: { limit?: number; offset?: number },
 ): Promise<Webhook[]> {
 	let q = db.selectFrom("webhooks").selectAll().orderBy("created_at", "desc");
-	if (isPlatformMode()) q = q.where("account_id", "=", accountId);
+	if (isWebhookAccountScoped()) q = q.where("account_id", "=", accountId);
 	if (opts?.limit !== undefined) q = q.limit(opts.limit);
 	if (opts?.offset !== undefined) q = q.offset(opts.offset);
 	return q.execute();
@@ -102,7 +102,7 @@ export async function getWebhook(
 	id: string,
 ): Promise<Webhook | null> {
 	let q = db.selectFrom("webhooks").selectAll().where("id", "=", id);
-	if (isPlatformMode()) q = q.where("account_id", "=", accountId);
+	if (isWebhookAccountScoped()) q = q.where("account_id", "=", accountId);
 	return (await q.executeTakeFirst()) ?? null;
 }
 
@@ -112,7 +112,7 @@ export async function getWebhookByName(
 	name: string,
 ): Promise<Webhook | null> {
 	let q = db.selectFrom("webhooks").selectAll().where("name", "=", name);
-	if (isPlatformMode()) q = q.where("account_id", "=", accountId);
+	if (isWebhookAccountScoped()) q = q.where("account_id", "=", accountId);
 	return (await q.executeTakeFirst()) ?? null;
 }
 
@@ -142,7 +142,7 @@ export async function updateWebhook(
 	if (patch.concurrency !== undefined) update.concurrency = patch.concurrency;
 
 	let q = db.updateTable("webhooks").set(update).where("id", "=", id);
-	if (isPlatformMode()) q = q.where("account_id", "=", accountId);
+	if (isWebhookAccountScoped()) q = q.where("account_id", "=", accountId);
 	return (await q.returningAll().executeTakeFirst()) ?? null;
 }
 
@@ -165,7 +165,7 @@ export async function toggleWebhookStatus(
 				: {}),
 		})
 		.where("id", "=", id);
-	if (isPlatformMode()) q = q.where("account_id", "=", accountId);
+	if (isWebhookAccountScoped()) q = q.where("account_id", "=", accountId);
 	return (await q.returningAll().executeTakeFirst()) ?? null;
 }
 
@@ -212,14 +212,15 @@ export async function deleteWebhook(
 	id: string,
 ): Promise<boolean> {
 	let owned = db.selectFrom("webhooks").select("id").where("id", "=", id);
-	if (isPlatformMode()) owned = owned.where("account_id", "=", accountId);
+	if (isWebhookAccountScoped())
+		owned = owned.where("account_id", "=", accountId);
 	const row = await owned.executeTakeFirst();
 	if (!row) return false;
 
 	await deleteWebhookChildren(db, id);
 
 	let q = db.deleteFrom("webhooks").where("id", "=", id);
-	if (isPlatformMode()) q = q.where("account_id", "=", accountId);
+	if (isWebhookAccountScoped()) q = q.where("account_id", "=", accountId);
 	const res = await q.executeTakeFirst();
 	return Number(res.numDeletedRows ?? 0) > 0;
 }
@@ -242,7 +243,7 @@ export async function rotateWebhookSecret(
 			updated_at: new Date(),
 		})
 		.where("id", "=", id);
-	if (isPlatformMode()) q = q.where("account_id", "=", accountId);
+	if (isWebhookAccountScoped()) q = q.where("account_id", "=", accountId);
 	const row = await q.returningAll().executeTakeFirst();
 	if (!row) return null;
 	return { webhook: row, signingSecret };

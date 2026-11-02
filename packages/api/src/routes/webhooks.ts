@@ -20,6 +20,7 @@ import {
 	updateWebhook,
 } from "@secondlayer/shared/db/queries/webhooks";
 import { ValidationError } from "@secondlayer/shared/errors";
+import { isTestnetWebhookStack } from "@secondlayer/shared/mode";
 import {
 	type ChainTrigger,
 	CreateWebhookRequestSchema,
@@ -184,6 +185,61 @@ const SUBGRAPH_WEBHOOKS_REMOVED_RESPONSE = {
 	code: "SUBGRAPH_WEBHOOKS_REMOVED",
 } as const;
 
+// ── Shared testnet stack rules (only when TESTNET_WEBHOOK_STACK=true) ──
+// One free stack serves every testnet account, so creation is allowlisted
+// and capped. A trigger type added later is refused until listed here.
+
+const TESTNET_TRIGGER_TYPES: ReadonlySet<string> = new Set([
+	"stx_transfer",
+	"stx_mint",
+	"stx_burn",
+	"stx_lock",
+	"ft_transfer",
+	"ft_mint",
+	"ft_burn",
+	"nft_transfer",
+	"nft_mint",
+	"nft_burn",
+	"contract_call",
+	"contract_deploy",
+	"print_event",
+]);
+const MAX_TESTNET_WEBHOOKS_PER_ACCOUNT = 10;
+const MAX_TESTNET_WEBHOOKS_TOTAL = 500;
+const MAX_TESTNET_TRIGGERS = 5;
+const MAX_TESTNET_CONCURRENCY = 5;
+
+/** A 400 body when the request breaks a testnet shape rule, else null. */
+function testnetShapeError(input: {
+	triggers?: ChainTrigger[];
+	concurrency?: number;
+}): { error: string; code: string } | null {
+	const { triggers, concurrency } = input;
+	if (triggers) {
+		if (triggers.length > MAX_TESTNET_TRIGGERS) {
+			return {
+				error: `Testnet webhooks take at most ${MAX_TESTNET_TRIGGERS} triggers`,
+				code: "TESTNET_TRIGGER_LIMIT",
+			};
+		}
+		for (const [i, trigger] of triggers.entries()) {
+			if (!TESTNET_TRIGGER_TYPES.has(trigger.type) || "trait" in trigger) {
+				return {
+					error: `triggers[${i}]: "${trigger.type}" triggers${"trait" in trigger ? " with a trait" : ""} aren't available on testnet`,
+					code: "TESTNET_TRIGGER_UNAVAILABLE",
+				};
+			}
+		}
+	}
+	if (concurrency !== undefined && concurrency > MAX_TESTNET_CONCURRENCY) {
+		return {
+			error: `Testnet webhooks take concurrency up to ${MAX_TESTNET_CONCURRENCY}`,
+			code: "TESTNET_CONCURRENCY_LIMIT",
+		};
+	}
+	return null;
+}
+
 const RUNE_TRIGGER_TYPE_SET = new Set<string>(RUNE_EVENT_TYPES);
 
 /** The minimal Kysely surface `resolveRuneId` needs — a real `getBitcoinDb()`
@@ -316,6 +372,38 @@ app.post("/", async (c) => {
 		return c.json({ error: details.join("; "), details }, 400);
 	}
 	const input = parsed.data;
+
+	if (isTestnetWebhookStack()) {
+		const shapeError = testnetShapeError(input);
+		if (shapeError) return c.json(shapeError, 400);
+		const counts = await getDb()
+			.selectFrom("webhooks")
+			.select([
+				sql<string>`count(*)`.as("total"),
+				sql<string>`count(*) filter (where account_id = ${accountId})`.as(
+					"mine",
+				),
+			])
+			.executeTakeFirstOrThrow();
+		if (Number(counts.mine) >= MAX_TESTNET_WEBHOOKS_PER_ACCOUNT) {
+			return c.json(
+				{
+					error: `Testnet accounts can have ${MAX_TESTNET_WEBHOOKS_PER_ACCOUNT} webhooks`,
+					code: "TESTNET_WEBHOOK_LIMIT",
+				},
+				400,
+			);
+		}
+		if (Number(counts.total) >= MAX_TESTNET_WEBHOOKS_TOTAL) {
+			return c.json(
+				{
+					error: "Testnet webhooks are at capacity, try again later",
+					code: "TESTNET_CAPACITY",
+				},
+				503,
+			);
+		}
+	}
 
 	const existing = await getWebhookByName(getDb(), accountId, input.name);
 	if (existing) {
@@ -461,6 +549,11 @@ app.patch("/:id", async (c) => {
 		return c.json({ error: details.join("; "), details }, 400);
 	}
 	const patch = parsed.data;
+
+	if (isTestnetWebhookStack()) {
+		const shapeError = testnetShapeError(patch);
+		if (shapeError) return c.json(shapeError, 400);
+	}
 
 	if (patch.name !== undefined) {
 		const current = await getWebhook(getDb(), accountId, id);
@@ -1154,6 +1247,15 @@ app.get("/:id/replays/:replayId", async (c) => {
 app.post("/:id/replay", async (c) => {
 	const accountId = getTenantScopedAccountId(c);
 	if (accountId === null) return c.json({ error: "Unauthorized" }, 401);
+	if (isTestnetWebhookStack()) {
+		return c.json(
+			{
+				error: "Replay isn't available for testnet webhooks",
+				code: "TESTNET_REPLAY_UNAVAILABLE",
+			},
+			400,
+		);
+	}
 
 	let body: Record<string, unknown>;
 	try {
