@@ -1036,7 +1036,11 @@ export const webhooksPaths = {
 						type: "object",
 						required: ["algorithm", "key_id", "public_key_pem"],
 						properties: {
-							algorithm: { type: "string", enum: ["ed25519"] },
+							algorithm: {
+								type: "string",
+								enum: ["ed25519"],
+								description: "The signature algorithm.",
+							},
 							key_id: {
 								type: "string",
 								description:

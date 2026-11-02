@@ -19566,7 +19566,8 @@
 											"type": "string",
 											"enum": [
 												"ed25519"
-											]
+											],
+											"description": "The signature algorithm."
 										},
 										"key_id": {
 											"type": "string",
