@@ -14,7 +14,8 @@ archive bootstrap, hosted Index/Streams rows, and hosted per-account stacks
 No monthly SKUs, no Pro SKU. One prepaid balance, dollars, across the archive
 and every hosted meter. A running stack's floor is a minimum on the memory
 meter, not a plan. Target: ~$10k/mo revenue at ~10 hr/week of operator work.
-Current infra bill ~$400/mo (mostly the node server; mostly unused).
+Current infra bill ~$885/mo excl. tax, ~$955 incl. 8% (Hetzner, September 2026
+invoice, full-month run rate).
 
 Self-host stays MIT and unmetered. This document is the hosted path only.
 
@@ -24,24 +25,32 @@ COGS is ~100% fixed. Everything we sell rides hardware we already own.
 
 | Cost center | Fixed | Marginal |
 |---|---|---|
-| AX52 app + AX162-S node + Storage Box | ~$400/mo | — |
-| Workload host (Hetzner Cloud CPX32, runs hosted stacks) | on top of the $400 | RAM and disk per stack |
+| node-server: AX162-S, legacy price | $272/mo | — |
+| app-server: AX41-NVMe + 2×1 TB NVMe | $63/mo | — |
+| stacks-feeder: CPX62 ($179) + 4 TB volume ($314), for the Stacks re-sync | $493/mo | — |
+| Workload host: CPX32, runs hosted stacks | $49/mo | RAM and disk per stack |
+| Storage Box BX11 + IPv4 addresses | $8/mo | — |
 | R2 archive (39 GB, 2026-08-12) | ~$0.59/mo, +0.7 GB/mo | $0.015/GB-mo storage, $0 egress |
 | Hosted row read | — | PG CPU/IO on owned NVMe ≈ $0 |
 | Subgraph sandbox | — | ~81.5 MB RAM per warm subprocess (measured, `docs/internal/security/subgraph-processor-sandbox-spike.md`) |
 | Webhook delivery | — | Bandwidth from the workload host (Hetzner Cloud); cost not measured |
 
-$400/mo ÷ $10k/mo target = 4% fixed-cost ratio. After Stripe (~3% + 30¢),
-net margin at target is ~93%. We do not need plans because almost nothing we
+$885/mo ÷ $10k/mo target ≈ 9% fixed-cost ratio. After Stripe (~3% + 30¢),
+net margin at target is ~88%. We do not need plans because almost nothing we
 sell has meaningful marginal cost. Hosted stacks are the exception: each holds
 RAM and disk on the workload host, which the memory and storage meters and the
 floor pay for. We need prices that (a) cover abuse, (b) signal value,
-(c) cover $400 fast.
+(c) cover $885 fast.
 
-Do not optimize the $400 yet. Hetzner's June 2026 price adjustment hit
+The feeder is the largest line and it is temporary: it retires after the Stacks
+re-sync, taking the bill to ~$392/mo. A database server for the re-synced data
+is an open founder decision (AX102-4 recommended, €757.30/mo when quoted in
+October) and would add to that.
+
+Do not optimize the rest yet. Hetzner's June 2026 price adjustment hit
 *new* orders (AX42-1 is €187/mo for new customers). Grandfathered pricing
-is an asset. The AX162-S is the floor: bitcoind (~750 GB) + stacks
-chainstate (~800–900 GB) needs ~2 TB of fast disk. Revisit only if
+is an asset. The AX162-S is the floor: bitcoind (~750 GB) + Stacks
+chainstate (~1.4 TB) needs over 2 TB of fast disk. Revisit only if
 revenue stalls below $1k/mo for months.
 
 ## What's shipped
@@ -154,7 +163,7 @@ unit is metered.
 
 - $10k/mo in row reads at $5/1M = 2B rows/mo ≈ 770 rows/sec; at the $2/1M
   volume rate, 5B rows/mo ≈ 1,930 rows/sec. Trivial for this Postgres.
-- Break-even: $400 ÷ $50 avg spend ≈ 8 customers.
+- Break-even: $885 ÷ $50 avg spend ≈ 18 customers.
 - $10k/mo ≈ 50 teams at $200 avg, or 20 heavy ones at $500.
 - GTM universe is ~30–80 funded Stacks teams (STRATEGY.md). Hitting
   $10k/mo means roughly full penetration of that universe, or growth
