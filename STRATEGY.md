@@ -108,19 +108,17 @@ has its own job, not its own world. Product pages are paths under
 entity only; it prints nowhere. Scenario study and rationale: PRODUCT.md, Brand Commitments.
 
 **Deployments** (grant-funded and one-off work, added 2026-09-13). Things we
-run on the plane for a third party or as a public good, such as the sBTC
-inclusion check in the Q3 2026 Endowment application, are a fourth tier:
-not products, not features, not channels. A deployment is built with the
-products (a subgraph table, webhook alerts, a status page), so it fails the
-account test and inherits the brand. Rules: named by its job ("sBTC inclusion
-check"), never a product noun or a sub-brand; lives at a path under
+run on the plane for a third party or as a public good are a fourth tier:
+not products, not features, not channels. None is running. A deployment is
+built with the products (a subgraph table, webhook alerts, a status page), so
+it fails the account test and inherits the brand. Rules: named by its job,
+never a product noun or a sub-brand; lives at a path under
 `secondlayer.tools`; carries one mono tag ("public good", "grant-funded") and
 a "built on Subgraphs and Webhooks" line; its verifier is open source and
 runnable on the operator's own instance; its hosted table is a subgraph under
 our account. Subgraphs have no public visibility (dropped, migration 0136) and
 hosted `/v1` needs a key, so a deployment's public page needs its own read
-path, decided per deployment. The sBTC inclusion check has no page yet. Paid
-follow-ons (paged alerts, private destinations, SLA) are a per-deployment
+path, decided per deployment. Paid follow-ons (paged alerts, private destinations, SLA) are a per-deployment
 conversation, never a SKU. Deployments are evidence for the brand, the same way
 our own instance is. Placement decision and per-deployment checklist:
 `docs/internal/deployments.md`.

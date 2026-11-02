@@ -102,7 +102,7 @@ Same pattern for protocol-admin keys 100proof warned: don’t use the governor a
 
 **Today:** Index pox/sBTC is **prints + primitives** (charter). stacking.club had to bespoke-transform Hiro. A print that lies, or a `map-set` with no print, desyncs the dashboard.
 
-**After:** subgraph sources on the **position maps**. Scoreboard is derived from writes. Index stays prints. Grant public goods (sBTC inclusion check) add a second source (deposit-map + inner registry calls) on the same path — still “built on Subgraphs and Webhooks.”
+**After:** subgraph sources on the **position maps**. Scoreboard is derived from writes. Index stays prints. Grant public goods add a second source (map writes + inner calls) on the same path — still “built on Subgraphs and Webhooks.”
 
 ### 7. Growing address sets (Stacks “factory” ≠ EVM CREATE2)
 
@@ -240,7 +240,7 @@ What a buyer is actually buying:
 
 Who that is *for*: a Stacks data incumbent that iced nested calls; a foundation that wants 291 as a public good; a general indexer that wants Stacks without years of VM work. The story is **the missing data plane**, not a TUI and not `@secondlayer/stacks`.
 
-Leverage: design partners before the post (they become the proof). One grant-shaped deployment (same rules as sBTC inclusion check). Fork image public, **history and hosted query** are the lock-in. Don’t PR `stacks-network` to make us redundant before the archive exists.
+Leverage: design partners before the post (they become the proof). One grant-shaped deployment (see `docs/internal/deployments.md`). Fork image public, **history and hosted query** are the lock-in. Don’t PR `stacks-network` to make us redundant before the archive exists.
 
 Tension (2026-10-07, plan 109): an upstream event/receipt root or state witness would reduce fork lock-in and make the trustless index work on stock nodes. Decision deferred; the moat stays history + hosted query either way.
 

@@ -1,9 +1,8 @@
 # Deployments placement
 
 Decision record for where grant-funded and one-off work lives on the
-Secondlayer plane. Companion checklist for each instance lives under
-`docs/internal/deployments/<slug>.md`. First instance:
-`docs/internal/deployments/sbtc-inclusion-check.md`.
+Secondlayer plane. None is running. A future one gets its own checklist at
+`docs/internal/deployments/<slug>.md`.
 
 ## What a deployment is
 
@@ -15,8 +14,7 @@ job. One mono tag. Never its own wordmark.
 
 ## Where the code lives
 
-One standalone public repo per deployment (e.g. `sbtc-inclusion-check`). It
-depends only on published `@secondlayer/sdk`, `@secondlayer/subgraphs`,
+One standalone public repo per deployment. It depends only on published `@secondlayer/sdk`, `@secondlayer/subgraphs`,
 `@secondlayer/stacks`, and `@secondlayer/cli`. Reason: the verifier must run
 on the operator's own instance, and "build for everyone" forbids a
 monorepo-only special case. Cost: version drift against published packages.
@@ -35,8 +33,7 @@ deployment.
 
 ## Where it is seen
 
-Status page at `secondlayer.tools/<job-slug>` (e.g. `/sbtc-inclusion`). Same
-visual world as the site. One mono tag ("public good", "grant-funded"). The
+Status page at `secondlayer.tools/<job-slug>`. Same visual world as the site. One mono tag ("public good", "grant-funded"). The
 line "built on Subgraphs and Webhooks". Never a subdomain. Never its own
 wordmark.
 
@@ -47,8 +44,8 @@ deployment's public page needs its own read path, decided per deployment.
 ## How it is named
 
 By job. Naming test: a reader who has never heard of Secondlayer should be
-able to say what it checks from the name alone. "sBTC inclusion check"
-passes. A product noun or a Labs-branded title fails.
+able to say what it checks from the name alone. A product noun or a
+Labs-branded title fails.
 
 ## What it must not become
 

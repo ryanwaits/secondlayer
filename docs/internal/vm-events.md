@@ -151,7 +151,7 @@ Summary:
 
 MCP: tools already query Index/subgraphs. New types show up. No new MCP product.
 
-Deployments (sBTC inclusion check, protocol public goods): second source on the same subgraph. Still named by job, still Subgraphs + Webhooks.
+Deployments (protocol public goods): second source on the same subgraph. Still named by job, still Subgraphs + Webhooks.
 
 ### Streams — end-user DX
 
@@ -444,7 +444,7 @@ VM Index and Streams pages include reorgs overlapping the resume height, even wh
 
 **G. Factory clones.** Existing `factory: { from, field }` on print/`contract_call`. Same on `map_set` / nested call.
 
-**H. Deployments.** sBTC inclusion check and other grant public goods: second source (deposit-map writes + inner calls into the registry), same path, still “built on Subgraphs and Webhooks.”
+**H. Deployments.** Grant public goods: second source (map writes + inner calls), same path, still “built on Subgraphs and Webhooks.”
 
 **I. App-index `consume()`.** Data teams who skip Subgraphs: second `consume()` on `event_type=map_set`, own tables, `onReorg` already exists.
 
