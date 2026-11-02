@@ -404,6 +404,38 @@ recover on their own.
 **Removal**: both projects `down -v`, delete data dirs and `.env`, disable the
 units and timers, delete the deploy hook + Caddy block + `extra_hosts`, deploy.
 
+### Shared testnet webhook stack
+
+One tenant stack, owned by a reserved internal account, serves every testnet
+webhook for free. Customers use `https://api.secondlayer.tools/testnet` with
+their own key; the workload gateway checks it, skips the credit gate, and
+forwards `/testnet/api/webhooks*` to the shared stack with the caller's account
+in `x-secondlayer-account-id`. The stack reads the testnet API above, keeps its
+own Postgres and cursor, and runs with `TESTNET_WEBHOOK_STACK=true`. Every
+other tenant is unchanged. Testnet has no outage emails or pushes (the incident
+and push watches skip it). Capacity: 10 webhooks per account, 500 in total
+(`TESTNET_CAPACITY`); nothing reclaims abandoned accounts, so to free room
+delete by `account_id` in the stack's Postgres or raise the constant.
+
+Do this after the testnet stack is at tip and this is deployed:
+
+1. Mint internal account `testnet-webhooks@secondlayer.tools` server-side with
+   `accounts.internal = true`, the Sentinel way. No MX, so nobody can sign in.
+2. In `/opt/secondlayer-workload/workload.env` set `TESTNET_STACK_ACCOUNT_ID`,
+   `TESTNET_API_URL=https://api.secondlayer.tools/testnet` and
+   `TESTNET_API_KEY=<testnet INSTANCE_TOKEN>`. Restart the workload service.
+   All three or none: a partial set is logged and ignored.
+3. Provision by internal call, not a customer POST. Before anything else,
+   confirm `TESTNET_WEBHOOK_STACK=true` and the testnet URL are in both `api`
+   and `webhook-service` env (names and booleans only).
+4. Live test: a `print_event` webhook on an `ST...` contract, a receiver you
+   control, a delivery within minutes; a second account cannot list it; the
+   mainnet tenants' webhooks keep delivering and their `.env` are unchanged.
+
+If the testnet chain is reset, the evaluator rewinds its own cursor
+(`testnet_cursor_reset` in the webhook-service log). `TESTNET_API_KEY` lives in
+`webhook-service` only.
+
 ---
 
 ## Tip Follower

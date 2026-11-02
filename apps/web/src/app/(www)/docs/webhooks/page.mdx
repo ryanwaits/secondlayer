@@ -230,6 +230,45 @@ Webhooks run on `api.secondlayer.tools` with an account key and prepaid credits,
 | Pricing | $10 per 1M delivered events (`webhook.event`), plus your hosted stack's memory and storage. Webhooks only: $5/mo minimum while your stack runs. With subgraphs: $10/mo minimum. Pause or delete every webhook and it stops within minutes. Retries are never billed, and the rows read to match your triggers don't bill as `rows.delivered` |
 | Isolation | One full stack per account, never a shared runtime. Your data never shares a database or process with anyone else's. The same stack runs your hosted subgraphs, with handlers in a gVisor sandbox |
 
+### Testnet
+
+Webhooks also run on Stacks testnet, free, with the same account key. Set the base URL to `https://api.secondlayer.tools/testnet`. Testnet webhooks are separate from your mainnet ones.
+
+| | Testnet |
+| --- | --- |
+| Triggers | `stx_*`, `ft_*`, `nft_*`, `contract_call`, `contract_deploy`, `print_event`. No traits, sBTC or Runes |
+| Limits | 10 webhooks per account, 5 triggers each, concurrency up to 5 |
+| Start | At the chain tip. No replay |
+| After an outage | Events from blocks more than an hour old are not delivered |
+| Alerts | No outage emails or pushes |
+| Cost | Free |
+
+<CodeTabs sync="lang">
+
+```ts
+import { SecondLayer, trigger } from "@secondlayer/sdk";
+
+const sl = new SecondLayer({
+  apiKey: process.env.SECONDLAYER_API_KEY,
+  baseUrl: "https://api.secondlayer.tools/testnet",
+});
+
+await sl.webhooks.create({
+  name: "testnet-prints",
+  url: "https://my-app.com/webhook",
+  triggers: [trigger.printEvent({ contractId: "ST....counter" })],
+});
+```
+
+```bash
+curl https://api.secondlayer.tools/testnet/api/webhooks \
+  -H "Authorization: Bearer $SECONDLAYER_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"name":"testnet-prints","url":"https://my-app.com/webhook","triggers":[{"type":"print_event","contractId":"ST....counter"}]}'
+```
+
+</CodeTabs>
+
 ## Receive and verify
 
 Check the signature, decode the body, and undo anything a reorg orphans.
