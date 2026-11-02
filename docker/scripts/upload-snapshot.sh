@@ -47,12 +47,6 @@ if [ -d "${BACKUP_DIR}/postgres" ]; then
   rsync "${RSYNC_OPTS[@]}" "${BACKUP_DIR}/postgres/" "${STORAGEBOX_USER}@${STORAGEBOX_HOST}:${STORAGEBOX_PATH}/postgres/"
 fi
 
-# Upload hiro-postgres backups
-if [ -d "${BACKUP_DIR}/hiro-postgres" ]; then
-  log "Syncing hiro-postgres backups..."
-  rsync "${RSYNC_OPTS[@]}" "${BACKUP_DIR}/hiro-postgres/" "${STORAGEBOX_USER}@${STORAGEBOX_HOST}:${STORAGEBOX_PATH}/hiro-postgres/"
-fi
-
 # Upload chainstate backups
 if [ -d "${BACKUP_DIR}/chainstate" ]; then
   log "Syncing chainstate backups..."

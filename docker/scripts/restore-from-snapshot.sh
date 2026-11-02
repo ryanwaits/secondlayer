@@ -1,7 +1,7 @@
 #!/bin/bash
 # Restore postgres from Storage Box snapshot
-# Usage: restore-from-snapshot.sh [--hiro] [--date YYYYMMDD] [--verify-only] [--dry-run]
-# Example: restore-from-snapshot.sh --hiro --date 20260301 --verify-only
+# Usage: restore-from-snapshot.sh [--date YYYYMMDD] [--verify-only] [--dry-run]
+# Example: restore-from-snapshot.sh --date 20260301 --verify-only
 set -euo pipefail
 
 DATA_DIR="${DATA_DIR:-/opt/secondlayer/data}"
@@ -14,7 +14,6 @@ STORAGEBOX_PATH="${STORAGEBOX_PATH:-backups}"
 STORAGEBOX_PORT="${STORAGEBOX_PORT:-23}"
 
 # Defaults
-HIRO=false
 DATE=""
 VERIFY_ONLY=false
 DRY_RUN=false
@@ -22,7 +21,6 @@ DRY_RUN=false
 # Parse args
 while [[ $# -gt 0 ]]; do
   case $1 in
-    --hiro) HIRO=true; shift ;;
     --date) DATE="$2"; shift 2 ;;
     --verify-only) VERIFY_ONLY=true; shift ;;
     --dry-run) DRY_RUN=true; shift ;;
@@ -32,22 +30,12 @@ done
 
 log() { echo "[$(date -Iseconds)] $*"; }
 
-# Set vars based on --hiro flag
-if [ "$HIRO" = true ]; then
-  BACKUP_SUBDIR="hiro-postgres"
-  BACKUP_PREFIX="hiro-postgres"
-  PG_CONTAINER="${HIRO_PG_CONTAINER:-secondlayer-hiro-postgres-1}"
-  PG_USER="${HIRO_PG_USER:-postgres}"
-  PG_DB="${HIRO_PG_DB:-stacks_blockchain_api}"
-  DEPENDENTS="hiro-api"
-else
-  BACKUP_SUBDIR="postgres"
-  BACKUP_PREFIX="postgres"
-  PG_CONTAINER="${PG_CONTAINER:-secondlayer-postgres-1}"
-  PG_USER="${PG_USER:-secondlayer}"
-  PG_DB="${PG_DB:-secondlayer}"
-  DEPENDENTS="api indexer worker"
-fi
+BACKUP_SUBDIR="postgres"
+BACKUP_PREFIX="postgres"
+PG_CONTAINER="${PG_CONTAINER:-secondlayer-postgres-1}"
+PG_USER="${PG_USER:-secondlayer}"
+PG_DB="${PG_DB:-secondlayer}"
+DEPENDENTS="api indexer worker"
 
 LOCAL_BACKUP_DIR="${DATA_DIR}/backups/${BACKUP_SUBDIR}"
 
@@ -56,15 +44,9 @@ verify_db() {
   log "Verifying database integrity..."
   local block_count tip missing
 
-  if [ "$HIRO" = true ]; then
-    block_count=$(docker exec "$PG_CONTAINER" psql -U "$PG_USER" -d "$PG_DB" -t -c "SELECT count(*) FROM blocks;" 2>/dev/null | tr -d ' ')
-    tip=$(docker exec "$PG_CONTAINER" psql -U "$PG_USER" -d "$PG_DB" -t -c "SELECT max(block_height) FROM blocks;" 2>/dev/null | tr -d ' ')
-    missing=$(docker exec "$PG_CONTAINER" psql -U "$PG_USER" -d "$PG_DB" -t -c "SELECT (max(block_height) - min(block_height) + 1) - count(*) FROM blocks WHERE canonical = true;" 2>/dev/null | tr -d ' ')
-  else
-    block_count=$(docker exec "$PG_CONTAINER" psql -U "$PG_USER" -d "$PG_DB" -t -c "SELECT count(*) FROM blocks;" 2>/dev/null | tr -d ' ')
-    tip=$(docker exec "$PG_CONTAINER" psql -U "$PG_USER" -d "$PG_DB" -t -c "SELECT max(height) FROM blocks;" 2>/dev/null | tr -d ' ')
-    missing=$(docker exec "$PG_CONTAINER" psql -U "$PG_USER" -d "$PG_DB" -t -c "SELECT (max(height) - min(height) + 1) - count(*) FROM blocks WHERE canonical = true;" 2>/dev/null | tr -d ' ')
-  fi
+  block_count=$(docker exec "$PG_CONTAINER" psql -U "$PG_USER" -d "$PG_DB" -t -c "SELECT count(*) FROM blocks;" 2>/dev/null | tr -d ' ')
+  tip=$(docker exec "$PG_CONTAINER" psql -U "$PG_USER" -d "$PG_DB" -t -c "SELECT max(height) FROM blocks;" 2>/dev/null | tr -d ' ')
+  missing=$(docker exec "$PG_CONTAINER" psql -U "$PG_USER" -d "$PG_DB" -t -c "SELECT (max(height) - min(height) + 1) - count(*) FROM blocks WHERE canonical = true;" 2>/dev/null | tr -d ' ')
 
   log "Block count: ${block_count:-unknown}"
   log "Chain tip:   ${tip:-unknown}"
@@ -135,11 +117,9 @@ docker exec "$PG_CONTAINER" psql -U "$PG_USER" -c "CREATE DATABASE ${PG_DB} OWNE
 log "Restoring from: ${LOCAL_FILE}"
 gunzip -c "$LOCAL_FILE" | docker exec -i "$PG_CONTAINER" psql -U "$PG_USER" -d "$PG_DB"
 
-# --- Migrations (secondlayer only) ---
-if [ "$HIRO" = false ]; then
-  log "Running migrations..."
-  $COMPOSE run --rm migrate
-fi
+# --- Migrations ---
+log "Running migrations..."
+$COMPOSE run --rm migrate
 
 # --- Verify ---
 verify_db || log "WARNING: verification found issues — check manually"

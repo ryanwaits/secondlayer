@@ -332,7 +332,7 @@ rolling_recreate_api() {
 }
 
 # Restart back-end app services in bulk, then roll the api separately.
-# NEVER touch stacks-node, postgres, hiro-postgres, hiro-api.
+# NEVER touch stacks-node, postgres.
 # decoder and caddy depend on api (service_healthy). Without --no-deps,
 # compose recreates every api replica at once here, before the rolling step,
 # and in-flight reads fail. When api is down (migration path), deps are fine:
