@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
-# Render the workload-host cloud-init YAML to stdout. Shared by `provision.sh`
-# (real host) and `spike/045-containment/run.sh` (scratch VM) so both boot an
-# identical host. Prints YAML only; creates nothing.
+# Render the workload-host cloud-init YAML to stdout for `provision.sh`.
+# Prints YAML only; creates nothing.
 #
 # Usage: docker/workload-host/render-cloud-init.sh <app_server_ip>
 #
