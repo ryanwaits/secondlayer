@@ -213,10 +213,6 @@
 			"types": "./dist/src/node/client.d.ts",
 			"import": "./dist/src/node/client.js"
 		},
-		"./node/hiro-client": {
-			"types": "./dist/src/node/hiro-client.d.ts",
-			"import": "./dist/src/node/hiro-client.js"
-		},
 		"./node/nakamoto": {
 			"types": "./dist/src/node/nakamoto.d.ts",
 			"import": "./dist/src/node/nakamoto.js"
@@ -228,10 +224,6 @@
 		"./node/local-client": {
 			"types": "./dist/src/node/local-client.d.ts",
 			"import": "./dist/src/node/local-client.js"
-		},
-		"./node/hiro-pg-client": {
-			"types": "./dist/src/node/hiro-pg-client.d.ts",
-			"import": "./dist/src/node/hiro-pg-client.js"
 		},
 		"./node/client": {
 			"types": "./dist/src/node/client.d.ts",

@@ -474,101 +474,13 @@ VACUUM ANALYZE;
 
 ### Auto (Integrity Loop)
 
-Runs every 5 minutes. Two-phase gap filling:
-1. **Local DB** — replays blocks already in our DB (handles reorgs)
-2. **Hiro API** — fetches missing blocks individually from Hiro's public API (handles outages)
+Runs every 5 minutes. Replays blocks already in our DB (handles reorgs). Gaps the DB can't replay surface as `gaps_unfillable`; it never reaches an external provider.
 
 The example stacks-node event observer ships `disable_retries = true` (signer-safe: a stuck indexer can never stall a co-located signer). A delivery that times out is skipped rather than retry-blocking the node, so the integrity loop above is what fills any block missed during an indexer blip. If you run a pure indexer with no co-located signer and want maximum delivery completeness, set `disable_retries = false` (and raise `timeout_ms`) in `Config.toml` — see the comment there for the tradeoff.
 
 ```bash
 curl -s localhost:3700/health/integrity | jq
 ```
-
-### Bulk Backfill (Manual)
-
-For large-scale population or reprocessing after schema changes:
-
-```bash
-# Source credentials from .env
-source /opt/secondlayer/docker/.env
-
-docker run -d --name backfill \
-  --no-healthcheck \
-  --network secondlayer_default \
-  -v /opt/secondlayer:/app -w /app \
-  -e DATABASE_URL=postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB} \
-  -e HIRO_API_URL=https://api.mainnet.hiro.so \
-  -e HIRO_API_KEY=${HIRO_API_KEY:-} \
-  -e BACKFILL_SOURCE=hiro \
-  -e BACKFILL_CONCURRENCY=20 \
-  -e BACKFILL_BATCH_SIZE=100 \
-  -e BACKFILL_FROM=2 \
-  oven/bun:latest bun run packages/indexer/src/bulk-backfill.ts
-
-# Fastest option: backfill from local Hiro Postgres (~24-40 blocks/sec with batch queries)
-docker run -d --name backfill \
-  --no-healthcheck \
-  --network secondlayer_default \
-  -v /opt/secondlayer:/app -w /app \
-  -e DATABASE_URL=postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB} \
-  -e HIRO_PG_URL=postgres://secondlayer:secondlayer@postgres:5432/stacks_blockchain_api?options=-csearch_path%3Dstacks_blockchain_api \
-  -e BACKFILL_SOURCE=hiro-pg \
-  -e BACKFILL_CONCURRENCY=20 \
-  -e BACKFILL_BATCH_SIZE=100 \
-  -e BACKFILL_FROM=2 \
-  oven/bun:latest bun run packages/indexer/src/bulk-backfill.ts
-```
-
-> `hiro-pg` is the fastest backfill source (~24-40 blocks/sec with batch queries). Requires a local copy of the Hiro API database — see "Hiro PG Restore" below.
-
-> Block 1 (genesis) has 330K events. Always set `BACKFILL_FROM=2`.
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `BACKFILL_SOURCE` | `hiro` | `hiro` = Hiro API, `local` = own Postgres, `hiro-pg` = direct PG queries against local Hiro API database (fastest, ~24-40 blocks/sec with batch queries) |
-| `BACKFILL_FROM` | `2` | Start height |
-| `BACKFILL_TO` | auto | End height (auto-detects chain tip) |
-| `BACKFILL_CONCURRENCY` | `20` | Parallel fetches |
-| `BACKFILL_BATCH_SIZE` | `100` | Blocks per DB batch |
-
-```bash
-# Monitor
-docker logs backfill 2>&1 | grep "Batch complete" | tail -5
-
-# Stop
-docker stop backfill && docker rm backfill
-```
-
-### Hiro PG Restore
-
-Restore Hiro's API Postgres dump locally for fast `hiro-pg` backfill.
-
-```bash
-# 1. Download dump from archive.hiro.so
-curl -L -o /tmp/hiro-api-pg.dump \
-  https://archive.hiro.so/mainnet/stacks-blockchain-api/mainnet-stacks-blockchain-api-latest.dump
-
-# 2. Create database in existing Postgres container
-docker exec secondlayer-postgres-1 psql -U secondlayer \
-  -c "CREATE DATABASE stacks_blockchain_api;"
-
-# 3. Restore (parallel with --jobs 4)
-docker exec -i secondlayer-postgres-1 \
-  pg_restore -U secondlayer -d stacks_blockchain_api --no-owner --jobs 4 \
-  < /tmp/hiro-api-pg.dump
-
-# 4. Run backfill with hiro-pg source
-#    Connection string must set search_path via options param:
-#    postgres://user:pass@host:5432/stacks_blockchain_api?options=-csearch_path%3Dstacks_blockchain_api
-#    See bulk backfill commands above.
-
-# 5. Drop database after parity verification
-docker exec secondlayer-postgres-1 psql -U secondlayer \
-  -c "DROP DATABASE stacks_blockchain_api;"
-rm /tmp/hiro-api-pg.dump
-```
-
-> Apply the "Tuning for Large Restores" settings (see Database section) before pg_restore — massive speedup.
 
 ### Chainstate Snapshot (optional)
 

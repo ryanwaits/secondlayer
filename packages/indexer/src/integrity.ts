@@ -331,7 +331,7 @@ async function autoBackfill(gaps: Gap[]) {
 		// Hiro's public API here — the platform runs on its own stacks-node and stays
 		// Hiro-free. Historical execution events can't be re-derived from raw node RPC,
 		// so surface the unfillable gap loudly for re-sync/ops instead of silently
-		// reaching an external provider. (Was: HiroClient.getBlockForIndexer fill.)
+		// reaching an external provider.
 		//
 		// This state persists past this function's `finally` (unlike
 		// autoBackfillInProgress/Remaining) so /health/integrity can report a

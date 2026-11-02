@@ -204,10 +204,8 @@ export async function persistJournalPayload(
 	height: number,
 ): Promise<void> {
 	const block = parseBlock(payload);
-	const txResults = await Promise.all(
-		payload.transactions.map((t) => parseTransaction(t, height)),
-	);
-	const txs = txResults
+	const txs = payload.transactions
+		.map((t) => parseTransaction(t, height))
 		.filter((t): t is NonNullable<typeof t> => t !== null)
 		.map((t) => stripNullBytes(t) as typeof t);
 	const evts = payload.events

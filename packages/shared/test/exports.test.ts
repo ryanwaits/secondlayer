@@ -97,11 +97,6 @@ describe("package exports", () => {
 		expect(mod).toBeDefined();
 		expect(mod.StacksNodeClient).toBeDefined();
 	});
-
-	test("node/hiro-client export", async () => {
-		const mod = await import("@secondlayer/shared/node/hiro-client");
-		expect(mod).toBeDefined();
-	});
 });
 
 test("classify export", async () => {

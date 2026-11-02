@@ -292,12 +292,8 @@ export async function ingestNewBlock(
 	}
 
 	const block = parseBlock(payload);
-	const txResults = await Promise.all(
-		payload.transactions.map((tx: TransactionPayload) =>
-			parseTransaction(tx, payload.block_height),
-		),
-	);
-	const txs = txResults
+	const txs = payload.transactions
+		.map((tx: TransactionPayload) => parseTransaction(tx, payload.block_height))
 		.filter((tx): tx is NonNullable<typeof tx> => tx !== null)
 		.map((tx) => stripNullBytes(tx) as typeof tx);
 

@@ -77,12 +77,12 @@ export function buildIntegrityMessage(
 					? heights.split(", ").length
 					: null;
 		if (n !== null && heights) {
-			return `🚨 Indexer: gaps_unfillable — ${n} block(s) unfillable (heights ${heights}) — needs manual repair, see packages/indexer/REPAIR-GUIDE.md`;
+			return `🚨 Indexer: gaps_unfillable — ${n} block(s) unfillable (heights ${heights}) — needs manual repair, run secondlayer repair`;
 		}
 		if (n !== null) {
-			return `🚨 Indexer: gaps_unfillable — ${n} block(s) unfillable — needs manual repair, see packages/indexer/REPAIR-GUIDE.md`;
+			return `🚨 Indexer: gaps_unfillable — ${n} block(s) unfillable — needs manual repair, run secondlayer repair`;
 		}
-		return "🚨 Indexer: gaps_unfillable — needs manual repair, see packages/indexer/REPAIR-GUIDE.md";
+		return "🚨 Indexer: gaps_unfillable — needs manual repair, run secondlayer repair";
 	}
 	if (status === "chain_unlinked") {
 		const heights = formatHeights(body?.brokenLinks);

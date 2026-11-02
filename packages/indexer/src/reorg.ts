@@ -228,10 +228,8 @@ export async function reconcileReorgedRange(
 		);
 
 		const blockInsert = parseBlock(nodePayload);
-		const txResults = await Promise.all(
-			nodePayload.transactions.map((t) => parseTransaction(t, height)),
-		);
-		const txs = txResults
+		const txs = nodePayload.transactions
+			.map((t) => parseTransaction(t, height))
 			.filter((t): t is NonNullable<typeof t> => t !== null)
 			.map((t) => stripNullBytes(t) as typeof t);
 		const evts = nodePayload.events

@@ -21,65 +21,6 @@ import type {
 	VmTraceEvent,
 } from "./types/node-events.ts";
 
-// Stacks API URL for fallback tx lookups (opt-in via ENABLE_TX_DECODE_FALLBACK=true).
-// No default — the platform runs Hiro-free; if this fallback is ever enabled it
-// must be explicitly pointed at a source (own node/API), never a public provider.
-const STACKS_API_URL = process.env.STACKS_API_URL;
-const TX_DECODE_FALLBACK_ENABLED =
-	process.env.ENABLE_TX_DECODE_FALLBACK === "true";
-
-/**
- * Fetch transaction details from Stacks API
- * Used as fallback when raw_tx decode fails
- */
-async function fetchTxFromApi(txid: string): Promise<{
-	txType: string;
-	sender: string;
-	contractId: string | null;
-	functionName: string | null;
-	functionArgs: string[] | null;
-} | null> {
-	if (!STACKS_API_URL) return null;
-	try {
-		const response = await fetch(`${STACKS_API_URL}/extended/v1/tx/${txid}`);
-		if (!response.ok) {
-			logger.debug("Failed to fetch tx from API", {
-				txid,
-				status: response.status,
-			});
-			return null;
-		}
-
-		const data = (await response.json()) as {
-			tx_type?: string;
-			sender_address?: string;
-			contract_call?: { contract_id: string; function_name: string };
-			smart_contract?: { contract_id: string };
-		};
-
-		let contractId: string | null = null;
-		let functionName: string | null = null;
-
-		if (data.tx_type === "contract_call" && data.contract_call) {
-			contractId = data.contract_call.contract_id;
-			functionName = data.contract_call.function_name;
-		} else if (data.tx_type === "smart_contract" && data.smart_contract) {
-			contractId = data.smart_contract.contract_id;
-		}
-
-		return {
-			txType: data.tx_type || "unknown",
-			sender: data.sender_address || "unknown",
-			contractId,
-			functionName,
-			functionArgs: null,
-		};
-	} catch (error) {
-		logger.debug("Error fetching tx from API", { txid, error: String(error) });
-		return null;
-	}
-}
-
 /** Burnchain op → the stored tx type and the boot function the node ran,
  *  matching how a signed Stacks tx of the same effect is stored. */
 const BURNCHAIN_OP_CALLS: Record<
@@ -147,11 +88,10 @@ export function parseBlock(payload: NewBlockPayload): InsertBlock {
 	};
 }
 
-export async function parseTransaction(
+export function parseTransaction(
 	tx: TransactionPayload,
 	blockHeight: number,
-	options?: { skipApiFallback?: boolean },
-): Promise<InsertTransaction | null> {
+): InsertTransaction | null {
 	// Skip if no txid (completely malformed)
 	if (!tx.txid) {
 		return null;
@@ -162,27 +102,9 @@ export async function parseTransaction(
 	// Burnchain ops (raw_tx = "0x00" or "0x") are Bitcoin-originated, with no
 	// Stacks transaction bytes; the node describes them in `burnchain_op`
 	const hasDecodableRawTx = tx.raw_tx && tx.raw_tx.length > 10;
-	let decoded: TxSummary | null = hasDecodableRawTx
+	const decoded = hasDecodableRawTx
 		? decodeRawTx(tx.raw_tx, tx.txid)
 		: summarizeBurnchainOp(tx.burnchain_op);
-
-	// If decode failed, try fetching from Stacks API only if explicitly enabled.
-	// During genesis sync, decode failures are expected for some legacy tx formats —
-	// we use "unknown" type/sender instead of hitting the API for every failure.
-	if (
-		!decoded &&
-		tx.txid &&
-		!options?.skipApiFallback &&
-		TX_DECODE_FALLBACK_ENABLED
-	) {
-		decoded = await fetchTxFromApi(tx.txid);
-		if (decoded) {
-			logger.debug("Fetched tx details from API", {
-				txid: tx.txid,
-				type: decoded.txType,
-			});
-		}
-	}
 
 	// Use decoded values, falling back to payload values if available, then defaults
 	const txType = decoded?.txType ?? tx.tx_type ?? "unknown";
