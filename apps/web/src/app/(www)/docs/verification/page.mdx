@@ -25,14 +25,17 @@ $ secondlayer verify block 9137005
 ✓ block       9,137,005  2e5962b00b8f243e1a4b5a1b7ff3076618ce5e737e30c019bc61e461c92f57ff
 ✓ bitcoin     headers 967,680..970,269, proof-of-work and retargets checked
 ✓ burn        height 970,269  00000000000000000001abf5e92c4e771c041ff3a9fde450c2291775641a801c
-✓ cycle       144, signer set proven forward from checkpoint cycle 143
+✓ cycle       144, the checkpoint's own signer set
 ✓ signatures  2,866 / 4,000 weight signed, threshold 2,800
 ✓ txs         2 transactions match the tx merkle root
 ✓ state root  8103be4b31c6549fe58dd453d9ea357286c874ac0f4f81f4326791e8191f0cd5 matches the witness
 ✓ diff        18 written (unnamed), 1 carried, 5 internal
 · rows        not checked (pass --rows)
-✓ Block 9,137,005 is proven. Trusted: only the checkpoint (Stacks 8,956,304, Bitcoin 967,680).
+  note: source has no state_writes for block 9137005: 18 written leaves are proven in the block but unnamed
+✓ Block 9,137,005 is proven. Trusted: only the checkpoint (Stacks 9,055,251, Bitcoin 967,680).
 ```
+
+Your output names the checkpoint your release ships, and each release can move it forward.
 
 ## Prove a transaction
 
