@@ -17,6 +17,14 @@
 set -uo pipefail
 
 PORT="${INDEXER_PORT:-3700}"
+# INDEXER_PORT is a compose publish spec, so it may carry a bind IP (0.0.0.0:3700).
+PORT="${PORT##*:}"
+case "$PORT" in
+'' | *[!0-9]*)
+	echo "firewall-indexer: invalid INDEXER_PORT: ${INDEXER_PORT:-}" >&2
+	exit 1
+	;;
+esac
 DOCKER_NET="${INDEXER_DOCKER_NET:-172.18.0.0/16}"
 
 # Single source of truth: derive the allowed node IP from STACKS_NODE_RPC_URL
@@ -33,8 +41,10 @@ iptables -D DOCKER-USER -p tcp --dport "$PORT" -s "$NODE_IP" -j RETURN 2>/dev/nu
 iptables -D DOCKER-USER -p tcp --dport "$PORT" -s "$DOCKER_NET" -j RETURN 2>/dev/null || true
 iptables -D DOCKER-USER -p tcp --dport "$PORT" -j DROP 2>/dev/null || true
 
-iptables -I DOCKER-USER 1 -p tcp --dport "$PORT" -j DROP
-iptables -I DOCKER-USER 1 -p tcp --dport "$PORT" -s "$DOCKER_NET" -j RETURN
-iptables -I DOCKER-USER 1 -p tcp --dport "$PORT" -s "$NODE_IP" -j RETURN
+# Allows first, so a re-run never drops the node's deliveries. A failed insert
+# must fail the unit: reporting success here left the port public for months.
+iptables -I DOCKER-USER 1 -p tcp --dport "$PORT" -s "$DOCKER_NET" -j RETURN || exit 1
+iptables -I DOCKER-USER 1 -p tcp --dport "$PORT" -s "$NODE_IP" -j RETURN || exit 1
+iptables -I DOCKER-USER 3 -p tcp --dport "$PORT" -j DROP || exit 1
 
 echo "firewall-indexer: port $PORT restricted to $NODE_IP + $DOCKER_NET"
