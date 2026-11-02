@@ -4,7 +4,7 @@
 
 Add a smoke test for every continuous service.
 
-Add a smoke test for every new endpoint unless a contract test fully covers it. If N/A, write the reason in `.agents/current-sprint.md`.
+Add a smoke test for every new endpoint unless a contract test fully covers it.
 
 ## Location
 

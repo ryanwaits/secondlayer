@@ -3,7 +3,7 @@ import { sql } from "kysely";
 import { onChainPlane } from "../src/db/migration-role.ts";
 
 /**
- * Drop the legacy `l2` (layer-2) naming off the decode plane (ADR-0010).
+ * Drop the legacy `l2` (layer-2) naming off the decode plane.
  *
  * `l2` collides with the blockchain layer model (Bitcoin = L1, Stacks = L2), so
  * an "L2 decoder" reads as a chain layer rather than our decode plane. Two

@@ -12,7 +12,7 @@ import {
  * Decoder-progress bound for consumers that read decoded Index rows.
  *
  * Each decoded event type is produced by an independent decoder
- * (`decode.<event_type>.v1` — ADR-0008/0010). Index `getTip` tracks
+ * (`decode.<event_type>.v1`). Index `getTip` tracks
  * `decode.ft_transfer.v1` (or ingestion, on the Postgres tap). A forward-only
  * cursor that processes a height before the decoder feeding a referenced type
  * has committed it misses the match and never revisits.

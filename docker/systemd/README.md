@@ -43,7 +43,7 @@ is required for this unit.
 workflow. Hosted runners were never assigned to most firings — the job sat
 unassigned ~15 min and was cancelled with zero steps run, which paged red while
 saying nothing about prod, and only ~4 of 48 daily firings materialized. That
-workflow is now manual-dispatch only.
+workflow is gone.
 
 Each service sources `/opt/secondlayer/docker/.env` for `DATA_DIR`,
 `STORAGEBOX_USER`, `STORAGEBOX_HOST`, `STORAGEBOX_PATH`, `STORAGEBOX_PORT`, and
