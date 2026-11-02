@@ -1,42 +1,20 @@
 # Metered hosted model (economics)
 
-Status: DRAFT, numbers resolved (founder thread 2026-09-11). Internal.
-Public copy must not ship until STRATEGY.md matches. Companion to
-STRATEGY.md Pricing and PRODUCT.md "Open" hosted-SKU items.
+Internal. The rationale behind STRATEGY.md Pricing. Prices live in
+`packages/platform/src/billing/prices.ts`; if this file disagrees with that
+table, the table wins.
 
-**Superseded in part 2026-09-23:** hosted subgraphs and hosted webhook
-delivery are not offered. Accountless play, claim, the $10 grant, and the
-subgraph running/storage/indexing and delivery meters were removed
-(anonymous handler code ran in-process beside prod credentials). Subgraphs
-and webhooks are self-host only. The archive and Index/Streams read meters
-below stand.
-
-**Updated 2026-09-24 (one ledger):** every meter now runs through
-`usage_ledger` + `meter()`, one price table, and a monthly rows
-allowance replacing the free-height window and the Streams retention
-ladder — both dropped.
-
-**Updated 2026-09-27 (lower allowance + memory floor):** the free-rows
-allowance dropped from 10M to 1M/month (at 10M nearly every reader was
-free). `memory.gb_hour` now bills `max(sampled RAM, 0.5 GB)` per running
-tenant, so any running hosted stack floors at ~$10/mo; a stopped tenant
-is never sampled, so it bills nothing.
-
-**Updated 2026-10-15 (floor set in dollars):** the floor is $5.00/mo for a
-webhook-only stack (no `subgraph-processor`, ≈0.245 GB) and $10.00/mo with
-subgraphs (≈0.489 GB). `STACK_FLOOR_USD_MICROS_PER_MONTH` in
-`packages/platform/src/billing/prices.ts` is the source; the GB floor is
-derived from it at the memory rate (`stackMemoryFloorGb`). The workload
-control DB's `tenants.has_subgraphs`, reconciled from each tenant's subgraph
-count, picks which.
+Pricing is metered only and live. One prepaid balance in dollars pays for
+archive bootstrap, hosted Index/Streams rows, and hosted per-account stacks
+(subgraphs and webhook delivery). Every charge runs through `meter()` and
+`usage_ledger`. There are no monthly tiers.
 
 ## Constraint
 
-No monthly SKUs. One prepaid balance, dollars, across archive bootstrap
-and hosted Index/Streams reads.
-Enterprise is a custom door, not a plan. Target: ~$10k/mo revenue at
-~10 hr/week of operator work. Current infra bill ~$400/mo (mostly the
-node server; mostly unused).
+No monthly SKUs, no Pro SKU. One prepaid balance, dollars, across the archive
+and every hosted meter. A running stack's floor is a minimum on the memory
+meter, not a plan. Target: ~$10k/mo revenue at ~10 hr/week of operator work.
+Current infra bill ~$400/mo (mostly the node server; mostly unused).
 
 Self-host stays MIT and unmetered. This document is the hosted path only.
 
@@ -47,15 +25,18 @@ COGS is ~100% fixed. Everything we sell rides hardware we already own.
 | Cost center | Fixed | Marginal |
 |---|---|---|
 | AX52 app + AX162-S node + Storage Box | ~$400/mo | — |
+| Workload host (Hetzner Cloud CPX32, runs hosted stacks) | on top of the $400 | RAM and disk per stack |
 | R2 archive (39 GB, 2026-08-12) | ~$0.59/mo, +0.7 GB/mo | $0.015/GB-mo storage, $0 egress |
 | Hosted row read | — | PG CPU/IO on owned NVMe ≈ $0 |
-| Subgraph sandbox | — | ~81.5 MB RAM per warm subprocess (measured, sandbox spike) |
-| Webhook delivery | — | Hetzner dedicated traffic is unmetered ≈ $0 |
+| Subgraph sandbox | — | ~81.5 MB RAM per warm subprocess (measured, `docs/internal/security/subgraph-processor-sandbox-spike.md`) |
+| Webhook delivery | — | Bandwidth from the workload host (Hetzner Cloud); cost not measured |
 
 $400/mo ÷ $10k/mo target = 4% fixed-cost ratio. After Stripe (~3% + 30¢),
-net margin at target is ~93%. We do not need plans because nothing we
-sell has meaningful marginal cost. We need prices that (a) cover abuse,
-(b) signal value, (c) cover $400 fast.
+net margin at target is ~93%. We do not need plans because almost nothing we
+sell has meaningful marginal cost. Hosted stacks are the exception: each holds
+RAM and disk on the workload host, which the memory and storage meters and the
+floor pay for. We need prices that (a) cover abuse, (b) signal value,
+(c) cover $400 fast.
 
 Do not optimize the $400 yet. Hetzner's June 2026 price adjustment hit
 *new* orders (AX42-1 is €187/mo for new customers). Grandfathered pricing
@@ -63,66 +44,76 @@ is an asset. The AX162-S is the floor: bitcoind (~750 GB) + stacks
 chainstate (~800–900 GB) needs ~2 TB of fast disk. Revisit only if
 revenue stalls below $1k/mo for months.
 
-## What exists (plan-049, one ledger)
+## What's shipped
 
 Credits are USD-micros (`account_credits.balance_usd_micros`). 1 USD =
 1,000,000 µ$. `meter()` (`packages/platform/src/billing/meter.ts`) is the
 one function that debits it; `usage_ledger` is the append-only record of
 every charge. Prices live in one table, `packages/platform/src/billing/prices.ts`:
 
-| Unit | Price | Status |
+| Unit | Price | Charged by |
 |---|---|---|
-| `archive.partition` | $0.05 | live |
-| `archive.partition.events` | $0.15 | live |
-| `rows.delivered` | $5/1M; $2/1M once monthly spend ≥ $50; first 1M rows/mo free | live |
-| `memory.gb_hour` | ~$0.028/GB-hour, floored at $5/mo webhook-only or $10/mo with subgraphs per running tenant | live, called by the workload host's memory sampler |
-| `storage.gb_day` | ~$0.25/GB-month billed daily | priced, no caller yet (046) |
-| `webhook.event` | $10/1M, retries free | priced, no caller yet (044) |
+| `archive.partition` | $0.05 (`blocks`, `transactions`) | archive fetch gate |
+| `archive.partition.events` | $0.15 (`events`, `state_writes`) | archive fetch gate |
+| `rows.delivered` | $5/1M; $2/1M once monthly spend ≥ $50; first 1M rows/mo free | Index/Streams credits gates |
+| `memory.gb_hour` | ~$0.028/GB-hour, floored at $5/mo webhook-only or $10/mo with subgraphs per running tenant | workload host memory sampler |
+| `storage.gb_day` | ~$0.25/GB-month billed daily | workload host storage sampler |
+| `webhook.event` | $10/1M, retries free | workload host event counter |
 
-- The first 1M `rows.delivered` per account per UTC calendar month are free
-  — replaces the old free-height window and Streams' 1-day retention
-  ladder (both removed). An account still under the allowance, or with
-  balance ≥ `MIN_CREDITED_USD_MICROS` (one page's worth), reads full
-  history and pays per row past the allowance. Once the allowance is used
-  up and the balance is short, the credits gate refuses the read up front
-  with 402 `insufficient_credits` + a top-up link — the pre-check that
-  keeps an out-of-credits key from becoming an unmetered feed of all
-  history (`index/credits-gate.ts`, `streams/credits-gate.ts`).
-- `memory.gb_hour` bills `max(sampled RAM, stackMemoryFloorGb(has_subgraphs))` per running tenant
-  (`packages/workload/src/meters.ts`), so any running hosted stack floors
-  at $5/mo (webhook-only) or $10/mo (with subgraphs) even idling near 0. Sampling only ever runs against
+- The first 1M `rows.delivered` per account per UTC calendar month are free.
+  An account still under the allowance, or with balance ≥
+  `MIN_CREDITED_USD_MICROS` (one page's worth), reads full history and pays
+  per row past the allowance. Once the allowance is used up and the balance is
+  short, the credits gate refuses the read up front with 402
+  `insufficient_credits` + a top-up link, the pre-check that keeps an
+  out-of-credits key from becoming an unmetered feed of all history
+  (`index/credits-gate.ts`, `streams/credits-gate.ts`). Past the allowance, a
+  reached monthly spend cap refuses with 402 `spend_cap_reached`.
+- Hosted subgraph indexing reads bill `rows.delivered` against the same
+  allowance. The rows read to match webhook triggers do not.
+- `memory.gb_hour` bills `max(sampled RAM, stackMemoryFloorGb(has_subgraphs))`
+  per running tenant (`packages/workload/src/meters.ts`), so any running hosted
+  stack floors at $5/mo (webhook-only, no `subgraph-processor`, ≈0.245 GB) or
+  $10/mo (with subgraphs, ≈0.489 GB) even idling near 0. The floor is set in
+  dollars (`STACK_FLOOR_USD_MICROS_PER_MONTH`); the GB floor is derived from it
+  at the memory rate, so a rate change never moves the dollar floor. The
+  workload control DB's `tenants.has_subgraphs`, reconciled from each tenant's
+  subgraph count, picks which. Sampling only ever runs against
   `state = 'running'` tenants (`listRunningTenants`); a stopped tenant is
   never sampled, so it bills nothing.
+- Hosted-stack units drain a short balance to 0 rather than refuse the charge.
+  The provisioner's 5-minute poll (`POST /internal/accounts/credits`) stops a
+  running tenant at zero balance or a reached spend cap, and restarts it once
+  the account is ok again.
 - Hosted `/v1` Index/Streams reads require an `sk-sl_*` key (401 without
-  one) — the allowance is per account, so a keyless feed of all history
+  one): the allowance is per account, so a keyless feed of all history
   would be unmetered.
-- Free repair allowance (archive `repair` flow): 18 partitions/mo, a
-  pre-check in `routes/archive.ts`, separate from the ledger allowance.
-- Top-up packs: $10 / $25 / $50 / $100 (`routes/billing.ts`); a top-up
-  writes a `unit: "topup"` ledger row with negative `usd_micros`.
-- `POST /internal/meters`: batched ingest for the hosted-stack meters
-  above, guarded by `WORKLOAD_HOST_KEY` (044/046's provisioner and
-  gateway; no caller yet).
-- `GET /api/billing/usage?month=`: per-unit quantity + cost from the
-  ledger. No UI yet — the future consumer is the web account credits page.
+- Free repair allowance (archive `repair` flow): 24 partitions/mo (6 bundles ×
+  4 datasets), a pre-check in `routes/archive.ts`, separate from the ledger
+  allowance.
+- Top-ups (`routes/billing.ts`): packs of $10 / $25 / $50 / $100, or any whole
+  dollar amount from $5 to $1,000 when signed in, plus opt-in auto-refill. A
+  top-up writes a `unit: "topup"` ledger row with negative `usd_micros`.
+- `POST /internal/meters`: batched ingest for the hosted-stack meters above,
+  guarded by `WORKLOAD_HOST_KEY`; the workload host is the caller.
+- `GET /api/billing/usage?month=`: per-unit quantity + cost from the ledger,
+  read by the web account pages.
 
-Subgraphs and webhooks are self-host only and unmetered.
+Self-host subgraphs and webhooks are unmetered.
 
-## Resolved numbers (founder, 2026-09-11; allowance 2026-09-24)
+## Decisions (founder)
 
-1. ~~Play grant = $10.~~ Removed 2026-09-23 with hosted subgraphs.
-2. ~~No $250 usage gate.~~ Moot: no claim path.
-3. **No Streams retention ladder.** Removed 2026-09-24 — the monthly
-   allowance is the free tier now, not a time window; a read past it needs
+1. **No Streams retention ladder, no free-height window.** The monthly
+   allowance is the free tier, not a time window; a read past it needs
    balance, or the credits gate 402s before serving it.
-4. ~~Accountless play, account at claim.~~ Shipped 2026-09-11, removed
-   2026-09-23 (migration 0135 drops claim_tokens, play_provisions,
-   hosted_meter_days).
-5. **Display = dollars everywhere.** No credit-token denomination.
+2. **Allowance = 1M rows/mo.** At 10M nearly every reader was free.
+3. **Display = dollars everywhere.** No credit-token denomination.
    Quotes and balances print as `$`.
-6. **A pipeline priced by rows delivered, not a query service** (founder
-   2026-09-24). Tip and history cost the same; the archive is the only
-   bulk discount.
+4. **A pipeline priced by rows delivered, not a query service.** Tip and
+   history cost the same; the archive is the only bulk discount.
+5. **No accountless hosted path.** Hosted subgraphs and webhooks run on an
+   account key in a private stack. Anonymous handler code beside prod
+   credentials does not come back.
 
 ## Sentinel (founder, 2026-09-29; billing split 2026-10-19)
 
@@ -155,29 +146,21 @@ unit is metered.
   carries that tag, and acts only on `kind: credits_topup` and
   `credits_refill`. This site never deletes, updates or merges Stripe
   customers it did not create.
-- Cutover: owed usage (`sentinel.*` rows with `debited = false`) is waived with
-  `scripts/ops/waive-sentinel-owed.ts` (dry run by default). Starter grants
-  already credited stay as Secondlayer credit.
+- Cutover: owed usage (`sentinel.*` rows with `debited = false`) was waived
+  (`source = 'sentinel:waived'`). Starter grants already credited stay as
+  Secondlayer credit.
 
 ## Capacity at $10k/mo
 
-- $10k/mo in row reads at $5/1M = 2B rows/mo ≈ 770 rows/sec. Trivial
-  for this Postgres.
+- $10k/mo in row reads at $5/1M = 2B rows/mo ≈ 770 rows/sec; at the $2/1M
+  volume rate, 5B rows/mo ≈ 1,930 rows/sec. Trivial for this Postgres.
 - Break-even: $400 ÷ $50 avg spend ≈ 8 customers.
 - $10k/mo ≈ 50 teams at $200 avg, or 20 heavy ones at $500.
 - GTM universe is ~30–80 funded Stacks teams (STRATEGY.md). Hitting
   $10k/mo means roughly full penetration of that universe, or growth
   past it. Worth saying out loud.
 
-## STRATEGY.md consequences
-
-Applied 2026-09-23: STRATEGY.md says hosted subgraphs and webhooks are not
-offered; subgraphs and webhooks are self-host only. "Not a monthly
-service" and "no Pro SKU" stand. Self-host stays unmetered.
-
 ## Out of scope here
 
-Landing-page visual world, product switcher, and copy. Separate design
-session. This file is the economic contract that session cites.
-The homepage should surface Subgraphs and Webhooks (self-host),
-Index/Streams, and archive — but that is layout/copy, not pricing.
+Landing-page visuals, layout and copy. This file is the economic contract
+those cite.

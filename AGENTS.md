@@ -5,59 +5,21 @@ Operating instructions for AI coding agents working in this repo. Read this and
 
 ---
 
-## Repo orientation
-
-Secondlayer is a self-hosted Stacks data runtime. Three capabilities — **Index**
-(decoded chain data over REST), **Subgraphs** (your schema, self-host only),
-and **Streams** (raw signed firehose + dumps) — plus features (Webhooks,
-subgraph templates, Contract discovery, Verification) and channels (REST/OpenAPI,
-CLI, SDK, MCP). We publish a signed R2 archive and a hosted API at
-api.secondlayer.tools (Index, Streams). We meter bootstrap/backfill and
-hosted reads off the same prepaid credits. We do not host subgraphs,
-webhook delivery, or a public Explore catalog. `STRATEGY.md` wins
-taxonomy, pricing, and what's frozen.
-
-```
-secondlayer/
-├── STRATEGY.md        ← what we build and why (wins all contradictions)
-├── AGENTS.md          ← this file
-├── docs/              ← audits, specs, guides, sprints (historical)
-├── packages/          ← the 12 workspace packages (all of them)
-│   ├── indexer/       ← block follower, decoders; writes raw + decoded planes
-│   ├── api/           ← public HTTPS surface (/v1: index, subgraphs, streams)
-│   ├── subgraphs/     ← subgraph compiler + runtime
-│   ├── platform/      ← accounts, plans, billing
-│   ├── worker/        ← crons (reconcile, sweeps, alerts)
-│   ├── mcp/ sdk/ cli/ ← clients (golden-path surface only — see parity firewall)
-│   ├── scaffold/      ← generates a subgraph definition from a contract ABI (powers `secondlayer subgraphs scaffold`)
-│   ├── bundler/       ← compiles a subgraph definition into one deployable artifact (powers `secondlayer subgraphs deploy`)
-│   ├── stacks/        ← chain primitives SDK (/clarity load-bearing; nonce coordination supported; rest of wallet half frozen)
-│   └── shared/        ← db, schemas, vocab single-sourcing
-├── apps/web/          ← www marketing + docs
-├── apps/stacks-docs/  ← Stacks ecosystem docs site
-├── contracts/         ← reference Clarity contracts (Clarinet project; e.g. spv-adapter)
-├── docker/            ← Dockerfiles, compose stacks, Caddy (dev + Hetzner prod)
-├── scripts/           ← ops/dev/CI one-offs (seeds, backfills, dry-runs)
-├── bench/             ← throwaway benchmarking subgraphs
-```
-
----
-
 ## Working agreements
 
 ### Parity firewall (load-bearing)
 
-A new capability ships as a **REST route + OpenAPI entry only**. SDK/CLI/MCP
-wrappers are added on first external request — generated where possible, never
-speculatively hand-mirrored. Releases batch weekly via changesets.
+A new capability ships **REST route + OpenAPI entry first**. SDK and CLI wrappers
+follow where they earn their place, generated where possible; MCP stays
+golden-path only. Releases go out as changesets when ready.
 
 ### Frozen periphery
 
-multi-ORM codegen, aggregates, index proofs/stacking/mempool extras, the
-stacks-SDK wallet half (except nonce coordination — supported, see
+index stacking/mempool extras, the stacks-SDK wallet half (except nonce coordination — supported, see
 packages/stacks/README.md), webhooks format expansion. Shipped code stays; no
-new investment, no docs prominence. Delete on first maintenance touch. Unfreeze
-requires a named external request.
+new investment, no docs prominence. Being on this list is never grounds to
+delete; that takes usage or dead-code evidence. Unfreeze requires a named
+external request.
 Nonce coordination is the carved-out exception: demand-validated (named external
 request), supported, documented.
 
@@ -72,7 +34,7 @@ request), supported, documented.
 - Cursor format and public `/v1` envelope are 1.0 contracts; reorg/cursor tests
   are sacred.
 - Decoders read Streams' reader in-process; the HTTP Streams path is guarded by the HTTP == in-process parity test (`packages/api/src/streams/decode-dogfood.test.ts`). Do not break either. (The 11 classic decoders — `packages/indexer` l2 module — moved in-process; sbtc/pox4/pox5/bns still read over HTTP until their own pass.)
-- Never describe product surfaces as L1/L2/L3 layers in docs or comms — Stacks is itself a Bitcoin L2, so the terms confuse users. Say raw (Streams), decoded (Index), your schema (Subgraphs). This also extends to code: no identifier, env var, service, or table may start with `l2`/`layer2`. The decoder service is `decoder` (image `secondlayer-decoder`), the dir is `packages/indexer/src/decode/`, checkpoints are named `decode.<event_type>.v<major>`, and the checkpoint table is `decoder_checkpoints` (see ADR-0008/ADR-0010).
+- Never describe product surfaces as L1/L2/L3 layers in docs or comms — Stacks is itself a Bitcoin L2, so the terms confuse users. Say raw (Streams), decoded (Index), your schema (Subgraphs). This also extends to code: no identifier, env var, service, or table may start with `l2`/`layer2`. The decoder service is `decoder` (image `secondlayer-decoder`), the dir is `packages/indexer/src/decode/`, checkpoints are named `decode.<event_type>.v<major>`, and the checkpoint table is `decoder_checkpoints`.
 - No EVM/multi-chain. No new wallet-side primitives beyond nonce coordination (supported) and what's already frozen.
 
 ### Process

@@ -4,7 +4,7 @@
 > profiles → synthesis → adversarial critique. Anchor numbers from founder-supplied research
 > (Zest/Xverse/Fordefi/Asigna/Dune/QuickNode/Foundation/Studio cohort, 2026-06-12).
 > Companion: `multichain-ordinals-l1-expansion-2026-06-13.md` (the "don't add chains" pass).
-> This pairs with STRATEGY.md; where they conflict, STRATEGY.md wins until amended.
+> Dated historical audit, not current direction. Where it conflicts with shipped work, shipped work wins.
 
 ## The honest thesis
 

@@ -21,13 +21,15 @@ Brief: https://claude.ai/artifact/DsN9iEsNpFuVhX3jr27Zoq
 
 | Field | Value |
 |---|---|
-| Phase | **3: prod migration (plan 095).** Gate 2 PASSED 2026-10-14 after 14 days at tip on the feeder. Next: rebuild from empty on app-server `/data/bitcoin` (md3), digests vs the feeder, switch `BITCOIN_DATABASE_URL` (founder go), Gate 3 |
-| Executor plan | `plans/037-bitcoin-runes-decoder-spike.md` (done, Gate 1); `plans/039-runes-backfill-integrity-and-profile.md` (done); `plans/057-runes-tip-follow-and-reorg.md` (done, steps 1–8); `plans/070-runes-follow-rpc-wait.md` (done); `plans/076-*` (rpc timeout/retry, follow heartbeat — done, deployed to feeder) |
-| Spike host | `stacks-feeder` (Hetzner Cloud `cpx62`, FSN, 4T volume), shared with Stacks genesis IBD |
-| Bitcoin source | node-server bitcoind `37.27.171.220:8332` (full, txindex), feeder IP already allowlisted |
-| Prod impact | none. No prod box changes through Phase 2 |
-| Last updated | 2026-10-14 (Gate 2 row filled; follower `btc-oss-runes-1` at tip, lag 0; daily spot parity 0 mismatches through 971,364; default `FLUSH_INTERVAL` 100) |
-| Pending cleanup | `btc_gate1` (pre-057 `btc`, Gate 1 state) left in place on `btc-pg` — reviewer drops it after 24h of clean `follow`, not the executor |
+| Phase | **3: prod migration (plan 095), still open. Runes are live on hosted** (switched 2026-10-15 11:15Z, founder confirms). Gate 3 not passed. Left: frozen parity on app-server (or record its result), then retire the feeder's Bitcoin stack. Phase 4 waits on this |
+| Executor plan | `plans/037-bitcoin-runes-decoder-spike.md` (done, Gate 1); `plans/039-runes-backfill-integrity-and-profile.md` (done); `plans/057-runes-tip-follow-and-reorg.md` (done, steps 1–8); `plans/070-runes-follow-rpc-wait.md` (done); `plans/076-*` (rpc timeout/retry, follow heartbeat — done, deployed to feeder); `plans/095-runes-prod-on-app-server.md` (switched, step 8 open) |
+| Prod host | `app-server`: compose project `secondlayer-bitcoin` (`/opt/secondlayer-bitcoin`), data on `/data/bitcoin` (md3), `ord-runes.service`, `runes-watch.timer`, `runes-parity-spot.timer` |
+| Spike host | `stacks-feeder` (Hetzner Cloud `cpx62`, FSN, 4T volume), shared with Stacks genesis IBD. Its Bitcoin stack still runs beside prod, serving nothing, pending retirement |
+| Bitcoin source | node-server bitcoind `37.27.171.220:8332` (full, txindex), feeder IP already allowlisted; app-server reads it too (plan 095) |
+| Prod impact | Hosted Runes and `chain=bitcoin` Streams are served from app-server. Outage 2026-10-22 → 10-28, fixed (see "How the prod API reaches the Bitcoin Postgres"); `/public/status` reports `bitcoin` ok, tip 974,203 on 2026-11-01 |
+| Last updated | 2026-11-01 (Gate 3 row checked per criterion; status, hosting and retirement wording brought up to date) |
+| Pending cleanup | `btc_gate1` is gone from `secondlayer-btc-spike-btc-pg-1` (checked 2026-11-01). That instance still holds `btc` and `runes_c1`; both go with the feeder retirement |
+| Open, outside Gate 3 | D16 said to move bitcoind RPC off the public network before Phase 3. Phase 3 ran without it ("not blocked by 038"); `plans/README.md` last shows plan 038 TODO. Current state not checked 2026-11-01 |
 
 ## Phases and gates
 
@@ -36,7 +38,7 @@ Brief: https://claude.ai/artifact/DsN9iEsNpFuVhX3jr27Zoq
 | **0** Measure + demand | `ord --index-runes` synced; RPC fetch benchmark; Runes dataset sizes; named demand list | feeder | **Gate 0** |
 | **1** Runes decoder spike | TS decoder backfills 840,000 → tip; digest parity with `ord` at every checkpoint | feeder | **Gate 1** |
 | **2** Runes product | Bitcoin Streams, `/v1/index/runes/*`, webhook triggers, SDK, oss compose profile, docs; soak at tip | feeder (staging) | **Gate 2** |
-| **3** Prod migration | Bitcoin runtime on local NVMe; feeder no longer serves Bitcoin | app-server + added NVMe (D8) | **Gate 3** |
+| **3** Prod migration | Bitcoin runtime on local NVMe; feeder no longer serves Bitcoin | app-server `/data/bitcoin` (md3; D8, existing partitions as built) | **Gate 3** |
 | **4** Inscriptions (metadata) | Same shape as 1–3: spike, parity, product | prod host | Gate 4 |
 | Later | Protocol decoders (BRC-20, sats names, Alkanes, marketplace sales, rare sats, collections) | prod host | named customer each |
 
@@ -47,7 +49,7 @@ Brief: https://claude.ai/artifact/DsN9iEsNpFuVhX3jr27Zoq
 | 0 | `ord` Runes index at tip with size + time recorded; RPC benchmark recorded; demand threshold (D14) met; D4, D6 decided | **partial (2026-09-22):** demand MET (founder confirms users, go); benchmark recorded; D4/D5/D6 LOCKED; contention clear. Remaining: `ord` at tip + size/time + rune counts |
 | 1 | Decode diff 0 mismatches on the sample; entry + balance diff 0 at C1, C2, C3 (D17); supply invariant holds at every flush 840,000 → C3; backfill wall time + PG size recorded; fail-closed tests pass (invariant break, prev-hash break) | **PASS (2026-09-26):** decode diff 0 mismatches (~101,282 txs sampled: block 840,000 full, 840,001-840,021 full, block 850,000 full, one-per-10k 850,000-960,000, 840,022-840,099 not separately covered); C1 (841,000) 0 entry / 0 balance mismatches; C2 (900,000) 0 entry / 0 balance mismatches, on the replayed DB (plan 051), adopted as main 2026-09-25 (plan 056 step 0); C3 (968,557) 0 entry / 0 balance mismatches, rune counts 215,215 = 215,215, outpoint counts 6,941,422 = 6,941,422 (plan 056 step 4). Backfill wall time + PG size recorded at all three checkpoints |
 | 2 | ≥14 days at tip, continuous parity green, one reorg handled (live or injected on regtest), oss compose profile boots from empty and reaches tip | **PASS (2026-10-14):** at tip 2026-09-30 → 2026-10-14, follower heartbeat lag 0, no OOM kill since 2026-09-30 (kernel log). Daily spot parity 15/15 green, 100 runes each, 0 mismatches, 969,325 → 971,364 (`spot-history.log`). Frozen parity vs `ord` 0/0 twice: 969,332 (runes 215,495 = 215,495, outpoints 6,934,190 = 6,934,190) and 970,648 (215,792 = 215,792, 6,919,785 = 6,919,785), 0 entry / 0 balance mismatches. Live reorg 2026-10-04 19:33Z at 969,888 (1 block, fork point 969,887) recorded in `btc_reorgs`; hashes at 969,887 and 969,888 match bitcoind. Boot from empty 2026-09-30 at `FLUSH_INTERVAL` 100 (250 OOMs at 20g in the dense range), now the default. Evidence: `/data/feeder/btc-parity/soak/` on `stacks-feeder` |
-| 3 | Prod host at tip with parity green; digests match feeder at the same height; routing switched; Bitcoin containers removed from feeder | pending |
+| 3 | Prod host at tip with parity green; digests match feeder at the same height; routing switched; Bitcoin containers removed from feeder | **NOT PASSED (checked 2026-11-01, hosts ~03:00Z 11-02):** Runes live on hosted, criterion 4 not met, frozen parity not verified. **(1) Tip met; parity partly verified.** app-server checkpoint 974,203 = node-server burn height = mempool.space; `/public/status` `bitcoin` ok. app-server ord at the same height: runes 217,001 = 217,001; one-off sample of 100 runes (every 2,170th by `number`), 0 mismatches on number, divisibility, premine, mints, burned, etching, name. Balances not compared. `runes-parity-spot.timer` enabled, last run 2026-11-01 06:15Z exit 0; its reports and the planned 7 clean days (10-16 → 10-22) were not read. No frozen parity 0/0 on app-server is recorded in plan 095 or this file, so plan 095's frozen bar is not verified. **(2) Digests met.** `rune_block_digests` 840,000 → 974,190 identical on app-server and feeder `btc-oss`: 134,191 rows, same md5 over height, block hash, digest, event count (`12e1dab01dbd52732b4efe70e896a9c3`). Both checkpoints 974,203 with the same hash. **(3) Routing met, not as first drawn.** Switched 2026-10-15 11:15Z via `BITCOIN_DATABASE_URL` on the prod API (plan 095), no Caddy route. Lost 10-22 → 10-28, durable fix 10-28. Now: 2 `postgres.js` clients through the docker gateway on the app-server Bitcoin PG, matching the 2 api replicas (inferred, `.env` not read); feeder PG has only its own follower. Keyless `/v1/index/runes` returns 401, which shows only the auth gate; no keyed read was run. **(4) Not met: overdue, not abandoned.** Still up on the feeder: `btc-oss-runes-1`, `btc-oss-postgres-1`, `secondlayer-btc-spike-btc-pg-1`, `ord-runes.service`, `btc-oss-parity-spot.timer` (last ran 2026-11-01). No decision keeps them; plan 095 step 8 still says retire |
 
 ## Decision log
 
@@ -96,20 +98,25 @@ Layout on the feeder:
 A separate Postgres instance, not a schema in the Stacks scratch PG: plan 031
 pair-restores the Stacks PG onto prod, and Bitcoin rows must not ride along.
 
-**Prod (Phase 3): app-server with an added NVMe drive for Bitcoin, per D8 (amended 2026-09-25).** Migration is a **rebuild, not a
+**Prod (Phase 3): app-server, per D8 (amended 2026-09-25).** As built, no drive
+was added: founder chose app-server's two unused 477 GB partitions as RAID1
+`md3`, mounted at `/data/bitcoin` (plan 095). Migration was a **rebuild, not a
 copy**:
 
-1. Add the NVMe drive to app-server (Hetzner Robot add-on, maintenance
-   window), mount it for Bitcoin data only. Install the oss compose Bitcoin
-   profile exactly as a self-hoster would, as its own compose project (this is the self-host proof, per the build-for-
-   everyone rule).
-2. Rebuild `ord` and our Runes tables from bitcoind on local NVMe. Record the
-   wall time; it is the number we quote self-hosters.
-3. Run feeder and app-server in parallel until digests match at the same height.
-4. Switch routing (Caddy on app-server: Bitcoin `/v1` paths → the local
-   Bitcoin API container).
-5. Stop and delete Bitcoin containers and `/data/feeder/{ord,btc-pg}` on the
-   feeder. The feeder then retires on its own schedule (plan 031).
+1. **Done.** `md3` mounted at `/data/bitcoin`, which also holds the Stacks
+   archive. The oss compose Bitcoin profile runs exactly as a self-hoster's
+   would, as its own compose project (this is the self-host proof, per the
+   build-for-everyone rule).
+2. **Done 2026-10-15.** Runes tables rebuilt from bitcoind in 13h31m, 840,000 →
+   tip; this is the number we quote self-hosters. `ord` at tip 16:11Z.
+3. **Done.** Digests matched the feeder 840,000..971,557 at the switch, and
+   again through 974,190 on 2026-11-01.
+4. **Done 2026-10-15 11:15Z.** Routing switched by pointing the prod API at the
+   Bitcoin Postgres (`BITCOIN_DATABASE_URL`, below). The Caddy route to a local
+   Bitcoin API container that this plan first drew was not built.
+5. **Not done.** Stop and delete Bitcoin containers and `/data/feeder/{ord,btc-*}`
+   on the feeder. Plan 095 step 8 lists what goes and what must stay. The feeder
+   then retires on its own schedule (plan 031).
 
 **How the prod API reaches the Bitcoin Postgres.** The Bitcoin plane is its
 own compose project (`/opt/secondlayer-bitcoin`, the oss compose plus a host
@@ -129,13 +136,14 @@ projects share no docker network on purpose:
   family that mostly answers 5xx.
 
 Why rebuild: a copy from a network volume hides the local-NVMe timing, and a
-rebuild exercises the same path customers run. Fallback if the rebuild is
-slower than ~2 days: `pg_basebackup` from the feeder, then verify digests.
+rebuild exercises the same path customers run. The `pg_basebackup` fallback for
+a rebuild slower than ~2 days was not needed.
 
 **Feeder retirement ordering.** Plan 031 deletes the feeder after the Stacks
-pair-restore soaks. If 031 lands before Gate 3, either resize a small cloud
-VM for the Bitcoin staging stack or bring Phase 3 forward. Do not delete the
-feeder while it holds the only Bitcoin index.
+pair-restore soaks. app-server has held its own Runes index since 2026-10-15,
+so the feeder no longer holds the only Bitcoin index and nothing Bitcoin blocks
+031. Retiring Bitcoin from the feeder must leave the Stacks re-sync running
+(`secondlayer-feeder-v2`, up on 2026-11-01).
 
 ## Measurements
 

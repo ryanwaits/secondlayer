@@ -1,20 +1,19 @@
 # Secondlayer Strategy
 
-> Single source of truth for what we build and why. Supersedes the former
-> VISION / PRODUCT / PRODUCTS / ROADMAP / ARCHITECTURE docs (deleted 2026-06-11;
-> see git history). If marketing, docs, or code contradict this file, this file wins.
+> What we build and why. Supersedes the former VISION / PRODUCTS / ROADMAP /
+> ARCHITECTURE docs (deleted 2026-06-11; see git history). Shipped work wins: if
+> this file or any other doc contradicts what shipped, fix the doc.
 
 ## The product, one sentence
 
-Secondlayer is a self-hosted data runtime for Bitcoin and its L2s, starting
-with Stacks: run it beside your node, bootstrap verified history, query
-decoded data, deploy TypeScript subgraphs. We operate a signed canonical
-archive on R2 and a hosted API at api.secondlayer.tools for Index, Streams,
-and chain webhooks — one self-host stack per hosted account, gatewayed
-(044). Private subgraphs run there too, in the same per-account stack (no
-public catalog). Prepaid credits buy archive bootstrap/backfill and hosted reads. Same
-balance. Bitcoin Runes and
-inscriptions are next, gated on demand (see **Bitcoin**).
+Secondlayer is instant data for apps on Bitcoin, with proof included: hosted
+Index, Streams, Subgraphs and chain webhooks at api.secondlayer.tools for
+Stacks and Runes. Each hosted account gets its own gatewayed stack; subgraphs
+there are private (no public catalog). The runtime is MIT, so the same product
+also runs on your own box: run it beside your node, bootstrap history from our
+signed archive on R2, deploy the same TypeScript subgraphs. Prepaid credits buy
+hosted usage and archive bootstrap/backfill. Same balance. Inscriptions are
+next, gated on demand (see **Bitcoin**).
 
 That sentence is for us. What we say to a reader is in **Voice** below.
 
@@ -33,6 +32,10 @@ carries the why, examples carry the how.
 "…and shouldn't have to" is load-bearing. The gap is structurally correct, not
 somebody's failure. A general API indexes what's general, and your contract is
 specific by definition. Never name a competitor to make the point.
+
+**Public lines:** the home page leads "Instant data for apps on Bitcoin. Proof
+included."; the verify story is "Trust, and verify." The primary call to action
+is "Start free". Self-host is a door, never the lead.
 
 **Six rules. Each is checkable, so a reviewer can reject a line without
 arguing taste.**
@@ -71,11 +74,13 @@ that brand, never a sub-brand: no per-product hue, logo, or site.
 **The account test** decides what inherits the brand and what may stand
 apart: if adopting a thing needs a Secondlayer account, balance, or runtime,
 it inherits fully. If it is adopted by `npm install` alone and works without
-us, it may carry its own identity, endorsed "by secondlayer". Only
-`@secondlayer/stacks` passes. It lives at `stacks.secondlayer.tools` (the
-subdomain is the lockup), on its own shell (viem-style, gold), never in a
-product switcher. Own domain only if outside maintainers join or a second
-account-free library ships.
+us, it may carry its own identity, endorsed "by secondlayer".
+`@secondlayer/stacks` passes and does. It lives at `stacks.secondlayer.tools`
+(the subdomain is the lockup), on its own shell (viem-style, gold), never in a
+product switcher. Own domain only if outside maintainers join.
+`@secondlayer/verify` also passes (no account or key) but stays in the main
+brand at `/docs/verification`: checking us is the product's claim, not a
+separate library's.
 
 **Named exception: Sentinel** (founder-resolved 2026-09-29; billing split
 2026-10-19). Sentinel, security monitoring for Stacks contracts, is a separate
@@ -111,13 +116,14 @@ account test and inherits the brand. Rules: named by its job ("sBTC inclusion
 check"), never a product noun or a sub-brand; lives at a path under
 `secondlayer.tools`; carries one mono tag ("public good", "grant-funded") and
 a "built on Subgraphs and Webhooks" line; its verifier is open source and
-runnable on the operator's own instance; its hosted table is a
-`visibility: public` subgraph under our account. This is the protocol-catalog
-exception below, applied one deployment at a time; it is not a public
-Explore catalog. Paid follow-ons (paged alerts, private destinations, SLA)
-go through the Enterprise custom door, never a SKU. Deployments are evidence
-for the brand, the same way our own instance is. Placement decision and
-per-deployment checklist: `docs/internal/deployments.md`.
+runnable on the operator's own instance; its hosted table is a subgraph under
+our account. Subgraphs have no public visibility (dropped, migration 0136) and
+hosted `/v1` needs a key, so a deployment's public page needs its own read
+path, decided per deployment. The sBTC inclusion check has no page yet. Paid
+follow-ons (paged alerts, private destinations, SLA) are a per-deployment
+conversation, never a SKU. Deployments are evidence for the brand, the same way
+our own instance is. Placement decision and per-deployment checklist:
+`docs/internal/deployments.md`.
 
 ## Products
 
@@ -126,7 +132,7 @@ of them. Archive is the history primitive (signed canonical archive; verify,
 repair, bootstrap; billed per fetch). It is a noun on the plane and
 a step in the golden path, same as Streams.
 
-**Index** — decoded chain data on your instance. Query events, transfers,
+**Index** — decoded chain data, hosted or on your instance. Query events, transfers,
 blocks, transactions over REST with a cursor envelope — or build your own app
 index on the same rows: a checkpointed `consume()` loop with automatic cursor
 rewind on reorg (`onReorg` rolls back your own rows), `walk()` sweeps,
@@ -149,12 +155,12 @@ grow; pox-4 is off in hosted). Archive stays raw-only; decoded data is always
 re-derivable from it.
 
 **Subgraphs** — your schema. `defineSubgraph()` in one TypeScript file →
-deploy → Postgres tables behind the same `/v1` read API. Self-host, or
-hosted and private: one isolated stack per account, handler code in a gVisor
-sandbox with no network beyond our API and the public internet. The
-accountless hosted path ran anonymous handler code beside prod credentials
-and was removed 2026-09-23; hosted subgraphs return per account, on an
-isolated stack. No public Explore catalog, no fork, no marketplace.
+deploy → Postgres tables behind the same `/v1` read API. Hosted and private
+(live since 2026-10-06): one isolated stack per account, handler code in a
+gVisor sandbox with no network beyond our API and the public internet. Or
+self-host. The accountless hosted path ran anonymous handler code beside prod
+credentials and was removed 2026-09-23; it does not come back. No public
+Explore catalog, no fork, no marketplace.
 
 **Streams** — the raw signed event firehose + parquet dumps. The inputs, not our
 decoding: cursor-paginated REST, SSE tail, signed manifests, replay from any
@@ -162,23 +168,22 @@ height. For data/infra engineers building their own indexer or ETL. Also the
 internal data plane the decoders and subgraphs ride.
 
 **Webhooks** — a signed POST to a URL you run, on a chain event you named.
-Subgraph rows are pulled, not pushed: a trigger on your own Postgres or a cursor
-poll (removed 2026-10-12, plan 129). The push product, the pull product's twin. The row you register
-is still a *subscription* internally (product noun Webhooks, object
-subscription, the Stripe/Alchemy shape). Renamed from "Subscriptions"
-2026-09-12: that word collides with "not a monthly service" and every
-comparable product says Webhooks. Public rename with aliases:
-`plans/rename-webhooks.md`. Self-host: the operator's instance runs the
-matcher and the sender; they host the receiver. Chain webhooks are also
-offered hosted (044) — an `sk-sl_*` key and prepaid credits, no self-host
-instance required; the gateway resolves the key to that account's own
-tenant stack (one self-host stack per account, unchanged runtime, D1) and
-never forwards the customer key into it. Caps: `max_retries` ≤ 7,
-`timeout_ms` ≤ 30000.
+The push product, the pull product's twin. Subgraph-row webhooks were removed
+2026-10-12: subgraph rows are pulled, by a trigger on your own Postgres or a
+cursor poll. The row you register is still a *subscription* internally (product
+noun Webhooks, object subscription, the Stripe/Alchemy shape). Renamed from
+"Subscriptions" 2026-09-12: that word collides with "not a monthly service" and
+every comparable product says Webhooks. Hosted: an `sk-sl_*` key and prepaid
+credits; the gateway resolves the key to that account's own tenant stack (one
+self-host stack per account, unchanged runtime) and never forwards the customer
+key into it. Hosted caps: `max_retries` ≤ 7, `timeout_ms` ≤ 30000. Self-host:
+the operator's instance runs the matcher and the sender, they host the receiver,
+and they set the caps (defaults 100 and 300000).
 
 **Archive** — the signed canonical history Index and Streams bootstrap from.
-`secondlayer verify`, `repair`, `bootstrap`. Free against public manifests;
-official-archive bootstrap and backfill are the billed lines.
+`secondlayer verify`, `repair`, `bootstrap`. `verify` is free against public
+manifests. Official-archive bootstrap and backfill are billed; `repair` gets 24
+free partitions a month, then bills.
 
 ### Features (not products)
 
@@ -194,13 +199,18 @@ official-archive bootstrap and backfill are the billed lines.
   SSE; lenient by default so unsigned self-host still works, `verify: true` for
   strict), and webhooks (universal ed25519 on every format; the default
   `standard-webhooks` format adds a per-subscription HMAC). Index REST reads are
-  not response-signed yet (deferred — see ROADMAP). The counterpart to "build
-  your own" — replay and check us.
+  not response-signed yet (deferred). The counterpart to "build
+  your own" — replay and check us. Proofs go further: `/v1/proofs`,
+  `@secondlayer/verify` and `secondlayer verify block` walk a Stacks block from
+  a shipped checkpoint through Bitcoin headers, signer signatures, the tx merkle
+  root and MARF state proofs. Checking is free. Guiding principle: an index you
+  can check, not one you have to trust.
 
 ### Channels (not features)
 
 How you reach the products, never product nouns: REST + OpenAPI (the contract),
-CLI, SDK, MCP server (distribution for agents; golden-path tools only).
+the signed-in dashboard at `/account`, CLI, SDK, MCP server (distribution for
+agents; golden-path tools only).
 
 ## Index vs Streams — who uses which
 
@@ -212,7 +222,7 @@ This distinction is load-bearing; keep it crisp everywhere:
 | We do | Run the chain indexer and decoder | Hand you the inputs |
 | You do | Query over REST — or build your app index on the rows | Build and run your own indexer/ETL from raw |
 | Who | App devs, agents, dashboards | Data/infra engineers, indexer builders |
-| Verify | Trust our decoding (+ inclusion proofs) | Signed manifests, replay from any height |
+| Verify | Prove the block your rows came from (`verify block`, `/v1/proofs`) | Signed manifests, replay from any height |
 
 Both are indexer products at different levels: Streams is raw, low-level
 indexing — Index is app-level indexing on decoded rows. Streams powers Index:
@@ -222,11 +232,11 @@ machine or on ours. We sell archive bootstrap and hosted usage (Index/Streams
 reads, subgraphs, webhook deliveries) off one prepaid balance.
 
 One line for docs: *Reading decoded data? Index. Building your own app index on
-decoded rows? Also Index — walk + cursors + reorgs[]. Your schema on your
-instance? Subgraphs. Raw inputs? Streams. A POST when it happens? Webhooks.
+decoded rows? Also Index — walk + cursors + reorgs[]. Your schema? Subgraphs.
+Raw inputs? Streams. A POST when it happens? Webhooks.
 Verified history? Archive.*
 
-## Bitcoin (planned, gated 2026-09-22)
+## Bitcoin
 
 Same runtime, same five nouns, a second chain. No new product noun, no
 sub-brand. Why now: the largest neutral provider shut down its Ordinals,
@@ -237,37 +247,41 @@ self-hostable, parity-verified runtime covering Stacks and Bitcoin.
 | Tier | Stacks | Bitcoin |
 |---|---|---|
 | Streams (raw) | blocks, txs, events | Runes events (`rune_*`); raw blocks/txs on request |
-| Index (generic decode) | ft / nft / stx / print | Runes, inscriptions (metadata) |
+| Index (generic decode) | ft / nft / stx / print | Runes (inscription metadata next) |
 | Protocol decoders | sBTC, pox-5 | none yet |
 
 - **Runes first, inscriptions second.** Both have one standard and one
   reference implementation (`ord`), so both are Index, the Bitcoin
   equivalents of `ft_transfer` and `nft_mint`.
-- **Parity is the product.** `ord` runs beside our indexer as a reference;
-  we continuously digest-compare and publish the result. The verified-history
-  wedge, applied to a second chain.
+- **Parity is the proof.** Runes have no on-chain commitment, so `ord`, the
+  reference implementation, runs beside our indexer and we compare results:
+  daily spot checks plus full diffs at frozen heights. The product pages state
+  the result ("checked against ord with 0 mismatches").
 - **Out of scope:** L1 address/UTXO/balance indexing (multi-TB, served free
   elsewhere), EVM "Bitcoin L2s", inscription content serving (legal risk;
   metadata only until a takedown process exists).
 - **Protocol decoders, noted and deferred** until a named customer asks:
   BRC-20 (rules disputed, needs versioned rulesets), sats names and Bitmap,
   Alkanes, marketplace sales, rare sats, collections.
-- **Gate:** Phase 0 measures `ord` index size and sync time on our node and
-  counts real demand. No Runes build before that count.
 
 Brief: https://claude.ai/artifact/DsN9iEsNpFuVhX3jr27Zoq
 Roadmap, decision log, gates, hosting: `docs/internal/bitcoin-runtime.md`.
 
 ## The golden path
 
-`docker compose up` → `secondlayer bootstrap` from the official archive →
-`secondlayer subgraphs create` → deploy → curl your table on localhost → react to rows
-from your Postgres. Forward-only from your own node is free and skips bootstrap.
+Key from `/account/keys` → install the CLI → `secondlayer subgraphs create
+--from-contract` → deploy → curl your table → `secondlayer verify block` on the
+block your rows came from.
 
-Hosted: Index, Streams, Subgraphs and Webhooks on api.secondlayer.tools with
+Index, Streams, Subgraphs and Webhooks all run on api.secondlayer.tools with
 an account key. Hosted subgraphs and webhook delivery run in a private stack
 per account; there is no public catalog. Hostable subgraph sources are event
 filters and contract_call/contract_deploy.
+
+Self-host is the same product on your Postgres: `docker compose up` →
+`secondlayer bootstrap` from the official archive → the same subgraph steps on
+localhost → react to rows from your Postgres. Forward-only from your own node is
+free and skips bootstrap.
 
 ## Pricing
 
@@ -275,21 +289,22 @@ A data pipeline, priced by rows delivered — not a query service. Not a
 monthly service. The runtime is MIT. We run the archive and a hosted API.
 One prepaid `account_credits` balance, denominated in dollars, meters every
 hosted unit through one ledger (`usage_ledger` + `meter()`). No Pro SKU. No
-retention ladder. Enterprise is a custom door.
+retention ladder.
 
-Contract and prices live in `docs/internal/economics-metered-model.md`
-(founder-resolved 2026-09-11, allowance 2026-09-24). Summary:
+Prices live in `packages/platform/src/billing/prices.ts`; rationale in
+`docs/internal/economics-metered-model.md`. Summary:
 
 | Billable | Not billable |
 | --- | --- |
 | Official-archive bootstrap (genesis or a large range) | Self-host runtime, compose, CLI |
 | Data-avail backfill / reindex that reads our archive | Forward-only indexing from the operator's node |
+| `secondlayer repair` past 24 partitions a month | The first 24 repair partitions a month |
 | Hosted Index / Streams reads past the monthly allowance | Self-host `/v1` reads |
 | Hosted subgraph indexing rows past the monthly allowance | The first 1M rows delivered per account per month |
-| A running hosted stack's memory, floored at 0.5 GB (~$10/mo) | Block headers |
+| A running hosted stack's memory, floored at $5/mo webhook-only or $10/mo with subgraphs | Block headers |
 | Hosted stack storage | Reads of your own subgraph tables |
 | Hosted webhook events ($10 per 1M, retries free) | |
-| | `secondlayer verify` / `secondlayer repair` against public manifests |
+| | `secondlayer verify` against public manifests, `verify block`, `/v1/proofs` |
 | | Self-host subgraphs and webhooks |
 | | A stopped hosted stack |
 
@@ -315,23 +330,25 @@ belongs behind a named external request, with the operator as the merchant.
 
 ## Operating rules
 
-- **Parity firewall** — a new capability ships as a REST route + OpenAPI entry
-  ONLY. SDK/CLI/MCP wrappers are added on first external request, generated not
-  hand-mirrored. Releases batch weekly.
-- **Frozen periphery** — shipped-but-unused surfaces (multi-ORM codegen,
-  aggregates, proofs, stacks-SDK wallet half (except supported nonce
-  coordination)) stay shipped, lose docs prominence, and get zero further
-  investment. Delete on first maintenance touch.
+- **Parity firewall** — a new capability ships REST route + OpenAPI entry first.
+  SDK and CLI wrappers follow where they earn their place (Runes and proofs have
+  them), generated where possible; MCP stays golden-path only. Releases go out
+  as changesets when ready.
+- **Frozen periphery** — shipped-but-unused surfaces (index stacking/mempool
+  extras, the stacks-SDK wallet half (except supported nonce coordination),
+  webhooks format expansion) stay shipped, lose docs prominence, and get zero
+  further investment. Being on this list is never grounds to delete; that takes
+  usage or dead-code evidence.
 - **Demand before supply** — features unfreeze on a named external request, not
   on taxonomy or completeness arguments.
 - **GTM is founder-led** — the prospect universe is ~30-80 funded Stacks teams.
-  Templates of *their* contracts, run on their instance, are the outbound asset.
-  Bitcoin adds builders stranded by the 2026-03 L1 API shutdown, once the
-  Phase 0 count says they exist.
+  Bitcoin adds builders stranded by the 2026-03 L1 API shutdown.
 
 ## Team & infra reality
 
-1-2 people. Two Hetzner boxes: node-server (stacks-node, bitcoind full +
-txindex, spare cores) and app-server (Postgres, API, decoders; disk is the
-constraint for new chain data). Docker compose, push-to-main deploys. Every product noun costs a which-door decision for every user and a
+1-2 people. Four Hetzner hosts: node-server (stacks-node, bitcoind full +
+txindex), app-server (Postgres, API, decoders, Runes; disk is the constraint for
+new chain data), stacks-feeder (genesis sync for the Clarity write log) and the
+workload host (one stack per hosted account). Docker compose, push-to-main
+deploys. Every product noun costs a which-door decision for every user and a
 parity tax on us; the default answer to new surface area is no.

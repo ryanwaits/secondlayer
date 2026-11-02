@@ -15,34 +15,34 @@ job. One mono tag. Never its own wordmark.
 
 ## Where the code lives
 
-One standalone public repo per deployment (e.g.
-`secondlayer-labs/sbtc-inclusion-check`). It depends only on published
-`@secondlayer/sdk`, `@secondlayer/subgraphs`, `@secondlayer/stacks`, and
-`@secondlayer/cli`. Reason: the grant promises a signer or Labs engineer can
-run it against their own node, and "build for everyone" forbids a
+One standalone public repo per deployment (e.g. `sbtc-inclusion-check`). It
+depends only on published `@secondlayer/sdk`, `@secondlayer/subgraphs`,
+`@secondlayer/stacks`, and `@secondlayer/cli`. Reason: the verifier must run
+on the operator's own instance, and "build for everyone" forbids a
 monorepo-only special case. Cost: version drift against published packages.
 Mitigate with a pinned range and a weekly CI run against `latest`.
 
 ## Where it runs
 
-On our hosted instance, as a subgraph under a Secondlayer-owned account with
-`visibility: public`, plus Webhooks owned by the same account for alerts.
-Account convention: a dedicated shared inbox (`deployments@` or similar),
-never a personal address. Secret name only (e.g. `DEPLOYMENTS_ACCOUNT_KEY`);
-never a value in this doc. Flipping visibility currently has no public write
-API (`subgraphs_publish` / `subgraphs_unpublish` are absent). Open question
-below.
+The hosted table is a subgraph under a Secondlayer-owned account, plus chain
+Webhooks owned by the same account. Account convention: a dedicated shared
+inbox (`deployments@` or similar), never a personal address. Secret name only
+(e.g. `DEPLOYMENTS_ACCOUNT_KEY`); never a value in this doc.
 
-Anonymous hosted reads of a `visibility: public` subgraph already work
-(`platform anon` in `packages/api/src/routes/v1-subgraphs.ts`).
+Webhooks fire on chain events, not on subgraph rows. An alert that depends on
+a value computed into a row needs something else to read that row, decided per
+deployment.
 
 ## Where it is seen
 
-Status page at `secondlayer.tools/<job-slug>` (e.g. `/sbtc-inclusion`).
-Rendered from the public `/v1/subgraphs/<name>/<table>` read. Same visual
-world as the platform. One mono tag ("public good · grant-funded"). The line
-"built on Subgraphs and Webhooks". Never a subdomain. Never its own
+Status page at `secondlayer.tools/<job-slug>` (e.g. `/sbtc-inclusion`). Same
+visual world as the site. One mono tag ("public good", "grant-funded"). The
+line "built on Subgraphs and Webhooks". Never a subdomain. Never its own
 wordmark.
+
+Subgraphs have no public visibility (dropped, migration 0136) and hosted `/v1`
+without a key returns 401, so the page cannot read its table anonymously. Each
+deployment's public page needs its own read path, decided per deployment.
 
 ## How it is named
 
@@ -53,9 +53,9 @@ passes. A product noun or a Labs-branded title fails.
 ## What it must not become
 
 Not a catalog. Not a sub-brand. Not a SKU. Paid follow-ons (paged alerts,
-private destinations, SLA) go through the Enterprise custom door. The
-open-source verifier and the public page stay free; paid edges do not rename
-the deployment.
+private destinations, SLA) are a per-deployment conversation. The open-source
+verifier and the public page stay free; paid edges do not rename the
+deployment.
 
 ## Checklist
 
@@ -64,9 +64,10 @@ Copy into each `docs/internal/deployments/<slug>.md` and fill before build:
 - **repo URL**
 - **published-package pins**
 - **account**
-- **subgraph name + visibility**
+- **subgraph name**
 - **webhook names**
 - **status page path**
+- **public page read path** (open decision until filled)
 - **open-source verifier runbook link**
 - **ops owner**
 - **funding source and end date**
@@ -75,7 +76,5 @@ Copy into each `docs/internal/deployments/<slug>.md` and fill before build:
 ## Open questions
 
 - Status page as a Next route in `apps/web` vs a static export.
-- How `visibility: public` is set without `subgraphs_publish` (SQL on the
-  hosted box vs restore a publish route). Recorded as an ops path, not a
-  product commitment.
 - Exact shared-account email and secret store for `DEPLOYMENTS_ACCOUNT_KEY`.
+- GitHub org for deployment repos.
