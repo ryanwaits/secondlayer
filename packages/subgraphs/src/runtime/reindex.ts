@@ -42,21 +42,10 @@ const HEALTH_FLUSH_INTERVAL = 1000;
 const PROGRESS_FLUSH_INTERVAL_MS = 5_000;
 /** Consecutive fully-empty batches before the walk halts as source-degraded. */
 const EMPTY_BATCH_HALT_THRESHOLD = 3;
-const STANDARD_REINDEX_BATCH_CONFIG = {
+const REINDEX_BATCH_CONFIG = {
 	defaultBatchSize: 500,
 	minBatchSize: 100,
 	maxBatchSize: 1000,
-};
-
-type ReindexBatchConfig = {
-	defaultBatchSize: number;
-	minBatchSize: number;
-	maxBatchSize: number;
-};
-type ReindexBatchEnv = {
-	SUBGRAPH_REINDEX_BATCH_SIZE?: string;
-	SUBGRAPH_REINDEX_MIN_BATCH_SIZE?: string;
-	SUBGRAPH_REINDEX_MAX_BATCH_SIZE?: string;
 };
 
 type ReindexResumeRow = {
@@ -80,33 +69,6 @@ export function resolveReindexResumeBlock(
 	const reindexFromBlock = Number(row.reindex_from_block);
 
 	return Math.max(lastProcessedBlock + 1, reindexFromBlock);
-}
-
-function parsePositiveInt(value: string | undefined): number | undefined {
-	if (value == null || value.trim() === "") return undefined;
-	const parsed = Number.parseInt(value, 10);
-	return Number.isFinite(parsed) && parsed > 0 ? parsed : undefined;
-}
-
-export function resolveReindexBatchConfig(
-	env: ReindexBatchEnv = process.env as ReindexBatchEnv,
-): ReindexBatchConfig {
-	const base = STANDARD_REINDEX_BATCH_CONFIG;
-	const minBatchSize =
-		parsePositiveInt(env.SUBGRAPH_REINDEX_MIN_BATCH_SIZE) ?? base.minBatchSize;
-	const maxBatchSize =
-		parsePositiveInt(env.SUBGRAPH_REINDEX_MAX_BATCH_SIZE) ?? base.maxBatchSize;
-	const defaultBatchSize =
-		parsePositiveInt(env.SUBGRAPH_REINDEX_BATCH_SIZE) ?? base.defaultBatchSize;
-
-	return {
-		minBatchSize,
-		maxBatchSize,
-		defaultBatchSize: Math.min(
-			Math.max(defaultBatchSize, minBatchSize),
-			maxBatchSize,
-		),
-	};
 }
 
 /**
@@ -202,8 +164,7 @@ async function processBlockRange(
 	let lastHealthFlushBlock = 0;
 	let lastHealthFlushAt = Date.now();
 	let lastProgressFlushAt = Date.now();
-	const batchConfig = resolveReindexBatchConfig();
-	let batchSize = batchConfig.defaultBatchSize;
+	let batchSize = REINDEX_BATCH_CONFIG.defaultBatchSize;
 	let currentHeight = fromBlock;
 	let aborted = false;
 	let consecutiveEmptyBatches = 0;
@@ -575,12 +536,12 @@ async function processBlockRange(
 		if (avg > 50)
 			batchSize = Math.max(
 				Math.round(batchSize * 0.5),
-				batchConfig.minBatchSize,
+				REINDEX_BATCH_CONFIG.minBatchSize,
 			);
 		else if (avg < 10)
 			batchSize = Math.min(
 				Math.round(batchSize * 1.5),
-				batchConfig.maxBatchSize,
+				REINDEX_BATCH_CONFIG.maxBatchSize,
 			);
 
 		currentHeight = batchEnd + 1;

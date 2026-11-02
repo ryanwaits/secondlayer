@@ -179,8 +179,6 @@ services:
       # stacks-node in this file, or an external one. Unset → a handler that
       # reads throws naming this var; handlers that don't read are unaffected.
       STACKS_NODE_RPC_URL: ${STACKS_NODE_RPC_URL:-}
-      # Max concurrent handler chain reads in this process. Unset → 4.
-      SUBGRAPH_CHAIN_READ_CONCURRENCY: ${SUBGRAPH_CHAIN_READ_CONCURRENCY:-}
     volumes:
       - subgraphs_data:/data/subgraphs
     depends_on:

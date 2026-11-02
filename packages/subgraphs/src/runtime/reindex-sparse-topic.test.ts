@@ -24,28 +24,23 @@ process.env.DATABASE_URL =
 	process.env.DATABASE_URL ??
 	"postgresql://postgres:postgres@127.0.0.1:5440/secondlayer";
 
-const TIP = 1_000;
+const TIP = 10_000;
 const TARGET = "SP000000000000000000002Q6VF78.pox-5";
-const WANTED_HEIGHT = 900;
+const WANTED_HEIGHT = 9_000;
 const chain: FakeIndexOptions = {
 	tip: TIP,
 	backgroundPrintsPerBlock: 20,
 	backgroundContracts: 10,
 	targetContract: TARGET,
-	// Prints other topics at 150, 300, ... and the wanted topic at one height.
-	targetEvery: 150,
+	// Prints other topics at 1500, 3000, ... and the wanted topic at one height.
+	// Gaps wider than the default batch, so whole batches come back empty.
+	targetEvery: 1_500,
 	otherTopic: "stack-stx",
 	wantedTopic: "containment-probe",
 	wantedHeights: [WANTED_HEIGHT],
 };
 
-const ENV_KEYS = [
-	"SUBGRAPH_SOURCE",
-	"SUBGRAPH_INDEX_API_URL",
-	"SUBGRAPH_REINDEX_BATCH_SIZE",
-	"SUBGRAPH_REINDEX_MIN_BATCH_SIZE",
-	"SUBGRAPH_REINDEX_MAX_BATCH_SIZE",
-] as const;
+const ENV_KEYS = ["SUBGRAPH_SOURCE", "SUBGRAPH_INDEX_API_URL"] as const;
 const priorEnv = new Map<string, string | undefined>();
 
 let db: Kysely<Database>;
@@ -81,9 +76,6 @@ beforeAll(async () => {
 	for (const k of ENV_KEYS) priorEnv.set(k, process.env[k]);
 	process.env.SUBGRAPH_SOURCE = "streams-index";
 	process.env.SUBGRAPH_INDEX_API_URL = fake.url;
-	process.env.SUBGRAPH_REINDEX_BATCH_SIZE = "100";
-	process.env.SUBGRAPH_REINDEX_MIN_BATCH_SIZE = "100";
-	process.env.SUBGRAPH_REINDEX_MAX_BATCH_SIZE = "100";
 	for (const stmt of generateSubgraphSQL(def, pgSchema).statements) {
 		await sql.raw(stmt).execute(db);
 	}

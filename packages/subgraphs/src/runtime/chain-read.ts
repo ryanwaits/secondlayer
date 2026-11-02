@@ -302,17 +302,9 @@ class ConcurrencyGate {
 	}
 }
 
-const DEFAULT_MAX_CONCURRENT_READS = 4;
+const MAX_CONCURRENT_READS = 4;
 
-function maxConcurrentReads(): number {
-	const raw = process.env.SUBGRAPH_CHAIN_READ_CONCURRENCY;
-	const parsed = raw ? Number.parseInt(raw, 10) : Number.NaN;
-	return Number.isFinite(parsed) && parsed > 0
-		? parsed
-		: DEFAULT_MAX_CONCURRENT_READS;
-}
-
-const gate = new ConcurrencyGate(maxConcurrentReads());
+const gate = new ConcurrencyGate(MAX_CONCURRENT_READS);
 
 /** Stable key for an arg set — property order must not fork a cache entry.
  *  The same hash the hosted chain-read route keys its cache with. */
