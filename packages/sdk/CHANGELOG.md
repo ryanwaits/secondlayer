@@ -1,5 +1,17 @@
 # @secondlayer/sdk
 
+## 16.0.0
+
+### Major Changes
+
+- 910c35a: Remove the overdue deprecations. `onBatch` is now `(events, ctx)` on every consume and replay handler, with `ctx.tip` typed per surface. The 22 storage-shape decoder helpers leave the root and `./streams` entry points (use `./streams/rows` or `decode`). `StreamsBatchContext` and the archive client's `apiKey` option are gone.
+
+### Patch Changes
+
+- Updated dependencies [ae074dd]
+  - @secondlayer/shared@15.0.0
+  - @secondlayer/subgraphs@8.0.1
+
 ## 15.5.2
 
 ### Patch Changes

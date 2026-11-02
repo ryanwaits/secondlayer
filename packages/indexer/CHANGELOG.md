@@ -1,5 +1,15 @@
 # @secondlayer/indexer
 
+## 1.17.8
+
+### Patch Changes
+
+- ae074dd: Remove the manual Hiro backfill and repair scripts and the transaction decode API fallback. Decoders checkpoint from `ctx.cursor`.
+- Updated dependencies [910c35a]
+- Updated dependencies [ae074dd]
+  - @secondlayer/sdk@16.0.0
+  - @secondlayer/shared@15.0.0
+
 ## 1.17.7
 
 ### Patch Changes

@@ -1,5 +1,15 @@
 # @secondlayer/mcp
 
+## 11.2.6
+
+### Patch Changes
+
+- Updated dependencies [910c35a]
+- Updated dependencies [ae074dd]
+  - @secondlayer/sdk@16.0.0
+  - @secondlayer/shared@15.0.0
+  - @secondlayer/subgraphs@8.0.1
+
 ## 11.2.5
 
 ### Patch Changes

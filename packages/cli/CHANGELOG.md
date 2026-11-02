@@ -1,5 +1,19 @@
 # @secondlayer/cli
 
+## 23.0.0
+
+### Major Changes
+
+- 7988cee: Config now stores only `network`, and `config set` rejects other keys. Remove `SL_API_PORT`, `SL_INDEXER_PORT`, `SL_DATA_DIR` and the `SL_PLATFORM_API_URL` alias, the `whoami` project field, and `chainIdValid` from `doctor --json`.
+
+### Patch Changes
+
+- Updated dependencies [910c35a]
+- Updated dependencies [ae074dd]
+  - @secondlayer/sdk@16.0.0
+  - @secondlayer/shared@15.0.0
+  - @secondlayer/subgraphs@8.0.1
+
 ## 22.3.4
 
 ### Patch Changes

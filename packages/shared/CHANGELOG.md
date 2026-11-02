@@ -1,5 +1,11 @@
 # @secondlayer/shared
 
+## 15.0.0
+
+### Major Changes
+
+- ae074dd: Remove the `./node/hiro-client` and `./node/hiro-pg-client` exports.
+
 ## 14.2.0
 
 ### Minor Changes

@@ -1,5 +1,20 @@
 # @secondlayer/api
 
+## 1.61.9
+
+### Patch Changes
+
+- e8f4f0e: Remove the unused `staticKeyAuth` alias.
+- Updated dependencies [ae074dd]
+- Updated dependencies [910c35a]
+- Updated dependencies [ae074dd]
+  - @secondlayer/indexer@1.17.8
+  - @secondlayer/sdk@16.0.0
+  - @secondlayer/shared@15.0.0
+  - @secondlayer/mcp@11.2.6
+  - @secondlayer/platform@0.10.5
+  - @secondlayer/subgraphs@8.0.1
+
 ## 1.61.8
 
 ### Patch Changes
