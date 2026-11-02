@@ -1,5 +1,11 @@
 # @secondlayer/stacks
 
+## 6.5.4
+
+### Patch Changes
+
+- f68684e: Remove unused tuning env vars in favor of fixed values, the no-op `verification` runtime module, the unreachable sBTC venue registry, finished one-time scripts, and the retired monthly tier values from the `api_keys.tier` type.
+
 ## 6.5.3
 
 ### Patch Changes

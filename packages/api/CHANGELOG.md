@@ -1,5 +1,18 @@
 # @secondlayer/api
 
+## 1.61.7
+
+### Patch Changes
+
+- f68684e: Remove unused tuning env vars in favor of fixed values, the no-op `verification` runtime module, the unreachable sBTC venue registry, finished one-time scripts, and the retired monthly tier values from the `api_keys.tier` type.
+- Updated dependencies [f68684e]
+  - @secondlayer/bitcoin@0.0.2
+  - @secondlayer/indexer@1.17.6
+  - @secondlayer/shared@14.2.0
+  - @secondlayer/stacks@6.5.4
+  - @secondlayer/subgraphs@7.7.4
+  - @secondlayer/platform@0.10.4
+
 ## 1.61.6
 
 ### Patch Changes
