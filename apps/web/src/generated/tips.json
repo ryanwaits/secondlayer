@@ -9192,13 +9192,6 @@
 			"route": "/docs/subgraphs-reference",
 			"anchor": "t-FindManyPage"
 		},
-		"formatFinding": {
-			"kind": "method",
-			"summary": "Formats a handler finding as file:line:column name: reason.",
-			"sig": "formatFinding(f: HandlerFinding): string",
-			"route": "/docs/subgraphs-reference",
-			"anchor": "m-formatFinding"
-		},
 		"FtTransferFilter": {
 			"kind": "type",
 			"summary": "FT event filters",

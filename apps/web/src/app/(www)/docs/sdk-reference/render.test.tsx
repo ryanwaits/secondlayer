@@ -178,7 +178,7 @@ describe("a function-first package page", () => {
 
 	test("the glance filter counts functions and holds one table per group", async () => {
 		const html = await render(<PackageReferencePage pkg="subgraphs" />);
-		expect(html).toContain('placeholder="Filter 45 functions"');
+		expect(html).toContain('placeholder="Filter 44 functions"');
 		expect(html).toContain('class="sdkr-grow" data-group');
 		expect(html).toContain('data-q="definesubgraph ');
 	});

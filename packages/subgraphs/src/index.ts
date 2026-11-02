@@ -21,6 +21,9 @@ export type {
 	NftBurnFilter,
 	ContractCallFilter,
 	ContractDeployFilter,
+	NestedContractCallFilter,
+	VarSetFilter,
+	MapWriteFilter,
 	PrintEventFilter,
 	PrintEventPrints,
 	PinnedPrintEventFilter,
@@ -85,7 +88,6 @@ export {
 export {
 	computePin,
 	deriveVerification,
-	formatFinding,
 	isDeterminismViolation,
 	SUBGRAPHS_RUNTIME,
 	type HandlerFinding,

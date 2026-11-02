@@ -67,35 +67,6 @@
 			"examples": []
 		},
 		{
-			"id": "formatFinding",
-			"path": "formatFinding",
-			"summary": "Formats a handler finding as `file:line:column name: reason`.",
-			"description": "Formats a handler finding as `file:line:column name: reason`.",
-			"source": {
-				"file": "packages/subgraphs/src/verification.ts",
-				"line": 176
-			},
-			"overloads": [
-				{
-					"label": "",
-					"description": "",
-					"params": [
-						{
-							"name": "f",
-							"type": "HandlerFinding",
-							"required": true,
-							"description": ""
-						}
-					],
-					"returns": {
-						"type": "string",
-						"description": ""
-					}
-				}
-			],
-			"examples": []
-		},
-		{
 			"id": "isDeterminismViolation",
 			"path": "isDeterminismViolation",
 			"summary": "Tells whether a deploy must be refused for breaking determinism.",

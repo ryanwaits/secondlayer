@@ -10,9 +10,12 @@ import {
 import { CHAIN_TRIGGER_FIELDS } from "@secondlayer/shared";
 import { BOOTSTRAP_STEP } from "@secondlayer/shared/archive/instance-diagnosis";
 import { TRAIT_STANDARDS } from "@secondlayer/stacks/clarity";
-import { camelizeKeys, filterFieldsByType } from "@secondlayer/subgraphs";
+import {
+	type ColumnType,
+	camelizeKeys,
+	filterFieldsByType,
+} from "@secondlayer/subgraphs";
 import { TYPE_MAP } from "@secondlayer/subgraphs/schema";
-import type { ColumnType } from "@secondlayer/subgraphs/types";
 import { getClient, readApiKey } from "./lib/client.ts";
 import { formatSubgraphSummary } from "./lib/format.ts";
 import { getRegisteredToolNames } from "./lib/tool.ts";

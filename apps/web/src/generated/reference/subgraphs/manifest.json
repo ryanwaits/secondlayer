@@ -37,7 +37,7 @@
 			"slug": "verification",
 			"title": "Verification",
 			"root": "",
-			"methodCount": 5
+			"methodCount": 4
 		},
 		{
 			"slug": "replay",
@@ -103,7 +103,6 @@
 		"filterFieldsByType": "/docs/subgraphs-reference#m-filterFieldsByType",
 		"FindManyOptions": "/docs/subgraphs-reference#t-FindManyOptions",
 		"FindManyPage": "/docs/subgraphs-reference#t-FindManyPage",
-		"formatFinding": "/docs/subgraphs-reference#m-formatFinding",
 		"FtBurnFilter": "/docs/subgraphs-reference#t-FtBurnFilter",
 		"FtBurnPayload": "/docs/subgraphs-reference#t-FtBurnPayload",
 		"FtMintFilter": "/docs/subgraphs-reference#t-FtMintFilter",

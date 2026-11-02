@@ -1,10 +1,7 @@
 import type { Subgraph } from "@secondlayer/shared/db";
 import { pgSchemaName } from "@secondlayer/shared/db/queries/subgraphs";
 import { ValidationError } from "@secondlayer/shared/errors";
-import type {
-	SubgraphColumn,
-	SubgraphSchema,
-} from "@secondlayer/subgraphs/types";
+import type { SubgraphColumn, SubgraphSchema } from "@secondlayer/subgraphs";
 import { clampLimit, clampOffset } from "../parse-query.ts";
 
 export const SYSTEM_COLUMNS = new Set([

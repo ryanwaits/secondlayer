@@ -9,7 +9,7 @@
 			"description": "Tells whether a subgraph can skip blocks without its events.\n\nSparse scanning is sound only when every source is an event-type filter. A\n`contract_call` or `contract_deploy` source matches transactions, which the\nevent probe cannot see.",
 			"source": {
 				"file": "packages/subgraphs/src/runtime/block-source.ts",
-				"line": 84
+				"line": 83
 			},
 			"overloads": [
 				{
@@ -38,7 +38,7 @@
 			"description": "Tells whether a subgraph's sources can be read from the Streams index.\n\nEvery source must be a known event-type, `contract_call` or\n`contract_deploy` filter, and array-style sources never qualify because they\nleak the unreconstructable `_eventId`. Trait scope is allowed: trait\nresolution reads the contract registry on the platform database, which the\nprocessor always holds. Everything else stays on the database tap.",
 			"source": {
 				"file": "packages/subgraphs/src/runtime/block-source.ts",
-				"line": 382
+				"line": 381
 			},
 			"overloads": [
 				{
@@ -67,7 +67,7 @@
 			"description": "Lists the event types and contract scopes a subgraph's filters match.\n\nEach target is a decoded event type with an optional contract scope. One\nfunction feeds both the sparse probe and the event walks, so a new\ncontract-pinning filter field is added here once.\n\nPer event type: if ANY filter for it is unscoped, a single unscoped target\ncovers everything (today's behavior); otherwise one target per distinct\npinned contract.",
 			"source": {
 				"file": "packages/subgraphs/src/runtime/block-source.ts",
-				"line": 133
+				"line": 132
 			},
 			"overloads": [
 				{

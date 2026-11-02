@@ -57,7 +57,6 @@ Every source needs a handler of the same name. Handlers write with `ctx.insert`,
 | Subpath | Description |
 | --- | --- |
 | `.` | `defineSubgraph`, `defineSchema`, `InferContext` / `TypedSubgraphContext`, `readContractAt`, `validateSubgraphDefinition`, ORM generators (`generatePrismaSchema`, `generateDrizzleSchema`, `generateKyselySchema`), `deploySchema`, `diffSchema`, `generateSubgraphSQL`, `pgSchemaName` |
-| `./types` | All schema + filter + handler types (`SubgraphDefinition`, `SubgraphFilter`, `StxTransferFilter`, etc.) |
 | `./schema` | Generator + deployer internals |
 | `./validate` | Shape + filter validation for deploys |
 | `./testing` | `runSubgraphTest`, `createTestContext`, `buildEvent`: run handlers against real or built events before deploying |
@@ -83,9 +82,6 @@ Delivery bodies and response previews land in `webhook_deliveries`. Rows whose r
 | --- | --- | --- |
 | `SECONDLAYER_ALLOW_PRIVATE_EGRESS` | `false` | Allow the emitter to deliver to private IP ranges (localhost, 10/8, 172.16/12, 192.168/16, link-local, v6 mapped). Leave off in production. |
 | `SECONDLAYER_SECRETS_KEY` | — | 32-byte hex key for the AES-GCM envelope around webhook signing secrets. OSS mode auto-generates + persists to `.env.local`. |
-| `SUBGRAPH_REINDEX_BATCH_SIZE` | adaptive | Override the default historical block batch size used by reindex/backfill. |
-| `SUBGRAPH_REINDEX_MIN_BATCH_SIZE` | adaptive | Override the adaptive lower bound for reindex/backfill batches. |
-| `SUBGRAPH_REINDEX_MAX_BATCH_SIZE` | adaptive | Override the adaptive upper bound for reindex/backfill batches. |
 | `DATABASE_MAX_POOLS` | `25` | Max cached connection pools; the least-recently-used pool is evicted past this cap. The source/target pools are never evicted. |
 | `DATABASE_IDLE_TIMEOUT` | `300` | Seconds before idle connections are closed (`0` = never). |
 
