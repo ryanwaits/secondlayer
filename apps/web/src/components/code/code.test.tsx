@@ -410,6 +410,37 @@ describe("docs key slots", () => {
 	const curl =
 		'curl https://api.secondlayer.tools/v1/streams/tip -H "Authorization: Bearer $SECONDLAYER_API_KEY"';
 
+	test("a base fence calling webhooks keeps the Base URL swap but takes no docs key", async () => {
+		const out = await html({
+			lang: "sh",
+			meta: "base",
+			code: 'curl https://api.secondlayer.tools/api/webhooks -H "Authorization: Bearer $SECONDLAYER_API_KEY"',
+		});
+		expect(out).toContain('data-swap="1"');
+		expect(out).not.toContain("data-key-slot");
+	});
+
+	for (const [what, code] of [
+		[
+			"testnet webhooks",
+			'curl https://api.secondlayer.tools/testnet/api/webhooks -H "Authorization: Bearer $SECONDLAYER_API_KEY"',
+		],
+		[
+			"subgraph reads",
+			'curl "$SECONDLAYER_API_URL/v1/subgraphs/x/y" -H "Authorization: Bearer $SECONDLAYER_API_KEY"',
+		],
+		[
+			"the SDK's webhooks",
+			"const sl = new SecondLayer({ apiKey: process.env.SECONDLAYER_API_KEY });\nawait sl.webhooks.create({});",
+		],
+	] as const) {
+		test(`a sample calling ${what} offers no docs key, since it would be refused`, async () => {
+			const out = await html({ lang: "sh", title: "t", code });
+			expect(out).not.toContain("data-key-slot");
+			expect(out).not.toContain("data-use-key");
+		});
+	}
+
 	test("a copyable block naming the key variable gets hidden controls and a blocked slot", async () => {
 		const out = await html({ lang: "sh", title: "tip", code: curl });
 		expect(out).toContain(KEY_CONTROLS);

@@ -14,6 +14,17 @@ export const KEY_EXPR = "process.env.SECONDLAYER_API_KEY";
 export const KEY_PLACEHOLDERS = [KEY_VAR, KEY_EXPR] as const;
 
 /**
+ * A sample that calls anything a docs key is refused on (Streams and Index are
+ * all it reads): the `/api/*` management plane, subgraphs, feedback, and their
+ * SDK namespaces. Filling the key in would hand the reader a failing command.
+ */
+const DOCS_KEY_REFUSED =
+	/\/api\/|\/v1\/(?:subgraphs|feedback)\b|\.(?:webhooks|subgraphs|archive|feedback)\./;
+
+/** Whether a sample can run with a docs key in place of its credential. */
+export const docsKeyCanRun = (source: string) => !DOCS_KEY_REFUSED.test(source);
+
+/**
  * What changes between the bases: the origin and the credential an example
  * names. Hosted first, self-hosted second; a fence with the `base` option
  * wraps every hosted value so the switch can rewrite it in place.

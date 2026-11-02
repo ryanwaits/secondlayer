@@ -1,5 +1,5 @@
 import { parseAnnotations, parseFenceOptions } from "@/lib/code/annotations";
-import { KEY_PLACEHOLDERS, KEY_SWAP } from "@/lib/code/base-url";
+import { KEY_PLACEHOLDERS, KEY_SWAP, docsKeyCanRun } from "@/lib/code/base-url";
 import { outputTone } from "@/lib/code/output";
 import { tipTable } from "@/lib/code/tip-table";
 import { type ThemedToken, tokenize } from "@/lib/highlight";
@@ -128,10 +128,12 @@ export async function renderCode({
 		isText && prompts[i] === "$" ? line.slice(2) : line,
 	);
 
-	// Only a block Copy can take from carries a key slot; output never does.
+	// Only a block Copy can take from carries a key slot; output never does, and
+	// neither does a sample the docs key would be refused on.
 	const hasKey =
 		!options.nocopy &&
 		!options.nokey &&
+		docsKeyCanRun(source) &&
 		!isText &&
 		display.some((l) => KEY_PLACEHOLDERS.some((p) => l.includes(p)));
 	const plan = planAnnotations(parsed, {

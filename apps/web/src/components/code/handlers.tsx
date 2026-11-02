@@ -25,6 +25,8 @@ export type MarkRange = {
 	options?: string[];
 	/** `swap`: the index into `BASE_SWAPS` the Base URL switch rewrites. */
 	swap?: number;
+	/** `swap`: the credential is also a docs key slot. */
+	keySlot?: boolean;
 	/** `key`: the slot takes the key as a string literal (an SDK sample), not bare (a shell sample). */
 	quote?: boolean;
 };
@@ -243,7 +245,7 @@ export function planAnnotations(parsed: ParsedCode, ctx: Context): Plan {
 		if (line && !overlaps(line.ranges, n.start, n.end))
 			line.ranges.push({ start: n.start, end: n.end, kind: "hi" });
 	}
-	if (ctx.base) addBaseSwaps(lines, ctx.display);
+	if (ctx.base) addBaseSwaps(lines, ctx.display, Boolean(ctx.key));
 	if (ctx.key) addKeySlots(lines, ctx.display);
 	for (const t of handTips) {
 		const line = lines[t.row];
@@ -267,7 +269,7 @@ export function planAnnotations(parsed: ParsedCode, ctx: Context): Plan {
 }
 
 /** The hosted origin and credential, wrapped so the Base URL switch can rewrite them. */
-function addBaseSwaps(lines: LinePlan[], display: string[]) {
+function addBaseSwaps(lines: LinePlan[], display: string[], keyed: boolean) {
 	lines.forEach((line, i) => {
 		const text = display[i] ?? "";
 		BASE_SWAPS.forEach(([hosted], swap) => {
@@ -282,6 +284,7 @@ function addBaseSwaps(lines: LinePlan[], display: string[]) {
 						end: at + hosted.length,
 						kind: "swap",
 						swap,
+						keySlot: keyed && swap === KEY_SWAP,
 					});
 		});
 	});
@@ -391,7 +394,7 @@ function wrap(range: MarkRange, inner: string): string {
 			return `<span class="squig">${inner}</span>`;
 		// The credential slot is blocked from PostHog autocapture and replay (`ph-no-capture`).
 		case "swap":
-			return range.swap === KEY_SWAP
+			return range.keySlot
 				? `<span class="ph-no-capture" data-key-slot data-swap="${range.swap}">${inner}</span>`
 				: `<span data-swap="${range.swap}">${inner}</span>`;
 		case "key":
