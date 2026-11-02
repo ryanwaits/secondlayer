@@ -1,15 +1,12 @@
-import { loadConfig } from "./config.ts";
 import { isProcessRunning, loadDevState } from "./dev-state.ts";
-import { networkFromId, validateNetworkConsistency } from "./network.ts";
-import { isNodeRunning } from "./node-manager.ts";
+import { type Network, networkFromId } from "./network.ts";
 
 export interface NodeHealth {
 	running: boolean;
-	network: string | null;
+	network: Network | null;
 	height: number | null;
 	burnHeight: number | null;
 	chainId: number | null;
-	chainIdValid: boolean;
 	peers: number;
 	version: string | null;
 }
@@ -41,18 +38,35 @@ export interface HealthReport {
 	issues: string[];
 }
 
+async function isNodeRunning(): Promise<boolean> {
+	try {
+		const result =
+			await Bun.$`docker ps --format json --filter "name=stacks-blockchain"`.quiet();
+		if (result.exitCode !== 0) return false;
+		return result.stdout
+			.toString()
+			.trim()
+			.split("\n")
+			.filter(Boolean)
+			.some((line) => {
+				const { Status } = JSON.parse(line) as { Status?: string };
+				return !Status?.includes("Restarting");
+			});
+	} catch {
+		return false;
+	}
+}
+
 export async function checkHealth(): Promise<HealthReport> {
-	const config = await loadConfig();
 	const issues: string[] = [];
 
 	// Node health
 	const node: NodeHealth = {
 		running: false,
-		network: config.node?.network ?? null,
+		network: null,
 		height: null,
 		burnHeight: null,
 		chainId: null,
-		chainIdValid: true,
 		peers: 0,
 		version: null,
 	};
@@ -75,7 +89,7 @@ export async function checkHealth(): Promise<HealthReport> {
 				node.height = info.stacks_tip_height ?? null;
 				node.burnHeight = info.burn_block_height ?? null;
 				node.version = info.server_version ?? null;
-				node.network = networkFromId(info.network_id) ?? node.network;
+				node.network = networkFromId(info.network_id);
 			}
 		} catch {
 			issues.push("Node RPC not responding");
@@ -96,11 +110,6 @@ export async function checkHealth(): Promise<HealthReport> {
 		} catch {
 			// ignore
 		}
-
-		// Validate chain ID consistency
-		const validation = await validateNetworkConsistency(config);
-		node.chainIdValid = validation.valid;
-		issues.push(...validation.issues);
 	}
 
 	// Container health
@@ -201,8 +210,8 @@ export async function checkHealth(): Promise<HealthReport> {
 
 	// Port conflict detection
 	const portsToCheck = [
-		{ port: config.ports.api, name: "API" },
-		{ port: config.ports.indexer, name: "Indexer" },
+		{ port: 3800, name: "API" },
+		{ port: 3700, name: "Indexer" },
 		{ port: 20443, name: "Node RPC" },
 	];
 

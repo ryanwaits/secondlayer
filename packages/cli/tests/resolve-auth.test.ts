@@ -4,7 +4,6 @@ import { isOssMode, resolveAuth } from "../src/lib/resolve-auth";
 const AUTH_ENV = [
 	"SECONDLAYER_API_URL",
 	"SL_API_URL",
-	"SL_PLATFORM_API_URL",
 	"INSTANCE_TOKEN",
 	"SECONDLAYER_API_KEY",
 	"SL_API_KEY",

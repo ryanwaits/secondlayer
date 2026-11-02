@@ -15,7 +15,6 @@ import { readSession, writeSession } from "../src/lib/session";
 const ENV = [
 	"SECONDLAYER_API_URL",
 	"SL_API_URL",
-	"SL_PLATFORM_API_URL",
 	"SL_CREDITS_API_URL",
 	"INSTANCE_TOKEN",
 	"SECONDLAYER_API_KEY",

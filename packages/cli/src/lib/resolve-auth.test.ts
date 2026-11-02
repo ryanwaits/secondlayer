@@ -13,7 +13,6 @@ const AUTH_ENV = [
 	"SECONDLAYER_API_KEY",
 	"SECONDLAYER_API_URL",
 	"SL_API_URL",
-	"SL_PLATFORM_API_URL",
 ] as const;
 
 describe("resolveEnvKey credential precedence", () => {

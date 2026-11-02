@@ -6,11 +6,7 @@ import {
 	resolveApiUrl,
 } from "./api-url.ts";
 
-const URL_ENV = [
-	"SECONDLAYER_API_URL",
-	"SL_API_URL",
-	"SL_PLATFORM_API_URL",
-] as const;
+const URL_ENV = ["SECONDLAYER_API_URL", "SL_API_URL"] as const;
 
 describe("isMerchantUrl / assertInstanceUrl / resolveApiUrl", () => {
 	let saved: Record<string, string | undefined>;

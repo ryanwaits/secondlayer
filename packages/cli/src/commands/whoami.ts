@@ -1,14 +1,12 @@
 import { resolveApiKey } from "@secondlayer/sdk";
 import type { Command } from "commander";
 import { resolveApiUrl, resolveArchiveOpsUrl } from "../lib/api-url.ts";
-import { loadConfig } from "../lib/config.ts";
 import {
 	ARCHIVE_AUTH_HINT,
 	httpArchiveOps,
 	resolveArchiveOpsBearer,
 } from "../lib/http.ts";
-import { dim, formatKeyValue, note, output } from "../lib/output.ts";
-import { readActiveProject } from "../lib/project-file.ts";
+import { formatKeyValue, note, output } from "../lib/output.ts";
 
 export type WhoamiResult = {
 	instance: {
@@ -22,7 +20,6 @@ export type WhoamiResult = {
 		status: "set" | "missing";
 		email: string | null;
 	};
-	project: { slug: string; source: string } | null;
 };
 
 /**
@@ -52,9 +49,6 @@ export async function runWhoami(): Promise<WhoamiResult> {
 				? "session"
 				: null;
 
-	const config = await loadConfig();
-	const active = await readActiveProject(process.cwd(), config.defaultProject);
-
 	return {
 		instance: {
 			url: instanceUrl,
@@ -67,7 +61,6 @@ export async function runWhoami(): Promise<WhoamiResult> {
 			status: merchantOk ? "set" : "missing",
 			email,
 		},
-		project: active ? { slug: active.slug, source: active.resolvedFrom } : null,
 	};
 }
 
@@ -97,12 +90,6 @@ export function registerWhoamiCommand(program: Command): void {
 						? `${result.merchant.url}  ${merchantCred}  ${result.merchant.status}  (${result.merchant.email})`
 						: `${result.merchant.url}  ${merchantCred}  ${result.merchant.status}`;
 					rows.push(["merchant", merchantValue]);
-					if (result.project) {
-						rows.push(["project", result.project.slug]);
-						rows.push(["project source", dim(result.project.source)]);
-					} else {
-						rows.push(["project", dim("(none)")]);
-					}
 					console.log(formatKeyValue(rows));
 					if (result.merchant.status === "missing") {
 						note(`merchant identity missing. ${ARCHIVE_AUTH_HINT}`);

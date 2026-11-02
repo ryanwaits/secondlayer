@@ -15,11 +15,7 @@ export const ARCHIVE_OPS_API_URL = "https://api.secondlayer.tools";
  * token. Default is the local one-box API.
  */
 export function resolveApiUrl(): string {
-	return (
-		process.env.SECONDLAYER_API_URL ??
-		process.env.SL_PLATFORM_API_URL ??
-		LOCAL_API_URL
-	).replace(/\/+$/, "");
+	return (process.env.SECONDLAYER_API_URL ?? LOCAL_API_URL).replace(/\/+$/, "");
 }
 
 /** Your hosted account's API (credits, archive fetches, login). Not the operator's loopback box. */

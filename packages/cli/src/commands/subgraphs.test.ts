@@ -8,7 +8,6 @@ const ENV = [
 	"SECONDLAYER_API_KEY",
 	"SECONDLAYER_API_URL",
 	"SL_API_URL",
-	"SL_PLATFORM_API_URL",
 ] as const;
 
 function program(): Command {

@@ -124,7 +124,7 @@ export async function httpAt<T>(
 }
 
 /**
- * Platform API request without auth. Honors SECONDLAYER_API_URL / SL_PLATFORM_API_URL.
+ * Platform API request without auth. Honors SECONDLAYER_API_URL.
  */
 export async function httpPlatformAnon<T>(
 	path: string,

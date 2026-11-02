@@ -21,7 +21,6 @@ The `secondlayer` binary (alias `secondlayer`) is the official CLI for Secondlay
 | `SECONDLAYER_API_URL` | every command that calls an API | Override the API base URL. Default `http://127.0.0.1:3800`. |
 | `INSTANCE_TOKEN` | instance writes/reads past loopback | Hex token `secondlayer init` writes. Required for every write, and for every read once the API is published past loopback; loopback reads need no value. Not sent to `api.secondlayer.tools`; there the account key is used instead. |
 | `SECONDLAYER_API_KEY` | hosted API (`api.secondlayer.tools`), archive, credits | Account key (`sk-sl_*`), sent automatically on that host. `secondlayer subgraphs` and `secondlayer webhooks` accept it there. |
-| `SL_PLATFORM_API_URL` | legacy alias of `SECONDLAYER_API_URL` | Same default: `http://127.0.0.1:3800`. |
 | `SIGNING_SECRET` | webhooks test | Standard-Webhooks signing secret used to sign test fixtures. |
 | `STACKS_NETWORK` | global | Network override (set by `--network`). |
 | `SL_STREAMS_DUMPS_URL` | streams dumps | Public bulk-dump bucket base URL (dumps are public — no API key). Alternative to `--dumps-url`. |
@@ -922,19 +921,13 @@ Show current configuration.
 
 Usage: `secondlayer config get`
 
-No flags. Prints config tree; in local mode also prints node + ports + database sections.
+No flags. Prints the configured network.
 
 ### secondlayer config set
 
-Set a configuration value. Supports dot notation: `ports.api`, `node.network`, `database.url`, etc.
+Set a configuration value. `network` is the only key; anything else is rejected.
 
 Usage: `secondlayer config set <key> <value>`
-
-| Flag | Description |
-| --- | --- |
-| `--no-validate` | Skip connection validation for `database.url`. |
-
-Validates `database.url` by attempting a `SELECT 1` Postgres query unless `--no-validate`.
 
 Example: `secondlayer config set network local`
 

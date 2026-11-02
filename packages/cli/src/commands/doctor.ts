@@ -1,5 +1,5 @@
 import type { Command } from "commander";
-import { getDataDir, loadConfig } from "../lib/config.ts";
+import { getConfigPath, loadConfig } from "../lib/config.ts";
 import { checkHealth } from "../lib/health.ts";
 import { httpPlatformAnon } from "../lib/http.ts";
 import {
@@ -8,7 +8,7 @@ import {
 	type PublicStatus,
 	diagnoseInstanceStatus,
 } from "../lib/instance-diagnosis.ts";
-import { type Network, getChainIdHex } from "../lib/network.ts";
+import { getChainIdHex } from "../lib/network.ts";
 import {
 	blue,
 	dim,
@@ -143,7 +143,6 @@ function doctorVerdictSuffix(diagnosis: InstanceDiagnosis | null): string {
 }
 
 async function runLocalDoctor(jsonOutput?: boolean): Promise<void> {
-	const config = await loadConfig();
 	const report = await checkHealth();
 
 	if (jsonOutput) {
@@ -151,20 +150,14 @@ async function runLocalDoctor(jsonOutput?: boolean): Promise<void> {
 		return;
 	}
 
-	const network = config.node?.network as Network | undefined;
-	const chainIdHex = network ? getChainIdHex(network) : "N/A";
+	const { network } = report.node;
 
 	console.log("");
 	console.log(blue("Stack"));
 	console.log(
 		formatKeyValue([
 			["  Network", network ?? dim("not configured")],
-			[
-				"  Chain ID",
-				network
-					? `${chainIdHex} (${report.node.chainIdValid ? green("valid") : red("MISMATCH")})`
-					: dim("N/A"),
-			],
+			["  Chain ID", network ? getChainIdHex(network) : dim("N/A")],
 		]),
 	);
 	console.log("");
@@ -242,33 +235,8 @@ async function runLocalDoctor(jsonOutput?: boolean): Promise<void> {
 
 	// Config check
 	console.log(blue("Config"));
-	const configPath = (await import("../lib/config.ts")).getConfigPath();
-	const dataDir = getDataDir(config);
-	console.log(
-		formatKeyValue([
-			["  Config", dim(configPath)],
-			["  Data dir", dim(dataDir)],
-			["  Node path", dim(config.node?.installPath ?? "not set")],
-		]),
-	);
+	console.log(formatKeyValue([["  Config", dim(getConfigPath())]]));
 	console.log("");
-
-	// Disk space for data dir
-	try {
-		const result = await Bun.$`df -h ${dataDir}`.quiet().nothrow();
-		if (result.exitCode === 0) {
-			const lines = result.stdout.toString().trim().split("\n");
-			if (lines.length >= 2) {
-				const parts = lines[1]?.split(/\s+/);
-				const used = parts[2];
-				const avail = parts[3];
-				const pct = parts[4];
-				console.log(blue("Disk"));
-				console.log(`  Used: ${used}  Available: ${avail}  (${pct})`);
-				console.log("");
-			}
-		}
-	} catch {}
 
 	// Log file sizes
 	try {

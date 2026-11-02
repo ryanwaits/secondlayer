@@ -10,9 +10,6 @@ dist/
 # Generated files (for examples)
 examples/generated/
 
-# repomix snapshot — regenerated on demand, never commit
-repo.json
-
 # IDE
 .vscode/
 .idea/
@@ -47,8 +44,8 @@ yarn-error.log*
 .env*
 !.env*.example
 
-# `sl project use` writes the active project binding here. Per-checkout local
-# state — never useful in version control.
+# `sl devnet` writes its compose file here. Per-checkout local state — never
+# useful in version control.
 .secondlayer/
 
 # Temporary files
