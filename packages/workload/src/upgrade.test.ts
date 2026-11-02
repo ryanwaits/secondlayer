@@ -370,6 +370,39 @@ describe.skipIf(!HAS_DB)("upgradeTenants", () => {
 		await deleteTenant(db, b);
 	});
 
+	test("a failing testnet stack doesn't block another tenant's upgrade", async () => {
+		// Seeded first, so created_at order would put it ahead of the other tenant.
+		const testnet = await seedRunningTenant(OTHER_SHA);
+		const other = await seedRunningTenant(OTHER_SHA);
+		composeCalls = [];
+		const testnetCfg: ProvisionerConfig = {
+			...cfg(async (args, env) => {
+				composeCalls.push({ args, env });
+				if (
+					args.includes(`tenant-${acct8For(testnet)}`) &&
+					args.includes("up") &&
+					env.WORKLOAD_IMAGE_TAG === GOOD_SHA
+				) {
+					return { code: 1, stdout: "", stderr: "unhealthy" };
+				}
+				return { code: 0, stdout: "", stderr: "" };
+			}),
+			testnetStack: {
+				accountId: testnet,
+				apiUrl: "https://api.secondlayer.tools/testnet",
+				apiKey: "sk-sl_testnet-reader",
+			},
+		};
+
+		await upgradeTenants(testnetCfg, GOOD_SHA);
+
+		expect((await getTenant(db, other))?.image_sha).toBe(GOOD_SHA);
+		expect((await getTenant(db, testnet))?.image_sha).toBe(OTHER_SHA);
+
+		await deleteTenant(db, testnet);
+		await deleteTenant(db, other);
+	});
+
 	test("a tenant already on the target sha and template is skipped with no compose calls", async () => {
 		const a = await seedRunningTenant(GOOD_SHA);
 		composeCalls = [];

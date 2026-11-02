@@ -133,6 +133,7 @@ services:
     platform: linux/amd64
     environment:
       INSTANCE_MODE: oss
+      TESTNET_WEBHOOK_STACK: ${TESTNET_WEBHOOK_STACK:-}
       DATABASE_URL: postgres://secondlayer:${POSTGRES_PASSWORD:?tenant secret required}@postgres:5432/secondlayer
       DATABASE_POOL_MAX: "5"
       PORT: 3800
@@ -215,6 +216,7 @@ services:
     mem_limit: 256m
     environment:
       INSTANCE_MODE: oss
+      TESTNET_WEBHOOK_STACK: ${TESTNET_WEBHOOK_STACK:-}
       DATABASE_URL: postgres://secondlayer:${POSTGRES_PASSWORD:?tenant secret required}@postgres:5432/secondlayer
       DATABASE_POOL_MAX: "5"
       LOG_LEVEL: ${LOG_LEVEL:-info}

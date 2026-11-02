@@ -22,6 +22,7 @@ import {
 	type RunCompose,
 	composeEnv,
 	ensureTenantEnv,
+	isTestnetStackAccount,
 	projectName,
 	recordTenantRelease,
 	spawnCompose,
@@ -124,11 +125,19 @@ export async function upgradeTenants(
 	// Hashed once per round: every tenant runs the same template. A template
 	// change (a new command flag, a new mount) rolls tenants on a current image.
 	const template = templateSha(cfg);
-	const stale = tenants.filter(
-		(t: TenantRow) =>
-			t.image_sha !== targetSha ||
-			(template !== null && t.template_sha !== template),
-	);
+	// The free shared testnet stack goes last: the round stops at the first
+	// failure, and a failing free stack must not block paying tenants.
+	const stale = tenants
+		.filter(
+			(t: TenantRow) =>
+				t.image_sha !== targetSha ||
+				(template !== null && t.template_sha !== template),
+		)
+		.sort(
+			(a, b) =>
+				Number(isTestnetStackAccount(cfg, a.account_id)) -
+				Number(isTestnetStackAccount(cfg, b.account_id)),
+		);
 	if (stale.length === 0) return;
 
 	for (const tenant of stale) {

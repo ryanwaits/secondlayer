@@ -46,6 +46,7 @@ import {
 	start,
 	stop,
 	tenantNetwork,
+	testnetStackFromEnv,
 	up,
 } from "./provisioner.ts";
 
@@ -627,6 +628,81 @@ describe.skipIf(!HAS_DB)("provisioner up/stop/start/destroy", () => {
 		await deleteTenant(db, accountId);
 	});
 
+	describe("shared testnet stack env", () => {
+		const TESTNET = {
+			apiUrl: "https://api.secondlayer.tools/testnet",
+			apiKey: "sk-sl_testnet-reader",
+		};
+
+		function testnetCfg(accountId: string): ProvisionerConfig {
+			return { ...cfg(), testnetStack: { accountId, ...TESTNET } };
+		}
+
+		test("up() points the testnet account's env at the testnet API with its key and the flag", async () => {
+			secretsRoot = mkdtempSync(join(tmpdir(), "workload-secrets-"));
+			const accountId = crypto.randomUUID();
+
+			await up(testnetCfg(accountId), accountId);
+
+			const env = parseEnvFile(
+				readFileSync(join(secretsRoot, acct8For(accountId), ".env"), "utf8"),
+			);
+			expect(env.HOSTED_API_URL).toBe(TESTNET.apiUrl);
+			expect(env.TENANT_HOSTED_READ_KEY).toBe(TESTNET.apiKey);
+			expect(env.TESTNET_WEBHOOK_STACK).toBe("true");
+			// Compose gets the same values, so the first boot has the flag.
+			expect(composeCalls[0]?.env.TESTNET_WEBHOOK_STACK).toBe("true");
+			expect(composeCalls[0]?.env.HOSTED_API_URL).toBe(TESTNET.apiUrl);
+
+			await deleteTenant(db, accountId);
+		});
+
+		test("ensureTenantEnv applies the same override to an existing env, and a second pass changes nothing", async () => {
+			secretsRoot = mkdtempSync(join(tmpdir(), "workload-secrets-"));
+			const { accountId, envPath } = await seedOldTenant();
+
+			await ensureTenantEnv(testnetCfg(accountId), accountId);
+
+			const env = parseEnvFile(readFileSync(envPath, "utf8"));
+			expect(env.HOSTED_API_URL).toBe(TESTNET.apiUrl);
+			expect(env.TENANT_HOSTED_READ_KEY).toBe(TESTNET.apiKey);
+			expect(env.TESTNET_WEBHOOK_STACK).toBe("true");
+			expect(env.POSTGRES_PASSWORD).toBe("pw");
+
+			const before = readFileSync(envPath, "utf8");
+			await ensureTenantEnv(testnetCfg(accountId), accountId);
+			expect(readFileSync(envPath, "utf8")).toBe(before);
+
+			await deleteTenant(db, accountId);
+		});
+
+		test("another account's env is unchanged when a testnet stack is configured", async () => {
+			secretsRoot = mkdtempSync(join(tmpdir(), "workload-secrets-"));
+			const testnetAccount = crypto.randomUUID();
+			const other = crypto.randomUUID();
+
+			await up(testnetCfg(testnetAccount), other);
+
+			const env = parseEnvFile(
+				readFileSync(join(secretsRoot, acct8For(other), ".env"), "utf8"),
+			);
+			expect(env.HOSTED_API_URL).toBe("https://api.secondlayer.tools");
+			expect(env.TENANT_HOSTED_READ_KEY).toBe(MINTED_KEY);
+			expect(env.TESTNET_WEBHOOK_STACK).toBeUndefined();
+
+			const old = await seedOldTenant();
+			const before = readFileSync(old.envPath, "utf8");
+			await ensureTenantEnv(testnetCfg(testnetAccount), old.accountId);
+			const after = parseEnvFile(readFileSync(old.envPath, "utf8"));
+			expect(after.TESTNET_WEBHOOK_STACK).toBeUndefined();
+			expect(after.TENANT_HOSTED_READ_KEY).toBe("sk-sl_internal");
+			expect(before).not.toContain("TESTNET_WEBHOOK_STACK");
+
+			await deleteTenant(db, other);
+			await deleteTenant(db, old.accountId);
+		});
+	});
+
 	test("start() backfills an old tenant's env before running compose, and a failed backfill doesn't stop the start", async () => {
 		secretsRoot = mkdtempSync(join(tmpdir(), "workload-secrets-"));
 		const { accountId, envPath } = await seedOldTenant();
@@ -890,6 +966,32 @@ describe.skipIf(!HAS_DB)("pollCredits (review fix 3a)", () => {
 		await deleteTenant(db, accountId);
 	});
 
+	test("the shared testnet stack is never idle-stopped, while another idle account still is", async () => {
+		const testnetAccount = crypto.randomUUID();
+		const other = crypto.randomUUID();
+		const testnetCfg: ProvisionerConfig = {
+			...cfg({ [testnetAccount]: true, [other]: true }, 0),
+			testnetStack: {
+				accountId: testnetAccount,
+				apiUrl: "https://api.secondlayer.tools/testnet",
+				apiKey: "sk-sl_testnet-reader",
+			},
+		};
+		await up(testnetCfg, testnetAccount);
+		await up(testnetCfg, other);
+		await startedLongAgo(testnetAccount);
+		await startedLongAgo(other);
+
+		await pollCredits(testnetCfg);
+
+		expect((await getTenant(db, testnetAccount))?.state).toBe("running");
+		expect((await getTenant(db, other))?.state).toBe("stopped");
+		expect((await getTenant(db, other))?.stop_reason).toBe("idle");
+
+		await deleteTenant(db, testnetAccount);
+		await deleteTenant(db, other);
+	});
+
 	test("an idle-stopped tenant is not restarted by the poll", async () => {
 		const accountId = crypto.randomUUID();
 		await up(cfg({}), accountId);
@@ -1030,5 +1132,35 @@ describe("makeCheckCreditsOk", () => {
 			d: { ok: false, reason: "credits" },
 			e: { ok: true, reason: null },
 		});
+	});
+});
+
+describe("testnetStackFromEnv", () => {
+	test("all three set builds the config", () => {
+		expect(
+			testnetStackFromEnv({
+				TESTNET_STACK_ACCOUNT_ID: "acct",
+				TESTNET_API_URL: "https://api.secondlayer.tools/testnet",
+				TESTNET_API_KEY: "sk-sl_x",
+			}),
+		).toEqual({
+			accountId: "acct",
+			apiUrl: "https://api.secondlayer.tools/testnet",
+			apiKey: "sk-sl_x",
+		});
+	});
+
+	test("none set is undefined", () => {
+		expect(testnetStackFromEnv({})).toBeUndefined();
+	});
+
+	test("a partial set is undefined, never half-applied", () => {
+		expect(
+			testnetStackFromEnv({
+				TESTNET_STACK_ACCOUNT_ID: "acct",
+				TESTNET_API_URL: "https://api.secondlayer.tools/testnet",
+			}),
+		).toBeUndefined();
+		expect(testnetStackFromEnv({ TESTNET_API_KEY: "sk-sl_x" })).toBeUndefined();
 	});
 });

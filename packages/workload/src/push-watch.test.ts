@@ -199,3 +199,32 @@ describe("subgraph stopped reporter", () => {
 		).resolves.toBeUndefined();
 	});
 });
+
+describe("the push watch skips the shared testnet stack", () => {
+	const row = (id: string, port: number) =>
+		({ account_id: id, acct8: id.slice(0, 8), api_port: port }) as TenantRow;
+
+	test("only the testnet account is left out of the default tenant list", async () => {
+		const rows = [row("a".repeat(8), 4001), row("t".repeat(8), 4002)];
+		const cfg = {
+			// A tagged-template `db` that answers every query with the running rows.
+			db: (async () => rows) as unknown as ProvisionerConfig["db"],
+			testnetStack: {
+				accountId: "t".repeat(8),
+				apiUrl: "https://api.secondlayer.tools/testnet",
+				apiKey: "sk-sl_testnet-reader",
+			},
+		} as ProvisionerConfig;
+		const reached: string[] = [];
+		const tick = createPushWatch(cfg, platform, {
+			endpointFor: (t) => {
+				reached.push(t.account_id);
+				return null;
+			},
+		});
+
+		await tick();
+
+		expect(reached).toEqual(["a".repeat(8)]);
+	});
+});

@@ -905,3 +905,193 @@ describe("error envelope", () => {
 		expect(rows.map((r) => r.origin)).toEqual(["mcp", null]);
 	});
 });
+
+describe("testnet webhook path", () => {
+	const STACK = "testnet-stack-account";
+	const introspectAs = (creditsOk: boolean, accountId = "acct_1") =>
+		new IntrospectClient({
+			appServerUrl: "https://api.secondlayer.tools",
+			workloadHostKey: "wh-key",
+			fetchImpl: async () =>
+				new Response(
+					JSON.stringify({ account_id: accountId, credits_ok: creditsOk }),
+					{ status: 200, headers: { "content-type": "application/json" } },
+				),
+		});
+
+	function setup(overrides: Partial<GatewayDeps> = {}) {
+		const forwarded: { url: string; headers: Headers }[] = [];
+		const upstreamFor: string[] = [];
+		const resolved: string[] = [];
+		const deps = baseDeps({
+			testnetAccountId: STACK,
+			resolveTenant: async (id) => {
+				resolved.push(id);
+				return "running";
+			},
+			tenantUpstream: async (id) => {
+				upstreamFor.push(id);
+				return {
+					baseUrl:
+						id === STACK ? "http://127.0.0.1:29999" : "http://127.0.0.1:20001",
+					instanceToken: id === STACK ? "stack-token" : "tenant-instance-token",
+				};
+			},
+			fetchImpl: async (input, init) => {
+				forwarded.push({
+					url: String(input),
+					headers: new Headers(init?.headers),
+				});
+				return new Response("ok", { status: 200 });
+			},
+			...overrides,
+		});
+		return { deps, forwarded, upstreamFor, resolved };
+	}
+
+	const get = (
+		deps: GatewayDeps,
+		path: string,
+		extra: { method?: string; headers?: Record<string, string> } = {},
+	) =>
+		handleGatewayRequest(
+			deps,
+			new Request(`https://gateway.internal${path}`, {
+				method: extra.method ?? "GET",
+				headers: { authorization: "Bearer sk-sl_x", ...extra.headers },
+			}),
+		);
+
+	test("a no-credit account can create on the testnet path", async () => {
+		const { deps, forwarded } = setup({ introspect: introspectAs(false) });
+		const res = await get(deps, "/testnet/api/webhooks", { method: "POST" });
+		expect(res.status).toBe(200);
+		expect(forwarded).toHaveLength(1);
+	});
+
+	test("the forwarded path has no /testnet prefix and keeps the query", async () => {
+		const { deps, forwarded } = setup();
+		await get(deps, "/testnet/api/webhooks/wh_1/deliveries?from=1");
+		expect(forwarded[0]?.url).toBe(
+			"http://127.0.0.1:29999/api/webhooks/wh_1/deliveries?from=1",
+		);
+	});
+
+	test("the forwarded header is the introspected account, ignoring a spoofed one", async () => {
+		const { deps, forwarded } = setup();
+		await get(deps, "/testnet/api/webhooks", {
+			headers: { "x-secondlayer-account-id": "someone-else" },
+		});
+		expect(forwarded[0]?.headers.get("x-secondlayer-account-id")).toBe(
+			"acct_1",
+		);
+	});
+
+	test("the upstream is the shared stack's, with the stack's token", async () => {
+		const { deps, forwarded, upstreamFor, resolved } = setup();
+		await get(deps, "/testnet/api/webhooks");
+		expect(upstreamFor).toEqual([STACK]);
+		expect(resolved).toEqual([STACK]);
+		expect(forwarded[0]?.headers.get("authorization")).toBe(
+			"Bearer stack-token",
+		);
+	});
+
+	test("an invalid key gets 401", async () => {
+		const { deps, forwarded } = setup({
+			introspect: new IntrospectClient({
+				appServerUrl: "https://api.secondlayer.tools",
+				workloadHostKey: "wh-key",
+				fetchImpl: async () => new Response("{}", { status: 401 }),
+			}),
+		});
+		const res = await get(deps, "/testnet/api/webhooks");
+		expect(res.status).toBe(401);
+		expect(forwarded).toHaveLength(0);
+	});
+
+	test.each([
+		"/testnet/api/subgraphs",
+		"/testnet/v1/index/blocks",
+		"/testnet/api/webhooks-extra",
+		"/testnet/",
+	])("%s is 404 here", async (path) => {
+		const { deps, forwarded } = setup();
+		const res = await get(deps, path);
+		expect(res.status).toBe(404);
+		expect(forwarded).toHaveLength(0);
+	});
+
+	test("an unset testnetAccountId makes the testnet webhook path 404", async () => {
+		const { deps, forwarded } = setup({ testnetAccountId: undefined });
+		const res = await get(deps, "/testnet/api/webhooks");
+		expect(res.status).toBe(404);
+		expect(forwarded).toHaveLength(0);
+	});
+
+	test("a no-credit account on /api/webhooks still gets the same 402", async () => {
+		const { deps, forwarded } = setup({ introspect: introspectAs(false) });
+		const res = await get(deps, "/api/webhooks", { method: "POST" });
+		expect(res.status).toBe(402);
+		expect(forwarded).toHaveLength(0);
+	});
+
+	test("a mainnet request's spoofed account header is removed", async () => {
+		const { deps, forwarded, upstreamFor } = setup();
+		await get(deps, "/api/webhooks", {
+			headers: { "x-secondlayer-account-id": "someone-else" },
+		});
+		expect(upstreamFor).toEqual(["acct_1"]);
+		expect(forwarded[0]?.headers.has("x-secondlayer-account-id")).toBe(false);
+	});
+
+	test("a testnet read before the stack exists provisions it and 503s, never an empty list", async () => {
+		const provisioned: string[] = [];
+		const { deps } = setup({
+			resolveTenant: async () => undefined,
+			startProvisioning: (id) => provisioned.push(id),
+		});
+		const res = await get(deps, "/testnet/api/webhooks");
+		expect(res.status).toBe(503);
+		expect(provisioned).toEqual([STACK]);
+	});
+
+	test("a stopped stack answers 503 starting and starts the stack, not the customer's", async () => {
+		const started: string[] = [];
+		const { deps } = setup({
+			resolveTenant: async () => "stopped",
+			stopReason: async () => "idle",
+			startTenant: (id) => started.push(id),
+		});
+		const res = await get(deps, "/testnet/api/webhooks");
+		expect(res.status).toBe(503);
+		expect(((await res.json()) as { error: string }).error).toBe("starting");
+		expect(started).toEqual([STACK]);
+	});
+
+	test("the rate limit is per customer account", async () => {
+		const seen: string[] = [];
+		const { deps } = setup({
+			rateLimit: (accountId) => {
+				seen.push(accountId);
+				return { allowed: true };
+			},
+		});
+		await get(deps, "/testnet/api/webhooks");
+		expect(seen).toEqual(["acct_1"]);
+	});
+
+	test("a failed testnet request is recorded against the customer's account", async () => {
+		const rows: FailedRequestRecord[] = [];
+		const { deps } = setup({
+			recordFailure: (row) => rows.push(row),
+			fetchImpl: async () =>
+				new Response(JSON.stringify({ error: "bad" }), {
+					status: 400,
+					headers: { "content-type": "application/json" },
+				}),
+		});
+		await get(deps, "/testnet/api/webhooks", { method: "POST" });
+		expect(rows.map((r) => r.account_id)).toEqual(["acct_1"]);
+	});
+});

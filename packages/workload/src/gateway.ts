@@ -73,6 +73,17 @@ export interface GatewayDeps {
 	/** Record one failed request for the account (feedback evidence).
 	 *  Fire-and-forget; must never throw or block. */
 	recordFailure?: (row: FailedRequestRecord) => void;
+	/** The one shared testnet webhook stack's account. Unset: every
+	 *  `/testnet/*` path is a 404. */
+	testnetAccountId?: string;
+}
+
+/** The only testnet surface: webhooks on the shared stack. */
+function isTestnetWebhookPath(pathname: string): boolean {
+	return (
+		pathname === "/testnet/api/webhooks" ||
+		pathname.startsWith("/testnet/api/webhooks/")
+	);
 }
 
 export interface RateLimitDecision {
@@ -240,16 +251,31 @@ async function route(
 		return res;
 	}
 
-	const state = await deps.resolveTenant(introspected.accountId);
+	// Testnet webhooks run on one shared, free stack owned by an internal
+	// account. Auth and rate limits above stay the customer's; everything from
+	// here on (state, provisioning, upstream) is the stack's.
+	const testnetPath = isTestnetWebhookPath(url.pathname);
+	if (
+		url.pathname.startsWith("/testnet/") &&
+		(!testnetPath || !deps.testnetAccountId)
+	) {
+		return Response.json({ error: "not_found" }, { status: 404 });
+	}
+	const stackAccountId =
+		testnetPath && deps.testnetAccountId
+			? deps.testnetAccountId
+			: introspected.accountId;
+
+	const state = await deps.resolveTenant(stackAccountId);
 	// A read against an account with no tenant yet must not provision one —
 	// opening the dashboard's webhooks or subgraphs page shouldn't start a
 	// billed service. Only a write (create/update/delete/pause/deploy/...)
 	// provisions. It also runs before the credits gate, so a new account with
 	// no credits sees an empty dashboard, not a top-up wall.
-	if (state === undefined && bucket === "read") {
+	if (state === undefined && bucket === "read" && !testnetPath) {
 		return emptyRead(url.pathname);
 	}
-	if (!introspected.creditsOk) {
+	if (!testnetPath && !introspected.creditsOk) {
 		return Response.json(
 			{
 				error: "insufficient_credits",
@@ -260,7 +286,7 @@ async function route(
 	}
 
 	if (state === undefined) {
-		deps.startProvisioning(introspected.accountId);
+		deps.startProvisioning(stackAccountId);
 		return withRetryAfter(
 			Response.json(
 				{
@@ -287,8 +313,9 @@ async function route(
 	if (
 		state === "stopped" &&
 		bucket === "read" &&
+		!testnetPath &&
 		!url.searchParams.has("wake") &&
-		(await deps.stopReason(introspected.accountId)) === "idle"
+		(await deps.stopReason(stackAccountId)) === "idle"
 	) {
 		return asleepRead(url.pathname);
 	}
@@ -297,7 +324,7 @@ async function route(
 		// above) — a stopped tenant whose balance is fine just hasn't been
 		// restarted by the 5-minute poll yet. Kick it in the background and
 		// tell the caller to retry, instead of 402'ing a topped-up account.
-		deps.startTenant(introspected.accountId);
+		deps.startTenant(stackAccountId);
 		return withRetryAfter(
 			Response.json(
 				{
@@ -313,8 +340,11 @@ async function route(
 		return Response.json({ error: "invalid_api_key" }, { status: 401 });
 	}
 
-	const upstream = await deps.tenantUpstream(introspected.accountId);
-	const forwardUrl = new URL(url.pathname + url.search, upstream.baseUrl);
+	const upstream = await deps.tenantUpstream(stackAccountId);
+	const forwardPath = testnetPath
+		? url.pathname.slice("/testnet".length)
+		: url.pathname;
+	const forwardUrl = new URL(forwardPath + url.search, upstream.baseUrl);
 	const doFetch = deps.fetchImpl ?? fetch;
 
 	const forwardHeaders = new Headers(req.headers);
@@ -322,6 +352,12 @@ async function route(
 	// own INSTANCE_TOKEN (Design, step 4).
 	forwardHeaders.set("authorization", `Bearer ${upstream.instanceToken}`);
 	forwardHeaders.delete("host");
+	// The shared testnet stack scopes by this header, so a caller can never
+	// supply it: drop it everywhere, then set it from the introspected account.
+	forwardHeaders.delete("x-secondlayer-account-id");
+	if (testnetPath) {
+		forwardHeaders.set("x-secondlayer-account-id", introspected.accountId);
+	}
 	forwardHeaders.set("x-request-id", requestId);
 
 	const isRead = req.method === "GET" || req.method === "HEAD";

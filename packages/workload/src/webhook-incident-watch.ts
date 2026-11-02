@@ -15,7 +15,10 @@ import {
 	type TenantEndpoint,
 	tenantEndpoint as realTenantEndpoint,
 } from "./processor-watch.ts";
-import type { ProvisionerConfig } from "./provisioner.ts";
+import {
+	type ProvisionerConfig,
+	isTestnetStackAccount,
+} from "./provisioner.ts";
 
 /** Consecutive failed attempts (the tenant counter resets on any success). */
 export const DOWN_MIN_FAILURES = 5;
@@ -97,7 +100,14 @@ export function createWebhookIncidentWatch(
 	deps: WebhookIncidentWatchDeps = {},
 ): () => Promise<void> {
 	const doFetch: FetchLike = deps.fetchImpl ?? fetch;
-	const listTenants = deps.listTenants ?? (() => listRunningTenants(cfg.db));
+	// The shared testnet stack has no outage emails: its webhooks belong to many
+	// accounts, and this watch reads a stack without the account header.
+	const listTenants =
+		deps.listTenants ??
+		(async () =>
+			(await listRunningTenants(cfg.db)).filter(
+				(t) => !isTestnetStackAccount(cfg, t.account_id),
+			));
 	const endpointFor =
 		deps.endpointFor ?? ((tenant) => realTenantEndpoint(cfg, tenant));
 	const now = deps.now ?? Date.now;

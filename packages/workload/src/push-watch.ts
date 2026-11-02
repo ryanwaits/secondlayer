@@ -17,7 +17,10 @@ import {
 	type TenantEndpoint,
 	tenantEndpoint as realTenantEndpoint,
 } from "./processor-watch.ts";
-import type { ProvisionerConfig } from "./provisioner.ts";
+import {
+	type ProvisionerConfig,
+	isTestnetStackAccount,
+} from "./provisioner.ts";
 
 const TENANT_TIMEOUT_MS = 5_000;
 const REPLAY_LIMIT = 50;
@@ -134,7 +137,13 @@ export function createPushWatch(
 	deps: PushWatchDeps = {},
 ): () => Promise<void> {
 	const doFetch: FetchLike = deps.fetchImpl ?? fetch;
-	const listTenants = deps.listTenants ?? (() => listRunningTenants(cfg.db));
+	// The shared testnet stack has no pushes: see the incident watch.
+	const listTenants =
+		deps.listTenants ??
+		(async () =>
+			(await listRunningTenants(cfg.db)).filter(
+				(t) => !isTestnetStackAccount(cfg, t.account_id),
+			));
 	const endpointFor =
 		deps.endpointFor ?? ((tenant) => realTenantEndpoint(cfg, tenant));
 	const now = deps.now ?? Date.now;

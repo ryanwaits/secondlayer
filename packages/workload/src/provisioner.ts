@@ -311,6 +311,59 @@ export interface ProvisionerConfig {
 	/** Called after every control-DB write that changes a tenant row, so the
 	 *  gateway's short-lived tenant cache never routes on a stale state. */
 	onTenantChanged?: (accountId: string) => void;
+	/** The one shared, free testnet webhook stack: its account, the testnet
+	 *  API it reads, and the key it reads it with. Unset on a host without it. */
+	testnetStack?: TestnetStackConfig;
+}
+
+export interface TestnetStackConfig {
+	accountId: string;
+	apiUrl: string;
+	apiKey: string;
+}
+
+/** `TESTNET_STACK_ACCOUNT_ID` / `TESTNET_API_URL` / `TESTNET_API_KEY`, all or
+ *  nothing. A partial set is logged and ignored, never half-applied. */
+export function testnetStackFromEnv(
+	env: Record<string, string | undefined>,
+): TestnetStackConfig | undefined {
+	const accountId = env.TESTNET_STACK_ACCOUNT_ID?.trim();
+	const apiUrl = env.TESTNET_API_URL?.trim();
+	const apiKey = env.TESTNET_API_KEY?.trim();
+	if (!accountId && !apiUrl && !apiKey) return undefined;
+	if (!accountId || !apiUrl || !apiKey) {
+		logger.error("workload.testnet_stack.partial_config", {
+			hasAccountId: Boolean(accountId),
+			hasApiUrl: Boolean(apiUrl),
+			hasApiKey: Boolean(apiKey),
+		});
+		return undefined;
+	}
+	return { accountId, apiUrl, apiKey };
+}
+
+export function isTestnetStackAccount(
+	cfg: Pick<ProvisionerConfig, "testnetStack">,
+	accountId: string,
+): boolean {
+	return cfg.testnetStack?.accountId === accountId;
+}
+
+/** Env that points the testnet stack at the testnet API and turns on its
+ *  per-account webhook rules. `{}` for every other tenant, so their rendered
+ *  `.env` is unchanged. Spread in BOTH writers of a tenant `.env`: `up()` and
+ *  `ensureTenantEnv`. */
+export function testnetEnvOverride(
+	cfg: Pick<ProvisionerConfig, "testnetStack">,
+	accountId: string,
+): Record<string, string> {
+	const stack = cfg.testnetStack;
+	if (!stack || stack.accountId !== accountId) return {};
+	return {
+		HOSTED_API_URL: stack.apiUrl,
+		TENANT_HOSTED_READ_KEY: stack.apiKey,
+		TESTNET_WEBHOOK_STACK: "true",
+	};
 }
 
 function resolveMintTenantKey(cfg: ProvisionerConfig): MintTenantKey {
@@ -482,7 +535,7 @@ export async function ensureTenantEnv(
 		const acct8 = acct8For(accountId);
 		const envPath = join(tenantDir(cfg, acct8), ".env");
 		const current = parseEnvFile(readFileSync(envPath, "utf8"));
-		const next = { ...current };
+		const next = { ...current, ...testnetEnvOverride(cfg, accountId) };
 
 		const network = tenantNetwork(row.subnet_idx);
 		next.TENANT_SUBNET ||= network.subnet;
@@ -577,15 +630,18 @@ export async function up(
 			mint(accountId, "hosted-subgraphs"),
 		]);
 		const secrets = generateTenantSecrets();
-		const env = buildTenantEnv({
-			secrets,
-			accountReadKey,
-			subgraphReadKey,
-			hostedApiUrl: cfg.hostedApiUrl,
-			tenantSocketDir: socketDir,
-			apiPort,
-			subnetIdx,
-		});
+		const env = {
+			...buildTenantEnv({
+				secrets,
+				accountReadKey,
+				subgraphReadKey,
+				hostedApiUrl: cfg.hostedApiUrl,
+				tenantSocketDir: socketDir,
+				apiPort,
+				subnetIdx,
+			}),
+			...testnetEnvOverride(cfg, accountId),
+		};
 		writeSecretsToDisk(dir, socketDir, renderEnvFile(env));
 
 		const result = await runCompose(
@@ -904,6 +960,9 @@ export async function pollCredits(cfg: ProvisionerConfig): Promise<void> {
 			if (tenant.state === "running" && !status.ok) {
 				await stop(cfg, tenant.account_id, status.reason ?? "credits");
 			} else if (tenant.state === "running") {
+				// The shared testnet stack starts with no webhooks and must answer
+				// the first create, so it is never idle-stopped.
+				if (isTestnetStackAccount(cfg, tenant.account_id)) continue;
 				const startedAt = tenant.started_at?.getTime() ?? 0;
 				if (Date.now() - startedAt < IDLE_GRACE_MS) continue;
 				const count = await countWorkloads(acct8For(tenant.account_id));

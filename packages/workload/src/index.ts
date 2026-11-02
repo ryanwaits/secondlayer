@@ -78,6 +78,7 @@ import {
 	start as provisionStart,
 	up as provisionUp,
 	recoverInterruptedProvisions,
+	testnetStackFromEnv,
 } from "./provisioner.ts";
 import { createPushWatch, createStoppedReporter } from "./push-watch.ts";
 import { createRateLimiter } from "./rate-limiter.ts";
@@ -200,6 +201,7 @@ async function main(): Promise<void> {
 		workloadHostKey,
 		backups,
 		getTargetSha: () => targetShaCache.lastGood,
+		testnetStack: testnetStackFromEnv(process.env),
 		onTenantChanged: (accountId) => tenantCache.invalidate(accountId),
 	};
 	const upgradeRunner = createUpgradeRunner(provisionerCfg);
@@ -326,6 +328,7 @@ async function main(): Promise<void> {
 						});
 					},
 					rateLimit,
+					testnetAccountId: provisionerCfg.testnetStack?.accountId,
 					sha: workloadSha,
 					isBusy: upgradeRunner.isBusy,
 				},
