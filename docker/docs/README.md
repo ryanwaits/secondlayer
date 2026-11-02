@@ -401,6 +401,8 @@ elsewhere it 404s. Mainnet Postgres `pg_stat_activity` shows no testnet client.
 `$C down; rm -rf /data/bitcoin/testnet-pg`, then steps 2-4. Tenant cursors
 recover on their own.
 
+After any restore, the node's boot block lands at height 0 and integrity reports a false `1-<start>` gap. Delete that one `blocks` row on the testnet Postgres, then set `index_progress.last_contiguous_block` to the tip.
+
 **Removal**: both projects `down -v`, delete data dirs and `.env`, disable the
 units and timers, delete the deploy hook + Caddy block + `extra_hosts`, deploy.
 
