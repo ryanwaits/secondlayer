@@ -4,8 +4,13 @@ import { getTargetDb } from "@secondlayer/shared/db";
 import { listActiveChainWebhooks } from "@secondlayer/shared/db/queries/webhooks";
 import type { IndexHttpClient } from "@secondlayer/shared/index-http";
 import { logger } from "@secondlayer/shared/logger";
-import type { Kysely } from "kysely";
-import { buildChainBlockSource, buildHttpClient } from "./block-source.ts";
+import { isTestnetWebhookStack } from "@secondlayer/shared/mode";
+import { type Kysely, sql } from "kysely";
+import {
+	PublicApiBlockSource,
+	buildChainBlockSource,
+	buildHttpClient,
+} from "./block-source.ts";
 import { chainDataReader } from "./chain-data-reader.ts";
 import { boundSourceTip } from "./decoder-bound.ts";
 import {
@@ -46,6 +51,19 @@ const BATCH = 200;
 // Bound work per tick so a large gap (e.g. after downtime) is caught up in
 // steps rather than one huge fetch.
 const MAX_BLOCKS_PER_TICK = 2_000;
+
+// Shared testnet stack rules (TESTNET_WEBHOOK_STACK=true only). Testnet is
+// free and has no backfill, so the loop protects itself and the host the
+// paying tenants share.
+/** A cursor this far above the source tip means the testnet chain was reset. */
+const TESTNET_WIPE_GAP = 1_000;
+/** Testnet ingest has no backfill: a missing height this far under tip is a
+ *  permanent hole, not lag. */
+const TESTNET_HOLE_DEPTH = 6;
+/** Events from blocks older than this aren't delivered (outage catch-up). */
+const TESTNET_MAX_EVENT_AGE_MS = 3_600_000;
+/** Pending outbox rows past which the stack stops evaluating. */
+const TESTNET_OUTBOX_LIMIT = 100_000;
 
 // A concurrent reorg rewind and the evaluator's forward advance target the same
 // cursor row. FOR UPDATE serializes the writes but not the *staleness* of a `to`
@@ -133,6 +151,15 @@ export type EvaluatorTickResult = {
 	idleAtTip: boolean;
 };
 
+async function testnetOutboxFull(db: Kysely<Database>): Promise<boolean> {
+	const { rows } = await sql<{ n: string }>`
+		SELECT count(*) AS n FROM (
+			SELECT 1 FROM webhook_outbox WHERE status = 'pending' LIMIT ${TESTNET_OUTBOX_LIMIT + 1}
+		) pending
+	`.execute(db);
+	return Number(rows[0]?.n ?? 0) > TESTNET_OUTBOX_LIMIT;
+}
+
 export async function runEvaluatorOnce(
 	db: Kysely<Database> = getTargetDb(),
 	opts?: {
@@ -178,11 +205,29 @@ export async function runEvaluatorOnce(
 			});
 		}
 
-		const source = buildChainBlockSource(
-			referencedEventTypes(chainSubs),
-			chainSubsNeedTransactions(chainSubs),
-			opts?.httpClient,
-		);
+		const testnet = isTestnetWebhookStack();
+		if (testnet && (await testnetOutboxFull(db))) {
+			logger.error("Testnet outbox is full, evaluation paused", {
+				event: "testnet_outbox_full",
+				limit: TESTNET_OUTBOX_LIMIT,
+			});
+			return { emitted, advanced, rawTip, idleAtTip };
+		}
+
+		// Testnet reads only the API: the Postgres fallback is this stack's empty
+		// local tap, which would pass an API failure off as a hole.
+		const source = testnet
+			? new PublicApiBlockSource(
+					opts?.httpClient ?? buildHttpClient(),
+					referencedEventTypes(chainSubs),
+					undefined,
+					chainSubsNeedTransactions(chainSubs),
+				)
+			: buildChainBlockSource(
+					referencedEventTypes(chainSubs),
+					chainSubsNeedTransactions(chainSubs),
+					opts?.httpClient,
+				);
 		// sBTC, trait and settlement reads: this stack's own tables, or the
 		// hosted Index API on a tenant (whose tables are empty).
 		const reader = chainDataReader({ httpClient: opts?.httpClient });
@@ -240,6 +285,23 @@ export async function runEvaluatorOnce(
 		const cursor = await readCursor(db);
 		cursorBefore = cursor;
 		cursorAfter = cursor;
+		// The testnet chain was reset under us: restart from the new tip. Dedup
+		// covers any re-walked block, and the age rule skips old ones.
+		if (testnet && rawTip < cursor - TESTNET_WIPE_GAP) {
+			bumpChainReorgGeneration();
+			await db
+				.updateTable("trigger_evaluator_state")
+				.set({ last_processed_block: rawTip, updated_at: new Date() })
+				.where("id", "=", true)
+				.execute();
+			cursorAfter = rawTip;
+			logger.error("Testnet chain reset, evaluator cursor rewound", {
+				event: "testnet_cursor_reset",
+				rawTip,
+				cursor,
+			});
+			return { emitted, advanced: true, rawTip, idleAtTip: false };
+		}
 		// Forward-looking: uninitialized cursor or no webhooks → jump to tip so
 		// nothing backfills history.
 		if (cursor === 0 || chainSubs.length === 0) {
@@ -274,12 +336,20 @@ export async function runEvaluatorOnce(
 			// moves past it.
 			let lastDone = to;
 			let stopped = false;
+			let staleSkipped = 0;
 			for (let h = from; h <= to; h++) {
 				let bd = blocks.get(h);
 				if (!bd) {
 					// Refetch once — distinguishes a transient source hiccup from a
 					// genuinely absent block.
 					bd = (await source.loadBlockRange(h, h)).get(h);
+				}
+				if (!bd && testnet && h <= tip - TESTNET_HOLE_DEPTH) {
+					logger.warn("Testnet block missing below the tip, skipping", {
+						event: "testnet_block_skipped",
+						blockHeight: h,
+					});
+					continue;
 				}
 				if (!bd) {
 					// Every source returns an entry for every canonical height (empty
@@ -299,6 +369,14 @@ export async function runEvaluatorOnce(
 					break;
 				}
 				const blockTime = blockTimeOf(bd.block);
+				if (
+					testnet &&
+					blockTime &&
+					Date.now() - blockTime.getTime() > TESTNET_MAX_EVENT_AGE_MS
+				) {
+					staleSkipped++;
+					continue;
+				}
 				const matches = evaluateBlock(bd, sources, traitContracts);
 				if (matches.length > 0) {
 					emitted += await emitChainOutbox(
@@ -318,6 +396,14 @@ export async function runEvaluatorOnce(
 					blockTime,
 					{ rows: sbtcByHeight.get(h) ?? [] },
 				);
+			}
+			if (staleSkipped > 0) {
+				logger.warn("Testnet blocks older than an hour were not delivered", {
+					event: "testnet_blocks_stale",
+					count: staleSkipped,
+					from,
+					to,
+				});
 			}
 			if (lastDone >= from) {
 				const res = await advanceCursor(db, lastDone, generation);

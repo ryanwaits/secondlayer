@@ -1,6 +1,7 @@
 import { getTargetDb } from "@secondlayer/shared/db";
 import { listActiveChainWebhooks } from "@secondlayer/shared/db/queries/webhooks";
 import { logger } from "@secondlayer/shared/logger";
+import { isTestnetWebhookStack } from "@secondlayer/shared/mode";
 import { hasActiveRuneWebhooks } from "./bitcoin-trigger-evaluator.ts";
 import { handleChainReorg } from "./chain-reorg.ts";
 import { startEmitter } from "./emitter.ts";
@@ -76,8 +77,11 @@ export async function startWebhookPlane(): Promise<() => Promise<void>> {
 	const stopMeterSocket = startMeterSocketReporter();
 
 	// Dashboard insights: webhook and subgraph rules, evaluated every minute
-	// on the elected leader. Runs on self-host too.
-	const stopInsights = startInsightsLoop();
+	// on the elected leader. Runs on self-host too. Not on the shared testnet
+	// stack: no customer can read insights there.
+	const stopInsights = isTestnetWebhookStack()
+		? undefined
+		: startInsightsLoop();
 
 	logger.info("Webhook plane ready", { streamsIndex });
 
@@ -87,6 +91,6 @@ export async function startWebhookPlane(): Promise<() => Promise<void>> {
 		await stopTriggerEvaluator?.();
 		await stopEmitter();
 		stopMeterSocket();
-		await stopInsights();
+		await stopInsights?.();
 	};
 }

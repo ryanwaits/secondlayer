@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import { getDb } from "@secondlayer/shared/db";
 import { createWebhook } from "@secondlayer/shared/db/queries/webhooks";
 import type { IndexHttpClient } from "@secondlayer/shared/index-http";
+import { sql } from "kysely";
 import { handleChainReorg } from "./chain-reorg.ts";
 import {
 	MIN_REAL_WAIT_MS,
@@ -352,6 +353,243 @@ describe("chain evaluator vs. a block the source does not return", () => {
 
 		expect(result.advanced).toBe(true);
 		expect(await cursor()).toBe(TIP);
+		expect(await outboxHeights()).toEqual([EVENT_HEIGHT]);
+	});
+});
+
+describe("chain evaluator on the shared testnet stack", () => {
+	const FROM = 1000;
+	const TIP = FROM + 20;
+	const EVENT_HEIGHT = FROM + 10;
+	const NAME_PREFIX = `testnet-stack-${randomUUID()}-`;
+	const savedEnv = {
+		SUBGRAPH_SOURCE: process.env.SUBGRAPH_SOURCE,
+		SUBGRAPH_INDEX_API_URL: process.env.SUBGRAPH_INDEX_API_URL,
+		TESTNET_WEBHOOK_STACK: process.env.TESTNET_WEBHOOK_STACK,
+	};
+	const FRESH = () => new Date().toISOString();
+	const OLD = "2026-01-01T00:00:00.000Z";
+	let webhookId: string;
+
+	type Fake = {
+		tip?: number;
+		blockTime?: string | null;
+		/** Whether a height comes back from a batch walk / a one-height refetch. */
+		available?: (height: number, singleHeight: boolean) => boolean;
+		/** Heights whose one-height refetch fails like a hosted API error. */
+		failSingle?: (height: number) => boolean;
+	};
+
+	function fakeHttp(cfg: Fake = {}): IndexHttpClient {
+		const tip = cfg.tip ?? TIP;
+		const blockTime = cfg.blockTime === undefined ? FRESH() : cfg.blockTime;
+		return {
+			getIndexTip: async () => tip,
+			getIndexSourceTip: async () => tip,
+			getDecodedHeights: () => ({ stx_transfer: tip }),
+			waitIsSupported: () => true,
+			walkBlocks: async (from: number, to: number) => {
+				const rows = [];
+				for (let h = from; h <= to; h++) {
+					if (from === to && cfg.failSingle?.(h)) {
+						throw new Error("hosted index unavailable");
+					}
+					if (!(cfg.available?.(h, from === to) ?? true)) continue;
+					rows.push({
+						block_height: h,
+						block_hash: `0xh${h}`,
+						parent_hash: `0xh${h - 1}`,
+						burn_block_height: h,
+						burn_block_hash: null,
+						block_time: blockTime,
+					});
+				}
+				return rows;
+			},
+			walkTransactions: async () => [],
+			walkEvents: async (_type: string, from: number, to: number) =>
+				EVENT_HEIGHT >= from && EVENT_HEIGHT <= to
+					? [
+							{
+								event_type: "stx_transfer",
+								block_height: EVENT_HEIGHT,
+								tx_id: "0xtx-testnet",
+								tx_index: 0,
+								event_index: 0,
+								contract_id: null,
+								tx_sender: "ST1",
+								tx_type: "token_transfer",
+								tx_status: "success",
+								sender: "ST1",
+								recipient: "ST2",
+								amount: "1000",
+								memo: null,
+							},
+						]
+					: [],
+		} as unknown as IndexHttpClient;
+	}
+
+	async function outboxHeights(): Promise<number[]> {
+		const rows = await db
+			.selectFrom("webhook_outbox")
+			.select("block_height")
+			.where("webhook_id", "=", webhookId)
+			.execute();
+		return rows.map((r) => Number(r.block_height));
+	}
+
+	async function cleanup(): Promise<void> {
+		await db
+			.deleteFrom("webhooks")
+			.where("name", "like", `${NAME_PREFIX}%`)
+			.execute();
+		await setCursor(0);
+	}
+
+	function testnet(on: boolean): void {
+		if (on) process.env.TESTNET_WEBHOOK_STACK = "true";
+		else delete process.env.TESTNET_WEBHOOK_STACK;
+	}
+
+	beforeEach(async () => {
+		testnet(false);
+		await cleanup();
+		process.env.SUBGRAPH_SOURCE = "streams-index";
+		process.env.SUBGRAPH_INDEX_API_URL = "http://index.invalid";
+		// Created with the flag off: the webhook's account id is a throwaway.
+		const { webhook } = await createWebhook(db, {
+			accountId: randomUUID(),
+			name: `${NAME_PREFIX}${randomUUID()}`,
+			triggers: [{ type: "stx_transfer" }],
+			url: "https://webhook.site/testnet-stack",
+		});
+		webhookId = webhook.id;
+		await setCursor(FROM - 1);
+	});
+
+	afterEach(async () => {
+		await cleanup();
+		for (const [key, value] of Object.entries(savedEnv)) {
+			if (value === undefined) delete process.env[key];
+			else process.env[key] = value;
+		}
+	});
+
+	it("rewinds the cursor to the source tip when it is 5,000 above it", async () => {
+		testnet(true);
+		await setCursor(TIP + 5_000);
+		const gen = getChainReorgGeneration();
+
+		const result = await runEvaluatorOnce(db, { httpClient: fakeHttp() });
+
+		expect(result.advanced).toBe(true);
+		expect(await cursor()).toBe(TIP);
+		expect(getChainReorgGeneration()).toBe(gen + 1);
+	});
+
+	it("leaves a cursor that is only a reorg's depth above the tip alone", async () => {
+		testnet(true);
+		await setCursor(TIP + 50);
+
+		const result = await runEvaluatorOnce(db, { httpClient: fakeHttp() });
+
+		expect(result.idleAtTip).toBe(true);
+		expect(await cursor()).toBe(TIP + 50);
+	});
+
+	it("skips a hole well below the tip and delivers the blocks after it", async () => {
+		testnet(true);
+		await runEvaluatorOnce(db, {
+			httpClient: fakeHttp({ available: (h) => h !== FROM + 5 }),
+		});
+
+		expect(await cursor()).toBe(TIP);
+		expect(await outboxHeights()).toEqual([EVENT_HEIGHT]);
+	});
+
+	it("defers a hole within six blocks of the tip", async () => {
+		testnet(true);
+		await runEvaluatorOnce(db, {
+			httpClient: fakeHttp({ available: (h) => h !== TIP - 2 }),
+		});
+
+		expect(await cursor()).toBe(TIP - 3);
+	});
+
+	it("throws on an API error below the tip and leaves the cursor unmoved", async () => {
+		testnet(true);
+		const http = fakeHttp({
+			available: (h, single) => single || h !== FROM + 5,
+			failSingle: (h) => h === FROM + 5,
+		});
+
+		await expect(runEvaluatorOnce(db, { httpClient: http })).rejects.toThrow(
+			"hosted index unavailable",
+		);
+		expect(await cursor()).toBe(FROM - 1);
+	});
+
+	it("does not evaluate once more than 100,000 outbox rows are pending", async () => {
+		testnet(true);
+		await sql`
+			INSERT INTO webhook_outbox (webhook_id, block_height, row_pk, event_type, payload, dedup_key)
+			SELECT ${webhookId}::uuid, 1, '{}'::jsonb, 'stx_transfer', '{}'::jsonb, 'full-' || n
+			FROM generate_series(1, 100001) AS n
+		`.execute(db);
+
+		const result = await runEvaluatorOnce(db, { httpClient: fakeHttp() });
+
+		expect(result.advanced).toBe(false);
+		expect(await cursor()).toBe(FROM - 1);
+		await sql`DELETE FROM webhook_outbox WHERE webhook_id = ${webhookId}::uuid`.execute(
+			db,
+		);
+	});
+
+	it("does not emit a block older than an hour, and the cursor still moves", async () => {
+		testnet(true);
+		await runEvaluatorOnce(db, { httpClient: fakeHttp({ blockTime: OLD }) });
+
+		expect(await cursor()).toBe(TIP);
+		expect(await outboxHeights()).toEqual([]);
+	});
+
+	it("emits when the block time is unknown", async () => {
+		testnet(true);
+		await runEvaluatorOnce(db, { httpClient: fakeHttp({ blockTime: null }) });
+
+		expect(await cursor()).toBe(TIP);
+		expect(await outboxHeights()).toEqual([EVENT_HEIGHT]);
+	});
+
+	it("emits a recent block", async () => {
+		testnet(true);
+		await runEvaluatorOnce(db, { httpClient: fakeHttp() });
+
+		expect(await outboxHeights()).toEqual([EVENT_HEIGHT]);
+	});
+
+	it("flag off: a cursor 5,000 above the tip is untouched", async () => {
+		await setCursor(TIP + 5_000);
+
+		const result = await runEvaluatorOnce(db, { httpClient: fakeHttp() });
+
+		expect(result.idleAtTip).toBe(true);
+		expect(await cursor()).toBe(TIP + 5_000);
+	});
+
+	it("flag off: a mainnet hole still defers, even far below the tip", async () => {
+		await runEvaluatorOnce(db, {
+			httpClient: fakeHttp({ available: (h) => h !== FROM + 5 }),
+		});
+
+		expect(await cursor()).toBe(FROM + 4);
+	});
+
+	it("flag off: an old block is still emitted", async () => {
+		await runEvaluatorOnce(db, { httpClient: fakeHttp({ blockTime: OLD }) });
+
 		expect(await outboxHeights()).toEqual([EVENT_HEIGHT]);
 	});
 });
