@@ -4,7 +4,6 @@ import type { IndexHttpClient } from "@secondlayer/shared/index-http";
 import type { SubgraphFilter } from "../types.ts";
 import { loadBlockRange, vmEventId } from "./batch-loader.ts";
 import { PublicApiBlockSource } from "./block-source.ts";
-import { mapNewBlockPayloadToBlockData } from "./observer-http-source.ts";
 import { type EventRecord, matchSources } from "./source-matcher.ts";
 
 // vm_events ride a second clock (ordinal). These tests pin the seams
@@ -142,35 +141,6 @@ describe("PublicApiBlockSource — vm walks land in vmEvents", () => {
 		expect((bd?.vmEvents?.[0]?.data as { map_name?: string }).map_name).toBe(
 			"store",
 		);
-	});
-});
-
-describe("observer-http source — /new_block.vm_events", () => {
-	async function fixture(name: string): Promise<unknown> {
-		const url = new URL(
-			`../../../indexer/test/fixtures/observer/${name}`,
-			import.meta.url,
-		);
-		return JSON.parse(await Bun.file(url).text()) as unknown;
-	}
-
-	test("opt-in body maps node types to stored names on vmEvents", async () => {
-		const bd = mapNewBlockPayloadToBlockData(
-			await fixture("new_block.vm_events.json"),
-		);
-		expect(bd.events).toHaveLength(1);
-		expect(bd.vmEvents?.map((e) => [e.event_index, e.type, e.clock])).toEqual([
-			[0, "nested_contract_call", "vm"],
-			[1, "map_set", "vm"],
-		]);
-		expect(bd.vmEvents?.[0]?.id).toMatch(/#vm:0$/);
-	});
-
-	test("`*` body yields no vmEvents", async () => {
-		const bd = mapNewBlockPayloadToBlockData(
-			await fixture("new_block.star.json"),
-		);
-		expect(bd.vmEvents).toEqual([]);
 	});
 });
 

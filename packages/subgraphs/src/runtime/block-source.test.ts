@@ -2,14 +2,28 @@ import { describe, expect, test } from "bun:test";
 import type { IndexHttpClient } from "@secondlayer/shared/index-http";
 import type { SubgraphDefinition } from "../types.ts";
 import {
+	PostgresBlockSource,
 	PublicApiBlockSource,
 	indexEventTypesForFilterTypes,
 	isStreamsIndexEligible,
+	resolveBlockSource,
 } from "./block-source.ts";
 
 function def(sources: Record<string, unknown>): SubgraphDefinition {
 	return { name: "t", sources } as unknown as SubgraphDefinition;
 }
+
+describe("resolveBlockSource", () => {
+	test("unset SUBGRAPH_SOURCE reads the Postgres tap", async () => {
+		const prevSource = process.env.SUBGRAPH_SOURCE;
+		try {
+			delete process.env.SUBGRAPH_SOURCE;
+			expect(await resolveBlockSource()).toBeInstanceOf(PostgresBlockSource);
+		} finally {
+			if (prevSource !== undefined) process.env.SUBGRAPH_SOURCE = prevSource;
+		}
+	});
+});
 
 const VM_TYPES = [
 	"nested_contract_call",
