@@ -18,6 +18,7 @@ import {
 	FROM,
 	FakeProofSource,
 	POOL,
+	RECORDED_CHECKPOINT,
 	TO,
 	WKIKI,
 	decodeReserveWrite,
@@ -26,7 +27,7 @@ import {
 
 /**
  * End to end over the recorded mainnet window (see replay-fixture.ts):
- * replay verifies every block from `MAINNET_CHECKPOINT` with the recorded
+ * replay verifies every block from `RECORDED_CHECKPOINT` with the recorded
  * proofs, feeds the named writes to the handler and must agree with the
  * server path (state_writes in Postgres → PostgresBlockSource feed →
  * processBlock in the realm → flush). Each kind of lie breaks its own link.
@@ -66,7 +67,13 @@ const WKIKI_RESERVE = decodeReserveWrite(WKIKI_WRITE.write);
 const WKIKI_AMOUNT = WKIKI_RESERVE.amount;
 
 const replay = (code: string, source = new FakeProofSource()) =>
-	replaySubgraph({ source, handlerCode: code, from: FROM, to: TO });
+	replaySubgraph({
+		source,
+		checkpoint: RECORDED_CHECKPOINT,
+		handlerCode: code,
+		from: FROM,
+		to: TO,
+	});
 
 test("the recording holds one vault write: reserve[token-wkiki] at ordinal 5 of 1,230,200", () => {
 	expect(VAULT_WRITES).toHaveLength(1);

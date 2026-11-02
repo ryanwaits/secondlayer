@@ -261,6 +261,10 @@ async function main(): Promise<void> {
 		join(outDir, "burn.json"),
 		`${JSON.stringify(rec.burn, null, "\t")}\n`,
 	);
+	writeFileSync(
+		join(outDir, "checkpoint.json"),
+		`${JSON.stringify(MAINNET_CHECKPOINT, null, "\t")}\n`,
+	);
 	console.log(
 		`wrote ${rec.blocks.size} blocks, ${rec.witnesses.size} witnesses, ${Object.keys(rec.marf).length} MARF proofs, ${Object.keys(rec.epoch2).length} epoch 2.x headers, ${Object.keys(rec.burn).length} burn preimages → ${outDir}`,
 	);

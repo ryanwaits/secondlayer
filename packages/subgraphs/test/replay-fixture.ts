@@ -7,9 +7,9 @@
  *   - blocks/<id>.bin, witnesses/<id>.bin, marf/<path>@<tip>.bin (proof
  *     bytes) + marf.json (values), epoch2.json, burn.json:
  *     every answer `BlockVerifier` read from `api.secondlayer.tools/v1/proofs/*`
- *     to verify the window from `MAINNET_CHECKPOINT` (the window's blocks, the
- *     parent of 1,230,195, the one MARF ancestry jump, the headers its proofs
- *     cross, the tenure's burn preimage);
+ *     to verify the window from the checkpoint in checkpoint.json (the window's
+ *     blocks, the parent of 1,230,195, the one MARF ancestry jump, the headers
+ *     its proofs cross, the tenure's burn preimage);
  *   - writes/<height>.json: each block's `state_writes` rows, from one
  *     single-block query per height on a node that stores them.
  *
@@ -30,6 +30,7 @@ import {
 	type NakamotoHeader,
 	type ProofSource,
 	type StateWrite,
+	type VerifyCheckpoint,
 	blockId,
 	blockTransactions,
 	hex,
@@ -39,6 +40,10 @@ import {
 } from "@secondlayer/verify";
 
 export const DIR = join(import.meta.dir, "fixtures", "replay-1230195");
+/** The checkpoint the window was recorded from. The proofs only reach this one, whatever ships. */
+export const RECORDED_CHECKPOINT = JSON.parse(
+	readFileSync(join(DIR, "checkpoint.json"), "utf8"),
+) as VerifyCheckpoint;
 
 export const FROM = 1_230_195;
 export const TO = 1_230_205;

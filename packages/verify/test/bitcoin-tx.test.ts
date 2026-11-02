@@ -10,6 +10,7 @@ import {
 	unhex,
 } from "../src/index.ts";
 import { FakeSource } from "./fake-source.ts";
+import { CHECKPOINT_143 } from "./fixtures.ts";
 
 const DIR = join(import.meta.dir, "fixtures", "bitcoin");
 const STAKER = "bc1q9fkjx3s9ufz90k4jzgmdkzlyt22h0tp3x92ua9";
@@ -91,7 +92,10 @@ function makeSource(extra: Partial<ProofSource> = {}) {
 }
 
 const verifier = (extra: Partial<ProofSource> = {}) =>
-	new BlockVerifier({ source: makeSource(extra).source });
+	new BlockVerifier({
+		source: makeSource(extra).source,
+		checkpoint: CHECKPOINT_143,
+	});
 
 const expectStaker = { address: STAKER, amount: AMOUNT };
 
@@ -110,7 +114,7 @@ describe("verifyBitcoinTx", () => {
 
 	test("a sweep below the checkpoint is proven by prev-hash links back from the checkpoint", async () => {
 		const { source, requests } = makeSource();
-		const v = new BlockVerifier({ source });
+		const v = new BlockVerifier({ source, checkpoint: CHECKPOINT_143 });
 		const result = await v.verifyBitcoinTx(proofOf(BELOW.txid), {
 			expect: expectStaker,
 		});
