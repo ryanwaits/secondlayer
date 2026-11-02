@@ -1,4 +1,14 @@
-import { afterAll, beforeEach, describe, expect, test } from "bun:test";
+import {
+	afterAll,
+	afterEach,
+	beforeEach,
+	describe,
+	expect,
+	test,
+} from "bun:test";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { getDb } from "@secondlayer/shared/db";
 import { txMerkleRoot } from "@secondlayer/shared/node/nakamoto";
 import { persistBlock } from "./persist.ts";
@@ -16,6 +26,11 @@ const HAS_DB = !!process.env.DATABASE_URL;
 // >= its fork point, so leftover seeds above it would corrupt that test.
 const H = 989301;
 const NETWORK = "repair-from-journal-test";
+const H2 = H + 1;
+const TX_A =
+	"0xc0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0";
+const TX_B =
+	"0xc1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1c1";
 
 function nodePayload(
 	hash: string,
@@ -366,5 +381,229 @@ describe.skipIf(!HAS_DB)("repair-from-journal", () => {
 			stubFetch(raw),
 		);
 		expect(short).toEqual({ status: "mismatch" });
+	});
+
+	describe("--journal-dir", () => {
+		let dir = "";
+		beforeEach(async () => {
+			dir = await mkdtemp(join(tmpdir(), "repair-journal-dir-"));
+			if (!db) return;
+			await db
+				.deleteFrom("vm_events")
+				.where("block_height", "in", [H, H2])
+				.execute();
+			await db
+				.deleteFrom("state_writes")
+				.where("block_height", "in", [H, H2])
+				.execute();
+			await db.deleteFrom("events").where("block_height", "=", H2).execute();
+			await db
+				.deleteFrom("transactions")
+				.where("block_height", "=", H2)
+				.execute();
+			await db.deleteFrom("blocks").where("height", "=", H2).execute();
+		});
+		afterAll(async () => {
+			if (!db) return;
+			await db
+				.deleteFrom("vm_events")
+				.where("block_height", "in", [H, H2])
+				.execute();
+			await db
+				.deleteFrom("state_writes")
+				.where("block_height", "in", [H, H2])
+				.execute();
+			await db.deleteFrom("events").where("block_height", "=", H2).execute();
+			await db
+				.deleteFrom("transactions")
+				.where("block_height", "=", H2)
+				.execute();
+			await db.deleteFrom("blocks").where("height", "=", H2).execute();
+		});
+
+		afterEach(async () => {
+			await rm(dir, { recursive: true, force: true });
+		});
+
+		function writeDirFile(
+			height: number,
+			payload: NewBlockPayload,
+		): Promise<void> {
+			return writeFile(join(dir, `${height}.json`), JSON.stringify(payload));
+		}
+
+		async function persistShort(
+			height: number,
+			hash: string,
+			txIds: string[],
+		): Promise<void> {
+			if (!db) throw new Error("missing db");
+			await persistBlock(db, {
+				block: {
+					height,
+					hash,
+					parent_hash: "0xparent",
+					burn_block_height: 1,
+					burn_block_hash: null,
+					index_block_hash: `${hash}-ibh`,
+					timestamp: 1_700_000_000,
+					canonical: true,
+				},
+				txs: txIds.map((id, i) => ({
+					tx_id: id,
+					block_height: height,
+					tx_index: i,
+					type: "contract_call",
+					sender: "SP1",
+					status: "success",
+					raw_tx: "0x00",
+				})),
+				evts: [],
+				blockHeight: height,
+				network: NETWORK,
+			});
+		}
+
+		async function txIdsAt(height: number): Promise<string[]> {
+			if (!db) throw new Error("missing db");
+			const rows = await db
+				.selectFrom("transactions")
+				.select("tx_id")
+				.where("block_height", "=", height)
+				.execute();
+			return rows.map((r) => r.tx_id).sort();
+		}
+
+		test("dir source repairs a short block", async () => {
+			if (!db) throw new Error("missing db");
+			await persistShort(H, "0xdirBlock", [TX_A]);
+			await writeDirFile(H, nodePayload("0xdirBlock", [TX_A, TX_B]));
+
+			const diff = await diffHeightAgainstJournal(db, H, dir);
+			expect(diff.status).toBe("diverged");
+			expect(diff.missingTxIds).toEqual([TX_B]);
+
+			await repairHeightFromJournal(db, H, dir);
+			expect(await txIdsAt(H)).toEqual([TX_A, TX_B]);
+			expect((await diffHeightAgainstJournal(db, H, dir)).status).toBe("match");
+		});
+
+		test("a tx at the wrong height moves to its true height with no duplicate", async () => {
+			if (!db) throw new Error("missing db");
+			await persistShort(H, "0xdirBlock", [TX_A]);
+			// TX_B was stored one height too high.
+			await persistShort(H2, "0xdirBlock2", [TX_B]);
+			await writeDirFile(H, nodePayload("0xdirBlock", [TX_A, TX_B], H));
+
+			await repairHeightFromJournal(db, H, dir);
+
+			expect(await txIdsAt(H)).toEqual([TX_A, TX_B]);
+			expect(await txIdsAt(H2)).toEqual([]);
+			const all = await db
+				.selectFrom("transactions")
+				.select("tx_id")
+				.where("tx_id", "=", TX_B)
+				.execute();
+			expect(all).toHaveLength(1);
+		});
+
+		test("a hash mismatch writes nothing and exits non-zero", async () => {
+			if (!db) throw new Error("missing db");
+			await persistShort(H, "0xdirBlock", [TX_A]);
+			await writeDirFile(H, nodePayload("0xotherBlock", [TX_A, TX_B]));
+
+			await expect(repairHeightFromJournal(db, H, dir)).rejects.toThrow(
+				/refusing to repair/,
+			);
+			expect(await txIdsAt(H)).toEqual([TX_A]);
+			const block = await db
+				.selectFrom("blocks")
+				.select("hash")
+				.where("height", "=", H)
+				.executeTakeFirstOrThrow();
+			expect(block.hash).toBe("0xdirBlock");
+
+			// The CLI exits non-zero on the same input.
+			const proc = Bun.spawn(
+				[
+					"bun",
+					"run",
+					join(import.meta.dir, "repair-from-journal.ts"),
+					"--heights",
+					String(H),
+					"--journal-dir",
+					dir,
+					"--apply",
+				],
+				{ env: process.env, stdout: "pipe", stderr: "pipe" },
+			);
+			expect(await proc.exited).not.toBe(0);
+			expect(await txIdsAt(H)).toEqual([TX_A]);
+		});
+
+		test("vm_events and state_writes in the file are not persisted", async () => {
+			if (!db) throw new Error("missing db");
+			await persistShort(H, "0xdirBlock", [TX_A]);
+			const payload = nodePayload("0xdirBlock", [TX_A, TX_B]);
+			payload.vm_events = [
+				{
+					txid: TX_A,
+					type: "var_set_event",
+					var_set_event: {
+						contract_identifier: "SP1.c",
+						var_name: "v",
+						raw_value: "0x01",
+					},
+				},
+			];
+			payload.state_writes = [
+				{
+					ordinal: 0,
+					tx_index: 0,
+					key: "vm::SP1.c::0::var::v",
+					value_hex: "02",
+				},
+			];
+			await writeDirFile(H, payload);
+
+			await repairHeightFromJournal(db, H, dir);
+
+			expect(await txIdsAt(H)).toEqual([TX_A, TX_B]);
+			const vm = await db
+				.selectFrom("vm_events")
+				.select("block_height")
+				.where("block_height", "=", H)
+				.execute();
+			const sw = await db
+				.selectFrom("state_writes")
+				.select("block_height")
+				.where("block_height", "=", H)
+				.execute();
+			expect(vm).toHaveLength(0);
+			expect(sw).toHaveLength(0);
+		});
+
+		test("a missing file reports missing_journal", async () => {
+			if (!db) throw new Error("missing db");
+			await persistShort(H, "0xdirBlock", [TX_A]);
+			const diff = await diffHeightAgainstJournal(db, H, dir);
+			expect(diff.status).toBe("missing_journal");
+			await expect(repairHeightFromJournal(db, H, dir)).rejects.toThrow(
+				/no journal payload/,
+			);
+			expect(await txIdsAt(H)).toEqual([TX_A]);
+		});
+
+		test("without the flag the journal table is used", async () => {
+			if (!db) throw new Error("missing db");
+			await persistShort(H, "0xdirBlock", [TX_A]);
+			// The dir holds a payload that would add TX_B; the table holds TX_A only.
+			await writeDirFile(H, nodePayload("0xdirBlock", [TX_A, TX_B]));
+			await seedJournal(db, nodePayload("0xdirBlock", [TX_A]));
+
+			const diff = await diffHeightAgainstJournal(db, H);
+			expect(diff.status).toBe("match");
+			expect(diff.journalTxCount).toBe(1);
+		});
 	});
 });
