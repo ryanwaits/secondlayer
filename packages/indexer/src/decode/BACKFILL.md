@@ -44,25 +44,6 @@ are idempotent upserts, so re-processing the recent tail is harmless.
 - Confirm container/service names if unsure: `docker compose ps` — expect the
   decoder service `decoder` (container `secondlayer-decoder-1`).
 
-## Step 0 — clean reorg dupes first (#46, required)
-
-Before backfilling, remove the reorg-orphaned duplicate transactions/events that
-caused the Streams cursor collisions. Run this once, after the replace-per-height
-ingest fix is deployed (so no new dupes form), and before the backfill below:
-
-```bash
-# dry-run — reports orphaned tx / event counts, no writes
-docker compose run --rm decoder \
-  bun run packages/indexer/src/cleanup-reorg-dupes.ts
-
-# apply
-docker compose run --rm decoder \
-  bun run packages/indexer/src/cleanup-reorg-dupes.ts --apply
-```
-
-Expect `remaining orphaned transactions: 0` after `--apply`. (Optional
-`--from-height` / `--to-height` to scope.) Then proceed to the backfill.
-
 ## Procedure (race-free)
 
 Stop the decoder first so it can't overwrite the checkpoint mid-reset.
@@ -154,8 +135,8 @@ docker logs --since 2h secondlayer-decoder-1 2>&1 | grep "decoder.error" | tail
 **4. Replace-per-height holding — no new reorg dupes** (read-only, expect 0):
 
 ```bash
-docker exec secondlayer-decoder-1 \
-  bun run packages/indexer/src/cleanup-reorg-dupes.ts   # → "orphaned transactions: 0"
+docker exec secondlayer-postgres-1 psql -U secondlayer -d secondlayer -tc \
+  "SELECT count(*) FROM (SELECT block_height, tx_index FROM transactions GROUP BY 1, 2 HAVING count(*) > 1) d"
 ```
 
 **5. API serving backfilled history** (run anywhere, once lag → 0). A height

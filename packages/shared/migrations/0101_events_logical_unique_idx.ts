@@ -38,7 +38,7 @@ import { onChainPlane } from "../src/db/migration-role.ts";
  * fresh DB) gets the index built inline — there a cheap dup-probe runs first.
  *
  * On prod the historical duplicates (blocks 2,021,105–4,327,077, ~8.25M excess)
- * must be removed FIRST via `dedupe-events.ts --apply`, then the index
+ * must be removed FIRST, then the index
  * pre-created `CONCURRENTLY` (matching this name exactly). Once it exists this
  * migration no-ops via the index-exists check below on every subsequent deploy.
  * See the runbook `docs/internal/audits/decoded-events-supply-shortfall-2026-06-15.md`.
@@ -74,7 +74,7 @@ export async function up(db: Kysely<unknown>): Promise<void> {
 		const rowEstimate = Number(est.rows[0]?.rows ?? -1);
 		if (rowEstimate > INLINE_BUILD_MAX_ROWS) {
 			await skipNotice(
-				`events ~${rowEstimate} rows — run dedupe-events.ts then CREATE UNIQUE INDEX CONCURRENTLY`,
+				`events ~${rowEstimate} rows — dedupe events then CREATE UNIQUE INDEX CONCURRENTLY`,
 			);
 			return;
 		}

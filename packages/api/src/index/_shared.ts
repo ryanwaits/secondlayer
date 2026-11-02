@@ -45,8 +45,8 @@ export function parseTxIndexCursor(value: string): IndexTxCursorInput {
 }
 
 /** function_args is a JSONB array of hex-encoded ClarityValues. The string
- *  branch covers pre-2026-08-12 rows that were stored double-encoded (see
- *  backfill-function-args.ts); post-backfill rows arrive as arrays. Shared by
+ *  branch covers pre-2026-08-12 rows that were stored double-encoded;
+ *  post-backfill rows arrive as arrays. Shared by
  *  the contract-calls, transactions and mempool readers. */
 export function decodeClarityArgs(raw: unknown): unknown[] {
 	let parsed = raw;

@@ -4,7 +4,7 @@ import { onChainPlane } from "../src/db/migration-role.ts";
 /**
  * `vm_events` referenced `transactions` / `blocks` with plain FKs, like
  * `events_tx_id_fkey`. Every sweep that deletes a height (cli bootstrap and
- * repair, repair-fork-block, cleanup-reorg-dupes, the smoke and drill scripts)
+ * repair, repair-fork-block, the smoke and drill scripts)
  * deletes `events` explicitly before `transactions` — and none of them name
  * `vm_events`, so each would fail with an FK violation the moment a vm row
  * exists. Cascade instead of teaching six call sites about a second child:

@@ -42,7 +42,7 @@ export interface RunResult {
  *
  * The string branch is legacy tolerance, not driver behaviour: rows written
  * before 2026-08-12 hold a jsonb *string* containing JSON because the writer
- * pre-serialized the array (see backfill-function-args.ts). Correct rows arrive
+ * pre-serialized the array (see docs/incidents/INCIDENTS.md). Correct rows arrive
  * as arrays. Keep both paths until every environment has been backfilled.
  */
 function decodeFunctionArgs(args: unknown): unknown[] {

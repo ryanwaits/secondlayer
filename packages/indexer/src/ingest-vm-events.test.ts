@@ -117,7 +117,7 @@ describe.skipIf(!HAS_DB)("ingest vm_events", () => {
 	});
 
 	test("deleting a height's transactions cascades its vm_events (sweeps never trip the FK)", async () => {
-		// bootstrap / repair / repair-fork-block / cleanup-reorg-dupes delete
+		// bootstrap / repair / repair-fork-block delete
 		// `events` then `transactions` by height and never name `vm_events`.
 		// The vm FK cascades so those sweeps keep working once vm rows exist.
 		if (!db) throw new Error("missing db");
