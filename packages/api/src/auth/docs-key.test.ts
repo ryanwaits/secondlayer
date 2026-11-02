@@ -260,7 +260,8 @@ describe.skipIf(!HAS_DB)("docs key authority", () => {
 			},
 			body: JSON.stringify({ key: docs }),
 		});
-		expect(res.status).toBe(401);
+		expect(res.status).toBe(403);
+		expect(((await res.json()) as { error: string }).error).toBe("docs_key");
 	});
 
 	test("a docs key reads Streams and Index", async () => {

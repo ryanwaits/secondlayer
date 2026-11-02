@@ -134,6 +134,31 @@ describe("handleGatewayRequest", () => {
 		expect(upstreamCalled).toBe(false);
 	});
 
+	test("a docs key → 403 saying which key to use, upstream never called", async () => {
+		let upstreamCalled = false;
+		const deps = baseDeps({
+			introspect: new IntrospectClient({
+				appServerUrl: "https://api.secondlayer.tools",
+				workloadHostKey: "wh-key",
+				fetchImpl: async () =>
+					new Response(JSON.stringify({ error: "docs_key" }), { status: 403 }),
+			}),
+			fetchImpl: async () => {
+				upstreamCalled = true;
+				return new Response("ok");
+			},
+		});
+		const res = await handleGatewayRequest(
+			deps,
+			req({ auth: "Bearer sk-sl_docs", path: "/testnet/api/webhooks" }),
+		);
+		expect(res.status).toBe(403);
+		const body = (await res.json()) as { error: string; hint: string };
+		expect(body.error).toBe("docs_key_read_only");
+		expect(body.hint).toContain("account key");
+		expect(upstreamCalled).toBe(false);
+	});
+
 	const noCredits = () =>
 		new IntrospectClient({
 			appServerUrl: "https://api.secondlayer.tools",

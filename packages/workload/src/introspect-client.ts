@@ -9,7 +9,7 @@ import type { FetchLike } from "./fetch-like.ts";
 
 export type IntrospectResult =
 	| { ok: true; accountId: string; creditsOk: boolean }
-	| { ok: false };
+	| { ok: false; docsKey?: true };
 
 export interface IntrospectClientConfig {
 	/** app-server's base URL, e.g. https://api.secondlayer.tools */
@@ -117,6 +117,14 @@ export class IntrospectClient {
 			// Network failure to app-server: fail closed, same as a 401 — never
 			// let an upstream outage look like an authenticated request.
 			return { ok: false };
+		}
+		if (res.status === 403) {
+			const refused = (await res.json().catch(() => null)) as {
+				error?: string;
+			} | null;
+			return refused?.error === "docs_key"
+				? { ok: false, docsKey: true }
+				: { ok: false };
 		}
 		if (!res.ok) return { ok: false };
 		const body = (await res.json().catch(() => null)) as {

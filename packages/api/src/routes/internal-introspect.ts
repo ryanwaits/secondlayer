@@ -76,13 +76,18 @@ app.post("/", async (c) => {
 	} else {
 		const keyRecord = await db
 			.selectFrom("api_keys")
-			.select(["account_id", "status"])
+			.select(["account_id", "status", "product"])
 			.where("key_hash", "=", hashToken(presented))
-			.where("product", "=", "account")
+			.where("product", "in", ["account", "docs"])
 			.executeTakeFirst();
 
 		if (!keyRecord || keyRecord.status !== "active") {
 			return c.json({ error: "invalid_key" }, 401);
+		}
+		// A real key on the wrong surface: refused like `requireAuth()`, and said
+		// apart from a bad key so the gateway can tell the caller what to use.
+		if (keyRecord.product === "docs") {
+			return c.json({ error: "docs_key" }, 403);
 		}
 		accountId = keyRecord.account_id;
 	}

@@ -236,6 +236,15 @@ async function route(
 
 	const introspected = await deps.introspect.resolve(presentedKey);
 	if (!introspected.ok) {
+		if (introspected.docsKey) {
+			return Response.json(
+				{
+					error: "docs_key_read_only",
+					hint: "Docs keys only read Streams and Index. Use an account key: https://www.secondlayer.tools/account/keys",
+				},
+				{ status: 403 },
+			);
+		}
 		return Response.json({ error: "invalid_api_key" }, { status: 401 });
 	}
 
