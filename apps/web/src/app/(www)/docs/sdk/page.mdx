@@ -84,7 +84,7 @@ await sl.index.contractCalls.consume({
   fromCursor: await loadCheckpoint(), // null on first run
   // !callout[/fromHeight/] First run backfills as far as the instance holds.
   fromHeight: 0,
-  onBatch: async (calls, envelope, ctx) => {
+  onBatch: async (calls, ctx) => {
     await commitRowsAndCheckpoint(calls, ctx.cursor);
     // !callout[/return/] Return the cursor you committed.
     return ctx.cursor;

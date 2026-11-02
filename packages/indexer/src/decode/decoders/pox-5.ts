@@ -88,7 +88,7 @@ export async function consumePox5DecodedEvents(
 		signal: opts.signal,
 		types: STREAM_TYPES,
 		contractId: POX5_CONTRACT,
-		onBatch: async (events, envelope) => {
+		onBatch: async (events, ctx) => {
 			const rows: Pox5EventRow[] = [];
 			const clock: {
 				cursor: string;
@@ -150,7 +150,7 @@ export async function consumePox5DecodedEvents(
 			await commitDecoderStageBatch({
 				db,
 				decoderName,
-				checkpointCursor: envelope.next_cursor,
+				checkpointCursor: ctx.cursor,
 				receipts: planGenericDecoderReceipts(clock),
 				failure: failureFromFaults(faults),
 				startedFrom: expectedCheckpoint,
@@ -165,14 +165,14 @@ export async function consumePox5DecodedEvents(
 					}
 				},
 			});
-			expectedCheckpoint = envelope.next_cursor;
+			expectedCheckpoint = ctx.cursor;
 			decoded += rows.length;
 			await opts.onProgress?.({
 				decoded: rows.length,
-				cursor: envelope.next_cursor,
-				lagSeconds: envelope.tip.lag_seconds,
+				cursor: ctx.cursor,
+				lagSeconds: ctx.tip.lag_seconds,
 			});
-			return envelope.next_cursor;
+			return ctx.cursor;
 		},
 	});
 

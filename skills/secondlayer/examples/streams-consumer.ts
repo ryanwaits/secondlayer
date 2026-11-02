@@ -112,7 +112,7 @@ await streams.events.consume({
 
 	// The SDK hands you the cursor to persist for this batch; write it in the
 	// same transaction as your rows. No return value needed.
-	onBatch(events, _envelope, { cursor }) {
+	onBatch(events, { cursor }) {
 		applyBatch(events, cursor);
 		const tail = events.at(-1);
 		if (tail)

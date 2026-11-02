@@ -78,7 +78,7 @@ export interface KyselySinkOptions<DB, T extends keyof DB & string> {
  * await index.contractCalls.consume({
  *   contractId: MARKETPLACE, functionName: "purchase-asset", fromHeight: 0,
  *   sink,
- *   onBatch: (calls, _env, ctx) =>
+ *   onBatch: (calls, ctx) =>
  *     ctx.tx.insertInto("sales").values(calls.map(toSale)).execute(),
  * });
  * ```

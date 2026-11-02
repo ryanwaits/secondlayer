@@ -3,13 +3,12 @@ import { mkdir, open, rename } from "node:fs/promises";
 import { dirname, isAbsolute, resolve, sep } from "node:path";
 import { createStreamsClient } from "@secondlayer/sdk";
 import type {
-	StreamsBatchContext,
+	ConsumerBatchContext,
 	StreamsCanonicalBlock,
 	StreamsDumpFile,
 	StreamsEvent,
 	StreamsEventType,
 	StreamsEventsConsumeParams,
-	StreamsEventsEnvelope,
 	StreamsEventsListParams,
 	StreamsReorg,
 	StreamsReorgContext,
@@ -218,15 +217,11 @@ export function consumeHandlers(io: {
 	stdout: (line: string) => void;
 	stderr: (line: string) => void;
 }): {
-	onBatch: (
-		events: StreamsEvent[],
-		envelope: StreamsEventsEnvelope,
-		ctx: StreamsBatchContext,
-	) => void;
+	onBatch: (events: StreamsEvent[], ctx: ConsumerBatchContext) => void;
 	onReorg: (reorg: StreamsReorg, ctx: StreamsReorgContext) => void;
 } {
 	return {
-		onBatch: (events, _envelope, ctx) => {
+		onBatch: (events, ctx) => {
 			for (const e of events) io.stdout(JSON.stringify(e));
 			if (ctx.cursor) io.stderr(`# next_cursor=${ctx.cursor}`);
 		},

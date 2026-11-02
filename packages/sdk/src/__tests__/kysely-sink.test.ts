@@ -197,7 +197,7 @@ describe.skipIf(!dbUp)("kyselySink acceptance (fork at block 102)", () => {
 			maxEmptyPolls: 1,
 			emptyBackoffMs: 0,
 			// No onReorg. No checkpoint code. Just the writes:
-			onBatch: async (events, _envelope, ctx) => {
+			onBatch: async (events, ctx) => {
 				if (events.length === 0) return;
 				await ctx.tx
 					.insertInto("sink_test_sales")
@@ -232,7 +232,7 @@ describe.skipIf(!dbUp)("kyselySink acceptance (fork at block 102)", () => {
 			sink: makeSink(),
 			maxEmptyPolls: 1,
 			emptyBackoffMs: 0,
-			onBatch: async (events, _envelope, ctx) => {
+			onBatch: async (events, ctx) => {
 				await ctx.tx
 					.insertInto("sink_test_sales")
 					.values(
@@ -263,7 +263,7 @@ describe.skipIf(!dbUp)("kyselySink acceptance (fork at block 102)", () => {
 			sink: makeSink(),
 			maxEmptyPolls: 1,
 			emptyBackoffMs: 0,
-			onBatch: async (events, _e, ctx) => {
+			onBatch: async (events, ctx) => {
 				if (events.length === 0) return;
 				await ctx.tx
 					.insertInto("sink_test_sales")
@@ -359,7 +359,7 @@ describe.skipIf(!dbUp)("kyselySink acceptance (fork at block 102)", () => {
 			sink,
 			maxEmptyPolls: 1,
 			emptyBackoffMs: 0,
-			onBatch: async (events, _envelope, ctx) => {
+			onBatch: async (events, ctx) => {
 				if (events.length === 0) return;
 				await ctx.tx
 					.insertInto("sink_test_sales")

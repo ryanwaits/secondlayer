@@ -3,6 +3,30 @@
 
 Notable changes to Secondlayer and its SDKs. Entries dated before August 2026 describe the hosted service as it worked then (per-row read metering, API keys, `402` past the free window); it was withdrawn in August 2026 and has since returned, with hosted Index, Streams, subgraphs and webhooks at `api.secondlayer.tools` on an account key and prepaid [credits](/docs/authentication), while on a self-hosted instance reads stay yours and unmetered and archive bootstrap, backfill and reindex draw [credits](/docs/authentication#archive-credits).
 
+{/* new: 2026-11-02 */}
+## SDK and CLI — November 2026
+
+### `onBatch` takes `(events, ctx)`
+
+The `envelope` argument is gone from every `consume` and `replay` handler in SDK 16. Read `ctx.tip` and `ctx.reorgs`, and return `ctx.cursor` or nothing. `ctx.tip` is now typed for the surface you consume, so Streams, Index and Bitcoin each get their own tip.
+
+```ts
+onBatch: async (events, ctx) => {
+  await save(events);
+  return ctx.cursor;
+},
+```
+
+This also closes the worst `finalizedOnly` mistake: returning `envelope.next_cursor` skipped events that were filtered out and never delivered.
+
+### Other SDK removals
+
+Import the storage-shape helpers (`decodeFtTransfer`, `isFtTransfer` and the rest) from `@secondlayer/sdk/streams/rows`, or use `decode(event)` from the root. `StreamsBatchContext` is now `ConsumerBatchContext`, and `createArchiveClient` takes `accountKey`, not `apiKey`.
+
+### A smaller CLI config
+
+CLI 23 stores one setting, `network`. `secondlayer config set` rejects every other key. `ports`, `database`, `node`, `dataDir`, `defaultProject`, `SL_API_PORT`, `SL_INDEXER_PORT`, `SL_DATA_DIR` and the `SL_PLATFORM_API_URL` alias are gone, and `whoami` no longer reports a project. `doctor --json` drops `chainIdValid`.
+
 {/* new: 2026-11-01 */}
 ## Subgraphs — November 2026
 

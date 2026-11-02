@@ -47,9 +47,9 @@ await streams.events.replay({
     await ingestParquet(bytes, { after: from });
   },
   // !callout[/onBatch/] the seam: live from here
-  async onBatch(events, envelope) {
+  async onBatch(events, ctx) {
     await db.insertEvents(events);
-    return envelope.next_cursor;
+    return ctx.cursor;
   },
 });`;
 

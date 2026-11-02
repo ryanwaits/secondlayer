@@ -109,9 +109,9 @@ describe("index.events.consume", () => {
 			fromHeight: 0,
 			batchSize: 2,
 			maxPages: 2,
-			onBatch: (events, envelope) => {
+			onBatch: (events, ctx) => {
 				seen.push(...events.map((e) => e.cursor));
-				return envelope.next_cursor;
+				return ctx.cursor;
 			},
 		});
 
@@ -173,7 +173,7 @@ describe("index.events.consume", () => {
 			eventType: "ft_transfer",
 			fromCursor: null,
 			maxPages: 1,
-			onBatch: (_events, _envelope, ctx) => {
+			onBatch: (_events, ctx) => {
 				ctxCursor = ctx.cursor;
 			},
 		});
@@ -380,7 +380,7 @@ describe("index.events.consume", () => {
 			finalizedOnly: true,
 			fromCursor: null,
 			maxPages: 1,
-			onBatch: (events, _envelope, ctx) => {
+			onBatch: (events, ctx) => {
 				emitted.push(...events.map((e) => e.cursor));
 				ctxCursor = ctx.cursor;
 			},
@@ -406,9 +406,8 @@ describe("index.events.consume", () => {
 				finalizedOnly: true,
 				fromCursor: null,
 				maxPages: 1,
-				// The quickstart's habit: envelope.next_cursor. Under finalizedOnly
-				// it points past the undelivered tail — committing it drops 8:0.
-				onBatch: (_events, envelope) => envelope.next_cursor,
+				// A cursor past the undelivered tail: committing it drops 8:0.
+				onBatch: (_events) => "8:0",
 			}),
 		).rejects.toThrow(/finalizedOnly|finalized event/);
 	});
@@ -555,7 +554,7 @@ describe("index.sbtc consumers", () => {
 			topic: "withdrawal-accept",
 			batchSize: 2,
 			maxPages: 2,
-			onBatch: (events, _envelope, ctx) => {
+			onBatch: (events, ctx) => {
 				seen.push(...events.map((e) => e.cursor));
 				return ctx.cursor;
 			},
@@ -596,7 +595,7 @@ describe("index.sbtc consumers", () => {
 		await new Index().sbtc.events.consume({
 			emptyBackoffMs: 0,
 			maxEmptyPolls: 1,
-			onBatch: (_events, _envelope, ctx) => {
+			onBatch: (_events, ctx) => {
 				heights.push(ctx.height);
 				return ctx.cursor;
 			},
@@ -628,7 +627,7 @@ describe("index.sbtc consumers", () => {
 		await new Index().sbtc.deposits.consume({
 			confirmed: true,
 			maxPages: 1,
-			onBatch: (deposits, _envelope, ctx) => {
+			onBatch: (deposits, ctx) => {
 				txids.push(...deposits.map((d) => d.bitcoin_txid));
 				return ctx.cursor;
 			},
@@ -692,7 +691,7 @@ describe("index.pox5 consumers", () => {
 			signer: "SP1.fastpool-signer-manager",
 			batchSize: 2,
 			maxPages: 2,
-			onBatch: (events, _envelope, ctx) => {
+			onBatch: (events, ctx) => {
 				seen.push(...events.map((e) => e.cursor));
 				return ctx.cursor;
 			},
@@ -733,7 +732,7 @@ describe("index.pox5 consumers", () => {
 		await new Index().pox5.events.consume({
 			emptyBackoffMs: 0,
 			maxEmptyPolls: 1,
-			onBatch: (_events, _envelope, ctx) => {
+			onBatch: (_events, ctx) => {
 				heights.push(ctx.height);
 				return ctx.cursor;
 			},
@@ -764,9 +763,9 @@ describe("consume progress context", () => {
 			eventType: "ft_transfer",
 			batchSize: 2,
 			maxPages: 1,
-			onBatch: (_events, envelope, ctx) => {
+			onBatch: (_events, ctx) => {
 				seen.push({ height: ctx.height, behind: ctx.blocksBehind });
-				return envelope.next_cursor;
+				return ctx.cursor;
 			},
 		});
 
@@ -793,7 +792,7 @@ describe("consume progress context", () => {
 			eventType: "ft_transfer",
 			emptyBackoffMs: 0,
 			maxEmptyPolls: 2,
-			onBatch: (_events, _envelope, ctx) => {
+			onBatch: (_events, ctx) => {
 				heights.push(ctx.height);
 				return ctx.cursor;
 			},
@@ -828,7 +827,7 @@ describe("consume progress context", () => {
 			eventType: "ft_transfer",
 			emptyBackoffMs: 0,
 			maxEmptyPolls: 1,
-			onBatch: (_events, _envelope, ctx) => {
+			onBatch: (_events, ctx) => {
 				heights.push(ctx.height);
 				return ctx.cursor;
 			},
@@ -853,7 +852,7 @@ describe("consume progress context", () => {
 			eventType: "ft_transfer",
 			emptyBackoffMs: 0,
 			maxEmptyPolls: 1,
-			onBatch: (_events, _envelope, ctx) => {
+			onBatch: (_events, ctx) => {
 				seen.push({ height: ctx.height, behind: ctx.blocksBehind });
 			},
 		});
@@ -877,7 +876,7 @@ describe("consume progress context", () => {
 		await client.events.consume({
 			eventType: "ft_transfer",
 			maxPages: 1,
-			onBatch: (_events, _envelope, ctx) => {
+			onBatch: (_events, ctx) => {
 				tipHeight = ctx.tipHeight;
 				return ctx.cursor;
 			},

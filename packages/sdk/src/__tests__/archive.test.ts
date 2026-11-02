@@ -163,7 +163,7 @@ describe("archive", () => {
 	test("quote POSTs { paths, flow } to {archiveOpsUrl}/api/archive/quote with Bearer", async () => {
 		const requests: { url: string; init?: RequestInit }[] = [];
 		const c = createArchiveClient({
-			apiKey: "sk-sl_test",
+			accountKey: "sk-sl_test",
 			archiveBaseUrl: ARCHIVE_BASE,
 			archiveOpsUrl: OPS_BASE,
 			fetchImpl: async (input, init) => {
@@ -205,7 +205,7 @@ describe("archive", () => {
 
 	test("fetch 402 → InsufficientArchiveCreditsError with shortfall", async () => {
 		const c = createArchiveClient({
-			apiKey: "sk-sl_test",
+			accountKey: "sk-sl_test",
 			archiveBaseUrl: ARCHIVE_BASE,
 			archiveOpsUrl: OPS_BASE,
 			fetchImpl: async () =>
@@ -230,7 +230,7 @@ describe("archive", () => {
 
 	test("fetch 503 → ArchiveGateNotConfiguredError", async () => {
 		const c = createArchiveClient({
-			apiKey: "sk-sl_test",
+			accountKey: "sk-sl_test",
 			archiveBaseUrl: ARCHIVE_BASE,
 			archiveOpsUrl: OPS_BASE,
 			fetchImpl: async () =>
@@ -246,7 +246,7 @@ describe("archive", () => {
 	test("fetch of 65 paths issues two POSTs (64 + 1)", async () => {
 		const bodies: string[][] = [];
 		const c = createArchiveClient({
-			apiKey: "sk-sl_test",
+			accountKey: "sk-sl_test",
 			archiveBaseUrl: ARCHIVE_BASE,
 			archiveOpsUrl: OPS_BASE,
 			fetchImpl: async (input, init) => {
@@ -321,7 +321,7 @@ describe("archive", () => {
 	test("createArchiveClient performs zero fetches before a method", () => {
 		let calls = 0;
 		const c = createArchiveClient({
-			apiKey: "sk-sl_test",
+			accountKey: "sk-sl_test",
 			fetchImpl: async () => {
 				calls++;
 				return new Response("{}", { status: 200 });

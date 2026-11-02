@@ -22,7 +22,7 @@ await index.events.consume({
   fromCursor: await db.loadCheckpoint(), // null on first run
   // !callout[/fromHeight/] First run backfills from genesis.
   fromHeight: 0,
-  onBatch: async (events, envelope, ctx) => {
+  onBatch: async (events, ctx) => {
     // !ref(1:4) save
     await db.transaction(async (tx) => {
       for (const row of events) await tx.upsert(row);

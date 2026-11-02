@@ -428,7 +428,7 @@ export function createStreamsClient(
 						events: StreamsEvent[] | IndexEvent[],
 						ctx: Parameters<
 							NonNullable<StreamsEventsConsumeParams<TTx>["onBatch"]>
-						>[2],
+						>[1],
 					) => void | Promise<void>
 			  >
 			| undefined;
@@ -440,7 +440,6 @@ export function createStreamsClient(
 
 		const onBatch: StreamsEventsConsumeParams<TTx>["onBatch"] = async (
 			events,
-			envelope,
 			ctx,
 		) => {
 			// Label dispatch reads the wire `matched` array, so it has to run
@@ -460,7 +459,7 @@ export function createStreamsClient(
 			>["onBatch"];
 			// `onBatch`'s several legal return shapes collapse to one here: the
 			// consume loop only ever reads a cursor string or nothing.
-			return (await userOnBatch?.(project(events), envelope, ctx)) as
+			return (await userOnBatch?.(project(events), ctx)) as
 				| string
 				| null
 				| undefined;

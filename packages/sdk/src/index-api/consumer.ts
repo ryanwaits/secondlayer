@@ -71,8 +71,8 @@ export type IndexConsumeOptions<
 	onProgress?: (ctx: ConsumerBatchContext) => void;
 	onBatch: (
 		items: TItem[],
-		envelope: TEnvelope,
-		ctx: ConsumerBatchContext & WithSinkTx<TTx>,
+		ctx: ConsumerBatchContext<TEnvelope["tip"], TEnvelope["reorgs"][number]> &
+			WithSinkTx<TTx>,
 	) =>
 		| void
 		| string
@@ -273,18 +273,25 @@ export async function consumeIndexFeed<
 					// `sink: ConsumerSink<TTx>` binds TTx, and `tx` here is what its
 					// commitBatch lends. Nothing verifies it at runtime — a sink whose
 					// declared Tx lies about what it lends fails inside the handler.
-					await opts.onBatch(emitted, envelope, {
+					await opts.onBatch(emitted, {
 						...ctx,
 						tx,
-					} as ConsumerBatchContext & WithSinkTx<TTx>);
+					} as ConsumerBatchContext<
+						TEnvelope["tip"],
+						TEnvelope["reorgs"][number]
+					> &
+						WithSinkTx<TTx>);
 				});
 			}
 			nextCursor = checkpoint;
 		} else {
 			const returnedCursor = await opts.onBatch(
 				emitted,
-				envelope,
-				ctx as ConsumerBatchContext & WithSinkTx<TTx>,
+				ctx as ConsumerBatchContext<
+					TEnvelope["tip"],
+					TEnvelope["reorgs"][number]
+				> &
+					WithSinkTx<TTx>,
 			);
 			if (finalizedOnly) assertFinalizedCheckpoint(returnedCursor, checkpoint);
 			nextCursor = returnedCursor ?? checkpoint;

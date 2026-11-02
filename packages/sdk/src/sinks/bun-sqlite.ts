@@ -44,7 +44,7 @@ export interface BunSqliteSinkOptions {
  * await index.contractCalls.consume({
  *   contractId: MARKETPLACE, functionName: "purchase-asset", fromHeight: 0,
  *   sink,
- *   onBatch: (calls, _env, ctx) => {
+ *   onBatch: (calls, ctx) => {
  *     for (const call of calls)
  *       ctx.tx.run("INSERT OR IGNORE INTO sales (tx_id, block_height) VALUES (?, ?)", [call.tx_id, call.block_height]);
  *   },

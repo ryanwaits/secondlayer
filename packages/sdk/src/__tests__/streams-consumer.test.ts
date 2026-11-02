@@ -78,9 +78,9 @@ describe("client.events.consume", () => {
 			fromCursor: null,
 			batchSize: 2,
 			maxPages: 2,
-			onBatch: (events, envelope) => {
+			onBatch: (events, ctx) => {
 				seen.push(...events.map((e) => e.cursor));
-				return envelope.next_cursor;
+				return ctx.cursor;
 			},
 		});
 
@@ -179,9 +179,9 @@ describe("client.events.consume", () => {
 			fromCursor: null,
 			batchSize: 10,
 			maxPages: 1,
-			onBatch: (_events, envelope, ctx) => {
+			onBatch: (_events, ctx) => {
 				ctxCursor = ctx.cursor;
-				expect(ctx.cursor).toBe(envelope.next_cursor);
+				expect(ctx.cursor).toBe("1:0");
 			},
 		});
 
@@ -535,7 +535,7 @@ describe("client.events.consume", () => {
 			fromCursor: null,
 			batchSize: 10,
 			maxPages: 1,
-			onBatch: (events, _envelope, ctx) => {
+			onBatch: (events, ctx) => {
 				emitted.push(...events.map((e) => e.cursor));
 				ctxCursor = ctx.cursor;
 			},
@@ -562,15 +562,15 @@ describe("client.events.consume", () => {
 				}),
 		});
 
-		// The classic mistake: returning envelope.next_cursor, which points past
-		// the filtered unfinalized tail. Committing it drops 8:0 forever.
+		// A cursor past the filtered unfinalized tail: committing it drops 8:0
+		// forever.
 		await expect(
 			client.events.consume({
 				finalizedOnly: true,
 				fromCursor: null,
 				batchSize: 10,
 				maxPages: 1,
-				onBatch: (_events, envelope) => envelope.next_cursor,
+				onBatch: (_events) => "8:0",
 			}),
 		).rejects.toThrow(/finalizedOnly|finalized event/);
 	});
@@ -650,9 +650,9 @@ describe("consume progress context", () => {
 		await client.events.consume({
 			batchSize: 2,
 			maxPages: 1,
-			onBatch: (_events, envelope, ctx) => {
+			onBatch: (_events, ctx) => {
 				seen.push({ height: ctx.height, behind: ctx.blocksBehind });
-				return envelope.next_cursor;
+				return ctx.cursor;
 			},
 		});
 
@@ -694,7 +694,7 @@ describe("consume progress context", () => {
 		await client.events.consume({
 			emptyBackoffMs: 0,
 			maxEmptyPolls: 1,
-			onBatch: (_events, _envelope, ctx) => {
+			onBatch: (_events, ctx) => {
 				heights.push(ctx.height);
 				return ctx.cursor;
 			},

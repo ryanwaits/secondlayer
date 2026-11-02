@@ -64,7 +64,7 @@ await secondlayer.index.events.consume({
     tables: ["transfers"],
     height: "height",
   }),
-  onBatch: async (transfers, _envelope, ctx) => {
+  onBatch: async (transfers, ctx) => {
     // !callout[/ctx\\.tx/] rows + checkpoint, one commit
     await ctx.tx.insertInto("transfers")
       .values(transfers.map(toRow)).execute();

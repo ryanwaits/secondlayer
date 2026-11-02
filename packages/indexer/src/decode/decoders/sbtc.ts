@@ -120,7 +120,7 @@ export async function consumeSbtcRegistryDecodedEvents(
 		signal: opts.signal,
 		types: REGISTRY_STREAM_TYPES,
 		contractId: registryContractId(),
-		onBatch: async (events, envelope) => {
+		onBatch: async (events, ctx) => {
 			const rows: SbtcEventRow[] = [];
 			const clock: {
 				cursor: string;
@@ -183,7 +183,7 @@ export async function consumeSbtcRegistryDecodedEvents(
 			await commitDecoderStageBatch({
 				db,
 				decoderName,
-				checkpointCursor: envelope.next_cursor,
+				checkpointCursor: ctx.cursor,
 				receipts: planGenericDecoderReceipts(clock),
 				failure: failureFromFaults(faults),
 				startedFrom: expectedCheckpoint,
@@ -191,14 +191,14 @@ export async function consumeSbtcRegistryDecodedEvents(
 					if (rows.length > 0) await writeSbtcEvents(rows, { db: tx });
 				},
 			});
-			expectedCheckpoint = envelope.next_cursor;
+			expectedCheckpoint = ctx.cursor;
 			decoded += rows.length;
 			await opts.onProgress?.({
 				decoded: rows.length,
-				cursor: envelope.next_cursor,
-				lagSeconds: envelope.tip.lag_seconds,
+				cursor: ctx.cursor,
+				lagSeconds: ctx.tip.lag_seconds,
 			});
-			return envelope.next_cursor;
+			return ctx.cursor;
 		},
 	});
 
@@ -232,7 +232,7 @@ export async function consumeSbtcTokenDecodedEvents(
 		signal: opts.signal,
 		types: TOKEN_STREAM_TYPES,
 		contractId: tokenContractId(),
-		onBatch: async (events, envelope) => {
+		onBatch: async (events, ctx) => {
 			const rows: SbtcTokenEventRow[] = [];
 			const clock: {
 				cursor: string;
@@ -296,7 +296,7 @@ export async function consumeSbtcTokenDecodedEvents(
 			await commitDecoderStageBatch({
 				db,
 				decoderName,
-				checkpointCursor: envelope.next_cursor,
+				checkpointCursor: ctx.cursor,
 				receipts: planGenericDecoderReceipts(clock),
 				failure: failureFromFaults(faults),
 				startedFrom: expectedCheckpoint,
@@ -304,14 +304,14 @@ export async function consumeSbtcTokenDecodedEvents(
 					if (rows.length > 0) await writeSbtcTokenEvents(rows, { db: tx });
 				},
 			});
-			expectedCheckpoint = envelope.next_cursor;
+			expectedCheckpoint = ctx.cursor;
 			decoded += rows.length;
 			await opts.onProgress?.({
 				decoded: rows.length,
-				cursor: envelope.next_cursor,
-				lagSeconds: envelope.tip.lag_seconds,
+				cursor: ctx.cursor,
+				lagSeconds: ctx.tip.lag_seconds,
 			});
-			return envelope.next_cursor;
+			return ctx.cursor;
 		},
 	});
 

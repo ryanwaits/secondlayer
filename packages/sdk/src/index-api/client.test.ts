@@ -191,7 +191,7 @@ describe("Index events tx_context", () => {
 			txContext: true,
 			fromHeight: 0,
 			mode: "bounded", // return on the first empty page instead of tailing forever
-			onBatch: async (_events, _envelope, ctx) => ctx.cursor,
+			onBatch: async (_events, ctx) => ctx.cursor,
 		});
 		expect(urls.length).toBeGreaterThan(0);
 		expect(urls[0]).toContain("tx_context=true");

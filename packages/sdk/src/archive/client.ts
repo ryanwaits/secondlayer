@@ -43,8 +43,6 @@ const MAX_FETCH_BATCH = 64;
 const ARCHIVE_CREDENTIAL_RE = /^s[ks]-sl_/;
 
 export type CreateArchiveClientOptions = {
-	/** @deprecated Prefer `accountKey`. Kept one release as an alias. */
-	apiKey?: string;
 	accountKey?: string;
 	fetchImpl?: FetchLike;
 	archiveBaseUrl?: string;
@@ -95,7 +93,7 @@ function stripSlash(url: string): string {
 export function createArchiveClient(
 	options: CreateArchiveClientOptions = {},
 ): ArchiveClient {
-	const accountKey = resolveAccountKey(options.accountKey ?? options.apiKey);
+	const accountKey = resolveAccountKey(options.accountKey);
 	const fetchImpl: FetchLike =
 		options.fetchImpl ?? ((input, init) => fetch(input, init));
 	const archiveBaseUrl = stripSlash(

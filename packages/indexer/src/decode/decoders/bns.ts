@@ -137,7 +137,7 @@ export async function consumeBnsDecodedEvents(
 		// event in the cursor range across all contracts, which on a backfill
 		// from a stale checkpoint causes socket timeouts.
 		contractId: BNS_V2_MAINNET_CONTRACT,
-		onBatch: async (events, envelope) => {
+		onBatch: async (events, ctx) => {
 			const nameRows: BnsNameEventRow[] = [];
 			const namespaceRows: BnsNamespaceEventRow[] = [];
 			const marketplaceRows: BnsMarketplaceEventRow[] = [];
@@ -243,7 +243,7 @@ export async function consumeBnsDecodedEvents(
 			await commitDecoderStageBatch({
 				db,
 				decoderName,
-				checkpointCursor: envelope.next_cursor,
+				checkpointCursor: ctx.cursor,
 				receipts: planGenericDecoderReceipts(clock),
 				failure: failureFromFaults(faults),
 				startedFrom: expectedCheckpoint,
@@ -263,17 +263,17 @@ export async function consumeBnsDecodedEvents(
 						await applyNamespaceProjection(row, tx);
 				},
 			});
-			expectedCheckpoint = envelope.next_cursor;
+			expectedCheckpoint = ctx.cursor;
 
 			decoded +=
 				nameRows.length + namespaceRows.length + marketplaceRows.length;
 			await opts.onProgress?.({
 				decoded:
 					nameRows.length + namespaceRows.length + marketplaceRows.length,
-				cursor: envelope.next_cursor,
-				lagSeconds: envelope.tip.lag_seconds,
+				cursor: ctx.cursor,
+				lagSeconds: ctx.tip.lag_seconds,
 			});
-			return envelope.next_cursor;
+			return ctx.cursor;
 		},
 	});
 

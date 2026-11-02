@@ -20,7 +20,7 @@ await sl.streams.events.consume({
     height: "height",          // the column carrying block height
   }),
   // !callout[/onBatch/] The return value is ignored.
-  onBatch: async (events, _envelope, ctx) => {
+  onBatch: async (events, ctx) => {
     for (const event of events) {
       if (event.event_type !== "ft_transfer") continue; // narrows `payload`
       // !callout[/ctx\.tx/] Rows and checkpoint commit together.

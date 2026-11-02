@@ -16,9 +16,9 @@ const result = await sl.streams.events.replay({
 		// !callout[/from/] Set on a resume. A file that straddles it arrives whole, so skip rows at or below it.
 		console.log(`dump ${file.path}, resume after ${from ?? "genesis"}`);
 	},
-	onBatch: (events, envelope) => {
+	onBatch: (events, ctx) => {
 		console.log(`live page: ${events.length} events`);
-		return envelope.next_cursor;
+		return ctx.cursor;
 	},
 });
 

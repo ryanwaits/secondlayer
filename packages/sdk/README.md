@@ -114,11 +114,11 @@ await streams.events.consume({
   types: ["ft_transfer"],
   batchSize: 100,
   maxPages: 1,
-  onBatch: async (events, envelope) => {
+  onBatch: async (events, ctx) => {
     for (const event of events) {
       console.log(event.cursor, event.tx_id);
     }
-    return envelope.next_cursor;
+    return ctx.cursor;
   },
 });
 ```
@@ -231,9 +231,9 @@ await streams.events.replay({
     const bytes = await streams.dumps.download(file);
     await ingestParquet(bytes, { skipAtOrBelow: from }); // your tooling
   },
-  async onBatch(events, envelope) {
+  async onBatch(events, ctx) {
     for (const event of events) await handle(event);
-    return envelope.next_cursor;
+    return ctx.cursor;
   },
 });
 ```
@@ -272,7 +272,7 @@ for (const item of fetched.urls) {
 Decoder helper.
 
 ```typescript
-import { decodeFtTransfer, isFtTransfer } from "@secondlayer/sdk";
+import { decodeFtTransfer, isFtTransfer } from "@secondlayer/sdk/streams/rows";
 
 for await (const event of streams.events.stream({ types: ["ft_transfer"] })) {
   if (!isFtTransfer(event)) continue;
@@ -333,7 +333,7 @@ await sl.index.contractCalls.consume({
   functionName: "purchase-asset",
   fromCursor: await loadCheckpoint(), // null on first run
   fromHeight: 0,                      // first run: backfill from genesis
-  onBatch: async (calls, envelope, ctx) => {
+  onBatch: async (calls, ctx) => {
     await commitRowsAndCheckpoint(calls, ctx.cursor);
     return ctx.cursor;
   },

@@ -121,9 +121,9 @@ describe("@secondlayer/sdk Streams integration", () => {
 			types: ["ft_transfer"],
 			batchSize: 1,
 			maxPages: 2,
-			onBatch: (items, page) => {
+			onBatch: (items, ctx) => {
 				consumed.push(...items.map((item) => item.cursor));
-				return page.next_cursor;
+				return ctx.cursor;
 			},
 		});
 

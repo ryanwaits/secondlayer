@@ -401,10 +401,7 @@ export type ConsumerBatchContext<TTip = unknown, TReorg = unknown> = {
 	blocksBehind: number | null;
 	/**
 	 * The full tip for this page — `StreamsTip` or `IndexTip` depending on the
-	 * surface. Exposed here so a handler never needs the `envelope` parameter,
-	 * which is the only way to reach it today and is also how the worst
-	 * `finalizedOnly` mistake becomes reachable (`return envelope.next_cursor`
-	 * jumps the cursor past events that were filtered out and never delivered).
+	 * surface.
 	 */
 	tip: TTip;
 	/**
@@ -413,10 +410,6 @@ export type ConsumerBatchContext<TTip = unknown, TReorg = unknown> = {
 	 */
 	reorgs: readonly TReorg[];
 };
-
-/** @deprecated Use {@link ConsumerBatchContext} — the Index and Streams loops
- *  share one shape now. Kept as an alias so existing annotations compile. */
-export type StreamsBatchContext = ConsumerBatchContext;
 
 /**
  * The checkpoint for a reorg rollback. Persist `cursor` (the rewind position)
@@ -489,7 +482,7 @@ export type StreamsEventsConsumeParams<
 	on?: {
 		[K in keyof F]: (
 			events: StreamsEventForFilter<F[K], D>[],
-			ctx: StreamsBatchContext & WithSinkTx<TTx>,
+			ctx: ConsumerBatchContext<StreamsTip, StreamsReorg> & WithSinkTx<TTx>,
 		) => void | Promise<void>;
 	};
 	batchSize?: number;
@@ -503,15 +496,7 @@ export type StreamsEventsConsumeParams<
 	 */
 	onBatch?: (
 		events: D extends true ? IndexEvent[] : StreamsEvent[],
-		/**
-		 * @deprecated Read `ctx.tip` / `ctx.reorgs` instead. The envelope is
-		 * also how the worst `finalizedOnly` mistake stays reachable —
-		 * returning `envelope.next_cursor` jumps the cursor past unfinalized
-		 * events that were filtered out and never delivered. Removed in the
-		 * next major.
-		 */
-		envelope: StreamsEventsEnvelope,
-		ctx: StreamsBatchContext & WithSinkTx<TTx>,
+		ctx: ConsumerBatchContext<StreamsTip, StreamsReorg> & WithSinkTx<TTx>,
 	) =>
 		| void
 		| string
@@ -595,8 +580,8 @@ export type StreamsEventsConsumeBitcoinParams<TTx = never> = {
 	batchSize?: number;
 	onBatch: (
 		events: RuneStreamsEvent[],
-		envelope: StreamsEventsEnvelope<RuneStreamsEvent, StreamsBitcoinTip>,
-		ctx: StreamsBatchContext & WithSinkTx<TTx>,
+		ctx: ConsumerBatchContext<StreamsBitcoinTip, StreamsReorg> &
+			WithSinkTx<TTx>,
 	) =>
 		| void
 		| string
@@ -713,7 +698,7 @@ export type StreamsEventsReplayParams = {
 	/** Called per live page after the dump phase, like `consume`. */
 	onBatch: (
 		events: StreamsEvent[],
-		envelope: StreamsEventsEnvelope,
+		ctx: ConsumerBatchContext<StreamsTip, StreamsReorg>,
 	) => Promise<string | null | undefined> | string | null | undefined;
 	/**
 	 * Called when the live-tail phase (after the dump backfill) crosses a reorg,

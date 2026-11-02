@@ -24,7 +24,7 @@ await sl.streams.events.consume({
 	types: ["ft_transfer"],
 	// !callout[/fromCursor/] Null on the first run, so the sweep starts at the beginning.
 	fromCursor: saved?.cursor ?? null,
-	onBatch: (events, _envelope, ctx) => {
+	onBatch: (events, ctx) => {
 		db.transaction(() => {
 			for (const event of events) {
 				if (event.event_type !== "ft_transfer") continue;

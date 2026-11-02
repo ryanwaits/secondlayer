@@ -74,10 +74,6 @@ deployed contracts conforming to a trait.
 // @secondlayer/sdk/streams — bare streams client, none of the SecondLayer wrappers
 import {
   createStreamsClient,
-  decodeFtTransfer,
-  decodeNftTransfer,
-  isFtTransfer,
-  isNftTransfer,
   AuthError,
   RateLimitError,
   StreamsServerError,
@@ -300,7 +296,7 @@ await sl.streams.events.consume({
   fromCursor: await loadCheckpoint(),   // your durable store
   types: ["ft_transfer", "nft_transfer"],
   batchSize: 250,
-  onBatch(events, _envelope, { cursor }) {
+  onBatch(events, { cursor }) {
     db.transaction(() => {
       for (const ev of events) upsertByCursor(ev); // PK = ev.cursor
       saveCheckpoint(cursor);                       // atomic with the writes
@@ -325,7 +321,7 @@ Three rules the loop enforces: it never rewinds forward (`onReorg` fires only fo
 await sl.streams.events.consume({
   finalizedOnly: true,
   types: ["ft_transfer"],
-  onBatch(events, _envelope, { cursor }) {
+  onBatch(events, { cursor }) {
     db.transaction(() => { for (const ev of events) upsertByCursor(ev); saveCheckpoint(cursor); });
   },
 });
@@ -357,6 +353,8 @@ stream(params?: StreamsEventsStreamParams): AsyncIterable<StreamsEvent>
 ```
 
 ```ts
+import { decodeFtTransfer, isFtTransfer } from "@secondlayer/sdk/streams/rows";
+
 const controller = new AbortController();
 process.on("SIGTERM", () => controller.abort());
 
@@ -482,9 +480,9 @@ await streams.events.replay({
     const bytes = await streams.dumps.download(file);
     await ingestParquet(bytes, { after: from }); // your tooling; skip rows at or below `from`
   },
-  async onBatch(events, envelope) {
+  async onBatch(events, ctx) {
     for (const ev of events) await handle(ev);
-    return envelope.next_cursor;
+    return ctx.cursor;
   },
 });
 ```

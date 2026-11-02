@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { type StreamsEvent, decodeFtTransfer, isFtTransfer } from "../index.ts";
+import type { StreamsEvent } from "../index.ts";
+import { decodeFtTransfer, isFtTransfer } from "../streams/rows.ts";
 
 // Payloads arrive untyped over the wire; these fixtures deliberately pass
 // partial/foreign shapes to exercise the runtime guards, so cast to StreamsEvent.

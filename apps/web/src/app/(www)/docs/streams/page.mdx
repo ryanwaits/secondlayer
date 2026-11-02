@@ -17,7 +17,7 @@ await sl.streams.events.consume({
   // !ref open
   // !callout[/fromCursor/] Null on first run.
   fromCursor: await db.loadCheckpoint(),
-  onBatch: async (events, envelope, ctx) => {
+  onBatch: async (events, ctx) => {
     // !ref(1:4) save
     await db.transaction(async (tx) => {
       await tx.insertEvents(events);
@@ -120,10 +120,10 @@ await streams.events.replay({
     const bytes = await streams.dumps.download(file);
     await ingestParquet(bytes, { after: from }); // file-granular, at-least-once: skip rows at or below `from`
   },
-  async onBatch(events, envelope) {
+  async onBatch(events, ctx) {
     await db.insertEvents(events);
-    // !ref[/next_cursor/] next
-    return envelope.next_cursor;
+    // !ref[/cursor/] next
+    return ctx.cursor;
   },
 });
 ```
@@ -205,7 +205,7 @@ await sl.streams.events.consume({
   chain: "bitcoin",
   types: ["rune_etch", "rune_mint", "rune_transfer", "rune_burn"],
   fromCursor: await db.loadCheckpoint(),
-  onBatch: async (events, envelope, ctx) => {
+  onBatch: async (events, ctx) => {
     await db.transaction(async (tx) => {
       await tx.insertRuneEvents(events);
       await tx.saveCheckpoint(ctx.cursor);

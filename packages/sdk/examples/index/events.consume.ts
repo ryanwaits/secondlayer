@@ -28,7 +28,7 @@ await sl.index.events.consume({
 		tables: ["transfers"],
 		height: "block_height",
 	}),
-	onBatch: (events, _envelope, ctx) => {
+	onBatch: (events, ctx) => {
 		for (const event of events) {
 			// !callout[/ctx.tx/] Write only through ctx.tx so the rows join the sink's transaction.
 			ctx.tx.run("insert or ignore into transfers values (?, ?, ?, ?, ?)", [

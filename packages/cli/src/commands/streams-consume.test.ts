@@ -106,19 +106,15 @@ describe("streams consume output", () => {
 			stdout: () => {},
 			stderr: (l) => stderr.push(l),
 		});
-		const out = handlers.onBatch(
-			[event(10)],
-			envelope([event(10)], "99:0", 99),
-			{
-				cursor: "10:0",
-				height: 10,
-				scannedHeight: 10,
-				tipHeight: 99,
-				blocksBehind: 89,
-				tip: { block_height: 99 },
-				reorgs: [],
-			},
-		);
+		const out = handlers.onBatch([event(10)], {
+			cursor: "10:0",
+			height: 10,
+			scannedHeight: 10,
+			tipHeight: 99,
+			blocksBehind: 89,
+			tip: { block_height: 99 },
+			reorgs: [],
+		});
 		expect(out).toBeUndefined();
 		expect(stderr).toEqual(["# next_cursor=10:0"]);
 	});

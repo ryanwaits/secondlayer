@@ -10,6 +10,7 @@ import type {
 	StreamsFilterValue,
 	StreamsReorg,
 	StreamsReorgsListEnvelope,
+	StreamsTip,
 } from "./types.ts";
 
 /** Stable identity of a reorg, for in-memory dedup across re-reported pages. */
@@ -143,8 +144,7 @@ export type Sleep = (ms: number, signal?: AbortSignal) => Promise<void>;
  * In `finalizedOnly` mode the unfinalized tail is filtered OUT of the batch
  * and re-read next poll — and `onReorg` is skipped entirely, so nothing ever
  * re-reads a range the cursor has passed. Returning a cursor above the last
- * delivered finalized event (e.g. `envelope.next_cursor`, which points past
- * the filtered tail) therefore drops those events permanently and silently.
+ * delivered finalized event (one past the filtered tail) therefore drops those events permanently and silently.
  * Throw instead: this is the one wrong return the loop can detect.
  */
 export function assertFinalizedCheckpoint(
@@ -350,8 +350,7 @@ export async function consumeStreamsEvents<TTx = never>(opts: {
 	onProgress?: (ctx: ConsumerBatchContext) => void;
 	onBatch: (
 		events: StreamsEvent[],
-		envelope: StreamsEventsEnvelope,
-		ctx: ConsumerBatchContext & WithSinkTx<TTx>,
+		ctx: ConsumerBatchContext<StreamsTip, StreamsReorg> & WithSinkTx<TTx>,
 	) =>
 		| void
 		| string
@@ -565,18 +564,18 @@ export async function consumeStreamsEvents<TTx = never>(opts: {
 					// `sink: ConsumerSink<TTx>` binds TTx, and `tx` here is what its
 					// commitBatch lends. Nothing verifies it at runtime — a sink whose
 					// declared Tx lies about what it lends fails inside the handler.
-					await opts.onBatch(emitted, envelope, {
+					await opts.onBatch(emitted, {
 						...ctx,
 						tx,
-					} as ConsumerBatchContext & WithSinkTx<TTx>);
+					} as ConsumerBatchContext<StreamsTip, StreamsReorg> &
+						WithSinkTx<TTx>);
 				});
 			}
 			nextCursor = checkpoint;
 		} else {
 			const returnedCursor = await opts.onBatch(
 				emitted,
-				envelope,
-				ctx as ConsumerBatchContext & WithSinkTx<TTx>,
+				ctx as ConsumerBatchContext<StreamsTip, StreamsReorg> & WithSinkTx<TTx>,
 			);
 			if (finalizedOnly) assertFinalizedCheckpoint(returnedCursor, checkpoint);
 			nextCursor = returnedCursor ?? checkpoint;

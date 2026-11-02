@@ -96,7 +96,7 @@ import { kyselySink } from "@secondlayer/sdk/sinks/kysely";
 
 await sl.streams.events.consume({
   sink: kyselySink(db, { id: "my-indexer", tables: ["transfers"], height: "height" }),
-  onBatch: async (events, _envelope, ctx) => {
+  onBatch: async (events, ctx) => {
     for (const e of events) await ctx.tx.insertInto("transfers").values(...).execute();
   },
 });

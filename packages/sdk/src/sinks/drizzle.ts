@@ -78,7 +78,7 @@ export interface DrizzleSinkOptions<T extends Table, TTx = unknown> {
  * await index.contractCalls.consume({
  *   contractId: MARKETPLACE, functionName: "purchase-asset", fromHeight: 0,
  *   sink,
- *   onBatch: (calls, _env, ctx) =>
+ *   onBatch: (calls, ctx) =>
  *     ctx.tx.insert(sales).values(calls.map(toSale)).onConflictDoNothing(),
  * });
  * ```

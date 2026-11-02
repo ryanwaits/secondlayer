@@ -464,7 +464,7 @@ async function main() {
 		maxPages: 2,
 		sink,
 		types: ["ft_transfer"],
-		onBatch: async (batchEvents, _envelope, ctx) => {
+		onBatch: async (batchEvents, ctx) => {
 			for (const event of batchEvents) {
 				await ctx.tx
 					.insertInto("smoke_sink_rows")

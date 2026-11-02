@@ -81,9 +81,9 @@ client.events.consume({
 await client.events.consume({
 	chain: "bitcoin",
 	types: ["rune_transfer"],
-	onBatch: (events, envelope) => {
+	onBatch: (events, ctx) => {
 		expectTypeOf(events).toEqualTypeOf<RuneStreamsEvent[]>();
-		expectTypeOf(envelope.tip).toEqualTypeOf<StreamsBitcoinTip>();
+		expectTypeOf(ctx.tip).toEqualTypeOf<StreamsBitcoinTip>();
 	},
 });
 

@@ -16,7 +16,7 @@ await new Index().events.consume({
   eventType: "ft_transfer",
   fromCursor: await db.loadCheckpoint(),
   // !ref(1:4) fork-index-batch
-  onBatch: async (events, envelope, ctx) => {
+  onBatch: async (events, ctx) => {
     await db.commit(events, ctx.cursor);
     return ctx.cursor;
   },
@@ -55,7 +55,7 @@ The [first deploy backfills from your start block](focus:fork-sg-start), and [on
 await sl.streams.events.consume({
   types: ["ft_transfer"],
   fromCursor: await db.loadCheckpoint(),
-  onBatch: async (events, envelope, ctx) => {
+  onBatch: async (events, ctx) => {
     // !ref fork-st-batch
     await db.insertEvents(events, ctx.cursor);
     return ctx.cursor;
