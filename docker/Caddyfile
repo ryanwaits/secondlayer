@@ -27,14 +27,6 @@ api.{$BASE_DOMAIN:secondlayer.tools} {
 	handle /hooks/slack* {
 		reverse_proxy agent:3900
 	}
-	# Hosted chain webhooks, private subgraphs and their insights: each
-	# account's live in its own stack on the workload host. Its gateway
-	# introspects the caller's sk-sl_ key against this api and forwards with
-	# that stack's own token; the key never reaches a stack. The workload
-	# host's Caddy uses its internal CA, pinned here. This api runs
-	# INSTANCE_MODE=platform and never mounts subgraph routes (or
-	# /api/insights; account insights live under /api/accounts), so routing
-	# these prefixes away can't shadow anything.
 	# Testnet read API for tenant webhook evaluators only. Not a customer API.
 	@testnet {
 		path /testnet/v1/index/* /testnet/v1/streams/*
@@ -44,11 +36,18 @@ api.{$BASE_DOMAIN:secondlayer.tools} {
 		uri strip_prefix /testnet
 		reverse_proxy host.docker.internal:3802
 	}
-	handle /testnet/* {
-		respond 404
-	}
 
-	@workload path /api/webhooks* /api/subgraphs* /v1/subgraphs* /api/insights*
+	# Hosted chain webhooks, private subgraphs and their insights: each
+	# account's live in its own stack on the workload host. Its gateway
+	# introspects the caller's sk-sl_ key against this api and forwards with
+	# that stack's own token; the key never reaches a stack. The workload
+	# host's Caddy uses its internal CA, pinned here. This api runs
+	# INSTANCE_MODE=platform and never mounts subgraph routes (or
+	# /api/insights; account insights live under /api/accounts), so routing
+	# these prefixes away can't shadow anything. Testnet webhooks
+	# (/testnet/api/webhooks*) take the same path: one shared, free stack
+	# answers for every account.
+	@workload path /api/webhooks* /api/subgraphs* /v1/subgraphs* /api/insights* /testnet/api/webhooks*
 	handle @workload {
 		# Prod runs Caddy 2.10, which forwards the ORIGINAL inbound Host
 		# (api.{$BASE_DOMAIN}) to an HTTPS upstream — that rewrite only
@@ -62,6 +61,13 @@ api.{$BASE_DOMAIN:secondlayer.tools} {
 				tls_trust_pool file {$WORKLOAD_HOST_CA_FILE:/etc/caddy/workload-host-ca.crt}
 			}
 		}
+	}
+
+	# Nothing else is served under /testnet. After @workload on purpose: the
+	# webhooks path above must win.
+	@testnetother path /testnet/*
+	handle @testnetother {
+		respond 404
 	}
 	handle {
 		# Load-balance across all `api` replicas. `dynamic a` re-resolves the
