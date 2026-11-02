@@ -403,16 +403,16 @@
     ]
   },
   "/docs/authentication#read-with-it": {
-    "hash": "43f365ced1146af7",
+    "hash": "e6451bd62aa3dffe",
     "phrasings": [
-      "how do i read mainnet data with an api key",
-      "does reading mainnet data use up credits",
-      "mainnet read request returns 401 unauthorized",
-      "example of fetching a live mainnet page",
-      "which key do i need for mainnet reads",
-      "how much does a mainnet read cost",
-      "api key setup for live mainnet queries",
-      "why does my mainnet request fail without key"
+      "how do i read data with my api key",
+      "why does reading return unauthorized with key",
+      "example of reading with authentication token",
+      "authenticated read request not working",
+      "how to use key for read calls",
+      "reading mainnet page with api key",
+      "api key billing read requests explained",
+      "what header to send when reading data"
     ]
   },
   "/docs/authentication#set-it": {
