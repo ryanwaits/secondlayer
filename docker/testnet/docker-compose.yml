@@ -88,6 +88,9 @@ services:
     environment:
       <<: *common-env
       INSTANCE_TOKEN: ${TESTNET_INSTANCE_TOKEN:?}
+      # The API defaults to loopback, which a published port can't reach. Any
+      # non-loopback bind requires the token above on every read.
+      LISTEN_HOST: 0.0.0.0
     ports:
       # Docker bridge gateway only: reachable by Caddy, not the internet.
       - "172.17.0.1:3802:3800"
