@@ -41,15 +41,7 @@ import {
 	removeMempoolTxs,
 	startMempoolSweep,
 } from "./mempool.ts";
-import { getObserverTip, listObserverMessages } from "./observer-export.ts";
-import {
-	handleIgnoredObserverPost,
-	handleNotFound,
-	handleObserverEvents,
-	handleObserverTip,
-	resolveObserverHttpBindHost,
-	shouldRegisterObserverHttpExport,
-} from "./observer-http.ts";
+import { handleIgnoredObserverPost, handleNotFound } from "./observer-http.ts";
 import {
 	type ObserverPath,
 	type ObserverReceipt,
@@ -107,20 +99,6 @@ async function ensureApplierStarted(): Promise<void> {
 			? await highestReceivedSequence(getSourceDb(), NETWORK)
 			: null;
 	applier.start(floor);
-}
-
-const observerExportFlag = process.env.OBSERVER_HTTP_EXPORT;
-const observerExportToken = process.env.OBSERVER_HTTP_EXPORT_TOKEN;
-const observerExportBind = resolveObserverHttpBindHost(process.env);
-const observerExportEnabled = shouldRegisterObserverHttpExport({
-	exportFlag: observerExportFlag,
-	token: observerExportToken,
-	bindHost: observerExportBind,
-});
-if (observerExportFlag === "1" && !observerExportEnabled) {
-	logger.error(
-		"OBSERVER_HTTP_EXPORT=1 but bind is public and OBSERVER_HTTP_EXPORT_TOKEN is unset; not registering /internal/observer-events",
-	);
 }
 
 async function captureObserverRequest(
@@ -293,27 +271,6 @@ if (OBSERVER_JOURNAL_ENABLED && !(await isBootstrapSpoolMode())) {
 
 assertDbSplit();
 logger.info("Starting indexer service", { port: PORT });
-
-const observerExportRoute = observerExportEnabled
-	? {
-			"/internal/observer-events": {
-				GET: (req: Request) =>
-					handleObserverEvents(req, {
-						list: (opts) => listObserverMessages(getSourceDb(), opts),
-						network: NETWORK,
-						token: observerExportToken || null,
-					}),
-			},
-			"/internal/observer-events/tip": {
-				GET: (req: Request) =>
-					handleObserverTip(req, {
-						tip: () => getObserverTip(getSourceDb(), { network: NETWORK }),
-						network: NETWORK,
-						token: observerExportToken || null,
-					}),
-			},
-		}
-	: null;
 
 const server = Bun.serve({
 	port: PORT,
@@ -631,10 +588,6 @@ const server = Bun.serve({
 		"/attachments/new": {
 			POST: handleIgnoredObserverPost,
 		},
-
-		// Cast: conditional key would otherwise be `path?: … | undefined`, which
-		// Bun.serve Routes rejects. Runtime still omits the route when disabled.
-		...((observerExportRoute ?? {}) as Record<string, never>),
 	},
 
 	// Fallback for unmatched routes
