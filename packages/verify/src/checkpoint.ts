@@ -2,8 +2,8 @@
 // proves is relative to it: a Stacks block whose state holds one cycle's
 // signer set, and a Bitcoin header to sync proof-of-work from.
 //
-// Run `bun run --filter @secondlayer/verify rotate-checkpoint`; it proves the
-// new checkpoint from this one.
+// `bun run version` rotates it once it falls behind, through
+// `rotate-checkpoint`, which proves the new checkpoint from this one.
 import type { Checkpoint } from "./bitcoin/chain.ts";
 
 /** A trusted Stacks header and signer set to start verification from. */
