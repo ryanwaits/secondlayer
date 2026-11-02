@@ -103,7 +103,6 @@ const OWN_PREFIXES = [
 	"OBSERVER_",
 	"INSTANCE_",
 	"ARCHIVE_",
-	"X402_",
 ] as const;
 
 function isOwnNamespace(key: string): boolean {

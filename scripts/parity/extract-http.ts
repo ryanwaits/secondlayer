@@ -71,7 +71,6 @@ function planeFor(method: string, path: string): Plane {
 }
 
 function groupFor(path: string): string {
-	if (path.includes("x402")) return "x402";
 	const segments = path.split("/").filter(Boolean);
 	if (segments.length === 0) return "core";
 	const first = segments[0];
