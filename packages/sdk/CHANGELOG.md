@@ -1,5 +1,12 @@
 # @secondlayer/sdk
 
+## 15.5.2
+
+### Patch Changes
+
+- Updated dependencies [ee0bb74]
+  - @secondlayer/subgraphs@8.0.0
+
 ## 15.5.1
 
 ### Patch Changes

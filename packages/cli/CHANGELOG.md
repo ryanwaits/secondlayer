@@ -1,5 +1,15 @@
 # @secondlayer/cli
 
+## 22.3.4
+
+### Patch Changes
+
+- Updated dependencies [ee0bb74]
+  - @secondlayer/subgraphs@8.0.0
+  - @secondlayer/bundler@0.7.3
+  - @secondlayer/scaffold@1.6.3
+  - @secondlayer/sdk@15.5.2
+
 ## 22.3.3
 
 ### Patch Changes

@@ -1,5 +1,12 @@
 # @secondlayer/bundler
 
+## 0.7.3
+
+### Patch Changes
+
+- Updated dependencies [ee0bb74]
+  - @secondlayer/subgraphs@8.0.0
+
 ## 0.7.2
 
 ### Patch Changes

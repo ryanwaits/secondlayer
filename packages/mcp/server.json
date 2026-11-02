@@ -8,7 +8,7 @@
 		"source": "github",
 		"subfolder": "packages/mcp"
 	},
-	"version": "11.2.4",
+	"version": "11.2.5",
 	"websiteUrl": "https://www.secondlayer.tools/docs/mcp",
 	"remotes": [
 		{
@@ -20,7 +20,7 @@
 		{
 			"registryType": "npm",
 			"identifier": "@secondlayer/mcp",
-			"version": "11.2.4",
+			"version": "11.2.5",
 			"transport": {
 				"type": "stdio"
 			},
