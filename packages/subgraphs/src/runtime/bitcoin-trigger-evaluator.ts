@@ -38,8 +38,7 @@ import { getChainReorgGeneration } from "./trigger-evaluator-loop.ts";
  * `chain=bitcoin` tip has no `wait` support — see the plan's Refresh note).
  */
 
-const BITCOIN_TRIGGER_POLL_MS =
-	Number(process.env.BITCOIN_TRIGGER_POLL_MS) || 15_000;
+const BITCOIN_TRIGGER_POLL_MS = 15_000;
 
 const RUNE_TRIGGER_TYPE_SET = new Set<string>(RUNE_EVENT_TYPES);
 

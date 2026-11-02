@@ -143,10 +143,6 @@ services:
       AI_GATEWAY_API_KEY: ${AI_GATEWAY_API_KEY:-}
       STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
       STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
-      STRIPE_PRICE_LAUNCH: ${STRIPE_PRICE_LAUNCH:-}
-      STRIPE_PRICE_LAUNCH_YEARLY: ${STRIPE_PRICE_LAUNCH_YEARLY:-}
-      STRIPE_PRICE_SCALE: ${STRIPE_PRICE_SCALE:-}
-      STRIPE_PRICE_SCALE_YEARLY: ${STRIPE_PRICE_SCALE_YEARLY:-}
       # Shared bearer for the first-party workload host's internal routes
       # (/internal/meters, /internal/keys/introspect, /internal/keys/tenant,
       # /internal/accounts/credits — see workloadHostKeyMatches() in

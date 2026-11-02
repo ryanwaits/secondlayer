@@ -37,16 +37,15 @@ const CHAIN_SUB_WARN_THRESHOLD = 5000; // observability only — not a cap.
  * historical backfill. Reorgs rewind the cursor via `handleChainReorg`.
  */
 
-const POLL_MS = Number(process.env.TRIGGER_EVALUATOR_POLL_MS) || 5_000;
+const POLL_MS = 5_000;
 // Long-poll budget for a tick that finds nothing new — a
 // caught-up evaluator holds its tip request open instead of sleeping POLL_MS
 // and re-asking. Kept under `MAX_INDEX_WAIT_SECONDS` (25) with headroom.
-const WAIT_SECONDS = Number(process.env.TRIGGER_EVALUATOR_WAIT_SECONDS) || 20;
-const BATCH = Number(process.env.TRIGGER_EVALUATOR_BATCH) || 200;
+const WAIT_SECONDS = 20;
+const BATCH = 200;
 // Bound work per tick so a large gap (e.g. after downtime) is caught up in
 // steps rather than one huge fetch.
-const MAX_BLOCKS_PER_TICK =
-	Number(process.env.TRIGGER_EVALUATOR_MAX_BLOCKS) || 2_000;
+const MAX_BLOCKS_PER_TICK = 2_000;
 
 // A concurrent reorg rewind and the evaluator's forward advance target the same
 // cursor row. FOR UPDATE serializes the writes but not the *staleness* of a `to`

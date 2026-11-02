@@ -36,9 +36,9 @@ function sleep(ms: number, signal?: AbortSignal): Promise<void> {
 
 export interface RpcWaitNotifierOptions {
 	rpc: Pick<BitcoinRpcClient, "waitfornewblock" | "getbestblockhash">;
-	/** Defaults to `BITCOIN_WAIT_TIMEOUT_MS` env, or 30000. */
+	/** Defaults to 30000. */
 	timeoutMs?: number;
-	/** Fallback poll interval once `-32601` is seen. Defaults to `BITCOIN_POLL_MS` env, or 5000. */
+	/** Fallback poll interval once `-32601` is seen. Defaults to 5000. */
 	pollMs?: number;
 	/** Test seam: overrides the real `setTimeout`-based sleep used for backoff and fallback polling. Receives `close()`'s abort signal so a test can assert it's wired through. */
 	sleep?: (ms: number, signal?: AbortSignal) => Promise<void>;
@@ -71,11 +71,8 @@ export class RpcWaitNotifier implements BlockNotifier {
 
 	constructor(options: RpcWaitNotifierOptions) {
 		this.rpc = options.rpc;
-		this.timeoutMs =
-			options.timeoutMs ??
-			Number(process.env.BITCOIN_WAIT_TIMEOUT_MS ?? DEFAULT_TIMEOUT_MS);
-		this.pollMs =
-			options.pollMs ?? Number(process.env.BITCOIN_POLL_MS ?? DEFAULT_POLL_MS);
+		this.timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
+		this.pollMs = options.pollMs ?? DEFAULT_POLL_MS;
 		this.sleepFn = options.sleep ?? sleep;
 	}
 

@@ -107,7 +107,7 @@ async function cmdBackfill(args: string[]): Promise<void> {
 
 	const db = openStore(requireEnv("BITCOIN_DATABASE_URL"));
 	const rpc = bitcoinRpcClientFromEnv();
-	const fetchConcurrency = Number(process.env.FETCH_CONCURRENCY ?? "8");
+	const fetchConcurrency = 8;
 	const flushInterval = process.env.FLUSH_INTERVAL
 		? Number(process.env.FLUSH_INTERVAL)
 		: undefined;
@@ -170,7 +170,7 @@ async function cmdParityDecode(args: string[]): Promise<void> {
 
 	const heights = parseBlockSpec(blocksSpec);
 	const rpc = bitcoinRpcClientFromEnv();
-	const concurrency = Number(process.env.PARITY_DECODE_CONCURRENCY ?? "12");
+	const concurrency = 12;
 
 	let checked = 0;
 	const mismatches: Array<{
@@ -403,7 +403,7 @@ async function cmdFollow(args: string[]): Promise<void> {
 
 	const db = openStore(requireEnv("BITCOIN_DATABASE_URL"));
 	const rpc = bitcoinRpcClientFromEnv();
-	const fetchConcurrency = Number(process.env.FETCH_CONCURRENCY ?? "8");
+	const fetchConcurrency = 8;
 	const flushInterval = process.env.FLUSH_INTERVAL
 		? Number(process.env.FLUSH_INTERVAL)
 		: undefined;

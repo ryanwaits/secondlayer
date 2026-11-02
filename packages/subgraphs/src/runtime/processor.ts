@@ -470,10 +470,7 @@ export async function startSubgraphProcessor(opts?: {
 	logger.info("Starting subgraph processor", { concurrency });
 
 	const stopOperations = await startSubgraphOperationRunner({
-		concurrency: Number.parseInt(
-			process.env.SUBGRAPH_OPERATION_CONCURRENCY ??
-				String(DEFAULT_OPERATION_CONCURRENCY),
-		),
+		concurrency: DEFAULT_OPERATION_CONCURRENCY,
 	});
 
 	// One catch-up pass over all active subgraphs (subgraphs table lives in the

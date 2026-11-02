@@ -13,7 +13,7 @@ export interface BitcoinRpcConfig {
 	username: string;
 	password: string;
 	fetch?: typeof fetch;
-	/** Per-call HTTP timeout (ms). Defaults to `BITCOIN_RPC_TIMEOUT_MS` env, or 60,000. */
+	/** Per-call HTTP timeout (ms). Defaults to 60,000. */
 	timeoutMs?: number;
 	/** Test seam: overrides the real `setTimeout`-based sleep used for retry backoff. */
 	sleep?: (ms: number) => Promise<void>;
@@ -145,9 +145,7 @@ export interface BitcoinRpcClient {
 export function bitcoinRpcClient(config: BitcoinRpcConfig): BitcoinRpcClient {
 	const doFetch = config.fetch ?? fetch;
 	const basicAuth = btoa(`${config.username}:${config.password}`);
-	const defaultTimeoutMs =
-		config.timeoutMs ??
-		Number(process.env.BITCOIN_RPC_TIMEOUT_MS ?? DEFAULT_TIMEOUT_MS);
+	const defaultTimeoutMs = config.timeoutMs ?? DEFAULT_TIMEOUT_MS;
 	const sleepFn = config.sleep ?? sleep;
 	const timeoutSignalFn =
 		config.timeoutSignal ?? ((ms: number) => AbortSignal.timeout(ms));

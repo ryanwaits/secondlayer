@@ -108,7 +108,7 @@ function resolveStreamsChain(query: URLSearchParams): StreamsChain {
 
 // SSE tail cadence: poll the forward cursor every `POLL_MS`, and emit a `ping`
 // keepalive after `HEARTBEAT_MS` of no events.
-const STREAMS_SSE_POLL_MS = Number(process.env.STREAMS_SSE_POLL_MS) || 1500;
+const STREAMS_SSE_POLL_MS = 1500;
 const STREAMS_SSE_HEARTBEAT_MS = 20_000;
 
 // Machine-readable filter spec for GET /v1/streams discovery (name + type).

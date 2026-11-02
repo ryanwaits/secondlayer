@@ -185,13 +185,7 @@ export async function waitForSubgraphOperationsClear(
 }
 
 /** Max concurrently-running 'heavy' ops (broad/non-sparse syncs). */
-function resolveHeavyOpBudget(): number {
-	const parsed = Number.parseInt(
-		process.env.SUBGRAPH_HEAVY_OP_BUDGET ?? "2",
-		10,
-	);
-	return Number.isFinite(parsed) && parsed > 0 ? parsed : 2;
-}
+const HEAVY_OP_BUDGET = 2;
 
 export async function claimSubgraphOperation(
 	db: Kysely<Database>,
@@ -199,8 +193,7 @@ export async function claimSubgraphOperation(
 ): Promise<SubgraphOperation | null> {
 	// Fair queue: accounts with fewer currently-running operations are served first,
 	// breaking ties by creation time. Prevents one user's long reindex from
-	// starving other accounts when SUBGRAPH_OPERATION_CONCURRENCY > 1.
-	const heavyBudget = resolveHeavyOpBudget();
+	// starving other accounts.
 	const result = await sql<SubgraphOperation>`
 		UPDATE subgraph_operations
 		SET
@@ -241,7 +234,7 @@ export async function claimSubgraphOperation(
 							AND h.weight = 'heavy'
 							AND h.locked_until > now()
 							AND h.id != so.id
-					) < ${heavyBudget}
+					) < ${HEAVY_OP_BUDGET}
 				)
 			ORDER BY
 				COALESCE(rc.cnt, 0) ASC,

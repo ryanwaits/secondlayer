@@ -27,7 +27,7 @@ async function writeHeartbeat(): Promise<void> {
 assertDbSplit();
 
 const processor = await startSubgraphProcessor({
-	concurrency: Number.parseInt(process.env.SUBGRAPH_CONCURRENCY ?? "5"),
+	concurrency: 5,
 });
 
 await writeHeartbeat();

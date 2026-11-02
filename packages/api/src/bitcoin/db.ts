@@ -179,13 +179,11 @@ export function getBitcoinDb(): Kysely<BitcoinDatabase> | undefined {
 	bitcoinDbResolved = true;
 	const url = process.env.BITCOIN_DATABASE_URL;
 	if (!url) return undefined;
-	const maxRaw = Number(process.env.BITCOIN_DATABASE_POOL_MAX ?? 10);
-	const max = Number.isFinite(maxRaw) && maxRaw > 0 ? maxRaw : 10;
 	// postgres.js waits 30s by default. A stopped container's published port
 	// drops packets rather than refusing them (the host firewall's default),
 	// so a down bitcoin Postgres is a timeout, not an instant refusal.
 	const client = postgres(url, {
-		max,
+		max: 10,
 		connect_timeout: CONNECT_TIMEOUT_SECONDS,
 	});
 	bitcoinDb = new Kysely<BitcoinDatabase>({

@@ -1,4 +1,4 @@
-// Fetch pool (concurrency FETCH_CONCURRENCY) -> reorder buffer -> sequential
+// Fetch pool -> reorder buffer -> sequential
 // apply. Not a port of any ord file (ord's `Updater::update_index` does the
 // fetch+apply loop against its own node process, in-process — this package
 // fetches over RPC from a remote bitcoind instead, per D6/D7).
@@ -44,7 +44,7 @@ const COMMIT_CONFIRMATIONS = 6;
 
 /**
  * Bounds total concurrent commitment-resolution RPC calls across every
- * in-flight block fetch. Without this, `FETCH_CONCURRENCY` blocks fetching in
+ * in-flight block fetch. Without this, blocks fetching in
  * parallel, each fanning out one RPC pair per candidate commitment input,
  * spikes to hundreds of simultaneous requests — measured live against
  * node-server bitcoind as an HTTP 503 (its RPC work queue overflowing) that
@@ -77,9 +77,7 @@ class Semaphore {
 	}
 }
 
-const commitmentRpcLimit = new Semaphore(
-	Number(process.env.COMMIT_RPC_CONCURRENCY ?? "8"),
-);
+const commitmentRpcLimit = new Semaphore(8);
 
 /**
  * Resolves, in parallel, every candidate commitment input in `block` — "is

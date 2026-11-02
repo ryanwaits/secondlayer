@@ -57,9 +57,7 @@ export const DEFAULT_STREAMS_TIP: StreamsTip = {
 };
 
 export const getStubStreamsTip: StreamsTipProvider = () => {
-	const block_height = Number(
-		process.env.STREAMS_STUB_TIP_HEIGHT ?? DEFAULT_STREAMS_TIP.block_height,
-	);
+	const block_height = DEFAULT_STREAMS_TIP.block_height;
 	return {
 		...DEFAULT_STREAMS_TIP,
 		block_height,

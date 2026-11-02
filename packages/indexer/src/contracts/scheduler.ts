@@ -36,14 +36,8 @@ export function startContractRegistry(): () => void {
 		process.env.CONTRACT_REGISTRY_INTERVAL_MS ?? String(DEFAULT_INTERVAL_MS),
 		10,
 	);
-	const discoverLimit = Number.parseInt(
-		process.env.CONTRACT_REGISTRY_DISCOVER_LIMIT ?? "500",
-		10,
-	);
-	const abiLimit = Number.parseInt(
-		process.env.CONTRACT_REGISTRY_ABI_LIMIT ?? "25",
-		10,
-	);
+	const discoverLimit = 500;
+	const abiLimit = 25;
 	const node = new StacksNodeClient();
 
 	let running = false;

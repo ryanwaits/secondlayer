@@ -35,6 +35,8 @@ import {
 	bumpDecoderCheckpoint,
 } from "./storage.ts";
 
+const DECODER_BATCH_SIZE = 500;
+
 const PORT = Number.parseInt(process.env.PORT || "3710", 10);
 const controller = new AbortController();
 const SBTC_ENABLED = isSbtcDecoderEnabled();
@@ -184,7 +186,7 @@ async function runDecoder(
 	while (!controller.signal.aborted) {
 		try {
 			await consume({
-				batchSize: Number.parseInt(process.env.DECODER_BATCH_SIZE ?? "500", 10),
+				batchSize: DECODER_BATCH_SIZE,
 				emptyBackoffMs: Number.parseInt(
 					process.env.DECODER_EMPTY_BACKOFF_MS ?? "1000",
 					10,
@@ -194,10 +196,7 @@ async function runDecoder(
 				// this, a stream that returns no events (e.g. sparse contract
 				// filter at-tip) keeps the SDK consumer looping forever and
 				// `updated_at` goes stale.
-				maxEmptyPolls: Number.parseInt(
-					process.env.DECODER_MAX_EMPTY_POLLS ?? "1",
-					10,
-				),
+				maxEmptyPolls: 1,
 				signal: controller.signal,
 				wake: wakeBus?.wait,
 				onProgress: ({ decoded }) => {
@@ -253,7 +252,7 @@ async function runDecoder(
  * loop, and bumps liveness for all 11 checkpoint names per iteration.
  */
 async function runClassicDecoders(): Promise<void> {
-	// Deliberately NOT `DECODER_BATCH_SIZE` — that env var is the page size for
+	// Deliberately NOT `DECODER_BATCH_SIZE` — that constant is the page size for
 	// the OTHER classic-style decoders (bns/pox4/pox5/sbtc), real HTTP Streams
 	// consumers via `runDecoder` below, and moving it would change public-facing
 	// Streams page-size behavior. This loop reads the source DB in-process, so

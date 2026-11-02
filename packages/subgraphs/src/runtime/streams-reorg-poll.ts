@@ -5,7 +5,7 @@ import {
 } from "@secondlayer/shared/index-http";
 import { logger } from "@secondlayer/shared/logger";
 
-const POLL_MS = Number(process.env.SUBGRAPH_REORG_POLL_MS) || 15_000;
+const POLL_MS = 15_000;
 // On boot, re-scan recent reorgs. Reorg handlers are idempotent, so re-applying
 // a recent reorg is safe and covers any missed during downtime.
 const STARTUP_MARGIN_MS = 60 * 60 * 1000;

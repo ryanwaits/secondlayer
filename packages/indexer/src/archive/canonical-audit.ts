@@ -547,9 +547,7 @@ export type FinalizedBound = {
 export async function resolveFinalizedBound(
 	db: Kysely<Database> = getSourceDb(),
 ): Promise<FinalizedBound> {
-	const confirmations =
-		parseOptionalInteger(process.env.CANONICAL_AUDIT_BTC_CONFIRMATIONS) ??
-		DEFAULT_BTC_CONFIRMATIONS;
+	const confirmations = DEFAULT_BTC_CONFIRMATIONS;
 	const burnTipRow = await db
 		.selectFrom("blocks")
 		.select(({ fn }) => fn.max("burn_block_height").as("burn_tip"))

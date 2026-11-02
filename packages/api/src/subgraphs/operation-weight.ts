@@ -11,7 +11,7 @@ import type { Kysely } from "kysely";
  * the sparse reindex leaps between only this contract's events, so the op is
  * minutes-scale and many can run concurrently. Everything else (no contract
  * scope, tx-level sources, huge tokens) is 'heavy' and budgeted by the claim
- * query (`SUBGRAPH_HEAVY_OP_BUDGET`) so whale syncs can't hold every slot.
+ * query (`HEAVY_OP_BUDGET`) so whale syncs can't hold every slot.
  *
  * Weight only gates admission — a "light" op that degrades to the DB-tap
  * fallback (no sparse probe) just runs slower; correctness is unaffected.

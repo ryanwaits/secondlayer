@@ -50,11 +50,8 @@ describe("mempool ingest helpers", () => {
 		expect(isGenuineDrop("Problematic")).toBe(true);
 	});
 
-	test("retention default is 72h (env-tunable)", () => {
-		if (process.env.MEMPOOL_RETENTION_HOURS === undefined) {
-			expect(MEMPOOL_RETENTION_HOURS).toBe(72);
-		}
-		expect(MEMPOOL_RETENTION_HOURS).toBeGreaterThan(0);
+	test("retention is 72h", () => {
+		expect(MEMPOOL_RETENTION_HOURS).toBe(72);
 	});
 });
 

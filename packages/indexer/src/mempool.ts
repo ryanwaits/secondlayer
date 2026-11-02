@@ -113,12 +113,8 @@ export async function sweepStaleMempool(
 	return Number(result.numDeletedRows ?? 0);
 }
 
-export const MEMPOOL_RETENTION_HOURS = Number(
-	process.env.MEMPOOL_RETENTION_HOURS ?? "72",
-);
-const MEMPOOL_SWEEP_INTERVAL_MS = Number(
-	process.env.MEMPOOL_SWEEP_INTERVAL_MS ?? String(15 * 60_000),
-);
+export const MEMPOOL_RETENTION_HOURS = 72;
+const MEMPOOL_SWEEP_INTERVAL_MS = 15 * 60_000;
 
 /** Current row count of the mempool table — the accumulation depth. */
 export async function mempoolDepth(db: Kysely<Database>): Promise<number> {

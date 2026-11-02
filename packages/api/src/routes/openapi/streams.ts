@@ -327,7 +327,7 @@ export const streamsPaths = {
 			summary: "Tail the event firehose over SSE",
 			"x-nav-title": "Tail over SSE",
 			description:
-				'Server-sent events over the same read as `/v1/streams/events`, with the same parameters. The server polls every 1.5 seconds by default (`STREAMS_SSE_POLL_MS`) and writes one frame per event: `id` is the event\'s cursor and `data` is `{ "event": <StreamsEvent> }`, or `{ "event", "sig", "key_id" }` with an ed25519 signature over the event\'s JSON when the instance has a signing key. After 20 seconds with no events it writes `event: ping` with empty data; ignore it. With no `cursor`, `from_cursor` or `from_height`, the tail starts at the current tip minus the reorg margin. `Last-Event-ID` is not read; to resume after a disconnect, reconnect with `from_cursor` set to the last `id` you processed.',
+				'Server-sent events over the same read as `/v1/streams/events`, with the same parameters. The server polls every 1.5 seconds and writes one frame per event: `id` is the event\'s cursor and `data` is `{ "event": <StreamsEvent> }`, or `{ "event", "sig", "key_id" }` with an ed25519 signature over the event\'s JSON when the instance has a signing key. After 20 seconds with no events it writes `event: ping` with empty data; ignore it. With no `cursor`, `from_cursor` or `from_height`, the tail starts at the current tip minus the reorg margin. `Last-Event-ID` is not read; to resume after a disconnect, reconnect with `from_cursor` set to the last `id` you processed.',
 			security: READ_SECURITY,
 			parameters: [
 				CHAIN_PARAM,
