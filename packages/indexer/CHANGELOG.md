@@ -1,5 +1,11 @@
 # @secondlayer/indexer
 
+## 1.17.7
+
+### Patch Changes
+
+- fdf169a: Remove the opt-in `/internal/observer-events` export route, `OBSERVER_HTTP_EXPORT` and `OBSERVER_HTTP_EXPORT_TOKEN`. Its only in-repo consumer, the subgraph `observer-http` source, was removed in `@secondlayer/subgraphs@8.0.0`.
+
 ## 1.17.6
 
 ### Patch Changes

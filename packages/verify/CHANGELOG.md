@@ -1,5 +1,11 @@
 # @secondlayer/verify
 
+## 0.6.2
+
+### Patch Changes
+
+- Describe `MAINNET_CHECKPOINT` in the README without pinned block numbers, so the text stays true as the checkpoint rotates.
+
 ## 0.6.1
 
 ### Patch Changes
