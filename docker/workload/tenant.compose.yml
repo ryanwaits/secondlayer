@@ -4,9 +4,8 @@
 # --env-file <secrets dir>/<acct8>/.env up -d`: one compose project per
 # account, its own network, its own Postgres container and volume.
 #
-# Services are the split-stack subset that needs no chain of its own
-# (`docker/oss/docker-compose.split.yml` is the base; `indexer`/`decoder` are
-# NOT included here — a tenant stack reads chain data from the HOSTED
+# Services are the subset that needs no chain of its own (`indexer`/`decoder`
+# are NOT included here — a tenant stack reads chain data from the HOSTED
 # Index/Streams API over STREAMS_API_URL/SUBGRAPH_INDEX_API_URL, using that
 # account's own key, D6). `postgres` here holds only this account's own state
 # (webhooks and subgraph tables) — never chain data.
@@ -208,8 +207,7 @@ services:
     # oss-images.yml` on `v*` tags, so it goes stale between releases.
     # `secondlayer-api` rebuilds on every main push (deploy.yml) and its
     # `webhook-processor` Dockerfile target is just `FROM api` + a different
-    # CMD — same code, always fresh. Run it from the api image instead
-    # (mirrors `docker/oss/docker-compose.split.yml`'s `subgraph-processor`).
+    # CMD — same code, always fresh. Run it from the api image instead.
     image: ghcr.io/${WORKLOAD_IMAGE_OWNER:-ryanwaits}/secondlayer-api:${WORKLOAD_IMAGE_TAG:?set WORKLOAD_IMAGE_TAG to a deployed main sha}
     command: ["bun", "run", "packages/subgraphs/src/webhook-service.ts"]
     platform: linux/amd64
@@ -259,7 +257,6 @@ services:
 
   # Runs this tenant's subgraph handlers (customer code, in-process) against
   # the HOSTED Index/Streams API, indexing into this tenant's own Postgres.
-  # Shaped after `docker/oss/docker-compose.split.yml`'s `subgraph-processor`.
   # The key is the METERED `hosted-subgraphs` key, so indexing bills
   # `rows.delivered` against the account and honors its spend cap. No meter
   # socket and no `INSTANCE_TOKEN`: customer code never sees either. `:-` so a

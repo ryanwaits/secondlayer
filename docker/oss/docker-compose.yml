@@ -14,8 +14,6 @@
 # Optional Bitcoin/Runes follower (D18, plan 062):
 #   docker compose --profile bitcoin up -d                        # external bitcoind (BITCOIN_RPC_* in .env)
 #   docker compose --profile full-node --profile bitcoin up -d    # bundled bitcoind too
-#
-# Multi-service split (legacy): docker-compose.split.yml
 
 # Third-party images are digest-pinned (`tag@sha256:...`). Tags are mutable, so
 # an unpinned stack silently changes underneath an operator between `up -d`

@@ -9,13 +9,10 @@ const CACHE_COMMAND =
 /** The stock 128 MB cache stalls a full-chain sync on index reads; every
  *  oss compose a self-hoster can run sizes it from the same env var. */
 describe("oss Postgres cache size", () => {
-	test("repo compose files set shared_buffers from POSTGRES_SHARED_BUFFERS", () => {
-		for (const rel of [
-			"docker/oss/docker-compose.yml",
-			"docker/oss/docker-compose.split.yml",
-		]) {
-			expect(readFileSync(join(repo, rel), "utf8")).toContain(CACHE_COMMAND);
-		}
+	test("repo compose file sets shared_buffers from POSTGRES_SHARED_BUFFERS", () => {
+		expect(
+			readFileSync(join(repo, "docker/oss/docker-compose.yml"), "utf8"),
+		).toContain(CACHE_COMMAND);
 	});
 
 	test("env example documents the knob", () => {
