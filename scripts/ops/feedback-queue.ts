@@ -5,7 +5,11 @@
  *
  * Usage:
  *   bun scripts/ops/feedback-queue.ts [--route <r>] [--status new|classified]
- *     [--since <days>] [--limit <n>] [--json | --jsonl]
+ *     [--since <days>] [--limit <n>] [--json | --jsonl] [--internal]
+ *
+ *   Real accounts only by default, so test tickets never reach the label gate.
+ *   --internal lists first-party accounts (dogfood, Sentinel) instead, which
+ *   gives classifier-compare a separate test set.
  *
  *   default  plain table grouped by route (low_priority included)
  *   --json   array of rows
@@ -36,6 +40,7 @@ export type Args = {
 	since_days: number;
 	limit: number;
 	format: "table" | "json" | "jsonl";
+	internal: boolean;
 };
 
 export function parseArgs(argv: string[]): Args {
@@ -45,6 +50,7 @@ export function parseArgs(argv: string[]): Args {
 		since_days: 7,
 		limit: 50,
 		format: "table",
+		internal: false,
 	};
 	for (let i = 0; i < argv.length; i++) {
 		const flag = argv[i];
@@ -81,6 +87,9 @@ export function parseArgs(argv: string[]): Args {
 				break;
 			case "--jsonl":
 				args.format = "jsonl";
+				break;
+			case "--internal":
+				args.internal = true;
 				break;
 			default:
 				throw new Error(`unknown flag: ${flag}`);
@@ -180,13 +189,15 @@ async function main() {
 			dialect: new PostgresJSDialect({ postgres: client }),
 		});
 		const rows = await sql<TicketRow>`
-			SELECT id, intent, expected, kind_hint, evidence, attempted, origin,
-			       status, route, classification, created_at
-			FROM feedback_tickets
-			WHERE created_at > now() - make_interval(days => ${args.since_days})
-			  ${args.status ? sql`AND status = ${args.status}` : sql``}
-			  ${args.route ? sql`AND route = ${args.route}` : sql``}
-			ORDER BY created_at DESC
+			SELECT t.id, t.intent, t.expected, t.kind_hint, t.evidence, t.attempted,
+			       t.origin, t.status, t.route, t.classification, t.created_at
+			FROM feedback_tickets t
+			JOIN accounts a ON a.id = t.account_id
+			WHERE t.created_at > now() - make_interval(days => ${args.since_days})
+			  AND a.internal = ${args.internal}
+			  ${args.status ? sql`AND t.status = ${args.status}` : sql``}
+			  ${args.route ? sql`AND t.route = ${args.route}` : sql``}
+			ORDER BY t.created_at DESC
 			LIMIT ${args.limit}
 		`.execute(db);
 		if (args.format === "json") {

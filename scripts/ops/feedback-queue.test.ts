@@ -36,7 +36,11 @@ describe("parseArgs", () => {
 			since_days: 7,
 			limit: 50,
 			format: "table",
+			internal: false,
 		});
+	});
+	test("--internal lists first-party accounts instead of real ones", () => {
+		expect(parseArgs(["--internal"]).internal).toBe(true);
 	});
 	test("unknown flag throws", () => {
 		expect(() => parseArgs(["--delete"])).toThrow("unknown flag");
