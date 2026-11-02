@@ -333,7 +333,7 @@ export interface ApiKeysTable {
 	>;
 	/** Sentinel permission areas; set only on `product = 'sentinel'` keys. */
 	areas: unknown | null;
-	tier: "free" | "build" | "scale" | "enterprise" | "internal" | null;
+	tier: "free" | "internal" | null;
 	last_used_at: Date | null;
 	revoked_at: Date | null;
 	/** Set only on `docs` keys (24h). A key past this instant never authenticates. */

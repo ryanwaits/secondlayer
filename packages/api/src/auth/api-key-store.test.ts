@@ -142,33 +142,6 @@ describe("createApiKeyTokenStore", () => {
 				expect(await findRevokedAccountKey("sk-sl_unknown_key")).toBeNull();
 			});
 
-			test("a legacy paid-tier pin on the DB row resolves to free, not the pin", async () => {
-				const raw = "sk-sl_legacy_enterprise_pin_test";
-				await db
-					.insertInto("api_keys")
-					.values({
-						key_hash: hashToken(raw),
-						key_prefix: "sk-sl_legacy",
-						account_id: accountId,
-						ip_address: "test",
-						product: "account",
-						// Legacy pin from before the paid ladder was retired. The DB
-						// column stays wide (out of scope for this plan) but the
-						// resolver must never treat it as authority.
-						tier: "enterprise",
-						status: "active",
-					})
-					.execute();
-
-				const store = createApiKeyTokenStore({
-					staticTokens: new Map(),
-					requiredScope: "streams:read",
-					product: "streams",
-				});
-				const tenant = await store.get(raw);
-				expect(tenant?.tier).toBe("free");
-			});
-
 			test("a first-party internal key resolves as internal and keeps its account", async () => {
 				const raw = "sk-sl_hosted_stack_internal_test";
 				await db

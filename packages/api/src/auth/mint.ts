@@ -29,12 +29,9 @@ export const INTERNAL_MINT_TIER = "internal";
  * `assertUnderKeyCeiling` in POST /api/keys and the sentinel mint. A backstop
  * against key-spray via the agent-reachable mint endpoint; POST /api/keys
  * also rate-limits creates per account (routes.ts). Revoked and docs keys
- * don't count. Env-overridable.
+ * don't count.
  */
-const MAX_ACTIVE_KEYS = Number.parseInt(
-	process.env.API_KEYS_MAX_ACTIVE_PER_ACCOUNT ?? "50",
-	10,
-);
+const MAX_ACTIVE_KEYS = 50;
 
 /**
  * The credential that authenticated the mint request. `isSession` is true for a

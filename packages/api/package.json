@@ -9,8 +9,7 @@
 		"dev": "bun run --watch src/index.ts",
 		"openapi": "bun scripts/sync-openapi.ts",
 		"typecheck": "tsc --noEmit",
-		"test": "bun test",
-		"stripe:setup": "bun run scripts/stripe-setup.ts"
+		"test": "bun test"
 	},
 	"dependencies": {
 		"@aws-sdk/client-s3": "^3.1042.0",
