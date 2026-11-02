@@ -1,7 +1,6 @@
 /**
  * A fake Index HTTP server that replays a synthetic chain, counting every row
- * it returns (what the real Index would meter). Shared by the reindex
- * over-fetch test and the local measurement harness, so both exercise the
+ * it returns (what the real Index would meter). Tests use it to exercise the
  * real `IndexHttpClient` -> `PublicApiBlockSource` -> `reindexSubgraph` path
  * without touching any hosted API.
  *
@@ -9,10 +8,6 @@
  * over `backgroundContracts` unrelated contracts (the "every print on chain"
  * volume). The target contract prints with `otherTopic` every
  * `targetEvery` blocks, and with `wantedTopic` only at `wantedHeights`.
- *
- * Run standalone for a separate-process server (so a caller's RSS is its own):
- *   bun src/runtime/fake-index.ts '<json FakeIndexOptions>'
- * prints `READY <url>` then serves until killed; GET /__stats returns counters.
  */
 import { Cl, serializeCV } from "@secondlayer/stacks/clarity";
 
@@ -29,7 +24,6 @@ export type FakeIndexOptions = {
 	wantedHeights: number[];
 	/** Bytes of filler per print payload, so rows weigh what real ones do. */
 	payloadBytes?: number;
-	port?: number;
 };
 
 export type FakeIndexStats = {
@@ -207,10 +201,9 @@ export function startFakeIndex(opts: FakeIndexOptions) {
 	let refusal: string | null = null;
 
 	const server = Bun.serve({
-		port: opts.port ?? 0,
+		port: 0,
 		fetch(req) {
 			const url = new URL(req.url);
-			if (url.pathname === "/__stats") return Response.json(stats);
 			if (refusal && url.searchParams.get("tip_only") !== "true") {
 				stats.refused++;
 				return Response.json({ error: refusal }, { status: 402 });
@@ -234,10 +227,4 @@ export function startFakeIndex(opts: FakeIndexOptions) {
 		},
 		stop: () => server.stop(true),
 	};
-}
-
-if (import.meta.main) {
-	const opts = JSON.parse(process.argv[2] ?? "{}") as FakeIndexOptions;
-	const server = startFakeIndex(opts);
-	console.log(`READY ${server.url}`);
 }

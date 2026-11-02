@@ -10,6 +10,13 @@
  * Run in-cluster against a populated DB + API:
  *   bun run packages/subgraphs/test/golden-diff.ts --from H1 --to H2 \
  *     [--base-url http://api:3800]
+ *
+ * Or against a fixture from capture-fixtures.ts and any API:
+ *   bun run packages/subgraphs/test/golden-diff.ts --from H1 --to H2 \
+ *     --fixture packages/subgraphs/test/fixtures/blockdata-H1-H2.json \
+ *     --base-url https://api.secondlayer.tools
+ *
+ * Any non-zero `diffs` is a blocker.
  */
 import { readFileSync } from "node:fs";
 import { IndexHttpClient } from "@secondlayer/shared/index-http";
