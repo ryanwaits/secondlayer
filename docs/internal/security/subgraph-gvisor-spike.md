@@ -1,7 +1,5 @@
 # Spike: tenant stack isolation on gVisor (containment suite)
 
-Earlier approach (in-process worker sandbox, not pursued): [subgraph-processor-sandbox-spike.md](./subgraph-processor-sandbox-spike.md).
-
 - **Run**: 2026-10-05, throwaway Hetzner `ccx13` (2 dedicated vCPU AMD EPYC-Milan, 8 GB, fsn1), Ubuntu 24.04, booted from the real `render-cloud-init.sh` output. Image `ghcr.io/ryanwaits/secondlayer-api:554c9a82` (Bun 1.4.2). gVisor `release-20260928.0`, platform **systrap** (runsc default, no flag). Docker 29.x.
 - **Reproduce**: spike removed after the stack shipped; `spike/045-containment/` (run script, raw results) last present at commit 10d2c2106.
 - **Shape tested**: two tenant projects from `docker/workload/tenant.compose.yml` plus `spike/045-containment/tenant.hardening.yml`. Stack A runs the probe subgraph (dummy hosted key, holds no real credential). Stack B runs a benign pox-5 + stx_transfer fixture against hosted Index. Stack C is the same fixture under `runc`, for comparison only.

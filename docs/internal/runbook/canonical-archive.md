@@ -245,4 +245,4 @@ it at the top of any poll loop that watches `docker exec` or `pgrep` over ssh.
 
 - Consumer surface: `/docs/archive`
 - Trust root: [archive-key-ceremony.md](./archive-key-ceremony.md)
-- Host recovery: `docker/docs/PHASE1_RECOVERY_RUNBOOK.md`
+- Host recovery: `docker/docs/README.md`

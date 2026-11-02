@@ -32,7 +32,7 @@ COGS is ~100% fixed. Everything we sell rides hardware we already own.
 | Storage Box BX11 + IPv4 addresses | $8/mo | — |
 | R2 archive (39 GB, 2026-08-12) | ~$0.59/mo, +0.7 GB/mo | $0.015/GB-mo storage, $0 egress |
 | Hosted row read | — | PG CPU/IO on owned NVMe ≈ $0 |
-| Subgraph sandbox | — | ~81.5 MB RAM per warm subprocess (measured, `docs/internal/security/subgraph-processor-sandbox-spike.md`) |
+| Subgraph sandbox | — | ~81.5 MB RAM per warm subprocess (measured) |
 | Webhook delivery | — | Bandwidth from the workload host (Hetzner Cloud); cost not measured |
 
 $885/mo ÷ $10k/mo target ≈ 9% fixed-cost ratio. After Stripe (~3% + 30¢),

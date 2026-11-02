@@ -12,8 +12,7 @@
  *   GET   /api/billing/rows     rows delivered: allowance, per day, sources, errors
  *
  * Plan plumbing (/upgrade, /resolve, /cancel, /portal) was removed with the
- * plan/tier retirement — credits are the only paid rail
- * (gate-g-deletion-manifest.md §1).
+ * plan/tier retirement — credits are the only paid rail.
  */
 
 import { ROWS_DELIVERED_MONTHLY_ALLOWANCE } from "@secondlayer/platform/billing/prices";

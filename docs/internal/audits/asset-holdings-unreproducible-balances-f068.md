@@ -1,7 +1,7 @@
 # Asset-holdings: why stored balances can't be reproduced from chain data (f068)
 
 > 2026-08-02. Read-only forensic investigation, plan `f068`, following on from
-> `asset-holdings-negative-balances.md` (f065 Part B). Prod access was `SELECT`-only
+> the negative-balances investigation (f065 Part B). Prod access was `SELECT`-only
 > throughout on both planes; nothing was written, redeployed, reindexed, or cancelled.
 > This doc does not implement or recommend a fix — it exists to inform a founder
 > decision on whether/how to remediate.
