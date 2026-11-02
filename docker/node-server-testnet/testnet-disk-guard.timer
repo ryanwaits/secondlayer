@@ -1,0 +1,10 @@
+[Unit]
+Description=Check /home usage hourly for the testnet node
+
+[Timer]
+OnCalendar=hourly
+Persistent=true
+Unit=testnet-disk-guard.service
+
+[Install]
+WantedBy=timers.target

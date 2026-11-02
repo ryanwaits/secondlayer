@@ -92,6 +92,7 @@ ufw allow 22/tcp
 ufw allow 8333/tcp                          # Bitcoin P2P
 ufw allow 20444/tcp                         # Stacks P2P
 ufw allow from "$APP_SERVER_IP" to any port 20443  # Stacks RPC (app server only)
+# UFW alone doesn't apply to Docker-published ports; install stacks-rpc-firewall.service too.
 ufw --force enable
 log "UFW enabled (22, 8333, 20444, 20443 from $APP_SERVER_IP)"
 

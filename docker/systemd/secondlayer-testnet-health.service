@@ -1,0 +1,13 @@
+[Unit]
+Description=Secondlayer testnet health check with Slack alerting
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+# Only SLACK_WEBHOOK_URL is needed; the script drops STACKS_*, DATABASE* and
+# POSTGRES_* before doing anything.
+EnvironmentFile=-/opt/secondlayer/docker/.env
+ExecStart=/opt/secondlayer/docker/scripts/testnet-health.sh
+StandardOutput=append:/var/log/secondlayer-testnet-health.log
+StandardError=append:/var/log/secondlayer-testnet-health.log

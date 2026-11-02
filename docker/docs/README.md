@@ -319,6 +319,9 @@ systemctl kill -s SIGINT ord-runes               # feeder + app-server; graceful
   and pause `secondlayer-workload-upgrade.timer` during the reboot.
 - decoder and walg sidecars ignore SIGTERM (exit 137 after the timeout).
   Harmless: checkpointed / WAL re-pushed.
+- The testnet stack (`secondlayer-testnet` project) is `unless-stopped` /
+  `always` and independent of `secondlayer.service`. Pause
+  `secondlayer-testnet-health.timer` during maintenance.
 
 **After app-server is back**, all must hold before resuming the timers:
 
@@ -330,6 +333,76 @@ curl -s -H "Authorization: Bearer $KEY" "https://api.secondlayer.tools/v1/stream
 
 plus the "before" numbers: `gapCount` 0, decoder lag ~0, Runes checkpoint at
 the bitcoind tip.
+
+---
+
+## Testnet stack
+
+Stacks canonical testnet, indexed from the tip forward (no history) on the
+existing node-server and app-server. Isolated from mainnet: own compose
+project (`secondlayer-testnet`), own Postgres, no shared network or Redis.
+Only tenant webhook evaluators on the workload host read it, through Caddy
+`/testnet/v1/{index,streams}/*` (restricted by `remote_ip`).
+
+Prerequisites verified 2026-11-02: Compose 5.6.1 on both hosts;
+`/data/bitcoin` is `nofail` in `fstab`.
+
+**1. Node-server: restore, do not start the node yet**
+
+```bash
+scp -r docker/node-server-testnet node-server:/opt/secondlayer/docker/
+cp /opt/secondlayer/docker/node-server-testnet/*.service /opt/secondlayer/docker/node-server-testnet/*.timer /etc/systemd/system/
+systemctl daemon-reload; systemctl enable --now testnet-rpc-firewall testnet-disk-guard.timer
+U=https://archive.hiro.so/testnet/stacks-blockchain; D=/home/stacks-testnet
+mkdir -p $D /home/stacks-testnet-dl; cd /home/stacks-testnet-dl
+S=$(curl -fsSL $U/testnet-stacks-blockchain-latest.sha256); H=${S%% *}; N=$(basename "${S##* }")
+curl -fL -C - -o "$N" "$U/$N"; echo "$H  $N" | sha256sum -c
+nice -n19 ionice -c3 tar --zstd --no-same-owner -xf "$N" -C $D
+rm -f $D/event_observers.sqlite; cd ..; rm -rf stacks-testnet-dl
+```
+
+**2. App-server: stack first, because the node stalls until its observer answers**
+
+```bash
+mkdir -p /data/bitcoin/testnet-pg; cd /opt/secondlayer/docker
+# write testnet/.env, chmod 600: new password, new token, current owner and tag. No values in chat or commits.
+C="docker compose -p secondlayer-testnet -f testnet/docker-compose.yml --env-file testnet/.env"
+$C up -d testnet-postgres; $C run --rm testnet-migrate; $C up -d testnet-indexer
+cp systemd/secondlayer-testnet-health.* /etc/systemd/system/; systemctl daemon-reload
+```
+
+**3. Node-server: start, watch it catch up**
+
+```bash
+cd /opt/secondlayer/docker/node-server-testnet && docker compose -p secondlayer-testnet up -d
+```
+
+From app-server, `curl -s 37.27.171.220:21443/v2/info` shows `server_version`
+4.0.5, `network_id` 2147483648, `parent_network_id` 3669344250, tip near
+`api.testnet.hiro.so`, and matching `pox_consensus` at the same burn height.
+Off-host, `nc -z 37.27.171.220 21443` must fail. Catch-up is serial: about
+5,000 blocks plus 9,000 per day of snapshot age.
+
+**4. App-server: after the first block**
+
+```bash
+$C up -d testnet-api testnet-decoder; systemctl enable --now secondlayer-testnet-health.timer
+```
+
+Check: off-host `curl -m5 65.21.135.94:3701/health` times out; from node-server
+it returns 200. `/health/integrity` is `healthy`; `/health`
+`observerJournal.network` is `testnet`. From the workload host with the token:
+`https://api.secondlayer.tools/testnet/v1/streams/tip` returns ~tip; from
+elsewhere it 404s. Mainnet Postgres `pg_stat_activity` shows no testnet client.
+
+**Reset** (reset page, tip stuck, integrity not healthy, disk >= 80%):
+`docker compose -p secondlayer-testnet down` on node-server,
+`rm -rf /home/stacks-testnet`, repeat step 1 restore; on app-server
+`$C down; rm -rf /data/bitcoin/testnet-pg`, then steps 2-4. Tenant cursors
+recover on their own.
+
+**Removal**: both projects `down -v`, delete data dirs and `.env`, disable the
+units and timers, delete the deploy hook + Caddy block + `extra_hosts`, deploy.
 
 ---
 

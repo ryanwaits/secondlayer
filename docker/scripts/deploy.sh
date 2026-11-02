@@ -490,3 +490,7 @@ record_successful_deploy() {
 }
 
 record_successful_deploy
+
+# Testnet follows the deployed images, detached so it can't affect this deploy.
+systemd-run --no-block --collect -p RuntimeMaxSec=600 --unit=secondlayer-testnet-up \
+  "$PWD/scripts/testnet-up.sh" "$DEPLOY_IMAGE_OWNER" "$DEPLOY_IMAGE_TAG" 2>/dev/null || true

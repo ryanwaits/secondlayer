@@ -1,0 +1,11 @@
+[Unit]
+Description=Run the Secondlayer testnet health check every 5 minutes
+
+[Timer]
+OnCalendar=*:0/5
+AccuracySec=30s
+Persistent=true
+Unit=secondlayer-testnet-health.service
+
+[Install]
+WantedBy=timers.target

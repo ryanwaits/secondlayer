@@ -35,6 +35,19 @@ api.{$BASE_DOMAIN:secondlayer.tools} {
 	# INSTANCE_MODE=platform and never mounts subgraph routes (or
 	# /api/insights; account insights live under /api/accounts), so routing
 	# these prefixes away can't shadow anything.
+	# Testnet read API for tenant webhook evaluators only. Not a customer API.
+	@testnet {
+		path /testnet/v1/index/* /testnet/v1/streams/*
+		remote_ip {$WORKLOAD_HOST_IP:2.28.108.204}
+	}
+	handle @testnet {
+		uri strip_prefix /testnet
+		reverse_proxy host.docker.internal:3802
+	}
+	handle /testnet/* {
+		respond 404
+	}
+
 	@workload path /api/webhooks* /api/subgraphs* /v1/subgraphs* /api/insights*
 	handle @workload {
 		# Prod runs Caddy 2.10, which forwards the ORIGINAL inbound Host

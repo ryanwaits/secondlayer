@@ -1,0 +1,7 @@
+[Unit]
+Description=Stop the testnet node when /home is nearly full
+After=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/opt/secondlayer/docker/node-server-testnet/testnet-disk-guard.sh

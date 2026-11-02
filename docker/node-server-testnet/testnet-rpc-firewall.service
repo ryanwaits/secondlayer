@@ -1,0 +1,15 @@
+[Unit]
+Description=Restrict Stacks testnet node RPC 21443 to app-server (DOCKER-USER allowlist)
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/bin/sh -c "/usr/sbin/iptables -C DOCKER-USER -i enp193s0f0np0 -p tcp --dport 21443 -s 65.21.135.94 -j RETURN 2>/dev/null || /usr/sbin/iptables -I DOCKER-USER 1 -i enp193s0f0np0 -p tcp --dport 21443 -s 65.21.135.94 -j RETURN"
+ExecStart=/bin/sh -c "/usr/sbin/iptables -C DOCKER-USER -i enp193s0f0np0 -p tcp --dport 21443 -j DROP 2>/dev/null || /usr/sbin/iptables -I DOCKER-USER 2 -i enp193s0f0np0 -p tcp --dport 21443 -j DROP"
+ExecStop=/bin/sh -c "/usr/sbin/iptables -D DOCKER-USER -i enp193s0f0np0 -p tcp --dport 21443 -j DROP 2>/dev/null || true"
+ExecStop=/bin/sh -c "/usr/sbin/iptables -D DOCKER-USER -i enp193s0f0np0 -p tcp --dport 21443 -s 65.21.135.94 -j RETURN 2>/dev/null || true"
+
+[Install]
+WantedBy=multi-user.target

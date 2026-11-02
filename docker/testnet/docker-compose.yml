@@ -1,0 +1,99 @@
+# Testnet indexer, decoder and read API. Separate project with its own
+# Postgres: deploy's --remove-orphans, prod health checks and prod data never
+# see it. Tip-forward only.
+name: secondlayer-testnet
+
+x-common-env: &common-env
+  STACKS_NETWORK: testnet
+  NETWORK: testnet
+  NODE_ENV: production
+  DATABASE_POOL_MAX: "5"
+  DATABASE_URL: postgres://secondlayer:${TESTNET_POSTGRES_PASSWORD:?}@testnet-postgres:5432/secondlayer
+
+x-logging: &logging
+  driver: json-file
+  options: { max-size: 50m, max-file: "3" }
+
+services:
+  testnet-postgres:
+    image: postgres:17-alpine
+    command: >-
+      -c shared_buffers=256MB -c max_connections=40
+      -c synchronous_commit=off -c max_wal_size=1GB
+    environment:
+      POSTGRES_USER: secondlayer
+      POSTGRES_PASSWORD: ${TESTNET_POSTGRES_PASSWORD:?}
+      POSTGRES_DB: secondlayer
+    volumes:
+      # md3 is mounted nofail: never let Docker create this path on `/`.
+      - type: bind
+        source: /data/bitcoin/testnet-pg
+        target: /var/lib/postgresql/data
+        bind: { create_host_path: false }
+    shm_size: 256mb
+    mem_limit: 1536m
+    cpus: 1
+    restart: unless-stopped
+    logging: *logging
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U secondlayer"]
+      interval: 5s
+      retries: 20
+
+  testnet-migrate:
+    image: ghcr.io/${TESTNET_IMAGE_OWNER:?}/secondlayer-api:${TESTNET_IMAGE_TAG:?}
+    command: ["bun", "run", "packages/shared/src/db/migrate.ts"]
+    environment:
+      <<: *common-env
+    depends_on:
+      testnet-postgres: { condition: service_healthy }
+    restart: "no"
+
+  testnet-indexer:
+    image: ghcr.io/${TESTNET_IMAGE_OWNER:?}/secondlayer-indexer:${TESTNET_IMAGE_TAG:?}
+    environment:
+      <<: *common-env
+      AUTO_BACKFILL_ENABLED: "false"
+      TIP_FOLLOWER_ENABLED: "false"
+      CONTRACT_REGISTRY_ENABLED: "false"
+      STREAMS_BULK_PUBLISHER_ENABLED: "false"
+      STACKS_NODE_RPC_URL: http://37.27.171.220:21443
+    ports:
+      # Container port 3700: the existing DOCKER-USER rules gate it post-DNAT.
+      - "3701:3700"
+    mem_limit: 384m
+    cpus: 0.5
+    restart: unless-stopped
+    logging: *logging
+    depends_on:
+      testnet-postgres: { condition: service_healthy }
+
+  testnet-decoder:
+    image: ghcr.io/${TESTNET_IMAGE_OWNER:?}/secondlayer-decoder:${TESTNET_IMAGE_TAG:?}
+    environment:
+      <<: *common-env
+      SBTC_DECODER_ENABLED: "false"
+      POX4_DECODER_ENABLED: "false"
+      POX5_DECODER_ENABLED: "false"
+      BNS_DECODER_ENABLED: "false"
+    mem_limit: 256m
+    cpus: 0.5
+    restart: unless-stopped
+    logging: *logging
+    depends_on:
+      testnet-postgres: { condition: service_healthy }
+
+  testnet-api:
+    image: ghcr.io/${TESTNET_IMAGE_OWNER:?}/secondlayer-api:${TESTNET_IMAGE_TAG:?}
+    environment:
+      <<: *common-env
+      INSTANCE_TOKEN: ${TESTNET_INSTANCE_TOKEN:?}
+    ports:
+      # Docker bridge gateway only: reachable by Caddy, not the internet.
+      - "172.17.0.1:3802:3800"
+    mem_limit: 384m
+    cpus: 0.5
+    restart: unless-stopped
+    logging: *logging
+    depends_on:
+      testnet-postgres: { condition: service_healthy }

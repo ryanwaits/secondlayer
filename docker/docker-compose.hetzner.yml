@@ -146,9 +146,12 @@ services:
       - caddy_logs:/var/log/caddy
       - ${DATA_DIR:-/opt/secondlayer/data}/archive/canonical-v1-staging:/srv/archive:ro
       - ${DATA_DIR:-/opt/secondlayer/data}/workload-host-ca.crt:/etc/caddy/workload-host-ca.crt:ro
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     environment:
       BASE_DOMAIN: ${BASE_DOMAIN:-secondlayer.tools}
       CADDY_ACME_EMAIL: ${CADDY_ACME_EMAIL:-ryan.waits@gmail.com}
+      WORKLOAD_HOST_IP: ${WORKLOAD_HOST_IP:-2.28.108.204}
     depends_on:
       api:
         condition: service_healthy
