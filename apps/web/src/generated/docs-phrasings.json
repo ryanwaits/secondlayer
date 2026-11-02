@@ -403,15 +403,16 @@
     ]
   },
   "/docs/authentication#read-with-it": {
-    "hash": "8b5cc919e7990a68",
+    "hash": "43f365ced1146af7",
     "phrasings": [
-      "api key mainnet example request",
-      "how to call mainnet with api key",
-      "live mainnet page example",
-      "where to find live mainnet data",
-      "example request against mainnet endpoint",
-      "how do i query mainnet with key",
-      "api key usage on live network"
+      "how do i read mainnet data with an api key",
+      "does reading mainnet data use up credits",
+      "mainnet read request returns 401 unauthorized",
+      "example of fetching a live mainnet page",
+      "which key do i need for mainnet reads",
+      "how much does a mainnet read cost",
+      "api key setup for live mainnet queries",
+      "why does my mainnet request fail without key"
     ]
   },
   "/docs/authentication#set-it": {
