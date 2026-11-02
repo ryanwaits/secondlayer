@@ -1572,15 +1572,16 @@
     ]
   },
   "/docs/sdk-reference": {
-    "hash": "861d83b3998ba3ae",
+    "hash": "6686e01f955a51e6",
     "phrasings": [
-      "sdk method list for client",
+      "list of all sdk client methods",
+      "sdk client method reference",
       "what methods does the client expose",
-      "client sdk function signatures",
-      "find sdk method for querying data",
-      "sdk client api methods overview",
-      "typescript sdk methods reference",
-      "which sdk function fetches blocks"
+      "find sdk functions in source",
+      "client api methods overview",
+      "looking up sdk method signatures",
+      "where is sdk method documentation",
+      "all available client functions sdk"
     ]
   },
   "/docs/sdk-reference/archive": {
@@ -2567,13 +2568,16 @@
     ]
   },
   "/docs/verification#check-a-block": {
-    "hash": "f53352035715acb8",
+    "hash": "09856a326601e5f4",
     "phrasings": [
-      "verify a single block state against checkpoint",
-      "command to verify block from checkpoint",
-      "check block links bitcoin to state",
-      "how to verify one block",
-      "validate block state root command line"
+      "how to verify a single block",
+      "check block state from checkpoint",
+      "walk links to verify block",
+      "command to validate a block",
+      "block verification not matching checkpoint",
+      "verify block against checkpoint one command",
+      "how do i confirm block state",
+      "checking block links from checkpoint"
     ]
   },
   "/docs/verification#exit-codes-and-cost": {
@@ -2920,6 +2924,19 @@
       "check webhook logs after test",
       "cli command to test webhook post",
       "fake webhook event for testing"
+    ]
+  },
+  "/docs/webhooks#testnet": {
+    "hash": "a505ec2d79feadcf",
+    "phrasings": [
+      "webhooks on stacks testnet free",
+      "do webhooks work on testnet",
+      "stacks testnet webhook setup",
+      "use same api key for testnet webhooks",
+      "free webhooks testnet account key",
+      "can i test webhooks without paying",
+      "testnet webhook account key reuse",
+      "stacks testnet event notifications"
     ]
   },
   "/docs/webhooks#triggers": {
