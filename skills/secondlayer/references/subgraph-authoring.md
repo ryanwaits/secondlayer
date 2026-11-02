@@ -966,7 +966,7 @@ export default defineSubgraph({
 
 ### 8.3 Print-event indexer with topic filter
 
-Adapted from `bench/subgraphs/sbtc-flows-bench.ts`. Filters print events from a specific contract on a topic; useful for indexing DEX swaps, vault operations, etc.
+Filters print events from a specific contract on a topic; useful for indexing DEX swaps, vault operations, etc.
 
 ```ts
 import { defineSubgraph } from "@secondlayer/subgraphs";

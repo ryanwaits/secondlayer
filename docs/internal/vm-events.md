@@ -109,7 +109,7 @@ sources: {
 
 ## Storage writes — prints lie, maps don’t
 
-sBTC-flows today is prints (`bench/subgraphs/sbtc-flows-bench.ts`):
+sBTC-flows today is prints:
 
 ```ts
 sources: {

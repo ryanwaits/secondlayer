@@ -59,8 +59,3 @@ export function instanceTokenAuth(): MiddlewareHandler {
 		await next();
 	};
 }
-
-/** @deprecated Use `instanceTokenAuth`. */
-export function staticKeyAuth(): MiddlewareHandler {
-	return instanceTokenAuth();
-}
