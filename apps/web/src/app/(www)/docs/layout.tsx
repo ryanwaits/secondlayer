@@ -8,6 +8,7 @@ import type { ReactNode } from "react";
 import { DocsDrawerProvider } from "./docs-drawer";
 import { DocsSidebar } from "./docs-sidebar";
 import { DocsView } from "./docs-view";
+import { DocsMovedAnchor } from "./moved-anchor";
 import "./docs.css";
 import { DocsScrollTop } from "./scroll-top";
 import { DocsTrail } from "./trail";
@@ -44,6 +45,7 @@ export default function DocsLayout({ children }: { children: ReactNode }) {
 	return (
 		<DocsDrawerProvider>
 			<DocsScrollTop />
+			<DocsMovedAnchor />
 			<DocsTopNav />
 			<div className="docs-shell">
 				<DocsSidebar />
