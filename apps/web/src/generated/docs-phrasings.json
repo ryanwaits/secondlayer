@@ -521,13 +521,14 @@
     ]
   },
   "/docs/cli#connect": {
-    "hash": "28a966c7c56299d1",
+    "hash": "79daf5004c103027",
     "phrasings": [
-      "connect clarinet project to secondlayer",
-      "link clarinet devnet to local indexer",
-      "secondlayer cli connect clarinet project",
-      "how to point devnet events to indexer",
-      "clarinet devnet events observer config"
+      "connect secondlayer to clarinet project",
+      "how to link clarinet project to secondlayer",
+      "secondlayer inside clarinet project setup",
+      "clarinet project secondlayer connection error",
+      "attach secondlayer to existing clarinet project",
+      "secondlayer cli clarinet project config"
     ]
   },
   "/docs/cli#frozen-features": {
@@ -566,14 +567,15 @@
     ]
   },
   "/docs/cli#local-chain": {
-    "hash": "cde18af1999abe1c",
+    "hash": "151519d0438c096b",
     "phrasings": [
-      "run full stack locally with clarinet devnet",
-      "local postgres indexer api with clarinet",
-      "run subgraph processor locally against devnet",
-      "secondlayer local development environment setup",
-      "docker compose local secondlayer stack",
-      "how to test subgraphs with clarinet locally"
+      "run secondlayer with clarinet devnet",
+      "secondlayer local chain setup",
+      "how to use secondlayer with clarinet",
+      "secondlayer against local devnet",
+      "clarinet devnet indexer local testing",
+      "local stacks chain for secondlayer",
+      "secondlayer not working with clarinet devnet"
     ]
   },
   "/docs/cli#local-runtime": {
@@ -588,6 +590,36 @@
       "generate observer config for local node"
     ]
   },
+  "/docs/cli#mock-sbtc": {
+    "hash": "9adcbd02edfffaca",
+    "phrasings": [
+      "mint mock sbtc on devnet",
+      "get test sbtc for local address",
+      "fund address with fake sbtc devnet",
+      "mock sbtc faucet clarinet",
+      "how to add sbtc balance locally"
+    ]
+  },
+  "/docs/cli#options": {
+    "hash": "998c81f130fb13aa",
+    "phrasings": [
+      "secondlayer cli flags list",
+      "secondlayer command line options",
+      "secondlayer cli arguments reference",
+      "what flags does secondlayer accept",
+      "secondlayer optional parameters devnet"
+    ]
+  },
+  "/docs/cli#read-it-back": {
+    "hash": "073ae4e5b0e597c5",
+    "phrasings": [
+      "query devnet api without api key",
+      "read indexed data from local api",
+      "loopback api access secondlayer devnet",
+      "devnet api no credentials needed",
+      "fetch rows from local secondlayer api"
+    ]
+  },
   "/docs/cli#scaffold-from-a-contract": {
     "hash": "7146596da57a8631",
     "phrasings": [
@@ -600,16 +632,45 @@
       "clarity print topic payload types"
     ]
   },
-  "/docs/cli#start-the-devnet": {
-    "hash": "5eb4f32b876df152",
+  "/docs/cli#send-a-call": {
+    "hash": "68b4b53a30290d21",
     "phrasings": [
-      "run local devnet with cli",
-      "secondlayer devnet start command",
-      "local chain auto deploy contracts",
-      "stream blocks to local indexer",
-      "start local stacks devnet",
-      "devnet not deploying my contracts",
-      "how to launch local dev chain"
+      "send contract call to devnet node",
+      "submit transactions to local devnet",
+      "call contract function on devnet",
+      "send stx transfer to devnet",
+      "devnet transaction broadcast fails"
+    ]
+  },
+  "/docs/cli#start-the-devnet": {
+    "hash": "dcc10b2ba7719792",
+    "phrasings": [
+      "start clarinet devnet with auto deploy",
+      "devnet auto deploys contracts on start",
+      "stream blocks to indexer during devnet",
+      "how to launch local devnet secondlayer",
+      "devnet not deploying contracts automatically",
+      "start secondlayer devnet command"
+    ]
+  },
+  "/docs/cli#tear-down": {
+    "hash": "77025e39846d6c7c",
+    "phrasings": [
+      "stop secondlayer devnet and clean up",
+      "remove clarinet devnet containers",
+      "shut down local secondlayer stack",
+      "reset devnet state secondlayer",
+      "delete devnet data after testing"
+    ]
+  },
+  "/docs/cli#watch-it-work": {
+    "hash": "5f29037986c042fd",
+    "phrasings": [
+      "watch secondlayer output refresh every 2 seconds",
+      "show recent rows secondlayer cli",
+      "limit number of rows in secondlayer output",
+      "live refresh flag secondlayer cli",
+      "secondlayer watch mode live updates"
     ]
   },
   "/docs/deploy": {

@@ -149,13 +149,7 @@ The output:
 
 ## Local chain
 
-Run the full Secondlayer stack (Postgres, indexer, API, subgraph processor) against your local Clarinet devnet. No cloud, no accounts, no key to read your data.
-
-<Callout type="note" title="Coming from Chainhook?">
-
-This is the local path; map your predicates over with [the Chainhook migration prompt](/docs/webhooks#coming-from-chainhook).
-
-</Callout>
+Run Secondlayer against your Clarinet devnet. Streams, Index, Subgraphs and Webhooks all work locally, with no cloud and no account.
 
 ### Connect
 
@@ -166,7 +160,23 @@ $ secondlayer devnet connect
 Secondlayer stack up
   api      → http://localhost:3800
   indexer  → http://localhost:3700
+
+The api is published on 127.0.0.1 only: /v1 reads need no credential.
+Writes (deploys, webhooks) send INSTANCE_TOKEN=dev-instance-token.
 ```
+
+#### Prerequisites
+
+- [Clarinet](https://github.com/hirosystems/clarinet) and a Clarinet project (a directory with `Clarinet.toml`).
+- Docker (Docker Desktop or [OrbStack](https://orbstack.dev) on macOS).
+- The CLI: <Cmd>bun add -g @secondlayer/cli</Cmd>.
+
+#### What connect does
+
+- Patches `settings/Devnet.toml` so the devnet node forwards events to the indexer on `:3700`.
+- Writes `.secondlayer/docker-compose.yml`: Postgres plus the one-box runtime image, the same one the [self-host](/docs/self-host) compose runs.
+- Pulls the image and starts both with `docker compose up -d`.
+- Sets a fixed local instance token, a public dev signing key for webhooks, and an allowlist so webhooks can reach your localhost receiver.
 
 ### Start the devnet
 
@@ -176,54 +186,216 @@ Start the devnet; it auto-deploys your contracts and streams every block to the 
 clarinet devnet start
 ```
 
-#### Prerequisites
+Services in `settings/Devnet.toml` cost memory you may not need. Set the ones you can live without to `true`:
 
-- [Clarinet](https://github.com/hirosystems/clarinet) and a Clarinet project (a directory with `Clarinet.toml`).
-- Docker (Docker Desktop or [OrbStack](https://orbstack.dev) on macOS).
-- The CLI: `bun add -g @secondlayer/cli`.
+| Key | Saves | Costs you |
+| --- | --- | --- |
+| `disable_stacks_explorer` | memory | the explorer UI |
+| `disable_bitcoin_explorer` | memory | the Bitcoin explorer UI |
+| `disable_stacks_api` | memory, `:3999` | the [faucet](#mock-sbtc) and the default `network: "devnet"` node URL |
+| `disable_postgres` | memory, `:5432` | the Stacks API, which needs it |
 
-#### What connect does
+### Send a call
 
-- Patches `settings/Devnet.toml` so the devnet node forwards events to the local indexer (`stacks_node_events_observers = ["host.docker.internal:3700"]`).
-- Writes `.secondlayer/docker-compose.yml` for the published OSS images.
-- Brings the stack up with `docker compose up -d`.
+Send transactions straight to the devnet node. Without `client.baseUrl`, `@stacks/transactions` targets the Stacks API on port 3999, which is off when you disable it.
 
-#### Options
+```ts call.ts
+import { broadcastTransaction, makeContractCall } from "@stacks/transactions";
+
+const transaction = await makeContractCall({
+	contractAddress: "ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM",
+	contractName: "counter",
+	functionName: "increment",
+	functionArgs: [],
+	senderKey:
+		"753b7cc01a1a2e86221266a154af739463fce51219d97e4f856cd7200c3bd2a601", // devnet deployer, from settings/Devnet.toml
+	network: "devnet",
+	client: { baseUrl: "http://localhost:20443" },
+	fee: 2000n,
+});
+console.log(
+	await broadcastTransaction({
+		transaction,
+		network: "devnet",
+		client: { baseUrl: "http://localhost:20443" },
+	}),
+);
+```
+
+The examples below read back a `counter` contract that prints an event on each call:
+
+```clarity contracts/counter.clar
+(define-data-var counter uint u0)
+(define-public (increment)
+  (let ((new-value (+ (var-get counter) u1)))
+    (var-set counter new-value)
+    (print {event: "incremented", value: new-value})
+    (ok new-value)))
+```
+
+### Read it back
+
+Reads need no credential: the API is published on loopback only. Run the call a few times first.
+
+#### Streams
+
+Raw events, straight from the node.
+
+```bash
+curl "http://localhost:3800/v1/streams/events?contract_id=ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM.counter"
+```
+
+```json
+{
+  "events": [
+    {
+      "cursor": "69:0",
+      "block_height": 69,
+      "tx_id": "0x606013dd2a02400045e1d28ab7d1d84649014e4d81063daa1cc83d45af3149ff",
+      "event_type": "print",
+      "contract_id": "ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM.counter",
+      "payload": { "topic": "print", "raw_value": "0x0c00000002056576656e74…" },
+      "canonical": true,
+      "finalized": false
+    }
+  ],
+  "next_cursor": "69:0",
+  ...
+}
+```
+
+Streams holds back the newest blocks as a reorg margin, so an event shows up once a couple more blocks land.
+
+#### Index
+
+Decoded transactions and events. The transaction id needs its `0x` prefix, which `broadcastTransaction` leaves off.
+
+```bash
+curl "http://localhost:3800/v1/index/transactions/0x606013dd2a02400045e1d28ab7d1d84649014e4d81063daa1cc83d45af3149ff"
+curl "http://localhost:3800/v1/index/events?contract_id=ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM.counter&event_type=print"
+```
+
+```json
+{
+  "transaction": {
+    "tx_id": "0x606013dd2a02400045e1d28ab7d1d84649014e4d81063daa1cc83d45af3149ff",
+    "block_height": 69,
+    "tx_type": "contract_call",
+    "status": "success",
+    "contract_call": {
+      "contract_id": "ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM.counter",
+      "function_name": "increment",
+      "result": "1"
+    },
+    ...
+  },
+  ...
+}
+```
+
+```json
+{
+  "events": [
+    {
+      "cursor": "69:0",
+      "event_type": "print",
+      "contract_id": "ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM.counter",
+      "payload": { "topic": "print", "value": { "event": "incremented", "value": "1" } }
+    }
+  ],
+  ...
+}
+```
+
+#### Subgraphs
+
+Generate a subgraph from the prints already indexed, deploy it, then read its table. Writes carry the fixed local token, `dev-instance-token`; it is a local-dev value, not a secret.
+
+```bash
+bun add @secondlayer/subgraphs
+secondlayer subgraphs create counter --from-contract ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM.counter
+export SECONDLAYER_API_URL=http://localhost:3800
+export INSTANCE_TOKEN=dev-instance-token
+git add subgraphs/counter.ts
+secondlayer subgraphs deploy subgraphs/counter.ts
+curl "$SECONDLAYER_API_URL/v1/subgraphs/counter/counter?_limit=5"
+```
+
+```json
+{
+  "rows": [
+    {
+      "_id": "1",
+      "_block_height": "69",
+      "_tx_id": "0x606013dd2a02400045e1d28ab7d1d84649014e4d81063daa1cc83d45af3149ff",
+      "topic": "print",
+      "value": { "event": "incremented", "value": "1" }
+    },
+    ...
+  ],
+  "next_cursor": "3",
+  "tip": { "block_height": "77", "subgraph_height": 77, "blocks_behind": 0 }
+}
+```
+
+- `create --from-contract` needs at least one print event indexed, so send a call first.
+- Deploy refuses an unstaged file. `git add` it, or pass `--allow-uncommitted`.
+
+#### Webhooks
+
+A webhook posts each matching event to your URL. The delivery leaves the container, so a receiver on your machine is `host.docker.internal`, not `localhost`.
+
+```ts receiver.ts
+Bun.serve({
+	port: 4999,
+	hostname: "0.0.0.0",
+	async fetch(request) {
+		console.log(
+			[...request.headers.keys()].filter((key) => key.includes("signature")).join(","),
+			await request.text(),
+		);
+		return new Response("ok");
+	},
+});
+```
+
+```bash
+secondlayer webhooks create counter-prints -u http://host.docker.internal:4999/hook \
+  --trigger '{"type":"print_event","contractId":"ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM.counter"}'
+```
+
+The receiver logs one line per call:
+
+```text
+webhook-signature,x-secondlayer-signature,x-secondlayer-signature-keyid {"type":"chain.print_event.apply","timestamp":"2026-11-03T17:59:56.000Z","data":{"event":{"data":{"topic":"print","value":{"event":"incremented","value":"1"},…},"type":"contract_event","tx_id":"0x606013dd…49ff","event_index":0},"action":"apply","trigger":"print_event","canonical":true,"block_height":69}}
+```
+
+Deliveries are signed with a public local dev key. Fetch the verify key from `GET /api/webhooks/signing-key` with your instance token; [Webhooks](/docs/webhooks) covers verification.
+
+### Mock sBTC
+
+Mint mock sBTC to an address on your devnet. It needs the Stacks API on `:3999`, so leave `disable_stacks_api` off.
+
+```bash
+secondlayer devnet faucet --to ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM
+```
+
+```text
+  minting 1000000 sats to ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM
+  via ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM.sbtc-deposit as signer ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM
+✓ Minted 1000000 sats of mock sBTC to ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM.
+  tx 954d9045f1cfbe86db4c837952b59dea34ae857849aa3299f0fdac1544aaf601
+  Mock sBTC on your devnet — not the canonical asset.
+```
 
 | Flag | Default | Purpose |
 | --- | --- | --- |
-| `--project <dir>` | nearest `Clarinet.toml` | Clarinet project directory |
-| `--image-tag <tag>` | `latest` | Published image tag to run |
-| `--owner <owner>` | Secondlayer namespace | ghcr image owner to pull from |
-| `--no-up` | — | Patch config + write compose without starting Docker |
+| `--to <address>` | required | Recipient Stacks address |
+| `--amount <sats>` | `1000000` | Amount in sats, minimum 546 |
+| `--contract <id>` | `<deployer>.sbtc-deposit` | sBTC deposit contract |
+| `--rpc-url <url>` | `http://localhost:3999` | Devnet node RPC |
 
-<Callout type="tip" title="Patch config without starting Docker">
-Pass `--no-up` to write `settings/Devnet.toml` and the compose file without starting containers.
-
-Bring it up yourself with `docker compose -f .secondlayer/docker-compose.yml up -d`.
-</Callout>
-
-#### Deploy a subgraph against it
-
-Point the CLI at the local API. There is no login: a deploy is a write, and the generated stack ships a fixed local token, `dev-instance-token`, for exactly that:
-
-```bash
-export SECONDLAYER_API_URL=http://localhost:3800
-export INSTANCE_TOKEN=dev-instance-token
-secondlayer subgraphs deploy ./subgraph.ts
-```
-
-It is a local-dev value, not a secret; a real instance gets its own from `secondlayer init`.
-
-Fire a contract call in your devnet and the matching rows land in your subgraph's tables. Reading them back takes no credential: the compose publishes the API on loopback only, and `/v1` reads are keyless whenever the API is reachable from this box alone.
-
-```bash
-curl "$SECONDLAYER_API_URL/v1/subgraphs/my-app/balances"
-```
-
-See [Instance token](/docs/self-host#instance-token).
-
-#### Watch it work
+### Watch it work
 
 ```text ~/clarinet-project
 $ secondlayer devnet status
@@ -232,10 +404,15 @@ STACK
   ● api       healthy   :3800
 
 INGEST
-  chain tip 142   indexed 142   lag caught up   last block 2s ago
+  chain tip 77   indexed 77   lag caught up   last block 57s ago
 
 SUBGRAPHS
-  my-balances   active   block 142   balances · 37 rows
+  counter   active   block 77   counter · 3 rows
+
+ACTIVITY  (recent)
+     72  counter          print  {"even…"3"}
+     70  counter          print  {"even…"2"}
+     69  counter          print  {"even…"1"}
 ```
 
 Add `-w` to refresh every 2s, or `--limit <n>` to change how many recent rows show.
@@ -243,12 +420,21 @@ Add `-w` to refresh every 2s, or `--limit <n>` to change how many recent rows sh
 Tail logs for the whole stack or one service:
 
 ```bash
-secondlayer devnet logs indexer -f
+secondlayer devnet logs secondlayer -f
 ```
 
-- Services: `indexer`, `api`, `subgraph-processor`, `postgres`.
+- Services: `secondlayer`, `postgres`.
 
-#### Tear down
+### Options
+
+| Flag | Default | Purpose |
+| --- | --- | --- |
+| `--project <dir>` | nearest `Clarinet.toml` | Clarinet project directory |
+| `--image-tag <tag>` | `latest` | Published image tag to run |
+| `--owner <owner>` | Secondlayer namespace | ghcr image owner to pull from |
+| `--no-up` | — | Patch config + write compose without starting Docker |
+
+### Tear down
 
 ```bash
 secondlayer devnet down            # stop the stack
@@ -266,9 +452,12 @@ export const agent = `
 - With SECONDLAYER_API_KEY set, 'secondlayer subgraphs' and 'webhooks' run hosted. Set SECONDLAYER_API_URL or INSTANCE_TOKEN to stay on your own instance.
 - Local runtime (from docker/oss in a checkout, see /docs/self-host): 'secondlayer init --network mainnet' writes .env.local; 'secondlayer bootstrap --against <manifest>' restores into an empty database; 'secondlayer observer --mode indexer' prints the [[events_observer]] stanza; 'secondlayer verify all --against <manifest>' checks the restore (raw or all, --deep for semantic digests). Use --mode signer-shared where documented.
 - 'secondlayer subgraphs create <name> --from-contract <contract id>' infers typed print payloads from indexed history.
-- From inside a Clarinet project: 'secondlayer devnet connect' patches settings/Devnet.toml to forward events to the local indexer on :3700, writes .secondlayer/docker-compose.yml, and brings the stack up. Then 'clarinet devnet start'; confirm 'curl http://localhost:3800/health'.
-- Deploy: export SECONDLAYER_API_URL=http://localhost:3800 and INSTANCE_TOKEN=dev-instance-token (the generated stack ships that fixed local token; deploys are writes, so they carry it), then 'secondlayer subgraphs deploy ./subgraph.ts'. Reads on loopback need no token: 'curl $SECONDLAYER_API_URL/v1/subgraphs/<name>/<table>'.
-- Watch: 'secondlayer devnet status -w' for live ingest lag and recent rows; 'secondlayer devnet logs indexer -f' to tail a service; 'secondlayer devnet down' to stop; 'secondlayer devnet down --purge' wipes the local index volumes.
+- From inside a Clarinet project: 'secondlayer devnet connect' patches settings/Devnet.toml to forward events to the indexer on :3700, writes .secondlayer/docker-compose.yml for Postgres plus the one-box runtime image, pulls it and starts it. Then 'clarinet devnet start'; confirm 'curl http://localhost:3800/health'. Streams, Index, Subgraphs and Webhooks all work on devnet.
+- Send calls with @stacks/transactions: network 'devnet' plus client { baseUrl: 'http://localhost:20443' } (the Stacks API on :3999 may be disabled). broadcastTransaction returns the txid without 0x; /v1/index/transactions/<txid> needs the 0x prefix. Streams holds back the newest blocks as a reorg margin.
+- Subgraphs: 'bun add @secondlayer/subgraphs', then 'secondlayer subgraphs create <name> --from-contract <contract id>' (needs one indexed print event first). Export SECONDLAYER_API_URL=http://localhost:3800 and INSTANCE_TOKEN=dev-instance-token (a fixed local token; deploys are writes), stage the file in git or pass --allow-uncommitted, then 'secondlayer subgraphs deploy <file>'. Reads on loopback need no token: 'curl $SECONDLAYER_API_URL/v1/subgraphs/<name>/<table>'.
+- Webhooks on devnet: the receiver URL must use host.docker.internal, not localhost. Deliveries are signed with a public dev key; GET /api/webhooks/signing-key with the instance token returns the verify key.
+- 'secondlayer devnet faucet --to <address>' mints mock sBTC and needs the Stacks API on :3999 (do not set disable_stacks_api).
+- Watch: 'secondlayer devnet status -w' for live ingest lag and recent rows; 'secondlayer devnet logs secondlayer -f' to tail a service; 'secondlayer devnet down' to stop; 'secondlayer devnet down --purge' wipes the local index volumes.
 `;
 
 export const metadata = {

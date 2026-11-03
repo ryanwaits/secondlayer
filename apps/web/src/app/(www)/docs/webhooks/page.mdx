@@ -627,7 +627,7 @@ export const agent = `
 - sBTC: trigger.sbtcWithdrawalSweptConfirmed() fires once per sweep when btc_confirmations crosses the threshold (default 6). It is forward-only and never re-fires on a reorg.
 - Runes: trigger.runeTransfer({ rune: '840000:3', minAmount: '1000000' }), with runeEtch, runeMint and runeBurn alongside. A rune name resolves to its id at create time.
 - Diagnose a failing webhook: inspect detail, recent deliveries and dead-letter rows, highest-priority findings first. Inspect dead rows before requeueing selected ones. Never replay a block range until the user confirms exact from/to blocks.
-- Chainhook migration: contract_call maps to trigger.contractCall, print_event to trigger.printEvent, ft/nft/stx events to the matching trigger.ft*/nft*/stx* factories, contract_deployment to trigger.contractDeploy. txid has no trigger; read /v1/index by transaction instead. Test on devnet before mainnet.
+- Chainhook migration: contract_call maps to trigger.contractCall, print_event to trigger.printEvent, ft/nft/stx events to the matching trigger.ft*/nft*/stx* factories, contract_deployment to trigger.contractDeploy. txid has no trigger; read /v1/index by transaction instead. Test on a local devnet first: /docs/cli#local-chain.
 `;
 
 export const metadata = {
