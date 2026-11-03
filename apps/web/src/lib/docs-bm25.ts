@@ -168,7 +168,15 @@ export function search(
 	query: string,
 	k: number,
 ): DocsSearchResult[] {
-	const queryTokens = tokenize(query);
+	return searchTokens(index, tokenize(query), k);
+}
+
+/** `search` over tokens already run through `tokenize` (and maybe corrected). */
+export function searchTokens(
+	index: DocsSearchIndex,
+	queryTokens: string[],
+	k: number,
+): DocsSearchResult[] {
 	const scores = new Map<number, number>();
 	for (const term of new Set(queryTokens)) {
 		const docs = index.postings.get(term);
