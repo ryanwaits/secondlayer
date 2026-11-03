@@ -53,7 +53,7 @@ export function MissingResource({
 					</Link>
 				) : null}
 				<Link
-					className={`acct-btn small${near ? "" : " solid"}`}
+					className={`acct-btn small ${near ? "line" : "solid"}`}
 					href={listHref}
 				>
 					All {plural.toLowerCase()}

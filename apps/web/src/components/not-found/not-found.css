@@ -45,7 +45,7 @@
 }
 .nf-copy p code,
 .nf-docs h1 code,
-.nf-gone h1 code {
+.nf-gone div :is(h1, h2) code {
 	font-family: var(--font-mono-stack);
 	font-size: 0.85em;
 	color: var(--ink);
@@ -223,8 +223,8 @@
 .nf-gone .nf-mark {
 	margin-top: 4px;
 }
-.nf-gone h1,
-.nf-gone h2 {
+/* `div` lifts these over `.site h2` / `.site p`, which load later. */
+.nf-gone div :is(h1, h2) {
 	margin: 0;
 	font-size: 24px;
 	line-height: 1.25;
@@ -232,7 +232,7 @@
 	letter-spacing: -0.02em;
 	text-wrap: balance;
 }
-.nf-gone p {
+.nf-gone div p {
 	margin: 8px 0 0;
 	color: var(--sub);
 	font-size: 15px;
