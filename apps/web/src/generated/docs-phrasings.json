@@ -416,16 +416,16 @@
     ]
   },
   "/docs/authentication#rotate-a-key": {
-    "hash": "cf0e50b9f80fbcad",
+    "hash": "f679f97ce582fb58",
     "phrasings": [
-      "how do i replace an api key secret",
-      "rotate api key without changing its name",
+      "how do i regenerate an api key",
+      "old api key stopped working after change",
+      "replace secret on existing key",
+      "rotate api key without renaming it",
+      "where to change my key secret",
       "api key leaked need new secret",
-      "where to regenerate my api key",
-      "does rotating a key break existing name",
-      "change api key secret on account page",
-      "how often should i rotate api keys",
-      "old api key stopped working after reset"
+      "how to update key credentials safely",
+      "does rotating a key keep its name"
     ]
   },
   "/docs/authentication#set-it": {
@@ -1374,14 +1374,16 @@
     ]
   },
   "/docs/mcp#remote": {
-    "hash": "e316f5be7380847e",
+    "hash": "ff5a7bb8067d0be1",
     "phrasings": [
-      "streamable http mcp client url only",
-      "connect remote mcp server with url",
-      "mcp client without local install url",
-      "streamable http transport mcp setup",
-      "which clients support streamable http mcp",
-      "add remote mcp server by url"
+      "connect mcp client to remote server url",
+      "streamable http mcp server url setup",
+      "mcp client only needs url no install",
+      "how to add remote mcp server",
+      "which clients support streamable http transport",
+      "mcp remote url configuration example",
+      "use hosted mcp endpoint without local process",
+      "mcp server connection fails over http"
     ]
   },
   "/docs/mcp#start-here": {
