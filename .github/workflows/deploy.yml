@@ -112,7 +112,7 @@ jobs:
       - name: pox-5 pin check (shipped tag vs clarinet-embedded ABI)
         run: bun scripts/ci/check-pox5-pin.ts
       - name: Scripts tests
-        run: bun test scripts/indexnow.test.ts scripts/ops
+        run: bun test scripts/indexnow.test.ts scripts/ops scripts/dash
 
   build-images:
     needs: [typecheck, test]
