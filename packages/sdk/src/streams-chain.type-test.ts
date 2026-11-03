@@ -4,8 +4,11 @@
  * `events.subscribe`, `events.consume`, and the top-level `consume`) to
  * `RuneStreamsEvent` and restricts `types` to `RuneEventType` — a Stacks type
  * or a Stacks-only filter under `chain: "bitcoin"` is a compile error, not a
- * silent 400 discovered at request time. Checked by `tsc` (src is included),
- * never bundled nor run.
+ * silent 400 discovered at request time. Checked by `bun check` (src is
+ * included), never bundled nor run.
+ *
+ * A call that matches no overload is reported on each property that breaks
+ * the last (Stacks) overload, so each directive sits above that property.
  */
 import { expectTypeOf } from "expect-type";
 import type {
@@ -48,8 +51,8 @@ declare const client: StreamsClient;
 }
 
 // events.subscribe
-// @ts-expect-error — "ft_transfer" is a Stacks type, not a RuneEventType
 client.events.subscribe({
+	// @ts-expect-error — "ft_transfer" is a Stacks type, not a RuneEventType
 	chain: "bitcoin",
 	types: ["ft_transfer"],
 	onEvent: () => {},
@@ -63,16 +66,16 @@ client.events.subscribe({
 	},
 });
 
-// @ts-expect-error — filters is Stacks-only, not part of the bitcoin branch
 client.events.subscribe({
 	filters: { a: { types: ["ft_transfer"] } },
+	// @ts-expect-error — filters is Stacks-only, not part of the bitcoin branch
 	chain: "bitcoin",
 	onEvent: () => {},
 });
 
 // events.consume
-// @ts-expect-error — "ft_transfer" is a Stacks type, not a RuneEventType
 client.events.consume({
+	// @ts-expect-error — "ft_transfer" is a Stacks type, not a RuneEventType
 	chain: "bitcoin",
 	types: ["ft_transfer"],
 	onBatch: () => {},
@@ -88,8 +91,9 @@ await client.events.consume({
 });
 
 await client.events.consume({
-	chain: "bitcoin",
 	// @ts-expect-error — filters/on is Stacks-only, not part of the bitcoin branch
+	chain: "bitcoin",
+	// @ts-expect-error — the Stacks overload rejects "rune_transfer" too
 	filters: { a: { types: ["rune_transfer"] } },
 	onBatch: () => {},
 });

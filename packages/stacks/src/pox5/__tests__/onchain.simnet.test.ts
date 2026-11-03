@@ -88,7 +88,9 @@ beforeAll(async () => {
 		chain: simnetChain,
 		transport: simnet(session),
 	});
-	pox5 = getContract({
+	// Pass the ABI type explicitly: inferring it through `const TAbi` here
+	// exceeds bun check's type instantiation depth (TS2589).
+	pox5 = getContract<typeof POX5_SCRIPT_ABI>({
 		client,
 		address: POX5_ADDRESS,
 		name: POX5_NAME,
