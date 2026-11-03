@@ -45,8 +45,9 @@ const INTRO = `# Secondlayer: instant data for apps on Bitcoin
   your stack runs. With subgraphs: $10/mo minimum. Webhook events are $10 per
   1M.
 - With no active webhooks and no subgraphs the stack stops itself within
-  minutes (never in its first 15 minutes) and bills nothing; the next request
-  starts it again.
+  minutes (never in its first 15 minutes) and bills nothing. A write starts it
+  again, and so does a read with ?wake=1. Any other webhook read answers 503
+  STACK_ASLEEP, and subgraph reads answer empty.
 - The monthly spend cap covers every charge. At the cap, reads past the free
   rows answer 402 spend_cap_reached and the stack stops, so webhooks stop
   delivering until the next month or a raised cap.

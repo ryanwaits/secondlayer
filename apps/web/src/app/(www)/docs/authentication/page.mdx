@@ -91,7 +91,8 @@ Your hosted stack runs your webhooks and subgraphs, so a webhook-only account ha
 
 - With no active webhooks and no subgraphs, the stack stops on its own within minutes.
 - It never stops in its first 15 minutes, so you have time to create your first webhook.
-- Your next request through the API starts it again, and your tables are kept.
+- A write through the API starts it again, and your tables are kept.
+- Reads don't start it: webhook reads answer `503 STACK_ASLEEP` until you add `?wake=1`, and subgraph reads answer empty.
 
 <Seam page="keys" />
 
@@ -157,7 +158,7 @@ export const agent = `
 - 1M rows a month are free; set a monthly spend cap and both balance alerts at /account/credits.
 - '402 spend_cap_reached' means the monthly cap is hit; '402 insufficient_credits' means the balance is empty. Raise the cap or buy credits to clear each.
 - The cap covers every charge: at the cap (and at a zero balance) the hosted stack stops, so webhooks stop delivering and subgraphs stop indexing until it is cleared.
-- A hosted stack with no active webhooks and no subgraphs stops itself (never in its first 15 minutes) and restarts on the next request. Pausing every webhook stops its billing.
+- A hosted stack with no active webhooks and no subgraphs stops itself (never in its first 15 minutes). A write or a read with '?wake=1' restarts it; other webhook reads answer '503 STACK_ASLEEP'. Pausing every webhook stops its billing.
 - Rotate a webhook signing secret with 'secondlayer webhooks rotate-secret', update the receiver that calls verifyWebhookSignature, then confirm nothing still references the old value.
 - Read sample: 'GET /v1/index/events?event_type=ft_transfer&limit=1'; event_type is required on /v1/index/events.
 `;
