@@ -200,3 +200,69 @@ export async function mintDocsKey(
 	});
 	return { ...minted, expiresAt: expiresAt.toISOString() };
 }
+
+export type RotateKeyResult =
+	| {
+			ok: true;
+			minted: MintedKey & { name: string | null; rotatedFrom: string };
+	  }
+	| { ok: false; status: 403 | 404 | 409; error: string };
+
+/**
+ * Replace a key's secret: revoke it and mint its successor in one transaction,
+ * keeping the name, product and tier. A new row, not a new hash on the old one:
+ * the old secret must keep resolving to a revoked row so callers get
+ * KEY_REVOKED. The row lock makes concurrent rotates of one key mint one key.
+ */
+export async function rotateApiKey(
+	db: ReturnType<typeof getDb>,
+	input: { accountId: string; id: string; ip: string },
+	mint: typeof mintApiKey = mintApiKey,
+): Promise<RotateKeyResult> {
+	return db.transaction().execute(async (trx) => {
+		const old = await trx
+			.selectFrom("api_keys")
+			.selectAll()
+			.where("id", "=", input.id)
+			.forUpdate()
+			.executeTakeFirst();
+		if (!old) return { ok: false, status: 404, error: "Key not found" };
+		if (old.account_id !== input.accountId) {
+			return {
+				ok: false,
+				status: 403,
+				error: "Cannot rotate keys from a different account",
+			};
+		}
+		if (old.status !== "active") {
+			return {
+				ok: false,
+				status: 409,
+				error: "This key is already revoked. Rotate an active key.",
+			};
+		}
+		if (old.product !== "account") {
+			return {
+				ok: false,
+				status: 409,
+				error: "Only account keys can be rotated.",
+			};
+		}
+		await trx
+			.updateTable("api_keys")
+			.set({ status: "revoked", revoked_at: new Date() })
+			.where("id", "=", old.id)
+			.execute();
+		const minted = await mint(trx, {
+			accountId: input.accountId,
+			name: old.name,
+			product: "account",
+			ip: input.ip,
+			internal: old.tier === INTERNAL_MINT_TIER,
+		});
+		return {
+			ok: true,
+			minted: { ...minted, name: old.name, rotatedFrom: old.id },
+		};
+	});
+}

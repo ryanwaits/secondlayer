@@ -168,6 +168,35 @@ describe("operationIds (the reference's # anchors)", () => {
 	});
 });
 
+describe("key routes", () => {
+	const KEY_OPERATIONS = [
+		"GET /api/keys",
+		"POST /api/keys",
+		"POST /api/keys/docs",
+		"DELETE /api/keys/{id}",
+		"POST /api/keys/{id}/rotate",
+	];
+
+	test("the hosted spec documents all five and the self-host spec none", () => {
+		const hosted = new Set(operations(specs[1] as Spec).map(([k]) => k));
+		const selfHost = new Set(operations(oss).map(([k]) => k));
+		expect(KEY_OPERATIONS.filter((k) => !hosted.has(k))).toEqual([]);
+		expect(KEY_OPERATIONS.filter((k) => selfHost.has(k))).toEqual([]);
+	});
+
+	test("every hosted key operation meets the reference contract", () => {
+		const platform = specs[1] as Spec;
+		for (const [key, op] of operations(platform)) {
+			if (KEY_OPERATIONS.includes(key)) {
+				expect({ key, violations: contractViolations(platform, op) }).toEqual({
+					key,
+					violations: [],
+				});
+			}
+		}
+	});
+});
+
 describe("component schemas", () => {
 	test("no two tag files define the same schema name", () => {
 		const seen = new Map<string, string>();

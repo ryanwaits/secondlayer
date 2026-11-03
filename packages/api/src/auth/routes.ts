@@ -1,7 +1,7 @@
 import { rowsByKeyDaily } from "@secondlayer/platform/db/queries/usage-ledger";
 import { getDb, sql } from "@secondlayer/shared/db";
 import { AuthorizationError, RateLimitError } from "@secondlayer/shared/errors";
-import { Hono } from "hono";
+import { type Context, Hono } from "hono";
 import { z } from "zod";
 import { getClientIp } from "./http.ts";
 import { requireAuth } from "./middleware.ts";
@@ -12,6 +12,7 @@ import {
 	mintApiKey,
 	mintDocsKey,
 	resolveMintProduct,
+	rotateApiKey,
 } from "./mint.ts";
 import { getRateLimitStore } from "./rate-limit-store.ts";
 
@@ -25,6 +26,23 @@ export const CreateKeySchema = z.object({
 
 const KEY_CREATE_LIMIT = 20;
 const KEY_CREATE_WINDOW_MS = 60 * 60 * 1000;
+
+/** Shared by create and rotate: both mint a key, so they share one bucket. */
+async function assertKeyCreateLimit(
+	c: Context,
+	accountId: string,
+): Promise<void> {
+	const limit = await getRateLimitStore().check(
+		`key-create:${accountId}`,
+		KEY_CREATE_LIMIT,
+		KEY_CREATE_WINDOW_MS,
+		{ failClosed: true },
+	);
+	if (!limit.allowed) {
+		c.header("Retry-After", String(limit.retryAfter));
+		throw new RateLimitError("Too many new keys. Try again later.");
+	}
+}
 
 const app = new Hono();
 
@@ -45,16 +63,7 @@ app.post("/", requireAuth(), async (c) => {
 
 	const db = getDb();
 	await assertUnderKeyCeiling(db, accountId);
-	const limit = await getRateLimitStore().check(
-		`key-create:${accountId}`,
-		KEY_CREATE_LIMIT,
-		KEY_CREATE_WINDOW_MS,
-		{ failClosed: true },
-	);
-	if (!limit.allowed) {
-		c.header("Retry-After", String(limit.retryAfter));
-		throw new RateLimitError("Too many new keys. Try again later.");
-	}
+	await assertKeyCreateLimit(c, accountId);
 
 	const minted = await mintApiKey(db, {
 		accountId,
@@ -98,6 +107,32 @@ app.post("/docs", requireAuth(), async (c) => {
 		{ key: minted.key, prefix: minted.prefix, expiresAt: minted.expiresAt },
 		201,
 	);
+});
+
+// Rotate: revoke and re-mint in one transaction, keeping the name. Same
+// authority as create. The rate limit runs first, so a refusal leaves the old
+// key working, and the ceiling is skipped since the active count doesn't change.
+app.post("/:id/rotate", requireAuth(), async (c) => {
+	// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
+	const ctx = c as any;
+	c.header("Cache-Control", "no-store");
+	const accountId = ctx.get("accountId") as string;
+	assertCanMint({
+		isSession: Boolean(ctx.get("session")),
+		apiKeyProduct: ctx.get("apiKey")?.product ?? null,
+	});
+	const { id } = c.req.param();
+	if (!z.string().uuid().safeParse(id).success) {
+		return c.json({ error: "Key not found" }, 404);
+	}
+	await assertKeyCreateLimit(c, accountId);
+	const result = await rotateApiKey(getDb(), {
+		accountId,
+		id,
+		ip: getClientIp(c),
+	});
+	if (!result.ok) return c.json({ error: result.error }, result.status);
+	return c.json(result.minted, 201);
 });
 
 // List keys (requires auth, scoped to account)

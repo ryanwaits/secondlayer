@@ -150,6 +150,11 @@ export const OPERATION_IDS: Record<string, string> = {
 	"POST /mcp": "callHostedMcp",
 	"GET /api/oauth/grants": "listConnectedApps",
 	"DELETE /api/oauth/grants/{id}": "revokeConnectedApp",
+	"GET /api/keys": "listApiKeys",
+	"POST /api/keys": "createApiKey",
+	"POST /api/keys/docs": "createDocsKey",
+	"DELETE /api/keys/{id}": "revokeApiKey",
+	"POST /api/keys/{id}/rotate": "rotateApiKey",
 };
 
 const HTTP_METHODS = ["get", "post", "put", "patch", "delete"] as const;
@@ -681,6 +686,7 @@ function platformSpec(): typeof OPENAPI_SPEC {
 		platformMeterPaths(),
 		platformFeedbackPaths(),
 		platformConnectedAppsPaths(),
+		platformKeysPaths(),
 	);
 	return {
 		...OPENAPI_SPEC,
@@ -712,6 +718,10 @@ function platformSpec(): typeof OPENAPI_SPEC {
 				name: "mcp",
 				description:
 					"The hosted MCP endpoint and the apps signed in to it with OAuth.",
+			},
+			{
+				name: "keys",
+				description: "Account keys: list, create, revoke and rotate.",
 			},
 		],
 		components: {
@@ -952,6 +962,296 @@ function platformConnectedAppsPaths(): Record<string, unknown> {
 					"401": jsonError("No session"),
 					"403": jsonError("Not a browser session"),
 					"404": jsonError("No such app on this account"),
+				},
+			},
+		},
+	};
+}
+
+/** Account keys: list, create, revoke and rotate (`src/auth/routes.ts`). */
+function platformKeysPaths(): Record<string, unknown> {
+	const KEY_ID_EXAMPLE = "3b1f8c52-6d0e-4a7b-9c14-2e5a7d8f9b01";
+	const NEW_KEY_ID_EXAMPLE = "9a2e4d71-5c3b-4f68-8e0d-1b7c6a5f4e32";
+	const idParam = {
+		name: "id",
+		in: "path",
+		required: true,
+		description: "The key's id, from the list.",
+		schema: { type: "string", format: "uuid" },
+	};
+	const KEY_ROW = {
+		type: "object",
+		properties: {
+			id: { type: "string", format: "uuid", description: "The key's id." },
+			prefix: {
+				type: "string",
+				description: "The first characters of the key, to recognize it.",
+			},
+			name: { type: ["string", "null"], description: "The key's name." },
+			status: {
+				type: "string",
+				enum: ["active", "revoked"],
+				description: "`revoked` keys get 401 `KEY_REVOKED`.",
+			},
+			product: {
+				type: "string",
+				description: "`account` for a key you made; `docs` for a docs key.",
+			},
+			tier: {
+				type: ["string", "null"],
+				description: "The key's metering tier.",
+			},
+			createdAt: {
+				type: "string",
+				format: "date-time",
+				description: "When the key was made.",
+			},
+			lastUsedAt: {
+				type: ["string", "null"],
+				format: "date-time",
+				description: "Its last use, or null if never used.",
+			},
+			expiresAt: {
+				type: ["string", "null"],
+				format: "date-time",
+				description: "When it stops working. Only docs keys expire.",
+			},
+			rowsDaily: {
+				type: "array",
+				items: { type: "integer" },
+				description: "Rows delivered per day over the last 30 days.",
+			},
+			rows30d: {
+				type: "integer",
+				description: "Rows delivered over the last 30 days.",
+			},
+		},
+		example: {
+			id: KEY_ID_EXAMPLE,
+			prefix: "sk-sl_a1b2c3d4",
+			name: "Production",
+			status: "active",
+			product: "account",
+			tier: "free",
+			createdAt: "2026-10-18T12:00:00.000Z",
+			lastUsedAt: "2026-11-02T09:30:00.000Z",
+			expiresAt: null,
+			rowsDaily: new Array<number>(30).fill(0),
+			rows30d: 0,
+		},
+	};
+	const MINTED_PROPERTIES = {
+		key: {
+			type: "string",
+			description: "The full key. Returned once; store it now.",
+		},
+		prefix: {
+			type: "string",
+			description: "The first characters of the key, to recognize it.",
+		},
+		id: { type: "string", format: "uuid", description: "The new key's id." },
+		product: { type: "string", description: "Always `account`." },
+		tier: { type: ["string", "null"], description: "The key's metering tier." },
+		createdAt: {
+			type: "string",
+			format: "date-time",
+			description: "When the key was made.",
+		},
+	};
+	const MINTED_EXAMPLE = {
+		key: "sk-sl_a1b2c3d4e5f60718293a4b5c6d7e8f90",
+		prefix: "sk-sl_a1b2c3d4",
+		id: NEW_KEY_ID_EXAMPLE,
+		product: "account",
+		tier: "free",
+		createdAt: "2026-11-02T12:00:00.000Z",
+	};
+	return {
+		"/api/keys": {
+			get: {
+				tags: ["keys"],
+				summary: "List keys",
+				"x-nav-title": "List keys",
+				description:
+					"Every key on the account, newest first, with rows delivered over the last 30 days. Revoked keys stay listed. An expired docs key is left out.",
+				security: WRITE_SECURITY,
+				responses: {
+					"200": json200(
+						{
+							type: "object",
+							required: ["keys"],
+							properties: {
+								keys: {
+									type: "array",
+									items: KEY_ROW,
+									description: "The account's keys, newest first.",
+								},
+							},
+							example: { keys: [KEY_ROW.example] },
+						},
+						"The account's keys",
+					),
+					"401": jsonError(ERROR_401),
+				},
+			},
+			post: {
+				tags: ["keys"],
+				summary: "Create a key",
+				"x-nav-title": "Create a key",
+				description:
+					"Makes an account key. The full key is in the response once. Only a signed-in session or an account key can call it. An account holds at most 50 active keys, and new keys (create and rotate) share one rate limit.",
+				security: WRITE_SECURITY,
+				requestBody: jsonBody({
+					type: "object",
+					properties: {
+						name: {
+							type: "string",
+							maxLength: 255,
+							description: "A name for the key. Optional.",
+						},
+					},
+					example: { name: "Production" },
+				}),
+				responses: {
+					"201": json200(
+						{
+							type: "object",
+							properties: {
+								...MINTED_PROPERTIES,
+							},
+							example: MINTED_EXAMPLE,
+						},
+						"Created. The body carries the full key, once",
+					),
+					"400": jsonError(ERROR_400),
+					"401": jsonError(ERROR_401),
+					"403": jsonError("Not an account credential, or 50 active keys"),
+					"429": jsonError("Too many new keys; retry after `Retry-After`"),
+				},
+			},
+		},
+		"/api/keys/docs": {
+			post: {
+				tags: ["keys"],
+				summary: "Create a docs key",
+				"x-nav-title": "Create a docs key",
+				description:
+					"A dashboard session only: an API key gets 403. The key is read-only (Streams and Index) and expires in 24 hours. Making a new one revokes the previous docs key.",
+				security: WRITE_SECURITY,
+				requestBody: jsonBody({
+					type: "object",
+					properties: {},
+					example: {},
+				}),
+				responses: {
+					"201": json200(
+						{
+							type: "object",
+							properties: {
+								key: {
+									type: "string",
+									description: "The full key. Returned once.",
+								},
+								prefix: {
+									type: "string",
+									description: "The first characters of the key.",
+								},
+								expiresAt: {
+									type: "string",
+									format: "date-time",
+									description: "When the key stops working.",
+								},
+							},
+							example: {
+								key: MINTED_EXAMPLE.key,
+								prefix: MINTED_EXAMPLE.prefix,
+								expiresAt: "2026-11-03T12:00:00.000Z",
+							},
+						},
+						"Created. The body carries the full key, once",
+					),
+					"401": jsonError(ERROR_401),
+					"403": jsonError("Not a browser session"),
+					"429": jsonError("Docs key limit reached for today"),
+				},
+			},
+		},
+		"/api/keys/{id}": {
+			delete: {
+				tags: ["keys"],
+				summary: "Revoke a key",
+				"x-nav-title": "Revoke a key",
+				description:
+					"Stops the key at once: its secret gets 401 `KEY_REVOKED`. To replace a key without a gap, rotate it instead.",
+				security: WRITE_SECURITY,
+				parameters: [idParam],
+				responses: {
+					"200": json200(
+						{
+							type: "object",
+							properties: {
+								revoked: {
+									type: "boolean",
+									description: "Always true.",
+								},
+								id: {
+									type: "string",
+									format: "uuid",
+									description: "The key that was revoked.",
+								},
+							},
+							example: { revoked: true, id: KEY_ID_EXAMPLE },
+						},
+						"Revoked",
+					),
+					"401": jsonError(ERROR_401),
+					"403": jsonError("The key belongs to a different account"),
+					"404": jsonError("No such key"),
+				},
+			},
+		},
+		"/api/keys/{id}/rotate": {
+			post: {
+				tags: ["keys"],
+				summary: "Rotate a key",
+				"x-nav-title": "Rotate a key",
+				description:
+					"Replaces the key's secret and keeps its name, product and tier, in one transaction. The old secret stops at once and gets 401 `KEY_REVOKED`; there is no grace period. The new key is returned once. Send `Content-Type: application/json` and no body. New keys share one rate limit with create.",
+				security: WRITE_SECURITY,
+				parameters: [idParam],
+				responses: {
+					"201": json200(
+						{
+							type: "object",
+							properties: {
+								...MINTED_PROPERTIES,
+								name: {
+									type: ["string", "null"],
+									description: "The name, carried over from the old key.",
+								},
+								rotatedFrom: {
+									type: "string",
+									format: "uuid",
+									description: "The id of the key this one replaced.",
+								},
+							},
+							example: {
+								...MINTED_EXAMPLE,
+								name: "Production",
+								rotatedFrom: KEY_ID_EXAMPLE,
+							},
+						},
+						"Rotated. The body carries the new key, once",
+					),
+					"401": jsonError(ERROR_401),
+					"403": jsonError(
+						"Not an account credential, or the key belongs to a different account",
+					),
+					"404": jsonError("No such key"),
+					"409": jsonError(
+						"The key is already revoked, or is not an account key",
+					),
+					"429": jsonError("Too many new keys; retry after `Retry-After`"),
 				},
 			},
 		},

@@ -203,6 +203,7 @@ describe.skipIf(!HAS_DB)("docs key authority", () => {
 		["POST", "/api/keys"],
 		["POST", "/api/keys/docs"],
 		["DELETE", "/api/keys/00000000-0000-0000-0000-000000000000"],
+		["POST", "/api/keys/00000000-0000-0000-0000-000000000000/rotate"],
 		["GET", "/api/accounts/me"],
 		["GET", "/api/billing/status"],
 		["POST", "/api/billing/topup"],
