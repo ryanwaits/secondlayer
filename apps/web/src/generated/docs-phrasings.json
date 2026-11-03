@@ -1416,6 +1416,19 @@
       "how to set up mcp client once"
     ]
   },
+  "/docs/mcp#dashboards": {
+    "hash": "e72b0c7484516c6a",
+    "phrasings": [
+      "how to build dashboard from agent",
+      "show webhooks dashboard localhost 4400",
+      "secondlayer dashboard in my agent",
+      "agent generates dashboard from account data",
+      "view webhooks in local dashboard",
+      "where does mcp dashboard get served",
+      "run secondlayer show me my webhooks",
+      "local dashboard not loading on port 4400"
+    ]
+  },
   "/docs/mcp#local": {
     "hash": "f2eb001faa8985e8",
     "phrasings": [
