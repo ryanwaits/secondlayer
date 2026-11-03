@@ -1,9 +1,8 @@
-import { DashPreview } from "./dash-preview";
 import { McpResources, McpTools } from "./tool-table";
 
-# MCP and skills
+# MCP
 
-Give Claude Code, Cursor, or any MCP client live access to Secondlayer, and teach it the rules for building on it.
+Give Claude Code, Cursor, or any MCP client live access to Secondlayer. Pair it with the [agent skill](/docs/skills), which teaches the rules for building on it.
 
 ## Connect
 
@@ -98,40 +97,6 @@ Reads are cursor-paginated. Writes that kick off work (reindex, backfill, replay
 - **Tail without streaming.** For subgraph tables, every page with rows returns `next_cursor`; poll with `cursor = next_cursor ?? cursor`.
 - See the [REST API](/docs/rest-api) for the underlying endpoints.
 
-## Agent skill
-
-The `secondlayer` skill teaches an agent the rules for building on Secondlayer: read the print schema before writing a handler, prove a mapping writes rows before deploying it.
-
-```bash
-bunx skills add ryanwaits/secondlayer --skill secondlayer -y
-```
-
-| Use | When |
-| --- | --- |
-| The skill | An agent writes code against Secondlayer |
-| MCP | It needs live state: your subgraphs, webhooks, chain tips |
-
-The skill is static text that can't see your instance, and MCP can, so install both. Source: [`skills/secondlayer`](https://github.com/ryanwaits/secondlayer/tree/main/skills/secondlayer).
-
-### Dashboards
-
-Run `/secondlayer show me my webhooks` in your agent and it builds a dashboard from your account, then serves it at `localhost:4400`.
-
-<DashPreview />
-
-| Run | You get |
-| --- | --- |
-| `/secondlayer show me my webhooks` | Every webhook: state, 30 days of deliveries, the newest attempts |
-| `/secondlayer show me mint-alerts` | One webhook: what it listens for, 30 days of deliveries, its retries |
-| `/secondlayer show me what's in my subgraph` | A subgraph table's rows and schema |
-| `/secondlayer chart flows in my subgraph` | Bars over a numeric column, bucketed by block |
-| `/secondlayer how close am I to paying` | This month's rows against the free million |
-
-- It lives in `.secondlayer/dash/`, which ignores itself in git.
-- Reads go through a local proxy that holds your key and refuses every write.
-- Copy for agent hands what's on screen back to your agent as context.
-- It deploys to Vercel only when you say so, and anyone with that URL can read it until you turn on password protection.
-
 export const agent = `
 - Hosted: 'claude mcp add --transport http secondlayer https://api.secondlayer.tools/mcp'. A 401 names the OAuth metadata; the person signs in once in the browser. Clients without OAuth send 'Authorization: Bearer sk-sl_*'. Read tools only; tools listed "Local only" need the stdio server.
 - Install: 'bunx @secondlayer/mcp' with SECONDLAYER_API_URL and INSTANCE_TOKEN for the instance. For hosted archive and credits tools also set SECONDLAYER_API_KEY.
@@ -139,12 +104,11 @@ export const agent = `
 - Read tools: index_discover to learn event types and filters, then index_events (or index_ft_transfers, index_contract_calls); cursor-paginate.
 - subgraphs_deploy: run with dryRun first to preview the DDL. webhooks_create returns a one-time signingSecret; capture it.
 - Webhook and subgraph tools: list, get, query, deploy, create, update, pause, resume, rotate-secret, deliveries, dead, requeue, replay.
-- Dashboards: follow the skill's references/dash.md (probe.ts, then spec.json from a recipe, check.ts, dev.ts). Never put the key in a served file.
 `;
 
 export const metadata = {
-	title: "Stacks MCP server and skill",
+	title: "Stacks MCP server",
 	description:
-		"Connect an agent to Stacks data: the MCP server's tools and resources, and the agent skill that carries the workflow rules.",
+		"Connect an agent to live Stacks data: the MCP server's hosted and local setup, its tools and its resources.",
 	alternates: { canonical: "/docs/mcp" },
 };

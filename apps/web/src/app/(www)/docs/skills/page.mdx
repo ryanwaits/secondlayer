@@ -1,0 +1,56 @@
+import { DashPreview } from "./dash-preview";
+
+# Agent skill
+
+Teach Claude Code, Cursor, or any agent the rules for building on Secondlayer, and let it build dashboards from your account.
+
+## Install
+
+The `secondlayer` skill carries the rules an agent gets wrong without it: read the print schema before writing a handler, prove a mapping writes rows before deploying it.
+
+```bash
+bunx skills add ryanwaits/secondlayer --skill secondlayer -y
+```
+
+| Use | When |
+| --- | --- |
+| The skill | An agent writes code against Secondlayer |
+| [MCP](/docs/mcp#connect) | It needs live state: your subgraphs, webhooks, chain tips |
+
+The skill is static text that can't see your instance, and MCP can, so install both. Source: [`skills/secondlayer`](https://github.com/ryanwaits/secondlayer/tree/main/skills/secondlayer).
+
+## Dashboards
+
+Run `/secondlayer show me my webhooks` in your agent and it builds a dashboard from your account, then serves it at `localhost:4400`.
+
+<DashPreview />
+
+### What to run
+
+| Run | You get |
+| --- | --- |
+| `/secondlayer show me my webhooks` | Every webhook: state, 30 days of deliveries, the newest attempts |
+| `/secondlayer show me mint-alerts` | One webhook: what it listens for, 30 days of deliveries, its retries |
+| `/secondlayer show me what's in my subgraph` | A subgraph table's rows and schema |
+| `/secondlayer chart flows in my subgraph` | Bars over a numeric column, bucketed by block |
+| `/secondlayer how close am I to paying` | This month's rows against the free million |
+
+### Where it runs
+
+- It lives in `.secondlayer/dash/`, which ignores itself in git.
+- Reads go through a local proxy that holds your key and refuses every write.
+- Copy for agent hands what's on screen back to your agent as context.
+- It deploys to Vercel only when you say so, and anyone with that URL can read it until you turn on password protection.
+
+export const agent = `
+- Install: 'bunx skills add ryanwaits/secondlayer --skill secondlayer -y'. Pair it with the MCP server (/docs/mcp) for live state.
+- Dashboards: follow the skill's references/dash.md (probe.ts, then spec.json from a recipe, check.ts, dev.ts). Never put the key in a served file.
+- Before any deploy, tell the person anyone with the URL can read the account's webhooks, subgraphs and usage.
+`;
+
+export const metadata = {
+	title: "Stacks agent skill",
+	description:
+		"Teach an agent the rules for building on Stacks with Secondlayer, and let it build dashboards of your webhooks, subgraphs and usage.",
+	alternates: { canonical: "/docs/skills" },
+};

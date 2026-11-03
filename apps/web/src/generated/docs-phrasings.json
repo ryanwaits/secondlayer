@@ -1372,27 +1372,16 @@
     ]
   },
   "/docs/mcp": {
-    "hash": "9d891a09fc7ebab3",
+    "hash": "0e944d179382ee37",
     "phrasings": [
-      "claude code mcp server setup",
-      "connect cursor to secondlayer mcp",
-      "give ai agent access to secondlayer",
-      "secondlayer mcp client live access",
-      "teach claude code secondlayer rules",
-      "model context protocol secondlayer tools"
-    ]
-  },
-  "/docs/mcp#agent-skill": {
-    "hash": "a3a1afa279bc1d2a",
-    "phrasings": [
-      "secondlayer agent skill setup",
-      "teach ai agent to build handlers",
-      "agent reads print schema before handler",
-      "ai coding agent secondlayer rules",
-      "verify mapping writes rows agent",
-      "install secondlayer skill for claude",
-      "agent building on secondlayer best practices",
-      "cursor rules for secondlayer handlers"
+      "connect claude code to secondlayer",
+      "mcp server setup for cursor",
+      "give ai agent access to my data",
+      "secondlayer mcp client config",
+      "how to use mcp with cursor",
+      "claude code tool integration",
+      "agent cannot see live secondlayer data",
+      "mcp tools not showing up"
     ]
   },
   "/docs/mcp#authentication": {
@@ -1414,19 +1403,6 @@
       "claude code connect to secondlayer mcp",
       "mcp server authentication browser sign in",
       "how to set up mcp client once"
-    ]
-  },
-  "/docs/mcp#dashboards": {
-    "hash": "e72b0c7484516c6a",
-    "phrasings": [
-      "how to build dashboard from agent",
-      "show webhooks dashboard localhost 4400",
-      "secondlayer dashboard in my agent",
-      "agent generates dashboard from account data",
-      "view webhooks in local dashboard",
-      "where does mcp dashboard get served",
-      "run secondlayer show me my webhooks",
-      "local dashboard not loading on port 4400"
     ]
   },
   "/docs/mcp#local": {
@@ -2247,6 +2223,71 @@
       "createsink from sdk sinks core",
       "implement sink for my database",
       "sink guards and transaction sequences"
+    ]
+  },
+  "/docs/skills": {
+    "hash": "366e11066076ba32",
+    "phrasings": [
+      "teach cursor rules for secondlayer",
+      "agent skill for claude code",
+      "make ai agent build secondlayer apps",
+      "install skills for coding agent",
+      "agent keeps writing wrong secondlayer code",
+      "generate dashboards with ai agent",
+      "secondlayer rules for cursor agent",
+      "agent builds dashboard from my account"
+    ]
+  },
+  "/docs/skills#dashboards": {
+    "hash": "8b158d44fc5fbf65",
+    "phrasings": [
+      "secondlayer dashboard from my webhooks",
+      "agent builds dashboard from account data",
+      "view secondlayer dashboard on localhost 4400",
+      "localhost 4400 dashboard not loading",
+      "visualize webhooks in local dashboard",
+      "how to generate dashboard with agent skill",
+      "secondlayer serve dashboard locally port",
+      "show account webhooks in a dashboard"
+    ]
+  },
+  "/docs/skills#install": {
+    "hash": "8786fe3bcb92f912",
+    "phrasings": [
+      "install secondlayer skill in agent",
+      "read print schema before writing handler",
+      "verify mapping writes rows before deploy",
+      "agent writes wrong secondlayer handler",
+      "secondlayer skill setup steps",
+      "check mapping rows before deploying",
+      "skill not loading in claude code",
+      "add secondlayer rules to cursor"
+    ]
+  },
+  "/docs/skills#what-to-run": {
+    "hash": "d1f249f2b54dc81d",
+    "phrasings": [
+      "which secondlayer command starts the agent skill",
+      "secondlayer skill commands to run",
+      "how do i invoke secondlayer skill in agent",
+      "secondlayer slash command examples",
+      "what to type to launch secondlayer agent",
+      "secondlayer agent skill not responding",
+      "list of secondlayer agent skill commands",
+      "run secondlayer skill from agent prompt"
+    ]
+  },
+  "/docs/skills#where-it-runs": {
+    "hash": "a208ddebfe75ca92",
+    "phrasings": [
+      "where does secondlayer dash store files",
+      "secondlayer dash folder location",
+      "is secondlayer dash directory committed to git",
+      "gitignore secondlayer dash folder",
+      "secondlayer dashboard files ignored by git",
+      "where secondlayer skill saves dashboard files",
+      "secondlayer dash directory not showing in repo",
+      "does secondlayer dash folder need to be committed"
     ]
   },
   "/docs/streams": {

@@ -23,8 +23,8 @@ export interface DocsNavGroup {
  *   load-bearing; keep it. Protocols (PoX-5, sBTC, Runes) and contract
  *   discovery are sections of Index, not pages or products.
  * - **Tools** is how you drive it: CLI (with its local devnet), SDK (Filters
- *   is a section), Sinks, Deploy your app, and MCP and skills (the generated
- *   tool table plus the agent skill).
+ *   is a section), Sinks, Deploy your app, MCP (the generated
+ *   tool table), and Agent skill.
  * - **Guides** are task pages, one search question each, with the question as
  *   the H1: a short answer with the one call that does it. Slugs live under
  *   `/docs/guides/`.
@@ -70,7 +70,8 @@ export const DOCS_NAV: DocsNavGroup[] = [
 			{ title: "SDK", href: "/docs/sdk" },
 			{ title: "Sinks", href: "/docs/sinks" },
 			{ title: "Deploy your app", href: "/docs/deploy" },
-			{ title: "MCP and skills", href: "/docs/mcp" },
+			{ title: "MCP", href: "/docs/mcp" },
+			{ title: "Agent skill", href: "/docs/skills" },
 		],
 	},
 	{
