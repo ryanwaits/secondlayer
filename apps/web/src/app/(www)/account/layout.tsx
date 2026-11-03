@@ -19,7 +19,7 @@ export default async function AccountLayout({
 	const seed = token ? await accountReads(token, ["billing"]) : {};
 	return (
 		<AccountSeedProvider seed={seed}>
-			<AccountFrame>{children}</AccountFrame>
+			<AccountFrame signedOut={!token}>{children}</AccountFrame>
 		</AccountSeedProvider>
 	);
 }

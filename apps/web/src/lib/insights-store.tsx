@@ -53,6 +53,9 @@ export function InsightsSeed({
 	insights: readonly Insight[] | null;
 	children?: React.ReactNode;
 }) {
+	// Apply here, not only in `useInsights`: a reader below a Suspense boundary
+	// may hydrate after the frame's effects have run.
+	if (insights) applySeed(insights);
 	return (
 		<InsightsSeedContext.Provider value={insights}>
 			{children}

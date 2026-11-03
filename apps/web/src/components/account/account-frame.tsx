@@ -14,7 +14,15 @@ import { useEffect } from "react";
  * the bottom tab bar and large-title header replace the top bar (globals.css
  * hides it).
  */
-export function AccountFrame({ children }: { children: React.ReactNode }) {
+export function AccountFrame({
+	children,
+	signedOut = false,
+}: {
+	children: React.ReactNode;
+	/** The server saw no session cookie: the sign-in card is in the HTML and
+	 *  no page mounts. An expired cookie still falls back to `/auth/me` below. */
+	signedOut?: boolean;
+}) {
 	const { account, loading } = useAuth();
 	const signedIn = Boolean(account);
 	// One shared feed of ranked insights for every screen under /account.
@@ -23,7 +31,7 @@ export function AccountFrame({ children }: { children: React.ReactNode }) {
 	// the sign-in card replaces the page. A page that rendered its insights on
 	// the server has already put them in the store (children render before
 	// this effect runs), so the poll then waits a full interval.
-	const mayBeSignedIn = loading || signedIn;
+	const mayBeSignedIn = !signedOut && (loading || signedIn);
 	useEffect(
 		() =>
 			mayBeSignedIn
@@ -40,7 +48,7 @@ export function AccountFrame({ children }: { children: React.ReactNode }) {
 	// instead of waiting on `/auth/me` — `children` start their own fetches
 	// immediately, and a proxy 401 just reads as "signed out" once loading
 	// catches up (each page's own store/notice handling covers that).
-	if (!loading && !account) {
+	if (signedOut || (!loading && !account)) {
 		return (
 			<div className="login-page">
 				<div className="login-card">
