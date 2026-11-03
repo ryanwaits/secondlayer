@@ -127,3 +127,15 @@ describe("one error family", () => {
 		expect(err.toJSON().requestId).toBe("req_rl000001");
 	});
 });
+
+describe("an asleep stack", () => {
+	test("is not retryable, because retrying a read never starts it", () => {
+		expect(
+			new ApiError(503, "asleep", undefined, "STACK_ASLEEP").retryable,
+		).toBe(false);
+	});
+
+	test("other 503s stay retryable", () => {
+		expect(new ApiError(503, "starting").retryable).toBe(true);
+	});
+});

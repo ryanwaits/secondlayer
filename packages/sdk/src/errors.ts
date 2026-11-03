@@ -96,8 +96,10 @@ export class SecondLayerError extends Error {
 	}
 }
 
-/** Retryability of an HTTP status: 429 and 5xx are transient. */
-function statusRetryable(status: number): boolean {
+/** Retryability of an HTTP status: 429 and 5xx are transient. An asleep stack
+ *  is not: retrying the same read never starts it. */
+function statusRetryable(status: number, code?: string): boolean {
+	if (code === "STACK_ASLEEP") return false;
 	return status === 429 || status >= 500;
 }
 
@@ -138,7 +140,7 @@ export class ApiError extends SecondLayerError {
 	) {
 		super(message, {
 			code,
-			retryable: options.retryable ?? statusRetryable(status),
+			retryable: options.retryable ?? statusRetryable(status, code),
 			docsUrl: options.docsUrl ?? docsFor(status, code),
 			...(options.cause ? { cause: options.cause } : {}),
 			...(options.details ? { details: options.details } : {}),

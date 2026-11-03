@@ -19,7 +19,7 @@ const sl = new SecondLayer({
 });
 ```
 
-Hosted: set `SECONDLAYER_API_KEY` (`sk-sl_*`) and the client uses
+Hosted: set `SECONDLAYER_API_KEY` or pass `apiKey` (`sk-sl_*`) and the client uses
 `https://api.secondlayer.tools`. Self-host: use `INSTANCE_TOKEN` as below, which
 keeps the client on your instance even with an account key set. The key follows the host.
 

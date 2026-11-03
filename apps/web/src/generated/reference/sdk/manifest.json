@@ -167,7 +167,7 @@
 			"signature": "isHostedApiUrl(url: string): boolean",
 			"source": {
 				"file": "packages/sdk/src/base.ts",
-				"line": 151
+				"line": 149
 			}
 		},
 		{
@@ -185,7 +185,7 @@
 			"signature": "parseRetryAfter(value?: string | null): number | undefined",
 			"source": {
 				"file": "packages/sdk/src/errors.ts",
-				"line": 262
+				"line": 264
 			}
 		},
 		{
@@ -194,7 +194,7 @@
 			"signature": "resolveAccountKey(accountKey?: string): string | undefined",
 			"source": {
 				"file": "packages/sdk/src/base.ts",
-				"line": 181
+				"line": 179
 			}
 		},
 		{
@@ -203,16 +203,16 @@
 			"signature": "resolveApiKey(apiKey?: string, baseUrl?: string): string | undefined",
 			"source": {
 				"file": "packages/sdk/src/base.ts",
-				"line": 165
+				"line": 163
 			}
 		},
 		{
 			"name": "resolveBaseUrl",
-			"summary": "",
-			"signature": "resolveBaseUrl(explicit?: string): string",
+			"summary": "The API to call.",
+			"signature": "resolveBaseUrl(explicit?: string, apiKey?: string): string",
 			"source": {
 				"file": "packages/sdk/src/base.ts",
-				"line": 133
+				"line": 138
 			}
 		},
 		{

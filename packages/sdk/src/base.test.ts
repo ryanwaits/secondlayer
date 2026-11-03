@@ -51,6 +51,28 @@ describe("resolveBaseUrl", () => {
 		expect(resolveBaseUrl()).toBe("http://localhost:3999");
 	});
 
+	test("an explicit account key selects the hosted API", () => {
+		expect(resolveBaseUrl(undefined, "sk-sl_test")).toBe(
+			"https://api.secondlayer.tools",
+		);
+	});
+
+	test("an explicit instance token is never sent to the hosted API", () => {
+		process.env.SECONDLAYER_API_KEY = "sk-sl_test";
+		expect(resolveBaseUrl(undefined, "hex-token")).toBe(LOCAL_API_URL);
+		expect(resolveBaseUrl(undefined, "")).toBe(LOCAL_API_URL);
+	});
+
+	test("SECONDLAYER_API_URL and baseUrl beat an explicit account key", () => {
+		expect(resolveBaseUrl("https://example.test", "sk-sl_test")).toBe(
+			"https://example.test",
+		);
+		process.env.SECONDLAYER_API_URL = "http://localhost:3999";
+		expect(resolveBaseUrl(undefined, "sk-sl_test")).toBe(
+			"http://localhost:3999",
+		);
+	});
+
 	test("a SECONDLAYER_API_KEY that is not an account key stays local", () => {
 		process.env.SECONDLAYER_API_KEY = "hex-token";
 		expect(resolveBaseUrl()).toBe(LOCAL_API_URL);

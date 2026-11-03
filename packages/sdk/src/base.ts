@@ -130,21 +130,19 @@ export const INSTANCE_TOKEN_ENV = "INSTANCE_TOKEN";
 /** Hosted account key (`sk-sl_*`) for api.secondlayer.tools. */
 export const ACCOUNT_KEY_ENV = "SECONDLAYER_API_KEY";
 
-export function resolveBaseUrl(explicit?: string): string {
+/** The API to call. A named URL wins (`explicit`, then `SECONDLAYER_API_URL`).
+ *  Otherwise the key picks the host, so a credential never reaches the wrong
+ *  one: `apiKey` if the caller passed one, else a lone account key in the env.
+ *  Self-hosters often hold an account key for archive credits too, so an env
+ *  instance token keeps them on their instance. */
+export function resolveBaseUrl(explicit?: string, apiKey?: string): string {
 	if (explicit && explicit.length > 0) return explicit.replace(/\/+$/, "");
-	if (typeof process !== "undefined") {
-		const primary = process.env?.SECONDLAYER_API_URL || undefined;
-		if (primary) return primary.replace(/\/+$/, "");
-		// A lone account key can only mean hosted. Self-hosters often hold one for
-		// archive credits too, so an instance token keeps them on their instance.
-		if (
-			process.env?.[ACCOUNT_KEY_ENV]?.startsWith("sk-sl_") &&
-			!process.env?.[INSTANCE_TOKEN_ENV]
-		) {
-			return HOSTED_API_URL;
-		}
-	}
-	return LOCAL_API_URL;
+	const env = typeof process !== "undefined" ? process.env : undefined;
+	const primary = env?.SECONDLAYER_API_URL || undefined;
+	if (primary) return primary.replace(/\/+$/, "");
+	const key =
+		apiKey ?? (env?.[INSTANCE_TOKEN_ENV] ? undefined : env?.[ACCOUNT_KEY_ENV]);
+	return key?.startsWith("sk-sl_") ? HOSTED_API_URL : LOCAL_API_URL;
 }
 
 /** True when `url` is the hosted Secondlayer API (`api.secondlayer.tools`). */
@@ -258,7 +256,7 @@ export abstract class BaseClient {
 	protected etagCache: EtagCache | null;
 
 	constructor(options: Partial<SecondLayerOptions> = {}) {
-		this.baseUrl = resolveBaseUrl(options.baseUrl);
+		this.baseUrl = resolveBaseUrl(options.baseUrl, options.apiKey);
 		this.apiKey = resolveApiKey(options.apiKey, this.baseUrl);
 		this.origin = options.origin ?? "cli";
 		this.requestTimeoutMs =
