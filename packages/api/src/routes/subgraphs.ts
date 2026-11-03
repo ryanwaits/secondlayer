@@ -242,6 +242,27 @@ export function buildSyncInfo(
 
 const CHAIN_TIP_TTL_MS = 2_000;
 
+/** The platform read sits on the dashboard's request path and its client
+ *  retries without a timeout, so a slow platform must cost at most this much. */
+const PLATFORM_TIP_TIMEOUT_MS = 500;
+
+async function readPlatformTip(): Promise<number> {
+	let timer: ReturnType<typeof setTimeout> | undefined;
+	const timeout = new Promise<number>((resolve) => {
+		timer = setTimeout(() => resolve(0), PLATFORM_TIP_TIMEOUT_MS);
+	});
+	try {
+		return await Promise.race([
+			createInternalIndexHttpClient()
+				.getStreamsTip()
+				.catch(() => 0),
+			timeout,
+		]);
+	} finally {
+		clearTimeout(timer);
+	}
+}
+
 let chainTipCache: { value: number; fetchedAt: number } | null = null;
 
 export function resetChainTipCache(): void {
@@ -271,9 +292,7 @@ export async function getChainTip(now: number = Date.now()): Promise<number> {
 	// ask the platform's Streams clock instead (same env contract as the
 	// tenant's processors).
 	if (value === 0 && (await hasNoLocalChain().catch(() => false))) {
-		value = await createInternalIndexHttpClient()
-			.getStreamsTip()
-			.catch(() => 0);
+		value = await readPlatformTip();
 	}
 
 	// A transient read failure/absence must not overwrite a previously known

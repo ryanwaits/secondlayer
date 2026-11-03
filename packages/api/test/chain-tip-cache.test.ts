@@ -151,5 +151,22 @@ describe.skipIf(SKIP)("getChainTip cache", () => {
 			expect(await tip(t0 + 3000)).toBe(777);
 			expect(requests).toBe(afterFailure);
 		});
+
+		test("a platform that never answers costs at most the timeout and keeps the last tip", async () => {
+			const t0 = Date.now();
+			expect(await tip(t0)).toBe(777);
+
+			respond = () => new Promise<Response>(() => {}) as unknown as Response;
+			const started = performance.now();
+			expect(await tip(t0 + 2001)).toBe(777);
+			expect(performance.now() - started).toBeLessThan(600);
+		});
+
+		test("a platform that never answers reads 0 when no tip was cached", async () => {
+			respond = () => new Promise<Response>(() => {}) as unknown as Response;
+			const started = performance.now();
+			expect(await tip(Date.now())).toBe(0);
+			expect(performance.now() - started).toBeLessThan(600);
+		});
 	});
 });
