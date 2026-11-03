@@ -13,6 +13,12 @@ Each hosted stack signs deliveries with its own ed25519 key, so the key these do
 {/* new: 2026-11-02 */}
 ## SDK and CLI — November 2026
 
+### One variable for the hosted API
+
+Set `SECONDLAYER_API_KEY` to your account key and the SDK and MCP use the hosted API, so you no longer need a URL.
+
+A self-hosted box keeps working with a URL or `INSTANCE_TOKEN` set. With only the account key set, reads there now go to the hosted API.
+
 ### `onBatch` takes `(events, ctx)`
 
 The `envelope` argument is gone from every `consume` and `replay` handler in SDK 16. Read `ctx.tip` and `ctx.reorgs`, and return `ctx.cursor` or nothing. `ctx.tip` is now typed for the surface you consume, so Streams, Index and Bitcoin each get their own tip.
