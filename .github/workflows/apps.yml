@@ -1,0 +1,25 @@
+name: Apps
+
+# Tests and typechecks the web and stacks-docs apps. Informs only: Vercel
+# deploys them independently, and Deploy no longer runs these suites.
+
+on:
+  push:
+    branches: [main]
+    paths: ["apps/**", "packages/**", "bun.lock", "package.json"]
+  workflow_dispatch:
+
+jobs:
+  apps:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: "1.4.3"
+      - run: bun install --frozen-lockfile
+      - run: bun run build
+      - run: bun run --filter @secondlayer/web test
+      - run: bun run --filter @secondlayer/stacks-docs test
+      - run: bun run --filter @secondlayer/web typecheck
+      - run: bun run --filter @secondlayer/stacks-docs typecheck
