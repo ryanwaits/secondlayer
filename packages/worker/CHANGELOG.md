@@ -1,5 +1,11 @@
 # @secondlayer/worker
 
+## 1.4.35
+
+### Patch Changes
+
+- 27cad37: The revoked-key insight no longer assumes a replacement has yet to be made.
+
 ## 1.4.34
 
 ### Patch Changes

@@ -1,5 +1,11 @@
 # @secondlayer/cli
 
+## 23.1.0
+
+### Minor Changes
+
+- aeb66b8: Add `keys list` and `keys rotate`. Rotating the key your CLI login uses saves the new key.
+
 ## 23.0.0
 
 ### Major Changes

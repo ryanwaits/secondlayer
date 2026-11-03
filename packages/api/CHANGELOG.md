@@ -1,5 +1,16 @@
 # @secondlayer/api
 
+## 1.62.0
+
+### Minor Changes
+
+- 871fed9: Add `POST /api/keys/{id}/rotate`, which revokes a key and mints its replacement in one transaction, and document the key routes in the hosted OpenAPI spec.
+
+### Patch Changes
+
+- Updated dependencies [aeb66b8]
+  - @secondlayer/mcp@11.4.0
+
 ## 1.61.10
 
 ### Patch Changes

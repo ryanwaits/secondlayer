@@ -1,6 +1,6 @@
 {
 	"name": "@secondlayer/api",
-	"version": "1.61.10",
+	"version": "1.62.0",
 	"private": true,
 	"type": "module",
 	"main": "./src/index.ts",

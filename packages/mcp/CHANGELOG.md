@@ -1,5 +1,11 @@
 # @secondlayer/mcp
 
+## 11.4.0
+
+### Minor Changes
+
+- aeb66b8: Add `account_list_keys` and `account_rotate_key` to the local server. The rotate tool refuses the key the server runs on; neither tool is on the hosted server.
+
 ## 11.3.0
 
 ### Minor Changes
