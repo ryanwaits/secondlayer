@@ -4,7 +4,8 @@ set -euo pipefail
 : "${DEPLOY_UNIT:?DEPLOY_UNIT is required}"
 : "${DEPLOY_SHA:?DEPLOY_SHA is required}"
 
-export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:${HOME:-/root}/.bun/bin:${PATH:-}"
+# Caller PATH first (tests stub systemd-run/systemctl), system dirs as fallback for bare ssh shells.
+export PATH="${PATH:+$PATH:}/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:${HOME:-/root}/.bun/bin"
 
 DEPLOY_SCRIPT="${DEPLOY_SCRIPT:-/opt/secondlayer/docker/scripts/deploy.sh}"
 POLL_TIMEOUT_SECONDS="${DEPLOY_POLL_TIMEOUT_SECONDS:-3600}"
