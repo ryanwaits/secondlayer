@@ -20,7 +20,12 @@ if [ -f .env ]; then
 	set +a
 fi
 
-APP_SERVICES="api indexer decoder worker caddy"
+# shellcheck source=lib/api-pool.sh
+. "$(dirname "${BASH_SOURCE[0]}")/lib/api-pool.sh"
+
+# api is rolled replica by replica (lib/api-pool.sh), like deploy.sh. caddy
+# isn't pinned to the deploy tag, so rollback leaves it running.
+APP_SERVICES_NO_API="indexer decoder worker"
 DEPLOY_STATE_DIR="${DEPLOY_STATE_DIR:-/opt/secondlayer/data/deploy}"
 CURRENT_PATH="${DEPLOY_STATE_DIR}/current"
 PREVIOUS_PATH="${DEPLOY_STATE_DIR}/previous"
@@ -79,8 +84,18 @@ fi
 $COMPOSE pull api indexer decoder worker migrate
 
 # Recreate only runtime services. --no-deps prevents compose from starting the
-# migrate dependency as part of rollback.
-$COMPOSE up -d --no-build --no-deps --force-recreate --remove-orphans $APP_SERVICES
+# migrate dependency (and recreating every api replica at once) as part of
+# rollback.
+$COMPOSE up -d --no-build --no-deps --force-recreate --remove-orphans $APP_SERVICES_NO_API
+
+# Roll api one replica at a time so the pool keeps serving. If api isn't
+# running at all, start it without deps: rollback never runs migrate.
+if [ -n "$($COMPOSE ps -q api 2>/dev/null)" ]; then
+	rolling_recreate_api || { echo "ERROR: api rolling recreate failed"; exit 1; }
+else
+	$COMPOSE up -d --no-build --no-deps api
+	wait_api_healthy 1 || { echo "ERROR: api unhealthy after start"; exit 1; }
+fi
 
 check_health() {
 	local name=$1 url=$2 retries=5 delay=5
@@ -98,7 +113,8 @@ check_health() {
 }
 
 sleep 5
-check_health api http://localhost:3800/health
+# api has no host port (replicas); the rolling step above already waited on
+# every replica, so only the host-port services are probed here.
 check_health indexer http://localhost:3700/health
 
 check_container_health() {
