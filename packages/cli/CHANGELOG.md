@@ -1,5 +1,13 @@
 # @secondlayer/cli
 
+## 23.4.1
+
+### Patch Changes
+
+- `logout` no longer warns `Server logout failed (VALIDATION_ERROR)` when the saved login is a key from `login --with-token`: it removes the key from this machine and says the key stays active. The deploy warning for a genesis backfill now names a `startBlock` set in the file instead of saying there is none.
+- Updated dependencies
+  - @secondlayer/subgraphs@8.0.2
+
 ## 23.4.0
 
 ### Minor Changes

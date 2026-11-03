@@ -1,5 +1,12 @@
 # @secondlayer/subgraphs
 
+## 8.0.2
+
+### Patch Changes
+
+- The webhook plane no longer runs the dashboard insights loop on the shared testnet webhook stack, where no account can read insights.
+  Requires `@secondlayer/shared` 15.0.1 or later.
+
 ## 8.0.1
 
 ### Patch Changes
