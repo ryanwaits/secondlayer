@@ -2,7 +2,7 @@
 	"extends": "../../tsconfig.json",
 	"compilerOptions": {
 		"outDir": "./dist",
-		"baseUrl": ".",
+		"rootDir": "..",
 		"paths": {
 			"@secondlayer/indexer/streams-tip": ["../indexer/src/streams-tip.ts"],
 			"@secondlayer/indexer/streams-events": [

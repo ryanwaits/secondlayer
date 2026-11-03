@@ -64,7 +64,7 @@
 		"dev": "bunup --watch",
 		"openpkg": "bun scripts/sync-openpkg.ts",
 		"test": "bun test",
-		"typecheck": "tsc --noEmit",
+		"typecheck": "bun check",
 		"prepublishOnly": "bun run build"
 	},
 	"dependencies": {

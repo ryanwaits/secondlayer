@@ -30,7 +30,7 @@
 		"dev": "bunup --watch",
 		"test": "bun test",
 		"tools": "bun scripts/sync-tools.ts && bun scripts/sync-server-json.ts",
-		"typecheck": "tsc --noEmit",
+		"typecheck": "bun check",
 		"prepublishOnly": "bun run build"
 	},
 	"dependencies": {

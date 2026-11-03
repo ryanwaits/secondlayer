@@ -26,7 +26,7 @@
 		"build": "bunup",
 		"dev": "bunup --watch",
 		"test": "bun test",
-		"typecheck": "tsc --noEmit",
+		"typecheck": "bun check",
 		"prepublishOnly": "bun run build"
 	},
 	"keywords": [

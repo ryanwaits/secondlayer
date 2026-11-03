@@ -23,7 +23,7 @@
 		"build": "bunup",
 		"dev": "bunup --watch",
 		"test": "bun test",
-		"typecheck": "tsc --noEmit",
+		"typecheck": "bun check",
 		"openpkg": "bun scripts/sync-openpkg.ts",
 		"rotate-checkpoint": "bun scripts/rotate-checkpoint.ts",
 		"prepublishOnly": "bun run build"

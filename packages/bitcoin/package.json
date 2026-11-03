@@ -12,7 +12,7 @@
 	},
 	"scripts": {
 		"start": "bun run src/cli.ts",
-		"typecheck": "tsc --noEmit",
+		"typecheck": "bun check",
 		"test": "bun test",
 		"test:regtest": "bun run test/regtest/run.ts"
 	},

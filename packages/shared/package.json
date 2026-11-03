@@ -259,7 +259,7 @@
 		"build": "bunup",
 		"dev": "bunup --watch",
 		"test": "bun test",
-		"typecheck": "tsc --noEmit",
+		"typecheck": "bun check",
 		"migrate": "bun run src/db/migrate.ts",
 		"seed": "DATABASE_URL=${DATABASE_URL:-postgresql://ryanwaits@127.0.0.1:5432/secondlayer_dev} bun run src/db/seed.ts",
 		"prepublishOnly": "bun run build"

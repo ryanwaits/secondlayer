@@ -7,7 +7,7 @@
 		"build": "next build",
 		"start": "next start",
 		"test": "bun test",
-		"typecheck": "tsc --noEmit",
+		"typecheck": "bun check",
 		"og": "bun scripts/generate-og.tsx",
 		"docs:phrasings": "bun scripts/docs-phrasings.ts",
 		"docs:vectors": "bun scripts/docs-vectors.ts",

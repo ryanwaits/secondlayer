@@ -6,7 +6,7 @@
 		"dev": "vocs dev",
 		"build": "bun scripts/sitemap.ts && vocs build",
 		"preview": "vocs preview",
-		"typecheck": "tsc --noEmit",
+		"typecheck": "bun check",
 		"test": "bun test"
 	},
 	"dependencies": {

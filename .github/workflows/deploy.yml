@@ -55,12 +55,11 @@ jobs:
         with:
           bun-version: "1.4.3"
       - run: bun install --frozen-lockfile
+      # Typecheck resolves sibling packages through their built .d.ts files.
       - run: bun run build
+      # `bun check` on the root config (tests, scripts) and on every package
+      # and app config (their own compiler options and paths).
       - run: bun run typecheck
-      # The per-package `bun run typecheck` excludes test files; only the root
-      # config sweeps them, so type drift in tests lands unseen without this.
-      - name: Typecheck repo root
-        run: bunx tsc --noEmit
       - name: Biome check
         run: bunx biome check
       # The docs site renders these files rather than restating the API, the

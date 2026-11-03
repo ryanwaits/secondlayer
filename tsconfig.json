@@ -19,7 +19,8 @@
 		"isolatedModules": true,
 		"allowImportingTsExtensions": true,
 		"jsx": "react-jsx",
-		"noEmit": true
+		"noEmit": true,
+		"types": ["bun"]
 	},
 	"exclude": ["apps/**", "packages/*/templates/**", "tmp/**"]
 }

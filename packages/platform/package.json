@@ -85,7 +85,7 @@
 	"scripts": {
 		"build": "bunup",
 		"dev": "bunup --watch",
-		"typecheck": "tsc --noEmit",
+		"typecheck": "bun check",
 		"test": "bun test"
 	},
 	"dependencies": {
