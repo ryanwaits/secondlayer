@@ -21,6 +21,14 @@ describe("minimal config", () => {
 		if (result.ok) expect(result.config.NETWORK).toBe("mainnet");
 	});
 
+	test("accepts SECONDLAYER_ALLOW_PRIVATE_EGRESS", () => {
+		const result = parseRuntimeConfig({
+			...good,
+			SECONDLAYER_ALLOW_PRIVATE_EGRESS: "true",
+		});
+		expect(result.ok).toBe(true);
+	});
+
 	test("a misspelled key in our namespace is rejected before ingest", () => {
 		const result = parseRuntimeConfig({ ...good, SUBGRAPH_SORCE: "1" });
 		expect(result.ok).toBe(false);

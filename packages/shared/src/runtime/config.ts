@@ -84,6 +84,10 @@ const KNOWN = new Set<string>([
 	// Forward-only instances declare where their history starts; refusing it as
 	// unknown would block the only way to say "the prefix is absent on purpose".
 	"SECONDLAYER_SYNC_START_HEIGHT",
+	// Read by the webhook emitter (packages/subgraphs/src/runtime/emitter.ts).
+	// Local and devnet stacks deliver to localhost receivers, which the emitter
+	// blocks by default, so the compose must be able to lift that block.
+	"SECONDLAYER_ALLOW_PRIVATE_EGRESS",
 ]);
 
 /**
