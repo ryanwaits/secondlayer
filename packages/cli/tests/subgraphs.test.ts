@@ -20,6 +20,7 @@ import {
 	formatVerificationLines,
 	formatVerificationStatus,
 	installScaffoldDependencies,
+	loadSubgraphDefinition,
 	operationDetailPairs,
 	ormFlagsConflictingWithPayloads,
 	parseStartBlockOption,
@@ -335,6 +336,36 @@ describe("subgraphs command surface", () => {
 	});
 });
 
+describe("subgraphs deploy loads a definition without the sdk installed", () => {
+	it("loads a definition when @secondlayer/subgraphs isn't installed next to it", async () => {
+		// Outside the repo, so no node_modules resolves the sdk.
+		const dir = mkdtempSync(join(tmpdir(), "sl-load-"));
+		try {
+			const source = [
+				'import { defineSubgraph } from "@secondlayer/subgraphs";',
+				"export default defineSubgraph({",
+				'  name: "standalone",',
+				'  sources: { calls: { type: "contract_call", contractId: "SP123.contract" } },',
+				'  schema: { rows: { columns: { a: { type: "text" } } } },',
+				"  handlers: { calls: () => {} },",
+				"});",
+				"",
+			].join("\n");
+			writeFileSync(join(dir, "standalone.ts"), source);
+			const { mod, bundled } = await loadSubgraphDefinition(
+				source,
+				"standalone.ts",
+			);
+			const def = mod.default ?? mod;
+			expect(def.name).toBe("standalone");
+			expect(Object.keys(def.sources)).toEqual(["calls"]);
+			expect(bundled.name).toBe("standalone");
+		} finally {
+			rmSync(dir, { recursive: true, force: true });
+		}
+	});
+});
+
 describe("subgraphs deploy refuses to let a pipe answer the drop-and-reindex prompt", () => {
 	it("a breaking schema change with piped stdin and no -y exits 1 before any deploy request", async () => {
 		// `echo |` used to auto-accept: @inquirer/confirm reads the newline as
@@ -360,10 +391,9 @@ describe("subgraphs deploy refuses to let a pipe answer the drop-and-reindex pro
 				return Response.json({ error: "unexpected" }, { status: 500 });
 			},
 		});
-		// The definition must import @secondlayer/subgraphs, so it lives under
-		// this package (workspace resolution) rather than the OS tmpdir. That
-		// puts it inside this repo, untracked, so --allow-uncommitted skips the
-		// git gate and the drop-and-reindex prompt is the only gate left.
+		// The definition lives under this package, inside the repo and
+		// untracked: that only warns, so the drop-and-reindex prompt is the
+		// only gate left.
 		const dir = mkdtempSync(join(import.meta.dir, "deploy-pipe-.tmp"));
 		const home = mkdtempSync(join(tmpdir(), "sl-deploy-home-"));
 		try {
@@ -389,7 +419,6 @@ describe("subgraphs deploy refuses to let a pipe answer the drop-and-reindex pro
 					"subgraphs",
 					"deploy",
 					file,
-					"--allow-uncommitted",
 				],
 				{
 					cwd: dir,
@@ -412,6 +441,7 @@ describe("subgraphs deploy refuses to let a pipe answer the drop-and-reindex pro
 			]);
 			const printed = stdout + stderr;
 			expect(exitCode).toBe(1);
+			expect(printed).toMatch(/not tracked by git/);
 			expect(printed).toMatch(/Breaking changes detected/);
 			expect(printed).toMatch(/stdin is not a TTY.*-y/);
 			expect(requests).toEqual(["GET /api/subgraphs/drop-me"]);

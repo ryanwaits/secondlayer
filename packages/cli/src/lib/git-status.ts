@@ -1,7 +1,7 @@
 /**
  * Git status inspection for subgraph source files.
  *
- * Used to warn/refuse deploying a subgraph definition whose source isn't
+ * Used to warn when deploying a subgraph definition whose source isn't
  * staged or committed: the deployed definition would then exist only as a
  * database row, with no recoverable copy.
  */
@@ -64,4 +64,21 @@ export function inspectSourceGitState(absPath: string): SourceGitState {
 	}
 
 	return { kind: "clean" };
+}
+
+/**
+ * The advice shown when a deploy's source file has no recoverable copy in git.
+ * A warning only: it never blocks, because a missing `git add` is not a reason
+ * to refuse a deploy. Returns nothing for a clean file or outside a repo.
+ */
+export function uncommittedSourceWarning(
+	state: SourceGitState,
+	file: string,
+): string | undefined {
+	if (state.kind !== "untracked" && state.kind !== "modified") return undefined;
+	const reason =
+		state.kind === "untracked"
+			? "not tracked by git"
+			: "modified with uncommitted changes";
+	return `${file} is ${reason}, so this deploy's only copy is the database row. Commit it to keep a copy.`;
 }

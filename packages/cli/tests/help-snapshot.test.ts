@@ -164,7 +164,7 @@ describe("CLI help snapshot", () => {
 		]);
 	});
 
-	test("the quickstart stages the created file before deploy, since deploy refuses an unstaged one", async () => {
+	test("the quickstart goes from create straight to deploy, with no git step", async () => {
 		const proc = Bun.spawn(
 			[
 				process.execPath,
@@ -180,11 +180,9 @@ describe("CLI help snapshot", () => {
 		]);
 		expect(exitCode).toBe(0);
 		const create = help.indexOf("subgraphs create my-watcher");
-		const add = help.indexOf("git add subgraphs/my-watcher.ts");
 		const deploy = help.indexOf("subgraphs deploy subgraphs/my-watcher.ts");
 		expect(create).toBeGreaterThan(-1);
-		expect(add).toBeGreaterThan(create);
-		expect(deploy).toBeGreaterThan(add);
-		expect(help).toMatch(/--allow-uncommitted/);
+		expect(deploy).toBeGreaterThan(create);
+		expect(help).not.toContain("git add subgraphs/my-watcher.ts");
 	}, 30_000);
 });

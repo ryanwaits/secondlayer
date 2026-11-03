@@ -61,8 +61,7 @@ program.addHelpText(
 	`
 Quickstart:
   $ secondlayer subgraphs create my-watcher --from-contract SP....my-contract
-  $ git add subgraphs/my-watcher.ts
-  $ secondlayer subgraphs deploy subgraphs/my-watcher.ts   # or --allow-uncommitted
+  $ secondlayer subgraphs deploy subgraphs/my-watcher.ts
 
 Self-host, from docker/oss in a checkout:
   $ secondlayer init --network mainnet

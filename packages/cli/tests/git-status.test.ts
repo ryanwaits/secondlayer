@@ -3,11 +3,14 @@ import { execFileSync } from "node:child_process";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { inspectSourceGitState } from "../src/lib/git-status.ts";
+import {
+	inspectSourceGitState,
+	uncommittedSourceWarning,
+} from "../src/lib/git-status.ts";
 
 /**
- * `inspectSourceGitState` gates `sl subgraphs deploy` against undeployable
- * sources. Its whole job is reading real git state correctly, so these tests
+ * `inspectSourceGitState` feeds the `sl subgraphs deploy` warning about
+ * unrecoverable sources. Its whole job is reading real git state correctly, so these tests
  * drive real `git init` repos rather than mocking `child_process` — a mocked
  * git would only prove the mock was called, not that the logic is right.
  */
@@ -90,5 +93,31 @@ describe("inspectSourceGitState", () => {
 		rmSync(join(dir, ".git", "HEAD"), { force: true });
 		expect(() => inspectSourceGitState(path)).not.toThrow();
 		expect(inspectSourceGitState(path)).toEqual({ kind: "not-a-repo" });
+	});
+});
+
+describe("uncommittedSourceWarning", () => {
+	test("an untracked source file warns and still deploys", () => {
+		const warning = uncommittedSourceWarning(
+			{ kind: "untracked" },
+			"subgraphs/counter.ts",
+		);
+		expect(warning).toContain("subgraphs/counter.ts is not tracked by");
+		expect(warning).toContain("Commit it to keep a copy");
+	});
+
+	test("a modified source file warns with the uncommitted-changes reason", () => {
+		expect(
+			uncommittedSourceWarning({ kind: "modified" }, "counter.ts"),
+		).toContain("modified with uncommitted changes");
+	});
+
+	test("a clean file or a directory outside a repo has nothing to warn about", () => {
+		expect(
+			uncommittedSourceWarning({ kind: "clean" }, "counter.ts"),
+		).toBeUndefined();
+		expect(
+			uncommittedSourceWarning({ kind: "not-a-repo" }, "counter.ts"),
+		).toBeUndefined();
 	});
 });

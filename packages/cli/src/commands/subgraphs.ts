@@ -8,7 +8,7 @@ import {
 } from "node:fs";
 import { basename, dirname, extname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { confirm } from "@inquirer/prompts";
+import type { SubgraphBundleResult } from "@secondlayer/bundler";
 import {
 	generatePrintPayloadTypes,
 	generatePrintSchemaSubgraph,
@@ -63,7 +63,10 @@ type SubgraphSpecFormat = "openapi" | "agent" | "markdown";
 import { loadConfig, requireLocalNetwork } from "../lib/config.ts";
 import { parseQueryFilters } from "../lib/filter-params.ts";
 import { writeTextFile } from "../lib/fs.ts";
-import { inspectSourceGitState } from "../lib/git-status.ts";
+import {
+	inspectSourceGitState,
+	uncommittedSourceWarning,
+} from "../lib/git-status.ts";
 import { mergePrintSchemaIntoFile } from "../lib/merge-print-subgraph.ts";
 import {
 	confirmDestructive,
@@ -73,7 +76,6 @@ import {
 	formatTable,
 	green,
 	info,
-	note,
 	output,
 	red,
 	success,
@@ -92,42 +94,26 @@ import { StacksApiClient } from "../utils/api.ts";
 import { formatCode } from "../utils/format.ts";
 import { inferNetwork } from "../utils/network.ts";
 
-/** Import the handler file; if it fails with ERR_MODULE_NOT_FOUND for
- *  `@secondlayer/subgraphs` (the required SDK), offer to install it before
- *  giving up. Other errors bubble. */
 /** Consecutive failed polls `status --watch` rides out before giving up. */
 const WATCH_TRANSIENT_FAILURE_LIMIT = 3;
 
-async function loadSubgraphWithDepCheck(
-	absPath: string,
-): Promise<{ default?: SubgraphDefinition } & SubgraphDefinition> {
-	try {
-		return await import(absPath);
-	} catch (err: unknown) {
-		const msg = err instanceof Error ? err.message : String(err);
-		const code = (err as { code?: string } | undefined)?.code;
-		const missingSdk =
-			(code === "ERR_MODULE_NOT_FOUND" ||
-				msg.includes("ERR_MODULE_NOT_FOUND")) &&
-			msg.includes("@secondlayer/subgraphs");
-		if (!missingSdk) throw err;
-		warn("Missing dependency: @secondlayer/subgraphs");
-		const install = await confirm({
-			message: "Install with `bun add @secondlayer/subgraphs`?",
-			default: true,
-		});
-		if (!install) throw err;
-		await new Promise<void>((res, rej) => {
-			const child = spawn("bun", ["add", "@secondlayer/subgraphs"], {
-				stdio: "inherit",
-			});
-			child.on("error", rej);
-			child.on("exit", (c) =>
-				c === 0 ? res() : rej(new Error(`bun add exit ${c}`)),
-			);
-		});
-		return await import(absPath);
-	}
+/** Bundle a subgraph source through the same stubbed build the remote deploy
+ *  uploads, then evaluate it. The bundle inlines a stub for
+ *  `@secondlayer/subgraphs`, so the user's project doesn't need the SDK
+ *  installed; a `data:` URL works under both node and bun and leaves nothing
+ *  on disk. Returns the bundle too, so deploy reuses it instead of bundling
+ *  the same source twice. */
+export async function loadSubgraphDefinition(
+	source: string,
+	fileName: string,
+): Promise<{
+	mod: { default?: SubgraphDefinition } & SubgraphDefinition;
+	bundled: SubgraphBundleResult;
+}> {
+	const { bundleSubgraphCode } = await import("@secondlayer/bundler");
+	const bundled = await bundleSubgraphCode(source, { fileName });
+	const url = `data:text/javascript;base64,${Buffer.from(bundled.handlerCode, "utf8").toString("base64")}`;
+	return { mod: await import(url), bundled };
 }
 
 /** Run `bunx tsc --noEmit` against the handler file using the user's local
@@ -940,12 +926,7 @@ Examples:
 						`Schema inferred from ${opts.fromContract} print events (${opts.tablePerTopic ? "table per topic" : "single wide table"})`,
 					);
 				}
-				info(
-					`Next: git add subgraphs/${name}.ts && secondlayer subgraphs deploy subgraphs/${name}.ts`,
-				);
-				note(
-					"  deploy refuses an unstaged file unless you pass --allow-uncommitted: a staged copy is the one git can recover.",
-				);
+				info(`Next: secondlayer subgraphs deploy subgraphs/${name}.ts`);
 			},
 		);
 
@@ -1135,11 +1116,11 @@ Examples:
 		)
 		.option(
 			"--allow-uncommitted",
-			"Deploy even though the source file is not staged or committed in git (the deployed definition will exist only in the database)",
+			"Don't warn when the source file isn't committed in git",
 		)
 		.addHelpText(
 			"after",
-			"\nBy default the source file must be staged or committed in git (`git add <file>`),\notherwise the deployed definition's only copy is the row in the database. Pass\n--allow-uncommitted to deploy anyway.\n\nHosted: set SECONDLAYER_API_KEY and SECONDLAYER_API_URL=https://api.secondlayer.tools.\nHostable sources are event filters and contract_call/contract_deploy; anything else\nreturns 422 SOURCE_NOT_HOSTABLE. Set startBlock (or --start-block) so the first\ndeploy does not backfill from genesis.",
+			"\nIf the source file isn't committed in git, deploy warns that the deployed\ndefinition's only copy is the row in the database. It never blocks; pass\n--allow-uncommitted to silence the warning.\n\nHosted: set SECONDLAYER_API_KEY and SECONDLAYER_API_URL=https://api.secondlayer.tools.\nHostable sources are event filters and contract_call/contract_deploy; anything else\nreturns 422 SOURCE_NOT_HOSTABLE. Set startBlock (or --start-block) so the first\ndeploy does not backfill from genesis.",
 		)
 		.action(
 			async (
@@ -1157,40 +1138,15 @@ Examples:
 					const absPath = resolve(file);
 
 					if (!options.dryRun) {
-						if (options.allowUncommitted) {
-							info(
-								"--allow-uncommitted: skipping the git commit check for the source file.",
+						// Advice, never a gate: a deploy whose source is untracked has
+						// its only copy in the database row, which is worth a line
+						// but not a refusal.
+						if (!options.allowUncommitted) {
+							const advice = uncommittedSourceWarning(
+								inspectSourceGitState(absPath),
+								file,
 							);
-						} else {
-							const gitState = inspectSourceGitState(absPath);
-							if (
-								gitState.kind === "untracked" ||
-								gitState.kind === "modified"
-							) {
-								const reason =
-									gitState.kind === "untracked"
-										? "not tracked by git"
-										: "modified with uncommitted changes";
-								const message = `${file} is ${reason}. Deploy it and the only copy of this definition is a row in the database.`;
-								// Gate on stdin, the stream the prompt reads: a piped stdin
-								// with a TTY stdout would otherwise answer the prompt itself.
-								if (process.stdin.isTTY) {
-									warn(message);
-									const confirmed = await confirm({
-										message: "Deploy anyway?",
-										default: false,
-									});
-									if (!confirmed) {
-										info("Nothing was deployed.");
-										process.exit(0);
-									}
-								} else {
-									error(
-										`${message} Stage it with \`git add ${file}\`, or pass --allow-uncommitted.`,
-									);
-									process.exit(1);
-								}
-							}
+							if (advice) warn(advice);
 						}
 					}
 
@@ -1210,14 +1166,6 @@ Examples:
 
 					// Load and validate locally for fast feedback
 					info(`Loading subgraph from ${absPath}`);
-					const mod = await loadSubgraphWithDepCheck(absPath);
-					const def = mod.default ?? mod;
-					const effectiveDef = {
-						...(startBlock === undefined ? def : { ...def, startBlock }),
-						...(options.tipFirst
-							? { backfillMode: "concurrent" as const }
-							: {}),
-					};
 					const { validateSubgraphDefinition } = await import(
 						"@secondlayer/subgraphs/validate"
 					);
@@ -1232,6 +1180,37 @@ Examples:
 					for (const name of Object.keys(derived?.abis ?? {})) {
 						info(`Using the deployed contract's abi for source "${name}"`);
 					}
+					// One bundle serves both the local load and the remote upload. It
+					// is built from the abi-filled source, because the bundler
+					// rejects a contract_call that still lacks its abi.
+					const source = derived?.source ?? (await readFile(absPath, "utf8"));
+					const { mod, bundled } = await loadSubgraphDefinition(
+						source,
+						relative(process.cwd(), absPath),
+					);
+					const def = mod.default ?? mod;
+					// The upload carries the definition as the author wrote it; the
+					// derived abis ride in `sourceCode` and the validation below.
+					const authored = {
+						...def,
+						sources: Object.fromEntries(
+							Object.entries(def.sources ?? {}).map(([k, v]) => {
+								if (!derived?.abis[k]) return [k, v];
+								const { abi: _abi, ...rest } = v as typeof v & {
+									abi?: unknown;
+								};
+								return [k, rest];
+							}),
+						),
+					} as typeof def;
+					const effectiveDef = {
+						...(startBlock === undefined
+							? authored
+							: { ...authored, startBlock }),
+						...(options.tipFirst
+							? { backfillMode: "concurrent" as const }
+							: {}),
+					};
 					const validated = validateSubgraphDefinition(
 						derived && Object.keys(derived.abis).length > 0
 							? {
@@ -1256,11 +1235,6 @@ Examples:
 							`${dryRun ? "Bundling for remote deploy dry run" : "Bundling for remote deploy"} (${config.network})...`,
 						);
 
-						const source = derived?.source ?? (await readFile(absPath, "utf8"));
-						const { bundleSubgraphCode } = await import("@secondlayer/bundler");
-						const bundled = await bundleSubgraphCode(source, {
-							fileName: relative(process.cwd(), absPath),
-						});
 						const handlerCode = bundled.handlerCode;
 						const localVerification = checkDeterminism(
 							effectiveDef,
@@ -1459,24 +1433,11 @@ Examples:
 					} else {
 						// ── Local deploy ───────────────────────────────────────
 						// The local processor runs the file itself, so the bundle is
-						// only scanned. Best effort: a file the bundler can't resolve
-						// from here still deploys, just without a derived level.
-						let findings: HandlerFinding[] | undefined;
-						try {
-							const { bundleSubgraphCode } = await import(
-								"@secondlayer/bundler"
-							);
-							findings = (
-								await bundleSubgraphCode(await readFile(absPath, "utf8"), {
-									fileName: relative(process.cwd(), absPath),
-								})
-							).findings;
-						} catch {
-							findings = undefined;
-						}
-						const verification = findings
-							? checkDeterminism(effectiveDef, findings)
-							: undefined;
+						// only scanned, using the bundle built when the file loaded.
+						const verification = checkDeterminism(
+							effectiveDef,
+							bundled.findings,
+						);
 
 						if (dryRun) {
 							printSubgraphDeployPreview(
