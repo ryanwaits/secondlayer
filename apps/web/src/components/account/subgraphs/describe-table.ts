@@ -123,7 +123,6 @@ export function describeTable(input: {
 }): TableDescription {
 	const { table, rowCount, columns, sources, sourceCode } = input;
 	const handler = findHandler(table, sourceCode);
-	const handlerKey = handler?.key ?? table;
 	const source = handler ? sources[handler.key] : undefined;
 	const rows = rowCount.toLocaleString("en-US");
 	const excerpt = handler?.excerpt ?? null;
@@ -139,6 +138,23 @@ export function describeTable(input: {
 	let event: Piece[];
 	let between: string;
 	let columnsPhrase: string;
+	if (!handler) {
+		// No handler identified: name no handler, only the facts we have.
+		const noHandlerProse: Segment[] = [
+			{
+				pieces: [
+					text(`${plural(columnTotal, "column")}. ${rows} rows so far.`),
+				],
+			},
+		];
+		return {
+			type: "handler",
+			line: [text(`${rows} rows`)],
+			prose: noHandlerProse,
+			code: null,
+			start: 1,
+		};
+	}
 	if (printTopic) {
 		const contract = contractName(source?.contractId);
 		line = [
@@ -153,11 +169,11 @@ export function describeTable(input: {
 	} else {
 		line = [
 			text("Rows from the "),
-			code(handlerKey),
+			code(handler.key),
 			text(` handler · ${rows} rows`),
 		];
 		lead = [text("Writes rows from the ")];
-		event = [code(handlerKey), text(" handler")];
+		event = [code(handler.key), text(" handler")];
 		between = ", with ";
 		columnsPhrase = plural(columnTotal, "column");
 	}

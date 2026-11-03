@@ -91,15 +91,14 @@ describe("describeTable", () => {
 		});
 		expect(description.code).toBeNull();
 		expect(description.prose.some((s) => s.focus)).toBe(false);
-		expect(plain(description.line)).toBe(
-			"Rows from the ghost handler · 0 rows",
-		);
-		expect(plain(description.prose.flatMap((s) => s.pieces))).toContain(
-			"2 columns",
+		expect(plain(description.line)).toBe("0 rows");
+		expect(plain(description.line)).not.toContain("handler");
+		expect(plain(description.prose.flatMap((s) => s.pieces))).toBe(
+			"2 columns. 0 rows so far.",
 		);
 	});
 
-	test("without source code there is no code, but the sentence still names the table", () => {
+	test("without source code there is no code, no focus links and no handler named", () => {
 		const description = describeTable({
 			table: "completed_deposit",
 			rowCount: 5,
@@ -109,5 +108,10 @@ describe("describeTable", () => {
 		});
 		expect(description.code).toBeNull();
 		expect(description.prose.some((s) => s.focus)).toBe(false);
+		expect(plain(description.line)).toBe("5 rows");
+		expect(plain(description.line)).not.toContain("handler");
+		expect(plain(description.prose.flatMap((s) => s.pieces))).not.toContain(
+			"handler",
+		);
 	});
 });
