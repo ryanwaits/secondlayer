@@ -415,6 +415,19 @@
       "what header to send when reading data"
     ]
   },
+  "/docs/authentication#rotate-a-key": {
+    "hash": "cf0e50b9f80fbcad",
+    "phrasings": [
+      "how do i replace an api key secret",
+      "rotate api key without changing its name",
+      "api key leaked need new secret",
+      "where to regenerate my api key",
+      "does rotating a key break existing name",
+      "change api key secret on account page",
+      "how often should i rotate api keys",
+      "old api key stopped working after reset"
+    ]
+  },
   "/docs/authentication#set-it": {
     "hash": "3d0986791fb71a66",
     "phrasings": [
