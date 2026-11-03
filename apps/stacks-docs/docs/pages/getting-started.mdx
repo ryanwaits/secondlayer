@@ -65,8 +65,8 @@ const { txid } = await client.sendTransaction({ transaction: signedTx });
 import { createMultiSigClient, http, mainnet } from "@secondlayer/stacks";
 
 const client = createMultiSigClient({
-  publicKeys: [pk1, pk2, pk3],
-  signaturesRequired: 2,
+  signers: [pk1, pk2, pk3],
+  requiredSignatures: 2,
   chain: mainnet,
   transport: http(),
 });

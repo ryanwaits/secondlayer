@@ -22,6 +22,7 @@ bun add @secondlayer/stacks
 Subpath module; tree-shakes out if unused.
 
 ```ts
+import { waitForTransactionReceipt } from "@secondlayer/stacks/actions";
 import { pox5 } from "@secondlayer/stacks/pox5";
 ```
 
@@ -30,6 +31,7 @@ import { pox5 } from "@secondlayer/stacks/pox5";
 ```ts
 import { createWalletClient, http, mainnet } from "@secondlayer/stacks";
 import { privateKeyToAccount } from "@secondlayer/stacks/accounts";
+import { waitForTransactionReceipt } from "@secondlayer/stacks/actions";
 import { pox5 } from "@secondlayer/stacks/pox5";
 
 const client = createWalletClient({
@@ -46,7 +48,7 @@ if (await client.pox5.isActive()) {
     startBurnHeight: 960_231,
     fee: "low",
   });
-  await client.waitForTransactionReceipt({ txid, confirmations: 1 });
+  await waitForTransactionReceipt(client, { txid, confirmations: 1 });
 }
 ```
 

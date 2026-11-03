@@ -36,10 +36,9 @@ import { readContract } from "@secondlayer/stacks/actions";
 import { Cl } from "@secondlayer/stacks/clarity";
 
 const result = await readContract(client, {
-  contractAddress: "SP2J6...",
-  contractName: "my-contract",
+  contract: "SP2J6....my-contract",
   functionName: "get-balance",
-  functionArgs: [Cl.principal("SP3FBR...")],
+  args: [Cl.principal("SP3FBR...")],
 });
 ```
 
@@ -81,7 +80,7 @@ import { sendTransaction, transferStx, callContract } from "@secondlayer/stacks/
 const { txid } = await sendTransaction(client, { transaction: signedTx });
 
 const txid = await transferStx(client, {
-  recipient: "SP2J6...",
+  to: "SP2J6...",
   amount: 1_000_000n,
 });
 ```
@@ -93,18 +92,17 @@ import { simulateCall, multicall } from "@secondlayer/stacks/actions";
 
 // Dry-run a contract call
 const result = await simulateCall(client, {
-  contractAddress: "SP2J6...",
-  contractName: "my-contract",
+  contract: "SP2J6....my-contract",
   functionName: "transfer",
-  functionArgs: [Cl.uint(100)],
+  args: [Cl.uint(100)],
   sender: "SP3FBR...",
 });
 
 // Batch multiple reads
 const results = await multicall(client, {
   calls: [
-    { contractAddress: "SP2J6...", contractName: "token-a", functionName: "get-balance", functionArgs: [Cl.principal("SP3FBR...")] },
-    { contractAddress: "SP2J6...", contractName: "token-b", functionName: "get-balance", functionArgs: [Cl.principal("SP3FBR...")] },
+    { contract: "SP2J6....token-a", functionName: "get-balance", args: [Cl.principal("SP3FBR...")] },
+    { contract: "SP2J6....token-b", functionName: "get-balance", args: [Cl.principal("SP3FBR...")] },
   ],
 });
 ```

@@ -26,8 +26,7 @@ const client = createWalletClient({
 });
 
 const txid = await client.callContract({
-  contractAddress: "SP3K8BC0PPEVCV7NZ6QSRWPQ2JE9E5B6N3PA0KBR9",
-  contractName: "usda-token",
+  contract: "SP3K8BC0PPEVCV7NZ6QSRWPQ2JE9E5B6N3PA0KBR9.usda-token",
   functionName: "transfer",
   functionArgs: [
     Cl.uint(1_000_000),
@@ -116,8 +115,7 @@ Bound a `pox-5` call from both sides:
 
 ```ts
 const txid = await client.callContract({
-  contractAddress: "SP000000000000000000002Q6VF78",
-  contractName: "pox-5",
+  contract: "SP000000000000000000002Q6VF78.pox-5",
   functionName: "register-for-bond",
   functionArgs: [/* … */],
   postConditions: [

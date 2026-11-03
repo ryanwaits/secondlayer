@@ -87,6 +87,8 @@ One per action: `eligibleStake`, `eligibleRegisterForBond`, `eligibleUnstake`, `
 Every `pox-5` public function. All accept `fee` (`min` | `low` | `mid` | `high` or a microSTX amount), `nonce`, `postConditions`, `postConditionMode`; all return a txid.
 
 ```typescript
+import { waitForTransactionReceipt } from "@secondlayer/stacks/actions";
+
 const txid = await wallet.pox5.stake({
   signerManager: "SP2J6....signer-mgr",
   amountUstx: 100_000_000_000n,   // 100,000 STX
@@ -94,7 +96,7 @@ const txid = await wallet.pox5.stake({
   startBurnHeight: 960_231,
   fee: "low",
 });
-await wallet.waitForTransactionReceipt({ txid, confirmations: 1 });
+await waitForTransactionReceipt(wallet, { txid, confirmations: 1 });
 ```
 
 | Action | Contract call |

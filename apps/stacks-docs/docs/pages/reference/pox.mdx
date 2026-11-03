@@ -113,6 +113,7 @@ import { parseBtcAddress, burnHeightToRewardCycle, rewardCycleToBurnHeight } fro
 const poxAddr = parseBtcAddress("bc1q...");
 
 // Convert between burn heights and reward cycles
-const cycle = burnHeightToRewardCycle(info, 850_000n);
-const height = rewardCycleToBurnHeight(info, 95n);
+const { firstBurnchainBlockHeight, rewardCycleLength } = info; // from getPoxInfo(client)
+const cycle = burnHeightToRewardCycle(850_000n, firstBurnchainBlockHeight, rewardCycleLength);
+const height = rewardCycleToBurnHeight(95n, firstBurnchainBlockHeight, rewardCycleLength);
 ```
