@@ -118,9 +118,11 @@ function raceAbort<T>(promise: Promise<T>, signal: AbortSignal): Promise<T> {
 	});
 }
 
-/** Product default: the local one-box API. Override with `baseUrl` or
- *  `SECONDLAYER_API_URL`. */
+/** Default when nothing points at the hosted API: the local one-box API.
+ *  Override with `baseUrl` or `SECONDLAYER_API_URL`. */
 export const LOCAL_API_URL = "http://127.0.0.1:3800";
+
+const HOSTED_API_URL = "https://api.secondlayer.tools";
 
 /** Instance credential. `secondlayer init` writes this. */
 export const INSTANCE_TOKEN_ENV = "INSTANCE_TOKEN";
@@ -133,6 +135,14 @@ export function resolveBaseUrl(explicit?: string): string {
 	if (typeof process !== "undefined") {
 		const primary = process.env?.SECONDLAYER_API_URL || undefined;
 		if (primary) return primary.replace(/\/+$/, "");
+		// A lone account key can only mean hosted. Self-hosters often hold one for
+		// archive credits too, so an instance token keeps them on their instance.
+		if (
+			process.env?.[ACCOUNT_KEY_ENV]?.startsWith("sk-sl_") &&
+			!process.env?.[INSTANCE_TOKEN_ENV]
+		) {
+			return HOSTED_API_URL;
+		}
 	}
 	return LOCAL_API_URL;
 }

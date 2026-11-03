@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, test } from "bun:test";
+import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import {
 	BaseClient,
 	type EtagEntry,
@@ -6,6 +6,7 @@ import {
 	LOCAL_API_URL,
 	MemoryEtagCache,
 	resolveAccountKey,
+	resolveApiKey,
 	resolveBaseUrl,
 } from "./base.ts";
 
@@ -13,13 +14,46 @@ describe("resolveBaseUrl", () => {
 	const saved = {
 		SL_API_URL: process.env.SL_API_URL,
 		SECONDLAYER_API_URL: process.env.SECONDLAYER_API_URL,
+		SECONDLAYER_API_KEY: process.env.SECONDLAYER_API_KEY,
+		INSTANCE_TOKEN: process.env.INSTANCE_TOKEN,
 	};
+
+	beforeEach(() => {
+		for (const k of Object.keys(saved)) Reflect.deleteProperty(process.env, k);
+	});
 
 	afterEach(() => {
 		for (const [k, v] of Object.entries(saved)) {
 			if (v === undefined) Reflect.deleteProperty(process.env, k);
 			else process.env[k] = v;
 		}
+	});
+
+	test("a lone account key selects the hosted API, and its key is sent", () => {
+		process.env.SECONDLAYER_API_KEY = "sk-sl_test";
+		const url = resolveBaseUrl();
+		expect(url).toBe("https://api.secondlayer.tools");
+		expect(resolveApiKey(undefined, url)).toBe("sk-sl_test");
+	});
+
+	test("an instance token keeps an account key holder on their own instance", () => {
+		process.env.SECONDLAYER_API_KEY = "sk-sl_test";
+		process.env.INSTANCE_TOKEN = "hex-token";
+		const url = resolveBaseUrl();
+		expect(url).toBe(LOCAL_API_URL);
+		expect(resolveApiKey(undefined, url)).toBe("hex-token");
+	});
+
+	test("SECONDLAYER_API_URL and an explicit baseUrl beat a lone account key", () => {
+		process.env.SECONDLAYER_API_KEY = "sk-sl_test";
+		expect(resolveBaseUrl("https://example.test")).toBe("https://example.test");
+		process.env.SECONDLAYER_API_URL = "http://localhost:3999";
+		expect(resolveBaseUrl()).toBe("http://localhost:3999");
+	});
+
+	test("a SECONDLAYER_API_KEY that is not an account key stays local", () => {
+		process.env.SECONDLAYER_API_KEY = "hex-token";
+		expect(resolveBaseUrl()).toBe(LOCAL_API_URL);
 	});
 
 	test("explicit wins", () => {

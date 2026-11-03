@@ -167,7 +167,7 @@
 			"signature": "isHostedApiUrl(url: string): boolean",
 			"source": {
 				"file": "packages/sdk/src/base.ts",
-				"line": 141
+				"line": 151
 			}
 		},
 		{
@@ -194,7 +194,7 @@
 			"signature": "resolveAccountKey(accountKey?: string): string | undefined",
 			"source": {
 				"file": "packages/sdk/src/base.ts",
-				"line": 171
+				"line": 181
 			}
 		},
 		{
@@ -203,7 +203,7 @@
 			"signature": "resolveApiKey(apiKey?: string, baseUrl?: string): string | undefined",
 			"source": {
 				"file": "packages/sdk/src/base.ts",
-				"line": 155
+				"line": 165
 			}
 		},
 		{
@@ -212,7 +212,7 @@
 			"signature": "resolveBaseUrl(explicit?: string): string",
 			"source": {
 				"file": "packages/sdk/src/base.ts",
-				"line": 131
+				"line": 133
 			}
 		},
 		{

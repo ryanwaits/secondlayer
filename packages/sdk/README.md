@@ -15,13 +15,13 @@ import { SecondLayer } from "@secondlayer/sdk";
 
 const sl = new SecondLayer({
   apiKey: process.env.INSTANCE_TOKEN, // from secondlayer init; read from the env when omitted
-  // default baseUrl: http://127.0.0.1:3800  (or SECONDLAYER_API_URL)
+  // default baseUrl: SECONDLAYER_API_URL, else http://127.0.0.1:3800
 });
 ```
 
-Hosted: point the client at `https://api.secondlayer.tools` (`SECONDLAYER_API_URL`)
-and it sends `SECONDLAYER_API_KEY` (`sk-sl_*`) automatically. Self-host: use
-`INSTANCE_TOKEN` as below. The key follows the host.
+Hosted: set `SECONDLAYER_API_KEY` (`sk-sl_*`) and the client uses
+`https://api.secondlayer.tools`. Self-host: use `INSTANCE_TOKEN` as below, which
+keeps the client on your instance even with an account key set. The key follows the host.
 
 Auth, once (self-hosted instance): `sl.index`, `sl.streams`, `sl.subgraphs.rows`, and the typed
 `subscribe` read `/v1`, which is open on loopback and needs `INSTANCE_TOKEN`
