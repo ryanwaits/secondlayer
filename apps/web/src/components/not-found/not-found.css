@@ -1,0 +1,281 @@
+/* Not-found pages. Tokens only (globals.css roles): blue acts, yellow marks
+   `canonical: true`, red marks the 404. */
+
+.nf-mark-missing {
+	fill: none;
+	stroke: var(--faint);
+	stroke-width: 0.6;
+	stroke-dasharray: 1.6 1.4;
+	stroke-linejoin: round;
+}
+
+/* ── site: block 404 ── */
+.nf-site {
+	max-width: 1200px;
+	margin: 0 auto;
+	min-height: calc(100vh - 64px);
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
+	gap: 64px;
+	align-items: center;
+	padding-block: 96px;
+	padding-left: max(24px, env(safe-area-inset-left, 0px));
+	padding-right: max(24px, env(safe-area-inset-right, 0px));
+}
+.nf-copy {
+	display: grid;
+	gap: 24px;
+	justify-items: start;
+	min-width: 0;
+}
+.nf-copy h1 {
+	margin: 0;
+	font-size: 48px;
+	line-height: 1.05;
+	font-weight: 500;
+	letter-spacing: -0.025em;
+	text-wrap: balance;
+}
+.nf-copy p {
+	margin: 0;
+	max-width: 40ch;
+	color: var(--sub);
+	font-size: 18px;
+	line-height: 1.625;
+}
+.nf-copy p code,
+.nf-docs h1 code,
+.nf-gone h1 code {
+	font-family: var(--font-mono-stack);
+	font-size: 0.85em;
+	color: var(--ink);
+	overflow-wrap: anywhere;
+}
+.nf-actions,
+.nf-pages {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 10px;
+}
+.nf-products {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 4px 16px;
+	font-size: 15px;
+}
+.nf-products a {
+	color: var(--ink);
+}
+.nf-products a::after {
+	content: " ›";
+	color: var(--faint);
+}
+.nf-term {
+	margin: 0;
+	min-width: 0;
+	border: 1px solid var(--line);
+	border-radius: 8px;
+	background: var(--soft);
+	overflow: hidden;
+	box-shadow: 0 1px 2px color-mix(in srgb, var(--ink) 6%, transparent);
+}
+.nf-term-bar {
+	padding: 8px 12px;
+	border-bottom: 1px solid var(--line);
+	font: 400 11px / 16px var(--font-mono-stack);
+	color: var(--faint);
+}
+.nf-term pre {
+	margin: 0;
+	padding: 16px;
+	overflow-x: auto;
+	font: 400 12.5px / 1.7 var(--font-mono-stack);
+	font-variant-numeric: tabular-nums;
+	color: var(--ink);
+}
+.nf-term .nf-p {
+	color: var(--faint);
+}
+.nf-term .nf-k {
+	color: var(--sub);
+}
+.nf-term mark {
+	background: var(--hi);
+	color: var(--on-hi);
+	border-radius: 2px;
+	padding: 0 2px;
+}
+.nf-term .nf-bad {
+	color: var(--alarm);
+}
+
+/* ── docs ── */
+.nf-docs {
+	max-width: 720px;
+	margin-left: max(0px, calc((100% - 1112px) / 2));
+	margin-right: auto;
+	display: grid;
+	gap: 28px;
+}
+.nf-eyebrow {
+	font: 400 12px / 16px var(--font-mono-stack);
+	color: var(--faint);
+}
+.nf-docs h1 {
+	margin: 6px 0 0;
+	font-size: 30px;
+	line-height: 1.2;
+	font-weight: 500;
+	letter-spacing: -0.025em;
+	text-wrap: balance;
+}
+.nf-near {
+	display: grid;
+	gap: 6px;
+	padding: 18px 20px;
+	border: 1px solid var(--line);
+	border-radius: 8px;
+	color: var(--ink);
+	text-decoration: none;
+}
+.nf-near-row {
+	display: flex;
+	justify-content: space-between;
+	gap: 12px;
+	align-items: baseline;
+	flex-wrap: wrap;
+}
+.nf-near strong {
+	font-weight: 500;
+	font-size: 18px;
+}
+.nf-near code,
+.nf-hits code {
+	font: 400 12px / 18px var(--font-mono-stack);
+	color: var(--faint);
+}
+.nf-near-lede {
+	color: var(--sub);
+	font-size: 15px;
+	line-height: 1.6;
+}
+.nf-near-go {
+	color: var(--pri);
+	font-size: 14px;
+	font-weight: 500;
+}
+.nf-hits h2 {
+	margin: 0 0 8px;
+	font: 400 11px / 16px var(--font-mono-stack);
+	letter-spacing: 0.08em;
+	text-transform: uppercase;
+	color: var(--faint);
+}
+.nf-hits ul {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+	border-top: 1px solid var(--line);
+}
+.nf-hits li {
+	border-bottom: 1px solid var(--line);
+}
+.nf-hits a {
+	display: flex;
+	justify-content: space-between;
+	gap: 16px;
+	padding: 10px 2px;
+	color: var(--ink);
+	font-size: 15px;
+	text-decoration: none;
+}
+.nf-muted {
+	margin: 0;
+	color: var(--sub);
+	font-size: 14px;
+}
+@media (hover: hover) {
+	.nf-near:hover {
+		background: var(--soft);
+	}
+	.nf-hits a:hover {
+		background: color-mix(in srgb, var(--ink) 3%, transparent);
+	}
+}
+
+/* ── account ── */
+.nf-account {
+	max-width: 880px;
+	margin: 0 auto;
+	display: grid;
+	gap: 24px;
+	align-content: start;
+	padding-block: 48px 96px;
+	padding-left: max(24px, env(safe-area-inset-left, 0px));
+	padding-right: max(24px, env(safe-area-inset-right, 0px));
+}
+.nf-gone {
+	display: grid;
+	grid-template-columns: auto minmax(0, 1fr);
+	gap: 16px;
+	align-items: start;
+}
+.nf-gone .nf-mark {
+	margin-top: 4px;
+}
+.nf-gone h1,
+.nf-gone h2 {
+	margin: 0;
+	font-size: 24px;
+	line-height: 1.25;
+	font-weight: 500;
+	letter-spacing: -0.02em;
+	text-wrap: balance;
+}
+.nf-gone p {
+	margin: 8px 0 0;
+	color: var(--sub);
+	font-size: 15px;
+	max-width: 60ch;
+}
+
+@media (max-width: 860px) {
+	.nf-site {
+		grid-template-columns: minmax(0, 1fr);
+		gap: 40px;
+		padding-block: 48px 64px;
+		min-height: 0;
+	}
+	.nf-copy h1 {
+		font-size: 36px;
+	}
+}
+
+/* ── account detail pages: a webhook or subgraph that isn't there ── */
+.nf-missing {
+	display: grid;
+	gap: 20px;
+	max-width: 720px;
+	padding-block: 8px;
+}
+.nf-others {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+	border-top: 1px solid var(--line);
+	font: 400 13px / 20px var(--font-mono-stack);
+}
+.nf-others li {
+	border-bottom: 1px solid var(--line);
+}
+.nf-others a {
+	display: block;
+	padding: 9px 2px;
+	color: var(--ink);
+	text-decoration: none;
+}
+@media (hover: hover) {
+	.nf-others a:hover {
+		background: color-mix(in srgb, var(--ink) 3%, transparent);
+	}
+}

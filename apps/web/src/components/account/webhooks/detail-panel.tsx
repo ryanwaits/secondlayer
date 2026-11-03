@@ -1,5 +1,6 @@
 "use client";
 
+import { MissingResource } from "@/components/account/missing-resource";
 import { ChartSkeleton } from "@/components/charts/chart-skeleton";
 import { LazyBandBarChart } from "@/components/charts/lazy";
 import { Choice } from "@/components/choice";
@@ -659,10 +660,17 @@ export function WebhookDetailSection({ id }: { id: string }) {
 
 	if (notice?.kind === "not_found") {
 		return (
-			<p className="acct-muted">
-				That webhook doesn't exist, or belongs to a different account. Back to{" "}
-				<Link href="/account/webhooks">Webhooks</Link>.
-			</p>
+			<MissingResource
+				kind="webhook"
+				id={id}
+				listHref="/account/webhooks"
+				others={
+					cache.list?.data.map((w) => ({
+						href: `/account/webhooks/${w.id}`,
+						title: w.name,
+					})) ?? null
+				}
+			/>
 		);
 	}
 

@@ -5,7 +5,8 @@ import type { MetadataRoute } from "next";
 
 const BASE = "https://www.secondlayer.tools";
 
-const ROUTES = [
+/** The site's own pages, outside docs, data and the blog. */
+export const ROUTES = [
 	"/",
 	"/p/archive",
 	"/p/index",

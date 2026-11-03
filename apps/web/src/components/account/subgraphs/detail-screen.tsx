@@ -1,5 +1,6 @@
 "use client";
 
+import { MissingResource } from "@/components/account/missing-resource";
 import { ChartSkeleton } from "@/components/charts/chart-skeleton";
 import { Choice } from "@/components/choice";
 import { ActionableInsights } from "@/components/dashboard/insight/insight-actions";
@@ -8,6 +9,7 @@ import { Skel } from "@/components/dashboard/shell/skel";
 import { dotClass } from "@/components/dashboard/shell/status-sentence";
 import type { Insight } from "@/lib/insights";
 import { forResource, useInsights } from "@/lib/insights-store";
+import type { Route } from "@/lib/not-found-match";
 import {
 	blocksLabel,
 	formatBytes,
@@ -231,19 +233,19 @@ function DetailSkeleton({ name }: { name: string }) {
 	);
 }
 
-function NotFound({ name }: { name: string }) {
+function NotFound({ name, others }: { name: string; others: Route[] | null }) {
 	return (
 		<>
 			<Breadcrumb
 				parent={{ href: "/account/subgraphs", label: "Subgraphs" }}
 				current={name}
 			/>
-			<p className="sg-missing">
-				No subgraph named <b>{name}</b> on this account.{" "}
-				<Link href="/account/subgraphs" className="dash-link">
-					Back to subgraphs ›
-				</Link>
-			</p>
+			<MissingResource
+				kind="subgraph"
+				id={name}
+				listHref="/account/subgraphs"
+				others={others}
+			/>
 		</>
 	);
 }
@@ -299,7 +301,19 @@ export function SubgraphDetailSection({ name }: { name: string }) {
 	);
 
 	if (!data) {
-		if (missing) return <NotFound name={name} />;
+		if (missing) {
+			return (
+				<NotFound
+					name={name}
+					others={
+						list?.data.map((s) => ({
+							href: `/account/subgraphs/${s.name}`,
+							title: s.name,
+						})) ?? null
+					}
+				/>
+			);
+		}
 		return <DetailSkeleton name={name} />;
 	}
 
