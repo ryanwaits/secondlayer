@@ -1,5 +1,16 @@
 # @secondlayer/mcp
 
+## 11.3.0
+
+### Minor Changes
+
+- b699082: With only `SECONDLAYER_API_KEY` set to an account key, the client uses the hosted API instead of `127.0.0.1:3800`. `baseUrl`, `SECONDLAYER_API_URL` and `INSTANCE_TOKEN` still keep it on your own instance.
+
+### Patch Changes
+
+- Updated dependencies [b699082]
+  - @secondlayer/sdk@16.1.0
+
 ## 11.2.6
 
 ### Patch Changes
