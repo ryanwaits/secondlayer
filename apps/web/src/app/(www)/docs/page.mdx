@@ -28,7 +28,7 @@ await new Index().events.consume({
 [Write rows and the cursor in one transaction](focus:fork-index-batch), and [roll back to the last good block](focus:fork-index-reorg) when a reorg lands. You keep your schema and serve it however you already do. [Index →](/docs/index)
 
 </ForkPath>
-<ForkPath value="subgraphs" label="No">
+<ForkPath value="subgraphs" label="No, I need one">
 
 ```ts subgraph.config.ts
 import { defineSubgraph } from "@secondlayer/subgraphs";
@@ -74,7 +74,7 @@ You get [raw, signed frames to decode](focus:fork-st-batch), and a [reorg rewind
 
 Five commands from key to a row you can check against Bitcoin. Keys come from [/account/keys](/account/keys).
 
-Using an agent? `bunx skills add ryanwaits/secondlayer --skill secondlayer -y`
+Using an agent? <Cmd>bunx skills add ryanwaits/secondlayer --skill secondlayer -y</Cmd>
 
 <Steps>
 

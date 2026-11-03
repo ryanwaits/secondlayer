@@ -37,7 +37,7 @@ specific by definition. Never name a competitor to make the point.
 included."; the verify story is "Trust, and verify." The primary call to action
 is "Start free". Self-host is a door, never the lead.
 
-**Six rules. Each is checkable, so a reviewer can reject a line without
+**Eight rules. Each is checkable, so a reviewer can reject a line without
 arguing taste.**
 
 1. **Lead with the reader's job, not an architecture noun.** Banned as openers:
@@ -58,6 +58,15 @@ arguing taste.**
 6. **Never make the reader pick a door.** One fork, on a criterion they already
    know about themselves ("Do you already have an API layer?"), never a menu of
    our product nouns. "Pick your surface" was the failure this replaced.
+7. **Pronouns: the page is second person, anything the reader clicks is first
+   person.** The page talks to the reader ("Where do you start?"). A control the
+   reader clicks or asks speaks as the reader: fork answers ("Yes, I run one",
+   "No, I need one"), FAQ questions ("Do I pay for retries?"). Never mix the two
+   inside one control, and keep sibling answers the same shape.
+8. **Runnable commands in prose use `<Cmd>`.** A command the reader should run
+   (`<Cmd>bunx skills add ryanwaits/secondlayer --skill secondlayer -y</Cmd>`)
+   gets a copy button on hover. Identifiers, flags and env names stay plain
+   inline code.
 
 **Also:** the business model never appears in a first sentence. Price belongs
 on the page about price.

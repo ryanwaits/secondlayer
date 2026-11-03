@@ -5,6 +5,7 @@ import { fenceFromCode } from "@/components/code/fence";
 import { FocusLink, Mention, Pick, Tip } from "@/components/code/prose";
 import { Banner, Callout } from "@/components/docs/callout";
 import { Checks } from "@/components/docs/checks";
+import { Cmd } from "@/components/docs/cmd";
 import { Fork, ForkPath } from "@/components/docs/fork";
 import { Seam } from "@/components/docs/seam";
 import { Stack } from "@/components/docs/stack";
@@ -152,6 +153,7 @@ export function useMDXComponents(components: MDXComponents): MDXComponents {
 		Step,
 		Stack,
 		Checks,
+		Cmd,
 		Yields,
 		Seam,
 		Steps,

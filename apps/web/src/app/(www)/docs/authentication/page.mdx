@@ -61,7 +61,7 @@ Signed in, **Fill in a docs key** on a Streams or Index sample puts a docs key w
 
 Rotate on [/account/keys](https://www.secondlayer.tools/account/keys) replaces a key's secret and keeps its name. The old secret stops at once, so have the new one ready to deploy. For no downtime, make a second key, swap it in, then revoke the first.
 
-- From a terminal: `secondlayer keys list`, then `secondlayer keys rotate <id>`. If that key is your CLI login, the CLI saves the new one.
+- From a terminal: <Cmd>secondlayer keys list</Cmd>, then `secondlayer keys rotate <id>`. If that key is your CLI login, the CLI saves the new one.
 - From a local MCP server: `account_list_keys`, then `account_rotate_key`. It refuses the key it runs on.
 - Apps on the hosted MCP can't list or rotate keys.
 
@@ -149,7 +149,7 @@ secondlayer credits balance
 - `credits buy` opens a one-time card checkout against [archive.secondlayer.tools](https://archive.secondlayer.tools).
 - `credits balance` and metered bootstrap use your `secondlayer login` session if you have one, else `SECONDLAYER_API_KEY`.
 
-Auto-refill is off until you set it: `secondlayer credits refill --below 5 --pack 25`.
+Auto-refill is off until you set it: <Cmd>secondlayer credits refill --below 5 --pack 25</Cmd>.
 
 ## Webhook signing secrets
 

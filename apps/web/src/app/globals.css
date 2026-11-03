@@ -588,6 +588,35 @@ a mark {
 	background: var(--bg);
 }
 
+/* <Cmd>: an inline runnable command with a copy button. The button sits in
+   flow with a fixed width, so showing it never moves the text. Hover or
+   keyboard focus reveals it; touch devices always show it. */
+.docs-cmd {
+	white-space: normal;
+}
+.docs-cmd .copy-button {
+	position: static;
+	display: inline-flex;
+	vertical-align: middle;
+	margin-left: 4px;
+	width: 22px;
+	height: 22px;
+	padding: 0;
+	opacity: 0;
+}
+.docs-cmd:hover .copy-button,
+.docs-cmd:focus-within .copy-button,
+.docs-cmd .copy-button:focus-visible {
+	opacity: 1;
+}
+@media (hover: none) {
+	.docs-cmd .copy-button {
+		opacity: 0.55;
+	}
+	.docs-cmd .copy-button:active {
+		opacity: 1;
+	}
+}
 .code-block-wrapper pre {
 	background: var(--code-block-bg) !important;
 	font-family: var(--font-mono-stack);
