@@ -1,5 +1,6 @@
 export { registerArchiveCommand } from "./archive.ts";
 export { registerCreditsCommand } from "./credits.ts";
+export { registerKeysCommand } from "./keys.ts";
 export { registerCodegenCommand } from "./codegen.ts";
 export { registerConfigCommand } from "./config.ts";
 export { registerContextCommand } from "./context.ts";

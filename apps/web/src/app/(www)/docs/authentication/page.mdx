@@ -62,6 +62,10 @@ Signed in, **Fill in a docs key** on a Streams or Index sample puts a docs key w
 
 Rotate on [/account/keys](https://www.secondlayer.tools/account/keys) replaces a key's secret and keeps its name. The old secret stops at once, so have the new one ready to deploy. For no downtime, make a second key, swap it in, then revoke the first.
 
+- From a terminal: `secondlayer keys list`, then `secondlayer keys rotate <id>`. If that key is your CLI login, the CLI saves the new one.
+- From a local MCP server: `account_list_keys`, then `account_rotate_key`. It refuses the key it runs on.
+- Apps on the hosted MCP can't list or rotate keys.
+
 ## What it costs
 
 Reads, live or history, priced the same. Block headers and reads of your own subgraph tables are free.

@@ -22,6 +22,7 @@ Every top-level `secondlayer` command, with the page that owns it.
 | `observer` | Print the node's `events_observer` stanza | [Self-host](/docs/self-host#connect-your-node) |
 | `login` / `logout` | Sign in through your browser; `logout` signs the machine out (`--email` for an emailed code, `--with-token` to read a key from stdin) | [Keys and billing](/docs/authentication#archive-fetches) |
 | `whoami` | Show the instance and account targets | [Keys and billing](/docs/authentication) |
+| `keys` | List account keys and rotate one | [Keys and billing](/docs/authentication#rotate-a-key) |
 | `subgraphs` | Create, deploy, query, reindex, and backfill subgraphs | [Subgraphs](/docs/subgraphs) |
 | `webhooks` | Create, test, pause, replay, and inspect webhook deliveries | [Webhooks](/docs/webhooks) |
 | `streams` | Read raw chain events, tips, reorgs, and bulk dumps (`--chain bitcoin` for Runes events) | [Streams](/docs/streams) |
@@ -262,7 +263,7 @@ These work but get no further investment.
 - `secondlayer codegen subgraph --target prisma|drizzle|kysely`: typed ORM schema. See [Subgraphs](/docs/subgraphs#typed-orm-schemas-codegen).
 
 export const agent = `
-- Operate through the 'secondlayer' CLI. Inspect subgraphs and webhooks with JSON output first. Get human confirmation before delete, reindex, rotate-secret, replay or requeue.
+- Operate through the 'secondlayer' CLI. Inspect subgraphs and webhooks with JSON output first. Get human confirmation before delete, reindex, rotate-secret, rotate key, replay or requeue.
 - With SECONDLAYER_API_URL and SECONDLAYER_API_KEY set to the hosted values, 'secondlayer subgraphs' and 'webhooks' run hosted.
 - Local runtime (from docker/oss in a checkout, see /docs/self-host): 'secondlayer init --network mainnet' writes .env.local; 'secondlayer bootstrap --against <manifest>' restores into an empty database; 'secondlayer observer --mode indexer' prints the [[events_observer]] stanza; 'secondlayer verify all --against <manifest>' checks the restore (raw or all, --deep for semantic digests). Use --mode signer-shared where documented.
 - 'secondlayer subgraphs create <name> --from-contract <contract id>' infers typed print payloads from indexed history.

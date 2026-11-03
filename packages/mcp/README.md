@@ -85,7 +85,7 @@ bunx -p @secondlayer/mcp secondlayer-mcp-http
 | **Instance** (1) | `instance_status` |
 | **Archive** (5) | `archive_verify`, `archive_bootstrap`, `archive_repair`, `archive_latest`, `archive_quote` |
 | **Credits** (1) | `credits_balance` (needs `SECONDLAYER_API_KEY`) |
-| **Account** (2) | `account_whoami`, `account_create_key` (only when pointed at `https://api.secondlayer.tools`) |
+| **Account** (4) | `account_whoami`, `account_create_key`, `account_list_keys`, `account_rotate_key` (only when pointed at `https://api.secondlayer.tools`) |
 
 Verify after mutating: `subgraphs_operations` for deploy/reindex/backfill/stop,
 `webhooks_deliveries` for create/test/replay. Empty index:

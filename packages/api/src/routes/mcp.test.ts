@@ -476,6 +476,8 @@ describe.skipIf(!HAS_DB)("hosted MCP", () => {
 		const list = await result(await rpc(me.key, "tools/list"));
 		const names = list.tools.map((t: { name: string }) => t.name);
 		expect(names).not.toContain("account_create_key");
+		expect(names).not.toContain("account_list_keys");
+		expect(names).not.toContain("account_rotate_key");
 		for (const n of names) expect(n).not.toMatch(/key|grant/);
 		// batch_query refuses anything outside the public read planes.
 		const r = await callTool(me.key, "batch_query", {

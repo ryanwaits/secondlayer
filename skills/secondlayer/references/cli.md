@@ -34,6 +34,7 @@ Global flags `--api-key <key>` and `--api-url <url>` are available on every comm
 
 - [Local runtime](#local-runtime): `init`, `bootstrap`, `observer`, `verify`, `repair`, `backup`, `restore`
 - [Archive](#archive) — `archive latest|quote|bootstrap|verify|repair` (top-level bootstrap/verify/repair are the same commands)
+- [Keys](#keys) — `keys list|rotate`
 - [Credits](#credits) — `credits buy|balance|refill`
 - [Subgraphs](#subgraphs) — `create`, `dev`, `deploy`, `list`, `status`, `spec`, `source`, `reindex`, `backfill`, `stop`, `operations`, `gaps`, `query`, `delete`, `scaffold`
 - [Webhooks](#webhooks) — `create`, `list`, `get`, `update`, `pause`, `resume`, `delete`, `rotate-secret`, `deliveries`, `dead`, `requeue`, `replay`, `doctor`, `test`
@@ -217,6 +218,22 @@ Usage: `secondlayer backup --out <dir> [--passphrase <p>] [--no-secrets] [--json
 Usage: `secondlayer restore --from <dir> [--passphrase <p>] [--apply] [--force] [--json]`
 
 `restore` is a dry run until `--apply`, and refuses a database that already holds chain data unless `--force`. `SECONDLAYER_BACKUP_PASSPHRASE` substitutes for `--passphrase`, and is the form to prefer since a flag lands in shell history and `ps`. The database password rides in `PGPASSWORD`, never in the `pg_dump`/`pg_restore` argv.
+
+---
+
+## Keys
+
+Account keys (`sk-sl_*`) for the hosted API. Listing and rotating need `SECONDLAYER_API_KEY` or `secondlayer login`.
+
+### secondlayer keys list
+
+List active account keys: id, name, key prefix, last read, rows in 30 days. Never prints a secret. Usage: `secondlayer keys list [--json]`
+
+### secondlayer keys rotate
+
+Replace a key's secret and keep its name. The old secret gets `401` at once, so confirm first; `-y` skips the prompt. The new key prints once on stdout. If the key is your CLI login, the CLI saves the new one.
+
+Usage: `secondlayer keys rotate <id|prefix|name> [-y] [--json]`
 
 ---
 

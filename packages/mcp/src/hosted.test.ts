@@ -115,6 +115,8 @@ describe("hosted tool set", () => {
 		const listed = ctx.whatYouCanDo.products.join(" ");
 		expect(listed).toContain("index_events");
 		expect(listed).not.toContain("account_create_key");
+		expect(listed).not.toContain("account_list_keys");
+		expect(listed).not.toContain("account_rotate_key");
 		expect(listed).not.toContain("webhooks_create");
 		expect(JSON.stringify(ctx.readAuthTiers)).toContain("OAuth");
 	});

@@ -290,6 +290,20 @@
 			"remote": false
 		},
 		{
+			"name": "account_list_keys",
+			"group": "account",
+			"description": "List this account's active account keys at api.secondlayer.tools: id, prefix, name, last read. Never returns a secret. Use an id with account_rotate_key.",
+			"hostedOnly": true,
+			"remote": false
+		},
+		{
+			"name": "account_rotate_key",
+			"group": "account",
+			"description": "Replace an account key's secret at api.secondlayer.tools, keeping its name. The old secret gets 401 at once, with no grace period, so everything using it breaks until updated: get human confirmation first. The returned key is shown ONCE. Refuses the key this server runs on.",
+			"hostedOnly": true,
+			"remote": false
+		},
+		{
 			"name": "account_whoami",
 			"group": "account",
 			"description": "Show the archive account email at api.secondlayer.tools, not the self-host instance.",

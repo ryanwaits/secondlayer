@@ -20,7 +20,7 @@ Or, in any client that speaks Streamable HTTP:
 - Read tools only: Index, Streams, Contracts, `subgraphs_scaffold`,
   `account_whoami`. Subgraph deploys, webhooks, archive, codegen and instance
   tools need the stdio server below. Reads are metered to the account's credits.
-- An app never mints or revokes keys. Revoke it under Apps on
+- An app never mints, rotates or revokes keys. Revoke it under Apps on
   secondlayer.tools/account/keys.
 
 ## Stdio Setup

@@ -4,6 +4,13 @@
 Notable changes to Secondlayer and its SDKs. Entries dated before August 2026 describe the hosted service as it worked then (per-row read metering, API keys, `402` past the free window); it was withdrawn in August 2026 and has since returned, with hosted Index, Streams, subgraphs and webhooks at `api.secondlayer.tools` on an account key and prepaid [credits](/docs/authentication), while on a self-hosted instance reads stay yours and unmetered and archive bootstrap, backfill and reindex draw [credits](/docs/authentication#archive-credits).
 
 {/* new: 2026-11-02 */}
+## Keys — November 2026
+
+### Rotate a key in one step
+
+Rotate replaces a key's secret and keeps its name, in one transaction. The old secret gets `401 KEY_REVOKED` at once, so have the new one ready to deploy. Use the Rotate button on [/account/keys](https://www.secondlayer.tools/account/keys), `secondlayer keys rotate`, or `account_rotate_key` on a local MCP server.
+
+{/* new: 2026-11-02 */}
 ## Webhooks — November 2026
 
 ### The right key for checking a delivery's signature

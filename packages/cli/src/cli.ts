@@ -13,6 +13,7 @@ import {
 	registerDoctorCommand,
 	registerIndexCommand,
 	registerInitCommand,
+	registerKeysCommand,
 	registerLoginCommand,
 	registerLogoutCommand,
 	registerObserverCommand,
@@ -108,6 +109,7 @@ registerRestoreCommand(program);
 
 // Archive — the history plane. Credits pay for pulling it.
 program.commandsGroup("Archive:");
+registerKeysCommand(program);
 registerCreditsCommand(program);
 registerArchiveCommand(program);
 

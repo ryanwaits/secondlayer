@@ -74,6 +74,8 @@ describe("createServer account tools", () => {
 		const names = await createServerToolNames({});
 		expect(names).not.toContain("account_whoami");
 		expect(names).not.toContain("account_create_key");
+		expect(names).not.toContain("account_list_keys");
+		expect(names).not.toContain("account_rotate_key");
 	});
 
 	it("registers account tools when pointed at the hosted archive", async () => {
@@ -82,5 +84,7 @@ describe("createServer account tools", () => {
 		});
 		expect(names).toContain("account_whoami");
 		expect(names).toContain("account_create_key");
+		expect(names).toContain("account_list_keys");
+		expect(names).toContain("account_rotate_key");
 	});
 });
