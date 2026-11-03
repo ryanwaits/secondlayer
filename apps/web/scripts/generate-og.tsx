@@ -8,6 +8,7 @@
  * product art on the right, and a footer strip with the logo and the page
  * path. Data-driven, so a copy change is one CARDS edit + a re-run.
  */
+import { createHash } from "node:crypto";
 import { readFile, readdir, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { ImageResponse } from "next/og";
@@ -1730,7 +1731,10 @@ const DOCS_CARDS: { file: string; title: string; frame: React.ReactElement }[] =
 				const slug = dirname(f);
 				const page = join(DOCS_DIR, f);
 				const mdx = await readFile(page, "utf8");
-				const title = /^# (.+)$/m.exec(mdx)?.[1]?.trim() ?? slug;
+				const title = (/^# (.+)$/m.exec(mdx)?.[1]?.trim() ?? slug).replace(
+					/`/g,
+					"",
+				);
 				return {
 					file: join(DOCS_DIR, slug, "opengraph-image.png"),
 					title,
@@ -1747,10 +1751,16 @@ const DOCS_CARDS: { file: string; title: string; frame: React.ReactElement }[] =
 			}),
 	);
 
+const cardHashes: Record<string, string> = {};
+
 for (const spec of CARDS) {
 	const res = new ImageResponse(<Frame {...spec} />, { ...SIZE, fonts });
 	const buf = Buffer.from(await res.arrayBuffer());
 	await writeFile(join(OUT_DIR, spec.file), buf);
+	cardHashes[spec.file] = createHash("sha256")
+		.update(buf)
+		.digest("hex")
+		.slice(0, 8);
 	console.log(`✓ ${spec.file}  (${buf.length.toLocaleString()} bytes)`);
 }
 
@@ -1758,8 +1768,17 @@ for (const spec of WRITING_CARDS) {
 	const res = new ImageResponse(spec.frame, { ...SIZE, fonts });
 	const buf = Buffer.from(await res.arrayBuffer());
 	await writeFile(join(OUT_DIR, spec.file), buf);
+	cardHashes[spec.file] = createHash("sha256")
+		.update(buf)
+		.digest("hex")
+		.slice(0, 8);
 	console.log(`✓ ${spec.file}  (${buf.length.toLocaleString()} bytes)`);
 }
+
+await writeFile(
+	join(process.cwd(), "src/generated/og-cards.json"),
+	`${JSON.stringify(Object.fromEntries(Object.entries(cardHashes).sort()), null, "\t")}\n`,
+);
 
 for (const spec of DOCS_CARDS) {
 	const res = new ImageResponse(spec.frame, { ...SIZE, fonts });

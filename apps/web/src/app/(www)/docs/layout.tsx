@@ -1,5 +1,6 @@
 import { DocsTopNav } from "@/components/docs-top-nav";
 import { Logo } from "@/components/logo";
+import { ogImage } from "@/lib/og";
 import { GITHUB_URL } from "@/lib/site";
 import type { Metadata } from "next";
 import Link from "next/link";
@@ -25,7 +26,7 @@ export const metadata: Metadata = {
 		type: "website",
 		images: [
 			{
-				url: "/og/docs.png",
+				url: ogImage("/og/docs.png"),
 				width: 1200,
 				height: 630,
 				alt: "secondlayer docs",

@@ -1,4 +1,5 @@
 import { PostRail } from "@/components/writing/post-rail";
+import { ogImage } from "@/lib/og";
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 
@@ -9,8 +10,10 @@ import type { ReactNode } from "react";
  * fallback only covers a post that forgets to export it.
  */
 export const metadata: Metadata = {
-	openGraph: { images: [{ url: "/og/writing.png", width: 1200, height: 630 }] },
-	twitter: { images: ["/og/writing.png"] },
+	openGraph: {
+		images: [{ url: ogImage("/og/writing.png"), width: 1200, height: 630 }],
+	},
+	twitter: { images: [ogImage("/og/writing.png")] },
 };
 
 export default function WritingPostLayout({

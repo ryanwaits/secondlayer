@@ -1,1 +1,1 @@
-`sl.streams` — secondlayer docs
+sl.streams — secondlayer docs

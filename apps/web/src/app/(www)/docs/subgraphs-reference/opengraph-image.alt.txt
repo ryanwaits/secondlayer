@@ -1,1 +1,1 @@
-`@secondlayer/subgraphs` — secondlayer docs
+@secondlayer/subgraphs — secondlayer docs

@@ -3,6 +3,7 @@ import { LazyCommandPalette } from "@/components/command-palette/lazy";
 import { FastAnchorScroll } from "@/components/fast-anchor-scroll";
 import { JsonLd } from "@/components/json-ld";
 import { AuthProvider } from "@/lib/auth";
+import { ogImage } from "@/lib/og";
 import { GITHUB_URL } from "@/lib/site";
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
@@ -45,14 +46,19 @@ export const metadata: Metadata = {
 		siteName: "secondlayer",
 		type: "website",
 		images: [
-			{ url: "/og/home.png", width: 1200, height: 630, alt: "secondlayer" },
+			{
+				url: ogImage("/og/home.png"),
+				width: 1200,
+				height: 630,
+				alt: "secondlayer",
+			},
 		],
 	},
 	twitter: {
 		card: "summary_large_image",
 		title: "secondlayer",
 		description: "Instant data for apps on Bitcoin. Proof included.",
-		images: ["/og/home.png"],
+		images: [ogImage("/og/home.png")],
 	},
 };
 

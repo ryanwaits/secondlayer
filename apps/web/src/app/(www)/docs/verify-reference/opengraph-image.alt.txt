@@ -1,1 +1,1 @@
-`@secondlayer/verify` — secondlayer docs
+@secondlayer/verify — secondlayer docs

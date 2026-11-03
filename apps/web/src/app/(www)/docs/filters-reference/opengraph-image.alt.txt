@@ -1,1 +1,1 @@
-`@secondlayer/stacks/filters` — secondlayer docs
+@secondlayer/stacks/filters — secondlayer docs
