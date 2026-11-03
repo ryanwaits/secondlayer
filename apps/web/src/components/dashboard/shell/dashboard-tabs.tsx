@@ -1,6 +1,7 @@
 "use client";
 
 import { warmTab } from "@/lib/dashboard-warm";
+import { useIntentPrefetch } from "@/lib/intent-prefetch";
 import Link from "next/link";
 
 export type DashboardTab = { href: string; label: string; ready: boolean };
@@ -28,14 +29,15 @@ export function DashboardTabs({
 	pathname: string;
 	failingWebhooks?: number;
 }) {
+	const intent = useIntentPrefetch();
 	return (
 		<nav className="dash-tabs" aria-label="Account">
 			{DASHBOARD_TABS.filter((t) => t.ready).map((t) => (
 				<Link
 					key={t.href}
 					href={t.href}
-					onPointerEnter={() => warmTab(t.href)}
-					onFocus={() => warmTab(t.href)}
+					prefetch={false}
+					{...intent(t.href, () => warmTab(t.href))}
 					aria-current={isCurrent(pathname, t.href) ? "page" : undefined}
 				>
 					{t.label}

@@ -9,8 +9,12 @@ const nextConfig: NextConfig = {
 	// under the SDK.
 	skipTrailingSlashRedirect: true,
 	experimental: {
+		// Account pages carry per-visit data: a navigation never replays an older
+		// payload. Intent prefetches (`router.prefetch` full) live 30 s, the
+		// framework's minimum.
 		staleTimes: {
-			dynamic: 30,
+			dynamic: 0,
+			static: 30,
 		},
 		optimizePackageImports: ["@tanstack/react-query"],
 	},

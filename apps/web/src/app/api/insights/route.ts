@@ -2,6 +2,9 @@ import { apiRequest, getSessionFromRequest } from "@/lib/api";
 import { type Insight, rankInsights } from "@/lib/insights";
 import { NextResponse } from "next/server";
 
+// Next to the API, so each dashboard read and write takes the short hop.
+export const preferredRegion = "fra1";
+
 /**
  * One list for the dashboard: the stack's insights (webhooks, subgraphs) and
  * the account's (reads, billing) merged and ranked. A side that fails

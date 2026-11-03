@@ -3,6 +3,9 @@ import { upstreamAgent } from "@/lib/upstream-agent";
 import { NextResponse } from "next/server";
 import type { Agent } from "undici";
 
+// Next to the API, so each dashboard read and write takes the short hop.
+export const preferredRegion = "fra1";
+
 /**
  * Proxy to the hosted webhooks API for the signed-in account's dashboard. The
  * dashboard reads, pauses, resumes, renames (a name-only PATCH), sends a
