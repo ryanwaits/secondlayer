@@ -2918,3 +2918,48 @@ html[data-acct-card] .docs-content {
 	.docs-fork-path:nth-of-type(4) {
 	display: block;
 }
+
+/* ── dashboard preview (/docs/mcp): the skill's kit in a browser window ── */
+.dash-preview {
+	margin: 24px 0;
+	border: 1px solid var(--line);
+	border-radius: 8px;
+	overflow: hidden;
+	background: var(--paper);
+}
+.dash-preview-bar {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	padding: 8px 12px;
+	background: var(--soft);
+	border-bottom: 1px solid var(--line);
+}
+.dash-preview-dots {
+	display: flex;
+	gap: 6px;
+}
+.dash-preview-dots i {
+	width: 10px;
+	height: 10px;
+	border-radius: 999px;
+	background: var(--line);
+}
+.dash-preview-url {
+	flex: 1;
+	max-width: 280px;
+	margin: 0 auto;
+	padding: 2px 10px;
+	border-radius: 6px;
+	background: var(--paper);
+	color: var(--sub);
+	font: 400 12px / 18px var(--font-mono-stack);
+	text-align: center;
+}
+.dash-preview figcaption {
+	padding: 8px 12px;
+	border-top: 1px solid var(--line);
+	color: var(--sub);
+	font-size: 13px;
+	line-height: 20px;
+}
