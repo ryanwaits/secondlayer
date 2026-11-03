@@ -40,13 +40,13 @@ describe("dashboard warm-up", () => {
 		expect(count("/api/keys")).toBe(1);
 	});
 
-	test("warming webhooks reads the list and activity, never wakes a stack", async () => {
+	test("warming webhooks or subgraphs never reads their lists: the server renders those", async () => {
 		mockFetch();
 		warmTab("/account/webhooks");
+		warmTab("/account/subgraphs");
 		await settle();
-		expect(count("/api/webhooks")).toBe(1);
-		expect(count("/api/webhooks/activity")).toBe(1);
-		expect(urls.some((u) => u.includes("wake"))).toBe(false);
+		expect(urls.some((u) => u.startsWith("/api/webhooks"))).toBe(false);
+		expect(urls.some((u) => u.startsWith("/api/subgraphs"))).toBe(false);
 	});
 
 	test("warming the whole dashboard twice requests each endpoint once", async () => {
@@ -66,18 +66,7 @@ describe("dashboard warm-up", () => {
 		await settle();
 		expect(count("/api/billing/rows")).toBe(1);
 		expect(count("/api/billing/credits")).toBe(1);
-		expect(count("/api/webhooks")).toBe(1);
-		expect(count("/api/subgraphs")).toBe(1);
 		expect(count("/api/keys")).toBe(1);
-	});
-
-	test("warming subgraphs asks for the list with its health in one request", async () => {
-		mockFetch();
-		warmTab("/account/subgraphs");
-		await settle();
-		expect(urls.filter((u) => u.startsWith("/api/subgraphs"))).toEqual([
-			"/api/subgraphs?health=168",
-		]);
 	});
 
 	test("a slice read moments ago is not read again", async () => {

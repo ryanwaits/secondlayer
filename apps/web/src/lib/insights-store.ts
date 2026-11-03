@@ -2,8 +2,7 @@
 
 import { useSyncExternalStore } from "react";
 import { type Insight, rankInsights } from "./insights";
-import { markFresh, shared } from "./request-cache";
-import { loadSnapshot, removeSnapshot, saveSnapshot } from "./session-cache";
+import { shared } from "./request-cache";
 import { poll } from "./webhooks-store";
 
 /**
@@ -20,25 +19,15 @@ type State = {
 };
 
 const EMPTY: State = { status: "idle", data: [], at: 0 };
-const NAME = "insights";
 let state: State = EMPTY;
-let hydrated = false;
 const listeners = new Set<() => void>();
 
-/** The first client read pulls this tab's last copy, if any. */
 function current(): State {
-	if (!hydrated && typeof window !== "undefined") {
-		hydrated = true;
-		const saved = loadSnapshot<State>(NAME);
-		if (saved?.status === "ok") state = saved;
-	}
 	return state;
 }
 
 function set(next: State) {
-	current();
 	state = next;
-	if (next.status === "ok") saveSnapshot(NAME, next);
 	for (const l of listeners) l();
 }
 
@@ -59,8 +48,6 @@ export function useInsights(): State {
 /** Forget everything on sign-out so the next account never sees it. */
 export function clearInsights(): void {
 	state = EMPTY;
-	hydrated = false;
-	removeSnapshot(NAME);
 	for (const l of listeners) l();
 }
 
@@ -77,7 +64,6 @@ export function refreshInsights(): Promise<void> {
 			}
 			const body = (await res.json()) as { data: Insight[] };
 			set({ status: "ok", data: rankInsights(body.data), at: Date.now() });
-			markFresh("insights");
 		} catch {
 			set({ ...current(), status: current().status === "ok" ? "ok" : "error" });
 		}

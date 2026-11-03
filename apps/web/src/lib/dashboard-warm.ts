@@ -11,16 +11,7 @@ import {
 	refreshUsage,
 } from "./account-data";
 import { isFresh } from "./request-cache";
-import {
-	LIST_HEALTH_HOURS,
-	listKey,
-	refreshListAndHealth,
-} from "./subgraphs-store";
 import { currentUtcMonth, monthParam } from "./usage";
-import {
-	refreshSummary as refreshWebhookSummary,
-	refreshList as refreshWebhooks,
-} from "./webhooks-store";
 
 /** A slice read this recently is not read again by a warm-up. */
 const WARM_MAX_AGE_MS = 30_000;
@@ -32,10 +23,6 @@ function load(key: string, refresh: () => Promise<unknown>): void {
 	refresh().catch(() => {});
 }
 
-function warmSubgraphs(): void {
-	load(listKey(LIST_HEALTH_HOURS), refreshListAndHealth);
-}
-
 const TABS: Record<string, () => void> = {
 	"/account": () => {
 		const month = monthParam(currentUtcMonth());
@@ -43,9 +30,6 @@ const TABS: Record<string, () => void> = {
 		load("caps", refreshCaps);
 		load("keys", refreshKeys);
 		load(`usage:${month}`, () => refreshUsage(month));
-		load("webhooks:list", () => refreshWebhooks());
-		load("webhooks:summary", refreshWebhookSummary);
-		warmSubgraphs();
 		load("rows", refreshRows);
 	},
 	"/account/rows": () => {
@@ -53,12 +37,9 @@ const TABS: Record<string, () => void> = {
 		load("keys", refreshKeys);
 	},
 	"/account/webhooks": () => {
-		load("webhooks:list", () => refreshWebhooks());
-		load("webhooks:summary", refreshWebhookSummary);
 		load("keys", refreshKeys);
 	},
 	"/account/subgraphs": () => {
-		warmSubgraphs();
 		load("keys", refreshKeys);
 	},
 	"/account/keys": () => {

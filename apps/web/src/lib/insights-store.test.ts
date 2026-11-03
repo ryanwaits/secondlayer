@@ -227,34 +227,14 @@ function removeStorage() {
 	globalThis.window = undefined;
 }
 
-function envelope(data: unknown): string {
-	return JSON.stringify({ owner: null, savedAt: Date.now(), data });
-}
-
-describe("this tab's saved copy", () => {
+describe("sessionStorage", () => {
 	beforeEach(installStorage);
 	afterEach(removeStorage);
 
-	test("a successful refresh is saved for a reload", async () => {
+	test("a successful refresh saves nothing for a reload", async () => {
 		stubFetch(() => list());
 		await refreshInsights();
-		expect(storage.get("sl:dash:v1:insights")).toContain('"status":"ok"');
-	});
-
-	test("a failed first refresh saves nothing", async () => {
-		stubFetch(() => new Response("{}", { status: 500 }));
-		await refreshInsights();
-		expect(storage.has("sl:dash:v1:insights")).toBe(false);
-	});
-
-	test("a reload reads the saved copy and clearing removes it", () => {
-		clearInsights(); // resets the store as a fresh page load would
-		storage.set(
-			"sl:dash:v1:insights",
-			envelope({ status: "ok", data: FIXTURE_INSIGHTS, at: 1 }),
-		);
 		expect(insightsSnapshot().data.length).toBe(FIXTURE_INSIGHTS.length);
-		clearInsights();
-		expect(storage.has("sl:dash:v1:insights")).toBe(false);
+		expect(storage.size).toBe(0);
 	});
 });
