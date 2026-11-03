@@ -18,7 +18,13 @@ export const dynamic = "force-dynamic";
 const SEGMENT_RE = /^[A-Za-z0-9_-]+$/;
 /** The one literal that carries a dot. */
 const SCHEMA_JSON = "schema.json";
-const READ_SUFFIXES = new Set(["health", "errors", "gaps", SCHEMA_JSON]);
+const READ_SUFFIXES = new Set([
+	"health",
+	"errors",
+	"gaps",
+	"source",
+	SCHEMA_JSON,
+]);
 
 /** Query keys the proxy forwards: `_sort`, `_order`, `cursor` and table
  *  columns with an optional `.gte`-style suffix. Values are validated upstream. */
@@ -49,6 +55,17 @@ function targetFor(segments: string[]): Target | null {
 		}
 	}
 	return null;
+}
+
+/** The source response minus the deployed bundle (`handlerCode`) and the pin
+ *  fields: the dashboard shows the author's source, never the compiled code. */
+function publicSource(payload: unknown): unknown {
+	if (!payload || typeof payload !== "object") return payload;
+	const { name, version, sourceCode, readOnly, updatedAt } = payload as Record<
+		string,
+		unknown
+	>;
+	return { name, version, sourceCode, readOnly, updatedAt };
 }
 
 function forwardedSearch(req: Request): string {
@@ -116,6 +133,9 @@ export async function GET(
 			payload = await upstream.json();
 		} catch {
 			payload = null;
+		}
+		if (segments[1] === "source" && upstream.ok) {
+			payload = publicSource(payload);
 		}
 		const headers: Record<string, string> = {
 			"Server-Timing": `upstream;dur=${(performance.now() - started).toFixed(1)}`,

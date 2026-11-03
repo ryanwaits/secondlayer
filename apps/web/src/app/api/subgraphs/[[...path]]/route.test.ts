@@ -63,7 +63,7 @@ describe("subgraphs dashboard proxy", () => {
 			["x", "reindex"],
 			["x", "rows"],
 			["x", "rows", "t", "delete"],
-			["x", "source"],
+			["x", "pin"],
 		]) {
 			const res = await GET(req(), ctx(path));
 			expect(res.status).toBe(405);
@@ -108,6 +108,35 @@ describe("subgraphs dashboard proxy", () => {
 				expect.stringContaining("/api/subgraphs/x/schema.json"),
 			],
 		);
+	});
+
+	test("source returns the author's source and never the deployed bundle", async () => {
+		const calls = stubFetch(
+			() =>
+				new Response(
+					JSON.stringify({
+						name: "x",
+						version: "1.0.0",
+						sourceCode: "export default {}",
+						handlerCode: "compiled bundle",
+						pin: "abc",
+						pinPreimage: "def",
+						readOnly: false,
+						updatedAt: "2026-11-03T00:00:00Z",
+					}),
+					{ status: 200 },
+				),
+		);
+		const { GET } = await import("./route");
+		const res = await GET(req(), ctx(["x", "source"]));
+		expect(calls[0]?.url.endsWith("/api/subgraphs/x/source")).toBe(true);
+		expect(await res.json()).toEqual({
+			name: "x",
+			version: "1.0.0",
+			sourceCode: "export default {}",
+			readOnly: false,
+			updatedAt: "2026-11-03T00:00:00Z",
+		});
 	});
 
 	test("rows go to /v1 with the whole row query", async () => {
