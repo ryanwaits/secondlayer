@@ -27,7 +27,6 @@ import {
 	applyWebhook,
 	poll,
 	refreshActivity,
-	refreshDays,
 	refreshDeliveriesWindow,
 	refreshDetail,
 	useWebhooksCache,
@@ -70,8 +69,7 @@ import {
 const DETAIL_POLL_MS = 10_000;
 /** The fast standalone `/activity` poll while events are waiting to send. */
 const ACTIVITY_POLL_MS = 5_000;
-/** Daily counts barely move; an hour window refreshes a little sooner. */
-const DAYS_FRESH_MS = 5 * 60_000;
+/** An hour window of deliveries refreshes a little sooner than the page. */
 const WINDOW_FRESH_MS = 60_000;
 const VISIBLE_GROUPS = 10;
 
@@ -620,16 +618,6 @@ export function WebhookDetailSection({ id }: { id: string }) {
 		}, ACTIVITY_POLL_MS);
 	}, [id]);
 
-	useEffect(() => {
-		if (range !== "30d") return;
-		if (
-			webhooksSnapshot().days[id] &&
-			isFresh(`webhooks:days:${id}`, DAYS_FRESH_MS)
-		)
-			return;
-		void refreshDays(id);
-	}, [id, range]);
-
 	const hour = hourWindow(search.get("hour"));
 	const hourFrom = hour?.from;
 	const hourTo = hour?.to;
@@ -803,7 +791,7 @@ export function WebhookDetailSection({ id }: { id: string }) {
 			webhook={webhook}
 			deliveries={deliveries}
 			activity={activity}
-			days={cache.days[id]?.data}
+			days={activity?.days}
 			insights={insights}
 			range={range}
 			onRange={setPickedRange}

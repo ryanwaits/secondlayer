@@ -10,7 +10,6 @@ import { useSyncExternalStore } from "react";
 import { markFresh, shared } from "./request-cache";
 import { loadSnapshot, removeSnapshot, saveSnapshot } from "./session-cache";
 import {
-	type WebhookActivityDay,
 	type WebhooksActivitySummary,
 	type WebhooksResult,
 	getActivity,
@@ -40,8 +39,6 @@ type State = {
 	detail: Record<string, CacheEntry<WebhookDetail>>;
 	deliveries: Record<string, CacheEntry<DeliveryRow[]>>;
 	activity: Record<string, CacheEntry<WebhookActivity>>;
-	/** The 30-day view: 30 UTC days of daily counts, fetched on demand. */
-	days: Record<string, CacheEntry<WebhookActivityDay[]>>;
 	/** Hourly delivered/failed for every webhook (heat strips, sparklines). */
 	summary: CacheEntry<WebhooksActivitySummary>;
 	/** Deliveries for one hour, keyed `${id}:${fromIso}`. */
@@ -53,7 +50,6 @@ const EMPTY: State = {
 	detail: {},
 	deliveries: {},
 	activity: {},
-	days: {},
 	summary: undefined,
 	deliveriesWindow: {},
 };
@@ -186,26 +182,6 @@ export function refreshDeliveriesWindow(
 			windows.sort(([, a], [, b]) => (b?.at ?? 0) - (a?.at ?? 0));
 			set({
 				deliveriesWindow: Object.fromEntries(windows.slice(0, MAX_WINDOWS)),
-			});
-			markFresh(key);
-		}
-		return res;
-	});
-}
-
-/** The 30-day daily counts, for the detail's 30d range. */
-export function refreshDays(
-	id: string,
-): Promise<WebhooksResult<WebhookActivity>> {
-	const key = `webhooks:days:${id}`;
-	return shared(key, async () => {
-		const res = await getActivity(id, { days: 30 });
-		if (res.kind === "ok" && res.data.days) {
-			set({
-				days: {
-					...current().days,
-					[id]: { data: res.data.days, at: Date.now() },
-				},
 			});
 			markFresh(key);
 		}

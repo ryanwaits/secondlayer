@@ -91,6 +91,7 @@ export function activityFor(
 		lastSuccessAt: null,
 		byEventType: { "chain.stx_transfer.apply": delivered * 168 },
 		usualByHourOfDay: null,
+		days: [],
 		...over,
 	};
 }

@@ -194,12 +194,11 @@ describe("getDeliveries window", () => {
 });
 
 describe("getActivity", () => {
-	test("asks for 30 days only when told to", async () => {
+	test("one plain call carries the hours and the 30 days", async () => {
 		const calls = stubFetch(() => new Response("{}", { status: 200 }));
 		await getActivity("wh_1");
-		await getActivity("wh_1", { days: 30 });
+		expect(calls).toHaveLength(1);
 		expect(calls[0]?.url).toBe("/api/webhooks/wh_1/activity");
-		expect(calls[1]?.url).toBe("/api/webhooks/wh_1/activity?days=30");
 	});
 });
 

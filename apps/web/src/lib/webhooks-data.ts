@@ -21,8 +21,8 @@ import type {
  * hosted stack and a zero balance are expected states here, not errors.
  */
 
-/** One UTC day of delivery attempts, from `GET /:id/activity?days=30`. */
-export type WebhookActivityDay = NonNullable<WebhookActivity["days"]>[number];
+/** One UTC day of delivery attempts, from `GET /:id/activity`. */
+export type WebhookActivityDay = WebhookActivity["days"][number];
 
 /** `GET /api/webhooks/activity`: 168 UTC hour starts, oldest first, and each
  *  webhook's delivered and failed counts aligned to them. The SDK has no
@@ -145,15 +145,11 @@ export function getDead(id: string): Promise<WebhooksResult<DeadRow[]>> {
 	return requestList<DeadRow>(`/${encodeURIComponent(id)}/dead`);
 }
 
-/** A week of hourly counts. `days: 30` adds 30 UTC days of daily counts. */
+/** A week of hourly counts and 30 UTC days of daily counts. */
 export function getActivity(
 	id: string,
-	opts?: { days?: 30 },
 ): Promise<WebhooksResult<WebhookActivity>> {
-	const query = opts?.days ? `?days=${opts.days}` : "";
-	return request<WebhookActivity>(
-		`/${encodeURIComponent(id)}/activity${query}`,
-	);
+	return request<WebhookActivity>(`/${encodeURIComponent(id)}/activity`);
 }
 
 /** Hourly delivered and failed counts for every webhook, for the heat strips

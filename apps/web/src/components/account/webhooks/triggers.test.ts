@@ -38,6 +38,7 @@ describe("per-trigger volume", () => {
 			lastSuccessAt: null,
 			byEventType,
 			usualByHourOfDay: null,
+			days: [],
 		};
 	}
 
