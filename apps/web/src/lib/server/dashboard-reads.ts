@@ -8,12 +8,14 @@ import {
 	foldRecentRows,
 } from "@/components/account/subgraphs/recent-rows-model";
 import { listensForCode } from "@/components/account/webhooks/describe-trigger";
+import type { AccountSeed, Billing, Caps } from "@/lib/account-data";
 import { PLATFORM_API_URL } from "@/lib/api";
 import type { RenderedBlock } from "@/lib/code/blocks";
 import {
 	type WebhooksResult,
 	resultFromResponse,
 } from "@/lib/dashboard-results";
+import type { RowsResponse } from "@/lib/rows";
 import { HEALTH_WEEK_HOURS } from "@/lib/subgraph-view";
 import type {
 	SubgraphDetailData,
@@ -22,7 +24,14 @@ import type {
 	SubgraphListItem,
 	SubgraphSource,
 } from "@/lib/subgraphs-store";
+import type { ApiKey, ConnectedApp, CreditAdded } from "@/lib/types";
 import { upstreamAgent } from "@/lib/upstream-agent";
+import {
+	type UsageResponse,
+	currentUtcMonth,
+	monthParam,
+	withUsageMonth,
+} from "@/lib/usage";
 import { normalizeDeliveryRow } from "@/lib/webhooks-data";
 import type { WebhooksActivitySummary } from "@/lib/webhooks-data";
 import type { DetailFetch } from "@/lib/webhooks-store";
@@ -86,6 +95,90 @@ function emptyOnNotFound<T>(
 	empty: T,
 ): WebhooksResult<T> {
 	return res.kind === "not_found" ? { kind: "ok", data: empty } : res;
+}
+
+// ── Account ──────────────────────────────────────────────────────────────
+
+/** The account reads a page can ask for, one per store slice. */
+export type AccountRead =
+	| "billing"
+	| "caps"
+	| "alerts"
+	| "credits"
+	| "keys"
+	| "apps"
+	| "usage"
+	| "rows";
+
+/** Reads the asked-for slices at once and returns the ones that came back ok,
+ *  in store shape. A slice that failed is left out, and the browser loads it
+ *  when the page mounts. */
+export async function accountReads(
+	token: string,
+	wanted: readonly AccountRead[],
+): Promise<AccountSeed> {
+	const month = monthParam(currentUtcMonth());
+	const seed: AccountSeed = {};
+	const readers: Record<AccountRead, () => Promise<void>> = {
+		billing: async () => {
+			const res = await readApi<{
+				creditsUsdMicros: string;
+				creditsSpentThisMonthUsdMicros: string;
+			}>(token, "/api/billing/status");
+			if (res.kind === "ok") {
+				seed.billing = {
+					creditsUsdMicros: res.data.creditsUsdMicros,
+					spentThisMonthUsdMicros: res.data.creditsSpentThisMonthUsdMicros,
+				} satisfies Billing;
+			}
+		},
+		caps: async () => {
+			const res = await readApi<Caps>(token, "/api/billing/caps");
+			if (res.kind === "ok") seed.caps = res.data;
+		},
+		alerts: async () => {
+			const res = await readApi<NonNullable<AccountSeed["alerts"]>>(
+				token,
+				"/api/billing/alerts",
+			);
+			if (res.kind === "ok") seed.alerts = res.data;
+		},
+		credits: async () => {
+			const res = await readApi<{ credits: CreditAdded[] }>(
+				token,
+				"/api/billing/credits",
+			);
+			if (res.kind === "ok") seed.credits = res.data.credits;
+		},
+		keys: async () => {
+			const res = await readApi<{ keys: ApiKey[] }>(token, "/api/keys");
+			if (res.kind === "ok") seed.keys = res.data.keys ?? [];
+		},
+		apps: async () => {
+			const res = await readApi<{ grants: ConnectedApp[] }>(
+				token,
+				"/api/oauth/grants",
+			);
+			if (res.kind === "ok") seed.apps = res.data.grants;
+		},
+		usage: async () => {
+			const res = await readApi<UsageResponse>(
+				token,
+				`/api/billing/usage?month=${month}`,
+			);
+			if (res.kind !== "ok") return;
+			seed.usage = withUsageMonth({}, month, res.data.usage);
+			seed.daily = { [month]: res.data.daily };
+			seed.burn = res.data.burn;
+			seed.service = res.data.service;
+		},
+		rows: async () => {
+			const res = await readApi<RowsResponse>(token, "/api/billing/rows");
+			if (res.kind === "ok") seed.rows = res.data;
+		},
+	};
+	await Promise.all(wanted.map((name) => readers[name]()));
+	return seed;
 }
 
 // ── Webhooks ─────────────────────────────────────────────────────────────

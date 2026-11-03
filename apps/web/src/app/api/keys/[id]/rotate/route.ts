@@ -2,6 +2,9 @@ import { ApiError, apiRequest, getSessionFromRequest } from "@/lib/api";
 import { isSameOrigin } from "@/lib/same-origin";
 import { NextResponse } from "next/server";
 
+// Next to the API, so each dashboard read and write takes the short hop.
+export const preferredRegion = "fra1";
+
 /**
  * Replace one of the signed-in account's keys with a new secret under the same
  * name. The session cookie is the only credential (an Authorization header is

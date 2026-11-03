@@ -1,6 +1,9 @@
 import { ApiError, apiRequest, getSessionFromRequest } from "@/lib/api";
 import { NextResponse } from "next/server";
 
+// Next to the API, so each dashboard read and write takes the short hop.
+export const preferredRegion = "fra1";
+
 type Caps = {
 	monthlyCapCents: number | null;
 	alertThresholdPct: number;

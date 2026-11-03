@@ -1,5 +1,6 @@
 "use client";
 
+import type { OverviewInitial } from "@/components/account/overview/overview-section";
 import { rowsCell } from "@/components/account/overview/overview-view";
 import { useSubgraphsPoll } from "@/components/account/subgraphs/list-screen";
 import { ChartSkeleton } from "@/components/charts/chart-skeleton";
@@ -7,6 +8,8 @@ import { LazyBandBarChart } from "@/components/charts/lazy";
 import {
 	type Billing,
 	type Caps,
+	ensureBilling,
+	ensureCaps,
 	formatUsd,
 	refreshBilling,
 	refreshCaps,
@@ -18,7 +21,10 @@ import { SITE } from "@/lib/docs-agent";
 import { type Insight, severityDot } from "@/lib/insights";
 import { refreshInsights, useInsights } from "@/lib/insights-store";
 import type { RowsResponse } from "@/lib/rows";
-import { useSubgraphsCache } from "@/lib/subgraphs-store";
+import {
+	listSeed as subgraphsListSeed,
+	useSubgraphsCache,
+} from "@/lib/subgraphs-store";
 import { formatRows } from "@/lib/usage";
 import type { WebhooksActivitySummary } from "@/lib/webhooks-data";
 import {
@@ -26,6 +32,7 @@ import {
 	refreshList,
 	refreshSummary,
 	useWebhooksCache,
+	listSeed as webhooksListSeed,
 } from "@/lib/webhooks-store";
 import { type ReactNode, useEffect, useState } from "react";
 import { InsightRow } from "../insights/insight-row";
@@ -298,38 +305,56 @@ function PullIndicator({ phase, offset }: ReturnType<typeof usePullRefresh>) {
 }
 
 /** The phone Pulse tab: what needs you, the last 24 hours, and today. */
-export function PulseScreen() {
+export function PulseScreen({
+	initial = null,
+}: { initial?: OverviewInitial | null } = {}) {
 	const { billing, rows, caps } = useAccountData();
 	const insights = useInsights();
-	const cache = useWebhooksCache();
-	const subgraphs = useSubgraphsCache().list;
+	const cache = useWebhooksCache(
+		initial ? webhooksListSeed(initial.webhooks) : undefined,
+	);
+	const subgraphs = useSubgraphsCache(
+		initial ? subgraphsListSeed(initial.subgraphs) : undefined,
+	).list;
+	const [rowsSeeded] = useState(rows !== null);
+	const webhooksLoaded =
+		initial?.webhooks.list.kind === "ok" &&
+		initial.webhooks.summary.kind === "ok";
 	const [seenAt] = useState(readSeenAt);
 	const [now, setNow] = useState(() => new Date());
 	const { open, sheets } = useInsightSheets(insights.data);
 
 	useEffect(() => {
-		refreshBilling();
-		refreshCaps();
+		ensureBilling();
+		ensureCaps();
 	}, []);
 	useEffect(
 		() =>
-			poll(async () => {
-				await refreshRows();
-				return {};
-			}, 60_000),
-		[],
+			poll(
+				async () => {
+					await refreshRows();
+					return {};
+				},
+				60_000,
+				{ immediate: !rowsSeeded },
+			),
+		[rowsSeeded],
 	);
 	useEffect(
 		() =>
-			poll(async () => {
-				const [list] = await Promise.all([refreshList(), refreshSummary()]);
-				return list.kind === "starting" || list.kind === "rate_limited"
-					? { retryAfterMs: list.retryAfter * 1000 }
-					: {};
-			}, POLL_MS),
-		[],
+			poll(
+				async () => {
+					const [list] = await Promise.all([refreshList(), refreshSummary()]);
+					return list.kind === "starting" || list.kind === "rate_limited"
+						? { retryAfterMs: list.retryAfter * 1000 }
+						: {};
+				},
+				POLL_MS,
+				{ immediate: !webhooksLoaded },
+			),
+		[webhooksLoaded],
 	);
-	useSubgraphsPoll();
+	useSubgraphsPoll(initial?.subgraphs);
 
 	// "Updated" ages on its own; tick so the label stays honest.
 	useEffect(() => {

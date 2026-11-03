@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, test } from "bun:test";
+import { afterEach, beforeEach, describe, expect, jest, test } from "bun:test";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import {
@@ -13,6 +13,7 @@ import {
 	refreshInsights,
 	restore,
 	snooze,
+	startInsightsPolling,
 	topLine,
 	useInsights,
 } from "./insights-store";
@@ -272,5 +273,40 @@ describe("server seed", () => {
 			// @ts-expect-error restoring the bare test environment
 			globalThis.window = undefined;
 		}
+	});
+});
+
+describe("startInsightsPolling", () => {
+	afterEach(() => {
+		jest.useRealTimers();
+	});
+
+	async function advance(ms: number): Promise<void> {
+		await Promise.resolve();
+		jest.advanceTimersByTime(ms);
+		await Promise.resolve();
+		await Promise.resolve();
+	}
+
+	test("reads right away by default, then every 30 s", async () => {
+		jest.useFakeTimers();
+		const calls = stubFetch(() => list());
+		const stop = startInsightsPolling();
+		await advance(0);
+		expect(calls.length).toBe(1);
+		await advance(30_000);
+		expect(calls.length).toBe(2);
+		stop();
+	});
+
+	test("a page that carries the insights waits a full interval for the first read", async () => {
+		jest.useFakeTimers();
+		const calls = stubFetch(() => list());
+		const stop = startInsightsPolling({ immediate: false });
+		await advance(29_999);
+		expect(calls.length).toBe(0);
+		await advance(1);
+		expect(calls.length).toBe(1);
+		stop();
 	});
 });

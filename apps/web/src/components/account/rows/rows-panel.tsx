@@ -337,7 +337,8 @@ export function RowsSection() {
 
 	// biome-ignore lint/correctness/useExhaustiveDependencies: load once on mount
 	useEffect(() => {
-		load();
+		// The page carries the rows; read them here only when it couldn't.
+		if (!rows) load();
 		preloadBandBarChart();
 		ensureKeys();
 	}, []);

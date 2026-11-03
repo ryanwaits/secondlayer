@@ -229,10 +229,18 @@ export async function restore(
 	return false;
 }
 
-/** Refresh now, then every 30 s while the tab is visible. Returns a stop function. */
-export function startInsightsPolling(): () => void {
-	return poll(async () => {
-		await refreshInsights();
-		return {};
-	}, 30_000);
+/** Refresh now, then every 30 s while the tab is visible. Returns a stop
+ *  function. With `immediate: false` the first refresh waits a full interval,
+ *  for a page that already carries the insights. */
+export function startInsightsPolling(
+	options: { immediate?: boolean } = {},
+): () => void {
+	return poll(
+		async () => {
+			await refreshInsights();
+			return {};
+		},
+		30_000,
+		{ immediate: options.immediate },
+	);
 }

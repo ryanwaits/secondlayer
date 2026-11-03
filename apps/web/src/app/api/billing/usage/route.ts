@@ -2,6 +2,9 @@ import { ApiError, apiRequest, getSessionFromRequest } from "@/lib/api";
 import { type UsageRow, currentUtcMonth, monthParam } from "@/lib/usage";
 import { NextResponse } from "next/server";
 
+// Next to the API, so each dashboard read and write takes the short hop.
+export const preferredRegion = "fra1";
+
 const MONTH_RE = /^\d{4}-(0[1-9]|1[0-2])$/;
 
 /** This account's usage_ledger for one UTC calendar month, by unit. Defaults

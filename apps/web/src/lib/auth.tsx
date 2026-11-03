@@ -8,7 +8,7 @@ import {
 	useEffect,
 	useState,
 } from "react";
-import { adoptCacheOwner } from "./account-data";
+import { clearAccountData } from "./account-data";
 import { identify, reset } from "./analytics";
 import type { Account } from "./types";
 import { marketingUrl } from "./urls";
@@ -35,7 +35,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 			const data = await res.json();
 			const account = data.account ?? null;
 			setAccount(account);
-			adoptCacheOwner(account?.id ?? null);
+			// A signed-out answer (say, an expired session) leaves nothing of the
+			// last account behind for whoever signs in next in this tab.
+			if (!account) clearAccountData();
 			if (account) {
 				identify(account.id, {
 					email: account.email,
@@ -78,8 +80,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 		}
 		const data = await res.json();
 		const account = data.account as Account;
+		// A new session starts from nothing; its pages read their own data.
+		clearAccountData();
 		setAccount(account);
-		adoptCacheOwner(account.id);
 		identify(account.id, {
 			email: account.email,
 			...(account.displayName ? { name: account.displayName } : {}),
@@ -89,6 +92,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
 	const logout = useCallback(async () => {
 		await fetch("/api/auth/logout", { method: "POST" });
+		clearAccountData();
 		reset();
 		router.push("/");
 		router.refresh();

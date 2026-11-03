@@ -2,6 +2,9 @@ import { ApiError, apiRequest, getSessionFromRequest } from "@/lib/api";
 import type { ApiKey } from "@/lib/types";
 import { NextResponse } from "next/server";
 
+// Next to the API, so each dashboard read and write takes the short hop.
+export const preferredRegion = "fra1";
+
 /**
  * The signed-in account's API keys, for /account. The session cookie is the
  * credential; the API does the owner check. A new key's full value is in the

@@ -22,10 +22,10 @@ import { Skel } from "@/components/dashboard/shell/skel";
 import { StatusSentence } from "@/components/dashboard/shell/status-sentence";
 import {
 	type Billing,
+	ensureBilling,
+	ensureCaps,
+	ensureKeys,
 	formatUsd,
-	refreshBilling,
-	refreshCaps,
-	refreshKeys,
 	refreshRows,
 	refreshUsage,
 	useAccountData,
@@ -43,7 +43,15 @@ import {
 	skipOnboarding,
 } from "@/lib/onboarding";
 import type { RowsResponse } from "@/lib/rows";
-import { useSubgraphsCache } from "@/lib/subgraphs-store";
+import type {
+	SubgraphsListInitial,
+	WebhooksListInitial,
+} from "@/lib/server/dashboard-reads";
+import {
+	type SubgraphsSeed,
+	listSeed as subgraphsListSeed,
+	useSubgraphsCache,
+} from "@/lib/subgraphs-store";
 import type { ApiKey } from "@/lib/types";
 import {
 	type Burn,
@@ -56,7 +64,12 @@ import {
 	nextMonthLabel,
 } from "@/lib/usage";
 import { useFirstSettle } from "@/lib/use-first-settle";
-import { poll, refreshList, refreshSummary } from "@/lib/webhooks-store";
+import {
+	poll,
+	refreshList,
+	refreshSummary,
+	listSeed as webhooksListSeed,
+} from "@/lib/webhooks-store";
 import Link from "next/link";
 import { type ReactNode, useEffect, useState } from "react";
 import { countedKeys } from "../keys/key-view";
@@ -109,8 +122,8 @@ export const SUBGRAPH_HEAD: ResourceRowLabels = [
 
 /** One row per subgraph, under their own header. Empty until the Overview's
  *  poll has loaded the list, and for an account with no subgraphs. */
-export function OverviewSubgraphsSlot() {
-	return <OverviewSubgraphsRows head={SUBGRAPH_HEAD} />;
+export function OverviewSubgraphsSlot({ seed }: { seed?: SubgraphsSeed } = {}) {
+	return <OverviewSubgraphsRows head={SUBGRAPH_HEAD} seed={seed} />;
 }
 
 const plural = (n: number, one: string, many = `${one}s`) =>
@@ -593,61 +606,107 @@ function useOnboarding({
 	};
 }
 
+/** What the server read for the lists below the sentence. */
+export interface OverviewInitial {
+	webhooks: WebhooksListInitial;
+	subgraphs: SubgraphsListInitial;
+}
+
 /** /account: is everything running, what needs you, what it costs. The
- *  first-rows blocks are server-rendered by the page and passed in. */
+ *  first-rows blocks are server-rendered by the page and passed in, and so
+ *  are the first reads (`initial`, with the account data in the page's
+ *  `AccountSeedProvider`): a read the server made isn't made again on mount,
+ *  and its poll waits a full interval. */
 export function OverviewSection({
 	firstRowsCode,
 	firstRowsPrompt,
-}: { firstRowsCode?: ReactNode; firstRowsPrompt?: ReactNode } = {}) {
+	initial = null,
+}: {
+	firstRowsCode?: ReactNode;
+	firstRowsPrompt?: ReactNode;
+	initial?: OverviewInitial | null;
+} = {}) {
 	const { account } = useAuth();
-	const { billing, burn, keys, service, rows: rowsData } = useAccountData();
-	const { rows } = useWebhookRows();
+	const {
+		billing,
+		burn,
+		keys,
+		service,
+		rows: rowsData,
+		usage,
+	} = useAccountData();
+	const webhooksSeed = initial ? webhooksListSeed(initial.webhooks) : undefined;
+	const subgraphsSeed = initial
+		? subgraphsListSeed(initial.subgraphs)
+		: undefined;
+	const { rows } = useWebhookRows(webhooksSeed);
 	const { data: insights, status: insightsStatus } = useInsights();
 	const month = monthParam(currentUtcMonth());
+	// Whether each read came with the page, fixed at mount: a later refresh
+	// must not restart its poll.
+	const [usageSeeded] = useState(usage[month] !== undefined);
+	const [rowsSeeded] = useState(rowsData !== null);
 
 	useEffect(() => {
-		refreshBilling();
-		refreshCaps();
-		refreshKeys();
+		ensureBilling();
+		ensureCaps();
+		ensureKeys();
 	}, []);
 
 	// Every 60s while the tab is visible, as the usage page does; this is
 	// also what keeps burn and the hosted stack's state current.
 	useEffect(() => {
-		return poll(async () => {
-			await refreshUsage(month);
-			return {};
-		}, 60_000);
-	}, [month]);
+		return poll(
+			async () => {
+				await refreshUsage(month);
+				return {};
+			},
+			60_000,
+			{ immediate: !usageSeeded },
+		);
+	}, [month, usageSeeded]);
 
 	// The Rows (reads) row's data. Polled here, not in its slot, which is not
 	// mounted while the first-paint skeleton is up.
 	useEffect(
 		() =>
-			poll(async () => {
-				await refreshRows();
-				return {};
-			}, 60_000),
-		[],
+			poll(
+				async () => {
+					await refreshRows();
+					return {};
+				},
+				60_000,
+				{ immediate: !rowsSeeded },
+			),
+		[rowsSeeded],
 	);
 
 	// A read never starts or wakes a hosted stack (the gateway answers an
 	// account with no stack with an empty list), so asking right away is free.
-	const [asleep, setAsleep] = useState(false);
+	const [asleep, setAsleep] = useState(
+		initial?.webhooks.list.kind === "asleep",
+	);
+	const webhooksLoaded =
+		initial?.webhooks.list.kind === "ok" &&
+		initial.webhooks.summary.kind === "ok";
 	useEffect(() => {
-		return poll(async () => {
-			const [list] = await Promise.all([refreshList(), refreshSummary()]);
-			setAsleep(list.kind === "asleep");
-			return list.kind === "starting" || list.kind === "rate_limited"
-				? { retryAfterMs: list.retryAfter * 1000 }
-				: {};
-		}, POLL_MS);
-	}, []);
+		return poll(
+			async () => {
+				const [list] = await Promise.all([refreshList(), refreshSummary()]);
+				setAsleep(list.kind === "asleep");
+				return list.kind === "starting" || list.kind === "rate_limited"
+					? { retryAfterMs: list.retryAfter * 1000 }
+					: {};
+			},
+			POLL_MS,
+			{ immediate: !webhooksLoaded },
+		);
+	}, [webhooksLoaded]);
 
 	// The subgraph list and its health, for the checklist and the rows below.
-	useSubgraphsPoll();
+	useSubgraphsPoll(initial?.subgraphs);
 
-	const subgraphs = useSubgraphsCache().list;
+	const subgraphs = useSubgraphsCache(subgraphsSeed).list;
 	const now = new Date();
 	const onboarding = useOnboarding({
 		keys,
@@ -679,6 +738,7 @@ export function OverviewSection({
 		<OverviewBody
 			loading={!ready}
 			// No hosted stack means no webhooks, so there is nothing to wait for.
+			subgraphs={<OverviewSubgraphsSlot seed={subgraphsSeed} />}
 			rows={rows ?? (service?.state === "none" ? [] : null)}
 			billing={billing}
 			burn={burn}

@@ -1,6 +1,9 @@
 import { ApiError, apiRequest, getSessionFromRequest } from "@/lib/api";
 import { NextResponse } from "next/server";
 
+// Next to the API, so each dashboard read and write takes the short hop.
+export const preferredRegion = "fra1";
+
 export async function POST(req: Request) {
 	try {
 		const sessionToken = getSessionFromRequest(req);

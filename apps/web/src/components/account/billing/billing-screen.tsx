@@ -15,9 +15,10 @@ import { useCompact } from "@/components/mobile/use-compact";
 import {
 	type Billing,
 	type TopupReturn,
+	ensureBilling,
+	ensureCaps,
+	ensureCredits,
 	formatUsd,
-	refreshBilling,
-	refreshCaps,
 	refreshCredits,
 	refreshUsage,
 	updateCap,
@@ -362,11 +363,14 @@ export function BillingScreen({ ret }: { ret: TopupReturn | null }) {
 	const [pendingCap, setPendingCap] = useState<number | null | undefined>();
 	const now = new Date();
 	const month = monthParam(currentUtcMonth(now));
+	// Whether the page came with this month's usage, fixed at mount: a later
+	// refresh must not restart the poll.
+	const [usageSeeded] = useState(usage[month] !== undefined);
 
 	useEffect(() => {
-		refreshBilling();
-		refreshCaps();
-		refreshCredits();
+		ensureBilling();
+		ensureCaps();
+		ensureCredits();
 		preloadSpendChart();
 		preloadMonoStackedBarChart();
 	}, []);
@@ -380,11 +384,15 @@ export function BillingScreen({ ret }: { ret: TopupReturn | null }) {
 	// Every 60s while the tab is visible, refresh the month's usage. This is
 	// also how `burn` and `service` (always "now") stay live.
 	useEffect(() => {
-		return poll(async () => {
-			await refreshUsage(month);
-			return {};
-		}, 60_000);
-	}, [month]);
+		return poll(
+			async () => {
+				await refreshUsage(month);
+				return {};
+			},
+			60_000,
+			{ immediate: !usageSeeded },
+		);
+	}, [month, usageSeeded]);
 
 	const capUsd =
 		pendingCap !== undefined

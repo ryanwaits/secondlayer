@@ -2,6 +2,9 @@ import { ApiError, apiRequest } from "@/lib/api";
 import type { Account } from "@/lib/types";
 import { NextResponse } from "next/server";
 
+// Next to the API, so each dashboard read and write takes the short hop.
+export const preferredRegion = "fra1";
+
 export async function POST(req: Request) {
 	try {
 		const body = await req.json();

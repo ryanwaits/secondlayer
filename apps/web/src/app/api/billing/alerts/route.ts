@@ -1,6 +1,9 @@
 import { ApiError, apiRequest, getSessionFromRequest } from "@/lib/api";
 import { NextResponse } from "next/server";
 
+// Next to the API, so each dashboard read and write takes the short hop.
+export const preferredRegion = "fra1";
+
 type Alerts = { notify7d: boolean; notify2d: boolean };
 
 /** The signed-in account's balance-runway email preferences. */

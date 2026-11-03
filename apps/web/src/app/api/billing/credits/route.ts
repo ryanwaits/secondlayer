@@ -2,6 +2,9 @@ import { ApiError, apiRequest, getSessionFromRequest } from "@/lib/api";
 import type { CreditAdded } from "@/lib/types";
 import { NextResponse } from "next/server";
 
+// Next to the API, so each dashboard read and write takes the short hop.
+export const preferredRegion = "fra1";
+
 /** The signed-in account's latest top-ups and grants, newest first. */
 export async function GET(req: Request) {
 	const sessionToken = getSessionFromRequest(req);

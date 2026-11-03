@@ -36,6 +36,7 @@ import {
 	type SubgraphHealthData,
 	type SubgraphListItem,
 	type SubgraphsResult,
+	type SubgraphsSeed,
 	listSeed,
 	poll,
 	refreshListAndHealth,
@@ -206,8 +207,15 @@ const healthByName = (
 /** The Overview's subgraph rows, read from the cache the Overview's own
  *  `useSubgraphsPoll` fills. Quiet until the list has loaded, and nothing at
  *  all when the account has no subgraphs. */
-export function OverviewSubgraphsRows({ head }: { head?: ResourceRowLabels }) {
-	const { list, health } = useSubgraphsCache();
+export function OverviewSubgraphsRows({
+	head,
+	seed,
+}: {
+	head?: ResourceRowLabels;
+	/** What the server read, so the rows are in the HTML. */
+	seed?: SubgraphsSeed;
+}) {
+	const { list, health } = useSubgraphsCache(seed);
 	const { data: insights } = useInsights();
 	if (!list || list.data.length === 0) return null;
 	return (

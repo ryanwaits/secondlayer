@@ -1,19 +1,28 @@
-"use client";
+import { AccountSeedProvider } from "@/lib/account-data";
+import { InsightsSeed } from "@/lib/insights-store";
+import { accountReads } from "@/lib/server/dashboard-reads";
+import { readInsights } from "@/lib/server/insights-read";
+import { sessionToken } from "@/lib/server/session";
+import { AccountCreditsPage } from "./credits-page";
 
-import { BillingScreen } from "@/components/account/billing/billing-screen";
-import { type TopupReturn, takeTopupReturn } from "@/lib/account-data";
-import { useEffect, useRef, useState } from "react";
+// Next to the API (Hetzner HEL/fsn1), and per request: the HTML carries one
+// account's data, so it is never prerendered or shared.
+export const preferredRegion = "fra1";
+export const dynamic = "force-dynamic";
 
-export default function AccountCreditsPage() {
-	// Stripe returns here with ?topup=success|cancelled. Reading it clears
-	// it, so guard against effects running twice.
-	const [ret, setRet] = useState<TopupReturn | null>(null);
-	const taken = useRef(false);
-	useEffect(() => {
-		if (taken.current) return;
-		taken.current = true;
-		setRet(takeTopupReturn());
-	}, []);
-
-	return <BillingScreen ret={ret} />;
+export default async function AccountBillingPage() {
+	const token = await sessionToken();
+	const [account, insights] = token
+		? await Promise.all([
+				accountReads(token, ["billing", "caps", "credits", "usage", "alerts"]),
+				readInsights(token),
+			])
+		: [{}, null];
+	return (
+		<InsightsSeed insights={insights}>
+			<AccountSeedProvider seed={account}>
+				<AccountCreditsPage />
+			</AccountSeedProvider>
+		</InsightsSeed>
+	);
 }

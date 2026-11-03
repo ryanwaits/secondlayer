@@ -14,7 +14,9 @@ import {
 import { FIXTURE_INSIGHTS } from "@/lib/insights.fixtures";
 import { readInsights } from "@/lib/server/insights-read";
 import { upstreamAgent } from "@/lib/upstream-agent";
+import { currentUtcMonth, monthParam } from "@/lib/usage";
 import {
+	accountReads,
 	readApi,
 	subgraphDetailReads,
 	subgraphsListReads,
@@ -249,5 +251,73 @@ describe("readInsights", () => {
 			"/api/insights": () => json({}, 500),
 		});
 		expect(await readInsights("t")).toBeNull();
+	});
+});
+
+describe("accountReads", () => {
+	const month = monthParam(currentUtcMonth());
+
+	test("maps each answer to its store slice, with the bearer, in one round of calls", async () => {
+		const calls = stubApi({
+			"/api/billing/status": () =>
+				json({ creditsUsdMicros: "5", creditsSpentThisMonthUsdMicros: "2" }),
+			"/api/billing/caps": () =>
+				json({
+					monthlyCapCents: null,
+					alertThresholdPct: 80,
+					frozenAt: null,
+					alertSentAt: null,
+				}),
+			"/api/keys": () => json({ keys: [{ id: "k1" }] }),
+			"/api/billing/usage": () =>
+				json({
+					month,
+					usage: [{ unit: "rows", quantity: "1", costUsdMicros: "1" }],
+					daily: [],
+					burn: { rateDayUsdMicros: "0" },
+					service: { state: "none" },
+				}),
+		});
+		const seed = await accountReads("tok", [
+			"billing",
+			"caps",
+			"keys",
+			"usage",
+		]);
+		expect(seed.billing).toEqual({
+			creditsUsdMicros: "5",
+			spentThisMonthUsdMicros: "2",
+		});
+		expect(seed.keys).toEqual([{ id: "k1" }] as never);
+		expect(seed.usage?.[month]).toHaveLength(1);
+		expect(seed.daily).toEqual({ [month]: [] });
+		expect(seed.service).toEqual({ state: "none" } as never);
+		expect(calls.map((c) => c.path).sort()).toEqual([
+			"/api/billing/caps",
+			"/api/billing/status",
+			`/api/billing/usage?month=${month}`,
+			"/api/keys",
+		]);
+		for (const call of calls) {
+			expect((call.init.headers as Record<string, string>).Authorization).toBe(
+				"Bearer tok",
+			);
+		}
+	});
+
+	test("a slice that fails is left out so the browser loads it", async () => {
+		stubApi({
+			"/api/billing/status": () => json({ error: "boom" }, 500),
+			"/api/keys": () => json({ keys: [] }),
+		});
+		const seed = await accountReads("tok", ["billing", "keys"]);
+		expect("billing" in seed).toBe(false);
+		expect(seed.keys).toEqual([]);
+	});
+
+	test("asks for nothing it was not asked for", async () => {
+		const calls = stubApi({ "/api/keys": () => json({ keys: [] }) });
+		await accountReads("tok", ["keys"]);
+		expect(calls).toHaveLength(1);
 	});
 });

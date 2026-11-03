@@ -2,7 +2,7 @@
 
 import {
 	type BalanceAlerts,
-	refreshAlerts,
+	ensureAlerts,
 	updateAlerts,
 	useAccountData,
 } from "@/lib/account-data";
@@ -123,7 +123,7 @@ export function LimitsAndEmails({
 }) {
 	const { alerts } = useAccountData();
 	useEffect(() => {
-		refreshAlerts();
+		ensureAlerts();
 	}, []);
 	const [pending, setPending] = useState<BalanceAlerts | null>(null);
 	const current = pending ?? alerts ?? DEFAULT_ALERTS;

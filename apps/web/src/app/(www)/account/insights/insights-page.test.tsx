@@ -12,7 +12,7 @@ mock.module("next/navigation", () => ({
 	permanentRedirect: () => {},
 }));
 
-const { default: InsightsPage } = await import("./page");
+const { InsightsPage } = await import("./insights-page");
 
 describe("account insights page", () => {
 	test("renders nothing on the server, so desktop never gets an insights list", () => {

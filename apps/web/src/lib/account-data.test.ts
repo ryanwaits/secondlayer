@@ -1,16 +1,28 @@
-import { afterEach, beforeEach, describe, expect, test } from "bun:test";
+import { afterEach, describe, expect, test } from "bun:test";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 import {
+	AccountSeedProvider,
 	CreateKeyError,
 	accountSnapshot,
-	adoptCacheOwner,
 	clearAccountData,
+	ensureBilling,
 	ensureKeys,
 	isTopupUsd,
 	refreshBilling,
 	refreshKeys,
 	rotateKey,
+	useAccountData,
 } from "./account-data";
-import { refreshList, subgraphsSnapshot } from "./subgraphs-store";
+import { insightsSnapshot, refreshInsights } from "./insights-store";
+import {
+	refreshList as refreshSubgraphs,
+	subgraphsSnapshot,
+} from "./subgraphs-store";
+import {
+	refreshList as refreshWebhooks,
+	webhooksSnapshot,
+} from "./webhooks-store";
 
 const originalFetch = globalThis.fetch;
 afterEach(() => {
@@ -45,7 +57,7 @@ describe("shared reads", () => {
 });
 
 describe("ensureKeys", () => {
-	test("skips the request right after a successful load", async () => {
+	test("skips the request when keys are already in the store", async () => {
 		const calls = stub(() => jsonResponse({ keys: [] }));
 		await refreshKeys();
 		await ensureKeys();
@@ -86,98 +98,85 @@ describe("rotateKey", () => {
 	});
 });
 
-describe("clearAccountData", () => {
-	test("empties the subgraphs store", async () => {
-		stub(() => jsonResponse({ data: [{ name: "pool", status: "active" }] }));
-		await refreshList();
-		expect(subgraphsSnapshot().list?.data.length).toBe(1);
-		clearAccountData();
-		expect(subgraphsSnapshot().list).toBeUndefined();
+describe("this tab keeps no copy of the account", () => {
+	test("a successful refresh writes nothing to sessionStorage", async () => {
+		const saved = new Map<string, string>();
+		globalThis.sessionStorage = {
+			setItem: (k: string, v: string) => void saved.set(k, v),
+		} as unknown as Storage;
+		globalThis.window = {} as Window & typeof globalThis;
+		try {
+			stub(() => jsonResponse({ keys: [] }));
+			await refreshKeys();
+			expect(accountSnapshot().keys).toEqual([]);
+			expect(saved.size).toBe(0);
+		} finally {
+			// @ts-expect-error restoring the bare test environment
+			globalThis.sessionStorage = undefined;
+			// @ts-expect-error restoring the bare test environment
+			globalThis.window = undefined;
+		}
 	});
 });
 
-const storage = new Map<string, string>();
-
-function installStorage() {
-	storage.clear();
-	globalThis.sessionStorage = {
-		getItem: (k: string) => storage.get(k) ?? null,
-		setItem: (k: string, v: string) => void storage.set(k, v),
-		removeItem: (k: string) => void storage.delete(k),
-		key: (i: number) => [...storage.keys()][i] ?? null,
-		get length() {
-			return storage.size;
-		},
-	} as unknown as Storage;
-	globalThis.window = {} as Window & typeof globalThis;
-}
-
-function removeStorage() {
-	// @ts-expect-error restoring the bare test environment
-	globalThis.sessionStorage = undefined;
-	// @ts-expect-error restoring the bare test environment
-	globalThis.window = undefined;
-}
-
-function envelope(data: unknown): string {
-	return JSON.stringify({ owner: null, savedAt: Date.now(), data });
-}
-
-describe("this tab's saved copy", () => {
-	beforeEach(installStorage);
-	afterEach(removeStorage);
-
-	test("a successful refresh is saved for a reload", async () => {
-		stub(() => jsonResponse({ keys: [] }));
-		await refreshKeys();
-		expect(storage.get("sl:dash:v1:account")).toContain('"keys":[]');
-	});
-
-	test("a reload reads the saved copy and clearing removes it", () => {
-		clearAccountData(); // resets the store as a fresh page load would
-		storage.set(
-			"sl:dash:v1:account",
-			envelope({
-				billing: { creditsUsdMicros: "5", spentThisMonthUsdMicros: "0" },
-			}),
+describe("sign-out", () => {
+	test("empties every dashboard store, so the next account starts from nothing", async () => {
+		stub((path) =>
+			path === "/api/keys"
+				? jsonResponse({ keys: [] })
+				: jsonResponse({ data: [] }),
 		);
-		expect(accountSnapshot().billing?.creditsUsdMicros).toBe("5");
+		await Promise.all([
+			refreshKeys(),
+			refreshSubgraphs(),
+			refreshWebhooks(),
+			refreshInsights(),
+		]);
+		expect(accountSnapshot().keys).toEqual([]);
+		expect(subgraphsSnapshot().list).toBeDefined();
+		expect(webhooksSnapshot().list).toBeDefined();
+		expect(insightsSnapshot().status).toBe("ok");
 		clearAccountData();
-		expect(storage.has("sl:dash:v1:account")).toBe(false);
+		expect(accountSnapshot().keys).toBeNull();
+		expect(subgraphsSnapshot().list).toBeUndefined();
+		expect(webhooksSnapshot().list).toBeUndefined();
+		expect(insightsSnapshot().status).toBe("idle");
 	});
 });
 
-describe("adoptCacheOwner", () => {
-	beforeEach(installStorage);
-	afterEach(removeStorage);
-
-	async function seed() {
-		stub(() => jsonResponse({ keys: [] }));
-		await refreshKeys();
+describe("server seed", () => {
+	const seed = {
+		billing: { creditsUsdMicros: "5000000", spentThisMonthUsdMicros: "0" },
+		keys: [],
+	};
+	function Probe() {
+		const { billing } = useAccountData();
+		return createElement("p", null, `balance:${billing?.creditsUsdMicros}`);
 	}
+	const withSeed = () =>
+		createElement(AccountSeedProvider, { seed }, createElement(Probe));
 
-	test("a different account empties the store and its saved copy", async () => {
-		adoptCacheOwner("a");
-		await seed();
-		expect(accountSnapshot().keys).toEqual([]);
-		adoptCacheOwner("b");
-		expect(accountSnapshot().keys).toBeNull();
-		expect(storage.has("sl:dash:v1:account")).toBe(false);
+	test("the server render paints the seed and leaves the module store empty", () => {
+		// No window here: this is the server, whose module state is shared
+		// across requests and must never hold one account's data.
+		const html = renderToStaticMarkup(withSeed());
+		expect(html).toContain("balance:5000000");
+		expect(accountSnapshot().billing).toBeNull();
 	});
 
-	test("a signed-out answer with an owner set clears", async () => {
-		adoptCacheOwner("a");
-		await seed();
-		adoptCacheOwner(null);
-		expect(accountSnapshot().keys).toBeNull();
-		expect(storage.has("sl:dash:v1:owner")).toBe(false);
-	});
-
-	test("the same account twice keeps the data", async () => {
-		adoptCacheOwner("a");
-		await seed();
-		adoptCacheOwner("a");
-		expect(accountSnapshot().keys).toEqual([]);
+	test("the browser starts its store from the seed and does not read what it holds", async () => {
+		globalThis.window = {} as Window & typeof globalThis;
+		try {
+			renderToStaticMarkup(withSeed());
+			expect(accountSnapshot().billing?.creditsUsdMicros).toBe("5000000");
+			const calls = stub(() => jsonResponse({}));
+			await ensureKeys();
+			await ensureBilling();
+			expect(calls).toEqual([]);
+		} finally {
+			// @ts-expect-error restoring the bare test environment
+			globalThis.window = undefined;
+		}
 	});
 });
 

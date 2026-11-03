@@ -1,17 +1,10 @@
 "use client";
 
-import { useSyncExternalStore } from "react";
+import { createContext, useContext, useSyncExternalStore } from "react";
 import { clearInsights } from "./insights-store";
 import { TOPUP_MAX_USD, TOPUP_MIN_USD } from "./prices";
-import { clearRequestCache, isFresh, markFresh, shared } from "./request-cache";
+import { clearRequestCache, shared } from "./request-cache";
 import type { RowsResponse } from "./rows";
-import {
-	clearSnapshots,
-	currentOwner,
-	loadSnapshot,
-	saveSnapshot,
-	setOwner,
-} from "./session-cache";
 import { clearSubgraphsData } from "./subgraphs-store";
 import type { ApiKey, ConnectedApp, CreditAdded } from "./types";
 import {
@@ -91,26 +84,15 @@ const EMPTY: State = {
 	credits: null,
 	rows: null,
 };
-const NAME = "account";
 let state: State = EMPTY;
-let hydrated = false;
 const listeners = new Set<() => void>();
 
-/** The first client read pulls this tab's last copy, if any. */
 function current(): State {
-	if (!hydrated && typeof window !== "undefined") {
-		hydrated = true;
-		const saved = loadSnapshot<Partial<State>>(NAME);
-		if (saved) state = { ...EMPTY, ...saved };
-	}
 	return state;
 }
 
 function set(patch: Partial<State>) {
-	const prev = current();
-	state = { ...prev, ...patch };
-	if ((Object.keys(EMPTY) as (keyof State)[]).some((k) => prev[k] !== state[k]))
-		saveSnapshot(NAME, state);
+	state = { ...state, ...patch };
 	for (const l of listeners) l();
 }
 
@@ -124,8 +106,56 @@ export function accountSnapshot(): State {
 	return current();
 }
 
+/** What a server render read for the page, in store shape. */
+export type AccountSeed = Partial<State>;
+
+const AccountSeedContext = createContext<AccountSeed | null>(null);
+
+const appliedSeeds = new WeakSet<object>();
+const serverStates = new WeakMap<object, State>();
+
+/** Puts a seed into the client store, once per seed. Quiet on purpose: it runs
+ *  while a component renders, so it must not wake other subscribers. */
+function applySeed(seed: AccountSeed): void {
+	if (typeof window === "undefined" || appliedSeeds.has(seed)) return;
+	appliedSeeds.add(seed);
+	state = {
+		...state,
+		...seed,
+		usage: { ...state.usage, ...seed.usage },
+		daily: { ...state.daily, ...seed.daily },
+	};
+}
+
+/** Hands a page's server-read account data to every `useAccountData()` below
+ *  it, and starts the client store from it. The nav sits outside this tree and
+ *  reads the store, so it gets the same data once the client has it. The
+ *  server never writes the module store: it is shared across requests. */
+export function AccountSeedProvider({
+	seed,
+	children,
+}: {
+	seed: AccountSeed;
+	children?: React.ReactNode;
+}) {
+	applySeed(seed);
+	return (
+		<AccountSeedContext.Provider value={seed}>
+			{children}
+		</AccountSeedContext.Provider>
+	);
+}
+
+/** The account data. Under a seed, the server render and the hydration pass
+ *  read it, so the HTML carries the data. */
 export function useAccountData(): State {
-	return useSyncExternalStore(subscribe, accountSnapshot, () => EMPTY);
+	const seed = useContext(AccountSeedContext);
+	let server = EMPTY;
+	if (seed) {
+		server = serverStates.get(seed) ?? { ...EMPTY, ...seed };
+		serverStates.set(seed, server);
+	}
+	return useSyncExternalStore(subscribe, accountSnapshot, () => server);
 }
 
 export function refreshBilling(): Promise<Billing | null> {
@@ -135,7 +165,6 @@ export function refreshBilling(): Promise<Billing | null> {
 			if (!res.ok) return null;
 			const billing = (await res.json()) as Billing;
 			set({ billing });
-			markFresh("billing");
 			return billing;
 		} catch {
 			return null;
@@ -143,9 +172,9 @@ export function refreshBilling(): Promise<Billing | null> {
 	});
 }
 
-/** For a screen mounting: load billing unless another screen just did. */
+/** For a screen mounting: load billing unless the page already carried it. */
 export function ensureBilling(): Promise<unknown> {
-	return isFresh("billing") ? Promise.resolve() : refreshBilling();
+	return current().billing ? Promise.resolve() : refreshBilling();
 }
 
 /** This account's usage_ledger for one UTC calendar month (`YYYY-MM`),
@@ -167,7 +196,6 @@ export function refreshUsage(month: string): Promise<UsageResponse | null> {
 				burn: data.burn,
 				service: data.service,
 			});
-			markFresh(`usage:${month}`);
 			return data;
 		} catch {
 			return null;
@@ -175,9 +203,9 @@ export function refreshUsage(month: string): Promise<UsageResponse | null> {
 	});
 }
 
-/** For a screen mounting: load a month's usage unless another screen just did. */
+/** For a screen mounting: load a month's usage unless it is already here. */
 export function ensureUsage(month: string): Promise<unknown> {
-	return isFresh(`usage:${month}`) ? Promise.resolve() : refreshUsage(month);
+	return current().usage[month] ? Promise.resolve() : refreshUsage(month);
 }
 
 /** The signed-in account's balance-alert email preferences. */
@@ -188,12 +216,16 @@ export function refreshAlerts(): Promise<BalanceAlerts | null> {
 			if (!res.ok) return null;
 			const alerts = (await res.json()) as BalanceAlerts;
 			set({ alerts });
-			markFresh("alerts");
 			return alerts;
 		} catch {
 			return null;
 		}
 	});
+}
+
+/** For a screen mounting: load the alert switches unless they are already here. */
+export function ensureAlerts(): Promise<unknown> {
+	return current().alerts ? Promise.resolve() : refreshAlerts();
 }
 
 /** Optimistic PUT: the caller flips the switch immediately, this persists
@@ -221,7 +253,6 @@ export function refreshCaps(): Promise<Caps | null> {
 			if (!res.ok) return null;
 			const caps = (await res.json()) as Caps;
 			set({ caps });
-			markFresh("caps");
 			return caps;
 		} catch {
 			return null;
@@ -229,9 +260,9 @@ export function refreshCaps(): Promise<Caps | null> {
 	});
 }
 
-/** For a screen mounting: load the cap unless another screen just did. */
+/** For a screen mounting: load the cap unless it is already here. */
 export function ensureCaps(): Promise<unknown> {
-	return isFresh("caps") ? Promise.resolve() : refreshCaps();
+	return current().caps ? Promise.resolve() : refreshCaps();
 }
 
 /** The signed-in account's latest top-ups and grants. */
@@ -242,12 +273,16 @@ export function refreshCredits(): Promise<CreditAdded[] | null> {
 			if (!res.ok) return null;
 			const { credits } = (await res.json()) as { credits: CreditAdded[] };
 			set({ credits });
-			markFresh("credits");
 			return credits;
 		} catch {
 			return null;
 		}
 	});
+}
+
+/** For a screen mounting: load the credits list unless it is already here. */
+export function ensureCredits(): Promise<unknown> {
+	return current().credits ? Promise.resolve() : refreshCredits();
 }
 
 /** Rows delivered for the signed-in account. Keeps the last good data on a
@@ -260,7 +295,6 @@ export function refreshRows(): Promise<RowsResponse | null> {
 			if (!res.ok) return null;
 			const rows = (await res.json()) as RowsResponse;
 			set({ rows });
-			markFresh("rows");
 			return rows;
 		} catch {
 			return null;
@@ -290,16 +324,15 @@ export function refreshKeys(): Promise<void> {
 			if (!res.ok) return;
 			const data = (await res.json()) as { keys: ApiKey[] };
 			set({ keys: data.keys });
-			markFresh("keys");
 		} catch {
 			// Keep what we had; the list retries on the next open.
 		}
 	});
 }
 
-/** For a screen mounting: load keys unless another screen just did. */
+/** For a screen mounting: load keys unless they are already here. */
 export function ensureKeys(): Promise<void> {
-	return isFresh("keys") ? Promise.resolve() : refreshKeys();
+	return current().keys ? Promise.resolve() : refreshKeys();
 }
 
 export function refreshApps(): Promise<void> {
@@ -309,16 +342,15 @@ export function refreshApps(): Promise<void> {
 			if (!res.ok) return;
 			const data = (await res.json()) as { grants: ConnectedApp[] };
 			set({ apps: data.grants });
-			markFresh("apps");
 		} catch {
 			// Keep what we had; the list retries on the next open.
 		}
 	});
 }
 
-/** For a screen mounting: load connected apps unless another screen just did. */
+/** For a screen mounting: load connected apps unless they are already here. */
 export function ensureApps(): Promise<void> {
-	return isFresh("apps") ? Promise.resolve() : refreshApps();
+	return current().apps ? Promise.resolve() : refreshApps();
 }
 
 /** Revoke an app: its tokens stop working at once. */
@@ -336,25 +368,11 @@ export async function revokeApp(id: string): Promise<void> {
 /** Forget everything on sign-out so the next account never sees it. */
 export function clearAccountData(): void {
 	state = EMPTY;
-	hydrated = false;
 	for (const l of listeners) l();
-	clearSnapshots();
 	clearWebhooksData();
 	clearSubgraphsData();
 	clearInsights();
 	clearRequestCache();
-}
-
-/** The cache is this tab's copy for one account: a signed-out answer or a
- *  different account empties it before anything else reads it. */
-export function adoptCacheOwner(accountId: string | null): void {
-	const owner = currentOwner();
-	if (accountId === null) {
-		if (owner !== null) clearAccountData();
-		return;
-	}
-	if (owner !== null && owner !== accountId) clearAccountData();
-	setOwner(accountId);
 }
 
 /** A refused key creation: the status tells the cap (403) from the rate limit (429). */

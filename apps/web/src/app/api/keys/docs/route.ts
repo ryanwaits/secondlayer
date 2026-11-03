@@ -2,6 +2,9 @@ import { ApiError, apiRequest, getSessionFromRequest } from "@/lib/api";
 import { isSameOrigin } from "@/lib/same-origin";
 import { NextResponse } from "next/server";
 
+// Next to the API, so each dashboard read and write takes the short hop.
+export const preferredRegion = "fra1";
+
 /**
  * The signed-in reader's docs key: a read-only (Streams + Index), 24 hour key
  * for the code samples. The session cookie is the only credential (an

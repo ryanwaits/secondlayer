@@ -1,6 +1,5 @@
 "use client";
 
-import { warmTab } from "@/lib/dashboard-warm";
 import { useIntentPrefetch } from "@/lib/intent-prefetch";
 import Link from "next/link";
 
@@ -37,7 +36,7 @@ export function DashboardTabs({
 					key={t.href}
 					href={t.href}
 					prefetch={false}
-					{...intent(t.href, () => warmTab(t.href))}
+					{...intent(t.href)}
 					aria-current={isCurrent(pathname, t.href) ? "page" : undefined}
 				>
 					{t.label}

@@ -2,6 +2,9 @@ import { ApiError, apiRequest, getSessionFromRequest } from "@/lib/api";
 import type { RowsResponse } from "@/lib/rows";
 import { NextResponse } from "next/server";
 
+// Next to the API, so each dashboard read and write takes the short hop.
+export const preferredRegion = "fra1";
+
 /** Rows delivered for the signed-in account: the free allowance, rows per
  *  day and source, rows-per-call sizes and the account's own errors. */
 export async function GET(req: Request) {
