@@ -243,6 +243,8 @@ Webhooks also run on Stacks testnet, free, with the same account key. Set the ba
 | Alerts | No outage emails or pushes |
 | Cost | Free |
 
+This sample watches DIA's price oracle on testnet, which updates about every 15 minutes.
+
 <CodeTabs sync="lang">
 
 ```ts
@@ -254,9 +256,13 @@ const sl = new SecondLayer({
 });
 
 await sl.webhooks.create({
-  name: "testnet-prints",
+  name: "testnet-oracle",
   url: "https://my-app.com/webhook",
-  triggers: [trigger.printEvent({ contractId: "ST....counter" })],
+  triggers: [
+    trigger.contractCall({
+      contractId: "ST1S5ZGRZV5K4S9205RWPRTX9RGS9JV40KQMR4G1J.dia-oracle",
+    }),
+  ],
 });
 ```
 
@@ -264,7 +270,7 @@ await sl.webhooks.create({
 curl https://api.secondlayer.tools/testnet/api/webhooks \
   -H "Authorization: Bearer $SECONDLAYER_API_KEY" \
   -H "Content-Type: application/json" \
-  -d '{"name":"testnet-prints","url":"https://my-app.com/webhook","triggers":[{"type":"print_event","contractId":"ST....counter"}]}'
+  -d '{"name":"testnet-oracle","url":"https://my-app.com/webhook","triggers":[{"type":"contract_call","contractId":"ST1S5ZGRZV5K4S9205RWPRTX9RGS9JV40KQMR4G1J.dia-oracle"}]}'
 ```
 
 </CodeTabs>

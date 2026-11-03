@@ -2928,16 +2928,16 @@
     ]
   },
   "/docs/webhooks#testnet": {
-    "hash": "8203f7f17fac9c01",
+    "hash": "b03334659bbd4c4f",
     "phrasings": [
-      "webhooks on stacks testnet free",
-      "can i test webhooks without paying",
-      "stacks testnet webhook setup",
-      "use same api key for testnet webhooks",
-      "free webhook testing stacks network",
-      "how to receive testnet events",
-      "webhook testnet account key reuse",
-      "do webhooks work on testnet"
+      "are webhooks available on stacks testnet",
+      "free webhook testing on stacks testnet",
+      "do webhooks work on testnet with same api key",
+      "how to use webhooks without paying on testnet",
+      "stacks testnet webhook setup with account key",
+      "can i test webhook events on testnet for free",
+      "webhooks on stacks testnet no cost",
+      "same account key for testnet webhooks"
     ]
   },
   "/docs/webhooks#triggers": {
