@@ -195,7 +195,7 @@ export async function httpArchiveOps<T>(
 	path: string,
 	opts: HttpOptions = {},
 ): Promise<T> {
-	const { bearer, ignoredEnvKey } = await resolveArchiveOpsBearer();
+	const { bearer, source, ignoredEnvKey } = await resolveArchiveOpsBearer();
 	if (!bearer) {
 		throw new CliHttpError(
 			401,
@@ -211,12 +211,12 @@ export async function httpArchiveOps<T>(
 		});
 	} catch (err) {
 		if (err instanceof CliHttpError && err.status === 401) {
-			throw new CliHttpError(
-				401,
-				err.code,
-				err.body,
-				`Your account rejected the credential (${err.message}). ${ARCHIVE_AUTH_HINT}${ignoredEnvKeyNote(ignoredEnvKey)}`,
-			);
+			// A saved login beats SECONDLAYER_API_KEY, so setting that can't help.
+			const remedy =
+				source === "session"
+					? `Your saved login was rejected (${err.message}). Run \`secondlayer login\`, or \`secondlayer logout\` to use SECONDLAYER_API_KEY.`
+					: `Your account rejected the credential (${err.message}). ${ARCHIVE_AUTH_HINT}${ignoredEnvKeyNote(ignoredEnvKey)}`;
+			throw new CliHttpError(401, err.code, err.body, remedy);
 		}
 		throw err;
 	}

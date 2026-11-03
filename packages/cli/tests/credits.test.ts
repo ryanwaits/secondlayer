@@ -53,7 +53,11 @@ beforeAll(() => {
 				"",
 			);
 			seenBearers.push(raw);
-			if (!/^s[ks]-sl_/.test(raw) || raw === "ss-sl_revoked") {
+			if (
+				!/^s[ks]-sl_/.test(raw) ||
+				raw === "ss-sl_revoked" ||
+				raw === "sk-sl_revoked"
+			) {
 				return Response.json(
 					{ error: "Invalid token format" },
 					{ status: 401 },
@@ -162,7 +166,19 @@ describe("archive credits bearer", () => {
 		expect(message).not.toContain("ignored");
 	});
 
-	it("a merchant 401 on a stored session is answered with the login remedy", async () => {
+	it("a rejected env key keeps the general remedy", async () => {
+		process.env.SECONDLAYER_API_KEY = "sk-sl_revoked";
+		let message = "";
+		try {
+			await httpArchiveOps("/api/billing/status");
+		} catch (e) {
+			message = (e as Error).message;
+		}
+		expect(message).toContain(ARCHIVE_AUTH_HINT);
+		expect(message).not.toContain("saved login");
+	});
+
+	it("a rejected saved login says so, because an env key can't help while it is saved", async () => {
 		await mkdir(join(home, ".secondlayer"), { recursive: true });
 		await writeFile(
 			join(home, ".secondlayer", "session.json"),
@@ -183,7 +199,11 @@ describe("archive credits bearer", () => {
 		}
 		expect(err).toBeInstanceOf(CliHttpError);
 		expect((err as CliHttpError).status).toBe(401);
-		expect((err as CliHttpError).message).toContain("Invalid token format");
-		expect((err as CliHttpError).message).toContain(ARCHIVE_AUTH_HINT);
+		const message = (err as CliHttpError).message;
+		expect(message).toContain("Invalid token format");
+		expect(message).toContain("saved login");
+		expect(message).toContain("secondlayer login");
+		expect(message).toContain("secondlayer logout");
+		expect(message).not.toContain(ARCHIVE_AUTH_HINT);
 	});
 });
