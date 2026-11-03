@@ -41,13 +41,23 @@ export const LazySpendChart = dynamic(
 	{ ssr: false, loading: () => <ChartSkeleton height={150} /> },
 );
 
-/** Fetch a chart's chunk now, alongside its data, instead of after the data lands. */
+/**
+ * Fetch a chart's chunk now, alongside its data, instead of after the data
+ * lands. Safe to call at module scope: it is a no-op during SSR, so a screen
+ * can start the download as soon as its route chunk evaluates.
+ */
+const startImport = (load: () => Promise<unknown>): void => {
+	if (typeof window !== "undefined") void load();
+};
 export function preloadBandBarChart(): void {
-	void import("../dashboard/charts/band-bar-chart");
+	startImport(() => import("../dashboard/charts/band-bar-chart"));
+}
+export function preloadContextLineChart(): void {
+	startImport(() => import("../dashboard/charts/context-line-chart"));
 }
 export function preloadMonoStackedBarChart(): void {
-	void import("./mono-stacked-bar-chart");
+	startImport(() => import("./mono-stacked-bar-chart"));
 }
 export function preloadSpendChart(): void {
-	void import("../dashboard/charts/spend-chart");
+	startImport(() => import("../dashboard/charts/spend-chart"));
 }

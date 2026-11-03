@@ -1,13 +1,19 @@
 "use client";
 
 import { ChartSkeleton } from "@/components/charts/chart-skeleton";
-import { LazyContextLineChart } from "@/components/charts/lazy";
+import {
+	LazyContextLineChart,
+	preloadContextLineChart,
+} from "@/components/charts/lazy";
 import type {
 	SubgraphErrorGroup,
 	SubgraphHealthHour,
 } from "@/lib/subgraphs-store";
 import { formatRelative } from "@/lib/webhooks-data";
 import { utcClock } from "../webhooks/view";
+
+// Start the chunk download when the route evaluates, not when the data lands.
+preloadContextLineChart();
 
 const DAY_MS = 86_400_000;
 

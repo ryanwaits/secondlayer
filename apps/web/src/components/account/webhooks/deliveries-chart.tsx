@@ -1,12 +1,18 @@
 "use client";
 
 import { ChartSkeleton } from "@/components/charts/chart-skeleton";
-import { LazyBandBarChart } from "@/components/charts/lazy";
+import {
+	LazyBandBarChart,
+	preloadBandBarChart,
+} from "@/components/charts/lazy";
 import { Legend } from "@/components/dashboard/charts/legend";
 import { barsRows } from "@/lib/dashboard-charts";
 import type { WebhookActivityDay } from "@/lib/webhooks-data";
 import type { WebhookActivity } from "@secondlayer/sdk";
 import { type Range, outageStartIndex, rangeBars, utcClock } from "./view";
+
+// Start the chunk download when the route evaluates, not when the data lands.
+preloadBandBarChart();
 
 const BAND_NOTE =
 	'No "usual range" band: under 1 event an hour is too little to call anything unusual. The band shows up once there\'s enough volume.';
