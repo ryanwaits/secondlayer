@@ -13,7 +13,10 @@ name: Deploy
 on:
   push:
     branches: [main]
+    # Web and docs ship through Vercel and are tested in apps.yml; nothing in
+    # docker/ copies from apps/. A push that also touches packages/ still deploys.
     paths-ignore:
+      - "apps/**"
       - "*.md"
       - "docs/**"
       - "docker/docs/**"
