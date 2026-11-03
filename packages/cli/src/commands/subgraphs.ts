@@ -152,6 +152,19 @@ export function parseStartBlockOption(value?: string): number | undefined {
 	return parsed;
 }
 
+/** The deploy warning for a backfill from genesis: names the start block when
+ *  the file (or `--start-block`) set one, so it doesn't read as ignored.
+ *  Null when the backfill starts later. */
+export function genesisWarning(startBlock: number | undefined): string | null {
+	if (startBlock === undefined) {
+		return "No startBlock: the first deploy backfills from genesis.";
+	}
+	if (startBlock <= 1) {
+		return `startBlock ${startBlock}: the first deploy backfills all history from genesis.`;
+	}
+	return null;
+}
+
 export interface PinnedPrintSource {
 	sourceName: string;
 	contractId: string;
@@ -1225,9 +1238,8 @@ Examples:
 							: effectiveDef,
 					);
 
-					if ((validated.startBlock ?? 1) <= 1) {
-						warn("No startBlock: the first deploy backfills from genesis.");
-					}
+					const genesis = genesisWarning(effectiveDef.startBlock);
+					if (genesis) warn(genesis);
 
 					if (config.network !== "local") {
 						// ── Remote deploy ──────────────────────────────────────

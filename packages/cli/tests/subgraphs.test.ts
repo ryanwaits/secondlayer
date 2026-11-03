@@ -19,6 +19,7 @@ import {
 	formatSubgraphStatus,
 	formatVerificationLines,
 	formatVerificationStatus,
+	genesisWarning,
 	installScaffoldDependencies,
 	loadSubgraphDefinition,
 	operationDetailPairs,
@@ -45,6 +46,17 @@ describe("subgraphs command helpers", () => {
 		expect(parseStartBlockOption("0")).toBe(0);
 		expect(parseStartBlockOption("123")).toBe(123);
 		expect(parseStartBlockOption(" 456 ")).toBe(456);
+	});
+
+	it("names a set start block in the genesis warning instead of calling it missing", () => {
+		expect(genesisWarning(undefined)).toBe(
+			"No startBlock: the first deploy backfills from genesis.",
+		);
+		expect(genesisWarning(1)).toBe(
+			"startBlock 1: the first deploy backfills all history from genesis.",
+		);
+		expect(genesisWarning(0)).toContain("startBlock 0:");
+		expect(genesisWarning(2)).toBeNull();
 	});
 
 	it("rejects invalid deploy --start-block values", () => {
