@@ -14,11 +14,12 @@ import { ARCHIVE_OPS_API_URL, resolveApiUrl } from "./api-url.ts";
 /**
  * CLI session storage.
  *
- * Session tokens (ss-sl_…) are the CLI's only persisted credential. They're
- * written to `~/.secondlayer/session.json` with 0600 perms, one per API URL:
+ * The CLI's persisted credential: a browser-login session token (ss-sl_…),
+ * or the account key `login --with-token` was given. Written to
+ * `~/.secondlayer/session.json` with 0600 perms, one per API URL:
  * the loopback instance and your hosted account are different
  * servers with different accounts, so a login against one never gets sent
- * to the other. No service keys ever land on disk.
+ * to the other. Instance tokens are never stored here.
  *
  * Auto-refresh: the server-side auth middleware (packages/api/src/auth/middleware.ts)
  * already runs a sliding-window 90-day expiry extension on every authed

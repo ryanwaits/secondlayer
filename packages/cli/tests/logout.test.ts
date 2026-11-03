@@ -92,6 +92,16 @@ describe("logout", () => {
 		expect(await readSession(creditsUrl)).toBeNull();
 	});
 
+	it("a key saved by login --with-token is removed locally without a server revoke", async () => {
+		const accountUrl = process.env.SL_CREDITS_API_URL as string;
+		await writeSession(session("sk-sl_saved_key"), accountUrl);
+
+		await runLogout();
+
+		expect(revoked).toEqual([]);
+		expect(await readSession(accountUrl)).toBeNull();
+	});
+
 	it("an old flat session file is read as the account login", async () => {
 		const { writeFile, mkdir } = await import("node:fs/promises");
 		await mkdir(join(home, ".secondlayer"), { recursive: true });
