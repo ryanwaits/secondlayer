@@ -1293,16 +1293,16 @@
     ]
   },
   "/docs/index#print-schemas": {
-    "hash": "fdf152255ea1a58a",
+    "hash": "04df12f632b755a6",
     "phrasings": [
-      "clarity print output shape unknown",
-      "how to decode clarity print events",
-      "clarity abi missing print payload schema",
-      "why do print values differ per topic",
-      "clarity contract print topic schema varies",
-      "parse clarity print payload without abi",
-      "what shape do clarity prints have",
-      "clarity print data not described by abi"
+      "how to decode clarity print payloads",
+      "clarity print event schema not described in abi",
+      "why does print output shape differ per topic",
+      "clarity contract print data format unknown",
+      "how to parse print values in clarity",
+      "clarity abi missing print payload types",
+      "varying print event structure same contract",
+      "decode clarity print output without schema"
     ]
   },
   "/docs/index#progress-and-health": {

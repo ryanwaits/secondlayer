@@ -612,7 +612,7 @@ export const indexPaths = {
 			summary: "Print payload schemas for a contract",
 			"x-nav-title": "Print schemas",
 			description:
-				"Infers the shape of a contract's `print` payloads from its canonical print events, grouped by the tuple's `topic` field. Reads the newest 1500 and oldest 500 events, so fields the contract stopped emitting still show. Takes no query parameters. Held in memory for 5 minutes per contract. Not metered.",
+				"Infers the shape of a contract's `print` payloads from its canonical print events, grouped by the tuple's `topic` field. Reads the newest 1500 and oldest 500 events, so fields the contract stopped emitting still show. Takes no query parameters. Held in memory for 5 minutes per contract; an empty result isn't cached, so a contract's first print shows at once. Not metered.",
 			security: READ_SECURITY,
 			parameters: [
 				{

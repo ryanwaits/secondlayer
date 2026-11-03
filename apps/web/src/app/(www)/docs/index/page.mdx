@@ -237,7 +237,7 @@ The response shape is in the [API reference](/docs/api/index#get-print-schema). 
 
 - Optional fields report an `optional_some_rate`.
 - Payloads with no `topic` string, or that aren't tuples, land under the `"*"` pseudo-topic with `non_tuple` set.
-- Cached five minutes (`max-age=300` + weak `ETag`).
+- Cached five minutes (`max-age=300` + weak `ETag`). An empty result isn't cached, so a contract's first print shows at once.
 
 Backs `secondlayer subgraphs create <name> --from-contract <contract_id>`; see [Subgraphs](/docs/subgraphs#typed-print-payloads).
 
