@@ -48,7 +48,7 @@ export interface TenantRow {
 	/** Why a `stopped` tenant stopped: `credits` (balance hit 0), `cap`
 	 *  (monthly spend cap reached), or `idle` (no active webhooks and no
 	 *  subgraphs). The poll restarts `credits`/`cap` once the account is ok
-	 *  again; `idle` waits for the next request through the gateway. `null`
+	 *  again; `idle` waits for a write or a `?wake` read. `null`
 	 *  while running, and on rows stopped before this column existed (those
 	 *  were all credit stops). */
 	stop_reason: StopReason | null;

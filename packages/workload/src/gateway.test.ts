@@ -528,6 +528,23 @@ describe("handleGatewayRequest", () => {
 			expect(recorded).toHaveLength(0);
 		});
 
+		test("the asleep body names how to start the stack, and keeps the error the dashboard matches on", async () => {
+			const { deps } = idleDeps();
+			const res = await handleGatewayRequest(
+				deps,
+				req({ auth: "Bearer sk-sl_good" }),
+			);
+			const body = (await res.json()) as {
+				error: string;
+				code: string;
+				message: string;
+			};
+			expect(body.error).toBe("asleep");
+			expect(body.code).toBe("STACK_ASLEEP");
+			expect(body.message).toContain("wake=1");
+			expect(body.message).toContain("any write");
+		});
+
 		test("a subgraphs list read answers empty, since idle means no subgraphs", async () => {
 			const { deps, calls } = idleDeps();
 			const res = await handleGatewayRequest(

@@ -455,7 +455,15 @@ function asleepRead(pathname: string): Response {
 	) {
 		return emptyRead(pathname);
 	}
-	return Response.json({ error: "asleep", code: ASLEEP_CODE }, { status: 503 });
+	return Response.json(
+		{
+			error: "asleep",
+			code: ASLEEP_CODE,
+			message:
+				"This stack stopped because nothing uses it, and reads don't restart it because a running stack bills. To start it, add wake=1 to this read or send any write.",
+		},
+		{ status: 503 },
+	);
 }
 
 const ASLEEP_CODE = "STACK_ASLEEP";

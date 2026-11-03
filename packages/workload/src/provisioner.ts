@@ -791,8 +791,8 @@ export async function recoverInterruptedProvisions(
 /** `running → stopped`: stop every service except `postgres` (Design) so
  *  webhook delivery pauses and the memory meter stops, but tenant data is
  *  kept. `reason` decides what brings it back: the poll restarts a
- *  `credits`/`cap` stop once the account is ok; an `idle` stop waits for the
- *  next request through the gateway. */
+ *  `credits`/`cap` stop once the account is ok; an `idle` stop waits for a
+ *  write or a `?wake` read through the gateway. */
 export async function stop(
 	cfg: ProvisionerConfig,
 	accountId: string,
@@ -937,8 +937,8 @@ export const IDLE_GRACE_MS = 15 * 60 * 1000;
  * | running | ok, 0 active webhooks and 0 subgraphs, up ≥ `IDLE_GRACE_MS` | `stop("idle")` |
  * | stopped | ok, reason not `idle`  | `start()`         |
  *
- * An idle-stopped tenant restarts on its next request through the gateway,
- * never from here. A workload count that can't be read never stops a tenant.
+ * An idle-stopped tenant restarts on a write or a `?wake` read through the
+ * gateway, never from here. A workload count that can't be read never stops a tenant.
  * One tenant's stop/start failure is logged and does not stop the poll from
  * processing every other tenant in the batch.
  */
