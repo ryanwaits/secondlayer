@@ -1061,6 +1061,12 @@ async function runRetention(db: Kysely<Database>): Promise<void> {
 		DELETE FROM webhook_deliveries
 		WHERE dispatched_at < NOW() - interval '30 days'
 	`.execute(db);
+	// The hourly counts outlive the attempts they summarise (30 d) by five
+	// days; deleting deliveries above never decrements them.
+	await sql`
+		DELETE FROM webhook_delivery_hours
+		WHERE hour < NOW() - interval '35 days'
+	`.execute(db);
 	await sql`
 		DELETE FROM webhook_outbox
 		WHERE status = 'dead' AND failed_at < NOW() - interval '90 days'

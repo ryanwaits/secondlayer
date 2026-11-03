@@ -7868,7 +7868,7 @@
 		},
 		"WebhookActivityDay": {
 			"kind": "type",
-			"summary": "One UTC day of delivery attempts (GET /:id/activity?days=30).",
+			"summary": "One UTC day of delivery attempts (GET /:id/activity).",
 			"fields": [
 				{
 					"name": "day",

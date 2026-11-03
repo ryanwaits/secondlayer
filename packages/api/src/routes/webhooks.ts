@@ -42,7 +42,7 @@ import {
 	replayWebhook,
 } from "@secondlayer/subgraphs/runtime/replay";
 import { Hono } from "hono";
-import { type SqlBool, sql } from "kysely";
+import { sql } from "kysely";
 import {
 	getBitcoinDb,
 	isBitcoinConfigured,
@@ -798,7 +798,6 @@ const ACTIVITY_KEY_BY_STATUS: Record<
 
 /** A delivery attempt that got a 2xx response. */
 const SUCCESS_ATTEMPT = sql`(status_code >= 200 AND status_code < 300)`;
-const UTC_HOUR = sql<Date>`date_trunc('hour', dispatched_at AT TIME ZONE 'UTC') AT TIME ZONE 'UTC'`;
 
 const BAND_DAYS = 28;
 /** Below this median attempts/hour, "usual" says nothing and the band hides. */
@@ -856,6 +855,7 @@ app.get("/:id/activity", async (c) => {
 	const sub = await getWebhook(getDb(), accountId, c.req.param("id"));
 	if (!sub) return c.json({ error: "Webhook not found" }, 404);
 
+	// `days=30` is still accepted for older SDKs; the 30 days are always sent.
 	const daysParam = c.req.query("days");
 	if (daysParam !== undefined && daysParam !== "30") {
 		return c.json(
@@ -863,7 +863,6 @@ app.get("/:id/activity", async (c) => {
 			400,
 		);
 	}
-	const wantDays = daysParam === "30";
 
 	const db = getDb();
 	const now = new Date();
@@ -871,103 +870,59 @@ app.get("/:id/activity", async (c) => {
 	const bandStart = new Date(currentHourMs - BAND_DAYS * 24 * 3_600_000);
 	const todayMs = Math.floor(now.getTime() / 86_400_000) * 86_400_000;
 	const daysStart = new Date(todayMs - 29 * 86_400_000);
-	const [
-		grouped,
-		byEventTypeRows,
-		waitingRow,
-		nextAttemptRow,
-		lastSuccessRow,
-		failedRows,
-		bandRows,
-		dayRows,
-	] = await Promise.all([
-		db
-			.selectFrom("webhook_outbox")
-			.select([
-				// `AT TIME ZONE 'UTC'` on both sides makes the truncation a UTC
-				// hour boundary regardless of the session's timezone setting.
-				sql<Date>`date_trunc('hour', created_at AT TIME ZONE 'UTC') AT TIME ZONE 'UTC'`.as(
-					"hour",
-				),
-				"status",
-				db.fn.countAll<string>().as("n"),
-			])
-			.where("webhook_id", "=", sub.id)
-			.where("created_at", ">=", sql<Date>`now() - interval '168 hours'`)
-			.groupBy(
-				sql`date_trunc('hour', created_at AT TIME ZONE 'UTC') AT TIME ZONE 'UTC'`,
-			)
-			.groupBy("status")
-			.execute(),
-		// Same window and index as the hourly query above, grouped by
-		// `event_type` instead of hour × status — the config card's
-		// per-trigger volume (design 5).
-		db
-			.selectFrom("webhook_outbox")
-			.select(["event_type", db.fn.countAll<string>().as("n")])
-			.where("webhook_id", "=", sub.id)
-			.where("created_at", ">=", sql<Date>`now() - interval '168 hours'`)
-			.groupBy("event_type")
-			.execute(),
-		db
-			.selectFrom("webhook_outbox")
-			.select(db.fn.countAll<string>().as("n"))
-			.where("webhook_id", "=", sub.id)
-			.where("status", "=", "pending")
-			.executeTakeFirst(),
-		db
-			.selectFrom("webhook_outbox")
-			.select(({ fn }) => fn.min("next_attempt_at").as("next_attempt_at"))
-			.where("webhook_id", "=", sub.id)
-			.where("status", "=", "pending")
-			.executeTakeFirst(),
-		db
-			.selectFrom("webhook_deliveries")
-			.select(({ fn }) => fn.max("dispatched_at").as("dispatched_at"))
-			.where("webhook_id", "=", sub.id)
-			.where("status_code", ">=", 200)
-			.where("status_code", "<", 300)
-			.executeTakeFirst(),
-		// Failed attempts per hour (no response, or not 2xx). Attempts, not
-		// events: a retried-then-delivered event shows here and in `delivered`.
-		db
-			.selectFrom("webhook_deliveries")
-			.select([UTC_HOUR.as("hour"), sql<string>`count(*)`.as("n")])
-			.where("webhook_id", "=", sub.id)
-			.where("dispatched_at", ">=", sql<Date>`now() - interval '168 hours'`)
-			.where(sql<SqlBool>`NOT coalesce(${SUCCESS_ATTEMPT}, false)`)
-			.groupBy(UTC_HOUR)
-			.execute(),
-		// 2xx attempts per hour over the last 28 full days, for the usual band.
-		db
-			.selectFrom("webhook_deliveries")
-			.select([UTC_HOUR.as("hour"), sql<string>`count(*)`.as("n")])
-			.where("webhook_id", "=", sub.id)
-			.where("dispatched_at", ">=", bandStart)
-			.where("dispatched_at", "<", new Date(currentHourMs))
-			.where(sql<SqlBool>`${SUCCESS_ATTEMPT}`)
-			.groupBy(UTC_HOUR)
-			.execute(),
-		wantDays
-			? db
-					.selectFrom("webhook_deliveries")
-					.select([
-						sql<string>`to_char(dispatched_at AT TIME ZONE 'UTC', 'YYYY-MM-DD')`.as(
-							"day",
-						),
-						sql<string>`count(*) filter (where ${SUCCESS_ATTEMPT})`.as(
-							"delivered",
-						),
-						sql<string>`count(*) filter (where not coalesce(${SUCCESS_ATTEMPT}, false))`.as(
-							"failed",
-						),
-					])
-					.where("webhook_id", "=", sub.id)
-					.where("dispatched_at", ">=", daysStart)
-					.groupBy(sql`to_char(dispatched_at AT TIME ZONE 'UTC', 'YYYY-MM-DD')`)
-					.execute()
-			: Promise.resolve([]),
-	]);
+	const [grouped, byEventTypeRows, waitingRow, nextAttemptRow, deliveryHours] =
+		await Promise.all([
+			db
+				.selectFrom("webhook_outbox")
+				.select([
+					// `AT TIME ZONE 'UTC'` on both sides makes the truncation a UTC
+					// hour boundary regardless of the session's timezone setting.
+					sql<Date>`date_trunc('hour', created_at AT TIME ZONE 'UTC') AT TIME ZONE 'UTC'`.as(
+						"hour",
+					),
+					"status",
+					db.fn.countAll<string>().as("n"),
+				])
+				.where("webhook_id", "=", sub.id)
+				.where("created_at", ">=", sql<Date>`now() - interval '168 hours'`)
+				.groupBy(
+					sql`date_trunc('hour', created_at AT TIME ZONE 'UTC') AT TIME ZONE 'UTC'`,
+				)
+				.groupBy("status")
+				.execute(),
+			// Same window and index as the hourly query above, grouped by
+			// `event_type` instead of hour × status — the config card's
+			// per-trigger volume (design 5).
+			db
+				.selectFrom("webhook_outbox")
+				.select(["event_type", db.fn.countAll<string>().as("n")])
+				.where("webhook_id", "=", sub.id)
+				.where("created_at", ">=", sql<Date>`now() - interval '168 hours'`)
+				.groupBy("event_type")
+				.execute(),
+			db
+				.selectFrom("webhook_outbox")
+				.select(db.fn.countAll<string>().as("n"))
+				.where("webhook_id", "=", sub.id)
+				.where("status", "=", "pending")
+				.executeTakeFirst(),
+			db
+				.selectFrom("webhook_outbox")
+				.select(({ fn }) => fn.min("next_attempt_at").as("next_attempt_at"))
+				.where("webhook_id", "=", sub.id)
+				.where("status", "=", "pending")
+				.executeTakeFirst(),
+			// Delivered/failed attempts per UTC hour, counted when each attempt was
+			// recorded: one primary-key range read feeds the failed series, the usual
+			// band and the 30 daily totals.
+			db
+				.selectFrom("webhook_delivery_hours")
+				.select(["hour", "delivered", "failed"])
+				.where("webhook_id", "=", sub.id)
+				.where("hour", ">=", daysStart)
+				.orderBy("hour")
+				.execute(),
+		]);
 
 	const byEventType: Record<string, number> = {};
 	for (const row of byEventTypeRows) {
@@ -990,35 +945,39 @@ app.get("/:id/activity", async (c) => {
 		byHour.set(hourIso, bucket);
 	}
 
-	const failedByHour = new Map(
-		failedRows.map((row) => [row.hour.toISOString(), Number(row.n)]),
-	);
-	const hours = hourBucketsUtc(now, ACTIVITY_HOURS).map((hour) => ({
+	const hourBuckets = hourBucketsUtc(now, ACTIVITY_HOURS);
+	const firstHourMs = currentHourMs - (ACTIVITY_HOURS - 1) * 3_600_000;
+	const failedPerHour = new Array<number>(ACTIVITY_HOURS).fill(0);
+	const bandCounts = new Map<string, number>();
+	const days: WebhookActivityDay[] = Array.from({ length: 30 }, (_, i) => ({
+		day: new Date(daysStart.getTime() + i * 86_400_000)
+			.toISOString()
+			.slice(0, 10),
+		delivered: 0,
+		failed: 0,
+	}));
+	for (const row of deliveryHours) {
+		const hourMs = row.hour.getTime();
+		const dayBucket =
+			days[Math.floor((hourMs - daysStart.getTime()) / 86_400_000)];
+		if (dayBucket) {
+			dayBucket.delivered += row.delivered;
+			dayBucket.failed += row.failed;
+		}
+		if (hourMs >= bandStart.getTime() && hourMs < currentHourMs) {
+			bandCounts.set(row.hour.toISOString(), row.delivered);
+		}
+		if (hourMs >= firstHourMs) {
+			failedPerHour[(hourMs - firstHourMs) / 3_600_000] = row.failed;
+		}
+	}
+	const hours = hourBuckets.map((hour, i) => ({
 		hour,
 		...(byHour.get(hour) ?? { delivered: 0, waiting: 0, gaveUp: 0 }),
-		failed: failedByHour.get(hour) ?? 0,
+		failed: failedPerHour[i] ?? 0,
 	}));
 
-	const usualByHourOfDay = usualBand(
-		new Map(bandRows.map((row) => [row.hour.toISOString(), Number(row.n)])),
-		now,
-	);
-
-	let days: WebhookActivityDay[] | undefined;
-	if (wantDays) {
-		const byDay = new Map(dayRows.map((row) => [row.day, row]));
-		days = Array.from({ length: 30 }, (_, i) => {
-			const day = new Date(daysStart.getTime() + i * 86_400_000)
-				.toISOString()
-				.slice(0, 10);
-			const row = byDay.get(day);
-			return {
-				day,
-				delivered: Number(row?.delivered ?? 0),
-				failed: Number(row?.failed ?? 0),
-			};
-		});
-	}
+	const usualByHourOfDay = usualBand(bandCounts, now);
 
 	return c.json({
 		hours,
@@ -1026,12 +985,10 @@ app.get("/:id/activity", async (c) => {
 		nextAttemptAt: nextAttemptRow?.next_attempt_at
 			? (nextAttemptRow.next_attempt_at as Date).toISOString()
 			: null,
-		lastSuccessAt: lastSuccessRow?.dispatched_at
-			? (lastSuccessRow.dispatched_at as Date).toISOString()
-			: null,
+		lastSuccessAt: sub.last_success_at?.toISOString() ?? null,
 		byEventType,
 		usualByHourOfDay,
-		...(days ? { days } : {}),
+		days,
 	});
 });
 

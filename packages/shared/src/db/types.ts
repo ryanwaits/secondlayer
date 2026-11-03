@@ -1065,6 +1065,7 @@ export interface Database {
 	webhooks: WebhooksTable;
 	webhook_outbox: WebhookOutboxTable;
 	webhook_deliveries: WebhookDeliveriesTable;
+	webhook_delivery_hours: WebhookDeliveryHoursTable;
 	webhook_replays: WebhookReplaysTable;
 	trigger_evaluator_state: TriggerEvaluatorStateTable;
 	decoded_events: DecodedEventsTable;
@@ -1591,6 +1592,16 @@ export interface WebhookDeliveriesTable {
 	error_message: string | null;
 	duration_ms: number | null;
 	dispatched_at: Generated<Date>;
+}
+
+/** Attempts per UTC hour, counted by a trigger on `webhook_deliveries`. */
+export interface WebhookDeliveryHoursTable {
+	webhook_id: string;
+	hour: Date;
+	/** 2xx attempts. */
+	delivered: Generated<number>;
+	/** Every other attempt. */
+	failed: Generated<number>;
 }
 
 export type WebhookDelivery = Selectable<WebhookDeliveriesTable>;

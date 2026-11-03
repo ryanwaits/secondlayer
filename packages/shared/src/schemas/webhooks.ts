@@ -856,12 +856,12 @@ export interface WebhookActivity {
 	 *  last 28 days, from `webhook_deliveries`). Null at low volume, where
 	 *  "usual" is not meaningful. */
 	usualByHourOfDay: Array<{ lo: number; hi: number }> | null;
-	/** Present with `?days=30`: 30 UTC days, oldest first, from
-	 *  `webhook_deliveries` (2xx is delivered, everything else failed). */
-	days?: WebhookActivityDay[];
+	/** 30 UTC days, oldest first, from the hourly delivery counts (2xx is
+	 *  delivered, everything else failed). */
+	days: WebhookActivityDay[];
 }
 
-/** One UTC day of delivery attempts (`GET /:id/activity?days=30`). */
+/** One UTC day of delivery attempts (`GET /:id/activity`). */
 export interface WebhookActivityDay {
 	/** YYYY-MM-DD, UTC. */
 	day: string;

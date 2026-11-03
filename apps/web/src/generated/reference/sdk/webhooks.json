@@ -316,7 +316,7 @@
 			"id": "activity",
 			"path": "sl.webhooks.activity",
 			"summary": "Get a webhook's hourly delivery counts for the last 7 days.",
-			"description": "Get a webhook's hourly delivery counts for the last 7 days.\n\nEach hour has delivered, waiting, and gave-up counts, plus the current\nqueue depth, failed attempts per hour, and the usual band. Pass\n`{ days: 30 }` to also get 30 daily totals. This is the events chart on\nthe detail page.",
+			"description": "Get a webhook's hourly delivery counts for the last 7 days.\n\nEach hour has delivered, waiting, and gave-up counts, plus the current\nqueue depth, failed attempts per hour, the usual band, and 30 daily\ntotals. This is the events chart on the detail page. `{ days: 30 }` is\naccepted for older servers, which only send the daily totals when asked.",
 			"source": {
 				"file": "packages/sdk/src/webhooks/client.ts",
 				"line": 163
@@ -846,14 +846,14 @@
 				{
 					"name": "days",
 					"type": "WebhookActivityDay[]",
-					"required": false,
-					"description": "Present with `?days=30`: 30 UTC days, oldest first, from\n`webhook_deliveries` (2xx is delivered, everything else failed)."
+					"required": true,
+					"description": "30 UTC days, oldest first, from the hourly delivery counts (2xx is\ndelivered, everything else failed)."
 				}
 			]
 		},
 		{
 			"name": "WebhookActivityDay",
-			"summary": "One UTC day of delivery attempts (`GET /:id/activity?days=30`).",
+			"summary": "One UTC day of delivery attempts (`GET /:id/activity`).",
 			"fields": [
 				{
 					"name": "day",

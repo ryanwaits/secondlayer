@@ -157,9 +157,9 @@ export class Webhooks extends BaseClient {
 	/** Get a webhook's hourly delivery counts for the last 7 days.
 	 *
 	 *  Each hour has delivered, waiting, and gave-up counts, plus the current
-	 *  queue depth, failed attempts per hour, and the usual band. Pass
-	 *  `{ days: 30 }` to also get 30 daily totals. This is the events chart on
-	 *  the detail page. */
+	 *  queue depth, failed attempts per hour, the usual band, and 30 daily
+	 *  totals. This is the events chart on the detail page. `{ days: 30 }` is
+	 *  accepted for older servers, which only send the daily totals when asked. */
 	async activity(id: string, opts?: { days?: 30 }): Promise<WebhookActivity> {
 		return this.request<WebhookActivity>(
 			"GET",

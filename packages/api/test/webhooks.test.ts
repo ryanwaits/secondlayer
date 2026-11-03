@@ -972,26 +972,12 @@ describe.skipIf(SKIP)("Webhooks API validation", () => {
 			)
 			.execute();
 
+		// The emitter stamps `last_success_at` when a delivery settles.
 		const lastSuccessAt = new Date("2026-04-01T00:00:00.000Z");
 		await db
-			.insertInto("webhook_deliveries")
-			.values([
-				{
-					webhook_id: webhookId,
-					outbox_id: null,
-					attempt: 1,
-					status_code: 200,
-					dispatched_at: lastSuccessAt,
-				},
-				// A later, failed delivery must not move lastSuccessAt forward.
-				{
-					webhook_id: webhookId,
-					outbox_id: null,
-					attempt: 2,
-					status_code: 500,
-					dispatched_at: new Date("2026-04-15T00:00:00.000Z"),
-				},
-			])
+			.updateTable("webhooks")
+			.set({ last_success_at: lastSuccessAt })
+			.where("id", "=", webhookId)
 			.execute();
 
 		const res = await app.request(`/webhooks/${webhookId}/activity`);
@@ -1411,7 +1397,8 @@ describe.skipIf(SKIP)("Webhooks API validation", () => {
 	type ActivityBody = {
 		hours: { hour: string; delivered: number; failed: number }[];
 		usualByHourOfDay: { lo: number; hi: number }[] | null;
-		days?: { day: string; delivered: number; failed: number }[];
+		days: { day: string; delivered: number; failed: number }[];
+		lastSuccessAt: string | null;
 	};
 
 	test("activity counts failed attempts per hour next to outbox-based delivered", async () => {
@@ -1460,7 +1447,7 @@ describe.skipIf(SKIP)("Webhooks API validation", () => {
 		).json()) as ActivityBody;
 		const bucket = activity.hours.find((h) => h.hour === hour.toISOString());
 		expect(bucket).toMatchObject({ delivered: 1, failed: 2 });
-		expect(activity.days).toBeUndefined();
+		expect(activity.days).toHaveLength(30);
 	});
 
 	test("activity hides the usual band at low volume", async () => {
@@ -1510,7 +1497,7 @@ describe.skipIf(SKIP)("Webhooks API validation", () => {
 		}
 	});
 
-	test("activity days=30 returns 30 zero-filled UTC days with attempts bucketed", async () => {
+	test("activity returns 30 zero-filled UTC days with attempts bucketed, with or without days=30", async () => {
 		const id = await createTestWebhook("activity-days");
 		const empty = (await (
 			await app.request(`/webhooks/${id}/activity?days=30`)
@@ -1537,6 +1524,87 @@ describe.skipIf(SKIP)("Webhooks API validation", () => {
 			delivered: 1,
 			failed: 1,
 		});
+		const legacy = (await (
+			await app.request(`/webhooks/${id}/activity?days=30`)
+		).json()) as ActivityBody;
+		expect(legacy.days).toEqual(filled.days);
+	});
+
+	test("activity folds the hourly counts into failed, band, days and last delivery", async () => {
+		const id = await createTestWebhook("activity-hourly-counts");
+		const end = currentHourStart().getTime();
+		const at = (hoursBack: number, offsetMs: number) =>
+			new Date(end - hoursBack * 3_600_000 + offsetMs);
+		const attempt = (code: number | null, dispatchedAt: Date) => ({
+			webhook_id: id,
+			outbox_id: null,
+			attempt: 1,
+			status_code: code,
+			dispatched_at: dispatchedAt,
+		});
+		const rows = [
+			// 3 hours back: 2 delivered, 3 failed (503, 404, no response).
+			attempt(200, at(3, 60_000)),
+			attempt(204, at(3, 120_000)),
+			attempt(503, at(3, 180_000)),
+			attempt(404, at(3, 240_000)),
+			attempt(null, at(3, 300_000)),
+			// 199 and 300 are not 2xx.
+			attempt(199, at(5, 60_000)),
+			attempt(300, at(5, 120_000)),
+			// 10 days back, inside the 30 days and the band, outside the 168 hours.
+			attempt(200, at(10 * 24, 60_000)),
+			attempt(500, at(10 * 24, 120_000)),
+			// 40 days back: in no window.
+			attempt(200, at(40 * 24, 60_000)),
+		];
+		await getDb().insertInto("webhook_deliveries").values(rows).execute();
+
+		const activity = (await (
+			await app.request(`/webhooks/${id}/activity`)
+		).json()) as ActivityBody;
+
+		const hourAt = (hoursBack: number) =>
+			activity.hours.find(
+				(h) => h.hour === new Date(end - hoursBack * 3_600_000).toISOString(),
+			);
+		expect(hourAt(3)).toMatchObject({ failed: 3 });
+		expect(hourAt(5)).toMatchObject({ failed: 2 });
+		expect(activity.hours.reduce((n, h) => n + h.failed, 0)).toBe(5);
+
+		const totals = activity.days.reduce(
+			(sum, d) => ({
+				delivered: sum.delivered + d.delivered,
+				failed: sum.failed + d.failed,
+			}),
+			{ delivered: 0, failed: 0 },
+		);
+		// 40-day-old attempt is outside the 30 days.
+		expect(totals).toEqual({ delivered: 3, failed: 6 });
+		const dayOf = (hoursBack: number) =>
+			new Date(end - hoursBack * 3_600_000).toISOString().slice(0, 10);
+		expect(activity.days.find((d) => d.day === dayOf(10 * 24))).toEqual({
+			day: dayOf(10 * 24),
+			delivered: 1,
+			failed: 1,
+		});
+
+		// Last success is the settle stamp on the webhook, not derived from attempts.
+		expect(activity.lastSuccessAt).toBeNull();
+		// Too sparse for a band (median attempts per hour is 0).
+		expect(activity.usualByHourOfDay).toBeNull();
+
+		// Deleting attempts, as retention does, leaves the counts alone.
+		await getDb()
+			.deleteFrom("webhook_deliveries")
+			.where("webhook_id", "=", id)
+			.execute();
+		const afterDelete = (await (
+			await app.request(`/webhooks/${id}/activity`)
+		).json()) as ActivityBody;
+		expect(afterDelete.hours).toEqual(activity.hours);
+		expect(afterDelete.days).toEqual(activity.days);
+		expect(afterDelete.lastSuccessAt).toBe(activity.lastSuccessAt);
 	});
 
 	test("activity rejects a days value other than 30", async () => {
