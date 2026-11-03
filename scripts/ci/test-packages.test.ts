@@ -61,14 +61,14 @@ describe("orderPackages", () => {
 				"shared",
 			]),
 		).toEqual([
-			"subgraphs",
-			"cli",
 			"shared",
+			"cli",
+			"subgraphs",
 			"api",
+			"workload",
 			"indexer",
 			"bitcoin",
 			"sdk",
-			"workload",
 		]);
 	});
 

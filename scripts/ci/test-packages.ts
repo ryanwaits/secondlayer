@@ -19,7 +19,14 @@ import { SQL } from "bun";
 const ROOT = resolve(import.meta.dir, "../..");
 
 /** Slowest suites first, so the longest one never starts last. */
-const LONGEST_FIRST = ["subgraphs", "cli", "shared", "api", "indexer"];
+const LONGEST_FIRST = [
+	"shared",
+	"cli",
+	"subgraphs",
+	"api",
+	"workload",
+	"indexer",
+];
 
 /** Package dirs under `packages/` that declare a `test` script. */
 export function discoverPackages(root: string): string[] {
