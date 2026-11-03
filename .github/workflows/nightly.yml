@@ -33,6 +33,8 @@ jobs:
           bun-version: "1.4.3"
       - run: bun install --frozen-lockfile
       - run: bun run build
+      # Test DB, durability irrelevant: makes DROP/CREATE DATABASE checkpoints cheap under parallel suites.
+      - run: psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -c "ALTER SYSTEM SET fsync = off" -c "ALTER SYSTEM SET synchronous_commit = off" -c "ALTER SYSTEM SET full_page_writes = off" -c "SELECT pg_reload_conf()"
       - run: DATABASE_URL="$DATABASE_URL" bun run packages/shared/src/db/migrate.ts
       - name: Run test suite with the soak test
         run: SL_NIGHTLY=1 bun run test
