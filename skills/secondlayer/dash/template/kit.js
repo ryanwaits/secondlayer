@@ -2675,7 +2675,8 @@ const SHARE_MS = 1000;
 
 /**
  * Draw `spec` into `root`. Options: `catalog` (catalog.json, required),
- * `fetch` and `now` (injectable for tests), `api` (proxy prefix).
+ * `fetch` and `now` (injectable for tests), `api` (proxy prefix), `host`
+ * (shown in the bar; a loopback host hides the public-URL notice).
  * Returns `stop()`, which ends every poll.
  */
 export function render(spec, root, options) {
@@ -2685,6 +2686,7 @@ export function render(spec, root, options) {
 		fetch: doFetch = (...args) => globalThis.fetch(...args),
 		now = () => new Date(),
 		api = "/api/sl",
+		host = location.host,
 	} = options;
 	root.replaceChildren();
 	const errors = validateSpec(spec, catalog);
@@ -2826,7 +2828,7 @@ export function render(spec, root, options) {
 			"div",
 			"l",
 			h("span", "logo", h("i"), h("i")),
-			h("span", null, location.host),
+			h("span", null, host),
 			h("span", null, title),
 		),
 		h("div", "r", h("span", "chip", dot("ok"), "live"), copy),
@@ -2846,7 +2848,7 @@ export function render(spec, root, options) {
 	);
 	clip.hidden = true;
 	const frame = h("div", "dash", bar);
-	if (!LOOPBACK.has(location.hostname)) {
+	if (!LOOPBACK.has(host.replace(/:\d+$/, ""))) {
 		const link = h("a", null, "Turn on Vercel password protection");
 		link.href =
 			"https://vercel.com/docs/security/deployment-protection/methods-to-protect-deployments/password-protection";

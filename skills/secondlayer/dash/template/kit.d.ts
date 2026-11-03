@@ -106,8 +106,10 @@ export declare function render(
 	root: Element,
 	options: {
 		catalog: Catalog;
-		fetch?: typeof fetch;
+		fetch?: (input: string, init?: RequestInit) => Promise<Response>;
 		now?: () => Date;
 		api?: string;
+		/** Shown in the bar. A loopback host hides the public-URL notice. */
+		host?: string;
 	},
 ): () => void;
