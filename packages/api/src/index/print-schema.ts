@@ -220,6 +220,14 @@ export class PrintSchemaCache {
 	}
 }
 
+/**
+ * A contract with no indexed prints yet is exactly the one about to get its
+ * first, so caching "none" would hide it (and skip the deploy lint) for a TTL.
+ */
+export function isEmptySchema(body: PrintSchemaBody): boolean {
+	return body.total_events === 0;
+}
+
 /** Shared cache for the live API process. */
 export const printSchemaCache = new PrintSchemaCache();
 
@@ -272,7 +280,7 @@ export async function getPrintSchemaBody(opts: {
 			oldest_height: oldestHeight,
 		},
 	};
-	cache.set(opts.contractId, body);
+	if (!isEmptySchema(body)) cache.set(opts.contractId, body);
 	return body;
 }
 
@@ -326,6 +334,6 @@ export async function fetchHostedPrintSchema(
 		throw new Error(`hosted print-schema read failed: ${res.status}`);
 	}
 	const { tip: _tip, ...body } = (await res.json()) as PrintSchemaResponse;
-	cache.set(contractId, body);
+	if (!isEmptySchema(body)) cache.set(contractId, body);
 	return body;
 }

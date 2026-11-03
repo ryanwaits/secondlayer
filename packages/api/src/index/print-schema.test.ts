@@ -70,6 +70,10 @@ describe("print-schema route", () => {
 		};
 	}
 
+	function emptyResult(): PrintSchemaReadResult {
+		return { rows: [], total_events: 0, total_events_capped: false };
+	}
+
 	function createApp(read = async () => fakeResult()) {
 		const app = new Hono();
 		app.onError(errorHandler);
@@ -148,6 +152,33 @@ describe("print-schema route", () => {
 		await app.request(path);
 		await app.request(path);
 		expect(reads).toBe(1);
+	});
+
+	test("does not memoize an empty schema — the next read sees the first print", async () => {
+		let reads = 0;
+		const app = createApp(async () => {
+			reads++;
+			return reads === 1 ? emptyResult() : fakeResult();
+		});
+		const path = `/v1/index/contracts/${CONTRACT_ID}/print-schema`;
+		const first = (await (await app.request(path)).json()) as {
+			total_events: number;
+		};
+		const second = (await (await app.request(path)).json()) as {
+			total_events: number;
+		};
+		expect(first.total_events).toBe(0);
+		expect(second.total_events).toBeGreaterThan(0);
+		expect(reads).toBe(2);
+	});
+
+	test("an empty schema is served with no-store", async () => {
+		const app = createApp(async () => emptyResult());
+		const res = await app.request(
+			`/v1/index/contracts/${CONTRACT_ID}/print-schema`,
+		);
+		expect(res.status).toBe(200);
+		expect(res.headers.get("Cache-Control")).toBe("no-store");
 	});
 
 	test("sampled is based on rows examined, not rows that parse", async () => {

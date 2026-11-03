@@ -24,6 +24,18 @@ function fakeFetch(
 	return { impl, calls };
 }
 
+function hostedBody(totalEvents: number) {
+	return {
+		contract_id: CONTRACT_ID,
+		topics: [],
+		sampled: false,
+		total_events: totalEvents,
+		total_events_capped: false,
+		sample: { size: totalEvents, newest_height: null, oldest_height: null },
+		tip: TIP,
+	};
+}
+
 describe("fetchHostedPrintSchema", () => {
 	test("reads the hosted route with the key and drops the tip", async () => {
 		const body = {
@@ -52,21 +64,30 @@ describe("fetchHostedPrintSchema", () => {
 	});
 
 	test("memoizes per contract", async () => {
-		const { impl, calls } = fakeFetch(() =>
-			Response.json({
-				contract_id: CONTRACT_ID,
-				topics: [],
-				sampled: false,
-				total_events: 0,
-				total_events_capped: false,
-				sample: { size: 0, newest_height: null, oldest_height: null },
-				tip: TIP,
-			}),
-		);
+		const { impl, calls } = fakeFetch(() => Response.json(hostedBody(3)));
 		const cache = new PrintSchemaCache();
 		await fetchHostedPrintSchema(CONTRACT_ID, { fetchImpl: impl, cache });
 		await fetchHostedPrintSchema(CONTRACT_ID, { fetchImpl: impl, cache });
 		expect(calls).toHaveLength(1);
+	});
+
+	test("does not cache an empty hosted schema", async () => {
+		let n = 0;
+		const { impl, calls } = fakeFetch(() =>
+			Response.json(hostedBody(n++ === 0 ? 0 : 2)),
+		);
+		const cache = new PrintSchemaCache();
+		const first = await fetchHostedPrintSchema(CONTRACT_ID, {
+			fetchImpl: impl,
+			cache,
+		});
+		const second = await fetchHostedPrintSchema(CONTRACT_ID, {
+			fetchImpl: impl,
+			cache,
+		});
+		expect(calls).toHaveLength(2);
+		expect(first.total_events).toBe(0);
+		expect(second.total_events).toBe(2);
 	});
 
 	test("404 is an empty schema", async () => {

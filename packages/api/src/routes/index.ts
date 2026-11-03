@@ -78,6 +78,7 @@ import {
 	type PrintSchemaCache,
 	type PrintSchemaReader,
 	getPrintSchemaResponse,
+	isEmptySchema,
 	parsePrintSchemaContractId,
 } from "../index/print-schema.ts";
 import { indexRateLimit } from "../index/rate-limit.ts";
@@ -1115,7 +1116,10 @@ export function createIndexRouter(opts: IndexRouterOptions = {}) {
 			read: opts.readPrintSchema,
 			cache: opts.printSchemaCache,
 		});
-		c.header("Cache-Control", "public, max-age=300");
+		c.header(
+			"Cache-Control",
+			isEmptySchema(response) ? "no-store" : "public, max-age=300",
+		);
 		const { tip: _tip, ...stableSlice } = response;
 		const tag = etag(JSON.stringify(stableSlice));
 		c.header("ETag", tag);
