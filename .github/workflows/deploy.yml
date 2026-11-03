@@ -57,24 +57,29 @@ jobs:
       - run: bun install --frozen-lockfile
       - run: bun run build
       - run: bun run typecheck
+      # The per-package `bun run typecheck` excludes test files; only the root
+      # config sweeps them, so type drift in tests lands unseen without this.
+      - name: Typecheck repo root
+        run: bunx tsc --noEmit
       - name: Biome check
         run: bunx biome check
-      # Fails if the API's source-table read contract drifts from the indexer
-      # write schema. No Postgres needed — pure snapshot diff.
-      - name: Schema contract drift check
-        run: bun test packages/shared/test/source-read-columns.test.ts
       # The docs site renders these files rather than restating the API, the
       # packages and the MCP tools by hand. Regenerating must be a no-op, or
       # /docs/api-reference, the package reference pages and /docs/mcp are
-      # describing something that no longer ships.
+      # describing something that no longer ships. Each generator writes its
+      # own files, so they run concurrently.
       - name: Generated reference drift check
+        shell: bash
         run: |
-          bun run --filter @secondlayer/api openapi
-          bun run --filter @secondlayer/sdk openpkg
-          bun run --filter @secondlayer/subgraphs openpkg
-          bun run --filter @secondlayer/verify openpkg
-          bun run --filter @secondlayer/stacks openpkg
-          bun run --filter @secondlayer/mcp tools
+          set -euo pipefail
+          pids=()
+          bun run --filter @secondlayer/api openapi & pids+=($!)
+          bun run --filter @secondlayer/sdk openpkg & pids+=($!)
+          bun run --filter @secondlayer/subgraphs openpkg & pids+=($!)
+          bun run --filter @secondlayer/verify openpkg & pids+=($!)
+          bun run --filter @secondlayer/stacks openpkg & pids+=($!)
+          bun run --filter @secondlayer/mcp tools & pids+=($!)
+          for p in "${pids[@]}"; do wait "$p"; done
           git diff --exit-code -- apps/web/src/generated
 
   test:
@@ -90,7 +95,7 @@ jobs:
           - 5432:5432
         options: >-
           --health-cmd "pg_isready -U postgres"
-          --health-interval 5s --health-timeout 5s --health-retries 10
+          --health-interval 1s --health-timeout 5s --health-retries 30
     env:
       DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/secondlayer
     steps:
@@ -105,12 +110,8 @@ jobs:
         run: bun run test
       - name: pox-5 pin check (shipped tag vs clarinet-embedded ABI)
         run: bun scripts/ci/check-pox5-pin.ts
-      - name: IndexNow URL mapping
-        run: bun test scripts/indexnow.test.ts
-      # The per-package `bun run typecheck` excludes test files; only the root
-      # config sweeps them, so type drift in tests lands unseen without this.
-      - name: Typecheck repo root
-        run: bunx tsc --noEmit
+      - name: Scripts tests
+        run: bun test scripts/indexnow.test.ts scripts/ops
 
   build-images:
     needs: [typecheck, test]
