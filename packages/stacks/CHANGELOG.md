@@ -1,5 +1,12 @@
 # @secondlayer/stacks
 
+## 6.6.0
+
+### Minor Changes
+
+- 51f7f6c: `callContract` and the multisig client's `callContract` take `args`, like `readContract` and `simulateCall`. `functionArgs` still works and is deprecated. New `verifyMessage({ message, signature, publicKey })`; `verifyMessageSignature` is deprecated.
+- 7847c03: `createWalletClient` now uses the address for its chain when the account comes from a local key, so `privateKeyToAccount(key)` works on testnet and devnet without `addressVersion`. Provider accounts are unchanged.
+
 ## 6.5.4
 
 ### Patch Changes

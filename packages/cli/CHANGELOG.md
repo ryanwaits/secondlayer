@@ -1,5 +1,18 @@
 # @secondlayer/cli
 
+## 23.4.0
+
+### Minor Changes
+
+- 4936559: `subgraphs deploy` no longer needs `@secondlayer/subgraphs` installed next to the file, and no longer blocks on an uncommitted source file: it warns instead. `--allow-uncommitted` now just silences that warning.
+
+### Patch Changes
+
+- 51f7f6c: `callContract` and the multisig client's `callContract` take `args`, like `readContract` and `simulateCall`. `functionArgs` still works and is deprecated. New `verifyMessage({ message, signature, publicKey })`; `verifyMessageSignature` is deprecated.
+- Updated dependencies [51f7f6c]
+- Updated dependencies [7847c03]
+  - @secondlayer/stacks@6.6.0
+
 ## 23.3.0
 
 ### Minor Changes
