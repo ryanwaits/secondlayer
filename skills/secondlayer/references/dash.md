@@ -91,7 +91,7 @@ Required props are in **bold**. Components poll every 5s (usage hourly) and paus
 | `NetworkTabs` | **networks[]**, default | `/health`; drops networks that don't answer; no bar when one is left |
 | `Summary` | **network**, webhookIds[] | `/api/webhooks` |
 | `WebhookTable` | **network**, webhookIds[], days (7 or 30) | `/api/webhooks`, `/:id/activity` per webhook |
-| `DeliveryFeed` | **network**, webhookIds[], limit (≤20), open (`newest`, `newest-failed`) | `/:id/deliveries` per webhook, newest first; a row opens `Payload` |
+| `DeliveryFeed` | **network**, webhookIds[], limit (≤20), open (`newest-failed`) | `/:id/deliveries` per webhook, newest first; a row opens `Payload` |
 | `WebhookHeader` | **network**, **webhookId** | `/:id` |
 | `ListensFor` | **network**, **webhookId** | `/:id` triggers, one sentence each |
 | `ActivityBars` | **network**, **webhookId**, days (30) | `/:id/activity?days=30` |
