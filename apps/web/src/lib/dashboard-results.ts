@@ -1,0 +1,56 @@
+/**
+ * How a dashboard read ends, shared by the browser fetchers (through the
+ * `/api/*` proxies) and the server reads (straight to the platform API). A
+ * starting hosted stack, an asleep one and a zero balance are expected states
+ * here, not errors, so both sides map status codes to the same few kinds.
+ */
+
+export type WebhooksResult<T> =
+	| { kind: "ok"; data: T }
+	| { kind: "starting"; retryAfter: number }
+	/** The stack stopped while nothing used it; reads don't restart it. */
+	| { kind: "asleep" }
+	| { kind: "no_credits" }
+	| { kind: "rate_limited"; retryAfter: number }
+	| { kind: "not_found" }
+	| { kind: "error"; message: string };
+
+/** Pure status → result-kind mapping. Returns `null` for a 2xx, meaning the
+ *  caller should read the response body as the success payload. */
+export function resultForStatus(
+	status: number,
+	retryAfterHeader: string | null,
+	errorMessage: string,
+): WebhooksResult<never> | null {
+	if (status >= 200 && status < 300) return null;
+	const retryAfter = retryAfterHeader ? Number(retryAfterHeader) : 30;
+	if (status === 503 && errorMessage === "asleep") return { kind: "asleep" };
+	if (status === 503) return { kind: "starting", retryAfter };
+	if (status === 402) return { kind: "no_credits" };
+	if (status === 429) return { kind: "rate_limited", retryAfter };
+	if (status === 404) return { kind: "not_found" };
+	return { kind: "error", message: errorMessage };
+}
+
+/** The API's `{ error }` text, or a status-only message. */
+export function errorMessageOf(body: unknown, status: number): string {
+	return body &&
+		typeof body === "object" &&
+		"error" in body &&
+		typeof (body as { error: unknown }).error === "string"
+		? (body as { error: string }).error
+		: `Request failed (${status})`;
+}
+
+/** A response and its parsed JSON body (`null` when it had none) as a result. */
+export function resultFromResponse<T>(
+	res: Pick<Response, "status" | "headers">,
+	body: unknown,
+): WebhooksResult<T> {
+	const mapped = resultForStatus(
+		res.status,
+		res.headers.get("Retry-After"),
+		errorMessageOf(body, res.status),
+	);
+	return mapped ?? { kind: "ok", data: body as T };
+}

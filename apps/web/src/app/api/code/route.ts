@@ -1,22 +1,24 @@
-import { renderCode } from "@/components/code/code";
+import { type CodeBlockInput, MAX_CODE_BLOCKS } from "@/lib/code/blocks";
+import { renderBlocks } from "@/lib/server/render-blocks";
 import { NextResponse } from "next/server";
 
 export const runtime = "nodejs";
 
-const MAX_BLOCKS = 10;
 const MAX_CODE = 8000;
 const MAX_TITLE = 80;
 const MAX_LINES = 10000;
 
-type Block = { code: string; title: string; lines: number };
-
-function parse(body: unknown): Block[] | null {
+function parse(body: unknown): CodeBlockInput[] | null {
 	const blocks = (body as { blocks?: unknown } | null)?.blocks;
-	if (!Array.isArray(blocks) || blocks.length < 1 || blocks.length > MAX_BLOCKS)
+	if (
+		!Array.isArray(blocks) ||
+		blocks.length < 1 ||
+		blocks.length > MAX_CODE_BLOCKS
+	)
 		return null;
-	const out: Block[] = [];
+	const out: CodeBlockInput[] = [];
 	for (const raw of blocks) {
-		const { code, title, lines } = (raw ?? {}) as Partial<Block>;
+		const { code, title, lines } = (raw ?? {}) as Partial<CodeBlockInput>;
 		if (
 			typeof code !== "string" ||
 			code.length < 1 ||
@@ -42,20 +44,9 @@ export async function POST(req: Request) {
 	if (!blocks)
 		return NextResponse.json(
 			{
-				error: `Send { blocks }: 1 to ${MAX_BLOCKS} of { code (1 to ${MAX_CODE} chars), title (up to ${MAX_TITLE} chars), lines (1 to ${MAX_LINES}) }.`,
+				error: `Send { blocks }: 1 to ${MAX_CODE_BLOCKS} of { code (1 to ${MAX_CODE} chars), title (up to ${MAX_TITLE} chars), lines (1 to ${MAX_LINES}) }.`,
 			},
 			{ status: 400 },
 		);
-	const rendered = await Promise.all(
-		blocks.map(({ code, title, lines }) =>
-			renderCode({ code, lang: "ts", meta: `lines=${lines}`, title }),
-		),
-	);
-	return NextResponse.json({
-		blocks: rendered.map(({ className, copyable, html }) => ({
-			className,
-			copyable,
-			html,
-		})),
-	});
+	return NextResponse.json({ blocks: await renderBlocks(blocks) });
 }

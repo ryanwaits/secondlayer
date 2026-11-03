@@ -1,6 +1,16 @@
-import type { ChainTrigger, WebhookDetail } from "@secondlayer/sdk";
-import { shortenPrincipal } from "./shared";
-import { SENTENCE_FIELD_ORDER, TRIGGER_NOUN } from "./triggers";
+import { type CodeBlockInput, blockTitle } from "@/lib/code/blocks";
+import type {
+	ChainTrigger,
+	WebhookActivity,
+	WebhookDetail,
+} from "@secondlayer/sdk";
+import { shortenPrincipal } from "./principal";
+import {
+	SENTENCE_FIELD_ORDER,
+	TRIGGER_NOUN,
+	perDay,
+	triggerVolume,
+} from "./triggers";
 
 /**
  * One pure generator that turns any chain trigger into its row line, focus
@@ -498,6 +508,26 @@ export function webhookSource(
 	}
 	lines.push("  ],", "});");
 	return { text: lines.join("\n"), starts };
+}
+
+/** Each trigger's description, and the code frame "Listens for" shows for it. */
+export function listensForCode(
+	webhook: WebhookDetail,
+	activity: WebhookActivity | null,
+): { descriptions: TriggerDescription[]; blocks: CodeBlockInput[] } {
+	const { triggers } = webhook;
+	const descriptions = triggers.map((t, i, all) =>
+		describeTrigger(t, i, all, perDay(triggerVolume(t, all, activity).count)),
+	);
+	const { starts } = webhookSource(webhook);
+	return {
+		descriptions,
+		blocks: descriptions.map((d, i) => ({
+			code: d.source,
+			title: blockTitle(webhook.name),
+			lines: starts[i] ?? 1,
+		})),
+	};
 }
 
 const MONTHS = [

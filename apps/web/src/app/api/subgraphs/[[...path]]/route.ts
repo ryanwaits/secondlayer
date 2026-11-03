@@ -1,7 +1,11 @@
 import { PLATFORM_API_URL, getSessionFromRequest } from "@/lib/api";
+import { publicSource } from "@/lib/server/public-source";
 import { upstreamAgent } from "@/lib/upstream-agent";
 import { NextResponse } from "next/server";
 import type { Agent } from "undici";
+
+// Next to the API, so each dashboard read and write takes the short hop.
+export const preferredRegion = "fra1";
 
 /**
  * Read-only proxy to the signed-in account's hosted subgraphs. The dashboard
@@ -55,17 +59,6 @@ function targetFor(segments: string[]): Target | null {
 		}
 	}
 	return null;
-}
-
-/** The source response minus the deployed bundle (`handlerCode`) and the pin
- *  fields: the dashboard shows the author's source, never the compiled code. */
-function publicSource(payload: unknown): unknown {
-	if (!payload || typeof payload !== "object") return payload;
-	const { name, version, sourceCode, readOnly, updatedAt } = payload as Record<
-		string,
-		unknown
-	>;
-	return { name, version, sourceCode, readOnly, updatedAt };
 }
 
 function forwardedSearch(req: Request): string {

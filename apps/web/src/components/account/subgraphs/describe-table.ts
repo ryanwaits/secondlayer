@@ -1,4 +1,12 @@
-import type { SubgraphSourceInfo } from "@/lib/subgraphs-store";
+import {
+	type CodeBlockInput,
+	MAX_CODE_BLOCKS,
+	blockTitle,
+} from "@/lib/code/blocks";
+import type {
+	SubgraphSourceInfo,
+	SubgraphTableInfo,
+} from "@/lib/subgraphs-store";
 
 /**
  * What a subgraph table is, in words, read from the deployed source: the
@@ -195,4 +203,41 @@ export function describeTable(input: {
 		code: excerpt,
 		start: handler ? handler.keyIndex + 1 : 1,
 	};
+}
+
+/** Every table described, biggest first, and the code frames the page shows
+ *  for the ones whose handler was found (in the same order, up to the cap). */
+export function tableCode(input: {
+	name: string;
+	tables: Record<string, SubgraphTableInfo>;
+	sources: Record<string, SubgraphSourceInfo> | undefined;
+	sourceCode: string | null;
+}): {
+	descriptions: { table: string; description: TableDescription }[];
+	blocks: CodeBlockInput[];
+} {
+	const { name, tables, sources, sourceCode } = input;
+	const descriptions = Object.entries(tables)
+		.sort(([, a], [, b]) => b.rowCount - a.rowCount)
+		.map(([table, info]) => ({
+			table,
+			description: describeTable({
+				table,
+				rowCount: info.rowCount,
+				columns: Object.keys(info.columns).filter(
+					(column) => !column.startsWith("_"),
+				),
+				sources: sources ?? {},
+				sourceCode,
+			}),
+		}));
+	const blocks = descriptions
+		.filter((d) => d.description.code !== null)
+		.slice(0, MAX_CODE_BLOCKS)
+		.map((d) => ({
+			code: d.description.code as string,
+			title: blockTitle(name),
+			lines: d.description.start,
+		}));
+	return { descriptions, blocks };
 }

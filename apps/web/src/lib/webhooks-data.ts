@@ -12,6 +12,7 @@ import type {
 	ReplayRanges,
 	ReplayResult,
 } from "@secondlayer/shared/schemas/webhooks";
+import { type WebhooksResult, resultFromResponse } from "./dashboard-results";
 
 /**
  * Client-only fetchers for /account/webhooks, calling the dashboard's own
@@ -30,33 +31,6 @@ export type WebhookActivityDay = WebhookActivity["days"][number];
 export interface WebhooksActivitySummary {
 	hours: string[];
 	webhooks: Array<{ id: string; delivered: number[]; failed: number[] }>;
-}
-
-export type WebhooksResult<T> =
-	| { kind: "ok"; data: T }
-	| { kind: "starting"; retryAfter: number }
-	/** The stack stopped while nothing used it; reads don't restart it. */
-	| { kind: "asleep" }
-	| { kind: "no_credits" }
-	| { kind: "rate_limited"; retryAfter: number }
-	| { kind: "not_found" }
-	| { kind: "error"; message: string };
-
-/** Pure status → result-kind mapping. Returns `null` for a 2xx, meaning the
- *  caller should read the response body as the success payload. */
-export function resultForStatus(
-	status: number,
-	retryAfterHeader: string | null,
-	errorMessage: string,
-): WebhooksResult<never> | null {
-	if (status >= 200 && status < 300) return null;
-	const retryAfter = retryAfterHeader ? Number(retryAfterHeader) : 30;
-	if (status === 503 && errorMessage === "asleep") return { kind: "asleep" };
-	if (status === 503) return { kind: "starting", retryAfter };
-	if (status === 402) return { kind: "no_credits" };
-	if (status === 429) return { kind: "rate_limited", retryAfter };
-	if (status === 404) return { kind: "not_found" };
-	return { kind: "error", message: errorMessage };
 }
 
 /** A tenant on an older API image can omit `blockTime` from a delivery row
@@ -82,20 +56,7 @@ async function request<T>(
 	} catch {
 		// Empty body on some error responses; fall through to the status-only message.
 	}
-	const errorMessage =
-		body &&
-		typeof body === "object" &&
-		"error" in body &&
-		typeof (body as { error: unknown }).error === "string"
-			? (body as { error: string }).error
-			: `Request failed (${res.status})`;
-	const mapped = resultForStatus(
-		res.status,
-		res.headers.get("Retry-After"),
-		errorMessage,
-	);
-	if (mapped) return mapped;
-	return { kind: "ok", data: body as T };
+	return resultFromResponse<T>(res, body);
 }
 
 async function requestList<T>(path: string): Promise<WebhooksResult<T[]>> {

@@ -1,8 +1,5 @@
-import {
-	type WebhookActivityDay,
-	type WebhooksResult,
-	formatRelative,
-} from "@/lib/webhooks-data";
+import type { WebhooksResult } from "@/lib/dashboard-results";
+import { type WebhookActivityDay, formatRelative } from "@/lib/webhooks-data";
 import type {
 	DeliveryRow,
 	WebhookActivity,

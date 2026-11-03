@@ -8,6 +8,9 @@ export function groupDigits(digits: string): string {
 	return `${match[1]}${(match[2] ?? "").replace(/\B(?=(\d{3})+(?!\d))/g, ",")}`;
 }
 
+/** The week of hourly health the list and the detail's default range draw. */
+export const HEALTH_WEEK_HOURS = 168;
+
 /** Counts as live when the subgraph is under two blocks behind the tip. */
 export const isLive = (blocksBehind: number): boolean => blocksBehind < 2;
 
