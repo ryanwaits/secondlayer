@@ -1,5 +1,16 @@
 # @secondlayer/cli
 
+## 23.3.0
+
+### Minor Changes
+
+- 9854ab9: `secondlayer devnet connect` now runs the one-box Secondlayer runtime, the same image as the self-host compose, and pulls it before starting. Webhooks and decoded Index reads now work on devnet, deliveries are signed with a local dev key, and the stack runs on Apple Silicon. `devnet logs` services are now `secondlayer` and `postgres`.
+
+### Patch Changes
+
+- Updated dependencies [9854ab9]
+  - @secondlayer/shared@15.0.1
+
 ## 23.2.1
 
 ### Patch Changes

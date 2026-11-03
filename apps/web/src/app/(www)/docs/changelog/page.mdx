@@ -2,6 +2,12 @@
 
 Notable changes to Secondlayer and its SDKs. Entries dated before August 2026 describe the hosted service as it worked then (per-row read metering, API keys, `402` past the free window); it was withdrawn in August 2026 and has since returned, with hosted Index, Streams, subgraphs and webhooks at `api.secondlayer.tools` on an account key and prepaid [credits](/docs/authentication), while on a self-hosted instance reads stay yours and unmetered and archive bootstrap, backfill and reindex draw [credits](/docs/authentication#archive-credits).
 
+## CLI — November 2026
+
+### Every product works on your local devnet
+
+`secondlayer devnet connect` now runs the same one-box runtime as the self-host compose, and pulls it before starting. Webhooks and decoded Index reads now work against your Clarinet devnet, next to Streams and subgraphs, and deliveries are signed with a local dev key. It also runs on Apple Silicon, which used to fail with `no matching manifest`. See [Local chain](/docs/cli#local-chain).
+
 ## Skill — November 2026
 
 ### Dashboards your agent builds

@@ -1,5 +1,13 @@
 # @secondlayer/worker
 
+## 1.4.36
+
+### Patch Changes
+
+- Updated dependencies [9854ab9]
+  - @secondlayer/shared@15.0.1
+  - @secondlayer/platform@0.10.6
+
 ## 1.4.35
 
 ### Patch Changes
