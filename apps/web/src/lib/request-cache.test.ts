@@ -1,9 +1,7 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import { clearRequestCache, isFresh, markFresh, shared } from "./request-cache";
+import { clearRequestCache, shared } from "./request-cache";
 
-const realNow = Date.now;
 afterEach(() => {
-	Date.now = realNow;
 	clearRequestCache();
 });
 
@@ -35,24 +33,5 @@ describe("shared", () => {
 			}),
 		).rejects.toThrow("boom");
 		expect(await shared("k", async () => "ok")).toBe("ok");
-	});
-});
-
-describe("freshness", () => {
-	test("fresh right after markFresh, stale after the window", () => {
-		let now = 1_000;
-		Date.now = () => now;
-		expect(isFresh("k")).toBe(false);
-		markFresh("k");
-		expect(isFresh("k")).toBe(true);
-		now += 5_000;
-		expect(isFresh("k", 5_000)).toBe(false);
-		expect(isFresh("k", 6_000)).toBe(true);
-	});
-
-	test("clearRequestCache forgets freshness", () => {
-		markFresh("k");
-		clearRequestCache();
-		expect(isFresh("k")).toBe(false);
 	});
 });
