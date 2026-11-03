@@ -226,6 +226,9 @@ COPY --from=builder /app/packages/subgraphs ./packages/subgraphs
 COPY --from=builder /app/packages/bundler ./packages/bundler
 COPY --from=builder /app/packages/indexer ./packages/indexer
 COPY --from=builder /app/packages/sdk ./packages/sdk
+# The runtime stage must copy every workspace package the api stage copies, because the api imports them at boot.
+COPY --from=builder /app/packages/scaffold ./packages/scaffold
+COPY --from=builder /app/packages/mcp ./packages/mcp
 COPY --from=builder /app/packages/api ./packages/api
 COPY --from=builder /app/packages/platform ./packages/platform
 COPY --from=builder /app/packages/bitcoin ./packages/bitcoin
