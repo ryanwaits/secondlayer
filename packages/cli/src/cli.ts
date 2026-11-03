@@ -79,6 +79,7 @@ registerObserverCommand(program);
 registerLoginCommand(program);
 registerLogoutCommand(program);
 registerWhoamiCommand(program);
+registerKeysCommand(program);
 
 // Your data — the three surfaces, plus webhook delivery over them.
 program.commandsGroup("Your data:");
@@ -109,7 +110,6 @@ registerRestoreCommand(program);
 
 // Archive — the history plane. Credits pay for pulling it.
 program.commandsGroup("Archive:");
-registerKeysCommand(program);
 registerCreditsCommand(program);
 registerArchiveCommand(program);
 

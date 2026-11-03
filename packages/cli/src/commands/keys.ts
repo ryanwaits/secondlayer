@@ -1,10 +1,6 @@
 import { resolveAccountKey } from "@secondlayer/sdk";
 import type { Command } from "commander";
-import {
-	CliHttpError,
-	httpArchiveOps,
-	resolveArchiveOpsUrl,
-} from "../lib/http.ts";
+import { httpArchiveOps, resolveArchiveOpsUrl } from "../lib/http.ts";
 import {
 	blue,
 	confirmDestructive,
@@ -26,11 +22,11 @@ export interface ListedKey {
 	name: string | null;
 	status: string;
 	product: string;
-	tier: string;
+	tier: string | null;
 	createdAt: string;
 	lastUsedAt: string | null;
 	expiresAt: string | null;
-	rowsDaily: number;
+	rowsDaily: number[];
 	rows30d: number;
 }
 
@@ -41,7 +37,7 @@ export interface RotatedKey {
 	id: string;
 	name: string | null;
 	product: string;
-	tier: string;
+	tier: string | null;
 	createdAt: string;
 	rotatedFrom: string;
 }
@@ -113,8 +109,30 @@ export async function applyRotationToLogin(
 	return { loginUpdated, envStale: envKey?.startsWith(prefix) ?? false };
 }
 
+/**
+ * `applyRotationToLogin` that cannot throw. By the time it runs the old key is
+ * already revoked, so a failed login write (disk full, permissions) must not
+ * stop the new key from printing: the error comes back for a warning instead.
+ */
+export async function saveRotatedLogin(
+	prefix: string,
+	newKey: string,
+	deps: Partial<RotationDeps> = {},
+): Promise<{ loginUpdated: boolean; envStale: boolean; loginError?: string }> {
+	try {
+		return await applyRotationToLogin(prefix, newKey, deps);
+	} catch (err) {
+		const envKey = "envKey" in deps ? deps.envKey : resolveAccountKey();
+		return {
+			loginUpdated: false,
+			envStale: Boolean(prefix) && (envKey?.startsWith(prefix) ?? false),
+			loginError: err instanceof Error ? err.message : String(err),
+		};
+	}
+}
+
 function fail(err: unknown): never {
-	if (err instanceof CliHttpError || err instanceof Error) {
+	if (err instanceof Error) {
 		logError(err.message);
 		process.exit(1);
 	}
@@ -191,8 +209,9 @@ async function runRotate(
 		fail(err);
 	}
 
-	// Before printing: a crash must not leave the login holding a dead key.
-	const { loginUpdated, envStale } = await applyRotationToLogin(
+	// The old key is already revoked, so a login update that fails must never
+	// stop the new key from printing below: saveRotatedLogin reports instead.
+	const { loginUpdated, envStale, loginError } = await saveRotatedLogin(
 		target.prefix,
 		rotated.key,
 	);
@@ -203,6 +222,11 @@ async function runRotate(
 		success(`Rotated ${blue(label)}. The old key has stopped working.`);
 		writeData(rotated.key);
 		note("Shown once. Copy it now.");
+	}
+	if (loginError) {
+		warn(
+			`Couldn't update your CLI login: ${loginError}. Run: secondlayer login --with-token`,
+		);
 	}
 	if (loginUpdated) info("Updated your CLI login to the new key.");
 	if (envStale) warn("SECONDLAYER_API_KEY still holds the old key. Update it.");

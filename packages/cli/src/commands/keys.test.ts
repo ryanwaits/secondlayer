@@ -7,6 +7,7 @@ import {
 	registerKeysCommand,
 	resolveKeyRef,
 	rotatableKeys,
+	saveRotatedLogin,
 } from "./keys.ts";
 
 function key(overrides: Partial<ListedKey> & { id: string }): ListedKey {
@@ -19,7 +20,7 @@ function key(overrides: Partial<ListedKey> & { id: string }): ListedKey {
 		createdAt: "2026-11-01T00:00:00.000Z",
 		lastUsedAt: null,
 		expiresAt: null,
-		rowsDaily: 0,
+		rowsDaily: [],
 		rows30d: 0,
 		...overrides,
 	};
@@ -186,5 +187,27 @@ describe("applyRotationToLogin", () => {
 		const result = await applyRotationToLogin(PREFIX, NEW_KEY, deps);
 		expect(result).toEqual({ loginUpdated: false, envStale: false });
 		expect(writes).toEqual([]);
+	});
+
+	test("saveRotatedLogin reports a failed login write instead of throwing", async () => {
+		const stored = session(`${PREFIX}OLD`);
+		const { deps } = harness(stored, `${PREFIX}OLD`);
+		const result = await saveRotatedLogin(PREFIX, NEW_KEY, {
+			...deps,
+			writeSession: async () => {
+				throw new Error("EACCES: permission denied");
+			},
+		});
+		expect(result).toEqual({
+			loginUpdated: false,
+			envStale: true,
+			loginError: "EACCES: permission denied",
+		});
+	});
+
+	test("saveRotatedLogin passes a successful update through", async () => {
+		const { deps } = harness(session(`${PREFIX}OLD`));
+		const result = await saveRotatedLogin(PREFIX, NEW_KEY, deps);
+		expect(result).toEqual({ loginUpdated: true, envStale: false });
 	});
 });

@@ -71,7 +71,7 @@ interface ListedKey {
 	prefix: string;
 	status: string;
 	product: string;
-	rowsDaily?: number;
+	rowsDaily?: number[];
 }
 
 async function activeAccountKeys(request: ApiRequest) {
