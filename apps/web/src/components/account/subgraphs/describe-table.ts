@@ -124,6 +124,7 @@ export function describeTable(input: {
 	const { table, rowCount, columns, sources, sourceCode } = input;
 	const handler = findHandler(table, sourceCode);
 	const source = handler ? sources[handler.key] : undefined;
+	// The count is the database's estimate, so the copy never states it exactly.
 	const rows = rowCount.toLocaleString("en-US");
 	const excerpt = handler?.excerpt ?? null;
 	const columnTotal =
@@ -143,13 +144,13 @@ export function describeTable(input: {
 		const noHandlerProse: Segment[] = [
 			{
 				pieces: [
-					text(`${plural(columnTotal, "column")}. ${rows} rows so far.`),
+					text(`${plural(columnTotal, "column")}. About ${rows} rows so far.`),
 				],
 			},
 		];
 		return {
 			type: "handler",
-			line: [text(`${rows} rows`)],
+			line: [text(`≈${rows} rows`)],
 			prose: noHandlerProse,
 			code: null,
 			start: 1,
@@ -160,7 +161,7 @@ export function describeTable(input: {
 		line = [
 			text("Rows from "),
 			code(printTopic),
-			text(` prints · ${rows} rows`),
+			text(` prints · ≈${rows} rows`),
 		];
 		lead = [text("Writes one row for every ")];
 		event = [code(printTopic), text(" print")];
@@ -170,7 +171,7 @@ export function describeTable(input: {
 		line = [
 			text("Rows from the "),
 			code(handler.key),
-			text(` handler · ${rows} rows`),
+			text(` handler · ≈${rows} rows`),
 		];
 		lead = [text("Writes rows from the ")];
 		event = [code(handler.key), text(" handler")];
@@ -185,7 +186,7 @@ export function describeTable(input: {
 		columnLink
 			? { pieces: [text(columnsPhrase)], focus: "columns" }
 			: { pieces: [text(columnsPhrase)] },
-		{ pieces: [text(`. ${rows} rows so far.`)] },
+		{ pieces: [text(`. About ${rows} rows so far.`)] },
 	];
 	return {
 		type: source?.type ?? "handler",

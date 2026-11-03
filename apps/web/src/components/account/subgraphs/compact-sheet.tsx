@@ -165,7 +165,7 @@ export function SubgraphSheetBody({
 				<Fact label="Chain tip">
 					{detail ? groupDigits(String(detail.sync.chainTip)) : "…"}
 				</Fact>
-				<Fact label="Rows">{groupDigits(String(item.totalRows ?? 0))}</Fact>
+				<Fact label="Rows">≈{groupDigits(String(item.totalRows ?? 0))}</Fact>
 				<Fact label="Errors 24h" bad={(errors24h ?? 0) > 0}>
 					{errors24h === null ? "…" : groupDigits(String(errors24h))}
 				</Fact>

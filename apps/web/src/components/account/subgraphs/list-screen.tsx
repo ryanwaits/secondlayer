@@ -134,7 +134,7 @@ function SubgraphRow({
 						/>
 					) : null
 				}
-				count={groupDigits(String(rows))}
+				count={`≈${groupDigits(String(rows))}`}
 				age={ageShort(item.updatedAt ?? null)}
 			/>
 			{open && top ? (

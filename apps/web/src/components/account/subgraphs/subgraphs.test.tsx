@@ -283,7 +283,7 @@ describe("TablesSection", () => {
 		const html = tablesSection(sbtcSource);
 		expect(html).toContain("Rows from");
 		expect(html).toContain("<code>completed-deposit</code>");
-		expect(html).toContain("prints · 63,194 rows");
+		expect(html).toContain("prints · ≈63,194 rows");
 	});
 
 	test("prose phrases are focus links and the source sits under them", () => {

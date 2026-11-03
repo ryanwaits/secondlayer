@@ -277,6 +277,30 @@ describe.skipIf(SKIP)("Subgraphs API Routes", () => {
 		expect(body.tables.listings.example).toContain("_sort=");
 	});
 
+	test("GET /subgraphs/:subgraphName reports the catalog's row estimate and table size instead of counting rows", async () => {
+		const client = getRawClient();
+		// More rows than the empty-estimate probe can see, so only the catalog
+		// estimate (refreshed by ANALYZE) can produce this number.
+		await client.unsafe(`
+      INSERT INTO ${PG_SCHEMA}.listings ("_block_height", "_tx_id", "nft_id", "seller", "price", "status")
+      SELECT 200, 'bulk', 'nft-' || n, 'SP_BULK', n, 'active' FROM generate_series(1, 2500) n
+    `);
+		try {
+			await client.unsafe(`ANALYZE ${PG_SCHEMA}.listings`);
+			const res = await app.request(`/subgraphs/${SUBGRAPH_NAME}`);
+			// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
+			const body = (await res.json()) as any;
+			expect(body.tables.listings.rowCount).toBe(2504);
+			expect(body.tables.listings.storageBytes).toBeGreaterThan(0);
+			expect(body.storageBytes).toBeGreaterThan(0);
+			expect(body.health.emptyMapping).toBe(false);
+		} finally {
+			await client.unsafe(
+				`DELETE FROM ${PG_SCHEMA}.listings WHERE "_tx_id" = 'bulk'`,
+			);
+		}
+	});
+
 	test("GET /subgraphs/:subgraphName returns 404 for unknown subgraph", async () => {
 		const res = await app.request("/subgraphs/nonexistent");
 		expect(res.status).toBe(404);

@@ -32,6 +32,7 @@ import {
 	pgSchemaName,
 	updateSubgraphStatus,
 } from "@secondlayer/shared/db/queries/subgraphs";
+import { createInternalIndexHttpClient } from "@secondlayer/shared/index-http";
 import {
 	type DeploySubgraphRequest,
 	DeploySubgraphRequestSchema,
@@ -264,12 +265,24 @@ export async function getChainTip(now: number = Date.now()): Promise<number> {
 	const progressRow =
 		(await selectTip(getSourceDb()).catch(() => null)) ??
 		(await selectTip(getDb()).catch(() => null));
-	const value = progressRow?.highest_seen_block ?? 0;
+	let value = Number(progressRow?.highest_seen_block ?? 0);
+
+	// A hosted tenant has no indexer, so its own `index_progress` stays empty:
+	// ask the platform's Streams clock instead (same env contract as the
+	// tenant's processors).
+	if (value === 0 && (await hasNoLocalChain().catch(() => false))) {
+		value = await createInternalIndexHttpClient()
+			.getStreamsTip()
+			.catch(() => 0);
+	}
 
 	// A transient read failure/absence must not overwrite a previously known
 	// tip with 0 — that would make every caller's `blocks_behind` jump to the
-	// full chain height on a single blip in `index_progress`.
+	// full chain height on a single blip in `index_progress`. The TTL still
+	// restarts, so a source that stays empty is re-read once per window, not
+	// on every request.
 	if (value === 0 && chainTipCache) {
+		chainTipCache = { value: chainTipCache.value, fetchedAt: now };
 		return chainTipCache.value;
 	}
 
@@ -1352,6 +1365,57 @@ async function buildSubgraphDetailPayload(
 	return buildSubgraphDetailFromRow(requireSubgraph(subgraphName));
 }
 
+/**
+ * Per-table row estimates and on-disk bytes from ONE catalog query, so a
+ * detail read costs the same at 100 rows and 100M rows. `n_live_tup` is the
+ * planner's estimate (autovacuum keeps it close); exact counts stay on the
+ * `/count` endpoints. A table the catalog reports as 0 gets a bounded exact
+ * probe, because a fresh table that autovacuum hasn't visited yet would
+ * otherwise read as empty and trip the empty-mapping health flag.
+ */
+const EMPTY_ESTIMATE_PROBE_LIMIT = 1000;
+
+async function readTableStats(
+	subgraph: Subgraph,
+	tableNames: string[],
+): Promise<{
+	rowCounts: Map<string, number>;
+	storageBytes: Map<string, number> | null;
+}> {
+	const sn = subgraphSchemaName(subgraph);
+	const rowCounts = new Map<string, number>();
+	let storageBytes: Map<string, number> | null = null;
+	try {
+		const rows = await query(
+			subgraph,
+			"SELECT relname, GREATEST(n_live_tup, 0)::bigint AS rows, pg_total_relation_size(relid)::bigint AS bytes FROM pg_stat_user_tables WHERE schemaname = $1",
+			[sn],
+		);
+		storageBytes = new Map();
+		for (const r of rows) {
+			const name = String(r.relname);
+			rowCounts.set(name, Number(r.rows));
+			storageBytes.set(name, Number(r.bytes));
+		}
+	} catch {}
+	await Promise.all(
+		tableNames
+			.filter((name) => !rowCounts.get(name))
+			.map(async (name) => {
+				try {
+					const r = await query(
+						subgraph,
+						`SELECT COUNT(*) AS count FROM (SELECT 1 FROM ${ident(sn)}.${ident(name)} LIMIT ${EMPTY_ESTIMATE_PROBE_LIMIT}) probe`,
+					);
+					rowCounts.set(name, Number.parseInt(String(r[0]?.count ?? 0), 10));
+				} catch {
+					rowCounts.set(name, 0);
+				}
+			}),
+	);
+	return { rowCounts, storageBytes };
+}
+
 // Shared with /v1/subgraphs doc routes.
 export async function buildSubgraphDetailFromRow(
 	subgraph: Subgraph,
@@ -1359,18 +1423,13 @@ export async function buildSubgraphDetailFromRow(
 	const subgraphName = subgraph.name;
 	const subgraphSchema = getSubgraphSchema(subgraph);
 	const tables: SubgraphDetail["tables"] = {};
-	const sn = subgraphSchemaName(subgraph);
 
 	const schemaEntries = Object.entries(subgraphSchema);
 	const db = getDb();
-	const [countResults, liveRow, chainTip, gapResult] = await Promise.all([
-		Promise.allSettled(
-			schemaEntries.map(([tableName]) =>
-				query(
-					subgraph,
-					`SELECT COUNT(*) as count FROM ${ident(sn)}.${ident(tableName)}`,
-				).then((r) => Number.parseInt(String(r[0]?.count ?? 0), 10)),
-			),
+	const [{ rowCounts }, liveRow, chainTip, gapResult] = await Promise.all([
+		readTableStats(
+			subgraph,
+			schemaEntries.map(([tableName]) => tableName),
 		),
 		db
 			.selectFrom("subgraphs")
@@ -1398,8 +1457,7 @@ export async function buildSubgraphDetailFromRow(
 
 	for (let i = 0; i < schemaEntries.length; i++) {
 		const [tableName, tableDef] = schemaEntries[i];
-		const cr = countResults[i];
-		const rowCount = cr.status === "fulfilled" ? cr.value : 0;
+		const rowCount = rowCounts.get(tableName) ?? 0;
 		const columns: SubgraphDetail["tables"][string]["columns"] = {};
 		for (const [colName, col] of Object.entries(tableDef.columns)) {
 			columns[colName] = {
@@ -1543,7 +1601,6 @@ app.get("/:subgraphName", async (c) => {
 	const subgraphSchema = getSubgraphSchema(subgraph);
 	// biome-ignore lint/suspicious/noExplicitAny: dynamic schema shape
 	const tables: Record<string, any> = {};
-	const sn = subgraphSchemaName(subgraph);
 
 	const schemaEntries = Object.entries(subgraphSchema);
 
@@ -1551,21 +1608,16 @@ app.get("/:subgraphName", async (c) => {
 	// (ETA/progress source) in parallel
 	const db = getDb();
 	const [
-		countResults,
+		{ rowCounts, storageBytes: storageByTable },
 		liveRow,
 		chainTip,
 		gapResult,
 		activeOpResult,
 		violationCount,
-		storageRows,
 	] = await Promise.all([
-		Promise.allSettled(
-			schemaEntries.map(([tableName]) =>
-				query(
-					subgraph,
-					`SELECT COUNT(*) as count FROM ${ident(sn)}.${ident(tableName)}`,
-				).then((r) => Number.parseInt(String(r[0]?.count ?? 0), 10)),
-			),
+		readTableStats(
+			subgraph,
+			schemaEntries.map(([tableName]) => tableName),
 		),
 		db
 			.selectFrom("subgraphs")
@@ -1599,26 +1651,15 @@ app.get("/:subgraphName", async (c) => {
 			.executeTakeFirst()
 			.then((r) => Number(r?.count ?? 0))
 			.catch(() => 0),
-		// Per-table bytes (table + indexes). Best effort: omitted on failure.
-		query(
-			subgraph,
-			"SELECT relname, pg_total_relation_size(relid)::bigint AS bytes FROM pg_stat_user_tables WHERE schemaname = $1",
-			[sn],
-		).catch(() => null),
 	]);
-	const storageByTable = new Map<string, number>();
-	for (const r of storageRows ?? []) {
-		storageByTable.set(String(r.relname), Number(r.bytes));
-	}
-	const totalStorageBytes = [...storageByTable.values()].reduce(
+	const totalStorageBytes = [...(storageByTable?.values() ?? [])].reduce(
 		(a, b) => a + b,
 		0,
 	);
 
 	for (let i = 0; i < schemaEntries.length; i++) {
 		const [tableName, tableDef] = schemaEntries[i];
-		const cr = countResults[i];
-		const rowCount = cr.status === "fulfilled" ? cr.value : 0;
+		const rowCount = rowCounts.get(tableName) ?? 0;
 
 		// biome-ignore lint/suspicious/noExplicitAny: dynamic column shape
 		const columns: Record<string, any> = {};
@@ -1640,7 +1681,7 @@ app.get("/:subgraphName", async (c) => {
 			endpoint: `/v1/subgraphs/${subgraphName}/${tableName}`,
 			columns,
 			rowCount,
-			...(storageByTable.has(tableName) && {
+			...(storageByTable?.has(tableName) && {
 				storageBytes: storageByTable.get(tableName),
 			}),
 			example: `/v1/subgraphs/${subgraphName}/${tableName}?_sort=_block_height&_order=desc&_limit=10`,
@@ -1711,7 +1752,7 @@ app.get("/:subgraphName", async (c) => {
 		},
 		sync,
 		tables,
-		...(storageRows && { storageBytes: totalStorageBytes }),
+		...(storageByTable && { storageBytes: totalStorageBytes }),
 		createdAt: subgraph.created_at.toISOString(),
 		updatedAt:
 			live.updated_at?.toISOString() ?? subgraph.updated_at.toISOString(),

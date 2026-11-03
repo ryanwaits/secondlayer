@@ -171,7 +171,7 @@ export function SubgraphsCompactList({
 	return (
 		<div className="msg">
 			<p className="m-sub">
-				{items.length} {items.length === 1 ? "subgraph" : "subgraphs"} ·{" "}
+				{items.length} {items.length === 1 ? "subgraph" : "subgraphs"} · ≈
 				{groupDigits(String(rows))} rows
 			</p>
 			<div className="msg-group">

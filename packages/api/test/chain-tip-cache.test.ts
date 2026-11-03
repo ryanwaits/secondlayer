@@ -1,4 +1,11 @@
-import { afterAll, beforeEach, describe, expect, test } from "bun:test";
+import {
+	afterAll,
+	afterEach,
+	beforeEach,
+	describe,
+	expect,
+	test,
+} from "bun:test";
 import { getDb } from "@secondlayer/shared/db";
 import { getChainTip, resetChainTipCache } from "../src/routes/subgraphs.ts";
 
@@ -91,5 +98,58 @@ describe.skipIf(SKIP)("getChainTip cache", () => {
 		// no index_progress row, past the TTL.
 		process.env.NETWORK = `${NETWORK}-missing`;
 		expect(await tip(t0 + 2001)).toBe(500);
+	});
+
+	describe("tenant without a local indexer", () => {
+		let server: ReturnType<typeof Bun.serve>;
+		let requests = 0;
+		let respond: () => Response;
+		const savedUrl = process.env.SUBGRAPH_INDEX_API_URL;
+
+		beforeEach(() => {
+			requests = 0;
+			// No index_progress row for this network: the tenant shape.
+			process.env.NETWORK = `${NETWORK}-tenant`;
+			respond = () => Response.json({ block_height: 777 });
+			server = Bun.serve({
+				port: 0,
+				fetch: () => {
+					requests++;
+					return respond();
+				},
+			});
+			process.env.SUBGRAPH_INDEX_API_URL = `http://127.0.0.1:${server.port}`;
+		});
+
+		afterEach(async () => {
+			await server.stop(true);
+			if (savedUrl === undefined) {
+				process.env.SUBGRAPH_INDEX_API_URL = "";
+			} else {
+				process.env.SUBGRAPH_INDEX_API_URL = savedUrl;
+			}
+		});
+
+		test("reads the platform tip, and one fetch serves the whole TTL window", async () => {
+			const t0 = Date.now();
+			expect(await tip(t0)).toBe(777);
+			expect(await tip(t0 + 1999)).toBe(777);
+			expect(requests).toBe(1);
+
+			expect(await tip(t0 + 2001)).toBe(777);
+			expect(requests).toBe(2);
+		});
+
+		test("an unreachable platform keeps the last tip and retries once per window, not per call", async () => {
+			const t0 = Date.now();
+			expect(await tip(t0)).toBe(777);
+
+			respond = () => new Response("down", { status: 500 });
+			expect(await tip(t0 + 2001)).toBe(777);
+			const afterFailure = requests;
+			expect(await tip(t0 + 2002)).toBe(777);
+			expect(await tip(t0 + 3000)).toBe(777);
+			expect(requests).toBe(afterFailure);
+		});
 	});
 });

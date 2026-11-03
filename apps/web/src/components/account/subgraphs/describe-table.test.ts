@@ -27,7 +27,7 @@ describe("describeTable", () => {
 		expect(description.code).toContain("// !ref(1:6) columns");
 		expect(description.code?.split("\n")[1]).toContain("completedDeposit:");
 		expect(plain(description.line)).toBe(
-			"Rows from completed-deposit prints · 63,194 rows",
+			"Rows from completed-deposit prints · ≈63,194 rows",
 		);
 		expect(description.line.find((piece) => piece.code)?.text).toBe(
 			"completed-deposit",
@@ -36,7 +36,7 @@ describe("describeTable", () => {
 			description.prose.filter((s) => s.focus).map((s) => s.focus),
 		).toEqual(["event", "columns"]);
 		expect(plain(description.prose.flatMap((s) => s.pieces))).toBe(
-			"Writes one row for every completed-deposit print from sbtc-registry, with 6 columns copied from the event. 63,194 rows so far.",
+			"Writes one row for every completed-deposit print from sbtc-registry, with 6 columns copied from the event. About 63,194 rows so far.",
 		);
 	});
 
@@ -77,7 +77,7 @@ describe("describeTable", () => {
 		expect(description.code).toContain("// !ref(1:1) event");
 		expect(description.code).not.toBeNull();
 		expect(plain(description.line)).toBe(
-			"Rows from the transferred handler · 2 rows",
+			"Rows from the transferred handler · ≈2 rows",
 		);
 	});
 
@@ -91,10 +91,10 @@ describe("describeTable", () => {
 		});
 		expect(description.code).toBeNull();
 		expect(description.prose.some((s) => s.focus)).toBe(false);
-		expect(plain(description.line)).toBe("0 rows");
+		expect(plain(description.line)).toBe("≈0 rows");
 		expect(plain(description.line)).not.toContain("handler");
 		expect(plain(description.prose.flatMap((s) => s.pieces))).toBe(
-			"2 columns. 0 rows so far.",
+			"2 columns. About 0 rows so far.",
 		);
 	});
 
@@ -108,7 +108,7 @@ describe("describeTable", () => {
 		});
 		expect(description.code).toBeNull();
 		expect(description.prose.some((s) => s.focus)).toBe(false);
-		expect(plain(description.line)).toBe("5 rows");
+		expect(plain(description.line)).toBe("≈5 rows");
 		expect(plain(description.line)).not.toContain("handler");
 		expect(plain(description.prose.flatMap((s) => s.pieces))).not.toContain(
 			"handler",
