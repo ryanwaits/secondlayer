@@ -419,23 +419,16 @@ function FamilyIndex({
 	id,
 	title,
 	summary,
-	since,
 	children,
 }: {
 	id: string;
 	title: string;
 	summary: string;
-	since?: string;
 	children: ReactNode;
 }) {
 	return (
 		<div className="apiref-family">
-			<h2
-				id={id}
-				className="apiref-family-title"
-				data-outline-family=""
-				data-new={since}
-			>
+			<h2 id={id} className="apiref-family-title" data-outline-family="">
 				<a href={`#${id}`} className="heading-anchor">
 					{title}
 				</a>
@@ -471,7 +464,6 @@ export function ApiPage({ slug }: { slug: string }) {
 						id={family.id}
 						title={family.title}
 						summary={family.summary}
-						since={family.since}
 					>
 						{family.endpoints.map((endpoint) => (
 							<EndpointRow key={endpoint.anchor} endpoint={endpoint} />

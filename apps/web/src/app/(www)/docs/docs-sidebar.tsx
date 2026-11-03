@@ -36,8 +36,6 @@ interface Head {
 	family?: boolean;
 	/** An endpoint or object section: the id of the family it nests under. */
 	child?: string;
-	/** Carries a fresh "new" mark (src/lib/docs-new.mjs). */
-	isNew?: boolean;
 	/** Label shown over this row: the first section after the page's seam. */
 	group?: string;
 }
@@ -47,8 +45,7 @@ interface Head {
  *  collapsed `<details>`, and marks the last one whose top has reached the
  *  spy line as the place being read. Headings after a `data-outline-reference`
  *  marker (the page's seam) start a Reference group. An h3 marked `data-outline-child` (an API endpoint or object) is
- *  listed too, under the family whose id the attribute carries. A heading
- *  with a fresh `data-new` mark gets a "New" chip.
+ *  listed too, under the family whose id the attribute carries.
  *  Other docs pages have no such h3s, so their outline is unchanged. */
 function PageOutline({ onNavigate }: { onNavigate: () => void }) {
 	const pathname = usePathname();
@@ -71,7 +68,6 @@ function PageOutline({ onNavigate }: { onNavigate: () => void }) {
 				text: h.dataset.outline ?? h.textContent ?? "",
 				family: h.hasAttribute("data-outline-family"),
 				child: h.dataset.outlineChild,
-				isNew: isFresh(h.dataset.new, Date.now()),
 			}));
 		// The family headings sit together in the page's index, ahead of the
 		// sections, so each family's sections are pulled up under it.
@@ -220,7 +216,6 @@ function PageOutline({ onNavigate }: { onNavigate: () => void }) {
 				h.family ? (
 					<div key={h.id} className="docs-nav-fam">
 						{h.text}
-						{h.isNew ? <NewChip /> : null}
 					</div>
 				) : (
 					<Fragment key={h.id}>
@@ -249,7 +244,6 @@ function PageOutline({ onNavigate }: { onNavigate: () => void }) {
 							) : (
 								h.text
 							)}
-							{h.isNew ? <NewChip /> : null}
 						</a>
 					</Fragment>
 				),

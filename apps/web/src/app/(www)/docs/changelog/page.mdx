@@ -1,23 +1,19 @@
-{/* new: 2026-10-15 */}
 # Changelog
 
 Notable changes to Secondlayer and its SDKs. Entries dated before August 2026 describe the hosted service as it worked then (per-row read metering, API keys, `402` past the free window); it was withdrawn in August 2026 and has since returned, with hosted Index, Streams, subgraphs and webhooks at `api.secondlayer.tools` on an account key and prepaid [credits](/docs/authentication), while on a self-hosted instance reads stay yours and unmetered and archive bootstrap, backfill and reindex draw [credits](/docs/authentication#archive-credits).
 
-{/* new: 2026-11-02 */}
 ## Keys — November 2026
 
 ### Rotate a key in one step
 
 Rotate replaces a key's secret and keeps its name, in one transaction. The old secret gets `401 KEY_REVOKED` at once, so have the new one ready to deploy. Use the Rotate button on [/account/keys](https://www.secondlayer.tools/account/keys), `secondlayer keys rotate`, or `account_rotate_key` on a local MCP server.
 
-{/* new: 2026-11-02 */}
 ## Webhooks — November 2026
 
 ### The right key for checking a delivery's signature
 
 Each hosted stack signs deliveries with its own ed25519 key, so the key these docs pointed at could not verify them. Read yours from `GET /api/webhooks/signing-key`, or `/testnet/api/webhooks/signing-key` on testnet. HMAC checks were never affected.
 
-{/* new: 2026-11-02 */}
 ## SDK and CLI — November 2026
 
 ### One variable for the hosted API
@@ -47,7 +43,6 @@ Import the storage-shape helpers (`decodeFtTransfer`, `isFtTransfer` and the res
 
 CLI 23 stores one setting, `network`. `secondlayer config set` rejects every other key. `ports`, `database`, `node`, `dataDir`, `defaultProject`, `SL_API_PORT`, `SL_INDEXER_PORT`, `SL_DATA_DIR` and the `SL_PLATFORM_API_URL` alias are gone, and `whoami` no longer reports a project. `doctor --json` drops `chainIdValid`.
 
-{/* new: 2026-11-01 */}
 ## Subgraphs — November 2026
 
 ### One import path for subgraph types
@@ -56,14 +51,12 @@ Import every subgraph type from `@secondlayer/subgraphs`. The `@secondlayer/subg
 
 If you self-host, `SUBGRAPH_SOURCE=observer-http`, `SUBGRAPH_REINDEX_BATCH_SIZE`, `SUBGRAPH_REINDEX_MIN_BATCH_SIZE`, `SUBGRAPH_REINDEX_MAX_BATCH_SIZE` and `SUBGRAPH_CHAIN_READ_CONCURRENCY` no longer do anything. Reindex batches and handler chain reads use fixed limits. Set `SUBGRAPH_SOURCE=streams-index` or leave it unset.
 
-{/* new: 2026-10-27 */}
 ## Archive — October 2026
 
 ### Know when the archive moves next
 
 `status.json` now carries `next_publish_at`, the start of the next scheduled publish in UTC. Publishes run Wednesdays and Sundays at 08:00 UTC, and a deploy no longer cuts one short. The [Archive page](/p/archive) says which block the signed copy reaches, how far the chain has moved past it, and when the next publish lands ([archive objects](/docs/archive)).
 
-{/* new: 2026-10-19 */}
 ## Index — October 2026
 
 ### Read the newest events first
@@ -92,7 +85,6 @@ When a range of your local data differs from the signed archive, `secondlayer ve
 
 From Bitcoin height 972,295 the sBTC signers lock the peg to a `multi_a` script built from the registry signer set and threshold, not the aggregate key. `getSignersAddress` in `@secondlayer/stacks/sbtc` now returns the format active at the node's burn tip, or at the height or `version` you pass. `deriveSbtcV2PegOutput` gives the v2 script, scriptPubKey and address for any signer set. Once DKG is disabled the registry's aggregate key becomes a `0xFF` marker, and `getSignersPublicKey` throws `SbtcV2MarkerError` rather than returning it. Until the first v2 sweep confirms, the funds are still at the v1 address.
 
-{/* new: 2026-10-18 */}
 ## MCP — October 2026
 
 ### Connect an agent with a URL

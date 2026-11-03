@@ -96,20 +96,11 @@ function HeadingAnchor({
 
 /** Section heading — marketing's text-over-a-rule treatment. The id stays on
  *  the <h2> (not the wrap) so rehype-slug anchors + the scrollspy TOC work. */
-function MdxH2({
-	id,
-	children,
-	"data-new": isNew,
-}: {
-	id?: string;
-	children?: ReactNode;
-	/** A "new" mark's date (remark-new-marks), for the sidebar's chip. */
-	"data-new"?: string;
-}) {
+function MdxH2({ id, children }: { id?: string; children?: ReactNode }) {
 	return (
 		<div className="section-heading-wrap">
 			<hr />
-			<h2 id={id} className="section-heading" data-new={isNew}>
+			<h2 id={id} className="section-heading">
 				<HeadingAnchor id={id}>{children}</HeadingAnchor>
 			</h2>
 		</div>

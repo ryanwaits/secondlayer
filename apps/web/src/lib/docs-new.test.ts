@@ -1,9 +1,11 @@
 import { describe, expect, test } from "bun:test";
+import { execFileSync } from "node:child_process";
+import { existsSync } from "node:fs";
+import { join } from "node:path";
 import docsNewPages from "@/generated/docs-new.json";
-import { pageMarks } from "../../scripts/docs-new";
-import { isFresh, pageNewDate, stampNewMarks } from "./docs-new.mjs";
-import { mdxToMarkdown } from "./docs-source";
-import remarkNewMarks from "./remark-new-marks.mjs";
+import { rowsAsOf } from "../../scripts/docs-new";
+import { headingTerms, newRows } from "./docs-new-rule.mjs";
+import { isFresh } from "./docs-new.mjs";
 
 const TODAY = "2026-10-15";
 
@@ -21,88 +23,296 @@ describe("isFresh", () => {
 	});
 });
 
-describe("stampNewMarks", () => {
-	const before = "# Streams\n\nIntro.\n\n## Cursors\n\nText.\n";
+type Feat = { date: string; scope: string; subject: string };
 
-	test("marks a section the commit adds, and only that one", () => {
-		const after = `${before}\n## Runes\n\nNew text.\n`;
-		expect(stampNewMarks(before, after, TODAY)).toBe(
-			`${before}\n{/* new: 2026-10-15 */}\n## Runes\n\nNew text.\n`,
-		);
-	});
+const AS_OF = "2026-11-02";
 
-	test("an edit inside an existing section stamps nothing", () => {
-		const after = before.replace("Text.", "Better text.");
-		expect(stampNewMarks(before, after, TODAY)).toBe(after);
-	});
+/** `count` feat subjects naming `phrase`, one per scope in turn, on `date`. */
+const feats = (
+	phrase: string,
+	scopes: string[],
+	count: number,
+	date = "2026-10-20",
+): Feat[] =>
+	Array.from({ length: count }, (_, i) => ({
+		date,
+		scope: scopes[i % scopes.length],
+		subject: `${phrase} number ${i}`,
+	}));
 
-	test("a renamed section is not new", () => {
-		const after = before.replace("## Cursors", "## Cursors and reorgs");
-		expect(stampNewMarks(before, after, TODAY)).toBe(after);
-	});
+const FOUR_SCOPES = ["docker", "workload", "subgraphs", "api"];
 
-	test("a section added after a rename is still new", () => {
-		const after = `${before.replace("## Cursors", "## Paging")}\n## Runes\n`;
-		expect(stampNewMarks(before, after, TODAY)).toBe(
-			`${before.replace("## Cursors", "## Paging")}\n{/* new: 2026-10-15 */}\n## Runes\n`,
-		);
-	});
-
-	test("a new page gets one mark on its title, not one per section", () => {
-		expect(stampNewMarks(null, before, TODAY)).toBe(
-			`{/* new: 2026-10-15 */}\n${before}`,
-		);
-	});
-
-	test("stamping twice changes nothing the second time", () => {
-		const once = stampNewMarks(before, `${before}\n## Runes\n`, TODAY);
-		expect(stampNewMarks(before, once, TODAY)).toBe(once);
-	});
-
-	test("expired marks are removed, fresh ones kept", () => {
-		const after =
-			"{/* new: 2026-08-01 */}\n## Old\n\n{/* new: 2026-10-01 */}\n## Recent\n";
-		expect(stampNewMarks(after, after, TODAY)).toBe(
-			"## Old\n\n{/* new: 2026-10-01 */}\n## Recent\n",
-		);
-	});
-
-	test("headings inside code fences are not sections", () => {
-		const after = `${before}\n\`\`\`md\n## Not a section\n\`\`\`\n`;
-		expect(stampNewMarks(before, after, TODAY)).toBe(after);
-	});
-});
-
-test("pageNewDate reads the mark on the page title only", () => {
-	expect(pageNewDate("{/* new: 2026-10-15 */}\n# Page\n")).toBe("2026-10-15");
-	expect(pageNewDate("# Page\n\n{/* new: 2026-10-15 */}\n## Section\n")).toBe(
-		null,
+/** Rows for one heading on `route` added at `date`, with `extra` feat history. */
+function launchRows(
+	text: string,
+	history: Feat[],
+	{ route = "/docs/webhooks", date = AS_OF } = {},
+) {
+	return newRows(
+		{
+			feats: history,
+			headings: [{ date, route, text }],
+			pages: [],
+			exists: () => true,
+			mentions: () => 1,
+		},
+		AS_OF,
 	);
+}
+
+describe("launch headings", () => {
+	test("a term shipped code suddenly names launches its heading's page", () => {
+		const history = [
+			{
+				date: "2026-02-10",
+				scope: "docker",
+				subject: "testnet compose profile",
+			},
+			...feats("testnet", FOUR_SCOPES, 5),
+		];
+		expect(launchRows("Testnet", history)).toEqual({
+			"/docs/webhooks": AS_OF,
+		});
+	});
+
+	test("a word in old feature history doesn't launch", () => {
+		const history = [
+			...feats("pin a version", FOUR_SCOPES, 3, "2026-06-01"),
+			...feats("pin", FOUR_SCOPES, 5),
+		];
+		expect(launchRows("Pin a version", history)).toEqual({});
+	});
+
+	test("too few subjects don't launch", () => {
+		expect(launchRows("Rotate a key", feats("rotate", FOUR_SCOPES, 4))).toEqual(
+			{},
+		);
+		expect(launchRows("Rotate a key", feats("rotate", FOUR_SCOPES, 5))).toEqual(
+			{ "/docs/webhooks": AS_OF },
+		);
+	});
+
+	test("web-only subjects don't launch", () => {
+		const history = feats("gizmo", ["web"], 6);
+		expect(launchRows("Gizmo", history)).toEqual({});
+	});
+
+	test("stop words never launch", () => {
+		const common = [
+			...feats("how it works", FOUR_SCOPES, 6),
+			...feats("more on each one", FOUR_SCOPES, 6),
+		];
+		expect(launchRows("How rows are counted", common)).toEqual({});
+		expect(launchRows("More on each path", common)).toEqual({});
+	});
+
+	test("a refactor heading with no feature history doesn't launch", () => {
+		expect(launchRows("Hardware", [])).toEqual({});
+	});
+
+	test("a heading older than 30 days has expired", () => {
+		const history = feats("testnet", FOUR_SCOPES, 5, "2026-09-25");
+		const rows = newRows(
+			{
+				feats: history,
+				headings: [
+					{ date: "2026-09-30", route: "/docs/webhooks", text: "Testnet" },
+				],
+				pages: [],
+				exists: () => true,
+				mentions: () => 1,
+			},
+			"2026-11-02",
+		);
+		expect(rows).toEqual({});
+	});
+
+	test("one launch, one row: the page mentioning the term most, with the newest date", () => {
+		const hits = [
+			{ date: "2026-10-12", route: "/docs/index", text: "Runes" },
+			{ date: "2026-10-15", route: "/docs/streams", text: "Runes" },
+			{ date: "2026-10-20", route: "/docs/self-host", text: "Runes" },
+		];
+		const counts: Record<string, number> = {
+			"/docs/index": 9,
+			"/docs/streams": 2,
+			"/docs/self-host": 3,
+		};
+		const rows = newRows(
+			{
+				feats: feats("runes", FOUR_SCOPES, 5, "2026-10-10"),
+				headings: hits,
+				pages: [],
+				exists: () => true,
+				mentions: (route) => counts[route],
+			},
+			AS_OF,
+		);
+		expect(rows).toEqual({ "/docs/index": "2026-10-20" });
+	});
+
+	test("a page that no longer exists gets no row", () => {
+		const rows = newRows(
+			{
+				feats: feats("testnet", FOUR_SCOPES, 5),
+				headings: [{ date: AS_OF, route: "/docs/gone", text: "Testnet" }],
+				pages: [],
+				exists: () => false,
+				mentions: () => 0,
+			},
+			AS_OF,
+		);
+		expect(rows).toEqual({});
+	});
+
+	test("headings on the changelog never count", () => {
+		const history = feats("testnet", FOUR_SCOPES, 5);
+		expect(
+			launchRows("Testnet", history, { route: "/docs/changelog" }),
+		).toEqual({});
+	});
+
+	test("a launch row expires 31 days later", () => {
+		const history = feats("testnet", FOUR_SCOPES, 5);
+		const make = (asOf: string) =>
+			newRows(
+				{
+					feats: history,
+					headings: [{ date: AS_OF, route: "/docs/webhooks", text: "Testnet" }],
+					pages: [],
+					exists: () => true,
+					mentions: () => 1,
+				},
+				asOf,
+			);
+		expect(make("2026-12-02")).toEqual({ "/docs/webhooks": AS_OF });
+		expect(make("2026-12-03")).toEqual({});
+	});
 });
 
-test("remark-new-marks puts the mark's date on the heading after it", () => {
-	const heading = { type: "heading", depth: 2, children: [] } as {
-		type: string;
-		data?: { hProperties?: Record<string, string> };
-	};
-	const tree = {
-		children: [
-			{ type: "mdxFlowExpression", value: "/* new: 2026-10-15 */" },
-			heading,
-		],
-	};
-	remarkNewMarks()(tree);
-	expect(heading.data?.hProperties?.["data-new"]).toBe("2026-10-15");
+describe("headingTerms", () => {
+	test("stems words and drops stop words and short words", () => {
+		expect(headingTerms("Runes and the Webhooks")).toEqual(["rune"]);
+		expect(headingTerms("How rows are counted")).toEqual(["row", "counted"]);
+	});
 });
 
-test("the markdown twin leaves new marks out", () => {
-	expect(mdxToMarkdown("{/* new: 2026-10-15 */}\n## Runes\n\nText.")).toBe(
-		"## Runes\n\nText.",
-	);
+describe("new pages", () => {
+	const page = (route: string, at: number, extra = {}) => ({
+		date: "2026-10-28",
+		at,
+		route,
+		lines: 80,
+		moved: 0,
+		...extra,
+	});
+	const rowsFor = (
+		pages: ReturnType<typeof page>[],
+		exists: (route: string) => boolean = () => true,
+	) =>
+		newRows(
+			{ feats: [], headings: [], pages, exists, mentions: () => 0 },
+			AS_OF,
+		);
+
+	test("a group keeps its newest two pages", () => {
+		expect(
+			rowsFor([
+				page("/docs/guides/a", 1),
+				page("/docs/guides/b", 3),
+				page("/docs/guides/c", 2),
+			]),
+		).toEqual({
+			"/docs/guides/b": "2026-10-28",
+			"/docs/guides/c": "2026-10-28",
+		});
+	});
+
+	test("groups are counted separately, top-level pages share one", () => {
+		const rows = rowsFor([
+			page("/docs/guides/a", 1),
+			page("/docs/recipes/a", 1),
+			page("/docs/one", 1),
+		]);
+		expect(Object.keys(rows)).toEqual([
+			"/docs/guides/a",
+			"/docs/one",
+			"/docs/recipes/a",
+		]);
+	});
+
+	test("a stub, a moved page and a removed page are out", () => {
+		expect(
+			rowsFor(
+				[
+					page("/docs/guides/stub", 1, { lines: 15 }),
+					page("/docs/guides/moved", 2, { moved: 0.6 }),
+					page("/docs/guides/gone", 3),
+					page("/docs/guides/real", 4),
+				],
+				(route) => route !== "/docs/guides/gone",
+			),
+		).toEqual({ "/docs/guides/real": "2026-10-28" });
+	});
+
+	test("a page added over 30 days ago is out", () => {
+		expect(
+			rowsFor([page("/docs/guides/old", 1, { date: "2026-09-30" })]),
+		).toEqual({});
+	});
+
+	test("the changelog never counts", () => {
+		expect(rowsFor([page("/docs/changelog", 1)])).toEqual({});
+	});
+
+	test("a launch row wins over a new-page row for the same route", () => {
+		const rows = newRows(
+			{
+				feats: feats("testnet", FOUR_SCOPES, 5),
+				headings: [{ date: AS_OF, route: "/docs/guides/a", text: "Testnet" }],
+				pages: [page("/docs/guides/a", 1)],
+				exists: () => true,
+				mentions: () => 1,
+			},
+			AS_OF,
+		);
+		expect(rows).toEqual({ "/docs/guides/a": AS_OF });
+	});
 });
 
-test("docs-new.json matches the page marks (run bun run docs:new)", () => {
-	// Widened: the JSON's inferred literal keys would reject any other map.
+// A hook's GIT_DIR would point git at the wrong repo.
+const env = { ...process.env };
+for (const key of ["GIT_DIR", "GIT_WORK_TREE", "GIT_INDEX_FILE"]) {
+	delete env[key];
+}
+const shallow =
+	execFileSync("git", ["rev-parse", "--is-shallow-repository"], {
+		encoding: "utf8",
+		cwd: import.meta.dir,
+		env,
+	}).trim() === "true";
+
+// CI checks out with depth 1, so there is no history to read there.
+test.skipIf(shallow)(
+	"the real history picks testnet, Runes and the two newest guides on 2026-11-02",
+	() => {
+		// History is immutable and every input is read as of that date, so later
+		// docs edits can't break this.
+		expect(rowsAsOf("2026-11-02")).toEqual({
+			"/docs/guides/handle-reorgs": "2026-10-31",
+			"/docs/guides/index-contract-into-postgres": "2026-10-28",
+			"/docs/index": "2026-10-15",
+			"/docs/webhooks": "2026-11-02",
+		});
+	},
+);
+
+test("every route in docs-new.json has a docs page", () => {
+	const docs = join(import.meta.dir, "..", "app", "(www)", "docs");
 	const pages: Record<string, string> = docsNewPages;
-	expect(pages).toEqual(pageMarks());
+	for (const route of Object.keys(pages)) {
+		expect(
+			existsSync(join(docs, route.replace(/^\/docs\/?/, ""), "page.mdx")),
+		).toBe(true);
+	}
 });

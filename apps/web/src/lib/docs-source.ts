@@ -21,7 +21,6 @@ import { AGENT_SETUP } from "@/lib/agent-prompts";
 import { markdownFence } from "@/lib/code/annotations";
 import { docsSearchPool } from "@/lib/command-center/items";
 import type { DocsSearchDoc } from "@/lib/docs-bm25";
-import { NEW_MARK } from "@/lib/docs-new.mjs";
 import GithubSlugger from "github-slugger";
 
 /**
@@ -97,8 +96,6 @@ export function mdxToMarkdown(source: string): string {
 				/^(`{3,}|~{3,})[^\n]*\n[\s\S]*?^\1[ \t]*$|^export const metadata\s*=\s*\{[\s\S]*?\n\};?\n?|^export .*$|^import .*$/gm,
 				(m, fence?: string) => (fence ? m : ""),
 			)
-			// "New" marks only feed the sidebar's chip.
-			.replace(new RegExp(NEW_MARK.source, "gm"), "")
 			// Native disclosures: markdown readers get a plain heading.
 			.replace(/^<details\b[^>]*>\s*$/gm, "")
 			.replace(/^<\/details>\s*$/gm, "")

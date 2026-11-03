@@ -26,7 +26,6 @@ export type PageFamily = {
 	title: string;
 	id: string;
 	summary: string;
-	since?: string;
 	endpoints: Endpoint[];
 };
 
@@ -57,7 +56,6 @@ export function pageContent(page: ApiPage): PageContent {
 			title: family.title,
 			id: familyId(family.title),
 			summary: family.summary,
-			since: family.since,
 			endpoints: byFamily.get(family.title) ?? [],
 		}))
 		.filter((f) => f.endpoints.length > 0);

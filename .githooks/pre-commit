@@ -1,23 +1,14 @@
 #!/bin/sh
-# Stamp "new" marks on staged docs pages, then run Biome on staged files.
+# Refresh docs "New" rows when docs pages change, then run Biome on staged files.
 # Fast, deterministic, no DB. Bypass a one-off with: git commit --no-verify
 
-# Docs pages: mark added sections and new pages, drop expired marks
-# (apps/web/scripts/docs-new.ts). A page with unstaged edits is skipped, since
-# re-staging it would commit them too. DOCS_NEW=off skips it for one commit.
-docs=$(git diff --cached --name-only --diff-filter=AM \
+# Docs pages: refresh the New rows, derived from git history
+# (apps/web/scripts/docs-new.ts). DOCS_NEW=off skips it for one commit.
+docs=$(git diff --cached --name-only --diff-filter=AMD \
   | grep -E '^apps/web/src/app/\(www\)/docs/.*page\.mdx$' || true)
 if [ -n "$docs" ] && [ "$DOCS_NEW" != "off" ]; then
-  clean=""
-  for f in $docs; do
-    if git diff --quiet -- "$f"; then clean="$clean $f"
-    else echo "docs-new: $f has unstaged edits, not stamped" >&2; fi
-  done
-  # shellcheck disable=SC2086
-  if [ -n "$clean" ]; then
-    (cd apps/web && bun scripts/docs-new.ts stamp $(echo $clean | sed 's#apps/web/##g')) || exit 1
-    git add $clean apps/web/src/generated/docs-new.json
-  fi
+  (cd apps/web && bun scripts/docs-new.ts) || exit 1
+  git add apps/web/src/generated/docs-new.json
 fi
 
 staged=$(git diff --cached --name-only --diff-filter=ACMR \
