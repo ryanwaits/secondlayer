@@ -72,7 +72,7 @@ describe("the trail bar with Saved", () => {
 			<TrailBar slot={slot} saved={saved} onBack={() => {}} />,
 		);
 		expect(html).toContain("Back to <b>Handler context</b>");
-		expect(html).toContain("Saved <b>2</b>");
+		expect(html).toContain("Pinned <b>2</b>");
 		expect(html).toContain("docs-trail-sep");
 		expect(html).not.toContain("docs-trail-list");
 	});
@@ -81,7 +81,7 @@ describe("the trail bar with Saved", () => {
 		const html = renderToStaticMarkup(
 			<TrailBar slot={null} saved={saved} onBack={() => {}} />,
 		);
-		expect(html).toContain("Saved <b>2</b>");
+		expect(html).toContain("Pinned <b>2</b>");
 		expect(html).not.toContain("docs-trail-sep");
 		expect(html).not.toContain("docs-trail-back");
 	});

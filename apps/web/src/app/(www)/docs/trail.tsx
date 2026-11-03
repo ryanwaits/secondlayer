@@ -121,11 +121,11 @@ export function TrailBar({
 					aria-expanded={listOpen}
 					onClick={onToggleSaved}
 				>
-					Saved <b>{saved.length}</b>
+					Pinned <b>{saved.length}</b>
 				</button>
 			) : null}
 			{listOpen && saved.length ? (
-				<ul className="docs-trail-list" aria-label="Saved sections">
+				<ul className="docs-trail-list" aria-label="Pinned sections">
 					{/* Newest first. */}
 					{[...saved].reverse().map((item) => (
 						<li key={item.href} className="docs-trail-row">
@@ -186,6 +186,10 @@ export function DocsTrail() {
 		const sync = () => {
 			setSlot(peekBack());
 			setSaved(listSaved());
+			// An open card follows the list: a pin removed from the trail, here or
+			// in another tab, puts its button back to Pin.
+			const open = peek.current;
+			if (open) open.frame.markSaved(isSaved(open.href));
 		};
 		sync();
 		window.addEventListener(TRAIL_EVENT, sync);
@@ -369,7 +373,7 @@ export function DocsTrail() {
 			setBack(spotOf(link));
 		};
 
-		// Esc closes the Saved list first, then the frame; S and O act on the
+		// Esc closes the Pinned list first, then the frame; P and O act on the
 		// frame while focus is inside it.
 		const onKey = (e: KeyboardEvent) => {
 			if (e.metaKey || e.ctrlKey || e.altKey) return;
@@ -386,7 +390,7 @@ export function DocsTrail() {
 				if (!(e.target as Element | null)?.closest?.(FIELD)) closePeek(true);
 			} else if (inFrame && !e.shiftKey) {
 				const key = e.key.toLowerCase();
-				if (key === "s") act("save");
+				if (key === "p") act("save");
 				else if (key === "o") act("open");
 			}
 		};

@@ -1,6 +1,6 @@
 /**
  * The frame a peek opens in: a hairline box under the link's block with a bar
- * (the crumb, Save, Open page, close), the borrowed nodes, and a clamp with a
+ * (the crumb, Pin, Open page, close), the borrowed nodes, and a clamp with a
  * "Show all" when they run long. Plain DOM, built with `textContent`; the
  * trail drives it and owns what the buttons do (they carry `data-peek`). The
  * frame is its own scope (`data-scope`), so names in the borrowed prose and
@@ -84,7 +84,7 @@ export function openFrame(
 
 	const crumb = document.createElement("span");
 	crumb.className = "docs-peek-crumb";
-	const save = button("save", saved ? "Saved" : "Save");
+	const save = button("save", saved ? "Pinned" : "Pin");
 	if (saved) save.dataset.saved = "";
 	const bar = document.createElement("div");
 	bar.className = "docs-peek-bar";
@@ -141,7 +141,7 @@ export function openFrame(
 			more.hidden = false;
 		},
 		markSaved(isSaved) {
-			save.textContent = isSaved ? "Saved" : "Save";
+			save.textContent = isSaved ? "Pinned" : "Pin";
 			if (isSaved) save.dataset.saved = "";
 			else delete save.dataset.saved;
 		},
