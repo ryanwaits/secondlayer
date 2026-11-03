@@ -1,0 +1,46 @@
+{
+	"version": 1,
+	"root": "page",
+	"state": {},
+	"elements": {
+		"page": {
+			"type": "Page",
+			"props": { "title": "Failing webhook" },
+			"children": ["header", "split", "attempts"]
+		},
+		"header": {
+			"type": "WebhookHeader",
+			"props": { "network": "mainnet", "webhookId": "<webhook id>" }
+		},
+		"split": {
+			"type": "Stack",
+			"props": { "columns": 2 },
+			"children": ["left", "now"]
+		},
+		"left": {
+			"type": "Stack",
+			"children": ["listens", "activity"]
+		},
+		"listens": {
+			"type": "ListensFor",
+			"props": { "network": "mainnet", "webhookId": "<webhook id>" }
+		},
+		"activity": {
+			"type": "ActivityBars",
+			"props": { "network": "mainnet", "webhookId": "<webhook id>", "days": 30 }
+		},
+		"now": {
+			"type": "RetryState",
+			"props": { "network": "mainnet", "webhookId": "<webhook id>" }
+		},
+		"attempts": {
+			"type": "DeliveryFeed",
+			"props": {
+				"network": "mainnet",
+				"webhookIds": ["<webhook id>"],
+				"limit": 8,
+				"open": "newest-failed"
+			}
+		}
+	}
+}

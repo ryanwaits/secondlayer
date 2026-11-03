@@ -1,0 +1,16 @@
+{
+	"version": 1,
+	"root": "page",
+	"state": {},
+	"elements": {
+		"page": {
+			"type": "Page",
+			"props": { "title": "Usage" },
+			"children": ["meter"]
+		},
+		"meter": {
+			"type": "UsageMeter",
+			"props": {}
+		}
+	}
+}

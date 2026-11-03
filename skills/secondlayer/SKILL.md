@@ -1,6 +1,6 @@
 ---
 name: secondlayer
-description: Use Secondlayer to build on the Stacks blockchain — index on-chain activity into typed Postgres tables (subgraphs), stream raw and decoded events (Streams + Index), deliver chain-event webhooks (webhooks), and call Clarity contracts from a viem-style TypeScript SDK. Invoke this skill whenever the user mentions Secondlayer, `secondlayer`, the `@secondlayer/*` packages, Stacks indexing, sBTC, BNS, PoX/stacking, Clarity contract reads/calls, post-conditions, webhooks on chain events, or asks how to query, watch, or react to anything happening on the Stacks chain — even if they don't name Secondlayer explicitly.
+description: Use Secondlayer to build on the Stacks blockchain — index on-chain activity into typed Postgres tables (subgraphs), stream raw and decoded events (Streams + Index), deliver chain-event webhooks (webhooks), and call Clarity contracts from a viem-style TypeScript SDK. Invoke this skill whenever the user mentions Secondlayer, `secondlayer`, the `@secondlayer/*` packages, Stacks indexing, sBTC, BNS, PoX/stacking, Clarity contract reads/calls, post-conditions, webhooks on chain events, dashboards for their webhooks, subgraphs or usage, or asks how to query, watch, or react to anything happening on the Stacks chain — even if they don't name Secondlayer explicitly.
 ---
 
 # Secondlayer
@@ -40,6 +40,7 @@ Before doing the task, load the smallest set of reference files that cover it. R
 | Hit the REST API from a language without an SDK (curl, Python, Go) | `references/api-rest.md` |
 | Set up MCP for an agent to manage subgraphs/webhooks | `references/mcp.md` |
 | Diagnose a stalled subgraph, a paused/failing webhook, dead letters, replays | `references/troubleshooting.md` |
+| Build a dashboard or UI for their webhooks, subgraphs or usage | `references/dash.md` |
 
 For working code, see `examples/` — every file is copy-pasteable and verified.
 

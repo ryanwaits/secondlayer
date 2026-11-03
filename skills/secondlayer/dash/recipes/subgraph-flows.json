@@ -1,0 +1,42 @@
+{
+	"version": 1,
+	"root": "page",
+	"state": {},
+	"elements": {
+		"page": {
+			"type": "Page",
+			"props": {
+				"title": "<subgraph> flows",
+				"subtitle": "Summed in the browser from the latest rows"
+			},
+			"children": ["split"]
+		},
+		"split": {
+			"type": "Stack",
+			"props": { "columns": 2 },
+			"children": ["bars", "top"]
+		},
+		"bars": {
+			"type": "Bars",
+			"props": {
+				"network": "mainnet",
+				"subgraph": "<subgraph>",
+				"table": "<inflow table>",
+				"series": ["<outflow table>"],
+				"value": "<amount column>",
+				"bucket": 144
+			}
+		},
+		"top": {
+			"type": "Leaderboard",
+			"props": {
+				"network": "mainnet",
+				"subgraph": "<subgraph>",
+				"table": "<inflow table>",
+				"key": "<principal column>",
+				"sum": "<amount column>",
+				"limit": 5
+			}
+		}
+	}
+}

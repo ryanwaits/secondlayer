@@ -1,0 +1,33 @@
+{
+	"version": 1,
+	"root": "page",
+	"state": { "network": "mainnet" },
+	"elements": {
+		"page": {
+			"type": "Page",
+			"props": { "title": "Webhooks" },
+			"children": ["tabs"]
+		},
+		"tabs": {
+			"type": "NetworkTabs",
+			"props": { "networks": ["mainnet", "testnet", "devnet"] },
+			"children": ["body"]
+		},
+		"body": {
+			"type": "Stack",
+			"children": ["summary", "table", "feed"]
+		},
+		"summary": {
+			"type": "Summary",
+			"props": { "network": { "$state": "/network" } }
+		},
+		"table": {
+			"type": "WebhookTable",
+			"props": { "network": { "$state": "/network" }, "days": 30 }
+		},
+		"feed": {
+			"type": "DeliveryFeed",
+			"props": { "network": { "$state": "/network" }, "limit": 6 }
+		}
+	}
+}

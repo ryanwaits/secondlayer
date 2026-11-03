@@ -1,0 +1,34 @@
+{
+	"version": 1,
+	"root": "page",
+	"state": {},
+	"elements": {
+		"page": {
+			"type": "Page",
+			"props": { "title": "<subgraph>" },
+			"children": ["views"]
+		},
+		"views": {
+			"type": "Tabs",
+			"props": { "labels": ["Rows", "Schema"] },
+			"children": ["rows", "schema"]
+		},
+		"rows": {
+			"type": "DataGrid",
+			"props": {
+				"network": "mainnet",
+				"subgraph": "<subgraph>",
+				"table": "<table>",
+				"limit": 25
+			}
+		},
+		"schema": {
+			"type": "Schema",
+			"props": {
+				"network": "mainnet",
+				"subgraph": "<subgraph>",
+				"table": "<table>"
+			}
+		}
+	}
+}
