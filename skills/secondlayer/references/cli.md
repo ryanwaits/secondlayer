@@ -281,7 +281,7 @@ Usage: `secondlayer subgraphs create <name>`
 | `--from-contract <contractId>` | — | Generate sources/schema/handlers from the contract's observed print events (requires network). |
 | `--table-per-topic` | off | With `--from-contract`: one table per print topic instead of a single wide table. |
 
-With no flags it writes an empty starter. Writes to `subgraphs/<name>.ts` (creates `subgraphs/` if missing). Errors if the file already exists. The `Next:` line is `git add subgraphs/<name>.ts && secondlayer subgraphs deploy subgraphs/<name>.ts`; deploy refuses an unstaged file unless `--allow-uncommitted`.
+With no flags it writes an empty starter. Writes to `subgraphs/<name>.ts` (creates `subgraphs/` if missing). Errors if the file already exists. The `Next:` line is `secondlayer subgraphs deploy subgraphs/<name>.ts`.
 
 Example: `secondlayer subgraphs create my-watcher --from-contract SP3....my-contract`
 
@@ -308,11 +308,11 @@ Usage: `secondlayer subgraphs deploy <file>`
 | `--dry-run` | false | Validate and preview without writing. |
 | `-y, --yes` | false | Skip confirmation prompt for reindex operations (DROP + reindex). |
 | `--strict` | false | Run `bunx tsc --noEmit` on handler before deploy. |
-| `--allow-uncommitted` | false | Deploy a definition file that is untracked or has unstaged edits in git. |
+| `--allow-uncommitted` | false | Don't warn when the source file isn't committed in git. |
 
 Deploy bundles the handler via `@secondlayer/bundler` and POSTs it to the instance. Server returns one of `unchanged`, `handler_updated`, `created`, `updated`, `reindexed`. **Destructive (`reindexed`) deploys prompt for confirmation** unless `-y` is set. Local deploy: writes to local DB via `deploySchema()`.
 
-Deploy refuses a definition file that isn't staged or committed in git (a prompt in a terminal, a hard failure in CI) because a deployed definition whose source isn't in version control exists only as a database row. `git add <file>` is enough; a staged copy is recoverable. `--allow-uncommitted` overrides it and prints a line saying so. Deploys from outside a git repo, and `--dry-run`, are unaffected. The reindex prompt gates on stdin: without a TTY and without `-y` it exits 1 before any request, so a pipe can never answer it.
+Deploy needs no `@secondlayer/subgraphs` install next to the file: it loads the definition through the same stubbed bundle it uploads. A definition file that is untracked or has unstaged edits in git only warns (its only copy is the database row); it never blocks. `--allow-uncommitted` silences the warning. Deploys from outside a git repo, and `--dry-run`, print no warning. The reindex prompt gates on stdin: without a TTY and without `-y` it exits 1 before any request, so a pipe can never answer it.
 
 Deploys are open on any self-hosted instance: no trial, no quota, and no visibility flag. On the hosted API (`SECONDLAYER_API_KEY`) subgraphs are private to your account; hostable sources are event filters and `contract_call`/`contract_deploy` (`422 SOURCE_NOT_HOSTABLE` otherwise), and `--start-block` is recommended. Reads on `/v1/subgraphs/*` follow the same rule as Index and Streams — keyless while the API is published on loopback, `INSTANCE_TOKEN` past it. Who can reach the instance is your publish spec and your reverse proxy, not a per-subgraph setting.
 

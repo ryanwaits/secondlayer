@@ -621,15 +621,16 @@
     ]
   },
   "/docs/cli#scaffold-from-a-contract": {
-    "hash": "7146596da57a8631",
+    "hash": "e2eb36514c009fd4",
     "phrasings": [
-      "generate types from print events secondlayer",
-      "infer print payload schema from history",
-      "secondlayer scaffold contract print topics",
-      "create starter project from clarity contract",
-      "print event payload shape from indexed data",
-      "secondlayer scaffold from deployed contract",
-      "clarity print topic payload types"
+      "generate print payload from contract",
+      "cli infer schema from indexed history",
+      "how to scaffold code from contract",
+      "print topic payload types cli",
+      "auto generate types from indexed events",
+      "contract scaffolding command line",
+      "why is my print payload shape unknown",
+      "infer topic schema from history"
     ]
   },
   "/docs/cli#send-a-call": {
@@ -980,14 +981,16 @@
     ]
   },
   "/docs/guides/index-contract-into-postgres#deploy-it": {
-    "hash": "f8babdfb14f70ac1",
+    "hash": "36e8aef2fcb55786",
     "phrasings": [
-      "where to create api key for indexer",
-      "set environment variables for indexer deploy",
-      "indexer deployment missing credentials",
-      "account keys page for api key",
-      "create access key for postgres indexer",
-      "indexer deploy variables from introduction"
+      "where do i create api key for postgres indexer",
+      "deploy contract indexer to production",
+      "set environment variables for postgres index",
+      "account keys page not finding key",
+      "how to ship postgres contract indexer",
+      "postgres indexer deployment steps",
+      "missing database url variable on deploy",
+      "configure keys for hosted indexer"
     ]
   },
   "/docs/guides/index-contract-into-postgres#point-it-at-your-contract": {

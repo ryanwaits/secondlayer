@@ -10,6 +10,10 @@ Notable changes to Secondlayer and its SDKs. Entries dated before August 2026 de
 
 ## CLI — November 2026
 
+### Deploy a subgraph in two commands
+
+Run `secondlayer subgraphs create`, then `secondlayer subgraphs deploy`. Deploy no longer needs the SDK installed next to the file, and an uncommitted file now gets a warning instead of a refusal.
+
 ### Every product works on your local devnet
 
 `secondlayer devnet connect` now runs the same one-box runtime as the self-host compose, and pulls it before starting. Webhooks and decoded Index reads now work against your Clarinet devnet, next to Streams and subgraphs, and deliveries are signed with a local dev key. It also runs on Apple Silicon, which used to fail with `no matching manifest`. See [Local chain](/docs/cli#local-chain).

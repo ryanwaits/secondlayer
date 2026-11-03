@@ -65,9 +65,8 @@ sBTC is busy: 459 events in 100 blocks. That is why the file sets `startBlock`, 
 
 ## Deploy it
 
-Create a key at [/account/keys](/account/keys) and set the two variables from the [Introduction](/docs#get-started). In a git repo the file must be staged first, so a copy exists outside the database; pass `--allow-uncommitted` to skip that check, as in a script.
+Create a key at [/account/keys](/account/keys) and set the two variables from the [Introduction](/docs#get-started). Commit the file to keep a copy outside the database; deploy warns if you haven't.
 
-- `git add` the file, then run the deploy command above.
 - Add `--dry-run` to validate and preview the tables with no changes.
 - Rows serve while the backfill drains ([Check status](/docs/subgraphs#check-status)).
 
@@ -108,7 +107,7 @@ export const metadata = {
 };
 
 export const agent = `
-- One file: defineSubgraph({ name, startBlock, sources, schema, handlers }) from @secondlayer/subgraphs. Deploy: 'secondlayer subgraphs deploy <file>' (needs SECONDLAYER_API_URL and SECONDLAYER_API_KEY; the file must be git-staged or pass --allow-uncommitted). '--dry-run' validates and changes nothing.
+- One file: defineSubgraph({ name, startBlock, sources, schema, handlers }) from @secondlayer/subgraphs. Deploy: 'secondlayer subgraphs deploy <file>' (needs SECONDLAYER_API_URL and SECONDLAYER_API_KEY; an uncommitted file only warns). '--dry-run' validates and changes nothing.
 - Always set startBlock: an unbounded first run backfills from genesis and every event row it reads bills.
 - 'secondlayer subgraphs test <file> --from <h> --to <h>' runs the local handler on real events with no deploy.
 - Hosted sources: event filters, contract_call, contract_deploy (else 422 SOURCE_NOT_HOSTABLE). contract_call sources with functionName need an abi for 'test' (deploy fetches it).
