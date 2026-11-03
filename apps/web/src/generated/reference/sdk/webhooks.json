@@ -667,7 +667,7 @@
 					"name": "responseBody",
 					"type": "string | null",
 					"required": true,
-					"description": ""
+					"description": "First 512 characters; the full body is on `deliveries.get`."
 				},
 				{
 					"name": "dispatchedAt",
