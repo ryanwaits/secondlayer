@@ -4,31 +4,18 @@ import "@/components/code/code.css";
 import { CodeScope } from "@/components/code/code-scope";
 import { useChainTip } from "@/lib/chain-tip";
 import { stripAnnotations } from "@/lib/code/annotations";
+import type { RenderedBlock } from "@/lib/code/blocks";
 import type { WebhookActivity, WebhookDetail } from "@secondlayer/sdk";
 import { useEffect, useRef, useState } from "react";
-import {
-	type Piece,
-	agentPrompt,
-	describeTrigger,
-	webhookSource,
-} from "./describe-trigger";
-import { perDay, triggerVolume } from "./triggers";
+import { type Piece, agentPrompt, listensForCode } from "./describe-trigger";
 
 /**
  * "Listens for": one closed row per trigger. Details opens the docs-style
  * section: a sentence whose phrases are focus links, then that trigger's code
- * in the docs frame. The frame is rendered on the server (`/api/code`) because
- * Shiki doesn't run in the browser.
+ * in the docs frame. Shiki doesn't run in the browser, so the page render
+ * hands the frames in (`initialBlocks`) and `/api/code` renders them again
+ * when the webhook's version changes.
  */
-
-type Rendered = { className: string; copyable: boolean; html: string };
-
-/** Rendered blocks per webhook version, so polling re-renders never refetch. */
-const renderedBlocks = new Map<string, Rendered[]>();
-
-/** A file name the code frame's bar can show for this webhook. */
-const titleOf = (name: string): string =>
-	`${name.replace(/[^A-Za-z0-9._-]+/g, "-").slice(0, 48)}.ts`;
 
 const COPIED_MS = 1200;
 
@@ -47,18 +34,20 @@ function Pieces({ pieces }: { pieces: Piece[] }) {
 export function ListensFor({
 	webhook,
 	activity,
+	initialBlocks,
 }: {
 	webhook: WebhookDetail;
 	activity: WebhookActivity | null;
+	/** The frames the server rendered for this webhook's current version. */
+	initialBlocks?: RenderedBlock[] | null;
 }) {
 	const { triggers } = webhook;
-	const descriptions = triggers.map((t, i, all) =>
-		describeTrigger(t, i, all, perDay(triggerVolume(t, all, activity).count)),
-	);
-	const { starts } = webhookSource(webhook);
+	const { descriptions, blocks } = listensForCode(webhook, activity);
 	const key = `${webhook.id}:${webhook.updatedAt}`;
-	const [rendered, setRendered] = useState<Rendered[] | null>(
-		() => renderedBlocks.get(key) ?? null,
+	// The version the server's frames belong to; a newer version refetches.
+	const seededKey = useRef(initialBlocks ? key : null);
+	const [rendered, setRendered] = useState<RenderedBlock[] | null>(
+		initialBlocks ?? null,
 	);
 	const [open, setOpen] = useState<Set<number>>(() => new Set());
 	const [copied, setCopied] = useState(false);
@@ -69,27 +58,16 @@ export function ListensFor({
 
 	// biome-ignore lint/correctness/useExhaustiveDependencies: refetch only when the webhook's version changes, not on every poll
 	useEffect(() => {
-		const cached = renderedBlocks.get(key);
-		if (cached) {
-			setRendered(cached);
-			return;
-		}
+		if (seededKey.current === key) return;
 		setRendered(null);
 		let live = true;
 		fetch("/api/code", {
 			method: "POST",
 			headers: { "content-type": "application/json" },
-			body: JSON.stringify({
-				blocks: descriptions.map((d, i) => ({
-					code: d.source,
-					title: titleOf(webhook.name),
-					lines: starts[i],
-				})),
-			}),
+			body: JSON.stringify({ blocks }),
 		})
 			.then((res) => (res.ok ? res.json() : Promise.reject(res.status)))
-			.then((body: { blocks: Rendered[] }) => {
-				renderedBlocks.set(key, body.blocks);
+			.then((body: { blocks: RenderedBlock[] }) => {
 				if (live) setRendered(body.blocks);
 			})
 			.catch(() => {

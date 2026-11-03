@@ -1,7 +1,14 @@
-"use client";
-
 import { WebhooksListSection } from "@/components/account/webhooks/list-panel";
+import { webhooksListReads } from "@/lib/server/dashboard-reads";
+import { sessionToken } from "@/lib/server/session";
 
-export default function AccountWebhooksPage() {
-	return <WebhooksListSection />;
+// Next to the API (Hetzner HEL/fsn1), and per request: the HTML carries one
+// account's data, so it is never prerendered or shared.
+export const preferredRegion = "fra1";
+export const dynamic = "force-dynamic";
+
+export default async function AccountWebhooksPage() {
+	const token = await sessionToken();
+	const initial = token ? await webhooksListReads(token) : null;
+	return <WebhooksListSection initial={initial} />;
 }

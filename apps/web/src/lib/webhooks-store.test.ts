@@ -4,14 +4,21 @@ import type {
 	WebhookDetail,
 	WebhookSummary,
 } from "@secondlayer/sdk";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 import { clearRequestCache } from "./request-cache";
 import {
+	type DetailFetch,
 	MAX_WINDOWS,
+	type WebhooksSeed,
+	applyWebhook,
 	clearWebhooksData,
+	detailSeed,
 	poll,
 	refreshDeliveriesWindow,
 	refreshDetail,
 	refreshList,
+	useWebhooksCache,
 	webhooksSnapshot,
 } from "./webhooks-store";
 
@@ -404,35 +411,21 @@ function removeStorage() {
 	globalThis.window = undefined;
 }
 
-function envelope(data: unknown): string {
-	return JSON.stringify({ owner: null, savedAt: Date.now(), data });
-}
-
-describe("this tab's saved copy", () => {
+describe("sessionStorage", () => {
 	beforeEach(installStorage);
 	afterEach(removeStorage);
 
-	test("a successful list refresh is saved for a reload", async () => {
+	test("refreshing the list saves nothing for a reload", async () => {
 		globalThis.fetch = (async () =>
 			jsonResponse({
 				data: [summary("w1", "one")],
 			})) as unknown as typeof fetch;
 		await refreshList();
-		expect(storage.get("sl:dash:v1:webhooks")).toContain('"w1"');
-	});
-
-	test("a reload reads the saved copy and clearing removes it", () => {
-		clearWebhooksData(); // resets the store as a fresh page load would
-		storage.set(
-			"sl:dash:v1:webhooks",
-			envelope({ list: { data: [summary("w1", "one")], at: 1 } }),
-		);
 		expect(webhooksSnapshot().list?.data[0]?.id).toBe("w1");
-		clearWebhooksData();
-		expect(storage.has("sl:dash:v1:webhooks")).toBe(false);
+		expect(storage.size).toBe(0);
 	});
 
-	test("a detail refresh does not write storage", async () => {
+	test("a detail refresh saves nothing for a reload", async () => {
 		globalThis.fetch = (async (url: string) => {
 			if (String(url).includes("/activity")) return jsonResponse(emptyActivity);
 			if (String(url).includes("/deliveries"))
@@ -440,20 +433,79 @@ describe("this tab's saved copy", () => {
 			return jsonResponse(detail("w1", "one"));
 		}) as unknown as typeof fetch;
 		await refreshDetail("w1");
-		expect(storage.has("sl:dash:v1:webhooks")).toBe(false);
+		expect(storage.size).toBe(0);
+	});
+});
+
+describe("server seed", () => {
+	const initial: DetailFetch = {
+		webhook: { kind: "ok", data: detail("w1", "one") },
+		deliveries: { kind: "ok", data: [] },
+		activity: { kind: "ok", data: emptyActivity },
+	};
+
+	function Probe({ seed }: { seed: WebhooksSeed }) {
+		const cache = useWebhooksCache(seed);
+		return createElement("p", null, cache.detail.w1?.data.name ?? "empty");
+	}
+
+	test("detailSeed keeps only the reads that came back ok", () => {
+		const seed = detailSeed("w1", {
+			...initial,
+			deliveries: { kind: "asleep" },
+			activity: null,
+		});
+		expect(Object.keys(seed).sort()).toEqual(["detail"]);
+		expect(seed.detail?.w1?.data.name).toBe("one");
 	});
 
-	test("a receiver url is stored as its origin only", async () => {
-		const secret = "https://hooks.slack.com/services/T0/B0/s3cr3t?token=x";
-		globalThis.fetch = (async () =>
-			jsonResponse({
-				data: [{ ...summary("w1", "one"), url: secret }],
-			})) as unknown as typeof fetch;
-		await refreshList();
-		const stored = storage.get("sl:dash:v1:webhooks") ?? "";
-		expect(stored).toContain('"https://hooks.slack.com"');
-		expect(stored).not.toContain("s3cr3t");
-		expect(stored).not.toContain("token=");
-		expect(webhooksSnapshot().list?.data[0]?.url).toBe(secret);
+	test("detailSeed returns the same seed for the same server read", () => {
+		expect(detailSeed("w1", initial)).toBe(detailSeed("w1", initial));
+	});
+
+	test("the server render paints the seed and leaves the module cache empty", () => {
+		// No window here: this is the server, whose module state is shared
+		// across requests and must never hold one account's rows.
+		const html = renderToStaticMarkup(
+			createElement(Probe, { seed: detailSeed("w1", initial) }),
+		);
+		expect(html).toContain("one");
+		expect(webhooksSnapshot().detail.w1).toBeUndefined();
+	});
+
+	test("a browser render starts the cache from the seed once", () => {
+		globalThis.window = {} as Window & typeof globalThis;
+		try {
+			const seed = detailSeed("w1", initial);
+			renderToStaticMarkup(createElement(Probe, { seed }));
+			expect(webhooksSnapshot().detail.w1?.data.name).toBe("one");
+			// A poll lands, then the same render happens again: the seed
+			// doesn't overwrite what the poll found.
+			applyWebhook({ ...detail("w1", "renamed") });
+			renderToStaticMarkup(createElement(Probe, { seed }));
+			expect(webhooksSnapshot().detail.w1?.data.name).toBe("renamed");
+		} finally {
+			// @ts-expect-error restoring the bare test environment
+			globalThis.window = undefined;
+		}
+	});
+
+	test("a poll told not to start immediately waits one interval", async () => {
+		jest.useFakeTimers();
+		const runs: number[] = [];
+		const stop = poll(
+			() => {
+				runs.push(Date.now());
+				return Promise.resolve(undefined);
+			},
+			1000,
+			{ immediate: false },
+		);
+		expect(runs.length).toBe(0);
+		await advance(999);
+		expect(runs.length).toBe(0);
+		await advance(1);
+		expect(runs.length).toBe(1);
+		stop();
 	});
 });

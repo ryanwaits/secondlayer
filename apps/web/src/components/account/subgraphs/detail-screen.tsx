@@ -11,6 +11,7 @@ import { formatDate } from "@/lib/account-data";
 import type { Insight } from "@/lib/insights";
 import { forResource, useInsights } from "@/lib/insights-store";
 import type { Route } from "@/lib/not-found-match";
+import type { SubgraphDetailInitial } from "@/lib/server/dashboard-reads";
 import {
 	blocksLabel,
 	formatBytes,
@@ -23,6 +24,7 @@ import {
 	type SubgraphErrorGroup,
 	type SubgraphHealthData,
 	type SubgraphSource,
+	detailSeed,
 	poll,
 	refreshDetail,
 	refreshErrors,
@@ -30,9 +32,10 @@ import {
 	refreshSource,
 	useSubgraphsCache,
 } from "@/lib/subgraphs-store";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { HandlerErrorsPanel, RowsWrittenPanel } from "./health-panels";
 import { RecentRows } from "./recent-rows";
+import type { RecentRowsData } from "./recent-rows-model";
 import { TablesSection } from "./tables-section";
 
 const DETAIL_POLL_MS = 10_000;
@@ -92,6 +95,9 @@ export interface SubgraphDetailBodyProps {
 	/** Insights about this subgraph, ranked by the server. */
 	insights?: readonly Insight[];
 	onRange: (range: SubgraphRange) => void;
+	/** What the server read for the recent rows and rendered for the tables. */
+	initialRows?: RecentRowsData | null;
+	initialBlocks?: SubgraphDetailInitial["tableBlocks"];
 }
 
 /** One subgraph: facts and a chart, what each table writes, and its newest rows. */
@@ -103,6 +109,8 @@ export function SubgraphDetailBody({
 	range,
 	insights,
 	onRange,
+	initialRows,
+	initialBlocks,
 }: SubgraphDetailBodyProps) {
 	const errors24h = handlerErrors24h(health);
 	const windowHours = health?.hours.slice(-RANGE_HOURS[range]);
@@ -177,8 +185,13 @@ export function SubgraphDetailBody({
 					tables={detail.tables}
 					sources={detail.sources}
 					source={source}
+					initialBlocks={initialBlocks}
 				/>
-				<RecentRows name={detail.name} tables={detail.tables} />
+				<RecentRows
+					name={detail.name}
+					tables={detail.tables}
+					initial={initialRows}
+				/>
 			</div>
 
 			<HandlerErrorsPanel groups={errors} />
@@ -240,49 +253,81 @@ function NotFound({ name, others }: { name: string; others: Route[] | null }) {
 	);
 }
 
-/** /account/subgraphs/<name>: loads and refreshes one subgraph. */
-export function SubgraphDetailSection({ name }: { name: string }) {
-	const { list, detail, health, errors, source } = useSubgraphsCache();
+/** /account/subgraphs/<name>: loads and refreshes one subgraph. `initial` is
+ *  what the server read for this visit; without it the browser loads it all. */
+export function SubgraphDetailSection({
+	name,
+	initial = null,
+}: {
+	name: string;
+	initial?: SubgraphDetailInitial | null;
+}) {
+	const { list, detail, health, errors, source } = useSubgraphsCache(
+		initial ? detailSeed(name, initial) : undefined,
+	);
 	const { data: insights } = useInsights();
-	const [missing, setMissing] = useState(false);
+	const [missing, setMissing] = useState(initial?.detail.kind === "not_found");
 	const [range, setRange] = useState<SubgraphRange>("7d");
 
+	// The server's reads are fresh, so each poll's first tick waits a full
+	// interval; one that failed to load retries right away.
+	const detailSeeded = initial?.detail.kind === "ok";
+	const healthSeeded = useRef(initial?.health.kind === "ok");
+	const errorsSeeded = initial?.errors.kind === "ok";
+	const sourceSeeded = initial?.source.kind === "ok";
+
+	// biome-ignore lint/correctness/useExhaustiveDependencies: restart only for another subgraph
 	useEffect(
 		() =>
-			poll(async () => {
-				const res = await refreshDetail(name);
-				if (res.kind === "not_found") setMissing(true);
-				else if (res.kind === "ok") setMissing(false);
-				return res.kind === "starting" || res.kind === "rate_limited"
-					? { retryAfterMs: res.retryAfter * 1000 }
-					: {};
-			}, DETAIL_POLL_MS),
+			poll(
+				async () => {
+					const res = await refreshDetail(name);
+					if (res.kind === "not_found") setMissing(true);
+					else if (res.kind === "ok") setMissing(false);
+					return res.kind === "starting" || res.kind === "rate_limited"
+						? { retryAfterMs: res.retryAfter * 1000 }
+						: {};
+				},
+				DETAIL_POLL_MS,
+				{ immediate: !detailSeeded },
+			),
 		[name],
 	);
 
-	useEffect(
-		() =>
-			poll(async () => {
+	// The seed covers the first run only (the week-long range).
+	useEffect(() => {
+		const immediate = !healthSeeded.current;
+		healthSeeded.current = false;
+		return poll(
+			async () => {
 				await refreshHealth(name, RANGE_HOURS[range]);
 				return {};
-			}, HEALTH_POLL_MS),
-		[name, range],
-	);
+			},
+			HEALTH_POLL_MS,
+			{ immediate },
+		);
+	}, [name, range]);
 
 	// The source changes only on a deploy; read it once per visit.
+	// biome-ignore lint/correctness/useExhaustiveDependencies: once per subgraph
 	useEffect(() => {
-		void refreshSource(name);
+		if (!sourceSeeded) void refreshSource(name);
 	}, [name]);
 
 	const data = detail[name]?.data;
 	const healthData = health[name]?.data;
 	const hasErrors = (handlerErrors24h(healthData) ?? 0) > 0;
+	// biome-ignore lint/correctness/useExhaustiveDependencies: restart only for another subgraph
 	useEffect(
 		() =>
-			poll(async () => {
-				await refreshErrors(name);
-				return {};
-			}, HEALTH_POLL_MS),
+			poll(
+				async () => {
+					await refreshErrors(name);
+					return {};
+				},
+				HEALTH_POLL_MS,
+				{ immediate: !errorsSeeded },
+			),
 		[name],
 	);
 
@@ -312,6 +357,8 @@ export function SubgraphDetailSection({ name }: { name: string }) {
 			range={range}
 			insights={forResource(insights, "subgraph", name)}
 			onRange={setRange}
+			initialRows={initial?.rows}
+			initialBlocks={initial?.tableBlocks}
 		/>
 	);
 }

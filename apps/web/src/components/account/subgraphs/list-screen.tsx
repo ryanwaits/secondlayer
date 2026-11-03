@@ -25,6 +25,7 @@ import {
 	forResource,
 	useInsights,
 } from "@/lib/insights-store";
+import { useIntentPrefetch } from "@/lib/intent-prefetch";
 import {
 	groupDigits,
 	handlerErrors24h,
@@ -34,6 +35,8 @@ import {
 import {
 	type SubgraphHealthData,
 	type SubgraphListItem,
+	type SubgraphsResult,
+	listSeed,
 	poll,
 	refreshListAndHealth,
 	useSubgraphsCache,
@@ -55,32 +58,48 @@ export type ListNotice =
 	| { kind: "starting" }
 	| { kind: "error"; message: string };
 
+/** What a list read means for the page: the notice to show, `null` for none,
+ *  or `undefined` to leave the notice as it is. */
+function noticeFor(
+	res: SubgraphsResult<SubgraphListItem[]>,
+): ListNotice | null | undefined {
+	if (res.kind === "ok") return null;
+	if (res.kind === "starting") return { kind: "starting" };
+	if (res.kind === "rate_limited") return undefined;
+	return {
+		kind: "error",
+		message:
+			res.kind === "error" ? res.message : "Couldn't load your subgraphs.",
+	};
+}
+
 /** Polls the list and its hourly health. A notice shows only while there is
- *  nothing cached to display. */
-export function useSubgraphsPoll(): ListNotice | null {
-	const [notice, setNotice] = useState<ListNotice | null>(null);
+ *  nothing cached to display. A page that opened with the server's read
+ *  (`initial`) waits a full interval for the first poll, unless the read failed
+ *  or some subgraph came without its health. */
+export function useSubgraphsPoll(
+	initial?: SubgraphsResult<SubgraphListItem[]>,
+): ListNotice | null {
+	const [notice, setNotice] = useState<ListNotice | null>(
+		initial ? (noticeFor(initial) ?? null) : null,
+	);
+	const complete =
+		initial?.kind === "ok" && initial.data.every((s) => s.health !== undefined);
 	useEffect(
 		() =>
-			poll(async () => {
-				const res = await refreshListAndHealth();
-				if (res.kind === "ok") {
-					setNotice(null);
-					return {};
-				}
-				if (res.kind === "starting" || res.kind === "rate_limited") {
-					if (res.kind === "starting") setNotice({ kind: "starting" });
-					return { retryAfterMs: res.retryAfter * 1000 };
-				}
-				setNotice({
-					kind: "error",
-					message:
-						res.kind === "error"
-							? res.message
-							: "Couldn't load your subgraphs.",
-				});
-				return {};
-			}, LIST_POLL_MS),
-		[],
+			poll(
+				async () => {
+					const res = await refreshListAndHealth();
+					const next = noticeFor(res);
+					if (next !== undefined) setNotice(next);
+					return res.kind === "starting" || res.kind === "rate_limited"
+						? { retryAfterMs: res.retryAfter * 1000 }
+						: {};
+				},
+				LIST_POLL_MS,
+				{ immediate: !complete },
+			),
+		[complete],
 	);
 	return notice;
 }
@@ -256,12 +275,11 @@ function SubgraphListRow({
 		);
 	const last = health?.hours.at(-1)?.hour;
 	const tables = item.tables.length;
+	const intent = useIntentPrefetch();
+	const href = `/account/subgraphs/${encodeURIComponent(item.name)}`;
 	return (
 		<div className="wl-row">
-			<Link
-				href={`/account/subgraphs/${encodeURIComponent(item.name)}`}
-				className="wl-main"
-			>
+			<Link href={href} prefetch={false} {...intent(href)} className="wl-main">
 				<span className="dash-row-name">
 					<ToneDot tone={tone} />
 					<span title={item.name}>{item.name}</span>
@@ -346,10 +364,17 @@ function SubgraphsListContent({
 	);
 }
 
-/** /account/subgraphs: the empty state, or one row per subgraph. */
-export function SubgraphsListSection() {
-	const notice = useSubgraphsPoll();
-	const { list, health } = useSubgraphsCache();
+/** /account/subgraphs: the empty state, or one row per subgraph. `initial` is
+ *  what the server read for this visit. */
+export function SubgraphsListSection({
+	initial,
+}: {
+	initial?: SubgraphsResult<SubgraphListItem[]> | null;
+}) {
+	const notice = useSubgraphsPoll(initial ?? undefined);
+	const { list, health } = useSubgraphsCache(
+		initial ? listSeed(initial) : undefined,
+	);
 	const { data: insights } = useInsights();
 	const compact = useCompact();
 	const [open, setOpen] = useState<string | null>(null);

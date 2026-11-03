@@ -11,12 +11,16 @@ import { PlaceholderRows } from "@/components/dashboard/shell/onboarding";
 import { StatusSentence } from "@/components/dashboard/shell/status-sentence";
 import { useCompact } from "@/components/mobile/use-compact";
 import { heatGrid } from "@/lib/dashboard-charts";
+import type { WebhooksResult } from "@/lib/dashboard-results";
 import type { Insight } from "@/lib/insights";
 import { forAccountRules, useInsights } from "@/lib/insights-store";
+import { useIntentPrefetch } from "@/lib/intent-prefetch";
+import type { WebhooksListInitial } from "@/lib/server/dashboard-reads";
 import { useFirstSettle } from "@/lib/use-first-settle";
 import { hostOf, pauseWebhook, resumeWebhook } from "@/lib/webhooks-data";
 import {
 	applyWebhook,
+	listSeed,
 	poll,
 	refreshList,
 	refreshSummary,
@@ -43,33 +47,51 @@ type ListNotice =
 	| { kind: "no_credits" }
 	| { kind: "error"; message: string };
 
+/** What the list read means for the page: the notice to show, `null` for none,
+ *  or `undefined` to leave the notice as it is. */
+function noticeFor(
+	res: WebhooksResult<unknown>,
+): ListNotice | null | undefined {
+	switch (res.kind) {
+		case "ok":
+		case "not_found":
+			return null;
+		case "rate_limited":
+			return undefined;
+		case "starting":
+		case "no_credits":
+		case "asleep":
+			return { kind: res.kind };
+		case "error":
+			return { kind: "error", message: res.message };
+	}
+}
+
 /** Polls the list and the hourly summary. A notice only appears while there
  *  are no cached rows to show: once rows have landed, a later starting, rate
- *  limit or error just keeps retrying behind them. */
-function useListPoll(): ListNotice | null {
-	const [notice, setNotice] = useState<ListNotice | null>(null);
+ *  limit or error just keeps retrying behind them. A page that opened with the
+ *  server's reads (`initial`) waits a full interval for the first poll, unless
+ *  its list or summary didn't load. */
+function useListPoll(initial: WebhooksListInitial | null): ListNotice | null {
+	const [notice, setNotice] = useState<ListNotice | null>(
+		initial ? (noticeFor(initial.list) ?? null) : null,
+	);
+	const listLoaded =
+		initial?.list.kind === "ok" && initial.summary.kind === "ok";
 	useEffect(() => {
-		return poll(async () => {
-			const [res] = await Promise.all([refreshList(), refreshSummary()]);
-			if (res.kind === "ok") {
-				setNotice(null);
-				return {};
-			}
-			if (res.kind === "starting") {
-				setNotice({ kind: "starting" });
-				return { retryAfterMs: res.retryAfter * 1000 };
-			}
-			if (res.kind === "rate_limited") {
-				return { retryAfterMs: res.retryAfter * 1000 };
-			}
-			if (res.kind === "no_credits" || res.kind === "asleep") {
-				setNotice({ kind: res.kind });
-				return {};
-			}
-			setNotice({ kind: "error", message: res.message });
-			return {};
-		}, LIST_POLL_MS);
-	}, []);
+		return poll(
+			async () => {
+				const [res] = await Promise.all([refreshList(), refreshSummary()]);
+				const next = noticeFor(res);
+				if (next !== undefined) setNotice(next);
+				return res.kind === "starting" || res.kind === "rate_limited"
+					? { retryAfterMs: res.retryAfter * 1000 }
+					: {};
+			},
+			LIST_POLL_MS,
+			{ immediate: !listLoaded },
+		);
+	}, [listLoaded]);
 	return notice;
 }
 
@@ -210,9 +232,11 @@ function WebhookListRow({
 		? series.delivered.map((n, i) => ({ n, f: series.failed[i] ?? 0 }))
 		: [];
 	const last = hours.at(-1);
+	const intent = useIntentPrefetch();
+	const href = `/account/webhooks/${webhook.id}`;
 	return (
 		<div className="wl-row">
-			<Link href={`/account/webhooks/${webhook.id}`} className="wl-main">
+			<Link href={href} prefetch={false} {...intent(href)} className="wl-main">
 				<span className="dash-row-name">
 					<ToneDot tone={state.tone} />
 					<span title={webhook.name}>{shortenName(webhook.name)}</span>
@@ -361,10 +385,17 @@ export function WebhooksListBody({
 	);
 }
 
-export function WebhooksListSection() {
+/** /account/webhooks. `initial` is what the server read for this visit. */
+export function WebhooksListSection({
+	initial = null,
+}: {
+	initial?: WebhooksListInitial | null;
+}) {
 	const router = useRouter();
-	const notice = useListPoll();
-	const { rows, hours, summaryLoaded } = useWebhookRows();
+	const notice = useListPoll(initial);
+	const { rows, hours, summaryLoaded } = useWebhookRows(
+		initial ? listSeed(initial) : undefined,
+	);
 	// Only the list defines the layout, so rows paint when it lands, at most
 	// FIRST_SETTLE_MS late. The strip holds its space with HeatStripSkeleton and
 	// the state line says "Counting…", so nothing moves when the summary or

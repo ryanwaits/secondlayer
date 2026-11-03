@@ -1,7 +1,12 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 import {
+	type SubgraphsSeed,
 	clearSubgraphsData,
+	detailSeed,
 	fetchRows,
+	listSeed,
 	refreshDetail,
 	refreshErrors,
 	refreshHealth,
@@ -9,6 +14,7 @@ import {
 	refreshListAndHealth,
 	refreshSource,
 	subgraphsSnapshot,
+	useSubgraphsCache,
 } from "./subgraphs-store";
 
 const originalFetch = globalThis.fetch;
@@ -78,33 +84,22 @@ describe("subgraphs store", () => {
 		expect(subgraphsSnapshot().errors["vault-events"]?.data).toEqual([]);
 	});
 
-	test("the source is cached for the page but never saved for a reload", async () => {
-		installStorage();
-		try {
-			const urls = stub(
-				json({
-					name: "vault-events",
-					version: "1.0.0",
-					sourceCode: "export default {}",
-					readOnly: false,
-					updatedAt: "2026-11-03T00:00:00Z",
-				}),
-			);
-			const res = await refreshSource("vault-events");
-			expect(res.kind).toBe("ok");
-			expect(urls[0]).toBe("/api/subgraphs/vault-events/source");
-			expect(subgraphsSnapshot().source["vault-events"]?.data.sourceCode).toBe(
-				"export default {}",
-			);
-			stub(json({ data: [{ name: "vault-events" }] }));
-			await refreshList();
-			expect(storage.get("sl:dash:v1:subgraphs")).toContain("vault-events");
-			expect(storage.get("sl:dash:v1:subgraphs")).not.toContain(
-				"export default",
-			);
-		} finally {
-			removeStorage();
-		}
+	test("the source is cached for the page", async () => {
+		const urls = stub(
+			json({
+				name: "vault-events",
+				version: "1.0.0",
+				sourceCode: "export default {}",
+				readOnly: false,
+				updatedAt: "2026-11-03T00:00:00Z",
+			}),
+		);
+		const res = await refreshSource("vault-events");
+		expect(res.kind).toBe("ok");
+		expect(urls[0]).toBe("/api/subgraphs/vault-events/source");
+		expect(subgraphsSnapshot().source["vault-events"]?.data.sourceCode).toBe(
+			"export default {}",
+		);
 	});
 
 	test("rows are fetched through the rows path and not cached", async () => {
@@ -121,52 +116,82 @@ describe("subgraphs store", () => {
 	});
 });
 
-const storage = new Map<string, string>();
+describe("sessionStorage", () => {
+	test("refreshing the list saves nothing for a reload", async () => {
+		const saved = new Map<string, string>();
+		globalThis.sessionStorage = {
+			setItem: (k: string, v: string) => void saved.set(k, v),
+		} as unknown as Storage;
+		globalThis.window = {} as Window & typeof globalThis;
+		try {
+			stub(json({ data: [{ name: "sbtc-deposits" }] }));
+			await refreshList();
+			expect(subgraphsSnapshot().list?.data[0]?.name).toBe("sbtc-deposits");
+			expect(saved.size).toBe(0);
+		} finally {
+			// @ts-expect-error restoring the bare test environment
+			globalThis.sessionStorage = undefined;
+			// @ts-expect-error restoring the bare test environment
+			globalThis.window = undefined;
+		}
+	});
+});
 
-function installStorage() {
-	storage.clear();
-	globalThis.sessionStorage = {
-		getItem: (k: string) => storage.get(k) ?? null,
-		setItem: (k: string, v: string) => void storage.set(k, v),
-		removeItem: (k: string) => void storage.delete(k),
-		key: (i: number) => [...storage.keys()][i] ?? null,
-		get length() {
-			return storage.size;
-		},
-	} as unknown as Storage;
-	globalThis.window = {} as Window & typeof globalThis;
-}
+describe("server seed", () => {
+	const hours = [
+		{ hour: "h", lagBlocks: 0, rowsWritten: 4, errors: 0, eventsHandled: 4 },
+	];
+	const list = {
+		kind: "ok",
+		data: [{ name: "a", health: { hours, errors24h: 0 } }, { name: "b" }],
+	} as unknown as Parameters<typeof listSeed>[0];
 
-function removeStorage() {
-	// @ts-expect-error restoring the bare test environment
-	globalThis.sessionStorage = undefined;
-	// @ts-expect-error restoring the bare test environment
-	globalThis.window = undefined;
-}
+	function Probe({ seed }: { seed: SubgraphsSeed }) {
+		const cache = useSubgraphsCache(seed);
+		return createElement(
+			"p",
+			null,
+			`${cache.list?.data.length ?? "none"}:${Object.keys(cache.health).join(",")}`,
+		);
+	}
 
-function envelope(data: unknown): string {
-	return JSON.stringify({ owner: null, savedAt: Date.now(), data });
-}
-
-describe("this tab's saved copy", () => {
-	beforeEach(installStorage);
-	afterEach(removeStorage);
-
-	test("a successful list refresh is saved for a reload", async () => {
-		stub(json({ data: [{ name: "sbtc-deposits" }] }));
-		await refreshList();
-		expect(storage.get("sl:dash:v1:subgraphs")).toContain("sbtc-deposits");
+	test("listSeed carries the list and the health that came with it", () => {
+		const seed = listSeed(list);
+		expect(seed.list?.data.length).toBe(2);
+		expect(Object.keys(seed.health ?? {})).toEqual(["a"]);
 	});
 
-	test("a reload reads the saved copy and clearing removes it", () => {
-		clearSubgraphsData(); // resets the store as a fresh page load would
-		storage.set(
-			"sl:dash:v1:subgraphs",
-			envelope({ list: { data: [{ name: "sbtc-deposits" }], at: 1 } }),
+	test("a failed read seeds nothing", () => {
+		expect(listSeed({ kind: "asleep" })).toEqual({});
+	});
+
+	test("detailSeed keeps only the reads that came back ok", () => {
+		const seed = detailSeed("a", {
+			detail: { kind: "not_found" },
+			health: { kind: "ok", data: { hours, errors24h: 0 } },
+			errors: { kind: "ok", data: [] },
+			source: { kind: "starting", retryAfter: 5 },
+		});
+		expect(Object.keys(seed).sort()).toEqual(["errors", "health"]);
+	});
+
+	test("the server render paints the seed and leaves the module cache empty", () => {
+		const html = renderToStaticMarkup(
+			createElement(Probe, { seed: listSeed(list) }),
 		);
-		expect(subgraphsSnapshot().list?.data[0]?.name).toBe("sbtc-deposits");
-		clearSubgraphsData();
-		expect(storage.has("sl:dash:v1:subgraphs")).toBe(false);
+		expect(html).toContain("2:a");
+		expect(subgraphsSnapshot().list).toBeUndefined();
+	});
+
+	test("a browser render starts the cache from the seed once", () => {
+		globalThis.window = {} as Window & typeof globalThis;
+		try {
+			renderToStaticMarkup(createElement(Probe, { seed: listSeed(list) }));
+			expect(subgraphsSnapshot().list?.data.length).toBe(2);
+		} finally {
+			// @ts-expect-error restoring the bare test environment
+			globalThis.window = undefined;
+		}
 	});
 });
 

@@ -3,7 +3,7 @@
 import { dotClass } from "@/components/dashboard/shell/status-sentence";
 import { type Insight, rankInsights, severityDot } from "@/lib/insights";
 import { forResource, useInsights } from "@/lib/insights-store";
-import { useWebhooksCache } from "@/lib/webhooks-store";
+import { type WebhooksSeed, useWebhooksCache } from "@/lib/webhooks-store";
 import type { WebhookSummary } from "@secondlayer/sdk";
 import type { KeyboardEvent, MouseEvent } from "react";
 import {
@@ -61,13 +61,13 @@ export function rowModel(
 }
 
 /** One model per webhook in the list; null before the list has loaded. */
-export function useWebhookRows(): {
+export function useWebhookRows(seed?: WebhooksSeed): {
 	rows: WebhookRowModel[] | null;
 	hours: readonly string[];
 	/** The hourly summary has arrived (rows may still lack a series). */
 	summaryLoaded: boolean;
 } {
-	const cache = useWebhooksCache();
+	const cache = useWebhooksCache(seed);
 	const { data: insights } = useInsights();
 	const list = cache.list?.data ?? null;
 	const hours = cache.summary?.data.hours ?? [];

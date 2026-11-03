@@ -3,33 +3,23 @@
 import "@/components/code/code.css";
 import { CodeScope } from "@/components/code/code-scope";
 import { stripAnnotations } from "@/lib/code/annotations";
+import type { RenderedBlock } from "@/lib/code/blocks";
 import type {
 	SubgraphSource,
 	SubgraphSourceInfo,
 	SubgraphTableInfo,
 } from "@/lib/subgraphs-store";
-import { useEffect, useMemo, useState } from "react";
-import { type Piece, describeTable } from "./describe-table";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { type Piece, tableCode } from "./describe-table";
 
 /**
  * "Tables": one closed row per table, built like the webhook page's "Listens
  * for". Details opens a sentence whose phrases are click-to-press focus
  * links, above the table's real handler source in the docs code frame. The
- * frame is rendered on the server (`/api/code`) because Shiki doesn't run in
- * the browser.
+ * frame is rendered on the server because Shiki doesn't run in the browser:
+ * the page render hands the frames in (`initialBlocks`), and `/api/code`
+ * renders them again when the subgraph's version changes.
  */
-
-type Rendered = { className: string; copyable: boolean; html: string };
-
-/** The code endpoint renders at most this many blocks per request. */
-const MAX_BLOCKS = 10;
-
-/** Rendered blocks per subgraph version, so polling re-renders never refetch. */
-const renderedBlocks = new Map<string, Rendered[]>();
-
-/** A file name the code frame's bar can show for this subgraph. */
-const titleOf = (name: string): string =>
-	`${name.replace(/[^A-Za-z0-9._-]+/g, "-").slice(0, 48)}.ts`;
 
 function Pieces({ pieces }: { pieces: Piece[] }) {
 	return pieces.map((piece, i) =>
@@ -48,53 +38,41 @@ export function TablesSection({
 	tables,
 	sources,
 	source,
+	initialBlocks,
 }: {
 	name: string;
 	tables: Record<string, SubgraphTableInfo>;
 	sources: Record<string, SubgraphSourceInfo> | undefined;
 	/** Null while the source loads or when it is unavailable. */
 	source: SubgraphSource | null;
+	/** The frames the server rendered for this subgraph's current version. */
+	initialBlocks?: RenderedBlock[] | null;
 }) {
 	const sourceCode = source?.sourceCode ?? null;
-	const descriptions = useMemo(
-		() =>
-			Object.entries(tables)
-				.sort(([, a], [, b]) => b.rowCount - a.rowCount)
-				.map(([table, info]) => ({
-					table,
-					description: describeTable({
-						table,
-						rowCount: info.rowCount,
-						columns: Object.keys(info.columns).filter(
-							(column) => !column.startsWith("_"),
-						),
-						sources: sources ?? {},
-						sourceCode,
-					}),
-				})),
-		[tables, sources, sourceCode],
+	const { descriptions, blocks } = useMemo(
+		() => tableCode({ name, tables, sources, sourceCode }),
+		[name, tables, sources, sourceCode],
 	);
 
-	// Blocks go out for the tables that have code, in row order, up to the cap.
-	const withCode = descriptions.filter((d) => d.description.code !== null);
+	// Frames go out for the tables that have code, in row order, up to the cap.
 	const blockIndex = (table: string): number =>
-		withCode.findIndex((d) => d.table === table);
+		descriptions
+			.filter((d) => d.description.code !== null)
+			.findIndex((d) => d.table === table);
 
 	const key = source ? `${name}:${source.updatedAt}` : null;
-	const [rendered, setRendered] = useState<Rendered[] | null>(() =>
-		key ? (renderedBlocks.get(key) ?? null) : null,
+	// The version the server's frames belong to; a newer version refetches.
+	const seededKey = useRef(initialBlocks ? key : null);
+	const [rendered, setRendered] = useState<RenderedBlock[] | null>(
+		initialBlocks ?? null,
 	);
 	const [open, setOpen] = useState<Set<string>>(() => new Set());
 
 	// biome-ignore lint/correctness/useExhaustiveDependencies: refetch only when the subgraph's version changes, not on every poll
 	useEffect(() => {
-		if (!key || withCode.length === 0) {
+		if (seededKey.current === key) return;
+		if (!key || blocks.length === 0) {
 			setRendered(null);
-			return;
-		}
-		const cached = renderedBlocks.get(key);
-		if (cached) {
-			setRendered(cached);
 			return;
 		}
 		setRendered(null);
@@ -102,17 +80,10 @@ export function TablesSection({
 		fetch("/api/code", {
 			method: "POST",
 			headers: { "content-type": "application/json" },
-			body: JSON.stringify({
-				blocks: withCode.slice(0, MAX_BLOCKS).map((d) => ({
-					code: d.description.code,
-					title: titleOf(name),
-					lines: d.description.start,
-				})),
-			}),
+			body: JSON.stringify({ blocks }),
 		})
 			.then((res) => (res.ok ? res.json() : Promise.reject(res.status)))
-			.then((body: { blocks: Rendered[] }) => {
-				renderedBlocks.set(key, body.blocks);
+			.then((body: { blocks: RenderedBlock[] }) => {
 				if (live) setRendered(body.blocks);
 			})
 			.catch(() => {

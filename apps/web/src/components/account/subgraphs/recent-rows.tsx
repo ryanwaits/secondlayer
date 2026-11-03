@@ -2,8 +2,16 @@
 
 import { groupDigits } from "@/lib/subgraph-view";
 import { fetchRows } from "@/lib/subgraphs-store";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { JsonView } from "../webhooks/payload-view";
+import {
+	RECENT_ROWS_QUERY,
+	type RecentRow,
+	type RecentRowsData,
+	biggestTables,
+	foldRecentRows,
+	sortRecent,
+} from "./recent-rows-model";
 
 /**
  * "Recent rows": the newest rows across a subgraph's tables, built like the
@@ -11,13 +19,7 @@ import { JsonView } from "../webhooks/payload-view";
  * frame, showing its raw JSON.
  */
 
-export type RecentRow = { table: string; row: Record<string, unknown> };
-
 const VISIBLE_ROWS = 10;
-const KEPT_ROWS = 20;
-/** Tables read for the merge, biggest first; bounds the fan-out. */
-const MAX_TABLES = 8;
-const PER_TABLE = 10;
 const COPIED_MS = 1200;
 
 const asText = (value: unknown): string =>
@@ -40,15 +42,6 @@ function sizeLabel(text: string): string {
 
 const rowKey = ({ table, row }: RecentRow): string =>
 	`${table}:${asText(row._id)}`;
-
-/** Newest block first, then newest id. */
-export function sortRecent(rows: readonly RecentRow[]): RecentRow[] {
-	return [...rows].sort(
-		(a, b) =>
-			Number(b.row._block_height) - Number(a.row._block_height) ||
-			Number(b.row._id) - Number(a.row._id),
-	);
-}
 
 type Tab = "row" | "query";
 
@@ -243,54 +236,44 @@ export function RecentRowsBody({
 	);
 }
 
-/** Reads the newest rows of the biggest tables once, then merges them. */
+/** The newest rows of the biggest tables, merged. The page's server render
+ *  reads them (`initial`); without it the browser reads them once. */
 export function RecentRows({
 	name,
 	tables,
+	initial,
 }: {
 	name: string;
 	/** Table names with their row counts. */
 	tables: Record<string, { rowCount: number }>;
+	initial?: RecentRowsData | null;
 }) {
-	const [rows, setRows] = useState<RecentRow[] | null>(null);
-	const [failed, setFailed] = useState(false);
+	const [data, setData] = useState<RecentRowsData | null>(initial ?? null);
+	// The subgraph the server's rows belong to; another name reads again.
+	const seededName = useRef(initial ? name : null);
 
 	// biome-ignore lint/correctness/useExhaustiveDependencies: once per subgraph; the page doesn't poll rows
 	useEffect(() => {
+		if (seededName.current === name) return;
 		let live = true;
-		setRows(null);
-		setFailed(false);
-		const biggest = Object.entries(tables)
-			.sort(([, a], [, b]) => b.rowCount - a.rowCount)
-			.slice(0, MAX_TABLES)
-			.map(([table]) => table);
+		setData(null);
+		const biggest = biggestTables(tables);
 		Promise.all(
 			biggest.map(async (table) => {
-				const res = await fetchRows(
-					name,
-					table,
-					`_sort=_block_height&_order=desc&_limit=${PER_TABLE}`,
-				);
+				const res = await fetchRows(name, table, RECENT_ROWS_QUERY);
 				return res.kind === "ok"
 					? res.data.rows.map((row) => ({ table, row }))
 					: null;
 			}),
 		).then((results) => {
-			if (!live) return;
-			const ok = results.filter((r) => r !== null);
-			if (biggest.length > 0 && ok.length === 0) {
-				setFailed(true);
-				setRows([]);
-				return;
-			}
-			setRows(sortRecent(ok.flat()).slice(0, KEPT_ROWS));
+			if (live) setData(foldRecentRows(biggest, results));
 		});
 		return () => {
 			live = false;
 		};
 	}, [name]);
 
-	if (failed) {
+	if (data?.failed) {
 		return (
 			<section className="dash-panel" id="sg-rows" aria-label="Recent rows">
 				<div className="dash-panel-h">
@@ -300,5 +283,5 @@ export function RecentRows({
 			</section>
 		);
 	}
-	return <RecentRowsBody name={name} rows={rows} />;
+	return <RecentRowsBody name={name} rows={data?.rows ?? null} />;
 }

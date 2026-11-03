@@ -11,9 +11,10 @@ import { dotClass } from "@/components/dashboard/shell/status-sentence";
 import { useCompact } from "@/components/mobile/use-compact";
 import { formatDate } from "@/lib/account-data";
 import { barsRows } from "@/lib/dashboard-charts";
+import type { WebhooksResult } from "@/lib/dashboard-results";
 import { type Insight, rankInsights } from "@/lib/insights";
 import { forResource, useInsights } from "@/lib/insights-store";
-import { isFresh } from "@/lib/request-cache";
+import type { WebhookDetailInitial } from "@/lib/server/dashboard-reads";
 import {
 	type WebhookActivityDay,
 	hostOf,
@@ -22,9 +23,9 @@ import {
 	resumeWebhook,
 	testWebhook,
 } from "@/lib/webhooks-data";
-import type { WebhooksResult } from "@/lib/webhooks-data";
 import {
 	applyWebhook,
+	detailSeed,
 	poll,
 	refreshActivity,
 	refreshDeliveriesWindow,
@@ -69,8 +70,6 @@ import {
 const DETAIL_POLL_MS = 10_000;
 /** The fast standalone `/activity` poll while events are waiting to send. */
 const ACTIVITY_POLL_MS = 5_000;
-/** An hour window of deliveries refreshes a little sooner than the page. */
-const WINDOW_FRESH_MS = 60_000;
 const VISIBLE_GROUPS = 10;
 
 const RANGE_OPTIONS = RANGES.map((value) => ({ value, label: value }));
@@ -82,55 +81,76 @@ type DetailNotice =
 	| { kind: "not_found" }
 	| { kind: "error"; message: string };
 
+/** What a webhook read means for the page: the notice to show, `null` for
+ *  none, or `undefined` to leave the notice as it is. A failure only becomes
+ *  the notice when no page is cached to keep showing; `not_found` always
+ *  wins, since a deleted webhook shouldn't keep showing. */
+function noticeFor(
+	webhook: WebhooksResult<WebhookDetail>,
+	hasCached: boolean,
+): DetailNotice | null | undefined {
+	switch (webhook.kind) {
+		case "ok":
+			return null;
+		case "not_found":
+			return { kind: "not_found" };
+		case "rate_limited":
+			return undefined;
+		case "starting":
+		case "no_credits":
+		case "asleep":
+			return hasCached ? undefined : { kind: webhook.kind };
+		case "error":
+			return hasCached
+				? undefined
+				: { kind: "error", message: webhook.message };
+	}
+}
+
 /**
- * Fires the whole detail bundle in parallel on mount, then again every
- * `DETAIL_POLL_MS` while the tab is visible. A non-ok webhook result becomes
- * this page's notice only when nothing is cached yet for it; once a webhook
- * has loaded, later failures keep retrying behind the last-known page.
- * `not_found` always wins, since a deleted webhook shouldn't keep showing.
+ * Reads the whole detail bundle in parallel and again every `DETAIL_POLL_MS`
+ * while the tab is visible. A page that opened with the server's reads
+ * (`initial`) starts from them: its first poll waits a full interval, unless
+ * the webhook didn't load, in which case it retries right away.
  * `asleep` tracks the stack whether or not a page is cached, since cached
  * rows can't open a payload on an asleep stack.
  */
 function useDetailPoll(
 	id: string,
 	fastActivityRef: { current: boolean },
+	initial: WebhookDetailInitial | null,
 ): { notice: DetailNotice | null; asleep: boolean } {
-	const [notice, setNotice] = useState<DetailNotice | null>(null);
-	const [asleep, setAsleep] = useState(false);
+	const firstNotice = initial
+		? (noticeFor(initial.webhook, false) ?? null)
+		: null;
+	const firstAsleep = initial?.webhook.kind === "asleep";
+	const [notice, setNotice] = useState<DetailNotice | null>(firstNotice);
+	const [asleep, setAsleep] = useState(firstAsleep);
 
+	// biome-ignore lint/correctness/useExhaustiveDependencies: restart only for another webhook or another server read
 	useEffect(() => {
-		setNotice(null);
-		setAsleep(false);
-		return poll(async () => {
-			const res = await refreshDetail(id, {
-				activity: !fastActivityRef.current,
-			});
-			const hasCached = webhooksSnapshot().detail[id] !== undefined;
-			const webhook = res.webhook;
-			setAsleep(webhook.kind === "asleep");
-			if (webhook.kind === "ok") {
-				setNotice(null);
-				return {};
-			}
-			if (webhook.kind === "not_found") {
-				setNotice({ kind: "not_found" });
-				return {};
-			}
-			if (webhook.kind === "rate_limited") {
-				return { retryAfterMs: webhook.retryAfter * 1000 };
-			}
-			if (webhook.kind === "starting") {
-				if (!hasCached) setNotice({ kind: "starting" });
-				return { retryAfterMs: webhook.retryAfter * 1000 };
-			}
-			if (webhook.kind === "no_credits" || webhook.kind === "asleep") {
-				if (!hasCached) setNotice({ kind: webhook.kind });
-				return {};
-			}
-			if (!hasCached) setNotice({ kind: "error", message: webhook.message });
-			return {};
-		}, DETAIL_POLL_MS);
-	}, [id, fastActivityRef]);
+		setNotice(firstNotice);
+		setAsleep(firstAsleep);
+		return poll(
+			async () => {
+				const res = await refreshDetail(id, {
+					activity: !fastActivityRef.current,
+				});
+				const webhook = res.webhook;
+				setAsleep(webhook.kind === "asleep");
+				const next = noticeFor(
+					webhook,
+					webhooksSnapshot().detail[id] !== undefined,
+				);
+				if (next !== undefined) setNotice(next);
+				return webhook.kind === "starting" || webhook.kind === "rate_limited"
+					? { retryAfterMs: webhook.retryAfter * 1000 }
+					: {};
+			},
+			DETAIL_POLL_MS,
+			{ immediate: initial?.webhook.kind !== "ok" },
+		);
+	}, [id, initial, fastActivityRef]);
 
 	return { notice, asleep };
 }
@@ -491,6 +511,8 @@ export interface WebhookDetailBodyProps {
 	onRename: (name: string) => Promise<boolean>;
 	/** The last poll found the hosted stack asleep. */
 	stackAsleep: boolean;
+	/** The "Listens for" frames the server rendered for this webhook. */
+	listensBlocks?: WebhookDetailInitial["listens"];
 }
 
 export function WebhookDetailBody({
@@ -508,6 +530,7 @@ export function WebhookDetailBody({
 	onTogglePause,
 	onRename,
 	stackAsleep,
+	listensBlocks,
 }: WebhookDetailBodyProps) {
 	const ranked = rankInsights(insights);
 	const paused = webhook.status === "paused";
@@ -564,7 +587,11 @@ export function WebhookDetailBody({
 			) : null}
 
 			<div className="wd-stack">
-				<ListensFor webhook={webhook} activity={activity} />
+				<ListensFor
+					webhook={webhook}
+					activity={activity}
+					initialBlocks={listensBlocks}
+				/>
 				{quiet ? (
 					<p className="wd-faint">
 						No deliveries yet. This webhook delivers on the first matching event
@@ -584,13 +611,25 @@ export function WebhookDetailBody({
 	);
 }
 
-export function WebhookDetailSection({ id }: { id: string }) {
+/** /account/webhooks/<id>. `initial` is what the server read for this visit;
+ *  without it (signed out, or a client-only render) the page loads in the browser. */
+export function WebhookDetailSection({
+	id,
+	initial = null,
+}: {
+	id: string;
+	initial?: WebhookDetailInitial | null;
+}) {
 	const router = useRouter();
 	const pathname = usePathname();
 	const search = useSearchParams();
-	const cache = useWebhooksCache();
+	const cache = useWebhooksCache(initial ? detailSeed(id, initial) : undefined);
 	const fastActivity = useRef(false);
-	const { notice, asleep: stackAsleep } = useDetailPoll(id, fastActivity);
+	const { notice, asleep: stackAsleep } = useDetailPoll(
+		id,
+		fastActivity,
+		initial,
+	);
 
 	const webhook = cache.detail[id]?.data ?? null;
 	const deliveries = cache.deliveries[id]?.data ?? null;
@@ -612,10 +651,14 @@ export function WebhookDetailSection({ id }: { id: string }) {
 
 	fastActivity.current = (activity?.waiting ?? 0) > 0;
 	useEffect(() => {
-		return poll(async () => {
-			if (fastActivity.current) await refreshActivity(id);
-			return {};
-		}, ACTIVITY_POLL_MS);
+		return poll(
+			async () => {
+				if (fastActivity.current) await refreshActivity(id);
+				return {};
+			},
+			ACTIVITY_POLL_MS,
+			{ immediate: false },
+		);
 	}, [id]);
 
 	const hour = hourWindow(search.get("hour"));
@@ -623,9 +666,6 @@ export function WebhookDetailSection({ id }: { id: string }) {
 	const hourTo = hour?.to;
 	useEffect(() => {
 		if (!hourFrom || !hourTo) return;
-		const cached = webhooksSnapshot().deliveriesWindow[`${id}:${hourFrom}`];
-		if (cached && isFresh(`webhooks:window:${id}:${hourFrom}`, WINDOW_FRESH_MS))
-			return;
 		void refreshDeliveriesWindow(id, { from: hourFrom, to: hourTo });
 	}, [id, hourFrom, hourTo]);
 	const hourDeliveries = hourFrom
@@ -802,6 +842,7 @@ export function WebhookDetailSection({ id }: { id: string }) {
 			onTogglePause={onTogglePause}
 			onRename={onRename}
 			stackAsleep={stackAsleep}
+			listensBlocks={initial?.listens}
 		/>
 	);
 }

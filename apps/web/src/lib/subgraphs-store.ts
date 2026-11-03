@@ -1,9 +1,9 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
-import { markFresh, shared } from "./request-cache";
-import { loadSnapshot, removeSnapshot, saveSnapshot } from "./session-cache";
-import { type WebhooksResult, resultForStatus } from "./webhooks-data";
+import { type WebhooksResult, resultFromResponse } from "./dashboard-results";
+import { shared } from "./request-cache";
+import { HEALTH_WEEK_HOURS } from "./subgraph-view";
 
 export { poll } from "./webhooks-store";
 
@@ -128,7 +128,6 @@ type State = {
 	detail: Record<string, CacheEntry<SubgraphDetailData>>;
 	health: Record<string, CacheEntry<SubgraphHealthData>>;
 	errors: Record<string, CacheEntry<SubgraphErrorGroup[]>>;
-	/** Never persisted: a source can be large. */
 	source: Record<string, CacheEntry<SubgraphSource>>;
 };
 
@@ -140,27 +139,15 @@ const EMPTY: State = {
 	source: {},
 };
 
-const NAME = "subgraphs";
-type Persisted = Pick<State, "list" | "health">;
 let state: State = EMPTY;
-let hydrated = false;
 const listeners = new Set<() => void>();
 
-/** The first client read pulls this tab's last copy, if any. */
 function current(): State {
-	if (!hydrated && typeof window !== "undefined") {
-		hydrated = true;
-		const saved = loadSnapshot<Persisted>(NAME);
-		if (saved) state = { ...EMPTY, ...saved };
-	}
 	return state;
 }
 
 function set(patch: Partial<State>) {
-	const prev = current();
-	state = { ...prev, ...patch };
-	if (prev.list !== state.list || prev.health !== state.health)
-		saveSnapshot(NAME, { list: state.list, health: state.health });
+	state = { ...state, ...patch };
 	for (const l of listeners) l();
 }
 
@@ -170,18 +157,101 @@ function subscribe(l: () => void) {
 }
 
 export function subgraphsSnapshot(): State {
-	return current();
+	return state;
 }
 
-export function useSubgraphsCache(): State {
-	return useSyncExternalStore(subscribe, subgraphsSnapshot, () => EMPTY);
+/** What a server render read for the page, in cache shape. */
+export type SubgraphsSeed = Partial<State>;
+
+const appliedSeeds = new WeakSet<object>();
+const serverStates = new WeakMap<object, State>();
+const seedsByInitial = new WeakMap<object, SubgraphsSeed>();
+
+/** Puts a seed into the client cache, once per seed. Quiet on purpose: it runs
+ *  while a component renders, so it must not wake other subscribers. */
+function applySeed(seed: SubgraphsSeed): void {
+	if (typeof window === "undefined" || appliedSeeds.has(seed)) return;
+	appliedSeeds.add(seed);
+	state = {
+		list: seed.list ?? state.list,
+		detail: { ...state.detail, ...seed.detail },
+		health: { ...state.health, ...seed.health },
+		errors: { ...state.errors, ...seed.errors },
+		source: { ...state.source, ...seed.source },
+	};
+}
+
+/** The cache. With a seed, the server render and the hydration pass read the
+ *  seed (so the HTML carries the data), and the client cache starts from it.
+ *  The server never writes the module cache: it is shared across requests. */
+export function useSubgraphsCache(seed?: SubgraphsSeed): State {
+	if (seed) applySeed(seed);
+	let server = EMPTY;
+	if (seed) {
+		server = serverStates.get(seed) ?? { ...EMPTY, ...seed };
+		serverStates.set(seed, server);
+	}
+	return useSyncExternalStore(subscribe, subgraphsSnapshot, () => server);
+}
+
+/** A server-read list (with each item's health) as a seed. */
+export function listSeed(
+	initial: SubgraphsResult<SubgraphListItem[]>,
+): SubgraphsSeed {
+	const known = seedsByInitial.get(initial);
+	if (known) return known;
+	const at = Date.now();
+	const seed: SubgraphsSeed =
+		initial.kind === "ok"
+			? {
+					list: { data: initial.data, at },
+					health: Object.fromEntries(
+						initial.data.flatMap((s) =>
+							s.health ? [[s.name, { data: s.health, at }]] : [],
+						),
+					),
+				}
+			: {};
+	seedsByInitial.set(initial, seed);
+	return seed;
+}
+
+/** The reads a server render made for one subgraph, as a seed. */
+export interface SubgraphDetailReads {
+	detail: SubgraphsResult<SubgraphDetailData>;
+	health: SubgraphsResult<SubgraphHealthData>;
+	errors: SubgraphsResult<SubgraphErrorGroup[]>;
+	source: SubgraphsResult<SubgraphSource>;
+}
+
+export function detailSeed(
+	name: string,
+	initial: SubgraphDetailReads,
+): SubgraphsSeed {
+	const known = seedsByInitial.get(initial);
+	if (known) return known;
+	const at = Date.now();
+	const seed: SubgraphsSeed = {
+		...(initial.detail.kind === "ok" && {
+			detail: { [name]: { data: initial.detail.data, at } },
+		}),
+		...(initial.health.kind === "ok" && {
+			health: { [name]: { data: initial.health.data, at } },
+		}),
+		...(initial.errors.kind === "ok" && {
+			errors: { [name]: { data: initial.errors.data, at } },
+		}),
+		...(initial.source.kind === "ok" && {
+			source: { [name]: { data: initial.source.data, at } },
+		}),
+	};
+	seedsByInitial.set(initial, seed);
+	return seed;
 }
 
 /** Forget every cached subgraph on sign-out. */
 export function clearSubgraphsData(): void {
 	state = EMPTY;
-	hydrated = false;
-	removeSnapshot(NAME);
 	for (const l of listeners) l();
 }
 
@@ -198,26 +268,10 @@ async function request<T>(path: string): Promise<SubgraphsResult<T>> {
 	} catch {
 		// An empty error body falls through to the status-only message.
 	}
-	const message =
-		body &&
-		typeof body === "object" &&
-		"error" in body &&
-		typeof (body as { error: unknown }).error === "string"
-			? (body as { error: string }).error
-			: `Request failed (${res.status})`;
-	const mapped = resultForStatus(
-		res.status,
-		res.headers.get("Retry-After"),
-		message,
-	);
-	return mapped ?? { kind: "ok", data: body as T };
+	return resultFromResponse<T>(res, body);
 }
 
 const seg = encodeURIComponent;
-
-/** Hours of health the list poll asks for: the index draws a 7-day heat grid,
- *  and the Overview takes the last 24 hours. */
-export const LIST_HEALTH_HOURS = 168;
 
 /** The request-cache key for a list read; each query shape has its own. */
 export const listKey = (health?: number): string =>
@@ -247,14 +301,10 @@ export function refreshList(
 				list: { data: res.data.data, at },
 				health: { ...current().health, ...fromList },
 			});
-			markFresh(key);
-			for (const name of Object.keys(fromList))
-				markFresh(`subgraphs:health:${name}:${options.health}`);
 			return { kind: "ok", data: res.data.data } as const;
 		}
 		if (res.kind === "not_found") {
 			set({ list: { data: [], at: Date.now() } });
-			markFresh(key);
 			return { kind: "ok", data: [] } as const;
 		}
 		return res;
@@ -265,12 +315,12 @@ export function refreshList(
  *  still on an older image ignores `?health=`, so those items fall back to a
  *  health read each; drop the fallback once every tenant has rolled. */
 export async function refreshListAndHealth() {
-	const res = await refreshList({ health: LIST_HEALTH_HOURS });
+	const res = await refreshList({ health: HEALTH_WEEK_HOURS });
 	if (res.kind === "ok") {
 		await Promise.all(
 			res.data
 				.filter((s) => s.health === undefined)
-				.map((s) => refreshHealth(s.name, LIST_HEALTH_HOURS)),
+				.map((s) => refreshHealth(s.name, HEALTH_WEEK_HOURS)),
 		);
 	}
 	return res;
@@ -289,7 +339,6 @@ export function refreshDetail(
 					[name]: { data: res.data, at: Date.now() },
 				},
 			});
-			markFresh(key);
 		}
 		return res;
 	});
@@ -312,7 +361,6 @@ export function refreshHealth(
 					[name]: { data: res.data, at: Date.now() },
 				},
 			});
-			markFresh(key);
 		}
 		return res;
 	});
@@ -333,7 +381,6 @@ export function refreshErrors(
 					[name]: { data: res.data.data, at: Date.now() },
 				},
 			});
-			markFresh(key);
 			return { kind: "ok", data: res.data.data } as const;
 		}
 		return res;
@@ -353,7 +400,6 @@ export function refreshSource(
 					[name]: { data: res.data, at: Date.now() },
 				},
 			});
-			markFresh(key);
 		}
 		return res;
 	});

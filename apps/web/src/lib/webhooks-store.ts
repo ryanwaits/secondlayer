@@ -7,11 +7,10 @@ import type {
 	WebhookSummary,
 } from "@secondlayer/sdk";
 import { useSyncExternalStore } from "react";
-import { markFresh, shared } from "./request-cache";
-import { loadSnapshot, removeSnapshot, saveSnapshot } from "./session-cache";
+import type { WebhooksResult } from "./dashboard-results";
+import { shared } from "./request-cache";
 import {
 	type WebhooksActivitySummary,
-	type WebhooksResult,
 	getActivity,
 	getActivitySummary,
 	getDeliveries,
@@ -22,9 +21,9 @@ import {
 /**
  * The webhooks list/detail store, modeled on `account-data.ts`: one
  * module-level `state`, `set(patch)`, `subscribe`, `useWebhooksCache()` via
- * `useSyncExternalStore`. Rows in this cache are what the list and detail
- * pages render immediately on every navigation and revisit, while a
- * refresher goes and gets the current numbers in the background.
+ * `useSyncExternalStore`. A page's server render hands its first reads in as
+ * a seed (see `useWebhooksCache`); after that, polls keep the cache current.
+ * Nothing is persisted: a reload paints from the server again.
  *
  * A refresher only writes into the cache on `{ kind: "ok" }` — a starting
  * hosted stack, a rate limit or a dropped connection never overwrites
@@ -54,45 +53,15 @@ const EMPTY: State = {
 	deliveriesWindow: {},
 };
 
-const NAME = "webhooks";
-type Persisted = Pick<State, "list" | "summary">;
 let state: State = EMPTY;
-let hydrated = false;
 const listeners = new Set<() => void>();
 
-/** Receiver URLs can carry a secret in their path or query, and the list only
- *  shows the host, so a stored copy keeps the origin and nothing more. */
-function originOf(url: string): string {
-	try {
-		return new URL(url).origin;
-	} catch {
-		return "";
-	}
-}
-
-function pick(from: State): Persisted {
-	const list = from.list && {
-		...from.list,
-		data: from.list.data.map((w) => ({ ...w, url: originOf(w.url) })),
-	};
-	return { list, summary: from.summary };
-}
-
-/** The first client read pulls this tab's last copy, if any. */
 function current(): State {
-	if (!hydrated && typeof window !== "undefined") {
-		hydrated = true;
-		const saved = loadSnapshot<Persisted>(NAME);
-		if (saved) state = { ...EMPTY, ...saved };
-	}
 	return state;
 }
 
 function set(patch: Partial<State>) {
-	const prev = current();
-	state = { ...prev, ...patch };
-	if (prev.list !== state.list || prev.summary !== state.summary)
-		saveSnapshot(NAME, pick(state));
+	state = { ...state, ...patch };
 	for (const l of listeners) l();
 }
 
@@ -105,18 +74,89 @@ function subscribe(l: () => void) {
  *  hands React, and what a refresher or a test reads without a component
  *  around it. */
 export function webhooksSnapshot(): State {
-	return current();
+	return state;
 }
 
-export function useWebhooksCache(): State {
-	return useSyncExternalStore(subscribe, webhooksSnapshot, () => EMPTY);
+/** What a server render read for the page, in cache shape. */
+export type WebhooksSeed = Partial<State>;
+
+const appliedSeeds = new WeakSet<object>();
+const serverStates = new WeakMap<object, State>();
+
+/** Puts a seed into the client cache, once per seed. Quiet on purpose: it runs
+ *  while a component renders, so it must not wake other subscribers. */
+function applySeed(seed: WebhooksSeed): void {
+	if (typeof window === "undefined" || appliedSeeds.has(seed)) return;
+	appliedSeeds.add(seed);
+	state = {
+		list: seed.list ?? state.list,
+		summary: seed.summary ?? state.summary,
+		detail: { ...state.detail, ...seed.detail },
+		deliveries: { ...state.deliveries, ...seed.deliveries },
+		activity: { ...state.activity, ...seed.activity },
+		deliveriesWindow: state.deliveriesWindow,
+	};
+}
+
+const seedsByInitial = new WeakMap<object, WebhooksSeed>();
+
+/** A server-read detail bundle as a seed: only the reads that came back ok. */
+export function detailSeed(id: string, initial: DetailFetch): WebhooksSeed {
+	const known = seedsByInitial.get(initial);
+	if (known) return known;
+	const at = Date.now();
+	const { webhook, deliveries, activity } = initial;
+	const seed: WebhooksSeed = {
+		...(webhook.kind === "ok" && {
+			detail: { [id]: { data: webhook.data, at } },
+		}),
+		...(deliveries.kind === "ok" && {
+			deliveries: { [id]: { data: deliveries.data, at } },
+		}),
+		...(activity?.kind === "ok" && {
+			activity: { [id]: { data: activity.data, at } },
+		}),
+	};
+	seedsByInitial.set(initial, seed);
+	return seed;
+}
+
+/** A server-read list and summary as a seed: only the reads that came back ok. */
+export function listSeed(initial: {
+	list: WebhooksResult<WebhookSummary[]>;
+	summary: WebhooksResult<WebhooksActivitySummary>;
+}): WebhooksSeed {
+	const known = seedsByInitial.get(initial);
+	if (known) return known;
+	const at = Date.now();
+	const seed: WebhooksSeed = {
+		...(initial.list.kind === "ok" && {
+			list: { data: initial.list.data, at },
+		}),
+		...(initial.summary.kind === "ok" && {
+			summary: { data: initial.summary.data, at },
+		}),
+	};
+	seedsByInitial.set(initial, seed);
+	return seed;
+}
+
+/** The cache. With a seed, the server render and the hydration pass read the
+ *  seed (so the HTML carries the data), and the client cache starts from it.
+ *  The server never writes the module cache: it is shared across requests. */
+export function useWebhooksCache(seed?: WebhooksSeed): State {
+	if (seed) applySeed(seed);
+	let server = EMPTY;
+	if (seed) {
+		server = serverStates.get(seed) ?? { ...EMPTY, ...seed };
+		serverStates.set(seed, server);
+	}
+	return useSyncExternalStore(subscribe, webhooksSnapshot, () => server);
 }
 
 /** Forget every cached row on sign-out, same path as `clearAccountData`. */
 export function clearWebhooksData(): void {
 	state = EMPTY;
-	hydrated = false;
-	removeSnapshot(NAME);
 	for (const l of listeners) l();
 }
 
@@ -136,12 +176,10 @@ export function refreshList(
 		const res = await listWebhooks(opts);
 		if (res.kind === "ok") {
 			set({ list: { data: res.data, at: Date.now() } });
-			markFresh(key);
 			return res;
 		}
 		if (res.kind === "not_found") {
 			set({ list: { data: [], at: Date.now() } });
-			markFresh(key);
 			return { kind: "ok", data: [] } as const;
 		}
 		return res;
@@ -157,7 +195,6 @@ export function refreshSummary(): Promise<
 		const res = await getActivitySummary();
 		if (res.kind === "ok") {
 			set({ summary: { data: res.data, at: Date.now() } });
-			markFresh("webhooks:summary");
 		}
 		return res;
 	});
@@ -183,7 +220,6 @@ export function refreshDeliveriesWindow(
 			set({
 				deliveriesWindow: Object.fromEntries(windows.slice(0, MAX_WINDOWS)),
 			});
-			markFresh(key);
 		}
 		return res;
 	});
@@ -268,7 +304,6 @@ export function refreshDetail(
 		}
 		if (Object.keys(patch).length > 0) {
 			set(patch);
-			markFresh(key);
 		}
 		return { webhook, deliveries, activity };
 	});
@@ -291,15 +326,15 @@ export function refreshActivity(
 					[id]: { data: res.data, at: Date.now() },
 				},
 			});
-			markFresh(key);
 		}
 		return res;
 	});
 }
 
 /**
- * Calls `run` right away, then again every `intervalMs` for as long as the
- * tab stays visible — paused polls are skipped, not queued, and a return to
+ * Calls `run` right away (or, with `immediate: false`, after the first
+ * interval: for a screen whose data just came from the server), then again
+ * every `intervalMs` for as long as the tab stays visible — paused polls are skipped, not queued, and a return to
  * "visible" fires immediately instead of waiting out the rest of the
  * interval. `run` can shorten its own next wait (e.g. a server's
  * `Retry-After`) by returning `{ retryAfterMs }`; otherwise the fixed
@@ -308,6 +343,7 @@ export function refreshActivity(
 export function poll(
 	run: () => Promise<{ retryAfterMs?: number } | undefined>,
 	intervalMs: number,
+	options: { immediate?: boolean } = {},
 ): () => void {
 	let stopped = false;
 	// True while a `run()` from this poll is in flight. A visibility flap
@@ -343,7 +379,8 @@ export function poll(
 		tick();
 	}
 
-	tick();
+	if (options.immediate === false) timer = setTimeout(tick, intervalMs);
+	else tick();
 	if (typeof document !== "undefined") {
 		document.addEventListener("visibilitychange", onVisibilityChange);
 	}
