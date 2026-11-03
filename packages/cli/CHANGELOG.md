@@ -1,5 +1,11 @@
 # @secondlayer/cli
 
+## 23.2.1
+
+### Patch Changes
+
+- f7bb7aa: When a saved login is rejected, the error now says so and points to `secondlayer login`, instead of suggesting `SECONDLAYER_API_KEY`, which a saved login overrides.
+
 ## 23.2.0
 
 ### Minor Changes
