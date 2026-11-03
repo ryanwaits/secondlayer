@@ -851,7 +851,6 @@ import { devnet } from "@secondlayer/stacks/chains";
 const client = createWalletClient({
 	account: privateKeyToAccount(
 		"753b7cc01a1a2e86221266a154af739463fce51219d97e4f856cd7200c3bd2a601", // devnet deployer
-		{ addressVersion: devnet.addressVersion.singleSig }, // ST... address, not SP...
 	),
 	chain: devnet,
 	transport: http("http://localhost:20443"), // the devnet node

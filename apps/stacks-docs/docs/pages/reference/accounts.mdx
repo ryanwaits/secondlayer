@@ -18,6 +18,8 @@ account.publicKey; // "03ab..."
 account.sign(hash); // Uint8Array
 ```
 
+The address defaults to mainnet. A wallet client uses the address for its chain, so `privateKeyToAccount(key)` works on testnet and devnet as is. Pass `addressVersion` only when you use the account outside a client.
+
 ## From Mnemonic
 
 ```typescript

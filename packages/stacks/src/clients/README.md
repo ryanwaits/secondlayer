@@ -31,14 +31,16 @@ const client = createWalletClient({
 const { txid } = await client.sendTransaction({ transaction: signedTx });
 ```
 
+A wallet client uses the address for its chain, so `privateKeyToAccount(key)` works on testnet and devnet as is. Pass `addressVersion` only when you use the account outside a client.
+
 ## Multi-Sig Client
 
 ```typescript
 import { createMultiSigClient, http, mainnet } from "@secondlayer/stacks";
 
 const client = createMultiSigClient({
-  publicKeys: [pk1, pk2, pk3],
-  signaturesRequired: 2,
+  signers: [pk1, pk2, pk3],
+  requiredSignatures: 2,
   chain: mainnet,
   transport: http(),
 });

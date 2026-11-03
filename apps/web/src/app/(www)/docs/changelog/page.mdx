@@ -2,6 +2,12 @@
 
 Notable changes to Secondlayer and its SDKs. Entries dated before August 2026 describe the hosted service as it worked then (per-row read metering, API keys, `402` past the free window); it was withdrawn in August 2026 and has since returned, with hosted Index, Streams, subgraphs and webhooks at `api.secondlayer.tools` on an account key and prepaid [credits](/docs/authentication), while on a self-hosted instance reads stay yours and unmetered and archive bootstrap, backfill and reindex draw [credits](/docs/authentication#archive-credits).
 
+## SDK — November 2026
+
+### Testnet and devnet keys just work
+
+`createWalletClient` now signs from the address for its chain when the account comes from a local key. `privateKeyToAccount(key)` works on testnet and devnet without `addressVersion`, and no longer fails with `BadNonce`. Browser wallet accounts keep the wallet's address.
+
 ## CLI — November 2026
 
 ### Every product works on your local devnet
