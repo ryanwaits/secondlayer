@@ -183,7 +183,7 @@ const same = source.toSubgraphSource(); // the swaps source again, abi literal i
 ```
 
 export const agent = `
-- Client: new SecondLayer() reads SECONDLAYER_API_URL. Subgraph rows: sl.subgraphs.rows(name, table, opts) returns { rows, next_cursor, tip }; typed table client: sl.subgraphs.typed(def).
+- Client: new SecondLayer() reads SECONDLAYER_API_URL; with only SECONDLAYER_API_KEY set it uses the hosted API. Subgraph rows: sl.subgraphs.rows(name, table, opts) returns { rows, next_cursor, tip }; typed table client: sl.subgraphs.typed(def).
 - The key follows the host: SECONDLAYER_API_KEY on the hosted API, INSTANCE_TOKEN on a self-hosted box. accountKey is only for archive operations.
 - Verify webhook signatures with verifyWebhookSignature from @secondlayer/sdk before processing the payload; reject anything that does not validate.
 - Transaction proof: fetch '/v1/index/transactions/<tx_id>/proof', run verifyTransactionProof(proof) server-side, then re-check fully trustlessly with fetchRewardSet({ nodeUrl, cycle }) from the user's own node.

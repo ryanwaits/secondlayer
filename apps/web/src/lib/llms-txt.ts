@@ -15,10 +15,11 @@ const INTRO = `# Secondlayer: instant data for apps on Bitcoin
 - All guides in one file (~197 KB): ${SITE}/llms-full.txt
 
 ## Start here
-- Hosted: get an account key (sk-sl_*) at ${SITE}/signin. The
-  SDK, MCP and CLI send SECONDLAYER_API_KEY automatically on api.secondlayer.tools.
+- Hosted: get an account key (sk-sl_*) at ${SITE}/signin and set
+  SECONDLAYER_API_KEY. The SDK and MCP then use api.secondlayer.tools. The CLI
+  also needs SECONDLAYER_API_URL=https://api.secondlayer.tools.
 - Self-host: bun add -g @secondlayer/cli && secondlayer init --network mainnet
-- Local API: http://127.0.0.1:3800  (SDK/CLI default)
+- Local API: http://127.0.0.1:3800  (CLI default, and the SDK's with no account key)
 - Hosted OpenAPI: https://api.secondlayer.tools/v1/openapi.json
 - OpenAPI on your instance: http://127.0.0.1:3800/v1/openapi.json
 - Docs: ${SITE}/docs
