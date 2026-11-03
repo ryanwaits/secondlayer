@@ -1,14 +1,19 @@
 /**
  * Generates a self-contained docker-compose for the Secondlayer app services
- * (postgres + migrate + api + indexer + subgraph-processor), pinned to the
- * published OSS images so a CLI-only developer — with no repo checkout — can
- * run the stack alongside their own `clarinet devnet`.
+ * (postgres + the one-box runtime: api, indexer, decoder, subgraph processor
+ * and webhook plane in one process), pinned to the published runtime image so
+ * a CLI-only developer — with no repo checkout — can run the stack alongside
+ * their own `clarinet devnet`.
  *
- * It mirrors `docker/oss/docker-compose.yml`, with two devnet-specific changes:
+ * It mirrors the `secondlayer` service in `docker/oss/docker-compose.yml`, with
+ * devnet-specific changes:
  *   - the indexer's Hiro-mainnet fallbacks are disabled (it's fed by the devnet
  *     node's event observer, and any "gap" would otherwise pull mainnet blocks);
  *   - the indexer port publishes on all interfaces so the devnet's stacks-node
  *     container can reach it via `host.docker.internal:3700`.
+ *
+ * The runtime image is multi-arch (amd64 + arm64), unlike the per-service
+ * api/indexer images, so the stack also runs on Apple Silicon.
  *
  * The API is published on loopback only, and told so via `API_PUBLISH_ADDR`,
  * so `/v1` reads on a devnet need no credential — the "no keys" the docs
@@ -31,6 +36,15 @@ export const DEFAULT_IMAGE_TAG = "latest";
  */
 export const DEV_INSTANCE_TOKEN = "dev-instance-token";
 
+/**
+ * Local-dev webhook signing key (ed25519 private key PEM, `\n`-escaped so it
+ * stays on one YAML line). Publicly known — never for production. It exists so
+ * devnet deliveries are signed like hosted ones and receivers can test their
+ * signature verification.
+ */
+export const DEV_WEBHOOK_SIGNING_KEY =
+	"-----BEGIN PRIVATE KEY-----\\nMC4CAQAwBQYDK2VwBCIEIIczaKV9CBblFKXjqGwrA3A1FOJxY2HiST7++XGea/jX\\n-----END PRIVATE KEY-----";
+
 export interface DevnetComposeOptions {
 	owner?: string;
 	imageTag?: string;
@@ -52,11 +66,10 @@ export function buildDevnetCompose(opts: DevnetComposeOptions = {}): string {
 	// read plane consults. Loopback here → keyless `/v1` reads on devnet.
 	const apiPublish = `127.0.0.1:${apiPort}`;
 
-	const apiImage = `ghcr.io/${owner}/secondlayer-api:${tag}`;
-	const indexerImage = `ghcr.io/${owner}/secondlayer-indexer:${tag}`;
+	const runtimeImage = `ghcr.io/${owner}/secondlayer-runtime:${tag}`;
 	const dbUrl = "postgres://secondlayer:secondlayer@postgres:5432/secondlayer";
-	// Fixed local-dev secrets key (32 bytes hex), shared by api + subgraph-processor
-	// so encrypt-at-rest secrets round-trip across services. Not a production secret.
+	// Fixed local-dev secrets key (32 bytes hex) so encrypt-at-rest secrets
+	// (e.g. webhook signing secrets) are stable across restarts. Not a production secret.
 	const DEV_SECRETS_KEY =
 		"deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef";
 
@@ -81,22 +94,24 @@ services:
       retries: 10
     restart: unless-stopped
 
-  migrate:
-    image: ${apiImage}
-    command: ["bun", "run", "packages/shared/src/db/migrate.ts"]
-    environment:
-      DATABASE_URL: ${dbUrl}
-    depends_on:
-      postgres:
-        condition: service_healthy
-    restart: "no"
-
-  api:
-    image: ${apiImage}
+  secondlayer:
+    image: ${runtimeImage}
     environment:
       INSTANCE_MODE: oss
+      # Keep every network key aligned: the indexer writes index_progress under
+      # STACKS_NETWORK, the subgraph processor reads it under NETWORK. If they
+      # differ, catch-up finds no progress row and subgraphs never advance.
+      NETWORKS: testnet
+      STACKS_NETWORK: testnet
+      NETWORK: testnet
+      NODE_MODE: external
+      # A devnet index is tiny; the runtime's RAM/disk floors target real
+      # networks and a laptop's Docker VM often has less than 80 GB free.
+      SECONDLAYER_ALLOW_UNDERSIZED: "true"
       DATABASE_URL: ${dbUrl}
-      PORT: 3800
+      DATA_DIR: /data
+      API_PORT: "3800"
+      INDEXER_PORT: "3700"
       # 0.0.0.0 is forced: a container process that binds loopback is
       # unreachable through a published port. The real reach is the publish
       # spec below, handed over verbatim so /v1 reads stay keyless on devnet.
@@ -105,91 +120,46 @@ services:
       # Boot guard reads LISTEN_HOST, so a token is required to start at all.
       # It gates writes only — reads are open on this loopback publish.
       INSTANCE_TOKEN: ${DEV_INSTANCE_TOKEN}
-      NODE_ENV: production
-      DATA_DIR: /data
-      # Shared across api + subgraph-processor so the secret the api encrypts
-      # (e.g. a webhook's signing secret) can be decrypted by the emitter.
-      # OSS auto-generates a per-process key when unset — that splits them.
-      # Local-dev fixed value; not a production secret.
+      # Fixed so the secret the api encrypts (e.g. a webhook's signing secret)
+      # can be decrypted by the emitter across restarts. Not a production secret.
       SECONDLAYER_SECRETS_KEY: ${DEV_SECRETS_KEY}
+      # Signed deliveries, so receivers can test verification. Publicly known.
+      SECONDLAYER_WEBHOOK_SIGNING_PRIVATE_KEY: "${DEV_WEBHOOK_SIGNING_KEY}"
+      # The emitter blocks webhook delivery to private/loopback IPs by default.
+      # On a local devnet you deliver to your own localhost receiver, so allow it.
+      SECONDLAYER_ALLOW_PRIVATE_EGRESS: "true"
+      # An OSS indexer with no index_progress spools observer blocks until an
+      # archive import finishes. A devnet has no archive, so ingest live.
+      INGEST_MODE: live
+      # Fed by the devnet node's event observer — never reach out to Hiro mainnet.
+      AUTO_BACKFILL_ENABLED: "false"
+      TIP_FOLLOWER_ENABLED: "false"
+      # clarinet publishes the devnet node RPC on the host's 20443.
+      STACKS_NODE_RPC_URL: http://host.docker.internal:20443
+      STREAMS_API_URL: http://127.0.0.1:3800
+      SUBGRAPH_SOURCE: streams-index
+      SUBGRAPH_INDEX_API_URL: http://127.0.0.1:3800
+      NODE_ENV: production
+    # The api is loopback-only; the indexer is deliberately published on every
+    # interface: the devnet's stacks-node runs in its own container and POSTs
+    # events to host.docker.internal:3700, which resolves to the host gateway
+    # address, not 127.0.0.1. A loopback publish would drop every block.
     ports:
       - "${apiPublish}:3800"
+      - "${indexerPort}:3700"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     volumes:
       - subgraphs_data:/data/subgraphs
     depends_on:
-      migrate:
-        condition: service_completed_successfully
       postgres:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3800/health"]
       interval: 10s
       timeout: 3s
-      start_period: 10s
+      start_period: 40s
       retries: 5
-    restart: unless-stopped
-
-  indexer:
-    image: ${indexerImage}
-    environment:
-      DATABASE_URL: ${dbUrl}
-      PORT: 3700
-      NODE_ENV: production
-      # Keep every network key aligned: the indexer writes index_progress under
-      # STACKS_NETWORK, the subgraph processor reads it under NETWORK. If they
-      # differ, catch-up finds no progress row and subgraphs never advance.
-      NETWORKS: testnet
-      STACKS_NETWORK: testnet
-      NETWORK: testnet
-      # Fed by the devnet node's event observer — never reach out to Hiro mainnet.
-      AUTO_BACKFILL_ENABLED: "false"
-      TIP_FOLLOWER_ENABLED: "false"
-    # Deliberately published on every interface, unlike the api: the devnet's
-    # stacks-node runs in its own container and POSTs events to
-    # host.docker.internal:3700, which resolves to the host gateway address,
-    # not 127.0.0.1. A loopback publish here would drop every block.
-    ports:
-      - "${indexerPort}:3700"
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
-    depends_on:
-      migrate:
-        condition: service_completed_successfully
-      postgres:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3700/health"]
-      interval: 10s
-      timeout: 3s
-      start_period: 10s
-      retries: 5
-    restart: unless-stopped
-
-  subgraph-processor:
-    image: ${apiImage}
-    command: ["bun", "run", "packages/subgraphs/src/service.ts"]
-    environment:
-      DATABASE_URL: ${dbUrl}
-      NODE_ENV: production
-      DATA_DIR: /data
-      # Must match the indexer's network key (see indexer note) — catch-up reads
-      # index_progress under NETWORK.
-      NETWORK: testnet
-      STACKS_NETWORK: testnet
-      # The emitter blocks webhook delivery to private/loopback IPs by default.
-      # On a local devnet you deliver to your own localhost receiver, so allow it.
-      SECONDLAYER_ALLOW_PRIVATE_EGRESS: "true"
-      # Must match the api's key so the emitter can decrypt signing secrets.
-      SECONDLAYER_SECRETS_KEY: ${DEV_SECRETS_KEY}
-    volumes:
-      - subgraphs_data:/data/subgraphs
-    depends_on:
-      migrate:
-        condition: service_completed_successfully
-      postgres:
-        condition: service_healthy
-    healthcheck:
-      disable: true
     restart: unless-stopped
 
 volumes:

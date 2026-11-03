@@ -1,10 +1,12 @@
 import { describe, expect, test } from "bun:test";
+import { createPrivateKey } from "node:crypto";
 // The API's own rule, not a copy of it: a devnet that publishes past loopback
 // would key every /v1 read, and the docs promise the opposite.
 import {
 	decideInstanceAuth,
 	isLoopbackReachable,
 } from "../../api/src/instance-bind.ts";
+import { shortVal } from "../src/commands/devnet.ts";
 import {
 	DEV_INSTANCE_TOKEN,
 	buildDevnetCompose,
@@ -76,5 +78,42 @@ describe("generated devnet compose", () => {
 
 	test("keeps postgres off the host entirely", () => {
 		expect(compose).not.toMatch(/:5432"/);
+	});
+
+	test("uses the multi-arch one-box runtime image", () => {
+		expect(compose).toContain("ghcr.io/ryanwaits/secondlayer-runtime:latest");
+		expect(compose).not.toContain("secondlayer-api:");
+		expect(compose).not.toContain("secondlayer-indexer:");
+	});
+
+	test("runs the decoder and webhook plane (streams-index source)", () => {
+		expect(envValue(compose, "SUBGRAPH_SOURCE")).toBe("streams-index");
+	});
+
+	test("signs devnet webhooks with a valid ed25519 key", () => {
+		const pem = envValue(compose, "SECONDLAYER_WEBHOOK_SIGNING_PRIVATE_KEY");
+		const key = createPrivateKey(pem.replace(/\\n/g, "\n"));
+		expect(key.asymmetricKeyType).toBe("ed25519");
+	});
+
+	test("boots under the runtime's disk floor", () => {
+		expect(envValue(compose, "SECONDLAYER_ALLOW_UNDERSIZED")).toBe("true");
+	});
+
+	test("ingests observer blocks live instead of waiting for an archive", () => {
+		expect(envValue(compose, "INGEST_MODE")).toBe("live");
+	});
+
+	test("never reaches out to mainnet", () => {
+		expect(envValue(compose, "AUTO_BACKFILL_ENABLED")).toBe("false");
+		expect(envValue(compose, "TIP_FOLLOWER_ENABLED")).toBe("false");
+	});
+});
+
+describe("status activity values", () => {
+	test("renders jsonb objects as JSON, not [object Object]", () => {
+		const out = shortVal({ event: "incremented", value: "1" });
+		expect(out).not.toContain("[object Object]");
+		expect(out.startsWith('{"even')).toBe(true);
 	});
 });

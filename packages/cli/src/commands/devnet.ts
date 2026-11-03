@@ -69,13 +69,7 @@ const API_URL = (process.env.SECONDLAYER_API_URL || LOCAL_API_URL).replace(
 );
 const INDEXER_URL = process.env.INDEXER_URL ?? "http://localhost:3700";
 
-const SERVICES = [
-	"indexer",
-	"api",
-	"subgraph-processor",
-	"postgres",
-	"migrate",
-];
+const SERVICES = ["secondlayer", "postgres"];
 
 import { registerFaucetCommand } from "./faucet.ts";
 
@@ -131,7 +125,7 @@ export function registerDevnetCommand(program: Command): void {
 	devnet
 		.command("logs [service]")
 		.description(
-			"Tail stack logs — all services, or one of: indexer, api, subgraph-processor, postgres",
+			"Tail stack logs — all services, or one of: secondlayer, postgres",
 		)
 		.option("--project <dir>", "Clarinet project directory")
 		.option("-f, --follow", "Follow log output")
@@ -206,6 +200,16 @@ export async function connect(options: ConnectOptions): Promise<void> {
 	}
 
 	ensureDocker();
+
+	// Pull first: `up` alone reuses whatever `latest` is cached, and a stale
+	// cached image paired with a newer one broke the schema (migrations behind
+	// the indexer) and stalled the chain at block 0.
+	console.log(dim("\nPulling latest images…"));
+	if (dockerCompose(composePath, ["pull"]) !== 0) {
+		console.log(
+			yellow("couldn't pull the latest images — starting with what's cached"),
+		);
+	}
 
 	console.log(dim("\nStarting Secondlayer stack (docker compose up -d)…"));
 	if (dockerCompose(composePath, ["up", "-d"]) !== 0) {
@@ -313,8 +317,8 @@ const SYS_COLS = new Set([
 ]);
 
 // Truncate principals / hashes to head…tail; leave short values (amounts) alone.
-function shortVal(v: unknown): string {
-	const s = String(v);
+export function shortVal(v: unknown): string {
+	const s = typeof v === "object" && v !== null ? JSON.stringify(v) : String(v);
 	return s.length > 18 ? `${s.slice(0, 6)}…${s.slice(-4)}` : s;
 }
 
