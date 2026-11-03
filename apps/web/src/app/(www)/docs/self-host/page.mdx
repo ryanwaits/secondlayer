@@ -56,7 +56,7 @@ secondlayer subgraphs deploy ./my-subgraph.ts
 
 Leave `SECONDLAYER_API_KEY` for the hosted account: archive quote, fetch and credits read it as the account key, so setting it to the instance token breaks them.
 
-With that key set and no `INSTANCE_TOKEN`, the SDK and MCP use the hosted API unless the URL above is set.
+With that key set and no `INSTANCE_TOKEN`, the SDK, MCP and CLI use the hosted API unless the URL above is set.
 
 Keep `POSTGRES_PORT` and `INDEXER_PORT` on loopback.
 
@@ -469,7 +469,7 @@ export const agent = `
 - History: export DATABASE_URL=postgres://secondlayer:<POSTGRES_PASSWORD>@127.0.0.1:5432/secondlayer, then 'secondlayer bootstrap --against https://archive.secondlayer.tools/latest.json' (quotes the price in credits first) and 'secondlayer verify all --against <same>'. For an external node, 'secondlayer observer --mode indexer' prints the Config.toml stanza.
 - Profiles and version live in .env: COMPOSE_PROFILES=full-node|bitcoin (comma-separated), SECONDLAYER_VERSION=<short commit> (default latest).
 - Point the docs examples at the box: export SECONDLAYER_API_URL=http://127.0.0.1:3800. Loopback reads need no key; writes and any read past loopback send 'Authorization: Bearer $INSTANCE_TOKEN' (the CLI and SDK send it).
-- Leave SECONDLAYER_API_KEY alone: it is the hosted account key that credits and archive fetches read. With it set and no INSTANCE_TOKEN or SECONDLAYER_API_URL, the SDK and MCP use the hosted API.
+- Leave SECONDLAYER_API_KEY alone: it is the hosted account key that credits and archive fetches read. With it set and no INSTANCE_TOKEN or SECONDLAYER_API_URL, the SDK, MCP and CLI use the hosted API.
 - Published images: 'ghcr.io/ryanwaits/secondlayer-runtime' and 'secondlayer-bitcoin', tagged by short commit; compose pulls them. 'docker compose up -d --build' builds the checkout instead.
 - Genesis sync needs a Stacks node that is itself syncing from genesis (an already-synced node only sends new blocks). Start with TIP_FOLLOWER_ENABLED=false, track 'curl http://localhost:3700/health | jq .block_height' against the chain tip, re-enable the tip follower, run 'secondlayer verify all --against <manifest>', then deploy with SECONDLAYER_API_URL=http://127.0.0.1:3800.
 - Backup: 'secondlayer backup --out ./backups/$(date +%F)' with --passphrase or SECONDLAYER_BACKUP_PASSPHRASE. The bundle carries INSTANCE_TOKEN, SECONDLAYER_SECRETS_KEY and STREAMS_SIGNING_PRIVATE_KEY, so store it apart from Postgres backups. Restore: 'secondlayer restore --from <dir>' is a dry run; --apply writes; confirm with 'secondlayer verify all --against <manifest>'.

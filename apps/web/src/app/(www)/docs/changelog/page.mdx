@@ -18,9 +18,13 @@ Each hosted stack signs deliveries with its own ed25519 key, so the key these do
 
 ### One variable for the hosted API
 
-Set `SECONDLAYER_API_KEY` to your account key and the SDK and MCP use the hosted API, so you no longer need a URL.
+Set `SECONDLAYER_API_KEY` to your account key and the SDK, MCP and CLI use the hosted API, so you no longer need a URL. Passing an account key as `apiKey` does the same.
 
 A self-hosted box keeps working with a URL or `INSTANCE_TOKEN` set. With only the account key set, reads there now go to the hosted API.
+
+### MCP rejects unknown arguments
+
+A misnamed argument such as `from_height` is now an error naming the key. It used to be dropped, so a filtered read came back unfiltered.
 
 ### `onBatch` takes `(events, ctx)`
 
