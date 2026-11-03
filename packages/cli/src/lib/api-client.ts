@@ -39,8 +39,11 @@ const CREDITS_URL = "https://www.secondlayer.tools/account/credits";
 export function nextStepHint(
 	status: number | undefined,
 	detail?: string,
+	code?: string,
 ): string | undefined {
 	if (status === undefined) return undefined;
+	if (code === "STACK_ASLEEP")
+		return "Any write starts it, such as creating or updating a webhook.";
 	if (status === 402)
 		return detail === "spend_cap_reached"
 			? `You reached your monthly spend cap. Raise it: ${CREDITS_URL}`
@@ -102,7 +105,7 @@ export function handleApiError(err: unknown, action: string): never {
 
 	const detail = err instanceof Error ? err.message : String(err);
 	printError(`Failed to ${action}: ${detail}`, {
-		hint: nextStepHint(status, detail),
+		hint: nextStepHint(status, detail, code),
 	});
 	process.exit(1);
 }

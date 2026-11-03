@@ -6,7 +6,12 @@ import {
 	resolveApiUrl,
 } from "./api-url.ts";
 
-const URL_ENV = ["SECONDLAYER_API_URL", "SL_API_URL"] as const;
+const URL_ENV = [
+	"SECONDLAYER_API_URL",
+	"SL_API_URL",
+	"SECONDLAYER_API_KEY",
+	"INSTANCE_TOKEN",
+] as const;
 
 describe("isMerchantUrl / assertInstanceUrl / resolveApiUrl", () => {
 	let saved: Record<string, string | undefined>;
@@ -24,6 +29,26 @@ describe("isMerchantUrl / assertInstanceUrl / resolveApiUrl", () => {
 			if (saved[k] === undefined) Reflect.deleteProperty(process.env, k);
 			else process.env[k] = saved[k];
 		}
+	});
+
+	test("a lone account key selects the hosted API, like the SDK", () => {
+		process.env.SECONDLAYER_API_KEY = "sk-sl_test";
+		expect(resolveApiUrl()).toBe("https://api.secondlayer.tools");
+		expect(isMerchantUrl()).toBe(true);
+	});
+
+	test("an instance token keeps an account key holder on their instance", () => {
+		process.env.SECONDLAYER_API_KEY = "sk-sl_test";
+		process.env.INSTANCE_TOKEN = "hex-token";
+		expect(resolveApiUrl()).toBe(LOCAL_API_URL);
+	});
+
+	test("the refusal names what selected the hosted API", () => {
+		process.env.SECONDLAYER_API_KEY = "sk-sl_test";
+		expect(() => assertInstanceUrl()).toThrow(/set INSTANCE_TOKEN/);
+		Reflect.deleteProperty(process.env, "SECONDLAYER_API_KEY");
+		process.env.SECONDLAYER_API_URL = "https://api.secondlayer.tools";
+		expect(() => assertInstanceUrl()).toThrow(/unset SECONDLAYER_API_URL/);
 	});
 
 	test("default URL is not merchant", () => {

@@ -12,7 +12,7 @@ secondlayer --version
 
 ## Auth
 
-Default API is `http://127.0.0.1:3800`. Override with `SECONDLAYER_API_URL`.
+Default API is `http://127.0.0.1:3800`, or the hosted API when only `SECONDLAYER_API_KEY` is set. Override with `SECONDLAYER_API_URL`.
 
 Writes against a published bind use `INSTANCE_TOKEN` from `secondlayer init`.
 Loopback reads need no token. Your hosted account (credits, archive fetches)
@@ -191,7 +191,7 @@ or poll the subgraph API: see
 |---|---|
 | `INSTANCE_TOKEN` | From `secondlayer init` for writes. Loopback reads need no token |
 | `SECONDLAYER_API_KEY` | Hosted account key (`sk-sl_*`) |
-| `SECONDLAYER_API_URL` | Instance API. Default `http://127.0.0.1:3800` |
+| `SECONDLAYER_API_URL` | API URL. Default `http://127.0.0.1:3800`, or hosted with only `SECONDLAYER_API_KEY` set |
 | `STACKS_NETWORK` | Default network (also via `--network <mainnet\|testnet\|devnet>`) |
 | `DATABASE_URL` | Postgres that `bootstrap`, `verify`, `repair`, and `backup` connect to. Point it at the compose Postgres (`postgres://secondlayer:<POSTGRES_PASSWORD>@127.0.0.1:5432/secondlayer`); unset, the shared dev URL `postgres://postgres:postgres@localhost:5432/secondlayer_dev` is used |
 | `HIRO_API_KEY` | Used by `secondlayer codegen contracts` for remote contract fetches |

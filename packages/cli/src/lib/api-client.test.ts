@@ -32,6 +32,13 @@ describe("authFailureMessage", () => {
 });
 
 describe("nextStepHint", () => {
+	test("an asleep stack says how to start it, not to retry", () => {
+		const hint = nextStepHint(503, "asleep", "STACK_ASLEEP");
+		expect(hint).toContain("write");
+		expect(hint).not.toContain("retry");
+		expect(nextStepHint(503, "starting")).toContain("retry");
+	});
+
 	test("a 402 without credits links to adding credits", () => {
 		const hint = nextStepHint(402, "insufficient_credits");
 		expect(hint).toContain("Add credits");

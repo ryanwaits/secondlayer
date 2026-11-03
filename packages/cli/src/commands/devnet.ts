@@ -13,7 +13,7 @@ import {
 	findClarinetProject,
 } from "../lib/devnet-config.ts";
 import { bold, cyan, dim, error, green, red, yellow } from "../lib/output.ts";
-import { resolveApiUrl, resolveEnvKey } from "../lib/resolve-auth.ts";
+import { LOCAL_API_URL, resolveEnvKey } from "../lib/resolve-auth.ts";
 
 const COMPOSE_REL = join(".secondlayer", "docker-compose.yml");
 
@@ -62,7 +62,11 @@ interface StatusOptions {
 	limit: string;
 }
 
-const API_URL = resolveApiUrl();
+// Devnet is always your own box, even with an account key exported.
+const API_URL = (process.env.SECONDLAYER_API_URL || LOCAL_API_URL).replace(
+	/\/+$/,
+	"",
+);
 const INDEXER_URL = process.env.INDEXER_URL ?? "http://localhost:3700";
 
 const SERVICES = [
