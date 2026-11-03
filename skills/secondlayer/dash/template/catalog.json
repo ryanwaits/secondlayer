@@ -1,0 +1,188 @@
+{
+	"version": 1,
+	"networks": ["mainnet", "testnet", "devnet"],
+	"components": {
+		"Page": {
+			"children": true,
+			"props": {
+				"title": { "type": "string", "required": true },
+				"subtitle": { "type": "string" }
+			},
+			"reads": [],
+			"poll": null
+		},
+		"Stack": {
+			"children": true,
+			"props": {
+				"columns": { "type": "number", "enum": [1, 2], "default": 1 }
+			},
+			"reads": [],
+			"poll": null
+		},
+		"Tabs": {
+			"children": true,
+			"props": {
+				"labels": { "type": "string[]", "required": true }
+			},
+			"reads": [],
+			"poll": null
+		},
+		"NetworkTabs": {
+			"children": true,
+			"props": {
+				"networks": { "type": "network[]", "required": true },
+				"default": { "type": "network" }
+			},
+			"reads": ["/health"],
+			"poll": null
+		},
+		"Summary": {
+			"props": {
+				"network": { "type": "network", "required": true },
+				"webhookIds": { "type": "string[]" }
+			},
+			"reads": ["/api/webhooks"],
+			"poll": 5000
+		},
+		"WebhookTable": {
+			"props": {
+				"network": { "type": "network", "required": true },
+				"webhookIds": { "type": "string[]" },
+				"days": { "type": "number", "enum": [7, 30], "default": 30 }
+			},
+			"reads": ["/api/webhooks", "/api/webhooks/:id/activity"],
+			"poll": 5000
+		},
+		"DeliveryFeed": {
+			"props": {
+				"network": { "type": "network", "required": true },
+				"webhookIds": { "type": "string[]" },
+				"limit": { "type": "number", "min": 1, "max": 20, "default": 6 },
+				"open": { "type": "string", "enum": ["newest-failed"] }
+			},
+			"reads": ["/api/webhooks", "/api/webhooks/:id/deliveries"],
+			"poll": 5000
+		},
+		"Payload": {
+			"openedFrom": "DeliveryFeed",
+			"props": {},
+			"reads": [
+				"/api/webhooks/:id",
+				"/api/webhooks/:id/deliveries/:deliveryId"
+			],
+			"poll": null
+		},
+		"WebhookHeader": {
+			"props": {
+				"network": { "type": "network", "required": true },
+				"webhookId": { "type": "string", "required": true }
+			},
+			"reads": ["/api/webhooks/:id"],
+			"poll": 5000
+		},
+		"ListensFor": {
+			"props": {
+				"network": { "type": "network", "required": true },
+				"webhookId": { "type": "string", "required": true }
+			},
+			"reads": ["/api/webhooks/:id"],
+			"poll": 60000
+		},
+		"ActivityBars": {
+			"props": {
+				"network": { "type": "network", "required": true },
+				"webhookId": { "type": "string", "required": true },
+				"days": { "type": "number", "enum": [30], "default": 30 }
+			},
+			"reads": ["/api/webhooks/:id/activity"],
+			"poll": 5000
+		},
+		"RetryState": {
+			"props": {
+				"network": { "type": "network", "required": true },
+				"webhookId": { "type": "string", "required": true }
+			},
+			"reads": [
+				"/api/webhooks/:id",
+				"/api/webhooks/:id/dead",
+				"/api/webhooks/:id/activity"
+			],
+			"poll": 5000
+		},
+		"DataGrid": {
+			"networks": ["mainnet", "devnet"],
+			"props": {
+				"network": { "type": "network", "required": true },
+				"subgraph": { "type": "string", "required": true },
+				"table": { "type": "string", "required": true },
+				"columns": { "type": "string[]" },
+				"limit": { "type": "number", "min": 1, "max": 100, "default": 25 }
+			},
+			"reads": ["/api/subgraphs/:name", "/v1/subgraphs/:name/:table"],
+			"poll": 5000
+		},
+		"RowPanel": {
+			"openedFrom": "DataGrid",
+			"props": {},
+			"reads": [],
+			"poll": null
+		},
+		"Schema": {
+			"networks": ["mainnet", "devnet"],
+			"props": {
+				"network": { "type": "network", "required": true },
+				"subgraph": { "type": "string", "required": true },
+				"table": { "type": "string", "required": true }
+			},
+			"reads": ["/api/subgraphs/:name"],
+			"poll": 60000
+		},
+		"Bars": {
+			"networks": ["mainnet", "devnet"],
+			"props": {
+				"network": { "type": "network", "required": true },
+				"subgraph": { "type": "string", "required": true },
+				"table": { "type": "string", "required": true },
+				"value": { "type": "string", "required": true },
+				"bucket": {
+					"type": "number",
+					"min": 1,
+					"max": 100000,
+					"default": 144
+				},
+				"series": { "type": "string[]" }
+			},
+			"reads": ["/v1/subgraphs/:name/:table"],
+			"poll": 5000
+		},
+		"Leaderboard": {
+			"networks": ["mainnet", "devnet"],
+			"props": {
+				"network": { "type": "network", "required": true },
+				"subgraph": { "type": "string", "required": true },
+				"table": { "type": "string", "required": true },
+				"key": { "type": "string", "required": true },
+				"sum": { "type": "string", "required": true },
+				"limit": { "type": "number", "min": 1, "max": 10, "default": 5 }
+			},
+			"reads": ["/v1/subgraphs/:name/:table"],
+			"poll": 5000
+		},
+		"UsageMeter": {
+			"networks": ["mainnet"],
+			"props": {
+				"month": { "type": "month" }
+			},
+			"reads": ["/api/billing/usage"],
+			"poll": 3600000
+		},
+		"Empty": {
+			"props": {
+				"reason": { "type": "string", "required": true },
+				"next": { "type": "string" }
+			},
+			"reads": [],
+			"poll": null
+		}
+	}
+}

@@ -1,0 +1,2 @@
+# The Vercel CLI does not read .gitignore: keep local env files out of uploads.
+.env*

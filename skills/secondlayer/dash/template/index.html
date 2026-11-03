@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<title>Secondlayer dash</title>
+		<link rel="preconnect" href="https://fonts.googleapis.com" />
+		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+		<link
+			rel="stylesheet"
+			href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500&family=Geist+Mono:wght@400;500&display=swap"
+		/>
+		<link rel="stylesheet" href="kit.css" />
+	</head>
+	<body>
+		<main id="dash"></main>
+		<script type="module">
+			import { render } from "./kit.js";
+
+			const root = document.getElementById("dash");
+			const load = (file) =>
+				fetch(file, { cache: "no-store" }).then((res) => res.text());
+			const catalog = JSON.parse(await load("catalog.json"));
+			let stop = () => {};
+			let shown = null;
+
+			function draw(text) {
+				stop();
+				shown = text;
+				let spec;
+				try {
+					spec = JSON.parse(text);
+				} catch (err) {
+					const card = document.createElement("div");
+					card.className = "empty";
+					card.textContent = `spec.json is not valid JSON: ${err.message}`;
+					root.replaceChildren(card);
+					stop = () => {};
+					return;
+				}
+				const title = spec?.elements?.[spec.root]?.props?.title;
+				if (typeof title === "string") document.title = title;
+				stop = render(spec, root, { catalog });
+			}
+
+			draw(await load("spec.json"));
+
+			// Local only: redraw when the agent edits spec.json.
+			if (["localhost", "127.0.0.1"].includes(location.hostname)) {
+				setInterval(async () => {
+					if (document.hidden) return;
+					const text = await load("spec.json").catch(() => shown);
+					if (text !== shown) draw(text);
+				}, 2000);
+			}
+		</script>
+	</body>
+</html>

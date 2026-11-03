@@ -1,0 +1,19 @@
+{
+	"version": 1,
+	"root": "page",
+	"state": {},
+	"elements": {
+		"page": {
+			"type": "Page",
+			"props": { "title": "Secondlayer dash" },
+			"children": ["empty"]
+		},
+		"empty": {
+			"type": "Empty",
+			"props": {
+				"reason": "Ask your agent for a dashboard",
+				"next": "For example: show me my webhooks."
+			}
+		}
+	}
+}
