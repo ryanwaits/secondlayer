@@ -201,8 +201,9 @@ async function request<T>(path: string): Promise<SubgraphsResult<T>> {
 
 const seg = encodeURIComponent;
 
-/** Hours of health the list poll asks for. */
-export const LIST_HEALTH_HOURS = 24;
+/** Hours of health the list poll asks for: the index draws a 7-day heat grid,
+ *  and the Overview takes the last 24 hours. */
+export const LIST_HEALTH_HOURS = 168;
 
 /** The request-cache key for a list read; each query shape has its own. */
 export const listKey = (health?: number): string =>

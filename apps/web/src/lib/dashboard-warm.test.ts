@@ -76,7 +76,7 @@ describe("dashboard warm-up", () => {
 		warmTab("/account/subgraphs");
 		await settle();
 		expect(urls.filter((u) => u.startsWith("/api/subgraphs"))).toEqual([
-			"/api/subgraphs?health=24",
+			"/api/subgraphs?health=168",
 		]);
 	});
 

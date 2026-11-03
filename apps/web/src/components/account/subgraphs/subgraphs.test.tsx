@@ -5,7 +5,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { GridView, type GridViewProps } from "./data-grid";
 import { SubgraphsEmptyState } from "./empty-state";
 import { HandlerErrorsPanel } from "./health-panels";
-import { SubgraphsListBody } from "./list-screen";
+import { SubgraphRows, SubgraphsListBody } from "./list-screen";
 import { RowPanel } from "./row-panel";
 import { SchemaView } from "./schema-view";
 import {
@@ -239,7 +239,6 @@ describe("SubgraphsListBody insights", () => {
 			/>,
 		);
 		expect(html).toContain(named.line);
-		expect(html).toContain("Why ›");
 		expect(html).not.toContain("Behind tip 112 blocks");
 	});
 
@@ -257,6 +256,21 @@ describe("SubgraphsListBody insights", () => {
 	});
 });
 
+/** Seven days of hourly health, oldest first, with errors in the last day. */
+function weekOf(errors24h: number) {
+	const day = exampleHealth(errors24h).hours;
+	const hours = Array.from({ length: 168 }, (_, i) => ({
+		...day[i % 24],
+		hour: new Date(EXAMPLE_NOW - (167 - i) * 3_600_000).toISOString(),
+		errors: i === 150 ? errors24h : 0,
+	}));
+	return { hours, errors24h };
+}
+const weekHealth = {
+	"sbtc-deposits": weekOf(2),
+	"vault-events": weekOf(3),
+};
+
 describe("SubgraphsListBody", () => {
 	const health = {
 		"sbtc-deposits": exampleHealth(0),
@@ -270,7 +284,56 @@ describe("SubgraphsListBody", () => {
 		expect(html).toContain('href="/account/subgraphs/sbtc-deposits"');
 		expect(html).toContain("At the tip · 443,957 rows · 0 errors 24h");
 		expect(html).toContain("Behind tip 112 blocks · 1,204 rows · 3 errors 24h");
-		expect(html).toContain("1 subgraph needs attention.");
+		expect(html).not.toContain("Everything is indexing.");
+	});
+
+	test("a big title and one wl-row per subgraph", () => {
+		const html = renderToStaticMarkup(
+			<SubgraphsListBody items={exampleList} health={health} notice={null} />,
+		);
+		expect(html).toContain("<h1>Subgraphs</h1>");
+		expect(html.match(/class="wl-row"/g)).toHaveLength(exampleList.length);
+		expect(html).toContain("2 tables");
+		expect(html).toContain("1 table<");
+	});
+
+	test("a row with a week of health draws the heat grid", () => {
+		const html = renderToStaticMarkup(
+			<SubgraphsListBody
+				items={exampleList}
+				health={weekHealth}
+				notice={null}
+			/>,
+		);
+		expect(html).toContain(
+			'aria-label="sbtc-deposits, rows written per hour, last 7 days"',
+		);
+		expect(html).toContain('class="dc-heat"');
+		expect(html).toContain("dc-heat-cell f");
+	});
+
+	test("a row without health holds the grid's space with the skeleton", () => {
+		const html = renderToStaticMarkup(
+			<SubgraphsListBody items={exampleList} health={{}} notice={null} />,
+		);
+		expect(html).toContain("dc-heat-cell s");
+		expect(html).not.toContain("last 7 days");
+	});
+
+	test("the legend explains the grid", () => {
+		const html = renderToStaticMarkup(
+			<SubgraphsListBody items={exampleList} health={health} notice={null} />,
+		);
+		expect(html).toContain("Rows written that hour, darker is more");
+	});
+
+	test("the Overview's rows keep a 24-point sparkline given a week of health", () => {
+		const html = renderToStaticMarkup(
+			<SubgraphRows items={exampleList} health={weekHealth} />,
+		);
+		expect(html).toContain("rows written per hour, last 24 hours");
+		const path = html.match(/class="dc-stroke-a"[^>]*d="([^"]+)"/)?.[1] ?? "";
+		expect(path.match(/[ML]/g)).toHaveLength(24);
 	});
 
 	test("an empty list shows the empty state", () => {
@@ -320,32 +383,6 @@ describe("SubgraphsEmptyState for a new account", () => {
 		expect(html).not.toContain("Reads need a key");
 		expect(html).not.toContain("No active key");
 		expect(html).not.toContain("You need a key");
-	});
-});
-
-describe("SubgraphsListBody before health lands", () => {
-	test("says it is checking rather than claiming everything is indexing", () => {
-		const html = renderToStaticMarkup(
-			<SubgraphsListBody items={exampleList} health={{}} notice={null} />,
-		);
-		expect(html).toContain("Checking your subgraphs.");
-		expect(html).not.toContain("Everything is indexing.");
-		expect(html).toContain('href="/account/subgraphs/sbtc-deposits"');
-	});
-
-	test("with health in, a subgraph with errors gets the attention sentence", () => {
-		const html = renderToStaticMarkup(
-			<SubgraphsListBody
-				items={exampleList}
-				health={{
-					"sbtc-deposits": exampleHealth(0),
-					"vault-events": exampleHealth(3),
-				}}
-				notice={null}
-			/>,
-		);
-		expect(html).not.toContain("Checking your subgraphs.");
-		expect(html).toContain("1 subgraph needs attention.");
 	});
 });
 

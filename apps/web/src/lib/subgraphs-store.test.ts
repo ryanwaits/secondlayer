@@ -186,7 +186,7 @@ describe("list with health", () => {
 		);
 		const res = await refreshListAndHealth();
 		expect(res.kind).toBe("ok");
-		expect(urls).toEqual(["/api/subgraphs?health=24"]);
+		expect(urls).toEqual(["/api/subgraphs?health=168"]);
 		expect(subgraphsSnapshot().health.a?.data.hours).toEqual(hours);
 	});
 
@@ -202,9 +202,9 @@ describe("list with health", () => {
 		}) as typeof fetch;
 		await refreshListAndHealth();
 		expect(urls).toEqual([
-			"/api/subgraphs?health=24",
-			"/api/subgraphs/a/health?hours=24",
-			"/api/subgraphs/b/health?hours=24",
+			"/api/subgraphs?health=168",
+			"/api/subgraphs/a/health?hours=168",
+			"/api/subgraphs/b/health?hours=168",
 		]);
 		expect(Object.keys(subgraphsSnapshot().health).sort()).toEqual(["a", "b"]);
 	});

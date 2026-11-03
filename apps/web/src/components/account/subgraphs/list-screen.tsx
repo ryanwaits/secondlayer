@@ -1,6 +1,11 @@
 "use client";
 
 import { ChartSkeleton } from "@/components/charts/chart-skeleton";
+import {
+	HeatStrip,
+	HeatStripSkeleton,
+} from "@/components/dashboard/charts/heat-strip";
+import { Legend } from "@/components/dashboard/charts/legend";
 import { Sparkline } from "@/components/dashboard/charts/sparkline";
 import {
 	ActionableInsights,
@@ -33,16 +38,18 @@ import {
 	refreshListAndHealth,
 	useSubgraphsCache,
 } from "@/lib/subgraphs-store";
+import Link from "next/link";
 import { useEffect, useState } from "react";
-import { StateCell, insightRowState } from "../webhooks/rows";
+import { StateCell, ToneDot, insightRowState } from "../webhooks/rows";
 import { ageShort } from "../webhooks/view";
 import { SubgraphsCompactList } from "./compact-list";
 import { SubgraphSheet } from "./compact-sheet";
 import { SubgraphsEmptyState } from "./empty-state";
 
-/** The list and each subgraph's 24-hour health refresh this often while the
+/** The list and each subgraph's hourly health refresh this often while the
  *  tab is visible. */
 const LIST_POLL_MS = 30_000;
+const HOUR_MS = 3_600_000;
 
 export type ListNotice =
 	| { kind: "starting" }
@@ -90,7 +97,7 @@ function SubgraphRow({
 }) {
 	const [open, setOpen] = useState(false);
 	const errors24h = handlerErrors24h(health);
-	const points = health?.hours.map((hour) => hour.rowsWritten) ?? [];
+	const points = health?.hours.slice(-24).map((hour) => hour.rowsWritten) ?? [];
 	const rows = item.totalRows ?? 0;
 	const top = insights[0];
 	const insightState = top ? insightRowState(top) : null;
@@ -211,9 +218,75 @@ export function SubgraphsListBody({
 }: SubgraphsListBodyProps) {
 	return (
 		<>
+			<div className="wl-head">
+				<h1>Subgraphs</h1>
+				<p>
+					Your own tables of chain data, each with its own API. You write them
+					in TypeScript and deploy them with <code>sl subgraphs</code>.
+				</p>
+			</div>
 			<ActionableInsights insights={pageInsights} />
 			<SubgraphsListContent {...props} />
 		</>
+	);
+}
+
+/** One index row: name, state and what flows where, with seven days of rows
+ *  written as a heat grid beside it. */
+function SubgraphListRow({
+	item,
+	health,
+	insights,
+}: {
+	item: SubgraphListItem;
+	health: SubgraphHealthData | undefined;
+	insights: readonly Insight[];
+}) {
+	const top = insights[0];
+	const insightState = top ? insightRowState(top) : null;
+	const errors24h = handlerErrors24h(health);
+	const tone = insightState?.tone ?? subgraphTone(item.status, errors24h);
+	const text =
+		insightState?.text ??
+		stateLine(
+			item.blocksRemaining ?? 0,
+			item.totalRows ?? 0,
+			errors24h,
+			item.status,
+		);
+	const last = health?.hours.at(-1)?.hour;
+	const tables = item.tables.length;
+	return (
+		<div className="wl-row">
+			<Link
+				href={`/account/subgraphs/${encodeURIComponent(item.name)}`}
+				className="wl-main"
+			>
+				<span className="dash-row-name">
+					<ToneDot tone={tone} />
+					<span title={item.name}>{item.name}</span>
+				</span>
+				<span className={`wl-state${tone === "alarm" ? " bad" : ""}`}>
+					{text}
+				</span>
+				<span className="wl-sub">
+					chain events →{" "}
+					<b>
+						{tables} {tables === 1 ? "table" : "tables"}
+					</b>
+				</span>
+			</Link>
+			{health && last ? (
+				<HeatStrip
+					hours={health.hours.map((h) => ({ n: h.rowsWritten, f: h.errors }))}
+					// Mid-hour keeps the newest hour on its own row at midnight.
+					now={Date.parse(last) + HOUR_MS / 2}
+					label={`${item.name}, rows written per hour, last 7 days`}
+				/>
+			) : (
+				<HeatStripSkeleton />
+			)}
+		</div>
 	);
 }
 
@@ -245,34 +318,29 @@ function SubgraphsListContent({
 	}
 	if (items.length === 0) return <SubgraphsEmptyState />;
 
-	const healthReady = items.every((s) => health[s.name] !== undefined);
-	const failing = items.filter(
-		(s) => subgraphTone(s.status, handlerErrors24h(health[s.name])) === "alarm",
-	).length;
-	const totalRows = items.reduce((sum, s) => sum + (s.totalRows ?? 0), 0);
-	const sub = `${items.length} ${items.length === 1 ? "subgraph" : "subgraphs"} · ${groupDigits(String(totalRows))} rows`;
 	return (
 		<>
-			{!healthReady ? (
-				<StatusSentence tone="idle" sub={sub}>
-					Checking your subgraphs.
-				</StatusSentence>
-			) : failing > 0 ? (
-				<StatusSentence tone="alarm" sub={sub}>
-					{failing} {failing === 1 ? "subgraph needs" : "subgraphs need"}{" "}
-					attention.
-				</StatusSentence>
-			) : (
-				<StatusSentence tone="ok" sub={sub}>
-					Everything is indexing.
-				</StatusSentence>
-			)}
-			<div className="dash-rows">
-				<ResourceRowHead
-					labels={["Subgraph", "State", "Last 24h", "Rows", "Last"]}
-				/>
-				<SubgraphRows items={items} health={health} insights={insights} />
+			<div className="wl-rows">
+				{items.map((item) => (
+					<SubgraphListRow
+						key={item.name}
+						item={item}
+						health={health[item.name]}
+						insights={forResource(insights, "subgraph", item.name)}
+					/>
+				))}
 			</div>
+			<Legend
+				items={[
+					{
+						swatch: "square",
+						label: "Rows written that hour, darker is more",
+						color: "var(--ch-a)",
+					},
+					{ swatch: "square", label: "Handler failed" },
+					{ swatch: "square", label: "Nothing", color: "var(--soft)" },
+				]}
+			/>
 		</>
 	);
 }

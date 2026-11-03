@@ -5,8 +5,14 @@ import {
 	FirstRowsPrompt,
 } from "@/components/account/overview/first-rows-code";
 import { SubgraphsEmptyState } from "@/components/account/subgraphs/empty-state";
+import { SubgraphsListBody } from "@/components/account/subgraphs/list-screen";
 import { SchemaView } from "@/components/account/subgraphs/schema-view";
-import { exampleDetail } from "@/components/account/subgraphs/subgraph.fixtures";
+import {
+	EXAMPLE_NOW,
+	exampleDetail,
+	exampleHealth,
+	exampleList,
+} from "@/components/account/subgraphs/subgraph.fixtures";
 import { AsleepState } from "@/components/account/webhooks/list-panel";
 import { ListensFor } from "@/components/account/webhooks/listens-for";
 import {
@@ -155,6 +161,18 @@ RANGE              DATASET  STATUS        EXPECTED  LOCAL
 8500000-8549999    blocks   data differs  50000     50000
 
 These ranges hold different data than the signed archive.`;
+
+/** A week of hourly health for the subgraphs list story. */
+function weekHealth(errors24h: number) {
+	const day = exampleHealth(errors24h).hours;
+	const hours = Array.from({ length: 168 }, (_, i) => ({
+		...day[i % 24],
+		hour: new Date(EXAMPLE_NOW - (167 - i) * 3_600_000).toISOString(),
+		rowsWritten: i % 31 === 0 ? 0 : (day[i % 24]?.rowsWritten ?? 0),
+		errors: errors24h > 0 && i % 53 === 0 ? errors24h : 0,
+	}));
+	return { hours, errors24h };
+}
 
 const VERIFY_OK = `$ secondlayer verify subgraph pool-reserves --replay --from 1230000 --to 1231000
 ✓ pin       7f3c…a91e  handler, schema and startBlock match the deploy
@@ -2094,6 +2112,35 @@ const META: Record<StoryId, Meta> = {
 			"Never key the sheet by status or replay id; progress updates values only.",
 			"No gave up count while a replay is running.",
 		],
+	},
+	"subgraphs-list": {
+		src: ["apps/web/src/components/account/subgraphs/list-screen.tsx"],
+		rule: "The subgraphs index is the webhooks index: a title, one row per subgraph with its state and what flows where, and seven days of rows written as an hour-by-day grid. Failed hours are red.",
+		variants: [
+			{
+				id: "rows",
+				label: "Two subgraphs, one failing",
+				render: () => (
+					<SubgraphsListBody
+						items={exampleList}
+						health={{
+							"sbtc-deposits": weekHealth(0),
+							"vault-events": weekHealth(3),
+						}}
+						notice={null}
+					/>
+				),
+			},
+			{
+				id: "loading",
+				label: "Health loading",
+				render: () => (
+					<SubgraphsListBody items={exampleList} health={{}} notice={null} />
+				),
+			},
+		],
+		usage: "<SubgraphsListBody items={items} health={health} notice={null} />",
+		donts: ["Add a column header or a status sentence above the rows."],
 	},
 	"mobile-subgraphs": {
 		src: [
