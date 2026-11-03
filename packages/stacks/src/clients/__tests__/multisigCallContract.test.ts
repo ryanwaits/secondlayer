@@ -41,13 +41,15 @@ describe("multisig callContract args", () => {
 		);
 	});
 
-	it("rejects args and functionArgs that differ", async () => {
+	it("rejects args and functionArgs together, even when equal", async () => {
 		await expect(
 			client.callContract({
 				...CALL,
 				args: [Cl.uint(1)],
-				functionArgs: [Cl.uint(2)],
+				functionArgs: [Cl.uint(1)],
 			}),
-		).rejects.toThrow("Pass args or functionArgs, not both");
+		).rejects.toThrow(
+			"Pass args or functionArgs, not both (functionArgs is deprecated)",
+		);
 	});
 });

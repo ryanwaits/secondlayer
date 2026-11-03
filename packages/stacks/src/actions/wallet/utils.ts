@@ -128,13 +128,10 @@ export function resolveCallArgs(params: {
 	functionArgs?: ClarityValue[];
 }): ClarityValue[] {
 	const { args, functionArgs } = params;
-	if (
-		args &&
-		functionArgs &&
-		(args.length !== functionArgs.length ||
-			args.some((value, i) => value !== functionArgs[i]))
-	) {
-		throw new Error("Pass args or functionArgs, not both");
+	if (args !== undefined && functionArgs !== undefined) {
+		throw new Error(
+			"Pass args or functionArgs, not both (functionArgs is deprecated)",
+		);
 	}
 	return args ?? functionArgs ?? [];
 }
