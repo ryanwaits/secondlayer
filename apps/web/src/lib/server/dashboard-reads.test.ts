@@ -11,6 +11,8 @@ import {
 	detail,
 	summary,
 } from "@/components/account/webhooks/webhook.fixtures";
+import { FIXTURE_INSIGHTS } from "@/lib/insights.fixtures";
+import { readInsights } from "@/lib/server/insights-read";
 import { upstreamAgent } from "@/lib/upstream-agent";
 import {
 	readApi,
@@ -209,5 +211,43 @@ describe("subgraphs reads", () => {
 		});
 		const res = await subgraphDetailReads("t", "perf-test-sbtc");
 		expect(res.rows).toEqual({ rows: [], failed: true });
+	});
+});
+
+describe("readInsights", () => {
+	const some = FIXTURE_INSIGHTS.slice(0, 2).map(({ id, ...rest }) => ({
+		...rest,
+		id,
+	}));
+
+	test("merges the stack's and the account's insights, ids prefixed, ranked", async () => {
+		const calls = stubApi({
+			"/api/accounts/insights": () => json({ data: [some[1]] }),
+			"/api/insights": () => json({ data: [some[0]] }),
+		});
+		const res = await readInsights("t");
+		expect(calls.map((c) => c.path).sort()).toEqual([
+			"/api/accounts/insights",
+			"/api/insights",
+		]);
+		expect(res?.map((i) => i.id).sort()).toEqual(
+			[`t:${some[0]?.id}`, `a:${some[1]?.id}`].sort(),
+		);
+	});
+
+	test("one side failing still returns the other", async () => {
+		stubApi({
+			"/api/accounts/insights": () => json({}, 503),
+			"/api/insights": () => json({ data: [some[0]] }),
+		});
+		expect(await readInsights("t")).toHaveLength(1);
+	});
+
+	test("both sides failing is null, so the page falls back to the browser fetch", async () => {
+		stubApi({
+			"/api/accounts/insights": () => json({}, 503),
+			"/api/insights": () => json({}, 500),
+		});
+		expect(await readInsights("t")).toBeNull();
 	});
 });

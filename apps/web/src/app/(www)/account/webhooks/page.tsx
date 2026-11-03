@@ -1,5 +1,7 @@
 import { WebhooksListSection } from "@/components/account/webhooks/list-panel";
+import { InsightsSeed } from "@/lib/insights-store";
 import { webhooksListReads } from "@/lib/server/dashboard-reads";
+import { readInsights } from "@/lib/server/insights-read";
 import { sessionToken } from "@/lib/server/session";
 
 // Next to the API (Hetzner HEL/fsn1), and per request: the HTML carries one
@@ -9,6 +11,12 @@ export const dynamic = "force-dynamic";
 
 export default async function AccountWebhooksPage() {
 	const token = await sessionToken();
-	const initial = token ? await webhooksListReads(token) : null;
-	return <WebhooksListSection initial={initial} />;
+	const [initial, insights] = token
+		? await Promise.all([webhooksListReads(token), readInsights(token)])
+		: [null, null];
+	return (
+		<InsightsSeed insights={insights}>
+			<WebhooksListSection initial={initial} />
+		</InsightsSeed>
+	);
 }

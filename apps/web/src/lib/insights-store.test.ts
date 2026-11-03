@@ -1,5 +1,8 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 import {
+	InsightsSeed,
 	clearInsights,
 	dismiss,
 	extraCount,
@@ -11,6 +14,7 @@ import {
 	restore,
 	snooze,
 	topLine,
+	useInsights,
 } from "./insights-store";
 import { FIXTURE_INSIGHTS } from "./insights.fixtures";
 
@@ -236,5 +240,37 @@ describe("sessionStorage", () => {
 		await refreshInsights();
 		expect(insightsSnapshot().data.length).toBe(FIXTURE_INSIGHTS.length);
 		expect(storage.size).toBe(0);
+	});
+});
+
+describe("server seed", () => {
+	function Probe() {
+		return createElement("p", null, `rows:${useInsights().data.length}`);
+	}
+	const withSeed = (insights: typeof FIXTURE_INSIGHTS | null) =>
+		createElement(InsightsSeed, { insights }, createElement(Probe));
+
+	test("the server render paints the seed and leaves the module store empty", () => {
+		// No window here: this is the server, whose module state is shared
+		// across requests and must never hold one account's insights.
+		const html = renderToStaticMarkup(withSeed(FIXTURE_INSIGHTS));
+		expect(html).toContain(`rows:${FIXTURE_INSIGHTS.length}`);
+		expect(insightsSnapshot().data).toEqual([]);
+	});
+
+	test("without a seed the render reads the store as before", () => {
+		expect(renderToStaticMarkup(withSeed(null))).toContain("rows:0");
+	});
+
+	test("a browser render starts the store from the seed once", () => {
+		globalThis.window = {} as Window & typeof globalThis;
+		try {
+			renderToStaticMarkup(withSeed(FIXTURE_INSIGHTS));
+			expect(insightsSnapshot().status).toBe("ok");
+			expect(insightsSnapshot().data.length).toBe(FIXTURE_INSIGHTS.length);
+		} finally {
+			// @ts-expect-error restoring the bare test environment
+			globalThis.window = undefined;
+		}
 	});
 });

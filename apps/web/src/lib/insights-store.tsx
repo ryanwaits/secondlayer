@@ -1,6 +1,6 @@
 "use client";
 
-import { useSyncExternalStore } from "react";
+import { createContext, useContext, useSyncExternalStore } from "react";
 import { type Insight, rankInsights } from "./insights";
 import { shared } from "./request-cache";
 import { poll } from "./webhooks-store";
@@ -41,8 +41,53 @@ export function insightsSnapshot(): State {
 	return current();
 }
 
+/** The insights a server render read for this page, if it read any. */
+const InsightsSeedContext = createContext<readonly Insight[] | null>(null);
+
+/** Hands a page's server-read insights to every `useInsights()` below it. */
+export function InsightsSeed({
+	insights,
+	children,
+}: {
+	/** Null when the server couldn't read them: the browser fetches instead. */
+	insights: readonly Insight[] | null;
+	children?: React.ReactNode;
+}) {
+	return (
+		<InsightsSeedContext.Provider value={insights}>
+			{children}
+		</InsightsSeedContext.Provider>
+	);
+}
+
+const appliedSeeds = new WeakSet<object>();
+const serverStates = new WeakMap<object, State>();
+
+/** Puts a seed into the client store, once per seed. Quiet on purpose: it runs
+ *  while a component renders, so it must not wake other subscribers. */
+function applySeed(seed: readonly Insight[]): void {
+	if (typeof window === "undefined" || appliedSeeds.has(seed)) return;
+	appliedSeeds.add(seed);
+	state = { status: "ok", data: rankInsights(seed), at: Date.now() };
+}
+
+/** The insights. With a seed from the page, the server render and the
+ *  hydration pass read it (so the HTML carries the rows), and the client store
+ *  starts from it. The server never writes the module store: it is shared
+ *  across requests. */
 export function useInsights(): State {
-	return useSyncExternalStore(subscribe, insightsSnapshot, () => EMPTY);
+	const seed = useContext(InsightsSeedContext);
+	if (seed) applySeed(seed);
+	let server = EMPTY;
+	if (seed) {
+		server = serverStates.get(seed) ?? {
+			status: "ok",
+			data: rankInsights(seed),
+			at: 0,
+		};
+		serverStates.set(seed, server);
+	}
+	return useSyncExternalStore(subscribe, insightsSnapshot, () => server);
 }
 
 /** Forget everything on sign-out so the next account never sees it. */

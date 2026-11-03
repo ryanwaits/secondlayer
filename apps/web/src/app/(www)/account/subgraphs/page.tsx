@@ -1,5 +1,7 @@
 import { SubgraphsListSection } from "@/components/account/subgraphs/list-screen";
+import { InsightsSeed } from "@/lib/insights-store";
 import { subgraphsListReads } from "@/lib/server/dashboard-reads";
+import { readInsights } from "@/lib/server/insights-read";
 import { sessionToken } from "@/lib/server/session";
 
 // Next to the API (Hetzner HEL/fsn1), and per request: the HTML carries one
@@ -9,6 +11,12 @@ export const dynamic = "force-dynamic";
 
 export default async function AccountSubgraphsPage() {
 	const token = await sessionToken();
-	const initial = token ? await subgraphsListReads(token) : null;
-	return <SubgraphsListSection initial={initial} />;
+	const [initial, insights] = token
+		? await Promise.all([subgraphsListReads(token), readInsights(token)])
+		: [null, null];
+	return (
+		<InsightsSeed insights={insights}>
+			<SubgraphsListSection initial={initial} />
+		</InsightsSeed>
+	);
 }
