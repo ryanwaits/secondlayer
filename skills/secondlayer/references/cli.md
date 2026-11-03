@@ -841,33 +841,28 @@ SECONDLAYER_API_URL=http://localhost:3800 INSTANCE_TOKEN=dev-instance-token seco
 
 The generated compose publishes the api on `127.0.0.1` only and hands it that same spec as `API_PUBLISH_ADDR`, so `/v1` reads on a devnet are keyless. `dev-instance-token` is the stack's fixed local token: writes (deploys, webhooks) send it, and the container needs it to boot at all, since it listens on `0.0.0.0` behind the loopback publish. The indexer is the one port published on every interface — the devnet's stacks-node container POSTs to `host.docker.internal:3700`, which is not loopback.
 
-To see rows appear you need a real contract-call transaction — `clarinet console` runs against simnet, not your running devnet, so it won't broadcast on-chain. Fire one with `@stacks/transactions` (uses the well-known devnet deployer key):
+To see rows appear you need a real contract-call transaction — `clarinet console` runs against simnet, not your running devnet, so it won't broadcast on-chain. Fire one with `@secondlayer/stacks` (`bun add @secondlayer/stacks`; uses the well-known devnet deployer key). Point it at the devnet node, since the Stacks API on :3999 may be off:
 
 ```ts
-import {
-	broadcastTransaction,
-	getAddressFromPrivateKey,
-	makeContractCall,
-} from "@stacks/transactions";
+import { createWalletClient, http } from "@secondlayer/stacks";
+import { privateKeyToAccount } from "@secondlayer/stacks/accounts";
+import { devnet } from "@secondlayer/stacks/chains";
 
-const key =
-	"753b7cc01a1a2e86221266a154af739463fce51219d97e4f856cd7200c3bd2a601"; // devnet deployer
-const sender = getAddressFromPrivateKey(key, "testnet");
-const { nonce } = await fetch(
-	`http://localhost:3999/v2/accounts/${sender}?proof=0`,
-).then((r) => r.json());
+const client = createWalletClient({
+	account: privateKeyToAccount(
+		"753b7cc01a1a2e86221266a154af739463fce51219d97e4f856cd7200c3bd2a601", // devnet deployer
+		{ addressVersion: devnet.addressVersion.singleSig }, // ST... address, not SP...
+	),
+	chain: devnet,
+	transport: http("http://localhost:20443"), // the devnet node
+});
 
-const tx = await makeContractCall({
-	contractAddress: "ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM",
-	contractName: "counter",
+const txid = await client.callContract({
+	contract: "ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM.counter",
 	functionName: "increment",
 	functionArgs: [],
-	senderKey: key,
-	network: "devnet",
-	fee: 3000n,
-	nonce: BigInt(nonce),
 });
-console.log(await broadcastTransaction({ transaction: tx, network: "devnet" }));
+console.log(txid);
 ```
 
 The row shows up at `GET http://localhost:3800/v1/subgraphs/<name>/<table>` within ~5s — no `Authorization` header needed.

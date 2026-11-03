@@ -192,34 +192,37 @@ Services in `settings/Devnet.toml` cost memory you may not need. Set the ones yo
 | --- | --- | --- |
 | `disable_stacks_explorer` | memory | the explorer UI |
 | `disable_bitcoin_explorer` | memory | the Bitcoin explorer UI |
-| `disable_stacks_api` | memory, `:3999` | the [faucet](#mock-sbtc) and the default `network: "devnet"` node URL |
+| `disable_stacks_api` | memory, `:3999` | the [faucet](#mock-sbtc) and the default `devnet` chain node URL |
 | `disable_postgres` | memory, `:5432` | the Stacks API, which needs it |
 
 ### Send a call
 
-Send transactions straight to the devnet node. Without `client.baseUrl`, `@stacks/transactions` targets the Stacks API on port 3999, which is off when you disable it.
+Send calls with [@secondlayer/stacks](https://stacks.secondlayer.tools/guide/transactions), pointed at the devnet node. The `devnet` chain defaults to the Stacks API on port 3999, which is off when you disable it.
+
+```bash
+bun add @secondlayer/stacks
+```
 
 ```ts call.ts
-import { broadcastTransaction, makeContractCall } from "@stacks/transactions";
+import { createWalletClient, http } from "@secondlayer/stacks";
+import { privateKeyToAccount } from "@secondlayer/stacks/accounts";
+import { devnet } from "@secondlayer/stacks/chains";
 
-const transaction = await makeContractCall({
-	contractAddress: "ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM",
-	contractName: "counter",
+const client = createWalletClient({
+	account: privateKeyToAccount(
+		"753b7cc01a1a2e86221266a154af739463fce51219d97e4f856cd7200c3bd2a601", // devnet deployer, from settings/Devnet.toml
+		{ addressVersion: devnet.addressVersion.singleSig }, // ST... address, not SP...
+	),
+	chain: devnet,
+	transport: http("http://localhost:20443"), // the devnet node; the Stacks API on :3999 may be off
+});
+
+const txid = await client.callContract({
+	contract: "ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM.counter",
 	functionName: "increment",
 	functionArgs: [],
-	senderKey:
-		"753b7cc01a1a2e86221266a154af739463fce51219d97e4f856cd7200c3bd2a601", // devnet deployer, from settings/Devnet.toml
-	network: "devnet",
-	client: { baseUrl: "http://localhost:20443" },
-	fee: 2000n,
 });
-console.log(
-	await broadcastTransaction({
-		transaction,
-		network: "devnet",
-		client: { baseUrl: "http://localhost:20443" },
-	}),
-);
+console.log(txid);
 ```
 
 The examples below read back a `counter` contract that prints an event on each call:
@@ -453,7 +456,7 @@ export const agent = `
 - Local runtime (from docker/oss in a checkout, see /docs/self-host): 'secondlayer init --network mainnet' writes .env.local; 'secondlayer bootstrap --against <manifest>' restores into an empty database; 'secondlayer observer --mode indexer' prints the [[events_observer]] stanza; 'secondlayer verify all --against <manifest>' checks the restore (raw or all, --deep for semantic digests). Use --mode signer-shared where documented.
 - 'secondlayer subgraphs create <name> --from-contract <contract id>' infers typed print payloads from indexed history.
 - From inside a Clarinet project: 'secondlayer devnet connect' patches settings/Devnet.toml to forward events to the indexer on :3700, writes .secondlayer/docker-compose.yml for Postgres plus the one-box runtime image, pulls it and starts it. Then 'clarinet devnet start'; confirm 'curl http://localhost:3800/health'. Streams, Index, Subgraphs and Webhooks all work on devnet.
-- Send calls with @stacks/transactions: network 'devnet' plus client { baseUrl: 'http://localhost:20443' } (the Stacks API on :3999 may be disabled). broadcastTransaction returns the txid without 0x; /v1/index/transactions/<txid> needs the 0x prefix. Streams holds back the newest blocks as a reorg margin.
+- Send calls with @secondlayer/stacks: createWalletClient({ account: privateKeyToAccount(<key>, { addressVersion: devnet.addressVersion.singleSig }), chain: devnet, transport: http('http://localhost:20443') }).callContract({ contract: '<addr>.<name>', functionName, functionArgs }) (the Stacks API on :3999 may be disabled). Without addressVersion the account is an SP address and the nonce is wrong (BadNonce). The returned txid has no 0x; /v1/index/transactions/<txid> needs the 0x prefix. Streams holds back the newest blocks as a reorg margin.
 - Subgraphs: 'bun add @secondlayer/subgraphs', then 'secondlayer subgraphs create <name> --from-contract <contract id>' (needs one indexed print event first). Export SECONDLAYER_API_URL=http://localhost:3800 and INSTANCE_TOKEN=dev-instance-token (a fixed local token; deploys are writes), stage the file in git or pass --allow-uncommitted, then 'secondlayer subgraphs deploy <file>'. Reads on loopback need no token: 'curl $SECONDLAYER_API_URL/v1/subgraphs/<name>/<table>'.
 - Webhooks on devnet: the receiver URL must use host.docker.internal, not localhost. Deliveries are signed with a public dev key; GET /api/webhooks/signing-key with the instance token returns the verify key.
 - 'secondlayer devnet faucet --to <address>' mints mock sBTC and needs the Stacks API on :3999 (do not set disable_stacks_api).

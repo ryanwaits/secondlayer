@@ -633,13 +633,16 @@
     ]
   },
   "/docs/cli#send-a-call": {
-    "hash": "68b4b53a30290d21",
+    "hash": "042e85f15a57c918",
     "phrasings": [
-      "send contract call to devnet node",
-      "submit transactions to local devnet",
-      "call contract function on devnet",
-      "send stx transfer to devnet",
-      "devnet transaction broadcast fails"
+      "how do i send a contract call from cli",
+      "secondlayer stacks send call to devnet",
+      "call a clarity function from command line",
+      "cli command to invoke smart contract",
+      "send contract call devnet node stacks",
+      "how to call public function with secondlayer cli",
+      "stacks cli contract call not working on devnet",
+      "invoke clarity function using node tooling"
     ]
   },
   "/docs/cli#start-the-devnet": {
