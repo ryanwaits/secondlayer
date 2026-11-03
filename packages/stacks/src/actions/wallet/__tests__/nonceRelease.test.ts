@@ -1,6 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import { privateKeyToAccount } from "../../../accounts/privateKeyToAccount.ts";
 import { mainnet } from "../../../chains/definitions.ts";
+import { Cl } from "../../../clarity/index.ts";
 import { createWalletClient } from "../../../clients/createWalletClient.ts";
 import type { Client } from "../../../clients/types.ts";
 import { HttpRequestError } from "../../../errors/http.ts";
@@ -280,5 +281,56 @@ describe("sendTransaction after a broadcast timeout", () => {
 		await expect(
 			sendTransaction(client, { transaction: await signed() }),
 		).rejects.toBeInstanceOf(TimeoutError);
+	});
+});
+
+describe("callContract args", () => {
+	const CALL = { contract: CONTRACT, functionName: "transfer", fee: 200n };
+
+	/** Broadcast a call and return the serialized transaction body. */
+	async function broadcastBody(
+		params: Parameters<typeof callContract>[1],
+	): Promise<string> {
+		let body = "";
+		const client = createWalletClient({
+			chain: mainnet,
+			account: ACCOUNT,
+			transport: custom({
+				// biome-ignore lint/suspicious/noExplicitAny: test transport stub
+				request: async (path: string, options?: any) => {
+					if (path.includes("/v2/accounts/")) return { nonce: 6 };
+					body = options?.body?.tx ?? "";
+					return "0xabc";
+				},
+			}),
+		}) as unknown as Client;
+		await callContract(client, params);
+		return body;
+	}
+
+	it("args and the deprecated functionArgs build the same transaction", async () => {
+		const withArgs = await broadcastBody({ ...CALL, args: [Cl.uint(1)] });
+		const withFunctionArgs = await broadcastBody({
+			...CALL,
+			functionArgs: [Cl.uint(1)],
+		});
+		expect(withArgs).not.toBe("");
+		expect(withArgs).toBe(withFunctionArgs);
+	});
+
+	it("omitting both sends an empty argument list", async () => {
+		expect(await broadcastBody(CALL)).toBe(
+			await broadcastBody({ ...CALL, args: [] }),
+		);
+	});
+
+	it("rejects args and functionArgs that differ", async () => {
+		await expect(
+			broadcastBody({
+				...CALL,
+				args: [Cl.uint(1)],
+				functionArgs: [Cl.uint(2)],
+			}),
+		).rejects.toThrow("Pass args or functionArgs, not both");
 	});
 });

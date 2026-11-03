@@ -261,7 +261,7 @@ export function getContract<const TAbi extends AbiContract>(
 				return callContract(client, {
 					contract: contractId,
 					functionName: fn.name,
-					functionArgs: clarityArgs,
+					args: clarityArgs,
 					...options,
 				});
 			};

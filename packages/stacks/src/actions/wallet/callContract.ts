@@ -18,6 +18,7 @@ import {
 	assertNoFeeTierForProvider,
 	isFeeTier,
 	isProviderAccount,
+	resolveCallArgs,
 	resolveFee,
 	setUnsignedFee,
 } from "./utils.ts";
@@ -25,6 +26,8 @@ import {
 export type CallContractParams = {
 	contract: string; // "address.name"
 	functionName: string;
+	args?: ClarityValue[];
+	/** @deprecated Use `args` (same as readContract). */
 	functionArgs?: ClarityValue[];
 	fee?: FeeParam;
 	nonce?: IntegerType;
@@ -43,6 +46,7 @@ export async function callContract(
 	// Validate the contract id up front so both the provider and local paths
 	// reject malformed input instead of forwarding it to the wallet.
 	const [contractAddress, contractName] = parseContractId(params.contract);
+	const args = resolveCallArgs(params);
 
 	// Provider: delegate to wallet
 	if (isProviderAccount(account)) {
@@ -50,7 +54,7 @@ export async function callContract(
 		const result = await account.provider.request("stx_callContract", {
 			contract: params.contract,
 			functionName: params.functionName,
-			functionArgs: params.functionArgs ?? [],
+			functionArgs: args,
 		});
 		return result.txid;
 	}
@@ -68,7 +72,7 @@ export async function callContract(
 			contractAddress,
 			contractName,
 			functionName: params.functionName,
-			functionArgs: params.functionArgs ?? [],
+			functionArgs: args,
 			fee: needsFeeResolution ? 0n : (params.fee as IntegerType),
 			nonce,
 			publicKey: account.publicKey,

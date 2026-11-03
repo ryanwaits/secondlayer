@@ -1,4 +1,5 @@
 import type { ProviderAccount } from "../../accounts/types.ts";
+import type { ClarityValue } from "../../clarity/types.ts";
 import type { Account, Client } from "../../clients/types.ts";
 import { HttpRequestError } from "../../errors/http.ts";
 import type { StacksTransaction } from "../../transactions/types.ts";
@@ -119,4 +120,21 @@ export function assertNoFeeTierForProvider(fee: FeeParam | undefined): void {
 			`Fee tier '${fee}' requires local signing; provider (wallet) accounts set their own fee`,
 		);
 	}
+}
+
+/** Resolve `args`, accepting the deprecated `functionArgs` alias. */
+export function resolveCallArgs(params: {
+	args?: ClarityValue[];
+	functionArgs?: ClarityValue[];
+}): ClarityValue[] {
+	const { args, functionArgs } = params;
+	if (
+		args &&
+		functionArgs &&
+		(args.length !== functionArgs.length ||
+			args.some((value, i) => value !== functionArgs[i]))
+	) {
+		throw new Error("Pass args or functionArgs, not both");
+	}
+	return args ?? functionArgs ?? [];
 }

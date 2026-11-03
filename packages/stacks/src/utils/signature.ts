@@ -132,16 +132,19 @@ function hashMessage(message: string | Uint8Array, prefix: string): Uint8Array {
 	return sha256(concatBytes(prefixBytes, lengthBytes, messageBytes));
 }
 
+export type VerifyMessageParams = {
+	message: string | Uint8Array;
+	signature: string;
+	publicKey: string;
+};
+
 /**
  * Verify a signed Stacks message.
  * Parses a VRS signature, extracts r+s for verification.
  * Falls back to legacy prefix if standard prefix fails.
  */
-export function verifyMessageSignature(
-	message: string | Uint8Array,
-	signature: string,
-	publicKey: string,
-): boolean {
+export function verifyMessage(params: VerifyMessageParams): boolean {
+	const { message, signature, publicKey } = params;
 	const parsed = parseSignature(signature);
 	const compactSig = parsed.r + parsed.s;
 
@@ -155,4 +158,13 @@ export function verifyMessageSignature(
 	}
 
 	return false;
+}
+
+/** @deprecated Use `verifyMessage({ message, signature, publicKey })`. */
+export function verifyMessageSignature(
+	message: string | Uint8Array,
+	signature: string,
+	publicKey: string,
+): boolean {
+	return verifyMessage({ message, signature, publicKey });
 }

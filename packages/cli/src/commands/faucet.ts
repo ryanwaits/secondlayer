@@ -183,7 +183,7 @@ is what makes minting possible without Bitcoin.`,
 				const txid = await client.callContract({
 					contract: contract as `${string}.${string}`,
 					functionName: "complete-deposit-wrapper",
-					functionArgs: [
+					args: [
 						Cl.bufferFromHex(depositTxid),
 						Cl.uint(0),
 						Cl.uint(amount),

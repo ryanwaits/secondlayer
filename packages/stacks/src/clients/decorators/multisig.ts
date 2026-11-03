@@ -4,7 +4,7 @@ import {
 	type SendTransactionResult,
 	sendTransaction,
 } from "../../actions/wallet/sendTransaction.ts";
-import { setUnsignedFee } from "../../actions/wallet/utils.ts";
+import { resolveCallArgs, setUnsignedFee } from "../../actions/wallet/utils.ts";
 import type { ClarityValue } from "../../clarity/types.ts";
 import type {
 	PostConditionInput,
@@ -41,6 +41,8 @@ export type MultiSigTransferStxParams = {
 export type MultiSigCallContractParams = {
 	contract: string;
 	functionName: string;
+	args?: ClarityValue[];
+	/** @deprecated Use `args` (same as readContract). */
 	functionArgs?: ClarityValue[];
 	fee?: IntegerType;
 	nonce?: IntegerType;
@@ -142,7 +144,7 @@ export function multisigActions(client: Client): MultiSigActions {
 				contractAddress,
 				contractName,
 				functionName: params.functionName,
-				functionArgs: params.functionArgs ?? [],
+				functionArgs: resolveCallArgs(params),
 				fee: params.fee ?? 0n,
 				nonce,
 				publicKeys: signers,

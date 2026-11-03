@@ -10,6 +10,7 @@ import {
 	serializeSignature,
 	signatureRsvToVrs,
 	signatureVrsToRsv,
+	verifyMessage,
 	verifyMessageSignature,
 	verifySignature,
 } from "../signature.ts";
@@ -189,5 +190,43 @@ describe("verifyMessageSignature", () => {
 		const vrs = v + sig.toCompactHex();
 
 		expect(verifyMessageSignature("Wrong Message", vrs, pubKey)).toBe(false);
+	});
+});
+
+describe("verifyMessage", () => {
+	const privKey =
+		"bcf62fdd286f9b30b2c289cce3189dbf3b502dcd955b2dc4f67d18d77f3e73c7";
+	const pubKey = bytesToHex(getPublicKey(privKey, true));
+
+	async function signHelloWorld(): Promise<string> {
+		const msgBytes = utf8ToBytes("Hello World");
+		const prefixBytes = utf8ToBytes("\x17Stacks Signed Message:\n");
+		const lenByte = new Uint8Array([msgBytes.length]);
+		const msgHash = sha256(
+			new Uint8Array([...prefixBytes, ...lenByte, ...msgBytes]),
+		);
+		const sig = await signAsync(msgHash, privKey);
+		return sig.recovery?.toString(16).padStart(2, "0") + sig.toCompactHex();
+	}
+
+	test("accepts a valid signature from one params object", async () => {
+		const signature = await signHelloWorld();
+		expect(
+			verifyMessage({ message: "Hello World", signature, publicKey: pubKey }),
+		).toBe(true);
+	});
+
+	test("rejects a different message", async () => {
+		const signature = await signHelloWorld();
+		expect(
+			verifyMessage({ message: "Wrong Message", signature, publicKey: pubKey }),
+		).toBe(false);
+	});
+
+	test("deprecated positional form agrees with the object form", async () => {
+		const signature = await signHelloWorld();
+		expect(verifyMessageSignature("Hello World", signature, pubKey)).toBe(
+			verifyMessage({ message: "Hello World", signature, publicKey: pubKey }),
+		);
 	});
 });

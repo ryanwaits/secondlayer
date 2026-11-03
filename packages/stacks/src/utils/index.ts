@@ -67,6 +67,7 @@ export {
 	recoverPublicKey,
 	recoverAddress,
 	verifySignature,
+	verifyMessage,
 	verifyMessageSignature,
 	type RecoverableSignature,
 } from "./signature.ts";
