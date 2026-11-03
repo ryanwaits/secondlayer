@@ -1,0 +1,77 @@
+name: Nightly
+
+# Slow checks that would stretch the deploy gate: the emitter soak test
+# (SL_NIGHTLY=1), every scripts/ test, and the generated reference drift check.
+# Required secrets: SLACK_WEBHOOK_URL (same as deploy.yml).
+
+on:
+  schedule:
+    - cron: "17 7 * * *"
+  workflow_dispatch:
+
+jobs:
+  nightly:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: secondlayer
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 1s --health-timeout 5s --health-retries 30
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/secondlayer
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: "1.4.3"
+      - run: bun install --frozen-lockfile
+      - run: bun run build
+      - run: DATABASE_URL="$DATABASE_URL" bun run packages/shared/src/db/migrate.ts
+      - name: Run test suite with the soak test
+        run: SL_NIGHTLY=1 bun run test
+      - name: Scripts tests
+        run: bun test scripts
+      - name: Generated reference drift check
+        shell: bash
+        run: |
+          set -euo pipefail
+          pids=()
+          bun run --filter @secondlayer/api openapi & pids+=($!)
+          bun run --filter @secondlayer/sdk openpkg & pids+=($!)
+          bun run --filter @secondlayer/subgraphs openpkg & pids+=($!)
+          bun run --filter @secondlayer/verify openpkg & pids+=($!)
+          bun run --filter @secondlayer/stacks openpkg & pids+=($!)
+          bun run --filter @secondlayer/mcp tools & pids+=($!)
+          for p in "${pids[@]}"; do wait "$p"; done
+          git diff --exit-code -- apps/web/src/generated
+
+  notify:
+    needs: nightly
+    if: always() && needs.nightly.result == 'failure'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Slack notification
+        uses: slackapi/slack-github-action@45a88b9581bfab2566dc881e2cd66d334e621e2c # v3.0.3
+        with:
+          webhook: ${{ secrets.SLACK_WEBHOOK_URL }}
+          webhook-type: incoming-webhook
+          payload: |
+            {
+              "text": "❌ Nightly failed on `${{ github.sha }}`",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": ":x: *Nightly failed*\n<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View run> · `${{ github.sha }}`"
+                  }
+                }
+              ]
+            }

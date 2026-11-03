@@ -49,7 +49,9 @@ afterAll(async () => {
 	else process.env.SECONDLAYER_ALLOW_PRIVATE_EGRESS = priorAllowEgress;
 });
 
-describe("emitter under a sustained stream well within its own dispatch capacity", () => {
+// 20s soak: only nightly.yml sets SL_NIGHTLY=1; skipped on every push.
+// biome-ignore format: keep the test-call layout biome gives a bare describe()
+describe.skipIf(process.env.SL_NIGHTLY !== "1")("emitter under a sustained stream well within its own dispatch capacity", () => {
 	it("keeps claim-to-POST latency low — arrival rate never exceeds concurrency-bounded throughput", async () => {
 		const insertedAt = new Map<string, number>();
 		const receivedAt = new Map<string, number>();
