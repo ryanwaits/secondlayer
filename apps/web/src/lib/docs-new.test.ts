@@ -3,7 +3,7 @@ import { execFileSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 import docsNewPages from "@/generated/docs-new.json";
-import { rowsAsOf } from "../../scripts/docs-new";
+import { parseDocsDiff, rowsAsOf, stagedChanges } from "../../scripts/docs-new";
 import { headingTerms, newRows } from "./docs-new-rule.mjs";
 import { isFresh } from "./docs-new.mjs";
 
@@ -277,6 +277,111 @@ describe("new pages", () => {
 			AS_OF,
 		);
 		expect(rows).toEqual({ "/docs/guides/a": AS_OF });
+	});
+});
+
+describe("staged docs changes", () => {
+	const PAGE = "apps/web/src/app/(www)/docs/guides/zz-test/page.mdx";
+	const created = (lines: string[], path = PAGE) =>
+		[
+			`diff --git a/${path} b/${path}`,
+			"new file mode 100644",
+			"index 0000000..1111111",
+			"--- /dev/null",
+			`+++ b/${path}`,
+			`@@ -0,0 +1,${lines.length} @@`,
+			...lines.map((line) => `+${line}`),
+			"",
+		].join("\n");
+	const body = (count: number) =>
+		Array.from({ length: count }, (_, i) => `A distinct line of copy ${i}.`);
+
+	test("a staged new 60-line guide is a page dated today", () => {
+		const change = stagedChanges(created(body(60)), AS_OF, 1_000);
+		expect(change.pages).toEqual([
+			{
+				path: PAGE,
+				date: AS_OF,
+				at: 1_000,
+				route: "/docs/guides/zz-test",
+				lines: 60,
+				moved: 0,
+			},
+		]);
+		const rows = newRows(
+			{
+				feats: [],
+				headings: [],
+				pages: change.pages,
+				exists: () => true,
+				mentions: () => 0,
+			},
+			AS_OF,
+		);
+		expect(rows).toEqual({ "/docs/guides/zz-test": AS_OF });
+	});
+
+	test("a staged new ### heading is a heading dated today and launches", () => {
+		const diff = [
+			"diff --git a/apps/web/src/app/(www)/docs/webhooks/page.mdx b/apps/web/src/app/(www)/docs/webhooks/page.mdx",
+			"index 1111111..2222222 100644",
+			"--- a/apps/web/src/app/(www)/docs/webhooks/page.mdx",
+			"+++ b/apps/web/src/app/(www)/docs/webhooks/page.mdx",
+			"@@ -10,0 +11,3 @@",
+			"+### Testnet",
+			"+",
+			"+Try it free.",
+			"",
+		].join("\n");
+		const change = stagedChanges(diff, AS_OF, 1_000);
+		expect(change.headings).toEqual([
+			{ date: AS_OF, route: "/docs/webhooks", text: "Testnet" },
+		]);
+		expect(change.pages).toEqual([]);
+		const rows = newRows(
+			{
+				feats: feats("testnet", FOUR_SCOPES, 5),
+				headings: change.headings,
+				pages: [],
+				exists: () => true,
+				mentions: () => 1,
+			},
+			AS_OF,
+		);
+		expect(rows).toEqual({ "/docs/webhooks": AS_OF });
+	});
+
+	test("a 15-line staged stub doesn't count", () => {
+		const change = stagedChanges(created(body(15)), AS_OF, 1_000);
+		const rows = newRows(
+			{
+				feats: [],
+				headings: [],
+				pages: change.pages,
+				exists: () => true,
+				mentions: () => 0,
+			},
+			AS_OF,
+		);
+		expect(rows).toEqual({});
+	});
+
+	test("lines removed from another page in the same diff count as moved", () => {
+		const old = "apps/web/src/app/(www)/docs/old/page.mdx";
+		const lines = body(60);
+		const diff = `${created(lines)}${[
+			`diff --git a/${old} b/${old}`,
+			"deleted file mode 100644",
+			`--- a/${old}`,
+			"+++ /dev/null",
+			`@@ -1,${lines.length} +0,0 @@`,
+			...lines.map((line) => `-${line}`),
+			"",
+		].join("\n")}`;
+		const { files, removed } = parseDocsDiff(diff);
+		expect(files.map((f) => f.route)).toEqual(["/docs/guides/zz-test"]);
+		expect(removed.size).toBe(60);
+		expect(stagedChanges(diff, AS_OF, 1).pages[0].moved).toBe(1);
 	});
 });
 

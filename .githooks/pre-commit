@@ -4,10 +4,10 @@
 
 # Docs pages: refresh the New rows, derived from git history
 # (apps/web/scripts/docs-new.ts). DOCS_NEW=off skips it for one commit.
-docs=$(git diff --cached --name-only --diff-filter=AMD \
+docs=$(git diff --cached --name-only --diff-filter=AMDR \
   | grep -E '^apps/web/src/app/\(www\)/docs/.*page\.mdx$' || true)
 if [ -n "$docs" ] && [ "$DOCS_NEW" != "off" ]; then
-  (cd apps/web && bun scripts/docs-new.ts) || exit 1
+  (cd apps/web && bun scripts/docs-new.ts --staged) || exit 1
   git add apps/web/src/generated/docs-new.json
 fi
 
