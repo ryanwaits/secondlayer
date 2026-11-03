@@ -282,6 +282,7 @@ function SubgraphListRow({
 					// Mid-hour keeps the newest hour on its own row at midnight.
 					now={Date.parse(last) + HOUR_MS / 2}
 					label={`${item.name}, rows written per hour, last 7 days`}
+					units={{ n: "rows written", f: "handler errors" }}
 				/>
 			) : (
 				<HeatStripSkeleton />

@@ -14,6 +14,13 @@ interface Hover {
 	y: number;
 }
 
+export interface HeatUnits {
+	n: string;
+	f: string;
+}
+
+const DEFAULT_UNITS: HeatUnits = { n: "delivered", f: "failed" };
+
 /**
  * Seven days of deliveries as an hour-by-day grid, laid on UTC calendar days.
  * Cell opacity follows volume, `--alarm` marks hours with failures, and an
@@ -25,6 +32,7 @@ export function HeatStrip({
 	now,
 	onCellClick,
 	label,
+	units = DEFAULT_UNITS,
 }: {
 	/** Rolling window, index 0 = the hour 167 h before `now`. */
 	hours: readonly { n: number; f: number }[];
@@ -32,6 +40,9 @@ export function HeatStrip({
 	onCellClick?: (hourIndex: number) => void;
 	/** Accessible name for the grid. */
 	label: string;
+	/** What a cell counts, for its label and tooltip: `n` for the volume,
+	 *  `f` for the failures. */
+	units?: HeatUnits;
 }) {
 	const { days } = useMemo(() => heatGrid(hours, now), [hours, now]);
 	const max = useMemo(() => Math.max(1, ...hours.map((c) => c.n)), [hours]);
@@ -82,7 +93,7 @@ export function HeatStrip({
 									type="button"
 									className={`dc-heat-cell ${cls}`.trim()}
 									style={{ opacity }}
-									aria-label={`${when}, ${n} delivered${f ? `, ${f} failed` : ""}`}
+									aria-label={`${when}, ${n} ${units.n}${f ? `, ${f} ${units.f}` : ""}`}
 									onPointerEnter={(e) => show(cell, e.currentTarget)}
 									onFocus={(e) => show(cell, e.currentTarget)}
 									onPointerLeave={() => setHover(null)}
@@ -104,7 +115,7 @@ export function HeatStrip({
 				</HeatRow>
 			</section>
 		),
-		[days, labels, max, onCellClick, show, label],
+		[days, labels, max, onCellClick, show, label, units],
 	);
 
 	return (
@@ -121,12 +132,12 @@ export function HeatStrip({
 						<span className="dc-tip-num">
 							{hover.cell.n.toLocaleString("en-US")}
 						</span>{" "}
-						delivered
+						{units.n}
 						{hover.cell.f > 0 ? (
 							<>
 								{" · "}
 								<span className="dc-tip-fail">
-									{hover.cell.f.toLocaleString("en-US")} failed
+									{hover.cell.f.toLocaleString("en-US")} {units.f}
 								</span>
 							</>
 						) : null}

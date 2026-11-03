@@ -310,6 +310,9 @@ describe("SubgraphsListBody", () => {
 		);
 		expect(html).toContain('class="dc-heat"');
 		expect(html).toContain("dc-heat-cell f");
+		expect(html).toContain("rows written");
+		expect(html).toContain("handler errors");
+		expect(html).not.toContain("delivered");
 	});
 
 	test("a row without health holds the grid's space with the skeleton", () => {
