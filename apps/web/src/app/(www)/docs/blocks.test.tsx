@@ -15,17 +15,17 @@ async function render(element: ReactElement): Promise<string> {
 }
 
 describe("the stack", () => {
-	test("the stack lists products from webhooks down to archive, then verify", async () => {
+	test("the stack lists products in sidebar order, archive to webhooks, then verify", async () => {
 		const html = await render(<Stack />);
 		const hrefs = [...html.matchAll(/data-href="([^"]+)"/g)].map((m) => m[1]);
 		expect(hrefs).toEqual([
-			"/docs/webhooks",
-			"/docs/subgraphs",
-			"/docs/index",
-			"/docs/streams",
 			"/docs/archive",
+			"/docs/streams",
+			"/docs/index",
+			"/docs/subgraphs",
+			"/docs/webhooks",
 		]);
-		expect(html.indexOf("/docs/archive")).toBeLessThan(
+		expect(html.indexOf("/docs/webhooks")).toBeLessThan(
 			html.indexOf("/docs/verification"),
 		);
 	});

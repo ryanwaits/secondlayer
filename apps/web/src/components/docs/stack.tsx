@@ -20,9 +20,10 @@ export const PRODUCT_GLYPH: Record<ProductKey, () => ReactNode> = {
 };
 
 /**
- * The five products as one stack, top to bottom: Webhooks (closest to your
- * app) down to Archive (closest to the chain), with Verify under all. Each row
- * says what you get and what you write there. Intro page only.
+ * The five products as one stack, in the sidebar's chain-to-app order: Archive
+ * (closest to the chain) first, Webhooks (closest to your app) last, with
+ * Verify under all. Each row says what you get and what you write there.
+ * Intro page only.
  */
 export function Stack() {
 	return (
@@ -34,7 +35,7 @@ export function Stack() {
 				<span>You write</span>
 			</div>
 			<div className="docs-stack-rows">
-				{[...DOCS_PRODUCTS].reverse().map((p) => {
+				{DOCS_PRODUCTS.map((p) => {
 					const Glyph = PRODUCT_GLYPH[p.key];
 					return (
 						<Link
