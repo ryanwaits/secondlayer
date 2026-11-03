@@ -965,6 +965,7 @@ export function KeysDemo({
 			keys={view === "stale" ? EXAMPLE_KEYS_STALE : EXAMPLE_KEYS}
 			now={KEYS_EXAMPLE_NOW}
 			onNew={noop}
+			onRotated={noop}
 			initialOpen={view === "open" ? "a1b2c3d4" : null}
 		/>
 	);

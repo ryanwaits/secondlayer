@@ -197,7 +197,7 @@ export function keysSentence(
 			return {
 				tone: "alarm",
 				text: "No active keys, and one is still called.",
-				sub: "Something still reads with a key you revoked, and every call it makes fails. Make a new key and swap it in where the old one lives.",
+				sub: "Something still reads with a key you revoked, and every call it makes fails. Swap an active key in where the old one lives.",
 			};
 		}
 		return {

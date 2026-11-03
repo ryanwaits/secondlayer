@@ -7,10 +7,12 @@ import { PlaceholderRows } from "@/components/dashboard/shell/onboarding";
 import { StatusSentence } from "@/components/dashboard/shell/status-sentence";
 import { useCompact } from "@/components/mobile/use-compact";
 import {
+	CreateKeyError,
 	ensureApps,
 	ensureKeys,
 	formatDate,
 	revokeKey,
+	rotateKey,
 	useAccountData,
 } from "@/lib/account-data";
 import { barsRows } from "@/lib/dashboard-charts";
@@ -35,7 +37,7 @@ import {
 	keysSentence,
 	revokedOwnKeys,
 } from "./key-view";
-import { NewKeyFlow } from "./new-key-flow";
+import { NewKeyFlow, createErrorMessage } from "./new-key-flow";
 
 /** How long a just-made key's row keeps its yellow dot. */
 export const FRESH_MS = 9_000;
@@ -43,7 +45,7 @@ export const FRESH_MS = 9_000;
 const PREFIX_LENGTH = 14;
 
 const FOOTER =
-	"Lost a key? Revoke it and make another: we only ever show a key once.";
+	"Lost a key? Rotate it for a new one: we only ever show a key once.";
 
 function KeySub({
 	k,
@@ -89,10 +91,13 @@ function KeyPanel({
 	k,
 	now,
 	onRevoke,
+	onRotate,
 }: {
 	k: ApiKey;
 	now: Date;
 	onRevoke: () => void;
+	/** Omitted where a key can't be rotated. */
+	onRotate?: () => void;
 }) {
 	const flags = keyFlags(k, now);
 	const docs = k.product === "docs";
@@ -156,15 +161,28 @@ function KeyPanel({
 					<p className="ky-faint">{keyWhy(k.product)}</p>
 				) : (
 					<div className="ky-revoke">
-						<button
-							type="button"
-							className="acct-btn danger small"
-							onClick={onRevoke}
-						>
-							Revoke
-						</button>
+						<div className="acct-row-actions">
+							{onRotate ? (
+								<button
+									type="button"
+									className="acct-btn line small"
+									onClick={onRotate}
+								>
+									Rotate
+								</button>
+							) : null}
+							<button
+								type="button"
+								className="acct-btn danger small"
+								onClick={onRevoke}
+							>
+								Revoke
+							</button>
+						</div>
 						<p className="ky-faint">
-							Stops working at once. Anything using it gets a 401.
+							{onRotate
+								? "Rotate gives this key a new secret and keeps its name. Revoke stops it with no replacement. Either way, the old secret gets a 401 at once."
+								: "Stops working at once. Anything using it gets a 401."}
 						</p>
 					</div>
 				)}
@@ -262,6 +280,64 @@ export function RevokeConfirm({
 	);
 }
 
+/**
+ * Inline confirm. `onDone` gets the new key once it is rotated, or null on
+ * Cancel.
+ */
+export function RotateConfirm({
+	k,
+	onDone,
+}: {
+	k: ApiKey;
+	onDone: (rotated: { key: string; name: string } | null) => void;
+}) {
+	const [busy, setBusy] = useState(false);
+	const [error, setError] = useState<string | null>(null);
+	async function rotate() {
+		setBusy(true);
+		setError(null);
+		try {
+			onDone(await rotateKey(k.id));
+		} catch (e) {
+			setError(
+				e instanceof CreateKeyError && e.status === 429
+					? createErrorMessage(e)
+					: e instanceof Error && e.message
+						? e.message
+						: "Couldn't rotate that key",
+			);
+			setBusy(false);
+		}
+	}
+	return (
+		<div className="acct-revoke-confirm">
+			<p>
+				<strong>Rotate {k.name}?</strong> Anything using {k.prefix}… gets a 401
+				at once. We'll show the new key once, keeping the name {k.name}.
+			</p>
+			<div className="acct-row-actions">
+				<button
+					type="button"
+					className="acct-btn solid small"
+					onClick={rotate}
+					disabled={busy}
+				>
+					{busy ? "Rotating…" : "Rotate key"}
+				</button>
+				<button
+					type="button"
+					className="acct-btn line small"
+					onClick={() => onDone(null)}
+					disabled={busy}
+				>
+					Cancel
+				</button>
+			</div>
+			{error ? <p className="acct-error">{error}</p> : null}
+		</div>
+	);
+}
+
 function MadeForYou({
 	keys,
 	now,
@@ -340,6 +416,7 @@ export function KeysTable({
 	freshPrefix = null,
 	initialOpen = null,
 	madeOpen = false,
+	onRotated,
 }: {
 	/** Null until the list has loaded. */
 	keys: ApiKey[] | null;
@@ -348,9 +425,12 @@ export function KeysTable({
 	freshPrefix?: string | null;
 	initialOpen?: string | null;
 	madeOpen?: boolean;
+	/** A key was rotated; omitted, rows offer no Rotate. */
+	onRotated?: (key: string, name: string) => void;
 }) {
 	const [open, setOpen] = useState<string | null>(initialOpen);
 	const [confirming, setConfirming] = useState<string | null>(null);
+	const [rotating, setRotating] = useState<string | null>(null);
 	const [revoked, setRevoked] = useState<
 		{ id: string; name: string; at: number }[]
 	>([]);
@@ -380,6 +460,18 @@ export function KeysTable({
 				/>
 			);
 		}
+		if (rotating === k.id && onRotated) {
+			return (
+				<RotateConfirm
+					key={k.id}
+					k={k}
+					onDone={(result) => {
+						setRotating(null);
+						if (result) onRotated(result.key, result.name);
+					}}
+				/>
+			);
+		}
 		const isOpen = open === k.id;
 		return (
 			<div key={k.id}>
@@ -391,7 +483,16 @@ export function KeysTable({
 					onToggle={() => setOpen(isOpen ? null : k.id)}
 				/>
 				{isOpen ? (
-					<KeyPanel k={k} now={now} onRevoke={() => setConfirming(k.id)} />
+					<KeyPanel
+						k={k}
+						now={now}
+						onRevoke={() => setConfirming(k.id)}
+						onRotate={
+							onRotated && k.product === "account"
+								? () => setRotating(k.id)
+								: undefined
+						}
+					/>
 				) : null}
 			</div>
 		);
@@ -441,6 +542,8 @@ export interface KeysBodyProps {
 	onNew: () => void;
 	initialOpen?: string | null;
 	madeOpen?: boolean;
+	/** A key was rotated: its new value, shown once. Omitted, rows offer no Rotate. */
+	onRotated?: (key: string, name: string) => void;
 }
 
 /** Keys: one sentence, why a key went quiet, and a row per key. */
@@ -454,6 +557,7 @@ export function KeysBody({
 	onNew,
 	initialOpen,
 	madeOpen,
+	onRotated,
 }: KeysBodyProps) {
 	const sentence =
 		keys === null
@@ -489,6 +593,7 @@ export function KeysBody({
 				freshPrefix={freshPrefix}
 				initialOpen={initialOpen}
 				madeOpen={madeOpen}
+				onRotated={onRotated}
 			/>
 			{apps !== undefined ? <AppsTable apps={apps} now={now} /> : null}
 		</div>
@@ -504,6 +609,11 @@ export function KeysScreen() {
 	const { data: allInsights } = useInsights();
 	const compact = useCompact();
 	const [creating, setCreating] = useState(false);
+	const [rotated, setRotated] = useState<{
+		key: string;
+		name: string;
+	} | null>(null);
+	const flowTop = useRef<HTMLDivElement | null>(null);
 	const [freshPrefix, setFreshPrefix] = useState<string | null>(null);
 	const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 	const now = new Date();
@@ -562,8 +672,23 @@ export function KeysScreen() {
 			freshPrefix={freshPrefix}
 			apps={apps}
 			onNew={() => setCreating(true)}
+			onRotated={(key, name) => {
+				markFresh(key);
+				setRotated({ key, name });
+				requestAnimationFrame(() =>
+					flowTop.current?.scrollIntoView({ block: "nearest" }),
+				);
+			}}
 			flow={
-				creating ? (
+				rotated ? (
+					<div ref={flowTop}>
+						<NewKeyFlow
+							key={rotated.key}
+							initial={rotated}
+							onClose={() => setRotated(null)}
+						/>
+					</div>
+				) : creating ? (
 					<NewKeyFlow
 						dismissible={!firstRun}
 						existingNames={existingNames}

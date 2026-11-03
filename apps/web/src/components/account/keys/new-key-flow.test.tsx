@@ -134,7 +134,7 @@ describe("RevealStep", () => {
 		expect(html).toContain("laptop");
 		expect(html).toContain(">Copy<");
 		expect(html).toContain(
-			"Lost it? Revoke this one and make another. We never show it again.",
+			"Lost it? Rotate this key for a new one. We never show it again.",
 		);
 	});
 

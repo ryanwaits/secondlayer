@@ -14,7 +14,9 @@ mock.module("next/navigation", () => ({
 	permanentRedirect: () => {},
 }));
 
-const { KeysBody, KeysTable, RevokeConfirm } = await import("./keys-screen");
+const { KeysBody, KeysTable, RevokeConfirm, RotateConfirm } = await import(
+	"./keys-screen"
+);
 
 const NOW = new Date("2026-10-15T12:00:00.000Z");
 const hoursFromNow = (h: number) =>
@@ -198,6 +200,45 @@ describe("KeysTable", () => {
 		expect(html).toContain(">Revoke<");
 	});
 
+	test("an open account key offers Rotate beside Revoke when rotation is wired", () => {
+		const html = render([key({ id: "a", name: "laptop" })], {
+			initialOpen: "a",
+			onRotated: () => {},
+		});
+		expect(html).toContain(">Rotate<");
+		expect(html).toContain(">Revoke<");
+		expect(html).toContain(
+			"Rotate gives this key a new secret and keeps its name.",
+		);
+	});
+
+	test("an open account key has no Rotate unless rotation is wired, and keeps the one-line note", () => {
+		const html = render([key({ id: "a", name: "laptop" })], {
+			initialOpen: "a",
+		});
+		expect(html).not.toContain(">Rotate<");
+		expect(html).toContain(
+			"Stops working at once. Anything using it gets a 401.",
+		);
+	});
+
+	test("an open docs key never offers Rotate", () => {
+		const html = render(
+			[key({ id: "d", product: "docs", expiresAt: hoursFromNow(4) })],
+			{ initialOpen: "d", onRotated: () => {} },
+		);
+		expect(html).not.toContain(">Rotate<");
+	});
+
+	test("an open retired streams key can be revoked but not rotated", () => {
+		const html = render([key({ id: "s", product: "streams" })], {
+			initialOpen: "s",
+			onRotated: () => {},
+		});
+		expect(html).toContain(">Revoke<");
+		expect(html).not.toContain(">Rotate<");
+	});
+
 	test("an open docs key explains itself instead of offering Revoke", () => {
 		const html = render(
 			[key({ id: "d", product: "docs", expiresAt: hoursFromNow(4) })],
@@ -209,7 +250,7 @@ describe("KeysTable", () => {
 
 	test("ends with the faint note about revoked and lost keys", () => {
 		expect(render([key({ id: "a" })])).toContain(
-			"Lost a key? Revoke it and make another: we only ever show a key once.",
+			"Lost a key? Rotate it for a new one: we only ever show a key once.",
 		);
 	});
 });
@@ -224,6 +265,23 @@ describe("RevokeConfirm", () => {
 			"Anything using it gets a 401 at once. You can&#x27;t undo this; you can make a new key.",
 		);
 		expect(html).toContain("acct-btn danger");
+		expect(html).toContain("Cancel");
+	});
+});
+
+describe("RotateConfirm", () => {
+	test("names the key, its prefix and what the new key keeps", () => {
+		const html = renderToStaticMarkup(
+			<RotateConfirm
+				k={key({ name: "laptop", prefix: "sk-sl_abc12345" })}
+				onDone={() => {}}
+			/>,
+		);
+		expect(html).toContain("Rotate laptop?");
+		expect(html).toContain("sk-sl_abc12345…");
+		expect(html).toContain("keeping the name laptop");
+		expect(html).toContain("acct-btn solid");
+		expect(html).toContain("Rotate key");
 		expect(html).toContain("Cancel");
 	});
 });

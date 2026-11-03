@@ -401,6 +401,31 @@ export async function revokeKey(id: string): Promise<void> {
 	await refreshKeys();
 }
 
+/** Replace a key's secret. Returns the new value, which is never retrievable again. */
+export async function rotateKey(
+	id: string,
+): Promise<{ key: string; name: string }> {
+	const res = await fetch(`/api/keys/${id}/rotate`, {
+		method: "POST",
+		headers: { "Content-Type": "application/json" },
+		body: "{}",
+	});
+	const data = (await res.json().catch(() => ({}))) as {
+		key?: string;
+		name?: string | null;
+		error?: string;
+		retryAfter?: number;
+	};
+	if (!res.ok || !data.key)
+		throw new CreateKeyError(
+			data.error ?? "Couldn't rotate that key",
+			res.status,
+			data.retryAfter,
+		);
+	await refreshKeys();
+	return { key: data.key, name: data.name ?? "" };
+}
+
 const TOPUP_STORAGE = "sl_topup";
 
 type PendingTopup = { amount: number; beforeMicros: string | null };

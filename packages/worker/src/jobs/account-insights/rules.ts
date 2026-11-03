@@ -966,7 +966,7 @@ const revokedKeyInUse: InsightRule<AccountRuleInput> = {
 				? `${plural(one.calls, "call")} in 24 hours · mostly ${one.topPaths[0]?.path}`
 				: active.map((k) => k.name).join(", "),
 			lead: "Something still runs with a key you revoked, and every call it makes fails.",
-			body: "Make a new key and replace the revoked one wherever it is configured: an app's environment, a scheduled job, or the CLI (sl login). The calls stop failing as soon as it reads with the new key.",
+			body: "Replace the revoked key with an active one wherever it is configured: an app's environment, a scheduled job, or the CLI (sl login). The calls stop failing as soon as it reads with the new key.",
 			evidence: [
 				{
 					kind: "table",

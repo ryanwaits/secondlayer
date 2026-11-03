@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import {
+	CreateKeyError,
 	accountSnapshot,
 	adoptCacheOwner,
 	clearAccountData,
@@ -7,6 +8,7 @@ import {
 	isTopupUsd,
 	refreshBilling,
 	refreshKeys,
+	rotateKey,
 } from "./account-data";
 import { refreshList, subgraphsSnapshot } from "./subgraphs-store";
 
@@ -57,6 +59,30 @@ describe("ensureKeys", () => {
 		status = 200;
 		await ensureKeys();
 		expect(calls.length).toBe(2);
+	});
+});
+
+describe("rotateKey", () => {
+	test("posts to the key's rotate path, refreshes keys and returns the new secret", async () => {
+		const calls = stub((path) =>
+			path.endsWith("/rotate")
+				? jsonResponse({ key: "sk-sl_new", name: "prod" }, 201)
+				: jsonResponse({ keys: [] }),
+		);
+		const rotated = await rotateKey("key-1");
+		expect(rotated).toEqual({ key: "sk-sl_new", name: "prod" });
+		expect(calls).toEqual(["/api/keys/key-1/rotate", "/api/keys"]);
+	});
+
+	test("a rate limit throws with its retry delay and leaves the key list alone", async () => {
+		const calls = stub(() =>
+			jsonResponse({ error: "Slow down", retryAfter: 30 }, 429),
+		);
+		const err = await rotateKey("key-1").catch((e: unknown) => e);
+		expect(err).toBeInstanceOf(CreateKeyError);
+		expect((err as CreateKeyError).status).toBe(429);
+		expect((err as CreateKeyError).retryAfter).toBe(30);
+		expect(calls).toEqual(["/api/keys/key-1/rotate"]);
 	});
 });
 

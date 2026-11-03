@@ -285,7 +285,7 @@ export function RevealStep({
 			<p className="nk-hint">{snippets[tab].note}</p>
 			<div className="nk-foot">
 				<p className="nk-hint">
-					Lost it? Revoke this one and make another. We never show it again.
+					Lost it? Rotate this key for a new one. We never show it again.
 				</p>
 				<button
 					type="button"
