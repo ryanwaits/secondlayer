@@ -253,3 +253,14 @@ describe("webhooks local namespace (oss)", () => {
 		expect(await deleteWebhook(db, "someone-else", webhook.id)).toBe(true);
 	});
 });
+
+describe("webhook ids that can't be ids", () => {
+	it("a non-UUID id finds, changes and deletes nothing instead of throwing", async () => {
+		const bad = "wh_nope";
+		expect(await getWebhook(db, accountId, bad)).toBeNull();
+		expect(await updateWebhook(db, accountId, bad, { name: "x" })).toBeNull();
+		expect(await toggleWebhookStatus(db, accountId, bad, "paused")).toBeNull();
+		expect(await rotateWebhookSecret(db, accountId, bad)).toBeNull();
+		expect(await deleteWebhook(db, accountId, bad)).toBe(false);
+	});
+});

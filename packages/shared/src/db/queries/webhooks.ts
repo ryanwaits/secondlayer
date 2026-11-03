@@ -96,11 +96,18 @@ export async function listActiveChainWebhooks(
 		.execute();
 }
 
+/** Webhook ids are UUIDs. Any other string names no webhook, and passing it
+ *  to the uuid column would make Postgres throw (a 500 for a typo'd URL). */
+const WEBHOOK_ID_RE =
+	/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+export const isWebhookId = (id: string): boolean => WEBHOOK_ID_RE.test(id);
+
 export async function getWebhook(
 	db: Kysely<Database>,
 	accountId: string,
 	id: string,
 ): Promise<Webhook | null> {
+	if (!isWebhookId(id)) return null;
 	let q = db.selectFrom("webhooks").selectAll().where("id", "=", id);
 	if (isWebhookAccountScoped()) q = q.where("account_id", "=", accountId);
 	return (await q.executeTakeFirst()) ?? null;
@@ -132,6 +139,7 @@ export async function updateWebhook(
 	id: string,
 	patch: UpdateWebhookInput,
 ): Promise<Webhook | null> {
+	if (!isWebhookId(id)) return null;
 	const update: UpdateWebhook = { updated_at: new Date() };
 	if (patch.name !== undefined) update.name = patch.name;
 	if (patch.format !== undefined) update.format = patch.format;
@@ -152,6 +160,7 @@ export async function toggleWebhookStatus(
 	id: string,
 	status: WebhookStatus,
 ): Promise<Webhook | null> {
+	if (!isWebhookId(id)) return null;
 	let q = db
 		.updateTable("webhooks")
 		.set({
@@ -211,6 +220,7 @@ export async function deleteWebhook(
 	accountId: string,
 	id: string,
 ): Promise<boolean> {
+	if (!isWebhookId(id)) return false;
 	let owned = db.selectFrom("webhooks").select("id").where("id", "=", id);
 	if (isWebhookAccountScoped())
 		owned = owned.where("account_id", "=", accountId);
@@ -235,6 +245,7 @@ export async function rotateWebhookSecret(
 	accountId: string,
 	id: string,
 ): Promise<RotateSecretResult | null> {
+	if (!isWebhookId(id)) return null;
 	const signingSecret = generateSecret();
 	let q = db
 		.updateTable("webhooks")
