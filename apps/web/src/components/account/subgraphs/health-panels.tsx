@@ -1,11 +1,7 @@
 "use client";
 
 import { ChartSkeleton } from "@/components/charts/chart-skeleton";
-import {
-	LazyBandBarChart,
-	LazyContextLineChart,
-} from "@/components/charts/lazy";
-import { barsRows } from "@/lib/dashboard-charts";
+import { LazyContextLineChart } from "@/components/charts/lazy";
 import type {
 	SubgraphErrorGroup,
 	SubgraphHealthHour,
@@ -19,9 +15,12 @@ const DAY_MS = 86_400_000;
 export function hourLabels(count: number): [number, string][] {
 	if (count < 2) return [];
 	const middle = Math.floor((count - 1) / 2);
+	// A week of hourly points reads in days, not "-168h".
+	const ago = (hours: number): string =>
+		count > 48 ? `-${Math.round(hours / 24)}d` : `-${hours}h`;
 	return [
-		[0, `-${count}h`],
-		[middle, `-${count - 1 - middle}h`],
+		[0, ago(count)],
+		[middle, ago(count - 1 - middle)],
 		[count - 1, "now"],
 	];
 }
@@ -33,40 +32,15 @@ export function hourPointLabels(
 	return hours.map((h) => `${utcClock(h.hour)} UTC`);
 }
 
-/** Blocks behind the tip, per hour. Under two blocks counts as live. */
-export function BlocksBehindPanel({
-	hours,
-}: { hours: readonly SubgraphHealthHour[] }) {
-	const known = hours.some((h) => h.lagBlocks !== null);
-	return (
-		<section className="dash-panel bl-panel" aria-label="Blocks behind tip">
-			<span className="dash-label">Blocks behind tip · 24h</span>
-			{known ? (
-				<div className="dc-chart">
-					<LazyBandBarChart
-						rows={barsRows(hours.map((h) => ({ n: h.lagBlocks ?? 0 })))}
-						height={150}
-						xLabels={hourLabels(hours.length)}
-						pointLabels={hourPointLabels(hours)}
-						seriesNames={{ n: "Blocks behind", p: "", f: "" }}
-					/>
-				</div>
-			) : (
-				<p className="bl-note">No history yet. It fills in hour by hour.</p>
-			)}
-			<span className="bl-note">Under 2 blocks counts as live.</span>
-		</section>
-	);
-}
-
 /** Rows the subgraph wrote, per hour. */
 export function RowsWrittenPanel({
 	hours,
-}: { hours: readonly SubgraphHealthHour[] }) {
+	rangeLabel = "24h",
+}: { hours: readonly SubgraphHealthHour[]; rangeLabel?: string }) {
 	const known = hours.some((h) => h.lagBlocks !== null);
 	return (
 		<section className="dash-panel bl-panel" aria-label="Rows written per hour">
-			<span className="dash-label">Rows written per hour · 24h</span>
+			<span className="dash-label">Rows written per hour · {rangeLabel}</span>
 			{known ? (
 				<div className="dc-chart">
 					<LazyContextLineChart

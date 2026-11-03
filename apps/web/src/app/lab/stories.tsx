@@ -6,13 +6,17 @@ import {
 } from "@/components/account/overview/first-rows-code";
 import { SubgraphsEmptyState } from "@/components/account/subgraphs/empty-state";
 import { SubgraphsListBody } from "@/components/account/subgraphs/list-screen";
-import { SchemaView } from "@/components/account/subgraphs/schema-view";
+import { RecentRowsBody } from "@/components/account/subgraphs/recent-rows";
 import {
 	EXAMPLE_NOW,
+	PERF_TEST_SBTC_ROWS,
+	PERF_TEST_SBTC_SOURCE,
 	exampleDetail,
 	exampleHealth,
 	exampleList,
+	perfTestSbtcDetail,
 } from "@/components/account/subgraphs/subgraph.fixtures";
+import { TablesSection } from "@/components/account/subgraphs/tables-section";
 import { AsleepState } from "@/components/account/webhooks/list-panel";
 import { ListensFor } from "@/components/account/webhooks/listens-for";
 import {
@@ -98,7 +102,6 @@ import {
 	RowsEmptyDemo,
 	SheetDemo,
 	StackedCostDemo,
-	SubgraphGridDemo,
 	SubgraphSheetDemo,
 	SwipeRowDemo,
 	TopupSheetDemo,
@@ -161,6 +164,14 @@ RANGE              DATASET  STATUS        EXPECTED  LOCAL
 8500000-8549999    blocks   data differs  50000     50000
 
 These ranges hold different data than the signed archive.`;
+
+const PERF_TEST_SBTC_SOURCE_RESPONSE = {
+	name: "perf-test-sbtc",
+	version: "1.0.0",
+	sourceCode: PERF_TEST_SBTC_SOURCE,
+	readOnly: false,
+	updatedAt: "2026-11-03T19:50:00Z",
+};
 
 /** A week of hourly health for the subgraphs list story. */
 function weekHealth(errors24h: number) {
@@ -2691,59 +2702,77 @@ const META: Record<StoryId, Meta> = {
 			},
 		],
 	},
-	"subgraph-grid": {
+	"subgraph-tables": {
 		src: [
-			"apps/web/src/components/account/subgraphs/data-grid.tsx",
-			"apps/web/src/components/account/subgraphs/row-panel.tsx",
-			"apps/web/src/components/account/subgraphs/schema-view.tsx",
-			"apps/web/src/lib/subgraph-view.ts",
+			"apps/web/src/components/account/subgraphs/tables-section.tsx",
+			"apps/web/src/components/account/subgraphs/describe-table.ts",
 		],
-		rule: "Every row keeps the block and transaction it came from. Hover changes text color, never a background; yellow is only the new-row dot.",
+		rule: "Each table is one closed row. Details opens a sentence whose phrases focus the handler source that writes it.",
+		stack: true,
+		variants: [
+			{
+				id: "tables",
+				label: "Five tables",
+				render: () => (
+					<TablesSection
+						name="perf-test-sbtc"
+						tables={perfTestSbtcDetail.tables}
+						sources={perfTestSbtcDetail.sources}
+						source={PERF_TEST_SBTC_SOURCE_RESPONSE}
+					/>
+				),
+			},
+			{
+				id: "no-source",
+				label: "Source unavailable",
+				render: () => (
+					<TablesSection
+						name="perf-test-sbtc"
+						tables={perfTestSbtcDetail.tables}
+						sources={perfTestSbtcDetail.sources}
+						source={null}
+					/>
+				),
+			},
+		],
+		usage:
+			"<TablesSection name={name} tables={detail.tables} sources={detail.sources} source={source} />",
+		dos: ["Click a highlighted phrase to dim every other code row."],
+		donts: [
+			"Write a table's sentence by hand: it comes from describeTable.",
+			"Add hover behavior to the focus links; they press on click only.",
+		],
+	},
+	"subgraph-rows": {
+		src: ["apps/web/src/components/account/subgraphs/recent-rows.tsx"],
+		rule: "Every row keeps the block and transaction it came from. A row opens into the same payload frame webhooks use, showing its raw JSON.",
 		stack: true,
 		variants: [
 			{
 				id: "rows",
-				label: "Rows",
-				render: () => <SubgraphGridDemo />,
+				label: "Recent rows",
+				render: () => (
+					<RecentRowsBody
+						name="perf-test-sbtc"
+						rows={Object.entries(PERF_TEST_SBTC_ROWS).flatMap(([table, rows]) =>
+							rows.map((row) => ({ table, row })),
+						)}
+					/>
+				),
 			},
 			{
-				id: "open-row",
-				label: "Open row",
-				render: () => <SubgraphGridDemo openFirst />,
-			},
-			{
-				id: "schema",
-				label: "Schema",
-				render: () =>
-					exampleDetail.tables.transfers ? (
-						<SchemaView table={exampleDetail.tables.transfers} />
-					) : null,
+				id: "loading",
+				label: "Loading",
+				render: () => <RecentRowsBody name="perf-test-sbtc" rows={null} />,
 			},
 			{
 				id: "empty",
-				label: "Empty state",
-				render: () => <SubgraphsEmptyState />,
+				label: "No rows yet",
+				render: () => <RecentRowsBody name="perf-test-sbtc" rows={[]} />,
 			},
 		],
-		usage:
-			'<DataGrid name="sbtc-deposits" table="transfers" columns={columns} rowCount={n} />',
-		props: [
-			{
-				name: "columns",
-				type: "Record<string, { type: string }>",
-				note: "From the subgraph detail. Order and hidden system columns are derived.",
-			},
-			{
-				name: "key",
-				type: "string",
-				note: "Mount with a key per subgraph and table so a switch starts clean.",
-			},
-		],
-		dos: [
-			"Format digit strings, never Number: values can pass 2^53.",
-			"Close the live stream on unmount, sort, filter, page and hidden tabs.",
-		],
-		donts: ["Offer Filter on _id, _created_at or jsonb values."],
+		usage: "<RecentRowsBody name={name} rows={rows} />",
+		dos: ["Format digit strings, never Number: values can pass 2^53."],
 	},
 	handoff: {
 		src: ["apps/web/src/components/dashboard/insight/handoff-block.tsx"],

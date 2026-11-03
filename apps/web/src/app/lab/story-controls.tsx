@@ -46,16 +46,12 @@ import {
 	SubgraphSheetPanel,
 	sheetHead,
 } from "@/components/account/subgraphs/compact-sheet";
-import { GridView } from "@/components/account/subgraphs/data-grid";
 import { SubgraphRows } from "@/components/account/subgraphs/list-screen";
 import {
-	EXAMPLE_NOW,
-	exampleColumns,
 	exampleDetail,
 	exampleErrors,
 	exampleHealth,
 	exampleList,
-	exampleRows,
 } from "@/components/account/subgraphs/subgraph.fixtures";
 import { WebhookCompactDetailView } from "@/components/account/webhooks/compact-detail";
 import { WebhooksCompactList } from "@/components/account/webhooks/compact-list";
@@ -103,14 +99,6 @@ import type { Insight } from "@/lib/insights";
 import { FIXTURE_INSIGHTS } from "@/lib/insights.fixtures";
 import type { PushState } from "@/lib/push-client";
 import type { RowsDay, RowsResponse } from "@/lib/rows";
-import {
-	DEFAULT_SORT,
-	type SortState,
-	type TableFilter,
-	isDefaultSort,
-	toggleSort,
-	withFilter,
-} from "@/lib/subgraph-view";
 import type { SubgraphListItem } from "@/lib/subgraphs-store";
 import type { ApiKey } from "@/lib/types";
 import type { DailySpend } from "@/lib/usage";
@@ -743,56 +731,6 @@ function rowsStoryData(exhausted: boolean): RowsResponse {
 				]
 			: [],
 	};
-}
-
-/** The subgraph data grid on fixture rows, no network: sort, filter chips and
- *  the open-row panel work; the live tail is shown as a fresh dot on the top
- *  row. The callbacks are functions, which a server page cannot pass. */
-export function SubgraphGridDemo({ openFirst }: { openFirst?: boolean }) {
-	const [sort, setSort] = useState<SortState>(DEFAULT_SORT);
-	const [filters, setFilters] = useState<TableFilter[]>([]);
-	const [openKey, setOpenKey] = useState<string | null>(
-		openFirst ? String(exampleRows(1)[0]?._id) : null,
-	);
-	const sorted = [...exampleRows(25)]
-		.filter((row) => filters.every((f) => String(row[f.column]) === f.value))
-		.sort((a, b) => {
-			const x = String(a[sort.column] ?? "");
-			const y = String(b[sort.column] ?? "");
-			const order = x.localeCompare(y, "en", { numeric: true });
-			return sort.order === "desc" ? -order : order;
-		});
-	return (
-		<GridView
-			name="sbtc-deposits"
-			table="transfers"
-			columns={exampleColumns}
-			rowCount={412_880}
-			rows={sorted}
-			error={null}
-			sort={sort}
-			filters={filters}
-			live={isDefaultSort(sort)}
-			page={1}
-			hasNext
-			loading={false}
-			fresh={new Set([String(sorted[0]?._id)])}
-			openKey={openKey}
-			now={EXAMPLE_NOW}
-			onSort={(column) => setSort((prev) => toggleSort(prev, column))}
-			onFilter={(filter) => {
-				setFilters((prev) => withFilter(prev, filter));
-				setOpenKey(null);
-			}}
-			onRemoveFilter={(column) =>
-				setFilters((prev) => prev.filter((f) => f.column !== column))
-			}
-			onToggleRow={(key) => setOpenKey((prev) => (prev === key ? null : key))}
-			onNext={() => {}}
-			onNewest={() => {}}
-			onRetry={() => {}}
-		/>
-	);
 }
 
 /** The Rows screen: `onRetry` is a function, which a server page cannot pass. */

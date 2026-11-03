@@ -2,14 +2,12 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import {
 	clearSubgraphsData,
 	fetchRows,
-	prefetchFirstPage,
 	refreshDetail,
 	refreshErrors,
 	refreshHealth,
 	refreshList,
 	refreshListAndHealth,
-	rememberFirstPage,
-	streamUrl,
+	refreshSource,
 	subgraphsSnapshot,
 } from "./subgraphs-store";
 
@@ -80,6 +78,35 @@ describe("subgraphs store", () => {
 		expect(subgraphsSnapshot().errors["vault-events"]?.data).toEqual([]);
 	});
 
+	test("the source is cached for the page but never saved for a reload", async () => {
+		installStorage();
+		try {
+			const urls = stub(
+				json({
+					name: "vault-events",
+					version: "1.0.0",
+					sourceCode: "export default {}",
+					readOnly: false,
+					updatedAt: "2026-11-03T00:00:00Z",
+				}),
+			);
+			const res = await refreshSource("vault-events");
+			expect(res.kind).toBe("ok");
+			expect(urls[0]).toBe("/api/subgraphs/vault-events/source");
+			expect(subgraphsSnapshot().source["vault-events"]?.data.sourceCode).toBe(
+				"export default {}",
+			);
+			stub(json({ data: [{ name: "vault-events" }] }));
+			await refreshList();
+			expect(storage.get("sl:dash:v1:subgraphs")).toContain("vault-events");
+			expect(storage.get("sl:dash:v1:subgraphs")).not.toContain(
+				"export default",
+			);
+		} finally {
+			removeStorage();
+		}
+	});
+
 	test("rows are fetched through the rows path and not cached", async () => {
 		const urls = stub(json({ rows: [], next_cursor: null }));
 		const res = await fetchRows(
@@ -90,15 +117,6 @@ describe("subgraphs store", () => {
 		expect(res.kind).toBe("ok");
 		expect(urls[0]).toBe(
 			"/api/subgraphs/vault-events/rows/transfers?_sort=a&_order=desc",
-		);
-	});
-
-	test("the stream url carries the filters", () => {
-		expect(streamUrl("vault-events", "transfers", "kind=burn")).toBe(
-			"/api/subgraphs/vault-events/rows/transfers/stream?kind=burn",
-		);
-		expect(streamUrl("vault-events", "transfers", "")).toBe(
-			"/api/subgraphs/vault-events/rows/transfers/stream",
 		);
 	});
 });
@@ -149,29 +167,6 @@ describe("this tab's saved copy", () => {
 		expect(subgraphsSnapshot().list?.data[0]?.name).toBe("sbtc-deposits");
 		clearSubgraphsData();
 		expect(storage.has("sl:dash:v1:subgraphs")).toBe(false);
-	});
-});
-
-describe("first-page cache", () => {
-	const page = { rows: [{ _id: 1, _block_height: 9 }], next_cursor: null };
-
-	test("prefetching a first page stores its rows", async () => {
-		stub(json(page));
-		await prefetchFirstPage("a", "t", "_limit=50");
-		expect(subgraphsSnapshot().firstPage["a/t"]?.data.rows).toEqual(page.rows);
-	});
-
-	test("remembering 21 pages keeps the newest 20", () => {
-		for (let i = 0; i < 21; i++) rememberFirstPage(`s${i}`, "t", page);
-		const keys = Object.keys(subgraphsSnapshot().firstPage);
-		expect(keys).toHaveLength(20);
-		expect(keys).toContain("s20/t");
-	});
-
-	test("signing out empties the remembered pages", () => {
-		rememberFirstPage("a", "t", page);
-		clearSubgraphsData();
-		expect(subgraphsSnapshot().firstPage).toEqual({});
 	});
 });
 

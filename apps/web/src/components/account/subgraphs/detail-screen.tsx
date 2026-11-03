@@ -7,6 +7,7 @@ import { ActionableInsights } from "@/components/dashboard/insight/insight-actio
 import { Breadcrumb } from "@/components/dashboard/shell/breadcrumb";
 import { Skel } from "@/components/dashboard/shell/skel";
 import { dotClass } from "@/components/dashboard/shell/status-sentence";
+import { formatDate } from "@/lib/account-data";
 import type { Insight } from "@/lib/insights";
 import { forResource, useInsights } from "@/lib/insights-store";
 import type { Route } from "@/lib/not-found-match";
@@ -15,45 +16,44 @@ import {
 	formatBytes,
 	groupDigits,
 	handlerErrors24h,
-	shortCount,
 	subgraphTone,
 } from "@/lib/subgraph-view";
 import {
 	type SubgraphDetailData,
 	type SubgraphErrorGroup,
 	type SubgraphHealthData,
+	type SubgraphSource,
 	poll,
-	prefetchFirstPage,
 	refreshDetail,
 	refreshErrors,
 	refreshHealth,
+	refreshSource,
 	useSubgraphsCache,
 } from "@/lib/subgraphs-store";
-import Link from "next/link";
 import { useEffect, useState } from "react";
-import { DataGrid, firstPageQuery } from "./data-grid";
-import {
-	BlocksBehindPanel,
-	HandlerErrorsPanel,
-	RowsWrittenPanel,
-} from "./health-panels";
-import { SchemaView } from "./schema-view";
+import { HandlerErrorsPanel, RowsWrittenPanel } from "./health-panels";
+import { RecentRows } from "./recent-rows";
+import { TablesSection } from "./tables-section";
 
 const DETAIL_POLL_MS = 10_000;
 const HEALTH_POLL_MS = 60_000;
 
 /** Fact cells `SubgraphDetailBody` renders, and the settled page's measured
- *  panel heights at 1440 px (tabs plus a 10-row grid; two health panels). */
-const SKELETON_FACTS = 5;
-const PANEL_SKELETON_HEIGHT = 545;
-const HEALTH_SKELETON_HEIGHT = 206;
+ *  chart height. */
+const SKELETON_FACTS = 6;
+const CHART_SKELETON_HEIGHT = 206;
+const SKELETON_TABLE_ROWS = 5;
 
-export type SubgraphView = "rows" | "schema";
-
-const VIEW_OPTIONS = [
-	{ value: "rows", label: "Rows" },
-	{ value: "schema", label: "Schema" },
-];
+/** Health stops at seven days. */
+export type SubgraphRange = "24h" | "48h" | "7d";
+const RANGE_HOURS: Record<SubgraphRange, number> = {
+	"24h": 24,
+	"48h": 48,
+	"7d": 168,
+};
+const RANGE_OPTIONS = (Object.keys(RANGE_HOURS) as SubgraphRange[]).map(
+	(value) => ({ value, label: value }),
+);
 
 const fact = (label: string, value: string) => (
 	<div key={label}>
@@ -62,33 +62,50 @@ const fact = (label: string, value: string) => (
 	</div>
 );
 
+/** The registry name in "SM3V….sbtc-registry". */
+const contractName = (contractId: string): string =>
+	contractId.slice(contractId.lastIndexOf(".") + 1);
+
+/** The one contract the sources read, "N contracts" for several, "–" for none. */
+function sourceFact(detail: SubgraphDetailData): string {
+	const contracts = new Set(
+		Object.values(detail.sources ?? {})
+			.map((source) => source.contractId)
+			.filter((id): id is string => Boolean(id))
+			.map(contractName),
+	);
+	if (contracts.size === 0) return "–";
+	if (contracts.size === 1) return [...contracts][0] ?? "–";
+	return `${contracts.size} contracts`;
+}
+
+const sum = (values: readonly number[]): number =>
+	values.reduce((total, value) => total + value, 0);
+
 export interface SubgraphDetailBodyProps {
 	detail: SubgraphDetailData;
 	health: SubgraphHealthData | undefined;
 	errors: readonly SubgraphErrorGroup[];
-	table: string;
-	view: SubgraphView;
+	/** The authored source; null while it loads or when unavailable. */
+	source: SubgraphSource | null;
+	range: SubgraphRange;
 	/** Insights about this subgraph, ranked by the server. */
 	insights?: readonly Insight[];
-	onTable: (table: string) => void;
-	onView: (view: SubgraphView) => void;
+	onRange: (range: SubgraphRange) => void;
 }
 
-/** One subgraph: facts, a tab per table with Rows or Schema, and its health. */
+/** One subgraph: facts and a chart, what each table writes, and its newest rows. */
 export function SubgraphDetailBody({
 	detail,
 	health,
 	errors,
-	table,
-	view,
+	source,
+	range,
 	insights,
-	onTable,
-	onView,
+	onRange,
 }: SubgraphDetailBodyProps) {
-	const tables = Object.entries(detail.tables);
-	const current = detail.tables[table];
 	const errors24h = handlerErrors24h(health);
-	const totalRows = tables.reduce((sum, [, t]) => sum + t.rowCount, 0);
+	const windowHours = health?.hours.slice(-RANGE_HOURS[range]);
 	return (
 		<>
 			<Breadcrumb
@@ -105,18 +122,35 @@ export function SubgraphDetailBody({
 							<span className="wd-name">{detail.name}</span>
 						</h1>
 					</div>
+					<div className="wd-actions">
+						<Choice
+							name="sg-range"
+							size="sm"
+							legend="Range"
+							options={RANGE_OPTIONS}
+							value={range}
+							onChange={(value) => onRange(value as SubgraphRange)}
+						/>
+					</div>
 				</div>
 				<div className="wd-facts">
+					{fact(
+						`Rows written · ${range}`,
+						windowHours
+							? groupDigits(String(sum(windowHours.map((h) => h.rowsWritten))))
+							: "–",
+					)}
+					{fact(
+						`Handler errors · ${range}`,
+						windowHours
+							? sum(windowHours.map((h) => h.errors)).toLocaleString("en-US")
+							: "–",
+					)}
 					{fact(
 						"Behind tip",
 						detail.status === "reindexing"
 							? `Reindexing · ${blocksLabel(detail.sync.blocksRemaining)} left`
 							: blocksLabel(detail.sync.blocksRemaining),
-					)}
-					{fact("Rows", groupDigits(String(totalRows)))}
-					{fact(
-						"Handler errors 24h",
-						errors24h === null ? "–" : errors24h.toLocaleString("en-US"),
 					)}
 					{fact(
 						"Storage",
@@ -124,77 +158,37 @@ export function SubgraphDetailBody({
 							? "–"
 							: formatBytes(detail.storageBytes),
 					)}
-					{fact("Version", `v${detail.version}`)}
+					{fact("Source", sourceFact(detail))}
+					{fact("Created", formatDate(detail.createdAt))}
 				</div>
 			</header>
 
 			<ActionableInsights insights={insights ?? []} />
 
-			<section className="dash-panel sg-panel" aria-label="Tables">
-				<div className="sg-head">
-					<nav className="sg-tabs" role="tablist" aria-label="Tables">
-						{tables.map(([name, t]) => (
-							<button
-								key={name}
-								type="button"
-								role="tab"
-								aria-selected={name === table}
-								onClick={() => onTable(name)}
-							>
-								{name}
-								<span className="sg-count">{shortCount(t.rowCount)}</span>
-							</button>
-						))}
-					</nav>
-					<div className="sg-view">
-						<Choice
-							name="sg-view"
-							size="sm"
-							legend="View"
-							options={VIEW_OPTIONS}
-							value={view}
-							onChange={(value) => onView(value as SubgraphView)}
-						/>
-					</div>
-				</div>
-				{current ? (
-					view === "rows" ? (
-						<DataGrid
-							key={`${detail.name}/${table}`}
-							name={detail.name}
-							table={table}
-							columns={current.columns}
-							rowCount={current.rowCount}
-						/>
-					) : (
-						<SchemaView table={current} />
-					)
-				) : (
-					<p className="wd-faint">This subgraph has no tables yet.</p>
-				)}
-			</section>
-
-			{health ? (
-				<div className="bl-two even sg-health">
-					<BlocksBehindPanel hours={health.hours} />
-					<RowsWrittenPanel hours={health.hours} />
-				</div>
+			{windowHours ? (
+				<RowsWrittenPanel hours={windowHours} rangeLabel={range} />
 			) : (
-				<div className="bl-two even sg-health">
-					<ChartSkeleton height={150} />
-					<ChartSkeleton height={150} />
-				</div>
+				<ChartSkeleton height={CHART_SKELETON_HEIGHT} />
 			)}
+
+			<div className="wd-stack">
+				<TablesSection
+					name={detail.name}
+					tables={detail.tables}
+					sources={detail.sources}
+					source={source}
+				/>
+				<RecentRows name={detail.name} tables={detail.tables} />
+			</div>
 
 			<HandlerErrorsPanel groups={errors} />
 		</>
 	);
 }
 
-/** Stands in for the whole page: breadcrumb, title, facts, the tables panel
- *  and the two health panels, built from the same wrappers and sized to what
- *  a settled page measures (10-row grid at 1440 px), so nothing moves when
- *  the real content lands. */
+/** Stands in for the whole page: breadcrumb, title, facts, the chart and a few
+ *  table rows, built from the same wrappers, so nothing moves when the real
+ *  content lands. */
 function DetailSkeleton({ name }: { name: string }) {
 	return (
 		<>
@@ -218,16 +212,12 @@ function DetailSkeleton({ name }: { name: string }) {
 					))}
 				</div>
 			</header>
-			<section
-				className="dash-panel sg-panel"
-				aria-label="Loading tables"
-				aria-busy="true"
-			>
-				<ChartSkeleton height={PANEL_SKELETON_HEIGHT} />
-			</section>
-			<div className="bl-two even sg-health">
-				<ChartSkeleton height={HEALTH_SKELETON_HEIGHT} />
-				<ChartSkeleton height={HEALTH_SKELETON_HEIGHT} />
+			<ChartSkeleton height={CHART_SKELETON_HEIGHT} />
+			<div className="wd-stack" aria-busy="true">
+				{Array.from({ length: SKELETON_TABLE_ROWS }).map((_, i) => (
+					// biome-ignore lint/suspicious/noArrayIndexKey: static skeleton rows
+					<Skel key={i} width="100%" height={44} />
+				))}
 			</div>
 		</>
 	);
@@ -252,19 +242,10 @@ function NotFound({ name, others }: { name: string; others: Route[] | null }) {
 
 /** /account/subgraphs/<name>: loads and refreshes one subgraph. */
 export function SubgraphDetailSection({ name }: { name: string }) {
-	const { list, detail, health, errors } = useSubgraphsCache();
+	const { list, detail, health, errors, source } = useSubgraphsCache();
 	const { data: insights } = useInsights();
 	const [missing, setMissing] = useState(false);
-	const [table, setTable] = useState<string | null>(null);
-	const [view, setView] = useState<SubgraphView>("rows");
-
-	// The list already knows the table names, so the grid's rows can load
-	// beside the detail instead of after it. Never guess a table name.
-	const firstTable = list?.data.find((s) => s.name === name)?.tables[0];
-	// biome-ignore lint/correctness/useExhaustiveDependencies: once per subgraph, not per list refresh
-	useEffect(() => {
-		if (firstTable) void prefetchFirstPage(name, firstTable, firstPageQuery());
-	}, [name]);
+	const [range, setRange] = useState<SubgraphRange>("7d");
 
 	useEffect(
 		() =>
@@ -282,11 +263,16 @@ export function SubgraphDetailSection({ name }: { name: string }) {
 	useEffect(
 		() =>
 			poll(async () => {
-				await refreshHealth(name);
+				await refreshHealth(name, RANGE_HOURS[range]);
 				return {};
 			}, HEALTH_POLL_MS),
-		[name],
+		[name, range],
 	);
+
+	// The source changes only on a deploy; read it once per visit.
+	useEffect(() => {
+		void refreshSource(name);
+	}, [name]);
 
 	const data = detail[name]?.data;
 	const healthData = health[name]?.data;
@@ -317,19 +303,15 @@ export function SubgraphDetailSection({ name }: { name: string }) {
 		return <DetailSkeleton name={name} />;
 	}
 
-	const tableNames = Object.keys(data.tables);
-	const selected =
-		table && table in data.tables ? table : (tableNames[0] ?? "");
 	return (
 		<SubgraphDetailBody
 			detail={data}
 			health={healthData}
 			errors={hasErrors ? (errors[name]?.data ?? []) : []}
-			table={selected}
-			view={view}
+			source={source[name]?.data ?? null}
+			range={range}
 			insights={forResource(insights, "subgraph", name)}
-			onTable={setTable}
-			onView={setView}
+			onRange={setRange}
 		/>
 	);
 }

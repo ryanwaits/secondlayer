@@ -50,6 +50,22 @@ export interface SubgraphTableInfo {
 	uniqueKeys?: readonly (readonly string[])[];
 }
 
+export interface SubgraphSourceInfo {
+	type: string;
+	contractId?: string;
+	topic?: string;
+	functionName?: string;
+}
+
+/** A subgraph's authored source, as the proxy returns it (no deployed bundle). */
+export interface SubgraphSource {
+	name: string;
+	version: string;
+	sourceCode: string | null;
+	readOnly: boolean;
+	updatedAt: string;
+}
+
 export interface SubgraphDetailData {
 	name: string;
 	version: string;
@@ -62,6 +78,7 @@ export interface SubgraphDetailData {
 	};
 	sync: { status: string; blocksRemaining: number; chainTip: number };
 	tables: Record<string, SubgraphTableInfo>;
+	sources?: Record<string, SubgraphSourceInfo>;
 	storageBytes?: number;
 	createdAt: string;
 	updatedAt: string;
@@ -111,8 +128,8 @@ type State = {
 	detail: Record<string, CacheEntry<SubgraphDetailData>>;
 	health: Record<string, CacheEntry<SubgraphHealthData>>;
 	errors: Record<string, CacheEntry<SubgraphErrorGroup[]>>;
-	/** Each grid's newest page, keyed `${name}/${table}`. Seeds a revisit's first frame. */
-	firstPage: Record<string, CacheEntry<SubgraphRowsPage>>;
+	/** Never persisted: a source can be large. */
+	source: Record<string, CacheEntry<SubgraphSource>>;
 };
 
 const EMPTY: State = {
@@ -120,11 +137,8 @@ const EMPTY: State = {
 	detail: {},
 	health: {},
 	errors: {},
-	firstPage: {},
+	source: {},
 };
-
-/** How many grids' first pages stay remembered. */
-const FIRST_PAGE_LIMIT = 20;
 
 const NAME = "subgraphs";
 type Persisted = Pick<State, "list" | "health">;
@@ -326,48 +340,30 @@ export function refreshErrors(
 	});
 }
 
-/** One page of a table's rows. Not cached: the grid owns its page state. */
+export function refreshSource(
+	name: string,
+): Promise<SubgraphsResult<SubgraphSource>> {
+	const key = `subgraphs:source:${name}`;
+	return shared(key, async () => {
+		const res = await request<SubgraphSource>(`/${seg(name)}/source`);
+		if (res.kind === "ok") {
+			set({
+				source: {
+					...current().source,
+					[name]: { data: res.data, at: Date.now() },
+				},
+			});
+			markFresh(key);
+		}
+		return res;
+	});
+}
+
+/** One page of a table's rows. Not cached: callers hold what they read. */
 export function fetchRows(
 	name: string,
 	table: string,
 	query: string,
 ): Promise<SubgraphsResult<SubgraphRowsPage>> {
 	return request<SubgraphRowsPage>(`/${seg(name)}/rows/${seg(table)}?${query}`);
-}
-
-export const firstPageKey = (name: string, table: string): string =>
-	`${name}/${table}`;
-
-/** Remember a grid's first page; the oldest beyond the limit are dropped. */
-export function rememberFirstPage(
-	name: string,
-	table: string,
-	page: SubgraphRowsPage,
-): void {
-	const next = {
-		...current().firstPage,
-		[firstPageKey(name, table)]: { data: page, at: Date.now() },
-	};
-	const keys = Object.keys(next);
-	if (keys.length > FIRST_PAGE_LIMIT) {
-		keys.sort((a, b) => (next[a]?.at ?? 0) - (next[b]?.at ?? 0));
-		for (const key of keys.slice(0, keys.length - FIRST_PAGE_LIMIT))
-			delete next[key];
-	}
-	set({ firstPage: next });
-}
-
-/** Read a grid's first page ahead of the grid mounting. */
-export async function prefetchFirstPage(
-	name: string,
-	table: string,
-	query: string,
-): Promise<void> {
-	const res = await fetchRows(name, table, query);
-	if (res.kind === "ok") rememberFirstPage(name, table, res.data);
-}
-
-/** The SSE path for a table's new rows, same filters as the page. */
-export function streamUrl(name: string, table: string, query: string): string {
-	return `/api/subgraphs/${seg(name)}/rows/${seg(table)}/stream${query ? `?${query}` : ""}`;
 }
