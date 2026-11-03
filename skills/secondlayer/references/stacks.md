@@ -526,6 +526,8 @@ type TransferStxParams = {
 type CallContractParams = {
   contract: string;               // "address.name"
   functionName: string;
+  args?: ClarityValue[];
+  /** @deprecated Use `args`. */
   functionArgs?: ClarityValue[];
   fee?: IntegerType;
   nonce?: IntegerType;
@@ -559,7 +561,7 @@ import { Pc } from "@secondlayer/stacks/postconditions";
 const txid = await wallet.callContract({
   contract: "SP3K8BC0PPEVCV7NZ6QSRWPQ2JE9E5B6N3PA0KBR9.usda-token",
   functionName: "transfer",
-  functionArgs: [
+  args: [
     Cl.uint(1_000_000n),
     Cl.principal(wallet.account.address),
     Cl.principal("SP2J6ZY48GV1EZ5V2V5RB9MP66SW86PYKKNRV9EJ7"),
@@ -979,7 +981,7 @@ hashP2PKH(pubkey): string                // hash160 hex
 
 **Keys**: `compressPublicKey`, `uncompressPublicKey`, `isCompressedPublicKey`, `randomBytes(length?)`.
 
-**Signature**: `parseSignature(hex)`, `serializeSignature(sig)`, `signatureVrsToRsv`, `signatureRsvToVrs`, `recoverPublicKey`, `recoverAddress`, `verifySignature`, `verifyMessageSignature`, type `RecoverableSignature`.
+**Signature**: `parseSignature(hex)`, `serializeSignature(sig)`, `signatureVrsToRsv`, `signatureRsvToVrs`, `recoverPublicKey`, `recoverAddress`, `verifySignature`, `verifyMessage`, type `RecoverableSignature`.
 
 **Encoding**: `bytesToHex`, `hexToBytes`, `with0x`, `without0x`, `utf8ToBytes`, `bytesToUtf8`, `asciiToBytes`, `bytesToAscii`, `concatBytes`, `intToBigInt`, `intToBytes`, `bigIntToBytes`, `intToHex`, `toTwos`, `fromTwos`, `bytesToTwosBigInt`, `writeUInt32BE`, `readUInt32BE`, `writeUInt16BE`, `readUInt16BE`, `writeUInt8`, type `IntegerType` (`bigint | number | string`).
 

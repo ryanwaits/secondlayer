@@ -214,7 +214,7 @@ const client = createWalletClient({
 const txid = await client.callContract({
 	contract: "ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM.counter",
 	functionName: "increment",
-	functionArgs: [],
+	args: [],
 });
 console.log(txid);
 ```
@@ -447,7 +447,7 @@ export const agent = `
 - Local runtime (from docker/oss in a checkout, see /docs/self-host): 'secondlayer init --network mainnet' writes .env.local; 'secondlayer bootstrap --against <manifest>' restores into an empty database; 'secondlayer observer --mode indexer' prints the [[events_observer]] stanza; 'secondlayer verify all --against <manifest>' checks the restore (raw or all, --deep for semantic digests). Use --mode signer-shared where documented.
 - 'secondlayer subgraphs create <name> --from-contract <contract id>' infers typed print payloads from indexed history.
 - From inside a Clarinet project: 'secondlayer devnet connect' patches settings/Devnet.toml to forward events to the indexer on :3700, writes .secondlayer/docker-compose.yml for Postgres plus the one-box runtime image, pulls it and starts it. Then 'clarinet devnet start'; confirm 'curl http://localhost:3800/health'. Streams, Index, Subgraphs and Webhooks all work on devnet.
-- Send calls with @secondlayer/stacks: createWalletClient({ account: privateKeyToAccount(<key>), chain: devnet, transport: http('http://localhost:20443') }).callContract({ contract: '<addr>.<name>', functionName, functionArgs }) (the Stacks API on :3999 may be disabled). The returned txid has no 0x; /v1/index/transactions/<txid> needs the 0x prefix. Streams holds back the newest blocks as a reorg margin.
+- Send calls with @secondlayer/stacks: createWalletClient({ account: privateKeyToAccount(<key>), chain: devnet, transport: http('http://localhost:20443') }).callContract({ contract: '<addr>.<name>', functionName, args }) (the Stacks API on :3999 may be disabled). The returned txid has no 0x; /v1/index/transactions/<txid> needs the 0x prefix. Streams holds back the newest blocks as a reorg margin.
 - Subgraphs: 'secondlayer subgraphs create <name> --from-contract <contract id>' (needs one indexed print event first). Export SECONDLAYER_API_URL=http://localhost:3800 and INSTANCE_TOKEN=dev-instance-token (a fixed local token; deploys are writes), then 'secondlayer subgraphs deploy <file>'. No SDK install or git step is needed. Reads on loopback need no token: 'curl $SECONDLAYER_API_URL/v1/subgraphs/<name>/<table>'.
 - Webhooks on devnet: the receiver URL must use host.docker.internal, not localhost. Deliveries are signed with a public dev key; GET /api/webhooks/signing-key with the instance token returns the verify key.
 - 'secondlayer devnet faucet --to <address>' mints mock sBTC and needs the Stacks API on :3999 (do not set disable_stacks_api).

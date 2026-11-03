@@ -58,9 +58,9 @@ parseUnits("0.001", 6);   // 1000n
 ## Signatures
 
 ```typescript
-import { verifyMessageSignature, recoverPublicKey } from "@secondlayer/stacks/utils";
+import { verifyMessage, recoverPublicKey } from "@secondlayer/stacks/utils";
 
-const valid = verifyMessageSignature("Hello", "0x...", "03ab...");
+const valid = verifyMessage({ message: "Hello", signature: "0x...", publicKey: "03ab..." });
 
 const pubkey = recoverPublicKey(hash, signature);
 ```

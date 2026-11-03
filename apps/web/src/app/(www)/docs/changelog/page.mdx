@@ -4,6 +4,10 @@ Notable changes to Secondlayer and its SDKs. Entries dated before August 2026 de
 
 ## SDK — November 2026
 
+### Contract calls take `args`, and `verifyMessage` takes one object
+
+`callContract` takes `args`, like `readContract` and `simulateCall`. `functionArgs` still works and is deprecated. The new `verifyMessage({ message, signature, publicKey })` replaces `verifyMessageSignature`, which is deprecated.
+
 ### Testnet and devnet keys just work
 
 `createWalletClient` now signs from the address for its chain when the account comes from a local key. `privateKeyToAccount(key)` works on testnet and devnet without `addressVersion`, and no longer fails with `BadNonce`. Browser wallet accounts keep the wallet's address.

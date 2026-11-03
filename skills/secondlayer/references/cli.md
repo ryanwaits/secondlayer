@@ -859,7 +859,7 @@ const client = createWalletClient({
 const txid = await client.callContract({
 	contract: "ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM.counter",
 	functionName: "increment",
-	functionArgs: [],
+	args: [],
 });
 console.log(txid);
 ```

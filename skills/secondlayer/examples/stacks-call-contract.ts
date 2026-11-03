@@ -44,7 +44,7 @@ const AMOUNT = 100_000_000n; // assuming 6 decimals → 100 USDA
 const txid2 = await wallet.callContract({
   contract: TOKEN,
   functionName: "transfer",
-  functionArgs: [
+  args: [
     Cl.uint(AMOUNT),
     Cl.principal(account.address),
     Cl.principal(RECIPIENT),
@@ -66,7 +66,7 @@ const TOKEN_ID = 42n;
 const txid3 = await wallet.callContract({
   contract: NFT,
   functionName: "transfer",
-  functionArgs: [
+  args: [
     Cl.uint(TOKEN_ID),
     Cl.principal(account.address),
     Cl.principal(RECIPIENT),
