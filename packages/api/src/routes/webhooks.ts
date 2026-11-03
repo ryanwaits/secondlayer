@@ -731,7 +731,8 @@ app.get("/:id/deliveries", async (c) => {
 			"d.status_code",
 			"d.error_message",
 			"d.duration_ms",
-			"d.response_body",
+			// Preview only: the full body is on the single-delivery read.
+			sql<string | null>`left(d.response_body, 512)`.as("response_body"),
 			"d.dispatched_at",
 			"o.block_height",
 			"o.block_time",

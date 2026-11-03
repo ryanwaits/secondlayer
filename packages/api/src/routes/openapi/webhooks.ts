@@ -1526,7 +1526,8 @@ export const webhooksSchemas = {
 			},
 			responseBody: {
 				type: ["string", "null"],
-				description: "Start of the target's response body.",
+				description:
+					"First 512 characters of the target's response body. The single-attempt read returns the whole body.",
 			},
 			dispatchedAt: {
 				type: "string",

@@ -808,6 +808,7 @@ export interface DeliveryRow {
 	statusCode: number | null;
 	errorMessage: string | null;
 	durationMs: number | null;
+	/** First 512 characters; the full body is on `deliveries.get`. */
 	responseBody: string | null;
 	dispatchedAt: string;
 	/** Null for test deliveries and events already compacted out of the

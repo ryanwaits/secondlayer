@@ -707,6 +707,47 @@ describe.skipIf(SKIP)("Webhooks API validation", () => {
 		expect(withoutOutbox?.blockTime).toBeNull();
 	});
 
+	test("deliveries list previews the response body at 512 characters while the single read returns it whole", async () => {
+		const created = await app.request("/webhooks", {
+			method: "POST",
+			body: JSON.stringify({
+				name: "deliveries-body-preview",
+				triggers: [{ type: "stx_transfer" }],
+				url: "https://example.com/webhook",
+			}),
+		});
+		const body = (await created.json()) as { webhook: { id: string } };
+		const webhookId = body.webhook.id;
+
+		const fullBody = "x".repeat(4096);
+		const inserted = await getDb()
+			.insertInto("webhook_deliveries")
+			.values({
+				webhook_id: webhookId,
+				outbox_id: null,
+				attempt: 1,
+				status_code: 500,
+				response_body: fullBody,
+			})
+			.returning("id")
+			.executeTakeFirstOrThrow();
+
+		const listRes = await app.request(`/webhooks/${webhookId}/deliveries`);
+		expect(listRes.status).toBe(200);
+		const { data } = (await listRes.json()) as {
+			data: Array<{ responseBody: string | null }>;
+		};
+		expect(data).toHaveLength(1);
+		expect(data[0]?.responseBody).toHaveLength(512);
+
+		const oneRes = await app.request(
+			`/webhooks/${webhookId}/deliveries/${inserted.id}`,
+		);
+		expect(oneRes.status).toBe(200);
+		const one = (await oneRes.json()) as { responseBody: string };
+		expect(one.responseBody).toHaveLength(4096);
+	});
+
 	test("deliveries report the outbox row's tx id and its row_pk's event index", async () => {
 		const created = await app.request("/webhooks", {
 			method: "POST",

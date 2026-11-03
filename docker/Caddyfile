@@ -24,6 +24,18 @@ api.{$BASE_DOMAIN:secondlayer.tools} {
 		format json
 	}
 
+	# JSON and text only: `text/event-stream` never matches, so SSE stays
+	# unbuffered and uncompressed.
+	encode {
+		zstd
+		gzip
+		match {
+			header Content-Type application/json*
+			header Content-Type text/plain*
+			header Content-Type text/csv*
+		}
+	}
+
 	handle /hooks/slack* {
 		reverse_proxy agent:3900
 	}
