@@ -1,6 +1,9 @@
 import { describe, expect, it } from "bun:test";
-import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { Client } from "@modelcontextprotocol/sdk/client/index.js";
+import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
+import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { ApiError } from "@secondlayer/sdk";
+import { z } from "zod";
 import { defineTool } from "./tool.ts";
 
 type Handler = (args: Record<string, unknown>) => Promise<{
@@ -86,5 +89,52 @@ describe("defineTool error payload", () => {
 		);
 		expect(error.request_id).toBe("req_abc12345");
 		expect("feedback" in error).toBe(false);
+	});
+});
+
+describe("defineTool arguments", () => {
+	async function connect() {
+		const server = new McpServer({ name: "t", version: "0" });
+		let received: unknown;
+		defineTool<{ fromHeight?: number }>(
+			server,
+			"probe",
+			"probe",
+			{ fromHeight: z.number().optional() },
+			(args) => {
+				received = args;
+				return { content: [{ type: "text", text: "ok" }] };
+			},
+		);
+		defineTool<Record<string, never>>(server, "bare", "bare", {}, () => ({
+			content: [{ type: "text", text: "ok" }],
+		}));
+		const client = new Client({ name: "c", version: "0" });
+		const [a, b] = InMemoryTransport.createLinkedPair();
+		await Promise.all([server.connect(a), client.connect(b)]);
+		return { client, received: () => received };
+	}
+
+	it("a wrong argument name is an error naming it, not a silently unfiltered read", async () => {
+		const { client, received } = await connect();
+		const res = await client.callTool({
+			name: "probe",
+			arguments: { from_height: 9000000 },
+		});
+		expect(res.isError).toBe(true);
+		expect(JSON.stringify(res.content)).toContain("from_height");
+		expect(received()).toBeUndefined();
+	});
+
+	it("valid arguments and a tool with no arguments still work", async () => {
+		const { client, received } = await connect();
+		const ok = await client.callTool({
+			name: "probe",
+			arguments: { fromHeight: 1 },
+		});
+		expect(ok.isError).toBeFalsy();
+		expect(received()).toEqual({ fromHeight: 1 });
+		const bare = await client.callTool({ name: "bare" });
+		expect(bare.isError).toBeFalsy();
 	});
 });

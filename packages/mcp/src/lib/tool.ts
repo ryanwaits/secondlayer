@@ -1,4 +1,5 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { z } from "zod";
 
 interface ToolResult {
 	content: Array<{ type: "text"; text: string }>;
@@ -124,10 +125,15 @@ export function defineTool<T>(
 	const names = serverToolNames.get(server) ?? new Set<string>();
 	names.add(name);
 	serverToolNames.set(server, names);
-	(server.tool as (...args: unknown[]) => unknown)(
+	const registered = (server.tool as (...args: unknown[]) => unknown)(
 		name,
 		description,
 		schema,
 		wrappedHandler,
-	);
+	) as { inputSchema?: unknown } | undefined;
+	// `tool()` strips unknown arguments, so a misnamed filter would silently
+	// widen a read. Reject them instead, naming the key.
+	if (registered) {
+		registered.inputSchema = z.strictObject(schema as z.ZodRawShape);
+	}
 }
