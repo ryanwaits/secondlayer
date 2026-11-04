@@ -25,8 +25,12 @@ import {
 } from "@/components/account/subgraphs/subgraph.fixtures";
 import { TablesSection } from "@/components/account/subgraphs/tables-section";
 import { UseSection } from "@/components/account/subgraphs/use-section";
-import { AsleepState } from "@/components/account/webhooks/list-panel";
+import {
+	AsleepState,
+	WebhooksListBody,
+} from "@/components/account/webhooks/list-panel";
 import { ListensFor } from "@/components/account/webhooks/listens-for";
+import { rowModel } from "@/components/account/webhooks/rows";
 import {
 	activityFor,
 	detail,
@@ -112,6 +116,7 @@ import {
 	SwipeRowDemo,
 	TopupSheetDemo,
 	WebhookHeaderDemo,
+	WebhooksIndexDemo,
 } from "./story-controls";
 import { STORY_INDEX, type StoryId } from "./tree";
 
@@ -190,6 +195,33 @@ function weekHealth(errors24h: number) {
 	}));
 	return { hours, errors24h };
 }
+
+/** Subgraphs for the index story: healthy, catching up, reindexing and
+ *  failing rows, each on a week of health. */
+const MANY_SUBGRAPHS = [
+	{ ...exampleList[0], name: "sbtc-deposits" },
+	{ ...exampleList[1], name: "vault-events", blocksRemaining: 112 },
+	{ ...exampleList[0], name: "pox-cycles", totalRows: 31_022 },
+	{
+		...exampleList[0],
+		name: "lending-positions",
+		status: "reindexing",
+		blocksRemaining: 88,
+	},
+	{
+		...exampleList[1],
+		name: "bns-registry",
+		blocksRemaining: 0,
+		tables: ["names", "owners"],
+	},
+	{ ...exampleList[0], name: "token-balances", totalRows: 1_840_221 },
+] as typeof exampleList;
+const MANY_HEALTH = Object.fromEntries(
+	MANY_SUBGRAPHS.map((item) => [
+		item.name,
+		weekHealth(item.name === "bns-registry" ? 3 : 0),
+	]),
+);
 
 const VERIFY_OK = `$ secondlayer verify subgraph pool-reserves --replay --from 1230000 --to 1231000
 ✓ pin       7f3c…a91e  handler, schema and startBlock match the deploy
@@ -2191,9 +2223,34 @@ const META: Record<StoryId, Meta> = {
 			"No gave up count while a replay is running.",
 		],
 	},
+	"webhooks-list": {
+		src: ["apps/web/src/components/account/webhooks/list-panel.tsx"],
+		rule: "The webhooks index is one row per webhook that has delivered: name, a status only when something needs you, a why line, and three numbers beside seven days as an hour-by-day grid (Rows) or one continuous strip (Ribbon). Search and Status show from four rows.",
+		variants: [
+			{
+				id: "rows",
+				label: "Three webhooks, Rows",
+				render: () => <WebhooksIndexDemo count={3} />,
+			},
+			{
+				id: "ribbon",
+				label: "Three webhooks, Ribbon",
+				render: () => <WebhooksIndexDemo count={3} initialView="ribbon" />,
+			},
+			{
+				id: "many",
+				label: "Six webhooks, search and status",
+				render: () => <WebhooksIndexDemo count={6} />,
+			},
+		],
+		usage:
+			"<WebhooksListBody rows={rows} hours={hours} notice={null} onOpenHour={open} initialView={view} />",
+		dos: ["Show the three numbers and the one why line; nothing else."],
+		donts: ["Show a status on a healthy row."],
+	},
 	"subgraphs-list": {
 		src: ["apps/web/src/components/account/subgraphs/list-screen.tsx"],
-		rule: "The subgraphs index is the webhooks index: a title, one row per subgraph with its state and what flows where, and seven days of rows written as an hour-by-day grid. Failed hours are red.",
+		rule: "The subgraphs index is the webhooks index: one row per subgraph with a status only when something needs you, a why line, rows, errors and time since the last write, beside seven days of rows written as an hour-by-day grid (Rows) or one continuous strip (Ribbon). Every strip shares one timeline. Failed hours are red.",
 		variants: [
 			{
 				id: "rows",
@@ -2210,6 +2267,32 @@ const META: Record<StoryId, Meta> = {
 				),
 			},
 			{
+				id: "ribbon",
+				label: "Two subgraphs, Ribbon",
+				render: () => (
+					<SubgraphsListBody
+						items={exampleList}
+						health={{
+							"sbtc-deposits": weekHealth(0),
+							"vault-events": weekHealth(3),
+						}}
+						notice={null}
+						initialView="ribbon"
+					/>
+				),
+			},
+			{
+				id: "many",
+				label: "Six subgraphs, search and status",
+				render: () => (
+					<SubgraphsListBody
+						items={MANY_SUBGRAPHS}
+						health={MANY_HEALTH}
+						notice={null}
+					/>
+				),
+			},
+			{
 				id: "loading",
 				label: "Health loading",
 				render: () => (
@@ -2217,8 +2300,9 @@ const META: Record<StoryId, Meta> = {
 				),
 			},
 		],
-		usage: "<SubgraphsListBody items={items} health={health} notice={null} />",
-		donts: ["Add a column header or a status sentence above the rows."],
+		usage:
+			"<SubgraphsListBody items={items} health={health} notice={null} initialView={view} />",
+		donts: ["Show a status on a healthy row."],
 	},
 	"mobile-subgraphs": {
 		src: [

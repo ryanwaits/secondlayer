@@ -7050,6 +7050,515 @@ button.dash-row {
 	border: 1px solid var(--line);
 	border-radius: 999px;
 }
+
+/* Index pages (webhooks, subgraphs): toolbar, count + key, and rows on one
+   shared 168-hour timeline, as Rows or Ribbon. The hover fill is the row's own
+   box and meets both hairlines; content sits 12px in. Borders never change. */
+.ix-tools {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 10px;
+	align-items: center;
+	margin-top: 32px;
+}
+.ix-search {
+	position: relative;
+	flex: 0 1 280px;
+	min-width: 0;
+}
+.ix-search svg {
+	position: absolute;
+	left: 10px;
+	top: 50%;
+	width: 14px;
+	height: 14px;
+	transform: translateY(-50%);
+	color: var(--faint);
+	pointer-events: none;
+}
+.ix-search input {
+	width: 100%;
+	height: 32px;
+	padding: 0 30px 0 31px;
+	font: 400 13px var(--font-sans-stack);
+	color: var(--ink);
+	background: none;
+	border: 1px solid var(--line);
+	border-radius: 7px;
+	outline: none;
+}
+.ix-search input::placeholder {
+	color: var(--faint);
+}
+.ix-search input:focus {
+	background: var(--soft);
+}
+.ix-search input:focus-visible {
+	outline: 2px solid var(--pri);
+	outline-offset: 2px;
+}
+.ix-search kbd {
+	position: absolute;
+	right: 8px;
+	top: 50%;
+	transform: translateY(-50%);
+	font: 400 11px / 1 var(--font-mono-stack);
+	color: var(--faint);
+	padding: 3px 5px;
+	border: 1px solid var(--line);
+	border-radius: 4px;
+}
+.ix-search input:focus + kbd,
+.ix-search input:not(:placeholder-shown) + kbd {
+	display: none;
+}
+.ix-status {
+	position: relative;
+}
+.ix-ctl {
+	display: inline-flex;
+	align-items: center;
+	height: 32px;
+	border: 1px solid var(--line);
+	border-radius: 7px;
+	overflow: hidden;
+	font: 500 12.5px / 1 var(--font-sans-stack);
+	color: var(--sub);
+}
+.ix-ctl button {
+	display: inline-flex;
+	align-items: center;
+	gap: 7px;
+	height: 100%;
+	border: 0;
+	background: none;
+	color: inherit;
+	font: inherit;
+	cursor: pointer;
+}
+.ix-ctl-main {
+	padding: 0 11px;
+}
+.ix-ctl-x {
+	padding: 0 9px 0 4px;
+	color: var(--faint);
+}
+.ix-ctl button:hover,
+.ix-ctl-main[aria-expanded="true"] {
+	background: var(--soft);
+	color: var(--ink);
+}
+.ix-ctl svg {
+	width: 13px;
+	height: 13px;
+}
+.ix-on {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	color: var(--ink);
+}
+.ix-menu {
+	position: absolute;
+	top: calc(100% + 6px);
+	left: 0;
+	z-index: 10;
+	min-width: 210px;
+	display: grid;
+	padding: 5px;
+	background: var(--paper);
+	border: 1px solid var(--line);
+	border-radius: 9px;
+	box-shadow: 0 8px 24px color-mix(in srgb, var(--ink) 10%, transparent);
+}
+.ix-menu button {
+	display: flex;
+	align-items: center;
+	gap: 9px;
+	padding: 8px 9px;
+	border: 0;
+	border-radius: 6px;
+	background: none;
+	color: var(--ink);
+	cursor: pointer;
+	font: 400 13px / 1 var(--font-sans-stack);
+	text-align: left;
+}
+.ix-menu button:hover,
+.ix-menu button[aria-checked="true"] {
+	background: var(--soft);
+}
+.ix-n {
+	margin-left: auto;
+	font: 400 12px var(--font-mono-stack);
+	color: var(--faint);
+	font-variant-numeric: tabular-nums;
+}
+.ix-dot {
+	width: 7px;
+	height: 7px;
+	flex: none;
+	border-radius: 50%;
+	background: var(--ok);
+}
+.ix-dot.hi {
+	background: var(--hi);
+}
+.ix-dot.alarm {
+	background: var(--alarm);
+}
+.ix-dot.idle {
+	background: none;
+	box-shadow: inset 0 0 0 1.5px var(--faint);
+}
+.ix-dot.all {
+	background: none;
+	box-shadow: inset 0 0 0 1.5px var(--line);
+}
+.ix-view {
+	display: inline-flex;
+	gap: 2px;
+	padding: 2px;
+	margin-left: auto;
+	border: 1px solid var(--line);
+	border-radius: 7px;
+}
+.ix-view button {
+	display: grid;
+	place-items: center;
+	width: 28px;
+	height: 26px;
+	border: 0;
+	border-radius: 5px;
+	background: none;
+	color: var(--faint);
+	cursor: pointer;
+}
+.ix-view button:hover {
+	color: var(--ink);
+}
+.ix-view button[aria-pressed="true"] {
+	background: var(--soft);
+	color: var(--ink);
+}
+.ix-view svg {
+	width: 15px;
+	height: 15px;
+}
+
+.ix-meta {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px 18px;
+	align-items: center;
+	justify-content: space-between;
+	margin-top: 22px;
+	padding: 0 12px 12px;
+	font: 400 11px / 1 var(--font-mono-stack);
+	color: var(--faint);
+}
+.ix-count {
+	font-weight: 500;
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+	font-size: 10.5px;
+}
+.ix-key {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px 14px;
+	align-items: center;
+}
+.ix-key-group {
+	display: inline-flex;
+	gap: 5px;
+	align-items: center;
+}
+.ix-ramp {
+	display: inline-flex;
+	gap: 2px;
+}
+.ix-key i {
+	display: inline-block;
+	width: 9px;
+	height: 9px;
+	border-radius: 2px;
+	background: var(--ch-a);
+}
+.ix-key i.z {
+	background: var(--soft);
+	box-shadow: inset 0 0 0 1px var(--line);
+}
+.ix-key i.f {
+	background: var(--alarm);
+}
+.ix-key i.h {
+	background: var(--hi);
+}
+
+.ix-list {
+	border-top: 1px solid var(--line);
+	isolation: isolate;
+}
+.ix-row {
+	position: relative;
+	display: grid;
+	align-items: start;
+	padding: 22px 12px;
+	border-bottom: 1px solid var(--line);
+	cursor: pointer;
+}
+.ix-row::before {
+	content: "";
+	position: absolute;
+	inset: 0;
+	z-index: -1;
+	background: var(--soft);
+	opacity: 0;
+	transition: opacity 0.12s;
+}
+.ix-row:hover::before {
+	opacity: 0.7;
+}
+.ix-row:hover .ix-name:not(.bad) b {
+	color: var(--pri-ink);
+}
+.ix-main {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	min-width: 0;
+	color: inherit;
+	text-decoration: none;
+}
+.ix-name {
+	display: inline-flex;
+	align-items: center;
+	gap: 10px;
+	min-width: 0;
+	max-width: 100%;
+}
+.ix-name b {
+	font: 500 14px / 1.3 var(--font-mono-stack);
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	transition: color 0.12s;
+}
+.ix-name.bad b {
+	padding: 1px 6px;
+	margin-left: -7px;
+	border: 1px dashed var(--alarm);
+	border-radius: 4px;
+	background: color-mix(in srgb, var(--alarm) 7%, var(--paper));
+	color: var(--alarm);
+}
+.ix-name > .wl-chip {
+	flex: none;
+	font: 500 10.5px / 1 var(--font-mono-stack);
+	letter-spacing: 0.03em;
+	color: var(--faint);
+}
+.ix-chip {
+	flex: none;
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	font: 500 11px / 1 var(--font-sans-stack);
+	color: var(--sub);
+}
+.ix-chip.alarm {
+	color: var(--alarm);
+}
+.ix-why {
+	font-size: 13.5px;
+	color: var(--sub);
+}
+.ix-why.alarm {
+	color: var(--alarm);
+}
+.ix-row:hover .ix-why:not(.alarm) {
+	color: var(--ink);
+}
+.ix-route {
+	font: 400 12px / 1.4 var(--font-mono-stack);
+	color: var(--faint);
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+.ix-route b {
+	font-weight: 400;
+	color: var(--sub);
+}
+.ix-stats {
+	display: flex;
+	gap: 28px;
+	flex-wrap: wrap;
+	margin-top: auto;
+	padding-top: 14px;
+}
+.ix-stat {
+	display: grid;
+	gap: 4px;
+}
+.ix-stat strong {
+	font: 500 18px / 1 var(--font-mono-stack);
+	font-variant-numeric: tabular-nums;
+	letter-spacing: -0.01em;
+}
+.ix-stat strong.alarm {
+	color: var(--alarm);
+}
+.ix-stat small {
+	font: 400 11px / 1 var(--font-sans-stack);
+	color: var(--faint);
+}
+.ix-empty {
+	padding: 36px 0;
+	text-align: center;
+	color: var(--sub);
+	border-bottom: 1px solid var(--line);
+}
+.ix-empty button {
+	margin-left: 6px;
+	padding: 0;
+	border: 0;
+	background: none;
+	color: var(--pri-ink);
+	cursor: pointer;
+	font: inherit;
+}
+
+/* Rows: the hour-by-day grid, three numbers at the bottom of the text. */
+.ix-rows .ix-row {
+	grid-template-columns: minmax(0, 1fr) minmax(0, 420px);
+	gap: 32px;
+}
+
+/* Ribbon: one continuous strip, a tick at each UTC midnight. */
+.ix-ribbon .ix-cols,
+.ix-ribbon .ix-row {
+	display: grid;
+	grid-template-columns: minmax(170px, 1.1fr) minmax(0, 2fr) 96px 56px;
+	gap: 24px;
+	align-items: center;
+}
+.ix-cols {
+	padding: 12px;
+	font: 500 10.5px / 1 var(--font-mono-stack);
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+	color: var(--faint);
+	border-bottom: 1px solid var(--line);
+}
+.ix-cols .r {
+	text-align: right;
+}
+.ix-ribbon .ix-row {
+	padding-block: 15px;
+}
+.ix-ribbon .ix-main {
+	gap: 5px;
+}
+.ix-days,
+.ix-strip {
+	display: grid;
+	grid-template-columns: repeat(168, minmax(0, 1fr));
+}
+.ix-day {
+	grid-row: 1;
+	padding-left: 5px;
+	border-left: 1px solid var(--line);
+	text-transform: none;
+	letter-spacing: 0;
+	font-weight: 400;
+	white-space: nowrap;
+	overflow: hidden;
+}
+.ix-strip {
+	column-gap: 1px;
+	height: 26px;
+}
+.ix-strip.pending {
+	background: color-mix(in srgb, var(--text-main) 6%, transparent);
+	border-radius: 1px;
+}
+.ix-cell {
+	display: block;
+	height: 100%;
+	border-radius: 1px;
+	background: var(--ch-a);
+}
+.ix-cell.z {
+	background: var(--soft);
+	opacity: 1 !important;
+}
+.ix-cell.f {
+	background: var(--alarm);
+	opacity: 1 !important;
+}
+.ix-strip.att .ix-cell:not(.z, .f) {
+	background: var(--hi);
+}
+.ix-cell.mid {
+	box-shadow: -2px 0 0 var(--paper), -3px 0 0 var(--line);
+}
+.ix-cell:hover {
+	filter: brightness(0.85);
+}
+.ix-ribbon-wrap {
+	position: relative;
+	min-width: 0;
+}
+.ix-num {
+	font: 500 14px / 1.2 var(--font-mono-stack);
+	font-variant-numeric: tabular-nums;
+	text-align: right;
+}
+.ix-num small {
+	display: block;
+	font: 500 11px / 1.3 var(--font-mono-stack);
+	color: var(--alarm);
+}
+.ix-ago {
+	font: 400 12.5px / 1 var(--font-mono-stack);
+	color: var(--sub);
+	text-align: right;
+}
+
+@media (max-width: 760px) {
+	.ix-search {
+		flex-basis: 100%;
+		order: 3;
+	}
+	.ix-rows .ix-row {
+		grid-template-columns: 1fr;
+		gap: 16px;
+	}
+	.ix-ribbon .ix-cols {
+		display: none;
+	}
+	.ix-ribbon .ix-row {
+		grid-template-columns: 1fr auto;
+		gap: 12px;
+	}
+	.ix-ribbon .ix-ribbon-wrap,
+	.ix-ribbon .ix-strip.pending,
+	.ix-ribbon .ix-row > div:nth-child(2) {
+		grid-column: 1 / -1;
+		grid-row: 2;
+	}
+	.ix-ribbon .ix-ago {
+		display: none;
+	}
+}
+@media (prefers-reduced-motion: reduce) {
+	.ix-row::before,
+	.ix-name b {
+		transition: none;
+	}
+}
 .wq {
 	padding-top: 24px;
 }

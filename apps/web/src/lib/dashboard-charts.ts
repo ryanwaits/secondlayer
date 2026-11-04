@@ -41,6 +41,26 @@ function windowStart(now: number): number {
 	return Math.floor(now / HOUR) * HOUR - (WINDOW_HOURS - 1) * HOUR;
 }
 
+/** Puts hourly points on the 168-hour window ending at `endHourIso` (inclusive). Missing hours are {n:0,f:0}; points outside the window are dropped. */
+export function alignToWindow(
+	points: readonly { hour: string; n: number; f: number }[],
+	endHourIso: string,
+): { n: number; f: number }[] {
+	const out = Array.from({ length: WINDOW_HOURS }, () => ({ n: 0, f: 0 }));
+	const end = Math.floor(Date.parse(endHourIso) / HOUR);
+	if (!Number.isFinite(end)) return out;
+	for (const point of points) {
+		const at = Math.floor(Date.parse(point.hour) / HOUR);
+		const index = WINDOW_HOURS - 1 - (end - at);
+		const slot = out[index];
+		if (slot && index >= 0) {
+			slot.n += point.n;
+			slot.f += point.f;
+		}
+	}
+	return out;
+}
+
 /**
  * Lay a rolling 168-hour array (index 0 = the hour 167 h before `now`) on UTC
  * calendar days: one row per day the window touches, 24 columns. Cells outside

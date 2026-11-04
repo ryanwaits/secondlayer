@@ -35,6 +35,7 @@ export function HeatStrip({
 	label,
 	units = DEFAULT_UNITS,
 	tone,
+	hourAxis = true,
 }: {
 	/** Rolling window, index 0 = the hour 167 h before `now`. */
 	hours: readonly { n: number; f: number }[];
@@ -47,6 +48,8 @@ export function HeatStrip({
 	units?: HeatUnits;
 	/** The row this sits in is attention: delivered cells use `--hi`; failed cells stay `--alarm`. */
 	tone?: "att";
+	/** The 00/06/12/18 labels under the grid. A list of strips shows them once, under the last. */
+	hourAxis?: boolean;
 }) {
 	const { days } = useMemo(() => heatGrid(hours, now), [hours, now]);
 	const max = useMemo(() => Math.max(1, ...hours.map((c) => c.n)), [hours]);
@@ -113,18 +116,10 @@ export function HeatStrip({
 						})}
 					</HeatRow>
 				))}
-				<HeatRow>
-					<span />
-					{Array.from({ length: 24 }, (_, hr) => (
-						// biome-ignore lint/suspicious/noArrayIndexKey: columns are positional
-						<span key={hr} className="dc-heat-hour">
-							{hr % 6 === 0 ? String(hr).padStart(2, "0") : ""}
-						</span>
-					))}
-				</HeatRow>
+				{hourAxis ? <HourAxis /> : null}
 			</section>
 		),
-		[days, labels, max, onCellClick, show, label, units],
+		[days, labels, max, onCellClick, show, label, units, hourAxis],
 	);
 
 	return (
@@ -160,6 +155,21 @@ export function HeatStrip({
 	);
 }
 
+/** The 00/06/12/18 labels, on the grid's own columns. */
+function HourAxis() {
+	return (
+		<HeatRow>
+			<span />
+			{Array.from({ length: 24 }, (_, hr) => (
+				// biome-ignore lint/suspicious/noArrayIndexKey: columns are positional
+				<span key={hr} className="dc-heat-hour">
+					{hr % 6 === 0 ? String(hr).padStart(2, "0") : ""}
+				</span>
+			))}
+		</HeatRow>
+	);
+}
+
 /** One grid row. `display: contents` keeps all rows on the one 25-column grid. */
 function HeatRow({ children }: { children: React.ReactNode }) {
 	return <div className="dc-heat-row">{children}</div>;
@@ -167,7 +177,13 @@ function HeatRow({ children }: { children: React.ReactNode }) {
 
 /** The strip's exact grid while its hours are still loading: same columns,
  *  same rows, shimmer-toned cells, so the real strip replaces it in place. */
-export function HeatStripSkeleton({ days = 8 }: { days?: number }) {
+export function HeatStripSkeleton({
+	days = 8,
+	hourAxis = true,
+}: {
+	days?: number;
+	hourAxis?: boolean;
+}) {
 	return (
 		<div className="dc-heat-wrap">
 			<div className="dc-heat" aria-hidden="true">
@@ -181,15 +197,7 @@ export function HeatStripSkeleton({ days = 8 }: { days?: number }) {
 						))}
 					</HeatRow>
 				))}
-				<HeatRow>
-					<span />
-					{Array.from({ length: 24 }, (_, hr) => (
-						// biome-ignore lint/suspicious/noArrayIndexKey: columns are positional
-						<span key={hr} className="dc-heat-hour">
-							{hr % 6 === 0 ? String(hr).padStart(2, "0") : ""}
-						</span>
-					))}
-				</HeatRow>
+				{hourAxis ? <HourAxis /> : null}
 			</div>
 		</div>
 	);

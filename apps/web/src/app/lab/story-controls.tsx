@@ -58,6 +58,7 @@ import { WebhookCompactDetailView } from "@/components/account/webhooks/compact-
 import { WebhooksCompactList } from "@/components/account/webhooks/compact-list";
 import { AttemptList } from "@/components/account/webhooks/detail-panel";
 import { TitleRow } from "@/components/account/webhooks/detail-panel";
+import { WebhooksListBody } from "@/components/account/webhooks/list-panel";
 import { PayloadPanel } from "@/components/account/webhooks/payload-view";
 import {
 	ReplayBody,
@@ -96,6 +97,7 @@ import { StatusPillView } from "@/components/mobile/status-pill";
 import { SwipeGroup, SwipeRow } from "@/components/mobile/swipe-row";
 import type { Activity } from "@/lib/activity";
 import { EMPTY_TIP } from "@/lib/chain-tip";
+import type { IndexView } from "@/lib/index-view";
 import type { Insight } from "@/lib/insights";
 import { FIXTURE_INSIGHTS } from "@/lib/insights.fixtures";
 import type { PushState } from "@/lib/push-client";
@@ -2043,3 +2045,51 @@ export const PILL_REPLAY_AND_STALLED: readonly Activity[] = [
 	REPLAY_RUNNING,
 	STALLED_4,
 ];
+
+/** The webhooks index with a week of deliveries per row: one failing, one
+ *  paused. A client demo, since the row models come from a client module. */
+export function WebhooksIndexDemo({
+	count,
+	initialView,
+}: {
+	count: number;
+	initialView?: IndexView;
+}) {
+	const week = (delivered: number, failedFrom = 168) => ({
+		delivered: Array.from({ length: 168 }, (_, i) =>
+			i >= failedFrom ? 0 : Math.round(delivered * (0.4 + ((i * 7) % 11) / 11)),
+		),
+		failed: Array.from({ length: 168 }, (_, i) =>
+			i >= failedFrom ? 6 + (i % 4) : 0,
+		),
+	});
+	const webhooks = [
+		["sbtc-deposits", "wh_1", 90],
+		["bns-names", "wh_2", 12],
+		["token-transfers", "wh_3", 240],
+		["signer-payouts", "wh_4", 4],
+		["nft-sales", "wh_5", 30],
+		["dao-votes", "wh_6", 2],
+	] as const;
+	const rows = webhooks.slice(0, count).map(([name, id, rate], i) =>
+		rowModel(
+			summary({
+				id,
+				name,
+				status: name === "dao-votes" ? "paused" : "active",
+			}),
+			name === "bns-names" ? week(rate, 140) : week(rate + i),
+			FIXTURE_HOURS,
+			[],
+		),
+	);
+	return (
+		<WebhooksListBody
+			rows={rows}
+			hours={FIXTURE_HOURS}
+			notice={null}
+			onOpenHour={() => {}}
+			initialView={initialView}
+		/>
+	);
+}

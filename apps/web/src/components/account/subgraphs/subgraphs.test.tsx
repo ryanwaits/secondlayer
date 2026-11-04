@@ -95,14 +95,36 @@ describe("SubgraphsListBody", () => {
 		"vault-events": exampleHealth(3),
 	};
 
-	test("one row per subgraph with the state line and links", () => {
+	test("one row per subgraph with its numbers and links", () => {
 		const html = renderToStaticMarkup(
 			<SubgraphsListBody items={exampleList} health={health} notice={null} />,
 		);
 		expect(html).toContain('href="/account/subgraphs/sbtc-deposits"');
-		expect(html).toContain("At the tip · 443,957 rows · 0 errors 24h");
-		expect(html).toContain("Behind tip 112 blocks · 1,204 rows · 3 errors 24h");
+		expect(html).toContain("<strong>443,957</strong><small>rows</small>");
+		expect(html).toContain("<small>since the last write</small>");
 		expect(html).not.toContain("Everything is indexing.");
+	});
+
+	test("a healthy row has no status; lag reads as progress, never behind", () => {
+		const html = renderToStaticMarkup(
+			<SubgraphsListBody
+				items={exampleList}
+				health={{ "sbtc-deposits": exampleHealth(0) }}
+				notice={null}
+			/>,
+		);
+		expect(html).not.toContain("At the tip");
+		expect(html).not.toContain("Behind");
+		expect(html.match(/class="ix-chip/g)).toHaveLength(1);
+		expect(html).toContain("Catching up · 112 blocks to go");
+	});
+
+	test("handler errors are the why line and the row fails", () => {
+		const html = renderToStaticMarkup(
+			<SubgraphsListBody items={exampleList} health={health} notice={null} />,
+		);
+		expect(html).toContain("3 handler errors in 24h");
+		expect(html).toContain("Failing</span>");
 	});
 
 	test("a big title and one clickable row per subgraph", () => {
@@ -110,7 +132,7 @@ describe("SubgraphsListBody", () => {
 			<SubgraphsListBody items={exampleList} health={health} notice={null} />,
 		);
 		expect(html).toContain("<h1>Subgraphs</h1>");
-		expect(html.match(/class="wl-row link"/g)).toHaveLength(exampleList.length);
+		expect(html.match(/class="ix-row"/g)).toHaveLength(exampleList.length);
 		expect(html).toContain("2 tables");
 		expect(html).toContain("1 table<");
 	});
@@ -141,11 +163,61 @@ describe("SubgraphsListBody", () => {
 		expect(html).not.toContain("last 7 days");
 	});
 
-	test("the legend explains the grid", () => {
+	test("the key explains the grid", () => {
 		const html = renderToStaticMarkup(
 			<SubgraphsListBody items={exampleList} health={health} notice={null} />,
 		);
-		expect(html).toContain("Rows written that hour, darker is more");
+		expect(html).toContain("Less");
+		expect(html).toContain("More");
+		expect(html).toContain("Handler failed");
+		expect(html).toContain("None");
+		expect(html).not.toContain("Rows written that hour, darker is more");
+	});
+
+	test("every strip sits on the newest hour any subgraph reports", () => {
+		const lagging = weekOf(0);
+		const shifted = {
+			...lagging,
+			hours: lagging.hours.map((h) => ({
+				...h,
+				hour: new Date(Date.parse(h.hour) - 3 * 3_600_000).toISOString(),
+			})),
+		};
+		const html = renderToStaticMarkup(
+			<SubgraphsListBody
+				items={exampleList}
+				health={{ "sbtc-deposits": weekOf(0), "vault-events": shifted }}
+				notice={null}
+				initialView="ribbon"
+			/>,
+		);
+		expect(html.match(/class="ix-cell/g)).toHaveLength(168 * 2);
+	});
+
+	test("three subgraphs show no search, four do", () => {
+		const copy = (name: string) => ({ ...exampleList[0], name });
+		const three = [copy("a"), copy("b"), copy("c")] as typeof exampleList;
+		const four = [...three, copy("d")] as typeof exampleList;
+		const render = (items: typeof exampleList) =>
+			renderToStaticMarkup(
+				<SubgraphsListBody items={items} health={{}} notice={null} />,
+			);
+		expect(render(three)).not.toContain('id="index-q"');
+		expect(render(four)).toContain('id="index-q"');
+	});
+
+	test("Ribbon draws strips with no buttons in them", () => {
+		const html = renderToStaticMarkup(
+			<SubgraphsListBody
+				items={exampleList}
+				health={weekHealth}
+				notice={null}
+				initialView="ribbon"
+			/>,
+		);
+		expect(html).toContain("ix-ribbon");
+		expect(html).not.toContain("dc-heat-cell");
+		expect(html.match(/<button[^>]*ix-cell/g)).toBeNull();
 	});
 
 	test("the Overview's rows keep a 24-point sparkline given a week of health", () => {

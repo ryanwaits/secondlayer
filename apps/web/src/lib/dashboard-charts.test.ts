@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import {
+	alignToWindow,
 	barsRows,
 	formatAxis,
 	formatUsdTick,
@@ -136,5 +137,51 @@ describe("markPillWidth", () => {
 
 	test("follows the font size and padding", () => {
 		expect(markPillWidth("abcd", 10, 4)).toBe(32);
+	});
+});
+
+describe("alignToWindow", () => {
+	const end = "2026-10-15T19:00:00.000Z";
+	const hourAt = (back: number) =>
+		new Date(Date.parse(end) - back * 3_600_000).toISOString();
+
+	test("puts a point on its hour, newest last", () => {
+		const out = alignToWindow(
+			[
+				{ hour: end, n: 5, f: 1 },
+				{ hour: hourAt(167), n: 2, f: 0 },
+			],
+			end,
+		);
+		expect(out).toHaveLength(168);
+		expect(out[167]).toEqual({ n: 5, f: 1 });
+		expect(out[0]).toEqual({ n: 2, f: 0 });
+	});
+
+	test("fills missing hours with zeros", () => {
+		const out = alignToWindow([{ hour: hourAt(10), n: 3, f: 0 }], end);
+		expect(out[157]).toEqual({ n: 3, f: 0 });
+		expect(out.filter((c) => c.n === 0)).toHaveLength(167);
+	});
+
+	test("drops points outside the window", () => {
+		const out = alignToWindow(
+			[
+				{ hour: hourAt(168), n: 9, f: 9 },
+				{
+					hour: new Date(Date.parse(end) + 3_600_000).toISOString(),
+					n: 9,
+					f: 9,
+				},
+			],
+			end,
+		);
+		expect(out.every((c) => c.n === 0 && c.f === 0)).toBe(true);
+	});
+
+	test("a lagging series is padded at the end, not shifted", () => {
+		const out = alignToWindow([{ hour: hourAt(3), n: 4, f: 0 }], end);
+		expect(out[164]).toEqual({ n: 4, f: 0 });
+		expect(out.slice(165).every((c) => c.n === 0)).toBe(true);
 	});
 });

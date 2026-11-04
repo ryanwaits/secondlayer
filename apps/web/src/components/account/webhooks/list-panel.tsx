@@ -5,16 +5,16 @@ import {
 	HeatStrip,
 	HeatStripSkeleton,
 } from "@/components/dashboard/charts/heat-strip";
-import { Legend } from "@/components/dashboard/charts/legend";
+import { HourRibbon } from "@/components/dashboard/charts/hour-ribbon";
 import { ActionableInsights } from "@/components/dashboard/insight/insight-actions";
 import { PlaceholderRows } from "@/components/dashboard/shell/onboarding";
 import { StatusSentence } from "@/components/dashboard/shell/status-sentence";
 import { useCompact } from "@/components/mobile/use-compact";
 import { heatGrid } from "@/lib/dashboard-charts";
 import type { WebhooksResult } from "@/lib/dashboard-results";
+import type { IndexView } from "@/lib/index-view";
 import type { Insight } from "@/lib/insights";
 import { forAccountRules, useInsights } from "@/lib/insights-store";
-import { useRowLink } from "@/lib/intent-prefetch";
 import type { WebhooksListInitial } from "@/lib/server/dashboard-reads";
 import { useFirstSettle } from "@/lib/use-first-settle";
 import { hostOf, pauseWebhook, resumeWebhook } from "@/lib/webhooks-data";
@@ -29,11 +29,24 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import {
+	IndexList,
+	RowName,
+	RowShell,
+	RowStats,
+	RowWhy,
+} from "../index-rows/index-list";
+import {
+	type RowStatus,
+	WEBHOOK_GROUP_LABELS,
+	webhookStatus,
+	webhookWhyLine,
+} from "../index-rows/status";
 import { WebhooksCompactList } from "./compact-list";
 import { type WebhookRowModel, useWebhookRows } from "./rows";
 import { countByDisplayStatus, displayStatus, shortenName } from "./shared";
 import { WebhooksListSkeleton } from "./skeletons";
-import { describeFailure } from "./view";
+import { ageShort, describeFailure } from "./view";
 import { WaitingBlock } from "./waiting";
 
 /** The list polls this often while the tab is visible, so new webhooks and
@@ -215,63 +228,159 @@ function EmptyState() {
 	);
 }
 
-function WebhookListRow({
+/** A webhook as the index shows it: its model plus what the row says about it. */
+interface WebhookIndexRow {
+	model: WebhookRowModel;
+	status: RowStatus;
+	why: string | null;
+}
+
+const indexRow = (model: WebhookRowModel): WebhookIndexRow => ({
 	model,
+	status: webhookStatus(model),
+	why: webhookWhyLine(model),
+});
+
+const sum = (values: readonly number[]) => values.reduce((a, b) => a + b, 0);
+const count = (n: number) => n.toLocaleString("en-US");
+
+function WebhookListRow({
+	row,
 	hours,
+	view,
+	isLast,
 	onOpenHour,
 	stripPending,
 }: {
-	model: WebhookRowModel;
+	row: WebhookIndexRow;
 	hours: readonly string[];
+	view: IndexView;
+	/** The last row carries the hour axis the others leave out. */
+	isLast: boolean;
 	onOpenHour: (id: string, hourIso: string) => void;
 	/** The hourly summary hasn't landed: hold the strip's space. */
 	stripPending: boolean;
 }) {
-	const { webhook, series, state } = model;
+	const {
+		model: { webhook, series },
+		status,
+		why,
+	} = row;
 	const cells = series
 		? series.delivered.map((n, i) => ({ n, f: series.failed[i] ?? 0 }))
 		: [];
-	const last = hours.at(-1);
+	const now = timelineNow(hours);
+	const tone = status.group === "hi" ? "att" : undefined;
+	const label = `${webhook.name}, deliveries per hour, last 7 days`;
+	const delivered = series ? sum(series.delivered) : null;
+	const failed = series ? sum(series.failed) : null;
+	const name = (
+		<RowName
+			name={webhook.name}
+			display={shortenName(webhook.name)}
+			status={status}
+		>
+			{webhook.managedBy ? (
+				<span
+					className="wl-chip"
+					title={`${webhook.managedBy} finds this webhook by its name, so rename it there`}
+				>
+					named by {webhook.managedBy}
+				</span>
+			) : null}
+		</RowName>
+	);
+	const route = (
+		<span className="ix-route">
+			{webhook.kind} events → <b>{hostOf(webhook.url)}</b>
+		</span>
+	);
+	const whyLine = why ? <RowWhy text={why} group={status.group} /> : null;
 	const href = `/account/webhooks/${webhook.id}`;
-	const row = useRowLink(href);
-	return (
-		<div className="wl-row link" {...row}>
-			<Link href={href} prefetch={false} className="wl-main">
-				<span className="dash-row-name">
-					<span title={webhook.name}>{shortenName(webhook.name)}</span>
-					{webhook.managedBy ? (
-						<span
-							className="wl-chip"
-							title={`${webhook.managedBy} finds this webhook by its name, so rename it there`}
-						>
-							named by {webhook.managedBy}
-						</span>
-					) : null}
-				</span>
-				<span className={`wl-state${state.bad ? " bad" : ""}`}>
-					{state.text}
-				</span>
-				<span className="wl-sub">
-					{webhook.kind} events → <b>{hostOf(webhook.url)}</b>
-				</span>
-			</Link>
-			{cells.length > 0 && last ? (
+	const strip =
+		cells.length > 0 && now !== null ? (
+			view === "ribbon" ? (
+				<HourRibbon hours={cells} now={now} label={label} tone={tone} />
+			) : (
 				<HeatStrip
 					hours={cells}
-					// Mid-hour keeps the newest hour on its own row at midnight.
-					now={Date.parse(last) + HOUR_MS / 2}
-					label={`${webhook.name}, deliveries per hour, last 7 days`}
-					tone={state.tone === "hi" ? "att" : undefined}
+					now={now}
+					label={label}
+					tone={tone}
+					hourAxis={isLast}
 					onCellClick={(index) => {
 						const hour = hours[index];
 						if (hour) onOpenHour(webhook.id, hour);
 					}}
 				/>
-			) : stripPending ? (
-				<HeatStripSkeleton days={pendingStripDays()} />
-			) : null}
-		</div>
+			)
+		) : stripPending ? (
+			view === "ribbon" ? (
+				<div className="ix-strip pending" aria-hidden="true" />
+			) : (
+				<HeatStripSkeleton days={pendingStripDays()} hourAxis={isLast} />
+			)
+		) : (
+			<div />
+		);
+
+	if (view === "ribbon") {
+		return (
+			<RowShell
+				href={href}
+				main={
+					<>
+						{name}
+						{whyLine ?? route}
+					</>
+				}
+			>
+				{strip}
+				<span className="ix-num">
+					{delivered === null ? "–" : count(delivered)}
+					{failed ? <small>{count(failed)} failed</small> : null}
+				</span>
+				<span className="ix-ago">{ageShort(webhook.lastDeliveryAt)}</span>
+			</RowShell>
+		);
+	}
+	return (
+		<RowShell
+			href={href}
+			main={
+				<>
+					{name}
+					{whyLine}
+					{route}
+					<RowStats
+						stats={[
+							{
+								value: delivered === null ? "–" : count(delivered),
+								label: "delivered, 7 days",
+							},
+							{
+								value: failed === null ? "–" : count(failed),
+								label: "failed",
+								alarm: !!failed,
+							},
+							{
+								value: ageShort(webhook.lastDeliveryAt),
+								label: "since the last",
+							},
+						]}
+					/>
+				</>
+			}
+		>
+			<div>{strip}</div>
+		</RowShell>
 	);
+}
+
+/** Midpoint of the newest hour: keeps it on its own row at midnight. */
+function timelineNow(hours: readonly string[]): number | null {
+	const last = hours.at(-1);
+	return last ? Date.parse(last) + HOUR_MS / 2 : null;
 }
 
 /** Rows only render on the client once data arrives, so the clock is safe. */
@@ -290,6 +399,8 @@ export interface WebhooksListBodyProps {
 	summaryLoaded?: boolean;
 	/** Account-level insights about this page (the stack not answering). */
 	pageInsights?: readonly Insight[];
+	/** The view the visitor left this page in. Defaults to Rows. */
+	initialView?: IndexView;
 }
 
 export function WebhooksListBody({
@@ -299,6 +410,7 @@ export function WebhooksListBody({
 	onOpenHour,
 	summaryLoaded = true,
 	pageInsights = [],
+	initialView = "rows",
 }: WebhooksListBodyProps) {
 	const active = rows?.filter((r) => r.webhook.lastDeliveryAt !== null) ?? [];
 	const quiet = rows?.filter((r) => r.webhook.lastDeliveryAt === null) ?? [];
@@ -348,41 +460,32 @@ export function WebhooksListBody({
 
 			{rows !== null && rows.length > 0 ? (
 				<>
-					<div className="wl-rows">
-						{active.map((model) => (
-							<WebhookListRow
-								key={model.webhook.id}
-								model={model}
-								hours={hours}
-								onOpenHour={onOpenHour}
-								stripPending={!summaryLoaded}
-							/>
-						))}
-					</div>
 					{active.length > 0 ? (
-						<Legend
-							items={[
-								{
-									swatch: "square",
-									label: "Delivered that hour, darker is more",
-									color: "var(--ch-a)",
-								},
-								...(active.some((m) => m.state.tone === "hi")
-									? [
-											{
-												swatch: "square" as const,
-												label: "Delivered, webhook needs a look",
-												color: "var(--hi)",
-											},
-										]
-									: []),
-								{ swatch: "square", label: "Failed" },
-								{
-									swatch: "square",
-									label: "Nothing",
-									color: "var(--soft)",
-								},
-							]}
+						<IndexList
+							page="webhooks"
+							noun="webhooks"
+							singular="webhook"
+							rows={active.map(indexRow)}
+							rowKey={(row) => row.model.webhook.id}
+							textOf={({ model: { webhook } }) =>
+								`${webhook.name} ${webhook.kind} ${hostOf(webhook.url)}`
+							}
+							groupOf={(row) => row.status.group}
+							groupLabels={WEBHOOK_GROUP_LABELS}
+							failedLabel="Failed"
+							numberLabel="7 days"
+							now={timelineNow(hours)}
+							initialView={initialView}
+							renderRow={(row, { view, isLast }) => (
+								<WebhookListRow
+									row={row}
+									hours={hours}
+									view={view}
+									isLast={isLast}
+									onOpenHour={onOpenHour}
+									stripPending={!summaryLoaded}
+								/>
+							)}
 						/>
 					) : null}
 					{quiet.length > 0 ? (
@@ -397,8 +500,10 @@ export function WebhooksListBody({
 /** /account/webhooks. `initial` is what the server read for this visit. */
 export function WebhooksListSection({
 	initial = null,
+	initialView,
 }: {
 	initial?: WebhooksListInitial | null;
+	initialView?: IndexView;
 }) {
 	const router = useRouter();
 	const notice = useListPoll(initial);
@@ -481,6 +586,7 @@ export function WebhooksListSection({
 			hours={hours}
 			summaryLoaded={summaryLoaded}
 			notice={notice}
+			initialView={initialView}
 			onOpenHour={(id, hourIso) =>
 				router.push(
 					`/account/webhooks/${id}?hour=${encodeURIComponent(hourIso)}`,

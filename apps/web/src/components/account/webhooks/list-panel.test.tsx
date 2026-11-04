@@ -53,12 +53,26 @@ describe("WebhooksListBody", () => {
 		expect(html).toContain("sl webhooks");
 	});
 
-	test("a row names the webhook, its receiver host and its state", () => {
+	test("a row names the webhook, its receiver host and its three numbers", () => {
 		const html = render({});
 		expect(html).toContain('href="/account/webhooks/wh_deposits"');
 		expect(html).toContain("sbtc-deposits");
 		expect(html).toContain("hooks.example.dev");
-		expect(html).toContain("Delivered 48 in 24h");
+		expect(html).toContain("<strong>336</strong><small>delivered, 7 days");
+		expect(html).toContain("<small>failed</small>");
+		expect(html).toContain("<small>since the last</small>");
+	});
+
+	test("a healthy row shows no status and never says it is delivering", () => {
+		const html = render({ rows: [plain] });
+		expect(html).not.toContain("ix-chip");
+		expect(html).not.toContain("Delivering");
+		expect(html).not.toContain("Delivered 48 in 24h");
+	});
+
+	test("one clickable row per active webhook", () => {
+		const html = render({});
+		expect(html.match(/class="ix-row"/g)).toHaveLength(2);
 	});
 
 	test("a Sentinel-managed webhook carries the named-by chip", () => {
@@ -73,21 +87,28 @@ describe("WebhooksListBody", () => {
 		expect(html).toContain("Thu, Oct 8");
 	});
 
-	test("webhooks with no match yet sit in a waiting block under the legend, each a link", () => {
+	test("webhooks with no match yet sit in a waiting block under the list, each a link", () => {
 		const html = render({});
 		expect(html).toContain("Waiting for a first match");
 		expect(html).toContain('<span class="wq-n">1</span>');
 		expect(html).toContain('href="/account/webhooks/wh_waiting"');
-		expect(html.indexOf("Nothing")).toBeLessThan(
+		expect(html.indexOf("None")).toBeLessThan(
 			html.indexOf("Waiting for a first match"),
 		);
 	});
 
-	test("the legend explains the squares", () => {
+	test("the key on the list's top edge explains the squares", () => {
 		const html = render({});
-		expect(html).toContain("Delivered that hour, darker is more");
+		expect(html).toContain("Less");
+		expect(html).toContain("More");
 		expect(html).toContain("Failed");
-		expect(html).toContain("Nothing");
+		expect(html).toContain("None");
+		expect(html).not.toContain("Delivered that hour, darker is more");
+	});
+
+	test("the hour axis sits once, under the last row", () => {
+		const html = render({ rows: [plain, managed] });
+		expect(html.match(/dc-heat-hour/g)).toHaveLength(24);
 	});
 
 	test("no webhooks shows the empty state with the SDK docs link", () => {
@@ -108,6 +129,92 @@ describe("WebhooksListBody", () => {
 		const html = render({ rows: null, notice: { kind: "no_credits" } });
 		expect(html).toContain("Deliveries are paused until you add credits");
 		expect(html).toContain('href="/account/credits"');
+	});
+});
+
+const failing = rowModel(
+	summary({ id: "wh_failing", name: "bns-names" }),
+	{
+		delivered: new Array<number>(168).fill(0),
+		failed: new Array<number>(168).fill(3),
+	},
+	FIXTURE_HOURS,
+	[],
+);
+
+describe("WebhooksListBody status and why line", () => {
+	test("a failing row says Failing, shows its reading and boxes the name", () => {
+		const html = render({ rows: [failing] });
+		expect(html).toContain("Failing</span>");
+		expect(html).toContain("ix-name bad");
+		expect(html).toContain("Failing since");
+	});
+
+	test("a paused row says Paused", () => {
+		const paused = rowModel(
+			summary({ status: "paused" }),
+			series,
+			FIXTURE_HOURS,
+			[],
+		);
+		expect(render({ rows: [paused] })).toContain("ix-dot idle");
+	});
+
+	test("an insight row shows its line without a repeat of the name", () => {
+		const insight = {
+			id: "i1",
+			rule: "r",
+			severity: "will_fail",
+			impact: 1,
+			resource: { kind: "webhook", id: summary().id, name: "sbtc-deposits" },
+			line: "sbtc-deposits still sends to a test endpoint",
+			lead: "",
+			body: "",
+			evidence: [],
+			handoff: { prompt: "", commands: [] },
+			how: { detector: "d", facts: [] },
+			createdAt: "2026-10-16T00:00:00Z",
+		} as Insight;
+		const row = rowModel(summary(), series, FIXTURE_HOURS, [insight]);
+		const html = render({ rows: [row] });
+		expect(html).toContain("Still sends to a test endpoint");
+		expect(html).not.toContain("sbtc-deposits still sends");
+	});
+});
+
+describe("WebhooksListBody search, status and view", () => {
+	const many = Array.from({ length: 4 }, (_, i) =>
+		rowModel(
+			summary({ id: `wh_${i}`, name: `hook-${i}` }),
+			series,
+			FIXTURE_HOURS,
+			[],
+		),
+	);
+
+	test("three webhooks show no search, four do", () => {
+		expect(render({ rows: many.slice(0, 3) })).not.toContain('id="index-q"');
+		const html = render({ rows: many });
+		expect(html).toContain('id="index-q"');
+		expect(html).toContain("Status");
+		expect(html).toContain("4 webhooks");
+	});
+
+	test("the view switch is always there", () => {
+		const html = render({ rows: [plain] });
+		expect(html).toContain('aria-label="Rows"');
+		expect(html).toContain('aria-label="Ribbon"');
+		expect(html).toContain("1 webhook<");
+	});
+
+	test("Ribbon draws one strip per row with no clickable hours", () => {
+		const html = render({ rows: many, initialView: "ribbon" });
+		expect(html).toContain("ix-ribbon");
+		expect(html).toContain("ix-days");
+		expect(html).toContain("· UTC");
+		expect(html.match(/class="ix-strip"/g)).toHaveLength(4);
+		expect(html).not.toContain("dc-heat-cell");
+		expect(html.match(/<button[^>]*ix-cell/g)).toBeNull();
 	});
 });
 

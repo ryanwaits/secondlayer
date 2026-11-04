@@ -5,7 +5,7 @@ import {
 	HeatStrip,
 	HeatStripSkeleton,
 } from "@/components/dashboard/charts/heat-strip";
-import { Legend } from "@/components/dashboard/charts/legend";
+import { HourRibbon } from "@/components/dashboard/charts/hour-ribbon";
 import { Sparkline } from "@/components/dashboard/charts/sparkline";
 import { ActionableInsights } from "@/components/dashboard/insight/insight-actions";
 import {
@@ -15,13 +15,14 @@ import {
 } from "@/components/dashboard/shell/resource-row";
 import { StatusSentence } from "@/components/dashboard/shell/status-sentence";
 import { useCompact } from "@/components/mobile/use-compact";
+import { alignToWindow } from "@/lib/dashboard-charts";
+import type { IndexView } from "@/lib/index-view";
 import type { Insight } from "@/lib/insights";
 import {
 	forAccountRules,
 	forResource,
 	useInsights,
 } from "@/lib/insights-store";
-import { useRowLink } from "@/lib/intent-prefetch";
 import {
 	groupDigits,
 	handlerErrors24h,
@@ -38,9 +39,21 @@ import {
 	refreshListAndHealth,
 	useSubgraphsCache,
 } from "@/lib/subgraphs-store";
-import { type Tone, flagClass } from "@/lib/tone";
-import Link from "next/link";
+import { flagClass } from "@/lib/tone";
 import { useEffect, useState } from "react";
+import {
+	IndexList,
+	RowName,
+	RowShell,
+	RowStats,
+	RowWhy,
+} from "../index-rows/index-list";
+import {
+	type RowStatus,
+	SUBGRAPH_GROUP_LABELS,
+	subgraphStatus,
+	subgraphWhyLine,
+} from "../index-rows/status";
 import { insightRowState } from "../webhooks/rows";
 import { ageShort } from "../webhooks/view";
 import { SubgraphsCompactList } from "./compact-list";
@@ -219,6 +232,8 @@ export interface SubgraphsListBodyProps {
 	insights?: readonly Insight[];
 	/** Account-level insights about this page (the stack not answering). */
 	pageInsights?: readonly Insight[];
+	/** The view the visitor left this page in. Defaults to Rows. */
+	initialView?: IndexView;
 }
 
 /** The page insight sits above every state, so it shows even when the list can't load. */
@@ -241,74 +256,204 @@ export function SubgraphsListBody({
 	);
 }
 
-/** The tone an index row carries: its worst insight, else its own health. */
-function listRowTone(
-	item: SubgraphListItem,
-	health: SubgraphHealthData | undefined,
-	insights: readonly Insight[],
-): Tone {
-	const top = insights[0];
-	return top
-		? insightRowState(top).tone
-		: subgraphTone(item.status, handlerErrors24h(health));
+/** A subgraph as the index shows it, with its week on the page's shared timeline. */
+interface SubgraphIndexRow {
+	item: SubgraphListItem;
+	status: RowStatus;
+	why: string | null;
+	/** Null until the subgraph's health has loaded. */
+	cells: { n: number; f: number }[] | null;
 }
 
-/** One index row: name, state and what flows where, with seven days of rows
- *  written as a heat grid beside it. */
+/** The newest hour any subgraph has health for: the one end every strip aligns to. */
+function sharedEndHour(
+	health: Record<string, SubgraphHealthData | undefined>,
+): string | null {
+	let end: string | null = null;
+	let endMs = Number.NEGATIVE_INFINITY;
+	for (const entry of Object.values(health)) {
+		const hour = entry?.hours.at(-1)?.hour;
+		const ms = hour ? Date.parse(hour) : Number.NaN;
+		if (hour && ms > endMs) {
+			end = hour;
+			endMs = ms;
+		}
+	}
+	return end;
+}
+
+function indexRows(
+	items: readonly SubgraphListItem[],
+	health: Record<string, SubgraphHealthData | undefined>,
+	insights: readonly Insight[],
+	endHour: string | null,
+): SubgraphIndexRow[] {
+	return items.map((item) => {
+		const data = health[item.name];
+		const top = forResource(insights, "subgraph", item.name)[0];
+		const errors24h = handlerErrors24h(data);
+		return {
+			item,
+			status: subgraphStatus(item, errors24h, top),
+			why: subgraphWhyLine(item.name, errors24h, top),
+			cells:
+				data && endHour
+					? alignToWindow(
+							data.hours.map((h) => ({
+								hour: h.hour,
+								n: h.rowsWritten,
+								f: h.errors,
+							})),
+							endHour,
+						)
+					: null,
+		};
+	});
+}
+
+const UNITS = { n: "rows written", f: "handler errors" };
+const count = (n: number) => n.toLocaleString("en-US");
+
+/** One index row: name, what needs a look and what flows where, three numbers,
+ *  and seven days of rows written as a heat grid or a ribbon beside it. */
 function SubgraphListRow({
-	item,
-	health,
-	insights,
+	row,
+	now,
+	view,
+	isLast,
 }: {
-	item: SubgraphListItem;
-	health: SubgraphHealthData | undefined;
-	insights: readonly Insight[];
+	row: SubgraphIndexRow;
+	now: number | null;
+	view: IndexView;
+	/** The last row carries the hour axis the others leave out. */
+	isLast: boolean;
 }) {
-	const top = insights[0];
-	const insightState = top ? insightRowState(top) : null;
-	const errors24h = handlerErrors24h(health);
-	const tone = listRowTone(item, health, insights);
-	const text =
-		insightState?.text ??
-		stateLine(
-			item.blocksRemaining ?? 0,
-			item.totalRows ?? 0,
-			errors24h,
-			item.status,
-		);
-	const last = health?.hours.at(-1)?.hour;
+	const { item, status, why, cells } = row;
 	const tables = item.tables.length;
 	const href = `/account/subgraphs/${encodeURIComponent(item.name)}`;
-	const row = useRowLink(href);
-	return (
-		<div className="wl-row link" {...row}>
-			<Link href={href} prefetch={false} className="wl-main">
-				<span className="dash-row-name">
-					<span title={item.name}>{item.name}</span>
-				</span>
-				<span className={`wl-state${tone === "alarm" ? " bad" : ""}`}>
-					{text}
-				</span>
-				<span className="wl-sub">
-					chain events →{" "}
-					<b>
-						{tables} {tables === 1 ? "table" : "tables"}
-					</b>
-				</span>
-			</Link>
-			{health && last ? (
-				<HeatStrip
-					hours={health.hours.map((h) => ({ n: h.rowsWritten, f: h.errors }))}
-					// Mid-hour keeps the newest hour on its own row at midnight.
-					now={Date.parse(last) + HOUR_MS / 2}
-					label={`${item.name}, rows written per hour, last 7 days`}
-					units={{ n: "rows written", f: "handler errors" }}
-					tone={tone === "hi" ? "att" : undefined}
+	const tone = status.group === "hi" ? "att" : undefined;
+	const label = `${item.name}, rows written per hour, last 7 days`;
+	const errors = cells ? cells.reduce((total, c) => total + c.f, 0) : null;
+	const rows = groupDigits(String(item.totalRows ?? 0));
+	const name = <RowName name={item.name} status={status} />;
+	const route = (
+		<span className="ix-route">
+			chain events →{" "}
+			<b>
+				{tables} {tables === 1 ? "table" : "tables"}
+			</b>
+		</span>
+	);
+	const whyLine = why ? <RowWhy text={why} group={status.group} /> : null;
+	const strip =
+		cells && now !== null ? (
+			view === "ribbon" ? (
+				<HourRibbon
+					hours={cells}
+					now={now}
+					label={label}
+					units={UNITS}
+					tone={tone}
 				/>
 			) : (
-				<HeatStripSkeleton />
+				<HeatStrip
+					hours={cells}
+					now={now}
+					label={label}
+					units={UNITS}
+					tone={tone}
+					hourAxis={isLast}
+				/>
+			)
+		) : view === "ribbon" ? (
+			<div className="ix-strip pending" aria-hidden="true" />
+		) : (
+			<HeatStripSkeleton hourAxis={isLast} />
+		);
+
+	if (view === "ribbon") {
+		return (
+			<RowShell
+				href={href}
+				main={
+					<>
+						{name}
+						{whyLine ?? route}
+					</>
+				}
+			>
+				{strip}
+				<span className="ix-num">
+					{rows}
+					{errors ? <small>{count(errors)} errors</small> : null}
+				</span>
+				<span className="ix-ago">{ageShort(item.updatedAt ?? null)}</span>
+			</RowShell>
+		);
+	}
+	return (
+		<RowShell
+			href={href}
+			main={
+				<>
+					{name}
+					{whyLine}
+					{route}
+					<RowStats
+						stats={[
+							{ value: rows, label: "rows" },
+							{
+								value: errors === null ? "–" : count(errors),
+								label: "errors, 7 days",
+								alarm: !!errors,
+							},
+							{
+								value: ageShort(item.updatedAt ?? null),
+								label: "since the last write",
+							},
+						]}
+					/>
+				</>
+			}
+		>
+			<div>{strip}</div>
+		</RowShell>
+	);
+}
+
+/** The non-empty list, on one timeline: the newest hour any subgraph reports. */
+function SubgraphsIndex({
+	items,
+	health,
+	insights,
+	initialView,
+}: {
+	items: readonly SubgraphListItem[];
+	health: Record<string, SubgraphHealthData | undefined>;
+	insights: readonly Insight[];
+	initialView?: IndexView;
+}) {
+	const endHour = sharedEndHour(health);
+	// Mid-hour keeps the newest hour on its own row at midnight.
+	const now = endHour ? Date.parse(endHour) + HOUR_MS / 2 : null;
+	return (
+		<IndexList
+			page="subgraphs"
+			noun="subgraphs"
+			singular="subgraph"
+			rows={indexRows(items, health, insights, endHour)}
+			rowKey={(row) => row.item.name}
+			textOf={({ item }) => `${item.name} ${item.tables.join(" ")}`}
+			groupOf={(row) => row.status.group}
+			groupLabels={SUBGRAPH_GROUP_LABELS}
+			failedLabel="Handler failed"
+			numberLabel="Rows"
+			now={now}
+			initialView={initialView}
+			renderRow={(row, { view, isLast }) => (
+				<SubgraphListRow row={row} now={now} view={view} isLast={isLast} />
 			)}
-		</div>
+		/>
 	);
 }
 
@@ -317,6 +462,7 @@ function SubgraphsListContent({
 	health,
 	notice,
 	insights = [],
+	initialView,
 }: Omit<SubgraphsListBodyProps, "pageInsights">) {
 	if (items === null) {
 		if (notice?.kind === "starting") {
@@ -336,48 +482,13 @@ function SubgraphsListContent({
 		return <ChartSkeleton height={120} />;
 	}
 	if (items.length === 0) return <SubgraphsEmptyState />;
-	const flagged = items.some(
-		(item) =>
-			listRowTone(
-				item,
-				health[item.name],
-				forResource(insights, "subgraph", item.name),
-			) === "hi",
-	);
-
 	return (
-		<>
-			<div className="wl-rows">
-				{items.map((item) => (
-					<SubgraphListRow
-						key={item.name}
-						item={item}
-						health={health[item.name]}
-						insights={forResource(insights, "subgraph", item.name)}
-					/>
-				))}
-			</div>
-			<Legend
-				items={[
-					{
-						swatch: "square",
-						label: "Rows written that hour, darker is more",
-						color: "var(--ch-a)",
-					},
-					...(flagged
-						? [
-								{
-									swatch: "square" as const,
-									label: "Rows written, subgraph needs a look",
-									color: "var(--hi)",
-								},
-							]
-						: []),
-					{ swatch: "square", label: "Handler failed" },
-					{ swatch: "square", label: "Nothing", color: "var(--soft)" },
-				]}
-			/>
-		</>
+		<SubgraphsIndex
+			items={items}
+			health={health}
+			insights={insights}
+			initialView={initialView}
+		/>
 	);
 }
 
@@ -385,8 +496,10 @@ function SubgraphsListContent({
  *  what the server read for this visit. */
 export function SubgraphsListSection({
 	initial,
+	initialView,
 }: {
 	initial?: SubgraphsResult<SubgraphListItem[]> | null;
+	initialView?: IndexView;
 }) {
 	const notice = useSubgraphsPoll(initial ?? undefined);
 	const { list, health } = useSubgraphsCache(
@@ -417,6 +530,7 @@ export function SubgraphsListSection({
 			health={healthByName(health)}
 			notice={notice}
 			insights={insights}
+			initialView={initialView}
 			pageInsights={forAccountRules(insights, ["stack_unreachable_subgraphs"])}
 		/>
 	);

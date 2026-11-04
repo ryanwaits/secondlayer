@@ -4,6 +4,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { Cadence } from "./cadence";
 import { DayStrip } from "./day-strip";
 import { HeatStrip, HeatStripSkeleton } from "./heat-strip";
+import { HourRibbon, RibbonDays } from "./hour-ribbon";
 import { Legend } from "./legend";
 import { MemoryBand } from "./memory-band";
 import { Meter } from "./meter";
@@ -60,6 +61,75 @@ describe("HeatStrip", () => {
 		for (const hr of ["00", "06", "12", "18"]) {
 			expect(html).toContain(`>${hr}</span>`);
 		}
+	});
+});
+
+describe("HeatStrip hour axis", () => {
+	test("hourAxis={false} omits the 00/06/12/18 row", () => {
+		const html = renderToStaticMarkup(
+			<HeatStrip hours={HOURS} now={NOW} label="Hours" hourAxis={false} />,
+		);
+		expect(html).not.toContain("dc-heat-hour");
+		expect(html.match(/<button/g)).toHaveLength(168);
+	});
+
+	test("the skeleton follows it", () => {
+		expect(
+			renderToStaticMarkup(<HeatStripSkeleton hourAxis={false} />),
+		).not.toContain("dc-heat-hour");
+		expect(renderToStaticMarkup(<HeatStripSkeleton />)).toContain(
+			"dc-heat-hour",
+		);
+	});
+});
+
+describe("HourRibbon", () => {
+	const html = renderToStaticMarkup(
+		<HourRibbon hours={HOURS} now={NOW} label="Deliveries by hour" />,
+	);
+
+	test("renders 168 spans and no buttons", () => {
+		expect(html.match(/<span class="ix-cell/g)).toHaveLength(168);
+		expect(html).not.toContain("<button");
+		expect(html).toContain('role="img"');
+		expect(html).toContain('aria-label="Deliveries by hour"');
+	});
+
+	test("marks a failed hour and an empty hour", () => {
+		expect(html.match(/ix-cell f/g)).toHaveLength(1);
+		expect(html).toContain("ix-cell z");
+	});
+
+	test("a tick sits at each UTC midnight inside the window", () => {
+		// The window runs Oct 8 20:00 to Oct 15 19:00: midnights Oct 9 to Oct 15.
+		expect(html.match(/ix-cell[^"]* mid"/g)).toHaveLength(7);
+	});
+
+	test("a flagged row's delivered cells follow --hi", () => {
+		const att = renderToStaticMarkup(
+			<HourRibbon hours={HOURS} now={NOW} label="x" tone="att" />,
+		);
+		expect(att).toContain("ix-strip att");
+	});
+});
+
+describe("RibbonDays", () => {
+	test("labels each full day and says UTC once, on the last", () => {
+		const html = renderToStaticMarkup(<RibbonDays now={NOW} />);
+		// Oct 8 holds four hours of the window, so it has no label of its own.
+		expect(html).not.toContain("Thu 8");
+		expect(html).toContain(">Fri 9<");
+		expect(html).toContain(">Sat 10<");
+		expect(html).toContain(">Thu 15 · UTC<");
+		expect(html.match(/UTC/g)).toHaveLength(1);
+	});
+
+	test("a day with under eight hours in the window gets the tick but no text", () => {
+		// 19:10 on the last day leaves 20 hours; shift to 05:10 for 6.
+		const early = Date.parse("2026-10-15T05:10:00Z");
+		const html = renderToStaticMarkup(<RibbonDays now={early} />);
+		expect(html).toContain('class="ix-day"');
+		expect(html).not.toContain("Thu 15");
 	});
 });
 
