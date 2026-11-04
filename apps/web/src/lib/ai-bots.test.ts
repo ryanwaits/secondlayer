@@ -41,7 +41,13 @@ describe("aiBot", () => {
 });
 
 describe("proxy matcher", () => {
-	const values = config.matcher.map((entry) => entry.has[0].value);
+	const crawlers = config.matcher.filter(
+		(entry) => entry.has[0].type === "header",
+	);
+	const values = crawlers.map((entry) => {
+		const [condition] = entry.has;
+		return "value" in condition ? condition.value : "";
+	});
 	// Next evaluates a has value exactly like this.
 	const matches = (ua: string) =>
 		values.every((value) => new RegExp(`^${value}$`).test(ua));
@@ -52,7 +58,7 @@ describe("proxy matcher", () => {
 	});
 
 	test("covers every page that owns a tracked search question", () => {
-		const sources = config.matcher.map((entry) => entry.source);
+		const sources = crawlers.map((entry) => entry.source);
 		expect(sources).toContain("/");
 		const [sections, files] = sources;
 		for (const section of ["docs", "p", "blog", "data"]) {
@@ -84,6 +90,15 @@ describe("proxy matcher", () => {
 				"Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1",
 			),
 		).toBe(false);
+	});
+
+	test("signed-in visitors reach the proxy only at the root", () => {
+		const signedIn = config.matcher.filter(
+			(entry) => entry.has[0].type === "cookie",
+		);
+		expect(signedIn).toEqual([
+			{ source: "/", has: [{ type: "cookie", key: "sl_session" }] },
+		]);
 	});
 
 	test("never matches ingest, next internals or api routes", () => {
