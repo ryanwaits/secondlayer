@@ -1,10 +1,11 @@
 "use client";
 
 import "@/components/code/code.css";
-import type { RenderedBlock } from "@/lib/code/blocks";
+import { MAX_CODE_BLOCKS, type RenderedBlock } from "@/lib/code/blocks";
 import type { SubgraphTableInfo } from "@/lib/subgraphs-store";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
+	type Fence,
 	type Lang,
 	RECIPES,
 	type Recipe,
@@ -41,6 +42,66 @@ async function readSample(name: string, table: string): Promise<Sample> {
 	} catch {
 		return null;
 	}
+}
+
+const fenceKeyOf = (fence: Fence): string => `${fence.lang}\n${fence.code}`;
+
+/** Renders fences with the docs code renderer, in as few requests as the cap
+ *  allows. Resolves with whatever rendered; a failed batch just stays plain. */
+async function renderFences(
+	fences: readonly Fence[],
+): Promise<[string, RenderedBlock][]> {
+	const batches: Fence[][] = [];
+	for (let i = 0; i < fences.length; i += MAX_CODE_BLOCKS) {
+		batches.push(fences.slice(i, i + MAX_CODE_BLOCKS));
+	}
+	const results = await Promise.all(
+		batches.map(async (batch) => {
+			try {
+				const res = await fetch("/api/code", {
+					method: "POST",
+					headers: { "content-type": "application/json" },
+					body: JSON.stringify({
+						blocks: batch.map((f) => ({
+							code: f.code,
+							title: "",
+							lines: 0,
+							lang: f.lang,
+						})),
+					}),
+				});
+				if (!res.ok) return [];
+				const body = (await res.json()) as { blocks: RenderedBlock[] };
+				return batch.flatMap((f, i): [string, RenderedBlock][] => {
+					const block = body.blocks[i];
+					return block ? [[fenceKeyOf(f), block]] : [];
+				});
+			} catch {
+				return [];
+			}
+		}),
+	);
+	return results.flat();
+}
+
+/** The plain code, laid out like the rendered frame (same body, rows and
+ *  prompt), so only the colors change when the highlighted version lands. */
+function PlainFence({ fence }: { fence: Fence }) {
+	const rows = copyText(fence).split("\n");
+	const shell = fence.lang === "bash";
+	return (
+		<div className="cb tabbed">
+			<div className={shell ? "cb-body hang" : "cb-body"}>
+				{rows.map((row, i) => (
+					// biome-ignore lint/suspicious/noArrayIndexKey: rows are static per fence
+					<div className="row" key={i}>
+						{shell && i === 0 ? <span className="prompt">$</span> : null}
+						{row || " "}
+					</div>
+				))}
+			</div>
+		</div>
+	);
 }
 
 export function UseSection({
@@ -86,16 +147,58 @@ export function UseSection({
 	const table =
 		chosen !== null && ordered.includes(chosen) ? chosen : (ordered[0] ?? "");
 	const info = tables[table];
-	const sampleKnown = samples.has(table);
 
-	// One read per table, the first time it is shown.
+	// Everything one table needs: its newest row, then every recipe in every
+	// language rendered in one go, so switching recipe or language is instant.
+	// Called for the shown table and on intent (hover, focus, touch) for the
+	// others, like the webhook payload prefetch. Each piece is asked for once.
+	const samplesRef = useRef(new Map<string, Sample>());
+	const warm = useCallback(
+		async (target: string) => {
+			const columns = tables[target]?.columns;
+			if (!columns) return;
+			if (!asked.current.has(target)) {
+				asked.current.add(target);
+				const sample = await readSample(name, target);
+				samplesRef.current.set(target, sample);
+				setSamples((prev) => new Map(prev).set(target, sample));
+			}
+			if (!samplesRef.current.has(target)) return; // another call is reading it
+			const sample = samplesRef.current.get(target) ?? null;
+			const fences = RECIPES.flatMap(({ id }) =>
+				LANGS.map(({ id: l }) =>
+					exampleFence({
+						subgraph: name,
+						table: target,
+						columns,
+						sample,
+						recipe: id,
+						lang: l,
+					}),
+				),
+			).filter((f): f is Fence => f !== null);
+			const todo = fences.filter((f) => !requested.current.has(fenceKeyOf(f)));
+			if (todo.length === 0) return;
+			for (const f of todo) requested.current.add(fenceKeyOf(f));
+			const done = await renderFences(todo);
+			const got = new Set(done.map(([key]) => key));
+			for (const f of todo) {
+				if (!got.has(fenceKeyOf(f))) requested.current.delete(fenceKeyOf(f));
+			}
+			if (done.length > 0) {
+				setRendered((prev) => {
+					const next = new Map(prev);
+					for (const [key, block] of done) next.set(key, block);
+					return next;
+				});
+			}
+		},
+		[name, tables],
+	);
+
 	useEffect(() => {
-		if (!table || asked.current.has(table)) return;
-		asked.current.add(table);
-		readSample(name, table).then((sample) =>
-			setSamples((prev) => new Map(prev).set(table, sample)),
-		);
-	}, [name, table]);
+		if (table) void warm(table);
+	}, [table, warm]);
 
 	const fence = useMemo(
 		() =>
@@ -112,32 +215,8 @@ export function UseSection({
 		[name, table, info, samples, recipe, lang],
 	);
 
-	const fenceKey = fence ? `${fence.lang}\n${fence.code}` : null;
+	const fenceKey = fence ? fenceKeyOf(fence) : null;
 	const block = fenceKey ? rendered.get(fenceKey) : undefined;
-
-	// Render once the table's newest row is known, so the frame doesn't draw
-	// twice. Responses are cached by fence text, so a late one is never wrong.
-	useEffect(() => {
-		if (!fence || !fenceKey || !sampleKnown) return;
-		if (requested.current.has(fenceKey)) return;
-		requested.current.add(fenceKey);
-		fetch("/api/code", {
-			method: "POST",
-			headers: { "content-type": "application/json" },
-			body: JSON.stringify({
-				blocks: [{ code: fence.code, title: "", lines: 0, lang: fence.lang }],
-			}),
-		})
-			.then((res) => (res.ok ? res.json() : Promise.reject(res.status)))
-			.then((body: { blocks: RenderedBlock[] }) => {
-				const next = body.blocks[0];
-				if (next) setRendered((prev) => new Map(prev).set(fenceKey, next));
-			})
-			.catch(() => {
-				// The plain code below stays: the section never depends on this.
-				requested.current.delete(fenceKey);
-			});
-	}, [fence, fenceKey, sampleKnown]);
 
 	// The SDK example's tips need the page's tip listeners.
 	useEffect(() => {
@@ -160,6 +239,9 @@ export function UseSection({
 							key={candidate}
 							type="button"
 							aria-pressed={candidate === table}
+							onPointerEnter={() => void warm(candidate)}
+							onFocus={() => void warm(candidate)}
+							onTouchStart={() => void warm(candidate)}
 							onClick={() => setTable(candidate)}
 						>
 							{candidate}
@@ -225,7 +307,7 @@ export function UseSection({
 							dangerouslySetInnerHTML={{ __html: block.html }}
 						/>
 					) : (
-						<pre className="lf-pre">{copyText(fence)}</pre>
+						<PlainFence fence={fence} />
 					)}
 				</div>
 			</div>

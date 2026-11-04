@@ -479,11 +479,15 @@ describe("UseSection", () => {
 		expect(html).toContain('aria-pressed="true">Newest<');
 	});
 
-	test("the plain code shows until the frame arrives, without tip lines", () => {
-		const pre = html.slice(html.indexOf('<pre class="lf-pre">'));
-		expect(pre).toContain("getSubgraph(definition)");
-		expect(pre).toContain(".completed_deposit.findMany(");
-		expect(pre).not.toContain("!tip");
+	test("the plain code shows in the rendered frame's layout until it arrives, without tip lines", () => {
+		const body = html.slice(html.indexOf('class="use-body"'));
+		expect(body).toContain(
+			'<div class="cb tabbed"><div class="cb-body"><div class="row">',
+		);
+		expect(body).toContain("getSubgraph(definition)");
+		expect(body).toContain(".completed_deposit.findMany(");
+		expect(body).not.toContain("!tip");
+		expect(body).not.toContain("lf-pre");
 	});
 
 	test("Copy carries no hover caption", () => {
