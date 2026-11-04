@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useCallback } from "react";
+import { type MouseEvent, useCallback } from "react";
 
 type Router = ReturnType<typeof useRouter>;
 type PrefetchKind = NonNullable<Parameters<Router["prefetch"]>[1]>["kind"];
@@ -41,4 +41,30 @@ export function useIntentPrefetch(): (
 		},
 		[router],
 	);
+}
+
+/**
+ * A list row that opens `href` wherever it's clicked, not just on its link,
+ * and prefetches on intent like the link would. The row's `<Link>` stays the
+ * keyboard and screen-reader target; this only widens the pointer target. A
+ * click on any link or control inside the row, or one a child already
+ * handled (`preventDefault`), is left alone, and so is a text selection.
+ */
+export function useRowLink(href: string) {
+	const router = useRouter();
+	const intent = useIntentPrefetch();
+	return {
+		...intent(href),
+		onClick: (event: MouseEvent<HTMLElement>) => {
+			if (event.defaultPrevented) return;
+			const target = event.target as HTMLElement;
+			if (target.closest("a, input, select, textarea, label")) return;
+			if (window.getSelection()?.toString()) return;
+			if (event.metaKey || event.ctrlKey || event.button === 1) {
+				window.open(href, "_blank", "noopener");
+				return;
+			}
+			router.push(href);
+		},
+	};
 }

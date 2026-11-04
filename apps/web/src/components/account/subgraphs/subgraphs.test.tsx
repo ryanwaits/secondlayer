@@ -105,12 +105,12 @@ describe("SubgraphsListBody", () => {
 		expect(html).not.toContain("Everything is indexing.");
 	});
 
-	test("a big title and one wl-row per subgraph", () => {
+	test("a big title and one clickable row per subgraph", () => {
 		const html = renderToStaticMarkup(
 			<SubgraphsListBody items={exampleList} health={health} notice={null} />,
 		);
 		expect(html).toContain("<h1>Subgraphs</h1>");
-		expect(html.match(/class="wl-row"/g)).toHaveLength(exampleList.length);
+		expect(html.match(/class="wl-row link"/g)).toHaveLength(exampleList.length);
 		expect(html).toContain("2 tables");
 		expect(html).toContain("1 table<");
 	});
@@ -378,7 +378,7 @@ describe("RecentRowsBody", () => {
 			Number((m[1] ?? "").replace(/,/g, "")),
 		);
 		expect(blocks).toEqual([...blocks].sort((a, b) => b - a));
-		expect(html).toContain("click a row for its values");
+		expect(html).not.toContain("click a row");
 	});
 
 	test("shows skeleton rows while loading", () => {

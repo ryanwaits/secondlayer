@@ -14,7 +14,7 @@ import { heatGrid } from "@/lib/dashboard-charts";
 import type { WebhooksResult } from "@/lib/dashboard-results";
 import type { Insight } from "@/lib/insights";
 import { forAccountRules, useInsights } from "@/lib/insights-store";
-import { useIntentPrefetch } from "@/lib/intent-prefetch";
+import { useRowLink } from "@/lib/intent-prefetch";
 import type { WebhooksListInitial } from "@/lib/server/dashboard-reads";
 import { useFirstSettle } from "@/lib/use-first-settle";
 import { hostOf, pauseWebhook, resumeWebhook } from "@/lib/webhooks-data";
@@ -232,11 +232,11 @@ function WebhookListRow({
 		? series.delivered.map((n, i) => ({ n, f: series.failed[i] ?? 0 }))
 		: [];
 	const last = hours.at(-1);
-	const intent = useIntentPrefetch();
 	const href = `/account/webhooks/${webhook.id}`;
+	const row = useRowLink(href);
 	return (
-		<div className="wl-row">
-			<Link href={href} prefetch={false} {...intent(href)} className="wl-main">
+		<div className="wl-row link" {...row}>
+			<Link href={href} prefetch={false} className="wl-main">
 				<span className="dash-row-name">
 					<span title={webhook.name}>{shortenName(webhook.name)}</span>
 					{webhook.managedBy ? (

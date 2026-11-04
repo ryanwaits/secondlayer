@@ -25,7 +25,8 @@ const DEFAULT_UNITS: HeatUnits = { n: "delivered", f: "failed" };
  * Seven days of deliveries as an hour-by-day grid, laid on UTC calendar days.
  * Cell opacity follows volume, `--alarm` marks hours with failures, and an
  * empty hour is `--soft`. Hover or focus shows a tooltip; click reports the
- * hour index so a screen can list that hour's deliveries.
+ * hour index so a screen can list that hour's deliveries. Without
+ * `onCellClick`, a click passes to whatever the strip sits in.
  */
 export function HeatStrip({
 	hours,
@@ -101,7 +102,12 @@ export function HeatStrip({
 									onFocus={(e) => show(cell, e.currentTarget)}
 									onPointerLeave={() => setHover(null)}
 									onBlur={() => setHover(null)}
-									onClick={() => onCellClick?.(index)}
+									onClick={(e) => {
+										if (!onCellClick) return;
+										// Handled here: a clickable row around the strip leaves it alone.
+										e.preventDefault();
+										onCellClick(index);
+									}}
 								/>
 							);
 						})}

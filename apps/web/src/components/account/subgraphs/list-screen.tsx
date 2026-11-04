@@ -21,7 +21,7 @@ import {
 	forResource,
 	useInsights,
 } from "@/lib/insights-store";
-import { useIntentPrefetch } from "@/lib/intent-prefetch";
+import { useRowLink } from "@/lib/intent-prefetch";
 import {
 	groupDigits,
 	handlerErrors24h,
@@ -278,11 +278,11 @@ function SubgraphListRow({
 		);
 	const last = health?.hours.at(-1)?.hour;
 	const tables = item.tables.length;
-	const intent = useIntentPrefetch();
 	const href = `/account/subgraphs/${encodeURIComponent(item.name)}`;
+	const row = useRowLink(href);
 	return (
-		<div className="wl-row">
-			<Link href={href} prefetch={false} {...intent(href)} className="wl-main">
+		<div className="wl-row link" {...row}>
+			<Link href={href} prefetch={false} className="wl-main">
 				<span className="dash-row-name">
 					<span title={item.name}>{item.name}</span>
 				</span>

@@ -7011,10 +7011,13 @@ button.dash-row {
 .wl-sub b {
 	font: 400 12.5px / 1 var(--font-mono-stack);
 }
-.wl-main:hover .dash-row-name > span {
+.wl-row.link {
+	cursor: pointer;
+}
+.wl-row.link:hover .dash-row-name > span {
 	color: var(--pri);
 }
-.wl-main:hover .wl-state:not(.bad) {
+.wl-row.link:hover .wl-state:not(.bad) {
 	color: var(--ink);
 }
 .wl-chip {
@@ -7343,7 +7346,8 @@ button.dash-row {
 .wd-tbl tr.click td:first-child {
 	transition: color 0.12s;
 }
-.wd-tbl tr.click:hover td:first-child {
+.wd-tbl tr.click:hover td:first-child,
+.wd-tbl tr.click[aria-expanded="true"] td:first-child {
 	color: var(--pri);
 }
 .wd-tbl tr.click:focus-visible {
@@ -7869,14 +7873,16 @@ button.dash-row {
 	cursor: default;
 }
 .use-body {
-	height: calc(9 * var(--lh, 22px) + 24px);
-	overflow: auto;
+	overflow: hidden;
+	transition: height 0.18s ease-out;
 }
-.use-body .lf-pre {
-	box-sizing: border-box;
-	min-height: 100%;
-	border: 0;
-	border-radius: 0;
+.use-body > div {
+	overflow-x: auto;
+}
+@media (prefers-reduced-motion: reduce) {
+	.use-body {
+		transition: none;
+	}
 }
 .use-empty {
 	margin: 0;
