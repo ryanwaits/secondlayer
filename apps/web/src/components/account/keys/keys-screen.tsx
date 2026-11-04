@@ -24,7 +24,7 @@ import type { ApiKey, ConnectedApp } from "@/lib/types";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AccountCompactHeader } from "../compact-account";
-import { AppsTable } from "./apps-table";
+import { AppsPanel } from "./apps-panel";
 import { KeysCompact } from "./compact-keys";
 import {
 	agoShort,
@@ -595,7 +595,7 @@ export function KeysBody({
 				madeOpen={madeOpen}
 				onRotated={onRotated}
 			/>
-			{apps !== undefined ? <AppsTable apps={apps} now={now} /> : null}
+			{apps !== undefined ? <AppsPanel apps={apps} now={now} /> : null}
 		</div>
 	);
 }

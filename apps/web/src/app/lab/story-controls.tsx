@@ -99,7 +99,7 @@ import { FIXTURE_INSIGHTS } from "@/lib/insights.fixtures";
 import type { PushState } from "@/lib/push-client";
 import type { RowsDay, RowsResponse } from "@/lib/rows";
 import type { SubgraphListItem } from "@/lib/subgraphs-store";
-import type { ApiKey } from "@/lib/types";
+import type { ApiKey, ConnectedApp } from "@/lib/types";
 import type { DailySpend } from "@/lib/usage";
 import type { WebhookTestResult } from "@secondlayer/sdk";
 import type { ChainTrigger } from "@secondlayer/sdk";
@@ -830,6 +830,21 @@ export function OverviewDemo({ state }: { state: OverviewDemoState }) {
 }
 
 /** The Keys screen and the create flow: callbacks are functions, which a server page cannot pass. */
+const EXAMPLE_APPS: ConnectedApp[] = [
+	{
+		id: "6f1c2a7e-3b4d-4e5f-8a9b-0c1d2e3f4a5b",
+		clientName: "Claude Code (secondlayer)",
+		createdAt: "2026-10-18T10:00:00.000Z",
+		lastUsedAt: "2026-10-18T11:00:00.000Z",
+	},
+	{
+		id: "0a9b8c7d-6e5f-4a3b-8c2d-1e0f9a8b7c6d",
+		clientName: "Cursor",
+		createdAt: "2026-10-02T09:00:00.000Z",
+		lastUsedAt: null,
+	},
+];
+
 export function KeysDemo({
 	view,
 }: {
@@ -840,6 +855,7 @@ export function KeysDemo({
 		| "name"
 		| "name-repeat"
 		| "reveal"
+		| "apps"
 		| "empty";
 }) {
 	const noop = () => {};
@@ -869,6 +885,7 @@ export function KeysDemo({
 	return (
 		<KeysBody
 			keys={view === "stale" ? EXAMPLE_KEYS_STALE : EXAMPLE_KEYS}
+			apps={view === "apps" ? EXAMPLE_APPS : undefined}
 			now={KEYS_EXAMPLE_NOW}
 			onNew={noop}
 			onRotated={noop}

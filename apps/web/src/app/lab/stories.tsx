@@ -2677,6 +2677,11 @@ const META: Record<StoryId, Meta> = {
 				render: () => <KeysDemo view="reveal" />,
 			},
 			{
+				id: "apps",
+				label: "Apps signed in",
+				render: () => <KeysDemo view="apps" />,
+			},
+			{
 				id: "empty",
 				label: "No keys yet",
 				render: () => <KeysDemo view="empty" />,

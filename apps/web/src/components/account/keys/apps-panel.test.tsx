@@ -12,7 +12,7 @@ mock.module("next/navigation", () => ({
 	permanentRedirect: () => {},
 }));
 
-const { AppsTable } = await import("./apps-table");
+const { AppsPanel } = await import("./apps-panel");
 const { KeysBody } = await import("./keys-screen");
 
 const NOW = new Date("2026-10-18T12:00:00.000Z");
@@ -24,11 +24,14 @@ const app = (patch: Partial<ConnectedApp> = {}): ConnectedApp => ({
 	...patch,
 });
 
-describe("AppsTable", () => {
-	test("each app: its quoted name, unverified, when it was allowed, last use and Revoke", () => {
-		const html = renderToStaticMarkup(<AppsTable apps={[app()]} now={NOW} />);
-		expect(html).toContain(">Apps<");
-		expect(html).toContain("“Claude Code”");
+describe("AppsPanel", () => {
+	test("each app: its plain name, unverified, when it was allowed, last use and Revoke", () => {
+		const html = renderToStaticMarkup(<AppsPanel apps={[app()]} now={NOW} />);
+		expect(html).toContain("Apps signed in as you");
+		expect(html).toContain("Claude Code<");
+		expect(html).not.toContain("“Claude Code”");
+		expect(html).toContain(">C</span>");
+		expect(html).toContain("last used 1h ago");
 		expect(html).toContain("name unverified");
 		expect(html).toContain("Allowed ");
 		expect(html).toContain(">Revoke<");
@@ -37,17 +40,17 @@ describe("AppsTable", () => {
 
 	test("a hostile name is escaped plain text", () => {
 		const html = renderToStaticMarkup(
-			<AppsTable apps={[app({ clientName: "<b>x</b>‮evil" })]} now={NOW} />,
+			<AppsPanel apps={[app({ clientName: "<b>x</b>‮evil" })]} now={NOW} />,
 		);
 		expect(html).not.toContain("<b>x</b>");
 		expect(html).not.toContain("‮");
 	});
 
 	test("loading and empty states", () => {
-		expect(renderToStaticMarkup(<AppsTable apps={null} now={NOW} />)).toContain(
+		expect(renderToStaticMarkup(<AppsPanel apps={null} now={NOW} />)).toContain(
 			"Loading apps…",
 		);
-		expect(renderToStaticMarkup(<AppsTable apps={[]} now={NOW} />)).toContain(
+		expect(renderToStaticMarkup(<AppsPanel apps={[]} now={NOW} />)).toContain(
 			"No apps signed in.",
 		);
 	});
@@ -61,6 +64,6 @@ describe("AppsTable", () => {
 			<KeysBody keys={[]} apps={[app()]} now={NOW} onNew={() => {}} />,
 		);
 		expect(withApps).toContain("ky-apps");
-		expect(withApps).toContain("“Claude Code”");
+		expect(withApps).toContain("Claude Code<");
 	});
 });
