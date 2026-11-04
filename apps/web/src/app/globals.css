@@ -5727,28 +5727,42 @@ a.acct-strip-link:hover .acct-strip-k {
 }
 
 /* Dashboard shell (account pages) */
-.dash-dot {
-	width: 8px;
-	height: 8px;
-	border-radius: 50%;
-	background: var(--ok);
-	flex: none;
-	display: inline-block;
+/* Status: healthy and neutral show nothing. Attention (--hi) and failing
+   (--alarm) tint the compact table row, with its own top and bottom rules in
+   the same color, and mark the value that is wrong. */
+.dash-row.att,
+.dash-row.fail {
+	--c: var(--hi);
+	background: color-mix(in srgb, var(--c) 9%, transparent);
+	border-bottom-color: color-mix(in srgb, var(--c) 55%, transparent);
+	/* The top rule is a shadow, so it draws over the header's hairline
+	   without moving the row. */
+	box-shadow: inset 0 1px 0 color-mix(in srgb, var(--c) 55%, transparent);
 }
-.dash-dot.alarm {
-	background: var(--alarm);
+.dash-row.fail {
+	--c: var(--alarm);
 }
-.dash-dot.hi {
-	background: var(--hi);
+/* In a wrap the wrap owns the bottom rule; a flagged row draws its own. */
+.dash-row-wrap:has(> .dash-row.att, > .dash-row.fail) {
+	border-bottom-color: transparent;
 }
-.dash-dot.idle {
-	background: transparent;
-	box-shadow: inset 0 0 0 1.5px var(--faint);
+.dash-row-wrap > .dash-row.att,
+.dash-row-wrap > .dash-row.fail {
+	border-bottom: 1px solid color-mix(in srgb, var(--c) 55%, transparent);
 }
-/* Healthy is the default, so a resource row shows no dot; a dot means
-   something needs you. The slot stays so names line up. */
-.dash-dot.none {
-	background: transparent;
+/* The value that is wrong: the brand .hl block for attention, the inverted
+   neutral block for failing. The same in light and dark. */
+.dash-mark {
+	padding: 0 0.1em;
+	color: var(--on-hi);
+	background: linear-gradient(var(--hi), var(--hi)) 0 0.14em / 100% 1.08em
+		no-repeat;
+	-webkit-box-decoration-break: clone;
+	box-decoration-break: clone;
+}
+.dash-mark.fail {
+	color: var(--paper);
+	background-image: linear-gradient(var(--ink), var(--ink));
 }
 
 /* Top bar: tabs take the free width, then heartbeat, kbd and the account chip. */
@@ -5890,20 +5904,13 @@ a.acct-strip-link:hover .acct-strip-k {
 
 /* Status sentence */
 .dash-status-wrap > .dash-status {
-	display: flex;
-	align-items: center;
-	gap: 14px;
 	margin: 0;
 	font: 500 30px / 1.15 var(--font-sans-stack);
 	letter-spacing: -0.025em;
 	text-wrap: balance;
 }
-.dash-status-wrap > .dash-status .dash-dot {
-	width: 10px;
-	height: 10px;
-}
 .dash-status-sub {
-	margin: 10px 0 0 24px;
+	margin: 10px 0 0;
 	font-size: 15px;
 	color: var(--sub);
 }
@@ -5917,7 +5924,7 @@ a.acct-strip-link:hover .acct-strip-k {
 	gap: 20px;
 }
 .dash-row-head {
-	padding: 0 0 10px;
+	padding: 0 12px 10px;
 	border-bottom: 1px solid var(--line);
 	font: 500 10.5px / 1 var(--font-mono-stack);
 	letter-spacing: 0.07em;
@@ -5928,7 +5935,7 @@ a.acct-strip-link:hover .acct-strip-k {
 	text-align: right;
 }
 .dash-row {
-	padding: 16px 0;
+	padding: 16px 12px;
 	border-bottom: 1px solid var(--line);
 	color: inherit;
 	text-decoration: none;
@@ -5939,7 +5946,7 @@ a.acct-strip-link:hover .acct-strip-k {
 	gap: 10px;
 	min-width: 0;
 }
-.dash-row-name > span:not(.dash-dot) {
+.dash-row-name > span {
 	font: 500 14px / 1.3 var(--font-mono-stack);
 	overflow: hidden;
 	text-overflow: ellipsis;
@@ -5975,7 +5982,7 @@ a.acct-strip-link:hover .acct-strip-k {
 	   their height. */
 	min-height: 30px;
 }
-.dash-row:hover .dash-row-name > span:not(.dash-dot) {
+.dash-row:hover .dash-row-name > span {
 	color: var(--pri);
 }
 .dash-row:hover .dash-row-state {
@@ -6001,15 +6008,9 @@ a.acct-strip-link:hover .acct-strip-k {
 	.marketing-nav.is-dash .marketing-nav-brand span {
 		display: none;
 	}
-	.dash-status-sub {
-		margin-left: 0;
-	}
 }
 @media (prefers-reduced-motion: reduce) {
-	.dash-dot.pulse {
-		animation: none;
-	}
-	.dash-row-name > span:not(.dash-dot),
+	.dash-row-name > span,
 	.dash-row-state,
 	.dash-crumb a {
 		transition: none;
@@ -6041,6 +6042,21 @@ a.acct-strip-link:hover .acct-strip-k {
 .dc-stroke-a {
 	fill: none;
 	stroke: var(--ch-a);
+}
+.dc-fill-hi {
+	fill: var(--hi);
+}
+.dc-area-hi {
+	fill: var(--hi);
+	fill-opacity: 0.09;
+}
+.dc-area-alarm {
+	fill: var(--alarm);
+	fill-opacity: 0.09;
+}
+.dc-stroke-hi {
+	fill: none;
+	stroke: var(--hi);
 }
 .dc-stroke-alarm {
 	fill: none;
@@ -6182,6 +6198,10 @@ a.acct-strip-link:hover .acct-strip-k {
 }
 .dc-heat-cell.x {
 	background: transparent;
+}
+/* A flagged row's delivered cells follow it; failed cells stay red. */
+.dc-heat-wrap.att .dc-heat-cell:not(.z, .f, .x, .s) {
+	background: var(--hi);
 }
 /* A loading cell: the skeleton tone, not `--soft` (that means "nothing delivered"). */
 .dc-heat-cell.s {
@@ -6959,7 +6979,7 @@ button.dash-row {
 	color: inherit;
 	text-decoration: none;
 }
-.wl-main .dash-row-name > span:not(.dash-dot) {
+.wl-main .dash-row-name > span {
 	font: 500 14px / 1.3 var(--font-mono-stack);
 	overflow: hidden;
 	text-overflow: ellipsis;
@@ -6987,7 +7007,7 @@ button.dash-row {
 .wl-sub b {
 	font: 400 12.5px / 1 var(--font-mono-stack);
 }
-.wl-main:hover .dash-row-name > span:not(.dash-dot) {
+.wl-main:hover .dash-row-name > span {
 	color: var(--pri);
 }
 .wl-main:hover .wl-state:not(.bad) {
@@ -7658,7 +7678,7 @@ button.dash-row {
 	}
 }
 @media (prefers-reduced-motion: reduce) {
-	.wl-main .dash-row-name > span:not(.dash-dot),
+	.wl-main .dash-row-name > span,
 	.wl-state,
 	.wd-rename,
 	.wd-btn,
@@ -7943,10 +7963,6 @@ button.dash-row {
 	margin-top: 2px;
 	font-size: 12.5px;
 }
-.rw-ours .dash-dot {
-	position: relative;
-	top: -1px;
-}
 /* A list of notes under the chart: each note keeps its bottom hairline and
  * none above the first, as the mock draws it. */
 .rw-notes {
@@ -8003,9 +8019,6 @@ button.dash-row {
 	font-size: 13px;
 	line-height: 1.45;
 	color: var(--sub);
-}
-.nk-note .dash-dot {
-	transform: translateY(-1px);
 }
 .nk-key {
 	display: grid;
@@ -8434,9 +8447,6 @@ button.ky-click:focus-visible,
 	gap: 10px;
 	font-size: 14px;
 	color: var(--sub);
-}
-.ob-key-text .dash-dot {
-	transform: translateY(-1px);
 }
 .ob-steps {
 	display: grid;
@@ -9380,9 +9390,6 @@ button.ky-click:focus-visible,
 	align-items: flex-start;
 	gap: 12px;
 	padding: 14px;
-}
-.mwh-status .dash-dot {
-	margin-top: 5px;
 }
 .mwh-status-text {
 	display: grid;

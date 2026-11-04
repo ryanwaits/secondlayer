@@ -1,7 +1,7 @@
+import { type Tone, flagClass } from "@/lib/tone";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { Skel } from "./skel";
-import { type Tone, dotClass } from "./status-sentence";
 
 export function ResourceRow({
 	href,
@@ -28,11 +28,11 @@ export function ResourceRow({
 	/** Full name for the title tooltip when the shown name is shortened. */
 	nameTitle?: string;
 }) {
+	// Healthy and neutral rows show nothing; attention and failing tint the row.
+	const flag = flagClass(tone);
 	return (
-		<Link href={href} className="dash-row">
+		<Link href={href} className={flag ? `dash-row ${flag}` : "dash-row"}>
 			<span className="dash-row-name" title={nameTitle}>
-				{/* Healthy is the default and shows no dot; the empty slot keeps names aligned. */}
-				<span className={tone === "ok" ? "dash-dot none" : dotClass(tone)} />
 				<span>{name}</span>
 				{kind ? <em>{kind}</em> : null}
 			</span>
@@ -71,7 +71,6 @@ export function ResourceRowSkeleton() {
 	return (
 		<div className="dash-row" aria-hidden="true">
 			<span className="dash-row-name">
-				<span className="dash-dot idle" />
 				<Skel width="55%" />
 			</span>
 			<span className="dash-row-state">

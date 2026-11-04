@@ -7,7 +7,7 @@ import { Choice } from "@/components/choice";
 import { Legend } from "@/components/dashboard/charts/legend";
 import { ActionableInsights } from "@/components/dashboard/insight/insight-actions";
 import { Breadcrumb } from "@/components/dashboard/shell/breadcrumb";
-import { dotClass } from "@/components/dashboard/shell/status-sentence";
+import { Mark } from "@/components/dashboard/shell/mark";
 import { useCompact } from "@/components/mobile/use-compact";
 import { formatDate } from "@/lib/account-data";
 import { barsRows } from "@/lib/dashboard-charts";
@@ -168,26 +168,12 @@ function useDetailPoll(
 
 // ── Title row ────────────────────────────────────────────────────────────
 
-type Tone = "ok" | "alarm" | "hi" | "idle";
-
-function toneFor(webhook: WebhookDetail, insights: readonly Insight[]): Tone {
-	const status = displayStatus(webhook);
-	if (status === "paused") return "idle";
-	if (status === "error" || insights.some((i) => i.severity === "losing")) {
-		return "alarm";
-	}
-	if (insights.some((i) => i.severity === "will_fail")) return "hi";
-	return "ok";
-}
-
 export function TitleRow({
 	name,
-	tone,
 	managedBy,
 	onRename,
 }: {
 	name: string;
-	tone: Tone;
 	managedBy: string | null;
 	/** Resolves true when the new name was saved. */
 	onRename: (name: string) => Promise<boolean>;
@@ -220,7 +206,6 @@ export function TitleRow({
 	return (
 		<div className="wd-title">
 			<h1>
-				<span className={dotClass(tone)} />
 				{editing ? (
 					<input
 						className="wd-rename-input"
@@ -281,20 +266,27 @@ export function TitleRow({
 
 const sumOf = (values: readonly number[]) => values.reduce((a, b) => a + b, 0);
 
-function Facts({
+/** A webhook still pointed at a throwaway test endpoint. */
+const hasTestEndpoint = (insights: readonly Insight[]) =>
+	insights.some((i) => i.rule === "test_endpoint");
+
+export function Facts({
 	webhook,
 	activity,
 	deliveries,
+	insights = [],
 }: {
 	webhook: WebhookDetail;
 	activity: WebhookActivity | null;
 	deliveries: readonly DeliveryRow[];
+	insights?: readonly Insight[];
 }) {
 	const stats = deliveryStats(deliveries);
-	const fact = (label: string, value: string) => (
+	const gaveUp = activity ? sumOf(activity.hours.map((h) => h.gaveUp)) : 0;
+	const fact = (label: string, value: string, mark?: "att" | "fail") => (
 		<div key={label}>
 			{label}
-			<b>{value}</b>
+			<b>{mark ? <Mark tone={mark}>{value}</Mark> : value}</b>
 		</div>
 	);
 	return (
@@ -309,9 +301,8 @@ function Facts({
 			)}
 			{fact(
 				"Gave up · 7d",
-				activity
-					? sumOf(activity.hours.map((h) => h.gaveUp)).toLocaleString("en-US")
-					: "–",
+				activity ? gaveUp.toLocaleString("en-US") : "–",
+				gaveUp > 0 ? "fail" : undefined,
 			)}
 			{fact("Retried · last 100", stats.retried.toLocaleString("en-US"))}
 			{fact(
@@ -320,7 +311,11 @@ function Facts({
 					? "–"
 					: `${stats.p50.toLocaleString("en-US")} / ${stats.p95.toLocaleString("en-US")} ms`,
 			)}
-			{fact("Receiver", hostOf(webhook.url))}
+			{fact(
+				"Receiver",
+				hostOf(webhook.url),
+				hasTestEndpoint(insights) ? "att" : undefined,
+			)}
 			{fact("Created", formatDate(webhook.createdAt))}
 		</div>
 	);
@@ -581,7 +576,6 @@ export function WebhookDetailBody({
 				<div className="wd-top">
 					<TitleRow
 						name={webhook.name}
-						tone={toneFor(webhook, ranked)}
 						managedBy={webhook.managedBy}
 						onRename={onRename}
 					/>
@@ -604,7 +598,12 @@ export function WebhookDetailBody({
 						</button>
 					</div>
 				</div>
-				<Facts webhook={webhook} activity={activity} deliveries={deliveries} />
+				<Facts
+					webhook={webhook}
+					activity={activity}
+					deliveries={deliveries}
+					insights={ranked}
+				/>
 			</header>
 
 			<ActionableInsights insights={ranked} />

@@ -98,7 +98,7 @@ describe("BillingBody", () => {
 		expect(html).not.toContain("bl-band urgent");
 	});
 
-	test("a balance about to run out turns the band urgent and the dot yellow", () => {
+	test("a balance about to run out turns the band urgent and marks the amount as attention", () => {
 		const html = renderToStaticMarkup(
 			<BillingBody
 				{...base}
@@ -108,14 +108,14 @@ describe("BillingBody", () => {
 				}}
 			/>,
 		);
-		expect(html).toContain("$1.24 left.");
+		expect(html).toContain('<span class="dash-mark att">$1.24</span> left.');
 		expect(html).toContain('class="bl-band urgent"');
-		expect(html).toContain("dash-dot hi");
+		expect(html).not.toContain("-dot");
 		expect(html).toContain("a day.");
 		expect(html).toContain("on pace for");
 	});
 
-	test("a stopped stack turns the band urgent and says how to resume", () => {
+	test("a stopped stack marks the amount as failing, keeps the band neutral and says how to resume", () => {
 		const html = renderToStaticMarkup(
 			<BillingBody
 				{...base}
@@ -124,12 +124,14 @@ describe("BillingBody", () => {
 				service={{ state: "stopped", lastChargedAt: null, memory24h: [] }}
 			/>,
 		);
-		expect(html).toContain("$0.00 left. Your hosted stack has stopped.");
+		expect(html).toContain(
+			'<span class="dash-mark fail">$0.00</span> left. Your hosted stack has stopped.',
+		);
 		expect(html).toContain(
 			"Webhooks and subgraphs pick up where they left off once you add credits.",
 		);
-		expect(html).toContain('class="bl-band urgent"');
-		expect(html).toContain("dash-dot alarm");
+		expect(html).toContain('class="bl-band"');
+		expect(html).not.toContain("bl-band urgent");
 	});
 
 	test("reads top to bottom: status, spend chart, add credits band, then the two columns", () => {
@@ -327,7 +329,6 @@ describe("BillingBody for a new account", () => {
 			"Nothing spent yet. Add credits only when you pass the free rows or start a hosted stack.",
 		);
 		expect(html).toContain("0 of your free 1M rows used. Resets Nov 1.");
-		expect(html).toContain("dash-dot idle");
 		expect(html).not.toContain('href="#packs"');
 	});
 

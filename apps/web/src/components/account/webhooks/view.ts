@@ -1,4 +1,5 @@
 import type { WebhooksResult } from "@/lib/dashboard-results";
+import type { Tone } from "@/lib/tone";
 import { type WebhookActivityDay, formatRelative } from "@/lib/webhooks-data";
 import type {
 	DeliveryRow,
@@ -18,10 +19,8 @@ export interface HourlySeries {
 	failed: number[];
 }
 
-export type RowTone = "ok" | "alarm" | "hi" | "idle";
-
 export interface RowState {
-	tone: RowTone;
+	tone: Tone;
 	text: string;
 	/** The line reads as a problem (red text). */
 	bad: boolean;

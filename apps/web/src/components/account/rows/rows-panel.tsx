@@ -61,7 +61,6 @@ function ServerErrors({ errors }: { errors: RowsError[] }) {
 	const paths = [...new Set(errors.map((e) => shortenPath(e.path)))].join(", ");
 	return (
 		<p className="rw-ours">
-			<span className="dash-dot alarm" />
 			<span>
 				{total} {total === 1 ? "read" : "reads"} failed on our side
 				<span className="bl-faint"> · {paths}</span>
@@ -142,10 +141,7 @@ function EmptyRows({
 }) {
 	return (
 		<div className="bl-body">
-			<StatusSentence
-				tone="idle"
-				sub="Every row you read shows up here by day, with what it cost. The first 1M each month are free."
-			>
+			<StatusSentence sub="Every row you read shows up here by day, with what it cost. The first 1M each month are free.">
 				No reads yet.
 			</StatusSentence>
 			<ActionableInsights insights={insights} />
@@ -185,7 +181,7 @@ export function RowsBody({
 	if (status === "failed" || !data) {
 		return (
 			<div className="rw-failed">
-				<StatusSentence tone="alarm">Couldn't load your rows.</StatusSentence>
+				<StatusSentence>Couldn't load your rows.</StatusSentence>
 				<button type="button" className="acct-btn line small" onClick={onRetry}>
 					Retry
 				</button>
@@ -203,9 +199,7 @@ export function RowsBody({
 	const histogram = barsRows(data.histogram.map((bin) => ({ n: bin.calls })));
 	return (
 		<div className="bl-body">
-			<StatusSentence tone="ok" sub={copy.sub}>
-				{copy.sentence}
-			</StatusSentence>
+			<StatusSentence sub={copy.sub}>{copy.sentence}</StatusSentence>
 			{keyState === "none_active" && !hasRevokedKeyInUse(insights) ? (
 				<ReadsKeyLine state="none_active" />
 			) : null}
@@ -290,7 +284,6 @@ export function RowsSkeleton() {
 		<output className="bl-body" aria-busy="true" aria-label="Loading rows">
 			<div className="dash-status-wrap">
 				<h1 className="dash-status">
-					<span className="dash-dot idle" />
 					<Skel width={260} height={22} />
 				</h1>
 				<p className="dash-status-sub">

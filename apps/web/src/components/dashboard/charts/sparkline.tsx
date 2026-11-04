@@ -1,5 +1,6 @@
 /**
- * A word-scale trend line: `--ch-a` line over a faint area, an end dot, and
+ * A word-scale trend line: `--ch-a` line (`--hi` on an attention row, `--alarm`
+ * on a failing one) over a faint area, an end dot, and
  * short `--alarm` ticks along the bottom at indices that had failures.
  * Geometry ported from the approved dashboard mock; plain SVG so it renders on
  * the server.
@@ -10,6 +11,7 @@ export function Sparkline({
 	width = 132,
 	height = 30,
 	title,
+	tone,
 }: {
 	points: readonly number[];
 	/** Failure counts per point; a tick is drawn where the count is above 0. */
@@ -17,7 +19,10 @@ export function Sparkline({
 	width?: number;
 	height?: number;
 	title: string;
+	/** The row this sits in is flagged: the line follows it. */
+	tone?: "att" | "fail";
 }) {
+	const color = tone === "att" ? "hi" : tone === "fail" ? "alarm" : "a";
 	const max = Math.max(1, ...points);
 	const step = width / (points.length - 1 || 1);
 	const coords = points.map(
@@ -38,10 +43,10 @@ export function Sparkline({
 			{end ? (
 				<>
 					<path
-						className="dc-area-a"
+						className={`dc-area-${color}`}
 						d={`${line}L${width} ${height}L0 ${height}Z`}
 					/>
-					<path className="dc-stroke-a" strokeWidth={1.25} d={line} />
+					<path className={`dc-stroke-${color}`} strokeWidth={1.25} d={line} />
 				</>
 			) : null}
 			{fails.map((f, i) =>
@@ -59,7 +64,7 @@ export function Sparkline({
 				) : null,
 			)}
 			{end ? (
-				<circle className="dc-fill-a" cx={end[0]} cy={end[1]} r={2} />
+				<circle className={`dc-fill-${color}`} cx={end[0]} cy={end[1]} r={2} />
 			) : null}
 		</svg>
 	);

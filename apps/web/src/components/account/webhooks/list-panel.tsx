@@ -30,7 +30,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { WebhooksCompactList } from "./compact-list";
-import { ToneDot, type WebhookRowModel, useWebhookRows } from "./rows";
+import { type WebhookRowModel, useWebhookRows } from "./rows";
 import { countByDisplayStatus, displayStatus, shortenName } from "./shared";
 import { WebhooksListSkeleton } from "./skeletons";
 import { describeFailure } from "./view";
@@ -190,7 +190,7 @@ await sl.webhooks.create({
 function EmptyState() {
 	return (
 		<div className="wl-empty">
-			<StatusSentence tone="idle">No webhooks yet.</StatusSentence>
+			<StatusSentence>No webhooks yet.</StatusSentence>
 			<p>
 				A webhook posts chain events to your server the block they land. You
 				create one with the SDK, so the filter lives in your code and your
@@ -238,7 +238,6 @@ function WebhookListRow({
 		<div className="wl-row">
 			<Link href={href} prefetch={false} {...intent(href)} className="wl-main">
 				<span className="dash-row-name">
-					<ToneDot tone={state.tone} />
 					<span title={webhook.name}>{shortenName(webhook.name)}</span>
 					{webhook.managedBy ? (
 						<span
@@ -262,6 +261,7 @@ function WebhookListRow({
 					// Mid-hour keeps the newest hour on its own row at midnight.
 					now={Date.parse(last) + HOUR_MS / 2}
 					label={`${webhook.name}, deliveries per hour, last 7 days`}
+					tone={state.tone === "hi" ? "att" : undefined}
 					onCellClick={(index) => {
 						const hour = hours[index];
 						if (hour) onOpenHour(webhook.id, hour);
@@ -367,6 +367,15 @@ export function WebhooksListBody({
 									label: "Delivered that hour, darker is more",
 									color: "var(--ch-a)",
 								},
+								...(active.some((m) => m.state.tone === "hi")
+									? [
+											{
+												swatch: "square" as const,
+												label: "Delivered, webhook needs a look",
+												color: "var(--hi)",
+											},
+										]
+									: []),
 								{ swatch: "square", label: "Failed" },
 								{
 									swatch: "square",

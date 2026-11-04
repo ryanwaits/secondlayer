@@ -53,7 +53,7 @@ describe("NameStep", () => {
 			/>,
 		);
 		expect(html).toContain("You already have a key called Laptop.");
-		expect(html).toContain("dash-dot hi");
+		expect(html).not.toContain("-dot");
 		expect(html).not.toContain("disabled");
 		expect(html).toContain("Create key");
 	});

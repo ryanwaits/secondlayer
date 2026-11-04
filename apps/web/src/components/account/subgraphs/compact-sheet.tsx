@@ -5,12 +5,7 @@ import { ShareFixSheet } from "@/components/mobile/share/share-fix-sheet";
 import { Sheet, SheetPanel } from "@/components/mobile/sheet";
 import type { Insight } from "@/lib/insights";
 import { forResource, useInsights } from "@/lib/insights-store";
-import {
-	groupDigits,
-	handlerErrors24h,
-	isLive,
-	subgraphTone,
-} from "@/lib/subgraph-view";
+import { groupDigits, handlerErrors24h, isLive } from "@/lib/subgraph-view";
 import {
 	type SubgraphDetailData,
 	type SubgraphErrorGroup,
@@ -21,7 +16,6 @@ import {
 	useSubgraphsCache,
 } from "@/lib/subgraphs-store";
 import { type ReactNode, useEffect, useState } from "react";
-import { ToneDot } from "../webhooks/rows";
 import { utcClock } from "../webhooks/view";
 
 export interface SubgraphSheetBodyProps {
@@ -59,19 +53,14 @@ function headLabel(item: SubgraphListItem, errors24h: number): string {
 	return "Synced";
 }
 
-/** The sheet's title block: status dot and label above, the name below. */
+/** The sheet's title block: label above, the name below. */
 export function sheetHead(
 	item: SubgraphListItem,
 	health: SubgraphHealthData | undefined,
 ) {
 	const errors24h = handlerErrors24h(health);
 	return {
-		eyebrow: (
-			<>
-				<ToneDot tone={subgraphTone(item.status, errors24h)} />
-				{headLabel(item, errors24h ?? 0)}
-			</>
-		),
+		eyebrow: headLabel(item, errors24h ?? 0),
 		title: <span className="msg-title">{item.name}</span>,
 	};
 }

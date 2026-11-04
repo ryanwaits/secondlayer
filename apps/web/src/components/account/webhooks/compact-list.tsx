@@ -9,7 +9,7 @@ import {
 } from "@/lib/replays";
 import { useState } from "react";
 import { ReplaySheet } from "./replay-sheet";
-import { ToneDot, type WebhookRowModel } from "./rows";
+import type { WebhookRowModel } from "./rows";
 import { displayStatus, shortenName } from "./shared";
 import { ageShort } from "./view";
 
@@ -130,9 +130,7 @@ export function WebhooksCompactList({
 								<div className="mwh-row">
 									{replaying ? (
 										<span className="mrp-dot is-run" aria-hidden="true" />
-									) : (
-										<ToneDot tone={state.tone} />
-									)}
+									) : null}
 									<span className="mwh-main">
 										<span className="mwh-name" title={webhook.name}>
 											{shortenName(webhook.name)}

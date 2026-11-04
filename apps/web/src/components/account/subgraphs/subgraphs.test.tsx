@@ -146,7 +146,8 @@ describe("SubgraphsListBody", () => {
 			<SubgraphRows items={exampleList} health={weekHealth} />,
 		);
 		expect(html).toContain("rows written per hour, last 24 hours");
-		const path = html.match(/class="dc-stroke-a"[^>]*d="([^"]+)"/)?.[1] ?? "";
+		const path =
+			html.match(/class="dc-stroke-[a-z]+"[^>]*d="([^"]+)"/)?.[1] ?? "";
 		expect(path.match(/[ML]/g)).toHaveLength(24);
 	});
 
@@ -403,5 +404,48 @@ describe("SubgraphDetailBody", () => {
 		expect(html).toContain("Rows written · 7d");
 		expect(html).toContain("Handler errors · 7d");
 		expect(html).toContain("sbtc-registry");
+	});
+
+	const renderWith = (
+		detail: typeof perfTestSbtcDetail,
+		health: ReturnType<typeof exampleHealth>,
+	) =>
+		renderToStaticMarkup(
+			<SubgraphDetailBody
+				detail={detail}
+				health={health}
+				errors={[]}
+				source={sbtcSource}
+				range="7d"
+				onRange={() => {}}
+			/>,
+		);
+
+	test("handler errors are marked failing only when there are some", () => {
+		expect(html).not.toContain("dash-mark");
+		expect(renderWith(perfTestSbtcDetail, exampleHealth(3))).toContain(
+			'<span class="dash-mark fail">3</span>',
+		);
+	});
+
+	test("behind tip is marked as attention only for an active subgraph that is not live", () => {
+		const behind = (status: string, blocksRemaining: number) => ({
+			...perfTestSbtcDetail,
+			status,
+			sync: { ...perfTestSbtcDetail.sync, blocksRemaining },
+		});
+		expect(renderWith(behind("active", 1240), exampleHealth())).toContain(
+			'<span class="dash-mark att">',
+		);
+		expect(renderWith(behind("active", 0), exampleHealth())).not.toContain(
+			"dash-mark att",
+		);
+		expect(
+			renderWith(behind("reindexing", 1240), exampleHealth()),
+		).not.toContain("dash-mark att");
+	});
+
+	test("the title carries no status dot", () => {
+		expect(html).not.toContain("-dot");
 	});
 });

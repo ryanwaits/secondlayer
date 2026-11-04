@@ -42,9 +42,10 @@ import {
 	refreshListAndHealth,
 	useSubgraphsCache,
 } from "@/lib/subgraphs-store";
+import { type Tone, flagClass } from "@/lib/tone";
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { StateCell, ToneDot, insightRowState } from "../webhooks/rows";
+import { StateCell, insightRowState } from "../webhooks/rows";
 import { ageShort } from "../webhooks/view";
 import { SubgraphsCompactList } from "./compact-list";
 import { SubgraphSheet } from "./compact-sheet";
@@ -121,6 +122,8 @@ function SubgraphRow({
 	const rows = item.totalRows ?? 0;
 	const top = insights[0];
 	const insightState = top ? insightRowState(top) : null;
+	const tone = insightState?.tone ?? subgraphTone(item.status, errors24h);
+	const flag = flagClass(tone);
 	const line = stateLine(
 		item.blocksRemaining ?? 0,
 		rows,
@@ -133,7 +136,7 @@ function SubgraphRow({
 				href={`/account/subgraphs/${encodeURIComponent(item.name)}`}
 				name={item.name}
 				nameTitle={item.name}
-				tone={insightState?.tone ?? subgraphTone(item.status, errors24h)}
+				tone={tone}
 				state={
 					insightState ? (
 						<StateCell
@@ -151,6 +154,7 @@ function SubgraphRow({
 						<Sparkline
 							points={points}
 							title={`${item.name}, rows written per hour, last 24 hours`}
+							tone={flag ?? undefined}
 						/>
 					) : null
 				}
@@ -258,6 +262,18 @@ export function SubgraphsListBody({
 	);
 }
 
+/** The tone an index row carries: its worst insight, else its own health. */
+function listRowTone(
+	item: SubgraphListItem,
+	health: SubgraphHealthData | undefined,
+	insights: readonly Insight[],
+): Tone {
+	const top = insights[0];
+	return top
+		? insightRowState(top).tone
+		: subgraphTone(item.status, handlerErrors24h(health));
+}
+
 /** One index row: name, state and what flows where, with seven days of rows
  *  written as a heat grid beside it. */
 function SubgraphListRow({
@@ -272,7 +288,7 @@ function SubgraphListRow({
 	const top = insights[0];
 	const insightState = top ? insightRowState(top) : null;
 	const errors24h = handlerErrors24h(health);
-	const tone = insightState?.tone ?? subgraphTone(item.status, errors24h);
+	const tone = listRowTone(item, health, insights);
 	const text =
 		insightState?.text ??
 		stateLine(
@@ -289,7 +305,6 @@ function SubgraphListRow({
 		<div className="wl-row">
 			<Link href={href} prefetch={false} {...intent(href)} className="wl-main">
 				<span className="dash-row-name">
-					<ToneDot tone={tone} />
 					<span title={item.name}>{item.name}</span>
 				</span>
 				<span className={`wl-state${tone === "alarm" ? " bad" : ""}`}>
@@ -309,6 +324,7 @@ function SubgraphListRow({
 					now={Date.parse(last) + HOUR_MS / 2}
 					label={`${item.name}, rows written per hour, last 7 days`}
 					units={{ n: "rows written", f: "handler errors" }}
+					tone={tone === "hi" ? "att" : undefined}
 				/>
 			) : (
 				<HeatStripSkeleton />
@@ -326,17 +342,14 @@ function SubgraphsListContent({
 	if (items === null) {
 		if (notice?.kind === "starting") {
 			return (
-				<StatusSentence
-					tone="idle"
-					sub="Your account gets its own hosted stack the first time you use subgraphs. This takes about 30 seconds."
-				>
+				<StatusSentence sub="Your account gets its own hosted stack the first time you use subgraphs. This takes about 30 seconds.">
 					Starting your hosted stack.
 				</StatusSentence>
 			);
 		}
 		if (notice?.kind === "error") {
 			return (
-				<StatusSentence tone="alarm" sub={notice.message}>
+				<StatusSentence sub={notice.message}>
 					Couldn't load your subgraphs.
 				</StatusSentence>
 			);
@@ -344,6 +357,14 @@ function SubgraphsListContent({
 		return <ChartSkeleton height={120} />;
 	}
 	if (items.length === 0) return <SubgraphsEmptyState />;
+	const flagged = items.some(
+		(item) =>
+			listRowTone(
+				item,
+				health[item.name],
+				forResource(insights, "subgraph", item.name),
+			) === "hi",
+	);
 
 	return (
 		<>
@@ -364,6 +385,15 @@ function SubgraphsListContent({
 						label: "Rows written that hour, darker is more",
 						color: "var(--ch-a)",
 					},
+					...(flagged
+						? [
+								{
+									swatch: "square" as const,
+									label: "Rows written, subgraph needs a look",
+									color: "var(--hi)",
+								},
+							]
+						: []),
 					{ swatch: "square", label: "Handler failed" },
 					{ swatch: "square", label: "Nothing", color: "var(--soft)" },
 				]}

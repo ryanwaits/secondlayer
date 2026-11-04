@@ -164,7 +164,6 @@ function nameList(names: string[]): string {
 }
 
 export interface KeysSentence {
-	tone: "ok" | "hi" | "idle" | "alarm";
 	text: string;
 	sub?: string;
 }
@@ -188,20 +187,17 @@ export function keysSentence(
 		const revoked = revokedOwnKeys(keys).length;
 		if (revoked === 0) {
 			return {
-				tone: "idle",
 				text: "No keys yet.",
 				sub: "A key lets the SDK, the CLI and plain HTTP calls read your data. Make one per place it runs, so revoking one never breaks the others.",
 			};
 		}
 		if (opts.revokedInUse) {
 			return {
-				tone: "alarm",
 				text: "No active keys, and one is still called.",
 				sub: "Something still reads with a key you revoked, and every call it makes fails. Swap an active key in where the old one lives.",
 			};
 		}
 		return {
-			tone: "idle",
 			text: "No active keys.",
 			sub: `${revoked === 1 ? "You revoked your only key." : `You revoked all ${revoked}.`} Reads need a new key; anything still calling with an old one gets a 401. Webhooks and subgraphs don't use keys and keep running.`,
 		};
@@ -209,7 +205,6 @@ export function keysSentence(
 	const stale = staleKeys(counted, now);
 	if (stale.length === 0) {
 		return {
-			tone: "ok",
 			text:
 				counted.length === 1
 					? "Your key is in use."
@@ -222,7 +217,6 @@ export function keysSentence(
 	const names = nameList(stale.map((s) => s.key.name));
 	const verb = stale.length === 1 ? "hasn't" : "haven't";
 	return {
-		tone: "hi",
 		text: `${inUse} ${keysWord(inUse)} in use.`,
 		sub: [
 			`${names} ${verb} read anything in ${days} days`,

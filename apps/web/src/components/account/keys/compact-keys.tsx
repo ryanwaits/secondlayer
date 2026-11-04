@@ -44,7 +44,8 @@ export function phoneKeys(keys: ApiKey[], now: Date): ApiKey[] {
 }
 
 function Dot({ dot }: { dot: KeyLook["dot"] }) {
-	return <span className={dot === "ok" ? "dash-dot" : `mac-dot is-${dot}`} />;
+	if (dot === "ok") return null;
+	return <span className={`mac-dot is-${dot}`} />;
 }
 
 function Chevron() {

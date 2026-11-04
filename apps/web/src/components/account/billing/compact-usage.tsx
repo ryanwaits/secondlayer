@@ -92,19 +92,13 @@ function Pace({
 	if (capUsd != null && spent >= capUsd) {
 		return (
 			<p className="mac-pace">
-				<span className="dash-dot alarm" />
 				Paused: you reached your ${capUsd.toLocaleString("en-US")} cap.
 				Everything resumes on {nextMonthLabel(month)}.
 			</p>
 		);
 	}
 	if (spent === 0) {
-		return (
-			<p className="mac-pace">
-				<span className="dash-dot" />
-				Inside the free tier
-			</p>
-		);
+		return <p className="mac-pace">Inside the free tier</p>;
 	}
 	if (capUsd != null && projectedEnd >= capUsd) {
 		const hit = capHitDate(spent, ratePerDay, capUsd, now);
@@ -120,7 +114,6 @@ function Pace({
 	const last = daysInUtcMonth(month);
 	return (
 		<p className="mac-pace">
-			<span className="dash-dot" />
 			On pace for ${Math.round(projectedEnd)} by {monthShortLabel(month)} {last}
 		</p>
 	);

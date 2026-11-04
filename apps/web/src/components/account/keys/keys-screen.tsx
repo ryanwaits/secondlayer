@@ -58,12 +58,7 @@ function KeySub({
 }) {
 	const flags = keyFlags(k, now);
 	if (flags.staleDays !== undefined) {
-		return (
-			<span className="ky-sub">
-				<span className="dash-dot hi" />
-				Unused for {flags.staleDays} days
-			</span>
-		);
+		return <span className="ky-sub">Unused for {flags.staleDays} days</span>;
 	}
 	if (flags.expiresInHours !== undefined) {
 		return (
@@ -561,16 +556,14 @@ export function KeysBody({
 }: KeysBodyProps) {
 	const sentence =
 		keys === null
-			? { tone: "idle" as const, text: "Loading your keys.", sub: undefined }
+			? { text: "Loading your keys.", sub: undefined }
 			: keysSentence(keys, now, {
 					revokedInUse: insights.some((i) => i.rule === "revoked_key_in_use"),
 				});
 	return (
 		<div className="ky-body">
 			<div className="ky-top">
-				<StatusSentence tone={sentence.tone} sub={sentence.sub}>
-					{sentence.text}
-				</StatusSentence>
+				<StatusSentence sub={sentence.sub}>{sentence.text}</StatusSentence>
 				{flow ? null : (
 					<button
 						type="button"

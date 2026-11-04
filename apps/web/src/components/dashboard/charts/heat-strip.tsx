@@ -33,6 +33,7 @@ export function HeatStrip({
 	onCellClick,
 	label,
 	units = DEFAULT_UNITS,
+	tone,
 }: {
 	/** Rolling window, index 0 = the hour 167 h before `now`. */
 	hours: readonly { n: number; f: number }[];
@@ -43,6 +44,8 @@ export function HeatStrip({
 	/** What a cell counts, for its label and tooltip: `n` for the volume,
 	 *  `f` for the failures. */
 	units?: HeatUnits;
+	/** The row this sits in is attention: delivered cells use `--hi`; failed cells stay `--alarm`. */
+	tone?: "att";
 }) {
 	const { days } = useMemo(() => heatGrid(hours, now), [hours, now]);
 	const max = useMemo(() => Math.max(1, ...hours.map((c) => c.n)), [hours]);
@@ -119,7 +122,7 @@ export function HeatStrip({
 	);
 
 	return (
-		<div className="dc-heat-wrap">
+		<div className={tone === "att" ? "dc-heat-wrap att" : "dc-heat-wrap"}>
 			{grid}
 			{hover ? (
 				<div

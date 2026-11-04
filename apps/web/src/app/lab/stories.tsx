@@ -46,6 +46,7 @@ import { InsightCard } from "@/components/dashboard/insight/insight-card";
 import { InsightStack } from "@/components/dashboard/insight/insight-stack";
 import { Breadcrumb } from "@/components/dashboard/shell/breadcrumb";
 import { DashboardTabs } from "@/components/dashboard/shell/dashboard-tabs";
+import { Mark } from "@/components/dashboard/shell/mark";
 import {
 	PlaceholderRows,
 	ReadsKeyLine,
@@ -54,10 +55,7 @@ import {
 	ResourceRow,
 	ResourceRowHead,
 } from "@/components/dashboard/shell/resource-row";
-import {
-	StatusSentence,
-	type Tone,
-} from "@/components/dashboard/shell/status-sentence";
+import { StatusSentence } from "@/components/dashboard/shell/status-sentence";
 import { ViewCommand } from "@/components/dashboard/shell/view-command";
 import { Callout } from "@/components/docs/callout";
 import { InsightSheetBody } from "@/components/mobile/insights/insight-sheet";
@@ -76,6 +74,7 @@ import { ChainStatusView } from "@/components/site/chain-status";
 import { type ChainTip, EMPTY_TIP } from "@/lib/chain-tip";
 import { barsRows } from "@/lib/dashboard-charts";
 import { FIXTURE_INSIGHTS, FIXTURE_STACK } from "@/lib/insights.fixtures";
+import type { Tone } from "@/lib/tone";
 import type { CSSProperties, ReactNode } from "react";
 import {
 	AmountDemo,
@@ -376,6 +375,72 @@ const statusRow = (tip: ChainTip) => (
 		<ChainStatusView tip={tip} now={NOW} open />
 	</div>
 );
+
+/** One page's worth of status in a single tone: the sentence, a row whose
+ *  chart follows it, a neutral paused row, and the fact that is wrong. */
+function StatusStory({ tone }: { tone: Tone }) {
+	const flag = tone === "hi" ? "att" : tone === "alarm" ? "fail" : undefined;
+	const sentence = {
+		ok: "Everything is delivering.",
+		hi: "1 webhook needs a look.",
+		alarm: "1 webhook is failing.",
+	}[tone as "ok" | "hi" | "alarm"];
+	const state = {
+		ok: "Delivered 1,204 in 24h",
+		hi: "Still sends to a test endpoint",
+		alarm: "Failing: 12 of 12 deliveries got a 500",
+	}[tone as "ok" | "hi" | "alarm"];
+	const points = STORY_BAND.map(([, high]) => high);
+	return (
+		<div style={{ display: "grid", gap: 24 }}>
+			<StatusSentence sub="1 webhook · 1 subgraph · $21.64 in credits">
+				{sentence}
+			</StatusSentence>
+			<div>
+				<ResourceRowHead labels={["Name", "State", "", "Events", "Last"]} />
+				<ResourceRow
+					href="#"
+					name="vault-events"
+					tone={tone}
+					state={state}
+					spark={
+						<Sparkline
+							points={points}
+							tone={flag}
+							title="Deliveries, last 48 hours"
+						/>
+					}
+					count="1,204"
+					age="4m"
+				/>
+				<ResourceRow
+					href="#"
+					name="old-listener"
+					tone="idle"
+					state="Paused"
+					count="0"
+					age="12d"
+				/>
+			</div>
+			<div className="wd-facts">
+				<div>
+					Receiver
+					<b>
+						{flag === "att" ? (
+							<Mark tone="att">postman-echo.com</Mark>
+						) : (
+							"api.example.com"
+						)}
+					</b>
+				</div>
+				<div>
+					Gave up · 7d
+					<b>{flag === "fail" ? <Mark tone="fail">12</Mark> : "0"}</b>
+				</div>
+			</div>
+		</div>
+	);
+}
 
 const SHELL_ROWS: { name: string; tone: Tone; state: string; count: string }[] =
 	Array.from({ length: 40 }, (_, i) => ({
@@ -1253,7 +1318,7 @@ const META: Record<StoryId, Meta> = {
 								parent={{ href: "/account/webhooks", label: "Webhooks" }}
 								current="sbtc-deposits-2"
 							/>
-							<StatusSentence tone="alarm" sub="1 of 40 webhooks needs you">
+							<StatusSentence sub="1 of 40 webhooks needs you">
 								One webhook is failing
 							</StatusSentence>
 							<div>
@@ -1392,52 +1457,23 @@ const META: Record<StoryId, Meta> = {
 		stack: true,
 		variants: [
 			{
-				id: "tones",
-				label: "Tones",
-				render: () => (
-					<div>
-						<ResourceRowHead labels={["Name", "State", "", "Events", "Last"]} />
-						<ResourceRow
-							href="#"
-							name="sbtc-deposits"
-							tone="ok"
-							kind="webhook"
-							state="Delivering, last event 4m ago"
-							count="1,204"
-							age="4m"
-						/>
-						<ResourceRow
-							href="#"
-							name="vault-events"
-							tone="alarm"
-							kind="webhook"
-							state="Failing since 09:14"
-							count="87"
-							age="3h"
-						/>
-						<ResourceRow
-							href="#"
-							name="pool-payouts"
-							tone="hi"
-							kind="subgraph"
-							state="Catching up, 2,140 blocks behind"
-							count="9,310"
-							age="1m"
-						/>
-						<ResourceRow
-							href="#"
-							name="old-listener"
-							tone="idle"
-							kind="webhook"
-							state="Paused"
-							count="0"
-							age="12d"
-						/>
-					</div>
-				),
+				id: "healthy",
+				label: "Healthy: nothing marked",
+				render: () => <StatusStory tone="ok" />,
+			},
+			{
+				id: "attention",
+				label: "Needs attention",
+				render: () => <StatusStory tone="hi" />,
+			},
+			{
+				id: "failing",
+				label: "Failing",
+				render: () => <StatusStory tone="alarm" />,
 			},
 		],
-		usage: `<ResourceRow href={href} name={name} tone="ok" state="Delivering" count="1,204" age="4m" />`,
+		usage: `<ResourceRow href={href} name={name} tone="hi" state="Still sends to a test endpoint" count="3" age="7h" />`,
+		donts: ["Draw a dot for healthy or paused. Neutral states show nothing."],
 	},
 	"webhook-header": {
 		src: ["apps/web/src/components/account/webhooks/detail-panel.tsx"],
@@ -1461,7 +1497,8 @@ const META: Record<StoryId, Meta> = {
 				),
 			},
 		],
-		usage: `<TitleRow name={name} tone="ok" managedBy={webhook.managedBy} onRename={rename} />`,
+		usage:
+			"<TitleRow name={name} managedBy={webhook.managedBy} onRename={rename} />",
 		dos: ["Hover the name to reveal Rename; Enter saves, Esc cancels."],
 		donts: ["Offer Rename when `managedBy` is set."],
 	},
@@ -1637,6 +1674,18 @@ const META: Record<StoryId, Meta> = {
 				id: "week",
 				label: "Hover or focus a cell",
 				render: () => <HeatStripDemo hours={STORY_HEAT} now={NOW} />,
+			},
+			{
+				id: "attention",
+				label: "Row needs attention: delivered cells yellow, failed stay red",
+				render: () => (
+					<HeatStrip
+						hours={STORY_HEAT}
+						now={NOW}
+						tone="att"
+						label="Deliveries by hour, last 7 days"
+					/>
+				),
 			},
 			{
 				id: "quiet",
@@ -1822,6 +1871,29 @@ const META: Record<StoryId, Meta> = {
 					<Sparkline
 						points={STORY_BAND.map(([, high]) => high)}
 						fails={STORY_BAND.map((_, i) => (i === 30 || i === 31 ? 3 : 0))}
+						title="Deliveries, last 48 hours"
+					/>
+				),
+			},
+			{
+				id: "spark-attention",
+				label: "Sparkline, attention row",
+				render: () => (
+					<Sparkline
+						points={STORY_BAND.map(([, high]) => high)}
+						tone="att"
+						title="Deliveries, last 48 hours"
+					/>
+				),
+			},
+			{
+				id: "spark-failing",
+				label: "Sparkline, failing row",
+				render: () => (
+					<Sparkline
+						points={STORY_BAND.map(([, high]) => high)}
+						fails={STORY_BAND.map((_, i) => (i === 30 || i === 31 ? 3 : 0))}
+						tone="fail"
 						title="Deliveries, last 48 hours"
 					/>
 				),

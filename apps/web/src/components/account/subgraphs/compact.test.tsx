@@ -82,11 +82,10 @@ describe("subgraphs compact list", () => {
 		expect(renderList([healthy])).not.toContain("msg-meter");
 	});
 
-	test("a row with handler errors takes the alarm tone", () => {
+	test("a row with handler errors reads as a problem", () => {
 		const html = renderList([healthy], {
 			health: { [healthy.name]: exampleHealth(1204) },
 		});
-		expect(html).toContain("alarm");
 		expect(html).toContain("msg-line is-bad");
 		expect(
 			renderList([healthy], { health: { [healthy.name]: exampleHealth(0) } }),

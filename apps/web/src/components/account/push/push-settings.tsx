@@ -117,9 +117,7 @@ function DeviceRow({
 		return <div className="mac-kv mac-sub">This browser can't show push.</div>;
 	}
 	const dot =
-		state === "on" ? (
-			<span className="dash-dot" />
-		) : state === "off" ? null : (
+		state === "on" || state === "off" ? null : (
 			<span className="mac-dot is-ring" />
 		);
 	return (

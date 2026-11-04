@@ -109,7 +109,7 @@ describe("KeysTable", () => {
 		expect(html).not.toContain("dc-svg");
 	});
 
-	test("a key unused for 40 days gets a yellow dot and the days", () => {
+	test("a key unused for 40 days shows the days and no dot", () => {
 		const html = render([
 			key({
 				id: "old",
@@ -117,8 +117,8 @@ describe("KeysTable", () => {
 				lastUsedAt: hoursFromNow(-24 * 40),
 			}),
 		]);
-		expect(html).toContain("dash-dot hi");
 		expect(html).toContain("Unused for 40 days");
+		expect(html).not.toContain("-dot");
 	});
 
 	test("a docs key shows its expiry and that it is read-only", () => {
@@ -311,7 +311,7 @@ describe("KeysBody for a new account", () => {
 		expect(html).not.toContain("aria-hidden");
 	});
 
-	test("a revoked key still being called turns the header to an alarm", () => {
+	test("a revoked key still being called is named in the header", () => {
 		const loop = FIXTURE_INSIGHTS.find((i) => i.rule === "duplicate_reads");
 		if (!loop) throw new Error("missing fixture");
 		const html = body(
@@ -319,7 +319,6 @@ describe("KeysBody for a new account", () => {
 			[{ ...loop, rule: "revoked_key_in_use" }],
 		);
 		expect(html).toContain("No active keys, and one is still called.");
-		expect(html).toContain("dash-dot alarm");
 	});
 
 	test("an account that never made a key gets the first-run placeholder", () => {

@@ -7,7 +7,7 @@ import { CliLine } from "../webhooks/shared";
 export function SubgraphsEmptyState() {
 	return (
 		<div className="sg-empty">
-			<StatusSentence tone="idle">No subgraphs yet.</StatusSentence>
+			<StatusSentence>No subgraphs yet.</StatusSentence>
 			<p>
 				A subgraph turns chain events into your own tables. Write one in
 				TypeScript and deploy it from your terminal. It shows up here with its

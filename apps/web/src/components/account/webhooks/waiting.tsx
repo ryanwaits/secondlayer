@@ -117,7 +117,6 @@ export function WaitingBlock({
 	return (
 		<section className="wq" aria-label="Waiting for a first match">
 			<div className="wq-h">
-				<span className="dash-dot idle" aria-hidden="true" />
 				<span className="wq-t">Waiting for a first match</span>
 				<span className="wq-n">{webhooks.length}</span>
 				<span className="wq-meta">

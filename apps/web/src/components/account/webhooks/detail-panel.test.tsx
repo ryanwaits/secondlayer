@@ -72,6 +72,36 @@ describe("WebhookDetailBody header", () => {
 		expect(html).toContain("hooks.example.dev");
 	});
 
+	test("the receiver is marked only when the test-endpoint insight is open", () => {
+		const endpoint = FIXTURE_INSIGHTS[0];
+		if (!endpoint) throw new Error("missing fixture");
+		const flagged = render({
+			insights: [{ ...endpoint, rule: "test_endpoint", severity: "costs" }],
+		});
+		expect(flagged).toContain(
+			'<span class="dash-mark att">hooks.example.dev</span>',
+		);
+		const other = render({
+			insights: [{ ...endpoint, rule: "receiver_down" }],
+		});
+		expect(other).not.toContain("dash-mark");
+		expect(render()).not.toContain("dash-mark");
+	});
+
+	test("gave up is marked failing only when something gave up", () => {
+		const hours = activityFor(4).hours.map((h, i) =>
+			i === 0 ? { ...h, gaveUp: 2 } : h,
+		);
+		expect(render({ activity: activityFor(4, { hours }) })).toContain(
+			'<span class="dash-mark fail">2</span>',
+		);
+		expect(render()).not.toContain("dash-mark fail");
+	});
+
+	test("the title carries no status dot", () => {
+		expect(render()).not.toContain("-dot");
+	});
+
 	test("one Pause button, which reads Resume when paused", () => {
 		expect(render()).toContain(">Pause<");
 		const paused = render({ webhook: detail({ status: "paused" }) });

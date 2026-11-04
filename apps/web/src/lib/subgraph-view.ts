@@ -1,3 +1,5 @@
+import type { Tone } from "@/lib/tone";
+
 /** Pure view helpers for the Subgraphs screens: counts, lag and state lines. */
 
 /** Group a digit string without ever going through `Number`: values can
@@ -38,7 +40,7 @@ export function formatBytes(bytes: number): string {
 }
 
 /** Handler errors in the last 24 hours: the sum of the newest 24 hourly
- *  buckets from `/health`. The one definition both screens, the status dot
+ *  buckets from `/health`. The one definition both screens, the row tone
  *  and the sentence use; null until health has loaded. */
 export function handlerErrors24h(
 	health: { hours: readonly { errors: number }[] } | undefined,
@@ -47,10 +49,8 @@ export function handlerErrors24h(
 	return health.hours.slice(-24).reduce((sum, h) => sum + h.errors, 0);
 }
 
-export type Tone = "ok" | "alarm" | "hi" | "idle";
-
-/** Red for a failing subgraph or any handler error in 24 hours, a quiet dot
- *  while it is not active (reindexing, stopped), else the normal dot. */
+/** Failing for an errored subgraph or any handler error in 24 hours, neutral
+ *  while it is not active (reindexing, stopped), else healthy. */
 export function subgraphTone(status: string, errors24h: number | null): Tone {
 	if (status === "error" || (errors24h ?? 0) > 0) return "alarm";
 	return status === "active" ? "ok" : "idle";

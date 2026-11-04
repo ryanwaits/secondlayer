@@ -4,6 +4,7 @@ import { ChartBox } from "@/components/charts/chart-skeleton";
 import { LazySpendChart, preloadSpendChart } from "@/components/charts/lazy";
 import { Legend } from "@/components/dashboard/charts/legend";
 import { ActionableInsights } from "@/components/dashboard/insight/insight-actions";
+import { Mark } from "@/components/dashboard/shell/mark";
 import { StatusSentence } from "@/components/dashboard/shell/status-sentence";
 import { useCompact } from "@/components/mobile/use-compact";
 import {
@@ -103,14 +104,13 @@ function Status({
 	projectedEnd: number | null;
 }) {
 	if (!billing) {
-		return <StatusSentence tone="idle">Checking your balance.</StatusSentence>;
+		return <StatusSentence>Checking your balance.</StatusSentence>;
 	}
 	const month = currentUtcMonth(now);
 	const spent = Number(billing.spentThisMonthUsdMicros) / MICROS;
 	if (capUsd != null && spent >= capUsd) {
 		return (
 			<StatusSentence
-				tone="alarm"
 				sub={`Everything resumes on ${nextMonthLabel(month)}, or when you raise the cap.`}
 			>
 				Paused: you reached your ${capUsd.toLocaleString("en-US")} cap.
@@ -120,12 +120,9 @@ function Status({
 	const level = levelOf(billing, burn, service);
 	if (level === "stopped") {
 		return (
-			<StatusSentence
-				tone="alarm"
-				sub="Webhooks and subgraphs pick up where they left off once you add credits."
-			>
-				{formatUsd(billing.creditsUsdMicros)} left. Your hosted stack has
-				stopped.
+			<StatusSentence sub="Webhooks and subgraphs pick up where they left off once you add credits.">
+				<Mark tone="fail">{formatUsd(billing.creditsUsdMicros)}</Mark> left.
+				Your hosted stack has stopped.
 			</StatusSentence>
 		);
 	}
@@ -135,7 +132,6 @@ function Status({
 		projectedEnd === null ? "" : `, on pace for ${dollars(projectedEnd)}`;
 	return (
 		<StatusSentence
-			tone={level === "ok" ? "ok" : level === "low" ? "hi" : "alarm"}
 			sub={
 				<>
 					{left && burn ? (
@@ -150,7 +146,12 @@ function Status({
 				</>
 			}
 		>
-			{formatUsd(billing.creditsUsdMicros)} left.
+			{level === "ok" ? (
+				formatUsd(billing.creditsUsdMicros)
+			) : (
+				<Mark tone="att">{formatUsd(billing.creditsUsdMicros)}</Mark>
+			)}{" "}
+			left.
 		</StatusSentence>
 	);
 }
@@ -165,7 +166,7 @@ function isFreshAccount(billing: Billing | null): boolean {
 }
 
 /** The Add credits band: the page's anchor for "add credits" links. Yellow
- *  while the balance is running short or the stack has stopped. */
+ *  only while the balance is running short; a stopped stack is neutral. */
 function CreditsBand({
 	urgent,
 	children,
@@ -236,7 +237,6 @@ export function BillingBody({
 			<div className="bl-body">
 				{notice}
 				<StatusSentence
-					tone="idle"
 					sub={`Nothing spent yet. Add credits only when you pass the free rows or start a hosted stack. ${formatRows(free)} of your free ${formatRows(ROWS_ALLOWANCE)} rows used. Resets ${nextMonthLabel(month)}.`}
 				>
 					1M rows free this month.
@@ -253,7 +253,8 @@ export function BillingBody({
 		);
 	}
 
-	const urgent = billing !== null && levelOf(billing, burn, service) !== "ok";
+	const level = billing !== null ? levelOf(billing, burn, service) : "ok";
+	const urgent = level === "low" || level === "crit";
 	return (
 		<div className="bl-body">
 			{notice}

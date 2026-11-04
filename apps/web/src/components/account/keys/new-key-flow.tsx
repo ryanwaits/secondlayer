@@ -183,7 +183,6 @@ export function NameStep({
 			</p>
 			{repeat ? (
 				<p className="nk-note">
-					<span className="dash-dot hi" />
 					<span>
 						You already have a key called {repeat}. Names don't have to be
 						unique; a new one helps you tell them apart.
@@ -297,7 +296,6 @@ export function RevealStep({
 			</div>
 			{warn && !everCopied ? (
 				<p className="nk-note">
-					<span className="dash-dot hi" />
 					<span>
 						You haven't copied it. It won't be shown again.{" "}
 						<button type="button" className="ky-link" onClick={copy}>

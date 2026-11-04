@@ -368,18 +368,17 @@ describe("OverviewBody table and strip", () => {
 		expect(cells).toContain("dc-meter-over");
 	});
 
-	test("a healthy overview shows no status dots on rows or cells", () => {
+	test("a healthy overview shows no status marks on the sentence, rows or cells", () => {
 		const { sentence, table, strip } = parts(render());
-		expect(sentence).toContain('class="dash-dot"');
-		// The quiet group's hollow dot is the only dot in the table.
-		expect(table).not.toContain('class="dash-dot"');
-		expect(table).not.toContain("dash-dot alarm");
-		expect(table).toContain("dash-dot none");
-		expect(strip).not.toContain("dash-dot");
+		expect(sentence).not.toContain("-dot");
+		expect(table).not.toContain("-dot");
+		expect(table).not.toContain("dash-row att");
+		expect(table).not.toContain("dash-row fail");
+		expect(strip).not.toContain("-dot");
 		expect(strip).not.toContain("ins-dot");
 	});
 
-	test("a failing webhook is the red dot in the table and turns the sentence red", () => {
+	test("a failing webhook tints its row red and the sentence names it", () => {
 		const html = renderToStaticMarkup(
 			<OverviewBody
 				{...exampleOverview(NOW, {
@@ -389,33 +388,32 @@ describe("OverviewBody table and strip", () => {
 		);
 		const { sentence, table, strip } = parts(html);
 		expect(sentence).toContain("1 webhook needs attention.");
-		expect(table).toContain("dash-dot alarm");
+		expect(table).toContain("dash-row fail");
 		expect(table).toContain("dc-fill-alarm");
-		expect(strip).not.toContain("dash-dot");
+		expect(strip).not.toContain("-dot");
 	});
 
-	test("a stopped stack shows the only red dot in the strip", () => {
+	test("a stopped stack reads stopped in the strip and tints no row", () => {
 		const { table, strip } = parts(
 			render({
 				stack: exampleStack("stopped", NOW),
 				billing: credits("0"),
 			}),
 		);
-		expect(strip.match(/dash-dot alarm/g)).toHaveLength(1);
+		expect(strip).not.toContain("-dot");
 		expect(strip).toContain("stopped");
 		expect(strip).toContain("Add credits to start it again.");
 		expect(strip).toContain("dc-stroke-alarm");
-		expect(table).not.toContain("dash-dot alarm");
+		expect(table).not.toContain("dash-row fail");
 	});
 
-	test("a stopped stack turns the sentence red and webhook rows idle", () => {
+	test("a stopped stack names itself in the sentence and leaves webhook rows neutral", () => {
 		const html = render({
 			stack: exampleStack("stopped", NOW),
 			billing: credits("0"),
 		});
 		const { sentence, table } = parts(html);
 		expect(sentence).toContain("Your hosted stack stopped.");
-		expect(sentence).toContain("dash-dot alarm");
 		expect(sentence).toContain(
 			"Credits ran out, so webhooks aren&#x27;t delivering.",
 		);
@@ -423,7 +421,7 @@ describe("OverviewBody table and strip", () => {
 		expect(table).not.toContain("Delivered ");
 	});
 
-	test("an asleep account shows no red dot in the strip", () => {
+	test("an asleep account shows no alarm in the strip", () => {
 		const html = render({
 			rows: null,
 			asleep: true,
@@ -436,8 +434,7 @@ describe("OverviewBody table and strip", () => {
 		expect(strip).toContain(
 			"Every webhook is paused, so it isn&#x27;t billed.",
 		);
-		expect(strip).toContain("dash-dot idle");
-		expect(strip).not.toContain("dash-dot alarm");
+		expect(strip).not.toContain("-dot");
 		expect(strip).not.toContain("dc-stroke-alarm");
 	});
 

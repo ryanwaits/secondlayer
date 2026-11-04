@@ -1,17 +1,12 @@
 "use client";
 
-import { dotClass } from "@/components/dashboard/shell/status-sentence";
 import { type Insight, rankInsights, severityDot } from "@/lib/insights";
 import { forResource, useInsights } from "@/lib/insights-store";
+import type { Tone } from "@/lib/tone";
 import { type WebhooksSeed, useWebhooksCache } from "@/lib/webhooks-store";
 import type { WebhookSummary } from "@secondlayer/sdk";
 import type { KeyboardEvent, MouseEvent } from "react";
-import {
-	type HourlySeries,
-	type RowState,
-	type RowTone,
-	listRowState,
-} from "./view";
+import { type HourlySeries, type RowState, listRowState } from "./view";
 
 /**
  * What a webhook row shows, from the list, the hourly summary and the
@@ -27,10 +22,12 @@ export interface WebhookRowModel {
 	insights: Insight[];
 }
 
-const SEVERITY_TONE: Record<ReturnType<typeof severityDot>, RowTone> = {
+/** Failing and will-fail insights flag the row; a costs insight (the test
+ *  endpoint, say) is attention; a recovered one shows nothing. */
+const SEVERITY_TONE: Record<ReturnType<typeof severityDot>, Tone> = {
 	alarm: "alarm",
 	hi: "hi",
-	costs: "idle",
+	costs: "hi",
 	idle: "idle",
 };
 
@@ -91,11 +88,6 @@ export function useWebhookRows(seed?: WebhooksSeed): {
 			),
 		),
 	};
-}
-
-/** Status dot for a tone. */
-export function ToneDot({ tone }: { tone: RowTone }) {
-	return <span className={dotClass(tone)} />;
 }
 
 /**

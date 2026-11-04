@@ -500,7 +500,6 @@ export function WebhookHeaderDemo({
 	return (
 		<TitleRow
 			name={saved}
-			tone="ok"
 			managedBy={managedBy}
 			onRename={async (next) => {
 				setSaved(next);

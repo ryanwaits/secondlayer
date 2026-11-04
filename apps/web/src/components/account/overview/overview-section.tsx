@@ -141,13 +141,14 @@ function WebhookRow({
 	const { webhook, series, state, insights } = model;
 	const recent = last24(series);
 	const top = insights[0];
+	const tone = stopped ? "idle" : state.tone;
 	return (
 		<div className="dash-row-wrap">
 			<ResourceRow
 				href={`/account/webhooks/${webhook.id}`}
 				name={shortenName(webhook.name)}
 				nameTitle={webhook.name}
-				tone={stopped ? "idle" : state.tone}
+				tone={tone}
 				state={
 					stopped ? (
 						"Not delivering, stack stopped"
@@ -164,6 +165,7 @@ function WebhookRow({
 						<Ticks
 							delivered={recent.delivered}
 							failed={recent.failed}
+							tone={tone === "hi" ? "att" : undefined}
 							title={`${webhook.name}, deliveries per hour, last 24 hours`}
 						/>
 					) : null
@@ -193,7 +195,6 @@ function QuietGroup({ models }: { models: WebhookRowModel[] }) {
 				onClick={() => setOpen((v) => !v)}
 			>
 				<span className="dash-row-name">
-					<span className="dash-dot idle" />
 					<span>{plural(models.length, "more webhook")}</span>
 				</span>
 				<span className="dash-row-state">Waiting for a first match</span>
@@ -301,19 +302,13 @@ export function OnboardingSentence({
 }: { progress: OnboardingProgress }) {
 	if (!progress.key) {
 		return (
-			<StatusSentence
-				tone="idle"
-				sub="The SDK, the CLI and plain HTTP calls all read with it. The first 1M rows each month are free, no card needed."
-			>
+			<StatusSentence sub="The SDK, the CLI and plain HTTP calls all read with it. The first 1M rows each month are free, no card needed.">
 				Make a key to start.
 			</StatusSentence>
 		);
 	}
 	return (
-		<StatusSentence
-			tone="ok"
-			sub="One call, three ways to make it. Or hand it to a coding assistant."
-		>
+		<StatusSentence sub="One call, three ways to make it. Or hand it to a coding assistant.">
 			Your key works. Read your first rows.
 		</StatusSentence>
 	);
@@ -418,7 +413,7 @@ export function OverviewBody({
 		// existing element that moves when the real ones replace this.
 		return (
 			<>
-				<StatusSentence tone="idle" sub={<Skel width={220} />}>
+				<StatusSentence sub={<Skel width={220} />}>
 					Checking your account.
 				</StatusSentence>
 				<output
@@ -448,36 +443,26 @@ export function OverviewBody({
 					<Checklist steps={onboardingSteps(guide)} />
 				</>
 			) : creditsOut ? (
-				<StatusSentence
-					tone="alarm"
-					sub="Credits ran out, so webhooks aren't delivering. Add credits to start it again."
-				>
+				<StatusSentence sub="Credits ran out, so webhooks aren't delivering. Add credits to start it again.">
 					Your hosted stack stopped.
 				</StatusSentence>
 			) : rows === null && asleep ? (
-				<StatusSentence
-					tone="idle"
-					sub="Every webhook is paused, so it isn't billed. Wake it from Webhooks."
-				>
+				<StatusSentence sub="Every webhook is paused, so it isn't billed. Wake it from Webhooks.">
 					Your hosted stack is asleep.
 				</StatusSentence>
 			) : rows === null ? (
-				<StatusSentence tone="idle" sub={sub || undefined}>
+				<StatusSentence sub={sub || undefined}>
 					Checking your account.
 				</StatusSentence>
 			) : attention > 0 ? (
-				<StatusSentence tone="alarm" sub={sub}>
+				<StatusSentence sub={sub}>
 					{plural(attention, "webhook")} {attention === 1 ? "needs" : "need"}{" "}
 					attention.
 				</StatusSentence>
 			) : rows.length === 0 ? (
-				<StatusSentence tone="idle" sub={sub}>
-					No webhooks yet.
-				</StatusSentence>
+				<StatusSentence sub={sub}>No webhooks yet.</StatusSentence>
 			) : (
-				<StatusSentence tone="ok" sub={sub}>
-					Everything is delivering.
-				</StatusSentence>
+				<StatusSentence sub={sub}>Everything is delivering.</StatusSentence>
 			)}
 
 			{guide && !guide.progress.key ? (

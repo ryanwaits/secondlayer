@@ -10,6 +10,7 @@ export function Ticks({
 	width = 132,
 	height = 30,
 	title,
+	tone,
 }: {
 	/** Deliveries per hour. */
 	delivered: readonly number[];
@@ -18,6 +19,8 @@ export function Ticks({
 	width?: number;
 	height?: number;
 	title: string;
+	/** The row this sits in is attention: delivered ticks follow it. */
+	tone?: "att";
 }) {
 	const slot = width / (delivered.length || 1);
 	return (
@@ -42,7 +45,13 @@ export function Ticks({
 					<rect
 						// biome-ignore lint/suspicious/noArrayIndexKey: ticks are positional
 						key={i}
-						className={hasFailure ? "dc-fill-alarm" : "dc-fill-a"}
+						className={
+							hasFailure
+								? "dc-fill-alarm"
+								: tone === "att"
+									? "dc-fill-hi"
+									: "dc-fill-a"
+						}
 						x={(i * slot + slot / 2 - 1).toFixed(1)}
 						y={4}
 						width={2}

@@ -14,7 +14,7 @@ import type {
 	SubgraphHealthData,
 	SubgraphListItem,
 } from "@/lib/subgraphs-store";
-import { ToneDot, insightRowState } from "../webhooks/rows";
+import { insightRowState } from "../webhooks/rows";
 
 /** Why there is no list to show yet. The same shape `useSubgraphsPoll` returns. */
 export type CompactListNotice =
@@ -95,7 +95,6 @@ function Row({
 		);
 	return (
 		<button type="button" className="msg-row" onClick={() => onOpen(item.name)}>
-			<ToneDot tone={tone} />
 			<span className="msg-main">
 				<span className="msg-name" title={item.name}>
 					{item.name}
@@ -126,10 +125,7 @@ export function SubgraphsCompactList({
 		if (notice?.kind === "starting") {
 			return (
 				<div className="msg">
-					<StatusSentence
-						tone="idle"
-						sub="Your account gets its own hosted stack the first time you use subgraphs. This takes about 30 seconds."
-					>
+					<StatusSentence sub="Your account gets its own hosted stack the first time you use subgraphs. This takes about 30 seconds.">
 						Starting your hosted stack.
 					</StatusSentence>
 				</div>
@@ -138,7 +134,7 @@ export function SubgraphsCompactList({
 		if (notice?.kind === "error") {
 			return (
 				<div className="msg">
-					<StatusSentence tone="alarm" sub={notice.message}>
+					<StatusSentence sub={notice.message}>
 						Couldn't load your subgraphs.
 					</StatusSentence>
 				</div>

@@ -5,8 +5,8 @@ import { ChartSkeleton } from "@/components/charts/chart-skeleton";
 import { Choice } from "@/components/choice";
 import { ActionableInsights } from "@/components/dashboard/insight/insight-actions";
 import { Breadcrumb } from "@/components/dashboard/shell/breadcrumb";
+import { Mark } from "@/components/dashboard/shell/mark";
 import { Skel } from "@/components/dashboard/shell/skel";
-import { dotClass } from "@/components/dashboard/shell/status-sentence";
 import { formatDate } from "@/lib/account-data";
 import type { Insight } from "@/lib/insights";
 import { forResource, useInsights } from "@/lib/insights-store";
@@ -17,7 +17,7 @@ import {
 	formatBytes,
 	groupDigits,
 	handlerErrors24h,
-	subgraphTone,
+	isLive,
 } from "@/lib/subgraph-view";
 import {
 	type SubgraphDetailData,
@@ -58,10 +58,11 @@ const RANGE_OPTIONS = (Object.keys(RANGE_HOURS) as SubgraphRange[]).map(
 	(value) => ({ value, label: value }),
 );
 
-const fact = (label: string, value: string) => (
+/** A fact cell; `mark` flags the value that is wrong. */
+const fact = (label: string, value: string, mark?: "att" | "fail") => (
 	<div key={label}>
 		{label}
-		<b>{value}</b>
+		<b>{mark ? <Mark tone={mark}>{value}</Mark> : value}</b>
 	</div>
 );
 
@@ -112,8 +113,8 @@ export function SubgraphDetailBody({
 	initialRows,
 	initialBlocks,
 }: SubgraphDetailBodyProps) {
-	const errors24h = handlerErrors24h(health);
 	const windowHours = health?.hours.slice(-RANGE_HOURS[range]);
+	const windowErrors = windowHours ? sum(windowHours.map((h) => h.errors)) : 0;
 	return (
 		<>
 			<Breadcrumb
@@ -124,9 +125,6 @@ export function SubgraphDetailBody({
 				<div className="wd-top">
 					<div className="wd-title">
 						<h1>
-							<span
-								className={dotClass(subgraphTone(detail.status, errors24h))}
-							/>
 							<span className="wd-name">{detail.name}</span>
 						</h1>
 					</div>
@@ -150,15 +148,17 @@ export function SubgraphDetailBody({
 					)}
 					{fact(
 						`Handler errors · ${range}`,
-						windowHours
-							? sum(windowHours.map((h) => h.errors)).toLocaleString("en-US")
-							: "–",
+						windowHours ? windowErrors.toLocaleString("en-US") : "–",
+						windowErrors > 0 ? "fail" : undefined,
 					)}
 					{fact(
 						"Behind tip",
 						detail.status === "reindexing"
 							? `Reindexing · ${blocksLabel(detail.sync.blocksRemaining)} left`
 							: blocksLabel(detail.sync.blocksRemaining),
+						detail.status === "active" && !isLive(detail.sync.blocksRemaining)
+							? "att"
+							: undefined,
 					)}
 					{fact(
 						"Storage",
@@ -209,7 +209,6 @@ function DetailSkeleton({ name }: { name: string }) {
 				<div className="wd-top">
 					<div className="wd-title">
 						<h1>
-							<span className={dotClass("idle")} />
 							<span className="wd-name">{name}</span>
 						</h1>
 					</div>

@@ -6,7 +6,6 @@ import { Meter } from "@/components/dashboard/charts/meter";
 import { InsightActions } from "@/components/dashboard/insight/insight-actions";
 import { InsightCard } from "@/components/dashboard/insight/insight-card";
 import { Skel } from "@/components/dashboard/shell/skel";
-import { dotClass } from "@/components/dashboard/shell/status-sentence";
 import { type Insight, autoOpenId, severityDot } from "@/lib/insights";
 import type { RowsResponse } from "@/lib/rows";
 import type { ApiKey } from "@/lib/types";
@@ -186,16 +185,7 @@ function StackCellView({ cell }: { cell: StackCell | null }) {
 			<CellHead
 				href="/account/credits"
 				label="Hosted stack"
-				aside={
-					cell ? (
-						<span className="ov-cell-state">
-							{cell.tone === "ok" ? null : (
-								<span className={dotClass(cell.tone)} />
-							)}
-							{cell.word}
-						</span>
-					) : null
-				}
+				aside={cell ? <span className="ov-cell-state">{cell.word}</span> : null}
 			/>
 			{cell ? (
 				<>

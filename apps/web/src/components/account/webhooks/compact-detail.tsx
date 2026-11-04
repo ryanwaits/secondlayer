@@ -19,7 +19,6 @@ import { toast } from "sonner";
 import { DeliveriesChart } from "./deliveries-chart";
 import { describeTrigger } from "./describe-trigger";
 import { ReplayProgressView, ReplaySheet } from "./replay-sheet";
-import { ToneDot } from "./rows";
 import { displayStatus, shortenName } from "./shared";
 import { ageShort, isOk, outageStartIndex, utcClock } from "./view";
 
@@ -77,7 +76,6 @@ function Status({
 				: ` Failing since ${utcClock(activity.hours[start].hour)} UTC.`;
 		return (
 			<div className="mwh-status">
-				<ToneDot tone="alarm" />
 				<span className="mwh-status-text">
 					<b className="is-bad">Can't reach your server</b>
 					<span>
@@ -92,7 +90,6 @@ function Status({
 	if (status === "paused") {
 		return (
 			<div className="mwh-status">
-				<ToneDot tone="idle" />
 				<span className="mwh-status-text">
 					<b>Paused by you</b>
 					<span>Events wait until you resume.</span>
@@ -102,7 +99,6 @@ function Status({
 	}
 	return (
 		<div className="mwh-status">
-			<ToneDot tone="ok" />
 			<span className="mwh-status-text">
 				<b>Delivering</b>
 				<span>Last delivery {ageShort(webhook.lastDeliveryAt)} ago.</span>

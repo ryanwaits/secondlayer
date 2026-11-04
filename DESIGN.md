@@ -362,6 +362,7 @@ exception, carried by the brand mark: a product glyph may draw one part in blue,
 part its claim is about, the way the logo's top layer is blue (see Product glyphs).
 **Yellow marks.** Yellow never signals status. It marks new, finalized, signed.
 **Red fails.** Red appears only for failures and reorgs.
+Dashboard attention: `--hi` row tint, `.hl` value mark. Failing: `--alarm` row tint, inverted neutral value mark. Healthy shows nothing.
 **Neutrals carry the rest.** If it is not an action, a mark, or a failure, it is ink, sub,
 line, or soft, all steps of the neutral scale. Muted text uses the `sub` role or the ink alpha
 ramp, never an invented gray.

@@ -100,7 +100,6 @@ describe("keysSentence", () => {
 		expect(keysSentence([], NOW).text).toBe("No keys yet.");
 		expect(keysSentence([used({})], NOW).text).toBe("Your key is in use.");
 		expect(keysSentence([used({ id: "a" }), used({ id: "b" })], NOW)).toEqual({
-			tone: "ok",
 			text: "All 2 keys in use.",
 		});
 	});
@@ -120,14 +119,12 @@ describe("keysSentence", () => {
 
 	test("the first-run copy never mentions agents", () => {
 		const out = keysSentence([], NOW);
-		expect(out.tone).toBe("idle");
 		expect(out.sub).not.toContain("agents");
 	});
 
 	test("every key revoked counts them and says webhooks keep running", () => {
 		const gone = (id: string) => key({ id, status: "revoked" });
 		const two = keysSentence([gone("a"), gone("b")], NOW);
-		expect(two.tone).toBe("idle");
 		expect(two.text).toBe("No active keys.");
 		expect(two.sub).toContain("You revoked all 2.");
 		expect(keysSentence([gone("a")], NOW).sub).toContain(
@@ -135,11 +132,10 @@ describe("keysSentence", () => {
 		);
 	});
 
-	test("a revoked key still being called turns the header to an alarm", () => {
+	test("a revoked key still being called is named in the header", () => {
 		const out = keysSentence([key({ status: "revoked" })], NOW, {
 			revokedInUse: true,
 		});
-		expect(out.tone).toBe("alarm");
 		expect(out.text).toBe("No active keys, and one is still called.");
 	});
 

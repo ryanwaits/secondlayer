@@ -6,7 +6,6 @@ export function ReadsKeyLine({ state }: { state: "first" | "none_active" }) {
 	return (
 		<p className="ob-key">
 			<span className="ob-key-text">
-				<span className="dash-dot hi" />
 				{state === "first"
 					? "Reads need a key."
 					: "No active key. New reads need one."}
