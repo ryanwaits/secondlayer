@@ -17,7 +17,7 @@ export function CreditsAddedTable({
 					<thead>
 						<tr>
 							<th>Date</th>
-							<th>What</th>
+							<th>Kind</th>
 							<th className="r">Amount</th>
 						</tr>
 					</thead>

@@ -122,6 +122,6 @@ describe("unitLines", () => {
 
 describe("creditDate", () => {
 	test("is month and day in UTC", () => {
-		expect(creditDate("2026-10-09T23:59:00.000Z")).toBe("10-09");
+		expect(creditDate("2026-10-09T23:59:00.000Z")).toBe("Oct 9");
 	});
 });

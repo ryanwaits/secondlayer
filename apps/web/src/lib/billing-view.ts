@@ -97,7 +97,11 @@ export function creditWhat(credit: CreditAdded): string {
 	return credit.kind === "topup" ? "Top-up" : "Credit";
 }
 
-/** "10-09": month and day, UTC. */
+/** "Oct 9": month and day, UTC. */
 export function creditDate(iso: string): string {
-	return iso.slice(5, 10);
+	return new Date(iso).toLocaleDateString("en-US", {
+		month: "short",
+		day: "numeric",
+		timeZone: "UTC",
+	});
 }
