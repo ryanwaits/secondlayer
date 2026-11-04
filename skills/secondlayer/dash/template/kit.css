@@ -694,27 +694,6 @@ td.sp svg {
 .sg-table tr.sel td:first-child {
 	color: var(--pri);
 }
-.sg-slot {
-	display: inline-block;
-	width: 6px;
-	height: 6px;
-	margin-right: 10px;
-	border-radius: 50%;
-	vertical-align: 1px;
-}
-.sg-slot.new {
-	background: var(--hi);
-	animation: sg-fade 9s forwards;
-}
-@keyframes sg-fade {
-	0%,
-	55% {
-		opacity: 1;
-	}
-	100% {
-		opacity: 0;
-	}
-}
 .sg-table tr.rowx td {
 	padding: 16px 0 22px;
 	white-space: normal;

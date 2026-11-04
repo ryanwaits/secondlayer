@@ -2055,9 +2055,7 @@ const CATALOG = {
 				caption: `newest ${limit}`,
 			});
 			let openKey = null;
-			let seen = null;
 			let last = null;
-			const fresh = new Map();
 			const key = (r, i) => String(r._id ?? i);
 			scope.onDispose(() => {
 				if (ctx.ui.open?.from === id) ctx.ui.open = null;
@@ -2105,9 +2103,6 @@ const CATALOG = {
 							const td = h(
 								"td",
 								cls || null,
-								ci === 0
-									? h("span", fresh.has(k) ? "sg-slot new" : "sg-slot")
-									: null,
 								cell.text,
 							);
 							if (cell.title) td.title = cell.title;
@@ -2175,15 +2170,6 @@ const CATALOG = {
 					readRows(ctx, network, subgraph, table, limit),
 				]);
 				if (!info || !rows) return noTable(p, subgraph, table, network);
-				// Rows that weren't in the last read get the yellow dot for 9s.
-				const nowMs = ctx.now().getTime();
-				if (seen) {
-					for (const [i, r] of rows.entries()) {
-						if (!seen.has(key(r, i))) fresh.set(key(r, i), nowMs);
-					}
-				}
-				seen = new Set(rows.map(key));
-				for (const [k, at] of fresh) if (nowMs - at > 9000) fresh.delete(k);
 				const cols = props.columns?.length
 					? props.columns
 					: gridColumns(info.columns ?? {});
