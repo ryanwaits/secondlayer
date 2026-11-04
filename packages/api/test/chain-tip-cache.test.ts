@@ -17,6 +17,9 @@ import { getChainTip, resetChainTipCache } from "../src/routes/subgraphs.ts";
 
 const SKIP = !process.env.DATABASE_URL;
 
+const indexTip = (height: number) =>
+	Response.json({ blocks: [], tip: { block_height: height } });
+
 describe.skipIf(SKIP)("getChainTip cache", () => {
 	const NETWORK = `chain-tip-cache-test-${crypto.randomUUID().slice(0, 8)}`;
 	let prevNetwork: string | undefined;
@@ -104,16 +107,26 @@ describe.skipIf(SKIP)("getChainTip cache", () => {
 		let server: ReturnType<typeof Bun.serve>;
 		let requests = 0;
 		let respond: () => Response;
+		let lastRequest: { url: string; authorization: string | null } | undefined;
 		const savedUrl = process.env.SUBGRAPH_INDEX_API_URL;
+		const savedKeys = {
+			INDEX_INTERNAL_API_KEY: process.env.INDEX_INTERNAL_API_KEY,
+			STREAMS_INTERNAL_API_KEY: process.env.STREAMS_INTERNAL_API_KEY,
+			INSTANCE_TOKEN: process.env.INSTANCE_TOKEN,
+		};
 
 		beforeEach(() => {
 			requests = 0;
 			// No index_progress row for this network: the tenant shape.
 			process.env.NETWORK = `${NETWORK}-tenant`;
-			respond = () => Response.json({ block_height: 777 });
+			respond = () => indexTip(777);
 			server = Bun.serve({
 				port: 0,
-				fetch: () => {
+				fetch: (req) => {
+					lastRequest = {
+						url: req.url,
+						authorization: req.headers.get("authorization"),
+					};
 					requests++;
 					return respond();
 				},
@@ -123,6 +136,10 @@ describe.skipIf(SKIP)("getChainTip cache", () => {
 
 		afterEach(async () => {
 			await server.stop(true);
+			for (const [name, value] of Object.entries(savedKeys)) {
+				if (value === undefined) delete process.env[name];
+				else process.env[name] = value;
+			}
 			if (savedUrl === undefined) {
 				process.env.SUBGRAPH_INDEX_API_URL = "";
 			} else {
@@ -138,6 +155,19 @@ describe.skipIf(SKIP)("getChainTip cache", () => {
 
 			expect(await tip(t0 + 2001)).toBe(777);
 			expect(requests).toBe(2);
+		});
+
+		test("a tenant api env (index key, no streams key) reads the Index tip with the index key", async () => {
+			process.env.INDEX_INTERNAL_API_KEY = "tenant-read-key";
+			delete process.env.STREAMS_INTERNAL_API_KEY;
+			delete process.env.INSTANCE_TOKEN;
+			respond = () => indexTip(9_407_910);
+
+			expect(await tip(Date.now())).toBe(9_407_910);
+			const url = new URL(lastRequest?.url ?? "http://missing");
+			expect(url.pathname).toBe("/v1/index/blocks");
+			expect(url.searchParams.get("tip_only")).toBe("true");
+			expect(lastRequest?.authorization).toBe("Bearer tenant-read-key");
 		});
 
 		test("an unreachable platform keeps the last tip and retries once per window, not per call", async () => {

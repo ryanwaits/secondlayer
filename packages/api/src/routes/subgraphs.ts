@@ -246,6 +246,8 @@ const CHAIN_TIP_TTL_MS = 2_000;
  *  retries without a timeout, so a slow platform must cost at most this much. */
 const PLATFORM_TIP_TIMEOUT_MS = 500;
 
+/** Platform Index tip: the highest block a hosted subgraph can process.
+ *  Authenticates with `INDEX_INTERNAL_API_KEY`, which the tenant api has. */
 async function readPlatformTip(): Promise<number> {
 	let timer: ReturnType<typeof setTimeout> | undefined;
 	const timeout = new Promise<number>((resolve) => {
@@ -254,7 +256,7 @@ async function readPlatformTip(): Promise<number> {
 	try {
 		return await Promise.race([
 			createInternalIndexHttpClient()
-				.getStreamsTip()
+				.getIndexTip()
 				.catch(() => 0),
 			timeout,
 		]);
@@ -289,7 +291,7 @@ export async function getChainTip(now: number = Date.now()): Promise<number> {
 	let value = Number(progressRow?.highest_seen_block ?? 0);
 
 	// A hosted tenant has no indexer, so its own `index_progress` stays empty:
-	// ask the platform's Streams clock instead (same env contract as the
+	// ask the platform's Index tip instead (same env contract and key as the
 	// tenant's processors).
 	if (value === 0 && (await hasNoLocalChain().catch(() => false))) {
 		value = await readPlatformTip();
