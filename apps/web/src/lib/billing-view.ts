@@ -66,46 +66,6 @@ export function monthProjection(daily: DailySpend[], now: Date) {
 	return { series, daysInMonth, ...spendProjection(series, daysInMonth) };
 }
 
-export type CostDay = {
-	/** "Oct 1" */
-	day: string;
-	stack: number;
-	rows: number;
-	events: number;
-};
-
-/** Cost per day, split into the hosted stack, rows, and webhook events plus
- *  storage. Sentinel and other units are not part of this split. */
-export function costByDay(daily: DailySpend[], now: Date): CostDay[] {
-	// Every day of the month, not just the days so far: bars keep one width
-	// all month and the empty rest shows how far in the month is.
-	const days = new Date(
-		Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 0),
-	).getUTCDate();
-	const monthPrefix = now.toISOString().slice(0, 7);
-	const month = now.toLocaleDateString("en-US", {
-		month: "short",
-		timeZone: "UTC",
-	});
-	const out: CostDay[] = Array.from({ length: days }, (_, i) => ({
-		day: `${month} ${i + 1}`,
-		stack: 0,
-		rows: 0,
-		events: 0,
-	}));
-	for (const row of daily) {
-		if (!row.date.startsWith(monthPrefix)) continue;
-		const slot = out[Number(row.date.slice(8, 10)) - 1];
-		if (!slot) continue;
-		const usd = Number(row.usdMicros) / MICROS;
-		if (row.unit === "memory.gb_hour") slot.stack += usd;
-		else if (row.unit === "rows.delivered") slot.rows += usd;
-		else if (row.unit === "webhook.event" || row.unit === "storage.gb_day")
-			slot.events += usd;
-	}
-	return out;
-}
-
 export interface UnitLine {
 	unit: string;
 	usdMicros: string;

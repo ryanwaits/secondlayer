@@ -78,7 +78,6 @@ import {
 	summary,
 } from "@/components/account/webhooks/webhook.fixtures";
 import { type AmountOption, AmountPicker } from "@/components/amount-picker";
-import { MonoStackedBarChart } from "@/components/charts/mono-stacked-bar-chart";
 import { Choice } from "@/components/choice";
 import { HeatStrip } from "@/components/dashboard/charts/heat-strip";
 import { Legend } from "@/components/dashboard/charts/legend";
@@ -466,37 +465,6 @@ export function HeatStripDemo({
 			>
 				{clicked === null ? "Click a cell" : `Opened hour ${clicked}`}
 			</span>
-		</div>
-	);
-}
-
-/** Cost by unit: the stacked bar takes formatter functions, so it needs a client boundary. */
-export function StackedCostDemo({
-	data,
-}: { data: { day: string; rows: number; events: number; storage: number }[] }) {
-	return (
-		<div style={{ display: "grid", gap: 10 }}>
-			<Legend
-				items={[
-					{ swatch: "square", label: "Rows", color: "var(--ch-a)" },
-					{ swatch: "square", label: "Events", color: "var(--ch-b)" },
-					{ swatch: "square", label: "Storage", color: "var(--ch-c)" },
-				]}
-			/>
-			<MonoStackedBarChart
-				data={data}
-				height={150}
-				xAxisDataKey="day"
-				xAxisTicks={[data[0]?.day ?? "", data.at(-1)?.day ?? ""]}
-				xAxisTickFormatter={(v) => String(v)}
-				yAxisTicks={[0, 0.5, 1]}
-				yAxisTickFormatter={(v) => `$${v.toFixed(2)}`}
-				series={[
-					{ dataKey: "rows", name: "Rows", color: "var(--ch-a)" },
-					{ dataKey: "events", name: "Events", color: "var(--ch-b)" },
-					{ dataKey: "storage", name: "Storage", color: "var(--ch-c)" },
-				]}
-			/>
 		</div>
 	);
 }

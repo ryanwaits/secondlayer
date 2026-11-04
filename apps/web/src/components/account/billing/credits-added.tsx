@@ -40,12 +40,7 @@ export function CreditsAddedTable({
 									key={`${credit.occurredAt}-${credit.kind}-${credit.source}`}
 								>
 									<td>{creditDate(credit.occurredAt)}</td>
-									<td>
-										{creditWhat(credit)}
-										{credit.kind === "grant" && credit.source ? (
-											<span className="bl-faint"> {credit.source}</span>
-										) : null}
-									</td>
+									<td>{creditWhat(credit)}</td>
 									<td className="r good">+{formatUsd(credit.usdMicros)}</td>
 								</tr>
 							))

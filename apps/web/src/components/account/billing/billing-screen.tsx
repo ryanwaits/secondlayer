@@ -1,12 +1,7 @@
 "use client";
 
 import { ChartBox } from "@/components/charts/chart-skeleton";
-import {
-	LazyMonoStackedBarChart,
-	LazySpendChart,
-	preloadMonoStackedBarChart,
-	preloadSpendChart,
-} from "@/components/charts/lazy";
+import { LazySpendChart, preloadSpendChart } from "@/components/charts/lazy";
 import { Legend } from "@/components/dashboard/charts/legend";
 import { Meter } from "@/components/dashboard/charts/meter";
 import { ActionableInsights } from "@/components/dashboard/insight/insight-actions";
@@ -27,12 +22,10 @@ import {
 import { daysLeft, daysLeftLabel } from "@/lib/account-health";
 import {
 	capDollars,
-	costByDay,
 	dollars,
 	isSentinelUnit,
 	monthProjection,
 } from "@/lib/billing-view";
-import { formatUsdTick, niceMax } from "@/lib/dashboard-charts";
 import type { Insight } from "@/lib/insights";
 import { forAccountRules, useInsights } from "@/lib/insights-store";
 import type { CreditAdded } from "@/lib/types";
@@ -67,21 +60,11 @@ import { ByUnitTable } from "./by-unit-table";
 import { UsageCompact } from "./compact-usage";
 import { CreditsAddedTable } from "./credits-added";
 import { LimitsAndEmails } from "./limits-and-emails";
-import { RatesTable } from "./rates-table";
 
 const MICROS = 1_000_000;
 
 /** The account-level rules about money; the rest belong to Overview and Rows. */
 const BILLING_RULES = ["cap_pace", "credits_runway"];
-
-/** Cost series colors, in stack order: the hosted stack, rows, webhook events plus storage. */
-const COST_SERIES = [
-	{ dataKey: "stack", name: "Hosted stack", color: "var(--ch-a)" },
-	{ dataKey: "rows", name: "Rows", color: "var(--ch-b)" },
-	{ dataKey: "events", name: "Webhook events + storage", color: "var(--ch-c)" },
-] as const;
-
-const usdTip = (value: number | string) => dollars(Number(value));
 
 /** The sentence under the balance: what it is, and what to do about it. */
 function Status({
@@ -231,11 +214,6 @@ export function BillingBody({
 		.reduce((sum, u) => sum + Number(u.usdMicros), 0);
 
 	const fresh = isFreshAccount(billing);
-	const days = daily ? costByDay(daily, now) : null;
-	const costTop = days
-		? niceMax(Math.max(...days.map((d) => d.stack + d.rows + d.events)) * 1.05)
-		: 1;
-
 	if (fresh) {
 		return (
 			<div className="bl-body">
@@ -254,10 +232,7 @@ export function BillingBody({
 					usage={usage}
 					monthName={monthLabel(month).split(" ")[0]}
 				/>
-				<div className="bl-two even">
-					{settings}
-					<RatesTable />
-				</div>
+				{settings}
 			</div>
 		);
 	}
@@ -308,34 +283,6 @@ export function BillingBody({
 				<CreditsSection>{addCredits}</CreditsSection>
 			</div>
 
-			<section className="dash-panel bl-panel" aria-label="Where it goes">
-				<div className="dash-panel-h">
-					<span className="dash-label">Where it goes · per day</span>
-					<Legend
-						items={COST_SERIES.map((s) => ({
-							swatch: "square" as const,
-							label: s.name,
-							color: s.color,
-						}))}
-					/>
-				</div>
-				<ChartBox height={150}>
-					{days ? (
-						<LazyMonoStackedBarChart
-							data={days}
-							height={150}
-							xAxisDataKey="day"
-							xAxisTicks={[days[0]?.day ?? "", days.at(-1)?.day ?? ""]}
-							xAxisTickFormatter={(v) => String(v)}
-							yAxisTicks={[0, costTop / 2, costTop]}
-							yAxisTickFormatter={formatUsdTick}
-							tooltipFormatter={usdTip}
-							series={COST_SERIES.map((s) => ({ ...s }))}
-						/>
-					) : null}
-				</ChartBox>
-			</section>
-
 			<div className="bl-two even">
 				<ByUnitTable
 					usage={usage}
@@ -344,10 +291,7 @@ export function BillingBody({
 				<CreditsAddedTable credits={credits} />
 			</div>
 
-			<div className="bl-two even">
-				{settings}
-				<RatesTable />
-			</div>
+			{settings}
 		</div>
 	);
 }
@@ -372,7 +316,6 @@ export function BillingScreen({ ret }: { ret: TopupReturn | null }) {
 		ensureCaps();
 		ensureCredits();
 		preloadSpendChart();
-		preloadMonoStackedBarChart();
 	}, []);
 
 	// A landed top-up is a new row in the credits list.

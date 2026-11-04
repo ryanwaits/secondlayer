@@ -12,11 +12,6 @@ import { ChartSkeleton } from "./chart-skeleton";
  * blocking the whole page's first-load JS.
  */
 
-export const LazyMonoStackedBarChart = dynamic(
-	() => import("./mono-stacked-bar-chart").then((m) => m.MonoStackedBarChart),
-	{ ssr: false, loading: () => <ChartSkeleton height={120} /> },
-);
-
 export const LazyMonoAreaLineChart = dynamic(
 	() => import("./mono-area-line-chart").then((m) => m.MonoAreaLineChart),
 	{ ssr: false, loading: () => <ChartSkeleton height={144} /> },
@@ -54,9 +49,6 @@ export function preloadBandBarChart(): void {
 }
 export function preloadContextLineChart(): void {
 	startImport(() => import("../dashboard/charts/context-line-chart"));
-}
-export function preloadMonoStackedBarChart(): void {
-	startImport(() => import("./mono-stacked-bar-chart"));
 }
 export function preloadSpendChart(): void {
 	startImport(() => import("../dashboard/charts/spend-chart"));

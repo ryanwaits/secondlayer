@@ -91,10 +91,13 @@ describe("BillingBody", () => {
 		);
 	});
 
-	test("limits and emails sit beside how you're billed", () => {
+	test("limits and emails render, and the minimum charge sits under By unit", () => {
 		const html = renderToStaticMarkup(<BillingBody {...base} />);
 		expect(html).toContain("settings-slot");
-		expect(html).toContain("How you&#x27;re billed");
+		expect(html).toContain(
+			"Minimum $5 a month for webhooks, $10 with subgraphs",
+		);
+		expect(html).toContain('href="/pricing"');
 	});
 
 	test("says the hosted stack stopped when it has", () => {
@@ -255,13 +258,13 @@ describe("BillingBody for a new account", () => {
 		expect(html).not.toContain('href="#packs"');
 	});
 
-	test("the Add credits section sits beside Free rows, and both layouts list the rates", () => {
+	test("the Add credits section sits beside Free rows, and both layouts state the minimum", () => {
 		const html = renderToStaticMarkup(<BillingBody {...fresh} />);
 		expect(html).toMatch(/aria-label="Add credits" id="packs"/);
 		expect(html.indexOf('aria-label="Free rows"')).toBeLessThan(
 			html.indexOf('id="packs"'),
 		);
-		expect(html).toContain("How you&#x27;re billed");
+		expect(html).toContain("Minimum $5 a month for webhooks");
 		expect(html).toContain("settings-slot");
 	});
 
@@ -275,11 +278,11 @@ describe("BillingBody for a new account", () => {
 });
 
 describe("BillingBody charts", () => {
-	test("both charts hold their final height before the daily data lands", () => {
+	test("the spend chart holds its final height before the daily data lands", () => {
 		const html = renderToStaticMarkup(
 			<BillingBody {...base} daily={undefined} />,
 		);
-		expect(html.match(/dc-chart-box/g)?.length).toBe(2);
-		expect(html.match(/height:150px/g)?.length).toBeGreaterThanOrEqual(2);
+		expect(html.match(/dc-chart-box/g)?.length).toBe(1);
+		expect(html.match(/height:150px/g)?.length).toBeGreaterThanOrEqual(1);
 	});
 });

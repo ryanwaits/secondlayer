@@ -14,7 +14,6 @@ import { TOPUP_MAX_USD, TOPUP_MIN_USD } from "@/lib/prices";
 import { type Burn, runsOutMonth } from "@/lib/usage";
 import { useEffect, useState } from "react";
 import { AmountChoice } from "./billing/amount-choice";
-import { RatesTable } from "./billing/rates-table";
 import { FloatingCard } from "./floating-card";
 
 export function BalanceStats({ billing }: { billing: Billing | null }) {
@@ -153,15 +152,6 @@ export function AddCredits({
 				/>
 			) : null}
 			<CheckoutAction co={co} />
-			{burn && rate > 0 ? (
-				<p className="bl-est">
-					<span className="dash-label">Estimate</span>
-					<span>
-						From your last {burn.windowHours} hours of spend,{" "}
-						<code>{formatUsd(rate)}</code> a day. A busier stretch ends sooner.
-					</span>
-				</p>
-			) : null}
 		</>
 	);
 }
@@ -197,7 +187,6 @@ export function CreditsCard({
 				burn={burn}
 				stopped={service?.state === "stopped"}
 			/>
-			<RatesTable />
 		</FloatingCard>
 	);
 }

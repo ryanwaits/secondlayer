@@ -7683,37 +7683,6 @@ button.dash-row {
 	font-size: 12.5px;
 	color: var(--faint);
 }
-.bl-rates {
-	display: flex;
-	flex-direction: column;
-	gap: 8px;
-}
-.bl-rates table {
-	width: 100%;
-	border-collapse: collapse;
-	font-size: 12.5px;
-	line-height: 1.5;
-}
-.bl-rates th,
-.bl-rates td {
-	padding: 8px 0;
-	border-top: 1px solid var(--line);
-	text-align: left;
-	vertical-align: top;
-}
-.bl-rates th {
-	padding-right: 16px;
-	white-space: nowrap;
-	font-weight: 500;
-	color: var(--ink);
-}
-.bl-rates td {
-	color: var(--sub);
-}
-.bl-rates code {
-	font-family: var(--font-mono-stack);
-	color: var(--ink);
-}
 .bl-faint {
 	color: var(--faint);
 }
@@ -7732,16 +7701,6 @@ button.dash-row {
 }
 .bl-runway.err {
 	color: var(--alarm);
-}
-.bl-est {
-	display: flex;
-	gap: 10px;
-	align-items: baseline;
-	margin: 0;
-	padding-top: 12px;
-	border-top: 1px solid var(--line);
-	font-size: 12.5px;
-	color: var(--sub);
 }
 .bl-settings {
 	display: grid;

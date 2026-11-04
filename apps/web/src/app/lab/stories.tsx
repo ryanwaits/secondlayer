@@ -101,7 +101,6 @@ import {
 	RowsDemo,
 	RowsEmptyDemo,
 	SheetDemo,
-	StackedCostDemo,
 	SubgraphSheetDemo,
 	SwipeRowDemo,
 	TopupSheetDemo,
@@ -426,13 +425,6 @@ const STORY_LINE_LABELS: [number, string][] = [
 const STORY_SPEND_DAILY = [
 	0.8, 1.1, 0.9, 1.4, 1.2, 1.0, 1.3, 1.6, 1.2, 1.5, 1.4,
 ];
-const STORY_COST_DAYS = Array.from({ length: 14 }, (_, i) => ({
-	day: `Oct ${i + 1}`,
-	rows: 0.4 + (i % 4) * 0.1,
-	events: 0.2 + (i % 3) * 0.05,
-	storage: 0.1,
-}));
-
 const insightFor = (rule: string) => {
 	const found = FIXTURE_INSIGHTS.find((i) => i.rule === rule);
 	if (!found) throw new Error(`missing insight fixture ${rule}`);
@@ -1723,11 +1715,8 @@ const META: Record<StoryId, Meta> = {
 		usage: `<LazyContextLineChart context={timeout} values={p95} contextName="Our timeout" valueName="Your p95" xLabels={labels} />`,
 	},
 	"charts-spend": {
-		src: [
-			"apps/web/src/components/dashboard/charts/spend-chart.tsx",
-			"apps/web/src/components/charts/mono-stacked-bar-chart.tsx",
-		],
-		rule: "Cumulative spend in blue, a dashed projection at the last week's pace. Cost by unit reuses the stacked bar with the three blue steps.",
+		src: ["apps/web/src/components/dashboard/charts/spend-chart.tsx"],
+		rule: "Cumulative spend in blue, a dashed projection at the last week's pace.",
 		stack: true,
 		variants: [
 			{
@@ -1740,11 +1729,6 @@ const META: Record<StoryId, Meta> = {
 						monthLabel="Oct"
 					/>
 				),
-			},
-			{
-				id: "stacked",
-				label: "Daily cost by unit",
-				render: () => <StackedCostDemo data={STORY_COST_DAYS} />,
 			},
 		],
 		usage: `<LazySpendChart daily={dailyCosts} daysInMonth={31} monthLabel="Oct" />`,

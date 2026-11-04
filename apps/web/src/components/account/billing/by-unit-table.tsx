@@ -1,5 +1,6 @@
 import { formatUsd } from "@/lib/account-data";
 import { totalMicros, unitLines } from "@/lib/billing-view";
+import { STACK_FLOOR_USD_PER_MONTH } from "@/lib/prices";
 import {
 	type UsageRow,
 	formatUnitQuantity,
@@ -82,6 +83,11 @@ export function ByUnitTable({
 					</tbody>
 				</table>
 			</div>
+			<span className="bl-note">
+				Minimum ${STACK_FLOOR_USD_PER_MONTH.webhooks} a month for webhooks, $
+				{STACK_FLOOR_USD_PER_MONTH.subgraphs} with subgraphs, while they run.
+				All rates are on <a href="/pricing">Pricing</a>.
+			</span>
 		</section>
 	);
 }

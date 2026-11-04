@@ -1,6 +1,5 @@
 import { describe, expect, test } from "bun:test";
 import {
-	costByDay,
 	creditDate,
 	monthProjection,
 	monthSpendSeries,
@@ -81,29 +80,6 @@ describe("monthProjection", () => {
 		);
 		expect(p.ratePerDay).toBe(2);
 		expect(p.projectedEnd).toBe(6 + 2 * 28);
-	});
-});
-
-describe("costByDay", () => {
-	test("splits a day into stack, rows, and events plus storage, one slot per day of the month", () => {
-		const days = costByDay(
-			[
-				day("2026-10-02", "memory.gb_hour", 1_000_000),
-				day("2026-10-02", "rows.delivered", 2_000_000),
-				day("2026-10-02", "webhook.event", 300_000),
-				day("2026-10-02", "storage.gb_day", 200_000),
-				day("2026-10-02", "sentinel.run", 4_000_000),
-			],
-			NOW,
-		);
-		expect(days).toHaveLength(31);
-		expect(days[30]).toEqual({ day: "Oct 31", stack: 0, rows: 0, events: 0 });
-		expect(days[1]).toEqual({
-			day: "Oct 2",
-			stack: 1,
-			rows: 2,
-			events: 0.5,
-		});
 	});
 });
 
