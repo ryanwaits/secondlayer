@@ -112,7 +112,8 @@ export function MonoStackedBarChart<T extends object>({
 					<YAxis
 						ticks={yAxisTicks}
 						interval={0}
-						domain={[0, "dataMax"]}
+						// Up to the top tick, so a tick above the tallest bar still prints.
+						domain={[0, yAxisTicks?.at(-1) ?? "dataMax"]}
 						tickFormatter={yAxisTickFormatter}
 						tick={{ fontSize: 10, fill: "var(--fig-faint)" }}
 						axisLine={false}

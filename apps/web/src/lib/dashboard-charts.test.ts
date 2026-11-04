@@ -41,6 +41,9 @@ describe("formatUsdTick", () => {
 	test("prints the origin as $0", () => {
 		expect(formatUsdTick(0)).toBe("$0");
 	});
+	test("keeps cents under $1", () => {
+		expect(formatUsdTick(0.25)).toBe("$0.25");
+	});
 	test("keeps one decimal under $10", () => {
 		expect(formatUsdTick(2.5)).toBe("$2.5");
 	});

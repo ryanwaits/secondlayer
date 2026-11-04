@@ -77,7 +77,11 @@ export type CostDay = {
 /** Cost per day, split into the hosted stack, rows, and webhook events plus
  *  storage. Sentinel and other units are not part of this split. */
 export function costByDay(daily: DailySpend[], now: Date): CostDay[] {
-	const days = now.getUTCDate();
+	// Every day of the month, not just the days so far: bars keep one width
+	// all month and the empty rest shows how far in the month is.
+	const days = new Date(
+		Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 0),
+	).getUTCDate();
 	const monthPrefix = now.toISOString().slice(0, 7);
 	const month = now.toLocaleDateString("en-US", {
 		month: "short",
