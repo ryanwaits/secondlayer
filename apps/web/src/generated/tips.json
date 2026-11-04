@@ -12411,6 +12411,16 @@
 			}
 		},
 		{
+			"path": "/api/subgraphs/{name}/recent",
+			"method": "GET",
+			"tip": {
+				"kind": "endpoint",
+				"summary": "The newest 20 rows across all of the subgraph's tables in one call, newest block first (then newest _id).",
+				"route": "/docs/api/subgraphs",
+				"anchor": "list-deployment-recent-rows"
+			}
+		},
+		{
 			"path": "/api/subgraphs/{name}/violations",
 			"method": "GET",
 			"tip": {

@@ -19172,6 +19172,15 @@
 							"type": "string"
 						},
 						"description": "Window end, exclusive, ISO 8601. Needs `from`."
+					},
+					{
+						"name": "_limit",
+						"in": "query",
+						"required": false,
+						"schema": {
+							"type": "integer"
+						},
+						"description": "Attempts to return, 1 to 100. Default 100."
 					}
 				],
 				"responses": {
