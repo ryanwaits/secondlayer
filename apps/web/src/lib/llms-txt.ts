@@ -66,6 +66,12 @@ const INTRO = `# Secondlayer: instant data for apps on Bitcoin
   ({"requests":[{"path":"/v1/index/events","params":{...}}, ...]}); results
   return in order with per-item status.
 
+## Report a problem (hosted)
+- POST /v1/feedback {"intent":"one line","request_id":"req_… (optional)"}.
+  kind_hint: missing_capability, bug, schema_gap, docs_mismatch, perf.
+  expected: any JSON or a sentence. evidence keys: tx_id, block_height,
+  contract_id, event_type, subgraph, table.
+
 ## Docs
 - ${SITE}/docs
 - Any page as markdown: append .md — ${SITE}/docs/streams.md

@@ -1537,14 +1537,16 @@
     ]
   },
   "/docs/rest-api#report-a-problem-hosted": {
-    "hash": "fab6a0424bb0c13c",
+    "hash": "dc027202b95410b6",
     "phrasings": [
-      "secondlayer tools error requestid",
-      "what is requestid in error body",
-      "how to report api problem to support",
-      "hosted api error request id",
-      "include request id in bug report",
-      "secondlayer tools error body missing requestid"
+      "how do i report an api bug on hosted version",
+      "api returning wrong data who do i contact",
+      "hosted api missing endpoint how to request",
+      "stuck on rest api what support options exist",
+      "is the hosted api broken or is it my code",
+      "how to file issue with hosted rest service",
+      "api behaves incorrectly where to report",
+      "need help with hosted api not working"
     ]
   },
   "/docs/rest-api#response-envelope": {

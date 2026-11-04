@@ -54,7 +54,7 @@ Branch on `code`, not on the message.
 
 ### Report a problem (hosted)
 
-Every error body on `api.secondlayer.tools` carries a `request_id`. When a call fails and you think the API is wrong or missing something, send that id back with one line on what you were trying to do:
+Stuck, or think the API is wrong or missing something? Send one line on what you were trying to do. When a call failed, add the `request_id` from its error body:
 
 ```bash wrap
 curl -X POST "$SECONDLAYER_API_URL/v1/feedback" \
@@ -68,8 +68,10 @@ The server attaches its own record of the failed call (method, path, status, cod
 | Field | Holds |
 | --- | --- |
 | `kind_hint` | `missing_capability`, `bug`, `schema_gap`, `docs_mismatch`, or `perf` |
-| `expected` | What you wanted back |
-| `evidence` | `tx_id`, `block_height`, `contract_id`, `event_type`, `subgraph`, `table` |
+| `expected` | What you wanted back, as a sentence or JSON |
+| `evidence` | An object with only `tx_id`, `block_height`, `contract_id`, `event_type`, `subgraph`, `table` |
+
+Any other field is a `400` that names the allowed ones.
 
 An `Idempotency-Key` header makes retries safe.
 
