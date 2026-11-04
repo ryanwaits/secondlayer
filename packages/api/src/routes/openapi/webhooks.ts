@@ -869,6 +869,12 @@ export const webhooksPaths = {
 					false,
 					"Window end, exclusive, ISO 8601. Needs `from`.",
 				),
+				qp(
+					"_limit",
+					"integer",
+					false,
+					"Attempts to return, 1 to 100. Default 100.",
+				),
 			],
 			responses: apiReadResponses({
 				"200": json200(

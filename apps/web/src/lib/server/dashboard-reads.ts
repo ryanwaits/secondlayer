@@ -6,6 +6,11 @@ import {
 	recentRowsData,
 } from "@/components/account/subgraphs/recent-rows-model";
 import { listensForCode } from "@/components/account/webhooks/describe-trigger";
+import {
+	FIRST_DELIVERIES,
+	VISIBLE_GROUPS,
+	groupAttempts,
+} from "@/components/account/webhooks/view";
 import type { AccountSeed, Billing, Caps } from "@/lib/account-data";
 import { PLATFORM_API_URL } from "@/lib/api";
 import type { RenderedBlock } from "@/lib/code/blocks";
@@ -236,11 +241,27 @@ export async function webhookDetailReads(
 		() =>
 			Promise.all([
 				readApi<WebhookDetail>(token, base),
-				readApi<{ data: DeliveryRow[] }>(token, `${base}/deliveries`),
+				readApi<{ data: DeliveryRow[] }>(
+					token,
+					`${base}/deliveries?_limit=${FIRST_DELIVERIES}`,
+				),
 				readApi<WebhookActivity>(token, `${base}/activity`),
 			]),
 	);
-	const rows = rowsOf(deliveries);
+	let rows = rowsOf(deliveries);
+	let first = rows.kind === "ok" ? rows.data.map(normalizeDeliveryRow) : null;
+	// Retries of a few events can fill the first page with fewer groups than
+	// the panel shows; read the full list then, as the page always did.
+	if (
+		first &&
+		first.length >= FIRST_DELIVERIES &&
+		groupAttempts(first).length < VISIBLE_GROUPS
+	) {
+		rows = rowsOf(
+			await readApi<{ data: DeliveryRow[] }>(token, `${base}/deliveries`),
+		);
+		first = rows.kind === "ok" ? rows.data.map(normalizeDeliveryRow) : null;
+	}
 	let listens: RenderedBlock[] | null = null;
 	if (webhook.kind === "ok") {
 		try {
@@ -254,10 +275,7 @@ export async function webhookDetailReads(
 	}
 	return {
 		webhook,
-		deliveries:
-			rows.kind === "ok"
-				? { kind: "ok", data: rows.data.map(normalizeDeliveryRow) }
-				: rows,
+		deliveries: first ? { kind: "ok", data: first } : rows,
 		activity,
 		listens,
 	};

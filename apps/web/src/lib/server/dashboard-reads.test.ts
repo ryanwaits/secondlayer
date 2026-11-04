@@ -130,7 +130,7 @@ describe("webhookDetailReads", () => {
 		expect(calls.map((c) => c.path).sort()).toEqual([
 			"/api/webhooks/wh_1",
 			"/api/webhooks/wh_1/activity",
-			"/api/webhooks/wh_1/deliveries",
+			"/api/webhooks/wh_1/deliveries?_limit=25",
 		]);
 		expect(res.webhook.kind).toBe("ok");
 		// A tenant on an older image can omit blockTime: normalized to null.
@@ -139,6 +139,47 @@ describe("webhookDetailReads", () => {
 		).toBe(null);
 		expect(res.listens).toHaveLength(1);
 		expect(res.listens?.[0]?.html).toContain("stxTransfer");
+	});
+
+	test("a first page full of retries of few events is read again in full", async () => {
+		const retries = Array.from({ length: 25 }, (_, i) =>
+			attempt({ id: `d_${i}`, attempt: i + 1 }),
+		);
+		const calls = stubApi({
+			...routes,
+			"/api/webhooks/wh_1/deliveries?_limit=25": () => json({ data: retries }),
+			"/api/webhooks/wh_1/deliveries": () =>
+				json({
+					data: [
+						...retries,
+						...Array.from({ length: 15 }, (_, i) =>
+							attempt({ id: `e_${i}`, eventIndex: 100 + i }),
+						),
+					],
+				}),
+		});
+		const res = await webhookDetailReads("t", "wh_1");
+		expect(calls.map((c) => c.path)).toContain("/api/webhooks/wh_1/deliveries");
+		expect(res.deliveries.kind === "ok" && res.deliveries.data).toHaveLength(
+			40,
+		);
+	});
+
+	test("a first page that already fills the panel's groups is the only read", async () => {
+		const many = Array.from({ length: 25 }, (_, i) =>
+			attempt({ id: `d_${i}`, eventIndex: i }),
+		);
+		const calls = stubApi({
+			...routes,
+			"/api/webhooks/wh_1/deliveries": () => json({ data: many }),
+		});
+		const res = await webhookDetailReads("t", "wh_1");
+		expect(
+			calls.filter((c) => c.path.includes("/deliveries")).map((c) => c.path),
+		).toEqual(["/api/webhooks/wh_1/deliveries?_limit=25"]);
+		expect(res.deliveries.kind === "ok" && res.deliveries.data).toHaveLength(
+			25,
+		);
 	});
 
 	test("an asleep stack carries through, with no frames rendered", async () => {

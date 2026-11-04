@@ -492,6 +492,29 @@ describe("server seed", () => {
 		expect(webhooksSnapshot().detail.w1).toBeUndefined();
 	});
 
+	test("the seeded deliveries entry stays the cached one until a refresh replaces it", async () => {
+		globalThis.window = {} as Window & typeof globalThis;
+		try {
+			const seed = detailSeed("w1", { ...initial });
+			renderToStaticMarkup(createElement(Probe, { seed }));
+			// The page tells "still the server's first page" from "the full
+			// list landed" by this identity.
+			expect(webhooksSnapshot().deliveries.w1).toBe(seed.deliveries?.w1);
+			globalThis.fetch = (async (url: string) => {
+				if (String(url).includes("/activity"))
+					return jsonResponse(emptyActivity);
+				if (String(url).includes("/deliveries"))
+					return jsonResponse({ data: [] });
+				return jsonResponse(detail("w1", "one"));
+			}) as unknown as typeof fetch;
+			await refreshDetail("w1");
+			expect(webhooksSnapshot().deliveries.w1).not.toBe(seed.deliveries?.w1);
+		} finally {
+			// @ts-expect-error restoring the bare test environment
+			globalThis.window = undefined;
+		}
+	});
+
 	test("a browser render starts the cache from the seed once", () => {
 		globalThis.window = {} as Window & typeof globalThis;
 		try {

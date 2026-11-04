@@ -707,6 +707,44 @@ describe.skipIf(SKIP)("Webhooks API validation", () => {
 		expect(withoutOutbox?.blockTime).toBeNull();
 	});
 
+	test("deliveries list returns the newest _limit attempts, and up to 100 without it", async () => {
+		const webhookId = await createTestWebhook("deliveries-limit");
+		const db = getDb();
+		const base = Date.parse("2026-04-23T00:00:00.000Z");
+		await db
+			.insertInto("webhook_deliveries")
+			.values(
+				Array.from({ length: 120 }, (_, i) => ({
+					webhook_id: webhookId,
+					outbox_id: null,
+					attempt: 1,
+					status_code: 200,
+					dispatched_at: new Date(base + i * 1000),
+				})),
+			)
+			.execute();
+		type Page = { total: number; data: Array<{ seq: number }> };
+
+		const five = (await (
+			await app.request(`/webhooks/${webhookId}/deliveries?_limit=5`)
+		).json()) as Page;
+		expect(five.data).toHaveLength(5);
+		// The same newest rows and numbering as the unlimited read's head.
+		expect(five.total).toBe(120);
+		expect(five.data.map((d) => d.seq)).toEqual([120, 119, 118, 117, 116]);
+
+		const all = (await (
+			await app.request(`/webhooks/${webhookId}/deliveries`)
+		).json()) as Page;
+		expect(all.data).toHaveLength(100);
+		expect(all.data.slice(0, 5)).toEqual(five.data);
+
+		const over = (await (
+			await app.request(`/webhooks/${webhookId}/deliveries?_limit=500`)
+		).json()) as Page;
+		expect(over.data).toHaveLength(100);
+	});
+
 	test("deliveries list previews the response body at 512 characters while the single read returns it whole", async () => {
 		const created = await app.request("/webhooks", {
 			method: "POST",

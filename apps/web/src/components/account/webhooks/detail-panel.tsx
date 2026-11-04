@@ -52,8 +52,10 @@ import { PayloadView, answeredAttempt, prefetchOnIntent } from "./payload-view";
 import { displayStatus, formatEventCell, shortenName } from "./shared";
 import { WebhookDetailSkeleton } from "./skeletons";
 import {
+	FIRST_DELIVERIES,
 	RANGES,
 	type Range,
+	VISIBLE_GROUPS,
 	deliveryStats,
 	describeFailure,
 	groupAttempts,
@@ -65,12 +67,19 @@ import {
 	utcStamp,
 } from "./view";
 
+/** The server read only the first page of deliveries, and it came back full. */
+function mayBeTruncated(initial: WebhookDetailInitial | null): boolean {
+	return (
+		initial?.deliveries.kind === "ok" &&
+		initial.deliveries.data.length === FIRST_DELIVERIES
+	);
+}
+
 /** How often the detail bundle (webhook, deliveries, activity)
  *  refreshes together while the tab is visible. */
 const DETAIL_POLL_MS = 10_000;
 /** The fast standalone `/activity` poll while events are waiting to send. */
 const ACTIVITY_POLL_MS = 5_000;
-const VISIBLE_GROUPS = 10;
 
 const RANGE_OPTIONS = RANGES.map((value) => ({ value, label: value }));
 
@@ -148,7 +157,9 @@ function useDetailPoll(
 					: {};
 			},
 			DETAIL_POLL_MS,
-			{ immediate: initial?.webhook.kind !== "ok" },
+			{
+				immediate: initial?.webhook.kind !== "ok" || mayBeTruncated(initial),
+			},
 		);
 	}, [id, initial, fastActivityRef]);
 
@@ -323,6 +334,7 @@ function DeliveriesPanel({
 	hour,
 	onClearHour,
 	asleep,
+	partial,
 }: {
 	webhook: Pick<WebhookDetail, "id" | "url" | "triggers">;
 	/** Null while the hour's window is still loading. */
@@ -330,6 +342,9 @@ function DeliveriesPanel({
 	hour: { label: string } | null;
 	onClearHour: () => void;
 	asleep: boolean;
+	/** Only the server's first page of deliveries is in hand, so the total
+	 *  isn't known yet. */
+	partial: boolean;
 }) {
 	const [open, setOpen] = useState<string | null>(null);
 	const [showAll, setShowAll] = useState(false);
@@ -411,7 +426,11 @@ function DeliveriesPanel({
 					className="wd-more"
 					onClick={() => setShowAll((v) => !v)}
 				>
-					{showAll ? "Show fewer" : `Show all ${groups.length}`}
+					{showAll
+						? "Show fewer"
+						: partial
+							? "Show all"
+							: `Show all ${groups.length}`}
 				</button>
 			) : null}
 		</section>
@@ -523,6 +542,8 @@ export interface WebhookDetailBodyProps {
 	stackAsleep: boolean;
 	/** The "Listens for" frames the server rendered for this webhook. */
 	listensBlocks?: WebhookDetailInitial["listens"];
+	/** Only the server's first page of deliveries is in hand. */
+	deliveriesPartial?: boolean;
 }
 
 export function WebhookDetailBody({
@@ -541,6 +562,7 @@ export function WebhookDetailBody({
 	onRename,
 	stackAsleep,
 	listensBlocks,
+	deliveriesPartial = false,
 }: WebhookDetailBodyProps) {
 	const ranked = rankInsights(insights);
 	const paused = webhook.status === "paused";
@@ -614,6 +636,7 @@ export function WebhookDetailBody({
 						hour={hour}
 						onClearHour={onClearHour}
 						asleep={asleep}
+						partial={deliveriesPartial && !hour}
 					/>
 				)}
 			</div>
@@ -853,6 +876,11 @@ export function WebhookDetailSection({
 			onRename={onRename}
 			stackAsleep={stackAsleep}
 			listensBlocks={initial?.listens}
+			deliveriesPartial={
+				initial !== null &&
+				mayBeTruncated(initial) &&
+				cache.deliveries[id] === detailSeed(id, initial).deliveries?.[id]
+			}
 		/>
 	);
 }

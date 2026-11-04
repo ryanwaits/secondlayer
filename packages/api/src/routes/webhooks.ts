@@ -696,7 +696,9 @@ app.get("/:id/deliveries", async (c) => {
 	const sub = await getWebhook(getDb(), accountId, c.req.param("id"));
 	if (!sub) return c.json({ error: "Webhook not found" }, 404);
 
-	// Optional `from`/`to` window (hour drill-down). Without it: newest 100.
+	// Optional `from`/`to` window (hour drill-down). Without it: newest 100, or
+	// the newest `_limit` (1 to 100) for a first screen's worth.
+	const limit = clampLimit(c.req.query("_limit"), 100, 100);
 	const fromParam = c.req.query("from");
 	const toParam = c.req.query("to");
 	let window: { from: Date; to: Date } | null = null;
@@ -753,11 +755,11 @@ app.get("/:id/deliveries", async (c) => {
 			.where("dispatched_at", "<", window.to);
 	}
 	const [rows, totalRow] = await Promise.all([
-		rowsQuery.orderBy("d.dispatched_at", "desc").limit(100).execute(),
+		rowsQuery.orderBy("d.dispatched_at", "desc").limit(limit).execute(),
 		totalQuery.executeTakeFirst(),
 	]);
 	// `seq` numbers deliveries newest-first from the lifetime total, so the log
-	// reads like a ledger (#4,182 …) even though only the last 100 are returned.
+	// reads like a ledger (#4,182 …) even though only the newest page is returned.
 	const total = Number(totalRow?.n ?? rows.length);
 	return c.json({
 		total,

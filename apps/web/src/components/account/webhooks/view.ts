@@ -242,6 +242,13 @@ export interface AttemptGroup {
 	latest: DeliveryRow;
 }
 
+/** Event groups the deliveries panel shows before "Show all". */
+export const VISIBLE_GROUPS = 10;
+
+/** Attempts the server's first read of a webhook's deliveries asks for; the
+ *  page's polls then read the full list. */
+export const FIRST_DELIVERIES = 25;
+
 /** One group per event. The key is block:tx:index when all three are known,
  *  otherwise the attempt's own id. Groups keep the newest-first order of
  *  `rows`. */
