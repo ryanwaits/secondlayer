@@ -1,5 +1,6 @@
 "use client";
 
+import { shared } from "@/lib/request-cache";
 import { getDelivery } from "@/lib/webhooks-data";
 import type { ChainTrigger, WebhookDeliveryDetail } from "@secondlayer/sdk";
 import { Fragment, type ReactNode, useEffect, useId, useState } from "react";
@@ -190,6 +191,47 @@ function initialLoad(deliveryId: string, asleep: boolean): Load {
 	return asleep ? { status: "asleep" } : { status: "loading" };
 }
 
+/** One read per delivery: a hover read and the click's read that overlap share
+ *  one request. A recorded delivery never changes, so `ok` is kept. */
+export function readDelivery(webhookId: string, deliveryId: string) {
+	return shared(`webhooks:delivery:${deliveryId}`, async () => {
+		const res = await getDelivery(webhookId, deliveryId);
+		if (res.kind === "ok") cache.set(deliveryId, res.data);
+		return res;
+	});
+}
+
+/** Starts a delivery's read before its row opens. Never throws: the click
+ *  path reads again if this one failed. */
+export async function prefetchDelivery(
+	webhookId: string,
+	deliveryId: string,
+): Promise<void> {
+	if (cache.has(deliveryId)) return;
+	try {
+		await readDelivery(webhookId, deliveryId);
+	} catch {
+		// Ignored on purpose.
+	}
+}
+
+/** Pointer, focus or touch reached a delivery row. A read never wakes an
+ *  asleep stack, and an open row has already started its own read. */
+export function prefetchOnIntent({
+	webhookId,
+	deliveryId,
+	asleep,
+	open,
+}: {
+	webhookId: string;
+	deliveryId: string;
+	asleep: boolean;
+	open: boolean;
+}): void {
+	if (asleep || open) return;
+	void prefetchDelivery(webhookId, deliveryId);
+}
+
 /** Reads one delivery, unless the page already knows the stack is asleep
  *  (a read there never wakes it). Waking re-runs the read. */
 function useDelivery(
@@ -203,8 +245,7 @@ function useDelivery(
 		setLoad(initial);
 		if (initial.status !== "loading") return;
 		let live = true;
-		void getDelivery(webhookId, deliveryId).then((res) => {
-			if (res.kind === "ok") cache.set(deliveryId, res.data);
+		void readDelivery(webhookId, deliveryId).then((res) => {
 			if (!live) return;
 			if (res.kind === "ok") setLoad({ status: "ok", detail: res.data });
 			else if (res.kind === "asleep") setLoad({ status: "asleep" });

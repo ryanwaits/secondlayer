@@ -48,7 +48,7 @@ import { WebhookCompactDetail } from "./compact-detail";
 import { DeliveriesChart } from "./deliveries-chart";
 import { AsleepState } from "./list-panel";
 import { ListensFor } from "./listens-for";
-import { PayloadView, answeredAttempt } from "./payload-view";
+import { PayloadView, answeredAttempt, prefetchOnIntent } from "./payload-view";
 import { displayStatus, formatEventCell, shortenName } from "./shared";
 import { WebhookDetailSkeleton } from "./skeletons";
 import {
@@ -434,12 +434,22 @@ function DeliveryRowView({
 	onToggle: () => void;
 }) {
 	const answered = answeredAttempt(attempts);
+	const warm = () =>
+		prefetchOnIntent({
+			webhookId: webhook.id,
+			deliveryId: latest.id,
+			asleep,
+			open,
+		});
 	return (
 		<>
 			<tr
 				className="click"
 				tabIndex={0}
 				aria-expanded={open}
+				onPointerEnter={warm}
+				onFocus={warm}
+				onTouchStart={warm}
 				onClick={onToggle}
 				onKeyDown={(event) => {
 					if (event.key === "Enter" || event.key === " ") {

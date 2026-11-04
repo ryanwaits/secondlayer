@@ -1,13 +1,18 @@
-import { describe, expect, test } from "bun:test";
+import { afterEach, describe, expect, test } from "bun:test";
+import { clearRequestCache } from "@/lib/request-cache";
 import type { ChainTrigger } from "@secondlayer/sdk";
 import { renderToStaticMarkup } from "react-dom/server";
 import {
 	JsonView,
 	PayloadPanel,
+	PayloadView,
 	answeredAttempt,
 	clampString,
 	markMatcher,
 	parseBody,
+	prefetchDelivery,
+	prefetchOnIntent,
+	readDelivery,
 } from "./payload-view";
 
 // A real delivery: the fastpool unstake print event.
@@ -195,5 +200,75 @@ describe("the payload viewer on an asleep stack", () => {
 	test("disables Sent and says resuming shows it", () => {
 		expect(html).toContain('aria-disabled="true"');
 		expect(html).toContain("Resume this webhook to see what was sent");
+	});
+});
+
+describe("delivery prefetch", () => {
+	const realFetch = globalThis.fetch;
+	let calls = 0;
+	afterEach(() => {
+		globalThis.fetch = realFetch;
+		clearRequestCache();
+	});
+	function stubFetch() {
+		calls = 0;
+		globalThis.fetch = (async () => {
+			calls++;
+			await new Promise((resolve) => setTimeout(resolve, 5));
+			return new Response(JSON.stringify({ id: "d1", payload: SENT }), {
+				status: 200,
+				headers: { "content-type": "application/json" },
+			});
+		}) as unknown as typeof fetch;
+	}
+	const view = (deliveryId: string) => (
+		<PayloadView
+			webhookId="wh"
+			deliveryId={deliveryId}
+			asleep={false}
+			triggers={[]}
+			responseBody={null}
+			statusCode={200}
+			responseIsLatest
+			host="example.com"
+		/>
+	);
+
+	test("a hover read and the click's read are one request", async () => {
+		stubFetch();
+		await Promise.all([
+			prefetchDelivery("wh", "d-share"),
+			prefetchDelivery("wh", "d-share"),
+			readDelivery("wh", "d-share"),
+		]);
+		expect(calls).toBe(1);
+	});
+
+	test("a prefetched delivery renders ok on the first frame", async () => {
+		stubFetch();
+		await prefetchDelivery("wh", "d-first");
+		expect(renderToStaticMarkup(view("d-first"))).not.toContain("Loading");
+		expect(calls).toBe(1);
+	});
+
+	test("an unread delivery renders the loading frame", () => {
+		stubFetch();
+		expect(renderToStaticMarkup(view("d-cold"))).toContain("Loading");
+	});
+
+	test("an asleep stack or an open row makes no request", async () => {
+		stubFetch();
+		const base = { webhookId: "wh", deliveryId: "d-none" };
+		prefetchOnIntent({ ...base, asleep: true, open: false });
+		prefetchOnIntent({ ...base, asleep: false, open: true });
+		await new Promise((resolve) => setTimeout(resolve, 15));
+		expect(calls).toBe(0);
+	});
+
+	test("a failed prefetch does not throw", async () => {
+		globalThis.fetch = (async () => {
+			throw new Error("down");
+		}) as unknown as typeof fetch;
+		await prefetchDelivery("wh", "d-fail");
 	});
 });
