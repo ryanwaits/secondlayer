@@ -1143,18 +1143,21 @@ a mark {
    /account/keys + /account/credits pages. One set of parts serves all three.
    Fresh results (a new key, credits added) and the no-credits warning share
    one warm tint; everything else stays ink on paper. */
+/* Dashboard button, then the trigger. Blue is the button's alone. */
 .acct-menu {
 	position: relative;
+	display: flex;
+	align-items: center;
+	gap: 8px;
 	margin-left: 6px;
 }
-/* The trigger: initial tile, mono balance, chevron. Open is ink, never blue:
-   in the nav, blue marks the page you are on. */
+/* The trigger: initial tile and chevron. Open is an ink border, never blue. */
 .acct-chip {
 	display: inline-flex;
 	align-items: center;
-	gap: 9px;
+	gap: 6px;
 	height: 34px;
-	padding: 0 10px 0 4px;
+	padding: 0 7px 0 4px;
 	border: 1px solid var(--line);
 	border-radius: 4px;
 	background: var(--paper);
@@ -1166,12 +1169,6 @@ a mark {
 .acct-chip:hover {
 	border-color: var(--ink);
 }
-.acct-chip-balance {
-	font-family: var(--font-mono-stack);
-	font-size: 13px;
-	font-weight: 500;
-	font-variant-numeric: tabular-nums;
-}
 .acct-chip-chev {
 	flex: none;
 	color: var(--sub);
@@ -1180,17 +1177,14 @@ a mark {
 .acct-chip[aria-expanded="true"] .acct-chip-chev {
 	transform: rotate(180deg);
 }
-/* Low balance: the tile and the amount go red; nothing else changes. */
+/* Low balance: the tile goes red; nothing else changes. */
 .acct-chip.alert .acct-avatar {
 	background: var(--alarm);
 	color: var(--on-pri);
 }
-.acct-chip.alert .acct-chip-balance {
-	color: var(--alarm);
-}
 .acct-chip-skeleton {
 	display: inline-block;
-	width: 112px;
+	width: 156px;
 	height: 34px;
 	margin-left: 6px;
 	border-radius: 4px;
@@ -1202,8 +1196,8 @@ a mark {
 	justify-content: center;
 	flex: none;
 	border-radius: 2px;
-	background: var(--pri);
-	color: var(--on-pri);
+	background: var(--ink);
+	color: var(--paper);
 	font-family: var(--font-sans-stack);
 	font-weight: 500;
 }

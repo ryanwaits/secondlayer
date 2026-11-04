@@ -1,5 +1,9 @@
 import { RELAYER_READ, TWIN_MINT } from "@/app/robinhood/samples";
-import { AccountChip, AccountMenuPanel } from "@/components/account-menu";
+import {
+	AccountChip,
+	AccountMenuPanel,
+	DashboardButton,
+} from "@/components/account-menu";
 import {
 	FirstRowsCode,
 	FirstRowsPrompt,
@@ -1300,12 +1304,10 @@ const META: Record<StoryId, Meta> = {
 							<b style={{ fontWeight: 500 }}>secondlayer</b>
 							<DashboardTabs pathname="/account/webhooks" failingWebhooks={1} />
 							<ViewCommand command={LONG_COMMAND} />
-							<AccountChip
-								account={LAB_ACCOUNT}
-								balance="$29.02"
-								alert={false}
-								open={false}
-							/>
+							<div className="acct-menu">
+								<DashboardButton />
+								<AccountChip account={LAB_ACCOUNT} alert={false} open={false} />
+							</div>
 						</div>
 						<div
 							style={{
@@ -2926,12 +2928,8 @@ const META: Record<StoryId, Meta> = {
 				render: () =>
 					navSlice(
 						<>
-							<AccountChip
-								account={LAB_ACCOUNT}
-								balance="$29.02"
-								alert={false}
-								open
-							/>
+							<DashboardButton />
+							<AccountChip account={LAB_ACCOUNT} alert={false} open />
 							<AccountMenuPanel
 								balance="$29.02"
 								monthLabel="October"
@@ -2946,31 +2944,22 @@ const META: Record<StoryId, Meta> = {
 				render: () =>
 					row(
 						<>
-							<AccountChip
-								account={LAB_ACCOUNT}
-								balance="$29.02"
-								alert={false}
-								open={false}
-							/>
-							<AccountChip
-								account={LAB_ACCOUNT}
-								balance="$0.42"
-								alert
-								open={false}
-							/>
-							<AccountChip
-								account={LAB_ACCOUNT}
-								balance={null}
-								alert={false}
-								open={false}
-							/>
+							<div className="acct-menu">
+								<DashboardButton />
+								<AccountChip account={LAB_ACCOUNT} alert={false} open={false} />
+							</div>
+							<div className="acct-menu">
+								<DashboardButton />
+								<AccountChip account={LAB_ACCOUNT} alert open={false} />
+							</div>
 						</>,
 					),
 			},
 		],
 		usage: "<AccountMenu account={account} onSignOut={logout} />",
 		donts: [
-			"No status dot or round avatar; low balance turns the tile and amount red.",
+			"No status dot or round avatar; low balance turns the tile red.",
+			"No balance in the bar; it lives in the menu.",
 		],
 	},
 	"eyebrow-facts": {

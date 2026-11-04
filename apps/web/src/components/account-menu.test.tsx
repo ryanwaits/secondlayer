@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { renderToStaticMarkup } from "react-dom/server";
-import { AccountChip, AccountMenuPanel } from "./account-menu";
+import { AccountChip, AccountMenuPanel, DashboardButton } from "./account-menu";
 
 const account = {
 	id: "a1",
@@ -11,17 +11,20 @@ const account = {
 	createdAt: "2026-04-01T00:00:00Z",
 };
 
+describe("DashboardButton", () => {
+	test("goes straight to the dashboard in one click", () => {
+		const html = renderToStaticMarkup(<DashboardButton />);
+		expect(html).toContain('href="/account"');
+		expect(html).toContain(">Dashboard<");
+	});
+});
+
 describe("AccountChip", () => {
-	test("a healthy account shows its initial and balance, nothing alarming", () => {
+	test("a healthy account shows its initial and no money, nothing alarming", () => {
 		const html = renderToStaticMarkup(
-			<AccountChip
-				account={account}
-				balance="$29.62"
-				alert={false}
-				open={false}
-			/>,
+			<AccountChip account={account} alert={false} open={false} />,
 		);
-		expect(html).toContain("$29.62");
+		expect(html).not.toContain("$");
 		expect(html).toContain('class="acct-avatar"');
 		expect(html).toContain(">Y<");
 		expect(html).not.toContain("alert");
@@ -30,23 +33,10 @@ describe("AccountChip", () => {
 
 	test("an account that needs attention marks the chip as alert and says so", () => {
 		const html = renderToStaticMarkup(
-			<AccountChip account={account} balance="$1.40" alert open={false} />,
+			<AccountChip account={account} alert open={false} />,
 		);
 		expect(html).toContain('class="acct-chip alert"');
 		expect(html).toContain("needs attention");
-	});
-
-	test("an unloaded balance shows a placeholder, not $0", () => {
-		const html = renderToStaticMarkup(
-			<AccountChip
-				account={account}
-				balance={null}
-				alert={false}
-				open={false}
-			/>,
-		);
-		expect(html).toContain("···");
-		expect(html).not.toContain("$0");
 	});
 });
 
@@ -55,9 +45,9 @@ describe("AccountMenuPanel", () => {
 		<AccountMenuPanel balance="$29.62" monthLabel="October" spent="$6.21" />,
 	);
 
-	test("rows read Balance, the month, Dashboard, Keys, Billing in order", () => {
-		const order = ["Balance", "October", "Dashboard", "Keys", "Billing"].map(
-			(w) => panel.indexOf(w),
+	test("rows read Balance, the month, Keys, Billing in order", () => {
+		const order = ["Balance", "October", "Keys", "Billing"].map((w) =>
+			panel.indexOf(w),
 		);
 		expect(order.every((i) => i >= 0)).toBe(true);
 		expect([...order].sort((x, y) => x - y)).toEqual(order);
@@ -65,8 +55,9 @@ describe("AccountMenuPanel", () => {
 		expect(panel).toContain("$6.21");
 	});
 
-	test("links Dashboard, Keys and Billing, with no Open account or Webhooks row", () => {
-		expect(panel).toContain('href="/account"');
+	test("links Keys and Billing, leaving Dashboard to its own button", () => {
+		expect(panel).not.toContain('href="/account"');
+		expect(panel).not.toContain("Dashboard");
 		expect(panel).toContain('href="/account/keys"');
 		expect(panel).toContain('href="/account/credits"');
 		expect(panel).not.toContain('href="/account/webhooks"');

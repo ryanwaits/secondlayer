@@ -16,7 +16,7 @@ import { refreshList } from "@/lib/webhooks-store";
 import Link from "next/link";
 import { useEffect, useId, useRef, useState } from "react";
 
-/** The account's initial on a small ink square. */
+/** The account's initial on a small ink square (paper on a dark theme). */
 export function AccountAvatar({
 	account,
 	size = 24,
@@ -36,20 +36,27 @@ export function AccountAvatar({
 	);
 }
 
+/** The one-click way in, beside the account trigger on every page. */
+export function DashboardButton({ onClick }: { onClick?: () => void }) {
+	return (
+		<Link href="/account" className="acct-btn solid small" onClick={onClick}>
+			Dashboard
+		</Link>
+	);
+}
+
 /**
- * The nav trigger: initial tile, mono balance, a chevron. Pure, so the
- * healthy and alert looks render the same everywhere.
+ * The nav trigger: initial tile and a chevron. Pure, so the healthy and
+ * alert looks render the same everywhere.
  */
 export function AccountChip({
 	account,
-	balance,
 	alert,
 	open,
 	menuId,
 	onClick,
 }: {
 	account: Account;
-	balance: string | null;
 	alert: boolean;
 	open: boolean;
 	menuId?: string;
@@ -61,11 +68,10 @@ export function AccountChip({
 			className={`acct-chip${alert ? " alert" : ""}`}
 			aria-expanded={open}
 			aria-controls={menuId}
-			aria-label={`Account menu, ${account.email}${balance ? `, balance ${balance}` : ""}${alert ? ", needs attention" : ""}`}
+			aria-label={`Account menu, ${account.email}${alert ? ", needs attention" : ""}`}
 			onClick={onClick}
 		>
 			<AccountAvatar account={account} />
-			<span className="acct-chip-balance">{balance ?? "···"}</span>
 			<svg
 				className="acct-chip-chev"
 				width="12"
@@ -83,9 +89,8 @@ export function AccountChip({
 	);
 }
 
-/** Balance and this month's spend, then Dashboard, Keys and Billing, then the
- *  money and exit actions. Dashboard is the way in from product and docs pages,
- *  whose nav has no dashboard tabs. */
+/** Balance and this month's spend, then Keys and Billing, then the money and
+ *  exit actions. Dashboard is its own button beside the trigger. */
 export function AccountMenuPanel({
 	id,
 	balance,
@@ -116,9 +121,6 @@ export function AccountMenuPanel({
 					<small>{spent ?? "—"}</small>
 				</div>
 				<div className="acct-menu-sep" />
-				<Link href="/account" className="acct-menu-row" onClick={onNavigate}>
-					Dashboard
-				</Link>
 				<Link
 					href="/account/keys"
 					className="acct-menu-row"
@@ -147,8 +149,8 @@ export function AccountMenuPanel({
 }
 
 /**
- * Signed-in nav: a balance trigger whose menu shows balance and month spend,
- * links Keys and Billing, and opens the credits card in place.
+ * Signed-in nav: a Dashboard button, then a trigger whose menu shows balance
+ * and month spend, links Keys and Billing, and opens the credits card in place.
  */
 export function AccountMenu({
 	account,
@@ -202,9 +204,9 @@ export function AccountMenu({
 
 	return (
 		<div className="acct-menu" ref={rootRef}>
+			<DashboardButton onClick={() => setOpen(false)} />
 			<AccountChip
 				account={account}
-				balance={balance}
 				alert={problems.length > 0}
 				open={open}
 				menuId={menuId}
