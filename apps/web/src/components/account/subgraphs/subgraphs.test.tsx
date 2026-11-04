@@ -16,7 +16,7 @@ import {
 	exampleList,
 	perfTestSbtcDetail,
 } from "./subgraph.fixtures";
-import { TablesSection } from "./tables-section";
+import { TablesSection, pageWindow } from "./tables-section";
 
 describe("SubgraphsEmptyState", () => {
 	test("says what a subgraph is, shows the deploy command and links the guide", () => {
@@ -262,9 +262,9 @@ function tablesSection(source: typeof sbtcSource | null) {
 }
 
 describe("TablesSection", () => {
-	test("renders one closed row per table, biggest first", () => {
+	test("renders the first three tables as closed rows, biggest first", () => {
 		const html = tablesSection(sbtcSource);
-		expect(html.match(/class="lf-row"/g)).toHaveLength(5);
+		expect(html.match(/class="lf-row"/g)).toHaveLength(3);
 		const chips = [...html.matchAll(/class="lf-type">([^<]+)</g)].map(
 			(m) => m[1],
 		);
@@ -272,11 +272,55 @@ describe("TablesSection", () => {
 			"completed_deposit",
 			"withdrawal_create",
 			"withdrawal_accept",
-			"withdrawal_reject",
-			"key_rotation",
 		]);
 		expect(html).toContain("5 tables");
 		expect(html).not.toContain('aria-expanded="true"');
+	});
+
+	test("more than three tables show a pager with Next and no Prev on page one", () => {
+		const html = tablesSection(sbtcSource);
+		expect(html).toContain("1–3 of 5");
+		expect(html).toContain("Next ›");
+		expect(html).not.toContain("‹ Prev");
+	});
+
+	test("three or fewer tables show no pager", () => {
+		const [first, second, third] = Object.entries(perfTestSbtcDetail.tables);
+		const html = renderToStaticMarkup(
+			<TablesSection
+				name="perf-test-sbtc"
+				tables={Object.fromEntries(
+					[first, second, third].filter((e) => e !== undefined),
+				)}
+				sources={perfTestSbtcDetail.sources}
+				source={sbtcSource}
+			/>,
+		);
+		expect(html.match(/class="lf-row"/g)).toHaveLength(3);
+		expect(html).not.toContain("lf-pager");
+	});
+
+	test("page two covers rows 4 to 5 of 5 and clamps out-of-range pages", () => {
+		expect(pageWindow(5, 0)).toEqual({
+			pages: 2,
+			current: 0,
+			start: 0,
+			end: 3,
+		});
+		expect(pageWindow(5, 1)).toEqual({
+			pages: 2,
+			current: 1,
+			start: 3,
+			end: 5,
+		});
+		expect(pageWindow(5, 9).current).toBe(1);
+		expect(pageWindow(3, 0).pages).toBe(1);
+		expect(pageWindow(0, 0)).toEqual({
+			pages: 0,
+			current: 0,
+			start: 0,
+			end: 0,
+		});
 	});
 
 	test("says what the first table writes and how many rows it holds", () => {
@@ -296,7 +340,7 @@ describe("TablesSection", () => {
 
 	test("without a source the rows still render and no code does", () => {
 		const html = tablesSection(null);
-		expect(html.match(/class="lf-row"/g)).toHaveLength(5);
+		expect(html.match(/class="lf-row"/g)).toHaveLength(3);
 		expect(html).not.toContain("lf-pre");
 		expect(html).not.toContain("data-focus");
 	});

@@ -21,6 +21,17 @@ import { type Piece, tableCode } from "./describe-table";
  * renders them again when the subgraph's version changes.
  */
 
+/** Tables shown per page. */
+const PAGE_SIZE = 3;
+
+/** The slice of `total` rows page `page` shows (0-based, clamped), and how many pages there are. */
+export function pageWindow(total: number, page: number) {
+	const pages = Math.ceil(total / PAGE_SIZE);
+	const current = Math.min(Math.max(page, 0), Math.max(pages - 1, 0));
+	const start = current * PAGE_SIZE;
+	return { pages, current, start, end: Math.min(start + PAGE_SIZE, total) };
+}
+
 function Pieces({ pieces }: { pieces: Piece[] }) {
 	return pieces.map((piece, i) =>
 		piece.code ? (
@@ -66,7 +77,9 @@ export function TablesSection({
 	const [rendered, setRendered] = useState<RenderedBlock[] | null>(
 		initialBlocks ?? null,
 	);
+	// Open rows are kept by table name, so a row stays open across paging.
 	const [open, setOpen] = useState<Set<string>>(() => new Set());
+	const [page, setPage] = useState(0);
 
 	// biome-ignore lint/correctness/useExhaustiveDependencies: refetch only when the subgraph's version changes, not on every poll
 	useEffect(() => {
@@ -101,6 +114,9 @@ export function TablesSection({
 			return next;
 		});
 
+	const { pages, current, start, end } = pageWindow(descriptions.length, page);
+	const visible = descriptions.slice(start, end);
+
 	return (
 		<section className="lf" aria-label="Tables">
 			<div className="lf-h">
@@ -110,7 +126,7 @@ export function TablesSection({
 				</span>
 			</div>
 			<div className="lf-rows">
-				{descriptions.map(({ table, description }) => {
+				{visible.map(({ table, description }) => {
 					const isOpen = open.has(table);
 					const index = blockIndex(table);
 					const block = index >= 0 ? rendered?.[index] : undefined;
@@ -165,6 +181,23 @@ export function TablesSection({
 					);
 				})}
 			</div>
+			{pages > 1 ? (
+				<div className="lf-pager">
+					<span>
+						{start + 1}–{end} of {descriptions.length}
+					</span>
+					{current > 0 ? (
+						<button type="button" onClick={() => setPage(current - 1)}>
+							‹ Prev
+						</button>
+					) : null}
+					{current < pages - 1 ? (
+						<button type="button" onClick={() => setPage(current + 1)}>
+							Next ›
+						</button>
+					) : null}
+				</div>
+			) : null}
 			<CodeScope />
 		</section>
 	);
