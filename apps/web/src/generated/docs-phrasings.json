@@ -1501,6 +1501,19 @@
       "run ten queries at once rest"
     ]
   },
+  "/docs/rest-api#cursors": {
+    "hash": "58097853fb363cf6",
+    "phrasings": [
+      "when is nextcursor null",
+      "nextcursor missing from response",
+      "how to resume polling from last position",
+      "empty page nextcursor null meaning",
+      "detect end of results in api",
+      "cursor stops returning new rows",
+      "poll api without missing records",
+      "is nextcursor set on every page"
+    ]
+  },
   "/docs/rest-api#errors": {
     "hash": "365b1812c45d783f",
     "phrasings": [
@@ -1528,12 +1541,14 @@
   "/docs/rest-api#pagination": {
     "hash": "0a802ab9ea6c04d4",
     "phrasings": [
-      "use nextcursor for next page",
-      "paginate index and subgraph results",
-      "cursor pagination previous response nextcursor",
-      "how to get next page of results",
-      "api pagination cursor parameter example",
-      "fetch all pages with cursor stacks"
+      "how to get next page rest api",
+      "rest api pass cursor to next request",
+      "paginate results with cursor parameter",
+      "api returns only first page of results",
+      "how do i fetch the second page",
+      "nextcursor value where to send",
+      "index route pagination not working",
+      "subgraph endpoint paginate through all records"
     ]
   },
   "/docs/rest-api#report-a-problem-hosted": {

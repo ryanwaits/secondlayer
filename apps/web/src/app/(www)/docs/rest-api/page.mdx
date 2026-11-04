@@ -96,6 +96,11 @@ Index also takes:
 - `from_cursor`: exclusive start, not with `cursor`.
 - `from_height`, `to_height`.
 
+### Cursors
+
+- `next_cursor` is set on every page with rows and is `null` only on an empty page, so a poller can resume from it.
+- On Index, a page shorter than `limit` is the last one when `to_height` is at or below `tip.block_height`. No need to fetch the empty page.
+
 ## Filtering
 
 ```bash
