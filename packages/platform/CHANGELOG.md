@@ -1,5 +1,12 @@
 # @secondlayer/platform
 
+## 0.10.8
+
+### Patch Changes
+
+- Updated dependencies [fae527d]
+  - @secondlayer/shared@15.0.3
+
 ## 0.10.7
 
 ### Patch Changes

@@ -1,5 +1,13 @@
 # @secondlayer/worker
 
+## 1.4.38
+
+### Patch Changes
+
+- Updated dependencies [fae527d]
+  - @secondlayer/shared@15.0.3
+  - @secondlayer/platform@0.10.8
+
 ## 1.4.37
 
 ### Patch Changes

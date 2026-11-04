@@ -1,5 +1,11 @@
 # @secondlayer/shared
 
+## 15.0.3
+
+### Patch Changes
+
+- fae527d: Insight evidence shows what the page doesn't: endpoint response, failing events, runway.
+
 ## 15.0.2
 
 ### Patch Changes
