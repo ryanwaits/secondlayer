@@ -7538,10 +7538,38 @@ button.dash-row {
 	text-overflow: ellipsis;
 	white-space: nowrap;
 }
-.lf-line code,
-.lf-prose code {
-	font-family: var(--font-mono-stack);
-	font-size: 0.92em;
+.lf .lf-line code,
+.lf .lf-prose code {
+	padding: 0;
+	background: none;
+	font-family: inherit;
+	font-size: inherit;
+	font-weight: 500;
+	font-variant-numeric: inherit;
+	color: var(--ink);
+}
+.lf .lf-prose .flink code {
+	color: inherit;
+}
+.lf-pager {
+	display: flex;
+	justify-content: flex-end;
+	align-items: center;
+	gap: 16px;
+	padding: 12px 0 0;
+	font: 400 12px / 1 var(--font-mono-stack);
+	color: var(--faint);
+}
+.lf-pager button {
+	padding: 0;
+	border: 0;
+	background: none;
+	font: 400 13px / 1 var(--font-sans-stack);
+	color: var(--pri);
+	cursor: pointer;
+}
+.lf-pager button:hover {
+	text-decoration: underline;
 }
 .lf-toggle {
 	font: 400 13px / 1 var(--font-sans-stack);
@@ -7563,9 +7591,6 @@ button.dash-row {
 	margin: 0;
 	font-size: 16px;
 	line-height: 1.75;
-}
-.lf-prose code {
-	font-size: 14px;
 }
 .lf-pre {
 	margin: 0;
@@ -8198,7 +8223,7 @@ button.ky-click:focus-visible,
 	font-size: 12px;
 	color: var(--faint);
 }
-/* Apps signed in to the hosted MCP: name, last use, revoke. */
+/* Apps signed in to the hosted MCP: one bordered panel, an item per app. */
 .ky-apps {
 	display: grid;
 	gap: 12px;
@@ -8206,17 +8231,82 @@ button.ky-click:focus-visible,
 }
 .ky-apps > .dash-label {
 	margin: 0;
+	font: 500 10.5px / 1 var(--font-mono-stack);
+	letter-spacing: 0.07em;
 }
-.ky-arow {
+.ky-apanel {
+	border: 1px solid var(--line);
+	border-radius: 10px;
+}
+.ky-aitem {
 	display: grid;
-	grid-template-columns: minmax(0, 1fr) 96px 72px;
-	gap: 20px;
+	grid-template-columns: 36px minmax(0, 1fr) auto;
+	gap: 14px;
 	align-items: center;
-	padding: 16px 0;
-	border-bottom: 1px solid var(--line);
+	padding: 16px 18px;
 }
-.ky-arow.ky-head {
-	padding: 0 0 10px;
+.ky-aitem + .ky-aitem,
+.ky-apanel > .acct-revoke-confirm + .ky-aitem,
+.ky-aitem + .acct-revoke-confirm {
+	border-top: 1px solid var(--line);
+}
+.ky-apanel > .acct-revoke-confirm {
+	padding: 16px 18px;
+}
+.ky-aic {
+	display: grid;
+	place-items: center;
+	width: 36px;
+	height: 36px;
+	border-radius: 8px;
+	background: var(--soft);
+	font: 500 14px / 1 var(--font-sans-stack);
+	color: var(--sub);
+}
+.ky-aname {
+	font-size: 15px;
+	overflow-wrap: anywhere;
+}
+.ky-atag {
+	display: inline-block;
+	margin-left: 8px;
+	padding: 0 7px;
+	border: 1px solid var(--line);
+	border-radius: 999px;
+	font-size: 11px;
+	color: var(--faint);
+	vertical-align: 1px;
+}
+.ky-ameta {
+	margin: 2px 0 0;
+	font-size: 13px;
+	color: var(--sub);
+}
+.ky-abtn {
+	padding: 6px 12px;
+	border: 1px solid var(--line);
+	border-radius: 6px;
+	background: none;
+	font: 400 13px / 1.2 var(--font-sans-stack);
+	color: var(--ink);
+	white-space: nowrap;
+	cursor: pointer;
+}
+.ky-abtn:hover {
+	border-color: var(--alarm);
+	color: var(--alarm);
+}
+.ky-abtn:focus-visible {
+	outline: 2px solid var(--pri);
+	outline-offset: 2px;
+}
+@media (max-width: 760px) {
+	.ky-aitem {
+		grid-template-columns: minmax(0, 1fr) auto;
+	}
+	.ky-aic {
+		display: none;
+	}
 }
 .ky-sub {
 	display: flex;
