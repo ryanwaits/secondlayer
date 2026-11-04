@@ -6311,6 +6311,11 @@ button.dc-heat-cell:focus-visible {
 .ins-note-row:focus-visible .ins-note-line {
 	text-decoration-color: var(--pri);
 }
+.ins-note-label {
+	margin-right: 10px;
+	font: 400 13px / 1 var(--font-mono-stack);
+	color: var(--sub);
+}
 .ins-note-line b {
 	font-weight: 400;
 }

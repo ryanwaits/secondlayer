@@ -8,12 +8,15 @@ export function InsightNote({
 	open,
 	onToggle,
 	footer,
+	label,
 }: {
 	insight: Insight;
 	open: boolean;
 	onToggle: () => void;
 	/** Rendered at the bottom of the opened card. */
 	footer?: ReactNode;
+	/** Names the resource ahead of the line, on lists that mix resources. */
+	label?: string;
 }) {
 	const panelId = `ins-panel-${insight.id}`;
 	return (
@@ -28,6 +31,7 @@ export function InsightNote({
 				onClick={onToggle}
 			>
 				<span className="ins-note-line">
+					{label ? <span className="ins-note-label">{label}</span> : null}
 					<b>{insight.line}</b>
 					{insight.meta ? (
 						<span className="ins-note-meta"> · {insight.meta}</span>

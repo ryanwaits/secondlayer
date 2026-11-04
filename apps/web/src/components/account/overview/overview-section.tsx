@@ -34,7 +34,6 @@ import { daysLeft, daysLeftLabel } from "@/lib/account-health";
 import { useAuth } from "@/lib/auth";
 import {
 	type OpenChoices,
-	readOpenChoices,
 	resolveOpenId,
 	writeOpenChoices,
 } from "@/lib/insight-open";
@@ -202,27 +201,42 @@ export function findingsHeadline(findings: readonly Insight[]): string {
 	return `${noun} ${n === 1 ? "needs" : "need"} a look.`;
 }
 
+/** The resource's name ahead of its line, unless the line already says it. */
+export function findingLabel(insight: Insight): string | undefined {
+	const { kind, name } = insight.resource;
+	if (kind === "account" || !name || insight.line.includes(name)) return;
+	return shortenName(name);
+}
+
 /** The findings as their own list above the tables. The worst opens by
- *  default; the reader's last choice per finding is remembered and applied
- *  once the page mounts (the server cannot know it). One is open at a time. */
-function Findings({ findings }: { findings: readonly Insight[] }) {
+ *  default; what the reader chose last comes from the cookie the server read,
+ *  so the first frame already has it. One is open at a time. */
+function Findings({
+	findings,
+	saved,
+}: {
+	findings: readonly Insight[];
+	saved: OpenChoices;
+}) {
 	const ids = findings.map((f) => f.id);
-	const [openId, setOpenId] = useState<string | null>(() =>
-		resolveOpenId(ids, {}),
-	);
-	// biome-ignore lint/correctness/useExhaustiveDependencies: applied once, on mount
-	useEffect(() => {
-		setOpenId(resolveOpenId(ids, readOpenChoices()));
-	}, []);
+	const [choices, setChoices] = useState<OpenChoices>(saved);
+	const openId = resolveOpenId(ids, choices);
 	if (findings.length === 0) return null;
 
 	const toggle = (id: string) => {
 		const next = openId === id ? null : id;
-		const choices: Record<string, boolean> = { ...readOpenChoices() };
-		if (openId) choices[openId] = false;
-		if (next) choices[next] = true;
-		writeOpenChoices(choices as OpenChoices, ids);
-		setOpenId(next);
+		const updated: Record<string, boolean> = { ...choices };
+		// Delete first so the touched ones sit newest when the cookie is capped.
+		for (const [key, open] of [
+			[openId, false],
+			[next, true],
+		] as const) {
+			if (key === null) continue;
+			delete updated[key];
+			updated[key] = open;
+		}
+		writeOpenChoices(updated, ids);
+		setChoices(updated);
 	};
 
 	return (
@@ -233,6 +247,7 @@ function Findings({ findings }: { findings: readonly Insight[] }) {
 					key={insight.id}
 					insight={insight}
 					open={openId === insight.id}
+					label={findingLabel(insight)}
 					onToggle={() => toggle(insight.id)}
 					footer={<InsightActions insight={insight} />}
 				/>
@@ -422,6 +437,8 @@ export interface OverviewBodyProps {
 	keys?: ApiKey[] | null;
 	/** The clock for the keys row; defaults to now. */
 	now?: Date;
+	/** The findings the reader showed or hid, from the cookie. */
+	openChoices?: OpenChoices;
 	/** The live top insight of each flagged subgraph. */
 	subgraphFindings?: readonly Insight[];
 	/** Account-level insights (read errors, spend cap, credits). */
@@ -442,6 +459,7 @@ export function OverviewBody({
 	subgraphs = <OverviewSubgraphsSlot />,
 	keys = null,
 	now = new Date(),
+	openChoices = {},
 	subgraphFindings = [],
 	accountInsights = [],
 	asleep = false,
@@ -531,7 +549,7 @@ export function OverviewBody({
 				/>
 			) : (
 				<>
-					<Findings findings={findings} />
+					<Findings findings={findings} saved={openChoices} />
 					<div key="ov-rows" className="dash-rows ov-table">
 						{active.length + quiet.length > 0 ? (
 							<ResourceRowHead labels={WEBHOOK_HEAD} />
@@ -666,10 +684,13 @@ export function OverviewSection({
 	firstRowsCode,
 	firstRowsPrompt,
 	initial = null,
+	openChoices,
 }: {
 	firstRowsCode?: ReactNode;
 	firstRowsPrompt?: ReactNode;
 	initial?: OverviewInitial | null;
+	/** The findings the reader showed or hid, as the server read them. */
+	openChoices?: OpenChoices;
 } = {}) {
 	const { account } = useAuth();
 	const {
@@ -794,6 +815,7 @@ export function OverviewSection({
 			stack={service}
 			readUsage={rowsData}
 			keys={keys}
+			openChoices={openChoices}
 			subgraphFindings={subgraphFindings}
 			accountInsights={forAccountRules(insights, OVERVIEW_ACCOUNT_RULES)}
 			asleep={asleep}

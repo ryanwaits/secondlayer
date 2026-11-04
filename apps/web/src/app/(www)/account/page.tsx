@@ -11,6 +11,7 @@ import {
 	webhooksListReads,
 } from "@/lib/server/dashboard-reads";
 import { readInsights } from "@/lib/server/insights-read";
+import { savedOpenChoices } from "@/lib/server/open-choices";
 import { sessionToken } from "@/lib/server/session";
 
 // Next to the API (Hetzner HEL/fsn1), and per request: the HTML carries one
@@ -28,12 +29,14 @@ export default async function AccountOverviewPage() {
 				readInsights(token),
 			])
 		: [{}, null, null, null];
+	const openChoices = await savedOpenChoices();
 	return (
 		<InsightsSeed insights={insights}>
 			<AccountSeedProvider seed={account}>
 				<AccountOverview
 					firstRowsCode={<FirstRowsCode />}
 					firstRowsPrompt={<FirstRowsPrompt />}
+					openChoices={openChoices}
 					initial={webhooks && subgraphs ? { webhooks, subgraphs } : null}
 				/>
 			</AccountSeedProvider>

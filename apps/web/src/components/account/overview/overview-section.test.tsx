@@ -1,10 +1,11 @@
-import { afterEach, describe, expect, test } from "bun:test";
+import { describe, expect, mock, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import {
-	readOpenChoices,
+	OPEN_COOKIE,
+	parseOpenChoices,
 	resolveOpenId,
-	writeOpenChoices,
+	serializeOpenChoices,
 } from "@/lib/insight-open";
 import type { Insight } from "@/lib/insights";
 import { forAccountRules } from "@/lib/insights-store";
@@ -627,6 +628,17 @@ describe("Overview findings list", () => {
 		expect(out).not.toContain(willFail.lead);
 	});
 
+	test("a line gets its resource name ahead of it unless it already names it", () => {
+		const out = html([failing]);
+		expect(out).toContain('<span class="ins-note-label">sbtc-deposits</span>');
+		const named = rowModel(summary(), series, FIXTURE_HOURS, [
+			{ ...losing, line: "sbtc-deposits still sends to a test endpoint" },
+		]);
+		const again = html([named]);
+		expect(again).toContain("sbtc-deposits still sends to a test endpoint");
+		expect(again).not.toContain("ins-note-label");
+	});
+
 	describe("headline", () => {
 		const wh = (n: number, insight: Insight) =>
 			Array.from({ length: n }, (_, i) =>
@@ -662,12 +674,6 @@ describe("Overview findings list", () => {
 
 describe("remembered open choice", () => {
 	const ids = ["a", "b", "c"];
-	const stubStorage = (storage: unknown) => {
-		(globalThis as { window?: unknown }).window = { localStorage: storage };
-	};
-	afterEach(() => {
-		(globalThis as { window?: unknown }).window = undefined;
-	});
 
 	test("opens the first by default", () => {
 		expect(resolveOpenId(ids, {})).toBe("a");
@@ -678,29 +684,86 @@ describe("remembered open choice", () => {
 	test("a saved show on the second opens it instead", () => {
 		expect(resolveOpenId(ids, { b: true })).toBe("b");
 	});
-	test("falls back to the default when storage throws", () => {
-		const boom = {
-			getItem: () => {
-				throw new Error("blocked");
-			},
-			setItem: () => {
-				throw new Error("blocked");
-			},
-		};
-		stubStorage(boom);
-		expect(readOpenChoices()).toEqual({});
-		expect(() => writeOpenChoices({ a: true }, ids)).not.toThrow();
+
+	test("the cookie round-trips, ids with colons included", () => {
+		const choices = { "rule:wh-1": true, b: false };
+		const raw = serializeOpenChoices(choices, ["rule:wh-1", "b"]);
+		expect(parseOpenChoices(raw)).toEqual(choices);
+		// The server may hand it over already decoded.
+		expect(parseOpenChoices(decodeURIComponent(raw))).toEqual(choices);
 	});
-	test("writes booleans only and prunes ids that are gone", () => {
-		const data: Record<string, string> = {};
-		stubStorage({
-			getItem: (k: string) => data[k] ?? null,
-			setItem: (k: string, v: string) => {
-				data[k] = v;
-			},
+	test("a malformed or missing cookie falls back to the default", () => {
+		for (const raw of [
+			undefined,
+			null,
+			"",
+			"garbage",
+			"a:2~:1~~b",
+			"%E0%A4%A",
+		]) {
+			expect(resolveOpenId(ids, parseOpenChoices(raw))).toBe("a");
+		}
+		expect(parseOpenChoices("a:0~junk~b:1")).toEqual({ a: false, b: true });
+	});
+	test("saving drops ids that are gone and keeps the newest 20", () => {
+		expect(
+			parseOpenChoices(serializeOpenChoices({ a: true, gone: false }, ids)),
+		).toEqual({
+			a: true,
 		});
-		writeOpenChoices({ a: true, gone: false }, ids);
-		expect(readOpenChoices()).toEqual({ a: true });
+		const many = Object.fromEntries(
+			Array.from({ length: 30 }, (_, i) => [`ins-${i}`, i % 2 === 0]),
+		);
+		const raw = serializeOpenChoices(many, Object.keys(many));
+		const kept = Object.keys(parseOpenChoices(raw));
+		expect(kept).toHaveLength(20);
+		expect(kept[0]).toBe("ins-10");
+		expect(raw.length).toBeLessThan(1024);
+	});
+
+	describe("on the first server render", () => {
+		const losing = FIXTURE_INSIGHTS.find(
+			(i) => i.severity === "losing",
+		) as Insight;
+		const willFail = FIXTURE_INSIGHTS.find(
+			(i) => i.severity === "will_fail",
+		) as Insight;
+		const rows = [
+			rowModel(summary(), series, FIXTURE_HOURS, [losing]),
+			rowModel(
+				summary({ id: "wh_vault", name: "vault-events" }),
+				series,
+				FIXTURE_HOURS,
+				[{ ...willFail, id: "ins-att" }],
+			),
+		];
+		const html = (openChoices: Record<string, boolean>) =>
+			renderToStaticMarkup(
+				<OverviewBody {...base} rows={rows} openChoices={openChoices} />,
+			);
+		test("a saved hide renders the first closed", () => {
+			const out = html({ [losing.id]: false });
+			expect(out).not.toContain(losing.lead);
+			expect(out).not.toContain(willFail.lead);
+		});
+		test("a saved show renders the second open and the first closed", () => {
+			const out = html({ "ins-att": true });
+			expect(out).toContain(willFail.lead);
+			expect(out).not.toContain(losing.lead);
+		});
+	});
+});
+
+describe("the server page's saved choices", () => {
+	test("reads and parses the cookie", async () => {
+		mock.module("next/headers", () => ({
+			cookies: async () => ({
+				get: (name: string) =>
+					name === OPEN_COOKIE ? { value: "a%3A0~b%3A1" } : undefined,
+			}),
+		}));
+		const { savedOpenChoices } = await import("@/lib/server/open-choices");
+		expect(await savedOpenChoices()).toEqual({ a: false, b: true });
 	});
 });
 
