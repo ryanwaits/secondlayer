@@ -16,6 +16,7 @@ describe("ViewCommand", () => {
 		const html = renderToStaticMarkup(<ViewCommand command="sl status" />);
 		expect(html).toContain("<code>sl status</code>");
 		expect(html).not.toContain("In your terminal");
-		expect(html).toContain(">Copy<");
+		expect(html).toContain('<span class="dash-cmd-copy"><svg');
+		expect(html).not.toContain(">Copy<");
 	});
 });

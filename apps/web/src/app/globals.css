@@ -5799,7 +5799,7 @@ a.acct-strip-link:hover .acct-strip-k {
 .dash-cmd {
 	display: inline-flex;
 	align-items: center;
-	gap: 51px;
+	gap: 12px;
 	height: 30px;
 	min-width: 0;
 	padding: 0 12px;
@@ -5817,7 +5817,9 @@ a.acct-strip-link:hover .acct-strip-k {
 	text-overflow: ellipsis;
 	color: var(--sub);
 }
+/* Icon only, so a long command never pushes it out of the bar. */
 .dash-cmd-copy {
+	display: inline-flex;
 	transition: color 0.12s;
 }
 .dash-cmd:hover .dash-cmd-copy {
