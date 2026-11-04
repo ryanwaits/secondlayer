@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { readFileSync } from "node:fs";
 import type { Insight, InsightEvidence } from "@/lib/insights";
 import { FIXTURE_INSIGHTS, FIXTURE_STACK } from "@/lib/insights.fixtures";
 import { renderToStaticMarkup } from "react-dom/server";
@@ -65,7 +66,7 @@ describe("InsightNote", () => {
 		);
 		expect(html).toContain("Why ›");
 		expect(html).toContain("recovered");
-		expect(html).toContain("ins-dot idle");
+		expect(html).not.toContain("ins-dot");
 		expect(html).not.toContain("ins-card");
 	});
 
@@ -74,7 +75,64 @@ describe("InsightNote", () => {
 			<InsightNote insight={byRule("tls_expiring")} open onToggle={() => {}} />,
 		);
 		expect(html).toContain("Hide ›");
-		expect(html).toContain("ins-dot hi");
+		expect(html).not.toContain("ins-dot");
+	});
+
+	test("renders no severity dot, for any severity", () => {
+		for (const insight of FIXTURE_STACK) {
+			const html = renderToStaticMarkup(
+				<InsightNote insight={insight} open={false} onToggle={() => {}} />,
+			);
+			expect(html).not.toContain("ins-dot");
+		}
+	});
+
+	test("the Why label's class is the same open or closed", () => {
+		const cls = (open: boolean) =>
+			renderToStaticMarkup(
+				<InsightNote
+					insight={byRule("tls_expiring")}
+					open={open}
+					onToggle={() => {}}
+				/>,
+			).match(/<span class="(ins-note-why[^"]*)"/)?.[1];
+		expect(cls(false)).toBe("ins-note-why");
+		expect(cls(true)).toBe(cls(false));
+	});
+});
+
+describe("insight line styles", () => {
+	const css = readFileSync(
+		new URL("../../../app/globals.css", import.meta.url),
+		"utf8",
+	).replace(/\/\*[\s\S]*?\*\//g, "");
+	const rules = [...css.matchAll(/([^{}]+)\{([^{}]*)\}/g)].map(
+		([, selector, body]) => ({
+			selector: (selector ?? "").trim(),
+			body: body ?? "",
+		}),
+	);
+
+	test("no hover or focus rule targets the Why label", () => {
+		const hits = rules.filter(
+			(r) =>
+				r.selector.includes(".ins-note-why") &&
+				/:(hover|focus)/.test(r.selector),
+		);
+		expect(hits).toEqual([]);
+	});
+
+	test("hover only changes the underline color of the line text", () => {
+		const hover = rules.filter((r) => /\.ins-note-row:hover/.test(r.selector));
+		expect(hover).toHaveLength(1);
+		expect(hover[0]?.selector).toBe(".ins-note-row:hover .ins-note-line");
+		expect(hover[0]?.body.trim()).toBe("text-decoration-color: var(--sub);");
+	});
+
+	test("the line has no border, and the note has no rule", () => {
+		const row = rules.find((r) => r.selector === ".ins-note-row");
+		expect(row?.body).toContain("border: 0");
+		expect(rules.find((r) => r.selector === ".ins-note")).toBeUndefined();
 	});
 });
 

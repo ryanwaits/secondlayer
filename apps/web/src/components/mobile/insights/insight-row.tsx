@@ -1,7 +1,7 @@
 "use client";
 
 import { ageShort } from "@/components/account/webhooks/view";
-import { type Insight, SEVERITY_WORD, severityDot } from "@/lib/insights";
+import { type Insight, SEVERITY_WORD } from "@/lib/insights";
 import { SwipeRow } from "../swipe-row";
 
 function RowFace({ insight, isNew }: { insight: Insight; isNew: boolean }) {
@@ -9,7 +9,6 @@ function RowFace({ insight, isNew }: { insight: Insight; isNew: boolean }) {
 	return (
 		<span className="m-ins-face">
 			<span className="m-ins-top">
-				<span className={`ins-dot ${severityDot(insight.severity)}`} />
 				<span className="m-ins-word">{SEVERITY_WORD[insight.severity]}</span>
 				{isNew ? <span className="m-ins-new">NEW</span> : null}
 				<span className="m-ins-age">{age}</span>

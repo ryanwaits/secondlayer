@@ -2,7 +2,6 @@
 
 import { type Insight, autoOpenId, rankInsights } from "@/lib/insights";
 import { type ReactNode, useState } from "react";
-import { Legend } from "../charts/legend";
 import { InsightNote } from "./insight-note";
 
 /**
@@ -38,14 +37,6 @@ export function InsightStack({
 					{insights.length} {insights.length === 1 ? "insight" : "insights"} ·
 					worst first
 				</span>
-				<Legend
-					items={[
-						{ swatch: "square", label: "Losing events now" },
-						{ swatch: "square", label: "Will fail", color: "var(--hi)" },
-						{ swatch: "square", label: "Costs money", color: "var(--faint)" },
-						{ swatch: "ring", label: "Recovered" },
-					]}
-				/>
 			</div>
 			{rankInsights(insights).map((insight) => (
 				<InsightNote

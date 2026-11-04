@@ -1,8 +1,8 @@
-import { type Insight, severityDot } from "@/lib/insights";
+import type { Insight } from "@/lib/insights";
 import type { ReactNode } from "react";
 import { InsightCard } from "./insight-card";
 
-/** A collapsed insight: dot, one line, and "Why ›" / "Hide ›". Opens into the card. */
+/** A collapsed insight: one plain line and "Why ›" / "Hide ›". Opens into the card. */
 export function InsightNote({
 	insight,
 	open,
@@ -27,7 +27,6 @@ export function InsightNote({
 				aria-controls={panelId}
 				onClick={onToggle}
 			>
-				<span className={`ins-dot ${severityDot(insight.severity)}`} />
 				<span className="ins-note-line">
 					<b>{insight.line}</b>
 					{insight.meta ? (

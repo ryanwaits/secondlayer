@@ -8,7 +8,6 @@ import {
 	causeText,
 	insightHref,
 	insightTargetName,
-	severityDot,
 } from "@/lib/insights";
 import Link from "next/link";
 import type { ReactNode } from "react";
@@ -52,7 +51,6 @@ export function InsightSheetBody({
 export function InsightSheetEyebrow({ insight }: { insight: Insight }) {
 	return (
 		<>
-			<span className={`ins-dot ${severityDot(insight.severity)}`} />
 			<span>{SEVERITY_WORD[insight.severity]}</span>
 			<span>· {ageShort(insight.resolvedAt ?? insight.createdAt)}</span>
 		</>

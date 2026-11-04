@@ -124,7 +124,7 @@ describe("WebhookDetailBody insights", () => {
 		const html = render({ insights: [down as never, tls as never] });
 		expect(html).toContain("2 insights");
 		expect(html).toContain("worst first");
-		expect(html).toContain("Losing events now");
+		expect(html).not.toContain("ins-dot");
 	});
 
 	test("a single insight shows its note without a stack header", () => {

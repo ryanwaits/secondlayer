@@ -6276,19 +6276,16 @@ button.dc-heat-cell:focus-visible {
 	text-transform: uppercase;
 	color: var(--faint);
 }
-.ins-note {
-	border-bottom: 1px solid var(--line);
-}
-.ins-stack > .ins-note:first-of-type {
-	border-top: 1px solid var(--line);
-}
+/* A plain line flush with the page column: no dot, no rule, no tint. The
+   pointer answers by underlining the text only; nothing else changes on hover,
+   so "Why" never moves. */
 .ins-note-row {
 	display: grid;
-	grid-template-columns: auto minmax(0, 1fr) auto;
-	gap: 12px;
-	align-items: center;
+	grid-template-columns: minmax(0, 1fr) auto;
+	gap: 16px;
+	align-items: baseline;
 	width: 100%;
-	padding: 14px 0;
+	padding: 4px 0;
 	text-align: left;
 	font-size: 14px;
 	color: var(--ink);
@@ -6296,12 +6293,26 @@ button.dc-heat-cell:focus-visible {
 	border: 0;
 	cursor: pointer;
 }
-.ins-note-line b {
-	font-weight: 500;
-	transition: color 0.12s;
+.ins-note-line {
+	text-decoration: underline;
+	text-decoration-color: transparent;
+	text-decoration-thickness: 1px;
+	text-underline-offset: 5px;
+	transition: text-decoration-color 150ms ease;
 }
-.ins-note-row:hover .ins-note-line b {
-	color: var(--pri);
+@media (hover: hover) {
+	.ins-note-row:hover .ins-note-line {
+		text-decoration-color: var(--sub);
+	}
+}
+.ins-note-row:focus-visible {
+	outline: none;
+}
+.ins-note-row:focus-visible .ins-note-line {
+	text-decoration-color: var(--pri);
+}
+.ins-note-line b {
+	font-weight: 400;
 }
 .ins-note-meta {
 	color: var(--sub);
@@ -6315,7 +6326,8 @@ button.dc-heat-cell:focus-visible {
 	color: var(--sub);
 }
 .ins-note > .ins-card {
-	margin: 0 0 16px 20px;
+	margin: 12px 0 16px;
+	border-radius: 10px;
 }
 .ins-dot {
 	width: 8px;
@@ -6643,14 +6655,11 @@ pre.ins-raw .k {
 	.ins-card {
 		padding: 16px;
 	}
-	.ins-note > .ins-card {
-		margin-left: 0;
-	}
 }
 @media (prefers-reduced-motion: reduce) {
 	button.dc-heat-cell,
 	details.ins-how summary::before,
-	.ins-note-line b {
+	.ins-note-line {
 		transition: none;
 	}
 	button.dc-heat-cell:hover,
@@ -7963,13 +7972,9 @@ button.dash-row {
 	margin-top: 2px;
 	font-size: 12.5px;
 }
-/* A list of notes under the chart: each note keeps its bottom hairline and
- * none above the first, as the mock draws it. */
+/* A list of notes under the chart. */
 .rw-notes {
 	display: grid;
-}
-.rw-notes .ins-stack > .ins-note:first-of-type {
-	border-top: 0;
 }
 .rw-failed {
 	display: grid;
@@ -8077,9 +8082,6 @@ button.dash-row {
 .ky-top > .dash-status-wrap {
 	flex: 1;
 	min-width: 0;
-}
-.ky-notes .ins-stack > .ins-note:first-of-type {
-	border-top: 0;
 }
 .ky-row {
 	display: grid;
