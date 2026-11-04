@@ -47,11 +47,14 @@ export function UseSection({
 	name,
 	tables,
 	selected = null,
+	selectedAt = 0,
 }: {
 	name: string;
 	tables: Record<string, SubgraphTableInfo>;
 	/** A table picked elsewhere on the page; its chip is pressed. */
 	selected?: string | null;
+	/** Bumps on every pick, so picking the same table again still applies. */
+	selectedAt?: number;
 }) {
 	// The same order as the Tables panel: biggest first.
 	const ordered = useMemo(
@@ -75,9 +78,10 @@ export function UseSection({
 	const requested = useRef(new Set<string>());
 
 	// A table opened in the Tables section becomes this section's table.
+	// biome-ignore lint/correctness/useExhaustiveDependencies: selectedAt re-applies a repeat pick of the same table
 	useEffect(() => {
 		if (selected) setTable(selected);
-	}, [selected]);
+	}, [selected, selectedAt]);
 
 	const table =
 		chosen !== null && ordered.includes(chosen) ? chosen : (ordered[0] ?? "");
