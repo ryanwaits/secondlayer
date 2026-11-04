@@ -2840,7 +2840,7 @@ const META: Record<StoryId, Meta> = {
 			"apps/web/src/components/account/subgraphs/use-section.tsx",
 			"apps/web/src/components/account/subgraphs/use-examples.ts",
 		],
-		rule: "One chip per table, four recipes, and the code as the SDK, the CLI or cURL. The body keeps the tallest example's height, so nothing moves when you switch.",
+		rule: "One chip per table, four recipes, and the code as the SDK, the CLI or cURL. The body follows the shown example's height and eases between examples.",
 		stack: true,
 		variants: [
 			{

@@ -3,7 +3,14 @@
 import "@/components/code/code.css";
 import { MAX_CODE_BLOCKS, type RenderedBlock } from "@/lib/code/blocks";
 import type { SubgraphTableInfo } from "@/lib/subgraphs-store";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+	useCallback,
+	useEffect,
+	useLayoutEffect,
+	useMemo,
+	useRef,
+	useState,
+} from "react";
 import {
 	type Fence,
 	type Lang,
@@ -136,6 +143,18 @@ export function UseSection({
 	);
 	const [copied, setCopied] = useState(false);
 	const asked = useRef(new Set<string>());
+	// The frame follows the code's height, easing between examples: the
+	// server renders it at its natural height, then it's pinned in pixels so
+	// a change can transition.
+	const codeRef = useRef<HTMLDivElement>(null);
+	const [bodyHeight, setBodyHeight] = useState<number | null>(null);
+	useLayoutEffect(() => {
+		const el = codeRef.current;
+		if (!el) return;
+		const observer = new ResizeObserver(() => setBodyHeight(el.offsetHeight));
+		observer.observe(el);
+		return () => observer.disconnect();
+	}, []);
 	const requested = useRef(new Set<string>());
 
 	// A table opened in the Tables section becomes this section's table.
@@ -295,20 +314,25 @@ export function UseSection({
 						{copied ? "Copied" : "Copy"}
 					</button>
 				</div>
-				<div className="use-body">
-					{!fence ? (
-						<p className="use-empty">
-							The CLI doesn't stream rows. Use the SDK's subscribe or cURL.
-						</p>
-					) : block ? (
-						<div
-							className={block.className}
-							// biome-ignore lint/security/noDangerouslySetInnerHtml: built by `renderCode` on the server, which escapes every dynamic value
-							dangerouslySetInnerHTML={{ __html: block.html }}
-						/>
-					) : (
-						<PlainFence fence={fence} />
-					)}
+				<div
+					className="use-body"
+					style={bodyHeight === null ? undefined : { height: bodyHeight }}
+				>
+					<div ref={codeRef}>
+						{!fence ? (
+							<p className="use-empty">
+								The CLI doesn't stream rows. Use the SDK's subscribe or cURL.
+							</p>
+						) : block ? (
+							<div
+								className={block.className}
+								// biome-ignore lint/security/noDangerouslySetInnerHtml: built by `renderCode` on the server, which escapes every dynamic value
+								dangerouslySetInnerHTML={{ __html: block.html }}
+							/>
+						) : (
+							<PlainFence fence={fence} />
+						)}
+					</div>
 				</div>
 			</div>
 		</section>
