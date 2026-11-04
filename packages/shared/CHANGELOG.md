@@ -1,5 +1,12 @@
 # @secondlayer/shared
 
+## 15.0.2
+
+### Patch Changes
+
+- Feedback takes a plain-sentence `expected`, and validation errors name the evidence keys.
+- Webhook activity reads hourly delivery counts kept at write time (migration `0182_webhook_delivery_hours`), and `WebhookActivity.days` is always returned. The deliveries list previews each response body at 512 characters; the single-delivery read returns it whole. The retention sweep drops hourly counts older than 35 days.
+
 ## 15.0.1
 
 ### Patch Changes

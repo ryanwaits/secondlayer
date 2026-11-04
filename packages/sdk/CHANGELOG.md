@@ -1,5 +1,15 @@
 # @secondlayer/sdk
 
+## 16.2.1
+
+### Patch Changes
+
+- Webhook activity reads hourly delivery counts kept at write time (migration `0182_webhook_delivery_hours`), and `WebhookActivity.days` is always returned. The deliveries list previews each response body at 512 characters; the single-delivery read returns it whole. The retention sweep drops hourly counts older than 35 days.
+- Updated dependencies
+- Updated dependencies
+  - @secondlayer/shared@15.0.2
+  - @secondlayer/subgraphs@8.0.3
+
 ## 16.2.0
 
 ### Minor Changes
