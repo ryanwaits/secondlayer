@@ -114,13 +114,13 @@ describe("HourRibbon", () => {
 });
 
 describe("RibbonDays", () => {
-	test("labels each full day and says UTC once, on the last", () => {
+	test("labels each full day and says UTC once, on the first full day", () => {
 		const html = renderToStaticMarkup(<RibbonDays now={NOW} />);
 		// Oct 8 holds four hours of the window, so it has no label of its own.
 		expect(html).not.toContain("Thu 8");
-		expect(html).toContain(">Fri 9<");
+		expect(html).toContain(">Fri 9 · UTC<");
 		expect(html).toContain(">Sat 10<");
-		expect(html).toContain(">Thu 15 · UTC<");
+		expect(html).toContain(">Thu 15<");
 		expect(html.match(/UTC/g)).toHaveLength(1);
 	});
 

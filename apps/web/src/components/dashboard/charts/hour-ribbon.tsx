@@ -146,15 +146,16 @@ export function HourRibbon({
 }
 
 /** The ribbon's column header: a day label at each UTC midnight, on the same
- *  168 columns as the cells. The last says UTC once for all of them. */
+ *  168 columns as the cells. The first full day says UTC once for all of them: it always has room, where a
+ *  partial last day would clip it. */
 export function RibbonDays({ now }: { now: number }) {
 	const days = useMemo(() => windowDays(now), [now]);
+	const utcDay = days.find((day) => day.midnight && day.span === 24)?.index;
 	return (
 		<div className="ix-days">
 			{days
 				.filter((day) => day.midnight)
 				.map((day) => {
-					const last = day.index + day.span >= 168;
 					return (
 						<span
 							key={day.index}
@@ -162,7 +163,7 @@ export function RibbonDays({ now }: { now: number }) {
 							style={{ gridColumn: `${day.index + 1} / span ${day.span}` }}
 						>
 							{day.span >= LABEL_MIN_HOURS
-								? `${day.label}${last ? " · UTC" : ""}`
+								? `${day.label}${day.index === utcDay ? " · UTC" : ""}`
 								: ""}
 						</span>
 					);
