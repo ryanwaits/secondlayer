@@ -7653,7 +7653,6 @@ button.dash-row {
 .bl-panel {
 	margin-top: 0;
 }
-.bl-top,
 .ky-top {
 	display: flex;
 	justify-content: space-between;
@@ -7661,14 +7660,58 @@ button.dash-row {
 	flex-wrap: wrap;
 	gap: 16px;
 }
-.bl-top > .dash-status-wrap {
-	flex: 1;
-	min-width: 0;
+.bl-num {
+	font: 400 0.93em var(--font-mono-stack);
+	font-variant-numeric: tabular-nums;
 }
-.bl-pace {
-	font: 400 18px / 1.2 var(--font-sans-stack);
-	letter-spacing: 0;
-	color: var(--sub);
+/* Add credits band: amount, runway line and checkout in one row between two
+   hairlines. Running short or stopped, the chosen amount and the button wear
+   the warn color; the hairlines stay --line. */
+.bl-band {
+	display: grid;
+	grid-template-columns: minmax(280px, 360px) minmax(0, 1fr) auto;
+	gap: 16px 28px;
+	align-items: center;
+	padding-block: 20px;
+	border-block: 1px solid var(--line);
+}
+.bl-band .bl-runway b {
+	font-weight: 400;
+}
+.bl-band-pay {
+	display: grid;
+	gap: 8px;
+	justify-items: end;
+}
+.bl-band.urgent .choice-cell input:checked + span,
+.bl-band.urgent .choice-other.on {
+	background: color-mix(in srgb, var(--hi) 12%, var(--paper));
+	color: color-mix(in srgb, var(--hi) 55%, var(--ink));
+	box-shadow: inset 0 0 0 1px var(--hi);
+}
+.bl-band.urgent .choice-other.on input {
+	color: color-mix(in srgb, var(--hi) 55%, var(--ink));
+}
+.bl-band.urgent .choice-other:has(input:focus),
+.bl-band.urgent .choice-other.on:has(input:focus) {
+	box-shadow: inset 0 0 0 2px var(--hi);
+}
+.bl-band.urgent .acct-btn.solid {
+	background: var(--hi);
+	color: var(--on-hi);
+}
+/* What you paid for | credits added, then limits. */
+.bl-cols {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+	gap: 48px 56px;
+	align-items: start;
+}
+.bl-col {
+	display: grid;
+	gap: 48px;
+	min-width: 0;
+	align-content: start;
 }
 .bl-two {
 	display: grid;
@@ -8152,6 +8195,13 @@ button.ky-click:focus-visible,
 	.bl-two.even {
 		grid-template-columns: minmax(0, 1fr);
 		gap: 40px;
+	}
+	.bl-cols,
+	.bl-band {
+		grid-template-columns: minmax(0, 1fr);
+	}
+	.bl-band-pay {
+		justify-items: start;
 	}
 	.ky-row {
 		grid-template-columns: minmax(0, 1fr) 56px 64px;

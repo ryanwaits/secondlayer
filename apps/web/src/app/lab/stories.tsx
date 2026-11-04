@@ -2548,13 +2548,23 @@ const META: Record<StoryId, Meta> = {
 			"apps/web/src/components/account/billing/amount-choice.tsx",
 			"apps/web/src/components/account/billing/limits-and-emails.tsx",
 		],
-		rule: "Adding credits sits beside the usage chart. The spend cap is one Monthly limit field, empty for no limit.",
+		rule: "The balance is one sentence with its pace under it, then the spend chart, then one Add credits band that turns yellow when the balance runs short. The spend cap is one Monthly limit field, empty for no limit.",
 		stack: true,
 		variants: [
 			{
 				id: "normal",
 				label: "Balance, burn and a limit",
 				render: () => <BillingDemo state="normal" />,
+			},
+			{
+				id: "low",
+				label: "Running low",
+				render: () => <BillingDemo state="low" />,
+			},
+			{
+				id: "stopped",
+				label: "Stopped",
+				render: () => <BillingDemo state="stopped" />,
 			},
 			{
 				id: "fresh",

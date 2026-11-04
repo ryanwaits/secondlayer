@@ -3,7 +3,6 @@
 import { ChartBox } from "@/components/charts/chart-skeleton";
 import { LazySpendChart, preloadSpendChart } from "@/components/charts/lazy";
 import { Legend } from "@/components/dashboard/charts/legend";
-import { Meter } from "@/components/dashboard/charts/meter";
 import { ActionableInsights } from "@/components/dashboard/insight/insight-actions";
 import { StatusSentence } from "@/components/dashboard/shell/status-sentence";
 import { useCompact } from "@/components/mobile/use-compact";
@@ -30,6 +29,7 @@ import type { Insight } from "@/lib/insights";
 import { forAccountRules, useInsights } from "@/lib/insights-store";
 import type { CreditAdded } from "@/lib/types";
 import {
+	type BalanceLevel,
 	type Burn,
 	type DailySpend,
 	type HostedStack,
@@ -66,57 +66,91 @@ const MICROS = 1_000_000;
 /** The account-level rules about money; the rest belong to Overview and Rows. */
 const BILLING_RULES = ["cap_pace", "credits_runway"];
 
-/** The sentence under the balance: what it is, and what to do about it. */
+/** How the balance stands: the one level the headline, dot and band all read. */
+function levelOf(
+	billing: Billing,
+	burn: Burn | null,
+	service: HostedStack | null,
+): BalanceLevel {
+	const runway = burn
+		? runwayDays(
+				Number(billing.creditsUsdMicros),
+				Number(burn.rateDayUsdMicros),
+			)
+		: Number.POSITIVE_INFINITY;
+	return balanceLevel({
+		serviceState: service?.state ?? "none",
+		balanceUsdMicros: Number(billing.creditsUsdMicros),
+		runwayDays: runway,
+	});
+}
+
+/** The balance as one sentence, with its days, rate and month-end pace under it. */
 function Status({
 	billing,
 	burn,
 	service,
 	capUsd,
 	now,
+	projectedEnd,
 }: {
 	billing: Billing | null;
 	burn: Burn | null;
 	service: HostedStack | null;
 	capUsd: number | null;
 	now: Date;
+	/** Where the month ends up at the last 7 days' pace, or null until the daily spend loads. */
+	projectedEnd: number | null;
 }) {
 	if (!billing) {
 		return <StatusSentence tone="idle">Checking your balance.</StatusSentence>;
 	}
-	const resets = nextMonthLabel(currentUtcMonth(now));
+	const month = currentUtcMonth(now);
 	const spent = Number(billing.spentThisMonthUsdMicros) / MICROS;
 	if (capUsd != null && spent >= capUsd) {
 		return (
 			<StatusSentence
 				tone="alarm"
-				sub={`Everything resumes on ${resets}, or when you raise the cap.`}
+				sub={`Everything resumes on ${nextMonthLabel(month)}, or when you raise the cap.`}
 			>
 				Paused: you reached your ${capUsd.toLocaleString("en-US")} cap.
 			</StatusSentence>
 		);
 	}
-	const balance = Number(billing.creditsUsdMicros);
-	const runway = burn
-		? runwayDays(balance, Number(burn.rateDayUsdMicros))
-		: Number.POSITIVE_INFINITY;
-	const serviceState: ServiceState = service?.state ?? "none";
-	const level = balanceLevel({
-		serviceState,
-		balanceUsdMicros: balance,
-		runwayDays: runway,
-	});
+	const level = levelOf(billing, burn, service);
+	if (level === "stopped") {
+		return (
+			<StatusSentence
+				tone="alarm"
+				sub="Webhooks and subgraphs pick up where they left off once you add credits."
+			>
+				{formatUsd(billing.creditsUsdMicros)} left. Your hosted stack has
+				stopped.
+			</StatusSentence>
+		);
+	}
 	const left = daysLeftLabel(daysLeft(billing, burn));
-	const tone = level === "ok" ? "ok" : level === "low" ? "hi" : "alarm";
+	const spentIn = `${dollars(spent)} spent in ${monthLabel(month).split(" ")[0]}`;
+	const pace =
+		projectedEnd === null ? "" : `, on pace for ${dollars(projectedEnd)}`;
 	return (
-		<StatusSentence tone={tone}>
-			<span>
-				{formatUsd(billing.creditsUsdMicros)} left
-				{level === "stopped" ? (
-					<span className="bl-pace"> · your hosted stack has stopped</span>
-				) : left ? (
-					<span className="bl-pace"> · {left} at this pace</span>
-				) : null}
-			</span>
+		<StatusSentence
+			tone={level === "ok" ? "ok" : level === "low" ? "hi" : "alarm"}
+			sub={
+				<>
+					{left && burn ? (
+						<>
+							{left.charAt(0).toUpperCase() + left.slice(1)} at{" "}
+							<code className="bl-num">{formatUsd(burn.rateDayUsdMicros)}</code>{" "}
+							a day.{" "}
+						</>
+					) : null}
+					{spentIn}
+					{pace}.
+				</>
+			}
+		>
+			{formatUsd(billing.creditsUsdMicros)} left.
 		</StatusSentence>
 	);
 }
@@ -130,38 +164,19 @@ function isFreshAccount(billing: Billing | null): boolean {
 	);
 }
 
-/** The Add credits section: the page's anchor for "add credits" links. */
-function CreditsSection({ children }: { children: ReactNode }) {
+/** The Add credits band: the page's anchor for "add credits" links. Yellow
+ *  while the balance is running short or the stack has stopped. */
+function CreditsBand({
+	urgent,
+	children,
+}: { urgent: boolean; children: ReactNode }) {
 	return (
 		<section
-			className="dash-panel bl-panel"
+			className={urgent ? "bl-band urgent" : "bl-band"}
 			aria-label="Add credits"
 			id="packs"
 		>
-			<span className="dash-label">Add credits</span>
 			{children}
-		</section>
-	);
-}
-
-function FreeRows({
-	deliveredRows,
-	now,
-}: { deliveredRows: number; now: Date }) {
-	const free = Math.min(deliveredRows, ROWS_ALLOWANCE);
-	return (
-		<section className="dash-panel bl-panel" aria-label="Free rows">
-			<span className="dash-label">Free rows</span>
-			<Meter
-				used={free}
-				total={ROWS_ALLOWANCE}
-				label="Free rows used this month"
-				left={`${formatRows(free)} of ${formatRows(ROWS_ALLOWANCE)} free rows`}
-				right={`resets ${nextMonthLabel(currentUtcMonth(now))}`}
-			/>
-			<span className="bl-note">
-				Block headers never count. Nothing is charged until you add credits.
-			</span>
 		</section>
 	);
 }
@@ -182,9 +197,9 @@ export interface BillingBodyProps {
 	insights?: readonly Insight[];
 	/** Shown above the status sentence, such as the way back from Stripe. */
 	notice?: ReactNode;
-	/** The Add credits panel's contents, beside the usage chart. */
+	/** The Add credits band's cells: amount, runway line, checkout button. */
 	addCredits: ReactNode;
-	/** The limit and email settings, beside the rates table. */
+	/** The limit and email settings, under the credits added. */
 	settings: ReactNode;
 }
 
@@ -205,6 +220,7 @@ export function BillingBody({
 	settings,
 }: BillingBodyProps) {
 	const month = currentUtcMonth(now);
+	const monthName = monthLabel(month).split(" ")[0] ?? "";
 	const projection = daily ? monthProjection(daily, now) : null;
 	const spentTotal = billing
 		? Number(billing.spentThisMonthUsdMicros) / MICROS
@@ -215,83 +231,79 @@ export function BillingBody({
 
 	const fresh = isFreshAccount(billing);
 	if (fresh) {
+		const free = Math.min(deliveredRowsIn(usage ?? []), ROWS_ALLOWANCE);
 		return (
 			<div className="bl-body">
 				{notice}
 				<StatusSentence
 					tone="idle"
-					sub="The first 1M rows each month are free. Add credits only when you pass them."
+					sub={`Nothing spent yet. Add credits only when you pass the free rows or start a hosted stack. ${formatRows(free)} of your free ${formatRows(ROWS_ALLOWANCE)} rows used. Resets ${nextMonthLabel(month)}.`}
 				>
-					$0.00 spent this month.
+					1M rows free this month.
 				</StatusSentence>
-				<div className="bl-two even">
-					<FreeRows deliveredRows={deliveredRowsIn(usage ?? [])} now={now} />
-					<CreditsSection>{addCredits}</CreditsSection>
+				<CreditsBand urgent={false}>{addCredits}</CreditsBand>
+				<div className="bl-cols">
+					<ByUnitTable usage={usage} monthName={monthName} />
+					<div className="bl-col">
+						<CreditsAddedTable credits={credits} />
+						{settings}
+					</div>
 				</div>
-				<ByUnitTable
-					usage={usage}
-					monthName={monthLabel(month).split(" ")[0]}
-				/>
-				{settings}
 			</div>
 		);
 	}
 
+	const urgent = billing !== null && levelOf(billing, burn, service) !== "ok";
 	return (
 		<div className="bl-body">
 			{notice}
-			<div className="bl-top">
-				<Status
-					billing={billing}
-					burn={burn}
-					service={service}
-					capUsd={capUsd}
-					now={now}
-				/>
-			</div>
+			<Status
+				billing={billing}
+				burn={burn}
+				service={service}
+				capUsd={capUsd}
+				now={now}
+				projectedEnd={projection?.projectedEnd ?? null}
+			/>
 
 			<ActionableInsights insights={insights} />
 
-			<div className="bl-two">
-				<section className="dash-panel bl-panel" aria-label="Usage this month">
-					<div className="dash-panel-h">
-						<span className="dash-label">Usage this month</span>
-						<Legend
-							items={[
-								{ swatch: "line", label: "Spent" },
-								{ swatch: "dashed", label: "At this pace" },
-							]}
+			<section className="dash-panel bl-panel" aria-label="Spent this month">
+				<div className="dash-panel-h">
+					<span className="dash-label">Spent this month</span>
+					<Legend
+						items={[
+							{ swatch: "line", label: "Spent" },
+							{ swatch: "dashed", label: "At this pace" },
+						]}
+					/>
+				</div>
+				<ChartBox height={150}>
+					{projection ? (
+						<LazySpendChart
+							daily={projection.series}
+							daysInMonth={projection.daysInMonth}
+							monthLabel={monthShortLabel(month)}
 						/>
-					</div>
-					<ChartBox height={150}>
-						{projection ? (
-							<LazySpendChart
-								daily={projection.series}
-								daysInMonth={projection.daysInMonth}
-								monthLabel={monthShortLabel(month)}
-							/>
-						) : null}
-					</ChartBox>
-					{sentinelUsd > 0 ? (
-						<span className="bl-note">
-							Sentinel usage ({dollars(sentinelUsd / MICROS)}) is billed per
-							check and event and isn't in this line.
-						</span>
 					) : null}
-				</section>
+				</ChartBox>
+				{sentinelUsd > 0 ? (
+					<span className="bl-note">
+						Sentinel usage ({dollars(sentinelUsd / MICROS)}) is billed per check
+						and event and isn't in this line.
+					</span>
+				) : null}
+			</section>
 
-				<CreditsSection>{addCredits}</CreditsSection>
+			<CreditsBand urgent={urgent}>{addCredits}</CreditsBand>
+
+			<div className="bl-cols">
+				<ByUnitTable usage={usage} monthName={monthName} />
+				<div className="bl-col">
+					<CreditsAddedTable credits={credits} />
+					{settings}
+				</div>
 			</div>
-
-			<div className="bl-two even">
-				<ByUnitTable
-					usage={usage}
-					monthName={monthLabel(month).split(" ")[0]}
-				/>
-				<CreditsAddedTable credits={credits} />
-			</div>
-
-			{settings}
 		</div>
 	);
 }
@@ -384,7 +396,13 @@ export function BillingScreen({ ret }: { ret: TopupReturn | null }) {
 			insights={forAccountRules(allInsights, BILLING_RULES)}
 			notice={st ? <ReturnNotice st={st} billing={billing} /> : null}
 			addCredits={
-				<AddCredits co={co} billing={billing} burn={burn} stopped={stopped} />
+				<AddCredits
+					band
+					co={co}
+					billing={billing}
+					burn={burn}
+					stopped={stopped}
+				/>
 			}
 			settings={
 				<LimitsAndEmails

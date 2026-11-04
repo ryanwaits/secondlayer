@@ -877,7 +877,7 @@ export function KeysDemo({
 	);
 }
 
-export type BillingDemoState = "normal" | "fresh";
+export type BillingDemoState = "normal" | "low" | "stopped" | "fresh";
 
 const BILLING_NOW = new Date("2026-10-16T12:00:00.000Z");
 
@@ -903,10 +903,15 @@ function billingDaily() {
 export function BillingDemo({ state }: { state: BillingDemoState }) {
 	const co = useCheckout();
 	const fresh = state === "fresh";
+	const stopped = state === "stopped";
+	const credits =
+		state === "normal" ? "28060000" : state === "low" ? "800000" : "0";
 	const billing = fresh
 		? { creditsUsdMicros: "0", spentThisMonthUsdMicros: "0" }
-		: { creditsUsdMicros: "28060000", spentThisMonthUsdMicros: "11340000" };
-	const burn = fresh ? null : { rateDayUsdMicros: "146145", windowHours: 24 };
+		: { creditsUsdMicros: credits, spentThisMonthUsdMicros: "11340000" };
+	const burn = fresh
+		? null
+		: { rateDayUsdMicros: stopped ? "0" : "146145", windowHours: 24 };
 	const [capUsd, setCapUsd] = useState<number | null>(fresh ? null : 100);
 	return (
 		<BillingBody
@@ -914,7 +919,13 @@ export function BillingDemo({ state }: { state: BillingDemoState }) {
 			billing={billing}
 			burn={burn}
 			service={
-				fresh ? null : { state: "running", lastChargedAt: null, memory24h: [] }
+				fresh
+					? null
+					: {
+							state: stopped ? "stopped" : "running",
+							lastChargedAt: null,
+							memory24h: [],
+						}
 			}
 			usage={
 				fresh
@@ -955,7 +966,13 @@ export function BillingDemo({ state }: { state: BillingDemoState }) {
 						]
 			}
 			addCredits={
-				<AddCredits co={co} billing={billing} burn={burn} stopped={false} />
+				<AddCredits
+					band
+					co={co}
+					billing={billing}
+					burn={burn}
+					stopped={stopped}
+				/>
 			}
 			settings={
 				<LimitsAndEmails

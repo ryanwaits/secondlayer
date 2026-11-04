@@ -69,6 +69,7 @@ export function RunwayLine({
 	rateDayUsdMicros,
 	stopped,
 	now,
+	oneTime = false,
 }: {
 	amount: number;
 	valid: boolean;
@@ -76,6 +77,8 @@ export function RunwayLine({
 	rateDayUsdMicros: number;
 	stopped: boolean;
 	now: Date;
+	/** Say "One-time payment." here, where no fine print follows the button. */
+	oneTime?: boolean;
 }) {
 	if (!valid) {
 		return (
@@ -86,17 +89,42 @@ export function RunwayLine({
 		);
 	}
 	const after = balanceUsdMicros + amount * 1e6;
-	const goesTo = `Balance goes to ${formatUsd(after)}`;
+	const goesTo = <b className="bl-num">{formatUsd(after)}</b>;
+	const once = oneTime ? " One-time payment." : "";
 	if (stopped)
 		return (
-			<p className="bl-runway">{goesTo}, and your hosted stack starts again.</p>
+			<p className="bl-runway">
+				Balance goes to {goesTo}, and your hosted stack starts again.{once}
+			</p>
 		);
 	const month = runsOutMonth(after, rateDayUsdMicros, now);
-	if (month === null) return <p className="bl-runway">{goesTo}.</p>;
+	if (month === null)
+		return (
+			<p className="bl-runway">
+				Balance goes to {goesTo}.{once}
+			</p>
+		);
 	return (
 		<p className="bl-runway">
-			{goesTo}, which lasts until about <b>{month}</b>.
+			Balance goes to {goesTo}, about <b>{month}</b> at this pace.{once}
 		</p>
+	);
+}
+
+function CheckoutButton({ co }: { co: Checkout }) {
+	return (
+		<button
+			type="button"
+			className="acct-btn solid small"
+			onClick={co.checkout}
+			disabled={co.busy || !co.valid}
+		>
+			{co.busy
+				? "Opening checkout..."
+				: co.valid
+					? `Add $${co.amount} with Stripe`
+					: "Add credits with Stripe"}
+		</button>
 	);
 }
 
@@ -105,18 +133,7 @@ export function CheckoutAction({ co }: { co: Checkout }) {
 	return (
 		<>
 			<div className="acct-checkout">
-				<button
-					type="button"
-					className="acct-btn solid small"
-					onClick={co.checkout}
-					disabled={co.busy || !co.valid}
-				>
-					{co.busy
-						? "Opening checkout..."
-						: co.valid
-							? `Add $${co.amount} with Stripe`
-							: "Add credits with Stripe"}
-				</button>
+				<CheckoutButton co={co} />
 				<p className="acct-fine">One-time payment. Nothing auto-renews.</p>
 			</div>
 			{co.error ? <p className="acct-error">{co.error}</p> : null}
@@ -125,17 +142,21 @@ export function CheckoutAction({ co }: { co: Checkout }) {
 }
 
 /** Pick an amount, see where it takes the balance, then off to Stripe. One
- *  panel for the billing page and the account menu's sheet. */
+ *  flow for the billing page's band and the account menu's sheet. With `band`
+ *  the three parts are bare cells of the band's grid and the line carries
+ *  "One-time payment."; otherwise they stack with the fine print. */
 export function AddCredits({
 	co,
 	billing,
 	burn,
 	stopped,
+	band = false,
 }: {
 	co: Checkout;
 	billing: Billing | null;
 	burn: Burn | null;
 	stopped: boolean;
+	band?: boolean;
 }) {
 	const rate = burn ? Number(burn.rateDayUsdMicros) : 0;
 	return (
@@ -149,9 +170,20 @@ export function AddCredits({
 					rateDayUsdMicros={rate}
 					stopped={stopped}
 					now={new Date()}
+					oneTime={band}
 				/>
+			) : band ? (
+				// Holds the band's middle cell while the balance loads.
+				<p className="bl-runway" />
 			) : null}
-			<CheckoutAction co={co} />
+			{band ? (
+				<div className="bl-band-pay">
+					<CheckoutButton co={co} />
+					{co.error ? <p className="acct-error">{co.error}</p> : null}
+				</div>
+			) : (
+				<CheckoutAction co={co} />
+			)}
 		</>
 	);
 }

@@ -75,18 +75,82 @@ describe("BillingBody insights", () => {
 });
 
 describe("BillingBody", () => {
-	test("opens with the balance and how long it lasts at this pace", () => {
+	test("opens with the balance, then the days, the daily rate and the month-end pace", () => {
 		const html = renderToStaticMarkup(<BillingBody {...base} />);
-		expect(html).toContain("$12.50 left");
-		expect(html).toContain("about 50 days at this pace");
+		expect(html).toContain("$12.50 left.");
+		expect(html).toContain("About 50 days at");
+		expect(html).toContain("$0.25</code> a day.");
+		expect(html).toContain("$4.20 spent in October, on pace for $1.00.");
 		expect(html).not.toContain('href="#packs"');
+	});
+
+	test("leaves the pace out until the daily spend has loaded", () => {
+		const html = renderToStaticMarkup(
+			<BillingBody {...base} daily={undefined} />,
+		);
+		expect(html).toContain("$4.20 spent in October.");
+		expect(html).not.toContain("on pace for");
+	});
+
+	test("a healthy balance leaves the band neutral", () => {
+		const html = renderToStaticMarkup(<BillingBody {...base} />);
+		expect(html).toContain('class="bl-band"');
+		expect(html).not.toContain("bl-band urgent");
+	});
+
+	test("a balance about to run out turns the band urgent and the dot yellow", () => {
+		const html = renderToStaticMarkup(
+			<BillingBody
+				{...base}
+				billing={{
+					creditsUsdMicros: "1240000",
+					spentThisMonthUsdMicros: "4200000",
+				}}
+			/>,
+		);
+		expect(html).toContain("$1.24 left.");
+		expect(html).toContain('class="bl-band urgent"');
+		expect(html).toContain("dash-dot hi");
+		expect(html).toContain("a day.");
+		expect(html).toContain("on pace for");
+	});
+
+	test("a stopped stack turns the band urgent and says how to resume", () => {
+		const html = renderToStaticMarkup(
+			<BillingBody
+				{...base}
+				billing={{ creditsUsdMicros: "0", spentThisMonthUsdMicros: "4200000" }}
+				burn={{ rateDayUsdMicros: "0", windowHours: 24 }}
+				service={{ state: "stopped", lastChargedAt: null, memory24h: [] }}
+			/>,
+		);
+		expect(html).toContain("$0.00 left. Your hosted stack has stopped.");
+		expect(html).toContain(
+			"Webhooks and subgraphs pick up where they left off once you add credits.",
+		);
+		expect(html).toContain('class="bl-band urgent"');
+		expect(html).toContain("dash-dot alarm");
+	});
+
+	test("reads top to bottom: status, spend chart, add credits band, then the two columns", () => {
+		const html = renderToStaticMarkup(<BillingBody {...base} />);
+		const order = [
+			"$12.50 left.",
+			'aria-label="Spent this month"',
+			'id="packs"',
+			"By unit",
+			"Credits added",
+			"settings-slot",
+		].map((needle) => html.indexOf(needle));
+		expect(order.every((at) => at >= 0)).toBe(true);
+		expect(order).toEqual([...order].sort((a, b) => a - b));
 	});
 
 	test("adding credits sits in its own section, the anchor the low-balance banner scrolls to", () => {
 		const html = renderToStaticMarkup(<BillingBody {...base} />);
 		expect(html).toMatch(/aria-label="Add credits" id="packs"/);
 		expect(html).toContain("credits-slot");
-		expect(html.indexOf("Usage this month")).toBeLessThan(
+		expect(html.indexOf("Spent this month")).toBeLessThan(
 			html.indexOf('id="packs"'),
 		);
 	});
@@ -108,7 +172,7 @@ describe("BillingBody", () => {
 				service={{ state: "stopped", lastChargedAt: null, memory24h: [] }}
 			/>,
 		);
-		expect(html).toContain("your hosted stack has stopped");
+		expect(html).toContain("Your hosted stack has stopped.");
 	});
 
 	test("says it is paused once spend reaches the cap", () => {
@@ -136,7 +200,7 @@ describe("BillingBody", () => {
 		const html = renderToStaticMarkup(<BillingBody {...base} />);
 		expect(html).toContain("+$5.00");
 		expect(html).toContain("+$25.00");
-		expect(html.indexOf("10-09")).toBeLessThan(html.indexOf("10-02"));
+		expect(html.indexOf("Oct 9")).toBeLessThan(html.indexOf("Oct 2"));
 		expect(html).toContain("Top-up");
 	});
 });
@@ -220,12 +284,19 @@ describe("RunwayLine", () => {
 
 	test("a burning balance names the month it lasts until", () => {
 		const html = line();
-		expect(html).toContain("Balance goes to $53.06, which lasts until about");
-		expect(html).toContain("<b>Oct 2027</b>");
+		expect(html).toContain("Balance goes to <b");
+		expect(html).toContain("$53.06</b>, about <b>Oct 2027</b> at this pace.");
+		expect(html).not.toContain("One-time payment.");
+	});
+
+	test("in the band it ends with One-time payment.", () => {
+		expect(line({ oneTime: true })).toContain(
+			"at this pace. One-time payment.",
+		);
 	});
 
 	test("no burn just says where the balance goes", () => {
-		expect(line({ rateDayUsdMicros: 0 })).toContain("Balance goes to $53.06.");
+		expect(line({ rateDayUsdMicros: 0 })).toContain("$53.06</b>.");
 	});
 
 	test("an invalid Other amount states the range", () => {
@@ -251,19 +322,22 @@ describe("BillingBody for a new account", () => {
 
 	test("$0 spent and no credits explains the free 1M and when to add credits", () => {
 		const html = renderToStaticMarkup(<BillingBody {...fresh} />);
-		expect(html).toContain("$0.00 spent this month.");
-		expect(html).toContain("Add credits only when you pass them.");
-		expect(html).toContain("Block headers never count.");
-		expect(html).not.toContain("Only needed past the free 1M.");
+		expect(html).toContain("1M rows free this month.");
+		expect(html).toContain(
+			"Nothing spent yet. Add credits only when you pass the free rows or start a hosted stack.",
+		);
+		expect(html).toContain("0 of your free 1M rows used. Resets Nov 1.");
+		expect(html).toContain("dash-dot idle");
 		expect(html).not.toContain('href="#packs"');
 	});
 
-	test("the Add credits section sits beside Free rows, and both layouts state the minimum", () => {
+	test("a new account has no chart and a neutral band, then the two columns", () => {
 		const html = renderToStaticMarkup(<BillingBody {...fresh} />);
+		expect(html).not.toContain("dc-chart");
+		expect(html).not.toContain("Spent this month");
+		expect(html).toContain('class="bl-band"');
 		expect(html).toMatch(/aria-label="Add credits" id="packs"/);
-		expect(html.indexOf('aria-label="Free rows"')).toBeLessThan(
-			html.indexOf('id="packs"'),
-		);
+		expect(html.indexOf('id="packs"')).toBeLessThan(html.indexOf("By unit"));
 		expect(html).toContain("Minimum $5 a month for webhooks");
 		expect(html).toContain("settings-slot");
 	});
@@ -272,8 +346,8 @@ describe("BillingBody for a new account", () => {
 		const html = renderToStaticMarkup(
 			<BillingBody {...fresh} billing={base.billing} />,
 		);
-		expect(html).not.toContain("$0.00 spent this month.");
-		expect(html).toContain("left");
+		expect(html).not.toContain("1M rows free this month.");
+		expect(html).toContain("left.");
 	});
 });
 
