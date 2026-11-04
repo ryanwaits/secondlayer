@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { FIXTURE_INSIGHTS } from "@/lib/insights.fixtures";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describeTrigger } from "./describe-trigger";
-import { WebhookDetailBody } from "./detail-panel";
+import { AttemptList, WebhookDetailBody } from "./detail-panel";
 import type { Range } from "./view";
 import { activityFor, attempt, detail } from "./webhook.fixtures";
 
@@ -244,11 +244,17 @@ describe("WebhookDetailBody deliveries", () => {
 		attempt({ id: "a1", attempt: 1, statusCode: 502 }),
 	];
 
-	test("three attempts of one event are one row with three dots", () => {
+	test("three attempts of one event are one row that says 3 tries", () => {
 		const html = render({ deliveries: three });
 		expect(html.match(/<tr[^>]*class="click"/g)).toHaveLength(1);
-		expect(html).toContain('aria-label="3 attempts"');
-		expect(html.match(/<i class="f"><\/i>/g)).toHaveLength(2);
+		expect(html).toContain("3 tries");
+		expect(html).not.toContain("wd-trylist");
+		expect(html).not.toContain("<th>Attempts</th>");
+	});
+
+	test("a first-try delivery has no tries note", () => {
+		const html = render({ deliveries: [attempt()] });
+		expect(html).not.toContain("wd-tries");
 	});
 
 	test("an hour filter shows its chip and the clear control", () => {
@@ -281,6 +287,58 @@ describe("WebhookDetailBody deliveries", () => {
 	test("with no filter the panel is the recent deliveries", () => {
 		const html = render({ deliveries: three });
 		expect(html).toContain("Recent deliveries");
-		expect(html).toContain("click a row for its attempts");
+		expect(html).toContain("click a row for its payload");
+	});
+});
+
+describe("AttemptList", () => {
+	const error = "upstream connect error";
+	const tries = [
+		attempt({
+			id: "a1",
+			attempt: 1,
+			statusCode: 503,
+			errorMessage: error,
+			dispatchedAt: "2026-10-15T12:10:00.000Z",
+		}),
+		attempt({
+			id: "a2",
+			attempt: 2,
+			statusCode: 503,
+			errorMessage: error,
+			dispatchedAt: "2026-10-15T12:10:30.000Z",
+		}),
+		attempt({
+			id: "a3",
+			attempt: 3,
+			statusCode: 200,
+			dispatchedAt: "2026-10-15T12:12:04.000Z",
+		}),
+	];
+	const html = renderToStaticMarkup(
+		<AttemptList
+			attempts={tries}
+			selectedId="a3"
+			onPick={noop}
+			webhookId="wh_deposits"
+			asleep
+			finding={null}
+		/>,
+	);
+
+	test("each try is one line, the first with its clock and the rest with their offset", () => {
+		expect(html.match(/<button/g)).toHaveLength(3);
+		expect(html).toContain("12:10:00");
+		expect(html).toContain("+30s");
+		expect(html).toContain("+2m 04s");
+	});
+
+	test("a repeated error says same instead of repeating itself", () => {
+		expect(html.split(error).length - 1).toBe(1);
+		expect(html).toContain("same");
+	});
+
+	test("the selected try is marked pressed", () => {
+		expect(html.match(/aria-pressed="true"/g)).toHaveLength(1);
 	});
 });

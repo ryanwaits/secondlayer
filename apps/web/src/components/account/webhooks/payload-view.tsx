@@ -1,9 +1,19 @@
 "use client";
 
+import { stacksBlockUrl, stacksTxUrl } from "@/components/verify/explorers";
 import { shared } from "@/lib/request-cache";
 import { getDelivery } from "@/lib/webhooks-data";
-import type { ChainTrigger, WebhookDeliveryDetail } from "@secondlayer/sdk";
+import type {
+	ChainTrigger,
+	DeliveryRow,
+	WebhookDeliveryDetail,
+} from "@secondlayer/sdk";
 import { Fragment, type ReactNode, useEffect, useId, useState } from "react";
+import {
+	deliveryCopyText,
+	deliveryFields,
+	payloadBlockHash,
+} from "./delivery-view";
 
 /**
  * One delivery's payload as readable JSON: what we sent, and what the
@@ -74,22 +84,13 @@ export function parseBody(
 	}
 }
 
-/** The attempt whose response the Response tab shows: the newest that got
- *  one, else the newest attempt. `attempts` is oldest first. */
-export function answeredAttempt<T extends { responseBody?: string | null }>(
-	attempts: readonly T[],
-): T {
-	const newest = attempts[attempts.length - 1] as T;
-	return [...attempts].reverse().find((a) => a.responseBody) ?? newest;
-}
-
 function kb(text: string): string {
 	return `${(new TextEncoder().encode(text).length / 1024).toFixed(1)} KB`;
 }
 
 // ── JSON renderer ────────────────────────────────────────────────────────
 
-function Clamp({ json, marked }: { json: string; marked: boolean }) {
+export function Clamp({ json, marked }: { json: string; marked: boolean }) {
 	const [open, setOpen] = useState(false);
 	const clamp = clampString(json);
 	const body =
@@ -258,7 +259,17 @@ function useDelivery(
 	return load;
 }
 
-function CopyPill({ text }: { text: string }) {
+/** The delivery's detail once read; null while loading, asleep or failed. */
+export function useDeliveryDetail(
+	webhookId: string,
+	deliveryId: string,
+	asleep: boolean,
+): WebhookDeliveryDetail | null {
+	const load = useDelivery(webhookId, deliveryId, asleep);
+	return load.status === "ok" ? load.detail : null;
+}
+
+function CopyPill({ text }: { text: () => string }) {
 	const [copied, setCopied] = useState(false);
 	return (
 		<button
@@ -266,7 +277,7 @@ function CopyPill({ text }: { text: string }) {
 			className="pv-copy"
 			onClick={async () => {
 				try {
-					await navigator.clipboard.writeText(text);
+					await navigator.clipboard.writeText(text());
 					setCopied(true);
 					setTimeout(() => setCopied(false), 1200);
 				} catch {
@@ -279,7 +290,7 @@ function CopyPill({ text }: { text: string }) {
 	);
 }
 
-type Tab = "sent" | "response";
+type Tab = "fields" | "sent" | "response";
 
 export function PayloadView({
 	webhookId,
@@ -307,6 +318,42 @@ interface PayloadPanelProps {
 	 *  detail's (untruncated-by-the-list) body may stand in for `responseBody`. */
 	responseIsLatest: boolean;
 	host: string;
+	webhookName: string;
+	/** Every attempt of this event, oldest first. Copy reads them. */
+	attempts: readonly DeliveryRow[];
+	/** The page finding that describes these failures, if any. */
+	finding: string | null;
+	/** Set to an attempt's id when the reader picks it: opens Response. */
+	picked?: string | null;
+}
+
+/** "0x9b5a…cc41" */
+function shortTx(txId: string): string {
+	return `${txId.slice(0, 6)}…${txId.slice(-4)}`;
+}
+
+function Fields({
+	fields,
+	isMarked,
+}: {
+	fields: ReturnType<typeof deliveryFields>;
+	isMarked: (value: string) => boolean;
+}) {
+	return (
+		<dl className="pv-fields">
+			{fields.map((field, i) => (
+				<Fragment key={`${field.group ?? ""}:${field.key}`}>
+					{field.group !== null && fields[i - 1]?.group !== field.group ? (
+						<dt className="pv-group">{field.group}</dt>
+					) : null}
+					<dt>{field.key}</dt>
+					<dd>
+						<Clamp json={field.value} marked={isMarked(field.value)} />
+					</dd>
+				</Fragment>
+			))}
+		</dl>
+	);
 }
 
 /** The viewer itself, given a delivery already read (or still loading). */
@@ -317,44 +364,51 @@ export function PayloadPanel({
 	statusCode,
 	responseIsLatest,
 	host,
+	webhookName,
+	attempts,
+	finding,
+	picked = null,
 }: PayloadPanelProps) {
 	const [chosen, setChosen] = useState<Tab | null>(null);
 	const tipId = useId();
+	useEffect(() => {
+		if (picked) setChosen("response");
+	}, [picked]);
 	const asleep = load.status === "asleep";
 	const detail = load.status === "ok" ? load.detail : null;
 	const payload = detail?.payload ?? null;
 	const gone = load.status === "ok" && payload === null;
+	const fields = payload === null ? [] : deliveryFields(payload);
 	const tab: Tab = asleep
 		? "response"
-		: (chosen ?? (gone ? "response" : "sent"));
+		: (chosen ?? (gone ? "response" : fields.length > 0 ? "fields" : "sent"));
 	const response = responseIsLatest
 		? (detail?.responseBody ?? responseBody)
 		: responseBody;
 	const sentText = payload === null ? null : JSON.stringify(payload, null, 2);
 	const parsed = parseBody(response);
+	const latest = attempts[attempts.length - 1];
+	const blockHeight = detail?.blockHeight ?? latest?.blockHeight ?? null;
+	const txId = detail?.txId ?? latest?.txId ?? null;
+	const blockHash = payload === null ? null : payloadBlockHash(payload);
 
 	let body: ReactNode;
-	let copy = "";
-	if (tab === "sent") {
+	if (tab === "fields") {
+		body = <Fields fields={fields} isMarked={markMatcher(triggers)} />;
+	} else if (tab === "sent") {
 		if (load.status === "loading") body = "Loading…";
 		else if (load.status === "error") body = "Couldn't load the payload.";
 		else if (sentText === null) body = null;
-		else {
-			copy = sentText;
-			body = <JsonView value={payload} isMarked={markMatcher(triggers)} />;
-		}
-	} else {
-		copy = response ?? "";
-		if (!parsed) body = "The receiver sent no body.";
-		else if ("json" in parsed) body = <JsonView value={parsed.json} />;
-		else {
-			body = (
-				<div className="raw">
-					{parsed.raw}
-					{parsed.raw.length >= RESPONSE_CAP ? "\n\nCut at 8 KB." : ""}
-				</div>
-			);
-		}
+		else body = <JsonView value={payload} isMarked={markMatcher(triggers)} />;
+	} else if (!parsed) body = "The receiver sent no body.";
+	else if ("json" in parsed) body = <JsonView value={parsed.json} />;
+	else {
+		body = (
+			<div className="raw">
+				{parsed.raw}
+				{parsed.raw.length >= RESPONSE_CAP ? "\n\nCut at 8 KB." : ""}
+			</div>
+		);
 	}
 
 	return (
@@ -362,6 +416,16 @@ export function PayloadPanel({
 			<div className="pv">
 				<div className="pv-bar">
 					<div className="tabbar mono" role="tablist">
+						{fields.length > 0 ? (
+							<button
+								type="button"
+								role="tab"
+								aria-selected={tab === "fields"}
+								onClick={() => setChosen("fields")}
+							>
+								Fields
+							</button>
+						) : null}
 						<button
 							type="button"
 							role="tab"
@@ -387,7 +451,37 @@ export function PayloadPanel({
 							{response ? <span className="n">{kb(response)}</span> : null}
 						</button>
 					</div>
-					{copy ? <CopyPill text={copy} /> : null}
+					<span className="pv-links">
+						{blockHeight === null ? null : blockHash ? (
+							<a
+								href={stacksBlockUrl(blockHash)}
+								target="_blank"
+								rel="noreferrer"
+							>
+								Block {blockHeight.toLocaleString("en-US")} ↗
+							</a>
+						) : (
+							<span>Block {blockHeight.toLocaleString("en-US")}</span>
+						)}
+						{txId === null ? null : (
+							<a href={stacksTxUrl(txId)} target="_blank" rel="noreferrer">
+								Tx {shortTx(txId)} ↗
+							</a>
+						)}
+					</span>
+					{attempts.length > 0 ? (
+						<CopyPill
+							text={() =>
+								deliveryCopyText({
+									webhookName,
+									host,
+									attempts,
+									detail,
+									finding,
+								})
+							}
+						/>
+					) : null}
 					{asleep ? (
 						<span className="pv-tip" role="tooltip" id={tipId}>
 							Resume this webhook to see what was sent

@@ -12,8 +12,11 @@ import { InsightNote } from "./insight-note";
 export function InsightStack({
 	insights,
 	footer,
+	id: rootId,
 }: {
 	insights: readonly Insight[];
+	/** Anchor id on the stack, for links that scroll to it. */
+	id?: string;
 	/** Rendered at the bottom of each opened card. */
 	footer?: (insight: Insight) => ReactNode;
 }) {
@@ -31,7 +34,7 @@ export function InsightStack({
 		});
 
 	return (
-		<div className="ins-stack">
+		<div className="ins-stack" id={rootId}>
 			<div className="ins-stack-head">
 				<span className="ins-label">
 					{insights.length} {insights.length === 1 ? "insight" : "insights"} ·

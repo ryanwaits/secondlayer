@@ -1506,12 +1506,17 @@ const META: Record<StoryId, Meta> = {
 	},
 	"webhook-payload": {
 		src: ["apps/web/src/components/account/webhooks/payload-view.tsx"],
-		rule: "An opened delivery shows what we sent and what the receiver sent back, as plain indented JSON. Values the trigger filtered on are marked; a long string clamps to one line with a +N that expands it.",
+		rule: "An opened delivery opens on its Fields, with what we sent and what the receiver sent back one tab away as plain indented JSON. Values the trigger filtered on are marked; a long string clamps to one line with a +N that expands it.",
 		variants: [
 			{
 				id: "kept",
 				label: "Payload kept",
 				render: () => <PayloadViewDemo kept />,
+			},
+			{
+				id: "retried",
+				label: "Retried twice",
+				render: () => <PayloadViewDemo kept retried />,
 			},
 			{
 				id: "cleaned",
@@ -1525,7 +1530,7 @@ const META: Record<StoryId, Meta> = {
 			},
 		],
 		usage:
-			"<PayloadView webhookId={webhook.id} deliveryId={latest.id} triggers={webhook.triggers} responseBody={latest.responseBody} statusCode={latest.statusCode} host={hostOf(webhook.url)} />",
+			"<PayloadView webhookId={webhook.id} deliveryId={latest.id} triggers={webhook.triggers} responseBody={latest.responseBody} statusCode={latest.statusCode} host={hostOf(webhook.url)} webhookName={webhook.name} attempts={attempts} finding={finding} />",
 		dos: ["Mount it only when the row is open; it fetches that one delivery."],
 		donts: ["Fold, summarize or syntax-highlight the JSON."],
 	},

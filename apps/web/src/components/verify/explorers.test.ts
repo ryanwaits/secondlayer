@@ -4,6 +4,7 @@ import {
 	bitcoinHeightUrl,
 	rerunCommand,
 	stacksBlockUrl,
+	stacksTxUrl,
 } from "./explorers";
 
 const id = "2e5962b00b8f243e1a4b5a1b7ff3076618ce5e737e30c019bc61e461c92f57ff";
@@ -13,6 +14,12 @@ describe("explorer urls", () => {
 		const want = `https://explorer.hiro.so/block/0x${id}?chain=mainnet`;
 		expect(stacksBlockUrl(id)).toBe(want);
 		expect(stacksBlockUrl(`0x${id}`)).toBe(want);
+	});
+
+	test("stacks tx url adds one 0x prefix whether or not the id has it", () => {
+		const want = `https://explorer.hiro.so/txid/0x${id}?chain=mainnet`;
+		expect(stacksTxUrl(id)).toBe(want);
+		expect(stacksTxUrl(`0x${id}`)).toBe(want);
 	});
 
 	test("bitcoin block url uses the bare hash", () => {

@@ -2,11 +2,11 @@ import { afterEach, describe, expect, test } from "bun:test";
 import { clearRequestCache } from "@/lib/request-cache";
 import type { ChainTrigger } from "@secondlayer/sdk";
 import { renderToStaticMarkup } from "react-dom/server";
+import { answeredAttempt } from "./delivery-view";
 import {
 	JsonView,
 	PayloadPanel,
 	PayloadView,
-	answeredAttempt,
 	clampString,
 	markMatcher,
 	parseBody,
@@ -14,6 +14,7 @@ import {
 	prefetchOnIntent,
 	readDelivery,
 } from "./payload-view";
+import { attempt } from "./webhook.fixtures";
 
 // A real delivery: the fastpool unstake print event.
 const SENT = {
@@ -163,6 +164,9 @@ describe("the Response tab after a retry", () => {
 				statusCode={answered.statusCode}
 				responseIsLatest={answered.id === "a2"}
 				host="example.com"
+				webhookName="hook"
+				attempts={[attempt()]}
+				finding={null}
 			/>,
 		);
 		expect(html).toContain("Response 502");
@@ -188,6 +192,9 @@ describe("the payload viewer on an asleep stack", () => {
 			statusCode={200}
 			responseIsLatest
 			host="example.com"
+			webhookName="hook"
+			attempts={[attempt()]}
+			finding={null}
 		/>,
 	);
 
@@ -200,6 +207,66 @@ describe("the payload viewer on an asleep stack", () => {
 	test("disables Sent and says resuming shows it", () => {
 		expect(html).toContain('aria-disabled="true"');
 		expect(html).toContain("Resume this webhook to see what was sent");
+	});
+});
+
+describe("the payload viewer's Fields tab", () => {
+	const raw = SENT.data.event.data.raw_value;
+	const panel = (payload: unknown) =>
+		renderToStaticMarkup(
+			<PayloadPanel
+				load={{
+					status: "ok",
+					detail: { payload, responseBody: null } as never,
+				}}
+				triggers={FASTPOOL}
+				responseBody={null}
+				statusCode={200}
+				responseIsLatest
+				host="example.com"
+				webhookName="hook"
+				attempts={[attempt()]}
+				finding={null}
+			/>,
+		);
+
+	test("a payload with event data opens on Fields", () => {
+		const html = panel({
+			event: { data: SENT.data.event.data },
+			trigger: "print_event",
+		});
+		expect(html).toContain('aria-selected="true">Fields');
+		expect(html).toContain("pv-fields");
+		expect(html).toContain("print_event");
+	});
+
+	test("a payload without event data has no Fields tab and opens on Sent", () => {
+		const html = panel({ hello: "world" });
+		expect(html).not.toContain("Fields");
+		expect(html).toContain('aria-selected="true">Sent');
+	});
+
+	test("raw_value is clamped in Fields with its hidden count", () => {
+		const html = panel({ event: { data: SENT.data.event.data } });
+		expect(html).toContain(`>+${raw.length - 38}<`);
+	});
+
+	test("filter values are marked in Fields", () => {
+		const html = panel({ event: { data: SENT.data.event.data } });
+		expect(html).toContain(
+			'<span class="m"><span class="s">SP000000000000000000002Q6VF78.pox-5</span></span>',
+		);
+	});
+
+	test("block and tx link out to the explorer", () => {
+		const html = panel({
+			event: { data: SENT.data.event.data },
+			block_hash: "0xabc",
+		});
+		expect(html).toContain(
+			"https://explorer.hiro.so/block/0xabc?chain=mainnet",
+		);
+		expect(html).toContain("https://explorer.hiro.so/txid/0x");
 	});
 });
 
@@ -231,6 +298,9 @@ describe("delivery prefetch", () => {
 			statusCode={200}
 			responseIsLatest
 			host="example.com"
+			webhookName="hook"
+			attempts={[attempt()]}
+			finding={null}
 		/>
 	);
 

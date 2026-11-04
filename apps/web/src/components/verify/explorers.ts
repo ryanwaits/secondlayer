@@ -7,6 +7,11 @@ export function stacksBlockUrl(blockId: string): string {
 	return `https://explorer.hiro.so/block/0x${strip0x(blockId)}?chain=mainnet`;
 }
 
+/** Stacks transaction page. */
+export function stacksTxUrl(txId: string): string {
+	return `https://explorer.hiro.so/txid/0x${strip0x(txId)}?chain=mainnet`;
+}
+
 /** Bitcoin block page, keyed by block hash. */
 export function bitcoinBlockUrl(hash: string): string {
 	return `https://mempool.space/block/${strip0x(hash)}`;

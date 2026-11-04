@@ -46,10 +46,10 @@ const actionsFooter = (insight: Insight) => (
 	<InsightActions insight={insight} />
 );
 
-function SingleInsight({ insight }: { insight: Insight }) {
+function SingleInsight({ insight, id }: { insight: Insight; id?: string }) {
 	const [open, setOpen] = useState(autoOpenId([insight]) !== null);
 	return (
-		<div className="ins-stack">
+		<div className="ins-stack" id={id}>
 			<InsightNote
 				insight={insight}
 				open={open}
@@ -67,9 +67,11 @@ function SingleInsight({ insight }: { insight: Insight }) {
  */
 export function ActionableInsights({
 	insights,
-}: { insights: readonly Insight[] }) {
+	id,
+}: { insights: readonly Insight[]; id?: string }) {
 	if (insights.length === 0) return null;
 	const only = insights[0];
-	if (insights.length === 1 && only) return <SingleInsight insight={only} />;
-	return <InsightStack insights={insights} footer={actionsFooter} />;
+	if (insights.length === 1 && only)
+		return <SingleInsight insight={only} id={id} />;
+	return <InsightStack insights={insights} footer={actionsFooter} id={id} />;
 }

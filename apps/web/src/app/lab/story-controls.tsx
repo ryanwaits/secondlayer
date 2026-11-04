@@ -56,6 +56,7 @@ import {
 } from "@/components/account/subgraphs/subgraph.fixtures";
 import { WebhookCompactDetailView } from "@/components/account/webhooks/compact-detail";
 import { WebhooksCompactList } from "@/components/account/webhooks/compact-list";
+import { AttemptList } from "@/components/account/webhooks/detail-panel";
 import { TitleRow } from "@/components/account/webhooks/detail-panel";
 import { PayloadPanel } from "@/components/account/webhooks/payload-view";
 import {
@@ -564,14 +565,43 @@ const PAYLOAD_STORY_TRIGGERS: ChainTrigger[] = [
 export function PayloadViewDemo({
 	kept,
 	asleep = false,
-}: { kept: boolean; asleep?: boolean }) {
+	retried = false,
+}: { kept: boolean; asleep?: boolean; retried?: boolean }) {
 	const response = JSON.stringify({
 		args: {},
 		data: PAYLOAD_STORY_SENT,
 		headers: { host: "postman-echo.com", "content-type": "application/json" },
 		url: "https://postman-echo.com/post",
 	});
-	return (
+	const attempts = retried
+		? [
+				attempt({
+					id: "d_a1",
+					attempt: 1,
+					statusCode: 503,
+					errorMessage: "upstream connect error",
+					durationMs: 31,
+					dispatchedAt: "2026-10-16T17:39:14.000Z",
+				}),
+				attempt({
+					id: "d_a2",
+					attempt: 2,
+					statusCode: 503,
+					errorMessage: "upstream connect error",
+					durationMs: 29,
+					dispatchedAt: "2026-10-16T17:39:44.000Z",
+				}),
+				attempt({
+					id: "d1",
+					attempt: 3,
+					statusCode: 200,
+					durationMs: 163,
+					responseBody: response,
+					dispatchedAt: "2026-10-16T17:41:48.000Z",
+				}),
+			]
+		: [attempt({ id: "d1", statusCode: 200, responseBody: response })];
+	const panel = (
 		<PayloadPanel
 			load={
 				asleep
@@ -603,7 +633,24 @@ export function PayloadViewDemo({
 			statusCode={200}
 			responseIsLatest
 			host="postman-echo.com"
+			webhookName="fastpool-pox5-test"
+			attempts={attempts}
+			finding={null}
 		/>
+	);
+	if (!retried) return panel;
+	return (
+		<>
+			<AttemptList
+				attempts={attempts}
+				selectedId="d1"
+				onPick={() => {}}
+				webhookId="wh_story"
+				asleep
+				finding={null}
+			/>
+			{panel}
+		</>
 	);
 }
 

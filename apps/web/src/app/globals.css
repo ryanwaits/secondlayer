@@ -7357,19 +7357,67 @@ button.dash-row {
 	padding: 6px 0 14px;
 	white-space: normal;
 }
-.wd-att {
-	display: inline-flex;
-	gap: 3px;
-	vertical-align: middle;
+.wd-tries {
+	color: var(--faint);
 }
-.wd-att i {
-	width: 6px;
-	height: 6px;
-	border-radius: 50%;
-	background: var(--ok);
+.wd-sub {
+	color: var(--sub);
 }
-.wd-att i.f {
-	background: var(--alarm);
+/* Tries of a retried event: one line each, above the payload frame. */
+.wd-trylist {
+	display: grid;
+	margin-bottom: 4px;
+	font: 400 12px / 1.4 var(--font-mono-stack);
+	font-variant-numeric: tabular-nums;
+}
+.wd-trylist .good {
+	color: var(--ok);
+}
+.wd-trylist .bad {
+	color: var(--alarm);
+}
+.wd-try-row {
+	display: grid;
+	grid-template-columns: 22px 64px 72px 78px minmax(0, 1fr);
+	align-items: baseline;
+	gap: 10px;
+	padding: 6px 8px;
+	border: 0;
+	border-bottom: 1px solid var(--line);
+	background: none;
+	color: var(--ink);
+	font: inherit;
+	text-align: left;
+	cursor: pointer;
+}
+.wd-try-row[aria-pressed="true"] {
+	background: var(--soft);
+}
+.wd-try-row:focus-visible {
+	outline: 2px solid var(--pri);
+	outline-offset: -2px;
+}
+.wd-try-err {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	color: var(--sub);
+}
+.wd-try-end {
+	margin: 0;
+	padding: 6px 8px;
+	color: var(--sub);
+}
+.wd-try-finding {
+	padding: 0;
+	border: 0;
+	background: none;
+	color: var(--pri-ink);
+	font: inherit;
+	cursor: pointer;
+}
+.wd-try-finding:hover {
+	text-decoration: underline;
 }
 .wd-more {
 	justify-self: start;
@@ -7403,8 +7451,29 @@ button.dash-row {
 	height: 100%;
 	box-shadow: none;
 }
-.pv-copy {
+.pv-links {
+	display: flex;
+	gap: 14px;
 	margin-left: auto;
+	font: 400 12px / 1 var(--font-mono-stack);
+	color: var(--sub);
+}
+.pv-links a {
+	color: var(--sub);
+	text-decoration: none;
+}
+.pv-links a:hover {
+	color: var(--pri-ink);
+}
+@media (max-width: 640px) {
+	.pv-links {
+		display: none;
+	}
+	.pv-copy {
+		margin-left: auto;
+	}
+}
+.pv-copy {
 	padding: 6px 11px;
 	border: 1px solid var(--line);
 	border-radius: 999px;
@@ -7454,6 +7523,50 @@ button.dash-row {
 	padding: 12px 14px;
 	font: 400 12.5px / 21px var(--font-mono-stack);
 	color: var(--sub);
+}
+.pv-fields {
+	display: grid;
+	grid-template-columns: max-content minmax(0, 1fr);
+	margin: 0;
+}
+.pv-fields dt,
+.pv-fields dd {
+	margin: 0;
+	padding: 4px 0;
+	border-bottom: 1px solid var(--line);
+}
+.pv-fields dt {
+	padding-right: 28px;
+}
+.pv-fields dd {
+	overflow-wrap: anywhere;
+	color: var(--ink);
+}
+.pv-fields .pv-group {
+	grid-column: 1 / -1;
+	padding-top: 14px;
+	font: 500 10px / 1 var(--font-mono-stack);
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+	color: var(--faint);
+}
+.pv-fields .m {
+	background: var(--hi);
+	color: var(--on-hi);
+	padding: 0 2px;
+}
+.pv-fields .pv-more {
+	margin-left: 4px;
+	padding: 0;
+	border: 0;
+	background: none;
+	color: var(--pri-ink);
+	font: inherit;
+	font-size: 11.5px;
+	cursor: pointer;
+}
+.pv-fields .pv-more:hover {
+	text-decoration: underline;
 }
 .pv-note {
 	margin: 10px 0 0;

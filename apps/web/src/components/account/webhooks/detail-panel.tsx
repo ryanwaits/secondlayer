@@ -43,12 +43,22 @@ import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import { AttemptTimeline } from "./attempt-timeline";
 import { WebhookCompactDetail } from "./compact-detail";
 import { DeliveriesChart } from "./deliveries-chart";
+import {
+	FAILURE_RULES,
+	answeredAttempt,
+	codeLabel,
+	offsetLabel,
+	statusSuffix,
+} from "./delivery-view";
 import { AsleepState } from "./list-panel";
 import { ListensFor } from "./listens-for";
-import { PayloadView, answeredAttempt, prefetchOnIntent } from "./payload-view";
+import {
+	PayloadView,
+	prefetchOnIntent,
+	useDeliveryDetail,
+} from "./payload-view";
 import { displayStatus, formatEventCell, shortenName } from "./shared";
 import { WebhookDetailSkeleton } from "./skeletons";
 import {
@@ -330,8 +340,9 @@ function DeliveriesPanel({
 	onClearHour,
 	asleep,
 	partial,
+	finding,
 }: {
-	webhook: Pick<WebhookDetail, "id" | "url" | "triggers">;
+	webhook: Pick<WebhookDetail, "id" | "name" | "url" | "triggers">;
 	/** Null while the hour's window is still loading. */
 	rows: readonly DeliveryRow[] | null;
 	hour: { label: string } | null;
@@ -340,6 +351,8 @@ function DeliveriesPanel({
 	/** Only the server's first page of deliveries is in hand, so the total
 	 *  isn't known yet. */
 	partial: boolean;
+	/** The page finding that describes failing deliveries, if any. */
+	finding: string | null;
 }) {
 	const [open, setOpen] = useState<string | null>(null);
 	const [showAll, setShowAll] = useState(false);
@@ -363,7 +376,7 @@ function DeliveriesPanel({
 						</button>
 					) : null}
 				</span>
-				<span className="wd-faint">click a row for its attempts</span>
+				<span className="wd-faint">click a row for its payload</span>
 			</div>
 			<div className="wd-tbl-wrap">
 				<table className="wd-tbl">
@@ -372,7 +385,6 @@ function DeliveriesPanel({
 							<th>Time (UTC)</th>
 							<th>Event</th>
 							<th>Status</th>
-							<th>Attempts</th>
 							<th className="r">ms</th>
 						</tr>
 					</thead>
@@ -382,7 +394,7 @@ function DeliveriesPanel({
 								{Array.from({ length: 5 }).map((_, i) => (
 									// biome-ignore lint/suspicious/noArrayIndexKey: static skeleton rows
 									<tr key={i}>
-										<td colSpan={5}>
+										<td colSpan={4}>
 											<span
 												className="wh-skel"
 												aria-hidden="true"
@@ -394,7 +406,7 @@ function DeliveriesPanel({
 							</>
 						) : groups.length === 0 ? (
 							<tr>
-								<td colSpan={5} className="wd-faint wd-empty">
+								<td colSpan={4} className="wd-faint wd-empty">
 									{hour
 										? "No deliveries kept for this hour. Deliveries are kept 30 days."
 										: "No deliveries yet."}
@@ -408,6 +420,7 @@ function DeliveriesPanel({
 								latest={latest}
 								webhook={webhook}
 								asleep={asleep}
+								finding={finding}
 								open={open === key}
 								onToggle={() => setOpen(open === key ? null : key)}
 							/>
@@ -437,17 +450,22 @@ function DeliveryRowView({
 	latest,
 	webhook,
 	asleep,
+	finding,
 	open,
 	onToggle,
 }: {
 	attempts: DeliveryRow[];
 	latest: DeliveryRow;
-	webhook: Pick<WebhookDetail, "id" | "url" | "triggers">;
+	webhook: Pick<WebhookDetail, "id" | "name" | "url" | "triggers">;
 	asleep: boolean;
+	finding: string | null;
 	open: boolean;
 	onToggle: () => void;
 }) {
-	const answered = answeredAttempt(attempts);
+	const [picked, setPicked] = useState<string | null>(null);
+	const suffix = statusSuffix(attempts);
+	const shown =
+		attempts.find((a) => a.id === picked) ?? answeredAttempt(attempts);
 	const warm = () =>
 		prefetchOnIntent({
 			webhookId: webhook.id,
@@ -474,19 +492,11 @@ function DeliveryRowView({
 			>
 				<td>{utcStamp(latest.dispatchedAt)}</td>
 				<td>{formatEventCell(latest.txId, latest.eventIndex)}</td>
-				<td className={isOk(latest) ? "good" : "bad"}>
-					{latest.statusCode ?? "none"}
-				</td>
 				<td>
-					<span
-						className="wd-att"
-						role="img"
-						aria-label={`${attempts.length} ${attempts.length === 1 ? "attempt" : "attempts"}`}
-					>
-						{attempts.map((a) => (
-							<i key={a.id} className={isOk(a) ? "" : "f"} />
-						))}
+					<span className={isOk(latest) ? "good" : "bad"}>
+						{codeLabel(latest)}
 					</span>
+					{suffix ? <span className="wd-tries"> · {suffix}</span> : null}
 				</td>
 				<td className="r">
 					{latest.durationMs === null
@@ -496,22 +506,118 @@ function DeliveryRowView({
 			</tr>
 			{open ? (
 				<tr className="exp">
-					<td colSpan={5}>
-						<AttemptTimeline attempts={attempts} />
+					<td colSpan={4}>
+						{attempts.length > 1 ? (
+							<AttemptList
+								attempts={attempts}
+								selectedId={shown.id}
+								onPick={setPicked}
+								webhookId={webhook.id}
+								asleep={asleep}
+								finding={finding}
+							/>
+						) : null}
 						<PayloadView
 							webhookId={webhook.id}
 							deliveryId={latest.id}
 							asleep={asleep}
 							triggers={webhook.triggers}
-							responseBody={answered.responseBody ?? null}
-							statusCode={answered.statusCode}
-							responseIsLatest={answered.id === latest.id}
+							responseBody={shown.responseBody ?? null}
+							statusCode={shown.statusCode}
+							responseIsLatest={shown.id === latest.id}
 							host={hostOf(webhook.url)}
+							webhookName={webhook.name}
+							attempts={attempts}
+							finding={finding}
+							picked={picked}
 						/>
 					</td>
 				</tr>
 			) : null}
 		</>
+	);
+}
+
+/** One line per try of a retried event. Picking a line opens that try's
+ *  response. `attempts` is oldest first. */
+export function AttemptList({
+	attempts,
+	selectedId,
+	onPick,
+	webhookId,
+	asleep,
+	finding,
+}: {
+	attempts: readonly DeliveryRow[];
+	selectedId: string;
+	onPick: (id: string) => void;
+	webhookId: string;
+	asleep: boolean;
+	finding: string | null;
+}) {
+	const latest = attempts[attempts.length - 1] as DeliveryRow;
+	const outbox = useDeliveryDetail(webhookId, latest.id, asleep)?.outboxStatus;
+	const first = Date.parse((attempts[0] as DeliveryRow).dispatchedAt);
+	return (
+		<div className="wd-trylist">
+			{attempts.map((a, i) => {
+				const previous = attempts[i - 1];
+				const offset = offsetLabel(Date.parse(a.dispatchedAt) - first);
+				const same =
+					previous !== undefined &&
+					a.errorMessage !== null &&
+					a.errorMessage === previous.errorMessage;
+				return (
+					<button
+						key={a.id}
+						type="button"
+						className="wd-try-row"
+						aria-pressed={a.id === selectedId}
+						onClick={() => onPick(a.id)}
+					>
+						<span className="wd-faint">{a.attempt}</span>
+						<span className={isOk(a) ? "good" : "bad"}>{codeLabel(a)}</span>
+						<span>{a.durationMs === null ? "–" : `${a.durationMs} ms`}</span>
+						<span className="wd-faint">
+							{offset || a.dispatchedAt.slice(11, 19)}
+						</span>
+						<span className="wd-try-err">
+							{same ? (
+								<span className="wd-faint">same</span>
+							) : (
+								(a.errorMessage ?? "")
+							)}
+						</span>
+					</button>
+				);
+			})}
+			{outbox === "pending" && !isOk(latest) ? (
+				<p className="wd-try-end">
+					<span className="wd-sub">↻ retrying</span>
+				</p>
+			) : null}
+			{outbox === "dead" ? (
+				<p className="wd-try-end">
+					<span className="bad">✕ gave up</span> held for resend
+					{" · "}
+					{finding ? (
+						<button
+							type="button"
+							className="wd-try-finding"
+							onClick={() =>
+								document
+									.getElementById("wd-finding")
+									?.scrollIntoView({ block: "center", behavior: "smooth" })
+							}
+						>
+							{finding} →
+						</button>
+					) : (
+						<code className="wd-faint">sl webhooks requeue</code>
+					)}
+				</p>
+			) : null}
+		</div>
 	);
 }
 
@@ -560,6 +666,7 @@ export function WebhookDetailBody({
 	deliveriesPartial = false,
 }: WebhookDetailBodyProps) {
 	const ranked = rankInsights(insights);
+	const finding = ranked.find((i) => FAILURE_RULES.has(i.rule))?.line ?? null;
 	const paused = webhook.status === "paused";
 	// Only an all-paused stack sleeps; a resume wakes it, so the flag drops
 	// the moment the webhook reads active again instead of on the next poll.
@@ -606,7 +713,7 @@ export function WebhookDetailBody({
 				/>
 			</header>
 
-			<ActionableInsights insights={ranked} />
+			<ActionableInsights insights={ranked} id="wd-finding" />
 
 			{activity && !quiet ? (
 				<DeliveriesChart
@@ -636,6 +743,7 @@ export function WebhookDetailBody({
 						onClearHour={onClearHour}
 						asleep={asleep}
 						partial={deliveriesPartial && !hour}
+						finding={finding}
 					/>
 				)}
 			</div>
