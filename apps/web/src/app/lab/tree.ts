@@ -48,6 +48,7 @@ export const STORY_INDEX = [
 	{ id: "handoff", group: "Dashboard", title: "Hand off" },
 	{ id: "callout", group: "Content", title: "Callout" },
 	{ id: "subgraph-tables", group: "Content", title: "Subgraph tables" },
+	{ id: "subgraph-use", group: "Content", title: "Subgraph use in your app" },
 	{ id: "subgraph-rows", group: "Content", title: "Subgraph rows" },
 	{ id: "eyebrow-facts", group: "Content", title: "Eyebrow, facts, status" },
 	{ id: "mobile-sheet", group: "Mobile", title: "Sheet" },

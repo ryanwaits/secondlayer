@@ -6,7 +6,7 @@ import { SubgraphDetailBody } from "./detail-screen";
 import { SubgraphsEmptyState } from "./empty-state";
 import { HandlerErrorsPanel } from "./health-panels";
 import { SubgraphRows, SubgraphsListBody } from "./list-screen";
-import { RecentRowsBody } from "./recent-rows";
+import { RecentRowsBody, RowPayload } from "./recent-rows";
 import {
 	EXAMPLE_NOW,
 	PERF_TEST_SBTC_ROWS,
@@ -17,6 +17,7 @@ import {
 	perfTestSbtcDetail,
 } from "./subgraph.fixtures";
 import { TablesSection, pageWindow } from "./tables-section";
+import { UseSection } from "./use-section";
 
 describe("SubgraphsEmptyState", () => {
 	test("says what a subgraph is, shows the deploy command and links the guide", () => {
@@ -377,6 +378,108 @@ describe("RecentRowsBody", () => {
 			<RecentRowsBody name="perf-test-sbtc" rows={[]} />,
 		);
 		expect(html).toContain("No rows yet.");
+	});
+});
+
+describe("RowPayload", () => {
+	const row = {
+		_id: "4817",
+		_block_height: "9406147",
+		_tx_id:
+			"0x28b38a37ec1c0a2913ff5e0051fdfc5038ead96e90b6f5d7b05f4bc0d3de3e45",
+		_created_at: "2026-11-03T19:49:38.682Z",
+		request_id: "4817",
+		signer_bitmap: "255",
+	};
+	const html = renderToStaticMarkup(
+		<RowPayload name="perf-test-sbtc" table="withdrawal_reject" row={row} />,
+	);
+
+	test("an opened row shows its own columns as Fields, without system columns", () => {
+		const fields = html.slice(html.indexOf('<dl class="pv-fields">'));
+		expect(fields).toContain("<dt>request_id</dt>");
+		expect(fields).toContain("<dd>255</dd>");
+		expect(fields).not.toContain("_block_height");
+		expect(fields).not.toContain("_tx_id");
+	});
+
+	test("the bar offers Fields and JSON, with no Query tab or attempts line", () => {
+		expect(html).toContain("Fields");
+		expect(html).toContain("JSON");
+		expect(html).not.toContain("Query");
+		expect(html).not.toContain("ins-timeline");
+	});
+
+	test("the bar names the block and links the transaction", () => {
+		expect(html).toContain("Block 9,406,147");
+		expect(html).toContain("explorer.hiro.so/txid/0x28b38a37");
+	});
+});
+
+describe("UseSection", () => {
+	const tables = {
+		withdrawal_reject: {
+			endpoint: "/v1/subgraphs/perf-test-sbtc/withdrawal_reject",
+			rowCount: 295,
+			columns: {
+				request_id: { type: "uint" },
+				signer_bitmap: { type: "uint" },
+			},
+		},
+		completed_deposit: {
+			endpoint: "/v1/subgraphs/perf-test-sbtc/completed_deposit",
+			rowCount: 64_023,
+			columns: { amount: { type: "uint" }, burn_hash: { type: "text" } },
+		},
+		withdrawal_create: {
+			endpoint: "/v1/subgraphs/perf-test-sbtc/withdrawal_create",
+			rowCount: 4_828,
+			columns: { amount: { type: "uint" }, sender: { type: "principal" } },
+		},
+	};
+	const html = renderToStaticMarkup(
+		<UseSection name="perf-test-sbtc" tables={tables} />,
+	);
+
+	test("a chip per table, the biggest table first and selected", () => {
+		const chips = [
+			...html.matchAll(
+				/<button type="button" aria-pressed="(true|false)">([a-z_]+)<\/button>/g,
+			),
+		]
+			.map((m) => m[2])
+			.filter((label) => label?.includes("_"));
+		expect(chips).toEqual([
+			"completed_deposit",
+			"withdrawal_create",
+			"withdrawal_reject",
+		]);
+		expect(html).toContain('aria-pressed="true">completed_deposit<');
+	});
+
+	test("SDK is the selected tab and Newest the selected recipe", () => {
+		expect(html).toContain('role="tab" aria-selected="true">SDK<');
+		expect(html).toContain('role="tab" aria-selected="false">CLI<');
+		expect(html).toContain('aria-pressed="true">Newest<');
+	});
+
+	test("the plain code shows until the frame arrives, without tip lines", () => {
+		const pre = html.slice(html.indexOf('<pre class="lf-pre">'));
+		expect(pre).toContain("getSubgraph(definition)");
+		expect(pre).toContain(".completed_deposit.findMany(");
+		expect(pre).not.toContain("!tip");
+	});
+
+	test("Copy carries no hover caption", () => {
+		expect(html).toContain(">Copy</button>");
+		expect(html).not.toContain('role="tooltip"');
+		expect(html).not.toContain("title=");
+	});
+
+	test("a subgraph with no tables shows nothing", () => {
+		expect(
+			renderToStaticMarkup(<UseSection name="perf-test-sbtc" tables={{}} />),
+		).toBe("");
 	});
 });
 

@@ -7740,6 +7740,93 @@ button.dash-row {
 	color: var(--ink);
 	overflow-x: auto;
 }
+/* Use in your app: one frame whose body keeps the tallest example's height
+   (the SDK's 9 rows), so switching table, recipe or language never moves the
+   page. Long lines scroll inside the body. */
+.use {
+	display: grid;
+	gap: 14px;
+	min-width: 0;
+	align-content: start;
+}
+.use-top {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: space-between;
+	gap: 10px 20px;
+	min-width: 0;
+}
+.use-recipes {
+	display: inline-flex;
+	gap: 16px;
+	margin-left: auto;
+	font-size: 13px;
+}
+.use-recipes button {
+	padding: 4px 0;
+	border: 0;
+	border-bottom: 1px solid transparent;
+	background: none;
+	color: var(--sub);
+	font: inherit;
+	cursor: pointer;
+}
+.use-recipes button:hover {
+	color: var(--ink);
+}
+.use-recipes button[aria-pressed="true"] {
+	border-bottom-color: var(--ink);
+	color: var(--ink);
+}
+.use-recipes button:focus-visible {
+	outline: 2px solid var(--pri);
+	outline-offset: 2px;
+}
+@media (max-width: 640px) {
+	.use-recipes {
+		margin-left: 0;
+	}
+}
+.use .use-frame {
+	margin: 0;
+}
+.use-frame .cb-bar .lang {
+	margin-left: auto;
+}
+.use-copy {
+	flex: none;
+	padding: 6px 11px;
+	border: 1px solid var(--line);
+	border-radius: 999px;
+	background: none;
+	color: var(--ink);
+	font: 400 12px / 1 var(--font-sans-stack);
+	cursor: pointer;
+}
+.use-copy:hover:not(:disabled) {
+	border-color: var(--ink);
+}
+.use-copy:disabled {
+	color: var(--faint);
+	cursor: default;
+}
+.use-body {
+	height: calc(9 * var(--lh, 22px) + 24px);
+	overflow: auto;
+}
+.use-body .lf-pre {
+	box-sizing: border-box;
+	min-height: 100%;
+	border: 0;
+	border-radius: 0;
+}
+.use-empty {
+	margin: 0;
+	padding: 18px 14px;
+	font: 400 12.5px / 1.5 var(--font-mono-stack);
+	color: var(--sub);
+}
 .lf-foot {
 	display: flex;
 	justify-content: space-between;

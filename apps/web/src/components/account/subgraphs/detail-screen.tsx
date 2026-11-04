@@ -37,6 +37,7 @@ import { HandlerErrorsPanel, RowsWrittenPanel } from "./health-panels";
 import { RecentRows } from "./recent-rows";
 import type { RecentRowsData } from "./recent-rows-model";
 import { TablesSection } from "./tables-section";
+import { UseSection } from "./use-section";
 
 const DETAIL_POLL_MS = 10_000;
 const HEALTH_POLL_MS = 60_000;
@@ -187,6 +188,7 @@ export function SubgraphDetailBody({
 					source={source}
 					initialBlocks={initialBlocks}
 				/>
+				<UseSection name={detail.name} tables={detail.tables} />
 				<RecentRows name={detail.name} initial={initialRows} />
 			</div>
 

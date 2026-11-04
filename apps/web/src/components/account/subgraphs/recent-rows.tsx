@@ -1,8 +1,9 @@
 "use client";
 
+import { stacksTxUrl } from "@/components/verify/explorers";
 import { groupDigits } from "@/lib/subgraph-view";
 import { fetchRecentRows } from "@/lib/subgraphs-store";
-import { useEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
 import { JsonView } from "../webhooks/payload-view";
 import {
 	type RecentRow,
@@ -41,14 +42,40 @@ function sizeLabel(text: string): string {
 const rowKey = ({ table, row }: RecentRow): string =>
 	`${table}:${asText(row._id)}`;
 
-type Tab = "row" | "query";
+type Tab = "fields" | "json";
 
-function RowPayload({ name, table, row }: RecentRow & { name: string }) {
-	const [tab, setTab] = useState<Tab>("row");
+/** A row's own columns, without the system ones (`_id`, `_block_height`, …). */
+function ownColumns(row: Record<string, unknown>): Record<string, unknown> {
+	return Object.fromEntries(
+		Object.entries(row).filter(([key]) => !key.startsWith("_")),
+	);
+}
+
+const fieldText = (value: unknown): string =>
+	value !== null && typeof value === "object"
+		? JSON.stringify(value)
+		: String(value);
+
+/** What Copy puts on the clipboard: where the row lives, then its values. */
+function rowCopyText({ name, table, row }: RecentRow & { name: string }) {
+	const tx = asText(row._tx_id);
+	return [
+		`Subgraph  ${name}`,
+		`Table     ${table}`,
+		`Row       _id ${asText(row._id)} · block ${groupDigits(asText(row._block_height))} · written ${clock(asText(row._created_at))} UTC`,
+		...(tx ? [`          tx ${tx}`] : []),
+		JSON.stringify(ownColumns(row), null, 2),
+		"Docs https://www.secondlayer.tools/docs/subgraphs",
+	].join("\n");
+}
+
+/** The opened row's frame: its columns as Fields, or the raw JSON. */
+export function RowPayload({ name, table, row }: RecentRow & { name: string }) {
+	const [tab, setTab] = useState<Tab>("fields");
 	const [copied, setCopied] = useState(false);
 	const rowText = JSON.stringify(row, null, 2);
-	const queryText = `curl "https://api.secondlayer.tools/v1/subgraphs/${name}/${table}/${asText(row._id)}" \\\n  -H "Authorization: Bearer $SECONDLAYER_API_KEY"`;
-	const copy = tab === "row" ? rowText : queryText;
+	const fields = Object.entries(ownColumns(row));
+	const tx = asText(row._tx_id);
 	return (
 		<div className="pv">
 			<div className="pv-bar">
@@ -56,27 +83,37 @@ function RowPayload({ name, table, row }: RecentRow & { name: string }) {
 					<button
 						type="button"
 						role="tab"
-						aria-selected={tab === "row"}
-						onClick={() => setTab("row")}
+						aria-selected={tab === "fields"}
+						onClick={() => setTab("fields")}
 					>
-						Row
-						<span className="n">{sizeLabel(rowText)}</span>
+						Fields
 					</button>
 					<button
 						type="button"
 						role="tab"
-						aria-selected={tab === "query"}
-						onClick={() => setTab("query")}
+						aria-selected={tab === "json"}
+						onClick={() => setTab("json")}
 					>
-						Query
+						JSON
+						<span className="n">{sizeLabel(rowText)}</span>
 					</button>
 				</div>
+				<span className="pv-links">
+					<span>Block {groupDigits(asText(row._block_height))}</span>
+					{tx ? (
+						<a href={stacksTxUrl(tx)} target="_blank" rel="noreferrer">
+							Tx {shortTx(tx)} ↗
+						</a>
+					) : null}
+				</span>
 				<button
 					type="button"
 					className="pv-copy"
 					onClick={async () => {
 						try {
-							await navigator.clipboard.writeText(copy);
+							await navigator.clipboard.writeText(
+								rowCopyText({ name, table, row }),
+							);
 							setCopied(true);
 							setTimeout(() => setCopied(false), COPIED_MS);
 						} catch {
@@ -88,10 +125,17 @@ function RowPayload({ name, table, row }: RecentRow & { name: string }) {
 				</button>
 			</div>
 			<div className="pv-body">
-				{tab === "row" ? (
-					<JsonView value={row} />
+				{tab === "fields" ? (
+					<dl className="pv-fields">
+						{fields.map(([key, value]) => (
+							<Fragment key={key}>
+								<dt>{key}</dt>
+								<dd>{fieldText(value)}</dd>
+							</Fragment>
+						))}
+					</dl>
 				) : (
-					<pre className="j">{queryText}</pre>
+					<JsonView value={row} />
 				)}
 			</div>
 		</div>
@@ -134,19 +178,6 @@ function RecentRowView({
 			{open ? (
 				<tr className="exp">
 					<td colSpan={4}>
-						<div
-							className="ins-timeline"
-							style={{ "--n": 1 } as React.CSSProperties}
-						>
-							<div className="ok">
-								<b>
-									{table} · row {groupDigits(asText(row._id))}
-								</b>
-								block {blockLabel(row)} · tx {shortTx(tx)}
-								<br />
-								<small>written {written} UTC</small>
-							</div>
-						</div>
 						<RowPayload name={name} table={table} row={row} />
 					</td>
 				</tr>

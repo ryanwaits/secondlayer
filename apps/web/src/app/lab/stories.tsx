@@ -10,7 +10,10 @@ import {
 } from "@/components/account/overview/first-rows-code";
 import { SubgraphsEmptyState } from "@/components/account/subgraphs/empty-state";
 import { SubgraphsListBody } from "@/components/account/subgraphs/list-screen";
-import { RecentRowsBody } from "@/components/account/subgraphs/recent-rows";
+import {
+	RecentRowsBody,
+	RowPayload,
+} from "@/components/account/subgraphs/recent-rows";
 import {
 	EXAMPLE_NOW,
 	PERF_TEST_SBTC_ROWS,
@@ -21,6 +24,7 @@ import {
 	perfTestSbtcDetail,
 } from "@/components/account/subgraphs/subgraph.fixtures";
 import { TablesSection } from "@/components/account/subgraphs/tables-section";
+import { UseSection } from "@/components/account/subgraphs/use-section";
 import { AsleepState } from "@/components/account/webhooks/list-panel";
 import { ListensFor } from "@/components/account/webhooks/listens-for";
 import {
@@ -2831,9 +2835,67 @@ const META: Record<StoryId, Meta> = {
 			"Add hover behavior to the focus links; they press on click only.",
 		],
 	},
+	"subgraph-use": {
+		src: [
+			"apps/web/src/components/account/subgraphs/use-section.tsx",
+			"apps/web/src/components/account/subgraphs/use-examples.ts",
+		],
+		rule: "One chip per table, four recipes, and the code as the SDK, the CLI or cURL. The body keeps the tallest example's height, so nothing moves when you switch.",
+		stack: true,
+		variants: [
+			{
+				id: "use",
+				label: "Three tables",
+				render: () => (
+					<UseSection
+						name="perf-test-sbtc"
+						tables={{
+							completed_deposit: {
+								endpoint: "/v1/subgraphs/perf-test-sbtc/completed_deposit",
+								rowCount: 64_023,
+								columns: {
+									amount: { type: "uint" },
+									burn_hash: { type: "text" },
+									sweep_txid: { type: "text" },
+									burn_height: { type: "uint" },
+									bitcoin_txid: { type: "text" },
+									output_index: { type: "uint" },
+								},
+							},
+							withdrawal_create: {
+								endpoint: "/v1/subgraphs/perf-test-sbtc/withdrawal_create",
+								rowCount: 4_828,
+								columns: {
+									amount: { type: "uint" },
+									sender: { type: "principal" },
+									max_fee: { type: "uint" },
+									recipient: { type: "jsonb" },
+									request_id: { type: "uint" },
+									block_height: { type: "uint" },
+								},
+							},
+							withdrawal_reject: {
+								endpoint: "/v1/subgraphs/perf-test-sbtc/withdrawal_reject",
+								rowCount: 295,
+								columns: {
+									request_id: { type: "uint" },
+									signer_bitmap: { type: "uint" },
+								},
+							},
+						}}
+					/>
+				),
+			},
+		],
+		usage: "<UseSection name={detail.name} tables={detail.tables} />",
+		dos: ["Write each example from the table's real columns and newest row."],
+		donts: [
+			"Add a callout, collapse or mark to the SDK example: tips only, on the line that uses the method.",
+		],
+	},
 	"subgraph-rows": {
 		src: ["apps/web/src/components/account/subgraphs/recent-rows.tsx"],
-		rule: "Every row keeps the block and transaction it came from. A row opens into the same payload frame webhooks use, showing its raw JSON.",
+		rule: "Every row keeps the block and transaction it came from. A row opens into the same payload frame webhooks use: its columns as Fields, or the raw JSON.",
 		stack: true,
 		variants: [
 			{
@@ -2845,6 +2907,17 @@ const META: Record<StoryId, Meta> = {
 						rows={Object.entries(PERF_TEST_SBTC_ROWS).flatMap(([table, rows]) =>
 							rows.map((row) => ({ table, row })),
 						)}
+					/>
+				),
+			},
+			{
+				id: "open",
+				label: "Opened row",
+				render: () => (
+					<RowPayload
+						name="perf-test-sbtc"
+						table="completed_deposit"
+						row={PERF_TEST_SBTC_ROWS.completed_deposit?.[0] ?? {}}
 					/>
 				),
 			},

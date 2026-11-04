@@ -80,11 +80,47 @@ describe("code render route", () => {
 	});
 
 	test("bad lines and a malformed body are 400", async () => {
-		expect((await post({ blocks: [{ ...block, lines: 0 }] })).status).toBe(400);
+		expect((await post({ blocks: [{ ...block, lines: -1 }] })).status).toBe(
+			400,
+		);
 		expect((await post({ blocks: [{ ...block, lines: 1.5 }] })).status).toBe(
 			400,
 		);
 		expect((await post({ blocks: [] })).status).toBe(400);
 		expect((await post(null)).status).toBe(400);
+	});
+
+	test("a bash block renders its command with a prompt", async () => {
+		const res = await post({
+			blocks: [
+				{
+					code: "sl subgraphs query a b --count",
+					title: "",
+					lines: 0,
+					lang: "bash",
+				},
+			],
+		});
+		expect(res.status).toBe(200);
+		const { blocks } = await res.json();
+		expect(blocks[0].html).toContain("subgraphs");
+		expect(blocks[0].html).toContain("$");
+	});
+
+	test("lines 0 with no title is a bare body without line numbers or a bar", async () => {
+		const res = await post({
+			blocks: [{ code: "const a = 1;\nconst b = 2;", title: "", lines: 0 }],
+		});
+		expect(res.status).toBe(200);
+		const { blocks } = await res.json();
+		expect(blocks[0].className).toBe("cb tabbed");
+		expect(blocks[0].html).not.toContain("cb-bar");
+		expect(blocks[0].html).not.toContain(">1<");
+	});
+
+	test("an unsupported lang is 400", async () => {
+		expect(
+			(await post({ blocks: [{ ...block, lang: "python" }] })).status,
+		).toBe(400);
 	});
 });

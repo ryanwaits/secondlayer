@@ -18,7 +18,7 @@ function parse(body: unknown): CodeBlockInput[] | null {
 		return null;
 	const out: CodeBlockInput[] = [];
 	for (const raw of blocks) {
-		const { code, title, lines } = (raw ?? {}) as Partial<CodeBlockInput>;
+		const { code, title, lines, lang } = (raw ?? {}) as Partial<CodeBlockInput>;
 		if (
 			typeof code !== "string" ||
 			code.length < 1 ||
@@ -27,16 +27,17 @@ function parse(body: unknown): CodeBlockInput[] | null {
 			title.length > MAX_TITLE ||
 			typeof lines !== "number" ||
 			!Number.isInteger(lines) ||
-			lines < 1 ||
-			lines > MAX_LINES
+			lines < 0 ||
+			lines > MAX_LINES ||
+			(lang !== undefined && lang !== "ts" && lang !== "bash")
 		)
 			return null;
-		out.push({ code, title, lines });
+		out.push({ code, title, lines, lang });
 	}
 	return out;
 }
 
-/** Renders TypeScript blocks with the docs code renderer, for client screens
+/** Renders TypeScript or shell blocks with the docs code renderer, for client screens
  *  that can't run Shiki. Renders only the text it's given, escaped by
  *  renderCode, and reads no account data, so it needs no session. */
 export async function POST(req: Request) {
@@ -44,7 +45,7 @@ export async function POST(req: Request) {
 	if (!blocks)
 		return NextResponse.json(
 			{
-				error: `Send { blocks }: 1 to ${MAX_CODE_BLOCKS} of { code (1 to ${MAX_CODE} chars), title (up to ${MAX_TITLE} chars), lines (1 to ${MAX_LINES}) }.`,
+				error: `Send { blocks }: 1 to ${MAX_CODE_BLOCKS} of { code (1 to ${MAX_CODE} chars), title (up to ${MAX_TITLE} chars), lines (0 to ${MAX_LINES}, 0 for none), lang (ts or bash, optional) }.`,
 			},
 			{ status: 400 },
 		);

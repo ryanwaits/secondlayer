@@ -8,7 +8,14 @@
 /** The most blocks one render (or one `/api/code` request) takes. */
 export const MAX_CODE_BLOCKS = 10;
 
-export type CodeBlockInput = { code: string; title: string; lines: number };
+/** `lines: 0` renders without line numbers; with `title: ""` it is a bare body
+ *  for a caller's own tabbed frame. `lang` defaults to TypeScript. */
+export type CodeBlockInput = {
+	code: string;
+	title: string;
+	lines: number;
+	lang?: "ts" | "bash";
+};
 
 export type RenderedBlock = {
 	className: string;
