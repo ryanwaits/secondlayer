@@ -57,7 +57,8 @@ export type FeedbackInput = {
 	intent: string;
 	request_id: string | null;
 	kind_hint: FeedbackKind | null;
-	expected: Record<string, unknown> | null;
+	/** Any JSON value: a sentence or a shape. */
+	expected: unknown;
 	evidence: FeedbackEvidence | null;
 };
 
@@ -93,8 +94,18 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
 	return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
+export const EVIDENCE_KEYS = [
+	...Object.keys(EVIDENCE_STRING_MAX),
+	"block_height",
+];
+const EVIDENCE_FIELDS = EVIDENCE_KEYS.join(", ");
+
 function parseEvidence(value: unknown): Parsed<FeedbackEvidence | null> {
-	if (!isPlainObject(value)) return { error: "evidence must be an object" };
+	if (!isPlainObject(value)) {
+		return {
+			error: `evidence must be an object with any of: ${EVIDENCE_FIELDS}`,
+		};
+	}
 	const out: FeedbackEvidence = {};
 	for (const [key, raw] of Object.entries(value)) {
 		if (raw === undefined) continue;
@@ -108,7 +119,9 @@ function parseEvidence(value: unknown): Parsed<FeedbackEvidence | null> {
 			continue;
 		}
 		if (!Object.prototype.hasOwnProperty.call(EVIDENCE_STRING_MAX, key)) {
-			return { error: `unknown evidence field: ${key}` };
+			return {
+				error: `unknown evidence field: ${key} (allowed: ${EVIDENCE_FIELDS})`,
+			};
 		}
 		const max = EVIDENCE_STRING_MAX[key as keyof typeof EVIDENCE_STRING_MAX];
 		if (typeof raw !== "string" || raw.length === 0 || raw.length > max) {
@@ -158,11 +171,8 @@ export function parseFeedback(
 		kindHint = body.kind_hint as FeedbackKind;
 	}
 
-	let expected: Record<string, unknown> | null = null;
+	let expected: unknown = null;
 	if (body.expected !== undefined && body.expected !== null) {
-		if (!isPlainObject(body.expected)) {
-			return { error: "expected must be an object" };
-		}
 		if (JSON.stringify(body.expected).length > MAX_EXPECTED_BYTES) {
 			return {
 				error: `expected is too large (${MAX_EXPECTED_BYTES} characters max)`,
@@ -278,9 +288,7 @@ export function createFeedbackRouter(opts?: { getDb?: typeof getDb }) {
 				idempotency_key: key.ok,
 				request_id: input.request_id,
 				intent: input.intent,
-				expected: input.expected
-					? jsonb<Record<string, unknown>>(input.expected)
-					: null,
+				expected: input.expected === null ? null : jsonb(input.expected),
 				kind_hint: input.kind_hint,
 				evidence: input.evidence
 					? jsonb<Record<string, unknown>>(input.evidence)

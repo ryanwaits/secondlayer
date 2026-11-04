@@ -71,6 +71,12 @@ describe("buildFeedbackState", () => {
 		expect(json).not.toContain("SP2C2XYZ");
 	});
 
+	test("a plain-sentence expected passes through unquoted", () => {
+		expect(buildFeedbackState(ticket({ expected: "330 rows" })).expected).toBe(
+			"330 rows",
+		);
+	});
+
 	test("caps intent and expected text", () => {
 		const state = buildFeedbackState(
 			ticket({

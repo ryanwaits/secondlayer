@@ -6,12 +6,14 @@ import {
 	expect,
 	test,
 } from "bun:test";
+import { readFileSync } from "node:fs";
 import { getDb, jsonb } from "@secondlayer/shared/db";
 import { Hono, type MiddlewareHandler } from "hono";
 import { _resetRateLimitStoreForTests } from "../auth/rate-limit-store.ts";
 import { createApiApp } from "../create-app.ts";
 import { errorHandler } from "../middleware/error.ts";
 import {
+	EVIDENCE_KEYS,
 	FEEDBACK_KINDS,
 	createFeedbackRouter,
 	parseFeedback,
@@ -81,8 +83,12 @@ describe("parseFeedback", () => {
 		);
 	});
 
-	test("expected must be an object under the size cap", () => {
-		expect(err({ intent: "x", expected: [] })).toContain("expected");
+	test("expected takes a plain sentence or a shape under the size cap", () => {
+		expect(ok({ intent: "x", expected: "330 rows" }).expected).toBe("330 rows");
+		expect(ok({ intent: "x", expected: [1, 2] }).expected).toEqual([1, 2]);
+		expect(err({ intent: "x", expected: "b".repeat(4100) })).toContain(
+			"expected",
+		);
 		expect(err({ intent: "x", expected: { a: "b".repeat(4100) } })).toContain(
 			"expected",
 		);
@@ -93,7 +99,10 @@ describe("parseFeedback", () => {
 
 	test("evidence is checked key by key", () => {
 		expect(err({ intent: "x", evidence: { nope: "a" } })).toBe(
-			"unknown evidence field: nope",
+			"unknown evidence field: nope (allowed: tx_id, contract_id, event_type, subgraph, table, block_height)",
+		);
+		expect(err({ intent: "x", evidence: "tx 0xabc" })).toContain(
+			"any of: tx_id,",
 		);
 		expect(err({ intent: "x", evidence: { block_height: -1 } })).toContain(
 			"block_height",
@@ -113,6 +122,17 @@ describe("parseFeedback", () => {
 	test("empty evidence object becomes null", () => {
 		expect(ok({ intent: "x", evidence: {} }).evidence).toBeNull();
 	});
+});
+
+test("llms.txt names every feedback kind and evidence key", () => {
+	const source = readFileSync(
+		new URL("../../../../apps/web/src/lib/llms-txt.ts", import.meta.url),
+		"utf8",
+	);
+	const section = source.slice(source.indexOf("POST /v1/feedback"));
+	for (const name of [...FEEDBACK_KINDS, ...EVIDENCE_KEYS]) {
+		expect(section).toContain(name);
+	}
 });
 
 describe("parseIdempotencyKey", () => {
@@ -240,6 +260,17 @@ describe.skipIf(!HAS_DB)("POST /v1/feedback", () => {
 		expect(row?.status).toBe("new");
 		expect(row?.attempted).toBeNull();
 		expect(row?.origin).toBe("api");
+	});
+
+	test("a plain-sentence expected is stored as a JSON string", async () => {
+		const accountId = await makeAccount();
+		const res = await post(appFor(accountId), {
+			intent: "sum transfers",
+			expected: "330 rows",
+		});
+		expect(res.status).toBe(202);
+		const [row] = await ticketsFor(accountId);
+		expect(row?.expected).toBe("330 rows");
 	});
 
 	test("x-sl-origin is stored only for known values", async () => {

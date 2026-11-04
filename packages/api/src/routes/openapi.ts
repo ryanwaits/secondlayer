@@ -750,7 +750,7 @@ function platformFeedbackPaths(): Record<string, unknown> {
 				summary: "Report a problem",
 				"x-nav-title": "Report a problem",
 				description:
-					"File a problem report against a request that failed. Send the `request_id` from the error body and one line on what you were trying to do; the server attaches its own record of the failed call (kept 24 hours). Optional `Idempotency-Key` header: a repeat returns the first report's id with status `duplicate`.",
+					"File a problem report: one line on what you were trying to do. When a call failed, add the `request_id` from its error body and the server attaches its own record of that call (kept 24 hours). `expected` takes any JSON value, a sentence or a shape. `evidence` takes only the listed keys; any other key, or top-level field, is a 400. Optional `Idempotency-Key` header: a repeat returns the first report's id with status `duplicate`.",
 				security: WRITE_SECURITY,
 				parameters: [
 					{
@@ -771,7 +771,9 @@ function platformFeedbackPaths(): Record<string, unknown> {
 							pattern: "^[A-Za-z0-9._-]{8,64}$",
 						},
 						kind_hint: { type: "string", enum: [...FEEDBACK_KINDS] },
-						expected: { type: "object" },
+						expected: {
+							description: "Any JSON value: a sentence or a shape.",
+						},
 						evidence: {
 							type: "object",
 							additionalProperties: false,

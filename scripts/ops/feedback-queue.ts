@@ -109,7 +109,7 @@ function positiveInt(flag: string, v: string): number {
 export type TicketRow = {
 	id: string;
 	intent: string;
-	expected: Record<string, unknown> | null;
+	expected: unknown;
 	kind_hint: string | null;
 	evidence: FeedbackTicketInput["evidence"];
 	attempted: FeedbackTicketInput["attempted"];

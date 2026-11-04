@@ -20,7 +20,7 @@ export const FEEDBACK_SCHEMA_VERSION = 1 as const;
 export type FeedbackTicketInput = {
 	id: string;
 	intent: string;
-	expected: Record<string, unknown> | null;
+	expected: unknown;
 	kind_hint: string | null;
 	evidence: {
 		tx_id?: string;
@@ -97,9 +97,13 @@ export function buildFeedbackState(t: FeedbackTicketInput) {
 	return {
 		intent: t.intent.slice(0, INTENT_MAX),
 		kind_hint: t.kind_hint,
-		expected: t.expected
-			? JSON.stringify(t.expected).slice(0, EXPECTED_MAX)
-			: null,
+		expected:
+			t.expected == null
+				? null
+				: (typeof t.expected === "string"
+						? t.expected
+						: JSON.stringify(t.expected)
+					).slice(0, EXPECTED_MAX),
 		attempted: t.attempted
 			? {
 					method: t.attempted.method ?? null,

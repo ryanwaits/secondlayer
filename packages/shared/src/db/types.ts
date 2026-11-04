@@ -1735,7 +1735,8 @@ export interface FeedbackTicketsTable {
 	idempotency_key: string | null;
 	request_id: string | null;
 	intent: string;
-	expected: Record<string, unknown> | null;
+	/** Any JSON value the caller sent: a sentence or a shape. */
+	expected: unknown;
 	kind_hint: string | null;
 	evidence: Record<string, unknown> | null;
 	attempted: Record<string, unknown> | null;
