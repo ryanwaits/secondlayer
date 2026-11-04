@@ -468,6 +468,10 @@ describe("cap_pace", () => {
 		expect(out?.line).toBe("On pace to hit your $100.00 cap by Oct 21");
 	});
 
+	test("carries no evidence: the Billing page already charts spend and the projection", () => {
+		expect(fire("cap_pace", cap())?.evidence).toEqual([]);
+	});
+
 	test("does not fire when the projection stays under the cap", () => {
 		expect(
 			fire("cap_pace", cap({ last7dChargesUsdMicros: 14_000_000n })),
@@ -499,6 +503,47 @@ describe("credits_runway", () => {
 		expect(out?.severity).toBe("will_fail");
 		expect(out?.handoff.commands).toEqual(["sl credits buy"]);
 		expect(out?.line).toBe("Credits run out in about 7 days");
+	});
+
+	test("shows a runway timeline: today, the day the balance hits $0, month end", () => {
+		const out = fire(
+			"credits_runway",
+			input({
+				balanceUsdMicros: 30_000_000n,
+				burnPerDayUsdMicros: 10_000_000n,
+			}),
+		);
+		expect(out?.evidence).toEqual([
+			{
+				kind: "timeline",
+				title: "Runway",
+				steps: [
+					{ what: "Today", at: "Oct 15", note: "$30.00 left", failed: false },
+					{
+						what: "Balance reaches $0",
+						at: "Oct 18",
+						note: "at $10.00 a day",
+						failed: true,
+					},
+					{ what: "Month ends", at: "Oct 31", failed: false },
+				],
+			},
+		]);
+	});
+
+	test("orders the steps by date when the month ends before the balance does", () => {
+		const out = fire(
+			"credits_runway",
+			input({
+				now: new Date("2026-10-29T18:00:00.000Z"),
+				balanceUsdMicros: 50_000_000n,
+				burnPerDayUsdMicros: 10_000_000n,
+			}),
+		);
+		const steps = out?.evidence[0];
+		expect(
+			steps?.kind === "timeline" && steps.steps.map((x) => x.what),
+		).toEqual(["Today", "Month ends", "Balance reaches $0"]);
 	});
 
 	test("does not fire just over 7 days", () => {

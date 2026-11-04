@@ -31,6 +31,17 @@ export type InsightEvidence =
 			columns: string[];
 			rows: (string | number)[][];
 			markRow?: number;
+			/** Label/value pairs shown under the table, e.g. "+15 more since 14:02". */
+			facts?: [string, string][];
+	  }
+	| {
+			/** What a receiver sent back: summary pairs, a body excerpt, then timing pairs. */
+			kind: "response";
+			title: string;
+			sent: [string, string][];
+			/** At most 240 characters of the response body, whitespace collapsed. */
+			excerpt: string | null;
+			facts: [string, string][];
 	  }
 	| {
 			kind: "shapes";

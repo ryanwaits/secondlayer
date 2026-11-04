@@ -32,6 +32,7 @@ const DAY_MS = 86_400_000;
 const BUCKET_MS = 10 * MINUTE_MS;
 const BUCKETS = 36;
 const SHAPE_BODY_MAX = 80;
+const EXCERPT_MAX = 240;
 const SHAPES_MAX = 4;
 const ATTEMPT_WINDOW = 300;
 const ATTEMPT_LOOKBACK_DAYS = 8;
@@ -45,9 +46,11 @@ export interface DeliveryAttempt {
 	durationMs: number | null;
 	dispatchedAt: Date;
 	errorMessage: string | null;
-	/** First 200 characters of the receiver's response body. */
+	/** First 240 characters of the receiver's response body. */
 	body: string | null;
 	contentType: string | null;
+	/** `content-length`, or the stored body's length when it was not cut short. */
+	sizeBytes: number | null;
 	server: string | null;
 	retryAfter: string | null;
 	blockHeight: number | null;
@@ -71,6 +74,8 @@ export interface WebhookRuleInput {
 	attempts: DeliveryAttempt[];
 	/** Outbox rows still waiting to be delivered. */
 	pending: number;
+	/** The soonest retry among those rows; null when none are waiting. */
+	nextAttemptAt: Date | null;
 	/** 36 ten-minute buckets ending at `startMs + 36 * 10min`. */
 	throughput: { startMs: number; matched: number[]; delivered: number[] };
 	/** Last 14 UTC days, oldest first; null when no timed delivery that day. */
@@ -206,25 +211,72 @@ function resourceOf(input: WebhookRuleInput) {
 	};
 }
 
-function throughputEvidence(
+function formatBytes(bytes: number): string {
+	if (bytes < 1024) return `${bytes} B`;
+	return `${(bytes / 1024).toFixed(1)} KB`;
+}
+
+function formatDuration(ms: number): string {
+	return ms < 1000 ? `${ms} ms` : `${(ms / 1000).toFixed(1)} s`;
+}
+
+/** The body as the receiver sent it, whitespace tidied and cut to a short excerpt. */
+export function bodyExcerpt(text: string | null | undefined): string | null {
+	if (!text) return null;
+	const tidy = text
+		.replace(/\r\n?/g, "\n")
+		// biome-ignore lint/suspicious/noControlCharactersInRegex: strip control bytes from untrusted text
+		.replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/g, "")
+		.replace(/[ \t]+/g, " ")
+		.replace(/\n\s*\n+/g, "\n")
+		.trim();
+	if (tidy.length === 0) return null;
+	return tidy.length > EXCERPT_MAX
+		? `${tidy.slice(0, EXCERPT_MAX - 1).trimEnd()}…`
+		: tidy;
+}
+
+/**
+ * What the endpoint sent back on its latest failed attempt, then when it last
+ * worked, when it first failed and when we try again. The webhook page already
+ * charts deliveries; this is the part it does not show.
+ */
+function responseEvidence(
 	input: WebhookRuleInput,
-): Extract<InsightEvidence, { kind: "series" }> {
-	const { startMs, matched, delivered } = input.throughput;
-	const at = (i: number) =>
-		utcTime(new Date(startMs + i * BUCKET_MS)).slice(0, 5);
+	latest: DeliveryAttempt | undefined,
+	firstFailureAt: Date,
+): Extract<InsightEvidence, { kind: "response" }> {
+	const sent: [string, string][] = [
+		["Status", codeLabel(latest?.statusCode ?? null)],
+	];
+	const type = latest?.contentType?.split(";")[0]?.trim();
+	if (type) sent.push(["Type", type]);
+	if (latest?.sizeBytes != null) {
+		sent.push(["Size", formatBytes(latest.sizeBytes)]);
+	}
+	if (latest?.durationMs != null) {
+		sent.push(["Took", formatDuration(latest.durationMs)]);
+	}
+
+	const { lastSuccessAt } = input.webhook;
+	const facts: [string, string][] = [
+		["Last success", lastSuccessAt ? utcDateTime(lastSuccessAt) : "never"],
+		["First failure", utcDateTime(firstFailureAt)],
+	];
+	if (input.nextAttemptAt) {
+		facts.push([
+			"Next retry",
+			input.nextAttemptAt.getTime() <= input.now.getTime()
+				? "now"
+				: utcDateTime(input.nextAttemptAt),
+		]);
+	}
 	return {
-		kind: "series",
-		title: "Matched and delivered, every 10 minutes",
-		series: [
-			{ name: "Matched", role: "context", points: matched },
-			{ name: "Delivered", role: "a", points: delivered },
-		],
-		labels: [
-			[0, at(0)],
-			[Math.floor(BUCKETS / 2), at(Math.floor(BUCKETS / 2))],
-			[BUCKETS - 1, "now"],
-		],
-		unit: "events",
+		kind: "response",
+		title: "What your endpoint sent back",
+		sent,
+		excerpt: bodyExcerpt(latest?.body ?? latest?.errorMessage),
+		facts,
 	};
 }
 
@@ -287,12 +339,6 @@ const receiverDown: InsightRule<WebhookRuleInput> = {
 				? `Chain matches are normal (about ${hourly} an hour), so the problem is the receiver.`
 				: "";
 
-		const shapes = buildShapes(
-			streak,
-			input.attempts.slice(streak.length),
-			input.now,
-		);
-
 		return {
 			rule: "receiver_down",
 			severity: "losing",
@@ -308,10 +354,7 @@ const receiverDown: InsightRule<WebhookRuleInput> = {
 			]
 				.filter(Boolean)
 				.join(" "),
-			evidence: [
-				throughputEvidence(input),
-				{ kind: "shapes", title: "What the receiver sent back", shapes },
-			],
+			evidence: [responseEvidence(input, streak[0], since)],
 			handoff: {
 				prompt: handoffPrompt({
 					subject: subject(webhook.name),
@@ -379,17 +422,7 @@ const receiverRejects: InsightRule<WebhookRuleInput> = {
 			]
 				.filter(Boolean)
 				.join(" "),
-			evidence: [
-				{
-					kind: "shapes",
-					title: "What the receiver sent back",
-					shapes: buildShapes(
-						streak,
-						input.attempts.slice(streak.length),
-						input.now,
-					),
-				},
-			],
+			evidence: [responseEvidence(input, streak[0], since)],
 			handoff: {
 				prompt: handoffPrompt({
 					subject: subject(webhook.name),
@@ -1130,6 +1163,13 @@ async function fetchFunctionNames(
 type Num = string | number | null;
 const num = (v: Num): number | null => (v === null ? null : Number(v));
 
+/** A byte count from a header or a length; null when it is missing or not a number. */
+const sizeOf = (v: string | null): number | null => {
+	if (v === null) return null;
+	const n = Number(v);
+	return Number.isInteger(n) && n >= 0 ? n : null;
+};
+
 /** Everything the webhook rules read, in a handful of queries for all webhooks. */
 export async function loadWebhookInputs(
 	db: Kysely<Database>,
@@ -1164,17 +1204,25 @@ export async function loadWebhookInputs(
 		error_message: string | null;
 		body: string | null;
 		content_type: string | null;
+		size_bytes: string | null;
 		server: string | null;
 		retry_after: string | null;
 		block_height: Num;
 	}>`
 		SELECT webhook_id, outbox_id, status_code, duration_ms, dispatched_at,
-			error_message, body, content_type, server, retry_after, block_height
+			error_message, body, content_type, size_bytes, server, retry_after,
+			block_height
 		FROM (
 			SELECT d.webhook_id, d.outbox_id, d.status_code, d.duration_ms,
 				d.dispatched_at, d.error_message,
-				left(d.response_body, 200) AS body,
+				left(d.response_body, 240) AS body,
 				d.response_headers ->> 'content-type' AS content_type,
+				-- The stored body is cut at 8192 bytes: its length only counts when it was not.
+				coalesce(
+					d.response_headers ->> 'content-length',
+					CASE WHEN octet_length(d.response_body) < 8192
+						THEN octet_length(d.response_body)::text END
+				) AS size_bytes,
 				d.response_headers ->> 'server' AS server,
 				d.response_headers ->> 'retry-after' AS retry_after,
 				o.block_height,
@@ -1206,8 +1254,13 @@ export async function loadWebhookInputs(
 		WHERE delivered_at >= ${start} AND status = 'delivered'
 		GROUP BY 1, 2
 	`.execute(db);
-	const pendingRows = await sql<{ webhook_id: string; n: Num }>`
-		SELECT webhook_id, count(*) AS n FROM webhook_outbox
+	const pendingRows = await sql<{
+		webhook_id: string;
+		n: Num;
+		next_attempt_at: Date;
+	}>`
+		SELECT webhook_id, count(*) AS n, min(next_attempt_at) AS next_attempt_at
+		FROM webhook_outbox
 		WHERE status = 'pending' GROUP BY 1
 	`.execute(db);
 
@@ -1252,6 +1305,7 @@ export async function loadWebhookInputs(
 			errorMessage: r.error_message,
 			body: r.body,
 			contentType: r.content_type,
+			sizeBytes: sizeOf(r.size_bytes),
 			server: r.server,
 			retryAfter: r.retry_after,
 			blockHeight: num(r.block_height),
@@ -1272,6 +1326,9 @@ export async function loadWebhookInputs(
 	const deliveredBy = series(deliveredRows.rows);
 	const pendingBy = new Map(
 		pendingRows.rows.map((r) => [r.webhook_id, Number(r.n)]),
+	);
+	const nextAttemptBy = new Map(
+		pendingRows.rows.map((r) => [r.webhook_id, r.next_attempt_at]),
 	);
 	const countBy = new Map(
 		deliveryCountRows.rows.map((r) => [r.webhook_id, Number(r.n)]),
@@ -1339,6 +1396,7 @@ export async function loadWebhookInputs(
 			},
 			attempts: attemptsBy.get(w.id) ?? [],
 			pending: pendingBy.get(w.id) ?? 0,
+			nextAttemptAt: nextAttemptBy.get(w.id) ?? null,
 			throughput: {
 				startMs,
 				matched: matchedBy.get(w.id) ?? new Array<number>(BUCKETS).fill(0),

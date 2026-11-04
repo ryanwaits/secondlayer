@@ -1,7 +1,8 @@
 import { type Kysely, sql } from "kysely";
 import type { Database } from "../db/types.ts";
+import type { InsightEvidence } from "../schemas/insights.ts";
 import { type HealthSnapshotPoint, bucketHourly } from "../subgraphs/health.ts";
-import { handoffPrompt, plainSnippet, plural } from "./prompt.ts";
+import { handoffPrompt, plainSnippet, plural, utcTime } from "./prompt.ts";
 import {
 	HANDLER_ERRORS_MIN_24H,
 	SUBGRAPH_LAG_BLOCKS,
@@ -19,7 +20,13 @@ export interface SubgraphErrorGroupInput {
 	sourceName: string;
 	/** All-time count for the group (not limited to the last 24 hours). */
 	count: number;
+	firstSeen: Date;
 	lastSeen: Date;
+	/** One event the group failed on: its block and transaction. */
+	sampleBlockHeight: number | null;
+	sampleTxId: string | null;
+	/** `file.ts:line` of the throwing handler line, when the error had a stack. */
+	frame: string | null;
 }
 
 export interface SubgraphRuleInput {
@@ -29,6 +36,53 @@ export interface SubgraphRuleInput {
 	snapshots: HealthSnapshotPoint[];
 	/** Groups seen in the last 24 hours, most frequent first. */
 	errorGroups: SubgraphErrorGroupInput[];
+}
+
+/** `0x4c1e…a90b`: enough of a transaction id to find it, short enough for a cell. */
+function shortTx(txId: string): string {
+	return txId.length > 14 ? `${txId.slice(0, 6)}…${txId.slice(-4)}` : txId;
+}
+
+/**
+ * The events that failed: one sample per error group (block, transaction,
+ * short error), then how many more failed since when, and where in the handler.
+ * The subgraph page charts handler errors per hour; this names the events.
+ */
+function failedEventsEvidence(
+	groups: SubgraphErrorGroupInput[],
+	errors: number,
+	now: Date,
+): Extract<InsightEvidence, { kind: "table" }> {
+	const rows = groups.map((g) => [
+		g.sampleBlockHeight === null
+			? "unknown"
+			: `#${g.sampleBlockHeight.toLocaleString("en-US")}`,
+		g.sampleTxId ? shortTx(g.sampleTxId) : "unknown",
+		plainSnippet(g.message, 60),
+	]);
+	const windowStart = now.getTime() - 24 * HOUR_MS;
+	const since = new Date(
+		Math.max(
+			windowStart,
+			Math.min(...groups.map((g) => g.firstSeen.getTime())),
+		),
+	);
+	const facts: [string, string][] = [];
+	if (errors > rows.length) {
+		facts.push([`+${errors - rows.length} more since`, utcTime(since)]);
+	}
+	const lead = groups[0];
+	if (lead) {
+		facts.push(["Handler", lead.sourceName]);
+		if (lead.frame) facts.push(["Where", lead.frame]);
+	}
+	return {
+		kind: "table",
+		title: "Events that failed",
+		columns: ["Block", "Transaction", "Error"],
+		rows,
+		facts,
+	};
 }
 
 function subject(name: string): string {
@@ -76,20 +130,7 @@ const handlerErrors: InsightRule<SubgraphRuleInput> = {
 				.filter(Boolean)
 				.join(" "),
 			evidence:
-				top.length > 0
-					? [
-							{
-								kind: "table",
-								title: "Most common errors",
-								columns: ["Error", "Event type", "Seen"],
-								rows: top.map((g) => [
-									plainSnippet(g.message, 120),
-									g.eventType ?? g.sourceName,
-									g.count,
-								]),
-							},
-						]
-					: [],
+				top.length > 0 ? [failedEventsEvidence(top, errors, input.now)] : [],
 			handoff: {
 				prompt: handoffPrompt({
 					subject: subject(subgraph.name),
@@ -247,9 +288,14 @@ export async function loadSubgraphInputs(
 		event_type: string | null;
 		source_name: string;
 		count: string | number;
+		first_seen: Date;
 		last_seen: Date;
+		sample_block_height: string | number | null;
+		sample_tx_id: string | null;
+		frame: string | null;
 	}>`
-		SELECT subgraph_name, message, event_type, source_name, count, last_seen
+		SELECT subgraph_name, message, event_type, source_name, count, first_seen,
+			last_seen, sample_block_height, sample_tx_id, frame
 		FROM subgraph_error_groups
 		WHERE last_seen > ${new Date(now.getTime() - 24 * HOUR_MS)}
 		ORDER BY count DESC
@@ -267,7 +313,12 @@ export async function loadSubgraphInputs(
 				eventType: g.event_type,
 				sourceName: g.source_name,
 				count: Number(g.count),
+				firstSeen: g.first_seen,
 				lastSeen: g.last_seen,
+				sampleBlockHeight:
+					g.sample_block_height === null ? null : Number(g.sample_block_height),
+				sampleTxId: g.sample_tx_id,
+				frame: g.frame,
 			})),
 	}));
 }

@@ -28,6 +28,7 @@ function attempt(
 		errorMessage: null,
 		body: null,
 		contentType: "application/json",
+		sizeBytes: null,
 		server: null,
 		retryAfter: null,
 		blockHeight: null,
@@ -63,6 +64,7 @@ function input(over: Partial<WebhookRuleInput> = {}): WebhookRuleInput {
 		},
 		attempts: [],
 		pending: 0,
+		nextAttemptAt: null,
 		throughput: {
 			startMs: NOW.getTime() - 36 * 10 * MIN,
 			matched: new Array(36).fill(8),
@@ -126,7 +128,104 @@ describe("receiver_down", () => {
 			"sl webhooks doctor sbtc-deposits",
 			"sl webhooks dead sbtc-deposits",
 		]);
-		expect(out?.evidence.map((e) => e.kind)).toEqual(["series", "shapes"]);
+		expect(out?.evidence.map((e) => e.kind)).toEqual(["response"]);
+	});
+
+	test("shows what the endpoint sent back, then the timeline", () => {
+		const out = fire(
+			"receiver_down",
+			input({
+				attempts: [
+					...run(5, {
+						statusCode: 500,
+						contentType: "text/html; charset=utf-8",
+						sizeBytes: 1229,
+						durationMs: 30_000,
+						body: "<html><title>500 Internal Server Error</title></html>",
+					}),
+					...run(10, {}, 6),
+				],
+				pending: 12,
+				nextAttemptAt: new Date(NOW.getTime() + 52 * MIN),
+			}),
+		);
+		const ev = out?.evidence[0];
+		if (ev?.kind !== "response") throw new Error("expected a response block");
+		expect(ev.title).toBe("What your endpoint sent back");
+		expect(ev.sent).toEqual([
+			["Status", "500"],
+			["Type", "text/html"],
+			["Size", "1.2 KB"],
+			["Took", "30.0 s"],
+		]);
+		expect(ev.excerpt).toBe(
+			"<html><title>500 Internal Server Error</title></html>",
+		);
+		expect(ev.facts).toEqual([
+			["Last success", "Oct 15 15:00 UTC"],
+			["First failure", "Oct 15 17:55 UTC"],
+			["Next retry", "Oct 15 18:52 UTC"],
+		]);
+	});
+
+	test("leaves out what the delivery row never held", () => {
+		const out = fire(
+			"receiver_down",
+			input({
+				attempts: [
+					...run(5, { statusCode: null, contentType: null, durationMs: null }),
+					...run(10, {}, 6),
+				],
+				webhook: {
+					...input().webhook,
+					lastSuccessAt: null,
+				},
+			}),
+		);
+		const ev = out?.evidence[0];
+		if (ev?.kind !== "response") throw new Error("expected a response block");
+		expect(ev.sent).toEqual([["Status", "no response"]]);
+		expect(ev.excerpt).toBeNull();
+		expect(ev.facts.map(([label]) => label)).toEqual([
+			"Last success",
+			"First failure",
+		]);
+		expect(ev.facts[0]).toEqual(["Last success", "never"]);
+	});
+
+	test("caps the body excerpt at 240 characters and keeps markup as text", () => {
+		const out = fire(
+			"receiver_down",
+			input({
+				attempts: [
+					...run(5, {
+						statusCode: 502,
+						body: `<b>${"a  b\n\n\n".repeat(200)}`,
+					}),
+					...run(10, {}, 6),
+				],
+			}),
+		);
+		const ev = out?.evidence[0];
+		if (ev?.kind !== "response") throw new Error("expected a response block");
+		expect(ev.excerpt?.length).toBeLessThanOrEqual(240);
+		expect(ev.excerpt?.startsWith("<b>a b\na b")).toBe(true);
+		expect(ev.excerpt?.endsWith("…")).toBe(true);
+	});
+
+	test("shows the retry as now when it is already due", () => {
+		const out = fire(
+			"receiver_down",
+			input({
+				attempts: [...run(5, { statusCode: 502 }), ...run(10, {}, 6)],
+				nextAttemptAt: new Date(NOW.getTime() - MIN),
+			}),
+		);
+		const ev = out?.evidence[0];
+		expect(ev?.kind === "response" && ev.facts.at(-1)).toEqual([
+			"Next retry",
+			"now",
+		]);
 	});
 
 	test("does not fire on 4 failures", () => {
@@ -153,34 +252,6 @@ describe("receiver_down", () => {
 			}),
 		);
 		expect(out?.how.facts[0]).toEqual(["consecutive failures", "5"]);
-	});
-
-	test("marks a shape new only when the prior week never saw it", () => {
-		const out = fire(
-			"receiver_down",
-			input({
-				attempts: [
-					...run(5, { statusCode: 502, body: "Bad Gateway" }),
-					...run(3, { statusCode: 503, body: "Unavailable" }, 6),
-				],
-			}),
-		);
-		const shapes = out?.evidence.find((e) => e.kind === "shapes");
-		expect(shapes?.kind === "shapes" && shapes.shapes[0]?.isNew).toBe(true);
-		const seen = fire(
-			"receiver_down",
-			input({
-				attempts: [
-					...run(5, { statusCode: 502, body: "Bad Gateway" }),
-					...run(1, { statusCode: 200 }, 6),
-					...run(3, { statusCode: 502, body: "Bad Gateway" }, 7),
-				],
-			}),
-		);
-		const seenShapes = seen?.evidence.find((e) => e.kind === "shapes");
-		expect(seenShapes?.kind === "shapes" && seenShapes.shapes[0]?.isNew).toBe(
-			false,
-		);
 	});
 });
 
@@ -259,6 +330,60 @@ describe("receiver_rate_limited", () => {
 				input({ attempts: run(9, { statusCode: 429 }) }),
 			),
 		).toBeNull();
+	});
+});
+
+describe("receiver_rejects evidence", () => {
+	test("shows the response block, not a count of shapes", () => {
+		const out = fire(
+			"receiver_rejects",
+			input({
+				attempts: [
+					...run(5, {
+						statusCode: 401,
+						body: "bad signature",
+						contentType: "application/json",
+						sizeBytes: 24,
+					}),
+					...run(5, {}, 6),
+				],
+			}),
+		);
+		expect(out?.evidence.map((e) => e.kind)).toEqual(["response"]);
+		const ev = out?.evidence[0];
+		expect(ev?.kind === "response" && ev.sent).toEqual([
+			["Status", "401"],
+			["Type", "application/json"],
+			["Size", "24 B"],
+			["Took", "100 ms"],
+		]);
+	});
+});
+
+describe("receiver_rate_limited evidence", () => {
+	const limited = { statusCode: 429, body: "Slow down" };
+
+	test("marks a shape new only when the prior week never saw it", () => {
+		const fresh = fire(
+			"receiver_rate_limited",
+			input({ attempts: [...run(60, limited), ...run(40, {}, 61)] }),
+		);
+		const shapes = fresh?.evidence.find((e) => e.kind === "shapes");
+		expect(shapes?.kind === "shapes" && shapes.shapes[0]?.isNew).toBe(true);
+		const seen = fire(
+			"receiver_rate_limited",
+			input({
+				attempts: [
+					...run(60, limited),
+					...run(40, {}, 61),
+					...run(5, limited, 101),
+				],
+			}),
+		);
+		const seenShapes = seen?.evidence.find((e) => e.kind === "shapes");
+		expect(seenShapes?.kind === "shapes" && seenShapes.shapes[0]?.isNew).toBe(
+			false,
+		);
 	});
 });
 

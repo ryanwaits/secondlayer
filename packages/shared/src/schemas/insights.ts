@@ -40,6 +40,17 @@ export type InsightEvidence =
 			columns: string[];
 			rows: (string | number)[][];
 			markRow?: number;
+			/** Label/value pairs shown under the table, e.g. "+15 more since 14:02". */
+			facts?: [string, string][];
+	  }
+	| {
+			/** What a receiver sent back: summary pairs, a body excerpt, then timing pairs. */
+			kind: "response";
+			title: string;
+			sent: [string, string][];
+			/** At most 240 characters of the response body, whitespace collapsed. */
+			excerpt: string | null;
+			facts: [string, string][];
 	  }
 	| {
 			kind: "shapes";
@@ -123,6 +134,14 @@ export const InsightEvidenceSchema: z.ZodType<InsightEvidence> =
 			columns: z.array(z.string()),
 			rows: z.array(z.array(z.union([z.string(), z.number()]))),
 			markRow: z.number().optional(),
+			facts: z.array(z.tuple([z.string(), z.string()])).optional(),
+		}),
+		z.object({
+			kind: z.literal("response"),
+			title: z.string(),
+			sent: z.array(z.tuple([z.string(), z.string()])),
+			excerpt: z.string().nullable(),
+			facts: z.array(z.tuple([z.string(), z.string()])),
 		}),
 		z.object({
 			kind: z.literal("shapes"),

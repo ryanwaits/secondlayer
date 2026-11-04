@@ -774,20 +774,7 @@ const capPace: InsightRule<AccountRuleInput> = {
 			meta: `${usd(projected)} projected this month`,
 			lead: "At this pace the spend cap stops your service before the month ends.",
 			body: `You have spent ${usd(spentMonthUsdMicros)} of the ${usd(capMicros)} cap, and the last 7 days average ${usd(dailyMicros)} a day. That reaches the cap around ${utcDay(hitAt)}. When it does, reads return 402 and your hosted stack stops until the month resets or you raise the cap.`,
-			evidence: [
-				{
-					kind: "table",
-					title: "Cap pace",
-					columns: ["", ""],
-					rows: [
-						["Monthly cap", usd(capMicros)],
-						["Spent so far", usd(spentMonthUsdMicros)],
-						["Daily average, last 7 days", usd(dailyMicros)],
-						["Projected by month end", usd(projected)],
-						["Cap reached around", utcDay(hitAt)],
-					],
-				},
-			],
+			evidence: [],
 			handoff: {
 				prompt: handoffPrompt({
 					subject: "My Secondlayer account",
@@ -818,6 +805,44 @@ const capPace: InsightRule<AccountRuleInput> = {
 
 // ── credits_runway ─────────────────────────────────────────────────────
 
+/**
+ * Today's balance, the day it reaches $0, and the month's end, in date order.
+ * The Billing page already charts spend; it does not show where the balance ends.
+ */
+function runwayTimeline(
+	input: AccountRuleInput,
+	outAt: Date,
+): Extract<DetectedInsight["evidence"][number], { kind: "timeline" }> {
+	const monthLastDay = new Date(
+		Date.UTC(input.now.getUTCFullYear(), input.now.getUTCMonth() + 1, 1) - 1,
+	);
+	const steps = [
+		{
+			at: input.now,
+			what: "Today",
+			note: `${usd(input.balanceUsdMicros)} left`,
+			failed: false,
+		},
+		{
+			at: outAt,
+			what: "Balance reaches $0",
+			note: `at ${usd(input.burnPerDayUsdMicros)} a day`,
+			failed: true,
+		},
+		{ at: monthLastDay, what: "Month ends", note: undefined, failed: false },
+	].sort((a, b) => a.at.getTime() - b.at.getTime());
+	return {
+		kind: "timeline",
+		title: "Runway",
+		steps: steps.map(({ at, what, note, failed }) => ({
+			what,
+			at: utcDay(at),
+			...(note ? { note } : {}),
+			failed,
+		})),
+	};
+}
+
 const creditsRunway: InsightRule<AccountRuleInput> = {
 	id: "credits_runway",
 	evaluate(input) {
@@ -835,18 +860,7 @@ const creditsRunway: InsightRule<AccountRuleInput> = {
 			meta: `${usd(input.balanceUsdMicros)} left at ${usd(input.burnPerDayUsdMicros)} a day`,
 			lead: "Your balance is about to run out.",
 			body: `At ${usd(input.burnPerDayUsdMicros)} a day, ${usd(input.balanceUsdMicros)} lasts until around ${utcDay(outAt)}. At zero your hosted stack stops and paid reads answer 402.`,
-			evidence: [
-				{
-					kind: "table",
-					title: "Runway",
-					columns: ["", ""],
-					rows: [
-						["Balance", usd(input.balanceUsdMicros)],
-						["Burn per day", usd(input.burnPerDayUsdMicros)],
-						["Runs out around", utcDay(outAt)],
-					],
-				},
-			],
+			evidence: [runwayTimeline(input, outAt)],
 			handoff: {
 				prompt: handoffPrompt({
 					subject: "My Secondlayer account",

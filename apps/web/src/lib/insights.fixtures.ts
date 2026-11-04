@@ -5,11 +5,6 @@ import type { Insight } from "./insights";
  * only: never real account data.
  */
 
-/** 36 ten-minute windows of matched events, steady around 7. */
-const MATCHED = Array.from({ length: 36 }, (_, i) => 6 + ((i * 5) % 4));
-/** The same windows as delivered: the receiver stops answering halfway. */
-const DELIVERED = MATCHED.map((v, i) => (i >= 18 ? 0 : v));
-
 const P95_SECONDS = [
 	1.2, 1.3, 1.5, 1.6, 1.9, 2.1, 2.4, 2.8, 3.1, 3.6, 4, 4.6, 5.2, 5.9,
 ];
@@ -36,34 +31,20 @@ export const FIXTURE_INSIGHTS: Insight[] = [
 		body: "Events still match at the usual ~42 an hour, but hooks.example.dev has answered every delivery since 16:06 with 502 from nginx. Nothing is lost: 214 deliveries are queued and retry on their own.",
 		evidence: [
 			{
-				kind: "series",
-				title: "Matched vs delivered · 10-min windows, last 6h",
-				series: [
-					{ name: "Matched on chain", role: "context", points: MATCHED },
-					{ name: "Delivered to you", role: "a", points: DELIVERED },
+				kind: "response",
+				title: "What your endpoint sent back",
+				sent: [
+					["Status", "502"],
+					["Type", "text/html"],
+					["Size", "1.2 KB"],
+					["Took", "30.0 s"],
 				],
-				labels: [
-					[0, "-6h"],
-					[18, "-3h"],
-					[35, "now"],
-				],
-			},
-			{
-				kind: "shapes",
-				title: "What your receiver sent back",
-				shapes: [
-					{
-						code: "502",
-						body: "<html><head><title>502 Bad Gateway</title></head> nginx",
-						count: 214,
-						isNew: true,
-					},
-					{
-						code: "504",
-						body: "<html><head><title>504 Gateway Time-out</title></head> nginx",
-						count: 9,
-						isNew: true,
-					},
+				excerpt:
+					"<html><head><title>502 Bad Gateway</title></head>\n<body><center><h1>502 Bad Gateway</h1></center><hr><center>nginx</center></body></html>",
+				facts: [
+					["Last success", "Oct 15 16:02 UTC"],
+					["First failure", "Oct 15 16:06 UTC"],
+					["Next retry", "Oct 15 18:52 UTC"],
 				],
 			},
 		],
@@ -404,13 +385,18 @@ export const FIXTURE_INSIGHTS: Insight[] = [
 		evidence: [
 			{
 				kind: "table",
-				title: "Errors, grouped",
-				columns: ["Error", "Count"],
+				title: "Events that failed",
+				columns: ["Block", "Transaction", "Error"],
 				rows: [
-					["TypeError: reading 'toString' · handlers.ts:42", 1180],
-					["duplicate key · flows_pkey", 24],
+					["#9,407,812", "0x4c1e…a90b", "TypeError: reading 'toString'"],
+					["#9,407,640", "0x0b7d…13fe", "TypeError: reading 'toString'"],
+					["#9,407,509", "0xe220…5c47", "duplicate key · flows_pkey"],
 				],
-				markRow: 0,
+				facts: [
+					["+1,201 more since", "14:02 UTC"],
+					["Handler", "ft_burn"],
+					["Where", "handlers.ts:42"],
+				],
 			},
 		],
 		handoff: {
@@ -470,18 +456,7 @@ export const FIXTURE_INSIGHTS: Insight[] = [
 		meta: "4 days early",
 		lead: "Your spend cap will stop everything before the month ends.",
 		body: "You have spent $31 so far and the last seven days average $2.60 a day. At that pace you reach the $50 cap on Oct 27. At a cap everything stops, webhooks included, until you raise it or add credits.",
-		evidence: [
-			{
-				kind: "table",
-				title: "Spend against the cap",
-				columns: ["", "Amount"],
-				rows: [
-					["Spent this month", "$31.00"],
-					["Last 7 days, per day", "$2.60"],
-					["Cap", "$50.00"],
-				],
-			},
-		],
+		evidence: [],
 		handoff: {
 			prompt:
 				"My Secondlayer account has spent $31 this month against a $50 cap, and the last seven days average $2.60 a day, so the cap is reached on Oct 27. Work out which of my webhooks, subgraphs or reads cost the most this week and whether the cap should be raised.",

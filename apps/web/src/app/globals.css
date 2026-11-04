@@ -6368,6 +6368,28 @@ button.dc-heat-cell:focus-visible {
 .ins-what b {
 	font-weight: 500;
 }
+.ev-kv {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px 22px;
+	margin: 0;
+	font-size: 13px;
+	color: var(--sub);
+}
+.ev-kv b {
+	font: 400 13px var(--font-mono-stack);
+	color: var(--ink);
+}
+.ev-pre {
+	margin: 0;
+	padding: 10px 14px;
+	border: 1px solid var(--line);
+	border-radius: 8px;
+	font: 400 12.5px / 1.7 var(--font-mono-stack);
+	color: var(--sub);
+	white-space: pre-wrap;
+	overflow-wrap: anywhere;
+}
 .ins-grid {
 	display: grid;
 	grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);

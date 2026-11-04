@@ -35,7 +35,11 @@ function group(
 		eventType: "ft_transfer",
 		sourceName: "transfers",
 		count: 40,
+		firstSeen: new Date(NOW.getTime() - 4 * 60 * MIN),
 		lastSeen: NOW,
+		sampleBlockHeight: 9_407_812,
+		sampleTxId: `0x4c1e${"0".repeat(52)}a90b`,
+		frame: "handler.ts:158",
 		...over,
 	};
 }
@@ -96,6 +100,65 @@ describe("subgraph_handler_errors", () => {
 		]);
 		const table = out?.evidence[0];
 		expect(table?.kind === "table" && table.rows.length).toBe(2);
+	});
+
+	test("lists the events that failed: block, short transaction, short error", () => {
+		const out = fire(
+			"subgraph_handler_errors",
+			input({
+				snapshots: errorSnapshots(18),
+				errorGroups: [
+					group({ message: "x".repeat(200) }),
+					group({ sampleBlockHeight: null, sampleTxId: null }),
+				],
+			}),
+		);
+		const table = out?.evidence[0];
+		if (table?.kind !== "table") throw new Error("expected a table");
+		expect(table.title).toBe("Events that failed");
+		expect(table.columns).toEqual(["Block", "Transaction", "Error"]);
+		expect(table.rows[0]?.slice(0, 2)).toEqual(["#9,407,812", "0x4c1e…a90b"]);
+		expect(String(table.rows[0]?.[2]).length).toBeLessThanOrEqual(62);
+		expect(table.rows[1]?.slice(0, 2)).toEqual(["unknown", "unknown"]);
+	});
+
+	test("counts the rest, names the handler and its line", () => {
+		const out = fire(
+			"subgraph_handler_errors",
+			input({
+				snapshots: errorSnapshots(18),
+				errorGroups: [group(), group(), group({ frame: null })],
+			}),
+		);
+		const table = out?.evidence[0];
+		if (table?.kind !== "table") throw new Error("expected a table");
+		// 18 errors, 3 shown, groups first seen 4 hours before 18:30.
+		expect(table.facts).toEqual([
+			["+15 more since", "14:30 UTC"],
+			["Handler", "transfers"],
+			["Where", "handler.ts:158"],
+		]);
+	});
+
+	test("clamps 'since' to the last 24 hours and omits an empty rest", () => {
+		const out = fire(
+			"subgraph_handler_errors",
+			input({
+				snapshots: errorSnapshots(10),
+				errorGroups: [
+					group({
+						firstSeen: new Date(NOW.getTime() - 5 * 24 * 60 * MIN),
+						frame: null,
+					}),
+				],
+			}),
+		);
+		const table = out?.evidence[0];
+		if (table?.kind !== "table") throw new Error("expected a table");
+		expect(table.facts).toEqual([
+			["+9 more since", "18:30 UTC"],
+			["Handler", "transfers"],
+		]);
 	});
 
 	test("does not fire at 9 errors", () => {

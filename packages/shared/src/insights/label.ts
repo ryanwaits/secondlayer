@@ -51,7 +51,13 @@ export interface LabelDeps {
 
 function cacheKey(insight: DetectedInsight): string {
 	const codes = insight.evidence
-		.flatMap((e) => (e.kind === "shapes" ? e.shapes.map((s) => s.code) : []))
+		.flatMap((e) => {
+			if (e.kind === "shapes") return e.shapes.map((s) => s.code);
+			if (e.kind === "response") {
+				return e.sent.filter(([key]) => key === "Status").map(([, v]) => v);
+			}
+			return [];
+		})
 		.sort()
 		.join(",");
 	return `${insight.resource.kind}:${insight.resource.id}:${insight.rule}:${codes}`;

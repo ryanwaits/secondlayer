@@ -62,6 +62,20 @@ function SeriesChart({ item }: { item: SeriesEvidence }) {
 	);
 }
 
+/** Label/value pairs on one wrapping line, values in mono. */
+function Facts({ facts }: { facts: [string, string][] }) {
+	if (facts.length === 0) return null;
+	return (
+		<div className="ev-kv">
+			{facts.map(([label, value]) => (
+				<span key={label}>
+					{label} <b>{value}</b>
+				</span>
+			))}
+		</div>
+	);
+}
+
 export function Evidence({ item }: { item: InsightEvidence }) {
 	return (
 		<div className="ins-step">
@@ -98,6 +112,16 @@ export function Evidence({ item }: { item: InsightEvidence }) {
 						))}
 					</tbody>
 				</table>
+			) : null}
+			{item.kind === "table" && item.facts ? (
+				<Facts facts={item.facts} />
+			) : null}
+			{item.kind === "response" ? (
+				<>
+					<Facts facts={item.sent} />
+					{item.excerpt ? <pre className="ev-pre">{item.excerpt}</pre> : null}
+					<Facts facts={item.facts} />
+				</>
 			) : null}
 			{item.kind === "shapes" ? (
 				<div>
