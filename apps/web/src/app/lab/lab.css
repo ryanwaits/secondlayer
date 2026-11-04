@@ -431,6 +431,10 @@ body:has(.lab) .auth-bar {
 	padding: 24px 20px;
 	border-radius: 0 0 7px 7px;
 }
+/* .site p zeroes margins, which flattens the status sub line's indent past the dot; account pages sit outside .site. */
+.lab-in .dash-status-sub {
+	margin: 10px 0 0 24px;
+}
 .lab-in > :first-child,
 .lab-in > .lab-w > :first-child {
 	margin-top: 0;

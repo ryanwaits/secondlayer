@@ -7669,7 +7669,7 @@ button.dash-row {
    the warn color; the hairlines stay --line. */
 .bl-band {
 	display: grid;
-	grid-template-columns: minmax(280px, 360px) minmax(0, 1fr) auto;
+	grid-template-columns: auto minmax(0, 1fr) auto;
 	gap: 16px 28px;
 	align-items: center;
 	padding-block: 20px;
@@ -7683,18 +7683,79 @@ button.dash-row {
 	gap: 8px;
 	justify-items: end;
 }
+/* Amounts in the band are separate bordered buttons, not the joined frame the
+   account menu's card keeps. A chosen amount changes border and text only. */
+.bl-band .choice-wrap {
+	container-type: normal;
+	width: auto;
+}
+.bl-band .choice.fill .choice-row,
+.bl-band .choice-row {
+	width: auto;
+	flex-wrap: wrap;
+	gap: 4px;
+	padding: 0;
+	border: 0;
+	border-radius: 0;
+}
+.bl-band .choice.fill .choice-cell {
+	flex: none;
+}
+.bl-band .choice-cell span,
+.bl-band .choice-other {
+	padding: 6px 12px;
+	border: 1px solid var(--line);
+	border-radius: 6px;
+	background: none;
+	box-shadow: none;
+	font: 400 13px / 1.5 var(--font-mono-stack);
+	color: var(--sub);
+}
+.bl-band .choice-other {
+	flex: none;
+	width: 92px;
+	padding: 6px 10px;
+	gap: 2px;
+	color: var(--faint);
+}
+.bl-band .choice-other input {
+	padding: 0;
+	color: var(--ink);
+}
+.bl-band .choice-cell input:checked + span,
+.bl-band .choice-other.on,
+.bl-band .choice-other:has(input:focus) {
+	background: none;
+	box-shadow: none;
+	color: var(--pri);
+	border-color: var(--pri);
+}
+.bl-band .choice-other.on input {
+	color: var(--pri);
+}
+.bl-band .choice-other:has(input:focus) {
+	color: var(--faint);
+}
+.bl-band .choice-cell input:focus-visible + span {
+	outline-offset: 2px;
+}
 .bl-band.urgent .choice-cell input:checked + span,
-.bl-band.urgent .choice-other.on {
-	background: color-mix(in srgb, var(--hi) 12%, var(--paper));
+.bl-band.urgent .choice-other.on,
+.bl-band.urgent .choice-other:has(input:focus) {
 	color: color-mix(in srgb, var(--hi) 55%, var(--ink));
-	box-shadow: inset 0 0 0 1px var(--hi);
+	border-color: var(--hi);
 }
 .bl-band.urgent .choice-other.on input {
 	color: color-mix(in srgb, var(--hi) 55%, var(--ink));
 }
-.bl-band.urgent .choice-other:has(input:focus),
-.bl-band.urgent .choice-other.on:has(input:focus) {
-	box-shadow: inset 0 0 0 2px var(--hi);
+.bl-band.urgent .choice-other:has(input:focus) {
+	color: var(--faint);
+}
+/* The rate in the status sub line is plain mono text, not a chip. */
+.bl-body .dash-status-sub code {
+	padding: 0;
+	border-radius: 0;
+	background: none;
 }
 .bl-band.urgent .acct-btn.solid {
 	background: var(--hi);
