@@ -1,6 +1,7 @@
 import { AccountFrame } from "@/components/account/account-frame";
 import { AccountSeedProvider } from "@/lib/account-data";
 import { accountReads } from "@/lib/server/dashboard-reads";
+import { getTiming } from "@/lib/server/render-timing";
 import { sessionToken } from "@/lib/server/session";
 
 // Next to the API (Hetzner HEL/fsn1), and per request: the HTML carries one
@@ -16,7 +17,11 @@ export default async function AccountLayout({
 	children: React.ReactNode;
 }) {
 	const token = await sessionToken();
-	const seed = token ? await accountReads(token, ["billing"]) : {};
+	const seed = token
+		? await getTiming().step("layout:billing", () =>
+				accountReads(token, ["billing"]),
+			)
+		: {};
 	return (
 		<AccountSeedProvider seed={seed}>
 			<AccountFrame signedOut={!token}>{children}</AccountFrame>

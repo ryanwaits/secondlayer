@@ -1,6 +1,7 @@
 // Server-only: never import from client code.
 import { apiRequest } from "@/lib/api";
 import { type Insight, rankInsights } from "@/lib/insights";
+import { getTiming } from "./render-timing";
 
 /**
  * The dashboard's insights: the stack's (webhooks, subgraphs) and the
@@ -34,9 +35,11 @@ export async function fetchInsightSide(
 
 /** The ranked insights, or null when neither side answered (the browser then
  *  fetches them itself). Never throws. */
-export async function readInsights(
-	sessionToken: string,
-): Promise<Insight[] | null> {
+export function readInsights(sessionToken: string): Promise<Insight[] | null> {
+	return getTiming().step("readInsights", () => loadInsights(sessionToken));
+}
+
+async function loadInsights(sessionToken: string): Promise<Insight[] | null> {
 	const [stack, account] = await Promise.all([
 		fetchInsightSide("/api/insights", "t", sessionToken),
 		fetchInsightSide("/api/accounts/insights", "a", sessionToken),
