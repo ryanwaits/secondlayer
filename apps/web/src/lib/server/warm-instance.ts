@@ -8,10 +8,6 @@ import type { Agent } from "undici";
  * loading the highlighter's grammars and themes, and opening the keep-alive
  * connection to the API. Returns at once; both run in the background and a
  * failure just means that request pays as it did before.
- *
- * The highlighter is warmed through `renderCode`, not `renderBlocks`: the
- * latter opens a request timer, which would mark this warm-up as the
- * instance's first (cold) request.
  */
 export function warmInstance(): void {
 	void import("@/components/code/code")

@@ -47,7 +47,6 @@ import type {
 import type { Agent } from "undici";
 import { publicSource } from "./public-source";
 import { renderBlocks } from "./render-blocks";
-import { getTiming, redactPath } from "./render-timing";
 
 /**
  * What a dashboard page reads on the server, so its HTML arrives with the
@@ -62,16 +61,7 @@ import { getTiming, redactPath } from "./render-timing";
 const SEGMENT_RE = /^[A-Za-z0-9_-]+$/;
 
 /** One authenticated GET against the platform API. Never throws. */
-export function readApi<T>(
-	token: string,
-	path: string,
-): Promise<WebhooksResult<T>> {
-	return getTiming().step("readApi", () => fetchApi<T>(token, path), {
-		path: redactPath(path),
-	});
-}
-
-async function fetchApi<T>(
+export async function readApi<T>(
 	token: string,
 	path: string,
 ): Promise<WebhooksResult<T>> {
@@ -190,9 +180,7 @@ export async function accountReads(
 			if (res.kind === "ok") seed.rows = res.data;
 		},
 	};
-	await getTiming().step("wave:accountReads", () =>
-		Promise.all(wanted.map((name) => readers[name]())),
-	);
+	await Promise.all(wanted.map((name) => readers[name]()));
 	return seed;
 }
 
@@ -206,12 +194,10 @@ export interface WebhooksListInitial {
 export async function webhooksListReads(
 	token: string,
 ): Promise<WebhooksListInitial> {
-	const [list, summary] = await getTiming().step("wave:webhooksList", () =>
-		Promise.all([
-			readApi<{ data: WebhookSummary[] }>(token, "/api/webhooks"),
-			readApi<WebhooksActivitySummary>(token, "/api/webhooks/activity"),
-		]),
-	);
+	const [list, summary] = await Promise.all([
+		readApi<{ data: WebhookSummary[] }>(token, "/api/webhooks"),
+		readApi<WebhooksActivitySummary>(token, "/api/webhooks/activity"),
+	]);
 	return {
 		list: emptyOnNotFound(rowsOf(list), []),
 		summary: emptyOnNotFound(summary, { hours: [], webhooks: [] }),
@@ -236,18 +222,14 @@ export async function webhookDetailReads(
 		};
 	}
 	const base = `/api/webhooks/${id}`;
-	const [webhook, deliveries, activity] = await getTiming().step(
-		"wave:webhookDetail",
-		() =>
-			Promise.all([
-				readApi<WebhookDetail>(token, base),
-				readApi<{ data: DeliveryRow[] }>(
-					token,
-					`${base}/deliveries?_limit=${FIRST_DELIVERIES}`,
-				),
-				readApi<WebhookActivity>(token, `${base}/activity`),
-			]),
-	);
+	const [webhook, deliveries, activity] = await Promise.all([
+		readApi<WebhookDetail>(token, base),
+		readApi<{ data: DeliveryRow[] }>(
+			token,
+			`${base}/deliveries?_limit=${FIRST_DELIVERIES}`,
+		),
+		readApi<WebhookActivity>(token, `${base}/activity`),
+	]);
 	let rows = rowsOf(deliveries);
 	let first = rows.kind === "ok" ? rows.data.map(normalizeDeliveryRow) : null;
 	// Retries of a few events can fill the first page with fewer groups than
@@ -322,23 +304,16 @@ export async function subgraphDetailReads(
 		};
 	}
 	const base = `/api/subgraphs/${name}`;
-	const [detail, health, errors, source, recent] = await getTiming().step(
-		"wave:subgraphDetail1",
-		() =>
-			Promise.all([
-				readApi<SubgraphDetailData>(token, base),
-				readApi<SubgraphHealthData>(
-					token,
-					`${base}/health?hours=${HEALTH_WEEK_HOURS}`,
-				),
-				readApi<{ data: SubgraphErrorGroup[] }>(
-					token,
-					`${base}/errors?limit=20`,
-				),
-				readApi<SubgraphSource>(token, `${base}/source`),
-				readApi<{ data: RecentRow[] }>(token, `${base}/recent`),
-			]),
-	);
+	const [detail, health, errors, source, recent] = await Promise.all([
+		readApi<SubgraphDetailData>(token, base),
+		readApi<SubgraphHealthData>(
+			token,
+			`${base}/health?hours=${HEALTH_WEEK_HOURS}`,
+		),
+		readApi<{ data: SubgraphErrorGroup[] }>(token, `${base}/errors?limit=20`),
+		readApi<SubgraphSource>(token, `${base}/source`),
+		readApi<{ data: RecentRow[] }>(token, `${base}/recent`),
+	]);
 	const publicSourceResult: WebhooksResult<SubgraphSource> =
 		source.kind === "ok"
 			? { kind: "ok", data: publicSource(source.data) as SubgraphSource }
@@ -352,9 +327,9 @@ export async function subgraphDetailReads(
 			publicSourceResult.kind === "ok"
 				? publicSourceResult.data.sourceCode
 				: null;
-		tableBlocks = await getTiming().step("wave:subgraphDetail2", () =>
+		tableBlocks =
 			publicSourceResult.kind === "ok"
-				? renderBlocks(
+				? await renderBlocks(
 						tableCode({
 							name,
 							tables: detail.data.tables,
@@ -362,8 +337,7 @@ export async function subgraphDetailReads(
 							sourceCode,
 						}).blocks,
 					).catch(() => null)
-				: Promise.resolve(null),
-		);
+				: null;
 	}
 	return {
 		detail,
