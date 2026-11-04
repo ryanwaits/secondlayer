@@ -3,12 +3,18 @@ import type { HighlighterCore, ThemedToken } from "shiki/core";
 import { createJavaScriptRegexEngine } from "shiki/engine/javascript";
 import { secondlayer, secondlayerDark } from "./syntax-theme";
 
-let highlighterPromise: Promise<HighlighterCore> | null = null;
+/** Next bundles the server's startup hook and each route separately, so this
+ *  module can load more than once per process. Keeping the highlighter on
+ *  `globalThis` lets the startup warm-up serve the routes' renders. */
+const HIGHLIGHTER_KEY = Symbol.for("secondlayer.highlighter");
+const shared = globalThis as unknown as {
+	[HIGHLIGHTER_KEY]?: Promise<HighlighterCore>;
+};
 
 /** Fine-grained Shiki with the JavaScript regex engine: no wasm, only our ten languages. */
-function getHighlighter() {
-	if (!highlighterPromise) {
-		highlighterPromise = createHighlighterCore({
+function getHighlighter(): Promise<HighlighterCore> {
+	if (!shared[HIGHLIGHTER_KEY]) {
+		shared[HIGHLIGHTER_KEY] = createHighlighterCore({
 			themes: [secondlayer, secondlayerDark],
 			langs: [
 				import("@shikijs/langs/typescript"),
@@ -25,7 +31,7 @@ function getHighlighter() {
 			engine: createJavaScriptRegexEngine(),
 		});
 	}
-	return highlighterPromise;
+	return shared[HIGHLIGHTER_KEY] as Promise<HighlighterCore>;
 }
 
 const LANG_ALIASES: Record<string, string> = {

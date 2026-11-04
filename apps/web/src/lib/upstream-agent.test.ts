@@ -8,6 +8,13 @@ afterEach(() => {
 	globalThis.fetch = originalFetch;
 });
 
+test("a second load of the module (another server bundle) gets the same agent", async () => {
+	// The query string makes Bun load a second copy of the module.
+	const specifier = "./upstream-agent.ts?second-bundle";
+	const copy = (await import(specifier)) as { upstreamAgent: unknown };
+	expect(copy.upstreamAgent).toBe(upstreamAgent);
+});
+
 test("apiRequest sends upstream reads through the shared keep-alive agent", async () => {
 	let init: (RequestInit & { dispatcher?: unknown }) | undefined;
 	globalThis.fetch = (async (_url: string, i?: RequestInit) => {
