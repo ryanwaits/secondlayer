@@ -1,0 +1,104 @@
+# Database server (AX162-1, 128 GB ECC, 2 × 3.84 TB NVMe RAID1) — the Stacks
+# Postgres on its own host, reached by app-server over a WireGuard tunnel.
+#
+# Same Postgres image as docker/oss and the same WAL-G sidecar as
+# docker-compose.hetzner.yml; only the host-size tuning differs.
+#
+# Startup:
+#   1. cp .env.example .env && fill it (chmod 600)
+#   2. docker compose up -d
+#
+# Postgres publishes only on the tunnel address (POSTGRES_BIND), never on the
+# public interface. Docker-published ports bypass ufw, so the bind address IS
+# the access control.
+
+services:
+  postgres:
+    image: postgres:17-alpine@sha256:b0f9560a2de083e2cc7382e75f808c7381a32852a7ec49117deedb300e552b24
+    shm_size: 8gb
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-secondlayer}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-secondlayer}
+    command:
+      - "postgres"
+      - "-c"
+      - "wal_level=replica"
+      - "-c"
+      - "archive_mode=on"
+      - "-c"
+      - "archive_command=test -f /wal_archive/%f || cp %p /wal_archive/%f"
+      - "-c"
+      - "archive_timeout=300"
+      - "-c"
+      - "max_connections=200"
+      # Sized for 128 GB RAM, 48 cores, NVMe. ~25% of RAM for shared_buffers;
+      # the OS page cache holds the rest.
+      - "-c"
+      - "shared_buffers=${POSTGRES_SHARED_BUFFERS:-32GB}"
+      - "-c"
+      - "effective_cache_size=${POSTGRES_EFFECTIVE_CACHE_SIZE:-90GB}"
+      - "-c"
+      - "maintenance_work_mem=4GB"
+      - "-c"
+      - "work_mem=64MB"
+      - "-c"
+      - "max_wal_size=32GB"
+      - "-c"
+      - "min_wal_size=4GB"
+      - "-c"
+      - "checkpoint_completion_target=0.9"
+      - "-c"
+      - "wal_compression=zstd"
+      - "-c"
+      - "random_page_cost=1.1"
+      - "-c"
+      - "effective_io_concurrency=200"
+      - "-c"
+      - "max_worker_processes=48"
+      - "-c"
+      - "max_parallel_workers=24"
+      - "-c"
+      - "max_parallel_workers_per_gather=8"
+      - "-c"
+      - "max_parallel_maintenance_workers=8"
+    volumes:
+      - ${DATA_DIR:-/data}/postgres:/var/lib/postgresql/data
+      - ${DATA_DIR:-/data}/wal_archive:/wal_archive
+    ports:
+      - "${POSTGRES_BIND:-10.77.0.1}:5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-secondlayer}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # Offsite backups to R2 (WAL spool + weekly base backup). Use a prefix of its
+  # own so this host never shares a backup chain with another Postgres.
+  walg-backup:
+    build:
+      context: ../walg
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      WALG_S3_PREFIX: ${WALG_S3_PREFIX:?set WALG_S3_PREFIX}
+      AWS_ACCESS_KEY_ID: ${WALG_R2_ACCESS_KEY_ID:?}
+      AWS_SECRET_ACCESS_KEY: ${WALG_R2_SECRET_ACCESS_KEY:?}
+      AWS_ENDPOINT: ${WALG_R2_ENDPOINT:?}
+      AWS_S3_FORCE_PATH_STYLE: "true"
+      AWS_REGION: auto
+      WALG_COMPRESSION_METHOD: zstd
+      PGHOST: postgres
+      PGPORT: "5432"
+      PGUSER: ${POSTGRES_USER:-secondlayer}
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+      PGDATABASE: ${POSTGRES_DB:-secondlayer}
+      PGDATA: /var/lib/postgresql/data
+      RETAIN_FULL: ${WALG_RETAIN_FULL:-4}
+      BACKUP_INTERVAL_SECS: ${WALG_BACKUP_INTERVAL_SECS:-604800}
+    volumes:
+      - ${DATA_DIR:-/data}/postgres:/var/lib/postgresql/data:ro
+      - ${DATA_DIR:-/data}/wal_archive:/wal_archive
