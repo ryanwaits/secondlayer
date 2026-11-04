@@ -134,31 +134,35 @@ export function exampleStack(state: HostedStack["state"], now: Date) {
 /** The webhook rows: two that deliver (one failing, if asked) and six that never matched. */
 export function exampleWebhooks(
 	now: Date,
-	{ failing = false }: { failing?: boolean } = {},
+	{
+		failing = false,
+		attention = false,
+	}: { failing?: boolean; attention?: boolean } = {},
 ): WebhookRowModel[] {
 	const recent = (minutes: number) =>
 		new Date(now.getTime() - minutes * 60_000).toISOString();
-	const first = failing
-		? rowModel(
-				summary({
-					id: "wh_first",
-					name: "sbtc-deposits",
-					lastDeliveryAt: recent(180),
-				}),
-				hourly([2], [16, 19, 21, 23]),
-				FIXTURE_HOURS,
-				FIXTURE_INSIGHTS.slice(0, 1),
-			)
-		: rowModel(
-				summary({
-					id: "wh_first",
-					name: "sbtc-deposits",
-					lastDeliveryAt: recent(10),
-				}),
-				hourly([2, 16, 23]),
-				FIXTURE_HOURS,
-				[],
-			);
+	const first =
+		failing || attention
+			? rowModel(
+					summary({
+						id: "wh_first",
+						name: "sbtc-deposits",
+						lastDeliveryAt: recent(180),
+					}),
+					hourly([2], [16, 19, 21, 23]),
+					FIXTURE_HOURS,
+					failing ? FIXTURE_INSIGHTS.slice(0, 1) : FIXTURE_INSIGHTS.slice(1, 2),
+				)
+			: rowModel(
+					summary({
+						id: "wh_first",
+						name: "sbtc-deposits",
+						lastDeliveryAt: recent(10),
+					}),
+					hourly([2, 16, 23]),
+					FIXTURE_HOURS,
+					[],
+				);
 	const second = rowModel(
 		summary({
 			id: "wh_second",
@@ -216,6 +220,18 @@ export function exampleSubgraph(now: Date): {
 				eventsHandled: rowsWritten,
 			})),
 		},
+	};
+}
+
+/** A subgraph finding for the Overview's list, aimed at the example subgraph. */
+export function exampleSubgraphFinding(): Insight {
+	const base = FIXTURE_INSIGHTS[1] as Insight;
+	return {
+		...base,
+		id: "ins-sbtc-flows-lag",
+		resource: { kind: "subgraph", id: "sbtc-flows", name: "sbtc-flows" },
+		line: "sbtc-flows falls behind the chain at this pace",
+		meta: "in about 2 h",
 	};
 }
 

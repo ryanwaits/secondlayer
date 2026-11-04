@@ -7,11 +7,7 @@ import {
 } from "@/components/dashboard/charts/heat-strip";
 import { Legend } from "@/components/dashboard/charts/legend";
 import { Sparkline } from "@/components/dashboard/charts/sparkline";
-import {
-	ActionableInsights,
-	InsightActions,
-} from "@/components/dashboard/insight/insight-actions";
-import { InsightCard } from "@/components/dashboard/insight/insight-card";
+import { ActionableInsights } from "@/components/dashboard/insight/insight-actions";
 import {
 	ResourceRow,
 	ResourceRowHead,
@@ -45,7 +41,7 @@ import {
 import { type Tone, flagClass } from "@/lib/tone";
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { StateCell, insightRowState } from "../webhooks/rows";
+import { insightRowState } from "../webhooks/rows";
 import { ageShort } from "../webhooks/view";
 import { SubgraphsCompactList } from "./compact-list";
 import { SubgraphSheet } from "./compact-sheet";
@@ -116,7 +112,6 @@ function SubgraphRow({
 	/** Ranked insights about this subgraph. */
 	insights: readonly Insight[];
 }) {
-	const [open, setOpen] = useState(false);
 	const errors24h = handlerErrors24h(health);
 	const points = health?.hours.slice(-24).map((hour) => hour.rowsWritten) ?? [];
 	const rows = item.totalRows ?? 0;
@@ -131,40 +126,24 @@ function SubgraphRow({
 		item.status,
 	);
 	return (
-		<div className="dash-row-wrap">
-			<ResourceRow
-				href={`/account/subgraphs/${encodeURIComponent(item.name)}`}
-				name={item.name}
-				nameTitle={item.name}
-				tone={tone}
-				state={
-					insightState ? (
-						<StateCell
-							model={{ state: insightState, insights: [...insights] }}
-							open={open}
-							onToggle={() => setOpen((v) => !v)}
-							noun="subgraph"
-						/>
-					) : (
-						line
-					)
-				}
-				spark={
-					points.length > 1 ? (
-						<Sparkline
-							points={points}
-							title={`${item.name}, rows written per hour, last 24 hours`}
-							tone={flag ?? undefined}
-						/>
-					) : null
-				}
-				count={`≈${groupDigits(String(rows))}`}
-				age={ageShort(item.updatedAt ?? null)}
-			/>
-			{open && top ? (
-				<InsightCard insight={top} footer={<InsightActions insight={top} />} />
-			) : null}
-		</div>
+		<ResourceRow
+			href={`/account/subgraphs/${encodeURIComponent(item.name)}`}
+			name={item.name}
+			nameTitle={item.name}
+			tone={tone}
+			state={insightState ? insightState.text : line}
+			spark={
+				points.length > 1 ? (
+					<Sparkline
+						points={points}
+						title={`${item.name}, rows written per hour, last 24 hours`}
+						tone={flag ?? undefined}
+					/>
+				) : null
+			}
+			count={`≈${groupDigits(String(rows))}`}
+			age={ageShort(item.updatedAt ?? null)}
+		/>
 	);
 }
 

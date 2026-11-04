@@ -32,6 +32,7 @@ import {
 	exampleOverview,
 	exampleStack,
 	exampleSubgraph,
+	exampleSubgraphFinding,
 	exampleWebhooks,
 	serverErrorsInsight,
 } from "@/components/account/overview/overview.fixtures";
@@ -781,6 +782,8 @@ export function OverviewOnboardingDemo({
 export type OverviewDemoState =
 	| "today"
 	| "webhook-failing"
+	| "webhook-attention"
+	| "mixed-findings"
 	| "stack-stopped"
 	| "asleep"
 	| "with-subgraph"
@@ -797,6 +800,21 @@ export function OverviewDemo({ state }: { state: OverviewDemoState }) {
 		today: exampleOverview(now),
 		"webhook-failing": exampleOverview(now, {
 			rows: exampleWebhooks(now, { failing: true }),
+		}),
+		"webhook-attention": exampleOverview(now, {
+			rows: exampleWebhooks(now, { attention: true }),
+		}),
+		"mixed-findings": exampleOverview(now, {
+			rows: exampleWebhooks(now, { failing: true }),
+			subgraphFindings: [exampleSubgraphFinding()],
+			subgraphs: (
+				<SubgraphRows
+					items={[subgraph.item]}
+					health={{ [subgraph.item.name]: subgraph.health }}
+					insights={[exampleSubgraphFinding()]}
+					head={SUBGRAPH_HEAD}
+				/>
+			),
 		}),
 		"stack-stopped": exampleOverview(now, {
 			stack: exampleStack("stopped", now),

@@ -2665,6 +2665,16 @@ const META: Record<StoryId, Meta> = {
 				render: () => <OverviewDemo state="webhook-failing" />,
 			},
 			{
+				id: "webhook-attention",
+				label: "A webhook needs a look",
+				render: () => <OverviewDemo state="webhook-attention" />,
+			},
+			{
+				id: "mixed-findings",
+				label: "Findings across a webhook and a subgraph",
+				render: () => <OverviewDemo state="mixed-findings" />,
+			},
+			{
 				id: "stack-stopped",
 				label: "Hosted stack stopped",
 				render: () => <OverviewDemo state="stack-stopped" />,

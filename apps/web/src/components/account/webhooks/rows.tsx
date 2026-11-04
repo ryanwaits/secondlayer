@@ -5,7 +5,6 @@ import { forResource, useInsights } from "@/lib/insights-store";
 import type { Tone } from "@/lib/tone";
 import { type WebhooksSeed, useWebhooksCache } from "@/lib/webhooks-store";
 import type { WebhookSummary } from "@secondlayer/sdk";
-import type { KeyboardEvent, MouseEvent } from "react";
 import { type HourlySeries, type RowState, listRowState } from "./view";
 
 /**
@@ -88,68 +87,4 @@ export function useWebhookRows(seed?: WebhooksSeed): {
 			),
 		),
 	};
-}
-
-/**
- * "Why ›" inside a row link: toggles the inline card instead of navigating.
- * A span, because a button cannot sit inside the row's anchor.
- */
-export function WhyToggle({
-	open,
-	onToggle,
-}: { open: boolean; onToggle: () => void }) {
-	const toggle = (event: MouseEvent | KeyboardEvent) => {
-		event.preventDefault();
-		event.stopPropagation();
-		onToggle();
-	};
-	return (
-		// biome-ignore lint/a11y/useSemanticElements: a button cannot nest inside the row's anchor
-		<span
-			role="button"
-			tabIndex={0}
-			aria-expanded={open}
-			className="ov-why"
-			onClick={toggle}
-			onKeyDown={(event) => {
-				if (event.key === "Enter" || event.key === " ") toggle(event);
-			}}
-		>
-			{open ? "Hide" : "Why"} ›
-		</span>
-	);
-}
-
-/** The state cell: text, a faint "+N" for more insights, and the Why toggle. */
-export function StateCell({
-	model,
-	open,
-	onToggle,
-	noun = "webhook",
-}: {
-	model: Pick<WebhookRowModel, "state" | "insights">;
-	open: boolean;
-	onToggle: () => void;
-	/** What the "+N" tooltip calls the resource. */
-	noun?: string;
-}) {
-	const extra = model.insights.length - 1;
-	return (
-		<span className="ov-state">
-			<span className={`ov-state-t${model.state.bad ? " bad" : ""}`}>
-				{model.state.text}
-			</span>
-			{extra > 0 ? (
-				<span
-					className="ov-more"
-					title={`${extra} more ${extra === 1 ? "insight" : "insights"} on this ${noun}`}
-				>
-					+{extra}
-				</span>
-			) : null}
-			{model.insights.length > 0 ? (
-				<WhyToggle open={open} onToggle={onToggle} />
-			) : null}
-		</span>
-	);
 }

@@ -6,7 +6,7 @@ import {
 	ActionableInsights,
 	InsightActions,
 } from "@/components/dashboard/insight/insight-actions";
-import { InsightCard } from "@/components/dashboard/insight/insight-card";
+import { InsightNote } from "@/components/dashboard/insight/insight-note";
 import {
 	Checklist,
 	type ChecklistStep,
@@ -32,8 +32,18 @@ import {
 } from "@/lib/account-data";
 import { daysLeft, daysLeftLabel } from "@/lib/account-health";
 import { useAuth } from "@/lib/auth";
-import type { Insight } from "@/lib/insights";
-import { forAccountRules, useInsights } from "@/lib/insights-store";
+import {
+	type OpenChoices,
+	readOpenChoices,
+	resolveOpenId,
+	writeOpenChoices,
+} from "@/lib/insight-open";
+import { type Insight, rankInsights } from "@/lib/insights";
+import {
+	forAccountRules,
+	forResource,
+	useInsights,
+} from "@/lib/insights-store";
 import {
 	type KeyState,
 	type OnboardingProgress,
@@ -78,11 +88,7 @@ import {
 	OverviewSubgraphsRows,
 	useSubgraphsPoll,
 } from "../subgraphs/list-screen";
-import {
-	StateCell,
-	type WebhookRowModel,
-	useWebhookRows,
-} from "../webhooks/rows";
+import { type WebhookRowModel, useWebhookRows } from "../webhooks/rows";
 import { shortenName } from "../webhooks/shared";
 import { ageShort, last24 } from "../webhooks/view";
 import { WaitingGroups } from "../webhooks/waiting";
@@ -137,48 +143,101 @@ function WebhookRow({
 	/** The hosted stack is stopped: nothing is delivering, and the webhook isn't at fault. */
 	stopped?: boolean;
 }) {
-	const [open, setOpen] = useState(false);
-	const { webhook, series, state, insights } = model;
+	const { webhook, series, state } = model;
 	const recent = last24(series);
-	const top = insights[0];
 	const tone = stopped ? "idle" : state.tone;
 	return (
-		<div className="dash-row-wrap">
-			<ResourceRow
-				href={`/account/webhooks/${webhook.id}`}
-				name={shortenName(webhook.name)}
-				nameTitle={webhook.name}
-				tone={tone}
-				state={
-					stopped ? (
-						"Not delivering, stack stopped"
-					) : (
-						<StateCell
-							model={model}
-							open={open}
-							onToggle={() => setOpen((v) => !v)}
-						/>
-					)
-				}
-				spark={
-					recent.delivered.length > 0 ? (
-						<Ticks
-							delivered={recent.delivered}
-							failed={recent.failed}
-							tone={tone === "hi" ? "att" : undefined}
-							title={`${webhook.name}, deliveries per hour, last 24 hours`}
-						/>
-					) : null
-				}
-				count={recent.delivered
-					.reduce((a, b) => a + b, 0)
-					.toLocaleString("en-US")}
-				age={ageShort(webhook.lastDeliveryAt)}
-			/>
-			{open && top ? (
-				<InsightCard insight={top} footer={<InsightActions insight={top} />} />
-			) : null}
-		</div>
+		<ResourceRow
+			href={`/account/webhooks/${webhook.id}`}
+			name={shortenName(webhook.name)}
+			nameTitle={webhook.name}
+			tone={tone}
+			state={stopped ? "Not delivering, stack stopped" : state.text}
+			spark={
+				recent.delivered.length > 0 ? (
+					<Ticks
+						delivered={recent.delivered}
+						failed={recent.failed}
+						tone={tone === "hi" ? "att" : undefined}
+						title={`${webhook.name}, deliveries per hour, last 24 hours`}
+					/>
+				) : null
+			}
+			count={recent.delivered
+				.reduce((a, b) => a + b, 0)
+				.toLocaleString("en-US")}
+			age={ageShort(webhook.lastDeliveryAt)}
+		/>
+	);
+}
+
+/** A resource's worst insight that is still live; a recovered one is not a finding. */
+export function topFinding(insights: readonly Insight[]): Insight | undefined {
+	return rankInsights(insights).find((i) => i.severity !== "recovered");
+}
+
+/** One finding per flagged webhook or subgraph, worst first. */
+export function overviewFindings(
+	webhooks: readonly Pick<WebhookRowModel, "insights">[],
+	subgraphs: readonly Insight[],
+): Insight[] {
+	const tops = webhooks.flatMap((w) => topFinding(w.insights) ?? []);
+	return rankInsights([...tops, ...subgraphs]);
+}
+
+/** "1 webhook is failing." when every finding is one kind and severity,
+ *  else "N things need a look." */
+export function findingsHeadline(findings: readonly Insight[]): string {
+	const first = findings[0];
+	if (!first) return "";
+	const failing = (i: Insight) => i.severity === "losing";
+	const same = findings.every(
+		(i) =>
+			i.resource.kind === first.resource.kind && failing(i) === failing(first),
+	);
+	const n = findings.length;
+	if (!same) return `${n.toLocaleString("en-US")} things need a look.`;
+	const noun = plural(n, first.resource.kind);
+	if (failing(first)) return `${noun} ${n === 1 ? "is" : "are"} failing.`;
+	return `${noun} ${n === 1 ? "needs" : "need"} a look.`;
+}
+
+/** The findings as their own list above the tables. The worst opens by
+ *  default; the reader's last choice per finding is remembered and applied
+ *  once the page mounts (the server cannot know it). One is open at a time. */
+function Findings({ findings }: { findings: readonly Insight[] }) {
+	const ids = findings.map((f) => f.id);
+	const [openId, setOpenId] = useState<string | null>(() =>
+		resolveOpenId(ids, {}),
+	);
+	// biome-ignore lint/correctness/useExhaustiveDependencies: applied once, on mount
+	useEffect(() => {
+		setOpenId(resolveOpenId(ids, readOpenChoices()));
+	}, []);
+	if (findings.length === 0) return null;
+
+	const toggle = (id: string) => {
+		const next = openId === id ? null : id;
+		const choices: Record<string, boolean> = { ...readOpenChoices() };
+		if (openId) choices[openId] = false;
+		if (next) choices[next] = true;
+		writeOpenChoices(choices as OpenChoices, ids);
+		setOpenId(next);
+	};
+
+	return (
+		<section className="ov-findings" aria-label="Needs a look">
+			<div className="dash-label">Needs a look · {findings.length}</div>
+			{findings.map((insight) => (
+				<InsightNote
+					key={insight.id}
+					insight={insight}
+					open={openId === insight.id}
+					onToggle={() => toggle(insight.id)}
+					footer={<InsightActions insight={insight} />}
+				/>
+			))}
+		</section>
 	);
 }
 
@@ -363,6 +422,8 @@ export interface OverviewBodyProps {
 	keys?: ApiKey[] | null;
 	/** The clock for the keys row; defaults to now. */
 	now?: Date;
+	/** The live top insight of each flagged subgraph. */
+	subgraphFindings?: readonly Insight[];
 	/** Account-level insights (read errors, spend cap, credits). */
 	accountInsights?: readonly Insight[];
 	/** The hosted stack stopped because every webhook is paused. */
@@ -381,13 +442,14 @@ export function OverviewBody({
 	subgraphs = <OverviewSubgraphsSlot />,
 	keys = null,
 	now = new Date(),
+	subgraphFindings = [],
 	accountInsights = [],
 	asleep = false,
 	onboarding = null,
 	loading = false,
 }: OverviewBodyProps) {
 	const guide = onboarding && !onboarding.progress.complete ? onboarding : null;
-	const attention = rows?.filter((r) => r.state.tone === "alarm").length ?? 0;
+	const findings = overviewFindings(rows ?? [], subgraphFindings);
 	const active = rows?.filter((r) => r.webhook.lastDeliveryAt !== null) ?? [];
 	const quiet = rows?.filter((r) => r.webhook.lastDeliveryAt === null) ?? [];
 	// Credits ran out and the hosted stack stopped. The webhooks aren't at
@@ -454,11 +516,8 @@ export function OverviewBody({
 				<StatusSentence sub={sub || undefined}>
 					Checking your account.
 				</StatusSentence>
-			) : attention > 0 ? (
-				<StatusSentence sub={sub}>
-					{plural(attention, "webhook")} {attention === 1 ? "needs" : "need"}{" "}
-					attention.
-				</StatusSentence>
+			) : findings.length > 0 ? (
+				<StatusSentence sub={sub}>{findingsHeadline(findings)}</StatusSentence>
 			) : rows.length === 0 ? (
 				<StatusSentence sub={sub}>No webhooks yet.</StatusSentence>
 			) : (
@@ -472,6 +531,7 @@ export function OverviewBody({
 				/>
 			) : (
 				<>
+					<Findings findings={findings} />
 					<div key="ov-rows" className="dash-rows ov-table">
 						{active.length + quiet.length > 0 ? (
 							<ResourceRowHead labels={WEBHOOK_HEAD} />
@@ -719,6 +779,10 @@ export function OverviewSection({
 		}),
 	);
 
+	const subgraphFindings = (subgraphs?.data ?? []).flatMap(
+		(item) => topFinding(forResource(insights, "subgraph", item.name)) ?? [],
+	);
+
 	return (
 		<OverviewBody
 			loading={!ready}
@@ -730,6 +794,7 @@ export function OverviewSection({
 			stack={service}
 			readUsage={rowsData}
 			keys={keys}
+			subgraphFindings={subgraphFindings}
 			accountInsights={forAccountRules(insights, OVERVIEW_ACCOUNT_RULES)}
 			asleep={asleep}
 			onboarding={onboarding}

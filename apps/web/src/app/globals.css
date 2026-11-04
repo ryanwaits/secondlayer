@@ -6325,8 +6325,8 @@ button.dc-heat-cell:focus-visible {
 .ins-note.recovered .ins-note-line {
 	color: var(--sub);
 }
-.ins-note > .ins-card {
-	margin: 12px 0 16px;
+.ins-note > div > .ins-card {
+	margin: 18px 0 16px;
 	border-radius: 10px;
 }
 .ins-dot {
@@ -6721,35 +6721,18 @@ button.dash-row {
 .ov-sub-rows .dash-row {
 	padding-left: 18px;
 }
-.ov-state {
-	display: flex;
-	align-items: baseline;
-	gap: 8px;
-	min-width: 0;
-}
-.ov-state-t {
-	min-width: 0;
-	overflow: hidden;
-	text-overflow: ellipsis;
-}
-.ov-state-t.bad {
-	color: var(--alarm);
-}
 .ov-more {
 	flex: none;
 	font-size: 12px;
 	color: var(--faint);
 }
-.ov-why {
-	flex: none;
-	font-size: 13px;
-	color: var(--pri);
-	cursor: pointer;
+.ov-findings {
+	display: grid;
+	gap: 4px;
+	margin-top: 28px;
 }
-.ov-why:focus-visible {
-	outline: 2px solid var(--pri);
-	outline-offset: 2px;
-	border-radius: 2px;
+.ov-findings > .dash-label {
+	padding-bottom: 8px;
 }
 /* An <output> is inline, which drops the table's top margin: the first-paint
    skeleton sits at the same place as the table that replaces it. */
@@ -7277,6 +7260,10 @@ button.dash-row {
 }
 .wd-btn.nudge:hover {
 	border-color: var(--pri);
+}
+/* The insight under the header's facts strip reads as its own thing. */
+.wd-head + .ins-stack {
+	margin: 40px 0 44px;
 }
 .wd-facts {
 	display: flex;

@@ -1,4 +1,11 @@
-import { describe, expect, test } from "bun:test";
+import { afterEach, describe, expect, test } from "bun:test";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+import {
+	readOpenChoices,
+	resolveOpenId,
+	writeOpenChoices,
+} from "@/lib/insight-open";
 import type { Insight } from "@/lib/insights";
 import { forAccountRules } from "@/lib/insights-store";
 import { FIXTURE_INSIGHTS } from "@/lib/insights.fixtures";
@@ -132,24 +139,13 @@ describe("OverviewBody", () => {
 		expect(html).not.toContain("example-watch");
 	});
 
-	test("a losing insight turns the sentence into a count of what needs attention", () => {
+	test("a losing insight turns the sentence into a count of what is failing", () => {
 		const losing = rowModel(summary(), series, FIXTURE_HOURS, [
 			FIXTURE_INSIGHTS[0] as never,
 		]);
 		const html = render([losing, second]);
-		expect(html).toContain("1 webhook needs attention.");
+		expect(html).toContain("1 webhook is failing.");
 		expect(html).toContain("Receiver returning 502 since 16:06");
-		expect(html).toContain("Why");
-	});
-
-	test("a second insight on the same webhook adds +1 after the state line", () => {
-		const two = rowModel(summary(), series, FIXTURE_HOURS, [
-			FIXTURE_INSIGHTS[0] as never,
-			FIXTURE_INSIGHTS[1] as never,
-		]);
-		const html = render([two]);
-		expect(html).toContain(">+1<");
-		expect(html).not.toContain(">+2<");
 	});
 
 	test("no webhooks yet is its own sentence, not an error", () => {
@@ -387,7 +383,7 @@ describe("OverviewBody table and strip", () => {
 			/>,
 		);
 		const { sentence, table, strip } = parts(html);
-		expect(sentence).toContain("1 webhook needs attention.");
+		expect(sentence).toContain("1 webhook is failing.");
 		expect(table).toContain("dash-row fail");
 		expect(table).toContain("dc-fill-alarm");
 		expect(strip).not.toContain("-dot");
@@ -548,5 +544,177 @@ describe("checklistApplies", () => {
 
 	test("the first key's flow stays up until its Done", () => {
 		expect(checklistApplies("active", true, true)).toBe(true);
+	});
+});
+
+describe("Overview findings list", () => {
+	const losing = FIXTURE_INSIGHTS.find(
+		(i) => i.severity === "losing",
+	) as Insight;
+	const willFail = FIXTURE_INSIGHTS.find(
+		(i) => i.severity === "will_fail",
+	) as Insight;
+	const subgraphInsight = (over: Partial<Insight> = {}): Insight => ({
+		...willFail,
+		id: "ins-sg",
+		resource: { kind: "subgraph", id: "sbtc-flows", name: "sbtc-flows" },
+		line: "sbtc-flows handler errors rising",
+		...over,
+	});
+	const failing = rowModel(summary(), series, FIXTURE_HOURS, [losing]);
+	const attention = rowModel(
+		summary({ id: "wh_vault", name: "vault-events" }),
+		series,
+		FIXTURE_HOURS,
+		[{ ...willFail, id: "ins-att" }],
+	);
+	const html = (rows: (typeof healthy)[], subgraphFindings: Insight[] = []) =>
+		renderToStaticMarkup(
+			<OverviewBody
+				{...base}
+				rows={rows}
+				subgraphFindings={subgraphFindings}
+			/>,
+		);
+	const table = (out: string) => out.slice(out.indexOf('class="dash-rows'));
+
+	test("lists one line per flagged resource, failing first, above the tables", () => {
+		const out = html([attention, failing], [subgraphInsight()]);
+		expect(out).toContain('aria-label="Needs a look"');
+		expect(out).toContain("Needs a look · 3");
+		const at = (text: string) => out.indexOf(text);
+		expect(at(losing.line)).toBeGreaterThan(-1);
+		expect(at(losing.line)).toBeLessThan(at(willFail.line));
+		expect(at(willFail.line)).toBeLessThan(at("sbtc-flows handler errors"));
+		expect(at("sbtc-flows handler errors")).toBeLessThan(
+			out.indexOf('class="dash-rows'),
+		);
+	});
+
+	test("renders no section when nothing is flagged, and ignores recovered insights", () => {
+		expect(html([healthy, second])).not.toContain("Needs a look");
+		const recovered = rowModel(summary(), series, FIXTURE_HOURS, [
+			{ ...losing, severity: "recovered" },
+		]);
+		expect(html([recovered])).not.toContain("Needs a look");
+	});
+
+	test("rows stay plain links with no Why toggle", () => {
+		const out = html([failing, attention]);
+		expect(table(out)).not.toContain("Why");
+		expect(table(out)).not.toContain("ins-card");
+		expect(table(out)).toContain('href="/account/webhooks/wh_deposits"');
+	});
+
+	test("subgraph rows carry no Why toggle either", () => {
+		const sg = exampleSubgraph(new Date("2026-10-15T12:00:00.000Z"));
+		const out = renderToStaticMarkup(
+			<SubgraphRows
+				items={[sg.item]}
+				health={{ [sg.item.name]: sg.health }}
+				insights={[subgraphInsight()]}
+			/>,
+		);
+		expect(out).toContain("sbtc-flows handler errors rising");
+		expect(out).not.toContain("Why");
+		expect(out).not.toContain("ins-card");
+	});
+
+	test("the first finding is open on load and the rest are closed", () => {
+		const out = html([failing, attention]);
+		expect(out.match(/class="ins-card"/g)).toHaveLength(1);
+		expect(out.indexOf(losing.lead)).toBeGreaterThan(-1);
+		expect(out).not.toContain(willFail.lead);
+	});
+
+	describe("headline", () => {
+		const wh = (n: number, insight: Insight) =>
+			Array.from({ length: n }, (_, i) =>
+				rowModel(
+					summary({ id: `wh_${i}`, name: `w${i}` }),
+					series,
+					FIXTURE_HOURS,
+					[{ ...insight, id: `${insight.id}-${i}` }],
+				),
+			);
+		const head = (rows: (typeof healthy)[], sg: Insight[] = []) => {
+			const out = html(rows, sg);
+			return out.slice(0, out.indexOf('class="dash-rows'));
+		};
+		test("same kind and severity keeps the specific form", () => {
+			expect(head(wh(1, losing))).toContain("1 webhook is failing.");
+			expect(head(wh(2, losing))).toContain("2 webhooks are failing.");
+			expect(head(wh(2, willFail))).toContain("2 webhooks need a look.");
+			expect(head([healthy], [subgraphInsight()])).toContain(
+				"1 subgraph needs a look.",
+			);
+		});
+		test("mixed kinds or severities say things", () => {
+			expect(head([...wh(1, willFail)], [subgraphInsight()])).toContain(
+				"2 things need a look.",
+			);
+			expect(head([...wh(1, losing), ...wh(1, willFail)])).toContain(
+				"2 things need a look.",
+			);
+		});
+	});
+});
+
+describe("remembered open choice", () => {
+	const ids = ["a", "b", "c"];
+	const stubStorage = (storage: unknown) => {
+		(globalThis as { window?: unknown }).window = { localStorage: storage };
+	};
+	afterEach(() => {
+		(globalThis as { window?: unknown }).window = undefined;
+	});
+
+	test("opens the first by default", () => {
+		expect(resolveOpenId(ids, {})).toBe("a");
+	});
+	test("a saved hide keeps the first closed", () => {
+		expect(resolveOpenId(ids, { a: false })).toBeNull();
+	});
+	test("a saved show on the second opens it instead", () => {
+		expect(resolveOpenId(ids, { b: true })).toBe("b");
+	});
+	test("falls back to the default when storage throws", () => {
+		const boom = {
+			getItem: () => {
+				throw new Error("blocked");
+			},
+			setItem: () => {
+				throw new Error("blocked");
+			},
+		};
+		stubStorage(boom);
+		expect(readOpenChoices()).toEqual({});
+		expect(() => writeOpenChoices({ a: true }, ids)).not.toThrow();
+	});
+	test("writes booleans only and prunes ids that are gone", () => {
+		const data: Record<string, string> = {};
+		stubStorage({
+			getItem: (k: string) => data[k] ?? null,
+			setItem: (k: string, v: string) => {
+				data[k] = v;
+			},
+		});
+		writeOpenChoices({ a: true, gone: false }, ids);
+		expect(readOpenChoices()).toEqual({ a: true });
+	});
+});
+
+describe("insight spacing css", () => {
+	const css = readFileSync(
+		join(import.meta.dir, "../../../app/globals.css"),
+		"utf8",
+	);
+	test("the opened card sits 18px under its line", () => {
+		expect(css).toMatch(
+			/\.ins-note > div > \.ins-card \{\s*margin: 18px 0 16px;/,
+		);
+	});
+	test("the detail page insight has 40px above and 44px below", () => {
+		expect(css).toMatch(/\.wd-head \+ \.ins-stack \{\s*margin: 40px 0 44px;/);
 	});
 });
