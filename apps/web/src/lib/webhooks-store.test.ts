@@ -276,6 +276,25 @@ describe("poll", () => {
 		(globalThis as { document?: unknown }).document = undefined;
 	});
 
+	test("a poll told not to start immediately waits one interval", async () => {
+		jest.useFakeTimers();
+		const runs: number[] = [];
+		const stop = poll(
+			() => {
+				runs.push(Date.now());
+				return Promise.resolve(undefined);
+			},
+			1000,
+			{ immediate: false },
+		);
+		expect(runs.length).toBe(0);
+		await advance(999);
+		expect(runs.length).toBe(0);
+		await advance(1);
+		expect(runs.length).toBe(1);
+		stop();
+	});
+
 	test("runs immediately, then again every interval", async () => {
 		jest.useFakeTimers();
 		const runs: number[] = [];
@@ -488,24 +507,5 @@ describe("server seed", () => {
 			// @ts-expect-error restoring the bare test environment
 			globalThis.window = undefined;
 		}
-	});
-
-	test("a poll told not to start immediately waits one interval", async () => {
-		jest.useFakeTimers();
-		const runs: number[] = [];
-		const stop = poll(
-			() => {
-				runs.push(Date.now());
-				return Promise.resolve(undefined);
-			},
-			1000,
-			{ immediate: false },
-		);
-		expect(runs.length).toBe(0);
-		await advance(999);
-		expect(runs.length).toBe(0);
-		await advance(1);
-		expect(runs.length).toBe(1);
-		stop();
 	});
 });
