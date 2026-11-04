@@ -164,7 +164,7 @@ describe("subgraphs reads", () => {
 		expect(res).toEqual({ kind: "ok", data: [] });
 	});
 
-	test("the detail reads health, errors, source and the newest rows of the biggest tables", async () => {
+	test("the detail reads health, errors, source and the newest rows in one wave", async () => {
 		const calls = stubApi({
 			"/api/subgraphs/perf-test-sbtc/health": () => json(exampleHealth()),
 			"/api/subgraphs/perf-test-sbtc/errors": () => json({ data: [] }),
@@ -178,18 +178,20 @@ describe("subgraphs reads", () => {
 					handlerCode: "compiled bundle that must not reach the page",
 				}),
 			"/api/subgraphs/perf-test-sbtc": () => json(perfTestSbtcDetail),
-			"/v1/subgraphs/perf-test-sbtc/": () =>
-				json({ rows: Object.values(PERF_TEST_SBTC_ROWS)[0] ?? [] }),
+			"/api/subgraphs/perf-test-sbtc/recent": () =>
+				json({
+					data: Object.entries(PERF_TEST_SBTC_ROWS).flatMap(([table, rows]) =>
+						rows.map((row) => ({ table, row })),
+					),
+				}),
 		});
 		const res = await subgraphDetailReads("t", "perf-test-sbtc");
 		const paths = calls.map((c) => c.path);
 		expect(paths).toContain("/api/subgraphs/perf-test-sbtc/health?hours=168");
 		expect(paths).toContain("/api/subgraphs/perf-test-sbtc/errors?limit=20");
-		expect(
-			paths.filter((p) =>
-				p.includes("_sort=_block_height&_order=desc&_limit=10"),
-			).length,
-		).toBeGreaterThan(0);
+		expect(paths.filter((p) => p.endsWith("/recent"))).toHaveLength(1);
+		// No per-table row reads any more.
+		expect(paths.filter((p) => p.startsWith("/v1/"))).toEqual([]);
 		expect(res.source.kind === "ok" && res.source.data).not.toHaveProperty(
 			"handlerCode",
 		);
@@ -206,13 +208,25 @@ describe("subgraphs reads", () => {
 		expect(res.tableBlocks).toBeNull();
 	});
 
-	test("every table read failing is a failed Recent rows, not an empty one", async () => {
+	test("a recent-rows read that fails is a failed Recent rows, not an empty one", async () => {
 		stubApi({
+			"/api/subgraphs/perf-test-sbtc/recent": () =>
+				json({ error: "boom" }, 500),
 			"/api/subgraphs/perf-test-sbtc": () => json(perfTestSbtcDetail),
-			"/v1/subgraphs/": () => json({ error: "boom" }, 500),
 		});
 		const res = await subgraphDetailReads("t", "perf-test-sbtc");
 		expect(res.rows).toEqual({ rows: [], failed: true });
+		expect(res.detail.kind).toBe("ok");
+	});
+
+	test("a tenant without the recent endpoint (404) degrades to a failed Recent rows and still renders the rest", async () => {
+		stubApi({
+			"/api/subgraphs/perf-test-sbtc/recent": () => json({}, 404),
+			"/api/subgraphs/perf-test-sbtc": () => json(perfTestSbtcDetail),
+		});
+		const res = await subgraphDetailReads("t", "perf-test-sbtc");
+		expect(res.rows).toEqual({ rows: [], failed: true });
+		expect(res.detail.kind).toBe("ok");
 	});
 });
 

@@ -25,6 +25,7 @@ const SCHEMA_JSON = "schema.json";
 const READ_SUFFIXES = new Set([
 	"health",
 	"errors",
+	"recent",
 	"gaps",
 	"source",
 	SCHEMA_JSON,

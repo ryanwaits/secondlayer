@@ -95,6 +95,13 @@ describe("subgraphs dashboard proxy", () => {
 		);
 	});
 
+	test("recent maps through", async () => {
+		const calls = stubFetch(ok);
+		const { GET } = await import("./route");
+		await GET(req(), ctx(["x", "recent"]));
+		expect(calls[0]?.url.endsWith("/api/subgraphs/x/recent")).toBe(true);
+	});
+
 	test("errors, gaps and schema.json map through", async () => {
 		const calls = stubFetch(ok);
 		const { GET } = await import("./route");

@@ -614,6 +614,11 @@
 				"title": "List a subgraph's handler errors"
 			},
 			{
+				"anchor": "list-deployment-recent-rows",
+				"method": "GET",
+				"title": "List a subgraph's newest rows"
+			},
+			{
 				"anchor": "list-deployment-violations",
 				"method": "GET",
 				"title": "List a subgraph's print violations"

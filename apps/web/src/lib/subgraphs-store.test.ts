@@ -5,7 +5,7 @@ import {
 	type SubgraphsSeed,
 	clearSubgraphsData,
 	detailSeed,
-	fetchRows,
+	fetchRecentRows,
 	listSeed,
 	refreshDetail,
 	refreshErrors,
@@ -102,17 +102,11 @@ describe("subgraphs store", () => {
 		);
 	});
 
-	test("rows are fetched through the rows path and not cached", async () => {
-		const urls = stub(json({ rows: [], next_cursor: null }));
-		const res = await fetchRows(
-			"vault-events",
-			"transfers",
-			"_sort=a&_order=desc",
-		);
+	test("recent rows are one read of the recent path, not cached", async () => {
+		const urls = stub(json({ data: [] }));
+		const res = await fetchRecentRows("vault-events");
 		expect(res.kind).toBe("ok");
-		expect(urls[0]).toBe(
-			"/api/subgraphs/vault-events/rows/transfers?_sort=a&_order=desc",
-		);
+		expect(urls).toEqual(["/api/subgraphs/vault-events/recent"]);
 	});
 });
 

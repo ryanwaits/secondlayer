@@ -1,5 +1,6 @@
 "use client";
 
+import type { RecentRow } from "@/components/account/subgraphs/recent-rows-model";
 import { useSyncExternalStore } from "react";
 import { type WebhooksResult, resultFromResponse } from "./dashboard-results";
 import { shared } from "./request-cache";
@@ -107,16 +108,6 @@ export interface SubgraphErrorGroup {
 	sampleBlockHeight: number | null;
 	firstSeen: string;
 	lastSeen: string;
-}
-
-export interface SubgraphRowsPage {
-	rows: Record<string, unknown>[];
-	next_cursor: string | null;
-	tip?: {
-		block_height: number;
-		subgraph_height: number;
-		blocks_behind: number;
-	};
 }
 
 export type SubgraphsResult<T> = WebhooksResult<T>;
@@ -405,11 +396,10 @@ export function refreshSource(
 	});
 }
 
-/** One page of a table's rows. Not cached: callers hold what they read. */
-export function fetchRows(
+/** The newest rows across a subgraph's tables, in one read. Not cached:
+ *  callers hold what they read. */
+export function fetchRecentRows(
 	name: string,
-	table: string,
-	query: string,
-): Promise<SubgraphsResult<SubgraphRowsPage>> {
-	return request<SubgraphRowsPage>(`/${seg(name)}/rows/${seg(table)}?${query}`);
+): Promise<SubgraphsResult<{ data: RecentRow[] }>> {
+	return request<{ data: RecentRow[] }>(`/${seg(name)}/recent`);
 }

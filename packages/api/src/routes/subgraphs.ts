@@ -1924,6 +1924,60 @@ app.get("/:subgraphName/errors", async (c) => {
 	});
 });
 
+// ── Newest rows across every table ──────────────────────────────────────
+// One call for the dashboard's "Recent rows". Declared before
+// `/:subgraphName/:tableName` so "recent" is never captured as a table name.
+
+const RECENT_ROWS = 20;
+
+app.get("/:subgraphName/recent", async (c) => {
+	const { subgraphName } = c.req.param();
+	const subgraph = requireSubgraph(subgraphName);
+
+	const tables = Object.keys(getSubgraphSchema(subgraph));
+	if (tables.length === 0) return c.json({ data: [] });
+	const schema = ident(subgraphSchemaName(subgraph));
+
+	// One statement picks the newest keys across all tables.
+	const params: unknown[] = [];
+	const perTable = tables.map((table) => {
+		params.push(table);
+		return `(SELECT $${params.length}::text AS "t", "_id", "_block_height" FROM ${schema}.${ident(table)} ORDER BY "_block_height" DESC, "_id" DESC LIMIT ${RECENT_ROWS})`;
+	});
+	const newest = await query(
+		subgraph,
+		`SELECT "t", "_id" FROM (${perTable.join(" UNION ALL ")}) AS u ORDER BY "_block_height" DESC, "_id" DESC LIMIT ${RECENT_ROWS}`,
+		params,
+	);
+
+	// The rows come from `SELECT *` through the same driver as the /v1 row
+	// read, so every column serializes exactly as it does there.
+	const idsByTable = new Map<string, string[]>();
+	for (const { t, _id } of newest) {
+		const ids = idsByTable.get(t) ?? [];
+		ids.push(String(_id));
+		idsByTable.set(t, ids);
+	}
+	const rowsByKey = new Map<string, Record<string, unknown>>();
+	await Promise.all(
+		[...idsByTable].map(async ([table, ids]) => {
+			const rows = await query(
+				subgraph,
+				`SELECT * FROM ${schema}.${ident(table)} WHERE "_id" = ANY($1::bigint[])`,
+				[ids],
+			);
+			for (const row of rows) rowsByKey.set(`${table}:${row._id}`, row);
+		}),
+	);
+
+	return c.json({
+		data: newest.flatMap(({ t, _id }) => {
+			const row = rowsByKey.get(`${t}:${_id}`);
+			return row ? [{ table: t as string, row }] : [];
+		}),
+	});
+});
+
 // ── Print-validate violations (control plane; not under /v1) ────────────
 // Declared before `/:subgraphName/:tableName` so "violations" is never
 // captured as a table name.

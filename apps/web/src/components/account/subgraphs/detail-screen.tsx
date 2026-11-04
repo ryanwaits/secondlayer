@@ -187,11 +187,7 @@ export function SubgraphDetailBody({
 					source={source}
 					initialBlocks={initialBlocks}
 				/>
-				<RecentRows
-					name={detail.name}
-					tables={detail.tables}
-					initial={initialRows}
-				/>
+				<RecentRows name={detail.name} initial={initialRows} />
 			</div>
 
 			<HandlerErrorsPanel groups={errors} />

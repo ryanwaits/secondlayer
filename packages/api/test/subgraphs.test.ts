@@ -187,6 +187,12 @@ const subgraphDef = {
 				},
 				indexes: [["seller", "status"]],
 			},
+			offers: {
+				columns: {
+					bidder: { type: "text" },
+					amount: { type: "uint" },
+				},
+			},
 		},
 	},
 	schemaHash: "test-hash-123",
@@ -220,6 +226,17 @@ describe.skipIf(SKIP)("Subgraphs API Routes", () => {
         "seller" TEXT,
         "price" BIGINT,
         "status" TEXT
+      )
+    `);
+
+		await client.unsafe(`
+      CREATE TABLE IF NOT EXISTS ${PG_SCHEMA}.offers (
+        "_id" SERIAL PRIMARY KEY,
+        "_block_height" BIGINT NOT NULL,
+        "_tx_id" TEXT NOT NULL,
+        "_created_at" TIMESTAMPTZ NOT NULL DEFAULT now(),
+        "bidder" TEXT,
+        "amount" NUMERIC
       )
     `);
 
@@ -299,6 +316,93 @@ describe.skipIf(SKIP)("Subgraphs API Routes", () => {
 				`DELETE FROM ${PG_SCHEMA}.listings WHERE "_tx_id" = 'bulk'`,
 			);
 		}
+	});
+
+	// ── GET /subgraphs/:subgraphName/recent ─────────────────────────────────
+
+	test("GET /subgraphs/:subgraphName/recent merges every table newest block first, rows serialized as /v1 does", async () => {
+		const client = getRawClient();
+		await client.unsafe(`
+      INSERT INTO ${PG_SCHEMA}.offers ("_block_height", "_tx_id", "bidder", "amount")
+      VALUES
+        (101, 'otx1', 'SP_DAVE', 123456789012345678901234567890),
+        (103, 'otx2', 'SP_ERIN', 42),
+        (102, 'otx3', 'SP_FRANK', 7)
+    `);
+		try {
+			const res = await app.request(`/subgraphs/${SUBGRAPH_NAME}/recent`);
+			expect(res.status).toBe(200);
+			// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
+			const body = (await res.json()) as any;
+			expect(
+				body.data.map(
+					(r: { table: string; row: { _block_height: string | number } }) =>
+						`${r.table}@${r.row._block_height}`,
+				),
+			).toEqual([
+				"offers@103",
+				// Same height across tables: the higher _id first.
+				"listings@102",
+				"offers@102",
+				"listings@101",
+				"offers@101",
+				"listings@100",
+				"listings@100",
+			]);
+			// Same height: the newer _id first.
+			const ids = body.data
+				.filter(
+					(r: { row: { _block_height: unknown } }) =>
+						r.row._block_height === "100",
+				)
+				.map((r: { row: { _tx_id: string } }) => r.row._tx_id);
+			expect(ids).toEqual(["tx2", "tx1"]);
+
+			// Every row is exactly what the /v1 table read returns for it.
+			for (const { table, row } of body.data) {
+				const v1 = await app.request(
+					`/v1/subgraphs/${SUBGRAPH_NAME}/${table}?_limit=1000`,
+				);
+				// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
+				const v1Body = (await v1.json()) as any;
+				const same = v1Body.rows.find(
+					(r: { _id: unknown }) => r._id === row._id,
+				);
+				expect(row).toEqual(same);
+			}
+			const big = body.data.find(
+				(r: { table: string; row: { bidder: string } }) =>
+					r.table === "offers" && r.row.bidder === "SP_DAVE",
+			);
+			expect(big.row.amount).toBe("123456789012345678901234567890");
+		} finally {
+			await client.unsafe(`DELETE FROM ${PG_SCHEMA}.offers`);
+		}
+	});
+
+	test("GET /subgraphs/:subgraphName/recent caps at the newest 20", async () => {
+		const client = getRawClient();
+		await client.unsafe(`
+      INSERT INTO ${PG_SCHEMA}.offers ("_block_height", "_tx_id", "bidder", "amount")
+      SELECT 500 + n, 'bulk', 'SP_BULK', n FROM generate_series(1, 30) n
+    `);
+		try {
+			const res = await app.request(`/subgraphs/${SUBGRAPH_NAME}/recent`);
+			// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
+			const body = (await res.json()) as any;
+			expect(body.data).toHaveLength(20);
+			expect(body.data[0].row._block_height).toBe("530");
+			expect(
+				body.data.every((r: { table: string }) => r.table === "offers"),
+			).toBe(true);
+		} finally {
+			await client.unsafe(`DELETE FROM ${PG_SCHEMA}.offers`);
+		}
+	});
+
+	test("GET /subgraphs/:subgraphName/recent returns 404 for unknown subgraph", async () => {
+		const res = await app.request("/subgraphs/nonexistent/recent");
+		expect(res.status).toBe(404);
 	});
 
 	test("GET /subgraphs/:subgraphName returns 404 for unknown subgraph", async () => {

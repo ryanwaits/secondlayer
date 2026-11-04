@@ -1,11 +1,9 @@
 import { tableCode } from "@/components/account/subgraphs/describe-table";
 // Server-only: never import from client code (pulls in undici).
 import {
-	RECENT_ROWS_QUERY,
 	type RecentRow,
 	type RecentRowsData,
-	biggestTables,
-	foldRecentRows,
+	recentRowsData,
 } from "@/components/account/subgraphs/recent-rows-model";
 import { listensForCode } from "@/components/account/webhooks/describe-trigger";
 import type { AccountSeed, Billing, Caps } from "@/lib/account-data";
@@ -306,7 +304,7 @@ export async function subgraphDetailReads(
 		};
 	}
 	const base = `/api/subgraphs/${name}`;
-	const [detail, health, errors, source] = await getTiming().step(
+	const [detail, health, errors, source, recent] = await getTiming().step(
 		"wave:subgraphDetail1",
 		() =>
 			Promise.all([
@@ -320,6 +318,7 @@ export async function subgraphDetailReads(
 					`${base}/errors?limit=20`,
 				),
 				readApi<SubgraphSource>(token, `${base}/source`),
+				readApi<{ data: RecentRow[] }>(token, `${base}/recent`),
 			]),
 	);
 	const publicSourceResult: WebhooksResult<SubgraphSource> =
@@ -330,41 +329,23 @@ export async function subgraphDetailReads(
 	let rows: RecentRowsData | null = null;
 	let tableBlocks: RenderedBlock[] | null = null;
 	if (detail.kind === "ok") {
-		const tables = biggestTables(detail.data.tables);
+		rows = recentRowsData(recent.kind === "ok" ? recent.data.data : null);
 		const sourceCode =
 			publicSourceResult.kind === "ok"
 				? publicSourceResult.data.sourceCode
 				: null;
-		const [results, blocks] = await getTiming().step(
-			"wave:subgraphDetail2",
-			() =>
-				Promise.all([
-					Promise.all(
-						tables.map(async (table): Promise<RecentRow[] | null> => {
-							if (!SEGMENT_RE.test(table)) return null;
-							const page = await readApi<{ rows: Record<string, unknown>[] }>(
-								token,
-								`/v1/subgraphs/${name}/${table}?${RECENT_ROWS_QUERY}`,
-							);
-							return page.kind === "ok"
-								? page.data.rows.map((row) => ({ table, row }))
-								: null;
-						}),
-					),
-					publicSourceResult.kind === "ok"
-						? renderBlocks(
-								tableCode({
-									name,
-									tables: detail.data.tables,
-									sources: detail.data.sources,
-									sourceCode,
-								}).blocks,
-							).catch(() => null)
-						: Promise.resolve(null),
-				]),
+		tableBlocks = await getTiming().step("wave:subgraphDetail2", () =>
+			publicSourceResult.kind === "ok"
+				? renderBlocks(
+						tableCode({
+							name,
+							tables: detail.data.tables,
+							sources: detail.data.sources,
+							sourceCode,
+						}).blocks,
+					).catch(() => null)
+				: Promise.resolve(null),
 		);
-		rows = foldRecentRows(tables, results);
-		tableBlocks = blocks;
 	}
 	return {
 		detail,

@@ -1,15 +1,13 @@
 "use client";
 
 import { groupDigits } from "@/lib/subgraph-view";
-import { fetchRows } from "@/lib/subgraphs-store";
+import { fetchRecentRows } from "@/lib/subgraphs-store";
 import { useEffect, useRef, useState } from "react";
 import { JsonView } from "../webhooks/payload-view";
 import {
-	RECENT_ROWS_QUERY,
 	type RecentRow,
 	type RecentRowsData,
-	biggestTables,
-	foldRecentRows,
+	recentRowsData,
 	sortRecent,
 } from "./recent-rows-model";
 
@@ -236,37 +234,26 @@ export function RecentRowsBody({
 	);
 }
 
-/** The newest rows of the biggest tables, merged. The page's server render
+/** The newest rows across the subgraph's tables. The page's server render
  *  reads them (`initial`); without it the browser reads them once. */
 export function RecentRows({
 	name,
-	tables,
 	initial,
 }: {
 	name: string;
-	/** Table names with their row counts. */
-	tables: Record<string, { rowCount: number }>;
 	initial?: RecentRowsData | null;
 }) {
 	const [data, setData] = useState<RecentRowsData | null>(initial ?? null);
 	// The subgraph the server's rows belong to; another name reads again.
 	const seededName = useRef(initial ? name : null);
 
-	// biome-ignore lint/correctness/useExhaustiveDependencies: once per subgraph; the page doesn't poll rows
 	useEffect(() => {
 		if (seededName.current === name) return;
 		let live = true;
 		setData(null);
-		const biggest = biggestTables(tables);
-		Promise.all(
-			biggest.map(async (table) => {
-				const res = await fetchRows(name, table, RECENT_ROWS_QUERY);
-				return res.kind === "ok"
-					? res.data.rows.map((row) => ({ table, row }))
-					: null;
-			}),
-		).then((results) => {
-			if (live) setData(foldRecentRows(biggest, results));
+		fetchRecentRows(name).then((res) => {
+			if (live)
+				setData(recentRowsData(res.kind === "ok" ? res.data.data : null));
 		});
 		return () => {
 			live = false;

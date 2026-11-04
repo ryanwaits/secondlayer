@@ -755,6 +755,66 @@ export const deploymentsPaths = {
 			}),
 		},
 	},
+	"/api/subgraphs/{name}/recent": {
+		get: {
+			tags: ["deployments"],
+			summary: "List a subgraph's newest rows",
+			"x-nav-title": "Recent rows",
+			description:
+				"The newest 20 rows across all of the subgraph's tables in one call, newest block first (then newest `_id`). Each row is the same object the table read returns, labeled with its table.",
+			security: WRITE_SECURITY,
+			parameters: [NAME_PARAM],
+			responses: apiReadResponses({
+				"200": {
+					description: "Newest rows",
+					content: {
+						"application/json": {
+							schema: {
+								type: "object",
+								required: ["data"],
+								properties: {
+									data: {
+										type: "array",
+										description: "Newest first.",
+										items: {
+											type: "object",
+											required: ["table", "row"],
+											properties: {
+												table: { type: "string" },
+												row: {
+													type: "object",
+													additionalProperties: true,
+													description:
+														"The row's columns, including the system columns `_id`, `_block_height`, `_tx_id` and `_created_at`.",
+												},
+											},
+										},
+									},
+								},
+								example: {
+									data: [
+										{
+											table: "swaps",
+											row: {
+												_id: "4182",
+												_block_height: "9031477",
+												_tx_id:
+													"0x8d2f6a91c4e07b35d1a8f2e69c0b47d3a5e18f62b9c04d7e3a16f58b2c9d0e41",
+												_created_at: "2026-10-16T13:41:56.000Z",
+												sender: "SP2J6ZY48GV1EZ5V2V5RB9MP66SW86PYKKNRV9EJ7",
+												amount: "250000",
+											},
+										},
+									],
+								},
+							},
+						},
+					},
+				},
+				"404": NOT_FOUND_SUBGRAPH,
+			}),
+		},
+	},
 	"/api/subgraphs/{name}/violations": {
 		get: {
 			tags: ["deployments"],
