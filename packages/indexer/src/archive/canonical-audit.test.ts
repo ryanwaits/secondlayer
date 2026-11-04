@@ -3,6 +3,7 @@ import { getSourceDb, sql } from "@secondlayer/shared/db";
 import {
 	auditCanonicalCoverage,
 	computeDesyncFloorHeight,
+	summarizeBlockFieldGaps,
 	summarizeCanonicalContinuity,
 } from "./canonical-audit.ts";
 
@@ -430,5 +431,73 @@ describe.skipIf(!HAS_DB)("short-block audit", () => {
 		expect(report.continuity.short_block_count).toBeGreaterThanOrEqual(1);
 		expect(report.continuity.first_short_block_height).toBe(base);
 		expect(report.continuity.complete).toBe(false);
+	});
+});
+
+/**
+ * 2026-04→06: blocks 7,440,674–8,199,877 were stored with timestamp 0 and NULL
+ * hashes and nothing noticed for 7 months. Seeded past the live max and read
+ * with a floor just below the seed, so only these rows are in scope.
+ */
+describe.skipIf(!HAS_DB)("block field gaps audit", () => {
+	const db = HAS_DB ? getSourceDb() : (null as never);
+	let base = 0;
+
+	async function seed(empty: {
+		timestamp?: boolean;
+		burn?: boolean;
+		index?: boolean;
+	}) {
+		const row = await db
+			.selectFrom("blocks")
+			.select(({ fn }) => fn.max("height").as("max_height"))
+			.executeTakeFirst();
+		base = Number(row?.max_height ?? 0) + 2000;
+		for (let height = base; height <= base + 2; height++) {
+			const target = height === base + 1;
+			await db
+				.insertInto("blocks")
+				.values({
+					height,
+					hash: `0xf${height}`,
+					parent_hash: `0xf${height - 1}`,
+					burn_block_height: 300_000 + height,
+					burn_block_hash: target && empty.burn ? null : "0xburn",
+					index_block_hash: target && empty.index ? null : `0xi${height}`,
+					timestamp: target && empty.timestamp ? 0 : 1_700_000_000 + height,
+					canonical: true,
+				})
+				.execute();
+		}
+	}
+
+	afterEach(async () => {
+		if (base === 0) return;
+		await sql`DELETE FROM blocks WHERE height BETWEEN ${base} AND ${base + 5}`.execute(
+			db,
+		);
+		base = 0;
+	});
+
+	test("a block stored with timestamp 0 is reported with its height", async () => {
+		await seed({ timestamp: true });
+		const gaps = await summarizeBlockFieldGaps(db, base - 1);
+		expect(gaps).toMatchObject({
+			healthy: false,
+			empty_field_blocks: 1,
+			first_empty_field_height: base + 1,
+		});
+	});
+
+	test("a NULL burn or index hash is reported", async () => {
+		await seed({ burn: true, index: true });
+		const gaps = await summarizeBlockFieldGaps(db, base - 1);
+		expect(gaps.empty_field_blocks).toBe(1);
+	});
+
+	test("fully populated blocks report healthy", async () => {
+		await seed({});
+		const gaps = await summarizeBlockFieldGaps(db, base - 1);
+		expect(gaps).toMatchObject({ healthy: true, empty_field_blocks: 0 });
 	});
 });

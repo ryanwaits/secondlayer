@@ -36,6 +36,7 @@ export type CanonicalCoverageAudit = {
 	};
 	continuity: CanonicalContinuity;
 	tx_event_height_desync: TxEventHeightDesync;
+	block_field_gaps: BlockFieldGaps;
 	observer_journal: {
 		available: boolean;
 		sequence_from: string | null;
@@ -68,6 +69,23 @@ export type CanonicalContinuity = {
 export type TxEventHeightDesync = {
 	healthy: boolean;
 	count: number;
+	floor_height: number;
+};
+
+/**
+ * Canonical blocks in the trailing window with a field the node always sends
+ * but we stored empty: `timestamp = 0`, or NULL `burn_block_hash` /
+ * `index_block_hash`. Ingest still writes these rows (blocking the chain over
+ * metadata is worse), so this is the standing check that surfaces it — the
+ * 2026-04→06 gap went 7 months unseen because nothing looked. Every field here
+ * can be backfilled from the node (`repair-block-fields.ts`). Not part of
+ * `continuity`: genesis→7,440,673 still lacks hashes until the v2 cutover, and
+ * export must not refuse over that.
+ */
+export type BlockFieldGaps = {
+	healthy: boolean;
+	empty_field_blocks: number;
+	first_empty_field_height: number | null;
 	floor_height: number;
 };
 
@@ -281,6 +299,7 @@ export async function auditCanonicalCoverageInSnapshot(
 		const shortBlocks = await summarizeShortBlocks(tx);
 		const desyncFloorHeight = computeDesyncFloorHeight(toBlock ?? 0);
 		const desync = await summarizeTxEventHeightDesync(tx, desyncFloorHeight);
+		const blockFieldGaps = await summarizeBlockFieldGaps(tx, desyncFloorHeight);
 
 		const journal = await readObserverJournal(tx, options.network);
 		const continuity = summarizeCanonicalContinuity({
@@ -320,6 +339,7 @@ export async function auditCanonicalCoverageInSnapshot(
 				count: desync.count,
 				floor_height: desyncFloorHeight,
 			},
+			block_field_gaps: blockFieldGaps,
 			observer_journal: journal,
 		};
 	}
@@ -475,6 +495,29 @@ async function summarizeTxEventHeightDesync(
 	return { count: Number(rows[0]?.count ?? 0) };
 }
 
+/** Bounded to the same trailing window as the desync check; height 0 is
+ *  exempt (genesis carries no timestamp). See BlockFieldGaps. */
+export async function summarizeBlockFieldGaps(
+	db: Kysely<Database>,
+	floorHeight: number,
+): Promise<BlockFieldGaps> {
+	const { rows } = await sql<{ count: string | number; first: string | null }>`
+		SELECT COUNT(*) AS count, MIN(height) AS first
+		FROM blocks
+		WHERE canonical = true
+			AND height > ${floorHeight}
+			AND height > 0
+			AND (timestamp = 0 OR burn_block_hash IS NULL OR index_block_hash IS NULL)
+	`.execute(db);
+	const count = Number(rows[0]?.count ?? 0);
+	return {
+		healthy: count === 0,
+		empty_field_blocks: count,
+		first_empty_field_height: nullableNumber(rows[0]?.first),
+		floor_height: floorHeight,
+	};
+}
+
 async function readObserverJournal(
 	db: Kysely<Database>,
 	network: string,
@@ -585,7 +628,11 @@ async function main(): Promise<void> {
 		expectedToBlock,
 	});
 	console.log(JSON.stringify(report, null, 2));
-	if (!report.continuity.complete || !report.tx_event_height_desync.healthy)
+	if (
+		!report.continuity.complete ||
+		!report.tx_event_height_desync.healthy ||
+		!report.block_field_gaps.healthy
+	)
 		process.exitCode = 2;
 }
 

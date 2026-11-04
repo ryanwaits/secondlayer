@@ -11,8 +11,8 @@ exported from prod and inherits every row below.
 | Field | Heights | Rows | Cause |
 |---|---|---|---|
 | `transactions.status`: `abort_by_response` stored as `abort_by_post_condition` | 0 – 7,429,618 | ~1.39–1.5M of 1,597,432 candidates | `mapTxStatus` mapped Hiro -1 to post_condition (fixed `d9908350c`) |
-| `blocks.burn_block_hash` / `index_block_hash` NULL | below ~8.2M (`index_block_hash` NULL through 8,199,877) | ~8.2M blocks | not carried by the Hiro PG load |
-| `blocks.timestamp = 0` | 7,440,674 – 7,842,144 | 401,373 | unknown, Hiro-era load |
+| `blocks.burn_block_hash` / `index_block_hash` NULL | below ~8.2M (`index_block_hash` NULL through 8,199,877) | ~8.2M blocks | below 7,440,674: not carried by the Hiro PG load. 7,440,674 and up: columns added later without a backfill (`burn_block_hash` 0068 `8c8b48c6a`, `index_block_hash` 0089 `361a753df`). Backfilled for 7,440,674–8,199,877 from our node on 2026-11-04 (`repair-block-fields.ts`) |
+| `blocks.timestamp = 0` | 7,440,674 – 7,842,144 | 401,373 | our parser read only `payload.timestamp`, which the live node never sends (fixed `513642f6c` 05-03, no backfill). Backfilled from our node on 2026-11-04 (`repair-block-fields.ts`) |
 | Failed burnchain-op txs missing | e.g. 58997 (2 txs) | small | Hiro API drops failed burnchain ops |
 | Event encoding | below ~8.2M | all | Hiro API shape (`smart_contract_event`, hex values, renumbered `event_index`); same values, different representation |
 

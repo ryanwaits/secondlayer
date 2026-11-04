@@ -74,7 +74,7 @@ function blockTimestamp(payload: NewBlockPayload): number {
 }
 
 export function parseBlock(payload: NewBlockPayload): InsertBlock {
-	return {
+	const block: InsertBlock = {
 		height: payload.block_height,
 		hash: payload.block_hash,
 		parent_hash: payload.parent_block_hash,
@@ -86,6 +86,20 @@ export function parseBlock(payload: NewBlockPayload): InsertBlock {
 		timestamp: blockTimestamp(payload),
 		canonical: true,
 	};
+	// The node always sends these past genesis. Still written (backfillable
+	// via repair-block-fields.ts); the daily canonical audit pages on them.
+	if (
+		block.height > 0 &&
+		(block.timestamp === 0 || !block.burn_block_hash || !block.index_block_hash)
+	) {
+		logger.error("Block stored with empty fields", {
+			height: block.height,
+			timestamp: block.timestamp,
+			burn_block_hash: block.burn_block_hash,
+			index_block_hash: block.index_block_hash,
+		});
+	}
+	return block;
 }
 
 export function parseTransaction(

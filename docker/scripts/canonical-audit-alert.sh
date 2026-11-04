@@ -66,7 +66,7 @@ fi
 # Failure (incomplete chain, or the audit couldn't run). Surface the continuity
 # counters for the page; fall back to the output tail.
 summary=$(printf '%s\n' "$output" \
-  | grep -E '"(complete|healthy|gap_count|missing_blocks|broken_link_count|duplicate_height_count)":' \
+  | grep -E '"(complete|healthy|gap_count|missing_blocks|broken_link_count|duplicate_height_count|empty_field_blocks|first_empty_field_height)":' \
   | tr -d ' ' | tr '\n' ' ')
 [ -n "$summary" ] || summary=$(printf '%s\n' "$output" | tail -n 3 | tr '\n' ' ')
 msg="🔴 secondlayer canonical-audit (exit $status): $summary"
