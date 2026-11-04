@@ -87,6 +87,21 @@ describe("InsightNote", () => {
 		}
 	});
 
+	test("the note's class follows severity", () => {
+		const note = (rule: string, severity?: Insight["severity"]) =>
+			renderToStaticMarkup(
+				<InsightNote
+					insight={{ ...byRule(rule), ...(severity ? { severity } : {}) }}
+					open={false}
+					onToggle={() => {}}
+				/>,
+			).match(/<div class="(ins-note[^"]*)"/)?.[1];
+		expect(note("tls_expiring")).toBe("ins-note att");
+		expect(note("tls_expiring", "costs")).toBe("ins-note att");
+		expect(note("tls_expiring", "losing")).toBe("ins-note fail");
+		expect(note("tls_expiring", "recovered")).toBe("ins-note recovered");
+	});
+
 	test("the Why label's class is the same open or closed", () => {
 		const cls = (open: boolean) =>
 			renderToStaticMarkup(
@@ -112,6 +127,14 @@ describe("insight line styles", () => {
 			body: body ?? "",
 		}),
 	);
+
+	test("the Why label takes yellow for attention and red for failing", () => {
+		const color = (selector: string) =>
+			rules.find((r) => r.selector === selector)?.body.trim();
+		expect(color(".ins-note.att .ins-note-why")).toBe("color: var(--hi-text);");
+		expect(color(".ins-note.fail .ins-note-why")).toBe("color: var(--alarm);");
+		expect(color(".ins-note.recovered .ins-note-why")).toBeUndefined();
+	});
 
 	test("no hover or focus rule targets the Why label", () => {
 		const hits = rules.filter(

@@ -375,7 +375,7 @@ describe("OverviewBody table and strip", () => {
 		expect(strip).not.toContain("ins-dot");
 	});
 
-	test("a failing webhook tints its row red and the sentence names it", () => {
+	test("a failing webhook colors its chart red and the sentence names it; the row stays plain", () => {
 		const html = renderToStaticMarkup(
 			<OverviewBody
 				{...exampleOverview(NOW, {
@@ -764,6 +764,17 @@ describe("the server page's saved choices", () => {
 		}));
 		const { savedOpenChoices } = await import("@/lib/server/open-choices");
 		expect(await savedOpenChoices()).toEqual({ a: false, b: true });
+	});
+});
+
+describe("flagged rows stay plain", () => {
+	const css = readFileSync(
+		join(import.meta.dir, "../../../app/globals.css"),
+		"utf8",
+	);
+	test("no rule paints a flagged row", () => {
+		expect(css).not.toMatch(/\.dash-row(-wrap > \.dash-row)?\.(att|fail)\b/);
+		expect(css).not.toContain(".dash-row-wrap:has(");
 	});
 });
 

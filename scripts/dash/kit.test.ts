@@ -583,14 +583,6 @@ describe("kit follows the dashboard's status and code-name rules", () => {
 		return css.slice(open + 1, css.indexOf("}", open));
 	}
 	const squash = (body: string) => body.replace(/\s+/g, " ").trim();
-	const mixes = (body: string) =>
-		[
-			...new Set(
-				[...body.matchAll(/color-mix\(in srgb, var\(--c\) (\d+)%/g)].map(
-					(m) => m[1],
-				),
-			),
-		].sort();
 
 	test("healthy shows nothing: no status dot in the css or the markup", () => {
 		expect(kitCss).not.toMatch(/\.dot\b/);
@@ -598,15 +590,10 @@ describe("kit follows the dashboard's status and code-name rules", () => {
 		expect(kitJs).not.toMatch(/\bdot:/);
 	});
 
-	test("a flagged row tints at the dashboard's percentages", () => {
-		const tint = ".dash-row.att,\n.dash-row.fail";
-		const rules = ".scroll tr.dash-row.att td,\n.scroll tr.dash-row.fail td";
-		// The web row carries the tint and its own rules; the kit puts the rules on the cells.
-		expect(mixes(rule(site, tint))).toEqual(["55", "9"]);
-		expect(mixes(rule(kitCss, tint))).toEqual(["9"]);
-		expect(mixes(rule(kitCss, rules))).toEqual(["55"]);
-		expect(rule(kitCss, ".dash-row.fail")).toContain("var(--alarm)");
-		expect(rule(site, ".dash-row.fail")).toContain("var(--alarm)");
+	test("a flagged row stays plain: no tint and no colored rules", () => {
+		for (const css of [site, kitCss]) {
+			expect(css).not.toMatch(/\.dash-row\.(att|fail)\b[^{]*\{/);
+		}
 	});
 
 	test("a marked value has the dashboard's block geometry and colors", () => {

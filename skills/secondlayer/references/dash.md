@@ -112,8 +112,9 @@ Billing: every catalog read is free (webhook reads, your own subgraph tables and
 The kit follows the hosted dashboard's rules. Never add dots, badges or colors of your own.
 
 - Healthy and neutral (delivering, paused) show nothing: plain text.
-- Attention is yellow: the row tints `--hi` and the wrong value takes the `dash-mark` block.
-- Failing is red: the row tints `--alarm` (`dash-row fail`), the wrong value takes `dash-mark fail`, and its chart turns red.
+- Rows stay plain, flagged or not.
+- Attention is yellow: the wrong value takes the `dash-mark` block and its chart turns yellow.
+- Failing is red: the wrong value takes `dash-mark fail` and its chart turns red.
 - Code names in a sentence are the prose font at weight 500; chips stay mono.
 
 ## Copy for agent

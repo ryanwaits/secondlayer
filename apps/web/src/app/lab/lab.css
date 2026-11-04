@@ -197,6 +197,7 @@ body:has(.lab) .auth-bar {
 	--pri-tint: color-mix(in srgb, var(--pri) 8%, var(--paper));
 	--pri-ink: var(--pri);
 	--hi: #ffcc00;
+	--hi-text: color-mix(in srgb, var(--hi) 55%, var(--ink));
 	--on-hi: var(--n-975);
 	--ok: #128a43;
 	--alarm: #e3301e;
@@ -317,6 +318,7 @@ body:has(.lab) .auth-bar {
 	--pri-tint: color-mix(in srgb, var(--pri) 18%, var(--paper));
 	--pri-ink: #93a5ff;
 	--hi: #efc54a;
+	--hi-text: var(--hi);
 	--on-hi: var(--n-975);
 	--ok: #5cc28f;
 	--alarm: #ff5a47;

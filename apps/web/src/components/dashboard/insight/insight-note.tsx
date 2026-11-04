@@ -2,6 +2,15 @@ import type { Insight } from "@/lib/insights";
 import type { ReactNode } from "react";
 import { InsightCard } from "./insight-card";
 
+/** The class that colors the Why link: yellow for attention, red for failing,
+ *  the default for a recovered one. */
+const NOTE_TONE: Record<Insight["severity"], string> = {
+	losing: "fail",
+	will_fail: "att",
+	costs: "att",
+	recovered: "recovered",
+};
+
 /** A collapsed insight: one plain line and "Why ›" / "Hide ›". Opens into the card. */
 export function InsightNote({
 	insight,
@@ -20,9 +29,7 @@ export function InsightNote({
 }) {
 	const panelId = `ins-panel-${insight.id}`;
 	return (
-		<div
-			className={`ins-note${insight.severity === "recovered" ? " recovered" : ""}`}
-		>
+		<div className={`ins-note ${NOTE_TONE[insight.severity]}`}>
 			<button
 				type="button"
 				className="ins-note-row"

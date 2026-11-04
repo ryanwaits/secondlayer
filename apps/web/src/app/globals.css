@@ -31,6 +31,8 @@
 	--pri-tint: color-mix(in srgb, var(--pri) 8%, var(--paper));
 	--pri-ink: var(--pri);
 	--hi: #ffcc00;
+	/* Yellow as text: darker on light so it reads on paper. */
+	--hi-text: color-mix(in srgb, var(--hi) 55%, var(--ink));
 	--on-hi: var(--n-975);
 	--ok: #128a43;
 	--alarm: #e3301e;
@@ -156,6 +158,7 @@
 		--ch-b: color-mix(in srgb, var(--pri) 55%, var(--ink));
 		--ch-c: color-mix(in srgb, var(--pri) 35%, var(--ink));
 		--hi: #efc54a;
+		--hi-text: var(--hi);
 		--on-hi: var(--n-975);
 		--ok: #5cc28f;
 		--alarm: #ff5a47;
@@ -5727,29 +5730,9 @@ a.acct-strip-link:hover .acct-strip-k {
 }
 
 /* Dashboard shell (account pages) */
-/* Status: healthy and neutral show nothing. Attention (--hi) and failing
-   (--alarm) tint the compact table row, with its own top and bottom rules in
-   the same color, and mark the value that is wrong. */
-.dash-row.att,
-.dash-row.fail {
-	--c: var(--hi);
-	background: color-mix(in srgb, var(--c) 9%, transparent);
-	border-bottom-color: color-mix(in srgb, var(--c) 55%, transparent);
-	/* The top rule is a shadow, so it draws over the header's hairline
-	   without moving the row. */
-	box-shadow: inset 0 1px 0 color-mix(in srgb, var(--c) 55%, transparent);
-}
-.dash-row.fail {
-	--c: var(--alarm);
-}
-/* In a wrap the wrap owns the bottom rule; a flagged row draws its own. */
-.dash-row-wrap:has(> .dash-row.att, > .dash-row.fail) {
-	border-bottom-color: transparent;
-}
-.dash-row-wrap > .dash-row.att,
-.dash-row-wrap > .dash-row.fail {
-	border-bottom: 1px solid color-mix(in srgb, var(--c) 55%, transparent);
-}
+/* Status: healthy and neutral show nothing, and a flagged row stays plain.
+   Attention and failing color the chart and the insight's Why link, and mark
+   the value that is wrong. */
 /* The value that is wrong: the brand .hl block for attention, the inverted
    neutral block for failing. The same in light and dark. */
 .dash-mark {
@@ -6326,6 +6309,12 @@ button.dc-heat-cell:focus-visible {
 	color: var(--pri);
 	font-size: 13px;
 	white-space: nowrap;
+}
+.ins-note.att .ins-note-why {
+	color: var(--hi-text);
+}
+.ins-note.fail .ins-note-why {
+	color: var(--alarm);
 }
 .ins-note.recovered .ins-note-line {
 	color: var(--sub);
