@@ -6343,6 +6343,9 @@ button.dc-heat-cell:focus-visible {
 /* Insight card */
 .ins-card {
 	display: grid;
+	/* One shrinkable column: long evidence or prompts wrap or scroll inside,
+	   never widen the card. */
+	grid-template-columns: minmax(0, 1fr);
 	gap: 18px;
 	padding: 20px 22px;
 	border: 1px solid var(--line);
@@ -6455,18 +6458,37 @@ details.ins-how summary::before {
 details.ins-how[open] summary::before {
 	transform: rotate(90deg);
 }
-pre.ins-raw {
-	margin: 10px 0 0;
-	padding: 14px 16px;
-	overflow-x: auto;
-	border: 1px solid var(--line);
-	border-radius: 8px;
-	font: 400 12px / 1.7 var(--font-mono-stack);
-	color: var(--sub);
-	white-space: pre;
+/* The rule as a sentence, then the facts as a wrapping label/value list,
+   indented to the summary's text. No box: the card is already one. */
+.ins-raw {
+	display: grid;
+	gap: 12px;
+	margin-top: 12px;
+	padding-left: 16px;
+	min-width: 0;
 }
-pre.ins-raw .k {
+.ins-rule {
+	margin: 0;
+	max-width: 68ch;
+	font-size: 13px;
+	line-height: 1.55;
+	color: var(--sub);
+}
+.ins-raw dl {
+	display: grid;
+	grid-template-columns: max-content minmax(0, 1fr);
+	gap: 6px 20px;
+	margin: 0;
+	font: 400 12px / 1.5 var(--font-mono-stack);
+}
+.ins-raw dt {
 	color: var(--faint);
+}
+.ins-raw dd {
+	margin: 0;
+	color: var(--ink);
+	font-variant-numeric: tabular-nums;
+	overflow-wrap: anywhere;
 }
 .ins-foot {
 	padding-top: 14px;

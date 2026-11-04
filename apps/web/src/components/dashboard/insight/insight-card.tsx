@@ -1,7 +1,17 @@
 import { type Insight, causeText } from "@/lib/insights";
-import type { ReactNode } from "react";
+import { Fragment, type ReactNode } from "react";
 import { Evidence } from "./evidence";
 import { HandoffBlock } from "./handoff-block";
+
+/** The detector's rule, as a sentence. */
+const sentence = (rule: string): string =>
+	rule
+		? `${rule[0]?.toUpperCase()}${rule.slice(1)}${/[.!?]$/.test(rule) ? "" : "."}`
+		: rule;
+
+/** A bare count reads with digit groups (1361 → 1,361); anything else as is. */
+const factValue = (value: string): string =>
+	/^\d{4,}$/.test(value) ? Number(value).toLocaleString("en-US") : value;
 
 /**
  * One insight, opened: what we saw, the evidence, a hand-off for the user's
@@ -48,28 +58,27 @@ export function InsightCard({
 			) : null}
 			<details className="ins-how">
 				<summary>How we worked this out</summary>
-				<pre className="ins-raw">
-					{[
-						["detector", how.detector],
-						...how.facts,
-						...(how.label
-							? [
-									[
-										"label",
-										cause
-											? `cause=${cause}  confidence ${how.label.confidence}`
-											: `cause unknown  confidence ${how.label.confidence}`,
-									],
-								]
-							: []),
-					].map(([key, value]) => (
-						<span key={key}>
-							<span className="k">{key.padEnd(10)}</span>
-							{value}
-							{"\n"}
-						</span>
-					))}
-				</pre>
+				<div className="ins-raw">
+					<p className="ins-rule">{sentence(how.detector)}</p>
+					<dl>
+						{[
+							...how.facts,
+							...(how.label
+								? [
+										[
+											"cause",
+											`${cause ?? "unknown"} · confidence ${how.label.confidence}`,
+										],
+									]
+								: []),
+						].map(([key, value]) => (
+							<Fragment key={key}>
+								<dt>{key}</dt>
+								<dd>{factValue(value)}</dd>
+							</Fragment>
+						))}
+					</dl>
+				</div>
 			</details>
 			{footer ? <div className="ins-foot">{footer}</div> : null}
 		</div>

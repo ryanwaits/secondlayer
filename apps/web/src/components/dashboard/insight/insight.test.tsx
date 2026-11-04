@@ -220,7 +220,7 @@ describe("InsightCard", () => {
 		const html = renderToStaticMarkup(
 			<InsightCard insight={byRule("receiver_down")} />,
 		);
-		expect(html).toContain("cause=receiver_down");
+		expect(html).toContain("<dt>cause</dt><dd>receiver_down · confidence");
 		expect(html).not.toContain("Cause unknown");
 	});
 
