@@ -2799,7 +2799,7 @@ const META: Record<StoryId, Meta> = {
 			"apps/web/src/components/account/subgraphs/tables-section.tsx",
 			"apps/web/src/components/account/subgraphs/describe-table.ts",
 		],
-		rule: "Each table is one closed row. Details opens a sentence whose phrases focus the handler source that writes it.",
+		rule: "Each table is one small card with its live row count. Details opens a sentence under the card's row whose phrases focus the handler source that writes it.",
 		stack: true,
 		variants: [
 			{

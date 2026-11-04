@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import type { Insight } from "@/lib/insights";
 import { FIXTURE_INSIGHTS } from "@/lib/insights.fixtures";
 import { renderToStaticMarkup } from "react-dom/server";
+import { tableCode } from "./describe-table";
 import { SubgraphDetailBody } from "./detail-screen";
 import { SubgraphsEmptyState } from "./empty-state";
 import { HandlerErrorsPanel } from "./health-panels";
@@ -16,7 +17,12 @@ import {
 	exampleList,
 	perfTestSbtcDetail,
 } from "./subgraph.fixtures";
-import { TablesSection, pageWindow } from "./tables-section";
+import {
+	TableDetails,
+	TablesSection,
+	detailsAfter,
+	frozenOrder,
+} from "./tables-section";
 import { UseSection } from "./use-section";
 
 describe("SubgraphsEmptyState", () => {
@@ -264,87 +270,97 @@ function tablesSection(source: typeof sbtcSource | null) {
 }
 
 describe("TablesSection", () => {
-	test("renders the first three tables as closed rows, biggest first", () => {
+	const table = (rowCount: number) => ({
+		endpoint: "/v1/subgraphs/x/t",
+		rowCount,
+		columns: {},
+	});
+
+	test("renders every table as a closed card, biggest first, with no estimate sign", () => {
 		const html = tablesSection(sbtcSource);
-		expect(html.match(/class="lf-row"/g)).toHaveLength(3);
-		const chips = [...html.matchAll(/class="lf-type">([^<]+)</g)].map(
+		expect(html.match(/class="tc-card"/g)).toHaveLength(5);
+		const names = [...html.matchAll(/class="tc-name">([^<]+)</g)].map(
 			(m) => m[1],
 		);
-		expect(chips).toEqual([
+		expect(names).toEqual([
 			"completed_deposit",
 			"withdrawal_create",
 			"withdrawal_accept",
+			"withdrawal_reject",
+			"key_rotation",
 		]);
 		expect(html).toContain("5 tables");
 		expect(html).not.toContain('aria-expanded="true"');
-	});
-
-	test("more than three tables show a pager with Next and no Prev on page one", () => {
-		const html = tablesSection(sbtcSource);
-		expect(html).toContain("1–3 of 5");
-		expect(html).toContain("Next ›");
-		expect(html).not.toContain("‹ Prev");
-	});
-
-	test("three or fewer tables show no pager", () => {
-		const [first, second, third] = Object.entries(perfTestSbtcDetail.tables);
-		const html = renderToStaticMarkup(
-			<TablesSection
-				name="perf-test-sbtc"
-				tables={Object.fromEntries(
-					[first, second, third].filter((e) => e !== undefined),
-				)}
-				sources={perfTestSbtcDetail.sources}
-				source={sbtcSource}
-			/>,
-		);
-		expect(html.match(/class="lf-row"/g)).toHaveLength(3);
+		expect(html).not.toContain("≈");
+		expect(html).not.toContain("Rows from");
 		expect(html).not.toContain("lf-pager");
 	});
 
-	test("page two covers rows 4 to 5 of 5 and clamps out-of-range pages", () => {
-		expect(pageWindow(5, 0)).toEqual({
-			pages: 2,
-			current: 0,
-			start: 0,
-			end: 3,
-		});
-		expect(pageWindow(5, 1)).toEqual({
-			pages: 2,
-			current: 1,
-			start: 3,
-			end: 5,
-		});
-		expect(pageWindow(5, 9).current).toBe(1);
-		expect(pageWindow(3, 0).pages).toBe(1);
-		expect(pageWindow(0, 0)).toEqual({
-			pages: 0,
-			current: 0,
-			start: 0,
-			end: 0,
-		});
+	test("cards keep their order when counts swap within the same version", () => {
+		const render = (a: number, b: number) =>
+			renderToStaticMarkup(
+				<TablesSection
+					name="x"
+					tables={{ a: table(a), b: table(b) }}
+					sources={undefined}
+					source={null}
+				/>,
+			);
+		const names = (html: string) =>
+			[...html.matchAll(/class="tc-name">([^<]+)</g)].map((m) => m[1]);
+		expect(names(render(10, 5))).toEqual(["a", "b"]);
+		expect(names(render(5, 10))).toEqual(["b", "a"]);
+		const first = frozenOrder(null, { a: table(10), b: table(5) });
+		expect(frozenOrder(first, { a: table(5), b: table(10) })).toEqual([
+			"a",
+			"b",
+		]);
 	});
 
-	test("says what the first table writes and how many rows it holds", () => {
-		const html = tablesSection(sbtcSource);
-		expect(html).toContain("Rows from");
-		expect(html).toContain("<code>completed-deposit</code>");
-		expect(html).toContain("prints · ≈63,194 rows");
+	test("a table that appears after the order was set goes last, a removed one drops out", () => {
+		expect(
+			frozenOrder(["a", "b"], { b: table(1), c: table(99), d: table(5) }),
+		).toEqual(["b", "c", "d"]);
 	});
 
-	test("prose phrases are focus links and the source sits under them", () => {
-		const html = tablesSection(sbtcSource);
+	test("details open after the last card of the open card's grid row", () => {
+		expect(detailsAfter(0, 3, 5)).toBe(2);
+		expect(detailsAfter(4, 3, 5)).toBe(4);
+		expect(detailsAfter(1, 2, 5)).toBe(1);
+		expect(detailsAfter(0, 1, 5)).toBe(0);
+	});
+
+	test("the details panel keeps the sentence, its focus links and the handler source", () => {
+		const { descriptions } = tableCode({
+			name: "perf-test-sbtc",
+			tables: perfTestSbtcDetail.tables,
+			sources: perfTestSbtcDetail.sources,
+			sourceCode: PERF_TEST_SBTC_SOURCE,
+		});
+		const html = renderToStaticMarkup(
+			<TableDetails
+				description={descriptions[0]?.description}
+				block={undefined}
+			/>,
+		);
 		expect(html).toContain('data-focus="event"');
 		expect(html).toContain('data-focus="columns"');
 		expect(html).toContain("6 columns copied from the event");
 		expect(html).toContain('class="lf-pre"');
+		expect(html).toContain("data-scope");
 	});
 
-	test("without a source the rows still render and no code does", () => {
-		const html = tablesSection(null);
-		expect(html.match(/class="lf-row"/g)).toHaveLength(3);
-		expect(html).not.toContain("lf-pre");
+	test("closed cards render no details, prose or code", () => {
+		const html = tablesSection(sbtcSource);
+		expect(html).not.toContain("lf-det");
 		expect(html).not.toContain("data-focus");
+		expect(html).not.toContain("lf-pre");
+	});
+
+	test("without a source the cards still render", () => {
+		const html = tablesSection(null);
+		expect(html.match(/class="tc-card"/g)).toHaveLength(5);
+		expect(html).not.toContain("lf-pre");
 	});
 });
 
@@ -474,6 +490,22 @@ describe("UseSection", () => {
 		expect(html).toContain(">Copy</button>");
 		expect(html).not.toContain('role="tooltip"');
 		expect(html).not.toContain("title=");
+	});
+
+	test("a table picked in the Tables section is the pressed chip", () => {
+		const picked = renderToStaticMarkup(
+			<UseSection
+				name="perf-test-sbtc"
+				tables={tables}
+				selected="withdrawal_reject"
+			/>,
+		);
+		expect(picked).toContain('aria-pressed="true">withdrawal_reject<');
+		expect(picked).toContain('aria-pressed="false">completed_deposit<');
+	});
+
+	test("the chips carry the dashboard chip style", () => {
+		expect(html).toContain('class="picker use-chips"');
 	});
 
 	test("a subgraph with no tables shows nothing", () => {

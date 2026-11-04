@@ -46,9 +46,12 @@ async function readSample(name: string, table: string): Promise<Sample> {
 export function UseSection({
 	name,
 	tables,
+	selected = null,
 }: {
 	name: string;
 	tables: Record<string, SubgraphTableInfo>;
+	/** A table picked elsewhere on the page; its chip is pressed. */
+	selected?: string | null;
 }) {
 	// The same order as the Tables panel: biggest first.
 	const ordered = useMemo(
@@ -58,7 +61,7 @@ export function UseSection({
 				.map(([table]) => table),
 		[tables],
 	);
-	const [chosen, setTable] = useState<string | null>(null);
+	const [chosen, setTable] = useState<string | null>(selected);
 	const [recipe, setRecipe] = useState<Recipe>("newest");
 	const [lang, setLang] = useState<Lang>("sdk");
 	const [samples, setSamples] = useState<ReadonlyMap<string, Sample>>(
@@ -70,6 +73,11 @@ export function UseSection({
 	const [copied, setCopied] = useState(false);
 	const asked = useRef(new Set<string>());
 	const requested = useRef(new Set<string>());
+
+	// A table opened in the Tables section becomes this section's table.
+	useEffect(() => {
+		if (selected) setTable(selected);
+	}, [selected]);
 
 	const table =
 		chosen !== null && ordered.includes(chosen) ? chosen : (ordered[0] ?? "");
@@ -142,7 +150,7 @@ export function UseSection({
 				<span className="lf-count">@secondlayer/sdk</span>
 			</div>
 			<div className="use-top">
-				<div className="picker">
+				<div className="picker use-chips">
 					{ordered.map((candidate) => (
 						<button
 							key={candidate}

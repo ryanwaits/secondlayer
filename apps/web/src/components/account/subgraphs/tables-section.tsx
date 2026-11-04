@@ -2,6 +2,7 @@
 
 import "@/components/code/code.css";
 import { CodeScope } from "@/components/code/code-scope";
+import { useMediaQuery } from "@/components/figures/use-media-query";
 import { stripAnnotations } from "@/lib/code/annotations";
 import type { RenderedBlock } from "@/lib/code/blocks";
 import type {
@@ -9,27 +10,47 @@ import type {
 	SubgraphSourceInfo,
 	SubgraphTableInfo,
 } from "@/lib/subgraphs-store";
-import { useEffect, useMemo, useRef, useState } from "react";
-import { type Piece, tableCode } from "./describe-table";
+import NumberFlow from "@number-flow/react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
+import { type Piece, type TableDescription, tableCode } from "./describe-table";
 
 /**
- * "Tables": one closed row per table, built like the webhook page's "Listens
- * for". Details opens a sentence whose phrases are click-to-press focus
- * links, above the table's real handler source in the docs code frame. The
- * frame is rendered on the server because Shiki doesn't run in the browser:
- * the page render hands the frames in (`initialBlocks`), and `/api/code`
- * renders them again when the subgraph's version changes.
+ * "Tables": one small card per table with its live row count. Details opens
+ * full width under the card's grid row: a sentence whose phrases are
+ * click-to-press focus links, above the table's real handler source in the
+ * docs code frame. Card order is frozen per subgraph version, so nothing jumps
+ * while counts change. The frame is rendered on the server because Shiki
+ * doesn't run in the browser: the page render hands the frames in
+ * (`initialBlocks`), and `/api/code` renders them again when the subgraph's
+ * version changes.
  */
 
-/** Tables shown per page. */
-const PAGE_SIZE = 3;
+/**
+ * Table names in card order: the names of the previous order that still exist,
+ * then any new tables, biggest first. With no previous order, biggest first.
+ */
+export function frozenOrder(
+	prev: readonly string[] | null,
+	tables: Record<string, SubgraphTableInfo>,
+): string[] {
+	const biggestFirst = Object.keys(tables).sort(
+		(a, b) => (tables[b]?.rowCount ?? 0) - (tables[a]?.rowCount ?? 0),
+	);
+	if (!prev) return biggestFirst;
+	const kept = prev.filter((table) => table in tables);
+	return [...kept, ...biggestFirst.filter((table) => !kept.includes(table))];
+}
 
-/** The slice of `total` rows page `page` shows (0-based, clamped), and how many pages there are. */
-export function pageWindow(total: number, page: number) {
-	const pages = Math.ceil(total / PAGE_SIZE);
-	const current = Math.min(Math.max(page, 0), Math.max(pages - 1, 0));
-	const start = current * PAGE_SIZE;
-	return { pages, current, start, end: Math.min(start + PAGE_SIZE, total) };
+/** Index of the card the open table's details follow: the last card in its grid row. */
+export function detailsAfter(
+	openIndex: number,
+	perRow: number,
+	count: number,
+): number {
+	return Math.min(
+		count - 1,
+		Math.floor(openIndex / perRow) * perRow + perRow - 1,
+	);
 }
 
 function Pieces({ pieces }: { pieces: Piece[] }) {
@@ -44,12 +65,58 @@ function Pieces({ pieces }: { pieces: Piece[] }) {
 	);
 }
 
+/** The open card's panel: the sentence with its focus links, above the handler code. */
+export function TableDetails({
+	description,
+	block,
+}: {
+	description: TableDescription | undefined;
+	/** The server-rendered frame, when it has arrived. */
+	block: RenderedBlock | undefined;
+}) {
+	if (!description) return null;
+	return (
+		<div className="lf-det tc-det" data-scope>
+			<p className="lf-prose">
+				{description.prose.map((segment, s) =>
+					segment.focus ? (
+						<button
+							// biome-ignore lint/suspicious/noArrayIndexKey: segments are static per render
+							key={s}
+							type="button"
+							className="flink"
+							data-focus={segment.focus}
+							aria-pressed="false"
+						>
+							<Pieces pieces={segment.pieces} />
+						</button>
+					) : (
+						// biome-ignore lint/suspicious/noArrayIndexKey: segments are static per render
+						<Pieces key={s} pieces={segment.pieces} />
+					),
+				)}
+			</p>
+			{block ? (
+				<div
+					className={block.className}
+					data-copyable={block.copyable ? "" : undefined}
+					// biome-ignore lint/security/noDangerouslySetInnerHtml: built by `renderCode` on the server, which escapes every dynamic value
+					dangerouslySetInnerHTML={{ __html: block.html }}
+				/>
+			) : description.code ? (
+				<pre className="lf-pre">{stripAnnotations(description.code, "ts")}</pre>
+			) : null}
+		</div>
+	);
+}
+
 export function TablesSection({
 	name,
 	tables,
 	sources,
 	source,
 	initialBlocks,
+	onOpen,
 }: {
 	name: string;
 	tables: Record<string, SubgraphTableInfo>;
@@ -58,6 +125,8 @@ export function TablesSection({
 	source: SubgraphSource | null;
 	/** The frames the server rendered for this subgraph's current version. */
 	initialBlocks?: RenderedBlock[] | null;
+	/** Called with the table that was opened, or null when it closed. */
+	onOpen?: (table: string | null) => void;
 }) {
 	const sourceCode = source?.sourceCode ?? null;
 	const { descriptions, blocks } = useMemo(
@@ -65,11 +134,21 @@ export function TablesSection({
 		[name, tables, sources, sourceCode],
 	);
 
-	// Frames go out for the tables that have code, in row order, up to the cap.
-	const blockIndex = (table: string): number =>
-		descriptions
-			.filter((d) => d.description.code !== null)
-			.findIndex((d) => d.table === table);
+	// Card order holds for a subgraph version: counts move, cards don't.
+	const orderKey = `${name}:${source?.updatedAt ?? ""}`;
+	// biome-ignore lint/correctness/useExhaustiveDependencies: re-sort only when the version changes, not on every poll
+	const baseOrder = useMemo(() => frozenOrder(null, tables), [orderKey]);
+	const order = useMemo(
+		() => frozenOrder(baseOrder, tables),
+		[baseOrder, tables],
+	);
+
+	// The tables the frames belong to, in the order the frames were made.
+	const codeTables = descriptions
+		.filter((d) => d.description.code !== null)
+		.slice(0, blocks.length)
+		.map((d) => d.table);
+	const frameTables = useRef(codeTables);
 
 	const key = source ? `${name}:${source.updatedAt}` : null;
 	// The version the server's frames belong to; a newer version refetches.
@@ -77,13 +156,15 @@ export function TablesSection({
 	const [rendered, setRendered] = useState<RenderedBlock[] | null>(
 		initialBlocks ?? null,
 	);
-	// Open rows are kept by table name, so a row stays open across paging.
-	const [open, setOpen] = useState<Set<string>>(() => new Set());
-	const [page, setPage] = useState(0);
+	const [open, setOpen] = useState<string | null>(null);
+	const narrow = useMediaQuery("(max-width: 860px)");
+	const phone = useMediaQuery("(max-width: 520px)");
+	const perRow = phone ? 1 : narrow ? 2 : 3;
 
 	// biome-ignore lint/correctness/useExhaustiveDependencies: refetch only when the subgraph's version changes, not on every poll
 	useEffect(() => {
 		if (seededKey.current === key) return;
+		frameTables.current = codeTables;
 		if (!key || blocks.length === 0) {
 			setRendered(null);
 			return;
@@ -107,97 +188,57 @@ export function TablesSection({
 		};
 	}, [key]);
 
-	const toggle = (table: string) =>
-		setOpen((prev) => {
-			const next = new Set(prev);
-			if (!next.delete(table)) next.add(table);
-			return next;
-		});
+	const toggle = (table: string) => {
+		const next = open === table ? null : table;
+		setOpen(next);
+		onOpen?.(next);
+	};
 
-	const { pages, current, start, end } = pageWindow(descriptions.length, page);
-	const visible = descriptions.slice(start, end);
+	const described = new Map(descriptions.map((d) => [d.table, d.description]));
+	const openIndex = open === null ? -1 : order.indexOf(open);
+	const after =
+		openIndex < 0 ? -1 : detailsAfter(openIndex, perRow, order.length);
 
 	return (
 		<section className="lf" aria-label="Tables">
 			<div className="lf-h">
 				<span className="dash-label">Tables</span>
 				<span className="lf-count">
-					{descriptions.length} table{descriptions.length === 1 ? "" : "s"}
+					{order.length} table{order.length === 1 ? "" : "s"}
 				</span>
 			</div>
-			<div className="lf-rows">
-				{visible.map(({ table, description }) => {
-					const isOpen = open.has(table);
-					const index = blockIndex(table);
-					const block = index >= 0 ? rendered?.[index] : undefined;
-					return (
-						<div className="lf-trig" key={table}>
-							<button
-								type="button"
-								className="lf-row"
-								aria-expanded={isOpen}
-								onClick={() => toggle(table)}
-							>
-								<span className="lf-type">{table}</span>
-								<span className="lf-line">
-									<Pieces pieces={description.line} />
+			<div className="tc-grid">
+				{order.map((table, i) => (
+					<Fragment key={table}>
+						<button
+							type="button"
+							className="tc-card"
+							aria-expanded={open === table}
+							onClick={() => toggle(table)}
+						>
+							<span className="tc-top">
+								<span className="tc-name">{table}</span>
+								<span className="tc-toggle">
+									{open === table ? "Hide" : "Details"}
 								</span>
-								<span className="lf-toggle">{isOpen ? "Hide" : "Details"}</span>
-							</button>
-							<div className="lf-det" data-scope hidden={!isOpen}>
-								<p className="lf-prose">
-									{description.prose.map((segment, s) =>
-										segment.focus ? (
-											<button
-												// biome-ignore lint/suspicious/noArrayIndexKey: segments are static per render
-												key={s}
-												type="button"
-												className="flink"
-												data-focus={segment.focus}
-												aria-pressed="false"
-											>
-												<Pieces pieces={segment.pieces} />
-											</button>
-										) : (
-											// biome-ignore lint/suspicious/noArrayIndexKey: segments are static per render
-											<Pieces key={s} pieces={segment.pieces} />
-										),
-									)}
-								</p>
-								{block ? (
-									<div
-										className={block.className}
-										data-copyable={block.copyable ? "" : undefined}
-										// biome-ignore lint/security/noDangerouslySetInnerHtml: built by `renderCode` on the server, which escapes every dynamic value
-										dangerouslySetInnerHTML={{ __html: block.html }}
-									/>
-								) : description.code ? (
-									<pre className="lf-pre">
-										{stripAnnotations(description.code, "ts")}
-									</pre>
-								) : null}
-							</div>
-						</div>
-					);
-				})}
+							</span>
+							<span className="tc-count">
+								<NumberFlow
+									value={tables[table]?.rowCount ?? 0}
+									locales="en-US"
+								/>{" "}
+								<small>rows</small>
+							</span>
+						</button>
+						{open !== null && i === after ? (
+							<TableDetails
+								description={described.get(open)}
+								block={rendered?.[frameTables.current.indexOf(open)]}
+							/>
+						) : null}
+					</Fragment>
+				))}
 			</div>
-			{pages > 1 ? (
-				<div className="lf-pager">
-					<span>
-						{start + 1}–{end} of {descriptions.length}
-					</span>
-					{current > 0 ? (
-						<button type="button" onClick={() => setPage(current - 1)}>
-							‹ Prev
-						</button>
-					) : null}
-					{current < pages - 1 ? (
-						<button type="button" onClick={() => setPage(current + 1)}>
-							Next ›
-						</button>
-					) : null}
-				</div>
-			) : null}
 			<CodeScope />
 		</section>
 	);

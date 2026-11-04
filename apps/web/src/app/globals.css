@@ -7692,25 +7692,80 @@ button.dash-row {
 .lf .lf-prose .flink code {
 	color: inherit;
 }
-.lf-pager {
-	display: flex;
-	justify-content: flex-end;
-	align-items: center;
-	gap: 16px;
-	padding: 12px 0 0;
-	font: 400 12px / 1 var(--font-mono-stack);
-	color: var(--faint);
+.tc-grid {
+	display: grid;
+	grid-template-columns: repeat(3, minmax(0, 1fr));
+	gap: 12px;
 }
-.lf-pager button {
-	padding: 0;
-	border: 0;
+.tc-card {
+	display: grid;
+	gap: 10px;
+	padding: 14px 16px 16px;
+	border: 1px solid var(--line);
+	border-radius: 8px;
 	background: none;
-	font: 400 13px / 1 var(--font-sans-stack);
-	color: var(--pri);
+	text-align: left;
+	font: inherit;
+	color: inherit;
 	cursor: pointer;
+	min-width: 0;
 }
-.lf-pager button:hover {
-	text-decoration: underline;
+.tc-card:hover {
+	background: color-mix(in srgb, var(--ink) 2.5%, transparent);
+}
+.tc-card[aria-expanded="true"] {
+	background: var(--soft);
+}
+.tc-top {
+	display: flex;
+	justify-content: space-between;
+	align-items: baseline;
+	gap: 10px;
+}
+.tc-name {
+	font: 500 13px / 1.3 var(--font-mono-stack);
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+.tc-toggle {
+	flex: none;
+	font: 400 12.5px / 1 var(--font-sans-stack);
+	color: var(--pri-ink);
+}
+.tc-count {
+	font: 400 22px / 1 var(--font-mono-stack);
+	letter-spacing: -0.02em;
+	font-variant-numeric: tabular-nums;
+}
+.tc-count small {
+	font: 400 12.5px var(--font-sans-stack);
+	color: var(--sub);
+	letter-spacing: 0;
+}
+.lf-det.tc-det {
+	grid-column: 1 / -1;
+	padding: 8px 0 12px;
+}
+@media (max-width: 860px) {
+	.tc-grid {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+	}
+}
+@media (max-width: 520px) {
+	.tc-grid {
+		grid-template-columns: minmax(0, 1fr);
+	}
+}
+.use-chips.picker button[aria-pressed="true"] {
+	border-color: var(--line);
+	background: var(--soft);
+	color: var(--ink);
+}
+.use-chips.picker button:hover {
+	border-color: var(--line);
+	color: var(--ink);
+	background: color-mix(in srgb, var(--ink) 2.5%, transparent);
 }
 .lf-toggle {
 	font: 400 13px / 1 var(--font-sans-stack);

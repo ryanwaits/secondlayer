@@ -114,6 +114,7 @@ export function SubgraphDetailBody({
 	initialRows,
 	initialBlocks,
 }: SubgraphDetailBodyProps) {
+	const [pickedTable, setPickedTable] = useState<string | null>(null);
 	const windowHours = health?.hours.slice(-RANGE_HOURS[range]);
 	const windowErrors = windowHours ? sum(windowHours.map((h) => h.errors)) : 0;
 	return (
@@ -187,8 +188,13 @@ export function SubgraphDetailBody({
 					sources={detail.sources}
 					source={source}
 					initialBlocks={initialBlocks}
+					onOpen={(table) => table && setPickedTable(table)}
 				/>
-				<UseSection name={detail.name} tables={detail.tables} />
+				<UseSection
+					name={detail.name}
+					tables={detail.tables}
+					selected={pickedTable}
+				/>
 				<RecentRows name={detail.name} initial={initialRows} />
 			</div>
 
