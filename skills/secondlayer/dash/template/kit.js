@@ -333,9 +333,9 @@ function displayStatus(w) {
 }
 
 const STATUS = {
-	active: { dot: "ok", text: "Delivering" },
-	paused: { dot: "", text: "Paused" },
-	error: { dot: "alarm", text: "Failing" },
+	active: { text: "Delivering" },
+	paused: { text: "Paused" },
+	error: { fail: true, text: "Failing" },
 };
 
 const TRIGGER_NOUN = {
@@ -571,7 +571,6 @@ function svgText(x, y, text, anchor = "middle") {
 	return node;
 }
 
-const dot = (kind) => h("span", `dot ${kind ?? ""}`);
 const eyebrow = (text) => h("span", "eyebrow", text);
 const pieces = (list) =>
 	list.map((p) => (p.code ? h("code", null, p.text) : p.text));
@@ -626,11 +625,16 @@ function icon(kind) {
 // ── SVG charts, ported from the direction mock ─────────────────────────
 
 /** Delivered per day as a line; days with failed attempts get a red dot. */
-function sparkline(days) {
+function sparkline(days, tone) {
 	const W = 120;
 	const H = 28;
 	const p = 2;
-	const s = svg("svg", { width: W, height: H, viewBox: `0 0 ${W} ${H}` });
+	const s = svg("svg", {
+		width: W,
+		height: H,
+		viewBox: `0 0 ${W} ${H}`,
+		...(tone ? { class: tone } : {}),
+	});
 	if (days.length < 2) return s;
 	const max = Math.max(1, ...days.map((d) => d.delivered));
 	const x = (i) => p + (i * (W - 2 * p)) / (days.length - 1);
@@ -1474,17 +1478,16 @@ const CATALOG = {
 					.sort()[0];
 				line.replaceChildren(
 					h("span", null, h("b", null, plural(found.length, "webhook"))),
-					h("span", null, dot("ok"), `${by("active").length} delivering`),
+					h("span", null, `${by("active").length} delivering`),
 					failing.length
 						? h(
 								"span",
 								"alarmtxt",
-								dot("alarm"),
 								`${failing.length} failing${since ? ` since ${clock(since, ctx.now())}` : ""}`,
 							)
 						: "",
 					paused.length
-						? h("span", null, dot(), `${paused.length} paused`)
+						? h("span", null, `${paused.length} paused`)
 						: "",
 				);
 				const extra = [
@@ -1579,25 +1582,25 @@ const CATALOG = {
 						try {
 							host = new URL(w.url).host;
 						} catch {}
+						const tone = st.fail ? "fail" : null;
 						return h(
 							"tr",
-							null,
+							tone ? `dash-row ${tone}` : null,
 							h("td", null, h("div", "name", w.name), h("div", "why", host)),
-							h("td", "sp", waiting === null ? "—" : sparkline(series)),
+							h("td", "sp", waiting === null ? "—" : sparkline(series, tone)),
 							h("td", "num", fmt(delivered)),
-							h("td", `num${failed ? " alarmtxt" : ""}`, fmt(failed)),
+							h(
+								"td",
+								`num${failed && !tone ? " alarmtxt" : ""}`,
+								failed && tone ? h("span", "dash-mark fail", fmt(failed)) : fmt(failed),
+							),
 							h("td", "num", attempts ? pct(delivered / attempts) : "—"),
 							h("td", "num", waiting === null ? "—" : fmt(waiting)),
 							h("td", "num", ago(w.lastSuccessAt, ctx.now())),
 							h(
 								"td",
 								null,
-								h(
-									"span",
-									`chip ${st.dot === "alarm" ? "alarmtxt" : ""}`,
-									dot(st.dot),
-									st.text,
-								),
+								h("span", `chip ${st.fail ? "alarmtxt" : ""}`, st.text),
 							),
 						);
 					});
@@ -1823,9 +1826,8 @@ const CATALOG = {
 		render({ id, props, ctx, scope }) {
 			const { network, webhookId } = props;
 			const name = h("span", "wd-name", webhookId);
-			const statusDot = dot();
 			const p = panel({
-				head: h("div", "wd-title", h("h1", null, statusDot, name)),
+				head: h("div", "wd-title", h("h1", null, name)),
 			});
 			live(ctx, scope, { id, type: "WebhookHeader", p }, async () => {
 				let w;
@@ -1840,7 +1842,6 @@ const CATALOG = {
 					);
 				}
 				const s = displayStatus(w);
-				statusDot.className = `dot ${STATUS[s].dot}`;
 				name.textContent = w.name;
 				const now = ctx.now();
 				const state =
@@ -2831,7 +2832,7 @@ export function render(spec, root, options) {
 			h("span", null, host),
 			h("span", null, title),
 		),
-		h("div", "r", h("span", "chip", dot("ok"), "live"), copy),
+		h("div", "r", h("span", "chip", "live"), copy),
 	);
 	const body = h("div", "dbody");
 	const clipPre = h("pre");
@@ -2856,7 +2857,6 @@ export function render(spec, root, options) {
 			h(
 				"div",
 				"notice",
-				dot("alarm"),
 				h(
 					"span",
 					null,

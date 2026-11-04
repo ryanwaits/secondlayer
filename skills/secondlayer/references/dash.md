@@ -107,6 +107,15 @@ Required props are in **bold**. Components poll every 5s (usage hourly) and paus
 
 Billing: every catalog read is free (webhook reads, your own subgraph tables and `/api/billing/usage` are not metered). Webhook deliveries bill when they are sent, whether or not anyone watches.
 
+## Status
+
+The kit follows the hosted dashboard's rules. Never add dots, badges or colors of your own.
+
+- Healthy and neutral (delivering, paused) show nothing: plain text.
+- Attention is yellow: the row tints `--hi` and the wrong value takes the `dash-mark` block.
+- Failing is red: the row tints `--alarm` (`dash-row fail`), the wrong value takes `dash-mark fail`, and its chart turns red.
+- Code names in a sentence are the prose font at weight 500; chips stay mono.
+
 ## Copy for agent
 
 The page bar has one "Copy for agent" button. Tell the user that pasting what it copies is how to ask about what they see. It copies the page as it is at that moment: the open tab, the open delivery and the open row.

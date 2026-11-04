@@ -261,20 +261,6 @@ code {
 	color: var(--sub);
 	white-space: nowrap;
 }
-.dot {
-	width: 7px;
-	height: 7px;
-	border-radius: 999px;
-	background: var(--faint);
-	flex: none;
-	display: inline-block;
-}
-.dot.ok {
-	background: var(--ok);
-}
-.dot.alarm {
-	background: var(--alarm);
-}
 
 /* panels */
 .panel {
@@ -392,6 +378,38 @@ table {
 }
 .scroll tbody tr:hover td {
 	background: var(--wash);
+}
+/* Status: healthy and neutral show nothing. Attention (--hi) and failing
+   (--alarm) tint the row, with its own top and bottom rules in the same color,
+   and mark the value that is wrong. */
+.dash-row.att,
+.dash-row.fail {
+	--c: var(--hi);
+	background: color-mix(in srgb, var(--c) 9%, transparent);
+}
+.dash-row.fail {
+	--c: var(--alarm);
+}
+.scroll tr.dash-row.att td,
+.scroll tr.dash-row.fail td {
+	border-bottom-color: color-mix(in srgb, var(--c) 55%, transparent);
+	/* The top rule is a shadow, so it draws over the header's hairline
+	   without moving the row. */
+	box-shadow: inset 0 1px 0 color-mix(in srgb, var(--c) 55%, transparent);
+}
+/* The value that is wrong: the brand block for attention, the inverted
+   neutral block for failing. */
+.dash-mark {
+	padding: 0 0.1em;
+	color: var(--on-hi);
+	background: linear-gradient(var(--hi), var(--hi)) 0 0.14em / 100% 1.08em
+		no-repeat;
+	-webkit-box-decoration-break: clone;
+	box-decoration-break: clone;
+}
+.dash-mark.fail {
+	color: var(--paper);
+	background-image: linear-gradient(var(--ink), var(--ink));
 }
 td.num,
 th.num {
@@ -575,10 +593,6 @@ td.sp svg {
 	font: 500 24px / 1.2 var(--mono);
 	letter-spacing: -0.015em;
 }
-.wd-title h1 .dot {
-	width: 9px;
-	height: 9px;
-}
 .wd-name {
 	min-width: 0;
 	overflow-wrap: anywhere;
@@ -613,6 +627,17 @@ td.sp svg {
 	overflow: hidden;
 	text-overflow: ellipsis;
 	white-space: nowrap;
+}
+/* Code names in a sentence read in the prose font at weight 500; chips stay mono. */
+.lf-line code,
+.lf-prose code {
+	padding: 0;
+	background: none;
+	font-family: inherit;
+	font-size: inherit;
+	font-weight: 500;
+	font-variant-numeric: inherit;
+	color: var(--ink);
 }
 
 /* subgraph grid, row panel, schema (ported: subgraphs/data-grid.tsx, row-panel.tsx, schema-view.tsx) */
@@ -815,6 +840,27 @@ svg .line {
 }
 svg .tip {
 	fill: var(--ink);
+}
+/* A chart follows its row: --hi on attention, --alarm on failing. */
+svg.att .line {
+	stroke: var(--hi);
+}
+svg.att .area {
+	fill: var(--hi);
+	fill-opacity: 0.09;
+}
+svg.att .tip {
+	fill: var(--hi);
+}
+svg.fail .line {
+	stroke: var(--alarm);
+}
+svg.fail .area {
+	fill: var(--alarm);
+	fill-opacity: 0.09;
+}
+svg.fail .tip {
+	fill: var(--alarm);
 }
 svg .fail {
 	fill: var(--alarm);

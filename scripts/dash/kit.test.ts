@@ -567,3 +567,61 @@ describe("kit.css tokens", () => {
 		});
 	}
 });
+
+describe("kit follows the dashboard's status and code-name rules", () => {
+	const read = (file: string) => readFileSync(join(ROOT, file), "utf8");
+	const site = read("apps/web/src/app/globals.css");
+	const kitCss = read("skills/secondlayer/dash/template/kit.css");
+	const kitJs = read("skills/secondlayer/dash/template/kit.js");
+
+	/** The declarations of the first rule whose selector list is exactly `selector`. */
+	function rule(css: string, selector: string): string {
+		const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+		const at = css.search(new RegExp(`(?<![,\\w])(^|\\n)${escaped}\\s*\\{`));
+		if (at < 0) throw new Error(`rule not found: ${selector}`);
+		const open = css.indexOf("{", at);
+		return css.slice(open + 1, css.indexOf("}", open));
+	}
+	const squash = (body: string) => body.replace(/\s+/g, " ").trim();
+	const mixes = (body: string) =>
+		[
+			...new Set(
+				[...body.matchAll(/color-mix\(in srgb, var\(--c\) (\d+)%/g)].map(
+					(m) => m[1],
+				),
+			),
+		].sort();
+
+	test("healthy shows nothing: no status dot in the css or the markup", () => {
+		expect(kitCss).not.toMatch(/\.dot\b/);
+		expect(kitJs).not.toMatch(/\bdot\(|["`]dot[ "`]/);
+		expect(kitJs).not.toMatch(/\bdot:/);
+	});
+
+	test("a flagged row tints at the dashboard's percentages", () => {
+		const tint = ".dash-row.att,\n.dash-row.fail";
+		const rules = ".scroll tr.dash-row.att td,\n.scroll tr.dash-row.fail td";
+		// The web row carries the tint and its own rules; the kit puts the rules on the cells.
+		expect(mixes(rule(site, tint))).toEqual(["55", "9"]);
+		expect(mixes(rule(kitCss, tint))).toEqual(["9"]);
+		expect(mixes(rule(kitCss, rules))).toEqual(["55"]);
+		expect(rule(kitCss, ".dash-row.fail")).toContain("var(--alarm)");
+		expect(rule(site, ".dash-row.fail")).toContain("var(--alarm)");
+	});
+
+	test("a marked value has the dashboard's block geometry and colors", () => {
+		for (const selector of [".dash-mark", ".dash-mark.fail"]) {
+			expect(squash(rule(kitCss, selector))).toBe(squash(rule(site, selector)));
+		}
+	});
+
+	test("code names in a sentence read in the sans font at weight 500", () => {
+		const body = squash(rule(kitCss, ".lf-line code,\n.lf-prose code"));
+		expect(body).toContain("font-family: inherit");
+		expect(body).toContain("font-weight: 500");
+		expect(body).toContain("color: var(--ink)");
+		const web = squash(rule(site, ".lf .lf-line code,\n.lf .lf-prose code"));
+		expect(web).toContain("font-family: inherit");
+		expect(web).toContain("font-weight: 500");
+	});
+});
