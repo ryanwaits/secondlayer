@@ -202,7 +202,6 @@ export function RecentRowsBody({
 		<section className="dash-panel" id="sg-rows" aria-label="Recent rows">
 			<div className="dash-panel-h">
 				<span className="dash-label">Recent rows</span>
-				<span className="wd-faint">click a row for its values</span>
 			</div>
 			<div className="wd-tbl-wrap">
 				<table className="wd-tbl">

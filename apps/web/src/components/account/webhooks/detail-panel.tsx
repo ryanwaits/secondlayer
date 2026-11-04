@@ -376,7 +376,6 @@ function DeliveriesPanel({
 						</button>
 					) : null}
 				</span>
-				<span className="wd-faint">click a row for its payload</span>
 			</div>
 			<div className="wd-tbl-wrap">
 				<table className="wd-tbl">

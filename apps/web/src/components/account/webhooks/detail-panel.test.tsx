@@ -287,7 +287,7 @@ describe("WebhookDetailBody deliveries", () => {
 	test("with no filter the panel is the recent deliveries", () => {
 		const html = render({ deliveries: three });
 		expect(html).toContain("Recent deliveries");
-		expect(html).toContain("click a row for its payload");
+		expect(html).not.toContain("click a row");
 	});
 });
 
