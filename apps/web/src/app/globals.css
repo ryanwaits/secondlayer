@@ -3207,8 +3207,7 @@ body:has(.marketing-nav) .auth-bar {
 .writing-end-row {
 	display: flex;
 	flex-wrap: wrap;
-	justify-content: flex-end;
-	gap: 10px 24px;
+	gap: 10px 0;
 	margin-top: 18px;
 	font-family: var(--font-mono-stack);
 	font-size: 12.5px;
@@ -3218,6 +3217,11 @@ body:has(.marketing-nav) .auth-bar {
 .writing-end-row a {
 	color: var(--ink);
 	text-decoration: none;
+}
+.writing-end-row a + a::before {
+	content: "·";
+	margin: 0 10px;
+	color: var(--faint);
 }
 @media (max-width: 640px) {
 	.writing-next {
