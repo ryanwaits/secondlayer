@@ -1,6 +1,10 @@
 "use client";
 
 import { Eyebrow } from "@/components/site";
+import {
+	forgetUpdates,
+	rememberUpdates,
+} from "@/components/writing/updates-memory";
 import { PUBLIC_API_URL } from "@/lib/public-api";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
@@ -35,13 +39,14 @@ export function UnsubscribeView({ token }: { token?: string }) {
 		if (!token || sent.current) return;
 		sent.current = true;
 		post("unsubscribe", token)
-			.then((email) =>
+			.then((email) => {
+				if (email) forgetUpdates();
 				setState(
 					email
 						? { kind: "unsubscribed", email, resubscribing: false }
 						: { kind: "invalid" },
-				),
-			)
+				);
+			})
 			.catch(() => setState({ kind: "invalid" }));
 	}, [token]);
 
@@ -51,6 +56,9 @@ export function UnsubscribeView({ token }: { token?: string }) {
 		setState({ kind: "unsubscribed", email, resubscribing: true });
 		try {
 			const confirmed = await post("resubscribe", token);
+			if (confirmed) {
+				rememberUpdates({ status: "confirmed", email: confirmed, token });
+			}
 			setState(
 				confirmed
 					? { kind: "resubscribed", email: confirmed }

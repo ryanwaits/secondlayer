@@ -11678,6 +11678,27 @@ button.ky-click:focus-visible,
 	border-radius: 50%;
 	background: var(--ok);
 }
+/* Already on the list: one faint line, not the form. */
+.updates-signup.updates-quiet {
+	padding-block: 20px;
+}
+.updates-quiet .updates-fine .updates-link,
+.updates-quiet .updates-fine .updates-link:hover {
+	color: var(--sub);
+	text-decoration: underline;
+	text-decoration-color: var(--line);
+	text-underline-offset: 3px;
+}
+.updates-quiet .updates-fine .updates-link:hover {
+	text-decoration-color: currentColor;
+}
+.updates-quiet .updates-fine {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	column-gap: 10px;
+	row-gap: 2px;
+}
 .updates-link {
 	padding: 0;
 	border: 0;

@@ -1,8 +1,16 @@
 "use client";
 
+import type { AccountUpdates } from "@/app/api/updates/route";
 import { useAuth } from "@/lib/auth";
 import { PUBLIC_API_URL } from "@/lib/public-api";
-import { type FormEvent, useState } from "react";
+import Link from "next/link";
+import { type FormEvent, useEffect, useState } from "react";
+import {
+	type UpdatesMemory,
+	forgetUpdates,
+	readUpdatesMemory,
+	rememberUpdates,
+} from "./updates-memory";
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -11,30 +19,83 @@ type Status =
 	| { kind: "sending" }
 	| { kind: "invalid" }
 	| { kind: "failed" }
-	| { kind: "sent"; email: string };
+	| { kind: "sent"; email: string }
+	| UpdatesMemory;
+
+/** The signed-in account's place on the list, as the form remembers it. */
+async function accountUpdates(): Promise<UpdatesMemory | null> {
+	const res = await fetch("/api/updates");
+	if (!res.ok) throw new Error(`updates ${res.status}`);
+	const body = (await res.json()) as AccountUpdates;
+	if (!body.email) return null;
+	if (body.status === "confirmed" && body.token) {
+		return { status: "confirmed", email: body.email, token: body.token };
+	}
+	if (body.status === "pending")
+		return { status: "pending", email: body.email };
+	return null;
+}
 
 /**
  * Email signup for new posts and launches. Double opt-in: the API sends a
  * confirmation link, and the sent state never says whether the address was
  * already on the list. A signed-in reader gets their address pre-filled;
- * nothing is sent until they click.
+ * nothing is sent until they click. A reader already on the list, by their
+ * account or by what this browser remembers, sees one quiet line instead.
  */
 export function UpdatesSignup({ heading = false }: { heading?: boolean }) {
-	const { account } = useAuth();
-	return <UpdatesSignupForm heading={heading} prefill={account?.email} />;
+	const { account, loading } = useAuth();
+	// undefined while still finding out, so the form never flashes first.
+	const [known, setKnown] = useState<UpdatesMemory | null | undefined>();
+	const signedIn = !!account;
+
+	useEffect(() => {
+		if (loading) return;
+		if (!signedIn) {
+			setKnown(readUpdatesMemory());
+			return;
+		}
+		let live = true;
+		accountUpdates()
+			.catch(() => readUpdatesMemory())
+			.then((answer) => live && setKnown(answer));
+		return () => {
+			live = false;
+		};
+	}, [loading, signedIn]);
+
+	if (known === undefined) return null;
+	return (
+		<UpdatesSignupForm
+			heading={heading}
+			prefill={account?.email}
+			known={known ?? undefined}
+		/>
+	);
 }
 
-/** The form itself, given the address to pre-fill (tests render this). */
+/**
+ * The form itself, given the address to pre-fill and what is already known
+ * about the reader's place on the list (tests render this).
+ */
 export function UpdatesSignupForm({
 	heading = false,
 	prefill,
+	known,
 }: {
 	heading?: boolean;
 	prefill?: string;
+	known?: UpdatesMemory;
 }) {
 	const [typed, setTyped] = useState<string | null>(null);
-	const [status, setStatus] = useState<Status>({ kind: "idle" });
+	const [status, setStatus] = useState<Status>(known ?? { kind: "idle" });
 	const email = typed ?? prefill ?? "";
+
+	function startOver() {
+		forgetUpdates();
+		setTyped("");
+		setStatus({ kind: "idle" });
+	}
 
 	async function onSubmit(e: FormEvent<HTMLFormElement>) {
 		e.preventDefault();
@@ -57,11 +118,45 @@ export function UpdatesSignupForm({
 				}),
 			});
 			if (res.status === 400) setStatus({ kind: "invalid" });
-			else if (res.ok) setStatus({ kind: "sent", email: address });
-			else setStatus({ kind: "failed" });
+			else if (res.ok) {
+				rememberUpdates({ status: "pending", email: address });
+				setStatus({ kind: "sent", email: address });
+			} else setStatus({ kind: "failed" });
 		} catch {
 			setStatus({ kind: "failed" });
 		}
+	}
+
+	if ("status" in status) {
+		return (
+			<section id="updates" className="updates-signup updates-quiet">
+				<p className="updates-fine">
+					<span className="updates-dot" aria-hidden="true" />
+					{status.status === "confirmed" ? (
+						<>
+							You get new posts and launches at {status.email}.{" "}
+							<Link
+								href={`/updates/unsubscribe?t=${encodeURIComponent(status.token)}`}
+								className="updates-link"
+							>
+								Unsubscribe
+							</Link>
+						</>
+					) : (
+						<>
+							Check {status.email} for the confirmation link.{" "}
+							<button
+								type="button"
+								className="updates-link"
+								onClick={startOver}
+							>
+								Use another address
+							</button>
+						</>
+					)}
+				</p>
+			</section>
+		);
 	}
 
 	const Heading = heading ? "h2" : "h3";
@@ -80,14 +175,7 @@ export function UpdatesSignupForm({
 					</span>
 					<span className="updates-fine">
 						Nothing arrives until you click it. No email? Check spam, or{" "}
-						<button
-							type="button"
-							className="updates-link"
-							onClick={() => {
-								setTyped("");
-								setStatus({ kind: "idle" });
-							}}
-						>
+						<button type="button" className="updates-link" onClick={startOver}>
 							try another address
 						</button>
 						.

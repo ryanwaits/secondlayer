@@ -30,3 +30,26 @@ describe("updates signup", () => {
 		expect(html).not.toContain("—");
 	});
 });
+
+describe("updates signup for a reader already on the list", () => {
+	test("a confirmed reader sees one line with an unsubscribe link, not the form", async () => {
+		const html = await renderAsync(
+			<UpdatesSignup
+				known={{ status: "confirmed", email: "a@b.co", token: "tok/1" }}
+			/>,
+		);
+		expect(html).toContain("a@b.co");
+		expect(html).toContain("/updates/unsubscribe?t=tok%2F1");
+		expect(html).not.toContain('type="email"');
+		expect(html).not.toContain("<h3");
+	});
+
+	test("a pending reader is pointed at the confirmation email", async () => {
+		const html = await renderAsync(
+			<UpdatesSignup known={{ status: "pending", email: "a@b.co" }} />,
+		);
+		expect(html).toContain("Check a@b.co for the confirmation link");
+		expect(html).toContain("Use another address");
+		expect(html).not.toContain('type="email"');
+	});
+});

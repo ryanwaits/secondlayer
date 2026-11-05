@@ -1,6 +1,7 @@
 "use client";
 
 import { Eyebrow } from "@/components/site";
+import { rememberUpdates } from "@/components/writing/updates-memory";
 import { UpdatesSignup } from "@/components/writing/updates-signup";
 import { PUBLIC_API_URL } from "@/lib/public-api";
 import Link from "next/link";
@@ -33,6 +34,7 @@ export function ConfirmView({ token }: { token?: string }) {
 					email?: string;
 				} | null;
 				if (res.ok && body?.email) {
+					rememberUpdates({ status: "confirmed", email: body.email, token });
 					setState({ kind: "confirmed", email: body.email });
 				} else {
 					setState({ kind: res.status === 410 ? "expired" : "invalid" });
