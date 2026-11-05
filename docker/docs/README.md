@@ -478,6 +478,10 @@ docker exec -it secondlayer-postgres-1 psql -U secondlayer -d secondlayer
 # Check gaps
 docker exec secondlayer-postgres-1 psql -U secondlayer -d secondlayer \
   -c "SELECT * FROM index_progress;"
+
+# Run the CLI against prod (published release, in a container on the compose
+# network). The host checkout has no built packages — don't run packages/cli/src.
+docker/scripts/sl.sh verify raw --against https://archive.secondlayer.tools/latest.json
 ```
 
 ### Backup Strategy
