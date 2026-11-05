@@ -1151,7 +1151,8 @@ a mark {
 	gap: 8px;
 	margin-left: 6px;
 }
-/* The trigger: initial tile and chevron. Open is an ink border, never blue. */
+/* The trigger: initial tile and chevron. The border never moves; hover and
+   open are a soft fill, with the tile one step darker so it stays visible. */
 .acct-chip {
 	display: inline-flex;
 	align-items: center;
@@ -1163,21 +1164,42 @@ a mark {
 	background: var(--paper);
 	color: var(--ink);
 	cursor: pointer;
-	transition: border-color 150ms ease-out;
+	transition: background-color 150ms ease-out, transform 100ms ease-out;
 }
 .acct-chip[aria-expanded="true"],
 .acct-chip:hover {
-	border-color: var(--ink);
+	background: var(--soft);
+}
+.acct-chip[aria-expanded="true"] .acct-avatar,
+.acct-chip:hover .acct-avatar {
+	background: var(--line);
+}
+.acct-chip:active {
+	transform: scale(0.97);
 }
 .acct-chip-chev {
 	flex: none;
 	color: var(--sub);
-	transition: transform 150ms ease-out;
+	transition: transform 150ms ease-out, color 150ms ease-out;
 }
 .acct-chip[aria-expanded="true"] .acct-chip-chev {
 	transform: rotate(180deg);
+	color: var(--ink);
 }
-/* Low balance: the tile goes red; nothing else changes. */
+@media (prefers-reduced-motion: reduce) {
+	.acct-chip,
+	.acct-chip-chev {
+		transition: none;
+	}
+	.acct-chip:active {
+		transform: none;
+	}
+}
+/* Low balance: the tile goes red, and hover/open take a red soft fill. */
+.acct-chip.alert[aria-expanded="true"],
+.acct-chip.alert:hover {
+	background: color-mix(in srgb, var(--alarm) 7%, var(--paper));
+}
 .acct-chip.alert .acct-avatar {
 	background: var(--alarm);
 	color: var(--on-pri);
