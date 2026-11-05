@@ -67,6 +67,18 @@ which shows each one as a before and after from a real post.
 - **R15. 900 words or fewer, 6 minutes or less.** Past that, every extra 300
   words needs its own figure or code. End on the action (a command, a link),
   never on what the post skipped.
+- **R16. A section opens on the thing the last one left**: the same block,
+  value or call, so the reader is handed across instead of starting cold.
+  R14 keeps the hand-off out of the last sentence; this puts it in the first.
+  ("Each row is one committed write" became "That reserve write is one
+  committed row".)
+- **R17. Before showing a gap, say in one clause why it exists.** Grant the
+  incumbent its reason, then use the gap. ("…and three events." became
+  "…and three events (all the node emits).")
+- **R18. At most one analogy per post**, for the hardest idea, placed after
+  the precise version and pointing at something the reader already uses.
+  ("Replay the rows in order" became "Replay the rows in order, like a bank
+  statement".)
 
 ## Slop lint
 
