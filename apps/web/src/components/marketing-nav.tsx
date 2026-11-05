@@ -7,6 +7,7 @@ import {
 	DashboardTabs,
 } from "@/components/dashboard/shell/dashboard-tabs";
 import { ViewCommand } from "@/components/dashboard/shell/view-command";
+import { HomeLink } from "@/components/home-link";
 import { Logo } from "@/components/logo";
 import { ProductsMenu } from "@/components/products-menu";
 import {
@@ -85,10 +86,10 @@ export function MarketingNav() {
 			className={dash ? "marketing-nav is-dash" : "marketing-nav"}
 			aria-label="Main"
 		>
-			<Link href="/" className="marketing-nav-brand">
+			<HomeLink signedIn={account !== null} className="marketing-nav-brand">
 				<Logo size={22} />
 				<span>secondlayer</span>
-			</Link>
+			</HomeLink>
 			{dash ? (
 				<DashboardTabs pathname={pathname} failingWebhooks={failingWebhooks} />
 			) : (

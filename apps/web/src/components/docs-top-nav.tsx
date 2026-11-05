@@ -2,6 +2,7 @@
 
 import { AccountAvatar, AccountMenu } from "@/components/account-menu";
 import { DocsSearch } from "@/components/docs-search";
+import { HomeLink } from "@/components/home-link";
 import { Logo } from "@/components/logo";
 import { ProductsMenu } from "@/components/products-menu";
 import { useAuth } from "@/lib/auth";
@@ -35,10 +36,14 @@ export function DocsTopNav() {
 						/>
 					</svg>
 				</button>
-				<Link href="/" className="docs-mark" aria-label="secondlayer home">
+				<HomeLink
+					signedIn={account !== null}
+					className="docs-mark"
+					label={account ? "secondlayer, Overview" : "secondlayer home"}
+				>
 					<Logo size={22} />
 					<span className="docs-mark-name">secondlayer</span>
-				</Link>
+				</HomeLink>
 				<DocsSearch />
 				<nav className="docs-top-links" aria-label="Site">
 					<ProductsMenu className="docs-products" />
