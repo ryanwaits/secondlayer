@@ -834,6 +834,7 @@ export function WebhookDetailSection({
 			<MissingResource
 				kind="webhook"
 				id={id}
+				deleted={cache.missing[id] ?? null}
 				listHref="/account/webhooks"
 				others={
 					cache.list?.data.map((w) => ({

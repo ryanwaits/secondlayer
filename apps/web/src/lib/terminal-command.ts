@@ -12,10 +12,13 @@ function decode(segment: string): string {
 	}
 }
 
-/** The CLI command that shows the same thing as an account route; null = no footer. */
+/** The CLI command that shows the same thing as an account route; null = no
+ *  footer. A detail page whose webhook or subgraph is gone (`isMissing`) gets
+ *  its list command: there's nothing left to inspect. */
 export function commandForPath(
 	pathname: string | null,
 	nameForId?: (id: string) => string | undefined,
+	isMissing?: (kind: "webhooks" | "subgraphs", key: string) => boolean,
 ): string | null {
 	if (!pathname) return null;
 	if (pathname === "/account") return "sl status";
@@ -27,9 +30,14 @@ export function commandForPath(
 	const detail = /^\/account\/webhooks\/([^/]+)$/.exec(pathname);
 	if (detail) {
 		const id = decode(detail[1]);
+		if (isMissing?.("webhooks", id)) return "sl webhooks list";
 		return `sl webhooks doctor ${nameForId?.(id) ?? id}`;
 	}
 	const subgraph = /^\/account\/subgraphs\/([^/]+)$/.exec(pathname);
-	if (subgraph) return `sl subgraphs status ${decode(subgraph[1])}`;
+	if (subgraph) {
+		const name = decode(subgraph[1]);
+		if (isMissing?.("subgraphs", name)) return "sl subgraphs list";
+		return `sl subgraphs status ${name}`;
+	}
 	return null;
 }

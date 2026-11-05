@@ -268,7 +268,15 @@ function DetailSkeleton({ name }: { name: string }) {
 	);
 }
 
-function NotFound({ name, others }: { name: string; others: Route[] | null }) {
+function NotFound({
+	name,
+	deleted,
+	others,
+}: {
+	name: string;
+	deleted: boolean;
+	others: Route[] | null;
+}) {
 	return (
 		<>
 			<Breadcrumb
@@ -278,6 +286,7 @@ function NotFound({ name, others }: { name: string; others: Route[] | null }) {
 			<MissingResource
 				kind="subgraph"
 				id={name}
+				deleted={deleted ? name : null}
 				listHref="/account/subgraphs"
 				others={others}
 			/>
@@ -294,11 +303,10 @@ export function SubgraphDetailSection({
 	name: string;
 	initial?: SubgraphDetailInitial | null;
 }) {
-	const { list, detail, health, errors, source } = useSubgraphsCache(
+	const { list, detail, health, errors, source, missing } = useSubgraphsCache(
 		initial ? detailSeed(name, initial) : undefined,
 	);
 	const { data: insights } = useInsights();
-	const [missing, setMissing] = useState(initial?.detail.kind === "not_found");
 	const [range, setRange] = useState<SubgraphRange>("7d");
 
 	// The server's reads are fresh, so each poll's first tick waits a full
@@ -314,8 +322,6 @@ export function SubgraphDetailSection({
 			poll(
 				async () => {
 					const res = await refreshDetail(name);
-					if (res.kind === "not_found") setMissing(true);
-					else if (res.kind === "ok") setMissing(false);
 					return res.kind === "starting" || res.kind === "rate_limited"
 						? { retryAfterMs: res.retryAfter * 1000 }
 						: {};
@@ -364,10 +370,11 @@ export function SubgraphDetailSection({
 	);
 
 	if (!data) {
-		if (missing) {
+		if (name in missing) {
 			return (
 				<NotFound
 					name={name}
+					deleted={missing[name]}
 					others={
 						list?.data.map((s) => ({
 							href: `/account/subgraphs/${s.name}`,

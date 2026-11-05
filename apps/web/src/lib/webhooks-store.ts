@@ -42,6 +42,9 @@ type State = {
 	summary: CacheEntry<WebhooksActivitySummary>;
 	/** Deliveries for one hour, keyed `${id}:${fromIso}`. */
 	deliveriesWindow: Record<string, CacheEntry<DeliveryRow[]>>;
+	/** Ids the API answered 404 for. The value is the webhook's name when this
+	 *  cache still had it (so it was just deleted), null when it never did. */
+	missing: Record<string, string | null>;
 };
 
 const EMPTY: State = {
@@ -51,6 +54,7 @@ const EMPTY: State = {
 	activity: {},
 	summary: undefined,
 	deliveriesWindow: {},
+	missing: {},
 };
 
 let state: State = EMPTY;
@@ -95,6 +99,7 @@ function applySeed(seed: WebhooksSeed): void {
 		deliveries: { ...state.deliveries, ...seed.deliveries },
 		activity: { ...state.activity, ...seed.activity },
 		deliveriesWindow: state.deliveriesWindow,
+		missing: { ...seed.missing, ...state.missing },
 	};
 }
 
@@ -110,6 +115,7 @@ export function detailSeed(id: string, initial: DetailFetch): WebhooksSeed {
 		...(webhook.kind === "ok" && {
 			detail: { [id]: { data: webhook.data, at } },
 		}),
+		...(webhook.kind === "not_found" && { missing: { [id]: null } }),
 		...(deliveries.kind === "ok" && {
 			deliveries: { [id]: { data: deliveries.data, at } },
 		}),
@@ -254,6 +260,23 @@ export function applyWebhook(webhook: WebhookDetail): void {
 	set(patch);
 }
 
+/** A webhook the API no longer has: out of the list and detail caches, so
+ *  every page stops showing it, with its name kept when this cache knew it. */
+function forget(id: string): Partial<State> {
+	const { list, detail, missing } = current();
+	const name =
+		missing[id] ??
+		detail[id]?.data.name ??
+		list?.data.find((w) => w.id === id)?.name ??
+		null;
+	const { [id]: _gone, ...rest } = detail;
+	return {
+		missing: { ...missing, [id]: name },
+		detail: rest,
+		list: list && { ...list, data: list.data.filter((w) => w.id !== id) },
+	};
+}
+
 export interface DetailFetch {
 	webhook: WebhooksResult<WebhookDetail>;
 	deliveries: WebhooksResult<DeliveryRow[]>;
@@ -301,6 +324,11 @@ export function refreshDetail(
 				...current().activity,
 				[id]: { data: activity.data, at: now },
 			};
+		}
+		if (webhook.kind === "not_found") Object.assign(patch, forget(id));
+		else if (webhook.kind === "ok" && id in current().missing) {
+			const { [id]: _found, ...missing } = current().missing;
+			patch.missing = missing;
 		}
 		if (Object.keys(patch).length > 0) {
 			set(patch);

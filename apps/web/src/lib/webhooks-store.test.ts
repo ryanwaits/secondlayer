@@ -219,6 +219,39 @@ describe("refreshDetail", () => {
 	});
 });
 
+describe("a webhook that goes missing", () => {
+	test("a 404 after the page had it drops it everywhere and keeps its name", async () => {
+		stubFetch("wh-gone");
+		await refreshList();
+		await refreshDetail("wh-gone");
+		clearRequestCache();
+		globalThis.fetch = (async () =>
+			jsonResponse({ error: "not found" }, 404)) as unknown as typeof fetch;
+		await refreshDetail("wh-gone");
+		const cache = webhooksSnapshot();
+		expect(cache.missing["wh-gone"]).toBe("pool-payouts");
+		expect(cache.detail["wh-gone"]).toBeUndefined();
+		expect(cache.list?.data.some((w) => w.id === "wh-gone")).toBe(false);
+	});
+
+	test("a 404 for an id this cache never had is missing with no name", async () => {
+		globalThis.fetch = (async () =>
+			jsonResponse({ error: "not found" }, 404)) as unknown as typeof fetch;
+		await refreshDetail("wh-typo");
+		expect(webhooksSnapshot().missing["wh-typo"]).toBeNull();
+	});
+
+	test("a later ok clears the missing mark", async () => {
+		globalThis.fetch = (async () =>
+			jsonResponse({ error: "not found" }, 404)) as unknown as typeof fetch;
+		await refreshDetail("wh-back");
+		clearRequestCache();
+		stubFetch("wh-back");
+		await refreshDetail("wh-back");
+		expect("wh-back" in webhooksSnapshot().missing).toBe(false);
+	});
+});
+
 describe("refreshDeliveriesWindow", () => {
 	test("keeps the newest windows and drops the oldest past the cap", async () => {
 		globalThis.fetch = (async () =>

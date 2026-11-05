@@ -120,6 +120,9 @@ type State = {
 	health: Record<string, CacheEntry<SubgraphHealthData>>;
 	errors: Record<string, CacheEntry<SubgraphErrorGroup[]>>;
 	source: Record<string, CacheEntry<SubgraphSource>>;
+	/** Names the API answered 404 for: true when this cache still had the
+	 *  subgraph (so it was just deleted), false when it never did. */
+	missing: Record<string, boolean>;
 };
 
 const EMPTY: State = {
@@ -128,6 +131,7 @@ const EMPTY: State = {
 	health: {},
 	errors: {},
 	source: {},
+	missing: {},
 };
 
 let state: State = EMPTY;
@@ -169,6 +173,7 @@ function applySeed(seed: SubgraphsSeed): void {
 		health: { ...state.health, ...seed.health },
 		errors: { ...state.errors, ...seed.errors },
 		source: { ...state.source, ...seed.source },
+		missing: { ...seed.missing, ...state.missing },
 	};
 }
 
@@ -226,6 +231,7 @@ export function detailSeed(
 		...(initial.detail.kind === "ok" && {
 			detail: { [name]: { data: initial.detail.data, at } },
 		}),
+		...(initial.detail.kind === "not_found" && { missing: { [name]: false } }),
 		...(initial.health.kind === "ok" && {
 			health: { [name]: { data: initial.health.data, at } },
 		}),
@@ -324,15 +330,34 @@ export function refreshDetail(
 	return shared(key, async () => {
 		const res = await request<SubgraphDetailData>(`/${seg(name)}`);
 		if (res.kind === "ok") {
+			const { [name]: _found, ...missing } = current().missing;
 			set({
 				detail: {
 					...current().detail,
 					[name]: { data: res.data, at: Date.now() },
 				},
+				missing,
 			});
 		}
+		if (res.kind === "not_found") set(forget(name));
 		return res;
 	});
+}
+
+/** A subgraph the API no longer has: out of the list and detail caches, so
+ *  every page stops showing it, marked deleted when this cache knew it. */
+function forget(name: string): Partial<State> {
+	const { list, detail, missing } = current();
+	const known =
+		missing[name] === true ||
+		detail[name] !== undefined ||
+		list?.data.some((s) => s.name === name) === true;
+	const { [name]: _gone, ...rest } = detail;
+	return {
+		missing: { ...missing, [name]: known },
+		detail: rest,
+		list: list && { ...list, data: list.data.filter((s) => s.name !== name) },
+	};
 }
 
 /** Hourly buckets, oldest first, ending with the current hour. */

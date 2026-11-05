@@ -17,6 +17,7 @@ import {
 } from "@/lib/account-data";
 import { useAuth } from "@/lib/auth";
 import { PRODUCTS, SITE_LINKS, isActive } from "@/lib/site";
+import { useSubgraphsCache } from "@/lib/subgraphs-store";
 import { commandForPath } from "@/lib/terminal-command";
 import { useWebhooksCache } from "@/lib/webhooks-store";
 import Link from "next/link";
@@ -41,7 +42,8 @@ export function MarketingNav() {
 	const pathname = usePathname();
 	const { account, loading, logout } = useAuth();
 	const { billing } = useAccountData();
-	const { list, detail } = useWebhooksCache();
+	const { list, detail, missing } = useWebhooksCache();
+	const { missing: missingSubgraphs } = useSubgraphsCache();
 	const [open, setOpen] = useState(false);
 
 	// Close the sheet on navigation; Escape closes it and scroll locks while
@@ -78,6 +80,8 @@ export function MarketingNav() {
 				pathname,
 				(id) =>
 					detail[id]?.data.name ?? list?.data.find((w) => w.id === id)?.name,
+				(kind, key) =>
+					key in (kind === "webhooks" ? missing : missingSubgraphs),
 			)
 		: null;
 

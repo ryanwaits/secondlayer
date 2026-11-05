@@ -43,6 +43,15 @@ describe("commandForPath", () => {
 			"sl subgraphs status vault-events",
 		);
 	});
+	test("a missing webhook or subgraph gets its list command", () => {
+		const missing = () => true;
+		expect(commandForPath("/account/webhooks/wh_1", undefined, missing)).toBe(
+			"sl webhooks list",
+		);
+		expect(commandForPath("/account/subgraphs/bns", undefined, missing)).toBe(
+			"sl subgraphs list",
+		);
+	});
 	test("unknown routes get no footer", () => {
 		expect(commandForPath("/account/foo")).toBeNull();
 		expect(commandForPath(null)).toBeNull();

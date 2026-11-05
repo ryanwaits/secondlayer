@@ -110,6 +110,24 @@ describe("subgraphs store", () => {
 	});
 });
 
+describe("a subgraph that goes missing", () => {
+	test("a 404 after the list had it drops it and marks it deleted", async () => {
+		stub(json({ data: [{ name: "bns-gone" }, { name: "sbtc-deposits" }] }));
+		await refreshList();
+		stub(json({ error: "not found" }, { status: 404 }));
+		await refreshDetail("bns-gone");
+		const cache = subgraphsSnapshot();
+		expect(cache.missing["bns-gone"]).toBe(true);
+		expect(cache.list?.data.map((s) => s.name)).toEqual(["sbtc-deposits"]);
+	});
+
+	test("a 404 for a name this cache never had is missing, not deleted", async () => {
+		stub(json({ error: "not found" }, { status: 404 }));
+		await refreshDetail("bns-typo");
+		expect(subgraphsSnapshot().missing["bns-typo"]).toBe(false);
+	});
+});
+
 describe("sessionStorage", () => {
 	test("refreshing the list saves nothing for a reload", async () => {
 		const saved = new Map<string, string>();
@@ -159,14 +177,15 @@ describe("server seed", () => {
 		expect(listSeed({ kind: "asleep" })).toEqual({});
 	});
 
-	test("detailSeed keeps only the reads that came back ok", () => {
+	test("detailSeed keeps only the reads that came back ok, and a 404 as missing", () => {
 		const seed = detailSeed("a", {
 			detail: { kind: "not_found" },
 			health: { kind: "ok", data: { hours, errors24h: 0 } },
 			errors: { kind: "ok", data: [] },
 			source: { kind: "starting", retryAfter: 5 },
 		});
-		expect(Object.keys(seed).sort()).toEqual(["errors", "health"]);
+		expect(Object.keys(seed).sort()).toEqual(["errors", "health", "missing"]);
+		expect(seed.missing).toEqual({ a: false });
 	});
 
 	test("the server render paints the seed and leaves the module cache empty", () => {
