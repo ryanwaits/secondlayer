@@ -470,11 +470,6 @@ export default async function StreamsPage() {
 						title: "Listen for contract events",
 						body: "Have each print posted to your server instead.",
 					},
-					{
-						href: "/blog/resuming-from-the-same-block",
-						title: "Why your indexer resumes from the same block",
-						body: "Why a quiet consumer logs an old cursor and is caught up anyway.",
-					},
 				]}
 			/>
 

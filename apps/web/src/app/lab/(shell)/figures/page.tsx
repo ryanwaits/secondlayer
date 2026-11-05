@@ -1,4 +1,3 @@
-import { SelectivityExplorer } from "@/app/(www)/blog/(post)/resuming-from-the-same-block/selectivity-explorer";
 import { Code } from "@/components/code/code";
 import {
 	BarChart,
@@ -35,6 +34,7 @@ import {
 } from "@/components/figures";
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
+import { SelectivityExplorer } from "./selectivity-explorer";
 
 export const metadata: Metadata = {
 	title: "Figure library · secondlayer blog",

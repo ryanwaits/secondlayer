@@ -111,7 +111,7 @@ rendered from these components with specimen data. Posts import figures
 explicitly from `@/components/figures` (never via the global MDX map,
 which would put client figures on every docs bundle). Explorer
 compositions (render props) live per-post as small client files next to
-the post's `page.mdx` — see the checkpoint post's `selectivity-explorer.tsx`.
+the post's `page.mdx`. Example: `app/lab/(shell)/figures/selectivity-explorer.tsx`.
 
 ## Refinement backlog
 
