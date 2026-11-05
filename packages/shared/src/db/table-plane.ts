@@ -111,6 +111,8 @@ export const TABLE_TO_DB = {
 	waitlists: "target",
 	waitlist_signups: "target",
 	contact_requests: "target",
+	update_subscribers: "target",
+	update_sends: "target",
 	// ── TARGET: 24h hosted failed-request record (feedback evidence) ──
 	api_failed_requests: "target",
 	// ── TARGET: 7-day account read log (dashboard insight evidence) ──

@@ -14,6 +14,10 @@ export interface SendEmailInput {
 	text: string;
 	/** Where a reply goes; omitted, replies go to the From address. */
 	replyTo?: string;
+	/** Overrides the `EMAIL_FROM` default. */
+	from?: string;
+	/** Extra message headers, e.g. RFC 8058 `List-Unsubscribe`. */
+	headers?: Record<string, string>;
 }
 
 export type SendEmailResult = { skipped: true } | { skipped: false };
@@ -30,7 +34,9 @@ export async function sendEmail(
 	}
 
 	const from =
-		process.env.EMAIL_FROM ?? "secondlayer <noreply@secondlayer.tools>";
+		input.from ??
+		process.env.EMAIL_FROM ??
+		"secondlayer <noreply@secondlayer.tools>";
 
 	const response = await fetch("https://api.resend.com/emails", {
 		method: "POST",
@@ -45,6 +51,9 @@ export async function sendEmail(
 			html: input.html,
 			text: input.text,
 			...(input.replyTo ? { reply_to: [input.replyTo] } : {}),
+			...(input.headers && Object.keys(input.headers).length > 0
+				? { headers: input.headers }
+				: {}),
 		}),
 	});
 

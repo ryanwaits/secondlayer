@@ -46,6 +46,15 @@ export interface RenderEmailInput {
 	cta?: EmailCta;
 	/** Why the reader got this email and how to stop it. */
 	footnote?: string;
+	/**
+	 * Monospace lines shown in the figure, whitespace kept. `mark`, when set,
+	 * has its first occurrence highlighted.
+	 */
+	excerpt?: { lines: string; mark?: string };
+	/** Plain text at the right of the figure bar when there is no `status`. */
+	figureNote?: string;
+	/** Adds an "Unsubscribe" link to the footer (list emails only). */
+	unsubscribeUrl?: string;
 }
 
 export interface RenderedEmail {
@@ -130,20 +139,40 @@ function preheaderHtml(preheader: string | undefined): string {
 	return `<div style="display: none; max-height: 0; overflow: hidden; mso-hide: all; opacity: 0; color: transparent;">${escapeHtml(preheader)}${filler}</div>`;
 }
 
+function hasFigure(input: RenderEmailInput): boolean {
+	return Boolean(input.code || input.facts?.length || input.excerpt);
+}
+
+function excerptHtml(excerpt: { lines: string; mark?: string }): string {
+	let lines = escapeHtml(excerpt.lines);
+	if (excerpt.mark) {
+		const mark = escapeHtml(excerpt.mark);
+		const at = lines.indexOf(mark);
+		if (at !== -1) {
+			lines = `${lines.slice(0, at)}<span style="background: #ffd200; color: #14110d; padding: 0 2px;">${mark}</span>${lines.slice(at + mark.length)}`;
+		}
+	}
+	return `<tr><td colspan="2" style="padding: 0;"><pre class="sl-ink" style="margin: 0; padding: 12px 14px; font-family: ${MONO}; font-size: 12.5px; line-height: 20px; white-space: pre; overflow-x: auto; color: ${LIGHT.ink};">${lines}</pre></td></tr>`;
+}
+
 function figureHtml(input: RenderEmailInput): string {
-	if (!input.code && !input.facts?.length) return "";
-	const title = input.figure ?? (input.code ? "sign-in code" : "details");
+	if (!hasFigure(input)) return "";
+	const title =
+		input.figure ??
+		(input.code ? "sign-in code" : input.excerpt ? "excerpt" : "details");
 	const line = `border-color: ${LIGHT.line}; border-style: solid; border-width: 0`;
 
 	const bar = `<tr>
       <td class="sl-faint sl-line" style="padding: 8px 14px; ${line}; border-bottom-width: 1px; font-family: ${MONO}; font-size: 12px; line-height: 18px; color: ${LIGHT.faint};">${escapeHtml(title)}</td>
-      <td class="sl-line" align="right" style="padding: 8px 14px; ${line}; border-bottom-width: 1px;">${input.status ? statusChip(input.status) : ""}</td>
+      <td class="sl-line" align="right" style="padding: 8px 14px; ${line}; border-bottom-width: 1px;">${input.status ? statusChip(input.status) : input.figureNote ? `<span class="sl-faint" style="font-family: ${MONO}; font-size: 12px; line-height: 18px; color: ${LIGHT.faint};">${escapeHtml(input.figureNote)}</span>` : ""}</td>
     </tr>`;
 
 	let body: string;
 	if (input.code) {
 		body = `<tr><td colspan="2" align="center" class="sl-ink" style="padding: 24px 14px 8px; font-family: ${MONO}; font-size: 36px; line-height: 40px; font-weight: 500; letter-spacing: 0.3em; color: ${LIGHT.ink}; -webkit-user-select: all; user-select: all;">${escapeHtml(input.code)}</td></tr>
     <tr><td colspan="2" align="center" class="sl-faint" style="padding: 0 14px 16px; font-family: ${MONO}; font-size: 12px; line-height: 18px; color: ${LIGHT.faint};">tap or double-click to select</td></tr>`;
+	} else if (input.excerpt && !input.facts?.length) {
+		body = excerptHtml(input.excerpt);
 	} else {
 		const facts = input.facts ?? [];
 		body = facts
@@ -166,10 +195,10 @@ function figureHtml(input: RenderEmailInput): string {
 }
 
 function renderHtml(input: RenderEmailInput): string {
-	const hasFigure = Boolean(input.code || input.facts?.length);
+	const figure = hasFigure(input);
 
 	const statusLine =
-		input.status && !hasFigure
+		input.status && !figure
 			? `<p class="${TONE_CLASS[input.status.tone]}" style="margin: 0 0 12px; font-size: 13px; line-height: 20px; color: ${TONE_COLOR[input.status.tone]};">${dot(input.status.tone)}${escapeHtml(input.status.text)}</p>`
 			: "";
 
@@ -188,9 +217,14 @@ function renderHtml(input: RenderEmailInput): string {
 		? `<table role="presentation" cellpadding="0" cellspacing="0" style="margin: 10px 0 0;"><tr><td class="sl-pri" style="background: ${LIGHT.pri}; border-radius: 4px;"><a href="${escapeHtml(input.cta.url)}" style="display: inline-block; padding: 0 18px; height: 42px; line-height: 42px; font-family: ${SANS}; font-size: 15px; font-weight: 500; color: ${LIGHT.onPri}; text-decoration: none;">${escapeHtml(input.cta.label)}</a></td></tr></table>`
 		: "";
 
-	const footnoteHtml = input.footnote
-		? `<p class="sl-faint" style="margin: 0 0 6px;">${escapeHtml(input.footnote)}</p>`
+	const unsubscribeLink = input.unsubscribeUrl
+		? `<a href="${escapeHtml(input.unsubscribeUrl)}" class="sl-sub" style="color: ${LIGHT.sub}; text-decoration: underline;">Unsubscribe</a>`
 		: "";
+	const footnoteText = input.footnote ? escapeHtml(input.footnote) : "";
+	const footnoteHtml =
+		footnoteText || unsubscribeLink
+			? `<p class="sl-faint" style="margin: 0 0 6px;">${[footnoteText, unsubscribeLink].filter(Boolean).join(" ")}</p>`
+			: "";
 
 	return `<!doctype html>
 <html lang="en">
@@ -246,9 +280,11 @@ function renderText(input: RenderEmailInput): string {
 		for (const fact of input.facts) lines.push(`${fact.label}: ${fact.value}`);
 		lines.push("");
 	}
+	if (input.excerpt) lines.push(input.excerpt.lines, "");
 	if (input.cta) lines.push(`${input.cta.label}: ${input.cta.url}`, "");
 	lines.push("--");
 	if (input.footnote) lines.push(input.footnote);
+	if (input.unsubscribeUrl) lines.push(`Unsubscribe: ${input.unsubscribeUrl}`);
 	lines.push(`Secondlayer · ${TAGLINE}`);
 	return lines.join("\n");
 }

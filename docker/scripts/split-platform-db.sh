@@ -109,6 +109,8 @@ CONTROL_TABLES=(
   push_prefs
   push_sent
   contact_requests
+  update_subscribers
+  update_sends
 )
 
 src_count() { psql "$SRC" -tAc "SELECT count(*) FROM $1" 2>/dev/null || echo "ERR"; }

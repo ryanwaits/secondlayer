@@ -1110,6 +1110,8 @@ export interface Database {
 	waitlists: WaitlistsTable;
 	waitlist_signups: WaitlistSignupsTable;
 	contact_requests: ContactRequestsTable;
+	update_subscribers: UpdateSubscribersTable;
+	update_sends: UpdateSendsTable;
 	api_failed_requests: ApiFailedRequestsTable;
 	api_request_log: ApiRequestLogTable;
 	insights: InsightsTable;
@@ -1680,6 +1682,33 @@ export interface ContactRequestsTable {
 }
 
 /**
+ * A member of the email updates list. `pending` until the emailed link is
+ * confirmed (`confirm_sent_at` starts the 7-day window), `confirmed` while
+ * subscribed, `unsubscribed` after an opt-out. `token` is the secret in
+ * confirm and unsubscribe links.
+ */
+export interface UpdateSubscribersTable {
+	id: Generated<string>;
+	email: string;
+	status: Generated<"pending" | "confirmed" | "unsubscribed">;
+	token: string;
+	source_page: string | null;
+	/** Hex sha256 of the client IP, never the address. */
+	ip_hash: string | null;
+	confirm_sent_at: Date | null;
+	confirmed_at: Date | null;
+	unsubscribed_at: Date | null;
+	created_at: Generated<Date>;
+}
+
+/** One broadcast (`send_key`) delivered to one subscriber. */
+export interface UpdateSendsTable {
+	send_key: string;
+	subscriber_id: string;
+	sent_at: Generated<Date>;
+}
+
+/**
  * 24h hosted record of a failed API request, keyed by `request_id` and
  * scoped to the account that made it. `query` is redacted before insert.
  */
@@ -1757,3 +1786,6 @@ export type InsertWaitlistSignup = Insertable<WaitlistSignupsTable>;
 
 export type ContactRequest = Selectable<ContactRequestsTable>;
 export type InsertContactRequest = Insertable<ContactRequestsTable>;
+
+export type UpdateSubscriber = Selectable<UpdateSubscribersTable>;
+export type InsertUpdateSubscriber = Insertable<UpdateSubscribersTable>;

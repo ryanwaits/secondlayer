@@ -116,6 +116,58 @@ describe("renderEmail", () => {
 	});
 });
 
+describe("renderEmail list additions", () => {
+	const excerpt = { lines: "const a = 1;\n  sl.run(<x>)", mark: "sl.run" };
+
+	test("excerpt renders a pre with the mark highlighted and raw lines in text", () => {
+		const { html, text } = renderEmail({
+			heading: "Heading",
+			paragraphs: ["A paragraph."],
+			excerpt,
+		});
+		expect(html).toContain("<pre");
+		expect(html).toContain("excerpt");
+		expect(html).toContain(
+			'<span style="background: #ffd200; color: #14110d; padding: 0 2px;">sl.run</span>',
+		);
+		expect(html).toContain("&lt;x&gt;");
+		expect(text).toContain(excerpt.lines);
+	});
+
+	test("figureNote shows in the bar when there is no status", () => {
+		const { html } = renderEmail({
+			heading: "Heading",
+			paragraphs: [],
+			excerpt,
+			figureNote: "post.ts",
+		});
+		expect(html).toContain("post.ts");
+	});
+
+	test("unsubscribeUrl adds a link in html and a line in text", () => {
+		const url = "https://www.secondlayer.tools/updates/unsubscribe?t=abc";
+		const { html, text } = renderEmail({
+			heading: "Heading",
+			paragraphs: ["A paragraph."],
+			footnote: "You subscribed.",
+			unsubscribeUrl: url,
+		});
+		expect(html).toContain(`<a href="${url}"`);
+		expect(html).toContain(">Unsubscribe</a>");
+		expect(text).toContain(`Unsubscribe: ${url}`);
+	});
+
+	test("without the new options no excerpt or unsubscribe appears", () => {
+		const { html, text } = renderEmail({
+			heading: "Heading",
+			paragraphs: ["A paragraph."],
+		});
+		expect(html).not.toContain("<pre");
+		expect(html).not.toContain("Unsubscribe");
+		expect(text).not.toContain("Unsubscribe");
+	});
+});
+
 describe("sendEmail", () => {
 	test("skips and warns when RESEND_API_KEY is unset, without throwing", async () => {
 		delete process.env.RESEND_API_KEY;
@@ -176,6 +228,34 @@ describe("sendEmail", () => {
 
 		expect("reply_to" in bodies[0]).toBe(false);
 		expect(bodies[1].reply_to).toEqual(["sender@example.com"]);
+	});
+
+	test("forwards from and headers, and omits empty headers", async () => {
+		process.env.RESEND_API_KEY = "test-key";
+		const bodies: Record<string, unknown>[] = [];
+		globalThis.fetch = (async (_url: string, init: RequestInit) => {
+			bodies.push(JSON.parse(init.body as string));
+			return new Response("{}", { status: 200 });
+		}) as unknown as typeof fetch;
+
+		const base = {
+			to: "ops@example.com",
+			subject: "Subject",
+			html: "<p>hi</p>",
+			text: "hi",
+		};
+		await sendEmail({
+			...base,
+			from: "Secondlayer <dev@secondlayer.tools>",
+			headers: { "List-Unsubscribe": "<https://example.com/u>" },
+		});
+		await sendEmail({ ...base, headers: {} });
+
+		expect(bodies[0].from).toBe("Secondlayer <dev@secondlayer.tools>");
+		expect(bodies[0].headers).toEqual({
+			"List-Unsubscribe": "<https://example.com/u>",
+		});
+		expect("headers" in bodies[1]).toBe(false);
 	});
 
 	test("throws with status and body excerpt on a non-2xx response", async () => {
