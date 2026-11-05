@@ -48,8 +48,18 @@ const GUARDED_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
  * which is a strictly stronger check than any header shape, and its
  * Content-Type is Stripe's to choose. Guarding it would buy nothing and risk
  * dropping paid events.
+ *
+ * `POST /api/public/updates/unsubscribe` is called by mail providers, which
+ * send RFC 8058 one-click unsubscribes as
+ * `application/x-www-form-urlencoded`. The request carries an unguessable
+ * per-subscriber token in the URL and the only possible effect is
+ * unsubscribing that token's address, so a forged cross-origin POST gains
+ * nothing.
  */
-const EXEMPT_PREFIXES = ["/api/billing/stripe"];
+const EXEMPT_PREFIXES = [
+	"/api/billing/stripe",
+	"/api/public/updates/unsubscribe",
+];
 
 export class UnsupportedMediaTypeError extends Error {
 	readonly code = UNSUPPORTED_MEDIA_TYPE;

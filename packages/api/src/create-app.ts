@@ -49,6 +49,7 @@ import proofsRouter from "./routes/proofs.ts";
 import publicContactRouter from "./routes/public-contact.ts";
 import publicCreditsRouter from "./routes/public-credits.ts";
 import publicDocsFindRouter from "./routes/public-docs-find.ts";
+import publicUpdatesRouter from "./routes/public-updates.ts";
 import publicWaitlistRouter from "./routes/public-waitlist.ts";
 import pushRouter from "./routes/push.ts";
 import statusRouter from "./routes/status.ts";
@@ -212,6 +213,8 @@ export function createApiApp(mode: InstanceMode): Hono {
 		app.use("/api/public/waitlist/*", ipRateLimit(60));
 		app.route("/api/public/waitlist", publicWaitlistRouter);
 		app.route("/api/public/contact", publicContactRouter);
+		app.use("/api/public/updates/*", ipRateLimit(60));
+		app.route("/api/public/updates", publicUpdatesRouter);
 		app.route("/api/public/docs-find", publicDocsFindRouter);
 	}
 

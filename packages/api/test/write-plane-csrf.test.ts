@@ -322,3 +322,36 @@ describe("the Stripe webhook is exempt", () => {
 		}
 	});
 });
+
+describe("the updates one-click unsubscribe is exempt", () => {
+	function platformApp(): Hono {
+		process.env.INSTANCE_MODE = "platform";
+		return createApiApp("platform");
+	}
+
+	const FORM = {
+		"content-type": "application/x-www-form-urlencoded",
+	} as const;
+
+	// Mail providers POST RFC 8058 one-click unsubscribes as a form. Reaching
+	// the handler's own answer (404 for a missing token) rather than the guard
+	// (415) is the assertion.
+	test("a form-encoded unsubscribe passes the guard", async () => {
+		const res = await platformApp().request("/api/public/updates/unsubscribe", {
+			method: "POST",
+			headers: FORM,
+			body: "List-Unsubscribe=One-Click",
+		});
+		expect(res.status).toBe(404);
+		expect(await res.json()).toEqual({ status: "invalid" });
+	});
+
+	test("joining the list with a form body is still refused", async () => {
+		const res = await platformApp().request("/api/public/updates", {
+			method: "POST",
+			headers: FORM,
+			body: "email=a%40b.co",
+		});
+		expect(res.status).toBe(415);
+	});
+});

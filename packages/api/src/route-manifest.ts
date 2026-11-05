@@ -27,6 +27,10 @@
 export const HOSTED_ROUTE_FIXTURES = [
 	{ method: "POST", path: "/api/public/waitlist" },
 	{ method: "POST", path: "/api/public/contact" },
+	{ method: "POST", path: "/api/public/updates" },
+	{ method: "POST", path: "/api/public/updates/confirm" },
+	{ method: "POST", path: "/api/public/updates/unsubscribe" },
+	{ method: "POST", path: "/api/public/updates/resubscribe" },
 	{ method: "POST", path: "/api/public/docs-find" },
 	{ method: "GET", path: "/api/public/waitlist/robinhood/demand" },
 	{ method: "POST", path: "/v1/feedback" },
