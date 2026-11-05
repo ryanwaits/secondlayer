@@ -6,7 +6,7 @@ name: Apps
 on:
   push:
     branches: [main]
-    paths: ["apps/**", "packages/**", "bun.lock", "package.json"]
+    paths: ["apps/**", "packages/**", "skills/secondlayer/dash/**", "scripts/dash/**", "bun.lock", "package.json"]
   workflow_dispatch:
 
 jobs:
@@ -21,4 +21,6 @@ jobs:
       - run: bun run build
       - run: bun run --filter @secondlayer/web test
       - run: bun run --filter @secondlayer/stacks-docs test
+      # Dash kit mirrors apps/web css; web-only pushes skip deploy.yml, so check parity here.
+      - run: bun test scripts/dash
       - run: bun run --filter './apps/*' typecheck
