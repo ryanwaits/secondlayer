@@ -1,5 +1,11 @@
 # @secondlayer/shared
 
+## 15.0.4
+
+### Patch Changes
+
+- Database URLs honor `sslmode` (and `ssl`): `?sslmode=disable` now connects to an IP or dotted host without TLS, and `?sslmode=require` forces TLS on a local one. Insight copy pluralizes delivery as deliveries.
+
 ## 15.0.3
 
 ### Patch Changes
