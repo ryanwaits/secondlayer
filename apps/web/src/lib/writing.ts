@@ -33,22 +33,8 @@ export type WritingPost = {
 
 export const POSTS: WritingPost[] = [
 	{
-		slug: "resuming-from-the-same-block",
-		number: 1,
-		title: "Why your indexer resumes from the same block",
-		dek: "Restart a consumer on a quiet feed and it logs yesterday's cursor, far behind the tip. Why it's caught up anyway, and which height to alert on.",
-		date: "2026-08-01",
-		readingTime: "5 min",
-		notes: "popover",
-		status: "published",
-		related: [
-			{ href: "/p/streams", label: "Streams" },
-			{ href: "/docs/guides/handle-reorgs", label: "Handle Stacks reorgs" },
-		],
-	},
-	{
 		slug: "not-in-any-public-api",
-		number: 2,
+		number: 1,
 		title: "Your contract's data isn't in any public API",
 		dek: "Public APIs index what every app shares, so your contract's data isn't there. What that leaves you with, and the indexer we built instead.",
 		date: "2026-08-15",
@@ -65,7 +51,7 @@ export const POSTS: WritingPost[] = [
 	},
 	{
 		slug: "an-index-you-can-check",
-		number: 3,
+		number: 2,
 		title: "An index you can check, starting with a bridge",
 		dek: "Every indexer asks you to trust its answers. We're building one you can check, and the first test is a bridge from Stacks to Robinhood Chain.",
 		date: "2026-10-14",
@@ -78,6 +64,20 @@ export const POSTS: WritingPost[] = [
 				href: "/docs/guides/decode-print-events",
 				label: "Decode Clarity print events",
 			},
+		],
+	},
+	{
+		slug: "clarity-state-from-genesis",
+		number: 3,
+		title: "Every Clarity state change on Stacks, indexed from genesis",
+		dek: "Maps, data vars and inner calls from every Clarity contract, as rows from block 1 and checked against each block. What that opens up for apps, wallets and protocols.",
+		date: "2026-11-05",
+		readingTime: "5 min",
+		notes: "popover",
+		status: "draft",
+		related: [
+			{ href: "/docs/subgraphs", label: "Subgraphs" },
+			{ href: "/docs/webhooks", label: "Webhooks" },
 		],
 	},
 ];

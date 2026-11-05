@@ -1,0 +1,177 @@
+import { PostHeader } from "@/components/writing/post-header";
+import { PostFooter } from "@/components/writing/post-footer";
+import { FigShell, Roadmap, Sidenote } from "@/components/figures";
+import { ChainLink } from "@/components/site/chain-link";
+import { postMeta } from "@/lib/writing";
+
+export const metadata = postMeta("clarity-state-from-genesis");
+
+<PostHeader slug="clarity-state-from-genesis" />
+
+We're replaying every <ChainLink chain="stacks" href="/p/index">Stacks</ChainLink> block from genesis on a node that records each change a <ChainLink chain="clarity">Clarity</ChainLink> contract makes to its own storage, plus every call one contract makes into another<Sidenote n={1}>The replay runs on our [fork of stacks-core](https://github.com/ryanwaits/stacks-core/tree/feat/vm-events-resync), published as `ghcr.io/ryanwaits/stacks-core:6e005af`, which adds two observer events: storage writes and inner calls. LNow proposed contract events upstream in 2022 ([PR 3054](https://github.com/stacks-network/stacks-core/pull/3054), closed). The fork is built for an indexer's needs and stacks-core has its own tradeoffs to weigh, so we offer it as a working reference if these events are ever considered upstream.</Sidenote>. At the tip, every contract's maps, data vars and inner calls become rows you can query, subscribe to and check, from block 1.
+
+As of November 5 the replay is at block 7,266,837 of 9,420,003.
+
+## Most contract state is never printed
+
+An indexer on Stacks sees what the node emits: transactions, token transfers and whatever a contract prints. Most of a protocol lives in the maps and variables it writes inside the VM: vault shares, listings, reserves, fees, and a router's calls.
+
+One ALEX swap at block 1,230,200 shows the gap. A public API lists a single call to `swap-helper` and three events. Here is what ran inside it:
+
+```text block 1,230,200 · tx 0xf53d…279b
+signed  amm-pool-v2-01.swap-helper
+
+# !callout[/0–11/] lookups: no transfer, no print
+ 0–11  amm-registry-v2-01  get-pool-exists, get-pool-details, …   12 calls
+12–13  kiki-token          get-decimals, transfer
+   14  token-wkiki         transfer-fixed
+   15  executor-dao        is-extension
+   16  token-alex          transfer-fixed
+   17  amm-vault-v2-01     transfer-ft
+   18  executor-dao        is-extension
+# !mark[/reserve\[token-wkiki\]/]
+# !callout[/map_set/] no print carries this write
+   19  amm-vault-v2-01     map_set reserve[token-wkiki] = u2122910416441083
+   20  amm-vault-v2-01     add-to-reserve
+   21  executor-dao        is-extension
+   22  amm-registry-v2-01  map_set pools-data-map[token-alex, token-wkiki]
+   23  amm-registry-v2-01  update-pool
+```
+
+That's 22 inner calls and two map writes. ALEX prints the new pool balances, so one write was visible already. The vault's reserve for wKIKI wasn't.
+
+A node can read that reserve without a getter through `/v2/map_entry`, even at an old block on an archival node. It can't say which transaction changed it, which calls led there, or every key the map holds.
+
+## The write log is contract state over time
+
+Each row is one committed write: block, transaction, contract, map or variable, key and value. Replay the rows in order and you know what any stored value was after any transaction, without asking a node. Inner calls carry caller, sender, arguments and result, even when the call failed and its caller handled the error.
+
+A subgraph turns these rows into tables. This one tracks that vault's reserves:
+
+```ts
+import { defineSubgraph } from "@secondlayer/subgraphs";
+
+export default defineSubgraph({
+  name: "pool-reserves",
+  startBlock: 1230000,
+  sources: {
+    reserves: {
+      type: "map_set",
+      contractId: "SP102V8P0F7JX67ARQ77WEA3D3CFB5XW39REDT0AM.amm-vault-v2-01",
+      map: "reserve",
+    },
+  },
+  schema: {
+    reserves: {
+      columns: { token: { type: "principal" }, balance: { type: "uint" } },
+      uniqueKeys: [["token"]],
+    },
+  },
+  handlers: {
+    reserves: (event, ctx) => {
+      ctx.upsert("reserves", { token: event.key as string }, { balance: event.value as bigint });
+    },
+  },
+});
+```
+
+## What it opens up
+
+- **History of any stored value.** A vault share, a listing or a fee setting at any block, with the transaction that changed it. Today that takes an archival node and one read per block, or a print the author remembered to add.
+- **Contracts as they were deployed.** A contract can't start printing without a new deploy, so the write log indexes it as it is, from the day it launched.
+- **Wallets that show positions.** Wallets show token balances, but a stacking share, a vault deposit or a listed NFT lives in a protocol's map. A wallet could render those positions from the protocol's subgraph.
+- **Your protocol when users never call you.** Routers and pools call your contract inside other transactions. Filter inner calls on your contract and they show up with their callers, as CityCoins mining pools [asked for in 2022](https://github.com/hirosystems/stacks-blockchain-api/issues/953).
+- **Webhooks on state.** A keeper gets a push when a map key changes, instead of polling the contract.
+
+## Inner calls show what post-conditions miss
+
+[100proof](https://100proof.org/a-questionable-design-choice.html) wrote up a listing pattern common in Stacks NFT contracts. `list-in-ustx` checks `tx-sender`, which is still you when a contract you called makes the call. A malicious commission contract can run during your purchase and list your other NFTs at 1 uSTX. Post-conditions don't catch it, because no other NFT moved; a listing is a map write.
+
+An explorer shows a purchase. The write log shows one `list-in-ustx` call per NFT with the commission contract as caller, so a collection can be paged when an unknown contract lists for someone.
+
+<ChainLink chain="sentinel" href="https://runsentinel.app">Sentinel</ChainLink>, our monitoring service for Stacks contracts, will watch the same rows: describe the calls into your protocol or writes to its maps you care about, and it pings you when one happens.
+
+## Every replayed block has to rebuild its state root
+
+Each block commits to a state root, a hash over all contract storage. Every hour, a check picks 50 random blocks from the replay and rebuilds each root from our rows, so a missing, extra or wrong write breaks it. It has run 666 times since October 9 without a failure.
+
+Before then, it caught two bugs in our node patch. At the swap's block, a nested call overwrote a slot, so the reserve write was logged with the old reserve as its key. Older blocks also logged writes out of execution order<Sidenote n={2}>Pre-Nakamoto microblocks execute before their anchored block's transactions but arrive after them.</Sidenote>. We fixed both and restarted from genesis on October 8.
+
+`sl verify block` already proves what a block changed, but not what the changes were:
+
+```text
+$ sl verify block 1230200
+✓ ancestry    1,230,200 proven in the state of the checkpoint 9,055,251 (one MARF proof)
+✓ block       1,230,200  68df6083…87a730f2
+✓ txs         1 transactions match the tx merkle root
+✓ state root  d7947b1b…593bb2a9 matches the witness
+# !mark[/unnamed/]
+✓ diff        9 written (unnamed), 1 carried, 5 internal
+  note: source has no state_writes for block 1230200: 9 written leaves are proven in the block but unnamed
+✓ Block 1,230,200 is proven. Trusted: only the checkpoint (Stacks 9,055,251, Bitcoin 967,680).
+```
+
+The root commits only to hashed keys; the write log names them, so a proof can say which map, key and value changed.
+
+## What lands when the replay reaches the tip
+
+<FigShell
+	n={1}
+	title="From replay to rows"
+	caption="The replay replaces our production database once it reaches the tip and passes a data check. Everything after that reads from it."
+>
+	<Roadmap
+		ariaLabel="Write log roadmap. Block proofs are live. The genesis replay is next, in progress. Then map, var and inner-call rows in Index, subgraphs and webhooks, then the write log in the Archive, then Sentinel watches."
+		stops={[
+			{
+				when: "Live",
+				title: "Block proofs",
+				body: "sl verify block proves any block's writes, unnamed.",
+				state: "shipped",
+			},
+			{
+				when: "Next",
+				title: "Replay at the tip",
+				body: "7.27M of 9.42M blocks, checked every hour.",
+				state: "next",
+				note: "in progress",
+			},
+			{
+				when: "At cutover",
+				title: "Rows and triggers",
+				body: "Map and var writes and inner calls in Index, subgraphs and webhooks.",
+				state: "later",
+			},
+			{
+				when: "After",
+				title: "Archive",
+				body: "The write log as a fourth signed dataset, from block 1.",
+				state: "later",
+			},
+			{
+				when: "Later",
+				title: "Sentinel",
+				body: "Watches on calls into your contracts and writes to their maps.",
+				state: "later",
+			},
+		]}
+	/>
+</FigShell>
+
+Webhooks already accept these triggers; on mainnet they match nothing until the cutover:
+
+```json
+{
+  "type": "map_set",
+  "contractId": "SP...your-vault",
+  "map": "shares"
+}
+```
+
+[Kourier](https://paragraph.com/@aulneau/project-kourier), a 2022 proposal by aulneau, ended on this idea: if the node emitted every Clarity state change, an indexer could give you the history of any value.
+
+## The beta opens in the next few weeks
+
+Once the replay passes its data check at the tip, map, var and inner-call rows open as a beta across Index, subgraphs and webhooks. [Get an email](#updates) when it does. `sl verify block 1230200` works today, no key needed.
+
+<PostFooter slug="clarity-state-from-genesis" />
