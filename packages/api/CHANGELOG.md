@@ -1,5 +1,17 @@
 # @secondlayer/api
 
+## 1.63.0
+
+### Minor Changes
+
+- Email updates list: `update_subscribers` and `update_sends` tables (migration 0183), public subscribe, confirm, unsubscribe and resubscribe routes with RFC 8058 one-click unsubscribe, `renderEmail` code excerpts, figure notes and unsubscribe links, `sendEmail` `from` and extra headers, and the `UPDATES_FROM`, `unsubscribeFor` and `confirmEmail` helpers.
+
+### Patch Changes
+
+- Updated dependencies
+  - @secondlayer/shared@15.1.0
+  - @secondlayer/platform@0.10.10
+
 ## 1.62.5
 
 ### Patch Changes
