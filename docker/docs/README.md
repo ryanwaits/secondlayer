@@ -468,6 +468,20 @@ $COMPOSE logs indexer | grep -i "tip follower"
 
 ---
 
+## Updates list
+
+Only people who confirmed the double opt-in get email. Each announcement is one JSON file in `scripts/ops/updates/`; its `key` is the dedupe key, never reuse one.
+
+```bash
+bun scripts/ops/send-update.ts --file scripts/ops/updates/<post>.json --dry-run             # counts + HTML preview
+bun scripts/ops/send-update.ts --file scripts/ops/updates/<post>.json --to you@example.com  # one [test] email
+bun scripts/ops/send-update.ts --file scripts/ops/updates/<post>.json --send                # all confirmed
+```
+
+Run from a laptop with `TARGET_DATABASE_URL` pointing at the control-plane database through an SSH tunnel, and `RESEND_API_KEY` exported. Re-running `--send` with the same `key` skips everyone already sent, so a crash is safe to resume.
+
+---
+
 ## Database
 
 ### Connect & Inspect

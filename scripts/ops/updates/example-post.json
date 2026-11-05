@@ -1,0 +1,19 @@
+{
+	"key": "post-clarity-state-from-genesis",
+	"subject": "Every Clarity state change on Stacks, indexed from genesis",
+	"preheader": "Maps, data vars and inner calls from every Clarity contract, as rows from block 1.",
+	"heading": "Every Clarity state change on Stacks, indexed from genesis",
+	"paragraphs": [
+		"Maps, data vars and inner calls from every Clarity contract, as rows from block 1 and checked against each block. What that opens up for apps, wallets and protocols."
+	],
+	"figure": "blog / 03 · block 1,230,200",
+	"figureNote": "5 min read",
+	"excerpt": {
+		"lines": "signed  amm-pool-v2-01.swap-helper\n\n 0–11  amm-registry-v2-01  get-pool-exists, …    12 calls\n   17  amm-vault-v2-01     transfer-ft\n   19  amm-vault-v2-01     map_set reserve[token-wkiki]\n   22  amm-registry-v2-01  map_set pools-data-map",
+		"mark": "reserve[token-wkiki]"
+	},
+	"cta": {
+		"label": "Read the post",
+		"url": "https://www.secondlayer.tools/blog/clarity-state-from-genesis"
+	}
+}
