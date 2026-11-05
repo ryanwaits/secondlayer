@@ -21,9 +21,20 @@ type Status =
  */
 export function UpdatesSignup({ heading = false }: { heading?: boolean }) {
 	const { account } = useAuth();
+	return <UpdatesSignupForm heading={heading} prefill={account?.email} />;
+}
+
+/** The form itself, given the address to pre-fill (tests render this). */
+export function UpdatesSignupForm({
+	heading = false,
+	prefill,
+}: {
+	heading?: boolean;
+	prefill?: string;
+}) {
 	const [typed, setTyped] = useState<string | null>(null);
 	const [status, setStatus] = useState<Status>({ kind: "idle" });
-	const email = typed ?? account?.email ?? "";
+	const email = typed ?? prefill ?? "";
 
 	async function onSubmit(e: FormEvent<HTMLFormElement>) {
 		e.preventDefault();
