@@ -3,9 +3,9 @@
 import { Eyebrow } from "@/components/site";
 import {
 	forgetUpdates,
+	postUpdatesToken as post,
 	rememberUpdates,
-} from "@/components/writing/updates-memory";
-import { PUBLIC_API_URL } from "@/lib/public-api";
+} from "@/components/writing/updates-list";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 
@@ -14,19 +14,6 @@ type State =
 	| { kind: "unsubscribed"; email: string; resubscribing: boolean }
 	| { kind: "resubscribed"; email: string }
 	| { kind: "invalid" };
-
-async function post(path: string, token: string) {
-	const res = await fetch(`${PUBLIC_API_URL}/api/public/updates/${path}`, {
-		method: "POST",
-		credentials: "omit",
-		headers: { "content-type": "application/json" },
-		body: JSON.stringify({ token }),
-	});
-	const body = (await res.json().catch(() => null)) as {
-		email?: string;
-	} | null;
-	return res.ok && body?.email ? body.email : null;
-}
 
 export function UnsubscribeView({ token }: { token?: string }) {
 	const [state, setState] = useState<State>(

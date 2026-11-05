@@ -32,14 +32,14 @@ describe("updates signup", () => {
 });
 
 describe("updates signup for a reader already on the list", () => {
-	test("a confirmed reader sees one line with an unsubscribe link, not the form", async () => {
+	test("a confirmed reader sees one line with an unsubscribe button, not the form", async () => {
 		const html = await renderAsync(
 			<UpdatesSignup
 				known={{ status: "confirmed", email: "a@b.co", token: "tok/1" }}
 			/>,
 		);
 		expect(html).toContain("a@b.co");
-		expect(html).toContain("/updates/unsubscribe?t=tok%2F1");
+		expect(html).toContain("Unsubscribe</button>");
 		expect(html).not.toContain('type="email"');
 		expect(html).not.toContain("<h3");
 	});

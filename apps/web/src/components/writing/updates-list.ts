@@ -1,3 +1,25 @@
+import { PUBLIC_API_URL } from "@/lib/public-api";
+
+/**
+ * Spends a subscriber token on the updates list (`unsubscribe`,
+ * `resubscribe`); the confirmed address on success, null otherwise.
+ */
+export async function postUpdatesToken(
+	path: "unsubscribe" | "resubscribe",
+	token: string,
+): Promise<string | null> {
+	const res = await fetch(`${PUBLIC_API_URL}/api/public/updates/${path}`, {
+		method: "POST",
+		credentials: "omit",
+		headers: { "content-type": "application/json" },
+		body: JSON.stringify({ token }),
+	});
+	const body = (await res.json().catch(() => null)) as {
+		email?: string;
+	} | null;
+	return res.ok && body?.email ? body.email : null;
+}
+
 /**
  * What this browser knows about its reader's place on the updates list, so
  * the signup form steps aside for someone already on it. Readers without an

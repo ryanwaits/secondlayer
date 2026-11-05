@@ -1,7 +1,7 @@
 "use client";
 
 import { Eyebrow } from "@/components/site";
-import { rememberUpdates } from "@/components/writing/updates-memory";
+import { rememberUpdates } from "@/components/writing/updates-list";
 import { UpdatesSignup } from "@/components/writing/updates-signup";
 import { PUBLIC_API_URL } from "@/lib/public-api";
 import Link from "next/link";

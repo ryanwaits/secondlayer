@@ -1,16 +1,17 @@
 "use client";
 
 import type { AccountUpdates } from "@/app/api/updates/route";
+import { notify } from "@/components/toast/notify";
 import { useAuth } from "@/lib/auth";
 import { PUBLIC_API_URL } from "@/lib/public-api";
-import Link from "next/link";
 import { type FormEvent, useEffect, useState } from "react";
 import {
 	type UpdatesMemory,
 	forgetUpdates,
+	postUpdatesToken,
 	readUpdatesMemory,
 	rememberUpdates,
-} from "./updates-memory";
+} from "./updates-list";
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -127,20 +128,55 @@ export function UpdatesSignupForm({
 		}
 	}
 
+	/**
+	 * Unsubscribes in place: the form comes back and a toast offers Undo
+	 * (⌘Z), which puts the reader back on the list with the same token.
+	 */
+	async function unsubscribe(memory: UpdatesMemory & { status: "confirmed" }) {
+		const { email: address, token } = memory;
+		const gone = await postUpdatesToken("unsubscribe", token).catch(() => null);
+		if (!gone) {
+			notify.fail("Couldn't unsubscribe", {
+				desc: "Use the link at the bottom of any update email.",
+			});
+			return;
+		}
+		forgetUpdates();
+		setStatus({ kind: "idle" });
+		notify.done("Unsubscribed", {
+			desc: `${address} won't get posts or launch emails.`,
+			undo: async () => {
+				const back = await postUpdatesToken("resubscribe", token).catch(
+					() => null,
+				);
+				if (!back) {
+					notify.fail("Couldn't resubscribe", {
+						desc: "Subscribe again with the form.",
+					});
+					return;
+				}
+				const again = { status: "confirmed", email: back, token } as const;
+				rememberUpdates(again);
+				setStatus(again);
+				notify.done("Subscribed again", { quick: true });
+			},
+		});
+	}
+
 	if ("status" in status) {
 		return (
 			<section id="updates" className="updates-signup updates-quiet">
 				<p className="updates-fine">
-					<span className="updates-dot" aria-hidden="true" />
 					{status.status === "confirmed" ? (
 						<>
 							You get new posts and launches at {status.email}.{" "}
-							<Link
-								href={`/updates/unsubscribe?t=${encodeURIComponent(status.token)}`}
+							<button
+								type="button"
 								className="updates-link"
+								onClick={() => void unsubscribe(status)}
 							>
 								Unsubscribe
-							</Link>
+							</button>
 						</>
 					) : (
 						<>
@@ -184,8 +220,7 @@ export function UpdatesSignupForm({
 			) : (
 				<>
 					<p className="updates-sub">
-						One email when we publish or ship. Unsubscribe from any of them in
-						one click.
+						One email when we publish or ship something new.
 					</p>
 					<form className="updates-form" onSubmit={onSubmit} noValidate>
 						<label htmlFor="updates-email" className="updates-sr">
