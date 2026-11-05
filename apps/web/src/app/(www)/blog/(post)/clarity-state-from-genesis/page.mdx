@@ -14,9 +14,9 @@ As of November 5 the replay is at block 7,266,837 of 9,420,003.
 
 ## Most contract state is never printed
 
-An indexer on Stacks sees what the node emits: transactions, token transfers and whatever a contract prints. Most of a protocol lives in the maps and variables it writes inside the VM: vault shares, listings, reserves, fees, and a router's calls.
+An indexer on Stacks sees what the node emits: transactions, token transfers and whatever a contract prints. Most of a protocol lives in the maps and variables it writes inside the VM: vault shares, listings, reserves and fees.
 
-One ALEX swap at block 1,230,200 shows the gap. A public API lists a single call to `swap-helper` and three events. Here is what ran inside it:
+One ALEX swap at block 1,230,200 shows the gap. A public API lists a single call to `swap-helper` and three events (all the node emits). Here is what ran inside it:
 
 ```text block 1,230,200 · tx 0xf53d…279b
 signed  amm-pool-v2-01.swap-helper
@@ -44,7 +44,7 @@ A node can read that reserve without a getter through `/v2/map_entry`, even at a
 
 ## The write log is contract state over time
 
-Each row is one committed write: block, transaction, contract, map or variable, key and value. Replay the rows in order and you know what any stored value was after any transaction, without asking a node. Inner calls carry caller, sender, arguments and result, even when the call failed and its caller handled the error.
+That reserve write is one committed row: block, transaction, contract, map or variable, key and value. Replay the rows in order, like a bank statement, and you know what any stored value was after any transaction, without asking a node. Inner calls carry caller, sender, arguments and result, even when the call failed and its caller handled the error.
 
 A subgraph turns these rows into tables. This one tracks that vault's reserves:
 
@@ -89,7 +89,7 @@ export default defineSubgraph({
 
 An explorer shows a purchase. The write log shows one `list-in-ustx` call per NFT with the commission contract as caller, so a collection can be paged when an unknown contract lists for someone.
 
-<ChainLink chain="sentinel" href="https://runsentinel.app">Sentinel</ChainLink>, our monitoring service for Stacks contracts, will watch the same rows: describe the calls into your protocol or writes to its maps you care about, and it pings you when one happens.
+<ChainLink chain="sentinel" href="https://runsentinel.app">Sentinel</ChainLink>, our monitoring service for Stacks contracts, will watch the same rows: describe the calls or map writes you care about, and it pings you when one happens.
 
 ## Every replayed block has to rebuild its state root
 
@@ -168,7 +168,7 @@ Webhooks already accept these triggers; on mainnet they match nothing until the 
 }
 ```
 
-[Kourier](https://paragraph.com/@aulneau/project-kourier), a 2022 proposal by aulneau, ended on this idea: if the node emitted every Clarity state change, an indexer could give you the history of any value.
+This started with [Kourier](https://paragraph.com/@aulneau/project-kourier), aulneau's 2022 proposal: if the node emitted every Clarity state change, an indexer could give you the history of any value.
 
 ## The beta opens in the next few weeks
 
