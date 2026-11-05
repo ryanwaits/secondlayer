@@ -71,7 +71,13 @@ export function utcDay(date: Date): string {
 	return `${month} ${date.getUTCDate()}`;
 }
 
-export function plural(n: number, one: string, many = `${one}s`): string {
+/** "1 delivery", "851 deliveries", "3 days". A consonant before a final y
+ *  takes "ies"; pass `many` for anything irregular. */
+export function plural(
+	n: number,
+	one: string,
+	many = /[^aeiou]y$/.test(one) ? `${one.slice(0, -1)}ies` : `${one}s`,
+): string {
 	return `${n.toLocaleString("en-US")} ${n === 1 ? one : many}`;
 }
 
