@@ -1,0 +1,130 @@
+import { describe, expect, test } from "bun:test";
+import { renderToStaticMarkup } from "react-dom/server";
+import {
+	ToastCard,
+	clearUndo,
+	durationFor,
+	isUndoShortcut,
+	registerUndo,
+	takeUndo,
+} from "./notify";
+
+describe("durationFor", () => {
+	test("busy never times out", () => {
+		expect(durationFor("busy")).toBe(Number.POSITIVE_INFINITY);
+	});
+	test("quick is 2.5 s", () => {
+		expect(durationFor("done", { quick: true })).toBe(2500);
+	});
+	test("failures stay 8 s", () => {
+		expect(durationFor("fail")).toBe(8000);
+	});
+	test("an undo window is 6 s", () => {
+		expect(durationFor("done", { undo: () => {} })).toBe(6000);
+	});
+	test("everything else is 5 s", () => {
+		expect(durationFor("ok")).toBe(5000);
+		expect(durationFor("done")).toBe(5000);
+	});
+	test("an explicit duration overrides the table", () => {
+		expect(durationFor("done", { duration: 10000 })).toBe(10000);
+	});
+});
+
+describe("undo registry", () => {
+	test("the newest registration wins", () => {
+		const a = () => {};
+		const b = () => {};
+		registerUndo(1, a);
+		registerUndo(2, b);
+		expect(takeUndo()).toEqual({ id: 2, run: b });
+	});
+	test("clearUndo only clears the current id", () => {
+		registerUndo(1, () => {});
+		registerUndo(2, () => {});
+		clearUndo(1);
+		expect(takeUndo()?.id).toBe(2);
+		registerUndo(3, () => {});
+		clearUndo(3);
+		expect(takeUndo()).toBeNull();
+	});
+	test("takeUndo clears the shortcut", () => {
+		registerUndo(1, () => {});
+		takeUndo();
+		expect(takeUndo()).toBeNull();
+	});
+});
+
+describe("isUndoShortcut", () => {
+	const base = {
+		key: "z",
+		metaKey: false,
+		ctrlKey: false,
+		shiftKey: false,
+		altKey: false,
+		target: null,
+	};
+	test("meta+z and ctrl+z fire, any case", () => {
+		expect(isUndoShortcut({ ...base, metaKey: true })).toBe(true);
+		expect(isUndoShortcut({ ...base, ctrlKey: true, key: "Z" })).toBe(true);
+	});
+	test("no modifier, shift or alt do not fire", () => {
+		expect(isUndoShortcut(base)).toBe(false);
+		expect(isUndoShortcut({ ...base, metaKey: true, shiftKey: true })).toBe(
+			false,
+		);
+		expect(isUndoShortcut({ ...base, metaKey: true, altKey: true })).toBe(
+			false,
+		);
+	});
+	test("typing inside a field does not fire", () => {
+		const target = {
+			closest: (s: string) => (s.includes("input") ? {} : null),
+		} as unknown as EventTarget;
+		expect(isUndoShortcut({ ...base, metaKey: true, target })).toBe(false);
+	});
+});
+
+describe("ToastCard", () => {
+	test("each kind gets its dot and its life line", () => {
+		for (const kind of ["done", "ok", "fail"] as const) {
+			const html = renderToStaticMarkup(
+				<ToastCard kind={kind} title="Saved" duration={5000} />,
+			);
+			expect(html).toContain(`tst-dot ${kind}`);
+			expect(html).toContain("tst-life");
+			expect(html).toContain("--life:5000ms");
+		}
+	});
+	test("busy shows a spinner with no close button and no life line", () => {
+		const html = renderToStaticMarkup(
+			<ToastCard
+				kind="busy"
+				title="Working"
+				duration={Number.POSITIVE_INFINITY}
+			/>,
+		);
+		expect(html).toContain("tst-spin");
+		expect(html).not.toContain("tst-x");
+		expect(html).not.toContain("tst-life");
+	});
+	test("failures are announced as alerts, others as status", () => {
+		expect(
+			renderToStaticMarkup(<ToastCard kind="fail" title="x" duration={1} />),
+		).toContain('role="alert"');
+		expect(
+			renderToStaticMarkup(<ToastCard kind="done" title="x" duration={1} />),
+		).toContain('role="status"');
+	});
+	test("undo shows its shortcut", () => {
+		const html = renderToStaticMarkup(
+			<ToastCard
+				kind="done"
+				title="Paused"
+				duration={6000}
+				actions={[{ label: "Undo", onClick: () => {}, shortcut: true }]}
+			/>,
+		);
+		expect(html).toContain("Undo<kbd>⌘Z</kbd>");
+	});
+});

@@ -114,6 +114,7 @@ import {
 	SheetDemo,
 	SubgraphSheetDemo,
 	SwipeRowDemo,
+	ToastsDemo,
 	TopupSheetDemo,
 	WebhookHeaderDemo,
 	WebhooksIndexDemo,
@@ -3193,6 +3194,31 @@ const META: Record<StoryId, Meta> = {
 		usage: `<Eyebrow noun="Index" verb="decodes" />
 <StatusDot state="live" />`,
 		donts: ["Yellow never signals status."],
+	},
+	toasts: {
+		src: [
+			"apps/web/src/components/toast/notify.tsx",
+			"apps/web/src/components/toast/toast-host.tsx",
+		],
+		rule: "One toast style: a status dot, an ink title, inline actions, and a hairline that empties as time runs out.",
+		variants: [
+			{
+				id: "fire",
+				label: "Fire each kind",
+				render: () => (
+					<PhoneColumn>
+						<ToastsDemo />
+					</PhoneColumn>
+				),
+			},
+		],
+		usage: `notify.done(<>Paused <code>{name}</code></>, {
+  desc: "Events wait for you.",
+  undo: resume,
+});
+notify.fail("Couldn't pause", { retry });`,
+		dos: ["Name the thing; errors say what didn't happen and why."],
+		donts: ["Never color a title: the dot carries status."],
 	},
 	"mobile-sheet": {
 		src: ["apps/web/src/components/mobile/sheet.tsx"],

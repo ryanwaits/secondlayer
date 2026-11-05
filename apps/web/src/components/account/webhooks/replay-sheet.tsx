@@ -1,6 +1,7 @@
 "use client";
 
 import { Sheet } from "@/components/mobile/sheet";
+import { notify } from "@/components/toast/notify";
 import {
 	estimateLine,
 	isReplayActive,
@@ -21,7 +22,6 @@ import type {
 	ReplayRanges,
 } from "@secondlayer/shared/schemas/webhooks";
 import { useCallback, useEffect, useState } from "react";
-import { toast } from "sonner";
 import { displayStatus } from "./shared";
 
 const fmt = (n: number) => n.toLocaleString("en-US");
@@ -359,20 +359,27 @@ export function useReplayRequeue(
 	const requeue = useCallback(async () => {
 		if (!progress || busy) return;
 		setBusy(true);
+		const pending = notify.busy(
+			progress.gaveUp
+				? `Requeueing ${fmt(progress.gaveUp)} deliveries…`
+				: "Requeueing dead deliveries…",
+		);
 		const res = await requeueDead(progress.webhookId, {
 			replayId: progress.replayId,
 		});
 		setBusy(false);
 		if (res.kind !== "ok") {
-			toast.error("Couldn't requeue", {
-				description:
-					res.kind === "error" ? res.message : "Try again in a moment.",
+			notify.fail("Couldn't requeue", {
+				id: pending,
+				desc: res.kind === "error" ? res.message : "Try again in a moment.",
+				retry: requeue,
 			});
 			return;
 		}
-		toast.success(
-			`Requeued ${fmt(res.data.requeued)}. They go out with live events.`,
-		);
+		notify.ok(`Requeued ${fmt(res.data.requeued)}`, {
+			id: pending,
+			desc: "They go out with live events.",
+		});
 		if (res.data.requeued > 0) {
 			const next: ReplayProgress = {
 				...progress,
@@ -464,9 +471,9 @@ export function ReplaySheet({
 		});
 		setStarting(false);
 		if (res.kind !== "ok") {
-			toast.error("Couldn't start the replay", {
-				description:
-					res.kind === "error" ? res.message : "Try again in a moment.",
+			notify.fail("Couldn't start the replay", {
+				desc: res.kind === "error" ? res.message : "Try again in a moment.",
+				retry: start,
 			});
 			return;
 		}

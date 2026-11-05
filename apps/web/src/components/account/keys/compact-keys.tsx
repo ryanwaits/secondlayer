@@ -5,11 +5,11 @@ import { Skel } from "@/components/dashboard/shell/skel";
 import { HoldButton } from "@/components/mobile/hold-button";
 import { Sheet } from "@/components/mobile/sheet";
 import { SwipeGroup, SwipeRow } from "@/components/mobile/swipe-row";
+import { notify } from "@/components/toast/notify";
 import { formatDate, revokeKey } from "@/lib/account-data";
 import { shortCount } from "@/lib/subgraph-view";
 import type { ApiKey } from "@/lib/types";
 import { type ReactNode, useState } from "react";
-import { toast } from "sonner";
 import { agoShort, groupKeys, keyFlags, revokedOwnKeys } from "./key-view";
 
 const DAY = 86_400_000;
@@ -278,7 +278,12 @@ function KeySheet({
 		setError(null);
 		try {
 			await revokeKey(k.id);
-			toast.success(`Revoked ${k.name}. Calls with it now get 401.`);
+			notify.done(
+				<>
+					Revoked <code>{k.name}</code>
+				</>,
+				{ desc: "Calls with it now get 401." },
+			);
 			onClose();
 		} catch (e) {
 			setError(e instanceof Error ? e.message : "Couldn't revoke that key");

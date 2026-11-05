@@ -1,9 +1,9 @@
 "use client";
 
+import { notify } from "@/components/toast/notify";
 import type { DocsSearchDoc } from "@/lib/docs-bm25";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect } from "react";
-import { toast } from "sonner";
 
 /**
  * A link to `/docs/x#section` after that section moved to another page lands
@@ -31,12 +31,10 @@ export function DocsMovedAnchor() {
 							!d.href.startsWith(`${pathname}#`),
 					);
 					if (!moved) return;
-					toast(`That section moved to ${moved.page} › ${moved.label}`, {
+					notify.done("That section moved", {
+						desc: `${moved.page} › ${moved.label}`,
 						duration: 10_000,
-						action: {
-							label: "Open",
-							onClick: () => router.push(moved.href),
-						},
+						action: { label: "Open", run: () => router.push(moved.href) },
 					});
 				})
 				.catch(() => {});

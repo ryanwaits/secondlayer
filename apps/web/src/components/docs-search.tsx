@@ -1,5 +1,6 @@
 "use client";
 
+import { notify } from "@/components/toast/notify";
 import apiNav from "@/generated/openapi-nav.json";
 import { ensureKeys, useAccountData } from "@/lib/account-data";
 import { useAuth } from "@/lib/auth";
@@ -32,7 +33,6 @@ import { buildPrompt, chipUrl } from "@/lib/docs-prompt";
 import { refreshList, useWebhooksCache } from "@/lib/webhooks-store";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
-import { toast } from "sonner";
 
 /** The precompiled docs index with its postings built and rows ready to render. */
 type LoadedIndex = { index: DocsSearchIndex; items: Map<string, CommandItem> };
@@ -378,9 +378,10 @@ export function DocsSearch() {
 		const ok = await copyText(prompt);
 		setBusy(false);
 		if (ok) {
-			toast(
-				`Prompt copied · ${wordCount(prompt)} words${summary ? " · filled in from your account" : ""}`,
-			);
+			notify.done("Prompt copied", {
+				desc: `${wordCount(prompt)} words${summary ? ", filled in from your account" : ""}.`,
+				quick: true,
+			});
 			reset();
 			inputRef.current?.blur();
 		} else {

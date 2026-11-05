@@ -20,6 +20,10 @@
 
 	/* Primaries role tokens */
 	--paper: var(--n-25);
+	/* Toast surface: lifted off the page. */
+	--raised: var(--paper);
+	--toast-shadow: 0 1px 2px rgb(20 17 13 / 0.04), 0 8px 24px
+		rgb(20 17 13 / 0.08);
 	--ink: var(--n-975);
 	--sub: var(--n-600);
 	--faint: var(--n-400);
@@ -145,6 +149,8 @@
 @media (prefers-color-scheme: dark) {
 	:root {
 		--paper: var(--n-950);
+		--raised: color-mix(in srgb, var(--paper) 92%, white);
+		--toast-shadow: 0 1px 2px rgb(0 0 0 / 0.3), 0 10px 28px rgb(0 0 0 / 0.35);
 		--ink: var(--n-100);
 		--sub: var(--n-300);
 		--faint: var(--n-500);
@@ -2048,52 +2054,155 @@ html[data-acct-card] .www > :not(.marketing-nav) {
 	}
 }
 
-/* Sonner toasts (account area action feedback), unstyled + themed with our
-   own tokens rather than Sonner's defaults. */
-.wh-toast {
-	display: flex;
-	flex-direction: column;
-	gap: 2px;
-	width: min(360px, calc(100vw - 32px));
-	padding: 12px 14px;
-	border-radius: 8px;
+/* Toasts (components/toast): status dot, ink title, inline actions, time-left hairline. */
+.tst {
+	position: relative;
+	display: grid;
+	grid-template-columns: 16px minmax(0, 1fr) auto;
+	column-gap: 10px;
+	align-items: start;
+	width: min(380px, calc(100vw - 32px));
+	padding: 12px 12px 12px 14px;
 	border: 1px solid var(--line);
-	background: var(--bg-elevated);
-	box-shadow: none;
-	font-size: 13px;
-	color: var(--text-main);
+	border-radius: 8px;
+	background: var(--raised);
+	box-shadow: var(--toast-shadow);
+	font: 400 13.5px / 1.4 var(--font-sans-stack);
+	color: var(--ink);
 }
-.wh-toast-title {
+.tst-mark {
+	display: grid;
+	place-items: center;
+	width: 16px;
+	height: 19px;
+}
+.tst-dot {
+	width: 8px;
+	height: 8px;
+	border-radius: 50%;
+}
+.tst-dot.done {
+	box-shadow: inset 0 0 0 1.5px var(--faint);
+}
+.tst-dot.ok {
+	background: var(--ok);
+}
+.tst-dot.fail {
+	background: var(--alarm);
+}
+.tst-spin {
+	width: 12px;
+	height: 12px;
+	border-radius: 50%;
+	border: 1.5px solid var(--line);
+	border-top-color: var(--pri);
+	animation: tst-spin 0.8s linear infinite;
+}
+@keyframes tst-spin {
+	to {
+		transform: rotate(360deg);
+	}
+}
+.tst-body {
+	display: grid;
+	gap: 2px;
+	min-width: 0;
+}
+.tst-title {
 	font-weight: 500;
+	overflow-wrap: anywhere;
 }
-.wh-toast-desc {
-	color: var(--text-muted);
+.tst-title code,
+.tst-desc code {
+	font: 400 12.5px var(--font-mono-stack);
+}
+.tst-desc {
 	font-size: 12.5px;
+	color: var(--sub);
 }
-.wh-toast-error .wh-toast-title {
-	color: var(--alarm);
+.tst-acts {
+	display: flex;
+	align-items: center;
+	gap: 2px;
+	margin: -3px -2px 0 0;
 }
-.wh-toast-success .wh-toast-title {
-	color: var(--ok);
-}
-.wh-toast-action {
-	margin-top: 6px;
-	align-self: flex-start;
-	border-radius: 4px;
-	border: 1px solid var(--border);
-	background: var(--bg);
-	color: var(--text-main);
-	padding: 4px 10px;
-	font-size: 12px;
-	cursor: pointer;
-}
-.wh-toast-cancel {
+.tst-act {
+	padding: 5px 8px;
+	border: 0;
+	border-radius: 5px;
 	background: none;
-	border: none;
-	color: var(--text-muted);
 	cursor: pointer;
-	font-size: 12px;
-	padding: 0;
+	font: 500 13px / 1 var(--font-sans-stack);
+	color: var(--pri-ink);
+	white-space: nowrap;
+}
+.tst-act:hover {
+	background: var(--soft);
+}
+.tst-act kbd {
+	margin-left: 6px;
+	font: 400 10.5px var(--font-mono-stack);
+	color: var(--faint);
+}
+.tst-x {
+	display: grid;
+	place-items: center;
+	width: 24px;
+	height: 24px;
+	border: 0;
+	border-radius: 5px;
+	background: none;
+	color: var(--faint);
+	cursor: pointer;
+	opacity: 0;
+	transition: opacity 0.12s;
+}
+.tst:hover .tst-x,
+.tst:focus-within .tst-x {
+	opacity: 1;
+}
+.tst-x:hover {
+	color: var(--ink);
+	background: var(--soft);
+}
+.tst-life {
+	position: absolute;
+	left: 14px;
+	right: 14px;
+	bottom: -1px;
+	height: 1px;
+	background: var(--line);
+	overflow: hidden;
+}
+.tst-life i {
+	display: block;
+	height: 100%;
+	background: var(--faint);
+	transform-origin: left;
+	animation: tst-life var(--life) linear forwards;
+}
+@keyframes tst-life {
+	from {
+		transform: scaleX(1);
+	}
+	to {
+		transform: scaleX(0);
+	}
+}
+[data-sonner-toaster]:hover .tst-life i {
+	animation-play-state: paused;
+}
+@media (prefers-reduced-motion: reduce) {
+	.tst-spin {
+		animation: none;
+		border-top-color: var(--faint);
+	}
+	.tst-life i {
+		animation: none;
+	}
+	.tst-x {
+		transition: none;
+	}
 }
 @media (max-width: 760px) {
 	.acct-checkout {

@@ -1,6 +1,8 @@
 "use client";
 
 import { Choice } from "@/components/choice";
+import { notify } from "@/components/toast/notify";
+import { ToastHost } from "@/components/toast/toast-host";
 import { type Insight, rankInsights } from "@/lib/insights";
 import {
 	dismiss as storeDismiss,
@@ -9,7 +11,6 @@ import {
 	useInsights,
 } from "@/lib/insights-store";
 import { useState } from "react";
-import { Toaster, toast } from "sonner";
 import { SwipeGroup } from "../swipe-row";
 import { InsightRow } from "./insight-row";
 import { useInsightSheets } from "./insight-sheet-host";
@@ -102,11 +103,15 @@ export function InsightsScreen({ source }: { source?: InsightsSource }) {
 				? await snooze(insight.id, snoozeUntil(new Date()))
 				: await dismiss(insight.id);
 		if (!ok) {
-			toast.error("Couldn't update this insight");
+			notify.fail(
+				action === "snooze" ? "Couldn't snooze this" : "Couldn't dismiss this",
+				{ retry: () => act(insight, action, message) },
+			);
 			return;
 		}
-		toast(message, {
-			action: { label: "Undo", onClick: () => void restore(insight, action) },
+		notify.done(message, {
+			desc: insight.line,
+			undo: () => restore(insight, action),
 		});
 	};
 
@@ -189,17 +194,7 @@ export function LocalInsightsScreen({
 	return (
 		<>
 			<InsightsScreen source={source} />
-			<Toaster
-				position="bottom-center"
-				toastOptions={{
-					unstyled: true,
-					classNames: {
-						toast: "wh-toast",
-						title: "wh-toast-title",
-						actionButton: "wh-toast-action",
-					},
-				}}
-			/>
+			<ToastHost position="bottom-center" />
 		</>
 	);
 }

@@ -1,9 +1,9 @@
 "use client";
 
+import { notify } from "@/components/toast/notify";
 import { copyText } from "@/lib/docs-clipboard";
 import type { Insight } from "@/lib/insights";
 import type { ReactNode } from "react";
-import { toast } from "sonner";
 import { Sheet } from "../sheet";
 import { ClaudeMark, CursorMark, OpenAIMark, SlackMark } from "./share-marks";
 import {
@@ -31,8 +31,11 @@ export async function shareLink(title: string, url: string): Promise<void> {
 			if (error instanceof DOMException && error.name === "AbortError") return;
 		}
 	}
-	if (await copyText(url)) toast("Copied the link.");
-	else toast.error("Couldn't copy. Press and hold the link to select it.");
+	if (await copyText(url)) notify.done("Copied the link", { quick: true });
+	else
+		notify.fail("Couldn't copy", {
+			desc: "Press and hold the link to select it.",
+		});
 }
 
 async function shareToSlack(title: string, text: string): Promise<void> {
@@ -44,13 +47,21 @@ async function shareToSlack(title: string, text: string): Promise<void> {
 			if (error instanceof DOMException && error.name === "AbortError") return;
 		}
 	}
-	if (await copyText(text)) toast("Copied. Paste it in Slack.");
-	else toast.error("Couldn't copy. Press and hold the text to select it.");
+	if (await copyText(text))
+		notify.done("Copied. Paste it in Slack", { quick: true });
+	else
+		notify.fail("Couldn't copy", {
+			desc: "Press and hold the text to select it.",
+		});
 }
 
 async function copyFix(text: string): Promise<void> {
-	if (await copyText(text)) toast("Copied the fix and the link.");
-	else toast.error("Couldn't copy. Press and hold the text to select it.");
+	if (await copyText(text))
+		notify.done("Copied the fix and the link", { quick: true });
+	else
+		notify.fail("Couldn't copy", {
+			desc: "Press and hold the text to select it.",
+		});
 }
 
 function PreviewLine({ line }: { line: string }) {

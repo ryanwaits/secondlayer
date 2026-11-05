@@ -10,6 +10,7 @@ import { ActionableInsights } from "@/components/dashboard/insight/insight-actio
 import { PlaceholderRows } from "@/components/dashboard/shell/onboarding";
 import { StatusSentence } from "@/components/dashboard/shell/status-sentence";
 import { useCompact } from "@/components/mobile/use-compact";
+import { notify } from "@/components/toast/notify";
 import { heatGrid } from "@/lib/dashboard-charts";
 import type { WebhooksResult } from "@/lib/dashboard-results";
 import type { IndexView } from "@/lib/index-view";
@@ -28,7 +29,6 @@ import {
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { toast } from "sonner";
 import {
 	IndexList,
 	RowName,
@@ -522,29 +522,40 @@ export function WebhooksListSection({
 		setBusyId(id);
 		const res = resuming ? await resumeWebhook(id) : await pauseWebhook(id);
 		setBusyId(null);
+		const label = shortenName(name);
 		if (res.kind !== "ok") {
-			toast.error("Couldn't change this webhook", {
-				description: describeFailure(res),
-			});
+			notify.fail(
+				<>
+					Couldn't {resuming ? "resume" : "pause"} <code>{label}</code>
+				</>,
+				{
+					desc: describeFailure(res),
+					retry: () => onTogglePause(row),
+				},
+			);
 			return;
 		}
 		applyWebhook(res.data);
-		const label = shortenName(name);
 		if (resuming) {
-			toast.success(`Resumed ${label}`);
+			notify.done(
+				<>
+					Resumed <code>{label}</code>
+				</>,
+			);
 			return;
 		}
-		toast(`Paused ${label}. Events wait for you.`, {
-			duration: 5000,
-			action: {
-				label: "Undo",
-				onClick: () => {
-					void resumeWebhook(id).then((undone) => {
-						if (undone.kind === "ok") applyWebhook(undone.data);
-					});
+		notify.done(
+			<>
+				Paused <code>{label}</code>
+			</>,
+			{
+				desc: "Events wait for you.",
+				undo: async () => {
+					const undone = await resumeWebhook(id);
+					if (undone.kind === "ok") applyWebhook(undone.data);
 				},
 			},
-		});
+		);
 	}
 
 	if (compact) {

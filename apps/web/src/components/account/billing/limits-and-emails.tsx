@@ -1,5 +1,6 @@
 "use client";
 
+import { notify } from "@/components/toast/notify";
 import {
 	type BalanceAlerts,
 	ensureAlerts,
@@ -8,7 +9,6 @@ import {
 } from "@/lib/account-data";
 import { dollars, parseCapInput } from "@/lib/billing-view";
 import { useEffect, useId, useState } from "react";
-import { toast } from "sonner";
 
 const DEFAULT_ALERTS: BalanceAlerts = { notify7d: true, notify2d: true };
 
@@ -108,9 +108,14 @@ export function MonthlyLimitRow({
 	);
 }
 
+const ALERT_LABEL: Record<keyof BalanceAlerts, string> = {
+	notify7d: "Email me at 7 days left",
+	notify2d: "Email me at 2 days left",
+};
+
 /** The account's limits: the monthly limit and the two balance emails. The
  *  switches are bound to `GET/PUT /api/billing/alerts`. Optimistic: the
- *  switch flips immediately, then reverts with a Sonner toast if the write
+ *  switch flips immediately, then reverts with a toast if the write
  *  fails. */
 export function LimitsAndEmails({
 	capUsd,
@@ -133,7 +138,13 @@ export function LimitsAndEmails({
 		setPending(next);
 		const result = await updateAlerts({ [key]: next[key] });
 		setPending(null);
-		if (!result) toast.error("Couldn't update that alert");
+		if (!result) {
+			notify.fail("Couldn't save that alert", { retry: () => toggle(key) });
+			return;
+		}
+		notify.done(`${ALERT_LABEL[key]} ${next[key] ? "on" : "off"}`, {
+			quick: true,
+		});
 	}
 
 	return (
@@ -149,14 +160,14 @@ export function LimitsAndEmails({
 					id="al-7"
 					checked={current.notify7d}
 					onChange={() => toggle("notify7d")}
-					title="Email me at 7 days left"
+					title={ALERT_LABEL.notify7d}
 					sub="Based on the last 24 hours of spend"
 				/>
 				<AlertSwitch
 					id="al-2"
 					checked={current.notify2d}
 					onChange={() => toggle("notify2d")}
-					title="Email me at 2 days left"
+					title={ALERT_LABEL.notify2d}
 					sub="And again if the service stops"
 				/>
 			</div>

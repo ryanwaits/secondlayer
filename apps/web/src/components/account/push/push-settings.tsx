@@ -1,6 +1,7 @@
 "use client";
 
 import { Skel } from "@/components/dashboard/shell/skel";
+import { notify } from "@/components/toast/notify";
 import {
 	type PushState,
 	readPushState,
@@ -8,7 +9,6 @@ import {
 	turnOnPush,
 } from "@/lib/push-client";
 import { type ReactNode, useCallback, useEffect, useState } from "react";
-import { toast } from "sonner";
 
 export type PushPrefValues = {
 	webhookFailing: boolean;
@@ -285,8 +285,12 @@ export function PushSettings() {
 				if (!res.ok) throw new Error("save");
 			} catch {
 				setLoaded((cur) => (cur ? { ...cur, prefs: before } : cur));
-				toast.error("Couldn't save. Try again.");
+				notify.fail("Couldn't save your push settings", {
+					retry: () => toggle(key),
+				});
+				return;
 			}
+			notify.done("Push settings saved", { quick: true });
 		},
 		[loaded],
 	);
@@ -297,7 +301,7 @@ export function PushSettings() {
 			try {
 				await action();
 			} catch {
-				toast.error(message);
+				notify.fail(message, { retry: () => run(action, message) });
 			}
 			setState(await readPushState(loaded?.publicKey ?? null));
 			setBusy(false);

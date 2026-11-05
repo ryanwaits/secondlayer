@@ -11,6 +11,7 @@ export const STORY_INDEX = [
 	{ id: "tabs", group: "Controls", title: "Tabs" },
 	{ id: "buttons", group: "Controls", title: "Buttons" },
 	{ id: "account-menu", group: "Controls", title: "Account menu" },
+	{ id: "toasts", group: "Controls", title: "Toasts" },
 	{ id: "dashboard-shell", group: "Dashboard", title: "Dashboard shell" },
 	{ id: "mobile-shell", group: "Dashboard", title: "Mobile shell" },
 	{ id: "chain-status", group: "Dashboard", title: "Chain status" },

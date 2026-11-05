@@ -9,6 +9,7 @@ import { ActionableInsights } from "@/components/dashboard/insight/insight-actio
 import { Breadcrumb } from "@/components/dashboard/shell/breadcrumb";
 import { Mark } from "@/components/dashboard/shell/mark";
 import { useCompact } from "@/components/mobile/use-compact";
+import { notify } from "@/components/toast/notify";
 import { formatDate } from "@/lib/account-data";
 import { barsRows } from "@/lib/dashboard-charts";
 import type { WebhooksResult } from "@/lib/dashboard-results";
@@ -42,7 +43,6 @@ import type {
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { toast } from "sonner";
 import { WebhookCompactDetail } from "./compact-detail";
 import { DeliveriesChart } from "./deliveries-chart";
 import {
@@ -909,17 +909,35 @@ export function WebhookDetailSection({
 
 	async function onTogglePause() {
 		const resuming = webhook?.status === "paused";
+		const label = shortenName(webhook?.name ?? name ?? id);
 		setPauseBusy(true);
 		const res = resuming ? await resumeWebhook(id) : await pauseWebhook(id);
 		setPauseBusy(false);
-		if (res.kind === "ok") {
-			applyWebhook(res.data);
-			toast.success(resuming ? "Webhook resumed" : "Webhook paused");
+		if (res.kind !== "ok") {
+			notify.fail(
+				<>
+					Couldn't {resuming ? "resume" : "pause"} <code>{label}</code>
+				</>,
+				{ desc: describeFailure(res), retry: onTogglePause },
+			);
 			return;
 		}
-		toast.error("Couldn't change this webhook", {
-			description: describeFailure(res),
-		});
+		applyWebhook(res.data);
+		const reverse = async () => {
+			const undone = resuming
+				? await pauseWebhook(id)
+				: await resumeWebhook(id);
+			if (undone.kind === "ok") applyWebhook(undone.data);
+		};
+		notify.done(
+			<>
+				{resuming ? "Resumed" : "Paused"} <code>{label}</code>
+			</>,
+			{
+				desc: resuming ? undefined : "Events wait for you.",
+				undo: reverse,
+			},
+		);
 	}
 
 	async function onTest() {
@@ -928,29 +946,41 @@ export function WebhookDetailSection({
 		if (res.kind === "ok") {
 			setTest({ busy: false, result: res.data });
 			if (res.data.ok) {
-				toast.success(
-					`Test got ${res.data.statusCode} in ${res.data.durationMs} ms`,
+				notify.ok(
+					`Test answered ${res.data.statusCode} in ${res.data.durationMs} ms`,
+					{ desc: webhook ? hostOf(webhook.url) : undefined },
 				);
 			} else {
-				toast.error("The test failed", {
-					description: res.data.error ?? `HTTP ${res.data.statusCode}`,
+				notify.fail(`Test failed · ${res.data.statusCode}`, {
+					desc: res.data.error ?? `HTTP ${res.data.statusCode}`,
+					retry: onTest,
 				});
 			}
 			return;
 		}
 		setTest({ busy: false, result: null });
-		toast.error("Couldn't send a test", { description: describeFailure(res) });
+		notify.fail("Couldn't send a test", {
+			desc: describeFailure(res),
+			retry: onTest,
+		});
 	}
 
 	async function onRename(name: string): Promise<boolean> {
+		const previousName = webhook?.name;
 		const res = await renameWebhook(id, name);
 		if (res.kind === "ok") {
 			applyWebhook(res.data);
-			toast.success("Webhook renamed");
+			notify.done(
+				<>
+					Renamed to <code>{name}</code>
+				</>,
+				previousName ? { undo: () => void onRename(previousName) } : undefined,
+			);
 			return true;
 		}
-		toast.error("Couldn't rename this webhook", {
-			description: describeFailure(res),
+		notify.fail("Couldn't rename this webhook", {
+			desc: describeFailure(res),
+			retry: () => onRename(name),
 		});
 		return false;
 	}

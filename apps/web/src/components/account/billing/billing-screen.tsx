@@ -7,6 +7,7 @@ import { ActionableInsights } from "@/components/dashboard/insight/insight-actio
 import { Mark } from "@/components/dashboard/shell/mark";
 import { StatusSentence } from "@/components/dashboard/shell/status-sentence";
 import { useCompact } from "@/components/mobile/use-compact";
+import { notify } from "@/components/toast/notify";
 import {
 	type Billing,
 	type TopupReturn,
@@ -49,7 +50,6 @@ import {
 } from "@/lib/usage";
 import { poll } from "@/lib/webhooks-store";
 import { type ReactNode, useEffect, useState } from "react";
-import { toast } from "sonner";
 import { AccountCompactHeader } from "../compact-account";
 import {
 	AddCredits,
@@ -356,10 +356,31 @@ export function BillingScreen({ ret }: { ret: TopupReturn | null }) {
 			: capDollars(caps?.monthlyCapCents ?? null);
 
 	async function changeCap(next: number | null) {
+		const prev = capUsd;
 		setPendingCap(next);
 		const result = await updateCap(next == null ? null : next * 100);
 		setPendingCap(undefined);
-		if (!result) toast.error("Couldn't update your spend cap");
+		if (!result) {
+			notify.fail("Couldn't save your spend cap", {
+				desc:
+					prev == null
+						? "Nothing changed."
+						: `Nothing changed. Your cap is still $${prev}.`,
+				retry: () => changeCap(next),
+			});
+			return;
+		}
+		notify.done(
+			next == null ? "Spend cap removed" : `Spend cap set to $${next}`,
+			{
+				desc:
+					next == null
+						? undefined
+						: "Deliveries pause if this month reaches it.",
+				undo: () => changeCap(prev),
+				quick: true,
+			},
+		);
 	}
 
 	if (compact) {

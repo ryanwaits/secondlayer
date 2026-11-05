@@ -96,6 +96,8 @@ import { ShareFixSheet } from "@/components/mobile/share/share-fix-sheet";
 import { Sheet, SheetPanel } from "@/components/mobile/sheet";
 import { StatusPillView } from "@/components/mobile/status-pill";
 import { SwipeGroup, SwipeRow } from "@/components/mobile/swipe-row";
+import { notify } from "@/components/toast/notify";
+import { ToastHost } from "@/components/toast/toast-host";
 import type { Activity } from "@/lib/activity";
 import { EMPTY_TIP } from "@/lib/chain-tip";
 import type { IndexView } from "@/lib/index-view";
@@ -122,7 +124,6 @@ import {
 	useRef,
 	useState,
 } from "react";
-import { Toaster, toast } from "sonner";
 import type { NavItem } from "./tree";
 
 const DESIGN_URL =
@@ -1111,16 +1112,81 @@ export function BillingDemo({ state }: { state: BillingDemoState }) {
 	);
 }
 
-/** Lab-only toast host: the Lab sits outside (www), which mounts the app's one Toaster. */
+/** Lab-only toast host: the Lab sits outside (www), which mounts the app's one host. */
 export function LabToaster() {
+	return <ToastHost position="bottom-center" />;
+}
+
+/** Fires each toast kind so the style, the stack and the undo shortcut can be checked. */
+export function ToastsDemo() {
 	return (
-		<Toaster
-			position="bottom-center"
-			toastOptions={{
-				unstyled: true,
-				classNames: { toast: "wh-toast", title: "wh-toast-title" },
-			}}
-		/>
+		<div
+			className="lab-toasts"
+			style={{ display: "flex", flexWrap: "wrap", gap: 8 }}
+		>
+			<button
+				type="button"
+				className="btn btn-sec"
+				onClick={() =>
+					notify.done(
+						<>
+							Paused <code>fastpool-pox5-test</code>
+						</>,
+						{ desc: "Events wait for you.", undo: () => {} },
+					)
+				}
+			>
+				Done with undo
+			</button>
+			<button
+				type="button"
+				className="btn btn-sec"
+				onClick={() =>
+					notify.ok("Test answered 200 in 142 ms", {
+						desc: "hooks.example.com",
+					})
+				}
+			>
+				Ok
+			</button>
+			<button
+				type="button"
+				className="btn btn-sec"
+				onClick={() =>
+					notify.fail("Couldn't pause fastpool-pox5-test", {
+						desc: "The API did not answer. Nothing changed.",
+						retry: () => {},
+					})
+				}
+			>
+				Fail with retry
+			</button>
+			<button
+				type="button"
+				className="btn btn-sec"
+				onClick={() => {
+					const id = notify.busy("Requeueing 22 deliveries…");
+					setTimeout(
+						() =>
+							notify.ok("Requeued 22", {
+								id,
+								desc: "They go out with live events.",
+							}),
+						1500,
+					);
+				}}
+			>
+				Busy, then ok
+			</button>
+			<button
+				type="button"
+				className="btn btn-sec"
+				onClick={() => notify.done("Prompt copied", { quick: true })}
+			>
+				Quick
+			</button>
+			<LabToaster />
+		</div>
 	);
 }
 
@@ -1134,7 +1200,7 @@ export function SheetDemo({ variant }: { variant: "auto" | "detents" }) {
 		<div style={{ display: "grid", gap: 12, padding: 16 }}>
 			<button
 				type="button"
-				className="btn"
+				className="btn btn-sec"
 				onClick={() => setOpen(true)}
 				style={{ justifySelf: "start" }}
 			>
@@ -1204,26 +1270,29 @@ export function SwipeRowDemo() {
 						<SwipeRow
 							key={row.id}
 							id={row.id}
-							onTap={() => toast(`Opened ${row.name}`)}
+							onTap={() => notify.done(`Opened ${row.name}`, { quick: true })}
 							actions={
 								row.two
 									? [
 											{
 												label: "Pause",
 												tone: "neutral",
-												onAction: () => toast(`Paused ${row.name}`),
+												onAction: () =>
+													notify.done(`Paused ${row.name}`, { quick: true }),
 											},
 											{
 												label: "Replay",
 												tone: "pri",
-												onAction: () => toast(`Replaying ${row.name}`),
+												onAction: () =>
+													notify.done(`Replaying ${row.name}`, { quick: true }),
 											},
 										]
 									: [
 											{
 												label: "Revoke",
 												tone: "alarm",
-												onAction: () => toast(`Revoked ${row.name}`),
+												onAction: () =>
+													notify.done(`Revoked ${row.name}`, { quick: true }),
 											},
 										]
 							}
@@ -1249,7 +1318,7 @@ export function HoldButtonDemo() {
 		<div style={{ padding: 16 }}>
 			<HoldButton
 				label="Hold to revoke ci-runner"
-				onConfirm={() => toast("Revoked ci-runner.")}
+				onConfirm={() => notify.done("Revoked ci-runner", { quick: true })}
 			/>
 			<LabToaster />
 		</div>
@@ -1330,13 +1399,22 @@ export function LocalWebhooksList({
 					const { id, name } = row.webhook;
 					if (displayStatus(row.webhook) === "active") {
 						setPaused(id, true);
-						toast(`Paused ${name}. Events wait for you.`, {
-							duration: 5000,
-							action: { label: "Undo", onClick: () => setPaused(id, false) },
-						});
+						notify.done(
+							<>
+								Paused <code>{name}</code>
+							</>,
+							{
+								desc: "Events wait for you.",
+								undo: () => setPaused(id, false),
+							},
+						);
 					} else {
 						setPaused(id, false);
-						toast.success(`Resumed ${name}`);
+						notify.done(
+							<>
+								Resumed <code>{name}</code>
+							</>,
+						);
 					}
 				}}
 			/>
@@ -1413,7 +1491,9 @@ export function LocalWebhookDetail({
 				test={test}
 				onTest={() => {
 					setTest({ busy: false, result: TEST_PASSED });
-					toast.success("Test got 200 in 184 ms");
+					notify.ok("Test answered 200 in 184 ms", {
+						desc: "hooks.example.com",
+					});
 				}}
 				showRecovery={failing || recovering.current}
 				dead={{ count: 3 }}
@@ -1422,7 +1502,7 @@ export function LocalWebhookDetail({
 					requeued,
 					onRequeue: () => {
 						setRequeued(3);
-						toast.success("Requeued 3. They go out with live events.");
+						notify.ok("Requeued 3", { desc: "They go out with live events." });
 					},
 				}}
 				replay={null}
@@ -1642,7 +1722,7 @@ function useLabCheckout() {
 		busy: false,
 		error: null,
 		checkout: async () => {
-			toast("Opens Stripe Checkout, then returns here");
+			notify.done("Opens Stripe Checkout, then returns here");
 		},
 	};
 }
@@ -1712,7 +1792,12 @@ export function LocalAccountKeys() {
 						now={KEYS_EXAMPLE_NOW}
 						onRevoke={() => {
 							setRevoked((r) => [...r, open.id]);
-							toast.success(`Revoked ${open.name}. Calls with it now get 401.`);
+							notify.done(
+								<>
+									Revoked <code>{open.name}</code>
+								</>,
+								{ desc: "Calls with it now get 401." },
+							);
 							setOpenId(null);
 						}}
 					/>
@@ -1766,7 +1851,12 @@ export function KeySheetDemo({
 					now={KEYS_EXAMPLE_NOW}
 					onRevoke={() => {
 						setRevoked(true);
-						toast.success(`Revoked ${key.name}. Calls with it now get 401.`);
+						notify.done(
+							<>
+								Revoked <code>{key.name}</code>
+							</>,
+							{ desc: "Calls with it now get 401." },
+						);
 					}}
 				/>
 			</SheetPanel>
@@ -1911,7 +2001,7 @@ export function LocalReplaySheet({
 			<div style={{ display: "flex", gap: 8, padding: 16 }}>
 				<button
 					type="button"
-					className="btn"
+					className="btn btn-sec"
 					onClick={() => setOwnOpen(true)}
 					style={{ justifySelf: "start" }}
 				>
@@ -1940,9 +2030,9 @@ export function LocalReplaySheet({
 							setRequeueBusy(true);
 							setTimeout(() => {
 								setRequeueBusy(false);
-								toast.success(
-									`Requeued ${REPLAY_GAVE_UP}. They go out with live events.`,
-								);
+								notify.ok(`Requeued ${REPLAY_GAVE_UP}`, {
+									desc: "They go out with live events.",
+								});
 								setProgress(
 									replayProgress({
 										gaveUp: 0,

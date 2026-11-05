@@ -1,5 +1,6 @@
 "use client";
 
+import { notify } from "@/components/toast/notify";
 import {
 	recoveryStep3,
 	runningReplayFor,
@@ -15,7 +16,6 @@ import type {
 } from "@secondlayer/sdk";
 import type { ReplayProgress } from "@secondlayer/shared/schemas/webhooks";
 import { useEffect, useRef, useState } from "react";
-import { toast } from "sonner";
 import { DeliveriesChart } from "./deliveries-chart";
 import { describeTrigger } from "./describe-trigger";
 import { ReplayProgressView, ReplaySheet } from "./replay-sheet";
@@ -413,17 +413,26 @@ export function WebhookCompactDetail(props: WebhookCompactDetailProps) {
 	const onRequeue = async () => {
 		if (requeueBusy) return;
 		setRequeueBusy(true);
+		const pending = notify.busy(
+			dead
+				? `Requeueing ${dead.count.toLocaleString("en-US")} deliveries…`
+				: "Requeueing dead deliveries…",
+		);
 		const res = await requeueDead(id, { since: dead?.since ?? undefined });
 		setRequeueBusy(false);
 		if (res.kind !== "ok") {
-			toast.error("Couldn't requeue", {
-				description:
-					res.kind === "error" ? res.message : "Try again in a moment.",
+			notify.fail("Couldn't requeue", {
+				id: pending,
+				desc: res.kind === "error" ? res.message : "Try again in a moment.",
+				retry: onRequeue,
 			});
 			return;
 		}
 		const n = res.data.requeued.toLocaleString("en-US");
-		toast.success(`Requeued ${n}. They go out with live events.`);
+		notify.ok(`Requeued ${n}`, {
+			id: pending,
+			desc: "They go out with live events.",
+		});
 		setRequeued(res.data.requeued);
 	};
 
