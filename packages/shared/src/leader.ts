@@ -1,4 +1,5 @@
 import postgres from "postgres";
+import { tlsOptions } from "./db/tls.ts";
 import { logger } from "./logger.ts";
 
 /**
@@ -60,24 +61,11 @@ function leaderDatabaseUrl(): string {
  */
 export function createPostgresLeaderBackend(url?: string): LeaderBackend {
 	const resolvedUrl = url ?? leaderDatabaseUrl();
-	const host = (() => {
-		try {
-			return new URL(resolvedUrl).hostname;
-		} catch {
-			return "";
-		}
-	})();
-	const isLocal =
-		host === "localhost" || host === "127.0.0.1" || !host.includes(".");
 	// max:1 + idle_timeout:0 keeps one connection open so the session lock holds.
 	const sql = postgres(resolvedUrl, {
 		max: 1,
 		idle_timeout: 0,
-		ssl: isLocal
-			? undefined
-			: {
-					rejectUnauthorized: process.env.NODE_TLS_REJECT_UNAUTHORIZED !== "0",
-				},
+		...tlsOptions(resolvedUrl),
 	});
 	return {
 		async tryAcquire(lockKey) {

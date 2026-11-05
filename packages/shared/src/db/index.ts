@@ -4,6 +4,7 @@ import postgres from "postgres";
 import { isProductionEnv } from "../env.ts";
 import { logger } from "../logger.ts";
 import { isPlatformMode } from "../mode.ts";
+import { tlsOptions } from "./tls.ts";
 import type { Database } from "./types.ts";
 
 export type { Database } from "./types.ts";
@@ -248,17 +249,6 @@ function getOrCreatePool(url: string): PoolEntry {
 		return existing;
 	}
 
-	// "Local" = we skip TLS. Any Docker service alias (single-label hostname
-	// with no dots) is on an internal network and won't serve TLS.
-	const host = (() => {
-		try {
-			return new URL(url).hostname;
-		} catch {
-			return "";
-		}
-	})();
-	const isLocal =
-		host === "localhost" || host === "127.0.0.1" || !host.includes(".");
 	const poolMax = Number.parseInt(process.env.DATABASE_POOL_MAX ?? "20", 10);
 	// Close idle connections so extra pools don't pin connections they no
 	// longer need (0 = never; postgres.js default).
@@ -269,11 +259,7 @@ function getOrCreatePool(url: string): PoolEntry {
 	const rawClient = postgres(url, {
 		max: poolMax,
 		idle_timeout: idleTimeout,
-		ssl: isLocal
-			? undefined
-			: {
-					rejectUnauthorized: process.env.NODE_TLS_REJECT_UNAUTHORIZED !== "0",
-				},
+		...tlsOptions(url),
 	});
 	const db = new Kysely<Database>({
 		dialect: new PostgresJSDialect({ postgres: rawClient }),
