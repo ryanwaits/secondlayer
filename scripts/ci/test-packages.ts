@@ -89,6 +89,27 @@ const quote = (identifier: string) => `"${identifier.replace(/"/g, '""')}"`;
 
 type Result = { pkg: string; ok: boolean; seconds: number };
 
+/**
+ * This machine's own config never reaches a suite. The root `test` script runs
+ * this file with `bun --no-env-file`, so the root `.env.local` (a developer's
+ * instance mode, tokens and signing keys) is never loaded. A developer shell
+ * can still export an account key (`~/.secrets`): `SECONDLAYER_API_KEY`,
+ * `SECONDLAYER_API_URL` or `INSTANCE_TOKEN` flip client defaults under test,
+ * so those prefixes are dropped too. CI sets none of this, so a local run
+ * matches CI. Each package's own `.env` files still load, because the child
+ * `bun` reads them from its working directory.
+ */
+const MACHINE_ENV = /^(SECONDLAYER_|SL_|INSTANCE_)/;
+
+function suiteEnv(databaseUrl: string): Record<string, string | undefined> {
+	const env: Record<string, string | undefined> = {};
+	for (const [name, value] of Object.entries(process.env)) {
+		if (!MACHINE_ENV.test(name)) env[name] = value;
+	}
+	env.DATABASE_URL = databaseUrl;
+	return env;
+}
+
 async function runPackage(
 	pkg: string,
 	databaseUrl: string,
@@ -97,7 +118,7 @@ async function runPackage(
 	const started = performance.now();
 	const child = Bun.spawn(["bun", "run", "test"], {
 		cwd: join(ROOT, "packages", pkg),
-		env: { ...process.env, DATABASE_URL: databaseUrl },
+		env: suiteEnv(databaseUrl),
 		stdin: "ignore",
 		stdout: "pipe",
 		stderr: "pipe",
