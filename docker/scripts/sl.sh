@@ -13,7 +13,6 @@ set -euo pipefail
 REPO_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 INDEXER_CONTAINER="${INDEXER_CONTAINER:-secondlayer-indexer-1}"
 POSTGRES_CONTAINER="${POSTGRES_CONTAINER:-secondlayer-postgres-1}"
-SL_VERSION="${SL_VERSION:-latest}"
 
 # Same Bun the images ship, so the CLI runs on the runtime we test against.
 BUN_IMAGE=$(awk '/^FROM oven\/bun:.* AS base$/ {print $2; exit}' "$REPO_ROOT/docker/Dockerfile")
@@ -25,4 +24,4 @@ DATABASE_URL=$(docker exec "$INDEXER_CONTAINER" printenv SOURCE_DATABASE_URL)
 [ -n "$DATABASE_URL" ] || { echo "sl.sh: $INDEXER_CONTAINER has no SOURCE_DATABASE_URL" >&2; exit 1; }
 
 exec docker run --rm --network "$NETWORK" -e DATABASE_URL="$DATABASE_URL" \
-  "$BUN_IMAGE" bunx "@secondlayer/cli@$SL_VERSION" "$@"
+  "$BUN_IMAGE" bunx @secondlayer/cli@latest "$@"
