@@ -13,7 +13,6 @@ import { forResource, useInsights } from "@/lib/insights-store";
 import type { Route } from "@/lib/not-found-match";
 import type { SubgraphDetailInitial } from "@/lib/server/dashboard-reads";
 import {
-	blocksLabel,
 	formatBytes,
 	groupDigits,
 	handlerErrors24h,
@@ -58,6 +57,27 @@ const RANGE_HOURS: Record<SubgraphRange, number> = {
 const RANGE_OPTIONS = (Object.keys(RANGE_HOURS) as SubgraphRange[]).map(
 	(value) => ({ value, label: value }),
 );
+
+/** An insight about this subgraph that is still open. */
+const hasOpenInsight = (
+	insights: readonly Insight[] | undefined,
+	rule: string,
+) =>
+	(insights ?? []).some((i) => i.rule === rule && i.severity !== "recovered");
+
+/** Reindexing or catching up; nothing at the tip. */
+function lagFactOf(detail: {
+	status: string;
+	sync: { blocksRemaining: number };
+}): { label: string; value: string } | null {
+	const n = detail.sync.blocksRemaining;
+	const reindexing = detail.status === "reindexing";
+	if (!reindexing && isLive(n)) return null;
+	return {
+		label: reindexing ? "Reindexing" : "Catching up",
+		value: `${groupDigits(String(n))} ${n === 1 ? "block" : "blocks"} to go`,
+	};
+}
 
 /** A fact cell; `mark` flags the value that is wrong. */
 const fact = (label: string, value: string, mark?: "att" | "fail") => (
@@ -120,6 +140,7 @@ export function SubgraphDetailBody({
 	);
 	const windowHours = health?.hours.slice(-RANGE_HOURS[range]);
 	const windowErrors = windowHours ? sum(windowHours.map((h) => h.errors)) : 0;
+	const lagFact = lagFactOf(detail);
 	return (
 		<>
 			<Breadcrumb
@@ -154,17 +175,18 @@ export function SubgraphDetailBody({
 					{fact(
 						`Handler errors · ${range}`,
 						windowHours ? windowErrors.toLocaleString("en-US") : "–",
-						windowErrors > 0 ? "fail" : undefined,
-					)}
-					{fact(
-						"Behind tip",
-						detail.status === "reindexing"
-							? `Reindexing · ${blocksLabel(detail.sync.blocksRemaining)} left`
-							: blocksLabel(detail.sync.blocksRemaining),
-						detail.status === "active" && !isLive(detail.sync.blocksRemaining)
-							? "att"
+						windowErrors > 0 &&
+							hasOpenInsight(insights, "subgraph_handler_errors")
+							? "fail"
 							: undefined,
 					)}
+					{lagFact !== null
+						? fact(
+								lagFact.label,
+								lagFact.value,
+								hasOpenInsight(insights, "subgraph_lag") ? "att" : undefined,
+							)
+						: null}
 					{fact(
 						"Storage",
 						detail.storageBytes === undefined

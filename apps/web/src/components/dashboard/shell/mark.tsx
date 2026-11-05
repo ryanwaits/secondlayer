@@ -1,9 +1,8 @@
 import type { ReactNode } from "react";
 
 /**
- * The value that is wrong on a flagged row or page. Attention is the brand
- * `.hl` block (`--hi` ground); failing is the inverted neutral block, the same
- * in light and dark.
+ * The value an open insight is about. A dashed box, like a failing name on the
+ * index: attention is yellow, failing is red, text in the same color.
  */
 export function Mark({
 	tone,

@@ -617,9 +617,21 @@ describe("SubgraphDetailBody", () => {
 		expect(html).toContain("sbtc-registry");
 	});
 
+	const sgInsight = (rule: string): Insight => {
+		const base = FIXTURE_INSIGHTS[0];
+		if (!base) throw new Error("missing fixture");
+		return {
+			...base,
+			rule,
+			severity: "costs",
+			resource: { kind: "subgraph", id: "sg", name: "perf-test-sbtc" },
+		};
+	};
+
 	const renderWith = (
 		detail: typeof perfTestSbtcDetail,
 		health: ReturnType<typeof exampleHealth>,
+		insights: readonly Insight[] = [],
 	) =>
 		renderToStaticMarkup(
 			<SubgraphDetailBody
@@ -629,31 +641,59 @@ describe("SubgraphDetailBody", () => {
 				source={sbtcSource}
 				range="7d"
 				onRange={() => {}}
+				insights={insights}
 			/>,
 		);
 
-	test("handler errors are marked failing only when there are some", () => {
+	test("handler errors are marked failing only while the handler-errors insight is open", () => {
 		expect(html).not.toContain("dash-mark");
-		expect(renderWith(perfTestSbtcDetail, exampleHealth(3))).toContain(
-			'<span class="dash-mark fail">3</span>',
-		);
-	});
-
-	test("behind tip is marked as attention only for an active subgraph that is not live", () => {
-		const behind = (status: string, blocksRemaining: number) => ({
-			...perfTestSbtcDetail,
-			status,
-			sync: { ...perfTestSbtcDetail.sync, blocksRemaining },
-		});
-		expect(renderWith(behind("active", 1240), exampleHealth())).toContain(
-			'<span class="dash-mark att">',
-		);
-		expect(renderWith(behind("active", 0), exampleHealth())).not.toContain(
-			"dash-mark att",
+		expect(renderWith(perfTestSbtcDetail, exampleHealth(3))).not.toContain(
+			"dash-mark",
 		);
 		expect(
-			renderWith(behind("reindexing", 1240), exampleHealth()),
-		).not.toContain("dash-mark att");
+			renderWith(perfTestSbtcDetail, exampleHealth(3), [
+				sgInsight("subgraph_handler_errors"),
+			]),
+		).toContain('<span class="dash-mark fail">3</span>');
+		expect(
+			renderWith(perfTestSbtcDetail, exampleHealth(0), [
+				sgInsight("subgraph_handler_errors"),
+			]),
+		).not.toContain("dash-mark");
+	});
+
+	const lagging = (status: string, blocksRemaining: number) => ({
+		...perfTestSbtcDetail,
+		status,
+		sync: { ...perfTestSbtcDetail.sync, blocksRemaining },
+	});
+
+	test("catching up reads blocks to go and is marked only while the lag insight is open", () => {
+		const catching = renderWith(lagging("active", 1240), exampleHealth());
+		expect(catching).toContain("Catching up");
+		expect(catching).toContain("1,240 blocks to go");
+		expect(catching).not.toContain("dash-mark");
+		expect(
+			renderWith(lagging("active", 1240), exampleHealth(), [
+				sgInsight("subgraph_lag"),
+			]),
+		).toContain('<span class="dash-mark att">1,240 blocks to go</span>');
+	});
+
+	test("reindexing is labelled Reindexing", () => {
+		const html = renderWith(lagging("reindexing", 1), exampleHealth());
+		expect(html).toContain("Reindexing");
+		expect(html).toContain("1 block to go");
+	});
+
+	test("at the tip there is no lag fact", () => {
+		const html = renderWith(lagging("active", 0), exampleHealth(), [
+			sgInsight("subgraph_lag"),
+		]);
+		for (const text of ["At the tip", "Behind tip", "Catching up", "to go"]) {
+			expect(html).not.toContain(text);
+		}
+		expect(html).not.toContain("dash-mark");
 	});
 
 	test("the title carries no status dot", () => {

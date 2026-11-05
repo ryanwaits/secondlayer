@@ -88,14 +88,17 @@ describe("WebhookDetailBody header", () => {
 		expect(render()).not.toContain("dash-mark");
 	});
 
-	test("gave up is marked failing only when something gave up", () => {
+	test("gave up is marked failing only while an open insight says the webhook is failing", () => {
+		if (!down) throw new Error("missing fixture");
 		const hours = activityFor(4).hours.map((h, i) =>
 			i === 0 ? { ...h, gaveUp: 2 } : h,
 		);
-		expect(render({ activity: activityFor(4, { hours }) })).toContain(
+		const activity = activityFor(4, { hours });
+		expect(render({ activity })).not.toContain("dash-mark fail");
+		expect(render({ activity, insights: [down] })).toContain(
 			'<span class="dash-mark fail">2</span>',
 		);
-		expect(render()).not.toContain("dash-mark fail");
+		expect(render({ insights: [down] })).not.toContain("dash-mark fail");
 	});
 
 	test("the title carries no status dot", () => {

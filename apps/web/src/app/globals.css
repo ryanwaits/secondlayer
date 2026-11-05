@@ -5727,19 +5727,21 @@ a.acct-strip-link:hover .acct-strip-k {
 /* Status: healthy and neutral show nothing, and a flagged row stays plain.
    Attention and failing color the chart and the insight's Why link, and mark
    the value that is wrong. */
-/* The value that is wrong: the brand .hl block for attention, the inverted
-   neutral block for failing. The same in light and dark. */
+/* The value an open insight is about: the dashed box a failing name gets on
+   the index. Warning is yellow, failure red; text takes the same color. */
 .dash-mark {
-	padding: 0 0.1em;
-	color: var(--on-hi);
-	background: linear-gradient(var(--hi), var(--hi)) 0 0.14em / 100% 1.08em
-		no-repeat;
+	padding: 1px 6px;
+	border: 1px dashed var(--hi-text);
+	border-radius: 4px;
+	background: color-mix(in srgb, var(--hi) 12%, var(--paper));
+	color: var(--hi-text);
 	-webkit-box-decoration-break: clone;
 	box-decoration-break: clone;
 }
 .dash-mark.fail {
-	color: var(--paper);
-	background-image: linear-gradient(var(--ink), var(--ink));
+	border-color: var(--alarm);
+	background: color-mix(in srgb, var(--alarm) 7%, var(--paper));
+	color: var(--alarm);
 }
 
 /* Top bar: tabs take the free width, then heartbeat, kbd and the account chip. */

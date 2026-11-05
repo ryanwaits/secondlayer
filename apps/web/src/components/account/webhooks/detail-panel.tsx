@@ -280,6 +280,10 @@ const sumOf = (values: readonly number[]) => values.reduce((a, b) => a + b, 0);
 const hasTestEndpoint = (insights: readonly Insight[]) =>
 	insights.some((i) => i.rule === "test_endpoint");
 
+/** An open insight that says this webhook is failing. */
+const isFailing = (insights: readonly Insight[]) =>
+	insights.some((i) => i.severity === "losing");
+
 export function Facts({
 	webhook,
 	activity,
@@ -312,7 +316,7 @@ export function Facts({
 			{fact(
 				"Gave up · 7d",
 				activity ? gaveUp.toLocaleString("en-US") : "–",
-				gaveUp > 0 ? "fail" : undefined,
+				gaveUp > 0 && isFailing(insights) ? "fail" : undefined,
 			)}
 			{fact("Retried · last 100", stats.retried.toLocaleString("en-US"))}
 			{fact(
