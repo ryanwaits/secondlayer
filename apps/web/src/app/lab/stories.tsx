@@ -2785,6 +2785,11 @@ const META: Record<StoryId, Meta> = {
 				render: () => <OverviewDemo state="with-subgraph" />,
 			},
 			{
+				id: "many",
+				label: "Many webhooks and subgraphs",
+				render: () => <OverviewDemo state="many" />,
+			},
+			{
 				id: "no-keys",
 				label: "No keys yet",
 				render: () => <OverviewDemo state="no-keys" />,

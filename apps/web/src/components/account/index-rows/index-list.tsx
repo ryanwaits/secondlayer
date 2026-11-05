@@ -8,6 +8,8 @@ import {
 	writeIndexViews,
 } from "@/lib/index-view";
 import { useRowLink } from "@/lib/intent-prefetch";
+import { hostOf } from "@/lib/webhooks-data";
+import type { WebhookSummary } from "@secondlayer/sdk";
 import Link from "next/link";
 import {
 	Fragment,
@@ -125,6 +127,31 @@ export function RowWhy({
 }) {
 	return (
 		<span className={`ix-why${group === "alarm" ? " alarm" : ""}`}>{text}</span>
+	);
+}
+
+/** Where a healthy webhook sends: its kind and the host it posts to. */
+export function WebhookRoute({
+	webhook,
+}: {
+	webhook: Pick<WebhookSummary, "kind" | "url">;
+}) {
+	return (
+		<span className="ix-route">
+			{webhook.kind} events → <b>{hostOf(webhook.url)}</b>
+		</span>
+	);
+}
+
+/** Where a healthy subgraph's rows go: its tables. */
+export function SubgraphRoute({ tables }: { tables: number }) {
+	return (
+		<span className="ix-route">
+			chain events →{" "}
+			<b>
+				{tables} {tables === 1 ? "table" : "tables"}
+			</b>
+		</span>
 	);
 }
 

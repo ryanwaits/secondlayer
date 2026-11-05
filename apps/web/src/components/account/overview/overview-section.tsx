@@ -81,10 +81,17 @@ import {
 } from "@/lib/webhooks-store";
 import Link from "next/link";
 import { type ReactNode, useEffect, useState } from "react";
+import { WebhookRoute } from "../index-rows/index-list";
+import {
+	type RowStatus,
+	webhookStatus,
+	webhookWhyLine,
+} from "../index-rows/status";
 import { countedKeys } from "../keys/key-view";
 import { NewKeyFlow } from "../keys/new-key-flow";
 import {
 	OverviewSubgraphsRows,
+	OverviewViewAll,
 	useSubgraphsPoll,
 } from "../subgraphs/list-screen";
 import { type WebhookRowModel, useWebhookRows } from "../webhooks/rows";
@@ -125,14 +132,39 @@ export const SUBGRAPH_HEAD: ResourceRowLabels = [
 	"Last",
 ];
 
+/** Each group on the Overview shows this many of its newest; a link covers the rest. */
+export const OVERVIEW_ROWS = 3;
+
 /** One row per subgraph, under their own header. Empty until the Overview's
  *  poll has loaded the list, and for an account with no subgraphs. */
 export function OverviewSubgraphsSlot({ seed }: { seed?: SubgraphsSeed } = {}) {
-	return <OverviewSubgraphsRows head={SUBGRAPH_HEAD} seed={seed} />;
+	return (
+		<OverviewSubgraphsRows
+			head={SUBGRAPH_HEAD}
+			seed={seed}
+			limit={OVERVIEW_ROWS}
+		/>
+	);
 }
 
 const plural = (n: number, one: string, many = `${one}s`) =>
 	`${n.toLocaleString("en-US")} ${n === 1 ? one : many}`;
+
+/** A row's state when something is off: a dot and the reason, red when failing. */
+function StateCell({
+	group,
+	text,
+}: {
+	group: RowStatus["group"];
+	text: string;
+}) {
+	return (
+		<span className={`ov-state${group === "alarm" ? " alarm" : ""}`}>
+			<span className={`ix-dot ${group}`} />
+			<span>{text}</span>
+		</span>
+	);
+}
 
 function WebhookRow({
 	model,
@@ -145,13 +177,23 @@ function WebhookRow({
 	const { webhook, series, state } = model;
 	const recent = last24(series);
 	const tone = stopped ? "idle" : state.tone;
+	const status = webhookStatus(model);
+	const why = webhookWhyLine(model);
 	return (
 		<ResourceRow
 			href={`/account/webhooks/${webhook.id}`}
 			name={shortenName(webhook.name)}
 			nameTitle={webhook.name}
 			tone={tone}
-			state={stopped ? "Not delivering, stack stopped" : state.text}
+			state={
+				stopped ? (
+					<StateCell group="idle" text="Not delivering, stack stopped" />
+				) : status.label ? (
+					<StateCell group={status.group} text={why ?? status.label} />
+				) : (
+					<WebhookRoute webhook={webhook} />
+				)
+			}
 			spark={
 				recent.delivered.length > 0 ? (
 					<Ticks
@@ -468,7 +510,13 @@ export function OverviewBody({
 }: OverviewBodyProps) {
 	const guide = onboarding && !onboarding.progress.complete ? onboarding : null;
 	const findings = overviewFindings(rows ?? [], subgraphFindings);
-	const active = rows?.filter((r) => r.webhook.lastDeliveryAt !== null) ?? [];
+	const active = (
+		rows?.filter((r) => r.webhook.lastDeliveryAt !== null) ?? []
+	).sort(
+		(a, b) =>
+			Date.parse(b.webhook.lastDeliveryAt ?? "") -
+			Date.parse(a.webhook.lastDeliveryAt ?? ""),
+	);
 	const quiet = rows?.filter((r) => r.webhook.lastDeliveryAt === null) ?? [];
 	// Credits ran out and the hosted stack stopped. The webhooks aren't at
 	// fault, so their rows go idle instead of red.
@@ -554,7 +602,7 @@ export function OverviewBody({
 						{active.length + quiet.length > 0 ? (
 							<ResourceRowHead labels={WEBHOOK_HEAD} />
 						) : null}
-						{active.map((model) => (
+						{active.slice(0, OVERVIEW_ROWS).map((model) => (
 							<WebhookRow
 								key={model.webhook.id}
 								model={model}
@@ -562,6 +610,13 @@ export function OverviewBody({
 							/>
 						))}
 						<QuietGroup models={quiet} />
+						{active.length + quiet.length > OVERVIEW_ROWS ? (
+							<OverviewViewAll
+								total={active.length + quiet.length}
+								noun="webhooks"
+								href="/account/webhooks"
+							/>
+						) : null}
 						{subgraphs}
 					</div>
 					<PlumbingStrip

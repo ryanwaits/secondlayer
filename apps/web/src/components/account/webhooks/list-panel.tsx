@@ -35,6 +35,7 @@ import {
 	RowShell,
 	RowStats,
 	RowWhy,
+	WebhookRoute,
 } from "../index-rows/index-list";
 import {
 	type RowStatus,
@@ -290,11 +291,7 @@ function WebhookListRow({
 			) : null}
 		</RowName>
 	);
-	const route = (
-		<span className="ix-route">
-			{webhook.kind} events → <b>{hostOf(webhook.url)}</b>
-		</span>
-	);
+	const route = <WebhookRoute webhook={webhook} />;
 	const whyLine = why ? <RowWhy text={why} group={status.group} /> : null;
 	const href = `/account/webhooks/${webhook.id}`;
 	const strip =

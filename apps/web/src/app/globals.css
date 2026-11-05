@@ -6756,12 +6756,78 @@ button.dash-row {
 .ov-table:empty {
 	display: none;
 }
-/* The subgraphs' own header, a beat below the last webhook row. */
-.ov-group-head {
-	padding-top: 24px;
+/* The subgraphs' own header, well clear of the webhooks above it. */
+.ov-table .ov-group-head {
+	padding-top: 44px;
 }
 .ov-table > .ov-group-head:first-child {
 	padding-top: 0;
+}
+/* The hover fill is a layer behind each row, so it meets the hairlines
+   exactly; borders never change. */
+.ov-table {
+	isolation: isolate;
+}
+.ov-table .dash-row {
+	position: relative;
+}
+.ov-table .dash-row::before {
+	content: "";
+	position: absolute;
+	inset: 0;
+	z-index: -1;
+	background: var(--soft);
+	opacity: 0;
+	transition: opacity 0.12s;
+}
+.ov-table .dash-row:hover::before {
+	opacity: 0.7;
+}
+/* A row's state when something is off: a dot and the reason. */
+.ov-state {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	max-width: 100%;
+	min-width: 0;
+	vertical-align: middle;
+}
+.ov-state > span:last-child {
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+.ov-state.alarm {
+	color: var(--alarm);
+}
+.dash-row-state .ix-route {
+	display: block;
+}
+/* The plain link under a group that shows only its newest few. */
+.ov-all {
+	display: flex;
+	justify-content: flex-end;
+	padding: 12px 12px 0;
+}
+.ov-all a {
+	font-size: 13px;
+	color: var(--sub);
+	text-decoration: none;
+}
+.ov-all a:hover {
+	color: var(--pri-ink);
+}
+.ov-all-arrow {
+	display: inline-block;
+	margin-left: 4px;
+	transition: transform 0.12s;
+}
+.ov-all a:hover .ov-all-arrow {
+	transform: translateX(2px);
+}
+@media (prefers-reduced-motion: reduce) {
+	.ov-all-arrow {
+		transition: none;
+	}
 }
 
 /* The strip under the table: what powers the webhooks and subgraphs. One

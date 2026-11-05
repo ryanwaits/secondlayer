@@ -23,6 +23,7 @@ import { KeysBody } from "@/components/account/keys/keys-screen";
 import { NameStep, RevealStep } from "@/components/account/keys/new-key-flow";
 import { FirstRowsGuide } from "@/components/account/overview/first-rows-guide";
 import {
+	OVERVIEW_ROWS,
 	OnboardingSentence,
 	OverviewBody,
 	SUBGRAPH_HEAD,
@@ -839,7 +840,30 @@ export type OverviewDemoState =
 	| "no-keys"
 	| "our-errors"
 	| "our-errors-recovered"
+	| "many"
 	| "loading";
+
+/** Six webhooks that delivered at different times, plus the example's quiet ones. */
+function exampleManyWebhooks(now: Date) {
+	const [first, second, ...waiting] = exampleWebhooks(now);
+	const delivering = [first, second].filter((row) => row !== undefined);
+	const copies = Array.from({ length: 6 }, (_, i) => {
+		const source = delivering[i % delivering.length];
+		if (!source) throw new Error("missing fixture");
+		return {
+			...source,
+			webhook: {
+				...source.webhook,
+				id: `wh_many_${i + 1}`,
+				name: `${source.webhook.name}-${i + 1}`,
+				lastDeliveryAt: new Date(
+					now.getTime() - (i + 1) * 45 * 60_000,
+				).toISOString(),
+			},
+		};
+	});
+	return [...copies, ...waiting];
+}
 
 /** The whole Overview on example data, one variant per state it has to get right. */
 export function OverviewDemo({ state }: { state: OverviewDemoState }) {
@@ -889,6 +913,25 @@ export function OverviewDemo({ state }: { state: OverviewDemoState }) {
 		}),
 		"our-errors-recovered": exampleOverview(now, {
 			accountInsights: [serverErrorsInsight(true)],
+		}),
+		many: exampleOverview(now, {
+			rows: exampleManyWebhooks(now),
+			subgraphs: (
+				<SubgraphRows
+					items={Array.from({ length: OVERVIEW_ROWS }, (_, i) => ({
+						...subgraph.item,
+						name: `${subgraph.item.name}-${i + 1}`,
+					}))}
+					health={Object.fromEntries(
+						Array.from({ length: OVERVIEW_ROWS }, (_, i) => [
+							`${subgraph.item.name}-${i + 1}`,
+							subgraph.health,
+						]),
+					)}
+					head={SUBGRAPH_HEAD}
+					viewAll={{ total: 7, href: "/account/subgraphs", noun: "subgraphs" }}
+				/>
+			),
 		}),
 		loading: exampleOverview(now, { loading: true }),
 	}[state];

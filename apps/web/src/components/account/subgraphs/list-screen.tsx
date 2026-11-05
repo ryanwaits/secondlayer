@@ -23,10 +23,10 @@ import {
 	forResource,
 	useInsights,
 } from "@/lib/insights-store";
+import { useIntentPrefetch } from "@/lib/intent-prefetch";
 import {
 	groupDigits,
 	handlerErrors24h,
-	stateLine,
 	subgraphTone,
 } from "@/lib/subgraph-view";
 import {
@@ -40,6 +40,7 @@ import {
 	useSubgraphsCache,
 } from "@/lib/subgraphs-store";
 import { flagClass } from "@/lib/tone";
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import {
 	IndexList,
@@ -47,6 +48,7 @@ import {
 	RowShell,
 	RowStats,
 	RowWhy,
+	SubgraphRoute,
 } from "../index-rows/index-list";
 import {
 	type RowStatus,
@@ -129,22 +131,30 @@ function SubgraphRow({
 	const points = health?.hours.slice(-24).map((hour) => hour.rowsWritten) ?? [];
 	const rows = item.totalRows ?? 0;
 	const top = insights[0];
-	const insightState = top ? insightRowState(top) : null;
-	const tone = insightState?.tone ?? subgraphTone(item.status, errors24h);
+	const tone = top
+		? insightRowState(top).tone
+		: subgraphTone(item.status, errors24h);
 	const flag = flagClass(tone);
-	const line = stateLine(
-		item.blocksRemaining ?? 0,
-		rows,
-		errors24h,
-		item.status,
-	);
+	const status = subgraphStatus(item, errors24h, top);
+	const why = subgraphWhyLine(item.name, errors24h, top);
 	return (
 		<ResourceRow
 			href={`/account/subgraphs/${encodeURIComponent(item.name)}`}
 			name={item.name}
 			nameTitle={item.name}
 			tone={tone}
-			state={insightState ? insightState.text : line}
+			state={
+				status.label ? (
+					<span
+						className={`ov-state${status.group === "alarm" ? " alarm" : ""}`}
+					>
+						<span className={`ix-dot ${status.group}`} />
+						<span>{why ?? status.label}</span>
+					</span>
+				) : (
+					<SubgraphRoute tables={item.tables.length} />
+				)
+			}
 			spark={
 				points.length > 1 ? (
 					<Sparkline
@@ -154,27 +164,53 @@ function SubgraphRow({
 					/>
 				) : null
 			}
-			count={`≈${groupDigits(String(rows))}`}
+			count={groupDigits(String(rows))}
 			age={ageShort(item.updatedAt ?? null)}
 		/>
 	);
 }
 
-/** One resource row per subgraph: lag, rows and errors (or its worst
- *  insight), a 24-hour sparkline of rows written, the row count and how long
- *  ago it last wrote. `head` puts a column header of its own above them, for
- *  a table that has other rows above (the Overview's webhooks). */
+/** The plain link under an Overview group that has more than it shows. */
+export function OverviewViewAll({
+	total,
+	noun,
+	href,
+}: {
+	total: number;
+	noun: string;
+	href: string;
+}) {
+	const intent = useIntentPrefetch();
+	return (
+		<div className="ov-all">
+			<Link href={href} prefetch={false} {...intent(href)}>
+				View all {total} {noun}
+				<span aria-hidden="true" className="ov-all-arrow">
+					›
+				</span>
+			</Link>
+		</div>
+	);
+}
+
+/** One resource row per subgraph: what is off (or where it sends), a 24-hour
+ *  sparkline of rows written, the row count and how long ago it last wrote.
+ *  `head` puts a column header of its own above them, for a table that has
+ *  other rows above (the Overview's webhooks). */
 export function SubgraphRows({
 	items,
 	health,
 	insights = [],
 	head,
+	viewAll,
 }: {
 	items: readonly SubgraphListItem[];
 	health: Record<string, SubgraphHealthData | undefined>;
 	/** Every insight the server holds; each row picks its own by name. */
 	insights?: readonly Insight[];
 	head?: ResourceRowLabels;
+	/** When the rows are only the newest few, the link to the rest. */
+	viewAll?: { total: number; href: string; noun: string };
 }) {
 	return (
 		<>
@@ -189,9 +225,17 @@ export function SubgraphRows({
 					insights={forResource(insights, "subgraph", item.name)}
 				/>
 			))}
+			{viewAll && viewAll.total > items.length ? (
+				<OverviewViewAll {...viewAll} />
+			) : null}
 		</>
 	);
 }
+
+/** Newest write first; a subgraph that has never written goes last. */
+const byUpdatedDesc = (a: SubgraphListItem, b: SubgraphListItem) =>
+	(b.updatedAt ? Date.parse(b.updatedAt) : Number.NEGATIVE_INFINITY) -
+	(a.updatedAt ? Date.parse(a.updatedAt) : Number.NEGATIVE_INFINITY);
 
 const healthByName = (
 	health: ReturnType<typeof useSubgraphsCache>["health"],
@@ -206,20 +250,29 @@ const healthByName = (
 export function OverviewSubgraphsRows({
 	head,
 	seed,
+	limit,
 }: {
 	head?: ResourceRowLabels;
+	/** How many of the newest to show; a link covers the rest. */
+	limit: number;
 	/** What the server read, so the rows are in the HTML. */
 	seed?: SubgraphsSeed;
 }) {
 	const { list, health } = useSubgraphsCache(seed);
 	const { data: insights } = useInsights();
 	if (!list || list.data.length === 0) return null;
+	const newest = [...list.data].sort(byUpdatedDesc).slice(0, limit);
 	return (
 		<SubgraphRows
-			items={list.data}
+			items={newest}
 			health={healthByName(health)}
 			insights={insights}
 			head={head}
+			viewAll={{
+				total: list.data.length,
+				href: "/account/subgraphs",
+				noun: list.data.length === 1 ? "subgraph" : "subgraphs",
+			}}
 		/>
 	);
 }
@@ -336,14 +389,7 @@ function SubgraphListRow({
 	const errors = cells ? cells.reduce((total, c) => total + c.f, 0) : null;
 	const rows = groupDigits(String(item.totalRows ?? 0));
 	const name = <RowName name={item.name} status={status} />;
-	const route = (
-		<span className="ix-route">
-			chain events →{" "}
-			<b>
-				{tables} {tables === 1 ? "table" : "tables"}
-			</b>
-		</span>
-	);
+	const route = <SubgraphRoute tables={tables} />;
 	const whyLine = why ? <RowWhy text={why} group={status.group} /> : null;
 	const strip =
 		cells && now !== null ? (

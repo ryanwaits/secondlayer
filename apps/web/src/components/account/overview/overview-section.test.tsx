@@ -17,6 +17,7 @@ import { rowModel } from "../webhooks/rows";
 import { FIXTURE_HOURS, summary } from "../webhooks/webhook.fixtures";
 import {
 	OVERVIEW_ACCOUNT_RULES,
+	OVERVIEW_ROWS,
 	OverviewBody,
 	type OverviewFirstWave,
 	OverviewSubgraphsSlot,
@@ -31,6 +32,17 @@ import {
 	exampleWebhooks,
 	serverErrorsInsight,
 } from "./overview.fixtures";
+
+// bun's mock.module is process-wide, so stub every export the app imports.
+mock.module("next/navigation", () => ({
+	usePathname: () => "/",
+	useRouter: () => ({}),
+	useSearchParams: () => new URLSearchParams(),
+	useParams: () => ({}),
+	notFound: () => {},
+	redirect: () => {},
+	permanentRedirect: () => {},
+}));
 
 const delivered = new Array<number>(168).fill(3);
 const failed = new Array<number>(168).fill(0);
@@ -128,7 +140,8 @@ describe("OverviewBody", () => {
 		expect(html).toContain("Everything is delivering.");
 		expect(html).toContain('href="/account/webhooks/wh_deposits"');
 		expect(html).toContain('href="/account/webhooks/wh_vault"');
-		expect(html).toContain("Delivered 72 in 24h");
+		expect(html).toContain("chain events → <b>hooks.example.dev</b>");
+		expect(html).not.toContain("Delivered 72 in 24h");
 		expect(html).toContain("3 webhooks");
 		expect(html).toContain("$28.23 in credits");
 	});
@@ -616,7 +629,7 @@ describe("Overview findings list", () => {
 				insights={[subgraphInsight()]}
 			/>,
 		);
-		expect(out).toContain("sbtc-flows handler errors rising");
+		expect(out).toContain("Handler errors rising");
 		expect(out).not.toContain("Why");
 		expect(out).not.toContain("ins-card");
 	});
@@ -790,5 +803,143 @@ describe("insight spacing css", () => {
 	});
 	test("the detail page insight has 40px above and 44px below", () => {
 		expect(css).toMatch(/\.wd-head \+ \.ins-stack \{\s*margin: 40px 0 44px;/);
+	});
+});
+
+describe("Overview shows each group's newest rows", () => {
+	const NOW = new Date("2026-10-15T12:00:00.000Z");
+	const hourAgo = (hours: number) =>
+		new Date(NOW.getTime() - hours * 3_600_000).toISOString();
+	const delivering = (n: number, hours: number) =>
+		rowModel(
+			summary({
+				id: `wh_${n}`,
+				name: `hook-${n}`,
+				lastDeliveryAt: hourAgo(hours),
+			}),
+			series,
+			FIXTURE_HOURS,
+			[],
+		);
+	const waiting = (n: number) =>
+		rowModel(
+			summary({
+				id: `wh_quiet_${n}`,
+				name: `quiet-${n}`,
+				lastDeliveryAt: null,
+				lastSuccessAt: null,
+			}),
+			undefined,
+			FIXTURE_HOURS,
+			[],
+		);
+	const table = (rows: (typeof healthy)[]) => {
+		const html = renderToStaticMarkup(
+			<OverviewBody {...exampleOverview(NOW)} rows={rows} subgraphs={null} />,
+		);
+		return html.slice(html.indexOf('class="dash-rows'));
+	};
+	const webhookLinks = (html: string) =>
+		[
+			...html.matchAll(
+				/class="dash-row" href="\/account\/webhooks\/(wh_\d+)"/g,
+			),
+		].map((m) => m[1]);
+
+	test("the limit is three", () => {
+		expect(OVERVIEW_ROWS).toBe(3);
+	});
+
+	test("five webhooks show the three most recent, newest first, and a view all link", () => {
+		const html = table([
+			delivering(1, 9),
+			delivering(2, 1),
+			delivering(3, 5),
+			delivering(4, 2),
+			delivering(5, 30),
+		]);
+		expect(webhookLinks(html)).toEqual(["wh_2", "wh_4", "wh_3"]);
+		expect(html).toContain("View all 5 webhooks");
+		expect(html).toContain('href="/account/webhooks"');
+	});
+
+	test("three webhooks show no view all link", () => {
+		const html = table([delivering(1, 1), delivering(2, 2), delivering(3, 3)]);
+		expect(webhookLinks(html)).toHaveLength(3);
+		expect(html).not.toContain("View all");
+	});
+
+	test("quiet webhooks count toward the total and keep their group row", () => {
+		const html = table([
+			delivering(1, 1),
+			delivering(2, 2),
+			waiting(1),
+			waiting(2),
+		]);
+		expect(html).toContain("View all 4 webhooks");
+		expect(html).toContain("2 more webhooks");
+	});
+
+	test("a stopped stack still says nothing is delivering", () => {
+		const html = renderToStaticMarkup(
+			<OverviewBody
+				{...exampleOverview(NOW, {
+					stack: exampleStack("stopped", NOW),
+					billing: {
+						creditsUsdMicros: "0",
+						spentThisMonthUsdMicros: "6210000",
+					},
+				})}
+				rows={[delivering(1, 1)]}
+				subgraphs={null}
+			/>,
+		);
+		expect(html).toContain("Not delivering, stack stopped");
+		expect(html).toContain("ix-dot idle");
+	});
+
+	test("subgraph rows link to the rest only when given the total", () => {
+		const { item, health } = exampleSubgraph(NOW);
+		const render = (viewAll?: { total: number; href: string; noun: string }) =>
+			renderToStaticMarkup(
+				<SubgraphRows
+					items={[item, { ...item, name: "b" }, { ...item, name: "c" }]}
+					health={{ [item.name]: health }}
+					viewAll={viewAll}
+				/>,
+			);
+		const withLink = render({
+			total: 7,
+			href: "/account/subgraphs",
+			noun: "subgraphs",
+		});
+		expect(withLink).toContain("View all 7 subgraphs");
+		expect(withLink).toContain('href="/account/subgraphs"');
+		expect(render()).not.toContain("View all");
+	});
+
+	test("a healthy subgraph says where it sends, with no tip line or approximation", () => {
+		const { item, health } = exampleSubgraph(NOW);
+		const out = renderToStaticMarkup(
+			<SubgraphRows items={[item]} health={{ [item.name]: health }} />,
+		);
+		expect(out).toContain("chain events →");
+		expect(out).toContain("1 table");
+		expect(out).not.toContain("At the tip");
+		expect(out).not.toContain("≈");
+		expect(out).toContain(">1,204<");
+	});
+
+	test("a failing subgraph shows its reason behind a red dot", () => {
+		const { item, health } = exampleSubgraph(NOW);
+		const out = renderToStaticMarkup(
+			<SubgraphRows
+				items={[{ ...item, status: "error" }]}
+				health={{ [item.name]: { ...health, errors24h: 4 } }}
+			/>,
+		);
+		expect(out).toContain("ix-dot alarm");
+		expect(out).toContain("ov-state alarm");
+		expect(out).not.toContain("chain events →");
 	});
 });
