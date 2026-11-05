@@ -79,6 +79,9 @@ which shows each one as a before and after from a real post.
   the precise version and pointing at something the reader already uses.
   ("Replay the rows in order" became "Replay the rows in order, like a bank
   statement".)
+- **R19. Product names are always capitalized**: Archive, Streams, Index,
+  Subgraphs, Webhooks, Sentinel ("across Index, Subgraphs and Webhooks").
+  One thing a reader made stays lowercase ("a subgraph", "your webhook").
 
 ## Slop lint
 
