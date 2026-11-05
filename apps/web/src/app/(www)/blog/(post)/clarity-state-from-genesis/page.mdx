@@ -1,6 +1,6 @@
 import { PostHeader } from "@/components/writing/post-header";
 import { PostFooter } from "@/components/writing/post-footer";
-import { FigShell, Roadmap, Sidenote } from "@/components/figures";
+import { FigShell, Roadmap, Sidenote, SourceQuote } from "@/components/figures";
 import { ChainLink } from "@/components/site/chain-link";
 import { postMeta } from "@/lib/writing";
 
@@ -8,7 +8,7 @@ export const metadata = postMeta("clarity-state-from-genesis");
 
 <PostHeader slug="clarity-state-from-genesis" />
 
-We're replaying every <ChainLink chain="stacks" href="/p/index">Stacks</ChainLink> block from genesis on a node that records each change a <ChainLink chain="clarity">Clarity</ChainLink> contract makes to its own storage, plus every call one contract makes into another<Sidenote n={1}>The replay runs on our [fork of stacks-core](https://github.com/ryanwaits/stacks-core/tree/feat/vm-events-resync), published as `ghcr.io/ryanwaits/stacks-core:6e005af`, which adds two observer events: storage writes and inner calls. LNow proposed contract events upstream in 2022 ([PR 3054](https://github.com/stacks-network/stacks-core/pull/3054), closed). The fork is built for an indexer's needs and stacks-core has its own tradeoffs to weigh, so we offer it as a working reference if these events are ever considered upstream.</Sidenote>. At the tip, every contract's maps, data vars and inner calls become rows you can query, subscribe to and check, from block 1.
+We're replaying every <ChainLink chain="stacks">Stacks</ChainLink> block from genesis on a node that records each change a <ChainLink chain="clarity">Clarity</ChainLink> contract makes to its own storage, plus every call one contract makes into another<Sidenote n={1}>The replay runs on our [fork of stacks-core](https://github.com/ryanwaits/stacks-core/tree/feat/vm-events-resync), published as `ghcr.io/ryanwaits/stacks-core:6e005af`, which adds two observer events: storage writes and inner calls. LNow proposed contract events upstream in 2022 ([PR 3054](https://github.com/stacks-network/stacks-core/pull/3054), closed). The fork is built for an indexer's needs and stacks-core has its own tradeoffs to weigh, so we offer it as a working reference if these events are ever considered upstream.</Sidenote>. At the tip, every contract's maps, data vars and inner calls become rows you can query, subscribe to and check, from block 1.
 
 As of November 5 the replay is at block 7,266,837 of 9,420,003.
 
@@ -121,7 +121,7 @@ The root commits only to hashed keys; the write log names them, so a proof can s
 	caption="The replay replaces our production database once it reaches the tip and passes a data check. Everything after that reads from it."
 >
 	<Roadmap
-		ariaLabel="Write log roadmap. Block proofs are live. The genesis replay is next, in progress. Then map, var and inner-call rows in Index, subgraphs and webhooks, then the write log in the Archive, then Sentinel watches."
+		ariaLabel="Write log roadmap. Block proofs are live. The genesis replay is next, in progress. Then map, var and inner-call rows in Index, Subgraphs and Webhooks, then the write log in the Archive, then Sentinel watches."
 		stops={[
 			{
 				when: "Live",
@@ -139,7 +139,7 @@ The root commits only to hashed keys; the write log names them, so a proof can s
 			{
 				when: "At cutover",
 				title: "Rows and triggers",
-				body: "Map and var writes and inner calls in Index, subgraphs and webhooks.",
+				body: "Map and var writes and inner calls in Index, Subgraphs and Webhooks.",
 				state: "later",
 			},
 			{
@@ -168,10 +168,19 @@ Webhooks already accept these triggers; on mainnet they match nothing until the 
 }
 ```
 
-This started with [Kourier](https://paragraph.com/@aulneau/project-kourier), aulneau's 2022 proposal: if the node emitted every Clarity state change, an indexer could give you the history of any value.
+This started with [Kourier](https://paragraph.com/@aulneau/project-kourier), aulneau's 2022 proposal for how Stacks indexing should work. It ended on this idea:
+
+<SourceQuote
+	author="aulneau"
+	source="Project Kourier"
+	date="May 2022"
+	href="https://paragraph.com/@aulneau/project-kourier"
+>
+	At a high level, if the Stacks node software were to emit events for all Clarity state changes, this would open the door for completely new kinds of indexing services built on Stacks that other chains cannot replicate. You could imagine a service that would give <mark>historical data for any Clarity value</mark> you wanted.
+</SourceQuote>
 
 ## The beta opens in the next few weeks
 
-Once the replay passes its data check at the tip, map, var and inner-call rows open as a beta across Index, subgraphs and webhooks. [Get an email](#updates) when it does. `sl verify block 1230200` works today, no key needed.
+Once the replay passes its data check at the tip, map, var and inner-call rows open as a beta across Index, Subgraphs and Webhooks. [Get an email](#updates) when it does. `sl verify block 1230200` works today, no key needed.
 
 <PostFooter slug="clarity-state-from-genesis" />
