@@ -35,7 +35,9 @@ async function account(): Promise<{ id: string; email: string }> {
 	return { id: row.id, email };
 }
 
-async function subscribe(email: string, status: string, token: string) {
+type ListStatus = "pending" | "confirmed" | "unsubscribed";
+
+async function subscribe(email: string, status: ListStatus, token: string) {
 	await db
 		.insertInto("update_subscribers")
 		.values({ email, status, token })
@@ -46,7 +48,12 @@ async function updatesOf(id: string) {
 	const res = await app().request("/api/accounts/me/updates", {
 		headers: { "x-test-account": id },
 	});
-	return { status: res.status, body: await res.json() };
+	const body = (await res.json()) as {
+		email: string | null;
+		status: ListStatus | "none";
+		token: string | null;
+	};
+	return { status: res.status, body };
 }
 
 afterAll(async () => {
