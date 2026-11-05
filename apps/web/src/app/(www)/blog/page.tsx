@@ -1,4 +1,5 @@
 import { Eyebrow, Highlight } from "@/components/site";
+import { UpdatesSignup } from "@/components/writing/updates-signup";
 import { socialMeta } from "@/lib/og";
 import { getVisiblePosts, isNew, longDate } from "@/lib/writing";
 import type { Metadata } from "next";
@@ -62,6 +63,7 @@ export default function WritingIndexPage() {
 						</Link>
 					))}
 				</div>
+				<UpdatesSignup heading />
 			</div>
 		</main>
 	);

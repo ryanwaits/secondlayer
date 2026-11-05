@@ -6,6 +6,7 @@ import {
 	longDate,
 } from "@/lib/writing";
 import Link from "next/link";
+import { UpdatesSignup } from "./updates-signup";
 
 function Neighbor({ post, label }: { post: WritingPost; label: string }) {
 	return (
@@ -39,6 +40,7 @@ export function PostFooter({ slug }: { slug: string }) {
 
 	return (
 		<footer className="writing-end">
+			<UpdatesSignup />
 			<nav className="writing-next" aria-label="More posts">
 				{prev ? (
 					<Neighbor post={prev} label="← Previous" />
