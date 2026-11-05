@@ -1,0 +1,14 @@
+{
+	"key": "launch-clarity-replay",
+	"subject": "The full Stacks replay is almost done",
+	"preheader": "Every Clarity state change from genesis: maps, data vars and inner contract calls.",
+	"heading": "The full Stacks replay is almost done",
+	"paragraphs": [
+		"Every Clarity state change from genesis, as rows you can query. Here's where it stands."
+	],
+	"xPost": "https://x.com/ryan_waits/status/2118419916541870227",
+	"cta": {
+		"label": "View the post on X",
+		"url": "https://x.com/ryan_waits/status/2118419916541870227"
+	}
+}

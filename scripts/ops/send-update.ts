@@ -13,6 +13,11 @@
  *   --send     email every confirmed subscriber with no update_sends row for
  *              the file's `key`; re-running skips everyone already sent
  *
+ * A launch that lives on X: set `"xPost": "<post url>"` and the post's
+ * author, avatar, text, date and first photo are read from the public
+ * fxtwitter API before anything renders (or give the full object to skip
+ * the lookup). The card shows after the paragraphs; point `cta` at the post.
+ *
  * Env: TARGET_DATABASE_URL or DATABASE_URL (required);
  *      RESEND_API_KEY (required for --send and --to).
  * Exit codes: 0 ok, 1 some sends failed, 2 bad usage, bad file or missing env.
@@ -24,6 +29,7 @@ import { join } from "node:path";
 import {
 	type RenderEmailInput,
 	UPDATES_FROM,
+	type XPost,
 	renderEmail,
 	sendEmail,
 	unsubscribeFor,
@@ -46,6 +52,7 @@ const PASSTHROUGH = [
 	"figureNote",
 	"status",
 	"excerpt",
+	"xPost",
 ] as const;
 
 export type EmailFile = {
@@ -53,7 +60,92 @@ export type EmailFile = {
 	subject: string;
 	heading: string;
 	cta: { label: string; url: string };
-} & Partial<Pick<RenderEmailInput, (typeof PASSTHROUGH)[number]>>;
+} & Partial<
+	Pick<RenderEmailInput, Exclude<(typeof PASSTHROUGH)[number], "xPost">>
+> & {
+		/** A post URL until `resolveXPost` fills it in. */
+		xPost?: XPost | string;
+	};
+
+const X_POST_URL =
+	/^https:\/\/(?:www\.)?(?:x|twitter)\.com\/(\w{1,15})\/status\/(\d+)/;
+
+function checkXPost(value: unknown): void {
+	if (typeof value === "string") {
+		if (!X_POST_URL.test(value)) {
+			throw new Error("xPost must be an x.com/<handle>/status/<id> URL");
+		}
+		return;
+	}
+	const post = value as Partial<XPost> | null;
+	if (
+		typeof post !== "object" ||
+		post === null ||
+		typeof post.url !== "string" ||
+		typeof post.text !== "string" ||
+		typeof post.date !== "string" ||
+		typeof post.author?.name !== "string" ||
+		typeof post.author?.handle !== "string"
+	) {
+		throw new Error(
+			"xPost must be a post URL, or { url, text, date, author: { name, handle } }",
+		);
+	}
+}
+
+type FxTweet = {
+	tweet?: {
+		url: string;
+		text: string;
+		created_at: string;
+		author: { name: string; screen_name: string; avatar_url?: string };
+		media?: { photos?: { url: string; altText?: string }[] };
+	};
+};
+
+/** An email file whose `xPost`, if any, is filled in and ready to render. */
+export type ReadyEmail = Omit<EmailFile, "xPost"> & { xPost?: XPost };
+
+/** Fills in a post given by URL; a full object passes through untouched. */
+export async function resolveXPost(
+	file: EmailFile,
+	fetcher: typeof fetch = fetch,
+): Promise<ReadyEmail> {
+	if (typeof file.xPost !== "string") return file as ReadyEmail;
+	const match = X_POST_URL.exec(file.xPost);
+	if (!match)
+		throw new Error("xPost must be an x.com/<handle>/status/<id> URL");
+	const res = await fetcher(
+		`https://api.fxtwitter.com/${match[1]}/status/${match[2]}`,
+	);
+	const tweet = res.ok ? ((await res.json()) as FxTweet).tweet : undefined;
+	if (!tweet) {
+		throw new Error(
+			`couldn't read ${file.xPost} (${res.status}); give xPost as a full object instead`,
+		);
+	}
+	const photo = tweet.media?.photos?.[0];
+	return {
+		...file,
+		xPost: {
+			url: tweet.url,
+			author: {
+				name: tweet.author.name,
+				handle: tweet.author.screen_name,
+				avatarUrl: tweet.author.avatar_url,
+			},
+			text: tweet.text,
+			date: new Date(tweet.created_at).toISOString(),
+			image: photo
+				? {
+						// The full-size original is several MB; mail apps need ~600px.
+						url: photo.url.replace(/\?name=orig$/, "?name=medium"),
+						alt: photo.altText,
+					}
+				: undefined,
+		},
+	};
+}
 
 export function parseEmailFile(raw: unknown): EmailFile {
 	if (typeof raw !== "object" || raw === null || Array.isArray(raw)) {
@@ -83,10 +175,11 @@ export function parseEmailFile(raw: unknown): EmailFile {
 	) {
 		throw new Error("cta.label and cta.url are required (strings)");
 	}
+	if (obj.xPost !== undefined) checkXPost(obj.xPost);
 	return obj as unknown as EmailFile;
 }
 
-export function buildEmail(file: EmailFile, token: string) {
+export function buildEmail(file: EmailFile & { xPost?: XPost }, token: string) {
 	const unsubscribe = unsubscribeFor(token);
 	const { key: _key, subject, ...input } = file;
 	const { html, text } = renderEmail({
@@ -147,10 +240,10 @@ function fail(message: string): never {
 
 async function main() {
 	let args: Args;
-	let file: EmailFile;
+	let file: ReadyEmail;
 	try {
 		args = parseArgs(process.argv.slice(2));
-		file = parseEmailFile(await Bun.file(args.file).json());
+		file = await resolveXPost(parseEmailFile(await Bun.file(args.file).json()));
 	} catch (err) {
 		fail(err instanceof Error ? err.message : String(err));
 	}
