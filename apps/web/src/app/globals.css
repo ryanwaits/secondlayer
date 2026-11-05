@@ -1734,8 +1734,10 @@ html[data-acct-card] .www > :not(.marketing-nav) {
 }
 
 /* The account pages: one centered column; the tabs and the terminal footer live outside it. */
+/* Same box as .marketing-nav (1120px, 1.5rem inset), so page content shares
+   the logo's left edge and the account chip's right edge. */
 .acct-page {
-	max-width: 1040px;
+	max-width: 1120px;
 	margin: 0 auto;
 	padding: 48px 1.5rem 0;
 	/* The footer sits right after the page, so a short loading page must not
