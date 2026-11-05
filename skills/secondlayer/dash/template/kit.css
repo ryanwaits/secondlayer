@@ -15,6 +15,7 @@
 	--on-hi: #14110d;
 	--ok: #128a43;
 	--alarm: #e3301e;
+	--hi-text: color-mix(in srgb, var(--hi) 55%, var(--ink));
 	--wash: color-mix(in oklab, var(--ink) 3%, transparent);
 	--hair: color-mix(in oklab, var(--ink) 8%, transparent);
 	--sans: "Geist", ui-sans-serif, system-ui, -apple-system, "Segoe UI",
@@ -37,6 +38,7 @@
 		--on-hi: #14110d;
 		--ok: #5cc28f;
 		--alarm: #ff5a47;
+		--hi-text: var(--hi);
 		color-scheme: dark;
 	}
 }
@@ -384,16 +386,18 @@ table {
 /* The value that is wrong: the brand block for attention, the inverted
    neutral block for failing. */
 .dash-mark {
-	padding: 0 0.1em;
-	color: var(--on-hi);
-	background: linear-gradient(var(--hi), var(--hi)) 0 0.14em / 100% 1.08em
-		no-repeat;
+	padding: 1px 6px;
+	border: 1px dashed var(--hi-text);
+	border-radius: 4px;
+	background: color-mix(in srgb, var(--hi) 12%, var(--paper));
+	color: var(--hi-text);
 	-webkit-box-decoration-break: clone;
 	box-decoration-break: clone;
 }
 .dash-mark.fail {
-	color: var(--paper);
-	background-image: linear-gradient(var(--ink), var(--ink));
+	border-color: var(--alarm);
+	background: color-mix(in srgb, var(--alarm) 7%, var(--paper));
+	color: var(--alarm);
 }
 td.num,
 th.num {
