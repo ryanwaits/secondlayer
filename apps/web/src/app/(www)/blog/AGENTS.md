@@ -39,7 +39,8 @@ which shows each one as a before and after from a real post.
   fence by default. Blue is links only, red is failures only.
 - **R6. Chip a chain or language once, on first mention, and only if the post
   is about it.** Plain words after that. Link a chip only to our own page.
-  Chips: stacks, bitcoin, sbtc, clarity, runes, robinhood (Robinhood Chain).
+  Chips: stacks, bitcoin, sbtc, clarity, runes, robinhood (Robinhood Chain),
+  sentinel (our monitoring product, linked to runsentinel.app).
 - **R7. Sidenotes hold precision, never the argument.** At most 3. If the
   reader needs it to follow along, it goes in the body.
 - **R8. Prose mentions (`[text](hover:name)`) only when the code sits beside

@@ -5,8 +5,9 @@
  * glyph), Bitcoin (the coin), sBTC (the token icon Leather ships, the
  * s-bitcoin glyph from stacks-network/sbtc), Clarity (the three parentheses
  * from clarity-lang/book), Robinhood Chain (the feather from their own
- * wordmark, on Robin Neon as their app icon draws it), and a rune glyph for
- * Runes, which has no official mark. Each mark sits in a square of `size` units.
+ * wordmark, on Robin Neon as their app icon draws it), a rune glyph for
+ * Runes, which has no official mark, and Sentinel (its eye favicon, flattened
+ * to three discs). Each mark sits in a square of `size` units.
  */
 
 export type Chain =
@@ -15,7 +16,8 @@ export type Chain =
 	| "sbtc"
 	| "runes"
 	| "clarity"
-	| "robinhood";
+	| "robinhood"
+	| "sentinel";
 
 /** bg: the chip; fg: the glyph; dim: Clarity's outer parentheses. */
 export type MarkRole = "bg" | "fg" | "dim";
@@ -120,5 +122,14 @@ export const MARKS: Record<Chain, Mark> = {
 			},
 		],
 		colors: { bg: "#ccff00", fg: "#000000", dim: "#000000" },
+	},
+	sentinel: {
+		size: 160,
+		shapes: [
+			{ role: "bg", d: "M0 80a80 80 0 1 0 160 0a80 80 0 1 0 -160 0z" },
+			{ role: "dim", d: "M22 80a58 58 0 1 0 116 0a58 58 0 1 0 -116 0z" },
+			{ role: "fg", d: "M53 80a27 27 0 1 0 54 0a27 27 0 1 0 -54 0z" },
+		],
+		colors: { bg: "#ebe7e4", fg: "#f63f18", dim: "#2b2826" },
 	},
 };

@@ -1455,6 +1455,20 @@
 :is(.site, .writing-article) .chain-robinhood .chain-fg {
 	fill: #000000;
 }
+/* Sentinel's eye: a pale bezel, so a hairline keeps it round on a light page. */
+:is(.site, .writing-article) .chain-sentinel {
+	border-radius: 50%;
+	box-shadow: 0 0 0 1px var(--line);
+}
+:is(.site, .writing-article) .chain-sentinel .chain-bg {
+	fill: #ebe7e4;
+}
+:is(.site, .writing-article) .chain-sentinel .chain-dim {
+	fill: #2b2826;
+}
+:is(.site, .writing-article) .chain-sentinel .chain-fg {
+	fill: #f63f18;
+}
 :is(.site, .writing-article) .chain-runes .chain-bg {
 	fill: var(--ink);
 }
