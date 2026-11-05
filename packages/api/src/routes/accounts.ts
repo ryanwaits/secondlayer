@@ -59,6 +59,32 @@ app.patch("/me", async (c) => {
 	});
 });
 
+// ── /me/updates ──────────────────────────────────────────────────
+
+// The account email's place on the updates list, so the signup form can
+// step aside for a reader already on it. The token is the same one every
+// update email carries in its unsubscribe link; the account proved it owns
+// that inbox at sign-in.
+app.get("/me/updates", async (c) => {
+	const accountId = requireAccountId(c);
+	const db = getDb();
+	const account = await getAccountById(db, accountId);
+	if (!account) throw new AuthenticationError("Account not found");
+	const email = account.email;
+	if (!email) return c.json({ email: null, status: "none", token: null });
+
+	const row = await db
+		.selectFrom("update_subscribers")
+		.select(["status", "token"])
+		.where((eb) => eb(eb.fn("lower", ["email"]), "=", email.toLowerCase()))
+		.executeTakeFirst();
+	return c.json({
+		email,
+		status: row?.status ?? "none",
+		token: row?.status === "confirmed" ? row.token : null,
+	});
+});
+
 // ── /insights ─────────────────────────────────────────────────────
 
 // Account-level insights (reads, billing), scoped to the signed-in account.
