@@ -281,12 +281,14 @@ describe("WebhooksListBody while the summary is pending", () => {
 });
 
 describe("WebhooksListBody for a new account", () => {
-	test("the empty state shows the create call and a guide link", () => {
+	test("the empty state shows the create call, a prompt for your agent and the guides", () => {
 		const html = render({ rows: [] });
 		expect(html).toContain("A webhook posts chain events to your server");
 		expect(html).toContain("sl.webhooks.create");
-		expect(html).toContain("Webhooks guide");
-		expect(html).toContain("aria-hidden");
+		expect(html).toContain("Copy for agent");
+		expect(html).toContain("Your agent asks what to listen for");
+		expect(html).toContain('href="/docs/webhooks"');
+		expect(html).toContain('href="/docs/webhooks#receive-and-verify"');
 	});
 
 	test("the empty state never mentions keys", () => {

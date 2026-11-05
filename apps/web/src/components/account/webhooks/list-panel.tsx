@@ -7,10 +7,10 @@ import {
 } from "@/components/dashboard/charts/heat-strip";
 import { HourRibbon } from "@/components/dashboard/charts/hour-ribbon";
 import { ActionableInsights } from "@/components/dashboard/insight/insight-actions";
-import { PlaceholderRows } from "@/components/dashboard/shell/onboarding";
 import { StatusSentence } from "@/components/dashboard/shell/status-sentence";
 import { useCompact } from "@/components/mobile/use-compact";
 import { notify } from "@/components/toast/notify";
+import { getAgentPrompt } from "@/lib/agent-prompts";
 import { heatGrid } from "@/lib/dashboard-charts";
 import type { WebhooksResult } from "@/lib/dashboard-results";
 import type { IndexView } from "@/lib/index-view";
@@ -26,9 +26,9 @@ import {
 	refreshList,
 	refreshSummary,
 } from "@/lib/webhooks-store";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { CopyForAgent, EmptyStart, type Guide } from "../empty-start";
 import {
 	IndexList,
 	RowName,
@@ -201,9 +201,36 @@ await sl.webhooks.create({
   ],
 });`;
 
+const WEBHOOK_GUIDES: readonly Guide[] = [
+	{
+		title: "Create a webhook",
+		description: "Name, URL and triggers, from the SDK or the CLI.",
+		href: "/docs/webhooks#create-a-webhook",
+	},
+	{
+		title: "Triggers and limits",
+		description: "Every event type and the filter fields each one takes.",
+		href: "/docs/webhooks#triggers-and-limits",
+	},
+	{
+		title: "Receive and verify",
+		description: "Check the Standard Webhooks signature on your server.",
+		href: "/docs/webhooks#receive-and-verify",
+	},
+	{
+		title: "Replay and recovery",
+		description: "Requeue dead letters and replay a block range.",
+		href: "/docs/webhooks#replay-and-recovery",
+	},
+];
+
 function EmptyState() {
 	return (
-		<div className="wl-empty">
+		<EmptyStart
+			guides={WEBHOOK_GUIDES}
+			docsHref="/docs/webhooks"
+			docsLabel="Webhooks docs"
+		>
 			<StatusSentence>No webhooks yet.</StatusSentence>
 			<p>
 				A webhook posts chain events to your server the block they land. You
@@ -214,18 +241,11 @@ function EmptyState() {
 				<code className="wh-cli-code">{CREATE_EXAMPLE}</code>
 				<CopyButton code={CREATE_EXAMPLE} inline label="Copy" />
 			</div>
-			<p>
-				<Link href="/docs/webhooks" className="dash-link">
-					Webhooks guide ›
-				</Link>
-			</p>
-			<PlaceholderRows
-				rows={[
-					{ state: 66, count: 40 },
-					{ state: 52, count: 48 },
-				]}
+			<CopyForAgent
+				prompt={getAgentPrompt("webhook-create")}
+				hint="Your agent asks what to listen for, then builds it with you."
 			/>
-		</div>
+		</EmptyStart>
 	);
 }
 

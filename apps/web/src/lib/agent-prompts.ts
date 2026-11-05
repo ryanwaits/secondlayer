@@ -2,6 +2,14 @@
  * Agent prompts used across platform + marketing touchpoints.
  */
 
+import { CHAIN_TRIGGER_TYPES } from "@secondlayer/shared/schemas/chain-triggers";
+import {
+	FREE_ROWS_PER_MONTH,
+	ROW_USD_PER_M,
+	STACK_FLOOR_USD_PER_MONTH,
+	WEBHOOK_USD_PER_M,
+} from "./prices";
+
 export type AgentPromptTag =
 	| "subgraphs"
 	| "webhooks"
@@ -161,15 +169,39 @@ function webhookRef(context?: AgentPromptContext): string {
 export const AGENT_PROMPTS: AgentPromptDefinition[] = [
 	{
 		id: "subgraph-create",
-		title: "Create a subgraph from a contract",
-		audience: "Developers indexing a Stacks contract",
-		surface: "marketing",
-		description: "Scaffold, refine, deploy, and query a subgraph.",
+		title: "Design a subgraph with me",
+		audience: "Developers on an empty Subgraphs page",
+		surface: "platform-empty-state",
+		description:
+			"Interview me for the contract and tables, then scaffold, test and deploy.",
 		tags: ["subgraphs"],
 		build: () =>
 			withSetup(`${SUBGRAPHS_INTRO}
 
-/secondlayer Help me create a subgraph from a Stacks contract. Ask me for the contract id and the events or function calls I care about. Scaffold with \`secondlayer subgraphs scaffold\` so the module package and dependencies are prepared, explain the generated named sources and tables, let me review or customize the handlers, deploy with \`secondlayer subgraphs deploy\`, query recent rows, then show me how to read them from my app.`),
+/secondlayer Help me design and deploy a subgraph in this repo. Interview me first, then build it.
+
+Context
+- A subgraph is one TypeScript file (\`defineSubgraph\`): sources pick the chain events, schema declares the tables and columns, handlers turn each event into rows. It runs on my hosted stack and serves each table over REST.
+- Hosted sources are event filters plus \`contract_call\` and \`contract_deploy\`. Set a start block.
+- Read the real shape before writing a handler: \`index_print_schema\` for prints, \`contracts_get_abi\` for calls. Never invent event.data fields. event.data is camelCase, columns are snake_case.
+- Hosted cost: a stack that runs subgraphs bills at least $${STACK_FLOOR_USD_PER_MONTH.subgraphs}/mo while it runs, plus storage. ${(FREE_ROWS_PER_MONTH / 1_000_000).toString()}M rows a month are free, then $${ROW_USD_PER_M} per 1M. Reading my own tables is free.
+
+Tools
+- MCP lookups: contracts_find, contracts_get_abi, index_print_schema, index_discover, index_events
+- CLI: secondlayer subgraphs create | test | deploy | status | query
+- Docs: https://www.secondlayer.tools/docs/subgraphs
+
+Ask me one question at a time
+1. What should it index: a contract, a few contracts, or a standard like every SIP-010 token? Look it up and show me real recent events and their schema.
+2. What will I ask of this data? List a few example queries. They decide the tables.
+3. Propose the tables: name, what one row means, columns with types, the key, and which event fills each column. Change them until I say OK.
+4. Where should it start: the current block, or a past height? Earlier means more history and a longer catch-up.
+
+Then build it
+- Scaffold with \`secondlayer subgraphs create <name> --from-contract <contract id>\`, then edit it to the agreed tables.
+- Run \`secondlayer subgraphs test subgraphs/<name>.ts --from <block> --to <block>\` until it shows events matched and rows written.
+- Ask me before you deploy, because it starts my stack. Then run \`secondlayer subgraphs deploy subgraphs/<name>.ts --start-block <height>\`.
+- Show me \`secondlayer subgraphs status <name>\` and the first rows.`),
 	},
 	{
 		id: "subgraph-alex-swaps",
@@ -185,16 +217,39 @@ export const AGENT_PROMPTS: AgentPromptDefinition[] = [
 	},
 	{
 		id: "webhook-create",
-		title: "Create a webhook on chain events",
-		audience: "Developers wiring chain events to a receiver",
+		title: "Set up a webhook with me",
+		audience: "Developers on an empty Webhooks page",
 		surface: "platform-empty-state",
 		description:
-			"Create a webhook on chain events: pick the triggers, then a receiver URL.",
+			"Interview me for which chain events to match and where to post, then build it.",
 		tags: ["webhooks"],
 		build: () =>
 			withSetup(`${WEBHOOKS_INTRO}
 
-/secondlayer Create a webhook on chain events. Inspect the account state first. Ask me only for the HTTPS receiver URL and which chain events to match (a contract call, a token transfer, sBTC, or runes), then build the \`triggers\` array from that and create the webhook with \`secondlayer webhooks create <name> --url <url> --trigger '<json>'\`. Show the one-time signing secret, and generate a signed test fixture only after I provide that secret.`),
+/secondlayer Help me set up a webhook in this repo. Interview me first, then build it.
+
+Context
+- A webhook is a name, an HTTPS receiver URL and a list of triggers. Each delivery is a Standard Webhooks signed POST, sent in the block the event lands.
+- Trigger types: ${CHAIN_TRIGGER_TYPES.join(", ")}. Each type takes a fixed set of filter fields: read them in the skill's references/sdk.md and never invent one.
+- A webhook starts at the chain tip and never backfills. For history, replay a block range on an existing webhook.
+- Hosted cost: $${WEBHOOK_USD_PER_M} per 1M webhook events. A webhook-only stack bills at least $${STACK_FLOOR_USD_PER_MONTH.webhooks}/mo while it runs.
+
+Tools
+- MCP lookups: contracts_find, contracts_get_abi, index_print_schema, index_discover, index_events
+- SDK: sl.webhooks.create. CLI: secondlayer webhooks create | test | deliveries
+- Docs: https://www.secondlayer.tools/docs/webhooks
+
+Ask me one question at a time
+1. What should it listen for: a contract, a token, an address, sBTC, an NFT collection? Look it up and show me a few real recent events that match, so I can confirm.
+2. Narrow it with the filter fields that trigger type takes: amounts, function names, senders, recipients.
+3. Where should it post? If I don't have a receiver yet, suggest a route in this app.
+4. What should my handler do with each event?
+Then show me the triggers as JSON and one example payload, and wait for my OK.
+
+Then build it
+- Create it in code with sl.webhooks.create and commit the file, so the filter lives in review.
+- Make the receiver verify the signature. The signing secret prints once: save it in the app's env.
+- Send a signed fixture with \`secondlayer webhooks test <name> --signing-secret <secret> --post\`, check my receiver accepts it, then show me \`secondlayer webhooks deliveries <name>\`.`),
 	},
 	{
 		id: "webhook-diagnose",

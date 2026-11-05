@@ -26,12 +26,14 @@ import {
 import { UseSection } from "./use-section";
 
 describe("SubgraphsEmptyState", () => {
-	test("says what a subgraph is, shows the deploy command and links the guide", () => {
+	test("says what a subgraph is, shows the deploy command, a prompt for your agent and the guides", () => {
 		const html = renderToStaticMarkup(<SubgraphsEmptyState />);
 		expect(html).toContain("No subgraphs yet.");
 		expect(html).toContain("sl subgraphs deploy ./subgraphs/&lt;name&gt;.ts");
+		expect(html).toContain("Copy for agent");
+		expect(html).toContain("Your agent asks what to index");
 		expect(html).toContain('href="/docs/subgraphs"');
-		expect(html).toContain("Subgraphs guide");
+		expect(html).toContain('href="/docs/subgraphs#test-before-you-deploy"');
 	});
 });
 

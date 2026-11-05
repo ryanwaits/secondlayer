@@ -7859,15 +7859,135 @@ button.dash-row {
 		width: 100%;
 	}
 }
-.wl-empty {
+/* ── Empty resource page (webhooks, subgraphs): start on the left, guides
+   on the right. Wraps to one column when the two don't fit side by side. ── */
+.empty-start {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: flex-start;
+	column-gap: 64px;
+}
+.empty-start-main {
+	flex: 1 1 420px;
+	max-width: 560px;
+	min-width: 0;
 	display: grid;
 	gap: 16px;
-	max-width: 560px;
 	padding: 24px 0;
 }
-.wl-empty p {
+.empty-start-main > * {
+	min-width: 0;
+}
+.empty-start-main p {
 	margin: 0;
 	color: var(--sub);
+}
+.empty-start-guides {
+	flex: 1 1 300px;
+	max-width: 400px;
+	min-width: 0;
+	padding-block: 30px 24px;
+}
+.empty-guides-head {
+	display: flex;
+	justify-content: space-between;
+	align-items: baseline;
+	margin-bottom: 10px;
+}
+/* Two classes deep so it outranks `.site h2`. */
+.empty-start .empty-guides-head h2 {
+	margin: 0;
+	font: 400 12px / 1.33 var(--font-sans-stack);
+	letter-spacing: 0;
+	color: var(--faint);
+}
+.empty-start .empty-guides-head a {
+	color: var(--pri);
+}
+.empty-guides {
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+.empty-guides a {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	padding: 12px 0;
+	color: inherit;
+	text-decoration: none;
+}
+.empty-guides li:first-child a {
+	padding-top: 4px;
+}
+.empty-guides li:not(:last-child) a {
+	border-bottom: 1px solid var(--line);
+}
+.empty-guides a > span:first-child {
+	flex: 1;
+	min-width: 0;
+}
+.empty-guide-title {
+	display: block;
+	font-size: 14px;
+	font-weight: 500;
+	color: var(--ink);
+}
+.empty-guide-desc {
+	display: block;
+	margin-top: 2px;
+	font-size: 13px;
+	color: var(--sub);
+}
+.empty-guide-arrow {
+	color: var(--faint);
+	font-size: 15px;
+	transition: transform 0.12s, color 0.12s;
+}
+@media (hover: hover) {
+	.empty-guides a:hover .empty-guide-title,
+	.empty-guides a:hover .empty-guide-arrow {
+		color: var(--pri);
+	}
+	.empty-guides a:hover .empty-guide-arrow {
+		transform: translateX(2px);
+	}
+}
+.empty-guides a:focus-visible {
+	outline: 2px solid var(--pri);
+	outline-offset: 2px;
+}
+@media (prefers-reduced-motion: reduce) {
+	.empty-guide-arrow {
+		transition: none;
+	}
+}
+.copy-agent {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 8px 12px;
+}
+.copy-agent-btn {
+	gap: 8px;
+	height: 34px;
+	padding: 0 12px;
+	font-size: 13px;
+}
+.copy-agent-icon {
+	display: inline-grid;
+	place-items: center;
+	width: 14px;
+	height: 14px;
+	flex: none;
+}
+.copy-agent-icon svg {
+	width: 13px;
+	height: 13px;
+}
+.copy-agent-hint {
+	font-size: 12px;
+	color: var(--faint);
 }
 .wl-skel {
 	display: block;
@@ -9380,17 +9500,7 @@ button.ky-click:focus-visible,
 		gap: 24px;
 	}
 }
-/* ── Subgraphs: empty state, handler errors ── */
-.sg-empty {
-	display: grid;
-	gap: 22px;
-	max-width: 560px;
-	padding: 24px 0;
-}
-.sg-empty p {
-	margin: 0;
-	color: var(--sub);
-}
+/* ── Subgraphs: handler errors ── */
 
 .sg-count {
 	margin-left: 7px;
@@ -9636,10 +9746,6 @@ button.ky-click:focus-visible,
 }
 .ky-table .ob-ph-wrap {
 	margin-top: 0;
-}
-.wl-empty > *,
-.sg-empty > * {
-	min-width: 0;
 }
 
 /* Mobile account (≤640px): bottom tabs, large titles. Plans 297–309. */

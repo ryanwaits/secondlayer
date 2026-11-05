@@ -1,5 +1,7 @@
 import { describe, expect, test } from "bun:test";
+import { CHAIN_TRIGGER_TYPES } from "@secondlayer/shared/schemas/chain-triggers";
 import { AGENT_PROMPTS, AGENT_SETUP, getAgentPrompt } from "./agent-prompts";
+import { STACK_FLOOR_USD_PER_MONTH, WEBHOOK_USD_PER_M } from "./prices";
 
 describe("agent prompt registry", () => {
 	test("all prompts include setup once", () => {
@@ -10,11 +12,29 @@ describe("agent prompt registry", () => {
 		}
 	});
 
-	test("create prompt asks for triggers and a receiver URL, not a subgraph", () => {
+	test("webhook create prompt interviews before building, and never mentions subgraphs", () => {
 		const text = getAgentPrompt("webhook-create");
-		expect(text).toContain("which chain events to match");
-		expect(text).toContain("secondlayer webhooks create");
+		expect(text).toContain("Interview me first");
+		expect(text).toContain("What should it listen for");
+		expect(text).toContain("wait for my OK");
+		expect(text).toContain("sl.webhooks.create");
 		expect(text).not.toContain("subgraph");
+	});
+
+	test("webhook create prompt names every chain trigger type and the live price", () => {
+		const text = getAgentPrompt("webhook-create");
+		for (const type of CHAIN_TRIGGER_TYPES) expect(text).toContain(type);
+		expect(text).toContain(`$${WEBHOOK_USD_PER_M} per 1M webhook events`);
+	});
+
+	test("subgraph create prompt agrees on tables, tests and asks before deploying", () => {
+		const text = getAgentPrompt("subgraph-create");
+		expect(text).toContain("Interview me first");
+		expect(text).toContain("Propose the tables");
+		expect(text).toContain("index_print_schema");
+		expect(text).toContain("secondlayer subgraphs test");
+		expect(text).toContain("Ask me before you deploy");
+		expect(text).toContain(`$${STACK_FLOOR_USD_PER_MONTH.subgraphs}/mo`);
 	});
 
 	test("chainhook migration prompt reads the webhooks page and names every trigger", () => {

@@ -2229,6 +2229,11 @@ const META: Record<StoryId, Meta> = {
 		rule: "The webhooks index is one row per webhook that has delivered: name, a status only when something needs you, a why line, and three numbers beside seven days as an hour-by-day grid (Rows) or one continuous strip (Ribbon). Search and Status show from four rows.",
 		variants: [
 			{
+				id: "empty",
+				label: "No webhooks",
+				render: () => <WebhooksIndexDemo count={0} />,
+			},
+			{
 				id: "rows",
 				label: "Three webhooks, Rows",
 				render: () => <WebhooksIndexDemo count={3} />,
