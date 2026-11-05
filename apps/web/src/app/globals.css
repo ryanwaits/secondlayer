@@ -3464,29 +3464,83 @@ body:has(.marketing-nav) .auth-bar {
 
 /* ── A11 SourceQuote — unnumbered pull-quote, sits in prose flow ─── */
 .fig-squote {
-	margin: 36px 0;
-	padding: 0 8px;
+	margin: 40px 0;
+	padding-block: 28px 24px;
+	border-block: 1px solid var(--line);
 }
 
 .fig-squote blockquote {
+	position: relative;
 	margin: 0;
-	font-size: 16.5px;
-	line-height: 1.6;
-	color: var(--text-main);
+	max-width: 60ch;
+	font-size: 20px;
+	line-height: 1.55;
+	letter-spacing: -0.012em;
 	font-style: italic;
-	max-width: 58ch;
+	color: var(--text-main);
+	text-wrap: pretty;
+}
+
+.fig-squote blockquote > p {
+	margin: 0;
+}
+
+/* Hanging marks on the text itself (MDX wraps it in a <p>), so the block
+   keeps its left edge on the column. */
+.fig-squote blockquote > :first-child::before {
+	content: "\201C";
+	position: absolute;
+	left: -0.5em;
+	color: var(--fig-faint);
+}
+.fig-squote blockquote > :last-child::after {
+	content: "\201D";
+	color: var(--fig-faint);
+}
+
+.fig-squote mark {
+	color: var(--on-hi);
+	padding: 0 0.1em;
+	background: linear-gradient(var(--hi), var(--hi)) 0 0.14em / 100% 1.08em
+		no-repeat;
+	-webkit-box-decoration-break: clone;
+	box-decoration-break: clone;
 }
 
 .fig-squote figcaption {
-	margin-top: 10px;
+	display: flex;
+	flex-wrap: wrap;
+	align-items: baseline;
+	gap: 4px 10px;
+	margin-top: 16px;
 	font-family: var(--font-mono-stack);
-	font-size: 11.5px;
+	font-size: 12px;
 	color: var(--fig-faint);
+}
+
+.fig-squote figcaption .who {
+	font-family: var(--font-sans-stack);
+	font-size: 14px;
+	font-weight: 500;
+	color: var(--text-main);
 }
 
 .fig-squote figcaption a {
 	color: var(--accent-blue);
 	text-decoration: none;
+}
+.fig-squote figcaption a:hover {
+	text-decoration: underline;
+	text-underline-offset: 2px;
+}
+
+@media (max-width: 640px) {
+	.fig-squote blockquote {
+		font-size: 18px;
+	}
+	.fig-squote blockquote > :first-child::before {
+		position: static;
+	}
 }
 
 /* ── A3 Matrix: cells in one bordered grid, split by hairlines; role via a
