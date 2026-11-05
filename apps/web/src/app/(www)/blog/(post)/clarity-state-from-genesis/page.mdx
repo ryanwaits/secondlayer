@@ -10,7 +10,7 @@ export const metadata = postMeta("clarity-state-from-genesis");
 
 We're replaying every <ChainLink chain="stacks">Stacks</ChainLink> block from genesis on a node that records each change a <ChainLink chain="clarity">Clarity</ChainLink> contract makes to its own storage, plus every call one contract makes into another<Sidenote n={1}>The replay runs on our [fork of stacks-core](https://github.com/ryanwaits/stacks-core/tree/feat/vm-events-resync), published as `ghcr.io/ryanwaits/stacks-core:6e005af`, which adds two observer events: storage writes and inner calls. LNow proposed contract events upstream in 2022 ([PR 3054](https://github.com/stacks-network/stacks-core/pull/3054), closed). The fork is built for an indexer's needs and stacks-core has its own tradeoffs to weigh, so we offer it as a working reference if these events are ever considered upstream.</Sidenote>. At the tip, every contract's maps, data vars and inner calls become rows you can query, subscribe to and check, from block 1.
 
-As of November 5 the replay is at block 7,266,837 of 9,420,003.
+As of November 5 the replay is at block 7,278,709 of 9,420,376.
 
 ## Most contract state is never printed
 
@@ -93,7 +93,7 @@ An explorer shows a purchase. The write log shows one `list-in-ustx` call per NF
 
 ## Every replayed block has to rebuild its state root
 
-Each block commits to a state root, a hash over all contract storage. Every hour, a check picks 50 random blocks from the replay and rebuilds each root from our rows, so a missing, extra or wrong write breaks it. It has run 666 times since October 9 without a failure.
+Each block commits to a state root, a hash over all contract storage. Every hour, a check picks 50 random blocks from the replay and rebuilds each root from our rows, so a missing, extra or wrong write breaks it. It has run 667 times since October 9 without a failure.
 
 Before then, it caught two bugs in our node patch. At the swap's block, a nested call overwrote a slot, so the reserve write was logged with the old reserve as its key. Older blocks also logged writes out of execution order<Sidenote n={2}>Pre-Nakamoto microblocks execute before their anchored block's transactions but arrive after them.</Sidenote>. We fixed both and restarted from genesis on October 8.
 
@@ -132,7 +132,7 @@ The root commits only to hashed keys; the write log names them, so a proof can s
 			{
 				when: "Next",
 				title: "Replay at the tip",
-				body: "7.27M of 9.42M blocks, checked every hour.",
+				body: "7.28M of 9.42M blocks, checked every hour.",
 				state: "next",
 				note: "in progress",
 			},

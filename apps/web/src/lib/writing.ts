@@ -74,7 +74,7 @@ export const POSTS: WritingPost[] = [
 		date: "2026-11-05",
 		readingTime: "5 min",
 		notes: "popover",
-		status: "draft",
+		status: "published",
 		related: [
 			{ href: "/docs/subgraphs", label: "Subgraphs" },
 			{ href: "/docs/webhooks", label: "Webhooks" },
