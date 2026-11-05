@@ -275,3 +275,25 @@ describe("sendEmail", () => {
 		).rejects.toThrow(/422/);
 	});
 });
+
+describe("renderEmail with an X post", () => {
+	const post = {
+		url: "https://x.com/secondlayer/status/1",
+		author: { name: "Secondlayer", handle: "secondlayer" },
+		text: "Runes are live.\n\nAsk <anything>.",
+		date: "2026-11-05",
+	};
+
+	test("without an avatar the card uses the Secondlayer tile", () => {
+		const { html } = renderEmail({ heading: "h", paragraphs: [], xPost: post });
+		expect(html).toContain("/email/logo-white.png");
+		expect(html).toContain("@secondlayer &middot; Nov 5, 2026");
+	});
+
+	test("post text is escaped and split into paragraphs, with no image row", () => {
+		const { html } = renderEmail({ heading: "h", paragraphs: [], xPost: post });
+		expect(html).toContain("Ask &lt;anything&gt;.");
+		expect(html).not.toContain("<anything>");
+		expect(html).not.toContain('width="100%" alt=');
+	});
+});

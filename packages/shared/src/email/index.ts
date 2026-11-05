@@ -5,6 +5,7 @@ export type {
 	FactRow,
 	RenderedEmail,
 	RenderEmailInput,
+	XPost,
 } from "./render.ts";
 export { renderEmail } from "./render.ts";
 export type { SendEmailInput, SendEmailResult } from "./send.ts";

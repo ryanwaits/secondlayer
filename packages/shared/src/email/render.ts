@@ -29,6 +29,20 @@ export interface EmailStatus {
 	text: string;
 }
 
+/**
+ * A post on X, drawn as our own card (X's embeds don't render in email):
+ * avatar, name, @handle and date, the text, and an optional image. Without
+ * `avatarUrl` the avatar is the Secondlayer tile.
+ */
+export interface XPost {
+	url: string;
+	author: { name: string; handle: string; avatarUrl?: string };
+	text: string;
+	/** ISO date or timestamp; shown as "Nov 5, 2026". */
+	date: string;
+	image?: { url: string; alt?: string };
+}
+
 export interface RenderEmailInput {
 	heading: string;
 	/** The inbox preview line after the subject. Not shown in the body. */
@@ -53,6 +67,8 @@ export interface RenderEmailInput {
 	excerpt?: { lines: string; mark?: string };
 	/** Plain text at the right of the figure bar when there is no `status`. */
 	figureNote?: string;
+	/** A launch that lives on X, shown as a post card after the paragraphs. */
+	xPost?: XPost;
 	/** Adds an "Unsubscribe" link to the footer (list emails only). */
 	unsubscribeUrl?: string;
 }
@@ -64,6 +80,7 @@ export interface RenderedEmail {
 
 // www directly: the apex 307s there, and every image fetch would pay for it.
 const LOGO_URL = "https://www.secondlayer.tools/email/logo.png";
+const LOGO_WHITE_URL = "https://www.secondlayer.tools/email/logo-white.png";
 const TAGLINE = "Instant data for apps on Bitcoin";
 
 const SANS =
@@ -92,6 +109,7 @@ const DARK_STYLE = `
   .sl-faint { color: #7c7a76 !important; }
   .sl-line { border-color: #393632 !important; }
   .sl-pri { background: #3a5bff !important; }
+  .sl-pri-text { color: #7f96ff !important; }
   .sl-ok { color: #5cc28f !important; }
   .sl-alarm { color: #ff5a47 !important; }
   .sl-dot-neutral { background: #7c7a76 !important; }
@@ -194,6 +212,49 @@ function figureHtml(input: RenderEmailInput): string {
   </table>`;
 }
 
+export function xPostDate(date: string): string {
+	const d = new Date(date);
+	if (Number.isNaN(d.getTime())) return date;
+	return d.toLocaleDateString("en-US", {
+		month: "short",
+		day: "numeric",
+		year: "numeric",
+		timeZone: "UTC",
+	});
+}
+
+function xPostHtml(post: XPost): string {
+	const avatar = post.author.avatarUrl
+		? `<img src="${escapeHtml(post.author.avatarUrl)}" width="36" height="36" alt="" style="display: block; width: 36px; height: 36px; border-radius: 999px; border: 0;">`
+		: `<div class="sl-pri" style="width: 36px; height: 36px; border-radius: 6px; background: ${LIGHT.pri}; text-align: center;"><img src="${LOGO_WHITE_URL}" width="21" height="14" alt="" style="display: inline-block; margin-top: 11px; border: 0;"></div>`;
+	const paragraphs = post.text
+		.split(/\n{2,}/)
+		.map((p) => {
+			const linked = escapeHtml(p).replace(
+				/@(\w{1,15})/g,
+				`<a href="https://x.com/$1" class="sl-pri-text" style="color: ${LIGHT.pri}; text-decoration: none;">@$1</a>`,
+			);
+			return `<p class="sl-ink" style="margin: 0 0 10px; font-size: 15px; line-height: 23px; color: ${LIGHT.ink}; white-space: pre-line;">${linked}</p>`;
+		})
+		.join("");
+	const image = post.image
+		? `<tr><td style="padding: 4px 14px 14px;"><a href="${escapeHtml(post.url)}"><img src="${escapeHtml(post.image.url)}" width="100%" alt="${escapeHtml(post.image.alt ?? "")}" class="sl-line" style="display: block; width: 100%; height: auto; border: 1px solid ${LIGHT.line}; border-radius: 6px; box-sizing: border-box;"></a></td></tr>`
+		: "";
+	return `<table role="presentation" cellpadding="0" cellspacing="0" class="sl-line" style="width: 100%; border: 1px solid ${LIGHT.line}; border-radius: 8px; border-collapse: separate; border-spacing: 0; margin: 8px 0 24px;">
+    <tr><td style="padding: 14px 14px 10px;">
+      <table role="presentation" cellpadding="0" cellspacing="0"><tr>
+        <td style="padding-right: 10px; vertical-align: middle;">${avatar}</td>
+        <td style="vertical-align: middle;">
+          <div class="sl-ink" style="font-size: 14px; line-height: 18px; font-weight: 500; color: ${LIGHT.ink};">${escapeHtml(post.author.name)}</div>
+          <div class="sl-faint" style="font-family: ${MONO}; font-size: 12px; line-height: 18px; color: ${LIGHT.faint};">@${escapeHtml(post.author.handle)} &middot; ${escapeHtml(xPostDate(post.date))}</div>
+        </td>
+      </tr></table>
+    </td></tr>
+    <tr><td style="padding: 0 14px 4px;">${paragraphs}</td></tr>
+    ${image}
+  </table>`;
+}
+
 function renderHtml(input: RenderEmailInput): string {
 	const figure = hasFigure(input);
 
@@ -254,6 +315,7 @@ ${preheaderHtml(input.preheader)}
             <h1 class="sl-ink" style="margin: 0 0 14px; font-size: 24px; line-height: 29px; font-weight: 500; letter-spacing: -0.025em; color: ${LIGHT.ink};">${escapeHtml(input.heading)}</h1>
             ${paragraphsHtml}
             ${quoteHtml}
+            ${input.xPost ? xPostHtml(input.xPost) : ""}
             ${figureHtml(input)}
             ${ctaHtml}
             <div class="sl-line sl-faint" style="margin: 32px 0 0; padding: 16px 0 0; border-top: 1px solid ${LIGHT.line}; font-size: 12px; line-height: 18px; color: ${LIGHT.faint};">
@@ -274,6 +336,15 @@ function renderText(input: RenderEmailInput): string {
 	const lines: string[] = [input.heading, ""];
 	for (const p of input.paragraphs) lines.push(p, "");
 	if (input.quote) lines.push(`"${input.quote}"`, "");
+	if (input.xPost) {
+		const { author, date, text, url } = input.xPost;
+		lines.push(
+			`${author.name} (@${author.handle}) · ${xPostDate(date)}`,
+			text,
+			url,
+			"",
+		);
+	}
 	if (input.status) lines.push(input.status.text, "");
 	if (input.code) lines.push(`Code: ${input.code}`, "");
 	if (input.facts?.length) {
