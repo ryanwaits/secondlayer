@@ -76,7 +76,7 @@ export function utcDay(date: Date): string {
 export function plural(
 	n: number,
 	one: string,
-	many = /[^aeiou]y$/.test(one) ? `${one.slice(0, -1)}ies` : `${one}s`,
+	many: string = /[^aeiou]y$/.test(one) ? `${one.slice(0, -1)}ies` : `${one}s`,
 ): string {
 	return `${n.toLocaleString("en-US")} ${n === 1 ? one : many}`;
 }
