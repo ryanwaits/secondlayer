@@ -2,7 +2,6 @@ import { AccountFrame } from "@/components/account/account-frame";
 import { CompactSeed } from "@/components/mobile/use-compact";
 import { AccountSeedProvider } from "@/lib/account-data";
 import { AuthSeed } from "@/lib/auth";
-import { logColdStart } from "@/lib/server/cold-start";
 import { savedCompact } from "@/lib/server/compact-view";
 import { accountRead, accountReads } from "@/lib/server/dashboard-reads";
 import { sessionToken } from "@/lib/server/session";
@@ -24,20 +23,22 @@ export default async function AccountLayout({
 	// The highlighter loads once the response is out, so no first request waits
 	// on it; the account pages that render code find it warm afterwards.
 	after(warmHighlighter);
-	const startedAt = performance.now();
 	const token = await sessionToken();
-	const [[seed, account], compact] = await Promise.all([
+	const [[seed, read], compact] = await Promise.all([
 		token
 			? Promise.all([accountReads(token, ["billing"]), accountRead(token)])
 			: Promise.resolve([{}, null] as const),
 		savedCompact(),
 	]);
-	logColdStart("/account", startedAt);
+	// No cookie, or one the API rejected, is signed out. An API that is slow or
+	// down isn't: the browser asks /api/auth/me.
+	const signedOut = !token || read?.kind === "rejected";
+	const account = read?.kind === "ok" ? read.account : null;
 	return (
 		<AccountSeedProvider seed={seed}>
 			<AuthSeed account={account} />
 			<CompactSeed saved={compact}>
-				<AccountFrame signedOut={!token}>{children}</AccountFrame>
+				<AccountFrame signedOut={signedOut}>{children}</AccountFrame>
 			</CompactSeed>
 		</AccountSeedProvider>
 	);

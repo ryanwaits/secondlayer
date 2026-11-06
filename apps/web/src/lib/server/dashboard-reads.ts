@@ -62,13 +62,12 @@ import { renderBlocks } from "./render-blocks";
 /** A path segment from the URL; same rule as the proxies. */
 const SEGMENT_RE = /^[A-Za-z0-9_-]+$/;
 
-/** One authenticated GET against the platform API. Never throws. A read the
- *  API doesn't answer in time comes back as an error, so the page renders
- *  without that slice and the browser loads it. */
-async function readApiOnce<T>(
+/** One authenticated GET against the platform API. Never throws: a read the
+ *  API doesn't answer in time is `null`. */
+async function fetchApi(
 	token: string,
 	path: string,
-): Promise<WebhooksResult<T>> {
+): Promise<{ res: Response; body: unknown } | null> {
 	try {
 		const res = await fetch(`${PLATFORM_API_URL}${path}`, {
 			headers: { Authorization: `Bearer ${token}` },
@@ -83,11 +82,23 @@ async function readApiOnce<T>(
 		} catch {
 			// An empty error body falls through to the status-only message.
 		}
-		return resultFromResponse<T>(res, body);
+		return { res, body };
 	} catch (err) {
 		logIfTimeout(err, path);
-		return { kind: "error", message: "Couldn't reach the API" };
+		return null;
 	}
+}
+
+/** One authenticated GET as a result. A read the API doesn't answer in time
+ *  comes back as an error, so the page renders without that slice and the
+ *  browser loads it. */
+async function readApiOnce<T>(
+	token: string,
+	path: string,
+): Promise<WebhooksResult<T>> {
+	const got = await fetchApi(token, path);
+	if (!got) return { kind: "error", message: "Couldn't reach the API" };
+	return resultFromResponse<T>(got.res, got.body);
 }
 
 /** `readApi` with its answers shared by `memoize` (React's per-request
@@ -119,12 +130,24 @@ function emptyOnNotFound<T>(
 
 // ── Account ──────────────────────────────────────────────────────────────
 
-/** The signed-in account, or null when the session is missing, expired or the
- *  API is unreachable (the browser then asks `/api/auth/me`, which also clears
- *  a stale cookie). */
-export async function accountRead(token: string): Promise<Account | null> {
-	const res = await readApi<Account>(token, "/api/accounts/me");
-	return res.kind === "ok" ? res.data : null;
+/** The account read: the account, `rejected` when the API refused the session
+ *  (401/403: expired or invalid), or `unavailable` when it didn't answer in
+ *  time or failed. Only a rejection means signed out; for an unavailable API
+ *  the browser asks `/api/auth/me`, which also clears a stale cookie. */
+export type AccountReadResult =
+	| { kind: "ok"; account: Account }
+	| { kind: "rejected" }
+	| { kind: "unavailable" };
+
+export async function accountRead(token: string): Promise<AccountReadResult> {
+	const got = await fetchApi(token, "/api/accounts/me");
+	if (!got) return { kind: "unavailable" };
+	const { res, body } = got;
+	if (res.status === 401 || res.status === 403) return { kind: "rejected" };
+	const result = resultFromResponse<Account>(res, body);
+	return result.kind === "ok"
+		? { kind: "ok", account: result.data }
+		: { kind: "unavailable" };
 }
 
 /** The account reads a page can ask for, one per store slice. */

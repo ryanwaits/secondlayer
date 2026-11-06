@@ -59,16 +59,30 @@ describe("accountRead", () => {
 		const calls = stubApi({
 			"/api/accounts/me": () => json({ id: "acct_1", email: "a@example.com" }),
 		});
-		expect(await accountRead("tok_123")).toMatchObject({ id: "acct_1" });
+		expect(await accountRead("tok_123")).toMatchObject({
+			kind: "ok",
+			account: { id: "acct_1" },
+		});
 		expect(calls).toHaveLength(1);
 		expect(
 			(calls[0]?.init.headers as Record<string, string>).Authorization,
 		).toBe("Bearer tok_123");
 	});
 
-	test("an expired session reads as no account, leaving the cookie to /api/auth/me", async () => {
-		stubApi({ "/api/accounts/me": () => json({ error: "no" }, 401) });
-		expect(await accountRead("tok_old")).toBeNull();
+	test("a session the API refuses is rejected, so the visitor is signed out", async () => {
+		for (const status of [401, 403]) {
+			stubApi({ "/api/accounts/me": () => json({ error: "no" }, status) });
+			expect(await accountRead("tok_old")).toEqual({ kind: "rejected" });
+		}
+	});
+
+	test("an API that fails or times out is unavailable, not a sign-out", async () => {
+		stubApi({ "/api/accounts/me": () => json({ error: "boom" }, 500) });
+		expect(await accountRead("tok_a")).toEqual({ kind: "unavailable" });
+		globalThis.fetch = (async () => {
+			throw new DOMException("timed out", "TimeoutError");
+		}) as unknown as typeof fetch;
+		expect(await accountRead("tok_b")).toEqual({ kind: "unavailable" });
 	});
 });
 
