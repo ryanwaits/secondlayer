@@ -1,10 +1,10 @@
 import { CreditsFallback } from "@/components/account/page-fallbacks";
+import { Staged } from "@/components/account/staged";
 import { AccountSeedProvider } from "@/lib/account-data";
 import { InsightsSeed } from "@/lib/insights-store";
 import { accountReads } from "@/lib/server/dashboard-reads";
 import { readInsights } from "@/lib/server/insights-read";
 import { sessionToken } from "@/lib/server/session";
-import { Suspense } from "react";
 import { AccountCreditsPage } from "./credits-page";
 
 // Next to the API (Hetzner HEL/fsn1), and per request: the HTML carries one
@@ -14,13 +14,13 @@ export const dynamic = "force-dynamic";
 
 export default function AccountBillingPage() {
 	return (
-		<Suspense fallback={<CreditsFallback />}>
-			<CreditsData />
-		</Suspense>
+		<Staged load={loadCredits()} fallback={<CreditsFallback />}>
+			{(data) => <CreditsData {...data} />}
+		</Staged>
 	);
 }
 
-async function CreditsData() {
+async function loadCredits() {
 	const token = await sessionToken();
 	const [account, insights] = token
 		? await Promise.all([
@@ -28,6 +28,13 @@ async function CreditsData() {
 				readInsights(token),
 			])
 		: [{}, null];
+	return { account, insights };
+}
+
+function CreditsData({
+	account,
+	insights,
+}: Awaited<ReturnType<typeof loadCredits>>) {
 	return (
 		<InsightsSeed insights={insights}>
 			<AccountSeedProvider seed={account}>

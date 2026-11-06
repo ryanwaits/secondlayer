@@ -1,3 +1,4 @@
+import { Staged } from "@/components/account/staged";
 import { WebhookDetailSection } from "@/components/account/webhooks/detail-panel";
 import { WebhookDetailSkeleton } from "@/components/account/webhooks/skeletons";
 import { InsightsSeed } from "@/lib/insights-store";
@@ -17,22 +18,29 @@ export default function AccountWebhookDetailPage({
 	params: Promise<{ id: string }>;
 }) {
 	return (
-		<Suspense fallback={<WebhookDetailSkeleton />}>
-			<WebhookDetailData params={params} />
-		</Suspense>
+		<Staged
+			load={loadWebhookDetail(params)}
+			fallback={<WebhookDetailSkeleton />}
+		>
+			{(data) => <WebhookDetailData {...data} />}
+		</Staged>
 	);
 }
 
-async function WebhookDetailData({
-	params,
-}: {
-	params: Promise<{ id: string }>;
-}) {
+async function loadWebhookDetail(params: Promise<{ id: string }>) {
 	const { id } = await params;
 	const token = await sessionToken();
 	const [initial, insights] = token
 		? await Promise.all([webhookDetailReads(token, id), readInsights(token)])
 		: [null, null];
+	return { id, initial, insights };
+}
+
+function WebhookDetailData({
+	id,
+	initial,
+	insights,
+}: Awaited<ReturnType<typeof loadWebhookDetail>>) {
 	// The section reads `?hour=`, which needs a Suspense boundary.
 	return (
 		<InsightsSeed insights={insights}>

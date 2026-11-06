@@ -4,6 +4,7 @@ import {
 	FirstRowsPrompt,
 } from "@/components/account/overview/first-rows-code";
 import { OverviewFallback } from "@/components/account/page-fallbacks";
+import { Staged } from "@/components/account/staged";
 import { AccountSeedProvider } from "@/lib/account-data";
 import { InsightsSeed } from "@/lib/insights-store";
 import {
@@ -14,23 +15,23 @@ import {
 import { readInsights } from "@/lib/server/insights-read";
 import { savedOpenChoices } from "@/lib/server/open-choices";
 import { sessionToken } from "@/lib/server/session";
-import { Suspense } from "react";
 
 // Next to the API (Hetzner HEL/fsn1), and per request: the HTML carries one
 // account's data, so it is never prerendered or shared.
 export const preferredRegion = "fra1";
 export const dynamic = "force-dynamic";
 
-/** Sends the Overview's skeleton at once; the page's reads stream in behind it. */
+/** Sent whole when its reads land inside the head start; otherwise the
+ *  skeleton goes first and the reads stream in behind it. */
 export default function AccountOverviewPage() {
 	return (
-		<Suspense fallback={<OverviewFallback />}>
-			<OverviewData />
-		</Suspense>
+		<Staged load={loadOverview()} fallback={<OverviewFallback />}>
+			{(data) => <OverviewData {...data} />}
+		</Staged>
 	);
 }
 
-async function OverviewData() {
+async function loadOverview() {
 	const token = await sessionToken();
 	const [account, webhooks, subgraphs, insights] = token
 		? await Promise.all([
@@ -41,6 +42,16 @@ async function OverviewData() {
 			])
 		: [{}, null, null, null];
 	const openChoices = await savedOpenChoices();
+	return { account, webhooks, subgraphs, insights, openChoices };
+}
+
+function OverviewData({
+	account,
+	webhooks,
+	subgraphs,
+	insights,
+	openChoices,
+}: Awaited<ReturnType<typeof loadOverview>>) {
 	return (
 		<InsightsSeed insights={insights}>
 			<AccountSeedProvider seed={account}>
