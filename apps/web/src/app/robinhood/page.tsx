@@ -338,11 +338,7 @@ export default function RobinhoodPage() {
 										<h3>{p.title}</h3>
 										<p>{p.body}</p>
 									</div>
-									<span
-										className={p.status === "live" ? "seal" : "seal is-later"}
-									>
-										{p.status}
-									</span>
+									<span className={`seal is-${p.status}`}>{p.status}</span>
 								</li>
 							))}
 						</ol>
