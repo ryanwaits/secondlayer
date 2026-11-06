@@ -1,7 +1,6 @@
 import { parseAnnotations, parseFenceOptions } from "@/lib/code/annotations";
 import { KEY_PLACEHOLDERS, KEY_SWAP, docsKeyCanRun } from "@/lib/code/base-url";
 import { outputTone } from "@/lib/code/output";
-import { tipTable } from "@/lib/code/tip-table";
 import { type ThemedToken, tokenize } from "@/lib/highlight";
 import type { CSSProperties } from "react";
 import "./code.css";
@@ -136,16 +135,18 @@ export async function renderCode({
 		docsKeyCanRun(source) &&
 		!isText &&
 		display.some((l) => KEY_PLACEHOLDERS.some((p) => l.includes(p)));
+	// The table is ~240 KB of docs data; only blocks that ask for tips load it.
+	const tipTable =
+		tips?.length && !isText
+			? (await import("@/lib/code/tip-table")).tipTable
+			: null;
 	const plan = planAnnotations(parsed, {
 		key: hasKey,
 		display,
 		lang: options.lang,
 		variant,
 		// Output is never tipped: it is what a command printed, not what to write.
-		tips:
-			tips?.length && !isText
-				? { table: tipTable, allow: new Set(tips) }
-				: null,
+		tips: tipTable && tips ? { table: tipTable, allow: new Set(tips) } : null,
 		base: options.base,
 	});
 	// Notes sit beside rows by index, so nothing may change a row's height or hide one.

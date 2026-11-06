@@ -6,7 +6,7 @@ import { Agent } from "undici";
  * keep-alive connection after 4 s by default, so a dashboard read that
  * follows a short pause paid a fresh TCP + TLS handshake to the API
  * (about +250 ms from Vercel iad1). The API's Caddy keeps idle connections
- * for 5 minutes; holding ours for 60 s keeps reads within a session warm.
+ * for 5 minutes; holding ours for 290 s (just under that) keeps reads after a pause warm.
  *
  * Kept on `globalThis`: Next bundles the server's startup hook and each route
  * separately, so this module can load more than once per process, and the
@@ -16,7 +16,7 @@ const AGENT_KEY = Symbol.for("secondlayer.upstreamAgent");
 const shared = globalThis as unknown as { [AGENT_KEY]?: Agent };
 
 shared[AGENT_KEY] ??= new Agent({
-	keepAliveTimeout: 60_000,
+	keepAliveTimeout: 290_000,
 	keepAliveMaxTimeout: 300_000,
 });
 
