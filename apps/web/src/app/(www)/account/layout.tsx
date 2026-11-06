@@ -1,7 +1,9 @@
 import { AccountFrame } from "@/components/account/account-frame";
+import { CompactSeed } from "@/components/mobile/use-compact";
 import { AccountSeedProvider } from "@/lib/account-data";
 import { AuthSeed } from "@/lib/auth";
 import { logColdStart } from "@/lib/server/cold-start";
+import { savedCompact } from "@/lib/server/compact-view";
 import { accountRead, accountReads } from "@/lib/server/dashboard-reads";
 import { sessionToken } from "@/lib/server/session";
 
@@ -19,14 +21,19 @@ export default async function AccountLayout({
 }) {
 	const startedAt = performance.now();
 	const token = await sessionToken();
-	const [seed, account] = token
-		? await Promise.all([accountReads(token, ["billing"]), accountRead(token)])
-		: [{}, null];
+	const [[seed, account], compact] = await Promise.all([
+		token
+			? Promise.all([accountReads(token, ["billing"]), accountRead(token)])
+			: Promise.resolve([{}, null] as const),
+		savedCompact(),
+	]);
 	logColdStart("/account", startedAt);
 	return (
 		<AccountSeedProvider seed={seed}>
 			<AuthSeed account={account} />
-			<AccountFrame signedOut={!token}>{children}</AccountFrame>
+			<CompactSeed saved={compact}>
+				<AccountFrame signedOut={!token}>{children}</AccountFrame>
+			</CompactSeed>
 		</AccountSeedProvider>
 	);
 }
