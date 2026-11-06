@@ -1,6 +1,11 @@
 "use client";
 
-import { createContext, useContext, useSyncExternalStore } from "react";
+import {
+	createContext,
+	useContext,
+	useEffect,
+	useSyncExternalStore,
+} from "react";
 import { clearInsights } from "./insights-store";
 import { TOPUP_MAX_USD, TOPUP_MIN_USD } from "./prices";
 import { clearRequestCache, shared } from "./request-cache";
@@ -139,6 +144,11 @@ export function AccountSeedProvider({
 	children?: React.ReactNode;
 }) {
 	applySeed(seed);
+	// A seed that streams in after the nav hydrated applied quietly; this wakes
+	// the readers outside its tree. Readers already in step see no change.
+	useEffect(() => {
+		for (const l of listeners) l();
+	}, []);
 	return (
 		<AccountSeedContext.Provider value={seed}>
 			{children}

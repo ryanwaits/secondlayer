@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, mock, test } from "bun:test";
 import { renderToStaticMarkup } from "react-dom/server";
+import type * as AuthModule from "./auth";
 
 mock.module("next/navigation", () => ({
 	usePathname: () => "/account",
@@ -54,5 +55,40 @@ describe("AuthSeed", () => {
 		const before = authSnapshot();
 		renderToStaticMarkup(tree(null));
 		expect(authSnapshot()).toBe(before);
+	});
+});
+
+describe("a seed that streams in after the provider mounted", () => {
+	// Each case starts from a fresh module: the auth store is shared state.
+	const fresh = async (): Promise<typeof AuthModule> => {
+		globalThis.window = {} as Window & typeof globalThis;
+		return import(`./auth?case=${Math.random()}`);
+	};
+
+	test("holds the /api/auth/me read back until the seed lands, then needs none", async () => {
+		const auth = await fresh();
+		expect(auth.nextAuthRead()).toBe("ask");
+		renderToStaticMarkup(<auth.AuthSeedPending />);
+		expect(auth.nextAuthRead()).toBe("wait");
+		// The streamed account arrives, then its effect ends the hold-back.
+		renderToStaticMarkup(<auth.AuthSeed account={account} />);
+		auth.endSeeding();
+		expect(auth.nextAuthRead()).toBe("known");
+		expect(auth.authSnapshot().account).toBe(account);
+	});
+
+	test("a signed-out or stale seed hands the read back to the provider", async () => {
+		const auth = await fresh();
+		renderToStaticMarkup(<auth.AuthSeedPending />);
+		renderToStaticMarkup(<auth.AuthSeed account={null} />);
+		auth.endSeeding();
+		expect(auth.nextAuthRead()).toBe("ask");
+	});
+
+	test("nothing is held back when the account is already known", async () => {
+		const auth = await fresh();
+		renderToStaticMarkup(<auth.AuthSeed account={account} />);
+		renderToStaticMarkup(<auth.AuthSeedPending />);
+		expect(auth.nextAuthRead()).toBe("known");
 	});
 });
