@@ -3,6 +3,7 @@ import {
 	AccountShell,
 } from "@/components/account/account-session";
 import { AuthSeedPending } from "@/lib/auth";
+import { InsightsPending } from "@/lib/insights-store";
 import { Suspense } from "react";
 
 // Next to the API (Hetzner HEL/fsn1), and per request: the HTML carries one
@@ -21,6 +22,7 @@ export default function AccountLayout({
 	return (
 		<>
 			<AuthSeedPending />
+			<InsightsPending />
 			<Suspense fallback={<AccountShell />}>
 				<AccountSession>{children}</AccountSession>
 			</Suspense>

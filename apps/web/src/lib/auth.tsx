@@ -11,6 +11,7 @@ import {
 } from "react";
 import { clearAccountData } from "./account-data";
 import { identify, reset } from "./analytics";
+import { createHold } from "./hold-back";
 import type { Account } from "./types";
 import { marketingUrl } from "./urls";
 
@@ -51,18 +52,14 @@ export function authSnapshot(): AuthState {
 	return auth;
 }
 
-// True from the moment an account route mounts until the account read it
+// Held from the moment an account route mounts until the account read it
 // streams has landed. The provider holds back its own `/api/auth/me` read for
 // that long, so a seed that arrives late still saves the fetch.
-let seeding = false;
-// Bumps whenever the flag ends, so the provider re-runs its effect even if it
-// never rendered while the flag was up.
-let seedEpoch = 0;
+const seedHold = createHold();
 
 /** The seed arrived (or the route left): ends the hold-back and wakes readers. */
 export function endSeeding() {
-	seeding = false;
-	seedEpoch++;
+	seedHold.end();
 	for (const l of listeners) l();
 }
 
@@ -72,7 +69,7 @@ const seeded = new WeakSet<object>();
  *  account route is still streaming its seed in, "known" once a seed has
  *  supplied the account, otherwise "ask". */
 export function nextAuthRead(): "wait" | "known" | "ask" {
-	if (seeding) return "wait";
+	if (seedHold.active()) return "wait";
 	return auth.loading ? "ask" : "known";
 }
 
@@ -84,7 +81,7 @@ export function AuthSeedPending() {
 	useState(() => {
 		// Quiet on purpose, like `AuthSeed`: it runs while a component renders,
 		// and the provider reads the flag when its effect runs.
-		if (typeof window !== "undefined" && auth.loading) seeding = true;
+		if (typeof window !== "undefined" && auth.loading) seedHold.begin();
 	});
 	// A route that never gets its seed (the stream failed, the visitor
 	// navigated away) must not hold the provider's read back for good.
@@ -115,8 +112,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 		() => UNKNOWN,
 	);
 	const epoch = useSyncExternalStore(
-		subscribeAuth,
-		() => seedEpoch,
+		seedHold.subscribe,
+		seedHold.epoch,
 		() => 0,
 	);
 	const setAccount = useCallback(

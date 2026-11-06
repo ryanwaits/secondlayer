@@ -2,8 +2,12 @@
 
 import { MobileShell } from "@/components/mobile/mobile-shell";
 import { useAuth } from "@/lib/auth";
-import { insightsSnapshot, startInsightsPolling } from "@/lib/insights-store";
-import { useEffect } from "react";
+import {
+	insightsHold,
+	insightsSnapshot,
+	startInsightsPolling,
+} from "@/lib/insights-store";
+import { useEffect, useSyncExternalStore } from "react";
 
 /**
  * The account pages frame. The tabs, the chain heartbeat and the current
@@ -32,14 +36,23 @@ export function AccountFrame({
 	// the server has already put them in the store (children render before
 	// this effect runs), so the poll then waits a full interval.
 	const mayBeSignedIn = !signedOut && (loading || signedIn);
+	// The page's insights may still be streaming in: the first fetch waits for
+	// its seed, and the seed (or leaving the route) re-runs this effect.
+	const held = useSyncExternalStore(
+		insightsHold.subscribe,
+		insightsHold.epoch,
+		() => 0,
+	);
+	// biome-ignore lint/correctness/useExhaustiveDependencies: `held` re-runs this when the hold-back ends
 	useEffect(
 		() =>
 			mayBeSignedIn
 				? startInsightsPolling({
-						immediate: insightsSnapshot().status === "idle",
+						immediate:
+							!insightsHold.active() && insightsSnapshot().status === "idle",
 					})
 				: undefined,
-		[mayBeSignedIn],
+		[mayBeSignedIn, held],
 	);
 
 	// Signed out is the one case that still blocks: nothing account-specific

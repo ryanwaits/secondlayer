@@ -3,6 +3,7 @@
 import { AccountCompactHeader } from "@/components/account/compact-account";
 import { PushSettings } from "@/components/account/push/push-settings";
 import { COMPACT_QUERY, useCompact } from "@/components/mobile/use-compact";
+import { insightsHold } from "@/lib/insights-store";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 
@@ -10,6 +11,9 @@ import { useEffect } from "react";
 export default function AccountPushPage() {
 	const compact = useCompact();
 	const router = useRouter();
+	// This page reads no insights on the server, so nothing will seed them:
+	// let the frame fetch.
+	useEffect(() => insightsHold.end(), []);
 	useEffect(() => {
 		// Read the media query directly: useCompact() is false during hydration.
 		if (!window.matchMedia(COMPACT_QUERY).matches) router.replace("/account");
