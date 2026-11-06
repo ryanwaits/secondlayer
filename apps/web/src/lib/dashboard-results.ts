@@ -52,7 +52,12 @@ export function resultFromResponse<T>(
 		res.headers.get("Retry-After"),
 		errorMessageOf(body, res.status),
 	);
-	return mapped ?? { kind: "ok", data: body as T };
+	if (mapped) return mapped;
+	// A 2xx with no readable body has no payload to hand the page.
+	if (body === null || body === undefined) {
+		return { kind: "error", message: "Couldn't reach the API" };
+	}
+	return { kind: "ok", data: body as T };
 }
 
 /** The notice a page starts with from its server read. A server read that

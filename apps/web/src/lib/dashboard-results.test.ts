@@ -75,6 +75,21 @@ describe("resultFromResponse", () => {
 			data: { a: 1 },
 		});
 	});
+	test("a 2xx with no body is an error, not ok with null data", () => {
+		expect(resultFromResponse(res(200), null)).toEqual({
+			kind: "error",
+			message: "Couldn't reach the API",
+		});
+	});
+	test("a 2xx with an empty list is ok", () => {
+		expect(resultFromResponse(res(200), { data: [] })).toEqual({
+			kind: "ok",
+			data: { data: [] },
+		});
+	});
+	test("a 404 stays not_found", () => {
+		expect(resultFromResponse(res(404), null)).toEqual({ kind: "not_found" });
+	});
 	test("503 with an asleep error is asleep, not starting", () => {
 		expect(resultFromResponse(res(503), { error: "asleep" })).toEqual({
 			kind: "asleep",
