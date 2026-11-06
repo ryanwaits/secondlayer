@@ -921,7 +921,7 @@ function TwinToken({
 						style={{
 							fontFamily: "Geist Mono",
 							fontSize: 18,
-							color: "SUB",
+							color: SUB,
 						}}
 					>
 						{meta.replace(/ /g, NB)}
@@ -1026,7 +1026,7 @@ function ArtRobinhood() {
 						style={{
 							fontFamily: "Geist Mono",
 							fontSize: 18,
-							color: "SUB",
+							color: SUB,
 						}}
 					>
 						{"burn the twin to unlock".replace(/ /g, NB)}
@@ -1052,6 +1052,61 @@ function ArtRobinhood() {
 	);
 }
 
+// The /robinhood/guide round trip as the tester runs it: two transactions of
+// theirs, two waits of ours, in the page's step order.
+const GUIDE_STEPS = [
+	["1", "Lock on Stacks", "you"],
+	["2", "Twin mints on 4663", "~70 min"],
+	["3", "Burn the twin", "you"],
+	["4", "Released on Stacks", "~20 min"],
+] as const;
+
+function ArtGuide() {
+	return (
+		<div
+			style={{
+				width: 440,
+				display: "flex",
+				flexDirection: "column",
+				background: PAPER,
+				border: `1.5px solid ${LINE}`,
+				borderRadius: 18,
+			}}
+		>
+			{GUIDE_STEPS.map(([n, step, who], i) => (
+				<div
+					key={n}
+					style={{
+						display: "flex",
+						alignItems: "center",
+						gap: 20,
+						padding: "26px 28px",
+						borderTop: i === 0 ? "none" : `1.5px solid ${LINE}`,
+					}}
+				>
+					<T size={20} color={FAINT}>
+						{n}
+					</T>
+					<span
+						style={{
+							flex: 1,
+							fontFamily: "Geist",
+							fontWeight: 500,
+							fontSize: 26,
+							color: INK,
+						}}
+					>
+						{step}
+					</span>
+					<T size={18} color={SUB}>
+						{who.replace(/ /g, NB)}
+					</T>
+				</div>
+			))}
+		</div>
+	);
+}
+
 // ── frame ────────────────────────────────────────────────────────────────────
 
 type CardSpec = {
@@ -1066,6 +1121,9 @@ type CardSpec = {
 	artifact: React.ReactNode;
 	/** Highlight color behind line 2 (yellow; Robin Neon on the partner card). */
 	highlight?: string;
+	/** A status seal (the pages' yellow "live" chip) closing the headline. It
+	    carries the yellow, so line 2 goes unmarked. */
+	seal?: string;
 	/** Headline across the card's full width with the artifact underneath
 	    (home), matching the home hero. Default is headline left, artifact
 	    right. */
@@ -1237,24 +1295,42 @@ function Frame(spec: CardSpec) {
 					>
 						{spec.line1}
 					</span>
-					{spec.line2.split("|").map((beat) => (
-						<span
+					{spec.line2.split("|").map((beat, i, beats) => (
+						<div
 							key={beat}
-							style={{
-								fontFamily: "Geist",
-								fontWeight: 500,
-								fontSize: size,
-								color: INK,
-								lineHeight: 1.1,
-								letterSpacing: -size * 0.04,
-								alignSelf: "flex-start",
-								background: hl,
-								padding: "0 14px",
-								marginLeft: -14,
-							}}
+							style={{ display: "flex", alignItems: "center", gap: 20 }}
 						>
-							{beat}
-						</span>
+							<span
+								style={{
+									fontFamily: "Geist",
+									fontWeight: 500,
+									fontSize: size,
+									color: INK,
+									lineHeight: 1.1,
+									letterSpacing: -size * 0.04,
+									alignSelf: "flex-start",
+									...(spec.seal
+										? {}
+										: { background: hl, padding: "0 14px", marginLeft: -14 }),
+								}}
+							>
+								{beat}
+							</span>
+							{spec.seal && i === beats.length - 1 ? (
+								<T
+									size={18}
+									color={INK}
+									style={{
+										letterSpacing: 1.5,
+										background: hl,
+										borderRadius: 999,
+										padding: "7px 16px",
+									}}
+								>
+									{spec.seal}
+								</T>
+							) : null}
+						</div>
 					))}
 				</div>
 			</div>
@@ -1357,6 +1433,16 @@ const CARDS: CardSpec[] = [
 		size: 60,
 		path: `${SITE}/robinhood`,
 		artifact: <ArtRobinhood />,
+	},
+	{
+		file: "robinhood-guide.png",
+		eyebrow: "BRIDGE · TESTER GUIDE",
+		line1: "Test the bridge.",
+		line2: "Phase 0 is live.",
+		seal: "LIVE",
+		size: 60,
+		path: `${SITE}/robinhood/guide`,
+		artifact: <ArtGuide />,
 	},
 ];
 
