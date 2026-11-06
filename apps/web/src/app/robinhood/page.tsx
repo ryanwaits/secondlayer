@@ -23,7 +23,7 @@ import { WaitlistForm } from "./waitlist-form";
 export const metadata: Metadata = socialMeta({
 	title: "Stacks to Robinhood Chain",
 	description:
-		"Bridge your Stacks token to Robinhood Chain and back. Rehearsed end to end on testnet, mainnet next. Join the waitlist.",
+		"Bridge your Stacks token to Robinhood Chain and back. Each ERC-20 twin is backed one to one by the token locked on Stacks.",
 	image: "/og/robinhood.png",
 	path: "/robinhood",
 });
@@ -32,35 +32,37 @@ const PHASES: {
 	key: string;
 	title: string;
 	body: string;
-	now?: boolean;
-	status?: string;
+	status: "live" | "next" | "planned";
 }[] = [
 	{
 		key: "Phase 0",
 		title: "2-of-2 custodian",
-		body: "A demo token for the grant evidence, plus a capped pilot of real tokens.",
-		now: true,
-		status: "testnet done · mainnet next",
+		body: "Two keys, one person. Real tokens, each with a fixed cap.",
+		status: "live",
 	},
 	{
 		key: "Phase 1",
 		title: "2-of-3 federation",
-		body: "A third signer who isn't the builder, and a timeout so a lost key can't freeze escrow. Capped sBTC (as slsBTC, never bare sBTC) and STX join here.",
+		body: "A signer who isn't the builder, and a timeout so a lost key can't freeze escrow. sBTC and STX join here.",
+		status: "next",
 	},
 	{
 		key: "Phase 2",
-		title: "Bond + challenge",
-		body: "A watcher can stop a bad release. Still keyed.",
+		title: "Bond and challenge",
+		body: "A watcher can stop a bad release.",
+		status: "planned",
 	},
 	{
 		key: "Phase 3",
 		title: "Trustless release",
-		body: "Stacks checks each release against an Ethereum root, so no key signs it.",
+		body: "Stacks checks each release against an Ethereum root. No key signs it.",
+		status: "planned",
 	},
 	{
 		key: "Phase 4",
 		title: "Trustless mint",
-		body: "A lock is proven to Robinhood Chain from a Bitcoin-anchored Stacks block, so the Safe stops being the minter. sBTC and STX take the same path.",
+		body: "A lock is proven to Robinhood Chain from a Bitcoin-anchored Stacks block. No key mints.",
+		status: "planned",
 	},
 ];
 
@@ -102,60 +104,51 @@ function VendorLogo({
 	);
 }
 
-const HIRO_TX = "https://explorer.hiro.so/txid/";
-const RH_TX = "https://explorer.testnet.chain.robinhood.com/tx/";
+const HIRO_MAINNET_TX = "https://explorer.hiro.so/txid/";
+const RH_MAINNET_TX = "https://robinhoodchain.blockscout.com/tx/";
 
-/** The testnet rehearsal's public txs (robinhood-bridge proof/m2.json). */
+/** The mainnet round trip's public txs. */
 const PROOF = [
 	{
 		label: "Lock",
 		chain: "Stacks",
-		href: `${HIRO_TX}0x00504c4ec6ea9c5897df53cb360f63aa7fecf79ebc8fc6e16c3236c220fb4fd3?chain=testnet`,
+		href: `${HIRO_MAINNET_TX}0x221dd4907a062f3af9983c0fb8c3baa5620eb0a8fb02cec54449b5d91e6b13be?chain=mainnet`,
 	},
 	{
 		label: "Mint",
-		chain: "46630",
-		href: `${RH_TX}0xdedc6cf7bd62632a95808c5a4a1b0b9aa26da08202b48fd9753b43467b570504`,
+		chain: "4663",
+		href: `${RH_MAINNET_TX}0x0ee9e157db2be8d41806289cd6f4e7b9537bc798f0d9d0954b3ffcca51a51894`,
 	},
 	{
 		label: "Burn",
-		chain: "46630",
-		href: `${RH_TX}0xd02c48f5f1d03e472ee7867efd79f450796c1638fe394fdfc4f2dfa268cea1af`,
+		chain: "4663",
+		href: `${RH_MAINNET_TX}0x00281d3264f2cd78184d1d21d965d4e599743da73bcb6c70f74ebe97d5c176f3`,
 	},
 	{
 		label: "Release",
 		chain: "Stacks",
-		href: `${HIRO_TX}0x9bbd53c1ae0daedeef60943649f05defb4c15afe67b6e7f9ad4e48fb2f2f03c3?chain=testnet`,
-	},
-	{
-		label: "PEPE release",
-		chain: "Stacks",
-		href: `${HIRO_TX}0x1623c67155700e45cb7992b89bf8f36818a0b7530a126f0cfdbd2f704dd87486?chain=testnet`,
+		href: `${HIRO_MAINNET_TX}0xfd1b6e0ece29085f15251ffb5225f1188eb68535518db78b8eb47269fc613d55?chain=mainnet`,
 	},
 ];
 
 const DRILLS = {
-	replay: `${RH_TX}0x4ca40351d02d2524b82e974d779468c589a55b375ecda3f3363d17665a63c261`,
-	noBurn: `${HIRO_TX}0x951bd47980058f1c3104deb717835c72fae44453fc6339cda865e1a415931429?chain=testnet`,
+	replay: `${RH_MAINNET_TX}0x61d15e6b026b700b2c1de8bb6058d581bbf5ee946c808965af886fdeb38a00cf`,
+	noBurn: `${HIRO_MAINNET_TX}0x23216e13cf1435108af12f070b0554c1aca197cebd951b69473953559b630ebf?chain=mainnet`,
 };
 
 /** Phase 0's trust model, from robinhood-bridge NOTE.md. */
 const TRUST = [
 	{
-		title: "One person, both keys",
-		body: "A 2-of-2 multisig on Stacks and a 2-of-2 Safe on Robinhood Chain, held by the builder on two devices.",
-	},
-	{
 		title: "The keys are the bridge",
-		body: "Release doesn't check the burn and mint doesn't check the lock. Neither chain can read the other.",
+		body: "In phase 0, release doesn't check the burn and mint doesn't check the lock.",
 	},
 	{
-		title: "The issuer counts too",
-		body: "A token's admin powers add trust in its issuer. PEPE's owner can grant a role that moves any holder's balance, escrow included.",
+		title: "Issuers count too",
+		body: "A token's own admin powers are trust in its issuer. PEPE's were renounced on chain in 2024; MEGA has none.",
 	},
 	{
-		title: "Backing stops new mints",
-		body: "If escrow falls short, the relayer stops minting that token. It doesn't restore what's already bridged.",
+		title: "Not a Robinhood app balance",
+		body: "Never send a twin to a Robinhood deposit address.",
 	},
 ];
 
@@ -208,15 +201,13 @@ export default function RobinhoodPage() {
 								Don't mint a copy. <Highlight>Bridge the original.</Highlight>
 							</h1>
 							<p className="lede">
-								Bridge your Stacks token to Robinhood Chain and back. Lock it on
-								Stacks and an ERC-20 twin mints after 6 Bitcoin confirmations.
-								Burn the twin to release the original. It ran end to end on
-								testnet. Mainnet is next and isn't live yet.
+								Lock your Stacks token and its ERC-20 twin mints on Robinhood
+								Chain. Burn the twin to bring the original home.
 							</p>
 							<div className="btns">
 								<ButtonLink href="#join">Join the waitlist</ButtonLink>
 								<ButtonLink href="#phases" variant="secondary">
-									What's trusted today
+									See the roadmap
 								</ButtonLink>
 							</div>
 							{/* Each logo stands alone with its own clear space: Robinhood
@@ -273,11 +264,9 @@ export default function RobinhoodPage() {
 								<Eyebrow noun="1:1 backing" />
 								<h2>One mint per lock, signed by both keys.</h2>
 								<p className="lede">
-									The twin mints once per Stacks lock, and only from the 2-of-2
-									Safe. It can't read Stacks, so the keys are what tie a mint to
-									a real lock. The relayer finds each lock through secondlayer
-									Streams, finalized only, and checks the locker still backs it
-									before it signs.
+									Each twin mints once per Stacks lock, and only while the
+									locker still holds enough to back it. Locks come from
+									secondlayer Streams, finalized only.
 								</p>
 							</div>
 							<dl className="rh-facts">
@@ -313,13 +302,12 @@ export default function RobinhoodPage() {
 						</CodeTabs>
 						<div className="rh-proof">
 							<div className="rh-proof-head">
-								<span className="cap">Rehearsed on testnet</span>
+								<span className="cap">On chain</span>
 								<p>
-									Stacks testnet and Robinhood Chain testnet (46630), with a
-									Ledger as the second key. A{" "}
-									<a href={DRILLS.replay}>replayed mint</a> reverted on chain. A{" "}
-									<a href={DRILLS.noBurn}>release with no burn</a> paid out, on
-									purpose: that's the hole below.
+									Every step is a public transaction. A{" "}
+									<a href={DRILLS.replay}>replayed mint</a> reverts, and a{" "}
+									<a href={DRILLS.noBurn}>release with no burn</a> pays out: the
+									hole, run on purpose.
 								</p>
 							</div>
 							<ol className="rh-proof-list">
@@ -339,27 +327,30 @@ export default function RobinhoodPage() {
 				<div className="band" id="phases">
 					<div className="shell">
 						<div className="sec-head">
-							<Eyebrow noun="What's trusted today" />
+							<Eyebrow noun="Roadmap" />
 							<h2>Custodial first. Keys come out one phase at a time.</h2>
 						</div>
-						<ol className="rh-phases">
+						<ol className="rh-road">
 							{PHASES.map((p) => (
 								<li
 									key={p.key}
-									className={p.now ? "rh-phase is-now" : "rh-phase"}
+									className={
+										p.status === "live" ? "rh-road-row is-now" : "rh-road-row"
+									}
 								>
-									<span className="rh-phase-key">
-										{p.key}
-										{p.now && <span className="seal">now</span>}
+									<span className="rh-road-key">{p.key}</span>
+									<div className="rh-road-body">
+										<h3>{p.title}</h3>
+										<p>{p.body}</p>
+									</div>
+									<span
+										className={
+											p.status === "live" ? "status live" : "status soon"
+										}
+									>
+										<i />
+										{p.status}
 									</span>
-									<h3>{p.title}</h3>
-									<p>{p.body}</p>
-									{p.status && (
-										<span className="status soon">
-											<i />
-											{p.status}
-										</span>
-									)}
 								</li>
 							))}
 						</ol>
@@ -375,8 +366,7 @@ export default function RobinhoodPage() {
 							<i />
 							<span>
 								<strong>Don't bridge anything you can't afford to lose.</strong>{" "}
-								Real tokens are capped, so the keys can lose at most a token's
-								cap. They can still lose that.
+								Caps limit what the keys can lose. They can still lose that.
 							</span>
 						</p>
 					</div>
@@ -388,14 +378,11 @@ export default function RobinhoodPage() {
 							<Eyebrow noun="Waitlist" />
 							<h2>Want your token on Robinhood Chain?</h2>
 							<p>
-								Tokens are added one at a time, once we've read the token's
-								contract. Both keys register each one with its own ERC-20 and
-								cap. A token that takes a fee on transfer is refused.
+								Tokens are added one at a time, after we've read the contract.
 							</p>
 							<p>
-								The waitlist sets the order. PEPE and MEGA, the most requested,
-								are planned first, capped. Issuers and teams go next; holders
-								show us where the demand is.
+								Bridging now: MEGA and PEPE. Issuers go next, and holders show
+								us where the demand is.
 							</p>
 							<RequestedTokens />
 						</div>

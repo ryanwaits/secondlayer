@@ -1,8 +1,8 @@
 /* /robinhood: Stacks ⇄ Robinhood Chain waitlist microsite. Built on the
    marketing kit (`.site`, site.css); this file holds only what the kit lacks.
-   Robin Neon (--rh-neon) appears once, on the twin's "live" chip in the hero
-   art, never on the Robinhood Chain name or logo, which their brand rules
-   forbid styling. */
+   Robin Neon (--rh-neon) appears on the twin's "live" chip in the hero art
+   and as a tint on the live roadmap row, never on the Robinhood Chain name or
+   logo, which their brand rules forbid styling. */
 .rh {
 	--rh-neon: #ccff00;
 	--rh-on-neon: #000000;
@@ -130,68 +130,60 @@ body:has(.rh) .auth-bar {
 	text-align: right;
 }
 
-/* phases: one hairline row, ink rule over the current phase */
+/* roadmap: one bordered panel, a row per phase, neon tint on the live one */
 .rh .sec-head {
 	max-width: 44rem;
 	margin-bottom: 36px;
 }
-.rh-phases {
+.rh-road {
 	display: grid;
-	grid-template-columns: repeat(5, 1fr);
 	margin: 0;
 	padding: 0;
 	list-style: none;
+	border: 1px solid var(--line);
+	border-radius: 10px;
+	overflow: hidden;
+	background: var(--paper);
 }
-.rh-phase {
+.rh-road-row {
 	display: grid;
-	align-content: start;
-	gap: 8px;
-	padding: 20px 20px 20px 0;
+	grid-template-columns: 96px minmax(0, 1fr) auto;
+	gap: 20px;
+	align-items: baseline;
+	padding: 20px 22px;
+}
+.rh-road-row + .rh-road-row {
 	border-top: 1px solid var(--line);
 }
-.rh-phase + .rh-phase {
-	padding-left: 20px;
-	border-left: 1px solid var(--line);
+.rh-road-row.is-now {
+	background: color-mix(in srgb, var(--rh-neon) 12%, var(--paper));
 }
-.rh-phase.is-now {
-	border-top-color: var(--ink);
-}
-.rh-phase-key {
-	display: flex;
-	align-items: center;
-	/* the "now" seal's height, so every title starts on one line */
-	height: 20px;
-	gap: 8px;
+.rh-road-key {
 	font: 400 12px / 1 var(--font-mono-stack);
 	color: var(--sub);
 }
-.rh-phase .seal {
-	height: 20px;
-	padding: 0 8px;
-	font-size: 10.5px;
+.rh-road-body {
+	display: grid;
+	gap: 4px;
+	min-width: 0;
 }
-.site .rh-phase h3 {
+.site .rh-road-body h3 {
 	font-size: 16px;
-	color: var(--sub);
-}
-.site .rh-phase.is-now h3 {
 	color: var(--ink);
 }
-.rh-phase p {
+.rh-road-body p {
+	max-width: 62ch;
 	font-size: 14px;
 	color: var(--sub);
 }
-.rh-phase .status {
-	margin-top: 4px;
+.rh-road-row .status {
+	white-space: nowrap;
 }
-@media (max-width: 900px) {
-	.rh-phases {
+@media (max-width: 760px) {
+	.rh-road-row {
 		grid-template-columns: 1fr;
-	}
-	.rh-phase,
-	.rh-phase + .rh-phase {
-		padding: 18px 0;
-		border-left: 0;
+		gap: 6px;
+		padding: 16px;
 	}
 }
 /* Notice: hairline surface + status dot + text. */
@@ -487,7 +479,7 @@ body:has(.rh) .auth-bar {
 	}
 }
 
-/* testnet proof strip: hairline row of explorer links */
+/* proof strip: hairline row of explorer links */
 .rh-proof {
 	display: grid;
 	grid-template-columns: 1fr 1.4fr;
@@ -511,7 +503,7 @@ body:has(.rh) .auth-bar {
 }
 .rh-proof-list {
 	display: grid;
-	grid-template-columns: repeat(5, 1fr);
+	grid-template-columns: repeat(4, 1fr);
 	margin: 0;
 	padding: 0;
 	list-style: none;
@@ -538,9 +530,6 @@ body:has(.rh) .auth-bar {
 		grid-template-columns: 1fr;
 		gap: 16px;
 	}
-	.rh-proof-list {
-		grid-template-columns: 1fr 1fr;
-	}
 	.rh-proof-list li + li {
 		border-left: 0;
 	}
@@ -548,11 +537,16 @@ body:has(.rh) .auth-bar {
 		padding: 8px 0;
 	}
 }
+@media (max-width: 760px) {
+	.rh-proof-list {
+		grid-template-columns: 1fr 1fr;
+	}
+}
 
-/* trust model: four hairline cells under the phases */
+/* trust model: three hairline cells under the phases */
 .rh-trust {
 	display: grid;
-	grid-template-columns: repeat(4, 1fr);
+	grid-template-columns: repeat(3, 1fr);
 	gap: 0 24px;
 	margin: 40px 0 0;
 	padding: 0;
