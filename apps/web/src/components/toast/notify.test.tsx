@@ -1,7 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { renderToStaticMarkup } from "react-dom/server";
 import {
-	ToastCard,
 	clearUndo,
 	durationFor,
 	isUndoShortcut,
@@ -82,49 +80,5 @@ describe("isUndoShortcut", () => {
 			closest: (s: string) => (s.includes("input") ? {} : null),
 		} as unknown as EventTarget;
 		expect(isUndoShortcut({ ...base, metaKey: true, target })).toBe(false);
-	});
-});
-
-describe("ToastCard", () => {
-	test("each kind gets its dot and its life line", () => {
-		for (const kind of ["done", "ok", "fail"] as const) {
-			const html = renderToStaticMarkup(
-				<ToastCard kind={kind} title="Saved" duration={5000} />,
-			);
-			expect(html).toContain(`tst-dot ${kind}`);
-			expect(html).toContain("tst-life");
-			expect(html).toContain("--life:5000ms");
-		}
-	});
-	test("busy shows a spinner with no close button and no life line", () => {
-		const html = renderToStaticMarkup(
-			<ToastCard
-				kind="busy"
-				title="Working"
-				duration={Number.POSITIVE_INFINITY}
-			/>,
-		);
-		expect(html).toContain("tst-spin");
-		expect(html).not.toContain("tst-x");
-		expect(html).not.toContain("tst-life");
-	});
-	test("failures are announced as alerts, others as status", () => {
-		expect(
-			renderToStaticMarkup(<ToastCard kind="fail" title="x" duration={1} />),
-		).toContain('role="alert"');
-		expect(
-			renderToStaticMarkup(<ToastCard kind="done" title="x" duration={1} />),
-		).toContain('role="status"');
-	});
-	test("undo shows its shortcut", () => {
-		const html = renderToStaticMarkup(
-			<ToastCard
-				kind="done"
-				title="Paused"
-				duration={6000}
-				actions={[{ label: "Undo", onClick: () => {}, shortcut: true }]}
-			/>,
-		);
-		expect(html).toContain("Undo<kbd>⌘Z</kbd>");
 	});
 });

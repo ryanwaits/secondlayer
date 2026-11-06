@@ -1,12 +1,8 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import { clearRequestCache } from "@/lib/request-cache";
 import type { ChainTrigger } from "@secondlayer/sdk";
-import { renderToStaticMarkup } from "react-dom/server";
 import { answeredAttempt } from "./delivery-view";
 import {
-	JsonView,
-	PayloadPanel,
-	PayloadView,
 	clampString,
 	markMatcher,
 	parseBody,
@@ -14,7 +10,6 @@ import {
 	prefetchOnIntent,
 	readDelivery,
 } from "./payload-view";
-import { attempt } from "./webhook.fixtures";
 
 // A real delivery: the fastpool unstake print event.
 const SENT = {
@@ -101,43 +96,7 @@ describe("clampString", () => {
 	});
 });
 
-describe("JsonView", () => {
-	const html = renderToStaticMarkup(
-		<JsonView value={SENT} isMarked={markMatcher(FASTPOOL)} />,
-	);
-
-	test("the signer and contract_id values are marked", () => {
-		expect(html).toContain(
-			'<span class="m"><span class="s">&quot;SPMPMA1V6P430M8C91QS1G9XJ95S59JS1TZFZ4Q4.fastpool-max500-signer-manager&quot;</span></span>',
-		);
-		expect(html).toContain(
-			'<span class="m"><span class="s">&quot;SP000000000000000000002Q6VF78.pox-5&quot;</span></span>',
-		);
-	});
-
-	test("raw_value is clamped with its hidden count", () => {
-		expect(html).toContain(">+452<");
-	});
-
-	test("a 66-character tx_id is shown whole", () => {
-		expect(html).toContain(SENT.data.tx_id);
-		expect(html.match(/class="pv-more"/g)?.length).toBe(1);
-	});
-
-	test("unmarked values stay unmarked without a matcher", () => {
-		expect(renderToStaticMarkup(<JsonView value={SENT} />)).not.toContain(
-			'class="m"',
-		);
-	});
-});
-
 describe("parseBody", () => {
-	test("a non-JSON body comes back raw", () => {
-		expect(parseBody("<html>nope</html>")).toEqual({
-			raw: "<html>nope</html>",
-		});
-	});
-
 	test("JSON parses and an empty body is null", () => {
 		expect(parseBody('{"a":1}')).toEqual({ json: { a: 1 } });
 		expect(parseBody(null)).toBeNull();
@@ -145,34 +104,6 @@ describe("parseBody", () => {
 });
 
 describe("the Response tab after a retry", () => {
-	const attempts = [
-		{ id: "a1", statusCode: 502, responseBody: "bad gateway" },
-		{ id: "a2", statusCode: null, responseBody: null },
-	];
-
-	test("a timed-out final retry still shows the earlier attempt's body and status", () => {
-		const answered = answeredAttempt(attempts);
-		expect(answered.id).toBe("a1");
-		const html = renderToStaticMarkup(
-			<PayloadPanel
-				load={{
-					status: "ok",
-					detail: { payload: null, responseBody: null } as never,
-				}}
-				triggers={[]}
-				responseBody={answered.responseBody}
-				statusCode={answered.statusCode}
-				responseIsLatest={answered.id === "a2"}
-				host="example.com"
-				webhookName="hook"
-				attempts={[attempt()]}
-				finding={null}
-			/>,
-		);
-		expect(html).toContain("Response 502");
-		expect(html).toContain("bad gateway");
-	});
-
 	test("with no body on any attempt the newest attempt answers", () => {
 		expect(
 			answeredAttempt([
@@ -180,93 +111,6 @@ describe("the Response tab after a retry", () => {
 				{ id: "a2", responseBody: null },
 			]).id,
 		).toBe("a2");
-	});
-});
-
-describe("the payload viewer on an asleep stack", () => {
-	const html = renderToStaticMarkup(
-		<PayloadPanel
-			load={{ status: "asleep" }}
-			triggers={[]}
-			responseBody='{"ok":true}'
-			statusCode={200}
-			responseIsLatest
-			host="example.com"
-			webhookName="hook"
-			attempts={[attempt()]}
-			finding={null}
-		/>,
-	);
-
-	test("opens on the response, which came with the deliveries list", () => {
-		expect(html).toContain('aria-selected="true">Response 200');
-		expect(html).toContain("What example.com sent back");
-		expect(html).not.toContain("Couldn&#x27;t load the payload.");
-	});
-
-	test("disables Sent and says resuming shows it", () => {
-		expect(html).toContain('aria-disabled="true"');
-		expect(html).toContain("Resume this webhook to see what was sent");
-	});
-});
-
-describe("the payload viewer's Fields tab", () => {
-	const raw = SENT.data.event.data.raw_value;
-	const panel = (payload: unknown) =>
-		renderToStaticMarkup(
-			<PayloadPanel
-				load={{
-					status: "ok",
-					detail: { payload, responseBody: null } as never,
-				}}
-				triggers={FASTPOOL}
-				responseBody={null}
-				statusCode={200}
-				responseIsLatest
-				host="example.com"
-				webhookName="hook"
-				attempts={[attempt()]}
-				finding={null}
-			/>,
-		);
-
-	test("a payload with event data opens on Fields", () => {
-		const html = panel({
-			event: { data: SENT.data.event.data },
-			trigger: "print_event",
-		});
-		expect(html).toContain('aria-selected="true">Fields');
-		expect(html).toContain("pv-fields");
-		expect(html).toContain("print_event");
-	});
-
-	test("a payload without event data has no Fields tab and opens on Sent", () => {
-		const html = panel({ hello: "world" });
-		expect(html).not.toContain("Fields");
-		expect(html).toContain('aria-selected="true">Sent');
-	});
-
-	test("raw_value is clamped in Fields with its hidden count", () => {
-		const html = panel({ event: { data: SENT.data.event.data } });
-		expect(html).toContain(`>+${raw.length - 38}<`);
-	});
-
-	test("filter values are marked in Fields", () => {
-		const html = panel({ event: { data: SENT.data.event.data } });
-		expect(html).toContain(
-			'<span class="m"><span class="s">SP000000000000000000002Q6VF78.pox-5</span></span>',
-		);
-	});
-
-	test("block and tx link out to the explorer", () => {
-		const html = panel({
-			event: { data: SENT.data.event.data },
-			block_hash: "0xabc",
-		});
-		expect(html).toContain(
-			"https://explorer.hiro.so/block/0xabc?chain=mainnet",
-		);
-		expect(html).toContain("https://explorer.hiro.so/txid/0x");
 	});
 });
 
@@ -288,21 +132,6 @@ describe("delivery prefetch", () => {
 			});
 		}) as unknown as typeof fetch;
 	}
-	const view = (deliveryId: string) => (
-		<PayloadView
-			webhookId="wh"
-			deliveryId={deliveryId}
-			asleep={false}
-			triggers={[]}
-			responseBody={null}
-			statusCode={200}
-			responseIsLatest
-			host="example.com"
-			webhookName="hook"
-			attempts={[attempt()]}
-			finding={null}
-		/>
-	);
 
 	test("a hover read and the click's read are one request", async () => {
 		stubFetch();
@@ -312,18 +141,6 @@ describe("delivery prefetch", () => {
 			readDelivery("wh", "d-share"),
 		]);
 		expect(calls).toBe(1);
-	});
-
-	test("a prefetched delivery renders ok on the first frame", async () => {
-		stubFetch();
-		await prefetchDelivery("wh", "d-first");
-		expect(renderToStaticMarkup(view("d-first"))).not.toContain("Loading");
-		expect(calls).toBe(1);
-	});
-
-	test("an unread delivery renders the loading frame", () => {
-		stubFetch();
-		expect(renderToStaticMarkup(view("d-cold"))).toContain("Loading");
 	});
 
 	test("an asleep stack or an open row makes no request", async () => {

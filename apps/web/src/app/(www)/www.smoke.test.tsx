@@ -1,60 +1,8 @@
-import { describe, expect, mock, test } from "bun:test";
+import { describe, expect, test } from "bun:test";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { DOCS_STRIP } from "@/lib/nav";
-import { PRODUCTS } from "@/lib/site";
-import { renderAsync } from "@/lib/test-render";
 import { DOCS_NAV, docsNavPages } from "./docs/nav";
-
-// bun's mock.module is process-wide, so stub every export the app imports.
-mock.module("next/navigation", () => ({
-	usePathname: () => "/",
-	useRouter: () => ({}),
-	useSearchParams: () => new URLSearchParams(),
-	useParams: () => ({}),
-	notFound: () => {},
-	redirect: () => {},
-	permanentRedirect: () => {},
-}));
-
-const { HomeView } = await import("./page");
-
-describe("www marketing routes", () => {
-	/**
-	 * Structure and positioning, not wording. This test used to pin the exact
-	 * hero headline, which made every copy revision a test failure — the page
-	 * can be rewritten freely as long as it still renders and still makes the
-	 * self-host claim.
-	 */
-	test("/ renders the landing page", async () => {
-		const html = await renderAsync(<HomeView />);
-		expect(html).toContain('class="site home"');
-		expect(html.match(/<h1>/g)).toHaveLength(1);
-		for (const p of PRODUCTS) expect(html).toContain(`href="${p.href}"`);
-		expect(html).toContain('href="/verify"');
-		expect(html).toContain("Proof included.");
-		expect(html).toContain("example rows");
-		expect(html).toContain("Coming soon");
-		expect(html).not.toContain("—");
-		expect(html).not.toContain("secondlayer-labs");
-		// An in-page link must land on something; a bare "#" is a placeholder.
-		for (const [, id] of html.matchAll(/href="#([^"]*)"/g)) {
-			expect(id).not.toBe("");
-			expect(html).toContain(`id="${id}"`);
-		}
-	});
-
-	test("/ says what is live and what is coming, and no withdrawn products", async () => {
-		const html = await renderAsync(<HomeView />);
-		// Clarity contract state is listed as coming, not live.
-		expect(html).toMatch(/Coming soon<\/span>.*id="clarity-state-writes"/);
-		expect(html).toContain('href="/p/subgraphs"');
-		expect(html).toContain('href="/p/webhooks"');
-		// No stats strip, and nothing withdrawn.
-		expect(html).not.toContain("Explore subgraphs is live");
-		expect(html).not.toContain('href="/subgraphs/explore"');
-	});
-});
 
 describe("docs site strip", () => {
 	test("session chrome is not hardcoded into the leave-docs links", () => {

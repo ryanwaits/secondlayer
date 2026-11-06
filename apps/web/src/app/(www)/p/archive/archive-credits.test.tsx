@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import type { ReactElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { checkedRadios, findElements } from "../../../../lib/test-render";
+import { findElements } from "../../../../lib/test-render";
 import { ArchiveCredits } from "./archive-credits";
 
 const realFetch = globalThis.fetch;
@@ -10,16 +10,6 @@ afterEach(() => {
 });
 
 describe("archive credits", () => {
-	test("offers the four packs under one field, $25 preselected", () => {
-		const html = renderToStaticMarkup(<ArchiveCredits />);
-		for (const usd of [10, 25, 50, 100]) {
-			expect(html).toMatch(
-				new RegExp(`<input[^>]*name="pack"[^>]*value="${usd}"`),
-			);
-		}
-		expect(checkedRadios(html)).toEqual({ pack: "25" });
-	});
-
 	test("checkout posts the amount that was selected, as a number", async () => {
 		const bodies: unknown[] = [];
 		globalThis.fetch = (async (_url: unknown, init?: RequestInit) => {

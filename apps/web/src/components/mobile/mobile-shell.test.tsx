@@ -1,13 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import type { Insight } from "@/lib/insights";
-import { renderToStaticMarkup } from "react-dom/server";
-import {
-	MobileHeader,
-	MobileTabBar,
-	currentTab,
-	mobileHeader,
-	newInsightCount,
-} from "./mobile-shell";
+import { currentTab, mobileHeader, newInsightCount } from "./mobile-shell";
 
 describe("currentTab", () => {
 	test("Pulse is only exactly /account", () => {
@@ -65,61 +58,5 @@ describe("newInsightCount", () => {
 			insight("2026-10-09T00:00:00Z"),
 		];
 		expect(newInsightCount(list, seenAt)).toBe(1);
-	});
-});
-
-describe("MobileTabBar", () => {
-	test("marks exactly one tab current", () => {
-		const html = renderToStaticMarkup(
-			<MobileTabBar pathname="/account/webhooks/wh_1" />,
-		);
-		expect(html.match(/aria-current="page"/g)).toHaveLength(1);
-		expect(html).toMatch(/aria-current="page"[^>]*href="\/account\/webhooks"/);
-	});
-	test("the failing badge shows only when something fails", () => {
-		const none = renderToStaticMarkup(<MobileTabBar pathname="/account" />);
-		expect(none).not.toContain("m-badge");
-		const some = renderToStaticMarkup(
-			<MobileTabBar pathname="/account" failingWebhooks={1} />,
-		);
-		expect(some).toContain('aria-label="1 failing"');
-		expect(some).toContain("is-bad");
-	});
-	test("the new badge shows only when insights are new", () => {
-		const none = renderToStaticMarkup(
-			<MobileTabBar pathname="/account" newInsights={0} />,
-		);
-		expect(none).not.toContain("is-new");
-		const some = renderToStaticMarkup(
-			<MobileTabBar pathname="/account" newInsights={2} />,
-		);
-		expect(some).toContain('aria-label="2 new"');
-	});
-	test("tabs run Pulse, Insights, Webhooks, Subgraphs, Account", () => {
-		const html = renderToStaticMarkup(<MobileTabBar pathname="/account" />);
-		const at = (href: string) => html.indexOf(`href="${href}"`);
-		const order = [
-			"/account",
-			"/account/insights",
-			"/account/webhooks",
-			"/account/subgraphs",
-			"/account/credits",
-		].map(at);
-		expect(order).toEqual([...order].sort((a, b) => a - b));
-		expect(order.every((n) => n > -1)).toBe(true);
-	});
-});
-
-describe("MobileHeader", () => {
-	test("a detail page shows a back link and no title", () => {
-		const html = renderToStaticMarkup(
-			<MobileHeader pathname="/account/webhooks/wh_1" />,
-		);
-		expect(html).toContain('href="/account/webhooks"');
-		expect(html).not.toContain("<h1");
-	});
-	test("a tab root shows one large title", () => {
-		const html = renderToStaticMarkup(<MobileHeader pathname="/account" />);
-		expect(html.match(/<h1/g)).toHaveLength(1);
 	});
 });

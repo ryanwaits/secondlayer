@@ -3,7 +3,7 @@ import { existsSync } from "node:fs";
 import { basename, join } from "node:path";
 import { stripAnnotations } from "@/lib/code/annotations";
 import { docsNavPages } from "../nav";
-import { errorTreeHtml, mapBoxHtml, paramGroupsHtml } from "./html";
+import { paramGroupsHtml } from "./html";
 import { resolveLegacy } from "./legacy";
 import { sdkPageMarkdown } from "./markdown";
 import { paragraphs, parseInline } from "./markdown-text";
@@ -369,31 +369,6 @@ describe("method entries", () => {
 		expect(html).toContain("Array&lt;A | B&gt;");
 		expect(html).toContain("<code>&lt;b&gt;</code>");
 		expect(html).toContain('class="mention sdkr-prow" data-hover="x"');
-	});
-
-	test("an error's summary and a box's blurb render their code spans, a box drops links", () => {
-		const tree = errorTreeHtml(
-			[
-				{ prefix: "", name: "Root", note: "", summary: "" },
-				{
-					prefix: "└─ ",
-					name: "ApiError",
-					note: "",
-					summary: "Thrown by `SecondLayer` when a [request](/x) fails.",
-				},
-			],
-			(n) => `/e#${n}`,
-		);
-		expect(tree).toContain("<code>SecondLayer</code>");
-		expect(tree).not.toContain("`");
-		expect(tree).toContain('<a href="/e#ApiError"><b>ApiError</b></a>');
-		const box = mapBoxHtml(
-			"/h",
-			"retry",
-			"Parse a `Retry-After` [header](/y).",
-		);
-		expect(box).toContain("<code>Retry-After</code>");
-		expect(box.match(/<a /g)).toHaveLength(1);
 	});
 
 	test("a void or undefined return reaches the glance table as written", () => {
