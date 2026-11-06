@@ -13,8 +13,8 @@ export const TWIN_MINT = String.raw`function mint(uint256 lockNonce, address to,
 
 /** How the relayer reads locks, from relayer/src/sources.ts. */
 export const RELAYER_READ = String.raw`const client = createStreamsClient({
-  baseUrl: cfg.apiUrl,
-  apiKey: cfg.apiKey,
+  baseUrl: config.apiUrl,
+  apiKey: config.apiKey,
 });
 await client.events.consume({
   types: ["print"],
@@ -22,8 +22,8 @@ await client.events.consume({
   contractId: locker,
   // !callout[/true/] Only Bitcoin-final locks count
   finalizedOnly: true,
-  // !callout[/cfg\.fromCursor/] Every start rescans from deploy
-  fromCursor: cfg.fromCursor,
+  // !callout[/config\.fromCursor/] Every start rescans from deploy
+  fromCursor: config.fromCursor,
   mode: once ? "bounded" : "tail",
   signal,
   onBatch: (events) =>
