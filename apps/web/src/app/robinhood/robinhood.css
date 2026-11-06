@@ -180,11 +180,11 @@ body:has(.rh) .auth-bar {
 	font-size: 10.5px;
 	white-space: nowrap;
 }
-/* live = yellow fill; next = ink outline; planned = dashed hairline */
+/* live = yellow fill; next = hairline outline; planned = dashed */
 .rh-road-row .seal.is-next,
 .rh-road-row .seal.is-planned {
 	background: var(--paper);
-	border: 1px solid var(--ink);
+	border: 1px solid var(--line);
 	color: var(--ink);
 }
 .rh-road-row .seal.is-planned {
