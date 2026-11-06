@@ -11,7 +11,7 @@ import {
 	RH_MAINNET_ADDRESS,
 	ROBINHOOD_CHAIN,
 	toBaseUnits,
-} from "../../bridge";
+} from "../bridge";
 
 const TOKEN_OPTIONS = BRIDGE_TOKENS.map((t) => ({
 	value: t.symbol,
@@ -46,16 +46,21 @@ function Rows({ rows }: { rows: [React.ReactNode, React.ReactNode][] }) {
 	);
 }
 
-function StepHead({
-	n,
-	title,
-	who,
-}: { n: number; title: string; who: string }) {
+/** The round trip, in page order: the list under the warning links to each. */
+const STEPS = [
+	{ id: "lock", title: "Lock on Stacks", who: "you · 1 tx" },
+	{ id: "mint", title: "Wait for the twin", who: "~70 min + approval" },
+	{ id: "burn", title: "Burn to come home", who: "you · 1 tx" },
+	{ id: "release", title: "Wait for the release", who: "~20 min + approval" },
+] as const;
+
+function StepHead({ n }: { n: 1 | 2 | 3 | 4 }) {
+	const step = STEPS[n - 1];
 	return (
 		<div className="rh-g-step-head">
 			<span className="rh-g-n mono">{n}</span>
-			<h2>{title}</h2>
-			<span className="rh-g-who mono">{who}</span>
+			<h2>{step.title}</h2>
+			<span className="rh-g-who mono">{step.who}</span>
 		</div>
 	);
 }
@@ -75,11 +80,11 @@ function Waits({ items }: { items: [string, string][] }) {
 }
 
 /**
- * The phase 0 tester guide. One page; the token switch rewrites every
- * address, decimal and cap in place, and the amount field turns whole tokens
- * into the base units both contract calls take.
+ * The tester guide for the current phase (phase 0). One page; the token
+ * switch rewrites every address, decimal and cap in place, and the amount
+ * field turns whole tokens into the base units both contract calls take.
  */
-export function PhaseZeroGuide() {
+export function TesterGuide() {
 	const [symbol, setSymbol] = useState<string>(BRIDGE_TOKENS[0].symbol);
 	const token =
 		BRIDGE_TOKENS.find((t) => t.symbol === symbol) ?? BRIDGE_TOKENS[0];
@@ -135,6 +140,18 @@ export function PhaseZeroGuide() {
 				</span>
 			</p>
 
+			<ol className="rh-g-toc" aria-label="Steps">
+				{STEPS.map((s, i) => (
+					<li key={s.id}>
+						<a href={`#${s.id}`}>
+							<span className="rh-g-n mono">{i + 1}</span>
+							<span>{s.title}</span>
+							<span className="rh-g-who mono">{s.who}</span>
+						</a>
+					</li>
+				))}
+			</ol>
+
 			<section className="rh-g-sec" id="before">
 				<h2>What you need</h2>
 				<Rows
@@ -162,7 +179,7 @@ export function PhaseZeroGuide() {
 			</section>
 
 			<section className="rh-g-sec" id="lock">
-				<StepHead n={1} title="Lock on Stacks" who="you · 1 tx" />
+				<StepHead n={1} />
 				<p>
 					Open the locker in the Hiro sandbox, connect your Stacks wallet, and
 					call <code>lock</code>. Call it from your own wallet, not through
@@ -219,7 +236,7 @@ export function PhaseZeroGuide() {
 			</section>
 
 			<section className="rh-g-sec" id="mint">
-				<StepHead n={2} title="Wait for the twin" who="~70 min + approval" />
+				<StepHead n={2} />
 				<p>
 					Nothing to do. Add the ERC-20 to your EVM wallet so it shows up when
 					it lands.
@@ -240,7 +257,7 @@ export function PhaseZeroGuide() {
 			</section>
 
 			<section className="rh-g-sec" id="burn">
-				<StepHead n={3} title="Burn to come home" who="you · 1 tx" />
+				<StepHead n={3} />
 				<p>
 					Open the ERC-20 on Blockscout, go to Contract, then Write contract,
 					connect your EVM wallet, and call <code>burn</code>.
@@ -271,7 +288,7 @@ export function PhaseZeroGuide() {
 			</section>
 
 			<section className="rh-g-sec" id="release">
-				<StepHead n={4} title="Wait for the release" who="~20 min + approval" />
+				<StepHead n={4} />
 				<Waits
 					items={[
 						["Your burn is final on Ethereum", "~20 min"],
@@ -285,7 +302,7 @@ export function PhaseZeroGuide() {
 			</section>
 
 			<section className="rh-g-sec" id="record">
-				<StepHead n={5} title="On the record" who="automatic" />
+				<h2>On the record</h2>
 				<p>
 					Nothing to send. The relayer logs every lock, mint, burn and release,
 					and your round trip joins the list on /robinhood once the release

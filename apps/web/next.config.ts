@@ -118,6 +118,12 @@ const nextConfig: NextConfig = {
 				destination: "/signin",
 				permanent: true,
 			},
+			// The bridge guide is one page that always covers the current phase.
+			{
+				source: "/robinhood/guides/:path*",
+				destination: "/robinhood/guide",
+				permanent: true,
+			},
 			// The blog moved from /writing; shared links and feed readers follow.
 			{
 				source: "/writing",

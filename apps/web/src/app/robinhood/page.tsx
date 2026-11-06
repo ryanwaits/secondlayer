@@ -40,12 +40,15 @@ const PHASES: {
 	title: string;
 	body: string;
 	status: "live" | "next" | "planned";
+	/** The live phase links to the tester guide. */
+	guide?: string;
 }[] = [
 	{
 		key: "Phase 0",
 		title: "2-of-2 custodian",
 		body: "Two keys, one person. Real tokens, each with a fixed cap.",
 		status: "live",
+		guide: "Test it with MEGA or PEPE →",
 	},
 	{
 		key: "Phase 1",
@@ -295,11 +298,6 @@ export default function RobinhoodPage() {
 									</ol>
 								</div>
 							)}
-							<p className="rh-yours">
-								<strong>Add yours.</strong>{" "}
-								<span>Run the round trip with MEGA or PEPE.</span>{" "}
-								<Link href="/robinhood/guides/phase-0">Phase 0 guide →</Link>
-							</p>
 						</div>
 					</div>
 				</div>
@@ -317,6 +315,11 @@ export default function RobinhoodPage() {
 									<div className="rh-road-body">
 										<h3>{p.title}</h3>
 										<p>{p.body}</p>
+										{p.guide && (
+											<Link className="rh-road-go" href="/robinhood/guide">
+												{p.guide}
+											</Link>
+										)}
 									</div>
 									<span className={`seal is-${p.status}`}>{p.status}</span>
 								</li>

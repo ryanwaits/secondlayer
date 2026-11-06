@@ -24,7 +24,7 @@ const SEEDS = [
 	"/login",
 	"/auth/verify",
 	"/robinhood",
-	"/robinhood/guides/phase-0",
+	"/robinhood/guide",
 	"/account",
 ];
 
