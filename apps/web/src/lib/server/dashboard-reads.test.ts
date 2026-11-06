@@ -16,6 +16,7 @@ import { readInsights } from "@/lib/server/insights-read";
 import { upstreamAgent } from "@/lib/upstream-agent";
 import { currentUtcMonth, monthParam } from "@/lib/usage";
 import {
+	accountRead,
 	accountReads,
 	readApi,
 	subgraphDetailReads,
@@ -51,6 +52,24 @@ const json = (body: unknown, status = 200, headers?: Record<string, string>) =>
 		status,
 		headers: { "Content-Type": "application/json", ...headers },
 	});
+
+describe("accountRead", () => {
+	test("the signed-in account comes back, read with the session as bearer", async () => {
+		const calls = stubApi({
+			"/api/accounts/me": () => json({ id: "acct_1", email: "a@example.com" }),
+		});
+		expect(await accountRead("tok_123")).toMatchObject({ id: "acct_1" });
+		expect(calls).toHaveLength(1);
+		expect(
+			(calls[0]?.init.headers as Record<string, string>).Authorization,
+		).toBe("Bearer tok_123");
+	});
+
+	test("an expired session reads as no account, leaving the cookie to /api/auth/me", async () => {
+		stubApi({ "/api/accounts/me": () => json({ error: "no" }, 401) });
+		expect(await accountRead("tok_old")).toBeNull();
+	});
+});
 
 describe("readApi", () => {
 	test("the session cookie becomes the bearer, on the keep-alive agent, uncached", async () => {

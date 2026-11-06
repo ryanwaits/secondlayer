@@ -1,7 +1,8 @@
 import { AccountFrame } from "@/components/account/account-frame";
 import { AccountSeedProvider } from "@/lib/account-data";
+import { AuthSeed } from "@/lib/auth";
 import { logColdStart } from "@/lib/server/cold-start";
-import { accountReads } from "@/lib/server/dashboard-reads";
+import { accountRead, accountReads } from "@/lib/server/dashboard-reads";
 import { sessionToken } from "@/lib/server/session";
 
 // Next to the API (Hetzner HEL/fsn1), and per request: the HTML carries one
@@ -18,10 +19,13 @@ export default async function AccountLayout({
 }) {
 	const startedAt = performance.now();
 	const token = await sessionToken();
-	const seed = token ? await accountReads(token, ["billing"]) : {};
+	const [seed, account] = token
+		? await Promise.all([accountReads(token, ["billing"]), accountRead(token)])
+		: [{}, null];
 	logColdStart("/account", startedAt);
 	return (
 		<AccountSeedProvider seed={seed}>
+			<AuthSeed account={account} />
 			<AccountFrame signedOut={!token}>{children}</AccountFrame>
 		</AccountSeedProvider>
 	);

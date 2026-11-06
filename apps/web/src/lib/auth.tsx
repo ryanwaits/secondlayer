@@ -6,7 +6,7 @@ import {
 	useCallback,
 	useContext,
 	useEffect,
-	useState,
+	useSyncExternalStore,
 } from "react";
 import { clearAccountData } from "./account-data";
 import { identify, reset } from "./analytics";
@@ -24,10 +24,59 @@ interface AuthCtx {
 
 const AuthContext = createContext<AuthCtx | null>(null);
 
+type AuthState = { account: Account | null; loading: boolean };
+
+/** What the server render and the first hydration pass see: not yet known. */
+const UNKNOWN: AuthState = { account: null, loading: true };
+
+// A module store, so a page that already read the account on the server can
+// hand it over before the provider's first effect. Browser-only writes: the
+// module is shared across requests on the server.
+let auth: AuthState = UNKNOWN;
+const listeners = new Set<() => void>();
+
+function setAuth(patch: Partial<AuthState>) {
+	auth = { ...auth, ...patch };
+	for (const l of listeners) l();
+}
+
+function subscribeAuth(l: () => void) {
+	listeners.add(l);
+	return () => listeners.delete(l);
+}
+
+/** A plain read of the current state, for tests. */
+export function authSnapshot(): AuthState {
+	return auth;
+}
+
+const seeded = new WeakSet<object>();
+
+/** Starts the browser's auth state from an account the server read, once per
+ *  seed. Quiet on purpose: it runs while a component renders. */
+export function AuthSeed({ account }: { account: Account | null }) {
+	if (account && typeof window !== "undefined" && !seeded.has(account)) {
+		seeded.add(account);
+		auth = { account, loading: false };
+	}
+	return null;
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
 	const router = useRouter();
-	const [account, setAccount] = useState<Account | null>(null);
-	const [loading, setLoading] = useState(true);
+	const { account, loading } = useSyncExternalStore(
+		subscribeAuth,
+		() => auth,
+		() => UNKNOWN,
+	);
+	const setAccount = useCallback(
+		(next: Account | null) => setAuth({ account: next }),
+		[],
+	);
+	const setLoading = useCallback(
+		(next: boolean) => setAuth({ loading: next }),
+		[],
+	);
 
 	const refresh = useCallback(async () => {
 		try {
@@ -49,7 +98,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 		} finally {
 			setLoading(false);
 		}
-	}, []);
+	}, [setAccount, setLoading]);
 
 	const login = useCallback(
 		async (email: string): Promise<{ token?: string }> => {
@@ -67,28 +116,33 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 		[],
 	);
 
-	const verify = useCallback(async (tokenOrCode: string, email?: string) => {
-		const body = email ? { code: tokenOrCode, email } : { token: tokenOrCode };
-		const res = await fetch("/api/auth/verify", {
-			method: "POST",
-			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify(body),
-		});
-		if (!res.ok) {
+	const verify = useCallback(
+		async (tokenOrCode: string, email?: string) => {
+			const body = email
+				? { code: tokenOrCode, email }
+				: { token: tokenOrCode };
+			const res = await fetch("/api/auth/verify", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify(body),
+			});
+			if (!res.ok) {
+				const data = await res.json();
+				throw new Error(data.error || "Verification failed");
+			}
 			const data = await res.json();
-			throw new Error(data.error || "Verification failed");
-		}
-		const data = await res.json();
-		const account = data.account as Account;
-		// A new session starts from nothing; its pages read their own data.
-		clearAccountData();
-		setAccount(account);
-		identify(account.id, {
-			email: account.email,
-			...(account.displayName ? { name: account.displayName } : {}),
-		});
-		return { account };
-	}, []);
+			const account = data.account as Account;
+			// A new session starts from nothing; its pages read their own data.
+			clearAccountData();
+			setAccount(account);
+			identify(account.id, {
+				email: account.email,
+				...(account.displayName ? { name: account.displayName } : {}),
+			});
+			return { account };
+		},
+		[setAccount],
+	);
 
 	const logout = useCallback(async () => {
 		await fetch("/api/auth/logout", { method: "POST" });
@@ -97,9 +151,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 		router.push("/");
 		router.refresh();
 		setAccount(null);
-	}, [router]);
+	}, [router, setAccount]);
 
 	useEffect(() => {
+		// A page that read the account on the server has already seeded it.
+		if (!auth.loading) {
+			if (auth.account) {
+				identify(auth.account.id, {
+					email: auth.account.email,
+					...(auth.account.displayName
+						? { name: auth.account.displayName }
+						: {}),
+				});
+			}
+			return;
+		}
 		refresh();
 	}, [refresh]);
 

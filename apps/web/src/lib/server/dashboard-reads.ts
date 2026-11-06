@@ -27,7 +27,7 @@ import type {
 	SubgraphListItem,
 	SubgraphSource,
 } from "@/lib/subgraphs-store";
-import type { ApiKey, ConnectedApp, CreditAdded } from "@/lib/types";
+import type { Account, ApiKey, ConnectedApp, CreditAdded } from "@/lib/types";
 import { upstreamAgent } from "@/lib/upstream-agent";
 import {
 	type UsageResponse,
@@ -101,6 +101,14 @@ function emptyOnNotFound<T>(
 }
 
 // ── Account ──────────────────────────────────────────────────────────────
+
+/** The signed-in account, or null when the session is missing, expired or the
+ *  API is unreachable (the browser then asks `/api/auth/me`, which also clears
+ *  a stale cookie). */
+export async function accountRead(token: string): Promise<Account | null> {
+	const res = await readApi<Account>(token, "/api/accounts/me");
+	return res.kind === "ok" ? res.data : null;
+}
 
 /** The account reads a page can ask for, one per store slice. */
 export type AccountRead =
