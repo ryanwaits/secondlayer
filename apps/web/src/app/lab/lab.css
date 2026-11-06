@@ -294,6 +294,8 @@ body:has(.lab) .auth-bar {
 	--ease-snappy: cubic-bezier(0.4, 0, 0.2, 1);
 	--duration-smooth: 500ms;
 	--ease-smooth: cubic-bezier(0.4, 0, 0.2, 1);
+	--duration-stream-fade: 180ms;
+	--ease-stream-fade: ease-out;
 }
 .lab-fr[data-mode="dark"] {
 	/* Chart roles: a = the measured series, b/c = lighter steps, mark = what an insight points at (fill only), alarm = failure. Dashboard only. */
@@ -417,6 +419,8 @@ body:has(.lab) .auth-bar {
 	--ease-snappy: cubic-bezier(0.4, 0, 0.2, 1);
 	--duration-smooth: 500ms;
 	--ease-smooth: cubic-bezier(0.4, 0, 0.2, 1);
+	--duration-stream-fade: 180ms;
+	--ease-stream-fade: ease-out;
 }
 .lab-fr {
 	min-width: 0;
