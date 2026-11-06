@@ -486,3 +486,95 @@ body:has(.rh) .auth-bar {
 		transition: none !important;
 	}
 }
+
+/* testnet proof strip: hairline row of explorer links */
+.rh-proof {
+	display: grid;
+	grid-template-columns: 1fr 1.4fr;
+	gap: 40px;
+	align-items: start;
+	margin-top: 40px;
+	padding-top: 20px;
+	border-top: 1px solid var(--line);
+}
+.rh-proof-head {
+	display: grid;
+	gap: 8px;
+}
+.rh-proof-head p {
+	font-size: 14px;
+	color: var(--sub);
+}
+.rh-proof-head a,
+.rh-proof-list a {
+	color: var(--ink);
+}
+.rh-proof-list {
+	display: grid;
+	grid-template-columns: repeat(5, 1fr);
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+.rh-proof-list li + li {
+	border-left: 1px solid var(--line);
+}
+.rh-proof-list a {
+	display: grid;
+	gap: 4px;
+	padding: 4px 14px;
+	font-size: 14px;
+	text-decoration: none;
+}
+.rh-proof-list a:hover span:first-child {
+	text-decoration: underline;
+}
+.rh-proof-list .mono {
+	font-size: 12px;
+	color: var(--sub);
+}
+@media (max-width: 920px) {
+	.rh-proof {
+		grid-template-columns: 1fr;
+		gap: 16px;
+	}
+	.rh-proof-list {
+		grid-template-columns: 1fr 1fr;
+	}
+	.rh-proof-list li + li {
+		border-left: 0;
+	}
+	.rh-proof-list a {
+		padding: 8px 0;
+	}
+}
+
+/* trust model: four hairline cells under the phases */
+.rh-trust {
+	display: grid;
+	grid-template-columns: repeat(4, 1fr);
+	gap: 0 24px;
+	margin: 40px 0 0;
+	padding: 0;
+	list-style: none;
+}
+.rh-trust li {
+	display: grid;
+	align-content: start;
+	gap: 6px;
+	padding-top: 16px;
+	border-top: 1px solid var(--line);
+}
+.site .rh-trust h3 {
+	font-size: 15px;
+}
+.rh-trust p {
+	font-size: 14px;
+	color: var(--sub);
+}
+@media (max-width: 900px) {
+	.rh-trust {
+		grid-template-columns: 1fr;
+		gap: 16px;
+	}
+}

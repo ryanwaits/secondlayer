@@ -23,7 +23,7 @@ import { WaitlistForm } from "./waitlist-form";
 export const metadata: Metadata = socialMeta({
 	title: "Stacks to Robinhood Chain",
 	description:
-		"Bridge your Stacks token to Robinhood Chain and back. Join the waitlist for the first test rounds.",
+		"Bridge your Stacks token to Robinhood Chain and back. Rehearsed end to end on testnet, mainnet next. Join the waitlist.",
 	image: "/og/robinhood.png",
 	path: "/robinhood",
 });
@@ -38,15 +38,14 @@ const PHASES: {
 	{
 		key: "Phase 0",
 		title: "2-of-2 custodian",
-		body: "Demo token only. Proves the asset moves end to end.",
+		body: "A demo token for the grant evidence, plus a capped pilot of real tokens.",
 		now: true,
-		// Keep in step with the Endowment decision (not awarded as of 2026-10-13).
-		status: "built · grant pending",
+		status: "testnet done · mainnet next",
 	},
 	{
 		key: "Phase 1",
 		title: "2-of-3 federation",
-		body: "A signer who isn't the builder. Timeout so a lost key can't freeze the locker.",
+		body: "A third signer who isn't the builder, and a timeout so a lost key can't freeze escrow. Capped sBTC (as slsBTC, never bare sBTC) and STX join here.",
 	},
 	{
 		key: "Phase 2",
@@ -56,12 +55,12 @@ const PHASES: {
 	{
 		key: "Phase 3",
 		title: "Trustless release",
-		body: "Ethereum light client in Clarity checks the burn.",
+		body: "Stacks checks each release against an Ethereum root, so no key signs it.",
 	},
 	{
 		key: "Phase 4",
 		title: "Trustless mint",
-		body: "A Bitcoin relay on Ethereum checks the Stacks lock.",
+		body: "A lock is proven to Robinhood Chain from a Bitcoin-anchored Stacks block, so the Safe stops being the minter. sBTC and STX take the same path.",
 	},
 ];
 
@@ -102,6 +101,63 @@ function VendorLogo({
 		</>
 	);
 }
+
+const HIRO_TX = "https://explorer.hiro.so/txid/";
+const RH_TX = "https://explorer.testnet.chain.robinhood.com/tx/";
+
+/** The testnet rehearsal's public txs (robinhood-bridge proof/m2.json). */
+const PROOF = [
+	{
+		label: "Lock",
+		chain: "Stacks",
+		href: `${HIRO_TX}0x00504c4ec6ea9c5897df53cb360f63aa7fecf79ebc8fc6e16c3236c220fb4fd3?chain=testnet`,
+	},
+	{
+		label: "Mint",
+		chain: "46630",
+		href: `${RH_TX}0xdedc6cf7bd62632a95808c5a4a1b0b9aa26da08202b48fd9753b43467b570504`,
+	},
+	{
+		label: "Burn",
+		chain: "46630",
+		href: `${RH_TX}0xd02c48f5f1d03e472ee7867efd79f450796c1638fe394fdfc4f2dfa268cea1af`,
+	},
+	{
+		label: "Release",
+		chain: "Stacks",
+		href: `${HIRO_TX}0x9bbd53c1ae0daedeef60943649f05defb4c15afe67b6e7f9ad4e48fb2f2f03c3?chain=testnet`,
+	},
+	{
+		label: "PEPE release",
+		chain: "Stacks",
+		href: `${HIRO_TX}0x1623c67155700e45cb7992b89bf8f36818a0b7530a126f0cfdbd2f704dd87486?chain=testnet`,
+	},
+];
+
+const DRILLS = {
+	replay: `${RH_TX}0x4ca40351d02d2524b82e974d779468c589a55b375ecda3f3363d17665a63c261`,
+	noBurn: `${HIRO_TX}0x951bd47980058f1c3104deb717835c72fae44453fc6339cda865e1a415931429?chain=testnet`,
+};
+
+/** Phase 0's trust model, from robinhood-bridge NOTE.md. */
+const TRUST = [
+	{
+		title: "One person, both keys",
+		body: "A 2-of-2 multisig on Stacks and a 2-of-2 Safe on Robinhood Chain, held by the builder on two devices.",
+	},
+	{
+		title: "The keys are the bridge",
+		body: "Release doesn't check the burn and mint doesn't check the lock. Neither chain can read the other.",
+	},
+	{
+		title: "The issuer counts too",
+		body: "A token's admin powers add trust in its issuer. PEPE's owner can grant a role that moves any holder's balance, escrow included.",
+	},
+	{
+		title: "Backing stops new mints",
+		body: "If escrow falls short, the relayer stops minting that token. It doesn't restore what's already bridged.",
+	},
+];
 
 const ROBINHOOD_CHAIN_LOGO = {
 	light: "/robinhood-chain/logo-black.svg",
@@ -154,7 +210,8 @@ export default function RobinhoodPage() {
 							<p className="lede">
 								Bridge your Stacks token to Robinhood Chain and back. Lock it on
 								Stacks and an ERC-20 twin mints after 6 Bitcoin confirmations.
-								Burn the twin to release the original.
+								Burn the twin to release the original. It ran end to end on
+								testnet. Mainnet is next and isn't live yet.
 							</p>
 							<div className="btns">
 								<ButtonLink href="#join">Join the waitlist</ButtonLink>
@@ -193,7 +250,7 @@ export default function RobinhoodPage() {
 							{
 								icon: <LockIcon />,
 								title: "Backed one to one",
-								body: "Each ERC-20 is minted against a SIP-010 the locker holds. No lock, no mint.",
+								body: "Each token gets its own ERC-20 at the same decimals, minted against what the locker holds, up to a cap fixed at register.",
 							},
 							{
 								icon: <HistoryIcon />,
@@ -214,12 +271,13 @@ export default function RobinhoodPage() {
 						<div className="rh-rt-head">
 							<div>
 								<Eyebrow noun="1:1 backing" />
-								<h2>No lock, no mint. In code.</h2>
+								<h2>One mint per lock, signed by both keys.</h2>
 								<p className="lede">
-									The twin on Robinhood Chain mints only against a lock on
-									Stacks, once per lock, and only from the Phase 0 signers. The
-									relayer finds each lock through secondlayer Streams, finalized
-									only.
+									The twin mints once per Stacks lock, and only from the 2-of-2
+									Safe. It can't read Stacks, so the keys are what tie a mint to
+									a real lock. The relayer finds each lock through secondlayer
+									Streams, finalized only, and checks the locker still backs it
+									before it signs.
 								</p>
 							</div>
 							<dl className="rh-facts">
@@ -236,8 +294,12 @@ export default function RobinhoodPage() {
 									<dd>6 BTC confirmations</dd>
 								</div>
 								<div>
+									<dt>Cap per token</dt>
+									<dd>fixed at register</dd>
+								</div>
+								<div>
 									<dt>Phase 0 signers</dt>
-									<dd>2-of-2</dd>
+									<dd>2-of-2 · one person</dd>
 								</div>
 							</dl>
 						</div>
@@ -249,6 +311,28 @@ export default function RobinhoodPage() {
 								code={RELAYER_READ}
 							/>
 						</CodeTabs>
+						<div className="rh-proof">
+							<div className="rh-proof-head">
+								<span className="cap">Rehearsed on testnet</span>
+								<p>
+									Stacks testnet and Robinhood Chain testnet (46630), with a
+									Ledger as the second key. A{" "}
+									<a href={DRILLS.replay}>replayed mint</a> reverted on chain. A{" "}
+									<a href={DRILLS.noBurn}>release with no burn</a> paid out, on
+									purpose: that's the hole below.
+								</p>
+							</div>
+							<ol className="rh-proof-list">
+								{PROOF.map((t) => (
+									<li key={t.label}>
+										<a href={t.href}>
+											<span>{t.label}</span>
+											<span className="mono">{t.chain}</span>
+										</a>
+									</li>
+								))}
+							</ol>
+						</div>
 					</div>
 				</div>
 
@@ -279,13 +363,20 @@ export default function RobinhoodPage() {
 								</li>
 							))}
 						</ol>
+						<ul className="rh-trust">
+							{TRUST.map((t) => (
+								<li key={t.title}>
+									<h3>{t.title}</h3>
+									<p>{t.body}</p>
+								</li>
+							))}
+						</ul>
 						<p className="rh-note">
 							<i />
 							<span>
-								<strong>Don't bridge value on Phase 0.</strong> The signers hold
-								the locker. Phase 1 is the earliest point a community token
-								should move for real. Phase 0 is built and tested but not yet
-								deployed, and its Stacks Endowment grant is still under review.
+								<strong>Don't bridge anything you can't afford to lose.</strong>{" "}
+								Real tokens are capped, so the keys can lose at most a token's
+								cap. They can still lose that.
 							</span>
 						</p>
 					</div>
@@ -297,12 +388,14 @@ export default function RobinhoodPage() {
 							<Eyebrow noun="Waitlist" />
 							<h2>Want your token on Robinhood Chain?</h2>
 							<p>
-								Tokens are added one at a time. Each gets its own registry entry
-								once we've checked its supply can't be minted around the bridge.
+								Tokens are added one at a time, once we've read the token's
+								contract. Both keys register each one with its own ERC-20 and
+								cap. A token that takes a fee on transfer is refused.
 							</p>
 							<p>
-								The waitlist sets the order. Issuers and teams go first for
-								Phase 1; holders show us where the demand is.
+								The waitlist sets the order. PEPE and MEGA, the most requested,
+								are planned first, capped. Issuers and teams go next; holders
+								show us where the demand is.
 							</p>
 							<RequestedTokens />
 						</div>

@@ -2,7 +2,7 @@ import { STACKS_SYMBOL_PATH } from "./stacks-symbol";
 
 /**
  * The round trip as flat art: the locked SIP-010 and its ERC-20 twin, linked
- * 1:1. Illustrative amounts. Robin Neon appears once, on the twin's "live"
+ * 1:1. Illustrative amounts. Robin Neon appears once, on the twin's "minted"
  * chip, next to the official feather avatar (black on Robin Neon, unmodified).
  */
 export function TwinsHero() {
@@ -10,7 +10,7 @@ export function TwinsHero() {
 		<svg
 			viewBox="0 0 460 384"
 			role="img"
-			aria-label="Two token cards: 1,000 of a SIP-010 token locked on Stacks, and its twin, 1,000 of an ERC-20 live on chain 4663, linked one to one"
+			aria-label="Two token cards: 1,000 of a SIP-010 token locked on Stacks, and its twin, 1,000 of an ERC-20 minted on chain 4663, linked one to one"
 		>
 			<defs>
 				<clipPath id="rh-coin">
@@ -58,7 +58,7 @@ export function TwinsHero() {
 				clipPath="url(#rh-coin)"
 				preserveAspectRatio="xMidYMid slice"
 			/>
-			<rect x="368" y="310" width="48" height="20" rx="10" className="f-neon" />
+			<rect x="354" y="310" width="62" height="20" rx="10" className="f-neon" />
 
 			<g fontSize="16" fontWeight="500" className="f-ink t-sans">
 				<text x="98" y="68">
@@ -94,8 +94,8 @@ export function TwinsHero() {
 				<text x="385" y="92" className="f-ink">
 					locked
 				</text>
-				<text x="392" y="324" className="f-on-neon">
-					live
+				<text x="385" y="324" className="f-on-neon">
+					minted
 				</text>
 				<text x="230" y="378" className="f-sub">
 					supply on 4663 = balance held by the locker
