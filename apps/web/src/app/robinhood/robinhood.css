@@ -1,8 +1,8 @@
 /* /robinhood: Stacks ⇄ Robinhood Chain waitlist microsite. Built on the
    marketing kit (`.site`, site.css); this file holds only what the kit lacks.
-   Robin Neon (--rh-neon) appears on the twin's "live" chip in the hero art
-   and as a tint on the live roadmap row, never on the Robinhood Chain name or
-   logo, which their brand rules forbid styling. */
+   Robin Neon (--rh-neon) appears once, on the twin's "live" chip in the hero
+   art, never on the Robinhood Chain name or logo, which their brand rules
+   forbid styling. */
 .rh {
 	--rh-neon: #ccff00;
 	--rh-on-neon: #000000;
@@ -130,7 +130,7 @@ body:has(.rh) .auth-bar {
 	text-align: right;
 }
 
-/* roadmap: one bordered panel, a row per phase, neon tint on the live one */
+/* roadmap: one bordered panel, a row per phase; yellow seal on the live one */
 .rh .sec-head {
 	max-width: 44rem;
 	margin-bottom: 36px;
@@ -155,9 +155,6 @@ body:has(.rh) .auth-bar {
 .rh-road-row + .rh-road-row {
 	border-top: 1px solid var(--line);
 }
-.rh-road-row.is-now {
-	background: color-mix(in srgb, var(--rh-neon) 12%, var(--paper));
-}
 .rh-road-key {
 	font: 400 12px / 1 var(--font-mono-stack);
 	color: var(--sub);
@@ -176,8 +173,17 @@ body:has(.rh) .auth-bar {
 	font-size: 14px;
 	color: var(--sub);
 }
-.rh-road-row .status {
+.rh-road-row .seal {
+	justify-self: start;
+	height: 20px;
+	padding: 0 8px;
+	font-size: 10.5px;
 	white-space: nowrap;
+}
+.rh-road-row .seal.is-later {
+	background: var(--paper);
+	color: var(--sub);
+	box-shadow: inset 0 0 0 1px var(--line);
 }
 @media (max-width: 760px) {
 	.rh-road-row {

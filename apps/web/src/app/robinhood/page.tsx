@@ -332,23 +332,15 @@ export default function RobinhoodPage() {
 						</div>
 						<ol className="rh-road">
 							{PHASES.map((p) => (
-								<li
-									key={p.key}
-									className={
-										p.status === "live" ? "rh-road-row is-now" : "rh-road-row"
-									}
-								>
+								<li key={p.key} className="rh-road-row">
 									<span className="rh-road-key">{p.key}</span>
 									<div className="rh-road-body">
 										<h3>{p.title}</h3>
 										<p>{p.body}</p>
 									</div>
 									<span
-										className={
-											p.status === "live" ? "status live" : "status soon"
-										}
+										className={p.status === "live" ? "seal" : "seal is-later"}
 									>
-										<i />
 										{p.status}
 									</span>
 								</li>
