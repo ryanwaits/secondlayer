@@ -113,7 +113,8 @@ function NeedsYou({
 			<div className="m-pulse-group">
 				{needs.length === 0 && !loaded ? (
 					<div className="m-pulse-row">
-						<ChartSkeleton height={36} />
+						{/* The height of the "All delivering" row it becomes. */}
+						<ChartSkeleton height={39} />
 					</div>
 				) : needs.length === 0 ? (
 					<div className="m-pulse-row">
@@ -198,7 +199,11 @@ function Last24({ summary }: { summary: WebhooksActivitySummary | undefined }) {
 						</ChartBox>
 					</>
 				) : (
-					<ChartBox height={120} />
+					<>
+						{/* The caption's line, so the chart doesn't drop when it lands. */}
+						<div className="m-pulse-cap">&nbsp;</div>
+						<ChartBox height={120} />
+					</>
 				)}
 			</div>
 		</>
