@@ -11,5 +11,6 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 ## Tests
 
 - Unit tests are for logic: pure functions, parsers, stores, route handlers, config/contract guards. `bun test` stays fast and free.
+- Security guards stay even when they assert on HTML: escaping of untrusted text, no secret in server output.
 - No markup, render, class-name, copy or source-scan tests. UI changes are proven with agent-browser instead: screenshots light + dark, desktop + 390 px, CLS, and network log in the change report.
 - Touching UI never requires editing a test. If it does, that test is the wrong kind; delete it.

@@ -1,6 +1,9 @@
 import { describe, expect, test } from "bun:test";
 import { CreateKeyError } from "@/lib/account-data";
+import { renderToStaticMarkup } from "react-dom/server";
 import {
+	RevealStep,
+	type UseItTab,
 	createErrorMessage,
 	duplicateName,
 	nameError,
@@ -8,6 +11,7 @@ import {
 } from "./new-key-flow";
 
 const KEY = "sk-sl_0123456789abcdef0123456789abcdef";
+const noop = () => {};
 
 describe("NameStep", () => {
 	test("an empty or blank name is refused with a message", () => {
@@ -47,6 +51,21 @@ describe("duplicateName", () => {
 });
 
 describe("RevealStep", () => {
+	const render = (tab?: UseItTab) =>
+		renderToStaticMarkup(
+			<RevealStep value={KEY} name="laptop" initialTab={tab} onDone={noop} />,
+		);
+
+	test("the Env tab shows the prefix, never the whole key, in the block", () => {
+		const html = render("env");
+		expect(html).toContain("export SECONDLAYER_API_KEY=sk-sl_01234567…");
+		expect(html).toContain(
+			"The SDK, the CLI and the MCP server all read this variable.",
+		);
+		// The only whole key on screen is the reveal row.
+		expect(html.split(KEY).length - 1).toBe(1);
+	});
+
 	test("Copy on Env and Agent carries the whole key; CLI and SDK carry none", () => {
 		const s = useItSnippets(KEY);
 		expect(s.env.copy).toBe(`export SECONDLAYER_API_KEY=${KEY}`);
