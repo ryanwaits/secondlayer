@@ -11,7 +11,19 @@ import { Suspense } from "react";
 export const preferredRegion = "fra1";
 export const dynamic = "force-dynamic";
 
-export default async function AccountWebhookDetailPage({
+export default function AccountWebhookDetailPage({
+	params,
+}: {
+	params: Promise<{ id: string }>;
+}) {
+	return (
+		<Suspense fallback={<WebhookDetailSkeleton />}>
+			<WebhookDetailData params={params} />
+		</Suspense>
+	);
+}
+
+async function WebhookDetailData({
 	params,
 }: {
 	params: Promise<{ id: string }>;

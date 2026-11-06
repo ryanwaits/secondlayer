@@ -3,6 +3,7 @@ import {
 	FirstRowsCode,
 	FirstRowsPrompt,
 } from "@/components/account/overview/first-rows-code";
+import { OverviewFallback } from "@/components/account/page-fallbacks";
 import { AccountSeedProvider } from "@/lib/account-data";
 import { InsightsSeed } from "@/lib/insights-store";
 import {
@@ -13,13 +14,23 @@ import {
 import { readInsights } from "@/lib/server/insights-read";
 import { savedOpenChoices } from "@/lib/server/open-choices";
 import { sessionToken } from "@/lib/server/session";
+import { Suspense } from "react";
 
 // Next to the API (Hetzner HEL/fsn1), and per request: the HTML carries one
 // account's data, so it is never prerendered or shared.
 export const preferredRegion = "fra1";
 export const dynamic = "force-dynamic";
 
-export default async function AccountOverviewPage() {
+/** Sends the Overview's skeleton at once; the page's reads stream in behind it. */
+export default function AccountOverviewPage() {
+	return (
+		<Suspense fallback={<OverviewFallback />}>
+			<OverviewData />
+		</Suspense>
+	);
+}
+
+async function OverviewData() {
 	const token = await sessionToken();
 	const [account, webhooks, subgraphs, insights] = token
 		? await Promise.all([

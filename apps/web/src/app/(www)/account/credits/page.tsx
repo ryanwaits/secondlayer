@@ -1,8 +1,10 @@
+import { CreditsFallback } from "@/components/account/page-fallbacks";
 import { AccountSeedProvider } from "@/lib/account-data";
 import { InsightsSeed } from "@/lib/insights-store";
 import { accountReads } from "@/lib/server/dashboard-reads";
 import { readInsights } from "@/lib/server/insights-read";
 import { sessionToken } from "@/lib/server/session";
+import { Suspense } from "react";
 import { AccountCreditsPage } from "./credits-page";
 
 // Next to the API (Hetzner HEL/fsn1), and per request: the HTML carries one
@@ -10,7 +12,15 @@ import { AccountCreditsPage } from "./credits-page";
 export const preferredRegion = "fra1";
 export const dynamic = "force-dynamic";
 
-export default async function AccountBillingPage() {
+export default function AccountBillingPage() {
+	return (
+		<Suspense fallback={<CreditsFallback />}>
+			<CreditsData />
+		</Suspense>
+	);
+}
+
+async function CreditsData() {
 	const token = await sessionToken();
 	const [account, insights] = token
 		? await Promise.all([

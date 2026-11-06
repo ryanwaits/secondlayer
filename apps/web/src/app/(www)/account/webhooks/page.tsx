@@ -1,16 +1,26 @@
+import { WebhooksFallback } from "@/components/account/page-fallbacks";
 import { WebhooksListSection } from "@/components/account/webhooks/list-panel";
 import { InsightsSeed } from "@/lib/insights-store";
 import { webhooksListReads } from "@/lib/server/dashboard-reads";
 import { savedIndexViews } from "@/lib/server/index-view";
 import { readInsights } from "@/lib/server/insights-read";
 import { sessionToken } from "@/lib/server/session";
+import { Suspense } from "react";
 
 // Next to the API (Hetzner HEL/fsn1), and per request: the HTML carries one
 // account's data, so it is never prerendered or shared.
 export const preferredRegion = "fra1";
 export const dynamic = "force-dynamic";
 
-export default async function AccountWebhooksPage() {
+export default function AccountWebhooksPage() {
+	return (
+		<Suspense fallback={<WebhooksFallback />}>
+			<WebhooksData />
+		</Suspense>
+	);
+}
+
+async function WebhooksData() {
 	const [token, views] = await Promise.all([sessionToken(), savedIndexViews()]);
 	const [initial, insights] = token
 		? await Promise.all([webhooksListReads(token), readInsights(token)])

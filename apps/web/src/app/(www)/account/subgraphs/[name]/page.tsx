@@ -1,8 +1,10 @@
+import { SubgraphDetailFallback } from "@/components/account/page-fallbacks";
 import { SubgraphDetailSection } from "@/components/account/subgraphs/detail-screen";
 import { InsightsSeed } from "@/lib/insights-store";
 import { subgraphDetailReads } from "@/lib/server/dashboard-reads";
 import { readInsights } from "@/lib/server/insights-read";
 import { sessionToken } from "@/lib/server/session";
+import { Suspense } from "react";
 
 // Next to the API (Hetzner HEL/fsn1), and per request: the HTML carries one
 // account's data, so it is never prerendered or shared.
@@ -17,7 +19,19 @@ function decode(segment: string): string {
 	}
 }
 
-export default async function AccountSubgraphDetailPage({
+export default function AccountSubgraphDetailPage({
+	params,
+}: {
+	params: Promise<{ name: string }>;
+}) {
+	return (
+		<Suspense fallback={<SubgraphDetailFallback />}>
+			<SubgraphDetailData params={params} />
+		</Suspense>
+	);
+}
+
+async function SubgraphDetailData({
 	params,
 }: {
 	params: Promise<{ name: string }>;
