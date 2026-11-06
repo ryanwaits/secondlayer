@@ -1,7 +1,6 @@
 import { Code } from "@/components/code/code";
 import { CodeClient } from "@/components/code/code-client";
 import { CodeTabs } from "@/components/code/code-tabs";
-import { Logo } from "@/components/logo";
 import {
 	ButtonLink,
 	Eyebrow,
@@ -15,6 +14,14 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import "../(www)/site.css";
 import "./robinhood.css";
+import { ROUND_TRIPS, hiroAddress, hiroTx, rhTx, shortAddress } from "./bridge";
+import {
+	ROBINHOOD_CHAIN_LOGO,
+	RhFooter,
+	RhHeader,
+	STACKS_LOGO,
+	VendorLogo,
+} from "./chrome";
 import { RequestedTokens } from "./requested-tokens";
 import { RELAYER_READ, TWIN_MINT } from "./samples";
 import { TwinsHero } from "./twins-hero";
@@ -66,74 +73,45 @@ const PHASES: {
 	},
 ];
 
-/**
- * An official vendor logo, unmodified: the dark asset on light ground, the
- * light asset on dark ground. Theme swap is CSS-only (.rh-logo-*).
- */
-function VendorLogo({
-	light,
-	dark,
-	alt,
-	height,
-	ratio,
-}: {
-	light: string;
-	dark: string;
-	alt: string;
-	height: number;
-	ratio: number;
-}) {
-	const width = Math.round(height * ratio);
-	return (
-		<>
-			<img
-				className="rh-logo rh-logo-on-light"
-				src={light}
-				alt={alt}
-				width={width}
-				height={height}
-			/>
-			<img
-				className="rh-logo rh-logo-on-dark"
-				src={dark}
-				alt={alt}
-				width={width}
-				height={height}
-			/>
-		</>
-	);
-}
-
-const HIRO_MAINNET_TX = "https://explorer.hiro.so/txid/";
-const RH_MAINNET_TX = "https://robinhoodchain.blockscout.com/tx/";
-
 /** The mainnet round trip's public txs. */
 const PROOF = [
 	{
 		label: "Lock",
 		chain: "Stacks",
-		href: `${HIRO_MAINNET_TX}0x221dd4907a062f3af9983c0fb8c3baa5620eb0a8fb02cec54449b5d91e6b13be?chain=mainnet`,
+		href: hiroTx(
+			"0x221dd4907a062f3af9983c0fb8c3baa5620eb0a8fb02cec54449b5d91e6b13be",
+		),
 	},
 	{
 		label: "Mint",
 		chain: "4663",
-		href: `${RH_MAINNET_TX}0x0ee9e157db2be8d41806289cd6f4e7b9537bc798f0d9d0954b3ffcca51a51894`,
+		href: rhTx(
+			"0x0ee9e157db2be8d41806289cd6f4e7b9537bc798f0d9d0954b3ffcca51a51894",
+		),
 	},
 	{
 		label: "Burn",
 		chain: "4663",
-		href: `${RH_MAINNET_TX}0x00281d3264f2cd78184d1d21d965d4e599743da73bcb6c70f74ebe97d5c176f3`,
+		href: rhTx(
+			"0x00281d3264f2cd78184d1d21d965d4e599743da73bcb6c70f74ebe97d5c176f3",
+		),
 	},
 	{
 		label: "Release",
 		chain: "Stacks",
-		href: `${HIRO_MAINNET_TX}0xfd1b6e0ece29085f15251ffb5225f1188eb68535518db78b8eb47269fc613d55?chain=mainnet`,
+		href: hiroTx(
+			"0xfd1b6e0ece29085f15251ffb5225f1188eb68535518db78b8eb47269fc613d55",
+		),
 	},
 ];
 
 const DRILLS = {
-	replay: `${RH_MAINNET_TX}0x61d15e6b026b700b2c1de8bb6058d581bbf5ee946c808965af886fdeb38a00cf`,
-	noBurn: `${HIRO_MAINNET_TX}0x23216e13cf1435108af12f070b0554c1aca197cebd951b69473953559b630ebf?chain=mainnet`,
+	replay: rhTx(
+		"0x61d15e6b026b700b2c1de8bb6058d581bbf5ee946c808965af886fdeb38a00cf",
+	),
+	noBurn: hiroTx(
+		"0x23216e13cf1435108af12f070b0554c1aca197cebd951b69473953559b630ebf",
+	),
 };
 
 /** Phase 0's trust model, from robinhood-bridge NOTE.md. */
@@ -152,45 +130,17 @@ const TRUST = [
 	},
 ];
 
-const ROBINHOOD_CHAIN_LOGO = {
-	light: "/robinhood-chain/logo-black.svg",
-	dark: "/robinhood-chain/logo-white.svg",
-	alt: "Robinhood Chain",
-	ratio: 1576 / 207,
-};
-
-const STACKS_LOGO = {
-	light: "/stacks/logo-black.svg",
-	dark: "/stacks/logo-white.png",
-	alt: "Stacks",
-	ratio: 431 / 83,
-};
-
 /**
  * Waitlist microsite for the Stacks ⇄ Robinhood Chain SIP-010 bridge, on the
- * marketing kit (`.site`) with standalone chrome (no MarketingNav):
- * secondlayer mark left, the official Robinhood Chain logo alone on the right.
- * Their brand rules (docs.robinhood.com/chain/brand-guidelines) forbid
- * combining the logo with other branding or text and any recolor, so it is an
- * unmodified asset from their pack, shown black on white / white on dark,
- * never styled. Robin Neon stays on the chain 4663 side of the hero art.
+ * marketing kit (`.site`) with the standalone chrome from ./chrome (Robinhood
+ * Chain logo rules are there). Robin Neon stays on the chain 4663 side of the
+ * hero art.
  */
 export default function RobinhoodPage() {
 	return (
 		<div className="site rh">
 			<CodeClient />
-			<header className="rh-nav">
-				<div className="shell">
-					<Link href="/" className="rh-brand">
-						<Logo size={22} />
-						<span>secondlayer</span>
-					</Link>
-					<div className="rh-dest">
-						<span className="cap rh-dest-label">Compatible with</span>
-						<VendorLogo {...ROBINHOOD_CHAIN_LOGO} height={20} />
-					</div>
-				</div>
-			</header>
+			<RhHeader />
 
 			<main>
 				<div className="shell">
@@ -320,6 +270,36 @@ export default function RobinhoodPage() {
 									</li>
 								))}
 							</ol>
+							{ROUND_TRIPS.length > 0 && (
+								<div className="rh-trips">
+									<span className="cap">
+										Round trips by testers · {ROUND_TRIPS.length}
+									</span>
+									<ol>
+										{ROUND_TRIPS.map((t) => (
+											<li key={t.lock}>
+												<a className="mono" href={hiroAddress(t.stacksAddress)}>
+													{shortAddress(t.stacksAddress)}
+												</a>
+												<span className="mono rh-trips-amount">
+													{t.amount} {t.token}
+												</span>
+												<span className="rh-trips-links">
+													<a href={hiroTx(t.lock)}>Lock</a>
+													<a href={rhTx(t.mint)}>Mint</a>
+													<a href={rhTx(t.burn)}>Burn</a>
+													<a href={hiroTx(t.release)}>Release</a>
+												</span>
+											</li>
+										))}
+									</ol>
+								</div>
+							)}
+							<p className="rh-yours">
+								<strong>Add yours.</strong>{" "}
+								<span>Run the round trip with MEGA or PEPE.</span>{" "}
+								<Link href="/robinhood/guides/phase-0">Phase 0 guide →</Link>
+							</p>
 						</div>
 					</div>
 				</div>
@@ -379,23 +359,7 @@ export default function RobinhoodPage() {
 				</div>
 			</main>
 
-			<footer className="rh-footer">
-				<div className="shell">
-					<span className="mono">stacks ⇄ 4663</span>
-					<Link href="/" className="rh-built-by">
-						<span>Built by</span>
-						<Logo size={17} />
-						<span className="rh-built-by-name">secondlayer</span>
-					</Link>
-					<span className="rh-tm">
-						Robinhood Chain and the Robinhood Chain logo are trademarks of
-						Robinhood Markets, Inc. The Stacks name and logo belong to their
-						owner. Both are used here only to identify compatibility. This
-						bridge is an independent project, not an official Robinhood or
-						Stacks product, and is not sponsored or endorsed by either.
-					</span>
-				</div>
-			</footer>
+			<RhFooter />
 		</div>
 	);
 }
