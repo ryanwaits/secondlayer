@@ -5,8 +5,9 @@ import {
 } from "@/components/account/overview/first-rows-code";
 import { OverviewFallback } from "@/components/account/page-fallbacks";
 import { Staged } from "@/components/account/staged";
-import { AccountSeedProvider } from "@/lib/account-data";
+import { type AccountSeed, AccountSeedProvider } from "@/lib/account-data";
 import { InsightsSeed } from "@/lib/insights-store";
+import { firstRowsGuideMayShow } from "@/lib/onboarding";
 import {
 	accountReads,
 	subgraphsListReads,
@@ -40,7 +41,7 @@ async function loadOverview() {
 				subgraphsListReads(token),
 				readInsights(token),
 			])
-		: [{}, null, null, null];
+		: [{} as AccountSeed, null, null, null];
 	const openChoices = await savedOpenChoices();
 	return { account, webhooks, subgraphs, insights, openChoices };
 }
@@ -52,12 +53,18 @@ function OverviewData({
 	insights,
 	openChoices,
 }: Awaited<ReturnType<typeof loadOverview>>) {
+	// The highlighted blocks are for the new-account guide only; every other
+	// visit skips the highlighter.
+	const pushed =
+		(webhooks?.list.kind === "ok" && webhooks.list.data.length > 0) ||
+		(subgraphs?.kind === "ok" && subgraphs.data.length > 0);
+	const guide = firstRowsGuideMayShow(account.keys ?? null, new Date(), pushed);
 	return (
 		<InsightsSeed insights={insights}>
 			<AccountSeedProvider seed={account}>
 				<AccountOverview
-					firstRowsCode={<FirstRowsCode />}
-					firstRowsPrompt={<FirstRowsPrompt />}
+					firstRowsCode={guide ? <FirstRowsCode /> : null}
+					firstRowsPrompt={guide ? <FirstRowsPrompt /> : null}
 					openChoices={openChoices}
 					initial={webhooks && subgraphs ? { webhooks, subgraphs } : null}
 				/>

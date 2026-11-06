@@ -44,6 +44,26 @@ export function onboardingProgress(
 	return { key, read, push: pushed, complete: key && (read || pushed) };
 }
 
+/**
+ * Whether the server must render the first-rows guide's code blocks: false
+ * only when the guide is certain not to show. It shows for an account that
+ * never made a key, or has a key and is not underway (`checklistApplies`);
+ * the name-a-key flow starts only from the first case, so a key made in the
+ * page needs no later render. Skipping lives in the browser, so it can only
+ * hide a guide whose blocks were sent. `pushed` is true only for a webhook
+ * or subgraph the server saw; unread keys or lists keep the blocks.
+ */
+export function firstRowsGuideMayShow(
+	keys: ApiKey[] | null,
+	now: Date,
+	pushed: boolean,
+): boolean {
+	const state = keyState(keys, now);
+	if (state === "loading" || state === "first") return true;
+	if (state === "none_active") return false;
+	return !onboardingProgress(keys, now, pushed).complete;
+}
+
 /** The prompt the first-rows guide hands to a coding assistant: learn the API, make one call, then ask. */
 export const FIRST_ROWS_PROMPT = `I have a Secondlayer API key in \`SECONDLAYER_API_KEY\`.
 

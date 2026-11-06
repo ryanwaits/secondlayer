@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { keyState } from "./onboarding";
+import { firstRowsGuideMayShow, keyState } from "./onboarding";
 import type { ApiKey } from "./types";
 
 const NOW = new Date("2026-10-15T12:00:00.000Z");
@@ -45,5 +45,35 @@ describe("keyState", () => {
 	test("keys made for the reader are not their own", () => {
 		expect(keyState([key({ product: "tenant" })], NOW)).toBe("first");
 		expect(keyState([key({ product: "sentinel" })], NOW)).toBe("first");
+	});
+});
+
+describe("firstRowsGuideMayShow", () => {
+	const used = key({ lastUsedAt: "2026-10-14T00:00:00.000Z" });
+
+	test("keys not read yet keep the blocks", () => {
+		expect(firstRowsGuideMayShow(null, NOW, false)).toBe(true);
+	});
+
+	test("a new account with no keys keeps the blocks", () => {
+		expect(firstRowsGuideMayShow([], NOW, false)).toBe(true);
+	});
+
+	test("a key that has not read or pushed anything keeps the blocks", () => {
+		expect(firstRowsGuideMayShow([key({})], NOW, false)).toBe(true);
+	});
+
+	test("a key that has read skips the blocks", () => {
+		expect(firstRowsGuideMayShow([used], NOW, false)).toBe(false);
+	});
+
+	test("a key with a webhook or subgraph skips the blocks", () => {
+		expect(firstRowsGuideMayShow([key({})], NOW, true)).toBe(false);
+	});
+
+	test("an account that revoked every key skips the blocks", () => {
+		expect(
+			firstRowsGuideMayShow([key({ status: "revoked" })], NOW, false),
+		).toBe(false);
 	});
 });
