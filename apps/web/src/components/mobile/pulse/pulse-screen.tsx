@@ -3,7 +3,7 @@
 import type { OverviewInitial } from "@/components/account/overview/overview-section";
 import { rowsCell } from "@/components/account/overview/overview-view";
 import { useSubgraphsPoll } from "@/components/account/subgraphs/list-screen";
-import { ChartSkeleton } from "@/components/charts/chart-skeleton";
+import { ChartBox, ChartSkeleton } from "@/components/charts/chart-skeleton";
 import { LazyBandBarChart } from "@/components/charts/lazy";
 import {
 	type Billing,
@@ -183,20 +183,22 @@ function Last24({ summary }: { summary: WebhooksActivitySummary | undefined }) {
 									: "No failures"}
 							</span>
 						</div>
-						<LazyBandBarChart
-							rows={barsRows(
-								d.delivered.map((n, i) => ({ n, f: d.failed[i] })),
-							)}
-							height={120}
-							xLabels={[
-								[0, "24h ago"],
-								[Math.max(0, d.hours.length - 1), "now"],
-							]}
-							seriesNames={{ n: "Delivered", p: "", f: "Failed" }}
-						/>
+						<ChartBox height={120}>
+							<LazyBandBarChart
+								rows={barsRows(
+									d.delivered.map((n, i) => ({ n, f: d.failed[i] })),
+								)}
+								height={120}
+								xLabels={[
+									[0, "24h ago"],
+									[Math.max(0, d.hours.length - 1), "now"],
+								]}
+								seriesNames={{ n: "Delivered", p: "", f: "Failed" }}
+							/>
+						</ChartBox>
 					</>
 				) : (
-					<ChartSkeleton height={120} />
+					<ChartBox height={120} />
 				)}
 			</div>
 		</>
