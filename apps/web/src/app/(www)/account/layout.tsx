@@ -2,6 +2,7 @@ import {
 	AccountSeeds,
 	AccountSession,
 } from "@/components/account/account-session";
+import { StreamedReset } from "@/components/motion/stream-marker";
 import { AuthSeedPending } from "@/lib/auth";
 import { InsightsPending } from "@/lib/insights-store";
 import { requestDeadline } from "@/lib/server/head-start";
@@ -24,6 +25,7 @@ export default function AccountLayout({
 		<>
 			<AuthSeedPending />
 			<InsightsPending />
+			<StreamedReset />
 			<AccountSeeds />
 			<AccountSession>{children}</AccountSession>
 		</>

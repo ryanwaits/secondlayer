@@ -144,6 +144,10 @@
 	--ease-snappy: cubic-bezier(0.4, 0, 0.2, 1);
 	--duration-smooth: 500ms;
 	--ease-smooth: cubic-bezier(0.4, 0, 0.2, 1);
+
+	/* A page whose data streamed in after its skeleton fades in. */
+	--duration-stream-fade: 180ms;
+	--ease-stream-fade: ease-out;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -11744,4 +11748,32 @@ button.ky-click:focus-visible,
 	max-width: 34rem;
 	padding-block: 8px 0;
 	border-top: 0;
+}
+
+/* Stream fade. Only a page that streamed in after its skeleton fades: the
+   skeleton's inline script sets `data-streamed` on <html> in the server HTML
+   (never on a client navigation), and the first click or key clears it, so
+   data that came in the first paint, refreshes and polls stay still. Opacity
+   only: nothing here moves a sibling. */
+@keyframes stream-fade {
+	from {
+		opacity: 0;
+	}
+}
+/* The region's own box. Same column and gap as .acct-main, so wrapping a
+   page's sections in it moves none of them. */
+.acct-region {
+	display: flex;
+	flex-direction: column;
+	gap: 16px;
+	min-width: 0;
+}
+[data-streamed] .acct-region.stream-in {
+	animation: stream-fade var(--duration-stream-fade) var(--ease-stream-fade)
+		backwards;
+}
+@media (prefers-reduced-motion: reduce) {
+	:root {
+		--duration-stream-fade: 120ms;
+	}
 }
