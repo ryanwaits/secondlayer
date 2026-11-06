@@ -104,7 +104,11 @@ function Status({
 	projectedEnd: number | null;
 }) {
 	if (!billing) {
-		return <StatusSentence>Checking your balance.</StatusSentence>;
+		// The sub-line is reserved (a no-break space) so the loaded sentence
+		// doesn't push the page down.
+		return (
+			<StatusSentence sub={"\u00a0"}>Checking your balance.</StatusSentence>
+		);
 	}
 	const month = currentUtcMonth(now);
 	const spent = Number(billing.spentThisMonthUsdMicros) / MICROS;
@@ -391,6 +395,7 @@ export function BillingScreen({ ret }: { ret: TopupReturn | null }) {
 					now={now}
 					billing={billing}
 					capUsd={capUsd}
+					capPending={caps === null}
 					alertPct={caps?.alertThresholdPct}
 					usage={usage[month]}
 					daily={daily[month]}

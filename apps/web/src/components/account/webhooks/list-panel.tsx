@@ -12,7 +12,7 @@ import { useCompact } from "@/components/mobile/use-compact";
 import { notify } from "@/components/toast/notify";
 import { getAgentPrompt } from "@/lib/agent-prompts";
 import { heatGrid } from "@/lib/dashboard-charts";
-import type { WebhooksResult } from "@/lib/dashboard-results";
+import { type WebhooksResult, initialNotice } from "@/lib/dashboard-results";
 import type { IndexView } from "@/lib/index-view";
 import type { Insight } from "@/lib/insights";
 import { forAccountRules, useInsights } from "@/lib/insights-store";
@@ -87,7 +87,7 @@ function noticeFor(
  *  its list or summary didn't load. */
 function useListPoll(initial: WebhooksListInitial | null): ListNotice | null {
 	const [notice, setNotice] = useState<ListNotice | null>(
-		initial ? (noticeFor(initial.list) ?? null) : null,
+		initial ? initialNotice(initial.list, noticeFor) : null,
 	);
 	const listLoaded =
 		initial?.list.kind === "ok" && initial.summary.kind === "ok";

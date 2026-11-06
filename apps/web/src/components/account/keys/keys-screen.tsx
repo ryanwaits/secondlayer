@@ -588,7 +588,9 @@ export function KeysBody({
 				madeOpen={madeOpen}
 				onRotated={onRotated}
 			/>
-			{apps !== undefined ? <AppsPanel apps={apps} now={now} /> : null}
+			{keys !== null && apps !== undefined ? (
+				<AppsPanel apps={apps} now={now} />
+			) : null}
 		</div>
 	);
 }

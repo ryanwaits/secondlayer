@@ -16,6 +16,7 @@ import {
 import { StatusSentence } from "@/components/dashboard/shell/status-sentence";
 import { useCompact } from "@/components/mobile/use-compact";
 import { alignToWindow } from "@/lib/dashboard-charts";
+import { initialNotice } from "@/lib/dashboard-results";
 import type { IndexView } from "@/lib/index-view";
 import type { Insight } from "@/lib/insights";
 import {
@@ -94,7 +95,7 @@ export function useSubgraphsPoll(
 	initial?: SubgraphsResult<SubgraphListItem[]>,
 ): ListNotice | null {
 	const [notice, setNotice] = useState<ListNotice | null>(
-		initial ? (noticeFor(initial) ?? null) : null,
+		initial ? initialNotice(initial, noticeFor) : null,
 	);
 	const complete =
 		initial?.kind === "ok" && initial.data.every((s) => s.health !== undefined);

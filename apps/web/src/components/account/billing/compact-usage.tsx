@@ -124,6 +124,9 @@ export interface UsageBodyProps {
 	billing: Billing | null;
 	/** Whole-dollar spend cap, or null for none. */
 	capUsd: number | null;
+	/** True until the cap has loaded: its meter and hint take their room so the
+	 *  page doesn't move when they appear. */
+	capPending?: boolean;
 	/** Percent of the cap that sends the warning email. */
 	alertPct?: number;
 	usage: UsageRow[] | undefined;
@@ -141,6 +144,7 @@ export function UsageBody({
 	billing,
 	capUsd,
 	alertPct = DEFAULT_ALERT_PCT,
+	capPending = false,
 	usage,
 	daily,
 	burn,
@@ -205,6 +209,13 @@ export function UsageBody({
 							<span>${capUsd}</span>
 						</div>
 					</>
+				) : capPending ? (
+					<>
+						<div className="mac-meter" aria-hidden="true" />
+						<div className="mac-axis" aria-hidden="true">
+							<span>&nbsp;</span>
+						</div>
+					</>
 				) : null}
 				{billing && projection ? (
 					<Pace
@@ -214,12 +225,20 @@ export function UsageBody({
 						projectedEnd={projectedEnd}
 						now={now}
 					/>
+				) : daily === undefined ? (
+					<p className="mac-pace" aria-hidden="true">
+						&nbsp;
+					</p>
 				) : null}
 			</div>
 			{capUsd != null ? (
 				<p className="m-sub mac-hint">
 					Everything pauses past ${capUsd.toLocaleString("en-US")} in a month,
 					webhooks included.
+				</p>
+			) : capPending ? (
+				<p className="m-sub mac-hint" aria-hidden="true">
+					&nbsp;
 				</p>
 			) : null}
 
@@ -229,6 +248,14 @@ export function UsageBody({
 					{usage ? formatRows(deliveredRowsIn(usage)) : "…"}{" "}
 					<span className="mac-faint">· {formatRows(ROWS_ALLOWANCE)} free</span>
 				</Kv>
+				{usage === undefined
+					? // The month's other units, at their most, so the balance below
+						// stays put when they land.
+						Array.from({ length: MAX_UNIT_LINES }, (_, i) => (
+							// biome-ignore lint/suspicious/noArrayIndexKey: fixed placeholders
+							<div key={i} className="mac-kv" aria-hidden="true" />
+						))
+					: null}
 				{others.map((u) => (
 					<Kv key={u.unit} k={unitLabel(u.unit)[0]}>
 						{formatUnitQuantity(u.unit, u.quantity)}

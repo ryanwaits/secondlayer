@@ -54,3 +54,14 @@ export function resultFromResponse<T>(
 	);
 	return mapped ?? { kind: "ok", data: body as T };
 }
+
+/** The notice a page starts with from its server read. A server read that
+ *  failed (in practice, one that timed out) is no notice: the browser retries
+ *  at once, so the page shows its skeleton until that retry itself fails.
+ *  `noticeFor` is the page's own read-to-notice mapping. */
+export function initialNotice<T, N>(
+	res: WebhooksResult<T>,
+	noticeFor: (res: WebhooksResult<T>) => N | null | undefined,
+): N | null {
+	return res.kind === "error" ? null : (noticeFor(res) ?? null);
+}

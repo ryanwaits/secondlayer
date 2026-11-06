@@ -1,5 +1,27 @@
 import { describe, expect, test } from "bun:test";
-import { resultForStatus, resultFromResponse } from "./dashboard-results";
+import {
+	initialNotice,
+	resultForStatus,
+	resultFromResponse,
+} from "./dashboard-results";
+
+describe("initialNotice", () => {
+	const mapping = (r: { kind: string }) =>
+		r.kind === "ok" ? null : { kind: r.kind };
+	test("a failed server read is no notice, so the page shows its skeleton", () => {
+		expect(initialNotice({ kind: "error", message: "x" }, mapping)).toBeNull();
+	});
+	test("an expected state from the server still shows", () => {
+		expect(initialNotice({ kind: "asleep" }, mapping)).toEqual({
+			kind: "asleep",
+		});
+	});
+	test("a mapping with nothing to say reads as no notice", () => {
+		expect(
+			initialNotice({ kind: "rate_limited", retryAfter: 1 }, () => undefined),
+		).toBeNull();
+	});
+});
 
 describe("resultForStatus", () => {
 	test("a 2xx maps to null (caller reads the body)", () => {

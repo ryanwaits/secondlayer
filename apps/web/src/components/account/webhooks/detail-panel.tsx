@@ -12,7 +12,7 @@ import { useCompact } from "@/components/mobile/use-compact";
 import { notify } from "@/components/toast/notify";
 import { formatDate } from "@/lib/account-data";
 import { barsRows } from "@/lib/dashboard-charts";
-import type { WebhooksResult } from "@/lib/dashboard-results";
+import { type WebhooksResult, initialNotice } from "@/lib/dashboard-results";
 import { type Insight, rankInsights } from "@/lib/insights";
 import { forResource, useInsights } from "@/lib/insights-store";
 import type { WebhookDetailInitial } from "@/lib/server/dashboard-reads";
@@ -140,7 +140,7 @@ function useDetailPoll(
 	initial: WebhookDetailInitial | null,
 ): { notice: DetailNotice | null; asleep: boolean } {
 	const firstNotice = initial
-		? (noticeFor(initial.webhook, false) ?? null)
+		? initialNotice(initial.webhook, (res) => noticeFor(res, false))
 		: null;
 	const firstAsleep = initial?.webhook.kind === "asleep";
 	const [notice, setNotice] = useState<DetailNotice | null>(firstNotice);

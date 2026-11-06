@@ -115,6 +115,7 @@ export function CreditsFallback() {
 				now={now}
 				billing={null}
 				capUsd={null}
+				capPending
 				usage={undefined}
 				daily={undefined}
 				burn={null}
