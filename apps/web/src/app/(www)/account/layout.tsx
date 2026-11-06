@@ -1,5 +1,6 @@
 import { AccountFrame } from "@/components/account/account-frame";
 import { AccountSeedProvider } from "@/lib/account-data";
+import { logColdStart } from "@/lib/server/cold-start";
 import { accountReads } from "@/lib/server/dashboard-reads";
 import { sessionToken } from "@/lib/server/session";
 
@@ -15,8 +16,10 @@ export default async function AccountLayout({
 }: {
 	children: React.ReactNode;
 }) {
+	const startedAt = performance.now();
 	const token = await sessionToken();
 	const seed = token ? await accountReads(token, ["billing"]) : {};
+	logColdStart("/account", startedAt);
 	return (
 		<AccountSeedProvider seed={seed}>
 			<AccountFrame signedOut={!token}>{children}</AccountFrame>
