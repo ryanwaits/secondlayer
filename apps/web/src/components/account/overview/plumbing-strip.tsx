@@ -138,7 +138,18 @@ function RowsCellView({
 	);
 }
 
-function KeysCellView({ cell }: { cell: KeysCell | null }) {
+function KeysCellView({
+	cell,
+	loaded,
+}: { cell: KeysCell | null; loaded: boolean }) {
+	if (!loaded) {
+		return (
+			<div className="ov-cell">
+				<CellHead href="/account/keys" label="Keys" />
+				<CellSkeleton />
+			</div>
+		);
+	}
 	if (!cell) {
 		return (
 			<div className="ov-cell ov-cell-empty">
@@ -212,19 +223,20 @@ function StackCellView({ cell }: { cell: StackCell | null }) {
 	);
 }
 
-/** Two shimmer lines for a cell whose data has not arrived. */
+/** A cell whose data has not arrived, as tall as the one that replaces it
+ *  (the hosted stack cell, the tallest): a big figure, a chart, a caption. */
 function CellSkeleton() {
 	return (
 		<>
 			<Skel width="45%" height={20} />
+			<Skel width="100%" height={30} />
 			<Skel width="70%" height={18} />
 		</>
 	);
 }
 
 /** The strip's shape while the Overview's first data is in flight. Each line
- *  is as tall as what replaces it (the hosted stack cell, the tallest), so the
- *  swap doesn't move anything. */
+ *  is as tall as what replaces it, so the swap doesn't move anything. */
 export function PlumbingStripSkeleton() {
 	return (
 		<div className="ov-strip" aria-hidden="true">
@@ -233,9 +245,7 @@ export function PlumbingStripSkeleton() {
 					<div className="ov-cell-head">
 						<Skel width={90} height={12} />
 					</div>
-					<Skel width="45%" height={20} />
-					<Skel width="100%" height={30} />
-					<Skel width="70%" height={18} />
+					<CellSkeleton />
 				</div>
 			))}
 		</div>
@@ -286,7 +296,7 @@ export function PlumbingStrip({
 						top && setChosen((prev) => ({ ...prev, [top.id]: !open }))
 					}
 				/>
-				<KeysCellView cell={keysCell(keys, now)} />
+				<KeysCellView cell={keysCell(keys, now)} loaded={keys !== null} />
 				<StackCellView
 					cell={stackCell(stack, burn, { asleep, creditsUsdMicros })}
 				/>

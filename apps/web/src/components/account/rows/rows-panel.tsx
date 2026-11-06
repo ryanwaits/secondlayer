@@ -34,7 +34,6 @@ import {
 	xLabels,
 } from "@/lib/rows";
 import { ROWS_ALLOWANCE, formatRows } from "@/lib/usage";
-import { useFirstSettle } from "@/lib/use-first-settle";
 import { useEffect, useState } from "react";
 import { CliLine } from "../webhooks/shared";
 
@@ -337,10 +336,10 @@ export function RowsSection() {
 	}, []);
 
 	const status = rows ? "ok" : failed ? "failed" : "not_loaded";
-	const ready = useFirstSettle(
-		failed || (rows !== null && insightsStatus !== "idle"),
-	);
-	if (!ready || status === "not_loaded") return <RowsSkeleton />;
+	// Insights sit above the rows, so they land with them or the rows move.
+	if (!failed && (rows === null || insightsStatus === "idle")) {
+		return <RowsSkeleton />;
+	}
 	return (
 		<RowsBody
 			status={status}

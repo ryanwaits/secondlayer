@@ -19,6 +19,7 @@ import {
 	accountRead,
 	accountReads,
 	readApi,
+	sharedReadApi,
 	subgraphDetailReads,
 	subgraphsListReads,
 	webhookDetailReads,
@@ -108,6 +109,106 @@ describe("readApi", () => {
 			kind: "error",
 			message: "Couldn't reach the API",
 		});
+	});
+});
+
+/** A fetch that answers `fast` paths and never answers the rest, until the
+ *  request's own signal gives up on it. */
+function stubHangingApi(fast: Record<string, () => Response>): string[] {
+	const paths: string[] = [];
+	globalThis.fetch = ((url: string, init: RequestInit) => {
+		const path = String(url).replace(/^https?:\/\/[^/]+/, "");
+		paths.push(path);
+		const answer = fast[path];
+		if (answer) return Promise.resolve(answer());
+		return new Promise((_, reject) => {
+			init.signal?.addEventListener("abort", () => reject(init.signal?.reason));
+		});
+	}) as unknown as typeof fetch;
+	return paths;
+}
+
+describe("readApi upstream timeout", () => {
+	test("a read the API never answers is an error result, and the timeout is logged without ids", async () => {
+		stubHangingApi({});
+		const warnings: string[] = [];
+		const warn = console.warn;
+		console.warn = (message: string) => warnings.push(message);
+		try {
+			const res = await readApi("t", "/api/webhooks/wh_secret_1/activity?x=1");
+			expect(res).toEqual({ kind: "error", message: "Couldn't reach the API" });
+		} finally {
+			console.warn = warn;
+		}
+		expect(warnings).toEqual([
+			"upstream-timeout path=/api/webhooks/:id/activity",
+		]);
+	});
+
+	test("one slow slice leaves out only itself; the others still seed", async () => {
+		stubHangingApi({
+			"/api/billing/status": () =>
+				json({ creditsUsdMicros: "5", creditsSpentThisMonthUsdMicros: "2" }),
+			"/api/billing/caps": () => json({ cap: null }),
+		});
+		const warn = console.warn;
+		console.warn = () => {};
+		try {
+			const seed = await accountReads("tok", ["billing", "caps", "keys"]);
+			expect(seed.billing).toEqual({
+				creditsUsdMicros: "5",
+				spentThisMonthUsdMicros: "2",
+			});
+			expect(seed.caps).toBeDefined();
+			expect(seed.keys).toBeUndefined();
+		} finally {
+			console.warn = warn;
+		}
+	});
+
+	test("a timed-out insights side is unavailable and the other still answers", async () => {
+		const some = FIXTURE_INSIGHTS.slice(0, 1);
+		stubHangingApi({
+			"/api/accounts/insights": () => json({ data: some }),
+		});
+		const warn = console.warn;
+		console.warn = () => {};
+		try {
+			const res = await readInsights("t");
+			expect(res?.map((i) => i.id)).toEqual([`a:${some[0]?.id}`]);
+		} finally {
+			console.warn = warn;
+		}
+	});
+});
+
+describe("sharedReadApi", () => {
+	/** What React's per-request `cache` does: same arguments, one call. */
+	function memoize<A extends unknown[], R>(fn: (...args: A) => R) {
+		const results = new Map<string, R>();
+		return (...args: A): R => {
+			const key = JSON.stringify(args);
+			if (!results.has(key)) results.set(key, fn(...args));
+			return results.get(key) as R;
+		};
+	}
+
+	test("the same read asked twice in a request reaches the API once", async () => {
+		const calls = stubApi({
+			"/api/billing/status": () => json({ creditsUsdMicros: "5" }),
+			"/api/keys": () => json({ keys: [] }),
+		});
+		const read = sharedReadApi(memoize);
+		const [layout, page] = await Promise.all([
+			read("tok", "/api/billing/status"),
+			read("tok", "/api/billing/status"),
+		]);
+		await read("tok", "/api/keys");
+		expect(layout).toEqual(page);
+		expect(calls.map((c) => c.path)).toEqual([
+			"/api/billing/status",
+			"/api/keys",
+		]);
 	});
 });
 

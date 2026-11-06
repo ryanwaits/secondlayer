@@ -17,7 +17,6 @@ import type { IndexView } from "@/lib/index-view";
 import type { Insight } from "@/lib/insights";
 import { forAccountRules, useInsights } from "@/lib/insights-store";
 import type { WebhooksListInitial } from "@/lib/server/dashboard-reads";
-import { useFirstSettle } from "@/lib/use-first-settle";
 import { hostOf, pauseWebhook, resumeWebhook } from "@/lib/webhooks-data";
 import {
 	applyWebhook,
@@ -527,11 +526,9 @@ export function WebhooksListSection({
 	const { rows, hours, summaryLoaded } = useWebhookRows(
 		initial ? listSeed(initial) : undefined,
 	);
-	// Only the list defines the layout, so rows paint when it lands, at most
-	// FIRST_SETTLE_MS late. The strip holds its space with HeatStripSkeleton and
-	// the state line says "Counting…", so nothing moves when the summary or
-	// insights arrive.
-	const ready = useFirstSettle(rows !== null);
+	// Only the list defines the layout, so rows paint when it lands. The strip
+	// holds its space with HeatStripSkeleton and the state line says
+	// "Counting…", so nothing moves when the summary or insights arrive.
 	const { data: insights } = useInsights();
 	const compact = useCompact();
 	const [busyId, setBusyId] = useState<string | null>(null);
@@ -592,7 +589,7 @@ export function WebhooksListSection({
 		}
 		return (
 			<WebhooksCompactList
-				rows={ready ? rows : null}
+				rows={rows}
 				failing={
 					rows
 						? countByDisplayStatus(
@@ -610,7 +607,7 @@ export function WebhooksListSection({
 	return (
 		<WebhooksListBody
 			pageInsights={forAccountRules(insights, ["stack_unreachable_webhooks"])}
-			rows={ready ? rows : null}
+			rows={rows}
 			hours={hours}
 			summaryLoaded={summaryLoaded}
 			notice={notice}

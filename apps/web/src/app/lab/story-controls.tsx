@@ -934,7 +934,9 @@ export function OverviewDemo({ state }: { state: OverviewDemoState }) {
 				/>
 			),
 		}),
-		loading: exampleOverview(now, { loading: true }),
+		loading: exampleOverview(now, {
+			pending: { list: true, strip: true, all: true },
+		}),
 	}[state];
 	return <OverviewBody {...props} />;
 }

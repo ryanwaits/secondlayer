@@ -53,10 +53,13 @@ export async function apiRequest<T>(
 		sessionToken?: string;
 		tags?: string[];
 		headers?: Record<string, string>;
+		/** Give up after this long (rejects with a `TimeoutError`). For reads a
+		 *  page waits on; a write is never cut short. */
+		timeoutMs?: number;
 	} = {},
 ): Promise<T> {
 	assertSafePath(path);
-	const { method = "GET", body, sessionToken, tags } = options;
+	const { method = "GET", body, sessionToken, tags, timeoutMs } = options;
 
 	const headers: Record<string, string> = {
 		"Content-Type": "application/json",
@@ -78,6 +81,7 @@ export async function apiRequest<T>(
 		next: nextOptions,
 		// Why: reuse warm connections to the API; undici's default drops idle ones after 4 s.
 		dispatcher: upstreamAgent,
+		signal: timeoutMs ? AbortSignal.timeout(timeoutMs) : undefined,
 	} as RequestInit & { dispatcher: Agent });
 
 	if (!res.ok) {

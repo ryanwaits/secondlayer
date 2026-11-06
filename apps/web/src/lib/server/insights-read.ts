@@ -1,6 +1,7 @@
 // Server-only: never import from client code.
 import { apiRequest } from "@/lib/api";
 import { type Insight, rankInsights } from "@/lib/insights";
+import { UPSTREAM_READ_TIMEOUT_MS, logIfTimeout } from "@/lib/upstream-timeout";
 
 /**
  * The dashboard's insights: the stack's (webhooks, subgraphs) and the
@@ -17,15 +18,21 @@ export async function fetchInsightSide(
 	path: string,
 	prefix: "t" | "a",
 	sessionToken: string,
+	/** Page reads give up early; the browser's proxy waits. */
+	timeoutMs?: number,
 ): Promise<{ data: Insight[]; source: InsightSource }> {
 	try {
-		const res = await apiRequest<{ data: Insight[] }>(path, { sessionToken });
+		const res = await apiRequest<{ data: Insight[] }>(path, {
+			sessionToken,
+			timeoutMs,
+		});
 		const data = (res.data ?? []).map((insight) => ({
 			...insight,
 			id: `${prefix}:${insight.id}`,
 		}));
 		return { data, source: "ok" };
-	} catch {
+	} catch (err) {
+		logIfTimeout(err, path);
 		// 404 on a self-host api without /api/accounts, 503 while a stack
 		// starts, a network error: this side has nothing to say right now.
 		return { data: [], source: "unavailable" };
@@ -38,8 +45,18 @@ export async function readInsights(
 	sessionToken: string,
 ): Promise<Insight[] | null> {
 	const [stack, account] = await Promise.all([
-		fetchInsightSide("/api/insights", "t", sessionToken),
-		fetchInsightSide("/api/accounts/insights", "a", sessionToken),
+		fetchInsightSide(
+			"/api/insights",
+			"t",
+			sessionToken,
+			UPSTREAM_READ_TIMEOUT_MS,
+		),
+		fetchInsightSide(
+			"/api/accounts/insights",
+			"a",
+			sessionToken,
+			UPSTREAM_READ_TIMEOUT_MS,
+		),
 	]);
 	if (stack.source === "unavailable" && account.source === "unavailable") {
 		return null;

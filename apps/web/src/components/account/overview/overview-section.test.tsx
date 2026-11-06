@@ -23,7 +23,7 @@ import {
 	OverviewSubgraphsSlot,
 	SUBGRAPH_HEAD,
 	checklistApplies,
-	overviewSettled,
+	overviewPending,
 } from "./overview-section";
 import {
 	exampleOverview,
@@ -246,7 +246,7 @@ describe("OverviewBody for a new account", () => {
 	});
 });
 
-describe("Overview first paint", () => {
+describe("Overview sections", () => {
 	const loaded: OverviewFirstWave = {
 		keys: true,
 		billing: true,
@@ -258,58 +258,96 @@ describe("Overview first paint", () => {
 		rows: true,
 		insights: true,
 	};
+	const none: OverviewFirstWave = {
+		keys: false,
+		billing: false,
+		service: false,
+		stackState: null,
+		webhooks: false,
+		asleep: false,
+		subgraphs: false,
+		rows: false,
+		insights: false,
+	};
 
-	test("is settled once everything has loaded", () => {
-		expect(overviewSettled(loaded)).toBe(true);
+	test("nothing waits once everything has loaded", () => {
+		expect(overviewPending(loaded)).toEqual({
+			list: false,
+			strip: false,
+			all: false,
+		});
 	});
 
-	for (const field of [
-		"keys",
-		"billing",
-		"service",
-		"rows",
-		"insights",
-	] as const) {
-		test(`waits for ${field}`, () => {
-			expect(overviewSettled({ ...loaded, [field]: false })).toBe(false);
-			expect(
-				overviewSettled({
-					...loaded,
-					stackState: "none",
-					[field]: false,
-				}),
-			).toBe(false);
-		});
-	}
+	test("a missing slice holds only the section that draws it", () => {
+		for (const field of ["webhooks", "subgraphs"] as const) {
+			expect(overviewPending({ ...loaded, [field]: false })).toEqual({
+				list: true,
+				strip: false,
+				all: false,
+			});
+		}
+		// The strip's cells skeleton themselves; the rest paint.
+		for (const field of ["rows", "service"] as const) {
+			expect(overviewPending({ ...loaded, [field]: false })).toEqual({
+				list: false,
+				strip: false,
+				all: false,
+			});
+		}
+	});
 
-	test("does not wait for webhooks or subgraphs when there is no hosted stack", () => {
+	test("insights hold the findings and the strip's flags", () => {
+		expect(overviewPending({ ...loaded, insights: false })).toEqual({
+			list: true,
+			strip: true,
+			all: false,
+		});
+	});
+
+	test("keys hold the list, which they decide the checklist of, not the strip", () => {
+		expect(overviewPending({ ...loaded, keys: false })).toEqual({
+			list: true,
+			strip: false,
+			all: false,
+		});
+	});
+
+	test("a missing balance holds nothing: the month shows a dash", () => {
+		expect(overviewPending({ ...loaded, billing: false })).toEqual({
+			list: false,
+			strip: false,
+			all: false,
+		});
+	});
+
+	test("the list does not wait for webhooks or subgraphs when there is no hosted stack", () => {
 		expect(
-			overviewSettled({
+			overviewPending({
 				...loaded,
 				stackState: "none",
 				webhooks: false,
 				subgraphs: false,
-			}),
-		).toBe(true);
-	});
-
-	test("waits for webhooks and subgraphs on a running stack", () => {
-		expect(overviewSettled({ ...loaded, webhooks: false })).toBe(false);
-		expect(overviewSettled({ ...loaded, subgraphs: false })).toBe(false);
+			}).list,
+		).toBe(false);
 	});
 
 	test("an asleep stack counts as its webhooks being known", () => {
-		expect(overviewSettled({ ...loaded, webhooks: false, asleep: true })).toBe(
-			true,
-		);
+		expect(
+			overviewPending({ ...loaded, webhooks: false, asleep: true }).list,
+		).toBe(false);
 	});
 
-	test("the loading skeleton has the webhook header and a strip", () => {
+	test("only an account with nothing loaded is all pending", () => {
+		expect(overviewPending(none).all).toBe(true);
+		expect(overviewPending({ ...none, billing: true }).all).toBe(false);
+	});
+
+	test("a fully pending body is the skeleton: header and rows, no strip or month", () => {
 		const html = renderToStaticMarkup(
 			<OverviewBody
 				{...base}
 				rows={null}
-				loading
+				pending={{ list: true, strip: true, all: true }}
 				accountInsights={FIXTURE_INSIGHTS}
 			/>,
 		);
@@ -317,10 +355,39 @@ describe("Overview first paint", () => {
 		expect(html).toContain("Deliveries, 24h");
 		const block = html.slice(html.indexOf("ov-skel"));
 		expect(block.match(/class="dash-row"/g)?.length).toBe(3);
-		expect(block.match(/class="ov-cell"/g)?.length).toBe(3);
 		// Nothing else renders: it would move when the real content lands.
+		expect(html).not.toContain("ov-strip");
 		expect(html).not.toContain('aria-label="This month"');
 		expect(html).not.toContain("ins-");
+	});
+
+	test("a pending list holds its own skeleton and nothing renders under it", () => {
+		const out = renderToStaticMarkup(
+			<OverviewBody
+				{...exampleOverview(new Date("2026-10-15T12:00:00.000Z"))}
+				rows={null}
+				pending={{ list: true, strip: false, all: false }}
+			/>,
+		);
+		expect(out).toContain('aria-label="Loading your account"');
+		expect(out).not.toContain("Checking your account.");
+		// The strip would move when the rows replace their skeleton.
+		expect(out).not.toContain("ov-strip");
+		expect(out).not.toContain('aria-label="This month"');
+	});
+
+	test("a pending strip keeps its skeleton while the rows show data", () => {
+		const out = renderToStaticMarkup(
+			<OverviewBody
+				{...exampleOverview(new Date("2026-10-15T12:00:00.000Z"))}
+				pending={{ list: false, strip: true, all: false }}
+			/>,
+		);
+		expect(out).toContain("Everything is delivering.");
+		expect(out).not.toContain('aria-label="Loading your account"');
+		expect(out.match(/class="ov-cell"/g)?.length).toBe(3);
+		expect(out).toContain('class="ov-strip" aria-hidden="true"');
+		expect(out).not.toContain('aria-label="This month"');
 	});
 });
 
@@ -516,6 +583,14 @@ describe("OverviewBody table and strip", () => {
 		const { strip } = parts(render({ keys: [] }));
 		expect(strip).toContain("None");
 		expect(strip).toContain("sl keys create");
+	});
+
+	test("keys still loading show their own cell skeleton while the other cells show data", () => {
+		const { strip } = parts(render({ keys: null }));
+		expect(strip).not.toContain("None");
+		expect(strip).toContain("wh-skel");
+		expect(strip).toContain("delivered");
+		expect(strip).toContain("/day");
 	});
 
 	test("subgraphs get their own header when there are any", () => {

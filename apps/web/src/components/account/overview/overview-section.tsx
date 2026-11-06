@@ -73,7 +73,6 @@ import {
 	monthParam,
 	nextMonthLabel,
 } from "@/lib/usage";
-import { useFirstSettle } from "@/lib/use-first-settle";
 import {
 	poll,
 	refreshList,
@@ -452,20 +451,51 @@ export interface OverviewFirstWave {
 	insights: boolean;
 }
 
-export function overviewSettled(w: OverviewFirstWave): boolean {
-	if (!w.keys || !w.billing || !w.service || !w.rows || !w.insights) {
-		return false;
-	}
-	if (w.stackState === "none") return true;
-	return (w.webhooks || w.asleep) && w.subgraphs;
+/** Which sections of the Overview still wait for data. Each shows its own
+ *  skeleton at its final size while the rest paint what they have. */
+export interface OverviewPending {
+	/** The sentence, findings and the webhook and subgraph rows. */
+	list: boolean;
+	/** The strip's flags, and what sits under it (insights, the month). */
+	strip: boolean;
+	/** Nothing has loaded: the sentence says so. */
+	all: boolean;
 }
+
+export function overviewPending(w: OverviewFirstWave): OverviewPending {
+	const stackless = w.stackState === "none";
+	return {
+		// Keys decide whether the checklist replaces the rows, insights the
+		// findings above them.
+		list:
+			!w.keys ||
+			!w.insights ||
+			!(stackless || ((w.webhooks || w.asleep) && w.subgraphs)),
+		// Each cell of the strip skeletons itself; only the flags the insights
+		// add to its cells would move it.
+		strip: !w.insights,
+		all:
+			!w.keys &&
+			!w.billing &&
+			!w.service &&
+			!w.rows &&
+			!w.insights &&
+			!w.webhooks &&
+			!w.subgraphs,
+	};
+}
+
+const NOT_PENDING: OverviewPending = { list: false, strip: false, all: false };
+
+/** The sentence's line box (30px type at 1.15), so its skeleton holds the same height. */
+const SENTENCE_SKELETON_HEIGHT = 34;
 
 /** How many placeholder rows the first-paint skeleton shows. */
 const SKELETON_ROWS = 3;
 
 export interface OverviewBodyProps {
-	/** Hold the skeleton: the first data has not landed yet. */
-	loading?: boolean;
+	/** The sections still waiting for data; each holds its own skeleton. */
+	pending?: OverviewPending;
 	/** Null until the webhook list has loaded. */
 	rows: WebhookRowModel[] | null;
 	billing: Billing | null;
@@ -506,7 +536,7 @@ export function OverviewBody({
 	accountInsights = [],
 	asleep = false,
 	onboarding = null,
-	loading = false,
+	pending = NOT_PENDING,
 }: OverviewBodyProps) {
 	const guide = onboarding && !onboarding.progress.complete ? onboarding : null;
 	const findings = overviewFindings(rows ?? [], subgraphFindings);
@@ -536,33 +566,30 @@ export function OverviewBody({
 		.filter(Boolean)
 		.join(" · ");
 
-	if (loading) {
-		// Nothing renders below the strip: anything there would be an
-		// existing element that moves when the real ones replace this.
-		return (
-			<>
-				<StatusSentence sub={<Skel width={220} />}>
-					Checking your account.
-				</StatusSentence>
-				<output
-					key="ov-skel"
-					className="dash-rows ov-skel"
-					aria-busy="true"
-					aria-label="Loading your account"
-				>
-					<ResourceRowHead labels={WEBHOOK_HEAD} />
-					{Array.from({ length: SKELETON_ROWS }).map((_, i) => (
-						// Fixed skeleton row count; position is the identity.
-						// biome-ignore lint/suspicious/noArrayIndexKey: static skeleton rows
-						<ResourceRowSkeleton key={i} />
-					))}
-				</output>
-				<PlumbingStripSkeleton />
-			</>
-		);
-	}
-
-	return (
+	const listSection = pending.list ? (
+		<>
+			<StatusSentence sub={<Skel width={220} />}>
+				{pending.all ? (
+					"Checking your account."
+				) : (
+					<Skel width={300} height={SENTENCE_SKELETON_HEIGHT} />
+				)}
+			</StatusSentence>
+			<output
+				key="ov-skel"
+				className="dash-rows ov-skel"
+				aria-busy="true"
+				aria-label="Loading your account"
+			>
+				<ResourceRowHead labels={WEBHOOK_HEAD} />
+				{Array.from({ length: SKELETON_ROWS }).map((_, i) => (
+					// Fixed skeleton row count; position is the identity.
+					// biome-ignore lint/suspicious/noArrayIndexKey: static skeleton rows
+					<ResourceRowSkeleton key={i} />
+				))}
+			</output>
+		</>
+	) : (
 		<>
 			{guide ? (
 				<>
@@ -619,26 +646,40 @@ export function OverviewBody({
 						) : null}
 						{subgraphs}
 					</div>
-					<PlumbingStrip
-						rows={readUsage}
-						keys={keys}
-						stack={stack}
-						burn={burn}
-						now={now}
-						insights={accountInsights}
-						asleep={asleep}
-						creditsUsdMicros={billing?.creditsUsdMicros ?? null}
-					/>
 				</>
 			)}
+		</>
+	);
 
-			<ActionableInsights insights={moneyInsights} />
+	const starting = guide !== null && !guide.progress.key;
+	return (
+		<>
+			{listSection}
+			{/* Nothing renders under the rows while they load: the strip would
+			    move, data or skeleton, when the real rows replace theirs. */}
+			{pending.list || starting ? null : pending.strip ? (
+				<PlumbingStripSkeleton />
+			) : (
+				<PlumbingStrip
+					rows={readUsage}
+					keys={keys}
+					stack={stack}
+					burn={burn}
+					now={now}
+					insights={accountInsights}
+					asleep={asleep}
+					creditsUsdMicros={billing?.creditsUsdMicros ?? null}
+				/>
+			)}
 
-			<MonthPanel
-				billing={billing}
-				burn={burn}
-				fresh={guide !== null && !guide.progress.key}
-			/>
+			{/* Below the strip, so it waits for both sections above: anything
+			    here would move when the rows or strip replace their skeletons. */}
+			{pending.list || pending.strip ? null : (
+				<>
+					<ActionableInsights insights={moneyInsights} />
+					<MonthPanel billing={billing} burn={burn} fresh={starting} />
+				</>
+			)}
 		</>
 	);
 }
@@ -841,19 +882,17 @@ export function OverviewSection({
 		firstRowsPrompt,
 	});
 
-	const ready = useFirstSettle(
-		overviewSettled({
-			keys: keys !== null,
-			billing: billing !== null,
-			service: service !== null,
-			stackState: service?.state ?? null,
-			webhooks: rows !== null,
-			asleep,
-			subgraphs: subgraphs !== undefined,
-			rows: rowsData !== null,
-			insights: insightsStatus !== "idle",
-		}),
-	);
+	const pending = overviewPending({
+		keys: keys !== null,
+		billing: billing !== null,
+		service: service !== null,
+		stackState: service?.state ?? null,
+		webhooks: rows !== null,
+		asleep,
+		subgraphs: subgraphs !== undefined,
+		rows: rowsData !== null,
+		insights: insightsStatus !== "idle",
+	});
 
 	const subgraphFindings = (subgraphs?.data ?? []).flatMap(
 		(item) => topFinding(forResource(insights, "subgraph", item.name)) ?? [],
@@ -861,7 +900,7 @@ export function OverviewSection({
 
 	return (
 		<OverviewBody
-			loading={!ready}
+			pending={pending}
 			// No hosted stack means no webhooks, so there is nothing to wait for.
 			subgraphs={<OverviewSubgraphsSlot seed={subgraphsSeed} />}
 			rows={rows ?? (service?.state === "none" ? [] : null)}

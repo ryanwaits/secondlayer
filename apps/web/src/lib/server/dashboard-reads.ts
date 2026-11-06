@@ -29,6 +29,7 @@ import type {
 } from "@/lib/subgraphs-store";
 import type { Account, ApiKey, ConnectedApp, CreditAdded } from "@/lib/types";
 import { upstreamAgent } from "@/lib/upstream-agent";
+import { UPSTREAM_READ_TIMEOUT_MS, logIfTimeout } from "@/lib/upstream-timeout";
 import {
 	type UsageResponse,
 	currentUtcMonth,
@@ -44,6 +45,7 @@ import type {
 	WebhookDetail,
 	WebhookSummary,
 } from "@secondlayer/sdk";
+import { cache } from "react";
 import type { Agent } from "undici";
 import { publicSource } from "./public-source";
 import { renderBlocks } from "./render-blocks";
@@ -60,8 +62,10 @@ import { renderBlocks } from "./render-blocks";
 /** A path segment from the URL; same rule as the proxies. */
 const SEGMENT_RE = /^[A-Za-z0-9_-]+$/;
 
-/** One authenticated GET against the platform API. Never throws. */
-export async function readApi<T>(
+/** One authenticated GET against the platform API. Never throws. A read the
+ *  API doesn't answer in time comes back as an error, so the page renders
+ *  without that slice and the browser loads it. */
+async function readApiOnce<T>(
 	token: string,
 	path: string,
 ): Promise<WebhooksResult<T>> {
@@ -71,6 +75,7 @@ export async function readApi<T>(
 			cache: "no-store",
 			// Why: reuse warm connections to the API; undici's default drops idle ones after 4 s.
 			dispatcher: upstreamAgent,
+			signal: AbortSignal.timeout(UPSTREAM_READ_TIMEOUT_MS),
 		} as RequestInit & { dispatcher: Agent });
 		let body: unknown = null;
 		try {
@@ -79,10 +84,22 @@ export async function readApi<T>(
 			// An empty error body falls through to the status-only message.
 		}
 		return resultFromResponse<T>(res, body);
-	} catch {
+	} catch (err) {
+		logIfTimeout(err, path);
 		return { kind: "error", message: "Couldn't reach the API" };
 	}
 }
+
+/** `readApi` with its answers shared by `memoize` (React's per-request
+ *  `cache`): a layout and its page asking for the same path reach the API once. */
+export function sharedReadApi(
+	memoize: <A extends unknown[], R>(fn: (...args: A) => R) => (...args: A) => R,
+): typeof readApiOnce {
+	// Memoizing erases the generic; the answer is still the caller's `T`.
+	return memoize(readApiOnce) as typeof readApiOnce;
+}
+
+export const readApi = sharedReadApi(cache);
 
 const NOT_FOUND: WebhooksResult<never> = { kind: "not_found" };
 
