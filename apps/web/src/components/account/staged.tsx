@@ -1,4 +1,3 @@
-import { StreamMarker } from "@/components/motion/stream-marker";
 import { headStart } from "@/lib/server/head-start";
 import { Suspense } from "react";
 
@@ -7,8 +6,8 @@ import { Suspense } from "react";
  * budget the page is sent whole, as one paint: no boundary, no skeleton. Past
  * it, the skeleton goes out with the frame and the data streams in behind it.
  * The layout's own reads draw on the same budget, so the two together never
- * hold the first byte longer than it allows. A page that streams in fades in
- * (see StreamMarker); one that lands in the head start never animates.
+ * hold the first byte longer than it allows. A page that streams in fades in;
+ * one that lands in the head start never animates.
  */
 export async function Staged<T>({
 	load,
@@ -22,14 +21,7 @@ export async function Staged<T>({
 	const result = await headStart(load);
 	if (result.ready) return <>{children(result.value)}</>;
 	return (
-		<Suspense
-			fallback={
-				<>
-					<StreamMarker />
-					{fallback}
-				</>
-			}
-		>
+		<Suspense fallback={fallback}>
 			<Late pending={result.pending}>{children}</Late>
 		</Suspense>
 	);

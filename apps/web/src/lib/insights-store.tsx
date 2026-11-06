@@ -4,10 +4,8 @@ import {
 	createContext,
 	useContext,
 	useEffect,
-	useState,
 	useSyncExternalStore,
 } from "react";
-import { createHold } from "./hold-back";
 import { type Insight, rankInsights } from "./insights";
 import { shared } from "./request-cache";
 import { poll } from "./webhooks-store";
@@ -48,24 +46,6 @@ export function insightsSnapshot(): State {
 	return current();
 }
 
-/** Held while an account route streams its page in: the frame's first
- *  insights fetch waits for the page's seed (or the route leaving). */
-export const insightsHold = createHold();
-
-/** Marks the page's insights as on their way. Rendered in the part of an
- *  account route that is sent first; `InsightsSeed` ends it. */
-export function InsightsPending() {
-	useState(() => {
-		// Quiet on purpose: it runs while a component renders.
-		if (typeof window !== "undefined" && state.status === "idle") {
-			insightsHold.begin();
-		}
-	});
-	// A route that never seeds must not hold the fetch back for good.
-	useEffect(() => insightsHold.end, []);
-	return null;
-}
-
 /** The insights a server render read for this page, if it read any. */
 const InsightsSeedContext = createContext<readonly Insight[] | null>(null);
 
@@ -81,8 +61,6 @@ export function InsightsSeed({
 	// Apply here, not only in `useInsights`: a reader below a Suspense boundary
 	// may hydrate after the frame's effects have run.
 	if (insights) applySeed(insights);
-	// Seeded, or known to have no seed: the frame may now decide on its fetch.
-	useEffect(() => insightsHold.end(), []);
 	return (
 		<InsightsSeedContext.Provider value={insights}>
 			{children}

@@ -2,9 +2,6 @@ import {
 	AccountSeeds,
 	AccountSession,
 } from "@/components/account/account-session";
-import { StreamedReset } from "@/components/motion/stream-marker";
-import { AuthSeedPending } from "@/lib/auth";
-import { InsightsPending } from "@/lib/insights-store";
 import { requestDeadline } from "@/lib/server/head-start";
 
 // Next to the API (Hetzner HEL/fsn1), and per request: the HTML carries one
@@ -23,9 +20,6 @@ export default function AccountLayout({
 	requestDeadline();
 	return (
 		<>
-			<AuthSeedPending />
-			<InsightsPending />
-			<StreamedReset />
 			<AccountSeeds />
 			<AccountSession>{children}</AccountSession>
 		</>
