@@ -1,7 +1,13 @@
 import { describe, expect, test } from "bun:test";
 import { BRIDGE_TOKENS, shortAddress, toBaseUnits } from "./bridge";
 
-const [MEGA, PEPE] = BRIDGE_TOKENS;
+const bySymbol = (symbol: string) => {
+	const token = BRIDGE_TOKENS.find((t) => t.symbol === symbol);
+	if (!token) throw new Error(`no ${symbol}`);
+	return token;
+};
+const MEGA = bySymbol("MEGA");
+const PEPE = bySymbol("PEPE");
 
 describe("toBaseUnits", () => {
 	test("scales whole tokens by the token's decimals", () => {

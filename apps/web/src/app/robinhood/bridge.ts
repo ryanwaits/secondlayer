@@ -42,14 +42,6 @@ export type BridgeToken = {
 /** Tokens bridging now, in the order the guide offers them. */
 export const BRIDGE_TOKENS: readonly BridgeToken[] = [
 	{
-		symbol: "MEGA",
-		stacks: "SP3D6PV2ACBPEKYJTCMH7HEN02KP87QSP8KTEH335.mega",
-		erc20: "0xf98af8c29470674a6e1f33ec587daa012f0a35c3",
-		decimals: 2,
-		cap: 10_000,
-		example: "25",
-	},
-	{
 		symbol: "PEPE",
 		stacks:
 			"SP1Z92MPDQEWZXW36VX71Q25HKF5K2EPCJ304F275.tokensoft-token-v4k68639zxz",
@@ -57,6 +49,14 @@ export const BRIDGE_TOKENS: readonly BridgeToken[] = [
 		decimals: 3,
 		cap: 1_000_000,
 		example: "100",
+	},
+	{
+		symbol: "MEGA",
+		stacks: "SP3D6PV2ACBPEKYJTCMH7HEN02KP87QSP8KTEH335.mega",
+		erc20: "0xf98af8c29470674a6e1f33ec587daa012f0a35c3",
+		decimals: 2,
+		cap: 10_000,
+		example: "25",
 	},
 ];
 
