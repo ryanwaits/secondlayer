@@ -144,10 +144,6 @@
 	--ease-snappy: cubic-bezier(0.4, 0, 0.2, 1);
 	--duration-smooth: 500ms;
 	--ease-smooth: cubic-bezier(0.4, 0, 0.2, 1);
-
-	/* A page whose data streamed in after its skeleton fades in. */
-	--duration-stream-fade: 180ms;
-	--ease-stream-fade: ease-out;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -11748,31 +11744,4 @@ button.ky-click:focus-visible,
 	max-width: 34rem;
 	padding-block: 8px 0;
 	border-top: 0;
-}
-
-/* Stream fade. A page that streamed in after its skeleton is wrapped in
-   .acct-region.stream-in (server-rendered only on that path), so a page that
-   landed in the head start never animates. Opacity only: nothing here moves
-   a sibling. */
-@keyframes stream-fade {
-	from {
-		opacity: 0;
-	}
-}
-/* The region's own box. Same column and gap as .acct-main, so wrapping a
-   page's sections in it moves none of them. */
-.acct-region {
-	display: flex;
-	flex-direction: column;
-	gap: 16px;
-	min-width: 0;
-}
-.acct-region.stream-in {
-	animation: stream-fade var(--duration-stream-fade) var(--ease-stream-fade)
-		backwards;
-}
-@media (prefers-reduced-motion: reduce) {
-	:root {
-		--duration-stream-fade: 120ms;
-	}
 }

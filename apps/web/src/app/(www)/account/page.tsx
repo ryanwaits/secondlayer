@@ -3,8 +3,6 @@ import {
 	FirstRowsCode,
 	FirstRowsPrompt,
 } from "@/components/account/overview/first-rows-code";
-import { OverviewFallback } from "@/components/account/page-fallbacks";
-import { Staged } from "@/components/account/staged";
 import { type AccountSeed, AccountSeedProvider } from "@/lib/account-data";
 import { InsightsSeed } from "@/lib/insights-store";
 import { firstRowsGuideMayShow } from "@/lib/onboarding";
@@ -22,17 +20,7 @@ import { sessionToken } from "@/lib/server/session";
 export const preferredRegion = "fra1";
 export const dynamic = "force-dynamic";
 
-/** Sent whole when its reads land inside the head start; otherwise the
- *  skeleton goes first and the reads stream in behind it. */
-export default function AccountOverviewPage() {
-	return (
-		<Staged load={loadOverview()} fallback={<OverviewFallback />}>
-			{(data) => <OverviewData {...data} />}
-		</Staged>
-	);
-}
-
-async function loadOverview() {
+export default async function AccountOverviewPage() {
 	const token = await sessionToken();
 	const [account, webhooks, subgraphs, insights] = token
 		? await Promise.all([
@@ -43,16 +31,6 @@ async function loadOverview() {
 			])
 		: [{} as AccountSeed, null, null, null];
 	const openChoices = await savedOpenChoices();
-	return { account, webhooks, subgraphs, insights, openChoices };
-}
-
-function OverviewData({
-	account,
-	webhooks,
-	subgraphs,
-	insights,
-	openChoices,
-}: Awaited<ReturnType<typeof loadOverview>>) {
 	// The highlighted blocks are for the new-account guide only; every other
 	// visit skips the highlighter.
 	const pushed =

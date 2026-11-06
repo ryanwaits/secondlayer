@@ -235,7 +235,7 @@ export function SubgraphDetailBody({
 /** Stands in for the whole page: breadcrumb, title, facts, the chart and a few
  *  table rows, built from the same wrappers, so nothing moves when the real
  *  content lands. */
-export function DetailSkeleton({ name }: { name: string }) {
+function DetailSkeleton({ name }: { name: string }) {
 	return (
 		<>
 			<Breadcrumb

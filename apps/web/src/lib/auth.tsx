@@ -53,18 +53,12 @@ export function authSnapshot(): AuthState {
 const seeded = new WeakSet<object>();
 
 /** Starts the browser's auth state from an account the server read, once per
- *  seed. Quiet on purpose: it runs while a component renders. A null account
- *  (signed out, or a stale cookie) leaves the state unknown, so the provider
- *  then asks `/api/auth/me` as it always has. */
+ *  seed. Quiet on purpose: it runs while a component renders. */
 export function AuthSeed({ account }: { account: Account | null }) {
 	if (account && typeof window !== "undefined" && !seeded.has(account)) {
 		seeded.add(account);
 		auth = { account, loading: false };
 	}
-	// Wakes whoever rendered before this seed arrived (the frame, the nav).
-	useEffect(() => {
-		for (const l of listeners) l();
-	}, []);
 	return null;
 }
 
@@ -160,16 +154,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 	}, [router, setAccount]);
 
 	useEffect(() => {
-		if (auth.loading) {
-			refresh();
+		// A page that read the account on the server has already seeded it.
+		if (!auth.loading) {
+			if (auth.account) {
+				identify(auth.account.id, {
+					email: auth.account.email,
+					...(auth.account.displayName
+						? { name: auth.account.displayName }
+						: {}),
+				});
+			}
 			return;
 		}
-		if (auth.account) {
-			identify(auth.account.id, {
-				email: auth.account.email,
-				...(auth.account.displayName ? { name: auth.account.displayName } : {}),
-			});
-		}
+		refresh();
 	}, [refresh]);
 
 	return (

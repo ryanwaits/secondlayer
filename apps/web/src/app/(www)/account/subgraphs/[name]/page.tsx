@@ -1,5 +1,3 @@
-import { SubgraphDetailFallback } from "@/components/account/page-fallbacks";
-import { Staged } from "@/components/account/staged";
 import { SubgraphDetailSection } from "@/components/account/subgraphs/detail-screen";
 import { InsightsSeed } from "@/lib/insights-store";
 import { subgraphDetailReads } from "@/lib/server/dashboard-reads";
@@ -19,35 +17,16 @@ function decode(segment: string): string {
 	}
 }
 
-export default function AccountSubgraphDetailPage({
+export default async function AccountSubgraphDetailPage({
 	params,
 }: {
 	params: Promise<{ name: string }>;
 }) {
-	return (
-		<Staged
-			load={loadSubgraphDetail(params)}
-			fallback={<SubgraphDetailFallback />}
-		>
-			{(data) => <SubgraphDetailData {...data} />}
-		</Staged>
-	);
-}
-
-async function loadSubgraphDetail(params: Promise<{ name: string }>) {
 	const name = decode((await params).name);
 	const token = await sessionToken();
 	const [initial, insights] = token
 		? await Promise.all([subgraphDetailReads(token, name), readInsights(token)])
 		: [null, null];
-	return { name, initial, insights };
-}
-
-function SubgraphDetailData({
-	name,
-	initial,
-	insights,
-}: Awaited<ReturnType<typeof loadSubgraphDetail>>) {
 	return (
 		<InsightsSeed insights={insights}>
 			<SubgraphDetailSection name={name} initial={initial} />

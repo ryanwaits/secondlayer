@@ -1,11 +1,6 @@
 "use client";
 
-import {
-	createContext,
-	useContext,
-	useEffect,
-	useSyncExternalStore,
-} from "react";
+import { createContext, useContext, useSyncExternalStore } from "react";
 import { type Insight, rankInsights } from "./insights";
 import { shared } from "./request-cache";
 import { poll } from "./webhooks-store";

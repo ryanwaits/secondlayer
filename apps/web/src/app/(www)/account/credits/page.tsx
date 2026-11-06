@@ -1,5 +1,3 @@
-import { CreditsFallback } from "@/components/account/page-fallbacks";
-import { Staged } from "@/components/account/staged";
 import { AccountSeedProvider } from "@/lib/account-data";
 import { InsightsSeed } from "@/lib/insights-store";
 import { accountReads } from "@/lib/server/dashboard-reads";
@@ -12,15 +10,7 @@ import { AccountCreditsPage } from "./credits-page";
 export const preferredRegion = "fra1";
 export const dynamic = "force-dynamic";
 
-export default function AccountBillingPage() {
-	return (
-		<Staged load={loadCredits()} fallback={<CreditsFallback />}>
-			{(data) => <CreditsData {...data} />}
-		</Staged>
-	);
-}
-
-async function loadCredits() {
+export default async function AccountBillingPage() {
 	const token = await sessionToken();
 	const [account, insights] = token
 		? await Promise.all([
@@ -28,13 +18,6 @@ async function loadCredits() {
 				readInsights(token),
 			])
 		: [{}, null];
-	return { account, insights };
-}
-
-function CreditsData({
-	account,
-	insights,
-}: Awaited<ReturnType<typeof loadCredits>>) {
 	return (
 		<InsightsSeed insights={insights}>
 			<AccountSeedProvider seed={account}>
