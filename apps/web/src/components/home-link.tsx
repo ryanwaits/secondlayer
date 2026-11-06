@@ -9,10 +9,11 @@ export const homeHref = (signedIn: boolean): string =>
 	signedIn ? "/account" : "/";
 
 /**
- * The logo link. Signed in, it goes straight to the Overview and prefetches it
- * on intent, like the Overview tab, instead of asking for `/` and following
- * the proxy's redirect (two round trips and nothing prefetched). The redirect
- * still covers typed URLs and links from elsewhere.
+ * The logo link. Signed in, it goes straight to the Overview instead of asking
+ * for `/` and following the proxy's redirect (two round trips and nothing
+ * prefetched). The redirect still covers typed URLs and links from elsewhere.
+ * Either way it prefetches on intent only, so the session check's first paint
+ * never fires a viewport prefetch of the wrong target.
  */
 export function HomeLink({
 	signedIn,
@@ -28,7 +29,7 @@ export function HomeLink({
 }) {
 	const intent = useIntentPrefetch();
 	const href = homeHref(signedIn);
-	return signedIn ? (
+	return (
 		<Link
 			href={href}
 			prefetch={false}
@@ -36,10 +37,6 @@ export function HomeLink({
 			className={className}
 			aria-label={label}
 		>
-			{children}
-		</Link>
-	) : (
-		<Link href={href} className={className} aria-label={label}>
 			{children}
 		</Link>
 	);

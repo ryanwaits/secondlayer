@@ -1,5 +1,5 @@
+import { IntentLink } from "@/components/intent-link";
 import { type Tone, flagClass } from "@/lib/tone";
-import Link from "next/link";
 import type { ReactNode } from "react";
 import { Skel } from "./skel";
 
@@ -31,7 +31,7 @@ export function ResourceRow({
 	// Healthy and neutral rows show nothing; attention and failing tint the row.
 	const flag = flagClass(tone);
 	return (
-		<Link href={href} className={flag ? `dash-row ${flag}` : "dash-row"}>
+		<IntentLink href={href} className={flag ? `dash-row ${flag}` : "dash-row"}>
 			<span className="dash-row-name" title={nameTitle}>
 				<span>{name}</span>
 				{kind ? <em>{kind}</em> : null}
@@ -40,7 +40,7 @@ export function ResourceRow({
 			<span className="dash-row-spark">{spark}</span>
 			<span className="dash-row-v">{count}</span>
 			<span className="dash-row-t">{age}</span>
-		</Link>
+		</IntentLink>
 	);
 }
 

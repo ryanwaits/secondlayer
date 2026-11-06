@@ -39,7 +39,12 @@ export function AccountAvatar({
 /** The one-click way in, beside the account trigger on every page. */
 export function DashboardButton({ onClick }: { onClick?: () => void }) {
 	return (
-		<Link href="/account" className="acct-btn solid small" onClick={onClick}>
+		<Link
+			href="/account"
+			prefetch={false}
+			className="acct-btn solid small"
+			onClick={onClick}
+		>
 			Dashboard
 		</Link>
 	);

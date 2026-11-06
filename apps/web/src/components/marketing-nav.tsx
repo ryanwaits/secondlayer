@@ -8,6 +8,7 @@ import {
 } from "@/components/dashboard/shell/dashboard-tabs";
 import { ViewCommand } from "@/components/dashboard/shell/view-command";
 import { HomeLink } from "@/components/home-link";
+import { IntentLink } from "@/components/intent-link";
 import { Logo } from "@/components/logo";
 import { ProductsMenu } from "@/components/products-menu";
 import {
@@ -101,14 +102,14 @@ export function MarketingNav() {
 					<div className="mnav-links">
 						<ProductsMenu className="mnav-products" />
 						{SITE_LINKS.map((l) => (
-							<Link
+							<IntentLink
 								key={l.href}
 								href={l.href}
 								className="mnav-plain"
 								aria-current={isActive(pathname, l.href) ? "page" : undefined}
 							>
 								{l.label}
-							</Link>
+							</IntentLink>
 						))}
 					</div>
 					<span className="marketing-nav-spacer" />
@@ -117,13 +118,13 @@ export function MarketingNav() {
 			<div className="mnav-right">
 				{dash && command ? <ViewCommand command={command} /> : null}
 				{!loading && !account ? (
-					<Link
+					<IntentLink
 						href="/signin"
 						className="mnav-plain"
 						aria-current={pathname === "/signin" ? "page" : undefined}
 					>
 						Sign in
-					</Link>
+					</IntentLink>
 				) : null}
 				{loading ? (
 					<span className="acct-chip-skeleton" aria-hidden="true" />
@@ -135,9 +136,9 @@ export function MarketingNav() {
 						</span>
 					</>
 				) : (
-					<Link href="/signin" className="start-free">
+					<IntentLink href="/signin" className="start-free">
 						Start free
-					</Link>
+					</IntentLink>
 				)}
 				<button
 					type="button"

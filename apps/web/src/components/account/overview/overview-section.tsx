@@ -20,6 +20,7 @@ import {
 } from "@/components/dashboard/shell/resource-row";
 import { Skel } from "@/components/dashboard/shell/skel";
 import { StatusSentence } from "@/components/dashboard/shell/status-sentence";
+import { IntentLink } from "@/components/intent-link";
 import {
 	type Billing,
 	ensureBilling,
@@ -79,7 +80,6 @@ import {
 	refreshSummary,
 	listSeed as webhooksListSeed,
 } from "@/lib/webhooks-store";
-import Link from "next/link";
 import { type ReactNode, useEffect, useState } from "react";
 import { WebhookRoute } from "../index-rows/index-list";
 import {
@@ -342,9 +342,9 @@ function MonthPanel({
 		<section className="dash-panel" aria-label="This month">
 			<div className="dash-panel-h">
 				<span className="dash-label">{monthLabel(currentUtcMonth())}</span>
-				<Link href="/account/credits" className="dash-link">
+				<IntentLink href="/account/credits" className="dash-link">
 					Billing ›
-				</Link>
+				</IntentLink>
 			</div>
 			{fresh ? (
 				<>

@@ -1,10 +1,10 @@
 "use client";
 
+import { IntentLink } from "@/components/intent-link";
 import { Logo } from "@/components/logo";
 import { dataPath, liveDataTopics } from "@/lib/data-topics";
 import { GITHUB_URL } from "@/lib/site";
 import { PRODUCTS } from "@/lib/site";
-import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 interface FooterLink {
@@ -57,10 +57,10 @@ export function SiteFooter() {
 			<div className="site-footer-in">
 				<div className="site-footer-grid">
 					<div className="site-footer-brand">
-						<Link href="/" className="b">
+						<IntentLink href="/" className="b">
 							<Logo size={22} />
 							<span>secondlayer</span>
-						</Link>
+						</IntentLink>
 						<p className="site-footer-tag">
 							Instant data for apps on Bitcoin. Proof included. Inspired by the
 							ideas behind{" "}
@@ -85,7 +85,7 @@ export function SiteFooter() {
 												{l.label}
 											</a>
 										) : (
-											<Link href={l.href}>{l.label}</Link>
+											<IntentLink href={l.href}>{l.label}</IntentLink>
 										)}
 									</li>
 								))}

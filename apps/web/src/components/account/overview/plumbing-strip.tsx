@@ -6,6 +6,7 @@ import { Meter } from "@/components/dashboard/charts/meter";
 import { InsightActions } from "@/components/dashboard/insight/insight-actions";
 import { InsightCard } from "@/components/dashboard/insight/insight-card";
 import { Skel } from "@/components/dashboard/shell/skel";
+import { IntentLink } from "@/components/intent-link";
 import { type Insight, autoOpenId, severityDot } from "@/lib/insights";
 import type { RowsResponse } from "@/lib/rows";
 import type { ApiKey } from "@/lib/types";
@@ -15,7 +16,6 @@ import {
 	ROWS_ALLOWANCE,
 	formatRows,
 } from "@/lib/usage";
-import Link from "next/link";
 import { type ReactNode, useState } from "react";
 import {
 	type KeysCell,
@@ -40,9 +40,9 @@ function CellHead({
 }: { href: string; label: string; aside?: ReactNode }) {
 	return (
 		<div className="ov-cell-head">
-			<Link href={href} className="ov-cell-link dash-label">
+			<IntentLink href={href} className="ov-cell-link dash-label">
 				{label}
-			</Link>
+			</IntentLink>
 			{aside ? <span className="ov-cell-aside">{aside}</span> : null}
 		</div>
 	);
@@ -170,9 +170,9 @@ function KeysCellView({ cell }: { cell: KeysCell | null }) {
 			<p className="ov-cell-s">{cell.caption}</p>
 			{cell.stale ? (
 				<Flag dot="hi">
-					<Link href="/account/keys">
+					<IntentLink href="/account/keys">
 						{`${cell.stale.name} unused ${cell.stale.days} days`}
-					</Link>
+					</IntentLink>
 				</Flag>
 			) : null}
 		</div>

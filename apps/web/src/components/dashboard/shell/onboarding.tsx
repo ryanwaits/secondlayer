@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { IntentLink } from "@/components/intent-link";
 import type { ReactNode } from "react";
 
 /** Rows only: reads need a key. A link to Keys, never a button (the button lives on Keys). */
@@ -10,9 +10,9 @@ export function ReadsKeyLine({ state }: { state: "first" | "none_active" }) {
 					? "Reads need a key."
 					: "No active key. New reads need one."}
 			</span>
-			<Link href="/account/keys" className="dash-link">
+			<IntentLink href="/account/keys" className="dash-link">
 				Make one on Keys ›
-			</Link>
+			</IntentLink>
 		</p>
 	);
 }
