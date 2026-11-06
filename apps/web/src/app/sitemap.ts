@@ -18,6 +18,7 @@ export const ROUTES = [
 	"/contact",
 	"/blog",
 	"/robinhood",
+	"/robinhood/guides/phase-0",
 ] as const;
 
 export default function sitemap(): MetadataRoute.Sitemap {
