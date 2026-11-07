@@ -9,6 +9,10 @@
  * authenticates nobody — every request 401s rather than silently accepting
  * an unauthenticated batch.
  *
+ * Every item gets its own result (`ok`, `rejected` or `failed`); see `ItemResult`.
+ * The response is 200 unless an item hit a transient failure (503: resend the
+ * batch, replays are idempotent).
+ *
  * `sentinel.*` units are retired: priced for history, never metered again
  * (Sentinel bills on its own Stripe subscriptions). `quantity` must be >= 0:
  * a negative quantity would write a negative ledger row and credit the account.
@@ -22,6 +26,7 @@ import {
 	RETIRED_METER_UNITS,
 } from "@secondlayer/platform/billing/prices";
 import type { MeterUnit } from "@secondlayer/platform/billing/prices";
+import { logger } from "@secondlayer/shared";
 import { getDb } from "@secondlayer/shared/db";
 import {
 	AuthenticationError,
@@ -159,6 +164,41 @@ function parseItem(raw: unknown, index: number): MeterItemInput {
 	};
 }
 
+type ItemResult =
+	| {
+			status: "ok";
+			idempotencyKey: string;
+			accountId: string;
+			unit: MeterUnit;
+			usd_micros: number;
+			debited: boolean;
+			balance_after_usd_micros: number;
+	  }
+	| {
+			/** Will never succeed as sent (bad input, unknown account, a ledger
+			 *  CHECK): drop it. */
+			status: "rejected";
+			idempotencyKey: string | null;
+			error: string;
+	  }
+	| {
+			/** A transient failure: resend (safe, idempotent). */
+			status: "failed";
+			idempotencyKey: string;
+			error: string;
+	  };
+
+/** An error no resend can fix: a ledger invariant `meter()` asserts, or a
+ *  Postgres data error (class 22: malformed id) or integrity violation
+ *  (class 23: unknown account FK, CHECK, ...). */
+function isPermanentItemError(err: unknown): boolean {
+	if (err instanceof Error && err.message.startsWith("meter:")) return true;
+	const code = (err as { code?: unknown } | null)?.code;
+	return (
+		typeof code === "string" && (code.startsWith("22") || code.startsWith("23"))
+	);
+}
+
 const app = new Hono();
 
 app.post("/", async (c) => {
@@ -192,31 +232,73 @@ app.post("/", async (c) => {
 			413,
 		);
 	}
-	const items = rawItems.map(parseItem);
-
 	const db = getDb();
+	// One bad item never fails the batch: each item parses and meters on its
+	// own and gets its own result, so the caller drops what was rejected and
+	// resends only what failed. Replays are safe either way (idempotency key).
 	const results = await Promise.all(
-		items.map(async (item) => {
-			const result = await meter(db, {
-				accountId: item.accountId,
-				unit: item.unit,
-				quantity: item.quantity,
-				observedQuantity: item.observedQuantity,
-				source: item.source ?? "internal:workload-host",
-				idempotencyKey: item.idempotencyKey,
-				occurredAt: item.occurredAt ? new Date(item.occurredAt) : undefined,
-			});
-			return {
-				accountId: item.accountId,
-				unit: item.unit,
-				usd_micros: Number(result.usdMicros),
-				debited: result.debited,
-				balance_after_usd_micros: Number(result.balanceAfter),
-			};
+		rawItems.map(async (raw, index): Promise<ItemResult> => {
+			const rawKey = (raw as { idempotencyKey?: unknown } | null)
+				?.idempotencyKey;
+			const idempotencyKey = typeof rawKey === "string" ? rawKey : null;
+			let item: MeterItemInput;
+			try {
+				item = parseItem(raw, index);
+			} catch (err) {
+				if (err instanceof ValidationError) {
+					return {
+						status: "rejected",
+						idempotencyKey,
+						error: err.message,
+					};
+				}
+				throw err;
+			}
+			try {
+				const result = await meter(db, {
+					accountId: item.accountId,
+					unit: item.unit,
+					quantity: item.quantity,
+					observedQuantity: item.observedQuantity,
+					source: item.source ?? "internal:workload-host",
+					idempotencyKey: item.idempotencyKey,
+					occurredAt: item.occurredAt ? new Date(item.occurredAt) : undefined,
+				});
+				return {
+					status: "ok",
+					idempotencyKey: item.idempotencyKey,
+					accountId: item.accountId,
+					unit: item.unit,
+					usd_micros: Number(result.usdMicros),
+					debited: result.debited,
+					balance_after_usd_micros: Number(result.balanceAfter),
+				};
+			} catch (err) {
+				const message = err instanceof Error ? err.message : String(err);
+				if (isPermanentItemError(err)) {
+					return {
+						status: "rejected",
+						idempotencyKey: item.idempotencyKey,
+						error: message,
+					};
+				}
+				logger.error("internal meters: item failed, caller should resend", {
+					idempotencyKey: item.idempotencyKey,
+					error: message,
+				});
+				return {
+					status: "failed",
+					idempotencyKey: item.idempotencyKey,
+					error: message,
+				};
+			}
 		}),
 	);
 
-	return c.json({ results });
+	// Only a transient failure asks the caller to resend; rejected items never
+	// will succeed and are reported, not retried.
+	const failed = results.some((r) => r.status === "failed");
+	return c.json({ results }, failed ? 503 : 200);
 });
 
 export default app;

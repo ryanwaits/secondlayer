@@ -65,6 +65,17 @@ afterAll(async () => {
 	}
 });
 
+/** The batch answers 200 and its only item is rejected with a reason. */
+async function expectOnlyRejected(res: Response): Promise<void> {
+	expect(res.status).toBe(200);
+	const body = (await res.json()) as {
+		results: Array<{ status: string; error?: string }>;
+	};
+	expect(body.results).toHaveLength(1);
+	expect(body.results[0]?.status).toBe("rejected");
+	expect(body.results[0]?.error).toBeTruthy();
+}
+
 function app() {
 	const a = new Hono();
 	a.onError(errorHandler);
@@ -125,7 +136,7 @@ describe.skipIf(!HAS_DB)("POST /internal/meters", () => {
 		expect(res.status).toBe(401);
 	});
 
-	test("negative observedQuantity → 400", async () => {
+	test("negative observedQuantity is rejected for that item, not the batch", async () => {
 		const res = await app().request("/internal/meters", {
 			method: "POST",
 			headers: {
@@ -144,10 +155,10 @@ describe.skipIf(!HAS_DB)("POST /internal/meters", () => {
 				],
 			}),
 		});
-		expect(res.status).toBe(400);
+		await expectOnlyRejected(res);
 	});
 
-	test("occurredAt more than 5 minutes in the future → 400", async () => {
+	test("occurredAt more than 5 minutes in the future is rejected for that item, not the batch", async () => {
 		const future = new Date(Date.now() + 6 * 60_000).toISOString();
 		const res = await app().request("/internal/meters", {
 			method: "POST",
@@ -167,10 +178,10 @@ describe.skipIf(!HAS_DB)("POST /internal/meters", () => {
 				],
 			}),
 		});
-		expect(res.status).toBe(400);
+		await expectOnlyRejected(res);
 	});
 
-	test("occurredAt more than 35 days old → 400", async () => {
+	test("occurredAt more than 35 days old is rejected for that item, not the batch", async () => {
 		const tooOld = new Date(
 			Date.now() - 36 * 24 * 60 * 60 * 1000,
 		).toISOString();
@@ -192,10 +203,10 @@ describe.skipIf(!HAS_DB)("POST /internal/meters", () => {
 				],
 			}),
 		});
-		expect(res.status).toBe(400);
+		await expectOnlyRejected(res);
 	});
 
-	test("occurredAt that isn't a parseable date → 400", async () => {
+	test("occurredAt that isn't a parseable date is rejected for that item, not the batch", async () => {
 		const res = await app().request("/internal/meters", {
 			method: "POST",
 			headers: {
@@ -214,7 +225,7 @@ describe.skipIf(!HAS_DB)("POST /internal/meters", () => {
 				],
 			}),
 		});
-		expect(res.status).toBe(400);
+		await expectOnlyRejected(res);
 	});
 
 	test("a retried batch's occurredAt (real sample time, within bounds) is accepted and stored", async () => {
@@ -250,7 +261,7 @@ describe.skipIf(!HAS_DB)("POST /internal/meters", () => {
 		expect(new Date(row.occurred_at).getTime()).toBe(sampledAt.getTime());
 	});
 
-	test("unknown unit → 400", async () => {
+	test("unknown unit is rejected for that item, not the batch", async () => {
 		const res = await app().request("/internal/meters", {
 			method: "POST",
 			headers: {
@@ -268,7 +279,7 @@ describe.skipIf(!HAS_DB)("POST /internal/meters", () => {
 				],
 			}),
 		});
-		expect(res.status).toBe(400);
+		await expectOnlyRejected(res);
 	});
 
 	test("batch over the cap → 413", async () => {
@@ -350,6 +361,108 @@ describe.skipIf(!HAS_DB)("POST /internal/meters", () => {
 	});
 });
 
+describe.skipIf(!HAS_DB)("POST /internal/meters: per-item results", () => {
+	function post(items: unknown[]) {
+		return app().request("/internal/meters", {
+			method: "POST",
+			headers: {
+				"content-type": "application/json",
+				authorization: "Bearer test-workload-host-key",
+			},
+			body: JSON.stringify({ items }),
+		});
+	}
+
+	type Result = {
+		status: string;
+		idempotencyKey: string | null;
+		usd_micros?: number;
+		error?: string;
+	};
+
+	test("one bad item is rejected and the rest of the batch is still billed", async () => {
+		await creditCredits(db, accountId, 1_000_000n);
+		const res = await post([
+			{
+				accountId,
+				unit: "webhook.event",
+				quantity: 100,
+				idempotencyKey: `mixed-good-1-${accountId}`,
+			},
+			{
+				accountId,
+				unit: "not.a.real.unit",
+				quantity: 1,
+				idempotencyKey: `mixed-bad-${accountId}`,
+			},
+			{
+				accountId,
+				unit: "memory.gb_hour",
+				quantity: 2,
+				idempotencyKey: `mixed-good-2-${accountId}`,
+			},
+		]);
+		expect(res.status).toBe(200);
+		const { results } = (await res.json()) as { results: Result[] };
+		expect(results.map((r) => r.status)).toEqual(["ok", "rejected", "ok"]);
+		expect(results[0]?.usd_micros).toBe(1_000); // 100 events x 10 µ$
+		expect(results[1]?.idempotencyKey).toBe(`mixed-bad-${accountId}`);
+		expect(results[2]?.usd_micros).toBe(56_000); // 2 GB-hours x 28,000 µ$
+		// Both good items debited: 1_000_000 - 1_000 - 56_000.
+		expect(await getCredits(db, accountId)).toBe(943_000n);
+	});
+
+	test("an item for an account that does not exist is rejected, not a batch failure", async () => {
+		await creditCredits(db, accountId, 1_000_000n);
+		const res = await post([
+			{
+				accountId: "00000000-0000-4000-8000-000000000000",
+				unit: "webhook.event",
+				quantity: 1,
+				idempotencyKey: `ghost-account-${accountId}`,
+			},
+			{
+				accountId: "not-a-uuid",
+				unit: "webhook.event",
+				quantity: 1,
+				idempotencyKey: `malformed-account-${accountId}`,
+			},
+			{
+				accountId,
+				unit: "webhook.event",
+				quantity: 10,
+				idempotencyKey: `real-account-${accountId}`,
+			},
+		]);
+		expect(res.status).toBe(200);
+		const { results } = (await res.json()) as { results: Result[] };
+		expect(results.map((r) => r.status)).toEqual([
+			"rejected",
+			"rejected",
+			"ok",
+		]);
+		expect(await getCredits(db, accountId)).toBe(999_900n);
+	});
+
+	test("a non-object item is rejected without a key and the batch still answers", async () => {
+		const res = await post([null, 7]);
+		expect(res.status).toBe(200);
+		const { results } = (await res.json()) as { results: Result[] };
+		expect(results).toEqual([
+			{
+				status: "rejected",
+				idempotencyKey: null,
+				error: "items[0] must be an object",
+			},
+			{
+				status: "rejected",
+				idempotencyKey: null,
+				error: "items[1] must be an object",
+			},
+		]);
+	});
+});
+
 describe.skipIf(!HAS_DB)("mounted on the platform app", () => {
 	let prevDevMode: string | undefined;
 	beforeEach(() => {
@@ -403,7 +516,7 @@ describe.skipIf(!HAS_DB)(
 			"sentinel.check_run",
 			"sentinel.monitored_event",
 		])(
-			"retired %s → 400 for the workload key, nothing charged",
+			"retired %s is rejected for the workload key, nothing charged",
 			async (unit) => {
 				await creditCredits(db, accountId, 5_000_000n);
 				const res = await post("test-workload-host-key", [
@@ -414,7 +527,7 @@ describe.skipIf(!HAS_DB)(
 						idempotencyKey: `wl-retired-${unit}-${accountId}`,
 					},
 				]);
-				expect(res.status).toBe(400);
+				expect(res.status).toBe(200);
 				expect(JSON.stringify(await res.json())).toContain("retired");
 				expect(await getCredits(db, accountId)).toBe(5_000_000n);
 			},
@@ -452,7 +565,7 @@ describe.skipIf(!HAS_DB)(
 			expect(res.status).toBe(200);
 		});
 
-		test("negative quantity → 400 for the workload key", async () => {
+		test("negative quantity is rejected and never credits the account", async () => {
 			const res = await post("test-workload-host-key", [
 				{
 					accountId,
@@ -461,7 +574,7 @@ describe.skipIf(!HAS_DB)(
 					idempotencyKey: `wl-neg-${accountId}`,
 				},
 			]);
-			expect(res.status).toBe(400);
+			await expectOnlyRejected(res);
 			expect(await getCredits(db, accountId)).toBe(0n);
 		});
 	},
