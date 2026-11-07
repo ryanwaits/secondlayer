@@ -41,7 +41,6 @@ import {
 	pruneFinalBackups,
 } from "./backups.ts";
 import {
-	type TenantRow,
 	acct8For,
 	ensureControlSchema,
 	getControlDb,
@@ -53,7 +52,9 @@ import { handleGatewayRequest } from "./gateway.ts";
 import { IntrospectClient } from "./introspect-client.ts";
 import {
 	DAILY_JOB_TICK_MS,
+	MEMORY_SAMPLE_INTERVAL_MS,
 	createBackupTick,
+	createMemorySampleTick,
 	createStorageSampleTick,
 } from "./loops.ts";
 import {
@@ -68,7 +69,6 @@ import {
 	flushOnShutdown,
 	logDroppedMeters,
 	mergePending,
-	sampleMemoryGbHour,
 	sampleTenantDatabaseBytes,
 	sampleTenantMemoryBytes,
 } from "./meters.ts";
@@ -98,7 +98,6 @@ import {
 import { createWebhookIncidentWatch } from "./webhook-incident-watch.ts";
 
 const METER_FLUSH_INTERVAL_MS = 60_000;
-const MEMORY_SAMPLE_INTERVAL_MS = 60_000;
 const MEMORY_FLUSH_INTERVAL_MS = 60 * 60_000; // hourly (Design)
 const CREDITS_POLL_INTERVAL_MS = 5 * 60_000; // Design: "every 5 min"
 const WEBHOOK_INCIDENT_INTERVAL_MS = 60_000;
@@ -356,82 +355,72 @@ async function main(): Promise<void> {
 	// Windows start at boot, so a restart in the same minute never reuses the
 	// previous process's keys.
 	const eventWindow = new DrainWindow();
-	const eventFlushLoop = setInterval(async () => {
-		// One window for the whole tick: every counter drained this pass is
-		// keyed and dated by it, so a batch that fails to flush and gets
-		// resent later keeps its real window.
-		const window = eventWindow.roll();
-		const fresh: MeterBatchItem[] = [];
-		for (const [accountId, counter] of meterSockets.counters) {
-			const item = eventsMeterItem(accountId, counter.drain(), window);
-			if (item) fresh.push(item);
-		}
-		const { items, dropped } = mergePending(
-			eventPending,
-			fresh,
-			DEFAULT_PENDING_CAP,
-		);
-		logDroppedMeters("pending_overflow:events", dropped);
-		eventPending = await flushAll(
-			{ appServerUrl, workloadHostKey },
-			items,
-			MAX_METER_BATCH,
-		);
-	}, METER_FLUSH_INTERVAL_MS);
+	const eventFlushTick = skipWhileRunning(
+		async () => {
+			// One window for the whole tick: every counter drained this pass is
+			// keyed and dated by it, so a batch that fails to flush and gets
+			// resent later keeps its real window.
+			const window = eventWindow.roll();
+			const fresh: MeterBatchItem[] = [];
+			for (const [accountId, counter] of meterSockets.counters) {
+				const item = eventsMeterItem(accountId, counter.drain(), window);
+				if (item) fresh.push(item);
+			}
+			const { items, dropped } = mergePending(
+				eventPending,
+				fresh,
+				DEFAULT_PENDING_CAP,
+			);
+			logDroppedMeters("pending_overflow:events", dropped);
+			eventPending = await flushAll(
+				{ appServerUrl, workloadHostKey },
+				items,
+				MAX_METER_BATCH,
+			);
+		},
+		() => logger.warn("workload.meters.event_flush_skipped_overlap"),
+	);
+	const eventFlushLoop = setInterval(eventFlushTick, METER_FLUSH_INTERVAL_MS);
 
 	// Memory meter (review fix 4): sample every 60s, accumulate GB-hours per
 	// account, flush hourly. `runningTenants` re-lists every tick so a
 	// newly-running or newly-stopped tenant is picked up/dropped without a
 	// restart.
 	const memoryAccumulator = new MemoryAccumulator();
-	const memorySampleLoop = setInterval(async () => {
-		let running: TenantRow[];
-		try {
-			running = await listRunningTenants(db);
-		} catch (err) {
-			logger.error("workload.meters.memory_sample_list_failed", {
-				error: err instanceof Error ? err.message : String(err),
-			});
-			return;
-		}
-		meterSockets.sync(running.map((tenant) => tenant.account_id));
-		for (const tenant of running) {
-			try {
-				const item = await sampleMemoryGbHour(
-					tenant.account_id,
-					(accountId) => sampleTenantMemoryBytes(acct8For(accountId)),
-					MEMORY_SAMPLE_INTERVAL_MS / 1000,
-					tenant.has_subgraphs,
-				);
-				memoryAccumulator.add(
-					tenant.account_id,
-					item.quantity,
-					item.observedQuantity,
-				);
-			} catch (err) {
-				logger.error("workload.meters.memory_sample_failed", {
-					accountId: tenant.account_id,
-					error: err instanceof Error ? err.message : String(err),
-				});
-			}
-		}
-	}, MEMORY_SAMPLE_INTERVAL_MS);
+	const memorySampleLoop = setInterval(
+		createMemorySampleTick({
+			listRunning: () => listRunningTenants(db),
+			sampleBytes: (accountId) => sampleTenantMemoryBytes(acct8For(accountId)),
+			accumulator: memoryAccumulator,
+			onRunning: (accountIds) => meterSockets.sync(accountIds),
+			onSkip: () =>
+				logger.warn("workload.meters.memory_sample_skipped_overlap"),
+		}),
+		MEMORY_SAMPLE_INTERVAL_MS,
+	);
 
 	let memoryPending: MeterBatchItem[] = [];
-	const memoryFlushLoop = setInterval(async () => {
-		const fresh = memoryAccumulator.drain();
-		const { items, dropped } = mergePending(
-			memoryPending,
-			fresh,
-			DEFAULT_PENDING_CAP,
-		);
-		logDroppedMeters("pending_overflow:memory", dropped);
-		memoryPending = await flushAll(
-			{ appServerUrl, workloadHostKey },
-			items,
-			MAX_METER_BATCH,
-		);
-	}, MEMORY_FLUSH_INTERVAL_MS);
+	const memoryFlushTick = skipWhileRunning(
+		async () => {
+			const fresh = memoryAccumulator.drain();
+			const { items, dropped } = mergePending(
+				memoryPending,
+				fresh,
+				DEFAULT_PENDING_CAP,
+			);
+			logDroppedMeters("pending_overflow:memory", dropped);
+			memoryPending = await flushAll(
+				{ appServerUrl, workloadHostKey },
+				items,
+				MAX_METER_BATCH,
+			);
+		},
+		() => logger.warn("workload.meters.memory_flush_skipped_overlap"),
+	);
+	const memoryFlushLoop = setInterval(
+		memoryFlushTick,
+		MEMORY_FLUSH_INTERVAL_MS,
+	);
 
 	// Storage meter + nightly backups: short ticks that do the work when a
 	// tenant's last-done marker in the control DB is older than the current UTC

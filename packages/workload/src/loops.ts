@@ -24,9 +24,11 @@ import {
 } from "./control-db.ts";
 import {
 	DEFAULT_PENDING_CAP,
+	type MemoryAccumulator,
 	type MeterBatchItem,
 	logDroppedMeters,
 	mergePending,
+	sampleMemoryGbHour,
 	sampleStorageGbDay,
 } from "./meters.ts";
 import { skipWhileRunning } from "./tick-guard.ts";
@@ -39,6 +41,72 @@ const BACKUP_STALE_ALERT_EVERY_MS = 60 * 60_000;
 
 function errorMessage(err: unknown): string {
 	return err instanceof Error ? err.message : String(err);
+}
+
+/** Nominal gap between memory samples, used for a tenant's first sample. */
+export const MEMORY_SAMPLE_INTERVAL_MS = 60_000;
+/** Longest span one memory sample is charged for, so a stalled process never
+ *  bills a tenant for the whole outage. */
+export const MEMORY_SAMPLE_CAP_MS = 5 * 60_000;
+
+/** Samples every running tenant's memory and adds the GB-hours for the time
+ *  since THAT tenant's previous sample (capped), not a fixed interval: a late
+ *  or slow tick charges what actually elapsed. `onRunning` gets the running
+ *  tenant ids each tick (the meter socket sync). */
+export function createMemorySampleTick(deps: {
+	listRunning: () => Promise<TenantRow[]>;
+	sampleBytes: (accountId: string) => Promise<number>;
+	accumulator: MemoryAccumulator;
+	onRunning?: (accountIds: string[]) => void;
+	now?: () => Date;
+	onSkip?: () => void;
+}): () => Promise<void> {
+	const now = deps.now ?? (() => new Date());
+	const lastSampleAt = new Map<string, number>();
+
+	return skipWhileRunning(async () => {
+		let running: TenantRow[];
+		try {
+			running = await deps.listRunning();
+		} catch (err) {
+			logger.error("workload.meters.memory_sample_list_failed", {
+				error: errorMessage(err),
+			});
+			return;
+		}
+		deps.onRunning?.(running.map((tenant) => tenant.account_id));
+		const runningIds = new Set(running.map((tenant) => tenant.account_id));
+		for (const accountId of lastSampleAt.keys()) {
+			if (!runningIds.has(accountId)) lastSampleAt.delete(accountId);
+		}
+		for (const tenant of running) {
+			const at = now().getTime();
+			const previous = lastSampleAt.get(tenant.account_id);
+			const elapsedMs =
+				previous === undefined
+					? MEMORY_SAMPLE_INTERVAL_MS
+					: Math.min(Math.max(at - previous, 0), MEMORY_SAMPLE_CAP_MS);
+			try {
+				const item = await sampleMemoryGbHour(
+					tenant.account_id,
+					deps.sampleBytes,
+					elapsedMs / 1000,
+					tenant.has_subgraphs,
+				);
+				lastSampleAt.set(tenant.account_id, at);
+				deps.accumulator.add(
+					tenant.account_id,
+					item.quantity,
+					item.observedQuantity,
+				);
+			} catch (err) {
+				logger.error("workload.meters.memory_sample_failed", {
+					accountId: tenant.account_id,
+					error: errorMessage(err),
+				});
+			}
+		}
+	}, deps.onSkip);
 }
 
 export interface StorageSampleTick {
