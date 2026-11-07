@@ -550,8 +550,10 @@ describe.skipIf(!HAS_DB)("state_writes read", () => {
 			return rows.map((r) => r["QUERY PLAN"]).join("\n");
 		});
 		// A busier table can tip the planner to a bitmap scan on the same index.
+		// Where the `(block_height, tx_index)` unique index exists it serves the
+		// join directly.
 		expect(plan).toMatch(
-			/Index (Only )?Scan using transactions_block_height_idx on transactions|Bitmap Index Scan on transactions_block_height_idx/,
+			/Index (Only )?Scan using transactions_(block_height_idx|height_tx_index_uniq) on transactions|Bitmap Index Scan on transactions_block_height_idx/,
 		);
 	});
 
