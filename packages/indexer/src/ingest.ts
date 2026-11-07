@@ -22,6 +22,7 @@ import {
 	detectReorg,
 	handleReorg,
 	reconcileReorgedRange,
+	withApplyLock,
 } from "./reorg.ts";
 import { validateStreamsEventPayload } from "./streams-payload-schema.ts";
 import type {
@@ -103,9 +104,25 @@ export type IngestResult = {
 	events: number;
 };
 
+/**
+ * Apply one block. Takes the cluster-wide apply lock itself, so every caller
+ * (HTTP, spool drain, tip-follower, integrity backfill) is serialized with the
+ * journal applier. The applier already holds the lock for its whole batch and
+ * passes `applyLockHeld`.
+ */
 export async function ingestNewBlock(
 	payload: NewBlockPayload,
-	options?: { network?: string },
+	options?: { network?: string; applyLockHeld?: boolean },
+): Promise<IngestResult> {
+	if (options?.applyLockHeld) return ingestLocked(payload, options);
+	return withApplyLock(getSourceDb(), () =>
+		ingestLocked(payload, { ...options, applyLockHeld: true }),
+	);
+}
+
+async function ingestLocked(
+	payload: NewBlockPayload,
+	options?: { network?: string; applyLockHeld?: boolean },
 ): Promise<IngestResult> {
 	const db = getSourceDb();
 
@@ -160,7 +177,7 @@ export async function ingestNewBlock(
 		}
 		// Replays through this same path, so a fork several blocks deep unwinds
 		// one height at a time. Each step is strictly lower, so this terminates.
-		await ingestNewBlock(settled.payload as NewBlockPayload);
+		await ingestLocked(settled.payload as NewBlockPayload, options);
 
 		// The settle above only re-establishes settled.height itself. A tx a
 		// same-height collision (or the old doNothing re-mine bug) moved off a
@@ -188,6 +205,7 @@ export async function ingestNewBlock(
 				db,
 				Math.max(1, settled.height - RECONCILE_LOOKBACK_HEIGHTS),
 				currentTip,
+				{ lockHeld: true },
 			);
 			if (reconciled.repaired > 0) {
 				logger.warn("Post-reorg reconcile repaired heights the settle missed", {

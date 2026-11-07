@@ -62,6 +62,7 @@ import {
 	stripNullBytes,
 } from "./parser.ts";
 import { persistBlock } from "./persist.ts";
+import { applyCanonicalChange } from "./reorg.ts";
 import type { NewBlockPayload } from "./types/node-events.ts";
 
 export type JournalPayload = { hash: string; payload: NewBlockPayload };
@@ -237,7 +238,16 @@ export async function repairHeightFromJournal(
 			`repair-from-journal: no journal payload for canonical height ${height}`,
 		);
 	}
-	await persistJournalPayload(db, journal.payload, height);
+	// Through the canonical-change path: when the height's rows differ after the
+	// rebuild, derived planes rewind from it and subgraphs get `subgraph_reorg`.
+	await applyCanonicalChange(db, {
+		height,
+		oldHash: journal.payload.block_hash,
+		newHash: journal.payload.block_hash,
+		cause: "rows_repair",
+		cascade: "if_rows_change",
+		write: (tx) => persistJournalPayload(tx, journal.payload, height),
+	});
 }
 
 /** Parse a journaled `/new_block` body and persist it at `height` through the

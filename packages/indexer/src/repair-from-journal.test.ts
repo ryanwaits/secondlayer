@@ -9,7 +9,7 @@ import {
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { getDb } from "@secondlayer/shared/db";
+import { getDb, sql } from "@secondlayer/shared/db";
 import { txMerkleRoot } from "@secondlayer/shared/node/nakamoto";
 import { persistBlock } from "./persist.ts";
 import {
@@ -291,6 +291,45 @@ describe.skipIf(!HAS_DB)("repair-from-journal", () => {
 		expect(Number(block.timestamp)).toBe(1_700_000_000);
 		expect(block.index_block_hash).toBe(payload.index_block_hash);
 		expect(block.burn_block_hash).toBe(payload.burn_block_hash);
+	});
+
+	test("repairing rows records a reorg only when the height's rows change", async () => {
+		if (!db) throw new Error("missing db");
+		await sql`DELETE FROM chain_reorgs WHERE fork_point_height = ${H}`.execute(
+			db,
+		);
+		const txid =
+			"0xd0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0";
+		const payload = nodePayload("0xblockReorgSignal", [txid]);
+		await seedJournal(db, payload);
+		await persistBlock(db, {
+			block: {
+				height: H,
+				hash: "0xblockReorgSignal",
+				parent_hash: "0xparent",
+				burn_block_height: 1,
+				burn_block_hash: null,
+				timestamp: 1_700_000_000,
+				canonical: true,
+			},
+			txs: [],
+			evts: [],
+			blockHeight: H,
+			network: NETWORK,
+		});
+
+		await repairHeightFromJournal(db, H);
+		const afterRepair = await sql<{ n: number }>`
+			SELECT count(*)::int AS n FROM chain_reorgs WHERE fork_point_height = ${H}
+		`.execute(db);
+		expect(afterRepair.rows[0]?.n).toBe(1);
+
+		// Same rows rebuilt again: nothing changed, so no second reorg.
+		await repairHeightFromJournal(db, H);
+		const afterNoop = await sql<{ n: number }>`
+			SELECT count(*)::int AS n FROM chain_reorgs WHERE fork_point_height = ${H}
+		`.execute(db);
+		expect(afterNoop.rows[0]?.n).toBe(1);
 	});
 
 	test("repairing a height with no journal payload throws instead of guessing", async () => {

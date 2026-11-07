@@ -66,6 +66,8 @@ async function runReorgCascade(
 		oldHash: string;
 		newHash: string;
 		sweepBlocks: boolean;
+		/** Events at the orphaned tip measured before a write replaced them. */
+		orphanedEventCount?: number;
 	},
 ): Promise<void> {
 	const { blockHeight, oldHash, newHash, sweepBlocks } = input;
@@ -83,16 +85,19 @@ async function runReorgCascade(
 	const eventTypeList = sql.join(
 		STREAMS_DB_EVENT_TYPES.map((eventType) => sql`${eventType}`),
 	);
-	const eventCount = await sql<{ count: string | number }>`
-		SELECT COUNT(*)::integer AS count
-		FROM events
-		WHERE block_height = ${orphanedToHeight}
-			AND type IN (${eventTypeList})
-	`.execute(tx);
-	const orphanedToEventIndex = Math.max(
-		0,
-		Number(eventCount.rows[0]?.count ?? 0) - 1,
-	);
+	const eventCount =
+		input.orphanedEventCount ??
+		Number(
+			(
+				await sql<{ count: string | number }>`
+					SELECT COUNT(*)::integer AS count
+					FROM events
+					WHERE block_height = ${orphanedToHeight}
+						AND type IN (${eventTypeList})
+				`.execute(tx)
+			).rows[0]?.count ?? 0,
+		);
+	const orphanedToEventIndex = Math.max(0, eventCount - 1);
 
 	if (sweepBlocks) {
 		await tx
@@ -158,59 +163,137 @@ async function runReorgCascade(
 }
 
 /** Why a height's canonical block changed outside live ingest. */
-export type CanonicalChangeCause = "fork_repair" | "orphan_reclaim";
+export type CanonicalChangeCause =
+	| "fork_repair"
+	| "orphan_reclaim"
+	| "rows_repair";
+
+export type CanonicalChange = {
+	height: number;
+	oldHash: string;
+	newHash: string;
+	cause: CanonicalChangeCause;
+	write: (tx: Transaction<Database>) => Promise<void>;
+	/**
+	 * `always` (default) cascades before the write. `if_rows_change` writes
+	 * first and cascades only when the transactions or events at the height
+	 * differ afterwards: a repair that rebuilds identical rows leaves derived
+	 * planes alone.
+	 */
+	cascade?: "always" | "if_rows_change";
+};
+
+/** Fingerprint of what derived planes read at a height: its transactions and
+ *  events, independent of insertion order. */
+async function heightRowsFingerprint(
+	tx: Kysely<Database>,
+	height: number,
+): Promise<{ fingerprint: string; streamsEventCount: number }> {
+	const txs = await sql<{ fp: string }>`
+		SELECT COALESCE(md5(string_agg(
+			tx_id || ':' || tx_index::text || ':' || status,
+			'|' ORDER BY tx_id)), '') AS fp
+		FROM transactions WHERE block_height = ${height}
+	`.execute(tx);
+	const events = await sql<{ fp: string; streams_count: number }>`
+		SELECT COALESCE(md5(string_agg(
+			tx_id || ':' || event_index::text || ':' || type || ':' || data::text,
+			'|' ORDER BY tx_id, event_index)), '') AS fp,
+			COUNT(*) FILTER (WHERE type IN (${sql.join(
+				STREAMS_DB_EVENT_TYPES.map((eventType) => sql`${eventType}`),
+			)}))::integer AS streams_count
+		FROM events WHERE block_height = ${height}
+	`.execute(tx);
+	return {
+		fingerprint: `${txs.rows[0]?.fp ?? ""}/${events.rows[0]?.fp ?? ""}`,
+		streamsEventCount: Number(events.rows[0]?.streams_count ?? 0),
+	};
+}
 
 /**
- * The one way to replace a height's canonical block outside live ingest. Takes
- * the cluster-wide apply lock (the live applier holds it per batch), then in
- * one transaction runs the reorg cascade, lets `write` persist the new block,
- * and checks the height now holds `newHash` as canonical. A repair script that
- * wrote `blocks` directly would leave subgraphs, decoded planes and Streams
- * reorg history reading the old fork.
+ * The one way to replace a height's canonical block, or to rebuild its rows,
+ * outside live ingest. Takes the cluster-wide apply lock (the live applier
+ * holds it per batch), then in one transaction runs the reorg cascade, lets
+ * `write` persist the new block, and checks the height now holds `newHash` as
+ * canonical. A repair script that wrote `blocks` or `events` directly would
+ * leave subgraphs, decoded planes and Streams reorg history reading the old
+ * rows.
  *
- * Not for callers already inside the applier: they hold the lock on another
- * connection and use `handleReorg`.
+ * Callers already inside the applier hold the lock on another connection:
+ * they pass `lockHeld` (taking it again would wait on themselves).
  */
 export async function applyCanonicalChange(
 	db: Kysely<Database>,
-	change: {
-		height: number;
-		oldHash: string;
-		newHash: string;
-		cause: CanonicalChangeCause;
-		write: (tx: Transaction<Database>) => Promise<void>;
-	},
-): Promise<void> {
+	change: CanonicalChange,
+	opts: { lockHeld?: boolean } = {},
+): Promise<{ cascaded: boolean }> {
 	logger.warn("Applying canonical change", {
 		height: change.height,
 		oldHash: change.oldHash,
 		newHash: change.newHash,
 		cause: change.cause,
 	});
-	await db.connection().execute(async (conn) => {
+	const run = (conn: Kysely<Database>) =>
+		conn.transaction().execute(async (tx) => {
+			const cascadeInput = {
+				blockHeight: change.height,
+				oldHash: change.oldHash,
+				newHash: change.newHash,
+				sweepBlocks: false,
+			};
+			let cascaded = true;
+			if (change.cascade === "if_rows_change") {
+				const before = await heightRowsFingerprint(tx, change.height);
+				await change.write(tx);
+				const after = await heightRowsFingerprint(tx, change.height);
+				cascaded = before.fingerprint !== after.fingerprint;
+				if (cascaded) {
+					await runReorgCascade(tx, {
+						...cascadeInput,
+						orphanedEventCount: Math.max(
+							before.streamsEventCount,
+							after.streamsEventCount,
+						),
+					});
+				}
+			} else {
+				await runReorgCascade(tx, cascadeInput);
+				await change.write(tx);
+			}
+			const landed = await tx
+				.selectFrom("blocks")
+				.select(["hash", "canonical"])
+				.where("height", "=", change.height)
+				.executeTakeFirst();
+			if (landed?.hash !== change.newHash || !landed.canonical) {
+				throw new Error(
+					`canonical change at ${change.height} did not land ${change.newHash}`,
+				);
+			}
+			return { cascaded };
+		});
+	if (opts.lockHeld) return run(db);
+	return withApplyLock(db, run);
+}
+
+/**
+ * Run `fn` on a connection holding the cluster-wide apply lock. Every writer
+ * of the raw plane (live applier, spool drain, tip-follower, integrity
+ * backfill, repair tools) goes through this, so two of them never write the
+ * same heights at once. Callers already holding the lock pass it down
+ * instead of re-taking it: the lock is per connection, so a second take from
+ * another connection waits on its own holder.
+ */
+export async function withApplyLock<T>(
+	db: Kysely<Database>,
+	fn: (conn: Kysely<Database>) => Promise<T>,
+): Promise<T> {
+	return db.connection().execute(async (conn) => {
 		await sql`SELECT pg_advisory_lock(${OBSERVER_APPLY_LOCK_KEY})`.execute(
 			conn,
 		);
 		try {
-			await conn.transaction().execute(async (tx) => {
-				await runReorgCascade(tx, {
-					blockHeight: change.height,
-					oldHash: change.oldHash,
-					newHash: change.newHash,
-					sweepBlocks: false,
-				});
-				await change.write(tx);
-				const landed = await tx
-					.selectFrom("blocks")
-					.select(["hash", "canonical"])
-					.where("height", "=", change.height)
-					.executeTakeFirst();
-				if (landed?.hash !== change.newHash || !landed.canonical) {
-					throw new Error(
-						`canonical change at ${change.height} did not land ${change.newHash}`,
-					);
-				}
-			});
+			return await fn(conn);
 		} finally {
 			await sql`SELECT pg_advisory_unlock(${OBSERVER_APPLY_LOCK_KEY})`.execute(
 				conn,
@@ -255,6 +338,7 @@ export async function reconcileReorgedRange(
 	db: Kysely<Database>,
 	fromHeight: number,
 	toHeight: number,
+	opts: { lockHeld?: boolean } = {},
 ): Promise<ReorgReconcileResult> {
 	let checked = 0;
 	let repaired = 0;
@@ -337,14 +421,26 @@ export async function reconcileReorgedRange(
 					.map((e) => stripNullBytes(e) as typeof e)
 			: [];
 
-		await persistBlock(db, {
-			block: blockInsert,
-			txs,
-			evts,
-			vmEvts,
-			stateWrites: parseStateWrites(nodePayload.state_writes, height),
-			blockHeight: height,
-		});
+		await applyCanonicalChange(
+			db,
+			{
+				height,
+				oldHash: block.hash,
+				newHash: block.hash,
+				cause: "rows_repair",
+				cascade: "if_rows_change",
+				write: (tx) =>
+					persistBlock(tx, {
+						block: blockInsert,
+						txs,
+						evts,
+						vmEvts,
+						stateWrites: parseStateWrites(nodePayload.state_writes, height),
+						blockHeight: height,
+					}),
+			},
+			opts,
+		);
 		repaired += 1;
 	}
 

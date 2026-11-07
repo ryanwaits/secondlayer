@@ -512,7 +512,10 @@ describe.skipIf(!HAS_DB)("catch-up crash resume", () => {
 		const applier = new JournalApplier({
 			network: NETWORK,
 			ingest: (payload) =>
-				ingestNewBlock(payload, { network: PROGRESS_NETWORK }),
+				ingestNewBlock(payload, {
+					network: PROGRESS_NETWORK,
+					applyLockHeld: true,
+				}),
 		});
 		applier.start();
 		await applier.whenIdle();

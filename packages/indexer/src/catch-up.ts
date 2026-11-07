@@ -177,7 +177,9 @@ export class JournalApplier {
 		this.poisonAfter = options.poisonAfter ?? POISON_AFTER;
 		this.network = options.network;
 		this.db = options.db ?? getSourceDb();
-		this.ingest = options.ingest ?? ((payload) => ingestNewBlock(payload));
+		this.ingest =
+			options.ingest ??
+			((payload) => ingestNewBlock(payload, { applyLockHeld: true }));
 		this.backlogLimit = options.backlogLimit ?? CATCH_UP_BACKLOG_LIMIT;
 	}
 

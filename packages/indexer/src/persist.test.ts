@@ -656,6 +656,28 @@ describe.skipIf(!HAS_DB)("persistBlock replace-per-height", () => {
 		expect(atHPlus1.map((t) => t.tx_id)).toEqual(["0xtxOther2"]);
 	});
 
+	test("a reconcile that changes a height's rows records a reorg so derived planes rewind", async () => {
+		if (!db) throw new Error("missing db");
+		await sql`DELETE FROM chain_reorgs WHERE fork_point_height = ${H}`.execute(
+			db,
+		);
+		await seedJournal(db, nodePayload("0xblockA", "0xtxT", H));
+		// The stored copy of the block lost its tx; the journal still has it.
+		await persistBlock(db, {
+			...payload("0xblockA", "0xtxT", H),
+			txs: [],
+			evts: [],
+		});
+
+		const result = await reconcileReorgedRange(db, H, H);
+		expect(result).toEqual({ checked: 1, repaired: 1 });
+
+		const { rows } = await sql<{ fork_point_height: string | number }>`
+			SELECT fork_point_height FROM chain_reorgs WHERE fork_point_height = ${H}
+		`.execute(db);
+		expect(rows).toHaveLength(1);
+	});
+
 	test("reconcile fails loudly when a canonical height has no journal payload", async () => {
 		if (!db) throw new Error("missing db");
 		await persistBlock(db, payload("0xblockA", "0xtxA", H));
