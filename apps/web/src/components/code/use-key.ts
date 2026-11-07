@@ -1,4 +1,6 @@
 import { notify } from "@/components/toast/notify";
+import { distinctId } from "@/lib/analytics";
+import type { SigninFrom } from "@/lib/auth";
 import {
 	LASTING_KEY_NEXT,
 	codeStepHref,
@@ -40,7 +42,7 @@ export type KeyReader = {
 	/** The signed-in account's id; null for a signed-out reader. */
 	accountId: string | null;
 	/** Emails a sign-in link and code (`useAuth().login`). */
-	login: (email: string) => Promise<unknown>;
+	login: (email: string, from: SigninFrom) => Promise<unknown>;
 	/** Client-side navigation. */
 	navigate: (href: string) => void;
 };
@@ -334,7 +336,7 @@ async function sendLink(event: SubmitEvent) {
 	// The emailed link opens in a new tab; it finds where to go here.
 	rememberNext(LASTING_KEY_NEXT);
 	try {
-		await login(email);
+		await login(email, "lasting_key");
 	} catch (err) {
 		sending = false;
 		if (panel) fillPanel(panel);
@@ -496,7 +498,7 @@ export async function useKey(): Promise<void> {
 	}
 	const owner = ownerOf(reader);
 	const signedIn = reader.accountId !== null;
-	const { url, init } = docsKeyMintRequest(signedIn);
+	const { url, init } = docsKeyMintRequest(signedIn, distinctId());
 	busy = true;
 	closePanel();
 	paint();

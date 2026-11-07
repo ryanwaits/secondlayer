@@ -6,10 +6,11 @@ export const preferredRegion = "fra1";
 
 export async function POST(req: Request) {
 	try {
-		const { email } = await req.json();
+		// `from` and `distinctId` feed the API's analytics event only.
+		const { email, from, distinctId } = await req.json();
 		const data = await apiRequest("/api/auth/magic-link", {
 			method: "POST",
-			body: { email },
+			body: { email, from, distinctId },
 		});
 		return NextResponse.json(data);
 	} catch (e) {

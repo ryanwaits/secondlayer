@@ -24,6 +24,17 @@ describe("docsKeyMintRequest", () => {
 		// The API's write guard takes JSON bodies only.
 		expect(init.headers).toEqual({ "Content-Type": "application/json" });
 	});
+
+	test("signed out, the body carries the reader's analytics id when known", () => {
+		expect(docsKeyMintRequest(false, "anon_1").init.body).toBe(
+			JSON.stringify({ distinctId: "anon_1" }),
+		);
+		expect(docsKeyMintRequest(false).init.body).toBe("{}");
+	});
+
+	test("signed in, the body carries no analytics id: the account is known", () => {
+		expect(docsKeyMintRequest(true, "anon_1").init.body).toBe("{}");
+	});
 });
 
 describe("mintFailure", () => {

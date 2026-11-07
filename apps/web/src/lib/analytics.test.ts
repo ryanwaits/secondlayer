@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import {
 	capture,
+	distinctId,
 	identify,
 	isFeatureEnabled,
 	loadAnalytics,
@@ -23,6 +24,7 @@ function fakeClient(calls: Call[], flagHandlers: Array<() => void> = []) {
 			return () => calls.push(["unsubscribe"]);
 		},
 		isFeatureEnabled: (flag: string) => flag === "on",
+		get_distinct_id: () => "anon_1",
 	};
 }
 
@@ -117,6 +119,33 @@ describe("analytics facade", () => {
 		loadAnalytics(importer as never);
 		await settle();
 		expect(imports).toBe(1);
+	});
+
+	test("a headless browser never loads the SDK", async () => {
+		const original = Object.getOwnPropertyDescriptor(globalThis, "navigator");
+		Object.defineProperty(globalThis, "navigator", {
+			value: { webdriver: true },
+			configurable: true,
+		});
+		let imports = 0;
+		try {
+			loadAnalytics((async () => {
+				imports++;
+				return { default: fakeClient([]) };
+			}) as never);
+			await settle();
+		} finally {
+			if (original) Object.defineProperty(globalThis, "navigator", original);
+			else delete (globalThis as { navigator?: unknown }).navigator;
+		}
+		expect(imports).toBe(0);
+	});
+
+	test("the distinct id is unknown before load and the SDK's after", async () => {
+		expect(distinctId()).toBeUndefined();
+		loadAnalytics((async () => ({ default: fakeClient([]) })) as never);
+		await settle();
+		expect(distinctId()).toBe("anon_1");
 	});
 
 	test("missing env neither throws nor imports", async () => {

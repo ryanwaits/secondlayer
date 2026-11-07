@@ -5,6 +5,9 @@ export interface Account {
 	bio: string | null;
 	avatarUrl: string | null;
 	createdAt: string;
+	/** First-party account; marks its analytics person internal. Absent from
+	 *  payloads that predate it. */
+	internal?: boolean;
 }
 
 export type ApiKeyProduct =

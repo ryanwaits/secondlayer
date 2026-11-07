@@ -9,17 +9,42 @@ import {
 	useSyncExternalStore,
 } from "react";
 import { clearAccountData } from "./account-data";
-import { identify, reset } from "./analytics";
+import { distinctId, identify, reset } from "./analytics";
 import type { Account } from "./types";
 import { marketingUrl } from "./urls";
 
 interface AuthCtx {
 	account: Account | null;
 	loading: boolean;
-	login(email: string): Promise<{ token?: string; code?: string }>;
+	/** `from` names the form that asked, for the server's analytics event. */
+	login(
+		email: string,
+		from?: SigninFrom,
+	): Promise<{ token?: string; code?: string }>;
 	verify(tokenOrCode: string, email?: string): Promise<{ account: Account }>;
 	logout(): Promise<void>;
 	refresh(): Promise<void>;
+}
+
+/** Which form asked for a sign-in link: the sign-in page, or the docs
+ *  "Make a lasting key" panel. */
+export type SigninFrom = "signin" | "lasting_key";
+
+/** The person properties sent with `identify`. `$internal_or_test_user` is
+ *  what PostHog's internal-and-test filter reads; it is sent only when the
+ *  account payload carries `internal`. */
+export function accountTraits(account: Account): Record<string, unknown> {
+	return {
+		email: account.email,
+		...(account.displayName ? { name: account.displayName } : {}),
+		...(typeof account.internal === "boolean"
+			? { $internal_or_test_user: account.internal }
+			: {}),
+	};
+}
+
+function identifyAccount(account: Account) {
+	identify(account.id, accountTraits(account));
 }
 
 const AuthContext = createContext<AuthCtx | null>(null);
@@ -87,12 +112,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 			// A signed-out answer (say, an expired session) leaves nothing of the
 			// last account behind for whoever signs in next in this tab.
 			if (!account) clearAccountData();
-			if (account) {
-				identify(account.id, {
-					email: account.email,
-					...(account.displayName ? { name: account.displayName } : {}),
-				});
-			}
+			if (account) identifyAccount(account);
 		} catch {
 			setAccount(null);
 		} finally {
@@ -101,11 +121,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 	}, [setAccount, setLoading]);
 
 	const login = useCallback(
-		async (email: string): Promise<{ token?: string }> => {
+		async (email: string, from?: SigninFrom): Promise<{ token?: string }> => {
 			const res = await fetch("/api/auth/login", {
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({ email }),
+				body: JSON.stringify({ email, from, distinctId: distinctId() }),
 			});
 			const data = await res.json();
 			if (!res.ok) {
@@ -135,10 +155,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 			// A new session starts from nothing; its pages read their own data.
 			clearAccountData();
 			setAccount(account);
-			identify(account.id, {
-				email: account.email,
-				...(account.displayName ? { name: account.displayName } : {}),
-			});
+			identifyAccount(account);
 			return { account };
 		},
 		[setAccount],
@@ -156,14 +173,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 	useEffect(() => {
 		// A page that read the account on the server has already seeded it.
 		if (!auth.loading) {
-			if (auth.account) {
-				identify(auth.account.id, {
-					email: auth.account.email,
-					...(auth.account.displayName
-						? { name: auth.account.displayName }
-						: {}),
-				});
-			}
+			if (auth.account) identifyAccount(auth.account);
 			return;
 		}
 		refresh();

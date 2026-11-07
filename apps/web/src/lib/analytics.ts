@@ -35,6 +35,9 @@ export function loadAnalytics(
 	importer: Importer = () => import("posthog-js"),
 ): void {
 	if (started) return;
+	// A headless browser (automation, most bots) is not a visitor: no events,
+	// no replay quota spent on it.
+	if (typeof navigator !== "undefined" && navigator.webdriver) return;
 	const projectToken = process.env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN;
 	const host = process.env.NEXT_PUBLIC_POSTHOG_HOST;
 
@@ -112,6 +115,12 @@ export function onFeatureFlags(callback: () => void): () => void {
 		cancelled = true;
 		unsubscribe?.();
 	};
+}
+
+/** This visitor's PostHog id, for a request whose server-side event should
+ *  join their pageviews. `undefined` until the SDK loads. */
+export function distinctId(): string | undefined {
+	return client?.get_distinct_id() || undefined;
 }
 
 /** `undefined` until the SDK loads, which reads as "not disabled". */

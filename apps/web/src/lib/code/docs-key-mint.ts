@@ -6,9 +6,14 @@ export const LASTING_KEY_NEXT = "/account/keys?new=1";
 /**
  * The request that mints a docs key. Signed in, the web server mints it from
  * the session cookie. Signed out, the browser asks the API directly (no
- * cookies), so the API's one-a-day limit counts the reader's IP, not ours.
+ * cookies), so the API's one-a-day limit counts the reader's IP, not ours,
+ * and sends the reader's PostHog id (when known) so the API's mint event joins
+ * their pageviews.
  */
-export function docsKeyMintRequest(signedIn: boolean): {
+export function docsKeyMintRequest(
+	signedIn: boolean,
+	distinctId?: string,
+): {
 	url: string;
 	init: RequestInit;
 } {
@@ -19,7 +24,7 @@ export function docsKeyMintRequest(signedIn: boolean): {
 			credentials: signedIn ? "same-origin" : "omit",
 			cache: "no-store",
 			headers: { "Content-Type": "application/json" },
-			body: "{}",
+			body: JSON.stringify(signedIn ? {} : { distinctId }),
 		},
 	};
 }
