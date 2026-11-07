@@ -1,5 +1,11 @@
 # @secondlayer/subgraphs
 
+## 8.1.2
+
+### Patch Changes
+
+- The tenant meter socket keeps unpushed event counts until the workload accepts them, so a failed push no longer drops billed events.
+
 ## 8.1.1
 
 ### Patch Changes
