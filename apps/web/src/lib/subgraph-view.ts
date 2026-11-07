@@ -1,4 +1,5 @@
 import type { Tone } from "@/lib/tone";
+import { type SubgraphSyncState, syncState } from "@secondlayer/shared/schemas";
 
 /** Pure view helpers for the Subgraphs screens: counts, lag and state lines. */
 
@@ -13,8 +14,25 @@ export function groupDigits(digits: string): string {
 /** The week of hourly health the list and the detail's default range draw. */
 export const HEALTH_WEEK_HOURS = 168;
 
-/** Counts as live when the subgraph is under two blocks behind the tip. */
-export const isLive = (blocksBehind: number): boolean => blocksBehind < 2;
+/** A subgraph one block behind is at the tip: the chain moves on every few
+ *  seconds, so "caught up" can't mean exactly equal. */
+const TIP_SLACK_BLOCKS = 1;
+
+/** The one answer to "is this subgraph caught up?" for every screen:
+ *  `syncState` measured against the tip with a block of slack. `chainTip`
+ *  comes from the detail read; the list derives it from how far behind the
+ *  subgraph says it is. */
+export function subgraphSync(
+	item: {
+		status: string;
+		lastProcessedBlock: number;
+		blocksRemaining?: number | null;
+	},
+	chainTip?: number,
+): SubgraphSyncState {
+	const tip = chainTip ?? item.lastProcessedBlock + (item.blocksRemaining ?? 0);
+	return syncState(item, tip - TIP_SLACK_BLOCKS);
+}
 
 const plural = (n: number, one: string) => `${n} ${n === 1 ? one : `${one}s`}`;
 
@@ -58,17 +76,17 @@ export function subgraphTone(status: string, errors24h: number | null): Tone {
 
 /** The list row's state line: lag, rows and, when known, errors in 24 hours. */
 export function stateLine(
+	sync: SubgraphSyncState,
 	blocksBehind: number,
 	rows: number,
 	errors24h: number | null,
-	status = "active",
 ): string {
 	const lag =
-		status === "reindexing"
+		sync === "reindexing"
 			? `Reindexing · ${blocksLabel(blocksBehind)} left`
-			: isLive(blocksBehind)
-				? "At the tip"
-				: `Behind tip ${blocksLabel(blocksBehind)}`;
+			: sync === "catching_up"
+				? `Behind tip ${blocksLabel(blocksBehind)}`
+				: "At the tip";
 	return [
 		lag,
 		plural(rows, "row").replace(/^\d+/, groupDigits(String(rows))),

@@ -9,7 +9,7 @@ import {
 	type HostedStack,
 	ROWS_ALLOWANCE,
 	type UsageRow,
-	balanceLevel,
+	balanceLevelFor,
 	currentUtcMonth,
 	daysInUtcMonth,
 	deliveredRowsIn,
@@ -162,11 +162,7 @@ export function UsageBody({
 	const balance = billing ? Number(billing.creditsUsdMicros) : 0;
 	const rateDay = burn ? Number(burn.rateDayUsdMicros) : 0;
 	const runway = runwayDays(balance, rateDay);
-	const level = balanceLevel({
-		serviceState: service?.state ?? "none",
-		balanceUsdMicros: balance,
-		runwayDays: runway,
-	});
+	const level = balanceLevelFor(billing, burn, service);
 
 	const others = usage
 		? unitLines(usage)

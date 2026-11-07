@@ -3,6 +3,7 @@ import {
 	ROWS_ALLOWANCE,
 	addMonths,
 	balanceLevel,
+	balanceLevelFor,
 	daysInUtcMonth,
 	deliveredRowsIn,
 	formatRows,
@@ -320,4 +321,40 @@ const hour = (billedGb: number, observedGb: number | null) => ({
 	hour: "2026-10-15T12:00:00.000Z",
 	billedGb,
 	observedGb,
+});
+
+describe("balanceLevelFor", () => {
+	const burn = (perDay: number) => ({
+		rateDayUsdMicros: String(perDay * 1_000_000),
+		windowHours: 24,
+	});
+	const bal = (dollars: number) => ({
+		creditsUsdMicros: String(dollars * 1_000_000),
+	});
+	const stack = (state: "running" | "stopped" | "none") => ({
+		state,
+		lastChargedAt: null,
+		memory24h: [],
+	});
+
+	test("is unknown until billing has loaded", () => {
+		expect(balanceLevelFor(null, burn(1), stack("running"))).toBeNull();
+	});
+
+	test("an unknown burn rate is not read as infinite runway", () => {
+		expect(balanceLevelFor(bal(0.5), null, stack("running"))).toBeNull();
+	});
+
+	test("a stopped stack at $0 is stopped even before burn loads", () => {
+		expect(balanceLevelFor(bal(0), null, stack("stopped"))).toBe("stopped");
+	});
+
+	test("two days of runway is already critical, three is low", () => {
+		expect(balanceLevelFor(bal(2), burn(1), stack("running"))).toBe("crit");
+		expect(balanceLevelFor(bal(3), burn(1), stack("running"))).toBe("low");
+	});
+
+	test("nothing burning is ok", () => {
+		expect(balanceLevelFor(bal(1), burn(0), stack("none"))).toBe("ok");
+	});
 });

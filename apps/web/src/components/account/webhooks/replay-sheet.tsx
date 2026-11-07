@@ -30,7 +30,14 @@ const DEFAULT_PRESET = 1000;
 
 export type ReplayWebhook = Pick<
 	WebhookSummary,
-	"id" | "name" | "status" | "circuitOpenedAt" | "circuitFailures"
+	| "id"
+	| "name"
+	| "status"
+	| "pauseReason"
+	| "circuitOpenedAt"
+	| "circuitFailures"
+	| "lastSuccessAt"
+	| "createdAt"
 >;
 
 /** What the sheet shows right now. */

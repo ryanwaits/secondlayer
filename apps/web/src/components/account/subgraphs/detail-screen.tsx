@@ -16,7 +16,7 @@ import {
 	formatBytes,
 	groupDigits,
 	handlerErrors24h,
-	isLive,
+	subgraphSync,
 } from "@/lib/subgraph-view";
 import {
 	type SubgraphDetailData,
@@ -68,13 +68,14 @@ const hasOpenInsight = (
 /** Reindexing or catching up; nothing at the tip. */
 function lagFactOf(detail: {
 	status: string;
-	sync: { blocksRemaining: number };
+	lastProcessedBlock: number;
+	sync: { blocksRemaining: number; chainTip: number };
 }): { label: string; value: string } | null {
 	const n = detail.sync.blocksRemaining;
-	const reindexing = detail.status === "reindexing";
-	if (!reindexing && isLive(n)) return null;
+	const sync = subgraphSync(detail, detail.sync.chainTip);
+	if (sync !== "reindexing" && sync !== "catching_up") return null;
 	return {
-		label: reindexing ? "Reindexing" : "Catching up",
+		label: sync === "reindexing" ? "Reindexing" : "Catching up",
 		value: `${groupDigits(String(n))} ${n === 1 ? "block" : "blocks"} to go`,
 	};
 }

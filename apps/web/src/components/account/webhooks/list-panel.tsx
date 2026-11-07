@@ -1,5 +1,6 @@
 "use client";
 
+import { AsleepState } from "@/components/account/asleep-state";
 import { CopyButton } from "@/components/copy-button";
 import {
 	HeatStrip,
@@ -9,22 +10,16 @@ import { HourRibbon } from "@/components/dashboard/charts/hour-ribbon";
 import { ActionableInsights } from "@/components/dashboard/insight/insight-actions";
 import { StatusSentence } from "@/components/dashboard/shell/status-sentence";
 import { useCompact } from "@/components/mobile/use-compact";
-import { notify } from "@/components/toast/notify";
 import { getAgentPrompt } from "@/lib/agent-prompts";
 import { heatGrid } from "@/lib/dashboard-charts";
-import { type WebhooksResult, initialNotice } from "@/lib/dashboard-results";
 import type { IndexView } from "@/lib/index-view";
 import type { Insight } from "@/lib/insights";
 import { forAccountRules, useInsights } from "@/lib/insights-store";
 import type { WebhooksListInitial } from "@/lib/server/dashboard-reads";
-import { hostOf, pauseWebhook, resumeWebhook } from "@/lib/webhooks-data";
-import {
-	applyWebhook,
-	listSeed,
-	poll,
-	refreshList,
-	refreshSummary,
-} from "@/lib/webhooks-store";
+import type { StackNotice } from "@/lib/stack-status";
+import { usePollNotice } from "@/lib/use-stack";
+import { hostOf } from "@/lib/webhooks-data";
+import { listSeed, refreshList, refreshSummary } from "@/lib/webhooks-store";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { CopyForAgent, EmptyStart, type Guide } from "../empty-start";
@@ -43,10 +38,11 @@ import {
 	webhookWhyLine,
 } from "../index-rows/status";
 import { WebhooksCompactList } from "./compact-list";
+import { changePause, pauseTargetOf } from "./pause-action";
 import { type WebhookRowModel, useWebhookRows } from "./rows";
-import { countByDisplayStatus, displayStatus, shortenName } from "./shared";
+import { countByDisplayStatus, shortenName } from "./shared";
 import { WebhooksListSkeleton } from "./skeletons";
-import { ageShort, describeFailure } from "./view";
+import { ageShort } from "./view";
 import { WaitingBlock } from "./waiting";
 
 /** The list polls this often while the tab is visible, so new webhooks and
@@ -54,58 +50,20 @@ import { WaitingBlock } from "./waiting";
 const LIST_POLL_MS = 15_000;
 const HOUR_MS = 3_600_000;
 
-type ListNotice =
-	| { kind: "starting" }
-	| { kind: "asleep" }
-	| { kind: "no_credits" }
-	| { kind: "error"; message: string };
-
-/** What the list read means for the page: the notice to show, `null` for none,
- *  or `undefined` to leave the notice as it is. */
-function noticeFor(
-	res: WebhooksResult<unknown>,
-): ListNotice | null | undefined {
-	switch (res.kind) {
-		case "ok":
-		case "not_found":
-			return null;
-		case "rate_limited":
-			return undefined;
-		case "starting":
-		case "no_credits":
-		case "asleep":
-			return { kind: res.kind };
-		case "error":
-			return { kind: "error", message: res.message };
-	}
-}
-
 /** Polls the list and the hourly summary. A notice only appears while there
  *  are no cached rows to show: once rows have landed, a later starting, rate
  *  limit or error just keeps retrying behind them. A page that opened with the
  *  server's reads (`initial`) waits a full interval for the first poll, unless
  *  its list or summary didn't load. */
-function useListPoll(initial: WebhooksListInitial | null): ListNotice | null {
-	const [notice, setNotice] = useState<ListNotice | null>(
-		initial ? initialNotice(initial.list, noticeFor) : null,
-	);
+function useListPoll(initial: WebhooksListInitial | null): StackNotice | null {
 	const listLoaded =
 		initial?.list.kind === "ok" && initial.summary.kind === "ok";
-	useEffect(() => {
-		return poll(
-			async () => {
-				const [res] = await Promise.all([refreshList(), refreshSummary()]);
-				const next = noticeFor(res);
-				if (next !== undefined) setNotice(next);
-				return res.kind === "starting" || res.kind === "rate_limited"
-					? { retryAfterMs: res.retryAfter * 1000 }
-					: {};
-			},
-			LIST_POLL_MS,
-			{ immediate: !listLoaded },
-		);
-	}, [listLoaded]);
-	return notice;
+	return usePollNotice({
+		initial: initial?.list,
+		run: async () => (await Promise.all([refreshList(), refreshSummary()]))[0],
+		intervalMs: LIST_POLL_MS,
+		immediate: !listLoaded,
+	});
 }
 
 function Notice({
@@ -132,59 +90,6 @@ function Notice({
 			</div>
 			{action}
 		</output>
-	);
-}
-
-/** Ghost rows behind the asleep message: list-shaped, static, faded. */
-const ASLEEP_GHOSTS = [
-	{ name: 34, state: 62, sub: 28 },
-	{ name: 26, state: 54, sub: 34 },
-	{ name: 40, state: 48, sub: 22 },
-];
-
-/** Every webhook is paused, so the stack stopped and stops billing. The list
- *  lives on the stack, so this empty state stands in for it. Waking is the
- *  user's call: the next list poll then shows it starting. */
-export function AsleepState() {
-	const [waking, setWaking] = useState(false);
-	return (
-		<section className="wh-asleep" aria-label="Hosted stack asleep">
-			<div className="wh-asleep-ghosts" aria-hidden="true">
-				{ASLEEP_GHOSTS.map((row) => (
-					<div className="wl-row" key={row.name}>
-						<div className="wl-main">
-							<span className="ob-bar" style={{ width: `${row.name}%` }} />
-							<span className="ob-bar" style={{ width: `${row.state}%` }} />
-							<span className="ob-bar" style={{ width: `${row.sub}%` }} />
-						</div>
-						<HeatStripSkeleton />
-					</div>
-				))}
-			</div>
-			<div className="wh-asleep-c">
-				<p className="wh-asleep-t">Your hosted stack is asleep</p>
-				<p className="wh-asleep-l">
-					Every webhook is paused, so the stack stopped and isn't billed. Wake
-					it to see your webhooks and resume one.
-				</p>
-				<button
-					type="button"
-					className="acct-btn solid small"
-					disabled={waking}
-					onClick={() => {
-						setWaking(true);
-						void refreshList({ wake: true });
-					}}
-				>
-					{waking ? "Waking…" : "Wake it"}
-				</button>
-				<p className="wh-asleep-f">
-					{waking
-						? "About 30 seconds. Your webhooks show up here when it's up."
-						: "About 30 seconds. Billing starts again while it runs."}
-				</p>
-			</div>
-		</section>
 	);
 }
 
@@ -409,7 +314,7 @@ export interface WebhooksListBodyProps {
 	/** Null until the first list has loaded. */
 	rows: WebhookRowModel[] | null;
 	hours: readonly string[];
-	notice: ListNotice | null;
+	notice: StackNotice | null;
 	onOpenHour: (id: string, hourIso: string) => void;
 	/** The hourly summary has loaded. Defaults to true. */
 	summaryLoaded?: boolean;
@@ -535,44 +440,9 @@ export function WebhooksListSection({
 
 	async function onTogglePause(row: WebhookRowModel) {
 		const { id, name } = row.webhook;
-		const resuming = displayStatus(row.webhook) !== "active";
 		setBusyId(id);
-		const res = resuming ? await resumeWebhook(id) : await pauseWebhook(id);
+		await changePause(id, name, pauseTargetOf(row.webhook));
 		setBusyId(null);
-		const label = shortenName(name);
-		if (res.kind !== "ok") {
-			notify.fail(
-				<>
-					Couldn't {resuming ? "resume" : "pause"} <code>{label}</code>
-				</>,
-				{
-					desc: describeFailure(res),
-					retry: () => onTogglePause(row),
-				},
-			);
-			return;
-		}
-		applyWebhook(res.data);
-		if (resuming) {
-			notify.done(
-				<>
-					Resumed <code>{label}</code>
-				</>,
-			);
-			return;
-		}
-		notify.done(
-			<>
-				Paused <code>{label}</code>
-			</>,
-			{
-				desc: "Events wait for you.",
-				undo: async () => {
-					const undone = await resumeWebhook(id);
-					if (undone.kind === "ok") applyWebhook(undone.data);
-				},
-			},
-		);
 	}
 
 	if (compact) {

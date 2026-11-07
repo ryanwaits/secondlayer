@@ -34,8 +34,11 @@ const hook = (over: Partial<WebhookSummary>): WebhookSummary =>
 		id: "wh_1",
 		name: "hook",
 		status: "active",
+		pauseReason: null,
 		circuitOpenedAt: null,
 		circuitFailures: 0,
+		lastSuccessAt: new Date().toISOString(),
+		createdAt: "2026-01-01T00:00:00.000Z",
 		...over,
 	}) as WebhookSummary;
 
@@ -64,7 +67,7 @@ describe("accountProblems", () => {
 		).toEqual([]);
 	});
 
-	test("under 2 days of burn left is a low balance", () => {
+	test("less than 2 days of burn left is a low balance", () => {
 		const problems = accountProblems({
 			...healthy,
 			billing: billing(0.5),
@@ -74,9 +77,29 @@ describe("accountProblems", () => {
 		expect(problems[0]?.href).toBe("/account/credits");
 	});
 
-	test("exactly 2 days of burn left is still fine", () => {
+	test("exactly 2 days of burn left is a low balance, matching the billing page", () => {
 		expect(
-			accountProblems({ ...healthy, billing: billing(0.7), burn: burn(0.35) }),
+			accountProblems({
+				...healthy,
+				billing: billing(0.7),
+				burn: burn(0.35),
+			}).map((p) => p.kind),
+		).toEqual(["low_balance"]);
+	});
+
+	test("2.5 days of burn left is fine", () => {
+		expect(
+			accountProblems({
+				...healthy,
+				billing: billing(0.875),
+				burn: burn(0.35),
+			}),
+		).toEqual([]);
+	});
+
+	test("an unknown burn rate is not read as plenty of runway or as a problem", () => {
+		expect(
+			accountProblems({ ...healthy, billing: billing(0.01), burn: null }),
 		).toEqual([]);
 	});
 
@@ -133,8 +156,17 @@ describe("accountProblems", () => {
 			...healthy,
 			webhooks: [
 				hook({}),
-				hook({ id: "b", circuitFailures: 50 }),
-				hook({ id: "c", status: "paused", circuitOpenedAt: "2026-10-01" }),
+				hook({
+					id: "b",
+					circuitFailures: 50,
+					lastSuccessAt: "2026-10-01T00:00:00.000Z",
+				}),
+				hook({
+					id: "c",
+					status: "paused",
+					pauseReason: "circuit",
+					circuitOpenedAt: "2026-10-01",
+				}),
 			],
 		});
 		expect(problems).toHaveLength(1);

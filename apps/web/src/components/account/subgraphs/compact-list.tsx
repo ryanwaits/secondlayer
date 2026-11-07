@@ -1,13 +1,16 @@
 "use client";
 
+import { AsleepState } from "@/components/account/asleep-state";
 import { Skel } from "@/components/dashboard/shell/skel";
 import { StatusSentence } from "@/components/dashboard/shell/status-sentence";
 import type { Insight } from "@/lib/insights";
 import { forResource } from "@/lib/insights-store";
+import type { StackNotice } from "@/lib/stack-status";
 import {
 	groupDigits,
 	handlerErrors24h,
 	stateLine,
+	subgraphSync,
 	subgraphTone,
 } from "@/lib/subgraph-view";
 import type {
@@ -16,18 +19,13 @@ import type {
 } from "@/lib/subgraphs-store";
 import { insightRowState } from "../webhooks/rows";
 
-/** Why there is no list to show yet. The same shape `useSubgraphsPoll` returns. */
-export type CompactListNotice =
-	| { kind: "starting" }
-	| { kind: "error"; message: string };
-
 export interface SubgraphsCompactListProps {
 	/** Null until the first list has loaded. */
 	items: readonly SubgraphListItem[] | null;
 	health: Record<string, SubgraphHealthData | undefined>;
 	/** Every insight the server holds; each row picks its own by name. */
 	insights: readonly Insight[];
-	notice: CompactListNotice | null;
+	notice: StackNotice | null;
 	onOpen: (name: string) => void;
 }
 
@@ -88,10 +86,10 @@ function Row({
 	const line =
 		insightState?.text ??
 		stateLine(
+			subgraphSync(item),
 			item.blocksRemaining ?? 0,
 			item.totalRows ?? 0,
 			errors24h,
-			item.status,
 		);
 	return (
 		<button type="button" className="msg-row" onClick={() => onOpen(item.name)}>
@@ -127,6 +125,22 @@ export function SubgraphsCompactList({
 				<div className="msg">
 					<StatusSentence sub="Your account gets its own hosted stack the first time you use subgraphs. This takes about 30 seconds.">
 						Starting your hosted stack.
+					</StatusSentence>
+				</div>
+			);
+		}
+		if (notice?.kind === "asleep") {
+			return (
+				<div className="msg">
+					<AsleepState noun="subgraphs" />
+				</div>
+			);
+		}
+		if (notice?.kind === "no_credits") {
+			return (
+				<div className="msg">
+					<StatusSentence sub="Your subgraphs are kept; indexing resumes where it stopped.">
+						Indexing is paused until you add credits.
 					</StatusSentence>
 				</div>
 			);

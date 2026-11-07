@@ -1,5 +1,6 @@
 "use client";
 
+import { AsleepState } from "@/components/account/asleep-state";
 import { MissingResource } from "@/components/account/missing-resource";
 import { ChartSkeleton } from "@/components/charts/chart-skeleton";
 import { LazyBandBarChart } from "@/components/charts/lazy";
@@ -16,12 +17,11 @@ import { type WebhooksResult, initialNotice } from "@/lib/dashboard-results";
 import { type Insight, rankInsights } from "@/lib/insights";
 import { forResource, useInsights } from "@/lib/insights-store";
 import type { WebhookDetailInitial } from "@/lib/server/dashboard-reads";
+import { type StackNotice, noticeFor } from "@/lib/stack-status";
 import {
 	type WebhookActivityDay,
 	hostOf,
-	pauseWebhook,
 	renameWebhook,
-	resumeWebhook,
 	testWebhook,
 } from "@/lib/webhooks-data";
 import {
@@ -52,14 +52,19 @@ import {
 	offsetLabel,
 	statusSuffix,
 } from "./delivery-view";
-import { AsleepState } from "./list-panel";
 import { ListensFor } from "./listens-for";
+import { changePause, pauseTargetOf } from "./pause-action";
 import {
 	PayloadView,
 	prefetchOnIntent,
 	useDeliveryDetail,
 } from "./payload-view";
-import { displayStatus, formatEventCell, shortenName } from "./shared";
+import {
+	displayStatus,
+	formatEventCell,
+	isPaused,
+	shortenName,
+} from "./shared";
 import { WebhookDetailSkeleton } from "./skeletons";
 import {
 	FIRST_DELIVERIES,
@@ -93,37 +98,19 @@ const ACTIVITY_POLL_MS = 5_000;
 
 const RANGE_OPTIONS = RANGES.map((value) => ({ value, label: value }));
 
-type DetailNotice =
-	| { kind: "starting" }
-	| { kind: "asleep" }
-	| { kind: "no_credits" }
-	| { kind: "not_found" }
-	| { kind: "error"; message: string };
+type DetailNotice = StackNotice | { kind: "not_found" };
 
 /** What a webhook read means for the page: the notice to show, `null` for
  *  none, or `undefined` to leave the notice as it is. A failure only becomes
  *  the notice when no page is cached to keep showing; `not_found` always
  *  wins, since a deleted webhook shouldn't keep showing. */
-function noticeFor(
+function detailNoticeFor(
 	webhook: WebhooksResult<WebhookDetail>,
 	hasCached: boolean,
 ): DetailNotice | null | undefined {
-	switch (webhook.kind) {
-		case "ok":
-			return null;
-		case "not_found":
-			return { kind: "not_found" };
-		case "rate_limited":
-			return undefined;
-		case "starting":
-		case "no_credits":
-		case "asleep":
-			return hasCached ? undefined : { kind: webhook.kind };
-		case "error":
-			return hasCached
-				? undefined
-				: { kind: "error", message: webhook.message };
-	}
+	if (webhook.kind === "not_found") return { kind: "not_found" };
+	const next = noticeFor(webhook);
+	return next && hasCached ? undefined : next;
 }
 
 /**
@@ -140,7 +127,7 @@ function useDetailPoll(
 	initial: WebhookDetailInitial | null,
 ): { notice: DetailNotice | null; asleep: boolean } {
 	const firstNotice = initial
-		? initialNotice(initial.webhook, (res) => noticeFor(res, false))
+		? initialNotice(initial.webhook, (res) => detailNoticeFor(res, false))
 		: null;
 	const firstAsleep = initial?.webhook.kind === "asleep";
 	const [notice, setNotice] = useState<DetailNotice | null>(firstNotice);
@@ -157,7 +144,7 @@ function useDetailPoll(
 				});
 				const webhook = res.webhook;
 				setAsleep(webhook.kind === "asleep");
-				const next = noticeFor(
+				const next = detailNoticeFor(
 					webhook,
 					webhooksSnapshot().detail[id] !== undefined,
 				);
@@ -670,7 +657,7 @@ export function WebhookDetailBody({
 }: WebhookDetailBodyProps) {
 	const ranked = rankInsights(insights);
 	const finding = ranked.find((i) => FAILURE_RULES.has(i.rule))?.line ?? null;
-	const paused = webhook.status === "paused";
+	const paused = isPaused(webhook);
 	// Only an all-paused stack sleeps; a resume wakes it, so the flag drops
 	// the moment the webhook reads active again instead of on the next poll.
 	const asleep = stackAsleep && paused;
@@ -909,36 +896,10 @@ export function WebhookDetailSection({
 	}
 
 	async function onTogglePause() {
-		const resuming = webhook?.status === "paused";
-		const label = shortenName(webhook?.name ?? name ?? id);
+		if (!webhook) return;
 		setPauseBusy(true);
-		const res = resuming ? await resumeWebhook(id) : await pauseWebhook(id);
+		await changePause(id, webhook.name, pauseTargetOf(webhook));
 		setPauseBusy(false);
-		if (res.kind !== "ok") {
-			notify.fail(
-				<>
-					Couldn't {resuming ? "resume" : "pause"} <code>{label}</code>
-				</>,
-				{ desc: describeFailure(res), retry: onTogglePause },
-			);
-			return;
-		}
-		applyWebhook(res.data);
-		const reverse = async () => {
-			const undone = resuming
-				? await pauseWebhook(id)
-				: await resumeWebhook(id);
-			if (undone.kind === "ok") applyWebhook(undone.data);
-		};
-		notify.done(
-			<>
-				{resuming ? "Resumed" : "Paused"} <code>{label}</code>
-			</>,
-			{
-				desc: resuming ? undefined : "Events wait for you.",
-				undo: reverse,
-			},
-		);
 	}
 
 	async function onTest() {

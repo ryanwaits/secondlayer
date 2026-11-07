@@ -95,12 +95,36 @@ export function useInsights(): State {
 
 /** Forget everything on sign-out so the next account never sees it. */
 export function clearInsights(): void {
+	pendingRemovals.clear();
+	removedAt.clear();
 	state = EMPTY;
 	for (const l of listeners) l();
 }
 
+/** Insights the reader is removing right now (dismiss, expected, snooze),
+ *  and when each removal settled with the server (ms). A refresh must not
+ *  bring one back: not while its call is in flight, and not if the refresh
+ *  began before the call settled. */
+const pendingRemovals = new Set<string>();
+const removedAt = new Map<string, number>();
+
+/** A refresh's insights without the ones the reader is removing. Pure. */
+export function withoutRemovals(
+	incoming: readonly Insight[],
+	pending: ReadonlySet<string>,
+	settledAt: ReadonlyMap<string, number>,
+	startedAt: number,
+): Insight[] {
+	return incoming.filter(
+		(i) =>
+			!pending.has(i.id) &&
+			startedAt > (settledAt.get(i.id) ?? Number.NEGATIVE_INFINITY),
+	);
+}
+
 export function refreshInsights(): Promise<void> {
 	return shared("insights", async () => {
+		const startedAt = Date.now();
 		try {
 			const res = await fetch("/api/insights");
 			if (!res.ok) {
@@ -111,7 +135,13 @@ export function refreshInsights(): Promise<void> {
 				return;
 			}
 			const body = (await res.json()) as { data: Insight[] };
-			set({ status: "ok", data: rankInsights(body.data), at: Date.now() });
+			set({
+				status: "ok",
+				data: rankInsights(
+					withoutRemovals(body.data, pendingRemovals, removedAt, startedAt),
+				),
+				at: Date.now(),
+			});
 		} catch {
 			set({ ...current(), status: current().status === "ok" ? "ok" : "error" });
 		}
@@ -170,6 +200,7 @@ async function removeThenCall(
 	const removed = current().data.find((i) => i.id === id);
 	if (!removed) return false;
 	set({ ...current(), data: current().data.filter((i) => i.id !== id) });
+	pendingRemovals.add(id);
 	try {
 		const res = await fetch(
 			`/api/insights/${encodeURIComponent(id)}/${action}`,
@@ -183,9 +214,14 @@ async function removeThenCall(
 						}),
 			},
 		);
-		if (res.ok) return true;
+		if (res.ok) {
+			removedAt.set(id, Date.now());
+			return true;
+		}
 	} catch {
 		// Falls through to the rollback.
+	} finally {
+		pendingRemovals.delete(id);
 	}
 	set({ ...current(), data: rankInsights([...current().data, removed]) });
 	void refreshInsights();
@@ -212,6 +248,7 @@ export async function restore(
 	insight: Insight,
 	action: "dismiss" | "snooze",
 ): Promise<boolean> {
+	removedAt.delete(insight.id);
 	if (!current().data.some((i) => i.id === insight.id)) {
 		set({ ...current(), data: rankInsights([...current().data, insight]) });
 	}

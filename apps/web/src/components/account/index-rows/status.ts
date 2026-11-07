@@ -1,5 +1,5 @@
 import type { Insight } from "@/lib/insights";
-import { groupDigits, isLive, subgraphTone } from "@/lib/subgraph-view";
+import { groupDigits, subgraphSync, subgraphTone } from "@/lib/subgraph-view";
 import type { SubgraphListItem } from "@/lib/subgraphs-store";
 import { insightRowState } from "../webhooks/rows";
 import type { WebhookRowModel } from "../webhooks/rows";
@@ -50,23 +50,30 @@ export function subgraphStatus(
 	if (tone === "alarm") return { group: "alarm", label: "Failing" };
 	if (tone === "hi") return { group: "hi", label: "Needs a look" };
 	const remaining = item.blocksRemaining ?? 0;
-	if (item.status === "reindexing") {
-		return {
-			group: "idle",
-			label:
-				remaining > 0 ? `Reindexing · ${blocksToGo(remaining)}` : "Reindexing",
-		};
+	switch (subgraphSync(item)) {
+		case "reindexing":
+			return {
+				group: "idle",
+				label:
+					remaining > 0
+						? `Reindexing · ${blocksToGo(remaining)}`
+						: "Reindexing",
+			};
+		case "catching_up":
+			return {
+				group: "idle",
+				label: `Catching up · ${blocksToGo(remaining)}`,
+			};
+		default:
+			// A status this dashboard doesn't know (a newer tenant API) reads as
+			// its own name instead of as healthy.
+			return item.status === "active" || item.status === "error"
+				? { group: "ok", label: null }
+				: {
+						group: "idle",
+						label: item.status.charAt(0).toUpperCase() + item.status.slice(1),
+					};
 	}
-	if (!isLive(remaining)) {
-		return { group: "idle", label: `Catching up · ${blocksToGo(remaining)}` };
-	}
-	if (item.status !== "active") {
-		return {
-			group: "idle",
-			label: item.status.charAt(0).toUpperCase() + item.status.slice(1),
-		};
-	}
-	return { group: "ok", label: null };
 }
 
 const escapeRegExp = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");

@@ -4,6 +4,7 @@ import {
 	AccountMenuPanel,
 	DashboardButton,
 } from "@/components/account-menu";
+import { AsleepState } from "@/components/account/asleep-state";
 import {
 	FirstRowsCode,
 	FirstRowsPrompt,
@@ -25,10 +26,7 @@ import {
 } from "@/components/account/subgraphs/subgraph.fixtures";
 import { TablesSection } from "@/components/account/subgraphs/tables-section";
 import { UseSection } from "@/components/account/subgraphs/use-section";
-import {
-	AsleepState,
-	WebhooksListBody,
-} from "@/components/account/webhooks/list-panel";
+import { WebhooksListBody } from "@/components/account/webhooks/list-panel";
 import { ListensFor } from "@/components/account/webhooks/listens-for";
 import { rowModel } from "@/components/account/webhooks/rows";
 import {

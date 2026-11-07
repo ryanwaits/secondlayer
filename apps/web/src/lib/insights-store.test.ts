@@ -16,6 +16,7 @@ import {
 	startInsightsPolling,
 	topLine,
 	useInsights,
+	withoutRemovals,
 } from "./insights-store";
 import { FIXTURE_INSIGHTS } from "./insights.fixtures";
 
@@ -308,5 +309,58 @@ describe("startInsightsPolling", () => {
 		await advance(1);
 		expect(calls.length).toBe(1);
 		stop();
+	});
+});
+
+describe("a dismiss racing a poll", () => {
+	const id = FIXTURE_INSIGHTS[0]?.id ?? "";
+
+	test("withoutRemovals drops pending ids and reads that began before the settle", () => {
+		const settled = new Map([["b", 100]]);
+		const rows = [{ id: "a" }, { id: "b" }, { id: "c" }] as never[];
+		expect(
+			withoutRemovals(rows, new Set(["a"]), settled, 50).map((i) => i.id),
+		).toEqual(["c"]);
+		expect(
+			withoutRemovals(rows, new Set(), settled, 150).map((i) => i.id),
+		).toEqual(["a", "b", "c"]);
+	});
+
+	test("a refresh that lands while the dismiss is in flight does not bring it back", async () => {
+		stubFetch(() => list());
+		await refreshInsights();
+		let settleDismiss: (r: Response) => void = () => {};
+		stubFetch((url) =>
+			url.endsWith("/dismiss")
+				? new Promise<Response>((resolve) => {
+						settleDismiss = resolve;
+					})
+				: list(),
+		);
+		const dismissed = dismiss(id);
+		await refreshInsights();
+		expect(insightsSnapshot().data.some((i) => i.id === id)).toBe(false);
+		settleDismiss(new Response("{}", { status: 200 }));
+		expect(await dismissed).toBe(true);
+		expect(insightsSnapshot().data.some((i) => i.id === id)).toBe(false);
+	});
+
+	test("a refresh that began before the dismiss settled stays out even if it answers after", async () => {
+		stubFetch(() => list());
+		await refreshInsights();
+		let answerRefresh: (r: Response) => void = () => {};
+		stubFetch((url) =>
+			url.endsWith("/dismiss")
+				? new Response("{}", { status: 200 })
+				: new Promise<Response>((resolve) => {
+						answerRefresh = resolve;
+					}),
+		);
+		const refreshing = refreshInsights();
+		expect(await dismiss(id)).toBe(true);
+		// The slow read still carries the dismissed insight.
+		answerRefresh(list());
+		await refreshing;
+		expect(insightsSnapshot().data.some((i) => i.id === id)).toBe(false);
 	});
 });

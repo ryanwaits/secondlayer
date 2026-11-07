@@ -1,16 +1,19 @@
 import { countByDisplayStatus } from "@/components/account/webhooks/shared";
 import type { WebhookSummary } from "@secondlayer/sdk";
 import type { Billing, Caps } from "./account-data";
-import { type Burn, type HostedStack, runwayDays } from "./usage";
+import { isStopped, stackStatus } from "./stack-status";
+import {
+	type Burn,
+	type HostedStack,
+	balanceLevelFor,
+	runwayDays,
+} from "./usage";
 
 /**
  * The one definition of "this account needs attention". The Overview page,
  * the nav chip and its menu all read it, so they never disagree. A new kind
  * of problem goes here and shows up everywhere.
  */
-
-/** Under this many days of burn left, the balance counts as a problem. */
-export const LOW_BALANCE_DAYS = 2;
 
 export type ProblemKind =
 	| "low_balance"
@@ -64,8 +67,15 @@ export function accountProblems(input: HealthInput): Problem[] {
 	const problems: Problem[] = [];
 
 	const balance = billing ? Number(billing.creditsUsdMicros) : null;
-	const days = daysLeft(billing, burn);
-	const stopped = service?.state === "stopped";
+	// "crit" is the balance's one threshold (2 days of burn or less), shared
+	// with the billing page and the balance emails.
+	const level = balanceLevelFor(billing, burn, service);
+	const stack = stackStatus({
+		service: service?.state ?? null,
+		read: null,
+		creditsUsdMicros: billing?.creditsUsdMicros ?? null,
+	});
+	const stopped = isStopped(stack);
 	// $0 only matters once something needs credits: a hosted stack, or spend.
 	// A new account on the free rows has nothing to pay for yet.
 	const needsCredits =
@@ -82,10 +92,10 @@ export function accountProblems(input: HealthInput): Problem[] {
 			href: "/account/credits",
 			action: "Add credits",
 		});
-	} else if (days !== null && days < LOW_BALANCE_DAYS) {
+	} else if (level === "crit") {
 		problems.push({
 			kind: "low_balance",
-			label: `Under ${LOW_BALANCE_DAYS} days of credit left`,
+			label: "2 days of credit or less left",
 			href: "/account/credits",
 			action: "Add credits",
 		});

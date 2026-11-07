@@ -1,6 +1,7 @@
 import { formatUsd } from "@/lib/account-data";
 import { type Insight, rankInsights } from "@/lib/insights";
 import { type RowsResponse, hourlyPoints } from "@/lib/rows";
+import { type StackStatus, stackStatus } from "@/lib/stack-status";
 import type { ApiKey } from "@/lib/types";
 import {
 	type Burn,
@@ -122,19 +123,17 @@ export interface StackContext {
 	creditsUsdMicros: string | null;
 }
 
-/**
- * True when the stack stopped because the credits ran out, which needs the
- * reader. A stack stopped on purpose (asleep) or with credits left does not.
- */
-export function stoppedForCredits(
+/** The stack's status from the Overview's reads: the webhooks list either
+ *  came back asleep or got through, and billing may not have loaded. */
+export function overviewStackStatus(
 	stack: HostedStack,
 	{ asleep, creditsUsdMicros }: StackContext,
-): boolean {
-	return (
-		stack.state === "stopped" &&
-		!asleep &&
-		(creditsUsdMicros === null || Number(creditsUsdMicros) <= 0)
-	);
+): StackStatus | null {
+	return stackStatus({
+		service: stack.state,
+		read: { kind: asleep ? "asleep" : "ok" },
+		creditsUsdMicros,
+	});
 }
 
 export interface StackCell {
@@ -160,19 +159,19 @@ export function stackCell(
 	const latest = latestMemoryHour(stack.memory24h);
 	const gb = latest ? (latest.observedGb ?? latest.billedGb).toFixed(2) : null;
 	const points = stack.memory24h.map((m) => m.observedGb ?? m.billedGb);
-	if (stack.state === "none") {
-		return {
-			tone: "idle",
-			word: "not started",
-			perDay: "$0.00",
-			gb: null,
-			points: [],
-			caption: "Starts with your first webhook.",
-		};
-	}
-	if (stack.state === "stopped") {
+	const status = overviewStackStatus(stack, context);
+	switch (status) {
+		case "none":
+			return {
+				tone: "idle",
+				word: "not started",
+				perDay: "$0.00",
+				gb: null,
+				points: [],
+				caption: "Starts with your first webhook.",
+			};
 		// Stopped, so nothing is charging, whatever the last 24 hours burned.
-		if (stoppedForCredits(stack, context)) {
+		case "stopped_no_credits":
 			return {
 				tone: "alarm",
 				word: "stopped",
@@ -181,8 +180,17 @@ export function stackCell(
 				points,
 				caption: "Add credits to start it again.",
 			};
-		}
-		if (context.asleep) {
+		case "stopped_other":
+			return {
+				tone: "alarm",
+				word: "stopped",
+				perDay: "$0.00",
+				gb,
+				points,
+				caption: "Check your credits.",
+			};
+		case "asleep":
+		case "waking":
 			return {
 				tone: "idle",
 				word: "asleep",
@@ -191,18 +199,20 @@ export function stackCell(
 				points,
 				caption: "Every webhook is paused, so it isn't billed.",
 			};
-		}
 		// Credits are there and webhooks aren't paused: the 5-minute credits
 		// poll (or the next request) restarts it, and this state can also lag a
 		// restart that already happened, since it is read from hourly billing.
-		return {
-			tone: "idle",
-			word: "starting",
-			perDay: "$0.00",
-			gb,
-			points,
-			caption: "Starts again on its own within a few minutes.",
-		};
+		case "starting":
+			return {
+				tone: "idle",
+				word: "starting",
+				perDay: "$0.00",
+				gb,
+				points,
+				caption: "Starts again on its own within a few minutes.",
+			};
+		default:
+			break;
 	}
 	return {
 		tone: "ok",

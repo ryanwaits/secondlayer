@@ -10,13 +10,13 @@ import {
 import { useState } from "react";
 import { ReplaySheet } from "./replay-sheet";
 import type { WebhookRowModel } from "./rows";
-import { displayStatus, shortenName } from "./shared";
+import { isPaused, shortenName } from "./shared";
 import { ageShort } from "./view";
 
 export interface WebhooksCompactListProps {
 	/** Null until the first list has loaded. */
 	rows: WebhookRowModel[] | null;
-	/** Rows whose displayStatus is "error". */
+	/** Rows that read as failing. */
 	failing: number;
 	/** The webhook whose pause or resume is in flight. */
 	busyId: string | null;
@@ -100,7 +100,7 @@ export function WebhooksCompactList({
 				<div className="mwh-group">
 					{rows.map((row) => {
 						const { webhook, state } = row;
-						const running = displayStatus(webhook) === "active";
+						const running = !isPaused(webhook);
 						const replaying = runningReplayFor(replays, webhook.id);
 						return (
 							<SwipeRow

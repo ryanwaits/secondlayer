@@ -19,7 +19,7 @@ import { useEffect, useRef, useState } from "react";
 import { DeliveriesChart } from "./deliveries-chart";
 import { describeTrigger } from "./describe-trigger";
 import { ReplayProgressView, ReplaySheet } from "./replay-sheet";
-import { displayStatus, shortenName } from "./shared";
+import { displayStatus, isPaused, shortenName } from "./shared";
 import { ageShort, isOk, outageStartIndex, utcClock } from "./view";
 
 export interface WebhookCompactDetailProps {
@@ -79,7 +79,7 @@ function Status({
 				<span className="mwh-status-text">
 					<b className="is-bad">Can't reach your server</b>
 					<span>
-						{webhook.status === "paused"
+						{isPaused(webhook)
 							? `We paused it after 20 failed attempts in a row.${since}`
 							: `Deliveries keep failing.${since}`}
 					</span>
@@ -151,7 +151,7 @@ function Recovery({
 	Pick<CompactReplayProps, "dead" | "requeue">) {
 	const tested = test.result?.ok === true;
 	const failed = test.result !== null && !test.result.ok;
-	const paused = webhook.status === "paused";
+	const paused = isPaused(webhook);
 	const testLabel = tested
 		? `Test got ${test.result?.statusCode} in ${test.result?.durationMs} ms`
 		: failed
@@ -296,7 +296,7 @@ export function WebhookCompactDetailView({
 						disabled={pauseBusy}
 						onClick={onTogglePause}
 					>
-						{status === "paused" ? "Resume" : "Pause"}
+						{isPaused(webhook) ? "Resume" : "Pause"}
 					</button>
 					<button
 						type="button"

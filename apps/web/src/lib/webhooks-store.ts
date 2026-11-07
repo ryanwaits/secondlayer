@@ -16,6 +16,8 @@ import {
 	getDeliveries,
 	getWebhook,
 	listWebhooks,
+	pauseWebhook,
+	resumeWebhook,
 } from "./webhooks-data";
 
 /**
@@ -33,6 +35,60 @@ import {
 
 export type CacheEntry<T> = { data: T; at: number } | undefined;
 
+/** The status a pause or resume is moving a webhook to. */
+export type PauseTarget = "active" | "paused";
+
+/** A pause or resume in flight for one webhook. */
+export interface PendingPause {
+	target: PauseTarget;
+	seq: number;
+}
+
+/** The fields a pause or resume changes, and so the ones a stale read must
+ *  not put back. */
+const PAUSE_FIELDS = [
+	"status",
+	"pauseReason",
+	"health",
+	"circuitOpenedAt",
+	"circuitFailures",
+] as const;
+
+/** What a poll must know to tell a stale read of a webhook from a fresh one. */
+export interface PauseMarks {
+	pending: Record<string, PendingPause>;
+	/** When each webhook's last pause or resume was applied (ms). */
+	settledAt: Record<string, number>;
+}
+
+/**
+ * A polled webhook folded over the cached one. A read must not undo a pause
+ * the reader just made: while the write is in flight, or when the read began
+ * before the write was applied, the cached pause fields stand and the rest
+ * (name, counters, activity) still refresh.
+ */
+export function mergePolled<T extends { id: string }>(
+	cached: T | undefined,
+	incoming: T,
+	marks: PauseMarks,
+	startedAt: number,
+): T {
+	if (!cached) return incoming;
+	const guarded =
+		marks.pending[incoming.id] !== undefined ||
+		startedAt <= (marks.settledAt[incoming.id] ?? Number.NEGATIVE_INFINITY);
+	if (!guarded) return incoming;
+	const merged = { ...incoming };
+	for (const field of PAUSE_FIELDS) {
+		if (field in cached) {
+			(merged as Record<string, unknown>)[field] = (
+				cached as Record<string, unknown>
+			)[field];
+		}
+	}
+	return merged;
+}
+
 type State = {
 	list: CacheEntry<WebhookSummary[]>;
 	detail: Record<string, CacheEntry<WebhookDetail>>;
@@ -45,7 +101,7 @@ type State = {
 	/** Ids the API answered 404 for. The value is the webhook's name when this
 	 *  cache still had it (so it was just deleted), null when it never did. */
 	missing: Record<string, string | null>;
-};
+} & PauseMarks;
 
 const EMPTY: State = {
 	list: undefined,
@@ -55,6 +111,8 @@ const EMPTY: State = {
 	summary: undefined,
 	deliveriesWindow: {},
 	missing: {},
+	pending: {},
+	settledAt: {},
 };
 
 let state: State = EMPTY;
@@ -100,6 +158,8 @@ function applySeed(seed: WebhooksSeed): void {
 		activity: { ...state.activity, ...seed.activity },
 		deliveriesWindow: state.deliveriesWindow,
 		missing: { ...seed.missing, ...state.missing },
+		pending: state.pending,
+		settledAt: state.settledAt,
 	};
 }
 
@@ -179,10 +239,20 @@ export function refreshList(
 ): Promise<ListResult> {
 	const key = opts.wake ? "webhooks:list:wake" : "webhooks:list";
 	return shared(key, async () => {
+		const startedAt = Date.now();
 		const res = await listWebhooks(opts);
 		if (res.kind === "ok") {
-			set({ list: { data: res.data, at: Date.now() } });
-			return res;
+			const cached = current().list?.data ?? [];
+			const data = res.data.map((w) =>
+				mergePolled(
+					cached.find((c) => c.id === w.id),
+					w,
+					current(),
+					startedAt,
+				),
+			);
+			set({ list: { data, at: Date.now() } });
+			return { kind: "ok", data } as const;
 		}
 		if (res.kind === "not_found") {
 			set({ list: { data: [], at: Date.now() } });
@@ -234,6 +304,10 @@ export function refreshDeliveriesWindow(
 /** Put a webhook the API just returned (after a rename, pause or resume) in
  *  the cache, so the page and the list agree before the next poll. */
 export function applyWebhook(webhook: WebhookDetail): void {
+	set(appliedPatch(webhook));
+}
+
+function appliedPatch(webhook: WebhookDetail): Partial<State> {
 	const patch: Partial<State> = {
 		detail: {
 			...current().detail,
@@ -250,6 +324,8 @@ export function applyWebhook(webhook: WebhookDetail): void {
 							...w,
 							name: webhook.name,
 							status: webhook.status,
+							pauseReason: webhook.pauseReason,
+							health: webhook.health,
 							circuitOpenedAt: webhook.circuitOpenedAt,
 							circuitFailures: webhook.circuitFailures,
 						}
@@ -257,7 +333,35 @@ export function applyWebhook(webhook: WebhookDetail): void {
 			),
 		};
 	}
-	set(patch);
+	return patch;
+}
+
+let pauseSeq = 0;
+
+/**
+ * Pause (`paused`) or resume (`active`) a webhook and keep the cache honest
+ * around it: while the write is in flight, and for any read that began before
+ * it landed, polls don't overwrite the pause state. Resolves with the API's
+ * answer; the cache only moves on `ok`.
+ */
+export async function setWebhookPaused(
+	id: string,
+	target: PauseTarget,
+): Promise<WebhooksResult<WebhookDetail>> {
+	const seq = ++pauseSeq;
+	set({ pending: { ...current().pending, [id]: { target, seq } } });
+	const res =
+		target === "paused" ? await pauseWebhook(id) : await resumeWebhook(id);
+	const { [id]: mine, ...others } = current().pending;
+	const pending = mine?.seq === seq ? others : current().pending;
+	set({
+		...(res.kind === "ok" ? appliedPatch(res.data) : {}),
+		pending,
+		...(res.kind === "ok" && {
+			settledAt: { ...current().settledAt, [id]: Date.now() },
+		}),
+	});
+	return res;
 }
 
 /** A webhook the API no longer has: out of the list and detail caches, so
@@ -300,6 +404,7 @@ export function refreshDetail(
 	const includeActivity = opts.activity ?? true;
 	const key = `webhooks:detail:${id}:${includeActivity}`;
 	return shared(key, async () => {
+		const startedAt = Date.now();
 		const [webhook, deliveries, activity] = await Promise.all([
 			getWebhook(id),
 			getDeliveries(id),
@@ -310,7 +415,15 @@ export function refreshDetail(
 		if (webhook.kind === "ok") {
 			patch.detail = {
 				...current().detail,
-				[id]: { data: webhook.data, at: now },
+				[id]: {
+					data: mergePolled(
+						current().detail[id]?.data,
+						webhook.data,
+						current(),
+						startedAt,
+					),
+					at: now,
+				},
 			};
 		}
 		if (deliveries.kind === "ok") {

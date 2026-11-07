@@ -4,9 +4,9 @@ import {
 	formatBytes,
 	groupDigits,
 	handlerErrors24h,
-	isLive,
 	shortCount,
 	stateLine,
+	subgraphSync,
 	subgraphTone,
 } from "./subgraph-view";
 
@@ -23,10 +23,28 @@ describe("groupDigits", () => {
 });
 
 describe("counts and lag", () => {
-	test("under two blocks counts as live", () => {
-		expect(isLive(0)).toBe(true);
-		expect(isLive(1)).toBe(true);
-		expect(isLive(2)).toBe(false);
+	test("a subgraph under two blocks behind is synced, from two blocks it is catching up", () => {
+		const at = (behind: number) =>
+			subgraphSync({
+				status: "active",
+				lastProcessedBlock: 1000,
+				blocksRemaining: behind,
+			});
+		expect(at(0)).toBe("synced");
+		expect(at(1)).toBe("synced");
+		expect(at(2)).toBe("catching_up");
+	});
+
+	test("reindexing and error win over how far behind the cursor is", () => {
+		const base = { lastProcessedBlock: 1000, blocksRemaining: 0 };
+		expect(subgraphSync({ ...base, status: "reindexing" })).toBe("reindexing");
+		expect(subgraphSync({ ...base, status: "error" })).toBe("error");
+	});
+
+	test("a detail read measures against its own chain tip", () => {
+		const item = { status: "active", lastProcessedBlock: 900 };
+		expect(subgraphSync(item, 1000)).toBe("catching_up");
+		expect(subgraphSync(item, 901)).toBe("synced");
 	});
 
 	test("short counts and storage", () => {
@@ -39,14 +57,16 @@ describe("counts and lag", () => {
 	});
 
 	test("state line", () => {
-		expect(stateLine(1, 412_880, 0)).toBe(
+		expect(stateLine("synced", 1, 412_880, 0)).toBe(
 			"At the tip · 412,880 rows · 0 errors 24h",
 		);
-		expect(stateLine(40, 1, 2)).toBe(
+		expect(stateLine("catching_up", 40, 1, 2)).toBe(
 			`Behind tip ${blocksLabel(40)} · 1 row · 2 errors 24h`,
 		);
-		expect(stateLine(5, 10, null)).toBe("Behind tip 5 blocks · 10 rows");
-		expect(stateLine(300, 10, 0, "reindexing")).toBe(
+		expect(stateLine("catching_up", 5, 10, null)).toBe(
+			"Behind tip 5 blocks · 10 rows",
+		);
+		expect(stateLine("reindexing", 300, 10, 0)).toBe(
 			"Reindexing · 300 blocks left · 10 rows · 0 errors 24h",
 		);
 	});

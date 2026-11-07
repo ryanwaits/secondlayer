@@ -142,6 +142,29 @@ export function balanceLevel(opts: {
 	return "ok";
 }
 
+/**
+ * The level for a page: the one place billing, burn and the hosted stack meet.
+ * `null` while that isn't known. An unknown burn is not "nothing burning":
+ * only a stopped stack at $0 can be called without it.
+ */
+export function balanceLevelFor(
+	billing: { creditsUsdMicros: string } | null,
+	burn: Burn | null,
+	service: HostedStack | null,
+): BalanceLevel | null {
+	if (!billing) return null;
+	const balance = Number(billing.creditsUsdMicros);
+	const serviceState = service?.state ?? "none";
+	if (!burn) {
+		return serviceState === "stopped" && balance <= 0 ? "stopped" : null;
+	}
+	return balanceLevel({
+		serviceState,
+		balanceUsdMicros: balance,
+		runwayDays: runwayDays(balance, Number(burn.rateDayUsdMicros)),
+	});
+}
+
 /** Days in the UTC month `{year, month}` falls in (`month` 0-indexed). */
 export function daysInUtcMonth(m: Month): number {
 	return new Date(Date.UTC(m.year, m.month + 1, 0)).getUTCDate();

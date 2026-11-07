@@ -1,5 +1,6 @@
 "use client";
 
+import { AsleepState } from "@/components/account/asleep-state";
 import { ChartSkeleton } from "@/components/charts/chart-skeleton";
 import {
 	HeatStrip,
@@ -16,7 +17,6 @@ import {
 import { StatusSentence } from "@/components/dashboard/shell/status-sentence";
 import { useCompact } from "@/components/mobile/use-compact";
 import { alignToWindow } from "@/lib/dashboard-charts";
-import { initialNotice } from "@/lib/dashboard-results";
 import type { IndexView } from "@/lib/index-view";
 import type { Insight } from "@/lib/insights";
 import {
@@ -25,6 +25,7 @@ import {
 	useInsights,
 } from "@/lib/insights-store";
 import { useIntentPrefetch } from "@/lib/intent-prefetch";
+import type { StackNotice } from "@/lib/stack-status";
 import {
 	groupDigits,
 	handlerErrors24h,
@@ -36,11 +37,11 @@ import {
 	type SubgraphsResult,
 	type SubgraphsSeed,
 	listSeed,
-	poll,
 	refreshListAndHealth,
 	useSubgraphsCache,
 } from "@/lib/subgraphs-store";
 import { flagClass } from "@/lib/tone";
+import { usePollNotice } from "@/lib/use-stack";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import {
@@ -68,54 +69,21 @@ import { SubgraphsEmptyState } from "./empty-state";
 const LIST_POLL_MS = 30_000;
 const HOUR_MS = 3_600_000;
 
-export type ListNotice =
-	| { kind: "starting" }
-	| { kind: "error"; message: string };
-
-/** What a list read means for the page: the notice to show, `null` for none,
- *  or `undefined` to leave the notice as it is. */
-function noticeFor(
-	res: SubgraphsResult<SubgraphListItem[]>,
-): ListNotice | null | undefined {
-	if (res.kind === "ok") return null;
-	if (res.kind === "starting") return { kind: "starting" };
-	if (res.kind === "rate_limited") return undefined;
-	return {
-		kind: "error",
-		message:
-			res.kind === "error" ? res.message : "Couldn't load your subgraphs.",
-	};
-}
-
 /** Polls the list and its hourly health. A notice shows only while there is
  *  nothing cached to display. A page that opened with the server's read
  *  (`initial`) waits a full interval for the first poll, unless the read failed
  *  or some subgraph came without its health. */
 export function useSubgraphsPoll(
 	initial?: SubgraphsResult<SubgraphListItem[]>,
-): ListNotice | null {
-	const [notice, setNotice] = useState<ListNotice | null>(
-		initial ? initialNotice(initial, noticeFor) : null,
-	);
+): StackNotice | null {
 	const complete =
 		initial?.kind === "ok" && initial.data.every((s) => s.health !== undefined);
-	useEffect(
-		() =>
-			poll(
-				async () => {
-					const res = await refreshListAndHealth();
-					const next = noticeFor(res);
-					if (next !== undefined) setNotice(next);
-					return res.kind === "starting" || res.kind === "rate_limited"
-						? { retryAfterMs: res.retryAfter * 1000 }
-						: {};
-				},
-				LIST_POLL_MS,
-				{ immediate: !complete },
-			),
-		[complete],
-	);
-	return notice;
+	return usePollNotice({
+		initial,
+		run: refreshListAndHealth,
+		intervalMs: LIST_POLL_MS,
+		immediate: !complete,
+	});
 }
 
 function SubgraphRow({
@@ -282,7 +250,7 @@ export interface SubgraphsListBodyProps {
 	/** Null until the first list has loaded. */
 	items: readonly SubgraphListItem[] | null;
 	health: Record<string, SubgraphHealthData | undefined>;
-	notice: ListNotice | null;
+	notice: StackNotice | null;
 	insights?: readonly Insight[];
 	/** Account-level insights about this page (the stack not answering). */
 	pageInsights?: readonly Insight[];
@@ -516,6 +484,14 @@ function SubgraphsListContent({
 			return (
 				<StatusSentence sub="Your account gets its own hosted stack the first time you use subgraphs. This takes about 30 seconds.">
 					Starting your hosted stack.
+				</StatusSentence>
+			);
+		}
+		if (notice?.kind === "asleep") return <AsleepState noun="subgraphs" />;
+		if (notice?.kind === "no_credits") {
+			return (
+				<StatusSentence sub="Your subgraphs are kept, and nothing is skipped: indexing resumes where it stopped. Add credits to start it again.">
+					Indexing is paused until you add credits.
 				</StatusSentence>
 			);
 		}

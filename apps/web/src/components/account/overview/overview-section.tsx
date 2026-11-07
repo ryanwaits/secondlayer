@@ -99,7 +99,7 @@ import { shortenName } from "../webhooks/shared";
 import { ageShort, last24 } from "../webhooks/view";
 import { WaitingGroups } from "../webhooks/waiting";
 import { FirstRowsGuide } from "./first-rows-guide";
-import { cellInsights, stoppedForCredits } from "./overview-view";
+import { cellInsights, overviewStackStatus } from "./overview-view";
 import { PlumbingStrip, PlumbingStripSkeleton } from "./plumbing-strip";
 
 /** The webhook rows refresh this often while the tab is visible. */
@@ -554,10 +554,10 @@ export function OverviewBody({
 	const creditsOut =
 		stack !== null &&
 		billing !== null &&
-		stoppedForCredits(stack, {
+		overviewStackStatus(stack, {
 			asleep,
 			creditsUsdMicros: billing.creditsUsdMicros,
-		});
+		}) === "stopped_no_credits";
 	const { rest: moneyInsights } = cellInsights(accountInsights);
 
 	const sub = [

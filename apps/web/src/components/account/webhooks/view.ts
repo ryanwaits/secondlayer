@@ -6,6 +6,7 @@ import type {
 	WebhookActivity,
 	WebhookSummary,
 } from "@secondlayer/sdk";
+import { pauseReasonOf } from "@secondlayer/shared/webhooks/health";
 import { displayStatus } from "./shared";
 
 /** Pure view helpers for the webhooks screens: state lines, range series,
@@ -106,9 +107,10 @@ export function listRowState(
 	if (shown === "error") {
 		return {
 			tone: "alarm",
-			text: webhook.circuitOpenedAt
-				? "Paused by the circuit breaker after repeated failures"
-				: `Receiver failing · ${webhook.circuitFailures} failures in a row`,
+			text:
+				pauseReasonOf(webhook) === "circuit"
+					? "Paused by the circuit breaker after repeated failures"
+					: `Receiver failing · ${webhook.circuitFailures} failures in a row`,
 			bad: true,
 		};
 	}

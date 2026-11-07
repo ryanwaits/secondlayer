@@ -14,10 +14,12 @@ import {
 	applyWebhook,
 	clearWebhooksData,
 	detailSeed,
+	mergePolled,
 	poll,
 	refreshDeliveriesWindow,
 	refreshDetail,
 	refreshList,
+	setWebhookPaused,
 	useWebhooksCache,
 	webhooksSnapshot,
 } from "./webhooks-store";
@@ -563,5 +565,117 @@ describe("server seed", () => {
 			// @ts-expect-error restoring the bare test environment
 			globalThis.window = undefined;
 		}
+	});
+});
+
+describe("a pause the reader just made", () => {
+	const paused = (id: string) => ({
+		...summary(id, "pool-payouts"),
+		status: "paused" as const,
+		pauseReason: "user" as const,
+	});
+
+	test("mergePolled keeps the cached pause fields while a write is pending", () => {
+		const merged = mergePolled(
+			paused("w"),
+			{ ...summary("w", "renamed"), circuitFailures: 3 },
+			{ pending: { w: { target: "paused", seq: 1 } }, settledAt: {} },
+			1000,
+		);
+		expect(merged.status).toBe("paused");
+		expect(merged.pauseReason).toBe("user");
+		// What a pause doesn't own still refreshes; the circuit counter it owns doesn't.
+		expect(merged.name).toBe("renamed");
+		expect(merged.circuitFailures).toBe(0);
+	});
+
+	test("mergePolled drops a read that began before the write landed", () => {
+		const marks = { pending: {}, settledAt: { w: 2000 } };
+		expect(
+			mergePolled(paused("w"), summary("w", "x"), marks, 1500).status,
+		).toBe("paused");
+		expect(
+			mergePolled(paused("w"), summary("w", "x"), marks, 2500).status,
+		).toBe("active");
+	});
+
+	test("mergePolled takes the incoming webhook when nothing is cached", () => {
+		const incoming = summary("w", "x");
+		expect(
+			mergePolled(
+				undefined,
+				incoming,
+				{ pending: { w: { target: "paused", seq: 1 } }, settledAt: {} },
+				0,
+			),
+		).toBe(incoming);
+	});
+
+	/** Serves the list and the pause call, with the webhook's real status held
+	 *  in `server` and the pause response held until `releasePause`. */
+	function serverFor(id: string, opts: { failPause?: boolean } = {}) {
+		const server = { status: "active" as "active" | "paused" };
+		let releasePause: () => void = () => {};
+		const pauseGate = new Promise<void>((resolve) => {
+			releasePause = resolve;
+		});
+		globalThis.fetch = (async (url: string) => {
+			const path = String(url);
+			if (path === `/api/webhooks/${id}/pause`) {
+				await pauseGate;
+				if (opts.failPause) return jsonResponse({ error: "nope" }, 500);
+				server.status = "paused";
+				return jsonResponse({
+					...detail(id, "pool-payouts"),
+					status: "paused",
+					pauseReason: "user",
+				});
+			}
+			if (path === "/api/webhooks") {
+				return jsonResponse({
+					data: [{ ...summary(id, "pool-payouts"), status: server.status }],
+				});
+			}
+			throw new Error(`unhandled path in test stub: ${path}`);
+		}) as typeof fetch;
+		return { server, releasePause: () => releasePause() };
+	}
+
+	test("a poll that lands while the pause is in flight does not flip it back", async () => {
+		const { releasePause } = serverFor("w");
+		await refreshList();
+		const write = setWebhookPaused("w", "paused");
+		// The poll reads the server before the pause committed.
+		await refreshList();
+		expect(webhooksSnapshot().list?.data[0]?.status).toBe("active");
+		releasePause();
+		await write;
+		expect(webhooksSnapshot().list?.data[0]?.status).toBe("paused");
+		expect(webhooksSnapshot().pending).toEqual({});
+	});
+
+	test("a poll that begins after the pause landed is heard", async () => {
+		const { releasePause, server } = serverFor("w");
+		await refreshList();
+		const write = setWebhookPaused("w", "paused");
+		releasePause();
+		await write;
+		// Someone resumed it elsewhere; a read that starts after our write sees that.
+		server.status = "active";
+		await new Promise((resolve) => setTimeout(resolve, 5));
+		await refreshList();
+		expect(webhooksSnapshot().list?.data[0]?.status).toBe("active");
+	});
+
+	test("a failed pause leaves the cache alone and clears the pending write", async () => {
+		const { releasePause } = serverFor("w", { failPause: true });
+		await refreshList();
+		const write = setWebhookPaused("w", "paused");
+		expect(webhooksSnapshot().pending.w?.target).toBe("paused");
+		releasePause();
+		const res = await write;
+		expect(res.kind).toBe("error");
+		expect(webhooksSnapshot().list?.data[0]?.status).toBe("active");
+		expect(webhooksSnapshot().pending).toEqual({});
 	});
 });

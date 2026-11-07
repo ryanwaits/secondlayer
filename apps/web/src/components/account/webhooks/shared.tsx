@@ -1,53 +1,64 @@
 "use client";
 
 import { CopyButton } from "@/components/copy-button";
-import type { WebhookStatus } from "@secondlayer/sdk";
 // Subpath import, not the main `@secondlayer/sdk` barrel: that barrel's
 // runtime code (unlike a `type` import, which is erased) drags in
 // `@secondlayer/shared`'s DB layer, and `postgres`, a Node-only driver,
 // into this client component's bundle.
+import type { DoctorIssue } from "@secondlayer/sdk/webhooks/doctor";
 import {
-	DOWN_MIN_CONSECUTIVE,
-	type DoctorIssue,
-} from "@secondlayer/sdk/webhooks/doctor";
+	type WebhookPauseReason,
+	webhookHealth,
+} from "@secondlayer/shared/webhooks/health";
 import { shortenPrincipal } from "./principal";
 
 /** Small pieces the webhook screens, the nav and the account-health rules
  *  share: the status a webhook shows, an event cell, and the CLI command box. */
 
-/** The three codes a failing receiver can carry as the primary issue — a
- *  down receiver still reads "Delivering" if the pill only looked at
- *  `webhook.status` (active/paused), which never moves on its own when
- *  deliveries start failing. */
+/** The three codes a failing receiver can carry as the primary issue: a
+ *  receiver the doctor calls bad still reads as failing even before the
+ *  health verdict (failures plus time) catches up. */
 const FAILING_PRIMARY_CODES: ReadonlySet<DoctorIssue["code"]> = new Set([
 	"receiver_down",
 	"receiver_rejects",
 	"circuit",
 ]);
 
-/** The status the pill should show, which isn't always `webhook.status`.
- *  Checked in order:
- *  1. Paused with the circuit breaker open → the breaker paused it, not the
- *     user — "error", not "paused".
- *  2. Paused (by the user) → "paused".
- *  3. `circuitFailures` at or past the same threshold `receiver_down` uses
- *     (consecutive; the emitter resets it to 0 on a success) → "error".
- *  4. The primary issue is a "bad"-severity receiver failure → "error".
- *  5. Otherwise → "active".
+/** The webhook fields the dashboard's state reads need. */
+export interface WebhookStateInput {
+	status: string;
+	pauseReason?: WebhookPauseReason | null;
+	circuitOpenedAt?: string | null;
+	circuitFailures: number;
+	lastSuccessAt: string | null;
+	createdAt: string;
+}
+
+/** The one definition of "paused" the dashboard acts on: the pause and resume
+ *  buttons, their labels and their undo all read it. Why it is paused (you or
+ *  the circuit breaker) is `pauseReasonOf`. */
+export function isPaused(webhook: { status: string }): boolean {
+	return webhook.status === "paused";
+}
+
+/** What the pill and counts show: `paused` is paused by you, `error` is
+ *  anything that stops or fails deliveries (a circuit pause or a down
+ *  receiver), `active` is the rest. */
+export type ShownStatus = "active" | "paused" | "error";
+
+/** The status the pill should show, from the shared health verdict
+ *  (`webhookHealth`). A doctor `primary` issue that is a bad receiver failure
+ *  also reads as failing, ahead of the verdict's time threshold.
  *
- *  The list page has no primary issue (no per-row deliveries fetch), so it
- *  reaches rules 1, 2, 3 and 5. */
+ *  The list page has no primary issue (no per-row deliveries fetch). */
 export function displayStatus(
-	webhook: {
-		status: WebhookStatus;
-		circuitOpenedAt: string | null;
-		circuitFailures: number;
-	},
+	webhook: WebhookStateInput,
 	primary?: DoctorIssue | null,
-): WebhookStatus {
-	if (webhook.status === "paused" && webhook.circuitOpenedAt) return "error";
-	if (webhook.status === "paused") return "paused";
-	if (webhook.circuitFailures >= DOWN_MIN_CONSECUTIVE) return "error";
+	now: number = Date.now(),
+): ShownStatus {
+	const health = webhookHealth(webhook, now);
+	if (health === "paused_user") return "paused";
+	if (health === "paused_circuit" || health === "down") return "error";
 	if (
 		primary &&
 		primary.severity === "bad" &&
@@ -60,16 +71,13 @@ export function displayStatus(
 
 /** How many of these rows would show `status` as their pill: the list
  *  page's "Delivering N of M" / "Needs attention" stats. Summary rows carry
- *  no `primary`, so rule 4 of `displayStatus` never applies here. */
+ *  no `primary`, so a doctor issue never applies here. */
 export function countByDisplayStatus(
-	rows: readonly {
-		status: WebhookStatus;
-		circuitOpenedAt: string | null;
-		circuitFailures: number;
-	}[],
-	status: WebhookStatus,
+	rows: readonly WebhookStateInput[],
+	status: ShownStatus,
+	now: number = Date.now(),
 ): number {
-	return rows.filter((w) => displayStatus(w) === status).length;
+	return rows.filter((w) => displayStatus(w, null, now) === status).length;
 }
 
 /** A webhook name with every Stacks address in it shortened, so a

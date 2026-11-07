@@ -5,7 +5,11 @@ import { ShareFixSheet } from "@/components/mobile/share/share-fix-sheet";
 import { Sheet, SheetPanel } from "@/components/mobile/sheet";
 import type { Insight } from "@/lib/insights";
 import { forResource, useInsights } from "@/lib/insights-store";
-import { groupDigits, handlerErrors24h, isLive } from "@/lib/subgraph-view";
+import {
+	groupDigits,
+	handlerErrors24h,
+	subgraphSync,
+} from "@/lib/subgraph-view";
 import {
 	type SubgraphDetailData,
 	type SubgraphErrorGroup,
@@ -47,9 +51,10 @@ export function shareableInsight(
 }
 
 function headLabel(item: SubgraphListItem, errors24h: number): string {
-	if (errors24h > 0 || item.status === "error") return "Handler errors";
-	if (item.status === "reindexing") return "Reindexing";
-	if (!isLive(item.blocksRemaining ?? 0)) return "Catching up";
+	const sync = subgraphSync(item);
+	if (errors24h > 0 || sync === "error") return "Handler errors";
+	if (sync === "reindexing") return "Reindexing";
+	if (sync === "catching_up") return "Catching up";
 	return "Synced";
 }
 

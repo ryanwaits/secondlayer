@@ -31,6 +31,7 @@ import {
 import type { Insight } from "@/lib/insights";
 import { forAccountRules, useInsights } from "@/lib/insights-store";
 import { useSave } from "@/lib/save-state";
+import { stackStatus } from "@/lib/stack-status";
 import type { CreditAdded } from "@/lib/types";
 import {
 	type BalanceLevel,
@@ -40,7 +41,7 @@ import {
 	ROWS_ALLOWANCE,
 	type ServiceState,
 	type UsageRow,
-	balanceLevel,
+	balanceLevelFor,
 	currentUtcMonth,
 	deliveredRowsIn,
 	formatRows,
@@ -68,25 +69,6 @@ const MICROS = 1_000_000;
 
 /** The account-level rules about money; the rest belong to Overview and Rows. */
 const BILLING_RULES = ["cap_pace", "credits_runway"];
-
-/** How the balance stands: the one level the headline, dot and band all read. */
-function levelOf(
-	billing: Billing,
-	burn: Burn | null,
-	service: HostedStack | null,
-): BalanceLevel {
-	const runway = burn
-		? runwayDays(
-				Number(billing.creditsUsdMicros),
-				Number(burn.rateDayUsdMicros),
-			)
-		: Number.POSITIVE_INFINITY;
-	return balanceLevel({
-		serviceState: service?.state ?? "none",
-		balanceUsdMicros: Number(billing.creditsUsdMicros),
-		runwayDays: runway,
-	});
-}
 
 /** The balance as one sentence, with its days, rate and month-end pace under it. */
 function Status({
@@ -123,7 +105,7 @@ function Status({
 			</StatusSentence>
 		);
 	}
-	const level = levelOf(billing, burn, service);
+	const level = balanceLevelFor(billing, burn, service);
 	if (level === "stopped") {
 		return (
 			<StatusSentence sub="Webhooks and subgraphs pick up where they left off once you add credits.">
@@ -152,10 +134,10 @@ function Status({
 				</>
 			}
 		>
-			{level === "ok" ? (
-				formatUsd(billing.creditsUsdMicros)
-			) : (
+			{level === "low" || level === "crit" ? (
 				<Mark tone="att">{formatUsd(billing.creditsUsdMicros)}</Mark>
+			) : (
+				formatUsd(billing.creditsUsdMicros)
 			)}{" "}
 			left.
 		</StatusSentence>
@@ -262,7 +244,7 @@ export function BillingBody({
 		);
 	}
 
-	const level = billing !== null ? levelOf(billing, burn, service) : "ok";
+	const level = balanceLevelFor(billing, burn, service);
 	const urgent = level === "low" || level === "crit";
 	return (
 		<div className="bl-body">
@@ -417,7 +399,12 @@ export function BillingScreen({ ret }: { ret: TopupReturn | null }) {
 		);
 	}
 
-	const stopped = service?.state === "stopped";
+	const stopped =
+		stackStatus({
+			service: service?.state ?? null,
+			read: null,
+			creditsUsdMicros: billing?.creditsUsdMicros ?? null,
+		}) === "stopped_no_credits";
 	return (
 		<BillingBody
 			now={now}

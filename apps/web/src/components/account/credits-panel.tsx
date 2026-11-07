@@ -12,6 +12,7 @@ import {
 	useAccountData,
 } from "@/lib/account-data";
 import { TOPUP_MAX_USD, TOPUP_MIN_USD } from "@/lib/prices";
+import { stackStatus } from "@/lib/stack-status";
 import { type Burn, runsOutMonth } from "@/lib/usage";
 import { useEffect, useReducer, useState } from "react";
 import { AmountChoice } from "./billing/amount-choice";
@@ -235,7 +236,13 @@ export function CreditsCard({
 				co={co}
 				billing={billing}
 				burn={burn}
-				stopped={service?.state === "stopped"}
+				stopped={
+					stackStatus({
+						service: service?.state ?? null,
+						read: null,
+						creditsUsdMicros: billing?.creditsUsdMicros ?? null,
+					}) === "stopped_no_credits"
+				}
 			/>
 		</FloatingCard>
 	);
