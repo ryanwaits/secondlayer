@@ -131,11 +131,12 @@ describe("archive credits bearer", () => {
 		expect((await resolveArchiveOpsBearer()).source).toBeNull();
 	});
 
-	it("prefers the session over an sk-sl_ env key", async () => {
+	it("prefers an sk-sl_ env key over the session", async () => {
 		await writeCreditsSession();
 		process.env.SECONDLAYER_API_KEY = "sk-sl_ci_key";
 		await httpArchiveOps("/api/billing/status");
-		expect(seenBearers).toEqual(["ss-sl_valid"]);
+		expect(seenBearers).toEqual(["sk-sl_ci_key"]);
+		expect((await resolveArchiveOpsBearer()).source).toBe("env");
 	});
 
 	it("never sends a bare instance token off the box; the error names the login and the ignored key", async () => {
@@ -178,7 +179,7 @@ describe("archive credits bearer", () => {
 		expect(message).not.toContain("saved login");
 	});
 
-	it("a rejected saved login says so, because an env key can't help while it is saved", async () => {
+	it("a rejected saved login says so and points at the env key", async () => {
 		await mkdir(join(home, ".secondlayer"), { recursive: true });
 		await writeFile(
 			join(home, ".secondlayer", "session.json"),
@@ -203,7 +204,7 @@ describe("archive credits bearer", () => {
 		expect(message).toContain("Invalid token format");
 		expect(message).toContain("saved login");
 		expect(message).toContain("secondlayer login");
-		expect(message).toContain("secondlayer logout");
+		expect(message).toContain("SECONDLAYER_API_KEY");
 		expect(message).not.toContain(ARCHIVE_AUTH_HINT);
 	});
 });

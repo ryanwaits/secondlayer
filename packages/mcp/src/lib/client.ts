@@ -4,6 +4,7 @@ import {
 	resolveAccountKey,
 	resolveApiKey,
 	resolveBaseUrl,
+	resolveIdentity,
 } from "@secondlayer/sdk";
 
 let instance: SecondLayer | null = null;
@@ -11,8 +12,6 @@ let instance: SecondLayer | null = null;
 /** Hosted archive ops (credits/quote/latest). Never INSTANCE_TOKEN. */
 export const HOSTED_KEY_HINT =
 	"set SECONDLAYER_API_KEY (sk-sl_*) for credits; INSTANCE_TOKEN is the instance";
-
-const DEFAULT_ARCHIVE_OPS_URL = "https://api.secondlayer.tools";
 
 /**
  * Read the request credential for the resolved API host: `SECONDLAYER_API_KEY`
@@ -55,18 +54,14 @@ export function readArchiveApiKey(): string | undefined {
  * `https://api.secondlayer.tools`. Bearer is the hosted account key.
  */
 export function getArchiveOpsClient(): SecondLayer {
-	const accountKey = readArchiveApiKey();
-	if (!accountKey) {
+	const { token, url } = resolveIdentity("account");
+	if (!token) {
 		throw new Error(HOSTED_KEY_HINT);
 	}
-	const archiveOpsUrl =
-		process.env.SL_CREDITS_API_URL ||
-		process.env.ARCHIVE_OPS_API_URL ||
-		DEFAULT_ARCHIVE_OPS_URL;
 	return new SecondLayer({
-		accountKey,
+		accountKey: token,
 		origin: "mcp",
-		archiveOpsUrl,
+		archiveOpsUrl: url,
 	});
 }
 

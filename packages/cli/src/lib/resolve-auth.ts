@@ -1,6 +1,11 @@
 import { resolveAccountKey, resolveApiKey } from "@secondlayer/sdk";
-import { assertInstanceUrl, isMerchantUrl, resolveApiUrl } from "./api-url.ts";
-import { readSession } from "./session.ts";
+import {
+	assertInstanceUrl,
+	isMerchantUrl,
+	resolveApiUrl,
+	resolveArchiveOpsUrl,
+} from "./api-url.ts";
+import { readSession, sessionKey } from "./session.ts";
 
 export {
 	ARCHIVE_OPS_API_URL,
@@ -60,7 +65,11 @@ export async function resolveAuth(): Promise<ResolvedAuth> {
 		return { apiUrl, ephemeralKey: "", fromEnv: true };
 	}
 
-	const session = await readSession();
+	// The login is for your hosted account: never send it to another server.
+	const session =
+		sessionKey(apiUrl) === sessionKey(resolveArchiveOpsUrl())
+			? await readSession()
+			: null;
 	if (!session) {
 		const err = new Error("Not logged in — run `secondlayer login`");
 		(err as unknown as { code: string }).code = "SESSION_EXPIRED";

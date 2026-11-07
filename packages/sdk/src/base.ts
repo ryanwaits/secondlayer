@@ -182,6 +182,65 @@ export function resolveAccountKey(accountKey?: string): string | undefined {
 	return process.env?.SECONDLAYER_API_KEY || undefined;
 }
 
+/** Hosted account API for credits, archive fetches and login. Not the
+ *  operator's loopback box. `SL_CREDITS_API_URL` (or the older
+ *  `ARCHIVE_OPS_API_URL`) points it elsewhere, e.g. at a staging stack. */
+export function resolveAccountUrl(): string {
+	const env = typeof process !== "undefined" ? process.env : undefined;
+	return (
+		env?.SL_CREDITS_API_URL ||
+		env?.ARCHIVE_OPS_API_URL ||
+		HOSTED_API_URL
+	).replace(/\/+$/, "");
+}
+
+/** Credentials your hosted account can validate: `sk-sl_` API keys and
+ *  `ss-sl_` session tokens. An instance token is random hex the merchant
+ *  cannot check; it must never leave the machine. */
+const ACCOUNT_CREDENTIAL_RE = /^s[ks]-sl_/;
+
+/** Where a resolved credential came from. `none` = nothing usable was found. */
+export type IdentitySource = "env" | "session" | "none";
+
+export interface Identity {
+	source: IdentitySource;
+	/** Bearer token, `undefined` when `source` is `none`. */
+	token: string | undefined;
+	/** The server this credential is for. */
+	url: string;
+}
+
+/**
+ * The one credential resolver the CLI and MCP share. One precedence, highest
+ * first: an env key, then the stored login session (`session`, supplied by
+ * callers that have one; the SDK itself never touches the filesystem).
+ *
+ *   target "account"  env = `SECONDLAYER_API_KEY` when it is an account
+ *                     credential (`sk-sl_` / `ss-sl_`); url = {@link resolveAccountUrl}
+ *   target "instance" env = `INSTANCE_TOKEN`; url = {@link resolveBaseUrl}
+ *
+ * An env key of the wrong kind is ignored rather than sent to the wrong host.
+ */
+export function resolveIdentity(
+	target: "account" | "instance",
+	options: { session?: string | null } = {},
+): Identity {
+	const url = target === "account" ? resolveAccountUrl() : resolveBaseUrl();
+	const envKey =
+		target === "account"
+			? resolveAccountKey()
+			: typeof process !== "undefined"
+				? process.env?.[INSTANCE_TOKEN_ENV] || undefined
+				: undefined;
+	if (envKey && (target === "instance" || ACCOUNT_CREDENTIAL_RE.test(envKey))) {
+		return { source: "env", token: envKey, url };
+	}
+	if (options.session) {
+		return { source: "session", token: options.session, url };
+	}
+	return { source: "none", token: undefined, url };
+}
+
 /** Percent-encode one URL path segment. Every caller-supplied identifier
  *  (subgraph name, table, webhook id) goes through this before it is
  *  interpolated into a path, so `..`, `/`, `?` and `#` in an id cannot

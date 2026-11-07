@@ -107,6 +107,23 @@ describe("session store", () => {
 		await expect(stat(path)).rejects.toThrow();
 	});
 
+	it("adopts a login filed under another hosted URL into the account slot and keeps the old entry", async () => {
+		const accountUrl = "https://api.secondlayer.tools/account";
+		process.env.SL_CREDITS_API_URL = accountUrl;
+		await writeSession(session, ARCHIVE_OPS_API_URL, path);
+
+		expect((await readSession(accountUrl, path))?.token).toBe("ss-sl_test");
+
+		const onDisk = JSON.parse(await readFile(path, "utf8"));
+		expect(onDisk.sessions[accountUrl].token).toBe("ss-sl_test");
+		expect(onDisk.sessions[ARCHIVE_OPS_API_URL].token).toBe("ss-sl_test");
+	});
+
+	it("never promotes an instance login into the account slot", async () => {
+		await writeSession(session, INSTANCE_URL, path);
+		expect(await readSession(ARCHIVE_OPS_API_URL, path)).toBeNull();
+	});
+
 	it("treats a malformed file as no session", async () => {
 		await writeFile(path, "{not json", "utf8");
 		expect(await readSession(INSTANCE_URL, path)).toBeNull();

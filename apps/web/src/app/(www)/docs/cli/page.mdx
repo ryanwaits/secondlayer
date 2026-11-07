@@ -44,6 +44,7 @@ Every top-level `secondlayer` command, with the page that owns it.
 - Instance commands refuse `api.secondlayer.tools`, except `secondlayer subgraphs` and `secondlayer webhooks`, which take `SECONDLAYER_API_KEY` against the hosted URL ([hosted subgraphs](tip "Hosted is the default path: one private stack per account, no box to run.")).
 - Credentials: [Keys and billing](/docs/authentication) and [Instance token](/docs/self-host#instance-token).
 - `login` prints a code and opens your browser; approve it and the CLI is signed in until `logout`. It never makes an API key; keys are for reading data and live under Keys. `login --email` asks for an emailed code instead.
+- When both are present, `SECONDLAYER_API_KEY` wins over a saved login. The MCP server reads only the key.
 
 <Callout type="note" title="Webhook triggers">
 

@@ -22,6 +22,8 @@ export type {
 export type {
 	EtagCache,
 	EtagEntry,
+	Identity,
+	IdentitySource,
 	RequestOptions,
 	SecondLayerOptions,
 } from "./base.ts";
@@ -33,8 +35,10 @@ export {
 	MemoryEtagCache,
 	isHostedApiUrl,
 	resolveAccountKey,
+	resolveAccountUrl,
 	resolveApiKey,
 	resolveBaseUrl,
+	resolveIdentity,
 } from "./base.ts";
 export {
 	Contracts,

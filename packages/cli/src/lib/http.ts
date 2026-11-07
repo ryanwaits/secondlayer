@@ -1,4 +1,8 @@
-import { resolveAccountKey, resolveApiKey } from "@secondlayer/sdk";
+import {
+	resolveAccountKey,
+	resolveApiKey,
+	resolveIdentity,
+} from "@secondlayer/sdk";
 import { resolveApiUrl, resolveArchiveOpsUrl } from "./api-url.ts";
 import { isOssMode, resolveAuth } from "./resolve-auth.ts";
 import { readSession } from "./session.ts";
@@ -144,14 +148,6 @@ export async function httpArchiveOpsAnon<T>(
 export const ARCHIVE_AUTH_HINT =
 	"Set SECONDLAYER_API_KEY to your account key (sk-sl_…, from /account/keys), or run `secondlayer login`.";
 
-/**
- * Credentials your hosted account can validate: `sk-sl_` API keys
- * and `ss-sl_` session tokens. An instance token is random hex minted by
- * `secondlayer init` for the operator's own box; the merchant cannot check it
- * and it must never leave the machine.
- */
-const ARCHIVE_CREDENTIAL_RE = /^s[ks]-sl_/;
-
 export type ArchiveOpsBearer = {
 	bearer: string | undefined;
 	source: "session" | "env" | null;
@@ -160,28 +156,22 @@ export type ArchiveOpsBearer = {
 };
 
 /**
- * Bearer for hosted account calls (credits, archive fetches): the login session
- * first, then an env key only when it is an archive credential. The
- * operator's `INSTANCE_TOKEN` is the common case for a self-hoster and is
- * ignored here on purpose.
+ * Bearer for hosted account calls (credits, archive fetches), by the shared
+ * `resolveIdentity` precedence: an env account key first, then the login
+ * session. The operator's `INSTANCE_TOKEN` is the common case for a
+ * self-hoster and is ignored here on purpose.
  */
 export async function resolveArchiveOpsBearer(): Promise<ArchiveOpsBearer> {
 	const envKey = resolveAccountKey();
 	const session = await readSession(resolveArchiveOpsUrl());
-	if (session) {
-		return {
-			bearer: session.token,
-			source: "session",
-			ignoredEnvKey: false,
-		};
-	}
-	if (envKey && ARCHIVE_CREDENTIAL_RE.test(envKey)) {
-		return { bearer: envKey, source: "env", ignoredEnvKey: false };
-	}
+	const identity = resolveIdentity("account", { session: session?.token });
 	return {
-		bearer: undefined,
-		source: null,
-		ignoredEnvKey: resolveApiKey() !== undefined && envKey === undefined,
+		bearer: identity.token,
+		source: identity.source === "none" ? null : identity.source,
+		ignoredEnvKey:
+			identity.source === "none" &&
+			resolveApiKey() !== undefined &&
+			envKey === undefined,
 	};
 }
 
@@ -211,10 +201,10 @@ export async function httpArchiveOps<T>(
 		});
 	} catch (err) {
 		if (err instanceof CliHttpError && err.status === 401) {
-			// A saved login beats SECONDLAYER_API_KEY, so setting that can't help.
+			// An env account key beats a saved login; a rejected session means log in again.
 			const remedy =
 				source === "session"
-					? `Your saved login was rejected (${err.message}). Run \`secondlayer login\`, or \`secondlayer logout\` to use SECONDLAYER_API_KEY.`
+					? `Your saved login was rejected (${err.message}). Run \`secondlayer login\`, or set SECONDLAYER_API_KEY (it takes precedence over a saved login).`
 					: `Your account rejected the credential (${err.message}). ${ARCHIVE_AUTH_HINT}${ignoredEnvKeyNote(ignoredEnvKey)}`;
 			throw new CliHttpError(401, err.code, err.body, remedy);
 		}

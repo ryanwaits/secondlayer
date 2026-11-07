@@ -4,7 +4,11 @@
  * and SDK agree on what "hosted" means.
  */
 
-import { isHostedApiUrl, resolveBaseUrl } from "@secondlayer/sdk";
+import {
+	isHostedApiUrl,
+	resolveAccountUrl,
+	resolveBaseUrl,
+} from "@secondlayer/sdk";
 
 export const LOCAL_API_URL = "http://127.0.0.1:3800";
 export const ARCHIVE_OPS_API_URL = "https://api.secondlayer.tools";
@@ -20,10 +24,7 @@ export function resolveApiUrl(): string {
 
 /** Your hosted account's API (credits, archive fetches, login). Not the operator's loopback box. */
 export function resolveArchiveOpsUrl(): string {
-	return (process.env.SL_CREDITS_API_URL ?? ARCHIVE_OPS_API_URL).replace(
-		/\/+$/,
-		"",
-	);
+	return resolveAccountUrl();
 }
 
 /** True when `url` is our hosted merchant hostname (refuse-list for instance cmds). */

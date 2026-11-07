@@ -8,18 +8,23 @@ import {
 } from "node:fs/promises";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
+import { isHostedApiUrl } from "@secondlayer/sdk";
 import { z } from "zod";
-import { ARCHIVE_OPS_API_URL, resolveApiUrl } from "./api-url.ts";
+import {
+	ARCHIVE_OPS_API_URL,
+	resolveApiUrl,
+	resolveArchiveOpsUrl,
+} from "./api-url.ts";
 
 /**
  * CLI session storage.
  *
  * The CLI's persisted credential: a browser-login session token (ss-sl_…),
  * or the account key `login --with-token` was given. Written to
- * `~/.secondlayer/session.json` with 0600 perms, one per API URL:
- * the loopback instance and your hosted account are different
- * servers with different accounts, so a login against one never gets sent
- * to the other. Instance tokens are never stored here.
+ * `~/.secondlayer/session.json` with 0600 perms, keyed by URL. Every command
+ * reads and writes the one slot for your hosted account URL, so a login
+ * against one server is never sent to another. Instance tokens are never
+ * stored here.
  *
  * Auto-refresh: the server-side auth middleware (packages/api/src/auth/middleware.ts)
  * already runs a sliding-window 90-day expiry extension on every authed
@@ -90,12 +95,42 @@ async function readSessionFile(path: string): Promise<SessionFile> {
 	}
 }
 
+/**
+ * Read the login for `apiUrl` (default: your hosted account, the one slot
+ * `login`, `logout`, `keys` and every authed command share).
+ *
+ * Older CLIs wrote under the API URL and read under the account URL, so an
+ * account-URL read that finds nothing adopts a login filed under another
+ * hosted URL (the default host, or the API URL) and rewrites it under the one
+ * key. The old entry stays put; nothing is deleted. Only hosted hosts are
+ * adopted, so an instance login is never promoted to the account slot.
+ */
 export async function readSession(
-	apiUrl: string = resolveApiUrl(),
+	apiUrl: string = resolveArchiveOpsUrl(),
 	path: string = getSessionPath(),
 ): Promise<Session | null> {
 	const file = await readSessionFile(path);
-	return file.sessions[sessionKey(apiUrl)] ?? null;
+	const key = sessionKey(apiUrl);
+	const found = file.sessions[key];
+	if (found) return found;
+	if (key !== sessionKey(resolveArchiveOpsUrl()) || !isHostedApiUrl(key)) {
+		return null;
+	}
+	const legacy = [ARCHIVE_OPS_API_URL, resolveApiUrl()]
+		.map(sessionKey)
+		.filter((candidate) => candidate !== key && isHostedApiUrl(candidate))
+		.map((candidate) => file.sessions[candidate])
+		.find((session) => session !== undefined);
+	if (!legacy) return null;
+	try {
+		await writeSessionFile(
+			{ sessions: { ...file.sessions, [key]: legacy } },
+			path,
+		);
+	} catch {
+		// Adopting is best effort; the login still works for this call.
+	}
+	return legacy;
 }
 
 async function writeSessionFile(
@@ -125,7 +160,7 @@ async function writeSessionFile(
 // person drives by hand; add a lock if scripted parallel logins ever bite.
 export async function writeSession(
 	session: Session,
-	apiUrl: string = resolveApiUrl(),
+	apiUrl: string = resolveArchiveOpsUrl(),
 	path: string = getSessionPath(),
 ): Promise<void> {
 	const file = await readSessionFile(path);
@@ -134,7 +169,7 @@ export async function writeSession(
 }
 
 export async function clearSession(
-	apiUrl: string = resolveApiUrl(),
+	apiUrl: string = resolveArchiveOpsUrl(),
 	path: string = getSessionPath(),
 ): Promise<void> {
 	const file = await readSessionFile(path);

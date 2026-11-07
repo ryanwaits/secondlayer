@@ -367,7 +367,9 @@ export function registerLoginCommand(program: Command): void {
 Examples:
   $ secondlayer login
   $ secondlayer login --email
-  $ echo "$SECONDLAYER_API_KEY" | secondlayer login --with-token`,
+  $ echo "$SECONDLAYER_API_KEY" | secondlayer login --with-token
+
+Precedence: SECONDLAYER_API_KEY (when set) beats the saved login. Unset it to act as the logged-in account.`,
 		)
 		.action(
 			(opts: { force?: boolean; email?: boolean; withToken?: boolean }) =>
