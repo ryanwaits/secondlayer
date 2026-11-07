@@ -16,6 +16,7 @@ import type Stripe from "stripe";
 import { errorHandler } from "../middleware/error.ts";
 import billingRouter, {
 	type StripeClient,
+	createCreditsCheckoutSession,
 	ensureStripeCustomer,
 	isCreditPack,
 	isTopupUsd,
@@ -858,5 +859,41 @@ describe.skipIf(!HAS_DB)("spend cap routes", () => {
 		});
 		const res = await appFor(account.id).request("/caps");
 		expect(((await res.json()) as CapsBody).frozenAt).toBeNull();
+	});
+});
+
+describe.skipIf(!HAS_DB)("createCreditsCheckoutSession", () => {
+	test("creates a card-only payment session for the amount in cents", async () => {
+		const account = await makeAccount(
+			`checkout-card-${Date.now()}@test.invalid`,
+			"cus_checkout_card",
+		);
+		const created: Stripe.Checkout.SessionCreateParams[] = [];
+		const stripe = {
+			customers: { retrieve: async (id: string) => ({ id }) },
+			checkout: {
+				sessions: {
+					create: async (params: Stripe.Checkout.SessionCreateParams) => {
+						created.push(params);
+						return { url: "https://checkout.stripe.test/s" };
+					},
+				},
+			},
+		} as unknown as StripeClient;
+
+		const url = await createCreditsCheckoutSession({
+			stripe,
+			db,
+			account,
+			usd: 25,
+			successUrl: "https://example.test/ok",
+			cancelUrl: "https://example.test/no",
+		});
+
+		expect(url).toBe("https://checkout.stripe.test/s");
+		expect(created).toHaveLength(1);
+		expect(created[0]?.payment_method_types).toEqual(["card"]);
+		expect(created[0]?.mode).toBe("payment");
+		expect(created[0]?.line_items?.[0]?.price_data?.unit_amount).toBe(2_500);
 	});
 });

@@ -266,6 +266,9 @@ export async function createCreditsCheckoutSession(opts: {
 	};
 	const session = await opts.stripe.checkout.sessions.create({
 		mode: "payment",
+		// Card only: Apple Pay and Google Pay ride on it. No async method is
+		// enabled, so a session that completes is always paid.
+		payment_method_types: ["card"],
 		customer: stripeCustomerId,
 		line_items: [
 			{
