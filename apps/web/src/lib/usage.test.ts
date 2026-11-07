@@ -331,30 +331,49 @@ describe("balanceLevelFor", () => {
 	const bal = (dollars: number) => ({
 		creditsUsdMicros: String(dollars * 1_000_000),
 	});
-	const stack = (state: "running" | "stopped" | "none") => ({
+	const stack_ = (state: "running" | "stopped" | "none") => ({
 		state,
 		lastChargedAt: null,
 		memory24h: [],
 	});
 
 	test("is unknown until billing has loaded", () => {
-		expect(balanceLevelFor(null, burn(1), stack("running"))).toBeNull();
+		expect(balanceLevelFor(null, burn(1), stack_("running"))).toBeNull();
 	});
 
 	test("an unknown burn rate is not read as infinite runway", () => {
-		expect(balanceLevelFor(bal(0.5), null, stack("running"))).toBeNull();
+		expect(balanceLevelFor(bal(0.5), null, stack_("running"))).toBeNull();
 	});
 
 	test("a stopped stack at $0 is stopped even before burn loads", () => {
-		expect(balanceLevelFor(bal(0), null, stack("stopped"))).toBe("stopped");
+		expect(balanceLevelFor(bal(0), null, stack_("stopped"))).toBe("stopped");
 	});
 
 	test("two days of runway is already critical, three is low", () => {
-		expect(balanceLevelFor(bal(2), burn(1), stack("running"))).toBe("crit");
-		expect(balanceLevelFor(bal(3), burn(1), stack("running"))).toBe("low");
+		expect(balanceLevelFor(bal(2), burn(1), stack_("running"))).toBe("crit");
+		expect(balanceLevelFor(bal(3), burn(1), stack_("running"))).toBe("low");
+	});
+
+	test("with the reported stack, only a stop for credits or the cap is stopped", () => {
+		const reported = (
+			stack: "stopped_credits" | "stopped_cap" | "stopped_idle",
+		) => ({
+			...stack_("stopped"),
+			stack,
+		});
+		expect(balanceLevelFor(bal(5), burn(1), reported("stopped_credits"))).toBe(
+			"stopped",
+		);
+		expect(balanceLevelFor(bal(5), null, reported("stopped_cap"))).toBe(
+			"stopped",
+		);
+		// Asleep at $0 is asleep, not stopped for money: the runway decides.
+		expect(balanceLevelFor(bal(0), burn(1), reported("stopped_idle"))).toBe(
+			"crit",
+		);
 	});
 
 	test("nothing burning is ok", () => {
-		expect(balanceLevelFor(bal(1), burn(0), stack("none"))).toBe("ok");
+		expect(balanceLevelFor(bal(1), burn(0), stack_("none"))).toBe("ok");
 	});
 });

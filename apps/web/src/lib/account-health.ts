@@ -72,6 +72,7 @@ export function accountProblems(input: HealthInput): Problem[] {
 	const level = balanceLevelFor(billing, burn, service);
 	const stack = stackStatus({
 		service: service?.state ?? null,
+		stack: service?.stack,
 		read: null,
 		creditsUsdMicros: billing?.creditsUsdMicros ?? null,
 	});

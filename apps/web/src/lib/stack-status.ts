@@ -1,5 +1,5 @@
 import type { WebhooksResult } from "./dashboard-results";
-import type { ServiceState } from "./usage";
+import type { ServiceState, StackState } from "./usage";
 
 /**
  * The one answer to "what is the hosted stack doing". Every page that words
@@ -28,8 +28,11 @@ export type StackStatus =
 export type StackRead = Pick<WebhooksResult<unknown>, "kind"> | null;
 
 export interface StackInputs {
-	/** The billing usage `service.state`; null until it has loaded. */
+	/** The billing usage `service.state` (legacy); null until it has loaded. */
 	service: ServiceState | null;
+	/** The billing usage `service.stack`, the real state. Wins over `service`
+	 *  when present; an API that predates it leaves it out. */
+	stack?: StackState | null;
 	/** How the latest dashboard read ended; null before any has. */
 	read: StackRead;
 	/** Credits left in USD micros; null until billing has loaded. */
@@ -41,6 +44,7 @@ export interface StackInputs {
 /** `null` while nothing has loaded enough to say. */
 export function stackStatus({
 	service,
+	stack,
 	read,
 	creditsUsdMicros,
 	waking = false,
@@ -49,6 +53,22 @@ export function stackStatus({
 	if (read?.kind === "asleep") return waking ? "waking" : "asleep";
 	if (read?.kind === "starting") return "starting";
 	if (read?.kind === "no_credits") return "stopped_no_credits";
+	if (stack) {
+		switch (stack) {
+			case "none":
+				return "none";
+			case "provisioning":
+				return "starting";
+			case "running":
+				return "running";
+			case "stopped_credits":
+				return "stopped_no_credits";
+			case "stopped_cap":
+				return "stopped_other";
+			case "stopped_idle":
+				return waking ? "waking" : "asleep";
+		}
+	}
 	if (service === null) return null;
 	if (service === "none") return "none";
 	if (service === "running") return "running";

@@ -402,6 +402,7 @@ export function BillingScreen({ ret }: { ret: TopupReturn | null }) {
 	const stopped =
 		stackStatus({
 			service: service?.state ?? null,
+			stack: service?.stack,
 			read: null,
 			creditsUsdMicros: billing?.creditsUsdMicros ?? null,
 		}) === "stopped_no_credits";

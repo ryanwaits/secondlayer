@@ -88,7 +88,16 @@ export function deliveredRowsIn(usage: UsageRow[]): number {
 
 // ── Burn, runway, level (Definitions) ──────────────────────────────────
 
+/** The legacy three-value state, derived from `StackState` by the API. */
 export type ServiceState = "running" | "stopped" | "none";
+/** The hosted stack as the workload host reports it (`service.stack`). */
+export type StackState =
+	| "none"
+	| "provisioning"
+	| "running"
+	| "stopped_credits"
+	| "stopped_cap"
+	| "stopped_idle";
 export type BalanceLevel = "ok" | "low" | "crit" | "stopped";
 
 export type DailySpend = { date: string; unit: string; usdMicros: string };
@@ -100,6 +109,9 @@ export type MemoryHourRow = {
 };
 export type HostedStack = {
 	state: ServiceState;
+	/** The real state; absent from an API that predates it, then `state` is
+	 *  all there is. */
+	stack?: StackState;
 	lastChargedAt: string | null;
 	memory24h: MemoryHourRow[];
 };
@@ -145,7 +157,7 @@ export function balanceLevel(opts: {
 /**
  * The level for a page: the one place billing, burn and the hosted stack meet.
  * `null` while that isn't known. An unknown burn is not "nothing burning":
- * only a stopped stack at $0 can be called without it.
+ * only a stack stopped for credits or the cap can be called without it.
  */
 export function balanceLevelFor(
 	billing: { creditsUsdMicros: string } | null,
@@ -154,12 +166,16 @@ export function balanceLevelFor(
 ): BalanceLevel | null {
 	if (!billing) return null;
 	const balance = Number(billing.creditsUsdMicros);
-	const serviceState = service?.state ?? "none";
-	if (!burn) {
-		return serviceState === "stopped" && balance <= 0 ? "stopped" : null;
-	}
+	// A stack stopped for money (credits or the spend cap) is "stopped"; one
+	// that is asleep or still starting is not. An API without `stack` only has
+	// the legacy state, where stopped at $0 is the same thing.
+	const stoppedForMoney = service?.stack
+		? service.stack === "stopped_credits" || service.stack === "stopped_cap"
+		: service?.state === "stopped" && balance <= 0;
+	if (stoppedForMoney) return "stopped";
+	if (!burn) return null;
 	return balanceLevel({
-		serviceState,
+		serviceState: "none",
 		balanceUsdMicros: balance,
 		runwayDays: runwayDays(balance, Number(burn.rateDayUsdMicros)),
 	});

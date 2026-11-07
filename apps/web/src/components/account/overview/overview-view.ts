@@ -131,6 +131,7 @@ export function overviewStackStatus(
 ): StackStatus | null {
 	return stackStatus({
 		service: stack.state,
+		stack: stack.stack,
 		read: { kind: asleep ? "asleep" : "ok" },
 		creditsUsdMicros,
 	});

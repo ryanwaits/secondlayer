@@ -108,6 +108,45 @@ describe("stackStatus", () => {
 	});
 });
 
+describe("stackStatus from the reported stack", () => {
+	const at = (
+		stack: Parameters<typeof stackStatus>[0]["stack"],
+		waking = false,
+	) =>
+		stackStatus({
+			service: "stopped",
+			stack,
+			read: null,
+			creditsUsdMicros: "5000000",
+			waking,
+		});
+
+	test("each reported state maps to one status, whatever the legacy state says", () => {
+		expect(at("none")).toBe("none");
+		expect(at("provisioning")).toBe("starting");
+		expect(at("running")).toBe("running");
+		expect(at("stopped_credits")).toBe("stopped_no_credits");
+		expect(at("stopped_cap")).toBe("stopped_other");
+	});
+
+	test("an idle stop is asleep, not stopped for credits, even at a zero balance", () => {
+		expect(at("stopped_idle")).toBe("asleep");
+		expect(at("stopped_idle", true)).toBe("waking");
+		expect(
+			stackStatus({
+				service: "stopped",
+				stack: "stopped_idle",
+				read: null,
+				creditsUsdMicros: "0",
+			}),
+		).toBe("asleep");
+	});
+
+	test("without the reported state the legacy state decides", () => {
+		expect(at(undefined)).toBe("stopped_other");
+	});
+});
+
 describe("noticeFor", () => {
 	test("a good read and a missing list are no notice", () => {
 		expect(noticeFor({ kind: "ok", data: [] })).toBeNull();
