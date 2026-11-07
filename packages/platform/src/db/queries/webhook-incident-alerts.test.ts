@@ -2,10 +2,10 @@ import { afterAll, describe, expect, test } from "bun:test";
 import { getDb } from "@secondlayer/shared/db";
 import {
 	MAX_EMAIL_ATTEMPTS,
+	claimIncidentEmails,
 	dueIncidents,
-	markEmailed,
 	purgeResolved,
-	recordAttempts,
+	releaseEmailClaim,
 	syncIncidents,
 } from "./webhook-incident-alerts.ts";
 
@@ -99,17 +99,62 @@ describe.skipIf(!HAS_DB)("webhook incident alerts", () => {
 			now,
 		);
 		const [a, b, c] = opened;
-		await markEmailed(db, [a?.id as string], now);
+		await claimIncidentEmails(db, [a?.id as string], now);
 		for (let i = 0; i < MAX_EMAIL_ATTEMPTS; i++) {
-			await recordAttempts(db, [b?.id as string]);
+			await claimIncidentEmails(db, [b?.id as string], now);
+			await releaseEmailClaim(db, [b?.id as string]);
 		}
 		const due = await dueIncidents(db, acct);
 		expect(due.map((r) => r.id)).toEqual([c?.id as string]);
-		const [counted] = await recordAttempts(db, [c?.id as string]);
-		expect(counted?.email_attempts).toBe(1);
 	});
 
-	test("markEmailed stamps rows and purge drops only old resolved ones", async () => {
+	test("a claim goes to one caller only, and a released claim counts its attempt", async () => {
+		const acct = await makeAccount();
+		const { opened } = await syncIncidents(
+			db,
+			acct,
+			{ webhookIds: ["a"], down: [item("a")] },
+			now,
+		);
+		const id = opened[0]?.id as string;
+		const [first, second] = await Promise.all([
+			claimIncidentEmails(db, [id], now),
+			claimIncidentEmails(db, [id], now),
+		]);
+		expect(first.length + second.length).toBe(1);
+		expect([...first, ...second][0]?.email_attempts).toBe(1);
+
+		await releaseEmailClaim(db, [id]);
+		const [again] = await claimIncidentEmails(db, [id], now);
+		expect(again?.email_attempts).toBe(2);
+	});
+
+	test("a report observed before the newest change is dropped", async () => {
+		const acct = await makeAccount();
+		const earlier = new Date(now.getTime() - 60_000);
+		await syncIncidents(
+			db,
+			acct,
+			{ webhookIds: ["a"], down: [item("a")] },
+			now,
+		);
+
+		const stale = await syncIncidents(
+			db,
+			acct,
+			{ webhookIds: ["a"], down: [] },
+			earlier,
+		);
+		expect(stale).toEqual({ opened: [], resolved: 0, stale: true });
+		const open = await db
+			.selectFrom("webhook_incident_alerts")
+			.select("resolved_at")
+			.where("account_id", "=", acct)
+			.executeTakeFirstOrThrow();
+		expect(open.resolved_at).toBeNull();
+	});
+
+	test("claimed rows are stamped and purge drops only old resolved ones", async () => {
 		const acct = await makeAccount();
 		const { opened } = await syncIncidents(
 			db,
@@ -117,7 +162,7 @@ describe.skipIf(!HAS_DB)("webhook incident alerts", () => {
 			{ webhookIds: ["a", "b"], down: [item("a"), item("b")] },
 			now,
 		);
-		await markEmailed(
+		await claimIncidentEmails(
 			db,
 			opened.map((r) => r.id),
 			now,
@@ -135,8 +180,14 @@ describe.skipIf(!HAS_DB)("webhook incident alerts", () => {
 			db,
 			acct,
 			{ webhookIds: ["a", "b"], down: [item("b")] },
-			old,
+			now,
 		);
+		await db
+			.updateTable("webhook_incident_alerts")
+			.set({ resolved_at: old })
+			.where("account_id", "=", acct)
+			.where("webhook_id", "=", "a")
+			.execute();
 		const purged = await purgeResolved(db, 90, now);
 		expect(purged).toBeGreaterThanOrEqual(1);
 		const left = await db

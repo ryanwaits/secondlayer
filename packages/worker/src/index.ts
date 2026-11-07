@@ -12,6 +12,7 @@ import { startGhostAccountsPurgeCron } from "./jobs/ghost-accounts-purge.ts";
 import { startOauthPurgeCron } from "./jobs/oauth-purge.ts";
 import { startRequestLogPurgeCron } from "./jobs/request-log-purge.ts";
 import { startSpendCapAlertCron } from "./jobs/spend-cap-alert.ts";
+import { startWebhookIncidentsPurgeCron } from "./jobs/webhook-incidents-purge.ts";
 
 let running = true;
 
@@ -33,6 +34,7 @@ async function runWorker() {
 		startOauthPurgeCron(),
 		startFeedbackClassifyCron(),
 		startAccountInsightsCron(),
+		startWebhookIncidentsPurgeCron(),
 	];
 
 	logger.info("Worker ready");

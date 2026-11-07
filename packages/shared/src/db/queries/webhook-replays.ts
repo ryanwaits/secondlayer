@@ -42,6 +42,30 @@ function isOneScanningConflict(err: unknown): boolean {
 	);
 }
 
+/** Fail every `scanning` replay older than `STALE_SCAN_MINUTES` (its process
+ *  died) and stamp `finished_at` so retention can delete it. Scoped to one
+ *  webhook when `webhookId` is given; otherwise sweeps them all. */
+export async function reapStaleScans(
+	db: Kysely<Database>,
+	webhookId?: string,
+): Promise<void> {
+	let q = db
+		.updateTable("webhook_replays")
+		.set({
+			status: "failed",
+			error: "scan interrupted",
+			finished_at: sql`now()`,
+		})
+		.where("status", "=", "scanning")
+		.where(
+			"started_at",
+			"<",
+			sql<Date>`now() - ${sql.lit(`${STALE_SCAN_MINUTES} minutes`)}::interval`,
+		);
+	if (webhookId) q = q.where("webhook_id", "=", webhookId);
+	await q.execute();
+}
+
 export async function beginReplay(
 	db: Kysely<Database>,
 	input: {
@@ -53,21 +77,7 @@ export async function beginReplay(
 ): Promise<void> {
 	try {
 		await db.transaction().execute(async (trx) => {
-			await trx
-				.updateTable("webhook_replays")
-				.set({
-					status: "failed",
-					error: "scan interrupted",
-					finished_at: sql`now()`,
-				})
-				.where("webhook_id", "=", input.webhookId)
-				.where("status", "=", "scanning")
-				.where(
-					"started_at",
-					"<",
-					sql<Date>`now() - ${sql.lit(`${STALE_SCAN_MINUTES} minutes`)}::interval`,
-				)
-				.execute();
+			await reapStaleScans(trx, input.webhookId);
 			// Re-running a range reuses its record. A row of this very id that is
 			// still scanning is a concurrent scan: the WHERE leaves it untouched and
 			// no row comes back.
@@ -283,8 +293,10 @@ export async function listWebhookReplays(
 	return Promise.all(records.map((r) => progressWithFinalize(db, r)));
 }
 
-/** Retention backstop: finalize every running replay that has drained. */
+/** Retention backstop: fail stale scans, then finalize every running replay
+ *  that has drained. */
 export async function finalizeReplays(db: Kysely<Database>): Promise<void> {
+	await reapStaleScans(db);
 	const running = await db
 		.selectFrom("webhook_replays")
 		.selectAll()

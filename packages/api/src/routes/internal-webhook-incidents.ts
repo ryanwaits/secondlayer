@@ -9,9 +9,9 @@
  */
 import {
 	MAX_EMAIL_ATTEMPTS,
+	claimIncidentEmails,
 	dueIncidents,
-	markEmailed,
-	recordAttempts,
+	releaseEmailClaim,
 	syncIncidents,
 } from "@secondlayer/platform/db/queries/webhook-incident-alerts";
 import { webhookFailingPush } from "@secondlayer/platform/push/copy";
@@ -80,12 +80,13 @@ app.post("/", async (c) => {
 		...d,
 		failingSince: new Date(d.failingSince),
 	}));
-	const { opened, resolved } = await syncIncidents(
+	const { opened, resolved, stale } = await syncIncidents(
 		db,
 		account.id,
 		{ webhookIds: body.webhookIds, down },
 		observedAt,
 	);
+	if (stale) return c.json({ opened: 0, resolved: 0, stale: true });
 
 	// One push per outage, for incidents that opened this tick only. Email
 	// retries re-select due rows; the push must not follow them.
@@ -112,13 +113,18 @@ app.post("/", async (c) => {
 			const d = byId.get(row.webhook_id);
 			return d ? [{ row, d }] : [];
 		});
-		if (items.length > 0) {
-			const attempted = await recordAttempts(
-				db,
-				items.map((i) => i.row.id),
-			);
+		// Claim before sending: of two concurrent reports, only the one whose
+		// UPDATE lands on a row sends it.
+		const claimed = await claimIncidentEmails(
+			db,
+			items.map((i) => i.row.id),
+			new Date(),
+		);
+		const claimedIds = new Set(claimed.map((r) => r.id));
+		const toSend = items.filter((i) => claimedIds.has(i.row.id));
+		if (toSend.length > 0) {
 			const email = buildWebhookIncidentEmail(
-				items.map(({ d }) => ({
+				toSend.map(({ d }) => ({
 					id: d.id,
 					name: d.name,
 					host: d.host,
@@ -129,17 +135,16 @@ app.post("/", async (c) => {
 			);
 			try {
 				await sendEmail({ to: account.email, ...email });
-				await markEmailed(
-					db,
-					items.map((i) => i.row.id),
-					new Date(),
-				);
 				logger.info("webhook_incident.email_sent", {
 					accountId: account.id,
-					count: items.length,
+					count: toSend.length,
 				});
 			} catch (err) {
-				const gaveUp = attempted.some(
+				await releaseEmailClaim(
+					db,
+					toSend.map((i) => i.row.id),
+				);
+				const gaveUp = claimed.some(
 					(r) => r.email_attempts >= MAX_EMAIL_ATTEMPTS,
 				);
 				logger.warn(
@@ -148,7 +153,7 @@ app.post("/", async (c) => {
 						: "webhook_incident.email_failed",
 					{
 						accountId: account.id,
-						count: items.length,
+						count: toSend.length,
 						error: err instanceof Error ? err.message : String(err),
 					},
 				);

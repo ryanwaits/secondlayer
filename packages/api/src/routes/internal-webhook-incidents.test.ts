@@ -203,6 +203,33 @@ describe.skipIf(!HAS_DB)("POST /internal/webhook-incidents", () => {
 		expect(sent).toHaveLength(2);
 	});
 
+	test("two concurrent reports of the same outage send one email", async () => {
+		const acct = await makeAccount(`owner-${crypto.randomUUID()}@example.com`);
+		const body = report(acct, ["a"], ["a"]);
+		const [one, two] = await Promise.all([post(body), post(body)]);
+		expect(one.status).toBe(200);
+		expect(two.status).toBe(200);
+		expect(sent).toHaveLength(1);
+	});
+
+	test("a report observed before the last change is dropped without an email", async () => {
+		const acct = await makeAccount(`owner-${crypto.randomUUID()}@example.com`);
+		await post(report(acct, ["a"], ["a"]));
+		expect(sent).toHaveLength(1);
+
+		const late = await post({
+			...report(acct, ["a"], []),
+			observedAt: new Date(Date.now() - 60_000).toISOString(),
+		});
+		expect(await late.json()).toEqual({ opened: 0, resolved: 0, stale: true });
+		const row = await db
+			.selectFrom("webhook_incident_alerts")
+			.select("resolved_at")
+			.where("account_id", "=", acct)
+			.executeTakeFirstOrThrow();
+		expect(row.resolved_at).toBeNull();
+	});
+
 	test("gives up after 5 failed attempts", async () => {
 		const acct = await makeAccount(`owner-${crypto.randomUUID()}@example.com`);
 		failSends = 100;

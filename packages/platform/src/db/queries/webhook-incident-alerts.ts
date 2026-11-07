@@ -1,5 +1,5 @@
 import type { Database, WebhookIncidentAlert } from "@secondlayer/shared/db";
-import type { Kysely } from "kysely";
+import { type Kysely, sql } from "kysely";
 
 /**
  * Debounce state for the webhook-down email
@@ -25,14 +25,40 @@ export interface IncidentReport {
  * that has none (returned as `opened`, the ones to email) and resolves every
  * open incident of the account that is no longer down. A deleted webhook drops
  * out of `down` too, so it closes the same way.
+ *
+ * A report observed before the account's newest open or resolve is stale (it
+ * overtook, or was overtaken by, a newer report): it changes nothing and
+ * returns `stale: true`.
  */
 export async function syncIncidents(
 	db: Kysely<Database>,
 	accountId: string,
 	report: IncidentReport,
 	now: Date,
-): Promise<{ opened: WebhookIncidentAlert[]; resolved: number }> {
+): Promise<{
+	opened: WebhookIncidentAlert[];
+	resolved: number;
+	stale: boolean;
+}> {
 	return db.transaction().execute(async (trx) => {
+		// One report per account at a time, so the staleness check below sees
+		// the previous report's writes.
+		await sql`SELECT pg_advisory_xact_lock(hashtextextended(${`webhook_incidents:${accountId}`}, 0))`.execute(
+			trx,
+		);
+		const latest = await trx
+			.selectFrom("webhook_incident_alerts")
+			.select(
+				sql<Date | null>`max(greatest(opened_at, coalesce(resolved_at, opened_at)))`.as(
+					"at",
+				),
+			)
+			.where("account_id", "=", accountId)
+			.executeTakeFirst();
+		if (latest?.at && latest.at.getTime() > now.getTime()) {
+			return { opened: [], resolved: 0, stale: true };
+		}
+
 		const opened: WebhookIncidentAlert[] = [];
 		for (const item of report.down) {
 			const row = await trx
@@ -65,7 +91,7 @@ export async function syncIncidents(
 			resolve = resolve.where("webhook_id", "not in", stillDown);
 		}
 		const result = await resolve.executeTakeFirst();
-		return { opened, resolved: Number(result.numUpdatedRows) };
+		return { opened, resolved: Number(result.numUpdatedRows), stale: false };
 	});
 }
 
@@ -88,29 +114,41 @@ export async function dueIncidents(
 		.execute();
 }
 
-/** Counts one send attempt on each row; returns the updated rows. */
-export async function recordAttempts(
+/**
+ * Claims the right to email these incidents: stamps `emailed_at` and counts
+ * the attempt, only on rows nobody has claimed yet. Returns the rows this call
+ * claimed; two concurrent reports claim disjoint sets, so each incident is
+ * emailed once. Release the claim with {@link releaseEmailClaim} if the send
+ * fails.
+ */
+export async function claimIncidentEmails(
 	db: Kysely<Database>,
 	ids: string[],
+	now: Date,
 ): Promise<WebhookIncidentAlert[]> {
 	if (ids.length === 0) return [];
 	return db
 		.updateTable("webhook_incident_alerts")
-		.set((eb) => ({ email_attempts: eb("email_attempts", "+", 1) }))
+		.set((eb) => ({
+			emailed_at: now,
+			email_attempts: eb("email_attempts", "+", 1),
+		}))
 		.where("id", "in", ids)
+		.where("emailed_at", "is", null)
 		.returningAll()
 		.execute();
 }
 
-export async function markEmailed(
+/** Makes claimed incidents due again after a failed send. The attempt stays
+ *  counted, so a permanently failing email stops at `MAX_EMAIL_ATTEMPTS`. */
+export async function releaseEmailClaim(
 	db: Kysely<Database>,
 	ids: string[],
-	now: Date,
 ): Promise<void> {
 	if (ids.length === 0) return;
 	await db
 		.updateTable("webhook_incident_alerts")
-		.set({ emailed_at: now })
+		.set({ emailed_at: null })
 		.where("id", "in", ids)
 		.execute();
 }
