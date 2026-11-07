@@ -260,7 +260,9 @@ export function registerCreditsCommand(program: Command): void {
 
 	credits
 		.command("refill")
-		.description("Opt-in auto-refill when the balance drops under a threshold")
+		.description(
+			"Opt-in auto-refill when the balance drops under a threshold. Needs a signed-in session (`secondlayer login`), not an API key",
+		)
 		.option("--below <usd>", "Trigger when balance is under this USD amount")
 		.option("--pack <usd>", `Pack to buy (${PACKS.join(", ")})`, "25")
 		.option("--off", "Turn auto-refill off")

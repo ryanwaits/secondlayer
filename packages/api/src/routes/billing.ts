@@ -1,7 +1,8 @@
 /**
  * Billing routes — the metered-archive credits surface. Session-authed
- * upstream via `requireAuth`; every write (topup, refill, caps, alerts) also
- * demands a signed-in session, never an account API key (`sessionOnly`).
+ * upstream via `requireAuth`; the writes that change what the card is charged
+ * (refill, caps) also demand a signed-in session, never an account API key
+ * (`sessionOnly`).
  *
  *   GET   /api/billing/status   credits balance + refill config snapshot
  *   POST  /api/billing/topup    one-time prepaid credit pack → Stripe Checkout
@@ -358,7 +359,7 @@ export async function createCreditsCheckoutSession(opts: {
  * pack. The balance is credited by the `checkout.session.completed` webhook —
  * never here — so credit only lands on confirmed payment.
  */
-app.post("/topup", sessionOnly(), async (c) => {
+app.post("/topup", async (c) => {
 	const accountId = getAccountId(c);
 	if (!accountId) return c.json({ error: "Unauthorized" }, 401);
 
@@ -688,7 +689,7 @@ app.get("/alerts", async (c) => {
  * Either field alone leaves the other untouched; the row is created on
  * first write.
  */
-app.put("/alerts", sessionOnly(), async (c) => {
+app.put("/alerts", async (c) => {
 	const accountId = getAccountId(c);
 	if (!accountId) return c.json({ error: "Unauthorized" }, 401);
 

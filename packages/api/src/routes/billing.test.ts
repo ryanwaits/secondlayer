@@ -945,8 +945,6 @@ describe("billing writes are signed-in session only", () => {
 	const writes = [
 		["POST", "/refill", { belowUsd: 5, packUsd: 25 }],
 		["PATCH", "/caps", { monthlyCapCents: 100 }],
-		["PUT", "/alerts", { notify7d: true }],
-		["POST", "/topup", { amount: 10 }],
 	] as const;
 
 	for (const [method, path, body] of writes) {
@@ -959,6 +957,19 @@ describe("billing writes are signed-in session only", () => {
 			expect(res.status).toBe(403);
 		});
 	}
+
+	test("an account key can still top up and set alert emails", async () => {
+		const a = appAs({ session: false });
+		const send = (method: string, path: string, body: unknown) =>
+			a.request(path, {
+				method,
+				headers: { "content-type": "application/json" },
+				body: JSON.stringify(body),
+			});
+		// Invalid bodies: refused by validation, not by the session guard.
+		expect((await send("POST", "/topup", { amount: 1 })).status).toBe(400);
+		expect((await send("PUT", "/alerts", { notify7d: "x" })).status).toBe(400);
+	});
 
 	function writeAs(path: string, method: string, body: unknown) {
 		return appAs({ session: true }).request(path, {

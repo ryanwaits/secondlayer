@@ -1377,7 +1377,7 @@ function platformMeterPaths(): Record<string, unknown> {
 				summary: "Set auto-refill threshold",
 				"x-nav-title": "Auto-refill",
 				description:
-					"Needs a signed-in session, not an account API key (403). `belowUsd` is at most `packUsd`, which is one of the credit packs.",
+					"Needs a signed-in session, not an account API key (403): changing auto-refill moves money. `belowUsd` is at most `packUsd`, which is one of the credit packs.",
 				security: WRITE_SECURITY,
 				requestBody: jsonBody({
 					type: "object",
