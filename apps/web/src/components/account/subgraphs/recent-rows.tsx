@@ -3,6 +3,7 @@
 import { stacksTxUrl } from "@/components/verify/explorers";
 import { groupDigits } from "@/lib/subgraph-view";
 import { fetchRecentRows } from "@/lib/subgraphs-store";
+import { useCopied } from "@/lib/use-copied";
 import { Fragment, useEffect, useRef, useState } from "react";
 import { JsonView } from "../webhooks/payload-view";
 import {
@@ -72,7 +73,7 @@ function rowCopyText({ name, table, row }: RecentRow & { name: string }) {
 /** The opened row's frame: its columns as Fields, or the raw JSON. */
 export function RowPayload({ name, table, row }: RecentRow & { name: string }) {
 	const [tab, setTab] = useState<Tab>("fields");
-	const [copied, setCopied] = useState(false);
+	const { copied, copy } = useCopied(COPIED_MS);
 	const rowText = JSON.stringify(row, null, 2);
 	const fields = Object.entries(ownColumns(row));
 	const tx = asText(row._tx_id);
@@ -109,17 +110,7 @@ export function RowPayload({ name, table, row }: RecentRow & { name: string }) {
 				<button
 					type="button"
 					className="pv-copy"
-					onClick={async () => {
-						try {
-							await navigator.clipboard.writeText(
-								rowCopyText({ name, table, row }),
-							);
-							setCopied(true);
-							setTimeout(() => setCopied(false), COPIED_MS);
-						} catch {
-							// Clipboard blocked: leave the label as is.
-						}
-					}}
+					onClick={() => copy(rowCopyText({ name, table, row }))}
 				>
 					{copied ? "Copied" : "Copy"}
 				</button>

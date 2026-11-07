@@ -1,8 +1,9 @@
 "use client";
 
 import { CheckIcon, CopyIcon } from "@/components/copy-button";
+import { useCopied } from "@/lib/use-copied";
 import Link from "next/link";
-import { type ReactNode, useEffect, useId, useState } from "react";
+import { type ReactNode, useId, useState } from "react";
 
 export interface Guide {
 	title: string;
@@ -70,28 +71,16 @@ export function CopyForAgent({
 	prompt,
 	hint,
 }: { prompt: string; hint: string }) {
-	const [copied, setCopied] = useState(false);
-
-	useEffect(() => {
-		if (!copied) return;
-		const timer = setTimeout(() => setCopied(false), COPIED_MS);
-		return () => clearTimeout(timer);
-	}, [copied]);
+	const { copied, copy } = useCopied(COPIED_MS);
 
 	return (
 		<div className="copy-agent">
 			<button
 				type="button"
 				className="acct-btn solid copy-agent-btn"
-				onClick={async () => {
-					try {
-						await navigator.clipboard.writeText(prompt);
-						setCopied(true);
-					} catch {
-						// Clipboard refused (permissions, insecure context): leave the
-						// button as it was rather than claim a copy that didn't happen.
-					}
-				}}
+				// A refused clipboard leaves the button as it was rather than claim
+				// a copy that didn't happen.
+				onClick={() => copy(prompt)}
 			>
 				<span className="copy-agent-icon">
 					{copied ? <CheckIcon /> : <CopyIcon />}

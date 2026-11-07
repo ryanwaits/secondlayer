@@ -5,6 +5,7 @@ import { CodeScope } from "@/components/code/code-scope";
 import { useChainTip } from "@/lib/chain-tip";
 import { stripAnnotations } from "@/lib/code/annotations";
 import type { RenderedBlock } from "@/lib/code/blocks";
+import { useCopied } from "@/lib/use-copied";
 import type { WebhookActivity, WebhookDetail } from "@secondlayer/sdk";
 import { useEffect, useRef, useState } from "react";
 import { type Piece, agentPrompt, listensForCode } from "./describe-trigger";
@@ -50,7 +51,7 @@ export function ListensFor({
 		initialBlocks ?? null,
 	);
 	const [open, setOpen] = useState<Set<number>>(() => new Set());
-	const [copied, setCopied] = useState(false);
+	const { copied, copy: copyPrompt } = useCopied(COPIED_MS);
 	const peek = useRef<HTMLDetailsElement>(null);
 	const peekText = useRef<HTMLPreElement>(null);
 	const height = useChainTip().height;
@@ -86,22 +87,17 @@ export function ListensFor({
 		});
 
 	async function copy() {
-		try {
-			await navigator.clipboard.writeText(prompt);
-			setCopied(true);
-			setTimeout(() => setCopied(false), COPIED_MS);
-		} catch {
-			// No clipboard access: show the text, selected, to copy by hand.
-			const details = peek.current;
-			const text = peekText.current;
-			if (!details || !text) return;
-			details.open = true;
-			const range = document.createRange();
-			range.selectNodeContents(text);
-			const selection = window.getSelection();
-			selection?.removeAllRanges();
-			selection?.addRange(range);
-		}
+		if (await copyPrompt(prompt)) return;
+		// No clipboard access: show the text, selected, to copy by hand.
+		const details = peek.current;
+		const text = peekText.current;
+		if (!details || !text) return;
+		details.open = true;
+		const range = document.createRange();
+		range.selectNodeContents(text);
+		const selection = window.getSelection();
+		selection?.removeAllRanges();
+		selection?.addRange(range);
 	}
 
 	return (

@@ -1,6 +1,7 @@
 "use client";
 
 import { FIRST_ROWS_PROMPT } from "@/lib/onboarding";
+import { useCopied } from "@/lib/use-copied";
 import Link from "next/link";
 import { type ReactNode, useState } from "react";
 
@@ -19,12 +20,10 @@ export function FirstRowsGuide({
 	onSkip: () => void;
 }) {
 	const [open, setOpen] = useState(false);
-	const [copied, setCopied] = useState(false);
+	const { copied, copy: copyPrompt } = useCopied();
 
 	function copy() {
-		navigator.clipboard.writeText(FIRST_ROWS_PROMPT).catch(() => {});
-		setCopied(true);
-		setTimeout(() => setCopied(false), 1400);
+		copyPrompt(FIRST_ROWS_PROMPT);
 	}
 
 	return (

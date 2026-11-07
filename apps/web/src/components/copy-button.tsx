@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCopied } from "@/lib/use-copied";
+import { useCallback } from "react";
 
 export function CopyButton({
 	code,
@@ -14,13 +15,11 @@ export function CopyButton({
 	 *  absolute, hover-revealed icon used inside code blocks. Implied by `label`. */
 	inline?: boolean;
 }) {
-	const [copied, setCopied] = useState(false);
+	const { copied, copy } = useCopied(1500);
 
 	const handleCopy = useCallback(async () => {
-		await navigator.clipboard.writeText(code);
-		setCopied(true);
-		setTimeout(() => setCopied(false), 1500);
-	}, [code]);
+		await copy(code);
+	}, [code, copy]);
 
 	return (
 		<button

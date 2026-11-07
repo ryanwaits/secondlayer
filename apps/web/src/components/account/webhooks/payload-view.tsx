@@ -2,6 +2,7 @@
 
 import { stacksBlockUrl, stacksTxUrl } from "@/components/verify/explorers";
 import { shared } from "@/lib/request-cache";
+import { useCopied } from "@/lib/use-copied";
 import { getDelivery } from "@/lib/webhooks-data";
 import type {
 	ChainTrigger,
@@ -270,21 +271,9 @@ export function useDeliveryDetail(
 }
 
 function CopyPill({ text }: { text: () => string }) {
-	const [copied, setCopied] = useState(false);
+	const { copied, copy } = useCopied(1200);
 	return (
-		<button
-			type="button"
-			className="pv-copy"
-			onClick={async () => {
-				try {
-					await navigator.clipboard.writeText(text());
-					setCopied(true);
-					setTimeout(() => setCopied(false), 1200);
-				} catch {
-					// Clipboard blocked: leave the label as is.
-				}
-			}}
-		>
+		<button type="button" className="pv-copy" onClick={() => copy(text())}>
 			{copied ? "Copied" : "Copy"}
 		</button>
 	);

@@ -3,6 +3,7 @@
 import "@/components/code/code.css";
 import { MAX_CODE_BLOCKS, type RenderedBlock } from "@/lib/code/blocks";
 import type { SubgraphTableInfo } from "@/lib/subgraphs-store";
+import { useCopied } from "@/lib/use-copied";
 import {
 	useCallback,
 	useEffect,
@@ -141,7 +142,7 @@ export function UseSection({
 	const [rendered, setRendered] = useState<ReadonlyMap<string, RenderedBlock>>(
 		() => new Map(),
 	);
-	const [copied, setCopied] = useState(false);
+	const { copied, copy: copyToClipboard } = useCopied(COPIED_MS);
 	const asked = useRef(new Set<string>());
 	// The frame follows the code's height, easing between examples: the
 	// server renders it at its natural height, then it's pinned in pixels so
@@ -300,15 +301,8 @@ export function UseSection({
 						type="button"
 						className="use-copy"
 						disabled={!fence}
-						onClick={async () => {
-							if (!fence) return;
-							try {
-								await navigator.clipboard.writeText(copyText(fence));
-								setCopied(true);
-								setTimeout(() => setCopied(false), COPIED_MS);
-							} catch {
-								// Clipboard blocked: leave the label as is.
-							}
+						onClick={() => {
+							if (fence) copyToClipboard(copyText(fence));
 						}}
 					>
 						{copied ? "Copied" : "Copy"}
