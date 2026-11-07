@@ -10,11 +10,13 @@ import {
 	readReplay,
 } from "@secondlayer/shared/db/queries/webhook-replays";
 import {
+	REORG_ORPHANED_ERROR_PREFIX,
 	createWebhook,
 	deleteWebhook,
 	getWebhook,
 	getWebhookByName,
 	listWebhooks,
+	notReorgOrphaned,
 	notifyWebhooksChanged,
 	rotateWebhookSecret,
 	toggleWebhookStatus,
@@ -1073,15 +1075,29 @@ app.get("/:id/dead", async (c) => {
 	const sub = await getWebhook(getDb(), accountId, c.req.param("id"));
 	if (!sub) return c.json({ error: "Webhook not found" }, 404);
 
-	const rows = await getDb()
-		.selectFrom("webhook_outbox")
-		.selectAll()
-		.where("webhook_id", "=", sub.id)
-		.where("status", "=", "dead")
-		.orderBy("failed_at", "desc")
-		.limit(100)
-		.execute();
+	// Rows a reorg orphaned stay dead (the event left the chain), so they are
+	// counted apart instead of listed as requeueable.
+	const db = getDb();
+	const [rows, orphaned] = await Promise.all([
+		db
+			.selectFrom("webhook_outbox")
+			.selectAll()
+			.where("webhook_id", "=", sub.id)
+			.where("status", "=", "dead")
+			.where(notReorgOrphaned)
+			.orderBy("failed_at", "desc")
+			.limit(100)
+			.execute(),
+		db
+			.selectFrom("webhook_outbox")
+			.select(sql<string>`count(*)`.as("n"))
+			.where("webhook_id", "=", sub.id)
+			.where("status", "=", "dead")
+			.where("last_error", "like", `${REORG_ORPHANED_ERROR_PREFIX}%`)
+			.executeTakeFirstOrThrow(),
+	]);
 	return c.json({
+		orphanedByReorg: Number(orphaned.n),
 		data: rows.map((r) => ({
 			id: r.id,
 			eventType: r.event_type,
@@ -1109,6 +1125,7 @@ app.post("/:id/dead/:outboxId/requeue", async (c) => {
 		.where("id", "=", c.req.param("outboxId"))
 		.where("webhook_id", "=", sub.id)
 		.where("status", "=", "dead")
+		.where(notReorgOrphaned)
 		.executeTakeFirst();
 	const ok = Number(res.numUpdatedRows ?? 0) > 0;
 	if (!ok) return c.json({ error: "Dead row not found" }, 404);
@@ -1145,7 +1162,8 @@ app.post("/:id/dead/requeue", async (c) => {
 		.updateTable("webhook_outbox")
 		.set({ ...REQUEUE_SET, next_attempt_at: new Date() })
 		.where("webhook_id", "=", sub.id)
-		.where("status", "=", "dead");
+		.where("status", "=", "dead")
+		.where(notReorgOrphaned);
 	if (replayId) q = q.where("replay_id", "=", replayId);
 	if (since) q = q.where("failed_at", ">=", new Date(since));
 	const requeued = Number((await q.executeTakeFirst()).numUpdatedRows ?? 0);

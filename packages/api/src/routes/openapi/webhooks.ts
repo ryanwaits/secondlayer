@@ -929,16 +929,22 @@ export const webhooksPaths = {
 				"200": json200(
 					{
 						type: "object",
-						required: ["data"],
+						required: ["data", "orphanedByReorg"],
 						properties: {
 							data: {
 								type: "array",
 								items: { $ref: "#/components/schemas/WebhookDeadEvent" },
 								description: "Up to 100 dead events, newest failure first.",
 							},
+							orphanedByReorg: {
+								type: "integer",
+								description:
+									"Dead events a chain reorg orphaned. They are not listed and cannot be requeued: the event is no longer on the chain.",
+							},
 						},
 						example: {
 							data: [EXAMPLE_DEAD],
+							orphanedByReorg: 0,
 						},
 					},
 					"Dead-lettered events",

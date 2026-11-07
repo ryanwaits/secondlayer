@@ -1,4 +1,4 @@
-import { type Kysely, sql } from "kysely";
+import { type ExpressionBuilder, type Kysely, sql } from "kysely";
 import { generateSecret } from "../../crypto/hmac.ts";
 import { decryptSecret, encryptSecret } from "../../crypto/secrets.ts";
 import { isWebhookAccountScoped } from "../../mode.ts";
@@ -101,6 +101,21 @@ export async function listActiveChainWebhooks(
 const WEBHOOK_ID_RE =
 	/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 export const isWebhookId = (id: string): boolean => WEBHOOK_ID_RE.test(id);
+
+/** `last_error` prefix a reorg writes when it kills an outbox row whose apply
+ *  may already have been delivered. Such a row must stay dead: resending it
+ *  would deliver an event the chain no longer contains. */
+export const REORG_ORPHANED_ERROR_PREFIX = "orphaned by reorg at ";
+
+/** `where` predicate keeping only outbox rows a reorg did NOT orphan. */
+export function notReorgOrphaned(
+	eb: ExpressionBuilder<Database, "webhook_outbox">,
+) {
+	return eb.or([
+		eb("last_error", "is", null),
+		eb("last_error", "not like", `${REORG_ORPHANED_ERROR_PREFIX}%`),
+	]);
+}
 
 export async function getWebhook(
 	db: Kysely<Database>,

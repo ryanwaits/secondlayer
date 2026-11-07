@@ -4,6 +4,7 @@ import type {
 } from "@secondlayer/shared";
 import type { Database, InsertWebhookOutbox } from "@secondlayer/shared/db";
 import { getTargetDb } from "@secondlayer/shared/db";
+import { REORG_ORPHANED_ERROR_PREFIX } from "@secondlayer/shared/db/queries/webhooks";
 import { logger } from "@secondlayer/shared/logger";
 import type { Kysely } from "kysely";
 import { tipCursor } from "./bitcoin-trigger-evaluator.ts";
@@ -144,7 +145,7 @@ export async function handleChainReorg(
 				.set({
 					status: "dead",
 					failed_at: now,
-					last_error: `orphaned by reorg at ${forkHeight}`,
+					last_error: `${REORG_ORPHANED_ERROR_PREFIX}${forkHeight}`,
 					locked_by: null,
 					locked_until: null,
 				})

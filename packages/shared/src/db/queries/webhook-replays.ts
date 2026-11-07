@@ -1,6 +1,7 @@
 import { type Kysely, sql } from "kysely";
 import type { ReplayProgress } from "../../schemas/webhooks.ts";
 import type { Database, WebhookReplay } from "../types.ts";
+import { notReorgOrphaned } from "./webhooks.ts";
 
 /**
  * Stored record of each webhook replay. A replay is `scanning` while the
@@ -294,7 +295,8 @@ export async function deadSince(
 		.selectFrom("webhook_outbox")
 		.select(sql<string>`count(*)`.as("n"))
 		.where("webhook_id", "=", webhookId)
-		.where("status", "=", "dead");
+		.where("status", "=", "dead")
+		.where(notReorgOrphaned);
 	if (since) q = q.where("failed_at", ">=", since);
 	return Number((await q.executeTakeFirstOrThrow()).n);
 }
