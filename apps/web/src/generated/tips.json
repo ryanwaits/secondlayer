@@ -6933,6 +6933,10 @@
 					"type": "(err: unknown) => void"
 				},
 				{
+					"name": "onState",
+					"type": "…"
+				},
+				{
 					"name": "reconnectDelayMs",
 					"type": "number"
 				},
@@ -6947,13 +6951,9 @@
 				{
 					"name": "types",
 					"type": "…"
-				},
-				{
-					"name": "notTypes",
-					"type": "…"
 				}
 			],
-			"more": 3,
+			"more": 4,
 			"route": "/docs/sdk-reference/streams",
 			"anchor": "t-StreamsEventsSubscribeBitcoinParams"
 		},
@@ -6974,6 +6974,10 @@
 					"type": "(err: unknown) => void"
 				},
 				{
+					"name": "onState",
+					"type": "…"
+				},
+				{
 					"name": "reconnectDelayMs",
 					"type": "number"
 				},
@@ -6988,13 +6992,9 @@
 				{
 					"name": "types",
 					"type": "…"
-				},
-				{
-					"name": "notTypes",
-					"type": "…"
 				}
 			],
-			"more": 6,
+			"more": 7,
 			"route": "/docs/sdk-reference/streams",
 			"anchor": "t-StreamsEventsSubscribeStacksParams"
 		},
@@ -7093,6 +7093,12 @@
 			],
 			"route": "/docs/sdk-reference/streams",
 			"anchor": "t-StreamsSubscription"
+		},
+		"StreamsSubscriptionState": {
+			"kind": "type",
+			"summary": "Where a subscribe connection is in its lifecycle.",
+			"route": "/docs/sdk-reference/streams",
+			"anchor": "t-StreamsSubscriptionState"
 		},
 		"StreamsTip": {
 			"kind": "type",
@@ -7598,7 +7604,7 @@
 			"fields": [
 				{
 					"name": "level",
-					"type": "\"events\" | \"state\" | \"none\""
+					"type": "\"events\" | \"none\" | \"state\""
 				},
 				{
 					"name": "reasons",
