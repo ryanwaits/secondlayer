@@ -21,6 +21,7 @@ import {
 	upsertBalanceAlerts,
 } from "@secondlayer/platform/db/queries/account-balance-alerts";
 import {
+	accountSpendState,
 	getCreditRefill,
 	getCredits,
 	getMonthlyCreditsSpend,
@@ -123,9 +124,11 @@ export function parseRefillInput(body: {
 }
 
 /**
- * Write the monthly spend cap (`null` clears it). Raising the cap mid-cycle
- * unfreezes the account: the user explicitly said "yes, bill more". Shared by
- * `PATCH /api/billing/caps`.
+ * Write the monthly spend cap (`null` clears it). Any change of the cap
+ * re-arms its emails (`frozen_at`, `alert_sent_at`): the owner set a new
+ * limit, so the next crossing of it alerts again. Whether the account is
+ * capped is never read from those marks; it is derived from spend
+ * (`accountSpendState`). Shared by `PATCH /api/billing/caps`.
  */
 export async function applyMonthlyCap(
 	db: Kysely<Database>,
@@ -138,16 +141,28 @@ export async function applyMonthlyCap(
 		monthly_cap_cents: monthlyCapCents,
 	};
 	const existing = await getCaps(db, accountId);
-	if (
-		existing?.frozen_at &&
-		monthlyCapCents != null &&
-		existing.monthly_cap_cents != null &&
-		monthlyCapCents > existing.monthly_cap_cents
-	) {
+	if ((existing?.monthly_cap_cents ?? null) !== monthlyCapCents) {
 		patch.frozen_at = null;
 		patch.alert_sent_at = null;
 	}
 	return upsertCaps(db, accountId, patch);
+}
+
+/** The caps body the dashboard reads. `frozenAt` is set exactly while this
+ *  month's spend is at the cap: the time the cap email went out, or now when
+ *  the daily check has not run yet. */
+async function capsBody(
+	db: Kysely<Database>,
+	accountId: string,
+	caps: Awaited<ReturnType<typeof getCaps>>,
+) {
+	const { overCap } = await accountSpendState(db, accountId);
+	return {
+		monthlyCapCents: caps?.monthly_cap_cents ?? null,
+		alertThresholdPct: caps?.alert_threshold_pct ?? 80,
+		frozenAt: overCap ? (caps?.frozen_at ?? new Date()) : null,
+		alertSentAt: caps?.alert_sent_at ?? null,
+	};
 }
 
 function dashboardBaseUrl(): string {
@@ -389,13 +404,8 @@ app.post("/refill", async (c) => {
 app.get("/caps", async (c) => {
 	const accountId = getAccountId(c);
 	if (!accountId) return c.json({ error: "Unauthorized" }, 401);
-	const caps = await getCaps(getDb(), accountId);
-	return c.json({
-		monthlyCapCents: caps?.monthly_cap_cents ?? null,
-		alertThresholdPct: caps?.alert_threshold_pct ?? 80,
-		frozenAt: caps?.frozen_at ?? null,
-		alertSentAt: caps?.alert_sent_at ?? null,
-	});
+	const db = getDb();
+	return c.json(await capsBody(db, accountId, await getCaps(db, accountId)));
 });
 
 app.patch("/caps", async (c) => {
@@ -422,16 +432,12 @@ app.patch("/caps", async (c) => {
 		extra.alert_threshold_pct = body.alertThresholdPct;
 	}
 
+	const db = getDb();
 	const updated =
 		body.monthlyCapCents === undefined
-			? await upsertCaps(getDb(), accountId, extra)
-			: await applyMonthlyCap(getDb(), accountId, body.monthlyCapCents, extra);
-	return c.json({
-		monthlyCapCents: updated.monthly_cap_cents,
-		alertThresholdPct: updated.alert_threshold_pct,
-		frozenAt: updated.frozen_at,
-		alertSentAt: updated.alert_sent_at,
-	});
+			? await upsertCaps(db, accountId, extra)
+			: await applyMonthlyCap(db, accountId, body.monthlyCapCents, extra);
+	return c.json(await capsBody(db, accountId, updated));
 });
 
 const MONTH_RE = /^\d{4}-\d{2}$/;

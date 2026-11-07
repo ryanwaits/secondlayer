@@ -1,7 +1,14 @@
 import { afterAll, describe, expect, test } from "bun:test";
 import { grantCredits, meter } from "@secondlayer/platform/billing/meter";
 import { ROWS_DELIVERED_MONTHLY_ALLOWANCE } from "@secondlayer/platform/billing/prices";
-import { creditCredits } from "@secondlayer/platform/db/queries/account-credits";
+import {
+	creditCredits,
+	recordCreditsSpend,
+} from "@secondlayer/platform/db/queries/account-credits";
+import {
+	getCaps,
+	upsertCaps,
+} from "@secondlayer/platform/db/queries/account-spend-caps";
 import { insertFailedRequest } from "@secondlayer/platform/db/queries/api-failed-requests";
 import { getDb } from "@secondlayer/shared/db";
 import { Hono, type MiddlewareHandler } from "hono";
@@ -766,5 +773,90 @@ describe.skipIf(!HAS_DB)("GET /rows", () => {
 			path: "/v1/index/ft-transfers",
 			count: 2,
 		});
+	});
+});
+
+describe.skipIf(!HAS_DB)("spend cap routes", () => {
+	function appFor(accountId: string) {
+		const a = new Hono();
+		const setAccountId: MiddlewareHandler = async (c, next) => {
+			c.set("accountId", accountId);
+			await next();
+		};
+		a.use("*", setAccountId);
+		a.onError(errorHandler);
+		a.route("/", billingRouter);
+		return a;
+	}
+
+	type CapsBody = {
+		monthlyCapCents: number | null;
+		frozenAt: string | null;
+		alertSentAt: string | null;
+	};
+
+	async function patchCap(
+		accountId: string,
+		monthlyCapCents: number | null,
+	): Promise<CapsBody> {
+		const res = await appFor(accountId).request("/caps", {
+			method: "PATCH",
+			headers: { "content-type": "application/json" },
+			body: JSON.stringify({ monthlyCapCents }),
+		});
+		expect(res.status).toBe(200);
+		return (await res.json()) as CapsBody;
+	}
+
+	test("clearing the cap unfreezes the account and re-arms its emails", async () => {
+		const account = await makeAccount(`caps-clear-${Date.now()}@test.invalid`);
+		await upsertCaps(db, account.id, {
+			monthly_cap_cents: 100,
+			frozen_at: new Date("2026-11-01T00:00:00Z"),
+			alert_sent_at: new Date("2026-11-01T00:00:00Z"),
+		});
+
+		const body = await patchCap(account.id, null);
+		expect(body.monthlyCapCents).toBeNull();
+		expect(body.frozenAt).toBeNull();
+		expect(body.alertSentAt).toBeNull();
+		const caps = await getCaps(db, account.id);
+		expect(caps?.frozen_at).toBeNull();
+		expect(caps?.alert_sent_at).toBeNull();
+	});
+
+	test("lowering the cap re-arms its emails too", async () => {
+		const account = await makeAccount(`caps-lower-${Date.now()}@test.invalid`);
+		await upsertCaps(db, account.id, {
+			monthly_cap_cents: 1_000,
+			alert_sent_at: new Date("2026-11-01T00:00:00Z"),
+		});
+		await patchCap(account.id, 500);
+		expect((await getCaps(db, account.id))?.alert_sent_at).toBeNull();
+	});
+
+	test("frozenAt is set while spend sits at the cap, with no daily check needed, and clears when the cap is raised", async () => {
+		const account = await makeAccount(
+			`caps-derived-${Date.now()}@test.invalid`,
+		);
+		await upsertCaps(db, account.id, { monthly_cap_cents: 100 });
+		// 100 cents = 1,000,000 micros: spend exactly at the cap.
+		await recordCreditsSpend(db, account.id, 1_000_000n);
+
+		const frozen = await appFor(account.id).request("/caps");
+		expect(((await frozen.json()) as CapsBody).frozenAt).not.toBeNull();
+
+		const raised = await patchCap(account.id, 101);
+		expect(raised.frozenAt).toBeNull();
+	});
+
+	test("a leftover frozen_at on an account under its cap is not reported as frozen", async () => {
+		const account = await makeAccount(`caps-stale-${Date.now()}@test.invalid`);
+		await upsertCaps(db, account.id, {
+			monthly_cap_cents: 100,
+			frozen_at: new Date("2026-01-01T00:00:00Z"),
+		});
+		const res = await appFor(account.id).request("/caps");
+		expect(((await res.json()) as CapsBody).frozenAt).toBeNull();
 	});
 });
