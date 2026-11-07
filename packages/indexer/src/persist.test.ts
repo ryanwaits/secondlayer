@@ -611,6 +611,30 @@ describe.skipIf(!HAS_DB)("persistBlock replace-per-height", () => {
 		expect(block?.hash).toBe("0xblockA");
 	});
 
+	test("an event the unique index drops makes the write throw and leaves the prior block intact", async () => {
+		if (!db) throw new Error("missing db");
+		await persistBlock(db, payload("0xblockA", "0xtxA"));
+
+		// Two events claiming the same (height, tx, event_index): the bare
+		// ON CONFLICT DO NOTHING silently skips the second one.
+		const dup = payload("0xblockDup", "0xtxA");
+		const first = dup.evts[0];
+		if (!first) throw new Error("payload event");
+		dup.evts = [first, { ...first, data: { amount: "2" } }];
+
+		await expect(persistBlock(db, dup)).rejects.toThrow(
+			/incomplete event write/,
+		);
+
+		const block = await db
+			.selectFrom("blocks")
+			.select(["hash", "event_count"])
+			.where("height", "=", H)
+			.executeTakeFirst();
+		expect(block?.hash).toBe("0xblockA");
+		expect(Number(block?.event_count)).toBe(1);
+	});
+
 	test("a tx stolen by a same-height collision at a fresh height is restored by the post-reorg reconcile", async () => {
 		if (!db) throw new Error("missing db");
 

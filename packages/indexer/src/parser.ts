@@ -102,6 +102,22 @@ export function parseBlock(payload: NewBlockPayload): InsertBlock {
 	return block;
 }
 
+/**
+ * The node sends `tx_index` on every transaction in a `/new_block` body,
+ * burnchain-op txs included (mainnet blocks 120 and 58997 fixtures). It is the
+ * transaction's position in its block and Streams orders by it, so a missing
+ * value is a malformed payload: defaulting it to 0 would silently put two txs
+ * at one position. Refuse the block instead; the journal row stays retryable.
+ */
+function requireTxIndex(tx: TransactionPayload): number {
+	if (!Number.isSafeInteger(tx.tx_index) || tx.tx_index < 0) {
+		throw new Error(
+			`parseTransaction: tx ${tx.txid} has no valid tx_index (${String(tx.tx_index)})`,
+		);
+	}
+	return tx.tx_index;
+}
+
 export function parseTransaction(
 	tx: TransactionPayload,
 	blockHeight: number,
@@ -156,7 +172,7 @@ export function parseTransaction(
 	return {
 		tx_id: tx.txid,
 		block_height: blockHeight,
-		tx_index: tx.tx_index ?? 0,
+		tx_index: requireTxIndex(tx),
 		type: txType,
 		sender,
 		status: tx.status ?? "success",

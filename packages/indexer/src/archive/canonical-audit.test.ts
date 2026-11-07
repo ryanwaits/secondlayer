@@ -5,6 +5,7 @@ import {
 	computeDesyncFloorHeight,
 	summarizeBlockFieldGaps,
 	summarizeCanonicalContinuity,
+	summarizeRowInvariants,
 } from "./canonical-audit.ts";
 
 const HAS_DB = !!process.env.DATABASE_URL;
@@ -499,5 +500,49 @@ describe.skipIf(!HAS_DB)("block field gaps audit", () => {
 		await seed({});
 		const gaps = await summarizeBlockFieldGaps(db, base - 1);
 		expect(gaps).toMatchObject({ healthy: true, empty_field_blocks: 0 });
+	});
+});
+
+/**
+ * `burn_block_height` rises with the Stacks height. Seeded past the live max
+ * so the regression is the only one this test plants.
+ */
+describe.skipIf(!HAS_DB)("row invariants audit", () => {
+	const db = HAS_DB ? getSourceDb() : (null as never);
+	let base = 0;
+
+	afterEach(async () => {
+		if (base === 0) return;
+		await sql`DELETE FROM blocks WHERE height BETWEEN ${base} AND ${base + 5}`.execute(
+			db,
+		);
+		base = 0;
+	});
+
+	test("a block anchored below its parent's burn height is reported", async () => {
+		const row = await db
+			.selectFrom("blocks")
+			.select(({ fn }) => fn.max("height").as("max_height"))
+			.executeTakeFirst();
+		base = Number(row?.max_height ?? 0) + 3000;
+		const burnHeights = [700_000, 700_001, 699_999];
+		for (const [i, burn] of burnHeights.entries()) {
+			await db
+				.insertInto("blocks")
+				.values({
+					height: base + i,
+					hash: `0xr${base + i}`,
+					parent_hash: `0xr${base + i - 1}`,
+					burn_block_height: burn,
+					timestamp: 1_700_000_000 + i,
+					canonical: true,
+				})
+				.execute();
+		}
+
+		const invariants = await summarizeRowInvariants(db, base - 1);
+
+		expect(invariants.healthy).toBe(false);
+		expect(invariants.burn_height_regression_count).toBeGreaterThanOrEqual(1);
 	});
 });

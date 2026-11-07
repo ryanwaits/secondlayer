@@ -146,7 +146,7 @@ export async function persistBlock(
 		// array that actually gets inserted below.
 		await tx
 			.insertInto("blocks")
-			.values({ ...block, tx_count: txs.length })
+			.values({ ...block, tx_count: txs.length, event_count: evts.length })
 			// biome-ignore lint/suspicious/noExplicitAny: kysely onConflict builder
 			.onConflict((oc: any) =>
 				oc.column("height").doUpdateSet({
@@ -158,6 +158,7 @@ export async function persistBlock(
 					timestamp: block.timestamp,
 					canonical: true,
 					tx_count: txs.length,
+					event_count: evts.length,
 				}),
 			)
 			.execute();
@@ -283,6 +284,21 @@ export async function persistBlock(
 				// biome-ignore lint/suspicious/noExplicitAny: kysely onConflict builder
 				.onConflict((oc: any) => oc.doNothing())
 				.execute();
+		}
+
+		// Same fail-loud rule for events. The insert above is a bare
+		// `ON CONFLICT DO NOTHING`, so a row the unique logical index refuses
+		// vanishes without an error; `blocks.event_count` records what this
+		// persist was handed and the write is only committed if it all landed.
+		const landedEvents = await tx
+			.selectFrom("events")
+			.select(({ fn }) => fn.countAll<string | number>().as("n"))
+			.where("block_height", "=", blockHeight)
+			.executeTakeFirstOrThrow();
+		if (Number(landedEvents.n) !== evts.length) {
+			throw new Error(
+				`persistBlock: incomplete event write at height ${blockHeight} — expected ${evts.length} events, landed ${landedEvents.n}`,
+			);
 		}
 
 		for (let i = 0; i < vmEvts.length; i += EVT_CHUNK_SIZE) {

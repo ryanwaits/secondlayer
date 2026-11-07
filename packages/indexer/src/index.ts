@@ -348,18 +348,24 @@ const server = Bun.serve({
 			// present — and every count can look complete — while the chain still
 			// doesn't join up, or a block holds fewer txs than it was persisted
 			// with. Report either first so it cannot read as "healthy".
+			const rowInvariantsViolated =
+				integrityState.duplicateTxIndexes.length > 0 ||
+				integrityState.burnHeightRegressions.length > 0 ||
+				integrityState.eventCountMismatches.length > 0;
 			const status =
 				integrityState.brokenLinks.length > 0
 					? "chain_unlinked"
 					: integrityState.shortBlocks.length > 0
 						? "short_blocks"
-						: totalMissing === 0
-							? "healthy"
-							: integrityState.autoBackfillInProgress
-								? "degraded"
-								: integrityState.autoBackfillUnfillable.length > 0
-									? "gaps_unfillable"
-									: "gaps_detected";
+						: rowInvariantsViolated
+							? "row_invariants"
+							: totalMissing === 0
+								? "healthy"
+								: integrityState.autoBackfillInProgress
+									? "degraded"
+									: integrityState.autoBackfillUnfillable.length > 0
+										? "gaps_unfillable"
+										: "gaps_detected";
 
 			return Response.json({
 				status,
@@ -376,6 +382,13 @@ const server = Bun.serve({
 				},
 				brokenLinks: integrityState.brokenLinks.slice(0, 10),
 				shortBlocks: integrityState.shortBlocks.slice(0, 10),
+				duplicateTxIndexes: integrityState.duplicateTxIndexes.slice(0, 10),
+				burnHeightRegressions: integrityState.burnHeightRegressions.slice(
+					0,
+					10,
+				),
+				eventCountMismatches: integrityState.eventCountMismatches.slice(0, 10),
+				eventsLogicalIndex: integrityState.eventsLogicalIndex,
 				observerJournal,
 			});
 		},

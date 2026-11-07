@@ -225,6 +225,170 @@ export async function findShortBlocks(
 	}));
 }
 
+function recentWindow(
+	windowSize: number | null,
+	column: ReturnType<typeof sql.ref>,
+) {
+	return windowSize === null
+		? sql``
+		: sql`AND ${column} > (SELECT MAX(height) - ${windowSize} FROM blocks WHERE canonical = true)`;
+}
+
+export type DuplicateTxIndex = {
+	height: number;
+	txIndex: number;
+	count: number;
+};
+
+/**
+ * `(block_height, tx_index)` pairs held by more than one transaction on a
+ * canonical block. A transaction's index is its position in the block, so each
+ * pair is unique; two rows sharing one make Streams and Index order that block
+ * ambiguously. Windowed by default; the daily canonical audit passes its own
+ * window.
+ */
+export async function findDuplicateTxIndexes(
+	db: Kysely<Database>,
+	opts: {
+		window?: number | null;
+		/** Absolute lower bound: only heights above it. */
+		floorHeight?: number;
+		limit?: number;
+	} = {},
+): Promise<DuplicateTxIndex[]> {
+	const windowSize = opts.window === undefined ? 10_000 : opts.window;
+	const limitClause = opts.limit ? sql`LIMIT ${opts.limit}` : sql``;
+	const floorClause =
+		opts.floorHeight === undefined
+			? sql``
+			: sql`AND t.block_height > ${opts.floorHeight}`;
+	const { rows } = await sql<{
+		block_height: string | number;
+		tx_index: string | number;
+		n: string | number;
+	}>`
+		SELECT t.block_height, t.tx_index, COUNT(*) AS n
+		  FROM transactions t
+		  JOIN blocks b ON b.height = t.block_height AND b.canonical = true
+		 WHERE true
+		   ${recentWindow(windowSize, sql.ref("t.block_height"))}
+		   ${floorClause}
+		 GROUP BY t.block_height, t.tx_index
+		HAVING COUNT(*) > 1
+		 ORDER BY t.block_height, t.tx_index
+		 ${limitClause}
+	`.execute(db);
+	return rows.map((r) => ({
+		height: Number(r.block_height),
+		txIndex: Number(r.tx_index),
+		count: Number(r.n),
+	}));
+}
+
+export type BurnHeightRegression = {
+	height: number;
+	burnBlockHeight: number;
+	previousBurnBlockHeight: number;
+};
+
+/**
+ * Canonical blocks whose `burn_block_height` is lower than the canonical block
+ * below them. Stacks blocks are anchored to Bitcoin blocks in order, so the
+ * burn height never decreases as the Stacks height rises; a regression means
+ * a block from another fork, or a wrongly stored anchor, sits on the chain.
+ */
+export async function findBurnHeightRegressions(
+	db: Kysely<Database>,
+	opts: { window?: number | null; limit?: number } = {},
+): Promise<BurnHeightRegression[]> {
+	const windowSize = opts.window === undefined ? 10_000 : opts.window;
+	const limitClause = opts.limit ? sql`LIMIT ${opts.limit}` : sql``;
+	const { rows } = await sql<{
+		height: string | number;
+		burn_block_height: string | number;
+		previous: string | number;
+	}>`
+		SELECT height, burn_block_height, previous
+		  FROM (
+			SELECT height, burn_block_height,
+			       LAG(burn_block_height) OVER (ORDER BY height) AS previous
+			  FROM blocks
+			 WHERE canonical = true
+			   ${recentWindow(windowSize, sql.ref("height"))}
+		  ) s
+		 WHERE burn_block_height < previous
+		 ORDER BY height
+		 ${limitClause}
+	`.execute(db);
+	return rows.map((r) => ({
+		height: Number(r.height),
+		burnBlockHeight: Number(r.burn_block_height),
+		previousBurnBlockHeight: Number(r.previous),
+	}));
+}
+
+export type EventCountMismatch = {
+	height: number;
+	expectedEventCount: number;
+	actualEventCount: number;
+};
+
+/**
+ * Canonical blocks whose `events` rows disagree with the `event_count`
+ * `persistBlock` recorded, the events counterpart of `findShortBlocks`.
+ * Heights without a recorded count (written before the column existed) have no
+ * baseline and are skipped.
+ */
+export async function findEventCountMismatches(
+	db: Kysely<Database>,
+	opts: { window?: number | null; limit?: number } = {},
+): Promise<EventCountMismatch[]> {
+	const windowSize = opts.window === undefined ? 10_000 : opts.window;
+	const limitClause = opts.limit ? sql`LIMIT ${opts.limit}` : sql``;
+	const { rows } = await sql<{
+		height: string | number;
+		event_count: number;
+		actual: string | number;
+	}>`
+		SELECT b.height, b.event_count, COUNT(e.block_height) AS actual
+		  FROM blocks b
+		  LEFT JOIN events e ON e.block_height = b.height
+		 WHERE b.canonical = true
+		   AND b.event_count IS NOT NULL
+		   ${recentWindow(windowSize, sql.ref("b.height"))}
+		 GROUP BY b.height, b.event_count
+		HAVING COUNT(e.block_height) <> b.event_count
+		 ORDER BY b.height
+		 ${limitClause}
+	`.execute(db);
+	return rows.map((r) => ({
+		height: Number(r.height),
+		expectedEventCount: Number(r.event_count),
+		actualEventCount: Number(r.actual),
+	}));
+}
+
+export type EventsLogicalIndexState = "valid" | "invalid" | "missing";
+
+/**
+ * Whether `events_logical_id_uniq` (migration 0101) protects the table.
+ * The migration skips it on a large table, so a database can run without it
+ * and the persist path's bare `ON CONFLICT DO NOTHING` then dedupes nothing.
+ */
+export async function eventsLogicalIndexState(
+	db: Kysely<Database>,
+): Promise<EventsLogicalIndexState> {
+	const { rows } = await sql<{ indisvalid: boolean }>`
+		SELECT i.indisvalid
+		  FROM pg_index i
+		  JOIN pg_class c ON c.oid = i.indexrelid
+		 WHERE c.relname = 'events_logical_id_uniq'
+		   AND i.indisunique
+	`.execute(db);
+	if (rows.length === 0) return "missing";
+	return rows.every((r) => r.indisvalid) ? "valid" : "invalid";
+}
+
 export type BrokenLink = {
 	height: number;
 	hash: string;

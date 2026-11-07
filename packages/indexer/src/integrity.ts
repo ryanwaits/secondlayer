@@ -2,11 +2,22 @@ import { getSourceDb, sql } from "@secondlayer/shared/db";
 import {
 	computeContiguousTip,
 	countMissingBlocks,
+	eventsLogicalIndexState,
 	findBrokenLinks,
+	findBurnHeightRegressions,
+	findDuplicateTxIndexes,
+	findEventCountMismatches,
 	findGaps,
 	findShortBlocks,
 } from "@secondlayer/shared/db/queries/integrity";
-import type { Gap, ShortBlock } from "@secondlayer/shared/db/queries/integrity";
+import type {
+	BurnHeightRegression,
+	DuplicateTxIndex,
+	EventCountMismatch,
+	EventsLogicalIndexState,
+	Gap,
+	ShortBlock,
+} from "@secondlayer/shared/db/queries/integrity";
 import { logger } from "@secondlayer/shared/logger";
 import { LocalClient } from "@secondlayer/shared/node/local-client";
 import { ingestNewBlock } from "./ingest.ts";
@@ -30,6 +41,14 @@ export const integrityState = {
 	brokenLinks: [] as number[],
 	/** Canonical heights where `transactions` doesn't match `blocks.tx_count`. */
 	shortBlocks: [] as ShortBlock[],
+	/** Canonical `(height, tx_index)` pairs held by more than one transaction. */
+	duplicateTxIndexes: [] as DuplicateTxIndex[],
+	/** Canonical blocks anchored to a Bitcoin block below their parent's. */
+	burnHeightRegressions: [] as BurnHeightRegression[],
+	/** Canonical blocks whose events disagree with `blocks.event_count`. */
+	eventCountMismatches: [] as EventCountMismatch[],
+	/** Whether `events_logical_id_uniq` exists; null until the first check. */
+	eventsLogicalIndex: null as EventsLogicalIndexState | null,
 };
 
 // The windowed broken-link query only sees the last 10k blocks, so a break
@@ -101,6 +120,13 @@ async function runIntegrityCheck() {
 			);
 		}
 
+		// Observational: a failing audit query must not stop gap backfill below.
+		try {
+			await checkRowInvariants(db);
+		} catch (err) {
+			logger.error("Integrity: row invariant check failed", { error: err });
+		}
+
 		integrityState.lastCheckAt = new Date();
 		integrityState.gapCount = gaps.length;
 		integrityState.totalMissing = missing;
@@ -144,6 +170,40 @@ async function runIntegrityCheck() {
 		}
 	} catch (err) {
 		logger.error("Integrity check failed", { error: err });
+	}
+}
+
+/** Recent-window row checks surfaced on /health/integrity. The full-history
+ *  versions of the tx_index and burn-height checks run in the daily canonical
+ *  audit. */
+async function checkRowInvariants(db: ReturnType<typeof getSourceDb>) {
+	integrityState.duplicateTxIndexes = await findDuplicateTxIndexes(db, {
+		limit: 20,
+	});
+	integrityState.burnHeightRegressions = await findBurnHeightRegressions(db, {
+		limit: 20,
+	});
+	integrityState.eventCountMismatches = await findEventCountMismatches(db, {
+		limit: 20,
+	});
+	integrityState.eventsLogicalIndex = await eventsLogicalIndexState(db);
+
+	const violations = {
+		duplicateTxIndexes: integrityState.duplicateTxIndexes.length,
+		burnHeightRegressions: integrityState.burnHeightRegressions.length,
+		eventCountMismatches: integrityState.eventCountMismatches.length,
+	};
+	if (
+		Object.values(violations).some((n) => n > 0) ||
+		integrityState.eventsLogicalIndex !== "valid"
+	) {
+		logger.error("Integrity: row invariant violated", {
+			...violations,
+			eventsLogicalIndex: integrityState.eventsLogicalIndex,
+			firstDuplicateTxIndex: integrityState.duplicateTxIndexes[0],
+			firstBurnHeightRegression: integrityState.burnHeightRegressions[0],
+			firstEventCountMismatch: integrityState.eventCountMismatches[0],
+		});
 	}
 }
 

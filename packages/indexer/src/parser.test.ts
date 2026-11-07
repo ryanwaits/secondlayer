@@ -172,6 +172,18 @@ describe("parseTransaction", () => {
 		address_hash_bytes: "0x00",
 	});
 
+	test("refuses a transaction without a tx_index instead of placing it at position 0", async () => {
+		const tx = {
+			txid: "0xc0263c14f689ae757290f90765a28314497f52bd22b8bcbf87a12c764dd9d9be",
+			raw_tx: "0x00",
+			status: "success",
+		} as unknown as TransactionPayload;
+
+		await expect(
+			Promise.resolve().then(() => parseTransaction(tx, 120)),
+		).rejects.toThrow(/no valid tx_index/);
+	});
+
 	test("maps a transfer_stx burnchain op to token_transfer from its sender", async () => {
 		const tx: TransactionPayload = {
 			txid: "0xc0263c14f689ae757290f90765a28314497f52bd22b8bcbf87a12c764dd9d9be",

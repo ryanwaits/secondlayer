@@ -54,6 +54,13 @@ export interface BlocksTable {
 	/** Tx count `persistBlock` was handed for this height. Null on rows
 	 *  ingested before this column existed. */
 	tx_count: ColumnType<number | null, number | null | undefined, number | null>;
+	/** Event count `persistBlock` was handed for this height. Null on rows
+	 *  ingested before this column existed. */
+	event_count: ColumnType<
+		number | null,
+		number | null | undefined,
+		number | null
+	>;
 	created_at: Generated<Date>;
 }
 

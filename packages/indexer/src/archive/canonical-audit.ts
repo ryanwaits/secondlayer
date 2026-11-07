@@ -9,7 +9,11 @@ import {
 	isOptionalDataset,
 } from "@secondlayer/shared/archive/datasets";
 import { closeDb, getSourceDb, sql } from "@secondlayer/shared/db";
-import { findShortBlocks } from "@secondlayer/shared/db/queries/integrity";
+import {
+	findBurnHeightRegressions,
+	findDuplicateTxIndexes,
+	findShortBlocks,
+} from "@secondlayer/shared/db/queries/integrity";
 import type { Database } from "@secondlayer/shared/db/schema";
 import type { Kysely } from "kysely";
 import { getFinalizedStacksHeight } from "../streams-tip.ts";
@@ -37,6 +41,7 @@ export type CanonicalCoverageAudit = {
 	continuity: CanonicalContinuity;
 	tx_event_height_desync: TxEventHeightDesync;
 	block_field_gaps: BlockFieldGaps;
+	row_invariants: RowInvariants;
 	observer_journal: {
 		available: boolean;
 		sequence_from: string | null;
@@ -64,6 +69,22 @@ export type CanonicalContinuity = {
 	first_duplicate_height: number | null;
 	short_block_count: number;
 	first_short_block_height: number | null;
+};
+
+/**
+ * Two ordering invariants the other checks cannot see. `(block_height,
+ * tx_index)` is unique among canonical transactions (bounded to the trailing
+ * desync window: the grouping is a scan of `transactions`), and
+ * `burn_block_height` never decreases going up the canonical chain (whole
+ * chain: a window function over `blocks` only).
+ */
+export type RowInvariants = {
+	healthy: boolean;
+	duplicate_tx_index_count: number;
+	first_duplicate_tx_index: { height: number; tx_index: number } | null;
+	tx_index_floor_height: number;
+	burn_height_regression_count: number;
+	first_burn_height_regression_height: number | null;
 };
 
 export type TxEventHeightDesync = {
@@ -301,6 +322,8 @@ export async function auditCanonicalCoverageInSnapshot(
 		const desync = await summarizeTxEventHeightDesync(tx, desyncFloorHeight);
 		const blockFieldGaps = await summarizeBlockFieldGaps(tx, desyncFloorHeight);
 
+		const rowInvariants = await summarizeRowInvariants(tx, desyncFloorHeight);
+
 		const journal = await readObserverJournal(tx, options.network);
 		const continuity = summarizeCanonicalContinuity({
 			fromBlock,
@@ -340,6 +363,7 @@ export async function auditCanonicalCoverageInSnapshot(
 				floor_height: desyncFloorHeight,
 			},
 			block_field_gaps: blockFieldGaps,
+			row_invariants: rowInvariants,
 			observer_journal: journal,
 		};
 	}
@@ -518,6 +542,28 @@ export async function summarizeBlockFieldGaps(
 	};
 }
 
+export async function summarizeRowInvariants(
+	db: Kysely<Database>,
+	txIndexFloorHeight: number,
+): Promise<RowInvariants> {
+	const duplicates = await findDuplicateTxIndexes(db, {
+		window: null,
+		floorHeight: txIndexFloorHeight,
+	});
+	const regressions = await findBurnHeightRegressions(db, { window: null });
+	const first = duplicates[0];
+	return {
+		healthy: duplicates.length === 0 && regressions.length === 0,
+		duplicate_tx_index_count: duplicates.length,
+		first_duplicate_tx_index: first
+			? { height: first.height, tx_index: first.txIndex }
+			: null,
+		tx_index_floor_height: txIndexFloorHeight,
+		burn_height_regression_count: regressions.length,
+		first_burn_height_regression_height: regressions[0]?.height ?? null,
+	};
+}
+
 async function readObserverJournal(
 	db: Kysely<Database>,
 	network: string,
@@ -631,7 +677,8 @@ async function main(): Promise<void> {
 	if (
 		!report.continuity.complete ||
 		!report.tx_event_height_desync.healthy ||
-		!report.block_field_gaps.healthy
+		!report.block_field_gaps.healthy ||
+		!report.row_invariants.healthy
 	)
 		process.exitCode = 2;
 }

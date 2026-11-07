@@ -12,6 +12,10 @@ import {
 	checkChainDataIntegrity,
 	computeContiguousTip,
 	countMissingBlocks,
+	eventsLogicalIndexState,
+	findBurnHeightRegressions,
+	findDuplicateTxIndexes,
+	findEventCountMismatches,
 	findGaps,
 	findShortBlocks,
 	resolveChainTip,
@@ -226,6 +230,139 @@ describe.skipIf(!HAS_DB)("findShortBlocks", () => {
 
 		const short = await findShortBlocks(db, { window: null });
 		expect(short.find((s) => s.height === HEALTHY)).toBeUndefined();
+	});
+});
+
+describe.skipIf(!HAS_DB)("row invariant checks", () => {
+	// biome-ignore lint/suspicious/noExplicitAny: test db handle
+	const db = HAS_DB ? (getDb() as any) : (null as any);
+	const BASE = 820_000;
+	const heights = [BASE + 1, BASE + 2, BASE + 3];
+	let hadTxIndexUnique = false;
+
+	async function cleanup() {
+		await sql`DELETE FROM events WHERE block_height IN (${sql.join(heights)})`.execute(
+			db,
+		);
+		await sql`DELETE FROM transactions WHERE block_height IN (${sql.join(heights)})`.execute(
+			db,
+		);
+		await sql`DELETE FROM blocks WHERE height IN (${sql.join(heights)})`.execute(
+			db,
+		);
+	}
+
+	beforeAll(async () => {
+		// The unique index (when the migration built it) refuses the duplicates
+		// this suite plants to prove the audit sees them; restore it afterwards.
+		const { rows } = await sql<{ n: number }>`
+			SELECT count(*)::int AS n FROM pg_indexes
+			 WHERE indexname = 'transactions_height_tx_index_uniq'
+		`.execute(db);
+		hadTxIndexUnique = (rows[0]?.n ?? 0) > 0;
+		await sql`DROP INDEX IF EXISTS transactions_height_tx_index_uniq`.execute(
+			db,
+		);
+	});
+	beforeEach(cleanup);
+	afterAll(async () => {
+		await cleanup();
+		if (hadTxIndexUnique) {
+			await sql`CREATE UNIQUE INDEX IF NOT EXISTS transactions_height_tx_index_uniq ON transactions (block_height, tx_index)`.execute(
+				db,
+			);
+		}
+	});
+
+	async function insertBlock(
+		height: number,
+		burnHeight: number,
+		eventCount: number | null = null,
+	) {
+		await db
+			.insertInto("blocks")
+			.values({
+				height,
+				hash: `0xinv${height}`,
+				parent_hash: `0xinv${height - 1}`,
+				burn_block_height: burnHeight,
+				timestamp: 1_700_000_000,
+				canonical: true,
+				event_count: eventCount,
+			})
+			.execute();
+	}
+
+	async function insertTx(height: number, txId: string, index: number) {
+		await db
+			.insertInto("transactions")
+			.values({
+				tx_id: txId,
+				block_height: height,
+				tx_index: index,
+				type: "contract_call",
+				sender: "SP1",
+				status: "success",
+				raw_tx: "0x00",
+			})
+			.execute();
+	}
+
+	test("findDuplicateTxIndexes reports two transactions sharing a position in one block", async () => {
+		await insertBlock(BASE + 1, 1);
+		await insertTx(BASE + 1, "0xinv-a", 0);
+		await insertTx(BASE + 1, "0xinv-b", 0);
+		await insertTx(BASE + 1, "0xinv-c", 1);
+
+		const found = await findDuplicateTxIndexes(db, { window: null });
+		expect(found.filter((d) => d.height === BASE + 1)).toEqual([
+			{ height: BASE + 1, txIndex: 0, count: 2 },
+		]);
+	});
+
+	test("findBurnHeightRegressions reports a block anchored below its parent's burn height", async () => {
+		await insertBlock(BASE + 1, 500);
+		await insertBlock(BASE + 2, 501);
+		await insertBlock(BASE + 3, 499);
+
+		const found = await findBurnHeightRegressions(db, { window: null });
+		expect(found.filter((r) => r.height >= BASE)).toEqual([
+			{
+				height: BASE + 3,
+				burnBlockHeight: 499,
+				previousBurnBlockHeight: 501,
+			},
+		]);
+	});
+
+	test("findEventCountMismatches reports a block holding fewer events than recorded", async () => {
+		await insertBlock(BASE + 1, 1, 2);
+		await insertTx(BASE + 1, "0xinv-e", 0);
+		await db
+			.insertInto("events")
+			.values({
+				tx_id: "0xinv-e",
+				block_height: BASE + 1,
+				event_index: 0,
+				type: "stx_transfer_event",
+				data: {},
+			})
+			.execute();
+		// No recorded count: no baseline, never reported.
+		await insertBlock(BASE + 2, 2, null);
+
+		const found = await findEventCountMismatches(db, { window: null });
+		expect(found.filter((m) => m.height >= BASE)).toEqual([
+			{ height: BASE + 1, expectedEventCount: 2, actualEventCount: 1 },
+		]);
+	});
+
+	test("eventsLogicalIndexState reflects whether the unique events index exists", async () => {
+		const state = await eventsLogicalIndexState(db);
+		const { rows } = await sql<{ n: number }>`
+			SELECT count(*)::int AS n FROM pg_indexes WHERE indexname = 'events_logical_id_uniq'
+		`.execute(db);
+		expect(state).toBe((rows[0]?.n ?? 0) > 0 ? "valid" : "missing");
 	});
 });
 
