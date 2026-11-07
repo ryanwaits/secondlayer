@@ -237,6 +237,8 @@ export interface SubgraphsTable {
 	updated_at: Generated<Date>;
 }
 
+export type AbiStatus = "pending" | "fetched" | "failed" | "unparseable";
+
 export interface ContractsTable {
 	contract_id: string;
 	deployer: string;
@@ -245,10 +247,13 @@ export interface ContractsTable {
 	abi: unknown | null;
 	declared_traits: Generated<string[]>;
 	inferred_standards: Generated<string[]>;
-	abi_status: Generated<string>;
+	abi_status: Generated<AbiStatus>;
 	abi_fetched_at: Date | null;
 	created_at: Generated<Date>;
 }
+
+/** The only reasons the runtime records; mirrored by a CHECK on `subgraph_gaps.reason`. */
+export type GapReason = "block_missing" | "processing_error";
 
 export interface SubgraphGapsTable {
 	id: Generated<string>;
@@ -256,7 +261,7 @@ export interface SubgraphGapsTable {
 	subgraph_name: string;
 	gap_start: number;
 	gap_end: number;
-	reason: string;
+	reason: GapReason;
 	detected_at: Generated<Date>;
 	resolved_at: Date | null;
 }
@@ -319,12 +324,14 @@ export interface SubgraphOperationsTable {
 	cursor_block: string | number | bigint | null;
 }
 
+export type ApiKeyStatus = "active" | "revoked";
+
 export interface ApiKeysTable {
 	id: Generated<string>;
 	key_hash: string;
 	key_prefix: string;
 	name: string | null;
-	status: Generated<string>;
+	status: Generated<ApiKeyStatus>;
 	rate_limit: Generated<number>;
 	ip_address: string;
 	account_id: string;
@@ -959,7 +966,7 @@ export interface StageRegistryTable {
 	created_at: Generated<Date>;
 }
 
-/** One versioned sweep of a stage. */
+/** One versioned sweep of a stage. Nothing writes this table yet; kept because the receipts and failures tables reference it. */
 export interface StageRunsTable {
 	id: Generated<string>;
 	stage_id: string;

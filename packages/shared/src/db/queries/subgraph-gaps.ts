@@ -1,10 +1,10 @@
 import { type Kysely, sql } from "kysely";
-import type { Database } from "../types.ts";
+import type { Database, GapReason } from "../types.ts";
 
 export interface GapRange {
 	start: number;
 	end: number;
-	reason: string;
+	reason: GapReason;
 }
 
 export interface SubgraphGapRow {

@@ -75,7 +75,7 @@ export function resolveReindexResumeBlock(
  * Coalesce individual block heights + reasons into contiguous gap ranges.
  */
 function coalesceFailedBlocks(
-	blocks: { height: number; reason: string }[],
+	blocks: { height: number; reason: GapRange["reason"] }[],
 ): GapRange[] {
 	if (blocks.length === 0) return [];
 	blocks.sort((a, b) => a.height - b.height);
@@ -302,7 +302,8 @@ async function processBlockRange(
 			inFlight = startBatch(nextStart);
 		}
 
-		const batchFailedBlocks: { height: number; reason: string }[] = [];
+		const batchFailedBlocks: { height: number; reason: GapRange["reason"] }[] =
+			[];
 		let batchDelivered = 0;
 		// Reindex is a strictly ascending walk over the subgraph's own cursor, so
 		// written blocks checkpoint atomically and replays skip (fix-f040 B3).

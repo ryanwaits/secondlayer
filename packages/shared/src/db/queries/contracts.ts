@@ -1,13 +1,13 @@
 import { type Kysely, sql } from "kysely";
 import { jsonb } from "../jsonb.ts";
-import type { Contract, Database } from "../types.ts";
+import type { AbiStatus, Contract, Database } from "../types.ts";
 
 /**
  * Contract registry queries — backing for trait-based discovery. Populated from
  * contract deploys; ABI fetched async; standards inferred by static analysis.
  */
 
-export type AbiStatus = "pending" | "fetched" | "failed" | "unparseable";
+export type { AbiStatus };
 
 /**
  * Record a contract deploy (idempotent). ABI is fetched separately + async.
