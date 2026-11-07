@@ -101,4 +101,27 @@ describe.skipIf(SKIP)("status CHECK constraints", () => {
 		});
 		expect(error).toContain("subgraph_gaps_reason_check");
 	});
+
+	test("accounts rejects a ghost that has an email", async () => {
+		const error = await rejection((trx) =>
+			sql`
+				INSERT INTO accounts (email, ghost)
+				VALUES ('ghost-with-email@example.com', true)
+			`.execute(trx),
+		);
+		expect(error).toContain("accounts_ghost_no_email_check");
+	});
+
+	test("accounts accepts a ghost without an email and a non-ghost with one", async () => {
+		const error = await rejection(async (trx) => {
+			await sql`INSERT INTO accounts (email, ghost) VALUES (NULL, true)`.execute(
+				trx,
+			);
+			await sql`
+				INSERT INTO accounts (email, ghost)
+				VALUES ('not-a-ghost@example.com', false)
+			`.execute(trx);
+		});
+		expect(error).toBeNull();
+	});
 });
