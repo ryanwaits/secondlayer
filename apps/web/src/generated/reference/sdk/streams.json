@@ -9,7 +9,7 @@
 			"description": "Read Streams page by page as an async iterator.\n\nYields one [`StreamsBatch`](/docs/sdk-reference/streams#t-StreamsBatch) per events page, so each yield is exactly\none API call. Empty pages are skipped; at the tip the iterator polls again\nevery `intervalMs` (default 2000) until `signal` aborts.\n\nReorgs appear on `batch.reorgs`, but the cursor is not rewound for you.\nUse `events.consume` with `onReorg` when you need rollback.\n\nA literal `types` array narrows every batch's event union to those types.\n`chain: \"bitcoin\"` batches carry Runes rows only, on the bitcoin tip shape.",
 			"source": {
 				"file": "packages/sdk/src/streams/types.ts",
-				"line": 791
+				"line": 805
 			},
 			"overloads": [
 				{
@@ -77,7 +77,7 @@
 			"description": "Read one page of chain events and the next cursor.\n\nNarrow with `types`, `notTypes`, `contractId`, `sender`, `recipient`,\n`assetIdentifier`, `fromHeight`/`toHeight`, or labelled `filters`.\nFilters match exactly, and an event type without a given field never\nmatches it. Pass `next_cursor` back as `cursor` to continue. The\nenvelope also carries the `tip` and any `reorgs`. To write the events\nsomewhere with a checkpoint, use `events.consume` instead.\n\nA literal `types` array narrows every row to those event types.\n`clock: \"vm\"` pages carry vm rows only (a parallel vocabulary,\n`event_index` = `ordinal`), never `StreamsEvent`; it is Stacks only.\n`chain: \"bitcoin\"` pages carry Runes rows only, on the bitcoin tip shape,\nand filter by `rune` or `address`.",
 			"source": {
 				"file": "packages/sdk/src/streams/types.ts",
-				"line": 815
+				"line": 829
 			},
 			"overloads": [
 				{
@@ -170,7 +170,7 @@
 			"description": "Read every event a transaction emitted.\n\nReturns the events and the `tip`, with no `next_cursor`: one transaction\nis one response.\n\n`chain: \"bitcoin\"` returns the Runes events for one Bitcoin transaction.",
 			"source": {
 				"file": "packages/sdk/src/streams/types.ts",
-				"line": 852
+				"line": 866
 			},
 			"overloads": [
 				{
@@ -221,7 +221,7 @@
 			"description": "Run a checkpointed indexer that rewinds on reorgs.\n\nWrite your rows in `onBatch` and commit `ctx.cursor` in the same\ntransaction; resume with `fromCursor`. Reorgs at or below your checkpoint\ncall `onReorg`, then the loop re-reads from the fork point. Delivery is\nat-least-once, so keep writes idempotent. With a `sink`, the checkpoint\nand rollback are handled for you. `mode: \"tail\"` (default) keeps polling\nat the tip; `mode: \"bounded\"` returns on the first empty page. It also\nstops on `maxPages`, `maxEmptyPolls`, or `signal`. Pass `finalizedOnly`\nto skip reorg handling entirely.\n\n`chain: \"bitcoin\"` sweeps Runes events; see [`StreamsEventsConsumeBitcoinParams`](/docs/sdk-reference/streams#t-StreamsEventsConsumeBitcoinParams).",
 			"source": {
 				"file": "packages/sdk/src/streams/types.ts",
-				"line": 872
+				"line": 886
 			},
 			"overloads": [
 				{
@@ -271,7 +271,7 @@
 			"description": "Backfill from bulk dumps, then continue live in one call.\n\nHands each finalized dump file to `onDumpFile` in block order, then tails\nlive from the manifest's `latest_finalized_cursor`, with no gap or\nduplicate at the seam. A file that straddles `from` is delivered whole,\nso skip the rows at or below it. Requires `dumpsBaseUrl`.",
 			"source": {
 				"file": "packages/sdk/src/streams/types.ts",
-				"line": 896
+				"line": 910
 			},
 			"overloads": [
 				{
@@ -305,7 +305,7 @@
 			"description": "Read events one at a time as an async iterator.\n\nFor live processors and watch-style apps that keep their own state. It\ntails indefinitely and stops when `signal`, `maxPages`, or\n`maxEmptyPolls` ends it. There is no checkpoint or reorg handling; use\n`events.consume` for that.\n\nA literal `types` array narrows every event to those types.\n`chain: \"bitcoin\"` yields Runes events only.",
 			"source": {
 				"file": "packages/sdk/src/streams/types.ts",
-				"line": 910
+				"line": 924
 			},
 			"overloads": [
 				{
@@ -366,7 +366,7 @@
 			"description": "Get each new event pushed to `onEvent` as it lands.\n\nReconnects from the last handled cursor after a transport error, and\nverifies each frame's ed25519 signature when the client has `verify` on.\nReturns an unsubscribe function whose `done` promise settles when the\nloop ends. Not reorg-aware: an event delivered and then orphaned is never\nretracted. Durable writers use `events.consume`.\n\n`chain: \"bitcoin\"` delivers Runes rows to `onEvent`.",
 			"source": {
 				"file": "packages/sdk/src/streams/types.ts",
-				"line": 928
+				"line": 942
 			},
 			"overloads": [
 				{
@@ -416,7 +416,7 @@
 			"description": "Read every event in one block, by height or hash.\n\nReturns the events and the `tip`, with no `next_cursor`.\n\n`chain: \"bitcoin\"` returns the Runes events in one Bitcoin block.",
 			"source": {
 				"file": "packages/sdk/src/streams/types.ts",
-				"line": 939
+				"line": 953
 			},
 			"overloads": [
 				{
@@ -467,7 +467,7 @@
 			"description": "List chain reorgs since a cursor.\n\n`since` is required. Each reorg gives its `fork_point_height` and the\norphaned range. Page with `next_since`.\n\n`chain: \"bitcoin\"` lists Bitcoin reorgs, on their own cursor space.",
 			"source": {
 				"file": "packages/sdk/src/streams/types.ts",
-				"line": 954
+				"line": 968
 			},
 			"overloads": [
 				{
@@ -512,7 +512,7 @@
 			"description": "Fetch and parse the latest dumps manifest.",
 			"source": {
 				"file": "packages/sdk/src/streams/types.ts",
-				"line": 770
+				"line": 784
 			},
 			"overloads": [
 				{
@@ -534,7 +534,7 @@
 			"description": "Absolute URL for a manifest file.",
 			"source": {
 				"file": "packages/sdk/src/streams/types.ts",
-				"line": 772
+				"line": 786
 			},
 			"overloads": [
 				{
@@ -563,7 +563,7 @@
 			"description": "Download a parquet file and verify its sha256 against the manifest.",
 			"source": {
 				"file": "packages/sdk/src/streams/types.ts",
-				"line": 774
+				"line": 788
 			},
 			"overloads": [
 				{
@@ -592,7 +592,7 @@
 			"description": "Get the canonical block at a height.\n\nReturns the block hash and, on Stacks, the burn block it anchors to.\n\n`chain: \"bitcoin\"` returns the Bitcoin block, without burn-chain fields.",
 			"source": {
 				"file": "packages/sdk/src/streams/types.ts",
-				"line": 968
+				"line": 982
 			},
 			"overloads": [
 				{
@@ -643,7 +643,7 @@
 			"description": "Get the current chain tip.\n\nReturns the tip height and hash, `finalized_height`, and `lag_seconds`. On\nStacks it also reports the oldest height your tier can seek; older reads\ncome from the bulk dumps.\n\n`chain: \"bitcoin\"` returns the Bitcoin tip, without burn-chain or retention\nfields.",
 			"source": {
 				"file": "packages/sdk/src/streams/types.ts",
-				"line": 983
+				"line": 997
 			},
 			"overloads": [
 				{
@@ -2632,6 +2632,12 @@
 					"description": "Called on every failure. Transport errors (dropped socket, 5xx, 429, a\nstale connection, a throwing handler) reconnect from the last handled\ncursor with exponential backoff. Errors that a retry cannot fix (401,\n4xx, a bad signature) end the subscription and reject its `done`."
 				},
 				{
+					"name": "onState",
+					"type": "(state: StreamsSubscriptionState) => void",
+					"required": false,
+					"description": "Lifecycle observer. `connecting` before each connection attempt, `open`\nonce the server answers, `reconnecting` while backing off after a drop\nor error, `closed` once, when the subscription ends (unsubscribed,\naborted, or stopped by an error a retry cannot fix)."
+				},
+				{
 					"name": "reconnectDelayMs",
 					"type": "number",
 					"required": false,
@@ -2702,6 +2708,12 @@
 					"type": "(err: unknown) => void",
 					"required": false,
 					"description": "Called on every failure. Transport errors (dropped socket, 5xx, 429, a\nstale connection, a throwing handler) reconnect from the last handled\ncursor with exponential backoff. Errors that a retry cannot fix (401,\n4xx, a bad signature) end the subscription and reject its `done`."
+				},
+				{
+					"name": "onState",
+					"type": "(state: StreamsSubscriptionState) => void",
+					"required": false,
+					"description": "Lifecycle observer. `connecting` before each connection attempt, `open`\nonce the server answers, `reconnecting` while backing off after a drop\nor error, `closed` once, when the subscription ends (unsubscribed,\naborted, or stopped by an error a retry cannot fix)."
 				},
 				{
 					"name": "reconnectDelayMs",
@@ -2906,6 +2918,11 @@
 					"description": ""
 				}
 			]
+		},
+		{
+			"name": "StreamsSubscriptionState",
+			"summary": "Where a `subscribe` connection is in its lifecycle.",
+			"definition": "\"connecting\" | \"open\" | \"reconnecting\" | \"closed\""
 		},
 		{
 			"name": "StreamsTip",

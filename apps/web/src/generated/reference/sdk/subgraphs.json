@@ -1644,7 +1644,7 @@
 			"fields": [
 				{
 					"name": "level",
-					"type": "\"events\" | \"state\" | \"none\"",
+					"type": "\"events\" | \"none\" | \"state\"",
 					"required": true,
 					"description": ""
 				},

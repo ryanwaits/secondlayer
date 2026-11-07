@@ -281,6 +281,13 @@ export type StreamsEventsStreamParams =
 	| StreamsEventsStreamStacksParams
 	| StreamsEventsStreamBitcoinParams;
 
+/** Where a `subscribe` connection is in its lifecycle. */
+export type StreamsSubscriptionState =
+	| "connecting"
+	| "open"
+	| "reconnecting"
+	| "closed";
+
 type StreamsEventsSubscribeCommon = {
 	/** Resume strictly after this cursor; omit to live-tail from the tip. */
 	fromCursor?: string | null;
@@ -293,6 +300,13 @@ type StreamsEventsSubscribeCommon = {
 	 * 4xx, a bad signature) end the subscription and reject its `done`.
 	 */
 	onError?: (err: unknown) => void;
+	/**
+	 * Lifecycle observer. `connecting` before each connection attempt, `open`
+	 * once the server answers, `reconnecting` while backing off after a drop
+	 * or error, `closed` once, when the subscription ends (unsubscribed,
+	 * aborted, or stopped by an error a retry cannot fix).
+	 */
+	onState?: (state: StreamsSubscriptionState) => void;
 	/**
 	 * First reconnect pause in ms (default 1000). Doubles per consecutive
 	 * failure up to 30 s with jitter, resets once a frame arrives, and never

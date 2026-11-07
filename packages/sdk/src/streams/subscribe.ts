@@ -11,6 +11,7 @@ import type {
 	StreamsFilterMap,
 	StreamsFilterValue,
 	StreamsSubscription,
+	StreamsSubscriptionState,
 } from "./types.ts";
 
 /**
@@ -36,6 +37,7 @@ export type StreamsEventsSubscribeWireParams = {
 	signal?: AbortSignal;
 	onEvent: (event: StreamsEvent) => void | Promise<void>;
 	onError?: (err: unknown) => void;
+	onState?: (state: StreamsSubscriptionState) => void;
 	reconnectDelayMs?: number;
 	staleAfterMs?: number;
 };
@@ -131,9 +133,18 @@ export function subscribeStreamsEvents(opts: {
 		SUBSCRIBE_DEFAULT_STALE_AFTER_MS;
 	// Consecutive failures since the last frame; drives the backoff exponent.
 	let attempt = 0;
+	// A throwing observer must never break the subscription it observes.
+	const emit = (state: StreamsSubscriptionState) => {
+		try {
+			params.onState?.(state);
+		} catch {
+			// observer failure is the caller's problem
+		}
+	};
 
 	const run = async (): Promise<void> => {
 		while (!controller.signal.aborted) {
+			emit("connecting");
 			try {
 				const url = `${opts.baseUrl}/v1/streams/events/stream${buildQuery({
 					chain: params.chain === "bitcoin" ? "bitcoin" : undefined,
@@ -159,6 +170,7 @@ export function subscribeStreamsEvents(opts: {
 					fetchImpl: opts.fetchImpl,
 					staleAfterMs,
 					mapError: mapStreamsError,
+					onOpen: () => emit("open"),
 					onFrame: async (frame) => {
 						// Any frame, ping included, proves the socket is live.
 						attempt = 0;
@@ -209,6 +221,7 @@ export function subscribeStreamsEvents(opts: {
 				// Clean end (server closed the stream): reconnect from `cursor`
 				// after the same pause as an error, so a proxy that answers 200 and
 				// closes at once cannot spin a hot loop.
+				if (!controller.signal.aborted) emit("reconnecting");
 				await sleep(
 					reconnectDelay(attempt, baseDelayMs, undefined, opts.random),
 					controller.signal,
@@ -218,6 +231,7 @@ export function subscribeStreamsEvents(opts: {
 				if (controller.signal.aborted) return;
 				params.onError?.(err);
 				if (isTerminal(err)) throw err;
+				emit("reconnecting");
 				const retryAfterSeconds = (err as { retryAfterSeconds?: number })
 					.retryAfterSeconds;
 				await sleep(
@@ -228,7 +242,7 @@ export function subscribeStreamsEvents(opts: {
 			}
 		}
 	};
-	const done = run();
+	const done = run().finally(() => emit("closed"));
 	// The caller may never look at `done`; a terminal error already reached
 	// `onError`, so an unobserved rejection must not crash the process.
 	done.catch(() => {});
@@ -257,6 +271,8 @@ export async function readSse(opts: {
 	onFrame: (frame: SseFrame) => void | Promise<void>;
 	staleAfterMs?: number;
 	mapError?: (res: Response) => Promise<never>;
+	/** Called once the server has answered with a streamable body. */
+	onOpen?: () => void;
 }): Promise<void> {
 	const res = await opts.fetchImpl(opts.url, {
 		headers: { ...(opts.headers ?? {}), Accept: "text/event-stream" },
@@ -272,6 +288,7 @@ export async function readSse(opts: {
 	if (!res.body) {
 		throw new StreamsServerError("Streams SSE response has no body.", 0);
 	}
+	opts.onOpen?.();
 	for await (const frame of parseSseFrames(
 		res.body,
 		opts.signal,

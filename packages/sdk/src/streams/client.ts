@@ -21,6 +21,10 @@ import {
 	type StreamsEventsSubscribeWireParams,
 	subscribeStreamsEvents,
 } from "./subscribe.ts";
+import {
+	STREAMS_CONNECT_TIMEOUT_MS,
+	withConnectTimeout,
+} from "./timeout-fetch.ts";
 import type {
 	FetchLike,
 	StreamsBatch,
@@ -103,6 +107,13 @@ export type CreateStreamsClientOptions = {
 	origin?: "cli" | "mcp" | "session";
 	fetchImpl?: FetchLike;
 	/**
+	 * Give up on a request that has not connected and returned response headers
+	 * within this many ms (default 30000; `0` disables). Retryable: the consume
+	 * loops retry it and `subscribe` reconnects. Body reads are not covered, so
+	 * a healthy long-lived stream is never cut off.
+	 */
+	connectTimeoutMs?: number;
+	/**
 	 * Public base URL for bulk parquet dumps (the R2/CDN bucket root). Required
 	 * to use `client.dumps`. See `GET /public/streams/dumps/manifest`.
 	 */
@@ -172,7 +183,13 @@ export function createStreamsClient(
 		"x-sl-origin": origin,
 		...(apiKey ? { Authorization: `Bearer ${apiKey}` } : {}),
 	});
-	const fetchImpl = options.fetchImpl ?? ((input, init) => fetch(input, init));
+	// Every request (REST, signing key, dumps, SSE connect) is bounded on
+	// connect + headers, so a stalled server surfaces as a retryable error the
+	// retry and reconnect paths already handle, instead of hanging forever.
+	const fetchImpl = withConnectTimeout(
+		options.fetchImpl ?? ((input, init) => fetch(input, init)),
+		options.connectTimeoutMs ?? STREAMS_CONNECT_TIMEOUT_MS,
+	);
 	const verify = options.verify;
 	// On by default, but lenient: the hosted API signs every response, while a
 	// self-hosted instance without STREAMS_SIGNING_PRIVATE_KEY serves none.

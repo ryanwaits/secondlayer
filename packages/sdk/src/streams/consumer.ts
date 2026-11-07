@@ -1,6 +1,6 @@
 import type { ConsumerSink, WithSinkTx } from "../sinks/types.ts";
 import { Cursor } from "./cursor.ts";
-import { ValidationError } from "./errors.ts";
+import { StreamsServerError, ValidationError } from "./errors.ts";
 import type {
 	ConsumerBatchContext,
 	StreamsBatch,
@@ -617,11 +617,105 @@ export async function consumeStreamsEvents<TTx = never>(opts: {
 }
 
 /**
+ * Pull-style view of a push loop. Runs `start` (a consume loop) and hands each
+ * item it delivers to the caller one at a time. The loop stays parked inside
+ * `deliver` until the caller asks for the next item, so there is no prefetch
+ * and no unbounded buffer. Breaking out of the iteration (or aborting
+ * `external`) stops the loop and waits for it to unwind; a loop failure
+ * surfaces from the iterator after every delivered item has been read.
+ */
+async function* pullFromLoop<T>(
+	start: (
+		deliver: (item: T) => Promise<void>,
+		signal: AbortSignal,
+	) => Promise<unknown>,
+	external?: AbortSignal,
+): AsyncGenerator<T> {
+	const controller = new AbortController();
+	if (external) {
+		if (external.aborted) controller.abort();
+		else
+			external.addEventListener("abort", () => controller.abort(), {
+				once: true,
+			});
+	}
+
+	// One mutable record, so the closures below and the loop read the same
+	// fields without the compiler narrowing them away.
+	const state: {
+		delivered: { value: T; release: () => void } | null;
+		held: (() => void) | null;
+		finished: boolean;
+		failure: { error: unknown } | null;
+		wake: (() => void) | null;
+	} = {
+		delivered: null,
+		held: null,
+		finished: false,
+		failure: null,
+		wake: null,
+	};
+	const notify = () => {
+		const resolve = state.wake;
+		state.wake = null;
+		resolve?.();
+	};
+
+	const loop = start(
+		(value) =>
+			new Promise<void>((release) => {
+				state.delivered = { value, release };
+				notify();
+			}),
+		controller.signal,
+	)
+		.then(
+			() => {
+				state.finished = true;
+			},
+			(error: unknown) => {
+				state.failure = { error };
+				state.finished = true;
+			},
+		)
+		.finally(notify);
+
+	try {
+		while (true) {
+			if (state.delivered) {
+				const { value, release } = state.delivered;
+				state.delivered = null;
+				state.held = release;
+				yield value;
+				state.held = null;
+				release();
+				continue;
+			}
+			if (state.finished) break;
+			await new Promise<void>((resolve) => {
+				state.wake = resolve;
+				if (state.delivered || state.finished) notify();
+			});
+		}
+		if (state.failure) throw state.failure.error;
+	} finally {
+		controller.abort();
+		state.held?.();
+		state.delivered?.release();
+		await loop;
+	}
+}
+
+/**
  * Async-iterator form of the Streams pull loop, yielding one {@link StreamsBatch}
  * per fetched page. Each yield maps 1:1 onto a `GET /v1/streams/events` envelope
  * (`{ events, next_cursor, tip, reorgs }` → `{ events, cursor, tip, reorgs }`) —
  * no extra API calls, no regrouping. Pages with no events and no reorgs are not
  * yielded; the iterator sleeps `intervalMs` and re-polls the tip instead.
+ *
+ * Runs on {@link consumeStreamsEvents}, so it shares its page retry. A page
+ * that returns events without moving the cursor throws instead of ending the
+ * iteration quietly.
  */
 export async function* iterateStreamsBatches(opts: {
 	fromCursor?: string | null;
@@ -642,13 +736,10 @@ export async function* iterateStreamsBatches(opts: {
 	sleep?: Sleep;
 	signal?: AbortSignal;
 }): AsyncGenerator<StreamsBatch> {
-	const sleep = opts.sleep ?? defaultSleep;
-	let cursor = opts.fromCursor ?? null;
-
-	while (!opts.signal?.aborted) {
-		const envelope = await opts.fetchEvents({
-			cursor,
-			limit: opts.batchSize,
+	yield* pullFromLoop<StreamsBatch>(async (deliver, signal) => {
+		const result = await consumeStreamsEvents({
+			fromCursor: opts.fromCursor,
+			batchSize: opts.batchSize,
 			chain: opts.chain,
 			types: opts.types,
 			notTypes: opts.notTypes,
@@ -659,26 +750,47 @@ export async function* iterateStreamsBatches(opts: {
 			rune: opts.rune,
 			address: opts.address,
 			filters: opts.filters,
+			fetchEvents: opts.fetchEvents,
+			sleep: opts.sleep,
+			emptyBackoffMs: opts.intervalMs,
+			signal,
+			onBatch: async (events, ctx) => {
+				if (events.length === 0 && ctx.reorgs.length === 0) return;
+				await deliver({
+					events,
+					cursor: ctx.cursor,
+					tip: ctx.tip,
+					reorgs: [...ctx.reorgs],
+				});
+			},
 		});
+		assertNotStalled(result, signal);
+	}, opts.signal);
+}
 
-		const checkpoint = envelope.next_cursor ?? cursor;
-		if (envelope.events.length > 0 || envelope.reorgs.length > 0) {
-			yield {
-				events: envelope.events,
-				cursor: checkpoint,
-				tip: envelope.tip,
-				reorgs: envelope.reorgs,
-			};
-		}
-
-		const advanced = checkpoint !== null && checkpoint !== cursor;
-		cursor = checkpoint;
-		// Caught up at the tip: wait one poll interval before re-reading.
-		if (!advanced && envelope.events.length === 0) {
-			if (opts.signal?.aborted) return;
-			await sleep(opts.intervalMs, opts.signal);
-		}
+/** The consume loop ends on its own only when a page returned events and the
+ *  cursor did not move. Unbounded streams must not treat that as "done". */
+function assertNotStalled(
+	result: { cursor: string | null; emptyPolls: number },
+	signal: AbortSignal,
+	bounds: { maxPages?: number; maxEmptyPolls?: number; pages?: number } = {},
+): void {
+	if (signal.aborted) return;
+	if (bounds.maxPages !== undefined && (bounds.pages ?? 0) >= bounds.maxPages) {
+		return;
 	}
+	if (
+		bounds.maxEmptyPolls !== undefined &&
+		result.emptyPolls >= bounds.maxEmptyPolls
+	) {
+		return;
+	}
+	throw new StreamsServerError(
+		`Streams returned events at cursor ${result.cursor ?? "(start)"} but the cursor did not advance, so the stream stopped instead of re-reading the same page.`,
+		0,
+		undefined,
+		"CURSOR_STALLED",
+	);
 }
 
 export async function* streamStreamsEvents(opts: {
@@ -702,22 +814,10 @@ export async function* streamStreamsEvents(opts: {
 	maxEmptyPolls?: number;
 	signal?: AbortSignal;
 }): AsyncGenerator<StreamsEvent> {
-	const sleep = opts.sleep ?? defaultSleep;
-	const emptyBackoffMs = opts.emptyBackoffMs ?? 500;
-	const maxPages = opts.maxPages ?? Number.POSITIVE_INFINITY;
-	const maxEmptyPolls = opts.maxEmptyPolls ?? Number.POSITIVE_INFINITY;
-	let cursor = opts.fromCursor ?? null;
-	let pages = 0;
-	let emptyPolls = 0;
-
-	while (
-		pages < maxPages &&
-		emptyPolls < maxEmptyPolls &&
-		!opts.signal?.aborted
-	) {
-		const envelope = await opts.fetchEvents({
-			cursor,
-			limit: opts.batchSize,
+	yield* pullFromLoop<StreamsEvent>(async (deliver, signal) => {
+		const result = await consumeStreamsEvents({
+			fromCursor: opts.fromCursor,
+			batchSize: opts.batchSize,
 			chain: opts.chain,
 			types: opts.types,
 			notTypes: opts.notTypes,
@@ -728,28 +828,23 @@ export async function* streamStreamsEvents(opts: {
 			rune: opts.rune,
 			address: opts.address,
 			filters: opts.filters,
+			fetchEvents: opts.fetchEvents,
+			sleep: opts.sleep,
+			emptyBackoffMs: opts.emptyBackoffMs,
+			maxPages: opts.maxPages,
+			maxEmptyPolls: opts.maxEmptyPolls,
+			signal,
+			onBatch: async (events) => {
+				for (const event of events) {
+					if (signal.aborted) return;
+					await deliver(event);
+				}
+			},
 		});
-		pages++;
-
-		for (const event of envelope.events) {
-			if (opts.signal?.aborted) return;
-			yield event;
-		}
-
-		const nextCursor = envelope.next_cursor;
-		if (nextCursor && nextCursor !== cursor) {
-			cursor = nextCursor;
-			emptyPolls = 0;
-			continue;
-		}
-
-		if (envelope.events.length === 0) {
-			emptyPolls++;
-			if (emptyPolls >= maxEmptyPolls || pages >= maxPages) return;
-			await sleep(emptyBackoffMs, opts.signal);
-			continue;
-		}
-
-		return;
-	}
+		assertNotStalled(result, signal, {
+			maxPages: opts.maxPages,
+			maxEmptyPolls: opts.maxEmptyPolls,
+			pages: result.pages,
+		});
+	}, opts.signal);
 }

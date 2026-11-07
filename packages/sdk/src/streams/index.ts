@@ -77,6 +77,7 @@ export type {
 	StreamsEventsSubscribeParams,
 	StreamsEventsSubscribeStacksParams,
 	StreamsSubscription,
+	StreamsSubscriptionState,
 	StreamsEventType,
 	StreamsReorg,
 	StreamsReorgContext,

@@ -113,7 +113,7 @@
 			"signature": "createStreamsClient(options: CreateStreamsClientOptions): StreamsClient",
 			"source": {
 				"file": "packages/sdk/src/streams/client.ts",
-				"line": 160
+				"line": 171
 			}
 		},
 		{
@@ -198,6 +198,15 @@
 			}
 		},
 		{
+			"name": "resolveAccountUrl",
+			"summary": "Hosted account API for credits, archive fetches and login.",
+			"signature": "resolveAccountUrl(): string",
+			"source": {
+				"file": "packages/sdk/src/base.ts",
+				"line": 188
+			}
+		},
+		{
 			"name": "resolveApiKey",
 			"summary": "Resolve the bearer credential; the key follows the host.",
 			"signature": "resolveApiKey(apiKey?: string, baseUrl?: string): string | undefined",
@@ -213,6 +222,15 @@
 			"source": {
 				"file": "packages/sdk/src/base.ts",
 				"line": 138
+			}
+		},
+		{
+			"name": "resolveIdentity",
+			"summary": "The one credential resolver the CLI and MCP share.",
+			"signature": "resolveIdentity(target: \"account\" | \"instance\", options?: { session?: string | null }): Identity",
+			"source": {
+				"file": "packages/sdk/src/base.ts",
+				"line": 224
 			}
 		},
 		{
@@ -754,6 +772,7 @@
 		"StreamsReorgsListEnvelope": "/docs/sdk-reference/streams#t-StreamsReorgsListEnvelope",
 		"StreamsReorgsListParams": "/docs/sdk-reference/streams#t-StreamsReorgsListParams",
 		"StreamsSubscription": "/docs/sdk-reference/streams#t-StreamsSubscription",
+		"StreamsSubscriptionState": "/docs/sdk-reference/streams#t-StreamsSubscriptionState",
 		"StreamsTip": "/docs/sdk-reference/streams#t-StreamsTip",
 		"StreamsWireEvent": "/docs/sdk-reference/streams#t-StreamsWireEvent",
 		"StxBurnPayload": "/docs/sdk-reference/streams#t-StxBurnPayload",
