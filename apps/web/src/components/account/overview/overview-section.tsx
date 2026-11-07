@@ -86,8 +86,9 @@ import {
 	webhookStatus,
 	webhookWhyLine,
 } from "../index-rows/status";
+import { KEY_FLOW_IDLE, keyFlowOpen } from "../keys/key-flow";
 import { countedKeys } from "../keys/key-view";
-import { NewKeyFlow } from "../keys/new-key-flow";
+import { NewKeyFlow, useKeyFlow } from "../keys/new-key-flow";
 import {
 	OverviewSubgraphsRows,
 	OverviewViewAll,
@@ -722,23 +723,22 @@ function useOnboarding({
 }): OverviewOnboarding | null {
 	const progress = onboardingProgress(keys, now, pushed);
 	const state = keyState(keys, now);
-	const [flowOpen, setFlowOpen] = useState(false);
+	// The flow opens the first time we see an account that never had a key, and
+	// stays open when that changes under it.
+	const [flow, dispatch] = useKeyFlow(KEY_FLOW_IDLE, state === "first");
+	const flowOpen = keyFlowOpen(flow);
 	const [made, setMade] = useState<string | null>(null);
 	const [skipped, setSkipped] = useState(false);
 	useEffect(() => {
 		if (accountId) setSkipped(onboardingSkipped(accountId));
 	}, [accountId]);
-	// The flow opens the first time we see an account that never had a key, and
-	// stays open when that changes under it.
-	if (state === "first" && !flowOpen && made === null) {
-		setFlowOpen(true);
-	}
 	if (
 		keys === null ||
 		!checklistApplies(state, flowOpen, progress.complete || skipped)
 	)
 		return null;
-	if (!settled && progress.key) return null;
+	// The key being made flips progress.key; its reveal must outlive that.
+	if (!settled && progress.key && !flowOpen) return null;
 
 	const newest = countedKeys(keys, now).at(-1);
 	return {
@@ -746,9 +746,10 @@ function useOnboarding({
 		keyName: made ?? newest?.name ?? null,
 		flow: flowOpen ? (
 			<NewKeyFlow
+				flow={flow}
+				dispatch={dispatch}
 				dismissible={false}
 				onCreated={(_key, name) => setMade(name)}
-				onClose={() => setFlowOpen(false)}
 			/>
 		) : null,
 		firstRows:

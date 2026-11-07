@@ -2,8 +2,16 @@
 
 import { Choice } from "@/components/choice";
 import { CopyButton } from "@/components/copy-button";
+import { notify } from "@/components/toast/notify";
 import { CreateKeyError, createKey } from "@/lib/account-data";
-import { useState } from "react";
+import { useCopied } from "@/lib/use-copied";
+import { useLayoutEffect, useReducer, useRef, useState } from "react";
+import {
+	KEY_FLOW_IDLE,
+	type KeyFlow,
+	type KeyFlowEvent,
+	keyFlowReducer,
+} from "./key-flow";
 
 /** The most active keys an account can hold. Mirrors the API's default. */
 export const KEY_LIMIT = 50;
@@ -235,25 +243,35 @@ export function RevealStep({
 	value,
 	name,
 	initialTab = "cli",
+	copied = false,
+	warned = false,
+	onCopied,
+	onWarn,
 	onDone,
 }: {
 	value: string;
 	name: string;
 	initialTab?: UseItTab;
-	onDone: () => void;
+	/** The key reached the clipboard. Owned by the flow, so it survives a remount. */
+	copied?: boolean;
+	/** The reader tried to leave without copying. */
+	warned?: boolean;
+	onCopied?: () => void;
+	onWarn?: () => void;
+	/** `force` is Close anyway: leave although the key was never copied. */
+	onDone: (force?: boolean) => void;
 }) {
-	const [copied, setCopied] = useState(false);
-	const [everCopied, setEverCopied] = useState(false);
-	const [warn, setWarn] = useState(false);
+	const { copied: flash, copy: copyValue } = useCopied();
 	const [tab, setTab] = useState<UseItTab>(initialTab);
 	const snippets = useItSnippets(value);
 
-	function copy() {
-		navigator.clipboard.writeText(value).catch(() => {});
-		setCopied(true);
-		setEverCopied(true);
-		setWarn(false);
-		setTimeout(() => setCopied(false), 1400);
+	async function copy() {
+		if (await copyValue(value)) onCopied?.();
+		else {
+			notify.fail("Couldn't copy the key", {
+				desc: "Select it and copy it by hand. It won't be shown again.",
+			});
+		}
 	}
 
 	return (
@@ -261,8 +279,8 @@ export function RevealStep({
 			className="nk"
 			onKeyDown={(e) => {
 				if (e.key !== "Escape") return;
-				if (everCopied) onDone();
-				else setWarn(true);
+				if (copied) onDone();
+				else onWarn?.();
 			}}
 		>
 			<p className="nk-lead">
@@ -273,7 +291,7 @@ export function RevealStep({
 				<span className="nk-key-name">{name}</span>
 				<code className="nk-key-value">{value}</code>
 				<button type="button" className="acct-btn line small" onClick={copy}>
-					{copied ? "Copied" : "Copy"}
+					{flash ? "Copied" : "Copy"}
 				</button>
 			</div>
 			<div className="nk-use">
@@ -298,12 +316,12 @@ export function RevealStep({
 				<button
 					type="button"
 					className="acct-btn solid small"
-					onClick={() => (everCopied ? onDone() : setWarn(true))}
+					onClick={() => (copied ? onDone() : onWarn?.())}
 				>
 					Done
 				</button>
 			</div>
-			{warn && !everCopied ? (
+			{warned && !copied ? (
 				<p className="nk-note">
 					<span>
 						You haven't copied it. It won't be shown again.{" "}
@@ -311,7 +329,11 @@ export function RevealStep({
 							Copy
 						</button>
 						{" · "}
-						<button type="button" className="ky-link" onClick={onDone}>
+						<button
+							type="button"
+							className="ky-link"
+							onClick={() => onDone(true)}
+						>
 							Close anyway
 						</button>
 					</span>
@@ -322,59 +344,81 @@ export function RevealStep({
 }
 
 /**
- * Make a key: name it, then see it once with ways to use it. Callbacks in, no
- * routing, so the Keys tab and onboarding can both host it. `initial` opens
- * on the reveal for a key that already exists.
+ * The create-key lifecycle for a screen: the reducer, and the first-run offer.
+ * It lives in the screen, above anything that mounts or unmounts, so a key on
+ * screen is never lost to a re-render. `open` offers the name step once, the
+ * first time it turns true (an account that never made a key).
+ */
+export function useKeyFlow(initial: KeyFlow = KEY_FLOW_IDLE, open = false) {
+	const [flow, dispatch] = useReducer(keyFlowReducer, initial);
+	const offered = useRef(false);
+	useLayoutEffect(() => {
+		if (!open || offered.current) return;
+		offered.current = true;
+		dispatch({ type: "open" });
+	}, [open]);
+	return [flow, dispatch] as const;
+}
+
+/**
+ * Make a key: name it, then see it once with ways to use it. State in, events
+ * out (`useKeyFlow`), no routing, so the Keys tab and onboarding can both host
+ * it. Renders nothing while the flow is idle.
  */
 export function NewKeyFlow({
+	flow,
+	dispatch,
 	existingNames = [],
-	initial,
 	create = createKey,
 	cancelLabel = "Cancel",
 	dismissible = true,
 	onCreated,
-	onClose,
 }: {
+	flow: KeyFlow;
+	dispatch: (event: KeyFlowEvent) => void;
 	existingNames?: readonly string[];
-	initial?: { key: string; name: string } | null;
 	create?: (name: string) => Promise<string>;
 	cancelLabel?: string;
 	/** False when the flow is the screen's only job: no Cancel on the name step. */
 	dismissible?: boolean;
 	/** The key exists; the whole value is still on screen. */
 	onCreated?: (key: string, name: string) => void;
-	/** Done, Close anyway or Cancel. */
-	onClose: () => void;
 }) {
-	const [made, setMade] = useState(initial ?? null);
-	const [busy, setBusy] = useState(false);
-	const [error, setError] = useState<string | null>(null);
+	if (flow.step === "idle") return null;
 
-	if (made) {
-		return <RevealStep value={made.key} name={made.name} onDone={onClose} />;
+	if (flow.step === "revealed") {
+		return (
+			<RevealStep
+				value={flow.key}
+				name={flow.name}
+				copied={flow.copied}
+				warned={flow.warned}
+				onCopied={() => dispatch({ type: "copied" })}
+				onWarn={() => dispatch({ type: "warn" })}
+				onDone={(force) => dispatch({ type: "close", force })}
+			/>
+		);
 	}
 
 	async function submit(name: string) {
-		setBusy(true);
-		setError(null);
+		dispatch({ type: "submit", name });
 		try {
 			const key = await create(name);
-			setMade({ key, name });
+			dispatch({ type: "created", key, name });
 			onCreated?.(key, name);
 		} catch (err) {
-			setError(createErrorMessage(err));
-			setBusy(false);
+			dispatch({ type: "failed", error: createErrorMessage(err) });
 		}
 	}
 
 	return (
 		<NameStep
 			existingNames={existingNames}
-			busy={busy}
-			error={error}
+			busy={flow.step === "submitting"}
+			error={flow.step === "naming" ? flow.error : null}
 			cancelLabel={cancelLabel}
 			onSubmit={submit}
-			onCancel={dismissible ? onClose : undefined}
+			onCancel={dismissible ? () => dispatch({ type: "close" }) : undefined}
 		/>
 	);
 }

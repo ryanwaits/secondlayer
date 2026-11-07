@@ -2875,12 +2875,13 @@ const META: Record<StoryId, Meta> = {
 				render: () => <KeysDemo view="empty" />,
 			},
 		],
-		usage: "<NewKeyFlow existingNames={names} onClose={close} />",
+		usage:
+			"<NewKeyFlow flow={flow} dispatch={dispatch} existingNames={names} />",
 		props: [
 			{
-				name: "initial",
-				type: "{ key: string; name: string }",
-				note: "Opens on the reveal for a key that already exists.",
+				name: "flow / dispatch",
+				type: "KeyFlow / (event: KeyFlowEvent) => void",
+				note: "From useKeyFlow, held by the screen so the reveal survives re-renders.",
 			},
 			{
 				name: "create",

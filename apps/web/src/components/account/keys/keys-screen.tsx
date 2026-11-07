@@ -29,6 +29,12 @@ import { AccountCompactHeader } from "../compact-account";
 import { AppsPanel } from "./apps-panel";
 import { KeysCompact } from "./compact-keys";
 import {
+	KEY_FLOW_IDLE,
+	KEY_FLOW_NAMING,
+	keyActionsBlocked,
+	keyFlowOpen,
+} from "./key-flow";
+import {
 	agoShort,
 	dayLabels,
 	groupKeys,
@@ -39,7 +45,7 @@ import {
 	keysSentence,
 	revokedOwnKeys,
 } from "./key-view";
-import { NewKeyFlow, createErrorMessage } from "./new-key-flow";
+import { NewKeyFlow, createErrorMessage, useKeyFlow } from "./new-key-flow";
 
 /** How long a just-made key's row keeps its yellow dot. */
 export const FRESH_MS = 9_000;
@@ -414,6 +420,7 @@ export function KeysTable({
 	initialOpen = null,
 	madeOpen = false,
 	onRotated,
+	onRotateBlocked,
 }: {
 	/** Null until the list has loaded. */
 	keys: ApiKey[] | null;
@@ -424,6 +431,8 @@ export function KeysTable({
 	madeOpen?: boolean;
 	/** A key was rotated; omitted, rows offer no Rotate. */
 	onRotated?: (key: string, name: string) => void;
+	/** Set while a new key is unseen: Rotate calls it instead of asking to rotate. */
+	onRotateBlocked?: () => void;
 }) {
 	const [open, setOpen] = useState<string | null>(initialOpen);
 	const [confirming, setConfirming] = useState<string | null>(null);
@@ -486,7 +495,8 @@ export function KeysTable({
 						onRevoke={() => setConfirming(k.id)}
 						onRotate={
 							onRotated && k.product === "account"
-								? () => setRotating(k.id)
+								? () =>
+										onRotateBlocked ? onRotateBlocked() : setRotating(k.id)
 								: undefined
 						}
 					/>
@@ -541,6 +551,8 @@ export interface KeysBodyProps {
 	madeOpen?: boolean;
 	/** A key was rotated: its new value, shown once. Omitted, rows offer no Rotate. */
 	onRotated?: (key: string, name: string) => void;
+	/** Set while a new key is unseen: Rotate calls it instead of asking to rotate. */
+	onRotateBlocked?: () => void;
 }
 
 /** Keys: one sentence, why a key went quiet, and a row per key. */
@@ -555,6 +567,7 @@ export function KeysBody({
 	initialOpen,
 	madeOpen,
 	onRotated,
+	onRotateBlocked,
 }: KeysBodyProps) {
 	const sentence =
 		keys === null
@@ -589,6 +602,7 @@ export function KeysBody({
 				initialOpen={initialOpen}
 				madeOpen={madeOpen}
 				onRotated={onRotated}
+				onRotateBlocked={onRotateBlocked}
 			/>
 			{keys !== null && apps !== undefined ? (
 				<AppsPanel apps={apps} now={now} />
@@ -608,15 +622,16 @@ export function KeysScreen({ openNew = false }: { openNew?: boolean }) {
 	const { data: allInsights } = useInsights();
 	const compact = useCompact();
 	const router = useRouter();
-	const [creating, setCreating] = useState(openNew);
-	const [rotated, setRotated] = useState<{
-		key: string;
-		name: string;
-	} | null>(null);
+	const now = new Date();
+	// An account that never made a key is offered the name step straight away.
+	const firstRun = keyState(keys, now) === "first";
+	const [flow, dispatch] = useKeyFlow(
+		openNew ? KEY_FLOW_NAMING : KEY_FLOW_IDLE,
+		firstRun,
+	);
 	const flowTop = useRef<HTMLDivElement | null>(null);
 	const [freshPrefix, setFreshPrefix] = useState<string | null>(null);
 	const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
-	const now = new Date();
 
 	useEffect(() => {
 		ensureKeys();
@@ -638,14 +653,6 @@ export function KeysScreen({ openNew = false }: { openNew?: boolean }) {
 		timer.current = setTimeout(() => setFreshPrefix(null), FRESH_MS);
 	}, []);
 
-	// An account that never made a key is offered the name step straight away.
-	const firstRun = keyState(keys, now) === "first";
-	const [offered, setOffered] = useState(false);
-	if (firstRun && !offered) {
-		setOffered(true);
-		setCreating(true);
-	}
-
 	// The unused-key note is re-checked every 5 minutes; once no listed key is
 	// stale (say, it was just revoked) it would only be out of date.
 	const staleOwnKey = hasStaleOwnKey(keys, now);
@@ -653,7 +660,16 @@ export function KeysScreen({ openNew = false }: { openNew?: boolean }) {
 	const existingNames = groupKeys(keys, now)
 		.own.filter((k) => k.product !== "docs")
 		.map((k) => k.name);
-	const close = () => setCreating(false);
+	const flowOpen = keyFlowOpen(flow);
+	const newKeyFlow = (
+		<NewKeyFlow
+			flow={flow}
+			dispatch={dispatch}
+			dismissible={!firstRun}
+			existingNames={existingNames}
+			onCreated={markFresh}
+		/>
+	);
 
 	// Phones list keys and leave making them to desktop, except where there is
 	// no other way on: `?new=1` from the docs, or an account with no key yet.
@@ -663,14 +679,14 @@ export function KeysScreen({ openNew = false }: { openNew?: boolean }) {
 			<>
 				<AccountCompactHeader current="keys" />
 				<KeysCompact keys={keys} now={now} />
-				{creating ? (
-					<Sheet open onClose={close} eyebrow="API key" title="New key">
-						<NewKeyFlow
-							dismissible={!firstRun}
-							existingNames={existingNames}
-							onCreated={markFresh}
-							onClose={close}
-						/>
+				{flowOpen ? (
+					<Sheet
+						open
+						onClose={() => dispatch({ type: "close" })}
+						eyebrow="API key"
+						title="New key"
+					>
+						{newKeyFlow}
 					</Sheet>
 				) : null}
 			</>
@@ -687,32 +703,23 @@ export function KeysScreen({ openNew = false }: { openNew?: boolean }) {
 			now={now}
 			freshPrefix={freshPrefix}
 			apps={apps}
-			onNew={() => setCreating(true)}
+			onNew={() => dispatch({ type: "open" })}
 			onRotated={(key, name) => {
 				markFresh(key);
-				setRotated({ key, name });
+				dispatch({ type: "rotated", key, name });
 				requestAnimationFrame(() =>
 					flowTop.current?.scrollIntoView({ block: "nearest" }),
 				);
 			}}
-			flow={
-				rotated ? (
-					<div ref={flowTop}>
-						<NewKeyFlow
-							key={rotated.key}
-							initial={rotated}
-							onClose={() => setRotated(null)}
-						/>
-					</div>
-				) : creating ? (
-					<NewKeyFlow
-						dismissible={!firstRun}
-						existingNames={existingNames}
-						onCreated={markFresh}
-						onClose={close}
-					/>
-				) : null
+			onRotateBlocked={
+				keyActionsBlocked(flow)
+					? () => {
+							dispatch({ type: "warn" });
+							flowTop.current?.scrollIntoView({ block: "nearest" });
+						}
+					: undefined
 			}
+			flow={flowOpen ? <div ref={flowTop}>{newKeyFlow}</div> : null}
 		/>
 	);
 }
