@@ -1,5 +1,11 @@
 # @secondlayer/mcp
 
+## 11.6.0
+
+### Minor Changes
+
+- 3c51462: `initialize` sends the server's icons, also listed in server.json for the MCP registry. The hosted endpoint answers `initialize` and `tools/list` without sign-in; tool calls still need it.
+
 ## 11.5.0
 
 ### Minor Changes

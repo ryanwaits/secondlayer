@@ -1,5 +1,12 @@
 # @secondlayer/api
 
+## 1.63.2
+
+### Patch Changes
+
+- Updated dependencies [3c51462]
+  - @secondlayer/mcp@11.6.0
+
 ## 1.63.1
 
 ### Patch Changes

@@ -23,5 +23,7 @@ server.version = version;
 for (const pkg of server.packages) pkg.version = version;
 
 await writeFile(SERVER, `${JSON.stringify(server, null, "\t")}\n`);
+// JSON.stringify expands short arrays; biome is the repo's format.
+Bun.spawnSync(["bunx", "biome", "format", "--write", SERVER]);
 
 console.log(`✓ packages/mcp/server.json — version ${version}`);
