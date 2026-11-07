@@ -30,7 +30,8 @@ const NOOP_RELEASE = async () => {};
 export class InProcSlotCounter implements SlotCounter {
 	private readonly held = new Map<string, number>();
 
-	async acquire(key: string, limit: number) {
+	// No TTL: a process-local slot dies with the process, so nothing can leak.
+	async acquire(key: string, limit: number, _ttlMs?: number) {
 		const n = this.held.get(key) ?? 0;
 		if (n >= limit) return null;
 		this.held.set(key, n + 1);

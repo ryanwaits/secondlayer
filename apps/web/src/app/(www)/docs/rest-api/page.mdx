@@ -131,6 +131,13 @@ Two endpoints push rows as Server-Sent Events (`Content-Type: text/event-stream`
 - `GET /v1/streams/events/stream`: raw chain event firehose. Same filters as `/v1/streams/events`, plus a start position (`cursor`/`from_cursor`/`from_height`); with none it live-tails from the reorg-clamped tip.
 - `GET /v1/subgraphs/:name/:table/stream`: new subgraph-table rows. Takes `?since=<block_height>` (replay from a height, then tail) plus the table's column filters.
 
+On hosted, `/v1/streams/events/stream` is checked while it runs, not only when it opens:
+
+- A key, allowance or balance that stops qualifying ends the stream with a final `end` event (`reason`, plus the usual refusal fields), and reconnecting gets the matching `402` or `401`.
+- A stream closes after 15 minutes with `reason: "max_age"`. Reconnect from the last `cursor`; the SDK does this for you.
+- An account holds at most 3 live streams. A fourth gets `429` with `Retry-After`.
+- It can't run inside `POST /v1/batch` or the hosted MCP.
+
 Ergonomic clients: [Streams](/docs/streams#real-time-firehose-sse), [Read rows](/docs/subgraphs#stream-rows-in-real-time).
 
 ### Aggregates
