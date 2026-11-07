@@ -5,11 +5,13 @@ import {
 	createServer as createHttpServer,
 } from "node:http";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
+import { SessionRegistry } from "./lib/http-sessions.ts";
 import { createServer } from "./server.ts";
 
 const port = Number.parseInt(process.env.SECONDLAYER_MCP_PORT || "3100");
 const secret = process.env.SECONDLAYER_MCP_SECRET;
-const sessions = new Map<string, StreamableHTTPServerTransport>();
+const sessions = new SessionRegistry<StreamableHTTPServerTransport>();
+sessions.startSweeping();
 
 function authenticate(req: IncomingMessage): boolean {
 	if (!secret) return true;
@@ -67,43 +69,58 @@ const httpServer = createHttpServer(
 				const transport = new StreamableHTTPServerTransport({
 					sessionIdGenerator: () => crypto.randomUUID(),
 				});
+				// Registered before handling so a close that races the first
+				// request still drops the session.
+				transport.onclose = () => {
+					if (transport.sessionId) sessions.delete(transport.sessionId);
+				};
 				const server = createServer();
-				await server.connect(transport);
-
-				// Store session after handling (sessionId is set after first request)
-				await transport.handleRequest(req, res, body);
-
+				try {
+					await server.connect(transport);
+					// The session id is assigned while the initialize is handled.
+					await transport.handleRequest(req, res, body);
+				} catch (err) {
+					// A failed init must not leak its transport.
+					await transport.close().catch(() => {});
+					if (!res.headersSent) {
+						res
+							.writeHead(500)
+							.end(JSON.stringify({ error: "Session initialization failed" }));
+					}
+					console.error("MCP session init failed:", err);
+					return;
+				}
 				if (transport.sessionId) {
-					sessions.set(transport.sessionId, transport);
-					transport.onclose = () => {
-						if (transport.sessionId) sessions.delete(transport.sessionId);
-					};
+					sessions.add(transport.sessionId, transport);
+				} else {
+					await transport.close().catch(() => {});
 				}
 				return;
 			}
 
 			// Existing session
-			if (!sessionId || !sessions.has(sessionId)) {
+			const existing = sessions.get(sessionId);
+			if (!existing) {
 				res
 					.writeHead(400)
 					.end(JSON.stringify({ error: "Invalid or missing session ID" }));
 				return;
 			}
-			await sessions.get(sessionId)?.handleRequest(req, res, body);
+			await existing.handleRequest(req, res, body);
 		} else if (req.method === "GET") {
 			// SSE stream for existing session
-			if (!sessionId || !sessions.has(sessionId)) {
+			const existing = sessions.get(sessionId);
+			if (!existing) {
 				res
 					.writeHead(400)
 					.end(JSON.stringify({ error: "Invalid or missing session ID" }));
 				return;
 			}
-			await sessions.get(sessionId)?.handleRequest(req, res);
+			await existing.handleRequest(req, res);
 		} else if (req.method === "DELETE") {
 			// Session teardown
-			if (sessionId && sessions.has(sessionId)) {
-				// biome-ignore lint/style/noNonNullAssertion: value is non-null after preceding check or by construction; TS narrowing limitation
-				const transport = sessions.get(sessionId)!;
+			const transport = sessions.get(sessionId);
+			if (sessionId && transport) {
 				await transport.handleRequest(req, res);
 				await transport.close();
 				sessions.delete(sessionId);
