@@ -1,5 +1,25 @@
 import { describe, expect, it } from "bun:test";
-import { DeploySubgraphRequestSchema } from "./subgraphs.ts";
+import { DeploySubgraphRequestSchema, syncState } from "./subgraphs.ts";
+
+describe("syncState", () => {
+	it("is synced at the tip and catching up behind it", () => {
+		expect(syncState({ status: "active", lastProcessedBlock: 100 }, 100)).toBe(
+			"synced",
+		);
+		expect(syncState({ status: "active", lastProcessedBlock: "99" }, 100)).toBe(
+			"catching_up",
+		);
+	});
+
+	it("reports reindexing and error whatever the cursor says", () => {
+		expect(
+			syncState({ status: "reindexing", lastProcessedBlock: 100 }, 100),
+		).toBe("reindexing");
+		expect(syncState({ status: "error", lastProcessedBlock: 100 }, 100)).toBe(
+			"error",
+		);
+	});
+});
 
 const baseDeployRequest = {
 	name: "demo-subgraph",

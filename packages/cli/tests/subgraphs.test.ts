@@ -31,13 +31,13 @@ import {
 
 describe("subgraphs command helpers", () => {
 	it("shows a billing pause next to the status, and nothing for other errors", () => {
-		expect(
-			formatSubgraphStatus("active", "billing_paused: spend_cap_reached"),
-		).toBe("active (paused: spend cap reached)");
-		expect(
-			formatSubgraphStatus("active", "billing_paused: insufficient_credits"),
-		).toBe("active (paused: insufficient credits)");
-		expect(formatSubgraphStatus("error", "handler threw")).toBe("error");
+		expect(formatSubgraphStatus("active", "spend_cap_reached")).toBe(
+			"active (paused: spend cap reached)",
+		);
+		expect(formatSubgraphStatus("active", "insufficient_credits")).toBe(
+			"active (paused: insufficient credits)",
+		);
+		expect(formatSubgraphStatus("error", null)).toBe("error");
 		expect(formatSubgraphStatus("active", null)).toBe("active");
 	});
 

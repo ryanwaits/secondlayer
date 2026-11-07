@@ -96,18 +96,15 @@ describe.skipIf(SKIP)("local deploy gates (oss, no commerce)", () => {
 		expect(created.status).toBe(201);
 		const createdBody = (await created.json()) as {
 			action: string;
-			expires_at?: string;
 		};
 		expect(createdBody.action).toBe("created");
-		expect(createdBody.expires_at).toBeUndefined();
 		await cache.refresh();
 
 		const row = await getDb()
 			.selectFrom("subgraphs")
-			.select(["expires_at", "account_id"])
+			.select(["account_id"])
 			.where("name", "=", NAME)
 			.executeTakeFirstOrThrow();
-		expect(row.expires_at).toBeNull();
 		expect(row.account_id).toBe("");
 
 		const reindex = await app.request(`/api/subgraphs/${NAME}/reindex`, {

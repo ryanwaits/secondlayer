@@ -2,9 +2,10 @@ import type {
 	SubgraphOperationKind,
 	SubgraphOperationStatus,
 } from "@secondlayer/shared/db";
-import type {
-	DeploySubgraphResponse,
-	SubgraphSyncInfo,
+import {
+	type DeploySubgraphResponse,
+	SUBGRAPH_STATES,
+	type SubgraphSyncInfo,
 } from "@secondlayer/shared/schemas/subgraphs";
 import { MAX_LIMIT } from "../subgraph-query-helpers.ts";
 import {
@@ -63,12 +64,9 @@ const INTEGRITY_STATES = allOf<SubgraphSyncInfo["integrity"]>()([
 /** `weight` in `createSubgraphOperation`,
  *  `shared/src/db/queries/subgraph-operations.ts`. */
 const OPERATION_WEIGHTS = ["light", "heavy"] as const;
-/**
- * `subgraphs.status` is a bare `text` column. These are the only values any
- * writer sets: `shared/src/db/queries/subgraphs.ts` (`active`, `paused`,
- * `error`) and the reindex runtime (`reindexing`).
- */
-const SUBGRAPH_STATUSES = ["active", "reindexing", "paused", "error"] as const;
+/** `subgraphs.status`: `SUBGRAPH_STATES` in `shared/src/schemas/subgraphs.ts`,
+ *  mirrored by a CHECK. A billing pause is not a status; see `billingPausedCode`. */
+const SUBGRAPH_STATUSES = SUBGRAPH_STATES;
 /** The only gap reasons the runtime records: `subgraphs/src/runtime/reindex.ts`
  *  and `block-processor.ts`. `subgraph_gaps.reason` is bare `text`. */
 const GAP_REASONS = ["block_missing", "processing_error"] as const;
@@ -1303,6 +1301,11 @@ export const deploymentsSchemas = {
 				format: "date-time",
 				description: "When it happened.",
 			},
+			billingPausedCode: {
+				type: ["string", "null"],
+				description:
+					"Set while reads are refused for the account (`spend_cap_reached`, `insufficient_credits`). Indexing resumes by itself once reads succeed; `status` is unchanged.",
+			},
 			updatedAt: {
 				type: ["string", "null"],
 				format: "date-time",
@@ -1525,6 +1528,7 @@ export const deploymentsSchemas = {
 					errorRate: { type: "number" },
 					lastError: { type: ["string", "null"] },
 					lastErrorAt: { type: ["string", "null"], format: "date-time" },
+					billingPausedCode: { type: ["string", "null"] },
 					emptyMapping: { type: "boolean" },
 					violationCount: { type: "integer" },
 				},

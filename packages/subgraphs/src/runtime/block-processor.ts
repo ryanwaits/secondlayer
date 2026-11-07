@@ -6,7 +6,8 @@ import {
 	recordLiveProgress,
 	recordSubgraphProcessed,
 	rewindLiveProgress,
-	updateSubgraphStatus,
+	setReindexCursor,
+	transitionSubgraph,
 } from "@secondlayer/shared/db/queries/subgraphs";
 import { logger } from "@secondlayer/shared/logger";
 import { type Kysely, type Transaction, sql } from "kysely";
@@ -470,7 +471,9 @@ export async function processBlock(
 		const rewind = isReorgRewind(opts);
 		if (rr.errors > 0 && rr.processed === 0) {
 			if (rewind) {
-				await updateSubgraphStatus(tx, subgraphName, "error", blockHeight);
+				await transitionSubgraph(tx, subgraphName, ["active"], "error", {
+					last_processed_block: blockHeight,
+				});
 			} else {
 				// f069: conditional — see recordLiveError's docblock for why a lost
 				// race here is always a silent no-op (an all-failed block never
@@ -603,7 +606,11 @@ export async function processBlock(
 			// Checkpoint travels with the writes it covers — a crash can never
 			// leave committed deltas ahead of the checkpoint (fix-f040 B3).
 			if (sm && flushedWrites) {
-				await updateSubgraphStatus(tx, subgraphName, sm.status, blockHeight);
+				// Only a still-`reindexing` subgraph takes the checkpoint. A halt
+				// or cancel that landed mid-walk aborts OUR writes with it.
+				if (!(await setReindexCursor(tx, subgraphName, blockHeight))) {
+					throw new LiveCursorRaceLostError(subgraphName, blockHeight);
+				}
 			} else if (opMode && flushedWrites) {
 				const advanced = await advanceOperationCursor(
 					tx,

@@ -15,7 +15,10 @@ import type {
 	StageKind,
 } from "../coverage/constraints.ts";
 import type { BootstrapSource } from "../coverage/evaluate.ts";
-import type { SubgraphVerification } from "../schemas/subgraphs.ts";
+import type {
+	SubgraphStatus,
+	SubgraphVerification,
+} from "../schemas/subgraphs.ts";
 
 export type {
 	FailureClass,
@@ -204,7 +207,7 @@ export interface SubgraphsTable {
 	id: Generated<string>;
 	name: string;
 	version: Generated<string>;
-	status: Generated<string>;
+	status: Generated<SubgraphStatus>;
 	definition: Record<string, unknown>;
 	schema_hash: string;
 	handler_path: string;
@@ -221,8 +224,10 @@ export interface SubgraphsTable {
 	handler_code: string | null;
 	source_code: string | null;
 	project_id: string | null;
-	/** Paid (wallet-ghost) deploys expire unless renewed or claimed; NULL = no expiry. */
-	expires_at: Date | null;
+	/** Set while the account's metered reads are refused (spend cap, credits).
+	 *  Both columns are set or both null; `last_error` stays for real errors. */
+	billing_paused_at: Date | null;
+	billing_paused_code: string | null;
 	/** (event type, contract) probe pairs persisted at deploy for weight classification. */
 	sparse_probe_targets: unknown | null;
 	/** sha256 over everything that shapes rows (schema, handler bundle,

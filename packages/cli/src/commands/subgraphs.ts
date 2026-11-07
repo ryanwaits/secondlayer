@@ -14,10 +14,9 @@ import {
 	generatePrintSchemaSubgraph,
 	generateTraitSubgraph,
 } from "@secondlayer/scaffold";
-import {
-	type SubgraphDetail,
-	type SubgraphVerification,
-	billingPausedCode,
+import type {
+	SubgraphDetail,
+	SubgraphVerification,
 } from "@secondlayer/shared/schemas";
 import { TRAIT_STANDARDS } from "@secondlayer/stacks/clarity";
 import type { SubgraphDefinition } from "@secondlayer/subgraphs";
@@ -662,10 +661,11 @@ export function formatOperationRange(op: {
  *  refused (spend cap / credits), so indexing waits rather than failing. */
 export function formatSubgraphStatus(
 	status: string,
-	lastError: string | null | undefined,
+	billingPausedCode: string | null | undefined,
 ): string {
-	const code = billingPausedCode(lastError);
-	return code ? `${status} (paused: ${code.replace(/_/g, " ")})` : status;
+	return billingPausedCode
+		? `${status} (paused: ${billingPausedCode.replace(/_/g, " ")})`
+		: status;
 }
 
 /** `progress` is null until the API knows a denominator — say so, don't fake 0%. */
@@ -1606,7 +1606,10 @@ Examples:
 						["Verification", formatVerificationStatus(subgraph.verification)],
 						[
 							"Status",
-							formatSubgraphStatus(subgraph.status, subgraph.health.lastError),
+							formatSubgraphStatus(
+								subgraph.status,
+								subgraph.health.billingPausedCode,
+							),
 						],
 						["Sync", syncDisplay.line],
 						[syncDisplay.remainingLabel, syncDisplay.remaining],

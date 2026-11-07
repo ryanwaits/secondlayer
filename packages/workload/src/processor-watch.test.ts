@@ -200,7 +200,7 @@ describe.skipIf(!HAS_DB)("processor watch", () => {
 
 	const paused = (name: string, height: number): SubgraphCursor => ({
 		...sub(name, height),
-		lastError: "billing_paused: spend_cap_reached",
+		billingPausedCode: "spend_cap_reached",
 	});
 
 	test("a billing-paused subgraph with a frozen cursor and a moving tip is never restarted or halted", async () => {
@@ -633,7 +633,9 @@ describe.skipIf(!HAS_DB)("processor watch", () => {
 			const tick = watch();
 
 			await tick();
-			subgraphs[id] = [errored("s", 10, "billing_paused: spend_cap_reached")];
+			subgraphs[id] = [
+				{ ...sub("s", 10, "error"), billingPausedCode: "spend_cap_reached" },
+			];
 			await tick();
 			expect(stops).toEqual([]);
 		});

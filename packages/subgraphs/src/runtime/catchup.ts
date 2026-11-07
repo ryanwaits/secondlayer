@@ -2,10 +2,11 @@ import { getTargetDb, sql } from "@secondlayer/shared/db";
 import {
 	getSubgraph,
 	pgSchemaName,
+	recordSubgraphProcessed,
+	transitionSubgraph,
 } from "@secondlayer/shared/db/queries/subgraphs";
 import { BillingPausedError } from "@secondlayer/shared/index-http";
 import { logger } from "@secondlayer/shared/logger";
-import { billingPausedCode } from "@secondlayer/shared/schemas";
 import type { SubgraphDefinition } from "../types.ts";
 import { type BlockData, avgEventsPerBlock } from "./batch-loader.ts";
 import {
@@ -14,6 +15,7 @@ import {
 	recordBillingPause,
 } from "./billing-pause.ts";
 import {
+	BLOCK_RETRY_DELAYS_MS,
 	type ProcessBlockResult,
 	processBlockWithRetry,
 } from "./block-processor.ts";
@@ -36,6 +38,15 @@ const STANDARD_CATCHUP_BATCH_CONFIG = {
 };
 
 const catchingUp = new Set<string>();
+
+/** `last_error` of a subgraph halted by a block that kept failing. Says what
+ *  happened and what clears it. */
+export function haltedAfterRetriesMessage(
+	height: number,
+	errorMsg: string,
+): string {
+	return `Halted at block ${height} after ${BLOCK_RETRY_DELAYS_MS.length} retries, redeploy or reindex to resume: ${errorMsg}`;
+}
 
 /**
  * f057 guard: `recordLiveProgress` (subgraphs.ts) writes `last_processed_block`
@@ -67,10 +78,11 @@ const catchingUp = new Set<string>();
  *   2. `subgraph-reorg:<name>`  — advisory xact lock (reorg.ts, reorg only)
  *   3. `subgraph-block:<name>`  — advisory xact lock (below, walks only)
  *
- * No path holds (2) and (3) at once: the reorg handler reprocesses the fork
- * block through `processBlock` directly, never through a walk, so it never
- * reaches (3); and neither walk ever takes (2). The order is therefore only
- * ever exercised as 1→2 (reorg) or 1→3 (walks), and no cycle exists.
+ * The reorg handler holds all three, in that order (1→2→3), for its whole
+ * revert, so a backfill or reindex walk on another instance cannot write
+ * between the delete and the rewind. A walk takes only 1→3 per block, never
+ * (2), and the reorg stops a reindex walk before taking any of them, so no
+ * cycle exists.
  *
  * Two pieces, used together by catchUpSubgraph (below) and handleSubgraphReorg
  * (reorg.ts):
@@ -376,7 +388,7 @@ export async function catchUpSubgraph(
 		nextBatchPromise?.catch(() => {});
 		// A pause recorded by an earlier tick (or process) clears on the first
 		// successful read.
-		let pauseCleared = billingPausedCode(subgraphRow.last_error) === null;
+		let pauseCleared = subgraphRow.billing_paused_at === null;
 
 		while (currentHeight <= chainTip) {
 			// f069: per-iteration leadership check. `isCatchUpLeader()` reads this
@@ -499,18 +511,20 @@ export async function catchUpSubgraph(
 						blockHeight: height,
 						error: errorMsg,
 					});
-					const { updateSubgraphStatus, recordSubgraphProcessed } =
-						await import("@secondlayer/shared/db/queries/subgraphs");
 					await recordSubgraphProcessed(
 						targetDb,
 						subgraphName,
 						0,
 						1,
-						`catch-up halted at block ${height}: ${errorMsg}`,
+						haltedAfterRetriesMessage(height, errorMsg),
 					).catch(() => {});
-					await updateSubgraphStatus(targetDb, subgraphName, "error").catch(
-						() => {},
-					);
+					// Sticky: only a redeploy or a reindex clears it.
+					await transitionSubgraph(
+						targetDb,
+						subgraphName,
+						["active"],
+						"error",
+					).catch(() => {});
 					stopCatchup = true;
 					break;
 				}

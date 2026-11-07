@@ -252,13 +252,14 @@ async function createBalancesTable(pgSchema: string): Promise<void> {
 async function registerSubgraph(
 	def: SubgraphDefinition,
 	pgSchema: string,
+	status: "active" | "reindexing" = "active",
 ): Promise<void> {
 	createdSubgraphNames.push(def.name);
 	await db
 		.insertInto("subgraphs")
 		.values({
 			name: def.name,
-			status: "active",
+			status,
 			definition: def as unknown as Record<string, unknown>,
 			schema_hash: "test",
 			handler_path: "test",
@@ -426,7 +427,7 @@ describe("reprocessing a block never double-applies deltas", () => {
 		const pgSchema = `sg_acc_b3_${randomUUID().slice(0, 8)}`;
 		await createBalancesTable(pgSchema);
 		const def = makeDef(`acc-b3-${randomUUID().slice(0, 8)}`);
-		await registerSubgraph(def, pgSchema);
+		await registerSubgraph(def, pgSchema, "reindexing");
 
 		const A = "SP2TX6EG1TX6P1YXRRX1CBS7HK9GC9VPABPJ1E665";
 		const block = makeBlock(3000, [
@@ -454,7 +455,7 @@ describe("reprocessing a block never double-applies deltas", () => {
 		const pgSchema = `sg_acc_b3b_${randomUUID().slice(0, 8)}`;
 		await createBalancesTable(pgSchema);
 		const def = makeDef(`acc-b3b-${randomUUID().slice(0, 8)}`);
-		await registerSubgraph(def, pgSchema);
+		await registerSubgraph(def, pgSchema, "reindexing");
 
 		const A = "SP2TX6EG1TX6P1YXRRX1CBS7HK9GC9VPABPJ1E665";
 		await processBlock(def, def.name, 4000, {
@@ -477,7 +478,7 @@ describe("reprocessing a block never double-applies deltas", () => {
 		const pgSchema = `sg_acc_b3c_${randomUUID().slice(0, 8)}`;
 		await createBalancesTable(pgSchema);
 		const def = makeDef(`acc-b3c-${randomUUID().slice(0, 8)}`);
-		await registerSubgraph(def, pgSchema);
+		await registerSubgraph(def, pgSchema, "reindexing");
 
 		// Block with no matching events → no writes → checkpoint untouched
 		// (replaying a no-op block is harmless, so lag is fine here).
@@ -561,7 +562,7 @@ describe("reorg reverts orphaned deltas without destroying balances", () => {
 		const pgSchema = `sg_acc_e2e_${randomUUID().slice(0, 8)}`;
 		await createBalancesTable(pgSchema);
 		const def = makeIncrementDef(`acc-e2e-${randomUUID().slice(0, 8)}`);
-		await registerSubgraph(def, pgSchema);
+		await registerSubgraph(def, pgSchema, "reindexing");
 
 		const A = "SP1G48FZ4Y9SMP2C5HPRGQ8X9XQ7Y0Y9F9PMKQZ7H";
 		const B = "SP2TX6EG1TX6P1YXRRX1CBS7HK9GC9VPABPJ1E665";
@@ -751,5 +752,106 @@ describe("uint columns fail loudly instead of storing negatives", () => {
 		expect(result.errors).toBe(0);
 		expect(await balanceOf(pgSchema, A)).toBe(0n);
 		expect(await balanceOf(pgSchema, B)).toBe(500n);
+	});
+});
+
+// ---------------------------------------------------------------------------
+// Lifecycle: halts stick and reorgs reach a subgraph that is mid-reindex
+// ---------------------------------------------------------------------------
+
+describe("a subgraph's lifecycle survives its own walks", () => {
+	const reindexOpts = {
+		skipProgressUpdate: true,
+		atomicProgress: { status: "reindexing" },
+	};
+	const ADDRESSES = [
+		"SP1G48FZ4Y9SMP2C5HPRGQ8X9XQ7Y0Y9F9PMKQZ7H",
+		"SP2TX6EG1TX6P1YXRRX1CBS7HK9GC9VPABPJ1E665",
+		"SP3R9DNHRSBPT42JX98J92ZJHASWSBXT5ZW8X4XCK",
+	] as const;
+
+	async function rowOf(name: string) {
+		return db
+			.selectFrom("subgraphs")
+			.select(["status", "last_processed_block"])
+			.where("name", "=", name)
+			.executeTakeFirstOrThrow();
+	}
+
+	it("a halt that lands during a reindex stays error and the walk writes nothing more", async () => {
+		const pgSchema = `sg_acc_halt_${randomUUID().slice(0, 8)}`;
+		await createBalancesTable(pgSchema);
+		const def = makeDef(`acc-halt-${randomUUID().slice(0, 8)}`);
+		await registerSubgraph(def, pgSchema, "reindexing");
+
+		await processBlock(def, def.name, 5000, {
+			...reindexOpts,
+			preloaded: makeBlock(5000, [
+				{ kind: "mint", recipient: ADDRESSES[0], amount: "100" },
+			]),
+		});
+
+		// The operator halts the subgraph while the walk is mid-flight.
+		await db
+			.updateTable("subgraphs")
+			.set({ status: "error" })
+			.where("name", "=", def.name)
+			.execute();
+
+		const next = await processBlock(def, def.name, 5001, {
+			...reindexOpts,
+			preloaded: makeBlock(5001, [
+				{ kind: "mint", recipient: ADDRESSES[1], amount: "100" },
+			]),
+		});
+		expect(next.skipped).toBe(true);
+		expect(await balanceOf(pgSchema, ADDRESSES[1])).toBeNull();
+		const row = await rowOf(def.name);
+		expect(row.status).toBe("error");
+		expect(Number(row.last_processed_block)).toBe(5000);
+	});
+
+	it("a reorg that lands during a reindex past the fork removes the orphaned rows and rewinds the walk", async () => {
+		const pgSchema = `sg_acc_rx_${randomUUID().slice(0, 8)}`;
+		await createBalancesTable(pgSchema);
+		const def = makeDef(`acc-rx-${randomUUID().slice(0, 8)}`);
+		await registerSubgraph(def, pgSchema, "reindexing");
+
+		for (const [i, height] of [6000, 6001, 6002].entries()) {
+			await processBlock(def, def.name, height, {
+				...reindexOpts,
+				preloaded: makeBlock(height, [
+					{ kind: "mint", recipient: ADDRESSES[i] as string, amount: "10" },
+				]),
+			});
+		}
+		expect(Number((await rowOf(def.name)).last_processed_block)).toBe(6002);
+
+		await handleSubgraphReorg(6001, async () => def);
+
+		expect(await balanceOf(pgSchema, ADDRESSES[0])).toBe(10n);
+		expect(await balanceOf(pgSchema, ADDRESSES[1])).toBeNull();
+		expect(await balanceOf(pgSchema, ADDRESSES[2])).toBeNull();
+		const row = await rowOf(def.name);
+		expect(row.status).toBe("reindexing");
+		expect(Number(row.last_processed_block)).toBe(6000);
+	});
+
+	it("a reorg above a reindex's cursor leaves the walk and its rows alone", async () => {
+		const pgSchema = `sg_acc_rxa_${randomUUID().slice(0, 8)}`;
+		await createBalancesTable(pgSchema);
+		const def = makeDef(`acc-rxa-${randomUUID().slice(0, 8)}`);
+		await registerSubgraph(def, pgSchema, "reindexing");
+		await processBlock(def, def.name, 7000, {
+			...reindexOpts,
+			preloaded: makeBlock(7000, [
+				{ kind: "mint", recipient: ADDRESSES[0], amount: "10" },
+			]),
+		});
+
+		await handleSubgraphReorg(7500, async () => def);
+
+		expect(await balanceOf(pgSchema, ADDRESSES[0])).toBe(10n);
+		expect(Number((await rowOf(def.name)).last_processed_block)).toBe(7000);
 	});
 });

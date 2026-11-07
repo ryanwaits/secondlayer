@@ -80,7 +80,13 @@ const def = {
 async function row() {
 	return db
 		.selectFrom("subgraphs")
-		.select(["status", "last_processed_block", "total_errors", "last_error"])
+		.select([
+			"status",
+			"last_processed_block",
+			"total_errors",
+			"last_error",
+			"billing_paused_code",
+		])
 		.where("name", "=", name)
 		.executeTakeFirstOrThrow();
 }
@@ -141,7 +147,8 @@ describe("catch-up while reads are refused for billing", () => {
 		expect(sg.status).toBe("active");
 		expect(Number(sg.total_errors)).toBe(0);
 		expect(Number(sg.last_processed_block)).toBe(0);
-		expect(sg.last_error).toBe("billing_paused: spend_cap_reached");
+		expect(sg.billing_paused_code).toBe("spend_cap_reached");
+		expect(sg.last_error).toBeNull();
 		expect(inBillingBackoff(name)).toBe(true);
 
 		// Inside the backoff window the refused read is not hammered.
@@ -158,7 +165,7 @@ describe("catch-up while reads are refused for billing", () => {
 		sg = await row();
 		expect(sg.status).toBe("active");
 		expect(Number(sg.last_processed_block)).toBe(TIP);
-		expect(sg.last_error).toBeNull();
+		expect(sg.billing_paused_code).toBeNull();
 		expect(Number(sg.total_errors)).toBe(0);
 		expect(inBillingBackoff(name)).toBe(false);
 	});
@@ -170,7 +177,7 @@ describe("loadWhileBillingPaused", () => {
 	test("retries the same load after a refusal and clears the recorded code", async () => {
 		await db
 			.updateTable("subgraphs")
-			.set({ last_error: null })
+			.set({ billing_paused_at: null, billing_paused_code: null })
 			.where("name", "=", name)
 			.execute();
 		let reloads = 0;
@@ -182,16 +189,14 @@ describe("loadWhileBillingPaused", () => {
 			first,
 			async () => {
 				reloads++;
-				expect((await row()).last_error).toBe(
-					"billing_paused: insufficient_credits",
-				);
+				expect((await row()).billing_paused_code).toBe("insufficient_credits");
 				return "batch";
 			},
 			{ backoffMs: 5 },
 		);
 		expect(value).toBe("batch");
 		expect(reloads).toBe(1);
-		expect((await row()).last_error).toBeNull();
+		expect((await row()).billing_paused_code).toBeNull();
 	});
 
 	test("a single-height refetch keeps waiting while refused, then returns its block", async () => {
@@ -207,7 +212,7 @@ describe("loadWhileBillingPaused", () => {
 			backoffMs: 5,
 		});
 		expect(value?.get(7)).toBe("block-7");
-		expect((await row()).last_error).toBeNull();
+		expect((await row()).billing_paused_code).toBeNull();
 	});
 
 	test("an abort during the wait returns without a result", async () => {

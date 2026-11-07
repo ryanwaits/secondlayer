@@ -1,11 +1,56 @@
 import { type Kysely, sql } from "kysely";
 import { isPlatformMode } from "../../mode.ts";
 import {
-	BILLING_PAUSED_PREFIX,
+	SUBGRAPH_STATES,
+	type SubgraphStatus,
 	type SubgraphVerification,
 } from "../../schemas/subgraphs.ts";
 import { jsonb } from "../jsonb.ts";
+import { casTransition, defineMachine } from "../transition.ts";
 import type { Database, Subgraph } from "../types.ts";
+
+/**
+ * Subgraph lifecycle. `error` is sticky: a live walk never clears it, only a
+ * redeploy (`error -> active`) or a reindex (`error -> reindexing`) does.
+ * Every status write goes through {@link transitionSubgraph}; the live
+ * progress writes below touch the cursor only and are gated on the status
+ * they are valid for.
+ */
+export const subgraphMachine = defineMachine({
+	states: SUBGRAPH_STATES,
+	transitions: {
+		active: ["reindexing", "error"],
+		reindexing: ["active", "error"],
+		error: ["reindexing", "active"],
+	},
+});
+
+/**
+ * Move a subgraph from one of `from` to `to`, writing `set` in the same
+ * statement. Returns the row, or `null` when it was not in a `from` state
+ * (something else, a halt or a redeploy, decided first): log and stop, never
+ * retry. Staying in the same state (`reindexing -> reindexing`) is a plain
+ * conditional write, not a transition.
+ */
+export function transitionSubgraph(
+	db: Kysely<Database>,
+	name: string,
+	from: readonly SubgraphStatus[],
+	to: SubgraphStatus,
+	set?: Record<string, unknown>,
+): Promise<Subgraph | null> {
+	for (const state of from) {
+		if (state !== to) subgraphMachine.assert(state, to);
+	}
+	return casTransition<SubgraphStatus, Subgraph>(db, {
+		table: "subgraphs",
+		key: "name",
+		id: name,
+		from,
+		to,
+		set,
+	});
+}
 
 /** Convert a subgraph name to its PostgreSQL schema name. */
 export function pgSchemaName(subgraphName: string): string {
@@ -129,31 +174,35 @@ export async function listSubgraphs(
 	return query.execute();
 }
 
-export async function updateSubgraphStatus(
+/**
+ * Reindex progress: moves the cursor of a subgraph that is still
+ * `reindexing`, and nothing else. Returns `false` when the subgraph left that
+ * state (halted, cancelled, redeployed): the walk must not write on, and its
+ * progress never revives a halt.
+ */
+export async function setReindexCursor(
 	db: Kysely<Database>,
 	name: string,
-	status: string,
-	lastProcessedBlock?: number,
-): Promise<void> {
-	await db
+	lastProcessedBlock: number,
+): Promise<boolean> {
+	const result = await db
 		.updateTable("subgraphs")
 		.set({
-			status,
-			...(lastProcessedBlock !== undefined
-				? { last_processed_block: lastProcessedBlock }
-				: {}),
+			last_processed_block: lastProcessedBlock,
 			updated_at: new Date(),
 		})
 		.where("name", "=", name)
-		.execute();
+		.where("status", "=", "reindexing")
+		.executeTakeFirst();
+	return Number(result.numUpdatedRows ?? 0n) > 0;
 }
 
 /** Live-walk ERROR write (f069): a block whose handlers ALL failed
  *  (`processed === 0 && errors > 0`, `block-processor.ts`'s `applyProgress`)
- *  is stamped 'error' and its height is recorded as processed, same as
- *  `updateSubgraphStatus(db, name, "error", blockHeight)` — except the
- *  cursor half of that write now goes through the same conditional `<`
- *  guard as {@link recordLiveProgress}. Marking a subgraph 'error' is not
+ *  moves an `active` subgraph to 'error' and records its height as processed;
+ *  the cursor half goes through the same conditional `<` guard as
+ *  {@link recordLiveProgress}. A reindexing or already-halted subgraph is left
+ *  alone. Marking a subgraph 'error' is not
  *  itself replay-sensitive, but it shares the `last_processed_block` column
  *  with the replay guard: an unconditional write here could regress the
  *  cursor a racing (successful) writer already advanced past, which is
@@ -161,8 +210,8 @@ export async function updateSubgraphStatus(
  *  practice `ctx.rollbackTo` (`runner.ts`) means an all-failed block never
  *  flushes writes, so a lost race here is always a silent no-op, never a
  *  case that needs `CursorRaceLostError`-style tx abort. Returns whether
- *  the write applied. Live path only — reindex/backfill's error stamping
- *  goes through {@link updateSubgraphStatus} unconditionally, as before. */
+ *  the write applied. Live path only: reindex/backfill halts go through
+ *  {@link transitionSubgraph}. */
 export async function recordLiveError(
 	db: Kysely<Database>,
 	name: string,
@@ -176,6 +225,7 @@ export async function recordLiveError(
 			updated_at: new Date(),
 		})
 		.where("name", "=", name)
+		.where("status", "=", "active")
 		.where("last_processed_block", "<", blockHeight)
 		.executeTakeFirst();
 	return Number(result.numUpdatedRows ?? 0n) > 0;
@@ -202,8 +252,8 @@ export async function recordSubgraphProcessed(
 		.execute();
 }
 
-/** Record a billing pause on the existing health fields. Status and counters
- *  are untouched: a paused subgraph is healthy, just waiting on its account. */
+/** Record a billing pause. Status, cursor, counters and `last_error` are
+ *  untouched: a paused subgraph is healthy, just waiting on its account. */
 export async function markSubgraphBillingPaused(
 	db: Kysely<Database>,
 	name: string,
@@ -212,25 +262,28 @@ export async function markSubgraphBillingPaused(
 	await db
 		.updateTable("subgraphs")
 		.set({
-			last_error: `${BILLING_PAUSED_PREFIX}${code}`,
-			last_error_at: new Date(),
+			billing_paused_at: sql`COALESCE(billing_paused_at, now())`,
+			billing_paused_code: code,
 			updated_at: new Date(),
 		})
 		.where("name", "=", name)
 		.execute();
 }
 
-/** Clear a billing pause once reads succeed again. Leaves any other
- *  `last_error` alone. */
+/** Clear a billing pause once reads succeed again. */
 export async function clearSubgraphBillingPaused(
 	db: Kysely<Database>,
 	name: string,
 ): Promise<void> {
 	await db
 		.updateTable("subgraphs")
-		.set({ last_error: null, last_error_at: null, updated_at: new Date() })
+		.set({
+			billing_paused_at: null,
+			billing_paused_code: null,
+			updated_at: new Date(),
+		})
 		.where("name", "=", name)
-		.where("last_error", "like", `${BILLING_PAUSED_PREFIX}%`)
+		.where("billing_paused_at", "is not", null)
 		.execute();
 }
 
@@ -291,26 +344,10 @@ export async function deleteSubgraph(
 	return subgraph;
 }
 
-/** Set or clear a paid subgraph's expiry (NULL = no expiry, e.g. on claim). */
-export async function updateSubgraphExpiry(
-	db: Kysely<Database>,
-	name: string,
-	accountId: string,
-	expiresAt: Date | null,
-): Promise<void> {
-	await db
-		.updateTable("subgraphs")
-		.set({ expires_at: expiresAt })
-		.where("name", "=", name)
-		.where("account_id", "=", accountId)
-		.execute();
-}
-
-/** Live-walk progress write: advances the cursor and PROMOTES toward
- *  'active' (deploying/error → active keeps reorg eligibility, reorg.ts gates
- *  on it) but never overwrites an explicit 'reindexing' park — unconditional
- *  status stamping let catch-up flap a parked subgraph back into its own path
- *  per block, fighting the queued reindex op.
+/** Live-walk progress write: advances the cursor of an `active` subgraph and
+ *  never touches status. A `reindexing` or `error` subgraph is a no-op here:
+ *  the old promote-toward-active CASE let a live commit undo a halt and flap
+ *  a parked subgraph back into catch-up against its own reindex op.
  *
  *  `last_processed_block` is now written CONDITIONALLY — `WHERE
  *  last_processed_block < lastProcessedBlock`, mirroring
@@ -349,10 +386,10 @@ export async function recordLiveProgress(
 		.updateTable("subgraphs")
 		.set({
 			last_processed_block: lastProcessedBlock,
-			status: sql`CASE WHEN status = 'reindexing' THEN status ELSE 'active' END`,
 			updated_at: new Date(),
 		})
 		.where("name", "=", name)
+		.where("status", "=", "active")
 		.where("last_processed_block", "<", lastProcessedBlock)
 		.executeTakeFirst();
 	return Number(result.numUpdatedRows ?? 0n) > 0;
@@ -362,8 +399,7 @@ export async function recordLiveProgress(
  *  semantics, verbatim — moves `last_processed_block` to the fork height
  *  regardless of its current value, because that is by definition a
  *  backward move the conditional `<` guard in `recordLiveProgress` would
- *  refuse. Same status-promotion CASE (never unparks an explicit
- *  'reindexing').
+ *  refuse. Cursor only, `active` subgraphs only.
  *
  *  Callers: exclusively the subgraph-reorg path
  *  (`packages/subgraphs/src/runtime/reorg.ts`, via `block-processor.ts`'s
@@ -382,9 +418,9 @@ export async function rewindLiveProgress(
 		.updateTable("subgraphs")
 		.set({
 			last_processed_block: lastProcessedBlock,
-			status: sql`CASE WHEN status = 'reindexing' THEN status ELSE 'active' END`,
 			updated_at: new Date(),
 		})
 		.where("name", "=", name)
+		.where("status", "=", "active")
 		.execute();
 }

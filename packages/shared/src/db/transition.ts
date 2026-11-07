@@ -33,7 +33,10 @@ export function defineMachine<const S extends string>(def: {
 
 export interface CasTransition<S extends string> {
 	table: string;
+	/** Value of the row key. */
 	id: string | number;
+	/** Row key column, `id` unless the table is addressed by another unique column (`name`). */
+	key?: string;
 	/** Status column, `status` unless the machine lives in another column. */
 	column?: string;
 	/** The row moves only if it is currently in one of these states. */
@@ -46,7 +49,7 @@ export interface CasTransition<S extends string> {
 }
 
 /**
- * Compare-and-swap a status column: `UPDATE ... WHERE id = ? AND column = ANY(from)`.
+ * Compare-and-swap a status column: `UPDATE ... WHERE key = ? AND column = ANY(from)`.
  * Returns the updated row, or `null` when the row was missing or not in a `from`
  * state (a lost race). The caller decides what `null` means; usually log and stop.
  * Works with `db` and inside a transaction (`trx`).
@@ -70,7 +73,7 @@ export async function casTransition<
 	const { rows } = await sql<Row>`
 		UPDATE ${sql.table(t.table)}
 		SET ${sql.join(assignments)}
-		WHERE id = ${t.id} AND ${column} = ANY(${sql.val([...t.from])})
+		WHERE ${sql.id(t.key ?? "id")} = ${t.id} AND ${column} = ANY(${sql.val([...t.from])})
 		RETURNING *
 	`.execute(db);
 	return rows[0] ?? null;

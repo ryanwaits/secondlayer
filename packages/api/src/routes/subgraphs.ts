@@ -31,13 +31,14 @@ import {
 	getSubgraph,
 	listSubgraphs,
 	pgSchemaName,
-	updateSubgraphStatus,
+	transitionSubgraph,
 } from "@secondlayer/shared/db/queries/subgraphs";
 import { createInternalIndexHttpClient } from "@secondlayer/shared/index-http";
 import {
 	type DeploySubgraphRequest,
 	DeploySubgraphRequestSchema,
 	type SubgraphDetail,
+	syncState,
 } from "@secondlayer/shared/schemas/subgraphs";
 import type { SubgraphSpecOptions } from "@secondlayer/shared/subgraphs/spec";
 import type { SubgraphDefinition } from "@secondlayer/subgraphs";
@@ -105,6 +106,15 @@ export async function stopSubgraphCache(): Promise<void> {
 // query/SubgraphNotFoundError live in subgraphs/read-core.ts, shared with the
 // open /v1/subgraphs read surface.
 
+/** Columns a redeploy or a fresh start clears when it lifts a halt. */
+const CLEAR_HALT = { last_error: null, last_error_at: null } as const;
+/** An explicit reindex starts over: no resume metadata from a halted run. */
+const FRESH_REINDEX = {
+	...CLEAR_HALT,
+	reindex_from_block: null,
+	reindex_to_block: null,
+} as const;
+
 type SubgraphSyncSource = {
 	status: string;
 	start_block: number | string | null;
@@ -162,11 +172,7 @@ export function buildSyncInfo(
 		totalBlocks > 0
 			? Number.parseFloat(Math.min(1, processedBlocks / totalBlocks).toFixed(4))
 			: 1;
-	let syncStatus: "synced" | "catching_up" | "reindexing" | "error";
-	if (status === "reindexing") syncStatus = "reindexing";
-	else if (status === "error") syncStatus = "error";
-	else if (blocksRemaining > 0) syncStatus = "catching_up";
-	else syncStatus = "synced";
+	const syncStatus = syncState({ status, lastProcessedBlock }, chainTip);
 
 	// Honest event-based progress/ETA when the active op carries an
 	// enqueue-time estimate (sparse syncs): the block fraction is meaningless
@@ -748,7 +754,16 @@ async function executeSubgraphDeploy(
 			operationId = op.id;
 			// Go live at the anchor only once the history op is secured: a
 			// refused insert must leave the subgraph's status and cursor alone.
-			await updateSubgraphStatus(db, name, "active", tipFirstAnchor);
+			await transitionSubgraph(
+				db,
+				name,
+				["active", "reindexing", "error"],
+				"active",
+				{
+					last_processed_block: tipFirstAnchor,
+					...CLEAR_HALT,
+				},
+			);
 			reindexEstimatedEvents = historyWeight.estimatedEvents ?? undefined;
 			tipFirstHistory = {
 				from: deployStartBlock ?? 1,
@@ -785,7 +800,13 @@ async function executeSubgraphDeploy(
 			});
 			operationId = operation.id;
 			reindexEstimatedEvents = populationWeight.estimatedEvents ?? undefined;
-			await updateSubgraphStatus(db, name, "reindexing");
+			await transitionSubgraph(
+				db,
+				name,
+				["active", "reindexing", "error"],
+				"reindexing",
+				FRESH_REINDEX,
+			);
 		} catch (err) {
 			if (isActiveSubgraphOperationConflict(err)) {
 				return c.json(
@@ -798,6 +819,12 @@ async function executeSubgraphDeploy(
 			}
 			throw err;
 		}
+	}
+
+	// A redeploy is how a halted subgraph resumes when it needs no rebuild:
+	// back to `active`, and catch-up picks up from its cursor.
+	if (existing?.status === "error" && !needsPopulation) {
+		await transitionSubgraph(db, name, ["error"], "active", CLEAR_HALT);
 	}
 
 	const status = result.action === "created" ? 201 : 200;
@@ -943,7 +970,13 @@ app.post("/:subgraphName/reindex", async (c) => {
 			weight: reindexWeight.weight,
 			estimatedEvents: reindexWeight.estimatedEvents,
 		});
-		await updateSubgraphStatus(db, subgraphName, "reindexing");
+		await transitionSubgraph(
+			db,
+			subgraphName,
+			["active", "reindexing", "error"],
+			"reindexing",
+			FRESH_REINDEX,
+		);
 
 		return c.json({
 			message: `Reindex queued for subgraph "${subgraphName}"`,
@@ -1015,16 +1048,13 @@ app.post("/:subgraphName/halt", async (c) => {
 	const subgraph = await getSubgraph(db, subgraphName);
 	if (!subgraph) throw new SubgraphNotFoundError(subgraphName);
 
-	await db
-		.updateTable("subgraphs")
-		.set({
-			status: "error",
-			last_error: reason,
-			last_error_at: new Date(),
-			updated_at: new Date(),
-		})
-		.where("name", "=", subgraphName)
-		.execute();
+	await transitionSubgraph(
+		db,
+		subgraphName,
+		["active", "reindexing", "error"],
+		"error",
+		{ last_error: reason, last_error_at: new Date() },
+	);
 	await requestSubgraphOperationsCancelForDelete(db, subgraph.id);
 
 	return c.json({ message: `Subgraph "${subgraphName}" halted`, reason });
@@ -1252,6 +1282,7 @@ app.get("/", async (c) => {
 					"reindex_to_block",
 					"last_error",
 					"last_error_at",
+					"billing_paused_code",
 					"updated_at",
 				])
 				.execute()
@@ -1338,6 +1369,7 @@ app.get("/", async (c) => {
 				integrity: (gaps?.gapCount ?? 0) > 0 ? "gaps_detected" : "complete",
 				lastError: live?.last_error ?? null,
 				lastErrorAt: live?.last_error_at?.toISOString() ?? null,
+				billingPausedCode: live?.billing_paused_code ?? null,
 				updatedAt: (live?.updated_at ?? v.updated_at)?.toISOString() ?? null,
 				createdAt: v.created_at.toISOString(),
 				...(healthHours === null
@@ -1494,6 +1526,7 @@ export async function buildSubgraphDetailFromRow(
 				"status",
 				"last_error",
 				"last_error_at",
+				"billing_paused_code",
 				"updated_at",
 				"reindex_from_block",
 				"reindex_to_block",
@@ -1592,6 +1625,7 @@ export async function buildSubgraphDetailFromRow(
 			errorRate: Number.parseFloat(errorRate.toFixed(4)),
 			lastError: live.last_error ?? null,
 			lastErrorAt: live.last_error_at?.toISOString() ?? null,
+			billingPausedCode: live.billing_paused_code ?? null,
 			emptyMapping: isEmptyMappingHealth({ totalProcessed, totalRows }),
 		},
 		sync,
@@ -1682,6 +1716,7 @@ app.get("/:subgraphName", async (c) => {
 				"status",
 				"last_error",
 				"last_error_at",
+				"billing_paused_code",
 				"updated_at",
 				"reindex_from_block",
 				"reindex_to_block",
@@ -1800,6 +1835,7 @@ app.get("/:subgraphName", async (c) => {
 			errorRate: Number.parseFloat(errorRate.toFixed(4)),
 			lastError: live.last_error ?? null,
 			lastErrorAt: live.last_error_at?.toISOString() ?? null,
+			billingPausedCode: live.billing_paused_code ?? null,
 			emptyMapping: isEmptyMappingHealth({ totalProcessed, totalRows }),
 			violationCount,
 		},

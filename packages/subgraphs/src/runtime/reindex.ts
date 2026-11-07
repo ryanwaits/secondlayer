@@ -11,7 +11,8 @@ import {
 } from "@secondlayer/shared/db/queries/subgraph-operations";
 import {
 	recordSubgraphProcessed,
-	updateSubgraphStatus,
+	setReindexCursor,
+	transitionSubgraph,
 } from "@secondlayer/shared/db/queries/subgraphs";
 import { logger } from "@secondlayer/shared/logger";
 import { generateSubgraphSQL } from "../schema/generator.ts";
@@ -171,12 +172,23 @@ async function processBlockRange(
 	let batchSize = REINDEX_BATCH_CONFIG.defaultBatchSize;
 	let currentHeight = fromBlock;
 	let aborted = false;
+	// Set when a cursor write finds the subgraph no longer `reindexing`
+	// (halted, cancelled, redeployed): the walk stops without writing on.
+	let leftReindex = false;
 	let consecutiveEmptyBatches = 0;
 	let lastBatchDelivered = 0;
 	// Sparse scan: when a whole batch matches nothing, ask the source for the
 	// next height that could match and leap there — token-scoped genesis
 	// reindexes skip the (often vast) majority of chain history.
 	const sparse = Boolean(source.nextDataHeight && canSparseScan(def));
+	// Backfill (status 'active') revisits heights BELOW the live cursor, so it
+	// checkpoints on its own op row and must NEVER write the live cursor (an
+	// unconditional historical SET would regress it and make catch-up re-walk +
+	// double-apply). Reindex checkpoints on the subgraph cursor.
+	const opCursor =
+		status === "active" && opts.operationId
+			? { operationId: opts.operationId }
+			: undefined;
 
 	const flushHealth = async () => {
 		if (pendingEventsProcessed === 0 && pendingErrors === 0) return;
@@ -194,6 +206,20 @@ async function processBlockRange(
 		lastHealthFlushAt = Date.now();
 	};
 
+	/** Walk checkpoint outside a block's own tx. Backfill checkpoints on its op
+	 *  row; reindex on the subgraph cursor, which only moves while `reindexing`. */
+	const checkpoint = async (height: number) => {
+		if (opCursor) {
+			// Conditional, so it can't regress the in-tx advances written by
+			// processed blocks.
+			await advanceOperationCursor(targetDb, opCursor.operationId, height);
+		} else if (status === "reindexing") {
+			if (!(await setReindexCursor(targetDb, subgraphName, height))) {
+				leftReindex = true;
+			}
+		}
+	};
+
 	/**
 	 * Stop the walk at an unprocessable block: surface the error, mark the
 	 * subgraph errored, and throw. Deliberately does NOT touch
@@ -207,7 +233,12 @@ async function processBlockRange(
 		pendingErrors++;
 		pendingLastError = errorMsg;
 		await flushHealth().catch(() => {});
-		await updateSubgraphStatus(targetDb, subgraphName, "error").catch(() => {});
+		await transitionSubgraph(
+			targetDb,
+			subgraphName,
+			["active", "reindexing"],
+			"error",
+		).catch(() => {});
 		throw new Error(`${subgraphName}: halted at block ${height}: ${errorMsg}`);
 	};
 
@@ -308,14 +339,6 @@ async function processBlockRange(
 		// Reindex is a strictly ascending walk over the subgraph's own cursor, so
 		// written blocks checkpoint atomically and replays skip (fix-f040 B3).
 		// Backfill revisits heights below the live cursor — must stay batched.
-		// Reindex checkpoints on the subgraph cursor; backfill (status 'active')
-		// revisits heights BELOW the live cursor, so it checkpoints on its own
-		// op row instead — and must NEVER write the live cursor (an unconditional
-		// historical SET would regress it and make catch-up re-walk + double-apply).
-		const opCursor =
-			status === "active" && opts.operationId
-				? { operationId: opts.operationId }
-				: undefined;
 		const atomicProgress = status === "reindexing" ? { status } : opCursor;
 
 		for (let height = currentHeight; height <= batchEnd; height++) {
@@ -437,13 +460,9 @@ async function processBlockRange(
 				blocksProcessed % 100 === 0 ||
 				now - lastProgressFlushAt >= PROGRESS_FLUSH_INTERVAL_MS;
 			if (shouldFlushProgress) {
-				if (opCursor) {
-					// Covers write-less stretches; conditional → can't regress the
-					// in-tx advances written by processed blocks.
-					await advanceOperationCursor(targetDb, opCursor.operationId, height);
-				} else {
-					await updateSubgraphStatus(targetDb, subgraphName, status, height);
-				}
+				// Covers write-less stretches.
+				await checkpoint(height);
+				if (leftReindex) break;
 				if (opts.operationId) {
 					await updateOperationProcessedEvents(
 						targetDb,
@@ -471,8 +490,16 @@ async function processBlockRange(
 			}
 		}
 
-		if (status === "reindexing" && blocksProcessed > 0) {
-			await updateSubgraphStatus(targetDb, subgraphName, status, batchEnd);
+		if (status === "reindexing" && blocksProcessed > 0 && !leftReindex) {
+			await checkpoint(batchEnd);
+		}
+		if (leftReindex) {
+			logger.info("Reindex stopped: subgraph is no longer reindexing", {
+				subgraph: subgraphName,
+				currentBlock: currentHeight,
+			});
+			aborted = true;
+			break;
 		}
 
 		const shouldFlushHealth =
@@ -513,19 +540,10 @@ async function processBlockRange(
 			if (jumpTo > batchEnd + 1) {
 				const skipped = Math.min(jumpTo, toBlock + 1) - (batchEnd + 1);
 				blocksProcessed += skipped;
-				if (opCursor) {
-					await advanceOperationCursor(
-						targetDb,
-						opCursor.operationId,
-						jumpTo - 1,
-					);
-				} else {
-					await updateSubgraphStatus(
-						targetDb,
-						subgraphName,
-						status,
-						jumpTo - 1,
-					);
+				await checkpoint(jumpTo - 1);
+				if (leftReindex) {
+					aborted = true;
+					break;
 				}
 				logger.info("Sparse skip", {
 					subgraph: subgraphName,
@@ -632,13 +650,13 @@ async function resetCancelledReindex(
 	db: ReturnType<typeof getTargetDb>,
 	subgraphName: string,
 ): Promise<void> {
-	await db
-		.updateTable("subgraphs")
-		.set({ status: "active", updated_at: new Date() })
-		.where("name", "=", subgraphName)
-		.where("status", "=", "reindexing")
-		.execute();
-	await clearReindexMetadata(db, subgraphName);
+	const row = await transitionSubgraph(
+		db,
+		subgraphName,
+		["reindexing"],
+		"active",
+	);
+	if (row) await clearReindexMetadata(db, subgraphName);
 }
 
 /**
@@ -679,7 +697,13 @@ export async function reindexSubgraph(
 	const subgraphName = def.name;
 	const schemaName = opts?.schemaName ?? pgSchemaName(subgraphName);
 
-	await updateSubgraphStatus(targetDb, subgraphName, "reindexing");
+	const started = await transitionSubgraph(
+		targetDb,
+		subgraphName,
+		["active", "error", "reindexing"],
+		"reindexing",
+	);
+	if (!started) throw new Error(`Subgraph "${subgraphName}" not found`);
 	logger.info("Reindex starting", { subgraph: subgraphName });
 
 	try {
@@ -692,7 +716,15 @@ export async function reindexSubgraph(
 				fromBlock,
 				toBlock,
 			});
-			await updateSubgraphStatus(targetDb, subgraphName, "active", 0);
+			await transitionSubgraph(
+				targetDb,
+				subgraphName,
+				["reindexing"],
+				"active",
+				{
+					last_processed_block: 0,
+				},
+			);
 			return { processed: 0 };
 		}
 
@@ -708,12 +740,21 @@ export async function reindexSubgraph(
 		// applied" and silently skips the entire prefix — empty tables, then a
 		// CHECK violation at the first real delta (the sbtc-balances halt at
 		// block 1913668: 1.9M credit blocks skipped against a 1913667 cursor).
-		await updateSubgraphStatus(
+		const reset = await transitionSubgraph(
 			targetDb,
 			subgraphName,
+			["reindexing"],
 			"reindexing",
-			Math.max(0, fromBlock - 1),
+			{ last_processed_block: Math.max(0, fromBlock - 1) },
 		);
+		if (!reset) {
+			// Halted or cancelled while the schema was being rebuilt: that
+			// decision stands, and a later reindex rebuilds from scratch.
+			logger.info("Reindex stopped before the walk: no longer reindexing", {
+				subgraph: subgraphName,
+			});
+			return { processed: 0 };
+		}
 		logger.info("Schema recreated for reindex", {
 			subgraph: subgraphName,
 			cursorResetTo: Math.max(0, fromBlock - 1),
@@ -734,6 +775,7 @@ export async function reindexSubgraph(
 				updated_at: new Date(),
 			})
 			.where("name", "=", subgraphName)
+			.where("status", "=", "reindexing")
 			.execute();
 
 		logger.info("Reindexing blocks", {
@@ -775,7 +817,23 @@ export async function reindexSubgraph(
 			return { processed: result.blocksProcessed };
 		}
 
-		await updateSubgraphStatus(targetDb, subgraphName, "active", toBlock);
+		const finished = await transitionSubgraph(
+			targetDb,
+			subgraphName,
+			["reindexing"],
+			"active",
+			{ last_processed_block: toBlock },
+		);
+		if (!finished) {
+			// Halted after the walk's last checkpoint: the halt stands.
+			logger.warn(
+				"Reindex walk finished but the subgraph is no longer reindexing",
+				{
+					subgraph: subgraphName,
+				},
+			);
+			return { processed: result.blocksProcessed };
+		}
 		await clearReindexMetadata(targetDb, subgraphName);
 		logger.info("Reindex complete", {
 			subgraph: subgraphName,
@@ -795,7 +853,12 @@ export async function reindexSubgraph(
 			subgraph: subgraphName,
 			error: getErrorMessage(err),
 		});
-		await updateSubgraphStatus(targetDb, subgraphName, "error");
+		await transitionSubgraph(
+			targetDb,
+			subgraphName,
+			["active", "reindexing"],
+			"error",
+		).catch(() => {});
 		throw err;
 	}
 }
@@ -844,8 +907,14 @@ export async function resumeReindex(
 
 	if (fromBlock > toBlock) {
 		logger.info("Resume: no remaining blocks", { subgraph: subgraphName });
-		await updateSubgraphStatus(targetDb, subgraphName, "active", toBlock);
-		await clearReindexMetadata(targetDb, subgraphName);
+		const finished = await transitionSubgraph(
+			targetDb,
+			subgraphName,
+			["reindexing"],
+			"active",
+			{ last_processed_block: toBlock },
+		);
+		if (finished) await clearReindexMetadata(targetDb, subgraphName);
 		return { processed: 0 };
 	}
 
@@ -881,7 +950,22 @@ export async function resumeReindex(
 			return { processed: result.blocksProcessed };
 		}
 
-		await updateSubgraphStatus(targetDb, subgraphName, "active", toBlock);
+		const finished = await transitionSubgraph(
+			targetDb,
+			subgraphName,
+			["reindexing"],
+			"active",
+			{ last_processed_block: toBlock },
+		);
+		if (!finished) {
+			logger.warn(
+				"Resumed walk finished but the subgraph is no longer reindexing",
+				{
+					subgraph: subgraphName,
+				},
+			);
+			return { processed: result.blocksProcessed };
+		}
 		await clearReindexMetadata(targetDb, subgraphName);
 		logger.info("Resumed reindex complete", {
 			subgraph: subgraphName,
@@ -893,7 +977,12 @@ export async function resumeReindex(
 			subgraph: subgraphName,
 			error: getErrorMessage(err),
 		});
-		await updateSubgraphStatus(targetDb, subgraphName, "error");
+		await transitionSubgraph(
+			targetDb,
+			subgraphName,
+			["active", "reindexing"],
+			"error",
+		).catch(() => {});
 		throw err;
 	}
 }

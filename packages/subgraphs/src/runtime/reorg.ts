@@ -1,16 +1,34 @@
 import { getErrorMessage } from "@secondlayer/shared";
 import { getRawClient, getTargetDb } from "@secondlayer/shared/db";
 import type { Subgraph } from "@secondlayer/shared/db";
-import { listSubgraphs } from "@secondlayer/shared/db/queries/subgraphs";
+import {
+	createSubgraphOperation,
+	isActiveSubgraphOperationConflict,
+	requestSubgraphOperationCancel,
+	waitForSubgraphOperationsClear,
+} from "@secondlayer/shared/db/queries/subgraph-operations";
+import {
+	getSubgraph,
+	listSubgraphs,
+	setReindexCursor,
+} from "@secondlayer/shared/db/queries/subgraphs";
 import { logger } from "@secondlayer/shared/logger";
 import { sql } from "kysely";
 import { pgSchemaName } from "../schema/utils.ts";
 import type { SubgraphDefinition, SubgraphSchema } from "../types.ts";
 import { processBlock } from "./block-processor.ts";
-import { bumpReorgEpoch, withSubgraphBlockLock } from "./catchup.ts";
+import {
+	bumpReorgEpoch,
+	withSubgraphBlockAdvisoryLock,
+	withSubgraphBlockLock,
+} from "./catchup.ts";
+
+/** How long a reorg waits for a reindex walk to stop before it gives up on
+ *  that subgraph (logged; the next reorg or a reindex repairs it). */
+const REINDEX_STOP_TIMEOUT_MS = 30_000;
 
 /**
- * Handle a chain reorg for all active subgraphs.
+ * Handle a chain reorg for all active and reindexing subgraphs.
  *
  * `blockHeight` is the **shallowest** height where the chain diverged. The
  * indexer's `handleReorg` has already marked every block ≥ `blockHeight`
@@ -27,7 +45,7 @@ export async function handleSubgraphReorg(
 	// managed target DB.
 	const targetDb = getTargetDb();
 	const activeSubgraphs = (await listSubgraphs(targetDb)).filter(
-		(v: Subgraph) => v.status === "active",
+		(v: Subgraph) => v.status === "active" || v.status === "reindexing",
 	);
 
 	if (activeSubgraphs.length === 0) return;
@@ -53,6 +71,12 @@ export async function handleSubgraphReorg(
 			// clobbered by a catch-up write that doesn't know the cursor moved.
 			// See the guard comment near `subgraphBlockLockHeld` in catchup.ts.
 			bumpReorgEpoch(sg.name);
+			// A reindex walk runs in its own loop with a cursor of its own, so a
+			// fork at or below that cursor orphans rows the walk will never
+			// revisit. Stop the walk BEFORE taking the block locks: the walk needs
+			// them for every block it writes, so waiting on it while holding them
+			// would never finish.
+			if (!(await stopReindexBehindFork(sg, blockHeight))) continue;
 			await withSubgraphBlockLock(sg.name, async () => {
 				// f069: the in-process block lock above only excludes a same-process
 				// catch-up walk (f057) — `handleSubgraphReorg` itself runs on EVERY
@@ -76,7 +100,11 @@ export async function handleSubgraphReorg(
 						await sql`SELECT pg_advisory_xact_lock(hashtext(${`subgraph-reorg:${sg.name}`}))`.execute(
 							lockTx,
 						);
-						await reorgOneSubgraph(sg, schema, blockHeight, loadSubgraphDef);
+						// Lock 3 (see catchup.ts): excludes a backfill or reindex
+						// walk's block write for the whole revert.
+						await withSubgraphBlockAdvisoryLock(sg.name, () =>
+							reorgOneSubgraph(sg, schema, blockHeight, loadSubgraphDef),
+						);
 					});
 			});
 		} catch (err) {
@@ -89,6 +117,35 @@ export async function handleSubgraphReorg(
 	}
 }
 
+/**
+ * A reindexing subgraph whose cursor is at or past the fork has rows above the
+ * fork. Ask its operation to stop and wait for the runner to release it.
+ * Returns `false` when the walk would not stop, so nothing is reverted under
+ * a walk that keeps writing. A fork above the cursor, or a subgraph that is
+ * not reindexing, needs no stop.
+ */
+async function stopReindexBehindFork(
+	sg: Subgraph,
+	blockHeight: number,
+): Promise<boolean> {
+	const targetDb = getTargetDb();
+	const row = await getSubgraph(targetDb, sg.name);
+	if (!row || row.status !== "reindexing") return true;
+	if (Number(row.last_processed_block) < blockHeight) return true;
+
+	await requestSubgraphOperationCancel(targetDb, row.id);
+	const cleared = await waitForSubgraphOperationsClear(targetDb, row.id, {
+		timeoutMs: REINDEX_STOP_TIMEOUT_MS,
+	});
+	if (!cleared) {
+		logger.error(
+			"Reorg could not stop the reindex walk, subgraph not reverted",
+			{ subgraph: sg.name, blockHeight },
+		);
+	}
+	return cleared;
+}
+
 /** The per-subgraph revert+reprocess sequence, run while holding both the
  *  in-process block lock (f057) and the cross-process advisory lock (f069,
  *  see the call site in {@link handleSubgraphReorg}). */
@@ -99,6 +156,15 @@ async function reorgOneSubgraph(
 	loadSubgraphDef: (sg: Subgraph) => Promise<SubgraphDefinition>,
 ): Promise<void> {
 	const targetDb = getTargetDb();
+	// State as of now, under the locks: the row the caller listed may have been
+	// halted, finished or cancelled since.
+	const current = await getSubgraph(targetDb, sg.name);
+	if (!current) return;
+	if (current.status === "reindexing") {
+		if (Number(current.last_processed_block) < blockHeight) return;
+	} else if (current.status !== "active") {
+		return;
+	}
 	const schemaName = sg.schema_name ?? pgSchemaName(sg.name);
 	// Rows live on the managed target DB.
 	const client = getRawClient("target");
@@ -191,6 +257,27 @@ async function reorgOneSubgraph(
 		subgraph: sg.name,
 		blockHeight,
 	});
+
+	if (current.status === "reindexing") {
+		// No runner stopped it (a stranded reindex): the cursor goes back to just
+		// before the fork and a queued reindex op resumes the walk from there.
+		await setReindexCursor(targetDb, sg.name, Math.max(0, blockHeight - 1));
+		try {
+			await createSubgraphOperation(targetDb, {
+				subgraphId: current.id,
+				subgraphName: current.name,
+				accountId: current.account_id,
+				kind: "reindex",
+			});
+		} catch (err) {
+			if (!isActiveSubgraphOperationConflict(err)) throw err;
+		}
+		logger.info("Subgraph reorg rewound a reindex", {
+			subgraph: sg.name,
+			blockHeight,
+		});
+		return;
+	}
 
 	// Reprocess the new canonical block. Subsequent blocks above
 	// `blockHeight` will be reprocessed as the indexer ingests

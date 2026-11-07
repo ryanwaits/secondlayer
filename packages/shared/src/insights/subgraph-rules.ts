@@ -31,7 +31,13 @@ export interface SubgraphErrorGroupInput {
 
 export interface SubgraphRuleInput {
 	now: Date;
-	subgraph: { id: string; name: string; status: string };
+	/** `billingPausedAt` set = reads refused for the account: waiting, not lagging. */
+	subgraph: {
+		id: string;
+		name: string;
+		status: string;
+		billingPausedAt?: Date | null;
+	};
 	/** Health snapshots from roughly the last 25 hours. */
 	snapshots: HealthSnapshotPoint[];
 	/** Groups seen in the last 24 hours, most frequent first. */
@@ -168,6 +174,7 @@ const lag: InsightRule<SubgraphRuleInput> = {
 	skip: (input) => lagSamples(input).length < SUBGRAPH_LAG_SNAPSHOTS,
 	evaluate(input) {
 		if (input.subgraph.status !== "active") return null;
+		if (input.subgraph.billingPausedAt) return null;
 		const newest = lagSamples(input).slice(0, SUBGRAPH_LAG_SNAPSHOTS);
 		if (newest.length < SUBGRAPH_LAG_SNAPSHOTS) return null;
 		if (!newest.every((s) => s.blocks > SUBGRAPH_LAG_BLOCKS)) return null;
@@ -262,7 +269,7 @@ export async function loadSubgraphInputs(
 ): Promise<SubgraphRuleInput[]> {
 	const subgraphs = await db
 		.selectFrom("subgraphs")
-		.select(["id", "name", "status"])
+		.select(["id", "name", "status", "billing_paused_at"])
 		.execute();
 	if (subgraphs.length === 0) return [];
 
@@ -303,7 +310,12 @@ export async function loadSubgraphInputs(
 
 	return subgraphs.map((subgraph) => ({
 		now,
-		subgraph,
+		subgraph: {
+			id: subgraph.id,
+			name: subgraph.name,
+			status: subgraph.status,
+			billingPausedAt: subgraph.billing_paused_at,
+		},
 		snapshots: snapshots.filter((s) => s.subgraph_id === subgraph.id),
 		errorGroups: groups.rows
 			.filter((g) => g.subgraph_name === subgraph.name)

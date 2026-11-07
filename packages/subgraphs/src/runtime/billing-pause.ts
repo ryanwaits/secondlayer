@@ -9,9 +9,10 @@ import { logger } from "@secondlayer/shared/logger";
 /**
  * A hosted account past its free rows is refused with `402` (spend cap reached
  * or credits short). That is a deliberate billing state, not a failing
- * subgraph: the walk waits, records `billing_paused: <code>` on the subgraph's
- * `last_error`, and resumes from its cursor once reads succeed. It never
- * counts toward an error threshold and never marks the subgraph `error`.
+ * subgraph: the walk waits, records the code in `billing_paused_code` (and
+ * `billing_paused_at`), and resumes from its cursor once reads succeed. It
+ * never counts toward an error threshold, never touches `last_error`, and
+ * never marks the subgraph `error`.
  */
 export const BILLING_PAUSE_BACKOFF_MS = 60_000;
 

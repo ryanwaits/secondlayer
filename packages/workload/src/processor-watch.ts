@@ -32,7 +32,6 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { logger } from "@secondlayer/shared";
-import { billingPausedCode } from "@secondlayer/shared/schemas";
 import {
 	getTenant,
 	listRunningTenants,
@@ -67,13 +66,15 @@ export interface SubgraphCursor {
 	lastProcessedBlock: number;
 	/** A reindex that is queued behind another operation rather than running. */
 	queued?: boolean;
-	/** Latest indexing error. `billing_paused: <code>` means the account's
-	 *  metered reads are refused (spend cap / credits): a deliberate pause. */
+	/** Latest indexing error. */
 	lastError?: string | null;
+	/** Set while the account's metered reads are refused (spend cap / credits):
+	 *  a deliberate pause, never a stall. */
+	billingPausedCode?: string | null;
 }
 
 const isBillingPaused = (sub: SubgraphCursor): boolean =>
-	billingPausedCode(sub.lastError) !== null;
+	Boolean(sub.billingPausedCode);
 
 /** A hosted subgraph went from running to stopped. Push-only (plan 309); never an insight. */
 export interface SubgraphStoppedEvent {

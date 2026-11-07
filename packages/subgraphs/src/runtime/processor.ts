@@ -18,7 +18,7 @@ import {
 import {
 	listSubgraphs,
 	pgSchemaName,
-	updateSubgraphStatus,
+	transitionSubgraph,
 } from "@secondlayer/shared/db/queries/subgraphs";
 import { logger } from "@secondlayer/shared/logger";
 import {
@@ -67,7 +67,12 @@ async function catchUpAll(
 				} catch (err) {
 					const msg = getErrorMessage(err);
 					if (isHandlerNotFoundError(err)) {
-						await updateSubgraphStatus(db, sg.name, "error");
+						await transitionSubgraph(
+							db,
+							sg.name,
+							["active", "reindexing"],
+							"error",
+						);
 					}
 					logger.error("Subgraph catch-up failed", {
 						subgraph: sg.name,
@@ -203,7 +208,6 @@ async function runSubgraphOperation(
 		.executeTakeFirst();
 	if (!subgraph)
 		throw new Error(`Subgraph not found: ${operation.subgraph_id}`);
-	if (subgraph.status === "paused") return 0;
 
 	const def = await loadSubgraphDefinition(subgraph);
 	const schemaName = subgraph.schema_name ?? pgSchemaName(subgraph.name);

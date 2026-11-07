@@ -91,19 +91,33 @@ export interface DeploySubgraphResponse {
 
 // Subgraph API response types
 
-/** Prefix of the `last_error` a billing-paused subgraph carries, e.g.
- *  `billing_paused: spend_cap_reached`. Stable: the processor writes it and
- *  the watchdog and CLI key off it. */
-export const BILLING_PAUSED_PREFIX = "billing_paused: ";
+/** Every state `subgraphs.status` can hold; mirrored by the
+ *  `subgraphs_status_check` CHECK (migration 0189). */
+export const SUBGRAPH_STATES = ["active", "reindexing", "error"] as const;
+export type SubgraphStatus = (typeof SUBGRAPH_STATES)[number];
 
-/** The billing code in a subgraph's `last_error`, or `null` when it isn't a
- *  billing pause. */
-export function billingPausedCode(
-	lastError: string | null | undefined,
-): string | null {
-	return lastError?.startsWith(BILLING_PAUSED_PREFIX)
-		? lastError.slice(BILLING_PAUSED_PREFIX.length)
-		: null;
+/** What an operator sees: `synced` and `catching_up` are both `active` rows. */
+export type SubgraphSyncState =
+	| "synced"
+	| "catching_up"
+	| "reindexing"
+	| "error";
+
+/**
+ * The one answer to "is this subgraph caught up?". `tip` is the chain tip the
+ * subgraph is measured against (its reindex target while reindexing is the
+ * caller's concern: a reindexing subgraph is `reindexing` whatever its cursor).
+ */
+export function syncState(
+	subgraph: {
+		status: string;
+		lastProcessedBlock: number | string;
+	},
+	tip: number,
+): SubgraphSyncState {
+	if (subgraph.status === "reindexing") return "reindexing";
+	if (subgraph.status === "error") return "error";
+	return Number(subgraph.lastProcessedBlock) < tip ? "catching_up" : "synced";
 }
 
 /** A subgraph's name, status, and indexing progress. */
@@ -128,6 +142,9 @@ export interface SubgraphSummary {
 	/** Most recent indexing error reason + when it occurred, if any. */
 	lastError?: string | null;
 	lastErrorAt?: string | null;
+	/** Billing code (`spend_cap_reached`, `insufficient_credits`) while reads
+	 *  are refused for the account; null otherwise. */
+	billingPausedCode?: string | null;
 	/** Last row mutation timestamp; powers per-card freshness. */
 	updatedAt?: string | null;
 	createdAt: string;
@@ -141,7 +158,7 @@ export interface SubgraphGapRange {
 }
 
 export interface SubgraphSyncInfo {
-	status: "synced" | "catching_up" | "reindexing" | "error";
+	status: SubgraphSyncState;
 	mode?: "sync" | "reindex";
 	startBlock: number;
 	lastProcessedBlock: number;
@@ -198,6 +215,8 @@ export interface SubgraphDetail {
 		errorRate: number;
 		lastError: string | null;
 		lastErrorAt: string | null;
+		/** Billing code while the account's reads are refused; null otherwise. */
+		billingPausedCode?: string | null;
 		/** True after the processor matched work but user tables still have 0 rows. */
 		emptyMapping: boolean;
 	};
