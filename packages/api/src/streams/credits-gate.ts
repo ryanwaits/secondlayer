@@ -47,7 +47,7 @@ export function streamsCreditsGate(): MiddlewareHandler<StreamsEnv> {
 			if (credited) c.set("credited", credited);
 			return await next();
 		} finally {
-			slot.release();
+			await slot.release();
 		}
 	};
 }

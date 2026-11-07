@@ -34,6 +34,7 @@ import {
 } from "../auth/api-key-store.ts";
 import { getRateLimitStore } from "../auth/rate-limit-store.ts";
 import { bearerToken } from "../auth/read-plane.ts";
+import { getSlotCounter } from "../lib/slot-counter.ts";
 
 export const CHAIN_READ_NODE_TIMEOUT_MS = 5_000;
 const READS_PER_MINUTE = 3_000;
@@ -70,16 +71,36 @@ export type ChainReadRouterOptions = {
 	readsPerMinute?: number;
 };
 
+/** A slot whose holder died frees itself after this; well past a node call. */
+const ACCOUNT_SLOT_TTL_MS = 60_000;
+const ACCOUNT_SLOT_POLL_MS = 25;
+
+/** One of an account's `ACCOUNT_CONCURRENCY` slots, shared across API
+ *  replicas when Redis is configured. Waits up to `SLOT_WAIT_MS` for one to
+ *  free up; `null` when none did. */
+async function acquireAccountSlot(
+	accountId: string,
+): Promise<(() => Promise<void>) | null> {
+	const counter = getSlotCounter();
+	const deadline = Date.now() + SLOT_WAIT_MS;
+	for (;;) {
+		const release = await counter.acquire(
+			`chain-read:${accountId}`,
+			ACCOUNT_CONCURRENCY,
+			ACCOUNT_SLOT_TTL_MS,
+		);
+		if (release) return release;
+		if (Date.now() >= deadline) return null;
+		await new Promise((resolve) => setTimeout(resolve, ACCOUNT_SLOT_POLL_MS));
+	}
+}
+
 /** A counting semaphore whose waiters give up after a deadline. */
 class Slots {
 	private active = 0;
 	private readonly waiters: Array<() => void> = [];
 
 	constructor(private readonly limit: number) {}
-
-	get idle(): boolean {
-		return this.active === 0 && this.waiters.length === 0;
-	}
 
 	acquire(waitMs: number): Promise<boolean> {
 		if (this.active < this.limit) {
@@ -161,7 +182,6 @@ export function createChainReadRouter(opts: ChainReadRouterOptions = {}): Hono {
 	const nodeTimeoutMs = opts.nodeTimeoutMs ?? CHAIN_READ_NODE_TIMEOUT_MS;
 	const readsPerMinute = opts.readsPerMinute ?? READS_PER_MINUTE;
 	const globalSlots = new Slots(GLOBAL_CONCURRENCY);
-	const accountSlots = new Map<string, Slots>();
 	let lastPruneAt = 0;
 
 	const maybePrune = () => {
@@ -293,13 +313,8 @@ export function createChainReadRouter(opts: ChainReadRouterOptions = {}): Hono {
 			);
 		}
 
-		let slots = accountSlots.get(accountId);
-		if (!slots) {
-			slots = new Slots(ACCOUNT_CONCURRENCY);
-			accountSlots.set(accountId, slots);
-		}
-		const account = slots;
-		if (!(await account.acquire(SLOT_WAIT_MS))) {
+		const releaseAccount = await acquireAccountSlot(accountId);
+		if (!releaseAccount) {
 			c.header("Retry-After", "1");
 			return refuse(
 				c,
@@ -395,8 +410,7 @@ export function createChainReadRouter(opts: ChainReadRouterOptions = {}): Hono {
 				globalSlots.release();
 			}
 		} finally {
-			account.release();
-			if (account.idle) accountSlots.delete(accountId);
+			await releaseAccount();
 		}
 	});
 

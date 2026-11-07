@@ -17,6 +17,7 @@ import { isPlatformMode } from "@secondlayer/shared/mode";
 import { DOCS_KEY_TTL_MS } from "../auth/mint.ts";
 import { invalidCredentialError } from "../auth/read-plane.ts";
 import { productEventsEnabled, trackProductEvent } from "./product-events.ts";
+import { getSlotCounter } from "./slot-counter.ts";
 
 export {
 	MIN_CREDITED_USD_MICROS,
@@ -177,7 +178,8 @@ export const GHOST_READS_IN_FLIGHT = 2;
 export const GHOST_READS_BUSY_MESSAGE =
 	"A docs key reads two requests at a time. Retry in a moment.";
 
-const ghostReadsInFlight = new Map<string, number>();
+/** A ghost read is a page or two; a slot whose holder died frees itself. */
+const GHOST_READ_SLOT_TTL_MS = 60_000;
 
 /** Ghost-ness never changes (a ghost cannot gain an email), so it is looked
  *  up once per account per process. Cleared when it grows past
@@ -204,29 +206,22 @@ async function isGhostAccount(accountId: string): Promise<boolean> {
  * `checkRowsAllowance` and held until the read has been metered. Returns a
  * `release` to call once the read is done, or `"busy"` when the ghost
  * already has that many reads running. Nothing is held for a non-ghost,
- * internal or self-host caller. Slots live in this process; one API
- * process serves the platform.
+ * internal or self-host caller. Slots are shared across API replicas when
+ * Redis is configured (`lib/slot-counter.ts`).
  */
 export async function beginGhostRead(
 	accountId: string | undefined,
 	tier: string | undefined,
-): Promise<"busy" | { release: () => void }> {
-	const none = { release: () => {} };
+): Promise<"busy" | { release: () => Promise<void> }> {
+	const none = { release: async () => {} };
 	if (!isPlatformMode() || !accountId || tier === "internal") return none;
 	if (!(await isGhostAccount(accountId))) return none;
-	const held = ghostReadsInFlight.get(accountId) ?? 0;
-	if (held >= GHOST_READS_IN_FLIGHT) return "busy";
-	ghostReadsInFlight.set(accountId, held + 1);
-	let released = false;
-	return {
-		release: () => {
-			if (released) return;
-			released = true;
-			const left = (ghostReadsInFlight.get(accountId) ?? 1) - 1;
-			if (left <= 0) ghostReadsInFlight.delete(accountId);
-			else ghostReadsInFlight.set(accountId, left);
-		},
-	};
+	const release = await getSlotCounter().acquire(
+		`ghost-read:${accountId}`,
+		GHOST_READS_IN_FLIGHT,
+		GHOST_READ_SLOT_TTL_MS,
+	);
+	return release ? { release } : "busy";
 }
 
 /**

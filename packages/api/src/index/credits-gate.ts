@@ -12,11 +12,27 @@ import type { IndexEnv } from "./auth.ts";
 
 export { MIN_CREDITED_USD_MICROS } from "../lib/read-credits.ts";
 
-/** Block headers are reference data: the list read is never metered, so an
- *  exhausted allowance must not refuse it. Exact `/blocks` only — the point-get
- *  and every metered route keep the pre-check. */
-function isUnmeteredRead(path: string): boolean {
-	return /\/blocks\/?$/.test(path);
+/**
+ * Index reads that deliver no metered rows: block headers, point-gets, the
+ * canonical map, PoX cycles, the sBTC summary, proofs and print schemas are
+ * reference data. They are never metered, so an exhausted allowance must not
+ * refuse them. Matched on the path's tail so the mount prefix doesn't matter;
+ * every other route keeps the pre-check.
+ */
+export const UNMETERED_ROUTES: readonly RegExp[] = [
+	/\/blocks(\/[^/]+)?\/?$/,
+	/\/canonical\/?$/,
+	/\/transactions\/[^/]+(\/proof)?\/?$/,
+	/\/pox\/cycles(\/[^/]+)?\/?$/,
+	/\/sbtc\/summary\/?$/,
+	/\/sbtc\/(withdrawals|deposits)\/[^/]+\/?$/,
+	/\/runes\/(?!activity\/?$|balances\/?$)[^/]+\/?$/,
+	/\/mempool\/[^/]+\/?$/,
+	/\/contracts\/[^/]+\/print-schema\/?$/,
+];
+
+export function isUnmeteredRead(path: string): boolean {
+	return UNMETERED_ROUTES.some((route) => route.test(path));
 }
 
 /**
@@ -38,7 +54,7 @@ export function indexCreditsGate(): MiddlewareHandler<IndexEnv> {
 		// below is checked against every read already served.
 		const slot = metered
 			? await beginGhostRead(tenant?.account_id, tenant?.tier)
-			: { release: () => {} };
+			: { release: async () => {} };
 		if (slot === "busy") {
 			c.header("Retry-After", "1");
 			throw new RateLimitError(GHOST_READS_BUSY_MESSAGE);
@@ -59,7 +75,7 @@ export function indexCreditsGate(): MiddlewareHandler<IndexEnv> {
 			if (credited) c.set("credited", credited);
 			return await next();
 		} finally {
-			slot.release();
+			await slot.release();
 		}
 	};
 }
@@ -77,6 +93,7 @@ export async function debitCreditedRead(
 ): Promise<void> {
 	const tenant = c.get("indexTenant");
 	if (!tenant?.account_id || tenant.tier === "internal") return;
+	if (isUnmeteredRead(c.req.path)) return;
 	const accountId = tenant.account_id;
 	await meterRowsDelivered(
 		accountId,

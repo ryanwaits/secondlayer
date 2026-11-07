@@ -83,11 +83,51 @@ return {1, count + 1, oldestMs}
 // request and defeat the whole point of failing open.
 const REDIS_COMMAND_TIMEOUT_MS = 250;
 
+const redisClients = new Map<string, RedisClient>();
+
+/** One Redis connection per URL, shared by the rate-limit store and the
+ *  in-flight slot counters. */
+export function getRedisClient(url: string): RedisClient {
+	let client = redisClients.get(url);
+	if (!client) {
+		client = new RedisClient(url);
+		redisClients.set(url, client);
+	}
+	return client;
+}
+
+/** Run one Redis command, rejecting after `REDIS_COMMAND_TIMEOUT_MS` so a
+ *  slow or unreachable Redis can't hang a request. */
+export async function redisSendWithTimeout(
+	redis: RedisClient,
+	command: string,
+	args: string[],
+): Promise<unknown> {
+	const send = redis.send(command, args);
+	// Swallow a late rejection if the timeout wins the race, so it doesn't
+	// surface as an unhandled rejection.
+	send.catch(() => {});
+	let timer: ReturnType<typeof setTimeout> | undefined;
+	try {
+		return await Promise.race([
+			send,
+			new Promise((_, reject) => {
+				timer = setTimeout(
+					() => reject(new Error("redis timeout")),
+					REDIS_COMMAND_TIMEOUT_MS,
+				);
+			}),
+		]);
+	} finally {
+		if (timer) clearTimeout(timer);
+	}
+}
+
 export class RedisRateLimitStore implements RateLimitStore {
 	private readonly redis: RedisClient;
 
 	constructor(url: string) {
-		this.redis = new RedisClient(url);
+		this.redis = getRedisClient(url);
 	}
 
 	async check(
@@ -101,7 +141,7 @@ export class RedisRateLimitStore implements RateLimitStore {
 		// same-millisecond burst, so suffix a UUID.
 		const member = `${now}-${crypto.randomUUID()}`;
 		try {
-			const send = this.redis.send("EVAL", [
+			const reply = (await redisSendWithTimeout(this.redis, "EVAL", [
 				SLIDING_WINDOW_LUA,
 				"1",
 				`rl:${key}`,
@@ -109,21 +149,7 @@ export class RedisRateLimitStore implements RateLimitStore {
 				String(windowMs),
 				String(limit),
 				member,
-			]);
-			// Swallow a late rejection if the timeout wins the race, so it doesn't
-			// surface as an unhandled rejection.
-			send.catch(() => {});
-			let timer: ReturnType<typeof setTimeout> | undefined;
-			const reply = (await Promise.race([
-				send,
-				new Promise((_, reject) => {
-					timer = setTimeout(
-						() => reject(new Error("redis timeout")),
-						REDIS_COMMAND_TIMEOUT_MS,
-					);
-				}),
 			])) as [unknown, unknown, unknown];
-			if (timer) clearTimeout(timer);
 			// RESP can surface integers as strings — coerce defensively.
 			const allowed = Number(reply[0]) === 1;
 			const count = Number(reply[1]);
