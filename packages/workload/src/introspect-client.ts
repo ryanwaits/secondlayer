@@ -1,8 +1,9 @@
 /**
  * Gateway-side client for app-server's `POST /internal/keys/introspect`
  * (step 2). Caches positive results 60s and negative results 10s (Design) —
- * a revoked key stops working within 60s, and a brute-forced garbage key
- * doesn't get a fresh round trip to app-server on every retry.
+ * a revoked key stops reading within 60s and stops writing within 5s, and a
+ * brute-forced garbage key doesn't get a fresh round trip to app-server on
+ * every retry.
  */
 
 import type { FetchLike } from "./fetch-like.ts";
@@ -21,16 +22,20 @@ export interface IntrospectClientConfig {
 	now?: () => number;
 	positiveTtlMs?: number;
 	negativeTtlMs?: number;
+	/** How old a cached result may be and still serve a write. Default 5_000. */
+	writeTtlMs?: number;
 	/** Cache size bound; the oldest entry is evicted past it. Default 10_000. */
 	maxEntries?: number;
 }
 
 interface CacheEntry {
 	result: IntrospectResult;
+	cachedAt: number;
 	expiresAt: number;
 }
 
 const DEFAULT_POSITIVE_TTL_MS = 60_000;
+const DEFAULT_WRITE_TTL_MS = 5_000;
 const DEFAULT_NEGATIVE_TTL_MS = 10_000;
 const DEFAULT_MAX_ENTRIES = 10_000;
 
@@ -49,11 +54,24 @@ export class IntrospectClient {
 		this.cache.clear();
 	}
 
-	async resolve(presentedKey: string): Promise<IntrospectResult> {
+	/** `write` requests (anything that changes state) accept a cached result only
+	 *  if it is under `writeTtlMs` old, so a revoked key or a stopped account is
+	 *  refused on a write within seconds; reads keep the full TTL. */
+	async resolve(
+		presentedKey: string,
+		opts: { write?: boolean } = {},
+	): Promise<IntrospectResult> {
 		const now = this.cfg.now?.() ?? Date.now();
 		const cached = this.cache.get(presentedKey);
-		if (cached && cached.expiresAt > now) return cached.result;
-		if (cached) this.cache.delete(presentedKey);
+		const writeTtl = this.cfg.writeTtlMs ?? DEFAULT_WRITE_TTL_MS;
+		if (
+			cached &&
+			cached.expiresAt > now &&
+			(!opts.write || now - cached.cachedAt < writeTtl)
+		) {
+			return cached.result;
+		}
+		if (cached && cached.expiresAt <= now) this.cache.delete(presentedKey);
 
 		// Coalesce concurrent lookups for the same key into one upstream call —
 		// a burst of requests on a cold cache must not fan out N introspect
@@ -79,7 +97,11 @@ export class IntrospectClient {
 			? (this.cfg.positiveTtlMs ?? DEFAULT_POSITIVE_TTL_MS)
 			: (this.cfg.negativeTtlMs ?? DEFAULT_NEGATIVE_TTL_MS);
 		this.makeRoom(now);
-		this.cache.set(presentedKey, { result, expiresAt: now + ttl });
+		this.cache.set(presentedKey, {
+			result,
+			cachedAt: now,
+			expiresAt: now + ttl,
+		});
 		return result;
 	}
 

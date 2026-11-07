@@ -234,7 +234,10 @@ async function route(
 		);
 	}
 
-	const introspected = await deps.introspect.resolve(presentedKey);
+	const bucket = classifyRequest(req.method, url.pathname);
+	const introspected = await deps.introspect.resolve(presentedKey, {
+		write: bucket !== "read",
+	});
 	if (!introspected.ok) {
 		if (introspected.docsKey) {
 			return Response.json(
@@ -250,7 +253,6 @@ async function route(
 
 	ctx.accountId = introspected.accountId;
 
-	const bucket = classifyRequest(req.method, url.pathname);
 	const decision = deps.rateLimit?.(introspected.accountId, bucket);
 	if (decision && !decision.allowed) {
 		const res = Response.json({ error: "rate_limited" }, { status: 429 });

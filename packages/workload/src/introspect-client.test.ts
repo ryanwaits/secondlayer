@@ -123,6 +123,60 @@ describe("IntrospectClient", () => {
 		expect((await client.resolve("sk-sl_key")).ok).toBe(false);
 	});
 
+	describe("writes", () => {
+		function revocableClient() {
+			const state = { revoked: false, calls: 0, clock: 0 };
+			const client = new IntrospectClient({
+				appServerUrl: "https://api.secondlayer.tools",
+				workloadHostKey: "wh-key",
+				now: () => state.clock,
+				fetchImpl: async () => {
+					state.calls++;
+					return state.revoked
+						? jsonResponse(401, { error: "invalid_key" })
+						: jsonResponse(200, { account_id: "acct_1", credits_ok: true });
+				},
+			});
+			return { client, state };
+		}
+
+		test("a revoked key is refused on a write within 5 seconds, not 60", async () => {
+			const { client, state } = revocableClient();
+			expect((await client.resolve("sk-sl_key", { write: true })).ok).toBe(
+				true,
+			);
+			state.revoked = true;
+			state.clock += 6_000;
+			expect((await client.resolve("sk-sl_key", { write: true })).ok).toBe(
+				false,
+			);
+		});
+
+		test("a write within 5 seconds of the lookup reuses it", async () => {
+			const { client, state } = revocableClient();
+			await client.resolve("sk-sl_key", { write: true });
+			state.clock += 4_000;
+			await client.resolve("sk-sl_key", { write: true });
+			expect(state.calls).toBe(1);
+		});
+
+		test("a read keeps using the 60 second cache the write refreshed", async () => {
+			const { client, state } = revocableClient();
+			await client.resolve("sk-sl_key");
+			state.clock += 30_000;
+			await client.resolve("sk-sl_key");
+			expect(state.calls).toBe(1);
+		});
+
+		test("a revoked key still reads from the cache until it expires", async () => {
+			const { client, state } = revocableClient();
+			await client.resolve("sk-sl_key");
+			state.revoked = true;
+			state.clock += 30_000;
+			expect((await client.resolve("sk-sl_key")).ok).toBe(true);
+		});
+	});
+
 	test("concurrent lookups for the same key coalesce into one upstream call", async () => {
 		let calls = 0;
 		const client = new IntrospectClient({
