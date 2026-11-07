@@ -10,9 +10,11 @@ import {
 } from "./backfill.ts";
 import { migrateToLatest } from "./db/migrate.ts";
 import { dropReadIndexes, ensureReadIndexes } from "./db/read-indexes.ts";
-import { openStore } from "./db/store.ts";
+import { loadState, openStore } from "./db/store.ts";
+import { rewindTo } from "./rewind.ts";
 import type { BitcoinRpcClient, BlockHeader } from "./rpc.ts";
 import { Network } from "./runes/rune.ts";
+import { UNDO_DEPTH } from "./runes/undo.ts";
 
 // --- A minimal, real (wire-format-parseable) fake chain, for
 // fetchBlocksInOrder only — no runestone markers, so resolveBlockCommitments
@@ -333,6 +335,71 @@ describe.skipIf(!testUrl)(
 			).rows;
 
 			expect(restoredDefs).toEqual(freshDefs);
+		});
+	},
+);
+
+describe.skipIf(!testUrl)(
+	"runBackfill: undo journal for the last blocks",
+	() => {
+		// biome-ignore lint/style/noNonNullAssertion: describe.skipIf(!testUrl) guards this whole block
+		const db = openStore(testUrl!);
+
+		beforeEach(async () => {
+			process.env.BITCOIN_DATABASE_URL = testUrl;
+			await migrateToLatest();
+			await sql`truncate table rune_entries, rune_balances, rune_events, btc_blocks, runes_checkpoint, rune_block_digests, rune_undo, btc_reorgs`.execute(
+				db,
+			);
+		});
+
+		async function undoHeights(): Promise<number[]> {
+			const rows = await db
+				.selectFrom("rune_undo")
+				.select("height")
+				.orderBy("height")
+				.execute();
+			return rows.map((r) => Number(r.height));
+		}
+
+		async function backfillTo(top: number) {
+			const rpc = new FakeRpc(Array.from({ length: top + 1 }, (_, h) => h));
+			return runBackfill({
+				db,
+				rpc,
+				toHeight: top,
+				fetchConcurrency: 4,
+				flushInterval: 4,
+				network: Network.Regtest,
+				genesisHeight: 0,
+			});
+		}
+
+		test("a backfill that ends at the tip leaves undo rows for its last UNDO_DEPTH blocks only", async () => {
+			const top = UNDO_DEPTH + 5;
+			await backfillTo(top);
+			const heights = await undoHeights();
+			expect(heights).toEqual(
+				Array.from({ length: UNDO_DEPTH }, (_, i) => top - UNDO_DEPTH + 1 + i),
+			);
+		});
+
+		test("a reorg right after the backfill rewinds instead of halting on missing undo data", async () => {
+			const top = UNDO_DEPTH + 5;
+			const state = await backfillTo(top);
+			const forkHeight = top - 3;
+			await rewindTo(db, state, forkHeight);
+			expect((await loadState(db)).height).toBe(forkHeight);
+		});
+
+		test("batch flushes before the undo window still write every block", async () => {
+			const top = UNDO_DEPTH + 5;
+			await backfillTo(top);
+			const blocks = await db
+				.selectFrom("btc_blocks")
+				.select(sql<number>`count(*)::int`.as("n"))
+				.executeTakeFirstOrThrow();
+			expect(Number(blocks.n)).toBe(top + 1);
 		});
 	},
 );

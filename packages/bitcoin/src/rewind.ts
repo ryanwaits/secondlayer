@@ -139,6 +139,8 @@ export async function rewindTo(
 	db: Kysely<Database>,
 	state: RuneState,
 	forkHeight: number,
+	/** Hash of the first block of the branch that replaces the rewound one (the live chain at `forkHeight + 1`), recorded as `btc_reorgs.new_hash`. Falls back to the fork block's hash, which is only the common ancestor. */
+	newBranchHash?: string,
 ): Promise<void> {
 	const checkpoint = state.height;
 	if (checkpoint === undefined) {
@@ -202,7 +204,7 @@ export async function rewindTo(
 			.values({
 				fork_point_height: forkHeight,
 				old_hash: oldTipHash ?? forkBlock.hash,
-				new_hash: forkBlock.hash,
+				new_hash: newBranchHash ?? forkBlock.hash,
 				orphaned_from: forkHeight + 1,
 				orphaned_to: checkpoint,
 				new_tip_height: forkHeight,

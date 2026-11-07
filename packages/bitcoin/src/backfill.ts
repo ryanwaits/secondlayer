@@ -26,7 +26,14 @@ import type {
 import { checkInvariant } from "./runes/invariant.ts";
 import { Network, runeIsReserved, runeMinimumAtHeight } from "./runes/rune.ts";
 import { runestoneDecipher } from "./runes/runestone.ts";
-import { type RuneState, seedGenesis } from "./runes/state.ts";
+import {
+	type RuneState,
+	type UndoRecorder,
+	beginUndoCapture,
+	endUndoCapture,
+	seedGenesis,
+} from "./runes/state.ts";
+import { UNDO_DEPTH } from "./runes/undo.ts";
 import {
 	type CommitmentMap,
 	type FlushPhaseTimers,
@@ -388,6 +395,49 @@ export async function runBackfill(
 	let timers = createFlushPhaseTimers();
 	let fetchWaitStart = performance.now();
 
+	// The last UNDO_DEPTH blocks are applied one at a time with an undo row
+	// each, exactly like tip-following. A batch that ends at the tip would
+	// otherwise leave the checkpoint with no undo journal behind it, so the
+	// first reorg after catch-up halts with MissingUndoDataError.
+	const undoFromHeight = options.toHeight - UNDO_DEPTH + 1;
+	const liveState: RuneState = state;
+
+	async function flushPending(
+		hash: string,
+		undoRecorder?: UndoRecorder,
+	): Promise<void> {
+		const blocksInWindow = pendingBlocks.length;
+		let stats: FlushStats;
+		try {
+			stats = await flush(
+				options.db,
+				liveState,
+				pendingBlocks,
+				checkInvariant,
+				undoRecorder ? { undoRecorder } : undefined,
+			);
+		} catch (error) {
+			await writeInvariantReport(
+				options.invariantReportDir,
+				(pendingBlocks[pendingBlocks.length - 1] as FlushBlock).height,
+				error,
+			);
+			throw error;
+		}
+		const windowMs = performance.now() - windowStart;
+		options.onFlush?.({
+			...stats,
+			...timers,
+			hash,
+			blocksInWindow,
+			windowMs,
+		});
+		pendingBlocks = [];
+		sinceFlush = 0;
+		windowStart = performance.now();
+		timers = createFlushPhaseTimers();
+	}
+
 	for await (const { height, fetched } of fetchBlocksInOrder(
 		options.rpc,
 		fromHeight,
@@ -413,38 +463,32 @@ export async function runBackfill(
 			timers,
 		};
 
-		const blockBurned = new Map<string, bigint>();
-		for (const [txIndex, tx] of block.txs.entries()) {
-			await applyTransaction(state, tx, txIndex, ctx, blockBurned);
+		const captureUndo = height >= undoFromHeight;
+		// An undo row describes one block, so the batch before it is flushed
+		// first: the recorder must start from the state that block began with.
+		if (captureUndo && pendingBlocks.length > 0 && previousHash !== undefined) {
+			await flushPending(previousHash);
 		}
-		applyBlockBurns(state, blockBurned);
-
-		previousHash = block.hash;
-		pendingBlocks.push({ height, hash: block.hash, time: block.time });
-		sinceFlush += 1;
-
-		const isFinal = height === options.toHeight;
-		if (sinceFlush >= flushInterval || isFinal) {
-			const blocksInWindow = pendingBlocks.length;
-			let stats: FlushStats;
-			try {
-				stats = await flush(options.db, state, pendingBlocks, checkInvariant);
-			} catch (error) {
-				await writeInvariantReport(options.invariantReportDir, height, error);
-				throw error;
+		const recorder = captureUndo ? beginUndoCapture(state) : undefined;
+		try {
+			const blockBurned = new Map<string, bigint>();
+			for (const [txIndex, tx] of block.txs.entries()) {
+				await applyTransaction(state, tx, txIndex, ctx, blockBurned);
 			}
-			const windowMs = performance.now() - windowStart;
-			options.onFlush?.({
-				...stats,
-				...timers,
-				hash: block.hash,
-				blocksInWindow,
-				windowMs,
-			});
-			pendingBlocks = [];
-			sinceFlush = 0;
-			windowStart = performance.now();
-			timers = createFlushPhaseTimers();
+			applyBlockBurns(state, blockBurned);
+
+			previousHash = block.hash;
+			pendingBlocks.push({ height, hash: block.hash, time: block.time });
+			sinceFlush += 1;
+
+			const isFinal = height === options.toHeight;
+			if (recorder) {
+				await flushPending(block.hash, recorder);
+			} else if (sinceFlush >= flushInterval || isFinal) {
+				await flushPending(block.hash);
+			}
+		} finally {
+			if (recorder) endUndoCapture(state);
 		}
 
 		fetchWaitStart = performance.now();

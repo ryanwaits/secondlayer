@@ -153,7 +153,12 @@ async function reconcileCheckpoint(
 
 	const oldCheckpointHeight = state.height;
 	const forkHeight = await findForkHeight(deps, state.height);
-	await rewindTo(deps.db, state, forkHeight);
+	await rewindTo(
+		deps.db,
+		state,
+		forkHeight,
+		await deps.rpc.getblockhash(forkHeight + 1),
+	);
 	deps.onReorg?.({ forkHeight, oldCheckpointHeight });
 	return await loadState(deps.db);
 }

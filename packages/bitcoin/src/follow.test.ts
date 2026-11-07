@@ -352,7 +352,9 @@ describe.skipIf(!testUrl)("follow", () => {
 
 		const reorgRows = await db.selectFrom("btc_reorgs").selectAll().execute();
 		expect(reorgRows).toHaveLength(1);
-		expect(reorgRows[0]?.new_hash).toBe(h0);
+		// The replaced tip and the new branch's first block — not the fork block.
+		expect(reorgRows[0]?.old_hash).toBe(a2);
+		expect(reorgRows[0]?.new_hash).toBe(b1);
 
 		// btc_blocks now records the new branch, not the orphaned one.
 		const b1Row = await db
@@ -618,11 +620,13 @@ describe.skipIf(!testUrl)("follow", () => {
 	test("syncOnce's batch catch-up honors flushInterval, not backfill.ts's DEFAULT_FLUSH_INTERVAL", async () => {
 		const chain = new FakeChain();
 		let prev = chain.mine(GENESIS_HEIGHT, GENESIS_ANCHOR_HASH);
-		// 20 blocks total (GENESIS_HEIGHT..+19) puts the tip UNDO_DEPTH+8 ahead of
+		// 40 blocks total (GENESIS_HEIGHT..+39) puts the tip UNDO_DEPTH+28 ahead of
 		// the fresh checkpoint (genesisHeight - 1), so syncOnce's batch catch-up
-		// backfills 8 blocks (GENESIS_HEIGHT..+7) before switching to the
-		// per-block loop for the last UNDO_DEPTH (12).
-		for (let h = GENESIS_HEIGHT + 1; h <= GENESIS_HEIGHT + 19; h++) {
+		// backfills 28 blocks (GENESIS_HEIGHT..+27) before switching to the
+		// per-block loop for the last UNDO_DEPTH (12). The last UNDO_DEPTH blocks
+		// of that batch are flushed one at a time (they carry undo rows), so only
+		// the first 16 are windowed by `flushInterval`.
+		for (let h = GENESIS_HEIGHT + 1; h <= GENESIS_HEIGHT + 39; h++) {
 			prev = chain.mine(h, prev);
 		}
 
@@ -636,10 +640,11 @@ describe.skipIf(!testUrl)("follow", () => {
 
 		const result = await syncOnce(deps);
 
-		expect(result.state.height).toBe(GENESIS_HEIGHT + 19);
-		// 8 backfilled blocks at flushInterval=3: windows of 3, 3, 2 — never the
-		// unbatched default of 1000 (which would flush everything in one shot).
-		expect(flushes).toEqual([3, 3, 2]);
+		expect(result.state.height).toBe(GENESIS_HEIGHT + 39);
+		// 16 windowed blocks at flushInterval=3: windows of 3, 3, 3, 3, 3, 1 —
+		// never the unbatched default of 1000 (which would flush everything in one
+		// shot) — then the batch's last UNDO_DEPTH blocks, one flush each.
+		expect(flushes).toEqual([3, 3, 3, 3, 3, 1, ...Array(UNDO_DEPTH).fill(1)]);
 	});
 
 	test("runFollow with `until` set waits for a block that hasn't landed yet, then stops at it", async () => {
