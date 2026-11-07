@@ -6,9 +6,15 @@ import {
 	readCanonicalStreamsEventsByTxId,
 } from "@secondlayer/indexer/streams-events";
 import { DECODED_EVENT_TYPES } from "@secondlayer/shared";
-import { ValidationError } from "@secondlayer/shared/errors";
+import { RateLimitError, ValidationError } from "@secondlayer/shared/errors";
 import { Hono } from "hono";
 import { streamSSE } from "hono/streaming";
+import {
+	STREAM_BUSY_MESSAGE,
+	type StreamTiming,
+	beginStreamConnection,
+	createStreamGuard,
+} from "../lib/stream-guard.ts";
 import { validateQueryParams } from "../middleware/validation.ts";
 import { parseLimit } from "../parse-query.ts";
 import {
@@ -191,6 +197,8 @@ export type StreamsRouterOptions = {
 	readBitcoinReorgsSince?: (
 		params: StreamsBitcoinReorgsSinceParams,
 	) => ReturnType<typeof readStreamsBitcoinReorgsSince>;
+	/** SSE timing, overridable so tests don't wait out real intervals. */
+	sse?: StreamTiming;
 };
 
 export function createStreamsRouter(opts: StreamsRouterOptions = {}) {
@@ -387,9 +395,21 @@ export function createStreamsRouter(opts: StreamsRouterOptions = {}) {
 		const initialQuery = new URL(c.req.url).searchParams;
 		validateQueryParams(initialQuery, STREAMS_EVENTS_ALLOWED);
 		const chain = resolveStreamsChain(initialQuery);
-		const accountId = c.get("streamsTenant")?.account_id;
-		const tier = c.get("streamsTenant")?.tier;
+		const tenant = c.get("streamsTenant");
+		const accountId = tenant?.account_id;
+		const tier = tenant?.tier;
 		const signer = getStreamsSigner();
+		const pollMs = opts.sse?.pollMs ?? STREAMS_SSE_POLL_MS;
+
+		// The gates ran once to get here. The slot bounds how many live
+		// connections an account holds; the guard re-checks the account and
+		// key while this one runs (lib/stream-guard.ts).
+		const slot = await beginStreamConnection(tenant);
+		if (slot === "busy") {
+			c.header("Retry-After", "5");
+			throw new RateLimitError(STREAM_BUSY_MESSAGE);
+		}
+		const guard = createStreamGuard(tenant, opts.sse);
 
 		// Filters carry across polls; the start position (cursor/from_*) is replaced
 		// by the running cursor once we've delivered anything.
@@ -405,79 +425,99 @@ export function createStreamsRouter(opts: StreamsRouterOptions = {}) {
 			let pollQuery = initialQuery;
 			let initialized = hasStart;
 			let lastBeat = Date.now();
-			while (!stream.aborted) {
-				let response: Awaited<
-					ReturnType<
-						| typeof getStreamsEventsResponse
-						| typeof getStreamsBitcoinEventsResponse
-					>
-				>;
-				if (chain === "bitcoin") {
-					const tip = await getBitcoinTip();
-					if (!initialized) {
-						// No start given → live-tail from the current tip. Bitcoin has no
-						// reorg-margin clamp (see `../streams/bitcoin.ts`'s module doc).
+			let rowsJustServed = 0;
+			try {
+				while (!stream.aborted) {
+					const ended = await guard.check(rowsJustServed);
+					if (ended) {
+						// Say why before closing. The SDK ignores this frame and
+						// reconnects; a refusal then comes back from the open-time
+						// gate as a non-retryable 402/401.
+						await stream.writeSSE({
+							event: "end",
+							data: JSON.stringify({ reason: ended.reason, ...ended.body }),
+						});
+						return;
+					}
+					let response: Awaited<
+						ReturnType<
+							| typeof getStreamsEventsResponse
+							| typeof getStreamsBitcoinEventsResponse
+						>
+					>;
+					if (chain === "bitcoin") {
+						const tip = await getBitcoinTip();
+						if (!initialized) {
+							// No start given → live-tail from the current tip. Bitcoin has no
+							// reorg-margin clamp (see `../streams/bitcoin.ts`'s module doc).
+							const q = new URLSearchParams(filterParams);
+							q.set("from_height", String(tip.block_height));
+							pollQuery = q;
+							initialized = true;
+						}
+						response = await getStreamsBitcoinEventsResponse({
+							query: pollQuery,
+							tip,
+							readEvents: opts.readBitcoinEvents,
+							readReorgs: readBitcoinReorgs,
+						});
+					} else {
+						const tip = await getTip();
+						if (!initialized) {
+							// No start given → live-tail from the current (reorg-clamped) tip.
+							const q = new URLSearchParams(filterParams);
+							q.set(
+								"from_height",
+								String(getClampedStreamsTipHeight(tip, tier)),
+							);
+							pollQuery = q;
+							initialized = true;
+						}
+						response = await getStreamsEventsResponse({
+							query: pollQuery,
+							tip,
+							tier,
+							readEvents: opts.readEvents,
+							readReorgs,
+						});
+					}
+					for (const event of response.events) {
+						// Inline per-frame signature: SSE has no per-frame headers, so the
+						// ed25519 proof rides in the frame body as `{ event, sig, key_id }`,
+						// signed over the event's exact JSON bytes.
+						const data = signer
+							? JSON.stringify({
+									event,
+									sig: signer.sign(JSON.stringify(event)),
+									key_id: signer.keyId,
+								})
+							: JSON.stringify({ event });
+						await stream.writeSSE({ data, id: event.cursor });
+					}
+					// No rowsServed here: the response returns before batches are written,
+					// so the request log records this request with rows: null.
+					rowsJustServed = response.events.length;
+					if (response.events.length > 0) {
+						if (accountId) {
+							await debitStreamsCreditedRead(c, response.events);
+						}
+						lastBeat = Date.now();
+						// Resume strictly after the last delivered cursor (input-exclusive).
+						const next =
+							response.next_cursor ?? response.events.at(-1)?.cursor ?? null;
 						const q = new URLSearchParams(filterParams);
-						q.set("from_height", String(tip.block_height));
+						if (next) q.set("from_cursor", next);
 						pollQuery = q;
-						initialized = true;
+					} else if (Date.now() - lastBeat > STREAMS_SSE_HEARTBEAT_MS) {
+						// Heartbeat as a custom `ping` event (SDK ignores it) to keep the
+						// connection and any intermediary proxies alive while idle.
+						await stream.writeSSE({ event: "ping", data: "" });
+						lastBeat = Date.now();
 					}
-					response = await getStreamsBitcoinEventsResponse({
-						query: pollQuery,
-						tip,
-						readEvents: opts.readBitcoinEvents,
-						readReorgs: readBitcoinReorgs,
-					});
-				} else {
-					const tip = await getTip();
-					if (!initialized) {
-						// No start given → live-tail from the current (reorg-clamped) tip.
-						const q = new URLSearchParams(filterParams);
-						q.set("from_height", String(getClampedStreamsTipHeight(tip, tier)));
-						pollQuery = q;
-						initialized = true;
-					}
-					response = await getStreamsEventsResponse({
-						query: pollQuery,
-						tip,
-						tier,
-						readEvents: opts.readEvents,
-						readReorgs,
-					});
+					await stream.sleep(pollMs);
 				}
-				for (const event of response.events) {
-					// Inline per-frame signature: SSE has no per-frame headers, so the
-					// ed25519 proof rides in the frame body as `{ event, sig, key_id }`,
-					// signed over the event's exact JSON bytes.
-					const data = signer
-						? JSON.stringify({
-								event,
-								sig: signer.sign(JSON.stringify(event)),
-								key_id: signer.keyId,
-							})
-						: JSON.stringify({ event });
-					await stream.writeSSE({ data, id: event.cursor });
-				}
-				// No rowsServed here: the response returns before batches are written,
-				// so the request log records this request with rows: null.
-				if (response.events.length > 0) {
-					if (accountId) {
-						await debitStreamsCreditedRead(c, response.events);
-					}
-					lastBeat = Date.now();
-					// Resume strictly after the last delivered cursor (input-exclusive).
-					const next =
-						response.next_cursor ?? response.events.at(-1)?.cursor ?? null;
-					const q = new URLSearchParams(filterParams);
-					if (next) q.set("from_cursor", next);
-					pollQuery = q;
-				} else if (Date.now() - lastBeat > STREAMS_SSE_HEARTBEAT_MS) {
-					// Heartbeat as a custom `ping` event (SDK ignores it) to keep the
-					// connection and any intermediary proxies alive while idle.
-					await stream.writeSSE({ event: "ping", data: "" });
-					lastBeat = Date.now();
-				}
-				await stream.sleep(STREAMS_SSE_POLL_MS);
+			} finally {
+				await slot.release();
 			}
 		});
 	});

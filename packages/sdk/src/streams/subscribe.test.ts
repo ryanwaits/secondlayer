@@ -338,6 +338,50 @@ describe("subscribeStreamsEvents", () => {
 		expect((errors[0] as AuthError).code).toBe("UNAUTHORIZED");
 	});
 
+	test("a server end frame is not delivered as an event, and a refusal on reconnect ends the subscription", async () => {
+		let calls = 0;
+		const encoder = new TextEncoder();
+		const fetchImpl: FetchLike = () => {
+			calls++;
+			if (calls > 1) {
+				return Promise.resolve(
+					new Response(
+						JSON.stringify({
+							error: "insufficient_credits",
+							code: "PAYMENT_REQUIRED",
+						}),
+						{ status: 402 },
+					),
+				);
+			}
+			const end = `event: end\ndata: ${JSON.stringify({ reason: "insufficient_credits" })}\n\n`;
+			return Promise.resolve(
+				new Response(
+					new ReadableStream<Uint8Array>({
+						start(controller) {
+							controller.enqueue(encoder.encode(signedFrame(EVENT)));
+							controller.enqueue(encoder.encode(end));
+							controller.close();
+						},
+					}),
+					{ status: 200 },
+				),
+			);
+		};
+		const got: StreamsEvent[] = [];
+		const sub = subscribeStreamsEvents({
+			baseUrl: "https://streams.example",
+			fetchImpl,
+			verify: "off",
+			loadKey,
+			reconnectDelayMs: 1,
+			params: { onEvent: (e) => void got.push(e) },
+		});
+		await expect(sub.done).rejects.toMatchObject({ retryable: false });
+		expect(got).toHaveLength(1);
+		expect(calls).toBe(2);
+	});
+
 	test("a bad signature ends the subscription and rejects done", async () => {
 		const sub = subscribeStreamsEvents({
 			baseUrl: "https://streams.example",

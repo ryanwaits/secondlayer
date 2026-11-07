@@ -187,7 +187,7 @@ const GHOST_READ_SLOT_TTL_MS = 60_000;
 const ghostByAccount = new Map<string, boolean>();
 const KNOWN_ACCOUNTS_MAX = 50_000;
 
-async function isGhostAccount(accountId: string): Promise<boolean> {
+export async function isGhostAccount(accountId: string): Promise<boolean> {
 	const known = ghostByAccount.get(accountId);
 	if (known !== undefined) return known;
 	const row = await getDb()
