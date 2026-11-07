@@ -1,5 +1,11 @@
 # @secondlayer/shared
 
+## 15.2.0
+
+### Minor Changes
+
+- `renderEmail` renders a post from X as a card (`XPost`) in launch emails.
+
 ## 15.1.0
 
 ### Minor Changes
