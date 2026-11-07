@@ -33,6 +33,7 @@ export type SubgraphSourceResponse = Awaited<
 >;
 
 const CREDITS_URL = "https://www.secondlayer.tools/account/credits";
+const SIGNIN_URL = "https://www.secondlayer.tools/signin";
 
 /** Map an HTTP status to an actionable next-step hint, when one is obvious.
  *  `detail` is the API's error text; a 402 says which billing limit hit. */
@@ -44,10 +45,13 @@ export function nextStepHint(
 	if (status === undefined) return undefined;
 	if (code === "STACK_ASLEEP")
 		return "Any write starts it, such as creating or updating a webhook.";
-	if (status === 402)
-		return detail === "spend_cap_reached"
-			? `You reached your monthly spend cap. Raise it: ${CREDITS_URL}`
-			: `Add credits to create webhooks and deploy subgraphs: ${CREDITS_URL}`;
+	if (status === 402) {
+		if (detail === "spend_cap_reached")
+			return `You reached your monthly spend cap. Raise it: ${CREDITS_URL}`;
+		if (detail === "rows_limit_reached")
+			return `This docs key read all its rows. Make a lasting key: ${SIGNIN_URL}`;
+		return `Add credits to create webhooks and deploy subgraphs: ${CREDITS_URL}`;
+	}
 	if (status === 403)
 		return "You may not have access — check your active project with `secondlayer whoami`.";
 	if (status === 404)

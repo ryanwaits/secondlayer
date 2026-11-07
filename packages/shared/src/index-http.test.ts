@@ -356,7 +356,11 @@ describe("IndexHttpClient billing refusals", () => {
 		return { calls: () => n };
 	}
 
-	for (const code of ["spend_cap_reached", "insufficient_credits"] as const) {
+	for (const code of [
+		"spend_cap_reached",
+		"insufficient_credits",
+		"rows_limit_reached",
+	] as const) {
 		test(`402 ${code} raises BillingPausedError once, without retrying`, async () => {
 			const stub = stub402(JSON.stringify({ error: code, message: "x" }));
 			const err = await client()

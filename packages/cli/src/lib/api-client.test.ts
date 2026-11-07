@@ -51,6 +51,12 @@ describe("nextStepHint", () => {
 		expect(hint).toContain("/account/credits");
 	});
 
+	test("a 402 when a docs key has read its rows points at a lasting key", () => {
+		const hint = nextStepHint(402, "rows_limit_reached");
+		expect(hint).toContain("lasting key");
+		expect(hint).toContain("/signin");
+	});
+
 	test("no status gives no hint", () => {
 		expect(nextStepHint(undefined)).toBeUndefined();
 	});

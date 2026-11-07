@@ -53,19 +53,24 @@ export class IndexHttpStatusError extends Error {
 	}
 }
 
-/** The two refusals a metered read can get once an account is past its free
- *  allowance (`checkRowsAllowance`). Both are deliberate billing states, not
- *  outages: retrying them in a storm only burns the request budget. */
-export type BillingPausedCode = "spend_cap_reached" | "insufficient_credits";
+/** The refusals a metered read can get once an account is past what it may
+ *  read (`checkRowsAllowance`): its free allowance with no credits or past its
+ *  spend cap, or a signed-out docs key's 100k rows. All are deliberate billing
+ *  states, not outages: retrying them in a storm only burns the request budget. */
+export type BillingPausedCode =
+	| "spend_cap_reached"
+	| "insufficient_credits"
+	| "rows_limit_reached";
 
 const BILLING_PAUSED_CODES: ReadonlySet<string> = new Set<BillingPausedCode>([
 	"spend_cap_reached",
 	"insufficient_credits",
+	"rows_limit_reached",
 ]);
 
-/** A read refused with `402` and `{ error: "spend_cap_reached" |
- *  "insufficient_credits" }`. Raised only on an exact body match, so an
- *  unmetered (self-host) server never produces it. */
+/** A read refused with `402` and `{ error: BillingPausedCode }`. Raised only
+ *  on an exact body match, so an unmetered (self-host) server never produces
+ *  it. */
 export class BillingPausedError extends IndexHttpStatusError {
 	constructor(
 		readonly code: BillingPausedCode,
