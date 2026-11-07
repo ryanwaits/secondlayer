@@ -52,8 +52,10 @@ curl -H "Authorization: Bearer $SECONDLAYER_API_KEY" \
 
 </Steps>
 
-Signed in, **Fill in a docs key** on a Streams or Index sample puts a docs key wherever it reads `SECONDLAYER_API_KEY`. It reads Streams and Index only (webhooks and subgraphs need an account key), expires after 24 hours, and shows on your account page, where you can revoke it. Copy gives the real key; the page shows only its last four characters.
+**Fill in a docs key** on a Streams or Index sample puts a docs key wherever it reads `SECONDLAYER_API_KEY`. It reads Streams and Index only (webhooks and subgraphs need an account key) and expires after 24 hours. Copy gives the real key; the page shows only its last four characters.
 
+- Signed in, the docs key shows on your account page, where you can revoke it.
+- Signed out, you get one docs key a day, good for 100,000 rows. **Make a lasting key** signs you in to make your own.
 - Your own box takes a different credential, the instance token: [Self-host](/docs/self-host#instance-token).
 - Never put `sk-sl_*` in `INSTANCE_TOKEN`, or the hex token in `SECONDLAYER_API_KEY`.
 
