@@ -792,6 +792,7 @@
 		"SubgraphSpecOptions": "/docs/sdk-reference/subgraphs#t-SubgraphSpecOptions",
 		"SubgraphSummary": "/docs/sdk-reference/subgraphs#t-SubgraphSummary",
 		"SubgraphSyncInfo": "/docs/sdk-reference/subgraphs#t-SubgraphSyncInfo",
+		"SubgraphSyncState": "/docs/sdk-reference/subgraphs#t-SubgraphSyncState",
 		"SubgraphVerification": "/docs/sdk-reference/subgraphs#t-SubgraphVerification",
 		"TraitScoped": "/docs/sdk-reference/webhooks#t-TraitScoped",
 		"TransactionEnvelope": "/docs/sdk-reference/index#t-TransactionEnvelope",

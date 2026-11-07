@@ -1087,7 +1087,7 @@
 				},
 				{
 					"name": "health",
-					"type": "{ totalProcessed: number; totalErrors: number; errorRate: number; lastError: string | null; lastErrorAt: string | null; emptyMapping: boolean }",
+					"type": "{ totalProcessed: number; totalErrors: number; errorRate: number; lastError: string | null; lastErrorAt: string | null; billingPausedCode?: string | null; emptyMapping: boolean }",
 					"required": true,
 					"description": ""
 				},
@@ -1506,6 +1506,12 @@
 					"description": ""
 				},
 				{
+					"name": "billingPausedCode",
+					"type": "string | null",
+					"required": false,
+					"description": "Billing code (`spend_cap_reached`, `insufficient_credits`) while reads\nare refused for the account; null otherwise."
+				},
+				{
 					"name": "updatedAt",
 					"type": "string | null",
 					"required": false,
@@ -1525,7 +1531,7 @@
 			"fields": [
 				{
 					"name": "status",
-					"type": "\"synced\" | \"catching_up\" | \"reindexing\" | \"error\"",
+					"type": "SubgraphSyncState",
 					"required": true,
 					"description": ""
 				},
@@ -1626,6 +1632,11 @@
 					"description": "history_filling = expected gaps while a tip-first backfill op runs."
 				}
 			]
+		},
+		{
+			"name": "SubgraphSyncState",
+			"summary": "What an operator sees: `synced` and `catching_up` are both `active` rows.",
+			"definition": "\"synced\" | \"catching_up\" | \"reindexing\" | \"error\""
 		},
 		{
 			"name": "SubgraphVerification",

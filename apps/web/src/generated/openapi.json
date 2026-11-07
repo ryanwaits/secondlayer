@@ -6419,7 +6419,6 @@
 						"enum": [
 							"active",
 							"reindexing",
-							"paused",
 							"error"
 						],
 						"description": "Processor state."
@@ -6503,6 +6502,13 @@
 						],
 						"format": "date-time",
 						"description": "When it happened."
+					},
+					"billingPausedCode": {
+						"type": [
+							"string",
+							"null"
+						],
+						"description": "Set while reads are refused for the account (`spend_cap_reached`, `insufficient_credits`). Indexing resumes by itself once reads succeed; `status` is unchanged."
 					},
 					"updatedAt": {
 						"type": [
@@ -6773,7 +6779,6 @@
 						"enum": [
 							"active",
 							"reindexing",
-							"paused",
 							"error"
 						],
 						"description": "Processor state."
@@ -6822,6 +6827,12 @@
 									"null"
 								],
 								"format": "date-time"
+							},
+							"billingPausedCode": {
+								"type": [
+									"string",
+									"null"
+								]
 							},
 							"emptyMapping": {
 								"type": "boolean"

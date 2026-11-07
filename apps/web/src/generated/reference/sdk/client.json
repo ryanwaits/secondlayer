@@ -586,6 +586,12 @@
 					"description": ""
 				},
 				{
+					"name": "billingPausedCode",
+					"type": "string | null",
+					"required": false,
+					"description": "Billing code (`spend_cap_reached`, `insufficient_credits`) while reads\nare refused for the account; null otherwise."
+				},
+				{
 					"name": "updatedAt",
 					"type": "string | null",
 					"required": false,
