@@ -104,12 +104,15 @@ export async function beginReplay(
 	}
 }
 
+/** Both scan writes only move a replay that is still `scanning`: a replay the
+ *  sweep already finalized, or a newer run that restarted the same id, is not
+ *  overwritten by a late scan. Returns false when nothing was updated. */
 export async function finishScan(
 	db: Kysely<Database>,
 	id: string,
 	counts: { scanned: number; enqueued: number },
-): Promise<void> {
-	await db
+): Promise<boolean> {
+	const result = await db
 		.updateTable("webhook_replays")
 		.set({
 			status: "running",
@@ -117,19 +120,23 @@ export async function finishScan(
 			enqueued_count: sql`enqueued_count + ${counts.enqueued}`,
 		})
 		.where("id", "=", id)
-		.execute();
+		.where("status", "=", "scanning")
+		.executeTakeFirst();
+	return Number(result.numUpdatedRows ?? 0) > 0;
 }
 
 export async function failScan(
 	db: Kysely<Database>,
 	id: string,
 	error: string,
-): Promise<void> {
-	await db
+): Promise<boolean> {
+	const result = await db
 		.updateTable("webhook_replays")
 		.set({ status: "failed", error, finished_at: sql`now()` })
 		.where("id", "=", id)
-		.execute();
+		.where("status", "=", "scanning")
+		.executeTakeFirst();
+	return Number(result.numUpdatedRows ?? 0) > 0;
 }
 
 /** Outbox rows of this replay still waiting to be delivered or to give up. */

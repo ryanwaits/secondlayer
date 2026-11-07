@@ -1180,6 +1180,8 @@ app.post("/:id/dead/requeue", async (c) => {
 			})
 			.where("id", "=", replayId)
 			.where("webhook_id", "=", sub.id)
+			// Only a settled replay restarts: never flip one that is still scanning.
+			.where("status", "in", ["done", "failed"])
 			.execute();
 	}
 	return c.json({ requeued });

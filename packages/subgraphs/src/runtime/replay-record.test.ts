@@ -5,6 +5,8 @@ import type { Block, Database } from "@secondlayer/shared/db";
 import {
 	ReplayInProgressError,
 	beginReplay,
+	failScan,
+	finishScan,
 	readReplay,
 } from "@secondlayer/shared/db/queries/webhook-replays";
 import { createWebhook } from "@secondlayer/shared/db/queries/webhooks";
@@ -166,6 +168,39 @@ describe("replay record", () => {
 			.where("id", "=", "cccccccccccccccc")
 			.executeTakeFirstOrThrow();
 		expect(stale).toEqual({ status: "failed", error: "scan interrupted" });
+	});
+
+	it("a late scan write does not overwrite a replay that is no longer scanning", async () => {
+		const webhook = await newWebhook();
+		await db
+			.insertInto("webhook_replays")
+			.values({
+				id: "eeeeeeeeeeeeeeee",
+				webhook_id: webhook.id,
+				from_block: 1,
+				to_block: 2,
+				status: "failed",
+				error: "scan interrupted",
+				finished_at: new Date(),
+			})
+			.execute();
+
+		const finished = await finishScan(db, "eeeeeeeeeeeeeeee", {
+			scanned: 5,
+			enqueued: 5,
+		});
+		const failed = await failScan(db, "eeeeeeeeeeeeeeee", "late error");
+
+		expect(finished).toBe(false);
+		expect(failed).toBe(false);
+		const record = await db
+			.selectFrom("webhook_replays")
+			.select(["status", "error", "scanned_count", "enqueued_count"])
+			.where("id", "=", "eeeeeeeeeeeeeeee")
+			.executeTakeFirstOrThrow();
+		expect(record.status).toBe("failed");
+		expect(record.error).toBe("scan interrupted");
+		expect(record.enqueued_count).toBe(0);
 	});
 
 	it("leaves a failed record with the error when the scan throws", async () => {

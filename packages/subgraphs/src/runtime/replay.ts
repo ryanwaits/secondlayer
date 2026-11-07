@@ -124,13 +124,28 @@ export async function replayWebhook(
 	});
 	try {
 		const result = await replayChainWebhook(db, sub, input, opts);
-		await finishScan(db, replayId, {
+		const finished = await finishScan(db, replayId, {
 			scanned: result.scannedCount,
 			enqueued: result.enqueuedCount,
 		});
+		if (!finished) {
+			logger.warn(
+				"Replay scan finished but the replay was no longer scanning",
+				{
+					replayId,
+					webhookId: sub.id,
+				},
+			);
+		}
 		return result;
 	} catch (err) {
-		await failScan(db, replayId, getErrorMessage(err));
+		const failed = await failScan(db, replayId, getErrorMessage(err));
+		if (!failed) {
+			logger.warn("Replay scan failed but the replay was no longer scanning", {
+				replayId,
+				webhookId: sub.id,
+			});
+		}
 		throw err;
 	}
 }

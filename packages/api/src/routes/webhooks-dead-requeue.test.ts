@@ -87,6 +87,41 @@ describe.skipIf(!HAS_DB)("dead-letter requeue", () => {
 		expect(await statusOf(orphanedId)).toBe("dead");
 	});
 
+	test("bulk requeue by replay leaves a replay that is still scanning in its state", async () => {
+		const { webhook, failedId } = await makeWebhookWithDeadRows();
+		const replayId = randomUUID().replaceAll("-", "").slice(0, 16);
+		await db
+			.insertInto("webhook_replays")
+			.values({
+				id: replayId,
+				webhook_id: webhook.id,
+				from_block: 1,
+				to_block: 2,
+				status: "scanning",
+			})
+			.execute();
+		await db
+			.updateTable("webhook_outbox")
+			.set({ replay_id: replayId })
+			.where("id", "=", failedId)
+			.execute();
+
+		const res = await webhooks.request(`/${webhook.id}/dead/requeue`, {
+			method: "POST",
+			headers: { "content-type": "application/json" },
+			body: JSON.stringify({ replayId }),
+		});
+
+		expect(res.status).toBe(200);
+		expect(((await res.json()) as { requeued: number }).requeued).toBe(1);
+		const replay = await db
+			.selectFrom("webhook_replays")
+			.select("status")
+			.where("id", "=", replayId)
+			.executeTakeFirstOrThrow();
+		expect(replay.status).toBe("scanning");
+	});
+
 	test("an orphaned dead row cannot be requeued one at a time", async () => {
 		const { webhook, orphanedId } = await makeWebhookWithDeadRows();
 
