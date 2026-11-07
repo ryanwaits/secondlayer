@@ -81,6 +81,18 @@ describe("Webhooks dead-letter requeue", () => {
 });
 
 describe("Webhooks path segments", () => {
+	test("an id of '.', '..' or '' is refused before any request leaves", async () => {
+		const requests = recordRequests({ ok: true });
+		const sl = new SecondLayer({ baseUrl: "http://sl.test", apiKey: "k" });
+
+		for (const bad of [".", "..", ""]) {
+			await expect(sl.webhooks.requeue("w", bad)).rejects.toThrow();
+			await expect(sl.webhooks.pause(bad)).rejects.toThrow();
+			await expect(sl.webhooks.get(bad)).rejects.toThrow();
+		}
+		expect(requests).toHaveLength(0);
+	});
+
 	test("a webhook id with path and query characters is percent-encoded", async () => {
 		const requests = recordRequests({ ok: true });
 		const sl = new SecondLayer({ baseUrl: "http://sl.test", apiKey: "k" });

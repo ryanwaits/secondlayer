@@ -272,6 +272,18 @@ describe("Subgraphs", () => {
 	});
 
 	describe("path segments", () => {
+		test("a name or table of '.', '..' or '' is refused before any request leaves", async () => {
+			globalThis.fetch = mockFetch({ ok: true, status: 200, body: {} });
+
+			for (const bad of [".", "..", ""]) {
+				await expect(subgraphs.status(bad)).rejects.toThrow();
+				await expect(subgraphs.rows("ok", bad)).rejects.toThrow();
+			}
+
+			const fetchMock = globalThis.fetch as unknown as ReturnType<typeof mock>;
+			expect(fetchMock.mock.calls).toHaveLength(0);
+		});
+
 		test("a name with path and query characters is percent-encoded so it cannot retarget the request", async () => {
 			globalThis.fetch = mockFetch({ ok: true, status: 200, body: {} });
 			const hostile = "a/../b?x#y";

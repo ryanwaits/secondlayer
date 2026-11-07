@@ -8,6 +8,7 @@ import { CHAIN_TRIGGER_TYPES } from "@secondlayer/shared";
 import { z } from "zod";
 import { getClient } from "../lib/client.ts";
 import { jsonResponse } from "../lib/format.ts";
+import { uuidSchema, webhookIdSchema } from "../lib/ids.ts";
 import { defineTool } from "../lib/tool.ts";
 
 type WebhookClientProvider = typeof getClient;
@@ -35,7 +36,7 @@ export function registerWebhookTools(
 		server,
 		"webhooks_get",
 		"Get full detail for a webhook (triggers, auth, retry config, circuit state).",
-		{ id: z.string().describe("Webhook id") },
+		{ id: webhookIdSchema },
 		async ({ id }) => {
 			const detail = await clientProvider().webhooks.get(id);
 			return jsonResponse(detail);
@@ -127,7 +128,7 @@ export function registerWebhookTools(
 		"webhooks_update",
 		"Patch a webhook (name, url, authConfig, format, retry, timeout, concurrency).",
 		{
-			id: z.string(),
+			id: webhookIdSchema,
 			name: z.string().optional().describe("Rename the webhook"),
 			url: z.string().optional(),
 			authConfig: z
@@ -160,7 +161,7 @@ export function registerWebhookTools(
 		server,
 		"webhooks_delete",
 		"Delete a webhook. Pending outbox rows are cascade-deleted.",
-		{ id: z.string() },
+		{ id: webhookIdSchema },
 		async ({ id }) => {
 			const res = await clientProvider().webhooks.delete(id);
 			return jsonResponse(res);
@@ -170,7 +171,7 @@ export function registerWebhookTools(
 		server,
 		"webhooks_test",
 		"Send a one-off test webhook to a webhook's URL (built for its format, SSRF-guarded). Logged as a delivery row. Returns {ok, statusCode, error, durationMs, deliveryId}.",
-		{ id: z.string().describe("Webhook id") },
+		{ id: webhookIdSchema },
 		async ({ id }) => {
 			const res = await clientProvider().webhooks.test(id);
 			return jsonResponse(res);
@@ -180,21 +181,21 @@ export function registerWebhookTools(
 		server,
 		"webhooks_pause",
 		"Pause a webhook: stops delivery attempts and stops queueing new ones. Nothing is deleted — resume picks the webhook back up from the tip. Verify with webhooks_get (status).",
-		{ id: z.string().describe("Webhook id") },
+		{ id: webhookIdSchema },
 		async ({ id }) => jsonResponse(await clientProvider().webhooks.pause(id)),
 	);
 	defineTool<{ id: string }>(
 		server,
 		"webhooks_resume",
 		"Resume a paused webhook (also clears a tripped circuit breaker). Deliveries restart from the current tip — use webhooks_replay for the blocks missed while paused. Verify with webhooks_get (status).",
-		{ id: z.string().describe("Webhook id") },
+		{ id: webhookIdSchema },
 		async ({ id }) => jsonResponse(await clientProvider().webhooks.resume(id)),
 	);
 	defineTool<{ id: string }>(
 		server,
 		"webhooks_rotate_secret",
 		"Rotate a webhook's signing secret. Returns the NEW `signingSecret` ONCE — forward it to the user; deliveries signed with the old secret stop verifying as soon as this returns, so the receiver must be updated.",
-		{ id: z.string().describe("Webhook id") },
+		{ id: webhookIdSchema },
 		async ({ id }) =>
 			jsonResponse(await clientProvider().webhooks.rotateSecret(id)),
 	);
@@ -202,7 +203,7 @@ export function registerWebhookTools(
 		server,
 		"webhooks_deliveries",
 		"List recent delivery attempts for a webhook — status code, attempt count, error, duration, timestamps. THIS IS THE VERIFY CALL: after webhooks_create, webhooks_test, or webhooks_replay, read it to confirm the webhook actually landed (and to see the receiver's response when it didn't) instead of trusting the enqueue result.",
-		{ id: z.string().describe("Webhook id") },
+		{ id: webhookIdSchema },
 		async ({ id }) =>
 			jsonResponse(await clientProvider().webhooks.deliveries(id)),
 	);
@@ -210,7 +211,7 @@ export function registerWebhookTools(
 		server,
 		"webhooks_dead",
 		"List a webhook's dead-letter queue — deliveries that exhausted their retries, with the outbox id, payload, and last error. Diagnose the receiver first (webhooks_get for the URL/auth, webhooks_test for a live probe), then requeue rows with webhooks_requeue.",
-		{ id: z.string().describe("Webhook id") },
+		{ id: webhookIdSchema },
 		async ({ id }) => jsonResponse(await clientProvider().webhooks.dead(id)),
 	);
 	defineTool<{ id: string; outboxId: string }>(
@@ -218,10 +219,10 @@ export function registerWebhookTools(
 		"webhooks_requeue",
 		"Requeue ONE dead-lettered delivery for another attempt, by its outbox id from webhooks_dead. Fix the receiver first — a requeue against a still-broken endpoint just dies again. Verify with webhooks_deliveries.",
 		{
-			id: z.string().describe("Webhook id"),
-			outboxId: z
-				.string()
-				.describe("Outbox id of the dead delivery (from webhooks_dead)"),
+			id: webhookIdSchema,
+			outboxId: uuidSchema.describe(
+				"Outbox id of the dead delivery (from webhooks_dead)",
+			),
 		},
 		async ({ id, outboxId }) =>
 			jsonResponse(await clientProvider().webhooks.requeue(id, outboxId)),
@@ -236,7 +237,7 @@ export function registerWebhookTools(
 		"webhooks_replay",
 		"Replay a block range for a webhook. Replays run at 10% of batch capacity — use sparingly. Pass `force` (a short idempotency suffix) to re-run a range that was already replayed.",
 		{
-			id: z.string(),
+			id: webhookIdSchema,
 			fromBlock: z.number().int().nonnegative(),
 			toBlock: z.number().int().nonnegative(),
 			force: z

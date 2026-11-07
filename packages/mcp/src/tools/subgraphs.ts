@@ -18,6 +18,7 @@ import {
 	textResponse,
 	withCap,
 } from "../lib/format.ts";
+import { subgraphNameSchema, tableNameSchema } from "../lib/ids.ts";
 import { defineTool } from "../lib/tool.ts";
 
 type SubgraphClientProvider = typeof getClient;
@@ -84,7 +85,7 @@ export function registerSubgraphTools(
 		server,
 		"subgraphs_status",
 		"Get full details of a subgraph including schema, health (incl. health.emptyMapping when processed events wrote 0 rows), and table columns.",
-		{ name: z.string().describe("Subgraph name") },
+		{ name: subgraphNameSchema },
 		async ({ name }) => {
 			const detail = await clientProvider().subgraphs.status(name);
 			return jsonResponse(detail);
@@ -96,7 +97,7 @@ export function registerSubgraphTools(
 		"subgraphs_spec",
 		"Fetch a subgraph's self-describing spec — the tables, columns, filters, and read URLs a consumer needs, without guessing. `agent` (default) returns the compact JSON schema built for tool use, `openapi` the OpenAPI document for the subgraph's read routes, `markdown` human-readable docs. Read it before writing queries against an unfamiliar subgraph.",
 		{
-			name: z.string().describe("Subgraph name"),
+			name: subgraphNameSchema,
 			format: z
 				.enum(["agent", "openapi", "markdown"])
 				.optional()
@@ -129,8 +130,8 @@ export function registerSubgraphTools(
 		"subgraphs_query",
 		'Query rows from a subgraph table (max 200 rows), reading the open /v1 surface — { rows, next_cursor, tip } envelope, cursor-paginated (no offset). Filters support operators: "amount.gte": "1000", "sender.neq": "SP...", "name.like": "%token%". Available operators: eq, neq, gt, gte, lt, lte, like. Every page with rows returns next_cursor (null only when empty): pass it back as `cursor` to read the next page. To TAIL new rows (no streaming over MCP), poll with cursor = next_cursor ?? the cursor you sent. Fetch one row by id with {"_id": "<id>"}. The same rows are readable over HTTP at GET /v1/subgraphs/<name>/<table>; hand that URL to third parties.',
 		{
-			name: z.string().describe("Subgraph name"),
-			table: z.string().describe("Table name"),
+			name: subgraphNameSchema,
+			table: tableNameSchema,
 			filters: z
 				.record(z.string(), z.string())
 				.optional()
@@ -201,7 +202,7 @@ export function registerSubgraphTools(
 		"subgraphs_reindex",
 		"Reindex a subgraph: drops and rebuilds the whole subgraph from its start block to chain tip. Takes no block range — use subgraphs_backfill to process a specific range. Returns an operationId — check subgraphs_status (health) or the REST operations endpoint to track progress to completion.",
 		{
-			name: z.string().describe("Subgraph name"),
+			name: subgraphNameSchema,
 		},
 		async ({ name }) => {
 			const result = await clientProvider().subgraphs.reindex(name);
@@ -214,7 +215,7 @@ export function registerSubgraphTools(
 		"subgraphs_backfill",
 		"Backfill a subgraph over a block range. Non-destructive forward fill (does not drop existing data) — unlike subgraphs_reindex, and the only data-fill path for BYO subgraphs (reindex is blocked there). Both blocks required. Returns an operationId — check subgraphs_status (health) or the REST operations endpoint to track progress.",
 		{
-			name: z.string().describe("Subgraph name"),
+			name: subgraphNameSchema,
 			fromBlock: z
 				.number()
 				.int()
@@ -235,7 +236,7 @@ export function registerSubgraphTools(
 		server,
 		"subgraphs_stop",
 		"Cancel an in-flight reindex or backfill operation for a subgraph. Returns the stop request status; check subgraphs_status (health) or the REST operations endpoint to confirm it reaches a terminal state.",
-		{ name: z.string().describe("Subgraph name") },
+		{ name: subgraphNameSchema },
 		async ({ name }) => {
 			const result = await clientProvider().subgraphs.stop(name);
 			return jsonResponse(result);
@@ -252,7 +253,7 @@ export function registerSubgraphTools(
 		"subgraphs_gaps",
 		"List indexing gaps (missing block ranges) for a subgraph. Each gap reports start/end/size, reason, and detected/resolved timestamps. Feed an unresolved gap's range into subgraphs_backfill to fill it. Defaults to unresolved gaps.",
 		{
-			name: z.string().describe("Subgraph name"),
+			name: subgraphNameSchema,
 			limit: z
 				.number()
 				.int()
@@ -285,7 +286,7 @@ export function registerSubgraphTools(
 		"subgraphs_operations",
 		"Operation history for a subgraph (deploy/reindex/backfill/stop), newest first — status, block range, progress, and error. THIS IS THE VERIFY CALL: after subgraphs_deploy, subgraphs_reindex, subgraphs_backfill, or subgraphs_stop, poll it with the returned operationId until `status` is terminal (completed/failed/cancelled) before reporting success. Omit operationId for the recent history.",
 		{
-			name: z.string().describe("Subgraph name"),
+			name: subgraphNameSchema,
 			operationId: z
 				.string()
 				.optional()
@@ -307,7 +308,7 @@ export function registerSubgraphTools(
 		server,
 		"subgraphs_delete",
 		"Delete a subgraph permanently.",
-		{ name: z.string().describe("Subgraph name") },
+		{ name: subgraphNameSchema },
 		async ({ name }) => {
 			const result = await clientProvider().subgraphs.delete(name);
 			return textResponse(result.message);

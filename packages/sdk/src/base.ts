@@ -244,9 +244,16 @@ export function resolveIdentity(
 /** Percent-encode one URL path segment. Every caller-supplied identifier
  *  (subgraph name, table, webhook id) goes through this before it is
  *  interpolated into a path, so `..`, `/`, `?` and `#` in an id cannot
- *  retarget the authenticated request at a different route. */
+ *  retarget the authenticated request at a different route. An empty segment
+ *  or a dot segment (`.`, `..`) survives encoding and is collapsed by URL
+ *  resolution into a different route (`requeue(id, ".")` would hit the bulk
+ *  route), so those throw instead. */
 export function seg(value: string | number): string {
-	return encodeURIComponent(String(value));
+	const text = String(value);
+	if (text === "" || text === "." || text === "..") {
+		throw new ApiError(400, "Invalid path segment");
+	}
+	return encodeURIComponent(text);
 }
 
 /** Build a query-string suffix from name→value pairs. Skips null/undefined and
