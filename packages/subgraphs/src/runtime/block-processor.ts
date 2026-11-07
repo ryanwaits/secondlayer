@@ -150,10 +150,9 @@ async function persistFactoryDiscoveries(
 	}
 }
 
-async function resolveTraitContracts(
+export async function resolveTraitContracts(
 	subgraph: SubgraphDefinition,
 	blockHeight: number,
-	db: Kysely<Database>,
 ): Promise<Map<string, ReadonlySet<string>>> {
 	const traits = new Set<string>();
 	for (const source of Object.values(subgraph.sources)) {
@@ -162,9 +161,10 @@ async function resolveTraitContracts(
 	}
 	const resolved = new Map<string, ReadonlySet<string>>();
 	if (traits.size === 0) return resolved;
-	// `db` on a stack with a local chain; the hosted Index API on a tenant,
-	// whose `contracts` table is empty.
-	const reader = chainDataReader({ localDb: db });
+	// The source plane on a stack with a local chain (`contracts` lives there,
+	// not on the subgraph target); the hosted Index API on a tenant, whose
+	// `contracts` table is empty.
+	const reader = chainDataReader();
 	for (const trait of traits) {
 		const ids = await reader.traitContractIds(trait, blockHeight);
 		resolved.set(trait, new Set(ids));
@@ -393,11 +393,7 @@ export async function processBlock(
 	const route = await resolveRoute(subgraphName, targetDb);
 	const schemaName = route.schemaName;
 
-	const traitContracts = await resolveTraitContracts(
-		subgraph,
-		blockHeight,
-		targetDb,
-	);
+	const traitContracts = await resolveTraitContracts(subgraph, blockHeight);
 	// Factory sets resolve BEFORE matching so a contract revealed in this
 	// block receives its own block-N events (see resolveFactoryContracts).
 	const { resolved: factoryContracts, discovered } =

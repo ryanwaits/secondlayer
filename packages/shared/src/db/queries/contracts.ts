@@ -241,6 +241,47 @@ export async function listContractsByTrait(
 }
 
 /**
+ * The registry's "classified through" height: every canonical contract deploy
+ * at or below it is registered and past `pending` (fetched, unparseable, or
+ * `failed` after its retries, which the registry parks rather than blocks on).
+ * The worker classifies on a timer, so a trait-scoped subgraph processing a
+ * block above this height can miss a contract that conforms but is not yet
+ * labelled; catch-up compares the block against this and waits.
+ *
+ * Returns the height just below the oldest unclassified deploy, or the
+ * canonical tip when none is outstanding (`null` with an empty chain). Reads
+ * the source plane, where `contracts` and `transactions` live.
+ */
+export async function registryClassifiedThrough(
+	db: Kysely<Database>,
+): Promise<number | null> {
+	const { rows } = await sql<{ first_unclassified: string | number | null }>`
+		SELECT LEAST(
+			(SELECT MIN(t.block_height)
+			   FROM transactions t
+			  WHERE t.type = 'smart_contract'
+			    AND t.contract_id IS NOT NULL
+			    AND NOT EXISTS (
+			      SELECT 1 FROM contracts c
+			       WHERE c.contract_id = t.contract_id AND c.canonical = true
+			    )),
+			(SELECT MIN(block_height) FROM contracts
+			  WHERE canonical = true AND abi_status = 'pending')
+		) AS first_unclassified
+	`.execute(db);
+	const first = rows[0]?.first_unclassified;
+	if (first !== null && first !== undefined) return Number(first) - 1;
+	const tip = await db
+		.selectFrom("blocks")
+		.select("height")
+		.where("canonical", "=", true)
+		.orderBy("height", "desc")
+		.limit(1)
+		.executeTakeFirst();
+	return tip ? Number(tip.height) : null;
+}
+
+/**
  * As-of-block trait resolution (B4): contract IDs conforming to `trait` whose
  * deploy block ≤ `asOfBlock`. Lets a trait-scoped subgraph reindex a token's
  * full history even if classification lagged its deploy.
