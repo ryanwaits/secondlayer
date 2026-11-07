@@ -508,7 +508,7 @@ The settlement event is shaped differently:
 
 On a reorg, `chain.reorg.rollback` covers everything that *may* have reached your endpoint, meaning any row the emitter claimed or attempted, not only one the server confirmed as delivered. A delivery whose response never made it back still counts as "may have arrived," so undo every entry the rollback lists.
 
-A reorg delivers `chain.reorg.rollback` so you can undo anything committed off an orphaned block. Each entry is `{ tx_id, event }`, carrying the event body from the original apply:
+A reorg delivers `chain.reorg.rollback` so you can undo anything committed off an orphaned block. Each entry is `{ tx_id, block_hash, block_height, event }`, carrying the event body from the original apply:
 
 ```json
 {
@@ -518,12 +518,14 @@ A reorg delivers `chain.reorg.rollback` so you can undo anything committed off a
     "action": "rollback",
     "fork_point_height": 123450,
     "orphaned": [
-      { "tx_id": "0x…", "event": { "type": "stx_transfer_event", "event_index": 2240, "tx_id": "0x…", "data": { "…": "…" } } }
+      { "tx_id": "0x…", "block_hash": "0x…", "block_height": 123450, "event": { "type": "stx_transfer_event", "event_index": 2240, "tx_id": "0x…", "data": { "…": "…" } } }
     ],
     "truncated": false
   }
 }
 ```
+
+A rollback lists only events from the blocks that reorg orphaned, and each event appears in one rollback. Match an entry to its apply by `block_hash` and `tx_id`. Applies from blocks the reorg did not orphan stay valid.
 
 <Callout type="warning" title="orphaned is capped at 500">
 

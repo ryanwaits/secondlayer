@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto";
 import { getDb } from "@secondlayer/shared/db";
 import type { InsertWebhookOutbox, OutboxStatus } from "@secondlayer/shared/db";
 import { createWebhook } from "@secondlayer/shared/db/queries/webhooks";
-import { handleChainReorg } from "./chain-reorg.ts";
+import { handleChainReorg, reorgScope } from "./chain-reorg.ts";
 
 process.env.INSTANCE_MODE = process.env.INSTANCE_MODE ?? "oss";
 process.env.DATABASE_URL =
@@ -49,25 +49,27 @@ async function insertApply(
 	height: number,
 	txId: string,
 	status: OutboxStatus,
-	opts?: { attempt?: number; lockedUntil?: Date },
+	opts?: { attempt?: number; lockedUntil?: Date; blockHash?: string },
 ): Promise<void> {
+	const blockHash = opts?.blockHash ?? `0x${height}`;
 	const row: InsertWebhookOutbox = {
 		webhook_id: webhookId,
 		kind: "chain",
 		block_height: height,
+		block_hash: blockHash,
 		tx_id: txId,
 		row_pk: { tx_id: txId, event_index: -1 },
 		event_type: "chain.contract_call.apply",
 		payload: {
 			action: "apply",
-			block_hash: `0x${height}`,
+			block_hash: blockHash,
 			block_height: height,
 			tx_id: txId,
 			canonical: true,
 			trigger: "contract_call",
 			event: { tx_id: txId, contract_id: "SP1.amm" },
 		},
-		dedup_key: `chain:${webhookId}:${txId}:-1:0x${height}`,
+		dedup_key: `chain:${webhookId}:${txId}:-1:${blockHash}`,
 		status,
 		attempt: opts?.attempt,
 		locked_until: opts?.lockedUntil,
@@ -327,5 +329,179 @@ describe("handleChainReorg — chain scoping (plan 060)", () => {
 		expect(payload.chain).toBeUndefined();
 		expect(payload.orphaned.map((o) => o.tx_id)).toEqual(["0xstacks"]);
 		expect(await cursor()).toBe(99);
+	});
+});
+
+type RollbackPayload = {
+	orphaned: {
+		tx_id: string;
+		block_hash: string | null;
+		block_height: number;
+	}[];
+};
+
+function rollbackEntries(
+	all: Awaited<ReturnType<typeof rows>>,
+): RollbackPayload["orphaned"] {
+	return all
+		.filter((r) => r.event_type === "chain.reorg.rollback")
+		.flatMap((r) => (r.payload as RollbackPayload).orphaned);
+}
+
+describe("handleChainReorg scoped to the orphaned blocks", () => {
+	it("leaves delivered applies above the orphaned range untouched", async () => {
+		const sub = await makeSub();
+		for (let h = 94; h <= 108; h++) {
+			await insertApply(sub, h, `0xtx${h}`, "delivered");
+		}
+		await setCursor(108);
+
+		await handleChainReorg(94, db, "stacks", {
+			orphanedToHeight: 104,
+			orphanedBlockHash: "0x94",
+		});
+
+		const all = await rows(sub);
+		expect(rollbackEntries(all).map((o) => o.block_height)).toEqual(
+			Array.from({ length: 11 }, (_, i) => 94 + i),
+		);
+		for (const h of [105, 106, 107, 108]) {
+			expect(
+				all.find((r) => r.tx_id === `0xtx${h}`)?.rolled_back_at,
+			).toBeNull();
+		}
+	});
+
+	it("keeps a replacement block's apply at the fork height and rolls back only the named block", async () => {
+		const sub = await makeSub();
+		await insertApply(sub, 100, "0xold", "delivered", {
+			blockHash: "0xold100",
+		});
+		await insertApply(sub, 100, "0xnew", "delivered", {
+			blockHash: "0xnew100",
+		});
+
+		await handleChainReorg(100, db, "stacks", {
+			orphanedToHeight: 100,
+			orphanedBlockHash: "0xold100",
+		});
+
+		const all = await rows(sub);
+		expect(rollbackEntries(all).map((o) => o.tx_id)).toEqual(["0xold"]);
+		expect(all.find((r) => r.tx_id === "0xnew")?.rolled_back_at).toBeNull();
+	});
+
+	it("rolls back each orphaned event once when one reorg arrives as a row per height", async () => {
+		const sub = await makeSub();
+		for (let h = 94; h <= 108; h++) {
+			await insertApply(sub, h, `0xtx${h}`, "delivered", {
+				blockHash: `0xold${h}`,
+			});
+		}
+		await setCursor(108);
+
+		// The indexer unwinds the fork one height at a time, tip first.
+		for (let h = 104; h >= 94; h--) {
+			await handleChainReorg(
+				h,
+				db,
+				"stacks",
+				reorgScope({
+					id: `r${h}`,
+					detected_at: new Date().toISOString(),
+					fork_point_height: h,
+					orphaned_range: { from: `${h}:0`, to: `${h}:0` },
+					new_canonical_tip: `${h}:0`,
+					old_index_block_hash: `0xold${h}`,
+				}),
+			);
+		}
+
+		const all = await rows(sub);
+		expect(
+			rollbackEntries(all)
+				.map((e) => e.tx_id)
+				.sort(),
+		).toEqual(Array.from({ length: 11 }, (_, i) => `0xtx${94 + i}`).sort());
+		for (let h = 105; h <= 108; h++) {
+			expect(
+				all.find((r) => r.tx_id === `0xtx${h}`)?.rolled_back_at,
+			).toBeNull();
+		}
+		expect(await cursor()).toBe(93);
+
+		// A surviving tx re-applies under its new block hash: the new key does
+		// not collide with the recalled row, so it delivers.
+		await insertApply(sub, 94, "0xtx94", "pending", { blockHash: "0xnew94" });
+		const pending = (await rows(sub)).filter(
+			(r) => r.status === "pending" && r.event_type.endsWith(".apply"),
+		);
+		expect(pending.map((r) => r.tx_id)).toEqual(["0xtx94"]);
+	});
+
+	it("does not recall a delivered apply a rollback already recalled", async () => {
+		const sub = await makeSub();
+		await insertApply(sub, 100, "0xa", "delivered");
+
+		await handleChainReorg(100, db);
+		await handleChainReorg(99, db);
+
+		expect(rollbackEntries(await rows(sub))).toHaveLength(1);
+	});
+
+	it("names the block hash and height on each orphaned entry, including rows written before the column existed", async () => {
+		const sub = await makeSub();
+		await insertApply(sub, 100, "0xa", "delivered", { blockHash: "0xhash100" });
+		await insertApply(sub, 101, "0xlegacy", "delivered", {
+			blockHash: "0xlegacy101",
+		});
+		await db
+			.updateTable("webhook_outbox")
+			.set({ block_hash: null })
+			.where("webhook_id", "=", sub)
+			.where("tx_id", "=", "0xlegacy")
+			.execute();
+
+		await handleChainReorg(100, db);
+
+		expect(
+			rollbackEntries(await rows(sub)).map((o) => [
+				o.tx_id,
+				o.block_hash,
+				o.block_height,
+			]),
+		).toEqual([
+			["0xa", "0xhash100", 100],
+			["0xlegacy", "0xlegacy101", 101],
+		]);
+	});
+});
+
+describe("reorgScope", () => {
+	const base = {
+		id: "r",
+		detected_at: "2026-01-01T00:00:00Z",
+		new_canonical_tip: "100:0",
+	};
+
+	it("reads the orphaned height and hash off a Streams reorg row", () => {
+		expect(
+			reorgScope({
+				...base,
+				fork_point_height: 100,
+				orphaned_range: { from: "100:0", to: "104:7" },
+				old_index_block_hash: "0xabc",
+			}),
+		).toEqual({ orphanedToHeight: 104, orphanedBlockHash: "0xabc" });
+	});
+
+	it("returns no scope for a malformed range so the handler falls back to the height rule", () => {
+		expect(
+			reorgScope({
+				...base,
+				fork_point_height: 100,
+				orphaned_range: { from: "100:0", to: "nope" },
+			}),
+		).toBeUndefined();
 	});
 });

@@ -345,6 +345,7 @@ describe("emitChainOutbox (DB)", () => {
 		const rows = await outboxRows(sub.id);
 		expect(rows).toHaveLength(1);
 		expect(rows[0].row_pk).toEqual({ tx_id: "0xp", event_index: 0 });
+		expect(rows[0].block_hash).toBe("0xblock");
 	});
 
 	it("two print_event triggers on one webhook deliver signer and signer-manager prints once each", async () => {

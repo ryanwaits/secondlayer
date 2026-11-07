@@ -77,6 +77,14 @@ describe("startTriggerEvaluatorLeader", () => {
 	});
 });
 
+const REORG = {
+	id: "r",
+	detected_at: "2026-01-01T00:00:00Z",
+	fork_point_height: 123,
+	orphaned_range: { from: "123:0", to: "123:0" },
+	new_canonical_tip: "123:0",
+};
+
 describe("gateChainReorgOnLeader", () => {
 	test("skips the chain-reorg handler when not leader", async () => {
 		let calls = 0;
@@ -86,7 +94,7 @@ describe("gateChainReorgOnLeader", () => {
 			},
 			() => false,
 		);
-		await gated(123);
+		await gated(123, REORG);
 		expect(calls).toBe(0);
 	});
 
@@ -98,7 +106,7 @@ describe("gateChainReorgOnLeader", () => {
 			},
 			() => true,
 		);
-		await gated(123);
+		await gated(123, REORG);
 		expect(seen).toEqual([123]);
 	});
 });

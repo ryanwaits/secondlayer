@@ -1,3 +1,4 @@
+import type { StreamsReorgRow } from "@secondlayer/shared/index-http";
 import {
 	type LeaderBackend,
 	WEBHOOK_EVALUATOR_LOCK_KEY,
@@ -46,12 +47,12 @@ export function isEvaluatorLeader(): boolean {
  * silently consumed by a replica that did nothing with it.
  */
 export function gateChainReorgOnLeader(
-	handler: (forkHeight: number) => Promise<void>,
+	handler: (forkHeight: number, reorg: StreamsReorgRow) => Promise<void>,
 	isLeader: () => boolean = isEvaluatorLeader,
 ): OnReorg {
-	return async (forkHeight) => {
+	return async (forkHeight, reorg) => {
 		if (!isLeader()) return REORG_SKIPPED;
-		await handler(forkHeight);
+		await handler(forkHeight, reorg);
 		return undefined;
 	};
 }

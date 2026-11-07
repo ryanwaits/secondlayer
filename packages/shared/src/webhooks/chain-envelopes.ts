@@ -104,6 +104,10 @@ export interface RuneApplyEnvelope {
 /** One orphaned delivery recalled by a reorg rollback. */
 export interface ChainReorgOrphanedEntry {
 	tx_id: string | null;
+	/** Hash of the orphaned block the apply came from. Lets a receiver match
+	 *  the entry to the `apply` it recalls and ignore a repeat. */
+	block_hash: string | null;
+	block_height: number;
 	/** The event body from the original `apply` delivery. */
 	event: unknown;
 }
@@ -111,7 +115,7 @@ export interface ChainReorgOrphanedEntry {
 /**
  * Delivered once per affected webhook on a reorg
  * (`event_type: "chain.reorg.rollback"`). Lists the previously-delivered applies
- * at or above `fork_point_height` that are now orphaned, so the consumer can undo
+ * from the blocks the reorg orphaned (each event once), so the consumer can undo
  * them precisely. `orphaned` is capped (currently 500); `truncated` flags overflow.
  * `chain` is set to `"bitcoin"` on a Runes reorg (plan 060) and omitted on a
  * Stacks one — added rather than always-present so the existing (Stacks-only)

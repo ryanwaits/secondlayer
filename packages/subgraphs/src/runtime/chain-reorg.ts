@@ -5,6 +5,7 @@ import type {
 import type { Database, InsertWebhookOutbox } from "@secondlayer/shared/db";
 import { getTargetDb } from "@secondlayer/shared/db";
 import { REORG_ORPHANED_ERROR_PREFIX } from "@secondlayer/shared/db/queries/webhooks";
+import type { StreamsReorgRow } from "@secondlayer/shared/index-http";
 import { logger } from "@secondlayer/shared/logger";
 import { type Kysely, sql } from "kysely";
 import { tipCursor } from "./bitcoin-trigger-evaluator.ts";
@@ -12,8 +13,16 @@ import { tipCursor } from "./bitcoin-trigger-evaluator.ts";
 /**
  * Reorg handling for direct chain-level webhooks.
  *
- * `forkHeight` is the shallowest height where the chain diverged; every block
- * `>= forkHeight` we previously processed is now orphaned. Orphaned blocks are
+ * `forkHeight` is the shallowest height where the chain diverged. With a
+ * `scope` (the Streams reorg row), only the blocks that reorg orphaned are
+ * rolled back: heights `forkHeight..orphanedToHeight`, and at `forkHeight`
+ * itself only the named `orphanedBlockHash`. The evaluator follows the new
+ * canonical chain, so by the time the 15s reorg poll lands it may already have
+ * applied canonical blocks above the orphaned range (or a replacement at the
+ * fork height); rolling those back would recall events that are still true,
+ * and their re-apply is suppressed by dedup (same block hash, same key).
+ * Without a scope (callers that know only the height) every block
+ * `>= forkHeight` is treated as orphaned. Orphaned blocks are
  * NOT re-fetchable from Index (it serves canonical only), so the chain
  * `webhook_outbox` rows we already wrote are the sole record of what we
  * delivered. We therefore:
@@ -31,7 +40,9 @@ import { tipCursor } from "./bitcoin-trigger-evaluator.ts";
  *      orphaned chain, and fold it into the same rollback snapshot as the
  *      already-`delivered` rows — the receiver may have gotten either;
  *   3. emit one `chain.reorg.rollback` per affected webhook carrying that
- *      snapshot so the consumer can undo precisely;
+ *      snapshot so the consumer can undo precisely, and stamp each rolled-back
+ *      `delivered` row with `rolled_back_at` so a deep reorg that the indexer
+ *      writes as one `chain_reorgs` row per height recalls each event once;
  *   4. rewind the evaluator cursor to `forkHeight - 1` so apply re-fires for the
  *      new canonical blocks. Surviving txs re-deliver under their new block_hash
  *      (the dedup key includes it); genuinely-orphaned txs do not.
@@ -55,6 +66,32 @@ const MAX_ORPHANED_PER_SUB = 500;
  */
 export type ChainReorgChain = "stacks" | "bitcoin";
 
+/** What one Streams reorg row orphaned, beyond its fork height. */
+export type ChainReorgScope = {
+	/** Highest orphaned height (inclusive). */
+	orphanedToHeight: number;
+	/** Hash of the block orphaned at `forkHeight`; null when the feed omits it. */
+	orphanedBlockHash: string | null;
+};
+
+/** Scope for one Streams reorg row. `orphaned_range.to` is `<height>:<index>`. */
+export function reorgScope(
+	reorg: StreamsReorgRow,
+): ChainReorgScope | undefined {
+	const to = Number(reorg.orphaned_range?.to?.split(":")[0]);
+	if (!Number.isFinite(to) || to < reorg.fork_point_height) return undefined;
+	return {
+		orphanedToHeight: to,
+		orphanedBlockHash: reorg.old_index_block_hash ?? null,
+	};
+}
+
+/** The hash a chain apply row was emitted for: the column, else the payload
+ *  (rows written before the column existed). */
+const OUTBOX_BLOCK_HASH = sql<
+	string | null
+>`coalesce(block_hash, payload->>'block_hash')`;
+
 /** Bitcoin (Runes) apply rows only — `chain.rune_etch.apply`, etc. */
 const RUNE_APPLY_EVENT_TYPE_PREFIX = "chain.rune";
 
@@ -62,6 +99,7 @@ export async function handleChainReorg(
 	forkHeight: number,
 	db: Kysely<Database> = getTargetDb(),
 	chain: ChainReorgChain = "stacks",
+	scope?: ChainReorgScope,
 ): Promise<void> {
 	// Everything runs in ONE transaction: classification, rollback rows and the
 	// cursor rewind commit together or not at all, so a crash can never leave
@@ -96,9 +134,26 @@ export async function handleChainReorg(
 				"status",
 				"attempt",
 				"locked_until",
+				"block_height",
+				"block_hash",
 			])
+			.select(OUTBOX_BLOCK_HASH.as("payload_block_hash"))
 			.where("kind", "=", "chain")
 			.where("block_height", ">=", forkHeight)
+			.where("rolled_back_at", "is", null)
+			.$if(scope !== undefined, (qb) =>
+				qb.where("block_height", "<=", scope?.orphanedToHeight ?? forkHeight),
+			)
+			.$if(scope?.orphanedBlockHash != null, (qb) =>
+				// At the fork height only the named block is orphaned; a row for
+				// the replacement block there is canonical and stays.
+				qb.where((eb) =>
+					eb.or([
+						eb("block_height", ">", forkHeight),
+						eb(OUTBOX_BLOCK_HASH, "=", scope?.orphanedBlockHash ?? ""),
+					]),
+				),
+			)
 			.where((eb) =>
 				chain === "bitcoin"
 					? // Bitcoin only ever reorgs its own rune_*.apply rows. Scoping on
@@ -124,15 +179,23 @@ export async function handleChainReorg(
 
 		const toDeleteIds: string[] = [];
 		const toMarkDeadIds: string[] = [];
+		const toMarkRolledBackIds: string[] = [];
 		const rollbackRows: {
 			webhook_id: string;
 			tx_id: string | null;
 			payload: unknown;
+			block_height: number | bigint;
+			block_hash: string | null;
 		}[] = [];
 
 		for (const row of affected) {
+			const entry = {
+				...row,
+				block_hash: row.block_hash ?? row.payload_block_hash,
+			};
 			if (row.status === "delivered") {
-				rollbackRows.push(row);
+				toMarkRolledBackIds.push(row.id);
+				rollbackRows.push(entry);
 				continue;
 			}
 			// status === "pending"
@@ -141,7 +204,7 @@ export async function handleChainReorg(
 				(row.locked_until !== null && row.locked_until >= now);
 			if (maybeDelivered) {
 				toMarkDeadIds.push(row.id);
-				rollbackRows.push(row);
+				rollbackRows.push(entry);
 			} else {
 				toDeleteIds.push(row.id);
 			}
@@ -168,12 +231,25 @@ export async function handleChainReorg(
 				.execute();
 		}
 
+		if (toMarkRolledBackIds.length > 0) {
+			await trx
+				.updateTable("webhook_outbox")
+				.set({ rolled_back_at: now })
+				.where("id", "in", toMarkRolledBackIds)
+				.execute();
+		}
+
 		// Snapshot delivered + maybe-delivered applies, grouped per webhook.
 		const bySub = new Map<string, ChainReorgOrphanedEntry[]>();
 		for (const row of rollbackRows) {
 			const list = bySub.get(row.webhook_id) ?? [];
 			const payload = row.payload as { event?: unknown };
-			list.push({ tx_id: row.tx_id, event: payload?.event ?? null });
+			list.push({
+				tx_id: row.tx_id,
+				block_hash: row.block_hash,
+				block_height: Number(row.block_height),
+				event: payload?.event ?? null,
+			});
 			bySub.set(row.webhook_id, list);
 		}
 

@@ -333,6 +333,7 @@ function applyRow(
 		webhook_id: meta.webhookId,
 		kind: "chain",
 		block_height: blockHeight,
+		block_hash: blockHash,
 		tx_id: txId,
 		row_pk:
 			clock === "vm"
@@ -793,6 +794,7 @@ function settlementApplyRow(
 		webhook_id: webhookId,
 		kind: "chain",
 		block_height: Number(row.stacks_block_height),
+		block_hash: row.block_hash,
 		tx_id: row.tx_id,
 		row_pk: { sweep_txid: row.sweep_txid },
 		event_type: `chain.${SETTLEMENT_TRIGGER_TYPE}.apply`,

@@ -130,6 +130,7 @@ function runeApplyRow(
 		webhook_id: sub.id,
 		kind: "chain",
 		block_height: event.block_height,
+		block_hash: event.block_hash,
 		tx_id: event.tx_id,
 		row_pk: { tx_id: event.tx_id, event_index: event.event_index },
 		event_type: `chain.${event.event_type}.apply`,

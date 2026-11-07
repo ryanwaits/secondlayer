@@ -1,6 +1,7 @@
 import { getErrorMessage } from "@secondlayer/shared";
 import {
 	type IndexHttpClient,
+	type StreamsReorgRow,
 	createInternalIndexHttpClient,
 } from "@secondlayer/shared/index-http";
 import { logger } from "@secondlayer/shared/logger";
@@ -15,8 +16,11 @@ type ReorgLister = Pick<IndexHttpClient, "listReorgs">;
 /** Per-fork handler. Each plane (subgraph rewind, chain-webhook rewind)
  *  runs its own poll with its own handler, so they can live in separate
  *  processes once the webhook plane is extracted. */
-// biome-ignore lint/suspicious/noConfusingVoidType: handlers are plain `async () => {}` (Promise<void>); only a gate returns a value.
-export type OnReorg = (forkHeight: number) => Promise<void | ReorgSkipped>;
+export type OnReorg = (
+	forkHeight: number,
+	reorg: StreamsReorgRow,
+	// biome-ignore lint/suspicious/noConfusingVoidType: handlers are plain `async () => {}` (Promise<void>); only a gate returns a value.
+) => Promise<void | ReorgSkipped>;
 
 /** Returned by a handler that did not apply the reorg because this process is
  *  not the one that should (a non-leader replica). The poll then neither marks
@@ -56,7 +60,7 @@ export async function pollReorgsOnce(
 		logger.info("Streams reorg — rewinding", {
 			forkPointHeight: r.fork_point_height,
 		});
-		const outcome = await onReorg(r.fork_point_height);
+		const outcome = await onReorg(r.fork_point_height, r);
 		if (outcome === REORG_SKIPPED) {
 			// Hold the position: later reorgs in this page stay unapplied too.
 			return cursor;

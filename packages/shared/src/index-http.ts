@@ -304,6 +304,8 @@ export type StreamsReorgRow = {
 	fork_point_height: number;
 	orphaned_range: { from: string; to: string };
 	new_canonical_tip: string;
+	/** Hash of the block orphaned at `fork_point_height`. */
+	old_index_block_hash?: string | null;
 };
 
 export type IndexHttpOptions = {

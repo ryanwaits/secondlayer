@@ -1604,6 +1604,12 @@ export interface WebhookOutboxTable {
 	last_error: string | null;
 	/** Set exactly while `status` is `dead`. */
 	dead_reason: DeadReason | null;
+	/** Hash of the block a chain apply row was emitted for. Null on rows
+	 *  written before the column existed (the payload carries it too). */
+	block_hash: string | null;
+	/** Set when a reorg rollback recalled this delivered apply row, so a
+	 *  later rollback for the same reorg skips it. */
+	rolled_back_at: Date | null;
 	created_at: Generated<Date>;
 }
 

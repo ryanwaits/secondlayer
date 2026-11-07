@@ -3,7 +3,7 @@ import { listActiveChainWebhooks } from "@secondlayer/shared/db/queries/webhooks
 import { logger } from "@secondlayer/shared/logger";
 import { isTestnetWebhookStack } from "@secondlayer/shared/mode";
 import { hasActiveRuneWebhooks } from "./bitcoin-trigger-evaluator.ts";
-import { handleChainReorg } from "./chain-reorg.ts";
+import { handleChainReorg, reorgScope } from "./chain-reorg.ts";
 import { startEmitter } from "./emitter.ts";
 import { startInsightsLoop } from "./insights-loop.ts";
 import { startMeterSocketReporter } from "./meter-socket.ts";
@@ -51,13 +51,15 @@ export async function startWebhookPlane(): Promise<() => Promise<void>> {
 	// `trigger_evaluator_state` row the two evaluators advance.
 	const stopChainReorgPoll = streamsIndex
 		? startStreamsReorgPoll(
-				gateChainReorgOnLeader((forkHeight) => handleChainReorg(forkHeight)),
+				gateChainReorgOnLeader((forkHeight, reorg) =>
+					handleChainReorg(forkHeight, undefined, "stacks", reorgScope(reorg)),
+				),
 			)
 		: undefined;
 	const stopBitcoinReorgPoll = streamsIndex
 		? startStreamsReorgPoll(
-				gateChainReorgOnLeader((forkHeight) =>
-					handleChainReorg(forkHeight, undefined, "bitcoin"),
+				gateChainReorgOnLeader((forkHeight, reorg) =>
+					handleChainReorg(forkHeight, undefined, "bitcoin", reorgScope(reorg)),
 				),
 				"bitcoin",
 				() => hasActiveRuneWebhooks(),

@@ -504,6 +504,8 @@ function buildTestOutboxRow(sub: Webhook): WebhookOutbox {
 		locked_until: null,
 		last_error: null,
 		dead_reason: null,
+		block_hash: null,
+		rolled_back_at: null,
 		created_at: now,
 	};
 }
