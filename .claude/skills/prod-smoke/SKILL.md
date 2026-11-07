@@ -189,6 +189,36 @@ to the locked supply, which is what produced a 3,557,361-sat false alarm on 2026
 both tokens counted, gross per-type rows and sums match too: at 9,397,972, 71,999 mints and
 9,585 burns on each side, with equal totals.
 
+## Phase 4c — billing ledger reconcile (balance = what the ledger says)
+
+Every credit movement is a `usage_ledger` row: charges carry a positive `usd_micros`, top-ups
+and grants a negative one, and `debited_usd_micros` is what actually moved (0..price;
+migration 0190). So per account, `balance + sum(debited_usd_micros)` should be a constant:
+0, or the opening balance an account carried from before the ledger existed (2026-09-25).
+Watch the DRIFT CHANGE, not its absolute value.
+
+```bash
+printf '%s\n' "
+SELECT 'gap_rows', count(*) FROM usage_ledger WHERE debited AND debited_usd_micros = 0 AND usd_micros <> 0;
+WITH l AS (SELECT account_id, sum(debited_usd_micros) net FROM usage_ledger GROUP BY 1)
+SELECT 'drift', left(c.account_id::text,8), c.balance_usd_micros + coalesce(l.net,0)
+FROM account_credits c LEFT JOIN l USING (account_id)
+WHERE c.balance_usd_micros + coalesce(l.net,0) <> 0;
+SELECT 'stack_state', state, coalesce(stop_reason,'-'), count(*) FROM hosted_stack_state GROUP BY 2,3;" \
+  | ssh app-server 'docker exec -i secondlayer-postgres-platform-1 psql -U secondlayer -d secondlayer_platform -tA'
+```
+
+- `gap_rows` MUST be 0. Non-zero = an old writer inserted rows during a deploy without
+  `debited_usd_micros`; re-run 0190's backfill: `UPDATE usage_ledger SET debited_usd_micros =
+  usd_micros WHERE debited AND debited_usd_micros = 0 AND usd_micros <> 0`.
+- `drift` baseline (2026-11-07, verified): only `005f2b11` (internal founder account, created
+  2026-02-22, ledger starts 2026-09-25) at **9941635** µ$ = its pre-ledger opening balance.
+  Any other account, or a different value for 005f2b11, is a finding: money moved outside
+  `meter()` / `recordTopup` / `grantCredits`.
+- `stack_state` must match the workload host's `tenants` table (state + stop_reason
+  counts). It's reported by the workload; a mismatch older than one 5-minute poll = the
+  reporter is broken.
+
 ## Phase 5 — known-bug regression probes (each one a past prod incident)
 
 ```bash
@@ -258,6 +288,7 @@ Infra:        ✓/✗ (containers / canaries / connections / FATALs)
 Data planes:  ✓/✗ (decoder lags / subgraph-processor running)
 Public API:   ✓/✗ (surfaces; /v1/subgraphs 401 without key, /v1/play 404)
 Conservation: ✓/✗/N-A per token (Phase 4 N/A while no hosted balance subgraphs; chain-truth decoded_net == raw_net at pinned H; exact deltas on ✗)
+Billing:      ✓/✗ (gap_rows=0, drift == baseline, stack_state == tenants)
 Regressions:  ✓/✗/N-A (guard 422 / kill-block markers / watcher / reorg orphans=0)
 
 Flags: <ambiguous, slow, or trending-wrong items + the exact command to dig deeper>
