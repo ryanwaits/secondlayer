@@ -1,5 +1,8 @@
+import { RateLimitError } from "@secondlayer/shared/errors";
 import type { Context, MiddlewareHandler } from "hono";
 import {
+	GHOST_READS_BUSY_MESSAGE,
+	beginGhostRead,
 	checkRowsAllowance,
 	meterRowsDelivered,
 	resolveCreditedAccount,
@@ -28,20 +31,34 @@ function isUnmeteredRead(path: string): boolean {
 export function indexCreditsGate(): MiddlewareHandler<IndexEnv> {
 	return async (c, next) => {
 		const tenant = c.get("indexTenant");
-		if (!isUnmeteredRead(c.req.path)) {
-			const refusal = await checkRowsAllowance(
+		const metered = !isUnmeteredRead(c.req.path);
+		// A ghost's slot is held until the read is metered, so the row cap
+		// below is checked against every read already served.
+		const slot = metered
+			? await beginGhostRead(tenant?.account_id, tenant?.tier)
+			: { release: () => {} };
+		if (slot === "busy") {
+			c.header("Retry-After", "1");
+			throw new RateLimitError(GHOST_READS_BUSY_MESSAGE);
+		}
+		try {
+			if (metered) {
+				const refusal = await checkRowsAllowance(
+					tenant?.account_id,
+					tenant?.tier,
+				);
+				if (refusal) return c.json(refusal, 402);
+			}
+
+			const credited = await resolveCreditedAccount(
 				tenant?.account_id,
 				tenant?.tier,
 			);
-			if (refusal) return c.json(refusal, 402);
+			if (credited) c.set("credited", credited);
+			return await next();
+		} finally {
+			slot.release();
 		}
-
-		const credited = await resolveCreditedAccount(
-			tenant?.account_id,
-			tenant?.tier,
-		);
-		if (credited) c.set("credited", credited);
-		return next();
 	};
 }
 

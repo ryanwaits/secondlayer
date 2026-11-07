@@ -12,15 +12,17 @@
  * whole life (`lib/read-credits.ts`). The worker deletes the ghost a week
  * after its key expires (`worker/src/jobs/ghost-accounts-purge.ts`).
  *
- * One mint per IP per rolling day, fail-closed: a store outage refuses rather
+ * One mint per IP bucket (IPv4, or IPv6 /64) per rolling day and at most
+ * `ANON_DOCS_KEY_GLOBAL_DAILY_LIMIT` across all readers, fail-closed: a store outage refuses rather
  * than mints. The plaintext key is in this response once and is never logged
  * or stored (only its hash is).
  */
 
+import { logger } from "@secondlayer/shared";
 import { getDb } from "@secondlayer/shared/db";
 import { RateLimitError } from "@secondlayer/shared/errors";
 import { Hono } from "hono";
-import { getClientIp } from "../auth/http.ts";
+import { getClientIp, ipBucket } from "../auth/http.ts";
 import { mintDocsKey } from "../auth/mint.ts";
 import {
 	type RateLimitStore,
@@ -32,7 +34,12 @@ import {
 	visitorSubject,
 } from "../lib/product-events.ts";
 
+/** Mints per IP bucket (IPv4, or IPv6 /64) per rolling day. */
 export const ANON_DOCS_KEY_DAILY_LIMIT = 1;
+/** Mints across every reader per rolling day: each is a ghost account with
+ *  its own row budget, so a proxy pool cannot mint without bound. */
+export const ANON_DOCS_KEY_GLOBAL_DAILY_LIMIT = 500;
+const RATE_LIMITED_COPY = "One docs key a day without an account";
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 export function createPublicDocsKeyRouter(opts?: {
@@ -45,15 +52,30 @@ export function createPublicDocsKeyRouter(opts?: {
 	app.post("/", async (c) => {
 		c.header("Cache-Control", "no-store");
 		const ip = getClientIp(c);
-		const limit = await (opts?.rateLimitStore ?? getRateLimitStore()).check(
-			`docs-key-anon:${ip}`,
+		const store = opts?.rateLimitStore ?? getRateLimitStore();
+		const refuse = (retryAfter: number): never => {
+			c.header("Retry-After", String(retryAfter));
+			throw new RateLimitError(RATE_LIMITED_COPY);
+		};
+		// Per reader first, so a refused reader never spends a global slot.
+		const perReader = await store.check(
+			`docs-key-anon:${ipBucket(ip)}`,
 			ANON_DOCS_KEY_DAILY_LIMIT,
 			DAY_MS,
 			{ failClosed: true },
 		);
-		if (!limit.allowed) {
-			c.header("Retry-After", String(limit.retryAfter));
-			throw new RateLimitError("One docs key a day without an account");
+		if (!perReader.allowed) refuse(perReader.retryAfter);
+		const global = await store.check(
+			"docs-key-anon:all",
+			ANON_DOCS_KEY_GLOBAL_DAILY_LIMIT,
+			DAY_MS,
+			{ failClosed: true },
+		);
+		if (!global.allowed) {
+			logger.warn("docs_key.anon_mint_ceiling", {
+				ceiling: ANON_DOCS_KEY_GLOBAL_DAILY_LIMIT,
+			});
+			refuse(global.retryAfter);
 		}
 
 		const { ghostId, minted } = await resolveDb()
@@ -69,6 +91,10 @@ export function createPublicDocsKeyRouter(opts?: {
 					minted: await mintDocsKey(trx, { accountId: ghost.id, ip }),
 				};
 			});
+		logger.info("docs_key.anon_mint", {
+			mintsToday: global.count,
+			ceiling: ANON_DOCS_KEY_GLOBAL_DAILY_LIMIT,
+		});
 		// The page may send its PostHog id so the mint joins the reader's
 		// pageviews; anything else in the body is ignored. Without it, the
 		// ghost's id stands in, which the key's first read also uses.

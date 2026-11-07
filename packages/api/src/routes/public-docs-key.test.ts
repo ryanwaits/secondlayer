@@ -10,11 +10,20 @@ import {
 	GHOST_ACCOUNT_ROWS_LIMIT,
 	ROWS_DELIVERED_MONTHLY_ALLOWANCE,
 } from "@secondlayer/platform/billing/prices";
+import { lifetimeQuantity } from "@secondlayer/platform/db/queries/usage-ledger";
 import { getDb } from "@secondlayer/shared/db";
+import { RateLimitError } from "@secondlayer/shared/errors";
+import { Hono } from "hono";
 import { hashToken } from "../auth/keys.ts";
 import { getRateLimitStore } from "../auth/rate-limit-store.ts";
 import { createApiApp } from "../create-app.ts";
-import { checkRowsAllowance } from "../lib/read-credits.ts";
+import type { IndexEnv } from "../index/auth.ts";
+import { debitCreditedRead, indexCreditsGate } from "../index/credits-gate.ts";
+import {
+	GHOST_READS_IN_FLIGHT,
+	checkRowsAllowance,
+} from "../lib/read-credits.ts";
+import { ANON_DOCS_KEY_GLOBAL_DAILY_LIMIT } from "./public-docs-key.ts";
 
 const HAS_DB = !!process.env.DATABASE_URL;
 const db = HAS_DB ? getDb() : (null as never);
@@ -152,6 +161,42 @@ describe.skipIf(!HAS_DB)("signed-out docs key", () => {
 		expect((await mintFrom(freshIp())).status).toBe(201);
 	});
 
+	test("addresses in one IPv6 /64 share one mint a day", async () => {
+		expect((await mintFrom("2001:db8:aaaa:1::1")).status).toBe(201);
+		const sameBlock = await mintFrom("2001:db8:aaaa:1:ffff::9");
+		expect(sameBlock.status).toBe(429);
+		expect((await mintFrom("2001:db8:aaaa:2::1")).status).toBe(201);
+	});
+
+	test("once the global daily ceiling is spent every reader gets 429", async () => {
+		const store = getRateLimitStore();
+		for (let i = 0; i < ANON_DOCS_KEY_GLOBAL_DAILY_LIMIT; i++) {
+			await store.check(
+				"docs-key-anon:all",
+				ANON_DOCS_KEY_GLOBAL_DAILY_LIMIT,
+				24 * 60 * 60 * 1000,
+			);
+		}
+		const res = await mintFrom(freshIp());
+		expect(res.status).toBe(429);
+		expect(Number(res.headers.get("retry-after"))).toBeGreaterThan(0);
+	});
+
+	test("a reader refused for its own IP does not spend a global slot", async () => {
+		const ip = freshIp();
+		await anonKey(ip);
+		const store = getRateLimitStore();
+		const probe = () =>
+			store.check(
+				"docs-key-anon:all",
+				ANON_DOCS_KEY_GLOBAL_DAILY_LIMIT,
+				24 * 60 * 60 * 1000,
+			);
+		const before = (await probe()).count;
+		expect((await mintFrom(ip)).status).toBe(429);
+		expect((await probe()).count).toBe(before + 1);
+	});
+
 	test("the key cannot write: creating a key with it is 403", async () => {
 		const { key, row } = await anonKey(freshIp());
 		const res = await app.request("/api/keys", {
@@ -214,6 +259,96 @@ describe.skipIf(!HAS_DB)("ghost account rows limit", () => {
 		expect((await checkRowsAllowance(row.account_id, "free", now))?.error).toBe(
 			"rows_limit_reached",
 		);
+	});
+
+	describe("parallel reads", () => {
+		const PAGE = 1_000;
+
+		/** A read route behind the real Index credits gate: each request takes
+		 *  a moment (so parallel ones overlap), then meters one page. */
+		function gatedApp(accountId: string) {
+			const gated = new Hono<IndexEnv>();
+			gated.onError((err, c) =>
+				c.json(
+					{ error: err.message },
+					err instanceof RateLimitError ? 429 : 500,
+				),
+			);
+			gated.use("*", async (c, next) => {
+				c.set("indexTenant", {
+					tenant_id: accountId,
+					account_id: accountId,
+					tier: "free",
+					scopes: [],
+				});
+				await next();
+			});
+			gated.use("*", indexCreditsGate());
+			gated.get("/rows", async (c) => {
+				await new Promise((resolve) => setTimeout(resolve, 25));
+				await debitCreditedRead(c, new Array(PAGE).fill(0));
+				return c.json({ rows: PAGE });
+			});
+			return gated;
+		}
+
+		async function burst(accountId: string, reads: number) {
+			const gated = gatedApp(accountId);
+			const statuses = await Promise.all(
+				Array.from(
+					{ length: reads },
+					async () => (await gated.request("/rows")).status,
+				),
+			);
+			return {
+				statuses,
+				served: statuses.filter((s) => s === 200).length,
+			};
+		}
+
+		test("10 parallel reads at 99k rows deliver at most the limit plus 2 pages", async () => {
+			const { row } = await anonKey(freshIp());
+			await addRows(row.account_id, GHOST_ACCOUNT_ROWS_LIMIT - PAGE);
+			const { statuses, served } = await burst(row.account_id, 10);
+			expect(served).toBeLessThanOrEqual(GHOST_READS_IN_FLIGHT);
+			expect(statuses.every((s) => s === 200 || s === 429)).toBe(true);
+			const lifetime = await lifetimeQuantity(
+				db,
+				row.account_id,
+				"rows.delivered",
+			);
+			expect(lifetime).toBeLessThanOrEqual(
+				GHOST_ACCOUNT_ROWS_LIMIT + GHOST_READS_IN_FLIGHT * PAGE,
+			);
+		});
+
+		test("slots free up after a read, so a ghost under its rows keeps reading", async () => {
+			const { row } = await anonKey(freshIp());
+			const gated = gatedApp(row.account_id);
+			for (let i = 0; i < 5; i++) {
+				expect((await gated.request("/rows")).status).toBe(200);
+			}
+		});
+
+		test("a refused read does not hold a slot", async () => {
+			const { row } = await anonKey(freshIp());
+			await addRows(row.account_id, GHOST_ACCOUNT_ROWS_LIMIT);
+			const gated = gatedApp(row.account_id);
+			for (let i = 0; i < 5; i++) {
+				expect((await gated.request("/rows")).status).toBe(402);
+			}
+		});
+
+		test("an account with an email reads in parallel without the ghost slot limit", async () => {
+			const account = await db
+				.insertInto("accounts")
+				.values({ email: `parallel-${crypto.randomUUID()}@example.com` })
+				.returning("id")
+				.executeTakeFirstOrThrow();
+			accountIds.push(account.id);
+			const { served } = await burst(account.id, 10);
+			expect(served).toBe(10);
+		});
 	});
 
 	test("an account with an email keeps the monthly allowance past the ghost limit", async () => {

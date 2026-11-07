@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import type { Context } from "hono";
-import { getClientIp } from "./http.ts";
+import { getClientIp, ipBucket } from "./http.ts";
 
 // Minimal Context stub: getClientIp only reads request headers.
 function ctx(headers: Record<string, string>): Context {
@@ -65,5 +65,43 @@ describe("getClientIp", () => {
 	test("TRUSTED_PROXY_HOPS=0 never trusts XFF", () => {
 		process.env.TRUSTED_PROXY_HOPS = "0";
 		expect(getClientIp(ctx({ "x-forwarded-for": "1.1.1.1" }))).toBe("unknown");
+	});
+});
+
+describe("ipBucket", () => {
+	test("an IPv4 address is its own bucket", () => {
+		expect(ipBucket("203.0.113.7")).toBe("203.0.113.7");
+	});
+
+	test("addresses in one IPv6 /64 share a bucket", () => {
+		const a = ipBucket("2001:db8:abcd:12:1111:2222:3333:4444");
+		expect(a).toBe("2001:db8:abcd:12::/64");
+		expect(ipBucket("2001:0db8:abcd:0012::1")).toBe(a);
+		expect(ipBucket("2001:DB8:ABCD:12:ffff:ffff:ffff:ffff")).toBe(a);
+	});
+
+	test("different IPv6 /64s get different buckets", () => {
+		expect(ipBucket("2001:db8:abcd:12::1")).not.toBe(
+			ipBucket("2001:db8:abcd:13::1"),
+		);
+	});
+
+	test("a compressed address keeps its zero groups in the /64", () => {
+		expect(ipBucket("2001:db8::1")).toBe("2001:db8:0:0::/64");
+		expect(ipBucket("::1")).toBe("0:0:0:0::/64");
+	});
+
+	test("an IPv4-mapped IPv6 address buckets as the IPv4", () => {
+		expect(ipBucket("::ffff:203.0.113.7")).toBe("203.0.113.7");
+		expect(ipBucket("::ffff:cb00:7107")).toBe("203.0.113.7");
+	});
+
+	test("an IPv6 zone id is ignored", () => {
+		expect(ipBucket("fe80::1%eth0")).toBe(ipBucket("fe80::2"));
+	});
+
+	test("unknown and unparseable values pass through", () => {
+		expect(ipBucket("unknown")).toBe("unknown");
+		expect(ipBucket("not-an-ip")).toBe("not-an-ip");
 	});
 });

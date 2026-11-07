@@ -154,6 +154,66 @@ const GHOST_ROWS_REFUSAL: RowsLimitReachedBody = {
 	message: `This docs key has read its ${GHOST_ACCOUNT_ROWS_LIMIT.toLocaleString("en-US")} rows. Make a lasting key at https://secondlayer.tools/signin.`,
 };
 
+/** Reads one ghost account may have in flight at once. The row cap is checked
+ *  before a read and counted after it, so N parallel reads at 99,999 rows all
+ *  pass; holding this to 2 bounds the overshoot to 2 pages. */
+export const GHOST_READS_IN_FLIGHT = 2;
+
+export const GHOST_READS_BUSY_MESSAGE =
+	"A docs key reads two requests at a time. Retry in a moment.";
+
+const ghostReadsInFlight = new Map<string, number>();
+
+/** Ghost-ness never changes (a ghost cannot gain an email), so it is looked
+ *  up once per account per process. Cleared when it grows past
+ *  `KNOWN_ACCOUNTS_MAX`, which only costs a re-check. */
+const ghostByAccount = new Map<string, boolean>();
+const KNOWN_ACCOUNTS_MAX = 50_000;
+
+async function isGhostAccount(accountId: string): Promise<boolean> {
+	const known = ghostByAccount.get(accountId);
+	if (known !== undefined) return known;
+	const row = await getDb()
+		.selectFrom("accounts")
+		.select("ghost")
+		.where("id", "=", accountId)
+		.executeTakeFirst();
+	const ghost = row?.ghost ?? false;
+	if (ghostByAccount.size >= KNOWN_ACCOUNTS_MAX) ghostByAccount.clear();
+	ghostByAccount.set(accountId, ghost);
+	return ghost;
+}
+
+/**
+ * Take one of a ghost account's `GHOST_READS_IN_FLIGHT` read slots, before
+ * `checkRowsAllowance` and held until the read has been metered. Returns a
+ * `release` to call once the read is done, or `"busy"` when the ghost
+ * already has that many reads running. Nothing is held for a non-ghost,
+ * internal or self-host caller. Slots live in this process; one API
+ * process serves the platform.
+ */
+export async function beginGhostRead(
+	accountId: string | undefined,
+	tier: string | undefined,
+): Promise<"busy" | { release: () => void }> {
+	const none = { release: () => {} };
+	if (!isPlatformMode() || !accountId || tier === "internal") return none;
+	if (!(await isGhostAccount(accountId))) return none;
+	const held = ghostReadsInFlight.get(accountId) ?? 0;
+	if (held >= GHOST_READS_IN_FLIGHT) return "busy";
+	ghostReadsInFlight.set(accountId, held + 1);
+	let released = false;
+	return {
+		release: () => {
+			if (released) return;
+			released = true;
+			const left = (ghostReadsInFlight.get(accountId) ?? 1) - 1;
+			if (left <= 0) ghostReadsInFlight.delete(accountId);
+			else ghostReadsInFlight.set(accountId, left);
+		},
+	};
+}
+
 /**
  * Pre-read gate: once a keyed account's `rows.delivered` this UTC calendar
  * month has reached the free allowance, two things can refuse the read
@@ -173,6 +233,8 @@ const GHOST_ROWS_REFUSAL: RowsLimitReachedBody = {
  * (`rows_limit_reached`), whatever its month. Its key lives a day, so its
  * month's rows are its lifetime's except in the first day of a month; only
  * then, or past the ghost limit, does this read the account row at all.
+ * Callers run it under `beginGhostRead`, which keeps parallel reads from all
+ * passing this check at once.
  *
  * No-op (never refuses — returns `null`) for anon, internal (key tier or
  * account), or self-host:
