@@ -284,7 +284,8 @@ export async function verifyMagicLinkByCode(
 	return claimed?.email ?? null;
 }
 
-function sameCode(stored: string, given: string): boolean {
+function sameCode(stored: string | null, given: string): boolean {
+	if (stored === null) return false;
 	const a = Buffer.from(stored);
 	const b = Buffer.from(given);
 	return a.length === b.length && timingSafeEqual(a, b);
