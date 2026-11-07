@@ -7,7 +7,10 @@ import {
 import { getDb } from "@secondlayer/shared/db";
 import { Hono } from "hono";
 import { hashToken } from "../auth/keys.ts";
-import { _resetSlotCounterForTests } from "../lib/slot-counter.ts";
+import {
+	_resetSlotCounterForTests,
+	getSlotCounter,
+} from "../lib/slot-counter.ts";
 import { errorHandler } from "../middleware/error.ts";
 import { STREAMS_READ_SCOPE, type StreamsTokenStore } from "../streams/auth.ts";
 import { StreamsResponseCache } from "../streams/response-cache.ts";
@@ -88,6 +91,7 @@ describe.skipIf(!HAS_DB)(
 	() => {
 		const db = HAS_DB ? getDb() : (null as never);
 		const accountIds: string[] = [];
+		const opened: Response[] = [];
 		let prevMode: string | undefined;
 
 		beforeAll(() => {
@@ -95,6 +99,7 @@ describe.skipIf(!HAS_DB)(
 			process.env.INSTANCE_MODE = "platform";
 		});
 		afterAll(async () => {
+			await closeAllStreams();
 			if (prevMode === undefined)
 				Reflect.deleteProperty(process.env, "INSTANCE_MODE");
 			else process.env.INSTANCE_MODE = prevMode;
@@ -103,6 +108,35 @@ describe.skipIf(!HAS_DB)(
 			}
 			await _resetSlotCounterForTests();
 		});
+
+		/**
+		 * Hang up every stream the tests opened and wait for each server loop to
+		 * finish. A loop meters rows inside `meter()` (row lock on
+		 * `account_credits`, then a ledger insert that needs a share lock on
+		 * `accounts`); deleting the account while one is mid-charge deadlocks
+		 * against it. The loop frees its slot only after its last charge, so a
+		 * slot we can take is a loop that is gone.
+		 */
+		async function closeAllStreams() {
+			await Promise.all(opened.map((r) => r.body?.cancel().catch(() => {})));
+			for (const accountId of accountIds) {
+				const deadline = Date.now() + 5_000;
+				for (;;) {
+					const release = await getSlotCounter().acquire(
+						`sse:${accountId}`,
+						1,
+						1_000,
+					);
+					if (release) {
+						await release();
+						break;
+					}
+					if (Date.now() > deadline)
+						throw new Error(`stream loop for ${accountId} did not end`);
+					await new Promise((resolve) => setTimeout(resolve, 10));
+				}
+			}
+		}
 
 		async function makeAccount(): Promise<string> {
 			const row = await db
@@ -164,10 +198,13 @@ describe.skipIf(!HAS_DB)(
 			return a;
 		}
 
-		const open = (a: Hono) =>
-			a.request("/events/stream", {
+		const open = async (a: Hono) => {
+			const res = await a.request("/events/stream", {
 				headers: { authorization: "Bearer sk-sl_anything" },
 			});
+			opened.push(res);
+			return res;
+		};
 
 		test("an account that runs through its allowance mid-stream gets the refusal and the stream ends", async () => {
 			const accountId = await makeAccount();
