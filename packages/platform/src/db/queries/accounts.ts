@@ -1,25 +1,6 @@
 import type { Account, Database } from "@secondlayer/shared/db";
 import { type Kysely, sql } from "kysely";
 
-/** Find-or-create by exact email. `created` is true only for the statement
- *  that inserted the row: Postgres leaves `xmax` at 0 on an inserted row and
- *  sets it on the conflict path's update. */
-export async function upsertAccount(
-	db: Kysely<Database>,
-	email: string,
-): Promise<{ account: Account; created: boolean }> {
-	const { created, ...account } = await db
-		.insertInto("accounts")
-		.values({ email })
-		.onConflict(
-			(oc) => oc.column("email").doUpdateSet({ email }), // no-op update to return existing
-		)
-		.returningAll()
-		.returning(sql<boolean>`(xmax = 0)`.as("created"))
-		.executeTakeFirstOrThrow();
-	return { account, created };
-}
-
 /** First-party service account (`accounts.internal`): usage is recorded at
  *  $0 and no balance, floor or cap stops it. */
 export async function isInternalAccount(
@@ -34,9 +15,9 @@ export async function isInternalAccount(
 	return row?.internal === true;
 }
 
-/** Trim + lowercase. `upsertAccount` does not normalize; callers that take an
- *  email from another system (Sentinel) normalize first so one address is one
- *  account. */
+/** Trim + lowercase: the one identity of an email address. Everything that
+ *  stores or looks up an account or magic-link email goes through it, and
+ *  `accounts_email_lower_idx` backs it up. */
 export function normalizeEmail(email: string): string {
 	return email.trim().toLowerCase();
 }
@@ -60,14 +41,14 @@ export async function findOrCreateAccountByEmail(
 	const inserted = await db
 		.insertInto("accounts")
 		.values({ email: normalized })
-		.onConflict((oc) => oc.column("email").doNothing())
+		.onConflict((oc) => oc.doNothing())
 		.returningAll()
 		.executeTakeFirst();
 	if (inserted) return { account: inserted, created: true };
 	const raced = await db
 		.selectFrom("accounts")
 		.selectAll()
-		.where("email", "=", normalized)
+		.where(sql<boolean>`lower(email) = ${normalized}`)
 		.executeTakeFirstOrThrow();
 	return { account: raced, created: false };
 }
@@ -152,17 +133,36 @@ export async function updateAccountProfile(
 		.executeTakeFirstOrThrow();
 }
 
-/** Persist the Stripe customer id on first upgrade (lazy customer model). */
+/**
+ * Persist the Stripe customer id, but only over the value the caller saw
+ * (`null` on first use, the stale id when healing). Returns the id the
+ * account ends up with: the caller's when it won, the concurrent winner's
+ * when it lost the race.
+ */
 export async function setStripeCustomerId(
 	db: Kysely<Database>,
 	accountId: string,
 	stripeCustomerId: string,
-): Promise<void> {
-	await db
+	replacing: string | null,
+): Promise<string> {
+	const won = await db
 		.updateTable("accounts")
 		.set({ stripe_customer_id: stripeCustomerId })
 		.where("id", "=", accountId)
-		.execute();
+		.where(
+			replacing === null
+				? sql<boolean>`stripe_customer_id IS NULL`
+				: sql<boolean>`stripe_customer_id = ${replacing}`,
+		)
+		.returning("stripe_customer_id")
+		.executeTakeFirst();
+	if (won?.stripe_customer_id) return won.stripe_customer_id;
+	const current = await db
+		.selectFrom("accounts")
+		.select("stripe_customer_id")
+		.where("id", "=", accountId)
+		.executeTakeFirstOrThrow();
+	return current.stripe_customer_id ?? stripeCustomerId;
 }
 
 /** Resolve an account by its Stripe customer id. Null if no match. */
@@ -185,15 +185,28 @@ export async function createMagicLink(
 	code: string,
 	expiresInMs: number = 15 * 60 * 1000,
 ): Promise<void> {
-	await db
-		.insertInto("magic_links")
-		.values({
-			email,
-			token,
-			code,
-			expires_at: new Date(Date.now() + expiresInMs),
-		})
-		.execute();
+	const normalized = normalizeEmail(email);
+	const issue = async (trx: Kysely<Database>) => {
+		// A new code voids every older unused one for this address, so only the
+		// latest email in the inbox can sign in.
+		await trx
+			.updateTable("magic_links")
+			.set({ used_at: new Date() })
+			.where("email", "=", normalized)
+			.where("used_at", "is", null)
+			.execute();
+		await trx
+			.insertInto("magic_links")
+			.values({
+				email: normalized,
+				token,
+				code,
+				expires_at: new Date(Date.now() + expiresInMs),
+			})
+			.execute();
+	};
+	if (db.isTransaction) await issue(db);
+	else await db.transaction().execute(issue);
 }
 
 /**
@@ -235,9 +248,10 @@ export async function verifyMagicLink(
  */
 export async function verifyMagicLinkByCode(
 	db: Kysely<Database>,
-	email: string,
+	rawEmail: string,
 	code: string,
 ): Promise<string | null> {
+	const email = normalizeEmail(rawEmail);
 	const result = await db
 		.updateTable("magic_links")
 		.set({ used_at: new Date() })

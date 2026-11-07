@@ -4,12 +4,14 @@ import {
 } from "@secondlayer/platform/db/queries/oauth";
 import { getDb as _getDb, sql } from "@secondlayer/shared/db";
 import {
+	ApiKeyExpiredError,
 	ApiKeyRevokedError,
 	AuthenticationError,
 	AuthorizationError,
 } from "@secondlayer/shared/errors";
 import type { Context, MiddlewareHandler } from "hono";
 import { isDevMode } from "../lib/dev-mode.ts";
+import { keyLiveness, liveKeyWhere } from "./key-state.ts";
 import { hashToken } from "./keys.ts";
 import { isMcpRequest } from "./oauth/audience.ts";
 import { lookupSession } from "./session.ts";
@@ -67,6 +69,7 @@ export function requireAuth(opts?: {
 						.select("account_id")
 						.where("key_hash", "=", devHash)
 						.where("product", "!=", "docs")
+						.where(liveKeyWhere())
 						.executeTakeFirst();
 					if (key) c.set("accountId", key.account_id);
 				}
@@ -128,7 +131,10 @@ export function requireAuth(opts?: {
 				throw new AuthenticationError("Invalid API key");
 			}
 
-			if (keyRecord.status === "revoked") {
+			// Revoked and expired keys (docs keys, 24h) are refused before any
+			// product logic, on every lookup, each under its own code.
+			const liveness = keyLiveness(keyRecord);
+			if (liveness === "revoked") {
 				if (keyRecord.product === "account") {
 					c.set("revokedApiKey", {
 						id: keyRecord.id,
@@ -137,18 +143,8 @@ export function requireAuth(opts?: {
 				}
 				throw new ApiKeyRevokedError();
 			}
-
-			if (keyRecord.status !== "active") {
-				throw new AuthenticationError("Invalid API key");
-			}
-
-			// Expired keys (docs keys, 24h) are refused exactly like revoked ones,
-			// before any product logic, on every lookup.
-			if (
-				keyRecord.expires_at &&
-				keyRecord.expires_at.getTime() <= Date.now()
-			) {
-				throw new AuthorizationError("API key has been revoked");
+			if (liveness === "expired") {
+				throw new ApiKeyExpiredError();
 			}
 
 			// Docs keys read Streams and Index and nothing else: the management

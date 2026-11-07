@@ -34,6 +34,7 @@ import {
 	ValidationError,
 } from "@secondlayer/shared/errors";
 import { Hono } from "hono";
+import { liveKeyWhere } from "../auth/key-state.ts";
 import { assertUnderKeyCeiling, mintApiKey } from "../auth/mint.ts";
 import { lookupSession } from "../auth/session.ts";
 import { trackProductEvent } from "../lib/product-events.ts";
@@ -223,7 +224,7 @@ export function createInternalSentinelRouter() {
 			.selectFrom("api_keys")
 			.select(["id", "account_id", "areas", "product"])
 			.where("key_hash", "=", tokenHash)
-			.where("status", "=", "active")
+			.where(liveKeyWhere())
 			.executeTakeFirst();
 		if (!key) throw new NotFoundError("Token not found");
 		if (key.product !== "sentinel") {
@@ -285,7 +286,7 @@ export function createInternalSentinelRouter() {
 			])
 			.where("account_id", "=", accountId)
 			.where("product", "=", "sentinel")
-			.where("status", "=", "active")
+			.where(liveKeyWhere())
 			.orderBy("created_at", "desc")
 			.execute();
 		return c.json({

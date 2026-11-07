@@ -7,7 +7,8 @@ import {
 	test,
 } from "bun:test";
 import { createMagicLink } from "@secondlayer/platform/db/queries/accounts";
-import { getDb } from "@secondlayer/shared/db";
+import { getDb, sql } from "@secondlayer/shared/db";
+import { hashToken } from "../auth/keys.ts";
 import { getRateLimitStore } from "../auth/rate-limit-store.ts";
 import { createApiApp } from "../create-app.ts";
 
@@ -91,5 +92,97 @@ describe.skipIf(!HAS_DB)("POST /api/auth/verify product", () => {
 	test("an unknown product is rejected", async () => {
 		const res = await verify(freshEmail(), { product: "other" });
 		expect(res.status).toBe(400);
+	});
+});
+
+describe.skipIf(!HAS_DB)("account email identity", () => {
+	test("signing in with a different case reaches the same account", async () => {
+		const email = freshEmail();
+		const first = await verify(email);
+		const second = await verify(email.toUpperCase());
+		expect(second.status).toBe(200);
+		const a = (await first.json()) as { account: { id: string } };
+		const b = (await second.json()) as { account: { id: string } };
+		expect(b.account.id).toBe(a.account.id);
+		expect(
+			await db
+				.selectFrom("accounts")
+				.select("id")
+				.where(sql<boolean>`lower(email) = ${email}`)
+				.execute(),
+		).toHaveLength(1);
+	});
+
+	test("a new account is stored lowercased", async () => {
+		const email = freshEmail();
+		const res = await verify(email.toUpperCase());
+		const body = (await res.json()) as { account: { email: string } };
+		expect(body.account.email).toBe(email);
+	});
+
+	test("the database refuses a second account whose email differs only in case", async () => {
+		const email = freshEmail();
+		await db.insertInto("accounts").values({ email }).execute();
+		await expect(
+			db
+				.insertInto("accounts")
+				.values({ email: email.toUpperCase() })
+				.execute(),
+		).rejects.toThrow();
+	});
+});
+
+describe.skipIf(!HAS_DB)("magic link issuing", () => {
+	test("a new code voids the older unused ones for that email", async () => {
+		const email = freshEmail();
+		await createMagicLink(db, email, crypto.randomUUID(), "111111");
+		await createMagicLink(db, email, crypto.randomUUID(), "222222");
+		const rows = await db
+			.selectFrom("magic_links")
+			.select(["code", "used_at"])
+			.where("email", "=", email)
+			.execute();
+		expect(rows.find((r) => r.code === "111111")?.used_at).not.toBeNull();
+		expect(rows.find((r) => r.code === "222222")?.used_at).toBeNull();
+	});
+
+	test("an older code no longer signs in once a newer one was issued", async () => {
+		const email = freshEmail();
+		await createMagicLink(db, email, crypto.randomUUID(), "111111");
+		await createMagicLink(db, email, crypto.randomUUID(), "222222");
+		const stale = await app.request("/api/auth/verify", {
+			method: "POST",
+			headers: { "content-type": "application/json" },
+			body: JSON.stringify({ email, code: "111111" }),
+		});
+		expect(stale.status).toBe(400);
+	});
+});
+
+describe.skipIf(!HAS_DB)("POST /api/auth/logout", () => {
+	test("a second logout keeps the first revoked_at", async () => {
+		const email = freshEmail();
+		const res = await verify(email);
+		const { sessionToken } = (await res.json()) as { sessionToken: string };
+		const logout = () =>
+			app.request("/api/auth/logout", {
+				method: "POST",
+				headers: {
+					authorization: `Bearer ${sessionToken}`,
+					"content-type": "application/json",
+				},
+			});
+		const read = () =>
+			db
+				.selectFrom("sessions")
+				.select("revoked_at")
+				.where("token_hash", "=", hashToken(sessionToken))
+				.executeTakeFirstOrThrow();
+		expect((await logout()).status).toBe(200);
+		const first = (await read()).revoked_at;
+		expect(first).not.toBeNull();
+		await Bun.sleep(20);
+		await logout();
+		expect((await read()).revoked_at?.getTime()).toBe(first?.getTime());
 	});
 });

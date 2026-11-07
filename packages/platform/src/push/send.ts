@@ -102,7 +102,7 @@ export async function sendPush(
 				await removeSubscription(db, sub.id);
 				removed++;
 			} else {
-				await markFailed(db, sub.id);
+				if (await markFailed(db, sub.id)) removed++;
 				failed++;
 				logger.warn("push.send_failed", { kind, status });
 			}

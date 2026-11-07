@@ -159,15 +159,25 @@ export async function markSent(
 		.execute();
 }
 
+/** Consecutive delivery errors after which a subscription is dropped. The
+ *  device subscribes again the next time the app opens. */
+export const MAX_PUSH_FAILURES = 10;
+
+/** Counts one delivery error. Returns true when it was the last allowed one
+ *  and the subscription was removed. */
 export async function markFailed(
 	db: Kysely<Database>,
 	id: string,
-): Promise<void> {
-	await db
+): Promise<boolean> {
+	const row = await db
 		.updateTable("push_subscriptions")
 		.set((eb) => ({ failed_count: eb("failed_count", "+", 1) }))
 		.where("id", "=", id)
-		.execute();
+		.returning("failed_count")
+		.executeTakeFirst();
+	if (!row || row.failed_count < MAX_PUSH_FAILURES) return false;
+	await removeSubscription(db, id);
+	return true;
 }
 
 /** The push service says the subscription is gone (404/410). */

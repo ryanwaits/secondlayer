@@ -5,9 +5,10 @@ import {
 	resolveOauthAccessToken,
 } from "@secondlayer/platform/db/queries/oauth";
 import { SecondLayer } from "@secondlayer/sdk";
-import { getDb, sql } from "@secondlayer/shared/db";
+import { getDb } from "@secondlayer/shared/db";
 import { type Context, Hono } from "hono";
 import { getClientIp } from "../auth/http.ts";
+import { liveKeyWhere } from "../auth/key-state.ts";
 import { hashToken } from "../auth/keys.ts";
 import { markMcpRequest } from "../auth/oauth/audience.ts";
 import { issuerOrigin, mcpChallenge } from "../auth/oauth/config.ts";
@@ -60,13 +61,7 @@ async function credentialIsLive(token: string): Promise<boolean> {
 		.select("id")
 		.where("key_hash", "=", hashToken(token))
 		.where("product", "=", "account")
-		.where("status", "=", "active")
-		.where((eb) =>
-			eb.or([
-				eb("expires_at", "is", null),
-				eb("expires_at", ">", sql<Date>`now()`),
-			]),
-		)
+		.where(liveKeyWhere())
 		.executeTakeFirst();
 	return key !== undefined;
 }

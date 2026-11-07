@@ -9,15 +9,15 @@
  * because the row is the record. A hidden `website` field is a honeypot:
  * filled means a bot, answered with a fake id and nothing stored. The same
  * email twice within an hour answers the first row's id without a second
- * row or email. Rate limit is its own bucket (`contact:<ip>`), not the
+ * row or email, unless the operator was never emailed about the first one
+ * (the worker retries those). Rate limit is its own bucket (`contact:<ip>`), not the
  * shared per-minute `ipRateLimit`.
  */
 
 import { createHash } from "node:crypto";
-import { logger } from "@secondlayer/shared";
 import { getDb } from "@secondlayer/shared/db";
 import type { InsertContactRequest } from "@secondlayer/shared/db";
-import { renderEmail, sendEmail } from "@secondlayer/shared/email";
+import { notifyContact } from "@secondlayer/shared/email";
 import { RateLimitError } from "@secondlayer/shared/errors";
 import { Hono } from "hono";
 import { getClientIp } from "../auth/http.ts";
@@ -35,14 +35,6 @@ export const CONTACT_VOLUMES = [
 	"unsure",
 ] as const;
 type Volume = (typeof CONTACT_VOLUMES)[number];
-
-const VOLUME_LABELS: Record<Volume, string> = {
-	lt10m: "under 10M rows/mo",
-	"10m-100m": "10M–100M rows/mo",
-	"100m-1b": "100M–1B rows/mo",
-	gt1b: "over 1B rows/mo",
-	unsure: "volume not sure",
-};
 
 const RATE_LIMIT = 30;
 const RATE_WINDOW_MS = 3_600_000;
@@ -140,55 +132,6 @@ function hashIp(ip: string): string {
 	return createHash("sha256").update(ip).digest("hex");
 }
 
-/** Emails the operator and reports whether the message went out. */
-async function notify(id: string, row: ParsedContact): Promise<boolean> {
-	const to = process.env.CONTACT_NOTIFY_EMAIL?.trim();
-	if (!to) {
-		logger.info("contact.notify_skipped", { id, reason: "no notify address" });
-		return false;
-	}
-	const volumeLabel = row.volume
-		? VOLUME_LABELS[row.volume]
-		: "volume not given";
-	const reference = `ctc_${id.slice(0, 6)}`;
-	const { html, text } = renderEmail({
-		heading: "New contact request",
-		preheader: row.message.slice(0, 90),
-		paragraphs: [],
-		quote: row.message,
-		figure: `contact · ${reference}`,
-		facts: [
-			{ label: "Name", value: row.name },
-			{ label: "Email", value: row.email },
-			{ label: "Company", value: row.company ?? "not given" },
-			{ label: "Volume", value: volumeLabel },
-			{ label: "From page", value: row.source_page ?? "not given" },
-			{ label: "Reference", value: reference },
-		],
-		footnote: `Reply to this email to answer ${row.name.split(/\s+/)[0]}.`,
-	});
-	try {
-		const result = await sendEmail({
-			to,
-			replyTo: row.email,
-			subject: `Contact: ${row.company ?? row.name} · ${volumeLabel}`,
-			html,
-			text,
-		});
-		if (result.skipped) {
-			logger.info("contact.notify_skipped", { id, reason: "no email key" });
-			return false;
-		}
-		return true;
-	} catch (err) {
-		logger.error("contact.notify_failed", {
-			id,
-			error: err instanceof Error ? err.message : String(err),
-		});
-		return false;
-	}
-}
-
 export function createContactRouter(opts?: {
 	getDb?: typeof getDb;
 	rateLimitStore?: RateLimitStore;
@@ -232,6 +175,9 @@ export function createContactRouter(opts?: {
 			.where((eb) =>
 				eb(eb.fn("lower", ["email"]), "=", row.email.toLowerCase()),
 			)
+			// Only a message the operator was told about counts as a duplicate;
+			// an unnotified one is still owed its email.
+			.where("notified_at", "is not", null)
 			.where("created_at", ">", new Date(Date.now() - DUPLICATE_WINDOW_MS))
 			.orderBy("created_at", "desc")
 			.executeTakeFirst();
@@ -243,7 +189,7 @@ export function createContactRouter(opts?: {
 			.returning("id")
 			.executeTakeFirstOrThrow();
 
-		if (await notify(inserted.id, row)) {
+		if (await notifyContact(inserted.id, row)) {
 			await db
 				.updateTable("contact_requests")
 				.set({ notified_at: new Date() })

@@ -1,6 +1,7 @@
 import { afterAll, describe, expect, test } from "bun:test";
 import { getDb } from "@secondlayer/shared/db";
 import {
+	MAX_PUSH_FAILURES,
 	PUSH_DEFAULTS,
 	deleteSubscription,
 	getPushPrefs,
@@ -99,6 +100,27 @@ describe.skipIf(!HAS_DB)("push subscriptions", () => {
 		expect(after?.failed_count).toBe(0);
 		expect(after?.last_success_at?.toISOString()).toBe(now.toISOString());
 		await removeSubscription(db, row.id);
+		expect(await listSubscriptions(db, acct)).toHaveLength(0);
+	});
+
+	test("a subscription is dropped after consecutive failures and a success in between keeps it", async () => {
+		const acct = await makeAccount();
+		await saveSubscription(
+			db,
+			acct,
+			sub(`https://push.example/${crypto.randomUUID()}`),
+		);
+		const [row] = await listSubscriptions(db, acct);
+		if (!row) throw new Error("no subscription");
+		for (let i = 0; i < MAX_PUSH_FAILURES - 1; i++) {
+			expect(await markFailed(db, row.id)).toBe(false);
+		}
+		await markSent(db, row.id, new Date());
+		for (let i = 0; i < MAX_PUSH_FAILURES - 1; i++) {
+			expect(await markFailed(db, row.id)).toBe(false);
+		}
+		expect(await listSubscriptions(db, acct)).toHaveLength(1);
+		expect(await markFailed(db, row.id)).toBe(true);
 		expect(await listSubscriptions(db, acct)).toHaveLength(0);
 	});
 });

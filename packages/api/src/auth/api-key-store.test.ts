@@ -121,6 +121,7 @@ describe("createApiKeyTokenStore", () => {
 							product,
 							tier: "free",
 							status,
+							revoked_at: status === "revoked" ? new Date() : null,
 						})
 						.returning("id")
 						.executeTakeFirstOrThrow();

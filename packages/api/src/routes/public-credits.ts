@@ -8,7 +8,10 @@
  * via checkout.session.completed (same as session-authed /api/billing/topup).
  */
 
-import { upsertAccount } from "@secondlayer/platform/db/queries/accounts";
+import {
+	findOrCreateAccountByEmail,
+	normalizeEmail,
+} from "@secondlayer/platform/db/queries/accounts";
 import { logger } from "@secondlayer/shared";
 import { getDb } from "@secondlayer/shared/db";
 import { Hono } from "hono";
@@ -37,7 +40,7 @@ app.post("/checkout", async (c) => {
 	})) as { email?: unknown; amount?: unknown };
 
 	const email =
-		typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
+		typeof body.email === "string" ? normalizeEmail(body.email) : "";
 	if (!EMAIL_RE.test(email)) {
 		return c.json({ error: "email must be a valid address" }, 400);
 	}
@@ -58,7 +61,7 @@ app.post("/checkout", async (c) => {
 	}
 
 	const db = getDb();
-	const { account, created } = await upsertAccount(db, email);
+	const { account, created } = await findOrCreateAccountByEmail(db, email);
 	if (created) {
 		trackProductEvent(
 			{ distinctId: account.id },

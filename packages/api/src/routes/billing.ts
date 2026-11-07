@@ -203,7 +203,27 @@ export async function ensureStripeCustomer(
 		email: account.email ?? undefined,
 		metadata: { secondlayer_account_id: account.id },
 	});
-	await setStripeCustomerId(db, account.id, customer.id);
+	const stored = await setStripeCustomerId(
+		db,
+		account.id,
+		customer.id,
+		existing ?? null,
+	);
+	if (stored !== customer.id) {
+		// A concurrent request created and stored its own customer first: use
+		// that one and drop ours, so the account has exactly one.
+		logger.warn("Lost Stripe customer race, reusing stored customer", {
+			accountId: account.id,
+			stripeCustomerId: stored,
+			discardedCustomerId: customer.id,
+		});
+		try {
+			await stripe.customers.del(customer.id);
+		} catch {
+			// An orphan customer with no charges is harmless.
+		}
+		return stored;
+	}
 	logger.info("Created Stripe customer", {
 		accountId: account.id,
 		stripeCustomerId: customer.id,

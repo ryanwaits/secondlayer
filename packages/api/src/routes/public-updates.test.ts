@@ -313,6 +313,58 @@ describe("the updates list with a database", () => {
 	);
 
 	test.skipIf(!HAS_DB)(
+		"an unsubscribed address that joins again with a failing send has no live confirm link",
+		async () => {
+			const { app } = harness();
+			const email = address();
+			await postJson(app, "", { email });
+			const r = await row(email);
+			await postJson(app, "/confirm", { token: r.token });
+			await postJson(app, "/unsubscribe", { token: r.token });
+
+			const failing = createUpdatesRouter({
+				rateLimitStore: new InProcRateLimitStore(),
+				send: async () => {
+					throw new Error("resend down");
+				},
+			});
+			await postJson(mount(failing), "", { email });
+			expect((await row(email)).confirm_sent_at).toBeNull();
+
+			const stale = await postJson(app, "/confirm", { token: r.token });
+			expect(stale.status).toBe(410);
+			expect((await row(email)).status).toBe("pending");
+		},
+	);
+
+	test.skipIf(!HAS_DB)(
+		"an old confirm link does not re-subscribe an unsubscribed address",
+		async () => {
+			const { app } = harness();
+			const email = address();
+			await postJson(app, "", { email });
+			const r = await row(email);
+			await postJson(app, "/confirm", { token: r.token });
+			await postJson(app, "/unsubscribe", { token: r.token });
+
+			const res = await postJson(app, "/confirm", { token: r.token });
+			expect(res.status).toBe(410);
+			expect((await row(email)).status).toBe("unsubscribed");
+		},
+	);
+
+	test.skipIf(!HAS_DB)(
+		"a mixed-case address joins the same row as its lowercase form",
+		async () => {
+			const { app } = harness();
+			const email = address();
+			await postJson(app, "", { email: email.toUpperCase() });
+			const r = await row(email);
+			expect(r.email).toBe(email);
+		},
+	);
+
+	test.skipIf(!HAS_DB)(
 		"resubscribe: pending is 409, unknown is 404",
 		async () => {
 			const { app } = harness();

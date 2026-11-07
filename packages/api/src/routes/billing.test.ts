@@ -208,6 +208,41 @@ describe.skipIf(!HAS_DB)("ensureStripeCustomer", () => {
 		expect(persisted.stripe_customer_id).toBe("cus_recreated_via_deleted");
 	});
 
+	test("losing the race to a concurrent request reuses the stored customer and drops its own", async () => {
+		const email = `billing-test-race-${Date.now()}@test.invalid`;
+		await makeAccount(email);
+		const account = await getAccountRow(email);
+		const deleted: string[] = [];
+		const stripe = {
+			customers: {
+				retrieve: async () => {
+					throw new Error("no stored id yet");
+				},
+				// The concurrent request stores its customer while ours is created.
+				create: async () => {
+					await db
+						.updateTable("accounts")
+						.set({ stripe_customer_id: "cus_race_winner" })
+						.where("id", "=", account.id)
+						.execute();
+					return { id: "cus_race_loser" } as unknown as Stripe.Customer;
+				},
+				del: async (id: string) => {
+					deleted.push(id);
+					return { id, deleted: true };
+				},
+			},
+		} as unknown as StripeClient;
+
+		const id = await ensureStripeCustomer(stripe, db, account);
+
+		expect(id).toBe("cus_race_winner");
+		expect(deleted).toEqual(["cus_race_loser"]);
+		expect((await getAccountRow(email)).stripe_customer_id).toBe(
+			"cus_race_winner",
+		);
+	});
+
 	test("propagates a non-resource_missing retrieve error without creating", async () => {
 		const email = `billing-test-other-error-${Date.now()}@test.invalid`;
 		await makeAccount(email, "cus_other_error");

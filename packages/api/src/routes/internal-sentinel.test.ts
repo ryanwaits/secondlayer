@@ -498,6 +498,7 @@ describe.skipIf(!HAS_DB)("/internal/sentinel tokens + keys", () => {
 				ip_address: "test",
 				product,
 				status,
+				revoked_at: status === "revoked" ? new Date() : null,
 				tier: "free",
 				...(product === "sentinel" ? { areas } : {}),
 			})

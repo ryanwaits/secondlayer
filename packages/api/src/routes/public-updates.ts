@@ -19,6 +19,7 @@
  */
 
 import { createHash, randomBytes } from "node:crypto";
+import { normalizeEmail } from "@secondlayer/platform/db/queries/accounts";
 import { logger } from "@secondlayer/shared";
 import { getDb } from "@secondlayer/shared/db";
 import {
@@ -122,7 +123,8 @@ export function createUpdatesRouter(opts?: {
 				return c.json({ error: `unknown field: ${key}` }, 400);
 			}
 		}
-		const email = typeof input.email === "string" ? input.email.trim() : "";
+		const email =
+			typeof input.email === "string" ? normalizeEmail(input.email) : "";
 		if (email.length > 254 || !EMAIL_RE.test(email)) {
 			return c.json(
 				{ error: "email must be a valid address, like you@example.com" },
@@ -138,7 +140,7 @@ export function createUpdatesRouter(opts?: {
 		const existing = await db
 			.selectFrom("update_subscribers")
 			.select(["id", "status", "token", "confirm_sent_at"])
-			.where((eb) => eb(eb.fn("lower", ["email"]), "=", email.toLowerCase()))
+			.where((eb) => eb(eb.fn("lower", ["email"]), "=", email))
 			.executeTakeFirst();
 
 		if (!existing) {
@@ -171,7 +173,12 @@ export function createUpdatesRouter(opts?: {
 		if (existing.status === "unsubscribed") {
 			await db
 				.updateTable("update_subscribers")
-				.set({ status: "pending", unsubscribed_at: null })
+				// The old `confirm_sent_at` must not make an old link valid again.
+				.set({
+					status: "pending",
+					unsubscribed_at: null,
+					confirm_sent_at: null,
+				})
 				.where("id", "=", existing.id)
 				.execute();
 		} else if (
@@ -213,11 +220,17 @@ export function createUpdatesRouter(opts?: {
 			Date.now() - row.confirm_sent_at.getTime() <= CONFIRM_TTL_MS;
 		if (!fresh) return c.json({ status: "expired" }, 410);
 
-		await db
+		// Only a pending row still inside the window confirms: an unsubscribe
+		// that raced this request must not be undone by it.
+		const confirmed = await db
 			.updateTable("update_subscribers")
 			.set({ status: "confirmed", confirmed_at: new Date() })
 			.where("id", "=", row.id)
-			.execute();
+			.where("status", "=", "pending")
+			.where("confirm_sent_at", ">", new Date(Date.now() - CONFIRM_TTL_MS))
+			.returning("id")
+			.executeTakeFirst();
+		if (!confirmed) return c.json({ status: "expired" }, 410);
 		return c.json({ status: "confirmed", email: row.email });
 	});
 
@@ -272,6 +285,7 @@ export function createUpdatesRouter(opts?: {
 					unsubscribed_at: null,
 				})
 				.where("id", "=", row.id)
+				.where("status", "=", "unsubscribed")
 				.execute();
 		}
 		return c.json({ status: "confirmed", email: row.email });

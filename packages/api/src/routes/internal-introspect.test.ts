@@ -49,6 +49,7 @@ async function makeApiKey(
 			product: "account",
 			tier: "free",
 			status: opts?.status ?? "active",
+			revoked_at: opts?.status === "revoked" ? new Date() : null,
 		})
 		.execute();
 	return raw;
@@ -275,7 +276,7 @@ describe.skipIf(!HAS_DB)("POST /internal/keys/introspect", () => {
 
 		await db
 			.updateTable("api_keys")
-			.set({ status: "revoked" })
+			.set({ status: "revoked", revoked_at: new Date() })
 			.where("key_hash", "=", hashToken(raw))
 			.execute();
 

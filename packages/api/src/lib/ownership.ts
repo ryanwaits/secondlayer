@@ -3,6 +3,7 @@ import { getDb } from "@secondlayer/shared/db";
 import { isPlatformMode } from "@secondlayer/shared/mode";
 import type { Context } from "hono";
 import type { Kysely } from "kysely";
+import { liveKeyWhere } from "../auth/key-state.ts";
 
 /**
  * Get all api_key_ids belonging to the same account as the current key.
@@ -16,7 +17,7 @@ export async function getAccountKeyIds(
 		.selectFrom("api_keys")
 		.select("id")
 		.where("account_id", "=", accountId)
-		.where("status", "=", "active")
+		.where(liveKeyWhere())
 		.where("product", "!=", "docs")
 		.execute();
 	return keys.map((k) => k.id);
@@ -74,7 +75,7 @@ export async function resolveApiKeyIdForWrite(
 		.selectFrom("api_keys")
 		.select("id")
 		.where("account_id", "=", accountId)
-		.where("status", "=", "active")
+		.where(liveKeyWhere())
 		.where("product", "!=", "docs")
 		.orderBy("created_at", "asc")
 		.limit(1)

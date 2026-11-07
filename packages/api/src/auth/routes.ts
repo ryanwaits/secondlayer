@@ -1,10 +1,11 @@
 import { rowsByKeyDaily } from "@secondlayer/platform/db/queries/usage-ledger";
-import { getDb, sql } from "@secondlayer/shared/db";
+import { getDb } from "@secondlayer/shared/db";
 import { AuthorizationError, RateLimitError } from "@secondlayer/shared/errors";
 import { type Context, Hono } from "hono";
 import { z } from "zod";
 import { trackProductEvent } from "../lib/product-events.ts";
 import { getClientIp } from "./http.ts";
+import { notExpiredWhere } from "./key-state.ts";
 import { requireAuth } from "./middleware.ts";
 import {
 	DOCS_KEY_DAILY_LIMIT,
@@ -166,12 +167,7 @@ app.get("/", requireAuth(), async (c) => {
 			])
 			.where("account_id", "=", accountId)
 			// An expired docs key disappears from the list.
-			.where((eb) =>
-				eb.or([
-					eb("expires_at", "is", null),
-					eb("expires_at", ">", sql<Date>`now()`),
-				]),
-			)
+			.where(notExpiredWhere())
 			.orderBy("created_at", "desc")
 			.execute(),
 		rowsByKeyDaily(db, accountId),

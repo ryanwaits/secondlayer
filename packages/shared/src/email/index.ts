@@ -7,6 +7,8 @@ export type {
 	RenderEmailInput,
 	XPost,
 } from "./render.ts";
+export type { ContactMessage, ContactVolume } from "./contact.ts";
+export { notifyContact } from "./contact.ts";
 export { renderEmail } from "./render.ts";
 export type { SendEmailInput, SendEmailResult } from "./send.ts";
 export { sendEmail } from "./send.ts";

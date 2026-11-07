@@ -1,11 +1,12 @@
 import {
 	createMagicLink,
+	findOrCreateAccountByEmail,
 	linkSentinelAccount,
-	upsertAccount,
+	normalizeEmail,
 	verifyMagicLink,
 	verifyMagicLinkByCode,
 } from "@secondlayer/platform/db/queries/accounts";
-import { getDb } from "@secondlayer/shared/db";
+import { getDb, sql } from "@secondlayer/shared/db";
 import { ValidationError } from "@secondlayer/shared/errors";
 import { Hono } from "hono";
 import { z } from "zod";
@@ -68,14 +69,15 @@ app.post("/magic-link", async (c) => {
 	const codeNum = crypto.getRandomValues(new Uint32Array(1))[0] % 1_000_000;
 	const code = String(codeNum).padStart(6, "0");
 
+	const email = normalizeEmail(parsed.email);
 	const existing = await db
 		.selectFrom("accounts")
 		.select("id")
-		.where("email", "=", parsed.email)
+		.where(sql<boolean>`lower(email) = ${email}`)
 		.executeTakeFirst();
 
-	await createMagicLink(db, parsed.email, token, code);
-	await sendMagicLink(parsed.email, token, code);
+	await createMagicLink(db, email, token, code);
+	await sendMagicLink(email, token, code);
 
 	trackProductEvent(
 		existing ? { distinctId: existing.id } : visitorSubject(parsed.distinctId),
@@ -123,7 +125,7 @@ app.post("/verify", async (c) => {
 		throw new ValidationError("Invalid or expired code");
 	}
 
-	const { account, created } = await upsertAccount(db, email);
+	const { account, created } = await findOrCreateAccountByEmail(db, email);
 	if (created) {
 		if (parsed.product === "sentinel") {
 			await linkSentinelAccount(db, account.id, "created");
@@ -175,6 +177,8 @@ app.post("/logout", async (c) => {
 		.updateTable("sessions")
 		.set({ revoked_at: new Date() })
 		.where("token_hash", "=", tokenHash)
+		// A second logout keeps the first `revoked_at`.
+		.where("revoked_at", "is", null)
 		.execute();
 
 	return c.json({ message: "Logged out" });

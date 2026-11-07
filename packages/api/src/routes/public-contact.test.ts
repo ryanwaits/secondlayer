@@ -162,7 +162,7 @@ describe("POST /api/public/contact with a database", () => {
 	const HAS_DB = !!process.env.DATABASE_URL;
 
 	test.skipIf(!HAS_DB)(
-		"stores the message unnotified without a notify address and dedupes within the hour",
+		"stores the message unnotified without a notify address, then dedupes only once it was notified",
 		async () => {
 			const prior = process.env.CONTACT_NOTIFY_EMAIL;
 			process.env.CONTACT_NOTIFY_EMAIL = "";
@@ -183,11 +183,21 @@ describe("POST /api/public/contact with a database", () => {
 				expect(row.notified_at).toBeNull();
 				expect(row.ip_hash).toMatch(/^[0-9a-f]{64}$/);
 
+				// Never notified: the repeat is stored, so the operator still hears.
+				const retry = await post(router, { ...valid, email });
+				const retryId = ((await retry.json()) as { id: string }).id;
+				expect(retryId).not.toBe(id);
+
+				await getDb()
+					.updateTable("contact_requests")
+					.set({ notified_at: new Date() })
+					.where("id", "=", retryId)
+					.execute();
 				const again = await post(router, {
 					...valid,
 					email: email.toUpperCase(),
 				});
-				expect(((await again.json()) as { id: string }).id).toBe(id);
+				expect(((await again.json()) as { id: string }).id).toBe(retryId);
 			} finally {
 				await getDb()
 					.deleteFrom("contact_requests")

@@ -11,6 +11,7 @@ export const ErrorCodes = {
 	// Tenant lifecycle (CLI surfaces these verbatim)
 	KEY_ROTATED: "KEY_ROTATED",
 	KEY_REVOKED: "KEY_REVOKED",
+	KEY_EXPIRED: "KEY_EXPIRED",
 	TENANT_SUSPENDED: "TENANT_SUSPENDED",
 	NO_TENANT_FOR_PROJECT: "NO_TENANT_FOR_PROJECT",
 	INSTANCE_EXISTS: "INSTANCE_EXISTS",
@@ -101,6 +102,16 @@ export class ApiKeyRevokedError extends SecondLayerError {
 	}
 }
 
+/** A real key whose `expires_at` has passed (docs keys live 24h). Said apart
+ *  from a revoked key: nobody revoked it, it ran out. */
+export class ApiKeyExpiredError extends SecondLayerError {
+	constructor() {
+		super("KEY_EXPIRED", "API key has expired", undefined, {
+			hint: "Make a new key at https://secondlayer.tools/account/keys and replace the expired one wherever it is configured.",
+		});
+	}
+}
+
 export class RateLimitError extends SecondLayerError {
 	constructor(message: string) {
 		super("RATE_LIMIT_ERROR", message);
@@ -176,6 +187,7 @@ export const CODE_TO_STATUS: Record<
 	VALIDATION_ERROR: 400,
 	KEY_ROTATED: 401,
 	KEY_REVOKED: 401,
+	KEY_EXPIRED: 401,
 	TENANT_SUSPENDED: 423,
 	NO_TENANT_FOR_PROJECT: 404,
 	INSTANCE_EXISTS: 409,

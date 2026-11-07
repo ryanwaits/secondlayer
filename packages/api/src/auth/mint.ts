@@ -3,6 +3,7 @@ import {
 	AuthorizationError,
 	ValidationError,
 } from "@secondlayer/shared/errors";
+import { liveKeyWhere } from "./key-state.ts";
 import { SENTINEL_KEY_PREFIX, generateApiKey } from "./keys.ts";
 
 export type MintProduct = "account" | "sentinel" | "docs" | "tenant";
@@ -79,7 +80,7 @@ export async function assertUnderKeyCeiling(
 		.selectFrom("api_keys")
 		.select((eb) => eb.fn.countAll<string>().as("active"))
 		.where("account_id", "=", accountId)
-		.where("status", "=", "active")
+		.where(liveKeyWhere())
 		// Docs keys are ephemeral (24h) and never count toward the ceiling.
 		.where("product", "!=", "docs")
 		.executeTakeFirstOrThrow();

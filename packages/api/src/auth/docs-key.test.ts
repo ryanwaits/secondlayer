@@ -314,7 +314,8 @@ describe.skipIf(!HAS_DB)("docs key authority", () => {
 		const res = await app.request("/api/keys", {
 			headers: { authorization: `Bearer ${docs}` },
 		});
-		expect(res.status).toBe(403);
+		expect(res.status).toBe(401);
+		expect(((await res.json()) as { code?: string }).code).toBe("KEY_EXPIRED");
 	});
 
 	test("a revoked docs key is rejected on Streams and Index", async () => {

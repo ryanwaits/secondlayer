@@ -2,9 +2,13 @@ import {
 	OAUTH_ACCESS_PREFIX,
 	resolveOauthAccessToken,
 } from "@secondlayer/platform/db/queries/oauth";
-import { getDb as defaultGetDb, sql } from "@secondlayer/shared/db";
+import {
+	type ApiKeyStatus,
+	getDb as defaultGetDb,
+} from "@secondlayer/shared/db";
 import { isPlatformMode } from "@secondlayer/shared/mode";
 import { instanceTokenMatches } from "../instance-bind.ts";
+import { isKeyLive } from "./key-state.ts";
 import { hashToken } from "./keys.ts";
 import { isMcpRequest } from "./oauth/audience.ts";
 import { INSTANCE_TENANT_ID } from "./read-plane.ts";
@@ -59,7 +63,8 @@ export type ProductScope = "streams" | "index" | "sentinel" | "chain-read";
 type ApiKeyRecord = {
 	id: string;
 	account_id: string;
-	status: string;
+	status: ApiKeyStatus;
+	expires_at?: Date | null;
 	tier: ProductTier | null;
 };
 
@@ -102,20 +107,13 @@ async function lookupAccountApiKey(
 	getDb: typeof defaultGetDb,
 ): Promise<ApiKeyRecord | null> {
 	const db = getDb();
-	// Scoped streams/index rows are retired (auth-007). Expiry is enforced
-	// here, on every lookup, in SQL: a key past `expires_at` is simply not
-	// found.
+	// Scoped streams/index rows are retired (auth-007). Liveness (status and
+	// expiry) is judged by `isKeyLive` in the store, on every lookup.
 	const row = await db
 		.selectFrom("api_keys")
-		.select(["id", "account_id", "status", "tier"])
+		.select(["id", "account_id", "status", "expires_at", "tier"])
 		.where("key_hash", "=", tokenHash)
 		.where("product", "in", acceptedKeyProducts(product))
-		.where((eb) =>
-			eb.or([
-				eb("expires_at", "is", null),
-				eb("expires_at", ">", sql<Date>`now()`),
-			]),
-		)
 		.executeTakeFirst();
 
 	if (!row) return null;
@@ -126,6 +124,7 @@ async function lookupAccountApiKey(
 		// `internal` key (only mintable by an internal route, see
 		// `INTERNAL_MINT_TIER`).
 		status: row.status,
+		expires_at: row.expires_at,
 		tier: row.tier === "internal" ? "internal" : "free",
 	};
 }
@@ -195,7 +194,7 @@ export function createApiKeyTokenStore<TTenant extends ProductTenant>(
 			}
 
 			const key = await lookupApiKey(hashToken(rawToken), opts.product, getDb);
-			if (!key || key.status !== "active") return undefined;
+			if (!key || !isKeyLive(key)) return undefined;
 
 			return {
 				tenant_id: `account:${key.account_id}`,

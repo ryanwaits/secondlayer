@@ -32,6 +32,7 @@ import {
 	ValidationError,
 } from "@secondlayer/shared/errors";
 import { Hono } from "hono";
+import { liveKeyWhere } from "../auth/key-state.ts";
 import { hashToken } from "../auth/keys.ts";
 import { lookupSession } from "../auth/session.ts";
 import { InvalidJSONError } from "../middleware/error.ts";
@@ -76,12 +77,13 @@ app.post("/", async (c) => {
 	} else {
 		const keyRecord = await db
 			.selectFrom("api_keys")
-			.select(["account_id", "status", "product"])
+			.select(["account_id", "product"])
 			.where("key_hash", "=", hashToken(presented))
 			.where("product", "in", ["account", "docs"])
+			.where(liveKeyWhere())
 			.executeTakeFirst();
 
-		if (!keyRecord || keyRecord.status !== "active") {
+		if (!keyRecord) {
 			return c.json({ error: "invalid_key" }, 401);
 		}
 		// A real key on the wrong surface: refused like `requireAuth()`, and said
