@@ -1,6 +1,6 @@
 import { type Kysely, sql } from "kysely";
 import { jsonb } from "../jsonb.ts";
-import { casTransition, defineMachine } from "../transition.ts";
+import { type Machine, casTransition, defineMachine } from "../transition.ts";
 import {
 	ABI_STATUSES,
 	type AbiStatus,
@@ -49,7 +49,7 @@ export async function recordContractDeploy(
  * strand a contract. Each failure backs off (see {@link abiRetryDelayMs}) and
  * after {@link ABI_MAX_ATTEMPTS} failures the row stays `failed` for good.
  */
-export const ABI_MACHINE = defineMachine({
+export const ABI_MACHINE: Machine<AbiStatus> = defineMachine({
 	states: ABI_STATUSES,
 	transitions: {
 		pending: ["fetched", "unparseable", "failed"],

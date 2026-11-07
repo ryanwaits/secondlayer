@@ -6,7 +6,7 @@ import {
 	type SubgraphVerification,
 } from "../../schemas/subgraphs.ts";
 import { jsonb } from "../jsonb.ts";
-import { casTransition, defineMachine } from "../transition.ts";
+import { type Machine, casTransition, defineMachine } from "../transition.ts";
 import type { Database, Subgraph } from "../types.ts";
 
 /**
@@ -16,7 +16,7 @@ import type { Database, Subgraph } from "../types.ts";
  * progress writes below touch the cursor only and are gated on the status
  * they are valid for.
  */
-export const subgraphMachine = defineMachine({
+export const subgraphMachine: Machine<SubgraphStatus> = defineMachine({
 	states: SUBGRAPH_STATES,
 	transitions: {
 		active: ["reindexing", "error"],

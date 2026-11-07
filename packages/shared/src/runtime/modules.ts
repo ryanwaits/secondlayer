@@ -3,7 +3,7 @@
  * supervisor can restart one without taking the others down.
  */
 
-import { defineMachine } from "../db/transition.ts";
+import { type Machine, defineMachine } from "../db/transition.ts";
 
 export const MODULE_IDS = [
 	"api",
@@ -29,7 +29,7 @@ export type ModuleState = (typeof MODULE_STATES)[number];
  * so a second `start` of a live module is a no-op instead of a double start;
  * every state can be stopped except `stopped` itself.
  */
-export const MODULE_MACHINE = defineMachine({
+export const MODULE_MACHINE: Machine<ModuleState> = defineMachine({
 	states: MODULE_STATES,
 	transitions: {
 		stopped: ["starting"],

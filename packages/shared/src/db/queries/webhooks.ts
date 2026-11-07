@@ -1,8 +1,14 @@
-import { type ExpressionBuilder, type Kysely, sql } from "kysely";
+import {
+	type ExpressionBuilder,
+	type ExpressionWrapper,
+	type Kysely,
+	type SqlBool,
+	sql,
+} from "kysely";
 import { generateSecret } from "../../crypto/hmac.ts";
 import { decryptSecret, encryptSecret } from "../../crypto/secrets.ts";
 import { isWebhookAccountScoped } from "../../mode.ts";
-import { casTransition, defineMachine } from "../transition.ts";
+import { type Machine, casTransition, defineMachine } from "../transition.ts";
 import type {
 	Database,
 	InsertWebhook,
@@ -112,7 +118,7 @@ export const REORG_ORPHANED_ERROR_PREFIX = "orphaned by reorg at ";
  *  no longer contains. */
 export function notReorgOrphaned(
 	eb: ExpressionBuilder<Database, "webhook_outbox">,
-) {
+): ExpressionWrapper<Database, "webhook_outbox", SqlBool> {
 	return eb.or([
 		eb("dead_reason", "is", null),
 		eb("dead_reason", "!=", "orphaned"),
@@ -173,10 +179,11 @@ export async function updateWebhook(
 
 /** Webhook status machine. Both moves are idempotent so a repeated pause or
  *  resume call succeeds; the circuit breaker only trips an `active` row. */
-export const webhookMachine = defineMachine<WebhookStatus>({
-	states: ["active", "paused"],
-	transitions: { active: ["active", "paused"], paused: ["active", "paused"] },
-});
+export const webhookMachine: Machine<WebhookStatus> =
+	defineMachine<WebhookStatus>({
+		states: ["active", "paused"],
+		transitions: { active: ["active", "paused"], paused: ["active", "paused"] },
+	});
 
 /** Pause (always as the customer: `pause_reason = 'user'`, even over a circuit
  *  pause) or resume. Either ends any circuit incident. */
