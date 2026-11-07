@@ -221,10 +221,18 @@ app.delete("/:id", requireAuth(), async (c) => {
 		);
 	}
 
+	// Tenant, sentinel and docs keys are first-party/managed: a customer DELETE
+	// must not revoke them (same rule as rotate).
+	if (target.product !== "account") {
+		return c.json({ error: "Only account keys can be revoked." }, 409);
+	}
+
+	// Already-revoked stays a no-op success: `revoked_at` keeps its first value.
 	await db
 		.updateTable("api_keys")
 		.set({ status: "revoked", revoked_at: new Date() })
 		.where("id", "=", id)
+		.where("status", "=", "active")
 		.execute();
 
 	return c.json({ revoked: true, id });
