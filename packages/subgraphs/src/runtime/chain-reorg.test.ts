@@ -280,7 +280,22 @@ describe("handleChainReorg — chain scoping (plan 060)", () => {
 		};
 		expect(payload.chain).toBe("bitcoin");
 		expect(payload.orphaned.map((o) => o.tx_id)).toEqual(["0xbtc"]);
-		expect(await bitcoinCursor()).toBe("968000:0"); // Bitcoin cursor rewound
+		// Rewound to the end of the block below the fork, so event 968000:0 is re-read.
+		expect(await bitcoinCursor()).toBe("967999:2147483647");
+	});
+
+	it("a Bitcoin rewind leaves the cursor strictly before event 0 at the fork height", async () => {
+		await makeSub();
+		await setBitcoinCursor("968100:5");
+
+		await handleChainReorg(968_000, db, "bitcoin");
+
+		// Loads read strictly after the cursor, so it must sort before 968000:0.
+		const [height, index] =
+			(await bitcoinCursor())?.split(":").map(Number) ?? [];
+		expect(height).toBe(967_999);
+		expect(index).toBeGreaterThan(0);
+		expect(height).toBeLessThan(968_000);
 	});
 
 	it("a Stacks reorg does not touch Bitcoin rune apply rows, even at an overlapping height", async () => {

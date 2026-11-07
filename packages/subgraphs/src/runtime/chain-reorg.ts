@@ -6,6 +6,7 @@ import type { Database, InsertWebhookOutbox } from "@secondlayer/shared/db";
 import { getTargetDb } from "@secondlayer/shared/db";
 import { logger } from "@secondlayer/shared/logger";
 import type { Kysely } from "kysely";
+import { tipCursor } from "./bitcoin-trigger-evaluator.ts";
 import { bumpChainReorgGeneration } from "./trigger-evaluator-loop.ts";
 
 /**
@@ -221,7 +222,9 @@ export async function handleChainReorg(
 				await trx
 					.updateTable("trigger_evaluator_state")
 					.set({
-						bitcoin_last_cursor: `${forkHeight}:0`,
+						// Loads read strictly after the cursor: park at the end of the
+						// block below the fork so event 0 at forkHeight is re-read.
+						bitcoin_last_cursor: tipCursor(forkHeight - 1),
 						updated_at: new Date(),
 					})
 					.where("id", "=", true)

@@ -209,7 +209,7 @@ function cursorLess(a: string, b: string): boolean {
  *  block-end sentinel `readStreamsBitcoinEvents` uses when a filtered range
  *  needs to advance past its last row. Used to fast-forward a fresh (or
  *  webhook-less) cursor straight to tip without processing anything. */
-function tipCursor(height: number): string {
+export function tipCursor(height: number): string {
 	return `${height}:2147483647`;
 }
 
