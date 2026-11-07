@@ -2,6 +2,12 @@
 
 Notable changes to Secondlayer and its SDKs. Entries dated before August 2026 describe the hosted service as it worked then (per-row read metering, API keys, `402` past the free window); it was withdrawn in August 2026 and has since returned, with hosted Index, Streams, subgraphs and webhooks at `api.secondlayer.tools` on an account key and prepaid [credits](/docs/authentication), while on a self-hosted instance reads stay yours and unmetered and archive bootstrap, backfill and reindex draw [credits](/docs/authentication#archive-credits).
 
+## Subgraphs — November 2026
+
+### A halt stays halted, and reorgs reach a reindex
+
+A halted subgraph now stays halted until you redeploy or reindex it. A running reindex can no longer undo the halt. A reorg now rewinds a subgraph mid-reindex too, so no rows from an abandoned fork are left behind. A billing pause shows as `billingPausedCode` on the subgraph and its health, and `lastError` keeps the real error.
+
 ## Docs — November 2026
 
 ### Fill in a docs key without signing in
@@ -16,6 +22,10 @@ The hosted server at `api.secondlayer.tools/mcp` now answers `initialize` and `t
 
 ## SDK — November 2026
 
+### Streams never hang on a silent server
+
+Every Streams request now gives up when no response headers arrive within `connectTimeoutMs` (default 30 seconds, `0` turns it off), then retries. Open streams are never cut off. `events.subscribe` takes `onState` to show `connecting`, `open`, `reconnecting` and `closed`. A page that returns events without moving the cursor now throws `CURSOR_STALLED` instead of ending quietly.
+
 ### Contract calls take `args`, and `verifyMessage` takes one object
 
 `callContract` takes `args`, like `readContract` and `simulateCall`. `functionArgs` still works and is deprecated. The new `verifyMessage({ message, signature, publicKey })` replaces `verifyMessageSignature`, which is deprecated.
@@ -25,6 +35,10 @@ The hosted server at `api.secondlayer.tools/mcp` now answers `initialize` and `t
 `createWalletClient` now signs from the address for its chain when the account comes from a local key. `privateKeyToAccount(key)` works on testnet and devnet without `addressVersion`, and no longer fails with `BadNonce`. Browser wallet accounts keep the wallet's address.
 
 ## CLI — November 2026
+
+### One account per terminal
+
+When `SECONDLAYER_API_KEY` and a `secondlayer login` session are both set, the key now wins for every command. Before, `credits`, `keys` and `whoami` used the session while webhooks and subgraphs used the key. Unset the key to act as the logged-in account. `secondlayer subgraphs status --watch` now exits with the reason when a subgraph errors or pauses for billing, and `secondlayer subgraphs dev` waits for one deploy to finish before starting the next.
 
 ### Deploy a subgraph in two commands
 

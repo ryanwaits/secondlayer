@@ -210,7 +210,7 @@
 			"description": "Deploys a subgraph schema to the database.\n\nA new subgraph gets its schema and tables created and registered. The same\nschema hash only updates the handler path. An additive change adds columns\nand tables in place, and a breaking change reindexes by dropping and\nrecreating the tables.",
 			"source": {
 				"file": "packages/subgraphs/src/schema/deployer.ts",
-				"line": 265
+				"line": 266
 			},
 			"overloads": [
 				{
@@ -257,7 +257,7 @@
 			"description": "Compare two multi-table subgraph schemas and return differences.\n\nIndex-only changes (`indexed`/`search` flags, composite `indexes`) are\nreported separately from data-shape changes: an index never requires a\nrebuild, so it must never land in `changed`/breaking — flipping\n`indexed: true` on a populated column used to cost a full reindex.",
 			"source": {
 				"file": "packages/subgraphs/src/schema/deployer.ts",
-				"line": 98
+				"line": 99
 			},
 			"overloads": [
 				{
@@ -292,7 +292,7 @@
 			"description": "Tells whether a schema diff is breaking, with the reasons.\n\nBreaking means removed tables, removed columns, changed column types or\nremoved `uniqueKeys`, which handler upserts conflict on. Index-flag and\ncomposite-index changes are never breaking.",
 			"source": {
 				"file": "packages/subgraphs/src/schema/deployer.ts",
-				"line": 164
+				"line": 165
 			},
 			"overloads": [
 				{
@@ -321,7 +321,7 @@
 			"description": "Render the DDL a deploy would run, without executing.\nPowers `--dry-run`: the user reviews exactly what a deploy does first.",
 			"source": {
 				"file": "packages/subgraphs/src/schema/deployer.ts",
-				"line": 246
+				"line": 247
 			},
 			"overloads": [
 				{

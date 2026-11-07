@@ -1,5 +1,31 @@
 # @secondlayer/cli
 
+## 23.5.0
+
+### Minor Changes
+
+- bab6973: One account credential resolver across the CLI and MCP server: `resolveIdentity` and `resolveAccountUrl` are exported from the SDK. When both `SECONDLAYER_API_KEY` and a saved `secondlayer login` session exist, the key now wins everywhere. Previously credits, keys and `whoami` preferred the session while webhooks and subgraphs preferred the key, so one terminal could act on two accounts. Unset the key to act as the logged-in account. `login`, `logout`, `keys` and every authed command now share one session slot keyed by the account URL; a session saved under another hosted URL is adopted into it on first read and the old entry is left in place. The MCP server reads the account URL from `SL_CREDITS_API_URL` (or the older `ARCHIVE_OPS_API_URL`), the same as the CLI.
+
+  `secondlayer subgraphs dev` no longer overlaps deploys: saves during a deploy collapse into one re-run after it settles. `secondlayer subgraphs status --watch` now exits non-zero with the reason when the subgraph is in `error` or paused for billing, instead of polling forever.
+
+### Patch Changes
+
+- 58fb8ef: Subgraph status is now one state machine (`active`, `reindexing`, `error`) with a database CHECK. A halted subgraph stays `error` until a redeploy or a reindex: live commits and a running reindex no longer undo it. A reorg now reaches a subgraph that is mid-reindex and rewinds rows past the fork. A billing pause is `billingPausedCode` on the subgraph summary and health (it no longer lives in `lastError`), and a subgraph halted after repeated block failures says so in `lastError`. `syncState` (`@secondlayer/shared/schemas`) is the one derivation of synced, catching up, reindexing and error. The unused `paused` status and `expires_at` column are removed.
+- Updated dependencies [7ee021b]
+- Updated dependencies [4dabe92]
+- Updated dependencies [3e9bfbb]
+- Updated dependencies [a115638]
+- Updated dependencies [288460e]
+- Updated dependencies [bab6973]
+- Updated dependencies [cfba0e9]
+- Updated dependencies [bab6973]
+- Updated dependencies [58fb8ef]
+- Updated dependencies
+- Updated dependencies [fbd1ea7]
+  - @secondlayer/shared@15.3.0
+  - @secondlayer/subgraphs@8.1.0
+  - @secondlayer/sdk@16.3.0
+
 ## 23.4.3
 
 ### Patch Changes

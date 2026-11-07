@@ -1,5 +1,28 @@
 # @secondlayer/subgraphs
 
+## 8.1.0
+
+### Minor Changes
+
+- 58fb8ef: Subgraph status is now one state machine (`active`, `reindexing`, `error`) with a database CHECK. A halted subgraph stays `error` until a redeploy or a reindex: live commits and a running reindex no longer undo it. A reorg now reaches a subgraph that is mid-reindex and rewinds rows past the fork. A billing pause is `billingPausedCode` on the subgraph summary and health (it no longer lives in `lastError`), and a subgraph halted after repeated block failures says so in `lastError`. `syncState` (`@secondlayer/shared/schemas`) is the one derivation of synced, catching up, reindexing and error. The unused `paused` status and `expires_at` column are removed.
+
+### Patch Changes
+
+- 4dabe92: Add `defineMachine` and `casTransition` (`@secondlayer/shared/db/transition`) for explicit state machines. Contract ABI status, webhook outbox status, API key status and subgraph gap reason now have database CHECK constraints and narrowed column types (`AbiStatus`, `ApiKeyStatus`, `GapReason`).
+- a115638: Indexer state fixes. Observer journal receipts move through guarded transitions with `poisoned` and `skipped` states; one backlog query feeds `/health/integrity` and the applier. Failed contract ABI fetches retry with backoff up to five attempts (`contracts.abi_attempts`, `abi_next_attempt_at`). Fork repairs run the full reorg cascade under the apply lock, and reorgs lower `highest_seen_block`. `resolveChainTip` is the one chain-tip resolver, and `STACKS_NETWORK` is the one network variable (`NETWORK` still works, with a deprecation log). The archive pointer is promoted with a conditional write, late mempool announcements for confirmed transactions are ignored, and Runes batch backfill writes undo rows for its last blocks.
+- Webhooks report why they are paused and how they are doing: `pauseReason` (`user` or `circuit`) and `health` on the webhook summary and detail, from one shared `webhookHealth`. A manual pause is never turned into a circuit pause, and a circuit pause keeps the receiver-down insight open. Dead outbox rows record `dead_reason` (`exhausted` or `orphaned`); rows a reorg orphaned are never requeued. A delivery settles only from the claim that sent it, and a row a reorg killed while queued is not sent. Stale replay scans are reaped, each outage emails once, and resolved incidents are purged.
+- Updated dependencies [7ee021b]
+- Updated dependencies [4dabe92]
+- Updated dependencies [3e9bfbb]
+- Updated dependencies [a115638]
+- Updated dependencies [288460e]
+- Updated dependencies [cfba0e9]
+- Updated dependencies [bab6973]
+- Updated dependencies [58fb8ef]
+- Updated dependencies
+- Updated dependencies [fbd1ea7]
+  - @secondlayer/shared@15.3.0
+
 ## 8.0.4
 
 ### Patch Changes

@@ -1,5 +1,14 @@
 # @secondlayer/web
 
+## 0.14.19
+
+### Patch Changes
+
+- Updated dependencies [bab6973]
+- Updated dependencies [bab6973]
+- Updated dependencies
+  - @secondlayer/sdk@16.3.0
+
 ## 0.14.18
 
 ### Patch Changes

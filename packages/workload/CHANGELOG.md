@@ -1,5 +1,23 @@
 # @secondlayer/workload
 
+## 0.2.31
+
+### Patch Changes
+
+- 58fb8ef: Subgraph status is now one state machine (`active`, `reindexing`, `error`) with a database CHECK. A halted subgraph stays `error` until a redeploy or a reindex: live commits and a running reindex no longer undo it. A reorg now reaches a subgraph that is mid-reindex and rewinds rows past the fork. A billing pause is `billingPausedCode` on the subgraph summary and health (it no longer lives in `lastError`), and a subgraph halted after repeated block failures says so in `lastError`. `syncState` (`@secondlayer/shared/schemas`) is the one derivation of synced, catching up, reindexing and error. The unused `paused` status and `expires_at` column are removed.
+- Updated dependencies [7ee021b]
+- Updated dependencies [4dabe92]
+- Updated dependencies [3e9bfbb]
+- Updated dependencies [a115638]
+- Updated dependencies [288460e]
+- Updated dependencies [cfba0e9]
+- Updated dependencies [bab6973]
+- Updated dependencies [58fb8ef]
+- Updated dependencies
+- Updated dependencies [fbd1ea7]
+  - @secondlayer/shared@15.3.0
+  - @secondlayer/platform@0.10.13
+
 ## 0.2.30
 
 ### Patch Changes

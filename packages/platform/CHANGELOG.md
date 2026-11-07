@@ -1,5 +1,22 @@
 # @secondlayer/platform
 
+## 0.10.13
+
+### Patch Changes
+
+- cfba0e9: An expired key now answers 401 `KEY_EXPIRED` instead of a misleading "revoked", and every reader judges a key live through one function. One account per email address regardless of case (unique index on `lower(email)`); a tenant key is unique per account and name while active. A new sign-in code voids older unused ones, expired sessions and codes are purged after 30 days, and a Stripe customer race keeps one customer. Update-list confirmations no longer undo a racing unsubscribe, contact requests the operator was never emailed about are retried, and a push subscription is dropped after 10 consecutive failures.
+- Updated dependencies [7ee021b]
+- Updated dependencies [4dabe92]
+- Updated dependencies [3e9bfbb]
+- Updated dependencies [a115638]
+- Updated dependencies [288460e]
+- Updated dependencies [cfba0e9]
+- Updated dependencies [bab6973]
+- Updated dependencies [58fb8ef]
+- Updated dependencies
+- Updated dependencies [fbd1ea7]
+  - @secondlayer/shared@15.3.0
+
 ## 0.10.12
 
 ### Patch Changes
