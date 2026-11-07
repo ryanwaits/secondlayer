@@ -5,6 +5,7 @@ import { ingestNewBlock } from "./ingest.ts";
 import {
 	markObserverProcessed,
 	parseObserverBody,
+	transitionJournal,
 } from "./observer-journal.ts";
 import type { NewBlockPayload } from "./types/node-events.ts";
 
@@ -95,6 +96,14 @@ export async function consumeBootstrapSpool(): Promise<SpoolOutcome> {
 
 	if (plan.status !== "ready") {
 		logger.error("Bootstrap spool consume refused", plan);
+		// The rows can never apply on this archive. Parking them as `skipped`
+		// keeps them out of the backlog and health; the raw bodies stay in the
+		// journal for the operator's repair.
+		for (const event of events) {
+			await transitionJournal(db, event.sequence, ["received"], "skipped", {
+				error: `bootstrap spool refused: ${plan.status}`,
+			});
+		}
 		return "refused";
 	}
 

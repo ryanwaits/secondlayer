@@ -13,11 +13,9 @@ import {
 	withLeaderLock,
 } from "@secondlayer/shared/leader";
 import { logger } from "@secondlayer/shared/logger";
-import { sql } from "kysely";
 import {
 	JournalApplier,
 	cachedNodeBurnTip,
-	highestReceivedSequence,
 	receiveNewBlock,
 } from "./catch-up.ts";
 import {
@@ -46,6 +44,7 @@ import {
 	type ObserverPath,
 	type ObserverReceipt,
 	appendObserverReceipt,
+	journalBacklog,
 	markObserverFailed,
 	markObserverProcessed,
 	parseObserverBody,
@@ -78,7 +77,10 @@ const FORCED_LIVE = process.env.INGEST_MODE === "live";
 
 // Every journaled /new_block is applied here, in journal order. Started once
 // the bootstrap spool (if any) has settled, so it never races the seam.
-const applier = new JournalApplier({ network: NETWORK });
+const applier = new JournalApplier({
+	network: NETWORK,
+	applyBurn: (payload) => persistBurnBlockRewards(payload),
+});
 const nodeBurnTip = cachedNodeBurnTip();
 let lastIngestMode: "live" | "catch-up" | "spool" | null = null;
 let lastReceivedHeight: number | null = null;
@@ -90,15 +92,11 @@ let lastReceivedHeight: number | null = null;
  */
 async function ensureApplierStarted(): Promise<void> {
 	if (applier.started) return;
-	const outcome = await ensureBootstrapSpoolConsumed();
+	await ensureBootstrapSpoolConsumed();
 	// "waiting" here means INGEST_MODE=live ahead of the archive import: the
 	// spooled blocks are applied in journal order like any other. A refused
-	// seam leaves its spooled rows for the operator, as before.
-	const floor =
-		outcome === "refused"
-			? await highestReceivedSequence(getSourceDb(), NETWORK)
-			: null;
-	applier.start(floor);
+	// seam already parked its rows as `skipped`.
+	applier.start();
 }
 
 async function captureObserverRequest(
@@ -123,54 +121,43 @@ async function getObserverJournalHealth(
 	status: "ok" | "pending" | "failed" | "disabled" | "unavailable";
 	received: number;
 	failed: number;
+	poisoned: number;
 	oldestReceivedAt: string | null;
 	oldestReceivedAgeSeconds: number | null;
 	error?: string;
 }> {
+	const empty = {
+		received: 0,
+		failed: 0,
+		poisoned: 0,
+		oldestReceivedAt: null,
+		oldestReceivedAgeSeconds: null,
+	};
 	if (!OBSERVER_JOURNAL_ENABLED) {
-		return {
-			enabled: false,
-			status: "disabled",
-			received: 0,
-			failed: 0,
-			oldestReceivedAt: null,
-			oldestReceivedAgeSeconds: null,
-		};
+		return { enabled: false, status: "disabled", ...empty };
 	}
 
 	try {
-		const row = await db
-			.selectFrom("observer_journal")
-			.select([
-				sql<number>`count(*) filter (where status = 'received')`.as(
-					"received_count",
-				),
-				sql<number>`count(*) filter (where status = 'failed')`.as(
-					"failed_count",
-				),
-				sql<Date | null>`min(received_at) filter (where status = 'received')`.as(
-					"oldest_received_at",
-				),
-			])
-			.where("network", "=", network)
-			.executeTakeFirst();
-		const received = Number(row?.received_count ?? 0);
-		const failed = Number(row?.failed_count ?? 0);
-		const oldestReceivedAt = row?.oldest_received_at
-			? new Date(row.oldest_received_at).toISOString()
-			: null;
-		const oldestReceivedAgeSeconds = oldestReceivedAt
+		const backlog = await journalBacklog(db, network);
+		const oldestReceivedAt = backlog.oldestReceivedAt?.toISOString() ?? null;
+		const oldestReceivedAgeSeconds = backlog.oldestReceivedAt
 			? Math.max(
 					0,
-					Math.round((Date.now() - Date.parse(oldestReceivedAt)) / 1000),
+					Math.round((Date.now() - backlog.oldestReceivedAt.getTime()) / 1000),
 				)
 			: null;
 
 		return {
 			enabled: true,
-			status: failed > 0 ? "failed" : received > 0 ? "pending" : "ok",
-			received,
-			failed,
+			status:
+				backlog.failed > 0 || backlog.poisoned > 0
+					? "failed"
+					: backlog.received > 0
+						? "pending"
+						: "ok",
+			received: backlog.received,
+			failed: backlog.failed,
+			poisoned: backlog.poisoned,
 			oldestReceivedAt,
 			oldestReceivedAgeSeconds,
 		};
@@ -178,10 +165,7 @@ async function getObserverJournalHealth(
 		return {
 			enabled: true,
 			status: "unavailable",
-			received: 0,
-			failed: 0,
-			oldestReceivedAt: null,
-			oldestReceivedAgeSeconds: null,
+			...empty,
 			error: error instanceof Error ? error.message : String(error),
 		};
 	}

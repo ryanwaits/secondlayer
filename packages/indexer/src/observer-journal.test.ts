@@ -4,11 +4,13 @@ import {
 	appendObserverReceipt,
 	bodyFromText,
 	canonicalJson,
+	journalBacklog,
 	markObserverFailed,
 	markObserverProcessed,
 	parseObserverBody,
 	semanticObserverSha256,
 	sha256Hex,
+	transitionJournal,
 } from "./observer-journal.ts";
 
 describe("observer journal encoding", () => {
@@ -103,5 +105,43 @@ describe.skipIf(!HAS_DB)("observer journal retried failures", () => {
 		const done = await receive('{"block_height":1}');
 		await markObserverProcessed(db, done, processed);
 		expect(await statuses()).toEqual(["received", "processed"]);
+	});
+	test("a processed receipt cannot be marked failed afterwards", async () => {
+		if (!db) return;
+		const receipt = await receive('{"block_height":1}');
+		await markObserverProcessed(db, receipt, processed);
+		expect(await markObserverFailed(db, receipt, new Error("late"))).toBe(
+			false,
+		);
+		expect(await statuses()).toEqual(["processed"]);
+	});
+
+	test("a receipt moves only once: the second writer loses", async () => {
+		if (!db) return;
+		const receipt = await receive('{"block_height":1}');
+		expect(
+			await transitionJournal(db, receipt.sequence, ["received"], "poisoned"),
+		).toBe(true);
+		expect(await markObserverProcessed(db, receipt, processed)).toBe(false);
+		expect(await statuses()).toEqual(["poisoned"]);
+	});
+
+	test("backlog counts unapplied blocks and unresolved failures, not burn receipts", async () => {
+		if (!db) return;
+		await receive('{"block_height":1}');
+		const failed = await receive('{"block_height":2}');
+		await markObserverFailed(db, failed, new Error("boom"));
+		const poisoned = await receive('{"block_height":3}');
+		await transitionJournal(db, poisoned.sequence, ["received"], "poisoned");
+		await appendObserverReceipt(db, {
+			network: NETWORK,
+			path: "/new_burn_block",
+			source: null,
+			body: bodyFromText('{"burn_block_height":9}'),
+		});
+		const backlog = await journalBacklog(db, NETWORK);
+		expect(backlog.received).toBe(1);
+		expect(backlog.failed).toBe(1);
+		expect(backlog.poisoned).toBe(1);
 	});
 });

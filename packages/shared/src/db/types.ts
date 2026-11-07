@@ -243,7 +243,14 @@ export interface SubgraphsTable {
 	updated_at: Generated<Date>;
 }
 
-export type AbiStatus = "pending" | "fetched" | "failed" | "unparseable";
+/** Mirrored by the CHECK on `contracts.abi_status`. */
+export const ABI_STATUSES = [
+	"pending",
+	"fetched",
+	"unparseable",
+	"failed",
+] as const;
+export type AbiStatus = (typeof ABI_STATUSES)[number];
 
 export interface ContractsTable {
 	contract_id: string;
@@ -255,6 +262,10 @@ export interface ContractsTable {
 	inferred_standards: Generated<string[]>;
 	abi_status: Generated<AbiStatus>;
 	abi_fetched_at: Date | null;
+	/** Failed fetches so far; `failed` re-polls until the registry's attempt cap. */
+	abi_attempts: Generated<number>;
+	/** When a `failed` row is next due; NULL once attempts are exhausted. */
+	abi_next_attempt_at: Date | null;
 	created_at: Generated<Date>;
 }
 
@@ -930,11 +941,16 @@ export interface PendingForkBlocksTable {
 	received_at: Generated<Date>;
 }
 
-export type ObserverJournalStatus =
-	| "received"
-	| "processed"
-	| "failed"
-	| "retried";
+/** Mirrored by the CHECK on `observer_journal.status`. */
+export const OBSERVER_JOURNAL_STATUSES = [
+	"received",
+	"processed",
+	"failed",
+	"retried",
+	"poisoned",
+	"skipped",
+] as const;
+export type ObserverJournalStatus = (typeof OBSERVER_JOURNAL_STATUSES)[number];
 
 /**
  * Exact observer callback receipt. `raw_body` is immutable evidence; the

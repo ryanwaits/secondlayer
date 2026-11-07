@@ -6,7 +6,6 @@ import {
 	LIVE_BURN_TIP_DISTANCE,
 	type ReceiveOutcome,
 	chooseIngestMode,
-	highestReceivedSequence,
 	receiveNewBlock,
 } from "./catch-up.ts";
 import { type IngestResult, ingestNewBlock } from "./ingest.ts";
@@ -349,32 +348,95 @@ describe.skipIf(!HAS_DB)("catch-up ingest", () => {
 		expect(applier.state().lastError).toBeNull();
 	});
 
-	test("rows at or below the start floor (a refused spool) are left alone", async () => {
-		const db = getSourceDb();
-		for (const h of [900, 901]) {
-			await appendObserverReceipt(db, {
-				network: NETWORK,
-				path: "/new_block",
-				source: "stacks-node",
-				body: bodyFromText(JSON.stringify(block(h))),
-			});
-		}
-		const floor = await highestReceivedSequence(db, NETWORK);
-		const stub = gatedIngest();
-		stub.openAll();
-		applier = new JournalApplier({ network: NETWORK, ingest: stub.ingest });
-		applier.start(floor);
+	test("a block that fails the same way every time is poisoned and the backlog moves on", async () => {
+		const applied: number[] = [];
+		applier = new JournalApplier({
+			network: NETWORK,
+			poisonAfter: 3,
+			ingest: async (payload) => {
+				if (payload.block_height === 1_000) throw new Error("bad block");
+				applied.push(payload.block_height);
+				return {
+					status: "ok",
+					block_height: payload.block_height,
+					transactions: 0,
+					events: 0,
+				};
+			},
+		});
+		applier.start();
 
-		await receive(902);
-		await applier.whenIdle();
-		expect(stub.applied).toEqual([902]);
-		const leftover = await db
+		const stuck = await receive(1_000);
+		await receive(1_001);
+		await until(() => applied.includes(1_001), 15_000);
+
+		const row = await journalStatus(stuck.sequence);
+		expect(row.status).toBe("poisoned");
+		const poisoned = await getSourceDb()
 			.selectFrom("observer_journal")
-			.select("status")
-			.where("network", "=", NETWORK)
-			.where("status", "=", "received")
+			.select("error")
+			.where("sequence", "=", stuck.sequence)
+			.executeTakeFirstOrThrow();
+		expect(poisoned.error).toBe("bad block");
+		expect(applied).toEqual([1_001]);
+	}, 20_000);
+
+	test("a burn receipt left received by a crash is replayed once, and a superseded one is skipped", async () => {
+		const db = getSourceDb();
+		const burnBody = (height: number, hash: string) =>
+			bodyFromText(
+				JSON.stringify({ burn_block_height: height, burn_block_hash: hash }),
+			);
+		const old = new Date(Date.now() - 10 * 60_000);
+		const orphan = await appendObserverReceipt(db, {
+			network: NETWORK,
+			path: "/new_burn_block",
+			source: null,
+			body: burnBody(5_000, "0xa"),
+		});
+		const stale = await appendObserverReceipt(db, {
+			network: NETWORK,
+			path: "/new_burn_block",
+			source: null,
+			body: burnBody(5_001, "0xb"),
+		});
+		const newer = await appendObserverReceipt(db, {
+			network: NETWORK,
+			path: "/new_burn_block",
+			source: null,
+			body: burnBody(5_001, "0xc"),
+		});
+		await db
+			.updateTable("observer_journal")
+			.set({ received_at: old })
+			.where("sequence", "in", [
+				orphan.sequence,
+				stale.sequence,
+				newer.sequence,
+			])
 			.execute();
-		expect(leftover).toHaveLength(2);
+		await db
+			.updateTable("observer_journal")
+			.set({ status: "processed", burn_block_height: 5_001 })
+			.where("sequence", "=", newer.sequence)
+			.execute();
+
+		const replayed: number[] = [];
+		applier = new JournalApplier({
+			network: NETWORK,
+			ingest: gatedIngest().ingest,
+			applyBurn: async (payload) => {
+				replayed.push(payload.burn_block_height);
+				return { rewards: 0, slots: 0 };
+			},
+		});
+		applier.start();
+		await until(() => replayed.length > 0);
+		await applier.whenIdle();
+
+		expect(replayed).toEqual([5_000]);
+		expect((await journalStatus(orphan.sequence)).status).toBe("processed");
+		expect((await journalStatus(stale.sequence)).status).toBe("skipped");
 	});
 });
 

@@ -46,11 +46,13 @@ export interface CasTransition<S extends string> {
 	set?: Record<string, unknown>;
 	/** Stamp `updated_at = now()`. Pass `false` for tables without that column. */
 	stampUpdatedAt?: boolean;
+	/** Columns to return, `*` unless the row carries a large payload (`["sequence"]`). */
+	returning?: readonly string[];
 }
 
 /**
  * Compare-and-swap a status column: `UPDATE ... WHERE key = ? AND column = ANY(from)`.
- * Returns the updated row, or `null` when the row was missing or not in a `from`
+ * Returns the updated row (or the `returning` columns), or `null` when the row was missing or not in a `from`
  * state (a lost race). The caller decides what `null` means; usually log and stop.
  * Works with `db` and inside a transaction (`trx`).
  */
@@ -70,11 +72,15 @@ export async function casTransition<
 		assignments.push(sql`${sql.id(key)} = ${value}`);
 	}
 
+	const returning = t.returning
+		? sql.join(t.returning.map((c) => sql.id(c)))
+		: sql.raw("*");
+
 	const { rows } = await sql<Row>`
 		UPDATE ${sql.table(t.table)}
 		SET ${sql.join(assignments)}
 		WHERE ${sql.id(t.key ?? "id")} = ${t.id} AND ${column} = ANY(${sql.val([...t.from])})
-		RETURNING *
+		RETURNING ${returning}
 	`.execute(db);
 	return rows[0] ?? null;
 }

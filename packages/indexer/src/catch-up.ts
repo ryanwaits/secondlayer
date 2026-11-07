@@ -5,13 +5,20 @@ import { StacksNodeClient } from "@secondlayer/shared/node/client";
 import { type Kysely, sql } from "kysely";
 import { type IngestResult, ingestNewBlock } from "./ingest.ts";
 import {
+	FailureTracker,
 	type ObserverReceipt,
+	POISON_AFTER,
 	appendObserverReceipt,
+	journalBacklog,
 	markObserverFailed,
 	markObserverProcessed,
 	parseObserverBody,
+	transitionJournal,
 } from "./observer-journal.ts";
-import type { NewBlockPayload } from "./types/node-events.ts";
+import type {
+	NewBlockPayload,
+	NewBurnBlockPayload,
+} from "./types/node-events.ts";
 
 /**
  * Catch-up ingest: during a long sync the node never waits on our database.
@@ -35,6 +42,11 @@ import type { NewBlockPayload } from "./types/node-events.ts";
  * until its derived state committed and the row was marked. A crash between
  * the two leaves a `received` row whose block is already canonical; applying
  * it again returns `duplicate` and changes nothing.
+ *
+ * A row that fails to apply is retried with backoff. The same error
+ * {@link POISON_AFTER} times in a row marks it `poisoned` (logged loudly) and
+ * the applier moves on, so one deterministic failure cannot hold the backlog
+ * forever. A failure after derived state committed is never poisoned.
  */
 
 /** Unapplied blocks at which the reply waits for the applier. */
@@ -49,6 +61,9 @@ const IDLE_POLL_MS = 1_000;
 const RETRY_MIN_MS = 500;
 const RETRY_MAX_MS = 30_000;
 const NODE_TIP_TTL_MS = 30_000;
+/** A burn receipt still `received` this long was orphaned: the handler applies it inline. */
+const BURN_ORPHAN_AGE_SECONDS = 60;
+const BURN_SWEEP_EVERY_MS = 30_000;
 
 export type IngestMode = "live" | "catch-up";
 
@@ -125,6 +140,12 @@ export class JournalApplier {
 	private readonly db: Kysely<Database>;
 	private readonly network: string;
 	private readonly ingest: (payload: NewBlockPayload) => Promise<IngestResult>;
+	private readonly applyBurn:
+		| ((payload: NewBurnBlockPayload) => Promise<unknown>)
+		| null;
+	private readonly poisonAfter: number;
+	private readonly failures = new FailureTracker();
+	private lastBurnSweepAt = 0;
 	readonly backlogLimit: number;
 
 	backlog = 0;
@@ -134,7 +155,6 @@ export class JournalApplier {
 	private lastAppliedAt = 0;
 	private lastError: string | null = null;
 
-	private floor = 0n;
 	private handledThrough = 0n;
 	private readonly waiters = new Map<string, Waiter>();
 	private roomWaiters: Array<() => void> = [];
@@ -149,7 +169,12 @@ export class JournalApplier {
 		db?: Kysely<Database>;
 		ingest?: (payload: NewBlockPayload) => Promise<IngestResult>;
 		backlogLimit?: number;
+		/** Replays `/new_burn_block` receipts orphaned by a crash (idempotent write). */
+		applyBurn?: (payload: NewBurnBlockPayload) => Promise<unknown>;
+		poisonAfter?: number;
 	}) {
+		this.applyBurn = options.applyBurn ?? null;
+		this.poisonAfter = options.poisonAfter ?? POISON_AFTER;
 		this.network = options.network;
 		this.db = options.db ?? getSourceDb();
 		this.ingest = options.ingest ?? ((payload) => ingestNewBlock(payload));
@@ -160,13 +185,9 @@ export class JournalApplier {
 		return this.running !== null;
 	}
 
-	/**
-	 * Start draining. Rows at or below `floorSequence` are never applied: a
-	 * refused bootstrap spool leaves its rows for the operator, as before.
-	 */
-	start(floorSequence?: string | null): void {
+	/** Start draining. */
+	start(): void {
 		if (this.running) return;
-		this.floor = floorSequence ? BigInt(floorSequence) : 0n;
 		this.stopped = false;
 		this.running = this.loop();
 	}
@@ -301,15 +322,10 @@ export class JournalApplier {
 				conn,
 			);
 			try {
-				const pending = await sql<{ n: number; oldest: Date | null }>`
-					SELECT count(*)::int AS n, min(received_at) AS oldest
-					  FROM observer_journal
-					 WHERE status = 'received' AND path = '/new_block'
-					   AND network = ${this.network} AND sequence > ${String(this.floor)}
-				`.execute(conn);
-				this.backlog = Number(pending.rows[0]?.n ?? 0);
-				const oldest = pending.rows[0]?.oldest;
-				this.oldestReceivedAt = oldest ? new Date(oldest) : null;
+				await this.sweepOrphanedBurnReceipts(conn);
+				const pending = await journalBacklog(conn, this.network);
+				this.backlog = pending.received;
+				this.oldestReceivedAt = pending.oldestReceivedAt;
 				this.releaseRoom();
 				if (this.backlog === 0) return 0;
 
@@ -319,7 +335,6 @@ export class JournalApplier {
 					.where("status", "=", "received")
 					.where("path", "=", "/new_block")
 					.where("network", "=", this.network)
-					.where("sequence", ">", String(this.floor))
 					.orderBy("sequence", "asc")
 					.limit(BATCH_SIZE)
 					.execute()) as JournalRow[];
@@ -365,23 +380,29 @@ export class JournalApplier {
 			});
 		} catch (error) {
 			const waiter = this.waiters.get(sequence);
-			// A live caller is still holding the node's request: fail it the way
-			// synchronous ingest always did (500, the node re-sends the block).
 			// Once derived state committed, retrying is the only correct move —
 			// the retry sees `duplicate` and marks the row.
-			if (!waiter || committed) throw error;
+			if (committed) throw error;
+			if (!waiter) {
+				if (await this.poisonIfRepeating(sequence, error)) return;
+				throw error;
+			}
+			// A live caller is still holding the node's request: fail it the way
+			// synchronous ingest always did (500, the node re-sends the block).
 			await markObserverFailed(this.db, receipt, error).catch((journalError) =>
 				logger.error("Failed to mark observer receipt", {
 					sequence,
 					error: journalError,
 				}),
 			);
+			this.failures.clear(sequence);
 			this.finishRow(sequence);
 			this.waiters.delete(sequence);
 			waiter.reject(error);
 			return;
 		}
 
+		this.failures.clear(sequence);
 		this.finishRow(sequence);
 		this.appliedTotal++;
 		this.lastAppliedHeight = payload.block_height;
@@ -391,6 +412,114 @@ export class JournalApplier {
 		if (waiter) {
 			this.waiters.delete(sequence);
 			waiter.resolve(result);
+		}
+	}
+
+	/**
+	 * The same error on the same row `poisonAfter` times running is not
+	 * transient: park the row as `poisoned` and let the backlog move. A database
+	 * that is down fails this write too, so an outage never poisons a row.
+	 */
+	private async poisonIfRepeating(
+		sequence: string,
+		error: unknown,
+	): Promise<boolean> {
+		const message = error instanceof Error ? error.message : String(error);
+		if (this.failures.record(sequence, message) < this.poisonAfter) {
+			return false;
+		}
+		const moved = await transitionJournal(
+			this.db,
+			sequence,
+			["received"],
+			"poisoned",
+			{ error: message },
+		);
+		this.failures.clear(sequence);
+		this.finishRow(sequence);
+		if (moved) {
+			this.lastError = `poisoned sequence ${sequence}: ${message}`;
+			logger.error("Journal applier: block poisoned and skipped", {
+				sequence,
+				attempts: this.poisonAfter,
+				error: message,
+			});
+		}
+		return true;
+	}
+
+	/**
+	 * `/new_burn_block` receipts are applied inline by the request handler, so
+	 * one still `received` after a minute lost its handler (a crash between
+	 * journal and apply). Replay it, unless a later receipt already rewrote that
+	 * burn height (the write replaces per height, so a stale replay would
+	 * regress it). Runs under the apply lock, at most every 30 s.
+	 */
+	private async sweepOrphanedBurnReceipts(
+		conn: Kysely<Database>,
+	): Promise<void> {
+		if (!this.applyBurn) return;
+		if (Date.now() - this.lastBurnSweepAt < BURN_SWEEP_EVERY_MS) return;
+		this.lastBurnSweepAt = Date.now();
+		const rows = await conn
+			.selectFrom("observer_journal")
+			.select(["sequence", "raw_body", "raw_body_sha256"])
+			.where("status", "=", "received")
+			.where("path", "=", "/new_burn_block")
+			.where("network", "=", this.network)
+			.where(
+				"received_at",
+				"<",
+				new Date(Date.now() - BURN_ORPHAN_AGE_SECONDS * 1000),
+			)
+			.orderBy("sequence", "asc")
+			.limit(BATCH_SIZE)
+			.execute();
+		for (const row of rows) {
+			const sequence = String(row.sequence);
+			try {
+				const payload = parseObserverBody<NewBurnBlockPayload>(row.raw_body);
+				const newer = await conn
+					.selectFrom("observer_journal")
+					.select("sequence")
+					.where("path", "=", "/new_burn_block")
+					.where("network", "=", this.network)
+					.where("status", "=", "processed")
+					.where("burn_block_height", "=", payload.burn_block_height)
+					.where("sequence", ">", sequence)
+					.limit(1)
+					.executeTakeFirst();
+				if (newer) {
+					await transitionJournal(conn, sequence, ["received"], "skipped", {
+						error: "superseded by a later burn block receipt",
+					});
+					continue;
+				}
+				const result = await this.applyBurn(payload);
+				await markObserverProcessed(
+					conn,
+					{
+						sequence,
+						path: "/new_burn_block",
+						body: row.raw_body,
+						rawBodySha256: row.raw_body_sha256,
+					},
+					{ path: "/new_burn_block", payload, result },
+				);
+				this.failures.clear(sequence);
+			} catch (error) {
+				const message = error instanceof Error ? error.message : String(error);
+				logger.error("Journal applier: burn receipt replay failed", {
+					sequence,
+					error: message,
+				});
+				if (this.failures.record(sequence, message) >= this.poisonAfter) {
+					await transitionJournal(conn, sequence, ["received"], "poisoned", {
+						error: message,
+					}).catch(() => {});
+					this.failures.clear(sequence);
+				}
+			}
 		}
 	}
 
@@ -481,19 +610,4 @@ export async function receiveNewBlock(
 		sequence: receipt.sequence,
 		block_height: payload.block_height,
 	};
-}
-
-/** Highest unapplied `/new_block` sequence: the applier floor after a refused spool. */
-export async function highestReceivedSequence(
-	db: Kysely<Database>,
-	network: string,
-): Promise<string | null> {
-	const row = await db
-		.selectFrom("observer_journal")
-		.select(sql<string | null>`max(sequence)::text`.as("max"))
-		.where("status", "=", "received")
-		.where("path", "=", "/new_block")
-		.where("network", "=", network)
-		.executeTakeFirst();
-	return row?.max ?? null;
 }
