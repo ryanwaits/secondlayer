@@ -11,7 +11,7 @@ import { ValidationError } from "@secondlayer/shared/errors";
 import { Hono } from "hono";
 import { z } from "zod";
 import { sendMagicLink } from "../auth/email.ts";
-import { getClientIp } from "../auth/http.ts";
+import { getClientIp, ipBucket } from "../auth/http.ts";
 import { generateSessionToken, hashToken } from "../auth/keys.ts";
 import { getRateLimitStore } from "../auth/rate-limit-store.ts";
 import { isDevMode } from "../lib/dev-mode.ts";
@@ -45,7 +45,9 @@ const VerifySchema = z.union([
 	}),
 ]);
 
-// IP-based rate limiting for verify endpoint
+// Rate limiting for the verify endpoint: per IP bucket, and per address for
+// code entry (a code is only six digits, so one address gets one budget no
+// matter how many IPs the guesses come from).
 const VERIFY_RATE_LIMIT = 10;
 const VERIFY_WINDOW_MS = 15 * 60_000;
 
@@ -95,7 +97,7 @@ app.post("/magic-link", async (c) => {
 
 // Verify token or code → create account + session token (no auth)
 app.post("/verify", async (c) => {
-	const ip = getClientIp(c);
+	const ip = ipBucket(getClientIp(c));
 	const key = ip === "unknown" ? "auth:verify:unknown" : `auth:verify:${ip}`;
 	const result = await getRateLimitStore().check(
 		key,
@@ -116,6 +118,19 @@ app.post("/verify", async (c) => {
 
 	const parsed = VerifySchema.parse(body);
 	const db = getDb();
+
+	if ("code" in parsed) {
+		const perEmail = await getRateLimitStore().check(
+			`auth:verify-email:${normalizeEmail(parsed.email)}`,
+			VERIFY_RATE_LIMIT,
+			VERIFY_WINDOW_MS,
+			{ failClosed: true },
+		);
+		if (!perEmail.allowed) {
+			c.header("Retry-After", String(perEmail.retryAfter));
+			return c.json({ error: "Too many attempts. Try again later." }, 429);
+		}
+	}
 
 	const email =
 		"token" in parsed

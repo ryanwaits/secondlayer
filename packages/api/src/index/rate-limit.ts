@@ -1,7 +1,7 @@
 import { RateLimitError } from "@secondlayer/shared/errors";
 import { isPlatformMode } from "@secondlayer/shared/mode";
 import type { MiddlewareHandler } from "hono";
-import { getClientIp } from "../auth/http.ts";
+import { getClientIp, ipBucket } from "../auth/http.ts";
 import { getRateLimitStore } from "../auth/rate-limit-store.ts";
 import type { IndexEnv } from "./auth.ts";
 import {
@@ -31,7 +31,7 @@ export function indexRateLimit(): MiddlewareHandler<IndexEnv> {
 			// other anon visitor (and X-RateLimit-* headers reflect that caller).
 			const limit = INDEX_ANON_RATE_LIMIT_PER_SECOND;
 			const result = await getRateLimitStore().check(
-				`index:anon:${getClientIp(c)}`,
+				`index:anon:${ipBucket(getClientIp(c))}`,
 				limit,
 				WINDOW_MS,
 			);

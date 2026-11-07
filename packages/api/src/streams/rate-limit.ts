@@ -1,7 +1,7 @@
 import { RateLimitError } from "@secondlayer/shared/errors";
 import { isPlatformMode } from "@secondlayer/shared/mode";
 import type { MiddlewareHandler } from "hono";
-import { getClientIp } from "../auth/http.ts";
+import { getClientIp, ipBucket } from "../auth/http.ts";
 import { getRateLimitStore } from "../auth/rate-limit-store.ts";
 import type { StreamsEnv } from "./auth.ts";
 import {
@@ -30,7 +30,7 @@ export function streamsRateLimit(): MiddlewareHandler<StreamsEnv> {
 			// other accountless caller (headers reflect that caller).
 			const anonLimit = STREAMS_ANON_RATE_LIMIT_PER_SECOND;
 			const anon = await getRateLimitStore().check(
-				`streams:anon:${getClientIp(c)}`,
+				`streams:anon:${ipBucket(getClientIp(c))}`,
 				anonLimit,
 				WINDOW_MS,
 			);

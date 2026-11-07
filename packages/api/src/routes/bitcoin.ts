@@ -2,7 +2,7 @@ import { RateLimitError, ValidationError } from "@secondlayer/shared/errors";
 import { isPlatformMode } from "@secondlayer/shared/mode";
 import type { BitcoinRpcConfig } from "@secondlayer/stacks/bitcoin";
 import { type Context, Hono, type MiddlewareHandler } from "hono";
-import { getClientIp } from "../auth/http.ts";
+import { getClientIp, ipBucket } from "../auth/http.ts";
 import { getRateLimitStore } from "../auth/rate-limit-store.ts";
 import {
 	OutspendBusyError,
@@ -55,7 +55,7 @@ function outspendRateLimit(): MiddlewareHandler<IndexEnv> {
 		const { limit, windowMs } = OUTSPEND_RATE_LIMIT;
 		const key = tenant
 			? `bitcoin:outspend:${tenant.tenant_id}`
-			: `bitcoin:outspend:anon:${getClientIp(c)}`;
+			: `bitcoin:outspend:anon:${ipBucket(getClientIp(c))}`;
 		const result = await getRateLimitStore().check(key, limit, windowMs);
 		c.header("X-RateLimit-Limit", String(limit));
 		c.header(

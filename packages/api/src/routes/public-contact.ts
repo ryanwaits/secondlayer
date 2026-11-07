@@ -20,7 +20,7 @@ import type { InsertContactRequest } from "@secondlayer/shared/db";
 import { notifyContact } from "@secondlayer/shared/email";
 import { RateLimitError } from "@secondlayer/shared/errors";
 import { Hono } from "hono";
-import { getClientIp } from "../auth/http.ts";
+import { getClientIp, ipBucket } from "../auth/http.ts";
 import {
 	type RateLimitStore,
 	getRateLimitStore,
@@ -154,7 +154,7 @@ export function createContactRouter(opts?: {
 
 		const ip = getClientIp(c);
 		const limit = await (opts?.rateLimitStore ?? getRateLimitStore()).check(
-			`contact:${ip}`,
+			`contact:${ipBucket(ip)}`,
 			RATE_LIMIT,
 			RATE_WINDOW_MS,
 			{ failClosed: true },

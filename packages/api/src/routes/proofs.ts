@@ -8,7 +8,7 @@ import {
 	buildTxProof,
 } from "@secondlayer/stacks/bitcoin";
 import { type Context, Hono, type MiddlewareHandler } from "hono";
-import { getClientIp } from "../auth/http.ts";
+import { getClientIp, ipBucket } from "../auth/http.ts";
 import { getRateLimitStore } from "../auth/rate-limit-store.ts";
 import { bitcoinRpcFromEnv } from "../bitcoin/rpc.ts";
 import {
@@ -95,7 +95,7 @@ function proofsRateLimit(bucket: Bucket): MiddlewareHandler<IndexEnv> {
 			: PROOFS_RATE_LIMITS.anonymous[bucket];
 		const key = tenant
 			? `proofs:${bucket}:${tenant.tenant_id}`
-			: `proofs:${bucket}:anon:${getClientIp(c)}`;
+			: `proofs:${bucket}:anon:${ipBucket(getClientIp(c))}`;
 		const result = await getRateLimitStore().check(key, limit, windowMs);
 		c.header("X-RateLimit-Limit", String(limit));
 		c.header(

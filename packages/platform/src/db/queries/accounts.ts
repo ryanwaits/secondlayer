@@ -1,3 +1,4 @@
+import { timingSafeEqual } from "node:crypto";
 import type { Account, Database } from "@secondlayer/shared/db";
 import { type Kysely, sql } from "kysely";
 
@@ -241,10 +242,18 @@ export async function verifyMagicLink(
 	return null;
 }
 
+/** Guesses one set of codes for an address accepts before it locks. */
+export const MAGIC_CODE_MAX_ATTEMPTS = 3;
+
 /**
- * Verify by 6-digit code + email. Same atomic pattern as verifyMagicLink.
- * Rejects after 3 failed attempts. Increments failed_attempts on all
- * active codes for this email on failure (prevents parallel brute-force).
+ * Verify by 6-digit code + email.
+ *
+ * Every attempt spends one try on every live code for the address, in ONE
+ * statement that only touches rows still under the limit. The row lock makes
+ * parallel guesses take turns: past `MAGIC_CODE_MAX_ATTEMPTS` the statement
+ * returns nothing, so the code is never compared and a locked code can't be
+ * opened even by its right value. Only after a try was granted is the code
+ * compared, and a match is claimed (`used_at`) so it signs in once.
  */
 export async function verifyMagicLinkByCode(
 	db: Kysely<Database>,
@@ -252,27 +261,31 @@ export async function verifyMagicLinkByCode(
 	code: string,
 ): Promise<string | null> {
 	const email = normalizeEmail(rawEmail);
-	const result = await db
-		.updateTable("magic_links")
-		.set({ used_at: new Date() })
-		.where("email", "=", email)
-		.where("code", "=", code)
-		.where("used_at", "is", null)
-		.where("expires_at", ">", new Date())
-		.where("failed_attempts", "<", 3)
-		.returning("email")
-		.executeTakeFirst();
-
-	if (result?.email) return result.email;
-
-	// Increment failed attempts on all active codes for this email
-	await db
+	const granted = await db
 		.updateTable("magic_links")
 		.set({ failed_attempts: sql`failed_attempts + 1` })
 		.where("email", "=", email)
 		.where("used_at", "is", null)
 		.where("expires_at", ">", new Date())
+		.where("failed_attempts", "<", MAGIC_CODE_MAX_ATTEMPTS)
+		.returning(["id", "code"])
 		.execute();
 
-	return null;
+	const match = granted.find((row) => sameCode(row.code, code));
+	if (!match) return null;
+
+	const claimed = await db
+		.updateTable("magic_links")
+		.set({ used_at: new Date() })
+		.where("id", "=", match.id)
+		.where("used_at", "is", null)
+		.returning("email")
+		.executeTakeFirst();
+	return claimed?.email ?? null;
+}
+
+function sameCode(stored: string, given: string): boolean {
+	const a = Buffer.from(stored);
+	const b = Buffer.from(given);
+	return a.length === b.length && timingSafeEqual(a, b);
 }

@@ -15,7 +15,7 @@ import { logger } from "@secondlayer/shared";
 import { RateLimitError } from "@secondlayer/shared/errors";
 import { embed } from "ai";
 import { Hono } from "hono";
-import { getClientIp } from "../auth/http.ts";
+import { getClientIp, ipBucket } from "../auth/http.ts";
 import {
 	type RateLimitStore,
 	getRateLimitStore,
@@ -183,7 +183,7 @@ export function createDocsFindRouter(opts?: {
 	}
 
 	app.post("/", async (c) => {
-		const ip = getClientIp(c);
+		const ip = ipBucket(getClientIp(c));
 		const store = opts?.rateLimitStore ?? getRateLimitStore();
 		for (const [key, limit, windowMs] of [
 			[`docs-find:${ip}`, MINUTE_LIMIT, 60_000],

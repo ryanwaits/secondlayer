@@ -186,3 +186,39 @@ describe.skipIf(!HAS_DB)("POST /api/auth/logout", () => {
 		expect((await read()).revoked_at?.getTime()).toBe(first?.getTime());
 	});
 });
+
+describe.skipIf(!HAS_DB)("POST /api/auth/verify guess limits", () => {
+	function guess(email: string, forwardedFor: string) {
+		return app.request("/api/auth/verify", {
+			method: "POST",
+			headers: {
+				"content-type": "application/json",
+				"x-forwarded-for": forwardedFor,
+			},
+			body: JSON.stringify({ email, code: "000000" }),
+		});
+	}
+
+	test("guessing one address's code from many IPs runs out of tries", async () => {
+		const email = freshEmail();
+		await createMagicLink(db, email, crypto.randomUUID(), "123456");
+		const statuses: number[] = [];
+		for (let i = 1; i <= 12; i++) {
+			statuses.push((await guess(email, `198.51.100.${i}`)).status);
+		}
+		expect(statuses.slice(0, 10).every((s) => s !== 429)).toBe(true);
+		expect(statuses.slice(10)).toEqual([429, 429]);
+	});
+
+	test("rotating the low 64 bits of an IPv6 address shares one budget", async () => {
+		const statuses: number[] = [];
+		for (let i = 1; i <= 12; i++) {
+			statuses.push(
+				(await guess(freshEmail(), `2001:db8:abcd:12::${i.toString(16)}`))
+					.status,
+			);
+		}
+		expect(statuses.slice(0, 10).every((s) => s !== 429)).toBe(true);
+		expect(statuses.slice(10)).toEqual([429, 429]);
+	});
+});

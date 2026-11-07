@@ -1,6 +1,6 @@
 import { RateLimitError } from "@secondlayer/shared/errors";
 import type { MiddlewareHandler } from "hono";
-import { getClientIp } from "./http.ts";
+import { getClientIp, ipBucket } from "./http.ts";
 import { getRateLimitStore } from "./rate-limit-store.ts";
 
 const DEFAULT_MAX = 10;
@@ -16,7 +16,7 @@ export function ipRateLimit(
 	scope?: string,
 ): MiddlewareHandler {
 	return async (c, next) => {
-		const ip = getClientIp(c);
+		const ip = ipBucket(getClientIp(c));
 		// An unknown IP (no trusted proxy header) must NOT bypass — that would
 		// grant uncapped auth attempts. Fail closed under one shared bucket. Auth
 		// routes also fail closed if Redis is down (abuse-sensitive, not a read).

@@ -29,7 +29,7 @@ import {
 } from "@secondlayer/shared/email";
 import { RateLimitError } from "@secondlayer/shared/errors";
 import { Hono } from "hono";
-import { getClientIp } from "../auth/http.ts";
+import { getClientIp, ipBucket } from "../auth/http.ts";
 import {
 	type RateLimitStore,
 	getRateLimitStore,
@@ -108,7 +108,7 @@ export function createUpdatesRouter(opts?: {
 
 		const ip = getClientIp(c);
 		const limit = await (opts?.rateLimitStore ?? getRateLimitStore()).check(
-			`updates:${ip}`,
+			`updates:${ipBucket(ip)}`,
 			RATE_LIMIT,
 			RATE_WINDOW_MS,
 			{ failClosed: true },
