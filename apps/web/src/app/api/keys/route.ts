@@ -1,4 +1,5 @@
 import { ApiError, apiRequest, getSessionFromRequest } from "@/lib/api";
+import { crossSiteRefusal } from "@/lib/same-origin";
 import type { ApiKey } from "@/lib/types";
 import { NextResponse } from "next/server";
 
@@ -39,6 +40,8 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
+	const refused = crossSiteRefusal(req);
+	if (refused) return refused;
 	const sessionToken = getSessionFromRequest(req);
 	if (!sessionToken) return unauthorized();
 	const body = (await req.json().catch(() => ({}))) as { name?: unknown };
@@ -52,7 +55,11 @@ export async function POST(req: Request) {
 			body: name ? { name } : {},
 			sessionToken,
 		});
-		return NextResponse.json({ key: minted.key }, { status: 201 });
+		// The key is in this body once: never cached.
+		return NextResponse.json(
+			{ key: minted.key },
+			{ status: 201, headers: { "Cache-Control": "no-store" } },
+		);
 	} catch (e) {
 		return fromError(e);
 	}

@@ -1,4 +1,5 @@
 import { ApiError, apiRequest, getSessionFromRequest } from "@/lib/api";
+import { crossSiteRefusal } from "@/lib/same-origin";
 import { NextResponse } from "next/server";
 
 function failure(e: unknown) {
@@ -10,6 +11,8 @@ function failure(e: unknown) {
 
 /** Registers this browser for the signed-in account's push. */
 export async function POST(req: Request) {
+	const refused = crossSiteRefusal(req);
+	if (refused) return refused;
 	const sessionToken = getSessionFromRequest(req);
 	if (!sessionToken) {
 		return NextResponse.json({ error: "Sign in first" }, { status: 401 });
@@ -30,6 +33,8 @@ export async function POST(req: Request) {
 
 /** Forgets this browser. */
 export async function DELETE(req: Request) {
+	const refused = crossSiteRefusal(req);
+	if (refused) return refused;
 	const sessionToken = getSessionFromRequest(req);
 	if (!sessionToken) {
 		return NextResponse.json({ error: "Sign in first" }, { status: 401 });

@@ -1,4 +1,5 @@
 import { ApiError, apiRequest, getSessionFromRequest } from "@/lib/api";
+import { crossSiteRefusal } from "@/lib/same-origin";
 import { NextResponse } from "next/server";
 
 // Next to the API, so each dashboard read and write takes the short hop.
@@ -26,6 +27,8 @@ export async function GET(req: Request) {
 }
 
 export async function PUT(req: Request) {
+	const refused = crossSiteRefusal(req);
+	if (refused) return refused;
 	const sessionToken = getSessionFromRequest(req);
 	if (!sessionToken) {
 		return NextResponse.json({ error: "Sign in first" }, { status: 401 });
