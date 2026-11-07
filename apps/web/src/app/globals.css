@@ -1065,6 +1065,37 @@ a mark {
 	text-decoration-color: var(--accent);
 }
 
+/* A text button in a sign-in card: "Send a new code", "Use a different email". */
+.login-link {
+	background: none;
+	border: 0;
+	padding: 0;
+	font: inherit;
+	font-size: 13px;
+	color: var(--text-secondary);
+	text-decoration: underline;
+	text-decoration-color: transparent;
+	text-underline-offset: 2px;
+	cursor: pointer;
+	transition: text-decoration-color 0.2s ease;
+}
+
+.login-link:hover:not(:disabled) {
+	text-decoration-color: var(--text-secondary);
+}
+
+.login-link:disabled {
+	opacity: 0.5;
+	cursor: default;
+}
+
+.login-links {
+	display: flex;
+	justify-content: center;
+	gap: 16px;
+	margin-top: 16px;
+}
+
 /* CLI sign-in approval: the terminal's code, large, to match by eye. */
 .cli-login-lead {
 	margin: -0.5rem 0 1.25rem;

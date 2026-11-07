@@ -2,20 +2,16 @@
 
 import { VerifyUnreachableError, useAuth } from "@/lib/auth";
 import { codeStepEmail, currentNext, rememberNext } from "@/lib/safe-next";
+import { SIGNIN_START, signinReducer } from "@/lib/signin-flow";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useReducer, useState } from "react";
 
 export default function SignInPage() {
 	const { login, verify, account } = useAuth();
 	const router = useRouter();
-	const [email, setEmail] = useState("");
+	const [state, dispatch] = useReducer(signinReducer, SIGNIN_START);
 	const [code, setCode] = useState("");
-	const [status, setStatus] = useState<"idle" | "sending" | "sent" | "error">(
-		"idle",
-	);
-	const [devToken, setDevToken] = useState<string | null>(null);
-	const [error, setError] = useState<string | null>(null);
-	const [verifyError, setVerifyError] = useState<string | null>(null);
+	const { email } = state;
 
 	// Already signed in: go where `?next=` asked, else the account page.
 	useEffect(() => {
@@ -25,9 +21,7 @@ export default function SignInPage() {
 	// `?email=`: the code is already on its way, so open on the code step.
 	useEffect(() => {
 		const sentTo = codeStepEmail(window.location.search);
-		if (!sentTo) return;
-		setEmail(sentTo);
-		setStatus("sent");
+		if (sentTo) dispatch({ type: "enter_code", email: sentTo });
 	}, []);
 
 	const handleInputEsc = useCallback(
@@ -56,49 +50,81 @@ export default function SignInPage() {
 		return () => window.removeEventListener("keydown", onKeyDown);
 	}, [router]);
 
+	/** Sends the code (a first send from the form, or a resend from the code
+	 *  step) and reports the answer to the machine. */
+	const send = useCallback(async () => {
+		try {
+			rememberNext(currentNext());
+			const data = await login(email);
+			dispatch({ type: "sent", devToken: data.token ?? null });
+		} catch (err) {
+			dispatch({
+				type: "send_failed",
+				message: err instanceof Error ? err.message : "Something went wrong",
+			});
+		}
+	}, [email, login]);
+
 	const handleSubmit = useCallback(
-		async (e: React.FormEvent) => {
+		(e: React.FormEvent) => {
 			e.preventDefault();
-			if (!email || status === "sending") return;
-			setStatus("sending");
-			setError(null);
-			try {
-				rememberNext(currentNext());
-				const data = await login(email);
-				if (data.token) setDevToken(data.token);
-				setStatus("sent");
-			} catch (err) {
-				setError(err instanceof Error ? err.message : "Something went wrong");
-				setStatus("error");
-			}
+			if (!email || state.step === "sending") return;
+			dispatch({ type: "submit" });
+			void send();
 		},
-		[email, login, status],
+		[email, send, state.step],
 	);
+
+	const handleResend = useCallback(() => {
+		if (state.step !== "code" || !state.canResend) return;
+		dispatch({ type: "resend" });
+		void send();
+	}, [send, state]);
 
 	const handleVerifyCode = useCallback(
 		async (e: React.FormEvent) => {
 			e.preventDefault();
-			if (code.length !== 6) return;
-			setVerifyError(null);
+			if (code.length !== 6 || state.step !== "code") return;
+			dispatch({ type: "verify" });
 			try {
 				await verify(code, email);
 				rememberNext("/account");
 				window.location.href = currentNext();
-			} catch {
-				setVerifyError("Invalid or expired code. Try again.");
+			} catch (err) {
+				setCode("");
+				dispatch({
+					type: "verify_failed",
+					message:
+						err instanceof VerifyUnreachableError
+							? err.message
+							: "Invalid or expired code. Try again.",
+				});
 			}
 		},
-		[code, email, verify],
+		[code, email, state.step, verify],
 	);
+
+	const resending = state.step === "sending" && state.resend;
+	const onCodeStep =
+		state.step === "code" || state.step === "verifying" || resending;
+	const canResend =
+		state.step === "code" || state.step === "verifying"
+			? state.canResend
+			: resending;
+	const codeError = state.step === "code" ? state.error : null;
+	const devToken = state.step === "code" ? state.devToken : null;
 
 	return (
 		<div className="login-page">
 			<div className="login-card">
-				{status === "sent" ? (
+				{onCodeStep ? (
 					<div className="login-sent">
 						<p className="login-sent-title">Check your email</p>
 						<p className="login-sent-desc">
-							We sent a sign-in code to <strong>{email}</strong>
+							{state.step === "code" && state.resent
+								? "We sent a new sign-in code to "
+								: "We sent a sign-in code to "}
+							<strong>{email}</strong>
 						</p>
 						<form onSubmit={handleVerifyCode}>
 							<input
@@ -120,15 +146,38 @@ export default function SignInPage() {
 									fontSize: 20,
 								}}
 							/>
-							{verifyError && <p className="login-error">{verifyError}</p>}
+							{codeError && <p className="login-error">{codeError}</p>}
 							<button
 								type="submit"
 								className="login-submit"
-								disabled={code.length !== 6}
+								disabled={code.length !== 6 || state.step === "verifying"}
 							>
-								Verify
+								{state.step === "verifying" ? "Verifying..." : "Verify"}
 							</button>
 						</form>
+						<div className="login-links">
+							{canResend ? (
+								<button
+									type="button"
+									className="login-link"
+									disabled={state.step !== "code"}
+									onClick={handleResend}
+								>
+									{resending ? "Sending..." : "Send a new code"}
+								</button>
+							) : null}
+							<button
+								type="button"
+								className="login-link"
+								disabled={state.step !== "code"}
+								onClick={() => {
+									setCode("");
+									dispatch({ type: "change_email" });
+								}}
+							>
+								Use a different email
+							</button>
+						</div>
 						<p className="login-disclaimer" style={{ marginTop: 16 }}>
 							Or click the link in your email to sign in directly.
 						</p>
@@ -154,18 +203,24 @@ export default function SignInPage() {
 							className="login-input"
 							placeholder="name@domain.com"
 							value={email}
-							onChange={(e) => setEmail(e.target.value)}
-							onKeyDown={(e) => handleInputEsc(e, () => setEmail(""))}
+							onChange={(e) =>
+								dispatch({ type: "edit", email: e.target.value })
+							}
+							onKeyDown={(e) =>
+								handleInputEsc(e, () => dispatch({ type: "edit", email: "" }))
+							}
 							required
 							autoFocus
 						/>
-						{error && <p className="login-error">{error}</p>}
+						{state.step === "error" && (
+							<p className="login-error">{state.message}</p>
+						)}
 						<button
 							type="submit"
 							className="login-submit"
-							disabled={status === "sending"}
+							disabled={state.step === "sending"}
 						>
-							{status === "sending" ? "Sending..." : "Send me a login code"}
+							{state.step === "sending" ? "Sending..." : "Send me a login code"}
 						</button>
 						<p className="login-disclaimer">
 							New here? Entering your email creates your account.
