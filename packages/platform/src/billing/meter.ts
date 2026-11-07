@@ -6,6 +6,7 @@ import {
 	debitCreditsUpTo,
 	getCredits,
 	getMonthlyCreditsSpend,
+	lockAccountCredits,
 	recordCreditsSpend,
 } from "../db/queries/account-credits.ts";
 import { getCaps } from "../db/queries/account-spend-caps.ts";
@@ -144,6 +145,9 @@ export async function meter(
 	const occurredAt = input.occurredAt ?? new Date();
 
 	return withTransaction(db, async (trx) => {
+		// One charge at a time per account: pricing reads the month's usage and
+		// spend, the debit reads the cap; concurrent charges must not interleave.
+		await lockAccountCredits(trx, input.accountId);
 		const priced = (await isInternalAccount(trx, input.accountId))
 			? { usdMicros: 0n, viaAllowance: false }
 			: await priceUnit(trx, input, occurredAt);

@@ -99,6 +99,27 @@ export async function debitCreditsUpTo(
 	return { debited: BigInt(row.before) - after, remaining: after };
 }
 
+/**
+ * Serialize every charge for one account. Takes the account's `account_credits`
+ * row lock (creating the row first when the account has none) so the sum-then-
+ * price and read-cap-then-debit steps of `meter()` cannot interleave with a
+ * concurrent charge. The lock lasts until the caller's transaction ends; call
+ * it only inside one.
+ */
+export async function lockAccountCredits(
+	trx: Kysely<Database>,
+	accountId: string,
+): Promise<void> {
+	await trx
+		.insertInto("account_credits")
+		.values({ account_id: accountId, balance_usd_micros: "0" })
+		.onConflict((oc) => oc.column("account_id").doNothing())
+		.execute();
+	await sql`SELECT 1 FROM account_credits WHERE account_id = ${accountId} FOR UPDATE`.execute(
+		trx,
+	);
+}
+
 export async function getCredits(
 	db: Kysely<Database>,
 	accountId: string,
