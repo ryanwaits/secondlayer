@@ -4,7 +4,13 @@ import type { AccountUpdates } from "@/app/api/updates/route";
 import { notify } from "@/components/toast/notify";
 import { useAuth } from "@/lib/auth";
 import { PUBLIC_API_URL } from "@/lib/public-api";
-import { type FormEvent, useEffect, useState } from "react";
+import Link from "next/link";
+import {
+	type FormEvent,
+	useEffect,
+	useState,
+	useSyncExternalStore,
+} from "react";
 import {
 	type UpdatesMemory,
 	forgetUpdates,
@@ -15,13 +21,18 @@ import {
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+/** The one account ask at the end of a post, for readers without one. */
+const START_LINE =
+	"Instant data for apps on Bitcoin. 1M rows free every month.";
+
 type Status =
 	| { kind: "idle" }
 	| { kind: "sending" }
 	| { kind: "invalid" }
 	| { kind: "failed" }
-	| { kind: "sent"; email: string }
-	| UpdatesMemory;
+	| { kind: "sent"; email: string };
+
+type Confirmed = UpdatesMemory & { status: "confirmed" };
 
 /** The signed-in account's place on the list, as the form remembers it. */
 async function accountUpdates(): Promise<UpdatesMemory | null> {
@@ -37,63 +48,176 @@ async function accountUpdates(): Promise<UpdatesMemory | null> {
 	return null;
 }
 
+/*
+ * The reader's place on the list, shared by everything on the page that
+ * shows it: the signup, and a post's Unsubscribe link in its end row.
+ * Found once per page and sign-in state; undefined until then, so nothing
+ * flashes. Forgotten when the last reader of it unmounts, so the next page
+ * asks again and sees a signup made on this one.
+ */
+let known: UpdatesMemory | null | undefined;
+let knownFor: boolean | undefined;
+const listeners = new Set<() => void>();
+
+function setKnown(next: UpdatesMemory | null) {
+	known = next;
+	for (const listener of listeners) listener();
+}
+
+function subscribe(listener: () => void) {
+	listeners.add(listener);
+	return () => {
+		listeners.delete(listener);
+		if (listeners.size === 0) {
+			known = undefined;
+			knownFor = undefined;
+		}
+	};
+}
+
+function useKnown(): UpdatesMemory | null | undefined {
+	const { account, loading } = useAuth();
+	const signedIn = !!account;
+	const value = useSyncExternalStore(
+		subscribe,
+		() => (knownFor === signedIn ? known : undefined),
+		() => undefined,
+	);
+
+	useEffect(() => {
+		if (loading || knownFor === signedIn) return;
+		// Claimed before the fetch, so a second caller on the page waits for
+		// this answer instead of asking again.
+		knownFor = signedIn;
+		known = undefined;
+		if (!signedIn) {
+			setKnown(readUpdatesMemory());
+			return;
+		}
+		accountUpdates()
+			.catch(() => readUpdatesMemory())
+			.then((answer) => {
+				if (knownFor === signedIn) setKnown(answer);
+			});
+	}, [loading, signedIn]);
+
+	return loading ? undefined : value;
+}
+
+/**
+ * Unsubscribes in place: the form comes back and a toast offers Undo
+ * (⌘Z), which puts the reader back on the list with the same token.
+ */
+async function unsubscribe(memory: Confirmed) {
+	const { email: address, token } = memory;
+	const gone = await postUpdatesToken("unsubscribe", token).catch(() => null);
+	if (!gone) {
+		notify.fail("Couldn't unsubscribe", {
+			desc: "Use the link at the bottom of any update email.",
+		});
+		return;
+	}
+	forgetUpdates();
+	setKnown(null);
+	notify.done("Unsubscribed", {
+		desc: `${address} won't get posts or launch emails.`,
+		undo: async () => {
+			const back = await postUpdatesToken("resubscribe", token).catch(
+				() => null,
+			);
+			if (!back) {
+				notify.fail("Couldn't resubscribe", {
+					desc: "Subscribe again with the form.",
+				});
+				return;
+			}
+			const again = { status: "confirmed", email: back, token } as const;
+			rememberUpdates(again);
+			setKnown(again);
+			notify.done("Subscribed again", { quick: true });
+		},
+	});
+}
+
 /**
  * Email signup for new posts and launches. Double opt-in: the API sends a
  * confirmation link, and the sent state never says whether the address was
  * already on the list. A signed-in reader gets their address pre-filled;
  * nothing is sent until they click. A reader already on the list, by their
  * account or by what this browser remembers, sees one quiet line instead.
+ *
+ * `inPost`: the end of a post. A confirmed reader's Unsubscribe moves to the
+ * post's end row (`UpdatesUnsubscribe`), and readers without an account get
+ * one line pointing at an account.
  */
-export function UpdatesSignup({ heading = false }: { heading?: boolean }) {
-	const { account, loading } = useAuth();
-	// undefined while still finding out, so the form never flashes first.
-	const [known, setKnown] = useState<UpdatesMemory | null | undefined>();
-	const signedIn = !!account;
-
-	useEffect(() => {
-		if (loading) return;
-		if (!signedIn) {
-			setKnown(readUpdatesMemory());
-			return;
-		}
-		let live = true;
-		accountUpdates()
-			.catch(() => readUpdatesMemory())
-			.then((answer) => live && setKnown(answer));
-		return () => {
-			live = false;
-		};
-	}, [loading, signedIn]);
-
-	if (known === undefined) return null;
+export function UpdatesSignup({
+	heading = false,
+	inPost = false,
+}: {
+	heading?: boolean;
+	inPost?: boolean;
+}) {
+	const { account } = useAuth();
+	const memory = useKnown();
+	if (memory === undefined) return null;
 	return (
 		<UpdatesSignupForm
 			heading={heading}
 			prefill={account?.email}
-			known={known ?? undefined}
+			memory={memory}
+			start={inPost && !account}
+			unsubscribeHere={!inPost}
 		/>
 	);
 }
 
+/** A post's end-row Unsubscribe, shown only to a reader confirmed on the list. */
+export function UpdatesUnsubscribe() {
+	const memory = useKnown();
+	if (memory?.status !== "confirmed") return null;
+	return (
+		<button
+			type="button"
+			className="writing-end-unsub"
+			onClick={() => void unsubscribe(memory)}
+		>
+			Unsubscribe
+		</button>
+	);
+}
+
+function StartLine() {
+	return (
+		<p className="updates-start">
+			{START_LINE} <Link href="/signin">Start free →</Link>
+		</p>
+	);
+}
+
 /**
- * The form itself, given the address to pre-fill and what is already known
- * about the reader's place on the list (tests render this).
+ * The form itself, given the address to pre-fill and the reader's place on
+ * the list.
  */
-export function UpdatesSignupForm({
-	heading = false,
+function UpdatesSignupForm({
+	heading,
 	prefill,
-	known,
+	memory,
+	start,
+	unsubscribeHere,
 }: {
-	heading?: boolean;
+	heading: boolean;
 	prefill?: string;
-	known?: UpdatesMemory;
+	memory: UpdatesMemory | null;
+	start: boolean;
+	unsubscribeHere: boolean;
 }) {
 	const [typed, setTyped] = useState<string | null>(null);
-	const [status, setStatus] = useState<Status>(known ?? { kind: "idle" });
+	const [status, setStatus] = useState<Status>({ kind: "idle" });
 	const email = typed ?? prefill ?? "";
 
 	function startOver() {
 		forgetUpdates();
+		setKnown(null);
 		setTyped("");
 		setStatus({ kind: "idle" });
 	}
@@ -128,59 +252,32 @@ export function UpdatesSignupForm({
 		}
 	}
 
-	/**
-	 * Unsubscribes in place: the form comes back and a toast offers Undo
-	 * (⌘Z), which puts the reader back on the list with the same token.
-	 */
-	async function unsubscribe(memory: UpdatesMemory & { status: "confirmed" }) {
-		const { email: address, token } = memory;
-		const gone = await postUpdatesToken("unsubscribe", token).catch(() => null);
-		if (!gone) {
-			notify.fail("Couldn't unsubscribe", {
-				desc: "Use the link at the bottom of any update email.",
-			});
-			return;
-		}
-		forgetUpdates();
-		setStatus({ kind: "idle" });
-		notify.done("Unsubscribed", {
-			desc: `${address} won't get posts or launch emails.`,
-			undo: async () => {
-				const back = await postUpdatesToken("resubscribe", token).catch(
-					() => null,
-				);
-				if (!back) {
-					notify.fail("Couldn't resubscribe", {
-						desc: "Subscribe again with the form.",
-					});
-					return;
-				}
-				const again = { status: "confirmed", email: back, token } as const;
-				rememberUpdates(again);
-				setStatus(again);
-				notify.done("Subscribed again", { quick: true });
-			},
-		});
+	if (memory?.status === "confirmed" && !unsubscribeHere) {
+		return start ? (
+			<section id="updates" className="updates-signup updates-quiet">
+				<StartLine />
+			</section>
+		) : null;
 	}
 
-	if ("status" in status) {
+	if (memory) {
 		return (
 			<section id="updates" className="updates-signup updates-quiet">
 				<p className="updates-fine">
-					{status.status === "confirmed" ? (
+					{memory.status === "confirmed" ? (
 						<>
-							You get new posts and launches at {status.email}.{" "}
+							You get new posts and launches at {memory.email}.{" "}
 							<button
 								type="button"
 								className="updates-link"
-								onClick={() => void unsubscribe(status)}
+								onClick={() => void unsubscribe(memory)}
 							>
 								Unsubscribe
 							</button>
 						</>
 					) : (
 						<>
-							Check {status.email} for the confirmation link.{" "}
+							Check {memory.email} for the confirmation link.{" "}
 							<button
 								type="button"
 								className="updates-link"
@@ -191,6 +288,7 @@ export function UpdatesSignupForm({
 						</>
 					)}
 				</p>
+				{start && <StartLine />}
 			</section>
 		);
 	}
@@ -270,6 +368,7 @@ export function UpdatesSignupForm({
 					)}
 				</>
 			)}
+			{start && <StartLine />}
 		</section>
 	);
 }

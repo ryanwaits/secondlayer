@@ -6,7 +6,7 @@ import {
 	longDate,
 } from "@/lib/writing";
 import Link from "next/link";
-import { UpdatesSignup } from "./updates-signup";
+import { UpdatesSignup, UpdatesUnsubscribe } from "./updates-signup";
 
 function Neighbor({ post, label }: { post: WritingPost; label: string }) {
 	return (
@@ -23,7 +23,8 @@ function Neighbor({ post, label }: { post: WritingPost; label: string }) {
 /**
  * The end of a post: the previous and next posts, and where a neighbor is
  * missing, the way back to every post, so the newest post still leads
- * somewhere. Then the post's related pages and the feed.
+ * somewhere. Then the post's related pages and the feed, with Unsubscribe
+ * at the far end for a reader on the list.
  */
 export function PostFooter({ slug }: { slug: string }) {
 	const { prev, next } = getAdjacentPosts(slug);
@@ -40,7 +41,7 @@ export function PostFooter({ slug }: { slug: string }) {
 
 	return (
 		<footer className="writing-end">
-			<UpdatesSignup />
+			<UpdatesSignup inPost />
 			<nav className="writing-next" aria-label="More posts">
 				{prev ? (
 					<Neighbor post={prev} label="← Previous" />
@@ -60,6 +61,7 @@ export function PostFooter({ slug }: { slug: string }) {
 					</Link>
 				))}
 				<a href="/feed.xml">RSS</a>
+				<UpdatesUnsubscribe />
 			</div>
 		</footer>
 	);

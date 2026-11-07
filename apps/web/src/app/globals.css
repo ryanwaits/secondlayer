@@ -3223,6 +3223,24 @@ body:has(.marketing-nav) .auth-bar {
 	margin: 0 10px;
 	color: var(--faint);
 }
+/* A subscribed reader's way off the list, alone at the row's far end. */
+.writing-end-unsub {
+	margin-left: auto;
+	padding: 0;
+	border: 0;
+	background: none;
+	font: inherit;
+	color: var(--pri);
+	cursor: pointer;
+}
+.writing-end-unsub:hover {
+	text-decoration: underline;
+	text-underline-offset: 3px;
+}
+.writing-end-unsub:focus-visible {
+	outline: 2px solid var(--pri);
+	outline-offset: 2px;
+}
 @media (max-width: 640px) {
 	.writing-next {
 		grid-template-columns: minmax(0, 1fr);
@@ -11654,6 +11672,22 @@ button.ky-click:focus-visible,
 	overflow: hidden;
 	clip: rect(0 0 0 0);
 	white-space: nowrap;
+}
+/* End of a post: the one account ask, for readers without an account. */
+.updates-signup .updates-start {
+	margin: 0;
+	font-size: 14.5px;
+	line-height: 1.5;
+	color: var(--sub);
+}
+.updates-signup .updates-start a {
+	color: var(--pri);
+	text-decoration: none;
+	white-space: nowrap;
+}
+.updates-signup .updates-start a:hover {
+	text-decoration: underline;
+	text-underline-offset: 3px;
 }
 .updates-signup .updates-error {
 	margin: 0;
