@@ -27,6 +27,7 @@ import {
 	parseStartBlockOption,
 	parseSubgraphSpecFormat,
 	registerSubgraphsCommand,
+	watchVerdict,
 } from "../src/commands/subgraphs.ts";
 
 describe("subgraphs command helpers", () => {
@@ -506,5 +507,50 @@ describe("subgraphs deploy verification line", () => {
 		expect(formatVerificationStatus(null)).toBe(
 			"unknown (deployed before levels were derived)",
 		);
+	});
+});
+
+describe("status --watch verdict", () => {
+	const healthy = { lastError: null, billingPausedCode: null };
+
+	it("keeps polling while the subgraph is catching up", () => {
+		expect(
+			watchVerdict({
+				status: "active",
+				sync: { status: "catching_up" },
+				health: healthy,
+			}),
+		).toEqual({ kind: "running" });
+	});
+
+	it("ends cleanly once synced", () => {
+		expect(
+			watchVerdict({
+				status: "active",
+				sync: { status: "synced" },
+				health: healthy,
+			}),
+		).toEqual({ kind: "synced" });
+	});
+
+	it("treats error as terminal and carries the last error", () => {
+		const verdict = watchVerdict({
+			status: "error",
+			sync: { status: "error" },
+			health: { lastError: "handler threw", billingPausedCode: null },
+		});
+		expect(verdict).toEqual({
+			kind: "stopped",
+			message: "Subgraph is in error: handler threw",
+		});
+	});
+
+	it("treats a billing pause as terminal", () => {
+		const verdict = watchVerdict({
+			status: "active",
+			sync: { status: "catching_up" },
+			health: { lastError: null, billingPausedCode: "spend_cap_reached" },
+		});
+		expect(verdict.kind).toBe("stopped");
 	});
 });

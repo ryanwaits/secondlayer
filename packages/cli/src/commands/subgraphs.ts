@@ -53,6 +53,7 @@ import type {
 	SubgraphOperationStatus,
 	SubgraphQueryParams,
 } from "../lib/api-client.ts";
+import { createCoalescedRunner } from "../lib/coalesced-runner.ts";
 import { withDerivedAbis } from "../lib/derive-abi.ts";
 import {
 	scaffoldStartBlock,
@@ -92,6 +93,41 @@ import { generateSubgraphStarter } from "../templates/subgraph.ts";
 import { StacksApiClient } from "../utils/api.ts";
 import { formatCode } from "../utils/format.ts";
 import { inferNetwork } from "../utils/network.ts";
+
+export type WatchVerdict =
+	| { kind: "running" }
+	| { kind: "synced" }
+	| { kind: "stopped"; message: string };
+
+/**
+ * What `status --watch` does with a snapshot. `error` and a billing pause
+ * never resolve on their own, so they end the watch with the reason instead
+ * of polling forever.
+ */
+export function watchVerdict(subgraph: {
+	status: string;
+	sync?: { status: string } | null;
+	health: {
+		lastError?: string | null;
+		billingPausedCode?: string | null;
+	};
+}): WatchVerdict {
+	if (subgraph.health.billingPausedCode) {
+		return {
+			kind: "stopped",
+			message: `Subgraph is paused: ${subgraph.health.billingPausedCode.replace(/_/g, " ")}. Fix billing, then re-run.`,
+		};
+	}
+	if (subgraph.status === "error" || subgraph.sync?.status === "error") {
+		return {
+			kind: "stopped",
+			message: `Subgraph is in error: ${subgraph.health.lastError ?? "no error recorded"}`,
+		};
+	}
+	return subgraph.sync?.status === "synced"
+		? { kind: "synced" }
+		: { kind: "running" };
+}
 
 /** Consecutive failed polls `status --watch` rides out before giving up. */
 const WATCH_TRANSIENT_FAILURE_LIMIT = 3;
@@ -1080,8 +1116,11 @@ Examples:
 				}
 			};
 
+			// One deploy at a time; saves during a deploy collapse into one re-run.
+			const runner = createCoalescedRunner(deploySubgraph);
+
 			// Initial deploy
-			await deploySubgraph();
+			await runner.trigger();
 
 			// Watch with debounce
 			let timeout: ReturnType<typeof setTimeout> | null = null;
@@ -1090,7 +1129,7 @@ Examples:
 				timeout = setTimeout(async () => {
 					console.log("");
 					info("File changed, redeploying...");
-					await deploySubgraph();
+					await runner.trigger();
 				}, 300);
 			});
 
@@ -1557,7 +1596,10 @@ Examples:
 		.command("status <name>")
 		.alias("get")
 		.description("Show detailed subgraph status")
-		.option("-w, --watch", "Refresh every 2s until synced or Ctrl-C")
+		.option(
+			"-w, --watch",
+			"Refresh every 2s until synced; exits non-zero on error or a billing pause, or Ctrl-C",
+		)
 		.action(async (name: string, options: { watch?: boolean }) => {
 			const renderOnce = async (opts: { clearScreen?: boolean } = {}) => {
 				const subgraph = await getSubgraphApi(name);
@@ -1672,9 +1714,14 @@ Examples:
 						await new Promise((res) => setTimeout(res, 2000));
 						continue;
 					}
-					if (sg?.sync?.status === "synced") {
+					const verdict = watchVerdict(sg);
+					if (verdict.kind === "synced") {
 						console.log(dim("\nSynced, exiting watch."));
 						return;
+					}
+					if (verdict.kind === "stopped") {
+						error(verdict.message);
+						process.exit(1);
 					}
 					await new Promise((res) => setTimeout(res, 2000));
 				}
