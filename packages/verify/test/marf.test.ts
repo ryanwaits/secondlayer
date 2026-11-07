@@ -15,6 +15,33 @@ import {
 	readJson,
 } from "./fixtures.ts";
 
+/** Splice one Leaf step (04 | chr | path_len u32 BE | path | value) into an encoded proof and bump the u32 count. */
+function withLeaf(
+	proof: Uint8Array,
+	where: "front" | "end",
+	path: Uint8Array,
+	value: Uint8Array,
+): Uint8Array {
+	const step = new Uint8Array(1 + 1 + 4 + path.length + value.length);
+	step[0] = 4;
+	new DataView(step.buffer).setUint32(2, path.length);
+	step.set(path, 6);
+	step.set(value, 6 + path.length);
+	const body = proof.subarray(4);
+	const out = new Uint8Array(4 + body.length + step.length);
+	out.set(proof.subarray(0, 4));
+	const view = new DataView(out.buffer);
+	view.setUint32(0, view.getUint32(0) + 1);
+	if (where === "front") {
+		out.set(step, 4);
+		out.set(body, 4 + step.length);
+	} else {
+		out.set(body, 4);
+		out.set(step, 4 + body.length);
+	}
+	return out;
+}
+
 const headers = loadHeaders();
 
 const cases = listFixtures("proofs").map((f) => {
@@ -98,6 +125,23 @@ describe("verifyMarfProof", () => {
 
 			test("truncated proof bytes verify false instead of throwing", () => {
 				const proof = base.proof.subarray(0, base.proof.length - 1);
+				expect(verifyMarfProof({ ...base, proof })).toBe(false);
+			});
+
+			test("an extra leaf before the real one is rejected", () => {
+				const forged = marfValue(`${fx.data}0`);
+				const proof = withLeaf(base.proof, "front", new Uint8Array(), forged);
+				expect(verifyMarfProof({ ...base, proof, value: forged })).toBe(false);
+			});
+
+			test("an extra leaf with a full path is rejected", () => {
+				const forged = marfValue(`${fx.data}0`);
+				const proof = withLeaf(base.proof, "front", base.path, forged);
+				expect(verifyMarfProof({ ...base, proof, value: forged })).toBe(false);
+			});
+
+			test("a leaf appended after the shunts is rejected", () => {
+				const proof = withLeaf(base.proof, "end", base.path, base.value);
 				expect(verifyMarfProof({ ...base, proof })).toBe(false);
 			});
 

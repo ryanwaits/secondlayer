@@ -176,8 +176,9 @@ function segmentProofHash(step: NodeStep, childHash: Bytes): Bytes | null {
 
 function verifySegment(seg: ProofStep[], start: Bytes): Bytes | null {
 	let h: Bytes | null = start;
-	for (const s of seg) {
+	for (const [k, s] of seg.entries()) {
 		if (s.kind === "Shunt" || !h) return null;
+		if (s.kind === "Leaf" && k !== 0) return null;
 		h = s.kind === "Leaf" ? leafHash(s.path, s.value) : segmentProofHash(s, h);
 	}
 	return h;
@@ -196,6 +197,9 @@ function segmentPathPrefix(seg: ProofStep[]): Bytes | null {
 
 function isWellFormed(p: ProofStep[], expectedPath: Bytes): boolean {
 	if (p[0]?.kind !== "Leaf") return false;
+	// A real proof has one leaf, at step 0. A later leaf would restart the hash
+	// in verifySegment, letting a forged leaf at step 0 carry any value.
+	for (let k = 1; k < p.length; k++) if (p[k]?.kind === "Leaf") return false;
 	let i = 0;
 	let path: Bytes = new Uint8Array();
 	while (i < p.length) {
