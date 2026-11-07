@@ -1,4 +1,5 @@
 import { getSourceDb } from "@secondlayer/shared/db";
+import { resolveChainTip } from "@secondlayer/shared/db/queries/integrity";
 import { logger } from "@secondlayer/shared/logger";
 import { StacksNodeClient } from "@secondlayer/shared/node/client";
 import { LocalClient } from "@secondlayer/shared/node/local-client";
@@ -64,15 +65,7 @@ export function startTipFollower(intervalMs?: number): () => void {
 			if (!chainTip) return;
 
 			const db = getSourceDb();
-			const network = process.env.STACKS_NETWORK || "mainnet";
-			const progress = await db
-				.selectFrom("index_progress")
-				.select("highest_seen_block")
-				.where("network", "=", network)
-				.limit(1)
-				.executeTakeFirst();
-
-			const ourHeight = Number(progress?.highest_seen_block ?? 0);
+			const ourHeight = (await resolveChainTip(db, "seen")) ?? 0;
 			if (chainTip <= ourHeight) return;
 
 			// Log the gap — integrity loop handles actual backfill via archive replay

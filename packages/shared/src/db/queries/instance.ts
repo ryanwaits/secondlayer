@@ -1,4 +1,5 @@
 import type { Kysely } from "kysely";
+import { logger } from "../../logger.ts";
 import type { Database } from "../types.ts";
 
 export const INSTANCE_NETWORKS = ["mainnet", "testnet", "devnet"] as const;
@@ -35,6 +36,28 @@ export function parseInstanceNetwork(value: string): InstanceNetwork {
 		return network as InstanceNetwork;
 	}
 	throw new InvalidInstanceNetworkError(value);
+}
+
+let warnedNetworkFallback = false;
+
+/**
+ * The network key `index_progress` is written under: `STACKS_NETWORK`, else
+ * the deprecated `NETWORK` (logged once so a deployment that only sets it is
+ * not silently re-keyed), else mainnet. Not validated; see
+ * {@link instanceNetworkFromEnv} for the strict form.
+ */
+export function stacksNetworkFromEnv(
+	env: NodeJS.ProcessEnv = process.env,
+): string {
+	if (env.STACKS_NETWORK) return env.STACKS_NETWORK;
+	if (env.NETWORK) {
+		if (!warnedNetworkFallback) {
+			warnedNetworkFallback = true;
+			logger.warn("NETWORK is deprecated: set STACKS_NETWORK instead");
+		}
+		return env.NETWORK;
+	}
+	return "mainnet";
 }
 
 /** STACKS_NETWORK, then NETWORK, then mainnet. */
@@ -116,7 +139,7 @@ export async function hasNoLocalChain(
 ): Promise<boolean> {
 	const env = opts.env ?? process.env;
 	if (!env.SUBGRAPH_INDEX_API_URL) return false;
-	const network = env.NETWORK ?? "mainnet";
+	const network = stacksNetworkFromEnv(env);
 	const hasRow =
 		opts.hasProgressRow ?? ((n: string) => hasLocalProgressRow(db, n));
 	return !(await hasRow(network));

@@ -16,11 +16,13 @@
  *   bun run packages/indexer/src/archive/publish-status.ts --apply
  */
 import { PutObjectCommand } from "@aws-sdk/client-s3";
+import { committedHeight } from "@secondlayer/shared";
 import {
 	type ArchiveStatus,
 	deriveArchiveStatus,
 } from "@secondlayer/shared/archive/status";
 import { closeDbOrTimeout, getSourceDb } from "@secondlayer/shared/db";
+import { resolveChainTip } from "@secondlayer/shared/db/queries/integrity";
 import { signStreamsBulkManifest } from "@secondlayer/shared/streams-bulk-manifest";
 import { FT_TRANSFER_DECODER_NAME } from "../decode/storage.ts";
 import {
@@ -80,14 +82,7 @@ export async function buildStatus(): Promise<ArchiveStatus> {
 		const db = getSourceDb();
 		const bound = await resolveFinalizedBound(db);
 		finalizedHeight = bound.toBlock;
-		const tip = await db
-			.selectFrom("blocks")
-			.select("height")
-			.where("canonical", "=", true)
-			.orderBy("height", "desc")
-			.limit(1)
-			.executeTakeFirst();
-		sourceTipHeight = tip ? Number(tip.height) : null;
+		sourceTipHeight = await resolveChainTip(db, "canonical");
 		// Isolated: a missing checkpoint must not flip the archive to
 		// source-unavailable. The field is informational; state stays archive-derived.
 		decoderHead = await readDecoderHead(db);
@@ -111,14 +106,6 @@ export async function buildStatus(): Promise<ArchiveStatus> {
 	});
 }
 
-/** Same cursor-height parse as Index `getTip` (`decode.ft_transfer.v1`). */
-function cursorBlockHeight(cursor: string | null): number | null {
-	if (!cursor) return null;
-	const [height] = cursor.split(":");
-	if (!height || !/^(0|[1-9]\d*)$/.test(height)) return null;
-	return Number(height);
-}
-
 async function readDecoderHead(
 	db: ReturnType<typeof getSourceDb>,
 ): Promise<number | null> {
@@ -128,7 +115,7 @@ async function readDecoderHead(
 			.select("last_cursor")
 			.where("decoder_name", "=", FT_TRANSFER_DECODER_NAME)
 			.executeTakeFirst();
-		return cursorBlockHeight(checkpoint?.last_cursor ?? null);
+		return committedHeight(checkpoint?.last_cursor ?? null);
 	} catch {
 		return null;
 	}

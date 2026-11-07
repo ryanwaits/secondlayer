@@ -149,6 +149,14 @@ async function runIntegrityCheck() {
 async function recomputeContiguous(db: ReturnType<typeof getSourceDb>) {
 	const network = process.env.STACKS_NETWORK || "mainnet";
 
+	const progress = await db
+		.selectFrom("index_progress")
+		.select("last_contiguous_block")
+		.where("network", "=", network)
+		.executeTakeFirst();
+	if (!progress) return;
+	const read = Number(progress.last_contiguous_block);
+
 	// Find the lowest block we have — supports indexing from arbitrary start height
 	const { rows: minRows } = await sql<{ min_height: string }>`
     SELECT COALESCE(MIN(height), 0) AS min_height FROM blocks WHERE canonical = true
@@ -158,13 +166,34 @@ async function recomputeContiguous(db: ReturnType<typeof getSourceDb>) {
 
 	const tip = await computeContiguousTip(db, fromHeight);
 
-	await db
+	if (await setContiguousIfUnchanged(db, network, read, tip)) {
+		logger.info("Recomputed last_contiguous_block", { tip });
+	} else {
+		logger.info("Skipped last_contiguous_block recompute: cursor moved", {
+			read,
+		});
+	}
+}
+
+/**
+ * Write `last_contiguous_block` only if it still holds the value the tip was
+ * computed against. Block persist advances the same cursor in its own
+ * transaction; an unconditional write here would replace its newer value with
+ * this scan's older answer.
+ */
+export async function setContiguousIfUnchanged(
+	db: ReturnType<typeof getSourceDb>,
+	network: string,
+	expected: number,
+	tip: number,
+): Promise<boolean> {
+	const result = await db
 		.updateTable("index_progress")
 		.set({ last_contiguous_block: tip, updated_at: new Date() })
 		.where("network", "=", network)
-		.execute();
-
-	logger.info("Recomputed last_contiguous_block", { tip });
+		.where("last_contiguous_block", "=", expected)
+		.executeTakeFirst();
+	return Number(result.numUpdatedRows) > 0;
 }
 
 /**

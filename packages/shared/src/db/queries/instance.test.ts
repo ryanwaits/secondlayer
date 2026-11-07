@@ -7,7 +7,24 @@ import {
 	getInstance,
 	instanceNetworkFromEnv,
 	parseInstanceNetwork,
+	stacksNetworkFromEnv,
 } from "./instance.ts";
+
+describe("stacksNetworkFromEnv", () => {
+	test("STACKS_NETWORK wins over the deprecated NETWORK", () => {
+		expect(
+			stacksNetworkFromEnv({ STACKS_NETWORK: "testnet", NETWORK: "devnet" }),
+		).toBe("testnet");
+	});
+
+	test("a deployment that only sets NETWORK keeps its network", () => {
+		expect(stacksNetworkFromEnv({ NETWORK: "testnet" })).toBe("testnet");
+	});
+
+	test("defaults to mainnet", () => {
+		expect(stacksNetworkFromEnv({})).toBe("mainnet");
+	});
+});
 
 describe("parseInstanceNetwork", () => {
 	test("accepts mainnet, testnet, devnet", () => {

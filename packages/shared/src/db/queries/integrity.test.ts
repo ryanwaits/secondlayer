@@ -14,6 +14,7 @@ import {
 	countMissingBlocks,
 	findGaps,
 	findShortBlocks,
+	resolveChainTip,
 } from "./integrity.ts";
 
 const HAS_DB = !!process.env.DATABASE_URL;
@@ -225,5 +226,69 @@ describe.skipIf(!HAS_DB)("findShortBlocks", () => {
 
 		const short = await findShortBlocks(db, { window: null });
 		expect(short.find((s) => s.height === HEALTHY)).toBeUndefined();
+	});
+});
+
+describe.skipIf(!HAS_DB)("resolveChainTip", () => {
+	// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
+	const db = HAS_DB ? getDb() : (null as any);
+	const NETWORK = "chain-tip-test";
+
+	beforeEach(async () => {
+		await sql`DELETE FROM blocks WHERE height IN (70001, 70002)`.execute(db);
+		await sql`DELETE FROM index_progress WHERE network = ${NETWORK}`.execute(
+			db,
+		);
+		await db
+			.insertInto("index_progress")
+			.values({
+				network: NETWORK,
+				last_indexed_block: 70_010,
+				last_contiguous_block: 70_000,
+				highest_seen_block: 70_010,
+			})
+			.execute();
+		for (const [height, canonical] of [
+			[70_001, true],
+			[70_002, false],
+		] as const) {
+			await db
+				.insertInto("blocks")
+				.values({
+					height,
+					hash: `0xtip${height}`,
+					parent_hash: `0xtip${height - 1}`,
+					burn_block_height: height,
+					timestamp: 1_700_000_000,
+					canonical,
+				})
+				.execute();
+		}
+	});
+
+	afterAll(async () => {
+		await sql`DELETE FROM blocks WHERE height IN (70001, 70002)`.execute(db);
+		await sql`DELETE FROM index_progress WHERE network = ${NETWORK}`.execute(
+			db,
+		);
+	});
+
+	test("seen and contiguous read the progress row for the network", async () => {
+		expect(await resolveChainTip(db, "seen", { network: NETWORK })).toBe(
+			70_010,
+		);
+		expect(await resolveChainTip(db, "contiguous", { network: NETWORK })).toBe(
+			70_000,
+		);
+	});
+
+	test("canonical ignores non-canonical blocks", async () => {
+		expect(await resolveChainTip(db, "canonical")).toBe(70_001);
+	});
+
+	test("an unknown network has no seen tip", async () => {
+		expect(
+			await resolveChainTip(db, "seen", { network: "nowhere" }),
+		).toBeNull();
 	});
 });

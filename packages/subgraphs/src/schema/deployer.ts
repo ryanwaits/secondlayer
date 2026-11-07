@@ -1,4 +1,5 @@
 import type { Database } from "@secondlayer/shared/db";
+import { stacksNetworkFromEnv } from "@secondlayer/shared/db/queries/instance";
 import { type Kysely, sql } from "kysely";
 import type {
 	SubgraphDefinition,
@@ -299,7 +300,7 @@ export async function deploySchema(
 					schemaHash: hash,
 					handlerCode: opts.handlerCode,
 					startBlock: def.startBlock,
-					network: opts.network ?? process.env.NETWORK ?? "mainnet",
+					network: opts.network ?? stacksNetworkFromEnv(),
 				}
 			: null;
 	const pin = pinInput ? computePin(pinInput) : null;

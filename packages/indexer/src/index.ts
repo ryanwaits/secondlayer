@@ -5,6 +5,7 @@ import {
 	checkChainDataIntegrity,
 	countMissingBlocks,
 	findGaps,
+	resolveChainTip,
 } from "@secondlayer/shared/db/queries/integrity";
 import type { Gap } from "@secondlayer/shared/db/queries/integrity";
 import {
@@ -197,7 +198,7 @@ async function runStartupIntegrityCheck() {
 		});
 
 		// Initialize lastSeenHeight for out-of-order tracking
-		initIngestState(Number(progress.highest_seen_block));
+		initIngestState((await resolveChainTip(db, "seen")) ?? 0);
 
 		// Wrong/empty-volume guard: if the tip is high but the deep history it
 		// implies is missing, we're almost certainly pointed at a fresh or wrong

@@ -1,5 +1,6 @@
 import { committedHeight } from "@secondlayer/shared";
 import { getSourceDb } from "@secondlayer/shared/db";
+import { resolveChainTip } from "@secondlayer/shared/db/queries/integrity";
 import type { Database } from "@secondlayer/shared/db/schema";
 import type { Kysely } from "kysely";
 import { BNS_DECODER_NAME } from "./bns-storage.ts";
@@ -65,13 +66,16 @@ export async function getDecoderHealth(opts?: {
 		checkpoint?.last_cursor ?? null,
 	);
 
-	const tip = await db
-		.selectFrom("blocks")
-		.select(["height", "timestamp"])
-		.where("canonical", "=", true)
-		.orderBy("height", "desc")
-		.limit(1)
-		.executeTakeFirst();
+	const tipHeight = await resolveChainTip(db, "canonical");
+	const tip =
+		tipHeight === null
+			? undefined
+			: await db
+					.selectFrom("blocks")
+					.select(["height", "timestamp"])
+					.where("height", "=", tipHeight)
+					.where("canonical", "=", true)
+					.executeTakeFirst();
 
 	const latestDecoded = await readLatestDecodedAt({ db, decoderName });
 

@@ -1,5 +1,6 @@
 import { getSourceDb } from "@secondlayer/shared/db";
 import type { Transaction } from "@secondlayer/shared/db";
+import { resolveChainTip } from "@secondlayer/shared/db/queries/integrity";
 import {
 	BillingPausedError,
 	type IndexEventRow,
@@ -257,12 +258,7 @@ export class PostgresBlockSource implements BlockSource {
 	constructor(private readonly feed?: StateWriteFeed | undefined) {}
 
 	async getTip(): Promise<number> {
-		const progress = await getSourceDb()
-			.selectFrom("index_progress")
-			.selectAll()
-			.where("network", "=", process.env.NETWORK ?? "mainnet")
-			.executeTakeFirst();
-		return progress ? Number(progress.highest_seen_block) : 0;
+		return (await resolveChainTip(getSourceDb(), "seen")) ?? 0;
 	}
 
 	loadBlockRange(

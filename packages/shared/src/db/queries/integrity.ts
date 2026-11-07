@@ -1,10 +1,49 @@
 import { type Kysely, sql } from "kysely";
 import type { Database } from "../types.ts";
+import { stacksNetworkFromEnv } from "./instance.ts";
 
 export interface Gap {
 	gapStart: number;
 	gapEnd: number;
 	size: number;
+}
+
+/**
+ * The three honest answers to "what is the chain tip", so no reader derives its
+ * own:
+ *
+ *   seen        highest block height the indexer has received (`index_progress`)
+ *   canonical   highest block currently canonical in `blocks`
+ *   contiguous  highest height with no gap below it (`index_progress`)
+ *
+ * `null` when nothing is recorded yet. The node's own tip is a different
+ * question (it needs RPC) and is not answered here.
+ */
+export type ChainTipKind = "seen" | "canonical" | "contiguous";
+
+export async function resolveChainTip(
+	db: Kysely<Database>,
+	kind: ChainTipKind,
+	opts: { network?: string } = {},
+): Promise<number | null> {
+	if (kind === "canonical") {
+		const row = await db
+			.selectFrom("blocks")
+			.select("height")
+			.where("canonical", "=", true)
+			.orderBy("height", "desc")
+			.limit(1)
+			.executeTakeFirst();
+		return row ? Number(row.height) : null;
+	}
+	const column =
+		kind === "seen" ? "highest_seen_block" : "last_contiguous_block";
+	const row = await db
+		.selectFrom("index_progress")
+		.select(column)
+		.where("network", "=", opts.network ?? stacksNetworkFromEnv())
+		.executeTakeFirst();
+	return row ? Number(row[column]) : null;
 }
 
 export async function findGaps(

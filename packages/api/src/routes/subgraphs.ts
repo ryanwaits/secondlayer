@@ -9,6 +9,7 @@ import {
 import { bucketHourly, getErrorMessage, logger } from "@secondlayer/shared";
 import { getDb, getSourceDb } from "@secondlayer/shared/db";
 import type { Subgraph, SubgraphOperation } from "@secondlayer/shared/db";
+import { stacksNetworkFromEnv } from "@secondlayer/shared/db/queries/instance";
 import {
 	countSubgraphMissingBlocks,
 	findSubgraphGaps,
@@ -283,7 +284,7 @@ export async function getChainTip(now: number = Date.now()): Promise<number> {
 		return chainTipCache.value;
 	}
 
-	const network = process.env.NETWORK ?? "mainnet";
+	const network = stacksNetworkFromEnv();
 	const selectTip = (db: ReturnType<typeof getDb>) =>
 		db
 			.selectFrom("index_progress")
