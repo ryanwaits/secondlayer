@@ -46,12 +46,16 @@ import {
 	ensureControlSchema,
 	getControlDb,
 	getTenant,
-	listPollableTenants,
 	listRunningTenants,
 } from "./control-db.ts";
 import { createFailedRequestRecorder } from "./failed-requests.ts";
 import { handleGatewayRequest } from "./gateway.ts";
 import { IntrospectClient } from "./introspect-client.ts";
+import {
+	DAILY_JOB_TICK_MS,
+	createBackupTick,
+	createStorageSampleTick,
+} from "./loops.ts";
 import {
 	DEFAULT_PENDING_CAP,
 	DrainWindow,
@@ -65,7 +69,6 @@ import {
 	logDroppedMeters,
 	mergePending,
 	sampleMemoryGbHour,
-	sampleStorageGbDay,
 	sampleTenantDatabaseBytes,
 	sampleTenantMemoryBytes,
 } from "./meters.ts";
@@ -97,11 +100,9 @@ import { createWebhookIncidentWatch } from "./webhook-incident-watch.ts";
 const METER_FLUSH_INTERVAL_MS = 60_000;
 const MEMORY_SAMPLE_INTERVAL_MS = 60_000;
 const MEMORY_FLUSH_INTERVAL_MS = 60 * 60_000; // hourly (Design)
-const STORAGE_SAMPLE_INTERVAL_MS = 24 * 60 * 60_000; // daily (Design)
 const CREDITS_POLL_INTERVAL_MS = 5 * 60_000; // Design: "every 5 min"
 const WEBHOOK_INCIDENT_INTERVAL_MS = 60_000;
 const PUSH_WATCH_INTERVAL_MS = 60_000;
-const BACKUP_INTERVAL_MS = 24 * 60 * 60_000; // nightly pg_dump per tenant
 const SHUTDOWN_FLUSH_TIMEOUT_MS = 5_000;
 /** Longest shutdown waits for an in-flight tenant upgrade round: one
  *  `docker compose up -d --wait` plus a rollback up. Must stay below the
@@ -432,73 +433,35 @@ async function main(): Promise<void> {
 		);
 	}, MEMORY_FLUSH_INTERVAL_MS);
 
-	// Storage meter (review fix 4): sample + flush daily.
-	let storagePending: MeterBatchItem[] = [];
-	const storageLoop = setInterval(async () => {
-		let running: TenantRow[];
-		try {
-			running = await listRunningTenants(db);
-		} catch (err) {
-			logger.error("workload.meters.storage_sample_list_failed", {
-				error: err instanceof Error ? err.message : String(err),
-			});
-			return;
-		}
-		const fresh: MeterBatchItem[] = [];
-		for (const tenant of running) {
-			try {
-				const item = await sampleStorageGbDay(tenant.account_id, (accountId) =>
-					sampleTenantDatabaseBytes(acct8For(accountId)),
-				);
-				fresh.push(item);
-			} catch (err) {
-				logger.error("workload.meters.storage_sample_failed", {
-					accountId: tenant.account_id,
-					error: err instanceof Error ? err.message : String(err),
-				});
-			}
-		}
-		const { items, dropped } = mergePending(
-			storagePending,
-			fresh,
-			DEFAULT_PENDING_CAP,
-		);
-		logDroppedMeters("pending_overflow:storage", dropped);
-		storagePending = await flushAll(
-			{ appServerUrl, workloadHostKey },
-			items,
-			MAX_METER_BATCH,
-		);
-	}, STORAGE_SAMPLE_INTERVAL_MS);
+	// Storage meter + nightly backups: short ticks that do the work when a
+	// tenant's last-done marker in the control DB is older than the current UTC
+	// day, so a restart neither skips a day nor repeats one. Each also runs once
+	// at boot.
+	const storageSample = createStorageSampleTick({
+		db,
+		sampleBytes: (accountId) => sampleTenantDatabaseBytes(acct8For(accountId)),
+		flush: (items) =>
+			flushAll({ appServerUrl, workloadHostKey }, items, MAX_METER_BATCH),
+		onSkip: () => logger.warn("workload.meters.storage_tick_skipped_overlap"),
+	});
+	void storageSample.tick();
+	const storageLoop = setInterval(storageSample.tick, DAILY_JOB_TICK_MS);
 
-	// Nightly tenant backups: every running or stopped tenant (a stopped
-	// stack keeps its postgres up), then the 30-day sweep of destroy-time
-	// dumps. One tenant's failure never skips the rest.
-	const backupLoop = setInterval(async () => {
-		if (!backups) return;
-		let tenants: TenantRow[];
-		try {
-			tenants = await listPollableTenants(db);
-		} catch (err) {
-			logger.error("workload.backup.list_failed", {
-				error: err instanceof Error ? err.message : String(err),
-			});
-			return;
-		}
-		for (const tenant of tenants) {
-			await backupTenant(backups, acct8For(tenant.account_id)).catch((err) => {
-				logger.error("workload.backup.failed", {
-					accountId: tenant.account_id,
-					error: err instanceof Error ? err.message : String(err),
-				});
-			});
-		}
-		await pruneFinalBackups(backups).catch((err) => {
-			logger.error("workload.backup.prune_final_failed", {
-				error: err instanceof Error ? err.message : String(err),
-			});
-		});
-	}, BACKUP_INTERVAL_MS);
+	// Backups cover every running or stopped tenant (a stopped stack keeps its
+	// postgres), then the 30-day sweep of destroy-time dumps.
+	const backupTick = backups
+		? createBackupTick({
+				db,
+				backups,
+				backup: backupTenant,
+				pruneFinal: pruneFinalBackups,
+				onSkip: () => logger.warn("workload.backup.tick_skipped_overlap"),
+			})
+		: null;
+	if (backupTick) void backupTick();
+	const backupLoop = backupTick
+		? setInterval(backupTick, DAILY_JOB_TICK_MS)
+		: null;
 
 	// Zero-balance / top-up poll (review fix 3a): running→stopped,
 	// stopped→running, every 5 minutes (Design). Piggybacks the target-sha
@@ -580,7 +543,7 @@ async function main(): Promise<void> {
 		clearInterval(memorySampleLoop);
 		clearInterval(memoryFlushLoop);
 		clearInterval(storageLoop);
-		clearInterval(backupLoop);
+		if (backupLoop) clearInterval(backupLoop);
 		clearInterval(creditsPollLoop);
 		clearInterval(webhookIncidentLoop);
 		clearInterval(pushWatchLoop);
@@ -606,7 +569,7 @@ async function main(): Promise<void> {
 			eventPending,
 			memory: memoryAccumulator,
 			memoryPending,
-			storagePending,
+			storagePending: storageSample.pending(),
 		});
 		await flushOnShutdown(
 			{ appServerUrl, workloadHostKey },

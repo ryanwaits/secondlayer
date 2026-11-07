@@ -85,6 +85,12 @@ export interface TenantRow {
 	 *  subgraph count. Picks the compose profile (`subgraph-processor` runs
 	 *  only when true) and the memory floor (`stackMemoryFloorGb`). */
 	has_subgraphs: boolean;
+	/** UTC calendar day of the last storage sample that reached the platform
+	 *  (`storage.gb_day` is one row per day). `null` until the first one. */
+	last_storage_sample_day: Date | null;
+	/** When the last nightly dump of this tenant's database finished. `null`
+	 *  until the first one. */
+	last_backup_at: Date | null;
 }
 
 /** First 8 hex chars of the account id with non-hex characters stripped —
@@ -185,6 +191,10 @@ export async function ensureControlSchema(db: postgres.Sql): Promise<void> {
 		DEFAULT nextval('tenant_subnet_seq')
 	`;
 	await db`ALTER TABLE tenants ALTER COLUMN subnet_idx SET NOT NULL`;
+	// Daily jobs (storage sample, backup) read these on every short tick, so a
+	// restart never skips a day and never repeats one.
+	await db`ALTER TABLE tenants ADD COLUMN IF NOT EXISTS last_storage_sample_day DATE`;
+	await db`ALTER TABLE tenants ADD COLUMN IF NOT EXISTS last_backup_at TIMESTAMPTZ`;
 	await ensureStateChecks(db);
 }
 
@@ -399,6 +409,72 @@ export async function listProvisioningTenants(
 ): Promise<TenantRow[]> {
 	return db<TenantRow[]>`
 		SELECT * FROM tenants WHERE state = 'provisioning'
+		ORDER BY created_at ASC
+	`;
+}
+
+/** `YYYY-MM-DD` of `now` in UTC: the day a storage sample belongs to
+ *  (`storageIdempotencyKey` uses the same day). */
+export function utcDay(now: Date): string {
+	return now.toISOString().slice(0, 10);
+}
+
+/** Running tenants with no storage sample for the current UTC day. */
+export async function listTenantsDueStorageSample(
+	db: postgres.Sql,
+	now: Date,
+): Promise<TenantRow[]> {
+	return db<TenantRow[]>`
+		SELECT * FROM tenants
+		WHERE state = 'running'
+			AND (last_storage_sample_day IS NULL OR last_storage_sample_day < ${utcDay(now)}::date)
+		ORDER BY created_at ASC
+	`;
+}
+
+export async function markStorageSampled(
+	db: postgres.Sql,
+	accountId: string,
+	now: Date,
+): Promise<void> {
+	await db`UPDATE tenants SET last_storage_sample_day = ${utcDay(now)}::date WHERE account_id = ${accountId}`;
+}
+
+/** Running or stopped tenants (a stopped stack keeps its postgres) whose last
+ *  dump predates the current UTC day. */
+export async function listTenantsDueBackup(
+	db: postgres.Sql,
+	now: Date,
+): Promise<TenantRow[]> {
+	const startOfUtcDay = new Date(`${utcDay(now)}T00:00:00.000Z`);
+	return db<TenantRow[]>`
+		SELECT * FROM tenants
+		WHERE state IN ('running', 'stopped')
+			AND (last_backup_at IS NULL OR last_backup_at < ${startOfUtcDay})
+		ORDER BY created_at ASC
+	`;
+}
+
+export async function markBackedUp(
+	db: postgres.Sql,
+	accountId: string,
+	at: Date,
+): Promise<void> {
+	await db`UPDATE tenants SET last_backup_at = ${at} WHERE account_id = ${accountId}`;
+}
+
+/** Tenants with no good dump inside `maxAgeMs`: older than that, or never
+ *  dumped and created longer ago than that. */
+export async function listTenantsWithStaleBackup(
+	db: postgres.Sql,
+	now: Date,
+	maxAgeMs: number,
+): Promise<TenantRow[]> {
+	const cutoff = new Date(now.getTime() - maxAgeMs);
+	return db<TenantRow[]>`
+		SELECT * FROM tenants
+		WHERE state IN ('running', 'stopped')
+			AND COALESCE(last_backup_at, created_at) < ${cutoff}
 		ORDER BY created_at ASC
 	`;
 }
