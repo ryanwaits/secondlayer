@@ -546,6 +546,33 @@ export async function deliverTestEvent(
 	};
 }
 
+/** The claim token a claimed row was handed to the queue with. Unique per
+ *  claim pass, so a settle can prove it still holds the row. */
+function claimOf(row: WebhookOutbox): string {
+	if (!row.locked_by) throw new Error(`outbox row ${row.id} has no claim`);
+	return row.locked_by;
+}
+
+/** Push a queued row's lock out a full window from now, but only if this claim
+ *  still holds it. A row can wait in memory behind a slow receiver for longer
+ *  than the lock window it was claimed under; extending at dequeue keeps it
+ *  from being re-claimed mid-delivery. False = the row was killed (reorg),
+ *  settled, or re-claimed meanwhile and must not be sent. */
+async function extendLease(
+	db: Kysely<Database>,
+	row: WebhookOutbox,
+): Promise<boolean> {
+	const lockUntil = new Date(Date.now() + LOCK_WINDOW_MS);
+	const result = await db
+		.updateTable("webhook_outbox")
+		.set({ locked_until: lockUntil, next_attempt_at: lockUntil })
+		.where("id", "=", row.id)
+		.where("status", "=", "pending")
+		.where("locked_by", "=", claimOf(row))
+		.executeTakeFirst();
+	return Number(result.numUpdatedRows ?? 0) > 0;
+}
+
 async function settleDelivered(
 	db: Kysely<Database>,
 	outboxRow: WebhookOutbox,
@@ -563,9 +590,12 @@ async function settleDelivered(
 			// Guard against a reorg that marked this row `dead` (orphaned) while
 			// the POST was in flight — settling a delivery outcome must never
 			// resurrect a row the reorg already decided is gone. `status='pending'`
-			// is the only state a claimed row can settle from.
+			// is the only state a claimed row can settle from, and only the claim
+			// that dispatched it may settle it: a lapsed lock re-claimed by a newer
+			// claim stays that claim's.
 			.where("id", "=", outboxRow.id)
 			.where("status", "=", "pending")
+			.where("locked_by", "=", claimOf(outboxRow))
 			.executeTakeFirst();
 		if (Number(result.numUpdatedRows ?? 0) === 0) {
 			logger.info("webhook.settle.orphaned", {
@@ -622,6 +652,7 @@ async function settleFailed(
 			// the POST was in flight — see the matching guard in `settleDelivered`.
 			.where("id", "=", outboxRow.id)
 			.where("status", "=", "pending")
+			.where("locked_by", "=", claimOf(outboxRow))
 			.executeTakeFirst();
 		if (Number(result.numUpdatedRows ?? 0) === 0) {
 			logger.info("webhook.settle.orphaned", {
@@ -804,6 +835,9 @@ async function claimAndDispatchOnce(
 	// 90/10 live vs replay so a big replay doesn't starve live emits.
 	const liveLimit = Math.max(1, Math.round(BATCH_SIZE * LIVE_SHARE));
 	const replayLimit = BATCH_SIZE - liveLimit;
+	// One token per claim pass, not per emitter: a row re-claimed after its lock
+	// lapsed must not look like the same claim to the stale worker still holding it.
+	const claimToken = `${emitterId}:${randomUUID()}`;
 	const { combined, liveCount, replayCount } = await db
 		.transaction()
 		.execute(async (tx) => {
@@ -843,7 +877,7 @@ async function claimAndDispatchOnce(
 			await tx
 				.updateTable("webhook_outbox")
 				.set({
-					locked_by: emitterId,
+					locked_by: claimToken,
 					locked_until: lockUntil,
 					next_attempt_at: lockUntil,
 				})
@@ -854,7 +888,7 @@ async function claimAndDispatchOnce(
 				)
 				.execute();
 			return {
-				combined: rows,
+				combined: rows.map((r) => ({ ...r, locked_by: claimToken })),
 				liveCount: live.rows.length,
 				replayCount: replay.rows.length,
 			};
@@ -1012,6 +1046,13 @@ async function runOne(
 	row: WebhookOutbox,
 ): Promise<void> {
 	try {
+		if (!(await extendLease(db, row))) {
+			logger.info("webhook.dispatch.lost_claim", {
+				outboxId: row.id,
+				webhookId: row.webhook_id,
+			});
+			return;
+		}
 		const result = await dispatchOne(db, row, sq.sub);
 		if (result.ok) {
 			await settleDelivered(db, row);
