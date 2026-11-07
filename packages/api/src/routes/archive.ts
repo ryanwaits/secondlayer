@@ -166,7 +166,11 @@ function parseArchiveRequestBody(
 	// tripping the migration's UNIQUE constraint and 500ing a paid route on a
 	// malformed-but-plausible input. A batch that dedupes to fewer paths is
 	// still a valid (non-empty, checked above) batch.
-	return { paths: [...new Set(paths)], flow };
+	//
+	// Deduped on the manifest-relative form: the full key and the relative
+	// path name the same partition, so both spellings must collapse to one
+	// charge and one 24h re-issue window.
+	return { paths: [...new Set(paths.map(stripArchivePrefix))], flow };
 }
 
 /** Thrown inside the charge transaction when the aggregate debit for a

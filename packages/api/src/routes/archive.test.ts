@@ -45,6 +45,11 @@ function partitionPath(
 	return `${PREFIX}/${dataset}/${from}-${to}-${suffix}.parquet`;
 }
 
+/** The relative form the router stores and answers with for a full key. */
+function relativeOf(fullKey: string): string {
+	return fullKey.slice(PREFIX.length + 1);
+}
+
 /** The manifest-relative form the CLI actually sends (`export-snapshot.ts`'s
  *  `partition.path` — no archive prefix). */
 function relativePartitionPath(
@@ -375,9 +380,70 @@ describe.skipIf(!HAS_DB)("POST /fetch", () => {
 			.selectFrom("archive_fetches")
 			.select("id")
 			.where("account_id", "=", accountId)
-			.where("path", "=", path)
+			.where("path", "=", relativeOf(path))
 			.execute();
 		expect(rows).toHaveLength(1);
+		expect(await getCredits(db, accountId)).toBe(10_000_000n - 50_000n);
+	});
+
+	test("a partition sent as both its full key and its relative path is charged once", async () => {
+		const accountId = await makeAccount();
+		await creditCredits(db, accountId, 10_000_000n);
+		const app = buildTestApp({ accountId });
+
+		const relative = relativePartitionPath(
+			"blocks",
+			0,
+			50_000,
+			"2500000000000001",
+		);
+		const res = await postJson(app, "/fetch", {
+			flow: "bootstrap",
+			paths: [`${PREFIX}/${relative}`, relative],
+		});
+
+		expect(res.status).toBe(200);
+		const body = (await res.json()) as {
+			urls: Array<{ path: string }>;
+			charged_total_usd_micros: number;
+		};
+		expect(body.urls).toHaveLength(1);
+		expect(body.charged_total_usd_micros).toBe(50_000);
+
+		const rows = await db
+			.selectFrom("archive_fetches")
+			.select("id")
+			.where("account_id", "=", accountId)
+			.execute();
+		expect(rows).toHaveLength(1);
+		expect(await getCredits(db, accountId)).toBe(10_000_000n - 50_000n);
+	});
+
+	test("a charged partition re-fetched under its other spelling inside 24h is free", async () => {
+		const accountId = await makeAccount();
+		await creditCredits(db, accountId, 10_000_000n);
+		const appAtT0 = buildTestApp({
+			accountId,
+			options: { now: () => new Date("2026-08-16T12:00:00.000Z") },
+		});
+		const app = buildTestApp({
+			accountId,
+			options: { now: () => new Date("2026-08-16T13:00:00.000Z") },
+		});
+
+		const relative = relativePartitionPath(
+			"blocks",
+			0,
+			50_000,
+			"3500000000000001",
+		);
+		await postJson(appAtT0, "/fetch", { flow: "bootstrap", paths: [relative] });
+		const again = await postJson(app, "/fetch", {
+			flow: "bootstrap",
+			paths: [`${PREFIX}/${relative}`],
+		});
+
+		expect(again.status).toBe(200);
 		expect(await getCredits(db, accountId)).toBe(10_000_000n - 50_000n);
 	});
 
@@ -533,20 +599,22 @@ describe.skipIf(!HAS_DB)("POST /fetch", () => {
 		const byPath = new Map(
 			body.urls.map((u) => [u.path, u.charged_usd_micros]),
 		);
-		expect(byPath.get(twentyFourth)).toBe(0);
-		expect(byPath.get(twentyFifth)).toBe(150_000);
+		expect(byPath.get(relativeOf(twentyFourth))).toBe(0);
+		expect(byPath.get(relativeOf(twentyFifth))).toBe(150_000);
 
 		const rows = await db
 			.selectFrom("archive_fetches")
 			.select(["path", "via_allowance", "usd_micros"])
 			.where("account_id", "=", accountId)
-			.where("path", "in", [twentyFourth, twentyFifth])
+			.where("path", "in", [relativeOf(twentyFourth), relativeOf(twentyFifth)])
 			.execute();
 		const rowByPath = new Map(rows.map((r) => [r.path, r]));
-		expect(rowByPath.get(twentyFourth)?.via_allowance).toBe(true);
-		expect(Number(rowByPath.get(twentyFourth)?.usd_micros)).toBe(0);
-		expect(rowByPath.get(twentyFifth)?.via_allowance).toBe(false);
-		expect(Number(rowByPath.get(twentyFifth)?.usd_micros)).toBe(150_000);
+		expect(rowByPath.get(relativeOf(twentyFourth))?.via_allowance).toBe(true);
+		expect(Number(rowByPath.get(relativeOf(twentyFourth))?.usd_micros)).toBe(0);
+		expect(rowByPath.get(relativeOf(twentyFifth))?.via_allowance).toBe(false);
+		expect(Number(rowByPath.get(relativeOf(twentyFifth))?.usd_micros)).toBe(
+			150_000,
+		);
 	});
 
 	test("batch of 65 paths → 413", async () => {
