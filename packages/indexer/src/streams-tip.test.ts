@@ -41,3 +41,49 @@ describe.skipIf(!HAS_DB)("getCurrentCanonicalTip", () => {
 		});
 	});
 });
+
+describe.skipIf(!HAS_DB)(
+	"getCurrentCanonicalTip with a hole in the chain",
+	() => {
+		test("stops at the last contiguous block, not the highest canonical block", async () => {
+			const db = getDb();
+			await sql`DELETE FROM events`.execute(db);
+			await sql`DELETE FROM transactions`.execute(db);
+			await sql`DELETE FROM blocks`.execute(db);
+			const network = process.env.STACKS_NETWORK || "mainnet";
+			await sql`DELETE FROM index_progress WHERE network = ${network}`.execute(
+				db,
+			);
+
+			await db
+				.insertInto("blocks")
+				.values(
+					[1, 2, 4].map((height) => ({
+						height,
+						hash: `0x0${height}`,
+						parent_hash: `0x0${height - 1}`,
+						burn_block_height: 1000 + height,
+						timestamp: height,
+						canonical: true,
+					})),
+				)
+				.execute();
+			await db
+				.insertInto("index_progress")
+				.values({
+					network,
+					last_indexed_block: 4,
+					last_contiguous_block: 2,
+					highest_seen_block: 4,
+				})
+				.execute();
+
+			const tip = await getCurrentCanonicalTip(db);
+			expect(tip?.block_height).toBe(2);
+
+			await sql`DELETE FROM index_progress WHERE network = ${network}`.execute(
+				db,
+			);
+		});
+	},
+);

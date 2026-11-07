@@ -158,7 +158,7 @@ async function runReorgCascade(
 }
 
 /** Why a height's canonical block changed outside live ingest. */
-export type CanonicalChangeCause = "fork_repair";
+export type CanonicalChangeCause = "fork_repair" | "orphan_reclaim";
 
 /**
  * The one way to replace a height's canonical block outside live ingest. Takes

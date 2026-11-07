@@ -1,4 +1,5 @@
 import { getSourceDb } from "@secondlayer/shared/db";
+import { resolveChainTip } from "@secondlayer/shared/db/queries/integrity";
 import type { Database } from "@secondlayer/shared/db/schema";
 import type { Kysely } from "kysely";
 
@@ -9,16 +10,24 @@ export type IndexerStreamsTipBlock = {
 	ts: Date;
 };
 
+/**
+ * The tip every consumer of the raw plane reads (decoders, Streams, Index,
+ * the bulk export): the highest canonical block at or below
+ * `last_contiguous_block`. A late-arriving block above a hole must not let
+ * a consumer advance its cursor past the missing height, or the hole's
+ * events would never be read once it fills. With no `index_progress` row
+ * (nothing ingested through `persistBlock` yet) the bound does not apply.
+ */
 export async function getCurrentCanonicalTip(
 	db: Kysely<Database> = getSourceDb(),
 ): Promise<IndexerStreamsTipBlock | null> {
-	const row = await db
+	const contiguous = await resolveChainTip(db, "contiguous");
+	let query = db
 		.selectFrom("blocks")
 		.select(["height", "hash", "burn_block_height", "timestamp"])
-		.where("canonical", "=", true)
-		.orderBy("height", "desc")
-		.limit(1)
-		.executeTakeFirst();
+		.where("canonical", "=", true);
+	if (contiguous !== null) query = query.where("height", "<=", contiguous);
+	const row = await query.orderBy("height", "desc").limit(1).executeTakeFirst();
 
 	if (!row) return null;
 

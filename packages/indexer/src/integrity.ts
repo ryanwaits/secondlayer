@@ -10,6 +10,7 @@ import type { Gap, ShortBlock } from "@secondlayer/shared/db/queries/integrity";
 import { logger } from "@secondlayer/shared/logger";
 import { LocalClient } from "@secondlayer/shared/node/local-client";
 import { ingestNewBlock } from "./ingest.ts";
+import { applyCanonicalChange } from "./reorg.ts";
 import type { NewBlockPayload } from "./types/node-events.ts";
 
 // Auto-backfill state (visible to /health/integrity)
@@ -221,18 +222,34 @@ export async function reclaimLinkedOrphans(
 	const reclaimed: number[] = [];
 	// Descending: reclaiming h+1 first is what lets h prove itself next.
 	for (const height of [...heights].sort((a, b) => b - a)) {
-		const { rows } = await sql<{ reclaimed: number | string | null }>`
-			UPDATE blocks AS orphan
-				 SET canonical = true
-			 FROM blocks AS child
-			WHERE orphan.height = ${height}
-				AND orphan.canonical = false
-				AND child.height = ${height} + 1
-				AND child.canonical = true
-				AND child.parent_hash = orphan.hash
-			RETURNING orphan.height AS reclaimed
+		const { rows } = await sql<{ hash: string }>`
+			SELECT orphan.hash
+			  FROM blocks AS orphan
+			  JOIN blocks AS child
+			    ON child.height = orphan.height + 1
+			   AND child.canonical = true
+			   AND child.parent_hash = orphan.hash
+			 WHERE orphan.height = ${height}
+			   AND orphan.canonical = false
 		`.execute(db);
-		if (rows.length > 0) reclaimed.push(height);
+		const hash = rows[0]?.hash;
+		if (!hash) continue;
+		// Through the canonical-change path: a bare flag flip would leave every
+		// decoded plane, subgraph and Streams cursor positioned past a height
+		// that just gained its events.
+		await applyCanonicalChange(db, {
+			height,
+			oldHash: hash,
+			newHash: hash,
+			cause: "orphan_reclaim",
+			write: async (tx) => {
+				await sql`
+					UPDATE blocks SET canonical = true
+					 WHERE height = ${height} AND hash = ${hash}
+				`.execute(tx);
+			},
+		});
+		reclaimed.push(height);
 	}
 	reclaimed.sort((a, b) => a - b);
 

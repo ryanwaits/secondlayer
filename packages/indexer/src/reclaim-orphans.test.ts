@@ -27,6 +27,9 @@ describe.skipIf(!HAS_DB)("reclaimLinkedOrphans", () => {
 		await sql`DELETE FROM blocks WHERE height BETWEEN ${BASE} AND ${BASE + 10}`.execute(
 			db,
 		);
+		await sql`DELETE FROM chain_reorgs WHERE fork_point_height BETWEEN ${BASE} AND ${BASE + 10}`.execute(
+			db,
+		);
 	});
 
 	async function seed(
@@ -104,5 +107,21 @@ describe.skipIf(!HAS_DB)("reclaimLinkedOrphans", () => {
 
 		expect(await reclaimLinkedOrphans(getSourceDb(), [BASE + 1])).toEqual([]);
 		expect(await canonicalAt(BASE + 1)).toBe(false);
+	});
+
+	test("records a reorg for each reclaimed height so derived planes rewind", async () => {
+		await seed([
+			{ height: BASE, hash: "0xa", parent: "0x0", canon: true },
+			{ height: BASE + 1, hash: "0xb", parent: "0xa", canon: false },
+			{ height: BASE + 2, hash: "0xc", parent: "0xb", canon: true },
+		]);
+
+		await reclaimLinkedOrphans(getSourceDb(), [BASE + 1]);
+
+		const { rows } = await sql<{ fork_point_height: string | number }>`
+			SELECT fork_point_height FROM chain_reorgs
+			 WHERE fork_point_height BETWEEN ${BASE} AND ${BASE + 10}
+		`.execute(getSourceDb());
+		expect(rows.map((r) => Number(r.fork_point_height))).toEqual([BASE + 1]);
 	});
 });
