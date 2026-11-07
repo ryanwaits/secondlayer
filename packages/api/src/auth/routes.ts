@@ -3,6 +3,7 @@ import { getDb, sql } from "@secondlayer/shared/db";
 import { AuthorizationError, RateLimitError } from "@secondlayer/shared/errors";
 import { type Context, Hono } from "hono";
 import { z } from "zod";
+import { trackProductEvent } from "../lib/product-events.ts";
 import { getClientIp } from "./http.ts";
 import { requireAuth } from "./middleware.ts";
 import {
@@ -71,6 +72,10 @@ app.post("/", requireAuth(), async (c) => {
 		product: resolveMintProduct(caller, parsed.product),
 		ip: getClientIp(c),
 	});
+	trackProductEvent(
+		{ distinctId: accountId },
+		{ event: "api_key_created", properties: { product: minted.product } },
+	);
 
 	return c.json(minted, 201);
 });
@@ -103,6 +108,10 @@ app.post("/docs", requireAuth(), async (c) => {
 		accountId,
 		ip: getClientIp(c),
 	});
+	trackProductEvent(
+		{ distinctId: accountId },
+		{ event: "docs_key_minted", properties: { signed_in: true } },
+	);
 	return c.json(
 		{ key: minted.key, prefix: minted.prefix, expiresAt: minted.expiresAt },
 		201,

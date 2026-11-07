@@ -21,6 +21,7 @@ import {
 import { getDb } from "@secondlayer/shared/db";
 import { isPlatformMode } from "@secondlayer/shared/mode";
 import { DOCS_KEY_TTL_MS } from "../auth/mint.ts";
+import { productEventsEnabled, trackProductEvent } from "./product-events.ts";
 
 export {
 	MIN_CREDITED_USD_MICROS,
@@ -90,7 +91,7 @@ export async function meterRowsDelivered(
 	apiKeyId?: string | null,
 ): Promise<void> {
 	if (rows <= 0) return;
-	await meter(getDb(), {
+	const { ledgerId } = await meter(getDb(), {
 		accountId,
 		unit: "rows.delivered",
 		quantity: rows,
@@ -98,6 +99,47 @@ export async function meterRowsDelivered(
 		idempotencyKey: randomUUID(),
 		apiKeyId: apiKeyId ?? null,
 	});
+	if (productEventsEnabled()) {
+		trackFirstRead(accountId, ledgerId, source).catch(() => {});
+	}
+}
+
+/** Accounts this process has already checked for a first read. Cleared when
+ *  it grows past `KNOWN_READERS_MAX`, which only costs a re-check. */
+const knownReaders = new Set<string>();
+const KNOWN_READERS_MAX = 50_000;
+
+/**
+ * `first_request` once per account: when the account's earliest
+ * `rows.delivered` row is the one just written. One indexed lookup per
+ * account per process, off the request path. A ghost (signed-out docs key)
+ * goes out without a person profile, under the ghost's id like its mint.
+ */
+async function trackFirstRead(
+	accountId: string,
+	ledgerId: string,
+	source: string,
+): Promise<void> {
+	if (knownReaders.has(accountId)) return;
+	const first = await getDb()
+		.selectFrom("usage_ledger")
+		.innerJoin("accounts", "accounts.id", "usage_ledger.account_id")
+		.select(["usage_ledger.id", "accounts.ghost"])
+		.where("usage_ledger.account_id", "=", accountId)
+		.where("usage_ledger.unit", "=", "rows.delivered")
+		.orderBy("usage_ledger.occurred_at")
+		.orderBy("usage_ledger.id")
+		.limit(1)
+		.executeTakeFirst();
+	// Remembered only after the read: concurrent first reads each check, and
+	// only the one holding the earliest row sends.
+	if (knownReaders.size >= KNOWN_READERS_MAX) knownReaders.clear();
+	knownReaders.add(accountId);
+	if (first?.id !== ledgerId) return;
+	trackProductEvent(
+		{ distinctId: accountId, anonymous: first.ghost },
+		{ event: "first_request", properties: { source, ghost: first.ghost } },
+	);
 }
 
 function topUpUrl(): string {

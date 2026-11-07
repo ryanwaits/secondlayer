@@ -1,18 +1,23 @@
 import type { Account, Database } from "@secondlayer/shared/db";
 import { type Kysely, sql } from "kysely";
 
+/** Find-or-create by exact email. `created` is true only for the statement
+ *  that inserted the row: Postgres leaves `xmax` at 0 on an inserted row and
+ *  sets it on the conflict path's update. */
 export async function upsertAccount(
 	db: Kysely<Database>,
 	email: string,
-): Promise<Account> {
-	return await db
+): Promise<{ account: Account; created: boolean }> {
+	const { created, ...account } = await db
 		.insertInto("accounts")
 		.values({ email })
 		.onConflict(
 			(oc) => oc.column("email").doUpdateSet({ email }), // no-op update to return existing
 		)
 		.returningAll()
+		.returning(sql<boolean>`(xmax = 0)`.as("created"))
 		.executeTakeFirstOrThrow();
+	return { account, created };
 }
 
 /** First-party service account (`accounts.internal`): usage is recorded at

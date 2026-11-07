@@ -32,6 +32,8 @@ app.get("/me", async (c) => {
 		avatarUrl: account.avatar_url,
 		notifyReindexComplete: account.notify_reindex_complete,
 		createdAt: account.created_at.toISOString(),
+		// Analytics marks a first-party account's person as internal.
+		internal: account.internal,
 	});
 });
 

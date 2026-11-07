@@ -1,7 +1,9 @@
 /**
  * A docs key for a signed-out reader.
  *
- *   POST /api/public/docs-key  {}  →  201 { key, prefix, expiresAt }
+ *   POST /api/public/docs-key  { distinctId? }  →  201 { key, prefix, expiresAt }
+ *
+ * `distinctId` (optional) is the browser's PostHog id, for analytics only.
  *
  * Mounted only in platform mode. The browser calls it directly (never through
  * the web server) so the rate limit sees the reader's IP. Each mint creates a
@@ -24,6 +26,11 @@ import {
 	type RateLimitStore,
 	getRateLimitStore,
 } from "../auth/rate-limit-store.ts";
+import {
+	BrowserDistinctIdSchema,
+	trackProductEvent,
+	visitorSubject,
+} from "../lib/product-events.ts";
 
 export const ANON_DOCS_KEY_DAILY_LIMIT = 1;
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -49,7 +56,7 @@ export function createPublicDocsKeyRouter(opts?: {
 			throw new RateLimitError("One docs key a day without an account");
 		}
 
-		const minted = await resolveDb()
+		const { ghostId, minted } = await resolveDb()
 			.transaction()
 			.execute(async (trx) => {
 				const ghost = await trx
@@ -57,8 +64,21 @@ export function createPublicDocsKeyRouter(opts?: {
 					.values({ email: null, ghost: true })
 					.returning("id")
 					.executeTakeFirstOrThrow();
-				return mintDocsKey(trx, { accountId: ghost.id, ip });
+				return {
+					ghostId: ghost.id,
+					minted: await mintDocsKey(trx, { accountId: ghost.id, ip }),
+				};
 			});
+		// The page may send its PostHog id so the mint joins the reader's
+		// pageviews; anything else in the body is ignored. Without it, the
+		// ghost's id stands in, which the key's first read also uses.
+		const body = (await c.req.json().catch(() => null)) as {
+			distinctId?: unknown;
+		} | null;
+		trackProductEvent(
+			visitorSubject(BrowserDistinctIdSchema.parse(body?.distinctId), ghostId),
+			{ event: "docs_key_minted", properties: { signed_in: false } },
+		);
 		return c.json(
 			{ key: minted.key, prefix: minted.prefix, expiresAt: minted.expiresAt },
 			201,

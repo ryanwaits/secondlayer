@@ -36,6 +36,7 @@ import {
 import { Hono } from "hono";
 import { assertUnderKeyCeiling, mintApiKey } from "../auth/mint.ts";
 import { lookupSession } from "../auth/session.ts";
+import { trackProductEvent } from "../lib/product-events.ts";
 import { InvalidJSONError } from "../middleware/error.ts";
 import { bearerToken } from "./internal-meters.ts";
 
@@ -165,6 +166,12 @@ export function createInternalSentinelRouter() {
 					linked: await isSentinelLinked(trx, found.account.id),
 				};
 			});
+		if (created) {
+			trackProductEvent(
+				{ distinctId: account.id },
+				{ event: "account_created", properties: { via: "sentinel" } },
+			);
+		}
 		return c.json({
 			accountId: account.id,
 			created,
@@ -245,6 +252,10 @@ export function createInternalSentinelRouter() {
 			areas,
 			ip: "sentinel",
 		});
+		trackProductEvent(
+			{ distinctId: accountId },
+			{ event: "api_key_created", properties: { product: minted.product } },
+		);
 		return c.json(
 			{
 				id: minted.id,

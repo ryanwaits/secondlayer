@@ -14,12 +14,21 @@ import { getClientIp } from "../auth/http.ts";
 import { generateSessionToken, hashToken } from "../auth/keys.ts";
 import { getRateLimitStore } from "../auth/rate-limit-store.ts";
 import { isDevMode } from "../lib/dev-mode.ts";
+import {
+	BrowserDistinctIdSchema,
+	SigninFromSchema,
+	trackProductEvent,
+	visitorSubject,
+} from "../lib/product-events.ts";
 import { InvalidJSONError } from "../middleware/error.ts";
 
 const app = new Hono();
 
 const MagicLinkSchema = z.object({
 	email: z.string().email(),
+	// Analytics only: which form asked, and the browser's PostHog id.
+	from: SigninFromSchema,
+	distinctId: BrowserDistinctIdSchema,
 });
 
 // A closed set, as on the CLI device route. `sentinel` links an account this
@@ -59,8 +68,22 @@ app.post("/magic-link", async (c) => {
 	const codeNum = crypto.getRandomValues(new Uint32Array(1))[0] % 1_000_000;
 	const code = String(codeNum).padStart(6, "0");
 
+	const existing = await db
+		.selectFrom("accounts")
+		.select("id")
+		.where("email", "=", parsed.email)
+		.executeTakeFirst();
+
 	await createMagicLink(db, parsed.email, token, code);
 	await sendMagicLink(parsed.email, token, code);
+
+	trackProductEvent(
+		existing ? { distinctId: existing.id } : visitorSubject(parsed.distinctId),
+		{
+			event: "signin_link_sent",
+			properties: { new_email: !existing, from: parsed.from },
+		},
+	);
 
 	return c.json({
 		message: "Check your email for a login code.",
@@ -100,16 +123,16 @@ app.post("/verify", async (c) => {
 		throw new ValidationError("Invalid or expired code");
 	}
 
-	const existed =
-		parsed.product === "sentinel"
-			? !!(await db
-					.selectFrom("accounts")
-					.select("id")
-					.where("email", "=", email)
-					.executeTakeFirst())
-			: true;
-	const account = await upsertAccount(db, email);
-	if (!existed) await linkSentinelAccount(db, account.id, "created");
+	const { account, created } = await upsertAccount(db, email);
+	if (created) {
+		if (parsed.product === "sentinel") {
+			await linkSentinelAccount(db, account.id, "created");
+		}
+		trackProductEvent(
+			{ distinctId: account.id },
+			{ event: "account_created", properties: { via: "signin" } },
+		);
+	}
 
 	// Create session token
 	const { raw, hash, prefix } = generateSessionToken();
@@ -128,6 +151,7 @@ app.post("/verify", async (c) => {
 		account: {
 			id: account.id,
 			email: account.email,
+			internal: account.internal,
 		},
 	});
 });

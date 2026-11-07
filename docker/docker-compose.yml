@@ -141,6 +141,11 @@ services:
       # Docs search finder (POST /api/public/docs-find embeds the query). Unset
       # → the route answers { results: [] } and search stays text-only.
       AI_GATEWAY_API_KEY: ${AI_GATEWAY_API_KEY:-}
+      # Funnel events (signin_link_sent, account_created, api_key_created,
+      # docs_key_minted, first_request) to PostHog, see lib/product-events.ts.
+      # Same value as the web app's NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN. Unset →
+      # no events.
+      POSTHOG_PROJECT_TOKEN: ${POSTHOG_PROJECT_TOKEN:-}
       STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
       STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
       # Shared bearer for the first-party workload host's internal routes

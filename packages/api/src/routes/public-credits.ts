@@ -12,6 +12,7 @@ import { upsertAccount } from "@secondlayer/platform/db/queries/accounts";
 import { logger } from "@secondlayer/shared";
 import { getDb } from "@secondlayer/shared/db";
 import { Hono } from "hono";
+import { trackProductEvent } from "../lib/product-events.ts";
 import { getStripeOrNull } from "../lib/stripe.ts";
 import { InvalidJSONError } from "../middleware/error.ts";
 import {
@@ -57,7 +58,13 @@ app.post("/checkout", async (c) => {
 	}
 
 	const db = getDb();
-	const account = await upsertAccount(db, email);
+	const { account, created } = await upsertAccount(db, email);
+	if (created) {
+		trackProductEvent(
+			{ distinctId: account.id },
+			{ event: "account_created", properties: { via: "checkout" } },
+		);
+	}
 	const url = await createCreditsCheckoutSession({
 		stripe,
 		db,
