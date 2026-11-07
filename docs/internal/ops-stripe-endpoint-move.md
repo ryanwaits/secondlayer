@@ -16,7 +16,9 @@ with `STRIPE_SECRET_KEY`, or in the Secondlayer dashboard.
 
 - Enabled: `we_1UFRNoEJO9zkTaMJiOqlOXru` → `/api/billing/stripe`
   (events: `checkout.session.completed`, `payment_intent.succeeded`, plus
-  leftover subscription types the handler acks 2xx).
+  leftover subscription types the handler acks 2xx). Also enable
+  `charge.refunded` and `charge.dispute.created` on this endpoint: they take
+  refunded or disputed credit back from the balance.
 - Disabled: `we_1TizatEJO9zkTaMJDTIbPc8J` → old `/api/webhooks/stripe`.
 - Signing secret was rotated into `/opt/secondlayer/docker/.env` and API
   replicas recreated. Stripe only reveals `whsec_` at create time.

@@ -87,6 +87,34 @@ export async function recordLedgerDebit(
 		.execute();
 }
 
+/** The account behind a ledger row, found by its idempotency key. How a
+ *  Stripe refund or dispute finds the account its original top-up credited. */
+export async function accountForLedgerKey(
+	db: Kysely<Database>,
+	idempotencyKey: string,
+): Promise<string | null> {
+	const row = await db
+		.selectFrom("usage_ledger")
+		.select("account_id")
+		.where("idempotency_key", "=", idempotencyKey)
+		.executeTakeFirst();
+	return row?.account_id ?? null;
+}
+
+/** The highest cumulative cents already recorded under
+ *  `<prefix><cumulative cents>` keys, 0 when none. */
+export async function lastCumulativeCents(
+	db: Kysely<Database>,
+	prefix: string,
+): Promise<number> {
+	const { rows } = await sql<{ cents: string | null }>`
+		SELECT max(substr(idempotency_key, ${prefix.length + 1})::bigint) AS cents
+		FROM usage_ledger
+		WHERE starts_with(idempotency_key, ${prefix})
+	`.execute(db);
+	return Number(rows[0]?.cents ?? 0);
+}
+
 /** UTC calendar-month bounds `now` falls in: `[start, end)`. */
 export function monthBounds(now: Date): { start: Date; end: Date } {
 	const start = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
@@ -203,6 +231,7 @@ export async function dailySpendForMonth(
 		.where("occurred_at", ">=", start)
 		.where("occurred_at", "<", end)
 		.where("usd_micros", ">", "0")
+		.where("unit", "<>", "refund")
 		.groupBy(
 			sql`date_trunc('day', occurred_at AT TIME ZONE 'UTC') AT TIME ZONE 'UTC'`,
 		)
@@ -266,6 +295,7 @@ export async function burnRateUsdMicros(
 		.where("occurred_at", ">=", since)
 		.where("occurred_at", "<=", now)
 		.where("usd_micros", ">", "0")
+		.where("unit", "<>", "refund")
 		.executeTakeFirst();
 	return row?.total ? BigInt(row.total) : 0n;
 }
@@ -287,7 +317,11 @@ export async function accountsToCheckForBalanceAlerts(
 		.distinct()
 		.where((eb) =>
 			eb.or([
-				eb.and([eb("usd_micros", ">", "0"), eb("occurred_at", ">=", since24h)]),
+				eb.and([
+					eb("usd_micros", ">", "0"),
+					eb("unit", "<>", "refund"),
+					eb("occurred_at", ">=", since24h),
+				]),
 				eb.and([
 					eb("unit", "=", "memory.gb_hour"),
 					eb("occurred_at", ">=", since35d),

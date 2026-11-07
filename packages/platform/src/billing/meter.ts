@@ -344,3 +344,63 @@ export async function grantCredits(
 		return { granted: true, balance };
 	});
 }
+
+export type RefundInput = {
+	accountId: string;
+	/** The positive amount Stripe took back (a refund or a dispute), in
+	 *  USD-micros. Stored in the ledger as a positive `usd_micros` (money
+	 *  flowing OUT, like a charge). */
+	usdMicros: bigint;
+	source: string;
+	/** Unique per refund step or dispute. A redelivery claws back once. */
+	idempotencyKey: string;
+	occurredAt?: Date;
+};
+
+/**
+ * Take back credit Stripe returned to the cardholder: a `unit: "refund"`
+ * ledger row plus a clamped debit of the balance, same transaction. The debit
+ * takes at most the balance (never negative); the row keeps the full amount
+ * and records what was actually taken, so any shortfall (credit already spent)
+ * stays visible as unpaid. Idempotent on `idempotencyKey`. Not spend: the
+ * monthly counter and spend cap never see it.
+ */
+export async function recordRefund(
+	db: Kysely<Database>,
+	input: RefundInput,
+): Promise<{ claimed: boolean; takenUsdMicros: bigint; balance: bigint }> {
+	if (input.usdMicros <= 0n) {
+		throw new Error(`meter: refund must be positive, got ${input.usdMicros}`);
+	}
+	const occurredAt = input.occurredAt ?? new Date();
+	return withTransaction(db, async (trx) => {
+		await lockAccountCredits(trx, input.accountId);
+		const { row, claimed } = await claimLedgerEntry(trx, {
+			accountId: input.accountId,
+			unit: "refund",
+			quantity: usdMicrosToDollars(input.usdMicros),
+			observedQuantity: null,
+			usdMicros: input.usdMicros,
+			debitedUsdMicros: input.usdMicros,
+			source: input.source,
+			idempotencyKey: input.idempotencyKey,
+			occurredAt,
+		});
+		if (!claimed) {
+			return {
+				claimed: false,
+				takenUsdMicros: BigInt(row.debited_usd_micros),
+				balance: await getCredits(trx, input.accountId),
+			};
+		}
+		const { debited, remaining } = await debitCreditsUpTo(
+			trx,
+			input.accountId,
+			input.usdMicros,
+		);
+		if (debited !== input.usdMicros) {
+			await recordLedgerDebit(trx, row.id, debited);
+		}
+		return { claimed: true, takenUsdMicros: debited, balance: remaining };
+	});
+}

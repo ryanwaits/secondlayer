@@ -14,7 +14,8 @@ import {
 	getMonthlyCreditsSpend,
 } from "../db/queries/account-credits.ts";
 import { upsertCaps } from "../db/queries/account-spend-caps.ts";
-import { grantCredits, meter, recordTopup } from "./meter.ts";
+import { burnRateUsdMicros } from "../db/queries/usage-ledger.ts";
+import { grantCredits, meter, recordRefund, recordTopup } from "./meter.ts";
 import { PRICES } from "./prices.ts";
 
 const HAS_DB = !!process.env.DATABASE_URL;
@@ -276,5 +277,57 @@ describe.skipIf(!HAS_DB)("ledger shape", () => {
 				}),
 			).rejects.toThrow();
 		}
+	});
+});
+
+describe.skipIf(!HAS_DB)("recordRefund", () => {
+	test("takes at most the balance, keeps the full amount on the row, and is not spend", async () => {
+		await creditCredits(db, accountId, 3_000_000n);
+		const key = randomUUID();
+		const result = await recordRefund(db, {
+			accountId,
+			usdMicros: 5_000_000n,
+			source: "test",
+			idempotencyKey: key,
+		});
+		expect(result).toEqual({
+			claimed: true,
+			takenUsdMicros: 3_000_000n,
+			balance: 0n,
+		});
+		const row = await db
+			.selectFrom("usage_ledger")
+			.select(["unit", "usd_micros", "debited_usd_micros", "debited"])
+			.where("idempotency_key", "=", key)
+			.executeTakeFirstOrThrow();
+		expect(row).toEqual({
+			unit: "refund",
+			usd_micros: "5000000",
+			debited_usd_micros: "3000000",
+			debited: false,
+		});
+		// Money out, not usage: no spend, no burn rate.
+		expect(await getMonthlyCreditsSpend(db, accountId)).toBe(0n);
+		expect(await burnRateUsdMicros(db, accountId)).toBe(0n);
+
+		const replay = await recordRefund(db, {
+			accountId,
+			usdMicros: 5_000_000n,
+			source: "test",
+			idempotencyKey: key,
+		});
+		expect(replay.claimed).toBe(false);
+		expect(replay.takenUsdMicros).toBe(3_000_000n);
+	});
+
+	test("refuses a non-positive amount", async () => {
+		await expect(
+			recordRefund(db, {
+				accountId,
+				usdMicros: 0n,
+				source: "test",
+				idempotencyKey: randomUUID(),
+			}),
+		).rejects.toThrow(/refund must be positive/);
 	});
 });
