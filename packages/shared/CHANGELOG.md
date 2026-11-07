@@ -1,5 +1,11 @@
 # @secondlayer/shared
 
+## 15.3.2
+
+### Patch Changes
+
+- cd9d3c7: Migration 0195: the auto-refill threshold and monthly spend cap can no longer be negative.
+
 ## 15.3.1
 
 ### Patch Changes

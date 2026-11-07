@@ -1,5 +1,15 @@
 # @secondlayer/mcp
 
+## 11.6.2
+
+### Patch Changes
+
+- c86c54a: Webhook tools take UUID ids and subgraph tools take validated names and tables, so an id cannot retarget the request.
+- Updated dependencies [cd9d3c7]
+- Updated dependencies [c86c54a]
+  - @secondlayer/shared@15.3.2
+  - @secondlayer/sdk@16.3.2
+
 ## 11.6.1
 
 ### Patch Changes

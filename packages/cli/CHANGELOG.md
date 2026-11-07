@@ -1,5 +1,15 @@
 # @secondlayer/cli
 
+## 23.5.1
+
+### Patch Changes
+
+- 6d20962: `credits refill` help says changing auto-refill needs a signed-in session, not an API key.
+- Updated dependencies [cd9d3c7]
+- Updated dependencies [c86c54a]
+  - @secondlayer/shared@15.3.2
+  - @secondlayer/sdk@16.3.2
+
 ## 23.5.0
 
 ### Minor Changes

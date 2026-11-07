@@ -1,6 +1,6 @@
 {
 	"name": "@secondlayer/sdk",
-	"version": "16.3.1",
+	"version": "16.3.2",
 	"description": "Decoded Stacks data in your own database — stream rows into your schema, or query the tables you defined.",
 	"license": "MIT",
 	"repository": {
@@ -68,7 +68,7 @@
 		"prepublishOnly": "bun run build"
 	},
 	"dependencies": {
-		"@secondlayer/shared": "^15.3.1",
+		"@secondlayer/shared": "^15.3.2",
 		"@secondlayer/stacks": "^6.5.3",
 		"@secondlayer/subgraphs": "^8.1.1"
 	},

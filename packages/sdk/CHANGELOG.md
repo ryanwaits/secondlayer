@@ -1,5 +1,13 @@
 # @secondlayer/sdk
 
+## 16.3.2
+
+### Patch Changes
+
+- c86c54a: Path segments refuse `""`, `"."` and `".."`: `webhooks.requeue(id, ".")` no longer reaches the bulk requeue route.
+- Updated dependencies [cd9d3c7]
+  - @secondlayer/shared@15.3.2
+
 ## 16.3.1
 
 ### Patch Changes
