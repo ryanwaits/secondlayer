@@ -1,5 +1,5 @@
 import { getErrorMessage } from "@secondlayer/shared";
-import { getRawClient, getTargetDb } from "@secondlayer/shared/db";
+import { getRawClient, getTargetDb, sql } from "@secondlayer/shared/db";
 import {
 	type GapRange,
 	recordGapBatch,
@@ -146,6 +146,9 @@ async function processBlockRange(
 	totalEventsProcessed: number;
 	totalErrors: number;
 	aborted: boolean;
+	/** Highest height the op cursor skipped as already applied by an earlier
+	 *  attempt (null when none): nothing at or below it was re-walked. */
+	lastSkippedHeight: number | null;
 }> {
 	const source = await resolveBlockSource(def);
 	const targetDb = getTargetDb();
@@ -156,6 +159,7 @@ async function processBlockRange(
 	const stats = new StatsAccumulator(subgraphName, opts.isCatchup);
 	let blocksProcessed = 0;
 	let blocksSkippedByCursor = 0;
+	let lastSkippedHeight: number | null = null;
 	let totalEventsProcessed = 0;
 	let totalErrors = 0;
 	let pendingEventsProcessed = 0;
@@ -407,7 +411,10 @@ async function processBlockRange(
 			}
 
 			blocksProcessed++;
-			if (result.skipped) blocksSkippedByCursor++;
+			if (result.skipped) {
+				blocksSkippedByCursor++;
+				lastSkippedHeight = height;
+			}
 			batchDelivered += result.delivered;
 			totalEventsProcessed += result.processed;
 			totalErrors += result.errors;
@@ -553,7 +560,13 @@ async function processBlockRange(
 
 	await stats.flush(targetDb);
 	await flushHealth();
-	return { blocksProcessed, totalEventsProcessed, totalErrors, aborted };
+	return {
+		blocksProcessed,
+		totalEventsProcessed,
+		totalErrors,
+		aborted,
+		lastSkippedHeight,
+	};
 }
 
 /**
@@ -914,6 +927,11 @@ export async function backfillSubgraph(
 			.select(["id"])
 			.where("name", "=", subgraphName)
 			.executeTakeFirst();
+		// Database clock, like the gap rows' own `detected_at`: gaps this walk
+		// records carry a later stamp and so survive the resolve below.
+		const runStartedAt = (
+			await sql<{ now: Date }>`SELECT now() AS now`.execute(targetDb)
+		).rows[0]?.now;
 
 		const result = await processBlockRange(def, {
 			fromBlock: opts.fromBlock,
@@ -931,12 +949,17 @@ export async function backfillSubgraph(
 			return { processed: result.blocksProcessed };
 		}
 
-		// Resolve any gaps within the backfilled range
+		// Resolve gaps this walk actually re-covered: not ones it just recorded
+		// (blocks that failed again) and not ones under a resume point (heights
+		// an earlier attempt applied that this walk skipped).
 		const resolved = await resolveGaps(
 			targetDb,
 			subgraphName,
-			opts.fromBlock,
+			result.lastSkippedHeight === null
+				? opts.fromBlock
+				: result.lastSkippedHeight + 1,
 			opts.toBlock,
+			{ detectedBefore: runStartedAt },
 		).catch(() => 0);
 		if (resolved > 0) {
 			logger.info("Resolved subgraph gaps via backfill", {

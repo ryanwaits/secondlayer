@@ -108,22 +108,29 @@ export async function findSubgraphGaps(
 
 /**
  * Mark gaps as resolved within a block range. Idempotent.
- * Only resolves gaps fully contained within [fromBlock, toBlock].
+ * Only resolves gaps fully contained within [fromBlock, toBlock]. With
+ * `detectedBefore`, gaps recorded at or after it stay open: a walk passes its
+ * own start time (from the database clock) so a block that failed during the
+ * walk is not resolved by the walk that just recorded it.
  */
 export async function resolveGaps(
 	db: Kysely<Database>,
 	subgraphName: string,
 	fromBlock: number,
 	toBlock: number,
+	opts?: { detectedBefore?: Date },
 ): Promise<number> {
-	const result = await db
+	let q = db
 		.updateTable("subgraph_gaps")
 		.set({ resolved_at: new Date() })
 		.where("subgraph_name", "=", subgraphName)
 		.where("resolved_at", "is", null)
 		.where("gap_start", ">=", fromBlock)
-		.where("gap_end", "<=", toBlock)
-		.executeTakeFirst();
+		.where("gap_end", "<=", toBlock);
+	if (opts?.detectedBefore) {
+		q = q.where("detected_at", "<", opts.detectedBefore);
+	}
+	const result = await q.executeTakeFirst();
 
 	return Number(result.numUpdatedRows);
 }
