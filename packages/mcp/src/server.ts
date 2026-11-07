@@ -20,6 +20,21 @@ const pkg = JSON.parse(
 
 export type { ToolDeps } from "./tool-groups.ts";
 
+/** The server's icons, sent in `initialize` and listed in server.json (the
+ *  registry manifest); a test keeps the two equal. */
+export const SERVER_ICONS = [
+	{
+		src: "https://www.secondlayer.tools/icon.svg",
+		mimeType: "image/svg+xml",
+		sizes: ["any"],
+	},
+	{
+		src: "https://www.secondlayer.tools/apple-icon",
+		mimeType: "image/png",
+		sizes: ["180x180"],
+	},
+];
+
 export interface CreateServerOptions extends Partial<ToolDeps> {
 	/**
 	 * The hosted MCP endpoint's server: only the tools each group marks
@@ -33,6 +48,7 @@ export function createServer(options: CreateServerOptions = {}): McpServer {
 	const server = new McpServer({
 		name: "secondlayer",
 		version: pkg.version,
+		icons: SERVER_ICONS,
 	});
 	const deps: ToolDeps = {
 		clientProvider: options.clientProvider ?? ENV_TOOL_DEPS.clientProvider,

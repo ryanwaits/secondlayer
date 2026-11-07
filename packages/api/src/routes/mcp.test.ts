@@ -276,12 +276,65 @@ describe("hosted MCP metadata", () => {
 		expect(as.code_challenge_methods_supported).toEqual(["S256"]);
 	});
 
-	test("no bearer: 401 naming the resource metadata", async () => {
-		const r = await rpc(null, "initialize", INIT);
-		expect(r.status).toBe(401);
-		expect(r.headers.get("www-authenticate")).toBe(
-			`Bearer resource_metadata="${ORIGIN}/.well-known/oauth-protected-resource/mcp", scope="mcp"`,
+	test("no bearer: initialize, tools/list and ping are answered", async () => {
+		const init = await rpc(null, "initialize", INIT);
+		expect(init.status).toBe(200);
+		const info = (await result(init)).serverInfo;
+		expect(info.name).toBe("secondlayer");
+		expect(info.icons.length).toBeGreaterThan(0);
+		const list = await result(await rpc(null, "tools/list"));
+		expect(list.tools.map((t: { name: string }) => t.name).sort()).toEqual(
+			HOSTED_TOOLS,
 		);
+		expect((await rpc(null, "ping")).status).toBe(200);
+		const note = await app.request("/mcp", {
+			method: "POST",
+			headers: {
+				"content-type": "application/json",
+				accept: "application/json, text/event-stream",
+			},
+			body: JSON.stringify({
+				jsonrpc: "2.0",
+				method: "notifications/initialized",
+			}),
+		});
+		expect(note.status).toBe(202);
+	});
+
+	test("no bearer: a tool call, or a batch holding one, is 401 naming the resource metadata", async () => {
+		const challenge = `Bearer resource_metadata="${ORIGIN}/.well-known/oauth-protected-resource/mcp", scope="mcp"`;
+		const call = await rpc(null, "tools/call", {
+			name: "streams_tip",
+			arguments: {},
+		});
+		expect(call.status).toBe(401);
+		expect(call.headers.get("www-authenticate")).toBe(challenge);
+		for (const method of ["resources/list", "resources/read"]) {
+			expect((await rpc(null, method)).status, method).toBe(401);
+		}
+		const batch = await app.request("/mcp", {
+			method: "POST",
+			headers: {
+				"content-type": "application/json",
+				accept: "application/json, text/event-stream",
+			},
+			body: JSON.stringify([
+				{ jsonrpc: "2.0", id: 1, method: "tools/list" },
+				{
+					jsonrpc: "2.0",
+					id: 2,
+					method: "tools/call",
+					params: { name: "streams_tip", arguments: {} },
+				},
+			]),
+		});
+		expect(batch.status).toBe(401);
+		const junk = await app.request("/mcp", {
+			method: "POST",
+			headers: { "content-type": "application/json" },
+			body: "not json",
+		});
+		expect(junk.status).toBe(401);
 	});
 
 	test("an unknown token, of any kind, is 401 invalid_token", async () => {

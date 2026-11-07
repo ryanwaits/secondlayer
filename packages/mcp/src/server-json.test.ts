@@ -1,5 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import { join } from "node:path";
+import { SERVER_ICONS } from "./server.ts";
 
 const ROOT = join(import.meta.dir, "..");
 const pkg = await Bun.file(join(ROOT, "package.json")).json();
@@ -20,5 +21,9 @@ describe("server.json (MCP registry manifest)", () => {
 
 	it("name matches the package mcpName", () => {
 		expect(server.name).toBe(pkg.mcpName);
+	});
+
+	it("icons match the ones initialize sends", () => {
+		expect(server.icons).toEqual(SERVER_ICONS);
 	});
 });

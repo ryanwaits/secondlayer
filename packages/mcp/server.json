@@ -3,6 +3,18 @@
 	"name": "tools.secondlayer/secondlayer",
 	"title": "secondlayer",
 	"description": "Stacks chain data: contracts, events, transfers, subgraph scaffolds. Hosted with browser sign-in.",
+	"icons": [
+		{
+			"src": "https://www.secondlayer.tools/icon.svg",
+			"mimeType": "image/svg+xml",
+			"sizes": ["any"]
+		},
+		{
+			"src": "https://www.secondlayer.tools/apple-icon",
+			"mimeType": "image/png",
+			"sizes": ["180x180"]
+		}
+	],
 	"repository": {
 		"url": "https://github.com/ryanwaits/secondlayer",
 		"source": "github",

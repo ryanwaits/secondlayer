@@ -98,7 +98,7 @@ Reads are cursor-paginated. Writes that kick off work (reindex, backfill, replay
 - See the [REST API](/docs/rest-api) for the underlying endpoints.
 
 export const agent = `
-- Hosted: 'claude mcp add --transport http secondlayer https://api.secondlayer.tools/mcp'. A 401 names the OAuth metadata; the person signs in once in the browser. Clients without OAuth send 'Authorization: Bearer sk-sl_*'. Read tools only; tools listed "Local only" need the stdio server.
+- Hosted: 'claude mcp add --transport http secondlayer https://api.secondlayer.tools/mcp'. initialize and tools/list need no sign-in; a tool call without one is a 401 naming the OAuth metadata, and the person signs in once in the browser. Clients without OAuth send 'Authorization: Bearer sk-sl_*'. Read tools only; tools listed "Local only" need the stdio server.
 - Install: 'bunx @secondlayer/mcp' with SECONDLAYER_API_URL and INSTANCE_TOKEN for the instance. For hosted archive and credits tools also set SECONDLAYER_API_KEY.
 - Read first: the 'secondlayer://context' resource (instance state, chain tips, capabilities), plus 'secondlayer://filters' and 'secondlayer://chain-triggers'.
 - Read tools: index_discover to learn event types and filters, then index_events (or index_ft_transfers, index_contract_calls); cursor-paginate.

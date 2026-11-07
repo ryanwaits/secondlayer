@@ -24,9 +24,12 @@ import { issuerOrigin, mcpChallenge } from "../auth/oauth/config.ts";
  * requests are the only ones marked (auth/oauth/audience.ts), so an OAuth
  * token works there and nowhere else.
  *
- * No bearer, or one that does not resolve: 401 with `WWW-Authenticate`
- * naming the protected-resource metadata, so a client like Claude Code runs
- * the browser sign-in.
+ * No bearer: `initialize`, `tools/list`, `ping` and notifications are
+ * answered, so anyone (or an agent choosing a server) sees what it does before
+ * signing up. Anything else, tool calls included, is 401 with
+ * `WWW-Authenticate` naming the protected-resource metadata, so a client like
+ * Claude Code runs the browser sign-in. A bearer that does not resolve is 401
+ * on every method.
  */
 
 const MAX_BODY_BYTES = 1024 * 1024;
@@ -81,6 +84,36 @@ function unauthorized(c: Context, invalid: boolean) {
 	);
 }
 
+/** Methods that describe the server and touch no account data. */
+const OPEN_METHODS = new Set(["initialize", "ping", "tools/list"]);
+
+/** True when every JSON-RPC message in `body` is an open method or a
+ *  notification. Unparseable: false. */
+function anonymousAllowed(body: ArrayBuffer): boolean {
+	let parsed: unknown;
+	try {
+		parsed = JSON.parse(new TextDecoder().decode(body));
+	} catch {
+		return false;
+	}
+	const messages = Array.isArray(parsed) ? parsed : [parsed];
+	return (
+		messages.length > 0 &&
+		messages.every((m) => {
+			if (typeof m !== "object" || m === null) return false;
+			const method = (m as { method?: unknown }).method;
+			return (
+				typeof method === "string" &&
+				(OPEN_METHODS.has(method) || method.startsWith("notifications/"))
+			);
+		})
+	);
+}
+
+const signInFirst = (): never => {
+	throw new Error("Sign in to call tools.");
+};
+
 /** The dumps manifest lives off the API (a public bucket): its one origin
  *  is fetched over the network, nothing else is. */
 function dumpsOrigin(): string | null {
@@ -93,6 +126,31 @@ function dumpsOrigin(): string | null {
 	}
 }
 
+/** Answers one POST with `server`, then closes both ends. */
+async function serve(
+	c: Context,
+	body: ArrayBuffer,
+	server: ReturnType<typeof createServer>,
+): Promise<Response> {
+	const transport = new WebStandardStreamableHTTPServerTransport({
+		sessionIdGenerator: undefined,
+		enableJsonResponse: true,
+	});
+	try {
+		await server.connect(transport);
+		return await transport.handleRequest(
+			new Request(c.req.url, {
+				method: "POST",
+				headers: c.req.raw.headers,
+				body,
+			}),
+		);
+	} finally {
+		await transport.close();
+		await server.close();
+	}
+}
+
 export function createMcpRouter(
 	dispatch: (req: Request) => Promise<Response>,
 ): Hono {
@@ -100,8 +158,7 @@ export function createMcpRouter(
 
 	app.post("/", async (c) => {
 		const token = bearerOf(c);
-		if (!token) return unauthorized(c, false);
-		if (!(await credentialIsLive(token))) return unauthorized(c, true);
+		if (token && !(await credentialIsLive(token))) return unauthorized(c, true);
 
 		if (Number(c.req.header("content-length") ?? 0) > MAX_BODY_BYTES)
 			return c.json(
@@ -114,6 +171,20 @@ export function createMcpRouter(
 				{ error: "Body over 1 MB.", code: "PAYLOAD_TOO_LARGE" },
 				413,
 			);
+		if (!token) {
+			if (!anonymousAllowed(body)) return unauthorized(c, false);
+			// No credential to bind: a tool reaching for one is a bug, and fails.
+			return serve(
+				c,
+				body,
+				createServer({
+					hosted: true,
+					clientProvider: signInFirst,
+					archiveOpsClientProvider: signInFirst,
+					apiRequest: signInFirst,
+				}),
+			);
+		}
 
 		const origin = issuerOrigin();
 		const callerIp = getClientIp(c);
@@ -151,33 +222,20 @@ export function createMcpRouter(
 				? { dumpsBaseUrl: process.env.STREAMS_BULK_PUBLIC_BASE_URL }
 				: {}),
 		});
-		const server = createServer({
-			hosted: true,
-			clientProvider: () => client,
-			archiveOpsClientProvider: () => client,
-			apiRequest: createApiRequest({
-				baseUrl: origin,
-				apiKey: token,
-				fetchImpl: inProcess,
-			}),
-		});
-		const transport = new WebStandardStreamableHTTPServerTransport({
-			sessionIdGenerator: undefined,
-			enableJsonResponse: true,
-		});
-		try {
-			await server.connect(transport);
-			return await transport.handleRequest(
-				new Request(c.req.url, {
-					method: "POST",
-					headers: c.req.raw.headers,
-					body,
+		return serve(
+			c,
+			body,
+			createServer({
+				hosted: true,
+				clientProvider: () => client,
+				archiveOpsClientProvider: () => client,
+				apiRequest: createApiRequest({
+					baseUrl: origin,
+					apiKey: token,
+					fetchImpl: inProcess,
 				}),
-			);
-		} finally {
-			await transport.close();
-			await server.close();
-		}
+			}),
+		);
 	});
 
 	// Stateless: there is no SSE stream to open and no session to delete.
