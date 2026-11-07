@@ -4,6 +4,7 @@ import { ROWS_DELIVERED_MONTHLY_ALLOWANCE } from "@secondlayer/platform/billing/
 import {
 	creditCredits,
 	recordCreditsSpend,
+	setCreditRefill,
 } from "@secondlayer/platform/db/queries/account-credits";
 import {
 	getCaps,
@@ -21,6 +22,8 @@ import billingRouter, {
 	ensureStripeCustomer,
 	isCreditPack,
 	isTopupUsd,
+	parseCapsInput,
+	parseRefillInput,
 	isResourceMissing,
 	rowsAllowance,
 	rowsBySource,
@@ -518,6 +521,8 @@ describe.skipIf(!HAS_DB)("GET/PUT /alerts", () => {
 		const a = new Hono();
 		const setAccountId: MiddlewareHandler = async (c, next) => {
 			if (accountId) c.set("accountId", accountId);
+			// Billing writes are session-only.
+			c.set("session", { id: "session-fixture" });
 			await next();
 		};
 		a.use("*", setAccountId);
@@ -803,6 +808,8 @@ describe.skipIf(!HAS_DB)("spend cap routes", () => {
 		const a = new Hono();
 		const setAccountId: MiddlewareHandler = async (c, next) => {
 			c.set("accountId", accountId);
+			// Billing writes are session-only.
+			c.set("session", { id: "session-fixture" });
 			await next();
 		};
 		a.use("*", setAccountId);
@@ -916,5 +923,144 @@ describe.skipIf(!HAS_DB)("createCreditsCheckoutSession", () => {
 		expect(created[0]?.payment_method_types).toEqual(["card"]);
 		expect(created[0]?.mode).toBe("payment");
 		expect(created[0]?.line_items?.[0]?.price_data?.unit_amount).toBe(2_500);
+	});
+});
+
+describe("billing writes are signed-in session only", () => {
+	const ACCOUNT = "00000000-0000-4000-8000-000000000432";
+
+	function appAs(opts: { session: boolean }) {
+		const a = new Hono();
+		const authenticate: MiddlewareHandler = async (c, next) => {
+			c.set("accountId", ACCOUNT);
+			if (opts.session) c.set("session", { id: "session-fixture" });
+			await next();
+		};
+		a.use("*", authenticate);
+		a.onError(errorHandler);
+		a.route("/", billingRouter);
+		return a;
+	}
+
+	const writes = [
+		["POST", "/refill", { belowUsd: 5, packUsd: 25 }],
+		["PATCH", "/caps", { monthlyCapCents: 100 }],
+		["PUT", "/alerts", { notify7d: true }],
+		["POST", "/topup", { amount: 10 }],
+	] as const;
+
+	for (const [method, path, body] of writes) {
+		test(`an account key cannot ${method} ${path}`, async () => {
+			const res = await appAs({ session: false }).request(path, {
+				method,
+				headers: { "content-type": "application/json" },
+				body: JSON.stringify(body),
+			});
+			expect(res.status).toBe(403);
+		});
+	}
+
+	function writeAs(path: string, method: string, body: unknown) {
+		return appAs({ session: true }).request(path, {
+			method,
+			headers: { "content-type": "application/json" },
+			body: JSON.stringify(body),
+		});
+	}
+
+	test("auto-refill refuses a threshold above the pack or above $1000", async () => {
+		for (const body of [
+			{ belowUsd: 1_000_000_000, packUsd: 100 },
+			{ belowUsd: 26, packUsd: 25 },
+			{ belowUsd: 1001, packUsd: 100 },
+		]) {
+			expect((await writeAs("/refill", "POST", body)).status).toBe(400);
+		}
+	});
+
+	test("spend caps refuse negative, fractional and out-of-range values", async () => {
+		for (const body of [
+			{ monthlyCapCents: -1 },
+			{ monthlyCapCents: 1.5 },
+			{ monthlyCapCents: "100" },
+			{ monthlyCapCents: 2 ** 40 },
+			{ alertThresholdPct: 0 },
+			{ alertThresholdPct: 101 },
+		]) {
+			expect((await writeAs("/caps", "PATCH", body)).status).toBe(400);
+		}
+	});
+});
+
+describe("parseRefillInput", () => {
+	test("accepts off, and a threshold at or below the pack", () => {
+		expect(parseRefillInput({ belowUsd: null })).toMatchObject({
+			ok: true,
+			belowUsdMicros: null,
+		});
+		expect(parseRefillInput({ belowUsd: 5, packUsd: 25 })).toMatchObject({
+			ok: true,
+			belowUsdMicros: 5_000_000n,
+			packUsd: 25,
+		});
+		expect(parseRefillInput({ belowUsd: 25, packUsd: 25 })).toMatchObject({
+			ok: true,
+		});
+		expect(parseRefillInput({ belowUsd: 5 })).toMatchObject({
+			ok: true,
+			packUsd: 25,
+		});
+	});
+
+	test("refuses a threshold above the pack, above $1000, or below $1", () => {
+		for (const body of [
+			{ belowUsd: 26, packUsd: 25 },
+			{ belowUsd: 1e9, packUsd: 100 },
+			{ belowUsd: 0.5 },
+			{ belowUsd: Number.NaN },
+			{ belowUsd: 5, packUsd: 7 },
+		]) {
+			expect(parseRefillInput(body).ok, JSON.stringify(body)).toBe(false);
+		}
+	});
+});
+
+describe("parseCapsInput", () => {
+	test("accepts a whole-cent cap, clearing it, and a threshold", () => {
+		expect(parseCapsInput({ monthlyCapCents: 0 })).toMatchObject({ ok: true });
+		expect(parseCapsInput({ monthlyCapCents: null })).toMatchObject({
+			ok: true,
+			monthlyCapCents: null,
+		});
+		expect(parseCapsInput({ alertThresholdPct: 80 })).toMatchObject({
+			ok: true,
+		});
+		expect(parseCapsInput({})).toMatchObject({ ok: true });
+	});
+
+	test("refuses a negative, fractional or non-number cap", () => {
+		for (const body of [
+			{ monthlyCapCents: -5 },
+			{ monthlyCapCents: 0.5 },
+			{ monthlyCapCents: "10" },
+			{ alertThresholdPct: 0 },
+		]) {
+			expect(parseCapsInput(body).ok, JSON.stringify(body)).toBe(false);
+		}
+	});
+});
+
+describe.skipIf(!HAS_DB)("billing thresholds in the database", () => {
+	test("a negative refill threshold or spend cap cannot be stored", async () => {
+		const account = await makeAccount(`nonnegative-${Date.now()}@test.invalid`);
+		await expect(
+			setCreditRefill(db, account.id, {
+				belowUsdMicros: -1n,
+				packUsd: 25,
+			}),
+		).rejects.toThrow();
+		await expect(
+			upsertCaps(db, account.id, { monthly_cap_cents: -1 }),
+		).rejects.toThrow();
 	});
 });

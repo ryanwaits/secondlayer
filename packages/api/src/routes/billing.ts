@@ -1,6 +1,7 @@
 /**
  * Billing routes — the metered-archive credits surface. Session-authed
- * upstream via `requireAuth`.
+ * upstream via `requireAuth`; every write (topup, refill, caps, alerts) also
+ * demands a signed-in session, never an account API key (`sessionOnly`).
  *
  *   GET   /api/billing/status   credits balance + refill config snapshot
  *   POST  /api/billing/topup    one-time prepaid credit pack → Stripe Checkout
@@ -56,6 +57,8 @@ import { logger } from "@secondlayer/shared";
 import { type Database, getDb } from "@secondlayer/shared/db";
 import { Hono } from "hono";
 import type { Kysely } from "kysely";
+import { z } from "zod";
+import { sessionOnly } from "../auth/session-only.ts";
 import { getAccountId } from "../lib/ownership.ts";
 import { getStripeOrNull } from "../lib/stripe.ts";
 import { InvalidJSONError } from "../middleware/error.ts";
@@ -83,9 +86,36 @@ export function isTopupUsd(n: unknown): n is number {
 	);
 }
 
+/** The most a refill threshold can be: a refill that fires above the pack it
+ *  buys would charge the saved card on every check. */
+const REFILL_BELOW_MAX_USD = 1000;
+
+const refillSchema = z
+	.object({
+		belowUsd: z.coerce
+			.number()
+			.finite("belowUsd must be a number")
+			.min(1, "belowUsd must be at least 1")
+			.max(
+				REFILL_BELOW_MAX_USD,
+				`belowUsd must be at most ${REFILL_BELOW_MAX_USD}`,
+			),
+		packUsd: z.coerce
+			.number()
+			.default(25)
+			.refine(isCreditPack, {
+				message: `packUsd must be one of ${CREDIT_PACKS_USD.join(", ")}`,
+			}),
+	})
+	.refine((v) => v.belowUsd <= v.packUsd, {
+		message: "belowUsd must not exceed packUsd",
+		path: ["belowUsd"],
+	});
+
 /**
  * Validate an auto-refill request: `belowUsd: null` turns it off, otherwise
- * `belowUsd >= 1` and `packUsd` one of the credit packs (default 25).
+ * `1 <= belowUsd <= min(packUsd, 1000)` and `packUsd` one of the credit packs
+ * (default 25).
  */
 export function parseRefillInput(body: {
 	belowUsd?: unknown;
@@ -101,27 +131,55 @@ export function parseRefillInput(body: {
 	if (body.belowUsd === null) {
 		return { ok: true, belowUsd: null, belowUsdMicros: null, packUsd: null };
 	}
-	const belowUsd =
-		typeof body.belowUsd === "number" ? body.belowUsd : Number(body.belowUsd);
-	if (!Number.isFinite(belowUsd) || belowUsd < 1) {
-		return { ok: false, error: "belowUsd must be at least 1" };
+	const parsed = refillSchema.safeParse(body);
+	if (!parsed.success) {
+		return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid" };
 	}
-	const packRaw =
-		typeof body.packUsd === "number"
-			? body.packUsd
-			: Number(body.packUsd ?? 25);
-	if (!isCreditPack(packRaw)) {
-		return {
-			ok: false,
-			error: `packUsd must be one of ${CREDIT_PACKS_USD.join(", ")}`,
-		};
-	}
+	const { belowUsd, packUsd } = parsed.data;
 	return {
 		ok: true,
 		belowUsd,
 		belowUsdMicros: BigInt(Math.round(belowUsd * 1_000_000)),
-		packUsd: packRaw,
+		packUsd,
 	};
+}
+
+/** `account_spend_caps.monthly_cap_cents` is an int4. */
+const INT4_MAX = 2_147_483_647;
+
+const capsSchema = z.object({
+	monthlyCapCents: z
+		.union([
+			z
+				.number("monthlyCapCents must be a whole number of cents or null")
+				.int("monthlyCapCents must be a whole number of cents or null")
+				.min(0, "monthlyCapCents must not be negative")
+				.max(INT4_MAX, "monthlyCapCents is too large"),
+			z.null(),
+		])
+		.optional(),
+	alertThresholdPct: z
+		.number("alertThresholdPct must be between 1 and 100")
+		.int("alertThresholdPct must be between 1 and 100")
+		.min(1, "alertThresholdPct must be between 1 and 100")
+		.max(100, "alertThresholdPct must be between 1 and 100")
+		.optional(),
+});
+
+/**
+ * Validate a spend-cap request. `monthlyCapCents` is whole cents >= 0, `null`
+ * clears the cap, omitted leaves it. `alertThresholdPct` is a whole 1-100.
+ */
+export function parseCapsInput(
+	body: unknown,
+):
+	| { ok: true; monthlyCapCents?: number | null; alertThresholdPct?: number }
+	| { ok: false; error: string } {
+	const parsed = capsSchema.safeParse(body);
+	if (!parsed.success) {
+		return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid" };
+	}
+	return { ok: true, ...parsed.data };
 }
 
 /**
@@ -300,7 +358,7 @@ export async function createCreditsCheckoutSession(opts: {
  * pack. The balance is credited by the `checkout.session.completed` webhook —
  * never here — so credit only lands on confirmed payment.
  */
-app.post("/topup", async (c) => {
+app.post("/topup", sessionOnly(), async (c) => {
 	const accountId = getAccountId(c);
 	if (!accountId) return c.json({ error: "Unauthorized" }, 401);
 
@@ -384,7 +442,7 @@ app.get("/status", async (c) => {
  * Opt-in auto-refill. Default is off (`belowUsd: null`). Requires a saved
  * card from a prior checkout (`setup_future_usage: off_session`).
  */
-app.post("/refill", async (c) => {
+app.post("/refill", sessionOnly(), async (c) => {
 	const accountId = getAccountId(c);
 	if (!accountId) return c.json({ error: "Unauthorized" }, 401);
 
@@ -412,35 +470,28 @@ app.get("/caps", async (c) => {
 	return c.json(await capsBody(db, accountId, await getCaps(db, accountId)));
 });
 
-app.patch("/caps", async (c) => {
+app.patch("/caps", sessionOnly(), async (c) => {
 	const accountId = getAccountId(c);
 	if (!accountId) return c.json({ error: "Unauthorized" }, 401);
 
-	const body = (await c.req.json().catch(() => {
+	const body = await c.req.json().catch(() => {
 		throw new InvalidJSONError();
-	})) as {
-		monthlyCapCents?: number | null;
-		alertThresholdPct?: number;
-	};
+	});
+	const parsed = parseCapsInput(body);
+	if (!parsed.ok) return c.json({ error: parsed.error }, 400);
 
 	// Callers send cents directly; null explicitly clears a cap. Omitted
 	// leaves the cap as is.
 	const extra: Parameters<typeof upsertCaps>[2] = {};
-	if (body.alertThresholdPct !== undefined) {
-		if (body.alertThresholdPct < 1 || body.alertThresholdPct > 100) {
-			return c.json(
-				{ error: "alertThresholdPct must be between 1 and 100" },
-				400,
-			);
-		}
-		extra.alert_threshold_pct = body.alertThresholdPct;
+	if (parsed.alertThresholdPct !== undefined) {
+		extra.alert_threshold_pct = parsed.alertThresholdPct;
 	}
 
 	const db = getDb();
 	const updated =
-		body.monthlyCapCents === undefined
+		parsed.monthlyCapCents === undefined
 			? await upsertCaps(db, accountId, extra)
-			: await applyMonthlyCap(db, accountId, body.monthlyCapCents, extra);
+			: await applyMonthlyCap(db, accountId, parsed.monthlyCapCents, extra);
 	return c.json(await capsBody(db, accountId, updated));
 });
 
@@ -637,7 +688,7 @@ app.get("/alerts", async (c) => {
  * Either field alone leaves the other untouched; the row is created on
  * first write.
  */
-app.put("/alerts", async (c) => {
+app.put("/alerts", sessionOnly(), async (c) => {
 	const accountId = getAccountId(c);
 	if (!accountId) return c.json({ error: "Unauthorized" }, 401);
 
