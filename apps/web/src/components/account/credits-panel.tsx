@@ -13,8 +13,9 @@ import {
 } from "@/lib/account-data";
 import { TOPUP_MAX_USD, TOPUP_MIN_USD } from "@/lib/prices";
 import { type Burn, runsOutMonth } from "@/lib/usage";
-import { useEffect, useState } from "react";
+import { useEffect, useReducer, useState } from "react";
 import { AmountChoice } from "./billing/amount-choice";
+import { CHECKOUT_EDITING, checkoutReducer } from "./checkout-flow";
 import { FloatingCard } from "./floating-card";
 
 export function BalanceStats({ billing }: { billing: Billing | null }) {
@@ -39,25 +40,41 @@ export function BalanceStats({ billing }: { billing: Billing | null }) {
 export function useCheckout() {
 	const [amount, setAmount] = useState<number>(25);
 	const [valid, setValid] = useState(true);
-	const [busy, setBusy] = useState(false);
-	const [error, setError] = useState<string | null>(null);
+	const [flow, dispatch] = useReducer(checkoutReducer, CHECKOUT_EDITING);
+	// Back from Stripe via the browser's back button restores this page as it
+	// was, mid-redirect; start over instead of staying on "Opening checkout...".
+	useEffect(() => {
+		const onShow = (e: PageTransitionEvent) => {
+			if (e.persisted) dispatch({ type: "reset" });
+		};
+		window.addEventListener("pageshow", onShow);
+		return () => window.removeEventListener("pageshow", onShow);
+	}, []);
 	/** A valid amount, or null while the Other box holds something invalid. */
 	function choose(next: number | null) {
 		setValid(next !== null);
 		if (next !== null) setAmount(next);
 	}
 	async function checkout() {
-		if (!valid) return;
-		setBusy(true);
-		setError(null);
+		if (!valid || flow.step === "redirecting") return;
+		dispatch({ type: "start" });
 		try {
 			await startCheckout(amount);
 		} catch (e) {
-			setError(e instanceof Error ? e.message : "Couldn't start checkout");
-			setBusy(false);
+			dispatch({
+				type: "fail",
+				error: e instanceof Error ? e.message : "Couldn't start checkout",
+			});
 		}
 	}
-	return { amount, valid, choose, busy, error, checkout };
+	return {
+		amount,
+		valid,
+		choose,
+		busy: flow.step === "redirecting",
+		error: flow.step === "failed" ? flow.error : null,
+		checkout,
+	};
 }
 
 type Checkout = ReturnType<typeof useCheckout>;
