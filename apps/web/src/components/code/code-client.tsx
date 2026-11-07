@@ -1,8 +1,8 @@
 "use client";
 
 import { useAuth } from "@/lib/auth";
-import { DOCS_KEY_FORGET, DOCS_KEY_STORE } from "@/lib/code/docs-key-store";
-import { usePathname } from "next/navigation";
+import { dropAccountKey } from "@/lib/code/docs-key-store";
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect } from "react";
 
 /** Show one pane of a tab group; a group without that tab stays as it is. */
@@ -22,28 +22,22 @@ function selectTab(group: HTMLElement, key: string) {
  */
 export function CodeClient() {
 	const pathname = usePathname();
-	const { account, loading } = useAuth();
+	const router = useRouter();
+	const { account, loading, login } = useAuth();
 
-	// The docs key: the key module loads only for a signed-in reader on a page
-	// that has a sample to fill. Signed out, any key this tab held is dropped and
-	// the samples offer a sign-in link instead.
+	// The docs key: the key module loads only on a page that has a sample to
+	// fill, for every reader. Signed in, the account mints it; signed out, the
+	// API mints one for the tab. Signing out drops the account's key.
 	// biome-ignore lint/correctness/useExhaustiveDependencies: `pathname` re-runs the scan for the samples a soft navigation brings in
 	useEffect(() => {
 		if (loading) return;
-		if (!account) {
-			try {
-				sessionStorage.removeItem(DOCS_KEY_STORE);
-			} catch {
-				// Storage is optional.
-			}
-			window.dispatchEvent(new Event(DOCS_KEY_FORGET));
-			for (const link of document.querySelectorAll<HTMLElement>(
-				"[data-key-signin]",
-			))
-				link.hidden = false;
-			return;
-		}
-		const load = () => import("./use-key").then((m) => m.activate(account.id));
+		if (!account) dropAccountKey();
+		const reader = {
+			accountId: account?.id ?? null,
+			login,
+			navigate: (href: string) => router.push(href),
+		};
+		const load = () => import("./use-key").then((m) => m.activate(reader));
 		if (document.querySelector("[data-use-key]")) {
 			load();
 			return;
@@ -64,7 +58,7 @@ export function CodeClient() {
 		});
 		arrivals.observe(document.body, { childList: true, subtree: true });
 		return () => arrivals.disconnect();
-	}, [account, loading, pathname]);
+	}, [account, loading, login, router, pathname]);
 
 	// Tips: the module loads on the first page that has one, and a soft
 	// navigation closes whatever was open. A tip that mounts later (the API
@@ -151,6 +145,11 @@ export function CodeClient() {
 			const chip = target.closest<HTMLElement>("[data-key-chip]");
 			if (chip) {
 				import("./use-key").then((m) => m.togglePanel(chip));
+				return;
+			}
+			const lasting = target.closest<HTMLElement>("[data-key-lasting]");
+			if (lasting) {
+				import("./use-key").then((m) => m.toggleLasting(lasting));
 				return;
 			}
 

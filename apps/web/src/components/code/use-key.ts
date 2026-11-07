@@ -1,43 +1,75 @@
-import { DOCS_KEY_FORGET, DOCS_KEY_STORE } from "@/lib/code/docs-key-store";
+import { notify } from "@/components/toast/notify";
+import {
+	LASTING_KEY_NEXT,
+	codeStepHref,
+	docsKeyMintRequest,
+	lastsFor,
+	mintFailure,
+} from "@/lib/code/docs-key-mint";
+import {
+	ANON_OWNER,
+	DOCS_KEY_FORGET,
+	DOCS_KEY_STORE,
+} from "@/lib/code/docs-key-store";
+import { rememberNext } from "@/lib/safe-next";
 
 /**
- * A signed-in reader's docs key in the code samples. Loaded on demand by
- * `CodeClient`, only when the page has a `[data-use-key]` control and the
- * reader is signed in; nothing here is in the page's first load.
+ * The reader's docs key in the code samples. Loaded on demand by `CodeClient`,
+ * only when the page has a `[data-use-key]` control; nothing here is in the
+ * page's first load.
  *
- * The key is a read-only, 24 hour credential (Streams and Index). It lives in
- * this module's memory and in `sessionStorage` (tab-scoped). It is never
- * rendered on the server, never put in a URL, and never leaves the slots it
- * fills: each slot keeps the real key as text (so Copy, which reads the row's
- * text, copies it) and shows a mask drawn by CSS from `data-mask`. A slot with
- * `data-quote` sits in an SDK sample and takes the key as a string literal. The
- * slots carry `ph-no-capture`, which keeps them out of PostHog autocapture and
- * replay.
+ * The key is a read-only, 24 hour credential (Streams and Index). Signed in,
+ * the account mints it; signed out, the API mints it for a ghost account, one
+ * a day per IP. It lives in this module's memory and in `sessionStorage`
+ * (tab-scoped). It is never rendered on the server, never put in a URL, and
+ * never leaves the slots it fills: each slot keeps the real key as text (so
+ * Copy, which reads the row's text, copies it) and shows a mask drawn by CSS
+ * from `data-mask`. A slot with `data-quote` sits in an SDK sample and takes
+ * the key as a string literal. The slots carry `ph-no-capture`, which keeps
+ * them out of PostHog autocapture and replay.
  *
  * Controls: a chip names the key (`sk-sl_9f4c…a3f9 · 23h left`) and opens a
  * panel about it; one link mints it, then shows and hides it. When the key
  * expires the chip says so and the samples go back to their placeholder.
+ * Signed out, "Make a lasting key" opens the panel on a sign-in form: the
+ * emailed link or code signs the reader in and lands on New key.
  */
+
+/** Who is reading, and what the page lends the module to sign them in. */
+export type KeyReader = {
+	/** The signed-in account's id; null for a signed-out reader. */
+	accountId: string | null;
+	/** Emails a sign-in link and code (`useAuth().login`). */
+	login: (email: string) => Promise<unknown>;
+	/** Client-side navigation. */
+	navigate: (href: string) => void;
+};
 
 type Held = { key: string; expiresAt: string; accountId: string };
 
-const ENDPOINT = "/api/keys/docs";
 const MINUTE = 60_000;
 
 let held: Held | null = null;
-let signedIn: string | null = null;
+let reader: KeyReader | null = null;
 let revealed = false;
 let expired = false;
 let busy = false;
+/** Signed out and already given today's key: what the note says instead of the action. */
+let limited: string | null = null;
+let sending = false;
 let timer: ReturnType<typeof setTimeout> | undefined;
 let ticker: ReturnType<typeof setInterval> | undefined;
 let watching = false;
 let panel: HTMLElement | null = null;
+/** What the panel shows: the key, or the sign-in form for a lasting one. */
+let panelMode: "about" | "lasting" = "about";
 /** When the panel last closed: a click on the chip light-dismisses it first, and must not reopen it. */
 let closedAt = 0;
 /** A slot's own markup, to put back when the key goes away. */
 const originals = new WeakMap<Element, string>();
 
+const ownerOf = (r: KeyReader) => r.accountId ?? ANON_OWNER;
+const signedOut = () => reader !== null && reader.accountId === null;
 const live = (h: Held) => Date.parse(h.expiresAt) > Date.now();
 const mask = (key: string) => `sk-sl_…${key.slice(-4)}`;
 const short = (key: string) => `${key.slice(0, 10)}…${key.slice(-4)}`;
@@ -128,21 +160,24 @@ function paint(root: ParentNode = document) {
 	}
 	for (const frame of root.querySelectorAll<HTMLElement>(".cb-tabs"))
 		if (frame.querySelector("[data-key-slot]")) note(frame, keyed.has(frame));
-	for (const link of root.querySelectorAll<HTMLElement>("[data-key-signin]"))
-		link.hidden = true;
+	const daily = !held && limited !== null;
 	for (const chip of root.querySelectorAll<HTMLButtonElement>(
 		"[data-key-chip]",
 	)) {
-		chip.hidden = !held && !expired;
+		chip.hidden = daily || (!held && !expired);
 		chip.dataset.state = expired ? "expired" : "";
 		chip.textContent = held
 			? `${short(held.key)} · ${timeLeft(held)}`
 			: "Key expired";
 	}
+	for (const msg of root.querySelectorAll<HTMLElement>("[data-key-msg]")) {
+		msg.hidden = !daily;
+		msg.textContent = daily ? limited : "";
+	}
 	for (const button of root.querySelectorAll<HTMLButtonElement>(
 		"[data-use-key]",
 	)) {
-		button.hidden = false;
+		button.hidden = daily;
 		button.disabled = busy;
 		button.textContent = busy
 			? "Making key…"
@@ -154,6 +189,11 @@ function paint(root: ParentNode = document) {
 					? "Get a new docs key"
 					: "Fill in a docs key";
 	}
+	// Signed in, the panel's link goes to the keys page as it always has.
+	for (const link of root.querySelectorAll<HTMLButtonElement>(
+		"[data-key-lasting]",
+	))
+		link.hidden = !signedOut() || !(held || expired || daily);
 	if (panel?.matches(":popover-open")) fillPanel(panel);
 }
 
@@ -190,6 +230,7 @@ function hold(next: Held) {
 	held = next;
 	revealed = false;
 	expired = false;
+	limited = null;
 	try {
 		sessionStorage.setItem(DOCS_KEY_STORE, JSON.stringify(next));
 	} catch {
@@ -206,7 +247,7 @@ function hold(next: Held) {
 	paint();
 }
 
-function restoreStored(accountId: string) {
+function restoreStored(owner: string) {
 	let raw: string | null = null;
 	try {
 		raw = sessionStorage.getItem(DOCS_KEY_STORE);
@@ -220,7 +261,7 @@ function restoreStored(accountId: string) {
 			typeof h.key === "string" &&
 			h.key.startsWith("sk-sl_") &&
 			typeof h.expiresAt === "string" &&
-			h.accountId === accountId
+			h.accountId === owner
 		) {
 			if (live(h as Held)) hold(h as Held);
 			else expire();
@@ -233,6 +274,13 @@ function restoreStored(accountId: string) {
 }
 
 function fillPanel(el: HTMLElement) {
+	const lasting = panelMode === "lasting";
+	el.setAttribute("aria-label", lasting ? "Make a lasting key" : "Docs key");
+	const about = el.querySelector<HTMLElement>(".kp-about");
+	const form = el.querySelector<HTMLFormElement>(".kp-lasting");
+	if (about) about.hidden = lasting;
+	if (form) form.hidden = !lasting;
+
 	const at = held?.expiresAt;
 	const when = at
 		? new Date(at).toLocaleString(undefined, {
@@ -250,8 +298,59 @@ function fillPanel(el: HTMLElement) {
 	set(".kp-title", expired ? "Docs key expired" : "Docs key");
 	set(".kp-key", held ? mask(held.key) : "None");
 	set(".kp-exp", expired ? "Expired" : when);
+	set(
+		".kp-body",
+		held
+			? `Sign in with your email, then make your own key. This one keeps working for ${lastsFor(held.expiresAt)}.`
+			: "Sign in with your email, then make your own key.",
+	);
 	const forgetButton = el.querySelector<HTMLElement>(".kp-forget");
 	if (forgetButton) forgetButton.hidden = !held;
+	const send = el.querySelector<HTMLButtonElement>(".kp-send");
+	if (send) {
+		send.disabled = sending;
+		send.textContent = sending ? "Sending…" : "Email me a link";
+	}
+}
+
+function showError(text: string | null) {
+	const error = panel?.querySelector<HTMLElement>(".kp-error");
+	if (!error) return;
+	error.hidden = text === null;
+	error.textContent = text ?? "";
+}
+
+/** The lasting-key form was sent: email a sign-in link, then say where it went. */
+async function sendLink(event: SubmitEvent) {
+	event.preventDefault();
+	const form = event.currentTarget as HTMLFormElement;
+	const input = form.querySelector<HTMLInputElement>(".kp-email");
+	const email = input?.value.trim() ?? "";
+	if (sending || !reader || !email) return;
+	const { login, navigate } = reader;
+	sending = true;
+	showError(null);
+	if (panel) fillPanel(panel);
+	// The emailed link opens in a new tab; it finds where to go here.
+	rememberNext(LASTING_KEY_NEXT);
+	try {
+		await login(email);
+	} catch (err) {
+		sending = false;
+		if (panel) fillPanel(panel);
+		showError(
+			err instanceof Error ? err.message : "Couldn't send the link. Try again.",
+		);
+		return;
+	}
+	sending = false;
+	if (input) input.value = "";
+	closePanel();
+	notify.done("Check your email", {
+		desc: `Click the link or enter the code we sent to ${email}.`,
+		duration: 10_000,
+		action: { label: "Enter code", run: () => navigate(codeStepHref(email)) },
+	});
 }
 
 /** The panel the chip opens: built once, in the top layer, so no frame clips it. */
@@ -263,16 +362,36 @@ function ensurePanel(): HTMLElement {
 	el.setAttribute("role", "dialog");
 	el.setAttribute("aria-label", "Docs key");
 	el.innerHTML =
+		'<div class="kp-about">' +
 		'<p class="kp-head"><span class="kp-title"></span></p>' +
 		"<p>A temporary key made for these docs. It fills the samples on this tab that read Streams and Index, and stops working after 24 hours.</p>" +
 		'<dl class="mono"><dt>Key</dt><dd class="kp-key ph-no-capture"></dd><dt>Can</dt><dd>Read Streams and Index</dd><dt>Expires</dt><dd class="kp-exp"></dd></dl>' +
-		'<div class="kp-actions"><button type="button" class="kp-forget">Forget key</button><a href="/account/keys">Make a lasting key</a></div>';
+		'<div class="kp-actions"><button type="button" class="kp-forget">Forget key</button><a class="kp-make" href="/account/keys">Make a lasting key</a></div>' +
+		"</div>" +
+		'<form class="kp-lasting" hidden>' +
+		'<p class="kp-head">Make a lasting key</p>' +
+		'<p class="kp-body"></p>' +
+		'<div class="kp-row"><input class="kp-email ph-no-capture" type="email" name="email" required autocomplete="email" placeholder="name@domain.com" aria-label="Email"><button type="submit" class="kp-send">Email me a link</button></div>' +
+		'<p class="kp-error" role="alert" hidden></p>' +
+		'<p class="kp-fine">New here? This creates your account.</p>' +
+		"</form>";
 	el.querySelector(".kp-forget")?.addEventListener("click", forget);
+	// Signed out there is no keys page yet: the link turns the panel into the sign-in form.
+	el.querySelector(".kp-make")?.addEventListener("click", (e) => {
+		if (!signedOut()) return;
+		e.preventDefault();
+		showMode("lasting");
+	});
+	el.querySelector(".kp-lasting")?.addEventListener("submit", (e) => {
+		void sendLink(e as SubmitEvent);
+	});
 	el.addEventListener("toggle", (e) => {
 		const open = (e as ToggleEvent).newState === "open";
 		if (!open) closedAt = performance.now();
-		for (const chip of document.querySelectorAll("[data-key-chip]"))
-			chip.setAttribute("aria-expanded", String(open));
+		for (const control of document.querySelectorAll(
+			"[data-key-chip], [data-key-lasting]",
+		))
+			control.setAttribute("aria-expanded", String(open));
 	});
 	// It is placed from the chip once; scrolling away closes it rather than leaving it adrift.
 	window.addEventListener(
@@ -291,19 +410,42 @@ function closePanel() {
 	if (panel?.matches(":popover-open")) panel.hidePopover();
 }
 
-/** The chip was clicked: open or close the panel under it. */
-export function togglePanel(chip: HTMLElement) {
+function showMode(mode: "about" | "lasting") {
+	panelMode = mode;
+	showError(null);
+	if (!panel) return;
+	fillPanel(panel);
+	if (mode === "lasting")
+		panel.querySelector<HTMLInputElement>(".kp-email")?.focus();
+}
+
+/** Open or close the panel under `anchor`, showing `mode`. */
+function togglePanelAt(anchor: HTMLElement, mode: "about" | "lasting") {
 	const el = ensurePanel();
 	if (el.matches(":popover-open")) {
 		el.hidePopover();
 		return;
 	}
 	if (performance.now() - closedAt < 300) return;
+	panelMode = mode;
+	showError(null);
 	fillPanel(el);
-	const r = chip.getBoundingClientRect();
+	const r = anchor.getBoundingClientRect();
 	el.style.top = `${r.bottom + 8}px`;
 	el.style.left = `${Math.max(16, Math.min(r.left, window.innerWidth - 376))}px`;
 	el.showPopover();
+	if (mode === "lasting")
+		el.querySelector<HTMLInputElement>(".kp-email")?.focus();
+}
+
+/** The chip was clicked: open or close the panel about the key. */
+export function togglePanel(chip: HTMLElement) {
+	togglePanelAt(chip, "about");
+}
+
+/** "Make a lasting key" was clicked (signed out): open or close the sign-in form. */
+export function toggleLasting(link: HTMLElement) {
+	togglePanelAt(link, "lasting");
 }
 
 function watch() {
@@ -332,37 +474,39 @@ function watch() {
 }
 
 /** Show the controls and bring back this tab's key. Safe to call on every page. */
-export function activate(accountId: string) {
-	if (signedIn !== null && signedIn !== accountId) forget();
-	signedIn = accountId;
+export function activate(next: KeyReader) {
+	if (reader !== null && ownerOf(reader) !== ownerOf(next)) {
+		limited = null;
+		forget();
+	}
+	reader = next;
 	watch();
 	if (held && live(held)) paint();
-	else restoreStored(accountId);
+	else restoreStored(ownerOf(next));
 	paint();
 }
 
 /** The link was clicked: mint the key, or flip between the mask and the key. */
 export async function useKey(): Promise<void> {
-	if (busy || signedIn === null) return;
+	if (busy || reader === null) return;
 	if (held && live(held)) {
 		revealed = !revealed;
 		paint();
 		return;
 	}
+	const owner = ownerOf(reader);
+	const signedIn = reader.accountId !== null;
+	const { url, init } = docsKeyMintRequest(signedIn);
 	busy = true;
 	closePanel();
 	paint();
-	let failed: string | null = null;
+	let flash: string | null = null;
 	try {
-		const res = await fetch(ENDPOINT, {
-			method: "POST",
-			credentials: "same-origin",
-			cache: "no-store",
-			headers: { "Content-Type": "application/json" },
-			body: "{}",
-		});
+		const res = await fetch(url, init);
 		if (!res.ok) {
-			failed = res.status === 429 ? "Limit reached" : "Try again";
+			const failure = mintFailure(res.status, signedIn);
+			if (failure.kind === "daily") limited = failure.text;
+			else flash = failure.text;
 		} else {
 			const body = (await res.json()) as { key?: unknown; expiresAt?: unknown };
 			if (
@@ -370,19 +514,19 @@ export async function useKey(): Promise<void> {
 				body.key.startsWith("sk-sl_") &&
 				typeof body.expiresAt === "string"
 			)
-				hold({ key: body.key, expiresAt: body.expiresAt, accountId: signedIn });
-			else failed = "Try again";
+				hold({ key: body.key, expiresAt: body.expiresAt, accountId: owner });
+			else flash = "Try again";
 		}
 	} catch {
-		failed = "Try again";
+		flash = "Try again";
 	}
 	busy = false;
 	paint();
-	if (failed) {
+	if (flash) {
 		for (const button of document.querySelectorAll<HTMLElement>(
 			"[data-use-key]",
 		))
-			button.textContent = failed;
+			button.textContent = flash;
 		setTimeout(() => paint(), 2400);
 	}
 }

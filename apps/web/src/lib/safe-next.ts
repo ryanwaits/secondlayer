@@ -37,6 +37,15 @@ export function currentNext(): string {
 	return safeNextPath(new URLSearchParams(window.location.search).get("next"));
 }
 
+/** The sign-in page's `?email=`, when it is an address: the code was already
+ *  sent (docs "Make a lasting key"), so the page opens on the code step. */
+export function codeStepEmail(search: string): string | null {
+	const email = new URLSearchParams(search).get("email")?.trim() ?? "";
+	return email.length <= 254 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
+		? email
+		: null;
+}
+
 /** Keep the return path for the emailed link, which opens in a new tab. */
 export function rememberNext(path: string, now = Date.now()): void {
 	try {

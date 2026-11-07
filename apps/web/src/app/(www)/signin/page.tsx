@@ -1,7 +1,7 @@
 "use client";
 
 import { useAuth } from "@/lib/auth";
-import { currentNext, rememberNext } from "@/lib/safe-next";
+import { codeStepEmail, currentNext, rememberNext } from "@/lib/safe-next";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 
@@ -21,6 +21,14 @@ export default function SignInPage() {
 	useEffect(() => {
 		if (account) router.replace(currentNext());
 	}, [account, router]);
+
+	// `?email=`: the code is already on its way, so open on the code step.
+	useEffect(() => {
+		const sentTo = codeStepEmail(window.location.search);
+		if (!sentTo) return;
+		setEmail(sentTo);
+		setStatus("sent");
+	}, []);
 
 	const handleInputEsc = useCallback(
 		(e: React.KeyboardEvent<HTMLInputElement>, clear: () => void) => {

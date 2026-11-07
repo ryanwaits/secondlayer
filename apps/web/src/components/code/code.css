@@ -843,9 +843,9 @@
 	opacity: 0.6;
 	cursor: default;
 }
-.key-signin {
+.key-msg {
 	color: var(--sub);
-	text-decoration-color: var(--line);
+	font: 400 12px / 1 var(--font-sans-stack);
 }
 .key-chip {
 	display: inline-flex;
@@ -950,10 +950,59 @@
 	border-color: var(--pri);
 	color: var(--pri);
 }
-.key-panel .kp-forget[hidden] {
-	display: none;
-}
 .key-panel a {
 	color: var(--pri);
 	text-decoration: none;
+}
+.key-panel [hidden] {
+	display: none;
+}
+/* Signed out, "Make a lasting key": the same panel as a one-field sign-in. */
+.key-panel .kp-lasting .kp-head::before {
+	display: none;
+}
+.key-panel .kp-row {
+	display: flex;
+	gap: 8px;
+	margin: 0 0 10px;
+}
+.key-panel .kp-email {
+	flex: 1;
+	min-width: 0;
+	height: 32px;
+	box-sizing: border-box;
+	padding: 0 10px;
+	border: 1px solid var(--line);
+	border-radius: 6px;
+	background: var(--paper);
+	color: var(--ink);
+	font: 400 13px / 1 var(--font-sans-stack);
+}
+.key-panel .kp-email:focus {
+	outline: none;
+	border-color: var(--pri);
+}
+.key-panel .kp-send {
+	height: 32px;
+	padding: 0 12px;
+	border: 0;
+	border-radius: 6px;
+	background: var(--pri);
+	color: var(--on-pri);
+	font: 500 12px / 1 var(--font-sans-stack);
+	white-space: nowrap;
+	cursor: pointer;
+}
+.key-panel .kp-send:disabled {
+	opacity: 0.6;
+	cursor: default;
+}
+.key-panel .kp-error {
+	color: var(--alarm);
+	font-size: 12px;
+}
+.key-panel .kp-fine {
+	margin: 0;
+	color: var(--faint);
+	font-size: 12px;
 }

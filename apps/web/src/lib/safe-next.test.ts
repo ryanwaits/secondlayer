@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import {
+	codeStepEmail,
 	rememberNext,
 	safeNextPath,
 	signInThen,
@@ -61,5 +62,24 @@ describe("remembered return path", () => {
 	test("a tampered stored path still has to be same-origin", () => {
 		store.set("sl_next", JSON.stringify({ path: "//evil.com", at: 0 }));
 		expect(takeRememberedNext(1)).toBe("/account");
+	});
+});
+
+describe("codeStepEmail", () => {
+	test("an address in ?email= opens the code step", () => {
+		expect(codeStepEmail("?email=ada%40example.com&next=%2Faccount")).toBe(
+			"ada@example.com",
+		);
+		expect(codeStepEmail("?email=a%2Bdocs%40example.com")).toBe(
+			"a+docs@example.com",
+		);
+	});
+
+	test("no address, or not an address, keeps the email step", () => {
+		expect(codeStepEmail("")).toBeNull();
+		expect(codeStepEmail("?next=%2Faccount")).toBeNull();
+		expect(codeStepEmail("?email=")).toBeNull();
+		expect(codeStepEmail("?email=not-an-address")).toBeNull();
+		expect(codeStepEmail(`?email=${"a".repeat(250)}%40example.com`)).toBeNull();
 	});
 });

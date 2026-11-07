@@ -372,14 +372,16 @@ export const esc = (text: string) =>
 export const escAttr = (text: string) => esc(text).replace(/"/g, "&quot;");
 
 /**
- * A keyed sample's controls, all hidden until the page knows who is reading:
- * signed out, a sign-in link; signed in, the key's chip and its action.
+ * A keyed sample's controls, all hidden until the key module paints them: the
+ * key's chip, the action that fills, shows or hides it, and, for a signed-out
+ * reader, a message when they have had today's key and "Make a lasting key".
  */
 export const KEY_CONTROLS =
 	'<span class="key-ctl">' +
-	'<a class="key-link key-signin" href="/signin" data-key-signin hidden>Sign in to fill in a docs key</a>' +
 	'<button type="button" class="key-chip mono" data-key-chip aria-haspopup="dialog" aria-expanded="false" hidden></button>' +
+	'<span class="key-msg" data-key-msg hidden></span>' +
 	'<button type="button" class="key-link use-key" data-use-key hidden>Fill in a docs key</button>' +
+	'<button type="button" class="key-link" data-key-lasting aria-haspopup="dialog" hidden>Make a lasting key</button>' +
 	"</span>";
 
 /** A range's wrapper: marks fill, tips explain, errors squiggle, swaps wait for the Base URL switch. */
