@@ -95,20 +95,78 @@ export async function getJsonObject<T>(params: {
 	}
 }
 
+/** Like {@link getJsonObject}, with the object's ETag for a conditional write. */
+export async function getJsonObjectWithEtag<T>(params: {
+	client: S3Client;
+	bucket: string;
+	key: string;
+}): Promise<{ value: T; etag: string } | null> {
+	try {
+		const response = await params.client.send(
+			new GetObjectCommand({ Bucket: params.bucket, Key: params.key }),
+		);
+		if (!response.Body) throw new Error(`empty object body: ${params.key}`);
+		if (!response.ETag) throw new Error(`object has no ETag: ${params.key}`);
+		const buffer = await streamBodyToBuffer(response.Body);
+		return {
+			value: JSON.parse(buffer.toString("utf8")) as T,
+			etag: response.ETag,
+		};
+	} catch (error) {
+		if (
+			error instanceof NotFound ||
+			hasHttpStatus(error, 404) ||
+			(error as { name?: string })?.name === "NoSuchKey"
+		) {
+			return null;
+		}
+		throw error;
+	}
+}
+
+/** The object changed (or appeared) since it was read: a conditional write lost. */
+export class PreconditionFailedError extends Error {
+	constructor(readonly key: string) {
+		super(`${key} changed since it was read`);
+	}
+}
+
 export async function putJsonObject(params: {
 	client: S3Client;
 	bucket: string;
 	key: string;
 	value: unknown;
+	/**
+	 * Conditional write. A string writes only if the object still has that ETag;
+	 * `null` writes only if the object does not exist yet. Omit for an
+	 * unconditional overwrite. A lost race throws {@link PreconditionFailedError}.
+	 */
+	ifMatch?: string | null;
 }): Promise<void> {
-	await params.client.send(
-		new PutObjectCommand({
-			Bucket: params.bucket,
-			Key: params.key,
-			Body: `${JSON.stringify(params.value, null, 2)}\n`,
-			ContentType: "application/json; charset=utf-8",
-		}),
-	);
+	try {
+		await params.client.send(
+			new PutObjectCommand({
+				Bucket: params.bucket,
+				Key: params.key,
+				Body: `${JSON.stringify(params.value, null, 2)}\n`,
+				ContentType: "application/json; charset=utf-8",
+				...(typeof params.ifMatch === "string"
+					? { IfMatch: params.ifMatch }
+					: params.ifMatch === null
+						? { IfNoneMatch: "*" }
+						: {}),
+			}),
+		);
+	} catch (error) {
+		if (
+			params.ifMatch !== undefined &&
+			(hasHttpStatus(error, 412) ||
+				(error as { name?: string })?.name === "PreconditionFailed")
+		) {
+			throw new PreconditionFailedError(params.key);
+		}
+		throw error;
+	}
 }
 
 export async function putFileObject(params: {

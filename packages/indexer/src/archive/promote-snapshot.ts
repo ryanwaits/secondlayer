@@ -31,7 +31,7 @@ import { signStreamsBulkManifest } from "@secondlayer/shared/streams-bulk-manife
 import { readJsonFile } from "../streams-bulk/file.ts";
 import {
 	createStreamsBulkS3Client,
-	getJsonObject,
+	getJsonObjectWithEtag,
 	getStreamsBulkR2ConfigFromEnv,
 	putJsonObject,
 } from "../streams-bulk/upload.ts";
@@ -244,11 +244,12 @@ async function main(): Promise<void> {
 	const client = createStreamsBulkS3Client(config);
 	const latestKey = `${CANONICAL_ARCHIVE_PREFIX}/latest.json`;
 
-	const current = await getJsonObject<CanonicalLatestPointer>({
+	const latest = await getJsonObjectWithEtag<CanonicalLatestPointer>({
 		client,
 		bucket: config.bucket,
 		key: latestKey,
 	});
+	const current = latest?.value ?? null;
 
 	console.log(`snapshot         ${snapshotDigest}`);
 	console.log(
@@ -322,11 +323,14 @@ async function main(): Promise<void> {
 		return;
 	}
 
+	// Conditional on the pointer we checked for regression: a concurrent
+	// promote that landed meanwhile makes this fail instead of overwriting it.
 	await putJsonObject({
 		client,
 		bucket: config.bucket,
 		key: latestKey,
 		value: pointer,
+		ifMatch: latest?.etag ?? null,
 	});
 	console.log(`\nPromoted ${snapshotDigest} to ${latestKey}`);
 
