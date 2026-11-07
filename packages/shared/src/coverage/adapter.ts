@@ -117,6 +117,31 @@ async function upsertRegistry(
 		.execute();
 }
 
+const CHECKPOINT_CURSOR = /^(\d+):(\d+)$/;
+
+/**
+ * Set a decoder's checkpoint to `cursor`, backward or forward. The one
+ * unconditional checkpoint writer: reorg handlers rewind decoders to the fork
+ * point through it, and reset tools reposition them. The commit path
+ * (`writeCheckpoint`) only moves forward.
+ */
+export async function rewindDecoderCheckpoint(
+	db: Kysely<Database>,
+	decoderName: string,
+	cursor: string | null,
+): Promise<void> {
+	await db
+		.insertInto("decoder_checkpoints")
+		.values({ decoder_name: decoderName, last_cursor: cursor })
+		.onConflict((oc) =>
+			oc.column("decoder_name").doUpdateSet({
+				last_cursor: cursor,
+				updated_at: new Date(),
+			}),
+		)
+		.execute();
+}
+
 async function writeCheckpoint(
 	tx: Kysely<Database>,
 	decoderName: string,
@@ -134,10 +159,23 @@ async function writeCheckpoint(
 	// conflicting row is left untouched (and `RETURNING` yields nothing)
 	// whenever the incoming cursor matches what's already stored, so a
 	// no-op poll costs one INSERT attempt, not a write + a NOTIFY fan-out.
-	// `IS DISTINCT FROM`, not `!=`: `last_cursor` starts out NULL for a
-	// decoder that has never committed, and SQL's `NULL != x` evaluates to
-	// NULL (falsy in a WHERE) — a plain `!=` silently treated "still unset"
-	// as "unchanged" and dropped a decoder's very first commit entirely.
+	// Forward-only: the guard compares the parsed `(height, index)`, never the
+	// text, and only a strictly greater cursor writes. A commit built from a
+	// stale read (a slow batch finishing after a faster one, a retry replaying
+	// an old page) is skipped instead of moving the checkpoint backward and
+	// making the decoder re-emit rows. Equal cursors skip too, which is the
+	// compare-and-skip above. A reorg rewinds through `rewindDecoderCheckpoint`.
+	// An unset or unparseable stored cursor counts as behind: `last_cursor`
+	// starts NULL for a decoder that has never committed, and SQL's
+	// `NULL < x` is NULL (falsy), which would drop the very first commit.
+	const parsed = CHECKPOINT_CURSOR.exec(cursor);
+	if (!parsed) {
+		throw new Error(
+			`decoder checkpoint cursor must be "<height>:<index>", got "${cursor}" (${decoderName})`,
+		);
+	}
+	const height = parsed[1] as string;
+	const index = parsed[2] as string;
 	const written = await tx
 		.insertInto("decoder_checkpoints")
 		.values({
@@ -151,7 +189,16 @@ async function writeCheckpoint(
 					last_cursor: cursor,
 					updated_at: new Date(),
 				})
-				.where("decoder_checkpoints.last_cursor", "is distinct from", cursor),
+				.where(
+					sql<boolean>`(
+						decoder_checkpoints.last_cursor IS NULL
+						OR decoder_checkpoints.last_cursor !~ '^[0-9]+:[0-9]+$'
+						OR (
+							split_part(decoder_checkpoints.last_cursor, ':', 1)::bigint,
+							split_part(decoder_checkpoints.last_cursor, ':', 2)::bigint
+						) < (${height}::bigint, ${index}::bigint)
+					)`,
+				),
 		)
 		.returning("last_cursor")
 		.execute();

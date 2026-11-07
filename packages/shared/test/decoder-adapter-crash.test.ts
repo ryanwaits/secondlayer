@@ -9,6 +9,7 @@ import {
 	type DecoderAdapterReceipt,
 	type DecoderCommitStep,
 	commitDecoderAdapter,
+	rewindDecoderCheckpoint,
 } from "../src/coverage/adapter.ts";
 import { inputDigest } from "../src/coverage/decoder-clock.ts";
 import { setMigrationRole } from "../src/db/migration-role.ts";
@@ -156,6 +157,39 @@ describe.skipIf(!HAS_DB)("crash matrix (postgres)", () => {
 				.where("decoder_name", "=", "decode.ft_transfer.v1")
 				.executeTakeFirst();
 			expect(checkpoint?.last_cursor).toBe("12:0");
+		});
+	});
+
+	test("a commit never moves a checkpoint backward and only a rewind does", async () => {
+		await withSchema(async (db) => {
+			const commitAt = (cursor: string) =>
+				commitDecoderAdapter(db, {
+					stage_id: "decode:ft_transfer",
+					decoder_name: "decode.ft_transfer.v1",
+					checkpoint_cursor: cursor,
+					receipts: [],
+					writeOutput: async () => {},
+				});
+			const stored = async () =>
+				(
+					await db
+						.selectFrom("decoder_checkpoints")
+						.select("last_cursor")
+						.where("decoder_name", "=", "decode.ft_transfer.v1")
+						.executeTakeFirst()
+				)?.last_cursor;
+
+			await commitAt("12:5");
+			// Numeric, not textual: "9:0" sorts after "12:5" as a string.
+			await commitAt("9:0");
+			expect(await stored()).toBe("12:5");
+			await commitAt("12:2");
+			expect(await stored()).toBe("12:5");
+			await commitAt("12:6");
+			expect(await stored()).toBe("12:6");
+
+			await rewindDecoderCheckpoint(db, "decode.ft_transfer.v1", "9:0");
+			expect(await stored()).toBe("9:0");
 		});
 	});
 

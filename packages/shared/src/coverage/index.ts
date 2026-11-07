@@ -86,6 +86,7 @@ export {
 	applyDecoderReceipts,
 	commitDecoderAdapter,
 	commitDecoderAdapterBatch,
+	rewindDecoderCheckpoint,
 	runDecoderCommitSteps,
 } from "./adapter.ts";
 export type {

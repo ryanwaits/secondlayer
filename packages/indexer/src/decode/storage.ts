@@ -4,6 +4,7 @@ import {
 	isPox5DecoderEnabled,
 	isSbtcDecoderEnabled,
 } from "@secondlayer/shared";
+import { rewindDecoderCheckpoint } from "@secondlayer/shared/coverage";
 import { getSourceDb } from "@secondlayer/shared/db";
 import type { Database } from "@secondlayer/shared/db/schema";
 import type {
@@ -103,27 +104,21 @@ export async function readDecoderCheckpoint(opts?: {
 	return row?.last_cursor ?? null;
 }
 
+/**
+ * Unconditional checkpoint write: reorg rewinds, resets and backfill
+ * positioning. The decoders' own commits go through the coverage adapter,
+ * which only moves a checkpoint forward.
+ */
 export async function writeDecoderCheckpoint(opts: {
 	cursor: string | null;
 	db?: Kysely<Database>;
 	decoderName?: string;
 }): Promise<void> {
-	const db = decodeDb(opts.db);
-	const decoderName = opts.decoderName ?? FT_TRANSFER_DECODER_NAME;
-
-	await db
-		.insertInto("decoder_checkpoints")
-		.values({
-			decoder_name: decoderName,
-			last_cursor: opts.cursor,
-		})
-		.onConflict((oc) =>
-			oc.column("decoder_name").doUpdateSet({
-				last_cursor: opts.cursor,
-				updated_at: new Date(),
-			}),
-		)
-		.execute();
+	await rewindDecoderCheckpoint(
+		decodeDb(opts.db),
+		opts.decoderName ?? FT_TRANSFER_DECODER_NAME,
+		opts.cursor,
+	);
 }
 
 /**
