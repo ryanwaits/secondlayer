@@ -1,13 +1,17 @@
 import { formatUsd } from "@/lib/account-data";
 import { creditDate, creditWhat } from "@/lib/billing-view";
 import type { CreditAdded } from "@/lib/types";
+import { LoadFailed } from "../load-failed";
 
 /** The latest top-ups and grants, newest first. */
 export function CreditsAddedTable({
 	credits,
+	onRetry,
 }: {
 	/** Null until the list has loaded. */
 	credits: CreditAdded[] | null;
+	/** Set when the list failed to load: shown with a Retry. */
+	onRetry?: () => void;
 }) {
 	return (
 		<section className="dash-panel bl-panel" aria-label="Credits added">
@@ -25,7 +29,11 @@ export function CreditsAddedTable({
 						{credits === null ? (
 							<tr>
 								<td className="wd-empty" colSpan={3}>
-									Loading...
+									{onRetry ? (
+										<LoadFailed what="credits" onRetry={onRetry} />
+									) : (
+										"Loading..."
+									)}
 								</td>
 							</tr>
 						) : credits.length === 0 ? (

@@ -12,8 +12,10 @@ import {
 	isTopupUsd,
 	refreshBilling,
 	refreshKeys,
+	resourceOf,
 	rotateKey,
 	topupStatus,
+	updateCap,
 	useAccountData,
 } from "./account-data";
 import { insightsSnapshot, refreshInsights } from "./insights-store";
@@ -241,5 +243,96 @@ describe("topupStatus", () => {
 		expect(creditsBaseline([old, fresh])).toEqual({
 			latestTopupAt: fresh.occurredAt,
 		});
+	});
+});
+
+describe("a slot that failed to load", () => {
+	test("reads as an error, not as still loading, and a retry fills it", async () => {
+		let status = 500;
+		stub(() => jsonResponse({ keys: [] }, status));
+		expect(resourceOf(accountSnapshot(), "keys")).toEqual({ status: "idle" });
+		await refreshKeys();
+		expect(resourceOf(accountSnapshot(), "keys")).toEqual({ status: "error" });
+		status = 200;
+		await refreshKeys();
+		expect(resourceOf(accountSnapshot(), "keys")).toEqual({
+			status: "ok",
+			data: [],
+		});
+		expect(accountSnapshot().status.keys).toBeUndefined();
+	});
+
+	test("a network failure is an error too", async () => {
+		globalThis.fetch = (async () => {
+			throw new TypeError("offline");
+		}) as unknown as typeof fetch;
+		await refreshKeys();
+		expect(resourceOf(accountSnapshot(), "keys")).toEqual({ status: "error" });
+	});
+
+	test("a failed refresh keeps the data it had", async () => {
+		let status = 200;
+		stub(() => jsonResponse({ keys: [] }, status));
+		await refreshKeys();
+		status = 500;
+		await refreshKeys();
+		expect(resourceOf(accountSnapshot(), "keys")).toEqual({
+			status: "ok",
+			data: [],
+		});
+	});
+
+	test("a read still under way shows as loading", async () => {
+		let release: (r: Response) => void = () => {};
+		globalThis.fetch = (() =>
+			new Promise<Response>((resolve) => {
+				release = resolve;
+			})) as unknown as typeof fetch;
+		const pending = refreshKeys();
+		expect(resourceOf(accountSnapshot(), "keys")).toEqual({
+			status: "loading",
+		});
+		release(jsonResponse({ keys: [] }));
+		await pending;
+	});
+});
+
+describe("a read that outlives sign-out", () => {
+	test("does not refill the store for the next account", async () => {
+		let release: (r: Response) => void = () => {};
+		globalThis.fetch = (() =>
+			new Promise<Response>((resolve) => {
+				release = resolve;
+			})) as unknown as typeof fetch;
+		const pending = refreshKeys();
+		clearAccountData();
+		release(jsonResponse({ keys: [{ id: "old-account-key" }] }));
+		await pending;
+		expect(accountSnapshot().keys).toBeNull();
+		expect(accountSnapshot().status).toEqual({});
+	});
+});
+
+describe("spend cap saves", () => {
+	const capResponse = (cents: number) => ({
+		monthlyCapCents: cents,
+		alertThresholdPct: 80,
+		frozenAt: null,
+		alertSentAt: null,
+	});
+
+	test("a slower older save never overwrites a newer one in the store", async () => {
+		const releases: ((r: Response) => void)[] = [];
+		globalThis.fetch = (() =>
+			new Promise<Response>((resolve) => {
+				releases.push(resolve);
+			})) as unknown as typeof fetch;
+		const first = updateCap(1000);
+		const second = updateCap(2000);
+		releases[1](jsonResponse(capResponse(2000)));
+		await second;
+		releases[0](jsonResponse(capResponse(1000)));
+		await first;
+		expect(accountSnapshot().caps?.monthlyCapCents).toBe(2000);
 	});
 });

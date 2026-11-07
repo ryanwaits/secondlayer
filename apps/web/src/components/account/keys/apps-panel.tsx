@@ -4,6 +4,7 @@ import { displayClientName } from "@/app/(www)/cli/login/cli-login";
 import { formatDate, revokeApp } from "@/lib/account-data";
 import type { ConnectedApp } from "@/lib/types";
 import { useState } from "react";
+import { LoadFailed } from "../load-failed";
 import { agoLong } from "./key-view";
 
 /** One app's item, or its inline revoke confirm. */
@@ -86,9 +87,12 @@ function AppRow({ app, now }: { app: ConnectedApp; now: Date }) {
 export function AppsPanel({
 	apps,
 	now,
+	onRetry,
 }: {
 	apps: ConnectedApp[] | null;
 	now: Date;
+	/** Set when the list failed to load: shown with a Retry. */
+	onRetry?: () => void;
 }) {
 	return (
 		<section className="ky-apps" aria-labelledby="ky-apps-h">
@@ -96,7 +100,11 @@ export function AppsPanel({
 				Apps signed in as you
 			</h2>
 			{apps === null ? (
-				<p className="ky-gone">Loading apps…</p>
+				onRetry ? (
+					<LoadFailed what="your apps" onRetry={onRetry} />
+				) : (
+					<p className="ky-gone">Loading apps…</p>
+				)
 			) : apps.length === 0 ? (
 				<p className="ky-gone">
 					No apps signed in. An MCP client you connect to

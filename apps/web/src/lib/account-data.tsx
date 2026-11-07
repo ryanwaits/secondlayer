@@ -69,7 +69,37 @@ type State = {
 	credits: CreditAdded[] | null;
 	/** Rows delivered: allowance, per day, sources, call sizes, errors. */
 	rows: RowsResponse | null;
+	/** Why a slot above is still `null`: its first read is under way, or failed. */
+	status: Partial<Record<Slot, "loading" | "error">>;
 };
+
+/** The slots that start `null` and fill from one read. */
+export type Slot =
+	| "billing"
+	| "keys"
+	| "apps"
+	| "alerts"
+	| "caps"
+	| "credits"
+	| "rows";
+
+/** One slot as a screen reads it: a read that failed is not a read still loading. */
+export type Resource<T> =
+	| { status: "idle" }
+	| { status: "loading" }
+	| { status: "ok"; data: T }
+	| { status: "error" };
+
+/** The slot's data once it has some, else why it has none. */
+export function resourceOf<S extends Slot>(
+	account: State,
+	slot: S,
+): Resource<NonNullable<State[S]>> {
+	const data = account[slot];
+	if (data !== null)
+		return { status: "ok", data: data as NonNullable<State[S]> };
+	return { status: account.status[slot] ?? "idle" };
+}
 
 const EMPTY: State = {
 	billing: null,
@@ -83,8 +113,11 @@ const EMPTY: State = {
 	caps: null,
 	credits: null,
 	rows: null,
+	status: {},
 };
 let state: State = EMPTY;
+/** Bumped on sign-out: a read that started before it must not fill the next account's store. */
+let epoch = 0;
 const listeners = new Set<() => void>();
 
 function current(): State {
@@ -94,6 +127,51 @@ function current(): State {
 function set(patch: Partial<State>) {
 	state = { ...state, ...patch };
 	for (const l of listeners) l();
+}
+
+function setStatus(slot: Slot, status: "loading" | "error" | undefined) {
+	if (state.status[slot] === status) return;
+	const next = { ...state.status };
+	if (status) next[slot] = status;
+	else delete next[slot];
+	set({ status: next });
+}
+
+/**
+ * One read into one slot. A failed first read marks the slot `error` (a
+ * failed refresh keeps the data it had), and a read that began before
+ * sign-out is dropped instead of refilling the store.
+ */
+function loadSlot<T>(
+	slot: Slot,
+	run: () => Promise<T | null>,
+	apply: (value: T) => Partial<State>,
+): Promise<T | null> {
+	return shared(slot, async () => {
+		const started = epoch;
+		if (current()[slot] === null) setStatus(slot, "loading");
+		let value: T | null = null;
+		try {
+			value = await run();
+		} catch {
+			value = null;
+		}
+		if (started !== epoch) return value;
+		if (value === null) {
+			if (current()[slot] === null) setStatus(slot, "error");
+			return null;
+		}
+		const status = { ...current().status };
+		delete status[slot];
+		set({ ...apply(value), status });
+		return value;
+	});
+}
+
+/** The JSON of a GET, or null when it was refused. */
+async function getJson<T>(url: string): Promise<T | null> {
+	const res = await fetch(url);
+	return res.ok ? ((await res.json()) as T) : null;
 }
 
 function subscribe(l: () => void) {
@@ -159,17 +237,11 @@ export function useAccountData(): State {
 }
 
 export function refreshBilling(): Promise<Billing | null> {
-	return shared("billing", async () => {
-		try {
-			const res = await fetch("/api/billing/status");
-			if (!res.ok) return null;
-			const billing = (await res.json()) as Billing;
-			set({ billing });
-			return billing;
-		} catch {
-			return null;
-		}
-	});
+	return loadSlot(
+		"billing",
+		() => getJson<Billing>("/api/billing/status"),
+		(billing) => ({ billing }),
+	);
 }
 
 /** For a screen mounting: load billing unless the page already carried it. */
@@ -186,10 +258,12 @@ export function ensureBilling(): Promise<unknown> {
  *  month-scoped. Mirrors `refreshBilling`. */
 export function refreshUsage(month: string): Promise<UsageResponse | null> {
 	return shared(`usage:${month}`, async () => {
+		const started = epoch;
 		try {
 			const res = await fetch(`/api/billing/usage?month=${month}`);
 			if (!res.ok) return null;
 			const data = (await res.json()) as UsageResponse;
+			if (started !== epoch) return data;
 			set({
 				usage: withUsageMonth(current().usage, month, data.usage),
 				daily: { ...current().daily, [month]: data.daily },
@@ -210,17 +284,11 @@ export function ensureUsage(month: string): Promise<unknown> {
 
 /** The signed-in account's balance-alert email preferences. */
 export function refreshAlerts(): Promise<BalanceAlerts | null> {
-	return shared("alerts", async () => {
-		try {
-			const res = await fetch("/api/billing/alerts");
-			if (!res.ok) return null;
-			const alerts = (await res.json()) as BalanceAlerts;
-			set({ alerts });
-			return alerts;
-		} catch {
-			return null;
-		}
-	});
+	return loadSlot(
+		"alerts",
+		() => getJson<BalanceAlerts>("/api/billing/alerts"),
+		(alerts) => ({ alerts }),
+	);
 }
 
 /** For a screen mounting: load the alert switches unless they are already here. */
@@ -228,12 +296,17 @@ export function ensureAlerts(): Promise<unknown> {
 	return current().alerts ? Promise.resolve() : refreshAlerts();
 }
 
+let alertsWrites = 0;
+let capWrites = 0;
+
 /** Optimistic PUT: the caller flips the switch immediately, this persists
  *  it and reconciles with what the server actually stored (or rolls back
  *  on failure — the caller shows a toast). */
 export async function updateAlerts(
 	patch: Partial<BalanceAlerts>,
 ): Promise<BalanceAlerts | null> {
+	const started = epoch;
+	const mine = ++alertsWrites;
 	const res = await fetch("/api/billing/alerts", {
 		method: "PUT",
 		headers: { "Content-Type": "application/json" },
@@ -241,23 +314,18 @@ export async function updateAlerts(
 	});
 	if (!res.ok) return null;
 	const alerts = (await res.json()) as BalanceAlerts;
-	set({ alerts });
+	// Responses can arrive out of order: only the newest write sets the store.
+	if (started === epoch && mine === alertsWrites) set({ alerts });
 	return alerts;
 }
 
 /** The signed-in account's monthly spend-cap setting. */
 export function refreshCaps(): Promise<Caps | null> {
-	return shared("caps", async () => {
-		try {
-			const res = await fetch("/api/billing/caps");
-			if (!res.ok) return null;
-			const caps = (await res.json()) as Caps;
-			set({ caps });
-			return caps;
-		} catch {
-			return null;
-		}
-	});
+	return loadSlot(
+		"caps",
+		() => getJson<Caps>("/api/billing/caps"),
+		(caps) => ({ caps }),
+	);
 }
 
 /** For a screen mounting: load the cap unless it is already here. */
@@ -267,17 +335,13 @@ export function ensureCaps(): Promise<unknown> {
 
 /** The signed-in account's latest top-ups and grants. */
 export function refreshCredits(): Promise<CreditAdded[] | null> {
-	return shared("credits", async () => {
-		try {
-			const res = await fetch("/api/billing/credits");
-			if (!res.ok) return null;
-			const { credits } = (await res.json()) as { credits: CreditAdded[] };
-			set({ credits });
-			return credits;
-		} catch {
-			return null;
-		}
-	});
+	return loadSlot(
+		"credits",
+		async () =>
+			(await getJson<{ credits: CreditAdded[] }>("/api/billing/credits"))
+				?.credits ?? null,
+		(credits) => ({ credits }),
+	);
 }
 
 /** For a screen mounting: load the credits list unless it is already here. */
@@ -289,23 +353,19 @@ export function ensureCredits(): Promise<unknown> {
  *  failed refresh and returns null, so the caller can tell a first-load
  *  failure from a stale refresh. */
 export function refreshRows(): Promise<RowsResponse | null> {
-	return shared("rows", async () => {
-		try {
-			const res = await fetch("/api/billing/rows");
-			if (!res.ok) return null;
-			const rows = (await res.json()) as RowsResponse;
-			set({ rows });
-			return rows;
-		} catch {
-			return null;
-		}
-	});
+	return loadSlot(
+		"rows",
+		() => getJson<RowsResponse>("/api/billing/rows"),
+		(rows) => ({ rows }),
+	);
 }
 
 /** Set or clear the monthly spend cap. `monthlyCapCents: null` clears it. */
 export async function updateCap(
 	monthlyCapCents: number | null,
 ): Promise<Caps | null> {
+	const started = epoch;
+	const mine = ++capWrites;
 	const res = await fetch("/api/billing/caps", {
 		method: "PATCH",
 		headers: { "Content-Type": "application/json" },
@@ -313,21 +373,17 @@ export async function updateCap(
 	});
 	if (!res.ok) return null;
 	const caps = (await res.json()) as Caps;
-	set({ caps });
+	// Responses can arrive out of order: only the newest write sets the store.
+	if (started === epoch && mine === capWrites) set({ caps });
 	return caps;
 }
 
-export function refreshKeys(): Promise<void> {
-	return shared("keys", async () => {
-		try {
-			const res = await fetch("/api/keys");
-			if (!res.ok) return;
-			const data = (await res.json()) as { keys: ApiKey[] };
-			set({ keys: data.keys });
-		} catch {
-			// Keep what we had; the list retries on the next open.
-		}
-	});
+export async function refreshKeys(): Promise<void> {
+	await loadSlot(
+		"keys",
+		async () => (await getJson<{ keys: ApiKey[] }>("/api/keys"))?.keys ?? null,
+		(keys) => ({ keys }),
+	);
 }
 
 /** For a screen mounting: load keys unless they are already here. */
@@ -335,17 +391,14 @@ export function ensureKeys(): Promise<void> {
 	return current().keys ? Promise.resolve() : refreshKeys();
 }
 
-export function refreshApps(): Promise<void> {
-	return shared("apps", async () => {
-		try {
-			const res = await fetch("/api/oauth/grants");
-			if (!res.ok) return;
-			const data = (await res.json()) as { grants: ConnectedApp[] };
-			set({ apps: data.grants });
-		} catch {
-			// Keep what we had; the list retries on the next open.
-		}
-	});
+export async function refreshApps(): Promise<void> {
+	await loadSlot(
+		"apps",
+		async () =>
+			(await getJson<{ grants: ConnectedApp[] }>("/api/oauth/grants"))
+				?.grants ?? null,
+		(apps) => ({ apps }),
+	);
 }
 
 /** For a screen mounting: load connected apps unless they are already here. */
@@ -367,6 +420,7 @@ export async function revokeApp(id: string): Promise<void> {
 
 /** Forget everything on sign-out so the next account never sees it. */
 export function clearAccountData(): void {
+	epoch++;
 	state = EMPTY;
 	for (const l of listeners) l();
 	clearWebhooksData();

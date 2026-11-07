@@ -198,6 +198,8 @@ export interface BillingBodyProps {
 	capUsd: number | null;
 	onCapChange: (next: number | null) => void;
 	credits: CreditAdded[] | null;
+	/** Set when the credits list failed to load: the table shows Retry. */
+	onRetryCredits?: () => void;
 	/** Insights about the account's spend, ranked by the server. */
 	insights?: readonly Insight[];
 	/** Shown above the status sentence, such as the way back from Stripe. */
@@ -219,6 +221,7 @@ export function BillingBody({
 	capUsd,
 	onCapChange,
 	credits,
+	onRetryCredits,
 	insights = [],
 	notice,
 	addCredits,
@@ -249,7 +252,7 @@ export function BillingBody({
 				<div className="bl-cols">
 					<ByUnitTable usage={usage} monthName={monthName} />
 					<div className="bl-col">
-						<CreditsAddedTable credits={credits} />
+						<CreditsAddedTable credits={credits} onRetry={onRetryCredits} />
 						{settings}
 					</div>
 				</div>
@@ -305,7 +308,7 @@ export function BillingBody({
 			<div className="bl-cols">
 				<ByUnitTable usage={usage} monthName={monthName} />
 				<div className="bl-col">
-					<CreditsAddedTable credits={credits} />
+					<CreditsAddedTable credits={credits} onRetry={onRetryCredits} />
 					{settings}
 				</div>
 			</div>
@@ -315,7 +318,7 @@ export function BillingBody({
 
 /** /account/credits: balance, spend and limits, with the way back from Stripe. */
 export function BillingScreen({ ret }: { ret: TopupReturn | null }) {
-	const { billing, burn, service, usage, daily, caps, credits } =
+	const { billing, burn, service, usage, daily, caps, credits, status } =
 		useAccountData();
 	const { data: allInsights } = useInsights();
 	const st = useTopupReturn(ret);
@@ -420,6 +423,7 @@ export function BillingScreen({ ret }: { ret: TopupReturn | null }) {
 			capUsd={capUsd}
 			onCapChange={changeCap}
 			credits={credits}
+			onRetryCredits={status.credits === "error" ? refreshCredits : undefined}
 			insights={forAccountRules(allInsights, BILLING_RULES)}
 			notice={st ? <ReturnNotice st={st} billing={billing} /> : null}
 			addCredits={

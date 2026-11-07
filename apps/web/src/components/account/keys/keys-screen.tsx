@@ -12,6 +12,8 @@ import {
 	ensureApps,
 	ensureKeys,
 	formatDate,
+	refreshApps,
+	refreshKeys,
 	revokeKey,
 	rotateKey,
 	useAccountData,
@@ -26,6 +28,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AccountCompactHeader } from "../compact-account";
+import { LoadFailed } from "../load-failed";
 import { AppsPanel } from "./apps-panel";
 import { KeysCompact } from "./compact-keys";
 import {
@@ -421,6 +424,7 @@ export function KeysTable({
 	madeOpen = false,
 	onRotated,
 	onRotateBlocked,
+	onRetry,
 }: {
 	/** Null until the list has loaded. */
 	keys: ApiKey[] | null;
@@ -433,6 +437,8 @@ export function KeysTable({
 	onRotated?: (key: string, name: string) => void;
 	/** Set while a new key is unseen: Rotate calls it instead of asking to rotate. */
 	onRotateBlocked?: () => void;
+	/** Set when the list failed to load: shown with a Retry. */
+	onRetry?: () => void;
 }) {
 	const [open, setOpen] = useState<string | null>(initialOpen);
 	const [confirming, setConfirming] = useState<string | null>(null);
@@ -440,7 +446,13 @@ export function KeysTable({
 	const [revoked, setRevoked] = useState<
 		{ id: string; name: string; at: number }[]
 	>([]);
-	if (keys === null) return <p className="acct-muted">Loading keys…</p>;
+	if (keys === null) {
+		return onRetry ? (
+			<LoadFailed what="your keys" onRetry={onRetry} />
+		) : (
+			<p className="acct-muted">Loading keys…</p>
+		);
+	}
 	const state = keyState(keys, now);
 	const grouped = groupKeys(keys, now);
 	const own = [...grouped.own].sort(
@@ -553,6 +565,11 @@ export interface KeysBodyProps {
 	onRotated?: (key: string, name: string) => void;
 	/** Set while a new key is unseen: Rotate calls it instead of asking to rotate. */
 	onRotateBlocked?: () => void;
+	/** Set when the keys failed to load: the list shows Retry, not "Loading". */
+	onRetry?: () => void;
+	/** Apps' load failed; set with `onRetryApps`. */
+	appsFailed?: boolean;
+	onRetryApps?: () => void;
 }
 
 /** Keys: one sentence, why a key went quiet, and a row per key. */
@@ -568,10 +585,16 @@ export function KeysBody({
 	madeOpen,
 	onRotated,
 	onRotateBlocked,
+	onRetry,
+	appsFailed,
+	onRetryApps,
 }: KeysBodyProps) {
 	const sentence =
 		keys === null
-			? { text: "Loading your keys.", sub: undefined }
+			? {
+					text: onRetry ? "Couldn't load your keys." : "Loading your keys.",
+					sub: undefined,
+				}
 			: keysSentence(keys, now, {
 					revokedInUse: insights.some((i) => i.rule === "revoked_key_in_use"),
 				});
@@ -603,9 +626,14 @@ export function KeysBody({
 				madeOpen={madeOpen}
 				onRotated={onRotated}
 				onRotateBlocked={onRotateBlocked}
+				onRetry={onRetry}
 			/>
 			{keys !== null && apps !== undefined ? (
-				<AppsPanel apps={apps} now={now} />
+				<AppsPanel
+					apps={apps}
+					now={now}
+					onRetry={appsFailed ? onRetryApps : undefined}
+				/>
 			) : null}
 		</div>
 	);
@@ -618,7 +646,7 @@ const KEY_RULES = ["key_unused", "revoked_key_in_use"];
  *  `openNew` (`?new=1`, from the docs' "Make a lasting key") opens New key on
  *  load; the param is then dropped so a reload doesn't open it again. */
 export function KeysScreen({ openNew = false }: { openNew?: boolean }) {
-	const { keys, apps } = useAccountData();
+	const { keys, apps, status } = useAccountData();
 	const { data: allInsights } = useInsights();
 	const compact = useCompact();
 	const router = useRouter();
@@ -703,6 +731,9 @@ export function KeysScreen({ openNew = false }: { openNew?: boolean }) {
 			now={now}
 			freshPrefix={freshPrefix}
 			apps={apps}
+			onRetry={status.keys === "error" ? refreshKeys : undefined}
+			appsFailed={status.apps === "error"}
+			onRetryApps={refreshApps}
 			onNew={() => dispatch({ type: "open" })}
 			onRotated={(key, name) => {
 				markFresh(key);
