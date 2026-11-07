@@ -1,6 +1,6 @@
 "use client";
 
-import { useAuth } from "@/lib/auth";
+import { VerifyUnreachableError, useAuth } from "@/lib/auth";
 import { codeStepEmail, currentNext, rememberNext } from "@/lib/safe-next";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";

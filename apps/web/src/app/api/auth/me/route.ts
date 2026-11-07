@@ -17,9 +17,15 @@ export async function GET(req: Request) {
 		});
 		return NextResponse.json({ account });
 	} catch (e) {
+		// The API is down or timing out: that says nothing about the session,
+		// so the browser must not read it as signed out. Only an answer from
+		// the API counts as one.
+		if (!(e instanceof ApiError) || e.status >= 500) {
+			return NextResponse.json({ error: "unreachable" }, { status: 503 });
+		}
 		// Session expired or invalid — clear the cookie
 		const res = NextResponse.json({ account: null });
-		if (e instanceof ApiError && e.status === 401) {
+		if (e.status === 401) {
 			// Domain must match the set cookie to override it across subdomains.
 			res.cookies.set("sl_session", "", {
 				maxAge: 0,

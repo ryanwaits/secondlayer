@@ -23,14 +23,15 @@ function selectTab(group: HTMLElement, key: string) {
 export function CodeClient() {
 	const pathname = usePathname();
 	const router = useRouter();
-	const { account, loading, login } = useAuth();
+	const { account, loading, unreachable, login } = useAuth();
 
 	// The docs key: the key module loads only on a page that has a sample to
 	// fill, for every reader. Signed in, the account mints it; signed out, the
 	// API mints one for the tab. Signing out drops the account's key.
 	// biome-ignore lint/correctness/useExhaustiveDependencies: `pathname` re-runs the scan for the samples a soft navigation brings in
 	useEffect(() => {
-		if (loading) return;
+		// A session that couldn't be read isn't a sign-out: keep the key.
+		if (loading || unreachable) return;
 		if (!account) dropAccountKey();
 		const reader = {
 			accountId: account?.id ?? null,
@@ -58,7 +59,7 @@ export function CodeClient() {
 		});
 		arrivals.observe(document.body, { childList: true, subtree: true });
 		return () => arrivals.disconnect();
-	}, [account, loading, login, router, pathname]);
+	}, [account, loading, unreachable, login, router, pathname]);
 
 	// Tips: the module loads on the first page that has one, and a soft
 	// navigation closes whatever was open. A tip that mounts later (the API

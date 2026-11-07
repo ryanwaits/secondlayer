@@ -1,6 +1,7 @@
 "use client";
 
 import { displayClientName } from "@/app/(www)/cli/login/cli-login";
+import { SessionUnreachable } from "@/components/session-unreachable";
 import { ensureBilling, formatUsd, useAccountData } from "@/lib/account-data";
 import { useAuth } from "@/lib/auth";
 import { signInThen } from "@/lib/safe-next";
@@ -113,7 +114,7 @@ export function OauthConsentCard({
 }
 
 export function OauthConsent() {
-	const { account, loading } = useAuth();
+	const { account, loading, unreachable } = useAuth();
 	const router = useRouter();
 	const id = useSearchParams().get("req") ?? "";
 	const valid = REQUEST_ID_RE.test(id);
@@ -130,12 +131,12 @@ export function OauthConsent() {
 	// Signed out: sign in, then come back here. The return path stays in this
 	// browser (safe-next), never in the emailed link.
 	useEffect(() => {
-		if (!loading && !account && valid) {
+		if (!loading && !unreachable && !account && valid) {
 			router.replace(
 				signInThen(`/oauth/consent?req=${encodeURIComponent(id)}`),
 			);
 		}
-	}, [loading, account, id, valid, router]);
+	}, [loading, unreachable, account, id, valid, router]);
 
 	useEffect(() => {
 		if (!valid) {
@@ -206,6 +207,8 @@ export function OauthConsent() {
 		},
 		[id, view],
 	);
+
+	if (unreachable) return <SessionUnreachable />;
 
 	return (
 		<OauthConsentCard

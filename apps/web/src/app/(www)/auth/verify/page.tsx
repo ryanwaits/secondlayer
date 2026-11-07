@@ -1,6 +1,6 @@
 "use client";
 
-import { useAuth } from "@/lib/auth";
+import { VerifyUnreachableError, useAuth } from "@/lib/auth";
 import { takeRememberedNext } from "@/lib/safe-next";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
@@ -16,6 +16,7 @@ function VerifyContent() {
 	const { verify } = useAuth();
 	const token = searchParams.get("token");
 	const [error, setError] = useState<string | null>(null);
+	const [retryable, setRetryable] = useState(false);
 	const attempted = useRef(false);
 
 	const doVerify = useCallback(async () => {
@@ -28,6 +29,8 @@ function VerifyContent() {
 		} catch (err) {
 			const message = err instanceof Error ? err.message.trim() : "";
 			setError(GENERIC_ERRORS.has(message.toLowerCase()) ? "" : message);
+			// A verify that got no answer left the link unused: it can try again.
+			setRetryable(err instanceof VerifyUnreachableError);
 		}
 	}, [token, verify]);
 
@@ -56,13 +59,24 @@ function VerifyContent() {
 			>
 				<p style={{ color: "var(--alarm)" }}>{error || LINK_FAILED}</p>
 				<p style={{ marginTop: 20 }}>
-					<Link
-						href="/signin"
-						className="acct-btn solid"
-						style={{ display: "inline-flex" }}
-					>
-						Send a new link
-					</Link>
+					{retryable ? (
+						<button
+							type="button"
+							className="acct-btn solid"
+							style={{ display: "inline-flex" }}
+							onClick={() => window.location.reload()}
+						>
+							Try again
+						</button>
+					) : (
+						<Link
+							href="/signin"
+							className="acct-btn solid"
+							style={{ display: "inline-flex" }}
+						>
+							Send a new link
+						</Link>
+					)}
 				</p>
 			</div>
 		);

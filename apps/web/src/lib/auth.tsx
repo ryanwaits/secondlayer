@@ -10,12 +10,25 @@ import {
 } from "react";
 import { clearAccountData } from "./account-data";
 import { distinctId, identify, reset } from "./analytics";
+import {
+	SESSION_UNKNOWN,
+	type Session,
+	type SessionEvent,
+	accountOf,
+	sessionReducer,
+} from "./auth-session";
+import { VERIFY_TIMEOUT_MS } from "./signin-flow";
 import type { Account } from "./types";
 import { marketingUrl } from "./urls";
 
 interface AuthCtx {
 	account: Account | null;
+	/** The session hasn't been read yet. */
 	loading: boolean;
+	/** The session couldn't be read (network or server error): not signed
+	 *  out. Pages that would redirect a signed-out visitor offer `refresh`
+	 *  as a retry instead. */
+	unreachable: boolean;
 	/** `from` names the form that asked, for the server's analytics event. */
 	login(
 		email: string,
@@ -25,6 +38,10 @@ interface AuthCtx {
 	logout(): Promise<void>;
 	refresh(): Promise<void>;
 }
+
+/** A verify that never got an answer (timeout or network): the code may be
+ *  fine, so the visitor is told to try again rather than that it was wrong. */
+export class VerifyUnreachableError extends Error {}
 
 /** Which form asked for a sign-in link: the sign-in page, or the docs
  *  "Make a lasting key" panel. */
@@ -49,10 +66,10 @@ function identifyAccount(account: Account) {
 
 const AuthContext = createContext<AuthCtx | null>(null);
 
-type AuthState = { account: Account | null; loading: boolean };
+type AuthState = { session: Session };
 
 /** What the server render and the first hydration pass see: not yet known. */
-const UNKNOWN: AuthState = { account: null, loading: true };
+const UNKNOWN: AuthState = { session: SESSION_UNKNOWN };
 
 // A module store, so a page that already read the account on the server can
 // hand it over before the provider's first effect. Browser-only writes: the
@@ -60,8 +77,10 @@ const UNKNOWN: AuthState = { account: null, loading: true };
 let auth: AuthState = UNKNOWN;
 const listeners = new Set<() => void>();
 
-function setAuth(patch: Partial<AuthState>) {
-	auth = { ...auth, ...patch };
+function dispatchSession(event: SessionEvent) {
+	const session = sessionReducer(auth.session, event);
+	if (session === auth.session) return;
+	auth = { session };
 	for (const l of listeners) l();
 }
 
@@ -82,43 +101,33 @@ const seeded = new WeakSet<object>();
 export function AuthSeed({ account }: { account: Account | null }) {
 	if (account && typeof window !== "undefined" && !seeded.has(account)) {
 		seeded.add(account);
-		auth = { account, loading: false };
+		auth = { session: { kind: "signedIn", account } };
 	}
 	return null;
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
 	const router = useRouter();
-	const { account, loading } = useSyncExternalStore(
+	const { session } = useSyncExternalStore(
 		subscribeAuth,
 		() => auth,
 		() => UNKNOWN,
-	);
-	const setAccount = useCallback(
-		(next: Account | null) => setAuth({ account: next }),
-		[],
-	);
-	const setLoading = useCallback(
-		(next: boolean) => setAuth({ loading: next }),
-		[],
 	);
 
 	const refresh = useCallback(async () => {
 		try {
 			const res = await fetch("/api/auth/me");
-			const data = await res.json();
-			const account = data.account ?? null;
-			setAccount(account);
-			// A signed-out answer (say, an expired session) leaves nothing of the
-			// last account behind for whoever signs in next in this tab.
-			if (!account) clearAccountData();
-			if (account) identifyAccount(account);
+			const body = await res.json().catch(() => null);
+			dispatchSession({ type: "answered", status: res.status, body });
 		} catch {
-			setAccount(null);
-		} finally {
-			setLoading(false);
+			dispatchSession({ type: "unreachable" });
 		}
-	}, [setAccount, setLoading]);
+		const next = auth.session;
+		// A signed-out answer (say, an expired session) leaves nothing of the
+		// last account behind for whoever signs in next in this tab.
+		if (next.kind === "signedOut") clearAccountData();
+		if (next.kind === "signedIn") identifyAccount(next.account);
+	}, []);
 
 	const login = useCallback(
 		async (email: string, from?: SigninFrom): Promise<{ token?: string }> => {
@@ -136,30 +145,40 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 		[],
 	);
 
-	const verify = useCallback(
-		async (tokenOrCode: string, email?: string) => {
-			const body = email
-				? { code: tokenOrCode, email }
-				: { token: tokenOrCode };
-			const res = await fetch("/api/auth/verify", {
+	const verify = useCallback(async (tokenOrCode: string, email?: string) => {
+		const body = email ? { code: tokenOrCode, email } : { token: tokenOrCode };
+		let res: Response;
+		try {
+			res = await fetch("/api/auth/verify", {
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
 				body: JSON.stringify(body),
+				signal: AbortSignal.timeout(VERIFY_TIMEOUT_MS),
 			});
-			if (!res.ok) {
-				const data = await res.json();
-				throw new Error(data.error || "Verification failed");
-			}
+		} catch (err) {
+			// A verify that never answers is a failure the visitor can retry,
+			// not a spinner that never ends.
+			const timedOut =
+				err instanceof DOMException &&
+				(err.name === "TimeoutError" || err.name === "AbortError");
+			throw new VerifyUnreachableError(
+				timedOut
+					? "That took too long. Check your connection and try again."
+					: "Couldn't reach Secondlayer. Try again.",
+			);
+		}
+		if (!res.ok) {
 			const data = await res.json();
-			const account = data.account as Account;
-			// A new session starts from nothing; its pages read their own data.
-			clearAccountData();
-			setAccount(account);
-			identifyAccount(account);
-			return { account };
-		},
-		[setAccount],
-	);
+			throw new Error(data.error || "Verification failed");
+		}
+		const data = await res.json();
+		const account = data.account as Account;
+		// A new session starts from nothing; its pages read their own data.
+		clearAccountData();
+		dispatchSession({ type: "signedIn", account });
+		identifyAccount(account);
+		return { account };
+	}, []);
 
 	const logout = useCallback(async () => {
 		await fetch("/api/auth/logout", { method: "POST" });
@@ -167,13 +186,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 		reset();
 		router.push("/");
 		router.refresh();
-		setAccount(null);
-	}, [router, setAccount]);
+		dispatchSession({ type: "signedOut" });
+	}, [router]);
 
 	useEffect(() => {
 		// A page that read the account on the server has already seeded it.
-		if (!auth.loading) {
-			if (auth.account) identifyAccount(auth.account);
+		if (auth.session.kind !== "unknown") {
+			if (auth.session.kind === "signedIn")
+				identifyAccount(auth.session.account);
 			return;
 		}
 		refresh();
@@ -181,7 +201,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
 	return (
 		<AuthContext.Provider
-			value={{ account, loading, login, verify, logout, refresh }}
+			value={{
+				account: accountOf(session),
+				loading: session.kind === "unknown",
+				unreachable: session.kind === "unreachable",
+				login,
+				verify,
+				logout,
+				refresh,
+			}}
 		>
 			{children}
 		</AuthContext.Provider>

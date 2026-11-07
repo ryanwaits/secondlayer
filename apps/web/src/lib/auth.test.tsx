@@ -38,14 +38,16 @@ afterEach(() => {
 describe("AuthSeed", () => {
 	test("the server render never writes the shared module state", () => {
 		renderToStaticMarkup(tree(account));
-		expect(authSnapshot().account).toBeNull();
-		expect(authSnapshot().loading).toBe(true);
+		expect(authSnapshot().session).toEqual({ kind: "unknown" });
 	});
 
 	test("the browser starts signed in, not loading, from the server's account", () => {
 		globalThis.window = {} as Window & typeof globalThis;
 		renderToStaticMarkup(tree(account));
-		expect(authSnapshot()).toEqual({ account, loading: false });
+		expect(authSnapshot().session).toEqual({
+			kind: "signedIn",
+			account: account as never,
+		});
 	});
 
 	test("an unseeded page keeps waiting for the browser's own read", () => {

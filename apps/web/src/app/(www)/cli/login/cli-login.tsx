@@ -1,5 +1,6 @@
 "use client";
 
+import { SessionUnreachable } from "@/components/session-unreachable";
 import { useAuth } from "@/lib/auth";
 import { signInThen } from "@/lib/safe-next";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -160,7 +161,7 @@ export function CliLoginCard({
 }
 
 export function CliLogin() {
-	const { account, loading } = useAuth();
+	const { account, loading, unreachable } = useAuth();
 	const router = useRouter();
 	const code = (useSearchParams().get("code") ?? "").toUpperCase();
 	const [view, setView] = useState<View>({ kind: "loading" });
@@ -168,10 +169,10 @@ export function CliLogin() {
 	const [error, setError] = useState<string | null>(null);
 	// Signed out: sign in, then come back to this same code.
 	useEffect(() => {
-		if (!loading && !account) {
+		if (!loading && !unreachable && !account) {
 			router.replace(signInThen(`/cli/login?code=${encodeURIComponent(code)}`));
 		}
-	}, [loading, account, code, router]);
+	}, [loading, unreachable, account, code, router]);
 
 	useEffect(() => {
 		if (!account) return;
@@ -241,6 +242,8 @@ export function CliLogin() {
 		},
 		[code, view],
 	);
+
+	if (unreachable) return <SessionUnreachable />;
 
 	return (
 		<CliLoginCard

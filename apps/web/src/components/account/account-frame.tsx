@@ -1,6 +1,7 @@
 "use client";
 
 import { MobileShell } from "@/components/mobile/mobile-shell";
+import { SessionUnreachable } from "@/components/session-unreachable";
 import { useAuth } from "@/lib/auth";
 import { insightsSnapshot, startInsightsPolling } from "@/lib/insights-store";
 import { useEffect } from "react";
@@ -23,7 +24,7 @@ export function AccountFrame({
 	 *  no page mounts. An expired cookie still falls back to `/auth/me` below. */
 	signedOut?: boolean;
 }) {
-	const { account, loading } = useAuth();
+	const { account, loading, unreachable } = useAuth();
 	const signedIn = Boolean(account);
 	// One shared feed of ranked insights for every screen under /account.
 	// Insights start with the page, like every screen's own reads: a visitor
@@ -48,6 +49,7 @@ export function AccountFrame({
 	// instead of waiting on `/auth/me` — `children` start their own fetches
 	// immediately, and a proxy 401 just reads as "signed out" once loading
 	// catches up (each page's own store/notice handling covers that).
+	if (unreachable && !signedOut) return <SessionUnreachable />;
 	if (signedOut || (!loading && !account)) {
 		return (
 			<div className="login-page">
