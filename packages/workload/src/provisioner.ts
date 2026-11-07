@@ -819,6 +819,23 @@ function workloadCount(
 	return (cfg.countWorkloads ?? countTenantWorkloads)(acct8);
 }
 
+/** One lane per account for every compose operation (start, stop, destroy):
+ *  they run one after another, never side by side on one project. A stop moves
+ *  the row to `stopped` before compose runs, so a gateway start can arrive
+ *  mid-stop; it waits here, then re-reads the row. */
+const lanes = new Map<string, Promise<unknown>>();
+
+function inLane<T>(accountId: string, op: () => Promise<T>): Promise<T> {
+	const previous = lanes.get(accountId) ?? Promise.resolve();
+	const run = previous.then(op, op);
+	const tail = run.catch(() => {});
+	lanes.set(accountId, tail);
+	tail.then(() => {
+		if (lanes.get(accountId) === tail) lanes.delete(accountId);
+	});
+	return run;
+}
+
 /** `running → stopped`: stop every service except `postgres` (Design) so
  *  webhook delivery pauses and the memory meter stops, but tenant data is
  *  kept. `reason` decides what brings it back: the poll restarts a
@@ -831,11 +848,20 @@ function workloadCount(
  *  workloads after the swap and gives up when the tenant is no longer empty
  *  (a webhook created since the poll looked), and `ifStartedAt` makes it give
  *  up when the stack restarted since. Returns whether the tenant was stopped. */
-export async function stop(
+export function stop(
 	cfg: ProvisionerConfig,
 	accountId: string,
 	reason: StopReason,
 	opts: { ifStartedAt?: Date | null } = {},
+): Promise<boolean> {
+	return inLane(accountId, () => stopOnce(cfg, accountId, reason, opts));
+}
+
+async function stopOnce(
+	cfg: ProvisionerConfig,
+	accountId: string,
+	reason: StopReason,
+	opts: { ifStartedAt?: Date | null },
 ): Promise<boolean> {
 	const runCompose = cfg.runCompose ?? spawnCompose;
 	const acct8 = acct8For(accountId);
@@ -904,8 +930,8 @@ export async function stop(
 	return true;
 }
 
-/** One `start` per account at a time: the gateway kicks a start per request
- *  and the poll starts too, and two `compose up` on one project race. */
+/** Starts queued or running per account: the gateway kicks a start per request
+ *  and the poll starts too, so callers share one. */
 const startsInFlight = new Map<string, Promise<void>>();
 
 /** `stopped → running`: undoes `stop()`. Also used by `up()` for a returning
@@ -918,7 +944,7 @@ export function start(
 ): Promise<void> {
 	const inflight = startsInFlight.get(accountId);
 	if (inflight) return inflight;
-	const run = startOnce(cfg, accountId).finally(() => {
+	const run = inLane(accountId, () => startOnce(cfg, accountId)).finally(() => {
 		startsInFlight.delete(accountId);
 	});
 	startsInFlight.set(accountId, run);
@@ -991,7 +1017,14 @@ async function startOnce(
  *  fails: a destroy never deletes data it couldn't save. Idempotent — a second
  *  call on a destroyed (or never provisioned) account skips the dump and runs
  *  a no-op `compose down`. */
-export async function destroy(
+export function destroy(
+	cfg: ProvisionerConfig,
+	accountId: string,
+): Promise<void> {
+	return inLane(accountId, () => destroyOnce(cfg, accountId));
+}
+
+async function destroyOnce(
 	cfg: ProvisionerConfig,
 	accountId: string,
 ): Promise<void> {

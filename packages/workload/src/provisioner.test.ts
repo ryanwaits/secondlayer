@@ -862,6 +862,47 @@ describe.skipIf(!HAS_DB)("provisioner up/stop/start/destroy", () => {
 		await deleteTenant(db, accountId);
 	});
 
+	test("a start requested during a slow compose stop waits for it, and the row ends matching the last compose op", async () => {
+		secretsRoot = mkdtempSync(join(tmpdir(), "workload-secrets-"));
+		const accountId = crypto.randomUUID();
+		await up(cfg(), accountId);
+		composeCalls.length = 0;
+		const events: string[] = [];
+		let releaseStop = () => {};
+		const slow: ProvisionerConfig = {
+			...cfg(),
+			runCompose: async (args) => {
+				const op = args.includes("stop") ? "stop" : "up";
+				events.push(`${op}:begin`);
+				if (op === "stop") {
+					await new Promise<void>((resolve) => {
+						releaseStop = resolve;
+					});
+				}
+				events.push(`${op}:end`);
+				return { code: 0, stdout: "", stderr: "" };
+			},
+		};
+
+		const stopping = stop(slow, accountId, "credits");
+		// The row says stopped while compose is still stopping: a gateway sees
+		// that and asks for a start.
+		while ((await getTenant(db, accountId))?.state !== "stopped") {
+			await Bun.sleep(1);
+		}
+		const starting = start(slow, accountId);
+		await Bun.sleep(30);
+		expect(events).toEqual(["stop:begin"]);
+
+		releaseStop();
+		await Promise.all([stopping, starting]);
+
+		expect(events).toEqual(["stop:begin", "stop:end", "up:begin", "up:end"]);
+		expect((await getTenant(db, accountId))?.state).toBe("running");
+
+		await deleteTenant(db, accountId);
+	});
+
 	test("a start that fails is retried by the next caller, not cached", async () => {
 		secretsRoot = mkdtempSync(join(tmpdir(), "workload-secrets-"));
 		const accountId = crypto.randomUUID();
