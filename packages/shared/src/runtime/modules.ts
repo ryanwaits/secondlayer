@@ -3,6 +3,8 @@
  * supervisor can restart one without taking the others down.
  */
 
+import { defineMachine } from "../db/transition.ts";
+
 export const MODULE_IDS = [
 	"api",
 	"ingest",
@@ -21,6 +23,22 @@ export const MODULE_STATES = [
 	"failed",
 ] as const;
 export type ModuleState = (typeof MODULE_STATES)[number];
+
+/**
+ * Legal module moves. `starting` is only entered from `stopped` or `failed`,
+ * so a second `start` of a live module is a no-op instead of a double start;
+ * every state can be stopped except `stopped` itself.
+ */
+export const MODULE_MACHINE = defineMachine({
+	states: MODULE_STATES,
+	transitions: {
+		stopped: ["starting"],
+		starting: ["running", "degraded", "failed", "stopped"],
+		running: ["degraded", "failed", "stopped"],
+		degraded: ["running", "failed", "stopped"],
+		failed: ["starting", "stopped"],
+	},
+});
 
 export type ModuleHealth = {
 	id: ModuleId;

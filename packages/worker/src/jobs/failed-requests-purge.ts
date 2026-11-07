@@ -7,6 +7,7 @@ import { purgeFailedRequests } from "@secondlayer/platform/db/queries/api-failed
 import { getErrorMessage, logger } from "@secondlayer/shared";
 import { getDb } from "@secondlayer/shared/db";
 import { getInstanceMode } from "@secondlayer/shared/mode";
+import { scheduleCron } from "./cron-schedule.ts";
 
 const INTERVAL_MS = 60 * 60 * 1000;
 const RETENTION_MS = 24 * 60 * 60 * 1000;
@@ -37,11 +38,5 @@ export function startFailedRequestsPurgeCron(): () => void {
 		}
 	};
 
-	const initial = setTimeout(tick, 5 * 60_000);
-	const interval = setInterval(tick, INTERVAL_MS);
-
-	return () => {
-		clearTimeout(initial);
-		clearInterval(interval);
-	};
+	return scheduleCron(tick, 5 * 60_000, INTERVAL_MS);
 }

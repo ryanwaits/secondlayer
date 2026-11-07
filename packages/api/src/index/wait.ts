@@ -62,6 +62,8 @@ const drainWaiters = new Set<() => void>();
  *  shutdown, before the server stops. */
 export function drainLongPolls(): void {
 	draining = true;
+	if (retryTimer) clearTimeout(retryTimer);
+	retryTimer = null;
 	for (const wake of [...drainWaiters]) wake();
 }
 
@@ -71,21 +73,28 @@ export function resetDrainForTests(): void {
 	drainWaiters.clear();
 }
 
-/**
- * Start (once per process) the LISTEN backing every pending long-poll. Safe
- * to call more than once — only the first call opens a connection. Degrades
- * safely: if it never connects (or the connection later drops), every
- * `waitForIndexTipAdvance` call just waits out its full timeout instead of
- * waking early — still correct, just not sped up.
- */
-export function startIndexTipWakeListener(opts?: {
+/** First pause before reconnecting the wake listener; doubles per failure. */
+const WAKE_RETRY_BASE_MS = 1000;
+/** Ceiling on the reconnect pause. */
+const WAKE_RETRY_MAX_MS = 30_000;
+
+let retryTimer: ReturnType<typeof setTimeout> | null = null;
+let retryAttempt = 0;
+
+type WakeListenerOptions = {
 	connectionString?: string;
-}): void {
-	if (wakeBus || starting) return;
+	/** Injectable for tests. */
+	createBus?: typeof createWakeBus;
+	retryBaseMs?: number;
+};
+
+function connectWakeListener(opts: WakeListenerOptions | undefined): void {
 	const url = opts?.connectionString ?? sourceListenerUrl();
-	starting = createWakeBus("index:tip", { connectionString: url })
+	const create = opts?.createBus ?? createWakeBus;
+	starting = create("index:tip", { connectionString: url })
 		.then((bus) => {
 			wakeBus = bus;
+			retryAttempt = 0;
 			// Names the channel + the exact host/db LISTENed on (no credentials)
 			// so a split-DB misconfiguration is visible in `docker logs` at boot.
 			logger.info("Index tip wake listener connected", {
@@ -94,18 +103,57 @@ export function startIndexTipWakeListener(opts?: {
 			});
 		})
 		.catch((error) => {
+			// Until it connects, long-polls wait out their full `wait` timeout
+			// instead of waking early: still correct, just slower. Keep trying so
+			// a database that was down at boot does not leave this replica slow
+			// until the next restart.
+			const delayMs = Math.min(
+				(opts?.retryBaseMs ?? WAKE_RETRY_BASE_MS) * 2 ** retryAttempt,
+				WAKE_RETRY_MAX_MS,
+			);
+			retryAttempt += 1;
 			logger.warn(
-				"Index tip wake listener failed to start — long-polls will always wait out their full `wait` timeout instead of waking early",
+				"Index tip wake listener failed to start; long-polls wait out their full `wait` timeout until it connects",
 				{
 					channel: "index:tip",
 					db: describeDbUrl(url),
 					error: error instanceof Error ? error.message : String(error),
+					retryInMs: delayMs,
 				},
 			);
+			if (draining) return;
+			retryTimer = setTimeout(() => {
+				retryTimer = null;
+				connectWakeListener(opts);
+			}, delayMs);
+			retryTimer.unref?.();
 		})
 		.finally(() => {
 			starting = null;
 		});
+}
+
+/**
+ * Start (once per process) the LISTEN backing every pending long-poll. Safe
+ * to call more than once: only the first call opens a connection. A failed
+ * connect retries with exponential backoff (1 s doubling to 30 s) until it
+ * succeeds or the replica drains. Until then every `waitForIndexTipAdvance`
+ * call just waits out its full timeout instead of waking early: still
+ * correct, just not sped up.
+ */
+export function startIndexTipWakeListener(opts?: WakeListenerOptions): void {
+	if (wakeBus || starting || retryTimer) return;
+	connectWakeListener(opts);
+}
+
+/** Test-only: forget the listener (and cancel any pending retry). */
+export async function resetWakeListenerForTests(): Promise<void> {
+	if (retryTimer) clearTimeout(retryTimer);
+	retryTimer = null;
+	retryAttempt = 0;
+	await starting;
+	await wakeBus?.stop();
+	wakeBus = null;
 }
 
 /** The wake bus's current generation counter, or 0 when it hasn't connected

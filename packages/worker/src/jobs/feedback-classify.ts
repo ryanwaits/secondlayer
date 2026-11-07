@@ -23,6 +23,7 @@ import { classify, resolveProvider } from "@secondlayer/shared/classify";
 import { getDb, jsonb } from "@secondlayer/shared/db";
 import type { FeedbackTicket } from "@secondlayer/shared/db";
 import { getInstanceMode } from "@secondlayer/shared/mode";
+import { scheduleCron } from "./cron-schedule.ts";
 import {
 	FEEDBACK_QUESTIONS,
 	FEEDBACK_SCHEMA_VERSION,
@@ -199,11 +200,5 @@ export function startFeedbackClassifyCron(): () => void {
 		}
 	};
 
-	const initial = setTimeout(tick, 60_000);
-	const interval = setInterval(tick, INTERVAL_MS);
-
-	return () => {
-		clearTimeout(initial);
-		clearInterval(interval);
-	};
+	return scheduleCron(tick, 60_000, INTERVAL_MS);
 }

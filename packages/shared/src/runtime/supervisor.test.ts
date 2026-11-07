@@ -40,4 +40,46 @@ describe("unified supervisor", () => {
 		);
 		expect(health.status).toBe("degraded");
 	});
+
+	test("starting a module that is already live does not start it twice", async () => {
+		let starts = 0;
+		const api = createMemoryModule("api", { onStart: () => starts++ });
+		const supervisor = createSupervisor([api]);
+		await supervisor.start(["api"]);
+		await supervisor.start(["api"]);
+		expect(starts).toBe(1);
+	});
+
+	test("a failed module can be started again", async () => {
+		let starts = 0;
+		const api = createMemoryModule("api", { onStart: () => starts++ });
+		api.setState("failed");
+		const supervisor = createSupervisor([api]);
+		await supervisor.start(["api"]);
+		expect(starts).toBe(1);
+		expect(supervisor.health().modules[0]?.state).toBe("running");
+	});
+
+	test("stopping a module that is already stopped does not stop it again", async () => {
+		let stops = 0;
+		const api = createMemoryModule("api", { onStop: () => stops++ });
+		const supervisor = createSupervisor([api]);
+		await supervisor.start(["api"]);
+		await supervisor.stop("api");
+		await supervisor.stop("api");
+		expect(stops).toBe(1);
+	});
+
+	test("restart stops then starts a live module exactly once each", async () => {
+		let starts = 0;
+		let stops = 0;
+		const api = createMemoryModule("api", {
+			onStart: () => starts++,
+			onStop: () => stops++,
+		});
+		const supervisor = createSupervisor([api]);
+		await supervisor.start(["api"]);
+		await supervisor.restart("api");
+		expect({ starts, stops }).toEqual({ starts: 2, stops: 1 });
+	});
 });

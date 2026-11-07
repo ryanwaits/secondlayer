@@ -40,4 +40,39 @@ describe("SubgraphRegistryCache", () => {
 		expect(cache.get("missing")).toBeUndefined();
 		expect(cache.getAll().map((s) => s.name)).toEqual(["closed"]);
 	});
+
+	it("a slow older refresh never overwrites a newer snapshot", async () => {
+		let release!: () => void;
+		const gate = new Promise<void>((resolve) => {
+			release = resolve;
+		});
+		let call = 0;
+		const cache = new SubgraphRegistryCache(async () => {
+			call += 1;
+			if (call === 1) {
+				await gate;
+				return [sg({ name: "old" })];
+			}
+			return [sg({ name: "new" })];
+		});
+
+		const slow = cache.refresh();
+		await cache.refresh();
+		release();
+		await slow;
+
+		expect(cache.getAll().map((s) => s.name)).toEqual(["new"]);
+	});
+
+	it("a failed refresh leaves the last good snapshot in place", async () => {
+		let fail = false;
+		const cache = new SubgraphRegistryCache(async () => {
+			if (fail) throw new Error("db down");
+			return [sg({ name: "kept" })];
+		});
+		await cache.refresh();
+		fail = true;
+		await expect(cache.refresh()).rejects.toThrow("db down");
+		expect(cache.getAll().map((s) => s.name)).toEqual(["kept"]);
+	});
 });

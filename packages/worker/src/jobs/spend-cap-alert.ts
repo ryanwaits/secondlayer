@@ -40,6 +40,7 @@ import { getDb } from "@secondlayer/shared/db";
 import { renderEmail, sendEmail } from "@secondlayer/shared/email";
 import { getInstanceMode } from "@secondlayer/shared/mode";
 import { claimThenSend } from "./claim-then-send.ts";
+import { scheduleCron } from "./cron-schedule.ts";
 
 const INTERVAL_MS = 24 * 60 * 60 * 1000; // 24h — threshold alerts are not a
 // minute-to-minute concern; the hard stop is enforced in real time on the read
@@ -65,13 +66,7 @@ export function startSpendCapAlertCron(): () => void {
 	};
 
 	// 10-minute offset so compute/storage metering have settled.
-	const initial = setTimeout(tick, 10 * 60_000);
-	const interval = setInterval(tick, INTERVAL_MS);
-
-	return () => {
-		clearTimeout(initial);
-		clearInterval(interval);
-	};
+	return scheduleCron(tick, 10 * 60_000, INTERVAL_MS);
 }
 
 export type CapAlertDeps = { sendEmail?: typeof sendEmail };

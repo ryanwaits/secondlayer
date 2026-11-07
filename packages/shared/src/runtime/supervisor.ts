@@ -4,6 +4,7 @@
  */
 
 import {
+	MODULE_MACHINE,
 	type ModuleHealth,
 	type ModuleId,
 	type RuntimeModule,
@@ -49,6 +50,13 @@ export function createSupervisor(
 		return "degraded";
 	}
 
+	/** Stop a module unless it is already stopped. */
+	async function stopIfLive(mod: RuntimeModule): Promise<void> {
+		if (MODULE_MACHINE.canTransition(mod.health().state, "stopped")) {
+			await mod.stop();
+		}
+	}
+
 	return {
 		async start(ids) {
 			const targets = ids ?? [...byId.keys()];
@@ -56,6 +64,11 @@ export function createSupervisor(
 				const mod = byId.get(id);
 				if (!mod) continue;
 				selected.add(id);
+				// A live module is already started; starting it twice would run its
+				// loops twice.
+				if (!MODULE_MACHINE.canTransition(mod.health().state, "starting")) {
+					continue;
+				}
 				try {
 					await mod.start();
 				} catch {
@@ -66,20 +79,20 @@ export function createSupervisor(
 		async stop(id) {
 			if (id) {
 				const mod = byId.get(id);
-				if (mod && selected.has(id)) await mod.stop();
+				if (mod && selected.has(id)) await stopIfLive(mod);
 				selected.delete(id);
 				return;
 			}
 			for (const mid of [...selected]) {
 				const mod = byId.get(mid);
-				if (mod) await mod.stop();
+				if (mod) await stopIfLive(mod);
 				selected.delete(mid);
 			}
 		},
 		async restart(id) {
 			const mod = byId.get(id);
 			if (!mod) throw new Error(`unknown module ${id}`);
-			if (selected.has(id)) await mod.stop();
+			if (selected.has(id)) await stopIfLive(mod);
 			selected.add(id);
 			restarts.set(id, (restarts.get(id) ?? 0) + 1);
 			try {

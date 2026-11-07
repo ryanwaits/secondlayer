@@ -27,6 +27,7 @@ import { getDb } from "@secondlayer/shared/db";
 import { renderEmail, sendEmail } from "@secondlayer/shared/email";
 import { getInstanceMode } from "@secondlayer/shared/mode";
 import type Stripe from "stripe";
+import { scheduleCron } from "./cron-schedule.ts";
 import { getStripe } from "./stripe.ts";
 
 const CREDITS_LINK = "https://secondlayer.tools/account/credits";
@@ -49,12 +50,7 @@ export function startCreditsRefillCron(): () => void {
 		}
 	};
 
-	const initial = setTimeout(tick, 2 * 60_000);
-	const interval = setInterval(tick, INTERVAL_MS);
-	return () => {
-		clearTimeout(initial);
-		clearInterval(interval);
-	};
+	return scheduleCron(tick, 2 * 60_000, INTERVAL_MS);
 }
 
 export type RefillDeps = {

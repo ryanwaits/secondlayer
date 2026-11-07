@@ -8,6 +8,7 @@
 import { getErrorMessage, logger } from "@secondlayer/shared";
 import { getDb } from "@secondlayer/shared/db";
 import { getInstanceMode } from "@secondlayer/shared/mode";
+import { scheduleCron } from "../cron-schedule.ts";
 import { evaluateAccountInsights } from "./evaluate.ts";
 import { listActiveAccountIds } from "./load.ts";
 
@@ -72,11 +73,9 @@ export function startAccountInsightsCron(
 		}
 	};
 
-	const initial = setTimeout(tick, deps.firstTickMs ?? FIRST_TICK_MS);
-	const interval = setInterval(tick, deps.intervalMs ?? INTERVAL_MS);
-
-	return () => {
-		clearTimeout(initial);
-		clearInterval(interval);
-	};
+	return scheduleCron(
+		tick,
+		deps.firstTickMs ?? FIRST_TICK_MS,
+		deps.intervalMs ?? INTERVAL_MS,
+	);
 }

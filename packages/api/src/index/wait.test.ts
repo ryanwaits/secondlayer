@@ -6,6 +6,7 @@ import {
 	longPollIndex,
 	parseWaitSeconds,
 	resetDrainForTests,
+	resetWakeListenerForTests,
 	startIndexTipWakeListener,
 	waitForIndexTipAdvance,
 } from "./wait.ts";
@@ -168,12 +169,61 @@ describe.skipIf(!HAS_DB)(
 );
 
 describe("startIndexTipWakeListener degrades safely", () => {
+	afterEach(() => resetWakeListenerForTests());
+
 	test("a bad connection string never throws synchronously — the caller doesn't need to catch it", () => {
 		expect(() =>
 			startIndexTipWakeListener({
 				connectionString: "postgres://bad-host-does-not-resolve:5432/nope",
 			}),
 		).not.toThrow();
+	});
+});
+
+describe("wake listener reconnect", () => {
+	afterEach(async () => {
+		resetDrainForTests();
+		await resetWakeListenerForTests();
+	});
+
+	test("retries after a failed connect until the bus comes up", async () => {
+		await resetWakeListenerForTests();
+		let attempts = 0;
+		const stub = {
+			wait: () => new Promise<void>(() => {}),
+			generation: () => 7,
+			stop: async () => {},
+		};
+		startIndexTipWakeListener({
+			retryBaseMs: 5,
+			createBus: async () => {
+				attempts++;
+				if (attempts < 3) throw new Error("db down");
+				return stub;
+			},
+		});
+		for (let i = 0; i < 100 && currentIndexTipGeneration() !== 7; i++) {
+			await new Promise((resolve) => setTimeout(resolve, 10));
+		}
+		expect(attempts).toBe(3);
+		expect(currentIndexTipGeneration()).toBe(7);
+	});
+
+	test("draining stops further reconnect attempts", async () => {
+		await resetWakeListenerForTests();
+		let attempts = 0;
+		startIndexTipWakeListener({
+			retryBaseMs: 20,
+			createBus: async () => {
+				attempts++;
+				throw new Error("db down");
+			},
+		});
+		await new Promise((resolve) => setTimeout(resolve, 5));
+		drainLongPolls();
+		const seen = attempts;
+		await new Promise((resolve) => setTimeout(resolve, 120));
+		expect(attempts).toBe(seen);
 	});
 });
 

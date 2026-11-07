@@ -6,6 +6,7 @@ import { startBalanceAlertCron } from "./jobs/balance-alert.ts";
 import { startCliDeviceLoginsPurgeCron } from "./jobs/cli-device-logins-purge.ts";
 import { startContactNotifyRetryCron } from "./jobs/contact-notify-retry.ts";
 import { startCreditsRefillCron } from "./jobs/credits-refill.ts";
+import { settleInFlightTicks } from "./jobs/cron-schedule.ts";
 import { startFailedRequestsPurgeCron } from "./jobs/failed-requests-purge.ts";
 import { startFeedbackClassifyCron } from "./jobs/feedback-classify.ts";
 import { startGhostAccountsPurgeCron } from "./jobs/ghost-accounts-purge.ts";
@@ -45,6 +46,12 @@ async function runWorker() {
 
 		logger.info("Shutting down worker...");
 		for (const stop of stops) stop();
+		// Let running ticks finish (a half-sent email or half-applied charge is
+		// worse than a slow exit), but never hang the container stop on one.
+		const stuck = await settleInFlightTicks(10_000);
+		if (stuck > 0) {
+			logger.warn("Worker shutdown gave up on running ticks", { stuck });
+		}
 		logger.info("Worker shutdown complete");
 		process.exit(0);
 	};

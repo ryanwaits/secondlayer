@@ -15,6 +15,8 @@ export class SubgraphRegistryCache {
 	private subgraphs = new Map<string, Subgraph>();
 	private listener: ReturnType<typeof postgres> | null = null;
 	private loaded = false;
+	private refreshSeq = 0;
+	private appliedSeq = 0;
 	private debounceTimer: ReturnType<typeof setTimeout> | null = null;
 	private static readonly DEBOUNCE_MS = 500;
 
@@ -36,7 +38,13 @@ export class SubgraphRegistryCache {
 			if (this.debounceTimer) clearTimeout(this.debounceTimer);
 			this.debounceTimer = setTimeout(() => {
 				logger.info("Subgraph registry changed, refreshing cache");
-				this.refresh();
+				// A failed reload keeps the last good cache; the next change
+				// notification tries again.
+				this.refresh().catch((error) => {
+					logger.warn("Subgraph registry refresh failed; keeping cached copy", {
+						error: error instanceof Error ? error.message : String(error),
+					});
+				});
 			}, SubgraphRegistryCache.DEBOUNCE_MS);
 		});
 	}
@@ -50,7 +58,12 @@ export class SubgraphRegistryCache {
 	}
 
 	async refresh(): Promise<void> {
+		// Refreshes can overlap. A load applies only if it started after the last
+		// one applied, so a slow older load never overwrites a newer snapshot.
+		const seq = ++this.refreshSeq;
 		const allSubgraphs = await this.loadAll();
+		if (seq < this.appliedSeq) return;
+		this.appliedSeq = seq;
 		this.subgraphs.clear();
 		for (const v of allSubgraphs) {
 			this.subgraphs.set(v.name, v);

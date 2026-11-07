@@ -41,6 +41,7 @@ import {
 } from "@secondlayer/shared/email";
 import { getInstanceMode } from "@secondlayer/shared/mode";
 import { claimThenSend } from "./claim-then-send.ts";
+import { scheduleCron } from "./cron-schedule.ts";
 
 const INTERVAL_MS = 60 * 60 * 1000; // hourly — a runway crossing doesn't
 // need minute-level precision; the hard stop is real-time on the read/
@@ -66,13 +67,7 @@ export function startBalanceAlertCron(): () => void {
 
 	// 10-minute offset, same as the spend-cap cron: gives compute/storage
 	// metering a moment to settle after a fresh deploy.
-	const initial = setTimeout(tick, 10 * 60_000);
-	const interval = setInterval(tick, INTERVAL_MS);
-
-	return () => {
-		clearTimeout(initial);
-		clearInterval(interval);
-	};
+	return scheduleCron(tick, 10 * 60_000, INTERVAL_MS);
 }
 
 interface AccountRow {
