@@ -93,6 +93,55 @@ describe("checkOneBalance", () => {
 		expect(again?.sent_7d_at?.getTime()).toBe(firstSentAt);
 	});
 
+	test("a failed send hands the mark back and the next tick sends it", async () => {
+		const id = await makeAccount(
+			`balance-retry-${crypto.randomUUID().slice(0, 8)}@test.invalid`,
+		);
+		await creditCredits(db, id, 500_000n);
+		await seedBurnRate(id, NOW);
+		const row = { id, email: `retry-${id}@test.invalid` };
+
+		await expect(
+			checkOneBalance(row, NOW, {
+				sendEmail: async () => {
+					throw new Error("smtp down");
+				},
+			}),
+		).rejects.toThrow("smtp down");
+		expect((await getBalanceAlerts(db, id))?.sent_7d_at).toBeNull();
+
+		const sent: unknown[] = [];
+		await checkOneBalance(row, NOW, {
+			sendEmail: async (m) => {
+				sent.push(m);
+				return { id: "x" } as never;
+			},
+		});
+		expect(sent).toHaveLength(1);
+		expect((await getBalanceAlerts(db, id))?.sent_7d_at).not.toBeNull();
+	});
+
+	test("two runners at the same tick send the alert once", async () => {
+		const id = await makeAccount(
+			`balance-race-${crypto.randomUUID().slice(0, 8)}@test.invalid`,
+		);
+		await creditCredits(db, id, 500_000n);
+		await seedBurnRate(id, NOW);
+		const row = { id, email: `race-${id}@test.invalid` };
+		let sends = 0;
+		const deps = {
+			sendEmail: async () => {
+				sends += 1;
+				return { id: "x" } as never;
+			},
+		};
+		await Promise.all([
+			checkOneBalance(row, NOW, deps),
+			checkOneBalance(row, NOW, deps),
+		]);
+		expect(sends).toBe(1);
+	});
+
 	test("crit: runway at or under 2 days sends the 2d alert", async () => {
 		const id = await makeAccount(
 			`balance-crit-${crypto.randomUUID().slice(0, 8)}@test.invalid`,

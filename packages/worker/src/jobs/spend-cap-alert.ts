@@ -14,26 +14,32 @@
  * account with a `monthly_cap_cents` set:
  *   - Month's credit spend >= threshold_pct (default 80%) → send email + bump
  *     `alert_sent_at` (debounced once per calendar month)
- *   - Month's credit spend >= monthly_cap_cents → set `frozen_at` (display +
- *     email). The hard stop is enforced in real time by `meter()` and
- *     `checkRowsAllowance` (`packages/api/src/lib/read-credits.ts`); this
- *     flag mirrors it for the dashboard/email.
- *   - Back under cap with a stale freeze (month rolled over) → clear it.
+ *   - Month's credit spend >= monthly_cap_cents → send the cap-reached email
+ *     once, recorded in `frozen_at`. The hard stop is enforced in real time by
+ *     `meter()` and `accountSpendState`; `frozen_at` is only this email's
+ *     debounce mark, never what the stop reads.
+ *   - Back under cap with a stale mark (month rolled over) → clear it.
  *
- * Also cleared on `invoice.paid` webhook or when the user raises their cap.
+ * Each email is claimed (a conditional write against the cap value measured)
+ * before it is sent, and handed back if the send fails, so a lost email
+ * retries on the next tick and a cap changed mid-run is never re-marked.
+ * The mark is also cleared when the owner changes the cap.
  * No-op in non-platform mode.
  */
 
 import { nextMonthResetLabel } from "@secondlayer/platform/billing/prices";
 import { getMonthlyCreditsSpend } from "@secondlayer/platform/db/queries/account-credits";
 import {
+	type CapMark,
+	claimCapMark,
 	clearFreeze,
-	upsertCaps,
+	releaseCapMark,
 } from "@secondlayer/platform/db/queries/account-spend-caps";
 import { getErrorMessage, logger } from "@secondlayer/shared";
 import { getDb } from "@secondlayer/shared/db";
 import { renderEmail, sendEmail } from "@secondlayer/shared/email";
 import { getInstanceMode } from "@secondlayer/shared/mode";
+import { claimThenSend } from "./claim-then-send.ts";
 
 const INTERVAL_MS = 24 * 60 * 60 * 1000; // 24h — threshold alerts are not a
 // minute-to-minute concern; the hard stop is enforced in real time on the read
@@ -68,7 +74,9 @@ export function startSpendCapAlertCron(): () => void {
 	};
 }
 
-export async function checkAllCaps(): Promise<void> {
+export type CapAlertDeps = { sendEmail?: typeof sendEmail };
+
+export async function checkAllCaps(deps: CapAlertDeps = {}): Promise<void> {
 	const db = getDb();
 
 	// Every account with a monthly cap set. No cap = no enforcement. The cap
@@ -94,7 +102,7 @@ export async function checkAllCaps(): Promise<void> {
 
 	for (const row of rows) {
 		try {
-			await checkOneCap(row);
+			await checkOneCap(row, deps.sendEmail ?? sendEmail);
 		} catch (err) {
 			logger.warn("Failed to check cap for account", {
 				accountId: row.account_id,
@@ -114,7 +122,7 @@ interface CapRow {
 	frozen_at: Date | null;
 }
 
-async function checkOneCap(row: CapRow): Promise<void> {
+async function checkOneCap(row: CapRow, send: typeof sendEmail): Promise<void> {
 	if (row.monthly_cap_cents == null) return;
 
 	const db = getDb();
@@ -126,19 +134,33 @@ async function checkOneCap(row: CapRow): Promise<void> {
 	const cap = row.monthly_cap_cents;
 	const threshold = Math.floor((cap * row.alert_threshold_pct) / 100);
 
-	// Freeze + alert: cap hit. Strongest action first.
-	if (projected >= cap && !row.frozen_at) {
-		await upsertCaps(db, row.account_id, { frozen_at: new Date() });
-		await sendCapAlert(row, projected, cap, "frozen");
-		logger.info("Account spend cap hit — frozen", {
-			accountId: row.account_id,
-			projected,
-			cap,
+	const now = new Date();
+	const alert = (
+		mark: CapMark,
+		previous: Date | null,
+		kind: "threshold" | "frozen",
+		staleBefore?: Date,
+	) =>
+		claimThenSend({
+			claim: () =>
+				claimCapMark(db, row.account_id, mark, { cap, now, staleBefore }),
+			send: () => sendCapAlert(row, projected, cap, kind, send),
+			release: () => releaseCapMark(db, row.account_id, mark, now, previous),
 		});
+
+	// Cap hit: send the cap-reached email once. Strongest action first.
+	if (projected >= cap && !row.frozen_at) {
+		if (await alert("frozen_at", null, "frozen")) {
+			logger.info("Account spend cap hit — alerted", {
+				accountId: row.account_id,
+				projected,
+				cap,
+			});
+		}
 		return;
 	}
 
-	// Auto-unfreeze a stale display freeze once spend resets under the cap
+	// Clear a stale cap-reached mark once spend resets under the cap
 	// (typically the new month). Real-time enforcement already resumed reads.
 	if (projected < cap && row.frozen_at) {
 		await clearFreeze(db, row.account_id);
@@ -152,7 +174,6 @@ async function checkOneCap(row: CapRow): Promise<void> {
 
 	// Threshold alert. Debounce: once per calendar month. The credit spend
 	// counter is monthly, so anchor the resend window to the month start.
-	const now = new Date();
 	const monthStart = new Date(
 		Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1),
 	);
@@ -160,14 +181,20 @@ async function checkOneCap(row: CapRow): Promise<void> {
 		row.alert_sent_at && row.alert_sent_at >= monthStart;
 
 	if (projected >= threshold && !alertAlreadySentThisCycle) {
-		await upsertCaps(db, row.account_id, { alert_sent_at: new Date() });
-		await sendCapAlert(row, projected, cap, "threshold");
-		logger.info("Account spend cap threshold reached — alerted", {
-			accountId: row.account_id,
-			projected,
-			cap,
-			thresholdPct: row.alert_threshold_pct,
-		});
+		const sent = await alert(
+			"alert_sent_at",
+			row.alert_sent_at,
+			"threshold",
+			monthStart,
+		);
+		if (sent) {
+			logger.info("Account spend cap threshold reached — alerted", {
+				accountId: row.account_id,
+				projected,
+				cap,
+				thresholdPct: row.alert_threshold_pct,
+			});
+		}
 	}
 }
 
@@ -178,6 +205,7 @@ async function sendCapAlert(
 	projectedCents: number,
 	capCents: number,
 	kind: "threshold" | "frozen",
+	send: typeof sendEmail,
 	now: Date = new Date(),
 ): Promise<void> {
 	if (!row.email) return; // no address to alert (ghost account — shouldn't have a cap)
@@ -231,5 +259,5 @@ async function sendCapAlert(
 			"You set this cap. Change it or turn it off on your credits page.",
 	});
 
-	await sendEmail({ to: row.email, subject, html, text });
+	await send({ to: row.email, subject, html, text });
 }

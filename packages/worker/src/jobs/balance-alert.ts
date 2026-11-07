@@ -20,9 +20,11 @@
 
 import { balanceLevel, runwayDays } from "@secondlayer/platform/billing/runway";
 import {
+	type BalanceAlertMark,
+	claimBalanceAlert,
 	clearSentBalanceAlerts,
 	getBalanceAlerts,
-	upsertBalanceAlerts,
+	releaseBalanceAlert,
 } from "@secondlayer/platform/db/queries/account-balance-alerts";
 import { getCredits } from "@secondlayer/platform/db/queries/account-credits";
 import {
@@ -38,6 +40,7 @@ import {
 	sendEmail,
 } from "@secondlayer/shared/email";
 import { getInstanceMode } from "@secondlayer/shared/mode";
+import { claimThenSend } from "./claim-then-send.ts";
 
 const INTERVAL_MS = 60 * 60 * 1000; // hourly — a runway crossing doesn't
 // need minute-level precision; the hard stop is real-time on the read/
@@ -78,7 +81,12 @@ interface AccountRow {
 	email: string | null;
 }
 
-export async function checkAllBalances(now: Date = new Date()): Promise<void> {
+export type BalanceAlertDeps = { sendEmail?: typeof sendEmail };
+
+export async function checkAllBalances(
+	now: Date = new Date(),
+	deps: BalanceAlertDeps = {},
+): Promise<void> {
 	const db = getDb();
 	const accountIds = await accountsToCheckForBalanceAlerts(db, now);
 	if (accountIds.length === 0) return;
@@ -91,7 +99,7 @@ export async function checkAllBalances(now: Date = new Date()): Promise<void> {
 
 	for (const row of rows) {
 		try {
-			await checkOneBalance(row, now);
+			await checkOneBalance(row, now, deps);
 		} catch (err) {
 			logger.warn("Failed to check balance alert for account", {
 				accountId: row.id,
@@ -104,6 +112,7 @@ export async function checkAllBalances(now: Date = new Date()): Promise<void> {
 export async function checkOneBalance(
 	row: AccountRow,
 	now: Date = new Date(),
+	deps: BalanceAlertDeps = {},
 ): Promise<void> {
 	const db = getDb();
 	const [balance, rateDayUsdMicros, service, alerts] = await Promise.all([
@@ -136,19 +145,23 @@ export async function checkOneBalance(
 
 	const ctx = { now, runway, rateDayUsdMicros, balance };
 
+	const alert = (mark: BalanceAlertMark, kind: "low" | "crit" | "stopped") =>
+		claimThenSend({
+			claim: () => claimBalanceAlert(db, row.id, mark, now),
+			send: () => sendBalanceAlert(row, kind, ctx, deps.sendEmail ?? sendEmail),
+			release: () => releaseBalanceAlert(db, row.id, mark, now),
+		});
+
 	if (level === "stopped" && notify2d && !alerts?.sent_stopped_at) {
-		await upsertBalanceAlerts(db, row.id, { sent_stopped_at: now });
-		await sendBalanceAlert(row, "stopped", ctx);
+		await alert("sent_stopped_at", "stopped");
 		return;
 	}
 	if (level === "crit" && notify2d && !alerts?.sent_2d_at) {
-		await upsertBalanceAlerts(db, row.id, { sent_2d_at: now });
-		await sendBalanceAlert(row, "crit", ctx);
+		await alert("sent_2d_at", "crit");
 		return;
 	}
 	if (level === "low" && notify7d && !alerts?.sent_7d_at) {
-		await upsertBalanceAlerts(db, row.id, { sent_7d_at: now });
-		await sendBalanceAlert(row, "low", ctx);
+		await alert("sent_7d_at", "low");
 	}
 }
 
@@ -204,6 +217,7 @@ async function sendBalanceAlert(
 		rateDayUsdMicros: bigint;
 		balance: bigint;
 	},
+	send: typeof sendEmail,
 ): Promise<void> {
 	if (!account.email) return; // no address to alert (ghost account)
 
@@ -266,5 +280,5 @@ async function sendBalanceAlert(
 			"You get this because balance alerts are on. Turn them off on your credits page.",
 	});
 
-	await sendEmail({ to: account.email, subject, html, text });
+	await send({ to: account.email, subject, html, text });
 }

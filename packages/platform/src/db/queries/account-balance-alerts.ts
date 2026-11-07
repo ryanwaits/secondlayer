@@ -60,3 +60,45 @@ export async function clearSentBalanceAlerts(
 		sent_stopped_at: null,
 	});
 }
+
+export type BalanceAlertMark = "sent_7d_at" | "sent_2d_at" | "sent_stopped_at";
+
+/**
+ * Claim a balance alert before sending it: stamp `mark` only if it is unset
+ * (creating the row if the account has none). Of two runners, one gets
+ * `true`.
+ */
+export async function claimBalanceAlert(
+	db: Kysely<Database>,
+	accountId: string,
+	mark: BalanceAlertMark,
+	now: Date,
+): Promise<boolean> {
+	const row = await db
+		.insertInto("account_balance_alerts")
+		.values({ account_id: accountId, [mark]: now })
+		.onConflict((oc) =>
+			oc
+				.column("account_id")
+				.doUpdateSet({ [mark]: now })
+				.where(`account_balance_alerts.${mark}`, "is", null),
+		)
+		.returning("account_id")
+		.executeTakeFirst();
+	return row !== undefined;
+}
+
+/** Undo `claimBalanceAlert` after the send failed, so the next tick retries. */
+export async function releaseBalanceAlert(
+	db: Kysely<Database>,
+	accountId: string,
+	mark: BalanceAlertMark,
+	claimedAt: Date,
+): Promise<void> {
+	await db
+		.updateTable("account_balance_alerts")
+		.set({ [mark]: null })
+		.where("account_id", "=", accountId)
+		.where(mark, "=", claimedAt)
+		.execute();
+}
