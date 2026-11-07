@@ -2870,6 +2870,16 @@ const META: Record<StoryId, Meta> = {
 				render: () => <KeysDemo view="apps" />,
 			},
 			{
+				id: "flow",
+				label: "Live create flow",
+				render: () => <KeysDemo view="flow" />,
+			},
+			{
+				id: "load-failed",
+				label: "Keys failed to load",
+				render: () => <KeysDemo view="load-failed" />,
+			},
+			{
 				id: "empty",
 				label: "No keys yet",
 				render: () => <KeysDemo view="empty" />,

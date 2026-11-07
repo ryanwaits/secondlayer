@@ -592,7 +592,7 @@ export function KeysBody({
 	const sentence =
 		keys === null
 			? {
-					text: onRetry ? "Couldn't load your keys." : "Loading your keys.",
+					text: onRetry ? "Your keys." : "Loading your keys.",
 					sub: undefined,
 				}
 			: keysSentence(keys, now, {

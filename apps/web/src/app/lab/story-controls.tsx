@@ -20,7 +20,12 @@ import {
 	KEYS_EXAMPLE_NOW,
 } from "@/components/account/keys/key.fixtures";
 import { KeysBody } from "@/components/account/keys/keys-screen";
-import { NameStep, RevealStep } from "@/components/account/keys/new-key-flow";
+import {
+	NameStep,
+	NewKeyFlow,
+	RevealStep,
+	useKeyFlow,
+} from "@/components/account/keys/new-key-flow";
 import { FirstRowsGuide } from "@/components/account/overview/first-rows-guide";
 import {
 	OVERVIEW_ROWS,
@@ -957,6 +962,23 @@ const EXAMPLE_APPS: ConnectedApp[] = [
 	},
 ];
 
+/** The real create flow with a fake key, so the whole lifecycle can be driven. */
+function KeyFlowDemo() {
+	const [flow, dispatch] = useKeyFlow({ step: "naming", error: null });
+	return (
+		<>
+			<button type="button" onClick={() => dispatch({ type: "open" })}>
+				New key
+			</button>
+			<NewKeyFlow
+				flow={flow}
+				dispatch={dispatch}
+				create={async () => EXAMPLE_NEW_KEY}
+			/>
+		</>
+	);
+}
+
 export function KeysDemo({
 	view,
 }: {
@@ -968,9 +990,22 @@ export function KeysDemo({
 		| "name-repeat"
 		| "reveal"
 		| "apps"
+		| "flow"
+		| "load-failed"
 		| "empty";
 }) {
 	const noop = () => {};
+	if (view === "flow") return <KeyFlowDemo />;
+	if (view === "load-failed") {
+		return (
+			<KeysBody
+				keys={null}
+				now={KEYS_EXAMPLE_NOW}
+				onNew={noop}
+				onRetry={noop}
+			/>
+		);
+	}
 	if (view === "empty") {
 		return (
 			<KeysBody
