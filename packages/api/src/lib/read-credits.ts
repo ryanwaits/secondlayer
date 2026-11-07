@@ -4,15 +4,9 @@ import {
 	GHOST_ACCOUNT_ROWS_LIMIT,
 	MIN_CREDITED_USD_MICROS,
 	ROWS_DELIVERED_MONTHLY_ALLOWANCE,
-	isOverMonthlyCreditCap,
 	nextMonthResetLabel,
 } from "@secondlayer/platform/billing/prices";
-import {
-	getCredits,
-	getMonthlyCreditsSpend,
-} from "@secondlayer/platform/db/queries/account-credits";
-import { getCaps } from "@secondlayer/platform/db/queries/account-spend-caps";
-import { isInternalAccount } from "@secondlayer/platform/db/queries/accounts";
+import { accountSpendState } from "@secondlayer/platform/db/queries/account-credits";
 import {
 	lifetimeQuantity,
 	monthBounds,
@@ -55,21 +49,8 @@ export async function resolveCreditedAccount(
 	tier: string | undefined,
 ): Promise<Credited | undefined> {
 	if (!isPlatformMode() || !accountId || tier === "internal") return undefined;
-	const db = getDb();
-	const balance = await getCredits(db, accountId);
-	if (balance < MIN_CREDITED_USD_MICROS) {
-		return (await isInternalAccount(db, accountId))
-			? { accountId, balance }
-			: undefined;
-	}
-
-	const caps = await getCaps(db, accountId);
-	if (caps?.monthly_cap_cents != null) {
-		const spent = await getMonthlyCreditsSpend(db, accountId);
-		if (isOverMonthlyCreditCap(spent, caps.monthly_cap_cents)) return undefined;
-	}
-
-	return { accountId, balance };
+	const state = await accountSpendState(getDb(), accountId);
+	return state.canRead ? { accountId, balance: state.balance } : undefined;
 }
 
 /**
@@ -232,22 +213,17 @@ export async function checkRowsAllowance(
 	}
 	if (usedThisMonth < ROWS_DELIVERED_MONTHLY_ALLOWANCE) return null;
 
-	const caps = await getCaps(db, accountId);
-	if (caps?.monthly_cap_cents != null) {
-		const spent = await getMonthlyCreditsSpend(db, accountId, now);
-		if (isOverMonthlyCreditCap(spent, caps.monthly_cap_cents)) {
-			return {
-				error: "spend_cap_reached",
-				message: `You reached your monthly spend cap. Reads past your free 1M rows are paused until ${nextMonthResetLabel(now)} or until you raise the cap at https://secondlayer.tools/account/credits#cap.`,
-			};
-		}
+	const state = await accountSpendState(db, accountId, now);
+	if (state.readBlock === "cap") {
+		return {
+			error: "spend_cap_reached",
+			message: `You reached your monthly spend cap. Reads past your free 1M rows are paused until ${nextMonthResetLabel(now)} or until you raise the cap at https://secondlayer.tools/account/credits#cap.`,
+		};
 	}
-
-	const balance = await getCredits(db, accountId);
-	if (balance >= MIN_CREDITED_USD_MICROS) return null;
+	if (state.readBlock === null) return null;
 	return {
 		error: "insufficient_credits",
-		shortfall_usd_micros: Number(MIN_CREDITED_USD_MICROS - balance),
+		shortfall_usd_micros: Number(MIN_CREDITED_USD_MICROS - state.balance),
 		hint: "Add usage credits to keep reading rows past the free monthly allowance.",
 		top_up_url: topUpUrl(),
 	};

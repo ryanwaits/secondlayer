@@ -1,7 +1,10 @@
 import type { Database } from "@secondlayer/shared/db";
 import { sql } from "kysely";
 import type { Kysely } from "kysely";
-import { isOverMonthlyCreditCap } from "../../billing/prices.ts";
+import {
+	MIN_CREDITED_USD_MICROS,
+	isOverMonthlyCreditCap,
+} from "../../billing/prices.ts";
 import { getCaps } from "./account-spend-caps.ts";
 import { isInternalAccount } from "./accounts.ts";
 
@@ -163,33 +166,81 @@ export async function getMonthlyCreditsSpend(
  *  month's spend reached its cap. */
 export type CreditsStopReason = "credits" | "cap";
 
+export type AccountSpendState = {
+	balance: bigint;
+	/** This month's spend has reached the account's monthly cap. Always false
+	 *  for an internal account. */
+	overCap: boolean;
+	/** May take a paid read: a page's worth of balance and under the cap. */
+	canRead: boolean;
+	/** Why a paid read is refused, cap first (a limit the account chose
+	 *  outranks a balance problem); null when `canRead`. */
+	readBlock: CreditsStopReason | null;
+	/** May the hosted stack run: a positive balance and under the cap. A cap
+	 *  that let the stack keep billing would not be a cap. */
+	canRunStack: boolean;
+	/** Why the stack may not run, balance first; null when `canRunStack`. */
+	stackBlock: CreditsStopReason | null;
+};
+
 /**
- * Whether an account's hosted stack may run, and if not, why. The one rule
- * both `/internal/keys/introspect` (gateway) and `/internal/accounts/credits`
- * (the provisioner's 5-minute poll) answer with: a positive balance AND not
- * over the monthly spend cap. A cap that let the stack keep billing would
- * not be a cap. Internal accounts always may.
+ * The one answer to "may this account spend?". Every gate reads it: the
+ * keyed-read rate-limit bypass and refusal (`api/lib/read-credits.ts`), the
+ * gateway introspect and the provisioner's 5-minute poll
+ * (`getCreditsStatus`). Internal accounts always may; `meter()` still prices
+ * them at $0.
  */
+export async function accountSpendState(
+	db: Kysely<Database>,
+	accountId: string,
+	now: Date = new Date(),
+): Promise<AccountSpendState> {
+	const [balance, internal, caps, spent] = await Promise.all([
+		getCredits(db, accountId),
+		isInternalAccount(db, accountId),
+		getCaps(db, accountId),
+		getMonthlyCreditsSpend(db, accountId, now),
+	]);
+	if (internal) {
+		return {
+			balance,
+			overCap: false,
+			canRead: true,
+			readBlock: null,
+			canRunStack: true,
+			stackBlock: null,
+		};
+	}
+	const overCap = isOverMonthlyCreditCap(
+		spent,
+		caps?.monthly_cap_cents ?? null,
+	);
+	const readBlock: CreditsStopReason | null = overCap
+		? "cap"
+		: balance < MIN_CREDITED_USD_MICROS
+			? "credits"
+			: null;
+	const stackBlock: CreditsStopReason | null =
+		balance <= 0n ? "credits" : overCap ? "cap" : null;
+	return {
+		balance,
+		overCap,
+		canRead: readBlock === null,
+		readBlock,
+		canRunStack: stackBlock === null,
+		stackBlock,
+	};
+}
+
+/** `accountSpendState`'s stack verdict, the shape `/internal/accounts/credits`
+ *  and `/internal/keys/introspect` answer with. */
 export async function getCreditsStatus(
 	db: Kysely<Database>,
 	accountId: string,
 	now: Date = new Date(),
 ): Promise<{ ok: boolean; reason: CreditsStopReason | null }> {
-	if (await isInternalAccount(db, accountId)) return { ok: true, reason: null };
-	if ((await getCredits(db, accountId)) <= 0n) {
-		return { ok: false, reason: "credits" };
-	}
-	const caps = await getCaps(db, accountId);
-	if (
-		caps?.monthly_cap_cents != null &&
-		isOverMonthlyCreditCap(
-			await getMonthlyCreditsSpend(db, accountId, now),
-			caps.monthly_cap_cents,
-		)
-	) {
-		return { ok: false, reason: "cap" };
-	}
-	return { ok: true, reason: null };
+	const state = await accountSpendState(db, accountId, now);
+	return { ok: state.canRunStack, reason: state.stackBlock };
 }
 
 export type CreditRefill = {

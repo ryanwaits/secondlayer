@@ -8,6 +8,7 @@ import {
 } from "bun:test";
 import { getDb } from "@secondlayer/shared/db";
 import {
+	accountSpendState,
 	creditCredits,
 	debitCredits,
 	getCreditRefill,
@@ -17,6 +18,7 @@ import {
 	recordCreditsSpend,
 	setCreditRefill,
 } from "./account-credits.ts";
+import { upsertCaps } from "./account-spend-caps.ts";
 
 const HAS_DB = !!process.env.DATABASE_URL;
 
@@ -144,5 +146,75 @@ describe.skipIf(!HAS_DB)("getCreditsStatus", () => {
 			ok: true,
 			reason: null,
 		});
+	});
+});
+
+describe.skipIf(!HAS_DB)("accountSpendState", () => {
+	test("a balance of exactly one page (5,000 micros) may read and run", async () => {
+		await creditCredits(db, accountId, 5_000n);
+		const state = await accountSpendState(db, accountId);
+		expect(state.balance).toBe(5_000n);
+		expect(state.canRead).toBe(true);
+		expect(state.canRunStack).toBe(true);
+		expect(state.readBlock).toBeNull();
+		expect(state.stackBlock).toBeNull();
+	});
+
+	test("one micro under a page refuses reads but the stack still runs", async () => {
+		await creditCredits(db, accountId, 4_999n);
+		const state = await accountSpendState(db, accountId);
+		expect(state.canRead).toBe(false);
+		expect(state.readBlock).toBe("credits");
+		expect(state.canRunStack).toBe(true);
+	});
+
+	test("a zero balance stops both, naming credits", async () => {
+		const state = await accountSpendState(db, accountId);
+		expect(state.canRead).toBe(false);
+		expect(state.canRunStack).toBe(false);
+		expect(state.readBlock).toBe("credits");
+		expect(state.stackBlock).toBe("credits");
+	});
+
+	test("spend at the cap (1 cent = 10,000 micros) stops both and names the cap, even with balance", async () => {
+		await creditCredits(db, accountId, 1_000_000n);
+		await upsertCaps(db, accountId, { monthly_cap_cents: 1 });
+		await recordCreditsSpend(db, accountId, 9_999n);
+		expect((await accountSpendState(db, accountId)).overCap).toBe(false);
+		await recordCreditsSpend(db, accountId, 1n);
+		const state = await accountSpendState(db, accountId);
+		expect(state.overCap).toBe(true);
+		expect(state.canRead).toBe(false);
+		expect(state.canRunStack).toBe(false);
+		expect(state.readBlock).toBe("cap");
+		expect(state.stackBlock).toBe("cap");
+	});
+
+	test("with no balance and over the cap, a read names the cap and the stack names credits", async () => {
+		await upsertCaps(db, accountId, { monthly_cap_cents: 0 });
+		const state = await accountSpendState(db, accountId);
+		expect(state.readBlock).toBe("cap");
+		expect(state.stackBlock).toBe("credits");
+	});
+
+	test("a cleared cap lets a funded account spend again", async () => {
+		await creditCredits(db, accountId, 1_000_000n);
+		await upsertCaps(db, accountId, { monthly_cap_cents: 0 });
+		expect((await accountSpendState(db, accountId)).canRunStack).toBe(false);
+		await upsertCaps(db, accountId, { monthly_cap_cents: null });
+		expect((await accountSpendState(db, accountId)).canRunStack).toBe(true);
+	});
+
+	test("an internal account may always read and run, with no balance and a tripped cap", async () => {
+		await db
+			.updateTable("accounts")
+			.set({ internal: true })
+			.where("id", "=", accountId)
+			.execute();
+		await upsertCaps(db, accountId, { monthly_cap_cents: 0 });
+		const state = await accountSpendState(db, accountId);
+		expect(state.canRead).toBe(true);
+		expect(state.canRunStack).toBe(true);
+		expect(state.overCap).toBe(false);
 	});
 });
