@@ -222,6 +222,8 @@ export interface SubgraphsTable {
 	schema_name: string | null;
 	start_block: Generated<number>;
 	last_processed_block: Generated<number>;
+	/** Hash of the block at `last_processed_block`; NULL = unknown (see 0197). */
+	last_processed_block_hash: Generated<string | null>;
 	reindex_from_block: number | null;
 	reindex_to_block: number | null;
 	last_error: string | null;

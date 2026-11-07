@@ -57,56 +57,7 @@ export async function handleSubgraphReorg(
 
 	for (const sg of activeSubgraphs) {
 		try {
-			const schema = sg.definition.schema as SubgraphSchema | undefined;
-			if (!schema) continue;
-
-			// f057: bump this subgraph's reorg epoch BEFORE taking the block lock
-			// (visible immediately, however long the lock wait takes), then hold
-			// the lock for the whole delete+reprocess+rewind sequence below. A
-			// catch-up walk in flight either (a) is between blocks and about to
-			// acquire the lock — it will see the bumped epoch and abort without
-			// writing, or (b) already holds the lock for one in-flight block —
-			// we wait for it to finish, then proceed; its NEXT block sees the
-			// bumped epoch and aborts. Either way our rewind write below is never
-			// clobbered by a catch-up write that doesn't know the cursor moved.
-			// See the guard comment near `subgraphBlockLockHeld` in catchup.ts.
-			bumpReorgEpoch(sg.name);
-			// A reindex walk runs in its own loop with a cursor of its own, so a
-			// fork at or below that cursor orphans rows the walk will never
-			// revisit. Stop the walk BEFORE taking the block locks: the walk needs
-			// them for every block it writes, so waiting on it while holding them
-			// would never finish.
-			if (!(await stopReindexBehindFork(sg, blockHeight))) continue;
-			await withSubgraphBlockLock(sg.name, async () => {
-				// f069: the in-process block lock above only excludes a same-process
-				// catch-up walk (f057) — `handleSubgraphReorg` itself runs on EVERY
-				// process (NOTIFY fan-out from processor.ts), so two processes could
-				// otherwise run this exact revert+reprocess sequence for the same
-				// subgraph concurrently, double-applying the fork block or racing
-				// each other's journal restore. A Postgres advisory lock scoped to
-				// a wrapping transaction on the managed (target) DB closes that:
-				// held for the WHOLE delete+reprocess+rewind sequence below, since
-				// `pg_advisory_xact_lock` releases only when this transaction
-				// commits/rolls back — regardless of how long the callback runs or
-				// what other connections (the subgraph's own data-plane client,
-				// `processBlock`'s own separate managed-DB transaction) it awaits
-				// in the meantime. Transaction-scoped (not session-scoped): nothing
-				// here needs the lock to outlive this one call, and an xact lock
-				// can never leak past a crash the way a session lock without a
-				// matching `finally` unlock could.
-				await getTargetDb()
-					.transaction()
-					.execute(async (lockTx) => {
-						await sql`SELECT pg_advisory_xact_lock(hashtext(${`subgraph-reorg:${sg.name}`}))`.execute(
-							lockTx,
-						);
-						// Lock 3 (see catchup.ts): excludes a backfill or reindex
-						// walk's block write for the whole revert.
-						await withSubgraphBlockAdvisoryLock(sg.name, () =>
-							reorgOneSubgraph(sg, schema, blockHeight, loadSubgraphDef),
-						);
-					});
-			});
+			await rewindSubgraphToFork(sg, blockHeight, loadSubgraphDef);
 		} catch (err) {
 			logger.error("Subgraph reorg handling failed", {
 				subgraph: sg.name,
@@ -115,6 +66,69 @@ export async function handleSubgraphReorg(
 			});
 		}
 	}
+}
+
+/**
+ * The per-subgraph reorg sequence: bump the epoch, stop a reindex walk behind
+ * the fork, then revert and reprocess under all three locks. Called for every
+ * subgraph by {@link handleSubgraphReorg}, and alone by the catch-up check that
+ * finds a reorg whose NOTIFY the processor missed. Throws on failure.
+ */
+export async function rewindSubgraphToFork(
+	sg: Subgraph,
+	blockHeight: number,
+	loadSubgraphDef: (sg: Subgraph) => Promise<SubgraphDefinition>,
+): Promise<void> {
+	const schema = sg.definition.schema as SubgraphSchema | undefined;
+	if (!schema) return;
+
+	// f057: bump this subgraph's reorg epoch BEFORE taking the block lock
+	// (visible immediately, however long the lock wait takes), then hold
+	// the lock for the whole delete+reprocess+rewind sequence below. A
+	// catch-up walk in flight either (a) is between blocks and about to
+	// acquire the lock — it will see the bumped epoch and abort without
+	// writing, or (b) already holds the lock for one in-flight block —
+	// we wait for it to finish, then proceed; its NEXT block sees the
+	// bumped epoch and aborts. Either way our rewind write below is never
+	// clobbered by a catch-up write that doesn't know the cursor moved.
+	// See the guard comment near `subgraphBlockLockHeld` in catchup.ts.
+	bumpReorgEpoch(sg.name);
+	// A reindex walk runs in its own loop with a cursor of its own, so a
+	// fork at or below that cursor orphans rows the walk will never
+	// revisit. Stop the walk BEFORE taking the block locks: the walk needs
+	// them for every block it writes, so waiting on it while holding them
+	// would never finish.
+	if (!(await stopReindexBehindFork(sg, blockHeight))) return;
+	await withSubgraphBlockLock(sg.name, async () => {
+		// f069: the in-process block lock above only excludes a same-process
+		// catch-up walk (f057) — `handleSubgraphReorg` itself runs on EVERY
+		// process (NOTIFY fan-out from processor.ts), so two processes could
+		// otherwise run this exact revert+reprocess sequence for the same
+		// subgraph concurrently, double-applying the fork block or racing
+		// each other's journal restore. A Postgres advisory lock scoped to
+		// a wrapping transaction on the managed (target) DB closes that:
+		// held for the WHOLE delete+reprocess+rewind sequence below, since
+		// `pg_advisory_xact_lock` releases only when this transaction
+		// commits/rolls back — regardless of how long the callback runs or
+		// what other connections (the subgraph's own data-plane client,
+		// `processBlock`'s own separate managed-DB transaction) it awaits
+		// in the meantime. Transaction-scoped (not session-scoped): nothing
+		// here needs the lock to outlive this one call, and an xact lock
+		// can never leak past a crash the way a session lock without a
+		// matching `finally` unlock could.
+		await getTargetDb()
+			.transaction()
+			.execute(async (lockTx) => {
+				await sql`SELECT pg_advisory_xact_lock(hashtext(${`subgraph-reorg:${sg.name}`}))`.execute(
+					lockTx,
+				);
+				// Lock 3 (see catchup.ts): excludes a backfill or reindex
+				// walk's block write for the whole revert.
+				await withSubgraphBlockAdvisoryLock(sg.name, () =>
+					reorgOneSubgraph(sg, schema, blockHeight, loadSubgraphDef),
+				);
+			});
+	});
 }
 
 /**

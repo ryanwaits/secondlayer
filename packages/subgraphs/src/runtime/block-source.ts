@@ -67,7 +67,54 @@ export interface BlockSource {
 	 * conservative cross-decoder floor. Call AFTER `getTip()`.
 	 */
 	getDecodedHeights?(): Record<string, number | null> | undefined;
+	/** Hash of the canonical block at `height`; null while the height has none
+	 *  (a reorg swept it and the replacement is not stored yet). Optional: a
+	 *  source without it cannot detect a reorg it was not told about. */
+	getBlockHash?(height: number): Promise<string | null>;
+	/** Shallowest height of the run of recorded reorgs that orphaned `height`, or
+	 *  null when none holds it. Where a hash mismatch at `height` rewinds to: the
+	 *  reorgs that orphaned it are records the source keeps. */
+	findReorgFork?(height: number): Promise<number | null>;
 }
+
+/** How far back a missed reorg is looked up. Past it the journal has no
+ *  pre-images, so a deeper revert would not be correct either. */
+export const REORG_LOOKBACK_BLOCKS = 300;
+/** An orphaned height range a recorded reorg covers. */
+export type OrphanedRange = { from: number; to: number };
+
+/**
+ * The shallowest height of the connected run of orphaned ranges containing
+ * `height`, or null when none holds it. A reorg that unwinds a fork one height
+ * at a time records one range per height, so a run is what the fork was; ranges
+ * reaching deeper than {@link REORG_LOOKBACK_BLOCKS} are ignored.
+ */
+export function shallowestForkOf(
+	ranges: OrphanedRange[],
+	height: number,
+): number | null {
+	const floor = height - REORG_LOOKBACK_BLOCKS;
+	let start: number | null = null;
+	let grew = true;
+	while (grew) {
+		grew = false;
+		for (const r of ranges) {
+			if (r.from < floor) continue;
+			const touches =
+				start === null
+					? r.from <= height && height <= r.to
+					: r.from < start && r.to >= start - 1;
+			if (touches) {
+				start = r.from;
+				grew = true;
+			}
+		}
+	}
+	return start;
+}
+
+/** Streams reorgs are listed by wall clock; this covers a long processor outage. */
+const STREAMS_REORG_LOOKBACK_MS = 7 * 24 * 60 * 60 * 1000;
 
 /** A (decoded event type, optional contract scope) pair the sparse probe
  *  checks. Contract scoping is what makes token-subgraph reindexes leap over
@@ -268,6 +315,32 @@ export class PostgresBlockSource implements BlockSource {
 		return loadBlockRange(getSourceDb(), fromHeight, toHeight, {
 			stateWrites: this.feed,
 		});
+	}
+
+	async getBlockHash(height: number): Promise<string | null> {
+		const row = await getSourceDb()
+			.selectFrom("blocks")
+			.select("hash")
+			.where("height", "=", height)
+			.where("canonical", "=", true)
+			.executeTakeFirst();
+		return row?.hash ?? null;
+	}
+
+	async findReorgFork(height: number): Promise<number | null> {
+		const rows = await getSourceDb()
+			.selectFrom("chain_reorgs")
+			.select(["orphaned_from_height", "orphaned_to_height"])
+			.where("orphaned_from_height", "<=", height)
+			.where("orphaned_to_height", ">=", height - REORG_LOOKBACK_BLOCKS)
+			.execute();
+		return shallowestForkOf(
+			rows.map((r) => ({
+				from: Number(r.orphaned_from_height),
+				to: Number(r.orphaned_to_height),
+			})),
+			height,
+		);
 	}
 }
 
@@ -542,6 +615,25 @@ export class PublicApiBlockSource implements BlockSource {
 		return map;
 	}
 
+	async getBlockHash(height: number): Promise<string | null> {
+		const [row] = await this.http.walkBlocks(height, height);
+		return row?.block_hash ?? null;
+	}
+
+	async findReorgFork(height: number): Promise<number | null> {
+		const since = new Date(
+			Date.now() - STREAMS_REORG_LOOKBACK_MS,
+		).toISOString();
+		const { reorgs } = await this.http.listReorgs(since);
+		return shallowestForkOf(
+			reorgs.map((r) => ({
+				from: r.fork_point_height,
+				to: Number(r.orphaned_range?.to?.split(":")[0]),
+			})),
+			height,
+		);
+	}
+
 	/** Each height's named writes as events, the writing txs rebuilt from the
 	 *  joined `tx_*` fields. One walk per contract, merged in ordinal order. */
 	private async walkWrites(
@@ -659,6 +751,26 @@ export class FallbackBlockSource implements BlockSource {
 				error: err instanceof Error ? err.message : String(err),
 			});
 			return this.fallback.loadBlockRange(fromHeight, toHeight);
+		}
+	}
+
+	/** Primary first, the DB tap when it throws. Both read the same canonical
+	 *  chain, so a hash from either names the same block. */
+	async getBlockHash(height: number): Promise<string | null> {
+		try {
+			return (await this.primary.getBlockHash?.(height)) ?? null;
+		} catch (err) {
+			if (err instanceof BillingPausedError) throw err;
+			return (await this.fallback.getBlockHash?.(height)) ?? null;
+		}
+	}
+
+	async findReorgFork(height: number): Promise<number | null> {
+		try {
+			return (await this.primary.findReorgFork?.(height)) ?? null;
+		} catch (err) {
+			if (err instanceof BillingPausedError) throw err;
+			return (await this.fallback.findReorgFork?.(height)) ?? null;
 		}
 	}
 

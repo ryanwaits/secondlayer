@@ -7,6 +7,7 @@ import {
 	indexEventTypesForFilterTypes,
 	isStreamsIndexEligible,
 	resolveBlockSource,
+	shallowestForkOf,
 } from "./block-source.ts";
 
 function def(sources: Record<string, unknown>): SubgraphDefinition {
@@ -305,5 +306,66 @@ describe("PublicApiBlockSource.loadBlockRange", () => {
 	test("getTip reads the Index tip", async () => {
 		const src = new PublicApiBlockSource(fakeHttp, []);
 		expect(await src.getTip()).toBe(2);
+	});
+});
+
+describe("PublicApiBlockSource reorg lookups", () => {
+	const reorg = (fork: number, to: number) => ({
+		id: `r${fork}`,
+		detected_at: "2026-11-01T00:00:00.000Z",
+		fork_point_height: fork,
+		orphaned_range: { from: `${fork}:0`, to: `${to}:3` },
+		new_canonical_tip: `${to}:0`,
+	});
+	const source = (reorgs: ReturnType<typeof reorg>[], blocks: unknown[] = []) =>
+		new PublicApiBlockSource(
+			{
+				walkBlocks: async () => blocks,
+				listReorgs: async () => ({ reorgs, next_since: null }),
+			} as unknown as IndexHttpClient,
+			["print"],
+		);
+
+	test("reads the canonical hash of one height, null when it has none", async () => {
+		expect(await source([], [{ block_hash: "0xabc" }]).getBlockHash(10)).toBe(
+			"0xabc",
+		);
+		expect(await source([]).getBlockHash(10)).toBeNull();
+	});
+
+	test("the fork is the shallowest reorg whose orphaned range holds the height", async () => {
+		const s = source([reorg(95, 102), reorg(98, 101), reorg(50, 60)]);
+		expect(await s.findReorgFork(100)).toBe(95);
+	});
+
+	test("no fork when no reorg orphaned the height", async () => {
+		expect(await source([reorg(50, 60)]).findReorgFork(100)).toBeNull();
+	});
+});
+
+describe("shallowestForkOf", () => {
+	const range = (from: number, to = from) => ({ from, to });
+
+	test("one range per height chains into the fork they unwound", () => {
+		const ranges = [range(118), range(117), range(116), range(115)];
+		expect(shallowestForkOf(ranges, 118)).toBe(115);
+	});
+
+	test("a run that does not touch the height is not its fork", () => {
+		expect(shallowestForkOf([range(110, 112), range(115)], 118)).toBeNull();
+	});
+
+	test("a gap in the run stops the walk back", () => {
+		expect(shallowestForkOf([range(118), range(116), range(115)], 118)).toBe(
+			118,
+		);
+	});
+
+	test("a multi-height range holds the heights it spans", () => {
+		expect(shallowestForkOf([range(95, 102), range(90, 94)], 100)).toBe(90);
+	});
+
+	test("ranges past the lookback are ignored", () => {
+		expect(shallowestForkOf([range(100, 1000)], 1000)).toBeNull();
 	});
 });

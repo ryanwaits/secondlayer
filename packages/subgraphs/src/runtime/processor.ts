@@ -32,6 +32,7 @@ import { isCatchUpLeader, startCatchUpLeader } from "./catchup-leader.ts";
 import { catchUpSubgraph } from "./catchup.ts";
 import { loadDeterministicDefinition } from "./realm.ts";
 import { backfillSubgraph, reindexSubgraph, resumeReindex } from "./reindex.ts";
+import { rewindMissedReorgs } from "./reorg-detect.ts";
 import { handleSubgraphReorg } from "./reorg.ts";
 import { startStreamsReorgPoll } from "./streams-reorg-poll.ts";
 
@@ -488,6 +489,9 @@ export async function startSubgraphProcessor(opts?: {
 			(v: Subgraph) => v.status === "active",
 		);
 		cleanupCaches(subgraphs);
+		// A reorg whose NOTIFY this process missed leaves the cursor on an
+		// orphaned block: rewind those before walking forward from it.
+		await rewindMissedReorgs(subgraphs, loadSubgraphDefinition);
 		await catchUpAll(subgraphs, db, concurrency);
 	};
 

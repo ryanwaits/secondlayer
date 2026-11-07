@@ -418,7 +418,12 @@ export async function processBlock(
 			if (isReorgRewind(opts)) {
 				// Fork block itself may match nothing for this subgraph — the
 				// rewind still must land (unconditional, may move backward).
-				await rewindLiveProgress(targetDb, subgraphName, blockHeight);
+				await rewindLiveProgress(
+					targetDb,
+					subgraphName,
+					blockHeight,
+					block.hash,
+				);
 			} else {
 				// Promote-but-never-unpark: unconditional "active" stamping let the
 				// live walk overwrite "reindexing" set by a queued reindex op,
@@ -428,7 +433,12 @@ export async function processBlock(
 				// written), so a `false` return here is a silent no-op — the
 				// cursor simply stays at whatever a racing writer already set it
 				// to.
-				await recordLiveProgress(targetDb, subgraphName, blockHeight);
+				await recordLiveProgress(
+					targetDb,
+					subgraphName,
+					blockHeight,
+					block.hash,
+				);
 			}
 		}
 		return result;
@@ -474,17 +484,22 @@ export async function processBlock(
 				// f069: conditional — see recordLiveError's docblock for why a lost
 				// race here is always a silent no-op (an all-failed block never
 				// flushes writes, so there's nothing to protect by throwing).
-				await recordLiveError(tx, subgraphName, blockHeight);
+				await recordLiveError(tx, subgraphName, blockHeight, block.hash);
 			}
 		} else if (rewind) {
 			// Unconditional, may move the cursor backward — see ProcessBlockOptions.
-			await rewindLiveProgress(tx, subgraphName, blockHeight);
+			await rewindLiveProgress(tx, subgraphName, blockHeight, block.hash);
 		} else {
 			// Promote-but-never-unpark (see matched-0 note). Conditional advance
 			// (f069): a racing writer that already committed a higher cursor for
 			// this height means OUR writes must not stand — abort the whole tx
 			// so ctx.increment deltas already flushed above roll back with it.
-			const advanced = await recordLiveProgress(tx, subgraphName, blockHeight);
+			const advanced = await recordLiveProgress(
+				tx,
+				subgraphName,
+				blockHeight,
+				block.hash,
+			);
 			if (!advanced && flushedWrites) {
 				throw new LiveCursorRaceLostError(subgraphName, blockHeight);
 			}
@@ -604,7 +619,9 @@ export async function processBlock(
 			if (sm && flushedWrites) {
 				// Only a still-`reindexing` subgraph takes the checkpoint. A halt
 				// or cancel that landed mid-walk aborts OUR writes with it.
-				if (!(await setReindexCursor(tx, subgraphName, blockHeight))) {
+				if (
+					!(await setReindexCursor(tx, subgraphName, blockHeight, block.hash))
+				) {
 					throw new LiveCursorRaceLostError(subgraphName, blockHeight);
 				}
 			} else if (opMode && flushedWrites) {

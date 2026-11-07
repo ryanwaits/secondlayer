@@ -174,6 +174,15 @@ export async function listSubgraphs(
 	return query.execute();
 }
 
+/** The hash half of a cursor write. Absent when the caller has none; the
+ *  `subgraphs_clear_stale_block_hash` trigger (0197) then clears the stored hash
+ *  for a moved cursor instead of leaving one that names another block. */
+function cursorHash(blockHash: string | undefined) {
+	return blockHash === undefined
+		? {}
+		: { last_processed_block_hash: blockHash };
+}
+
 /**
  * Reindex progress: moves the cursor of a subgraph that is still
  * `reindexing`, and nothing else. Returns `false` when the subgraph left that
@@ -184,11 +193,13 @@ export async function setReindexCursor(
 	db: Kysely<Database>,
 	name: string,
 	lastProcessedBlock: number,
+	blockHash?: string,
 ): Promise<boolean> {
 	const result = await db
 		.updateTable("subgraphs")
 		.set({
 			last_processed_block: lastProcessedBlock,
+			...cursorHash(blockHash),
 			updated_at: new Date(),
 		})
 		.where("name", "=", name)
@@ -216,12 +227,14 @@ export async function recordLiveError(
 	db: Kysely<Database>,
 	name: string,
 	blockHeight: number,
+	blockHash?: string,
 ): Promise<boolean> {
 	const result = await db
 		.updateTable("subgraphs")
 		.set({
 			status: "error",
 			last_processed_block: blockHeight,
+			...cursorHash(blockHash),
 			updated_at: new Date(),
 		})
 		.where("name", "=", name)
@@ -381,11 +394,13 @@ export async function recordLiveProgress(
 	db: Kysely<Database>,
 	name: string,
 	lastProcessedBlock: number,
+	blockHash?: string,
 ): Promise<boolean> {
 	const result = await db
 		.updateTable("subgraphs")
 		.set({
 			last_processed_block: lastProcessedBlock,
+			...cursorHash(blockHash),
 			updated_at: new Date(),
 		})
 		.where("name", "=", name)
@@ -413,11 +428,13 @@ export async function rewindLiveProgress(
 	db: Kysely<Database>,
 	name: string,
 	lastProcessedBlock: number,
+	blockHash?: string,
 ): Promise<void> {
 	await db
 		.updateTable("subgraphs")
 		.set({
 			last_processed_block: lastProcessedBlock,
+			...cursorHash(blockHash),
 			updated_at: new Date(),
 		})
 		.where("name", "=", name)
