@@ -16,9 +16,9 @@ export const WEBHOOK_FORMATS = [
 	"raw",
 ] as const;
 
-/** `error` is never written; it stays in the public type until the dashboard
- *  stops reading it. The database accepts only `active` and `paused`. */
-export const WEBHOOK_STATUSES = ["active", "paused", "error"] as const;
+/** The database accepts only `active` and `paused`; a failing receiver is
+ *  `health`, not a status. */
+export const WEBHOOK_STATUSES = ["active", "paused"] as const;
 
 /**
  * Delivery-cap ceilings. Self-host defaults keep today's hardcoded limits

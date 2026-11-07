@@ -7327,8 +7327,7 @@
 						"type": "string",
 						"enum": [
 							"active",
-							"paused",
-							"error"
+							"paused"
 						],
 						"description": "`active` delivers. `paused` holds new events in the outbox until resumed; the circuit breaker also pauses a webhook after 20 straight failures. `pauseReason` says which."
 					},
@@ -7485,8 +7484,7 @@
 						"type": "string",
 						"enum": [
 							"active",
-							"paused",
-							"error"
+							"paused"
 						],
 						"description": "`active` delivers. `paused` holds new events in the outbox until resumed; the circuit breaker also pauses a webhook after 20 straight failures. `pauseReason` says which."
 					},
@@ -9057,8 +9055,7 @@
 									"type": "string",
 									"enum": [
 										"active",
-										"paused",
-										"error"
+										"paused"
 									]
 								},
 								"kind": {
