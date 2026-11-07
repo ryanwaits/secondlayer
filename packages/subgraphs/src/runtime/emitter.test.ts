@@ -307,7 +307,7 @@ describe("startEmitter end-to-end", () => {
 		const receiver = await startMockReceiver(async (): Promise<"fail"> => {
 			await db
 				.updateTable("webhooks")
-				.set({ status: "paused", updated_at: new Date() })
+				.set({ status: "paused", pause_reason: "user", updated_at: new Date() })
 				.where("id", "=", webhookId)
 				.execute();
 			return "fail";
@@ -373,7 +373,7 @@ describe("startEmitter end-to-end", () => {
 			webhookIds.push(webhook.id);
 			await db
 				.updateTable("webhooks")
-				.set({ status: "paused", updated_at: new Date() })
+				.set({ status: "paused", pause_reason: "user", updated_at: new Date() })
 				.where("id", "=", webhook.id)
 				.execute();
 

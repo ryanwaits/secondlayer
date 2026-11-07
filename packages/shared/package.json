@@ -253,6 +253,10 @@
 			"types": "./dist/src/insights/thresholds.d.ts",
 			"import": "./dist/src/insights/thresholds.js"
 		},
+		"./webhooks/health": {
+			"types": "./dist/src/webhooks/health.d.ts",
+			"import": "./dist/src/webhooks/health.js"
+		},
 		"./schemas/insights": {
 			"types": "./dist/src/schemas/insights.d.ts",
 			"import": "./dist/src/schemas/insights.js"

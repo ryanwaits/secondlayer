@@ -1,6 +1,7 @@
 import { getDb, getSourceDb } from "@secondlayer/shared/db";
 import { getInstance } from "@secondlayer/shared/db/queries/instance";
 import { resolveSyncScope } from "@secondlayer/shared/db/queries/sync-scope";
+import { notReorgOrphaned } from "@secondlayer/shared/db/queries/webhooks";
 import { getDeclaredInstanceMode } from "@secondlayer/shared/mode";
 import { Hono } from "hono";
 import { sql } from "kysely";
@@ -61,6 +62,7 @@ export function createInstanceCatalogRouter() {
 					.selectFrom("webhook_outbox")
 					.select(db.fn.countAll<string>().as("n"))
 					.where("status", "=", "dead")
+					.where(notReorgOrphaned)
 					.executeTakeFirst(),
 			]);
 			deliveries = {

@@ -145,6 +145,7 @@ describe("emitter claim races", () => {
 				.updateTable("webhook_outbox")
 				.set({
 					status: "dead",
+					dead_reason: "orphaned",
 					failed_at: new Date(),
 					last_error: "orphaned by reorg at 999",
 					locked_by: null,

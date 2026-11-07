@@ -105,6 +105,7 @@ describe("testnet webhook stack", () => {
 				payload: { secret: "a-only" },
 				dedup_key: "348-dedup-a",
 				status: "dead",
+				dead_reason: "exhausted",
 				replay_id: aReplayId,
 				failed_at: new Date(),
 			} as never)
@@ -432,7 +433,7 @@ describe("testnet webhook stack", () => {
 			// Paused webhooks count toward the limit.
 			await getDb()
 				.updateTable("webhooks")
-				.set({ status: "paused" })
+				.set({ status: "paused", pause_reason: "user" })
 				.where("account_id", "=", ACCOUNT_CAP)
 				.execute();
 			const paused = await call(ACCOUNT_CAP, "POST", "", {

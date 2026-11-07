@@ -27,6 +27,7 @@ function sub(overrides: Partial<Webhook>): Webhook {
 		concurrency: 4,
 		circuit_failures: 0,
 		circuit_opened_at: null,
+		pause_reason: null,
 		last_delivery_at: null,
 		last_success_at: null,
 		last_error: null,
@@ -59,6 +60,7 @@ function outbox(): WebhookOutbox {
 		locked_by: null,
 		locked_until: null,
 		last_error: null,
+		dead_reason: null,
 		created_at: FIXED_CREATED_AT,
 	};
 }

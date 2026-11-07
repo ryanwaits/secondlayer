@@ -7,6 +7,7 @@ import {
 	it,
 } from "bun:test";
 import { randomUUID } from "node:crypto";
+import { webhookHealth } from "../../webhooks/health.ts";
 import { getDb } from "../index.ts";
 import {
 	createWebhook,
@@ -146,6 +147,63 @@ describe("webhooks queries", () => {
 		expect(paused?.status).toBe("paused");
 		expect(paused?.circuit_failures).toBe(0);
 		expect(paused?.circuit_opened_at).toBeNull();
+	});
+
+	it("a manual pause of a circuit-tripped webhook is a user pause", async () => {
+		const { webhook } = await createWebhook(db, baseInput());
+		await db
+			.updateTable("webhooks")
+			.set({
+				status: "paused",
+				pause_reason: "circuit",
+				circuit_failures: 20,
+				circuit_opened_at: new Date(),
+			})
+			.where("id", "=", webhook.id)
+			.execute();
+		const paused = await toggleWebhookStatus(
+			db,
+			accountId,
+			webhook.id,
+			"paused",
+		);
+		expect(paused?.pause_reason).toBe("user");
+		expect(
+			webhookHealth(
+				{
+					status: paused?.status ?? "",
+					pauseReason: paused?.pause_reason,
+					circuitFailures: paused?.circuit_failures ?? 0,
+					lastSuccessAt: null,
+					createdAt: new Date(0),
+				},
+				Date.now(),
+			),
+		).toBe("paused_user");
+	});
+
+	it("resume clears the pause reason", async () => {
+		const { webhook } = await createWebhook(db, baseInput());
+		await toggleWebhookStatus(db, accountId, webhook.id, "paused");
+		const resumed = await toggleWebhookStatus(
+			db,
+			accountId,
+			webhook.id,
+			"active",
+		);
+		expect(resumed?.status).toBe("active");
+		expect(resumed?.pause_reason).toBeNull();
+	});
+
+	it("the database refuses a paused webhook without a reason", async () => {
+		const { webhook } = await createWebhook(db, baseInput());
+		await expect(
+			db
+				.updateTable("webhooks")
+				.set({ status: "paused" })
+				.where("id", "=", webhook.id)
+				.execute(),
+		).rejects.toThrow();
 	});
 
 	it("rotateSecret yields new plaintext + persists new envelope", async () => {

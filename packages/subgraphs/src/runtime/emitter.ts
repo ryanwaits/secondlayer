@@ -9,6 +9,7 @@ import {
 } from "@secondlayer/shared/db";
 import { finalizeReplays } from "@secondlayer/shared/db/queries/webhook-replays";
 import { getWebhookSigningSecret } from "@secondlayer/shared/db/queries/webhooks";
+import { casTransition } from "@secondlayer/shared/db/transition";
 import { logger } from "@secondlayer/shared/logger";
 import { listen, targetListenerUrl } from "@secondlayer/shared/queue/listener";
 import {
@@ -33,7 +34,7 @@ import { refreshReceiverCerts } from "./receiver-cert.ts";
  * After `max_retries` (default 7) attempts → `status='dead'`.
  *
  * Per-sub circuit breaker: 20 consecutive failures → sub flipped to
- * `paused` with `circuit_opened_at=NOW()`. Manual /resume drains backlog.
+ * `paused` with `pause_reason='circuit'`. Manual /resume drains backlog.
  *
  * Per-sub concurrency cap: in-memory semaphore, default 4 in-flight HTTP
  * requests per webhook. Sprint-4 adds SSRF allowlist.
@@ -502,6 +503,7 @@ function buildTestOutboxRow(sub: Webhook): WebhookOutbox {
 		locked_by: null,
 		locked_until: null,
 		last_error: null,
+		dead_reason: null,
 		created_at: now,
 	};
 }
@@ -644,6 +646,7 @@ async function settleFailed(
 				attempt,
 				next_attempt_at: nextAt ?? new Date(),
 				status: isDead ? "dead" : "pending",
+				dead_reason: isDead ? "exhausted" : null,
 				failed_at: isDead ? new Date() : null,
 				locked_by: null,
 				locked_until: null,
@@ -684,17 +687,14 @@ async function settleFailed(
 			// the threshold. Guarded on `active` so an in-flight failure never
 			// stamps a circuit incident on a webhook the customer paused (or
 			// re-stamps one already tripped).
-			const tripped = await tx
-				.updateTable("webhooks")
-				.set({
-					status: "paused",
-					circuit_opened_at: new Date(),
-					updated_at: new Date(),
-				})
-				.where("id", "=", sub.id)
-				.where("status", "=", "active")
-				.executeTakeFirst();
-			if (Number(tripped.numUpdatedRows ?? 0) === 0) return;
+			const tripped = await casTransition(tx, {
+				table: "webhooks",
+				id: sub.id,
+				from: ["active"],
+				to: "paused",
+				set: { pause_reason: "circuit", circuit_opened_at: new Date() },
+			});
+			if (!tripped) return;
 			logger.warn(
 				"Webhook circuit tripped — paused after consecutive failures",
 				{

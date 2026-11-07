@@ -51,6 +51,9 @@ async function makeWebhookWithDeadRows() {
 				payload: {},
 				dedup_key: `dead-${randomUUID().slice(0, 12)}`,
 				status: "dead",
+				dead_reason: lastError.startsWith(REORG_ORPHANED_ERROR_PREFIX)
+					? "orphaned"
+					: "exhausted",
 				failed_at: new Date(),
 				last_error: lastError,
 			})

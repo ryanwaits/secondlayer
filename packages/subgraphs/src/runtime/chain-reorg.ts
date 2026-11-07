@@ -158,6 +158,7 @@ export async function handleChainReorg(
 				.updateTable("webhook_outbox")
 				.set({
 					status: "dead",
+					dead_reason: "orphaned",
 					failed_at: now,
 					last_error: `${REORG_ORPHANED_ERROR_PREFIX}${forkHeight}`,
 					locked_by: null,

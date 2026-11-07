@@ -19,6 +19,7 @@ import type {
 	SubgraphStatus,
 	SubgraphVerification,
 } from "../schemas/subgraphs.ts";
+import type { WebhookPauseReason } from "../webhooks/health.ts";
 
 export type {
 	FailureClass,
@@ -1485,7 +1486,8 @@ export type InsertSubgraphGap = Insertable<SubgraphGapsTable>;
 
 // ── Webhooks (chain event webhooks) ─────────────────────
 
-export type WebhookStatus = "active" | "paused" | "error";
+export type WebhookStatus = "active" | "paused";
+export type { WebhookPauseReason };
 
 /** Webhooks react to raw chain events matched directly off the Index/Streams
  *  clock. `chain` is the only kind since migration 0159 removed subgraph-row
@@ -1519,6 +1521,8 @@ export interface WebhooksTable {
 	concurrency: Generated<number>;
 	circuit_failures: Generated<number>;
 	circuit_opened_at: Date | null;
+	/** Why a paused webhook is paused. Set exactly while `status` is `paused`. */
+	pause_reason: WebhookPauseReason | null;
 	last_delivery_at: Date | null;
 	last_success_at: Date | null;
 	last_error: string | null;
@@ -1534,6 +1538,10 @@ export type InsertWebhook = Insertable<WebhooksTable>;
 export type UpdateWebhook = Updateable<WebhooksTable>;
 
 export type OutboxStatus = "pending" | "delivered" | "dead";
+/** Why a row is dead: retries ran out, or a reorg removed its event. An
+ *  orphaned row stays dead; requeueing it would resend an event the chain no
+ *  longer contains. */
+export type DeadReason = "exhausted" | "orphaned";
 
 export interface WebhookOutboxTable {
 	id: Generated<string>;
@@ -1564,6 +1572,8 @@ export interface WebhookOutboxTable {
 	 *  into an orphaned fork. Null otherwise — delivery failures track their
 	 *  history on `webhooks.last_error`, not per-row. */
 	last_error: string | null;
+	/** Set exactly while `status` is `dead`. */
+	dead_reason: DeadReason | null;
 	created_at: Generated<Date>;
 }
 

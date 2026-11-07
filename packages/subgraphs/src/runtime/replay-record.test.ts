@@ -253,7 +253,7 @@ describe("replay record", () => {
 			.execute();
 		await db
 			.updateTable("webhook_outbox")
-			.set({ status: "dead", failed_at: new Date() })
+			.set({ status: "dead", dead_reason: "exhausted", failed_at: new Date() })
 			.where("id", "=", rows[0]?.id as string)
 			.execute();
 

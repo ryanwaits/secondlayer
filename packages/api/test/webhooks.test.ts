@@ -413,7 +413,7 @@ describe.skipIf(SKIP)("Webhooks API validation", () => {
 			.execute();
 		await db
 			.updateTable("webhook_outbox")
-			.set({ status: "dead", failed_at: new Date() })
+			.set({ status: "dead", dead_reason: "exhausted", failed_at: new Date() })
 			.where("webhook_id", "=", webhookId)
 			.where("dedup_key", "=", "replay-progress-c")
 			.execute();
@@ -867,6 +867,7 @@ describe.skipIf(SKIP)("Webhooks API validation", () => {
 			row_pk: { tx_id: "0xactivity", event_index: 0 },
 			event_type: "chain.stx_transfer.apply",
 			payload: { amount: "1" },
+			...(overrides.status === "dead" ? { dead_reason: "exhausted" } : {}),
 			...overrides,
 		};
 	}

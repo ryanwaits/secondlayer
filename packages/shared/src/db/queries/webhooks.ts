@@ -2,6 +2,7 @@ import { type ExpressionBuilder, type Kysely, sql } from "kysely";
 import { generateSecret } from "../../crypto/hmac.ts";
 import { decryptSecret, encryptSecret } from "../../crypto/secrets.ts";
 import { isWebhookAccountScoped } from "../../mode.ts";
+import { casTransition, defineMachine } from "../transition.ts";
 import type {
 	Database,
 	InsertWebhook,
@@ -102,18 +103,19 @@ const WEBHOOK_ID_RE =
 	/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 export const isWebhookId = (id: string): boolean => WEBHOOK_ID_RE.test(id);
 
-/** `last_error` prefix a reorg writes when it kills an outbox row whose apply
- *  may already have been delivered. Such a row must stay dead: resending it
- *  would deliver an event the chain no longer contains. */
+/** `last_error` prefix a reorg writes next to `dead_reason = 'orphaned'`, for
+ *  humans reading the row. Code reads `dead_reason`, never this text. */
 export const REORG_ORPHANED_ERROR_PREFIX = "orphaned by reorg at ";
 
-/** `where` predicate keeping only outbox rows a reorg did NOT orphan. */
+/** `where` predicate keeping only outbox rows a reorg did NOT orphan. An
+ *  orphaned row must stay dead: resending it would deliver an event the chain
+ *  no longer contains. */
 export function notReorgOrphaned(
 	eb: ExpressionBuilder<Database, "webhook_outbox">,
 ) {
 	return eb.or([
-		eb("last_error", "is", null),
-		eb("last_error", "not like", `${REORG_ORPHANED_ERROR_PREFIX}%`),
+		eb("dead_reason", "is", null),
+		eb("dead_reason", "!=", "orphaned"),
 	]);
 }
 
@@ -169,25 +171,33 @@ export async function updateWebhook(
 	return (await q.returningAll().executeTakeFirst()) ?? null;
 }
 
+/** Webhook status machine. Both moves are idempotent so a repeated pause or
+ *  resume call succeeds; the circuit breaker only trips an `active` row. */
+export const webhookMachine = defineMachine<WebhookStatus>({
+	states: ["active", "paused"],
+	transitions: { active: ["active", "paused"], paused: ["active", "paused"] },
+});
+
+/** Pause (always as the customer: `pause_reason = 'user'`, even over a circuit
+ *  pause) or resume. Either ends any circuit incident. */
 export async function toggleWebhookStatus(
 	db: Kysely<Database>,
 	accountId: string,
 	id: string,
 	status: WebhookStatus,
 ): Promise<Webhook | null> {
-	if (!isWebhookId(id)) return null;
-	let q = db
-		.updateTable("webhooks")
-		.set({
-			status,
-			updated_at: new Date(),
-			// A manual pause or resume both end any circuit incident.
+	if (!(await getWebhook(db, accountId, id))) return null;
+	return casTransition<WebhookStatus, Webhook>(db, {
+		table: "webhooks",
+		id,
+		from: webhookMachine.states,
+		to: status,
+		set: {
+			pause_reason: status === "paused" ? "user" : null,
 			circuit_failures: 0,
 			circuit_opened_at: null,
-		})
-		.where("id", "=", id);
-	if (isWebhookAccountScoped()) q = q.where("account_id", "=", accountId);
-	return (await q.returningAll().executeTakeFirst()) ?? null;
+		},
+	});
 }
 
 /** Rows removed per statement. Small enough that one batch stays well
@@ -239,6 +249,14 @@ export async function deleteWebhook(
 	const row = await owned.executeTakeFirst();
 	if (!row) return false;
 
+	// Stop the emitter claiming new rows before the children go.
+	await casTransition(db, {
+		table: "webhooks",
+		id,
+		from: ["active"],
+		to: "paused",
+		set: { pause_reason: "user" },
+	});
 	await deleteWebhookChildren(db, id);
 
 	let q = db.deleteFrom("webhooks").where("id", "=", id);

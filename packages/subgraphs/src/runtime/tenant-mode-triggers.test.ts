@@ -235,7 +235,7 @@ async function makeWebhook(trigger: ChainTrigger): Promise<string> {
 async function pauseWebhooks(ids: string[]): Promise<void> {
 	await db
 		.updateTable("webhooks")
-		.set({ status: "paused" })
+		.set({ status: "paused", pause_reason: "user" })
 		.where("id", "in", ids)
 		.execute();
 }

@@ -66,6 +66,7 @@ const config: DefineConfigItem = defineConfig({
 		"src/classify/index.ts",
 		"src/insights/index.ts",
 		"src/insights/thresholds.ts",
+		"src/webhooks/health.ts",
 		"src/schemas/insights.ts",
 	],
 	format: ["esm"],
