@@ -82,6 +82,89 @@ describe.skipIf(!HAS_DB)("mempool ingest DB", () => {
 		expect(await count()).toBe(1);
 	});
 
+	test("a tx already confirmed on the canonical chain is not re-added to the mempool", async () => {
+		if (!db) throw new Error("missing db");
+		const height = 988_811;
+		await sql`DELETE FROM transactions WHERE block_height = ${height}`.execute(
+			db,
+		);
+		await sql`DELETE FROM blocks WHERE height = ${height}`.execute(db);
+		await db
+			.insertInto("blocks")
+			.values({
+				height,
+				hash: "0xmempoolconfirmed",
+				parent_hash: "0xmempoolparent",
+				burn_block_height: 1,
+				timestamp: 1_700_000_000,
+				canonical: true,
+			})
+			.execute();
+		await db
+			.insertInto("transactions")
+			.values({
+				tx_id: TOKEN_TRANSFER.txid,
+				block_height: height,
+				tx_index: 0,
+				type: "token_transfer",
+				sender: "SP1",
+				status: "success",
+				raw_tx: TOKEN_TRANSFER.raw_tx,
+			})
+			.execute();
+		try {
+			const written = await ingestMempoolTxs(db, [TOKEN_TRANSFER.raw_tx]);
+			expect(written).toBe(0);
+			expect(await count()).toBe(0);
+		} finally {
+			await sql`DELETE FROM transactions WHERE block_height = ${height}`.execute(
+				db,
+			);
+			await sql`DELETE FROM blocks WHERE height = ${height}`.execute(db);
+		}
+	});
+
+	test("a tx whose block was reorged out is a pending tx again", async () => {
+		if (!db) throw new Error("missing db");
+		const height = 988_812;
+		await sql`DELETE FROM transactions WHERE block_height = ${height}`.execute(
+			db,
+		);
+		await sql`DELETE FROM blocks WHERE height = ${height}`.execute(db);
+		await db
+			.insertInto("blocks")
+			.values({
+				height,
+				hash: "0xmempoolorphan",
+				parent_hash: "0xmempoolparent",
+				burn_block_height: 1,
+				timestamp: 1_700_000_000,
+				canonical: false,
+			})
+			.execute();
+		await db
+			.insertInto("transactions")
+			.values({
+				tx_id: TOKEN_TRANSFER.txid,
+				block_height: height,
+				tx_index: 0,
+				type: "token_transfer",
+				sender: "SP1",
+				status: "success",
+				raw_tx: TOKEN_TRANSFER.raw_tx,
+			})
+			.execute();
+		try {
+			const written = await ingestMempoolTxs(db, [TOKEN_TRANSFER.raw_tx]);
+			expect(written).toBe(1);
+		} finally {
+			await sql`DELETE FROM transactions WHERE block_height = ${height}`.execute(
+				db,
+			);
+			await sql`DELETE FROM blocks WHERE height = ${height}`.execute(db);
+		}
+	});
+
 	test("skips undecodable txs in a batch", async () => {
 		if (!db) throw new Error("missing db");
 		const written = await ingestMempoolTxs(db, [TOKEN_TRANSFER.raw_tx, "0x00"]);

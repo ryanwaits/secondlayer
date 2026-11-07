@@ -47,14 +47,34 @@ export function buildMempoolRow(
 }
 
 /** Persist a batch of mempool raw_tx hex strings (single multi-row upsert).
- *  Idempotent on tx_id. Returns the count of decodable rows written. */
+ *  Idempotent on tx_id. A tx already confirmed in a canonical block is skipped:
+ *  the node can announce it after the block that mined it was ingested, and
+ *  nothing would evict it again (block ingest already ran). Returns the count
+ *  of rows written. */
 export async function ingestMempoolTxs(
 	db: Kysely<Database>,
 	rawTxs: string[],
 ): Promise<number> {
-	const rows = rawTxs
+	const decoded = rawTxs
 		.map(buildMempoolRow)
 		.filter((row): row is InsertMempoolTransaction => row !== null);
+	if (decoded.length === 0) return 0;
+	const confirmed = new Set(
+		(
+			await db
+				.selectFrom("transactions as t")
+				.innerJoin("blocks as b", "b.height", "t.block_height")
+				.select("t.tx_id")
+				.where(
+					"t.tx_id",
+					"in",
+					decoded.map((row) => row.tx_id),
+				)
+				.where("b.canonical", "=", true)
+				.execute()
+		).map((row) => row.tx_id),
+	);
+	const rows = decoded.filter((row) => !confirmed.has(row.tx_id));
 	if (rows.length === 0) return 0;
 	await db
 		.insertInto("mempool_transactions")
