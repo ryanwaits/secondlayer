@@ -111,6 +111,7 @@ CONTROL_TABLES=(
   contact_requests
   update_subscribers
   update_sends
+  hosted_stack_state
 )
 
 src_count() { psql "$SRC" -tAc "SELECT count(*) FROM $1" 2>/dev/null || echo "ERR"; }
