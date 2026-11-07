@@ -29,7 +29,7 @@ interface Received {
 }
 
 async function startMockReceiver(
-	behavior: (count: number) => "ok" | "fail",
+	behavior: (count: number) => "ok" | "fail" | Promise<"ok" | "fail">,
 ): Promise<{ url: string; received: Received[]; stop: () => Promise<void> }> {
 	const received: Received[] = [];
 	const server = Bun.serve({
@@ -41,7 +41,7 @@ async function startMockReceiver(
 				headers[k] = v;
 			});
 			received.push({ body, headers });
-			const verdict = behavior(received.length);
+			const verdict = await behavior(received.length);
 			return new Response(verdict === "ok" ? "ok" : "nope", {
 				status: verdict === "ok" ? 200 : 500,
 			});
@@ -299,6 +299,66 @@ describe("startEmitter end-to-end", () => {
 			await receiver.stop();
 		}
 	}, 12_000);
+
+	it("a failure that lands after a manual pause leaves the webhook paused with no circuit incident", async () => {
+		let webhookId = "";
+		// The customer pauses the webhook while the delivery is in flight, then
+		// the receiver fails it past the circuit threshold.
+		const receiver = await startMockReceiver(async () => {
+			await db
+				.updateTable("webhooks")
+				.set({ status: "paused", updated_at: new Date() })
+				.where("id", "=", webhookId)
+				.execute();
+			return "fail";
+		});
+		try {
+			const { webhook } = await createWebhook(db, {
+				accountId,
+				name: `pause-race-${randomUUID().slice(0, 8)}`,
+				triggers: [{ type: "stx_transfer" }],
+				url: receiver.url,
+				timeoutMs: 3_000,
+			});
+			webhookId = webhook.id;
+			webhookIds.push(webhook.id);
+			await db
+				.updateTable("webhooks")
+				.set({ circuit_failures: 19 })
+				.where("id", "=", webhook.id)
+				.execute();
+			await db
+				.insertInto("webhook_outbox")
+				.values({
+					webhook_id: webhook.id,
+					block_height: 4500,
+					tx_id: "0xpauserace",
+					row_pk: { blockHeight: 4500, txId: "0xpauserace", rowIndex: 0 },
+					event_type: "chain.stx_transfer.apply",
+					payload: { sender: "SP1", recipient: "SP2", amount: "1" },
+					dedup_key: `test-pause-race-${randomUUID().slice(0, 12)}`,
+				})
+				.execute();
+
+			const start = Date.now();
+			while (receiver.received.length === 0 && Date.now() - start < 5_000) {
+				await new Promise((r) => setTimeout(r, 100));
+			}
+			expect(receiver.received.length).toBe(1);
+			await new Promise((r) => setTimeout(r, 500));
+
+			const sub = await db
+				.selectFrom("webhooks")
+				.select(["status", "circuit_failures", "circuit_opened_at"])
+				.where("id", "=", webhook.id)
+				.executeTakeFirstOrThrow();
+			expect(sub.circuit_failures).toBeGreaterThanOrEqual(20);
+			expect(sub.status).toBe("paused");
+			expect(sub.circuit_opened_at).toBeNull();
+		} finally {
+			await receiver.stop();
+		}
+	}, 10_000);
 
 	it("does not POST when webhook is paused", async () => {
 		const receiver = await startMockReceiver(() => "ok");

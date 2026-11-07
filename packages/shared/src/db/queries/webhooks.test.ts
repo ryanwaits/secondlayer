@@ -130,6 +130,24 @@ describe("webhooks queries", () => {
 		expect(resumed?.circuit_opened_at).toBeNull();
 	});
 
+	it("a manual pause clears a stale circuit incident", async () => {
+		const { webhook } = await createWebhook(db, baseInput());
+		await db
+			.updateTable("webhooks")
+			.set({ circuit_failures: 10, circuit_opened_at: new Date() })
+			.where("id", "=", webhook.id)
+			.execute();
+		const paused = await toggleWebhookStatus(
+			db,
+			accountId,
+			webhook.id,
+			"paused",
+		);
+		expect(paused?.status).toBe("paused");
+		expect(paused?.circuit_failures).toBe(0);
+		expect(paused?.circuit_opened_at).toBeNull();
+	});
+
 	it("rotateSecret yields new plaintext + persists new envelope", async () => {
 		const { webhook, signingSecret } = await createWebhook(db, baseInput());
 		const rotated = await rotateWebhookSecret(db, accountId, webhook.id);

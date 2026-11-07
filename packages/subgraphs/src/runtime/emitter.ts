@@ -650,9 +650,10 @@ async function settleFailed(
 
 		if (shouldTripCircuit) {
 			// Transition to paused only on the first failure that crossed
-			// the threshold — additional failures in-flight harmlessly
-			// re-set the same fields.
-			await tx
+			// the threshold. Guarded on `active` so an in-flight failure never
+			// stamps a circuit incident on a webhook the customer paused (or
+			// re-stamps one already tripped).
+			const tripped = await tx
 				.updateTable("webhooks")
 				.set({
 					status: "paused",
@@ -660,7 +661,9 @@ async function settleFailed(
 					updated_at: new Date(),
 				})
 				.where("id", "=", sub.id)
-				.execute();
+				.where("status", "=", "active")
+				.executeTakeFirst();
+			if (Number(tripped.numUpdatedRows ?? 0) === 0) return;
 			logger.warn(
 				"Webhook circuit tripped — paused after consecutive failures",
 				{

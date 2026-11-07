@@ -166,12 +166,9 @@ export async function toggleWebhookStatus(
 		.set({
 			status,
 			updated_at: new Date(),
-			...(status === "active"
-				? {
-						circuit_failures: 0,
-						circuit_opened_at: null,
-					}
-				: {}),
+			// A manual pause or resume both end any circuit incident.
+			circuit_failures: 0,
+			circuit_opened_at: null,
 		})
 		.where("id", "=", id);
 	if (isWebhookAccountScoped()) q = q.where("account_id", "=", accountId);
