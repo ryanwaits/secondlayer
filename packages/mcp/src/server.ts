@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import type { Icon } from "@modelcontextprotocol/sdk/types.js";
 import { resolveBaseUrl } from "@secondlayer/sdk";
 import { isHostedArchiveUrl } from "./lib/hosted.ts";
 import { restrictTools } from "./lib/tool.ts";
@@ -22,7 +23,7 @@ export type { ToolDeps } from "./tool-groups.ts";
 
 /** The server's icons, sent in `initialize` and listed in server.json (the
  *  registry manifest); a test keeps the two equal. */
-export const SERVER_ICONS = [
+export const SERVER_ICONS: Icon[] = [
 	{
 		src: "https://www.secondlayer.tools/icon.svg",
 		mimeType: "image/svg+xml",
