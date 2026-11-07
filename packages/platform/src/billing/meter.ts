@@ -142,7 +142,7 @@ function withTransaction<T>(
  *  migration 0196 are the second line): a known unit and a finite,
  *  non-negative quantity, so a charge can never be a credit. */
 function assertChargeInput(input: MeterInput): void {
-	if (!Object.hasOwn(PRICES, input.unit)) {
+	if (!Object.prototype.hasOwnProperty.call(PRICES, input.unit)) {
 		throw new Error(`meter: unknown unit ${String(input.unit)}`);
 	}
 	if (!Number.isFinite(input.quantity) || input.quantity < 0) {
