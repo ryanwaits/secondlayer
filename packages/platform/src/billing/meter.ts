@@ -233,6 +233,12 @@ export async function meter(
 	});
 }
 
+/** Ledger `quantity` for a top-up or grant: the amount in dollars, fractional
+ *  (the column is `numeric`; integer division would drop the cents). */
+function usdMicrosToDollars(usdMicros: bigint): number {
+	return Number(usdMicros) / 1_000_000;
+}
+
 export type TopupInput = {
 	accountId: string;
 	/** The positive amount credited, in USD-micros. Stored in the ledger as a
@@ -259,7 +265,7 @@ export async function recordTopup(
 		const { claimed } = await claimLedgerEntry(trx, {
 			accountId: input.accountId,
 			unit: "topup",
-			quantity: Number(input.usdMicros / 1_000_000n),
+			quantity: usdMicrosToDollars(input.usdMicros),
 			observedQuantity: null,
 			usdMicros: -input.usdMicros,
 			debitedUsdMicros: -input.usdMicros,
@@ -302,7 +308,7 @@ export async function grantCredits(
 		const { claimed } = await claimLedgerEntry(trx, {
 			accountId: input.accountId,
 			unit: "grant",
-			quantity: Number(input.usdMicros / 1_000_000n),
+			quantity: usdMicrosToDollars(input.usdMicros),
 			observedQuantity: null,
 			usdMicros: -input.usdMicros,
 			debitedUsdMicros: -input.usdMicros,

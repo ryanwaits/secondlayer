@@ -14,7 +14,7 @@ import {
 	getMonthlyCreditsSpend,
 } from "../db/queries/account-credits.ts";
 import { upsertCaps } from "../db/queries/account-spend-caps.ts";
-import { meter } from "./meter.ts";
+import { grantCredits, meter, recordTopup } from "./meter.ts";
 
 const HAS_DB = !!process.env.DATABASE_URL;
 const db = HAS_DB ? getDb() : (null as never);
@@ -139,5 +139,43 @@ describe.skipIf(!HAS_DB)("meter — concurrent charges for one account", () => {
 		expect(results.filter((r) => r.debited)).toHaveLength(2);
 		expect(await getMonthlyCreditsSpend(db, accountId)).toBe(100_000n);
 		expect(await getCredits(db, accountId)).toBe(99_900_000n);
+	});
+});
+
+describe.skipIf(!HAS_DB)("top-up and grant quantity", () => {
+	test("a top-up with cents keeps them in quantity and moves the exact micros", async () => {
+		const key = randomUUID();
+		const { balance } = await recordTopup(db, {
+			accountId,
+			usdMicros: 12_340_000n,
+			source: "test",
+			idempotencyKey: key,
+		});
+		expect(balance).toBe(12_340_000n);
+		const row = await db
+			.selectFrom("usage_ledger")
+			.select(["quantity", "usd_micros"])
+			.where("idempotency_key", "=", key)
+			.executeTakeFirstOrThrow();
+		expect(Number(row.quantity)).toBe(12.34);
+		expect(BigInt(row.usd_micros)).toBe(-12_340_000n);
+	});
+
+	test("a grant under one dollar is not stored as zero quantity", async () => {
+		const key = randomUUID();
+		await grantCredits(db, {
+			accountId,
+			usdMicros: 500_000n,
+			source: "test",
+			idempotencyKey: key,
+		});
+		const row = await db
+			.selectFrom("usage_ledger")
+			.select(["quantity", "usd_micros"])
+			.where("idempotency_key", "=", key)
+			.executeTakeFirstOrThrow();
+		expect(Number(row.quantity)).toBe(0.5);
+		expect(BigInt(row.usd_micros)).toBe(-500_000n);
+		expect(await getCredits(db, accountId)).toBe(500_000n);
 	});
 });
