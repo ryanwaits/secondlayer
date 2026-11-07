@@ -202,6 +202,12 @@ const nextConfig: NextConfig = {
 				destination: "/data/sbtc",
 				permanent: true,
 			},
+			// Shared on X; the home page is the Stacks story.
+			{
+				source: "/stacks",
+				destination: "/",
+				permanent: true,
+			},
 			{
 				source: "/claim/:token",
 				destination: "/p/archive",
