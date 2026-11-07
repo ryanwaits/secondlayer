@@ -446,12 +446,37 @@ export async function rotateKey(
 
 const TOPUP_STORAGE = "sl_topup";
 
-type PendingTopup = { amount: number; beforeMicros: string | null };
+/**
+ * What the credits list showed when checkout began: the newest top-up's time
+ * (null when there was none). A top-up that lands afterwards is a newer row.
+ * The whole value is null when the list could not be read, and then nothing
+ * can be confirmed.
+ */
+export type CreditsBaseline = { latestTopupAt: string | null } | null;
+
+type PendingTopup = { amount: number; creditsBaseline: CreditsBaseline };
+
+/** The baseline a credits list gives. Null when the list isn't known. */
+export function creditsBaseline(
+	credits: readonly CreditAdded[] | null,
+): CreditsBaseline {
+	if (credits === null) return null;
+	const topups = credits.filter((c) => c.kind === "topup");
+	return {
+		latestTopupAt: topups.reduce<string | null>(
+			(latest, c) =>
+				latest === null || Date.parse(c.occurredAt) > Date.parse(latest)
+					? c.occurredAt
+					: latest,
+			null,
+		),
+	};
+}
 
 /**
- * Send the reader to Stripe Checkout. The balance before paying is kept for
- * the return trip, so the credits page can tell "still confirming" from
- * "landed" without the API reporting individual top-ups.
+ * Send the reader to Stripe Checkout. The credits list before paying is kept
+ * for the return trip, so the credits page can tell "still confirming" from
+ * "landed" from the server's own record of top-ups.
  */
 export async function startCheckout(amount: number): Promise<void> {
 	const res = await fetch("/api/billing/topup", {
@@ -467,7 +492,9 @@ export async function startCheckout(amount: number): Promise<void> {
 		throw new Error(data.error ?? "Couldn't start checkout");
 	const pending: PendingTopup = {
 		amount,
-		beforeMicros: current().billing?.creditsUsdMicros ?? null,
+		creditsBaseline: creditsBaseline(
+			current().credits ?? (await refreshCredits()),
+		),
 	};
 	try {
 		sessionStorage.setItem(TOPUP_STORAGE, JSON.stringify(pending));
@@ -478,7 +505,11 @@ export async function startCheckout(amount: number): Promise<void> {
 }
 
 export type TopupReturn =
-	| { result: "success"; amount: number | null; beforeMicros: string | null }
+	| {
+			result: "success";
+			amount: number | null;
+			creditsBaseline: CreditsBaseline;
+	  }
 	| { result: "cancelled" };
 
 /** Read (once) whether this page load is the way back from Stripe. */
@@ -487,33 +518,44 @@ export function takeTopupReturn(): TopupReturn | null {
 	const result = params.get("topup");
 	if (!result) return null;
 	history.replaceState(null, "", location.pathname);
-	let pending: PendingTopup | null = null;
+	let pending: Partial<PendingTopup> | null = null;
 	try {
 		const raw = sessionStorage.getItem(TOPUP_STORAGE);
 		sessionStorage.removeItem(TOPUP_STORAGE);
-		pending = raw ? (JSON.parse(raw) as PendingTopup) : null;
+		pending = raw ? (JSON.parse(raw) as Partial<PendingTopup>) : null;
 	} catch {}
 	if (result === "cancelled") return { result: "cancelled" };
 	return {
 		result: "success",
 		amount: pending?.amount ?? null,
-		beforeMicros: pending?.beforeMicros ?? null,
+		creditsBaseline: pending?.creditsBaseline ?? null,
 	};
 }
 
-/** Has a top-up of `amount` landed on a balance that stood at `before`? */
-export function topupLanded(
-	billing: Billing | null,
+export type TopupStatus = "landed" | "waiting" | "unknown";
+
+/**
+ * Has the top-up shown up in the credits list? A top-up is a row newer than
+ * the baseline (and, when the amount is known, for that amount). Without a
+ * baseline nothing can be told apart from an older top-up, so the answer is
+ * `unknown`, never `landed`. The balance isn't consulted: spending moves it
+ * both ways while the payment is confirmed.
+ */
+export function topupStatus(
+	credits: readonly CreditAdded[] | null,
 	amount: number | null,
-	beforeMicros: string | null,
-): boolean {
-	if (!billing) return false;
-	if (amount === null || beforeMicros === null) return true;
-	// Micros of a prepaid balance stay far below 2^53, so plain numbers are exact.
-	return (
-		Number(billing.creditsUsdMicros) >=
-		Number(beforeMicros) + amount * 1_000_000
+	baseline: CreditsBaseline,
+): TopupStatus {
+	if (baseline === null) return "unknown";
+	if (credits === null) return "waiting";
+	const since = baseline.latestTopupAt;
+	const found = credits.some(
+		(c) =>
+			c.kind === "topup" &&
+			(since === null || Date.parse(c.occurredAt) > Date.parse(since)) &&
+			(amount === null || Number(c.usdMicros) === amount * 1_000_000),
 	);
+	return found ? "landed" : "waiting";
 }
 
 export function formatUsd(micros: string | number | bigint): string {

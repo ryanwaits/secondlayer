@@ -6,8 +6,9 @@ import {
 	ensureBilling,
 	formatUsd,
 	refreshBilling,
+	refreshCredits,
 	startCheckout,
-	topupLanded,
+	topupStatus,
 	useAccountData,
 } from "@/lib/account-data";
 import { TOPUP_MAX_USD, TOPUP_MIN_USD } from "@/lib/prices";
@@ -226,6 +227,8 @@ export function CreditsCard({
 export type ReturnState =
 	| { kind: "pending"; amount: number | null }
 	| { kind: "slow" }
+	/** Back from Stripe with nothing to compare against: not confirmed, not denied. */
+	| { kind: "unknown"; amount: number | null }
 	| { kind: "landed"; amount: number | null }
 	| { kind: "cancelled" };
 
@@ -234,7 +237,9 @@ const POLL_TRIES = 30;
 
 /**
  * Back from Stripe: Stripe's confirmation reaches our API a few seconds after
- * the redirect, so poll the balance until the top-up shows, then say so.
+ * the redirect, so poll the credits list until the top-up shows, then say so.
+ * With no list from before checkout there is nothing to tell the new top-up
+ * from an old one, so it says so instead of claiming a landing.
  */
 export function useTopupReturn(ret: TopupReturn | null): ReturnState | null {
 	const [st, setSt] = useState<ReturnState | null>(null);
@@ -245,22 +250,30 @@ export function useTopupReturn(ret: TopupReturn | null): ReturnState | null {
 			setSt({ kind: "cancelled" });
 			return;
 		}
+		if (ret.creditsBaseline === null) {
+			setSt({ kind: "unknown", amount: ret.amount });
+			refreshBilling();
+			refreshCredits();
+			return;
+		}
 		let stopped = false;
 		let tries = 0;
+		let timer: ReturnType<typeof setTimeout> | undefined;
 		setSt({ kind: "pending", amount: ret.amount });
 		const tick = async () => {
-			const billing = await refreshBilling();
+			const [credits] = await Promise.all([refreshCredits(), refreshBilling()]);
 			if (stopped) return;
-			if (topupLanded(billing, ret.amount, ret.beforeMicros)) {
+			if (topupStatus(credits, ret.amount, ret.creditsBaseline) === "landed") {
 				setSt({ kind: "landed", amount: ret.amount });
 				return;
 			}
-			if (++tries < POLL_TRIES) setTimeout(tick, POLL_MS);
+			if (++tries < POLL_TRIES) timer = setTimeout(tick, POLL_MS);
 			else setSt({ kind: "slow" });
 		};
 		tick();
 		return () => {
 			stopped = true;
+			clearTimeout(timer);
 		};
 	}, [ret]);
 
@@ -286,6 +299,14 @@ export function ReturnNotice({
 			<output className="acct-muted acct-block">
 				Stripe has the payment but hasn't confirmed it to us yet. Your balance
 				updates as soon as it does; check back in a minute.
+			</output>
+		);
+	}
+	if (st.kind === "unknown") {
+		return (
+			<output className="acct-muted acct-block">
+				You're back from Stripe. We can't confirm the payment from here; it
+				appears under Credits added once Stripe has confirmed it to us.
 			</output>
 		);
 	}

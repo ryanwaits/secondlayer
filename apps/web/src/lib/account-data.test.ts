@@ -6,12 +6,14 @@ import {
 	CreateKeyError,
 	accountSnapshot,
 	clearAccountData,
+	creditsBaseline,
 	ensureBilling,
 	ensureKeys,
 	isTopupUsd,
 	refreshBilling,
 	refreshKeys,
 	rotateKey,
+	topupStatus,
 	useAccountData,
 } from "./account-data";
 import { insightsSnapshot, refreshInsights } from "./insights-store";
@@ -187,5 +189,57 @@ describe("isTopupUsd", () => {
 		expect(isTopupUsd(1000)).toBe(true);
 		expect(isTopupUsd(1000.5)).toBe(false);
 		expect(isTopupUsd(1001)).toBe(false);
+	});
+});
+
+describe("topupStatus", () => {
+	const topup = (occurredAt: string, usd: number) => ({
+		occurredAt,
+		kind: "topup" as const,
+		source: "stripe:checkout",
+		usdMicros: String(usd * 1_000_000),
+	});
+	const old = topup("2026-11-01T10:00:00.000Z", 25);
+	const fresh = topup("2026-11-07T10:00:00.000Z", 25);
+
+	test("with no baseline it is unknown, never landed, even when the list has top-ups", () => {
+		expect(topupStatus([old, fresh], 25, null)).toBe("unknown");
+		expect(topupStatus(null, null, null)).toBe("unknown");
+	});
+
+	test("an old top-up does not count as the new one", () => {
+		expect(topupStatus([old], 25, creditsBaseline([old]))).toBe("waiting");
+	});
+
+	test("a newer top-up for the amount lands, whatever the balance did meanwhile", () => {
+		const baseline = creditsBaseline([old]);
+		expect(topupStatus([fresh, old], 25, baseline)).toBe("landed");
+	});
+
+	test("a newer top-up for a different amount is not this one", () => {
+		const baseline = creditsBaseline([old]);
+		expect(
+			topupStatus([topup("2026-11-07T10:00:00.000Z", 50), old], 25, baseline),
+		).toBe("waiting");
+		expect(
+			topupStatus([topup("2026-11-07T10:00:00.000Z", 50), old], null, baseline),
+		).toBe("landed");
+	});
+
+	test("a grant is never a top-up", () => {
+		const grant = { ...fresh, kind: "grant" as const };
+		expect(topupStatus([grant], 25, creditsBaseline([old]))).toBe("waiting");
+	});
+
+	test("an account with no earlier top-up lands on its first", () => {
+		expect(topupStatus([fresh], 25, creditsBaseline([]))).toBe("landed");
+		expect(topupStatus(null, 25, creditsBaseline([]))).toBe("waiting");
+	});
+
+	test("an unreadable credits list gives no baseline", () => {
+		expect(creditsBaseline(null)).toBeNull();
+		expect(creditsBaseline([old, fresh])).toEqual({
+			latestTopupAt: fresh.occurredAt,
+		});
 	});
 });
