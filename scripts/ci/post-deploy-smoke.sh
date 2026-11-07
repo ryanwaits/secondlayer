@@ -2,20 +2,24 @@
 set -euo pipefail
 
 API_URL="${SECOND_LAYER_API_URL:-https://api.secondlayer.tools}"
-# No paid tier ladder left to default this to — /v1/streams/events?limit=1
-# carries no from_height/cursor, so it never touches the retention gate and
-# a free-tier key exercises the same code path a "build" key used to.
-STREAMS_KEY="${STREAMS_SMOKE_KEY:-sk-sl_streams_free_test}"
-STREAMS_STATUS_KEY="${STREAMS_STATUS_SMOKE_KEY:-sk-sl_streams_status_public}"
-STREAMS_WRONG_SCOPE_KEY="${STREAMS_WRONG_SCOPE_SMOKE_KEY:-sk-sl_streams_wrong_scope_test}"
+# Hosted reads are keyed and the repo's seed strings are public, so the smoke
+# keys are real account keys held in CI secrets. Fail fast when they are unset.
+# /v1/streams/events?limit=1 carries no from_height/cursor, so a free-tier key
+# exercises the same code path any customer key does.
+: "${STREAMS_SMOKE_KEY:?STREAMS_SMOKE_KEY is required: an account key that can read Streams}"
+: "${INDEX_FREE_SMOKE_KEY:?INDEX_FREE_SMOKE_KEY is required: an account key that can read Index}"
+STREAMS_KEY="$STREAMS_SMOKE_KEY"
+INDEX_FREE_KEY="$INDEX_FREE_SMOKE_KEY"
 # No default: the checks below that use this key exist specifically to prove
 # an authenticated, non-free-tier caller works — that's redundant with the
 # free-tier checks unless the key is actually elevated. No paid ladder
 # survives to fabricate one, so this only runs when a real key is wired in as
 # a CI secret; otherwise those checks are skipped (not guessed) below.
 INDEX_KEY="${INDEX_SMOKE_KEY:-}"
-INDEX_FREE_KEY="${INDEX_FREE_SMOKE_KEY:-sk-sl_index_free_test}"
-INDEX_WRONG_SCOPE_KEY="${INDEX_WRONG_SCOPE_SMOKE_KEY:-sk-sl_index_wrong_scope_test}"
+# Scope checks need a key that authenticates but lacks the read scope. Minted
+# keys always carry it, so these run only when such a key is wired in.
+STREAMS_WRONG_SCOPE_KEY="${STREAMS_WRONG_SCOPE_SMOKE_KEY:-}"
+INDEX_WRONG_SCOPE_KEY="${INDEX_WRONG_SCOPE_SMOKE_KEY:-}"
 TIMEOUT_SECONDS="${SMOKE_TIMEOUT_SECONDS:-15}"
 
 failures=0
@@ -199,13 +203,22 @@ check_status "streams events free" "200" "/v1/streams/events?limit=1" "$STREAMS_
 # Streams is key-mandatory — there is no accountless read path since the x402
 # rail was removed, so a keyless read is an auth failure, not a payment offer.
 check_status "streams events keyless → 401" "401" "/v1/streams/events?limit=1"
-check_status "streams events wrong scope" "403" "/v1/streams/events?limit=1" "$STREAMS_WRONG_SCOPE_KEY"
+if [[ -n "$STREAMS_WRONG_SCOPE_KEY" ]]; then
+	check_status "streams events wrong scope" "403" "/v1/streams/events?limit=1" "$STREAMS_WRONG_SCOPE_KEY"
+else
+	echo "streams events wrong scope: skipped (STREAMS_WRONG_SCOPE_SMOKE_KEY unset)"
+fi
 check_json_field "streams events envelope" "/v1/streams/events?limit=1" "$STREAMS_KEY" "reorgs"
 
-check_status "streams tip public" "200" "/v1/streams/tip" "$STREAMS_STATUS_KEY"
-# Key-mandatory: keyless → 401, not a payment offer.
-check_status "streams tip keyless → 401" "401" "/v1/streams/tip"
-check_json_field "streams tip shape" "/v1/streams/tip" "$STREAMS_STATUS_KEY" "lag_seconds"
+# The tip is one cached number and needs no key.
+check_status "streams tip anonymous" "200" "/v1/streams/tip"
+check_json_field "streams tip shape" "/v1/streams/tip" "" "lag_seconds"
+
+# The repo's seed strings are public: none may read hosted data.
+for seed in sk-sl_streams_free_test sk-sl_streams_status_public; do
+	check_status "streams public seed key → 401" "401" "/v1/streams/events?limit=1" "$seed"
+done
+check_status "index public seed key → 401" "401" "/v1/index/ft-transfers?limit=1" "sk-sl_index_free_test"
 
 # These two checks exist to prove an authenticated, non-free-tier caller
 # works — redundant with the "free" checks below unless the key is actually
@@ -223,11 +236,15 @@ fi
 # Index is key-mandatory on the hosted archive, same as Streams (auth-007).
 check_status "index ft transfers keyless → 401" "401" "/v1/index/ft-transfers?limit=1"
 check_status "index ft transfers free" "200" "/v1/index/ft-transfers?limit=1" "$INDEX_FREE_KEY"
-check_status "index ft transfers wrong scope" "403" "/v1/index/ft-transfers?limit=1" "$INDEX_WRONG_SCOPE_KEY"
+if [[ -n "$INDEX_WRONG_SCOPE_KEY" ]]; then
+	check_status "index ft transfers wrong scope" "403" "/v1/index/ft-transfers?limit=1" "$INDEX_WRONG_SCOPE_KEY"
+fi
 
 check_status "index nft transfers keyless → 401" "401" "/v1/index/nft-transfers?limit=1"
 check_status "index nft transfers free" "200" "/v1/index/nft-transfers?limit=1" "$INDEX_FREE_KEY"
-check_status "index nft transfers wrong scope" "403" "/v1/index/nft-transfers?limit=1" "$INDEX_WRONG_SCOPE_KEY"
+if [[ -n "$INDEX_WRONG_SCOPE_KEY" ]]; then
+	check_status "index nft transfers wrong scope" "403" "/v1/index/nft-transfers?limit=1" "$INDEX_WRONG_SCOPE_KEY"
+fi
 
 # Phase 2: bulk dumps (datasets product removed 2026-06-11)
 check_json_field "public status streams dumps" "/public/status" "" "streams.dumps"

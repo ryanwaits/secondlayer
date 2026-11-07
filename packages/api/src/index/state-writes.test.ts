@@ -14,6 +14,7 @@ import {
 import { Hono } from "hono";
 import { errorHandler } from "../middleware/error.ts";
 import { createIndexRouter } from "../routes/index.ts";
+import { INDEX_READ_SCOPE, type IndexTokenStore } from "./auth.ts";
 import {
 	type IndexStateWrite,
 	type ReadStateWritesParams,
@@ -131,6 +132,19 @@ describe("state-writes response", () => {
 	});
 });
 
+// First-party fixture: the repo's own seed strings never authenticate on platform.
+const FIXTURE_KEY = "sk-sl_state_writes_internal_fixture";
+const FIXTURE_TOKENS: IndexTokenStore = new Map([
+	[
+		FIXTURE_KEY,
+		{
+			tenant_id: "tenant_state_writes_internal_fixture",
+			tier: "internal",
+			scopes: [INDEX_READ_SCOPE],
+		},
+	],
+]);
+
 describe("GET /v1/index/state-writes", () => {
 	let prevMode: string | undefined;
 	beforeEach(() => {
@@ -147,6 +161,7 @@ describe("GET /v1/index/state-writes", () => {
 		a.route(
 			"/v1/index",
 			createIndexRouter({
+				tokens: FIXTURE_TOKENS,
 				getTip: () => TIP,
 				readStateWrites,
 				readReorgs: async () => [],
@@ -231,7 +246,7 @@ describe("GET /v1/index/state-writes", () => {
 		expect(res.status).toBe(401);
 		const keyed = await app(ONE_PAGE).request(
 			`/v1/index/state-writes?block_height=${H}`,
-			{ headers: { authorization: "Bearer sk-sl_index_free_test" } },
+			{ headers: { authorization: `Bearer ${FIXTURE_KEY}` } },
 		);
 		expect(keyed.status).toBe(200);
 	});

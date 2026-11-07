@@ -2,6 +2,7 @@ import { RateLimitError } from "@secondlayer/shared/errors";
 import type { Context, MiddlewareHandler } from "hono";
 import {
 	GHOST_READS_BUSY_MESSAGE,
+	assertMeterableTenant,
 	beginGhostRead,
 	checkRowsAllowance,
 	meterRowsDelivered,
@@ -31,6 +32,7 @@ function isUnmeteredRead(path: string): boolean {
 export function indexCreditsGate(): MiddlewareHandler<IndexEnv> {
 	return async (c, next) => {
 		const tenant = c.get("indexTenant");
+		assertMeterableTenant(tenant);
 		const metered = !isUnmeteredRead(c.req.path);
 		// A ghost's slot is held until the read is metered, so the row cap
 		// below is checked against every read already served.

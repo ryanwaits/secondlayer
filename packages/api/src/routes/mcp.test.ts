@@ -471,7 +471,6 @@ describe.skipIf(!HAS_DB)("hosted MCP", () => {
 		for (const [method, path, body] of [
 			["GET", `/v1/index/transactions?from_height=${height}`, undefined],
 			["GET", "/v1/index/blocks", undefined],
-			["GET", "/v1/streams/tip", undefined],
 			["GET", "/v1/streams/events", undefined],
 			["GET", "/api/accounts/me", undefined],
 			["GET", "/api/billing/status", undefined],

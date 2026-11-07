@@ -805,6 +805,19 @@ describe("realProcessorWatchDeps", () => {
 		expect(calls[0]).toContain("tenant-abcd1234-subgraph-processor-1");
 	});
 
+	test("the hosted tip is read anonymously", async () => {
+		const seen: Array<{ url: string; init?: RequestInit }> = [];
+		const d = realProcessorWatchDeps(base, {
+			fetchImpl: (async (url: string, init?: RequestInit) => {
+				seen.push({ url, init });
+				return Response.json({ block_height: 8_123_456 });
+			}) as unknown as typeof fetch,
+		});
+		expect(await d.hostedTip()).toBe(8_123_456);
+		expect(seen[0]?.url).toBe("https://api.secondlayer.tools/v1/streams/tip");
+		expect(seen[0]?.init?.headers).toBeUndefined();
+	});
+
 	test("a missing container is null, not an error", async () => {
 		const d = realProcessorWatchDeps(base, {
 			runDocker: async () => ({ code: 1, stdout: "", stderr: "No such" }),

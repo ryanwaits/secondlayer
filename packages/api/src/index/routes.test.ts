@@ -20,7 +20,11 @@ import { createStreamsRouter } from "../routes/streams.ts";
 import type { StreamsTokenStore } from "../streams/auth.ts";
 import { STREAMS_READ_SCOPE } from "../streams/auth.ts";
 import type { StreamsTip } from "../streams/tip.ts";
-import { INDEX_READ_SCOPE, type IndexTokenStore } from "./auth.ts";
+import {
+	DEFAULT_INDEX_TOKEN_STORE,
+	INDEX_READ_SCOPE,
+	type IndexTokenStore,
+} from "./auth.ts";
 import type { IndexBlock } from "./blocks.ts";
 import type { FtTransfersReader } from "./ft-transfers.ts";
 import type { NftTransfersReader } from "./nft-transfers.ts";
@@ -45,8 +49,57 @@ import {
 } from "./transaction-proof.ts";
 
 const HAS_DB = !!process.env.DATABASE_URL;
-const FREE_KEY = "sk-sl_index_free_test";
-const WRONG_SCOPE_KEY = "sk-sl_index_wrong_scope_test";
+// Fixture keys for a free account and a scopeless one. The repo's own seed
+// strings (sk-sl_index_free_test) never authenticate on platform.
+const FREE_KEY = "sk-sl_index_fixture_free";
+const WRONG_SCOPE_KEY = "sk-sl_index_fixture_wrong_scope";
+const PUBLIC_SEED_KEY = "sk-sl_index_free_test";
+
+// Platform meters by account, so the free fixtures belong to a real account.
+const FIXTURE_INDEX_TOKENS = new Map<
+	string,
+	{
+		tenant_id: string;
+		account_id: string;
+		tier: "free";
+		scopes: readonly string[];
+	}
+>();
+let fixtureAccountId: string | undefined;
+beforeAll(async () => {
+	if (!HAS_DB) return;
+	const row = await getDb()
+		.insertInto("accounts")
+		.values({ email: `index-fixture-${crypto.randomUUID()}@example.com` })
+		.returning("id")
+		.executeTakeFirstOrThrow();
+	fixtureAccountId = row.id;
+	for (const [key, scopes] of [
+		[FREE_KEY, [INDEX_READ_SCOPE]],
+		[WRONG_SCOPE_KEY, []],
+	] as const) {
+		FIXTURE_INDEX_TOKENS.set(key, {
+			tenant_id: `account:${row.id}`,
+			account_id: row.id,
+			tier: "free",
+			scopes,
+		});
+	}
+});
+afterAll(async () => {
+	if (!fixtureAccountId) return;
+	await getDb()
+		.deleteFrom("accounts")
+		.where("id", "=", fixtureAccountId)
+		.execute();
+});
+
+function createFixtureIndexRouter(opts: IndexRouterOptions) {
+	return createIndexRouter({
+		...opts,
+		tokens: opts.tokens ?? FIXTURE_INDEX_TOKENS,
+	});
+}
 
 // No paid ladder left in the default seeds, so tests that need an unthrottled
 // (non-free) caller inject their own "internal" tenant through the `tokens`
@@ -110,7 +163,7 @@ function createApp(
 	app.onError(errorHandler);
 	app.route(
 		"/v1/index",
-		createIndexRouter({
+		createFixtureIndexRouter({
 			tokens,
 			getTip: () => TIP,
 			readFtTransfers,
@@ -140,6 +193,41 @@ describe("Stacks Index gateway middleware", () => {
 		const app = createApp();
 		const res = await app.request("/v1/index/ft-transfers");
 		expect(res.status).toBe(401);
+	});
+
+	test("the repo's public seed key reads nothing on platform", async () => {
+		const res = await createApp(undefined, DEFAULT_INDEX_TOKEN_STORE).request(
+			"/v1/index/ft-transfers",
+			{
+				headers: authHeaders(PUBLIC_SEED_KEY),
+			},
+		);
+		expect(res.status).toBe(401);
+	});
+
+	test("an account-less non-internal tenant is refused before any read", async () => {
+		let reads = 0;
+		const app = createApp(
+			async () => {
+				reads++;
+				return { events: [], next_cursor: null };
+			},
+			new Map([
+				[
+					"sk-sl_accountless_free",
+					{
+						tenant_id: "tenant_accountless",
+						tier: "free",
+						scopes: [INDEX_READ_SCOPE],
+					},
+				],
+			]),
+		);
+		const res = await app.request("/v1/index/ft-transfers", {
+			headers: authHeaders("sk-sl_accountless_free"),
+		});
+		expect(res.status).toBe(401);
+		expect(reads).toBe(0);
 	});
 
 	test("keyed GET ft-transfers returns 200 with free rate limit", async () => {
@@ -264,7 +352,7 @@ describe("Stacks Index gateway middleware", () => {
 		);
 		app.route(
 			"/v1/index",
-			createIndexRouter({
+			createFixtureIndexRouter({
 				tokens: indexTokens,
 				getTip: () => TIP,
 				readFtTransfers: EMPTY_READER,
@@ -292,7 +380,7 @@ describe("Stacks Index gateway middleware", () => {
 		app.onError(errorHandler);
 		app.route(
 			"/v1/index",
-			createIndexRouter({
+			createFixtureIndexRouter({
 				getTip: () => TIP,
 				readReorgs: async () => [],
 			}),
@@ -335,7 +423,7 @@ describe("Stacks Index gateway middleware", () => {
 		app.onError(errorHandler);
 		app.route(
 			"/v1/index",
-			createIndexRouter({
+			createFixtureIndexRouter({
 				getTip: () => TIP,
 				readReorgs: async () => [],
 				readEvents: async ({ eventType }) => ({
@@ -376,7 +464,7 @@ describe("Stacks Index gateway middleware", () => {
 		let readCalls = 0;
 		app.route(
 			"/v1/index",
-			createIndexRouter({
+			createFixtureIndexRouter({
 				getTip: () => TIP,
 				readReorgs: async () => [],
 				readEvents: async () => {
@@ -418,7 +506,7 @@ describe("Stacks Index gateway middleware", () => {
 		let readCalls = 0;
 		app.route(
 			"/v1/index",
-			createIndexRouter({
+			createFixtureIndexRouter({
 				getTip: () => TIP,
 				readReorgs: async () => [],
 				readEvents: async () => {
@@ -444,7 +532,7 @@ describe("Stacks Index gateway middleware", () => {
 		app.onError(errorHandler);
 		app.route(
 			"/v1/index",
-			createIndexRouter({
+			createFixtureIndexRouter({
 				getTip: () => TIP,
 				readReorgs: async () => [],
 				readEvents: async () => ({ events: [], next_cursor: null }),
@@ -463,7 +551,7 @@ describe("Stacks Index gateway middleware", () => {
 		let tipCalls = 0;
 		app.route(
 			"/v1/index",
-			createIndexRouter({
+			createFixtureIndexRouter({
 				// Simulates the exact shape IndexHttpClient.getIndexTip({ wait,
 				// knownHeight }) relies on: from_height anchored one past the
 				// caller's last known height, so an unmoved tip yields an empty page.
@@ -511,7 +599,7 @@ describe("Stacks Index gateway middleware", () => {
 			app.onError(errorHandler);
 			app.route(
 				"/v1/index",
-				createIndexRouter({
+				createFixtureIndexRouter({
 					getTip: () => laggedTip,
 					readReorgs: async () => [],
 					readBlocks: async () => ({
@@ -538,7 +626,7 @@ describe("Stacks Index gateway middleware", () => {
 			let requestCount = 0;
 			app.route(
 				"/v1/index",
-				createIndexRouter({
+				createFixtureIndexRouter({
 					getTip: () => {
 						requestCount++;
 						return laggedTip;
@@ -580,7 +668,7 @@ describe("Stacks Index gateway middleware", () => {
 		app.onError(errorHandler);
 		app.route(
 			"/v1/index",
-			createIndexRouter({
+			createFixtureIndexRouter({
 				getTip: () => {
 					getTipCalls++;
 					unreferencedHeight++; // "commits repeatedly" on every check
@@ -628,7 +716,7 @@ describe("Stacks Index gateway middleware", () => {
 		app.onError(errorHandler);
 		app.route(
 			"/v1/index",
-			createIndexRouter({
+			createFixtureIndexRouter({
 				getTip: () => TIP,
 				readReorgs: async () => [],
 				readContractCalls: async () => ({
@@ -706,7 +794,7 @@ describe("Index PoX-5 events route", () => {
 		app.onError(errorHandler);
 		app.route(
 			"/v1/index",
-			createIndexRouter({
+			createFixtureIndexRouter({
 				getTip: () => TIP,
 				readReorgs: async () => [],
 				readPox5Events: async () => ({
@@ -812,7 +900,7 @@ describe("Index Runes routes", () => {
 		app.onError(errorHandler);
 		app.route(
 			"/v1/index",
-			createIndexRouter({
+			createFixtureIndexRouter({
 				getBitcoinTip: async () => RUNES_TIP,
 				readRunes: readRunesStub,
 				readRune: readRuneStub,
@@ -960,7 +1048,7 @@ describe("Index sBTC peg routes", () => {
 		app.onError(errorHandler);
 		app.route(
 			"/v1/index",
-			createIndexRouter({
+			createFixtureIndexRouter({
 				getTip: () => TIP,
 				readReorgs: async () => [],
 				readSbtcEvents: async () => ({
@@ -1107,7 +1195,7 @@ describe("Index sBTC peg routes", () => {
 		app.onError(errorHandler);
 		app.route(
 			"/v1/index",
-			createIndexRouter({
+			createFixtureIndexRouter({
 				getTip: () => TIP,
 				readReorgs: async () => [],
 				readSbtcWithdrawals: async (params) => {
@@ -1204,7 +1292,7 @@ describe("Index /pox/cycles route (fake reader)", () => {
 		app.onError(errorHandler);
 		app.route(
 			"/v1/index",
-			createIndexRouter({
+			createFixtureIndexRouter({
 				getTip: () => TIP,
 				readReorgs: async () => [],
 				readPoxCycles: async () => ({
@@ -1264,7 +1352,7 @@ describe("Index /pox/cycles/:reward_cycle route (fake reader)", () => {
 		app.onError(errorHandler);
 		app.route(
 			"/v1/index",
-			createIndexRouter({
+			createFixtureIndexRouter({
 				getTip: () => TIP,
 				readReorgs: async () => [],
 				readPoxCycle: async (rewardCycle) =>
@@ -1357,7 +1445,7 @@ describe("Index /transactions/:tx_id/proof route (fake reader)", () => {
 		app.onError(errorHandler);
 		app.route(
 			"/v1/index",
-			createIndexRouter({
+			createFixtureIndexRouter({
 				getTip: () => TIP,
 				readReorgs: async () => [],
 				readTransactionProof: async (txId) =>
@@ -1417,7 +1505,10 @@ describe.skipIf(!HAS_DB)("Index PoX cycles route caching", () => {
 		app.onError(errorHandler);
 		app.route(
 			"/v1/index",
-			createIndexRouter({ getTip: () => TIP, readReorgs: async () => [] }),
+			createFixtureIndexRouter({
+				getTip: () => TIP,
+				readReorgs: async () => [],
+			}),
 		);
 		return app;
 	}
@@ -1598,7 +1689,7 @@ describe.skipIf(!HAS_DB)("credits gate: allowance pre-check (DB)", () => {
 		]);
 		app.route(
 			"/v1/index",
-			createIndexRouter({
+			createFixtureIndexRouter({
 				tokens,
 				getTip: () => TIP,
 				readReorgs: async () => [],
@@ -1648,7 +1739,7 @@ describe.skipIf(!HAS_DB)("credits gate: allowance pre-check (DB)", () => {
 		]);
 		app.route(
 			"/v1/index",
-			createIndexRouter({
+			createFixtureIndexRouter({
 				tokens,
 				getTip: () => TIP,
 				readReorgs: async () => [],
@@ -1705,7 +1796,7 @@ describe.skipIf(!HAS_DB)("credits gate: allowance pre-check (DB)", () => {
 		]);
 		app.route(
 			"/v1/index",
-			createIndexRouter({
+			createFixtureIndexRouter({
 				tokens,
 				getTip: () => TIP,
 				readReorgs: async () => [],
@@ -1753,7 +1844,7 @@ describe.skipIf(!HAS_DB)("credits gate: allowance pre-check (DB)", () => {
 		]);
 		app.route(
 			"/v1/index",
-			createIndexRouter({
+			createFixtureIndexRouter({
 				tokens,
 				getTip: () => TIP,
 				readReorgs: async () => [],
@@ -1802,7 +1893,7 @@ describe.skipIf(!HAS_DB)("credits gate: allowance pre-check (DB)", () => {
 		]);
 		app.route(
 			"/v1/index",
-			createIndexRouter({
+			createFixtureIndexRouter({
 				tokens,
 				getTip: () => TIP,
 				readReorgs: async () => [],
@@ -1860,7 +1951,7 @@ describe.skipIf(!HAS_DB)("credits gate: allowance pre-check (DB)", () => {
 		]);
 		app.route(
 			"/v1/index",
-			createIndexRouter({
+			createFixtureIndexRouter({
 				tokens,
 				getTip: () => TIP,
 				readReorgs: async () => [],
@@ -1919,7 +2010,7 @@ describe.skipIf(!HAS_DB)("credits gate: allowance pre-check (DB)", () => {
 		]);
 		app.route(
 			"/v1/index",
-			createIndexRouter({
+			createFixtureIndexRouter({
 				tokens,
 				getTip: () => TIP,
 				readReorgs: async () => [],
@@ -1956,7 +2047,7 @@ describe.skipIf(!HAS_DB)("credits gate: allowance pre-check (DB)", () => {
 			app.onError(errorHandler);
 			app.route(
 				"/v1/index",
-				createIndexRouter({
+				createFixtureIndexRouter({
 					getTip: () => TIP,
 					readReorgs: async () => [],
 					readEvents: async () => ({

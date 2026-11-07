@@ -268,7 +268,7 @@ describe.skipIf(!HAS_DB)("docs key authority", () => {
 	test("a docs key reads Streams and Index", async () => {
 		const accountId = await makeAccount();
 		const docs = await mintDocs(accountId);
-		for (const path of ["/v1/streams/tip", "/v1/index/blocks"]) {
+		for (const path of ["/v1/streams/events?limit=1", "/v1/index/blocks"]) {
 			const res = await app.request(path, {
 				headers: { authorization: `Bearer ${docs}` },
 			});
@@ -279,7 +279,7 @@ describe.skipIf(!HAS_DB)("docs key authority", () => {
 	});
 
 	test("an unknown key is refused on Streams and Index", async () => {
-		for (const path of ["/v1/streams/tip", "/v1/index/blocks"]) {
+		for (const path of ["/v1/streams/events?limit=1", "/v1/index/blocks"]) {
 			const res = await app.request(path, {
 				headers: { authorization: "Bearer sk-sl_not_a_real_key" },
 			});
@@ -295,7 +295,7 @@ describe.skipIf(!HAS_DB)("docs key authority", () => {
 			.set({ expires_at: new Date(Date.now() - 1000) })
 			.where("key_hash", "=", hashToken(docs))
 			.execute();
-		for (const path of ["/v1/streams/tip", "/v1/index/blocks"]) {
+		for (const path of ["/v1/streams/events?limit=1", "/v1/index/blocks"]) {
 			const res = await app.request(path, {
 				headers: { authorization: `Bearer ${docs}` },
 			});
@@ -322,7 +322,7 @@ describe.skipIf(!HAS_DB)("docs key authority", () => {
 		const accountId = await makeAccount();
 		const first = await mintDocs(accountId);
 		await mintDocs(accountId);
-		for (const path of ["/v1/streams/tip", "/v1/index/blocks"]) {
+		for (const path of ["/v1/streams/events?limit=1", "/v1/index/blocks"]) {
 			const res = await app.request(path, {
 				headers: { authorization: `Bearer ${first}` },
 			});

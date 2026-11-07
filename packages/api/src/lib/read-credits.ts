@@ -15,6 +15,7 @@ import {
 import { getDb } from "@secondlayer/shared/db";
 import { isPlatformMode } from "@secondlayer/shared/mode";
 import { DOCS_KEY_TTL_MS } from "../auth/mint.ts";
+import { invalidCredentialError } from "../auth/read-plane.ts";
 import { productEventsEnabled, trackProductEvent } from "./product-events.ts";
 
 export {
@@ -28,6 +29,20 @@ export {
  * the first 1M rows/month are free (the allowance), rows past it debit the
  * prepaid `account_credits` balance. One balance covers both surfaces.
  */
+
+/**
+ * Platform only: a tenant with no account has nothing to meter or debit, so
+ * only a first-party `internal` one may read. Anything else is a seed
+ * credential that slipped past the token store; refuse it. Anon (no tenant)
+ * is the auth layer's call, not this gate's.
+ */
+export function assertMeterableTenant(
+	tenant: { account_id?: string; tier?: string } | undefined,
+): void {
+	if (!isPlatformMode() || !tenant) return;
+	if (tenant.account_id || tenant.tier === "internal") return;
+	throw invalidCredentialError();
+}
 
 export type Credited = { accountId: string; balance: bigint };
 

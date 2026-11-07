@@ -18,7 +18,11 @@ import {
 	type StreamsRouterOptions,
 	createStreamsRouter,
 } from "../routes/streams.ts";
-import { STREAMS_READ_SCOPE, type StreamsTokenStore } from "./auth.ts";
+import {
+	DEFAULT_STREAMS_TOKEN_STORE,
+	STREAMS_READ_SCOPE,
+	type StreamsTokenStore,
+} from "./auth.ts";
 import type { StreamsEventsReader } from "./events.ts";
 import {
 	STREAMS_BLOCKS_PER_DAY,
@@ -30,9 +34,15 @@ import type { StreamsTip } from "./tip.ts";
 
 const HAS_DB = !!process.env.DATABASE_URL;
 
-const FREE_KEY = "sk-sl_streams_free_test";
-const STATUS_KEY = "sk-sl_streams_status_public";
-const WRONG_SCOPE_KEY = "sk-sl_streams_wrong_scope_test";
+// Fixture keys for a free account and a scopeless one. They live in this
+// file only; the repo's own seed strings never authenticate on platform.
+const FREE_KEY = "sk-sl_streams_fixture_free";
+const WRONG_SCOPE_KEY = "sk-sl_streams_fixture_wrong_scope";
+// The repo's public seed strings: refused on platform (see auth tests).
+const PUBLIC_SEED_KEYS = [
+	"sk-sl_streams_free_test",
+	"sk-sl_streams_status_public",
+];
 
 // No paid ladder left in the default seeds, so tests that need an unthrottled,
 // unretained (non-free) caller inject their own "internal" tenant through the
@@ -63,9 +73,48 @@ const EMPTY_EVENTS_READER: StreamsEventsReader = async () => ({
 	next_cursor: null,
 });
 
+// Platform meters by account, so the free fixtures belong to a real account.
+const FIXTURE_TOKENS = new Map<
+	string,
+	{
+		tenant_id: string;
+		account_id: string;
+		tier: "free";
+		scopes: readonly string[];
+	}
+>();
+let fixtureAccountId: string | undefined;
+beforeAll(async () => {
+	if (!HAS_DB) return;
+	const row = await getDb()
+		.insertInto("accounts")
+		.values({ email: `streams-fixture-${crypto.randomUUID()}@example.com` })
+		.returning("id")
+		.executeTakeFirstOrThrow();
+	fixtureAccountId = row.id;
+	for (const [key, scopes] of [
+		[FREE_KEY, [STREAMS_READ_SCOPE]],
+		[WRONG_SCOPE_KEY, []],
+	] as const) {
+		FIXTURE_TOKENS.set(key, {
+			tenant_id: `account:${row.id}`,
+			account_id: row.id,
+			tier: "free",
+			scopes,
+		});
+	}
+});
+afterAll(async () => {
+	if (!fixtureAccountId) return;
+	await getDb()
+		.deleteFrom("accounts")
+		.where("id", "=", fixtureAccountId)
+		.execute();
+});
+
 function createApp(
 	readEvents: StreamsEventsReader = EMPTY_EVENTS_READER,
-	tokens?: StreamsTokenStore,
+	tokens: StreamsTokenStore = FIXTURE_TOKENS,
 ) {
 	const app = new Hono();
 	app.onError(errorHandler);
@@ -103,14 +152,6 @@ function createMeteredApp(opts: {
 			},
 		],
 		[
-			"sk-sl_unmetered_streams",
-			{
-				tenant_id: "tenant_static",
-				tier: "free",
-				scopes: [STREAMS_READ_SCOPE],
-			},
-		],
-		[
 			"sk-sl_metered_wrong_scope",
 			{
 				tenant_id: "account:acct_streams",
@@ -119,16 +160,7 @@ function createMeteredApp(opts: {
 				scopes: [],
 			},
 		],
-		// Free tier, NO account_id: exercises the retention gate without touching
-		// the credits DB (resolveCreditedAccount short-circuits on missing account).
-		[
-			"sk-sl_free_anon_streams",
-			{
-				tenant_id: "tenant_free_anon",
-				tier: "free",
-				scopes: [STREAMS_READ_SCOPE],
-			},
-		],
+		...FIXTURE_TOKENS,
 	]);
 	app.route(
 		"/v1/streams",
@@ -312,6 +344,42 @@ describe("Stacks Streams gateway middleware", () => {
 		expect(res.status).toBe(401);
 	});
 
+	test("the repo's public seed keys read nothing on platform", async () => {
+		// Default store, as production builds it.
+		const app = createApp(EMPTY_EVENTS_READER, DEFAULT_STREAMS_TOKEN_STORE);
+		for (const key of PUBLIC_SEED_KEYS) {
+			const res = await app.request("/v1/streams/events?limit=1", {
+				headers: authHeaders(key),
+			});
+			expect(res.status, key).toBe(401);
+		}
+	});
+
+	test("an account-less non-internal tenant is refused before any read", async () => {
+		let reads = 0;
+		const app = createApp(
+			async () => {
+				reads++;
+				return { events: [], next_cursor: null };
+			},
+			new Map([
+				[
+					"sk-sl_accountless_free",
+					{
+						tenant_id: "tenant_accountless",
+						tier: "free",
+						scopes: [STREAMS_READ_SCOPE],
+					},
+				],
+			]),
+		);
+		const res = await app.request("/v1/streams/events?limit=1", {
+			headers: authHeaders("sk-sl_accountless_free"),
+		});
+		expect(res.status).toBe(401);
+		expect(reads).toBe(0);
+	});
+
 	test("Wrong scope returns 403", async () => {
 		const app = createApp();
 		const res = await app.request("/v1/streams/events", {
@@ -322,9 +390,7 @@ describe("Stacks Streams gateway middleware", () => {
 
 	test("/tip returns 200 with the expected shape", async () => {
 		const app = createApp();
-		const res = await app.request("/v1/streams/tip", {
-			headers: authHeaders(FREE_KEY),
-		});
+		const res = await app.request("/v1/streams/tip");
 
 		expect(res.status).toBe(200);
 		await expect(res.json()).resolves.toEqual({
@@ -484,10 +550,10 @@ describe("Stacks Streams gateway middleware", () => {
 		});
 	});
 
-	test("public status key can read /tip", async () => {
+	test("/tip is anonymous, and a bad key does not turn it into a 401", async () => {
 		const app = createApp();
 		const res = await app.request("/v1/streams/tip", {
-			headers: authHeaders(STATUS_KEY),
+			headers: authHeaders("sk-sl_not_a_real_key"),
 		});
 
 		expect(res.status).toBe(200);
@@ -623,7 +689,7 @@ describe("Stacks Streams gateway middleware", () => {
 		});
 
 		const res = await app.request("/v1/streams/events/0xtx", {
-			headers: authHeaders("sk-sl_free_anon_streams"),
+			headers: authHeaders(FREE_KEY),
 		});
 
 		expect(res.status).toBe(200);
@@ -637,7 +703,7 @@ describe("Stacks Streams gateway middleware", () => {
 		});
 
 		const res = await app.request("/v1/streams/blocks/0xblock/events", {
-			headers: authHeaders("sk-sl_free_anon_streams"),
+			headers: authHeaders(FREE_KEY),
 		});
 
 		expect(res.status).toBe(200);

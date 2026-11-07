@@ -2,6 +2,7 @@ import { RateLimitError } from "@secondlayer/shared/errors";
 import type { Context, MiddlewareHandler } from "hono";
 import {
 	GHOST_READS_BUSY_MESSAGE,
+	assertMeterableTenant,
 	beginGhostRead,
 	checkRowsAllowance,
 	meterRowsDelivered,
@@ -24,6 +25,7 @@ export { MIN_CREDITED_USD_MICROS } from "../lib/read-credits.ts";
 export function streamsCreditsGate(): MiddlewareHandler<StreamsEnv> {
 	return async (c, next) => {
 		const tenant = c.get("streamsTenant");
+		assertMeterableTenant(tenant);
 		// A ghost's slot is held until the read is metered, so the row cap
 		// below is checked against every read already served.
 		const slot = await beginGhostRead(tenant?.account_id, tenant?.tier);

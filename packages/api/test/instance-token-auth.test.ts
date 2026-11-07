@@ -18,7 +18,7 @@ const TOKEN = "b7f4c2a19d8e6035f1a2c4b6d8e0f2a4";
 
 const READ_PLANES = [
 	"/v1/index/events?limit=1",
-	"/v1/streams/tip",
+	"/v1/streams/events?limit=1",
 	"/v1/subgraphs",
 ] as const;
 
@@ -208,7 +208,10 @@ describe("self-host auth model", () => {
 				const key = defaultInternalStreamsApiKey();
 				expect(key).toBe(TOKEN);
 				if (!key) throw new Error("expected INSTANCE_TOKEN");
-				const res = await app.request("/v1/streams/tip", bearer(key));
+				const res = await app.request(
+					"/v1/streams/events?limit=1",
+					bearer(key),
+				);
 				expect(res.status, host).not.toBe(401);
 			}
 		} finally {
@@ -222,9 +225,9 @@ describe("self-host auth model", () => {
 		Reflect.deleteProperty(process.env, "INSTANCE_TOKEN");
 		process.env.API_KEY = TOKEN;
 		const app = createApiApp("oss");
-		expect((await app.request("/v1/streams/tip")).status).toBe(401);
+		expect((await app.request("/v1/streams/events?limit=1")).status).toBe(401);
 		expect(
-			(await app.request("/v1/streams/tip", bearer(TOKEN))).status,
+			(await app.request("/v1/streams/events?limit=1", bearer(TOKEN))).status,
 		).not.toBe(401);
 	});
 });

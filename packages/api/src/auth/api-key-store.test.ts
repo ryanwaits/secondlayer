@@ -1,5 +1,7 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { getDb } from "@secondlayer/shared/db";
+import { DEFAULT_INDEX_TOKEN_STORE } from "../index/auth.ts";
+import { DEFAULT_STREAMS_TOKEN_STORE } from "../streams/auth.ts";
 import {
 	type ProductTenant,
 	createApiKeyTokenStore,
@@ -72,6 +74,73 @@ describe("createApiKeyTokenStore", () => {
 		} finally {
 			restoreEnv("INSTANCE_MODE", prevMode);
 			restoreEnv("INSTANCE_TOKEN", prevToken);
+		}
+	});
+
+	test("repo-public seed keys never authenticate on platform", async () => {
+		const prevMode = process.env.INSTANCE_MODE;
+		process.env.INSTANCE_MODE = "platform";
+		try {
+			for (const key of [
+				"sk-sl_streams_free_test",
+				"sk-sl_streams_status_public",
+			]) {
+				expect(await DEFAULT_STREAMS_TOKEN_STORE.get(key), key).toBeUndefined();
+			}
+			expect(
+				await DEFAULT_INDEX_TOKEN_STORE.get("sk-sl_index_free_test"),
+			).toBeUndefined();
+		} finally {
+			restoreEnv("INSTANCE_MODE", prevMode);
+		}
+	});
+
+	test("repo-public seed keys still authenticate off platform", async () => {
+		const prevMode = process.env.INSTANCE_MODE;
+		process.env.INSTANCE_MODE = "oss";
+		try {
+			expect(
+				await DEFAULT_STREAMS_TOKEN_STORE.get("sk-sl_streams_free_test"),
+			).toBeDefined();
+			expect(
+				await DEFAULT_INDEX_TOKEN_STORE.get("sk-sl_index_free_test"),
+			).toBeDefined();
+		} finally {
+			restoreEnv("INSTANCE_MODE", prevMode);
+		}
+	});
+
+	test("a seeded internal credential still authenticates on platform", async () => {
+		const prevMode = process.env.INSTANCE_MODE;
+		process.env.INSTANCE_MODE = "platform";
+		try {
+			const store = createApiKeyTokenStore({
+				staticTokens: new Map<string, ProductTenant>([
+					[
+						"sk-sl_seeded_internal",
+						{
+							tenant_id: "tenant_internal",
+							tier: "internal",
+							scopes: ["index:read"],
+						},
+					],
+					[
+						"sk-sl_seeded_free",
+						{
+							tenant_id: "tenant_free",
+							tier: "free",
+							scopes: ["index:read"],
+						},
+					],
+				]),
+				requiredScope: "index:read",
+				product: "index",
+				lookupApiKey: async () => null,
+			});
+			expect((await store.get("sk-sl_seeded_internal"))?.tier).toBe("internal");
+			expect(await store.get("sk-sl_seeded_free")).toBeUndefined();
+		} finally {
+			restoreEnv("INSTANCE_MODE", prevMode);
 		}
 	});
 

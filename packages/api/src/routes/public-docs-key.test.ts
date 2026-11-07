@@ -142,7 +142,7 @@ describe.skipIf(!HAS_DB)("signed-out docs key", () => {
 
 	test("the key reads Streams and Index", async () => {
 		const { key } = await anonKey(freshIp());
-		for (const path of ["/v1/streams/tip", "/v1/index/blocks"]) {
+		for (const path of ["/v1/streams/events?limit=1", "/v1/index/blocks"]) {
 			const res = await app.request(path, {
 				headers: { authorization: `Bearer ${key}` },
 			});

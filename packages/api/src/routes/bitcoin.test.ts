@@ -11,6 +11,7 @@ import {
 	parseBlock,
 	parseTransaction,
 } from "@secondlayer/bitcoin/block";
+import { getDb } from "@secondlayer/shared/db";
 import { Hono } from "hono";
 import { _resetRateLimitStoreForTests } from "../auth/rate-limit-store.ts";
 import type { OutspendOptions } from "../bitcoin/outspend.ts";
@@ -230,12 +231,9 @@ const RPC = { url: `http://127.0.0.1:${server.port}` };
 
 const KEY = "sk-sl_outspend_fixture";
 const INTERNAL_KEY = "sk-sl_outspend_internal_fixture";
-// No account_id: the credits gate and meter have nothing to read or debit.
+// Only the first-party internal fixture is account-less; a free tenant needs
+// a real account on platform (see the rate limit test).
 const TOKENS: IndexTokenStore = new Map([
-	[
-		KEY,
-		{ tenant_id: "tenant_outspend", tier: "free", scopes: [INDEX_READ_SCOPE] },
-	],
 	[
 		INTERNAL_KEY,
 		{
@@ -583,19 +581,44 @@ describe("hosted", () => {
 		expect(status).toBe(401);
 	});
 
-	test("rate limited per key, with the limit's headers", async () => {
-		const txid = fund();
-		const a = app();
-		const { limit } = OUTSPEND_RATE_LIMIT;
-		for (let i = 0; i < limit; i++) {
-			const { status, res } = await outspend(a, txid, 0, KEY);
-			expect(status).toBe(200);
-			expect(res.headers.get("x-ratelimit-limit")).toBe(String(limit));
-		}
-		const limited = await outspend(a, txid, 0, KEY);
-		expect(limited.status).toBe(429);
-		expect(limited.res.headers.get("retry-after")).not.toBeNull();
-	});
+	test.skipIf(!process.env.DATABASE_URL)(
+		"rate limited per key, with the limit's headers",
+		async () => {
+			const db = getDb();
+			const account = await db
+				.insertInto("accounts")
+				.values({ email: `outspend-${crypto.randomUUID()}@example.com` })
+				.returning("id")
+				.executeTakeFirstOrThrow();
+			try {
+				const txid = fund();
+				const a = app({
+					tokens: new Map([
+						[
+							KEY,
+							{
+								tenant_id: `account:${account.id}`,
+								account_id: account.id,
+								tier: "free",
+								scopes: [INDEX_READ_SCOPE],
+							},
+						],
+					]),
+				});
+				const { limit } = OUTSPEND_RATE_LIMIT;
+				for (let i = 0; i < limit; i++) {
+					const { status, res } = await outspend(a, txid, 0, KEY);
+					expect(status).toBe(200);
+					expect(res.headers.get("x-ratelimit-limit")).toBe(String(limit));
+				}
+				const limited = await outspend(a, txid, 0, KEY);
+				expect(limited.status).toBe(429);
+				expect(limited.res.headers.get("retry-after")).not.toBeNull();
+			} finally {
+				await db.deleteFrom("accounts").where("id", "=", account.id).execute();
+			}
+		},
+	);
 
 	test("internal keys are not rate limited", async () => {
 		const txid = fund();

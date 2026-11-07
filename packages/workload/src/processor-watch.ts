@@ -254,9 +254,9 @@ export function realProcessorWatchDeps(
 		},
 		hostedTip: async () => {
 			try {
+				// The tip is anonymous: no credential travels with this probe.
 				const res = await doFetch(
 					`${cfg.hostedApiUrl.replace(/\/+$/, "")}/v1/streams/tip`,
-					{ headers: { authorization: "Bearer sk-sl_streams_status_public" } },
 				);
 				if (!res.ok) return null;
 				const body = (await res.json()) as { block_height?: number };

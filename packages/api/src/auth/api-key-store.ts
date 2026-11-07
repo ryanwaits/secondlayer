@@ -155,8 +155,8 @@ async function resolveOauthTenant<TTenant extends ProductTenant>(
 }
 
 /**
- * Runtime token store: static seed tokens (first-party service credentials)
- * first, then the instance token, then `api_keys` by hash on the metered
+ * Runtime token store: static seed tokens (first-party service credentials;
+ * only `internal` ones on platform) first, then the instance token, then `api_keys` by hash on the metered
  * archive. Every DB-backed key resolves to the single metered `free` tier,
  * except a first-party `internal` key.
  */
@@ -171,8 +171,12 @@ export function createApiKeyTokenStore<TTenant extends ProductTenant>(
 			if (rawToken.startsWith(OAUTH_ACCESS_PREFIX)) {
 				return resolveOauthTenant<TTenant>(rawToken, req, opts, getDb);
 			}
+			// Seeds live in the public repo (dev, test and smoke fixtures), so
+			// on platform only a first-party `internal` seed may authenticate.
 			const seeded = await opts.staticTokens.get(rawToken);
-			if (seeded) return seeded;
+			if (seeded && (!isPlatformMode() || seeded.tier === "internal")) {
+				return seeded;
+			}
 			// OSS only: the instance's own token authenticates every plane. A
 			// self-hosted instance has one credential (bare hex from
 			// `secondlayer init`), not a per-product `sk-sl_` key, so it must

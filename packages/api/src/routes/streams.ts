@@ -244,7 +244,7 @@ export function createStreamsRouter(opts: StreamsRouterOptions = {}) {
 					path: "/v1/streams/tip",
 					method: "GET",
 					description:
-						"Current chain tip. chain=stacks (default): { block_height, block_hash, burn_block_height, finalized_height, lag_seconds }. chain=bitcoin: { block_height, block_hash, finalized_height, lag_seconds }.",
+						"Current chain tip, no key needed. chain=stacks (default): { block_height, block_hash, burn_block_height, finalized_height, lag_seconds }. chain=bitcoin: { block_height, block_hash, finalized_height, lag_seconds }.",
 				},
 			],
 			cursor: {
@@ -267,6 +267,25 @@ export function createStreamsRouter(opts: StreamsRouterOptions = {}) {
 			},
 		}),
 	);
+
+	// The tip is one cached number, unmetered and carries no rows: anonymous
+	// in every mode, registered before the auth middleware so it never sees it.
+	router.get("/tip", async (c) => {
+		const query = new URL(c.req.url).searchParams;
+		validateQueryParams(query, STREAMS_CHAIN_ONLY_ALLOWED);
+		c.header("Cache-Control", streamsCacheControl(false));
+		if (resolveStreamsChain(query) === "bitcoin") {
+			return respondSignedJson(c, await getBitcoinTip());
+		}
+		const tip = await getTip();
+		// No retention floor: every account reads full history, so
+		// there is no seekable floor to advertise anymore.
+		return respondSignedJson(c, {
+			...tip,
+			oldest_seekable_height: null,
+			oldest_cursor: null,
+		});
+	});
 
 	// Streams reads follow the same rule as Index and subgraphs: open on a
 	// loopback bind, instance token past it. (It was key-mandatory in every
@@ -713,23 +732,6 @@ export function createStreamsRouter(opts: StreamsRouterOptions = {}) {
 				opts.readReorgsSince ?? DEFAULT_STREAMS_REORGS_SINCE_READER,
 		});
 		return respondSignedJson(c, response);
-	});
-
-	router.get("/tip", async (c) => {
-		const query = new URL(c.req.url).searchParams;
-		validateQueryParams(query, STREAMS_CHAIN_ONLY_ALLOWED);
-		c.header("Cache-Control", streamsCacheControl(false));
-		if (resolveStreamsChain(query) === "bitcoin") {
-			return respondSignedJson(c, await getBitcoinTip());
-		}
-		const tip = await getTip();
-		// No retention floor: every account reads full history, so
-		// there is no seekable floor to advertise anymore.
-		return respondSignedJson(c, {
-			...tip,
-			oldest_seekable_height: null,
-			oldest_cursor: null,
-		});
 	});
 
 	return router;
