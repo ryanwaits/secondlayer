@@ -107,11 +107,7 @@ async function priceUnit(
 	// Rate is decided by spend so far THIS call, not split within the batch —
 	// same behavior as the pre-`meter()` `debitCreditedRows` (a page prices at
 	// one flat rate; the next page sees the updated monthly total).
-	const monthlySpend = await getMonthlyCreditsSpend(
-		trx,
-		input.accountId,
-		occurredAt,
-	);
+	const monthlySpend = await getMonthlyCreditsSpend(trx, input.accountId);
 	const rate =
 		monthlySpend >= COMMIT_TIER_MONTHLY_USD_MICROS
 			? CREDIT_USD_MICROS_PER_ROW_VOLUME
@@ -183,11 +179,10 @@ export async function meter(
 		if (priced.usdMicros > 0n) {
 			// The cap caps every unit: a charge past it is recorded, never taken.
 			const caps = await getCaps(trx, input.accountId);
-			const spent = await getMonthlyCreditsSpend(
-				trx,
-				input.accountId,
-				occurredAt,
-			);
+			// Spend is counted in the month the charge is taken, never the item's
+			// own `occurredAt`: a late item from last month must not rewrite the
+			// current month's counter.
+			const spent = await getMonthlyCreditsSpend(trx, input.accountId);
 			if (
 				caps?.monthly_cap_cents != null &&
 				isOverMonthlyCreditCap(spent, caps.monthly_cap_cents)
@@ -214,7 +209,7 @@ export async function meter(
 					taken = result.ok ? priced.usdMicros : 0n;
 				}
 				if (taken > 0n) {
-					await recordCreditsSpend(trx, input.accountId, taken, occurredAt);
+					await recordCreditsSpend(trx, input.accountId, taken);
 				}
 			}
 			if (taken !== priced.usdMicros) {
