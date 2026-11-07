@@ -72,7 +72,7 @@ function deploy(name: string, columns: string[]) {
 	});
 }
 
-async function tableColumns(schemaName: string): Promise<string[]> {
+async function tableColumns(schemaName: string | null): Promise<string[]> {
 	const res = await sql<{ column_name: string }>`
 		SELECT column_name FROM information_schema.columns
 		WHERE table_schema = ${schemaName} AND table_name = 'rows'

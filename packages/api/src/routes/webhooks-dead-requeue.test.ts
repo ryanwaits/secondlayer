@@ -89,7 +89,7 @@ describe.skipIf(!HAS_DB)("dead-letter requeue", () => {
 
 	test("bulk requeue by replay leaves a replay that is still scanning in its state", async () => {
 		const { webhook, failedId } = await makeWebhookWithDeadRows();
-		const replayId = randomUUID().replaceAll("-", "").slice(0, 16);
+		const replayId = randomUUID().replace(/-/g, "").slice(0, 16);
 		await db
 			.insertInto("webhook_replays")
 			.values({

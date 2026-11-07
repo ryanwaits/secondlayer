@@ -304,7 +304,7 @@ describe("startEmitter end-to-end", () => {
 		let webhookId = "";
 		// The customer pauses the webhook while the delivery is in flight, then
 		// the receiver fails it past the circuit threshold.
-		const receiver = await startMockReceiver(async () => {
+		const receiver = await startMockReceiver(async (): Promise<"fail"> => {
 			await db
 				.updateTable("webhooks")
 				.set({ status: "paused", updated_at: new Date() })
