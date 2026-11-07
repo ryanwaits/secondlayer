@@ -18,7 +18,10 @@ export type LedgerEntry = {
 	 *  other unit passes `null`). */
 	observedQuantity: number | null;
 	usdMicros: bigint;
-	debited: boolean;
+	/** Amount taken from the balance, `0..usdMicros`. Inserted optimistic
+	 *  (the whole price) and corrected by `recordLedgerDebit` in the same
+	 *  transaction once the debit resolves. */
+	debitedUsdMicros: bigint;
 	source: string;
 	idempotencyKey: string;
 	occurredAt: Date;
@@ -45,7 +48,8 @@ export async function claimLedgerEntry(
 			quantity: entry.quantity,
 			observed_quantity: entry.observedQuantity,
 			usd_micros: entry.usdMicros.toString(),
-			debited: entry.debited,
+			debited: entry.debitedUsdMicros === entry.usdMicros,
+			debited_usd_micros: entry.debitedUsdMicros.toString(),
 			source: entry.source,
 			api_key_id: entry.apiKeyId ?? null,
 			idempotency_key: entry.idempotencyKey,
@@ -63,17 +67,21 @@ export async function claimLedgerEntry(
 	return { row: existing, claimed: false };
 }
 
-/** Flip a claimed row's `debited` flag after the debit attempt resolves —
- *  the row is inserted optimistic (`debited: true`) before the debit runs
- *  so the idempotency claim and the charge share one statement each. */
-export async function markLedgerEntryDebited(
+/** Record how much a claimed row's debit actually took. The row is inserted
+ *  optimistic (the whole price) before the debit runs so the idempotency
+ *  claim and the charge share one statement each; `debited` stays true only
+ *  when the whole price was taken. */
+export async function recordLedgerDebit(
 	db: Kysely<Database>,
 	id: string,
-	debited: boolean,
+	debitedUsdMicros: bigint,
 ): Promise<void> {
 	await db
 		.updateTable("usage_ledger")
-		.set({ debited })
+		.set({
+			debited_usd_micros: debitedUsdMicros.toString(),
+			debited: sql<boolean>`${debitedUsdMicros.toString()}::bigint = usd_micros`,
+		})
 		.where("id", "=", id)
 		.execute();
 }
@@ -127,12 +135,10 @@ export type UsageByUnit = {
 	unit: string;
 	quantity: string;
 	usdMicros: string;
-	/** Sum of `usd_micros` for this unit's `debited: false` rows this month
-	 *  — a charge attempted while the balance was short, still on the
-	 *  ledger but never actually taken. Additive to `usdMicros` (which sums
-	 *  every row regardless of `debited`, unchanged from before) — never
-	 *  subtracted, so existing readers of `usdMicros` see the same total
-	 *  they always did. "0" when nothing this unit charged went unpaid. */
+	/** Sum of `usd_micros - debited_usd_micros` over this unit's rows this
+	 *  month — the part of each charge the balance (or a cap) never covered,
+	 *  still on the ledger. Additive to `usdMicros` (which sums every row's
+	 *  full price), never subtracted from it. "0" when nothing went unpaid. */
 	unpaidUsdMicros: string;
 };
 
@@ -150,9 +156,7 @@ export async function usageForMonth(
 			"unit",
 			eb.fn.sum<string>("quantity").as("quantity"),
 			eb.fn.sum<string>("usd_micros").as("usd_micros"),
-			sql<string>`sum(case when debited = false then usd_micros else 0 end)`.as(
-				"unpaid_usd_micros",
-			),
+			sql<string>`sum(usd_micros - debited_usd_micros)`.as("unpaid_usd_micros"),
 		])
 		.where("account_id", "=", accountId)
 		.where("occurred_at", ">=", start)

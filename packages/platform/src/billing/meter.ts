@@ -12,8 +12,8 @@ import { getCaps } from "../db/queries/account-spend-caps.ts";
 import { isInternalAccount } from "../db/queries/accounts.ts";
 import {
 	claimLedgerEntry,
-	markLedgerEntryDebited,
 	monthlyQuantity,
+	recordLedgerDebit,
 } from "../db/queries/usage-ledger.ts";
 import {
 	COMMIT_TIER_MONTHLY_USD_MICROS,
@@ -64,6 +64,9 @@ export type MeterResult = {
 	ledgerId: string;
 	usdMicros: bigint;
 	debited: boolean;
+	/** Amount actually taken from the balance (`0..usdMicros`); a clamped
+	 *  stack charge can take part of its price. */
+	debitedUsdMicros: bigint;
 	balanceAfter: bigint;
 	/** True when the entire charge was covered by the monthly free
 	 *  allowance (`rows.delivered` only; always false for other units). */
@@ -155,7 +158,7 @@ export async function meter(
 			quantity: input.quantity,
 			observedQuantity: input.observedQuantity ?? null,
 			usdMicros: priced.usdMicros,
-			debited: true,
+			debitedUsdMicros: priced.usdMicros,
 			source: input.source,
 			idempotencyKey: input.idempotencyKey,
 			occurredAt,
@@ -170,12 +173,13 @@ export async function meter(
 				ledgerId: row.id,
 				usdMicros: BigInt(row.usd_micros),
 				debited: row.debited,
+				debitedUsdMicros: BigInt(row.debited_usd_micros),
 				balanceAfter,
 				viaAllowance: row.usd_micros === "0" || Number(row.usd_micros) === 0,
 			};
 		}
 
-		let debited = true;
+		let taken = priced.usdMicros;
 		if (priced.usdMicros > 0n) {
 			// The cap caps every unit: a charge past it is recorded, never taken.
 			const caps = await getCaps(trx, input.accountId);
@@ -188,10 +192,8 @@ export async function meter(
 				caps?.monthly_cap_cents != null &&
 				isOverMonthlyCreditCap(spent, caps.monthly_cap_cents)
 			) {
-				debited = false;
-			}
-			if (debited) {
-				let taken = 0n;
+				taken = 0n;
+			} else {
 				if (CLAMPED_UNITS.has(input.unit)) {
 					// Stack units drain a short balance to 0 (so the poll stops the
 					// stack) and record the row as owed; the shortfall is written off.
@@ -201,7 +203,6 @@ export async function meter(
 						priced.usdMicros,
 					);
 					taken = result.debited;
-					debited = taken === priced.usdMicros;
 				} else {
 					// Reads and archive stay all-or-nothing: the 402 path relies on
 					// a refused debit leaving the balance untouched.
@@ -210,21 +211,23 @@ export async function meter(
 						input.accountId,
 						priced.usdMicros,
 					);
-					debited = result.ok;
-					if (result.ok) taken = priced.usdMicros;
+					taken = result.ok ? priced.usdMicros : 0n;
 				}
 				if (taken > 0n) {
 					await recordCreditsSpend(trx, input.accountId, taken, occurredAt);
 				}
 			}
-			if (!debited) await markLedgerEntryDebited(trx, row.id, false);
+			if (taken !== priced.usdMicros) {
+				await recordLedgerDebit(trx, row.id, taken);
+			}
 		}
 
 		const balanceAfter = await getCredits(trx, input.accountId);
 		return {
 			ledgerId: row.id,
 			usdMicros: priced.usdMicros,
-			debited,
+			debited: taken === priced.usdMicros,
+			debitedUsdMicros: taken,
 			balanceAfter,
 			viaAllowance: priced.viaAllowance,
 		};
@@ -260,7 +263,7 @@ export async function recordTopup(
 			quantity: Number(input.usdMicros / 1_000_000n),
 			observedQuantity: null,
 			usdMicros: -input.usdMicros,
-			debited: true,
+			debitedUsdMicros: -input.usdMicros,
 			source: input.source,
 			idempotencyKey: input.idempotencyKey,
 			occurredAt,
@@ -303,7 +306,7 @@ export async function grantCredits(
 			quantity: Number(input.usdMicros / 1_000_000n),
 			observedQuantity: null,
 			usdMicros: -input.usdMicros,
-			debited: true,
+			debitedUsdMicros: -input.usdMicros,
 			source: input.source,
 			idempotencyKey: input.idempotencyKey,
 			occurredAt,

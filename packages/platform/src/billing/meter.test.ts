@@ -14,6 +14,7 @@ import {
 	getMonthlyCreditsSpend,
 } from "../db/queries/account-credits.ts";
 import { upsertCaps } from "../db/queries/account-spend-caps.ts";
+import { usageForMonth } from "../db/queries/usage-ledger.ts";
 import { grantCredits, meter } from "./meter.ts";
 import {
 	COMMIT_TIER_MONTHLY_USD_MICROS,
@@ -338,11 +339,112 @@ describe.skipIf(!HAS_DB)("meter — fractional hosted-stack units", () => {
 		expect(await getMonthlyCreditsSpend(db, accountId)).toBe(5_000n);
 		const row = await db
 			.selectFrom("usage_ledger")
-			.select(["debited", "usd_micros"])
+			.select(["debited", "usd_micros", "debited_usd_micros"])
 			.where("id", "=", result.ledgerId)
 			.executeTakeFirstOrThrow();
 		expect(row.debited).toBe(false);
 		expect(BigInt(row.usd_micros)).toBe(14_000n);
+		// The 5,000 µ$ the balance held was taken; only the 9,000 µ$ remainder is owed.
+		expect(BigInt(row.debited_usd_micros)).toBe(5_000n);
+		expect(result.debitedUsdMicros).toBe(5_000n);
+		const usage = await usageForMonth(db, accountId);
+		const memory = usage.find((u) => u.unit === "memory.gb_hour");
+		expect(memory?.usdMicros).toBe("14000");
+		expect(memory?.unpaidUsdMicros).toBe("9000");
+	});
+
+	test("a fully covered stack charge records the whole price as taken and nothing unpaid", async () => {
+		await creditCredits(db, accountId, 1_000_000n);
+		const result = await meter(db, {
+			accountId,
+			unit: "memory.gb_hour",
+			quantity: 0.5,
+			source: "internal:provisioner",
+			idempotencyKey: randomUUID(),
+		});
+		expect(result.debited).toBe(true);
+		expect(result.debitedUsdMicros).toBe(14_000n);
+		const row = await db
+			.selectFrom("usage_ledger")
+			.select(["debited", "debited_usd_micros"])
+			.where("id", "=", result.ledgerId)
+			.executeTakeFirstOrThrow();
+		expect(row.debited).toBe(true);
+		expect(BigInt(row.debited_usd_micros)).toBe(14_000n);
+		const usage = await usageForMonth(db, accountId);
+		expect(
+			usage.find((u) => u.unit === "memory.gb_hour")?.unpaidUsdMicros,
+		).toBe("0");
+	});
+
+	test("a replay of a partially taken charge returns the recorded taken amount and never debits again", async () => {
+		await creditCredits(db, accountId, 5_000n);
+		const idempotencyKey = randomUUID();
+		const input = {
+			accountId,
+			unit: "memory.gb_hour" as const,
+			quantity: 0.5,
+			source: "internal:provisioner",
+			idempotencyKey,
+		};
+		await meter(db, input);
+		await creditCredits(db, accountId, 50_000n);
+		const replay = await meter(db, input);
+		expect(replay.debitedUsdMicros).toBe(5_000n);
+		expect(replay.debited).toBe(false);
+		expect(await getCredits(db, accountId)).toBe(50_000n);
+	});
+
+	test("a charge refused by the cap records zero taken and the whole price unpaid", async () => {
+		await creditCredits(db, accountId, 1_000_000n);
+		await upsertCaps(db, accountId, { monthly_cap_cents: 0 });
+		const result = await meter(db, {
+			accountId,
+			unit: "memory.gb_hour",
+			quantity: 0.5,
+			source: "internal:provisioner",
+			idempotencyKey: randomUUID(),
+		});
+		expect(result.debitedUsdMicros).toBe(0n);
+		const usage = await usageForMonth(db, accountId);
+		expect(
+			usage.find((u) => u.unit === "memory.gb_hour")?.unpaidUsdMicros,
+		).toBe("14000");
+	});
+
+	test("a negative-price top-up row records its whole amount as taken and is never unpaid", async () => {
+		await grantCredits(db, {
+			accountId,
+			usdMicros: 2_000_000n,
+			source: "test",
+			idempotencyKey: randomUUID(),
+		});
+		const row = await db
+			.selectFrom("usage_ledger")
+			.select(["usd_micros", "debited_usd_micros", "debited"])
+			.where("account_id", "=", accountId)
+			.where("unit", "=", "grant")
+			.executeTakeFirstOrThrow();
+		expect(BigInt(row.usd_micros)).toBe(-2_000_000n);
+		expect(BigInt(row.debited_usd_micros)).toBe(-2_000_000n);
+		expect(row.debited).toBe(true);
+	});
+
+	test("the ledger refuses a taken amount above the price", async () => {
+		const result = await meter(db, {
+			accountId,
+			unit: "memory.gb_hour",
+			quantity: 0.5,
+			source: "internal:provisioner",
+			idempotencyKey: randomUUID(),
+		});
+		await expect(
+			db
+				.updateTable("usage_ledger")
+				.set({ debited_usd_micros: "14001" })
+				.where("id", "=", result.ledgerId)
+				.execute(),
+		).rejects.toThrow();
 	});
 
 	test("a stack charge on an empty balance stays at zero", async () => {

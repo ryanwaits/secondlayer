@@ -1223,7 +1223,11 @@ export interface UsageLedgerTable {
 	 *  floor to observe past. */
 	observed_quantity: string | number | null;
 	usd_micros: string | number | bigint;
+	/** True when the whole price was taken; derived from `debited_usd_micros`. */
 	debited: Generated<boolean>;
+	/** Amount actually taken from the balance, `0..usd_micros` (bounded the
+	 *  other way for a negative top-up/grant row). Unpaid = price - this. */
+	debited_usd_micros: Generated<string | number | bigint>;
 	source: string;
 	/** API key behind a metered read; null for non-read units and older rows. */
 	api_key_id: string | null;
