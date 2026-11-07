@@ -111,6 +111,8 @@ jobs:
         run: bun run test
       - name: pox-5 pin check (shipped tag vs clarinet-embedded ABI)
         run: bun scripts/ci/check-pox5-pin.ts
+      - name: Raw status writes (no new sites outside casTransition)
+        run: bun scripts/ci/status-writes.ts
       - name: Scripts tests
         run: bun test scripts/indexnow.test.ts scripts/ops scripts/dash
 

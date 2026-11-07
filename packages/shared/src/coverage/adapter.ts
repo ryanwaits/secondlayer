@@ -239,6 +239,9 @@ async function writeFailure(
  * Persist output + checkpoint + receipts + failure in one transaction.
  * Runner validation is the caller's job (`applyDecoderReceipts`) so a
  * rejected ack never opens a transaction.
+ *
+ * No production caller (decoders use the batch form); kept as the exported
+ * single-decoder entry point and covered by decoder-adapter-crash.test.ts.
  */
 export async function commitDecoderAdapter(
 	db: Kysely<Database>,

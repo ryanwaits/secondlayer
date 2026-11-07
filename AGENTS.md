@@ -37,6 +37,13 @@ request), supported, documented.
 - Never describe product surfaces as L1/L2/L3 layers in docs or comms — Stacks is itself a Bitcoin L2, so the terms confuse users. Say raw (Streams), decoded (Index), your schema (Subgraphs). This also extends to code: no identifier, env var, service, or table may start with `l2`/`layer2`. The decoder service is `decoder` (image `secondlayer-decoder`), the dir is `packages/indexer/src/decode/`, checkpoints are named `decode.<event_type>.v<major>`, and the checkpoint table is `decoder_checkpoints`.
 - No EVM/multi-chain. No new wallet-side primitives beyond nonce coordination (supported) and what's already frozen.
 
+### State machines
+
+- States = one const array in the owning package, mirrored by a DB CHECK.
+- Transitions = a `defineMachine` table next to the states (`packages/shared/src/db/transition.ts`).
+- Every status write goes through `casTransition`; `null` = lost race, log and stop. `scripts/ci/status-writes.ts` fails CI on new raw `.set({ status:` / `SET status` sites (baseline file; shrink it, never grow it).
+- Derived states ("is live", "is down", "caught up") = one exported pure fn, no inline copies.
+
 ### Process
 
 - Work directly on `main`; push only when the founder asks (every push deploys prod).
