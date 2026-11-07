@@ -46,6 +46,20 @@ export class MissingUndoDataError extends Error {
 	}
 }
 
+/** A `rune_undo` row names a different block than `btc_blocks` holds at that height. Fails closed: nothing is reversed. */
+export class UndoBlockMismatchError extends Error {
+	constructor(
+		readonly height: number,
+		readonly undoHash: string,
+		readonly storedHash: string,
+	) {
+		super(
+			`rewindTo: rune_undo at height ${height} is for block ${undoHash} but btc_blocks holds ${storedHash}`,
+		);
+		this.name = "UndoBlockMismatchError";
+	}
+}
+
 function outpointTxid(outpoint: string): string {
 	return outpoint.slice(0, outpoint.lastIndexOf(":"));
 }
@@ -166,6 +180,18 @@ export async function rewindTo(
 				.where("height", "=", height)
 				.executeTakeFirst();
 			if (!row) throw new MissingUndoDataError(height);
+			// The journal row must describe the block `btc_blocks` holds at this
+			// height. A mismatch means the journal and the block table came from
+			// different chains (a restore, a partial repair), and reversing the
+			// journal would undo a block that was never applied here.
+			const stored = await trx
+				.selectFrom("btc_blocks")
+				.select("hash")
+				.where("height", "=", height)
+				.executeTakeFirst();
+			if (stored && stored.hash !== row.block_hash) {
+				throw new UndoBlockMismatchError(height, row.block_hash, stored.hash);
+			}
 
 			const payload = undoPayloadFromJson(height, row.payload);
 			for (const b of payload.balancesSpent) affectedRuneIds.add(b.runeId);

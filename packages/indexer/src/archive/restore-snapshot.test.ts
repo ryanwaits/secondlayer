@@ -142,6 +142,7 @@ describe.skipIf(!HAS_DB)("canonical snapshot restore proof", () => {
 
 		await wipe(); // the restore target must be empty
 		const result = await restoreCanonicalSnapshot({
+			network: "testnet",
 			dir,
 			manifest,
 			db,
@@ -174,6 +175,7 @@ describe.skipIf(!HAS_DB)("canonical snapshot restore proof", () => {
 
 		await wipe();
 		const result = await restoreCanonicalSnapshot({
+			network: "testnet",
 			dir,
 			manifest,
 			db,
@@ -255,6 +257,7 @@ describe.skipIf(!HAS_DB)("canonical snapshot restore proof", () => {
 		const { dir, manifest } = await exportSeeded();
 		await wipe();
 		await restoreCanonicalSnapshot({
+			network: "testnet",
 			dir,
 			manifest,
 			db,
@@ -296,6 +299,7 @@ describe.skipIf(!HAS_DB)("canonical snapshot restore proof", () => {
 
 		await wipe();
 		await restoreCanonicalSnapshot({
+			network: "testnet",
 			dir,
 			manifest,
 			db,
@@ -309,6 +313,7 @@ describe.skipIf(!HAS_DB)("canonical snapshot restore proof", () => {
 		);
 
 		const result = await restoreCanonicalSnapshot({
+			network: "testnet",
 			dir,
 			manifest,
 			db,
@@ -331,6 +336,7 @@ describe.skipIf(!HAS_DB)("canonical snapshot restore proof", () => {
 		// DB still holds the seeded chain — restoring on top must refuse.
 		expect(
 			restoreCanonicalSnapshot({
+				network: "testnet",
 				dir,
 				manifest,
 				db,
@@ -355,6 +361,7 @@ describe.skipIf(!HAS_DB)("canonical snapshot restore proof", () => {
 		await wipe();
 		expect(
 			restoreCanonicalSnapshot({
+				network: "testnet",
 				dir,
 				manifest,
 				db,
@@ -368,12 +375,49 @@ describe.skipIf(!HAS_DB)("canonical snapshot restore proof", () => {
 		expect(Number(rows[0]?.count ?? 0)).toBe(0);
 	});
 
+	test("refuses a snapshot of another network before touching the database", async () => {
+		if (!db) throw new Error("missing db");
+		const { dir, manifest } = await exportSeeded();
+		await wipe();
+		await expect(
+			restoreCanonicalSnapshot({
+				network: "mainnet",
+				dir,
+				manifest,
+				db,
+				range: { fromBlock: 0, toBlock: 9 },
+				proofDir: await makeDir("proof"),
+			}),
+		).rejects.toThrow(/network "testnet" but this database serves "mainnet"/);
+		const { rows } = await sql<{ count: string | number }>`
+			SELECT COUNT(*) AS count FROM blocks
+		`.execute(db);
+		expect(Number(rows[0]?.count ?? 0)).toBe(0);
+	});
+
+	test("refuses a snapshot with a schema version it does not read", async () => {
+		if (!db) throw new Error("missing db");
+		const { dir, manifest } = await exportSeeded();
+		await wipe();
+		await expect(
+			restoreCanonicalSnapshot({
+				network: "testnet",
+				dir,
+				manifest: { ...manifest, schema_version: 2 as never },
+				db,
+				range: { fromBlock: 0, toBlock: 9 },
+				proofDir: await makeDir("proof"),
+			}),
+		).rejects.toThrow(/schema_version 2/);
+	});
+
 	test("refuses a range off the partition grid", async () => {
 		if (!db) throw new Error("missing db");
 		const { dir, manifest } = await exportSeeded();
 		await wipe();
 		expect(
 			restoreCanonicalSnapshot({
+				network: "testnet",
 				dir,
 				manifest,
 				db,

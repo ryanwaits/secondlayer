@@ -14,6 +14,7 @@ import type { Database } from "@secondlayer/shared/db/schema";
 import type { Kysely } from "kysely";
 import { readJsonFile, sha256File } from "../streams-bulk/file.ts";
 import {
+	CANONICAL_EXPORT_SCHEMA_VERSION,
 	type CanonicalDataset,
 	type CanonicalPartition,
 	type CanonicalSnapshotManifest,
@@ -162,6 +163,9 @@ export async function restoreCanonicalSnapshot(params: {
 	manifest: CanonicalSnapshotManifest;
 	db: Kysely<Database>;
 	range: RestoreRange;
+	/** The network this database serves; a snapshot of another network is
+	 *  refused. Defaults to `STACKS_NETWORK` (or `mainnet`). */
+	network?: string;
 	/** Where the proof re-export writes its regenerated partitions. */
 	proofDir: string;
 	/** Continue an interrupted restore of the SAME snapshot: complete
@@ -176,6 +180,20 @@ export async function restoreCanonicalSnapshot(params: {
 	const { dir, manifest, db, range } = params;
 	const log = params.log ?? (() => {});
 	const rawClient = params.rawClient ?? getRawClient("source");
+
+	// Before anything is written: rows from another network, or a layout this
+	// restore does not know how to read, must not reach the database.
+	if (manifest.schema_version !== CANONICAL_EXPORT_SCHEMA_VERSION) {
+		throw new Error(
+			`snapshot schema_version ${manifest.schema_version} is not the version this restore reads (${CANONICAL_EXPORT_SCHEMA_VERSION})`,
+		);
+	}
+	const network = params.network ?? process.env.STACKS_NETWORK ?? "mainnet";
+	if (manifest.network !== network) {
+		throw new Error(
+			`snapshot is for network "${manifest.network}" but this database serves "${network}" (set STACKS_NETWORK)`,
+		);
+	}
 
 	if (
 		range.fromBlock % manifest.partition_size_blocks !== 0 ||

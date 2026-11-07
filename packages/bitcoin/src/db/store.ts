@@ -25,6 +25,7 @@ import {
 	computeBlockDigests,
 } from "../integrity/digest.ts";
 import type { RuneEntry } from "../runes/entry.ts";
+import { checkInvariant } from "../runes/invariant.ts";
 import { runeIdFromString } from "../runes/rune_id.ts";
 import { spacedRuneToString } from "../runes/spaced_rune.ts";
 import {
@@ -221,12 +222,28 @@ export async function loadState(db: Kysely<Database>): Promise<RuneState> {
 	// (genesis seed = 0, every subsequent etching = previous count), so the
 	// next number to hand out is simply the count of entries loaded.
 	state.statisticRunes = BigInt(entries.length);
+	// The count above is only the next number if numbers really are dense:
+	// a missing or duplicated entry would hand the next etching a number that
+	// is already taken. Refuse to resume from a table that breaks it.
+	let maxNumber = -1n;
+	for (const entry of state.entries.values()) {
+		if (entry.number > maxNumber) maxNumber = entry.number;
+	}
+	if (entries.length > 0 && maxNumber + 1n !== BigInt(entries.length)) {
+		throw new Error(
+			`loadState: rune numbers are not dense: max(number)+1=${maxNumber + 1n} but ${entries.length} entries`,
+		);
+	}
 
 	const balances = await db.selectFrom("rune_balances").selectAll().execute();
 	for (const row of balances) {
 		const outpoint = `${row.txid}:${row.vout}`;
 		seedBalance(state, outpoint, row.rune_id, n(row.amount), row.address);
 	}
+	// Flush checks the supply invariant on the runes it touched; a restart
+	// checks every rune once, so a table edited or restored out of band fails
+	// here and not on some later block.
+	checkInvariant(state, state.entries.keys());
 
 	const checkpoint = await db
 		.selectFrom("runes_checkpoint")

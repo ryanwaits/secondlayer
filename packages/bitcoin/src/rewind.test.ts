@@ -15,7 +15,7 @@ import { migrateToLatest } from "./db/migrate.ts";
 import { flush, loadState, openStore } from "./db/store.ts";
 import type { Database } from "./db/types.ts";
 import { computeStateHash } from "./integrity/digest.ts";
-import { DeepReorgError, rewindTo } from "./rewind.ts";
+import { DeepReorgError, UndoBlockMismatchError, rewindTo } from "./rewind.ts";
 import { checkInvariant } from "./runes/invariant.ts";
 import {
 	type RuneState,
@@ -138,6 +138,54 @@ describe.skipIf(!testUrl)("rewindTo", () => {
 		expect(rows[0]?.orphaned_from).toBe(840_001);
 		expect(rows[0]?.orphaned_to).toBe(840_001);
 		expect(rows[0]?.new_tip_height).toBe(840_000);
+	});
+
+	test("loadState refuses a balance table that no longer matches the supply it was minted from", async () => {
+		const state = createRuneState();
+		seedGenesis(state);
+		await applyAndFlushBlock(db, state, 840_000, "1:0", 1n);
+		await loadState(db);
+
+		await db.updateTable("rune_balances").set({ amount: "9" }).execute();
+
+		await expect(loadState(db)).rejects.toThrow(/supply invariant violated/);
+	});
+
+	test("loadState refuses rune numbers that are not dense", async () => {
+		const state = createRuneState();
+		seedGenesis(state);
+		await applyAndFlushBlock(db, state, 840_000, "1:0", 1n);
+
+		await db.updateTable("rune_entries").set({ number: "7" }).execute();
+
+		await expect(loadState(db)).rejects.toThrow(/not dense/);
+	});
+
+	test("a rewind refuses an undo row that names a different block than btc_blocks and reverses nothing", async () => {
+		const runeId = "1:0";
+		const state = createRuneState();
+		seedGenesis(state);
+		await applyAndFlushBlock(db, state, 840_000, runeId, 1n);
+		await applyAndFlushBlock(db, state, 840_001, runeId, 1n);
+
+		await db
+			.updateTable("rune_undo")
+			.set({ block_hash: "f".repeat(64) })
+			.where("height", "=", 840_001)
+			.execute();
+
+		await expect(rewindTo(db, state, 840_000)).rejects.toBeInstanceOf(
+			UndoBlockMismatchError,
+		);
+
+		const checkpoint = await db
+			.selectFrom("runes_checkpoint")
+			.selectAll()
+			.executeTakeFirst();
+		expect(checkpoint?.height).toBe(840_001);
+		expect(
+			await db.selectFrom("btc_reorgs").selectAll().execute(),
+		).toHaveLength(0);
 	});
 
 	test("a rewind deeper than UNDO_DEPTH throws DeepReorgError and writes nothing", async () => {
