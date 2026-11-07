@@ -17,6 +17,7 @@ import {
 import {
 	cancelOrphanedSubgraphOperations,
 	createSubgraphOperation,
+	findActiveSubgraphOperation,
 	getOperationQueuePosition,
 	getRecentOperationMedianDuration,
 	getSubgraphOperation,
@@ -658,12 +659,41 @@ async function executeSubgraphDeploy(
 			);
 		}
 	}
+	const forceReindex = data.startBlock !== undefined || startBlockChanged;
+	// A redeploy that will drop and rebuild the schema needs a free operation
+	// slot. Refuse BEFORE `deploySchema` drops anything: the post-deploy op
+	// insert can only report the conflict after the schema is already gone.
+	if (existing) {
+		const existingSchema = (existing.definition as { schema?: unknown })
+			?.schema;
+		const { diffSchema, hasBreakingChanges } = await import(
+			"@secondlayer/subgraphs"
+		);
+		const willRebuild =
+			forceReindex ||
+			(existingSchema != null &&
+				hasBreakingChanges(
+					diffSchema(
+						existingSchema as Parameters<typeof diffSchema>[0],
+						def.schema as Parameters<typeof diffSchema>[1],
+					),
+				).breaking);
+		if (willRebuild && (await findActiveSubgraphOperation(db, existing.id))) {
+			return c.json(
+				{
+					error: `A reindex or backfill is already running for "${name}". Wait for it to complete.`,
+					code: "OPERATION_IN_PROGRESS",
+				},
+				409,
+			);
+		}
+	}
 	const result = await deploySchema(db, def, handlerPath, {
 		apiKeyId,
 		schemaName,
 		handlerCode: data.handlerCode,
 		sourceCode: data.sourceCode,
-		forceReindex: data.startBlock !== undefined || startBlockChanged,
+		forceReindex,
 		verification,
 	});
 
@@ -700,7 +730,6 @@ async function executeSubgraphDeploy(
 		tipFirstAnchor > 0 &&
 		(deployStartBlock ?? 1) < tipFirstAnchor
 	) {
-		await updateSubgraphStatus(db, name, "active", tipFirstAnchor);
 		try {
 			const historyWeight = await classifyOperationWeight(
 				probeTargets,
@@ -717,6 +746,9 @@ async function executeSubgraphDeploy(
 				estimatedEvents: historyWeight.estimatedEvents,
 			});
 			operationId = op.id;
+			// Go live at the anchor only once the history op is secured: a
+			// refused insert must leave the subgraph's status and cursor alone.
+			await updateSubgraphStatus(db, name, "active", tipFirstAnchor);
 			reindexEstimatedEvents = historyWeight.estimatedEvents ?? undefined;
 			tipFirstHistory = {
 				from: deployStartBlock ?? 1,
