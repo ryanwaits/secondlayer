@@ -4,10 +4,12 @@ import { notify } from "@/components/toast/notify";
 import {
 	type BalanceAlerts,
 	ensureAlerts,
+	refreshAlerts,
 	updateAlerts,
 	useAccountData,
 } from "@/lib/account-data";
 import { dollars, parseCapInput } from "@/lib/billing-view";
+import { useSave } from "@/lib/save-state";
 import { useEffect, useId, useState } from "react";
 
 const DEFAULT_ALERTS: BalanceAlerts = { notify7d: true, notify2d: true };
@@ -15,12 +17,15 @@ const DEFAULT_ALERTS: BalanceAlerts = { notify7d: true, notify2d: true };
 function AlertSwitch({
 	id,
 	checked,
+	disabled,
 	onChange,
 	title,
 	sub,
 }: {
 	id: string;
 	checked: boolean;
+	/** Until the stored settings have loaded, the switch shows a default, not a choice. */
+	disabled: boolean;
 	onChange: () => void;
 	title: string;
 	sub: string;
@@ -37,6 +42,7 @@ function AlertSwitch({
 						type="checkbox"
 						id={id}
 						checked={checked}
+						disabled={disabled}
 						onChange={onChange}
 					/>
 					<span />
@@ -113,10 +119,51 @@ const ALERT_LABEL: Record<keyof BalanceAlerts, string> = {
 	notify2d: "Email me at 2 days left",
 };
 
+/** One balance email's switch. Optimistic: it flips at once, then goes back
+ *  with a toast if the write fails. Each switch saves on its own, so one
+ *  failing never undoes the other. */
+function AlertRow({
+	alertKey,
+	id,
+	sub,
+	alerts,
+}: {
+	alertKey: keyof BalanceAlerts;
+	id: string;
+	sub: string;
+	/** Null until the stored settings have loaded. */
+	alerts: BalanceAlerts | null;
+}) {
+	const save = useSave<boolean>((on) => updateAlerts({ [alertKey]: on }));
+	const checked = save.pending ?? (alerts ?? DEFAULT_ALERTS)[alertKey];
+
+	async function set(next: boolean) {
+		const outcome = await save.run(next);
+		if (outcome === "stale") return;
+		if (outcome === "failed") {
+			refreshAlerts();
+			notify.fail("Couldn't save that alert", { retry: () => set(next) });
+			return;
+		}
+		notify.done(`${ALERT_LABEL[alertKey]} ${next ? "on" : "off"}`, {
+			quick: true,
+		});
+	}
+
+	return (
+		<AlertSwitch
+			id={id}
+			checked={checked}
+			disabled={alerts === null}
+			onChange={() => set(!checked)}
+			title={ALERT_LABEL[alertKey]}
+			sub={sub}
+		/>
+	);
+}
+
 /** The account's limits: the monthly limit and the two balance emails. The
- *  switches are bound to `GET/PUT /api/billing/alerts`. Optimistic: the
- *  switch flips immediately, then reverts with a toast if the write
- *  fails. */
+ *  switches are bound to `GET/PUT /api/billing/alerts`. */
 export function LimitsAndEmails({
 	capUsd,
 	onCapChange,
@@ -130,22 +177,6 @@ export function LimitsAndEmails({
 	useEffect(() => {
 		ensureAlerts();
 	}, []);
-	const [pending, setPending] = useState<BalanceAlerts | null>(null);
-	const current = pending ?? alerts ?? DEFAULT_ALERTS;
-
-	async function toggle(key: keyof BalanceAlerts) {
-		const next = { ...current, [key]: !current[key] };
-		setPending(next);
-		const result = await updateAlerts({ [key]: next[key] });
-		setPending(null);
-		if (!result) {
-			notify.fail("Couldn't save that alert", { retry: () => toggle(key) });
-			return;
-		}
-		notify.done(`${ALERT_LABEL[key]} ${next[key] ? "on" : "off"}`, {
-			quick: true,
-		});
-	}
 
 	return (
 		<section className="dash-panel bl-panel" aria-label="Limits and emails">
@@ -156,18 +187,16 @@ export function LimitsAndEmails({
 					onCapChange={onCapChange}
 					spentUsd={spentUsd}
 				/>
-				<AlertSwitch
+				<AlertRow
 					id="al-7"
-					checked={current.notify7d}
-					onChange={() => toggle("notify7d")}
-					title={ALERT_LABEL.notify7d}
+					alertKey="notify7d"
+					alerts={alerts}
 					sub="Based on the last 24 hours of spend"
 				/>
-				<AlertSwitch
+				<AlertRow
 					id="al-2"
-					checked={current.notify2d}
-					onChange={() => toggle("notify2d")}
-					title={ALERT_LABEL.notify2d}
+					alertKey="notify2d"
+					alerts={alerts}
 					sub="And again if the service stops"
 				/>
 			</div>

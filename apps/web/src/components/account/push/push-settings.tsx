@@ -4,10 +4,12 @@ import { Skel } from "@/components/dashboard/shell/skel";
 import { notify } from "@/components/toast/notify";
 import {
 	type PushState,
+	isIos,
 	readPushState,
 	turnOffPush,
 	turnOnPush,
 } from "@/lib/push-client";
+import { useSaves } from "@/lib/save-state";
 import { type ReactNode, useCallback, useEffect, useState } from "react";
 
 export type PushPrefValues = {
@@ -247,9 +249,7 @@ export function PushSettings() {
 	const [state, setState] = useState<PushState>("off");
 	const [busy, setBusy] = useState(false);
 	const [failed, setFailed] = useState(false);
-	const ios =
-		typeof navigator !== "undefined" &&
-		/iPad|iPhone|iPod/.test(navigator.userAgent);
+	const ios = isIos();
 
 	useEffect(() => {
 		let live = true;
@@ -270,30 +270,47 @@ export function PushSettings() {
 		};
 	}, []);
 
-	const toggle = useCallback(
-		async (key: keyof PushPrefValues) => {
-			if (!loaded) return;
-			const before = loaded.prefs;
-			const next = { ...before, [key]: !before[key] };
-			setLoaded({ ...loaded, prefs: next });
-			try {
-				const res = await fetch("/api/push/prefs", {
-					method: "PUT",
-					headers: { "Content-Type": "application/json" },
-					body: JSON.stringify({ [key]: next[key] }),
-				});
-				if (!res.ok) throw new Error("save");
-			} catch {
-				setLoaded((cur) => (cur ? { ...cur, prefs: before } : cur));
-				notify.fail("Couldn't save your push settings", {
-					retry: () => toggle(key),
-				});
-				return;
-			}
-			notify.done("Push settings saved", { quick: true });
-		},
-		[loaded],
+	const saves = useSaves<keyof PushPrefValues, boolean>(
+		useCallback(async (key, next) => {
+			const res = await fetch("/api/push/prefs", {
+				method: "PUT",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ [key]: next }),
+			});
+			if (!res.ok) throw new Error("save");
+			return true;
+		}, []),
 	);
+
+	// Each toggle shows its own save in flight; a failed one goes back to what
+	// is stored without touching the others.
+	const shown = loaded
+		? (Object.fromEntries(
+				(Object.keys(loaded.prefs) as (keyof PushPrefValues)[]).map((key) => [
+					key,
+					saves.pending(key) ?? loaded.prefs[key],
+				]),
+			) as PushPrefValues)
+		: null;
+
+	async function setPref(key: keyof PushPrefValues, next: boolean) {
+		const outcome = await saves.run(key, next);
+		if (outcome === "stale") return;
+		if (outcome === "failed") {
+			notify.fail("Couldn't save your push settings", {
+				retry: () => setPref(key, next),
+			});
+			return;
+		}
+		setLoaded((cur) =>
+			cur ? { ...cur, prefs: { ...cur.prefs, [key]: next } } : cur,
+		);
+		notify.done("Push settings saved", { quick: true });
+	}
+
+	function toggle(key: keyof PushPrefValues) {
+		if (shown) setPref(key, !shown[key]);
+	}
 
 	const run = useCallback(
 		async (action: () => Promise<void>, message: string) => {
@@ -316,11 +333,11 @@ export function PushSettings() {
 			</div>
 		);
 	}
-	if (!loaded) return <PushSkeleton />;
+	if (!loaded || !shown) return <PushSkeleton />;
 	return (
 		<PushSettingsView
 			state={state}
-			prefs={loaded.prefs}
+			prefs={shown}
 			ios={ios}
 			busy={busy}
 			onToggle={toggle}

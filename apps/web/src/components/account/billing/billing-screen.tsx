@@ -15,6 +15,7 @@ import {
 	ensureCaps,
 	ensureCredits,
 	formatUsd,
+	refreshCaps,
 	refreshCredits,
 	refreshUsage,
 	updateCap,
@@ -29,6 +30,7 @@ import {
 } from "@/lib/billing-view";
 import type { Insight } from "@/lib/insights";
 import { forAccountRules, useInsights } from "@/lib/insights-store";
+import { useSave } from "@/lib/save-state";
 import type { CreditAdded } from "@/lib/types";
 import {
 	type BalanceLevel,
@@ -324,7 +326,9 @@ export function BillingScreen({ ret }: { ret: TopupReturn | null }) {
 	const st = useTopupReturn(ret);
 	const co = useCheckout();
 	const compact = useCompact();
-	const [pendingCap, setPendingCap] = useState<number | null | undefined>();
+	const capSave = useSave<number | null>((next) =>
+		updateCap(next == null ? null : next * 100),
+	);
 	const now = new Date();
 	const month = monthParam(currentUtcMonth(now));
 	// Whether the page came with this month's usage, fixed at mount: a later
@@ -357,17 +361,19 @@ export function BillingScreen({ ret }: { ret: TopupReturn | null }) {
 		);
 	}, [month, usageSeeded]);
 
-	const capUsd =
-		pendingCap !== undefined
-			? pendingCap
-			: capDollars(caps?.monthlyCapCents ?? null);
+	// What is stored, and while a save is out, what it will be.
+	const storedCapUsd = capDollars(caps?.monthlyCapCents ?? null);
+	const pendingCap = capSave.pending;
+	const capUsd = pendingCap !== undefined ? pendingCap : storedCapUsd;
 
 	async function changeCap(next: number | null) {
-		const prev = capUsd;
-		setPendingCap(next);
-		const result = await updateCap(next == null ? null : next * 100);
-		setPendingCap(undefined);
-		if (!result) {
+		const prev = storedCapUsd;
+		const outcome = await capSave.run(next);
+		// A newer save of the cap is out: its answer is the one to report.
+		if (outcome === "stale") return;
+		if (outcome === "failed") {
+			// Take whatever the server has, in case an earlier save landed.
+			refreshCaps();
 			notify.fail("Couldn't save your spend cap", {
 				desc:
 					prev == null

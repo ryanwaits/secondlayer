@@ -47,7 +47,9 @@ export function urlBase64ToUint8Array(base64: string): Uint8Array<ArrayBuffer> {
 	return bytes;
 }
 
-function isIos(): boolean {
+/** An iPhone or iPad, including iPadOS posing as a Mac. False off the browser. */
+export function isIos(): boolean {
+	if (typeof navigator === "undefined") return false;
 	return (
 		/iPad|iPhone|iPod/.test(navigator.userAgent) ||
 		(navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1)
