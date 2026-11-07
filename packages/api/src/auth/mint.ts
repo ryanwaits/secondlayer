@@ -146,7 +146,8 @@ export async function mintApiKey(
 }
 
 /**
- * Revoke every active key with `name` for one account. Used before minting a
+ * Revoke every active tenant-product key with `name` for one account (a
+ * customer's own key that happens to share the name is left alone). Used before minting a
  * rotating, named, first-party key (e.g. the workload host's per-tenant
  * `hosted-stack` key, `routes/internal-tenant-key.ts`) so re-provisioning
  * never leaves an old copy of that specific key active.
@@ -161,6 +162,7 @@ export async function revokeKeysByName(
 		.set({ status: "revoked", revoked_at: new Date() })
 		.where("account_id", "=", accountId)
 		.where("name", "=", name)
+		.where("product", "=", "tenant")
 		.where("status", "=", "active")
 		.execute();
 }

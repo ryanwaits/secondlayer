@@ -8,6 +8,7 @@ import {
 } from "bun:test";
 import { getDb } from "@secondlayer/shared/db";
 import { Hono } from "hono";
+import { mintApiKey } from "../auth/mint.ts";
 import { createApiApp } from "../create-app.ts";
 import { errorHandler } from "../middleware/error.ts";
 import internalTenantKeyRouter, {
@@ -161,6 +162,36 @@ describe.skipIf(!HAS_DB)("POST /internal/keys/tenant", () => {
 			HOSTED_STACK_KEY_NAME,
 			HOSTED_SUBGRAPHS_KEY_NAME,
 		]);
+	});
+
+	test("re-provisioning leaves a customer account key named hosted-stack active", async () => {
+		const accountId = await makeAccount();
+		await mintApiKey(db, {
+			accountId,
+			name: HOSTED_STACK_KEY_NAME,
+			product: "account",
+			ip: "127.0.0.1",
+		});
+		for (let i = 0; i < 2; i++) {
+			const res = await app().request("/internal/keys/tenant", {
+				method: "POST",
+				headers: {
+					"content-type": "application/json",
+					authorization: "Bearer test-workload-host-key",
+				},
+				body: JSON.stringify({ account_id: accountId }),
+			});
+			expect(res.status).toBe(200);
+		}
+
+		const active = await db
+			.selectFrom("api_keys")
+			.select("product")
+			.where("account_id", "=", accountId)
+			.where("name", "=", HOSTED_STACK_KEY_NAME)
+			.where("status", "=", "active")
+			.execute();
+		expect(active.map((r) => r.product).sort()).toEqual(["account", "tenant"]);
 	});
 
 	test("unknown key name → 400", async () => {

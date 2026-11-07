@@ -71,15 +71,18 @@ app.post("/", async (c) => {
 	}
 
 	const db = getDb();
-	await revokeKeysByName(db, accountId, name);
-	const minted = await mintApiKey(db, {
-		accountId,
-		name,
-		product: "tenant",
-		ip: "workload-host",
-		// The evaluator's reads are ours, not the customer's rows; customer
-		// code's reads are the customer's, so that key is metered.
-		internal: name === HOSTED_STACK_KEY_NAME,
+	// One transaction: a failed mint never leaves the tenant with no key.
+	const minted = await db.transaction().execute(async (trx) => {
+		await revokeKeysByName(trx, accountId, name);
+		return mintApiKey(trx, {
+			accountId,
+			name,
+			product: "tenant",
+			ip: "workload-host",
+			// The evaluator's reads are ours, not the customer's rows; customer
+			// code's reads are the customer's, so that key is metered.
+			internal: name === HOSTED_STACK_KEY_NAME,
+		});
 	});
 
 	return c.json({ key: minted.key });
