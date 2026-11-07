@@ -1115,6 +1115,7 @@ export interface Database {
 	archive_fetches: ArchiveFetchesTable;
 	usage_ledger: UsageLedgerTable;
 	account_balance_alerts: AccountBalanceAlertsTable;
+	hosted_stack_state: HostedStackStateTable;
 	webhook_incident_alerts: WebhookIncidentAlertsTable;
 	cli_device_logins: CliDeviceLoginsTable;
 	oauth_clients: OauthClientsTable;
@@ -1249,6 +1250,15 @@ export interface AccountBalanceAlertsTable {
 	sent_7d_at: Date | null;
 	sent_2d_at: Date | null;
 	sent_stopped_at: Date | null;
+}
+
+/** The workload host's report of one account's hosted stack. Written only by
+ *  `POST /internal/stack-state`; `reported_at` is the host's observation time. */
+export interface HostedStackStateTable {
+	account_id: string;
+	state: "provisioning" | "running" | "stopped" | "destroyed";
+	stop_reason: "credits" | "cap" | "idle" | null;
+	reported_at: Date;
 }
 
 /** Debounce state for the webhook-down email: one row per incident, open

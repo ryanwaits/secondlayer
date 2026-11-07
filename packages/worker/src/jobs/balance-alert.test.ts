@@ -12,6 +12,7 @@ import {
 	upsertBalanceAlerts,
 } from "@secondlayer/platform/db/queries/account-balance-alerts";
 import { creditCredits } from "@secondlayer/platform/db/queries/account-credits";
+import { upsertStackStates } from "@secondlayer/platform/db/queries/hosted-stack-state";
 import { getDb } from "@secondlayer/shared/db";
 import { checkAllBalances, checkOneBalance } from "./balance-alert.ts";
 
@@ -155,25 +156,67 @@ describe("checkOneBalance", () => {
 		expect(after?.sent_7d_at).toBeNull();
 	});
 
-	test("stopped: a stopped hosted stack at $0 balance sends the stopped alert", async () => {
+	async function reportStack(
+		id: string,
+		state: "running" | "stopped" | "destroyed",
+		stopReason: "credits" | "cap" | "idle" | null,
+	) {
+		await upsertStackStates(db, [
+			{ accountId: id, state, stopReason, observedAt: NOW },
+		]);
+	}
+
+	test.each(["credits", "cap"] as const)(
+		"stopped: a stack stopped for %s at $0 balance sends the stopped alert",
+		async (reason) => {
+			const id = await makeAccount(
+				`balance-stopped-${crypto.randomUUID().slice(0, 8)}@test.invalid`,
+			);
+			await reportStack(id, "stopped", reason);
+			// No creditCredits call: balance stays at $0.
+
+			await checkOneBalance({ id, email: `stopped-${id}@test.invalid` }, NOW);
+			const after = await getBalanceAlerts(db, id);
+			expect(after?.sent_stopped_at).not.toBeNull();
+		},
+	);
+
+	test("an idle-stopped stack at $0 balance does not send the stopped alert", async () => {
 		const id = await makeAccount(
-			`balance-stopped-${crypto.randomUUID().slice(0, 8)}@test.invalid`,
+			`balance-idle-${crypto.randomUUID().slice(0, 8)}@test.invalid`,
 		);
-		// Hosted-stack state = stopped: a memory.gb_hour row within the
-		// last 35 days but not the last 75 minutes.
+		await reportStack(id, "stopped", "idle");
+
+		await checkOneBalance({ id, email: `idle-${id}@test.invalid` }, NOW);
+		expect(
+			(await getBalanceAlerts(db, id))?.sent_stopped_at ?? null,
+		).toBeNull();
+	});
+
+	test("no reported stack and a destroyed stack at $0 balance never send the stopped alert", async () => {
+		const unreported = await makeAccount(
+			`balance-none-${crypto.randomUUID().slice(0, 8)}@test.invalid`,
+		);
+		// A stale heartbeat must not read as a stopped stack.
 		await meter(db, {
-			accountId: id,
+			accountId: unreported,
 			unit: "memory.gb_hour",
 			quantity: 0.5,
 			source: "test",
-			idempotencyKey: `balance-alert-svc-${id}`,
+			idempotencyKey: `balance-alert-svc-${unreported}`,
 			occurredAt: new Date(NOW.getTime() - 3 * 60 * 60 * 1000),
 		});
-		// No creditCredits call: balance stays at $0.
+		const destroyed = await makeAccount(
+			`balance-destroyed-${crypto.randomUUID().slice(0, 8)}@test.invalid`,
+		);
+		await reportStack(destroyed, "destroyed", null);
 
-		await checkOneBalance({ id, email: `stopped-${id}@test.invalid` }, NOW);
-		const after = await getBalanceAlerts(db, id);
-		expect(after?.sent_stopped_at).not.toBeNull();
+		for (const id of [unreported, destroyed]) {
+			await checkOneBalance({ id, email: `none-${id}@test.invalid` }, NOW);
+			expect(
+				(await getBalanceAlerts(db, id))?.sent_stopped_at ?? null,
+			).toBeNull();
+		}
 	});
 
 	test("notify7d off suppresses the low alert entirely", async () => {

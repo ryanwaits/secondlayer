@@ -24,6 +24,10 @@
 			"types": "./dist/db/queries/usage-ledger.d.ts",
 			"import": "./dist/db/queries/usage-ledger.js"
 		},
+		"./db/queries/hosted-stack-state": {
+			"types": "./dist/db/queries/hosted-stack-state.d.ts",
+			"import": "./dist/db/queries/hosted-stack-state.js"
+		},
 		"./db/queries/account-balance-alerts": {
 			"types": "./dist/db/queries/account-balance-alerts.d.ts",
 			"import": "./dist/db/queries/account-balance-alerts.js"

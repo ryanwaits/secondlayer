@@ -6,7 +6,11 @@
  * with what the page shows.
  */
 
-export type ServiceState = "running" | "stopped" | "none";
+import {
+	type ServiceState,
+	isBillingStop,
+} from "../db/queries/hosted-stack-state.ts";
+
 export type BalanceLevel = "ok" | "low" | "crit" | "stopped";
 
 /** `balance / rateDay`, in days. `Infinity` when `rateDay <= 0` — nothing is
@@ -19,8 +23,9 @@ export function runwayDays(
 	return Number(balanceUsdMicros) / Number(rateDayUsdMicros);
 }
 
-/** `stopped` if the hosted stack is stopped and the balance is at or
- *  below $0; else `crit` at ≤2 days of runway, `low` at ≤7, otherwise `ok`.
+/** `stopped` if the hosted stack stopped for credits or the spend cap and
+ *  the balance is at or below $0 (an idle stop never counts, and `none` is no
+ *  stack, not a stopped one); else `crit` at ≤2 days of runway, `low` at ≤7, otherwise `ok`.
  *  A service that's `none` (never ran) with no spend has `Infinity` runway,
  *  which falls through to `ok`, matching Design ("no service and no spend →
  *  ok"). */
@@ -29,7 +34,7 @@ export function balanceLevel(opts: {
 	balanceUsdMicros: bigint;
 	runwayDays: number;
 }): BalanceLevel {
-	if (opts.serviceState === "stopped" && opts.balanceUsdMicros <= 0n) {
+	if (isBillingStop(opts.serviceState) && opts.balanceUsdMicros <= 0n) {
 		return "stopped";
 	}
 	if (opts.runwayDays <= 2) return "crit";

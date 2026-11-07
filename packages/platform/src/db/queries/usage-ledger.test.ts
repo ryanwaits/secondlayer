@@ -9,6 +9,7 @@ import {
 import { getDb } from "@secondlayer/shared/db";
 import { grantCredits, meter, recordTopup } from "../../billing/meter.ts";
 import { ROWS_DELIVERED_MONTHLY_ALLOWANCE } from "../../billing/prices.ts";
+import { upsertStackStates } from "./hosted-stack-state.ts";
 import {
 	creditsAdded,
 	hostedStackSnapshot,
@@ -144,7 +145,7 @@ describe.skipIf(!HAS_DB)(
 			expect(snapshot.memory24h[1]?.hour).toBe("2026-09-28T11:00:00.000Z");
 		});
 
-		test("state is running with a charge in the last 75 minutes, stopped with only older ones, none with no charge", async () => {
+		test("state comes from the reported stack, never from ledger rows", async () => {
 			const now = new Date("2026-09-28T12:00:00.000Z");
 			const charge = (key: string, occurredAt: Date) =>
 				meter(db, {
@@ -161,18 +162,23 @@ describe.skipIf(!HAS_DB)(
 			expect(none.state).toBe("none");
 			expect(none.lastChargedAt).toBeNull();
 
-			const stoppedAt = new Date("2026-09-25T12:00:00.000Z");
-			await charge("state-old-a", new Date("2026-09-20T12:00:00.000Z"));
-			await charge("state-old-b", stoppedAt);
-			const stopped = await hostedStackSnapshot(db, accountId, now);
-			expect(stopped.state).toBe("stopped");
-			expect(stopped.lastChargedAt).toBe(stoppedAt.toISOString());
+			// A fresh heartbeat with nothing reported is still no stack.
+			const chargedAt = new Date("2026-09-28T11:50:00.000Z");
+			await charge("state-new", chargedAt);
+			const unreported = await hostedStackSnapshot(db, accountId, now);
+			expect(unreported.state).toBe("none");
+			expect(unreported.lastChargedAt).toBe(chargedAt.toISOString());
 
-			const runningAt = new Date("2026-09-28T11:50:00.000Z");
-			await charge("state-new", runningAt);
-			const running = await hostedStackSnapshot(db, accountId, now);
-			expect(running.state).toBe("running");
-			expect(running.lastChargedAt).toBe(runningAt.toISOString());
+			await upsertStackStates(db, [
+				{
+					accountId,
+					state: "stopped",
+					stopReason: "idle",
+					observedAt: now,
+				},
+			]);
+			const stopped = await hostedStackSnapshot(db, accountId, now);
+			expect(stopped.state).toBe("stopped_idle");
 		});
 	},
 );

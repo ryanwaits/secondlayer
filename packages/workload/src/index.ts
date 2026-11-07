@@ -7,7 +7,7 @@
  *   APP_SERVER_URL         e.g. https://api.secondlayer.tools
  *   WORKLOAD_HOST_KEY      shared with app-server's /internal/keys/introspect,
  *                          /internal/keys/tenant, /internal/accounts/credits,
- *                          and /internal/meters guards
+ *                          /internal/stack-state, and /internal/meters guards
  *   TENANT_SECRETS_ROOT    root-only dir, one subdirectory per tenant
  *   TENANT_COMPOSE_FILE    docker/workload/tenant.compose.yml
  *   GATEWAY_PORT           default 8080
@@ -85,6 +85,7 @@ import {
 } from "./provisioner.ts";
 import { createPushWatch, createStoppedReporter } from "./push-watch.ts";
 import { createRateLimiter } from "./rate-limiter.ts";
+import { createStackStateReporter } from "./stack-state-reporter.ts";
 import { TenantCache } from "./tenant-cache.ts";
 import { skipWhileRunning } from "./tick-guard.ts";
 import {
@@ -197,6 +198,11 @@ async function main(): Promise<void> {
 		},
 	});
 
+	const stackState = createStackStateReporter(db, {
+		appServerUrl,
+		workloadHostKey,
+	});
+
 	const provisionerCfg: ProvisionerConfig = {
 		db,
 		secretsRoot,
@@ -206,7 +212,10 @@ async function main(): Promise<void> {
 		backups,
 		getTargetSha: () => targetShaCache.lastGood,
 		testnetStack: testnetStackFromEnv(process.env),
-		onTenantChanged: (accountId) => tenantCache.invalidate(accountId),
+		onTenantChanged: (accountId) => {
+			tenantCache.invalidate(accountId);
+			stackState.schedule(accountId);
+		},
 	};
 	const upgradeRunner = createUpgradeRunner(provisionerCfg);
 	const processorDeps = realProcessorWatchDeps(provisionerCfg);
@@ -238,6 +247,10 @@ async function main(): Promise<void> {
 			error: err instanceof Error ? err.message : String(err),
 		});
 	}
+
+	// Tell the platform where every stack stands now, so it does not wait a
+	// poll interval after a deploy. Never blocks boot.
+	void stackState.reconcile();
 
 	// One EventCounter + meter-socket server per running tenant, started the
 	// moment we know about it and torn down on destroy. Keyed by accountId,
@@ -528,6 +541,9 @@ async function main(): Promise<void> {
 					error: err instanceof Error ? err.message : String(err),
 				});
 			});
+			// After the poll and watch above have moved tenants. A failed report
+			// is retried by the next tick's full reconcile.
+			await stackState.reconcile();
 		},
 		() => logger.warn("workload.credits_poll.skipped_overlap"),
 	);
@@ -578,6 +594,7 @@ async function main(): Promise<void> {
 		clearInterval(creditsPollLoop);
 		clearInterval(webhookIncidentLoop);
 		clearInterval(pushWatchLoop);
+		stackState.stop();
 		await stopFailedRequests();
 		// Before anything else stops: a tenant upgrade round is a child
 		// `docker compose up`; letting it finish avoids a half-recreated stack.

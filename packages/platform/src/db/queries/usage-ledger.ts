@@ -1,5 +1,6 @@
 import type { Database, UsageLedgerRow } from "@secondlayer/shared/db";
 import { type Kysely, sql } from "kysely";
+import { type ServiceState, getServiceState } from "./hosted-stack-state.ts";
 
 /**
  * The metered ledger: one append-only row per billable (or free
@@ -297,8 +298,6 @@ export async function accountsToCheckForBalanceAlerts(
 	return rows.map((r) => r.account_id);
 }
 
-export type ServiceState = "running" | "stopped" | "none";
-
 export type MemoryHourRow = {
 	hour: string; // ISO
 	billedGb: number;
@@ -306,26 +305,24 @@ export type MemoryHourRow = {
 };
 
 export type HostedStackSnapshot = {
+	/** The workload host's reported state; `none` = no stack. */
 	state: ServiceState;
 	lastChargedAt: string | null;
 	memory24h: MemoryHourRow[];
 };
 
-const SERVICE_RUNNING_WINDOW_MS = 75 * 60 * 1000;
-const SERVICE_STOPPED_WINDOW_MS = 35 * 24 * 60 * 60 * 1000;
+const LAST_CHARGE_WINDOW_MS = 35 * 24 * 60 * 60 * 1000;
 const MEMORY_24H_WINDOW_MS = 24 * 60 * 60 * 1000;
 
-/** Derives the hosted-stack state from `memory.gb_hour` ledger rows —
- *  no new plumbing, per Definitions: `running` if a row exists in the last
- *  75 min, `stopped` if one exists in the last 35 days but not the last 75
- *  min, `none` if neither (never ran, or last ran more than 35 days ago). */
+/** The hosted stack's reported state (`hosted_stack_state`, written by the
+ *  workload host) plus the last `memory.gb_hour` charge and the last 24h of
+ *  memory. State is never inferred from ledger rows. */
 export async function hostedStackSnapshot(
 	db: Kysely<Database>,
 	accountId: string,
 	now: Date = new Date(),
 ): Promise<HostedStackSnapshot> {
-	const since35d = new Date(now.getTime() - SERVICE_STOPPED_WINDOW_MS);
-	const since75m = new Date(now.getTime() - SERVICE_RUNNING_WINDOW_MS);
+	const sinceLastCharge = new Date(now.getTime() - LAST_CHARGE_WINDOW_MS);
 	const since24h = new Date(now.getTime() - MEMORY_24H_WINDOW_MS);
 
 	const last = await db
@@ -333,16 +330,12 @@ export async function hostedStackSnapshot(
 		.select("occurred_at")
 		.where("account_id", "=", accountId)
 		.where("unit", "=", "memory.gb_hour")
-		.where("occurred_at", ">=", since35d)
+		.where("occurred_at", ">=", sinceLastCharge)
 		.where("occurred_at", "<=", now)
 		.orderBy("occurred_at", "desc")
 		.limit(1)
 		.executeTakeFirst();
-	const state: ServiceState = !last
-		? "none"
-		: last.occurred_at >= since75m
-			? "running"
-			: "stopped";
+	const state = await getServiceState(db, accountId);
 
 	// Bucketed by UTC hour, not one point per row: a retried flush that lands
 	// several samples under the same (or a nearby) `occurred_at` must never

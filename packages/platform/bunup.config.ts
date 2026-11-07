@@ -7,6 +7,7 @@ const config: DefineConfigItem = defineConfig({
 		"src/db/queries/account-credits.ts",
 		"src/db/queries/archive-fetches.ts",
 		"src/db/queries/usage-ledger.ts",
+		"src/db/queries/hosted-stack-state.ts",
 		"src/db/queries/account-balance-alerts.ts",
 		"src/db/queries/api-failed-requests.ts",
 		"src/db/queries/api-request-log.ts",

@@ -10,6 +10,7 @@ import {
 	upsertCaps,
 } from "@secondlayer/platform/db/queries/account-spend-caps";
 import { insertFailedRequest } from "@secondlayer/platform/db/queries/api-failed-requests";
+import { upsertStackStates } from "@secondlayer/platform/db/queries/hosted-stack-state";
 import { getDb } from "@secondlayer/shared/db";
 import { Hono, type MiddlewareHandler } from "hono";
 import type Stripe from "stripe";
@@ -372,6 +373,7 @@ describe.skipIf(!HAS_DB)("GET /usage", () => {
 		daily: Array<{ date: string; unit: string; usdMicros: string }>;
 		burn: { rateDayUsdMicros: string; windowHours: number };
 		service: {
+			stack: string;
 			state: "running" | "stopped" | "none";
 			lastChargedAt: string | null;
 			memory24h: Array<{
@@ -382,10 +384,18 @@ describe.skipIf(!HAS_DB)("GET /usage", () => {
 		};
 	};
 
-	test("service.state is running when a memory.gb_hour row landed in the last hour", async () => {
+	test("service reports the stack the workload host last reported, and keeps the three-value state", async () => {
 		const email = `billing-usage-svc-running-${Date.now()}@test.invalid`;
 		const account = await makeAccount(email);
 		await creditCredits(db, account.id, 1_000_000n);
+		await upsertStackStates(db, [
+			{
+				accountId: account.id,
+				state: "running",
+				stopReason: null,
+				observedAt: new Date(),
+			},
+		]);
 		await meter(db, {
 			accountId: account.id,
 			unit: "memory.gb_hour",
@@ -399,27 +409,37 @@ describe.skipIf(!HAS_DB)("GET /usage", () => {
 		const res = await appFor(account.id).request("/usage");
 		expect(res.status).toBe(200);
 		const body = (await res.json()) as UsageResponseBody;
+		expect(body.service.stack).toBe("running");
 		expect(body.service.state).toBe("running");
 		expect(body.service.lastChargedAt).not.toBeNull();
 		expect(body.service.memory24h.length).toBeGreaterThan(0);
 		expect(body.service.memory24h[0]?.observedGb).toBeCloseTo(0.3, 6);
 	});
 
-	test("service.state is stopped when the last memory.gb_hour row is 3h old", async () => {
+	test("an idle stop is stack stopped_idle, and stale ledger heartbeats do not make it running", async () => {
 		const email = `billing-usage-svc-stopped-${Date.now()}@test.invalid`;
 		const account = await makeAccount(email);
 		await creditCredits(db, account.id, 1_000_000n);
+		await upsertStackStates(db, [
+			{
+				accountId: account.id,
+				state: "stopped",
+				stopReason: "idle",
+				observedAt: new Date(),
+			},
+		]);
 		await meter(db, {
 			accountId: account.id,
 			unit: "memory.gb_hour",
 			quantity: 0.5,
 			source: "test",
 			idempotencyKey: `svc-stopped-${account.id}`,
-			occurredAt: new Date(Date.now() - 3 * 60 * 60 * 1000),
+			occurredAt: new Date(Date.now() - 10 * 60 * 1000),
 		});
 
 		const res = await appFor(account.id).request("/usage");
 		const body = (await res.json()) as UsageResponseBody;
+		expect(body.service.stack).toBe("stopped_idle");
 		expect(body.service.state).toBe("stopped");
 	});
 
@@ -431,6 +451,7 @@ describe.skipIf(!HAS_DB)("GET /usage", () => {
 		const res = await appFor(account.id).request("/usage");
 		const body = (await res.json()) as UsageResponseBody;
 		expect(body.service.state).toBe("none");
+		expect(body.service.stack).toBe("none");
 		expect(body.service.lastChargedAt).toBeNull();
 		expect(body.service.memory24h).toHaveLength(0);
 	});

@@ -39,6 +39,7 @@ import {
 	READ_PATH_PREFIXES,
 	failedRequestsByPath,
 } from "@secondlayer/platform/db/queries/api-failed-requests";
+import { legacyServiceState } from "@secondlayer/platform/db/queries/hosted-stack-state";
 import {
 	type RowsDay,
 	burnRateUsdMicros,
@@ -481,7 +482,13 @@ app.get("/usage", async (c) => {
 		usage,
 		daily,
 		burn: { rateDayUsdMicros: rateDayUsdMicros.toString(), windowHours: 24 },
-		service,
+		// `stack` is the real state; `state` keeps the old three values until
+		// the web app reads `stack`.
+		service: {
+			...service,
+			stack: service.state,
+			state: legacyServiceState(service.state),
+		},
 	});
 });
 

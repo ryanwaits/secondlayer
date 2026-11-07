@@ -39,6 +39,7 @@ import internalIntrospectRouter from "./routes/internal-introspect.ts";
 import internalMetersRouter from "./routes/internal-meters.ts";
 import internalPushRouter from "./routes/internal-push.ts";
 import internalSentinelRouter from "./routes/internal-sentinel.ts";
+import internalStackStateRouter from "./routes/internal-stack-state.ts";
 import internalTenantKeyRouter from "./routes/internal-tenant-key.ts";
 import internalWebhookIncidentsRouter from "./routes/internal-webhook-incidents.ts";
 import { createMcpRouter } from "./routes/mcp.ts";
@@ -256,6 +257,7 @@ export function createApiApp(mode: InstanceMode): Hono {
 		app.route("/internal/keys/introspect", internalIntrospectRouter);
 		app.route("/internal/keys/tenant", internalTenantKeyRouter);
 		app.route("/internal/accounts/credits", internalAccountsCreditsRouter);
+		app.route("/internal/stack-state", internalStackStateRouter);
 		// Sentinel's own guard: SENTINEL_SERVICE_KEY only, never the workload host key.
 		app.route("/internal/sentinel", internalSentinelRouter);
 	}
