@@ -12,9 +12,10 @@
  *    and accumulated into GB-seconds, flushed hourly.
  *  - `storage.gb_day`: `pg_database_size`, sampled here as admin once a day.
  *
- * All three funnel through `flushMeterBatch`, batched, with the exact
- * idempotency-key shapes the Design calls out — a re-sent batch (a crashed
- * flush retried) never double-charges.
+ * All three funnel through `flushMeterBatch`, batched. Memory and event keys
+ * name the accumulation window they cover (`[start, end)`), so a re-sent
+ * batch (a crashed flush retried) never double-charges, and two flushes in
+ * the same hour or minute (a restart) never share a key and drop the second.
  */
 
 import {
@@ -36,21 +37,108 @@ export interface MeterBatchItem {
 	occurredAt?: string;
 }
 
-/** `mem:<account>:<yyyy-mm-ddThh>` (Design) — one row per tenant per hour. */
-export function memoryIdempotencyKey(accountId: string, at: Date): string {
-	return `mem:${accountId}:${at.toISOString().slice(0, 13)}`;
-}
-
-/** `storage:<account>:<yyyy-mm-dd>` (Design) — one row per tenant per day. */
+/** `storage:<account>:<yyyy-mm-dd>` (Design) — one row per tenant per day.
+ *  Storage is a point-in-time sample, not an accumulation, so a second
+ *  same-day sample being a no-op is intended. */
 export function storageIdempotencyKey(accountId: string, at: Date): string {
 	return `storage:${accountId}:${at.toISOString().slice(0, 10)}`;
 }
 
-/** `evt:<account>:<yyyy-mm-ddThh:mm>` (Design) — one row per tenant per
- *  minute; retries are never counted (the socket only ever sees a
- *  successful delivery, `emitter.ts`'s `settleDelivered`). */
-export function eventsIdempotencyKey(accountId: string, at: Date): string {
-	return `evt:${accountId}:${at.toISOString().slice(0, 16)}`;
+/** The half-open span `[start, end)` an accumulated meter item covers. */
+export interface MeterWindow {
+	start: Date;
+	end: Date;
+}
+
+function windowKey(
+	prefix: "mem" | "evt",
+	accountId: string,
+	window: MeterWindow,
+): string {
+	return `${prefix}:${accountId}:${window.start.toISOString()}..${window.end.toISOString()}`;
+}
+
+/** `mem:<account>:<startISO>..<endISO>` — one row per tenant per
+ *  accumulation window. Every window starts at process boot or the previous
+ *  flush's end (ms precision), so two processes in the same hour never
+ *  share a key, and none can equal an old `mem:<account>:<yyyy-mm-ddThh>`
+ *  key (the `..` span never matches an hour string). */
+export function memoryWindowKey(
+	accountId: string,
+	window: MeterWindow,
+): string {
+	return windowKey("mem", accountId, window);
+}
+
+/** `evt:<account>:<startISO>..<endISO>` — same window rule as memory: a
+ *  same-minute restart can no longer reuse the previous flush's key. */
+export function eventsWindowKey(
+	accountId: string,
+	window: MeterWindow,
+): string {
+	return windowKey("evt", accountId, window);
+}
+
+/** Tracks where the next accumulation window starts. Created at process
+ *  boot, so a window never reaches back before this process's own
+ *  measurements; `roll` closes the current window and opens the next one at
+ *  the same instant, so consecutive windows tile with no gap or overlap. */
+export class DrainWindow {
+	private start: Date;
+
+	constructor(startedAt: Date = new Date()) {
+		this.start = startedAt;
+	}
+
+	roll(now: Date = new Date()): MeterWindow {
+		const end = now.getTime() < this.start.getTime() ? this.start : now;
+		const window = { start: this.start, end };
+		this.start = end;
+		return window;
+	}
+}
+
+/** GB-hours accumulated per tenant since the last drain. The sampler adds;
+ *  the hourly flush and the shutdown flush both `drain`, so each item is
+ *  keyed by the window it actually covers. */
+export class MemoryAccumulator {
+	private readonly gbHours = new Map<string, number>();
+	private readonly observedGbHours = new Map<string, number>();
+	private readonly window: DrainWindow;
+
+	constructor(startedAt: Date = new Date()) {
+		this.window = new DrainWindow(startedAt);
+	}
+
+	add(accountId: string, gbHours: number, observedGbHours: number): void {
+		this.gbHours.set(accountId, (this.gbHours.get(accountId) ?? 0) + gbHours);
+		this.observedGbHours.set(
+			accountId,
+			(this.observedGbHours.get(accountId) ?? 0) + observedGbHours,
+		);
+	}
+
+	/** One item per account with a positive total, then reset. */
+	drain(now: Date = new Date()): MeterBatchItem[] {
+		const window = this.window.roll(now);
+		const items: MeterBatchItem[] = [];
+		for (const [accountId, gbHours] of this.gbHours) {
+			if (gbHours <= 0) continue;
+			items.push({
+				accountId,
+				unit: "memory.gb_hour",
+				quantity: gbHours,
+				observedQuantity: this.observedGbHours.get(accountId),
+				idempotencyKey: memoryWindowKey(accountId, window),
+				// Dated at the window end, so a retried item keeps the hour it
+				// was measured in.
+				occurredAt: window.end.toISOString(),
+			});
+		}
+		this.gbHours.clear();
+		this.observedGbHours.clear();
+		return items;
+	}
 }
 
 export interface MetersClientConfig {
@@ -141,6 +229,13 @@ export function startMeterSocketServer(
 	return { stop: () => server.stop(true) };
 }
 
+export interface MemorySample {
+	/** GB-hours for the sample interval, floored at the stack minimum. */
+	quantity: number;
+	/** The same interval at the raw, unfloored RSS. */
+	observedQuantity: number;
+}
+
 /** One tenant's memory sample: RSS summed across its containers, in GiB.
  *  `sampleCgroupBytes` is injected so tests never shell out to `docker
  *  stats`; the real implementation lives in `index.ts` (needs the compose
@@ -150,31 +245,20 @@ export function startMeterSocketServer(
  *  stack always bills at least that, even idling near 0. Only running
  *  tenants are sampled (`listRunningTenants`), so a stopped stack is never
  *  floored. `observedQuantity` carries the raw, unfloored sample for the
- *  credits page's memory chart. */
+ *  credits page's memory chart. Samples go into a `MemoryAccumulator`,
+ *  which owns the idempotency key and date of what actually gets flushed. */
 export async function sampleMemoryGbHour(
 	accountId: string,
 	sampleCgroupBytes: (accountId: string) => Promise<number>,
 	intervalSeconds: number,
 	hasSubgraphs: boolean,
-): Promise<MeterBatchItem> {
+): Promise<MemorySample> {
 	const bytes = await sampleCgroupBytes(accountId);
 	const rawGb = bytes / 1024 ** 3;
 	const gb = Math.max(rawGb, stackMemoryFloorGb(hasSubgraphs));
-	const gbHours = gb * (intervalSeconds / 3600);
-	const observedGbHours = rawGb * (intervalSeconds / 3600);
-	// The idempotency key AND `occurredAt` are pinned to this one sample
-	// time — a batch that fails to flush and gets resent later (same key)
-	// must keep dating the charge at when it was actually sampled, not
-	// whenever the retry happens to land, or the trailing-24h burn rate and
-	// the memory chart both read the wrong hour.
-	const now = new Date();
 	return {
-		accountId,
-		unit: "memory.gb_hour",
-		quantity: gbHours,
-		observedQuantity: observedGbHours,
-		idempotencyKey: memoryIdempotencyKey(accountId, now),
-		occurredAt: now.toISOString(),
+		quantity: gb * (intervalSeconds / 3600),
+		observedQuantity: rawGb * (intervalSeconds / 3600),
 	};
 }
 
@@ -199,24 +283,19 @@ export async function sampleStorageGbDay(
 	};
 }
 
-/** `occurredAt` is optional and, when passed, pins both the idempotency key
- *  and the item's `occurredAt` to that same instant — the shutdown-flush
- *  path (`collectShutdownFlushItems`) uses this so a drained counter is
- *  dated at the moment it was drained, not whenever the flush happens to
- *  land. Omitted (the regular per-tick flush loop) keeps prior behavior
- *  unchanged. */
+/** One tenant's drained event count for `window`, keyed and dated by it. */
 export function eventsMeterItem(
 	accountId: string,
 	count: number,
-	occurredAt?: Date,
+	window: MeterWindow,
 ): MeterBatchItem | undefined {
 	if (count <= 0) return undefined;
 	return {
 		accountId,
 		unit: "webhook.event",
 		quantity: count,
-		idempotencyKey: eventsIdempotencyKey(accountId, occurredAt ?? new Date()),
-		occurredAt: occurredAt?.toISOString(),
+		idempotencyKey: eventsWindowKey(accountId, window),
+		occurredAt: window.end.toISOString(),
 	};
 }
 
@@ -403,12 +482,9 @@ export async function flushAll(
 
 export interface ShutdownFlushState {
 	eventCounters: Map<string, EventCounter>;
+	eventWindow: DrainWindow;
 	eventPending: MeterBatchItem[];
-	memoryAccumulatorGbHours: Map<string, number>;
-	/** Raw (unfloored) counterpart of `memoryAccumulatorGbHours`, keyed the
-	 *  same way. Optional so callers that predate observed-quantity
-	 *  tracking still compile; omitted accounts simply flush without one. */
-	memoryObservedAccumulatorGbHours?: Map<string, number>;
+	memory: MemoryAccumulator;
 	memoryPending: MeterBatchItem[];
 	storagePending: MeterBatchItem[];
 }
@@ -416,61 +492,62 @@ export interface ShutdownFlushState {
 /**
  * Drains every meter's live in-process state into one item list for a final
  * shutdown flush, ahead of each meter's own already-buffered retry items.
- * Every idempotency key here is identical to what that meter's own loop
- * would produce for "right now" (hour/day/minute-keyed), so a re-send on the
- * next boot — before this flush's response is even known — can never
- * double-charge (review: shutdown used to `process.exit(0)` straight past
- * these, dropping up to an hour of memory usage plus anything already
- * sitting in a pending buffer). Storage has no in-process accumulator to
- * drain — each sample reads live `pg_database_size`, nothing accrues
- * between ticks — so only its pending retry buffer is included. Mutates
- * `state.eventCounters` (drains each counter) and clears
- * `state.memoryAccumulatorGbHours`, mirroring what the periodic loops do.
+ * Event and memory items are keyed by the window they cover, which starts
+ * where the previous flush ended, so this flush can never share a key with
+ * an earlier flush in the same minute or hour. Storage has no in-process
+ * accumulator to drain — each sample reads live `pg_database_size` — so only
+ * its pending retry buffer is included. Mutates `state`: drains each
+ * counter and the memory accumulator, like the periodic loops do.
  */
 export function collectShutdownFlushItems(
 	state: ShutdownFlushState,
+	now: Date = new Date(),
 ): MeterBatchItem[] {
-	const now = new Date();
 	const items: MeterBatchItem[] = [
 		...state.eventPending,
 		...state.memoryPending,
 		...state.storagePending,
 	];
 
+	const eventWindow = state.eventWindow.roll(now);
 	for (const [accountId, counter] of state.eventCounters) {
-		// Dated at `now` (this shutdown), not left for the API to default at
-		// whatever moment the flush actually lands.
-		const item = eventsMeterItem(accountId, counter.drain(), now);
+		const item = eventsMeterItem(accountId, counter.drain(), eventWindow);
 		if (item) items.push(item);
 	}
-
-	for (const [accountId, gbHours] of state.memoryAccumulatorGbHours) {
-		if (gbHours > 0) {
-			const observedGbHours =
-				state.memoryObservedAccumulatorGbHours?.get(accountId);
-			items.push({
-				accountId,
-				unit: "memory.gb_hour",
-				quantity: gbHours,
-				observedQuantity: observedGbHours,
-				idempotencyKey: memoryIdempotencyKey(accountId, now),
-				occurredAt: now.toISOString(),
-			});
-		}
-	}
-	state.memoryAccumulatorGbHours.clear();
-	state.memoryObservedAccumulatorGbHours?.clear();
+	items.push(...state.memory.drain(now));
 
 	return items;
 }
 
+/** Structured record of meter quantities that will never be billed (buffer
+ *  overflow, failed shutdown flush). Totals per unit plus the heaviest
+ *  accounts, so the loss can be reconciled by hand. */
+export function logDroppedMeters(
+	reason: string,
+	dropped: MeterBatchItem[],
+): void {
+	if (dropped.length === 0) return;
+	const byUnit: Record<string, number> = {};
+	const byAccount = new Map<string, number>();
+	for (const item of dropped) {
+		byUnit[item.unit] = (byUnit[item.unit] ?? 0) + item.quantity;
+		const k = `${item.accountId}:${item.unit}`;
+		byAccount.set(k, (byAccount.get(k) ?? 0) + item.quantity);
+	}
+	const top = [...byAccount.entries()].sort((a, b) => b[1] - a[1]).slice(0, 50);
+	logger.error("meter.dropped", {
+		reason,
+		count: dropped.length,
+		byUnit,
+		byAccount: Object.fromEntries(top),
+	});
+}
+
 /**
  * Flushes shutdown items bounded by `timeoutMs` — a hung flush (e.g. a dead
- * app-server) must never delay process exit past the deadline. `flushAll`
- * already catches and logs a failed page's error internally (returning it
- * unsent), so this only needs to race the whole call against the timeout;
- * whatever didn't land in time is simply lost this restart, same as any
- * other flush failure, just capped.
+ * app-server) must never delay process exit past the deadline. Pages that
+ * fail outright are logged as dropped; on a timeout whatever hadn't landed
+ * is lost this restart, and the timeout is logged.
  */
 export async function flushOnShutdown(
 	cfg: MetersClientConfig,
@@ -479,10 +556,21 @@ export async function flushOnShutdown(
 	timeoutMs: number,
 ): Promise<void> {
 	if (items.length === 0) return;
+	let timedOut = false;
 	await Promise.race([
-		flushAll(cfg, items, maxBatch).then(() => {}),
-		new Promise<void>((resolve) => setTimeout(resolve, timeoutMs)),
+		flushAll(cfg, items, maxBatch).then((failed) => {
+			logDroppedMeters("shutdown_flush_failed", failed);
+		}),
+		new Promise<void>((resolve) =>
+			setTimeout(() => {
+				timedOut = true;
+				resolve();
+			}, timeoutMs),
+		),
 	]);
+	if (timedOut) {
+		logger.error("meter.shutdown_flush_timeout", { count: items.length });
+	}
 }
 
 /** Default cap for a caller's retry buffer (see `mergePending`) — generous
@@ -495,16 +583,26 @@ export const DEFAULT_PENDING_CAP = 10_000;
  * `flushAll` failure) ahead of freshly-sampled `fresh` ones, then caps the
  * result at `cap` by dropping the OLDEST items — never the newest, and never
  * rebuilding an item, so a retried item keeps its original idempotency key
- * across ticks (two `evt:` samples a minute apart get different keys; a
- * retry of the first must not silently become the second's).
+ * across ticks. Dropped items are returned so the caller can log them
+ * (`logDroppedMeters`).
  */
 export function mergePending(
 	pending: MeterBatchItem[],
 	fresh: MeterBatchItem[],
 	cap: number = DEFAULT_PENDING_CAP,
-): { items: MeterBatchItem[]; droppedCount: number } {
+): {
+	items: MeterBatchItem[];
+	droppedCount: number;
+	dropped: MeterBatchItem[];
+} {
 	const merged = [...pending, ...fresh];
-	if (merged.length <= cap) return { items: merged, droppedCount: 0 };
+	if (merged.length <= cap) {
+		return { items: merged, droppedCount: 0, dropped: [] };
+	}
 	const droppedCount = merged.length - cap;
-	return { items: merged.slice(droppedCount), droppedCount };
+	return {
+		items: merged.slice(droppedCount),
+		droppedCount,
+		dropped: merged.slice(0, droppedCount),
+	};
 }

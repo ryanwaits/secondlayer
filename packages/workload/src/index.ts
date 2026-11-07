@@ -54,12 +54,15 @@ import { handleGatewayRequest } from "./gateway.ts";
 import { IntrospectClient } from "./introspect-client.ts";
 import {
 	DEFAULT_PENDING_CAP,
+	DrainWindow,
 	EventCounter,
+	MemoryAccumulator,
 	type MeterBatchItem,
 	collectShutdownFlushItems,
 	eventsMeterItem,
 	flushAll,
 	flushOnShutdown,
+	logDroppedMeters,
 	mergePending,
 	sampleMemoryGbHour,
 	sampleStorageGbDay,
@@ -347,28 +350,25 @@ async function main(): Promise<void> {
 	// tick's fresh items, so an app-server outage delays a batch instead of
 	// losing it.
 	let eventPending: MeterBatchItem[] = [];
+	// Windows start at boot, so a restart in the same minute never reuses the
+	// previous process's keys.
+	const eventWindow = new DrainWindow();
 	const eventFlushLoop = setInterval(async () => {
-		// One `now` for the whole tick: every counter drained this pass is
-		// dated at when it was actually drained, so a batch that fails to
-		// flush and gets resent later keeps its real minute instead of
-		// whatever time the retry happens to land.
-		const now = new Date();
+		// One window for the whole tick: every counter drained this pass is
+		// keyed and dated by it, so a batch that fails to flush and gets
+		// resent later keeps its real window.
+		const window = eventWindow.roll();
 		const fresh: MeterBatchItem[] = [];
 		for (const [accountId, counter] of eventCounters) {
-			const item = eventsMeterItem(accountId, counter.drain(), now);
+			const item = eventsMeterItem(accountId, counter.drain(), window);
 			if (item) fresh.push(item);
 		}
-		const { items, droppedCount } = mergePending(
+		const { items, dropped } = mergePending(
 			eventPending,
 			fresh,
 			DEFAULT_PENDING_CAP,
 		);
-		if (droppedCount > 0) {
-			logger.error("workload.meters.pending_overflow", {
-				loop: "events",
-				droppedCount,
-			});
-		}
+		logDroppedMeters("pending_overflow:events", dropped);
 		eventPending = await flushAll(
 			{ appServerUrl, workloadHostKey },
 			items,
@@ -380,8 +380,7 @@ async function main(): Promise<void> {
 	// account, flush hourly. `runningTenants` re-lists every tick so a
 	// newly-running or newly-stopped tenant is picked up/dropped without a
 	// restart.
-	const memoryAccumulatorGbHours = new Map<string, number>();
-	const memoryObservedAccumulatorGbHours = new Map<string, number>();
+	const memoryAccumulator = new MemoryAccumulator();
 	const memorySampleLoop = setInterval(async () => {
 		let running: TenantRow[];
 		try {
@@ -400,15 +399,10 @@ async function main(): Promise<void> {
 					MEMORY_SAMPLE_INTERVAL_MS / 1000,
 					tenant.has_subgraphs,
 				);
-				memoryAccumulatorGbHours.set(
+				memoryAccumulator.add(
 					tenant.account_id,
-					(memoryAccumulatorGbHours.get(tenant.account_id) ?? 0) +
-						item.quantity,
-				);
-				memoryObservedAccumulatorGbHours.set(
-					tenant.account_id,
-					(memoryObservedAccumulatorGbHours.get(tenant.account_id) ?? 0) +
-						(item.observedQuantity ?? item.quantity),
+					item.quantity,
+					item.observedQuantity,
 				);
 			} catch (err) {
 				logger.error("workload.meters.memory_sample_failed", {
@@ -421,36 +415,13 @@ async function main(): Promise<void> {
 
 	let memoryPending: MeterBatchItem[] = [];
 	const memoryFlushLoop = setInterval(async () => {
-		const now = new Date();
-		const fresh: MeterBatchItem[] = [];
-		for (const [accountId, gbHours] of memoryAccumulatorGbHours) {
-			if (gbHours <= 0) continue;
-			fresh.push({
-				accountId,
-				unit: "memory.gb_hour",
-				quantity: gbHours,
-				observedQuantity: memoryObservedAccumulatorGbHours.get(accountId),
-				idempotencyKey: `mem:${accountId}:${now.toISOString().slice(0, 13)}`,
-				// Dated at this flush tick, not left for the API to default at
-				// whatever time a retry of this same item eventually lands —
-				// this loop (not `sampleMemoryGbHour`) builds the item that
-				// actually gets POSTed, so this is where the real fix lives.
-				occurredAt: now.toISOString(),
-			});
-		}
-		memoryAccumulatorGbHours.clear();
-		memoryObservedAccumulatorGbHours.clear();
-		const { items, droppedCount } = mergePending(
+		const fresh = memoryAccumulator.drain();
+		const { items, dropped } = mergePending(
 			memoryPending,
 			fresh,
 			DEFAULT_PENDING_CAP,
 		);
-		if (droppedCount > 0) {
-			logger.error("workload.meters.pending_overflow", {
-				loop: "memory",
-				droppedCount,
-			});
-		}
+		logDroppedMeters("pending_overflow:memory", dropped);
 		memoryPending = await flushAll(
 			{ appServerUrl, workloadHostKey },
 			items,
@@ -484,17 +455,12 @@ async function main(): Promise<void> {
 				});
 			}
 		}
-		const { items, droppedCount } = mergePending(
+		const { items, dropped } = mergePending(
 			storagePending,
 			fresh,
 			DEFAULT_PENDING_CAP,
 		);
-		if (droppedCount > 0) {
-			logger.error("workload.meters.pending_overflow", {
-				loop: "storage",
-				droppedCount,
-			});
-		}
+		logDroppedMeters("pending_overflow:storage", dropped);
 		storagePending = await flushAll(
 			{ appServerUrl, workloadHostKey },
 			items,
@@ -629,9 +595,9 @@ async function main(): Promise<void> {
 		// bounded so a dead app-server can't delay exit past the timeout.
 		const items = collectShutdownFlushItems({
 			eventCounters,
+			eventWindow,
 			eventPending,
-			memoryAccumulatorGbHours,
-			memoryObservedAccumulatorGbHours,
+			memory: memoryAccumulator,
 			memoryPending,
 			storagePending,
 		});

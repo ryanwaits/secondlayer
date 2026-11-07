@@ -7,15 +7,18 @@ import {
 	stackMemoryFloorGb,
 } from "@secondlayer/platform/billing/prices";
 import {
+	DrainWindow,
 	EventCounter,
+	MemoryAccumulator,
 	collectShutdownFlushItems,
 	countTenantWorkloads,
-	eventsIdempotencyKey,
 	eventsMeterItem,
+	eventsWindowKey,
 	flushAll,
 	flushMeterBatch,
 	flushOnShutdown,
-	memoryIdempotencyKey,
+	logDroppedMeters,
+	memoryWindowKey,
 	mergePending,
 	parseDockerStatsMemUsageBytes,
 	parseMemUsageToBytes,
@@ -28,11 +31,17 @@ import {
 	storageIdempotencyKey,
 } from "./meters.ts";
 
-describe("idempotency key shapes (Design)", () => {
+describe("idempotency key shapes", () => {
 	const at = new Date("2026-09-25T14:37:12.000Z");
+	const window = {
+		start: new Date("2026-09-25T14:05:03.123Z"),
+		end: new Date("2026-09-25T15:00:00.000Z"),
+	};
 
-	test("memory: mem:<account>:<yyyy-mm-ddThh>", () => {
-		expect(memoryIdempotencyKey("acct_1", at)).toBe("mem:acct_1:2026-09-25T14");
+	test("memory: mem:<account>:<startISO>..<endISO>", () => {
+		expect(memoryWindowKey("acct_1", window)).toBe(
+			"mem:acct_1:2026-09-25T14:05:03.123Z..2026-09-25T15:00:00.000Z",
+		);
 	});
 
 	test("storage: storage:<account>:<yyyy-mm-dd>", () => {
@@ -41,17 +50,76 @@ describe("idempotency key shapes (Design)", () => {
 		);
 	});
 
-	test("events: evt:<account>:<yyyy-mm-ddThh:mm>", () => {
-		expect(eventsIdempotencyKey("acct_1", at)).toBe(
-			"evt:acct_1:2026-09-25T14:37",
+	test("events: evt:<account>:<startISO>..<endISO>", () => {
+		expect(eventsWindowKey("acct_1", window)).toBe(
+			"evt:acct_1:2026-09-25T14:05:03.123Z..2026-09-25T15:00:00.000Z",
 		);
 	});
 
-	test("two samples in the same hour produce the same memory key (safe re-send)", () => {
-		const a = new Date("2026-09-25T14:01:00.000Z");
-		const b = new Date("2026-09-25T14:59:00.000Z");
-		expect(memoryIdempotencyKey("acct_1", a)).toBe(
-			memoryIdempotencyKey("acct_1", b),
+	test("a window key never equals the hour-shaped key an older process wrote for the same hour", () => {
+		const oldHourKey = "mem:acct_1:2026-09-25T14";
+		expect(memoryWindowKey("acct_1", window)).not.toBe(oldHourKey);
+		expect(memoryWindowKey("acct_1", window)).toContain("..");
+	});
+});
+
+describe("DrainWindow", () => {
+	test("consecutive windows tile: each starts where the previous ended", () => {
+		const boot = new Date("2026-09-25T14:05:03.123Z");
+		const w = new DrainWindow(boot);
+		const first = w.roll(new Date("2026-09-25T15:00:00.000Z"));
+		const second = w.roll(new Date("2026-09-25T16:00:00.000Z"));
+		expect(first.start).toEqual(boot);
+		expect(second.start).toEqual(first.end);
+	});
+
+	test("a clock that steps backwards never produces a window that ends before it starts", () => {
+		const boot = new Date("2026-09-25T14:05:00.000Z");
+		const w = new DrainWindow(boot);
+		const window = w.roll(new Date("2026-09-25T14:00:00.000Z"));
+		expect(window.end).toEqual(boot);
+	});
+});
+
+describe("MemoryAccumulator", () => {
+	test("a restart in the same hour bills both halves under different keys", () => {
+		// Process A: boots 14:05, flushes hourly at 15:00 and drains at a
+		// 15:20 shutdown. Process B boots 15:21 and flushes at 16:00.
+		const a = new MemoryAccumulator(new Date("2026-09-25T14:05:00.000Z"));
+		a.add("acct_1", 0.5, 0.4);
+		const hourly = a.drain(new Date("2026-09-25T15:00:00.000Z"));
+		a.add("acct_1", 0.25, 0.2);
+		const shutdown = a.drain(new Date("2026-09-25T15:20:00.000Z"));
+
+		const b = new MemoryAccumulator(new Date("2026-09-25T15:21:00.000Z"));
+		b.add("acct_1", 0.75, 0.6);
+		const afterRestart = b.drain(new Date("2026-09-25T16:00:00.000Z"));
+
+		const all = [...hourly, ...shutdown, ...afterRestart];
+		const keys = all.map((i) => i.idempotencyKey);
+		expect(new Set(keys).size).toBe(3);
+		expect(all.map((i) => i.quantity)).toEqual([0.5, 0.25, 0.75]);
+		expect(all.reduce((sum, i) => sum + i.quantity, 0)).toBe(1.5);
+	});
+
+	test("drain dates each item at its window end and carries the observed total", () => {
+		const acc = new MemoryAccumulator(new Date("2026-09-25T14:00:00.000Z"));
+		acc.add("acct_1", 0.1, 0.05);
+		acc.add("acct_1", 0.2, 0.15);
+		const [item] = acc.drain(new Date("2026-09-25T15:00:00.000Z"));
+		expect(item?.quantity).toBeCloseTo(0.3, 9);
+		expect(item?.observedQuantity).toBeCloseTo(0.2, 9);
+		expect(item?.occurredAt).toBe("2026-09-25T15:00:00.000Z");
+	});
+
+	test("an empty or zero accumulator drains nothing and still advances the window", () => {
+		const acc = new MemoryAccumulator(new Date("2026-09-25T14:00:00.000Z"));
+		acc.add("acct_zero", 0, 0);
+		expect(acc.drain(new Date("2026-09-25T15:00:00.000Z"))).toEqual([]);
+		acc.add("acct_1", 1, 1);
+		const [item] = acc.drain(new Date("2026-09-25T16:00:00.000Z"));
+		expect(item?.idempotencyKey).toBe(
+			"mem:acct_1:2026-09-25T15:00:00.000Z..2026-09-25T16:00:00.000Z",
 		);
 	});
 });
@@ -87,26 +155,41 @@ describe("EventCounter", () => {
 });
 
 describe("eventsMeterItem", () => {
+	const window = {
+		start: new Date("2026-09-25T22:06:00.000Z"),
+		end: new Date("2026-09-25T22:07:00.000Z"),
+	};
+
 	test("zero count produces no item (never a zero-quantity meter row)", () => {
-		expect(eventsMeterItem("acct_1", 0)).toBeUndefined();
+		expect(eventsMeterItem("acct_1", 0, window)).toBeUndefined();
 	});
 
-	test("a positive count produces a webhook.event item", () => {
-		const item = eventsMeterItem("acct_1", 12);
+	test("a positive count produces a webhook.event item keyed and dated by its window", () => {
+		const item = eventsMeterItem("acct_1", 12, window);
 		expect(item?.unit).toBe("webhook.event");
 		expect(item?.quantity).toBe(12);
 		expect(item?.accountId).toBe("acct_1");
-	});
-
-	test("occurredAt is unset when no drain time is passed (regular tick, unchanged behavior)", () => {
-		const item = eventsMeterItem("acct_1", 12);
-		expect(item?.occurredAt).toBeUndefined();
-	});
-
-	test("occurredAt is pinned to the passed drain time", () => {
-		const drainedAt = new Date("2026-09-25T22:07:00.000Z");
-		const item = eventsMeterItem("acct_1", 12, drainedAt);
+		expect(item?.idempotencyKey).toBe(eventsWindowKey("acct_1", window));
 		expect(item?.occurredAt).toBe("2026-09-25T22:07:00.000Z");
+	});
+
+	test("a flush then a shutdown drain in the same minute bill both counts", () => {
+		const counter = new EventCounter();
+		const w = new DrainWindow(new Date("2026-09-25T22:06:00.000Z"));
+		counter.add(10);
+		const tick = eventsMeterItem(
+			"acct_1",
+			counter.drain(),
+			w.roll(new Date("2026-09-25T22:06:20.000Z")),
+		);
+		counter.add(4);
+		const shutdown = eventsMeterItem(
+			"acct_1",
+			counter.drain(),
+			w.roll(new Date("2026-09-25T22:06:50.000Z")),
+		);
+		expect(tick?.idempotencyKey).not.toBe(shutdown?.idempotencyKey);
+		expect((tick?.quantity ?? 0) + (shutdown?.quantity ?? 0)).toBe(14);
 	});
 });
 
@@ -118,7 +201,6 @@ describe("sampleMemoryGbHour / sampleStorageGbDay", () => {
 			60,
 			false,
 		);
-		expect(item.unit).toBe("memory.gb_hour");
 		expect(item.quantity).toBeCloseTo(2 / 60, 6);
 	});
 
@@ -135,7 +217,6 @@ describe("sampleMemoryGbHour / sampleStorageGbDay", () => {
 			3600,
 			false,
 		);
-		expect(item.unit).toBe("memory.gb_hour");
 		expect(item.quantity).toBeCloseTo(stackMemoryFloorGb(false), 6);
 		// One hour at the floor: 6,849 µ$, which is $5.00 over 730 hours.
 		expect(Math.round(Number(PRICES["memory.gb_hour"]) * item.quantity)).toBe(
@@ -174,25 +255,9 @@ describe("sampleMemoryGbHour / sampleStorageGbDay", () => {
 			3600,
 			false,
 		);
-		expect(item.unit).toBe("memory.gb_hour");
 		expect(item.quantity).toBeCloseTo(2, 6);
 		// Above the floor, observedQuantity equals the billed quantity.
 		expect(item.observedQuantity).toBeCloseTo(2, 6);
-	});
-
-	test("memory: occurredAt is pinned to the sample time, not left for /internal/meters to default at flush time", async () => {
-		const before = Date.now();
-		const item = await sampleMemoryGbHour(
-			"acct_1",
-			async () => 2 * 1024 ** 3,
-			60,
-			false,
-		);
-		const after = Date.now();
-		expect(item.occurredAt).toBeDefined();
-		const occurredAtMs = Date.parse(item.occurredAt as string);
-		expect(occurredAtMs).toBeGreaterThanOrEqual(before);
-		expect(occurredAtMs).toBeLessThanOrEqual(after);
 	});
 
 	test("storage: occurredAt is pinned to the sample time", async () => {
@@ -348,8 +413,10 @@ describe("flushAll", () => {
 	});
 
 	test("a retried events item (built by eventsMeterItem at drain time) keeps its original occurredAt", async () => {
-		const drainedAt = new Date("2026-09-25T22:07:00.000Z");
-		const item = eventsMeterItem("acct_1", 40, drainedAt);
+		const item = eventsMeterItem("acct_1", 40, {
+			start: new Date("2026-09-25T22:06:00.000Z"),
+			end: new Date("2026-09-25T22:07:00.000Z"),
+		});
 		if (!item) throw new Error("expected an item for a positive count");
 
 		const failed = await flushAll(
@@ -424,8 +491,9 @@ describe("mergePending", () => {
 			quantity: 1,
 			idempotencyKey: `new${i}`,
 		}));
-		const { items, droppedCount } = mergePending(pending, fresh, 5);
+		const { items, droppedCount, dropped } = mergePending(pending, fresh, 5);
 		expect(droppedCount).toBe(2);
+		expect(dropped.map((i) => i.idempotencyKey)).toEqual(["old0", "old1"]);
 		// the 2 oldest pending items are gone; everything else survives in order
 		expect(items.map((i) => i.idempotencyKey)).toEqual([
 			"old2",
@@ -444,17 +512,24 @@ describe("mergePending", () => {
 });
 
 describe("collectShutdownFlushItems", () => {
-	test("drains each EventCounter and the memory accumulator, ahead of every pending buffer", () => {
+	const boot = new Date("2026-09-25T14:05:00.000Z");
+	const shutdownAt = new Date("2026-09-25T14:40:00.000Z");
+
+	test("drains each EventCounter and the memory accumulator, behind every pending buffer", () => {
 		const counterA = new EventCounter();
 		counterA.add(5);
 		const counterB = new EventCounter();
 		counterB.add(2);
+		const memory = new MemoryAccumulator(boot);
+		memory.add("acct_a", 1.5, 1.2);
+		memory.add("acct_zero", 0, 0);
 
 		const state = {
 			eventCounters: new Map([
 				["acct_a", counterA],
 				["acct_b", counterB],
 			]),
+			eventWindow: new DrainWindow(boot),
 			eventPending: [
 				{
 					accountId: "acct_a",
@@ -463,10 +538,7 @@ describe("collectShutdownFlushItems", () => {
 					idempotencyKey: "evt:acct_a:pending",
 				},
 			],
-			memoryAccumulatorGbHours: new Map([
-				["acct_a", 1.5],
-				["acct_zero", 0],
-			]),
+			memory,
 			memoryPending: [
 				{
 					accountId: "acct_a",
@@ -485,14 +557,16 @@ describe("collectShutdownFlushItems", () => {
 			],
 		};
 
-		const items = collectShutdownFlushItems(state);
+		const items = collectShutdownFlushItems(state, shutdownAt);
 
 		// Pending (already-retried) items come first, in buffer order.
 		expect(items[0]?.idempotencyKey).toBe("evt:acct_a:pending");
 		expect(items[1]?.idempotencyKey).toBe("mem:acct_a:pending");
 		expect(items[2]?.idempotencyKey).toBe("storage:acct_a:pending");
 
-		const eventItems = items.filter((i) => i.unit === "webhook.event");
+		const eventItems = items.filter(
+			(i) => i.unit === "webhook.event" && i.idempotencyKey.includes(".."),
+		);
 		expect(eventItems).toContainEqual(
 			expect.objectContaining({ accountId: "acct_a", quantity: 5 }),
 		);
@@ -501,88 +575,147 @@ describe("collectShutdownFlushItems", () => {
 		);
 
 		const memoryItems = items.filter(
-			(i) =>
-				i.unit === "memory.gb_hour" &&
-				i.idempotencyKey !== "mem:acct_a:pending",
+			(i) => i.unit === "memory.gb_hour" && i.idempotencyKey.includes(".."),
 		);
 		expect(memoryItems).toEqual([
 			expect.objectContaining({ accountId: "acct_a", quantity: 1.5 }),
 		]);
 
-		// acct_zero had a non-positive accumulator — never a zero-quantity row.
+		// acct_zero had a non-positive accumulator: never a zero-quantity row.
 		expect(items.some((i) => i.accountId === "acct_zero")).toBe(false);
 
-		// Both live counters are drained, and the memory accumulator is cleared,
-		// exactly like the periodic loops do — a second call finds nothing left.
+		// Live state is drained: a second call finds nothing left.
 		expect(counterA.drain()).toBe(0);
 		expect(counterB.drain()).toBe(0);
-		expect(state.memoryAccumulatorGbHours.size).toBe(0);
+		expect(memory.drain(shutdownAt)).toEqual([]);
 	});
 
 	test("no live state and empty pending buffers produces an empty list", () => {
-		const items = collectShutdownFlushItems({
-			eventCounters: new Map(),
-			eventPending: [],
-			memoryAccumulatorGbHours: new Map(),
-			memoryPending: [],
-			storagePending: [],
-		});
+		const items = collectShutdownFlushItems(
+			{
+				eventCounters: new Map(),
+				eventWindow: new DrainWindow(boot),
+				eventPending: [],
+				memory: new MemoryAccumulator(boot),
+				memoryPending: [],
+				storagePending: [],
+			},
+			shutdownAt,
+		);
 		expect(items).toEqual([]);
 	});
 
-	test("freshly-drained items (live counter + live accumulator) are dated at this shutdown, not left unset", () => {
-		const before = Date.now();
+	test("freshly-drained items share one shutdown instant as their window end and date", () => {
 		const counter = new EventCounter();
 		counter.add(3);
+		const memory = new MemoryAccumulator(boot);
+		memory.add("acct_a", 1.5, 1.2);
 
-		const items = collectShutdownFlushItems({
-			eventCounters: new Map([["acct_a", counter]]),
-			eventPending: [],
-			memoryAccumulatorGbHours: new Map([["acct_a", 1.5]]),
-			memoryObservedAccumulatorGbHours: new Map([["acct_a", 1.2]]),
-			memoryPending: [],
-			storagePending: [],
-		});
-		const after = Date.now();
+		const items = collectShutdownFlushItems(
+			{
+				eventCounters: new Map([["acct_a", counter]]),
+				eventWindow: new DrainWindow(boot),
+				eventPending: [],
+				memory,
+				memoryPending: [],
+				storagePending: [],
+			},
+			shutdownAt,
+		);
 
 		expect(items).toHaveLength(2);
 		for (const item of items) {
-			expect(item.occurredAt).toBeDefined();
-			const ms = Date.parse(item.occurredAt as string);
-			expect(ms).toBeGreaterThanOrEqual(before);
-			expect(ms).toBeLessThanOrEqual(after);
+			expect(item.occurredAt).toBe(shutdownAt.toISOString());
+			expect(
+				item.idempotencyKey.endsWith(`..${shutdownAt.toISOString()}`),
+			).toBe(true);
 		}
-		// The event item and the memory item share the exact same shutdown
-		// instant — one `now`, not two independently-read clocks.
-		expect(items[0]?.occurredAt).toBe(items[1]?.occurredAt);
+	});
+
+	test("a shutdown in the same hour as the last hourly flush does not reuse its key", () => {
+		const memory = new MemoryAccumulator(boot);
+		memory.add("acct_a", 1, 1);
+		const hourly = memory.drain(new Date("2026-09-25T14:30:00.000Z"));
+		memory.add("acct_a", 0.5, 0.5);
+		const items = collectShutdownFlushItems(
+			{
+				eventCounters: new Map(),
+				eventWindow: new DrainWindow(boot),
+				eventPending: [],
+				memory,
+				memoryPending: [],
+				storagePending: [],
+			},
+			shutdownAt,
+		);
+		expect(items).toHaveLength(1);
+		expect(items[0]?.idempotencyKey).not.toBe(hourly[0]?.idempotencyKey);
+		expect(items[0]?.quantity).toBe(0.5);
 	});
 
 	test("already-pending items (from an earlier failed flush) pass through with whatever occurredAt they already carried", () => {
-		const items = collectShutdownFlushItems({
-			eventCounters: new Map(),
-			eventPending: [
-				{
-					accountId: "acct_a",
-					unit: "webhook.event" as const,
-					quantity: 1,
-					idempotencyKey: "evt:acct_a:pending",
-					occurredAt: "2026-09-25T22:00:00.000Z",
-				},
-			],
-			memoryAccumulatorGbHours: new Map(),
-			memoryPending: [
-				{
-					accountId: "acct_a",
-					unit: "memory.gb_hour" as const,
-					quantity: 0.25,
-					idempotencyKey: "mem:acct_a:pending",
-					occurredAt: "2026-09-25T23:00:00.000Z",
-				},
-			],
-			storagePending: [],
-		});
+		const items = collectShutdownFlushItems(
+			{
+				eventCounters: new Map(),
+				eventWindow: new DrainWindow(boot),
+				eventPending: [
+					{
+						accountId: "acct_a",
+						unit: "webhook.event" as const,
+						quantity: 1,
+						idempotencyKey: "evt:acct_a:pending",
+						occurredAt: "2026-09-25T22:00:00.000Z",
+					},
+				],
+				memory: new MemoryAccumulator(boot),
+				memoryPending: [
+					{
+						accountId: "acct_a",
+						unit: "memory.gb_hour" as const,
+						quantity: 0.25,
+						idempotencyKey: "mem:acct_a:pending",
+						occurredAt: "2026-09-25T23:00:00.000Z",
+					},
+				],
+				storagePending: [],
+			},
+			shutdownAt,
+		);
 		expect(items[0]?.occurredAt).toBe("2026-09-25T22:00:00.000Z");
 		expect(items[1]?.occurredAt).toBe("2026-09-25T23:00:00.000Z");
+	});
+});
+
+describe("logDroppedMeters", () => {
+	test("sums dropped quantities per unit and logs nothing for an empty list", () => {
+		const logged: unknown[] = [];
+		const orig = console.error;
+		console.error = (...args: unknown[]) => {
+			logged.push(args);
+		};
+		try {
+			logDroppedMeters("pending_overflow:events", []);
+			expect(logged).toHaveLength(0);
+			logDroppedMeters("pending_overflow:memory", [
+				{
+					accountId: "acct_a",
+					unit: "memory.gb_hour",
+					quantity: 0.5,
+					idempotencyKey: "k1",
+				},
+				{
+					accountId: "acct_a",
+					unit: "memory.gb_hour",
+					quantity: 0.25,
+					idempotencyKey: "k2",
+				},
+			]);
+		} finally {
+			console.error = orig;
+		}
+		const text = JSON.stringify(logged);
+		expect(text).toContain("meter.dropped");
+		expect(text).toContain("0.75");
 	});
 });
 
