@@ -174,7 +174,9 @@ export const DOCS_KEY_DAILY_LIMIT = 10;
 /**
  * Mint the account's docs key: revoke any previous active docs key, then mint a
  * fresh `docs`-product key that expires in 24h. One transaction, so an account
- * never has two active docs keys (a partial unique index backs this up).
+ * never has two active docs keys (a partial unique index backs this up). Given
+ * a transaction, it runs inside it (the signed-out mint creates the ghost
+ * account in the same one).
  */
 export async function mintDocsKey(
 	db: ReturnType<typeof getDb>,
@@ -182,7 +184,10 @@ export async function mintDocsKey(
 ): Promise<MintedKey & { expiresAt: string }> {
 	const now = input.now ?? new Date();
 	const expiresAt = new Date(now.getTime() + DOCS_KEY_TTL_MS);
-	const minted = await db.transaction().execute(async (trx) => {
+	const inTransaction = <T>(
+		run: (trx: ReturnType<typeof getDb>) => Promise<T>,
+	): Promise<T> => (db.isTransaction ? run(db) : db.transaction().execute(run));
+	const minted = await inTransaction(async (trx) => {
 		await trx
 			.updateTable("api_keys")
 			.set({ status: "revoked", revoked_at: now })

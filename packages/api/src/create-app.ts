@@ -49,6 +49,7 @@ import proofsRouter from "./routes/proofs.ts";
 import publicContactRouter from "./routes/public-contact.ts";
 import publicCreditsRouter from "./routes/public-credits.ts";
 import publicDocsFindRouter from "./routes/public-docs-find.ts";
+import publicDocsKeyRouter from "./routes/public-docs-key.ts";
 import publicUpdatesRouter from "./routes/public-updates.ts";
 import publicWaitlistRouter from "./routes/public-waitlist.ts";
 import pushRouter from "./routes/push.ts";
@@ -216,6 +217,8 @@ export function createApiApp(mode: InstanceMode): Hono {
 		app.use("/api/public/updates/*", ipRateLimit(60));
 		app.route("/api/public/updates", publicUpdatesRouter);
 		app.route("/api/public/docs-find", publicDocsFindRouter);
+		// Signed-out docs key: its own 1-per-IP-per-day bucket in the router.
+		app.route("/api/public/docs-key", publicDocsKeyRouter);
 	}
 
 	app.use("/status", resourceAuth);

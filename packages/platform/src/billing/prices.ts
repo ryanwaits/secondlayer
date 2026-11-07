@@ -97,6 +97,11 @@ export const COMMIT_TIER_MONTHLY_USD_MICROS = 50_000_000n;
  *  10M to 1M (founder 2026-09-27): at 10M nearly every reader was free. */
 export const ROWS_DELIVERED_MONTHLY_ALLOWANCE = 1_000_000;
 
+/** Rows a ghost account (a signed-out reader's docs key) reads in its whole
+ *  life, not per month (founder 2026-11-07). Past it the read is refused with
+ *  a pointer to signing up. */
+export const GHOST_ACCOUNT_ROWS_LIMIT = 100_000;
+
 /**
  * Minimum balance to take a debit for one page: one full page (1000 rows ×
  * 5µ$ = 5000µ$ = $0.005). Kept as the PAYG-unthrottle threshold

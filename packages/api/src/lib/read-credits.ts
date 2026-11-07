@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { meter } from "@secondlayer/platform/billing/meter";
 import {
+	GHOST_ACCOUNT_ROWS_LIMIT,
 	MIN_CREDITED_USD_MICROS,
 	ROWS_DELIVERED_MONTHLY_ALLOWANCE,
 	isOverMonthlyCreditCap,
@@ -12,9 +13,14 @@ import {
 } from "@secondlayer/platform/db/queries/account-credits";
 import { getCaps } from "@secondlayer/platform/db/queries/account-spend-caps";
 import { isInternalAccount } from "@secondlayer/platform/db/queries/accounts";
-import { monthlyQuantity } from "@secondlayer/platform/db/queries/usage-ledger";
+import {
+	lifetimeQuantity,
+	monthBounds,
+	monthlyQuantity,
+} from "@secondlayer/platform/db/queries/usage-ledger";
 import { getDb } from "@secondlayer/shared/db";
 import { isPlatformMode } from "@secondlayer/shared/mode";
+import { DOCS_KEY_TTL_MS } from "../auth/mint.ts";
 
 export {
 	MIN_CREDITED_USD_MICROS,
@@ -110,7 +116,20 @@ export type SpendCapReachedBody = {
 	message: string;
 };
 
-export type ReadRefusalBody = InsufficientCreditsBody | SpendCapReachedBody;
+export type RowsLimitReachedBody = {
+	error: "rows_limit_reached";
+	message: string;
+};
+
+export type ReadRefusalBody =
+	| InsufficientCreditsBody
+	| SpendCapReachedBody
+	| RowsLimitReachedBody;
+
+const GHOST_ROWS_REFUSAL: RowsLimitReachedBody = {
+	error: "rows_limit_reached",
+	message: `This docs key has read its ${GHOST_ACCOUNT_ROWS_LIMIT.toLocaleString("en-US")} rows. Make a lasting key at https://secondlayer.tools/signin.`,
+};
 
 /**
  * Pre-read gate: once a keyed account's `rows.delivered` this UTC calendar
@@ -125,6 +144,12 @@ export type ReadRefusalBody = InsufficientCreditsBody | SpendCapReachedBody;
  *      bypass (`insufficient_credits` + `shortfall_usd_micros`, plus a
  *      top-up hint/link — the same error code the archive fetch gate's 402
  *      uses, `routes/archive.ts`).
+ *
+ * A ghost account (a signed-out reader's docs key) is refused sooner: once
+ * it has read `GHOST_ACCOUNT_ROWS_LIMIT` rows in its whole life
+ * (`rows_limit_reached`), whatever its month. Its key lives a day, so its
+ * month's rows are its lifetime's except in the first day of a month; only
+ * then, or past the ghost limit, does this read the account row at all.
  *
  * No-op (never refuses — returns `null`) for anon, internal (key tier or
  * account), or self-host:
@@ -146,8 +171,24 @@ export async function checkRowsAllowance(
 		"rows.delivered",
 		now,
 	);
+	const monthJustTurned =
+		now.getTime() - monthBounds(now).start.getTime() < DOCS_KEY_TTL_MS;
+	if (usedThisMonth < GHOST_ACCOUNT_ROWS_LIMIT && !monthJustTurned) return null;
+
+	const account = await db
+		.selectFrom("accounts")
+		.select(["ghost", "internal"])
+		.where("id", "=", accountId)
+		.executeTakeFirst();
+	if (account?.internal) return null;
+	if (account?.ghost) {
+		const used =
+			usedThisMonth >= GHOST_ACCOUNT_ROWS_LIMIT
+				? usedThisMonth
+				: await lifetimeQuantity(db, accountId, "rows.delivered");
+		return used >= GHOST_ACCOUNT_ROWS_LIMIT ? GHOST_ROWS_REFUSAL : null;
+	}
 	if (usedThisMonth < ROWS_DELIVERED_MONTHLY_ALLOWANCE) return null;
-	if (await isInternalAccount(db, accountId)) return null;
 
 	const caps = await getCaps(db, accountId);
 	if (caps?.monthly_cap_cents != null) {

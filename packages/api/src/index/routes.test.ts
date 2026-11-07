@@ -1543,10 +1543,12 @@ describe.skipIf(!HAS_DB)("credits gate: allowance pre-check (DB)", () => {
 		}
 	});
 
+	// A signed-up account: a ghost (signed-out docs key) is capped at its own
+	// lifetime rows long before the monthly allowance under test.
 	async function makeAccount(): Promise<string> {
 		const row = await db
 			.insertInto("accounts")
-			.values({ email: null, ghost: true })
+			.values({ email: `index-credits-${crypto.randomUUID()}@example.com` })
 			.returning("id")
 			.executeTakeFirstOrThrow();
 		accountIds.push(row.id);

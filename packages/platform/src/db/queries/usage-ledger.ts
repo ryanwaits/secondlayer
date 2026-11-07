@@ -107,6 +107,22 @@ export async function monthlyQuantity(
 	return row?.total ? Number(row.total) : 0;
 }
 
+/** Sum of `quantity` for `unit` over the account's whole ledger. Only for
+ *  short-lived accounts (a ghost's ledger is one day of reads). */
+export async function lifetimeQuantity(
+	db: Kysely<Database>,
+	accountId: string,
+	unit: string,
+): Promise<number> {
+	const row = await db
+		.selectFrom("usage_ledger")
+		.select((eb) => eb.fn.sum<string>("quantity").as("total"))
+		.where("account_id", "=", accountId)
+		.where("unit", "=", unit)
+		.executeTakeFirst();
+	return row?.total ? Number(row.total) : 0;
+}
+
 export type UsageByUnit = {
 	unit: string;
 	quantity: string;
