@@ -205,6 +205,9 @@ services:
       # Set by the Deploy workflow + persisted into .env by deploy.sh's
       # record_successful_deploy step.
       DEPLOY_IMAGE_TAG: ${DEPLOY_IMAGE_TAG:-unknown}
+      # Seconds since epoch at deploy time; /health reports it as
+      # `deploy_sequence` so the workload host never upgrades tenants backwards.
+      DEPLOY_SEQUENCE: ${DEPLOY_SEQUENCE:-}
     # No fixed host port: replicas can't share one. Caddy reaches the pool over
     # the compose network via `dynamic a api 3800` (load-balanced). Set
     # API_REPLICAS>1 for rolling, zero-502 deploys (deploy.sh recreates one at a

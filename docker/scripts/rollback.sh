@@ -42,7 +42,10 @@ if [ -z "$ROLLBACK_IMAGE_TAG" ]; then
 fi
 
 DEPLOY_IMAGE_TAG="$ROLLBACK_IMAGE_TAG"
-export DEPLOY_IMAGE_OWNER DEPLOY_IMAGE_TAG
+# A rollback is a newer deploy of an older image: its sequence must be higher
+# than the deploy it replaces, or the workload host would ignore it.
+DEPLOY_SEQUENCE="$(date +%s)"
+export DEPLOY_IMAGE_OWNER DEPLOY_IMAGE_TAG DEPLOY_SEQUENCE
 
 echo "Rollback image owner: ${DEPLOY_IMAGE_OWNER}"
 echo "Rollback image tag: ${DEPLOY_IMAGE_TAG}"

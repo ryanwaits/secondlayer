@@ -35,12 +35,15 @@ const IMAGE_SHA_PATTERN = /^[0-9a-f]{40}$/;
 
 export interface TargetShaCache {
 	lastGood: string | null;
+	/** `deploy_sequence` that came with `lastGood`; `null` when the api did not
+	 *  report one. */
+	sequence?: number | null;
 }
 
 /** Fresh, empty cache — one per process, held by whatever loop calls
  *  `resolveTargetSha` on a timer (`index.ts`). */
 export function createTargetShaCache(): TargetShaCache {
-	return { lastGood: null };
+	return { lastGood: null, sequence: null };
 }
 
 /**
@@ -75,13 +78,34 @@ export async function resolveTargetSha(
 	}
 	const body = (await res.json().catch(() => null)) as {
 		image_sha?: unknown;
+		deploy_sequence?: unknown;
 	} | null;
 	const sha = body?.image_sha;
 	if (typeof sha !== "string" || !IMAGE_SHA_PATTERN.test(sha)) {
 		logger.warn("workload.upgrade.health_check_bad_sha", { sha });
 		return cache.lastGood;
 	}
+	const sequence =
+		typeof body?.deploy_sequence === "number" &&
+		Number.isSafeInteger(body.deploy_sequence) &&
+		body.deploy_sequence >= 0
+			? body.deploy_sequence
+			: null;
+	// Forward only: once a sequence is known, an answer with a lower one (or
+	// none) came from a replica still on an older deploy, mid-roll. A rollback
+	// is a new deploy with a NEWER sequence, so it is followed.
+	if (
+		cache.sequence != null &&
+		(sequence === null || sequence < cache.sequence)
+	) {
+		logger.warn("workload.upgrade.health_older_deploy_ignored", {
+			sequence,
+			knownSequence: cache.sequence,
+		});
+		return cache.lastGood;
+	}
 	cache.lastGood = sha;
+	cache.sequence = sequence;
 	return sha;
 }
 
@@ -127,12 +151,30 @@ export async function upgradeTenants(
 	const template = templateSha(cfg);
 	// The free shared testnet stack goes last: the round stops at the first
 	// failure, and a failing free stack must not block paying tenants.
+	const targetSequence = cfg.getTargetSequence?.() ?? null;
 	const stale = tenants
 		.filter(
 			(t: TenantRow) =>
 				t.image_sha !== targetSha ||
 				(template !== null && t.template_sha !== template),
 		)
+		.filter((t) => {
+			// Forward only: a tenant whose database has seen a newer deploy's
+			// migrations must never be put on an older image.
+			if (
+				targetSequence !== null &&
+				t.image_sequence !== null &&
+				Number(t.image_sequence) > targetSequence
+			) {
+				logger.warn("workload.upgrade.skipped_tenant_ahead_of_target", {
+					accountId: t.account_id,
+					tenantSequence: Number(t.image_sequence),
+					targetSequence,
+				});
+				return false;
+			}
+			return true;
+		})
 		.sort(
 			(a, b) =>
 				Number(isTestnetStackAccount(cfg, a.account_id)) -

@@ -66,6 +66,11 @@ export interface TenantRow {
 	 *  the sha they actually started). `null` until the first `up()`/`start()`
 	 *  after this column existed. */
 	image_sha: string | null;
+	/** The deploy sequence (`/health`'s `deploy_sequence`) of that image's
+	 *  deploy, as a string (BIGINT). A tenant is never rolled onto a target
+	 *  with a lower one: its database may already hold a newer deploy's
+	 *  migrations. `null` until a deploy that reports one. */
+	image_sequence: string | null;
 	/** Fingerprint of the compose template (file + local mounts) this tenant
 	 *  last came up on (`provisioner.ts`'s `templateSha`). A tenant whose value
 	 *  differs from the current template is rolled even on a current image. */
@@ -182,6 +187,7 @@ export async function ensureControlSchema(db: postgres.Sql): Promise<void> {
 	// what each tenant runs (plan 064) — same idempotent-column pattern as
 	// `api_port` above.
 	await db`ALTER TABLE tenants ADD COLUMN IF NOT EXISTS image_sha TEXT`;
+	await db`ALTER TABLE tenants ADD COLUMN IF NOT EXISTS image_sequence BIGINT`;
 	await db`ALTER TABLE tenants ADD COLUMN IF NOT EXISTS template_sha TEXT`;
 	await db`ALTER TABLE tenants ADD COLUMN IF NOT EXISTS stop_reason TEXT`;
 	await db`ALTER TABLE tenants ADD COLUMN IF NOT EXISTS started_at TIMESTAMPTZ`;
@@ -419,8 +425,15 @@ export async function setTenantImageSha(
 	db: postgres.Sql,
 	accountId: string,
 	imageSha: string,
+	deploySequence: number | null = null,
 ): Promise<void> {
-	await db`UPDATE tenants SET image_sha = ${imageSha} WHERE account_id = ${accountId}`;
+	// An unreported sequence keeps the recorded one: unknown is not "older".
+	await db`
+		UPDATE tenants
+		SET image_sha = ${imageSha},
+			image_sequence = COALESCE(${deploySequence}::bigint, image_sequence)
+		WHERE account_id = ${accountId}
+	`;
 }
 
 /** Records the fingerprint of the compose template a tenant just came up on —

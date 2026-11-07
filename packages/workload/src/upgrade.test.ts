@@ -137,6 +137,63 @@ describe("resolveTargetSha", () => {
 		expect(sha).toBe(GOOD_SHA);
 		expect(cache.lastGood).toBe(GOOD_SHA);
 	});
+
+	function health(sha: string, deploySequence?: number) {
+		return async () =>
+			jsonResponse(200, {
+				status: "ok",
+				image_sha: sha,
+				...(deploySequence === undefined
+					? {}
+					: { deploy_sequence: deploySequence }),
+			});
+	}
+
+	test("the deploy sequence is cached with the sha", async () => {
+		const cache: TargetShaCache = { lastGood: null };
+		await resolveTargetSha("https://x", health(GOOD_SHA, 200), cache);
+		expect(cache.sequence).toBe(200);
+	});
+
+	test("an older replica answering mid-deploy does not move the target back", async () => {
+		const cache: TargetShaCache = { lastGood: null };
+		await resolveTargetSha("https://x", health(GOOD_SHA, 200), cache);
+		const sha = await resolveTargetSha(
+			"https://x",
+			health(OTHER_SHA, 100),
+			cache,
+		);
+		expect(sha).toBe(GOOD_SHA);
+		expect(cache.lastGood).toBe(GOOD_SHA);
+		expect(cache.sequence).toBe(200);
+	});
+
+	test("a reply without a sequence after one with it does not move the target", async () => {
+		const cache: TargetShaCache = { lastGood: null };
+		await resolveTargetSha("https://x", health(GOOD_SHA, 200), cache);
+		const sha = await resolveTargetSha("https://x", health(OTHER_SHA), cache);
+		expect(sha).toBe(GOOD_SHA);
+		expect(cache.sequence).toBe(200);
+	});
+
+	test("a rollback deploy has a newer sequence, so an older sha is followed", async () => {
+		const cache: TargetShaCache = { lastGood: null };
+		await resolveTargetSha("https://x", health(GOOD_SHA, 200), cache);
+		const sha = await resolveTargetSha(
+			"https://x",
+			health(OTHER_SHA, 300),
+			cache,
+		);
+		expect(sha).toBe(OTHER_SHA);
+		expect(cache.sequence).toBe(300);
+	});
+
+	test("an api that reports no sequence yet is followed as before", async () => {
+		const cache: TargetShaCache = { lastGood: OTHER_SHA };
+		const sha = await resolveTargetSha("https://x", health(GOOD_SHA), cache);
+		expect(sha).toBe(GOOD_SHA);
+		expect(cache.sequence).toBeNull();
+	});
 });
 
 const HAS_DB = !!process.env.DATABASE_URL;
@@ -401,6 +458,38 @@ describe.skipIf(!HAS_DB)("upgradeTenants", () => {
 
 		await deleteTenant(db, testnet);
 		await deleteTenant(db, other);
+	});
+
+	test("a tenant whose schema came from a newer deploy is never rolled back to an older target", async () => {
+		const ahead = await seedRunningTenant(OTHER_SHA);
+		const behind = await seedRunningTenant(OTHER_SHA);
+		await setTenantImageSha(db, ahead, OTHER_SHA, 500);
+		await setTenantImageSha(db, behind, OTHER_SHA, 100);
+		composeCalls = [];
+
+		await upgradeTenants(
+			{
+				...cfg(async (args, env) => {
+					composeCalls.push({ args, env });
+					return { code: 0, stdout: "", stderr: "" };
+				}),
+				getTargetSequence: () => 200,
+			},
+			GOOD_SHA,
+		);
+
+		const touched = (accountId: string) =>
+			composeCalls.some((c) =>
+				c.args.includes(`tenant-${acct8For(accountId)}`),
+			);
+		expect(touched(ahead)).toBe(false);
+		expect(touched(behind)).toBe(true);
+		expect((await getTenant(db, ahead))?.image_sha).toBe(OTHER_SHA);
+		expect((await getTenant(db, behind))?.image_sha).toBe(GOOD_SHA);
+		expect(Number((await getTenant(db, behind))?.image_sequence)).toBe(200);
+
+		await deleteTenant(db, ahead);
+		await deleteTenant(db, behind);
 	});
 
 	test("a tenant already on the target sha and template is skipped with no compose calls", async () => {

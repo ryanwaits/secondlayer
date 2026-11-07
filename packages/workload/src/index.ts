@@ -210,6 +210,7 @@ async function main(): Promise<void> {
 		workloadHostKey,
 		backups,
 		getTargetSha: () => targetShaCache.lastGood,
+		getTargetSequence: () => targetShaCache.sequence ?? null,
 		testnetStack: testnetStackFromEnv(process.env),
 		onTenantChanged: (accountId) => {
 			tenantCache.invalidate(accountId);

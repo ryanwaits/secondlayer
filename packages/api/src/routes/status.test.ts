@@ -376,3 +376,31 @@ describe("/public/status bitcoin plane", () => {
 		expect(body.status).toBe("degraded");
 	});
 });
+
+describe("GET /health deploy sequence", () => {
+	const previous = process.env.DEPLOY_SEQUENCE;
+	afterEach(() => {
+		if (previous === undefined) delete process.env.DEPLOY_SEQUENCE;
+		else process.env.DEPLOY_SEQUENCE = previous;
+	});
+
+	async function health() {
+		return (await (await statusApp.request("/health")).json()) as {
+			deploy_sequence: number | null;
+		};
+	}
+
+	test("reports the deploy's sequence as a number", async () => {
+		process.env.DEPLOY_SEQUENCE = "1793000000";
+		expect((await health()).deploy_sequence).toBe(1793000000);
+	});
+
+	test("reports null when the deploy set none or something that is not a whole number", async () => {
+		delete process.env.DEPLOY_SEQUENCE;
+		expect((await health()).deploy_sequence).toBeNull();
+		process.env.DEPLOY_SEQUENCE = "";
+		expect((await health()).deploy_sequence).toBeNull();
+		process.env.DEPLOY_SEQUENCE = "soon";
+		expect((await health()).deploy_sequence).toBeNull();
+	});
+});

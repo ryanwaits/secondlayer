@@ -123,7 +123,11 @@ DEPLOY_IMAGE_TAG="${DEPLOY_IMAGE_TAG:-${DEPLOY_SHA:-latest}}"
 DEPLOY_STATE_DIR="${DEPLOY_STATE_DIR:-/opt/secondlayer/data/deploy}"
 DB_MAINTENANCE_LOCK_FILE="${DB_MAINTENANCE_LOCK_FILE:-${DATA_DIR:-/opt/secondlayer/data}/db-maintenance.lock}"
 DB_MAINTENANCE_LOCK_TIMEOUT_SECONDS="${DB_MAINTENANCE_LOCK_TIMEOUT_SECONDS:-2700}"
-export DEPLOY_IMAGE_OWNER DEPLOY_IMAGE_TAG
+# Monotonic across deploys and rollbacks (a rollback is a newer deploy of an
+# older image). api `/health` reports it so the workload host only ever moves
+# tenants forward. Always fresh: never inherited from `.env`.
+DEPLOY_SEQUENCE="$(date +%s)"
+export DEPLOY_IMAGE_OWNER DEPLOY_IMAGE_TAG DEPLOY_SEQUENCE
 
 # Services that hold locks on tables migrations mutate. Indexer and decoder
 # write L1/L2 tables, so migrations must complete before they restart on new code.
@@ -338,6 +342,7 @@ pin_deploy_env() {
   if [ -f "$env_file" ]; then
     _upsert_env_var "$env_file" DEPLOY_IMAGE_OWNER "$DEPLOY_IMAGE_OWNER" || true
     _upsert_env_var "$env_file" DEPLOY_IMAGE_TAG "$DEPLOY_IMAGE_TAG" || true
+    _upsert_env_var "$env_file" DEPLOY_SEQUENCE "$DEPLOY_SEQUENCE" || true
     echo "📌 Pinned .env to deploy tag ${DEPLOY_IMAGE_TAG} (containers running new SHA regardless of health-gate outcome)"
   fi
 }

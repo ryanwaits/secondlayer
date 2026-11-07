@@ -307,6 +307,10 @@ export interface ProvisionerConfig {
 	 *  compose against an undetermined target rather than pass an empty
 	 *  `WORKLOAD_IMAGE_TAG`. */
 	getTargetSha: () => string | null;
+	/** The deploy sequence of that target (`/health`'s `deploy_sequence`), or
+	 *  `null` while the api does not report one. Recorded on each tenant and
+	 *  compared before a roll, so an upgrade only moves forward. */
+	getTargetSequence?: () => number | null;
 	/** Called after every control-DB write that changes a tenant row, so the
 	 *  gateway's short-lived tenant cache never routes on a stale state. */
 	onTenantChanged?: (accountId: string) => void;
@@ -484,7 +488,12 @@ export async function recordTenantRelease(
 	imageSha: string,
 	template: string | null = templateSha(cfg),
 ): Promise<void> {
-	await setTenantImageSha(cfg.db, accountId, imageSha);
+	await setTenantImageSha(
+		cfg.db,
+		accountId,
+		imageSha,
+		cfg.getTargetSequence?.() ?? null,
+	);
 	if (template) await setTenantTemplateSha(cfg.db, accountId, template);
 }
 

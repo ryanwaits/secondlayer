@@ -285,9 +285,17 @@ app.get("/health", async (c) => {
 	// `curl /health` shows which commit the running API was built from.
 	// Sourced from `DEPLOY_IMAGE_TAG` env (the git SHA the Deploy workflow
 	// pinned when starting this container).
+	// `deploy_sequence` rises with every deploy and rollback (set by
+	// deploy.sh / rollback.sh), so the workload host can tell a newer deploy
+	// from a replica still on an older one.
+	const sequence = Number(process.env.DEPLOY_SEQUENCE);
 	return c.json({
 		status: "ok",
 		image_sha: process.env.DEPLOY_IMAGE_TAG ?? null,
+		deploy_sequence:
+			process.env.DEPLOY_SEQUENCE && Number.isSafeInteger(sequence)
+				? sequence
+				: null,
 	});
 });
 
