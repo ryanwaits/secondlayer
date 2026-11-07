@@ -3,6 +3,16 @@ import type { StreamsEventType } from "./event-types.ts";
 // The physical event `type` labels as stored in the chain `events` table — the
 // firehose vocab. Distinct from STREAMS_EVENT_TYPES (the decoded/public names in
 // event-types.ts); these are the raw DB labels the indexer reads/counts.
+/**
+ * Version of the cursor ordinal contract. A Streams cursor is
+ * `block_height:stream_event_index`, where the index is a dense ordinal over
+ * every event of the block whose type is in `STREAMS_DB_EVENT_TYPES`. Adding,
+ * removing or reordering a type shifts the ordinal of every later event in any
+ * block that holds one, silently invalidating saved cursors. Change the list
+ * only together with a bump of this number; `db-event-types.test.ts` pins both.
+ */
+export const STREAMS_CURSOR_VERSION = 1;
+
 export const STREAMS_DB_EVENT_TYPES = [
 	"stx_transfer_event",
 	"stx_mint_event",
