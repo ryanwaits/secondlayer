@@ -30,7 +30,7 @@ type BatchItem = {
 
 export type BatchDispatch = (
 	path: string,
-	init: { headers: Record<string, string> },
+	init: { headers: Record<string, string>; signal?: AbortSignal },
 	/** The batch request itself, so a dispatcher can carry its audience
 	 *  (an MCP-made batch makes MCP-made items: auth/oauth/audience.ts). */
 	parent: Request,
@@ -46,6 +46,13 @@ const ENCODED_SEPARATOR = /%(?:2e|2f|5c|25)/i;
  * is what the dispatcher fetches: `..` and `%2e%2e` segments are already
  * collapsed, so a prefix check on the raw string can't be walked out of.
  */
+/** The two SSE tails (`/v1/streams/events/stream`, a subgraph table's
+ *  `/stream`). They only end when the caller hangs up, so no request/response
+ *  caller (a batch item, the hosted MCP) may hold one. */
+export function isStreamingPath(pathname: string): boolean {
+	return /\/stream\/?$/.test(pathname);
+}
+
 export function normalizeBatchPath(raw: string): string | null {
 	if (!raw.startsWith("/") || raw.startsWith("//") || raw.includes("\\"))
 		return null;
@@ -59,6 +66,7 @@ export function normalizeBatchPath(raw: string): string | null {
 	const path = url.pathname;
 	if (path.includes("..") || ENCODED_SEPARATOR.test(path)) return null;
 	if (!ALLOWED_PREFIXES.some((p) => path.startsWith(p))) return null;
+	if (isStreamingPath(path)) return null;
 	return `${path}${url.search}`;
 }
 
@@ -99,7 +107,8 @@ export function createBatchRouter(dispatch: BatchDispatch) {
 						path: item?.path ?? null,
 						status: 400,
 						body: {
-							error: "Path not allowed in batch (public /v1 reads only)",
+							error:
+								"Path not allowed in batch (public /v1 reads only, no live streams)",
 							code: "VALIDATION_ERROR",
 						},
 					};
@@ -112,7 +121,12 @@ export function createBatchRouter(dispatch: BatchDispatch) {
 						).toString()}`
 					: "";
 				try {
-					const res = await dispatch(`${target}${qs}`, { headers }, c.req.raw);
+					// A caller that hangs up cancels every item still running.
+					const res = await dispatch(
+						`${target}${qs}`,
+						{ headers, signal: c.req.raw.signal },
+						c.req.raw,
+					);
 					const parsed = await res
 						.json()
 						.catch(() => ({ error: "non-JSON response" }));

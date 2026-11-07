@@ -12,6 +12,7 @@ import { liveKeyWhere } from "../auth/key-state.ts";
 import { hashToken } from "../auth/keys.ts";
 import { markMcpRequest } from "../auth/oauth/audience.ts";
 import { issuerOrigin, mcpChallenge } from "../auth/oauth/config.ts";
+import { isStreamingPath } from "./batch.ts";
 
 /**
  * The hosted MCP endpoint, `POST /mcp`: Streamable HTTP, stateless. Every
@@ -39,6 +40,7 @@ const MAX_BODY_BYTES = 1024 * 1024;
  *  signing key, and the account identity for `account_whoami`. Never key or
  *  grant management, never `/mcp` itself. */
 function allowedInnerPath(path: string): boolean {
+	if (isStreamingPath(path)) return false;
 	return (
 		path.startsWith("/v1/") ||
 		path === "/api/accounts/me" ||
