@@ -1,5 +1,6 @@
 "use client";
 
+import { AsleepState } from "@/components/account/asleep-state";
 import { BillingBody } from "@/components/account/billing/billing-screen";
 import {
 	TopupSheetBody,
@@ -78,6 +79,7 @@ import {
 import {
 	countByDisplayStatus,
 	displayStatus,
+	isPaused,
 } from "@/components/account/webhooks/shared";
 import {
 	FIXTURE_HOURS,
@@ -1434,7 +1436,7 @@ export function LocalWebhooksList({
 				onOpen={() => {}}
 				onTogglePause={(row) => {
 					const { id, name } = row.webhook;
-					if (displayStatus(row.webhook) === "active") {
+					if (!isPaused(row.webhook)) {
 						setPaused(id, true);
 						notify.done(
 							<>
@@ -2221,9 +2223,12 @@ export const PILL_REPLAY_AND_STALLED: readonly Activity[] = [
 export function WebhooksIndexDemo({
 	count,
 	initialView,
+	pauses = false,
 }: {
 	count: number;
 	initialView?: IndexView;
+	/** One webhook paused by you and one by the circuit breaker. */
+	pauses?: boolean;
 }) {
 	const week = (delivered: number, failedFrom = 168) => ({
 		delivered: Array.from({ length: 168 }, (_, i) =>
@@ -2246,7 +2251,15 @@ export function WebhooksIndexDemo({
 			summary({
 				id,
 				name,
-				status: name === "dao-votes" ? "paused" : "active",
+				...(name === "dao-votes" || (pauses && name === "signer-payouts")
+					? {
+							status: "paused" as const,
+							pauseReason: name === "dao-votes" ? "user" : "circuit",
+							circuitOpenedAt:
+								name === "dao-votes" ? null : "2026-10-15T09:00:00.000Z",
+							circuitFailures: name === "dao-votes" ? 0 : 20,
+						}
+					: { status: "active" as const }),
 			}),
 			name === "bns-names" ? week(rate, 140) : week(rate + i),
 			FIXTURE_HOURS,
@@ -2260,6 +2273,21 @@ export function WebhooksIndexDemo({
 			notice={null}
 			onOpenHour={() => {}}
 			initialView={initialView}
+		/>
+	);
+}
+
+/** The asleep state with a wake that never lands or errors, so the 30 s
+ *  fallback and the error line can be seen. Functions can't cross from a story
+ *  to a client component, so the wake lives here. */
+export function AsleepWakeDemo({ outcome }: { outcome: "never" | "errors" }) {
+	return (
+		<AsleepState
+			wake={
+				outcome === "never"
+					? () => new Promise(() => {})
+					: async () => ({ kind: "error", message: "Couldn't reach the API" })
+			}
 		/>
 	);
 }

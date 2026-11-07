@@ -88,6 +88,7 @@ import type { Tone } from "@/lib/tone";
 import type { CSSProperties, ReactNode } from "react";
 import {
 	AmountDemo,
+	AsleepWakeDemo,
 	BillingDemo,
 	HeatStripDemo,
 	HoldButtonDemo,
@@ -1574,6 +1575,21 @@ const META: Record<StoryId, Meta> = {
 		rule: "With every webhook paused the hosted stack stops, and the list lives on it. An empty state stands in: the list's rows as faded ghosts, one centered line, and Wake it.",
 		variants: [
 			{ id: "asleep", label: "Asleep", render: () => <AsleepState /> },
+			{
+				id: "waking-stuck",
+				label: "Wake never lands (click Wake it, wait 30 s)",
+				render: () => <AsleepWakeDemo outcome="never" />,
+			},
+			{
+				id: "wake-fails",
+				label: "Wake request fails (click Wake it)",
+				render: () => <AsleepWakeDemo outcome="errors" />,
+			},
+			{
+				id: "subgraphs",
+				label: "Asleep, on Subgraphs",
+				render: () => <AsleepState noun="subgraphs" />,
+			},
 		],
 		usage: "<AsleepState />",
 		dos: ["Say waking bills again; that's the tradeoff of the button."],
@@ -2246,6 +2262,11 @@ const META: Record<StoryId, Meta> = {
 				label: "Six webhooks, search and status",
 				render: () => <WebhooksIndexDemo count={6} />,
 			},
+			{
+				id: "paused",
+				label: "Paused by you and by the circuit breaker",
+				render: () => <WebhooksIndexDemo count={6} pauses />,
+			},
 		],
 		usage:
 			"<WebhooksListBody rows={rows} hours={hours} notice={null} onOpenHour={open} initialView={view} />",
@@ -2301,6 +2322,28 @@ const META: Record<StoryId, Meta> = {
 				label: "Health loading",
 				render: () => (
 					<SubgraphsListBody items={exampleList} health={{}} notice={null} />
+				),
+			},
+			{
+				id: "asleep",
+				label: "Stack asleep",
+				render: () => (
+					<SubgraphsListBody
+						items={null}
+						health={{}}
+						notice={{ kind: "asleep" }}
+					/>
+				),
+			},
+			{
+				id: "no-credits",
+				label: "Out of credits",
+				render: () => (
+					<SubgraphsListBody
+						items={null}
+						health={{}}
+						notice={{ kind: "no_credits" }}
+					/>
 				),
 			},
 		],
