@@ -1,5 +1,11 @@
 # @secondlayer/subgraphs
 
+## 8.0.4
+
+### Patch Changes
+
+- 2f02560: Require `@secondlayer/verify` 0.6.3 or later, which rejects MARF proofs with an extra leaf step.
+
 ## 8.0.3
 
 ### Patch Changes

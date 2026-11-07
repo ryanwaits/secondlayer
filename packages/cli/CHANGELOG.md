@@ -1,5 +1,13 @@
 # @secondlayer/cli
 
+## 23.4.2
+
+### Patch Changes
+
+- 2f02560: Require `@secondlayer/verify` 0.6.3 or later, which rejects MARF proofs with an extra leaf step.
+- Updated dependencies [2f02560]
+  - @secondlayer/subgraphs@8.0.4
+
 ## 23.4.1
 
 ### Patch Changes
