@@ -5155,6 +5155,13 @@
 						"format": "date-time",
 						"description": "When the sweep reached the confirmation threshold."
 					},
+					"settlement_seq": {
+						"type": [
+							"integer",
+							"null"
+						],
+						"description": "Monotonic stamp taken when the sweep became confirmed. Follows commit order, unlike `confirmed_at`. Null while unsettled."
+					},
 					"requested_at": {
 						"type": [
 							"string",
@@ -5185,6 +5192,7 @@
 					"btc_confirmations": 8,
 					"btc_block_height": 968278,
 					"confirmed_at": "2026-09-23T14:35:25.473Z",
+					"settlement_seq": 1042,
 					"requested_at": "2026-09-23T12:01:45.000Z",
 					"resolved_at": "2026-09-23T13:24:47.000Z"
 				}
@@ -14531,13 +14539,23 @@
 						"description": "ISO 8601 timestamp. Returns only withdrawals whose sweep confirmed on Bitcoin strictly after it. Combine with `from_height=0` to scan all history."
 					},
 					{
+						"name": "confirmed_after_seq",
+						"in": "query",
+						"required": false,
+						"schema": {
+							"type": "integer",
+							"minimum": 0
+						},
+						"description": "Returns only withdrawals whose `settlement_seq` is above this. Unlike `confirmed_after` it follows commit order, so a scan that resumes from the last `settlement_seq` it saw never skips a sweep."
+					},
+					{
 						"name": "fields",
 						"in": "query",
 						"required": false,
 						"schema": {
 							"type": "string"
 						},
-						"description": "Comma-separated columns to return, from: `status`, `amount`, `sender`, `recipient_btc_version`, `recipient_btc_hashbytes`, `sweep_txid`, `settlement_confirmed`, `btc_confirmations`, `btc_block_height`, `confirmed_at`, `requested_at`, `resolved_at`. `cursor` and `request_id` always come back; an unknown name is refused."
+						"description": "Comma-separated columns to return, from: `status`, `amount`, `sender`, `recipient_btc_version`, `recipient_btc_hashbytes`, `sweep_txid`, `settlement_confirmed`, `btc_confirmations`, `btc_block_height`, `confirmed_at`, `settlement_seq`, `requested_at`, `resolved_at`. `cursor` and `request_id` always come back; an unknown name is refused."
 					}
 				],
 				"responses": {
@@ -19284,7 +19302,8 @@
 								"schema": {
 									"type": "object",
 									"required": [
-										"data"
+										"data",
+										"orphanedByReorg"
 									],
 									"properties": {
 										"data": {
@@ -19293,6 +19312,10 @@
 												"$ref": "#/components/schemas/WebhookDeadEvent"
 											},
 											"description": "Up to 100 dead events, newest failure first."
+										},
+										"orphanedByReorg": {
+											"type": "integer",
+											"description": "Dead events a chain reorg orphaned. They are not listed and cannot be requeued: the event is no longer on the chain."
 										}
 									},
 									"example": {
@@ -19326,7 +19349,8 @@
 												"failedAt": "2026-09-22T16:41:02.877Z",
 												"createdAt": "2026-09-22T14:03:10.915Z"
 											}
-										]
+										],
+										"orphanedByReorg": 0
 									}
 								}
 							}
