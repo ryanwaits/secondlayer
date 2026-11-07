@@ -2927,7 +2927,7 @@
 					"type": "string | null"
 				}
 			],
-			"more": 6,
+			"more": 7,
 			"route": "/docs/sdk-reference/index",
 			"anchor": "t-IndexSbtcWithdrawal"
 		},
@@ -7582,9 +7582,15 @@
 					"type": "string[]"
 				}
 			],
-			"more": 12,
+			"more": 13,
 			"route": "/docs/sdk-reference/subgraphs",
 			"anchor": "t-SubgraphSummary"
+		},
+		"SubgraphSyncState": {
+			"kind": "type",
+			"summary": "What an operator sees: synced and catching_up are both active rows.",
+			"route": "/docs/sdk-reference/subgraphs",
+			"anchor": "t-SubgraphSyncState"
 		},
 		"SubgraphVerification": {
 			"kind": "type",
@@ -8012,7 +8018,7 @@
 					"type": "string | null"
 				}
 			],
-			"more": 13,
+			"more": 15,
 			"route": "/docs/sdk-reference/webhooks",
 			"anchor": "t-WebhookDetail"
 		},
@@ -8158,7 +8164,7 @@
 					"type": "string | null"
 				}
 			],
-			"more": 5,
+			"more": 7,
 			"route": "/docs/sdk-reference/webhooks",
 			"anchor": "t-WebhookSummary"
 		},
