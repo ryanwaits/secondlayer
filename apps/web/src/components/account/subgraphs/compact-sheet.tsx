@@ -52,7 +52,8 @@ export function shareableInsight(
 
 function headLabel(item: SubgraphListItem, errors24h: number): string {
 	const sync = subgraphSync(item);
-	if (errors24h > 0 || sync === "error") return "Handler errors";
+	if (item.status === "error") return "Halted";
+	if (errors24h > 0) return "Handler errors";
 	if (sync === "reindexing") return "Reindexing";
 	if (sync === "catching_up") return "Catching up";
 	return "Synced";

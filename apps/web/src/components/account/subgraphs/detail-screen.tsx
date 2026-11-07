@@ -15,6 +15,7 @@ import type { SubgraphDetailInitial } from "@/lib/server/dashboard-reads";
 import {
 	formatBytes,
 	groupDigits,
+	haltLine,
 	handlerErrors24h,
 	subgraphSync,
 } from "@/lib/subgraph-view";
@@ -142,6 +143,10 @@ export function SubgraphDetailBody({
 	const windowHours = health?.hours.slice(-RANGE_HOURS[range]);
 	const windowErrors = windowHours ? sum(windowHours.map((h) => h.errors)) : 0;
 	const lagFact = lagFactOf(detail);
+	const halt = haltLine({
+		status: detail.status,
+		lastError: detail.health.lastError,
+	});
 	return (
 		<>
 			<Breadcrumb
@@ -166,6 +171,11 @@ export function SubgraphDetailBody({
 						/>
 					</div>
 				</div>
+				{halt ? (
+					<p className="wd-faint">
+						<Mark tone="fail">Halted</Mark> {halt}
+					</p>
+				) : null}
 				<div className="wd-facts">
 					{fact(
 						`Rows written · ${range}`,

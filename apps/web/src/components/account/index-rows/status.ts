@@ -1,5 +1,10 @@
 import type { Insight } from "@/lib/insights";
-import { groupDigits, subgraphSync, subgraphTone } from "@/lib/subgraph-view";
+import {
+	groupDigits,
+	haltLine,
+	subgraphSync,
+	subgraphTone,
+} from "@/lib/subgraph-view";
 import type { SubgraphListItem } from "@/lib/subgraphs-store";
 import { insightRowState } from "../webhooks/rows";
 import type { WebhookRowModel } from "../webhooks/rows";
@@ -22,7 +27,7 @@ export const WEBHOOK_GROUP_LABELS: Record<StatusGroup, string> = {
 export const SUBGRAPH_GROUP_LABELS: Record<StatusGroup, string> = {
 	ok: "Healthy",
 	hi: "Needs a look",
-	alarm: "Failing",
+	alarm: "Halted or failing",
 	idle: "Catching up",
 };
 
@@ -44,6 +49,9 @@ export function subgraphStatus(
 	errors24h: number | null,
 	top?: Insight,
 ): RowStatus {
+	// Halted (watchdog, operator, or repeated block failures) is not the same
+	// as handler errors: it stays stopped until a redeploy or reindex.
+	if (item.status === "error") return { group: "alarm", label: "Halted" };
 	const tone = top
 		? insightRowState(top).tone
 		: subgraphTone(item.status, errors24h);
@@ -105,7 +113,10 @@ export function subgraphWhyLine(
 	name: string,
 	errors24h: number | null,
 	top?: Insight,
+	item?: { status: string; lastError?: string | null },
 ): string | null {
+	const halt = item ? haltLine(item) : null;
+	if (halt) return halt;
 	if (top) return trimLeadingName(top.line, name);
 	if (errors24h && errors24h > 0) {
 		return `${errors24h} handler ${errors24h === 1 ? "error" : "errors"} in 24h`;

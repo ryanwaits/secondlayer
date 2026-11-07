@@ -150,12 +150,20 @@ describe("subgraphStatus", () => {
 		).toBe("Reindexing");
 	});
 
-	test("handler errors or an errored subgraph is Failing", () => {
+	test("handler errors on a running subgraph are Failing", () => {
 		expect(subgraphStatus(tip, 3)).toEqual({
 			group: "alarm",
 			label: "Failing",
 		});
-		expect(subgraphStatus({ ...tip, status: "error" }, 0).group).toBe("alarm");
+	});
+
+	test("a halted subgraph is Halted, even with handler errors or an insight", () => {
+		const halted = { ...tip, status: "error" };
+		expect(subgraphStatus(halted, 0)).toEqual({
+			group: "alarm",
+			label: "Halted",
+		});
+		expect(subgraphStatus(halted, 4, insight({})).label).toBe("Halted");
 	});
 
 	test("another status is its capitalized name", () => {
@@ -180,6 +188,32 @@ describe("subgraphWhyLine", () => {
 	test("nothing for a clean subgraph or unloaded health", () => {
 		expect(subgraphWhyLine("a", 0)).toBeNull();
 		expect(subgraphWhyLine("a", null)).toBeNull();
+	});
+
+	test("a halted subgraph says why and how to resume, before any insight", () => {
+		const top = insight({ line: "bns-registry throws on name-update" });
+		expect(
+			subgraphWhyLine("bns-registry", 5, top, {
+				status: "error",
+				lastError: "Processor killed for memory 3 times.",
+			}),
+		).toBe(
+			"Processor killed for memory 3 times. Redeploy or reindex to resume.",
+		);
+	});
+
+	test("a halt reason that already names the way out is kept as is", () => {
+		const lastError =
+			"Halted at block 900 after 3 retries, redeploy or reindex to resume: boom";
+		expect(
+			subgraphWhyLine("a", 0, undefined, { status: "error", lastError }),
+		).toBe(lastError);
+	});
+
+	test("a halt with no reason still says how to resume", () => {
+		expect(subgraphWhyLine("a", 0, undefined, { status: "error" })).toBe(
+			"Halted. Redeploy or reindex to resume.",
+		);
 	});
 
 	test("the top insight wins", () => {

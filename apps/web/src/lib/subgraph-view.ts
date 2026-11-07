@@ -67,6 +67,21 @@ export function handlerErrors24h(
 	return health.hours.slice(-24).reduce((sum, h) => sum + h.errors, 0);
 }
 
+/** A halted subgraph's line: why it stopped and how to bring it back. Null
+ *  unless the subgraph is halted (status `error`). A catch-up halt already
+ *  names the way out; a watchdog or operator halt gets it added. */
+export function haltLine(item: {
+	status: string;
+	lastError?: string | null;
+}): string | null {
+	if (item.status !== "error") return null;
+	const reason = item.lastError?.trim().replace(/\.+$/, "");
+	if (!reason) return "Halted. Redeploy or reindex to resume.";
+	return /redeploy|reindex/i.test(reason)
+		? reason
+		: `${reason}. Redeploy or reindex to resume.`;
+}
+
 /** Failing for an errored subgraph or any handler error in 24 hours, neutral
  *  while it is not active (reindexing, stopped), else healthy. */
 export function subgraphTone(status: string, errors24h: number | null): Tone {

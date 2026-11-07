@@ -2292,6 +2292,29 @@ const META: Record<StoryId, Meta> = {
 				),
 			},
 			{
+				id: "halted",
+				label: "One subgraph halted by the watchdog",
+				render: () => (
+					<SubgraphsListBody
+						items={exampleList.map((item, i) =>
+							i === 0
+								? {
+										...item,
+										status: "error",
+										lastError:
+											"Processor killed for memory 3 times in 10 minutes",
+									}
+								: item,
+						)}
+						health={{
+							"sbtc-deposits": weekHealth(0),
+							"vault-events": weekHealth(0),
+						}}
+						notice={null}
+					/>
+				),
+			},
+			{
 				id: "ribbon",
 				label: "Two subgraphs, Ribbon",
 				render: () => (

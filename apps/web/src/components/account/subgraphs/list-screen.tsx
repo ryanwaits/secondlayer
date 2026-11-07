@@ -105,7 +105,7 @@ function SubgraphRow({
 		: subgraphTone(item.status, errors24h);
 	const flag = flagClass(tone);
 	const status = subgraphStatus(item, errors24h, top);
-	const why = subgraphWhyLine(item.name, errors24h, top);
+	const why = subgraphWhyLine(item.name, errors24h, top, item);
 	return (
 		<ResourceRow
 			href={`/account/subgraphs/${encodeURIComponent(item.name)}`}
@@ -317,7 +317,7 @@ function indexRows(
 		return {
 			item,
 			status: subgraphStatus(item, errors24h, top),
-			why: subgraphWhyLine(item.name, errors24h, top),
+			why: subgraphWhyLine(item.name, errors24h, top, item),
 			cells:
 				data && endHour
 					? alignToWindow(
