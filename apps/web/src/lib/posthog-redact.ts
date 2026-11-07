@@ -4,12 +4,20 @@
  * replay (`ph-no-capture`); this scrubs anything that still carries one (an
  * element's text, an exception message, a URL) before PostHog sends it.
  */
-const KEY = /sk-(?:sl|snt)_[0-9a-f]{16,}/g;
+const KEY = /(?:sk-(?:sl|snt)|ss-sl)_[0-9a-f]{16,}/g;
 const REDACTED = "sk-sl_[redacted]";
+// The sign-in link carries its one-time token in `?token=`. Matches only a
+// parameter named exactly `token` (after `?`, `&` or `#`), up to the next
+// delimiter or whitespace.
+const TOKEN_PARAM = /([?&#]token=)[^&#\s"']+/g;
 const MAX_DEPTH = 12;
 
+function scrubString(value: string): string {
+	return value.replace(KEY, REDACTED).replace(TOKEN_PARAM, "$1[redacted]");
+}
+
 function scrub(value: unknown, depth: number): unknown {
-	if (typeof value === "string") return value.replace(KEY, REDACTED);
+	if (typeof value === "string") return scrubString(value);
 	if (depth > MAX_DEPTH || value === null || typeof value !== "object")
 		return value;
 	if (Array.isArray(value)) return value.map((v) => scrub(v, depth + 1));

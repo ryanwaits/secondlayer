@@ -14,7 +14,8 @@ const LINK_FAILED =
 function VerifyContent() {
 	const searchParams = useSearchParams();
 	const { verify } = useAuth();
-	const token = searchParams.get("token");
+	// Read once: the address bar loses the token below, and with it this value.
+	const [token] = useState(() => searchParams.get("token"));
 	const [error, setError] = useState<string | null>(null);
 	const [retryable, setRetryable] = useState(false);
 	const attempted = useRef(false);
@@ -22,6 +23,9 @@ function VerifyContent() {
 	const doVerify = useCallback(async () => {
 		if (!token || attempted.current) return;
 		attempted.current = true;
+		// The one-time token must not outlive this line in the address bar:
+		// analytics and replay read the URL. Done before anything is awaited.
+		window.history.replaceState(window.history.state, "", "/auth/verify");
 
 		try {
 			await verify(token);
@@ -64,7 +68,12 @@ function VerifyContent() {
 							type="button"
 							className="acct-btn solid"
 							style={{ display: "inline-flex" }}
-							onClick={() => window.location.reload()}
+							onClick={() => {
+								attempted.current = false;
+								setError(null);
+								setRetryable(false);
+								void doVerify();
+							}}
 						>
 							Try again
 						</button>
