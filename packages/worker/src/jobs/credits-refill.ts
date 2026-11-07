@@ -3,9 +3,11 @@
  * prepaid balance drops under the account's threshold. Default is off.
  *
  * Credit lands on payment_intent.succeeded (kind=credits_refill), not here.
- * We touch refill_last_at before charging so a crash cannot double-fire
- * inside the one-hour cooldown, and key the Stripe charge on that attempt
- * (`refill:<accountId>:<refill_last_at>`) so a retried call can't charge twice.
+ * We claim the attempt (a conditional write of refill_last_at that only one
+ * runner wins) before charging, so a crash or an overlapping run cannot
+ * double-fire inside the one-hour cooldown, and key the Stripe charge on the
+ * stored timestamp (`refill:<accountId>:<refill_last_at>`) so a retried call
+ * can't charge twice.
  *
  * A declined / failed / authentication-required charge turns auto top-up OFF
  * for the account, sends the owner one email, and is never retried: the owner
@@ -15,9 +17,9 @@
  */
 
 import {
+	claimRefill,
 	listDueRefills,
 	setCreditRefill,
-	touchRefill,
 } from "@secondlayer/platform/db/queries/account-credits";
 import { getAccountById } from "@secondlayer/platform/db/queries/accounts";
 import { getErrorMessage, logger } from "@secondlayer/shared";
@@ -143,9 +145,10 @@ export async function runDueRefills(deps: RefillDeps = {}): Promise<number> {
 	let charged = 0;
 
 	for (const row of due) {
-		const attemptAt = new Date();
 		let charging = false; // only a failed CHARGE turns auto top-up off
-		await touchRefill(db, row.accountId, attemptAt);
+		const attemptAt = await claimRefill(db, row.accountId);
+		// Another runner claimed it, or the balance was topped up since listing.
+		if (!attemptAt) continue;
 		try {
 			const customer = await stripe.customers.retrieve(row.stripeCustomerId);
 			if ("deleted" in customer && customer.deleted) {

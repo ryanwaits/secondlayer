@@ -9,6 +9,7 @@ import {
 import { getDb } from "@secondlayer/shared/db";
 import {
 	accountSpendState,
+	claimRefill,
 	creditCredits,
 	debitCredits,
 	getCreditRefill,
@@ -216,5 +217,61 @@ describe.skipIf(!HAS_DB)("accountSpendState", () => {
 		expect(state.canRead).toBe(true);
 		expect(state.canRunStack).toBe(true);
 		expect(state.overCap).toBe(false);
+	});
+});
+
+describe.skipIf(!HAS_DB)("claimRefill", () => {
+	async function armRefill(balance: bigint, below: bigint) {
+		await creditCredits(db, accountId, balance);
+		await setCreditRefill(db, accountId, {
+			belowUsdMicros: below,
+			packUsd: 25,
+		});
+	}
+
+	test("the first claim returns the stored timestamp and a second claim inside the cooldown gets null", async () => {
+		await armRefill(1_000_000n, 5_000_000n);
+		const now = new Date("2026-11-07T12:00:00.000Z");
+		const first = await claimRefill(db, accountId, now);
+		expect(first?.toISOString()).toBe(now.toISOString());
+		expect((await getCreditRefill(db, accountId)).lastAt?.toISOString()).toBe(
+			now.toISOString(),
+		);
+		expect(
+			await claimRefill(db, accountId, new Date(now.getTime() + 59 * 60_000)),
+		).toBeNull();
+	});
+
+	test("a claim after the one-hour cooldown wins again", async () => {
+		await armRefill(1_000_000n, 5_000_000n);
+		const now = new Date("2026-11-07T12:00:00.000Z");
+		await claimRefill(db, accountId, now);
+		const later = new Date(now.getTime() + 61 * 60_000);
+		expect((await claimRefill(db, accountId, later))?.toISOString()).toBe(
+			later.toISOString(),
+		);
+	});
+
+	test("concurrent claims: exactly one wins", async () => {
+		await armRefill(1_000_000n, 5_000_000n);
+		const now = new Date();
+		const results = await Promise.all(
+			Array.from({ length: 5 }, () => claimRefill(db, accountId, now)),
+		);
+		expect(results.filter((r) => r !== null)).toHaveLength(1);
+	});
+
+	test("a balance at the threshold (not below it) is not claimable", async () => {
+		await armRefill(5_000_000n, 5_000_000n);
+		expect(await claimRefill(db, accountId)).toBeNull();
+	});
+
+	test("a turned-off refill is not claimable", async () => {
+		await armRefill(1_000_000n, 5_000_000n);
+		await setCreditRefill(db, accountId, {
+			belowUsdMicros: null,
+			packUsd: null,
+		});
+		expect(await claimRefill(db, accountId)).toBeNull();
 	});
 });

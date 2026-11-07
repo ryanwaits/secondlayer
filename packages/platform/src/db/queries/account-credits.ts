@@ -356,14 +356,34 @@ export async function listDueRefills(
 	});
 }
 
-export async function touchRefill(
+/**
+ * Claim one refill attempt: stamp `refill_last_at` only if the refill is
+ * still due (enabled, balance under the threshold, cooldown elapsed) at the
+ * moment of the write. Of two runners racing on the same account, exactly one
+ * gets a timestamp back; the other gets `null` and must not charge. The
+ * returned timestamp is the one stored, so the caller's Stripe idempotency
+ * key is derived from the row, never from a fresh clock read.
+ */
+export async function claimRefill(
 	db: Kysely<Database>,
 	accountId: string,
 	now: Date = new Date(),
-): Promise<void> {
-	await db
+): Promise<Date | null> {
+	const cutoff = new Date(now.getTime() - REFILL_COOLDOWN_MS);
+	const row = await db
 		.updateTable("account_credits")
 		.set({ refill_last_at: now, updated_at: now })
 		.where("account_id", "=", accountId)
-		.execute();
+		.where("refill_below_usd_micros", "is not", null)
+		.where("refill_pack_usd", "is not", null)
+		.where(sql<boolean>`balance_usd_micros < refill_below_usd_micros`)
+		.where((eb) =>
+			eb.or([
+				eb("refill_last_at", "is", null),
+				eb("refill_last_at", "<", cutoff),
+			]),
+		)
+		.returning("refill_last_at")
+		.executeTakeFirst();
+	return row?.refill_last_at ?? null;
 }

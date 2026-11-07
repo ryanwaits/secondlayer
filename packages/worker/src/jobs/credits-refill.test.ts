@@ -112,6 +112,34 @@ describe.skipIf(!HAS_DB)("runDueRefills", () => {
 		expect(mails).toHaveLength(0);
 	});
 
+	test("two overlapping runners charge an account once", async () => {
+		const { id } = await makeDueAccount();
+		let charges = 0;
+		const deps = {
+			stripe: stubStripe(async (params) => {
+				if (params.metadata?.secondlayer_account_id === id) charges += 1;
+				return { status: "succeeded" };
+			}),
+			sendEmail: async () => ({ id: "x" }) as never,
+		};
+		await Promise.all([runDueRefills(deps), runDueRefills(deps)]);
+		expect(charges).toBe(1);
+	});
+
+	test("an account topped up after the due list was read is not charged", async () => {
+		const { id } = await makeDueAccount();
+		await creditCredits(db, id, 10_000_000n);
+		let charges = 0;
+		await runDueRefills({
+			stripe: stubStripe(async (params) => {
+				if (params.metadata?.secondlayer_account_id === id) charges += 1;
+				return { status: "succeeded" };
+			}),
+		});
+		expect(charges).toBe(0);
+		expect((await getCreditRefill(db, id)).lastAt).toBeNull();
+	});
+
 	test("a declined card turns auto top-up off, emails once, never retries", async () => {
 		const { id, email } = await makeDueAccount();
 		let calls = 0;
