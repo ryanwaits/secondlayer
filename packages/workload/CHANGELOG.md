@@ -1,5 +1,13 @@
 # @secondlayer/workload
 
+## 0.2.32
+
+### Patch Changes
+
+- Updated dependencies [dfbde5d]
+  - @secondlayer/shared@15.3.1
+  - @secondlayer/platform@0.10.14
+
 ## 0.2.31
 
 ### Patch Changes

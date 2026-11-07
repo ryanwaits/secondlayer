@@ -1,5 +1,12 @@
 # @secondlayer/platform
 
+## 0.10.14
+
+### Patch Changes
+
+- Updated dependencies [dfbde5d]
+  - @secondlayer/shared@15.3.1
+
 ## 0.10.13
 
 ### Patch Changes

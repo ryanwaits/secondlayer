@@ -1,5 +1,14 @@
 # @secondlayer/sdk
 
+## 16.3.1
+
+### Patch Changes
+
+- dfbde5d: Chain webhook rollbacks recall only the blocks a reorg orphaned, once each, and each entry names its `block_hash` and `block_height`
+- Updated dependencies [dfbde5d]
+  - @secondlayer/shared@15.3.1
+  - @secondlayer/subgraphs@8.1.1
+
 ## 16.3.0
 
 ### Minor Changes

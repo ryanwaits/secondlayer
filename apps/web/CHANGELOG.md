@@ -1,5 +1,12 @@
 # @secondlayer/web
 
+## 0.14.20
+
+### Patch Changes
+
+- Updated dependencies [dfbde5d]
+  - @secondlayer/sdk@16.3.1
+
 ## 0.14.19
 
 ### Patch Changes

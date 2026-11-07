@@ -1,5 +1,13 @@
 # @secondlayer/worker
 
+## 1.4.44
+
+### Patch Changes
+
+- Updated dependencies [dfbde5d]
+  - @secondlayer/shared@15.3.1
+  - @secondlayer/platform@0.10.14
+
 ## 1.4.43
 
 ### Patch Changes

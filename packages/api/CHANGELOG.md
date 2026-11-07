@@ -1,5 +1,15 @@
 # @secondlayer/api
 
+## 1.64.1
+
+### Patch Changes
+
+- Updated dependencies [dfbde5d]
+  - @secondlayer/shared@15.3.1
+  - @secondlayer/subgraphs@8.1.1
+  - @secondlayer/sdk@16.3.1
+  - @secondlayer/platform@0.10.14
+
 ## 1.64.0
 
 ### Minor Changes
