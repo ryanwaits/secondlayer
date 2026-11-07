@@ -342,7 +342,7 @@ describe.skipIf(!HAS_DB)("provisioner up/stop/start/destroy", () => {
 		await deleteTenant(db, accountId);
 	});
 
-	test("up() surfaces a non-zero compose exit as a thrown error, and cleans up rather than stranding the row (review fix 5)", async () => {
+	test("up() surfaces a non-zero compose exit as a thrown error, tears the half-started stack down, and a retry reuses the same row, port and subnet", async () => {
 		secretsRoot = mkdtempSync(join(tmpdir(), "workload-secrets-"));
 		const accountId = crypto.randomUUID();
 		nextResult = { code: 1, stdout: "", stderr: "boom" };
@@ -351,19 +351,65 @@ describe.skipIf(!HAS_DB)("provisioner up/stop/start/destroy", () => {
 			/docker compose up failed/,
 		);
 
-		// The row is gone, not stuck in `provisioning` forever.
-		const row = await getTenant(db, accountId);
-		expect(row).toBeUndefined();
+		// The row stays (its port and subnet are not burned), still
+		// `provisioning`, ready for the retry.
+		const failed = await getTenant(db, accountId);
+		expect(failed?.state).toBe("provisioning");
 
 		// Cleanup called `compose down -v` for the half-started project.
 		const cleanupCall = composeCalls.at(-1);
 		expect(cleanupCall?.args).toContain("down");
 		expect(cleanupCall?.args).toContain("-v");
 
-		// A retried up() starts fresh (no leftover state blocks it) and succeeds.
+		// A retried up() reuses the row's allocation and succeeds.
 		nextResult = { code: 0, stdout: "", stderr: "" };
 		const state = await up(cfg(), accountId);
 		expect(state).toBe("running");
+		const retried = await getTenant(db, accountId);
+		expect(retried?.api_port).toBe(failed?.api_port);
+		expect(retried?.subnet_idx).toBe(failed?.subnet_idx);
+
+		await deleteTenant(db, accountId);
+	});
+
+	test("failed provisions do not advance the port and subnet sequences", async () => {
+		secretsRoot = mkdtempSync(join(tmpdir(), "workload-secrets-"));
+		const accountId = crypto.randomUUID();
+		nextResult = { code: 1, stdout: "", stderr: "boom" };
+		await expect(up(cfg(), accountId)).rejects.toThrow();
+		const [afterFirst] = await db`SELECT last_value FROM tenant_subnet_seq`;
+
+		for (let i = 0; i < 3; i++) {
+			await expect(up(cfg(), accountId)).rejects.toThrow();
+		}
+		const [afterRetries] = await db`SELECT last_value FROM tenant_subnet_seq`;
+		expect(afterRetries?.last_value).toBe(afterFirst?.last_value);
+
+		await deleteTenant(db, accountId);
+	});
+
+	test("a second up() while the first is still provisioning does not start another compose run", async () => {
+		secretsRoot = mkdtempSync(join(tmpdir(), "workload-secrets-"));
+		const accountId = crypto.randomUUID();
+		let release: () => void = () => {};
+		const gate = new Promise<void>((r) => {
+			release = r;
+		});
+		const slow: ProvisionerConfig = {
+			...cfg(),
+			runCompose: async (args, env) => {
+				composeCalls.push({ args, env });
+				await gate;
+				return { code: 0, stdout: "", stderr: "" };
+			},
+		};
+
+		const first = up(slow, accountId);
+		await Bun.sleep(50);
+		expect(await up(slow, accountId)).toBe("provisioning");
+		release();
+		expect(await first).toBe("running");
+		expect(composeCalls.filter((c) => c.args.includes("up"))).toHaveLength(1);
 
 		await deleteTenant(db, accountId);
 	});
@@ -385,10 +431,11 @@ describe.skipIf(!HAS_DB)("provisioner up/stop/start/destroy", () => {
 		await expect(up(cfgWithFlakyCleanup, accountId)).rejects.toThrow(
 			/docker compose up failed/, // original error surfaces, not the cleanup error
 		);
-		expect(await getTenant(db, accountId)).toBeUndefined(); // still cleaned up the row
+		expect((await getTenant(db, accountId))?.state).toBe("provisioning"); // row kept for the retry
+		await deleteTenant(db, accountId);
 	});
 
-	test("recoverInterruptedProvisions tears down a provisioning row with compose down -v and deletes it", async () => {
+	test("recoverInterruptedProvisions tears down a provisioning row with compose down -v and keeps the row for the retry", async () => {
 		secretsRoot = mkdtempSync(join(tmpdir(), "workload-secrets-"));
 		const accountId = crypto.randomUUID();
 		const acct8 = acct8For(accountId);
@@ -402,7 +449,8 @@ describe.skipIf(!HAS_DB)("provisioner up/stop/start/destroy", () => {
 		expect(mine[0]?.args).toContain("down");
 		expect(mine[0]?.args).toContain("-v");
 		expect(mine[0]?.env.WORKLOAD_IMAGE_TAG).toBe(TARGET_SHA);
-		expect(await getTenant(db, accountId)).toBeUndefined();
+		expect((await getTenant(db, accountId))?.state).toBe("provisioning");
+		await deleteTenant(db, accountId);
 	});
 
 	test("recoverInterruptedProvisions leaves running and stopped tenants alone", async () => {
@@ -429,7 +477,7 @@ describe.skipIf(!HAS_DB)("provisioner up/stop/start/destroy", () => {
 		await deleteTenant(db, stoppedId);
 	});
 
-	test("recoverInterruptedProvisions with no resolved target skips compose but still deletes the row", async () => {
+	test("recoverInterruptedProvisions with no resolved target skips compose and keeps the row", async () => {
 		secretsRoot = mkdtempSync(join(tmpdir(), "workload-secrets-"));
 		const accountId = crypto.randomUUID();
 		await insertProvisioningTenant(db, accountId, acct8For(accountId));
@@ -438,7 +486,8 @@ describe.skipIf(!HAS_DB)("provisioner up/stop/start/destroy", () => {
 		await recoverInterruptedProvisions(cfg());
 
 		expect(composeCalls).toHaveLength(0);
-		expect(await getTenant(db, accountId)).toBeUndefined();
+		expect((await getTenant(db, accountId))?.state).toBe("provisioning");
+		await deleteTenant(db, accountId);
 	});
 
 	test("stop() transitions running → stopped and stops the app services, not postgres", async () => {
@@ -991,12 +1040,13 @@ describe.skipIf(!HAS_DB)("provisioner up/stop/start/destroy", () => {
 		await deleteTenant(db, accountId);
 	});
 
-	test("a failed provision still deletes its row so the next request retries", async () => {
+	test("a failed provision keeps its provisioning row so the next request retries on it", async () => {
 		secretsRoot = mkdtempSync(join(tmpdir(), "workload-secrets-"));
 		const accountId = crypto.randomUUID();
 		nextResult = { code: 1, stdout: "", stderr: "boom" };
 		await expect(up(cfg(), accountId)).rejects.toThrow("compose up failed");
-		expect(await getTenant(db, accountId)).toBeUndefined();
+		expect((await getTenant(db, accountId))?.state).toBe("provisioning");
+		await deleteTenant(db, accountId);
 	});
 });
 

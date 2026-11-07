@@ -30,7 +30,6 @@ import {
 	type StopReason,
 	type TenantRow,
 	acct8For,
-	deleteProvisioningTenant,
 	getTenant,
 	insertProvisioningTenant,
 	listPollableTenants,
@@ -581,10 +580,11 @@ export async function ensureTenantEnv(
  * tenant stack (Design fix).
  *
  * On failure past the point secrets are written (compose up errors), this
- * tears down whatever compose managed to start and deletes the control-db
- * row (review fix 5) — a stuck `provisioning` row would 503 every request
- * for that account forever; deleting it lets the NEXT request retry
- * `up()` from scratch instead.
+ * tears down whatever compose managed to start and keeps the `provisioning`
+ * row: it holds the account's port and subnet, so the NEXT request's `up()`
+ * retries on the same row instead of burning a new allocation. A
+ * `provisioning` row this process is not working on (`provisioningInFlight`)
+ * is such a leftover, from a failure or a restart.
  */
 export async function up(
 	cfg: ProvisionerConfig,
@@ -609,24 +609,66 @@ export async function up(
 			await start(cfg, accountId);
 			return "running";
 		}
-		return existing.state;
+		// A `provisioning` row nothing in this process is working on is a failed
+		// or interrupted provision: fall through and retry it on the same row.
+		if (existing.state !== "provisioning") return existing.state;
 	}
+	if (provisioningInFlight.has(accountId)) return "provisioning";
 
 	// Checked before the row insert (not just before the compose call) so an
 	// undetermined target never leaves behind a stuck `provisioning` row that
 	// would 503 this account forever (plan 064).
 	const targetSha = requireTargetSha(cfg, accountId, "provision");
 
-	const { inserted, apiPort, subnetIdx } = await insertProvisioningTenant(
-		cfg.db,
-		accountId,
-		acct8,
-	);
-	cfg.onTenantChanged?.(accountId);
-	if (!inserted) {
-		// Lost the race to another concurrent request for the same account.
-		const row = await getTenant(cfg.db, accountId);
-		return row?.state ?? "provisioning";
+	provisioningInFlight.add(accountId);
+	try {
+		return await provisionStack(
+			cfg,
+			runCompose,
+			accountId,
+			acct8,
+			targetSha,
+			existing,
+		);
+	} finally {
+		provisioningInFlight.delete(accountId);
+	}
+}
+
+/** Accounts this process is provisioning right now. A `provisioning` row not
+ *  in here was left by a failure or a restart and is retried by the next
+ *  `up()`. */
+const provisioningInFlight = new Set<string>();
+
+/** The body of `up()` for an account with no stack: allocate (or, on a retry,
+ *  reuse) the row's port and subnet, mint keys, write secrets, run compose. */
+async function provisionStack(
+	cfg: ProvisionerConfig,
+	runCompose: RunCompose,
+	accountId: string,
+	acct8: string,
+	targetSha: string,
+	existing: TenantRow | undefined,
+): Promise<TenantRow["state"]> {
+	let apiPort: number;
+	let subnetIdx: number;
+	if (existing) {
+		apiPort = existing.api_port;
+		subnetIdx = existing.subnet_idx;
+		logger.info("workload.provisioner.retry_provisioning", {
+			accountId,
+			acct8,
+		});
+	} else {
+		const insert = await insertProvisioningTenant(cfg.db, accountId, acct8);
+		cfg.onTenantChanged?.(accountId);
+		if (!insert.inserted) {
+			// Lost the race to another concurrent request for the same account.
+			const row = await getTenant(cfg.db, accountId);
+			return row?.state ?? "provisioning";
+		}
+		apiPort = insert.apiPort;
+		subnetIdx = insert.subnetIdx;
 	}
 
 	const dir = tenantDir(cfg, acct8);
@@ -716,10 +758,9 @@ export async function up(
 	return "running";
 }
 
-/** Best-effort teardown for a failed `up()` (review fix 5): a stuck
- *  `provisioning` row with no working stack would 503 every request for
- *  this account forever, and it would silently squat the allocated
- *  `api_port`. `compose down -v` failures here are logged, not thrown —
+/** Best-effort teardown for a failed `up()`: removes the half-started stack
+ *  so the retry on the kept `provisioning` row starts clean.
+ *  `compose down -v` failures here are logged, not thrown —
  *  the ORIGINAL error is what the caller needs to see; a cleanup failure on
  *  top of it just means the next `up()` retry's `compose up` may need to
  *  clean up a half-started project itself (compose handles that fine). */
@@ -742,8 +783,8 @@ async function cleanupFailedProvision(
 
 /** Shared by the failed-`up()` cleanup and the boot sweep: `compose down -v`
  *  for the tenant's project (skipped when there is no image tag to give
- *  compose), then delete the control-db row. Never throws on a compose
- *  failure. */
+ *  compose). The control-db row stays `provisioning` so the next `up()` reuses
+ *  it. Never throws on a compose failure. */
 async function teardownProvision(
 	cfg: ProvisionerConfig,
 	runCompose: RunCompose,
@@ -780,15 +821,15 @@ async function teardownProvision(
 			acct8,
 		});
 	}
-	await deleteProvisioningTenant(cfg.db, accountId);
 	cfg.onTenantChanged?.(accountId);
 }
 
 /** Boot sweep: a restart mid-`up()` kills the fire-and-forget provision, so
  *  every `provisioning` row found before the gateway starts is orphaned (one
  *  process owns provisioning; nothing is in flight yet). Tear each down the
- *  same way a failed `up()` does so the next request re-provisions from
- *  scratch instead of 503ing forever. Must run before `Bun.serve`. */
+ *  same way a failed `up()` does; the rows stay, so the next request retries
+ *  `up()` on them (the gateway kicks it for a `provisioning` tenant). Must run
+ *  before `Bun.serve`. */
 export async function recoverInterruptedProvisions(
 	cfg: ProvisionerConfig,
 ): Promise<number> {

@@ -313,6 +313,9 @@ async function route(
 		);
 	}
 	if (state === "provisioning") {
+		// Idempotent: `up()` ignores an account it is already provisioning, and
+		// retries a row a failure or restart left behind.
+		deps.startProvisioning(stackAccountId);
 		return withRetryAfter(
 			Response.json(
 				{

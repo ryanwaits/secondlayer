@@ -1,9 +1,10 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import postgres from "postgres";
 import {
+	API_PORT_MAX,
+	SUBNET_IDX_MAX,
 	TENANT_TRANSITIONS,
 	acct8For,
-	deleteProvisioningTenant,
 	deleteTenant,
 	ensureControlSchema,
 	getTenant,
@@ -15,6 +16,7 @@ import {
 	setTenantImageSha,
 	transitionTenant,
 } from "./control-db.ts";
+import { TENANT_NETWORK_CAPACITY } from "./provisioner.ts";
 import { forceTenantState } from "./tenant-fixture.ts";
 
 const HAS_DB = !!process.env.DATABASE_URL;
@@ -274,6 +276,73 @@ describe.skipIf(!HAS_DB)("control-db", () => {
 		await deleteTenant(db, accountId);
 	});
 
+	test("the pool CHECKs reject an out-of-range subnet index and api port", async () => {
+		const accountId = crypto.randomUUID();
+		await insertProvisioningTenant(db, accountId, acct8For(accountId));
+		try {
+			for (const idx of [0, SUBNET_IDX_MAX + 1]) {
+				await expect(
+					run(
+						db`UPDATE tenants SET subnet_idx = ${idx} WHERE account_id = ${accountId}`,
+					),
+				).rejects.toThrow("tenants_subnet_idx_range_check");
+			}
+			for (const port of [19999, API_PORT_MAX + 1]) {
+				await expect(
+					run(
+						db`UPDATE tenants SET api_port = ${port} WHERE account_id = ${accountId}`,
+					),
+				).rejects.toThrow("tenants_api_port_range_check");
+			}
+			// The bounds themselves are allowed.
+			await db`UPDATE tenants SET subnet_idx = ${SUBNET_IDX_MAX}, api_port = ${API_PORT_MAX} WHERE account_id = ${accountId}`;
+		} finally {
+			await deleteTenant(db, accountId);
+		}
+	});
+
+	test("the pools are sequences that stop at their cap instead of cycling", async () => {
+		const rows = await db<
+			{ sequencename: string; max_value: string; cycle: boolean }[]
+		>`
+			SELECT sequencename, max_value, cycle FROM pg_sequences
+			WHERE sequencename IN ('tenant_subnet_seq', 'tenant_api_port_seq')
+		`;
+		const byName = Object.fromEntries(rows.map((r) => [r.sequencename, r]));
+		expect(Number(byName.tenant_subnet_seq?.max_value)).toBe(SUBNET_IDX_MAX);
+		expect(byName.tenant_subnet_seq?.cycle).toBe(false);
+		expect(Number(byName.tenant_api_port_seq?.max_value)).toBe(API_PORT_MAX);
+		expect(byName.tenant_api_port_seq?.cycle).toBe(false);
+	});
+
+	test("the subnet cap matches the networks tenantNetwork can address", () => {
+		expect(SUBNET_IDX_MAX).toBe(TENANT_NETWORK_CAPACITY - 1);
+	});
+
+	test("ensureControlSchema adds the range check NOT VALID, without failing, when an old row is outside it", async () => {
+		const accountId = crypto.randomUUID();
+		await insertProvisioningTenant(db, accountId, acct8For(accountId));
+		await db`ALTER TABLE tenants DROP CONSTRAINT tenants_api_port_range_check`;
+		try {
+			await db`UPDATE tenants SET api_port = 5 WHERE account_id = ${accountId}`;
+			await ensureControlSchema(db);
+			const [check] = await db<{ convalidated: boolean }[]>`
+				SELECT convalidated FROM pg_constraint WHERE conname = 'tenants_api_port_range_check'
+			`;
+			expect(check?.convalidated).toBe(false);
+			// New rows are still held to the range.
+			await expect(
+				run(
+					db`UPDATE tenants SET api_port = 6 WHERE account_id = ${accountId}`,
+				),
+			).rejects.toThrow("tenants_api_port_range_check");
+		} finally {
+			await deleteTenant(db, accountId);
+			await db`ALTER TABLE tenants DROP CONSTRAINT IF EXISTS tenants_api_port_range_check`;
+			await ensureControlSchema(db);
+		}
+	});
+
 	test("ensureControlSchema repairs a stopped row with no reason before adding the check", async () => {
 		const accountId = crypto.randomUUID();
 		await insertProvisioningTenant(db, accountId, acct8For(accountId));
@@ -286,23 +355,6 @@ describe.skipIf(!HAS_DB)("control-db", () => {
 			await ensureControlSchema(db);
 			await deleteTenant(db, accountId);
 		}
-	});
-
-	test("deleteProvisioningTenant leaves a destroyed tombstone alone", async () => {
-		const accountId = crypto.randomUUID();
-		await insertProvisioningTenant(db, accountId, acct8For(accountId));
-		await deleteProvisioningTenant(db, accountId);
-		expect(await getTenant(db, accountId)).toBeUndefined();
-
-		await insertProvisioningTenant(db, accountId, acct8For(accountId));
-		await transitionTenant(db, accountId, {
-			from: ["provisioning"],
-			to: "destroyed",
-		});
-		await deleteProvisioningTenant(db, accountId);
-		expect((await getTenant(db, accountId))?.state).toBe("destroyed");
-
-		await deleteTenant(db, accountId);
 	});
 
 	test("deleteTenant removes the row; getTenant returns undefined after", async () => {

@@ -463,7 +463,7 @@ describe("handleGatewayRequest", () => {
 		expect(forwarded?.auth).toBe("Bearer tenant-instance-token");
 	});
 
-	test("tenant mid-provisioning → 503 + Retry-After, no duplicate provisioning", async () => {
+	test("tenant mid-provisioning → 503 + Retry-After, and asks the provisioner to retry a leftover row (it ignores one already in flight)", async () => {
 		let provisionCalls = 0;
 		const deps = baseDeps({
 			resolveTenant: async () => "provisioning",
@@ -477,7 +477,7 @@ describe("handleGatewayRequest", () => {
 		);
 		expect(res.status).toBe(503);
 		expect(res.headers.get("Retry-After")).toBe("30");
-		expect(provisionCalls).toBe(0);
+		expect(provisionCalls).toBe(1);
 	});
 
 	test("stopped tenant + creditsOk (topped up) → 503 starting, kicks a background start (review fix 3b)", async () => {

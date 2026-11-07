@@ -10,6 +10,7 @@
  * tenant's credentials.
  */
 
+import { logger } from "@secondlayer/shared";
 import { defineMachine } from "@secondlayer/shared/db/transition";
 import postgres from "postgres";
 
@@ -26,9 +27,9 @@ export type StopReason = (typeof STOP_REASONS)[number];
 
 /** `(none) -> provisioning -> running <-> stopped`, and any live state ->
  *  `destroyed`. `destroyed` is a tombstone: the row stays, so a deleted
- *  account can never be provisioned again. A failed provision deletes its
- *  `provisioning` row instead (`deleteProvisioningTenant`), so the next
- *  request retries from scratch. */
+ *  account can never be provisioned again. A failed provision keeps its
+ *  `provisioning` row (and the port and subnet it holds): the next request
+ *  retries `up()` on that same row. */
 export const TENANT_TRANSITIONS = defineMachine({
 	states: TENANT_STATES,
 	transitions: {
@@ -137,6 +138,12 @@ export function resetControlDb(): void {
 /** First allocated port. Below this is left free for anything else already
  *  running on the host (the control DB itself, an ops SSH tunnel, ...). */
 const API_PORT_SEQUENCE_START = 20000;
+/** Last allocated port: the top of the range below the OS's ephemeral ports
+ *  (32768+), which a loopback listener could collide with. */
+export const API_PORT_MAX = 32767;
+/** Last network index. `provisioner.ts`'s `tenantNetwork` addresses
+ *  `TENANT_NETWORK_CAPACITY` (16384) /24s and index 0 is never allocated. */
+export const SUBNET_IDX_MAX = 16383;
 
 export async function ensureControlSchema(db: postgres.Sql): Promise<void> {
 	// A dedicated sequence (not MAX(api_port)+1) makes allocation race-free
@@ -150,6 +157,7 @@ export async function ensureControlSchema(db: postgres.Sql): Promise<void> {
 	);
 	// Same pattern for the per-tenant network index: never reused.
 	await db`CREATE SEQUENCE IF NOT EXISTS tenant_subnet_seq START 1`;
+	await ensureSequenceBounds(db);
 	await db`
 		CREATE TABLE IF NOT EXISTS tenants (
 			account_id TEXT PRIMARY KEY,
@@ -196,6 +204,71 @@ export async function ensureControlSchema(db: postgres.Sql): Promise<void> {
 	await db`ALTER TABLE tenants ADD COLUMN IF NOT EXISTS last_storage_sample_day DATE`;
 	await db`ALTER TABLE tenants ADD COLUMN IF NOT EXISTS last_backup_at TIMESTAMPTZ`;
 	await ensureStateChecks(db);
+	await ensureRangeChecks(db);
+}
+
+/** Caps both pools so exhaustion fails the allocation loudly (a sequence at
+ *  its MAXVALUE raises) instead of handing out a subnet or port the host
+ *  cannot use. Idempotent. A sequence already past its cap is left alone and
+ *  logged: that is a pool that is already over-allocated, and altering it
+ *  would fail boot. */
+async function ensureSequenceBounds(db: postgres.Sql): Promise<void> {
+	const bounds: [name: string, max: number][] = [
+		["tenant_api_port_seq", API_PORT_MAX],
+		["tenant_subnet_seq", SUBNET_IDX_MAX],
+	];
+	for (const [name, max] of bounds) {
+		const [seq] = await db<{ last_value: string | null }[]>`
+			SELECT last_value FROM pg_sequences WHERE sequencename = ${name}
+		`;
+		if (seq?.last_value != null && Number(seq.last_value) > max) {
+			logger.error("workload.control_db.sequence_over_cap", {
+				sequence: name,
+				lastValue: Number(seq.last_value),
+				max,
+			});
+			continue;
+		}
+		// Names and bounds are compile-time constants above, never input.
+		await db.unsafe(`ALTER SEQUENCE ${name} MAXVALUE ${max} NO CYCLE`);
+	}
+}
+
+/** Range CHECKs on the two allocated columns. A table that already holds a
+ *  row outside the range (which the allocators above never produced) gets the
+ *  constraint `NOT VALID`: enforced for new rows, the old row logged for a
+ *  human, boot not failed. Added once, guarded by name. */
+async function ensureRangeChecks(db: postgres.Sql): Promise<void> {
+	const checks: [name: string, expr: string][] = [
+		[
+			"tenants_subnet_idx_range_check",
+			`subnet_idx BETWEEN 1 AND ${SUBNET_IDX_MAX}`,
+		],
+		[
+			"tenants_api_port_range_check",
+			`api_port BETWEEN ${API_PORT_SEQUENCE_START} AND ${API_PORT_MAX}`,
+		],
+	];
+	for (const [name, expr] of checks) {
+		const [existing] = await db`
+			SELECT 1 FROM pg_constraint WHERE conname = ${name} AND conrelid = 'tenants'::regclass
+		`;
+		if (existing) continue;
+		// Names and expressions are compile-time constants above, never input.
+		const [violations] = await db.unsafe<{ n: string }[]>(
+			`SELECT count(*) AS n FROM tenants WHERE NOT (${expr})`,
+		);
+		const bad = Number(violations?.n ?? 0);
+		if (bad > 0) {
+			logger.error("workload.control_db.range_check_violations", {
+				constraint: name,
+				rows: bad,
+			});
+		}
+		await db.unsafe(
+			`ALTER TABLE tenants ADD CONSTRAINT ${name} CHECK (${expr})${bad > 0 ? " NOT VALID" : ""}`,
+		);
+	}
 }
 
 /** Mirrors `TENANT_STATES` / `STOP_REASONS` and ties the two columns together:
@@ -374,15 +447,6 @@ export async function deleteTenant(
 	accountId: string,
 ): Promise<void> {
 	await db`DELETE FROM tenants WHERE account_id = ${accountId}`;
-}
-
-/** Drops a half-made `provisioning` row so the next request retries `up()`.
- *  Never touches any other state: a `destroyed` tombstone must survive. */
-export async function deleteProvisioningTenant(
-	db: postgres.Sql,
-	accountId: string,
-): Promise<void> {
-	await db`DELETE FROM tenants WHERE account_id = ${accountId} AND state = 'provisioning'`;
 }
 
 export async function listTenants(db: postgres.Sql): Promise<TenantRow[]> {
