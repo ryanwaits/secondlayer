@@ -9,6 +9,14 @@ import {
 	mintFailure,
 } from "@/lib/code/docs-key-mint";
 import {
+	INITIAL_KEY_STATE,
+	type KeyEvent,
+	type KeyState,
+	expiryDelay,
+	isLive,
+	nextKeyState,
+} from "@/lib/code/docs-key-state";
+import {
 	ANON_OWNER,
 	DOCS_KEY_FORGET,
 	DOCS_KEY_STORE,
@@ -47,38 +55,78 @@ export type KeyReader = {
 	navigate: (href: string) => void;
 };
 
-type Held = { key: string; expiresAt: string; accountId: string };
+/** A held key, as the state machine carries it. */
+type HeldKey = Extract<KeyState["key"], { kind: "held" }>;
 
 const MINUTE = 60_000;
 
-let held: Held | null = null;
+/** Everything the key can be, in one value (`lib/code/docs-key-state.ts`).
+ *  Change it only through `dispatch`. */
+let state: KeyState = INITIAL_KEY_STATE;
+/** The page's callbacks for the current reader; not part of the state. */
 let reader: KeyReader | null = null;
-let revealed = false;
-let expired = false;
-let busy = false;
-/** Signed out and already given today's key: what the note says instead of the action. */
-let limited: string | null = null;
-let sending = false;
 let timer: ReturnType<typeof setTimeout> | undefined;
 let ticker: ReturnType<typeof setInterval> | undefined;
 let watching = false;
 let panel: HTMLElement | null = null;
-/** What the panel shows: the key, or the sign-in form for a lasting one. */
-let panelMode: "about" | "lasting" = "about";
-/** When the panel last closed: a click on the chip light-dismisses it first, and must not reopen it. */
-let closedAt = 0;
 /** A slot's own markup, to put back when the key goes away. */
 const originals = new WeakMap<Element, string>();
 
 const ownerOf = (r: KeyReader) => r.accountId ?? ANON_OWNER;
-const signedOut = () => reader !== null && reader.accountId === null;
-const live = (h: Held) => Date.parse(h.expiresAt) > Date.now();
+const signedOut = () => state.owner === ANON_OWNER;
+/** The key as it is now: read after a `dispatch`, which TypeScript cannot see changing `state`. */
+const currentKey = () => state.key;
+const heldKey = (): HeldKey | null =>
+	state.key.kind === "held" ? state.key : null;
 const mask = (key: string) => `sk-sl_…${key.slice(-4)}`;
 const short = (key: string) => `${key.slice(0, 10)}…${key.slice(-4)}`;
 const isLocalBase = () =>
 	document.documentElement.getAttribute("data-base") === "local";
 
-function timeLeft(h: Held): string {
+/** Apply one event, run what the change needs (storage, timers), repaint. */
+function dispatch(event: KeyEvent) {
+	const before = state.key;
+	state = nextKeyState(state, event);
+	if (state.key !== before) keyChanged(before, state.key);
+	paint();
+}
+
+/** A new key arms its expiry and is kept for the tab; any other change clears both. */
+function keyChanged(before: KeyState["key"], now: KeyState["key"]) {
+	if (now.kind !== "held") {
+		stop();
+		return;
+	}
+	// Show/Hide re-creates the held value but changes neither the key nor its clock.
+	if (
+		before.kind === "held" &&
+		before.key === now.key &&
+		before.expiresAt === now.expiresAt
+	)
+		return;
+	try {
+		sessionStorage.setItem(
+			DOCS_KEY_STORE,
+			JSON.stringify({
+				key: now.key,
+				expiresAt: now.expiresAt,
+				accountId: now.owner,
+			}),
+		);
+	} catch {
+		// Not persisted; the key still works on this page.
+	}
+	clearTimeout(timer);
+	clearInterval(ticker);
+	timer = setTimeout(
+		() => dispatch({ type: "expire" }),
+		expiryDelay(now.expiresAt),
+	);
+	// The chip's "23h left" counts down.
+	ticker = setInterval(() => paint(), MINUTE);
+}
+
+function timeLeft(h: { expiresAt: string }): string {
 	const minutes = Math.max(
 		1,
 		Math.ceil((Date.parse(h.expiresAt) - Date.now()) / MINUTE),
@@ -99,7 +147,7 @@ const slotsIn = (root: ParentNode): HTMLElement[] => [
 const frameOf = (slot: Element) =>
 	slot.closest<HTMLElement>(".cb-tabs") ?? slot.closest<HTMLElement>(".cb");
 
-function fill(slot: HTMLElement, h: Held) {
+function fill(slot: HTMLElement, h: HeldKey) {
 	// The Base URL switch owns the credential's text while it points at a
 	// self-hosted instance; the key returns when it flips back to hosted.
 	if (slot.hasAttribute("data-swap") && isLocalBase()) return;
@@ -114,7 +162,7 @@ function fill(slot: HTMLElement, h: Held) {
 	real.textContent = `${quote}${h.key}${quote}`;
 	slot.dataset.key = "";
 	slot.dataset.mask = `${quote}${mask(h.key)}${quote}`;
-	if (revealed) slot.dataset.reveal = "";
+	if (h.revealed) slot.dataset.reveal = "";
 	else delete slot.dataset.reveal;
 }
 
@@ -153,6 +201,10 @@ function note(frame: HTMLElement, on: boolean) {
 
 function paint(root: ParentNode = document) {
 	const keyed = new Set<HTMLElement>();
+	const held = heldKey();
+	const expired = state.key.kind === "expired";
+	const busy = state.key.kind === "minting";
+	const limited = state.key.kind === "limited" ? state.key.text : null;
 	for (const slot of slotsIn(root)) {
 		if (held) {
 			fill(slot, held);
@@ -162,7 +214,7 @@ function paint(root: ParentNode = document) {
 	}
 	for (const frame of root.querySelectorAll<HTMLElement>(".cb-tabs"))
 		if (frame.querySelector("[data-key-slot]")) note(frame, keyed.has(frame));
-	const daily = !held && limited !== null;
+	const daily = limited !== null;
 	for (const chip of root.querySelectorAll<HTMLButtonElement>(
 		"[data-key-chip]",
 	)) {
@@ -184,7 +236,7 @@ function paint(root: ParentNode = document) {
 		button.textContent = busy
 			? "Making key…"
 			: held
-				? revealed
+				? held.revealed
 					? "Hide"
 					: "Show"
 				: expired
@@ -209,44 +261,11 @@ function stop() {
 	}
 }
 
-/** Drop the key from memory, storage and every slot. */
+/** Drop the key from memory, storage and every slot; a mint in flight is orphaned. */
 export function forget() {
-	held = null;
-	revealed = false;
-	expired = false;
+	dispatch({ type: "forget" });
 	stop();
 	closePanel();
-	paint();
-}
-
-/** The key ran out: samples go back to their placeholder and the chip says so. */
-function expire() {
-	held = null;
-	revealed = false;
-	expired = true;
-	stop();
-	paint();
-}
-
-function hold(next: Held) {
-	held = next;
-	revealed = false;
-	expired = false;
-	limited = null;
-	try {
-		sessionStorage.setItem(DOCS_KEY_STORE, JSON.stringify(next));
-	} catch {
-		// Not persisted; the key still works on this page.
-	}
-	clearTimeout(timer);
-	clearInterval(ticker);
-	timer = setTimeout(
-		expire,
-		Math.max(0, Date.parse(next.expiresAt) - Date.now()),
-	);
-	// The chip's "23h left" counts down.
-	ticker = setInterval(() => paint(), MINUTE);
-	paint();
 }
 
 function restoreStored(owner: string) {
@@ -258,15 +277,26 @@ function restoreStored(owner: string) {
 	}
 	if (!raw) return;
 	try {
-		const h = JSON.parse(raw) as Partial<Held>;
+		const h = JSON.parse(raw) as {
+			key?: unknown;
+			expiresAt?: unknown;
+			accountId?: unknown;
+		};
 		if (
 			typeof h.key === "string" &&
 			h.key.startsWith("sk-sl_") &&
 			typeof h.expiresAt === "string" &&
 			h.accountId === owner
 		) {
-			if (live(h as Held)) hold(h as Held);
-			else expire();
+			// A lapsed key becomes "expired": the chip says so, samples revert.
+			if (expiryDelay(h.expiresAt) > 0)
+				dispatch({
+					type: "adopt",
+					key: h.key,
+					expiresAt: h.expiresAt,
+					owner,
+				});
+			else dispatch({ type: "expire" });
 			return;
 		}
 	} catch {
@@ -276,7 +306,10 @@ function restoreStored(owner: string) {
 }
 
 function fillPanel(el: HTMLElement) {
-	const lasting = panelMode === "lasting";
+	const held = heldKey();
+	const expired = state.key.kind === "expired";
+	const { sending } = state.panel;
+	const lasting = state.panel.mode === "lasting";
 	el.setAttribute("aria-label", lasting ? "Make a lasting key" : "Docs key");
 	const about = el.querySelector<HTMLElement>(".kp-about");
 	const form = el.querySelector<HTMLFormElement>(".kp-lasting");
@@ -308,18 +341,16 @@ function fillPanel(el: HTMLElement) {
 	);
 	const forgetButton = el.querySelector<HTMLElement>(".kp-forget");
 	if (forgetButton) forgetButton.hidden = !held;
+	const error = el.querySelector<HTMLElement>(".kp-error");
+	if (error) {
+		error.hidden = state.panel.error === null;
+		error.textContent = state.panel.error ?? "";
+	}
 	const send = el.querySelector<HTMLButtonElement>(".kp-send");
 	if (send) {
 		send.disabled = sending;
 		send.textContent = sending ? "Sending…" : "Email me a link";
 	}
-}
-
-function showError(text: string | null) {
-	const error = panel?.querySelector<HTMLElement>(".kp-error");
-	if (!error) return;
-	error.hidden = text === null;
-	error.textContent = text ?? "";
 }
 
 /** The lasting-key form was sent: email a sign-in link, then say where it went. */
@@ -328,24 +359,27 @@ async function sendLink(event: SubmitEvent) {
 	const form = event.currentTarget as HTMLFormElement;
 	const input = form.querySelector<HTMLInputElement>(".kp-email");
 	const email = input?.value.trim() ?? "";
-	if (sending || !reader || !email) return;
+	if (state.panel.sending || !reader || !email) return;
 	const { login, navigate } = reader;
-	sending = true;
-	showError(null);
-	if (panel) fillPanel(panel);
+	dispatch({ type: "sendStart" });
 	// The emailed link opens in a new tab; it finds where to go here.
 	rememberNext(LASTING_KEY_NEXT);
 	try {
 		await login(email, "lasting_key");
 	} catch (err) {
-		sending = false;
-		if (panel) fillPanel(panel);
-		showError(
-			err instanceof Error ? err.message : "Couldn't send the link. Try again.",
-		);
+		// No email went out, so no link will need that destination: a later,
+		// unrelated sign-in must not land on New key.
+		rememberNext("/account");
+		dispatch({
+			type: "sendFailed",
+			error:
+				err instanceof Error
+					? err.message
+					: "Couldn't send the link. Try again.",
+		});
 		return;
 	}
-	sending = false;
+	dispatch({ type: "sendDone" });
 	if (input) input.value = "";
 	closePanel();
 	notify.done("Check your email", {
@@ -389,7 +423,7 @@ function ensurePanel(): HTMLElement {
 	});
 	el.addEventListener("toggle", (e) => {
 		const open = (e as ToggleEvent).newState === "open";
-		if (!open) closedAt = performance.now();
+		if (!open) dispatch({ type: "panelClosed", at: performance.now() });
 		for (const control of document.querySelectorAll(
 			"[data-key-chip], [data-key-lasting]",
 		))
@@ -413,12 +447,9 @@ function closePanel() {
 }
 
 function showMode(mode: "about" | "lasting") {
-	panelMode = mode;
-	showError(null);
-	if (!panel) return;
-	fillPanel(panel);
+	dispatch({ type: "panelShow", mode });
 	if (mode === "lasting")
-		panel.querySelector<HTMLInputElement>(".kp-email")?.focus();
+		panel?.querySelector<HTMLInputElement>(".kp-email")?.focus();
 }
 
 /** Open or close the panel under `anchor`, showing `mode`. */
@@ -428,9 +459,8 @@ function togglePanelAt(anchor: HTMLElement, mode: "about" | "lasting") {
 		el.hidePopover();
 		return;
 	}
-	if (performance.now() - closedAt < 300) return;
-	panelMode = mode;
-	showError(null);
+	if (performance.now() - state.panel.closedAt < 300) return;
+	dispatch({ type: "panelShow", mode });
 	fillPanel(el);
 	const r = anchor.getBoundingClientRect();
 	el.style.top = `${r.bottom + 8}px`;
@@ -466,6 +496,7 @@ function watch() {
 	}).observe(document.body, { childList: true, subtree: true });
 	// The Base URL switch rewrites the credential's text; put the key back.
 	new MutationObserver(() => {
+		const held = heldKey();
 		if (held && !isLocalBase())
 			for (const slot of slotsIn(document)) fill(slot, held);
 	}).observe(document.documentElement, {
@@ -477,53 +508,70 @@ function watch() {
 
 /** Show the controls and bring back this tab's key. Safe to call on every page. */
 export function activate(next: KeyReader) {
-	if (reader !== null && ownerOf(reader) !== ownerOf(next)) {
-		limited = null;
-		forget();
-	}
+	const owner = ownerOf(next);
+	// A different reader (sign-out or sign-in, maybe in another tab) starts clean.
+	const switched = state.owner !== null && state.owner !== owner;
 	reader = next;
+	dispatch({ type: "activate", owner });
+	if (switched) closePanel();
 	watch();
-	if (held && live(held)) paint();
-	else restoreStored(ownerOf(next));
-	paint();
+	// A mint in flight will land the key itself.
+	if (!isLive(state) && state.key.kind !== "minting") restoreStored(owner);
 }
 
 /** The link was clicked: mint the key, or flip between the mask and the key. */
 export async function useKey(): Promise<void> {
-	if (busy || reader === null) return;
-	if (held && live(held)) {
-		revealed = !revealed;
-		paint();
+	if (state.key.kind === "minting" || reader === null) return;
+	if (isLive(state)) {
+		dispatch({ type: "toggleReveal" });
 		return;
 	}
-	const owner = ownerOf(reader);
+	// A held key past its time that the timer has not retired yet.
+	if (state.key.kind === "held") dispatch({ type: "expire" });
+	dispatch({ type: "mint" });
+	const started = currentKey();
+	if (started.kind !== "minting") return;
+	const { epoch } = started;
 	const signedIn = reader.accountId !== null;
 	const { url, init } = docsKeyMintRequest(signedIn, distinctId());
-	busy = true;
 	closePanel();
-	paint();
+	let event: KeyEvent;
 	let flash: string | null = null;
 	try {
 		const res = await fetch(url, init);
 		if (!res.ok) {
 			const failure = mintFailure(res.status, signedIn);
-			if (failure.kind === "daily") limited = failure.text;
-			else flash = failure.text;
+			if (failure.kind === "daily") {
+				event = { type: "mintLimited", epoch, text: failure.text };
+			} else {
+				event = { type: "mintFailed", epoch };
+				flash = failure.text;
+			}
 		} else {
 			const body = (await res.json()) as { key?: unknown; expiresAt?: unknown };
 			if (
 				typeof body.key === "string" &&
 				body.key.startsWith("sk-sl_") &&
 				typeof body.expiresAt === "string"
-			)
-				hold({ key: body.key, expiresAt: body.expiresAt, accountId: owner });
-			else flash = "Try again";
+			) {
+				event = {
+					type: "minted",
+					epoch,
+					key: body.key,
+					expiresAt: body.expiresAt,
+				};
+			} else {
+				event = { type: "mintFailed", epoch };
+				flash = "Try again";
+			}
 		}
 	} catch {
+		event = { type: "mintFailed", epoch };
 		flash = "Try again";
 	}
-	busy = false;
-	paint();
+	// The reader changed under the request: its result is not this reader's.
+	if (state.epoch !== epoch) return;
+	dispatch(event);
 	if (flash) {
 		for (const button of document.querySelectorAll<HTMLElement>(
 			"[data-use-key]",
