@@ -1,6 +1,7 @@
 import type { Database } from "@secondlayer/shared/db";
 import {
 	listContractsPendingAbi,
+	recordAbiFetchFailure,
 	recordContractDeploy,
 	setContractAbi,
 } from "@secondlayer/shared/db/queries/contracts";
@@ -72,9 +73,10 @@ export async function discoverDeploys(
 }
 
 /**
- * Fetch + classify ABIs for contracts awaiting one. Resilient: a contract whose
- * ABI can't be fetched/parsed is marked `failed`/`unparseable` and skipped — it
- * never wedges the worker. Inferred standards (shape) + declared standards
+ * Fetch + classify ABIs for contracts awaiting one (`pending`, plus `failed`
+ * rows due for a retry). Resilient: a contract whose ABI can't be fetched is
+ * backed off (`failed`, retried up to the attempt cap), one that can't be
+ * parsed is `unparseable` — neither wedges the worker. Inferred standards (shape) + declared standards
  * (source `impl-trait`) are merged.
  */
 export async function processPendingAbis(
@@ -94,10 +96,7 @@ export async function processPendingAbis(
 		try {
 			abi = (await node.getContractAbi(contract.contract_id)) as AbiContract;
 		} catch (err) {
-			await setContractAbi(db, contract.contract_id, {
-				abi: null,
-				status: "failed",
-			});
+			await recordAbiFetchFailure(db, contract.contract_id);
 			failed++;
 			logger.debug("contract ABI fetch failed", {
 				contract: contract.contract_id,

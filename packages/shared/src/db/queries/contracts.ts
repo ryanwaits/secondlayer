@@ -1,6 +1,12 @@
 import { type Kysely, sql } from "kysely";
 import { jsonb } from "../jsonb.ts";
-import type { AbiStatus, Contract, Database } from "../types.ts";
+import { casTransition, defineMachine } from "../transition.ts";
+import {
+	ABI_STATUSES,
+	type AbiStatus,
+	type Contract,
+	type Database,
+} from "../types.ts";
 
 /**
  * Contract registry queries — backing for trait-based discovery. Populated from
@@ -38,30 +44,95 @@ export async function recordContractDeploy(
 		.execute();
 }
 
-/** Store a fetched ABI + the traits/standards derived from it. */
+/**
+ * ABI fetch lifecycle. `failed` is retryable: a transient RPC error must not
+ * strand a contract. Each failure backs off (see {@link abiRetryDelayMs}) and
+ * after {@link ABI_MAX_ATTEMPTS} failures the row stays `failed` for good.
+ */
+export const ABI_MACHINE = defineMachine({
+	states: ABI_STATUSES,
+	transitions: {
+		pending: ["fetched", "unparseable", "failed"],
+		failed: ["fetched", "unparseable", "failed"],
+	},
+});
+
+export const ABI_MAX_ATTEMPTS = 5;
+const ABI_RETRY_BASE_MS = 15 * 60 * 1000;
+
+/** Wait before the next fetch after `attempts` failures: 30 min, 1 h, 2 h, 4 h. */
+export function abiRetryDelayMs(attempts: number): number {
+	return ABI_RETRY_BASE_MS * 2 ** Math.max(1, attempts);
+}
+
+/**
+ * Store a fetched ABI + the traits/standards derived from it. Moves a
+ * `pending` or retried `failed` row only; `null` means another writer got
+ * there first.
+ */
 export async function setContractAbi(
 	db: Kysely<Database>,
 	contractId: string,
 	data: {
 		abi: unknown | null;
-		status: AbiStatus;
+		status: Extract<AbiStatus, "fetched" | "unparseable">;
 		declaredTraits?: string[];
 		inferredStandards?: string[];
 	},
-): Promise<void> {
-	await db
-		.updateTable("contracts")
-		.set({
+): Promise<boolean> {
+	const row = await casTransition(db, {
+		table: "contracts",
+		key: "contract_id",
+		column: "abi_status",
+		id: contractId,
+		from: ["pending", "failed"],
+		to: data.status,
+		stampUpdatedAt: false,
+		set: {
 			abi: data.abi == null ? null : jsonb(data.abi),
-			abi_status: data.status,
 			abi_fetched_at: new Date(),
 			...(data.declaredTraits ? { declared_traits: data.declaredTraits } : {}),
 			...(data.inferredStandards
 				? { inferred_standards: data.inferredStandards }
 				: {}),
-		})
+		},
+	});
+	return row !== null;
+}
+
+/**
+ * Record a failed ABI fetch: bump `abi_attempts` and schedule the retry, or
+ * stop scheduling once attempts run out.
+ */
+export async function recordAbiFetchFailure(
+	db: Kysely<Database>,
+	contractId: string,
+	now: Date = new Date(),
+): Promise<boolean> {
+	const current = await db
+		.selectFrom("contracts")
+		.select("abi_attempts")
 		.where("contract_id", "=", contractId)
-		.execute();
+		.executeTakeFirst();
+	if (!current) return false;
+	const attempts = Number(current.abi_attempts) + 1;
+	const row = await casTransition(db, {
+		table: "contracts",
+		key: "contract_id",
+		column: "abi_status",
+		id: contractId,
+		from: ["pending", "failed"],
+		to: "failed",
+		stampUpdatedAt: false,
+		set: {
+			abi_attempts: attempts,
+			abi_next_attempt_at:
+				attempts >= ABI_MAX_ATTEMPTS
+					? null
+					: new Date(now.getTime() + abiRetryDelayMs(attempts)),
+		},
+	});
+	return row !== null;
 }
 
 /**
@@ -100,16 +171,31 @@ export async function getContract(
 	);
 }
 
-/** Contracts still awaiting an ABI fetch (drives the fetch/backfill worker). */
+/**
+ * Contracts awaiting an ABI fetch (drives the fetch/backfill worker): `pending`
+ * first, then `failed` rows that are due for a retry. `limit` bounds both
+ * together, so retries never out-poll the node faster than new deploys.
+ */
 export async function listContractsPendingAbi(
 	db: Kysely<Database>,
 	limit = 100,
+	now: Date = new Date(),
 ): Promise<Contract[]> {
 	return db
 		.selectFrom("contracts")
 		.selectAll()
-		.where("abi_status", "=", "pending")
 		.where("canonical", "=", true)
+		.where((eb) =>
+			eb.or([
+				eb("abi_status", "=", "pending"),
+				eb.and([
+					eb("abi_status", "=", "failed"),
+					eb("abi_attempts", "<", ABI_MAX_ATTEMPTS),
+					eb("abi_next_attempt_at", "<=", now),
+				]),
+			]),
+		)
+		.orderBy(sql`(abi_status = 'pending')`, "desc")
 		.orderBy("block_height", "asc")
 		.limit(limit)
 		.execute();

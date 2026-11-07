@@ -249,4 +249,98 @@ describe.skipIf(!HAS_DB)("processPendingAbis", () => {
 			.executeTakeFirstOrThrow();
 		expect(row.abi_status).toBe("failed");
 	});
+	async function seedFailed(
+		attempts: number,
+		nextAttemptAt: Date | null,
+	): Promise<void> {
+		if (!db) throw new Error("missing db");
+		await db
+			.insertInto("contracts")
+			.values({
+				contract_id: PENDING_OK,
+				deployer: ABI_ADDR,
+				block_height: 999_999_003,
+				canonical: true,
+				abi_status: "failed",
+				abi_attempts: attempts,
+				abi_next_attempt_at: nextAttemptAt,
+			})
+			.execute();
+	}
+
+	async function abiRow() {
+		if (!db) throw new Error("missing db");
+		return db
+			.selectFrom("contracts")
+			.select(["abi_status", "abi_attempts", "abi_next_attempt_at"])
+			.where("contract_id", "=", PENDING_OK)
+			.executeTakeFirstOrThrow();
+	}
+
+	test("a failed contract that is due is fetched again and becomes fetched", async () => {
+		if (!db) throw new Error("missing db");
+		await seedFailed(1, new Date(Date.now() - 1_000));
+		await processPendingAbis(db, node, { limit: 500 });
+		expect((await abiRow()).abi_status).toBe("fetched");
+	});
+
+	test("a failed contract is left alone until its backoff elapses", async () => {
+		if (!db) throw new Error("missing db");
+		await seedFailed(1, new Date(Date.now() + 3_600_000));
+		await processPendingAbis(db, node, { limit: 500 });
+		expect((await abiRow()).abi_status).toBe("failed");
+	});
+
+	test("a failed contract out of attempts is never polled again", async () => {
+		if (!db) throw new Error("missing db");
+		await seedFailed(5, null);
+		await processPendingAbis(db, node, { limit: 500 });
+		expect((await abiRow()).abi_status).toBe("failed");
+	});
+
+	test("a failed fetch counts the attempt and schedules the retry", async () => {
+		if (!db) throw new Error("missing db");
+		await db
+			.insertInto("contracts")
+			.values({
+				contract_id: PENDING_MISSING,
+				deployer: ABI_ADDR,
+				block_height: 999_999_002,
+				canonical: true,
+				abi_status: "pending",
+			})
+			.execute();
+		await processPendingAbis(db, node, { limit: 500 });
+		const row = await db
+			.selectFrom("contracts")
+			.select(["abi_attempts", "abi_next_attempt_at"])
+			.where("contract_id", "=", PENDING_MISSING)
+			.executeTakeFirstOrThrow();
+		expect(Number(row.abi_attempts)).toBe(1);
+		expect(row.abi_next_attempt_at).not.toBeNull();
+	});
+
+	test("the final failed attempt stops the retries", async () => {
+		if (!db) throw new Error("missing db");
+		await db
+			.insertInto("contracts")
+			.values({
+				contract_id: PENDING_MISSING,
+				deployer: ABI_ADDR,
+				block_height: 999_999_002,
+				canonical: true,
+				abi_status: "failed",
+				abi_attempts: 4,
+				abi_next_attempt_at: new Date(Date.now() - 1_000),
+			})
+			.execute();
+		await processPendingAbis(db, node, { limit: 500 });
+		const row = await db
+			.selectFrom("contracts")
+			.select(["abi_attempts", "abi_next_attempt_at"])
+			.where("contract_id", "=", PENDING_MISSING)
+			.executeTakeFirstOrThrow();
+		expect(Number(row.abi_attempts)).toBe(5);
+		expect(row.abi_next_attempt_at).toBeNull();
+	});
 });
