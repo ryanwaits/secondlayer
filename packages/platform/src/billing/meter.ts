@@ -138,10 +138,25 @@ function withTransaction<T>(
 	return db.isTransaction ? fn(db) : db.transaction().execute(fn);
 }
 
+/** The ledger's shape, asserted before anything is written (the DB CHECKs in
+ *  migration 0196 are the second line): a known unit and a finite,
+ *  non-negative quantity, so a charge can never be a credit. */
+function assertChargeInput(input: MeterInput): void {
+	if (!Object.hasOwn(PRICES, input.unit)) {
+		throw new Error(`meter: unknown unit ${String(input.unit)}`);
+	}
+	if (!Number.isFinite(input.quantity) || input.quantity < 0) {
+		throw new Error(
+			`meter: quantity must be a finite number >= 0, got ${input.quantity}`,
+		);
+	}
+}
+
 export async function meter(
 	db: Kysely<Database>,
 	input: MeterInput,
 ): Promise<MeterResult> {
+	assertChargeInput(input);
 	const occurredAt = input.occurredAt ?? new Date();
 
 	return withTransaction(db, async (trx) => {
@@ -151,6 +166,9 @@ export async function meter(
 		const priced = (await isInternalAccount(trx, input.accountId))
 			? { usdMicros: 0n, viaAllowance: false }
 			: await priceUnit(trx, input, occurredAt);
+		if (priced.usdMicros < 0n) {
+			throw new Error(`meter: negative price ${priced.usdMicros} µ$`);
+		}
 
 		const { row, claimed } = await claimLedgerEntry(trx, {
 			accountId: input.accountId,

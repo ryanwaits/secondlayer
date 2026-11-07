@@ -15,6 +15,7 @@ import {
 } from "../db/queries/account-credits.ts";
 import { upsertCaps } from "../db/queries/account-spend-caps.ts";
 import { grantCredits, meter, recordTopup } from "./meter.ts";
+import { PRICES } from "./prices.ts";
 
 const HAS_DB = !!process.env.DATABASE_URL;
 const db = HAS_DB ? getDb() : (null as never);
@@ -177,5 +178,103 @@ describe.skipIf(!HAS_DB)("top-up and grant quantity", () => {
 		expect(Number(row.quantity)).toBe(0.5);
 		expect(BigInt(row.usd_micros)).toBe(-500_000n);
 		expect(await getCredits(db, accountId)).toBe(500_000n);
+	});
+});
+
+describe.skipIf(!HAS_DB)("ledger shape", () => {
+	function insertLedger(unit: string, quantity: number, usdMicros: bigint) {
+		return db
+			.insertInto("usage_ledger")
+			.values({
+				account_id: accountId,
+				unit,
+				quantity,
+				usd_micros: usdMicros.toString(),
+				debited_usd_micros: usdMicros.toString(),
+				source: "test",
+				idempotency_key: randomUUID(),
+			})
+			.execute();
+	}
+
+	test("every priced unit, top-up, grant and refund is accepted with its own sign", async () => {
+		for (const unit of Object.keys(PRICES)) {
+			await insertLedger(unit, 1, 50_000n);
+		}
+		await insertLedger("topup", 5, -5_000_000n);
+		await insertLedger("grant", 5, -5_000_000n);
+		await insertLedger("refund", 5, 5_000_000n);
+		await insertLedger("rows.delivered", 0, 0n);
+		const count = await db
+			.selectFrom("usage_ledger")
+			.select((eb) => eb.fn.countAll<string>().as("n"))
+			.where("account_id", "=", accountId)
+			.executeTakeFirstOrThrow();
+		expect(Number(count.n)).toBe(Object.keys(PRICES).length + 4);
+	});
+
+	test("the ledger refuses an unknown unit", async () => {
+		await expect(insertLedger("mystery.unit", 1, 10n)).rejects.toThrow(
+			/usage_ledger_unit_check/,
+		);
+	});
+
+	test("the ledger refuses a negative quantity", async () => {
+		await expect(insertLedger("archive.partition", -1, 0n)).rejects.toThrow(
+			/usage_ledger_quantity_nonnegative_check/,
+		);
+	});
+
+	test("the ledger refuses a negative charge and a positive top-up or grant", async () => {
+		await expect(
+			insertLedger("archive.partition", 1, -50_000n),
+		).rejects.toThrow(/usage_ledger_usd_micros_sign_check/);
+		await expect(insertLedger("topup", 1, 1_000_000n)).rejects.toThrow(
+			/usage_ledger_usd_micros_sign_check/,
+		);
+		await expect(insertLedger("grant", 1, 1_000_000n)).rejects.toThrow(
+			/usage_ledger_usd_micros_sign_check/,
+		);
+		await expect(insertLedger("refund", 1, -1_000_000n)).rejects.toThrow(
+			/usage_ledger_usd_micros_sign_check/,
+		);
+	});
+
+	test("meter refuses a negative quantity and leaves balance and ledger untouched", async () => {
+		await creditCredits(db, accountId, 1_000_000n);
+		await expect(
+			meter(db, {
+				accountId,
+				unit: "memory.gb_hour",
+				quantity: -2,
+				source: "test",
+				idempotencyKey: randomUUID(),
+			}),
+		).rejects.toThrow(/quantity/);
+		expect(await getCredits(db, accountId)).toBe(1_000_000n);
+		const rows = await db
+			.selectFrom("usage_ledger")
+			.select("id")
+			.where("account_id", "=", accountId)
+			.execute();
+		expect(rows).toHaveLength(0);
+	});
+
+	test("meter refuses a non-finite quantity and an unknown unit", async () => {
+		for (const [unit, quantity] of [
+			["archive.partition", Number.NaN],
+			["archive.partition", Number.POSITIVE_INFINITY],
+			["not.a.unit", 1],
+		] as const) {
+			await expect(
+				meter(db, {
+					accountId,
+					unit: unit as "archive.partition",
+					quantity,
+					source: "test",
+					idempotencyKey: randomUUID(),
+				}),
+			).rejects.toThrow();
+		}
 	});
 });
