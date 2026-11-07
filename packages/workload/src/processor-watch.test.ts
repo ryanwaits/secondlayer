@@ -17,7 +17,6 @@ import {
 	getTenant,
 	insertProvisioningTenant,
 	setTenantHasSubgraphs,
-	setTenantState,
 } from "./control-db.ts";
 import {
 	MAX_RESTARTS_PER_HEIGHT,
@@ -31,6 +30,7 @@ import {
 	realProcessorWatchDeps,
 } from "./processor-watch.ts";
 import { type ProvisionerConfig, renderEnvFile } from "./provisioner.ts";
+import { forceTenantState } from "./tenant-fixture.ts";
 
 const HAS_DB = !!process.env.DATABASE_URL;
 const db = HAS_DB
@@ -102,7 +102,7 @@ describe.skipIf(!HAS_DB)("processor watch", () => {
 		const accountId = crypto.randomUUID();
 		const acct8 = acct8For(accountId);
 		await insertProvisioningTenant(db, accountId, acct8);
-		await setTenantState(db, accountId, "running");
+		await forceTenantState(db, accountId, "running");
 		mkdirSync(join(secretsRoot, acct8), { recursive: true });
 		// The instance token doubles as the key into the fake api's data.
 		writeFileSync(

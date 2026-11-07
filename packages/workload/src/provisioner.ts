@@ -30,14 +30,14 @@ import {
 	type StopReason,
 	type TenantRow,
 	acct8For,
-	deleteTenant,
+	deleteProvisioningTenant,
 	getTenant,
 	insertProvisioningTenant,
 	listPollableTenants,
 	listProvisioningTenants,
 	setTenantImageSha,
-	setTenantState,
 	setTenantTemplateSha,
+	transitionTenant,
 } from "./control-db.ts";
 import type { FetchLike } from "./fetch-like.ts";
 import { countTenantWorkloads } from "./meters.ts";
@@ -593,7 +593,16 @@ export async function up(
 	const runCompose = cfg.runCompose ?? spawnCompose;
 	const acct8 = acct8For(accountId);
 	const existing = await getTenant(cfg.db, accountId);
-	if (existing && existing.state !== "destroyed") {
+	if (existing?.state === "destroyed") {
+		// A tombstone: a deleted account never gets a stack again, whatever key
+		// it still holds.
+		logger.warn("workload.provisioner.up_refused_destroyed", {
+			accountId,
+			acct8,
+		});
+		return "destroyed";
+	}
+	if (existing) {
 		if (existing.state === "stopped") {
 			// Top-up path: `stopped → running` (Design) restarts the existing
 			// stack — secrets and data are untouched, so this is just `start`.
@@ -682,8 +691,22 @@ export async function up(
 		throw err;
 	}
 
-	await setTenantState(cfg.db, accountId, "running");
+	const running = await transitionTenant(cfg.db, accountId, {
+		from: ["provisioning"],
+		to: "running",
+	});
 	cfg.onTenantChanged?.(accountId);
+	if (!running) {
+		// The row left `provisioning` while compose ran (a destroy, or a boot
+		// sweep): report what it is now instead of claiming it is running.
+		const row = await getTenant(cfg.db, accountId);
+		logger.error("workload.provisioner.up_lost_race", {
+			accountId,
+			acct8,
+			state: row?.state ?? null,
+		});
+		return row?.state ?? "destroyed";
+	}
 	await recordTenantRelease(cfg, accountId, targetSha);
 	logger.info("workload.provisioner.up", {
 		accountId,
@@ -757,7 +780,7 @@ async function teardownProvision(
 			acct8,
 		});
 	}
-	await deleteTenant(cfg.db, accountId);
+	await deleteProvisioningTenant(cfg.db, accountId);
 	cfg.onTenantChanged?.(accountId);
 }
 
@@ -788,16 +811,32 @@ export async function recoverInterruptedProvisions(
 	return rows.length;
 }
 
+/** Workloads in one tenant, `null` when unreadable. */
+function workloadCount(
+	cfg: ProvisionerConfig,
+	acct8: string,
+): Promise<number | null> {
+	return (cfg.countWorkloads ?? countTenantWorkloads)(acct8);
+}
+
 /** `running → stopped`: stop every service except `postgres` (Design) so
  *  webhook delivery pauses and the memory meter stops, but tenant data is
  *  kept. `reason` decides what brings it back: the poll restarts a
  *  `credits`/`cap` stop once the account is ok; an `idle` stop waits for a
- *  write or a `?wake` read through the gateway. */
+ *  write or a `?wake` read through the gateway.
+ *
+ *  The state moves first (compare-and-swap from `running`), then compose
+ *  stops the services, and a compose failure moves it back: so a stop never
+ *  acts on a row that changed under it. An `idle` stop also re-counts
+ *  workloads after the swap and gives up when the tenant is no longer empty
+ *  (a webhook created since the poll looked), and `ifStartedAt` makes it give
+ *  up when the stack restarted since. Returns whether the tenant was stopped. */
 export async function stop(
 	cfg: ProvisionerConfig,
 	accountId: string,
 	reason: StopReason,
-): Promise<void> {
+	opts: { ifStartedAt?: Date | null } = {},
+): Promise<boolean> {
 	const runCompose = cfg.runCompose ?? spawnCompose;
 	const acct8 = acct8For(accountId);
 	const dir = tenantDir(cfg, acct8);
@@ -807,46 +846,107 @@ export async function stop(
 	// supplied fails parsing even for a subcommand that never touches the
 	// image (plan 064). Any resolvable value works here.
 	const workloadImageTag = requireTargetSha(cfg, accountId, "stop");
-	const hasSubgraphs =
-		(await getTenant(cfg.db, accountId))?.has_subgraphs ?? false;
-	const result = await runCompose(
-		[
-			"-p",
-			projectName(acct8),
-			"-f",
-			cfg.composeFile,
-			"--env-file",
-			join(dir, ".env"),
-			"stop",
-			...tenantServices(hasSubgraphs),
-		],
-		composeEnv(workloadImageTag, hasSubgraphs),
-	);
-	if (result.code !== 0) {
-		throw new Error(
-			`docker compose stop failed for tenant-${acct8} (exit ${result.code})`,
-		);
-	}
-	await setTenantState(cfg.db, accountId, "stopped", reason);
+	const row = await transitionTenant(cfg.db, accountId, {
+		from: ["running"],
+		to: "stopped",
+		reason,
+		ifStartedAt: opts.ifStartedAt,
+	});
 	cfg.onTenantChanged?.(accountId);
+	if (!row) {
+		logger.warn("workload.provisioner.stop_skipped", {
+			accountId,
+			acct8,
+			reason,
+		});
+		return false;
+	}
+
+	const undoStop = async () => {
+		await transitionTenant(cfg.db, accountId, {
+			from: ["stopped"],
+			to: "running",
+			keepStartedAt: true,
+		});
+		cfg.onTenantChanged?.(accountId);
+	};
+
+	if (reason === "idle" && (await workloadCount(cfg, acct8)) !== 0) {
+		await undoStop();
+		logger.info("workload.provisioner.idle_stop_aborted", { accountId, acct8 });
+		return false;
+	}
+
+	try {
+		const result = await runCompose(
+			[
+				"-p",
+				projectName(acct8),
+				"-f",
+				cfg.composeFile,
+				"--env-file",
+				join(dir, ".env"),
+				"stop",
+				...tenantServices(row.has_subgraphs),
+			],
+			composeEnv(workloadImageTag, row.has_subgraphs),
+		);
+		if (result.code !== 0) {
+			throw new Error(
+				`docker compose stop failed for tenant-${acct8} (exit ${result.code})`,
+			);
+		}
+	} catch (err) {
+		await undoStop();
+		throw err;
+	}
 	logger.info("workload.provisioner.stop", { accountId, acct8, reason });
+	return true;
 }
 
+/** One `start` per account at a time: the gateway kicks a start per request
+ *  and the poll starts too, and two `compose up` on one project race. */
+const startsInFlight = new Map<string, Promise<void>>();
+
 /** `stopped → running`: undoes `stop()`. Also used by `up()` for a returning
- *  top-up on an already-provisioned account. */
-export async function start(
+ *  top-up on an already-provisioned account. Callers racing on one account
+ *  share a single run. Does nothing for a tenant that is not `stopped`, and
+ *  refuses a `destroyed` one. */
+export function start(
+	cfg: ProvisionerConfig,
+	accountId: string,
+): Promise<void> {
+	const inflight = startsInFlight.get(accountId);
+	if (inflight) return inflight;
+	const run = startOnce(cfg, accountId).finally(() => {
+		startsInFlight.delete(accountId);
+	});
+	startsInFlight.set(accountId, run);
+	return run;
+}
+
+async function startOnce(
 	cfg: ProvisionerConfig,
 	accountId: string,
 ): Promise<void> {
 	const runCompose = cfg.runCompose ?? spawnCompose;
 	const acct8 = acct8For(accountId);
 	const dir = tenantDir(cfg, acct8);
+	const current = await getTenant(cfg.db, accountId);
+	if (current?.state !== "stopped") {
+		logger.info("workload.provisioner.start_skipped", {
+			accountId,
+			acct8,
+			state: current?.state ?? null,
+		});
+		return;
+	}
 	// Stopped tenants upgrade lazily (plan 064, Design): every restart uses
 	// whatever's currently deployed, not whatever this tenant last ran.
 	const targetSha = requireTargetSha(cfg, accountId, "start");
+	// Callers that cached the row as `stopped` see a start is under way.
+	cfg.onTenantChanged?.(accountId);
 	await ensureTenantEnv(cfg, accountId);
-	const hasSubgraphs =
-		(await getTenant(cfg.db, accountId))?.has_subgraphs ?? false;
 	const result = await runCompose(
 		[
 			"-p",
@@ -859,15 +959,22 @@ export async function start(
 			"-d",
 			"--wait",
 		],
-		composeEnv(targetSha, hasSubgraphs),
+		composeEnv(targetSha, current.has_subgraphs),
 	);
 	if (result.code !== 0) {
 		throw new Error(
 			`docker compose up (restart) failed for tenant-${acct8} (exit ${result.code})`,
 		);
 	}
-	await setTenantState(cfg.db, accountId, "running");
+	const running = await transitionTenant(cfg.db, accountId, {
+		from: ["stopped"],
+		to: "running",
+	});
 	cfg.onTenantChanged?.(accountId);
+	if (!running) {
+		logger.error("workload.provisioner.start_lost_race", { accountId, acct8 });
+		return;
+	}
 	await recordTenantRelease(cfg, accountId, targetSha);
 	logger.info("workload.provisioner.start", {
 		accountId,
@@ -877,11 +984,13 @@ export async function start(
 }
 
 /** `any → destroyed`: final `pg_dump` to the backup bucket (`backups.ts`,
- *  kept 30 days), then `compose down -v`. Refuses to run without a backup
- *  store, and aborts before touching the stack when the dump fails: a
- *  destroy never deletes data it couldn't save. Idempotent once past the
- *  dump — a second call on an already-destroyed account is a no-op `compose
- *  down` plus a control-DB delete that matches zero rows. */
+ *  kept 30 days), then `compose down -v`, then the row becomes a `destroyed`
+ *  tombstone (never deleted: the gateway answers 401 for it and `up()`
+ *  refuses it, so a deleted account can't get a new stack). Refuses to run
+ *  without a backup store, and aborts before touching the stack when the dump
+ *  fails: a destroy never deletes data it couldn't save. Idempotent — a second
+ *  call on a destroyed (or never provisioned) account skips the dump and runs
+ *  a no-op `compose down`. */
 export async function destroy(
 	cfg: ProvisionerConfig,
 	accountId: string,
@@ -895,9 +1004,9 @@ export async function destroy(
 			`refusing to destroy tenant-${acct8}: no backup store configured (TENANT_BACKUP_*)`,
 		);
 	}
-	// No row = already destroyed: nothing left to dump.
+	// No row, or a tombstone = already destroyed: nothing left to dump.
 	const row = await getTenant(cfg.db, accountId);
-	if (row) {
+	if (row && row.state !== "destroyed") {
 		await finalBackupTenant(cfg.backups, acct8);
 	}
 	const result = await runCompose(
@@ -919,8 +1028,13 @@ export async function destroy(
 			`docker compose down failed for tenant-${acct8} (exit ${result.code})`,
 		);
 	}
-	await deleteTenant(cfg.db, accountId);
-	cfg.onTenantChanged?.(accountId);
+	if (row && row.state !== "destroyed") {
+		await transitionTenant(cfg.db, accountId, {
+			from: ["provisioning", "running", "stopped"],
+			to: "destroyed",
+		});
+		cfg.onTenantChanged?.(accountId);
+	}
 	logger.info("workload.provisioner.destroy", { accountId, acct8 });
 }
 
@@ -948,9 +1062,6 @@ export async function pollCredits(cfg: ProvisionerConfig): Promise<void> {
 
 	const checkCreditsOk = resolveCheckCreditsOk(cfg);
 	const statuses = await checkCreditsOk(tenants.map((t) => t.account_id));
-	const countWorkloads =
-		cfg.countWorkloads ?? ((acct8: string) => countTenantWorkloads(acct8));
-
 	for (const tenant of tenants) {
 		const status = statuses[tenant.account_id] ?? {
 			ok: false,
@@ -965,8 +1076,14 @@ export async function pollCredits(cfg: ProvisionerConfig): Promise<void> {
 				if (isTestnetStackAccount(cfg, tenant.account_id)) continue;
 				const startedAt = tenant.started_at?.getTime() ?? 0;
 				if (Date.now() - startedAt < IDLE_GRACE_MS) continue;
-				const count = await countWorkloads(acct8For(tenant.account_id));
-				if (count === 0) await stop(cfg, tenant.account_id, "idle");
+				const count = await workloadCount(cfg, acct8For(tenant.account_id));
+				// `stop` re-counts after it takes the row, and only stops the stack
+				// that came up when this poll read it.
+				if (count === 0) {
+					await stop(cfg, tenant.account_id, "idle", {
+						ifStartedAt: tenant.started_at ?? null,
+					});
+				}
 			} else if (status.ok && tenant.stop_reason !== "idle") {
 				await start(cfg, tenant.account_id);
 			}

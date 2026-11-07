@@ -26,7 +26,6 @@ import {
 	getTenant,
 	insertProvisioningTenant,
 	setTenantHasSubgraphs,
-	setTenantState,
 } from "./control-db.ts";
 import {
 	type ComposeResult,
@@ -49,6 +48,7 @@ import {
 	testnetStackFromEnv,
 	up,
 } from "./provisioner.ts";
+import { forceTenantState } from "./tenant-fixture.ts";
 
 const HAS_DB = !!process.env.DATABASE_URL;
 const db = HAS_DB
@@ -410,9 +410,9 @@ describe.skipIf(!HAS_DB)("provisioner up/stop/start/destroy", () => {
 		const runningId = crypto.randomUUID();
 		const stoppedId = crypto.randomUUID();
 		await insertProvisioningTenant(db, runningId, acct8For(runningId));
-		await setTenantState(db, runningId, "running");
+		await forceTenantState(db, runningId, "running");
 		await insertProvisioningTenant(db, stoppedId, acct8For(stoppedId));
-		await setTenantState(db, stoppedId, "stopped");
+		await forceTenantState(db, stoppedId, "stopped");
 
 		await recoverInterruptedProvisions(cfg());
 
@@ -549,7 +549,7 @@ describe.skipIf(!HAS_DB)("provisioner up/stop/start/destroy", () => {
 		const accountId = crypto.randomUUID();
 		const acct8 = acct8For(accountId);
 		await insertProvisioningTenant(db, accountId, acct8);
-		await setTenantState(db, accountId, "running");
+		await forceTenantState(db, accountId, "running");
 		const dir = join(secretsRoot, acct8);
 		mkdirSync(dir, { recursive: true });
 		const envPath = join(dir, ".env");
@@ -706,7 +706,7 @@ describe.skipIf(!HAS_DB)("provisioner up/stop/start/destroy", () => {
 	test("start() backfills an old tenant's env before running compose, and a failed backfill doesn't stop the start", async () => {
 		secretsRoot = mkdtempSync(join(tmpdir(), "workload-secrets-"));
 		const { accountId, envPath } = await seedOldTenant();
-		await setTenantState(db, accountId, "stopped");
+		await forceTenantState(db, accountId, "stopped");
 		let envAtCompose: Record<string, string> = {};
 		const withSnapshot: ProvisionerConfig = {
 			...cfg(),
@@ -722,7 +722,7 @@ describe.skipIf(!HAS_DB)("provisioner up/stop/start/destroy", () => {
 		expect((await getTenant(db, accountId))?.state).toBe("running");
 
 		// Same tenant, mint down: start still succeeds.
-		await setTenantState(db, accountId, "stopped");
+		await forceTenantState(db, accountId, "stopped");
 		writeFileSync(envPath, renderEnvFile({ POSTGRES_PASSWORD: "pw" }), {
 			mode: 0o600,
 		});
@@ -789,14 +789,14 @@ describe.skipIf(!HAS_DB)("provisioner up/stop/start/destroy", () => {
 		await deleteTenant(db, accountId);
 	});
 
-	test("destroy() takes a final dump, then removes the control-db row after compose down -v", async () => {
+	test("destroy() takes a final dump, then leaves a destroyed tombstone after compose down -v", async () => {
 		secretsRoot = mkdtempSync(join(tmpdir(), "workload-secrets-"));
 		const accountId = crypto.randomUUID();
 		await up(cfg(), accountId);
 		const backups = fakeBackups(0);
 
 		await destroy({ ...cfg(), backups: backups.cfg }, accountId);
-		expect(await getTenant(db, accountId)).toBeUndefined();
+		expect((await getTenant(db, accountId))?.state).toBe("destroyed");
 		expect([...backups.objects.keys()]).toEqual([
 			expect.stringMatching(
 				new RegExp(`^tenant-backups/final/${acct8For(accountId)}/`),
@@ -837,6 +837,125 @@ describe.skipIf(!HAS_DB)("provisioner up/stop/start/destroy", () => {
 		expect(composeCalls).toHaveLength(0);
 
 		await deleteTenant(db, accountId);
+	});
+
+	test("ten parallel starts of a stopped tenant run compose up once", async () => {
+		secretsRoot = mkdtempSync(join(tmpdir(), "workload-secrets-"));
+		const accountId = crypto.randomUUID();
+		await up(cfg(), accountId);
+		await stop(cfg(), accountId, "credits");
+		composeCalls.length = 0;
+		const slow: ProvisionerConfig = {
+			...cfg(),
+			runCompose: async (args, env) => {
+				composeCalls.push({ args, env });
+				await Bun.sleep(30);
+				return { code: 0, stdout: "", stderr: "" };
+			},
+		};
+
+		await Promise.all(Array.from({ length: 10 }, () => start(slow, accountId)));
+
+		expect(composeCalls.filter((c) => c.args.includes("up"))).toHaveLength(1);
+		expect((await getTenant(db, accountId))?.state).toBe("running");
+
+		await deleteTenant(db, accountId);
+	});
+
+	test("a start that fails is retried by the next caller, not cached", async () => {
+		secretsRoot = mkdtempSync(join(tmpdir(), "workload-secrets-"));
+		const accountId = crypto.randomUUID();
+		await up(cfg(), accountId);
+		await stop(cfg(), accountId, "credits");
+
+		nextResult = { code: 1, stdout: "", stderr: "boom" };
+		await expect(start(cfg(), accountId)).rejects.toThrow("restart) failed");
+		expect((await getTenant(db, accountId))?.state).toBe("stopped");
+
+		nextResult = { code: 0, stdout: "", stderr: "" };
+		await start(cfg(), accountId);
+		expect((await getTenant(db, accountId))?.state).toBe("running");
+
+		await deleteTenant(db, accountId);
+	});
+
+	test("a failed compose stop puts the tenant back to running with its start time", async () => {
+		secretsRoot = mkdtempSync(join(tmpdir(), "workload-secrets-"));
+		const accountId = crypto.randomUUID();
+		await up(cfg(), accountId);
+		const before = await getTenant(db, accountId);
+
+		nextResult = { code: 1, stdout: "", stderr: "boom" };
+		await expect(stop(cfg(), accountId, "credits")).rejects.toThrow(
+			"compose stop failed",
+		);
+
+		const row = await getTenant(db, accountId);
+		expect(row?.state).toBe("running");
+		expect(row?.stop_reason).toBeNull();
+		expect(row?.started_at).toEqual(before?.started_at ?? null);
+
+		await deleteTenant(db, accountId);
+	});
+
+	test("an idle stop leaves a tenant running when it was restarted after the poll read it", async () => {
+		secretsRoot = mkdtempSync(join(tmpdir(), "workload-secrets-"));
+		const accountId = crypto.randomUUID();
+		await up(cfg(), accountId);
+		const seen = (await getTenant(db, accountId))?.started_at ?? null;
+		await forceTenantState(db, accountId, "stopped", "credits");
+		await forceTenantState(db, accountId, "running");
+		composeCalls.length = 0;
+
+		const stopped = await stop(
+			{ ...cfg(), countWorkloads: async () => 0 },
+			accountId,
+			"idle",
+			{ ifStartedAt: seen },
+		);
+
+		expect(stopped).toBe(false);
+		expect((await getTenant(db, accountId))?.state).toBe("running");
+		expect(composeCalls).toHaveLength(0);
+
+		await deleteTenant(db, accountId);
+	});
+
+	test("destroy leaves a tombstone that up() refuses and the poll ignores", async () => {
+		secretsRoot = mkdtempSync(join(tmpdir(), "workload-secrets-"));
+		const accountId = crypto.randomUUID();
+		await up(cfg(), accountId);
+		const backups = fakeBackups(0);
+		await destroy({ ...cfg(), backups: backups.cfg }, accountId);
+		composeCalls.length = 0;
+		mintCalls = [];
+
+		expect(await up(cfg(), accountId)).toBe("destroyed");
+		await start(cfg(), accountId);
+		await pollCredits({
+			...cfg(),
+			checkCreditsOk: async () => ({ [accountId]: { ok: true, reason: null } }),
+		});
+
+		expect(composeCalls).toHaveLength(0);
+		expect(mintCalls).toHaveLength(0);
+		expect((await getTenant(db, accountId))?.state).toBe("destroyed");
+
+		// A second destroy is a no-op: no new dump, still a tombstone.
+		const dumps = backups.objects.size;
+		await destroy({ ...cfg(), backups: backups.cfg }, accountId);
+		expect(backups.objects.size).toBe(dumps);
+		expect((await getTenant(db, accountId))?.state).toBe("destroyed");
+
+		await deleteTenant(db, accountId);
+	});
+
+	test("a failed provision still deletes its row so the next request retries", async () => {
+		secretsRoot = mkdtempSync(join(tmpdir(), "workload-secrets-"));
+		const accountId = crypto.randomUUID();
+		nextResult = { code: 1, stdout: "", stderr: "boom" };
+		await expect(up(cfg(), accountId)).rejects.toThrow("compose up failed");
+		expect(await getTenant(db, accountId)).toBeUndefined();
 	});
 });
 
@@ -966,6 +1085,26 @@ describe.skipIf(!HAS_DB)("pollCredits (review fix 3a)", () => {
 		await deleteTenant(db, accountId);
 	});
 
+	test("a webhook created after the poll counted zero keeps the tenant running", async () => {
+		const accountId = crypto.randomUUID();
+		await up(cfg({}), accountId);
+		await startedLongAgo(accountId);
+		composeCalls.length = 0;
+		// The poll reads 0; by the time the stop re-checks, the user created one.
+		const counts = [0, 1];
+		await pollCredits({
+			...cfg({ [accountId]: true }),
+			countWorkloads: async () => counts.shift() ?? 1,
+		});
+
+		const row = await getTenant(db, accountId);
+		expect(row?.state).toBe("running");
+		expect(row?.stop_reason).toBeNull();
+		expect(composeCalls.some((c) => c.args.includes("stop"))).toBe(false);
+
+		await deleteTenant(db, accountId);
+	});
+
 	test("the shared testnet stack is never idle-stopped, while another idle account still is", async () => {
 		const testnetAccount = crypto.randomUUID();
 		const other = crypto.randomUUID();
@@ -995,7 +1134,7 @@ describe.skipIf(!HAS_DB)("pollCredits (review fix 3a)", () => {
 	test("an idle-stopped tenant is not restarted by the poll", async () => {
 		const accountId = crypto.randomUUID();
 		await up(cfg({}), accountId);
-		await stop(cfg({}), accountId, "idle");
+		await stop(cfg({}, 0), accountId, "idle");
 		composeCalls.length = 0;
 
 		await pollCredits(cfg({ [accountId]: true }, 0));
@@ -1011,7 +1150,7 @@ describe.skipIf(!HAS_DB)("pollCredits (review fix 3a)", () => {
 	test("starting a tenant clears its stop reason and stamps started_at", async () => {
 		const accountId = crypto.randomUUID();
 		await up(cfg({}), accountId);
-		await stop(cfg({}), accountId, "idle");
+		await stop(cfg({}, 0), accountId, "idle");
 
 		await start(cfg({}), accountId);
 

@@ -284,6 +284,11 @@ async function route(
 	if (state === undefined && bucket === "read" && !testnetPath) {
 		return emptyRead(url.pathname);
 	}
+	// A destroyed account's tombstone: its keys are dead whatever its balance,
+	// so this answers before the credits gate and for reads and writes alike.
+	if (state === "destroyed") {
+		return Response.json({ error: "invalid_api_key" }, { status: 401 });
+	}
 	if (!testnetPath && !introspected.creditsOk) {
 		return Response.json(
 			{
@@ -344,9 +349,6 @@ async function route(
 			),
 			PROVISIONING_RETRY_AFTER_SECONDS,
 		);
-	}
-	if (state === "destroyed") {
-		return Response.json({ error: "invalid_api_key" }, { status: 401 });
 	}
 
 	const upstream = await deps.tenantUpstream(stackAccountId);

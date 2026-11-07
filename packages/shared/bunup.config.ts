@@ -14,6 +14,7 @@ const config: DefineConfigItem = defineConfig({
 		"src/db/queries/subgraph-gaps.ts",
 		"src/db/queries/subgraph-operations.ts",
 		"src/db/jsonb.ts",
+		"src/db/transition.ts",
 		"src/db/schema.ts",
 		"src/queue/listener.ts",
 		"src/schemas/index.ts",

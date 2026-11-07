@@ -619,6 +619,33 @@ describe("handleGatewayRequest", () => {
 		expect(res.status).toBe(401);
 	});
 
+	test("destroyed tenant answers 401 on a write even with no credits, and never provisions or starts", async () => {
+		let provisions = 0;
+		let starts = 0;
+		const deps = baseDeps({
+			resolveTenant: async () => "destroyed",
+			introspect: new IntrospectClient({
+				appServerUrl: "https://api.secondlayer.tools",
+				workloadHostKey: "wh-key",
+				fetchImpl: async () =>
+					Response.json({ account_id: "acct_1", credits_ok: false }),
+			}),
+			startProvisioning: () => {
+				provisions++;
+			},
+			startTenant: () => {
+				starts++;
+			},
+		});
+		const res = await handleGatewayRequest(
+			deps,
+			req({ method: "POST", auth: "Bearer sk-sl_good" }),
+		);
+		expect(res.status).toBe(401);
+		expect(provisions).toBe(0);
+		expect(starts).toBe(0);
+	});
+
 	test("running tenant: forwards with the stack's own INSTANCE_TOKEN, never the customer key", async () => {
 		const seen: { auth: string | null; url: string } = { auth: null, url: "" };
 		const deps = baseDeps({

@@ -1,7 +1,9 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import postgres from "postgres";
 import {
+	TENANT_TRANSITIONS,
 	acct8For,
+	deleteProvisioningTenant,
 	deleteTenant,
 	ensureControlSchema,
 	getTenant,
@@ -11,8 +13,9 @@ import {
 	listRunningTenants,
 	listTenants,
 	setTenantImageSha,
-	setTenantState,
+	transitionTenant,
 } from "./control-db.ts";
+import { forceTenantState } from "./tenant-fixture.ts";
 
 const HAS_DB = !!process.env.DATABASE_URL;
 const db = HAS_DB
@@ -33,6 +36,11 @@ describe("acct8For", () => {
 		expect(acct8For(id)).toBe(acct8For(id));
 	});
 });
+
+/** postgres.js queries are lazy thenables; `rejects` needs a real promise. */
+async function run(query: PromiseLike<unknown>): Promise<void> {
+	await query;
+}
 
 describe.skipIf(!HAS_DB)("control-db", () => {
 	beforeAll(async () => {
@@ -126,24 +134,173 @@ describe.skipIf(!HAS_DB)("control-db", () => {
 		await deleteTenant(db, c);
 	});
 
-	test("setTenantState('stopped') stamps stopped_at; leaving it clears it", async () => {
+	test("transitionTenant stamps stopped_at and the reason on stop, and clears both on start", async () => {
 		const accountId = crypto.randomUUID();
 		await insertProvisioningTenant(db, accountId, acct8For(accountId));
-		await setTenantState(db, accountId, "running");
+		const running = await transitionTenant(db, accountId, {
+			from: ["provisioning"],
+			to: "running",
+		});
+		expect(running?.state).toBe("running");
+		expect(running?.started_at).not.toBeNull();
 
-		let row = await getTenant(db, accountId);
-		expect(row?.state).toBe("running");
-		expect(row?.stopped_at).toBeNull();
+		const stopped = await transitionTenant(db, accountId, {
+			from: ["running"],
+			to: "stopped",
+			reason: "cap",
+		});
+		expect(stopped?.state).toBe("stopped");
+		expect(stopped?.stopped_at).not.toBeNull();
+		expect(stopped?.stop_reason).toBe("cap");
 
-		await setTenantState(db, accountId, "stopped");
-		row = await getTenant(db, accountId);
-		expect(row?.state).toBe("stopped");
-		expect(row?.stopped_at).not.toBeNull();
+		const again = await transitionTenant(db, accountId, {
+			from: ["stopped"],
+			to: "running",
+		});
+		expect(again?.stopped_at).toBeNull();
+		expect(again?.stop_reason).toBeNull();
 
-		await setTenantState(db, accountId, "running");
-		row = await getTenant(db, accountId);
-		expect(row?.state).toBe("running");
-		expect(row?.stopped_at).toBeNull();
+		await deleteTenant(db, accountId);
+	});
+
+	test("transitionTenant returns null when the row is not in a from state", async () => {
+		const accountId = crypto.randomUUID();
+		await insertProvisioningTenant(db, accountId, acct8For(accountId));
+
+		expect(
+			await transitionTenant(db, accountId, {
+				from: ["running"],
+				to: "stopped",
+				reason: "idle",
+			}),
+		).toBeNull();
+		expect((await getTenant(db, accountId))?.state).toBe("provisioning");
+		expect(
+			await transitionTenant(db, crypto.randomUUID(), {
+				from: ["running"],
+				to: "stopped",
+				reason: "idle",
+			}),
+		).toBeNull();
+
+		await deleteTenant(db, accountId);
+	});
+
+	test("two racing stops: exactly one wins", async () => {
+		const accountId = crypto.randomUUID();
+		await insertProvisioningTenant(db, accountId, acct8For(accountId));
+		await forceTenantState(db, accountId, "running");
+
+		const results = await Promise.all(
+			(["credits", "idle"] as const).map((reason) =>
+				transitionTenant(db, accountId, {
+					from: ["running"],
+					to: "stopped",
+					reason,
+				}),
+			),
+		);
+		expect(results.filter(Boolean)).toHaveLength(1);
+
+		await deleteTenant(db, accountId);
+	});
+
+	test("transitionTenant with ifStartedAt only moves the stack that came up when it was read", async () => {
+		const accountId = crypto.randomUUID();
+		await insertProvisioningTenant(db, accountId, acct8For(accountId));
+		await forceTenantState(db, accountId, "running");
+		const seen = (await getTenant(db, accountId))?.started_at ?? null;
+		await db`UPDATE tenants SET started_at = now() + interval '1 second' WHERE account_id = ${accountId}`;
+
+		expect(
+			await transitionTenant(db, accountId, {
+				from: ["running"],
+				to: "stopped",
+				reason: "idle",
+				ifStartedAt: seen,
+			}),
+		).toBeNull();
+		const current = (await getTenant(db, accountId))?.started_at ?? null;
+		expect(
+			await transitionTenant(db, accountId, {
+				from: ["running"],
+				to: "stopped",
+				reason: "idle",
+				ifStartedAt: current,
+			}),
+		).not.toBeNull();
+
+		await deleteTenant(db, accountId);
+	});
+
+	test("transitionTenant refuses a move the machine does not allow, and a stop without a reason", async () => {
+		const accountId = crypto.randomUUID();
+		await expect(
+			transitionTenant(db, accountId, { from: ["destroyed"], to: "running" }),
+		).rejects.toThrow("illegal transition destroyed -> running");
+		await expect(
+			transitionTenant(db, accountId, { from: ["running"], to: "stopped" }),
+		).rejects.toThrow("stop reason");
+		expect(TENANT_TRANSITIONS.canTransition("destroyed", "provisioning")).toBe(
+			false,
+		);
+	});
+
+	test("the database rejects a stopped tenant without a reason, a reason on a running one, and an unknown state", async () => {
+		const accountId = crypto.randomUUID();
+		await insertProvisioningTenant(db, accountId, acct8For(accountId));
+
+		await expect(
+			run(
+				db`UPDATE tenants SET state = 'stopped', stop_reason = NULL WHERE account_id = ${accountId}`,
+			),
+		).rejects.toThrow("tenants_stopped_has_reason_check");
+		await expect(
+			run(
+				db`UPDATE tenants SET state = 'running', stop_reason = 'idle' WHERE account_id = ${accountId}`,
+			),
+		).rejects.toThrow("tenants_stopped_has_reason_check");
+		await expect(
+			run(
+				db`UPDATE tenants SET state = 'paused' WHERE account_id = ${accountId}`,
+			),
+		).rejects.toThrow("tenants_state_check");
+		await expect(
+			run(
+				db`UPDATE tenants SET state = 'stopped', stop_reason = 'bored' WHERE account_id = ${accountId}`,
+			),
+		).rejects.toThrow("tenants_stop_reason_check");
+
+		await deleteTenant(db, accountId);
+	});
+
+	test("ensureControlSchema repairs a stopped row with no reason before adding the check", async () => {
+		const accountId = crypto.randomUUID();
+		await insertProvisioningTenant(db, accountId, acct8For(accountId));
+		await db`ALTER TABLE tenants DROP CONSTRAINT tenants_stopped_has_reason_check`;
+		try {
+			await db`UPDATE tenants SET state = 'stopped', stop_reason = NULL, stopped_at = now() WHERE account_id = ${accountId}`;
+			await ensureControlSchema(db);
+			expect((await getTenant(db, accountId))?.stop_reason).toBe("credits");
+		} finally {
+			await ensureControlSchema(db);
+			await deleteTenant(db, accountId);
+		}
+	});
+
+	test("deleteProvisioningTenant leaves a destroyed tombstone alone", async () => {
+		const accountId = crypto.randomUUID();
+		await insertProvisioningTenant(db, accountId, acct8For(accountId));
+		await deleteProvisioningTenant(db, accountId);
+		expect(await getTenant(db, accountId)).toBeUndefined();
+
+		await insertProvisioningTenant(db, accountId, acct8For(accountId));
+		await transitionTenant(db, accountId, {
+			from: ["provisioning"],
+			to: "destroyed",
+		});
+		await deleteProvisioningTenant(db, accountId);
+		expect((await getTenant(db, accountId))?.state).toBe("destroyed");
 
 		await deleteTenant(db, accountId);
 	});
@@ -170,11 +327,11 @@ describe.skipIf(!HAS_DB)("control-db", () => {
 		let pollable = await listPollableTenants(db);
 		expect(pollable.some((r) => r.account_id === accountId)).toBe(false);
 
-		await setTenantState(db, accountId, "running");
+		await forceTenantState(db, accountId, "running");
 		pollable = await listPollableTenants(db);
 		expect(pollable.some((r) => r.account_id === accountId)).toBe(true);
 
-		await setTenantState(db, accountId, "stopped");
+		await forceTenantState(db, accountId, "stopped");
 		pollable = await listPollableTenants(db);
 		expect(pollable.some((r) => r.account_id === accountId)).toBe(true);
 
@@ -241,7 +398,7 @@ describe.skipIf(!HAS_DB)("control-db", () => {
 			),
 		).toBe(true);
 
-		await setTenantState(db, accountId, "running");
+		await forceTenantState(db, accountId, "running");
 		expect(
 			(await listProvisioningTenants(db)).some(
 				(r) => r.account_id === accountId,
@@ -258,12 +415,12 @@ describe.skipIf(!HAS_DB)("control-db", () => {
 			(await listRunningTenants(db)).some((r) => r.account_id === accountId),
 		).toBe(false);
 
-		await setTenantState(db, accountId, "running");
+		await forceTenantState(db, accountId, "running");
 		expect(
 			(await listRunningTenants(db)).some((r) => r.account_id === accountId),
 		).toBe(true);
 
-		await setTenantState(db, accountId, "stopped");
+		await forceTenantState(db, accountId, "stopped");
 		expect(
 			(await listRunningTenants(db)).some((r) => r.account_id === accountId),
 		).toBe(false);

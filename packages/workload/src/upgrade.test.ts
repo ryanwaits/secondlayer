@@ -24,7 +24,6 @@ import {
 	insertProvisioningTenant,
 	setTenantHasSubgraphs,
 	setTenantImageSha,
-	setTenantState,
 	setTenantTemplateSha,
 } from "./control-db.ts";
 import {
@@ -33,6 +32,7 @@ import {
 	renderEnvFile,
 	templateSha,
 } from "./provisioner.ts";
+import { forceTenantState } from "./tenant-fixture.ts";
 import {
 	type TargetShaCache,
 	createUpgradeRunner,
@@ -169,7 +169,7 @@ describe.skipIf(!HAS_DB)("upgradeTenants", () => {
 	): Promise<string> {
 		const accountId = crypto.randomUUID();
 		await insertProvisioningTenant(db, accountId, acct8For(accountId));
-		await setTenantState(db, accountId, "running");
+		await forceTenantState(db, accountId, "running");
 		if (imageSha) await setTenantImageSha(db, accountId, imageSha);
 		if (template) await setTenantTemplateSha(db, accountId, template);
 		return accountId;

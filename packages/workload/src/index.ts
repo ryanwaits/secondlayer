@@ -83,6 +83,7 @@ import {
 import { createPushWatch, createStoppedReporter } from "./push-watch.ts";
 import { createRateLimiter } from "./rate-limiter.ts";
 import { TenantCache } from "./tenant-cache.ts";
+import { skipWhileRunning } from "./tick-guard.ts";
 import {
 	createTargetShaCache,
 	createUpgradeRunner,
@@ -535,30 +536,39 @@ async function main(): Promise<void> {
 	// resolution + rolling upgrade (plan 064) on the same interval — simpler
 	// than a second timer, and both are 5-minute-cadence background sweeps
 	// over the same tenant set.
-	const creditsPollLoop = setInterval(async () => {
-		const targetSha = await resolveTargetSha(
-			appServerUrl,
-			fetch,
-			targetShaCache,
-		);
-		if (targetSha) {
-			await upgradeRunner.run(targetSha).catch((err) => {
-				logger.error("workload.upgrade.round_failed", {
+	// `setInterval` doesn't wait for an async tick: a slow round must not
+	// overlap the next one (two rounds would stop/start the same tenants).
+	const creditsPollTick = skipWhileRunning(
+		async () => {
+			const targetSha = await resolveTargetSha(
+				appServerUrl,
+				fetch,
+				targetShaCache,
+			);
+			if (targetSha) {
+				await upgradeRunner.run(targetSha).catch((err) => {
+					logger.error("workload.upgrade.round_failed", {
+						error: err instanceof Error ? err.message : String(err),
+					});
+				});
+			}
+			await pollCredits(provisionerCfg).catch((err) => {
+				logger.error("workload.provisioner.poll_credits_failed", {
 					error: err instanceof Error ? err.message : String(err),
 				});
 			});
-		}
-		await pollCredits(provisionerCfg).catch((err) => {
-			logger.error("workload.provisioner.poll_credits_failed", {
-				error: err instanceof Error ? err.message : String(err),
+			await checkProcessors().catch((err) => {
+				logger.error("workload.processor.watch_failed", {
+					error: err instanceof Error ? err.message : String(err),
+				});
 			});
-		});
-		await checkProcessors().catch((err) => {
-			logger.error("workload.processor.watch_failed", {
-				error: err instanceof Error ? err.message : String(err),
-			});
-		});
-	}, CREDITS_POLL_INTERVAL_MS);
+		},
+		() => logger.warn("workload.credits_poll.skipped_overlap"),
+	);
+	const creditsPollLoop = setInterval(
+		creditsPollTick,
+		CREDITS_POLL_INTERVAL_MS,
+	);
 
 	// Webhook outage emails: read each tenant's webhooks over loopback and
 	// report to the platform, which debounces and sends. Tenants never hold

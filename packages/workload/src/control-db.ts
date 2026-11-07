@@ -10,9 +10,33 @@
  * tenant's credentials.
  */
 
+import { defineMachine } from "@secondlayer/shared/db/transition";
 import postgres from "postgres";
 
-export type TenantState = "provisioning" | "running" | "stopped" | "destroyed";
+export const TENANT_STATES = [
+	"provisioning",
+	"running",
+	"stopped",
+	"destroyed",
+] as const;
+export type TenantState = (typeof TENANT_STATES)[number];
+
+export const STOP_REASONS = ["credits", "cap", "idle"] as const;
+export type StopReason = (typeof STOP_REASONS)[number];
+
+/** `(none) -> provisioning -> running <-> stopped`, and any live state ->
+ *  `destroyed`. `destroyed` is a tombstone: the row stays, so a deleted
+ *  account can never be provisioned again. A failed provision deletes its
+ *  `provisioning` row instead (`deleteProvisioningTenant`), so the next
+ *  request retries from scratch. */
+export const TENANT_TRANSITIONS = defineMachine({
+	states: TENANT_STATES,
+	transitions: {
+		provisioning: ["running", "destroyed"],
+		running: ["stopped", "destroyed"],
+		stopped: ["running", "destroyed"],
+	},
+});
 
 export interface TenantRow {
 	account_id: string;
@@ -62,8 +86,6 @@ export interface TenantRow {
 	 *  only when true) and the memory floor (`stackMemoryFloorGb`). */
 	has_subgraphs: boolean;
 }
-
-export type StopReason = "credits" | "cap" | "idle";
 
 /** First 8 hex chars of the account id with non-hex characters stripped —
  *  short, stable, and safe in a compose project name / socket path
@@ -163,6 +185,43 @@ export async function ensureControlSchema(db: postgres.Sql): Promise<void> {
 		DEFAULT nextval('tenant_subnet_seq')
 	`;
 	await db`ALTER TABLE tenants ALTER COLUMN subnet_idx SET NOT NULL`;
+	await ensureStateChecks(db);
+}
+
+/** Mirrors `TENANT_STATES` / `STOP_REASONS` and ties the two columns together:
+ *  a tenant has a stop reason exactly when it is `stopped`. Rows from before
+ *  `stop_reason` existed were all credit stops; the two UPDATEs below repair
+ *  any row that would violate the constraint (no-ops once clean), so adding
+ *  it can't fail boot. Constraints are added once, guarded by name. */
+async function ensureStateChecks(db: postgres.Sql): Promise<void> {
+	await db`UPDATE tenants SET stop_reason = 'credits' WHERE state = 'stopped' AND stop_reason IS NULL`;
+	await db`UPDATE tenants SET stop_reason = NULL WHERE state <> 'stopped' AND stop_reason IS NOT NULL`;
+	const checks: [name: string, expr: string][] = [
+		["tenants_state_check", `state IN (${quoteList(TENANT_STATES)})`],
+		[
+			"tenants_stop_reason_check",
+			`stop_reason IS NULL OR stop_reason IN (${quoteList(STOP_REASONS)})`,
+		],
+		[
+			"tenants_stopped_has_reason_check",
+			"(state = 'stopped') = (stop_reason IS NOT NULL)",
+		],
+	];
+	for (const [name, expr] of checks) {
+		const [existing] = await db`
+			SELECT 1 FROM pg_constraint WHERE conname = ${name} AND conrelid = 'tenants'::regclass
+		`;
+		// Names and expressions are compile-time constants above, never input.
+		if (!existing) {
+			await db.unsafe(
+				`ALTER TABLE tenants ADD CONSTRAINT ${name} CHECK (${expr})`,
+			);
+		}
+	}
+}
+
+function quoteList(values: readonly string[]): string {
+	return values.map((v) => `'${v}'`).join(", ");
 }
 
 export async function getTenant(
@@ -221,23 +280,53 @@ export async function insertProvisioningTenant(
 	};
 }
 
-/** `stopped` stamps `stopped_at` and records why (`stopReason`); `running`
- *  stamps `started_at` and clears both. */
-export async function setTenantState(
+export interface TransitionTenant {
+	from: readonly TenantState[];
+	to: TenantState;
+	/** Required exactly when `to` is `stopped`. */
+	reason?: StopReason;
+	/** Only move a row whose `started_at` is still this value (`null` = never
+	 *  stamped). The idle stop passes the one it read, so a stack restarted in
+	 *  between is left alone. */
+	ifStartedAt?: Date | null;
+	/** Move back to `running` without re-stamping `started_at`: undoes a stop
+	 *  that did not happen. */
+	keepStartedAt?: boolean;
+}
+
+/**
+ * Compare-and-swap `state`: `UPDATE ... WHERE account_id = $1 AND state =
+ * ANY(from)`. Returns the new row, or `null` when the row is missing or not in
+ * a `from` state (a lost race: log and stop). `stopped` stamps `stopped_at`
+ * and `stop_reason`; `running` stamps `started_at` and clears both. Not
+ * `casTransition` from shared: that is Kysely and keys on `id`, and this DB is
+ * its own raw postgres.js one keyed on `account_id`.
+ */
+export async function transitionTenant(
 	db: postgres.Sql,
 	accountId: string,
-	state: TenantState,
-	stopReason: StopReason | null = null,
-): Promise<void> {
-	if (state === "stopped") {
-		await db`UPDATE tenants SET state = ${state}, stopped_at = now(), stop_reason = ${stopReason} WHERE account_id = ${accountId}`;
-		return;
+	t: TransitionTenant,
+): Promise<TenantRow | null> {
+	for (const from of t.from) TENANT_TRANSITIONS.assert(from, t.to);
+	if ((t.to === "stopped") !== (t.reason !== undefined)) {
+		throw new Error("a stop reason goes with `stopped`, and only with it");
 	}
-	if (state === "running") {
-		await db`UPDATE tenants SET state = ${state}, stopped_at = NULL, stop_reason = NULL, started_at = now() WHERE account_id = ${accountId}`;
-		return;
-	}
-	await db`UPDATE tenants SET state = ${state}, stopped_at = NULL, stop_reason = NULL WHERE account_id = ${accountId}`;
+	const guard =
+		t.ifStartedAt === undefined
+			? db``
+			: t.ifStartedAt === null
+				? db`AND started_at IS NULL`
+				: db`AND date_trunc('milliseconds', started_at) = ${t.ifStartedAt}`;
+	const startedAt =
+		t.to === "running" && !t.keepStartedAt ? db`, started_at = now()` : db``;
+	const stoppedAt = t.to === "stopped" ? db`now()` : db`NULL`;
+	const rows = await db<TenantRow[]>`
+		UPDATE tenants
+		SET state = ${t.to}, stopped_at = ${stoppedAt}, stop_reason = ${t.reason ?? null}${startedAt}
+		WHERE account_id = ${accountId} AND state = ANY(${[...t.from]}) ${guard}
+		RETURNING *
+	`;
+	return rows[0] ?? null;
 }
 
 /** Records the sha of the image a tenant's `api`/`webhook-service` just came
@@ -277,6 +366,15 @@ export async function deleteTenant(
 	await db`DELETE FROM tenants WHERE account_id = ${accountId}`;
 }
 
+/** Drops a half-made `provisioning` row so the next request retries `up()`.
+ *  Never touches any other state: a `destroyed` tombstone must survive. */
+export async function deleteProvisioningTenant(
+	db: postgres.Sql,
+	accountId: string,
+): Promise<void> {
+	await db`DELETE FROM tenants WHERE account_id = ${accountId} AND state = 'provisioning'`;
+}
+
 export async function listTenants(db: postgres.Sql): Promise<TenantRow[]> {
 	return db<TenantRow[]>`SELECT * FROM tenants ORDER BY created_at ASC`;
 }
@@ -284,7 +382,7 @@ export async function listTenants(db: postgres.Sql): Promise<TenantRow[]> {
 /** `running` or `stopped` tenants — the two states the 5-minute credits poll
  *  (`provisioner.ts`'s `pollCredits`) acts on. `provisioning`/`destroyed`
  *  rows are excluded: a provisioning tenant isn't up yet to stop, and a
- *  destroyed one no longer has a row. */
+ *  destroyed one is a tombstone with no stack. */
 export async function listPollableTenants(
 	db: postgres.Sql,
 ): Promise<TenantRow[]> {
