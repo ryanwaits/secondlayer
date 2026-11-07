@@ -3,6 +3,7 @@ import { existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
+	flushMeterSocketForTests,
 	pendingCountForTests,
 	recordDelivery,
 	resetMeterSocketCounterForTests,
@@ -92,5 +93,44 @@ describe("meter socket flush — real unix socket round trip", () => {
 		});
 		expect(res.status).toBe(200);
 		expect(received).toEqual([2]);
+	});
+
+	test("a failed push keeps the count and the next push delivers it", async () => {
+		process.env.WEBHOOK_METER_SOCKET = socketPath;
+		recordDelivery();
+		recordDelivery();
+		recordDelivery();
+
+		// Nothing is listening yet: the push fails and nothing is lost.
+		await flushMeterSocketForTests(socketPath);
+		expect(pendingCountForTests()).toBe(3);
+
+		const received: number[] = [];
+		const server = Bun.serve({
+			unix: socketPath,
+			fetch: async (req) => {
+				const body = (await req.json()) as { delivered_events: number };
+				received.push(body.delivered_events);
+				return new Response("ok");
+			},
+		});
+		stopServer = () => server.stop(true);
+
+		await flushMeterSocketForTests(socketPath);
+		expect(received).toEqual([3]);
+		expect(pendingCountForTests()).toBe(0);
+	});
+
+	test("a rejected push keeps the count", async () => {
+		process.env.WEBHOOK_METER_SOCKET = socketPath;
+		recordDelivery();
+		const server = Bun.serve({
+			unix: socketPath,
+			fetch: () => new Response("no", { status: 500 }),
+		});
+		stopServer = () => server.stop(true);
+
+		await flushMeterSocketForTests(socketPath);
+		expect(pendingCountForTests()).toBe(1);
 	});
 });

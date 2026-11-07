@@ -55,10 +55,10 @@ import { IntrospectClient } from "./introspect-client.ts";
 import {
 	DEFAULT_PENDING_CAP,
 	DrainWindow,
-	EventCounter,
 	MemoryAccumulator,
 	type MeterBatchItem,
 	collectShutdownFlushItems,
+	createMeterSocketRegistry,
 	eventsMeterItem,
 	flushAll,
 	flushOnShutdown,
@@ -68,7 +68,6 @@ import {
 	sampleStorageGbDay,
 	sampleTenantDatabaseBytes,
 	sampleTenantMemoryBytes,
-	startMeterSocketServer,
 } from "./meters.ts";
 import {
 	createProcessorReconciler,
@@ -252,31 +251,21 @@ async function main(): Promise<void> {
 	// poll interval after a deploy. Never blocks boot.
 	void stackState.reconcile();
 
-	// One EventCounter + meter-socket server per running tenant, started the
-	// moment we know about it and torn down on destroy. Keyed by accountId,
-	// not acct8, so a lookup never needs the derivation twice.
-	const eventCounters = new Map<string, EventCounter>();
-	const socketServers = new Map<string, { stop: () => void }>();
-
-	function ensureMeterSocket(accountId: string): EventCounter {
-		const existing = eventCounters.get(accountId);
-		if (existing) return existing;
-		const counter = new EventCounter();
-		const acct8 = acct8For(accountId);
-		const socketPath = join(secretsRoot, acct8, "sockets", "meter.sock");
-		try {
-			socketServers.set(accountId, startMeterSocketServer(socketPath, counter));
-		} catch (err) {
-			// Socket dir doesn't exist yet (provisioning in flight) — the next
-			// meter tick retries; a missing socket just means zero events this
-			// tick, never a crash.
-			logger.warn("workload.meters.socket_start_deferred", {
-				accountId,
-				error: err instanceof Error ? err.message : String(err),
-			});
-		}
-		eventCounters.set(accountId, counter);
-		return counter;
+	// One EventCounter + meter-socket server per running tenant, started at
+	// boot, on every sampler tick, and on a gateway request. Keyed by
+	// accountId, not acct8, so a lookup never needs the derivation twice.
+	const meterSockets = createMeterSocketRegistry({
+		socketPathFor: (accountId) =>
+			join(secretsRoot, acct8For(accountId), "sockets", "meter.sock"),
+	});
+	try {
+		meterSockets.sync(
+			(await listRunningTenants(db)).map((tenant) => tenant.account_id),
+		);
+	} catch (err) {
+		logger.error("workload.meters.socket_boot_sync_failed", {
+			error: err instanceof Error ? err.message : String(err),
+		});
 	}
 
 	/** Loopback-only: the gateway is a host process with no compose-network
@@ -312,14 +301,14 @@ async function main(): Promise<void> {
 					recordFailure: failedRequests.record,
 					resolveTenant: async (accountId) => {
 						const row = await tenantCache.row(accountId);
-						if (row) ensureMeterSocket(accountId);
+						if (row) meterSockets.ensure(accountId);
 						return row?.state;
 					},
 					stopReason: async (accountId) =>
 						(await tenantCache.row(accountId))?.stop_reason ?? null,
 					startProvisioning: (accountId) => {
 						provisionUp(provisionerCfg, accountId)
-							.then(() => ensureMeterSocket(accountId))
+							.then(() => meterSockets.ensure(accountId))
 							.catch((err) => {
 								logger.error("workload.provisioner.up_background_failed", {
 									accountId,
@@ -372,7 +361,7 @@ async function main(): Promise<void> {
 		// resent later keeps its real window.
 		const window = eventWindow.roll();
 		const fresh: MeterBatchItem[] = [];
-		for (const [accountId, counter] of eventCounters) {
+		for (const [accountId, counter] of meterSockets.counters) {
 			const item = eventsMeterItem(accountId, counter.drain(), window);
 			if (item) fresh.push(item);
 		}
@@ -404,6 +393,7 @@ async function main(): Promise<void> {
 			});
 			return;
 		}
+		meterSockets.sync(running.map((tenant) => tenant.account_id));
 		for (const tenant of running) {
 			try {
 				const item = await sampleMemoryGbHour(
@@ -603,7 +593,7 @@ async function main(): Promise<void> {
 				timeoutMs: UPGRADE_DRAIN_MS,
 			});
 		}
-		for (const s of socketServers.values()) s.stop();
+		meterSockets.stopAll();
 		server.stop();
 
 		// Final flush: drains each meter's live accumulator (an EventCounter's
@@ -611,7 +601,7 @@ async function main(): Promise<void> {
 		// sitting in a pending retry buffer, so a restart never under-bills —
 		// bounded so a dead app-server can't delay exit past the timeout.
 		const items = collectShutdownFlushItems({
-			eventCounters,
+			eventCounters: meterSockets.counters,
 			eventWindow,
 			eventPending,
 			memory: memoryAccumulator,

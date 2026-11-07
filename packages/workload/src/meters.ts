@@ -18,6 +18,7 @@
  * the same hour or minute (a restart) never share a key and drop the second.
  */
 
+import { rmSync } from "node:fs";
 import {
 	type MeterUnit,
 	stackMemoryFloorGb,
@@ -227,6 +228,79 @@ export function startMeterSocketServer(
 		},
 	});
 	return { stop: () => server.stop(true) };
+}
+
+export interface MeterSocketRegistry {
+	/** A counter exists only for a tenant whose socket server is up. */
+	readonly counters: Map<string, EventCounter>;
+	/** The tenant's counter, starting its socket server on first call; `undefined`
+	 *  when the server could not start (retried by the next call). */
+	ensure(accountId: string): EventCounter | undefined;
+	/** `ensure` for every running tenant, then check the gauge. */
+	sync(runningAccountIds: readonly string[]): void;
+	/** Running tenants vs socket servers up among them, as of the last `sync`. */
+	gauge(): { running: number; servers: number };
+	/** Stops every server; counters stay readable for the final flush. */
+	stopAll(): void;
+}
+
+/** One EventCounter + socket server per tenant, keyed by account id. A tenant
+ *  is cached only once its server is listening, so a failed start (socket dir
+ *  not created yet) is retried by the next `ensure`/`sync` instead of leaving
+ *  a counter nothing can ever push to. A leftover socket file from a previous
+ *  process is unlinked before binding. */
+export function createMeterSocketRegistry(opts: {
+	socketPathFor: (accountId: string) => string;
+	start?: typeof startMeterSocketServer;
+}): MeterSocketRegistry {
+	const start = opts.start ?? startMeterSocketServer;
+	const counters = new Map<string, EventCounter>();
+	const servers = new Map<string, MeterSocketServerHandle>();
+	let running = new Set<string>();
+
+	function ensure(accountId: string): EventCounter | undefined {
+		const existing = counters.get(accountId);
+		if (existing) return existing;
+		const counter = new EventCounter();
+		const socketPath = opts.socketPathFor(accountId);
+		try {
+			rmSync(socketPath, { force: true });
+			servers.set(accountId, start(socketPath, counter));
+		} catch (err) {
+			logger.warn("workload.meters.socket_start_deferred", {
+				accountId,
+				error: err instanceof Error ? err.message : String(err),
+			});
+			return undefined;
+		}
+		counters.set(accountId, counter);
+		return counter;
+	}
+
+	function gauge(): { running: number; servers: number } {
+		let up = 0;
+		for (const accountId of running) if (counters.has(accountId)) up++;
+		return { running: running.size, servers: up };
+	}
+
+	return {
+		counters,
+		ensure,
+		sync(runningAccountIds) {
+			running = new Set(runningAccountIds);
+			for (const accountId of running) ensure(accountId);
+			const g = gauge();
+			if (g.servers !== g.running) {
+				logger.warn("workload.meters.socket_gauge_mismatch", g);
+			}
+		},
+		gauge,
+		stopAll() {
+			// Counters stay: the shutdown flush still drains their last events.
+			for (const s of servers.values()) s.stop();
+			servers.clear();
+		},
+	};
 }
 
 export interface MemorySample {

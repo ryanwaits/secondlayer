@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { existsSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
@@ -12,6 +12,7 @@ import {
 	MemoryAccumulator,
 	collectShutdownFlushItems,
 	countTenantWorkloads,
+	createMeterSocketRegistry,
 	eventsMeterItem,
 	eventsWindowKey,
 	flushAll,
@@ -981,5 +982,95 @@ describe("countTenantWorkloads", () => {
 		expect(await countTenantWorkloads("acct1234", failed)).toBeNull();
 		expect(await countTenantWorkloads("acct1234", garbled)).toBeNull();
 		expect(await countTenantWorkloads("acct1234", thrown)).toBeNull();
+	});
+});
+
+describe("createMeterSocketRegistry", () => {
+	function setup() {
+		const root = mkdtempSync(join(tmpdir(), "meter-registry-"));
+		const socketPathFor = (accountId: string) =>
+			join(root, accountId, "sockets", "meter.sock");
+		const makeSocketDir = (accountId: string) =>
+			mkdirSync(join(root, accountId, "sockets"), { recursive: true });
+		return {
+			socketPathFor,
+			makeSocketDir,
+			registry: createMeterSocketRegistry({ socketPathFor }),
+		};
+	}
+
+	test("an idle running tenant gets a socket, and events pushed to it are billed", async () => {
+		const { registry, makeSocketDir, socketPathFor } = setup();
+		makeSocketDir("idle");
+		try {
+			registry.sync(["idle"]);
+			expect(existsSync(socketPathFor("idle"))).toBe(true);
+			const res = await fetch("http://localhost/", {
+				method: "POST",
+				body: JSON.stringify({ delivered_events: 7 }),
+				unix: socketPathFor("idle"),
+			});
+			expect(res.status).toBe(200);
+			const counter = registry.counters.get("idle");
+			expect(counter).toBeDefined();
+			const window = {
+				start: new Date("2026-11-07T10:00:00Z"),
+				end: new Date("2026-11-07T10:01:00Z"),
+			};
+			expect(
+				eventsMeterItem("idle", (counter as EventCounter).drain(), window)
+					?.quantity,
+			).toBe(7);
+		} finally {
+			registry.stopAll();
+		}
+	});
+
+	test("a failed server start is not cached: the next sync retries and succeeds", () => {
+		const { registry, makeSocketDir, socketPathFor } = setup();
+		try {
+			// The tenant's socket dir does not exist yet (provisioning in flight).
+			registry.sync(["late"]);
+			expect(registry.counters.has("late")).toBe(false);
+			expect(registry.gauge()).toEqual({ running: 1, servers: 0 });
+
+			makeSocketDir("late");
+			registry.sync(["late"]);
+			expect(existsSync(socketPathFor("late"))).toBe(true);
+			expect(registry.counters.has("late")).toBe(true);
+			expect(registry.gauge()).toEqual({ running: 1, servers: 1 });
+		} finally {
+			registry.stopAll();
+		}
+	});
+
+	test("a stale socket file from a previous process is replaced", async () => {
+		const { registry, makeSocketDir, socketPathFor } = setup();
+		makeSocketDir("stale");
+		writeFileSync(socketPathFor("stale"), "");
+		try {
+			registry.sync(["stale"]);
+			expect(registry.counters.has("stale")).toBe(true);
+			const res = await fetch("http://localhost/", {
+				method: "POST",
+				body: JSON.stringify({ delivered_events: 1 }),
+				unix: socketPathFor("stale"),
+			});
+			expect(res.status).toBe(200);
+		} finally {
+			registry.stopAll();
+		}
+	});
+
+	test("ensure returns the same counter for a tenant it already serves", () => {
+		const { registry, makeSocketDir } = setup();
+		makeSocketDir("same");
+		try {
+			const first = registry.ensure("same");
+			expect(first).toBeDefined();
+			expect(registry.ensure("same")).toBe(first);
+		} finally {
+			registry.stopAll();
+		}
 	});
 });

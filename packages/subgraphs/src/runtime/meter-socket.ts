@@ -36,21 +36,26 @@ export function recordDelivery(): void {
 	pending += 1;
 }
 
+let flushing = false;
+
+/** Pushes the pending count. It leaves `pending` only once the provisioner
+ *  accepted it, so a push that fails (socket not up yet, workload restarting)
+ *  is retried on the next flush instead of dropping the events. Events
+ *  recorded while a push is in flight stay in `pending` for the next one. */
 async function flush(path: string): Promise<void> {
+	if (flushing) return;
 	const count = pending;
 	if (count === 0) return;
-	// Optimistic reset before the push: if the push fails we've undercounted
-	// by at most one interval's worth once (logged below), never double-count
-	// on a retry — the alternative (reset after success) risks double-adding
-	// events recorded during a slow/failed push into the NEXT flush.
-	pending = 0;
+	flushing = true;
 	try {
 		const res = await fetch("http://localhost/", {
 			method: "POST",
 			body: JSON.stringify({ delivered_events: count }),
 			unix: path,
 		});
-		if (!res.ok) {
+		if (res.ok) {
+			pending -= count;
+		} else {
 			logger.warn("webhook.meter_socket.push_rejected", {
 				status: res.status,
 				count,
@@ -64,6 +69,8 @@ async function flush(path: string): Promise<void> {
 			error: err instanceof Error ? err.message : String(err),
 			count,
 		});
+	} finally {
+		flushing = false;
 	}
 }
 
@@ -90,6 +97,12 @@ export function startMeterSocketReporter(): () => void {
 /** Test-only: reset the module-level counter between test files. */
 export function resetMeterSocketCounterForTests(): void {
 	pending = 0;
+	flushing = false;
+}
+
+/** Test-only: run one flush against `path` now. */
+export function flushMeterSocketForTests(path: string): Promise<void> {
+	return flush(path);
 }
 
 /** Test-only: read the current unflushed count. */
