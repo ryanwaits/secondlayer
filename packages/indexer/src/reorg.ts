@@ -3,6 +3,7 @@ import { getSourceDb } from "@secondlayer/shared/db";
 import type { Database } from "@secondlayer/shared/db";
 import { insertChainReorg } from "@secondlayer/shared/db/queries/chain-reorgs";
 import { markContractsNonCanonical } from "@secondlayer/shared/db/queries/contracts";
+import { OBSERVER_APPLY_LOCK_KEY } from "@secondlayer/shared/leader";
 import { logger } from "@secondlayer/shared/logger";
 import type { Kysely, Transaction } from "kysely";
 import { handleBnsReorg } from "./decode/bns-storage.ts";
@@ -26,8 +27,6 @@ export async function handleReorg(
 	oldHash: string,
 	newHash: string,
 ): Promise<void> {
-	const db = getSourceDb();
-
 	logger.warn("Handling chain reorganization", {
 		blockHeight,
 		oldHash,
@@ -45,83 +44,178 @@ export async function handleReorg(
 	// stale rows at heights above `blockHeight` would remain `canonical=
 	// true` and corrupt subgraph state. The downstream subgraph reorg
 	// handler likewise deletes rows `_block_height >= blockHeight`.
-	await db.transaction().execute(async (tx: Transaction<Database>) => {
-		const affectedTip = await sql<{
-			max_height: string | number | null;
-		}>`
-			SELECT MAX(height) AS max_height
-			FROM blocks
-			WHERE height >= ${blockHeight}
-				AND canonical = true
-		`.execute(tx);
-		const orphanedToHeight = Number(
-			affectedTip.rows[0]?.max_height ?? blockHeight,
+	await getSourceDb()
+		.transaction()
+		.execute((tx) =>
+			runReorgCascade(tx, { blockHeight, oldHash, newHash, sweepBlocks: true }),
 		);
-		const eventTypeList = sql.join(
-			STREAMS_DB_EVENT_TYPES.map((eventType) => sql`${eventType}`),
-		);
-		const eventCount = await sql<{ count: string | number }>`
-			SELECT COUNT(*)::integer AS count
-			FROM events
-			WHERE block_height = ${orphanedToHeight}
-				AND type IN (${eventTypeList})
-		`.execute(tx);
-		const orphanedToEventIndex = Math.max(
-			0,
-			Number(eventCount.rows[0]?.count ?? 0) - 1,
-		);
+}
 
+/**
+ * Everything a canonical change at `blockHeight` must do to derived state,
+ * in the caller's transaction: orphan blocks (when `sweepBlocks`), rewind the
+ * cursors, `subgraph_reorg` notify, contracts, every decoded plane, and the
+ * `chain_reorgs` row Streams serves. A live reorg sweeps every block at or
+ * above the fork point; a repair replaces one block whose descendants stay
+ * canonical, so it passes `sweepBlocks: false`.
+ */
+async function runReorgCascade(
+	tx: Transaction<Database>,
+	input: {
+		blockHeight: number;
+		oldHash: string;
+		newHash: string;
+		sweepBlocks: boolean;
+	},
+): Promise<void> {
+	const { blockHeight, oldHash, newHash, sweepBlocks } = input;
+	const affectedTip = await sql<{
+		max_height: string | number | null;
+	}>`
+		SELECT MAX(height) AS max_height
+		FROM blocks
+		WHERE height >= ${blockHeight}
+			AND canonical = true
+	`.execute(tx);
+	const orphanedToHeight = sweepBlocks
+		? Number(affectedTip.rows[0]?.max_height ?? blockHeight)
+		: blockHeight;
+	const eventTypeList = sql.join(
+		STREAMS_DB_EVENT_TYPES.map((eventType) => sql`${eventType}`),
+	);
+	const eventCount = await sql<{ count: string | number }>`
+		SELECT COUNT(*)::integer AS count
+		FROM events
+		WHERE block_height = ${orphanedToHeight}
+			AND type IN (${eventTypeList})
+	`.execute(tx);
+	const orphanedToEventIndex = Math.max(
+		0,
+		Number(eventCount.rows[0]?.count ?? 0) - 1,
+	);
+
+	if (sweepBlocks) {
 		await tx
 			.updateTable("blocks")
 			.set({ canonical: false })
 			.where("height", ">=", blockHeight)
 			.where("canonical", "=", true)
 			.execute();
+		// Nothing at or above the fork point is canonical now, so the highest
+		// block seen is the one below it (the replacement block raises it again).
+		await sql`
+			UPDATE index_progress
+			   SET highest_seen_block = LEAST(highest_seen_block, ${blockHeight - 1}),
+			       updated_at = now()
+			 WHERE network = ${process.env.STACKS_NETWORK || "mainnet"}
+		`.execute(tx);
+	}
 
-		await sql`SELECT pg_notify('subgraph_reorg', ${JSON.stringify({ blockHeight, oldHash, newHash })})`.execute(
-			tx,
+	await sql`SELECT pg_notify('subgraph_reorg', ${JSON.stringify({ blockHeight, oldHash, newHash })})`.execute(
+		tx,
+	);
+
+	// Contracts registry: same `>=` sweep as blocks. Recovery is eventual —
+	// discoverDeploys re-selects non-canonical ids whose deploy tx exists on
+	// the new fork and recordContractDeploy re-canonicalizes them (CANON-01).
+	await markContractsNonCanonical(tx, blockHeight);
+
+	// Reconcile every decoded plane in the same tx: the generic decoded_events
+	// table plus the per-asset projections (sBTC, pox4, BNS), which share the
+	// same dense-cursor reorg hazard and were previously left un-reconciled
+	// (their handlers existed but were never called). Each hard-DELETEs >= H
+	// and rewinds its decoder checkpoint. Safe when a plane is disabled/empty
+	// (deletes 0 rows). See decoded-events-reorg-reconciliation audit.
+	const decodedReorg = await handleDecodedEventsReorg(blockHeight, {
+		db: tx,
+	});
+	const sbtcReorg = await handleSbtcReorg(blockHeight, { db: tx });
+	const pox4Reorg = await handlePox4Reorg(blockHeight, { db: tx });
+	const pox5Reorg = await handlePox5Reorg(blockHeight, { db: tx });
+	const bnsReorg = await handleBnsReorg(blockHeight, { db: tx });
+	const reorg = await insertChainReorg({
+		db: tx,
+		forkPointHeight: blockHeight,
+		oldIndexBlockHash: oldHash,
+		newIndexBlockHash: newHash,
+		orphanedFrom: { block_height: blockHeight, event_index: 0 },
+		orphanedTo: {
+			block_height: orphanedToHeight,
+			event_index: orphanedToEventIndex,
+		},
+		newCanonicalTip: { block_height: blockHeight, event_index: 0 },
+	});
+
+	logger.info("Reorganization handled", {
+		blockHeight,
+		decodedReorg,
+		sbtcReorg,
+		pox4Reorg,
+		pox5Reorg,
+		bnsReorg,
+		reorg,
+	});
+}
+
+/** Why a height's canonical block changed outside live ingest. */
+export type CanonicalChangeCause = "fork_repair";
+
+/**
+ * The one way to replace a height's canonical block outside live ingest. Takes
+ * the cluster-wide apply lock (the live applier holds it per batch), then in
+ * one transaction runs the reorg cascade, lets `write` persist the new block,
+ * and checks the height now holds `newHash` as canonical. A repair script that
+ * wrote `blocks` directly would leave subgraphs, decoded planes and Streams
+ * reorg history reading the old fork.
+ *
+ * Not for callers already inside the applier: they hold the lock on another
+ * connection and use `handleReorg`.
+ */
+export async function applyCanonicalChange(
+	db: Kysely<Database>,
+	change: {
+		height: number;
+		oldHash: string;
+		newHash: string;
+		cause: CanonicalChangeCause;
+		write: (tx: Transaction<Database>) => Promise<void>;
+	},
+): Promise<void> {
+	logger.warn("Applying canonical change", {
+		height: change.height,
+		oldHash: change.oldHash,
+		newHash: change.newHash,
+		cause: change.cause,
+	});
+	await db.connection().execute(async (conn) => {
+		await sql`SELECT pg_advisory_lock(${OBSERVER_APPLY_LOCK_KEY})`.execute(
+			conn,
 		);
-
-		// Contracts registry: same `>=` sweep as blocks. Recovery is eventual —
-		// discoverDeploys re-selects non-canonical ids whose deploy tx exists on
-		// the new fork and recordContractDeploy re-canonicalizes them (CANON-01).
-		await markContractsNonCanonical(tx, blockHeight);
-
-		// Reconcile every decoded plane in the same tx: the generic decoded_events
-		// table plus the per-asset projections (sBTC, pox4, BNS), which share the
-		// same dense-cursor reorg hazard and were previously left un-reconciled
-		// (their handlers existed but were never called). Each hard-DELETEs >= H
-		// and rewinds its decoder checkpoint. Safe when a plane is disabled/empty
-		// (deletes 0 rows). See decoded-events-reorg-reconciliation audit.
-		const decodedReorg = await handleDecodedEventsReorg(blockHeight, {
-			db: tx,
-		});
-		const sbtcReorg = await handleSbtcReorg(blockHeight, { db: tx });
-		const pox4Reorg = await handlePox4Reorg(blockHeight, { db: tx });
-		const pox5Reorg = await handlePox5Reorg(blockHeight, { db: tx });
-		const bnsReorg = await handleBnsReorg(blockHeight, { db: tx });
-		const reorg = await insertChainReorg({
-			db: tx,
-			forkPointHeight: blockHeight,
-			oldIndexBlockHash: oldHash,
-			newIndexBlockHash: newHash,
-			orphanedFrom: { block_height: blockHeight, event_index: 0 },
-			orphanedTo: {
-				block_height: orphanedToHeight,
-				event_index: orphanedToEventIndex,
-			},
-			newCanonicalTip: { block_height: blockHeight, event_index: 0 },
-		});
-
-		logger.info("Reorganization handled", {
-			blockHeight,
-			decodedReorg,
-			sbtcReorg,
-			pox4Reorg,
-			pox5Reorg,
-			bnsReorg,
-			reorg,
-		});
+		try {
+			await conn.transaction().execute(async (tx) => {
+				await runReorgCascade(tx, {
+					blockHeight: change.height,
+					oldHash: change.oldHash,
+					newHash: change.newHash,
+					sweepBlocks: false,
+				});
+				await change.write(tx);
+				const landed = await tx
+					.selectFrom("blocks")
+					.select(["hash", "canonical"])
+					.where("height", "=", change.height)
+					.executeTakeFirst();
+				if (landed?.hash !== change.newHash || !landed.canonical) {
+					throw new Error(
+						`canonical change at ${change.height} did not land ${change.newHash}`,
+					);
+				}
+			});
+		} finally {
+			await sql`SELECT pg_advisory_unlock(${OBSERVER_APPLY_LOCK_KEY})`.execute(
+				conn,
+			);
+		}
 	});
 }
 

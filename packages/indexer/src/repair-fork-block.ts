@@ -32,6 +32,7 @@ import { closeDb, getSourceDb, sql } from "@secondlayer/shared/db";
 import type { Database } from "@secondlayer/shared/db/schema";
 import { logger } from "@secondlayer/shared/logger";
 import type { Kysely } from "kysely";
+import { applyCanonicalChange } from "./reorg.ts";
 import { persistJournalPayload } from "./repair-from-journal.ts";
 import type { NewBlockPayload } from "./types/node-events.ts";
 
@@ -101,13 +102,21 @@ export async function planForkRepair(
 	};
 }
 
-/** Replace the height with the journaled canonical block. The losing block's
- *  rows are archived as orphans by `persistBlock`, as on a live reorg. */
+/** Replace the height with the journaled canonical block, through the same
+ *  cascade a live reorg runs (subgraph rewind, decoded rewind, `chain_reorgs`)
+ *  and under the apply lock. The losing block's rows are archived as orphans
+ *  by `persistBlock`. */
 export async function applyForkRepair(
 	db: Kysely<Database>,
 	plan: ForkRepairPlan,
 ): Promise<void> {
-	await persistJournalPayload(db, plan.payload, plan.height);
+	await applyCanonicalChange(db, {
+		height: plan.height,
+		oldHash: plan.stored.hash,
+		newHash: plan.canonicalHash,
+		cause: "fork_repair",
+		write: (tx) => persistJournalPayload(tx, plan.payload, plan.height),
+	});
 }
 
 function parseArgs(argv: string[]) {
@@ -178,7 +187,7 @@ async function main() {
 	);
 	console.log(`links to ${height + 1}  ${linked ? "yes" : "NO — investigate"}`);
 	console.log(
-		`\nDecoded rows for this height are NOT rebuilt here — run:\n  bun run packages/indexer/src/rederive-decoded-events.ts --from-height ${height} --to-height ${height} --types <types> --apply`,
+		"\nDecoded rows from this height up were rewound by the reorg cascade and re-derive from the canonical chain.",
 	);
 
 	await closeDb();

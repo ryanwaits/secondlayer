@@ -142,4 +142,43 @@ describe.skipIf(!HAS_DB)("handleReorg orphaned_to cursor", () => {
 			.executeTakeFirstOrThrow();
 		expect(contract.canonical).toBe(false);
 	});
+	test("a reorg lowers highest_seen_block to the block below the fork point", async () => {
+		if (!db) throw new Error("missing db");
+		const network = process.env.STACKS_NETWORK || "mainnet";
+		await seedOrphanedBlock(db);
+		const previous = await db
+			.selectFrom("index_progress")
+			.selectAll()
+			.where("network", "=", network)
+			.executeTakeFirst();
+		await db
+			.deleteFrom("index_progress")
+			.where("network", "=", network)
+			.execute();
+		await db
+			.insertInto("index_progress")
+			.values({
+				network,
+				last_indexed_block: H + 5,
+				last_contiguous_block: H + 5,
+				highest_seen_block: H + 5,
+			})
+			.execute();
+		try {
+			await handleReorg(H, "0xreorgA", "0xreorgB");
+			const row = await db
+				.selectFrom("index_progress")
+				.select("highest_seen_block")
+				.where("network", "=", network)
+				.executeTakeFirstOrThrow();
+			expect(Number(row.highest_seen_block)).toBe(H - 1);
+		} finally {
+			await db
+				.deleteFrom("index_progress")
+				.where("network", "=", network)
+				.execute();
+			if (previous)
+				await db.insertInto("index_progress").values(previous).execute();
+		}
+	});
 });

@@ -22,7 +22,8 @@ export type PersistBlockInput = {
 };
 
 /**
- * Persist a parsed block + its transactions/events in one atomic transaction.
+ * Persist a parsed block + its transactions/events in one atomic transaction
+ * (the caller's, when `db` is already a transaction).
  *
  * Replace-per-height: `blocks` already upserts by height, but a reorg leaves the
  * orphaned block's transactions/events behind (the inserts only do
@@ -126,7 +127,7 @@ export async function persistBlock(
 	const stateWrites = input.stateWrites ?? [];
 	const network = input.network ?? process.env.STACKS_NETWORK ?? "mainnet";
 
-	await db.transaction().execute(async (tx) => {
+	const write = async (tx: Kysely<Database>) => {
 		// A reorg reuses a height with a new block hash. When that happens, the
 		// existing rows at this height are orphaned — archive them before the
 		// replace so the raw log is preserved, not destroyed. A redelivery of the
@@ -363,5 +364,10 @@ export async function persistBlock(
 		await sql`SELECT pg_notify('indexer:new_block', ${String(blockHeight)})`.execute(
 			tx,
 		);
-	});
+	};
+
+	// Callers that already hold a transaction (the canonical-change path) get
+	// this write inside it, so the block and its reorg cascade commit together.
+	if (db.isTransaction) await write(db);
+	else await db.transaction().execute(write);
 }

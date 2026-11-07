@@ -1,5 +1,6 @@
 import { afterAll, beforeEach, describe, expect, test } from "bun:test";
 import { getDb } from "@secondlayer/shared/db";
+import postgres from "postgres";
 import { persistBlock } from "./persist.ts";
 import { applyForkRepair, planForkRepair } from "./repair-fork-block.ts";
 import type { NewBlockPayload } from "./types/node-events.ts";
@@ -148,6 +149,10 @@ async function cleanup(db: NonNullable<ReturnType<typeof getDb>>) {
 			.execute();
 	}
 	await db
+		.deleteFrom("chain_reorgs")
+		.where("fork_point_height", "=", H)
+		.execute();
+	await db
 		.deleteFrom("index_progress")
 		.where("network", "=", NETWORK)
 		.execute();
@@ -230,6 +235,50 @@ describe.skipIf(!HAS_DB)("repair-fork-block", () => {
 
 		const rerun = await planForkRepair(db, H);
 		expect(rerun.alreadyCorrect).toBe(true);
+	});
+
+	test("a repair runs the reorg cascade: subgraph_reorg notify and a chain_reorgs row", async () => {
+		if (!db || !process.env.DATABASE_URL) throw new Error("missing db");
+		await seedFork(db);
+		await seedJournal(db, nodePayload("0xwrong", H, "0xparent", [WRONG_TX]));
+		await seedJournal(db, nodePayload("0xcanon", H, "0xparent", CANON_TXS));
+		const plan = await planForkRepair(db, H);
+
+		const listener = postgres(process.env.DATABASE_URL, { max: 1 });
+		const notified: Array<{
+			blockHeight: number;
+			oldHash: string;
+			newHash: string;
+		}> = [];
+		await listener.listen("subgraph_reorg", (payload) => {
+			const parsed = JSON.parse(payload);
+			if (parsed.blockHeight === H) notified.push(parsed);
+		});
+		try {
+			await applyForkRepair(db, plan);
+			const deadline = Date.now() + 3_000;
+			while (notified.length === 0 && Date.now() < deadline)
+				await Bun.sleep(20);
+		} finally {
+			await listener.end();
+		}
+
+		expect(notified).toEqual([
+			{ blockHeight: H, oldHash: "0xwrong", newHash: "0xcanon" },
+		]);
+		const reorgs = await db
+			.selectFrom("chain_reorgs")
+			.select(["fork_point_height", "new_index_block_hash"])
+			.where("fork_point_height", "=", H)
+			.execute();
+		expect(reorgs.length).toBeGreaterThan(0);
+		// The chain above the repaired height stays canonical.
+		const child = await db
+			.selectFrom("blocks")
+			.select("canonical")
+			.where("height", "=", H + 1)
+			.executeTakeFirstOrThrow();
+		expect(child.canonical).toBe(true);
 	});
 
 	test("with no journal row for the canonical block, --apply exits non-zero and writes nothing", async () => {
