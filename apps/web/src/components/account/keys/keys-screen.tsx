@@ -5,6 +5,7 @@ import { Sparkline } from "@/components/dashboard/charts/sparkline";
 import { ActionableInsights } from "@/components/dashboard/insight/insight-actions";
 import { PlaceholderRows } from "@/components/dashboard/shell/onboarding";
 import { StatusSentence } from "@/components/dashboard/shell/status-sentence";
+import { Sheet } from "@/components/mobile/sheet";
 import { useCompact } from "@/components/mobile/use-compact";
 import {
 	CreateKeyError,
@@ -649,19 +650,32 @@ export function KeysScreen({ openNew = false }: { openNew?: boolean }) {
 	// stale (say, it was just revoked) it would only be out of date.
 	const staleOwnKey = hasStaleOwnKey(keys, now);
 
+	const existingNames = groupKeys(keys, now)
+		.own.filter((k) => k.product !== "docs")
+		.map((k) => k.name);
+	const close = () => setCreating(false);
+
+	// Phones list keys and leave making them to desktop, except where there is
+	// no other way on: `?new=1` from the docs, or an account with no key yet.
+	// Then the same flow opens in a sheet.
 	if (compact) {
 		return (
 			<>
 				<AccountCompactHeader current="keys" />
 				<KeysCompact keys={keys} now={now} />
+				{creating ? (
+					<Sheet open onClose={close} eyebrow="API key" title="New key">
+						<NewKeyFlow
+							dismissible={!firstRun}
+							existingNames={existingNames}
+							onCreated={markFresh}
+							onClose={close}
+						/>
+					</Sheet>
+				) : null}
 			</>
 		);
 	}
-
-	const existingNames = groupKeys(keys, now)
-		.own.filter((k) => k.product !== "docs")
-		.map((k) => k.name);
-	const close = () => setCreating(false);
 
 	return (
 		<KeysBody
