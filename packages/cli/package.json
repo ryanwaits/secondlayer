@@ -53,7 +53,7 @@
 		"@secondlayer/shared": "^15.0.1",
 		"@secondlayer/stacks": "^6.6.0",
 		"@secondlayer/subgraphs": "^8.0.2",
-		"@secondlayer/verify": "^0.6.1",
+		"@secondlayer/verify": "^0.6.3",
 		"esbuild": "^0.28.2",
 		"smol-toml": "^1.9.1",
 		"typescript": "^5",

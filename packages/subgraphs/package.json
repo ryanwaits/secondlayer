@@ -58,7 +58,7 @@
 	"dependencies": {
 		"@secondlayer/shared": "^15.0.2",
 		"@secondlayer/stacks": "^6.5.4",
-		"@secondlayer/verify": "^0.6.1",
+		"@secondlayer/verify": "^0.6.3",
 		"esbuild": "^0.28.2",
 		"kysely": "0.28.17",
 		"zod": "^4.6.7"
