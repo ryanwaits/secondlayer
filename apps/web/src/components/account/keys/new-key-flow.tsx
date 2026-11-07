@@ -20,6 +20,11 @@ export function nameError(name: string): string | null {
 	return name.trim() ? null : EMPTY_NAME_ERROR;
 }
 
+/** Create key waits for a name and for the last request to finish. */
+export function createKeyDisabled(name: string, busy: boolean): boolean {
+	return busy || nameError(name) !== null;
+}
+
 /** A refused creation in words: the cap, the rate limit, or whatever the API said. */
 export function createErrorMessage(err: unknown): string {
 	if (err instanceof CreateKeyError) {
@@ -191,7 +196,11 @@ export function NameStep({
 			) : null}
 			{shownError ? <p className="acct-error">{shownError}</p> : null}
 			<div className="acct-row-actions">
-				<button type="submit" className="acct-btn solid small" disabled={busy}>
+				<button
+					type="submit"
+					className="acct-btn solid small"
+					disabled={createKeyDisabled(name, busy)}
+				>
 					{busy ? "Creating…" : "Create key"}
 				</button>
 				{onCancel ? (

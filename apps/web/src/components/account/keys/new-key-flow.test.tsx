@@ -5,6 +5,7 @@ import {
 	RevealStep,
 	type UseItTab,
 	createErrorMessage,
+	createKeyDisabled,
 	duplicateName,
 	nameError,
 	useItSnippets,
@@ -18,6 +19,13 @@ describe("NameStep", () => {
 		expect(nameError("")).toBe("Give the key a name");
 		expect(nameError("   ")).toBe("Give the key a name");
 		expect(nameError("ci")).toBeNull();
+	});
+
+	test("Create key stays disabled until the name has a character, and while busy", () => {
+		expect(createKeyDisabled("", false)).toBe(true);
+		expect(createKeyDisabled("   ", false)).toBe(true);
+		expect(createKeyDisabled("ci", false)).toBe(false);
+		expect(createKeyDisabled("ci", true)).toBe(true);
 	});
 });
 

@@ -9,6 +9,13 @@ export const STALE_AFTER_DAYS = 30;
 const HOUR = 3_600_000;
 const DAY = 24 * HOUR;
 
+/** `/account/keys?new=1` (where the docs' "Make a lasting key" lands) opens New key. */
+export function opensNewKeyFlow(params: {
+	new?: string | string[];
+}): boolean {
+	return params.new === "1";
+}
+
 /** What a key is for, in the reader's words. */
 export function keyForLabel(product: ApiKeyProduct): string {
 	switch (product) {

@@ -1,3 +1,4 @@
+import { opensNewKeyFlow } from "@/components/account/keys/key-view";
 import { KeysScreen } from "@/components/account/keys/keys-screen";
 import { AccountSeedProvider } from "@/lib/account-data";
 import { InsightsSeed } from "@/lib/insights-store";
@@ -10,7 +11,11 @@ import { sessionToken } from "@/lib/server/session";
 export const preferredRegion = "fra1";
 export const dynamic = "force-dynamic";
 
-export default async function AccountKeysPage() {
+export default async function AccountKeysPage({
+	searchParams,
+}: {
+	searchParams: Promise<{ new?: string | string[] }>;
+}) {
 	const token = await sessionToken();
 	const [account, insights] = token
 		? await Promise.all([
@@ -18,10 +23,11 @@ export default async function AccountKeysPage() {
 				readInsights(token),
 			])
 		: [{}, null];
+	const params = await searchParams;
 	return (
 		<InsightsSeed insights={insights}>
 			<AccountSeedProvider seed={account}>
-				<KeysScreen />
+				<KeysScreen openNew={opensNewKeyFlow(params)} />
 			</AccountSeedProvider>
 		</InsightsSeed>
 	);

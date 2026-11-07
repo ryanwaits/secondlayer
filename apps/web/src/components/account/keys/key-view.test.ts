@@ -7,9 +7,19 @@ import {
 	keyFlags,
 	keyForLabel,
 	keysSentence,
+	opensNewKeyFlow,
 	overviewKeys,
 	sumDaily,
 } from "./key-view";
+
+describe("opensNewKeyFlow", () => {
+	test("?new=1 opens New key; anything else leaves it closed", () => {
+		expect(opensNewKeyFlow({ new: "1" })).toBe(true);
+		expect(opensNewKeyFlow({})).toBe(false);
+		expect(opensNewKeyFlow({ new: "0" })).toBe(false);
+		expect(opensNewKeyFlow({ new: ["1", "1"] })).toBe(false);
+	});
+});
 
 const NOW = new Date("2026-10-15T12:00:00.000Z");
 const daysAgo = (n: number) =>

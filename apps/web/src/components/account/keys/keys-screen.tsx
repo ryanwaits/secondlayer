@@ -22,6 +22,7 @@ import { keyState } from "@/lib/onboarding";
 import { shortCount } from "@/lib/subgraph-view";
 import type { ApiKey, ConnectedApp } from "@/lib/types";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AccountCompactHeader } from "../compact-account";
 import { AppsPanel } from "./apps-panel";
@@ -598,12 +599,15 @@ export function KeysBody({
 /** The reasons the Keys tab shows. */
 const KEY_RULES = ["key_unused", "revoked_key_in_use"];
 
-/** /account/keys: every key on the account, and a new one when you need it. */
-export function KeysScreen() {
+/** /account/keys: every key on the account, and a new one when you need it.
+ *  `openNew` (`?new=1`, from the docs' "Make a lasting key") opens New key on
+ *  load; the param is then dropped so a reload doesn't open it again. */
+export function KeysScreen({ openNew = false }: { openNew?: boolean }) {
 	const { keys, apps } = useAccountData();
 	const { data: allInsights } = useInsights();
 	const compact = useCompact();
-	const [creating, setCreating] = useState(false);
+	const router = useRouter();
+	const [creating, setCreating] = useState(openNew);
 	const [rotated, setRotated] = useState<{
 		key: string;
 		name: string;
@@ -617,6 +621,9 @@ export function KeysScreen() {
 		ensureKeys();
 		ensureApps();
 	}, []);
+	useEffect(() => {
+		if (openNew) router.replace("/account/keys", { scroll: false });
+	}, [openNew, router]);
 	useEffect(
 		() => () => {
 			if (timer.current) clearTimeout(timer.current);
