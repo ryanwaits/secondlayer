@@ -19,7 +19,7 @@ import type {
 	RuneStreamsEvent,
 } from "@secondlayer/shared/streams-rows";
 import type { Kysely } from "kysely";
-import { getChainReorgGeneration } from "./trigger-evaluator-loop.ts";
+import { readReorgGeneration } from "./trigger-evaluator-loop.ts";
 
 /**
  * The Bitcoin (Runes) chain-trigger evaluator (plan 060) — a SECOND, separate
@@ -214,38 +214,52 @@ export function tipCursor(height: number): string {
 }
 
 /**
- * Advance `bitcoin_last_cursor` to `to`, never backwards. Shares the SAME
- * in-process generation counter as the Stacks evaluator's `advanceCursor`
- * (`chainReorgGeneration` in `trigger-evaluator-loop.ts`) — both run under one
- * leader, and a reorg on EITHER chain must invalidate an in-flight advance on
- * both, since `handleChainReorg` rewinds a column on this same row.
+ * Lock the evaluator row, reject the commit if a reorg moved `reorg_generation`
+ * since `generation` was read, run `emit` (outbox inserts) on the same
+ * transaction, then move `bitcoin_last_cursor` to `to`, never backwards. The
+ * generation is shared with the Stacks evaluator — both run under one leader,
+ * and a reorg on EITHER chain bumps it, since `handleChainReorg` rewinds a
+ * column on this same row. Emit and advance land together or not at all.
  */
-export async function advanceBitcoinCursor(
+async function commitRunePage(
 	db: Kysely<Database>,
-	to: string,
+	to: string | null,
 	generation: number,
-): Promise<{ advanced: boolean; reorged: boolean }> {
+	emit?: (trx: Kysely<Database>) => Promise<number>,
+): Promise<{ advanced: boolean; reorged: boolean; emitted: number }> {
 	return db.transaction().execute(async (trx) => {
 		const cur = await trx
 			.selectFrom("trigger_evaluator_state")
-			.select("bitcoin_last_cursor")
+			.select(["bitcoin_last_cursor", "reorg_generation"])
 			.where("id", "=", true)
 			.forUpdate()
 			.executeTakeFirst();
-		if (getChainReorgGeneration() !== generation) {
-			return { advanced: false, reorged: true };
+		if (Number(cur?.reorg_generation ?? 0) !== generation) {
+			return { advanced: false, reorged: true, emitted: 0 };
 		}
+		const emitted = emit ? await emit(trx) : 0;
 		const curVal = cur?.bitcoin_last_cursor ?? null;
-		if (curVal === null || cursorLess(curVal, to)) {
+		if (to !== null && (curVal === null || cursorLess(curVal, to))) {
 			await trx
 				.updateTable("trigger_evaluator_state")
 				.set({ bitcoin_last_cursor: to, updated_at: new Date() })
 				.where("id", "=", true)
 				.execute();
-			return { advanced: true, reorged: false };
+			return { advanced: true, reorged: false, emitted };
 		}
-		return { advanced: false, reorged: false };
+		return { advanced: false, reorged: false, emitted };
 	});
+}
+
+/** Advance `bitcoin_last_cursor` to `to`, never backwards, unless a reorg
+ *  moved the generation since it was read. */
+export async function advanceBitcoinCursor(
+	db: Kysely<Database>,
+	to: string,
+	generation: number,
+): Promise<{ advanced: boolean; reorged: boolean }> {
+	const { advanced, reorged } = await commitRunePage(db, to, generation);
+	return { advanced, reorged };
 }
 
 // ── Source seam (HTTP in prod, a stub in tests) ────────────────────────────
@@ -308,9 +322,9 @@ export async function runBitcoinEvaluatorOnce(
 	db: Kysely<Database> = getTargetDb(),
 	source: BitcoinStreamsSource = buildBitcoinStreamsSource(),
 ): Promise<BitcoinEvaluatorTickResult> {
-	// Snapshot before any await — mirrors the Stacks evaluator (see its own
-	// comment in `runEvaluatorOnce`).
-	const generation = getChainReorgGeneration();
+	// Snapshot before loading anything — mirrors the Stacks evaluator (see its
+	// own comment in `runEvaluatorOnce`).
+	const generation = await readReorgGeneration(db);
 	const chainSubs = await listActiveChainWebhooks(db);
 	const runeSubs = runeSubsOf(chainSubs);
 	const cursor = await readBitcoinCursor(db);
@@ -330,16 +344,17 @@ export async function runBitcoinEvaluatorOnce(
 
 	const types = referencedRuneEventTypes(runeSubs);
 	const page = await source.loadEvents(cursor, tip, types);
-	const emitted =
-		page.events.length > 0
-			? await emitRuneOutbox(db, page.events, runeSubs)
-			: 0;
-
-	if (page.nextCursor && page.nextCursor !== cursor) {
-		const res = await advanceBitcoinCursor(db, page.nextCursor, generation);
-		return { emitted, advanced: res.advanced };
+	const advanceTo =
+		page.nextCursor && page.nextCursor !== cursor ? page.nextCursor : null;
+	if (page.events.length === 0 && advanceTo === null) {
+		return { emitted: 0, advanced: false };
 	}
-	return { emitted, advanced: false };
+	// Outbox rows and the cursor move in one transaction, rejected if a reorg
+	// landed since `generation` was read.
+	const res = await commitRunePage(db, advanceTo, generation, (trx) =>
+		emitRuneOutbox(trx, page.events, runeSubs),
+	);
+	return { emitted: res.emitted, advanced: res.advanced };
 }
 
 /** Start the Bitcoin evaluator timer loop. Returns a stop function. Runs

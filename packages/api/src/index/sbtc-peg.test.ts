@@ -126,6 +126,31 @@ describe("sBTC peg helpers", () => {
 		expect(seen?.toISOString()).toBe("2026-06-29T00:00:00.000Z");
 	});
 
+	test("forwards confirmed_after_seq to the withdrawals reader as a number", async () => {
+		let seen: number | undefined;
+		await getSbtcWithdrawalsResponse({
+			query: eventsParams(
+				"?from_height=0&settlement_confirmed=true&confirmed_after_seq=41",
+			),
+			tip: TIP,
+			readSbtcWithdrawals: async (params) => {
+				seen = params.confirmedAfterSeq;
+				return { withdrawals: [], next_cursor: null };
+			},
+		});
+		expect(seen).toBe(41);
+	});
+
+	test("rejects a confirmed_after_seq that is not a non-negative integer", async () => {
+		await expect(
+			getSbtcWithdrawalsResponse({
+				query: eventsParams("?from_height=0&confirmed_after_seq=-1"),
+				tip: TIP,
+				readSbtcWithdrawals: EMPTY_WITHDRAWALS,
+			}),
+		).rejects.toThrow(/confirmed_after_seq must be/);
+	});
+
 	test("rejects a confirmed_after that is not a timestamp", async () => {
 		await expect(
 			getSbtcWithdrawalsResponse({
@@ -335,6 +360,7 @@ describe("sBTC peg helpers", () => {
 						btc_confirmations: null,
 						btc_block_height: null,
 						confirmed_at: null,
+						settlement_seq: null,
 						requested_at: null,
 						resolved_at: null,
 					},

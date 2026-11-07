@@ -4,6 +4,7 @@ import { getDb } from "@secondlayer/shared/db";
 import { createWebhook } from "@secondlayer/shared/db/queries/webhooks";
 import type { ChainTrigger } from "@secondlayer/shared/schemas/webhooks";
 import type { RuneStreamsEvent } from "@secondlayer/shared/streams-rows";
+import { sql } from "kysely";
 import {
 	type BitcoinStreamsSource,
 	advanceBitcoinCursor,
@@ -14,10 +15,7 @@ import {
 	runBitcoinEvaluatorOnce,
 	runeSubsOf,
 } from "./bitcoin-trigger-evaluator.ts";
-import {
-	bumpChainReorgGeneration,
-	getChainReorgGeneration,
-} from "./trigger-evaluator-loop.ts";
+import { readReorgGeneration } from "./trigger-evaluator-loop.ts";
 
 process.env.INSTANCE_MODE = process.env.INSTANCE_MODE ?? "oss";
 process.env.DATABASE_URL =
@@ -51,6 +49,14 @@ async function setBitcoinCursor(cursor: string | null): Promise<void> {
 	await db
 		.updateTable("trigger_evaluator_state")
 		.set({ bitcoin_last_cursor: cursor })
+		.where("id", "=", true)
+		.execute();
+}
+
+async function bumpReorgGeneration(): Promise<void> {
+	await db
+		.updateTable("trigger_evaluator_state")
+		.set({ reorg_generation: sql`reorg_generation + 1` })
 		.where("id", "=", true)
 		.execute();
 }
@@ -335,9 +341,9 @@ describe("runBitcoinEvaluatorOnce", () => {
 describe("advanceBitcoinCursor generation guard", () => {
 	it("a stale advance snapshotted before a reorg cannot overwrite the rewind", async () => {
 		await setBitcoinCursor("968100:0");
-		const gen0 = getChainReorgGeneration();
+		const gen0 = await readReorgGeneration(db);
 
-		bumpChainReorgGeneration();
+		await bumpReorgGeneration();
 		await setBitcoinCursor("968000:0"); // simulates handleChainReorg's rewind
 
 		const result = await advanceBitcoinCursor(db, "968200:0", gen0);
@@ -348,7 +354,7 @@ describe("advanceBitcoinCursor generation guard", () => {
 
 	it("an advance at the current generation moves the cursor forward", async () => {
 		await setBitcoinCursor("968000:0");
-		const gen = getChainReorgGeneration();
+		const gen = await readReorgGeneration(db);
 
 		const result = await advanceBitcoinCursor(db, "968100:5", gen);
 
@@ -358,7 +364,7 @@ describe("advanceBitcoinCursor generation guard", () => {
 
 	it("never moves the cursor backward", async () => {
 		await setBitcoinCursor("968100:5");
-		const gen = getChainReorgGeneration();
+		const gen = await readReorgGeneration(db);
 
 		const result = await advanceBitcoinCursor(db, "968050:0", gen);
 

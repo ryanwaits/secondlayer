@@ -10,8 +10,8 @@ import {
 	advanceCursor,
 	classifyWaitOutcome,
 	delayAfterTick,
-	getChainReorgGeneration,
 	nextTickDelayMs,
+	readReorgGeneration,
 	runEvaluatorOnce,
 	shouldWaitThisTick,
 	wasRealWait,
@@ -48,9 +48,9 @@ describe("chain-evaluator cursor advance vs. reorg rewind", () => {
 
 	it("a stale advance snapshotted before a reorg cannot overwrite the rewind", async () => {
 		await setCursor(300);
-		// chainReorgGeneration is a module global that accumulates across tests —
-		// snapshot it fresh here rather than assuming it starts at 0.
-		const gen0 = getChainReorgGeneration();
+		// The generation is persisted and accumulates across tests — snapshot it
+		// fresh here rather than assuming it starts at 0.
+		const gen0 = await readReorgGeneration(db);
 
 		// A reorg lands, bumping the generation and rewinding the cursor.
 		await handleChainReorg(150, db);
@@ -66,7 +66,7 @@ describe("chain-evaluator cursor advance vs. reorg rewind", () => {
 
 	it("an advance at the current generation still moves the cursor forward", async () => {
 		await setCursor(149);
-		const gen = getChainReorgGeneration();
+		const gen = await readReorgGeneration(db);
 
 		const result = await advanceCursor(db, 300, gen);
 
@@ -76,7 +76,7 @@ describe("chain-evaluator cursor advance vs. reorg rewind", () => {
 
 	it("an advance never moves the cursor backward", async () => {
 		await setCursor(300);
-		const gen = getChainReorgGeneration();
+		const gen = await readReorgGeneration(db);
 
 		const result = await advanceCursor(db, 200, gen);
 
@@ -479,13 +479,13 @@ describe("chain evaluator on the shared testnet stack", () => {
 	it("rewinds the cursor to the source tip when it is 5,000 above it", async () => {
 		testnet(true);
 		await setCursor(TIP + 5_000);
-		const gen = getChainReorgGeneration();
+		const gen = await readReorgGeneration(db);
 
 		const result = await runEvaluatorOnce(db, { httpClient: fakeHttp() });
 
 		expect(result.advanced).toBe(true);
 		expect(await cursor()).toBe(TIP);
-		expect(getChainReorgGeneration()).toBe(gen + 1);
+		expect(await readReorgGeneration(db)).toBe(gen + 1);
 	});
 
 	it("leaves a cursor that is only a reorg's depth above the tip alone", async () => {

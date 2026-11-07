@@ -639,12 +639,19 @@ export async function emitSbtcOutbox(
  * path, this fires on a BITCOIN confirmation (async to Stacks blocks), so it
  * scans `sbtc_settlements` on its own cadence rather than per Stacks block.
  *
- * - Reads/advances a dedicated `last_settlement_scan_at` watermark on `db` (the
- *   target/control plane). Null cursor → fast-forward to `now`, emit nothing
- *   (forward-only, no historical backfill — mirrors the block cursor).
- * - Scans confirmed settlements with `confirmed_at > cursor` from the SOURCE
- *   plane (`sbtc_settlements` is source), joined to the Stacks accept event +
- *   block for the envelope anchor.
+ * - Resumes from `last_settlement_scan_seq` on `db` (the target/control plane):
+ *   `sbtc_settlements.seq` is stamped when a sweep becomes confirmed, so it
+ *   follows commit order, which `confirmed_at` (a JS clock on insert, SQL
+ *   `now()` on update) does not. Until the first row has been scanned there is
+ *   no seq, and `last_settlement_scan_at` is the forward-only floor: null →
+ *   set it to `now` and emit nothing (no historical backfill, mirroring the
+ *   block cursor); set → scan `confirmed_at > floor`.
+ * - Scans confirmed settlements past that point from the SOURCE plane
+ *   (`sbtc_settlements` is source), joined to the Stacks accept event + block
+ *   for the envelope anchor.
+ * - Outbox rows and the watermark commit in one transaction. With
+ *   `opts.generation`, a reorg since it was read rejects the commit (the
+ *   rows anchor to Stacks blocks a reorg can orphan).
  * - Per-sub forward-only (`confirmed_at > sub.created_at`) + optional
  *   requestId/sweepTxid filters; dedup on `(webhook_id, sweep_txid)` so a
  *   reorg→un-confirm→re-confirm never double-fires.
@@ -656,6 +663,8 @@ export async function emitSbtcSettlementOutbox(
 		sourceDb?: Kysely<Database>;
 		reader?: ChainDataReader;
 		now?: Date;
+		/** `reorg_generation` read before the scan; see `commitBatch`. */
+		generation?: number;
 	},
 ): Promise<number> {
 	const settlementSubs = chainSubs.filter((sub) =>
@@ -666,13 +675,17 @@ export async function emitSbtcSettlementOutbox(
 	const now = opts?.now ?? new Date();
 	const state = await db
 		.selectFrom("trigger_evaluator_state")
-		.select("last_settlement_scan_at")
+		.select(["last_settlement_scan_at", "last_settlement_scan_seq"])
 		.where("id", "=", true)
 		.executeTakeFirst();
 
+	const seqCursor =
+		state?.last_settlement_scan_seq == null
+			? null
+			: Number(state.last_settlement_scan_seq);
+	const floor = state?.last_settlement_scan_at ?? null;
 	// Uninitialized → fast-forward, emit nothing (forward-only).
-	const cursor = state?.last_settlement_scan_at ?? null;
-	if (cursor === null) {
+	if (seqCursor === null && floor === null) {
 		await db
 			.updateTable("trigger_evaluator_state")
 			.set({ last_settlement_scan_at: now })
@@ -681,15 +694,18 @@ export async function emitSbtcSettlementOutbox(
 		return 0;
 	}
 
-	const rows = await readerFor(opts).settlementsConfirmedAfter(cursor);
+	const rows = await readerFor(opts).settlementsSince(
+		seqCursor !== null
+			? { afterSeq: seqCursor }
+			: { confirmedAfter: floor as Date },
+	);
 	if (rows.length === 0) return 0;
 
 	const outboxRows: InsertWebhookOutbox[] = [];
-	let maxConfirmedAt = cursor;
+	let maxSeq = seqCursor ?? 0;
 	for (const row of rows) {
+		if (row.seq > maxSeq) maxSeq = row.seq;
 		const confirmedAt = row.confirmed_at;
-		if (confirmedAt && confirmedAt > maxConfirmedAt)
-			maxConfirmedAt = confirmedAt;
 		if (!confirmedAt) continue;
 		for (const sub of settlementSubs) {
 			// Forward-only: a sub only receives settlements confirmed after it existed.
@@ -714,23 +730,38 @@ export async function emitSbtcSettlementOutbox(
 		}
 	}
 
-	if (outboxRows.length > 0) {
-		await db
-			.insertInto("webhook_outbox")
-			.values(outboxRows)
-			.onConflict((oc) => oc.columns(["webhook_id", "dedup_key"]).doNothing())
-			.execute();
-	}
-
 	// Advance the watermark past every settlement scanned this pass (even ones
 	// filtered out per-sub — they're in the past for any future subscriber).
-	await db
-		.updateTable("trigger_evaluator_state")
-		.set({ last_settlement_scan_at: maxConfirmedAt })
-		.where("id", "=", true)
-		.execute();
-
-	return outboxRows.length;
+	return db.transaction().execute(async (trx) => {
+		const cur = await trx
+			.selectFrom("trigger_evaluator_state")
+			.select("reorg_generation")
+			.where("id", "=", true)
+			.forUpdate()
+			.executeTakeFirst();
+		if (
+			opts?.generation !== undefined &&
+			Number(cur?.reorg_generation ?? 0) !== opts.generation
+		) {
+			// A reorg landed mid-tick: leave the watermark so the next tick rescans.
+			return 0;
+		}
+		let inserted = 0;
+		if (outboxRows.length > 0) {
+			await trx
+				.insertInto("webhook_outbox")
+				.values(outboxRows)
+				.onConflict((oc) => oc.columns(["webhook_id", "dedup_key"]).doNothing())
+				.execute();
+			inserted = outboxRows.length;
+		}
+		await trx
+			.updateTable("trigger_evaluator_state")
+			.set({ last_settlement_scan_seq: maxSeq })
+			.where("id", "=", true)
+			.execute();
+		return inserted;
+	});
 }
 
 function settlementApplyRow(

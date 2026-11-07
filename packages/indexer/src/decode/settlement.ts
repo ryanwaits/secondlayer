@@ -168,6 +168,11 @@ async function upsertSettlement(
 				// On un-confirm (a Bitcoin reorg dropped it below threshold): clear it,
 				// so confirmed_at always agrees with settlement_confirmed.
 				confirmed_at: sql`CASE WHEN excluded.settlement_confirmed THEN COALESCE(sbtc_settlements.confirmed_at, now()) ELSE NULL END`,
+				// Retake the scan stamp on each transition into confirmed (an insert
+				// already took one from the column default); a row that stays confirmed
+				// or stays pending keeps its own, so the webhook watermark sees every
+				// confirmation exactly when it commits, whatever confirmed_at says.
+				seq: sql`CASE WHEN excluded.settlement_confirmed AND NOT sbtc_settlements.settlement_confirmed THEN nextval('sbtc_settlements_seq') ELSE sbtc_settlements.seq END`,
 			})),
 		)
 		.execute();

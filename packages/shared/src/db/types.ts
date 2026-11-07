@@ -770,6 +770,10 @@ export interface SbtcSettlementsTable {
 	last_checked_at: Generated<Date>;
 	/** Set once, when `settlement_confirmed` first flips true. */
 	confirmed_at: Date | null;
+	/** Monotonic stamp from `sbtc_settlements_seq`, retaken each time the sweep
+	 *  becomes confirmed. The webhook scan's watermark. BIGINT: a string at
+	 *  runtime. */
+	seq: Generated<number | string>;
 	updated_at: Generated<Date>;
 }
 
@@ -1631,6 +1635,21 @@ export interface TriggerEvaluatorStateTable {
 		Date | null,
 		Date | null | undefined,
 		Date | null
+	>;
+	/** `sbtc_settlements.seq` watermark. Null until the first settlement row is
+	 *  scanned; `last_settlement_scan_at` is the forward-only floor until then. */
+	last_settlement_scan_seq: ColumnType<
+		bigint | null,
+		bigint | number | null | undefined,
+		bigint | number | null
+	>;
+	/** Counts reorg rewinds. The evaluator checks it under the row lock in the
+	 *  transaction that emits a batch and advances the cursor, so a reorg that
+	 *  lands mid-tick rolls the batch back. */
+	reorg_generation: ColumnType<
+		bigint,
+		bigint | number | undefined,
+		bigint | number
 	>;
 	/** Streams cursor (`<block_height>:<event_index>`) for the Bitcoin (Runes)
 	 *  chain-trigger evaluator (plan 060) — a separate clock from

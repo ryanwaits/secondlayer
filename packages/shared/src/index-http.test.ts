@@ -464,11 +464,22 @@ describe("IndexHttpClient hosted sBTC + trait reads", () => {
 		}
 	});
 
+	test("fetchSettledWithdrawals scans all history after the stamp", async () => {
+		const urls = stubPages([{ withdrawals: [], next_cursor: null }]);
+		await client().fetchSettledWithdrawals({ afterSeq: 41 });
+		const params = urls[0]?.searchParams;
+		expect(urls[0]?.pathname).toBe("/v1/index/sbtc/withdrawals");
+		expect(params?.get("settlement_confirmed")).toBe("true");
+		expect(params?.get("confirmed_after_seq")).toBe("41");
+		expect(params?.get("confirmed_after")).toBeNull();
+		expect(params?.get("from_height")).toBe("0");
+	});
+
 	test("fetchSettledWithdrawals scans all history after the timestamp", async () => {
 		const urls = stubPages([{ withdrawals: [], next_cursor: null }]);
-		await client().fetchSettledWithdrawals(
-			new Date("2026-10-15T00:00:00.000Z"),
-		);
+		await client().fetchSettledWithdrawals({
+			confirmedAfter: new Date("2026-10-15T00:00:00.000Z"),
+		});
 		const params = urls[0]?.searchParams;
 		expect(urls[0]?.pathname).toBe("/v1/index/sbtc/withdrawals");
 		expect(params?.get("settlement_confirmed")).toBe("true");

@@ -285,6 +285,9 @@ export type IndexSbtcWithdrawalRow = {
 	btc_confirmations: number | null;
 	btc_block_height: number | null;
 	confirmed_at: string | null;
+	/** Monotonic stamp of the sweep's confirmation; the settlement scan's
+	 *  watermark. Null while unsettled. */
+	settlement_seq?: number | null;
 	requested_at?: string | null;
 	resolved_at?: string | null;
 };
@@ -622,10 +625,11 @@ export class IndexHttpClient {
 		return out;
 	}
 
-	/** Withdrawals whose BTC sweep crossed the confirmation threshold strictly
-	 *  after `confirmedAfter`, across all history. */
+	/** Withdrawals whose BTC sweep crossed the confirmation threshold past
+	 *  `scan`, across all history: stamped after `afterSeq`, or confirmed
+	 *  strictly after `confirmedAfter`. */
 	fetchSettledWithdrawals(
-		confirmedAfter: Date,
+		scan: { afterSeq: number } | { confirmedAfter: Date },
 	): Promise<IndexSbtcWithdrawalRow[]> {
 		return this.walk<"withdrawals", IndexSbtcWithdrawalRow>(
 			"/v1/index/sbtc/withdrawals",
@@ -634,7 +638,9 @@ export class IndexHttpClient {
 			THROUGH_TIP,
 			{
 				settlement_confirmed: "true",
-				confirmed_after: confirmedAfter.toISOString(),
+				...("afterSeq" in scan
+					? { confirmed_after_seq: String(scan.afterSeq) }
+					: { confirmed_after: scan.confirmedAfter.toISOString() }),
 			},
 		);
 	}

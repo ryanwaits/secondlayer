@@ -1024,6 +1024,15 @@ export const protocolsPaths = {
 					),
 					schema: { type: "string", format: "date-time" },
 				},
+				{
+					...qp(
+						"confirmed_after_seq",
+						"integer",
+						false,
+						"Returns only withdrawals whose `settlement_seq` is above this. Unlike `confirmed_after` it follows commit order, so a scan that resumes from the last `settlement_seq` it saw never skips a sweep.",
+					),
+					schema: { type: "integer", minimum: 0 },
+				},
 				qp(
 					"fields",
 					"string",
@@ -2143,6 +2152,11 @@ export const protocolsSchemas = {
 				format: "date-time",
 				description: "When the sweep reached the confirmation threshold.",
 			},
+			settlement_seq: {
+				type: ["integer", "null"],
+				description:
+					"Monotonic stamp taken when the sweep became confirmed. Follows commit order, unlike `confirmed_at`. Null while unsettled.",
+			},
 			requested_at: {
 				type: ["string", "null"],
 				format: "date-time",
@@ -2169,6 +2183,7 @@ export const protocolsSchemas = {
 			btc_confirmations: 8,
 			btc_block_height: 968278,
 			confirmed_at: "2026-09-23T14:35:25.473Z",
+			settlement_seq: 1042,
 			requested_at: "2026-09-23T12:01:45.000Z",
 			resolved_at: "2026-09-23T13:24:47.000Z",
 		},

@@ -6,6 +6,7 @@ import {
 } from "@secondlayer/shared/leader";
 import { targetListenerUrl } from "@secondlayer/shared/queue/listener";
 import { startBitcoinTriggerEvaluator } from "./bitcoin-trigger-evaluator.ts";
+import { type OnReorg, REORG_SKIPPED } from "./streams-reorg-poll.ts";
 import { startTriggerEvaluator } from "./trigger-evaluator-loop.ts";
 
 /**
@@ -38,14 +39,20 @@ export function isEvaluatorLeader(): boolean {
  * evaluator leader. The handler rewinds `trigger_evaluator_state` — the same row
  * the evaluator advances — so running it on a non-leader would race the leader's
  * cursor. The subgraph-reorg handler is left ungated (idempotent row-deletes).
+ *
+ * A non-leader reports `REORG_SKIPPED` instead of returning normally, so the
+ * reorg poll leaves the reorg unhandled and its position unmoved: a reorg that
+ * lands while leadership is changing hands is applied by the next leader, not
+ * silently consumed by a replica that did nothing with it.
  */
 export function gateChainReorgOnLeader(
 	handler: (forkHeight: number) => Promise<void>,
 	isLeader: () => boolean = isEvaluatorLeader,
-): (forkHeight: number) => Promise<void> {
+): OnReorg {
 	return async (forkHeight) => {
-		if (!isLeader()) return;
+		if (!isLeader()) return REORG_SKIPPED;
 		await handler(forkHeight);
+		return undefined;
 	};
 }
 

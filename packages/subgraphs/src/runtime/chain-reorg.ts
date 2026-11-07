@@ -6,9 +6,8 @@ import type { Database, InsertWebhookOutbox } from "@secondlayer/shared/db";
 import { getTargetDb } from "@secondlayer/shared/db";
 import { REORG_ORPHANED_ERROR_PREFIX } from "@secondlayer/shared/db/queries/webhooks";
 import { logger } from "@secondlayer/shared/logger";
-import type { Kysely } from "kysely";
+import { type Kysely, sql } from "kysely";
 import { tipCursor } from "./bitcoin-trigger-evaluator.ts";
-import { bumpChainReorgGeneration } from "./trigger-evaluator-loop.ts";
 
 /**
  * Reorg handling for direct chain-level webhooks.
@@ -36,6 +35,10 @@ import { bumpChainReorgGeneration } from "./trigger-evaluator-loop.ts";
  *   4. rewind the evaluator cursor to `forkHeight - 1` so apply re-fires for the
  *      new canonical blocks. Surviving txs re-deliver under their new block_hash
  *      (the dedup key includes it); genuinely-orphaned txs do not.
+ *
+ * All four steps are one transaction, opened by bumping `reorg_generation` on
+ * the evaluator row (which also takes its lock) — see `commitBatch` in
+ * `trigger-evaluator-loop.ts` for the evaluator's side of that handshake.
  */
 
 /** Max orphaned events embedded per rollback payload (bounds memory; reorgs are
@@ -60,17 +63,28 @@ export async function handleChainReorg(
 	db: Kysely<Database> = getTargetDb(),
 	chain: ChainReorgChain = "stacks",
 ): Promise<void> {
-	// Invalidate any evaluator tick snapshotted before this reorg so its stale
-	// forward advance cannot clobber the rewind below (bump before any await, so
-	// a concurrent advance taking the cursor lock observes it). Mirrors f057.
-	bumpChainReorgGeneration();
-
-	// Steps 1-3 run in one transaction: the `FOR UPDATE` select below locks
-	// every affected row before any of them are deleted, marked dead, or
-	// rolled back, so a concurrent emitter claim (`FOR UPDATE SKIP LOCKED`)
-	// simply skips them until this transaction commits — it can never observe
-	// a row mid-reclassification.
+	// Everything runs in ONE transaction: classification, rollback rows and the
+	// cursor rewind commit together or not at all, so a crash can never leave
+	// rows rolled back with the cursor still past the fork (or the reverse).
+	// The `FOR UPDATE` select below locks every affected row before any of them
+	// are deleted, marked dead, or rolled back, so a concurrent emitter claim
+	// (`FOR UPDATE SKIP LOCKED`) simply skips them until this transaction
+	// commits — it can never observe a row mid-reclassification.
 	await db.transaction().execute(async (trx) => {
+		// First statement: take the evaluator row lock and bump the generation.
+		// An evaluator batch committed before this point is visible to the
+		// classification below (it held this lock until it committed); one that
+		// loads its generation earlier and commits later sees the bump and rolls
+		// back instead of emitting rows for the orphaned fork.
+		await trx
+			.updateTable("trigger_evaluator_state")
+			.set({
+				reorg_generation: sql`reorg_generation + 1`,
+				updated_at: new Date(),
+			})
+			.where("id", "=", true)
+			.execute();
+
 		const now = new Date();
 		const affected = await trx
 			.selectFrom("webhook_outbox")
@@ -203,12 +217,10 @@ export async function handleChainReorg(
 				orphanedPending: toMarkDeadIds.length,
 			});
 		}
-	});
 
-	// 4. Rewind the evaluator cursor so the new canonical blocks re-fire applies.
-	// Stacks and Bitcoin each rewind their OWN column only — they're separate
-	// clocks (see `ChainReorgChain`'s doc) sharing one row.
-	await db.transaction().execute(async (trx) => {
+		// 4. Rewind the evaluator cursor so the new canonical blocks re-fire
+		// applies. Stacks and Bitcoin each rewind their OWN column only —
+		// they're separate clocks (see `ChainReorgChain`'s doc) sharing one row.
 		if (chain === "bitcoin") {
 			const cur = await trx
 				.selectFrom("trigger_evaluator_state")

@@ -18,13 +18,27 @@ const webhookIds: string[] = [];
 const TX = "0xsettle-acc";
 const HEIGHT = 970_000;
 const SWEEP = "0xsettle-sweep";
+const LATE = {
+	sweep: "0xsettle-sweep-late",
+	tx: "0xsettle-acc-late",
+	height: 970_001,
+	requestId: 556,
+};
 
 async function setCursor(at: Date | null): Promise<void> {
 	await db
 		.insertInto("trigger_evaluator_state")
-		.values({ id: true, last_processed_block: 0, last_settlement_scan_at: at })
+		.values({
+			id: true,
+			last_processed_block: 0,
+			last_settlement_scan_at: at,
+			last_settlement_scan_seq: null,
+		})
 		.onConflict((oc) =>
-			oc.column("id").doUpdateSet({ last_settlement_scan_at: at }),
+			oc.column("id").doUpdateSet({
+				last_settlement_scan_at: at,
+				last_settlement_scan_seq: null,
+			}),
 		)
 		.execute();
 }
@@ -38,17 +52,25 @@ async function readCursor(): Promise<Date | null> {
 	return row?.last_settlement_scan_at ?? null;
 }
 
-/** Seed the Stacks accept event + its block + a confirmed settlement row. */
-async function seedConfirmedSweep(confirmedAt: Date): Promise<void> {
+/** Seed a Stacks accept event + its block + a confirmed settlement row. */
+async function seedConfirmedSweep(
+	confirmedAt: Date,
+	ids: { sweep: string; tx: string; height: number; requestId: number } = {
+		sweep: SWEEP,
+		tx: TX,
+		height: HEIGHT,
+		requestId: 555,
+	},
+): Promise<void> {
 	await db
 		.insertInto("blocks")
 		.values({
-			height: HEIGHT,
-			hash: `0x${HEIGHT}`,
-			parent_hash: `0x${HEIGHT - 1}`,
-			burn_block_height: HEIGHT + 10_000,
-			burn_block_hash: `0xb${HEIGHT}`,
-			timestamp: 1_700_000_000 + HEIGHT,
+			height: ids.height,
+			hash: `0x${ids.height}`,
+			parent_hash: `0x${ids.height - 1}`,
+			burn_block_height: ids.height + 10_000,
+			burn_block_hash: `0xb${ids.height}`,
+			timestamp: 1_700_000_000 + ids.height,
 			canonical: true,
 		})
 		.onConflict((oc) => oc.column("height").doNothing())
@@ -56,25 +78,25 @@ async function seedConfirmedSweep(confirmedAt: Date): Promise<void> {
 	await db
 		.insertInto("sbtc_events")
 		.values({
-			cursor: `${HEIGHT}:0`,
-			block_height: HEIGHT,
+			cursor: `${ids.height}:0`,
+			block_height: ids.height,
 			block_time: new Date("2026-06-01T00:00:00.000Z"),
-			tx_id: TX,
+			tx_id: ids.tx,
 			tx_index: 0,
 			event_index: 0,
 			topic: "withdrawal-accept",
-			request_id: 555,
+			request_id: ids.requestId,
 			amount: "12345",
 			sender: "SP-SENDER",
-			sweep_txid: SWEEP,
-			source_cursor: `${HEIGHT}:0`,
+			sweep_txid: ids.sweep,
+			source_cursor: `${ids.height}:0`,
 		})
 		.execute();
 	await db
 		.insertInto("sbtc_settlements")
 		.values({
-			sweep_txid: SWEEP,
-			request_id: 555,
+			sweep_txid: ids.sweep,
+			request_id: ids.requestId,
 			btc_confirmations: 6,
 			settlement_confirmed: true,
 			block_hash: "0xbtcblk",
@@ -90,6 +112,21 @@ async function deleteCreatedWebhooks(): Promise<void> {
 		await db.deleteFrom("webhooks").where("id", "in", ids).execute();
 }
 
+async function deleteSeededChain(): Promise<void> {
+	await db
+		.deleteFrom("sbtc_settlements")
+		.where("sweep_txid", "in", [SWEEP, LATE.sweep])
+		.execute();
+	await db
+		.deleteFrom("sbtc_events")
+		.where("tx_id", "in", [TX, LATE.tx])
+		.execute();
+	await db
+		.deleteFrom("blocks")
+		.where("height", "in", [HEIGHT, LATE.height])
+		.execute();
+}
+
 async function makeSub() {
 	const { webhook } = await createWebhook(db, {
 		accountId,
@@ -103,22 +140,12 @@ async function makeSub() {
 
 beforeEach(async () => {
 	await deleteCreatedWebhooks();
-	await db
-		.deleteFrom("sbtc_settlements")
-		.where("sweep_txid", "=", SWEEP)
-		.execute();
-	await db.deleteFrom("sbtc_events").where("tx_id", "=", TX).execute();
-	await db.deleteFrom("blocks").where("height", "=", HEIGHT).execute();
+	await deleteSeededChain();
 });
 
 afterAll(async () => {
 	await deleteCreatedWebhooks();
-	await db
-		.deleteFrom("sbtc_settlements")
-		.where("sweep_txid", "=", SWEEP)
-		.execute();
-	await db.deleteFrom("sbtc_events").where("tx_id", "=", TX).execute();
-	await db.deleteFrom("blocks").where("height", "=", HEIGHT).execute();
+	await deleteSeededChain();
 });
 
 describe("emitSbtcSettlementOutbox", () => {
@@ -159,6 +186,25 @@ describe("emitSbtcSettlementOutbox", () => {
 		expect(rows[0]?.dedup_key).toBe(`settlement:${sub.id}:${SWEEP}`);
 	});
 
+	it("resumes from the scanned row's seq instead of the confirmed_at floor", async () => {
+		await setCursor(new Date(Date.now() - 86_400_000));
+		const sub = await makeSub();
+		await seedConfirmedSweep(new Date(Date.now() + 60_000));
+		expect(await emitSbtcSettlementOutbox(db, [sub])).toBe(1);
+
+		const seq = await db
+			.selectFrom("sbtc_settlements")
+			.select("seq")
+			.where("sweep_txid", "=", SWEEP)
+			.executeTakeFirstOrThrow();
+		const state = await db
+			.selectFrom("trigger_evaluator_state")
+			.select("last_settlement_scan_seq")
+			.where("id", "=", true)
+			.executeTakeFirstOrThrow();
+		expect(Number(state.last_settlement_scan_seq)).toBe(Number(seq.seq));
+	});
+
 	it("forward-only: skips a sweep confirmed before the webhook existed", async () => {
 		await setCursor(new Date(Date.now() - 86_400_000));
 		const sub = await makeSub();
@@ -193,5 +239,33 @@ describe("emitSbtcSettlementOutbox", () => {
 			.where("webhook_id", "=", sub.id)
 			.executeTakeFirstOrThrow();
 		expect(Number(count.c)).toBe(1);
+	});
+
+	it("delivers a sweep that commits after a later-stamped one with an earlier confirmed_at", async () => {
+		await setCursor(new Date(Date.now() - 86_400_000));
+		const sub = await makeSub();
+		await seedConfirmedSweep(new Date(Date.now() + 60_000));
+		expect(await emitSbtcSettlementOutbox(db, [sub])).toBe(1);
+
+		// Written by a clock that runs behind, so its confirmed_at is older than
+		// the watermark the first scan left behind.
+		await seedConfirmedSweep(new Date(Date.now() + 30_000), LATE);
+
+		expect(await emitSbtcSettlementOutbox(db, [sub])).toBe(1);
+		const dedupKeys = (
+			await db
+				.selectFrom("webhook_outbox")
+				.select("dedup_key")
+				.where("webhook_id", "=", sub.id)
+				.execute()
+		)
+			.map((r) => r.dedup_key)
+			.sort();
+		expect(dedupKeys).toEqual(
+			[
+				`settlement:${sub.id}:${LATE.sweep}`,
+				`settlement:${sub.id}:${SWEEP}`,
+			].sort(),
+		);
 	});
 });

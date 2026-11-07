@@ -32,10 +32,14 @@ export interface ChainDataReader {
 	): Promise<SbtcEventRow[]>;
 	/** Contracts conforming to `trait` deployed at or before `asOfBlock`. */
 	traitContractIds(trait: string, asOfBlock: number): Promise<string[]>;
-	/** Confirmed sweeps with `confirmed_at > after`, each anchored to its
-	 *  Stacks accept event and block. */
-	settlementsConfirmedAfter(after: Date): Promise<SettlementScanRow[]>;
+	/** Confirmed sweeps past `scan`, each anchored to its Stacks accept event and
+	 *  block, in `seq` order. */
+	settlementsSince(scan: SettlementScan): Promise<SettlementScanRow[]>;
 }
+
+/** Where a settlement scan resumes: after a watermark `seq` (the steady state),
+ *  or, until the first row has been scanned, after a `confirmed_at` floor. */
+export type SettlementScan = { afterSeq: number } | { confirmedAfter: Date };
 
 /**
  * The `sbtc_events` columns trigger matching and payloads read, as the
@@ -57,6 +61,8 @@ export type SbtcEventRow = Pick<
 >;
 
 export type SettlementScanRow = {
+	/** `sbtc_settlements.seq`: the scan watermark. */
+	seq: number;
 	sweep_txid: string;
 	request_id: number;
 	btc_confirmations: number;
@@ -90,8 +96,8 @@ export function databaseChainDataReader(db: Kysely<Database>): ChainDataReader {
 		traitContractIds(trait, asOfBlock) {
 			return resolveTraitContractIds(db, trait, asOfBlock);
 		},
-		settlementsConfirmedAfter(after) {
-			return db
+		async settlementsSince(scan) {
+			const rows = await db
 				.selectFrom("sbtc_settlements as s")
 				.innerJoin("sbtc_events as e", (join) =>
 					join
@@ -105,8 +111,13 @@ export function databaseChainDataReader(db: Kysely<Database>): ChainDataReader {
 						.on("b.canonical", "=", true),
 				)
 				.where("s.settlement_confirmed", "=", true)
-				.where("s.confirmed_at", ">", after)
+				.where((eb) =>
+					"afterSeq" in scan
+						? eb("s.seq", ">", scan.afterSeq)
+						: eb("s.confirmed_at", ">", scan.confirmedAfter),
+				)
 				.select([
+					"s.seq",
 					"s.sweep_txid",
 					"s.request_id",
 					"s.btc_confirmations",
@@ -119,7 +130,10 @@ export function databaseChainDataReader(db: Kysely<Database>): ChainDataReader {
 					"b.hash as block_hash",
 					"b.timestamp as block_timestamp",
 				])
+				.orderBy("s.seq")
 				.execute();
+			// BIGINT arrives as a string; the row contract is a number.
+			return rows.map((row) => ({ ...row, seq: Number(row.seq) }));
 		},
 	};
 }
@@ -244,10 +258,10 @@ export function hostedChainDataReader(
 			}
 			return ids;
 		},
-		async settlementsConfirmedAfter(after) {
+		async settlementsSince(scan) {
 			const withdrawals = oneWithdrawalPerSweep(
-				await client.fetchSettledWithdrawals(after),
-			);
+				await client.fetchSettledWithdrawals(scan),
+			).sort((a, b) => Number(a.settlement_seq) - Number(b.settlement_seq));
 			const out: SettlementScanRow[] = [];
 			for (const w of withdrawals) {
 				const accepts = await client.fetchSbtcEvents(
@@ -266,6 +280,7 @@ export function hostedChainDataReader(
 				);
 				if (!block) continue;
 				out.push({
+					seq: Number(w.settlement_seq),
 					sweep_txid: w.sweep_txid as string,
 					request_id: w.request_id,
 					btc_confirmations: w.btc_confirmations ?? 0,
@@ -311,8 +326,8 @@ export function chainDataReader(opts?: {
 		sbtcEvents: async (...args) => (await reader()).sbtcEvents(...args),
 		traitContractIds: async (...args) =>
 			(await reader()).traitContractIds(...args),
-		settlementsConfirmedAfter: async (...args) =>
-			(await reader()).settlementsConfirmedAfter(...args),
+		settlementsSince: async (...args) =>
+			(await reader()).settlementsSince(...args),
 	};
 }
 

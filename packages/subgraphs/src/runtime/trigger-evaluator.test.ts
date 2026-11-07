@@ -18,7 +18,7 @@ import type { BlockData } from "./batch-loader.ts";
 import type { TraitContracts } from "./source-matcher.ts";
 import {
 	advanceCursor,
-	getChainReorgGeneration,
+	readReorgGeneration,
 } from "./trigger-evaluator-loop.ts";
 import {
 	buildSourcesMap,
@@ -769,7 +769,7 @@ describe("evaluator restart: durable cursor + idempotent outbox", () => {
 		// height 0 and not wherever it happened to be mid-batch.
 		expect(Number((await cursorRow())?.last_processed_block)).toBe(100);
 
-		const generation = getChainReorgGeneration();
+		const generation = await readReorgGeneration(db);
 		const { advanced } = await advanceCursor(db, 103, generation);
 		expect(advanced).toBe(true);
 		expect(Number((await cursorRow())?.last_processed_block)).toBe(103);

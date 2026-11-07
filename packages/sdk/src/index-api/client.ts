@@ -948,6 +948,9 @@ export type IndexSbtcWithdrawal = {
 	btc_block_height: number | null;
 	/** When the sweep crossed the confirmation threshold (ISO), null otherwise. */
 	confirmed_at: string | null;
+	/** Monotonic stamp taken when the sweep became confirmed; resume a scan
+	 *  from it with `confirmed_after_seq`. Null while unsettled. */
+	settlement_seq: number | null;
 	requested_at?: string | null;
 	resolved_at?: string | null;
 };

@@ -1012,6 +1012,7 @@ describe("Index sBTC peg routes", () => {
 							btc_confirmations: null,
 							btc_block_height: null,
 							confirmed_at: null,
+							settlement_seq: null,
 							requested_at: null,
 							resolved_at: null,
 						},

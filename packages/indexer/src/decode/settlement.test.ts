@@ -267,6 +267,59 @@ describe.skipIf(!HAS_DB)("sBTC settlement confirmer (DB)", () => {
 		expect(stale.status).toBe("unhealthy");
 	});
 
+	test("stamps a fresh seq each time a sweep becomes confirmed and keeps it while it stays confirmed", async () => {
+		if (!db) throw new Error("missing db");
+		await db
+			.insertInto("sbtc_events")
+			.values(
+				seed({
+					cursor: "250:0",
+					block_height: 250,
+					tx_id: "acc",
+					tx_index: 0,
+					event_index: 0,
+					topic: "withdrawal-accept",
+					request_id: 9,
+					sweep_txid: "0xsweep9",
+				}),
+			)
+			.execute();
+		const confsRef = { value: 0 };
+		const reader = stubReader(confsRef);
+		const readSeq = async () =>
+			Number(
+				(
+					await db
+						.selectFrom("sbtc_settlements")
+						.select("seq")
+						.where("sweep_txid", "=", "0xsweep9")
+						.executeTakeFirstOrThrow()
+				).seq,
+			);
+
+		await consumeSbtcSettlements({ db, reader });
+		const pendingSeq = await readSeq();
+		confsRef.value = 3;
+		await consumeSbtcSettlements({ db, reader });
+		expect(await readSeq()).toBe(pendingSeq);
+
+		confsRef.value = 6;
+		await consumeSbtcSettlements({ db, reader });
+		const confirmedSeq = await readSeq();
+		expect(confirmedSeq).toBeGreaterThan(pendingSeq);
+
+		confsRef.value = 8;
+		await consumeSbtcSettlements({ db, reader });
+		expect(await readSeq()).toBe(confirmedSeq);
+
+		// A Bitcoin reorg un-confirms it; confirming again is a new event.
+		confsRef.value = 2;
+		await consumeSbtcSettlements({ db, reader });
+		confsRef.value = 6;
+		await consumeSbtcSettlements({ db, reader });
+		expect(await readSeq()).toBeGreaterThan(confirmedSeq);
+	});
+
 	test("un-confirms a sweep when a Bitcoin reorg drops it below threshold", async () => {
 		if (!db) throw new Error("missing db");
 		await db

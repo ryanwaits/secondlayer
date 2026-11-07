@@ -187,9 +187,16 @@ function fakeHostedIndex(opts: {
 					]
 				: [];
 		},
-		fetchSettledWithdrawals: async (after: Date) => {
+		fetchSettledWithdrawals: async (
+			scan: { afterSeq: number } | { confirmedAfter: Date },
+		) => {
 			calls.push("fetchSettledWithdrawals");
-			return opts.confirmedAt > after
+			const SEQ = 1;
+			const past =
+				"afterSeq" in scan
+					? SEQ > scan.afterSeq
+					: opts.confirmedAt > scan.confirmedAfter;
+			return past
 				? [
 						{
 							cursor: `${HEIGHT}:1`,
@@ -204,6 +211,7 @@ function fakeHostedIndex(opts: {
 							btc_confirmations: 6,
 							btc_block_height: 920_000,
 							confirmed_at: opts.confirmedAt.toISOString(),
+							settlement_seq: SEQ,
 						},
 					]
 				: [];
@@ -247,6 +255,7 @@ async function setCursors(settlementScanAt: Date | null): Promise<void> {
 		.set({
 			last_processed_block: HEIGHT - 1,
 			last_settlement_scan_at: settlementScanAt,
+			last_settlement_scan_seq: null,
 		})
 		.where("id", "=", true)
 		.execute();
@@ -361,7 +370,11 @@ describe("chain webhooks on a hosted tenant vs a stack with a local chain", () =
 		await cleanup();
 		await db
 			.updateTable("trigger_evaluator_state")
-			.set({ last_processed_block: 0, last_settlement_scan_at: null })
+			.set({
+				last_processed_block: 0,
+				last_settlement_scan_at: null,
+				last_settlement_scan_seq: null,
+			})
 			.where("id", "=", true)
 			.execute();
 		for (const [key, value] of Object.entries(savedEnv)) {

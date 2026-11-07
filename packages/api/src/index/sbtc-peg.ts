@@ -87,6 +87,7 @@ export const SBTC_WITHDRAWAL_FIELDS = [
 	"btc_confirmations",
 	"btc_block_height",
 	"confirmed_at",
+	"settlement_seq",
 	"requested_at",
 	"resolved_at",
 ] as const;
@@ -108,6 +109,7 @@ export const SBTC_WITHDRAWAL_FILTERS = [
 	// predicate below; without it here the gate 400s before the parser runs.
 	"settlement_confirmed",
 	"confirmed_after",
+	"confirmed_after_seq",
 	"fields",
 ] as const;
 
@@ -185,6 +187,10 @@ export type SbtcWithdrawalSummary = {
 	btc_block_height: number | null;
 	/** When the sweep crossed the confirmation threshold (ISO), null otherwise. */
 	confirmed_at: string | null;
+	/** Monotonic stamp taken when the sweep became confirmed. Unlike
+	 *  `confirmed_at` it follows commit order, so it is safe to resume a scan
+	 *  from. Null while unsettled. */
+	settlement_seq: number | null;
 	requested_at?: string | null;
 	resolved_at?: string | null;
 };
@@ -644,6 +650,7 @@ type SbtcWithdrawalSummaryDbRow = {
 	btc_confirmations: number | string | null;
 	btc_block_height: number | string | null;
 	confirmed_at: Date | string | null;
+	settlement_seq: number | string | null;
 };
 
 function deriveStatus(
@@ -672,6 +679,8 @@ function normalizeSbtcWithdrawalSummary(
 		btc_block_height:
 			row.btc_block_height === null ? null : Number(row.btc_block_height),
 		confirmed_at: toIsoOrNull(row.confirmed_at),
+		settlement_seq:
+			row.settlement_seq === null ? null : Number(row.settlement_seq),
 		requested_at: toIsoOrNull(row.requested_at),
 		resolved_at: toIsoOrNull(row.resolved_at),
 	};
@@ -690,6 +699,8 @@ export type ReadSbtcWithdrawalsParams = {
 	settlementConfirmed?: boolean;
 	/** Only sweeps confirmed on Bitcoin strictly after this instant. */
 	confirmedAfter?: Date;
+	/** Only sweeps whose confirmation stamp (`settlement_seq`) is above this. */
+	confirmedAfterSeq?: number;
 	db?: Kysely<Database>;
 };
 
@@ -753,6 +764,11 @@ export async function readSbtcWithdrawals(
 		? sql`st.confirmed_at > ${params.confirmedAfter}`
 		: sql`true`;
 
+	const confirmedAfterSeqPredicate =
+		params.confirmedAfterSeq !== undefined
+			? sql`st.seq > ${params.confirmedAfterSeq}`
+			: sql`true`;
+
 	const { rows } = await sql<SbtcWithdrawalSummaryDbRow>`
 		SELECT
 			c.cursor,
@@ -773,7 +789,8 @@ export async function readSbtcWithdrawals(
 			-- (line ~724). A second unaliased block_height would shadow it and collapse
 			-- pagination to "0:…", so the settlement height MUST be aliased.
 			st.block_height AS btc_block_height,
-			st.confirmed_at
+			st.confirmed_at,
+			st.seq AS settlement_seq
 		FROM (
 			SELECT DISTINCT ON (request_id)
 				cursor, block_height, event_index, block_time, request_id, amount,
@@ -794,6 +811,7 @@ export async function readSbtcWithdrawals(
 		) res ON true
 		LEFT JOIN sbtc_settlements st ON st.sweep_txid = res.sweep_txid
 		WHERE ${statusPredicate} AND ${settlementPredicate} AND ${confirmedAfterPredicate}
+			AND ${confirmedAfterSeqPredicate}
 		ORDER BY c.block_height ASC, c.event_index ASC
 		LIMIT ${params.limit + 1}
 	`.execute(db);
@@ -842,6 +860,19 @@ function parseSettlementConfirmedFilter(
 		throw new ValidationError("settlement_confirmed must be true or false");
 	}
 	return value === "true";
+}
+
+function parseConfirmedAfterSeqFilter(
+	value: string | undefined,
+): number | undefined {
+	if (value === undefined) return undefined;
+	const seq = Number(value);
+	if (!Number.isSafeInteger(seq) || seq < 0) {
+		throw new ValidationError(
+			"confirmed_after_seq must be a non-negative integer",
+		);
+	}
+	return seq;
 }
 
 function parseConfirmedAfterFilter(
@@ -897,6 +928,9 @@ export async function getSbtcWithdrawalsResponse(opts: {
 		),
 		confirmedAfter: parseConfirmedAfterFilter(
 			opts.query.get("confirmed_after") ?? undefined,
+		),
+		confirmedAfterSeq: parseConfirmedAfterSeqFilter(
+			opts.query.get("confirmed_after_seq") ?? undefined,
 		),
 	});
 

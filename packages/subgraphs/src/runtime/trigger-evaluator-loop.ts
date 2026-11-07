@@ -66,18 +66,25 @@ const TESTNET_MAX_EVENT_AGE_MS = 3_600_000;
 const TESTNET_OUTBOX_LIMIT = 100_000;
 
 // A concurrent reorg rewind and the evaluator's forward advance target the same
-// cursor row. FOR UPDATE serializes the writes but not the *staleness* of a `to`
-// computed before the rewind — so a stale advance could clobber the rewind
-// (under-delivery). This in-memory generation counter, bumped by handleChainReorg
-// BEFORE it rewinds, lets advanceCursor reject any advance snapshotted before the
-// reorg. In-process only: webhook-plane gates the evaluator and the reorg on
-// the same leader (see webhook-plane.ts). Mirrors f057's reorgEpoch in catchup.ts.
-let chainReorgGeneration = 0;
-export function bumpChainReorgGeneration(): void {
-	chainReorgGeneration++;
-}
-export function getChainReorgGeneration(): number {
-	return chainReorgGeneration;
+// `trigger_evaluator_state` row. FOR UPDATE serializes the writes but not the
+// *staleness* of a batch loaded before the rewind: its blocks may belong to the
+// orphaned fork. `reorg_generation` on that row, bumped inside the rewind
+// transaction, closes it. The evaluator reads the generation before it loads a
+// batch, then re-checks it under the row lock in the transaction that inserts the
+// batch's outbox rows and advances the cursor. A reorg that committed in between
+// makes the batch roll back; one that commits after is classified by the reorg
+// handler, which sees the rows because it takes the same lock first.
+
+/** The persisted reorg generation, 0 when the state row is missing. */
+export async function readReorgGeneration(
+	db: Kysely<Database>,
+): Promise<number> {
+	const row = await db
+		.selectFrom("trigger_evaluator_state")
+		.select("reorg_generation")
+		.where("id", "=", true)
+		.executeTakeFirst();
+	return row ? Number(row.reorg_generation) : 0;
 }
 
 async function readCursor(db: Kysely<Database>): Promise<number> {
@@ -89,39 +96,61 @@ async function readCursor(db: Kysely<Database>): Promise<number> {
 	return row ? Number(row.last_processed_block) : 0;
 }
 
+type CursorCommit = {
+	advanced: boolean;
+	reorged: boolean;
+	/** Whatever `emit` returned; 0 when the commit was rejected. */
+	emitted: number;
+};
+
 /**
- * Advance the global cursor to `to`, never backwards. The `FOR UPDATE` +
- * `< to` guard serializes concurrent evaluators; the `generation` re-check
- * (inside the same transaction, after FOR UPDATE) rejects an advance whose
- * `to` was computed before a reorg rewound the cursor — see
- * `chainReorgGeneration` above. `dedup_key` is the duplicate-delivery
- * backstop for anything that still slips through.
+ * Lock the evaluator row, reject the commit if a reorg moved the generation
+ * since `generation` was read, run `emit` (outbox inserts) on the same
+ * transaction, then move the cursor to `to`, never backwards. Emit and advance
+ * land together or not at all. `dedup_key` stays the duplicate-delivery
+ * backstop for anything that still re-runs.
  */
-export async function advanceCursor(
+async function commitBatch(
 	db: Kysely<Database>,
 	to: number,
 	generation: number,
-): Promise<{ advanced: boolean; reorged: boolean }> {
+	emit?: (trx: Kysely<Database>) => Promise<number>,
+): Promise<CursorCommit> {
 	return db.transaction().execute(async (trx) => {
 		const cur = await trx
 			.selectFrom("trigger_evaluator_state")
-			.select("last_processed_block")
+			.select(["last_processed_block", "reorg_generation"])
 			.where("id", "=", true)
 			.forUpdate()
 			.executeTakeFirst();
-		if (getChainReorgGeneration() !== generation) {
-			return { advanced: false, reorged: true };
+		if (Number(cur?.reorg_generation ?? 0) !== generation) {
+			return { advanced: false, reorged: true, emitted: 0 };
 		}
+		const emitted = emit ? await emit(trx) : 0;
 		if (cur && Number(cur.last_processed_block) < to) {
 			await trx
 				.updateTable("trigger_evaluator_state")
 				.set({ last_processed_block: to, updated_at: new Date() })
 				.where("id", "=", true)
 				.execute();
-			return { advanced: true, reorged: false };
+			return { advanced: true, reorged: false, emitted };
 		}
-		return { advanced: false, reorged: false };
+		return { advanced: false, reorged: false, emitted };
 	});
+}
+
+/**
+ * Advance the global cursor to `to`, never backwards. The `FOR UPDATE` +
+ * `< to` guard serializes concurrent evaluators; the generation re-check
+ * rejects an advance whose `to` was computed before a reorg rewound the cursor.
+ */
+export async function advanceCursor(
+	db: Kysely<Database>,
+	to: number,
+	generation: number,
+): Promise<{ advanced: boolean; reorged: boolean }> {
+	const { advanced, reorged } = await commitBatch(db, to, generation);
+	return { advanced, reorged };
 }
 
 /**
@@ -193,9 +222,9 @@ export async function runEvaluatorOnce(
 	let waitMs = 0;
 	try {
 		// Snapshot BEFORE reading the cursor: a rewind between this read and the
-		// cursor read below still trips the guard on the next advanceCursor call
+		// cursor read below still trips the guard when the batch commits
 		// (conservative — one wasted tick, never a clobber).
-		const generation = getChainReorgGeneration();
+		const generation = await readReorgGeneration(db);
 		const chainSubs = await listActiveChainWebhooks(db);
 		if (chainSubs.length >= CHAIN_SUB_WARN_THRESHOLD) {
 			logger.warn("Active chain webhook count is high", {
@@ -241,7 +270,7 @@ export async function runEvaluatorOnce(
 		// settlement scan racing alongside it.
 		const getTipStart = Date.now();
 		const [settlementEmitted, tip0] = await Promise.all([
-			emitSbtcSettlementOutbox(db, chainSubs, { reader }),
+			emitSbtcSettlementOutbox(db, chainSubs, { reader, generation }),
 			source
 				.getTip({ wait: opts?.waitSeconds, knownHeight: opts?.knownTip })
 				.finally(() => {
@@ -288,10 +317,13 @@ export async function runEvaluatorOnce(
 		// The testnet chain was reset under us: restart from the new tip. Dedup
 		// covers any re-walked block, and the age rule skips old ones.
 		if (testnet && rawTip < cursor - TESTNET_WIPE_GAP) {
-			bumpChainReorgGeneration();
 			await db
 				.updateTable("trigger_evaluator_state")
-				.set({ last_processed_block: rawTip, updated_at: new Date() })
+				.set({
+					last_processed_block: rawTip,
+					reorg_generation: sql`reorg_generation + 1`,
+					updated_at: new Date(),
+				})
 				.where("id", "=", true)
 				.execute();
 			cursorAfter = rawTip;
@@ -332,11 +364,17 @@ export async function runEvaluatorOnce(
 			const sbtcByHeight = await loadSbtcEventsForRange(chainSubs, from, to, {
 				reader,
 			});
-			// Last height this batch fully evaluated + emitted; the cursor never
-			// moves past it.
+			// Last height this batch fully resolved; the cursor never moves past it.
 			let lastDone = to;
 			let stopped = false;
 			let staleSkipped = 0;
+			// Every network read happens here, before the commit transaction below
+			// opens: the evaluator row lock is held only for matching and inserts.
+			const resolved: {
+				height: number;
+				bd: NonNullable<ReturnType<typeof blocks.get>>;
+				blockTime: Date | undefined;
+			}[] = [];
 			for (let h = from; h <= to; h++) {
 				let bd = blocks.get(h);
 				if (!bd) {
@@ -377,25 +415,7 @@ export async function runEvaluatorOnce(
 					staleSkipped++;
 					continue;
 				}
-				const matches = evaluateBlock(bd, sources, traitContracts);
-				if (matches.length > 0) {
-					emitted += await emitChainOutbox(
-						db,
-						matches,
-						keyMeta,
-						h,
-						bd.block.hash,
-						blockTime,
-					);
-				}
-				emitted += await emitSbtcOutbox(
-					db,
-					chainSubs,
-					h,
-					bd.block.hash,
-					blockTime,
-					{ rows: sbtcByHeight.get(h) ?? [] },
-				);
+				resolved.push({ height: h, bd, blockTime });
 			}
 			if (staleSkipped > 0) {
 				logger.warn("Testnet blocks older than an hour were not delivered", {
@@ -406,7 +426,34 @@ export async function runEvaluatorOnce(
 				});
 			}
 			if (lastDone >= from) {
-				const res = await advanceCursor(db, lastDone, generation);
+				// Outbox rows and the cursor move in one transaction, rejected if a
+				// reorg landed since `generation` was read.
+				const res = await commitBatch(db, lastDone, generation, async (trx) => {
+					let count = 0;
+					for (const { height, bd, blockTime } of resolved) {
+						const matches = evaluateBlock(bd, sources, traitContracts);
+						if (matches.length > 0) {
+							count += await emitChainOutbox(
+								trx,
+								matches,
+								keyMeta,
+								height,
+								bd.block.hash,
+								blockTime,
+							);
+						}
+						count += await emitSbtcOutbox(
+							trx,
+							chainSubs,
+							height,
+							bd.block.hash,
+							blockTime,
+							{ rows: sbtcByHeight.get(height) ?? [] },
+						);
+					}
+					return count;
+				});
+				emitted += res.emitted;
 				if (res.advanced) {
 					cursorAfter = lastDone;
 					advanced = true;

@@ -15,7 +15,14 @@ type ReorgLister = Pick<IndexHttpClient, "listReorgs">;
 /** Per-fork handler. Each plane (subgraph rewind, chain-webhook rewind)
  *  runs its own poll with its own handler, so they can live in separate
  *  processes once the webhook plane is extracted. */
-export type OnReorg = (forkHeight: number) => Promise<void>;
+// biome-ignore lint/suspicious/noConfusingVoidType: handlers are plain `async () => {}` (Promise<void>); only a gate returns a value.
+export type OnReorg = (forkHeight: number) => Promise<void | ReorgSkipped>;
+
+/** Returned by a handler that did not apply the reorg because this process is
+ *  not the one that should (a non-leader replica). The poll then neither marks
+ *  it handled nor moves `since`, so whichever replica leads next still gets it. */
+export const REORG_SKIPPED = "skipped";
+export type ReorgSkipped = typeof REORG_SKIPPED;
 
 /**
  * Fetch reorgs since `cursor` and invoke `onReorg` at each fork point (lowest
@@ -49,7 +56,11 @@ export async function pollReorgsOnce(
 		logger.info("Streams reorg — rewinding", {
 			forkPointHeight: r.fork_point_height,
 		});
-		await onReorg(r.fork_point_height);
+		const outcome = await onReorg(r.fork_point_height);
+		if (outcome === REORG_SKIPPED) {
+			// Hold the position: later reorgs in this page stay unapplied too.
+			return cursor;
+		}
 		// Only after a successful rewind — a throw must leave the reorg
 		// eligible for retry on the next poll.
 		if (handled && r.id) handled.add(r.id);
