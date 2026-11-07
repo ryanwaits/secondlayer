@@ -59,16 +59,16 @@
 			"signature": "buildDoctorReport(input: { webhook: WebhookDetail; deliveries: DeliveryRow[]; dead: DeadRow[] }): DoctorReport",
 			"source": {
 				"file": "packages/sdk/src/webhooks/doctor.ts",
-				"line": 396
+				"line": 397
 			}
 		},
 		{
 			"name": "buildListIssue",
 			"summary": "The list page's own reduced detector: computed from `WebhookSummary` alone (no deliveries, no dead-letter rows — the list endpoint returns neither, and fetching per-row detail or deliveries here would fan out one request per row).",
-			"signature": "buildListIssue(webhook: { status: WebhookStatus; circuitOpenedAt: string | null; lastSuccessAt: string | null }): DoctorIssue | null",
+			"signature": "buildListIssue(webhook: { status: WebhookStatus; pauseReason?: \"user\" | \"circuit\" | null; circuitOpenedAt: string | null; lastSuccessAt: string | null }): DoctorIssue | null",
 			"source": {
 				"file": "packages/sdk/src/webhooks/doctor.ts",
-				"line": 494
+				"line": 495
 			}
 		},
 		{
@@ -176,7 +176,7 @@
 			"signature": "isSuccessDelivery(row: DeliveryRow): boolean",
 			"source": {
 				"file": "packages/sdk/src/webhooks/doctor.ts",
-				"line": 31
+				"line": 32
 			}
 		},
 		{
@@ -811,6 +811,7 @@
 		"WebhookAuth": "/docs/sdk-reference/webhooks#t-WebhookAuth",
 		"WebhookDeliveryDetail": "/docs/sdk-reference/webhooks#t-WebhookDeliveryDetail",
 		"WebhookDetail": "/docs/sdk-reference/webhooks#t-WebhookDetail",
+		"WebhookHealth": "/docs/sdk-reference/webhooks#t-WebhookHealth",
 		"Webhooks.activity": "/docs/sdk-reference/webhooks#m-activity",
 		"Webhooks.create": "/docs/sdk-reference/webhooks#m-create",
 		"Webhooks.dead": "/docs/sdk-reference/webhooks#m-dead",

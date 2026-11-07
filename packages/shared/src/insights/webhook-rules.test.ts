@@ -54,6 +54,7 @@ function input(over: Partial<WebhookRuleInput> = {}): WebhookRuleInput {
 			id: "wh-1",
 			name: "sbtc-deposits",
 			status: "active",
+			health: "ok",
 			url: "https://hooks.example.dev/in",
 			triggers: [],
 			timeoutMs: 5000,

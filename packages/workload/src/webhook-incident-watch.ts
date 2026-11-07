@@ -9,6 +9,10 @@
  */
 
 import { logger } from "@secondlayer/shared";
+import {
+	type WebhookPauseReason,
+	isReceiverDown,
+} from "@secondlayer/shared/webhooks/health";
 import { type TenantRow, listRunningTenants } from "./control-db.ts";
 import type { FetchLike } from "./fetch-like.ts";
 import {
@@ -19,11 +23,6 @@ import {
 	type ProvisionerConfig,
 	isTestnetStackAccount,
 } from "./provisioner.ts";
-
-/** Consecutive failed attempts (the tenant counter resets on any success). */
-export const DOWN_MIN_FAILURES = 5;
-/** No successful delivery for this long. */
-export const DOWN_MIN_MS = 15 * 60_000;
 
 const TENANT_TIMEOUT_MS = 5_000;
 const LIST_LIMIT = 200;
@@ -36,6 +35,8 @@ export interface WebhookSummaryLike {
 	url: string;
 	lastSuccessAt: string | null;
 	circuitOpenedAt: string | null;
+	/** Absent on a tenant API that predates it. */
+	pauseReason?: WebhookPauseReason | null;
 	circuitFailures: number;
 	managedBy?: string | null;
 	createdAt: string;
@@ -59,9 +60,9 @@ function hostOf(url: string): string {
 	}
 }
 
-/** Locked definition of "down": 5+ failures in a row and no success for 15
- *  minutes. A manual pause is never down; a circuit pause is. Webhooks managed
- *  by another product are skipped: their receiver is not the customer's. */
+/** Down is `isReceiverDown` (shared): 5+ failures in a row and no success for
+ *  15 minutes; a manual pause is never down, a circuit pause can be. Webhooks
+ *  managed by another product are skipped: their receiver is not the customer's. */
 export function downWebhooks(
 	list: WebhookSummaryLike[],
 	now: number,
@@ -69,10 +70,8 @@ export function downWebhooks(
 	const down: DownWebhook[] = [];
 	for (const w of list) {
 		if (w.managedBy != null) continue;
-		if (w.status === "paused" && w.circuitOpenedAt === null) continue;
-		if (w.circuitFailures < DOWN_MIN_FAILURES) continue;
+		if (!isReceiverDown(w, now)) continue;
 		const failingSince = w.lastSuccessAt ?? w.createdAt;
-		if (now - Date.parse(failingSince) < DOWN_MIN_MS) continue;
 		down.push({
 			id: w.id,
 			name: w.name,

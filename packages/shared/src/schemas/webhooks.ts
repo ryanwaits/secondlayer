@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { WebhookHealth, WebhookPauseReason } from "../webhooks/health";
 
 export {
 	CHAIN_TRIGGER_FIELDS,
@@ -15,6 +16,8 @@ export const WEBHOOK_FORMATS = [
 	"raw",
 ] as const;
 
+/** `error` is never written; it stays in the public type until the dashboard
+ *  stops reading it. The database accepts only `active` and `paused`. */
 export const WEBHOOK_STATUSES = ["active", "paused", "error"] as const;
 
 /**
@@ -427,6 +430,7 @@ export const RequeueDeadRequestSchema: z.ZodType<RequeueDeadRequest> = z.object(
 	},
 );
 
+export type { WebhookHealth, WebhookPauseReason };
 export type WebhookStatus = (typeof WEBHOOK_STATUSES)[number];
 /** Webhook kind (mirrors db/types `WebhookKind`). Chain events only. */
 export type WebhookKind = "chain";
@@ -742,6 +746,14 @@ export interface WebhookSummary {
 	 *  cleared on resume. Present on the list summary (not detail-only) so a
 	 *  numbers-only insight can be shown per row without a per-row fetch. */
 	circuitOpenedAt: string | null;
+	/** Why the webhook is paused: `user` (you paused it) or `circuit` (20
+	 *  straight failures tripped the breaker). Null while `active`. Absent from
+	 *  servers that predate it. */
+	pauseReason?: WebhookPauseReason | null;
+	/** One verdict from the state above: `ok`, `failing` (recent failures),
+	 *  `down` (5+ failures in a row and no success for 15 minutes),
+	 *  `paused_user` or `paused_circuit`. Absent from servers that predate it. */
+	health?: WebhookHealth;
 	/** Consecutive failed deliveries (reset to 0 on a success). On the
 	 *  summary so the list can show a failing receiver per row without a
 	 *  per-row fetch. */

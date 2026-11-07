@@ -100,6 +100,8 @@ const EXAMPLE_SUMMARY = {
 	lastDeliveryAt: "2026-09-22T14:03:11.402Z",
 	lastSuccessAt: "2026-09-22T14:03:11.402Z",
 	circuitOpenedAt: null,
+	pauseReason: null,
+	health: "ok",
 	circuitFailures: 0,
 	managedBy: null,
 	createdAt: "2026-09-20T09:12:45.118Z",
@@ -178,7 +180,7 @@ const SUMMARY_PROPERTIES = {
 		type: "string",
 		enum: [...WEBHOOK_STATUSES],
 		description:
-			"`active` delivers. `paused` holds new events in the outbox until resumed; the circuit breaker also pauses a webhook after 20 straight failures. `error` is reserved; nothing sets it today.",
+			"`active` delivers. `paused` holds new events in the outbox until resumed; the circuit breaker also pauses a webhook after 20 straight failures. `pauseReason` says which.",
 	},
 	kind: {
 		type: "string",
@@ -203,6 +205,18 @@ const SUMMARY_PROPERTIES = {
 		format: "date-time",
 		description:
 			"When the circuit breaker paused this webhook. Cleared on resume.",
+	},
+	pauseReason: {
+		type: ["string", "null"],
+		enum: ["user", "circuit", null],
+		description:
+			"Why the webhook is paused: `user` (paused through the API) or `circuit` (the breaker tripped). `null` while `active`.",
+	},
+	health: {
+		type: "string",
+		enum: ["ok", "failing", "down", "paused_user", "paused_circuit"],
+		description:
+			"One verdict from status and delivery history. `failing`: recent failures. `down`: 5 or more failures in a row and no success for 15 minutes. `paused_user` and `paused_circuit` follow `pauseReason`.",
 	},
 	circuitFailures: {
 		type: "integer",

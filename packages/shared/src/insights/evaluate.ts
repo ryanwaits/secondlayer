@@ -25,7 +25,7 @@ export function runRules<Input>(
 	rules: InsightRule<Input>[],
 	input: Input,
 	resource: { kind: EvaluatedKey["kind"]; id: string },
-	opts: { active?: boolean } = {},
+	opts: { active?: boolean; keep?: readonly string[] } = {},
 ): { fired: DetectedInsight[]; evaluated: EvaluatedKey[] } {
 	const fired: DetectedInsight[] = [];
 	const evaluated: EvaluatedKey[] = [];
@@ -33,8 +33,10 @@ export function runRules<Input>(
 		try {
 			if (rule.skip?.(input)) continue;
 			const key = { kind: resource.kind, id: resource.id, rule: rule.id };
-			// An inactive resource (a paused webhook) counts as clear.
-			const result = opts.active === false ? null : rule.evaluate(input);
+			// An inactive resource (a paused webhook) counts as clear, except for
+			// rules in `keep`: they still describe a paused resource's state.
+			const inactive = opts.active === false && !opts.keep?.includes(rule.id);
+			const result = inactive ? null : rule.evaluate(input);
 			evaluated.push(key);
 			if (result) fired.push(result);
 		} catch (err) {
@@ -83,7 +85,14 @@ export async function evaluateTenantInsights(
 			WEBHOOK_RULES,
 			input,
 			{ kind: "webhook", id: input.webhook.id },
-			{ active: input.webhook.status !== "paused" },
+			{
+				active:
+					input.webhook.health !== "paused_user" &&
+					input.webhook.health !== "paused_circuit",
+				// A tripped circuit pauses delivery; the receiver is still down.
+				keep:
+					input.webhook.health === "paused_circuit" ? ["receiver_down"] : [],
+			},
 		);
 		fired.push(...result.fired);
 		evaluated.push(...result.evaluated);

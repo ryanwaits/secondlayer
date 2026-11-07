@@ -1,8 +1,8 @@
 import { describe, expect, test } from "bun:test";
+import { DOWN_MIN_MS } from "@secondlayer/shared/webhooks/health";
 import type { TenantRow } from "./control-db.ts";
 import type { ProvisionerConfig } from "./provisioner.ts";
 import {
-	DOWN_MIN_MS,
 	type WebhookSummaryLike,
 	createWebhookIncidentWatch,
 	downWebhooks,
@@ -55,6 +55,21 @@ describe("downWebhooks", () => {
 	test("a manual pause is never down", () => {
 		expect(
 			downWebhooks([hook({ status: "paused", circuitOpenedAt: null })], NOW),
+		).toEqual([]);
+	});
+
+	test("pauseReason decides over a stale circuit timestamp", () => {
+		expect(
+			downWebhooks(
+				[
+					hook({
+						status: "paused",
+						pauseReason: "user",
+						circuitOpenedAt: ago(5),
+					}),
+				],
+				NOW,
+			),
 		).toEqual([]);
 	});
 

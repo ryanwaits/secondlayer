@@ -28,6 +28,8 @@ const baseDetail: WebhookDetail = {
 	concurrency: 4,
 	circuitFailures: 0,
 	circuitOpenedAt: null,
+	pauseReason: null,
+	health: "ok",
 	lastError: null,
 	managedBy: null,
 	receiverCertExpiresAt: null,
@@ -466,6 +468,7 @@ describe("buildListIssue", () => {
 		expect(
 			buildListIssue({
 				status: "active",
+				pauseReason: null,
 				circuitOpenedAt: null,
 				lastSuccessAt: null,
 			}),
@@ -475,7 +478,18 @@ describe("buildListIssue", () => {
 	it("returns a warn paused issue for a manual pause (no circuit)", () => {
 		const issue = buildListIssue({
 			status: "paused",
+			pauseReason: "user",
 			circuitOpenedAt: null,
+			lastSuccessAt: null,
+		});
+		expect(issue).toEqual({ code: "paused", severity: "warn" });
+	});
+
+	it("reads a manual pause as a pause even with a stale circuit timestamp", () => {
+		const issue = buildListIssue({
+			status: "paused",
+			pauseReason: "user",
+			circuitOpenedAt: "2026-04-23T00:00:00.000Z",
 			lastSuccessAt: null,
 		});
 		expect(issue).toEqual({ code: "paused", severity: "warn" });
@@ -484,6 +498,7 @@ describe("buildListIssue", () => {
 	it("returns a bad circuit issue with evidence when the circuit tripped", () => {
 		const issue = buildListIssue({
 			status: "paused",
+			pauseReason: "circuit",
 			circuitOpenedAt: "2026-04-23T00:00:00.000Z",
 			lastSuccessAt: "2026-04-22T00:00:00.000Z",
 		});

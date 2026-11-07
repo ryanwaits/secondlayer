@@ -31,6 +31,8 @@ const baseDetail: WebhookDetail = {
 	concurrency: 4,
 	circuitFailures: 0,
 	circuitOpenedAt: null,
+	pauseReason: null,
+	health: "ok",
 	lastError: null,
 	managedBy: null,
 	receiverCertExpiresAt: null,

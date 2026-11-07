@@ -1,6 +1,7 @@
 import { type Kysely, sql } from "kysely";
 import type { Database } from "../db/types.ts";
 import type { InsightEvidence } from "../schemas/insights.ts";
+import { type WebhookHealth, webhookHealth } from "../webhooks/health.ts";
 import {
 	handoffPrompt,
 	hostOf,
@@ -62,6 +63,8 @@ export interface WebhookRuleInput {
 		id: string;
 		name: string;
 		status: string;
+		/** `webhookHealth` at evaluation time. */
+		health: WebhookHealth;
 		url: string;
 		triggers: unknown;
 		timeoutMs: number;
@@ -1183,6 +1186,8 @@ export async function loadWebhookInputs(
 			"id",
 			"name",
 			"status",
+			"pause_reason",
+			"circuit_failures",
 			"url",
 			"triggers",
 			"timeout_ms",
@@ -1386,6 +1391,16 @@ export async function loadWebhookInputs(
 				id: w.id,
 				name: w.name,
 				status: w.status,
+				health: webhookHealth(
+					{
+						status: w.status,
+						pauseReason: w.pause_reason,
+						circuitFailures: w.circuit_failures,
+						lastSuccessAt: w.last_success_at,
+						createdAt: w.created_at,
+					},
+					nowMs,
+				),
 				url: w.url,
 				triggers: w.triggers,
 				timeoutMs: w.timeout_ms,

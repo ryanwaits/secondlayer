@@ -10,7 +10,6 @@ import {
 	readReplay,
 } from "@secondlayer/shared/db/queries/webhook-replays";
 import {
-	REORG_ORPHANED_ERROR_PREFIX,
 	createWebhook,
 	deleteWebhook,
 	getWebhook,
@@ -38,6 +37,7 @@ import {
 	managedByForName,
 } from "@secondlayer/shared/schemas/webhooks";
 import { RUNE_EVENT_TYPES } from "@secondlayer/shared/streams-rows";
+import { webhookHealth } from "@secondlayer/shared/webhooks/health";
 import { deliverTestEvent } from "@secondlayer/subgraphs/runtime/emitter";
 import {
 	ReplayInProgressError,
@@ -77,6 +77,7 @@ const UUID_RE =
  *  requeue so they can't drift. */
 const REQUEUE_SET = {
 	status: "pending",
+	dead_reason: null,
 	attempt: 0,
 	failed_at: null,
 	locked_by: null,
@@ -107,6 +108,17 @@ function toSummary(sub: Webhook) {
 		// Circuit-breaker state: list views derive a "circuit-paused" count from
 		// this, so it must be present on the summary (not just toDetail).
 		circuitOpenedAt: sub.circuit_opened_at?.toISOString() ?? null,
+		pauseReason: sub.pause_reason,
+		health: webhookHealth(
+			{
+				status: sub.status,
+				pauseReason: sub.pause_reason,
+				circuitFailures: sub.circuit_failures,
+				lastSuccessAt: sub.last_success_at,
+				createdAt: sub.created_at,
+			},
+			Date.now(),
+		),
 		circuitFailures: sub.circuit_failures,
 		managedBy: managedByForName(sub.name),
 		createdAt: sub.created_at.toISOString(),
@@ -1093,7 +1105,7 @@ app.get("/:id/dead", async (c) => {
 			.select(sql<string>`count(*)`.as("n"))
 			.where("webhook_id", "=", sub.id)
 			.where("status", "=", "dead")
-			.where("last_error", "like", `${REORG_ORPHANED_ERROR_PREFIX}%`)
+			.where("dead_reason", "=", "orphaned")
 			.executeTakeFirstOrThrow(),
 	]);
 	return c.json({

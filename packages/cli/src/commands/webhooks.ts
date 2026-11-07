@@ -456,11 +456,7 @@ function attachWebhookSubcommands(parent: Command): void {
 						data.map((sub) => [
 							sub.name,
 							sub.id,
-							sub.status === "active"
-								? green(sub.status)
-								: sub.status === "paused"
-									? yellow(sub.status)
-									: redStatus(sub.status),
+							sub.status === "active" ? green(sub.status) : yellow(sub.status),
 							formatWebhookTarget(sub),
 							sub.format,
 							formatMaybeDate(sub.lastSuccessAt),

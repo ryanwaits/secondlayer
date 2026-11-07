@@ -17,6 +17,8 @@ const webhook: WebhookDetail = {
 	lastDeliveryAt: "2026-04-23T00:10:00.000Z",
 	lastSuccessAt: "2026-04-22T23:00:00.000Z",
 	circuitOpenedAt: null,
+	pauseReason: null,
+	health: "ok",
 	createdAt: "2026-04-01T00:00:00.000Z",
 	updatedAt: "2026-04-01T00:00:00.000Z",
 	auth: { type: "none", headerNames: [], hasSecret: false },

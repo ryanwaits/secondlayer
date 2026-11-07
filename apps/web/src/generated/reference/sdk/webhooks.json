@@ -1144,6 +1144,18 @@
 					"description": "When the circuit breaker paused this webhook (20 straight failures);\ncleared on resume. Present on the list summary (not detail-only) so a\nnumbers-only insight can be shown per row without a per-row fetch."
 				},
 				{
+					"name": "pauseReason",
+					"type": "\"user\" | \"circuit\" | null",
+					"required": false,
+					"description": "Why the webhook is paused: `user` (you paused it) or `circuit` (20\nstraight failures tripped the breaker). Null while `active`. Absent from\nservers that predate it."
+				},
+				{
+					"name": "health",
+					"type": "WebhookHealth",
+					"required": false,
+					"description": "One verdict from the state above: `ok`, `failing` (recent failures),\n`down` (5+ failures in a row and no success for 15 minutes),\n`paused_user` or `paused_circuit`. Absent from servers that predate it."
+				},
+				{
 					"name": "circuitFailures",
 					"type": "number",
 					"required": true,
@@ -1168,6 +1180,11 @@
 					"description": ""
 				}
 			]
+		},
+		{
+			"name": "WebhookHealth",
+			"summary": "",
+			"definition": "\"ok\" | \"failing\" | \"down\" | \"paused_user\" | \"paused_circuit\""
 		},
 		{
 			"name": "WebhookSummary",
@@ -1226,6 +1243,18 @@
 					"type": "string | null",
 					"required": true,
 					"description": "When the circuit breaker paused this webhook (20 straight failures);\ncleared on resume. Present on the list summary (not detail-only) so a\nnumbers-only insight can be shown per row without a per-row fetch."
+				},
+				{
+					"name": "pauseReason",
+					"type": "\"user\" | \"circuit\" | null",
+					"required": false,
+					"description": "Why the webhook is paused: `user` (you paused it) or `circuit` (20\nstraight failures tripped the breaker). Null while `active`. Absent from\nservers that predate it."
+				},
+				{
+					"name": "health",
+					"type": "WebhookHealth",
+					"required": false,
+					"description": "One verdict from the state above: `ok`, `failing` (recent failures),\n`down` (5+ failures in a row and no success for 15 minutes),\n`paused_user` or `paused_circuit`. Absent from servers that predate it."
 				},
 				{
 					"name": "circuitFailures",

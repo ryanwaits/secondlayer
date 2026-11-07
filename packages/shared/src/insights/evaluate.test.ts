@@ -181,6 +181,72 @@ describe.skipIf(!HAS_DB)("evaluateTenantInsights", () => {
 		expect(row?.severity).toBe("recovered");
 	});
 
+	test("receiver_down stays open while the circuit pauses the webhook and clears on a manual pause", async () => {
+		const wh = await db
+			.insertInto("webhooks")
+			.values({
+				account_id: account,
+				name: `${tag}-circuit`,
+				url: "https://hooks.example.dev/circuit",
+				triggers: jsonb([{ type: "stx_transfer" }]),
+				signing_secret_enc: Buffer.from("x"),
+			})
+			.returning("id")
+			.executeTakeFirstOrThrow();
+		try {
+			for (let i = 0; i < 6; i++) {
+				await db
+					.insertInto("webhook_deliveries")
+					.values({
+						webhook_id: wh.id,
+						attempt: 1,
+						status_code: 502,
+						duration_ms: 20,
+						dispatched_at: new Date(Date.now() - (i + 1) * 60_000),
+					})
+					.execute();
+			}
+			const down = async () =>
+				(await listInsights(db, { accountId: null }, new Date())).find(
+					(i) => i.resource.id === wh.id && i.rule === "receiver_down",
+				);
+			await pass();
+			expect((await down())?.severity).not.toBe("recovered");
+
+			await db
+				.updateTable("webhooks")
+				.set({
+					status: "paused",
+					pause_reason: "circuit",
+					circuit_opened_at: new Date(),
+				})
+				.where("id", "=", wh.id)
+				.execute();
+			await pass();
+			await pass();
+			expect(await down()).toBeDefined();
+			expect((await down())?.severity).not.toBe("recovered");
+
+			await db
+				.updateTable("webhooks")
+				.set({
+					pause_reason: "user",
+					circuit_opened_at: null,
+				})
+				.where("id", "=", wh.id)
+				.execute();
+			await pass();
+			await pass();
+			expect((await down())?.severity).toBe("recovered");
+		} finally {
+			await db
+				.deleteFrom("insights")
+				.where("resource_id", "=", wh.id)
+				.execute();
+			await db.deleteFrom("webhooks").where("id", "=", wh.id).execute();
+		}
+	});
+
 	test("filter_cant_match is skipped, not cleared, when the ABI lookup is off", async () => {
 		const wh = await db
 			.insertInto("webhooks")

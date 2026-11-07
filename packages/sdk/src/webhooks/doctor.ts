@@ -16,6 +16,7 @@ import type {
 	WebhookDetail,
 	WebhookSummary,
 } from "@secondlayer/shared/schemas/webhooks";
+import { pauseReasonOf } from "@secondlayer/shared/webhooks/health";
 
 /**
  * Webhook diagnosis, shared by `secondlayer webhooks doctor` and the
@@ -487,22 +488,28 @@ export function buildDoctorReport(input: {
  * The list page's own reduced detector: computed from `WebhookSummary` alone
  * (no deliveries, no dead-letter rows — the list endpoint returns neither,
  * and fetching per-row detail or deliveries here would fan out one request
- * per row). Only `status` and `circuitOpenedAt` distinguish a real problem
+ * per row). Only `status` and `pauseReason` distinguish a real problem
  * from a manual pause at this level; deliveries-based rules (rate limits,
  * downtime, rejects, slowness, lag) only ever show on the detail page.
  */
 export function buildListIssue(
-	webhook: Pick<WebhookSummary, "status" | "circuitOpenedAt" | "lastSuccessAt">,
+	webhook: Pick<
+		WebhookSummary,
+		"status" | "pauseReason" | "circuitOpenedAt" | "lastSuccessAt"
+	>,
 ): DoctorIssue | null {
-	if (webhook.status !== "paused") return null;
-	if (webhook.circuitOpenedAt) {
+	const reason = pauseReasonOf(webhook);
+	if (reason === null) return null;
+	if (reason === "circuit") {
 		return {
 			code: "circuit",
 			severity: "bad",
 			evidence: [
 				{
 					label: "circuit opened",
-					value: formatShortDate(webhook.circuitOpenedAt),
+					value: webhook.circuitOpenedAt
+						? formatShortDate(webhook.circuitOpenedAt)
+						: "unknown",
 				},
 				{
 					label: "last success",
