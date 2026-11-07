@@ -1,4 +1,5 @@
 import { PLATFORM_API_URL, getSessionFromRequest } from "@/lib/api";
+import { crossSiteRefusal } from "@/lib/same-origin";
 import { upstreamAgent } from "@/lib/upstream-agent";
 import { NextResponse } from "next/server";
 import type { Agent } from "undici";
@@ -251,6 +252,8 @@ export async function POST(
 	req: Request,
 	context: { params: Promise<{ path?: string[] }> },
 ) {
+	const refused = crossSiteRefusal(req);
+	if (refused) return refused;
 	const { path } = await context.params;
 	return handle(req, "POST", path);
 }
@@ -259,6 +262,8 @@ export async function PATCH(
 	req: Request,
 	context: { params: Promise<{ path?: string[] }> },
 ) {
+	const refused = crossSiteRefusal(req);
+	if (refused) return refused;
 	const { path } = await context.params;
 	return handle(req, "PATCH", path);
 }

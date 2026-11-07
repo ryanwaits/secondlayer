@@ -7,11 +7,14 @@ afterEach(() => {
 	globalThis.fetch = originalFetch;
 });
 
+/** Writes must come from the site's own pages. */
+const SAME_SITE = { origin: "http://localhost", host: "localhost" };
+
 function req(opts: {
 	method?: string;
 	cookie?: string;
 }): Request {
-	const headers: Record<string, string> = {};
+	const headers: Record<string, string> = { ...SAME_SITE };
 	if (opts.cookie) headers.cookie = opts.cookie;
 	return new Request("http://localhost/api/webhooks", {
 		method: opts.method ?? "GET",
@@ -60,7 +63,11 @@ describe("webhooks dashboard proxy", () => {
 	function patchReq(body: unknown): Request {
 		return new Request("http://localhost/api/webhooks/wh_1", {
 			method: "PATCH",
-			headers: { cookie: "sl_session=tok", "content-type": "application/json" },
+			headers: {
+				cookie: "sl_session=tok",
+				"content-type": "application/json",
+				...SAME_SITE,
+			},
 			body: JSON.stringify(body),
 		});
 	}
@@ -118,7 +125,7 @@ describe("webhooks dashboard proxy", () => {
 		const { GET } = await import("./route");
 		const request = new Request(
 			"http://localhost/api/webhooks/wh_1/deliveries?from=2026-10-08T16:00:00Z&to=2026-10-08T17:00:00Z&days=30&evil=1",
-			{ headers: { cookie: "sl_session=tok" } },
+			{ headers: { cookie: "sl_session=tok", ...SAME_SITE } },
 		);
 		await GET(request, ctx(["wh_1", "deliveries"]));
 		const url = new URL(calls[0]?.url ?? "");
@@ -254,7 +261,11 @@ describe("webhooks dashboard proxy", () => {
 	function postReq(body: unknown): Request {
 		return new Request("http://localhost/api/webhooks/wh_1/replay", {
 			method: "POST",
-			headers: { cookie: "sl_session=tok", "content-type": "application/json" },
+			headers: {
+				cookie: "sl_session=tok",
+				"content-type": "application/json",
+				...SAME_SITE,
+			},
 			body: JSON.stringify(body),
 		});
 	}
@@ -314,7 +325,7 @@ describe("webhooks dashboard proxy", () => {
 		const res = await POST(
 			new Request("http://localhost/api/webhooks/wh_1/replay", {
 				method: "POST",
-				headers: { cookie: "sl_session=tok" },
+				headers: { cookie: "sl_session=tok", ...SAME_SITE },
 				body: "{nope",
 			}),
 			ctx(["wh_1", "replay"]),

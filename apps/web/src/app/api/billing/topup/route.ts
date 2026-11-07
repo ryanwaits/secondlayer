@@ -1,4 +1,5 @@
 import { ApiError, apiRequest, getSessionFromRequest } from "@/lib/api";
+import { crossSiteRefusal } from "@/lib/same-origin";
 import { NextResponse } from "next/server";
 
 // Next to the API, so each dashboard read and write takes the short hop.
@@ -9,6 +10,8 @@ export const preferredRegion = "fra1";
  * decides which account the credits land on, so they can't go astray.
  */
 export async function POST(req: Request) {
+	const refused = crossSiteRefusal(req);
+	if (refused) return refused;
 	const sessionToken = getSessionFromRequest(req);
 	if (!sessionToken) {
 		return NextResponse.json({ error: "Sign in first" }, { status: 401 });
