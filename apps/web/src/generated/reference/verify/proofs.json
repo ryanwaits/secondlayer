@@ -247,7 +247,7 @@
 			"description": "Lists the ancestor tries a MARF proof crosses.\n\nEach id is the backptr a descendant trie follows toward the leaf, and\n`verifyMarfProof` needs every one's header. They are read from untrusted\nproof bytes, so they are only fetch hints: the proof still fails unless each\nheader hashes to the id the trie committed. Malformed proofs yield no ids.",
 			"source": {
 				"file": "packages/verify/src/marf.ts",
-				"line": 323
+				"line": 327
 			},
 			"overloads": [
 				{
@@ -305,7 +305,7 @@
 			"description": "Verifies a MARF inclusion proof.\n\nIt is true only when `value` is stored at `path` in the MARF whose tip root\nis `root`. Inclusion only: MARF proofs cannot prove absence. Malformed proof\nbytes verify false.",
 			"source": {
 				"file": "packages/verify/src/marf.ts",
-				"line": 381
+				"line": 385
 			},
 			"overloads": [
 				{

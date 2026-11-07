@@ -1,5 +1,11 @@
 # @secondlayer/verify
 
+## 0.6.3
+
+### Patch Changes
+
+- 4efc92a: Reject MARF proofs with a leaf step anywhere but first. A proof with an extra leaf before the real one verified any value.
+
 ## 0.6.2
 
 ### Patch Changes
