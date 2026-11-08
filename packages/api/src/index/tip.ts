@@ -10,6 +10,7 @@ import {
 	finalizedBurnHeight,
 } from "@secondlayer/shared";
 import { describeDbUrl, getSourceDb } from "@secondlayer/shared/db";
+import { cachedRegistryClassifiedThrough } from "@secondlayer/shared/db/queries/contracts";
 import type { Database } from "@secondlayer/shared/db/schema";
 import { logger } from "@secondlayer/shared/logger";
 import { isOssMode } from "@secondlayer/shared/mode";
@@ -42,6 +43,16 @@ export type IndexTip = {
 	 * without a `readDecodedHeights` reader (e.g. a hand-built test fixture).
 	 */
 	decoded_heights?: DecodedTypeHeights;
+	/**
+	 * Highest height at which every contract deploy has been classified by the
+	 * contract registry (`registryClassifiedThrough`). A hosted trait-scoped
+	 * subgraph clamps its catch-up here so it never processes a block whose
+	 * deploys the registry hasn't labelled yet. `null` when unknown (empty
+	 * chain, or the registry read failed). Absent on an older server or a tip
+	 * built without a `readRegistryHeight` reader: callers treat absent as
+	 * unbounded.
+	 */
+	registry_classified_through?: number | null;
 };
 
 /** Zero tip served when no canonical block exists yet (oss/self-host only). */
@@ -51,6 +62,7 @@ const EMPTY_INDEX_TIP: IndexTip = {
 	lag_seconds: 0,
 	source_block_height: 0,
 	decoded_heights: {},
+	registry_classified_through: null,
 };
 
 /**
@@ -86,6 +98,7 @@ export type DecodedTipReader = () => Promise<DecodedTipBlock | null>;
  */
 export type DecodedTypeHeights = Record<string, number | null>;
 export type DecodedHeightsReader = () => Promise<DecodedTypeHeights>;
+export type RegistryHeightReader = () => Promise<number | null>;
 
 /**
  * Committed height (the shared committed-height rule: sentinel cursor = H
@@ -226,6 +239,10 @@ export function createIndexTipProvider(opts?: {
 	 *  read; omitting it there yields `decoded_heights: {}` (unknown), which
 	 *  `indexReadTip` treats as "leave block_height alone". */
 	readDecodedHeights?: DecodedHeightsReader;
+	/** Registry classified-through height (see
+	 *  `IndexTip.registry_classified_through`). Defaults to unknown (`null`);
+	 *  a rejection also yields `null` rather than failing the tip. */
+	readRegistryHeight?: RegistryHeightReader;
 	readFinalizedHeight?: IndexFinalizedHeightReader;
 	btcConfirmations?: number;
 	now?: () => number;
@@ -258,6 +275,8 @@ export function createIndexTipProvider(opts?: {
 		});
 	const readDecodedHeights =
 		opts?.readDecodedHeights ?? (async () => ({}) as DecodedTypeHeights);
+	const readRegistryHeight =
+		opts?.readRegistryHeight ?? (async () => null as number | null);
 	const readFinalizedHeight =
 		opts?.readFinalizedHeight ?? getFinalizedStacksHeight;
 	const btcConfirmations = opts?.btcConfirmations ?? DEFAULT_BTC_CONFIRMATIONS;
@@ -292,10 +311,23 @@ export function createIndexTipProvider(opts?: {
 		);
 		// Independent reads off the same snapshot — run concurrently rather than
 		// serially stacking three round trips onto every cache-miss tip refresh.
-		const [finalized_height, decodedTip, decoded_heights] = await Promise.all([
+		const [
+			finalized_height,
+			decodedTip,
+			decoded_heights,
+			registry_classified_through,
+		] = await Promise.all([
 			readFinalizedHeight(finalizedBurn),
 			readDecodedTip(),
 			readDecodedHeights(),
+			// Advisory bound for hosted catch-up: a failed read must not take the
+			// tip (and every Index read behind it) down.
+			readRegistryHeight().catch((error: unknown) => {
+				logger.warn("Index tip registry height unavailable", {
+					error: error instanceof Error ? error.message : String(error),
+				});
+				return null;
+			}),
 		]);
 		const tipBlock = decodedTip ?? {
 			block_height: sourceTip.block_height,
@@ -307,6 +339,7 @@ export function createIndexTipProvider(opts?: {
 			lag_seconds: getIndexLagSeconds(tipBlock.ts, nowMs),
 			source_block_height: sourceTip.block_height,
 			decoded_heights,
+			registry_classified_through,
 		};
 
 		cache = { expiresAt: nowMs + cacheTtlMs, value };
@@ -321,6 +354,7 @@ const indexTipInvalidators = new Set<() => void>();
 
 export const getIndexTip = createIndexTipProvider({
 	readDecodedHeights: getDecoderCommittedHeights,
+	readRegistryHeight: () => cachedRegistryClassifiedThrough(getSourceDb()),
 	onInvalidate: (invalidate) => {
 		indexTipInvalidators.add(invalidate);
 	},

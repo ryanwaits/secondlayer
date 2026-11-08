@@ -385,6 +385,11 @@ export const OPENAPI_SPEC = {
 						description:
 							"Highest block ingested from the node. Runs ahead of `block_height` while decoders catch up.",
 					},
+					registry_classified_through: {
+						type: ["integer", "null"],
+						description:
+							"Highest block whose contract deploys are all classified by the contract registry. Trait-scoped subgraphs wait here. `null` when unknown.",
+					},
 				},
 				// Heights are a real mainnet snapshot (2026-09-23 14:00 UTC);
 				// lag_seconds is illustrative.

@@ -41,6 +41,7 @@ describe("Index tip provider", () => {
 			lag_seconds: 3,
 			source_block_height: 30_000,
 			decoded_heights: {},
+			registry_classified_through: null,
 		});
 	});
 
@@ -64,6 +65,40 @@ describe("Index tip provider", () => {
 			ft_transfer: 29_900,
 			stx_transfer: 29_850,
 		});
+	});
+
+	test("carries the registry classified-through height from readRegistryHeight", async () => {
+		const provider = createIndexTipProvider({
+			readSourceTip: sourceTip(30_000, new Date(1000)),
+			readDecodedTip: async () => ({
+				block_height: 30_000,
+				ts: new Date(1000),
+			}),
+			readRegistryHeight: async () => 29_950,
+			readFinalizedHeight: async () => 29_994,
+			now: () => 4000,
+		});
+
+		expect((await provider()).registry_classified_through).toBe(29_950);
+	});
+
+	test("reports registry_classified_through null when its reader rejects, and still serves the tip", async () => {
+		const provider = createIndexTipProvider({
+			readSourceTip: sourceTip(30_000, new Date(1000)),
+			readDecodedTip: async () => ({
+				block_height: 30_000,
+				ts: new Date(1000),
+			}),
+			readRegistryHeight: async () => {
+				throw new Error("registry query failed");
+			},
+			readFinalizedHeight: async () => 29_994,
+			now: () => 4000,
+		});
+
+		const tip = await provider();
+		expect(tip.registry_classified_through).toBeNull();
+		expect(tip.block_height).toBe(30_000);
 	});
 
 	test("maps the burn-confirmation boundary to a finalized Stacks height", async () => {
@@ -118,6 +153,7 @@ describe("Index tip provider", () => {
 			lag_seconds: 0,
 			source_block_height: 0,
 			decoded_heights: {},
+			registry_classified_through: null,
 		});
 	});
 
