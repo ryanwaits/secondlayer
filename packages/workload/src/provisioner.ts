@@ -369,6 +369,24 @@ export function testnetEnvOverride(
 	};
 }
 
+/** The flag the stack's API reads to scope webhooks per account. A testnet
+ *  stack booted without it would serve every account's webhooks to any caller,
+ *  so the env is checked before it is written, not trusted. */
+export function assertTestnetFlag(
+	cfg: Pick<ProvisionerConfig, "testnetStack">,
+	accountId: string,
+	env: Record<string, string>,
+): void {
+	if (
+		isTestnetStackAccount(cfg, accountId) &&
+		env.TESTNET_WEBHOOK_STACK !== "true"
+	) {
+		throw new Error(
+			`testnet stack ${accountId} would boot without TESTNET_WEBHOOK_STACK=true`,
+		);
+	}
+}
+
 function resolveMintTenantKey(cfg: ProvisionerConfig): MintTenantKey {
 	if (cfg.mintTenantKey) return cfg.mintTenantKey;
 	if (!cfg.workloadHostKey) {
@@ -544,6 +562,7 @@ export async function ensureTenantEnv(
 		const envPath = join(tenantDir(cfg, acct8), ".env");
 		const current = parseEnvFile(readFileSync(envPath, "utf8"));
 		const next = { ...current, ...testnetEnvOverride(cfg, accountId) };
+		assertTestnetFlag(cfg, accountId, next);
 
 		const network = tenantNetwork(row.subnet_idx);
 		next.TENANT_SUBNET ||= network.subnet;
@@ -702,6 +721,7 @@ async function provisionStack(
 			}),
 			...testnetEnvOverride(cfg, accountId),
 		};
+		assertTestnetFlag(cfg, accountId, env);
 		writeSecretsToDisk(dir, socketDir, renderEnvFile(env));
 
 		const result = await runCompose(

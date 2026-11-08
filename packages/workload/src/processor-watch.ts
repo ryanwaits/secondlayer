@@ -43,6 +43,7 @@ import {
 	type ProvisionerConfig,
 	type RunCompose,
 	composeEnv,
+	isTestnetStackAccount,
 	parseEnvFile,
 	projectName,
 	spawnCompose,
@@ -604,7 +605,10 @@ export function createProcessorWatch(
 	}
 
 	return async () => {
-		const tenants = await listRunningTenants(cfg.db);
+		// The shared testnet stack serves webhooks only and runs no subgraphs.
+		const tenants = (await listRunningTenants(cfg.db)).filter(
+			(tenant) => !isTestnetStackAccount(cfg, tenant.account_id),
+		);
 		if (tenants.length === 0) return;
 		const tip = await deps.hostedTip();
 		for (const tenant of tenants) {

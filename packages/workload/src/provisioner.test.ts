@@ -32,6 +32,7 @@ import {
 	type ProvisionerConfig,
 	TENANT_NETWORK_CAPACITY,
 	type TenantKeyName,
+	assertTestnetFlag,
 	buildTenantEnv,
 	destroy,
 	ensureTenantEnv,
@@ -723,6 +724,23 @@ describe.skipIf(!HAS_DB)("provisioner up/stop/start/destroy", () => {
 			expect(readFileSync(envPath, "utf8")).toBe(before);
 
 			await deleteTenant(db, accountId);
+		});
+
+		test("a testnet stack's env without the flag is refused, any other stack's is not", () => {
+			const accountId = crypto.randomUUID();
+			const testnet = testnetCfg(accountId);
+			expect(() => assertTestnetFlag(testnet, accountId, {})).toThrow(
+				/without TESTNET_WEBHOOK_STACK=true/,
+			);
+			expect(() =>
+				assertTestnetFlag(testnet, accountId, {
+					TESTNET_WEBHOOK_STACK: "true",
+				}),
+			).not.toThrow();
+			expect(() =>
+				assertTestnetFlag(testnet, crypto.randomUUID(), {}),
+			).not.toThrow();
+			expect(() => assertTestnetFlag(cfg(), accountId, {})).not.toThrow();
 		});
 
 		test("another account's env is unchanged when a testnet stack is configured", async () => {

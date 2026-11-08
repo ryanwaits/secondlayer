@@ -181,6 +181,25 @@ describe.skipIf(!HAS_DB)("processor watch", () => {
 		expect(halts).toEqual([]);
 	});
 
+	test("the shared testnet stack is never polled for subgraphs", async () => {
+		reset();
+		const id = await seedTenant();
+		const polled: string[] = [];
+		const tick = createProcessorWatch(
+			{ ...cfg(), testnetStack: { accountId: id, apiUrl: "u", apiKey: "k" } },
+			{
+				...deps(),
+				listSubgraphs: async (t) => {
+					polled.push(t.instanceToken);
+					return [];
+				},
+			},
+		);
+		tip = 100;
+		await tick();
+		expect(polled).not.toContain(id);
+	});
+
 	test("a cursor frozen past the stall window while the tip moves restarts the processor", async () => {
 		reset();
 		const id = await seedTenant();

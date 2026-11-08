@@ -15,6 +15,7 @@ import { errorHandler } from "./middleware/error.ts";
 import { requestLogger } from "./middleware/logging.ts";
 import { requestId } from "./middleware/request-id.ts";
 import { requestLog } from "./middleware/request-log.ts";
+import { testnetStackGuard } from "./middleware/testnet-stack.ts";
 import accountsRouter from "./routes/accounts.ts";
 import archiveVerifyRouter from "./routes/archive-verify.ts";
 import archiveRouter from "./routes/archive.ts";
@@ -146,6 +147,9 @@ export function createApiApp(mode: InstanceMode): Hono {
 					: undefined,
 		}),
 	);
+	// Tenant stacks: the account-scope header means the shared testnet stack,
+	// and the testnet stack serves webhooks only (middleware/testnet-stack.ts).
+	if (mode !== "platform") app.use("*", testnetStackGuard());
 	// Hosted: 7-day log of account-attributed Index/Streams reads. A new
 	// account-attributed /v1 read surface must be added here.
 	if (mode === "platform") {
