@@ -124,3 +124,32 @@ describe("hosted trait membership", () => {
 		expect(state.fetches).toBe(1);
 	});
 });
+
+describe("hosted registry height", () => {
+	function tipClient(tip: { registry_classified_through?: number | null }) {
+		let envelope: typeof tip | undefined;
+		const client = {
+			getIndexTip: async () => {
+				envelope = tip;
+				return 150;
+			},
+			getRegistryClassifiedThrough: () => envelope?.registry_classified_through,
+		} as unknown as IndexHttpClient;
+		return hostedChainDataReader(client);
+	}
+
+	it("reads the height from a fresh tip envelope", async () => {
+		const reader = tipClient({ registry_classified_through: 100 });
+		expect(await reader.registryClassifiedThrough()).toBe(100);
+	});
+
+	it("is unbounded against a server that omits the field", async () => {
+		const reader = tipClient({});
+		expect(await reader.registryClassifiedThrough()).toBeNull();
+	});
+
+	it("is unbounded when the server cannot tell", async () => {
+		const reader = tipClient({ registry_classified_through: null });
+		expect(await reader.registryClassifiedThrough()).toBeNull();
+	});
+});

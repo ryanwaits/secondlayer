@@ -333,6 +333,12 @@ export type IndexTipEnvelope = {
 		 * before this field was added.
 		 */
 		decoded_heights?: Record<string, number | null>;
+		/**
+		 * Highest height at which the contract registry has classified every
+		 * deploy. `null` means the server cannot tell; absent means an older
+		 * server that doesn't send the field.
+		 */
+		registry_classified_through?: number | null;
 	};
 };
 
@@ -734,6 +740,17 @@ export class IndexHttpClient {
 	 */
 	getDecodedHeights(): Record<string, number | null> | undefined {
 		return this.lastTipEnvelope?.tip.decoded_heights;
+	}
+
+	/**
+	 * The contract registry's classified-through height from the last tip
+	 * envelope fetched by `getIndexTip()`/`getIndexSourceTip()` — reads the
+	 * cached response, no extra request. `undefined` before either has been
+	 * called, or against an older server that doesn't send the field; `null`
+	 * when the server cannot tell.
+	 */
+	getRegistryClassifiedThrough(): number | null | undefined {
+		return this.lastTipEnvelope?.tip.registry_classified_through;
 	}
 
 	/** False once a `wait`/`tip_only` request has 400'd on THIS client instance

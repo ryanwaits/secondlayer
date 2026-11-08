@@ -24,6 +24,9 @@ export type FakeIndexOptions = {
 	wantedHeights: number[];
 	/** Bytes of filler per print payload, so rows weigh what real ones do. */
 	payloadBytes?: number;
+	/** `tip.registry_classified_through` the server reports; omitted (an older
+	 *  server) when unset. Change it later with `setRegistryClassifiedThrough`. */
+	registryClassifiedThrough?: number | null;
 };
 
 export type FakeIndexStats = {
@@ -111,11 +114,15 @@ export function startFakeIndex(opts: FakeIndexOptions) {
 		return rows;
 	}
 
-	const tipEnvelope = {
+	let registryClassifiedThrough = opts.registryClassifiedThrough;
+	const tipEnvelope = () => ({
 		block_height: opts.tip,
 		source_block_height: opts.tip,
 		decoded_heights: { print: opts.tip },
-	};
+		...(registryClassifiedThrough === undefined
+			? {}
+			: { registry_classified_through: registryClassifiedThrough }),
+	});
 
 	function parseCursor(c: string): EventKey {
 		const [h, i] = c.split(":");
@@ -160,13 +167,13 @@ export function startFakeIndex(opts: FakeIndexOptions) {
 			next = `${last.block_height}:${last.event_index}`;
 		}
 		stats.rows.events += items.length;
-		return { events: items, next_cursor: next, tip: tipEnvelope, reorgs: [] };
+		return { events: items, next_cursor: next, tip: tipEnvelope(), reorgs: [] };
 	}
 
 	function handleBlocks(q: URLSearchParams) {
 		stats.requests.blocks++;
 		if (q.get("tip_only") === "true") {
-			return { blocks: [], next_cursor: null, tip: tipEnvelope, reorgs: [] };
+			return { blocks: [], next_cursor: null, tip: tipEnvelope(), reorgs: [] };
 		}
 		const limit = Math.min(Number(q.get("limit") ?? PAGE_MAX), PAGE_MAX);
 		const to = Math.min(Number(q.get("to_height") ?? opts.tip), opts.tip);
@@ -191,7 +198,7 @@ export function startFakeIndex(opts: FakeIndexOptions) {
 		return {
 			blocks,
 			next_cursor: more ? String(last?.block_height) : null,
-			tip: tipEnvelope,
+			tip: tipEnvelope(),
 			reorgs: [],
 		};
 	}
@@ -211,6 +218,9 @@ export function startFakeIndex(opts: FakeIndexOptions) {
 			if (url.pathname === "/v1/index/events") {
 				return Response.json(handleEvents(url.searchParams));
 			}
+			if (url.pathname === "/v1/contracts") {
+				return Response.json({ contracts: [], next_cursor: null });
+			}
 			if (url.pathname === "/v1/index/blocks") {
 				return Response.json(handleBlocks(url.searchParams));
 			}
@@ -224,6 +234,10 @@ export function startFakeIndex(opts: FakeIndexOptions) {
 		/** Refuse every row read with `402 { error: code }`; `null` lifts it. */
 		refuse: (code: string | null) => {
 			refusal = code;
+		},
+		/** Change what the tip reports; `undefined` drops the field (old server). */
+		setRegistryClassifiedThrough: (value: number | null | undefined) => {
+			registryClassifiedThrough = value;
 		},
 		stop: () => server.stop(true),
 	};

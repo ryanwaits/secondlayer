@@ -498,3 +498,38 @@ describe("IndexHttpClient hosted sBTC + trait reads", () => {
 		).rejects.toBeInstanceOf(IndexHttpStatusError);
 	});
 });
+
+describe("IndexHttpClient.getRegistryClassifiedThrough", () => {
+	test("undefined before any tip call", () => {
+		expect(client().getRegistryClassifiedThrough()).toBeUndefined();
+	});
+
+	test("reflects registry_classified_through from the same envelope getIndexTip() just fetched", async () => {
+		const http = client();
+		stubFetch({
+			blocks: [],
+			next_cursor: null,
+			tip: { block_height: 150, registry_classified_through: 100 },
+		});
+		await http.getIndexTip();
+		expect(http.getRegistryClassifiedThrough()).toBe(100);
+	});
+
+	test("keeps null when the server cannot tell", async () => {
+		const http = client();
+		stubFetch({
+			blocks: [],
+			next_cursor: null,
+			tip: { block_height: 150, registry_classified_through: null },
+		});
+		await http.getIndexTip();
+		expect(http.getRegistryClassifiedThrough()).toBeNull();
+	});
+
+	test("undefined against an older server that omits the field", async () => {
+		const http = client();
+		stubFetch({ blocks: [], next_cursor: null, tip: { block_height: 150 } });
+		await http.getIndexTip();
+		expect(http.getRegistryClassifiedThrough()).toBeUndefined();
+	});
+});

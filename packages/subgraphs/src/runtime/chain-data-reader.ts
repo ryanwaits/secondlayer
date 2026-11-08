@@ -37,8 +37,8 @@ export interface ChainDataReader {
 	traitContractIds(trait: string, asOfBlock: number): Promise<string[]>;
 	/** Height through which the contract registry has labelled every deploy, so
 	 *  a trait set resolved at or below it is complete. `null` when the reader
-	 *  can't tell (an empty chain, or a hosted tenant, whose Index API owns the
-	 *  registry). */
+	 *  can't tell (an empty chain, or a hosted tenant on a server that predates
+	 *  the Index tip's `registry_classified_through`). */
 	registryClassifiedThrough(): Promise<number | null>;
 	/** Confirmed sweeps past `scan`, each anchored to its Stacks accept event and
 	 *  block, in `seq` order. */
@@ -221,6 +221,13 @@ export function hostedChainDataReader(
 	opts: { now?: () => number } = {},
 ): ChainDataReader {
 	const now = opts.now ?? Date.now;
+	/** The Index tip carries the registry height; read a fresh tip first so the
+	 *  value is not whatever an earlier caller of this client last saw. An older
+	 *  server omits the field: `null`, unbounded (same rule as `decoded_heights`). */
+	const readRegistryHeight = async (): Promise<number | null> => {
+		await client.getIndexTip();
+		return client.getRegistryClassifiedThrough() ?? null;
+	};
 	return {
 		async sbtcEvents(fromHeight, toHeight, topics) {
 			if (topics.length === 0) return [];
@@ -269,9 +276,7 @@ export function hostedChainDataReader(
 			}
 			return ids;
 		},
-		async registryClassifiedThrough() {
-			return null;
-		},
+		registryClassifiedThrough: readRegistryHeight,
 		async settlementsSince(scan) {
 			const withdrawals = oneWithdrawalPerSweep(
 				await client.fetchSettledWithdrawals(scan),
