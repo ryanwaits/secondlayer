@@ -6,7 +6,7 @@ Notable changes to Secondlayer and its SDKs. Entries dated before August 2026 de
 
 ### Delete and redeploy starts clean
 
-A subgraph you delete and redeploy under the same name now starts from nothing. A block the old subgraph was still processing can no longer move the new one's cursor or write rows into it. Its violations, error groups and processing stats are deleted with it, so the new subgraph doesn't show the old one's errors. Trait-scoped subgraphs also wait until a new contract is classified before reading its block, so a token's first events are never skipped.
+A subgraph you delete and redeploy under the same name now starts from nothing. A block the old subgraph was still processing can no longer move the new one's cursor, write rows into it, or halt it. Its violations, error groups and processing stats are deleted with it, so the new subgraph doesn't show the old one's errors. Trait-scoped subgraphs also wait until a new contract is classified before reading its block, so a token's first events are never skipped.
 
 ### A halt stays halted, and reorgs reach a reindex
 

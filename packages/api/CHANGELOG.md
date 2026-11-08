@@ -1,5 +1,15 @@
 # @secondlayer/api
 
+## 1.64.9
+
+### Patch Changes
+
+- 892c7dd: A subgraph you delete and redeploy can no longer be halted or flipped by work that belonged to the old one. Status changes now follow the subgraph id, and `transitionSubgraph` takes the id instead of the name.
+- Updated dependencies [892c7dd]
+  - @secondlayer/shared@15.6.0
+  - @secondlayer/subgraphs@8.1.7
+  - @secondlayer/platform@0.10.22
+
 ## 1.64.8
 
 ### Patch Changes
