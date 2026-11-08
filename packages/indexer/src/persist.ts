@@ -1,6 +1,9 @@
 import { sql } from "@secondlayer/shared/db";
 import type { Database } from "@secondlayer/shared/db";
-import { computeContiguousTip } from "@secondlayer/shared/db/queries/integrity";
+import {
+	computeContiguousTip,
+	seedContiguousFloor,
+} from "@secondlayer/shared/db/queries/integrity";
 import { logger } from "@secondlayer/shared/logger";
 import type { Insertable, Kysely } from "kysely";
 import { removeMempoolTxs } from "./mempool.ts";
@@ -358,14 +361,12 @@ export async function persistBlock(
 			// Next sequential block — extend the contiguous chain.
 			newContiguous = await computeContiguousTip(tx, currentContiguous + 1);
 		} else if (currentContiguous === 0 && blockHeight > 1) {
-			// Indexing from a non-genesis start — find the contiguous run from the
-			// lowest block we hold.
-			const { rows: minRows } = await sql<{ min_height: string }>`
-				SELECT MIN(height) AS min_height FROM blocks WHERE canonical = true
-			`.execute(tx);
-			const minHeight = Number(minRows[0]?.min_height ?? 0);
-			if (minHeight > 0) {
-				newContiguous = await computeContiguousTip(tx, minHeight);
+			// First block above genesis on a fresh instance: count from the
+			// chain's real floor (the lowest block held, or a declared start), not
+			// from an assumed 1.
+			const floor = await seedContiguousFloor(tx, network);
+			if (floor !== null) {
+				newContiguous = await computeContiguousTip(tx, floor);
 			}
 		}
 

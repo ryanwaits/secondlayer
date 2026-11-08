@@ -9,6 +9,7 @@ import {
 	findEventCountMismatches,
 	findGaps,
 	findShortBlocks,
+	resolveContiguousFloor,
 } from "@secondlayer/shared/db/queries/integrity";
 import type {
 	BurnHeightRegression,
@@ -207,7 +208,7 @@ async function checkRowInvariants(db: ReturnType<typeof getSourceDb>) {
 	}
 }
 
-async function recomputeContiguous(db: ReturnType<typeof getSourceDb>) {
+export async function recomputeContiguous(db: ReturnType<typeof getSourceDb>) {
 	const network = process.env.STACKS_NETWORK || "mainnet";
 
 	const progress = await db
@@ -218,12 +219,10 @@ async function recomputeContiguous(db: ReturnType<typeof getSourceDb>) {
 	if (!progress) return;
 	const read = Number(progress.last_contiguous_block);
 
-	// Find the lowest block we have — supports indexing from arbitrary start height
-	const { rows: minRows } = await sql<{ min_height: string }>`
-    SELECT COALESCE(MIN(height), 0) AS min_height FROM blocks WHERE canonical = true
-  `.execute(db);
-	const minHeight = Number(minRows[0]?.min_height ?? 0);
-	const fromHeight = minHeight > 0 ? minHeight : 1;
+	// Count from the chain's real floor: the lowest block held, or the start
+	// the instance declared. Never an assumed 1.
+	const fromHeight = await resolveContiguousFloor(db, network);
+	if (fromHeight === null) return;
 
 	const tip = await computeContiguousTip(db, fromHeight);
 

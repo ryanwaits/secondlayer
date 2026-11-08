@@ -1,6 +1,7 @@
 import { type Kysely, sql } from "kysely";
 import type { Database } from "../types.ts";
 import { stacksNetworkFromEnv } from "./instance.ts";
+import { getSyncScope, upsertSyncScope } from "./sync-scope.ts";
 
 export interface Gap {
 	gapStart: number;
@@ -148,6 +149,73 @@ export async function checkChainDataIntegrity(
 				? null
 				: `tip is ${maxHeight} but no canonical blocks near ${sampleHeight} — wrong or empty volume?`,
 	};
+}
+
+async function lowestCanonicalHeight(
+	db: Kysely<Database>,
+	above: number,
+): Promise<number | null> {
+	const { rows } = await sql<{ min: string | null }>`
+		SELECT MIN(height) AS min FROM blocks
+		WHERE canonical = true AND height > ${above}
+	`.execute(db);
+	const min = rows[0]?.min;
+	return min === null || min === undefined ? null : Number(min);
+}
+
+/**
+ * The height contiguity is measured from: where this instance's canonical
+ * history begins, never an assumed 1. A recorded sync scope above the lowest
+ * stored block wins (an operator or the indexer declared that history below it
+ * is deliberately absent); otherwise it is the lowest canonical block.
+ *
+ * `null` when no canonical block is stored yet.
+ */
+export async function resolveContiguousFloor(
+	db: Kysely<Database>,
+	network: string = stacksNetworkFromEnv(),
+): Promise<number | null> {
+	const lowest = await lowestCanonicalHeight(db, -1);
+	if (lowest === null) return null;
+	const scope = await getSyncScope(db, network);
+	return Math.max(lowest, scope?.start_height ?? 0);
+}
+
+/**
+ * First block above genesis lands on an instance whose cursor is still 0.
+ *
+ * A node on a cached chain (a Clarinet devnet) announces its genesis block at
+ * boot and then first shows the chain at its real height; the heights between
+ * are never delivered. Counting from that lone genesis row leaves the cursor
+ * pinned below a hole nobody can fill, so declare the lowest block above
+ * genesis as the instance's start (the same declaration a forward-only archive
+ * restore makes) and return the floor contiguity now counts from. A scope that
+ * already exists is never overwritten.
+ */
+export async function seedContiguousFloor(
+	db: Kysely<Database>,
+	network: string,
+): Promise<number | null> {
+	const lowest = await lowestCanonicalHeight(db, -1);
+	const aboveGenesis = await lowestCanonicalHeight(db, 0);
+	if (
+		lowest === 0 &&
+		aboveGenesis !== null &&
+		aboveGenesis > 1 &&
+		(await getSyncScope(db, network)) === null
+	) {
+		await upsertSyncScope(db, {
+			network,
+			start_height: aboveGenesis,
+			target_height: null,
+			bootstrap: {
+				source: "import",
+				manifest_digest: null,
+				genesis_hash: null,
+			},
+		});
+	}
+	return resolveContiguousFloor(db, network);
 }
 
 export async function computeContiguousTip(
