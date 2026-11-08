@@ -26,6 +26,10 @@ import { generateSecretsKey, secretsKeyAvailable } from "./secrets.ts";
 
 type SecretsModule = typeof import("./secrets.ts");
 
+/** A fresh module instance, as a new process would have: no cached key. */
+const load = (tag: string): Promise<SecretsModule> =>
+	import(`./secrets.ts?boot=${tag}`);
+
 const KEY_ENV = "SECONDLAYER_SECRETS_KEY";
 const MODE_ENV = "INSTANCE_MODE";
 const originalKey = process.env[KEY_ENV];
@@ -173,7 +177,7 @@ describe.skipIf(!process.env.DATABASE_URL)(
 			delete process.env[KEY_ENV];
 
 			process.chdir(realpathSync(mkdtempSync(join(tmpdir(), "boot-c1-"))));
-			const first = await import("./secrets.ts?boot=db-1");
+			const first = await load("db-1");
 			await ensureSecretsKeyCanary(db, {
 				keyHex: first.resolveSecretsKeyHex(),
 				network: "mainnet",
@@ -181,7 +185,7 @@ describe.skipIf(!process.env.DATABASE_URL)(
 
 			delete process.env[KEY_ENV];
 			process.chdir(realpathSync(mkdtempSync(join(tmpdir(), "boot-c2-"))));
-			const second = await import("./secrets.ts?boot=db-2");
+			const second = await load("db-2");
 			expect(second.resolveSecretsKeyHex()).toBe(first.resolveSecretsKeyHex());
 			await ensureSecretsKeyCanary(db, {
 				keyHex: second.resolveSecretsKeyHex(),
