@@ -359,6 +359,9 @@ export async function readRunes(
 	const where = predicates.length
 		? sql`WHERE ${sql.join(predicates, sql` AND `)}`
 		: sql``;
+	// `mints` is a live counter and the keyset below pages on it, so a rune
+	// minted between two pages can move across the cursor and be skipped or
+	// repeated. Documented on the route; `number` is the stable order.
 	// `mints DESC, number DESC` — both descending so the keyset above stays a
 	// single row-values comparison (`<`); `number DESC` is just a stable
 	// tiebreak for runes with equal mint counts, not a meaningful order on its

@@ -230,7 +230,7 @@ export function createStreamsRouter(opts: StreamsRouterOptions = {}) {
 					description:
 						"Chain reorg history. since=<iso|cursor>. chain=stacks|bitcoin.",
 					filters: ["since", "limit", "chain"],
-					auth: "bearer required, metered per row",
+					auth: "bearer required, not metered",
 				},
 				{
 					path: "/v1/streams/canonical/:height",

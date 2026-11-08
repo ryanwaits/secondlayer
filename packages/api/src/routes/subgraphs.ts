@@ -58,6 +58,7 @@ import {
 import { getApiKeyId } from "../lib/ownership.ts";
 import { InvalidJSONError } from "../middleware/error.ts";
 import { clampLimit, clampOffset } from "../parse-query.ts";
+import { parseBackfillRange } from "../subgraphs/backfill-range.ts";
 import { SubgraphRegistryCache } from "../subgraphs/cache.ts";
 import { hasNonReplayableWrites } from "../subgraphs/handler-replay-safety.ts";
 import {
@@ -1068,19 +1069,7 @@ app.post("/:subgraphName/backfill", async (c) => {
 	const subgraph = requireSubgraph(subgraphName);
 
 	const body = await c.req.json().catch(() => ({}));
-	const fromBlock =
-		typeof body.fromBlock === "number" ? body.fromBlock : undefined;
-	const toBlock = typeof body.toBlock === "number" ? body.toBlock : undefined;
-
-	if (!fromBlock || !toBlock) {
-		return c.json(
-			{
-				error: "Both fromBlock and toBlock are required for backfill",
-				code: "VALIDATION_ERROR",
-			},
-			400,
-		);
-	}
+	const { fromBlock, toBlock } = parseBackfillRange(body, await getChainTip());
 	const db = getDb();
 
 	// Backfill re-runs blocks the live walk already processed; delta handlers
@@ -1099,8 +1088,8 @@ app.post("/:subgraphName/backfill", async (c) => {
 	try {
 		const backfillWeight = await classifyOperationWeight(
 			parseProbeTargets(subgraph.sparse_probe_targets),
-			fromBlock ?? 1,
-			toBlock ?? (await getChainTip()),
+			fromBlock,
+			toBlock,
 		);
 		const operation = await createSubgraphOperation(db, {
 			subgraphId: subgraph.id,

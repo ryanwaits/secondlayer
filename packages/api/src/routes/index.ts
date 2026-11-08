@@ -406,7 +406,7 @@ export function createIndexRouter(opts: IndexRouterOptions = {}) {
 					path: "/v1/index/runes",
 					method: "GET",
 					description:
-						"Rune catalog: id, name, spaced_name, symbol, divisibility, premine, computed supply, burned, mints, terms. `search` prefix-matches the name (spacers/case ignored); `sort` is `number` (etch order, default) or `mints`. Returns runes[], next_cursor, tip.",
+						"Rune catalog: id, name, spaced_name, symbol, divisibility, premine, computed supply, burned, mints, terms. `search` prefix-matches the name (spacers/case ignored); `sort` is `number` (etch order, default) or `mints` (a live counter: a rune minted between pages can be skipped or repeated, so use `number` for a complete walk). Returns runes[], next_cursor, tip.",
 					filters: RUNES_LIST_FILTERS,
 				},
 				{
@@ -485,7 +485,7 @@ export function createIndexRouter(opts: IndexRouterOptions = {}) {
 					path: "/v1/index/contracts/:contract_id/print-schema",
 					method: "GET",
 					description:
-						"Empirical per-topic print payload schemas for a contract, inferred from sampled canonical print events. Returns contract_id, topics[] ({topic, count, first_height, last_height, non_tuple, fields[] with name/camel_name/clarity_type/ts_type/column_type/always_present}), sample, tip. Anon ok, unmetered.",
+						"Empirical per-topic print payload schemas for a contract, inferred from sampled canonical print events. Returns contract_id, topics[] ({topic, count, first_height, last_height, non_tuple, fields[] with name/camel_name/clarity_type/ts_type/column_type/always_present}), sample, tip. Bearer required like every Index read, but not metered.",
 				},
 			],
 			auth: "bearer required (account key sk-sl_*); discovery GET / is open",

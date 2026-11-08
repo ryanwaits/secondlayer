@@ -11,6 +11,17 @@ export class InvalidJSONError extends Error {
 	}
 }
 
+/** Postgres `unique_violation`. Raised under a race, after the handler's own
+ *  "does it exist" check has already passed. */
+export function isUniqueViolation(error: unknown): boolean {
+	return (
+		typeof error === "object" &&
+		error !== null &&
+		"code" in error &&
+		(error as { code?: unknown }).code === "23505"
+	);
+}
+
 /**
  * Global error handler (app.onError)
  */
@@ -38,6 +49,18 @@ export const errorHandler: ErrorHandler = (error, c) => {
 				code: error.code,
 			},
 			400,
+		);
+	}
+
+	// A duplicate that slipped past a handler's existence check (two writers,
+	// same name) is the caller's conflict, not a server fault.
+	if (isUniqueViolation(error)) {
+		return c.json(
+			{
+				error: "A resource with that name already exists",
+				code: "CONFLICT",
+			},
+			409,
 		);
 	}
 

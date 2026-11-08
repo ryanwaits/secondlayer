@@ -13368,7 +13368,7 @@
 				],
 				"summary": "Rune catalog",
 				"x-nav-title": "Rune catalog",
-				"description": "Every etched rune, with the identity bundle (id, name, spaced_name, symbol, divisibility) every Runes response carries plus its computed supply, mint/burn counters and mint terms. `search` prefix-matches the name (spacers and case ignored); `sort` is etch order (`number`, default) or busiest-first (`mints`).",
+				"description": "Every etched rune, with the identity bundle (id, name, spaced_name, symbol, divisibility) every Runes response carries plus its computed supply, mint/burn counters and mint terms. `search` prefix-matches the name (spacers and case ignored); `sort` is etch order (`number`, default) or busiest-first (`mints`). `mints` is a live counter, so paging by it is a snapshot only while it holds still: a rune that is minted between two pages can be skipped or repeated. Use `number` for a walk that must see every rune once.",
 				"security": [
 					{},
 					{

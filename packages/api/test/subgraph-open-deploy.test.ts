@@ -1,4 +1,4 @@
-import { afterAll, describe, expect, test } from "bun:test";
+import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { join } from "node:path";
 import { getDb } from "@secondlayer/shared/db";
 import { Hono } from "hono";
@@ -8,6 +8,7 @@ import subgraphsRouter, {
 	cache,
 	pruneSubgraphHandlerFiles,
 } from "../src/routes/subgraphs.ts";
+import { seedChainTip } from "./fixtures/chain-tip.ts";
 
 /**
  * Deploys are open on every instance — authorization never consults a plan,
@@ -58,8 +59,14 @@ function deployBody(name: string, startBlock?: number) {
 
 describe.skipIf(SKIP)("open deploy (no plan gates)", () => {
 	const app = createApp();
+	let restoreTip: () => Promise<void> = async () => {};
+
+	beforeAll(async () => {
+		restoreTip = await seedChainTip(1_000_000);
+	});
 
 	afterAll(async () => {
+		await restoreTip();
 		pruneSubgraphHandlerFiles(
 			join(process.env.DATA_DIR ?? "./data", "subgraphs"),
 			NAME,

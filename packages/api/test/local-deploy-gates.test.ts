@@ -1,4 +1,4 @@
-import { afterAll, describe, expect, test } from "bun:test";
+import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { join } from "node:path";
 import { getDb } from "@secondlayer/shared/db";
 import { pgSchemaName } from "@secondlayer/shared/db/queries/subgraphs";
@@ -12,6 +12,7 @@ import subgraphsRouter, {
 import v1SubgraphsRouter, {
 	resetAnonDirectoryCache,
 } from "../src/routes/v1-subgraphs.ts";
+import { seedChainTip } from "./fixtures/chain-tip.ts";
 
 /**
  * P3.4: OSS deploy / reindex / backfill from an empty commerce plane —
@@ -64,8 +65,14 @@ async function accountCount(): Promise<number> {
 describe.skipIf(SKIP)("local deploy gates (oss, no commerce)", () => {
 	const app = buildApp();
 	const prevMode = process.env.INSTANCE_MODE;
+	let restoreTip: () => Promise<void> = async () => {};
+
+	beforeAll(async () => {
+		restoreTip = await seedChainTip(1_000_000);
+	});
 
 	afterAll(async () => {
+		await restoreTip();
 		if (prevMode === undefined) delete process.env.INSTANCE_MODE;
 		else process.env.INSTANCE_MODE = prevMode;
 		pruneSubgraphHandlerFiles(

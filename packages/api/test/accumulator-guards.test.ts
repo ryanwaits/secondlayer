@@ -4,6 +4,7 @@ import { registerSubgraph } from "@secondlayer/shared/db/queries/subgraphs";
 import { Hono } from "hono";
 import { errorHandler } from "../src/middleware/error.ts";
 import subgraphsApp, { cache } from "../src/routes/subgraphs.ts";
+import { seedChainTip } from "./fixtures/chain-tip.ts";
 
 const SKIP = !process.env.DATABASE_URL;
 const ACCOUNT = crypto.randomUUID();
@@ -24,8 +25,10 @@ function appAs(accountId: string) {
 
 describe.skipIf(SKIP)("accumulator backfill guards", () => {
 	let priorInstanceMode: string | undefined;
+	let restoreTip: () => Promise<void> = async () => {};
 
 	beforeAll(async () => {
+		restoreTip = await seedChainTip(1_000_000);
 		const db = getDb();
 		priorInstanceMode = process.env.INSTANCE_MODE;
 		process.env.INSTANCE_MODE = "platform";
@@ -59,6 +62,7 @@ describe.skipIf(SKIP)("accumulator backfill guards", () => {
 	});
 
 	afterAll(async () => {
+		await restoreTip();
 		const db = getDb();
 		await db
 			.deleteFrom("subgraphs")

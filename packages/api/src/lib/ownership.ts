@@ -1,6 +1,5 @@
 import type { Database } from "@secondlayer/shared/db";
 import { getDb } from "@secondlayer/shared/db";
-import { isPlatformMode } from "@secondlayer/shared/mode";
 import type { Context } from "hono";
 import type { Kysely } from "kysely";
 import { liveKeyWhere } from "../auth/key-state.ts";
@@ -32,20 +31,6 @@ export function getApiKeyId(c: Context): string | undefined {
 /** Extract account_id from Hono context, or undefined in DEV_MODE */
 export function getAccountId(c: Context): string | undefined {
 	return c.get("accountId") as string | undefined;
-}
-
-/**
- * Resolve all active API key IDs for the current request's account.
- * In oss/dedicated modes there's no per-account scoping — returns undefined
- * so callers skip the `api_key_id IN (...)` filter and see all resources.
- */
-export async function resolveKeyIds(c: Context): Promise<string[] | undefined> {
-	if (!isPlatformMode()) return undefined;
-	const accountId = getAccountId(c);
-	if (!accountId) return undefined;
-	const ids = await getAccountKeyIds(getDb(), accountId);
-	// Return undefined if no keys — empty array would produce invalid SQL `IN ()`
-	return ids.length > 0 ? ids : undefined;
 }
 
 /**

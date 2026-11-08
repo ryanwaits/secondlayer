@@ -51,7 +51,7 @@ import {
 	parseRuneRef,
 } from "../bitcoin/db.ts";
 import { getTenantScopedAccountId } from "../lib/request-scope.ts";
-import { InvalidJSONError } from "../middleware/error.ts";
+import { InvalidJSONError, isUniqueViolation } from "../middleware/error.ts";
 import { clampLimit, clampOffset } from "../parse-query.ts";
 
 /**
@@ -444,6 +444,8 @@ app.post("/", async (c) => {
 		await notifyWebhooksChanged(getDb(), accountId);
 		return c.json({ webhook: toDetail(webhook), signingSecret }, 201);
 	} catch (err) {
+		// A concurrent create with the same name: the global handler answers 409.
+		if (isUniqueViolation(err)) throw err;
 		logger.error("createWebhook failed", { error: getErrorMessage(err) });
 		return c.json(
 			{ error: "Internal Server Error", code: "INTERNAL_ERROR" },
