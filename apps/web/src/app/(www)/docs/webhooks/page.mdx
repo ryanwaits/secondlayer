@@ -529,7 +529,7 @@ A reorg delivers `chain.reorg.rollback` so you can undo anything committed off a
 
 A rollback lists only events from the blocks that reorg orphaned, and each event appears in one rollback. Match an entry to its apply by `block_hash` and `tx_id`. Applies from blocks the reorg did not orphan stay valid.
 
-On rows indexed before hashes were recorded, `block_hash` is `null`. Match those by `tx_id` and `block_height` instead. `decodeChainWebhook` throws on an entry whose `tx_id`, `block_hash` or `block_height` has the wrong type.
+On old rows the block hash is `null`: match those by transaction and height. `decodeChainWebhook` throws on an entry with a wrong-typed field.
 
 <Callout type="warning" title="orphaned is capped at 500">
 
