@@ -1,5 +1,17 @@
 # @secondlayer/api
 
+## 1.64.7
+
+### Patch Changes
+
+- ac4ab29: The Index tip now includes `registry_classified_through`, the height up to which every contract deploy has been classified, so hosted trait-scoped subgraphs can wait for the registry.
+- Updated dependencies [c159001]
+- Updated dependencies [3ce5639]
+- Updated dependencies [baf530c]
+  - @secondlayer/shared@15.4.2
+  - @secondlayer/subgraphs@8.1.5
+  - @secondlayer/platform@0.10.20
+
 ## 1.64.6
 
 ### Patch Changes

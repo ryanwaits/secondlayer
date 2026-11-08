@@ -1,5 +1,14 @@
 # @secondlayer/workload
 
+## 0.2.38
+
+### Patch Changes
+
+- Updated dependencies [c159001]
+- Updated dependencies [baf530c]
+  - @secondlayer/shared@15.4.2
+  - @secondlayer/platform@0.10.20
+
 ## 0.2.37
 
 ### Patch Changes

@@ -1,5 +1,16 @@
 # @secondlayer/subgraphs
 
+## 8.1.5
+
+### Patch Changes
+
+- c159001: The contract registry's classified height is now read through one shared cache that keeps serving the last value while it refreshes in the background, so trait-scoped subgraphs and the API never wait on the slow query after the first read.
+- 3ce5639: A hosted trait-scoped subgraph's contract list is now refreshed as soon as the registry classifies past the block being processed, instead of on a 5 second timer, so a token classified moments after its deploy is included for the blocks that follow it.
+- baf530c: Hosted trait-scoped subgraphs now wait for the contract registry like self-hosted ones: catch-up stops at the height the Index tip reports as fully classified, so a token deployed just below the tip no longer loses its first events. `IndexHttpClient` gains `getRegistryClassifiedThrough()`.
+- Updated dependencies [c159001]
+- Updated dependencies [baf530c]
+  - @secondlayer/shared@15.4.2
+
 ## 8.1.4
 
 ### Patch Changes

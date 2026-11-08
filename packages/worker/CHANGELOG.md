@@ -1,5 +1,14 @@
 # @secondlayer/worker
 
+## 1.4.50
+
+### Patch Changes
+
+- Updated dependencies [c159001]
+- Updated dependencies [baf530c]
+  - @secondlayer/shared@15.4.2
+  - @secondlayer/platform@0.10.20
+
 ## 1.4.49
 
 ### Patch Changes

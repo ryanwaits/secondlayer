@@ -1,6 +1,6 @@
 {
 	"package": "@secondlayer/subgraphs",
-	"version": "8.1.4",
+	"version": "8.1.5",
 	"generator": "openpkg 0.13.2",
 	"surfaces": [
 		{
