@@ -420,7 +420,9 @@ export async function processBlock(
 	);
 	result.matched = matched.length;
 
-	if (matched.length === 0) {
+	// A block that reveals a factory address must go through the transaction
+	// below even when nothing matches, so the discovery commits with it.
+	if (matched.length === 0 && discovered.length === 0) {
 		if (!opts?.skipProgressUpdate) {
 			if (isReorgRewind(opts)) {
 				// Fork block itself may match nothing for this subgraph — the
@@ -644,6 +646,12 @@ export async function processBlock(
 				}
 			}
 
+			// Stamped with this height so the reorg handler rolls them back with
+			// everything else. In the block's own transaction: a crash between the
+			// commit and a later write would leave the cursor past a block whose
+			// discoveries were never stored, and the replay guard would skip it.
+			await persistFactoryDiscoveries(schemaName, tx, blockHeight, discovered);
+
 			await applyProgress(tx, runResult, flushedWrites);
 		});
 	} catch (err) {
@@ -663,20 +671,6 @@ export async function processBlock(
 			return result;
 		}
 		throw err;
-	}
-
-	// Persist factory discoveries only after the block's writes commit, so a
-	// failed block doesn't leave addresses claimed for a block that produced
-	// nothing. Stamped with this height, so the reorg handler rolls them back
-	// with everything else. Idempotent (ON CONFLICT DO NOTHING), so a
-	// guard-skipped block replaying here is harmless.
-	if (!result.skipped) {
-		await persistFactoryDiscoveries(
-			schemaName,
-			route.dataDb,
-			blockHeight,
-			discovered,
-		);
 	}
 
 	const totalMs = performance.now() - blockStart;
