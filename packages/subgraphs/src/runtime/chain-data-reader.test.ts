@@ -13,14 +13,24 @@ function registry(rows: Row[]) {
 		fetches: 0,
 		calls: [] as ({ classifiedAfter?: Date } | undefined)[],
 		clock: 1_000_000,
+		/** Registry height the tip reports; `undefined` is an older server. */
+		registry: undefined as number | null | undefined,
+		tipFetches: 0,
+		onList: undefined as (() => void) | undefined,
 	};
 	const client = {
+		getIndexTip: async () => {
+			state.tipFetches++;
+			return 0;
+		},
+		getRegistryClassifiedThrough: () => state.registry,
 		listContractsByTrait: async (
 			_trait: string,
 			opts?: { classifiedAfter?: Date },
 		): Promise<IndexContractRow[]> => {
 			state.fetches++;
 			state.calls.push(opts);
+			state.onList?.();
 			const since = opts?.classifiedAfter?.getTime();
 			return state.rows
 				.filter((r) => since === undefined || r.classifiedAt >= since)
@@ -121,6 +131,64 @@ describe("hosted trait membership", () => {
 		await reader.traitContractIds("sip-010", 1000);
 		state.clock += 60_000;
 		expect(await reader.traitContractIds("sip-010", 100)).toEqual(["SP1.old"]);
+		expect(state.fetches).toBe(1);
+	});
+});
+
+describe("hosted trait membership against the registry height", () => {
+	it("includes a token classified after the first fetch once the registry height covers the block", async () => {
+		const { state, reader } = registry([
+			{ id: "SP1.old", height: 10, classifiedAt: 1_000 },
+		]);
+		state.registry = 100;
+		expect(await reader.traitContractIds("sip-010", 100)).toEqual(["SP1.old"]);
+
+		// Deployed at 90, classified moments later: inside the 5 s refresh window.
+		state.rows.push({ id: "SP1.late", height: 90, classifiedAt: 5_000 });
+		state.registry = 150;
+		state.clock += 1_000;
+		expect(await reader.traitContractIds("sip-010", 120)).toEqual([
+			"SP1.old",
+			"SP1.late",
+		]);
+	});
+
+	it("serves every block up to the registry height from one fetch", async () => {
+		const { state, reader } = registry([
+			{ id: "SP1.old", height: 10, classifiedAt: 1_000 },
+		]);
+		state.registry = 150;
+		await reader.traitContractIds("sip-010", 120);
+		state.clock += 60_000;
+		await reader.traitContractIds("sip-010", 130);
+		await reader.traitContractIds("sip-010", 150);
+		expect(state.fetches).toBe(1);
+	});
+
+	it("vouches for the list only through the height read before it was fetched", async () => {
+		const { state, reader } = registry([
+			{ id: "SP1.old", height: 10, classifiedAt: 1_000 },
+		]);
+		state.registry = 100;
+		// The registry advances while the list is in flight.
+		state.onList = () => {
+			state.registry = 140;
+		};
+		await reader.traitContractIds("sip-010", 100);
+
+		state.onList = undefined;
+		state.clock += 1_000;
+		await reader.traitContractIds("sip-010", 120);
+		expect(state.fetches).toBe(2);
+	});
+
+	it("keeps the 5 second refresh against an older server without the field", async () => {
+		const { state, reader } = registry([
+			{ id: "SP1.old", height: 10, classifiedAt: 1_000 },
+		]);
+		await reader.traitContractIds("sip-010", 1000);
+		state.clock += 1_000;
+		await reader.traitContractIds("sip-010", 1001);
 		expect(state.fetches).toBe(1);
 	});
 });

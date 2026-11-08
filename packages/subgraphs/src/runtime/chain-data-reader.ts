@@ -168,11 +168,18 @@ type TraitMembers = {
 	/** Highest `asOfBlock` answered since the last fetch. */
 	checkedThrough: number;
 	fetchedAt: number;
+	/** Registry classified-through height read BEFORE the last fetch started, so
+	 *  `members` holds every contract classified through it. `null` when the
+	 *  server doesn't report one (older server). */
+	validThrough: number | null;
 };
 
 /** Trait membership per client, for the process lifetime. Membership only
- *  grows: one full download, then at most every `TRAIT_REFRESH_MS` a read of
- *  only the contracts classified since (with an overlap), merged by id. */
+ *  grows: one full download, then a read of only the contracts classified since
+ *  (with an overlap), merged by id. A block at or below `validThrough` is
+ *  answered from the cache; above it, a read happens as soon as the registry
+ *  height has moved past `validThrough`, otherwise at most every
+ *  `TRAIT_REFRESH_MS`. */
 const traitCaches = new WeakMap<IndexHttpClient, Map<string, TraitMembers>>();
 
 function traitCacheFor(client: IndexHttpClient): Map<string, TraitMembers> {
@@ -228,6 +235,22 @@ export function hostedChainDataReader(
 		await client.getIndexTip();
 		return client.getRegistryClassifiedThrough() ?? null;
 	};
+	/** Whether `entry` can't vouch for `asOfBlock`: a block above the height its
+	 *  list was complete through needs a fresh read once the registry has moved
+	 *  past that height (the last tip envelope this client saw says so). Without
+	 *  a registry height (older server), or while it hasn't moved, fall back to
+	 *  the time-gated refresh. */
+	const needsRefresh = (entry: TraitMembers, asOfBlock: number): boolean => {
+		if (entry.validThrough !== null) {
+			if (asOfBlock <= entry.validThrough) return false;
+			const known = client.getRegistryClassifiedThrough();
+			if (typeof known === "number" && known > entry.validThrough) return true;
+		}
+		return (
+			asOfBlock > entry.checkedThrough &&
+			now() - entry.fetchedAt >= TRAIT_REFRESH_MS
+		);
+	};
 	return {
 		async sbtcEvents(fromHeight, toHeight, topics) {
 			if (topics.length === 0) return [];
@@ -237,11 +260,11 @@ export function hostedChainDataReader(
 		async traitContractIds(trait, asOfBlock) {
 			const cache = traitCacheFor(client);
 			let entry = cache.get(trait);
-			const due =
-				!entry ||
-				(asOfBlock > entry.checkedThrough &&
-					now() - entry.fetchedAt >= TRAIT_REFRESH_MS);
-			if (due) {
+			if (!entry || needsRefresh(entry, asOfBlock)) {
+				// Before the list is fetched: contracts classified while it is in
+				// flight may or may not be in it, so only this earlier height is
+				// vouched for.
+				const validThrough = await readRegistryHeight();
 				const since =
 					entry?.classifiedThrough == null
 						? undefined
@@ -266,6 +289,7 @@ export function hostedChainDataReader(
 					classifiedThrough,
 					checkedThrough: asOfBlock,
 					fetchedAt: now(),
+					validThrough,
 				};
 				cache.set(trait, entry);
 			}

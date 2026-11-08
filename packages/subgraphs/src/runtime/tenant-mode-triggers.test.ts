@@ -129,6 +129,7 @@ function fakeHostedIndex(opts: {
 		getIndexTip: async () => HEIGHT,
 		getIndexSourceTip: async () => HEIGHT,
 		getDecodedHeights: () => undefined,
+		getRegistryClassifiedThrough: () => undefined,
 		waitIsSupported: () => true,
 		walkBlocks: async (from: number, to: number) => {
 			const rows = [];
