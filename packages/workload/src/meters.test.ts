@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, spyOn, test } from "bun:test";
 import { existsSync, mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -6,6 +6,7 @@ import {
 	PRICES,
 	stackMemoryFloorGb,
 } from "@secondlayer/platform/billing/prices";
+import { logger } from "@secondlayer/shared";
 import {
 	DrainWindow,
 	EventCounter,
@@ -337,6 +338,83 @@ describe("flushMeterBatch", () => {
 				],
 			),
 		).rejects.toThrow(/meters flush failed: 401/);
+	});
+});
+
+describe("per-item meter results", () => {
+	const items = ["k-ok", "k-rejected", "k-failed"].map((idempotencyKey) => ({
+		accountId: "acct_1",
+		unit: "webhook.event" as const,
+		quantity: 1,
+		idempotencyKey,
+	}));
+	const results = [
+		{ status: "ok", idempotencyKey: "k-ok" },
+		{
+			status: "rejected",
+			idempotencyKey: "k-rejected",
+			error: "unknown account",
+		},
+		{ status: "failed", idempotencyKey: "k-failed", error: "db down" },
+	];
+	const cfgWith = (status: number, body: string) => ({
+		appServerUrl: "https://api.secondlayer.tools",
+		workloadHostKey: "wh-key",
+		fetchImpl: async () => new Response(body, { status }),
+	});
+
+	test("flushMeterBatch splits a 503 answer into failed and rejected items", async () => {
+		const outcome = await flushMeterBatch(
+			cfgWith(503, JSON.stringify({ results })),
+			items,
+		);
+		expect(outcome.failed).toEqual([items[2]]);
+		expect(outcome.rejected).toEqual([
+			{ item: items[1], error: "unknown account" },
+		]);
+	});
+
+	test("flushMeterBatch reports rejected items from a 200 answer", async () => {
+		const outcome = await flushMeterBatch(
+			cfgWith(200, JSON.stringify({ results: results.slice(0, 2) })),
+			items.slice(0, 2),
+		);
+		expect(outcome.failed).toEqual([]);
+		expect(outcome.rejected.map((r) => r.item.idempotencyKey)).toEqual([
+			"k-rejected",
+		]);
+	});
+
+	test("a non-JSON answer fails the whole page", async () => {
+		await expect(
+			flushMeterBatch(cfgWith(503, "bad gateway"), items),
+		).rejects.toThrow(/meters flush failed: 503/);
+		await expect(
+			flushMeterBatch(cfgWith(200, "not json"), items),
+		).rejects.toThrow(/meters flush failed/);
+	});
+
+	test("flushAll resends only failed items and logs each rejected item once without the account", async () => {
+		const warn = spyOn(logger, "warn").mockImplementation(() => {});
+		try {
+			const resend = await flushAll(
+				cfgWith(503, JSON.stringify({ results })),
+				items,
+				10,
+			);
+			expect(resend).toEqual([items[2]]);
+			const rejectedLogs = warn.mock.calls.filter(
+				(c) => c[0] === "workload.meters.rejected",
+			);
+			expect(rejectedLogs).toHaveLength(1);
+			expect(rejectedLogs[0]?.[1]).toEqual({
+				idempotencyKey: "k-rejected",
+				unit: "webhook.event",
+				error: "unknown account",
+			});
+		} finally {
+			warn.mockRestore();
+		}
 	});
 });
 

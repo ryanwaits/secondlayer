@@ -148,13 +148,48 @@ export interface MetersClientConfig {
 	fetchImpl?: FetchLike;
 }
 
+export interface MeterBatchOutcome {
+	/** Transient failures: resend unchanged (same idempotency keys). */
+	failed: MeterBatchItem[];
+	/** Will never succeed as sent: report, don't resend. */
+	rejected: { item: MeterBatchItem; error: string }[];
+}
+
+interface ItemResultLike {
+	status?: unknown;
+	idempotencyKey?: unknown;
+	error?: unknown;
+}
+
+/** Sorts `/internal/meters`'s per-item results into failed and rejected,
+ *  matched to the sent items by `idempotencyKey`. */
+function sortItemResults(
+	items: MeterBatchItem[],
+	results: ItemResultLike[],
+): MeterBatchOutcome {
+	const byKey = new Map(items.map((item) => [item.idempotencyKey, item]));
+	const outcome: MeterBatchOutcome = { failed: [], rejected: [] };
+	for (const result of results) {
+		if (typeof result.idempotencyKey !== "string") continue;
+		const item = byKey.get(result.idempotencyKey);
+		if (!item) continue;
+		if (result.status === "failed") outcome.failed.push(item);
+		else if (result.status === "rejected") {
+			outcome.rejected.push({ item, error: String(result.error ?? "") });
+		}
+	}
+	return outcome;
+}
+
 /** POST one batch to `/internal/meters`. Empty batches are a no-op — never
- *  worth a round trip. */
+ *  worth a round trip. Resolves with the per-item outcome; a non-JSON or
+ *  non-200/503 answer throws, failing the whole page. */
 export async function flushMeterBatch(
 	cfg: MetersClientConfig,
 	items: MeterBatchItem[],
-): Promise<void> {
-	if (items.length === 0) return;
+): Promise<MeterBatchOutcome> {
+	const none: MeterBatchOutcome = { failed: [], rejected: [] };
+	if (items.length === 0) return none;
 	const doFetch = cfg.fetchImpl ?? fetch;
 	const res = await doFetch(
 		`${cfg.appServerUrl.replace(/\/+$/, "")}/internal/meters`,
@@ -167,10 +202,22 @@ export async function flushMeterBatch(
 			body: JSON.stringify({ items }),
 		},
 	);
-	if (!res.ok) {
-		const text = await res.text().catch(() => "");
-		throw new Error(`meters flush failed: ${res.status} ${text.slice(0, 500)}`);
+	const text = await res.text().catch(() => "");
+	const fail = () =>
+		new Error(`meters flush failed: ${res.status} ${text.slice(0, 500)}`);
+	if (res.status !== 200 && res.status !== 503) throw fail();
+	let body: { results?: unknown };
+	try {
+		body = JSON.parse(text) as { results?: unknown };
+	} catch {
+		throw fail();
 	}
+	if (Array.isArray(body.results)) {
+		return sortItemResults(items, body.results as ItemResultLike[]);
+	}
+	// A 503 with no per-item answer: nothing is known, so resend the page.
+	if (res.status === 503) throw fail();
+	return none;
 }
 
 /**
@@ -530,9 +577,10 @@ export async function countTenantWorkloads(
 }
 
 /** Batches `items` at `MAX_METER_BATCH` (`/internal/meters`'s own cap) and
- *  flushes each page; a failed page is logged and its items are returned so
- *  the caller can resend them (unchanged — same idempotency keys) on a later
- *  tick, rather than losing the whole run over one bad page. */
+ *  flushes each page; a failed page, or the failed items of a partly-failed
+ *  page, are returned so the caller can resend them (unchanged — same
+ *  idempotency keys) on a later tick, rather than losing the whole run over
+ *  one bad page. Rejected items are logged once and never resent. */
 export async function flushAll(
 	cfg: MetersClientConfig,
 	items: MeterBatchItem[],
@@ -542,7 +590,15 @@ export async function flushAll(
 	for (let i = 0; i < items.length; i += maxBatch) {
 		const page = items.slice(i, i + maxBatch);
 		try {
-			await flushMeterBatch(cfg, page);
+			const outcome = await flushMeterBatch(cfg, page);
+			for (const { item, error } of outcome.rejected) {
+				logger.warn("workload.meters.rejected", {
+					idempotencyKey: item.idempotencyKey,
+					unit: item.unit,
+					error,
+				});
+			}
+			failed.push(...outcome.failed);
 		} catch (err) {
 			logger.error("workload.meters.flush_failed", {
 				count: page.length,
