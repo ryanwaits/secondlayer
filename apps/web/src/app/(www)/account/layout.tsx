@@ -35,11 +35,14 @@ export default async function AccountLayout({
 	const signedOut = !token || read?.kind === "rejected";
 	const account = read?.kind === "ok" ? read.account : null;
 	return (
-		<AccountSeedProvider seed={seed}>
+		<>
+			{/* First, so a different account drops the old data before the new seed lands. */}
 			<AuthSeed account={account} />
-			<CompactSeed saved={compact}>
-				<AccountFrame signedOut={signedOut}>{children}</AccountFrame>
-			</CompactSeed>
-		</AccountSeedProvider>
+			<AccountSeedProvider seed={seed}>
+				<CompactSeed saved={compact}>
+					<AccountFrame signedOut={signedOut}>{children}</AccountFrame>
+				</CompactSeed>
+			</AccountSeedProvider>
+		</>
 	);
 }

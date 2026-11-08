@@ -679,3 +679,42 @@ describe("a pause the reader just made", () => {
 		expect(webhooksSnapshot().pending).toEqual({});
 	});
 });
+
+describe("a read that outlives sign-out", () => {
+	test("does not refill the cache for the next account", async () => {
+		const releases: ((r: Response) => void)[] = [];
+		globalThis.fetch = (() =>
+			new Promise<Response>((resolve) => {
+				releases.push(resolve);
+			})) as unknown as typeof fetch;
+		const pending = Promise.all([refreshList(), refreshDetail("wh-old")]);
+		clearWebhooksData();
+		for (const release of releases)
+			release(jsonResponse({ data: [summary("wh-old", "old-account-hook")] }));
+		await pending;
+		const cache = webhooksSnapshot();
+		expect(cache.list).toBeUndefined();
+		expect(cache.detail).toEqual({});
+		expect(cache.deliveries).toEqual({});
+	});
+
+	test("a pause answered after sign-out leaves the next account's cache alone", async () => {
+		const releases: ((r: Response) => void)[] = [];
+		globalThis.fetch = (() =>
+			new Promise<Response>((resolve) => {
+				releases.push(resolve);
+			})) as unknown as typeof fetch;
+		const pending = setWebhookPaused("wh-old", "paused");
+		clearWebhooksData();
+		releases[0]?.(
+			jsonResponse({
+				...detail("wh-old", "old-account-hook"),
+				status: "paused",
+			}),
+		);
+		await pending;
+		const cache = webhooksSnapshot();
+		expect(cache.detail).toEqual({});
+		expect(cache.settledAt).toEqual({});
+	});
+});

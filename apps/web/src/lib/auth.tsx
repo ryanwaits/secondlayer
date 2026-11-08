@@ -11,11 +11,15 @@ import {
 import { clearAccountData } from "./account-data";
 import { distinctId, identify, reset } from "./analytics";
 import {
+	SESSION_CHANNEL,
 	SESSION_UNKNOWN,
 	type Session,
 	type SessionEvent,
 	accountOf,
+	accountSwitched,
 	sessionReducer,
+	sessionSignal,
+	signalStalesSession,
 } from "./auth-session";
 import { VERIFY_TIMEOUT_MS } from "./signin-flow";
 import type { Account } from "./types";
@@ -84,6 +88,18 @@ function dispatchSession(event: SessionEvent) {
 	for (const l of listeners) l();
 }
 
+/** Tells the other tabs of this browser who is signed in now. */
+function announceSession(account: Account | null): void {
+	if (typeof BroadcastChannel === "undefined") return;
+	try {
+		const channel = new BroadcastChannel(SESSION_CHANNEL);
+		channel.postMessage(sessionSignal(account));
+		channel.close();
+	} catch {
+		// No channel: the other tabs find out on their next read.
+	}
+}
+
 function subscribeAuth(l: () => void) {
 	listeners.add(l);
 	return () => listeners.delete(l);
@@ -97,10 +113,14 @@ export function authSnapshot(): AuthState {
 const seeded = new WeakSet<object>();
 
 /** Starts the browser's auth state from an account the server read, once per
- *  seed. Quiet on purpose: it runs while a component renders. */
+ *  seed. Quiet on purpose: it runs while a component renders. A different
+ *  account from the one this tab held drops that account's data first; render
+ *  it before any `AccountSeedProvider` so the new account's seed lands after. */
 export function AuthSeed({ account }: { account: Account | null }) {
 	if (account && typeof window !== "undefined" && !seeded.has(account)) {
 		seeded.add(account);
+		if (accountSwitched(auth.session, account))
+			clearAccountData({ deferred: true });
 		auth = { session: { kind: "signedIn", account } };
 	}
 	return null;
@@ -177,6 +197,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 		clearAccountData();
 		dispatchSession({ type: "signedIn", account });
 		identifyAccount(account);
+		announceSession(account);
 		return { account };
 	}, []);
 
@@ -187,7 +208,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 		router.push("/");
 		router.refresh();
 		dispatchSession({ type: "signedOut" });
+		announceSession(null);
 	}, [router]);
+
+	// Another tab of this browser signed in or out: whatever this tab shows
+	// belongs to the old session, so drop it and read who is signed in now.
+	useEffect(() => {
+		if (typeof BroadcastChannel === "undefined") return;
+		const channel = new BroadcastChannel(SESSION_CHANNEL);
+		channel.onmessage = (event) => {
+			if (!signalStalesSession(event.data, auth.session)) return;
+			clearAccountData();
+			void refresh();
+		};
+		return () => channel.close();
+	}, [refresh]);
 
 	useEffect(() => {
 		// A page that read the account on the server has already seeded it.

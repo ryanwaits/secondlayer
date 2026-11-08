@@ -364,3 +364,20 @@ describe("a dismiss racing a poll", () => {
 		expect(insightsSnapshot().data.some((i) => i.id === id)).toBe(false);
 	});
 });
+
+describe("a read that outlives sign-out", () => {
+	test("does not refill the store for the next account", async () => {
+		let answer: (r: Response) => void = () => {};
+		stubFetch(
+			() =>
+				new Promise<Response>((resolve) => {
+					answer = resolve;
+				}),
+		);
+		const pending = refreshInsights();
+		clearInsights();
+		answer(list());
+		await pending;
+		expect(insightsSnapshot()).toEqual({ status: "idle", data: [], at: 0 });
+	});
+});

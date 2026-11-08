@@ -8,6 +8,7 @@ import type {
 } from "@secondlayer/sdk";
 import { useSyncExternalStore } from "react";
 import type { WebhooksResult } from "./dashboard-results";
+import { createEpoch, notifyAll } from "./epoch";
 import { shared } from "./request-cache";
 import {
 	type WebhooksActivitySummary,
@@ -116,6 +117,8 @@ const EMPTY: State = {
 };
 
 let state: State = EMPTY;
+/** Bumped on sign-out: a read that started before it must not fill the next account's cache. */
+const epoch = createEpoch();
 const listeners = new Set<() => void>();
 
 function current(): State {
@@ -221,9 +224,10 @@ export function useWebhooksCache(seed?: WebhooksSeed): State {
 }
 
 /** Forget every cached row on sign-out, same path as `clearAccountData`. */
-export function clearWebhooksData(): void {
+export function clearWebhooksData(options: { deferred?: boolean } = {}): void {
+	epoch.bump();
 	state = EMPTY;
-	for (const l of listeners) l();
+	notifyAll(listeners, options.deferred);
 }
 
 /** Never resolves `not_found` — the list endpoint's 404 always meant "no
@@ -240,6 +244,7 @@ export function refreshList(
 	const key = opts.wake ? "webhooks:list:wake" : "webhooks:list";
 	return shared(key, async () => {
 		const startedAt = Date.now();
+		const live = epoch.mark();
 		const res = await listWebhooks(opts);
 		if (res.kind === "ok") {
 			const cached = current().list?.data ?? [];
@@ -251,11 +256,11 @@ export function refreshList(
 					startedAt,
 				),
 			);
-			set({ list: { data, at: Date.now() } });
+			if (live()) set({ list: { data, at: Date.now() } });
 			return { kind: "ok", data } as const;
 		}
 		if (res.kind === "not_found") {
-			set({ list: { data: [], at: Date.now() } });
+			if (live()) set({ list: { data: [], at: Date.now() } });
 			return { kind: "ok", data: [] } as const;
 		}
 		return res;
@@ -268,8 +273,9 @@ export function refreshSummary(): Promise<
 	WebhooksResult<WebhooksActivitySummary>
 > {
 	return shared("webhooks:summary", async () => {
+		const live = epoch.mark();
 		const res = await getActivitySummary();
-		if (res.kind === "ok") {
+		if (res.kind === "ok" && live()) {
 			set({ summary: { data: res.data, at: Date.now() } });
 		}
 		return res;
@@ -286,8 +292,9 @@ export function refreshDeliveriesWindow(
 ): Promise<WebhooksResult<DeliveryRow[]>> {
 	const key = `webhooks:window:${id}:${window.from}`;
 	return shared(key, async () => {
+		const live = epoch.mark();
 		const res = await getDeliveries(id, window);
-		if (res.kind === "ok") {
+		if (res.kind === "ok" && live()) {
 			const windows = Object.entries({
 				...current().deliveriesWindow,
 				[`${id}:${window.from}`]: { data: res.data, at: Date.now() },
@@ -349,9 +356,11 @@ export async function setWebhookPaused(
 	target: PauseTarget,
 ): Promise<WebhooksResult<WebhookDetail>> {
 	const seq = ++pauseSeq;
+	const live = epoch.mark();
 	set({ pending: { ...current().pending, [id]: { target, seq } } });
 	const res =
 		target === "paused" ? await pauseWebhook(id) : await resumeWebhook(id);
+	if (!live()) return res;
 	const { [id]: mine, ...others } = current().pending;
 	const pending = mine?.seq === seq ? others : current().pending;
 	set({
@@ -405,11 +414,13 @@ export function refreshDetail(
 	const key = `webhooks:detail:${id}:${includeActivity}`;
 	return shared(key, async () => {
 		const startedAt = Date.now();
+		const live = epoch.mark();
 		const [webhook, deliveries, activity] = await Promise.all([
 			getWebhook(id),
 			getDeliveries(id),
 			includeActivity ? getActivity(id) : Promise.resolve(null),
 		]);
+		if (!live()) return { webhook, deliveries, activity };
 		const now = Date.now();
 		const patch: Partial<State> = {};
 		if (webhook.kind === "ok") {
@@ -459,8 +470,9 @@ export function refreshActivity(
 ): Promise<WebhooksResult<WebhookActivity>> {
 	const key = `webhooks:activity:${id}`;
 	return shared(key, async () => {
+		const live = epoch.mark();
 		const res = await getActivity(id);
-		if (res.kind === "ok") {
+		if (res.kind === "ok" && live()) {
 			set({
 				activity: {
 					...current().activity,

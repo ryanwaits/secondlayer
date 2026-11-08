@@ -250,3 +250,30 @@ describe("list dedupe", () => {
 		expect(urls.sort()).toEqual(["/api/subgraphs", "/api/subgraphs?health=24"]);
 	});
 });
+
+describe("a read that outlives sign-out", () => {
+	test("does not refill the cache for the next account", async () => {
+		const releases: ((r: Response) => void)[] = [];
+		globalThis.fetch = (() =>
+			new Promise<Response>((resolve) => {
+				releases.push(resolve);
+			})) as unknown as typeof fetch;
+		const pending = Promise.all([
+			refreshList(),
+			refreshDetail("old"),
+			refreshHealth("old"),
+			refreshErrors("old"),
+			refreshSource("old"),
+		]);
+		clearSubgraphsData();
+		for (const release of releases)
+			release(json({ data: [{ name: "old-account-subgraph" }] }));
+		await pending;
+		const cache = subgraphsSnapshot();
+		expect(cache.list).toBeUndefined();
+		expect(cache.detail).toEqual({});
+		expect(cache.health).toEqual({});
+		expect(cache.errors).toEqual({});
+		expect(cache.source).toEqual({});
+	});
+});

@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useContext, useSyncExternalStore } from "react";
+import { notifyAll } from "./epoch";
 import { clearInsights } from "./insights-store";
 import { TOPUP_MAX_USD, TOPUP_MIN_USD } from "./prices";
 import { clearRequestCache, shared } from "./request-cache";
@@ -418,14 +419,16 @@ export async function revokeApp(id: string): Promise<void> {
 	await refreshApps();
 }
 
-/** Forget everything on sign-out so the next account never sees it. */
-export function clearAccountData(): void {
+/** Forget everything on sign-out so the next account never sees it.
+ *  `deferred` wakes subscribers a microtask later, for a clear that runs while
+ *  a component renders. */
+export function clearAccountData(options: { deferred?: boolean } = {}): void {
 	epoch++;
 	state = EMPTY;
-	for (const l of listeners) l();
-	clearWebhooksData();
-	clearSubgraphsData();
-	clearInsights();
+	notifyAll(listeners, options.deferred);
+	clearWebhooksData(options);
+	clearSubgraphsData(options);
+	clearInsights(options);
 	clearRequestCache();
 }
 

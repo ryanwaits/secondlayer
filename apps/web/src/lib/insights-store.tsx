@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useContext, useSyncExternalStore } from "react";
+import { createEpoch, notifyAll } from "./epoch";
 import { type Insight, rankInsights } from "./insights";
 import { shared } from "./request-cache";
 import { poll } from "./webhooks-store";
@@ -20,6 +21,8 @@ type State = {
 
 const EMPTY: State = { status: "idle", data: [], at: 0 };
 let state: State = EMPTY;
+/** Bumped on sign-out: a read that started before it must not fill the next account's store. */
+const epoch = createEpoch();
 const listeners = new Set<() => void>();
 
 function current(): State {
@@ -94,11 +97,12 @@ export function useInsights(): State {
 }
 
 /** Forget everything on sign-out so the next account never sees it. */
-export function clearInsights(): void {
+export function clearInsights(options: { deferred?: boolean } = {}): void {
+	epoch.bump();
 	pendingRemovals.clear();
 	removedAt.clear();
 	state = EMPTY;
-	for (const l of listeners) l();
+	notifyAll(listeners, options.deferred);
 }
 
 /** Insights the reader is removing right now (dismiss, expected, snooze),
@@ -125,8 +129,10 @@ export function withoutRemovals(
 export function refreshInsights(): Promise<void> {
 	return shared("insights", async () => {
 		const startedAt = Date.now();
+		const live = epoch.mark();
 		try {
 			const res = await fetch("/api/insights");
+			if (!live()) return;
 			if (!res.ok) {
 				set({
 					...current(),
@@ -135,6 +141,7 @@ export function refreshInsights(): Promise<void> {
 				return;
 			}
 			const body = (await res.json()) as { data: Insight[] };
+			if (!live()) return;
 			set({
 				status: "ok",
 				data: rankInsights(
@@ -143,7 +150,11 @@ export function refreshInsights(): Promise<void> {
 				at: Date.now(),
 			});
 		} catch {
-			set({ ...current(), status: current().status === "ok" ? "ok" : "error" });
+			if (live())
+				set({
+					...current(),
+					status: current().status === "ok" ? "ok" : "error",
+				});
 		}
 	});
 }
@@ -199,6 +210,7 @@ async function removeThenCall(
 ): Promise<boolean> {
 	const removed = current().data.find((i) => i.id === id);
 	if (!removed) return false;
+	const live = epoch.mark();
 	set({ ...current(), data: current().data.filter((i) => i.id !== id) });
 	pendingRemovals.add(id);
 	try {
@@ -223,8 +235,10 @@ async function removeThenCall(
 	} finally {
 		pendingRemovals.delete(id);
 	}
-	set({ ...current(), data: rankInsights([...current().data, removed]) });
-	void refreshInsights();
+	if (live()) {
+		set({ ...current(), data: rankInsights([...current().data, removed]) });
+		void refreshInsights();
+	}
 	return false;
 }
 
@@ -249,6 +263,7 @@ export async function restore(
 	action: "dismiss" | "snooze",
 ): Promise<boolean> {
 	removedAt.delete(insight.id);
+	const live = epoch.mark();
 	if (!current().data.some((i) => i.id === insight.id)) {
 		set({ ...current(), data: rankInsights([...current().data, insight]) });
 	}
@@ -261,11 +276,13 @@ export async function restore(
 	} catch {
 		// Falls through to the rollback.
 	}
-	set({
-		...current(),
-		data: current().data.filter((i) => i.id !== insight.id),
-	});
-	void refreshInsights();
+	if (live()) {
+		set({
+			...current(),
+			data: current().data.filter((i) => i.id !== insight.id),
+		});
+		void refreshInsights();
+	}
 	return false;
 }
 

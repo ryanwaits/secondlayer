@@ -11,6 +11,9 @@ mock.module("next/navigation", () => ({
 	permanentRedirect: () => {},
 }));
 
+const { accountSnapshot, clearAccountData, refreshKeys } = await import(
+	"./account-data"
+);
 const { AuthProvider, AuthSeed, accountTraits, authSnapshot, useAuth } =
 	await import("./auth");
 
@@ -33,6 +36,7 @@ const tree = (seed: typeof account) => (
 
 afterEach(() => {
 	(globalThis as { window?: unknown }).window = undefined;
+	clearAccountData();
 });
 
 describe("AuthSeed", () => {
@@ -48,6 +52,38 @@ describe("AuthSeed", () => {
 			kind: "signedIn",
 			account: account as never,
 		});
+	});
+
+	test("a different account than the tab held drops the old account's data", async () => {
+		globalThis.window = {} as Window & typeof globalThis;
+		renderToStaticMarkup(tree(account));
+		const original = globalThis.fetch;
+		globalThis.fetch = (async () =>
+			new Response(JSON.stringify({ keys: [{ id: "old-key" }] }))) as never;
+		await refreshKeys();
+		globalThis.fetch = original;
+		expect(accountSnapshot().keys).toHaveLength(1);
+
+		const other = { ...account, id: "acct_2" } as typeof account;
+		renderToStaticMarkup(tree(other));
+		expect(accountSnapshot().keys).toBeNull();
+		expect(authSnapshot().session).toEqual({
+			kind: "signedIn",
+			account: other as never,
+		});
+	});
+
+	test("a re-read of the same account keeps its data", async () => {
+		globalThis.window = {} as Window & typeof globalThis;
+		renderToStaticMarkup(tree({ ...account, id: "acct_3" } as typeof account));
+		const original = globalThis.fetch;
+		globalThis.fetch = (async () =>
+			new Response(JSON.stringify({ keys: [{ id: "my-key" }] }))) as never;
+		await refreshKeys();
+		globalThis.fetch = original;
+
+		renderToStaticMarkup(tree({ ...account, id: "acct_3" } as typeof account));
+		expect(accountSnapshot().keys).toHaveLength(1);
 	});
 
 	test("an unseeded page keeps waiting for the browser's own read", () => {

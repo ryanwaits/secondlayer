@@ -3,6 +3,7 @@
 import type { RecentRow } from "@/components/account/subgraphs/recent-rows-model";
 import { useSyncExternalStore } from "react";
 import { type WebhooksResult, resultFromResponse } from "./dashboard-results";
+import { createEpoch, notifyAll } from "./epoch";
 import { shared } from "./request-cache";
 import { HEALTH_WEEK_HOURS } from "./subgraph-view";
 
@@ -135,6 +136,8 @@ const EMPTY: State = {
 };
 
 let state: State = EMPTY;
+/** Bumped on sign-out: a read that started before it must not fill the next account's cache. */
+const epoch = createEpoch();
 const listeners = new Set<() => void>();
 
 function current(): State {
@@ -247,9 +250,10 @@ export function detailSeed(
 }
 
 /** Forget every cached subgraph on sign-out. */
-export function clearSubgraphsData(): void {
+export function clearSubgraphsData(options: { deferred?: boolean } = {}): void {
+	epoch.bump();
 	state = EMPTY;
-	for (const l of listeners) l();
+	notifyAll(listeners, options.deferred);
 }
 
 async function request<T>(path: string): Promise<SubgraphsResult<T>> {
@@ -285,6 +289,7 @@ export function refreshList(
 > {
 	const key = listKey(options.health);
 	return shared(key, async () => {
+		const live = epoch.mark();
 		const query = options.health ? `?health=${options.health}` : "";
 		const res = await request<{ data: SubgraphListItem[] }>(query);
 		if (res.kind === "ok") {
@@ -294,14 +299,15 @@ export function refreshList(
 					s.health ? [[s.name, { data: s.health, at }]] : [],
 				),
 			);
-			set({
-				list: { data: res.data.data, at },
-				health: { ...current().health, ...fromList },
-			});
+			if (live())
+				set({
+					list: { data: res.data.data, at },
+					health: { ...current().health, ...fromList },
+				});
 			return { kind: "ok", data: res.data.data } as const;
 		}
 		if (res.kind === "not_found") {
-			set({ list: { data: [], at: Date.now() } });
+			if (live()) set({ list: { data: [], at: Date.now() } });
 			return { kind: "ok", data: [] } as const;
 		}
 		return res;
@@ -328,7 +334,9 @@ export function refreshDetail(
 ): Promise<SubgraphsResult<SubgraphDetailData>> {
 	const key = `subgraphs:detail:${name}`;
 	return shared(key, async () => {
+		const live = epoch.mark();
 		const res = await request<SubgraphDetailData>(`/${seg(name)}`);
+		if (!live()) return res;
 		if (res.kind === "ok") {
 			const { [name]: _found, ...missing } = current().missing;
 			set({
@@ -367,10 +375,11 @@ export function refreshHealth(
 ): Promise<SubgraphsResult<SubgraphHealthData>> {
 	const key = `subgraphs:health:${name}:${hours}`;
 	return shared(key, async () => {
+		const live = epoch.mark();
 		const res = await request<SubgraphHealthData>(
 			`/${seg(name)}/health?hours=${hours}`,
 		);
-		if (res.kind === "ok") {
+		if (res.kind === "ok" && live()) {
 			set({
 				health: {
 					...current().health,
@@ -387,16 +396,18 @@ export function refreshErrors(
 ): Promise<SubgraphsResult<SubgraphErrorGroup[]>> {
 	const key = `subgraphs:errors:${name}`;
 	return shared(key, async () => {
+		const live = epoch.mark();
 		const res = await request<{ data: SubgraphErrorGroup[] }>(
 			`/${seg(name)}/errors?limit=20`,
 		);
 		if (res.kind === "ok") {
-			set({
-				errors: {
-					...current().errors,
-					[name]: { data: res.data.data, at: Date.now() },
-				},
-			});
+			if (live())
+				set({
+					errors: {
+						...current().errors,
+						[name]: { data: res.data.data, at: Date.now() },
+					},
+				});
 			return { kind: "ok", data: res.data.data } as const;
 		}
 		return res;
@@ -408,8 +419,9 @@ export function refreshSource(
 ): Promise<SubgraphsResult<SubgraphSource>> {
 	const key = `subgraphs:source:${name}`;
 	return shared(key, async () => {
+		const live = epoch.mark();
 		const res = await request<SubgraphSource>(`/${seg(name)}/source`);
-		if (res.kind === "ok") {
+		if (res.kind === "ok" && live()) {
 			set({
 				source: {
 					...current().source,

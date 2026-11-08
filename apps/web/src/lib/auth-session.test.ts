@@ -2,8 +2,11 @@ import { describe, expect, test } from "bun:test";
 import {
 	SESSION_UNKNOWN,
 	accountOf,
+	accountSwitched,
 	sessionFromMe,
 	sessionReducer,
+	sessionSignal,
+	signalStalesSession,
 } from "./auth-session";
 import type { Account } from "./types";
 
@@ -82,5 +85,45 @@ describe("sessionReducer", () => {
 		expect(
 			sessionReducer(signedIn, { type: "answered", status: 401, body: null }),
 		).toEqual({ kind: "signedOut" });
+	});
+});
+
+describe("signalStalesSession", () => {
+	const signedIn = { kind: "signedIn", account } as const;
+
+	test("another account signing in makes this tab's data stale", () => {
+		expect(signalStalesSession({ accountId: "a2" }, signedIn)).toBe(true);
+	});
+
+	test("a sign-out elsewhere makes a signed-in tab stale", () => {
+		expect(signalStalesSession(sessionSignal(null), signedIn)).toBe(true);
+	});
+
+	test("a signal for the account the tab already shows changes nothing", () => {
+		expect(signalStalesSession(sessionSignal(account), signedIn)).toBe(false);
+	});
+
+	test("a sign-in elsewhere makes a signed-out tab stale", () => {
+		expect(
+			signalStalesSession(sessionSignal(account), { kind: "signedOut" }),
+		).toBe(true);
+		expect(
+			signalStalesSession(sessionSignal(null), { kind: "signedOut" }),
+		).toBe(false);
+	});
+
+	test("a malformed message is ignored", () => {
+		for (const data of [null, "a2", {}, { accountId: 7 }, { accountId: {} }])
+			expect(signalStalesSession(data, signedIn)).toBe(false);
+	});
+});
+
+describe("accountSwitched", () => {
+	test("only a different account than the signed-in one is a switch", () => {
+		const signedIn = { kind: "signedIn", account } as const;
+		expect(accountSwitched(signedIn, { ...account, id: "a2" })).toBe(true);
+		expect(accountSwitched(signedIn, account)).toBe(false);
+		expect(accountSwitched(SESSION_UNKNOWN, account)).toBe(false);
+		expect(accountSwitched({ kind: "signedOut" }, account)).toBe(false);
 	});
 });

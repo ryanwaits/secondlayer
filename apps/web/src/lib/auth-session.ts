@@ -57,3 +57,28 @@ export function sessionReducer(state: Session, event: SessionEvent): Session {
 export function accountOf(session: Session): Account | null {
 	return session.kind === "signedIn" ? session.account : null;
 }
+
+/** The channel tabs of one browser use to tell each other who is signed in. */
+export const SESSION_CHANNEL = "sl-session";
+
+/** What a tab posts after it verifies or logs out. `null`: nobody signed in. */
+export type SessionSignal = { accountId: string | null };
+
+export function sessionSignal(account: Account | null): SessionSignal {
+	return { accountId: account?.id ?? null };
+}
+
+/** Whether a signal from another tab means this tab's account data is stale:
+ *  a well-formed signal for an account other than the one this tab shows. */
+export function signalStalesSession(data: unknown, session: Session): boolean {
+	if (!data || typeof data !== "object" || !("accountId" in data)) return false;
+	const { accountId } = data as { accountId: unknown };
+	if (accountId !== null && typeof accountId !== "string") return false;
+	return accountId !== (accountOf(session)?.id ?? null);
+}
+
+/** Whether a server-read account is a different one from the tab's current
+ *  session. A tab with no session yet has nothing to leave behind. */
+export function accountSwitched(session: Session, next: Account): boolean {
+	return session.kind === "signedIn" && session.account.id !== next.id;
+}
