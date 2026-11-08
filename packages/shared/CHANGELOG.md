@@ -1,5 +1,15 @@
 # @secondlayer/shared
 
+## 15.3.4
+
+### Patch Changes
+
+- e1c14f7: A chain whose stored history starts above genesis (a Clarinet devnet announces block 0, then first shows the chain at its cached height) now counts contiguity from its real floor instead of 0 or 1, so decoders, the Streams tip and subgraphs advance instead of stalling at the start.
+- ef7d488: Pin the Streams cursor ordinal contract behind `STREAMS_CURSOR_VERSION` and add integrity checks for event counts, transaction ordering and burn height.
+- 25fcef5: Subgraphs store the hash of the block their cursor sits on, and each catch-up rewinds one whose block is no longer canonical, so a reorg the processor missed (down or not listening) no longer leaves rows from the orphaned fork. Requires migration 0197.
+- 9bf04ba: Subgraph rows always match the canonical chain: a reorg rewinds the cursor in the same transaction that reverts rows, reaches halted subgraphs (which stay halted), and reindex and backfill writes near the tip are journaled so a reorg reverts them. Factory discoveries commit with their block, block ranges are read from one snapshot, a backfill seeds its cursor only from earlier attempts that started at or below it, and an operation runner that loses its lease stops. Subgraph names are capped at 54 characters, schema names are unique, and gap rows no longer overlap. Requires migrations 0197, 0200 and 0201.
+- e751b7d: Resolve trait-scoped subgraph sources from the source plane's contract registry and expose the registry's classified-through height.
+
 ## 15.3.3
 
 ### Patch Changes

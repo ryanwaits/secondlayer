@@ -1,6 +1,6 @@
 {
 	"name": "@secondlayer/platform",
-	"version": "0.10.16",
+	"version": "0.10.17",
 	"private": true,
 	"type": "module",
 	"exports": {

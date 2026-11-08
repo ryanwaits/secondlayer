@@ -1,5 +1,19 @@
 # @secondlayer/subgraphs
 
+## 8.1.3
+
+### Patch Changes
+
+- 25fcef5: Subgraphs store the hash of the block their cursor sits on, and each catch-up rewinds one whose block is no longer canonical, so a reorg the processor missed (down or not listening) no longer leaves rows from the orphaned fork. Requires migration 0197.
+- 9bf04ba: Subgraph rows always match the canonical chain: a reorg rewinds the cursor in the same transaction that reverts rows, reaches halted subgraphs (which stay halted), and reindex and backfill writes near the tip are journaled so a reorg reverts them. Factory discoveries commit with their block, block ranges are read from one snapshot, a backfill seeds its cursor only from earlier attempts that started at or below it, and an operation runner that loses its lease stops. Subgraph names are capped at 54 characters, schema names are unique, and gap rows no longer overlap. Requires migrations 0197, 0200 and 0201.
+- e751b7d: Resolve trait-scoped subgraph sources from the source plane's contract registry and expose the registry's classified-through height.
+- Updated dependencies [e1c14f7]
+- Updated dependencies [ef7d488]
+- Updated dependencies [25fcef5]
+- Updated dependencies [9bf04ba]
+- Updated dependencies [e751b7d]
+  - @secondlayer/shared@15.3.4
+
 ## 8.1.2
 
 ### Patch Changes
