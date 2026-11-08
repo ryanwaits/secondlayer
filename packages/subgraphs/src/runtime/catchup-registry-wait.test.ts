@@ -47,9 +47,11 @@ function makeDef(name: string, trait: boolean): SubgraphDefinition {
 	} as unknown as SubgraphDefinition;
 }
 
+const ids = new Map<string, string>();
+
 async function registerSubgraph(name: string, trait: boolean): Promise<void> {
 	createdSubgraphNames.push(name);
-	await db
+	const row = await db
 		.insertInto("subgraphs")
 		.values({
 			name,
@@ -61,14 +63,16 @@ async function registerSubgraph(name: string, trait: boolean): Promise<void> {
 			account_id: accountId,
 			start_block: BASE + 1,
 		})
-		.execute();
+		.returning("id")
+		.executeTakeFirstOrThrow();
+	ids.set(name, row.id);
 }
 
 /** One catch-up tick against a fresh registry reading (the reader caches it
  *  for 15 s; these tests change the registry between ticks). */
 async function catchUp(name: string, trait: boolean): Promise<void> {
 	forgetRegistryReading(getSourceDb());
-	await catchUpSubgraph(makeDef(name, trait), name);
+	await catchUpSubgraph(makeDef(name, trait), name, ids.get(name) ?? "");
 }
 
 async function cursorOf(name: string): Promise<number> {

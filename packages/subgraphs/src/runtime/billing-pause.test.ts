@@ -58,6 +58,7 @@ let db: Kysely<Database>;
 let stopLeader: () => Promise<void>;
 const pgSchema = `sg_billing_${randomUUID().slice(0, 8).replace(/-/g, "")}`;
 const name = `billing-pause-${randomUUID().slice(0, 8)}`;
+let id = "";
 const fake = startFakeIndex(chain);
 
 const schema = {
@@ -99,7 +100,7 @@ beforeAll(async () => {
 	for (const stmt of generateSubgraphSQL(def, pgSchema).statements) {
 		await sql.raw(stmt).execute(db);
 	}
-	await db
+	const inserted = await db
 		.insertInto("subgraphs")
 		.values({
 			name,
@@ -112,7 +113,9 @@ beforeAll(async () => {
 			start_block: 1,
 			last_processed_block: 0,
 		} as never)
-		.execute();
+		.returning("id")
+		.executeTakeFirstOrThrow();
+	id = inserted.id;
 	// catchUpSubgraph bails unless this process holds the catch-up lease.
 	stopLeader = startCatchUpLeader({
 		createBackend: (): LeaderBackend => ({
@@ -141,7 +144,7 @@ afterAll(async () => {
 describe("catch-up while reads are refused for billing", () => {
 	test("pauses without erroring, then resumes from the cursor and clears the code", async () => {
 		fake.refuse("spend_cap_reached");
-		await catchUpSubgraph(def, name);
+		await catchUpSubgraph(def, name, id);
 
 		let sg = await row();
 		expect(sg.status).toBe("active");
@@ -149,17 +152,17 @@ describe("catch-up while reads are refused for billing", () => {
 		expect(Number(sg.last_processed_block)).toBe(0);
 		expect(sg.billing_paused_code).toBe("spend_cap_reached");
 		expect(sg.last_error).toBeNull();
-		expect(inBillingBackoff(name)).toBe(true);
+		expect(inBillingBackoff(id)).toBe(true);
 
 		// Inside the backoff window the refused read is not hammered.
 		const refusedBefore = fake.stats.refused;
-		await catchUpSubgraph(def, name);
+		await catchUpSubgraph(def, name, id);
 		expect(fake.stats.refused).toBe(refusedBefore);
 
 		// Reads work again and the backoff has passed: resume and clear.
 		fake.refuse(null);
 		setSystemTime(new Date(Date.now() + BILLING_PAUSE_BACKOFF_MS + 1_000));
-		await catchUpSubgraph(def, name);
+		await catchUpSubgraph(def, name, id);
 		setSystemTime();
 
 		sg = await row();
@@ -167,7 +170,7 @@ describe("catch-up while reads are refused for billing", () => {
 		expect(Number(sg.last_processed_block)).toBe(TIP);
 		expect(sg.billing_paused_code).toBeNull();
 		expect(Number(sg.total_errors)).toBe(0);
-		expect(inBillingBackoff(name)).toBe(false);
+		expect(inBillingBackoff(id)).toBe(false);
 	});
 });
 
@@ -185,7 +188,7 @@ describe("loadWhileBillingPaused", () => {
 		first.catch(() => {});
 		const value = await loadWhileBillingPaused(
 			db,
-			name,
+			{ id, name },
 			first,
 			async () => {
 				reloads++;
@@ -208,9 +211,15 @@ describe("loadWhileBillingPaused", () => {
 				return new Map([[7, "block-7"]]);
 			};
 		})();
-		const value = await loadWhileBillingPaused(db, name, refetch(), refetch, {
-			backoffMs: 5,
-		});
+		const value = await loadWhileBillingPaused(
+			db,
+			{ id, name },
+			refetch(),
+			refetch,
+			{
+				backoffMs: 5,
+			},
+		);
 		expect(value?.get(7)).toBe("block-7");
 		expect((await row()).billing_paused_code).toBeNull();
 	});
@@ -222,7 +231,7 @@ describe("loadWhileBillingPaused", () => {
 		setTimeout(() => ctl.abort("shutdown"), 10);
 		const value = await loadWhileBillingPaused(
 			db,
-			name,
+			{ id, name },
 			first,
 			async () => "never",
 			{ backoffMs: 60_000, signal: ctl.signal },
@@ -234,7 +243,7 @@ describe("loadWhileBillingPaused", () => {
 		const first = Promise.reject(new Error("boom"));
 		first.catch(() => {});
 		await expect(
-			loadWhileBillingPaused(db, name, first, async () => "x", {
+			loadWhileBillingPaused(db, { id, name }, first, async () => "x", {
 				backoffMs: 5,
 			}),
 		).rejects.toThrow("boom");

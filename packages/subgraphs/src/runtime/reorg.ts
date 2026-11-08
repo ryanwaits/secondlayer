@@ -171,13 +171,13 @@ async function stopReindexBehindFork(
  */
 async function rewindCursorTo(
 	tx: Pick<ReturnType<typeof getRawClient>, "unsafe">,
-	name: string,
+	subgraphId: string,
 	height: number,
 ): Promise<void> {
 	await tx.unsafe(
 		`UPDATE subgraphs SET last_processed_block = $1, updated_at = now()
-		 WHERE name = $2 AND status IN ('active', 'error') AND last_processed_block > $1`,
-		[Math.max(0, height), name],
+		 WHERE id = $2 AND status IN ('active', 'error') AND last_processed_block > $1`,
+		[Math.max(0, height), subgraphId],
 	);
 }
 
@@ -194,7 +194,9 @@ async function reorgOneSubgraph(
 	// State as of now, under the locks: the row the caller listed may have been
 	// halted, finished or cancelled since.
 	const current = await getSubgraph(targetDb, sg.name);
-	if (!current) return;
+	// Deleted, or registered again under the same name: the new row has nothing
+	// of the orphaned range to revert.
+	if (!current || current.id !== sg.id) return;
 	// A halted subgraph keeps its rows and cursor; they must match the chain
 	// when it resumes, so it is reverted and rewound like a running one.
 	if (!["active", "reindexing", "error"].includes(current.status)) return;
@@ -253,7 +255,7 @@ async function reorgOneSubgraph(
 				`DELETE FROM "${schemaName}"."_journal" WHERE block_height >= $1`,
 				[blockHeight],
 			);
-			await rewindCursorTo(tx, sg.name, blockHeight - 1);
+			await rewindCursorTo(tx, sg.id, blockHeight - 1);
 		});
 	} else {
 		logger.warn(
@@ -267,7 +269,7 @@ async function reorgOneSubgraph(
 					[blockHeight],
 				);
 			}
-			await rewindCursorTo(tx, sg.name, blockHeight - 1);
+			await rewindCursorTo(tx, sg.id, blockHeight - 1);
 		});
 	}
 
@@ -300,7 +302,7 @@ async function reorgOneSubgraph(
 	if (current.status === "reindexing") {
 		// No runner stopped it (a stranded reindex): the cursor goes back to just
 		// before the fork and a queued reindex op resumes the walk from there.
-		await setReindexCursor(targetDb, sg.name, Math.max(0, blockHeight - 1));
+		await setReindexCursor(targetDb, sg.id, Math.max(0, blockHeight - 1));
 		try {
 			await createSubgraphOperation(targetDb, {
 				subgraphId: current.id,
@@ -336,7 +338,10 @@ async function reorgOneSubgraph(
 	// checkpoint unconditionally via rewindLiveProgress, moving it backward
 	// to the fork height instead of skipping as "already applied."
 	const def = await loadSubgraphDef(sg);
-	await processBlock(def, sg.name, blockHeight, { reorgRewind: true });
+	await processBlock(def, sg.name, blockHeight, {
+		reorgRewind: true,
+		subgraphId: sg.id,
+	});
 
 	logger.info("Subgraph reorg reprocessed", {
 		subgraph: sg.name,

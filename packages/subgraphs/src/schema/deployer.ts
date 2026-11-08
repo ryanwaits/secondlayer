@@ -376,7 +376,7 @@ export async function deploySchema(
 			const { updateSubgraphHandlerPath } = await import(
 				"@secondlayer/shared/db/queries/subgraphs"
 			);
-			await updateSubgraphHandlerPath(db, def.name, handlerPath, {
+			await updateSubgraphHandlerPath(db, existing.id, handlerPath, {
 				handlerCode: opts?.handlerCode,
 				sourceCode: opts?.sourceCode,
 				pin,

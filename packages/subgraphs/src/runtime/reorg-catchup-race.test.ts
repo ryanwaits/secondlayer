@@ -57,9 +57,9 @@ function makeDef(name: string): SubgraphDefinition {
 	};
 }
 
-async function registerSubgraph(name: string): Promise<void> {
+async function registerSubgraph(name: string): Promise<string> {
 	createdSubgraphNames.push(name);
-	await db
+	const row = await db
 		.insertInto("subgraphs")
 		.values({
 			name,
@@ -71,7 +71,9 @@ async function registerSubgraph(name: string): Promise<void> {
 			account_id: accountId,
 			start_block: FIRST_HEIGHT,
 		})
-		.execute();
+		.returning("id")
+		.executeTakeFirstOrThrow();
+	return row.id;
 }
 
 async function seedChain(): Promise<void> {
@@ -196,12 +198,12 @@ afterAll(async () => {
 describe("f057: reorg rewind vs in-flight catch-up walk", () => {
 	it("does not let a catch-up write clobber a reorg rewind that lands mid-walk", async () => {
 		const name = `f057-race-${randomUUID().slice(0, 8)}`;
-		await registerSubgraph(name);
+		const id = await registerSubgraph(name);
 
 		// Start a real catch-up walk over 2000 blocks (no preloaded fixtures —
 		// this drives the actual PostgresBlockSource + processBlockWithRetry path
 		// catch-up uses in production).
-		const catchupPromise = catchUpSubgraph(makeDef(name), name);
+		const catchupPromise = catchUpSubgraph(makeDef(name), name, id);
 
 		// Give the walk a real head start so it is unambiguously past the fork
 		// height and still mid-walk (2000 blocks at real DB round-trip latency

@@ -299,11 +299,12 @@ function adjustBatchSize(
 export async function catchUpSubgraph(
 	subgraph: SubgraphDefinition,
 	subgraphName: string,
+	subgraphId: string,
 ): Promise<number> {
 	if (catchingUp.has(subgraphName)) return 0;
 	// Billing-paused: don't hammer a refused read every block; re-check once
 	// the backoff window passes.
-	if (inBillingBackoff(subgraphName)) return 0;
+	if (inBillingBackoff(subgraphId)) return 0;
 	catchingUp.add(subgraphName);
 
 	try {
@@ -312,7 +313,9 @@ export async function catchUpSubgraph(
 
 		// Re-read from DB to avoid stale lastProcessedBlock
 		const subgraphRow = await getSubgraph(targetDb, subgraphName);
-		if (!subgraphRow) return 0;
+		// The caller's row was deleted and registered again under this name:
+		// that new row gets its own walk on the next tick.
+		if (!subgraphRow || subgraphRow.id !== subgraphId) return 0;
 		const lastProcessedBlock = Number(subgraphRow.last_processed_block);
 
 		// Chain tip comes from the block source. On the decoded Index plane
@@ -348,7 +351,7 @@ export async function catchUpSubgraph(
 			chainTip = bound.tip;
 		}
 		await maybeRecordHealthSnapshot(targetDb, {
-			subgraphId: subgraphRow.id,
+			subgraphId,
 			subgraphName,
 			schemaName: subgraphRow.schema_name ?? pgSchemaName(subgraphName),
 			lastProcessedBlock,
@@ -435,10 +438,17 @@ export async function catchUpSubgraph(
 
 			// Check if subgraph status changed (e.g. reindex started) — bail if so
 			const currentRow = await getSubgraph(targetDb, subgraphName);
-			if (!currentRow || currentRow.status !== "active") {
+			if (
+				!currentRow ||
+				currentRow.id !== subgraphId ||
+				currentRow.status !== "active"
+			) {
 				logger.info("Subgraph status changed, stopping catch-up", {
 					subgraph: subgraphName,
-					status: currentRow?.status ?? "deleted",
+					status:
+						currentRow && currentRow.id === subgraphId
+							? currentRow.status
+							: "deleted",
 				});
 				break;
 			}
@@ -469,7 +479,10 @@ export async function catchUpSubgraph(
 			}
 			if (!pauseCleared) {
 				pauseCleared = true;
-				await clearBillingPause(targetDb, subgraphName);
+				await clearBillingPause(targetDb, {
+					id: subgraphId,
+					name: subgraphName,
+				});
 			}
 
 			// Process each block from pre-loaded data
@@ -510,7 +523,7 @@ export async function catchUpSubgraph(
 						}
 						return processBlockWithRetry(subgraph, subgraphName, height, {
 							preloaded,
-							subgraphId: subgraphRow.id,
+							subgraphId,
 						});
 					});
 				} catch (err) {
@@ -533,7 +546,7 @@ export async function catchUpSubgraph(
 					});
 					await recordSubgraphProcessed(
 						targetDb,
-						subgraphName,
+						subgraphId,
 						0,
 						1,
 						haltedAfterRetriesMessage(height, errorMsg),
@@ -592,7 +605,11 @@ export async function catchUpSubgraph(
 		// Reads refused for billing: not a failure. Record it, leave the status
 		// and the cursor alone, and let the first tick after the backoff retry.
 		if (err instanceof BillingPausedError) {
-			await recordBillingPause(getTargetDb(), subgraphName, err);
+			await recordBillingPause(
+				getTargetDb(),
+				{ id: subgraphId, name: subgraphName },
+				err,
+			);
 			return 0;
 		}
 		throw err;

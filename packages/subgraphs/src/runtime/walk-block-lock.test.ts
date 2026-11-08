@@ -354,7 +354,7 @@ describe("per-subgraph block lock across walks", () => {
 				toBlock: BACKFILL_HEIGHT,
 				operationId,
 			}),
-			catchUpSubgraph(catchupDef, name),
+			catchUpSubgraph(catchupDef, name, subgraphId),
 		]);
 
 		// Serialized: each walk's read saw the other's committed write, so both

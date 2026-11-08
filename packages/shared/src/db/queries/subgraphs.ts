@@ -191,7 +191,7 @@ function cursorHash(blockHash: string | undefined) {
  */
 export async function setReindexCursor(
 	db: Kysely<Database>,
-	name: string,
+	subgraphId: string,
 	lastProcessedBlock: number,
 	blockHash?: string,
 ): Promise<boolean> {
@@ -202,7 +202,7 @@ export async function setReindexCursor(
 			...cursorHash(blockHash),
 			updated_at: new Date(),
 		})
-		.where("name", "=", name)
+		.where("id", "=", subgraphId)
 		.where("status", "=", "reindexing")
 		.executeTakeFirst();
 	return Number(result.numUpdatedRows ?? 0n) > 0;
@@ -225,7 +225,7 @@ export async function setReindexCursor(
  *  {@link transitionSubgraph}. */
 export async function recordLiveError(
 	db: Kysely<Database>,
-	name: string,
+	subgraphId: string,
 	blockHeight: number,
 	blockHash?: string,
 ): Promise<boolean> {
@@ -237,7 +237,7 @@ export async function recordLiveError(
 			...cursorHash(blockHash),
 			updated_at: new Date(),
 		})
-		.where("name", "=", name)
+		.where("id", "=", subgraphId)
 		.where("status", "=", "active")
 		.where("last_processed_block", "<", blockHeight)
 		.executeTakeFirst();
@@ -246,7 +246,7 @@ export async function recordLiveError(
 
 export async function recordSubgraphProcessed(
 	db: Kysely<Database>,
-	name: string,
+	subgraphId: string,
 	processed: number,
 	errors: number,
 	lastError?: string,
@@ -261,7 +261,7 @@ export async function recordSubgraphProcessed(
 				: {}),
 			updated_at: new Date(),
 		})
-		.where("name", "=", name)
+		.where("id", "=", subgraphId)
 		.execute();
 }
 
@@ -269,7 +269,7 @@ export async function recordSubgraphProcessed(
  *  untouched: a paused subgraph is healthy, just waiting on its account. */
 export async function markSubgraphBillingPaused(
 	db: Kysely<Database>,
-	name: string,
+	subgraphId: string,
 	code: string,
 ): Promise<void> {
 	await db
@@ -279,14 +279,14 @@ export async function markSubgraphBillingPaused(
 			billing_paused_code: code,
 			updated_at: new Date(),
 		})
-		.where("name", "=", name)
+		.where("id", "=", subgraphId)
 		.execute();
 }
 
 /** Clear a billing pause once reads succeed again. */
 export async function clearSubgraphBillingPaused(
 	db: Kysely<Database>,
-	name: string,
+	subgraphId: string,
 ): Promise<void> {
 	await db
 		.updateTable("subgraphs")
@@ -295,14 +295,14 @@ export async function clearSubgraphBillingPaused(
 			billing_paused_code: null,
 			updated_at: new Date(),
 		})
-		.where("name", "=", name)
+		.where("id", "=", subgraphId)
 		.where("billing_paused_at", "is not", null)
 		.execute();
 }
 
 export async function updateSubgraphHandlerPath(
 	db: Kysely<Database>,
-	name: string,
+	subgraphId: string,
 	handlerPath: string,
 	opts?: {
 		handlerCode?: string;
@@ -331,7 +331,7 @@ export async function updateSubgraphHandlerPath(
 				: {}),
 			updated_at: new Date(),
 		})
-		.where("name", "=", name)
+		.where("id", "=", subgraphId)
 		.execute();
 }
 
@@ -392,7 +392,7 @@ export async function deleteSubgraph(
  *  transaction-scoped advisory lock (`reorg.ts`) other writers can't cross. */
 export async function recordLiveProgress(
 	db: Kysely<Database>,
-	name: string,
+	subgraphId: string,
 	lastProcessedBlock: number,
 	blockHash?: string,
 ): Promise<boolean> {
@@ -403,7 +403,7 @@ export async function recordLiveProgress(
 			...cursorHash(blockHash),
 			updated_at: new Date(),
 		})
-		.where("name", "=", name)
+		.where("id", "=", subgraphId)
 		.where("status", "=", "active")
 		.where("last_processed_block", "<", lastProcessedBlock)
 		.executeTakeFirst();
@@ -426,7 +426,7 @@ export async function recordLiveProgress(
  *  call this from the live catch-up path. */
 export async function rewindLiveProgress(
 	db: Kysely<Database>,
-	name: string,
+	subgraphId: string,
 	lastProcessedBlock: number,
 	blockHash?: string,
 ): Promise<void> {
@@ -437,7 +437,7 @@ export async function rewindLiveProgress(
 			...cursorHash(blockHash),
 			updated_at: new Date(),
 		})
-		.where("name", "=", name)
+		.where("id", "=", subgraphId)
 		.where("status", "=", "active")
 		.execute();
 }

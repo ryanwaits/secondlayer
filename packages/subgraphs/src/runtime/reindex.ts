@@ -137,7 +137,8 @@ async function processBlockRange(
 		status: string;
 		isCatchup: boolean;
 		apiKeyId: string | null;
-		subgraphId?: string;
+		/** The row this walk runs for; every write of the walk matches on it. */
+		subgraphId: string;
 		/** When set, the progress flush writes processed_events onto the op row
 		 *  — the honest numerator for event-based progress/ETA. */
 		operationId?: string;
@@ -155,6 +156,7 @@ async function processBlockRange(
 	const source = await resolveBlockSource(def);
 	const targetDb = getTargetDb();
 	const subgraphName = def.name;
+	const subgraphRef = { id: opts.subgraphId, name: subgraphName };
 	const { fromBlock, toBlock, status } = opts;
 	const totalBlocks = toBlock - fromBlock + 1;
 	// `toBlock` is the tip this walk started from: a reorg can still orphan the
@@ -198,7 +200,7 @@ async function processBlockRange(
 		if (pendingEventsProcessed === 0 && pendingErrors === 0) return;
 		await recordSubgraphProcessed(
 			targetDb,
-			subgraphName,
+			opts.subgraphId,
 			pendingEventsProcessed,
 			pendingErrors,
 			pendingLastError,
@@ -218,7 +220,7 @@ async function processBlockRange(
 			// processed blocks.
 			await advanceOperationCursor(targetDb, opCursor.operationId, height);
 		} else if (status === "reindexing") {
-			if (!(await setReindexCursor(targetDb, subgraphName, height))) {
+			if (!(await setReindexCursor(targetDb, opts.subgraphId, height))) {
 				leftReindex = true;
 			}
 		}
@@ -287,7 +289,7 @@ async function processBlockRange(
 		// failing the walk; the cursor stays where it is.
 		const loaded = await loadWhileBillingPaused(
 			targetDb,
-			subgraphName,
+			subgraphRef,
 			loading.promise,
 			() => source.loadBlockRange(loading.from, loading.end),
 			{ signal: opts.signal },
@@ -305,7 +307,7 @@ async function processBlockRange(
 		const batchEnd = loading.end;
 		if (!pauseCleared) {
 			pauseCleared = true;
-			await clearBillingPause(targetDb, subgraphName);
+			await clearBillingPause(targetDb, subgraphRef);
 		}
 
 		// Source-health guard (fix-f040 B7): the source seeds every canonical
@@ -353,7 +355,7 @@ async function processBlockRange(
 				const refetch = () => source.loadBlockRange(height, height);
 				const refetched = await loadWhileBillingPaused(
 					targetDb,
-					subgraphName,
+					subgraphRef,
 					refetch(),
 					refetch,
 					{ signal: opts.signal },
@@ -407,6 +409,7 @@ async function processBlockRange(
 				const runBlock = () =>
 					processBlockWithRetry(def, subgraphName, height, {
 						skipProgressUpdate: true,
+						subgraphId: opts.subgraphId,
 						atomicProgress,
 						journalFromHeight,
 						preloaded: blockData,
@@ -515,7 +518,7 @@ async function processBlockRange(
 		}
 
 		// Record any gaps from this batch
-		if (batchFailedBlocks.length > 0 && opts.subgraphId) {
+		if (batchFailedBlocks.length > 0) {
 			const gaps = coalesceFailedBlocks(batchFailedBlocks);
 			await recordGapBatch(targetDb, opts.subgraphId, subgraphName, gaps).catch(
 				(err: unknown) => {
@@ -654,6 +657,7 @@ export async function resolveBlockRange(
 async function resetCancelledReindex(
 	db: ReturnType<typeof getTargetDb>,
 	subgraphName: string,
+	subgraphId: string,
 ): Promise<void> {
 	const row = await transitionSubgraph(
 		db,
@@ -661,7 +665,7 @@ async function resetCancelledReindex(
 		["reindexing"],
 		"active",
 	);
-	if (row) await clearReindexMetadata(db, subgraphName);
+	if (row) await clearReindexMetadata(db, subgraphId);
 }
 
 /**
@@ -669,12 +673,12 @@ async function resetCancelledReindex(
  */
 async function clearReindexMetadata(
 	db: ReturnType<typeof getTargetDb>,
-	subgraphName: string,
+	subgraphId: string,
 ): Promise<void> {
 	await db
 		.updateTable("subgraphs")
 		.set({ reindex_from_block: null, reindex_to_block: null })
-		.where("name", "=", subgraphName)
+		.where("id", "=", subgraphId)
 		.execute();
 }
 
@@ -709,6 +713,8 @@ export async function reindexSubgraph(
 		"reindexing",
 	);
 	if (!started) throw new Error(`Subgraph "${subgraphName}" not found`);
+	// The row this reindex started on: the walk's writes follow it, not the name.
+	const subgraphId = started.id;
 	logger.info("Reindex starting", { subgraph: subgraphName });
 
 	try {
@@ -779,7 +785,7 @@ export async function reindexSubgraph(
 				last_error_at: null,
 				updated_at: new Date(),
 			})
-			.where("name", "=", subgraphName)
+			.where("id", "=", subgraphId)
 			.where("status", "=", "reindexing")
 			.execute();
 
@@ -790,19 +796,13 @@ export async function reindexSubgraph(
 			totalBlocks: toBlock - fromBlock + 1,
 		});
 
-		const subgraphRow = await targetDb
-			.selectFrom("subgraphs")
-			.select(["id"])
-			.where("name", "=", subgraphName)
-			.executeTakeFirst();
-
 		const result = await processBlockRange(def, {
 			fromBlock,
 			toBlock,
 			status: "reindexing",
 			isCatchup: false,
 			apiKeyId: null,
-			subgraphId: subgraphRow?.id,
+			subgraphId,
 			operationId: opts?.operationId,
 			signal: opts?.signal,
 		});
@@ -811,7 +811,7 @@ export async function reindexSubgraph(
 		if (result.aborted) {
 			const reason = String(opts?.signal?.reason ?? "unknown");
 			if (reason === "user-cancelled") {
-				await resetCancelledReindex(targetDb, subgraphName);
+				await resetCancelledReindex(targetDb, subgraphName, subgraphId);
 				logger.info("Reindex cancelled by user", { subgraph: subgraphName });
 			} else {
 				// shutdown — leave status as "reindexing" for auto-resume
@@ -839,7 +839,7 @@ export async function reindexSubgraph(
 			);
 			return { processed: result.blocksProcessed };
 		}
-		await clearReindexMetadata(targetDb, subgraphName);
+		await clearReindexMetadata(targetDb, subgraphId);
 		logger.info("Reindex complete", {
 			subgraph: subgraphName,
 			blocks: result.blocksProcessed,
@@ -895,6 +895,7 @@ export async function resumeReindex(
 		.executeTakeFirst();
 
 	if (!row) throw new Error(`Subgraph "${subgraphName}" not found`);
+	const subgraphId = row.id;
 
 	const fromBlock = resolveReindexResumeBlock(row);
 	const toBlock = Number(row.reindex_to_block);
@@ -919,7 +920,7 @@ export async function resumeReindex(
 			"active",
 			{ last_processed_block: toBlock },
 		);
-		if (finished) await clearReindexMetadata(targetDb, subgraphName);
+		if (finished) await clearReindexMetadata(targetDb, subgraphId);
 		return { processed: 0 };
 	}
 
@@ -937,7 +938,7 @@ export async function resumeReindex(
 			status: "reindexing",
 			isCatchup: false,
 			apiKeyId: null,
-			subgraphId: row.id,
+			subgraphId,
 			operationId: opts.operationId,
 			signal: opts.signal,
 		});
@@ -945,7 +946,7 @@ export async function resumeReindex(
 		if (result.aborted) {
 			const reason = String(opts.signal?.reason ?? "unknown");
 			if (reason === "user-cancelled") {
-				await resetCancelledReindex(targetDb, subgraphName);
+				await resetCancelledReindex(targetDb, subgraphName, subgraphId);
 				logger.info("Resume cancelled by user", { subgraph: subgraphName });
 			} else {
 				logger.info("Resume interrupted by shutdown, will resume again", {
@@ -971,7 +972,7 @@ export async function resumeReindex(
 			);
 			return { processed: result.blocksProcessed };
 		}
-		await clearReindexMetadata(targetDb, subgraphName);
+		await clearReindexMetadata(targetDb, subgraphId);
 		logger.info("Resumed reindex complete", {
 			subgraph: subgraphName,
 			blocks: result.blocksProcessed,
@@ -1004,6 +1005,8 @@ export async function backfillSubgraph(
 		toBlock: number;
 		schemaName?: string;
 		operationId?: string;
+		/** The row the operation targets; looked up by name when absent. */
+		subgraphId?: string;
 		signal?: AbortSignal;
 	},
 ): Promise<{ processed: number }> {
@@ -1017,11 +1020,16 @@ export async function backfillSubgraph(
 	});
 
 	try {
-		const subgraphRow = await targetDb
-			.selectFrom("subgraphs")
-			.select(["id"])
-			.where("name", "=", subgraphName)
-			.executeTakeFirst();
+		const subgraphId =
+			opts.subgraphId ??
+			(
+				await targetDb
+					.selectFrom("subgraphs")
+					.select(["id"])
+					.where("name", "=", subgraphName)
+					.executeTakeFirst()
+			)?.id;
+		if (!subgraphId) throw new Error(`Subgraph "${subgraphName}" not found`);
 		// Database clock, like the gap rows' own `detected_at`: gaps this walk
 		// records carry a later stamp and so survive the resolve below.
 		const runStartedAt = (
@@ -1034,7 +1042,7 @@ export async function backfillSubgraph(
 			status: "active",
 			isCatchup: false,
 			apiKeyId: null,
-			subgraphId: subgraphRow?.id,
+			subgraphId,
 			operationId: opts.operationId,
 			signal: opts.signal,
 		});

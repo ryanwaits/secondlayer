@@ -64,7 +64,7 @@ async function catchUpAll(
 				if (!sg) break;
 				try {
 					const def = await loadSubgraphDefinition(sg);
-					await catchUpSubgraph(def, sg.name);
+					await catchUpSubgraph(def, sg.name, sg.id);
 				} catch (err) {
 					const msg = getErrorMessage(err);
 					if (isHandlerNotFoundError(err)) {
@@ -129,7 +129,7 @@ export function handlerCacheKey(
 	return `${path}:${content}`;
 }
 
-// Hot-reload caches, keyed per subgraph by handlerCacheKey.
+// Hot-reload caches, keyed per subgraph id by handlerCacheKey.
 const knownKeys = new Map<string, string>();
 const definitionCache = new Map<string, SubgraphDefinition>();
 
@@ -141,8 +141,8 @@ export async function loadSubgraphDefinition(
 	sg: Subgraph,
 ): Promise<SubgraphDefinition> {
 	const key = handlerCacheKey(sg);
-	const cached = definitionCache.get(sg.name);
-	if (cached && knownKeys.get(sg.name) === key) {
+	const cached = definitionCache.get(sg.id);
+	if (cached && knownKeys.get(sg.id) === key) {
 		return cached;
 	}
 
@@ -164,14 +164,14 @@ export async function loadSubgraphDefinition(
 		def = mod.default ?? mod;
 	}
 
-	const prevKey = knownKeys.get(sg.name);
-	knownKeys.set(sg.name, key);
-	definitionCache.set(sg.name, def);
+	const prevKey = knownKeys.get(sg.id);
+	knownKeys.set(sg.id, key);
+	definitionCache.set(sg.id, def);
 
 	if (prevKey && prevKey !== key) {
 		// A redeploy changed the handler, so drop the cached route alongside
 		// the handler def.
-		invalidateSubgraphRoute(sg.name);
+		invalidateSubgraphRoute(sg.id);
 		logger.info("Subgraph handler reloaded", {
 			subgraph: sg.name,
 			version: sg.version,
@@ -183,12 +183,12 @@ export async function loadSubgraphDefinition(
 
 /** Remove cached entries for subgraphs that no longer exist. */
 function cleanupCaches(active: Subgraph[]): void {
-	const names = new Set(active.map((sg) => sg.name));
-	for (const name of knownKeys.keys()) {
-		if (!names.has(name)) {
-			knownKeys.delete(name);
-			definitionCache.delete(name);
-			invalidateSubgraphRoute(name);
+	const ids = new Set(active.map((sg) => sg.id));
+	for (const id of knownKeys.keys()) {
+		if (!ids.has(id)) {
+			knownKeys.delete(id);
+			definitionCache.delete(id);
+			invalidateSubgraphRoute(id);
 		}
 	}
 }
@@ -231,6 +231,7 @@ async function runSubgraphOperation(
 			toBlock: Number(operation.to_block),
 			schemaName,
 			operationId: operation.id,
+			subgraphId: subgraph.id,
 			signal,
 		});
 		processed = result.processed;

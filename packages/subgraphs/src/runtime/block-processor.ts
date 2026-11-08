@@ -38,28 +38,45 @@ interface SubgraphRoute {
 const routeCache = new Map<string, SubgraphRoute>();
 
 async function resolveRoute(
+	subgraphId: string | undefined,
 	subgraphName: string,
 	targetDb: Kysely<Database>,
 ): Promise<SubgraphRoute> {
-	const cached = routeCache.get(subgraphName);
+	const cached = subgraphId ? routeCache.get(subgraphId) : undefined;
 	if (cached) return cached;
-	const row = await targetDb
-		.selectFrom("subgraphs")
-		.select("schema_name")
-		.where("name", "=", subgraphName)
-		.executeTakeFirst();
+	const row = subgraphId
+		? await targetDb
+				.selectFrom("subgraphs")
+				.select("schema_name")
+				.where("id", "=", subgraphId)
+				.executeTakeFirst()
+		: undefined;
 	const route: SubgraphRoute = {
 		schemaName: row?.schema_name ?? pgSchemaName(subgraphName),
 		dataDb: targetDb,
 	};
-	routeCache.set(subgraphName, route);
+	if (subgraphId) routeCache.set(subgraphId, route);
 	return route;
 }
 
 /** Drop a subgraph's cached route — call on redeploy/delete (conn may
  *  change). */
-export function invalidateSubgraphRoute(subgraphName: string): void {
-	routeCache.delete(subgraphName);
+export function invalidateSubgraphRoute(subgraphId: string): void {
+	routeCache.delete(subgraphId);
+}
+
+/** The cursor of one subgraph row, by id. A deleted row reads as absent. */
+async function readCursor(
+	db: Kysely<Database>,
+	subgraphId: string | undefined,
+): Promise<number | undefined> {
+	if (!subgraphId) return undefined;
+	const row = await db
+		.selectFrom("subgraphs")
+		.select("last_processed_block")
+		.where("id", "=", subgraphId)
+		.executeTakeFirst();
+	return row ? Number(row.last_processed_block) : undefined;
 }
 
 /**
@@ -250,10 +267,11 @@ export interface ProcessBlockOptions {
 	/** Reindex/backfill walks: journal blocks at or above this height, the span a
 	 *  reorg can still orphan. Unset journals nothing on a walk. */
 	journalFromHeight?: number;
-	/** The subgraph row's uuid. Required to record a gap row when a block
-	 *  processes with handler errors — `subgraph_gaps.subgraph_id` is NOT NULL.
-	 *  Absent on paths that pass `skipProgressUpdate` (they record gaps
-	 *  themselves, see reindex.ts). */
+	/** The subgraph row's uuid. Every cursor, counter and gap write of the
+	 *  block matches on it, so a batch still in flight for a subgraph that was
+	 *  deleted and registered again under the same name can't move the new row.
+	 *  Walks pass the id of the row they loaded; when absent (tests, fixtures)
+	 *  it is looked up by name once, at the start of the block. */
 	subgraphId?: string;
 }
 
@@ -403,7 +421,16 @@ export async function processBlock(
 	// after deploy. Resolution is done here (DB access) so the matcher stays pure.
 	// Route first: the factory set lives in this subgraph's pg schema, and it
 	// must resolve BEFORE matching. `resolveRoute` is cached per subgraph.
-	const route = await resolveRoute(subgraphName, targetDb);
+	const subgraphId =
+		opts?.subgraphId ??
+		(
+			await targetDb
+				.selectFrom("subgraphs")
+				.select("id")
+				.where("name", "=", subgraphName)
+				.executeTakeFirst()
+		)?.id;
+	const route = await resolveRoute(subgraphId, subgraphName, targetDb);
 	const schemaName = route.schemaName;
 
 	const traitContracts = await resolveTraitContracts(subgraph, blockHeight);
@@ -429,16 +456,11 @@ export async function processBlock(
 	// A block that reveals a factory address must go through the transaction
 	// below even when nothing matches, so the discovery commits with it.
 	if (matched.length === 0 && discovered.length === 0) {
-		if (!opts?.skipProgressUpdate) {
+		if (!opts?.skipProgressUpdate && subgraphId) {
 			if (isReorgRewind(opts)) {
 				// Fork block itself may match nothing for this subgraph — the
 				// rewind still must land (unconditional, may move backward).
-				await rewindLiveProgress(
-					targetDb,
-					subgraphName,
-					blockHeight,
-					block.hash,
-				);
+				await rewindLiveProgress(targetDb, subgraphId, blockHeight, block.hash);
 			} else {
 				// Promote-but-never-unpark: unconditional "active" stamping let the
 				// live walk overwrite "reindexing" set by a queued reindex op,
@@ -448,12 +470,7 @@ export async function processBlock(
 				// written), so a `false` return here is a silent no-op — the
 				// cursor simply stays at whatever a racing writer already set it
 				// to.
-				await recordLiveProgress(
-					targetDb,
-					subgraphName,
-					blockHeight,
-					block.hash,
-				);
+				await recordLiveProgress(targetDb, subgraphId, blockHeight, block.hash);
 			}
 		}
 		return result;
@@ -488,7 +505,7 @@ export async function processBlock(
 		rr: { processed: number; errors: number },
 		flushedWrites: boolean,
 	) => {
-		if (opts?.skipProgressUpdate) return;
+		if (opts?.skipProgressUpdate || !subgraphId) return;
 		const rewind = isReorgRewind(opts);
 		if (rr.errors > 0 && rr.processed === 0) {
 			if (rewind) {
@@ -499,11 +516,11 @@ export async function processBlock(
 				// f069: conditional — see recordLiveError's docblock for why a lost
 				// race here is always a silent no-op (an all-failed block never
 				// flushes writes, so there's nothing to protect by throwing).
-				await recordLiveError(tx, subgraphName, blockHeight, block.hash);
+				await recordLiveError(tx, subgraphId, blockHeight, block.hash);
 			}
 		} else if (rewind) {
 			// Unconditional, may move the cursor backward — see ProcessBlockOptions.
-			await rewindLiveProgress(tx, subgraphName, blockHeight, block.hash);
+			await rewindLiveProgress(tx, subgraphId, blockHeight, block.hash);
 		} else {
 			// Promote-but-never-unpark (see matched-0 note). Conditional advance
 			// (f069): a racing writer that already committed a higher cursor for
@@ -511,7 +528,7 @@ export async function processBlock(
 			// so ctx.increment deltas already flushed above roll back with it.
 			const advanced = await recordLiveProgress(
 				tx,
-				subgraphName,
+				subgraphId,
 				blockHeight,
 				block.hash,
 			);
@@ -525,17 +542,9 @@ export async function processBlock(
 		// backfill repair from — the reindex path has always written them
 		// (reindex.ts), the live path never did.
 		if (rr.errors > 0 && !rewind) {
-			if (opts?.subgraphId) {
-				await recordGapBatch(tx, opts.subgraphId, subgraphName, [
-					{ start: blockHeight, end: blockHeight, reason: "processing_error" },
-				]);
-			} else {
-				logger.warn("Block errors not recorded as a gap — no subgraphId", {
-					subgraph: subgraphName,
-					blockHeight,
-					errors: rr.errors,
-				});
-			}
+			await recordGapBatch(tx, subgraphId, subgraphName, [
+				{ start: blockHeight, end: blockHeight, reason: "processing_error" },
+			]);
 		}
 		if (rr.processed > 0 || rr.errors > 0) {
 			const lastError =
@@ -544,7 +553,7 @@ export async function processBlock(
 					: undefined;
 			await recordSubgraphProcessed(
 				tx,
-				subgraphName,
+				subgraphId,
 				rr.processed,
 				rr.errors,
 				lastError,
@@ -562,12 +571,8 @@ export async function processBlock(
 			const sm = statusMode(opts);
 			const rewind = isReorgRewind(opts);
 			if (sm) {
-				const row = await tx
-					.selectFrom("subgraphs")
-					.select("last_processed_block")
-					.where("name", "=", subgraphName)
-					.executeTakeFirst();
-				if (row && Number(row.last_processed_block) >= blockHeight) {
+				const cursor = await readCursor(tx, subgraphId);
+				if (cursor !== undefined && cursor >= blockHeight) {
 					result.skipped = true;
 					return;
 				}
@@ -593,12 +598,8 @@ export async function processBlock(
 				// commits between here and there. Never checked when `rewind` is
 				// set: a reorg's fork block is, by construction, at or below the
 				// current cursor, and must run anyway.
-				const row = await tx
-					.selectFrom("subgraphs")
-					.select("last_processed_block")
-					.where("name", "=", subgraphName)
-					.executeTakeFirst();
-				if (row && Number(row.last_processed_block) >= blockHeight) {
+				const cursor = await readCursor(tx, subgraphId);
+				if (cursor !== undefined && cursor >= blockHeight) {
 					result.skipped = true;
 					return;
 				}
@@ -635,7 +636,8 @@ export async function processBlock(
 				// Only a still-`reindexing` subgraph takes the checkpoint. A halt
 				// or cancel that landed mid-walk aborts OUR writes with it.
 				if (
-					!(await setReindexCursor(tx, subgraphName, blockHeight, block.hash))
+					!subgraphId ||
+					!(await setReindexCursor(tx, subgraphId, blockHeight, block.hash))
 				) {
 					throw new LiveCursorRaceLostError(subgraphName, blockHeight);
 				}

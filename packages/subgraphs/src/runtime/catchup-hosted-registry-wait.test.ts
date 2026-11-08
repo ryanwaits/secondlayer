@@ -54,9 +54,9 @@ function makeDef(name: string): SubgraphDefinition {
 	} as unknown as SubgraphDefinition;
 }
 
-async function registerSubgraph(name: string): Promise<void> {
+async function registerSubgraph(name: string): Promise<string> {
 	createdSubgraphNames.push(name);
-	await db
+	const row = await db
 		.insertInto("subgraphs")
 		.values({
 			name,
@@ -68,7 +68,9 @@ async function registerSubgraph(name: string): Promise<void> {
 			account_id: accountId,
 			start_block: 1,
 		})
-		.execute();
+		.returning("id")
+		.executeTakeFirstOrThrow();
+	return row.id;
 }
 
 async function cursorOf(name: string): Promise<number> {
@@ -132,22 +134,22 @@ describe("hosted catch-up waits for the contract registry", () => {
 	it("stops at the registry height the tip reports and resumes when it advances", async () => {
 		fake.setRegistryClassifiedThrough(100);
 		const name = `hostedwait-${randomUUID().slice(0, 8)}`;
-		await registerSubgraph(name);
+		const id = await registerSubgraph(name);
 
-		await catchUpSubgraph(makeDef(name), name);
+		await catchUpSubgraph(makeDef(name), name, id);
 		expect(await cursorOf(name)).toBe(100);
 
 		fake.setRegistryClassifiedThrough(TIP);
-		await catchUpSubgraph(makeDef(name), name);
+		await catchUpSubgraph(makeDef(name), name, id);
 		expect(await cursorOf(name)).toBe(TIP);
 	});
 
 	it("runs to the tip against a server whose tip omits the registry height", async () => {
 		fake.setRegistryClassifiedThrough(undefined);
 		const name = `hostedwait-old-${randomUUID().slice(0, 8)}`;
-		await registerSubgraph(name);
+		const id = await registerSubgraph(name);
 
-		await catchUpSubgraph(makeDef(name), name);
+		await catchUpSubgraph(makeDef(name), name, id);
 
 		expect(await cursorOf(name)).toBe(TIP);
 	});

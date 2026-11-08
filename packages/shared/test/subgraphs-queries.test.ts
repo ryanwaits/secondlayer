@@ -246,36 +246,36 @@ describe.skipIf(SKIP)(
 
 		test("recordLiveProgress advances only strictly forward and reports whether it did", async () => {
 			const db = getDb();
-			await registerSubgraph(db, testDef);
+			const sg = await registerSubgraph(db, testDef);
 
-			expect(await recordLiveProgress(db, "test-subgraph", 100)).toBe(true);
+			expect(await recordLiveProgress(db, sg.id, 100)).toBe(true);
 			expect(
 				Number((await getSubgraph(db, "test-subgraph"))?.last_processed_block),
 			).toBe(100);
 
 			// Same height or lower: refused — no data change, no exception.
-			expect(await recordLiveProgress(db, "test-subgraph", 100)).toBe(false);
-			expect(await recordLiveProgress(db, "test-subgraph", 50)).toBe(false);
+			expect(await recordLiveProgress(db, sg.id, 100)).toBe(false);
+			expect(await recordLiveProgress(db, sg.id, 50)).toBe(false);
 			expect(
 				Number((await getSubgraph(db, "test-subgraph"))?.last_processed_block),
 			).toBe(100);
 
 			// Forward again: succeeds.
-			expect(await recordLiveProgress(db, "test-subgraph", 101)).toBe(true);
+			expect(await recordLiveProgress(db, sg.id, 101)).toBe(true);
 		});
 
 		test("recordLiveProgress never revives a halted subgraph or unparks a reindex", async () => {
 			const db = getDb();
-			await registerSubgraph(db, testDef);
+			const sg = await registerSubgraph(db, testDef);
 
 			await transitionSubgraph(db, "test-subgraph", ["active"], "reindexing");
-			expect(await recordLiveProgress(db, "test-subgraph", 10)).toBe(false);
+			expect(await recordLiveProgress(db, sg.id, 10)).toBe(false);
 			let row = await getSubgraph(db, "test-subgraph");
 			expect(row?.status).toBe("reindexing");
 			expect(Number(row?.last_processed_block)).toBe(0);
 
 			await transitionSubgraph(db, "test-subgraph", ["reindexing"], "error");
-			expect(await recordLiveProgress(db, "test-subgraph", 20)).toBe(false);
+			expect(await recordLiveProgress(db, sg.id, 20)).toBe(false);
 			row = await getSubgraph(db, "test-subgraph");
 			expect(row?.status).toBe("error");
 			expect(Number(row?.last_processed_block)).toBe(0);
@@ -283,12 +283,12 @@ describe.skipIf(SKIP)(
 
 		test("setReindexCursor moves the cursor only while reindexing, so a halt during a reindex stays error", async () => {
 			const db = getDb();
-			await registerSubgraph(db, testDef);
+			const sg = await registerSubgraph(db, testDef);
 			await transitionSubgraph(db, "test-subgraph", ["active"], "reindexing");
-			expect(await setReindexCursor(db, "test-subgraph", 40)).toBe(true);
+			expect(await setReindexCursor(db, sg.id, 40)).toBe(true);
 
 			await transitionSubgraph(db, "test-subgraph", ["reindexing"], "error");
-			expect(await setReindexCursor(db, "test-subgraph", 80)).toBe(false);
+			expect(await setReindexCursor(db, sg.id, 80)).toBe(false);
 			const row = await getSubgraph(db, "test-subgraph");
 			expect(row?.status).toBe("error");
 			expect(Number(row?.last_processed_block)).toBe(40);
@@ -296,9 +296,9 @@ describe.skipIf(SKIP)(
 
 		test("recordLiveError leaves a reindexing subgraph alone", async () => {
 			const db = getDb();
-			await registerSubgraph(db, testDef);
+			const sg = await registerSubgraph(db, testDef);
 			await transitionSubgraph(db, "test-subgraph", ["active"], "reindexing");
-			expect(await recordLiveError(db, "test-subgraph", 60)).toBe(false);
+			expect(await recordLiveError(db, sg.id, 60)).toBe(false);
 			expect((await getSubgraph(db, "test-subgraph"))?.status).toBe(
 				"reindexing",
 			);
@@ -306,22 +306,16 @@ describe.skipIf(SKIP)(
 
 		test("a billing pause survives processed blocks and clears only when reads succeed", async () => {
 			const db = getDb();
-			await registerSubgraph(db, testDef);
-			await markSubgraphBillingPaused(db, "test-subgraph", "spend_cap_reached");
-			await recordSubgraphProcessed(
-				db,
-				"test-subgraph",
-				3,
-				1,
-				"real handler error",
-			);
+			const sg = await registerSubgraph(db, testDef);
+			await markSubgraphBillingPaused(db, sg.id, "spend_cap_reached");
+			await recordSubgraphProcessed(db, sg.id, 3, 1, "real handler error");
 
 			let row = await getSubgraph(db, "test-subgraph");
 			expect(row?.billing_paused_code).toBe("spend_cap_reached");
 			expect(row?.billing_paused_at).not.toBeNull();
 			expect(row?.last_error).toBe("real handler error");
 
-			await clearSubgraphBillingPaused(db, "test-subgraph");
+			await clearSubgraphBillingPaused(db, sg.id);
 			row = await getSubgraph(db, "test-subgraph");
 			expect(row?.billing_paused_code).toBeNull();
 			expect(row?.billing_paused_at).toBeNull();
@@ -330,27 +324,27 @@ describe.skipIf(SKIP)(
 
 		test("recordLiveError stamps status=error and advances the cursor only forward", async () => {
 			const db = getDb();
-			await registerSubgraph(db, testDef);
-			await recordLiveProgress(db, "test-subgraph", 50);
+			const sg = await registerSubgraph(db, testDef);
+			await recordLiveProgress(db, sg.id, 50);
 
-			expect(await recordLiveError(db, "test-subgraph", 60)).toBe(true);
+			expect(await recordLiveError(db, sg.id, 60)).toBe(true);
 			let row = await getSubgraph(db, "test-subgraph");
 			expect(row?.status).toBe("error");
 			expect(Number(row?.last_processed_block)).toBe(60);
 
 			// A losing (behind) writer's error stamp must not regress the cursor
 			// a racing writer already advanced past.
-			expect(await recordLiveError(db, "test-subgraph", 55)).toBe(false);
+			expect(await recordLiveError(db, sg.id, 55)).toBe(false);
 			row = await getSubgraph(db, "test-subgraph");
 			expect(Number(row?.last_processed_block)).toBe(60);
 		});
 
 		test("rewindLiveProgress moves the cursor backward unconditionally", async () => {
 			const db = getDb();
-			await registerSubgraph(db, testDef);
-			await recordLiveProgress(db, "test-subgraph", 500);
+			const sg = await registerSubgraph(db, testDef);
+			await recordLiveProgress(db, sg.id, 500);
 
-			await rewindLiveProgress(db, "test-subgraph", 100);
+			await rewindLiveProgress(db, sg.id, 100);
 			expect(
 				Number((await getSubgraph(db, "test-subgraph"))?.last_processed_block),
 			).toBe(100);
@@ -358,12 +352,36 @@ describe.skipIf(SKIP)(
 
 		test("rewindLiveProgress leaves a reindexing subgraph alone", async () => {
 			const db = getDb();
-			await registerSubgraph(db, testDef);
+			const sg = await registerSubgraph(db, testDef);
 			await transitionSubgraph(db, "test-subgraph", ["active"], "reindexing");
-			await rewindLiveProgress(db, "test-subgraph", 10);
+			await rewindLiveProgress(db, sg.id, 10);
 			const row = await getSubgraph(db, "test-subgraph");
 			expect(row?.status).toBe("reindexing");
 			expect(Number(row?.last_processed_block)).toBe(0);
+		});
+
+		test("writers match the row id, so a stale writer can't move a subgraph registered again under the same name", async () => {
+			const db = getDb();
+			const old = await registerSubgraph(db, testDef);
+			await db.deleteFrom("subgraphs").where("id", "=", old.id).execute();
+			const fresh = await registerSubgraph(db, testDef);
+			expect(fresh.id).not.toBe(old.id);
+
+			expect(await recordLiveProgress(db, old.id, 100)).toBe(false);
+			expect(await recordLiveError(db, old.id, 100)).toBe(false);
+			expect(await setReindexCursor(db, old.id, 100)).toBe(false);
+			await rewindLiveProgress(db, old.id, 7);
+			await recordSubgraphProcessed(db, old.id, 3, 1, "stale");
+			await markSubgraphBillingPaused(db, old.id, "spend_cap_reached");
+
+			const row = await getSubgraph(db, "test-subgraph");
+			expect(row?.id).toBe(fresh.id);
+			expect(row?.status).toBe("active");
+			expect(Number(row?.last_processed_block)).toBe(0);
+			expect(Number(row?.total_processed)).toBe(0);
+			expect(Number(row?.total_errors)).toBe(0);
+			expect(row?.last_error).toBeNull();
+			expect(row?.billing_paused_code).toBeNull();
 		});
 	},
 );
