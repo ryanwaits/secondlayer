@@ -290,7 +290,7 @@ async function reorgOneSubgraph(
 	// live chain of a mismatch that only existed on the rolled-back fork.
 	await targetDb
 		.deleteFrom("subgraph_violations")
-		.where("subgraph_name", "=", sg.name)
+		.where("subgraph_id", "=", sg.id)
 		.where("block_height", ">=", blockHeight)
 		.execute();
 

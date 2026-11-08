@@ -390,7 +390,7 @@ export async function catchUpSubgraph(
 			blocks: totalBlocks,
 		});
 
-		const stats = new StatsAccumulator(subgraphName, true);
+		const stats = new StatsAccumulator(subgraphId, subgraphName, true);
 		let processed = 0;
 		const batchConfig = resolveCatchupBatchConfig();
 		let batchSize = batchConfig.defaultBatchSize;

@@ -1,4 +1,11 @@
-import { afterAll, afterEach, describe, expect, test } from "bun:test";
+import {
+	afterAll,
+	afterEach,
+	beforeAll,
+	describe,
+	expect,
+	test,
+} from "bun:test";
 import { getDb, sql } from "@secondlayer/shared/db";
 import type { SubgraphDefinition, SubgraphFilter } from "../types.ts";
 import {
@@ -167,7 +174,9 @@ describe("runner integration", () => {
 
 describe.skipIf(!HAS_DB)("recordHandlerError (db)", () => {
 	const subgraphName = `test-error-groups-${crypto.randomUUID().slice(0, 8)}`;
+	let subgraphId = "";
 	const input = (message: string, sourceName = "burns") => ({
+		subgraphId,
 		subgraphName,
 		sourceName,
 		eventType: "ft_burn",
@@ -176,20 +185,43 @@ describe.skipIf(!HAS_DB)("recordHandlerError (db)", () => {
 		err: new Error(message),
 	});
 
+	beforeAll(async () => {
+		const row = await getDb()
+			.insertInto("subgraphs")
+			.values({
+				name: subgraphName,
+				status: "active",
+				definition: { name: subgraphName },
+				schema_hash: "test",
+				handler_path: "test",
+				schema_name: `sg_${subgraphName.replace(/-/g, "_")}`,
+				account_id: crypto.randomUUID(),
+			})
+			.returning("id")
+			.executeTakeFirstOrThrow();
+		subgraphId = row.id;
+	});
+
 	async function cleanup() {
-		await sql`DELETE FROM subgraph_error_groups WHERE subgraph_name = ${subgraphName}`.execute(
+		await sql`DELETE FROM subgraph_error_groups WHERE subgraph_id = ${subgraphId}`.execute(
 			getDb(),
 		);
 	}
 
 	afterEach(cleanup);
-	afterAll(cleanup);
+	afterAll(async () => {
+		// Cascades to the error groups.
+		await getDb()
+			.deleteFrom("subgraphs")
+			.where("id", "=", subgraphId)
+			.execute();
+	});
 
 	async function groups() {
 		return getDb()
 			.selectFrom("subgraph_error_groups")
 			.selectAll()
-			.where("subgraph_name", "=", subgraphName)
+			.where("subgraph_id", "=", subgraphId)
 			.execute();
 	}
 

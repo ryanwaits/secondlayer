@@ -3,6 +3,7 @@ import type { Kysely } from "kysely";
 import type { ProcessBlockTiming } from "./block-processor.ts";
 
 interface StatsEntry {
+	subgraphId: string;
 	subgraphName: string;
 	bucketStart: Date;
 	blocksProcessed: number;
@@ -27,6 +28,7 @@ export class StatsAccumulator {
 	private lastFlush = Date.now();
 
 	constructor(
+		private subgraphId: string,
 		private subgraphName: string,
 		private isCatchup: boolean,
 	) {
@@ -69,6 +71,7 @@ export class StatsAccumulator {
 		await db
 			.insertInto("subgraph_processing_stats")
 			.values({
+				subgraph_id: entry.subgraphId,
 				subgraph_name: entry.subgraphName,
 				bucket_start: entry.bucketStart,
 				bucket_end: new Date(),
@@ -86,6 +89,7 @@ export class StatsAccumulator {
 
 	private newEntry(): StatsEntry {
 		return {
+			subgraphId: this.subgraphId,
 			subgraphName: this.subgraphName,
 			bucketStart: new Date(),
 			blocksProcessed: 0,

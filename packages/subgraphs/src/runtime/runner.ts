@@ -464,7 +464,7 @@ export async function runHandlers(
 	subgraph: SubgraphDefinition,
 	matched: MatchedTx[],
 	ctx: SubgraphContext,
-	opts?: { errorThreshold?: number },
+	opts?: { errorThreshold?: number; subgraphId?: string },
 ): Promise<RunResult> {
 	let processed = 0;
 	let errors = 0;
@@ -627,6 +627,7 @@ export async function runHandlers(
 					});
 					// Persist for the authed violations GET — never throw.
 					void recordPrintViolation({
+						subgraphId: opts?.subgraphId,
 						subgraphName: subgraph.name,
 						sourceName,
 						blockHeight: ctx.block.height,
@@ -652,6 +653,7 @@ export async function runHandlers(
 			ctx.rollbackTo(checkpoint);
 			errors++;
 			recordHandlerError({
+				subgraphId: opts?.subgraphId,
 				subgraphName: subgraph.name,
 				sourceName,
 				eventType: event?.type ?? null,

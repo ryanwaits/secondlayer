@@ -9,6 +9,9 @@ export const ERROR_GROUPS_CAP_PER_SUBGRAPH = 50;
 const MESSAGE_MAX_CHARS = 500;
 
 export interface HandlerErrorInput {
+	/** The subgraph row the error belongs to; without one there is nothing to
+	 *  attach it to and it is not persisted. */
+	subgraphId?: string;
 	subgraphName: string;
 	sourceName: string;
 	eventType: string | null;
@@ -59,6 +62,7 @@ export function topFrame(err: unknown): string | null {
 type HandlerErrorRecorder = (input: HandlerErrorInput) => Promise<void>;
 
 interface PendingGroup {
+	subgraphId: string;
 	subgraphName: string;
 	fingerprint: string;
 	sourceName: string;
@@ -73,7 +77,7 @@ interface PendingGroup {
 }
 
 const FLUSH_INTERVAL_MS = 5_000;
-/** Distinct (subgraph, fingerprint) keys held between flushes. */
+/** Distinct (subgraph id, fingerprint) keys held between flushes. */
 const MAX_PENDING_KEYS = 1_000;
 
 let pending = new Map<string, PendingGroup>();
@@ -110,12 +114,13 @@ export async function flushHandlerErrors(): Promise<void> {
 
 	try {
 		const db = getTargetDb();
-		const subgraphs = new Set<string>();
+		const subgraphIds = new Set<string>();
 		for (const group of batch.values()) {
-			subgraphs.add(group.subgraphName);
+			subgraphIds.add(group.subgraphId);
 			await db
 				.insertInto("subgraph_error_groups")
 				.values({
+					subgraph_id: group.subgraphId,
 					subgraph_name: group.subgraphName,
 					fingerprint: group.fingerprint,
 					source_name: group.sourceName,
@@ -129,7 +134,7 @@ export async function flushHandlerErrors(): Promise<void> {
 					last_seen: group.lastSeenAt,
 				})
 				.onConflict((oc) =>
-					oc.columns(["subgraph_name", "fingerprint"]).doUpdateSet({
+					oc.columns(["subgraph_id", "fingerprint"]).doUpdateSet({
 						count: sql`subgraph_error_groups.count + ${group.count}`,
 						last_seen: group.lastSeenAt,
 						sample_tx_id: group.sampleTxId,
@@ -140,12 +145,12 @@ export async function flushHandlerErrors(): Promise<void> {
 		}
 
 		// Drop the least recently seen groups beyond the cap, once per subgraph.
-		for (const subgraphName of subgraphs) {
+		for (const subgraphId of subgraphIds) {
 			await sql`
 				DELETE FROM subgraph_error_groups
 				WHERE id IN (
 					SELECT id FROM subgraph_error_groups
-					WHERE subgraph_name = ${subgraphName}
+					WHERE subgraph_id = ${subgraphId}
 					ORDER BY last_seen DESC, id
 					OFFSET ${ERROR_GROUPS_CAP_PER_SUBGRAPH}
 				)
@@ -181,6 +186,7 @@ export function recordHandlerError(input: HandlerErrorInput): void {
 			});
 			return;
 		}
+		if (!input.subgraphId) return;
 
 		const message = (
 			input.err instanceof Error ? input.err.message : String(input.err)
@@ -192,7 +198,7 @@ export function recordHandlerError(input: HandlerErrorInput): void {
 			message,
 			frame,
 		});
-		const key = `${input.subgraphName}|${fingerprint}`;
+		const key = `${input.subgraphId}|${fingerprint}`;
 		const now = new Date();
 
 		const existing = pending.get(key);
@@ -205,6 +211,7 @@ export function recordHandlerError(input: HandlerErrorInput): void {
 			droppedKeys++;
 		} else {
 			pending.set(key, {
+				subgraphId: input.subgraphId,
 				subgraphName: input.subgraphName,
 				fingerprint,
 				sourceName: input.sourceName,

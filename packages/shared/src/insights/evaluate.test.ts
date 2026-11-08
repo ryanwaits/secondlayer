@@ -117,6 +117,7 @@ describe.skipIf(!HAS_DB)("evaluateTenantInsights", () => {
 		await db
 			.insertInto("subgraph_error_groups")
 			.values({
+				subgraph_id: subgraphId,
 				subgraph_name: subgraphName,
 				fingerprint: "fp",
 				source_name: "transfers",

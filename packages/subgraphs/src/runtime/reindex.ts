@@ -163,7 +163,11 @@ async function processBlockRange(
 	// last stretch below it, so those blocks keep a revert journal.
 	const journalFromHeight = toBlock - JOURNAL_RETENTION_BLOCKS;
 
-	const stats = new StatsAccumulator(subgraphName, opts.isCatchup);
+	const stats = new StatsAccumulator(
+		opts.subgraphId,
+		subgraphName,
+		opts.isCatchup,
+	);
 	let blocksProcessed = 0;
 	let blocksSkippedByCursor = 0;
 	let lastSkippedHeight: number | null = null;

@@ -290,7 +290,7 @@ export async function loadSubgraphInputs(
 		.execute();
 
 	const groups = await sql<{
-		subgraph_name: string;
+		subgraph_id: string;
 		message: string;
 		event_type: string | null;
 		source_name: string;
@@ -301,7 +301,7 @@ export async function loadSubgraphInputs(
 		sample_tx_id: string | null;
 		frame: string | null;
 	}>`
-		SELECT subgraph_name, message, event_type, source_name, count, first_seen,
+		SELECT subgraph_id, message, event_type, source_name, count, first_seen,
 			last_seen, sample_block_height, sample_tx_id, frame
 		FROM subgraph_error_groups
 		WHERE last_seen > ${new Date(now.getTime() - 24 * HOUR_MS)}
@@ -318,7 +318,7 @@ export async function loadSubgraphInputs(
 		},
 		snapshots: snapshots.filter((s) => s.subgraph_id === subgraph.id),
 		errorGroups: groups.rows
-			.filter((g) => g.subgraph_name === subgraph.name)
+			.filter((g) => g.subgraph_id === subgraph.id)
 			.slice(0, ERROR_GROUPS_SHOWN)
 			.map((g) => ({
 				message: g.message,

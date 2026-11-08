@@ -268,6 +268,7 @@ describe.skipIf(!process.env.DATABASE_URL)(
 				.insertInto("subgraph_error_groups")
 				.values([
 					{
+						subgraph_id: subgraphId,
 						subgraph_name: name,
 						fingerprint: "a",
 						source_name: "burns",
@@ -279,6 +280,7 @@ describe.skipIf(!process.env.DATABASE_URL)(
 						sample_block_height: null,
 					},
 					{
+						subgraph_id: subgraphId,
 						subgraph_name: name,
 						fingerprint: "b",
 						source_name: "burns",

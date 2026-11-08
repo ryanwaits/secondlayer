@@ -295,6 +295,7 @@ export interface SubgraphGapsTable {
 /** Print-validate skips persisted for the authed violations GET. Cap 100/subgraph. */
 export interface SubgraphViolationsTable {
 	id: Generated<string>;
+	subgraph_id: string;
 	subgraph_name: string;
 	source_name: string;
 	block_height: number;
@@ -432,6 +433,7 @@ export interface MagicLinksTable {
 
 export interface SubgraphProcessingStatsTable {
 	id: Generated<string>;
+	subgraph_id: string;
 	subgraph_name: string;
 	api_key_id: string | null;
 	bucket_start: Date | null;
@@ -462,6 +464,7 @@ export interface SubgraphHealthSnapshotsTable {
 /** Handler errors grouped by fingerprint. Cap 50/subgraph. */
 export interface SubgraphErrorGroupsTable {
 	id: Generated<string>;
+	subgraph_id: string;
 	subgraph_name: string;
 	fingerprint: string;
 	source_name: string;

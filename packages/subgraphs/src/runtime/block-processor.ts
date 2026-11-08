@@ -615,7 +615,9 @@ export async function processBlock(
 			);
 
 			const handlerStart = performance.now();
-			const runResult = await runHandlers(subgraph, matched, ctx);
+			const runResult = await runHandlers(subgraph, matched, ctx, {
+				subgraphId,
+			});
 			handlerMs = performance.now() - handlerStart;
 
 			result.delivered = runResult.delivered;

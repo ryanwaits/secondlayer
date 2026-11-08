@@ -6,6 +6,9 @@ import { sql } from "kysely";
 export const VIOLATIONS_CAP_PER_SUBGRAPH = 100;
 
 export interface PrintViolationInput {
+	/** The subgraph row the skip belongs to; without one there is nothing to
+	 *  attach it to and it is not persisted. */
+	subgraphId?: string;
 	subgraphName: string;
 	sourceName: string;
 	blockHeight: number;
@@ -34,12 +37,14 @@ type ViolationRecorder = (input: PrintViolationInput) => Promise<void>;
 async function defaultRecordPrintViolation(
 	input: PrintViolationInput,
 ): Promise<void> {
+	if (!input.subgraphId) return;
 	try {
 		const db = getTargetDb();
 		const sample = jsonSafe(input.samplePayload) as Record<string, unknown>;
 		await db
 			.insertInto("subgraph_violations")
 			.values({
+				subgraph_id: input.subgraphId,
 				subgraph_name: input.subgraphName,
 				source_name: input.sourceName,
 				block_height: input.blockHeight,
@@ -54,7 +59,7 @@ async function defaultRecordPrintViolation(
 			DELETE FROM subgraph_violations
 			WHERE id IN (
 				SELECT id FROM subgraph_violations
-				WHERE subgraph_name = ${input.subgraphName}
+				WHERE subgraph_id = ${input.subgraphId}
 				ORDER BY seen_at DESC
 				OFFSET ${VIOLATIONS_CAP_PER_SUBGRAPH}
 			)

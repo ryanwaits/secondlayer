@@ -1725,7 +1725,7 @@ app.get("/:subgraphName", async (c) => {
 		db
 			.selectFrom("subgraph_violations")
 			.select(db.fn.countAll<string>().as("count"))
-			.where("subgraph_name", "=", subgraph.name)
+			.where("subgraph_id", "=", subgraph.id)
 			.executeTakeFirst()
 			.then((r) => Number(r?.count ?? 0))
 			.catch(() => 0),
@@ -1954,14 +1954,14 @@ app.get("/:subgraphName/health", async (c) => {
 
 app.get("/:subgraphName/errors", async (c) => {
 	const { subgraphName } = c.req.param();
-	requireSubgraph(subgraphName);
+	const subgraph = requireSubgraph(subgraphName);
 
 	const limit = clampLimit(c.req.query("limit"), 20, 50);
 
 	const rows = await getDb()
 		.selectFrom("subgraph_error_groups")
 		.selectAll()
-		.where("subgraph_name", "=", subgraphName)
+		.where("subgraph_id", "=", subgraph.id)
 		.orderBy("count", "desc")
 		.limit(limit)
 		.execute();
@@ -2042,7 +2042,7 @@ app.get("/:subgraphName/recent", async (c) => {
 
 app.get("/:subgraphName/violations", async (c) => {
 	const { subgraphName } = c.req.param();
-	requireSubgraph(subgraphName);
+	const subgraph = requireSubgraph(subgraphName);
 
 	const db = getDb();
 	const limit = clampLimit(c.req.query("limit"), 50, 100);
@@ -2059,7 +2059,7 @@ app.get("/:subgraphName/violations", async (c) => {
 			"sample_payload",
 			"seen_at",
 		])
-		.where("subgraph_name", "=", subgraphName)
+		.where("subgraph_id", "=", subgraph.id)
 		.orderBy("seen_at", "desc")
 		.limit(limit)
 		.execute();
@@ -2067,7 +2067,7 @@ app.get("/:subgraphName/violations", async (c) => {
 	const countRow = await db
 		.selectFrom("subgraph_violations")
 		.select(db.fn.countAll<string>().as("count"))
-		.where("subgraph_name", "=", subgraphName)
+		.where("subgraph_id", "=", subgraph.id)
 		.executeTakeFirst();
 
 	return c.json({
