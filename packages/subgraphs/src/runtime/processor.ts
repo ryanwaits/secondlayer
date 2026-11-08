@@ -485,13 +485,17 @@ export async function startSubgraphProcessor(opts?: {
 	const runCatchUp = async (): Promise<void> => {
 		if (!running || !isCatchUpLeader()) return;
 		const db = getTargetDb();
-		const subgraphs = (await listSubgraphs(db)).filter(
-			(v: Subgraph) => v.status === "active",
-		);
+		const all = await listSubgraphs(db);
+		const subgraphs = all.filter((v: Subgraph) => v.status === "active");
 		cleanupCaches(subgraphs);
 		// A reorg whose NOTIFY this process missed leaves the cursor on an
 		// orphaned block: rewind those before walking forward from it.
-		await rewindMissedReorgs(subgraphs, loadSubgraphDefinition);
+		await rewindMissedReorgs(
+			all.filter(
+				(v: Subgraph) => v.status === "active" || v.status === "error",
+			),
+			loadSubgraphDefinition,
+		);
 		await catchUpAll(subgraphs, db, concurrency);
 	};
 

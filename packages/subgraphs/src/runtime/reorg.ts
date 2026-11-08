@@ -45,7 +45,10 @@ export async function handleSubgraphReorg(
 	// managed target DB.
 	const targetDb = getTargetDb();
 	const activeSubgraphs = (await listSubgraphs(targetDb)).filter(
-		(v: Subgraph) => v.status === "active" || v.status === "reindexing",
+		(v: Subgraph) =>
+			v.status === "active" ||
+			v.status === "reindexing" ||
+			v.status === "error",
 	);
 
 	if (activeSubgraphs.length === 0) return;
@@ -173,7 +176,7 @@ async function rewindCursorTo(
 ): Promise<void> {
 	await tx.unsafe(
 		`UPDATE subgraphs SET last_processed_block = $1, updated_at = now()
-		 WHERE name = $2 AND status = 'active' AND last_processed_block > $1`,
+		 WHERE name = $2 AND status IN ('active', 'error') AND last_processed_block > $1`,
 		[Math.max(0, height), name],
 	);
 }
@@ -192,7 +195,9 @@ async function reorgOneSubgraph(
 	// halted, finished or cancelled since.
 	const current = await getSubgraph(targetDb, sg.name);
 	if (!current) return;
-	if (current.status !== "active" && current.status !== "reindexing") return;
+	// A halted subgraph keeps its rows and cursor; they must match the chain
+	// when it resumes, so it is reverted and rewound like a running one.
+	if (!["active", "reindexing", "error"].includes(current.status)) return;
 	// A cursor below the fork wrote nothing from the orphaned range.
 	if (Number(current.last_processed_block) < blockHeight) return;
 	const schemaName = sg.schema_name ?? pgSchemaName(sg.name);
@@ -307,6 +312,16 @@ async function reorgOneSubgraph(
 			if (!isActiveSubgraphOperationConflict(err)) throw err;
 		}
 		logger.info("Subgraph reorg rewound a reindex", {
+			subgraph: sg.name,
+			blockHeight,
+		});
+		return;
+	}
+
+	// A halted subgraph stays halted: only a redeploy or reindex resumes it, and
+	// either one rebuilds from the rewound cursor.
+	if (current.status === "error") {
+		logger.info("Subgraph reorg rewound a halted subgraph", {
 			subgraph: sg.name,
 			blockHeight,
 		});
