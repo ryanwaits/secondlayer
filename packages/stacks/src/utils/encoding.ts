@@ -12,6 +12,8 @@ export function bytesToHex(bytes: Uint8Array): string {
 
 export function hexToBytes(hex: string): Uint8Array {
 	let h = without0x(hex);
+	// parseInt reads "1g" as 1, so the whole string is checked first.
+	if (!/^[0-9a-fA-F]*$/.test(h)) throw new Error("Invalid byte sequence");
 	if (h.length % 2) h = `0${h}`;
 
 	const array = new Uint8Array(h.length / 2);
@@ -49,6 +51,14 @@ export function asciiToBytes(str: string): Uint8Array {
 	return bytes;
 }
 
+/** Whether every character is 7-bit ASCII. */
+export function isAscii(str: string): boolean {
+	for (let i = 0; i < str.length; i++) {
+		if (str.charCodeAt(i) > 0x7f) return false;
+	}
+	return true;
+}
+
 export function bytesToAscii(bytes: Uint8Array): string {
 	return String.fromCharCode(...bytes);
 }
@@ -70,7 +80,12 @@ export type IntegerType = number | string | bigint | Uint8Array;
 
 export function intToBigInt(value: IntegerType): bigint {
 	if (typeof value === "bigint") return value;
-	if (typeof value === "string") return BigInt(value);
+	if (typeof value === "string") {
+		// BigInt("") is 0n; an empty or blank string is not a number.
+		if (value.trim() === "")
+			throw new SyntaxError("Cannot convert an empty string to an integer");
+		return BigInt(value);
+	}
 	if (typeof value === "number") {
 		if (!Number.isInteger(value))
 			throw new RangeError("Values of type 'number' must be an integer.");

@@ -6,6 +6,7 @@ import {
 	concatBytes,
 	hexToBytes,
 	intToHex,
+	isAscii,
 	toTwos,
 	utf8ToBytes,
 	writeUInt32BE,
@@ -18,6 +19,11 @@ import {
 
 const CLARITY_INT_SIZE = 128n;
 const CLARITY_INT_BYTE_SIZE = 16;
+const MAX_U128 = (1n << 128n) - 1n;
+const MAX_I128 = (1n << 127n) - 1n;
+const MIN_I128 = -(1n << 127n);
+/** Largest string a Clarity value can hold (MAX_VALUE_SIZE). */
+export const MAX_STRING_BYTES = 1_048_576;
 
 function typeIdByte(type: ClarityType): number {
 	return ClarityWireType[type];
@@ -45,15 +51,21 @@ export function serializeCVBytes(value: ClarityValue): Uint8Array {
 			return new Uint8Array([typeIdByte(value.type)]);
 
 		case "int": {
+			const n = BigInt(value.value);
+			if (n > MAX_I128 || n < MIN_I128)
+				throw new RangeError(`Int is outside i128: ${n}`);
 			const bytes = bigIntToBytes(
-				toTwos(BigInt(value.value), CLARITY_INT_SIZE),
+				toTwos(n, CLARITY_INT_SIZE),
 				CLARITY_INT_BYTE_SIZE,
 			);
 			return withTypeId(value.type, bytes);
 		}
 
 		case "uint": {
-			const bytes = bigIntToBytes(BigInt(value.value), CLARITY_INT_BYTE_SIZE);
+			const n = BigInt(value.value);
+			if (n < 0n || n > MAX_U128)
+				throw new RangeError(`UInt is outside u128: ${n}`);
+			const bytes = bigIntToBytes(n, CLARITY_INT_BYTE_SIZE);
 			return withTypeId(value.type, bytes);
 		}
 
@@ -113,6 +125,8 @@ export function serializeCVBytes(value: ClarityValue): Uint8Array {
 		}
 
 		case "ascii": {
+			if (!isAscii(value.value))
+				throw new Error("string-ascii holds only ASCII characters");
 			const strBytes = asciiToBytes(value.value);
 			return withTypeId(
 				value.type,

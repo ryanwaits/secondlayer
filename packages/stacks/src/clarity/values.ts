@@ -7,10 +7,11 @@ import {
 	bytesToTwosBigInt,
 	hexToBytes,
 	intToBigInt,
+	isAscii,
 	utf8ToBytes,
 } from "../utils/encoding.ts";
 import { deserializeCVBytes } from "./deserialize.ts";
-import { serializeCVBytes } from "./serialize.ts";
+import { MAX_STRING_BYTES, serializeCVBytes } from "./serialize.ts";
 import type {
 	BooleanCV,
 	BufferCV,
@@ -118,6 +119,12 @@ export function tupleCV(data: TupleData): TupleCV {
 }
 
 export function stringAsciiCV(value: string): StringAsciiCV {
+	if (!isAscii(value))
+		throw new Error("string-ascii holds only ASCII characters");
+	if (value.length > MAX_STRING_BYTES)
+		throw new Error(
+			`string-ascii exceeds max size of ${MAX_STRING_BYTES} bytes`,
+		);
 	return { type: "ascii", value };
 }
 
