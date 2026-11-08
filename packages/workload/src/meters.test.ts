@@ -385,6 +385,25 @@ describe("per-item meter results", () => {
 		]);
 	});
 
+	test("a short results array resends every item without an explicit ok", async () => {
+		const outcome = await flushMeterBatch(
+			cfgWith(200, JSON.stringify({ results: [results[0]] })),
+			items,
+		);
+		expect(outcome.failed).toEqual([items[1], items[2]]);
+		expect(outcome.rejected).toEqual([]);
+	});
+
+	test("a result whose key does not match its position resends the page's non-ok items", async () => {
+		const shuffled = [results[0], results[2], results[1]];
+		const outcome = await flushMeterBatch(
+			cfgWith(503, JSON.stringify({ results: shuffled })),
+			items,
+		);
+		expect(outcome.failed).toEqual([items[1], items[2]]);
+		expect(outcome.rejected).toEqual([]);
+	});
+
 	test("a non-JSON answer fails the whole page", async () => {
 		await expect(
 			flushMeterBatch(cfgWith(503, "bad gateway"), items),

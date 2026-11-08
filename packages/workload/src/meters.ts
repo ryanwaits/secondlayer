@@ -161,23 +161,39 @@ interface ItemResultLike {
 	error?: unknown;
 }
 
-/** Sorts `/internal/meters`'s per-item results into failed and rejected,
- *  matched to the sent items by `idempotencyKey`. */
+/** Sorts `/internal/meters`'s per-item results into failed and rejected. The
+ *  route answers `results[i]` for `items[i]`, so match by position and
+ *  cross-check the key. When the answer doesn't line up (wrong length, or a
+ *  key at the wrong position) nothing positional can be trusted: every item
+ *  not explicitly `ok` by key is resent, and a sent item with no result is
+ *  never treated as ok. */
 function sortItemResults(
 	items: MeterBatchItem[],
 	results: ItemResultLike[],
 ): MeterBatchOutcome {
-	const byKey = new Map(items.map((item) => [item.idempotencyKey, item]));
 	const outcome: MeterBatchOutcome = { failed: [], rejected: [] };
-	for (const result of results) {
-		if (typeof result.idempotencyKey !== "string") continue;
-		const item = byKey.get(result.idempotencyKey);
-		if (!item) continue;
-		if (result.status === "failed") outcome.failed.push(item);
-		else if (result.status === "rejected") {
-			outcome.rejected.push({ item, error: String(result.error ?? "") });
-		}
+	const aligned =
+		results.length === items.length &&
+		results.every((result, i) => {
+			const key = result.idempotencyKey;
+			return typeof key !== "string" || key === items[i]?.idempotencyKey;
+		});
+	if (!aligned) {
+		const ok = new Set(
+			results.filter((r) => r.status === "ok").map((r) => r.idempotencyKey),
+		);
+		outcome.failed = items.filter((item) => !ok.has(item.idempotencyKey));
+		return outcome;
 	}
+	items.forEach((item, i) => {
+		const result = results[i] as ItemResultLike;
+		if (result.status === "ok") return;
+		if (result.status === "rejected") {
+			outcome.rejected.push({ item, error: String(result.error ?? "") });
+		} else {
+			outcome.failed.push(item);
+		}
+	});
 	return outcome;
 }
 
