@@ -1,9 +1,13 @@
 import { describe, expect, test } from "bun:test";
 import {
 	EMPTY_RANGE_EVENT_INDEX_SENTINEL,
+	StreamsCursorFeedMismatchError,
 	blockEndCursor,
 	compareStreamsCursor,
+	decodeFeedCursor,
 	decodeStreamsCursor,
+	decodeTaggedStreamsCursor,
+	encodeFeedCursor,
 	encodeStreamsCursor,
 	isEmptyRangeCursor,
 } from "../src/streams-cursor.ts";
@@ -40,5 +44,48 @@ describe("streams cursor codec", () => {
 		expect(compareStreamsCursor(b, c)).toBeLessThan(0);
 		expect(isEmptyRangeCursor(blockEndCursor(10))).toBe(true);
 		expect(compareStreamsCursor(b, blockEndCursor(10))).toBeLessThan(0);
+	});
+});
+
+describe("feed-tagged cursors", () => {
+	const position = { block_height: 840_000, event_index: 7 };
+
+	test("bitcoin and vm cursors carry a prefix, classic stays bare", () => {
+		expect(encodeFeedCursor("btc", position)).toBe("btc:840000:7");
+		expect(encodeFeedCursor("vm", position)).toBe("vm:840000:7");
+		expect(encodeFeedCursor("stacks", position)).toBe("840000:7");
+	});
+
+	test("a tagged cursor decodes for its own feed", () => {
+		expect(decodeFeedCursor("btc:840000:7", "btc")).toEqual(position);
+		expect(decodeFeedCursor("vm:840000:7", "vm")).toEqual(position);
+	});
+
+	test("an untagged cursor is accepted by every feed", () => {
+		for (const feed of ["stacks", "btc", "vm"] as const) {
+			expect(decodeFeedCursor("840000:7", feed)).toEqual(position);
+		}
+	});
+
+	test("a tag for another feed is refused", () => {
+		expect(() => decodeFeedCursor("btc:840000:7", "vm")).toThrow(
+			StreamsCursorFeedMismatchError,
+		);
+		expect(() => decodeFeedCursor("vm:840000:7", "stacks")).toThrow(
+			StreamsCursorFeedMismatchError,
+		);
+		expect(() => decodeFeedCursor("btc:840000:7", "stacks")).toThrow(
+			/belongs to the btc feed/,
+		);
+	});
+
+	test("malformed tagged cursors are rejected", () => {
+		for (const raw of ["btc:", "btc:1", "vm:vm:1:2", "eth:1:2", "btc:01:2"]) {
+			expect(() => decodeTaggedStreamsCursor(raw)).toThrow();
+		}
+	});
+
+	test("the strict codec still refuses tags so checkpoints stay bare", () => {
+		expect(() => decodeStreamsCursor("btc:840000:7")).toThrow();
 	});
 });

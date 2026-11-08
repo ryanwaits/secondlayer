@@ -1,9 +1,11 @@
+import { StreamsCursorFeedMismatchError } from "@secondlayer/shared";
 // Canonical home for /v1 query-param validators shared by the index and
 // streams surfaces. Keep these byte-for-byte conservative: they gate the
 // frozen 1.0 envelope, so error strings here are part of the contract.
 import { ValidationError } from "@secondlayer/shared/errors";
 import {
 	type StreamsCursorInput,
+	decodeFeedCursor,
 	decodeStreamsCursor,
 } from "./streams/cursor.ts";
 
@@ -55,5 +57,25 @@ export function parseCursor(value: string): StreamsCursorInput {
 		return decodeStreamsCursor(value);
 	} catch {
 		throw new ValidationError("cursor must use <block_height>:<event_index>");
+	}
+}
+
+/** Parse a Streams cursor for one feed. Bare `<h>:<n>` is accepted by every
+ *  feed; a `btc:`/`vm:` tag must match the feed being read. */
+export function parseFeedCursor(
+	value: string,
+	feed: "stacks" | "btc" | "vm",
+): StreamsCursorInput {
+	try {
+		return decodeFeedCursor(value, feed);
+	} catch (error) {
+		if (error instanceof StreamsCursorFeedMismatchError) {
+			throw new ValidationError(`cursor: ${error.message}`);
+		}
+		throw new ValidationError(
+			feed === "stacks"
+				? "cursor must use <block_height>:<event_index>"
+				: `cursor must use ${feed}:<block_height>:<event_index> or <block_height>:<event_index>`,
+		);
 	}
 }

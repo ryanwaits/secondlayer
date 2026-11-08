@@ -12,10 +12,11 @@ import {
 	EMPTY_RANGE_EVENT_INDEX_SENTINEL,
 	VM_EVENT_TYPES,
 	type VmEventType,
+	encodeFeedCursor,
 } from "@secondlayer/shared";
 import { ValidationError } from "@secondlayer/shared/errors";
 import {
-	parseCursor,
+	parseFeedCursor,
 	parseLimit,
 	parseNonNegativeInteger,
 } from "../parse-query.ts";
@@ -333,7 +334,10 @@ export function parseStreamsEventsQuery(
 		throw new ValidationError("cursor and from_height are mutually exclusive");
 	}
 
-	const cursor = cursorRaw ? parseCursor(cursorRaw) : undefined;
+	const clock = parseClock(query.get("clock") ?? undefined);
+	const cursor = cursorRaw
+		? parseFeedCursor(cursorRaw, clock === "vm" ? "vm" : "stacks")
+		: undefined;
 	const fromHeight =
 		fromHeightRaw !== undefined
 			? parseNonNegativeInteger(fromHeightRaw, "from_height")
@@ -355,7 +359,6 @@ export function parseStreamsEventsQuery(
 				)
 			: undefined;
 
-	const clock = parseClock(query.get("clock") ?? undefined);
 	if (clock === "vm") {
 		// The vm reader has no payload predicates for these; accepting them would
 		// return an unfiltered page under a filter the caller believes applied.
@@ -410,7 +413,9 @@ export async function getStreamsEventsResponse(opts: {
 	if (parsed.cursorPastTip) {
 		return {
 			events: [],
-			next_cursor: parsed.cursorRaw ?? null,
+			next_cursor: parsed.cursor
+				? encodeFeedCursor(byHeight ? "vm" : "stacks", parsed.cursor)
+				: null,
 			tip: opts.tip,
 			reorgs:
 				byHeight && parsed.cursor

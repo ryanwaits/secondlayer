@@ -78,7 +78,8 @@ describe.skipIf(!HAS_DB)("Streams clock=vm reader", () => {
 			["nested_contract_call", 0],
 			["map_set", 1],
 		]);
-		expect(all.next_cursor).toBe(`${H}:1`);
+		expect(all.next_cursor).toBe(`vm:${H}:1`);
+		expect(all.events.map((e) => e.cursor)).toEqual([`vm:${H}:0`, `vm:${H}:1`]);
 
 		const noMaps = await readCanonicalVmEvents({
 			fromHeight: H,
@@ -123,6 +124,6 @@ describe.skipIf(!HAS_DB)("Streams clock=vm reader", () => {
 			db,
 		});
 		expect(page.events).toEqual([]);
-		expect(page.next_cursor).toBe(`${H}:2147483647`);
+		expect(page.next_cursor).toBe(`vm:${H}:2147483647`);
 	});
 });

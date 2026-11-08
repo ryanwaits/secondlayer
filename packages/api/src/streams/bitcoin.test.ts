@@ -23,6 +23,30 @@ function params(query: string) {
 }
 
 describe("parseStreamsBitcoinEventsQuery", () => {
+	test("reads its own tagged cursor and a bare one", () => {
+		for (const raw of ["btc:840000:2", "840000:2"]) {
+			const parsed = parseStreamsBitcoinEventsQuery(
+				params(`?cursor=${raw}`),
+				TIP,
+			);
+			expect(parsed.cursor).toEqual({ block_height: 840000, event_index: 2 });
+		}
+	});
+
+	test("refuses a vm cursor with a clear 400", () => {
+		expect(() =>
+			parseStreamsBitcoinEventsQuery(params("?cursor=vm:840000:2"), TIP),
+		).toThrow(/belongs to the vm feed; this request reads the btc feed/);
+	});
+
+	test("a past-tip cursor is echoed back tagged", async () => {
+		const response = await getStreamsBitcoinEventsResponse({
+			query: params("?cursor=900000:0"),
+			tip: TIP,
+		});
+		expect(response.next_cursor).toBe("btc:900000:0");
+	});
+
 	test("defaults to the last day (144 blocks) when no cursor/height given", () => {
 		const parsed = parseStreamsBitcoinEventsQuery(params(""), TIP);
 		expect(parsed.fromHeight).toBe(TIP.block_height - 144);
@@ -141,7 +165,7 @@ describe("getStreamsBitcoinEventsResponse", () => {
 			},
 		});
 		expect(body.events).toEqual([]);
-		expect(body.next_cursor).toBe("999999:0");
+		expect(body.next_cursor).toBe("btc:999999:0");
 	});
 
 	test("forwards rune and address filters to the reader", async () => {

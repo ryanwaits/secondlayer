@@ -12,6 +12,17 @@ describe("Cursor", () => {
 		});
 	});
 
+	test("parse reads the height from a feed-tagged cursor", () => {
+		expect(Cursor.parse("btc:840000:7")).toEqual({
+			blockHeight: 840000,
+			eventIndex: 7,
+		});
+		expect(Cursor.parse("vm:951475:3")).toEqual({
+			blockHeight: 951475,
+			eventIndex: 3,
+		});
+	});
+
 	test("parse rejects spellings the server would 400", () => {
 		for (const cursor of [
 			"951475:",
@@ -21,6 +32,9 @@ describe("Cursor", () => {
 			"1e2:0",
 			"0x10:0",
 			"1:2:3",
+			"btc:",
+			"vm:vm:1:2",
+			"eth:1:2",
 			"",
 		]) {
 			expect(() => Cursor.parse(cursor)).toThrow(ValidationError);

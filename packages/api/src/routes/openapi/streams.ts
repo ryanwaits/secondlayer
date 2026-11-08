@@ -65,7 +65,7 @@ const CHAIN_PARAM = {
 		"chain",
 		"string",
 		false,
-		"`stacks` (default) is the existing Stacks feed, byte-identical to before. `bitcoin` serves Runes events (rune_etch, rune_mint, rune_transfer, rune_burn — see the RuneStreamsEvent schema) on their own cursor space: a bitcoin cursor only resumes with chain=bitcoin. Stacks-only filters (contract_id, sender, recipient, asset_identifier, filters, clock) 400 on chain=bitcoin; rune and address are bitcoin-only.",
+		"`stacks` (default) is the existing Stacks feed, byte-identical to before. `bitcoin` serves Runes events (rune_etch, rune_mint, rune_transfer, rune_burn — see the RuneStreamsEvent schema) on their own cursor space: a bitcoin cursor is prefixed `btc:` and only resumes with chain=bitcoin. Stacks-only filters (contract_id, sender, recipient, asset_identifier, filters, clock) 400 on chain=bitcoin; rune and address are bitcoin-only.",
 	),
 	schema: { type: "string", enum: ["stacks", "bitcoin"], default: "stacks" },
 };
@@ -114,7 +114,7 @@ const START_PARAMS = [
 			"cursor",
 			"string",
 			false,
-			"`<block_height>:<event_index>` from a previous page's `next_cursor`. Resumes strictly after it. Mutually exclusive with `from_cursor` and `from_height`.",
+			"`<block_height>:<event_index>` from a previous page's `next_cursor`, prefixed `btc:` on `chain=bitcoin` and `vm:` on `clock=vm`. A cursor tagged for another feed answers 400; an untagged cursor is accepted on every feed. Resumes strictly after it. Mutually exclusive with `from_cursor` and `from_height`.",
 		),
 		schema: { type: "string", example: "9048876:3" },
 	},
@@ -501,7 +501,7 @@ export const streamsSchemas = {
 			cursor: {
 				type: "string",
 				description:
-					"`<block_height>:<event_index>`. Pass as `cursor` or `from_cursor`.",
+					"`<block_height>:<event_index>`, prefixed `vm:` on `clock=vm`. Pass as `cursor` or `from_cursor`.",
 			},
 			block_height: {
 				type: "integer",
@@ -654,7 +654,7 @@ export const streamsSchemas = {
 	RuneStreamsEvent: {
 		type: "object",
 		description:
-			"chain=bitcoin only (plan 059). A Runes event: rune_etch, rune_mint, rune_transfer or rune_burn, on its own cursor space (a cursor from chain=bitcoin only resumes with chain=bitcoin).",
+			"chain=bitcoin only (plan 059). A Runes event: rune_etch, rune_mint, rune_transfer or rune_burn, on its own cursor space (a `btc:` cursor only resumes with chain=bitcoin).",
 		required: [
 			"cursor",
 			"chain",
@@ -670,7 +670,8 @@ export const streamsSchemas = {
 		properties: {
 			cursor: {
 				type: "string",
-				description: "`<block_height>:<event_index>`, bitcoin-chain relative.",
+				description:
+					"`btc:<block_height>:<event_index>`, bitcoin-chain relative.",
 			},
 			chain: { type: "string", const: "bitcoin" },
 			block_height: { type: "integer", description: "Bitcoin block height." },
@@ -716,7 +717,7 @@ export const streamsSchemas = {
 		// rather than an invented-looking one. Rune txids come back without a
 		// `0x` prefix, unlike Stacks ones.
 		example: {
-			cursor: "840000:0",
+			cursor: "btc:840000:0",
 			chain: "bitcoin",
 			block_height: 840000,
 			block_hash:

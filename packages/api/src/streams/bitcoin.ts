@@ -30,12 +30,12 @@ import {
 	readBtcReorgs,
 } from "../bitcoin/db.ts";
 import {
-	parseCursor,
+	parseFeedCursor,
 	parseLimit,
 	parseNonNegativeInteger,
 } from "../parse-query.ts";
 import type { StreamsCursorInput } from "./cursor.ts";
-import { encodeStreamsCursor } from "./cursor.ts";
+import { encodeFeedCursor, encodeStreamsCursor } from "./cursor.ts";
 import type { StreamsReorg, StreamsReorgsReader } from "./reorgs.ts";
 
 // Bitcoin blocks per day at the ~10 minute target cadence — see
@@ -235,7 +235,7 @@ export function parseStreamsBitcoinEventsQuery(
 		throw new ValidationError("cursor and from_height are mutually exclusive");
 	}
 
-	const cursor = cursorRaw ? parseCursor(cursorRaw) : undefined;
+	const cursor = cursorRaw ? parseFeedCursor(cursorRaw, "btc") : undefined;
 	const fromHeight =
 		fromHeightRaw !== undefined
 			? parseNonNegativeInteger(fromHeightRaw, "from_height")
@@ -330,7 +330,7 @@ function normalizeRuneStreamsEvent(
 	}
 
 	return {
-		cursor: encodeStreamsCursor({
+		cursor: encodeFeedCursor("btc", {
 			block_height: blockHeight,
 			event_index: eventIndex,
 		}),
@@ -465,13 +465,13 @@ export async function readStreamsBitcoinEvents(
 	// (`../../indexer/src/streams-events.ts`): a filter that eliminates every
 	// row in the scanned window must not pin the consumer at the old cursor.
 	const next_cursor = lastRow
-		? encodeStreamsCursor({
+		? encodeFeedCursor("btc", {
 				block_height: Number(lastRow.block_height),
 				event_index: Number(lastRow.event_index),
 			})
 		: rows.length === 0
 			? null
-			: encodeStreamsCursor({
+			: encodeFeedCursor("btc", {
 					block_height: params.toHeight,
 					event_index: 2_147_483_647,
 				});
@@ -512,7 +512,9 @@ export async function getStreamsBitcoinEventsResponse(opts: {
 	if (parsed.cursorPastTip) {
 		return {
 			events: [],
-			next_cursor: parsed.cursorRaw ?? null,
+			next_cursor: parsed.cursor
+				? encodeFeedCursor("btc", parsed.cursor)
+				: null,
 			tip: opts.tip,
 			reorgs: [],
 		};

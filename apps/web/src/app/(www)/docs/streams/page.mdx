@@ -187,7 +187,7 @@ curl "$SECONDLAYER_API_URL/v1/streams/events?chain=bitcoin&rune=840000:3" \
   -H "Authorization: Bearer $SECONDLAYER_API_KEY"
 ```
 
-- A bitcoin cursor only resumes with `chain=bitcoin` set again.
+- Bitcoin cursors carry a `btc:` prefix and only resume with `chain=bitcoin` set again. The `vm:` prefix does the same for `clock=vm`; a cursor from another feed answers 400.
 - Stacks-only filters (`contract_id`, `sender`, `recipient`, `asset_identifier`, `filters`, `clock`) answer 400 here.
 - `rune` and `address` are bitcoin-only.
 - The tip and canonical block drop the burn-chain fields Stacks carries, since Bitcoin has no burn chain of its own.

@@ -53,6 +53,72 @@ export function decodeStreamsCursor(cursor: string): StreamsCursor {
 	return decoded;
 }
 
+/**
+ * Which feed a cursor belongs to. Classic Stacks Streams cursors stay bare
+ * `<h>:<n>` (the 1.0 contract); the Bitcoin and vm feeds are prefixed so a
+ * cursor from one feed can never silently resume another.
+ */
+export type StreamsCursorFeed = "stacks" | "btc" | "vm";
+
+const FEED_TAGS = ["btc", "vm"] as const;
+
+/** Raised when a cursor carries another feed's tag. */
+export class StreamsCursorFeedMismatchError extends Error {
+	constructor(
+		readonly expected: StreamsCursorFeed,
+		readonly actual: StreamsCursorFeed,
+	) {
+		super(
+			`cursor belongs to the ${actual} feed; this request reads the ${expected} feed`,
+		);
+		this.name = "StreamsCursorFeedMismatchError";
+	}
+}
+
+/** Encode for a feed: `btc:`/`vm:` prefix, bare for classic Stacks. */
+export function encodeFeedCursor(
+	feed: StreamsCursorFeed,
+	cursor: StreamsCursor,
+): string {
+	const bare = encodeStreamsCursor(cursor);
+	return feed === "stacks" ? bare : `${feed}:${bare}`;
+}
+
+/**
+ * Decode a cursor, reporting its tag. Untagged reports `feed: null` (the bare
+ * form every feed has always accepted). Throws on malformed input.
+ */
+export function decodeTaggedStreamsCursor(raw: string): {
+	feed: "btc" | "vm" | null;
+	cursor: StreamsCursor;
+} {
+	for (const tag of FEED_TAGS) {
+		if (raw.startsWith(`${tag}:`)) {
+			return {
+				feed: tag,
+				cursor: decodeStreamsCursor(raw.slice(tag.length + 1)),
+			};
+		}
+	}
+	return { feed: null, cursor: decodeStreamsCursor(raw) };
+}
+
+/**
+ * Decode a cursor for a specific feed. Untagged is accepted by every feed (the
+ * legacy spelling); a tag for another feed throws
+ * {@link StreamsCursorFeedMismatchError}.
+ */
+export function decodeFeedCursor(
+	raw: string,
+	feed: StreamsCursorFeed,
+): StreamsCursor {
+	const decoded = decodeTaggedStreamsCursor(raw);
+	if (decoded.feed !== null && decoded.feed !== feed) {
+		throw new StreamsCursorFeedMismatchError(feed, decoded.feed);
+	}
+	return decoded.cursor;
+}
+
 export function compareStreamsCursor(
 	a: StreamsCursor,
 	b: StreamsCursor,

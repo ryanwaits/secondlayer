@@ -256,9 +256,10 @@ export function createStreamsRouter(opts: StreamsRouterOptions = {}) {
 				},
 			],
 			cursor: {
-				format: "<block_height>:<event_index>",
+				format:
+					"<block_height>:<event_index> (classic Stacks); btc:<block_height>:<event_index> (chain=bitcoin); vm:<block_height>:<event_index> (clock=vm)",
 				semantics:
-					"opaque resume token; pass back unchanged to continue. Equals last event's cursor (inclusive on output, exclusive on input). Per-chain: a cursor from chain=bitcoin only resumes with chain=bitcoin, and vice versa.",
+					"opaque resume token; pass back unchanged to continue. Equals last event's cursor (inclusive on output, exclusive on input). A btc: or vm: cursor only resumes its own feed; any other feed answers 400. An untagged cursor is still accepted on every feed.",
 			},
 			chain: {
 				param: "chain",

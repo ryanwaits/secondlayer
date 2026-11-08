@@ -297,7 +297,7 @@ export const OPENAPI_SPEC = {
 	info: {
 		title: "Secondlayer Public API",
 		version: "1.0.0",
-		description: `Public surfaces: Index (decoded chain events — stx/ft/nft transfers, mints, burns, prints, stacking), Streams (raw firehose, chain tip, reorg history), Subgraphs (reads over the schemas this instance has deployed; \`{ rows, next_cursor, tip }\` envelope with an \`_id\` keyset cursor, or a composite keyset cursor when \`_sort\` is used), and the workload plane under \`/api\` that deploys and drives them. Cursor format is \`<block_height>:<event_index>\` on Index/Streams; opaque on Subgraphs. ${AUTH_DESCRIPTION}`,
+		description: `Public surfaces: Index (decoded chain events — stx/ft/nft transfers, mints, burns, prints, stacking), Streams (raw firehose, chain tip, reorg history), Subgraphs (reads over the schemas this instance has deployed; \`{ rows, next_cursor, tip }\` envelope with an \`_id\` keyset cursor, or a composite keyset cursor when \`_sort\` is used), and the workload plane under \`/api\` that deploys and drives them. Cursor format is \`<block_height>:<event_index>\` on Index and classic Streams; the Bitcoin feed (\`chain=bitcoin\`) and the vm clock (\`clock=vm\`) prefix it \`btc:\` and \`vm:\`, and a cursor from another feed is a 400. Opaque on Subgraphs. ${AUTH_DESCRIPTION}`,
 	},
 	servers: [{ url: "http://127.0.0.1:3800", description: "Local instance" }],
 	tags: [
@@ -1517,7 +1517,7 @@ export function openapiSpec(
 		openapi: OPENAPI_SPEC.openapi,
 		info: {
 			...OPENAPI_SPEC.info,
-			description: `This instance: Index (decoded chain events), Streams (raw firehose), Subgraphs (the schemas you deployed), and the \`/api\` write plane that deploys and drives them. Cursor format is \`<block_height>:<event_index>\` on Index/Streams; opaque on Subgraphs. ${AUTH_DESCRIPTION}`,
+			description: `This instance: Index (decoded chain events), Streams (raw firehose), Subgraphs (the schemas you deployed), and the \`/api\` write plane that deploys and drives them. Cursor format is \`<block_height>:<event_index>\` on Index and classic Streams; the Bitcoin feed (\`chain=bitcoin\`) and the vm clock (\`clock=vm\`) prefix it \`btc:\` and \`vm:\`, and a cursor from another feed is a 400. Opaque on Subgraphs. ${AUTH_DESCRIPTION}`,
 		},
 		servers: [{ url: "/", description: "This instance" }],
 		// `instance` exists only on a self-hosted box, so it is declared here

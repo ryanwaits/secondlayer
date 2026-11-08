@@ -3,7 +3,7 @@
 	"info": {
 		"title": "Secondlayer Public API",
 		"version": "1.0.0",
-		"description": "This instance: Index (decoded chain events), Streams (raw firehose), Subgraphs (the schemas you deployed), and the `/api` write plane that deploys and drives them. Cursor format is `<block_height>:<event_index>` on Index/Streams; opaque on Subgraphs. Auth on this instance is the token minted by `secondlayer init` (`INSTANCE_TOKEN`), sent as `Authorization: Bearer $INSTANCE_TOKEN`. `/v1` reads need no credential while the API is reachable only over loopback and require the token on every request once it is published past loopback: one rule, identical on Index, Streams, and Subgraphs, which is why every read below lists bearer auth as optional. Writes under `/api` require the token whenever one is set, and must send `Content-Type: application/json` (anything else is refused with 415 `UNSUPPORTED_MEDIA_TYPE`). Hosted `api.secondlayer.tools` uses an account key; see https://www.secondlayer.tools/docs/authentication."
+		"description": "This instance: Index (decoded chain events), Streams (raw firehose), Subgraphs (the schemas you deployed), and the `/api` write plane that deploys and drives them. Cursor format is `<block_height>:<event_index>` on Index and classic Streams; the Bitcoin feed (`chain=bitcoin`) and the vm clock (`clock=vm`) prefix it `btc:` and `vm:`, and a cursor from another feed is a 400. Opaque on Subgraphs. Auth on this instance is the token minted by `secondlayer init` (`INSTANCE_TOKEN`), sent as `Authorization: Bearer $INSTANCE_TOKEN`. `/v1` reads need no credential while the API is reachable only over loopback and require the token on every request once it is published past loopback: one rule, identical on Index, Streams, and Subgraphs, which is why every read below lists bearer auth as optional. Writes under `/api` require the token whenever one is set, and must send `Content-Type: application/json` (anything else is refused with 415 `UNSUPPORTED_MEDIA_TYPE`). Hosted `api.secondlayer.tools` uses an account key; see https://www.secondlayer.tools/docs/authentication."
 	},
 	"servers": [
 		{
@@ -5498,7 +5498,7 @@
 				"properties": {
 					"cursor": {
 						"type": "string",
-						"description": "`<block_height>:<event_index>`. Pass as `cursor` or `from_cursor`."
+						"description": "`<block_height>:<event_index>`, prefixed `vm:` on `clock=vm`. Pass as `cursor` or `from_cursor`."
 					},
 					"block_height": {
 						"type": "integer",
@@ -5701,7 +5701,7 @@
 			},
 			"RuneStreamsEvent": {
 				"type": "object",
-				"description": "chain=bitcoin only (plan 059). A Runes event: rune_etch, rune_mint, rune_transfer or rune_burn, on its own cursor space (a cursor from chain=bitcoin only resumes with chain=bitcoin).",
+				"description": "chain=bitcoin only (plan 059). A Runes event: rune_etch, rune_mint, rune_transfer or rune_burn, on its own cursor space (a `btc:` cursor only resumes with chain=bitcoin).",
 				"required": [
 					"cursor",
 					"chain",
@@ -5717,7 +5717,7 @@
 				"properties": {
 					"cursor": {
 						"type": "string",
-						"description": "`<block_height>:<event_index>`, bitcoin-chain relative."
+						"description": "`btc:<block_height>:<event_index>`, bitcoin-chain relative."
 					},
 					"chain": {
 						"type": "string",
@@ -5772,7 +5772,7 @@
 					}
 				},
 				"example": {
-					"cursor": "840000:0",
+					"cursor": "btc:840000:0",
 					"chain": "bitcoin",
 					"block_height": 840000,
 					"block_hash": "0000000000000000000000000000000000000000000000000000000000000000",
@@ -14997,7 +14997,7 @@
 							],
 							"default": "stacks"
 						},
-						"description": "`stacks` (default) is the existing Stacks feed, byte-identical to before. `bitcoin` serves Runes events (rune_etch, rune_mint, rune_transfer, rune_burn — see the RuneStreamsEvent schema) on their own cursor space: a bitcoin cursor only resumes with chain=bitcoin. Stacks-only filters (contract_id, sender, recipient, asset_identifier, filters, clock) 400 on chain=bitcoin; rune and address are bitcoin-only."
+						"description": "`stacks` (default) is the existing Stacks feed, byte-identical to before. `bitcoin` serves Runes events (rune_etch, rune_mint, rune_transfer, rune_burn — see the RuneStreamsEvent schema) on their own cursor space: a bitcoin cursor is prefixed `btc:` and only resumes with chain=bitcoin. Stacks-only filters (contract_id, sender, recipient, asset_identifier, filters, clock) 400 on chain=bitcoin; rune and address are bitcoin-only."
 					},
 					{
 						"name": "limit",
@@ -15019,7 +15019,7 @@
 							"type": "string",
 							"example": "9048876:3"
 						},
-						"description": "`<block_height>:<event_index>` from a previous page's `next_cursor`. Resumes strictly after it. Mutually exclusive with `from_cursor` and `from_height`."
+						"description": "`<block_height>:<event_index>` from a previous page's `next_cursor`, prefixed `btc:` on `chain=bitcoin` and `vm:` on `clock=vm`. A cursor tagged for another feed answers 400; an untagged cursor is accepted on every feed. Resumes strictly after it. Mutually exclusive with `from_cursor` and `from_height`."
 					},
 					{
 						"name": "from_cursor",
@@ -15328,7 +15328,7 @@
 							],
 							"default": "stacks"
 						},
-						"description": "`stacks` (default) is the existing Stacks feed, byte-identical to before. `bitcoin` serves Runes events (rune_etch, rune_mint, rune_transfer, rune_burn — see the RuneStreamsEvent schema) on their own cursor space: a bitcoin cursor only resumes with chain=bitcoin. Stacks-only filters (contract_id, sender, recipient, asset_identifier, filters, clock) 400 on chain=bitcoin; rune and address are bitcoin-only."
+						"description": "`stacks` (default) is the existing Stacks feed, byte-identical to before. `bitcoin` serves Runes events (rune_etch, rune_mint, rune_transfer, rune_burn — see the RuneStreamsEvent schema) on their own cursor space: a bitcoin cursor is prefixed `btc:` and only resumes with chain=bitcoin. Stacks-only filters (contract_id, sender, recipient, asset_identifier, filters, clock) 400 on chain=bitcoin; rune and address are bitcoin-only."
 					},
 					{
 						"name": "limit",
@@ -15350,7 +15350,7 @@
 							"type": "string",
 							"example": "9048876:3"
 						},
-						"description": "`<block_height>:<event_index>` from a previous page's `next_cursor`. Resumes strictly after it. Mutually exclusive with `from_cursor` and `from_height`."
+						"description": "`<block_height>:<event_index>` from a previous page's `next_cursor`, prefixed `btc:` on `chain=bitcoin` and `vm:` on `clock=vm`. A cursor tagged for another feed answers 400; an untagged cursor is accepted on every feed. Resumes strictly after it. Mutually exclusive with `from_cursor` and `from_height`."
 					},
 					{
 						"name": "from_cursor",
@@ -15596,7 +15596,7 @@
 							],
 							"default": "stacks"
 						},
-						"description": "`stacks` (default) is the existing Stacks feed, byte-identical to before. `bitcoin` serves Runes events (rune_etch, rune_mint, rune_transfer, rune_burn — see the RuneStreamsEvent schema) on their own cursor space: a bitcoin cursor only resumes with chain=bitcoin. Stacks-only filters (contract_id, sender, recipient, asset_identifier, filters, clock) 400 on chain=bitcoin; rune and address are bitcoin-only."
+						"description": "`stacks` (default) is the existing Stacks feed, byte-identical to before. `bitcoin` serves Runes events (rune_etch, rune_mint, rune_transfer, rune_burn — see the RuneStreamsEvent schema) on their own cursor space: a bitcoin cursor is prefixed `btc:` and only resumes with chain=bitcoin. Stacks-only filters (contract_id, sender, recipient, asset_identifier, filters, clock) 400 on chain=bitcoin; rune and address are bitcoin-only."
 					},
 					{
 						"name": "since",
@@ -15766,7 +15766,7 @@
 							],
 							"default": "stacks"
 						},
-						"description": "`stacks` (default) is the existing Stacks feed, byte-identical to before. `bitcoin` serves Runes events (rune_etch, rune_mint, rune_transfer, rune_burn — see the RuneStreamsEvent schema) on their own cursor space: a bitcoin cursor only resumes with chain=bitcoin. Stacks-only filters (contract_id, sender, recipient, asset_identifier, filters, clock) 400 on chain=bitcoin; rune and address are bitcoin-only."
+						"description": "`stacks` (default) is the existing Stacks feed, byte-identical to before. `bitcoin` serves Runes events (rune_etch, rune_mint, rune_transfer, rune_burn — see the RuneStreamsEvent schema) on their own cursor space: a bitcoin cursor is prefixed `btc:` and only resumes with chain=bitcoin. Stacks-only filters (contract_id, sender, recipient, asset_identifier, filters, clock) 400 on chain=bitcoin; rune and address are bitcoin-only."
 					},
 					{
 						"name": "height",
@@ -15885,7 +15885,7 @@
 							],
 							"default": "stacks"
 						},
-						"description": "`stacks` (default) is the existing Stacks feed, byte-identical to before. `bitcoin` serves Runes events (rune_etch, rune_mint, rune_transfer, rune_burn — see the RuneStreamsEvent schema) on their own cursor space: a bitcoin cursor only resumes with chain=bitcoin. Stacks-only filters (contract_id, sender, recipient, asset_identifier, filters, clock) 400 on chain=bitcoin; rune and address are bitcoin-only."
+						"description": "`stacks` (default) is the existing Stacks feed, byte-identical to before. `bitcoin` serves Runes events (rune_etch, rune_mint, rune_transfer, rune_burn — see the RuneStreamsEvent schema) on their own cursor space: a bitcoin cursor is prefixed `btc:` and only resumes with chain=bitcoin. Stacks-only filters (contract_id, sender, recipient, asset_identifier, filters, clock) 400 on chain=bitcoin; rune and address are bitcoin-only."
 					}
 				],
 				"responses": {

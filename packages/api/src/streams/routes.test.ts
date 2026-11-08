@@ -843,6 +843,26 @@ describe("chain=bitcoin Streams gateway (plan 059)", () => {
 		expect(res.status).toBe(400);
 	});
 
+	test("chain=bitcoin answers 400 to a vm cursor and the classic feed to a btc cursor", async () => {
+		const bitcoin = await createBitcoinApp().request(
+			"/v1/streams/events?chain=bitcoin&cursor=vm:840000:1",
+			{ headers: authHeaders(INTERNAL_KEY) },
+		);
+		expect(bitcoin.status).toBe(400);
+		expect(((await bitcoin.json()) as { error: string }).error).toContain(
+			"belongs to the vm feed",
+		);
+
+		const classic = await createBitcoinApp().request(
+			"/v1/streams/events?cursor=btc:840000:1",
+			{ headers: authHeaders(INTERNAL_KEY) },
+		);
+		expect(classic.status).toBe(400);
+		expect(((await classic.json()) as { error: string }).error).toContain(
+			"belongs to the btc feed",
+		);
+	});
+
 	test("chain=bitcoin cursor round-trips across two pages with no gap or repeat", async () => {
 		const allEvents = [
 			runeEtchEvent({ cursor: "840000:0", event_index: 0 }),

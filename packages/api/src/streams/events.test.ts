@@ -559,3 +559,47 @@ describe("parseStreamsEventsQuery — labelled filter maps", () => {
 		expect(parse("from_height=1&to_height=5").filters).toBeUndefined();
 	});
 });
+
+describe("Streams cursor feed tags", () => {
+	test("clock=vm reads its own tagged cursor and a bare one", () => {
+		for (const raw of ["vm:9:3", "9:3"]) {
+			const parsed = parseStreamsEventsQuery(
+				params(`?clock=vm&cursor=${raw}`),
+				TIP,
+			);
+			expect(parsed.cursor).toEqual({ block_height: 9, event_index: 3 });
+		}
+	});
+
+	test("the classic feed refuses a bitcoin or vm cursor with a clear 400", () => {
+		for (const raw of ["btc:9:3", "vm:9:3"]) {
+			expect(() =>
+				parseStreamsEventsQuery(params(`?cursor=${raw}`), TIP),
+			).toThrow(
+				/belongs to the (btc|vm) feed; this request reads the stacks feed/,
+			);
+		}
+	});
+
+	test("clock=vm refuses a bitcoin cursor", () => {
+		expect(() =>
+			parseStreamsEventsQuery(params("?clock=vm&from_cursor=btc:9:3"), TIP),
+		).toThrow(/belongs to the btc feed; this request reads the vm feed/);
+	});
+
+	test("a vm cursor past the tip is echoed back tagged", async () => {
+		const response = await getStreamsEventsResponse({
+			query: params("?clock=vm&cursor=500:1"),
+			tip: TIP,
+		});
+		expect(response.next_cursor).toBe("vm:500:1");
+	});
+
+	test("the classic feed echoes a past-tip cursor bare", async () => {
+		const response = await getStreamsEventsResponse({
+			query: params("?cursor=500:1"),
+			tip: TIP,
+		});
+		expect(response.next_cursor).toBe("500:1");
+	});
+});

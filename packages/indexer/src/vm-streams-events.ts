@@ -2,7 +2,7 @@ import {
 	EMPTY_RANGE_EVENT_INDEX_SENTINEL,
 	VM_EVENT_TYPES,
 	type VmEventType,
-	encodeStreamsCursor,
+	encodeFeedCursor,
 } from "@secondlayer/shared";
 import { getSourceDb, sql } from "@secondlayer/shared/db";
 import type { Database } from "@secondlayer/shared/db/schema";
@@ -97,7 +97,7 @@ export async function readCanonicalVmEvents(
 		const eventIndex = Number(row.ordinal);
 		const height = Number(row.block_height);
 		return {
-			cursor: encodeStreamsCursor({
+			cursor: encodeFeedCursor("vm", {
 				block_height: height,
 				event_index: eventIndex,
 			}),
@@ -121,11 +121,11 @@ export async function readCanonicalVmEvents(
 	return {
 		events,
 		next_cursor: last
-			? encodeStreamsCursor({
+			? encodeFeedCursor("vm", {
 					block_height: Number(last.block_height),
 					event_index: Number(last.ordinal),
 				})
-			: encodeStreamsCursor({
+			: encodeFeedCursor("vm", {
 					block_height: params.toHeight,
 					event_index: EMPTY_RANGE_EVENT_INDEX_SENTINEL,
 				}),

@@ -7,7 +7,7 @@ import {
 } from "@secondlayer/shared/db/queries/chain-reorgs";
 import { ValidationError } from "@secondlayer/shared/errors";
 import { parseLimit } from "../parse-query.ts";
-import { decodeStreamsCursor } from "./cursor.ts";
+import { decodeTaggedStreamsCursor } from "./cursor.ts";
 
 export type StreamsReorg = ChainReorgRecord;
 
@@ -54,7 +54,7 @@ export function parseReorgsSince(
 	}
 
 	try {
-		return decodeStreamsCursor(value);
+		return decodeTaggedStreamsCursor(value).cursor;
 	} catch {}
 
 	const tilde = value.indexOf("~");

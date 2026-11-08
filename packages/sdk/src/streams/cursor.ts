@@ -1,13 +1,14 @@
 import {
 	blockEndCursor,
-	decodeStreamsCursor,
+	decodeTaggedStreamsCursor,
 	encodeStreamsCursor,
 } from "@secondlayer/shared";
 import { ValidationError } from "./errors.ts";
 
 /**
  * Helpers for Streams cursors. A cursor is the opaque `<block>:<index>` string
- * that marks a position in the event stream; treat the format as an
+ * (prefixed `btc:` on the Bitcoin feed and `vm:` on the vm clock) that marks a
+ * position in the event stream; treat the format as an
  * implementation detail and go through these helpers instead of string-building
  * it at call sites. Encode/decode and the rewind sentinel come from the
  * canonical codec in `@secondlayer/shared` so the SDK cannot accept a spelling
@@ -40,17 +41,20 @@ export const Cursor = {
 		return encodeStreamsCursor(blockEndCursor(height - 1));
 	},
 
-	/** Parse a `<block>:<index>` cursor. Throws `ValidationError` if malformed. */
+	/**
+	 * Parse a `<block>:<index>` cursor, with or without its feed tag
+	 * (`btc:` / `vm:`). Throws `ValidationError` if malformed.
+	 */
 	parse(cursor: string): { blockHeight: number; eventIndex: number } {
 		try {
-			const decoded = decodeStreamsCursor(cursor);
+			const decoded = decodeTaggedStreamsCursor(cursor).cursor;
 			return {
 				blockHeight: decoded.block_height,
 				eventIndex: decoded.event_index,
 			};
 		} catch {
 			throw new ValidationError(
-				`Invalid stream cursor "${cursor}"; expected "<block>:<index>" (e.g. "951475:3").`,
+				`Invalid stream cursor "${cursor}"; expected "<block>:<index>", optionally prefixed "btc:" or "vm:" (e.g. "951475:3").`,
 				400,
 			);
 		}
