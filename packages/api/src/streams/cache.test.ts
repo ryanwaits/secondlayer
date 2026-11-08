@@ -196,7 +196,9 @@ describe("streamsEventsCachePlan — every parsed field is decided", () => {
 			.filter(([, decision]) => decision === "excluded")
 			.map(([name]) => name)
 			.sort();
-		expect([...STREAMS_CACHE_KEY_EXCLUDED].sort()).toEqual(excluded);
+		expect([...STREAMS_CACHE_KEY_EXCLUDED].map(String).sort()).toEqual(
+			excluded,
+		);
 	});
 
 	test("every field a parsed query carries has a decision", () => {
