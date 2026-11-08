@@ -12,7 +12,8 @@ import type {
 export const SubgraphNameSchema: z.ZodType<string> = z
 	.string()
 	.min(1)
-	.max(63)
+	// `subgraph_<name>` must fit Postgres' 63-byte identifier limit.
+	.max(54)
 	.regex(
 		/^[a-z][a-z0-9-]*$/,
 		"Must start with lowercase letter, contain only lowercase alphanumeric and hyphens",

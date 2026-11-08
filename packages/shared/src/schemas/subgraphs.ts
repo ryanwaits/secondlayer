@@ -22,7 +22,8 @@ export const DeploySubgraphRequestSchema: z.ZodType<DeploySubgraphRequest> =
 		name: z
 			.string()
 			.regex(/^[a-z0-9-]+$/, "lowercase alphanumeric + hyphens only")
-			.max(63),
+			// `subgraph_<name>` must fit Postgres' 63-byte identifier limit.
+			.max(54),
 		description: z.string().optional(),
 		sources: z
 			.record(z.string(), z.record(z.string(), z.unknown()))
