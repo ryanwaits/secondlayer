@@ -1,4 +1,5 @@
-import { isIPv6 } from "node:net";
+import { isIP, isIPv6 } from "node:net";
+import { isPlatformMode } from "@secondlayer/shared/mode";
 import type { Context } from "hono";
 
 /**
@@ -14,11 +15,21 @@ import type { Context } from "hono";
  * behind Cloudflare in prod, so by default trusting it would be another spoofable
  * input. Returns "unknown" when no trusted source is available (callers must treat
  * "unknown" as fail-closed, not as an exemption).
+ *
+ * Hosted (platform) binds every interface, so a caller that reaches the API without
+ * going through Caddy could append its own `X-Forwarded-For` entry. Caddy reaches the
+ * API over the compose network, so a connection from a public address cannot be the
+ * proxy: its `X-Forwarded-For` is ignored and the socket's own address is the client.
+ * A request with no socket (in-process dispatch, tests) keeps the header rules.
  */
 export function getClientIp(c: Context): string {
 	if (process.env.TRUST_CF_CONNECTING_IP === "true") {
 		const cf = c.req.header("cf-connecting-ip")?.trim();
 		if (cf) return cf;
+	}
+	if (isPlatformMode()) {
+		const peer = peerAddress(c);
+		if (peer !== null && !isPrivateAddress(peer)) return peer;
 	}
 	const hops = Number.parseInt(process.env.TRUSTED_PROXY_HOPS ?? "1", 10);
 	if (hops > 0) {
@@ -33,6 +44,39 @@ export function getClientIp(c: Context): string {
 		if (ip) return ip;
 	}
 	return "unknown";
+}
+
+/** The connecting socket's address, when the server handed us one (Bun passes
+ *  itself as `env`; `app.request()` and in-process dispatch pass nothing). */
+function peerAddress(c: Context): string | null {
+	const server = c.env as
+		| { requestIP?: (req: Request) => { address?: string } | null }
+		| undefined;
+	if (typeof server?.requestIP !== "function") return null;
+	return server.requestIP(c.req.raw)?.address ?? null;
+}
+
+/** Loopback, RFC 1918, link-local and unique-local: the addresses a proxy on
+ *  our own host or compose network connects from. IPv4-mapped IPv6 unwraps. */
+function isPrivateAddress(address: string): boolean {
+	const addr = (address.split("%")[0] ?? address).toLowerCase();
+	const mapped = addr.startsWith("::ffff:") ? addr.slice(7) : addr;
+	if (isIP(mapped) === 4) {
+		const [a = 0, b = 0] = mapped.split(".").map(Number);
+		return (
+			a === 10 ||
+			a === 127 ||
+			(a === 172 && b >= 16 && b <= 31) ||
+			(a === 192 && b === 168) ||
+			(a === 169 && b === 254)
+		);
+	}
+	return (
+		addr === "::1" ||
+		addr.startsWith("fc") ||
+		addr.startsWith("fd") ||
+		/^fe[89ab]/.test(addr)
+	);
 }
 
 /**

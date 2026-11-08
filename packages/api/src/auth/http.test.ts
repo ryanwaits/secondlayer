@@ -9,7 +9,11 @@ function ctx(headers: Record<string, string>): Context {
 	} as unknown as Context;
 }
 
-const ENV_KEYS = ["TRUSTED_PROXY_HOPS", "TRUST_CF_CONNECTING_IP"] as const;
+const ENV_KEYS = [
+	"TRUSTED_PROXY_HOPS",
+	"TRUST_CF_CONNECTING_IP",
+	"INSTANCE_MODE",
+] as const;
 const saved: Record<string, string | undefined> = {};
 for (const k of ENV_KEYS) saved[k] = process.env[k];
 
@@ -103,5 +107,46 @@ describe("ipBucket", () => {
 	test("unknown and unparseable values pass through", () => {
 		expect(ipBucket("unknown")).toBe("unknown");
 		expect(ipBucket("not-an-ip")).toBe("not-an-ip");
+	});
+});
+
+describe("getClientIp peer check (hosted)", () => {
+	function ctxFrom(peer: string | null, headers: Record<string, string>) {
+		return {
+			req: { header: (name: string) => headers[name.toLowerCase()], raw: {} },
+			env: peer === null ? undefined : { requestIP: () => ({ address: peer }) },
+		} as unknown as Context;
+	}
+	const forged = { "x-forwarded-for": "9.9.9.9, 1.1.1.1" };
+
+	test("a public peer is not the proxy: its forwarded header is ignored", () => {
+		process.env.INSTANCE_MODE = "platform";
+		expect(getClientIp(ctxFrom("203.0.113.7", forged))).toBe("203.0.113.7");
+		expect(getClientIp(ctxFrom("2001:db8::1", forged))).toBe("2001:db8::1");
+	});
+
+	test("a peer on the compose network, loopback or WireGuard is the proxy", () => {
+		process.env.INSTANCE_MODE = "platform";
+		for (const peer of [
+			"172.18.0.4",
+			"10.77.0.2",
+			"192.168.1.5",
+			"127.0.0.1",
+			"::1",
+			"::ffff:172.18.0.4",
+			"fd00::2",
+		]) {
+			expect(getClientIp(ctxFrom(peer, forged))).toBe("1.1.1.1");
+		}
+	});
+
+	test("no socket (in-process dispatch) keeps the header rule", () => {
+		process.env.INSTANCE_MODE = "platform";
+		expect(getClientIp(ctxFrom(null, forged))).toBe("1.1.1.1");
+	});
+
+	test("self-host keeps the header rule whatever the peer", () => {
+		process.env.INSTANCE_MODE = "oss";
+		expect(getClientIp(ctxFrom("203.0.113.7", forged))).toBe("1.1.1.1");
 	});
 });
