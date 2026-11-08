@@ -7,7 +7,7 @@ const CLASS = {
 	ghost: "btn btn-ghost",
 } as const;
 
-/** Flat 4px-radius button. Primary is blue and means an action. */
+/** Flat 4px-radius button. Primary is blue and means an action. External hrefs open in a new tab. */
 export function ButtonLink({
 	href,
 	variant = "primary",
@@ -23,6 +23,10 @@ export function ButtonLink({
 		<Link
 			href={href}
 			className={small ? `${CLASS[variant]} btn-sm` : CLASS[variant]}
+			{...(/^https?:\/\//.test(href) && {
+				target: "_blank",
+				rel: "noopener noreferrer",
+			})}
 		>
 			{children}
 		</Link>
