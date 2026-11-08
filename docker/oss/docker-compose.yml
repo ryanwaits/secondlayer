@@ -118,6 +118,9 @@ services:
         aliases:
           - indexer
     volumes:
+      # DATA_DIR. Holds the generated secrets key (secrets.env), so a
+      # recreated container keeps it; subgraphs_data nests inside.
+      - secondlayer_data:/data
       - subgraphs_data:/data/subgraphs
     depends_on:
       postgres:
@@ -221,3 +224,4 @@ services:
 volumes:
   postgres_data:
   subgraphs_data:
+  secondlayer_data:

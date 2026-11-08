@@ -1,5 +1,6 @@
 import type { Kysely } from "kysely";
 import { logger } from "../../logger.ts";
+import { keyMatchesCanary, sealKeyCanary } from "../../runtime/backup.ts";
 import type { Database } from "../types.ts";
 
 export const INSTANCE_NETWORKS = ["mainnet", "testnet", "devnet"] as const;
@@ -108,6 +109,63 @@ export async function ensureInstance(
 			throw new InstanceNetworkMismatchError(raced.network, input.network);
 		}
 		return raced;
+	}
+}
+
+export class SecretsKeyMismatchError extends Error {
+	readonly name = "SecretsKeyMismatchError";
+	constructor() {
+		super(
+			"SECONDLAYER_SECRETS_KEY is not the key this database's secrets were sealed with. Refusing to start: running on a different key leaves every webhook signing secret unreadable. Restore the original key (the DATA_DIR volume's secrets.env, or your SECONDLAYER_SECRETS_KEY), or clear instances.secrets_key_canary only if you mean to abandon those secrets.",
+		);
+	}
+}
+
+/**
+ * Pin the secrets key to this database. The first boot with a key seals a
+ * canary into the instance row; every later boot must open it with the key it
+ * was handed, or it refuses to start. Without this, a lost key is replaced by
+ * a freshly generated one and every encrypted column quietly stops decrypting.
+ */
+export async function ensureSecretsKeyCanary(
+	db: Kysely<Database>,
+	input: { keyHex: string; network: InstanceNetwork },
+): Promise<void> {
+	const read = () =>
+		db
+			.selectFrom("instances")
+			.select(["id", "secrets_key_canary"])
+			.executeTakeFirst();
+
+	let row = await read();
+	if (!row) {
+		await db
+			.insertInto("instances")
+			.values({
+				network: input.network,
+				secrets_key_canary: sealKeyCanary(input.keyHex),
+			})
+			.onConflict((oc) => oc.doNothing())
+			.execute();
+		row = await read();
+		if (!row) throw new Error("failed to create instance");
+	}
+	if (row.secrets_key_canary === null) {
+		// Only the first writer's canary counts: a concurrent boot with another
+		// key loses the race and is then checked against the winner's.
+		await db
+			.updateTable("instances")
+			.set({ secrets_key_canary: sealKeyCanary(input.keyHex) })
+			.where("id", "=", row.id)
+			.where("secrets_key_canary", "is", null)
+			.execute();
+		row = await read();
+	}
+	if (
+		!row?.secrets_key_canary ||
+		!keyMatchesCanary(row.secrets_key_canary, input.keyHex)
+	) {
+		throw new SecretsKeyMismatchError();
 	}
 }
 

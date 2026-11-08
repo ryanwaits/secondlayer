@@ -3,11 +3,12 @@ import {
 	appendFileSync,
 	closeSync,
 	existsSync,
+	mkdirSync,
 	openSync,
 	readFileSync,
 	unlinkSync,
 } from "node:fs";
-import { resolve } from "node:path";
+import { dirname, resolve } from "node:path";
 import { getInstanceMode } from "../mode.ts";
 
 /**
@@ -18,9 +19,12 @@ import { getInstanceMode } from "../mode.ts";
  *
  * The key comes from `SECONDLAYER_SECRETS_KEY` — 32 bytes hex. In OSS mode,
  * if the env var is unset on first use we autogenerate a key and persist it
- * to `.env.local` in the current working directory so subsequent restarts
- * pick it up without user intervention. Dedicated/platform modes throw —
- * those runtimes must provision the key explicitly.
+ * to `secrets.env` under `DATA_DIR` (a volume, so it survives a container
+ * recreate) so subsequent restarts pick it up without user intervention.
+ * With no `DATA_DIR` (a bare `bun run`) it goes to `.env.local` in the
+ * current working directory. A key already in `.env.local` is carried into
+ * `DATA_DIR` on first boot. Dedicated/platform modes throw — those runtimes
+ * must provision the key explicitly.
  *
  * Rotation strategy: re-encrypt all rows with the new key and swap the env
  * var. Not zero-downtime, but acceptable at v2 scale. For real KMS (AWS
@@ -31,6 +35,20 @@ import { getInstanceMode } from "../mode.ts";
 const KEY_ENV = "SECONDLAYER_SECRETS_KEY";
 const IV_LEN = 12;
 const TAG_LEN = 16;
+
+/** Where an OSS instance keeps its generated key: the `DATA_DIR` volume when
+ *  there is one, else `.env.local` beside the process. */
+function keyFilePath(): string {
+	const dataDir = process.env.DATA_DIR?.trim();
+	return dataDir
+		? resolve(dataDir, "secrets.env")
+		: resolve(process.cwd(), ".env.local");
+}
+
+/** Where earlier versions wrote the key, before `DATA_DIR` held it. */
+function legacyKeyFilePath(): string {
+	return resolve(process.cwd(), ".env.local");
+}
 
 function readExistingKey(envPath: string): string | null {
 	if (!existsSync(envPath)) return null;
@@ -51,7 +69,7 @@ const STALE_LOCK_MS = 10_000;
 const POLL_MS = 25;
 
 function bootstrapOssKey(): string {
-	const envPath = resolve(process.cwd(), ".env.local");
+	const envPath = keyFilePath();
 
 	// Fast path — key already on disk from a prior run.
 	const existing = readExistingKey(envPath);
@@ -60,6 +78,7 @@ function bootstrapOssKey(): string {
 		return existing;
 	}
 
+	mkdirSync(dirname(envPath), { recursive: true });
 	const lockPath = `${envPath}.secret-bootstrap.lock`;
 	let lockFd: number | null = null;
 	try {
@@ -88,12 +107,17 @@ function bootstrapOssKey(): string {
 	}
 
 	try {
-		const hex = randomBytes(32).toString("hex");
+		// A key an earlier version wrote beside the process moves into the volume
+		// instead of being replaced: a new key would orphan every secret sealed
+		// under it.
+		const legacy = legacyKeyFilePath();
+		const carried = legacy === envPath ? null : readExistingKey(legacy);
+		const hex = carried ?? randomBytes(32).toString("hex");
 		const line = `${existsSync(envPath) ? "\n" : ""}${KEY_ENV}=${hex}\n`;
 		appendFileSync(envPath, line, { mode: 0o600 });
 		process.env[KEY_ENV] = hex;
 		console.log(
-			`[secondlayer] generated ${KEY_ENV}; saved to ${envPath} (mode 0600)`,
+			`[secondlayer] ${carried ? `moved ${KEY_ENV} from ${legacy} to` : `generated ${KEY_ENV}; saved to`} ${envPath} (mode 0600)`,
 		);
 		return hex;
 	} finally {
@@ -131,7 +155,7 @@ function getKey(): Buffer {
 /**
  * Non-throwing check for whether a secrets key is currently resolvable —
  * same resolution order as {@link loadKey} (env var, then the OSS
- * `.env.local` fallback), but never bootstraps a new key (that would
+ * key file), but never bootstraps a new key (that would
  * generate+persist a key as a side effect of a mere existence check), never
  * throws, and never returns or logs the key itself. Used by callers that
  * need to fail loud on a missing key BEFORE attempting a decrypt (f072).
@@ -139,10 +163,21 @@ function getKey(): Buffer {
 export function secretsKeyAvailable(): boolean {
 	if (process.env[KEY_ENV]) return true;
 	if (getInstanceMode() === "oss") {
-		const envPath = resolve(process.cwd(), ".env.local");
-		return readExistingKey(envPath) !== null;
+		return (
+			readExistingKey(keyFilePath()) !== null ||
+			readExistingKey(legacyKeyFilePath()) !== null
+		);
 	}
 	return false;
+}
+
+/**
+ * The secrets key as hex, resolved the way encrypt/decrypt resolve it (and
+ * bootstrapped the same way in OSS mode). Boot calls this once so every module
+ * it spawns inherits the one key through the environment.
+ */
+export function resolveSecretsKeyHex(): string {
+	return getKey().toString("hex");
 }
 
 export function encryptSecret(plaintext: string): Buffer {

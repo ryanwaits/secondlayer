@@ -1,9 +1,12 @@
 import { afterEach, describe, expect, test } from "bun:test";
+import { generateSecretsKey } from "../../crypto/secrets.ts";
 import { getDb } from "../index.ts";
 import {
 	InstanceNetworkMismatchError,
 	InvalidInstanceNetworkError,
+	SecretsKeyMismatchError,
 	ensureInstance,
+	ensureSecretsKeyCanary,
 	getInstance,
 	instanceNetworkFromEnv,
 	parseInstanceNetwork,
@@ -57,6 +60,43 @@ describe.skipIf(SKIP)("instances table", () => {
 
 	afterEach(async () => {
 		await db.deleteFrom("instances").execute();
+	});
+
+	test("the first boot with a key seals a canary and the same key boots again", async () => {
+		const keyHex = generateSecretsKey();
+		await ensureSecretsKeyCanary(db, { keyHex, network: "mainnet" });
+		const row = await db
+			.selectFrom("instances")
+			.select("secrets_key_canary")
+			.executeTakeFirstOrThrow();
+		expect(row.secrets_key_canary).toBeTruthy();
+		await ensureSecretsKeyCanary(db, { keyHex, network: "mainnet" });
+	});
+
+	test("a boot with a different key is refused", async () => {
+		await ensureSecretsKeyCanary(db, {
+			keyHex: generateSecretsKey(),
+			network: "mainnet",
+		});
+		expect(
+			ensureSecretsKeyCanary(db, {
+				keyHex: generateSecretsKey(),
+				network: "mainnet",
+			}),
+		).rejects.toBeInstanceOf(SecretsKeyMismatchError);
+	});
+
+	test("an instance row that predates the canary adopts the first key it sees", async () => {
+		await ensureInstance(db, { network: "mainnet" });
+		const keyHex = generateSecretsKey();
+		await ensureSecretsKeyCanary(db, { keyHex, network: "mainnet" });
+		expect(
+			ensureSecretsKeyCanary(db, {
+				keyHex: generateSecretsKey(),
+				network: "mainnet",
+			}),
+		).rejects.toBeInstanceOf(SecretsKeyMismatchError);
+		await ensureSecretsKeyCanary(db, { keyHex, network: "mainnet" });
 	});
 
 	test("ensureInstance creates a row with no account present", async () => {

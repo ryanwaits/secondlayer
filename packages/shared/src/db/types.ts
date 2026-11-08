@@ -378,6 +378,12 @@ export interface ApiKeysTable {
 export interface InstancesTable {
 	id: Generated<string>;
 	network: string;
+	/** `SECONDLAYER_SECRETS_KEY` sealed under itself; see `ensureSecretsKeyCanary`. */
+	secrets_key_canary: ColumnType<
+		string | null,
+		string | null | undefined,
+		string | null
+	>;
 	created_at: Generated<Date>;
 }
 

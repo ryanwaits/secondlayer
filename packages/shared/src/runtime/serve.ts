@@ -75,6 +75,25 @@ if (import.meta.main) {
 		console.error(error instanceof Error ? error.message : error);
 		process.exit(1);
 	}
+	// Self-host seals its secrets to one key. Resolve it once here, so every
+	// module inherits it, and refuse to boot on a key this database was not
+	// sealed with.
+	const { getInstanceMode } = await import("../mode.ts");
+	if (getInstanceMode() === "oss") {
+		const { resolveSecretsKeyHex } = await import("../crypto/secrets.ts");
+		const { ensureSecretsKeyCanary, instanceNetworkFromEnv } = await import(
+			"../db/queries/instance.ts"
+		);
+		try {
+			await ensureSecretsKeyCanary(getDb(), {
+				keyHex: resolveSecretsKeyHex(),
+				network: instanceNetworkFromEnv(env),
+			});
+		} catch (error) {
+			console.error(error instanceof Error ? error.message : error);
+			process.exit(1);
+		}
+	}
 	const modules = profile.map((id) =>
 		createMemoryModule(id, {
 			onStart: () => spawnModule(id),

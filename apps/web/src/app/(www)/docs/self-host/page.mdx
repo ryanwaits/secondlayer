@@ -430,6 +430,7 @@ The index can be rebuilt from the [archive](/docs/archive). The keys cannot.
 | --- | --- |
 | `postgres_data` volume | chain, subgraph tables, webhook rows |
 | `subgraphs_data` volume | compiled handlers |
+| `secondlayer_data` volume | the generated secrets key, when `SECONDLAYER_SECRETS_KEY` is unset |
 | `SECONDLAYER_SECRETS_KEY` | decrypts webhook signing secrets in Postgres |
 | `INSTANCE_TOKEN` | callers; required at boot |
 | `STREAMS_SIGNING_PRIVATE_KEY`, `SECONDLAYER_WEBHOOK_SIGNING_PRIVATE_KEY` | platform signature on deliveries |
