@@ -77,7 +77,7 @@
 			"signature": "consumeIndexFeed<TItem extends IndexFeedItem, TEnvelope extends IndexFeedEnvelope, TTx = never>(opts: IndexConsumeOptions<TItem, TEnvelope, TTx> & { fetchPage: IndexFeedFetcher<TEnvelope>; itemsOf: (envelope: TEnvelope) => TItem[] }): Promise<{ cursor: string | null; pages: number; emptyPolls: number }>",
 			"source": {
 				"file": "packages/sdk/src/index-api/consumer.ts",
-				"line": 122
+				"line": 124
 			}
 		},
 		{
@@ -95,7 +95,7 @@
 			"signature": "contextField<T>(read: Promise<T>): Promise<ContextField<T>>",
 			"source": {
 				"file": "packages/sdk/src/client.ts",
-				"line": 81
+				"line": 82
 			}
 		},
 		{
@@ -131,7 +131,7 @@
 			"signature": "decodeChainWebhook(rawBody: string): ChainWebhookDelivery",
 			"source": {
 				"file": "packages/sdk/src/webhooks/verify.ts",
-				"line": 256
+				"line": 295
 			}
 		},
 		{

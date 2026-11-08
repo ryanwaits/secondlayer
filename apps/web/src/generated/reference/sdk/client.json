@@ -7,7 +7,7 @@
 		"description": "",
 		"source": {
 			"file": "packages/sdk/src/client.ts",
-			"line": 111
+			"line": 112
 		},
 		"overloads": [
 			{
@@ -110,7 +110,7 @@
 			"description": "Run up to 10 public reads in one round trip (`POST /v1/batch`).\n\nEach item is authorized on its own; the client's bearer token applies to\nevery item. Results come back in order as `{ path, status, body }`. Only\npaths under `/v1/index/`, `/v1/subgraphs`, `/v1/streams/`, and\n`/v1/contracts` are allowed; anything else is a per-item 400.",
 			"source": {
 				"file": "packages/sdk/src/client.ts",
-				"line": 159
+				"line": 160
 			},
 			"rest": "POST /v1/batch",
 			"overloads": [
@@ -145,7 +145,7 @@
 			"description": "Get a one-call snapshot of your account and instance.\n\nReturns a [`ContextSnapshot`](/docs/sdk-reference/client#t-ContextSnapshot): the same orientation an MCP agent reads\nfrom `secondlayer://context`, available to any SDK or CLI consumer. Reads\nrun concurrently; a failed read lands as `{ value: null, error }` on its\nfield rather than rejecting the whole snapshot.",
 			"source": {
 				"file": "packages/sdk/src/client.ts",
-				"line": 178
+				"line": 179
 			},
 			"rest": "GET /api/accounts/me",
 			"overloads": [
@@ -205,9 +205,9 @@
 			"fields": [
 				{
 					"name": "email",
-					"type": "string",
+					"type": "string | null",
 					"required": true,
-					"description": ""
+					"description": "Null for an account minted before sign-up."
 				}
 			]
 		},
