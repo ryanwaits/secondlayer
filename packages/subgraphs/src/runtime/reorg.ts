@@ -160,6 +160,24 @@ async function stopReindexBehindFork(
 	return cleared;
 }
 
+/**
+ * Moves the cursor back to `height` in the transaction that reverts the rows
+ * above it, so a crash or a skipped reprocess can never leave a cursor claiming
+ * rows the revert removed. Moves backward only; a reindexing subgraph's cursor
+ * is handled by its queued reindex op instead.
+ */
+async function rewindCursorTo(
+	tx: Pick<ReturnType<typeof getRawClient>, "unsafe">,
+	name: string,
+	height: number,
+): Promise<void> {
+	await tx.unsafe(
+		`UPDATE subgraphs SET last_processed_block = $1, updated_at = now()
+		 WHERE name = $2 AND status = 'active' AND last_processed_block > $1`,
+		[Math.max(0, height), name],
+	);
+}
+
 /** The per-subgraph revert+reprocess sequence, run while holding both the
  *  in-process block lock (f057) and the cross-process advisory lock (f069,
  *  see the call site in {@link handleSubgraphReorg}). */
@@ -174,11 +192,9 @@ async function reorgOneSubgraph(
 	// halted, finished or cancelled since.
 	const current = await getSubgraph(targetDb, sg.name);
 	if (!current) return;
-	if (current.status === "reindexing") {
-		if (Number(current.last_processed_block) < blockHeight) return;
-	} else if (current.status !== "active") {
-		return;
-	}
+	if (current.status !== "active" && current.status !== "reindexing") return;
+	// A cursor below the fork wrote nothing from the orphaned range.
+	if (Number(current.last_processed_block) < blockHeight) return;
 	const schemaName = sg.schema_name ?? pgSchemaName(sg.name);
 	// Rows live on the managed target DB.
 	const client = getRawClient("target");
@@ -232,18 +248,22 @@ async function reorgOneSubgraph(
 				`DELETE FROM "${schemaName}"."_journal" WHERE block_height >= $1`,
 				[blockHeight],
 			);
+			await rewindCursorTo(tx, sg.name, blockHeight - 1);
 		});
 	} else {
 		logger.warn(
 			"Subgraph has no revert journal — falling back to height delete (accumulator rows may lose history)",
 			{ subgraph: sg.name, blockHeight },
 		);
-		for (const tableName of tableNames) {
-			await client.unsafe(
-				`DELETE FROM "${schemaName}"."${tableName}" WHERE "_block_height" >= $1`,
-				[blockHeight],
-			);
-		}
+		await client.begin(async (tx) => {
+			for (const tableName of tableNames) {
+				await tx.unsafe(
+					`DELETE FROM "${schemaName}"."${tableName}" WHERE "_block_height" >= $1`,
+					[blockHeight],
+				);
+			}
+			await rewindCursorTo(tx, sg.name, blockHeight - 1);
+		});
 	}
 
 	// Factory-discovered addresses are chain-derived state like any
