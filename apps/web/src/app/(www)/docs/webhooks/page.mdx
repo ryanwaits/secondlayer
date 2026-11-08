@@ -280,6 +280,8 @@ Check the signature, decode the body, and undo anything a reorg orphans.
 
 Delivery is **at-least-once** and **unordered**: dedupe on `(tx_id, event_index, block_hash)` and don't assume arrival order matches chain order.
 
+A retry of one delivery keeps its `webhook-id`, so deduping on `webhook-id` drops repeats of the same delivery. The signed timestamp is not checked for freshness, so a captured delivery verifies later too: keep the ids you have handled.
+
 ### Verify the signature
 
 On the default `standard-webhooks` format, every delivery carries a per-webhook HMAC. Pass the **raw body first**.
@@ -526,6 +528,8 @@ A reorg delivers `chain.reorg.rollback` so you can undo anything committed off a
 ```
 
 A rollback lists only events from the blocks that reorg orphaned, and each event appears in one rollback. Match an entry to its apply by `block_hash` and `tx_id`. Applies from blocks the reorg did not orphan stay valid.
+
+On rows indexed before hashes were recorded, `block_hash` is `null`. Match those by `tx_id` and `block_height` instead. `decodeChainWebhook` throws on an entry whose `tx_id`, `block_hash` or `block_height` has the wrong type.
 
 <Callout type="warning" title="orphaned is capped at 500">
 

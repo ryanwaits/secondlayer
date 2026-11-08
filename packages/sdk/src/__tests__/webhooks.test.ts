@@ -285,6 +285,69 @@ describe("decodeChainWebhook", () => {
 		expect(delivery.data.orphaned).toHaveLength(1);
 	});
 
+	describe("rollback entries", () => {
+		const rollback = (data: Record<string, unknown>) =>
+			JSON.stringify({
+				type: "chain.reorg.rollback",
+				timestamp: "2026-05-01T12:00:00.000Z",
+				data: {
+					action: "rollback",
+					fork_point_height: 500000,
+					orphaned: [],
+					truncated: false,
+					...data,
+				},
+			});
+		const entry = (over: Record<string, unknown> = {}) => ({
+			tx_id: "0xabc",
+			block_hash: "0xdef",
+			block_height: 500001,
+			event: { type: "stx_transfer_event" },
+			...over,
+		});
+
+		test("accepts an old row whose block_hash is null", () => {
+			const delivery = decodeChainWebhook(
+				rollback({ orphaned: [entry({ block_hash: null })] }),
+			);
+			expect(delivery.type).toBe("chain.reorg.rollback");
+		});
+
+		test("rejects an entry that is not an object", () => {
+			expect(() =>
+				decodeChainWebhook(rollback({ orphaned: ["0xabc"] })),
+			).toThrow(/orphaned/);
+			expect(() => decodeChainWebhook(rollback({ orphaned: [null] }))).toThrow(
+				/orphaned/,
+			);
+		});
+
+		test("rejects an entry whose tx_id or block_hash has the wrong type", () => {
+			expect(() =>
+				decodeChainWebhook(rollback({ orphaned: [entry({ tx_id: 5 })] })),
+			).toThrow(/tx_id/);
+			expect(() =>
+				decodeChainWebhook(rollback({ orphaned: [entry({ block_hash: 5 })] })),
+			).toThrow(/block_hash/);
+		});
+
+		test("rejects an entry whose block_height is not a non-negative integer", () => {
+			for (const block_height of [-1, 1.5, "7"]) {
+				expect(() =>
+					decodeChainWebhook(rollback({ orphaned: [entry({ block_height })] })),
+				).toThrow(/block_height/);
+			}
+		});
+
+		test("rejects a fork point that is not a non-negative integer", () => {
+			for (const fork_point_height of [-1, 1.5, "5", null]) {
+				expect(() =>
+					decodeChainWebhook(rollback({ fork_point_height })),
+				).toThrow(/fork_point_height/);
+			}
+		});
+	});
+
 	test("decodes a chain.test.apply ping", () => {
 		const body = JSON.stringify({
 			type: "chain.test.apply",

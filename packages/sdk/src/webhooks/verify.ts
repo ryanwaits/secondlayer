@@ -215,6 +215,45 @@ export function verifySecondlayerSignature(
 	return verifySecondlayerSignatureValues(rawBody, id, signature, publicKeyPem);
 }
 
+const isHeight = (value: unknown): boolean =>
+	typeof value === "number" && Number.isSafeInteger(value) && value >= 0;
+
+/** A rollback drives deletes on the receiver, so the fork point and each entry
+ *  are checked before anything acts on them. `block_hash` is null on rows from
+ *  before it was recorded; `block_height` may be absent on the oldest. */
+function assertRollbackBody(data: {
+	fork_point_height?: unknown;
+	orphaned: unknown[];
+}): void {
+	if (!isHeight(data.fork_point_height)) {
+		throw new Error(
+			"decodeChainWebhook: rollback `data.fork_point_height` is not a non-negative integer",
+		);
+	}
+	data.orphaned.forEach((entry, i) => {
+		const at = `rollback \`data.orphaned[${i}]\``;
+		if (typeof entry !== "object" || entry === null || Array.isArray(entry)) {
+			throw new Error(`decodeChainWebhook: ${at} (orphaned) is not an object`);
+		}
+		const e = entry as Record<string, unknown>;
+		if (e.tx_id !== null && typeof e.tx_id !== "string") {
+			throw new Error(`decodeChainWebhook: ${at} has a non-string tx_id`);
+		}
+		if (
+			e.block_hash !== undefined &&
+			e.block_hash !== null &&
+			typeof e.block_hash !== "string"
+		) {
+			throw new Error(`decodeChainWebhook: ${at} has a non-string block_hash`);
+		}
+		if (e.block_height !== undefined && !isHeight(e.block_height)) {
+			throw new Error(
+				`decodeChainWebhook: ${at} has a block_height that is not a non-negative integer`,
+			);
+		}
+	});
+}
+
 /**
  * Decode + narrow a chain webhook delivery body into a typed
  * {@link ChainWebhookDelivery}. Verify the signature first with
@@ -288,6 +327,9 @@ export function decodeChainWebhook(rawBody: string): ChainWebhookDelivery {
 				'decodeChainWebhook: "chain.reorg.rollback" body missing `data.action`/`data.orphaned`',
 			);
 		}
+		assertRollbackBody(
+			data as { fork_point_height?: unknown; orphaned: unknown[] },
+		);
 	} else {
 		if (data.action !== "apply" || typeof data.trigger !== "string") {
 			throw new Error(
