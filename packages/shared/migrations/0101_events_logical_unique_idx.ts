@@ -18,7 +18,10 @@ import { onChainPlane } from "../src/db/migration-role.ts";
  * supply shortfall: decoded mint−burn read 2,331.6 BTC vs on-chain 2,954.7).
  *
  * The logical key is `(block_height, tx_id, event_index)`:
- *   - `event_index` is per-transaction, so `tx_id` is required to disambiguate.
+ *   - Raw `event_index` has two eras: below ~block 7,440,500 (imported history)
+ *     it restarts at 0 in each transaction, above that it counts across the
+ *     whole block. Streams computes the block position itself. The key is
+ *     unique under both, and `tx_id` is what disambiguates the per-tx era.
  *   - `block_height` is included (not implied-redundant) on purpose: a reorg can
  *     legitimately leave the same `(tx_id, event_index)` at two heights (orphan +
  *     canonical). Keying on height permits those as distinct physical rows while
