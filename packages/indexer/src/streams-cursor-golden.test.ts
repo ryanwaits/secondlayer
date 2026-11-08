@@ -14,13 +14,13 @@ const H = 991_101;
  * `STREAMS_CURSOR_VERSION` must be bumped with it.
  */
 const GOLDEN_CURSOR_VERSION = 1;
-const GOLDEN: Array<{ cursor: string; eventType: string }> = [
+const GOLDEN = [
 	{ cursor: `${H}:0`, eventType: "stx_transfer" },
 	{ cursor: `${H}:1`, eventType: "ft_mint" },
 	{ cursor: `${H}:2`, eventType: "print" },
 	{ cursor: `${H}:3`, eventType: "nft_burn" },
 	{ cursor: `${H}:4`, eventType: "print" },
-];
+] as const;
 
 describe.skipIf(!HAS_DB)("streams cursor golden fixture", () => {
 	const db = HAS_DB ? getDb() : null;
@@ -148,6 +148,6 @@ describe.skipIf(!HAS_DB)("streams cursor golden fixture", () => {
 
 		expect(
 			page.events.map((e) => ({ cursor: e.cursor, eventType: e.event_type })),
-		).toEqual(GOLDEN);
+		).toEqual([...GOLDEN]);
 	});
 });

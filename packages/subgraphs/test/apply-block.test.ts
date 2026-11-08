@@ -160,6 +160,7 @@ function block(height: number, perTx: Write[][]): PreloadedBlockData {
 			burn_block_hash: null,
 			index_block_hash: `0x${"cd".repeat(31)}${height.toString(16).padStart(2, "0")}`,
 			tx_count: txs.length,
+			event_count: null,
 			timestamp: 1_700_000_000 + height,
 			canonical: true,
 			created_at: new Date(0),

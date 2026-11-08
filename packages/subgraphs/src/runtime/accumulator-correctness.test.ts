@@ -214,6 +214,7 @@ function makeBlock(height: number, ftEvents: FtEvent[]): PreloadedBlockData {
 			burn_block_hash: null,
 			index_block_hash: null,
 			tx_count: null,
+			event_count: null,
 			timestamp: 1700000000 + height,
 			canonical: true,
 			created_at: new Date(0),

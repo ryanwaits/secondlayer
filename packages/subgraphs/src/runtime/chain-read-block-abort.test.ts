@@ -122,6 +122,7 @@ function makeBlock(
 			index_block_hash:
 				opts.indexBlockHash ?? `0x${randomUUID().replace(/-/g, "")}`,
 			tx_count: null,
+			event_count: null,
 			timestamp: 1700000000 + height,
 			canonical: true,
 			created_at: new Date(0),
