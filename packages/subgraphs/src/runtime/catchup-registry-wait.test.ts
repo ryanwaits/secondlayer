@@ -1,12 +1,13 @@
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "bun:test";
 import { randomUUID } from "node:crypto";
-import { getDb } from "@secondlayer/shared/db";
+import { getDb, getSourceDb } from "@secondlayer/shared/db";
 import type { Database } from "@secondlayer/shared/db";
 import type { LeaderBackend } from "@secondlayer/shared/leader";
 import type { Kysely } from "kysely";
 import type { SubgraphDefinition, SubgraphSchema } from "../types.ts";
 import { startCatchUpLeader } from "./catchup-leader.ts";
 import { catchUpSubgraph } from "./catchup.ts";
+import { forgetRegistryReading } from "./chain-data-reader.ts";
 
 /**
  * A trait-scoped subgraph resolves its contract set from the registry, which
@@ -61,6 +62,13 @@ async function registerSubgraph(name: string, trait: boolean): Promise<void> {
 			start_block: BASE + 1,
 		})
 		.execute();
+}
+
+/** One catch-up tick against a fresh registry reading (the reader caches it
+ *  for 15 s; these tests change the registry between ticks). */
+async function catchUp(name: string, trait: boolean): Promise<void> {
+	forgetRegistryReading(getSourceDb());
+	await catchUpSubgraph(makeDef(name, trait), name);
 }
 
 async function cursorOf(name: string): Promise<number> {
@@ -183,7 +191,7 @@ describe("catch-up waits for the contract registry", () => {
 		const name = `regwait-trait-${randomUUID().slice(0, 8)}`;
 		await registerSubgraph(name, true);
 
-		await catchUpSubgraph(makeDef(name, true), name);
+		await catchUp(name, true);
 
 		expect(await cursorOf(name)).toBe(UNCLASSIFIED_DEPLOY - 1);
 	});
@@ -197,7 +205,7 @@ describe("catch-up waits for the contract registry", () => {
 		);
 		const name = `regwait-resume-${randomUUID().slice(0, 8)}`;
 		await registerSubgraph(name, true);
-		await catchUpSubgraph(makeDef(name, true), name);
+		await catchUp(name, true);
 		expect(await cursorOf(name)).toBe(UNCLASSIFIED_DEPLOY - 1);
 
 		await db
@@ -211,7 +219,7 @@ describe("catch-up waits for the contract registry", () => {
 				inferred_standards: ["sip-010"],
 			})
 			.execute();
-		await catchUpSubgraph(makeDef(name, true), name);
+		await catchUp(name, true);
 
 		expect(await cursorOf(name)).toBe(TIP);
 	});
@@ -226,7 +234,7 @@ describe("catch-up waits for the contract registry", () => {
 		const name = `regwait-failed-${randomUUID().slice(0, 8)}`;
 		await registerSubgraph(name, true);
 
-		await catchUpSubgraph(makeDef(name, true), name);
+		await catchUp(name, true);
 
 		expect(await cursorOf(name)).toBe(TIP);
 	});
@@ -241,7 +249,7 @@ describe("catch-up waits for the contract registry", () => {
 		const name = `regwait-plain-${randomUUID().slice(0, 8)}`;
 		await registerSubgraph(name, false);
 
-		await catchUpSubgraph(makeDef(name, false), name);
+		await catchUp(name, false);
 
 		expect(await cursorOf(name)).toBe(TIP);
 	});

@@ -1,9 +1,14 @@
 import { describe, expect, it } from "bun:test";
+import type { Database } from "@secondlayer/shared/db";
 import type {
 	IndexContractRow,
 	IndexHttpClient,
 } from "@secondlayer/shared/index-http";
-import { hostedChainDataReader } from "./chain-data-reader.ts";
+import type { Kysely } from "kysely";
+import {
+	databaseChainDataReader,
+	hostedChainDataReader,
+} from "./chain-data-reader.ts";
 
 type Row = { id: string; height: number; classifiedAt: number };
 
@@ -122,5 +127,59 @@ describe("hosted trait membership", () => {
 		state.clock += 60_000;
 		expect(await reader.traitContractIds("sip-010", 100)).toEqual(["SP1.old"]);
 		expect(state.fetches).toBe(1);
+	});
+});
+
+describe("databaseChainDataReader registryClassifiedThrough", () => {
+	function setup() {
+		const state = { queries: 0, clock: 1_000_000, fail: false, value: 100 };
+		const db = {} as unknown as Kysely<Database>;
+		const opts = {
+			now: () => state.clock,
+			classifiedThrough: async () => {
+				state.queries++;
+				await Promise.resolve();
+				if (state.fail) throw new Error("db down");
+				return state.value;
+			},
+		};
+		return { state, db, opts };
+	}
+
+	it("shares one query between readers calling in the same window", async () => {
+		const { state, db, opts } = setup();
+		const a = databaseChainDataReader(db, opts);
+		const b = databaseChainDataReader(db, opts);
+
+		const [first, second] = await Promise.all([
+			a.registryClassifiedThrough(),
+			b.registryClassifiedThrough(),
+		]);
+		expect([first, second]).toEqual([100, 100]);
+		state.clock += 5_000;
+		await a.registryClassifiedThrough();
+		expect(state.queries).toBe(1);
+	});
+
+	it("queries again once the cached value is older than 15 seconds", async () => {
+		const { state, db, opts } = setup();
+		const reader = databaseChainDataReader(db, opts);
+		await reader.registryClassifiedThrough();
+		state.clock += 15_001;
+		state.value = 140;
+
+		expect(await reader.registryClassifiedThrough()).toBe(140);
+		expect(state.queries).toBe(2);
+	});
+
+	it("does not cache a failed query", async () => {
+		const { state, db, opts } = setup();
+		const reader = databaseChainDataReader(db, opts);
+		state.fail = true;
+		await expect(reader.registryClassifiedThrough()).rejects.toThrow("db down");
+		state.fail = false;
+
+		expect(await reader.registryClassifiedThrough()).toBe(100);
+		expect(state.queries).toBe(2);
 	});
 });
