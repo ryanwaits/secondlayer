@@ -10,6 +10,10 @@ import postgres from "postgres";
  * (see migrations — trigger attached to the subgraphs table on target DB).
  * Listener binds to `TARGET_DATABASE_URL` when set (dual-DB mode), falling
  * back to `DATABASE_URL` otherwise.
+ *
+ * A NOTIFY sent while the listener was disconnected is lost, so the cache also
+ * reloads whenever the listener (re)subscribes and on a TTL: it can be stale
+ * for at most `ttlMs`, whatever happened to the connection.
  */
 export class SubgraphRegistryCache {
 	private subgraphs = new Map<string, Subgraph>();
@@ -18,12 +22,21 @@ export class SubgraphRegistryCache {
 	private refreshSeq = 0;
 	private appliedSeq = 0;
 	private debounceTimer: ReturnType<typeof setTimeout> | null = null;
+	private ttlTimer: ReturnType<typeof setInterval> | null = null;
 	private static readonly DEBOUNCE_MS = 500;
+	static readonly DEFAULT_TTL_MS = 60_000;
 
-	constructor(private loadAll: () => Promise<Subgraph[]>) {}
+	constructor(
+		private loadAll: () => Promise<Subgraph[]>,
+		private ttlMs = SubgraphRegistryCache.DEFAULT_TTL_MS,
+	) {}
 
 	async start(): Promise<void> {
 		await this.refresh();
+		this.ttlTimer = setInterval(() => {
+			void this.refreshQuietly();
+		}, this.ttlMs);
+		this.ttlTimer.unref?.();
 
 		// Subgraph registry lives in the target DB (tenant-side). In dual-DB
 		// mode, listener must bind to TARGET_DATABASE_URL — DATABASE_URL alone
@@ -34,23 +47,43 @@ export class SubgraphRegistryCache {
 		if (!url) return;
 
 		this.listener = postgres(url, { max: 1 });
-		this.listener.listen("subgraph_changes", (_payload: string) => {
-			if (this.debounceTimer) clearTimeout(this.debounceTimer);
-			this.debounceTimer = setTimeout(() => {
-				logger.info("Subgraph registry changed, refreshing cache");
-				// A failed reload keeps the last good cache; the next change
-				// notification tries again.
-				this.refresh().catch((error) => {
-					logger.warn("Subgraph registry refresh failed; keeping cached copy", {
-						error: error instanceof Error ? error.message : String(error),
-					});
-				});
-			}, SubgraphRegistryCache.DEBOUNCE_MS);
-		});
+		let subscribedBefore = false;
+		this.listener.listen(
+			"subgraph_changes",
+			(_payload: string) => {
+				if (this.debounceTimer) clearTimeout(this.debounceTimer);
+				this.debounceTimer = setTimeout(() => {
+					logger.info("Subgraph registry changed, refreshing cache");
+					void this.refreshQuietly();
+				}, SubgraphRegistryCache.DEBOUNCE_MS);
+			},
+			// Runs on every (re)subscribe. The first one follows the load above;
+			// later ones mean the connection dropped and NOTIFYs may be missed.
+			() => {
+				if (subscribedBefore) {
+					logger.info("Subgraph registry listener reconnected, reloading");
+					void this.refreshQuietly();
+				}
+				subscribedBefore = true;
+			},
+		);
+	}
+
+	/** Reload, keeping the last good cache when the load fails. */
+	async refreshQuietly(): Promise<void> {
+		try {
+			await this.refresh();
+		} catch (error) {
+			logger.warn("Subgraph registry refresh failed; keeping cached copy", {
+				error: error instanceof Error ? error.message : String(error),
+			});
+		}
 	}
 
 	async stop(): Promise<void> {
 		if (this.debounceTimer) clearTimeout(this.debounceTimer);
+		if (this.ttlTimer) clearInterval(this.ttlTimer);
+		this.ttlTimer = null;
 		if (this.listener) {
 			await this.listener.end();
 			this.listener = null;
