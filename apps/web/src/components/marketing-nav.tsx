@@ -16,6 +16,7 @@ import {
 	formatUsd,
 	useAccountData,
 } from "@/lib/account-data";
+import { accountLabel } from "@/lib/account-label";
 import { useAuth } from "@/lib/auth";
 import { PRODUCTS, SITE_LINKS, isActive } from "@/lib/site";
 import { useSubgraphsCache } from "@/lib/subgraphs-store";
@@ -183,7 +184,9 @@ export function MarketingNav() {
 							<div className="acct-panel-head">
 								<AccountAvatar account={account} size={36} />
 								<div className="acct-panel-who">
-									<span className="acct-panel-email">{account.email}</span>
+									<span className="acct-panel-email">
+										{accountLabel(account)}
+									</span>
 									<span className="acct-muted">
 										{billing
 											? `Balance ${formatUsd(billing.creditsUsdMicros)}`

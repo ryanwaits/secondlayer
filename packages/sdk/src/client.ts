@@ -20,7 +20,8 @@ import type { SubgraphOperationStatus } from "./subgraphs/client.ts";
 import { Webhooks } from "./webhooks/client.ts";
 
 export interface ContextAccount {
-	email: string;
+	/** Null for an account minted before sign-up. */
+	email: string | null;
 }
 
 export interface ActiveSubgraphOperation {

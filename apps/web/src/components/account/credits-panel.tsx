@@ -215,7 +215,7 @@ export function CreditsCard({
 }: {
 	open: boolean;
 	onClose: () => void;
-	email: string;
+	email: string | null;
 }) {
 	const { billing, burn, service } = useAccountData();
 	const co = useCheckout();
@@ -229,7 +229,7 @@ export function CreditsCard({
 			onClose={onClose}
 			expandHref="/account/credits"
 			title="Add credits"
-			subtitle={`Credits go to ${email}`}
+			subtitle={`Credits go to ${email ?? "this account"}`}
 		>
 			<BalanceStats billing={billing} />
 			<AddCredits

@@ -105,6 +105,6 @@ export async function apiRequest<T>(
 export function getSessionFromRequest(req: Request): string | null {
 	const cookie = req.headers.get("cookie");
 	if (!cookie) return null;
-	const match = cookie.match(/sl_session=([^;]+)/);
+	const match = cookie.match(/(?:^|;\s*)sl_session=([^;]+)/);
 	return match ? match[1] : null;
 }

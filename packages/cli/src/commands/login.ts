@@ -6,7 +6,7 @@ import { resolveArchiveOpsUrl } from "../lib/api-url.ts";
 import { CliHttpError, httpAt } from "../lib/http.ts";
 import { openBrowser } from "../lib/open-browser.ts";
 import { dim, info, error as logError, success } from "../lib/output.ts";
-import { readSession, writeSession } from "../lib/session.ts";
+import { accountLabel, readSession, writeSession } from "../lib/session.ts";
 
 /** ~90 days out — informational only; the server slides the real expiry. */
 function sessionExpiry(): string {
@@ -47,9 +47,9 @@ async function runTokenLogin(): Promise<void> {
 	}
 
 	const target = loginTarget();
-	let account: { id: string; email: string };
+	let account: { id: string; email: string | null };
 	try {
-		account = await httpAt<{ id: string; email: string }>(
+		account = await httpAt<{ id: string; email: string | null }>(
 			target,
 			"/api/accounts/me",
 			{ bearer: token },
@@ -74,7 +74,9 @@ async function runTokenLogin(): Promise<void> {
 		},
 		target,
 	);
-	success(`Logged in as ${account.email} (${target})`);
+	success(
+		`Logged in as ${accountLabel(account.email, account.id)} (${target})`,
+	);
 }
 
 export interface LoginCheckDeps {
@@ -109,13 +111,15 @@ export async function shouldContinueLogin(
 			(err.status === 401 || err.status === 403)
 		) {
 			info(
-				`Your saved login for ${existing.email} stopped working (revoked or expired). Signing in again.`,
+				`Your saved login for ${accountLabel(existing.email, existing.accountId)} stopped working (revoked or expired). Signing in again.`,
 			);
 			return true;
 		}
 		// Offline or a server error: we can't tell, so keep the saved login.
 	}
-	info(`Already logged in as ${existing.email} (${target}).`);
+	info(
+		`Already logged in as ${accountLabel(existing.email, existing.accountId)} (${target}).`,
+	);
 	const hint =
 		"Run 'secondlayer logout' first, or re-run with --force to switch accounts.";
 	if (!process.stdin.isTTY) {
@@ -150,7 +154,7 @@ export type DeviceOutcome =
 	| {
 			kind: "approved";
 			sessionToken: string;
-			account: { id: string; email: string };
+			account: { id: string; email: string | null };
 	  }
 	| { kind: "denied" }
 	| { kind: "expired" };
@@ -177,7 +181,7 @@ export async function pollDeviceToken(
 		try {
 			const res = await deps.post<{
 				sessionToken: string;
-				account: { id: string; email: string };
+				account: { id: string; email: string | null };
 			}>("/api/cli/device/token", { deviceCode: start.deviceCode });
 			return {
 				kind: "approved",
@@ -273,7 +277,9 @@ export async function runDeviceLogin(
 		},
 		target,
 	);
-	success(`Logged in as ${outcome.account.email} on ${clientName()}`);
+	success(
+		`Logged in as ${accountLabel(outcome.account.email, outcome.account.id)} on ${clientName()}`,
+	);
 	info(dim("Run 'secondlayer logout' to sign this machine out."));
 }
 
@@ -324,7 +330,7 @@ export async function runLoginFlow(options: LoginOptions = {}): Promise<void> {
 	try {
 		const verified = await httpAt<{
 			sessionToken: string;
-			account: { id: string; email: string };
+			account: { id: string; email: string | null };
 		}>(target, "/api/auth/verify", {
 			method: "POST",
 			body: { email, code },
@@ -339,7 +345,9 @@ export async function runLoginFlow(options: LoginOptions = {}): Promise<void> {
 			},
 			target,
 		);
-		success(`Logged in as ${verified.account.email}`);
+		success(
+			`Logged in as ${accountLabel(verified.account.email, verified.account.id)}`,
+		);
 		info(dim("Run 'secondlayer whoami' to see your account status."));
 	} catch (err) {
 		if (err instanceof CliHttpError) {

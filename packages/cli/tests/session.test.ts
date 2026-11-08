@@ -12,6 +12,7 @@ import { join } from "node:path";
 import { ARCHIVE_OPS_API_URL } from "../src/lib/api-url";
 import { getConfigPath } from "../src/lib/config";
 import {
+	accountLabel,
 	clearSession,
 	getSessionPath,
 	readSession,
@@ -174,5 +175,10 @@ describe("session store", () => {
 			if (saved === undefined) Reflect.deleteProperty(process.env, "HOME");
 			else process.env.HOME = saved;
 		}
+	});
+
+	it("names an email-less login by its account id", () => {
+		expect(accountLabel("a@example.com", "acct")).toBe("a@example.com");
+		expect(accountLabel(null, "acct")).toBe("acct");
 	});
 });

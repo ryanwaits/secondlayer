@@ -15,7 +15,7 @@ export function registerAccountTools(
 		"Show the archive account email at api.secondlayer.tools, not the self-host instance.",
 		{},
 		async () => {
-			const result = await request<{ email: string }>(
+			const result = await request<{ email: string | null }>(
 				"GET",
 				"/api/accounts/me",
 			);

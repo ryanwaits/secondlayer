@@ -1,6 +1,7 @@
 export interface Account {
 	id: string;
-	email: string;
+	/** Null for a ghost account (a key minted before sign-up). */
+	email: string | null;
 	displayName: string | null;
 	bio: string | null;
 	avatarUrl: string | null;

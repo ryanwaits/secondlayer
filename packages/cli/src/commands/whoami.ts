@@ -35,7 +35,9 @@ export async function runWhoami(): Promise<WhoamiResult> {
 	let email: string | null = null;
 	let merchantOk = false;
 	try {
-		const account = await httpArchiveOps<{ email: string }>("/api/accounts/me");
+		const account = await httpArchiveOps<{ email: string | null }>(
+			"/api/accounts/me",
+		);
 		email = account.email;
 		merchantOk = true;
 	} catch {

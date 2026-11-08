@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { ARCHIVE_DATASETS } from "@secondlayer/shared/archive/datasets";
 import { loadOrder } from "../commands/bootstrap.ts";
 import {
 	type ArchiveGateDeps,
@@ -428,6 +429,27 @@ describe("quote/insufficient message formatting", () => {
 			"repair",
 		);
 		expect(line).toBe("free (4 of 6 monthly repair fetches remaining)");
+	});
+
+	test("the printed monthly total is the server's allowance split across datasets", async () => {
+		const server = await Bun.file(
+			`${import.meta.dir}/../../../api/src/routes/archive.ts`,
+		).text();
+		const partitions = Number(
+			server.match(/ALLOWANCE_MONTHLY_PARTITIONS = (\d+);/)?.[1],
+		);
+		const line = formatQuoteValue(
+			quote({
+				usdMicros: 0,
+				usd: "0.00",
+				freeAllowanceAppliedMicros: 150_000,
+				allowanceRemainingBundles: 4,
+			}),
+			"repair",
+		);
+		expect(line).toContain(
+			`of ${partitions / ARCHIVE_DATASETS.length} monthly`,
+		);
 	});
 
 	test("insufficient-balance message names the shortfall and the exact buy command", () => {

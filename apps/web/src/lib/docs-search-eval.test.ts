@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import vectors from "@/generated/docs-vectors.json";
+import { embedText, textHash } from "../../scripts/docs-vectors";
 import { buildIndex, confident, search } from "./docs-bm25";
 import { fuse, fusedSure, shouldFind } from "./docs-find";
 import queryVectors from "./docs-search-eval.vectors.json";
@@ -123,6 +124,20 @@ describe("docs search eval", () => {
 		expect(missing).toEqual([]);
 		expect(vectors.model).toBe(queryVectors.model);
 		expect(vectors.dims).toBe(queryVectors.dims);
+	});
+
+	test("section vectors were embedded from the text the docs say now", async () => {
+		const hashes = new Map(vectors.items.map((i) => [i.id, i.hash]));
+		const stale = (await docsSearchDocs())
+			.filter((d) => d.kind !== "method")
+			.filter((d) => hashes.get(d.id) !== textHash(embedText(d)))
+			.map((d) => d.id);
+		// A few edited sections are expected between `bun run docs:vectors` runs.
+		// Past 5% the finder is ranking by meanings the docs no longer say.
+		expect(
+			stale.length <= Math.ceil(vectors.items.length * 0.05),
+			`re-run bun run docs:vectors; stale: ${stale.join(", ")}`,
+		).toBe(true);
 	});
 
 	test("paraphrase queries land on the section that answers them", async () => {

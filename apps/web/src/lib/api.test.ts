@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import { ApiError, apiRequest } from "./api";
+import { ApiError, apiRequest, getSessionFromRequest } from "./api";
 
 const originalFetch = globalThis.fetch;
 
@@ -60,5 +60,24 @@ describe("apiRequest path traversal guard", () => {
 		await apiRequest("/api/subgraphs/my-normal-subgraph");
 		expect(calls).toHaveLength(1);
 		expect(calls[0]).toContain("/api/subgraphs/my-normal-subgraph");
+	});
+});
+
+describe("getSessionFromRequest", () => {
+	const reqWith = (cookie: string) =>
+		new Request("http://x", { headers: { cookie } });
+
+	test("reads the session cookie wherever it sits in the header", () => {
+		expect(getSessionFromRequest(reqWith("sl_session=abc"))).toBe("abc");
+		expect(getSessionFromRequest(reqWith("a=1; sl_session=abc; b=2"))).toBe(
+			"abc",
+		);
+	});
+
+	test("ignores a cookie whose name only ends in sl_session", () => {
+		expect(getSessionFromRequest(reqWith("not_sl_session=evil"))).toBeNull();
+		expect(
+			getSessionFromRequest(reqWith("not_sl_session=evil; sl_session=real")),
+		).toBe("real");
 	});
 });

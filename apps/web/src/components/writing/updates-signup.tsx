@@ -163,7 +163,7 @@ export function UpdatesSignup({
 	return (
 		<UpdatesSignupForm
 			heading={heading}
-			prefill={account?.email}
+			prefill={account?.email ?? undefined}
 			memory={memory}
 			start={inPost && !account}
 			unsubscribeHere={!inPost}

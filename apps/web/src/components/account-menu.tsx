@@ -9,6 +9,7 @@ import {
 	formatUsd,
 	useAccountData,
 } from "@/lib/account-data";
+import { accountLabel } from "@/lib/account-label";
 import type { Account } from "@/lib/types";
 import { currentUtcMonth, monthName, monthParam } from "@/lib/usage";
 import { useAccountProblems } from "@/lib/use-account-problems";
@@ -24,7 +25,8 @@ export function AccountAvatar({
 	account: Account;
 	size?: number;
 }) {
-	const initial = (account.displayName ?? account.email).trim()[0] ?? "?";
+	const initial =
+		(account.displayName ?? accountLabel(account)).trim()[0] ?? "?";
 	return (
 		<span
 			className="acct-avatar"
@@ -73,7 +75,7 @@ export function AccountChip({
 			className={`acct-chip${alert ? " alert" : ""}`}
 			aria-expanded={open}
 			aria-controls={menuId}
-			aria-label={`Account menu, ${account.email}${alert ? ", needs attention" : ""}`}
+			aria-label={`Account menu, ${accountLabel(account)}${alert ? ", needs attention" : ""}`}
 			onClick={onClick}
 		>
 			<AccountAvatar account={account} />

@@ -41,6 +41,12 @@ const SessionSchema = z.object({
 
 export type Session = z.infer<typeof SessionSchema>;
 
+/** How a login is named in a message: its email, else the account id (an
+ *  account minted before sign-up has no email). */
+export function accountLabel(email: string | null, accountId: string): string {
+	return email ?? accountId;
+}
+
 type SessionFile = { sessions: Record<string, Session> };
 
 /** `session.json` in the CLI state directory (see `secondlayerDir`). */
