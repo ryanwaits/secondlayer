@@ -8,6 +8,8 @@ import type { TransactionProof } from "../proofs.ts";
 import type { ConsumerSink } from "../sinks/types.ts";
 import {
 	type PageRetryOptions,
+	assertCursorForward,
+	assertNotStalled,
 	defaultSleep,
 	fetchPageWithRetry,
 } from "../streams/consumer.ts";
@@ -2539,7 +2541,18 @@ export class Index extends BaseClient {
 
 			const nextCursor = envelope.next_cursor;
 			if (nextCursor === null || nextCursor === undefined) return;
-			if (nextCursor === cursor) return;
+			if (nextCursor === cursor) {
+				// Rows came back and the cursor stayed: ending here would pass for
+				// the end of the feed.
+				if (items.length > 0)
+					assertNotStalled(
+						{ cursor: String(cursor), emptyPolls: 0 },
+						undefined,
+					);
+				return;
+			}
+			if (typeof nextCursor === "string" && typeof cursor === "string")
+				assertCursorForward(cursor, nextCursor);
 
 			cursor = nextCursor;
 			firstPage = false;

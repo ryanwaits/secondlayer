@@ -1197,3 +1197,117 @@ describe("Index Runes accessors", () => {
 		expect(seen).toHaveLength(3);
 	});
 });
+
+describe("Index consume and walk cursor safety", () => {
+	afterEach(() => {
+		globalThis.fetch = originalFetch;
+	});
+
+	const row = (cursor: string) => ({
+		tx_id: "0x1",
+		cursor,
+		block_height: Number(cursor.split(":")[0]),
+	});
+
+	function respondWith(next: (call: number) => unknown) {
+		let call = 0;
+		globalThis.fetch = mock(() => {
+			const body = next(call++);
+			return Promise.resolve({
+				ok: true,
+				status: 200,
+				headers: new Headers({ "content-type": "application/json" }),
+				json: () => Promise.resolve(body),
+				text: () => Promise.resolve(JSON.stringify(body)),
+			} as Response);
+		}) as unknown as typeof fetch;
+	}
+
+	const failure = async (run: () => Promise<unknown>) =>
+		(await run().then(
+			() => null,
+			(e: unknown) => e,
+		)) as { code?: string } | null;
+
+	test("consume throws CURSOR_STALLED when rows arrive and the cursor stays put", async () => {
+		respondWith(() => ({
+			events: [row("5:0")],
+			next_cursor: "5:0",
+			tip: { block_height: 100, finalized_height: 100 },
+			reorgs: [],
+		}));
+		const err = await failure(() =>
+			new Index({ baseUrl: BASE_URL }).events.consume({
+				eventType: "print",
+				fromCursor: "5:0",
+				onBatch: () => undefined,
+			}),
+		);
+		expect(err?.code).toBe("CURSOR_STALLED");
+	});
+
+	test("consume throws CURSOR_REGRESSED when next_cursor is behind the cursor it read from", async () => {
+		respondWith(() => ({
+			events: [row("5:0")],
+			next_cursor: "5:0",
+			tip: { block_height: 100, finalized_height: 100 },
+			reorgs: [],
+		}));
+		const err = await failure(() =>
+			new Index({ baseUrl: BASE_URL }).events.consume({
+				eventType: "print",
+				fromCursor: "9:0",
+				onBatch: () => undefined,
+			}),
+		);
+		expect(err?.code).toBe("CURSOR_REGRESSED");
+	});
+
+	test("walk throws CURSOR_STALLED instead of ending as if the feed were done", async () => {
+		respondWith(() => ({
+			events: [row("5:0")],
+			next_cursor: "5:0",
+			tip: {},
+			reorgs: [],
+		}));
+		const err = await failure(async () => {
+			for await (const _ of new Index({ baseUrl: BASE_URL }).events.walk({
+				eventType: "print",
+				fromCursor: "5:0",
+			})) {
+			}
+		});
+		expect(err?.code).toBe("CURSOR_STALLED");
+	});
+
+	test("walk throws CURSOR_REGRESSED when a page points backwards", async () => {
+		respondWith((call) => ({
+			events: [row(call === 0 ? "9:0" : "5:0")],
+			next_cursor: call === 0 ? "9:0" : "5:0",
+			tip: {},
+			reorgs: [],
+		}));
+		const err = await failure(async () => {
+			for await (const _ of new Index({ baseUrl: BASE_URL }).events.walk({
+				eventType: "print",
+			})) {
+			}
+		});
+		expect(err?.code).toBe("CURSOR_REGRESSED");
+	});
+
+	test("walk still follows cursors in other formats without comparing them", async () => {
+		respondWith((call) =>
+			call === 0
+				? { events: [row("1:0")], next_cursor: "desc:9:0", tip: {}, reorgs: [] }
+				: { events: [], next_cursor: null, tip: {}, reorgs: [] },
+		);
+		const seen: unknown[] = [];
+		for await (const e of new Index({ baseUrl: BASE_URL }).events.walk({
+			eventType: "print",
+		})) {
+			seen.push(e);
+		}
+		expect(seen).toHaveLength(1);
+	});
+});

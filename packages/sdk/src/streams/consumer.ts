@@ -1,3 +1,4 @@
+import { ApiError } from "../errors.ts";
 import type { ConsumerSink, WithSinkTx } from "../sinks/types.ts";
 import { Cursor } from "./cursor.ts";
 import { StreamsServerError, ValidationError } from "./errors.ts";
@@ -32,7 +33,9 @@ export type ReorgRewind = {
 /**
  * Apply a page's (or the reorg list's) reorgs against the consumer's position.
  * Shared by the Streams and Index loops so the two cannot drift on the one
- * rule that decides data loss: NEVER rewind forward.
+ * rule that decides data loss: NEVER rewind forward. A cursor that does not
+ * parse throws: reading it as "nothing written yet" would mark every reorg
+ * handled and leave reorged rows in place.
  *
  * A reorg is only actionable when its fork point is at or below the height
  * the cursor has reached (`fork_point_height <= resumeHeight(cursor)`).
@@ -80,7 +83,8 @@ export async function applyReorgs<
 		}
 	}
 
-	const position = resumeHeight(opts.cursor);
+	const position =
+		opts.cursor === null ? null : Cursor.parse(opts.cursor).blockHeight;
 	const applicable = fresh
 		.filter((reorg) => position !== null && reorg.fork_point_height <= position)
 		.sort((a, b) => a.fork_point_height - b.fork_point_height);
@@ -442,6 +446,7 @@ export async function consumeStreamsEvents<TTx = never>(opts: {
 			},
 		);
 		pages++;
+		assertCursorForward(cursor, envelope.next_cursor);
 
 		// Reorgs: roll back each new fork at or below the checkpoint, then
 		// rewind to the lowest fork point and re-read the now-canonical run.
@@ -610,7 +615,9 @@ export async function consumeStreamsEvents<TTx = never>(opts: {
 			continue;
 		}
 
-		return { cursor, pages, emptyPolls };
+		const stalled = { cursor, pages, emptyPolls };
+		assertNotStalled(stalled, opts.signal, { maxPages, maxEmptyPolls, pages });
+		return stalled;
 	}
 
 	return { cursor, pages, emptyPolls };
@@ -764,18 +771,19 @@ export async function* iterateStreamsBatches(opts: {
 				});
 			},
 		});
-		assertNotStalled(result, signal);
+		return result;
 	}, opts.signal);
 }
 
-/** The consume loop ends on its own only when a page returned events and the
- *  cursor did not move. Unbounded streams must not treat that as "done". */
-function assertNotStalled(
+/** A consume loop ends on its own only when a page returned events and the
+ *  cursor did not move. That is a stall, never "done": it throws unless the
+ *  caller aborted or reached its own page or empty-poll bound. */
+export function assertNotStalled(
 	result: { cursor: string | null; emptyPolls: number },
-	signal: AbortSignal,
+	signal: AbortSignal | undefined,
 	bounds: { maxPages?: number; maxEmptyPolls?: number; pages?: number } = {},
 ): void {
-	if (signal.aborted) return;
+	if (signal?.aborted) return;
 	if (bounds.maxPages !== undefined && (bounds.pages ?? 0) >= bounds.maxPages) {
 		return;
 	}
@@ -786,10 +794,42 @@ function assertNotStalled(
 		return;
 	}
 	throw new StreamsServerError(
-		`Streams returned events at cursor ${result.cursor ?? "(start)"} but the cursor did not advance, so the stream stopped instead of re-reading the same page.`,
+		`The feed returned events at cursor ${result.cursor ?? "(start)"} but the cursor did not advance, so the loop stopped instead of re-reading the same page.`,
 		0,
 		undefined,
 		"CURSOR_STALLED",
+	);
+}
+
+/** A position as `[block, index]`, or null when `cursor` is not a Streams
+ *  cursor (other feeds spell theirs differently and are not compared). */
+function positionOf(cursor: string): [number, number] | null {
+	try {
+		const { blockHeight, eventIndex } = Cursor.parse(cursor);
+		return [blockHeight, eventIndex];
+	} catch {
+		return null;
+	}
+}
+
+/** A page read from `from` must point at or past it. One that points behind
+ *  would re-deliver rows the sink already committed, or loop forever. Cursors
+ *  that do not parse are left alone. */
+export function assertCursorForward(
+	from: string | null | undefined,
+	next: string | null | undefined,
+): void {
+	if (!from || !next) return;
+	const a = positionOf(from);
+	const b = positionOf(next);
+	if (!a || !b) return;
+	if (b[0] > a[0] || (b[0] === a[0] && b[1] >= a[1])) return;
+	throw new ApiError(
+		0,
+		`The feed answered a read from cursor ${from} with next_cursor ${next}, which is behind it. Rows already delivered would be read again, so the loop stopped.`,
+		undefined,
+		"CURSOR_REGRESSED",
+		{ retryable: false },
 	);
 }
 
@@ -841,10 +881,6 @@ export async function* streamStreamsEvents(opts: {
 				}
 			},
 		});
-		assertNotStalled(result, signal, {
-			maxPages: opts.maxPages,
-			maxEmptyPolls: opts.maxEmptyPolls,
-			pages: result.pages,
-		});
+		return result;
 	}, opts.signal);
 }

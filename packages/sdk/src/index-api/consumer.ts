@@ -3,7 +3,9 @@ import {
 	type PageRetryOptions,
 	type Sleep,
 	applyReorgs,
+	assertCursorForward,
 	assertFinalizedCheckpoint,
+	assertNotStalled,
 	assertSinkModeCompatible,
 	batchContext,
 	defaultSleep,
@@ -185,6 +187,7 @@ export async function consumeIndexFeed<
 			},
 		);
 		pages++;
+		assertCursorForward(cursor, envelope.next_cursor);
 
 		// Reorgs: roll back each new fork at or below the checkpoint, then
 		// rewind to the lowest fork point and re-read the now-canonical run.
@@ -312,7 +315,9 @@ export async function consumeIndexFeed<
 			continue;
 		}
 
-		return { cursor, pages, emptyPolls };
+		const stalled = { cursor, pages, emptyPolls };
+		assertNotStalled(stalled, opts.signal, { maxPages, maxEmptyPolls, pages });
+		return stalled;
 	}
 
 	return { cursor, pages, emptyPolls };
