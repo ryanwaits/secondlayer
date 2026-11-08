@@ -5,6 +5,7 @@ import {
 	DashboardButton,
 } from "@/components/account-menu";
 import { AsleepState } from "@/components/account/asleep-state";
+import { MetaCopy, MetaLine, Stat } from "@/components/account/detail-facts";
 import {
 	FirstRowsCode,
 	FirstRowsPrompt,
@@ -56,7 +57,6 @@ import { InsightCard } from "@/components/dashboard/insight/insight-card";
 import { InsightStack } from "@/components/dashboard/insight/insight-stack";
 import { Breadcrumb } from "@/components/dashboard/shell/breadcrumb";
 import { DashboardTabs } from "@/components/dashboard/shell/dashboard-tabs";
-import { Mark } from "@/components/dashboard/shell/mark";
 import {
 	PlaceholderRows,
 	ReadsKeyLine,
@@ -462,21 +462,25 @@ function StatusStory({ tone }: { tone: Tone }) {
 					age="12d"
 				/>
 			</div>
+			<MetaLine>
+				<MetaCopy
+					label="receiver URL"
+					shown={flag === "att" ? "postman-echo.com" : "api.example.com"}
+					full={
+						flag === "att"
+							? "https://postman-echo.com/post"
+							: "https://api.example.com/hooks"
+					}
+					mark={flag === "att" ? "att" : undefined}
+				/>
+			</MetaLine>
 			<div className="wd-facts">
-				<div>
-					Receiver
-					<b>
-						{flag === "att" ? (
-							<Mark tone="att">postman-echo.com</Mark>
-						) : (
-							"api.example.com"
-						)}
-					</b>
-				</div>
-				<div>
-					Gave up · 7d
-					<b>{flag === "fail" ? <Mark tone="fail">12</Mark> : "0"}</b>
-				</div>
+				<Stat
+					label="Gave up"
+					value={flag === "fail" ? "12" : "0"}
+					zero={flag !== "fail"}
+					mark={flag === "fail" ? "fail" : undefined}
+				/>
 			</div>
 		</div>
 	);

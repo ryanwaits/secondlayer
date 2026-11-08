@@ -34,6 +34,25 @@ export function subgraphSync(
 	return syncState(item, tip - TIP_SLACK_BLOCKS);
 }
 
+/** Whole percent done of a reindex or catch-up. Uses the event counts when
+ *  the operation has them, since the block share misleads on a sparse sync.
+ *  Never reads 100 while blocks remain; null when there is nothing to go on. */
+export function syncPercent(sync: {
+	blocksRemaining: number;
+	progress?: number;
+	processedEvents?: number;
+	estimatedEvents?: number;
+}): number | null {
+	const { processedEvents, estimatedEvents } = sync;
+	const share =
+		processedEvents !== undefined && estimatedEvents
+			? processedEvents / estimatedEvents
+			: sync.progress;
+	if (share === undefined || !Number.isFinite(share)) return null;
+	const percent = Math.floor(Math.min(1, Math.max(0, share)) * 100);
+	return sync.blocksRemaining > 0 ? Math.min(99, percent) : percent;
+}
+
 const plural = (n: number, one: string) => `${n} ${n === 1 ? one : `${one}s`}`;
 
 export const blocksLabel = (n: number): string => plural(n, "block");

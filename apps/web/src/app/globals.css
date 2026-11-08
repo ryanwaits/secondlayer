@@ -5749,6 +5749,12 @@ a.acct-strip-link:hover .acct-strip-k {
 	color: var(--pri-ink);
 	box-shadow: inset 0 0 0 1px var(--pri);
 }
+/* A compact view switch picks a view, not an answer: neutral when on. */
+.choice.sm .choice-cell input:checked + span {
+	background: var(--soft);
+	color: var(--ink);
+	box-shadow: none;
+}
 .choice-cell input:focus-visible + span {
 	outline: 2px solid var(--pri);
 	outline-offset: -2px;
@@ -6116,7 +6122,6 @@ a.acct-strip-link:hover .acct-strip-k {
 	color: var(--faint);
 }
 .dash-crumb [aria-current] {
-	font-family: var(--font-mono-stack);
 	color: var(--ink);
 	overflow: hidden;
 	text-overflow: ellipsis;
@@ -6168,7 +6173,7 @@ a.acct-strip-link:hover .acct-strip-k {
 	min-width: 0;
 }
 .dash-row-name > span {
-	font: 500 14px / 1.3 var(--font-mono-stack);
+	font: 500 14px / 1.3 var(--font-sans-stack);
 	overflow: hidden;
 	text-overflow: ellipsis;
 	white-space: nowrap;
@@ -7314,7 +7319,7 @@ button.dash-row {
 	text-decoration: none;
 }
 .wl-main .dash-row-name > span {
-	font: 500 14px / 1.3 var(--font-mono-stack);
+	font: 500 14px / 1.3 var(--font-sans-stack);
 	overflow: hidden;
 	text-overflow: ellipsis;
 	white-space: nowrap;
@@ -7647,7 +7652,7 @@ button.dash-row {
 	max-width: 100%;
 }
 .ix-name b {
-	font: 500 14px / 1.3 var(--font-mono-stack);
+	font: 500 14px / 1.3 var(--font-sans-stack);
 	overflow: hidden;
 	text-overflow: ellipsis;
 	white-space: nowrap;
@@ -8127,8 +8132,8 @@ button.dash-row {
 	gap: 12px;
 	margin: 0;
 	min-width: 0;
-	font: 500 24px / 1.2 var(--font-mono-stack);
-	letter-spacing: -0.015em;
+	font: 400 30px / 1.15 var(--font-sans-stack);
+	letter-spacing: -0.02em;
 }
 .wd-name {
 	min-width: 0;
@@ -8217,19 +8222,147 @@ button.dash-row {
 .wd-head + .ins-stack {
 	margin: 40px 0 44px;
 }
-.wd-facts {
+/* Under the name: what the resource is and when it was made, middot-separated. */
+.wd-meta {
 	display: flex;
 	flex-wrap: wrap;
-	gap: 14px 28px;
+	align-items: center;
+	row-gap: 4px;
+	margin: -8px 0 0;
 	font-size: 13px;
 	color: var(--sub);
 }
+.wd-meta > span {
+	display: inline-flex;
+	align-items: center;
+	min-width: 0;
+}
+.wd-meta > span + span::before {
+	content: "·";
+	margin: 0 10px;
+	color: var(--faint);
+}
+.wd-meta-v {
+	font-family: var(--font-mono-stack);
+	color: var(--ink);
+	overflow-wrap: anywhere;
+}
+.wd-meta-copy {
+	display: inline-grid;
+	place-items: center;
+	width: 22px;
+	height: 22px;
+	margin-left: 2px;
+	padding: 0;
+	border: 0;
+	border-radius: 4px;
+	background: none;
+	color: var(--faint);
+	cursor: pointer;
+	opacity: 0;
+	transition: opacity var(--duration-snappy) var(--ease-snappy);
+}
+.wd-meta-copy svg {
+	width: 13px;
+	height: 13px;
+}
+.wd-meta > span:hover .wd-meta-copy,
+.wd-meta-copy:focus-visible {
+	opacity: 1;
+}
+.wd-meta-copy:hover {
+	background: var(--soft);
+	color: var(--ink);
+}
+.wd-meta-copy:focus-visible,
+.wd-tip:focus-visible {
+	outline: 2px solid var(--pri);
+	outline-offset: 1px;
+}
+/* The exact time over a relative one. */
+.wd-tip {
+	position: relative;
+	border-radius: 3px;
+	cursor: default;
+}
+.wd-tip::after {
+	content: attr(data-tip);
+	position: absolute;
+	left: 50%;
+	bottom: calc(100% + 8px);
+	z-index: 2;
+	padding: 5px 8px;
+	border: 1px solid var(--line);
+	border-radius: 6px;
+	background: var(--raised);
+	box-shadow: var(--toast-shadow);
+	font: 400 12px / 1.2 var(--font-mono-stack);
+	color: var(--ink);
+	white-space: nowrap;
+	pointer-events: none;
+	opacity: 0;
+	transform: translate(-50%, 2px);
+	transition: opacity var(--duration-snappy) var(--ease-snappy), transform
+		var(--duration-snappy) var(--ease-snappy);
+}
+.wd-tip:hover::after,
+.wd-tip:focus-visible::after {
+	opacity: 1;
+	transform: translate(-50%, 0);
+}
+/* Health numbers: the range is the picker's, so labels don't repeat it. */
+.wd-facts {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 18px 48px;
+	padding-top: 4px;
+	font-size: 13px;
+	color: var(--sub);
+}
+.wd-facts > div {
+	min-width: 0;
+}
 .wd-facts b {
 	display: block;
-	margin-top: 3px;
-	font: 500 15px / 1.3 var(--font-mono-stack);
+	margin-top: 4px;
+	font: 500 24px / 1.2 var(--font-mono-stack);
 	font-variant-numeric: tabular-nums;
+	letter-spacing: -0.01em;
 	color: var(--ink);
+	white-space: nowrap;
+}
+.wd-facts b.zero {
+	color: var(--faint);
+}
+.wd-facts b small {
+	margin-left: 5px;
+	font: 400 13px var(--font-mono-stack);
+	letter-spacing: 0;
+	color: var(--sub);
+}
+.wd-stat-cap {
+	display: block;
+	margin-top: 6px;
+	font: 400 12px / 1.3 var(--font-mono-stack);
+	font-variant-numeric: tabular-nums;
+	color: var(--faint);
+	white-space: nowrap;
+}
+.wd-stat-wide {
+	min-width: 160px;
+}
+.wd-prog {
+	display: block;
+	height: 2px;
+	margin-top: 8px;
+	border-radius: 1px;
+	background: var(--line);
+	overflow: hidden;
+}
+.wd-prog i {
+	display: block;
+	height: 100%;
+	background: var(--ink);
 }
 .wd-stack {
 	display: grid;
@@ -8896,7 +9029,13 @@ button.dash-row {
 	gap: 20px;
 }
 .wd-skel .wd-facts {
-	gap: 28px;
+	gap: 18px 48px;
+}
+@media (prefers-reduced-motion: reduce) {
+	.wd-meta-copy,
+	.wd-tip::after {
+		transition: none;
+	}
 }
 
 @media (max-width: 900px) {
@@ -9818,7 +9957,7 @@ button.ky-click:focus-visible,
 	border-bottom: 1px solid var(--line);
 }
 .ob-ph-name {
-	font: 500 14px / 1.3 var(--font-mono-stack);
+	font: 500 14px / 1.3 var(--font-sans-stack);
 }
 .ob-bar {
 	display: block;

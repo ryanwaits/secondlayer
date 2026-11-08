@@ -9,7 +9,9 @@ import {
 	creditsBaseline,
 	ensureBilling,
 	ensureKeys,
+	formatAge,
 	formatDate,
+	formatDateTime,
 	isTopupUsd,
 	refreshBilling,
 	refreshKeys,
@@ -352,5 +354,31 @@ describe("formatDate", () => {
 
 	test("names a missing date", () => {
 		expect(formatDate(null)).toBe("never");
+	});
+});
+
+describe("formatAge", () => {
+	const now = Date.parse("2026-11-08T12:00:00.000Z");
+	test("spells out the coarsest whole unit", () => {
+		expect(formatAge("2026-11-03T09:00:00.000Z", now)).toBe("5 days ago");
+		expect(formatAge("2026-11-08T09:00:00.000Z", now)).toBe("3 hours ago");
+		expect(formatAge("2026-11-07T11:00:00.000Z", now)).toBe("1 day ago");
+		expect(formatAge("2026-08-01T12:00:00.000Z", now)).toBe("3 months ago");
+		expect(formatAge("2024-11-01T12:00:00.000Z", now)).toBe("2 years ago");
+	});
+	test("reads under a minute, or a clock behind the server, as just now", () => {
+		expect(formatAge("2026-11-08T11:59:30.000Z", now)).toBe("just now");
+		expect(formatAge("2026-11-08T12:00:30.000Z", now)).toBe("just now");
+	});
+});
+
+describe("formatDateTime", () => {
+	test("gives the UTC date and 24-hour time", () => {
+		expect(formatDateTime("2026-11-03T14:21:09.000Z")).toBe(
+			"Nov 3, 2026, 14:21 UTC",
+		);
+		expect(formatDateTime("2026-11-03T00:05:00.000Z")).toBe(
+			"Nov 3, 2026, 00:05 UTC",
+		);
 	});
 });

@@ -1,6 +1,12 @@
 "use client";
 
 import { AsleepState } from "@/components/account/asleep-state";
+import {
+	CreatedAgo,
+	MetaCopy,
+	MetaLine,
+	Stat,
+} from "@/components/account/detail-facts";
 import { MissingResource } from "@/components/account/missing-resource";
 import { ChartSkeleton } from "@/components/charts/chart-skeleton";
 import { LazyBandBarChart } from "@/components/charts/lazy";
@@ -8,10 +14,8 @@ import { Choice } from "@/components/choice";
 import { Legend } from "@/components/dashboard/charts/legend";
 import { ActionableInsights } from "@/components/dashboard/insight/insight-actions";
 import { Breadcrumb } from "@/components/dashboard/shell/breadcrumb";
-import { Mark } from "@/components/dashboard/shell/mark";
 import { useCompact } from "@/components/mobile/use-compact";
 import { notify } from "@/components/toast/notify";
-import { formatDate } from "@/lib/account-data";
 import { barsRows } from "@/lib/dashboard-charts";
 import { type WebhooksResult, initialNotice } from "@/lib/dashboard-results";
 import { type Insight, rankInsights } from "@/lib/insights";
@@ -271,53 +275,72 @@ const hasTestEndpoint = (insights: readonly Insight[]) =>
 const isFailing = (insights: readonly Insight[]) =>
 	insights.some((i) => i.severity === "losing");
 
-export function Facts({
+/** What the webhook sends to and when it was made, under the name. */
+export function Meta({
 	webhook,
+	insights = [],
+}: {
+	webhook: WebhookDetail;
+	insights?: readonly Insight[];
+}) {
+	return (
+		<MetaLine>
+			<MetaCopy
+				label="receiver URL"
+				shown={hostOf(webhook.url)}
+				full={webhook.url}
+				mark={hasTestEndpoint(insights) ? "att" : undefined}
+			/>
+			<CreatedAgo iso={webhook.createdAt} />
+		</MetaLine>
+	);
+}
+
+/** Delivery health for the range and the last 100 deliveries. */
+export function Facts({
 	activity,
 	deliveries,
 	insights = [],
 }: {
-	webhook: WebhookDetail;
 	activity: WebhookActivity | null;
 	deliveries: readonly DeliveryRow[];
 	insights?: readonly Insight[];
 }) {
 	const stats = deliveryStats(deliveries);
 	const gaveUp = activity ? sumOf(activity.hours.map((h) => h.gaveUp)) : 0;
-	const fact = (label: string, value: string, mark?: "att" | "fail") => (
-		<div key={label}>
-			{label}
-			<b>{mark ? <Mark tone={mark}>{value}</Mark> : value}</b>
-		</div>
-	);
 	return (
 		<div className="wd-facts">
-			{fact(
-				"Delivered · 7d",
-				activity
-					? sumOf(activity.hours.map((h) => h.delivered)).toLocaleString(
-							"en-US",
-						)
-					: "–",
-			)}
-			{fact(
-				"Gave up · 7d",
-				activity ? gaveUp.toLocaleString("en-US") : "–",
-				gaveUp > 0 && isFailing(insights) ? "fail" : undefined,
-			)}
-			{fact("Retried · last 100", stats.retried.toLocaleString("en-US"))}
-			{fact(
-				"p50 / p95 · last 100",
-				stats.p50 === null || stats.p95 === null
-					? "–"
-					: `${stats.p50.toLocaleString("en-US")} / ${stats.p95.toLocaleString("en-US")} ms`,
-			)}
-			{fact(
-				"Receiver",
-				hostOf(webhook.url),
-				hasTestEndpoint(insights) ? "att" : undefined,
-			)}
-			{fact("Created", formatDate(webhook.createdAt))}
+			<Stat
+				label="Delivered"
+				value={
+					activity
+						? sumOf(activity.hours.map((h) => h.delivered)).toLocaleString(
+								"en-US",
+							)
+						: "–"
+				}
+			/>
+			<Stat
+				label="Gave up"
+				value={activity ? gaveUp.toLocaleString("en-US") : "–"}
+				zero={activity !== null && gaveUp === 0}
+				mark={gaveUp > 0 && isFailing(insights) ? "fail" : undefined}
+			/>
+			<Stat
+				label="Retried"
+				value={stats.retried.toLocaleString("en-US")}
+				caption="last 100"
+			/>
+			<Stat
+				label="p50 / p95"
+				value={
+					stats.p50 === null || stats.p95 === null
+						? "–"
+						: `${stats.p50.toLocaleString("en-US")} / ${stats.p95.toLocaleString("en-US")}`
+				}
+				unit={stats.p50 === null || stats.p95 === null ? undefined : "ms"}
+				caption="last 100"
+			/>
 		</div>
 	);
 }
@@ -695,12 +718,8 @@ export function WebhookDetailBody({
 						</button>
 					</div>
 				</div>
-				<Facts
-					webhook={webhook}
-					activity={activity}
-					deliveries={deliveries}
-					insights={ranked}
-				/>
+				<Meta webhook={webhook} insights={ranked} />
+				<Facts activity={activity} deliveries={deliveries} insights={ranked} />
 			</header>
 
 			<ActionableInsights insights={ranked} id="wd-finding" />

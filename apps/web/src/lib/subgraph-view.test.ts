@@ -8,6 +8,7 @@ import {
 	stateLine,
 	subgraphSync,
 	subgraphTone,
+	syncPercent,
 } from "./subgraph-view";
 
 describe("groupDigits", () => {
@@ -86,5 +87,37 @@ describe("counts and lag", () => {
 		expect(subgraphTone("active", 2)).toBe("alarm");
 		expect(subgraphTone("error", 0)).toBe("alarm");
 		expect(subgraphTone("reindexing", 0)).toBe("idle");
+	});
+});
+
+describe("syncPercent", () => {
+	test("reads the block share as a whole percent", () => {
+		expect(syncPercent({ blocksRemaining: 8_355_052, progress: 0.0734 })).toBe(
+			7,
+		);
+	});
+	test("prefers event counts when the operation reports them", () => {
+		expect(
+			syncPercent({
+				blocksRemaining: 500,
+				progress: 0.1,
+				processedEvents: 600,
+				estimatedEvents: 1_000,
+			}),
+		).toBe(60);
+	});
+	test("never reads 100 while blocks remain", () => {
+		expect(syncPercent({ blocksRemaining: 3, progress: 0.99999 })).toBe(99);
+		expect(syncPercent({ blocksRemaining: 0, progress: 1 })).toBe(100);
+	});
+	test("is null with nothing to go on", () => {
+		expect(syncPercent({ blocksRemaining: 10 })).toBeNull();
+		expect(
+			syncPercent({
+				blocksRemaining: 10,
+				processedEvents: 5,
+				estimatedEvents: 0,
+			}),
+		).toBeNull();
 	});
 });

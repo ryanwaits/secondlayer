@@ -1,5 +1,12 @@
 "use client";
 
+import {
+	CreatedAgo,
+	MetaCopy,
+	MetaLine,
+	ProgressStat,
+	Stat,
+} from "@/components/account/detail-facts";
 import { MissingResource } from "@/components/account/missing-resource";
 import { ChartSkeleton } from "@/components/charts/chart-skeleton";
 import { Choice } from "@/components/choice";
@@ -7,7 +14,6 @@ import { ActionableInsights } from "@/components/dashboard/insight/insight-actio
 import { Breadcrumb } from "@/components/dashboard/shell/breadcrumb";
 import { Mark } from "@/components/dashboard/shell/mark";
 import { Skel } from "@/components/dashboard/shell/skel";
-import { formatDate } from "@/lib/account-data";
 import type { Insight } from "@/lib/insights";
 import { forResource, useInsights } from "@/lib/insights-store";
 import type { Route } from "@/lib/not-found-match";
@@ -18,6 +24,7 @@ import {
 	haltLine,
 	handlerErrors24h,
 	subgraphSync,
+	syncPercent,
 } from "@/lib/subgraph-view";
 import {
 	type SubgraphDetailData,
@@ -42,9 +49,9 @@ import { UseSection } from "./use-section";
 const DETAIL_POLL_MS = 10_000;
 const HEALTH_POLL_MS = 60_000;
 
-/** Fact cells `SubgraphDetailBody` renders, and the settled page's measured
+/** Stat cells `SubgraphDetailBody` renders, and the settled page's measured
  *  chart height. */
-const SKELETON_FACTS = 6;
+const SKELETON_FACTS = 3;
 const CHART_SKELETON_HEIGHT = 206;
 const SKELETON_TABLE_ROWS = 5;
 
@@ -67,43 +74,40 @@ const hasOpenInsight = (
 	(insights ?? []).some((i) => i.rule === rule && i.severity !== "recovered");
 
 /** Reindexing or catching up; nothing at the tip. */
-function lagFactOf(detail: {
-	status: string;
-	lastProcessedBlock: number;
-	sync: { blocksRemaining: number; chainTip: number };
-}): { label: string; value: string } | null {
+function lagFactOf(
+	detail: Pick<SubgraphDetailData, "status" | "lastProcessedBlock" | "sync">,
+): { label: string; percent: number | null; caption: string } | null {
 	const n = detail.sync.blocksRemaining;
 	const sync = subgraphSync(detail, detail.sync.chainTip);
 	if (sync !== "reindexing" && sync !== "catching_up") return null;
 	return {
 		label: sync === "reindexing" ? "Reindexing" : "Catching up",
-		value: `${groupDigits(String(n))} ${n === 1 ? "block" : "blocks"} to go`,
+		percent: syncPercent(detail.sync),
+		caption: `${groupDigits(String(n))} ${n === 1 ? "block" : "blocks"} to go`,
 	};
 }
-
-/** A fact cell; `mark` flags the value that is wrong. */
-const fact = (label: string, value: string, mark?: "att" | "fail") => (
-	<div key={label}>
-		{label}
-		<b>{mark ? <Mark tone={mark}>{value}</Mark> : value}</b>
-	</div>
-);
 
 /** The registry name in "SM3V….sbtc-registry". */
 const contractName = (contractId: string): string =>
 	contractId.slice(contractId.lastIndexOf(".") + 1);
 
-/** The one contract the sources read, "N contracts" for several, "–" for none. */
-function sourceFact(detail: SubgraphDetailData): string {
-	const contracts = new Set(
+/** The contracts the sources read, by full id. */
+const sourceContracts = (detail: SubgraphDetailData): string[] => [
+	...new Set(
 		Object.values(detail.sources ?? {})
 			.map((source) => source.contractId)
-			.filter((id): id is string => Boolean(id))
-			.map(contractName),
-	);
-	if (contracts.size === 0) return "–";
-	if (contracts.size === 1) return [...contracts][0] ?? "–";
-	return `${contracts.size} contracts`;
+			.filter((id): id is string => Boolean(id)),
+	),
+];
+
+/** The one contract the sources read, with a copy of its full id, or "N
+ *  contracts" for several; nothing when no source names one. */
+function SourceMeta({ detail }: { detail: SubgraphDetailData }) {
+	const contracts = sourceContracts(detail);
+	const [only] = contracts;
+	if (contracts.length === 0 || only === undefined) return null;
+	if (contracts.length > 1) return <span>{contracts.length} contracts</span>;
+	return <MetaCopy label="contract" shown={contractName(only)} full={only} />;
 }
 
 const sum = (values: readonly number[]): number =>
@@ -171,41 +175,50 @@ export function SubgraphDetailBody({
 						/>
 					</div>
 				</div>
+				<MetaLine>
+					<SourceMeta detail={detail} />
+					{detail.storageBytes === undefined ? null : (
+						<span>{formatBytes(detail.storageBytes)}</span>
+					)}
+					<CreatedAgo iso={detail.createdAt} />
+				</MetaLine>
 				{halt ? (
 					<p className="wd-faint">
 						<Mark tone="fail">Halted</Mark> {halt}
 					</p>
 				) : null}
 				<div className="wd-facts">
-					{fact(
-						`Rows written · ${range}`,
-						windowHours
-							? groupDigits(String(sum(windowHours.map((h) => h.rowsWritten))))
-							: "–",
-					)}
-					{fact(
-						`Handler errors · ${range}`,
-						windowHours ? windowErrors.toLocaleString("en-US") : "–",
-						windowErrors > 0 &&
+					<Stat
+						label="Rows written"
+						value={
+							windowHours
+								? groupDigits(
+										String(sum(windowHours.map((h) => h.rowsWritten))),
+									)
+								: "–"
+						}
+					/>
+					<Stat
+						label="Handler errors"
+						value={windowHours ? windowErrors.toLocaleString("en-US") : "–"}
+						zero={windowHours !== undefined && windowErrors === 0}
+						mark={
+							windowErrors > 0 &&
 							hasOpenInsight(insights, "subgraph_handler_errors")
-							? "fail"
-							: undefined,
-					)}
-					{lagFact !== null
-						? fact(
-								lagFact.label,
-								lagFact.value,
-								hasOpenInsight(insights, "subgraph_lag") ? "att" : undefined,
-							)
-						: null}
-					{fact(
-						"Storage",
-						detail.storageBytes === undefined
-							? "–"
-							: formatBytes(detail.storageBytes),
-					)}
-					{fact("Source", sourceFact(detail))}
-					{fact("Created", formatDate(detail.createdAt))}
+								? "fail"
+								: undefined
+						}
+					/>
+					{lagFact !== null ? (
+						<ProgressStat
+							label={lagFact.label}
+							percent={lagFact.percent}
+							caption={lagFact.caption}
+							mark={
+								hasOpenInsight(insights, "subgraph_lag") ? "att" : undefined
+							}
+						/>
+					) : null}
 				</div>
 			</header>
 
@@ -261,10 +274,13 @@ function DetailSkeleton({ name }: { name: string }) {
 						</h1>
 					</div>
 				</div>
+				<MetaLine>
+					<Skel width={260} height={14} />
+				</MetaLine>
 				<div className="wd-facts">
 					{Array.from({ length: SKELETON_FACTS }).map((_, i) => (
 						// biome-ignore lint/suspicious/noArrayIndexKey: static skeleton cells
-						<Skel key={i} width={92} height={41} />
+						<Skel key={i} width={104} height={50} />
 					))}
 				</div>
 			</header>

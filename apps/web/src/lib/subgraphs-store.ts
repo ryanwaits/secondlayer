@@ -78,7 +78,16 @@ export interface SubgraphDetailData {
 		totalErrors: number;
 		lastError: string | null;
 	};
-	sync: { status: string; blocksRemaining: number; chainTip: number };
+	sync: {
+		status: string;
+		blocksRemaining: number;
+		chainTip: number;
+		/** Share of the blocks done, 0 to 1. */
+		progress?: number;
+		/** Event counts a running operation reports on a sparse sync. */
+		processedEvents?: number;
+		estimatedEvents?: number;
+	};
 	tables: Record<string, SubgraphTableInfo>;
 	sources?: Record<string, SubgraphSourceInfo>;
 	storageBytes?: number;

@@ -629,3 +629,33 @@ export function formatDate(iso: string | null): string {
 		day: "numeric",
 	});
 }
+
+/** "Nov 3, 2026, 14:21 UTC": the exact moment, for a hover over an age. */
+export function formatDateTime(iso: string): string {
+	const time = new Date(iso).toLocaleTimeString("en-US", {
+		timeZone: "UTC",
+		hour: "2-digit",
+		minute: "2-digit",
+		hourCycle: "h23",
+	});
+	return `${formatDate(iso)}, ${time} UTC`;
+}
+
+const AGE_UNITS: [string, number][] = [
+	["year", 365 * 86_400_000],
+	["month", 30 * 86_400_000],
+	["day", 86_400_000],
+	["hour", 3_600_000],
+	["minute", 60_000],
+];
+
+/** "5 days ago", "3 hours ago", "just now": the coarsest whole unit, spelled
+ *  out for a sentence. */
+export function formatAge(iso: string, now: number = Date.now()): string {
+	const ms = now - new Date(iso).getTime();
+	for (const [unit, size] of AGE_UNITS) {
+		const n = Math.floor(ms / size);
+		if (n >= 1) return `${n} ${unit}${n === 1 ? "" : "s"} ago`;
+	}
+	return "just now";
+}
