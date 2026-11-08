@@ -150,15 +150,21 @@ async function persistFactoryDiscoveries(
 	}
 }
 
-export async function resolveTraitContracts(
-	subgraph: SubgraphDefinition,
-	blockHeight: number,
-): Promise<Map<string, ReadonlySet<string>>> {
+/** Distinct traits a subgraph's sources are scoped to (empty for most). */
+export function subgraphTraits(subgraph: SubgraphDefinition): Set<string> {
 	const traits = new Set<string>();
 	for (const source of Object.values(subgraph.sources)) {
 		const trait = (source as { trait?: string }).trait;
 		if (trait) traits.add(trait);
 	}
+	return traits;
+}
+
+export async function resolveTraitContracts(
+	subgraph: SubgraphDefinition,
+	blockHeight: number,
+): Promise<Map<string, ReadonlySet<string>>> {
+	const traits = subgraphTraits(subgraph);
 	const resolved = new Map<string, ReadonlySet<string>>();
 	if (traits.size === 0) return resolved;
 	// The source plane on a stack with a local chain (`contracts` lives there,

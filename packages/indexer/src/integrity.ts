@@ -1,5 +1,6 @@
 import { stacksNetwork } from "@secondlayer/shared";
 import { getSourceDb, sql } from "@secondlayer/shared/db";
+import { registryLagBlocks } from "@secondlayer/shared/db/queries/contracts";
 import {
 	computeContiguousTip,
 	countMissingBlocks,
@@ -51,6 +52,9 @@ export const integrityState = {
 	eventCountMismatches: [] as EventCountMismatch[],
 	/** Whether `events_logical_id_uniq` exists; null until the first check. */
 	eventsLogicalIndex: null as EventsLogicalIndexState | null,
+	/** Blocks the contract registry trails the tip. Trait-scoped subgraphs wait
+	 *  this long, so a growing value means a stalled registry worker. */
+	registryLagBlocks: null as number | null,
 };
 
 // The windowed broken-link query only sees the last 10k blocks, so a break
@@ -189,6 +193,7 @@ async function checkRowInvariants(db: ReturnType<typeof getSourceDb>) {
 		limit: 20,
 	});
 	integrityState.eventsLogicalIndex = await eventsLogicalIndexState(db);
+	integrityState.registryLagBlocks = await registryLagBlocks(db);
 
 	const violations = {
 		duplicateTxIndexes: integrityState.duplicateTxIndexes.length,

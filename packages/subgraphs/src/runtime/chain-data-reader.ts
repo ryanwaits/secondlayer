@@ -4,7 +4,10 @@ import type {
 	SbtcEventsTable,
 } from "@secondlayer/shared/db";
 import { getSourceDb } from "@secondlayer/shared/db";
-import { resolveTraitContractIds } from "@secondlayer/shared/db/queries/contracts";
+import {
+	registryClassifiedThrough,
+	resolveTraitContractIds,
+} from "@secondlayer/shared/db/queries/contracts";
 import { hasNoLocalChain } from "@secondlayer/shared/db/queries/instance";
 import type {
 	IndexHttpClient,
@@ -32,6 +35,11 @@ export interface ChainDataReader {
 	): Promise<SbtcEventRow[]>;
 	/** Contracts conforming to `trait` deployed at or before `asOfBlock`. */
 	traitContractIds(trait: string, asOfBlock: number): Promise<string[]>;
+	/** Height through which the contract registry has labelled every deploy, so
+	 *  a trait set resolved at or below it is complete. `null` when the reader
+	 *  can't tell (an empty chain, or a hosted tenant, whose Index API owns the
+	 *  registry). */
+	registryClassifiedThrough(): Promise<number | null>;
 	/** Confirmed sweeps past `scan`, each anchored to its Stacks accept event and
 	 *  block, in `seq` order. */
 	settlementsSince(scan: SettlementScan): Promise<SettlementScanRow[]>;
@@ -95,6 +103,9 @@ export function databaseChainDataReader(db: Kysely<Database>): ChainDataReader {
 		},
 		traitContractIds(trait, asOfBlock) {
 			return resolveTraitContractIds(db, trait, asOfBlock);
+		},
+		registryClassifiedThrough() {
+			return registryClassifiedThrough(db);
 		},
 		async settlementsSince(scan) {
 			const rows = await db
@@ -258,6 +269,9 @@ export function hostedChainDataReader(
 			}
 			return ids;
 		},
+		async registryClassifiedThrough() {
+			return null;
+		},
 		async settlementsSince(scan) {
 			const withdrawals = oneWithdrawalPerSweep(
 				await client.fetchSettledWithdrawals(scan),
@@ -326,6 +340,8 @@ export function chainDataReader(opts?: {
 		sbtcEvents: async (...args) => (await reader()).sbtcEvents(...args),
 		traitContractIds: async (...args) =>
 			(await reader()).traitContractIds(...args),
+		registryClassifiedThrough: async () =>
+			(await reader()).registryClassifiedThrough(),
 		settlementsSince: async (...args) =>
 			(await reader()).settlementsSince(...args),
 	};

@@ -390,6 +390,7 @@ const server = Bun.serve({
 				),
 				eventCountMismatches: integrityState.eventCountMismatches.slice(0, 10),
 				eventsLogicalIndex: integrityState.eventsLogicalIndex,
+				registryLagBlocks: integrityState.registryLagBlocks,
 				observerJournal,
 			});
 		},

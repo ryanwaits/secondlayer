@@ -248,6 +248,9 @@ export async function listContractsByTrait(
  * block above this height can miss a contract that conforms but is not yet
  * labelled; catch-up compares the block against this and waits.
  *
+ * Only successful deploys count: an aborted deploy creates no contract, so
+ * it can never conform to a trait and must not hold the height back.
+ *
  * Returns the height just below the oldest unclassified deploy, or the
  * canonical tip when none is outstanding (`null` with an empty chain). Reads
  * the source plane, where `contracts` and `transactions` live.
@@ -260,6 +263,7 @@ export async function registryClassifiedThrough(
 			(SELECT MIN(t.block_height)
 			   FROM transactions t
 			  WHERE t.type = 'smart_contract'
+			    AND t.status = 'success'
 			    AND t.contract_id IS NOT NULL
 			    AND NOT EXISTS (
 			      SELECT 1 FROM contracts c
@@ -271,6 +275,10 @@ export async function registryClassifiedThrough(
 	`.execute(db);
 	const first = rows[0]?.first_unclassified;
 	if (first !== null && first !== undefined) return Number(first) - 1;
+	return canonicalTip(db);
+}
+
+async function canonicalTip(db: Kysely<Database>): Promise<number | null> {
 	const tip = await db
 		.selectFrom("blocks")
 		.select("height")
@@ -279,6 +287,21 @@ export async function registryClassifiedThrough(
 		.limit(1)
 		.executeTakeFirst();
 	return tip ? Number(tip.height) : null;
+}
+
+/**
+ * How many blocks the registry trails the canonical tip (tip minus
+ * {@link registryClassifiedThrough}). 0 when fully classified, `null` with an
+ * empty chain. A trait-scoped subgraph waits this many blocks, so a growing
+ * value is a stalled registry worker.
+ */
+export async function registryLagBlocks(
+	db: Kysely<Database>,
+): Promise<number | null> {
+	const through = await registryClassifiedThrough(db);
+	if (through === null) return null;
+	const tip = await canonicalTip(db);
+	return tip === null ? null : Math.max(0, tip - through);
 }
 
 /**

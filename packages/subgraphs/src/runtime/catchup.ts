@@ -18,9 +18,11 @@ import {
 	BLOCK_RETRY_DELAYS_MS,
 	type ProcessBlockResult,
 	processBlockWithRetry,
+	subgraphTraits,
 } from "./block-processor.ts";
 import { resolveBlockSource } from "./block-source.ts";
 import { isCatchUpLeader } from "./catchup-leader.ts";
+import { chainDataReader } from "./chain-data-reader.ts";
 import {
 	boundSourceTip,
 	decoderNamesForSubgraph,
@@ -354,6 +356,24 @@ export async function catchUpSubgraph(
 			totalProcessed: Number(subgraphRow.total_processed),
 			totalErrors: Number(subgraphRow.total_errors),
 		});
+		// A trait-scoped source resolves its contract set from the registry, which
+		// classifies on a timer: a block above its classified-through height may
+		// hold a matching deploy that is not labelled yet, and processing it would
+		// miss that contract's events for good. Read once per tick (a stale value
+		// is only ever lower, so safe), clamp the walk, and let a later tick
+		// continue. Subgraphs without trait sources skip the query.
+		if (subgraphTraits(subgraph).size > 0) {
+			const classifiedThrough =
+				await chainDataReader().registryClassifiedThrough();
+			if (classifiedThrough !== null && classifiedThrough < chainTip) {
+				logger.debug("Subgraph catch-up waiting for registry", {
+					subgraph: subgraphName,
+					classifiedThrough,
+					tip: chainTip,
+				});
+				chainTip = classifiedThrough;
+			}
+		}
 		if (chainTip <= 0 || lastProcessedBlock >= chainTip) return 0;
 
 		const subgraphStart = Number(subgraphRow.start_block) || 1;

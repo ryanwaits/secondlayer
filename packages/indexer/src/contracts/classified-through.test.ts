@@ -1,6 +1,9 @@
 import { afterAll, beforeEach, describe, expect, test } from "bun:test";
 import { getDb } from "@secondlayer/shared/db";
-import { registryClassifiedThrough } from "@secondlayer/shared/db/queries/contracts";
+import {
+	registryClassifiedThrough,
+	registryLagBlocks,
+} from "@secondlayer/shared/db/queries/contracts";
 
 const HAS_DB = !!process.env.DATABASE_URL;
 const DEPLOY_HEIGHT = 7;
@@ -86,5 +89,41 @@ describe.skipIf(!HAS_DB)("registryClassifiedThrough", () => {
 		expect(await registryClassifiedThrough(db)).toBeGreaterThanOrEqual(
 			DEPLOY_HEIGHT,
 		);
+	});
+
+	test("does not wait on a deploy that aborted", async () => {
+		if (!db) throw new Error("missing db");
+		await db
+			.updateTable("transactions")
+			.set({ status: "abort_by_response" })
+			.where("tx_id", "=", TX)
+			.execute();
+		expect(await registryClassifiedThrough(db)).toBeGreaterThanOrEqual(
+			DEPLOY_HEIGHT,
+		);
+	});
+
+	test("reports how many blocks the registry trails the tip", async () => {
+		if (!db) throw new Error("missing db");
+		const tip = await db
+			.selectFrom("blocks")
+			.select((eb) => eb.fn.max("height").as("height"))
+			.where("canonical", "=", true)
+			.executeTakeFirstOrThrow();
+		expect(await registryLagBlocks(db)).toBe(
+			Number(tip.height) - (DEPLOY_HEIGHT - 1),
+		);
+
+		await db
+			.insertInto("contracts")
+			.values({
+				contract_id: CONTRACT,
+				deployer: "SP9",
+				block_height: DEPLOY_HEIGHT,
+				canonical: true,
+				abi_status: "fetched",
+			})
+			.execute();
+		expect(await registryLagBlocks(db)).toBe(0);
 	});
 });
