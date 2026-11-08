@@ -36,24 +36,36 @@ export async function createSubgraphOperation(
 		estimatedEvents?: number | null;
 	},
 ): Promise<SubgraphOperation> {
-	// Requeued backfills inherit the committed prefix of prior attempts over an
-	// overlapping range — cancel/fail + requeue can't replay applied deltas.
+	// A requeued backfill inherits the committed prefix of an earlier attempt, so
+	// cancel/fail + requeue can't replay applied deltas. Only an attempt that
+	// started at or below this one's start covers a prefix of it: a narrower one
+	// stopping at 950 says nothing about the heights below its own start. And only
+	// one made against the current schema: a reindex drops the schema and every
+	// row an earlier attempt wrote with it.
 	let seededCursor: string | number | bigint | null = null;
 	if (
 		data.kind === "backfill" &&
 		data.fromBlock != null &&
 		data.toBlock != null
 	) {
-		const prior = await db
+		const schemaBuiltAt = (
+			await db
+				.selectFrom("subgraph_operations")
+				.select((eb) => eb.fn.max("created_at").as("at"))
+				.where("subgraph_id", "=", data.subgraphId)
+				.where("kind", "=", "reindex")
+				.executeTakeFirst()
+		)?.at;
+		let prior = db
 			.selectFrom("subgraph_operations")
 			.select((eb) => eb.fn.max("cursor_block").as("max_cursor"))
 			.where("subgraph_id", "=", data.subgraphId)
 			.where("kind", "=", "backfill")
 			.where("status", "in", ["failed", "cancelled"])
-			.where("from_block", "<=", data.toBlock)
-			.where("to_block", ">=", data.fromBlock)
-			.executeTakeFirst();
-		seededCursor = prior?.max_cursor ?? null;
+			.where("from_block", "<=", data.fromBlock)
+			.where("to_block", ">=", data.fromBlock);
+		if (schemaBuiltAt) prior = prior.where("created_at", ">", schemaBuiltAt);
+		seededCursor = (await prior.executeTakeFirst())?.max_cursor ?? null;
 	}
 	return await db
 		.insertInto("subgraph_operations")
