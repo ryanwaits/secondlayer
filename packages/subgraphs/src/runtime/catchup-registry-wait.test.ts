@@ -2,12 +2,12 @@ import { afterAll, afterEach, beforeAll, describe, expect, it } from "bun:test";
 import { randomUUID } from "node:crypto";
 import { getDb, getSourceDb } from "@secondlayer/shared/db";
 import type { Database } from "@secondlayer/shared/db";
+import { forgetRegistryReading } from "@secondlayer/shared/db/queries/contracts";
 import type { LeaderBackend } from "@secondlayer/shared/leader";
 import type { Kysely } from "kysely";
 import type { SubgraphDefinition, SubgraphSchema } from "../types.ts";
 import { startCatchUpLeader } from "./catchup-leader.ts";
 import { catchUpSubgraph } from "./catchup.ts";
-import { forgetRegistryReading } from "./chain-data-reader.ts";
 
 /**
  * A trait-scoped subgraph resolves its contract set from the registry, which

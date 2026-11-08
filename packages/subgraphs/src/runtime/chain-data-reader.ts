@@ -5,7 +5,7 @@ import type {
 } from "@secondlayer/shared/db";
 import { getSourceDb } from "@secondlayer/shared/db";
 import {
-	registryClassifiedThrough,
+	cachedRegistryClassifiedThrough,
 	resolveTraitContractIds,
 } from "@secondlayer/shared/db/queries/contracts";
 import { hasNoLocalChain } from "@secondlayer/shared/db/queries/instance";
@@ -86,38 +86,7 @@ export type SettlementScanRow = {
 
 // ── Local tables (self-host, platform) ──────────────────────────────────────
 
-/** The registry classifies on a ~30 s loop, so a 15 s cache costs at most one
- *  extra classification interval of waiting. */
-const REGISTRY_CLASSIFIED_TTL_MS = 15_000;
-
-type RegistryReading = { at: number; value: Promise<number | null> };
-
-/**
- * One reading per database for the whole process: `chainDataReader()` builds a
- * reader per caller, and the query scans every deploy transaction (hundreds of
- * ms on mainnet), too heavy to run per catch-up tick per trait subgraph. The
- * entry holds the in-flight promise, so concurrent callers share one query, and
- * is dropped if the query rejects. A cached value can only be lower than a
- * fresh one (the classified height only rises), so reading it is safe: catch-up
- * waits slightly longer, never processes a block the registry hasn't covered.
- */
-const registryReadings = new WeakMap<Kysely<Database>, RegistryReading>();
-
-/** Drop the cached registry reading for `db`. For tests that change the
- *  registry between catch-up ticks. */
-export function forgetRegistryReading(db: Kysely<Database>): void {
-	registryReadings.delete(db);
-}
-
-export function databaseChainDataReader(
-	db: Kysely<Database>,
-	opts: {
-		now?: () => number;
-		classifiedThrough?: (db: Kysely<Database>) => Promise<number | null>;
-	} = {},
-): ChainDataReader {
-	const now = opts.now ?? Date.now;
-	const classifiedThrough = opts.classifiedThrough ?? registryClassifiedThrough;
+export function databaseChainDataReader(db: Kysely<Database>): ChainDataReader {
 	return {
 		async sbtcEvents(fromHeight, toHeight, topics) {
 			if (topics.length === 0) return [];
@@ -136,19 +105,7 @@ export function databaseChainDataReader(
 			return resolveTraitContractIds(db, trait, asOfBlock);
 		},
 		registryClassifiedThrough() {
-			const cached = registryReadings.get(db);
-			if (cached && now() - cached.at < REGISTRY_CLASSIFIED_TTL_MS) {
-				return cached.value;
-			}
-			const reading: RegistryReading = {
-				at: now(),
-				value: classifiedThrough(db),
-			};
-			registryReadings.set(db, reading);
-			reading.value.catch(() => {
-				if (registryReadings.get(db) === reading) registryReadings.delete(db);
-			});
-			return reading.value;
+			return cachedRegistryClassifiedThrough(db);
 		},
 		async settlementsSince(scan) {
 			const rows = await db

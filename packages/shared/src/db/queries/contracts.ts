@@ -278,6 +278,74 @@ export async function registryClassifiedThrough(
 	return canonicalTip(db);
 }
 
+/** The registry classifies on a ~30 s loop, so a 15 s cache costs at most one
+ *  extra classification interval of waiting. */
+const REGISTRY_CLASSIFIED_TTL_MS = 15_000;
+
+type RegistryReading = {
+	/** Last successful value, `undefined` until the first query resolves. */
+	value: { height: number | null; at: number } | undefined;
+	/** The one query in flight (first read or background refresh). */
+	inflight: Promise<number | null> | undefined;
+};
+
+/**
+ * One reading per database for the whole process. The query scans every deploy
+ * transaction (hundreds of ms on mainnet), too heavy to run per catch-up tick
+ * or per Index tip refresh. A cached value can only be lower than a fresh one
+ * (the classified height only rises), so reading it is safe: callers wait
+ * slightly longer, never process a block the registry hasn't covered.
+ */
+const registryReadings = new WeakMap<Kysely<Database>, RegistryReading>();
+
+/**
+ * {@link registryClassifiedThrough} behind a 15 s single-flight cache with
+ * stale-while-revalidate: concurrent callers share one query, and once a value
+ * exists a stale read returns it immediately while one background refresh runs.
+ * Only the first read in a process awaits the query. A failed first query is
+ * not cached; a failed refresh keeps the previous value and retries on the
+ * next read.
+ */
+export function cachedRegistryClassifiedThrough(
+	db: Kysely<Database>,
+	opts: {
+		now?: () => number;
+		read?: (db: Kysely<Database>) => Promise<number | null>;
+	} = {},
+): Promise<number | null> {
+	const now = opts.now ?? Date.now;
+	const read = opts.read ?? registryClassifiedThrough;
+	let reading = registryReadings.get(db);
+	if (!reading) {
+		reading = { value: undefined, inflight: undefined };
+		registryReadings.set(db, reading);
+	}
+	const entry = reading;
+	const { value } = entry;
+	if (value && now() - value.at < REGISTRY_CLASSIFIED_TTL_MS) {
+		return Promise.resolve(value.height);
+	}
+	if (!entry.inflight) {
+		const query = read(db).then((height) => {
+			entry.value = { height, at: now() };
+			return height;
+		});
+		const inflight = query.finally(() => {
+			if (entry.inflight === inflight) entry.inflight = undefined;
+		});
+		entry.inflight = inflight;
+		// A refresh nobody awaits must not surface as an unhandled rejection.
+		inflight.catch(() => {});
+	}
+	return value ? Promise.resolve(value.height) : entry.inflight;
+}
+
+/** Drop the cached registry reading for `db`. For tests that change the
+ *  registry between reads. */
+export function forgetRegistryReading(db: Kysely<Database>): void {
+	registryReadings.delete(db);
+}
+
 async function canonicalTip(db: Kysely<Database>): Promise<number | null> {
 	const tip = await db
 		.selectFrom("blocks")
