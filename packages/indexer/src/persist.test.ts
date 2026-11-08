@@ -1,5 +1,6 @@
-import { beforeEach, describe, expect, test } from "bun:test";
+import { beforeEach, describe, expect, spyOn, test } from "bun:test";
 import { getDb, sql } from "@secondlayer/shared/db";
+import { logger } from "@secondlayer/shared/logger";
 import { listen } from "@secondlayer/shared/queue/listener";
 import { type PersistBlockInput, persistBlock } from "./persist.ts";
 import { reconcileReorgedRange } from "./reorg.ts";
@@ -611,20 +612,63 @@ describe.skipIf(!HAS_DB)("persistBlock replace-per-height", () => {
 		expect(block?.hash).toBe("0xblockA");
 	});
 
-	test("an event the unique index drops makes the write throw and leaves the prior block intact", async () => {
+	test("a payload that repeats a logical event persists once, records the distinct count and warns", async () => {
 		if (!db) throw new Error("missing db");
-		await persistBlock(db, payload("0xblockA", "0xtxA"));
-
-		// Two events claiming the same (height, tx, event_index): the bare
-		// ON CONFLICT DO NOTHING silently skips the second one.
 		const dup = payload("0xblockDup", "0xtxA");
 		const first = dup.evts[0];
 		if (!first) throw new Error("payload event");
 		dup.evts = [first, { ...first, data: { amount: "2" } }];
 
-		await expect(persistBlock(db, dup)).rejects.toThrow(
-			/incomplete event write/,
-		);
+		const warn = spyOn(logger, "warn");
+		try {
+			await persistBlock(db, dup);
+			expect(warn).toHaveBeenCalledWith(
+				"persistBlock: payload repeats events on the logical key",
+				{ height: H, received: 2, distinct: 1 },
+			);
+		} finally {
+			warn.mockRestore();
+		}
+
+		const block = await db
+			.selectFrom("blocks")
+			.select(["hash", "event_count"])
+			.where("height", "=", H)
+			.executeTakeFirst();
+		expect(block?.hash).toBe("0xblockDup");
+		expect(Number(block?.event_count)).toBe(1);
+	});
+
+	test("an event that is dropped without being a repeat makes the write throw and leaves the prior block intact", async () => {
+		if (!db) throw new Error("missing db");
+		await persistBlock(db, payload("0xblockA", "0xtxA"));
+
+		// A trigger that swallows one insert stands in for any silent drop.
+		await sql`
+			CREATE OR REPLACE FUNCTION test_drop_event() RETURNS trigger AS $$
+			BEGIN
+				IF NEW.data->>'amount' = 'drop' THEN RETURN NULL; END IF;
+				RETURN NEW;
+			END $$ LANGUAGE plpgsql
+		`.execute(db);
+		await sql`CREATE TRIGGER test_drop_event BEFORE INSERT ON events
+			FOR EACH ROW EXECUTE FUNCTION test_drop_event()`.execute(db);
+		try {
+			const broken = payload("0xblockBroken", "0xtxA");
+			const first = broken.evts[0];
+			if (!first) throw new Error("payload event");
+			broken.evts = [
+				first,
+				{ ...first, event_index: 1, data: { amount: "drop" } },
+			];
+
+			await expect(persistBlock(db, broken)).rejects.toThrow(
+				/incomplete event write/,
+			);
+		} finally {
+			await sql`DROP TRIGGER IF EXISTS test_drop_event ON events`.execute(db);
+			await sql`DROP FUNCTION IF EXISTS test_drop_event()`.execute(db);
+		}
 
 		const block = await db
 			.selectFrom("blocks")

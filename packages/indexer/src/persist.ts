@@ -1,6 +1,7 @@
 import { sql } from "@secondlayer/shared/db";
 import type { Database } from "@secondlayer/shared/db";
 import { computeContiguousTip } from "@secondlayer/shared/db/queries/integrity";
+import { logger } from "@secondlayer/shared/logger";
 import type { Insertable, Kysely } from "kysely";
 import { removeMempoolTxs } from "./mempool.ts";
 
@@ -127,6 +128,21 @@ export async function persistBlock(
 	const stateWrites = input.stateWrites ?? [];
 	const network = input.network ?? process.env.STACKS_NETWORK ?? "mainnet";
 
+	// The events table's unique logical key is (block_height, tx_id,
+	// event_index) (`events_logical_id_uniq`, migration 0101). A payload that
+	// repeats a key lands once, so the count to expect, and to record in
+	// `blocks.event_count`, is the number of distinct keys.
+	const distinctEvents = new Set(
+		evts.map((e) => `${e.block_height}|${e.tx_id}|${e.event_index}`),
+	).size;
+	if (evts.length > distinctEvents) {
+		logger.warn("persistBlock: payload repeats events on the logical key", {
+			height: blockHeight,
+			received: evts.length,
+			distinct: distinctEvents,
+		});
+	}
+
 	const write = async (tx: Kysely<Database>) => {
 		// A reorg reuses a height with a new block hash. When that happens, the
 		// existing rows at this height are orphaned — archive them before the
@@ -146,7 +162,7 @@ export async function persistBlock(
 		// array that actually gets inserted below.
 		await tx
 			.insertInto("blocks")
-			.values({ ...block, tx_count: txs.length, event_count: evts.length })
+			.values({ ...block, tx_count: txs.length, event_count: distinctEvents })
 			// biome-ignore lint/suspicious/noExplicitAny: kysely onConflict builder
 			.onConflict((oc: any) =>
 				oc.column("height").doUpdateSet({
@@ -158,7 +174,7 @@ export async function persistBlock(
 					timestamp: block.timestamp,
 					canonical: true,
 					tx_count: txs.length,
-					event_count: evts.length,
+					event_count: distinctEvents,
 				}),
 			)
 			.execute();
@@ -288,16 +304,17 @@ export async function persistBlock(
 
 		// Same fail-loud rule for events. The insert above is a bare
 		// `ON CONFLICT DO NOTHING`, so a row the unique logical index refuses
-		// vanishes without an error; `blocks.event_count` records what this
-		// persist was handed and the write is only committed if it all landed.
+		// vanishes without an error; `blocks.event_count` records the distinct
+		// events this persist was handed and the write is only committed if
+		// they all landed. Payload repeats are expected to collapse.
 		const landedEvents = await tx
 			.selectFrom("events")
 			.select(({ fn }) => fn.countAll<string | number>().as("n"))
 			.where("block_height", "=", blockHeight)
 			.executeTakeFirstOrThrow();
-		if (Number(landedEvents.n) !== evts.length) {
+		if (Number(landedEvents.n) !== distinctEvents) {
 			throw new Error(
-				`persistBlock: incomplete event write at height ${blockHeight} — expected ${evts.length} events, landed ${landedEvents.n}`,
+				`persistBlock: incomplete event write at height ${blockHeight} — expected ${distinctEvents} distinct events, landed ${landedEvents.n}`,
 			);
 		}
 
