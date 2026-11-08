@@ -14,6 +14,7 @@ import type {
 	IndexSbtcEventRow,
 	IndexSbtcWithdrawalRow,
 } from "@secondlayer/shared/index-http";
+import { defaultInternalIndexBaseUrl } from "@secondlayer/shared/index-internal-auth";
 import type { Kysely, Selectable } from "kysely";
 import { buildHttpClient } from "./block-source.ts";
 import { isoToUnixSeconds } from "./reconstruct.ts";
@@ -376,11 +377,14 @@ export function chainDataReader(opts?: {
 	};
 }
 
-let processHttpClient: IndexHttpClient | undefined;
+let processHttpClient: { baseUrl: string; client: IndexHttpClient } | undefined;
 
 /** One client per process for callers without their own, so the trait cache
- *  (keyed by client) lives for the process. */
+ *  (keyed by client) lives for the process. Rebuilt if the Index URL changes. */
 function sharedHttpClient(): IndexHttpClient {
-	processHttpClient ??= buildHttpClient();
-	return processHttpClient;
+	const baseUrl = defaultInternalIndexBaseUrl();
+	if (processHttpClient?.baseUrl !== baseUrl) {
+		processHttpClient = { baseUrl, client: buildHttpClient() };
+	}
+	return processHttpClient.client;
 }
