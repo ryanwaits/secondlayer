@@ -1,5 +1,15 @@
 # @secondlayer/workload
 
+## 0.2.37
+
+### Patch Changes
+
+- 6cee8bc: Usage meters now resend only the items the server failed, and log items it rejected instead of dropping them silently.
+- Updated dependencies [d8ab711]
+- Updated dependencies [701b7e6]
+  - @secondlayer/shared@15.4.1
+  - @secondlayer/platform@0.10.19
+
 ## 0.2.36
 
 ### Patch Changes

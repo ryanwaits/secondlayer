@@ -1,5 +1,15 @@
 # @secondlayer/indexer
 
+## 1.17.10
+
+### Patch Changes
+
+- d8ab711: Subgraphs scoped to a trait now wait for the contract registry before processing a block, so a matching contract deployed in a block the registry hasn't labelled yet no longer loses its events. Aborted deploys don't hold the wait back, and `/health/integrity` reports `registryLagBlocks`.
+- 701b7e6: `event_index` is now defined as the event's 0-based position in its block, and `/health/integrity` reports `eventIndexMismatches` for recent blocks that break it.
+- Updated dependencies [d8ab711]
+- Updated dependencies [701b7e6]
+  - @secondlayer/shared@15.4.1
+
 ## 1.17.9
 
 ### Patch Changes
