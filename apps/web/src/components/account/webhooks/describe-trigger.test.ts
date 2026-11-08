@@ -400,3 +400,39 @@ describe("agentPrompt", () => {
 		expect(prompt).toContain("Triggers\n1. print_event:");
 	});
 });
+
+describe("amounts beyond double precision", () => {
+	const phrase = (fields: Record<string, unknown>) => {
+		const trigger = t(fields);
+		return text(describeTrigger(trigger, 0, [trigger]).line);
+	};
+
+	test("a u128-sized base-unit amount keeps every digit", () => {
+		expect(
+			phrase({
+				type: "ft_transfer",
+				assetIdentifier: GUILD,
+				minAmount: "340282366920938463463374607431768211455",
+			}),
+		).toContain("340,282,366,920,938,463,463,374,607,431,768,211,455");
+	});
+
+	test("an STX amount past 2^53 micro-STX keeps its decimals", () => {
+		expect(
+			phrase({
+				type: "stx_transfer",
+				sender: ADDR,
+				minAmount: "9007199254740993",
+			}),
+		).toContain("9,007,199,254.740993 STX");
+	});
+
+	test("a sub-unit sBTC amount keeps eight decimals", () => {
+		expect(
+			phrase({
+				type: "sbtc_transfer",
+				minAmount: "12345678",
+			}),
+		).toContain("0.12345678 sBTC");
+	});
+});

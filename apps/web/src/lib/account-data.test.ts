@@ -9,6 +9,7 @@ import {
 	creditsBaseline,
 	ensureBilling,
 	ensureKeys,
+	formatDate,
 	isTopupUsd,
 	refreshBilling,
 	refreshKeys,
@@ -334,5 +335,22 @@ describe("spend cap saves", () => {
 		releases[0](jsonResponse(capResponse(1000)));
 		await first;
 		expect(accountSnapshot().caps?.monthlyCapCents).toBe(2000);
+	});
+});
+
+describe("formatDate", () => {
+	test("is the same calendar day for everyone, whatever their timezone", () => {
+		const saved = process.env.TZ;
+		process.env.TZ = "America/Los_Angeles";
+		try {
+			expect(formatDate("2026-11-01T01:00:00.000Z")).toBe("Nov 1, 2026");
+		} finally {
+			if (saved === undefined) Reflect.deleteProperty(process.env, "TZ");
+			else process.env.TZ = saved;
+		}
+	});
+
+	test("names a missing date", () => {
+		expect(formatDate(null)).toBe("never");
 	});
 });

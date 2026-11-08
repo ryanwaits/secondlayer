@@ -621,7 +621,9 @@ export function formatUsd(micros: string | number | bigint): string {
 
 export function formatDate(iso: string | null): string {
 	if (!iso) return "never";
-	return new Date(iso).toLocaleDateString(undefined, {
+	// UTC and en-US, so the same instant reads as the same date for everyone.
+	return new Date(iso).toLocaleDateString("en-US", {
+		timeZone: "UTC",
 		year: "numeric",
 		month: "short",
 		day: "numeric",

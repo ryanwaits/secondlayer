@@ -274,6 +274,11 @@ describe("runsOutMonth", () => {
 	test("an empty balance runs out this month", () => {
 		expect(runsOutMonth(0, 146_100, now)).toBe("Oct 2026");
 	});
+
+	test("a runway past a hundred years names no month, never Invalid Date", () => {
+		expect(runsOutMonth(1e15, 1, now)).toBeNull();
+		expect(runsOutMonth(1e30, 1, now)).toBeNull();
+	});
 });
 
 describe("latestMemoryHour", () => {

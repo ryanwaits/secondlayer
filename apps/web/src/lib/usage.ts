@@ -200,6 +200,8 @@ export function daysInUtcMonth(m: Month): number {
 	return new Date(Date.UTC(m.year, m.month + 1, 0)).getUTCDate();
 }
 
+const MAX_RUNWAY_DAYS = 36_525;
+
 /** "Oct 2027": the UTC month a balance runs out at `rateDayUsdMicros` a day
  *  from `now`, or null when nothing burns. */
 export function runsOutMonth(
@@ -208,7 +210,9 @@ export function runsOutMonth(
 	now: Date,
 ): string | null {
 	const days = runwayDays(balanceUsdMicros, rateDayUsdMicros);
-	if (!Number.isFinite(days)) return null;
+	// Past a hundred years there is no month worth naming (and a far enough date
+	// is not a Date at all).
+	if (!Number.isFinite(days) || days > MAX_RUNWAY_DAYS) return null;
 	const out = new Date(now.getTime() + days * 86_400_000);
 	return out.toLocaleDateString("en-US", {
 		timeZone: "UTC",

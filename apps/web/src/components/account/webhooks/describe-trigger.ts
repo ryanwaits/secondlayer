@@ -86,8 +86,21 @@ function isSbtc(trigger: Fields): boolean {
 	);
 }
 
-function formatNumber(value: number, maxFraction: number): string {
-	return value.toLocaleString("en-US", { maximumFractionDigits: maxFraction });
+/** An integer amount of `decimals`-place units as text with thousands
+ *  separators. BigInt, because a u128 amount is past what a double holds;
+ *  anything that is not a whole number reads as it was written. */
+function formatUnits(raw: unknown, decimals: number): string {
+	let big: bigint;
+	try {
+		big = BigInt(typeof raw === "number" ? Math.trunc(raw) : String(raw));
+	} catch {
+		return String(raw);
+	}
+	const negative = big < 0n;
+	const digits = (negative ? -big : big).toString().padStart(decimals + 1, "0");
+	const whole = BigInt(digits.slice(0, digits.length - decimals));
+	const fraction = digits.slice(digits.length - decimals).replace(/0+$/, "");
+	return `${negative ? "-" : ""}${whole.toLocaleString("en-US")}${fraction ? `.${fraction}` : ""}`;
 }
 
 /** An amount split into number and unit so a range can drop the first unit. */
@@ -95,11 +108,10 @@ function amount(
 	trigger: Fields,
 	raw: unknown,
 ): { value: string; unit: string } {
-	const n = Number(raw);
 	if (String(trigger.type).startsWith("stx_"))
-		return { value: formatNumber(n / 1e6, 6), unit: "STX" };
-	if (isSbtc(trigger)) return { value: formatNumber(n / 1e8, 8), unit: "sBTC" };
-	return { value: formatNumber(n, 0), unit: "base units" };
+		return { value: formatUnits(raw, 6), unit: "STX" };
+	if (isSbtc(trigger)) return { value: formatUnits(raw, 8), unit: "sBTC" };
+	return { value: formatUnits(raw, 0), unit: "base units" };
 }
 
 const amountText = (a: { value: string; unit: string }): string =>
