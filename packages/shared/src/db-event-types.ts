@@ -10,6 +10,15 @@ import type { StreamsEventType } from "./event-types.ts";
  * removing or reordering a type shifts the ordinal of every later event in any
  * block that holds one, silently invalidating saved cursors. Change the list
  * only together with a bump of this number; `db-event-types.test.ts` pins both.
+ *
+ * `event_index` means one thing everywhere it is exposed: the event's 0-based
+ * position within its block, counted in `(tx_index, event_index)` order of the
+ * raw `events` rows. Streams, the decoded tables and subgraph event ids
+ * (`${tx_id}#${event_index}`) all rely on it, so ids built from raw rows
+ * (`PostgresBlockSource`) match ids built from the Index API
+ * (`PublicApiBlockSource`) only while the raw column equals that position.
+ * `findEventIndexMismatches` (db/queries/integrity.ts) checks it; the indexer
+ * reports it on `/health/integrity` and `audit-event-index.ts` walks history.
  */
 export const STREAMS_CURSOR_VERSION = 1;
 

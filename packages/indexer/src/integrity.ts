@@ -9,8 +9,10 @@ import {
 	findBurnHeightRegressions,
 	findDuplicateTxIndexes,
 	findEventCountMismatches,
+	findEventIndexMismatches,
 	findGaps,
 	findShortBlocks,
+	resolveChainTip,
 	resolveContiguousFloor,
 } from "@secondlayer/shared/db/queries/integrity";
 import type {
@@ -52,10 +54,17 @@ export const integrityState = {
 	eventCountMismatches: [] as EventCountMismatch[],
 	/** Whether `events_logical_id_uniq` exists; null until the first check. */
 	eventsLogicalIndex: null as EventsLogicalIndexState | null,
+	/** Recent canonical heights whose raw `event_index` is not the event's
+	 *  0-based position in the block (`STREAMS_CURSOR_VERSION` defines it). */
+	eventIndexMismatches: [] as number[],
 	/** Blocks the contract registry trails the tip. Trait-scoped subgraphs wait
 	 *  this long, so a growing value means a stalled registry worker. */
 	registryLagBlocks: null as number | null,
 };
+
+/** Blocks the recent `event_index` check covers. The full-history walk is
+ *  `scripts/audit-event-index.ts`. */
+const EVENT_INDEX_WINDOW = 1_000;
 
 // The windowed broken-link query only sees the last 10k blocks, so a break
 // further down used to scroll out of view unrepaired. Scan the whole chain on
@@ -194,11 +203,21 @@ async function checkRowInvariants(db: ReturnType<typeof getSourceDb>) {
 	});
 	integrityState.eventsLogicalIndex = await eventsLogicalIndexState(db);
 	integrityState.registryLagBlocks = await registryLagBlocks(db);
+	const tip = await resolveChainTip(db, "canonical");
+	integrityState.eventIndexMismatches =
+		tip === null
+			? []
+			: await findEventIndexMismatches(db, {
+					fromHeight: tip - EVENT_INDEX_WINDOW + 1,
+					toHeight: tip,
+					limit: 20,
+				});
 
 	const violations = {
 		duplicateTxIndexes: integrityState.duplicateTxIndexes.length,
 		burnHeightRegressions: integrityState.burnHeightRegressions.length,
 		eventCountMismatches: integrityState.eventCountMismatches.length,
+		eventIndexMismatches: integrityState.eventIndexMismatches.length,
 	};
 	if (
 		Object.values(violations).some((n) => n > 0) ||
@@ -210,6 +229,7 @@ async function checkRowInvariants(db: ReturnType<typeof getSourceDb>) {
 			firstDuplicateTxIndex: integrityState.duplicateTxIndexes[0],
 			firstBurnHeightRegression: integrityState.burnHeightRegressions[0],
 			firstEventCountMismatch: integrityState.eventCountMismatches[0],
+			firstEventIndexMismatch: integrityState.eventIndexMismatches[0],
 		});
 	}
 }

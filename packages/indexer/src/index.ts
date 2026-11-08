@@ -352,7 +352,8 @@ const server = Bun.serve({
 			const rowInvariantsViolated =
 				integrityState.duplicateTxIndexes.length > 0 ||
 				integrityState.burnHeightRegressions.length > 0 ||
-				integrityState.eventCountMismatches.length > 0;
+				integrityState.eventCountMismatches.length > 0 ||
+				integrityState.eventIndexMismatches.length > 0;
 			const status =
 				integrityState.brokenLinks.length > 0
 					? "chain_unlinked"
@@ -389,6 +390,7 @@ const server = Bun.serve({
 					10,
 				),
 				eventCountMismatches: integrityState.eventCountMismatches.slice(0, 10),
+				eventIndexMismatches: integrityState.eventIndexMismatches.slice(0, 10),
 				eventsLogicalIndex: integrityState.eventsLogicalIndex,
 				registryLagBlocks: integrityState.registryLagBlocks,
 				observerJournal,

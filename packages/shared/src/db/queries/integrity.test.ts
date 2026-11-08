@@ -16,6 +16,7 @@ import {
 	findBurnHeightRegressions,
 	findDuplicateTxIndexes,
 	findEventCountMismatches,
+	findEventIndexMismatches,
 	findGaps,
 	findShortBlocks,
 	resolveChainTip,
@@ -355,6 +356,41 @@ describe.skipIf(!HAS_DB)("row invariant checks", () => {
 		expect(found.filter((m) => m.height >= BASE)).toEqual([
 			{ height: BASE + 1, expectedEventCount: 2, actualEventCount: 1 },
 		]);
+	});
+
+	test("findEventIndexMismatches flags a block whose raw event_index skips a position", async () => {
+		await insertBlock(BASE + 1, 1);
+		await insertBlock(BASE + 2, 2);
+		await insertTx(BASE + 1, "0xidx-a", 0);
+		await insertTx(BASE + 2, "0xidx-b", 0);
+		const event = (
+			tx_id: string,
+			block_height: number,
+			event_index: number,
+		) => ({
+			tx_id,
+			block_height,
+			event_index,
+			type: "stx_transfer_event",
+			data: {},
+		});
+		await db
+			.insertInto("events")
+			.values([
+				event("0xidx-a", BASE + 1, 0),
+				event("0xidx-a", BASE + 1, 1),
+				event("0xidx-a", BASE + 1, 3),
+				event("0xidx-b", BASE + 2, 0),
+				event("0xidx-b", BASE + 2, 1),
+				event("0xidx-b", BASE + 2, 2),
+			])
+			.execute();
+
+		const found = await findEventIndexMismatches(db, {
+			fromHeight: BASE,
+			toHeight: BASE + 10,
+		});
+		expect(found).toEqual([BASE + 1]);
 	});
 
 	test("eventsLogicalIndexState reflects whether the unique events index exists", async () => {

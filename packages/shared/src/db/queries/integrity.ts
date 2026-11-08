@@ -436,6 +436,39 @@ export async function findEventCountMismatches(
 	}));
 }
 
+/**
+ * Canonical heights in `[fromHeight, toHeight]` where a raw `events.event_index`
+ * is not its 0-based position in the block, ordered by `(tx_index, event_index)`.
+ * That position is what `event_index` means everywhere else (see
+ * `STREAMS_CURSOR_VERSION`), so a mismatch means subgraph event ids built from
+ * raw rows would differ from ones built from Streams.
+ */
+export async function findEventIndexMismatches(
+	db: Kysely<Database>,
+	opts: { fromHeight: number; toHeight: number; limit?: number },
+): Promise<number[]> {
+	const limitClause = opts.limit ? sql`LIMIT ${opts.limit}` : sql``;
+	const { rows } = await sql<{ height: string | number }>`
+		SELECT DISTINCT height
+		  FROM (
+		    SELECT e.block_height AS height,
+		           e.event_index,
+		           ROW_NUMBER() OVER (
+		             PARTITION BY e.block_height
+		             ORDER BY t.tx_index ASC, e.event_index ASC
+		           ) - 1 AS position
+		      FROM events e
+		      JOIN transactions t ON t.tx_id = e.tx_id
+		      JOIN blocks b ON b.height = e.block_height AND b.canonical = true
+		     WHERE e.block_height BETWEEN ${opts.fromHeight} AND ${opts.toHeight}
+		  ) ranked
+		 WHERE event_index <> position
+		 ORDER BY height
+		 ${limitClause}
+	`.execute(db);
+	return rows.map((r) => Number(r.height));
+}
+
 export type EventsLogicalIndexState = "valid" | "invalid" | "missing";
 
 /**

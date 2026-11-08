@@ -102,6 +102,9 @@ export function reconstructEvent(e: IndexEventRow): Event {
 	const base = {
 		// Synthetic, deterministic id. The runtime only reads `id` for error logs
 		// and the `*`-wildcard payload (which is streams-index-ineligible).
+		// Matches the raw-row id only while `event_index` is the event's 0-based
+		// position in its block: see `STREAMS_CURSOR_VERSION` in
+		// shared/src/db-event-types.ts.
 		id: `${e.tx_id}#${e.event_index}`,
 		tx_id: e.tx_id,
 		block_height: e.block_height,
