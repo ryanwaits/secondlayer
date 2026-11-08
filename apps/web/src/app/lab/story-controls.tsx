@@ -2230,7 +2230,7 @@ export function WebhooksIndexDemo({
 	initialView?: IndexView;
 	/** One webhook paused by you and one by the circuit breaker. */
 	pauses?: boolean;
-	/** One webhook has failed 10 times in a row and not succeeded for weeks.
+	/** token-transfers has failed 10 times in a row and not succeeded for weeks.
 	 *  `clock`: the row carries no verdict, so the browser works it out and
 	 *  shows it failing. `server`: the server's verdict says ok and the pill
 	 *  follows it. */
@@ -2257,7 +2257,7 @@ export function WebhooksIndexDemo({
 			summary({
 				id,
 				name,
-				...(staleReceiver && name === "bns-names"
+				...(staleReceiver && name === "token-transfers"
 					? {
 							circuitFailures: 10,
 							lastSuccessAt: "2026-10-01T00:00:00.000Z",

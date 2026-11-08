@@ -2269,12 +2269,13 @@ const META: Record<StoryId, Meta> = {
 			},
 			{
 				id: "clock-health",
-				label: "No server verdict: the browser's clock calls bns-names failing",
+				label:
+					"No server verdict: the browser's clock calls token-transfers failing",
 				render: () => <WebhooksIndexDemo count={3} staleReceiver="clock" />,
 			},
 			{
 				id: "server-health",
-				label: "Server verdict ok: bns-names shows no status",
+				label: "Server verdict ok: token-transfers shows no status",
 				render: () => <WebhooksIndexDemo count={3} staleReceiver="server" />,
 			},
 		],
