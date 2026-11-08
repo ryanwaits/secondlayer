@@ -154,6 +154,48 @@ describe.skipIf(SKIP)("Subgraphs Queries", () => {
 		expect(subgraph).toBeNull();
 	});
 
+	test("deleteSubgraph keeps the schema when the row delete fails", async () => {
+		const db = getDb();
+		await registerSubgraph(db, testDef);
+		await sql
+			.raw("CREATE SCHEMA IF NOT EXISTS subgraph_test_subgraph")
+			.execute(db);
+		await sql
+			.raw(
+				`CREATE OR REPLACE FUNCTION refuse_subgraph_delete() RETURNS trigger AS $$
+				BEGIN RAISE EXCEPTION 'delete refused'; END $$ LANGUAGE plpgsql`,
+			)
+			.execute(db);
+		await sql
+			.raw(
+				`CREATE TRIGGER refuse_subgraph_delete BEFORE DELETE ON subgraphs
+				FOR EACH ROW EXECUTE FUNCTION refuse_subgraph_delete()`,
+			)
+			.execute(db);
+
+		try {
+			await expect(deleteSubgraph(db, "test-subgraph")).rejects.toThrow(
+				/delete refused/,
+			);
+		} finally {
+			await sql
+				.raw("DROP TRIGGER IF EXISTS refuse_subgraph_delete ON subgraphs")
+				.execute(db);
+			await sql
+				.raw("DROP FUNCTION IF EXISTS refuse_subgraph_delete()")
+				.execute(db);
+		}
+
+		expect(await getSubgraph(db, "test-subgraph")).not.toBeNull();
+		const { rows } = await sql<{ found: boolean }>`
+			SELECT EXISTS (
+				SELECT 1 FROM information_schema.schemata
+				WHERE schema_name = 'subgraph_test_subgraph'
+			) AS found
+		`.execute(db);
+		expect(rows[0]?.found).toBe(true);
+	});
+
 	test("deleteSubgraph returns null for unknown subgraph", async () => {
 		const db = getDb();
 		const result = await deleteSubgraph(db, "nonexistent");
