@@ -70,7 +70,7 @@ async function catchUpAll(
 					if (isHandlerNotFoundError(err)) {
 						await transitionSubgraph(
 							db,
-							sg.name,
+							sg.id,
 							["active", "reindexing"],
 							"error",
 						);
@@ -244,6 +244,7 @@ async function runSubgraphOperation(
 		if (hasResumeMetadata) {
 			const result = await resumeReindex(def, {
 				schemaName,
+				subgraphId: subgraph.id,
 				operationId: operation.id,
 				signal,
 			});
@@ -259,6 +260,7 @@ async function runSubgraphOperation(
 						? undefined
 						: Number(operation.from_block),
 				schemaName,
+				subgraphId: subgraph.id,
 				operationId: operation.id,
 				signal,
 			});

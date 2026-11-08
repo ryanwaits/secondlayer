@@ -554,7 +554,7 @@ export async function catchUpSubgraph(
 					// Sticky: only a redeploy or a reindex clears it.
 					await transitionSubgraph(
 						targetDb,
-						subgraphName,
+						subgraphId,
 						["active"],
 						"error",
 					).catch(() => {});

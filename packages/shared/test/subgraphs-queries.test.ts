@@ -106,35 +106,55 @@ describe.skipIf(SKIP)("Subgraphs Queries", () => {
 
 	test("transitionSubgraph moves a subgraph and writes the extra columns in one statement", async () => {
 		const db = getDb();
-		await registerSubgraph(db, testDef);
+		const sg = await registerSubgraph(db, testDef);
 
-		const row = await transitionSubgraph(
-			db,
-			"test-subgraph",
-			["active"],
-			"error",
-			{ last_processed_block: 5000 },
-		);
+		const row = await transitionSubgraph(db, sg.id, ["active"], "error", {
+			last_processed_block: 5000,
+		});
 		expect(row?.status).toBe("error");
 		expect(Number(row?.last_processed_block)).toBe(5000);
 	});
 
 	test("transitionSubgraph returns null and writes nothing when the subgraph is not in a from state", async () => {
 		const db = getDb();
-		await registerSubgraph(db, testDef);
-		await transitionSubgraph(db, "test-subgraph", ["active"], "error");
+		const sg = await registerSubgraph(db, testDef);
+		await transitionSubgraph(db, sg.id, ["active"], "error");
 
-		const lost = await transitionSubgraph(
-			db,
-			"test-subgraph",
-			["active"],
-			"reindexing",
-			{ last_processed_block: 9 },
-		);
+		const lost = await transitionSubgraph(db, sg.id, ["active"], "reindexing", {
+			last_processed_block: 9,
+		});
 		expect(lost).toBeNull();
 		const row = await getSubgraph(db, "test-subgraph");
 		expect(row?.status).toBe("error");
 		expect(Number(row?.last_processed_block)).toBe(0);
+	});
+
+	test("transitionSubgraph returns null for an id that no longer exists, and an illegal pair still throws", async () => {
+		const db = getDb();
+		const sg = await registerSubgraph(db, testDef);
+		await db.deleteFrom("subgraphs").where("id", "=", sg.id).execute();
+
+		expect(await transitionSubgraph(db, sg.id, ["active"], "error")).toBeNull();
+		expect(() =>
+			transitionSubgraph(db, sg.id, ["error"], "error" as never),
+		).not.toThrow();
+		expect(() =>
+			transitionSubgraph(db, sg.id, ["active"], "active" as never),
+		).not.toThrow();
+		expect(() =>
+			transitionSubgraph(db, sg.id, ["error"], "nonsense" as never),
+		).toThrow();
+	});
+
+	test("transitionSubgraph returns null for an id that no longer exists, and an illegal pair still throws", async () => {
+		const db = getDb();
+		const sg = await registerSubgraph(db, testDef);
+		await db.deleteFrom("subgraphs").where("id", "=", sg.id).execute();
+
+		expect(await transitionSubgraph(db, sg.id, ["active"], "error")).toBeNull();
+		expect(() =>
+			transitionSubgraph(db, sg.id, ["active"], "nonsense" as never),
+		).toThrow("illegal transition");
 	});
 
 	test("deleteSubgraph removes subgraph and drops schema", async () => {
@@ -310,13 +330,13 @@ describe.skipIf(SKIP)(
 			const db = getDb();
 			const sg = await registerSubgraph(db, testDef);
 
-			await transitionSubgraph(db, "test-subgraph", ["active"], "reindexing");
+			await transitionSubgraph(db, sg.id, ["active"], "reindexing");
 			expect(await recordLiveProgress(db, sg.id, 10)).toBe(false);
 			let row = await getSubgraph(db, "test-subgraph");
 			expect(row?.status).toBe("reindexing");
 			expect(Number(row?.last_processed_block)).toBe(0);
 
-			await transitionSubgraph(db, "test-subgraph", ["reindexing"], "error");
+			await transitionSubgraph(db, sg.id, ["reindexing"], "error");
 			expect(await recordLiveProgress(db, sg.id, 20)).toBe(false);
 			row = await getSubgraph(db, "test-subgraph");
 			expect(row?.status).toBe("error");
@@ -326,10 +346,10 @@ describe.skipIf(SKIP)(
 		test("setReindexCursor moves the cursor only while reindexing, so a halt during a reindex stays error", async () => {
 			const db = getDb();
 			const sg = await registerSubgraph(db, testDef);
-			await transitionSubgraph(db, "test-subgraph", ["active"], "reindexing");
+			await transitionSubgraph(db, sg.id, ["active"], "reindexing");
 			expect(await setReindexCursor(db, sg.id, 40)).toBe(true);
 
-			await transitionSubgraph(db, "test-subgraph", ["reindexing"], "error");
+			await transitionSubgraph(db, sg.id, ["reindexing"], "error");
 			expect(await setReindexCursor(db, sg.id, 80)).toBe(false);
 			const row = await getSubgraph(db, "test-subgraph");
 			expect(row?.status).toBe("error");
@@ -339,7 +359,7 @@ describe.skipIf(SKIP)(
 		test("recordLiveError leaves a reindexing subgraph alone", async () => {
 			const db = getDb();
 			const sg = await registerSubgraph(db, testDef);
-			await transitionSubgraph(db, "test-subgraph", ["active"], "reindexing");
+			await transitionSubgraph(db, sg.id, ["active"], "reindexing");
 			expect(await recordLiveError(db, sg.id, 60)).toBe(false);
 			expect((await getSubgraph(db, "test-subgraph"))?.status).toBe(
 				"reindexing",
@@ -395,7 +415,7 @@ describe.skipIf(SKIP)(
 		test("rewindLiveProgress leaves a reindexing subgraph alone", async () => {
 			const db = getDb();
 			const sg = await registerSubgraph(db, testDef);
-			await transitionSubgraph(db, "test-subgraph", ["active"], "reindexing");
+			await transitionSubgraph(db, sg.id, ["active"], "reindexing");
 			await rewindLiveProgress(db, sg.id, 10);
 			const row = await getSubgraph(db, "test-subgraph");
 			expect(row?.status).toBe("reindexing");

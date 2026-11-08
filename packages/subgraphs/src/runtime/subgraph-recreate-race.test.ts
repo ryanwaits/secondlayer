@@ -2,6 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from "bun:test";
 import { randomUUID } from "node:crypto";
 import { getDb, sql } from "@secondlayer/shared/db";
 import type { Database, Event, Transaction } from "@secondlayer/shared/db";
+import { transitionSubgraph } from "@secondlayer/shared/db/queries/subgraphs";
 import type { LeaderBackend } from "@secondlayer/shared/leader";
 import type { Kysely } from "kysely";
 import { emitJournalDDL } from "../schema/generator.ts";
@@ -14,6 +15,7 @@ import { type PreloadedBlockData, processBlock } from "./block-processor.ts";
 import { startCatchUpLeader } from "./catchup-leader.ts";
 import { catchUpSubgraph } from "./catchup.ts";
 import type { SubgraphContext } from "./context.ts";
+import { reindexSubgraph } from "./reindex.ts";
 
 /**
  * A subgraph deleted and recreated under the same name gets a new id but the
@@ -310,6 +312,52 @@ describe.skipIf(!HAS_DB)("delete and recreate under the same name", () => {
 		const processed = await walk;
 
 		expect(processed).toBeLessThan(TOTAL_BLOCKS);
+		expect(await cursorOfId(newId)).toBe(BASE);
+	});
+});
+
+async function statusOfId(id: string): Promise<string> {
+	const row = await db
+		.selectFrom("subgraphs")
+		.select("status")
+		.where("id", "=", id)
+		.executeTakeFirstOrThrow();
+	return row.status;
+}
+
+describe.skipIf(!HAS_DB)("status changes for a deleted subgraph", () => {
+	it("a halt for the old subgraph leaves the recreated one active", async () => {
+		const name = `recreate-halt-${randomUUID().slice(0, 8)}`;
+		const pgSchema = `sg_recreate_${randomUUID().slice(0, 8)}`;
+		createdNames.push(name);
+		const oldId = await insertRow(name, pgSchema, BASE);
+		const newId = await deleteAndRecreate(oldId, name, pgSchema, BASE);
+
+		const halted = await transitionSubgraph(db, oldId, ["active"], "error");
+
+		expect(halted).toBeNull();
+		expect(await statusOfId(newId)).toBe("active");
+	});
+
+	it("a reindex that belonged to the old subgraph leaves the recreated one untouched", async () => {
+		const name = `recreate-reindex-${randomUUID().slice(0, 8)}`;
+		const pgSchema = `sg_recreate_${randomUUID().slice(0, 8)}`;
+		createdNames.push(name);
+		const oldId = await insertRow(name, pgSchema, BASE);
+		const newId = await deleteAndRecreate(oldId, name, pgSchema, BASE);
+		const def: SubgraphDefinition = {
+			name,
+			startBlock: FIRST_HEIGHT,
+			sources: {},
+			schema: {} as SubgraphSchema,
+			handlers: {},
+		};
+
+		await expect(
+			reindexSubgraph(def, { schemaName: pgSchema, subgraphId: oldId }),
+		).rejects.toThrow("not found");
+
+		expect(await statusOfId(newId)).toBe("active");
 		expect(await cursorOfId(newId)).toBe(BASE);
 	});
 });

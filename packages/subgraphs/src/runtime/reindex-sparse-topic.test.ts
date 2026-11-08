@@ -44,6 +44,7 @@ const ENV_KEYS = ["SUBGRAPH_SOURCE", "SUBGRAPH_INDEX_API_URL"] as const;
 const priorEnv = new Map<string, string | undefined>();
 
 let db: Kysely<Database>;
+let subgraphId: string;
 const pgSchema = `sg_sparse_topic_${randomUUID().slice(0, 8).replace(/-/g, "")}`;
 const name = `sparse-topic-${randomUUID().slice(0, 8)}`;
 const fake = startFakeIndex(chain);
@@ -79,7 +80,7 @@ beforeAll(async () => {
 	for (const stmt of generateSubgraphSQL(def, pgSchema).statements) {
 		await sql.raw(stmt).execute(db);
 	}
-	await db
+	const row = await db
 		.insertInto("subgraphs")
 		.values({
 			name,
@@ -92,7 +93,9 @@ beforeAll(async () => {
 			start_block: 1,
 			last_processed_block: 0,
 		} as never)
-		.execute();
+		.returning("id")
+		.executeTakeFirstOrThrow();
+	subgraphId = row.id;
 });
 
 afterAll(async () => {
@@ -108,7 +111,7 @@ afterAll(async () => {
 
 describe("hosted reindex fetches only what the subgraph can match", () => {
 	test("returns only the pinned contract's prints and skips past other-topic stretches", async () => {
-		await reindexSubgraph(def, { schemaName: pgSchema });
+		await reindexSubgraph(def, { schemaName: pgSchema, subgraphId });
 
 		// The one print with the declared topic reached the handler.
 		const { rows } = await sql

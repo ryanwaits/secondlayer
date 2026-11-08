@@ -509,7 +509,7 @@ export async function processBlock(
 		const rewind = isReorgRewind(opts);
 		if (rr.errors > 0 && rr.processed === 0) {
 			if (rewind) {
-				await transitionSubgraph(tx, subgraphName, ["active"], "error", {
+				await transitionSubgraph(tx, subgraphId, ["active"], "error", {
 					last_processed_block: blockHeight,
 				});
 			} else {

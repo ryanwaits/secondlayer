@@ -111,6 +111,8 @@ export interface ReindexOptions {
 	 */
 	startBlockFloor?: number;
 	schemaName?: string;
+	/** The row the operation targets: every status change and write follows it, never the name. */
+	subgraphId: string;
 	/** Op row to receive processed_events on each progress flush. */
 	operationId?: string;
 	signal?: AbortSignal;
@@ -245,7 +247,7 @@ async function processBlockRange(
 		await flushHealth().catch(() => {});
 		await transitionSubgraph(
 			targetDb,
-			subgraphName,
+			opts.subgraphId,
 			["active", "reindexing"],
 			"error",
 		).catch(() => {});
@@ -619,7 +621,7 @@ async function processBlockRange(
 export async function resolveBlockRange(
 	source: BlockSource,
 	def: SubgraphDefinition,
-	opts?: ReindexOptions,
+	opts?: Pick<ReindexOptions, "startBlockFloor">,
 ): Promise<{ fromBlock: number; toBlock: number }> {
 	const definitionStart = def.startBlock ?? 1;
 	const fromBlock =
@@ -660,12 +662,11 @@ export async function resolveBlockRange(
  */
 async function resetCancelledReindex(
 	db: ReturnType<typeof getTargetDb>,
-	subgraphName: string,
 	subgraphId: string,
 ): Promise<void> {
 	const row = await transitionSubgraph(
 		db,
-		subgraphName,
+		subgraphId,
 		["reindexing"],
 		"active",
 	);
@@ -701,7 +702,7 @@ async function clearReindexMetadata(
  */
 export async function reindexSubgraph(
 	def: SubgraphDefinition,
-	opts?: ReindexOptions,
+	opts: ReindexOptions,
 ): Promise<{ processed: number }> {
 	// Chain tip reads hit the block source; subgraph rows + tenant schemas live in target
 	const source = await resolveBlockSource(def);
@@ -710,15 +711,15 @@ export async function reindexSubgraph(
 	const subgraphName = def.name;
 	const schemaName = opts?.schemaName ?? pgSchemaName(subgraphName);
 
+	// The row this reindex runs for: the walk's writes follow it, not the name.
+	const subgraphId = opts.subgraphId;
 	const started = await transitionSubgraph(
 		targetDb,
-		subgraphName,
+		subgraphId,
 		["active", "error", "reindexing"],
 		"reindexing",
 	);
 	if (!started) throw new Error(`Subgraph "${subgraphName}" not found`);
-	// The row this reindex started on: the walk's writes follow it, not the name.
-	const subgraphId = started.id;
 	logger.info("Reindex starting", { subgraph: subgraphName });
 
 	try {
@@ -731,15 +732,9 @@ export async function reindexSubgraph(
 				fromBlock,
 				toBlock,
 			});
-			await transitionSubgraph(
-				targetDb,
-				subgraphName,
-				["reindexing"],
-				"active",
-				{
-					last_processed_block: 0,
-				},
-			);
+			await transitionSubgraph(targetDb, subgraphId, ["reindexing"], "active", {
+				last_processed_block: 0,
+			});
 			return { processed: 0 };
 		}
 
@@ -757,7 +752,7 @@ export async function reindexSubgraph(
 		// block 1913668: 1.9M credit blocks skipped against a 1913667 cursor).
 		const reset = await transitionSubgraph(
 			targetDb,
-			subgraphName,
+			subgraphId,
 			["reindexing"],
 			"reindexing",
 			{ last_processed_block: Math.max(0, fromBlock - 1) },
@@ -815,7 +810,7 @@ export async function reindexSubgraph(
 		if (result.aborted) {
 			const reason = String(opts?.signal?.reason ?? "unknown");
 			if (reason === "user-cancelled") {
-				await resetCancelledReindex(targetDb, subgraphName, subgraphId);
+				await resetCancelledReindex(targetDb, subgraphId);
 				logger.info("Reindex cancelled by user", { subgraph: subgraphName });
 			} else {
 				// shutdown — leave status as "reindexing" for auto-resume
@@ -828,7 +823,7 @@ export async function reindexSubgraph(
 
 		const finished = await transitionSubgraph(
 			targetDb,
-			subgraphName,
+			subgraphId,
 			["reindexing"],
 			"active",
 			{ last_processed_block: toBlock },
@@ -864,7 +859,7 @@ export async function reindexSubgraph(
 		});
 		await transitionSubgraph(
 			targetDb,
-			subgraphName,
+			subgraphId,
 			["active", "reindexing"],
 			"error",
 		).catch(() => {});
@@ -880,12 +875,14 @@ export async function resumeReindex(
 	def: SubgraphDefinition,
 	opts: {
 		schemaName: string;
+		subgraphId: string;
 		operationId?: string;
 		signal?: AbortSignal;
 	},
 ): Promise<{ processed: number }> {
 	const targetDb = getTargetDb();
 	const subgraphName = def.name;
+	const subgraphId = opts.subgraphId;
 
 	const row = await targetDb
 		.selectFrom("subgraphs")
@@ -895,11 +892,10 @@ export async function resumeReindex(
 			"reindex_from_block",
 			"reindex_to_block",
 		])
-		.where("name", "=", subgraphName)
+		.where("id", "=", subgraphId)
 		.executeTakeFirst();
 
 	if (!row) throw new Error(`Subgraph "${subgraphName}" not found`);
-	const subgraphId = row.id;
 
 	const fromBlock = resolveReindexResumeBlock(row);
 	const toBlock = Number(row.reindex_to_block);
@@ -911,6 +907,7 @@ export async function resumeReindex(
 		});
 		return reindexSubgraph(def, {
 			schemaName: opts.schemaName,
+			subgraphId,
 			signal: opts.signal,
 		});
 	}
@@ -919,7 +916,7 @@ export async function resumeReindex(
 		logger.info("Resume: no remaining blocks", { subgraph: subgraphName });
 		const finished = await transitionSubgraph(
 			targetDb,
-			subgraphName,
+			subgraphId,
 			["reindexing"],
 			"active",
 			{ last_processed_block: toBlock },
@@ -950,7 +947,7 @@ export async function resumeReindex(
 		if (result.aborted) {
 			const reason = String(opts.signal?.reason ?? "unknown");
 			if (reason === "user-cancelled") {
-				await resetCancelledReindex(targetDb, subgraphName, subgraphId);
+				await resetCancelledReindex(targetDb, subgraphId);
 				logger.info("Resume cancelled by user", { subgraph: subgraphName });
 			} else {
 				logger.info("Resume interrupted by shutdown, will resume again", {
@@ -962,7 +959,7 @@ export async function resumeReindex(
 
 		const finished = await transitionSubgraph(
 			targetDb,
-			subgraphName,
+			subgraphId,
 			["reindexing"],
 			"active",
 			{ last_processed_block: toBlock },
@@ -989,7 +986,7 @@ export async function resumeReindex(
 		});
 		await transitionSubgraph(
 			targetDb,
-			subgraphName,
+			subgraphId,
 			["active", "reindexing"],
 			"error",
 		).catch(() => {});

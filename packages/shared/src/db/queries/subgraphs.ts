@@ -28,13 +28,15 @@ export const subgraphMachine: Machine<SubgraphStatus> = defineMachine({
 /**
  * Move a subgraph from one of `from` to `to`, writing `set` in the same
  * statement. Returns the row, or `null` when it was not in a `from` state
- * (something else, a halt or a redeploy, decided first): log and stop, never
- * retry. Staying in the same state (`reindexing -> reindexing`) is a plain
- * conditional write, not a transition.
+ * (something else, a halt or a redeploy, decided first) or the id is gone
+ * (deleted, or recreated under the same name with a new id): log and stop,
+ * never retry. Addressed by id so work that belonged to an old row can't touch
+ * a recreated one. Staying in the same state (`reindexing -> reindexing`) is
+ * a plain conditional write, not a transition.
  */
 export function transitionSubgraph(
 	db: Kysely<Database>,
-	name: string,
+	subgraphId: string,
 	from: readonly SubgraphStatus[],
 	to: SubgraphStatus,
 	set?: Record<string, unknown>,
@@ -44,8 +46,7 @@ export function transitionSubgraph(
 	}
 	return casTransition<SubgraphStatus, Subgraph>(db, {
 		table: "subgraphs",
-		key: "name",
-		id: name,
+		id: subgraphId,
 		from,
 		to,
 		set,

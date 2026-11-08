@@ -161,9 +161,9 @@ async function registerSubgraph(
 	def: SubgraphDefinition,
 	pgSchema: string,
 	overrides: Record<string, unknown> = {},
-): Promise<void> {
+): Promise<string> {
 	createdSubgraphNames.push(def.name);
-	await db
+	const row = await db
 		.insertInto("subgraphs")
 		.values({
 			name: def.name,
@@ -177,7 +177,9 @@ async function registerSubgraph(
 			last_processed_block: 0,
 			...overrides,
 		} as never)
-		.execute();
+		.returning("id")
+		.executeTakeFirstOrThrow();
+	return row.id;
 }
 
 async function createSchema(
@@ -253,16 +255,17 @@ describe("a reindex never leaves rows only inside a sub-range", () => {
 		const { name, pgSchema } = unique("norange");
 		const def = makeDef(name);
 		createdSchemas.push(pgSchema);
-		await registerSubgraph(def, pgSchema);
+		const subgraphId = await registerSubgraph(def, pgSchema);
 
 		// Healthy baseline: the full span.
-		await reindexSubgraph(def, { schemaName: pgSchema });
+		await reindexSubgraph(def, { schemaName: pgSchema, subgraphId });
 		expect(await rowHeights(pgSchema)).toEqual(EVENT_HEIGHTS);
 
 		// The incident's exact call, forced past the type system the way the
 		// pre-fix API route and CLI supplied it. Pre-fix this left ONE row
 		// (height 3400) and reported success; the other four were gone for good.
 		await reindexSubgraph(def, {
+			subgraphId,
 			fromBlock: TIP,
 			toBlock: TIP,
 			schemaName: pgSchema,
@@ -280,9 +283,9 @@ describe("a reindex never leaves rows only inside a sub-range", () => {
 		const { name, pgSchema } = unique("meta");
 		const def = makeDef(name);
 		createdSchemas.push(pgSchema);
-		await registerSubgraph(def, pgSchema);
+		const subgraphId = await registerSubgraph(def, pgSchema);
 
-		await reindexSubgraph(def, { schemaName: pgSchema });
+		await reindexSubgraph(def, { schemaName: pgSchema, subgraphId });
 
 		const row = await subgraphRow(name);
 		expect(row.reindex_from_block).toBeNull();
@@ -298,14 +301,14 @@ describe("resume metadata still drives an interrupted reindex", () => {
 		// An interrupted reindex: schema already built, cursor parked mid-span,
 		// resume metadata recording the range the interrupted run resolved.
 		await createSchema(def, pgSchema);
-		await registerSubgraph(def, pgSchema, {
+		const subgraphId = await registerSubgraph(def, pgSchema, {
 			status: "reindexing",
 			last_processed_block: 3_200,
 			reindex_from_block: START,
 			reindex_to_block: TIP,
 		});
 
-		await resumeReindex(def, { schemaName: pgSchema });
+		await resumeReindex(def, { schemaName: pgSchema, subgraphId });
 
 		// Only the tail was walked — resume must not drop the schema, and must
 		// not re-apply the deltas the interrupted run already committed.
@@ -324,11 +327,12 @@ describe("the free-tier floor still clamps the walk", () => {
 		const { name, pgSchema } = unique("floor");
 		const def = makeDef(name);
 		createdSchemas.push(pgSchema);
-		await registerSubgraph(def, pgSchema);
+		const subgraphId = await registerSubgraph(def, pgSchema);
 
 		// What the API route passes for a clamped (free-tier) account. It raises
 		// the start; it still runs all the way to chain tip.
 		await reindexSubgraph(def, {
+			subgraphId,
 			schemaName: pgSchema,
 			startBlockFloor: 3_200,
 		});

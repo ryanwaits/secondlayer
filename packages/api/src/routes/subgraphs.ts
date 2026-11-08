@@ -758,7 +758,7 @@ async function executeSubgraphDeploy(
 			// refused insert must leave the subgraph's status and cursor alone.
 			await transitionSubgraph(
 				db,
-				name,
+				result.subgraphId,
 				["active", "reindexing", "error"],
 				"active",
 				{
@@ -804,7 +804,7 @@ async function executeSubgraphDeploy(
 			reindexEstimatedEvents = populationWeight.estimatedEvents ?? undefined;
 			await transitionSubgraph(
 				db,
-				name,
+				result.subgraphId,
 				["active", "reindexing", "error"],
 				"reindexing",
 				FRESH_REINDEX,
@@ -826,7 +826,13 @@ async function executeSubgraphDeploy(
 	// A redeploy is how a halted subgraph resumes when it needs no rebuild:
 	// back to `active`, and catch-up picks up from its cursor.
 	if (existing?.status === "error" && !needsPopulation) {
-		await transitionSubgraph(db, name, ["error"], "active", CLEAR_HALT);
+		await transitionSubgraph(
+			db,
+			result.subgraphId,
+			["error"],
+			"active",
+			CLEAR_HALT,
+		);
 	}
 
 	const status = result.action === "created" ? 201 : 200;
@@ -974,7 +980,7 @@ app.post("/:subgraphName/reindex", async (c) => {
 		});
 		await transitionSubgraph(
 			db,
-			subgraphName,
+			subgraph.id,
 			["active", "reindexing", "error"],
 			"reindexing",
 			FRESH_REINDEX,
@@ -1052,7 +1058,7 @@ app.post("/:subgraphName/halt", async (c) => {
 
 	await transitionSubgraph(
 		db,
-		subgraphName,
+		subgraph.id,
 		["active", "reindexing", "error"],
 		"error",
 		{ last_error: reason, last_error_at: new Date() },
