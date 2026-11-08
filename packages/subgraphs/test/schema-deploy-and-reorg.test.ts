@@ -306,6 +306,13 @@ describe.skipIf(SKIP)("Reorg propagation to subgraphs", () => {
         (103, 'tx4', 'SP_D', 4000)
     `);
 
+		// The cursor sits on the newest row, as it would after processing them.
+		await db
+			.updateTable("subgraphs")
+			.set({ last_processed_block: 103 })
+			.where("name", "=", SUBGRAPH_NAME)
+			.execute();
+
 		const beforeCount = await client.unsafe(
 			`SELECT COUNT(*) as count FROM ${PG_SCHEMA}.transfers`,
 		);
@@ -356,6 +363,12 @@ describe.skipIf(SKIP)("Reorg propagation to subgraphs", () => {
         (201, 'tx2', 'SP_B', 2000),
         (202, 'tx3', 'SP_C', 3000)
     `);
+
+		await db
+			.updateTable("subgraphs")
+			.set({ last_processed_block: 202 })
+			.where("name", "=", SUBGRAPH_NAME)
+			.execute();
 
 		const mockLoadDef = async (_sg: Subgraph) => baseDef;
 		await handleSubgraphReorg(201, mockLoadDef);
