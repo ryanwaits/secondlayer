@@ -32,6 +32,15 @@ describe("web price mirror matches the platform table", () => {
 		);
 	});
 
+	test("retired Sentinel prices match", () => {
+		expect(usd(PRICES["sentinel.check_run"])).toBe(web.SENTINEL_CHECK_USD);
+		expect(usd(PRICES["sentinel.run"])).toBe(web.SENTINEL_RUN_USD);
+		expect(usd(PRICES["sentinel.deep_audit"])).toBe(web.SENTINEL_AUDIT_USD);
+		expect(Number(PRICES["sentinel.monitored_event"])).toBe(
+			web.SENTINEL_MONITORED_EVENT_USD_PER_M,
+		);
+	});
+
 	test("storage month is the daily price times 30, rounded to the quoted $0.25", () => {
 		expect(web.STORAGE_USD_PER_GB_MONTH).toBeCloseTo(
 			(Number(PRICES["storage.gb_day"]) * 30) / 1e6,

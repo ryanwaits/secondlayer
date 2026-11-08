@@ -20,6 +20,12 @@ export const STORAGE_USD_PER_GB_MONTH = 0.25;
 /** Webhook events: $ per 1M delivered. Retries are never billed. */
 export const WEBHOOK_USD_PER_M = 10;
 
+/** Retired Sentinel meters, kept so older ledger rows still show their rate. */
+export const SENTINEL_CHECK_USD = 0.25;
+export const SENTINEL_RUN_USD = 1.5;
+export const SENTINEL_AUDIT_USD = 3;
+export const SENTINEL_MONITORED_EVENT_USD_PER_M = 15;
+
 export const ARCHIVE_PARTITION_USD = 0.05;
 export const ARCHIVE_EVENTS_PARTITION_USD = 0.15;
 export const FREE_REPAIR_PARTITIONS_PER_MONTH = 24;

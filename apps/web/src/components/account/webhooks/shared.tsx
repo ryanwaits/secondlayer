@@ -7,6 +7,7 @@ import { CopyButton } from "@/components/copy-button";
 // into this client component's bundle.
 import type { DoctorIssue } from "@secondlayer/sdk/webhooks/doctor";
 import {
+	type WebhookHealth,
 	type WebhookPauseReason,
 	webhookHealth,
 } from "@secondlayer/shared/webhooks/health";
@@ -27,6 +28,8 @@ const FAILING_PRIMARY_CODES: ReadonlySet<DoctorIssue["code"]> = new Set([
 /** The webhook fields the dashboard's state reads need. */
 export interface WebhookStateInput {
 	status: string;
+	/** The server's verdict. Absent from an API that predates it. */
+	health?: WebhookHealth;
 	pauseReason?: WebhookPauseReason | null;
 	circuitOpenedAt?: string | null;
 	circuitFailures: number;
@@ -46,8 +49,9 @@ export function isPaused(webhook: { status: string }): boolean {
  *  receiver), `active` is the rest. */
 export type ShownStatus = "active" | "paused" | "error";
 
-/** The status the pill should show, from the shared health verdict
- *  (`webhookHealth`). A doctor `primary` issue that is a bad receiver failure
+/** The status the pill should show: the server's `health` verdict when the
+ *  row carries one, else the shared rule (`webhookHealth`) on the browser's
+ *  clock, for an API that predates it. A doctor `primary` issue that is a bad receiver failure
  *  also reads as failing, ahead of the verdict's time threshold.
  *
  *  The list page has no primary issue (no per-row deliveries fetch). */
@@ -56,7 +60,7 @@ export function displayStatus(
 	primary?: DoctorIssue | null,
 	now: number = Date.now(),
 ): ShownStatus {
-	const health = webhookHealth(webhook, now);
+	const health = webhook.health ?? webhookHealth(webhook, now);
 	if (health === "paused_user") return "paused";
 	if (health === "paused_circuit" || health === "down") return "error";
 	if (

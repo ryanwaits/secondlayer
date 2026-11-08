@@ -101,7 +101,7 @@ describe("readApi", () => {
 
 	test("statuses map to the kinds the browser side uses", async () => {
 		stubApi({
-			"/a": () => json({ error: "asleep" }, 503),
+			"/a": () => json({ error: "asleep", code: "STACK_ASLEEP" }, 503),
 			"/b": () => json({ error: "x" }, 503, { "Retry-After": "9" }),
 			"/c": () => json({}, 402),
 			"/d": () => json({}, 404),
@@ -317,7 +317,10 @@ describe("webhookDetailReads", () => {
 	});
 
 	test("an asleep stack carries through, with no frames rendered", async () => {
-		stubApi({ "/api/webhooks/wh_1": () => json({ error: "asleep" }, 503) });
+		stubApi({
+			"/api/webhooks/wh_1": () =>
+				json({ error: "asleep", code: "STACK_ASLEEP" }, 503),
+		});
 		const res = await webhookDetailReads("t", "wh_1");
 		expect(res.webhook).toEqual({ kind: "asleep" });
 		expect(res.listens).toBeNull();

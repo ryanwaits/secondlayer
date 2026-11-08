@@ -4,6 +4,20 @@
  * fetch, so `bun test` covers it without a DOM or a store.
  */
 
+import {
+	ARCHIVE_EVENTS_PARTITION_USD,
+	ARCHIVE_PARTITION_USD,
+	MEMORY_USD_PER_GB_HOUR,
+	ROW_USD_PER_M,
+	SENTINEL_AUDIT_USD,
+	SENTINEL_CHECK_USD,
+	SENTINEL_MONITORED_EVENT_USD_PER_M,
+	SENTINEL_RUN_USD,
+	STORAGE_USD_PER_GB_MONTH,
+	WEBHOOK_USD_PER_M,
+	usd,
+} from "./prices";
+
 /** One row of `GET /api/billing/usage`'s `usage` array. Quantities and
  *  costs are strings (bigint sums) — see `packages/api/src/routes/billing.ts`. */
 export type UsageRow = {
@@ -220,25 +234,27 @@ export function latestMemoryHour(
 export function rateLabel(unit: string, quantity: string): string {
 	switch (unit) {
 		case "memory.gb_hour":
-			return "$0.028/GB-h";
+			return `${usd(MEMORY_USD_PER_GB_HOUR)}/GB-h`;
 		case "webhook.event":
-			return "$10/1M";
+			return `${usd(WEBHOOK_USD_PER_M)}/1M`;
 		case "storage.gb_day":
-			return "$0.25/GB-mo";
+			return `${usd(STORAGE_USD_PER_GB_MONTH)}/GB-mo`;
 		case "sentinel.check_run":
-			return "$0.25/check";
+			return `${usd(SENTINEL_CHECK_USD)}/check`;
 		case "sentinel.run":
-			return "$1.50/run";
+			return `${usd(SENTINEL_RUN_USD)}/run`;
 		case "sentinel.deep_audit":
-			return "$3/audit";
+			return `${usd(SENTINEL_AUDIT_USD)}/audit`;
 		case "sentinel.monitored_event":
-			return "$15/1M";
+			return `${usd(SENTINEL_MONITORED_EVENT_USD_PER_M)}/1M`;
 		case "archive.partition":
-			return "$0.05/partition";
+			return `${usd(ARCHIVE_PARTITION_USD)}/partition`;
 		case "archive.partition.events":
-			return "$0.15/partition";
+			return `${usd(ARCHIVE_EVENTS_PARTITION_USD)}/partition`;
 		case "rows.delivered":
-			return Number(quantity) > ROWS_ALLOWANCE ? "$5/1M" : "free";
+			return Number(quantity) > ROWS_ALLOWANCE
+				? `${usd(ROW_USD_PER_M)}/1M`
+				: "free";
 		default:
 			return "";
 	}

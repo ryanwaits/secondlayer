@@ -45,6 +45,26 @@ describe("isPaused", () => {
 });
 
 describe("displayStatus", () => {
+	test("the server's verdict wins over the browser clock", () => {
+		// Silent for two days with 10 failures reads "down" from the clock, but
+		// the server says ok: the pill shows what the server said.
+		const stale = hook({ circuitFailures: 10, lastSuccessHoursAgo: 48 });
+		expect(displayStatus(stale, null, NOW)).toBe("error");
+		expect(displayStatus({ ...stale, health: "ok" }, null, NOW)).toBe("active");
+	});
+
+	test("a server verdict of down shows failing even when the clock sees fresh deliveries", () => {
+		expect(displayStatus({ ...hook(), health: "down" }, null, NOW)).toBe(
+			"error",
+		);
+	});
+
+	test("a server verdict of paused_user shows paused", () => {
+		expect(displayStatus({ ...hook(), health: "paused_user" }, null, NOW)).toBe(
+			"paused",
+		);
+	});
+
 	test("active with no failures is Delivering", () => {
 		expect(displayStatus(hook(), null, NOW)).toBe("active");
 	});

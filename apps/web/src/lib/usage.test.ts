@@ -1,5 +1,10 @@
 import { describe, expect, test } from "bun:test";
 import {
+	type MeterUnit,
+	PRICES,
+} from "../../../../packages/platform/src/billing/prices";
+import { usd } from "./prices";
+import {
 	ROWS_ALLOWANCE,
 	addMonths,
 	balanceLevel,
@@ -308,6 +313,37 @@ describe("rateLabel", () => {
 		expect(rateLabel("rows.delivered", "17171")).toBe("free");
 		expect(rateLabel("rows.delivered", String(ROWS_ALLOWANCE + 1))).toBe(
 			"$5/1M",
+		);
+	});
+
+	test("every metered unit's rate is the platform table's price", () => {
+		const perMillion = (unit: MeterUnit) => `${usd(Number(PRICES[unit]))}/1M`;
+		const perUnit = (unit: MeterUnit, suffix: string) =>
+			`${usd(Number(PRICES[unit]) / 1e6)}${suffix}`;
+		expect(rateLabel("webhook.event", "1")).toBe(perMillion("webhook.event"));
+		expect(rateLabel("sentinel.monitored_event", "1")).toBe(
+			perMillion("sentinel.monitored_event"),
+		);
+		expect(rateLabel("memory.gb_hour", "1")).toBe(
+			perUnit("memory.gb_hour", "/GB-h"),
+		);
+		expect(rateLabel("sentinel.check_run", "1")).toBe(
+			perUnit("sentinel.check_run", "/check"),
+		);
+		expect(rateLabel("sentinel.run", "1")).toBe(
+			perUnit("sentinel.run", "/run"),
+		);
+		expect(rateLabel("sentinel.deep_audit", "1")).toBe(
+			perUnit("sentinel.deep_audit", "/audit"),
+		);
+		expect(rateLabel("archive.partition", "1")).toBe(
+			perUnit("archive.partition", "/partition"),
+		);
+		expect(rateLabel("archive.partition.events", "1")).toBe(
+			perUnit("archive.partition.events", "/partition"),
+		);
+		expect(rateLabel("rows.delivered", String(ROWS_ALLOWANCE + 1))).toBe(
+			perMillion("rows.delivered"),
 		);
 	});
 

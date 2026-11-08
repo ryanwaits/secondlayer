@@ -2224,11 +2224,17 @@ export function WebhooksIndexDemo({
 	count,
 	initialView,
 	pauses = false,
+	staleReceiver,
 }: {
 	count: number;
 	initialView?: IndexView;
 	/** One webhook paused by you and one by the circuit breaker. */
 	pauses?: boolean;
+	/** One webhook has failed 10 times in a row and not succeeded for weeks.
+	 *  `clock`: the row carries no verdict, so the browser works it out and
+	 *  shows it failing. `server`: the server's verdict says ok and the pill
+	 *  follows it. */
+	staleReceiver?: "clock" | "server";
 }) {
 	const week = (delivered: number, failedFrom = 168) => ({
 		delivered: Array.from({ length: 168 }, (_, i) =>
@@ -2251,6 +2257,13 @@ export function WebhooksIndexDemo({
 			summary({
 				id,
 				name,
+				...(staleReceiver && name === "bns-names"
+					? {
+							circuitFailures: 10,
+							lastSuccessAt: "2026-10-01T00:00:00.000Z",
+							...(staleReceiver === "server" ? { health: "ok" as const } : {}),
+						}
+					: {}),
 				...(name === "dao-votes" || (pauses && name === "signer-payouts")
 					? {
 							status: "paused" as const,

@@ -2267,6 +2267,16 @@ const META: Record<StoryId, Meta> = {
 				label: "Paused by you and by the circuit breaker",
 				render: () => <WebhooksIndexDemo count={6} pauses />,
 			},
+			{
+				id: "clock-health",
+				label: "No server verdict: the browser's clock calls bns-names failing",
+				render: () => <WebhooksIndexDemo count={3} staleReceiver="clock" />,
+			},
+			{
+				id: "server-health",
+				label: "Server verdict ok: bns-names shows no status",
+				render: () => <WebhooksIndexDemo count={3} staleReceiver="server" />,
+			},
 		],
 		usage:
 			"<WebhooksListBody rows={rows} hours={hours} notice={null} onOpenHour={open} initialView={view} />",

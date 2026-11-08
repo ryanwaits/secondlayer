@@ -21,10 +21,12 @@ export function resultForStatus(
 	status: number,
 	retryAfterHeader: string | null,
 	errorMessage: string,
+	/** The API's `code`; a stopped stack is told apart by it, never by message text. */
+	code?: string,
 ): WebhooksResult<never> | null {
 	if (status >= 200 && status < 300) return null;
 	const retryAfter = retryAfterHeader ? Number(retryAfterHeader) : 30;
-	if (status === 503 && errorMessage === "asleep") return { kind: "asleep" };
+	if (status === 503 && code === "STACK_ASLEEP") return { kind: "asleep" };
 	if (status === 503) return { kind: "starting", retryAfter };
 	if (status === 402) return { kind: "no_credits" };
 	if (status === 429) return { kind: "rate_limited", retryAfter };
@@ -42,6 +44,16 @@ export function errorMessageOf(body: unknown, status: number): string {
 		: `Request failed (${status})`;
 }
 
+/** The API's `{ code }` string, when the body has one. */
+export function errorCodeOf(body: unknown): string | undefined {
+	return body &&
+		typeof body === "object" &&
+		"code" in body &&
+		typeof (body as { code: unknown }).code === "string"
+		? (body as { code: string }).code
+		: undefined;
+}
+
 /** A response and its parsed JSON body (`null` when it had none) as a result. */
 export function resultFromResponse<T>(
 	res: Pick<Response, "status" | "headers">,
@@ -51,6 +63,7 @@ export function resultFromResponse<T>(
 		res.status,
 		res.headers.get("Retry-After"),
 		errorMessageOf(body, res.status),
+		errorCodeOf(body),
 	);
 	if (mapped) return mapped;
 	// A 2xx with no readable body has no payload to hand the page.

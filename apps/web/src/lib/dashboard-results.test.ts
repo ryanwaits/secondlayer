@@ -38,8 +38,16 @@ describe("resultForStatus", () => {
 			retryAfter: 30,
 		});
 	});
-	test("503 asleep → asleep, never a starting retry loop", () => {
-		expect(resultForStatus(503, null, "asleep")).toEqual({ kind: "asleep" });
+	test("503 STACK_ASLEEP → asleep, never a starting retry loop", () => {
+		expect(resultForStatus(503, null, "asleep", "STACK_ASLEEP")).toEqual({
+			kind: "asleep",
+		});
+	});
+	test("503 whose message merely says asleep is still starting", () => {
+		expect(resultForStatus(503, null, "asleep")).toEqual({
+			kind: "starting",
+			retryAfter: 30,
+		});
 	});
 	test("402 → no_credits", () => {
 		expect(resultForStatus(402, null, "")).toEqual({ kind: "no_credits" });
@@ -90,10 +98,10 @@ describe("resultFromResponse", () => {
 	test("a 404 stays not_found", () => {
 		expect(resultFromResponse(res(404), null)).toEqual({ kind: "not_found" });
 	});
-	test("503 with an asleep error is asleep, not starting", () => {
-		expect(resultFromResponse(res(503), { error: "asleep" })).toEqual({
-			kind: "asleep",
-		});
+	test("503 with the STACK_ASLEEP code is asleep, not starting", () => {
+		expect(
+			resultFromResponse(res(503), { error: "asleep", code: "STACK_ASLEEP" }),
+		).toEqual({ kind: "asleep" });
 	});
 	test("503 reads Retry-After for starting", () => {
 		expect(
