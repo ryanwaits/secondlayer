@@ -57,49 +57,53 @@ export function streamsEventsCachePlan(
 	const parsed = parseStreamsEventsQuery(query, tip, tier);
 	const fullyFinalized =
 		!parsed.cursorPastTip && parsed.toHeight <= tip.finalized_height;
-	const cacheKey = fullyFinalized
-		? JSON.stringify({
-				// Two clocks, two tables. Omitting this collapsed `clock=vm` onto
-				// the classic page whenever `types` was also omitted.
-				ck: parsed.clock,
-				f: parsed.fromHeight ?? null,
-				t: parsed.toHeight,
-				ty: parsed.types ? [...parsed.types].sort() : null,
-				// `not_types` narrows the rows a page returns, so two requests
-				// differing only by it are different pages — omitting it here
-				// served one's body for the other's URL.
-				nty: parsed.notTypes ? [...parsed.notTypes].sort() : null,
-				c: parsed.contractId ?? null,
-				s: parsed.sender ?? null,
-				r: parsed.recipient ?? null,
-				a: parsed.assetIdentifier ?? null,
-				fl: canonicalFilters(parsed.filters),
-				l: parsed.limit,
-				cur: parsed.cursorRaw ?? null,
-			})
-		: null;
+	const cacheKey = fullyFinalized ? streamsCacheKey(parsed) : null;
 	return { cacheControl: streamsCacheControl(fullyFinalized), cacheKey };
 }
 
 /**
- * Canonical form of a labelled filter map for the cache key. Labels sort so
- * key order can't fork the entry, and the labels themselves are part of the
- * key because they ride back on every row as `matched`.
+ * Parsed-query fields that are deliberately NOT part of the cache key.
+ * Everything else in the parsed query is, so a parameter added later forks the
+ * key by default; opting a field out is a decision made here, not forgotten.
+ *
+ * - `cursor`: the decoded form of `cursorRaw`, which is keyed.
+ * - `cursorPastTip`: derived from fields that are keyed, and always false for
+ *   a finalized page.
  */
-function canonicalFilters(
-	filters: StreamsEventsQuery["filters"],
-): unknown[] | null {
-	if (!filters) return null;
-	return Object.entries(filters)
-		.sort(([a], [b]) => (a < b ? -1 : 1))
-		.map(([label, group]) => [
-			label,
-			group.types ? [...group.types].sort() : null,
-			group.contractId ?? null,
-			group.sender ?? null,
-			group.recipient ?? null,
-			group.assetIdentifier ?? null,
-		]);
+export const STREAMS_CACHE_KEY_EXCLUDED = ["cursor", "cursorPastTip"] as const;
+
+/**
+ * Origin-cache key for a finalized page: every parsed field except the
+ * excluded ones, in a canonical form (sets sorted, object keys sorted) so
+ * equivalent requests share an entry and different pages never do. Labels in
+ * `filters` are part of the key because they ride back on every row as
+ * `matched`; so is `clock`, since the two clocks read different tables.
+ */
+export function streamsCacheKey(parsed: StreamsEventsQuery): string {
+	const excluded: ReadonlySet<string> = new Set(STREAMS_CACHE_KEY_EXCLUDED);
+	const fields = Object.entries(parsed)
+		.filter(([name]) => !excluded.has(name))
+		.sort(([a], [b]) => (a < b ? -1 : 1));
+	return JSON.stringify(
+		fields.map(([name, value]) => [name, canonicalValue(value)]),
+	);
+}
+
+function canonicalValue(value: unknown): unknown {
+	if (value === undefined) return null;
+	if (Array.isArray(value)) {
+		return value.map(canonicalValue).sort((a, b) => {
+			const x = JSON.stringify(a);
+			const y = JSON.stringify(b);
+			return x < y ? -1 : x > y ? 1 : 0;
+		});
+	}
+	if (value !== null && typeof value === "object") {
+		return Object.entries(value as Record<string, unknown>)
+			.sort(([a], [b]) => (a < b ? -1 : 1))
+			.map(([k, v]) => [k, canonicalValue(v)]);
+	}
+	return value;
 }
 
 export function streamsEventsCacheControl(

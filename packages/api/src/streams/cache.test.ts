@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import {
+	STREAMS_CACHE_KEY_EXCLUDED,
 	STREAMS_IMMUTABLE_CACHE_CONTROL,
 	STREAMS_MUTABLE_CACHE_CONTROL,
 	isFinalizedHeight,
@@ -8,6 +9,7 @@ import {
 	streamsEventsCacheControl,
 	streamsEventsCachePlan,
 } from "./cache.ts";
+import { type StreamsEventsQuery, parseStreamsEventsQuery } from "./events.ts";
 import type { StreamsTip } from "./tip.ts";
 
 const TIP: StreamsTip = {
@@ -165,6 +167,86 @@ describe("streamsEventsCachePlan — key coverage", () => {
 		);
 		expect(key(`from_height=1&to_height=800&filters=${a}`)).toBe(
 			key(`from_height=1&to_height=800&filters=${b}`),
+		);
+	});
+});
+
+describe("streamsEventsCachePlan — every parsed field is decided", () => {
+	// A new field on StreamsEventsQuery breaks this Record at compile time and
+	// the runtime check below; the author must say whether it forks the key.
+	const DECISIONS: Record<keyof StreamsEventsQuery, "keyed" | "excluded"> = {
+		clock: "keyed",
+		cursor: "excluded",
+		cursorRaw: "keyed",
+		fromHeight: "keyed",
+		toHeight: "keyed",
+		types: "keyed",
+		notTypes: "keyed",
+		contractId: "keyed",
+		sender: "keyed",
+		recipient: "keyed",
+		assetIdentifier: "keyed",
+		filters: "keyed",
+		limit: "keyed",
+		cursorPastTip: "excluded",
+	};
+
+	test("the excluded list is exactly the fields decided as excluded", () => {
+		const excluded = Object.entries(DECISIONS)
+			.filter(([, decision]) => decision === "excluded")
+			.map(([name]) => name)
+			.sort();
+		expect([...STREAMS_CACHE_KEY_EXCLUDED].sort()).toEqual(excluded);
+	});
+
+	test("every field a parsed query carries has a decision", () => {
+		const parsed = parseStreamsEventsQuery(
+			new URLSearchParams(
+				"to_height=800&cursor=5:1&types=print&not_types=ft_transfer&contract_id=SP1.a&sender=SP1&recipient=SP2&asset_identifier=SP1.a::x&limit=10",
+			),
+			TIP,
+		);
+		for (const name of Object.keys(parsed)) {
+			expect(Object.keys(DECISIONS)).toContain(name);
+		}
+	});
+
+	const BASE = "from_height=1&to_height=800";
+	const VARIANTS: Record<string, string> = {
+		clock: `${BASE}&clock=vm`,
+		cursorRaw: `${BASE.replace("from_height=1&", "")}&cursor=5:1`,
+		fromHeight: "from_height=2&to_height=800",
+		toHeight: "from_height=1&to_height=700",
+		types: `${BASE}&types=print`,
+		notTypes: `${BASE}&not_types=print`,
+		contractId: `${BASE}&contract_id=SP1.a`,
+		sender: `${BASE}&sender=SP1`,
+		recipient: `${BASE}&recipient=SP1`,
+		assetIdentifier: `${BASE}&asset_identifier=SP1.a::x`,
+		filters: `${BASE}&filters=${encodeURIComponent(JSON.stringify({ a: { types: ["print"] } }))}`,
+		limit: `${BASE}&limit=7`,
+	};
+
+	test("each keyed field forks the key", () => {
+		const base = streamsEventsCachePlan(
+			new URLSearchParams(BASE),
+			TIP,
+		).cacheKey;
+		for (const [name, decision] of Object.entries(DECISIONS)) {
+			if (decision !== "keyed") continue;
+			const variant = VARIANTS[name];
+			expect(variant).toBeDefined();
+			expect(
+				streamsEventsCachePlan(new URLSearchParams(variant), TIP).cacheKey,
+			).not.toBe(base);
+		}
+	});
+
+	test("order of set-valued params does not fork the key", () => {
+		const key = (qs: string) =>
+			streamsEventsCachePlan(new URLSearchParams(qs), TIP).cacheKey;
+		expect(key(`${BASE}&types=print,ft_transfer`)).toBe(
+			key(`${BASE}&types=ft_transfer,print`),
 		);
 	});
 });
