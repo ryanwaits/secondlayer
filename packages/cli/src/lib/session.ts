@@ -6,7 +6,6 @@ import {
 	rm,
 	writeFile,
 } from "node:fs/promises";
-import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 import { isHostedApiUrl } from "@secondlayer/sdk";
 import { z } from "zod";
@@ -15,6 +14,7 @@ import {
 	resolveApiUrl,
 	resolveArchiveOpsUrl,
 } from "./api-url.ts";
+import { secondlayerDir } from "./home.ts";
 
 /**
  * CLI session storage.
@@ -33,26 +33,19 @@ import {
 
 const SessionSchema = z.object({
 	token: z.string().min(1),
-	email: z.string().email(),
+	// Null for an account with no email on file (a key minted before sign-up).
+	email: z.string().email().nullable(),
 	accountId: z.string().uuid(),
 	expiresAt: z.string(), // ISO 8601
 });
 
 export type Session = z.infer<typeof SessionSchema>;
 
-const SessionFileSchema = z.object({
-	sessions: z.record(z.string(), SessionSchema),
-});
+type SessionFile = { sessions: Record<string, Session> };
 
-type SessionFile = z.infer<typeof SessionFileSchema>;
-
-/**
- * Resolved per call, honoring `HOME` explicitly: Bun's `os.homedir()` reads
- * the passwd entry rather than the env, so a test (or an operator running
- * under `HOME=/srv/sl`) would otherwise land on the login user's file.
- */
+/** `session.json` in the CLI state directory (see `secondlayerDir`). */
 export function getSessionPath(): string {
-	return join(process.env.HOME || homedir(), ".secondlayer", "session.json");
+	return join(secondlayerDir(), "session.json");
 }
 
 /** Sessions are keyed by origin plus path, trailing slashes dropped. */
@@ -66,7 +59,8 @@ export function sessionKey(apiUrl: string): string {
  * it is upgraded in memory under that constant URL (not the env override,
  * which would file it under whatever SL_CREDITS_API_URL happened to be set);
  * the next write persists the scoped shape. Anything else reads as no
- * sessions rather than crashing; the user is prompted to log in.
+ * sessions rather than crashing; the user is prompted to log in. Each slot is
+ * checked on its own: one bad entry loses that login, never the others.
  */
 function parseSessionFile(raw: string): SessionFile {
 	let parsed: unknown;
@@ -75,8 +69,15 @@ function parseSessionFile(raw: string): SessionFile {
 	} catch {
 		return { sessions: {} };
 	}
-	const scoped = SessionFileSchema.safeParse(parsed);
-	if (scoped.success) return scoped.data;
+	const slots = (parsed as { sessions?: unknown } | null)?.sessions;
+	if (slots && typeof slots === "object" && !Array.isArray(slots)) {
+		const sessions: Record<string, Session> = {};
+		for (const [url, slot] of Object.entries(slots)) {
+			const valid = SessionSchema.safeParse(slot);
+			if (valid.success) sessions[url] = valid.data;
+		}
+		return { sessions };
+	}
 	const flat = SessionSchema.safeParse(parsed);
 	if (flat.success) {
 		return { sessions: { [sessionKey(ARCHIVE_OPS_API_URL)]: flat.data } };
@@ -163,8 +164,11 @@ export async function writeSession(
 	apiUrl: string = resolveArchiveOpsUrl(),
 	path: string = getSessionPath(),
 ): Promise<void> {
+	// Parsed here so a session that would not read back is never written: one
+	// bad write used to make the whole file unreadable.
+	const valid = SessionSchema.parse(session);
 	const file = await readSessionFile(path);
-	file.sessions[sessionKey(apiUrl)] = session;
+	file.sessions[sessionKey(apiUrl)] = valid;
 	await writeSessionFile(file, path);
 }
 

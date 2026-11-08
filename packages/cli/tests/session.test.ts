@@ -10,7 +10,13 @@ import {
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { ARCHIVE_OPS_API_URL } from "../src/lib/api-url";
-import { clearSession, readSession, writeSession } from "../src/lib/session";
+import { getConfigPath } from "../src/lib/config";
+import {
+	clearSession,
+	getSessionPath,
+	readSession,
+	writeSession,
+} from "../src/lib/session";
 
 const INSTANCE_URL = "http://127.0.0.1:3800";
 
@@ -127,5 +133,46 @@ describe("session store", () => {
 	it("treats a malformed file as no session", async () => {
 		await writeFile(path, "{not json", "utf8");
 		expect(await readSession(INSTANCE_URL, path)).toBeNull();
+	});
+
+	it("keeps every other login when one slot is malformed", async () => {
+		const good = { ...session, token: "ss-sl_good" };
+		await writeFile(
+			path,
+			JSON.stringify({
+				sessions: {
+					[INSTANCE_URL]: good,
+					"http://127.0.0.1:3801": { token: "", email: 5 },
+				},
+			}),
+			"utf8",
+		);
+		expect(await readSession(INSTANCE_URL, path)).toEqual(good);
+		expect(await readSession("http://127.0.0.1:3801", path)).toBeNull();
+	});
+
+	it("reads a login whose account has no email", async () => {
+		const ghost = { ...session, email: null };
+		await writeSession(ghost, INSTANCE_URL, path);
+		expect(await readSession(INSTANCE_URL, path)).toEqual(ghost);
+	});
+
+	it("refuses to write a session that would not read back", async () => {
+		await expect(
+			writeSession({ ...session, token: "" }, INSTANCE_URL, path),
+		).rejects.toThrow();
+		await expect(readFile(path, "utf8")).rejects.toThrow();
+	});
+
+	it("files the session under HOME like the config does", async () => {
+		const saved = process.env.HOME;
+		process.env.HOME = dir;
+		try {
+			expect(getSessionPath()).toBe(join(dir, ".secondlayer", "session.json"));
+			expect(getConfigPath()).toBe(join(dir, ".secondlayer", "config.json"));
+		} finally {
+			if (saved === undefined) Reflect.deleteProperty(process.env, "HOME");
+			else process.env.HOME = saved;
+		}
 	});
 });

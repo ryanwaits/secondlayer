@@ -1,4 +1,3 @@
-import { homedir } from "node:os";
 import { join } from "node:path";
 import { z } from "zod";
 import {
@@ -8,6 +7,7 @@ import {
 	removeFile,
 	writeTextFile,
 } from "./fs.ts";
+import { secondlayerDir } from "./home.ts";
 
 export const NetworkSchema = z.enum(["local", "testnet", "mainnet"]);
 export type Network = z.infer<typeof NetworkSchema>;
@@ -18,13 +18,12 @@ export const ConfigSchema = z.object({
 
 export type Config = z.infer<typeof ConfigSchema>;
 
-const CONFIG_DIR = join(homedir(), ".secondlayer");
-const CONFIG_PATH = join(CONFIG_DIR, "config.json");
+const configPath = () => join(secondlayerDir(), "config.json");
 
 const DEFAULT_CONFIG: Config = { network: "mainnet" };
 
 async function ensureConfigDir(): Promise<void> {
-	await ensureDir(CONFIG_DIR);
+	await ensureDir(secondlayerDir());
 }
 
 /**
@@ -34,11 +33,11 @@ async function ensureConfigDir(): Promise<void> {
 export async function loadConfig(): Promise<Config> {
 	let config: Config;
 
-	if (!(await fileExists(CONFIG_PATH))) {
+	if (!(await fileExists(configPath()))) {
 		config = { ...DEFAULT_CONFIG };
 	} else {
 		try {
-			const raw = await readJsonFile<unknown>(CONFIG_PATH);
+			const raw = await readJsonFile<unknown>(configPath());
 			config = ConfigSchema.parse(raw);
 		} catch (error) {
 			// If validation fails, return defaults
@@ -86,7 +85,7 @@ export async function saveConfig(config: Config): Promise<void> {
 	// Validate before saving
 	const validated = ConfigSchema.parse(config);
 	await ensureConfigDir();
-	await writeTextFile(CONFIG_PATH, `${JSON.stringify(validated, null, 2)}\n`);
+	await writeTextFile(configPath(), `${JSON.stringify(validated, null, 2)}\n`);
 }
 
 /**
@@ -115,8 +114,8 @@ export async function resetConfig(): Promise<void> {
  * Clear config file entirely
  */
 export async function clearConfig(): Promise<void> {
-	if (await fileExists(CONFIG_PATH)) {
-		await removeFile(CONFIG_PATH);
+	if (await fileExists(configPath())) {
+		await removeFile(configPath());
 	}
 }
 
@@ -124,7 +123,7 @@ export async function clearConfig(): Promise<void> {
  * Get the config file path
  */
 export function getConfigPath(): string {
-	return CONFIG_PATH;
+	return configPath();
 }
 
 /**
