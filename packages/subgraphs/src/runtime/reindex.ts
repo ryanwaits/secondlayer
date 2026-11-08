@@ -30,6 +30,7 @@ import {
 	resolveBlockSource,
 } from "./block-source.ts";
 import { withSubgraphBlockWriteLock } from "./catchup.ts";
+import { JOURNAL_RETENTION_BLOCKS } from "./context.ts";
 import {
 	boundSourceTip,
 	decoderNamesForSubgraph,
@@ -156,6 +157,9 @@ async function processBlockRange(
 	const subgraphName = def.name;
 	const { fromBlock, toBlock, status } = opts;
 	const totalBlocks = toBlock - fromBlock + 1;
+	// `toBlock` is the tip this walk started from: a reorg can still orphan the
+	// last stretch below it, so those blocks keep a revert journal.
+	const journalFromHeight = toBlock - JOURNAL_RETENTION_BLOCKS;
 
 	const stats = new StatsAccumulator(subgraphName, opts.isCatchup);
 	let blocksProcessed = 0;
@@ -404,6 +408,7 @@ async function processBlockRange(
 					processBlockWithRetry(def, subgraphName, height, {
 						skipProgressUpdate: true,
 						atomicProgress,
+						journalFromHeight,
 						preloaded: blockData,
 					});
 				result = mayWrite

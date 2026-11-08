@@ -241,6 +241,9 @@ export interface ProcessBlockOptions {
 	 * forward write. Never set this outside `reorg.ts`.
 	 */
 	reorgRewind?: true;
+	/** Reindex/backfill walks: journal blocks at or above this height, the span a
+	 *  reorg can still orphan. Unset journals nothing on a walk. */
+	journalFromHeight?: number;
 	/** The subgraph row's uuid. Required to record a gap row when a block
 	 *  processes with handler errors — `subgraph_gaps.subgraph_id` is NOT NULL.
 	 *  Absent on paths that pass `skipProgressUpdate` (they record gaps
@@ -294,12 +297,16 @@ function statusMode(
 export const BLOCK_RETRY_DELAYS_MS: number[] = [500, 2_000, 5_000];
 
 /**
- * Journal pre-images on the live path only. Deep reindex/backfill heights
- * (skipProgressUpdate) are past finality — a reorg can't reach them, so
- * journaling would be pure churn for the pruner.
+ * Journal pre-images wherever a reorg can still reach the block: always on the
+ * live path, and on a reindex/backfill walk for heights from
+ * `journalFromHeight` (chain tip minus {@link JOURNAL_RETENTION_BLOCKS}) up.
+ * Deeper walk heights are past finality, so journaling them is pure churn.
  */
-function journalEnabled(opts?: ProcessBlockOptions): boolean {
-	return !opts?.skipProgressUpdate;
+function journalEnabled(opts: ProcessBlockOptions | undefined, height: number) {
+	if (!opts?.skipProgressUpdate) return true;
+	return (
+		opts.journalFromHeight !== undefined && height >= opts.journalFromHeight
+	);
 }
 
 /**
@@ -595,7 +602,7 @@ export async function processBlock(
 				subgraph.schema,
 				blockMeta,
 				initialTx,
-				journalEnabled(opts),
+				journalEnabled(opts, blockHeight),
 			);
 
 			const handlerStart = performance.now();
@@ -717,7 +724,7 @@ export async function processBlock(
 
 		// Prune reorg-journal entries past finality (fix-f040 B2). Same cadence
 		// as the row sample; retention is generous vs observed reorg depth.
-		if (journalEnabled(opts)) {
+		if (!opts?.skipProgressUpdate) {
 			await sql
 				.raw(
 					`DELETE FROM "${schemaName}"."_journal" WHERE "block_height" < ${blockHeight - JOURNAL_RETENTION_BLOCKS}`,

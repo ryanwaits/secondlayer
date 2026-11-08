@@ -4,7 +4,6 @@ import type {
 	Database,
 	Event,
 	Subgraph,
-	SubgraphStatus,
 	Transaction,
 } from "@secondlayer/shared/db";
 import type { Kysely } from "kysely";
@@ -138,7 +137,7 @@ export class ReorgFixture {
 			.execute();
 	}
 
-	async newSubgraph(status: SubgraphStatus = "active"): Promise<{
+	async newSubgraph(status: Subgraph["status"] = "active"): Promise<{
 		def: SubgraphDefinition;
 		pgSchema: string;
 	}> {
