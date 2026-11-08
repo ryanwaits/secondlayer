@@ -1,9 +1,11 @@
+import { STREAMS_DB_EVENT_TYPES } from "@secondlayer/shared";
 import type {
 	Block,
 	Database,
 	Event,
 	Transaction,
 } from "@secondlayer/shared/db";
+import { logger } from "@secondlayer/shared/logger";
 import { type Kysely, sql } from "kysely";
 import type { EventRecord, TxRecord } from "./source-matcher.ts";
 import { type StateWriteRow, stateWriteEvents } from "./state-writes.ts";
@@ -50,6 +52,50 @@ export function stateWriteBlocks(
 		out.set(height, stateWriteEvents(writes, txByIndex));
 	}
 	return out;
+}
+
+const STREAMS_EVENT_TYPE_SET: ReadonlySet<string> = new Set(
+	STREAMS_DB_EVENT_TYPES,
+);
+
+/**
+ * One block's classic events with `event_index` set to the event's 0-based
+ * position in the block, counted in `(tx_index, raw event_index)` order over
+ * the Streams event types. This is the number Streams and the Index API give
+ * (`streamOrdinalCtes` in indexer/src/streams-events.ts), so an event gets the
+ * same id from this source as from `PublicApiBlockSource`. Raw
+ * `events.event_index` restarts in each transaction below ~7,440,500.
+ *
+ * Events of another type, or whose transaction is not loaded, keep their raw
+ * value and are counted in `skipped`.
+ */
+export function numberBlockEvents(
+	events: readonly Event[],
+	txs: readonly Pick<Transaction, "tx_id" | "tx_index">[],
+): { events: Event[]; skipped: number } {
+	const txIndex = new Map<string, number>();
+	for (const tx of txs) txIndex.set(tx.tx_id, Number(tx.tx_index));
+
+	let skipped = 0;
+	const numbered: Array<{ event: Event; txIndex: number }> = [];
+	const out: Event[] = [];
+	for (const event of events) {
+		const index = txIndex.get(event.tx_id);
+		if (!STREAMS_EVENT_TYPE_SET.has(event.type) || index === undefined) {
+			skipped++;
+			out.push(event);
+			continue;
+		}
+		numbered.push({ event, txIndex: index });
+	}
+	numbered.sort(
+		(a, b) =>
+			a.txIndex - b.txIndex || a.event.event_index - b.event.event_index,
+	);
+	numbered.forEach(({ event }, position) => {
+		out.push({ ...event, event_index: position });
+	});
+	return { events: out, skipped };
 }
 
 /** Stable synthetic id for a vm row. Distinct from the classic `tx#index`
@@ -173,14 +219,27 @@ async function readBlockRange(
 	const named = stateWriteBlocks(writesByHeight, txsByHeight);
 
 	const result = new Map<number, BlockData>();
+	let skippedEvents = 0;
 	for (const block of blocks) {
 		const h = Number(block.height);
 		const fed = named.get(h);
+		const numbered = numberBlockEvents(
+			eventsByHeight.get(h) ?? [],
+			txsByHeight.get(h) ?? [],
+		);
+		skippedEvents += numbered.skipped;
 		result.set(h, {
 			block,
 			txs: feed ? (fed?.txs ?? []) : (txsByHeight.get(h) ?? []),
-			events: eventsByHeight.get(h) ?? [],
+			events: numbered.events,
 			vmEvents: feed ? (fed?.vmEvents ?? []) : (vmByHeight.get(h) ?? []),
+		});
+	}
+	if (skippedEvents > 0) {
+		logger.warn("block events outside Streams numbering kept their raw index", {
+			fromHeight,
+			toHeight,
+			skippedEvents,
 		});
 	}
 
