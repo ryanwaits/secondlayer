@@ -39,12 +39,18 @@ let db: Kysely<Database>;
 const accountId = randomUUID();
 const createdSubgraphNames: string[] = [];
 const TOTAL_BLOCKS = 2000;
-const FORK_HEIGHT = 5;
+// Own height range, clear of the low heights other suites seed.
+const BASE = 4_000_000;
+const FIRST_HEIGHT = BASE + 1;
+const LAST_HEIGHT = BASE + TOTAL_BLOCKS;
+const FORK_HEIGHT = BASE + 5;
+const STRAY_HASH = "0xf057-stray";
+let previousSeen: number | null = null;
 
 function makeDef(name: string): SubgraphDefinition {
 	return {
 		name,
-		startBlock: 1,
+		startBlock: FIRST_HEIGHT,
 		sources: {},
 		schema: {} as SubgraphSchema,
 		handlers: {},
@@ -63,14 +69,22 @@ async function registerSubgraph(name: string): Promise<void> {
 			handler_path: "test",
 			schema_name: `sg_f057_${name.replace(/-/g, "_")}`,
 			account_id: accountId,
-			start_block: 1,
+			start_block: FIRST_HEIGHT,
 		})
 		.execute();
 }
 
-async function seedChain(toHeight: number): Promise<void> {
+async function seedChain(): Promise<void> {
+	// Rows other suites left in this range win the `doNothing` insert below
+	// and stop the walk short of the tip. Clear everything that isn't ours.
+	await db
+		.deleteFrom("blocks")
+		.where("height", ">=", FIRST_HEIGHT)
+		.where("height", "<=", LAST_HEIGHT)
+		.where("hash", "not like", "0xf057h%")
+		.execute();
 	const values = [];
-	for (let h = 1; h <= toHeight; h++) {
+	for (let h = FIRST_HEIGHT; h <= LAST_HEIGHT; h++) {
 		values.push({
 			height: h,
 			hash: `0xf057h${h}`,
@@ -92,11 +106,17 @@ async function seedChain(toHeight: number): Promise<void> {
 			.execute();
 	}
 	const network = process.env.NETWORK ?? "mainnet";
+	const prior = await db
+		.selectFrom("index_progress")
+		.select("highest_seen_block")
+		.where("network", "=", network)
+		.executeTakeFirst();
+	previousSeen = prior ? Number(prior.highest_seen_block) : null;
 	await db
 		.insertInto("index_progress")
-		.values({ network, highest_seen_block: toHeight })
+		.values({ network, highest_seen_block: LAST_HEIGHT })
 		.onConflict((oc) =>
-			oc.column("network").doUpdateSet({ highest_seen_block: toHeight }),
+			oc.column("network").doUpdateSet({ highest_seen_block: LAST_HEIGHT }),
 		)
 		.execute();
 }
@@ -122,7 +142,22 @@ let stopLeader: () => Promise<void>;
 
 beforeAll(async () => {
 	db = getDb();
-	await seedChain(TOTAL_BLOCKS);
+	// A row another suite left behind: non-canonical, different hash, inside
+	// the range this test seeds. The test must not depend on it being absent.
+	await db
+		.insertInto("blocks")
+		.values({
+			height: BASE + 3,
+			hash: STRAY_HASH,
+			parent_hash: "0xstray-parent",
+			burn_block_height: 1,
+			burn_block_hash: null,
+			timestamp: 1_600_000_000,
+			canonical: false,
+		})
+		.onConflict((oc) => oc.column("height").doNothing())
+		.execute();
+	await seedChain();
 	const alwaysLeaderBackend = (): LeaderBackend => ({
 		tryAcquire: async () => true,
 		ping: async () => {},
@@ -142,6 +177,20 @@ afterAll(async () => {
 		await db.deleteFrom("subgraphs").where("name", "=", name).execute();
 	}
 	await db.deleteFrom("blocks").where("hash", "like", "0xf057h%").execute();
+	await db.deleteFrom("blocks").where("hash", "=", STRAY_HASH).execute();
+	const network = process.env.NETWORK ?? "mainnet";
+	if (previousSeen === null) {
+		await db
+			.deleteFrom("index_progress")
+			.where("network", "=", network)
+			.execute();
+	} else {
+		await db
+			.updateTable("index_progress")
+			.set({ highest_seen_block: previousSeen })
+			.where("network", "=", network)
+			.execute();
+	}
 });
 
 describe("f057: reorg rewind vs in-flight catch-up walk", () => {
