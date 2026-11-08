@@ -1525,7 +1525,7 @@ export async function buildSubgraphDetailFromRow(
 			.executeTakeFirst()
 			.catch(() => null),
 		getChainTip(),
-		findSubgraphGaps(db, subgraphName, {
+		findSubgraphGaps(db, subgraph.id, {
 			limit: 10,
 			unresolvedOnly: true,
 		}).catch(() => ({ gaps: [], total: 0 })),
@@ -1715,7 +1715,7 @@ app.get("/:subgraphName", async (c) => {
 			.executeTakeFirst()
 			.catch(() => null),
 		getChainTip(),
-		findSubgraphGaps(db, subgraphName, {
+		findSubgraphGaps(db, subgraph.id, {
 			limit: 10,
 			unresolvedOnly: true,
 		}).catch(() => ({ gaps: [], total: 0 })),
@@ -1890,7 +1890,7 @@ app.get("/:subgraphName/source", async (c) => {
 
 app.get("/:subgraphName/gaps", async (c) => {
 	const { subgraphName } = c.req.param();
-	requireSubgraph(subgraphName);
+	const subgraph = requireSubgraph(subgraphName);
 
 	const db = getDb();
 	const params = c.req.query();
@@ -1901,12 +1901,12 @@ app.get("/:subgraphName/gaps", async (c) => {
 		resolvedParam === "true" ? false : resolvedParam !== "all";
 
 	const [result, totalMissing] = await Promise.all([
-		findSubgraphGaps(db, subgraphName, {
+		findSubgraphGaps(db, subgraph.id, {
 			limit,
 			offset,
 			unresolvedOnly: resolvedParam === "all" ? false : unresolvedOnly,
 		}),
-		countSubgraphMissingBlocks(db, subgraphName),
+		countSubgraphMissingBlocks(db, subgraph.id),
 	]);
 
 	return c.json({

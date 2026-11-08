@@ -1057,7 +1057,7 @@ export async function backfillSubgraph(
 		// an earlier attempt applied that this walk skipped).
 		const resolved = await resolveGaps(
 			targetDb,
-			subgraphName,
+			subgraphId,
 			result.lastSkippedHeight === null
 				? opts.fromBlock
 				: result.lastSkippedHeight + 1,

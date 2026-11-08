@@ -26,8 +26,8 @@ export interface GapSummary {
 
 /** Serializes writers of one subgraph's gap rows for the rest of the
  *  transaction, so two of them can never both decide a range is uncovered. */
-async function lockGaps(db: Kysely<Database>, subgraphName: string) {
-	await sql`SELECT pg_advisory_xact_lock(hashtext(${`subgraph-gaps:${subgraphName}`}))`.execute(
+async function lockGaps(db: Kysely<Database>, subgraphId: string) {
+	await sql`SELECT pg_advisory_xact_lock(hashtext(${`subgraph-gaps:${subgraphId}`}))`.execute(
 		db,
 	);
 }
@@ -78,7 +78,7 @@ export async function recordGapBatch(
 	}
 
 	await inTransaction(db, async (trx) => {
-		await lockGaps(trx, subgraphName);
+		await lockGaps(trx, subgraphId);
 		const existing = (
 			await trx
 				.selectFrom("subgraph_gaps")
@@ -122,7 +122,7 @@ export async function recordGapBatch(
  */
 export async function findSubgraphGaps(
 	db: Kysely<Database>,
-	subgraphName: string,
+	subgraphId: string,
 	opts?: { limit?: number; offset?: number; unresolvedOnly?: boolean },
 ): Promise<{ gaps: SubgraphGapRow[]; total: number }> {
 	const limit = opts?.limit ?? 50;
@@ -131,7 +131,7 @@ export async function findSubgraphGaps(
 
 	let baseQuery = db
 		.selectFrom("subgraph_gaps")
-		.where("subgraph_name", "=", subgraphName);
+		.where("subgraph_id", "=", subgraphId);
 
 	if (unresolvedOnly) {
 		baseQuery = baseQuery.where("resolved_at", "is", null);
@@ -185,17 +185,17 @@ export async function findSubgraphGaps(
  */
 export async function resolveGaps(
 	db: Kysely<Database>,
-	subgraphName: string,
+	subgraphId: string,
 	fromBlock: number,
 	toBlock: number,
 	opts?: { detectedBefore?: Date },
 ): Promise<number> {
 	return inTransaction(db, async (trx) => {
-		await lockGaps(trx, subgraphName);
+		await lockGaps(trx, subgraphId);
 		let q = trx
 			.selectFrom("subgraph_gaps")
 			.selectAll()
-			.where("subgraph_name", "=", subgraphName)
+			.where("subgraph_id", "=", subgraphId)
 			.where("resolved_at", "is", null)
 			.where("gap_start", "<=", toBlock)
 			.where("gap_end", ">=", fromBlock);
@@ -242,12 +242,12 @@ export async function resolveGaps(
  */
 export async function countSubgraphMissingBlocks(
 	db: Kysely<Database>,
-	subgraphName: string,
+	subgraphId: string,
 ): Promise<number> {
 	const { rows } = await sql<{ total: string }>`
     SELECT COALESCE(SUM(gap_end - gap_start + 1), 0) AS total
     FROM subgraph_gaps
-    WHERE subgraph_name = ${subgraphName}
+    WHERE subgraph_id = ${subgraphId}
       AND resolved_at IS NULL
   `.execute(db);
 

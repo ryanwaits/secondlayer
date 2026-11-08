@@ -29,8 +29,10 @@ describe.skipIf(SKIP)("subgraph gaps", () => {
 		await getDb().deleteFrom("subgraphs").execute();
 	});
 
-	async function open() {
-		const { gaps } = await findSubgraphGaps(getDb(), name, { limit: 100 });
+	async function open(subgraphId = id) {
+		const { gaps } = await findSubgraphGaps(getDb(), subgraphId, {
+			limit: 100,
+		});
 		return gaps.map((g) => [g.gapStart, g.gapEnd]);
 	}
 
@@ -71,7 +73,7 @@ describe.skipIf(SKIP)("subgraph gaps", () => {
 			[21, 30],
 		]);
 		// 21 blocks, not the 27 a double count of 15-20 would give.
-		expect(await countSubgraphMissingBlocks(db, name)).toBe(21);
+		expect(await countSubgraphMissingBlocks(db, id)).toBe(21);
 	});
 
 	test("overlaps inside one batch are not recorded twice", async () => {
@@ -92,10 +94,10 @@ describe.skipIf(SKIP)("subgraph gaps", () => {
 			{ start: 10, end: 20, reason: "processing_error" },
 		]);
 
-		await resolveGaps(db, name, 15, 30);
+		await resolveGaps(db, id, 15, 30);
 
 		expect(await open()).toEqual([[10, 14]]);
-		expect(await countSubgraphMissingBlocks(db, name)).toBe(5);
+		expect(await countSubgraphMissingBlocks(db, id)).toBe(5);
 	});
 
 	test("a range inside a gap splits it around the repaired blocks", async () => {
@@ -104,7 +106,7 @@ describe.skipIf(SKIP)("subgraph gaps", () => {
 			{ start: 10, end: 20, reason: "processing_error" },
 		]);
 
-		await resolveGaps(db, name, 13, 16);
+		await resolveGaps(db, id, 13, 16);
 
 		expect(await open()).toEqual([
 			[10, 12],
@@ -118,7 +120,28 @@ describe.skipIf(SKIP)("subgraph gaps", () => {
 			{ start: 10, end: 20, reason: "processing_error" },
 		]);
 
-		expect(await resolveGaps(db, name, 0, 100)).toBe(1);
+		expect(await resolveGaps(db, id, 0, 100)).toBe(1);
 		expect(await open()).toEqual([]);
+	});
+
+	test("gaps are read and resolved only through the id they were recorded for", async () => {
+		const db = getDb();
+		const other = await registerSubgraph(db, {
+			name: `${name}-other`,
+			version: "1.0.0",
+			definition: { name: `${name}-other`, sources: [], schema: {} },
+			schemaHash: "gaps-hash",
+			handlerPath: "/tmp/gaps-other.ts",
+		});
+		await recordGapBatch(db, id, name, [
+			{ start: 10, end: 20, reason: "processing_error" },
+		]);
+
+		expect(await open(id)).toEqual([[10, 20]]);
+		expect(await open(other.id)).toEqual([]);
+		expect(await countSubgraphMissingBlocks(db, other.id)).toBe(0);
+		expect(await resolveGaps(db, other.id, 0, 100)).toBe(0);
+		expect(await open(id)).toEqual([[10, 20]]);
+		expect(await resolveGaps(db, id, 0, 100)).toBe(1);
 	});
 });
