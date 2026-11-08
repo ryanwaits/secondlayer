@@ -5,6 +5,7 @@ import {
 	InstanceNetworkMismatchError,
 	InvalidInstanceNetworkError,
 	SecretsKeyMismatchError,
+	checkInstanceNetwork,
 	ensureInstance,
 	ensureSecretsKeyCanary,
 	getInstance,
@@ -97,6 +98,31 @@ describe.skipIf(SKIP)("instances table", () => {
 			}),
 		).rejects.toBeInstanceOf(SecretsKeyMismatchError);
 		await ensureSecretsKeyCanary(db, { keyHex, network: "mainnet" });
+	});
+
+	test("checkInstanceNetwork matches the pinned network and stays quiet", async () => {
+		await ensureInstance(db, { network: "mainnet" });
+		expect(await checkInstanceNetwork(db, { STACKS_NETWORK: "mainnet" })).toBe(
+			"match",
+		);
+		// A deployment that only sets the deprecated NETWORK resolves the same way.
+		expect(await checkInstanceNetwork(db, { NETWORK: "mainnet" })).toBe(
+			"match",
+		);
+		expect(await checkInstanceNetwork(db, {})).toBe("match");
+	});
+
+	test("checkInstanceNetwork reports a mismatch without throwing", async () => {
+		await ensureInstance(db, { network: "mainnet" });
+		expect(await checkInstanceNetwork(db, { STACKS_NETWORK: "testnet" })).toBe(
+			"mismatch",
+		);
+	});
+
+	test("checkInstanceNetwork treats an unpinned database as fine", async () => {
+		expect(await checkInstanceNetwork(db, { STACKS_NETWORK: "testnet" })).toBe(
+			"unpinned",
+		);
 	});
 
 	test("ensureInstance creates a row with no account present", async () => {

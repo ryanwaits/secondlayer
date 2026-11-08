@@ -81,17 +81,30 @@ export function applicationDatabaseUrl(): string {
  * on the real (gated) URL then never reaches it.
  */
 export function resolveSourceUrl(): string {
-	if (!isPlatformMode()) return applicationDatabaseUrl();
-	return (
-		process.env.SOURCE_DATABASE_URL || process.env.DATABASE_URL || DEFAULT_URL
-	);
+	return configuredSourceUrl() ?? DEFAULT_URL;
 }
 
 /** Canonical target-DB URL — see {@link resolveSourceUrl}. */
 export function resolveTargetUrl(): string {
-	if (!isPlatformMode()) return applicationDatabaseUrl();
+	return configuredTargetUrl() ?? DEFAULT_URL;
+}
+
+/** The source URL the environment actually names, or undefined: unlike
+ *  {@link resolveSourceUrl} it never falls back to the dev default, so a tool
+ *  that writes (migrate) can refuse instead of touching a database nobody
+ *  configured. */
+export function configuredSourceUrl(): string | undefined {
+	if (!isPlatformMode()) return process.env.DATABASE_URL || undefined;
 	return (
-		process.env.TARGET_DATABASE_URL || process.env.DATABASE_URL || DEFAULT_URL
+		process.env.SOURCE_DATABASE_URL || process.env.DATABASE_URL || undefined
+	);
+}
+
+/** See {@link configuredSourceUrl}. */
+export function configuredTargetUrl(): string | undefined {
+	if (!isPlatformMode()) return process.env.DATABASE_URL || undefined;
+	return (
+		process.env.TARGET_DATABASE_URL || process.env.DATABASE_URL || undefined
 	);
 }
 

@@ -1,3 +1,4 @@
+import { stacksNetwork } from "@secondlayer/shared";
 import { sql } from "@secondlayer/shared/db";
 import type { Database } from "@secondlayer/shared/db";
 import {
@@ -129,7 +130,7 @@ export async function persistBlock(
 	const { block, txs, evts, blockHeight } = input;
 	const vmEvts = input.vmEvts ?? [];
 	const stateWrites = input.stateWrites ?? [];
-	const network = input.network ?? process.env.STACKS_NETWORK ?? "mainnet";
+	const network = input.network ?? stacksNetwork();
 
 	// The events table's unique logical key is (block_height, tx_id,
 	// event_index) (`events_logical_id_uniq`, migration 0101). A payload that

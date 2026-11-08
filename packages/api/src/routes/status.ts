@@ -4,6 +4,7 @@ import {
 	getDecodersHealth,
 	getEnabledDecoderNames,
 } from "@secondlayer/indexer/decode/health";
+import { stacksNetwork } from "@secondlayer/shared";
 import { getDb, getDbSplitStatus, getSourceDb } from "@secondlayer/shared/db";
 import { checkChainDataIntegrity } from "@secondlayer/shared/db/queries/integrity";
 import { getGapSummaryBySubgraph } from "@secondlayer/shared/db/queries/subgraph-gaps";
@@ -659,7 +660,7 @@ app.get("/status", async (c) => {
 
 	return c.json({
 		status: overallPublicStatus(services),
-		network: process.env.STACKS_NETWORK || "mainnet",
+		network: stacksNetwork(),
 		database: { status: dbStatus, split: getDbSplitStatus() },
 		api: getApiTelemetrySnapshot(),
 		node: {

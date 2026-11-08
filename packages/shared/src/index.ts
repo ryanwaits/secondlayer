@@ -11,6 +11,7 @@ export {
 	isPox4DecoderEnabled,
 	isPox5DecoderEnabled,
 	isSbtcDecoderEnabled,
+	stacksNetwork,
 } from "./env.ts";
 export { logger } from "./logger.ts";
 

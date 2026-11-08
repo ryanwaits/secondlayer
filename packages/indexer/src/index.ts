@@ -1,3 +1,4 @@
+import { stacksNetwork } from "@secondlayer/shared";
 // Indexer service - receives events from Stacks node
 // Uses native Bun.serve routes instead of Hono (fixes stack overflow issues)
 import { assertDbSplit, getSourceDb } from "@secondlayer/shared/db";
@@ -73,7 +74,7 @@ const PORT = Number.parseInt(
 );
 const OBSERVER_JOURNAL_ENABLED =
 	process.env.OBSERVER_JOURNAL_ENABLED !== "false";
-const NETWORK = process.env.STACKS_NETWORK || "mainnet";
+const NETWORK = stacksNetwork();
 const FORCED_LIVE = process.env.INGEST_MODE === "live";
 
 // Every journaled /new_block is applied here, in journal order. Started once
@@ -176,7 +177,7 @@ async function getObserverJournalHealth(
 async function runStartupIntegrityCheck() {
 	try {
 		const db = getSourceDb();
-		const network = process.env.STACKS_NETWORK || "mainnet";
+		const network = stacksNetwork();
 
 		const progress = await db
 			.selectFrom("index_progress")
@@ -316,7 +317,7 @@ const server = Bun.serve({
 
 		"/health/integrity": async () => {
 			const db = getSourceDb();
-			const network = process.env.STACKS_NETWORK || "mainnet";
+			const network = stacksNetwork();
 			const observerJournal = await getObserverJournalHealth(db, network);
 
 			let lastContiguousBlock = 0;

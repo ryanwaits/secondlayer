@@ -84,11 +84,32 @@ export function getEnv(): Env {
 	} else if (result.data.NETWORK) {
 		enabledNetworks = [result.data.NETWORK];
 	} else {
-		enabledNetworks = ["mainnet"]; // Default
+		const named = stacksNetwork();
+		enabledNetworks = named === "testnet" ? ["testnet"] : ["mainnet"];
 	}
 
 	cachedEnv = { ...result.data, enabledNetworks };
 	return cachedEnv;
+}
+
+let warnedNetworkFallback = false;
+
+/**
+ * The Stacks network this process serves, and the only place that decides it:
+ * `STACKS_NETWORK`, else the deprecated `NETWORK` (warned once so a deployment
+ * that only sets it is not silently re-keyed), else mainnet. Not validated;
+ * `instanceNetworkFromEnv` is the strict form.
+ */
+export function stacksNetwork(env: NodeJS.ProcessEnv = process.env): string {
+	if (env.STACKS_NETWORK) return env.STACKS_NETWORK;
+	if (env.NETWORK) {
+		if (!warnedNetworkFallback) {
+			warnedNetworkFallback = true;
+			console.warn("NETWORK is deprecated: set STACKS_NETWORK instead");
+		}
+		return env.NETWORK;
+	}
+	return "mainnet";
 }
 
 /**

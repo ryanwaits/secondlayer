@@ -56,6 +56,7 @@ describe("migrationTargets resolution", () => {
 		"DATABASE_URL",
 		"SOURCE_DATABASE_URL",
 		"TARGET_DATABASE_URL",
+		"INSTANCE_MODE",
 	] as const;
 	const saved: Record<string, string | undefined> = {};
 
@@ -64,6 +65,9 @@ describe("migrationTargets resolution", () => {
 		for (const k of ENV_KEYS) {
 			delete process.env[k];
 		}
+		// The split is a hosted-only concept; readers and writers ignore
+		// SOURCE_/TARGET_ elsewhere, so migrate honours it only here too.
+		process.env.INSTANCE_MODE = "platform";
 	});
 	afterEach(() => {
 		for (const k of ENV_KEYS) {
@@ -110,6 +114,27 @@ describe("migrationTargets resolution", () => {
 		expect(migrationTargets()).toEqual([
 			{ url: "postgres://x@postgres:5432/chain", role: "source" },
 			{ url: "postgres://x@postgres-platform:5432/plat", role: "target" },
+		]);
+	});
+
+	test("self-host ignores SOURCE_/TARGET_, as every reader and writer does", () => {
+		process.env.INSTANCE_MODE = "oss";
+		process.env.DATABASE_URL = "postgres://x@h:5432/app";
+		process.env.SOURCE_DATABASE_URL = "postgres://x@h:5432/stray-source";
+		process.env.TARGET_DATABASE_URL = "postgres://x@h:5432/stray-target";
+		expect(migrationTargets()).toEqual([
+			{ url: "postgres://x@h:5432/app", role: "both" },
+		]);
+	});
+
+	test("no database configured → nothing to migrate, never the dev default", () => {
+		expect(migrationTargets()).toEqual([]);
+	});
+
+	test("a split with only one side configured migrates only that side", () => {
+		process.env.SOURCE_DATABASE_URL = "postgres://x@h:5432/chain";
+		expect(migrationTargets()).toEqual([
+			{ url: "postgres://x@h:5432/chain", role: "source" },
 		]);
 	});
 });

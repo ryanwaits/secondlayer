@@ -1,3 +1,4 @@
+import { stacksNetwork } from "@secondlayer/shared";
 import { getSourceDb, sql } from "@secondlayer/shared/db";
 import {
 	computeContiguousTip,
@@ -209,7 +210,7 @@ async function checkRowInvariants(db: ReturnType<typeof getSourceDb>) {
 }
 
 export async function recomputeContiguous(db: ReturnType<typeof getSourceDb>) {
-	const network = process.env.STACKS_NETWORK || "mainnet";
+	const network = stacksNetwork();
 
 	const progress = await db
 		.selectFrom("index_progress")

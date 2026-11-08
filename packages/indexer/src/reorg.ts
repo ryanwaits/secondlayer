@@ -1,4 +1,8 @@
-import { STREAMS_DB_EVENT_TYPES, sql } from "@secondlayer/shared";
+import {
+	STREAMS_DB_EVENT_TYPES,
+	sql,
+	stacksNetwork,
+} from "@secondlayer/shared";
 import { getSourceDb } from "@secondlayer/shared/db";
 import type { Database } from "@secondlayer/shared/db";
 import { insertChainReorg } from "@secondlayer/shared/db/queries/chain-reorgs";
@@ -112,7 +116,7 @@ async function runReorgCascade(
 			UPDATE index_progress
 			   SET highest_seen_block = LEAST(highest_seen_block, ${blockHeight - 1}),
 			       updated_at = now()
-			 WHERE network = ${process.env.STACKS_NETWORK || "mainnet"}
+			 WHERE network = ${stacksNetwork()}
 		`.execute(tx);
 	}
 

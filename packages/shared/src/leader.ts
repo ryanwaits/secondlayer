@@ -1,4 +1,5 @@
 import postgres from "postgres";
+import { resolveSourceUrl } from "./db/index.ts";
 import { tlsOptions } from "./db/tls.ts";
 import { logger } from "./logger.ts";
 
@@ -43,14 +44,6 @@ export type LeaderBackend = {
 	close(): Promise<void>;
 };
 
-function leaderDatabaseUrl(): string {
-	return (
-		process.env.SOURCE_DATABASE_URL ||
-		process.env.DATABASE_URL ||
-		"postgres://localhost:5432/secondlayer"
-	);
-}
-
 /**
  * Postgres-backed advisory lock on a dedicated connection.
  *
@@ -60,7 +53,7 @@ function leaderDatabaseUrl(): string {
  * guard nothing.
  */
 export function createPostgresLeaderBackend(url?: string): LeaderBackend {
-	const resolvedUrl = url ?? leaderDatabaseUrl();
+	const resolvedUrl = url ?? resolveSourceUrl();
 	// max:1 + idle_timeout:0 keeps one connection open so the session lock holds.
 	const sql = postgres(resolvedUrl, {
 		max: 1,

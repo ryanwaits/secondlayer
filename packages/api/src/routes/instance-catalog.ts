@@ -1,3 +1,4 @@
+import { stacksNetwork } from "@secondlayer/shared";
 import { getDb, getSourceDb } from "@secondlayer/shared/db";
 import { getInstance } from "@secondlayer/shared/db/queries/instance";
 import { resolveSyncScope } from "@secondlayer/shared/db/queries/sync-scope";
@@ -121,8 +122,7 @@ export function createInstanceCatalogRouter() {
 				.select(["name", "status", "kind"])
 				.orderBy("name")
 				.execute();
-			const network =
-				instance?.network ?? process.env.STACKS_NETWORK ?? "mainnet";
+			const network = instance?.network ?? stacksNetwork();
 			// The declared scope answers "does this instance claim genesis?", which
 			// a consumer cannot infer from the catalog otherwise. It reads the
 			// SOURCE plane (the chain the scope describes) and degrades to null on
@@ -159,7 +159,7 @@ export function createInstanceCatalogRouter() {
 		} catch {
 			return c.json({
 				mode,
-				network: process.env.STACKS_NETWORK ?? "mainnet",
+				network: stacksNetwork(),
 				instance_id: null,
 				features,
 				scope: null,

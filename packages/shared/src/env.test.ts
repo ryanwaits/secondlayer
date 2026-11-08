@@ -4,6 +4,7 @@ import {
 	isPox4DecoderEnabled,
 	isPox5DecoderEnabled,
 	isSbtcDecoderEnabled,
+	stacksNetwork,
 } from "./env.ts";
 
 describe("decoder enable flags", () => {
@@ -19,5 +20,21 @@ describe("decoder enable flags", () => {
 		expect(isBnsDecoderEnabled({})).toBe(false);
 		expect(isBnsDecoderEnabled({ BNS_DECODER_ENABLED: "true" })).toBe(true);
 		expect(isBnsDecoderEnabled({ BNS_DECODER_ENABLED: "TRUE" })).toBe(false);
+	});
+});
+
+describe("stacksNetwork", () => {
+	test("STACKS_NETWORK wins over the deprecated NETWORK", () => {
+		expect(
+			stacksNetwork({ STACKS_NETWORK: "testnet", NETWORK: "mainnet" }),
+		).toBe("testnet");
+	});
+
+	test("a deployment that only sets NETWORK keeps its network", () => {
+		expect(stacksNetwork({ NETWORK: "testnet" })).toBe("testnet");
+	});
+
+	test("defaults to mainnet", () => {
+		expect(stacksNetwork({})).toBe("mainnet");
 	});
 });

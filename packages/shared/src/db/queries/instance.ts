@@ -1,4 +1,5 @@
 import type { Kysely } from "kysely";
+import { stacksNetwork } from "../../env.ts";
 import { logger } from "../../logger.ts";
 import { keyMatchesCanary, sealKeyCanary } from "../../runtime/backup.ts";
 import type { Database } from "../types.ts";
@@ -39,33 +40,52 @@ export function parseInstanceNetwork(value: string): InstanceNetwork {
 	throw new InvalidInstanceNetworkError(value);
 }
 
-let warnedNetworkFallback = false;
-
 /**
- * The network key `index_progress` is written under: `STACKS_NETWORK`, else
- * the deprecated `NETWORK` (logged once so a deployment that only sets it is
- * not silently re-keyed), else mainnet. Not validated; see
- * {@link instanceNetworkFromEnv} for the strict form.
+ * The network key `index_progress` is written under; see `stacksNetwork`.
+ * Kept under this name for the callers that already import it from here.
  */
 export function stacksNetworkFromEnv(
 	env: NodeJS.ProcessEnv = process.env,
 ): string {
-	if (env.STACKS_NETWORK) return env.STACKS_NETWORK;
-	if (env.NETWORK) {
-		if (!warnedNetworkFallback) {
-			warnedNetworkFallback = true;
-			logger.warn("NETWORK is deprecated: set STACKS_NETWORK instead");
-		}
-		return env.NETWORK;
-	}
-	return "mainnet";
+	return stacksNetwork(env);
 }
 
 /** STACKS_NETWORK, then NETWORK, then mainnet. */
 export function instanceNetworkFromEnv(
 	env: NodeJS.ProcessEnv = process.env,
 ): InstanceNetwork {
-	return parseInstanceNetwork(env.STACKS_NETWORK ?? env.NETWORK ?? "mainnet");
+	return parseInstanceNetwork(stacksNetwork(env));
+}
+
+export type InstanceNetworkCheck = "match" | "mismatch" | "unpinned";
+
+/**
+ * Compare the network this process is configured for with the one pinned in
+ * `instances`, and log loudly on a disagreement. It only reports: a process
+ * pointed at the wrong database should be seen immediately, but a stack whose
+ * pin is stale must not be taken down by a check, so this never throws. A
+ * missing row, a missing table or an unreachable database is "unpinned".
+ */
+export async function checkInstanceNetwork(
+	db: Kysely<Database>,
+	env: NodeJS.ProcessEnv = process.env,
+): Promise<InstanceNetworkCheck> {
+	const configured = stacksNetwork(env);
+	let pinned: string | undefined;
+	try {
+		pinned = (
+			await db.selectFrom("instances").select("network").executeTakeFirst()
+		)?.network;
+	} catch {
+		return "unpinned";
+	}
+	if (pinned === undefined) return "unpinned";
+	if (pinned === configured) return "match";
+	logger.error(
+		"STACKS_NETWORK disagrees with the network this database is pinned to; this process may be pointed at the wrong database",
+		{ configured, pinned },
+	);
+	return "mismatch";
 }
 
 export async function getInstance(

@@ -1,5 +1,6 @@
 import { logger } from "@secondlayer/shared";
-import { assertDbSplit, closeDb } from "@secondlayer/shared/db";
+import { assertDbSplit, closeDb, getTargetDb } from "@secondlayer/shared/db";
+import { checkInstanceNetwork } from "@secondlayer/shared/db/queries/instance";
 import { getInstanceMode } from "@secondlayer/shared/mode";
 import { createApiApp } from "./create-app.ts";
 import { startIndexTipInvalidationListener } from "./index/tip.ts";
@@ -81,6 +82,8 @@ if (mode !== "platform") {
 }
 
 assertDbSplit();
+// Logs only: a stale pin must never keep a correctly configured stack down.
+void checkInstanceNetwork(getTargetDb());
 // Wake sources (NOTIFY over polling). All three degrade
 // safely on their own — a failed/dropped LISTEN just leaves the Streams/Index
 // tip caches on their normal TTL and Index long-polls waiting out their full

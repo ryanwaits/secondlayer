@@ -10,6 +10,7 @@ import {
 } from "kysely";
 import { PostgresJSDialect } from "kysely-postgres-js";
 import postgres from "postgres";
+import { configuredSourceUrl, configuredTargetUrl } from "./index.ts";
 import { type MigrationRole, setMigrationRole } from "./migration-role.ts";
 import type { Database } from "./types.ts";
 
@@ -32,8 +33,10 @@ export interface MigrationTarget {
  * (where those tables were dropped) and vice-versa.
  */
 export function migrationTargets(): MigrationTarget[] {
-	const source = process.env.SOURCE_DATABASE_URL || process.env.DATABASE_URL;
-	const target = process.env.TARGET_DATABASE_URL || process.env.DATABASE_URL;
+	// The same resolution every reader and writer uses, so a migration can never
+	// land on a different database than the process it prepares.
+	const source = configuredSourceUrl();
+	const target = configuredTargetUrl();
 	// Single-DB / collapsed split → one pass, role 'both'.
 	if (source && target && source === target) {
 		return [{ url: source, role: "both" }];

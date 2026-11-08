@@ -1,3 +1,4 @@
+import { stacksNetwork } from "@secondlayer/shared";
 import { getSourceDb } from "@secondlayer/shared/db";
 import { logger } from "@secondlayer/shared/logger";
 import { planBootstrapSeam } from "./bootstrap-seam.ts";
@@ -9,7 +10,7 @@ import {
 } from "./observer-journal.ts";
 import type { NewBlockPayload } from "./types/node-events.ts";
 
-const NETWORK = process.env.STACKS_NETWORK || "mainnet";
+const NETWORK = stacksNetwork();
 
 /** Hosted indexer leaves INSTANCE_MODE unset. Never infer oss from the default. */
 export function isOssIndexer(): boolean {
