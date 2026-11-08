@@ -22,6 +22,14 @@ The hosted server at `api.secondlayer.tools/mcp` now answers `initialize` and `t
 
 ## SDK — November 2026
 
+### Bitcoin and vm cursors carry their feed
+
+Streams cursors on the Bitcoin feed (`chain=bitcoin`) and the vm clock (`clock=vm`) now start with `btc:` and `vm:`. Using a cursor on the wrong feed returns `400` instead of quietly resuming at the wrong place. Untagged cursors still work everywhere. Bitcoin and vm consumers must upgrade the SDK to resume on tagged cursors.
+
+### Consume and walk loops never stop quietly
+
+`events.consume`, every Index `consume` and every `walk` now throw instead of ending early. `CURSOR_STALLED` means a page returned rows without moving the cursor. `CURSOR_REGRESSED` means a page's `next_cursor` was behind the cursor it was read from. A cursor that can't be parsed during a reorg now throws too.
+
 ### Streams never hang on a silent server
 
 Every Streams request now gives up when no response headers arrive within `connectTimeoutMs` (default 30 seconds, `0` turns it off), then retries. Open streams are never cut off. `events.subscribe` takes `onState` to show `connecting`, `open`, `reconnecting` and `closed`. A page that returns events without moving the cursor now throws `CURSOR_STALLED` instead of ending quietly.

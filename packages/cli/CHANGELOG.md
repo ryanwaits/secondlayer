@@ -1,5 +1,22 @@
 # @secondlayer/cli
 
+## 23.5.2
+
+### Patch Changes
+
+- e0ca3bd: An account's `email` is typed `string | null` (an account minted before sign-up has none). `login` names such an account by its id, and `ContextAccount.email` in the SDK and the MCP `account_whoami` result can be null.
+- c6711d3: One bad or email-less login no longer wipes every saved login: the session file is read slot by slot, a session is validated before it is written, and an account with no email is a valid login. Config and session files now resolve the same home directory (`HOME` first).
+- Updated dependencies [e0ca3bd]
+- Updated dependencies [6d05d00]
+- Updated dependencies [1fa7ef7]
+- Updated dependencies [58be20c]
+- Updated dependencies [b8a1883]
+- Updated dependencies [3a1f579]
+- Updated dependencies [66a67b8]
+  - @secondlayer/sdk@16.4.0
+  - @secondlayer/stacks@6.6.1
+  - @secondlayer/shared@15.4.0
+
 ## 23.5.1
 
 ### Patch Changes

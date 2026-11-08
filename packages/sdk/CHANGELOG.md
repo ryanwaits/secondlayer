@@ -1,5 +1,23 @@
 # @secondlayer/sdk
 
+## 16.4.0
+
+### Minor Changes
+
+- 1fa7ef7: Consume and walk loops no longer end quietly. `events.consume`, every Index `consume` and every `walk` throw `CURSOR_STALLED` when a page returns rows but the cursor does not move, and the new `CURSOR_REGRESSED` when a page's `next_cursor` is behind the cursor it was read from. A reorg is no longer marked handled when the consumer's cursor cannot be parsed: the loop throws. Bitcoin (`btc:`) and vm (`vm:`) consumers must upgrade to this release to resume on tagged cursors.
+- 66a67b8: Streams cursors on the Bitcoin feed (`chain=bitcoin`) and the vm clock (`clock=vm`) are now prefixed `btc:` and `vm:`. Untagged cursors still resume on every feed; a cursor tagged for another feed is a 400. `Cursor.parse` accepts tagged cursors.
+
+### Patch Changes
+
+- e0ca3bd: An account's `email` is typed `string | null` (an account minted before sign-up has none). `login` names such an account by its id, and `ContextAccount.email` in the SDK and the MCP `account_whoami` result can be null.
+- 3a1f579: `decodeChainWebhook` validates a `chain.reorg.rollback` body: the fork point must be a non-negative integer and each orphaned entry must be an object with a string or null `tx_id` and `block_hash` and a non-negative integer `block_height`. A malformed rollback throws instead of reaching your delete.
+- Updated dependencies [6d05d00]
+- Updated dependencies [58be20c]
+- Updated dependencies [b8a1883]
+- Updated dependencies [66a67b8]
+  - @secondlayer/stacks@6.6.1
+  - @secondlayer/shared@15.4.0
+
 ## 16.3.2
 
 ### Patch Changes

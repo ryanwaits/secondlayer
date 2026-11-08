@@ -1,5 +1,18 @@
 # @secondlayer/shared
 
+## 15.4.0
+
+### Minor Changes
+
+- 66a67b8: Streams cursors on the Bitcoin feed (`chain=bitcoin`) and the vm clock (`clock=vm`) are now prefixed `btc:` and `vm:`. Untagged cursors still resume on every feed; a cursor tagged for another feed is a 400. `Cursor.parse` accepts tagged cursors.
+
+### Patch Changes
+
+- 58be20c: One network resolver (`stacksNetwork`, honouring `STACKS_NETWORK`) and one database URL resolution shared by migrations, leader election and every reader and writer. The API logs when `STACKS_NETWORK` disagrees with the network pinned in `instances`.
+- b8a1883: A self-hosted instance now keeps its generated secrets key under `DATA_DIR` instead of the container's working directory, moves a key it finds in `.env.local` there, and seals a canary into the instance row. A boot with a key that does not match refuses to start instead of silently orphaning webhook signing secrets.
+- Updated dependencies [6d05d00]
+  - @secondlayer/stacks@6.6.1
+
 ## 15.3.4
 
 ### Patch Changes

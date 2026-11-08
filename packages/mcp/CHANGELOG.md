@@ -1,5 +1,21 @@
 # @secondlayer/mcp
 
+## 11.6.3
+
+### Patch Changes
+
+- e0ca3bd: An account's `email` is typed `string | null` (an account minted before sign-up has none). `login` names such an account by its id, and `ContextAccount.email` in the SDK and the MCP `account_whoami` result can be null.
+- Updated dependencies [e0ca3bd]
+- Updated dependencies [6d05d00]
+- Updated dependencies [1fa7ef7]
+- Updated dependencies [58be20c]
+- Updated dependencies [b8a1883]
+- Updated dependencies [3a1f579]
+- Updated dependencies [66a67b8]
+  - @secondlayer/sdk@16.4.0
+  - @secondlayer/stacks@6.6.1
+  - @secondlayer/shared@15.4.0
+
 ## 11.6.2
 
 ### Patch Changes
