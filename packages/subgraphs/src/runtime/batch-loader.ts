@@ -60,16 +60,34 @@ export function vmEventId(txId: string, vmEventIndex: number): string {
 }
 
 /**
- * Load a range of blocks with their transactions and events in 4 parallel queries.
+ * Load a range of blocks with their transactions and events from ONE snapshot.
  * Returns a Map keyed by block height. Non-canonical blocks are excluded.
  * With `stateWrites`, write events come from `state_writes` instead of
  * `vm_events`.
+ *
+ * The reads run in a single REPEATABLE READ transaction. On separate pooled
+ * connections a reorg committing between them could pair a canonical block with
+ * the transactions or events of the fork it replaced.
  */
 export async function loadBlockRange(
 	db: Kysely<Database>,
 	fromHeight: number,
 	toHeight: number,
 	opts: { stateWrites?: StateWriteFeed } = {},
+): Promise<Map<number, BlockData>> {
+	if (db.isTransaction) return readBlockRange(db, fromHeight, toHeight, opts);
+	return db
+		.transaction()
+		.setAccessMode("read only")
+		.setIsolationLevel("repeatable read")
+		.execute((trx) => readBlockRange(trx, fromHeight, toHeight, opts));
+}
+
+async function readBlockRange(
+	db: Kysely<Database>,
+	fromHeight: number,
+	toHeight: number,
+	opts: { stateWrites?: StateWriteFeed },
 ): Promise<Map<number, BlockData>> {
 	const feed = opts.stateWrites;
 	const [blocks, txs, events, vmRows, writeRows] = await Promise.all([
