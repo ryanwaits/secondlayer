@@ -260,12 +260,14 @@ export async function claimSubgraphOperation(
 	return result.rows[0] ?? null;
 }
 
+/** Renews the runner's lease. Returns the rows renewed: 0 means it no longer
+ *  holds the operation. */
 export async function heartbeatSubgraphOperation(
 	db: Kysely<Database>,
 	operationId: string,
 	lockedBy: string,
-): Promise<void> {
-	await db
+): Promise<number> {
+	const result = await db
 		.updateTable("subgraph_operations")
 		.set({
 			locked_until: sql<Date>`now() + interval '60 seconds'`,
@@ -274,7 +276,10 @@ export async function heartbeatSubgraphOperation(
 		.where("id", "=", operationId)
 		.where("status", "=", "running")
 		.where("locked_by", "=", lockedBy)
-		.execute();
+		.executeTakeFirst();
+	// 0 rows: the lease is gone (another runner holds it, or the op left
+	// `running`), so the caller must stop writing.
+	return Number(result.numUpdatedRows ?? 0n);
 }
 
 export async function getSubgraphOperation(

@@ -329,12 +329,14 @@ export async function startSubgraphOperationRunner(opts?: {
 
 		const heartbeat = setInterval(() => {
 			if (!running) return;
-			heartbeatSubgraphOperation(db, operation.id, lockedBy).catch((err) => {
-				logger.warn("Subgraph operation heartbeat failed", {
-					operationId: operation.id,
-					error: getErrorMessage(err),
-				});
-			});
+			renewOperationLease(db, operation.id, lockedBy, controller).catch(
+				(err) => {
+					logger.warn("Subgraph operation heartbeat failed", {
+						operationId: operation.id,
+						error: getErrorMessage(err),
+					});
+				},
+			);
 		}, HEARTBEAT_INTERVAL_MS);
 
 		const cancelPoll = setInterval(() => {
@@ -387,7 +389,10 @@ export async function startSubgraphOperationRunner(opts?: {
 				});
 			} catch (err) {
 				const reason = String(controller.signal.reason ?? "");
-				if (controller.signal.aborted && reason === "shutdown") {
+				if (
+					controller.signal.aborted &&
+					(reason === "shutdown" || reason === LOST_LEASE)
+				) {
 					logger.info("Subgraph operation interrupted by shutdown", {
 						operationId: operation.id,
 						subgraph: operation.subgraph_name,
@@ -460,6 +465,28 @@ export async function startSubgraphOperationRunner(opts?: {
 		await Promise.allSettled(activeRuns.values());
 		logger.info("Subgraph operation runner stopped");
 	};
+}
+
+/** Abort reason of a walk whose operation lease was taken from it. */
+export const LOST_LEASE = "lost-lease";
+
+/**
+ * Renews the runner's lease on an operation, and stops the walk when it no
+ * longer holds it. A runner that kept writing after another one claimed the
+ * operation (or after it left `running`) would corrupt that runner's rows.
+ */
+export async function renewOperationLease(
+	db: ReturnType<typeof getTargetDb>,
+	operationId: string,
+	lockedBy: string,
+	controller: AbortController,
+): Promise<void> {
+	if ((await heartbeatSubgraphOperation(db, operationId, lockedBy)) > 0) return;
+	if (controller.signal.aborted) return;
+	logger.warn("Subgraph operation lease lost, stopping the walk", {
+		operationId,
+	});
+	controller.abort(LOST_LEASE);
 }
 
 /**
