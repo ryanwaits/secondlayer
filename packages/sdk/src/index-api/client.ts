@@ -467,6 +467,7 @@ export type IndexContractCall = {
 	sender: string;
 	status: string;
 	args: unknown[];
+	/** Decoded result. A response keeps its branch: `{ ok: value }` or `{ err: value }`. */
 	result: unknown;
 	result_hex: string | null;
 };
@@ -705,6 +706,7 @@ export type IndexTransaction = {
 		function_args: unknown[];
 		/** Raw hex-encoded ClarityValues; decode(function_args_hex[i]) === function_args[i]. */
 		function_args_hex: string[];
+		/** Decoded result. A response keeps its branch: `{ ok: value }` or `{ err: value }`. */
 		result: unknown;
 		result_hex: string | null;
 	};

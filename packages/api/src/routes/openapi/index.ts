@@ -158,7 +158,7 @@ const TRANSACTION_EXAMPLE = {
 			"05161a3cb3edf945d27fa141d1de2deb9093ec74147f",
 			"09",
 		],
-		result: true,
+		result: { ok: true },
 		result_hex: "0x0703",
 	},
 };
@@ -1029,7 +1029,8 @@ export const indexSchemas = {
 				description: "Decoded arguments, in call order.",
 			},
 			result: {
-				description: "Decoded result. `null` when there is none.",
+				description:
+					"Decoded result. A response keeps its branch: `{ ok: value }` or `{ err: value }`. `null` when there is none.",
 			},
 			result_hex: {
 				type: ["string", "null"],
@@ -1053,7 +1054,7 @@ export const indexSchemas = {
 				"SPD3SCZDZ52X4ZX1878XWBFBJ29YRX0MFW9Z9W4V",
 				null,
 			],
-			result: true,
+			result: { ok: true },
 			result_hex: "0x0703",
 		},
 	},
@@ -1323,7 +1324,10 @@ export const indexSchemas = {
 						items: { type: "string" },
 						description: "The same arguments as hex-encoded Clarity.",
 					},
-					result: { description: "Decoded result. `null` when there is none." },
+					result: {
+						description:
+							"Decoded result. A response keeps its branch: `{ ok: value }` or `{ err: value }`. `null` when there is none.",
+					},
 					result_hex: {
 						type: ["string", "null"],
 						description: "The result as hex-encoded Clarity.",

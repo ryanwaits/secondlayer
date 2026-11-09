@@ -7,6 +7,7 @@ import { STREAMS_BLOCKS_PER_DAY } from "../streams/tiers.ts";
 //   bool true → type byte 0x03 → cvToValue true
 const HEX_UINT_100 = "0x0100000000000000000000000000000064";
 const HEX_BOOL_TRUE = "0x03";
+import { decodeClarityResult } from "./_shared.ts";
 import {
 	getContractCallsResponse,
 	parseContractCallsQuery,
@@ -25,6 +26,25 @@ function params(query: string) {
 	return new URL(`http://localhost/v1/index/contract-calls${query}`)
 		.searchParams;
 }
+
+describe("contract-call result decoding", () => {
+	const U6009 = "0100000000000000000000000000001779";
+
+	test("keeps (ok u6009) and (err u6009) apart", () => {
+		expect(decodeClarityResult(`0x07${U6009}`)).toEqual({ ok: "6009" });
+		expect(decodeClarityResult(`0x08${U6009}`)).toEqual({ err: "6009" });
+	});
+
+	test("leaves a non-response result as its plain decoded value", () => {
+		expect(decodeClarityResult(HEX_BOOL_TRUE)).toBe(true);
+		expect(decodeClarityResult(HEX_UINT_100)).toBe("100");
+	});
+
+	test("returns null for no result", () => {
+		expect(decodeClarityResult(null)).toBeNull();
+		expect(decodeClarityResult("0x")).toBeNull();
+	});
+});
 
 describe("Index /contract-calls query parsing", () => {
 	test("defaults to last day when no explicit height or cursor", () => {

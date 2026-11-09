@@ -64,10 +64,26 @@ export function decodeClarityArgs(raw: unknown): unknown[] {
 	);
 }
 
-/** raw_result hex → decoded value; null or empty (`0x`) → null. */
+/** Clarity type-id prefixes of a top-level response value. */
+const RESPONSE_OK_PREFIX = "07";
+const RESPONSE_ERR_PREFIX = "08";
+
+/**
+ * raw_result hex → decoded value; null or empty (`0x`) → null. A top-level
+ * response keeps its branch as `{ ok: value }` / `{ err: value }` — the plain
+ * decode unwraps it, so `(ok u6009)` and `(err u6009)` both read `"6009"`.
+ */
 export function decodeClarityResult(raw: string | null): unknown {
-	if (typeof raw === "string" && raw.length > 2) return decodeClarityValue(raw);
-	return null;
+	if (typeof raw !== "string" || raw.length <= 2) return null;
+	const decoded = decodeClarityValue(raw);
+	const prefix = (
+		raw.startsWith("0x") ? raw.slice(2, 4) : raw.slice(0, 2)
+	).toLowerCase();
+	// decodeClarityValue echoes the input hex when it can't decode.
+	if (decoded === raw) return decoded;
+	if (prefix === RESPONSE_OK_PREFIX) return { ok: decoded };
+	if (prefix === RESPONSE_ERR_PREFIX) return { err: decoded };
+	return decoded;
 }
 
 // Canonical implementations live in ../parse-query.ts; re-exported here for
