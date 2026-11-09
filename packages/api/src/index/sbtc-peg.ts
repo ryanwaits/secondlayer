@@ -10,6 +10,7 @@ import type { StreamsReorg, StreamsReorgsReader } from "../streams/reorgs.ts";
 import {
 	type IndexCursorInput,
 	encodeIndexCursor,
+	parseBtcTxidFilter,
 	parseCursor,
 	parseFilter,
 	parseIndexBaseQuery,
@@ -479,7 +480,7 @@ export async function getSbtcEventsResponse(opts: {
 			"recipient",
 		),
 		requestId: parseRequestIdFilter(opts.query.get("request_id") ?? undefined),
-		bitcoinTxid: parseFilter(
+		bitcoinTxid: parseBtcTxidFilter(
 			opts.query.get("bitcoin_txid") ?? undefined,
 			"bitcoin_txid",
 		),
@@ -630,7 +631,7 @@ export async function getSbtcDepositsResponse(opts: {
 			opts.query.get("recipient") ?? undefined,
 			"recipient",
 		),
-		bitcoinTxid: parseFilter(
+		bitcoinTxid: parseBtcTxidFilter(
 			opts.query.get("bitcoin_txid") ?? undefined,
 			"bitcoin_txid",
 		),

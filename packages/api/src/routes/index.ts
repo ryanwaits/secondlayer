@@ -14,6 +14,7 @@ import {
 	etag,
 	matchesIfNoneMatch,
 } from "../http/cache.ts";
+import { parseBtcTxidFilter } from "../index/_shared.ts";
 import {
 	DEFAULT_INDEX_TOKEN_STORE,
 	type IndexEnv,
@@ -1021,7 +1022,11 @@ export function createIndexRouter(opts: IndexRouterOptions = {}) {
 		const tip = await getTip();
 		c.set("indexTip", tip);
 		const read = opts.readSbtcDepositByTxid ?? readSbtcDepositByBitcoinTxid;
-		const deposit = await read(c.req.param("bitcoin_txid"));
+		const txid = parseBtcTxidFilter(
+			c.req.param("bitcoin_txid"),
+			"bitcoin_txid",
+		);
+		const deposit = txid ? await read(txid) : null;
 		if (!deposit) return c.json({ error: "Deposit not found" }, 404);
 		// Deposits are terminal (completed-deposit only); immutable once finalized.
 		const finalized = deposit.block_height <= tip.finalized_height;

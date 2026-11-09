@@ -10,6 +10,8 @@ import { ChainTriggerSchema } from "../src/schemas/webhooks.ts";
  */
 
 const ALICE = "SP2QEZ06AGJ3RKJPBV14SY1V5BBFNAW33D96YPGZF";
+const SWEEP_TXID =
+	"0x09b5626a121df9aa93987a550499201bfbf4b06f930edf953721e918e9bbcb51";
 const BOB = "SP3Y2ZSH8P7D50B0VBTSX11S7XSG24M1VB9YFQA4K";
 const CONTRACT = "SP3Y2ZSH8P7D50B0VBTSX11S7XSG24M1VB9YFQA4K.token-aeusdc";
 const ASSET = `${CONTRACT}::aeUSDC`;
@@ -72,9 +74,9 @@ const EVERY_MEMBER = [
 		maxAmount: 2n,
 		requestId: 7,
 	}),
-	on.sbtcWithdrawalAccept({ requestId: 7, sweepTxid: "0xabc123" }),
+	on.sbtcWithdrawalAccept({ requestId: 7, sweepTxid: SWEEP_TXID }),
 	on.sbtcWithdrawalReject({ requestId: 7 }),
-	on.sbtcWithdrawalSweptConfirmed({ requestId: 7, sweepTxid: "0xabc123" }),
+	on.sbtcWithdrawalSweptConfirmed({ requestId: 7, sweepTxid: SWEEP_TXID }),
 ];
 
 describe("filter → trigger round-trip (CI gate)", () => {

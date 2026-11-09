@@ -26,6 +26,7 @@ import {
 	chainTriggerToFilter,
 	emitChainOutbox,
 	evaluateBlock,
+	matchSbtcTrigger,
 	referencedEventTypes,
 } from "./trigger-evaluator.ts";
 
@@ -120,6 +121,47 @@ describe("chainTriggerToFilter", () => {
 		}) as { minAmount?: bigint; maxAmount?: bigint };
 		expect(f.minAmount).toBe(1000000n);
 		expect(f.maxAmount).toBe(5n);
+	});
+});
+
+describe("matchSbtcTrigger txids", () => {
+	const hex =
+		"5c9ef4e964b7747cc53833d44cd0445aa254f5830eb9a520537fdf297bfc9480";
+	const row = {
+		topic: "completed-deposit",
+		sender: null,
+		recipient: "SP1",
+		bitcoin_txid: `0x${hex}`,
+		request_id: null,
+		amount: "1000",
+		sweep_txid: null,
+		block_height: 1,
+		tx_id: "0xtx",
+		event_index: 0,
+	} as unknown as Parameters<typeof matchSbtcTrigger>[1];
+
+	it("matches a stored bare-hex bitcoinTxid against the 0x-prefixed row", () => {
+		expect(
+			matchSbtcTrigger({ type: "sbtc_deposit", bitcoinTxid: hex }, row),
+		).toBe(true);
+	});
+
+	it("matches an uppercase bitcoinTxid", () => {
+		expect(
+			matchSbtcTrigger(
+				{ type: "sbtc_deposit", bitcoinTxid: hex.toUpperCase() },
+				row,
+			),
+		).toBe(true);
+	});
+
+	it("still rejects a different txid", () => {
+		expect(
+			matchSbtcTrigger(
+				{ type: "sbtc_deposit", bitcoinTxid: `0x${"0".repeat(64)}` },
+				row,
+			),
+		).toBe(false);
 	});
 });
 

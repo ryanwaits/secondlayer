@@ -4,6 +4,7 @@ import type {
 	SbtcWithdrawalEvent,
 	SbtcWithdrawalSweptConfirmedEvent,
 } from "@secondlayer/shared";
+import { normalizeBtcTxid } from "@secondlayer/shared";
 import type {
 	Database,
 	InsertWebhookOutbox,
@@ -479,15 +480,27 @@ function toAmountBigInt(v: string | number | undefined): bigint | undefined {
 	return v === undefined ? undefined : BigInt(v);
 }
 
+/** The schema normalizes txids on create; this also covers triggers stored
+ *  before it did (bare or uppercase hex). */
+function txidMatches(want: string, stored: string | null): boolean {
+	return (normalizeBtcTxid(want) ?? want) === stored;
+}
+
 // `row` BIGINTs (`request_id`, `block_height`) are strings at runtime (see
 // SbtcEventRow), so compare and deliver them as numbers.
-function matchSbtcTrigger(trigger: ChainTrigger, row: SbtcEventRow): boolean {
+export function matchSbtcTrigger(
+	trigger: ChainTrigger,
+	row: SbtcEventRow,
+): boolean {
 	const expectedTopic = SBTC_TRIGGER_TO_TOPIC[trigger.type];
 	if (!expectedTopic || row.topic !== expectedTopic) return false;
 
 	if (trigger.type === "sbtc_deposit") {
 		if (trigger.recipient && row.recipient !== trigger.recipient) return false;
-		if (trigger.bitcoinTxid && row.bitcoin_txid !== trigger.bitcoinTxid)
+		if (
+			trigger.bitcoinTxid &&
+			!txidMatches(trigger.bitcoinTxid, row.bitcoin_txid)
+		)
 			return false;
 		const min = toAmountBigInt(trigger.minAmount);
 		const max = toAmountBigInt(trigger.maxAmount);
@@ -524,7 +537,8 @@ function matchSbtcTrigger(trigger: ChainTrigger, row: SbtcEventRow): boolean {
 			Number(row.request_id) !== trigger.requestId
 		)
 			return false;
-		if (trigger.sweepTxid && row.sweep_txid !== trigger.sweepTxid) return false;
+		if (trigger.sweepTxid && !txidMatches(trigger.sweepTxid, row.sweep_txid))
+			return false;
 		return true;
 	}
 
@@ -731,7 +745,7 @@ export async function emitSbtcSettlementOutbox(
 			}
 			if (
 				trigger.sweepTxid !== undefined &&
-				trigger.sweepTxid !== row.sweep_txid
+				!txidMatches(trigger.sweepTxid, row.sweep_txid)
 			) {
 				continue;
 			}

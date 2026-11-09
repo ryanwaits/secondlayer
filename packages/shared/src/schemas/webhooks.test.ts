@@ -46,6 +46,32 @@ describe("CHAIN_TRIGGER_FIELDS", () => {
 	});
 });
 
+describe("sBTC trigger txids", () => {
+	const hex =
+		"5c9ef4e964b7747cc53833d44cd0445aa254f5830eb9a520537fdf297bfc9480";
+
+	it("normalizes bare explorer hex to the stored 0x-lowercase form", () => {
+		expect(
+			ChainTriggerSchema.parse({ type: "sbtc_deposit", bitcoinTxid: hex }),
+		).toEqual({ type: "sbtc_deposit", bitcoinTxid: `0x${hex}` });
+		expect(
+			ChainTriggerSchema.parse({
+				type: "sbtc_withdrawal_accept",
+				sweepTxid: hex.toUpperCase(),
+			}),
+		).toEqual({ type: "sbtc_withdrawal_accept", sweepTxid: `0x${hex}` });
+	});
+
+	it("rejects a txid that is not 32 bytes of hex", () => {
+		expect(
+			ChainTriggerSchema.safeParse({
+				type: "sbtc_withdrawal_swept_confirmed",
+				sweepTxid: "0xabc*",
+			}).success,
+		).toBe(false);
+	});
+});
+
 describe("webhook schemas", () => {
 	it("accepts supported formats and trigger limits on create", () => {
 		const parsed = CreateWebhookRequestSchema.parse({

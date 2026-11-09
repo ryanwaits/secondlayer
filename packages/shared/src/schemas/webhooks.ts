@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { normalizeBtcTxid } from "../btc-txid";
 import type { WebhookHealth, WebhookPauseReason } from "../webhooks/health";
 
 export {
@@ -136,9 +137,25 @@ const triggerAmount = z.union([
 	z.string().trim().regex(/^\d+$/, "must be a non-negative integer string"),
 	z.number().int().nonnegative(),
 ]);
-/** Principal/identifier/name patterns — `*` wildcards allowed (matched by the
- *  evaluator). */
+/** Principal/identifier/name patterns on Stacks chain-event triggers — `*`
+ *  wildcards allowed (`matchPattern` in the subgraphs source matcher). */
 const triggerPattern = z.string().trim().min(1);
+/** sBTC and Runes fields are matched by equality against decoded rows — no
+ *  wildcards. */
+const triggerExact = z.string().trim().min(1);
+/** Bitcoin txid: bare explorer hex or `0x`-prefixed, any case. Normalized to
+ *  the stored form (`0x` + lowercase) so it matches `sbtc_events` rows. */
+const btcTxid = z.string().transform((value, ctx) => {
+	const txid = normalizeBtcTxid(value);
+	if (txid === null) {
+		ctx.addIssue({
+			code: "custom",
+			message: "must be a 64-character hex Bitcoin txid (0x optional)",
+		});
+		return z.NEVER;
+	}
+	return txid;
+});
 const trait = z.string().trim().min(1);
 
 /**
@@ -313,16 +330,16 @@ export const ChainTriggerSchema: z.ZodType<ChainTrigger> = z.discriminatedUnion(
 		z
 			.object({
 				type: z.literal("sbtc_deposit"),
-				recipient: triggerPattern.optional(),
+				recipient: triggerExact.optional(),
 				minAmount: triggerAmount.optional(),
 				maxAmount: triggerAmount.optional(),
-				bitcoinTxid: triggerPattern.optional(),
+				bitcoinTxid: btcTxid.optional(),
 			})
 			.strict(),
 		z
 			.object({
 				type: z.literal("sbtc_withdrawal_create"),
-				sender: triggerPattern.optional(),
+				sender: triggerExact.optional(),
 				minAmount: triggerAmount.optional(),
 				maxAmount: triggerAmount.optional(),
 				requestId: z.number().int().nonnegative().optional(),
@@ -332,7 +349,7 @@ export const ChainTriggerSchema: z.ZodType<ChainTrigger> = z.discriminatedUnion(
 			.object({
 				type: z.literal("sbtc_withdrawal_accept"),
 				requestId: z.number().int().nonnegative().optional(),
-				sweepTxid: triggerPattern.optional(),
+				sweepTxid: btcTxid.optional(),
 			})
 			.strict(),
 		z
@@ -345,7 +362,7 @@ export const ChainTriggerSchema: z.ZodType<ChainTrigger> = z.discriminatedUnion(
 			.object({
 				type: z.literal("sbtc_withdrawal_swept_confirmed"),
 				requestId: z.number().int().nonnegative().optional(),
-				sweepTxid: triggerPattern.optional(),
+				sweepTxid: btcTxid.optional(),
 			})
 			.strict(),
 		z
@@ -364,7 +381,7 @@ export const ChainTriggerSchema: z.ZodType<ChainTrigger> = z.discriminatedUnion(
 			.object({
 				type: z.literal("rune_transfer"),
 				rune: runeRef.optional(),
-				address: triggerPattern.optional(),
+				address: triggerExact.optional(),
 				minAmount: triggerAmount.optional(),
 			})
 			.strict(),

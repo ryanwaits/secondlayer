@@ -1042,6 +1042,9 @@ describe("Index Runes routes", () => {
 	});
 });
 
+const BTC_TXID_HEX =
+	"5c9ef4e964b7747cc53833d44cd0445aa254f5830eb9a520537fdf297bfc9480";
+
 describe("Index sBTC peg routes", () => {
 	function sbtcApp() {
 		const app = new Hono();
@@ -1141,7 +1144,7 @@ describe("Index sBTC peg routes", () => {
 							}
 						: null,
 				readSbtcDepositByTxid: async (txid) =>
-					txid === "0xbtc"
+					txid === `0x${BTC_TXID_HEX}`
 						? {
 								cursor: "9000:0",
 								block_height: 9000,
@@ -1151,7 +1154,7 @@ describe("Index sBTC peg routes", () => {
 								event_index: 0,
 								amount: "1000",
 								recipient: "SP1",
-								bitcoin_txid: "0xbtc",
+								bitcoin_txid: `0x${BTC_TXID_HEX}`,
 								output_index: 0,
 								fee: "129",
 								max_fee: "80000",
@@ -1241,10 +1244,46 @@ describe("Index sBTC peg routes", () => {
 	});
 
 	test("deposit by bitcoin_txid returns the typed object", async () => {
-		const res = await sbtcApp().request("/v1/index/sbtc/deposits/0xbtc");
+		const res = await sbtcApp().request(
+			`/v1/index/sbtc/deposits/0x${BTC_TXID_HEX}`,
+		);
 		expect(res.status).toBe(200);
 		const body = (await res.json()) as { deposit: { status: string } };
 		expect(body.deposit.status).toBe("COMPLETED");
+	});
+
+	test("deposit by bare uppercase explorer txid finds the 0x-stored row", async () => {
+		const res = await sbtcApp().request(
+			`/v1/index/sbtc/deposits/${BTC_TXID_HEX.toUpperCase()}`,
+		);
+		expect(res.status).toBe(200);
+	});
+
+	test("malformed bitcoin_txid → 400", async () => {
+		const res = await sbtcApp().request("/v1/index/sbtc/deposits/0xbtc");
+		expect(res.status).toBe(400);
+	});
+
+	test("bitcoin_txid query filter is normalized to the stored form", async () => {
+		const seen: Array<string | undefined> = [];
+		const app = new Hono();
+		app.onError(errorHandler);
+		app.route(
+			"/v1/index",
+			createFixtureIndexRouter({
+				getTip: () => TIP,
+				readReorgs: async () => [],
+				readSbtcDeposits: async (params) => {
+					seen.push(params.bitcoinTxid);
+					return { deposits: [], next_cursor: null };
+				},
+			}),
+		);
+		const res = await app.request(
+			`/v1/index/sbtc/deposits?bitcoin_txid=${BTC_TXID_HEX}`,
+		);
+		expect(res.status).toBe(200);
+		expect(seen).toEqual([`0x${BTC_TXID_HEX}`]);
 	});
 });
 

@@ -2,6 +2,7 @@ import { decodeClarityValue } from "@secondlayer/sdk";
 import {
 	EMPTY_RANGE_EVENT_INDEX_SENTINEL,
 	encodeStreamsCursor,
+	normalizeBtcTxid,
 } from "@secondlayer/shared";
 import { sql } from "@secondlayer/shared/db";
 import { ValidationError } from "@secondlayer/shared/errors";
@@ -87,6 +88,23 @@ export function parseFilter(
 		throw new ValidationError(`${name} must not be empty`);
 	}
 	return value;
+}
+
+/** `bitcoin_txid` filter/param: bare explorer hex or `0x`-prefixed, any case,
+ *  normalized to the stored `0x` + lowercase form so it actually matches. */
+export function parseBtcTxidFilter(
+	value: string | undefined,
+	name: string,
+): string | undefined {
+	const raw = parseFilter(value, name);
+	if (raw === undefined) return undefined;
+	const txid = normalizeBtcTxid(raw);
+	if (txid === null) {
+		throw new ValidationError(
+			`${name} must be a 64-character hex Bitcoin txid (0x optional)`,
+		);
+	}
+	return txid;
 }
 
 /** Largest contract-id set a single read may scope to. Generous for "watch my
