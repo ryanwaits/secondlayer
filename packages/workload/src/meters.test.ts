@@ -25,6 +25,7 @@ import {
 	parseDockerStatsMemUsageBytes,
 	parseMemUsageToBytes,
 	parsePgDatabaseSizeOutput,
+	readsMeterItem,
 	sampleMemoryGbHour,
 	sampleStorageGbDay,
 	sampleTenantDatabaseBytes,
@@ -32,6 +33,7 @@ import {
 	startMeterSocketServer,
 	storageIdempotencyKey,
 } from "./meters.ts";
+import { ReadCounter } from "./read-meter.ts";
 
 describe("idempotency key shapes", () => {
 	const at = new Date("2026-09-25T14:37:12.000Z");
@@ -609,9 +611,64 @@ describe("mergePending", () => {
 	});
 });
 
+describe("readsMeterItem", () => {
+	const window = {
+		start: new Date("2026-09-25T22:06:00.000Z"),
+		end: new Date("2026-09-25T22:07:00.000Z"),
+	};
+
+	test("a read meter item is keyed by account, key and window", () => {
+		const item = readsMeterItem("acct_1", "key_1", 7, window);
+		expect(item).toEqual({
+			accountId: "acct_1",
+			unit: "subgraph.read",
+			quantity: 7,
+			apiKeyId: "key_1",
+			idempotencyKey:
+				"read:acct_1:key_1:2026-09-25T22:06:00.000Z..2026-09-25T22:07:00.000Z",
+			occurredAt: "2026-09-25T22:07:00.000Z",
+		});
+		expect(
+			readsMeterItem("acct_1", "key_2", 7, window)?.idempotencyKey,
+		).not.toBe(item?.idempotencyKey);
+	});
+
+	test("zero reads produce no item", () => {
+		expect(readsMeterItem("acct_1", "key_1", 0, window)).toBeUndefined();
+	});
+});
+
 describe("collectShutdownFlushItems", () => {
 	const boot = new Date("2026-09-25T14:05:00.000Z");
 	const shutdownAt = new Date("2026-09-25T14:40:00.000Z");
+
+	test("shutdown flush drains pending subgraph reads", () => {
+		const readCounter = new ReadCounter();
+		readCounter.add("acct_a", "key_1", 4);
+		readCounter.add("acct_a", "key_2", 1);
+		const items = collectShutdownFlushItems(
+			{
+				eventCounters: new Map(),
+				eventWindow: new DrainWindow(boot),
+				eventPending: [],
+				memory: new MemoryAccumulator(boot),
+				memoryPending: [],
+				storagePending: [],
+				readCounter,
+			},
+			shutdownAt,
+		);
+		const reads = items.filter((i) => i.unit === "subgraph.read");
+		expect(reads).toHaveLength(2);
+		expect(reads).toContainEqual(
+			expect.objectContaining({
+				accountId: "acct_a",
+				apiKeyId: "key_1",
+				quantity: 4,
+			}),
+		);
+		expect(readCounter.drain()).toEqual([]);
+	});
 
 	test("drains each EventCounter and the memory accumulator, behind every pending buffer", () => {
 		const counterA = new EventCounter();

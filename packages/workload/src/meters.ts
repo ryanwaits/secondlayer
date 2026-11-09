@@ -4,6 +4,9 @@
  * app-server's `POST /internal/meters` — a tenant's own containers never
  * see the workload host key.
  *
+ * (A fourth, `subgraph.read`, is counted by the gateway, not a tenant
+ * container; see `read-meter.ts`. It flushes with the events here.)
+ *
  * Three meters:
  *  - `webhook.event`: one push per tenant per minute over a unix socket
  *    mounted ONLY into that tenant's `webhook-service` (never `api`, so
@@ -25,6 +28,7 @@ import {
 } from "@secondlayer/platform/billing/prices";
 import { logger } from "@secondlayer/shared";
 import type { FetchLike } from "./fetch-like.ts";
+import type { ReadCounter } from "./read-meter.ts";
 
 export interface MeterBatchItem {
 	accountId: string;
@@ -55,7 +59,7 @@ export interface MeterWindow {
 }
 
 function windowKey(
-	prefix: "mem" | "evt",
+	prefix: "mem" | "evt" | "read",
 	accountId: string,
 	window: MeterWindow,
 ): string {
@@ -439,6 +443,40 @@ export function eventsMeterItem(
 	};
 }
 
+/** One account key's drained read count for `window`, keyed and dated by it.
+ *  The key id is part of the idempotency key: one ledger row per key per
+ *  window, so usage is attributable per key. */
+export function readsMeterItem(
+	accountId: string,
+	apiKeyId: string,
+	count: number,
+	window: MeterWindow,
+): MeterBatchItem | undefined {
+	if (count <= 0) return undefined;
+	return {
+		accountId,
+		unit: "subgraph.read",
+		quantity: count,
+		apiKeyId,
+		idempotencyKey: windowKey("read", `${accountId}:${apiKeyId}`, window),
+		occurredAt: window.end.toISOString(),
+	};
+}
+
+/** Drains `counter` into one item per account key for `window`. */
+export function drainReadItems(
+	counter: ReadCounter | undefined,
+	window: MeterWindow,
+): MeterBatchItem[] {
+	if (!counter) return [];
+	const items: MeterBatchItem[] = [];
+	for (const { accountId, apiKeyId, count } of counter.drain()) {
+		const item = readsMeterItem(accountId, apiKeyId, count, window);
+		if (item) items.push(item);
+	}
+	return items;
+}
+
 export interface DockerResult {
 	code: number;
 	stdout: string;
@@ -636,6 +674,9 @@ export interface ShutdownFlushState {
 	memory: MemoryAccumulator;
 	memoryPending: MeterBatchItem[];
 	storagePending: MeterBatchItem[];
+	/** Hosted subgraph reads counted by the gateway; drained into the event
+	 *  window like webhook events. */
+	readCounter?: ReadCounter;
 }
 
 /**
@@ -663,6 +704,7 @@ export function collectShutdownFlushItems(
 		const item = eventsMeterItem(accountId, counter.drain(), eventWindow);
 		if (item) items.push(item);
 	}
+	items.push(...drainReadItems(state.readCounter, eventWindow));
 	items.push(...state.memory.drain(now));
 
 	return items;
