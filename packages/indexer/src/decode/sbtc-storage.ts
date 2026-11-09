@@ -1,4 +1,4 @@
-import { getSourceDb } from "@secondlayer/shared/db";
+import { getSourceDb, sql } from "@secondlayer/shared/db";
 import type {
 	SbtcEventTopic,
 	SbtcTokenEventType,
@@ -22,6 +22,8 @@ export type SbtcEventRow = {
 	request_id: number | null;
 	amount: string | null;
 	sender: string | null;
+	/** `completed-deposit` only: the principal the deposit minted sBTC to. */
+	recipient: string | null;
 	recipient_btc_version: number | null;
 	recipient_btc_hashbytes: string | null;
 	bitcoin_txid: string | null;
@@ -80,6 +82,7 @@ export async function writeSbtcEvents(
 				request_id: eb.ref("excluded.request_id"),
 				amount: eb.ref("excluded.amount"),
 				sender: eb.ref("excluded.sender"),
+				recipient: eb.ref("excluded.recipient"),
 				recipient_btc_version: eb.ref("excluded.recipient_btc_version"),
 				recipient_btc_hashbytes: eb.ref("excluded.recipient_btc_hashbytes"),
 				bitcoin_txid: eb.ref("excluded.bitcoin_txid"),
@@ -88,8 +91,12 @@ export async function writeSbtcEvents(
 				burn_hash: eb.ref("excluded.burn_hash"),
 				burn_height: eb.ref("excluded.burn_height"),
 				signer_bitmap: eb.ref("excluded.signer_bitmap"),
-				max_fee: eb.ref("excluded.max_fee"),
-				fee: eb.ref("excluded.fee"),
+				// Deposit fees are filled after decode from Bitcoin (settlement.ts);
+				// a re-decode must not erase them.
+				max_fee: sql<
+					string | null
+				>`COALESCE(excluded.max_fee, sbtc_events.max_fee)`,
+				fee: sql<string | null>`COALESCE(excluded.fee, sbtc_events.fee)`,
 				block_height_at_request: eb.ref("excluded.block_height_at_request"),
 				governance_contract_type: eb.ref("excluded.governance_contract_type"),
 				governance_new_contract: eb.ref("excluded.governance_new_contract"),
@@ -102,6 +109,37 @@ export async function writeSbtcEvents(
 			})),
 		)
 		.execute();
+}
+
+/**
+ * Fill `recipient` on `completed-deposit` rows from already-decoded sBTC mints:
+ * the mint one event earlier in the same tx, same amount (see
+ * `depositRecipient` in decoders/sbtc.ts). For replays that read prints
+ * without the mints beside them; needs `sbtc_token_events` decoded first.
+ */
+export async function fillDepositRecipients(
+	rows: SbtcEventRow[],
+	opts?: { db?: Kysely<Database> },
+): Promise<void> {
+	const deposits = rows.filter(
+		(row) => row.topic === "completed-deposit" && row.recipient === null,
+	);
+	if (deposits.length === 0) return;
+	const mints = await db(opts?.db)
+		.selectFrom("sbtc_token_events")
+		.select(["tx_id", "event_index", "recipient", "amount"])
+		.where("event_type", "=", "mint")
+		.where("tx_id", "in", [...new Set(deposits.map((row) => row.tx_id))])
+		.execute();
+	for (const row of deposits) {
+		const mint = mints.find(
+			(m) =>
+				m.tx_id === row.tx_id &&
+				m.event_index === row.event_index - 1 &&
+				m.amount === row.amount,
+		);
+		row.recipient = mint?.recipient ?? null;
+	}
 }
 
 export async function writeSbtcTokenEvents(

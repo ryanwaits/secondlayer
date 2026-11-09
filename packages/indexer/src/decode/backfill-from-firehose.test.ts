@@ -234,9 +234,10 @@ describe("backfill-from-firehose", () => {
 			maxBatches: 10,
 			deps: { read, net: "mainnet" },
 		});
+		// sbtc_token first: deposit recipients are read from its mints.
 		expect(stats.map((s) => s.key)).toEqual([
-			"sbtc",
 			"sbtc_token",
+			"sbtc",
 			"stx_transfer",
 			"stx_mint",
 			"stx_burn",

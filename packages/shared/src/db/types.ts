@@ -743,6 +743,8 @@ export interface SbtcEventsTable {
 	request_id: number | null;
 	amount: string | null;
 	sender: string | null;
+	/** Stacks principal a `completed-deposit` minted sBTC to. */
+	recipient: string | null;
 	recipient_btc_version: number | null;
 	recipient_btc_hashbytes: string | null;
 	bitcoin_txid: string | null;

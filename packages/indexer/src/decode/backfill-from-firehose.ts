@@ -61,6 +61,7 @@ import {
 	SBTC_TOKEN_DECODER_NAME,
 	type SbtcEventRow,
 	type SbtcTokenEventRow,
+	fillDepositRecipients,
 	writeSbtcEvents,
 	writeSbtcTokenEvents,
 } from "./sbtc-storage.ts";
@@ -122,6 +123,8 @@ const sbtcEntry: BackfillEntry = {
 				topics[row.topic] = (topics[row.topic] ?? 0) + 1;
 			}
 		}
+		// Deposit recipients come from the mints, so `sbtc_token` runs first.
+		await fillDepositRecipients(rows, { db: ctx.db });
 		if (ctx.apply && rows.length) await writeSbtcEvents(rows, { db: ctx.db });
 		return { written: rows.length, topics };
 	},
@@ -227,8 +230,8 @@ const nftBurnEntry = genericDecodedEntry(
 
 /** The explicit registry — only decoders whose tables are recent-only. */
 export const BACKFILL_REGISTRY: readonly BackfillEntry[] = [
-	sbtcEntry,
 	sbtcTokenEntry,
+	sbtcEntry,
 	stxTransferEntry,
 	stxMintEntry,
 	stxBurnEntry,

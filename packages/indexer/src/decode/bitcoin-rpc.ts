@@ -34,6 +34,14 @@ export interface TxConfirmation {
 	blockHeight: number | null;
 }
 
+/** The parts of a verbose `getrawtransaction` the sBTC workers read. */
+export interface RawTransaction {
+	txid: string;
+	vin: { txid?: string; vout?: number; txinwitness?: string[] }[];
+	/** `value` is in BTC, as Bitcoin Core returns it. */
+	vout: { value: number; n: number }[];
+}
+
 /** Bitcoin Core returns this code for an unknown txid (no such mempool/chain tx). */
 const RPC_ERROR_NO_SUCH_TX = -5;
 
@@ -55,6 +63,7 @@ class BitcoinRpcError extends Error {
  */
 export function bitcoinConfirmationReader(config: BitcoinRpcConfig): {
 	getConfirmations(txid: string): Promise<TxConfirmation>;
+	getRawTransaction(txid: string): Promise<RawTransaction | null>;
 } {
 	const doFetch = config.fetch ?? fetch;
 
@@ -107,6 +116,21 @@ export function bitcoinConfirmationReader(config: BitcoinRpcConfig): {
 	}
 
 	return {
+		/** Verbose tx, or null when the node has no such txid. */
+		async getRawTransaction(txid: string): Promise<RawTransaction | null> {
+			const rpcTxid = txid.startsWith("0x") ? txid.slice(2) : txid;
+			try {
+				return await rpc<RawTransaction>("getrawtransaction", [rpcTxid, true]);
+			} catch (error) {
+				if (
+					error instanceof BitcoinRpcError &&
+					error.code === RPC_ERROR_NO_SUCH_TX
+				) {
+					return null;
+				}
+				throw error;
+			}
+		},
 		async getConfirmations(txid: string): Promise<TxConfirmation> {
 			// Sweep txids come from Stacks `0x`-prefixed (66 chars), but Bitcoin
 			// Core's getrawtransaction wants a bare 64-hex txid and rejects the

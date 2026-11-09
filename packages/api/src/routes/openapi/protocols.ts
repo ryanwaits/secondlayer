@@ -319,12 +319,12 @@ const SBTC_DEPOSIT_EXAMPLE = {
 	tx_index: 2,
 	event_index: 4,
 	amount: "79856",
-	sender: null,
+	recipient: "SP000000000000000000002Q6VF78.pox-5",
 	bitcoin_txid:
 		"0x2c11f9e20d21c96daed5d851c07d0e7c4361e552ebd78a8385f06fbb2f9892d3",
 	output_index: 1,
-	recipient_btc_version: null,
-	recipient_btc_hashbytes: null,
+	fee: "144",
+	max_fee: "80000",
 };
 
 /** Withdrawal request 3405: accepted, sweep confirmed on Bitcoin. */
@@ -849,7 +849,13 @@ export const protocolsPaths = {
 					"sender",
 					"string",
 					false,
-					"Stacks principal on the event (the withdrawal requester on `withdrawal-create`). Exact match.",
+					"Withdrawal requester, on `withdrawal-create`. Exact match.",
+				),
+				qp(
+					"recipient",
+					"string",
+					false,
+					"Stacks principal a `completed-deposit` minted sBTC to. Exact match.",
 				),
 				{
 					...qp(
@@ -894,10 +900,10 @@ export const protocolsPaths = {
 				...INDEX_RANGE_PARAMS,
 				SBTC_CONFIRMED,
 				qp(
-					"sender",
+					"recipient",
 					"string",
 					false,
-					"Stacks principal on the event. Exact match. Mainnet deposits currently carry none.",
+					"Stacks principal the deposit minted sBTC to. Exact match.",
 				),
 				qp(
 					"bitcoin_txid",
@@ -1188,11 +1194,14 @@ const SBTC_DEPOSIT_PROPERTIES = {
 		description:
 			"The event's position in the block. With `block_height`, the cursor.",
 	},
-	amount: { ...SATS_AMOUNT, description: "Sats minted, as a decimal string." },
-	sender: {
+	amount: {
+		...SATS_AMOUNT,
+		description: "Sats minted: the deposited BTC minus `fee`.",
+	},
+	recipient: {
 		type: ["string", "null"],
 		description:
-			"Stacks principal on the event. Null on mainnet deposits today.",
+			"Stacks principal the deposit minted sBTC to (a wallet or contract).",
 	},
 	bitcoin_txid: {
 		type: ["string", "null"],
@@ -1202,8 +1211,16 @@ const SBTC_DEPOSIT_PROPERTIES = {
 		type: ["integer", "null"],
 		description: "The deposit output within that Bitcoin transaction.",
 	},
-	recipient_btc_version: RECIPIENT_BTC_VERSION,
-	recipient_btc_hashbytes: RECIPIENT_BTC_HASHBYTES,
+	fee: {
+		...SATS_AMOUNT,
+		description:
+			"Sats the signers took to sweep the deposit, read from Bitcoin. Null for a few seconds after the deposit lands, or when the instance has no Bitcoin RPC.",
+	},
+	max_fee: {
+		...SATS_AMOUNT,
+		description:
+			"Most the depositor allowed the signers to take, from the deposit script. Null as for `fee`.",
+	},
 };
 
 const PHASE_SCHEMA = {
@@ -1979,7 +1996,12 @@ export const protocolsSchemas = {
 			},
 			sender: {
 				type: ["string", "null"],
-				description: "Stacks principal, e.g. the withdrawal requester.",
+				description: "Withdrawal requester, on `withdrawal-create`.",
+			},
+			recipient: {
+				type: ["string", "null"],
+				description:
+					"Stacks principal the deposit minted sBTC to, on `completed-deposit`.",
 			},
 			recipient_btc_version: RECIPIENT_BTC_VERSION,
 			recipient_btc_hashbytes: RECIPIENT_BTC_HASHBYTES,
@@ -2010,11 +2032,13 @@ export const protocolsSchemas = {
 			},
 			max_fee: {
 				...SATS_AMOUNT,
-				description: "Most the requester will pay in BTC fees, in sats.",
+				description:
+					"Most the requester (withdrawal) or depositor (deposit) allows the signers to take, in sats.",
 			},
 			fee: {
 				...SATS_AMOUNT,
-				description: "BTC fee charged on an accepted withdrawal, in sats.",
+				description:
+					"BTC fee the signers took on an accepted withdrawal or a completed deposit, in sats. On a deposit it is read from Bitcoin after the row lands.",
 			},
 			governance_contract_type: {
 				type: ["integer", "null"],
@@ -2056,6 +2080,7 @@ export const protocolsSchemas = {
 			request_id: 3406,
 			amount: "3127",
 			sender: "SP2ADCJ6606CFHERS3HKABWB6PF5XBANXBQ4GSE86",
+			recipient: null,
 			recipient_btc_version: 4,
 			recipient_btc_hashbytes: "0x9c32e45a19cf9c028bccf12816e62bbfc8eb5fb8",
 			bitcoin_txid: null,

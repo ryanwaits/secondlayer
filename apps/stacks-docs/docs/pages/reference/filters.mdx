@@ -109,7 +109,7 @@ import { CHAIN_EVENT_FILTER_TYPES, DECODED_EVENT_TYPES } from "@secondlayer/stac
 | `on.contractCall` | `contractId` (one or up to 20), `functionName`, `caller`, `abi`, `trait`, `factory` |
 | `on.contractDeploy` | `deployer`, `contractName` |
 | `on.print` | `contractId` (one or up to 20), `topic`, `where`, `prints`, `trait`, `factory` |
-| `on.sbtcDeposit` | `sender`, `minAmount`, `maxAmount`, `bitcoinTxid`, `requestId` |
+| `on.sbtcDeposit` | `recipient`, `minAmount`, `maxAmount`, `bitcoinTxid` |
 | `on.sbtcWithdrawalCreate` | `sender`, `minAmount`, `maxAmount`, `requestId` |
 | `on.sbtcWithdrawalAccept` / `SweptConfirmed` | `requestId`, `sweepTxid` |
 | `on.sbtcWithdrawalReject` | `requestId` |

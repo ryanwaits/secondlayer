@@ -53,6 +53,7 @@ export const SBTC_EVENTS_FILTERS = [
 	"confirmed",
 	"topic",
 	"sender",
+	"recipient",
 	"request_id",
 	"bitcoin_txid",
 ] as const;
@@ -64,7 +65,7 @@ export const SBTC_DEPOSIT_FILTERS = [
 	"from_height",
 	"to_height",
 	"confirmed",
-	"sender",
+	"recipient",
 	"bitcoin_txid",
 	"fields",
 ] as const;
@@ -128,6 +129,7 @@ export type SbtcEvent = {
 	request_id: number | null;
 	amount: string | null;
 	sender: string | null;
+	recipient: string | null;
 	recipient_btc_version: number | null;
 	recipient_btc_hashbytes: string | null;
 	bitcoin_txid: string | null;
@@ -156,12 +158,17 @@ export type SbtcDeposit = {
 	tx_id: string;
 	tx_index: number;
 	event_index: number;
+	/** Sats minted: the deposited BTC minus `fee`. */
 	amount: string | null;
-	sender: string | null;
+	/** Stacks principal the deposit minted sBTC to. */
+	recipient: string | null;
 	bitcoin_txid: string | null;
 	output_index: number | null;
-	recipient_btc_version: number | null;
-	recipient_btc_hashbytes: string | null;
+	/** Sats the signers took to sweep the deposit. Null until read from
+	 *  Bitcoin, or when the stack has no Bitcoin RPC. */
+	fee: string | null;
+	/** Most the depositor allowed the signers to take, from the deposit script. */
+	max_fee: string | null;
 };
 
 /** A peg-out collapsed to one row per `request_id` (the withdrawal-create
@@ -279,6 +286,7 @@ const SBTC_EVENT_COLUMNS = sql`
 	request_id,
 	amount,
 	sender,
+	recipient,
 	recipient_btc_version,
 	recipient_btc_hashbytes,
 	bitcoin_txid,
@@ -309,6 +317,7 @@ type SbtcEventDbRow = {
 	request_id: string | number | null;
 	amount: string | null;
 	sender: string | null;
+	recipient: string | null;
 	recipient_btc_version: number | null;
 	recipient_btc_hashbytes: string | null;
 	bitcoin_txid: string | null;
@@ -339,6 +348,7 @@ function normalizeSbtcEvent(row: SbtcEventDbRow): SbtcEvent {
 		request_id: row.request_id === null ? null : Number(row.request_id),
 		amount: row.amount,
 		sender: row.sender,
+		recipient: row.recipient,
 		recipient_btc_version: row.recipient_btc_version,
 		recipient_btc_hashbytes: row.recipient_btc_hashbytes,
 		bitcoin_txid: row.bitcoin_txid,
@@ -365,6 +375,7 @@ export type ReadSbtcEventsParams = {
 	limit: number;
 	topic?: SbtcEventTopic;
 	sender?: string;
+	recipient?: string;
 	requestId?: number;
 	bitcoinTxid?: string;
 	db?: Kysely<Database>;
@@ -393,6 +404,7 @@ export async function readSbtcEvents(
 	];
 	if (params.topic) predicates.push(sql`topic = ${params.topic}`);
 	if (params.sender) predicates.push(sql`sender = ${params.sender}`);
+	if (params.recipient) predicates.push(sql`recipient = ${params.recipient}`);
 	if (params.requestId !== undefined) {
 		predicates.push(sql`request_id = ${params.requestId}`);
 	}
@@ -462,6 +474,10 @@ export async function getSbtcEventsResponse(opts: {
 		limit: base.limit,
 		topic: topicRaw as SbtcEventTopic | undefined,
 		sender: parseFilter(opts.query.get("sender") ?? undefined, "sender"),
+		recipient: parseFilter(
+			opts.query.get("recipient") ?? undefined,
+			"recipient",
+		),
 		requestId: parseRequestIdFilter(opts.query.get("request_id") ?? undefined),
 		bitcoinTxid: parseFilter(
 			opts.query.get("bitcoin_txid") ?? undefined,
@@ -486,11 +502,11 @@ export const SBTC_DEPOSIT_FIELDS = [
 	"tx_index",
 	"event_index",
 	"amount",
-	"sender",
+	"recipient",
 	"bitcoin_txid",
 	"output_index",
-	"recipient_btc_version",
-	"recipient_btc_hashbytes",
+	"fee",
+	"max_fee",
 ] as const;
 
 // --- deposits (T2) --------------------------------------------------------
@@ -504,11 +520,11 @@ function normalizeSbtcDeposit(row: SbtcEventDbRow): SbtcDeposit {
 		tx_index: Number(row.tx_index),
 		event_index: Number(row.event_index),
 		amount: row.amount,
-		sender: row.sender,
+		recipient: row.recipient,
 		bitcoin_txid: row.bitcoin_txid,
 		output_index: row.output_index,
-		recipient_btc_version: row.recipient_btc_version,
-		recipient_btc_hashbytes: row.recipient_btc_hashbytes,
+		fee: row.fee,
+		max_fee: row.max_fee,
 	};
 }
 
@@ -519,7 +535,7 @@ export type ReadSbtcDepositsParams = {
 	fromHeight: number;
 	toHeight: number;
 	limit: number;
-	sender?: string;
+	recipient?: string;
 	bitcoinTxid?: string;
 	db?: Kysely<Database>;
 };
@@ -546,7 +562,7 @@ export async function readSbtcDeposits(
 		sql`block_height >= ${params.fromHeight}`,
 		sql`block_height <= ${params.toHeight}`,
 	];
-	if (params.sender) predicates.push(sql`sender = ${params.sender}`);
+	if (params.recipient) predicates.push(sql`recipient = ${params.recipient}`);
 	if (params.bitcoinTxid) {
 		predicates.push(sql`bitcoin_txid = ${params.bitcoinTxid}`);
 	}
@@ -610,7 +626,10 @@ export async function getSbtcDepositsResponse(opts: {
 		fromHeight: base.fromHeight,
 		toHeight: base.toHeight,
 		limit: base.limit,
-		sender: parseFilter(opts.query.get("sender") ?? undefined, "sender"),
+		recipient: parseFilter(
+			opts.query.get("recipient") ?? undefined,
+			"recipient",
+		),
 		bitcoinTxid: parseFilter(
 			opts.query.get("bitcoin_txid") ?? undefined,
 			"bitcoin_txid",

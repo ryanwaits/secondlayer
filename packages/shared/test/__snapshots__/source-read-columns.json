@@ -119,6 +119,7 @@
 		"governance_new_contract",
 		"max_fee",
 		"output_index",
+		"recipient",
 		"recipient_btc_hashbytes",
 		"recipient_btc_version",
 		"request_id",

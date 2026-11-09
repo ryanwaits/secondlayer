@@ -484,10 +484,8 @@ function matchSbtcTrigger(trigger: ChainTrigger, row: SbtcEventRow): boolean {
 	if (!expectedTopic || row.topic !== expectedTopic) return false;
 
 	if (trigger.type === "sbtc_deposit") {
-		if (trigger.sender && row.sender !== trigger.sender) return false;
+		if (trigger.recipient && row.recipient !== trigger.recipient) return false;
 		if (trigger.bitcoinTxid && row.bitcoin_txid !== trigger.bitcoinTxid)
-			return false;
-		if (trigger.requestId !== undefined && row.request_id !== trigger.requestId)
 			return false;
 		const min = toAmountBigInt(trigger.minAmount);
 		const max = toAmountBigInt(trigger.maxAmount);
@@ -538,8 +536,7 @@ function buildSbtcEventPayload(
 	if (triggerType === "sbtc_deposit") {
 		return {
 			topic: "completed-deposit",
-			request_id: row.request_id ?? 0,
-			sender: row.sender,
+			recipient: row.recipient,
 			amount: row.amount ?? "0",
 			bitcoin_txid: row.bitcoin_txid,
 			block_height: row.block_height,

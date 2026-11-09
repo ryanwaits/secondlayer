@@ -915,12 +915,16 @@ export type IndexSbtcDeposit = {
 	tx_id: string;
 	tx_index: number;
 	event_index: number;
+	/** Sats minted: the deposited BTC minus `fee`. */
 	amount: string | null;
-	sender: string | null;
+	/** Stacks principal the deposit minted sBTC to (a wallet or contract). */
+	recipient: string | null;
 	bitcoin_txid: string | null;
 	output_index: number | null;
-	recipient_btc_version: number | null;
-	recipient_btc_hashbytes: string | null;
+	/** Sats the signers took to sweep the deposit. Null until read from Bitcoin. */
+	fee: string | null;
+	/** Most the depositor allowed the signers to take. */
+	max_fee: string | null;
 };
 
 /** A deposit fetched by Bitcoin txid — always terminal, hence `status`. */
@@ -1009,6 +1013,8 @@ export type IndexSbtcEvent = {
 	request_id: number | null;
 	amount: string | null;
 	sender: string | null;
+	/** `completed-deposit` only: the principal the deposit minted sBTC to. */
+	recipient: string | null;
 	recipient_btc_version: number | null;
 	recipient_btc_hashbytes: string | null;
 	bitcoin_txid: string | null;
@@ -1093,7 +1099,7 @@ export type SbtcDepositsListParams = {
 	limit?: number;
 	/** Clamp to the finality boundary — only settled deposits past the reorg margin. */
 	confirmed?: boolean;
-	sender?: string;
+	recipient?: string;
 	bitcoinTxid?: string;
 	fromHeight?: number;
 	toHeight?: number;
@@ -1165,6 +1171,7 @@ export type SbtcEventsListParams = {
 	confirmed?: boolean;
 	topic?: SbtcEventTopic;
 	sender?: string;
+	recipient?: string;
 	requestId?: number;
 	bitcoinTxid?: string;
 	fromHeight?: number;
@@ -1199,7 +1206,7 @@ export interface SbtcResource {
 		/**
 		 * Read one page of completed sBTC deposits.
 		 *
-		 * Filter by `sender`, `bitcoinTxid`, and a height range. `confirmed: true` keeps only deposits past the finality boundary. `fields` returns only those columns and narrows the row type; `cursor` and `block_height` always come back.
+		 * Filter by `recipient`, `bitcoinTxid`, and a height range. `confirmed: true` keeps only deposits past the finality boundary. `fields` returns only those columns and narrows the row type; `cursor` and `block_height` always come back.
 		 */
 		list<const F extends keyof IndexSbtcDeposit & string>(
 			params: SbtcDepositsListParams & { fields: readonly F[] },
@@ -1258,7 +1265,7 @@ export interface SbtcResource {
 		/**
 		 * Read one page of the raw sBTC peg event log.
 		 *
-		 * Filter by `topic`, `sender`, `requestId`, `bitcoinTxid`, and a height range. `confirmed: true` keeps only events past the finality boundary.
+		 * Filter by `topic`, `sender`, `recipient`, `requestId`, `bitcoinTxid`, and a height range. `confirmed: true` keeps only events past the finality boundary.
 		 */
 		list(params?: SbtcEventsListParams): Promise<SbtcEventsEnvelope>;
 		/**
@@ -2844,7 +2851,7 @@ export class Index extends BaseClient {
 			`/v1/index/sbtc/deposits${buildQuery({
 				...indexPageQuery(params),
 				confirmed: params.confirmed,
-				sender: params.sender,
+				recipient: params.recipient,
 				bitcoin_txid: params.bitcoinTxid,
 			})}`,
 			undefined,
@@ -2918,6 +2925,7 @@ export class Index extends BaseClient {
 				confirmed: params.confirmed,
 				topic: params.topic,
 				sender: params.sender,
+				recipient: params.recipient,
 				request_id: params.requestId,
 				bitcoin_txid: params.bitcoinTxid,
 			})}`,

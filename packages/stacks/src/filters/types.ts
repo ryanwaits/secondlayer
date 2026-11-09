@@ -180,11 +180,11 @@ export interface PrintEventSpec extends TraitScope, FactoryScope {
 
 export interface SbtcDepositSpec {
 	type: "sbtc_deposit";
-	sender?: string;
+	/** Stacks principal the deposit minted sBTC to. */
+	recipient?: string;
 	minAmount?: bigint;
 	maxAmount?: bigint;
 	bitcoinTxid?: string;
-	requestId?: number;
 }
 export interface SbtcWithdrawalCreateSpec {
 	type: "sbtc_withdrawal_create";

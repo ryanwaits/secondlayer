@@ -91,6 +91,9 @@ function stubReader(confsRef: { value: number }) {
 				blockHeight: confs > 0 ? 800_000 : null,
 			};
 		},
+		async getRawTransaction() {
+			return null;
+		},
 	};
 }
 

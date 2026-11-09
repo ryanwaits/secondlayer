@@ -226,12 +226,12 @@ describe("Index sBTC peg accessors", () => {
 		const urls = recorder(emptyDeposits);
 		await new Index({ baseUrl: BASE_URL }).sbtc.deposits.list({
 			confirmed: true,
-			sender: "SP1",
+			recipient: "SP1",
 			limit: 50,
 		});
 		expect(urls[0]).toContain("/v1/index/sbtc/deposits");
 		expect(urls[0]).toContain("confirmed=true");
-		expect(urls[0]).toContain("sender=SP1");
+		expect(urls[0]).toContain("recipient=SP1");
 		expect(urls[0]).toContain("limit=50");
 	});
 

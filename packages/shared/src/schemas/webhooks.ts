@@ -313,11 +313,10 @@ export const ChainTriggerSchema: z.ZodType<ChainTrigger> = z.discriminatedUnion(
 		z
 			.object({
 				type: z.literal("sbtc_deposit"),
-				sender: triggerPattern.optional(),
+				recipient: triggerPattern.optional(),
 				minAmount: triggerAmount.optional(),
 				maxAmount: triggerAmount.optional(),
 				bitcoinTxid: triggerPattern.optional(),
-				requestId: z.number().int().nonnegative().optional(),
 			})
 			.strict(),
 		z
@@ -537,11 +536,10 @@ export type ChainTrigger =
 	  } & TraitScoped)
 	| {
 			type: "sbtc_deposit";
-			sender?: string;
+			recipient?: string;
 			minAmount?: ChainTriggerAmount;
 			maxAmount?: ChainTriggerAmount;
 			bitcoinTxid?: string;
-			requestId?: number;
 	  }
 	| {
 			type: "sbtc_withdrawal_create";

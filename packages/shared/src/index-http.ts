@@ -241,6 +241,7 @@ export type IndexSbtcEventRow = {
 	request_id: number | null;
 	amount: string | null;
 	sender: string | null;
+	recipient: string | null;
 	recipient_btc_version: number | null;
 	recipient_btc_hashbytes: string | null;
 	bitcoin_txid: string | null;

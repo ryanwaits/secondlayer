@@ -60,12 +60,11 @@ const EVERY_MEMBER = [
 	on.contractDeploy({ deployer: ALICE, contractName: "my-token" }),
 	on.print({ contractId: CONTRACT, topic: "transfer", trait: "sip-010" }),
 	on.sbtcDeposit({
-		sender: ALICE,
+		recipient: ALICE,
 		minAmount: 1n,
 		maxAmount: 100_000_000n,
 		bitcoinTxid:
 			"0f1e2d3c4b5a69788796a5b4c3d2e1f00f1e2d3c4b5a69788796a5b4c3d2e1f0",
-		requestId: 7,
 	}),
 	on.sbtcWithdrawalCreate({
 		sender: ALICE,

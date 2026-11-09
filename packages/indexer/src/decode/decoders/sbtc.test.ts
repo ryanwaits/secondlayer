@@ -12,7 +12,11 @@ import {
 	SBTC_ASSET_IDENTIFIER_MAINNET,
 	SBTC_CONTRACTS,
 } from "@secondlayer/stacks/sbtc";
-import { decodeRegistryPrint, decodeTokenEvent } from "./sbtc.ts";
+import {
+	decodeRegistryPrint,
+	decodeTokenEvent,
+	depositRecipient,
+} from "./sbtc.ts";
 
 const REGISTRY_CONTRACT = `${SBTC_CONTRACTS.mainnet.address}.${SBTC_CONTRACTS.mainnet.registry}`;
 const TOKEN_CONTRACT = `${SBTC_CONTRACTS.mainnet.address}.${SBTC_CONTRACTS.mainnet.token}`;
@@ -257,5 +261,51 @@ describe("decodeTokenEvent", () => {
 			buildFt("ft_transfer", { sender: "SP1", recipient: "SP2" }),
 		);
 		expect(row).toBeNull();
+	});
+});
+
+describe("depositRecipient", () => {
+	const deposit = { tx_id: "0xtx", event_index: 7, amount: "14025" };
+
+	function mint(overrides: Partial<StreamsEvent> = {}, payload = {}) {
+		return {
+			cursor: "100:6",
+			block_height: 100,
+			block_hash: "0xblock",
+			burn_block_height: 902481,
+			tx_id: "0xtx",
+			tx_index: 3,
+			event_index: 6,
+			event_type: "ft_mint",
+			contract_id: TOKEN_CONTRACT,
+			payload: {
+				asset_identifier: SBTC_ASSET_IDENTIFIER_MAINNET,
+				recipient: "SP34HBPH4EHPVW0NSXBCV5Z27FAGTC62RV5Y9Y9MR",
+				amount: "14025",
+				...payload,
+			},
+			ts: "2026-11-01T05:17:31.000Z",
+			...overrides,
+		} as StreamsEvent;
+	}
+
+	test("is the recipient of the sBTC mint just before the print", () => {
+		expect(depositRecipient(deposit, [mint()])).toBe(
+			"SP34HBPH4EHPVW0NSXBCV5Z27FAGTC62RV5Y9Y9MR",
+		);
+	});
+
+	test("ignores mints from another tx, another position or another asset", () => {
+		expect(depositRecipient(deposit, [mint({ tx_id: "0xother" })])).toBeNull();
+		expect(depositRecipient(deposit, [mint({ event_index: 5 })])).toBeNull();
+		expect(
+			depositRecipient(deposit, [
+				mint({}, { asset_identifier: "SP1.other-token::other" }),
+			]),
+		).toBeNull();
+	});
+
+	test("refuses a mint whose amount differs from the deposit", () => {
+		expect(depositRecipient(deposit, [mint({}, { amount: "1" })])).toBeNull();
 	});
 });

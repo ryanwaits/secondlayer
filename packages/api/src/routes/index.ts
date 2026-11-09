@@ -433,14 +433,14 @@ export function createIndexRouter(opts: IndexRouterOptions = {}) {
 					path: "/v1/index/sbtc/events",
 					method: "GET",
 					description:
-						"Decoded sBTC peg protocol-state events (completed-deposit, withdrawal-create/accept/reject, key-rotation, update-protocol-contract) — the data Hiro declined (SBA #1709). Filterable by topic/sender/request_id/bitcoin_txid + cursor-paginated; ?confirmed=true returns only rows past the reorg margin. Returns events[], next_cursor, tip, reorgs[]. Cursor: <block_height>:<event_index>.",
+						"Decoded sBTC peg protocol-state events (completed-deposit, withdrawal-create/accept/reject, key-rotation, update-protocol-contract) — the data Hiro declined (SBA #1709). Filterable by topic/sender/recipient/request_id/bitcoin_txid + cursor-paginated; ?confirmed=true returns only rows past the reorg margin. Returns events[], next_cursor, tip, reorgs[]. Cursor: <block_height>:<event_index>.",
 					filters: SBTC_EVENTS_FILTERS,
 				},
 				{
 					path: "/v1/index/sbtc/deposits",
 					method: "GET",
 					description:
-						"Completed sBTC peg-ins (topic completed-deposit), filterable by sender/bitcoin_txid + cursor-paginated. ?confirmed=true gates to finalized. Returns deposits[], next_cursor, tip, reorgs[]. Cursor: <block_height>:<event_index>.",
+						"Completed sBTC peg-ins (topic completed-deposit) with recipient, fee and max_fee, filterable by recipient/bitcoin_txid + cursor-paginated. ?confirmed=true gates to finalized. Returns deposits[], next_cursor, tip, reorgs[]. Cursor: <block_height>:<event_index>.",
 					filters: SBTC_DEPOSIT_FILTERS,
 				},
 				{

@@ -60,6 +60,7 @@ export type SbtcEventRow = Pick<
 	Selectable<SbtcEventsTable>,
 	| "topic"
 	| "sender"
+	| "recipient"
 	| "bitcoin_txid"
 	| "request_id"
 	| "amount"
@@ -197,6 +198,7 @@ function toSbtcEventRow(e: IndexSbtcEventRow): SbtcEventRow {
 	return {
 		topic: e.topic as SbtcEventTopic,
 		sender: e.sender,
+		recipient: e.recipient,
 		bitcoin_txid: e.bitcoin_txid,
 		request_id: (e.request_id === null
 			? null

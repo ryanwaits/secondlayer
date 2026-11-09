@@ -62,7 +62,9 @@ function tokenContractId(): string {
 	return `${SBTC_CONTRACTS[net].address}.${SBTC_CONTRACTS[net].token}`;
 }
 
-const REGISTRY_STREAM_TYPES: StreamsEventType[] = ["print"];
+// `ft_mint` rides along so each `completed-deposit` print can be paired with
+// the mint that precedes it (see `depositRecipient`).
+const REGISTRY_STREAM_TYPES: StreamsEventType[] = ["print", "ft_mint"];
 const TOKEN_STREAM_TYPES: StreamsEventType[] = [
 	"ft_transfer",
 	"ft_mint",
@@ -110,6 +112,9 @@ export async function consumeSbtcRegistryDecodedEvents(
 			: await readDecoderCheckpoint({ db, decoderName });
 	let expectedCheckpoint = startCursor;
 	let decoded = 0;
+	// Last sBTC mint seen, carried across pages: a deposit's mint can end one
+	// page and its print start the next.
+	let lastMint: StreamsEvent | null = null;
 
 	const result = await streamsClient.events.consume({
 		fromCursor: startCursor,
@@ -119,9 +124,10 @@ export async function consumeSbtcRegistryDecodedEvents(
 		maxEmptyPolls: opts.maxEmptyPolls,
 		signal: opts.signal,
 		types: REGISTRY_STREAM_TYPES,
-		contractId: registryContractId(),
+		contractId: [registryContractId(), tokenContractId()],
 		onBatch: async (events, ctx) => {
 			const rows: SbtcEventRow[] = [];
+			const unpaired: SbtcEventRow[] = [];
 			const clock: {
 				cursor: string;
 				block_height: number;
@@ -135,6 +141,9 @@ export async function consumeSbtcRegistryDecodedEvents(
 			}[] = [];
 			for (const event of events) {
 				try {
+					if (event.event_type === "ft_mint" && isSbtcTokenAsset(event)) {
+						lastMint = event;
+					}
 					if (
 						event.event_type !== "print" ||
 						event.contract_id === null ||
@@ -149,7 +158,13 @@ export async function consumeSbtcRegistryDecodedEvents(
 						continue;
 					}
 					const row = decodeRegistryPrint(event);
-					if (row) rows.push(row);
+					if (row) {
+						if (row.topic === "completed-deposit") {
+							row.recipient = depositRecipient(row, lastMint ? [lastMint] : []);
+							if (row.recipient === null) unpaired.push(row);
+						}
+						rows.push(row);
+					}
 					clock.push({
 						cursor: event.cursor,
 						block_height: event.block_height,
@@ -176,6 +191,18 @@ export async function consumeSbtcRegistryDecodedEvents(
 						cursor: event.cursor,
 						class: fault,
 						error: error instanceof Error ? error.message : String(error),
+					});
+				}
+			}
+
+			// Mint fell before this run's resume cursor: read the deposit's tx.
+			for (const row of unpaired) {
+				const tx = await streamsClient.events.byTxId(row.tx_id);
+				row.recipient = depositRecipient(row, tx.events);
+				if (row.recipient === null) {
+					logger.warn("sbtc_decoder.deposit_mint_missing", {
+						cursor: row.cursor,
+						tx_id: row.tx_id,
 					});
 				}
 			}
@@ -364,6 +391,7 @@ export function decodeRegistryPrint(event: StreamsEvent): SbtcEventRow | null {
 		request_id: null as number | null,
 		amount: null as string | null,
 		sender: null as string | null,
+		recipient: null as string | null,
 		recipient_btc_version: null as number | null,
 		recipient_btc_hashbytes: null as string | null,
 		bitcoin_txid: null as string | null,
@@ -457,6 +485,32 @@ export function decodeRegistryPrint(event: StreamsEvent): SbtcEventRow | null {
 				governance_new_contract: asString(tuple["new-contract"]),
 			};
 	}
+}
+
+/**
+ * The Stacks address a completed deposit minted to. `completed-deposit` prints
+ * carry no recipient: sbtc-deposit mints first, then the registry prints, so
+ * the recipient is the sBTC `ft_mint` one event earlier in the same tx with
+ * the same amount (true for every mainnet deposit). Null when absent.
+ */
+export function depositRecipient(
+	deposit: Pick<SbtcEventRow, "tx_id" | "event_index" | "amount">,
+	candidates: readonly StreamsEvent[],
+): string | null {
+	for (const event of candidates) {
+		if (
+			event.event_type !== "ft_mint" ||
+			event.tx_id !== deposit.tx_id ||
+			event.event_index !== deposit.event_index - 1 ||
+			!isSbtcTokenAsset(event)
+		) {
+			continue;
+		}
+		const payload = event.payload as Record<string, unknown>;
+		if (asDecimal(payload.amount) !== deposit.amount) return null;
+		return asString(payload.recipient);
+	}
+	return null;
 }
 
 export function decodeTokenEvent(

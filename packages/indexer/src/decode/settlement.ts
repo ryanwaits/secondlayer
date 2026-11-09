@@ -2,9 +2,11 @@ import { getSourceDb } from "@secondlayer/shared/db";
 import type { Database } from "@secondlayer/shared/db/schema";
 import { type Kysely, sql } from "kysely";
 import {
+	type RawTransaction,
 	type TxConfirmation,
 	bitcoinConfirmationReader,
 } from "./bitcoin-rpc.ts";
+import { fillDepositFees } from "./deposit-fees.ts";
 import type { DecoderHealth } from "./health.ts";
 import { writeDecoderCheckpoint } from "./storage.ts";
 
@@ -20,6 +22,9 @@ import { writeDecoderCheckpoint } from "./storage.ts";
  * the default decoder set for both the health endpoint AND `floor-audit.ts`, and
  * this worker has no genesis floor to baseline. It gets a dedicated health path
  * (`getSettlementConfirmerHealth`) wired directly into service.ts instead.
+ *
+ * Each tick also fills sBTC deposit fees (deposit-fees.ts): the same Bitcoin
+ * RPC, the same optional wiring.
  */
 
 export const SETTLEMENT_CONFIRMER_NAME = "settle.sbtc.v1";
@@ -45,7 +50,10 @@ export const SETTLEMENT_REORG_WATCH_DEPTH = Number.parseInt(
 
 const FIVE_MINUTES_MS = 5 * 60_000;
 
-type SweepReader = { getConfirmations(txid: string): Promise<TxConfirmation> };
+type SweepReader = {
+	getConfirmations(txid: string): Promise<TxConfirmation>;
+	getRawTransaction(txid: string): Promise<RawTransaction | null>;
+};
 
 interface PendingSweep {
 	sweep_txid: string;
@@ -238,7 +246,12 @@ export async function consumeSbtcSettlements(opts: {
 
 	const seen = new Set<string>();
 	let pages = 0;
-	let decoded = 0;
+	let decoded = await fillDepositFees({
+		reader,
+		db: opts.db,
+		limit: batchSize,
+		signal: opts.signal,
+	});
 	let emptyPolls = 0;
 
 	while (!opts.signal?.aborted) {

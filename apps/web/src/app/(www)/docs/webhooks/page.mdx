@@ -124,7 +124,7 @@ Use the `trigger.*` factories (as in [Create a webhook](#create-a-webhook)) or t
 | `trigger.stxBurn` | `stx_burn` | `sender`, `minAmount` |
 | `trigger.stxLock` | `stx_lock` | `lockedAddress`, `minAmount` |
 | `trigger.printEvent` | `print_event` | `contractId`, `topic`, `where`, `trait` |
-| `trigger.sbtcDeposit` | `sbtc_deposit` | `sender`, `minAmount`, `maxAmount`, `bitcoinTxid`, `requestId` |
+| `trigger.sbtcDeposit` | `sbtc_deposit` | `recipient`, `minAmount`, `maxAmount`, `bitcoinTxid` |
 | `trigger.sbtcWithdrawalCreate` | `sbtc_withdrawal_create` | `sender`, `minAmount`, `maxAmount`, `requestId` |
 | `trigger.sbtcWithdrawalAccept` | `sbtc_withdrawal_accept` | `requestId`, `sweepTxid` |
 | `trigger.sbtcWithdrawalReject` | `sbtc_withdrawal_reject` | `requestId` |
@@ -484,8 +484,7 @@ The five sBTC triggers deliver a flat, already-typed `event` keyed by `topic`:
 ```json
 "event": {
   "topic": "completed-deposit",
-  "request_id": 42,
-  "sender": "SP…",
+  "recipient": "SP…",
   "amount": "5000000",
   "bitcoin_txid": "…",
   "block_height": 123456,
@@ -500,6 +499,11 @@ The five sBTC triggers deliver a flat, already-typed `event` keyed by `topic`:
 - `withdrawal-accept`
 - `withdrawal-reject`
 - `withdrawal-swept-confirmed`
+
+Field sets differ by topic:
+
+- A deposit carries `recipient`, the principal the sBTC was minted to, and no request id.
+- Withdrawal events carry `request_id`, `sender`, `amount` and `sweep_txid`.
 
 The settlement event is shaped differently:
 
