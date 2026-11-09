@@ -590,9 +590,16 @@ function matchedForward(
  * INNER JOIN back onto `candidate_events` never drops or fans out a candidate:
  * the selected types are a subset of all types, and the join key is unique.
  */
+/**
+ * `blockHeights` narrows the ordinal pass to the candidate blocks. Single-tx
+ * and single-block reads pass an exact `= height` so Postgres keeps an index
+ * scan: with no LIMIT it trusts a tx_id estimate in the thousands and plans a
+ * sequential scan of all of `events` for the `IN (SELECT ...)` form.
+ */
 function streamOrdinalCtes(
 	allDbEventTypes: RawBuilder<unknown>,
 	matchedColumn: RawBuilder<unknown> = sql``,
+	blockHeights: RawBuilder<unknown> = sql`IN (SELECT DISTINCT block_height FROM candidate_events)`,
 ): RawBuilder<unknown> {
 	return sql`
 		block_event_ordinals AS (
@@ -607,7 +614,7 @@ function streamOrdinalCtes(
 			FROM events e2
 			INNER JOIN transactions t2 ON t2.tx_id = e2.tx_id
 			WHERE e2.type IN (${allDbEventTypes})
-				AND e2.block_height IN (SELECT DISTINCT block_height FROM candidate_events)
+				AND e2.block_height ${blockHeights}
 		),
 		ordered_events AS (
 			SELECT
@@ -657,7 +664,11 @@ export async function readCanonicalStreamsEventsByTxId(
 				AND e.tx_id = ${params.txId}
 			ORDER BY e.block_height ASC, t.tx_index ASC, e.event_index ASC
 		),
-		${streamOrdinalCtes(allDbEventTypes)}
+		${streamOrdinalCtes(
+			allDbEventTypes,
+			sql``,
+			sql`= (SELECT block_height FROM transactions WHERE tx_id = ${params.txId})`,
+		)}
 		SELECT *
 		FROM ordered_events
 		ORDER BY block_height ASC, tx_index ASC, stream_event_index ASC
@@ -700,7 +711,13 @@ export async function readCanonicalStreamsBlockEvents(
 				AND ${blockPredicate}
 			ORDER BY e.block_height ASC, t.tx_index ASC, e.event_index ASC
 		),
-		${streamOrdinalCtes(allDbEventTypes)}
+		${streamOrdinalCtes(
+			allDbEventTypes,
+			sql``,
+			params.blockHeight !== undefined
+				? sql`= ${params.blockHeight}`
+				: sql`= (SELECT height FROM blocks WHERE hash = ${params.blockHash} AND canonical = true)`,
+		)}
 		SELECT *
 		FROM ordered_events
 		ORDER BY block_height ASC, tx_index ASC, stream_event_index ASC
