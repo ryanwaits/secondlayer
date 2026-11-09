@@ -325,7 +325,7 @@ export async function readCanonicalStreamsEvents(
 			STREAMS_TO_DB_EVENT_TYPES[eventType].map((dbType) => sql`${dbType}`),
 		),
 	);
-	const filterPredicate = sql`${streamsFilterPredicate(params)}${labelledFilterPredicate(params.filters)}`;
+	const filterPredicate = sql`${streamsFilterPredicate(params, includedStreamsTypes)}${labelledFilterPredicate(params.filters)}`;
 	const matched = matchedSelect(params.filters);
 	const matchedCol = matchedForward(params.filters);
 	const rows = params.after
@@ -393,34 +393,55 @@ function inList(values: string[]): RawBuilder<unknown> {
 	return sql.join(values.map((value) => sql`${value}`));
 }
 
+const ASSET_STREAMS_TYPES: readonly StreamsEventType[] = [
+	"ft_transfer",
+	"ft_mint",
+	"ft_burn",
+	"nft_transfer",
+	"nft_mint",
+	"nft_burn",
+];
+
+/**
+ * `contract_id` filter, one OR branch per event family the request can return.
+ * Branches for types the request excludes are left out, not just ANDed away:
+ * Postgres cannot prove them false, and any branch it can't serve from
+ * `events_contract_event_contract_id_idx` makes it walk the height index
+ * across every event in the range (a print-only BNS read went from <1s to
+ * >30s on a sparse stretch). Prints store `contract_identifier` at every
+ * height, so that is the only key matched.
+ */
 function contractIdPredicate(
 	contractId: string | readonly string[] | undefined,
+	types: readonly StreamsEventType[] = STREAMS_EVENT_TYPES,
 ): RawBuilder<unknown> {
 	const ids = toFilterList(contractId);
 	if (!ids) return sql``;
 	const list = inList(ids);
-	return sql`
-		AND (
-			(
-				e.type IN ('smart_contract_event', 'contract_event')
-				AND (
-					e.data->>'contract_identifier' IN (${list})
-					OR e.data->>'contract_id' IN (${list})
-				)
-			)
-			OR (
-				e.type IN (
-					'ft_transfer_event',
-					'ft_mint_event',
-					'ft_burn_event',
-					'nft_transfer_event',
-					'nft_mint_event',
-					'nft_burn_event'
-				)
-				AND split_part(e.data->>'asset_identifier', '::', 1) IN (${list})
-			)${stxLockContractPredicate(ids, list)}
-		)
-	`;
+	const branches: RawBuilder<unknown>[] = [];
+	if (types.includes("print")) {
+		branches.push(sql`(
+			e.type IN ('smart_contract_event', 'contract_event')
+			AND e.data->>'contract_identifier' IN (${list})
+		)`);
+	}
+	const assetTypes = ASSET_STREAMS_TYPES.filter((t) => types.includes(t));
+	if (assetTypes.length > 0) {
+		const dbTypes = sql.join(
+			assetTypes.flatMap((t) =>
+				STREAMS_TO_DB_EVENT_TYPES[t].map((dbType) => sql`${dbType}`),
+			),
+		);
+		branches.push(sql`(
+			e.type IN (${dbTypes})
+			AND split_part(e.data->>'asset_identifier', '::', 1) IN (${list})
+		)`);
+	}
+	if (types.includes("stx_lock") && ids.some(isPoxContractId)) {
+		branches.push(stxLockContractPredicate(list));
+	}
+	if (branches.length === 0) return sql` AND FALSE`;
+	return sql` AND (${sql.join(branches, sql` OR `)})`;
 }
 
 /**
@@ -430,10 +451,8 @@ function contractIdPredicate(
  * requested id names a PoX contract, so other contract filters keep their plan.
  */
 function stxLockContractPredicate(
-	ids: string[],
 	list: RawBuilder<unknown>,
 ): RawBuilder<unknown> {
-	if (!ids.some(isPoxContractId)) return sql``;
 	const derived = derivesPoxContract()
 		? sql`CASE ${sql.join(
 				[...MAINNET_POX_CONTRACT_ERAS]
@@ -445,11 +464,10 @@ function stxLockContractPredicate(
 				sql` `,
 			)} END`
 		: sql`NULL`;
-	return sql`
-			OR (
-				e.type = 'stx_lock_event'
-				AND COALESCE(e.data->>'contract_identifier', ${derived}) IN (${list})
-			)`;
+	return sql`(
+		e.type = 'stx_lock_event'
+		AND COALESCE(e.data->>'contract_identifier', ${derived}) IN (${list})
+	)`;
 }
 
 /** Inclusion predicate on a raw payload field, or empty when unset. The key is
@@ -468,13 +486,16 @@ function payloadFieldPredicate(
 }
 
 /** Combined WHERE predicate for all payload filters Streams exposes. */
-function streamsFilterPredicate(params: {
-	contractId?: string | readonly string[];
-	sender?: string | readonly string[];
-	recipient?: string | readonly string[];
-	assetIdentifier?: string;
-}): RawBuilder<unknown> {
-	return sql`${contractIdPredicate(params.contractId)}${payloadFieldPredicate(
+function streamsFilterPredicate(
+	params: {
+		contractId?: string | readonly string[];
+		sender?: string | readonly string[];
+		recipient?: string | readonly string[];
+		assetIdentifier?: string;
+	},
+	types?: readonly StreamsEventType[],
+): RawBuilder<unknown> {
+	return sql`${contractIdPredicate(params.contractId, types)}${payloadFieldPredicate(
 		"sender",
 		params.sender,
 	)}${payloadFieldPredicate("recipient", params.recipient)}${payloadFieldPredicate(
@@ -507,7 +528,7 @@ function groupTypePredicate(
 
 /** The AND-ed body of one labelled group (no leading AND). */
 function groupBody(filter: StreamsLabelledFilter): RawBuilder<unknown> {
-	return sql`TRUE${groupTypePredicate(filter.types)}${streamsFilterPredicate(filter)}`;
+	return sql`TRUE${groupTypePredicate(filter.types)}${streamsFilterPredicate(filter, filter.types)}`;
 }
 
 /**
