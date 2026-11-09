@@ -1,5 +1,12 @@
 # @secondlayer/platform
 
+## 0.10.24
+
+### Patch Changes
+
+- Updated dependencies [fb999c2]
+  - @secondlayer/shared@16.0.0
+
 ## 0.10.23
 
 ### Patch Changes

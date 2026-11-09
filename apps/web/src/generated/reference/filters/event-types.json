@@ -993,10 +993,10 @@
 					"description": ""
 				},
 				{
-					"name": "sender",
+					"name": "recipient",
 					"type": "string",
 					"required": false,
-					"description": ""
+					"description": "Stacks principal the deposit minted sBTC to."
 				},
 				{
 					"name": "minAmount",
@@ -1013,12 +1013,6 @@
 				{
 					"name": "bitcoinTxid",
 					"type": "string",
-					"required": false,
-					"description": ""
-				},
-				{
-					"name": "requestId",
-					"type": "number",
 					"required": false,
 					"description": ""
 				}

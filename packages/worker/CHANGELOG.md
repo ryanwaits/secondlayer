@@ -1,5 +1,13 @@
 # @secondlayer/worker
 
+## 1.4.54
+
+### Patch Changes
+
+- Updated dependencies [fb999c2]
+  - @secondlayer/shared@16.0.0
+  - @secondlayer/platform@0.10.24
+
 ## 1.4.53
 
 ### Patch Changes

@@ -1,5 +1,12 @@
 # @secondlayer/verify
 
+## 0.6.4
+
+### Patch Changes
+
+- Updated dependencies [fb999c2]
+  - @secondlayer/stacks@7.0.0
+
 ## 0.6.3
 
 ### Patch Changes

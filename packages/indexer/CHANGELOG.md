@@ -1,5 +1,14 @@
 # @secondlayer/indexer
 
+## 1.17.11
+
+### Patch Changes
+
+- Updated dependencies [fb999c2]
+  - @secondlayer/shared@16.0.0
+  - @secondlayer/stacks@7.0.0
+  - @secondlayer/sdk@17.0.0
+
 ## 1.17.10
 
 ### Patch Changes

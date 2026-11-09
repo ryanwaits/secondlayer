@@ -1,5 +1,13 @@
 # @secondlayer/scaffold
 
+## 1.6.4
+
+### Patch Changes
+
+- Updated dependencies [fb999c2]
+  - @secondlayer/stacks@7.0.0
+  - @secondlayer/subgraphs@8.1.9
+
 ## 1.6.3
 
 ### Patch Changes

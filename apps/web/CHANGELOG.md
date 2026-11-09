@@ -1,5 +1,14 @@
 # @secondlayer/web
 
+## 0.14.23
+
+### Patch Changes
+
+- Updated dependencies [fb999c2]
+  - @secondlayer/stacks@7.0.0
+  - @secondlayer/sdk@17.0.0
+  - @secondlayer/verify@0.6.4
+
 ## 0.14.22
 
 ### Patch Changes

@@ -4723,7 +4723,14 @@
 							"string",
 							"null"
 						],
-						"description": "Stacks principal, e.g. the withdrawal requester."
+						"description": "Withdrawal requester, on `withdrawal-create`."
+					},
+					"recipient": {
+						"type": [
+							"string",
+							"null"
+						],
+						"description": "Stacks principal the deposit minted sBTC to, on `completed-deposit`."
 					},
 					"recipient_btc_version": {
 						"type": [
@@ -4786,14 +4793,14 @@
 							"string",
 							"null"
 						],
-						"description": "Most the requester will pay in BTC fees, in sats."
+						"description": "Most the requester (withdrawal) or depositor (deposit) allows the signers to take, in sats."
 					},
 					"fee": {
 						"type": [
 							"string",
 							"null"
 						],
-						"description": "BTC fee charged on an accepted withdrawal, in sats."
+						"description": "BTC fee the signers took on an accepted withdrawal or a completed deposit, in sats. On a deposit it is read from Bitcoin after the row lands."
 					},
 					"governance_contract_type": {
 						"type": [
@@ -4849,6 +4856,7 @@
 					"request_id": 3406,
 					"amount": "3127",
 					"sender": "SP2ADCJ6606CFHERS3HKABWB6PF5XBANXBQ4GSE86",
+					"recipient": null,
 					"recipient_btc_version": 4,
 					"recipient_btc_hashbytes": "0x9c32e45a19cf9c028bccf12816e62bbfc8eb5fb8",
 					"bitcoin_txid": null,
@@ -4912,14 +4920,14 @@
 							"string",
 							"null"
 						],
-						"description": "Sats minted, as a decimal string."
+						"description": "Sats minted: the deposited BTC minus `fee`."
 					},
-					"sender": {
+					"recipient": {
 						"type": [
 							"string",
 							"null"
 						],
-						"description": "Stacks principal on the event. Null on mainnet deposits today."
+						"description": "Stacks principal the deposit minted sBTC to (a wallet or contract)."
 					},
 					"bitcoin_txid": {
 						"type": [
@@ -4935,19 +4943,19 @@
 						],
 						"description": "The deposit output within that Bitcoin transaction."
 					},
-					"recipient_btc_version": {
-						"type": [
-							"integer",
-							"null"
-						],
-						"description": "Bitcoin address type of the recipient: 0 p2pkh, 1 p2sh, 2 p2sh-p2wpkh, 3 p2sh-p2wsh, 4 p2wpkh, 5 p2wsh, 6 p2tr."
-					},
-					"recipient_btc_hashbytes": {
+					"fee": {
 						"type": [
 							"string",
 							"null"
 						],
-						"description": "Recipient's hash bytes, `0x`-prefixed hex."
+						"description": "Sats the signers took to sweep the deposit, read from Bitcoin. Null for a few seconds after the deposit lands, or when the instance has no Bitcoin RPC."
+					},
+					"max_fee": {
+						"type": [
+							"string",
+							"null"
+						],
+						"description": "Most the depositor allowed the signers to take, from the deposit script. Null as for `fee`."
 					}
 				},
 				"example": {
@@ -4958,11 +4966,11 @@
 					"tx_index": 2,
 					"event_index": 4,
 					"amount": "79856",
-					"sender": null,
+					"recipient": "SP000000000000000000002Q6VF78.pox-5",
 					"bitcoin_txid": "0x2c11f9e20d21c96daed5d851c07d0e7c4361e552ebd78a8385f06fbb2f9892d3",
 					"output_index": 1,
-					"recipient_btc_version": null,
-					"recipient_btc_hashbytes": null
+					"fee": "144",
+					"max_fee": "80000"
 				}
 			},
 			"SbtcDepositDetail": {
@@ -5011,14 +5019,14 @@
 							"string",
 							"null"
 						],
-						"description": "Sats minted, as a decimal string."
+						"description": "Sats minted: the deposited BTC minus `fee`."
 					},
-					"sender": {
+					"recipient": {
 						"type": [
 							"string",
 							"null"
 						],
-						"description": "Stacks principal on the event. Null on mainnet deposits today."
+						"description": "Stacks principal the deposit minted sBTC to (a wallet or contract)."
 					},
 					"bitcoin_txid": {
 						"type": [
@@ -5034,19 +5042,19 @@
 						],
 						"description": "The deposit output within that Bitcoin transaction."
 					},
-					"recipient_btc_version": {
-						"type": [
-							"integer",
-							"null"
-						],
-						"description": "Bitcoin address type of the recipient: 0 p2pkh, 1 p2sh, 2 p2sh-p2wpkh, 3 p2sh-p2wsh, 4 p2wpkh, 5 p2wsh, 6 p2tr."
-					},
-					"recipient_btc_hashbytes": {
+					"fee": {
 						"type": [
 							"string",
 							"null"
 						],
-						"description": "Recipient's hash bytes, `0x`-prefixed hex."
+						"description": "Sats the signers took to sweep the deposit, read from Bitcoin. Null for a few seconds after the deposit lands, or when the instance has no Bitcoin RPC."
+					},
+					"max_fee": {
+						"type": [
+							"string",
+							"null"
+						],
+						"description": "Most the depositor allowed the signers to take, from the deposit script. Null as for `fee`."
 					},
 					"status": {
 						"type": "string",
@@ -5064,11 +5072,11 @@
 					"tx_index": 2,
 					"event_index": 4,
 					"amount": "79856",
-					"sender": null,
+					"recipient": "SP000000000000000000002Q6VF78.pox-5",
 					"bitcoin_txid": "0x2c11f9e20d21c96daed5d851c07d0e7c4361e552ebd78a8385f06fbb2f9892d3",
 					"output_index": 1,
-					"recipient_btc_version": null,
-					"recipient_btc_hashbytes": null,
+					"fee": "144",
+					"max_fee": "80000",
 					"status": "COMPLETED"
 				}
 			},
@@ -7802,11 +7810,11 @@
 					},
 					"sender": {
 						"type": "string",
-						"description": "Sender principal. `*` wildcards allowed. Accepted on `stx_transfer`, `stx_burn`, `ft_transfer`, `ft_burn`, `nft_transfer`, `nft_burn`, `sbtc_deposit`, `sbtc_withdrawal_create`."
+						"description": "Sender principal. `*` wildcards allowed. Accepted on `stx_transfer`, `stx_burn`, `ft_transfer`, `ft_burn`, `nft_transfer`, `nft_burn`, `sbtc_withdrawal_create`."
 					},
 					"recipient": {
 						"type": "string",
-						"description": "Recipient principal. `*` wildcards allowed. Accepted on `stx_transfer`, `stx_mint`, `ft_transfer`, `ft_mint`, `nft_transfer`, `nft_mint`."
+						"description": "Recipient principal. `*` wildcards allowed. Accepted on `stx_transfer`, `stx_mint`, `ft_transfer`, `ft_mint`, `nft_transfer`, `nft_mint`, `sbtc_deposit`."
 					},
 					"minAmount": {
 						"oneOf": [
@@ -7881,7 +7889,7 @@
 					"requestId": {
 						"type": "integer",
 						"minimum": 0,
-						"description": "sBTC request id. Accepted on `sbtc_deposit`, `sbtc_withdrawal_create`, `sbtc_withdrawal_accept`, `sbtc_withdrawal_reject`, `sbtc_withdrawal_swept_confirmed`."
+						"description": "sBTC request id. Accepted on `sbtc_withdrawal_create`, `sbtc_withdrawal_accept`, `sbtc_withdrawal_reject`, `sbtc_withdrawal_swept_confirmed`."
 					},
 					"sweepTxid": {
 						"type": "string",
@@ -14083,7 +14091,16 @@
 						"schema": {
 							"type": "string"
 						},
-						"description": "Stacks principal on the event (the withdrawal requester on `withdrawal-create`). Exact match."
+						"description": "Withdrawal requester, on `withdrawal-create`. Exact match."
+					},
+					{
+						"name": "recipient",
+						"in": "query",
+						"required": false,
+						"schema": {
+							"type": "string"
+						},
+						"description": "Stacks principal a `completed-deposit` minted sBTC to. Exact match."
 					},
 					{
 						"name": "request_id",
@@ -14260,13 +14277,13 @@
 						"description": "`true` stops the page at the finality boundary, so every row is past the reorg margin."
 					},
 					{
-						"name": "sender",
+						"name": "recipient",
 						"in": "query",
 						"required": false,
 						"schema": {
 							"type": "string"
 						},
-						"description": "Stacks principal on the event. Exact match. Mainnet deposits currently carry none."
+						"description": "Stacks principal the deposit minted sBTC to. Exact match."
 					},
 					{
 						"name": "bitcoin_txid",
@@ -14284,7 +14301,7 @@
 						"schema": {
 							"type": "string"
 						},
-						"description": "Comma-separated columns to return, from: `block_time`, `tx_id`, `tx_index`, `event_index`, `amount`, `sender`, `bitcoin_txid`, `output_index`, `recipient_btc_version`, `recipient_btc_hashbytes`. `cursor` and `block_height` always come back; an unknown name is refused."
+						"description": "Comma-separated columns to return, from: `block_time`, `tx_id`, `tx_index`, `event_index`, `amount`, `recipient`, `bitcoin_txid`, `output_index`, `fee`, `max_fee`. `cursor` and `block_height` always come back; an unknown name is refused."
 					}
 				],
 				"responses": {
@@ -14431,11 +14448,11 @@
 											"tx_index": 2,
 											"event_index": 4,
 											"amount": "79856",
-											"sender": null,
+											"recipient": "SP000000000000000000002Q6VF78.pox-5",
 											"bitcoin_txid": "0x2c11f9e20d21c96daed5d851c07d0e7c4361e552ebd78a8385f06fbb2f9892d3",
 											"output_index": 1,
-											"recipient_btc_version": null,
-											"recipient_btc_hashbytes": null,
+											"fee": "144",
+											"max_fee": "80000",
 											"status": "COMPLETED"
 										},
 										"tip": {

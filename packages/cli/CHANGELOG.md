@@ -1,5 +1,17 @@
 # @secondlayer/cli
 
+## 23.5.3
+
+### Patch Changes
+
+- Updated dependencies [fb999c2]
+  - @secondlayer/shared@16.0.0
+  - @secondlayer/stacks@7.0.0
+  - @secondlayer/sdk@17.0.0
+  - @secondlayer/subgraphs@8.1.9
+  - @secondlayer/scaffold@1.6.4
+  - @secondlayer/verify@0.6.4
+
 ## 23.5.2
 
 ### Patch Changes

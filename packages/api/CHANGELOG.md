@@ -1,5 +1,18 @@
 # @secondlayer/api
 
+## 1.64.11
+
+### Patch Changes
+
+- Updated dependencies [fb999c2]
+  - @secondlayer/shared@16.0.0
+  - @secondlayer/stacks@7.0.0
+  - @secondlayer/sdk@17.0.0
+  - @secondlayer/subgraphs@8.1.9
+  - @secondlayer/indexer@1.17.11
+  - @secondlayer/mcp@11.6.4
+  - @secondlayer/platform@0.10.24
+
 ## 1.64.10
 
 ### Patch Changes

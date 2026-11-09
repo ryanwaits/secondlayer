@@ -1,5 +1,13 @@
 # @secondlayer/workload
 
+## 0.2.42
+
+### Patch Changes
+
+- Updated dependencies [fb999c2]
+  - @secondlayer/shared@16.0.0
+  - @secondlayer/platform@0.10.24
+
 ## 0.2.41
 
 ### Patch Changes
