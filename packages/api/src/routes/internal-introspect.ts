@@ -1,6 +1,7 @@
 /**
  * `POST /internal/keys/introspect` — resolves a presented `sk-sl_*` account
- * key OR `ss-sl_*` dashboard session token to `{account_id, credits_ok}` for
+ * key OR `ss-sl_*` dashboard session token to `{account_id, credits_ok, api_key_id}`
+ * (`api_key_id` is null for a session) for
  * the gateway on the workload host: it introspects the customer's
  * credential here (cached 60s positive / 10s negative) before ever
  * forwarding a request into that account's tenant stack. The credential
@@ -67,6 +68,9 @@ app.post("/", async (c) => {
 
 	const db = getDb();
 	let accountId: string;
+	// Set for an account key, null for a dashboard session. The gateway counts
+	// hosted subgraph reads only for requests made with a key.
+	let apiKeyId: string | null = null;
 
 	if (presented.startsWith("ss-sl_")) {
 		const lookup = await lookupSession(db, hashToken(presented));
@@ -77,7 +81,7 @@ app.post("/", async (c) => {
 	} else {
 		const keyRecord = await db
 			.selectFrom("api_keys")
-			.select(["account_id", "product"])
+			.select(["id", "account_id", "product"])
 			.where("key_hash", "=", hashToken(presented))
 			.where("product", "in", ["account", "docs"])
 			.where(liveKeyWhere())
@@ -92,6 +96,7 @@ app.post("/", async (c) => {
 			return c.json({ error: "docs_key" }, 403);
 		}
 		accountId = keyRecord.account_id;
+		apiKeyId = keyRecord.id;
 	}
 
 	// No anonymous path: an unclaimed ghost account never gets a tenant
@@ -110,6 +115,7 @@ app.post("/", async (c) => {
 	return c.json({
 		account_id: accountId,
 		credits_ok: status.ok,
+		api_key_id: apiKeyId,
 	});
 });
 

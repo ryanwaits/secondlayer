@@ -55,6 +55,15 @@ async function makeApiKey(
 	return raw;
 }
 
+async function keyIdOf(raw: string): Promise<string> {
+	const row = await db
+		.selectFrom("api_keys")
+		.select("id")
+		.where("key_hash", "=", hashToken(raw))
+		.executeTakeFirstOrThrow();
+	return row.id;
+}
+
 async function makeSession(
 	accountId: string,
 	opts?: { revoked?: boolean; expiresAt?: Date },
@@ -218,6 +227,7 @@ describe.skipIf(!HAS_DB)("POST /internal/keys/introspect", () => {
 		expect(res.status).toBe(200);
 		expect(await res.json()).toEqual({
 			account_id: accountId,
+			api_key_id: await keyIdOf(raw),
 			credits_ok: false,
 		});
 	});
@@ -238,7 +248,26 @@ describe.skipIf(!HAS_DB)("POST /internal/keys/introspect", () => {
 		expect(await res.json()).toEqual({
 			account_id: accountId,
 			credits_ok: true,
+			api_key_id: await keyIdOf(raw),
 		});
+	});
+
+	test("an account key introspects to its own key id", async () => {
+		const accountId = await makeAccount();
+		const other = await makeApiKey(accountId);
+		const raw = await makeApiKey(accountId);
+		await creditCredits(db, accountId, 1_000_000n);
+		const res = await app().request("/internal/keys/introspect", {
+			method: "POST",
+			headers: {
+				"content-type": "application/json",
+				authorization: "Bearer test-workload-host-key",
+			},
+			body: JSON.stringify({ key: raw }),
+		});
+		const body = (await res.json()) as { api_key_id: string };
+		expect(body.api_key_id).toBe(await keyIdOf(raw));
+		expect(body.api_key_id).not.toBe(await keyIdOf(other));
 	});
 
 	test("an account over its monthly cap is not credits_ok", async () => {
@@ -257,6 +286,7 @@ describe.skipIf(!HAS_DB)("POST /internal/keys/introspect", () => {
 		});
 		expect(await res.json()).toEqual({
 			account_id: accountId,
+			api_key_id: await keyIdOf(raw),
 			credits_ok: false,
 		});
 	});
@@ -307,7 +337,24 @@ describe.skipIf(!HAS_DB)("POST /internal/keys/introspect", () => {
 		expect(await res.json()).toEqual({
 			account_id: accountId,
 			credits_ok: true,
+			api_key_id: null,
 		});
+	});
+
+	test("a dashboard session introspects to a null key id", async () => {
+		const accountId = await makeAccount();
+		const raw = await makeSession(accountId);
+		const res = await app().request("/internal/keys/introspect", {
+			method: "POST",
+			headers: {
+				"content-type": "application/json",
+				authorization: "Bearer test-workload-host-key",
+			},
+			body: JSON.stringify({ key: raw }),
+		});
+		expect(
+			((await res.json()) as { api_key_id: unknown }).api_key_id,
+		).toBeNull();
 	});
 
 	test("expired session → 401 invalid_key", async () => {
