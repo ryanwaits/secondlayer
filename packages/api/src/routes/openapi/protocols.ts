@@ -40,21 +40,6 @@ void _withdrawalStatusesExhaustive;
 
 const LIMIT = { $ref: "#/components/parameters/Limit" };
 
-/** `/stacking` pages on (block_height, tx_index), not the event keyset the
- *  shared range params describe (`parseTxIndexCursor`). */
-const TX_CURSOR_RANGE_PARAMS = [
-	{
-		...qp(
-			"cursor",
-			"string",
-			false,
-			"`<block_height>:<tx_index>` from a previous page's `next_cursor`. Resumes after it.",
-		),
-		schema: { type: "string", example: "8647822:1" },
-	},
-	...INDEX_RANGE_PARAMS.slice(1),
-];
-
 /** `parseSbtcBaseQuery`: `true` clamps `to_height` to the finality boundary. */
 const SBTC_CONFIRMED = qp(
 	"confirmed",
@@ -62,12 +47,6 @@ const SBTC_CONFIRMED = qp(
 	false,
 	"`true` stops the page at the finality boundary, so every row is past the reorg margin.",
 );
-
-const POX4_NOTES = {
-	type: "string",
-	description:
-		"Present only when the feed cannot grow: PoX-4 decoding is off on this instance, or the PoX-4 era closed at the epoch 4.0 fork.",
-};
 
 const SBTC_NOTES = {
 	type: "string",
@@ -373,54 +352,15 @@ const SBTC_SUMMARY_EXAMPLE = {
 	sbtc_supply_sats: "247872312898",
 };
 
-/** Protocol reads decoded from boot and protocol contracts: PoX-4, PoX-5, sBTC. */
+/** Protocol reads decoded from boot and protocol contracts: PoX-5, sBTC. */
 export const protocolsPaths = {
-	"/v1/index/stacking": {
-		get: {
-			tags: ["index"],
-			summary: "PoX-4 stacking actions",
-			"x-nav-title": "PoX-4 stacking",
-			description:
-				"Decoded PoX-4 contract calls (`stack-stx`, `delegate-stx`, `stack-aggregation-commit-indexed`, …), one row per call, oldest first. Pages on `<block_height>:<tx_index>`. With no cursor or `from_height`, the read covers the last day. PoX-4 stopped at the epoch 4.0 fork, so read history with `from_height` and use `/v1/index/pox5/events` for what came after.",
-			security: READ_SECURITY,
-			parameters: [
-				LIMIT,
-				...TX_CURSOR_RANGE_PARAMS,
-				qp(
-					"function_name",
-					"string",
-					false,
-					"PoX-4 function name, e.g. `stack-stx` or `delegate-stack-stx`. Exact match.",
-				),
-				qp(
-					"stacker",
-					"string",
-					false,
-					"Stacker principal named in the call. Exact match. Solo `stack-stx` calls leave it null, so filter those by `caller`.",
-				),
-				qp("caller", "string", false, "Transaction sender. Exact match."),
-			],
-			responses: feedResponses("stacking", "StackingAction", {
-				cached: true,
-				notes: POX4_NOTES,
-			}),
-			"x-codeSamples": [
-				{
-					lang: "TypeScript",
-					label: "SDK",
-					source:
-						'const page = await sl.index.stacking.list({\n  functionName: "stack-stx",\n  fromHeight: 8640000,\n});',
-				},
-			],
-		},
-	},
 	"/v1/index/pox/cycles": {
 		get: {
 			tags: ["index"],
 			summary: "Reward cycles of the current PoX (PoX-5)",
 			"x-nav-title": "Reward cycles",
 			description:
-				"One row per pox-5 reward cycle, descending, exact to the node: total stacked, reward-eligible STX, bond sats, sBTC custodied, rewards allocated/claimed, and cumulative rewards-per-token. Without a cursor, your list starts at the next reward cycle (the current one plus one) and goes back in time. Pass a higher `cursor` to reach cycles further in the future, which PoX-5 bonds can lock many cycles ahead. `pox_version` marks the era; at the next PoX fork this endpoint follows the chain and reports the new PoX instead. PoX-4 history is final and not served here; rebuild it from `/v1/index/stacking` on a self-hosted instance. Frozen cycles cache for an hour; the still-open current cycle caches briefly.",
+				"One row per pox-5 reward cycle, descending, exact to the node: total stacked, reward-eligible STX, bond sats, sBTC custodied, rewards allocated/claimed, and cumulative rewards-per-token. Without a cursor, your list starts at the next reward cycle (the current one plus one) and goes back in time. Pass a higher `cursor` to reach cycles further in the future, which PoX-5 bonds can lock many cycles ahead. `pox_version` marks the era; at the next PoX fork this endpoint follows the chain and reports the new PoX instead. PoX-4 history is final and not served here; read it from `/v1/index/contract-calls?contract_id=SP000000000000000000002Q6VF78.pox-4`. Frozen cycles cache for an hour; the still-open current cycle caches briefly.",
 			security: READ_SECURITY,
 			parameters: [
 				{
@@ -539,7 +479,7 @@ export const protocolsPaths = {
 				"400": jsonError("`reward_cycle` is not a non-negative integer"),
 				"401": jsonError(ERROR_401),
 				"404": jsonError(
-					"The cycle doesn't exist yet, or (below 141) is PoX-4 history: final and not served here; rebuild it from /v1/index/stacking on a self-hosted instance",
+					"The cycle doesn't exist yet, or (below 141) is PoX-4 history: final and not served here; read it from /v1/index/contract-calls?contract_id=SP000000000000000000002Q6VF78.pox-4",
 				),
 				"429": jsonError(ERROR_429),
 			},
@@ -558,7 +498,7 @@ export const protocolsPaths = {
 			summary: "Decoded PoX-5 boot-contract events",
 			"x-nav-title": "PoX-5 events",
 			description:
-				"Decoded print log of the pox-5 boot contract (SIP-045 Bitcoin Staking) — all 19 topics (stake, stake-update, register-signer, unstake, claim-rewards, etc.), one row per print. Starts at the epoch 4.0 hard fork, where /v1/index/stacking's pox-4 feed ends.",
+				"Decoded print log of the pox-5 boot contract (SIP-045 Bitcoin Staking) — all 19 topics (stake, stake-update, register-signer, unstake, claim-rewards, etc.), one row per print. Starts at the epoch 4.0 hard fork.",
 			security: READ_SECURITY,
 			parameters: [
 				{ $ref: "#/components/parameters/Limit" },
@@ -1244,134 +1184,6 @@ const STATUS_PROP = {
 
 /** Resource schemas for these rows, merged into `components.schemas`. */
 export const protocolsSchemas = {
-	StackingAction: {
-		type: "object",
-		description:
-			"One decoded PoX-4 contract call. Which columns are set depends on `function_name`; a failed call sets only the base fields.",
-		required: [
-			"cursor",
-			"block_height",
-			"burn_block_height",
-			"tx_id",
-			"tx_index",
-			"function_name",
-			"caller",
-			"pox_addr",
-			"result_ok",
-		],
-		properties: {
-			cursor: {
-				type: "string",
-				description: "`<block_height>:<tx_index>`. Pass as `cursor`.",
-			},
-			block_height: {
-				type: "integer",
-				description: "Stacks block the call landed in.",
-			},
-			block_time: BLOCK_TIME_PROP,
-			burn_block_height: {
-				type: "integer",
-				description: "Bitcoin block that Stacks block anchors to.",
-			},
-			tx_id: { type: "string", description: "The calling transaction." },
-			tx_index: {
-				type: "integer",
-				description:
-					"Its position in the block. With `block_height`, the cursor.",
-			},
-			function_name: {
-				type: "string",
-				description: "PoX-4 function called, e.g. `stack-stx`.",
-			},
-			caller: { type: "string", description: "Transaction sender." },
-			stacker: {
-				type: ["string", "null"],
-				description:
-					"Stacker the call acts on, on delegate-side calls. Null on solo `stack-stx`, where `caller` is the stacker.",
-			},
-			delegate_to: {
-				type: ["string", "null"],
-				description: "Pool operator, on `delegate-stx`.",
-			},
-			amount_ustx: {
-				type: ["string", "null"],
-				description:
-					"microSTX as a decimal string (bigint-safe): the amount locked, delegated or increased by.",
-			},
-			lock_period: {
-				type: ["integer", "null"],
-				description: "Cycles locked, or extended by.",
-			},
-			pox_addr: {
-				type: "object",
-				description:
-					"Bitcoin reward address. Every field is null when the call names none.",
-				properties: {
-					version: {
-						type: ["integer", "null"],
-						description: "Bitcoin address type byte.",
-					},
-					hashbytes: {
-						type: ["string", "null"],
-						description: "Address hash bytes, `0x`-prefixed hex.",
-					},
-					btc: {
-						type: ["string", "null"],
-						description: "The same address, encoded.",
-					},
-				},
-			},
-			start_cycle: {
-				type: ["integer", "null"],
-				description: "First reward cycle the lock covers.",
-			},
-			end_cycle: {
-				type: ["integer", "null"],
-				description: "Last reward cycle the lock covers.",
-			},
-			reward_cycle: {
-				type: ["integer", "null"],
-				description:
-					"Reward cycle named by aggregation and signer-key calls. What `/v1/index/pox/cycles` groups on.",
-			},
-			signer_key: {
-				type: ["string", "null"],
-				description: "Signer public key, `0x`-prefixed hex.",
-			},
-			result_ok: {
-				type: "boolean",
-				description: "Whether the call returned `ok`.",
-			},
-		},
-		// A real row: mainnet, block 8,647,822.
-		example: {
-			cursor: "8647822:1",
-			block_height: 8647822,
-			block_time: "2026-07-27T18:39:09.000Z",
-			burn_block_height: 959869,
-			tx_id:
-				"0x995fb653065c74596b63e6cc9c10fb8fa7b8f3574d5ea089b45d3e11d9e7336e",
-			tx_index: 1,
-			function_name: "stack-stx",
-			caller: "SP14S259H3AC9PXWJ8EVX9ER5NZ58R03GR4QAKHCB",
-			stacker: null,
-			delegate_to: null,
-			amount_ustx: "4491100000000",
-			lock_period: 1,
-			pox_addr: {
-				version: 6,
-				hashbytes:
-					"0x6f0fbc92d6ad56a9d7783b7420ae6731434831e3484d82ad54afe32d7fc7ad6d",
-				btc: "bc1pdu8meykk44t2n4mc8d6zptn8x9p5sv0rfpxc9t254l3j6l7844ksz4jjcs",
-			},
-			start_cycle: 139,
-			end_cycle: 139,
-			reward_cycle: null,
-			signer_key:
-				"0x031b91a32ab90b80d40715e8875fb3dfe996aa1e6f5e62ba05d34542aa58ad43b5",
-			result_ok: true,
-		},
-	},
 	Pox5Cycle: {
 		type: "object",
 		description:

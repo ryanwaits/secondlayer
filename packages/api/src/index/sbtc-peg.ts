@@ -273,8 +273,8 @@ function keysetPredicate(after: IndexCursorInput): RawBuilder<unknown> {
 	return sql`(block_height, event_index) > (${after.block_height}, ${after.event_index})`;
 }
 
-// sbtc_events carries its own NOT NULL `block_time` column (unlike pox4_calls /
-// decoded_events, which need a correlated `blocks` lookup), so select it directly.
+// sbtc_events carries its own NOT NULL `block_time` column (unlike
+// decoded_events, which needs a correlated `blocks` lookup), so select it directly.
 const SBTC_EVENT_COLUMNS = sql`
 	cursor,
 	block_height,

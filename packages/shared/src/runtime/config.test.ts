@@ -64,7 +64,6 @@ describe("minimal config", () => {
 			SUBGRAPH_SOURCE: "streams-index",
 			SUBGRAPH_INDEX_API_URL: "http://127.0.0.1:3800",
 			SBTC_DECODER_ENABLED: "true",
-			POX4_DECODER_ENABLED: "true",
 			BNS_DECODER_ENABLED: "false",
 		});
 		expect(result.ok).toBe(true);

@@ -11,7 +11,6 @@ import { OBSERVER_APPLY_LOCK_KEY } from "@secondlayer/shared/leader";
 import { logger } from "@secondlayer/shared/logger";
 import type { Kysely, Transaction } from "kysely";
 import { handleBnsReorg } from "./decode/bns-storage.ts";
-import { handlePox4Reorg } from "./decode/pox4-storage.ts";
 import { handlePox5Reorg } from "./decode/pox5-storage.ts";
 import { handleSbtcReorg } from "./decode/sbtc-storage.ts";
 import { handleDecodedEventsReorg } from "./decode/storage.ts";
@@ -130,7 +129,7 @@ async function runReorgCascade(
 	await markContractsNonCanonical(tx, blockHeight);
 
 	// Reconcile every decoded plane in the same tx: the generic decoded_events
-	// table plus the per-asset projections (sBTC, pox4, BNS), which share the
+	// table plus the per-asset projections (sBTC, pox5, BNS), which share the
 	// same dense-cursor reorg hazard and were previously left un-reconciled
 	// (their handlers existed but were never called). Each hard-DELETEs >= H
 	// and rewinds its decoder checkpoint. Safe when a plane is disabled/empty
@@ -139,7 +138,6 @@ async function runReorgCascade(
 		db: tx,
 	});
 	const sbtcReorg = await handleSbtcReorg(blockHeight, { db: tx });
-	const pox4Reorg = await handlePox4Reorg(blockHeight, { db: tx });
 	const pox5Reorg = await handlePox5Reorg(blockHeight, { db: tx });
 	const bnsReorg = await handleBnsReorg(blockHeight, { db: tx });
 	const reorg = await insertChainReorg({
@@ -159,7 +157,6 @@ async function runReorgCascade(
 		blockHeight,
 		decodedReorg,
 		sbtcReorg,
-		pox4Reorg,
 		pox5Reorg,
 		bnsReorg,
 		reorg,

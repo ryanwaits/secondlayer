@@ -1,6 +1,6 @@
 import {
 	isBnsDecoderEnabled,
-	isPox4DecoderEnabled,
+	isPox5DecoderEnabled,
 	isSbtcDecoderEnabled,
 } from "@secondlayer/shared";
 
@@ -16,7 +16,7 @@ export const INSTANCE_FEATURE_MANIFEST = {
 	verification: true,
 	protocolDatasets: {
 		sbtc: isSbtcDecoderEnabled(),
-		pox: isPox4DecoderEnabled(),
+		pox: isPox5DecoderEnabled(),
 		bns: isBnsDecoderEnabled(),
 	},
 	signup: false,

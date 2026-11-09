@@ -22,9 +22,8 @@ import type { IndexTip } from "./tip.ts";
 /**
  * Typed PoX-5 read surface over the already-decoded `pox5_events` table — the
  * raw decoded print log of the `pox-5` boot contract (SIP-045 Bitcoin Staking),
- * all 19 topics, one row per print, no opinion applied. The platform primitive
- * PoX-4's `/v1/index/stacking` was for the pox-4 era: that stream dries up
- * permanently at the epoch 4.0 hard fork, this one starts at block one.
+ * all 19 topics, one row per print, no opinion applied. The staking primitive
+ * since the epoch 4.0 hard fork; it starts at block one.
  *
  * Packaging, not ingestion — the rows already exist with reorg-canonical
  * handling. Bond/staker/signer projections and per-cycle rollups are app-shaped
@@ -169,8 +168,8 @@ function keysetPredicate(after: IndexCursorInput): RawBuilder<unknown> {
 	return sql`(block_height, event_index) > (${after.block_height}, ${after.event_index})`;
 }
 
-// pox5_events carries its own NOT NULL `block_time` column (unlike pox4_calls /
-// decoded_events, which need a correlated `blocks` lookup), so select it
+// pox5_events carries its own NOT NULL `block_time` column (unlike
+// decoded_events, which needs a correlated `blocks` lookup), so select it
 // directly — no per-row subquery.
 const POX5_EVENT_COLUMNS = sql`
 	cursor,

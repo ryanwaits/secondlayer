@@ -4,6 +4,10 @@ Notable changes to Secondlayer and its SDKs. Entries dated before August 2026 de
 
 ## Index — November 2026
 
+### PoX-4 stacking endpoint retired
+
+`/v1/index/stacking`, `sl.index.stacking` and `secondlayer index stacking` are gone. pox-4 is retired since the chain moved to pox-5, so its calls are now plain contract calls: read them from `/v1/index/contract-calls?contract_id=SP000000000000000000002Q6VF78.pox-4`, or filter Streams by that `contract_id`. For staking since the fork, use `/v1/index/pox5/events` and `/v1/index/pox/cycles`.
+
 ### sBTC deposits show who got the sBTC and what the signers took
 
 Every completed deposit now carries `recipient`, the principal the sBTC was minted to, plus `fee` and `max_fee` read from Bitcoin. Deposits used to show a null `sender`. Filter `/v1/index/sbtc/deposits` and the `sbtc_deposit` webhook by `recipient`; `sender` and `requestId` are gone from both.

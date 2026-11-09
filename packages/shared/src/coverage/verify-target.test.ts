@@ -30,7 +30,7 @@ describe("verify targets", () => {
 		);
 		expect(
 			reportVerify({
-				target: { kind: "decode", name: "pox4" },
+				target: { kind: "decode", name: "sbtc" },
 				anchored: false,
 			}).exit,
 		).toBe(2);

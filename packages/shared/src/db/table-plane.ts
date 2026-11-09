@@ -54,7 +54,6 @@ export const TABLE_TO_DB = {
 	// ── SOURCE: decoded ──
 	decoded_events: "source",
 	decoder_checkpoints: "source",
-	pox4_calls: "source",
 	pox5_events: "source",
 	pox5_cycles: "source",
 	pox5_cycle_signers: "source",

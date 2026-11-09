@@ -8,7 +8,6 @@ export * from "./streams-cursor.ts";
 export {
 	getEnv,
 	isBnsDecoderEnabled,
-	isPox4DecoderEnabled,
 	isPox5DecoderEnabled,
 	isSbtcDecoderEnabled,
 	stacksNetwork,

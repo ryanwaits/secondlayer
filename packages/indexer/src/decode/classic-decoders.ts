@@ -108,7 +108,7 @@ const CLASSIC_DECODER_NAME_BY_TYPE: Partial<
  * for (`same_block_events` + `streamOrdinalCtes` in `../streams-events.ts`), so
  * a limit smaller than a heavy block's row count turns one block into N full
  * block scans instead of one. This is independent of `DECODER_BATCH_SIZE`
- * (the page size the OTHER classic-style decoders — bns/pox4/pox5/sbtc, real
+ * (the page size the OTHER classic-style decoders — bns/pox5/sbtc, real
  * HTTP Streams consumers, `runDecoder` in `./service.ts`) use: that value is
  * effectively a public API page-size default and must not move with this
  * one. `maxPagesPerCycle` below still bounds a backlog bigger than this cap;

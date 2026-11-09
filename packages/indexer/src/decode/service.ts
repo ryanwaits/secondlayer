@@ -1,6 +1,5 @@
 import {
 	isBnsDecoderEnabled,
-	isPox4DecoderEnabled,
 	isPox5DecoderEnabled,
 	isSbtcDecoderEnabled,
 } from "@secondlayer/shared";
@@ -17,7 +16,6 @@ import {
 	waitForNextClassicDecodeCycle,
 } from "./classic-decoders.ts";
 import { consumeBnsDecodedEvents } from "./decoders/bns.ts";
-import { consumePox4DecodedEvents } from "./decoders/pox-4.ts";
 import { consumePox5DecodedEvents } from "./decoders/pox-5.ts";
 import {
 	consumeSbtcRegistryDecodedEvents,
@@ -40,7 +38,6 @@ const DECODER_BATCH_SIZE = 500;
 const PORT = Number.parseInt(process.env.PORT || "3710", 10);
 const controller = new AbortController();
 const SBTC_ENABLED = isSbtcDecoderEnabled();
-const POX4_ENABLED = isPox4DecoderEnabled();
 const POX5_ENABLED = isPox5DecoderEnabled();
 const BNS_ENABLED = isBnsDecoderEnabled();
 // Opt-in (needs bitcoind RPC creds): the BTC L1 settlement confirmer for sBTC
@@ -64,7 +61,6 @@ const DECODED_EVENT_DECODERS = {
 const decodedTotals: Record<string, number> = {
 	...DECODED_EVENT_DECODERS,
 	...(SBTC_ENABLED ? { "decode.sbtc.v1": 0, "decode.sbtc_token.v1": 0 } : {}),
-	...(POX4_ENABLED ? { "decode.pox4.v1": 0 } : {}),
 	...(POX5_ENABLED ? { "decode.pox5.v1": 0 } : {}),
 	...(BNS_ENABLED ? { "decode.bns.v1": 0 } : {}),
 	...(SETTLEMENT_CONFIRMER_ENABLED ? { [SETTLEMENT_CONFIRMER_NAME]: 0 } : {}),
@@ -72,7 +68,6 @@ const decodedTotals: Record<string, number> = {
 const decodedThisMinute: Record<string, number> = {
 	...DECODED_EVENT_DECODERS,
 	...(SBTC_ENABLED ? { "decode.sbtc.v1": 0, "decode.sbtc_token.v1": 0 } : {}),
-	...(POX4_ENABLED ? { "decode.pox4.v1": 0 } : {}),
 	...(POX5_ENABLED ? { "decode.pox5.v1": 0 } : {}),
 	...(BNS_ENABLED ? { "decode.bns.v1": 0 } : {}),
 	...(SETTLEMENT_CONFIRMER_ENABLED ? { [SETTLEMENT_CONFIRMER_NAME]: 0 } : {}),
@@ -253,7 +248,7 @@ async function runDecoder(
  */
 async function runClassicDecoders(): Promise<void> {
 	// Deliberately NOT `DECODER_BATCH_SIZE` — that constant is the page size for
-	// the OTHER classic-style decoders (bns/pox4/pox5/sbtc), real HTTP Streams
+	// the OTHER classic-style decoders (bns/pox5/sbtc), real HTTP Streams
 	// consumers via `runDecoder` below, and moving it would change public-facing
 	// Streams page-size behavior. This loop reads the source DB in-process, so
 	// it can afford a much larger cap: a heavy block (thousands of rows) then
@@ -358,11 +353,6 @@ async function runDecoders(): Promise<void> {
 		);
 	} else {
 		logger.info("decoder.sbtc_disabled");
-	}
-	if (POX4_ENABLED) {
-		tasks.push(runDecoder("decode.pox4.v1", consumePox4DecodedEvents));
-	} else {
-		logger.info("decoder.pox4_disabled");
 	}
 	if (POX5_ENABLED) {
 		tasks.push(runDecoder("decode.pox5.v1", consumePox5DecodedEvents));

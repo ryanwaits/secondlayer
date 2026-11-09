@@ -1560,20 +1560,6 @@
 			"route": "/docs/sdk-reference/index",
 			"anchor": "m-printSchema"
 		},
-		"Index.stacking.list": {
-			"kind": "method",
-			"summary": "Read one page of decoded PoX-4 stacking actions.",
-			"sig": "sl.index.stacking.list(params?: StackingListParams): Promise<StackingEnvelope>",
-			"route": "/docs/sdk-reference/index",
-			"anchor": "m-stacking-list"
-		},
-		"Index.stacking.walk": {
-			"kind": "method",
-			"summary": "Iterate every PoX-4 stacking action, paging for you.",
-			"sig": "sl.index.stacking.walk(params?: StackingWalkParams): AsyncIterable<IndexStackingAction, any, any>",
-			"route": "/docs/sdk-reference/index",
-			"anchor": "m-stacking-walk"
-		},
 		"Index.stateWrites.list": {
 			"kind": "method",
 			"summary": "Read one page of the contract-state writes each block committed.",
@@ -2991,47 +2977,6 @@
 			],
 			"route": "/docs/sdk-reference/index",
 			"anchor": "t-IndexSbtcWithdrawalPhase"
-		},
-		"IndexStackingAction": {
-			"kind": "type",
-			"summary": "A decoded PoX-4 stacking action (one per stacking contract call).",
-			"fields": [
-				{
-					"name": "cursor",
-					"type": "string"
-				},
-				{
-					"name": "block_height",
-					"type": "number"
-				},
-				{
-					"name": "block_time",
-					"type": "string | null"
-				},
-				{
-					"name": "burn_block_height",
-					"type": "number"
-				},
-				{
-					"name": "tx_id",
-					"type": "string"
-				},
-				{
-					"name": "tx_index",
-					"type": "number"
-				},
-				{
-					"name": "function_name",
-					"type": "string"
-				},
-				{
-					"name": "caller",
-					"type": "string"
-				}
-			],
-			"more": 10,
-			"route": "/docs/sdk-reference/index",
-			"anchor": "t-IndexStackingAction"
 		},
 		"IndexStateWrite": {
 			"kind": "type",
@@ -5483,20 +5428,6 @@
 			"route": "/docs/sdk-reference/index",
 			"anchor": "m-sbtc-withdrawals-walk"
 		},
-		"sl.index.stacking.list": {
-			"kind": "method",
-			"summary": "Read one page of decoded PoX-4 stacking actions.",
-			"sig": "sl.index.stacking.list(params?: StackingListParams): Promise<StackingEnvelope>",
-			"route": "/docs/sdk-reference/index",
-			"anchor": "m-stacking-list"
-		},
-		"sl.index.stacking.walk": {
-			"kind": "method",
-			"summary": "Iterate every PoX-4 stacking action, paging for you.",
-			"sig": "sl.index.stacking.walk(params?: StackingWalkParams): AsyncIterable<IndexStackingAction, any, any>",
-			"route": "/docs/sdk-reference/index",
-			"anchor": "m-stacking-walk"
-		},
 		"sl.index.stateWrites.list": {
 			"kind": "method",
 			"summary": "Read one page of the contract-state writes each block committed.",
@@ -5888,115 +5819,6 @@
 			"sig": "sl.webhooks.update(id: string, patch: UpdateWebhookRequest): Promise<WebhookDetail>",
 			"route": "/docs/sdk-reference/webhooks",
 			"anchor": "m-update"
-		},
-		"StackingEnvelope": {
-			"kind": "type",
-			"summary": "One page of stacking actions, with the cursor, tip, and reorgs.",
-			"fields": [
-				{
-					"name": "stacking",
-					"type": "IndexStackingAction[]"
-				},
-				{
-					"name": "next_cursor",
-					"type": "string | null"
-				},
-				{
-					"name": "tip",
-					"type": "IndexTip"
-				},
-				{
-					"name": "reorgs",
-					"type": "IndexReorg[]"
-				},
-				{
-					"name": "notes",
-					"type": "string"
-				}
-			],
-			"route": "/docs/sdk-reference/index",
-			"anchor": "t-StackingEnvelope"
-		},
-		"StackingListParams": {
-			"kind": "type",
-			"summary": "Paging and filters for listing stacking actions.",
-			"fields": [
-				{
-					"name": "cursor",
-					"type": "string | null"
-				},
-				{
-					"name": "fromCursor",
-					"type": "string | null"
-				},
-				{
-					"name": "limit",
-					"type": "number"
-				},
-				{
-					"name": "functionName",
-					"type": "string"
-				},
-				{
-					"name": "stacker",
-					"type": "string"
-				},
-				{
-					"name": "caller",
-					"type": "string"
-				},
-				{
-					"name": "fromHeight",
-					"type": "number"
-				},
-				{
-					"name": "toHeight",
-					"type": "number"
-				}
-			],
-			"route": "/docs/sdk-reference/index",
-			"anchor": "t-StackingListParams"
-		},
-		"StackingWalkParams": {
-			"kind": "type",
-			"summary": "StackingListParams without limit, plus walk options.",
-			"fields": [
-				{
-					"name": "cursor",
-					"type": "string | null"
-				},
-				{
-					"name": "fromHeight",
-					"type": "number"
-				},
-				{
-					"name": "toHeight",
-					"type": "number"
-				},
-				{
-					"name": "fromCursor",
-					"type": "string | null"
-				},
-				{
-					"name": "functionName",
-					"type": "string"
-				},
-				{
-					"name": "stacker",
-					"type": "string"
-				},
-				{
-					"name": "caller",
-					"type": "string"
-				},
-				{
-					"name": "retryCount",
-					"type": "number"
-				}
-			],
-			"more": 4,
-			"route": "/docs/sdk-reference/index",
-			"anchor": "t-StackingWalkParams"
 		},
 		"StateWritesEnvelope": {
 			"kind": "type",
@@ -11910,16 +11732,6 @@
 				"summary": "Infers the shape of a contract's print payloads from its canonical print events, grouped by the tuple's topic field.",
 				"route": "/docs/api/index",
 				"anchor": "get-print-schema"
-			}
-		},
-		{
-			"path": "/v1/index/stacking",
-			"method": "GET",
-			"tip": {
-				"kind": "endpoint",
-				"summary": "Decoded PoX-4 contract calls (stack-stx, delegate-stx, stack-aggregation-commit-indexed, …), one row per call, oldest first.",
-				"route": "/docs/api/index",
-				"anchor": "list-pox4-stacking"
 			}
 		},
 		{

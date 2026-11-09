@@ -4,8 +4,8 @@
  * (`packages/indexer/src/decode/pox5-cycles.ts`), served on hosted and
  * self-host alike (never gated by a decoder-enabled flag).
  *
- * PoX-4 history is retired outright (plan 078): the old rollup queried
- * `pox4_calls`, a table that stopped growing forever at the epoch 4.0 fork.
+ * PoX-4 cycles are retired outright: pox-4 stopped at the epoch 4.0 fork, and
+ * its calls stay readable through `/v1/index/contract-calls`.
  * At the next PoX fork, repeat this move — a new `pox<N>_cycles` rollup, a
  * `pox_version` flip, this file rewritten again. The endpoint path never
  * changes.
@@ -39,7 +39,7 @@ const POX5_CYCLE_PARAMS = {
 export const FIRST_POX5_REWARD_CYCLE = 141;
 
 export const POX4_NOT_SERVED_NOTE =
-	"PoX-4 cycles are final and not served. Rebuild them from /v1/index/stacking on a self-hosted instance.";
+	"PoX-4 cycles are final and not served. Read pox-4 history from /v1/index/contract-calls?contract_id=SP000000000000000000002Q6VF78.pox-4.";
 
 /** A pox-5 reward cycle's materialized totals, before the tip-relative
  *  `is_current` / `is_frozen` flags are applied. */

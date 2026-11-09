@@ -132,16 +132,7 @@ export function isProductionEnv(): boolean {
 type EnvMap = NodeJS.ProcessEnv;
 
 /**
- * PoX-4 stacking decoder is ON by default — `/v1/index/stacking` is part of the
- * public surface, so the decoder that fills `pox4_calls` runs unless explicitly
- * opted out with `POX4_DECODER_ENABLED=false` (mirrors the sBTC decoder policy).
- */
-export function isPox4DecoderEnabled(env: EnvMap = process.env): boolean {
-	return env.POX4_DECODER_ENABLED !== "false";
-}
-
-/**
- * PoX-5 print-event decoder is ON by default (mirrors pox-4/sBTC policy).
+ * PoX-5 print-event decoder is ON by default (mirrors the sBTC policy).
  * No activation gating needed: pox-5 events cannot exist before the Epoch 4.0
  * hard fork (Bitcoin block 960,230), so pre-activation the decoder idles at
  * tip. Opt out with `POX5_DECODER_ENABLED=false`.

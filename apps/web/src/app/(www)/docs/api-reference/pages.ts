@@ -63,8 +63,8 @@ export const API_PAGES: ApiPage[] = [
 			},
 			{
 				title: "PoX",
-				summary: "Stacking actions, reward cycles and PoX-5 events.",
-				paths: ["/v1/index/stacking", "/v1/index/pox/*", "/v1/index/pox5/*"],
+				summary: "Reward cycles and PoX-5 events.",
+				paths: ["/v1/index/pox/*", "/v1/index/pox5/*"],
 			},
 			{
 				title: "Runes",

@@ -38,7 +38,7 @@ Global flags `--api-key <key>` and `--api-url <url>` are available on every comm
 - [Credits](#credits) — `credits buy|balance|refill`
 - [Subgraphs](#subgraphs) — `create`, `dev`, `deploy`, `list`, `status`, `spec`, `source`, `reindex`, `backfill`, `stop`, `operations`, `gaps`, `query`, `delete`, `scaffold`
 - [Webhooks](#webhooks) — `create`, `list`, `get`, `update`, `pause`, `resume`, `delete`, `rotate-secret`, `deliveries`, `dead`, `requeue`, `replay`, `doctor`, `test`
-- [Index](#index) — `ft-transfers`, `nft-transfers`, `events`, `contract-calls`, `transactions`, `blocks`, `canonical`, `stacking`, `mempool`
+- [Index](#index) — `ft-transfers`, `nft-transfers`, `events`, `contract-calls`, `transactions`, `blocks`, `canonical`, `mempool`
 - [Streams](#streams) — `tip`, `events`, `consume`, `reorgs`, `canonical`, `by-tx`, `block-events`, `dumps`
 - [Devnet](#devnet) — `devnet connect|down|status|logs|faucet` (Clarinet → local Secondlayer stack)
 - [Config](#config) — `config get|set|reset|delete`
@@ -697,7 +697,6 @@ whatever this instance has bootstrapped.
 - `secondlayer index transactions [--type] [--sender] [filters…]` · `index transactions get <txId>`
 - `secondlayer index blocks [--from-height] [--to-height] [--cursor] [--limit]` · `index blocks get <height|hash>`
 - `secondlayer index canonical [--from-height] [--to-height]`: the canonical block sequence (height + hash)
-- `secondlayer index stacking [--function-name] [--stacker] [--caller]`: decoded PoX-4 stacking actions
 - `secondlayer index mempool [--contract-id] [--function-name] [--sender] [--type] [--cursor] [--limit]` · `index mempool get <txId>` (404 once mined)
 
 List commands take `--from-height`, `--to-height`, `--cursor`, `--limit` and

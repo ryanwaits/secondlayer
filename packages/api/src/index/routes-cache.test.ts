@@ -17,7 +17,6 @@ import type {
 	MempoolTransaction,
 } from "./mempool.ts";
 import type { NftTransfersReader } from "./nft-transfers.ts";
-import type { StackingAction, StackingReader } from "./stacking.ts";
 import type { IndexTip } from "./tip.ts";
 import type {
 	IndexTransaction,
@@ -168,32 +167,6 @@ const ONE_TX: TransactionsReader = async () => ({
 const TX_BY_ID: TransactionByIdReader = async (txId) =>
 	txId === "0xtt" ? TX_9000 : null;
 
-const STACK_9000: StackingAction = {
-	cursor: "9000:0",
-	block_height: 9000,
-	block_time: "2026-05-01T00:00:00.000Z",
-	burn_block_height: 19_000,
-	tx_id: "0xstx",
-	tx_index: 0,
-	function_name: "stack-stx",
-	caller: "SP1",
-	stacker: "SP1",
-	delegate_to: null,
-	amount_ustx: "1000000",
-	lock_period: 6,
-	pox_addr: { version: 4, hashbytes: "0xabcd", btc: "bc1q9000" },
-	start_cycle: 100,
-	end_cycle: 106,
-	reward_cycle: 100,
-	signer_key: null,
-	result_ok: true,
-};
-
-const ONE_STACK: StackingReader = async () => ({
-	stacking: [STACK_9000],
-	next_cursor: "9000:0",
-});
-
 const PENDING_TX: MempoolTransaction = {
 	cursor: "42",
 	tx_id: "0xpending",
@@ -233,7 +206,6 @@ function createApp(readEvents: IndexEventsReader = ONE_EVENT) {
 			readBlockByRef: BLOCK_BY_REF,
 			readTransactions: ONE_TX,
 			readTransactionById: TX_BY_ID,
-			readStacking: ONE_STACK,
 			readMempool: ONE_MEMPOOL,
 			readMempoolByTxId: MEMPOOL_BY_ID,
 			readReorgs: async () => [],
@@ -337,7 +309,6 @@ describe.each([
 	["canonical", "/v1/index/canonical"],
 	["blocks", "/v1/index/blocks"],
 	["transactions", "/v1/index/transactions"],
-	["stacking", "/v1/index/stacking"],
 ])("Index %s caching", (_name, path) => {
 	const finalized = `${path}?from_height=0&to_height=9994`;
 	const tipSpanning = `${path}?from_height=0`;
@@ -477,36 +448,6 @@ describe("Index transactions routes", () => {
 	test("returns 404 for an unknown tx_id", async () => {
 		const res = await createApp().request("/v1/index/transactions/0xnope");
 		expect(res.status).toBe(404);
-	});
-});
-
-describe("Index stacking route", () => {
-	test("returns stacking actions and a disabled-decoder note when opted out", async () => {
-		// The decoder is ON by default now; opt out to exercise the note path.
-		const prev = process.env.POX4_DECODER_ENABLED;
-		process.env.POX4_DECODER_ENABLED = "false";
-		try {
-			const res = await createApp().request(
-				"/v1/index/stacking?from_height=0&to_height=9994",
-			);
-			expect(res.status).toBe(200);
-			const body = (await res.json()) as {
-				stacking: Array<{ function_name: string }>;
-				next_cursor: string | null;
-				notes?: string;
-			};
-			expect(body.stacking[0]?.function_name).toBe("stack-stx");
-			expect(body.notes).toContain("POX4_DECODER_ENABLED");
-		} finally {
-			if (prev === undefined) delete process.env.POX4_DECODER_ENABLED;
-			else process.env.POX4_DECODER_ENABLED = prev;
-		}
-	});
-
-	test("is listed in route discovery", async () => {
-		const res = await createApp().request("/v1/index");
-		const body = (await res.json()) as { routes: Array<{ path: string }> };
-		expect(body.routes.map((r) => r.path)).toContain("/v1/index/stacking");
 	});
 });
 

@@ -205,26 +205,6 @@ describe.skipIf(!HAS_DB)("PoX-5 cycles", () => {
 		expect(byCycle.get(900_002)?.is_frozen).toBe(true);
 		expect(byCycle.get(900_003)?.is_frozen).toBe(false);
 	});
-
-	test("POX4_DECODER_ENABLED=false has no effect on the pox-5 endpoint", async () => {
-		const prev = process.env.POX4_DECODER_ENABLED;
-		process.env.POX4_DECODER_ENABLED = "false";
-		try {
-			const response = await getPoxCyclesResponse({
-				query: params(),
-				tip: TIP,
-				tipBurnHeight: 0,
-			});
-			const returned = response.cycles.filter((c) =>
-				CYCLES.includes(c.reward_cycle),
-			);
-			expect(returned.length).toBe(3);
-			expect("notes" in response).toBe(false);
-		} finally {
-			if (prev === undefined) delete process.env.POX4_DECODER_ENABLED;
-			else process.env.POX4_DECODER_ENABLED = prev;
-		}
-	});
 });
 
 describe.skipIf(!HAS_DB)("PoX-5 cycles default cursor", () => {

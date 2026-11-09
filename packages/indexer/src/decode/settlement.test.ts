@@ -24,7 +24,6 @@ describe("settlement confirmer / floor-audit decoupling", () => {
 		expect(
 			getEnabledDecoderNames({
 				SBTC_DECODER_ENABLED: "true",
-				POX4_DECODER_ENABLED: "true",
 				BNS_DECODER_ENABLED: "true",
 				SBTC_SETTLEMENT_CONFIRMER_ENABLED: "true",
 			}),

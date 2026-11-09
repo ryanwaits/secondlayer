@@ -1,6 +1,5 @@
 import {
 	isBnsDecoderEnabled,
-	isPox4DecoderEnabled,
 	isPox5DecoderEnabled,
 	isSbtcDecoderEnabled,
 } from "@secondlayer/shared";
@@ -55,7 +54,7 @@ export const DECODER_EVENT_TYPES: Record<DecoderName, string> = {
 	[PRINT_DECODER_NAME]: "print",
 };
 
-// Returns ft+nft (always on) plus sbtc/pox4/bns conditional on env flags.
+// Returns ft+nft (always on) plus sbtc/pox5/bns conditional on env flags.
 // Both indexer and api containers read the same docker .env, so this view is
 // consistent across processes. Used as the default for `getDecodersHealth`
 // so /public/status reports every enabled decoder, not just the hardcoded two.
@@ -76,12 +75,11 @@ export function getEnabledDecoderNames(
 		PRINT_DECODER_NAME,
 	];
 	// Decoder names stay string literals to keep storage.ts free of cycles
-	// with sbtc-/pox4-/bns-storage.ts. Enable flags are single-sourced in
+	// with sbtc-/pox5-/bns-storage.ts. Enable flags are single-sourced in
 	// @secondlayer/shared so /public/status and the decoder process agree.
 	if (isSbtcDecoderEnabled(env)) {
 		names.push("decode.sbtc.v1", "decode.sbtc_token.v1");
 	}
-	if (isPox4DecoderEnabled(env)) names.push("decode.pox4.v1");
 	if (isPox5DecoderEnabled(env)) names.push("decode.pox5.v1");
 	if (isBnsDecoderEnabled(env)) names.push("decode.bns.v1");
 	return names;

@@ -29,7 +29,7 @@ import { readDecoderCheckpoint } from "../storage.ts";
 
 export { POX5_DECODER_NAME };
 
-// Mainnet only — mirrors the pox-4 decoder's scope. pox-5 is a boot contract;
+// Mainnet only. pox-5 is a boot contract;
 // the mainnet id is fixed at Epoch 4.0 activation (Bitcoin block 960,230).
 // Unlike pox-2/3/4 there are NO node-synthesized events: every pox-5 event is
 // a real `(print ...)` with a `topic` key and the tuple fields flattened at

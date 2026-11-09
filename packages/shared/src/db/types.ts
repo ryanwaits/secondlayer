@@ -560,56 +560,7 @@ export interface ChainReorgsTable {
 	created_at: Generated<Date>;
 }
 
-// ── L2 decoded tables: PoX-4 / sBTC / BNS ────────────────────────────
-
-export type Pox4FunctionName =
-	| "stack-stx"
-	| "delegate-stx"
-	| "stack-extend"
-	| "stack-increase"
-	| "revoke-delegate-stx"
-	| "delegate-stack-stx"
-	| "delegate-stack-extend"
-	| "delegate-stack-increase"
-	| "stack-aggregation-commit"
-	| "stack-aggregation-commit-indexed"
-	| "stack-aggregation-increase"
-	| "set-signer-key-authorization";
-
-export interface Pox4CallsTable {
-	cursor: string;
-	block_height: number;
-	block_time: Date;
-	burn_block_height: number;
-	tx_id: string;
-	tx_index: number;
-	function_name: Pox4FunctionName;
-	caller: string;
-	stacker: string | null;
-	delegate_to: string | null;
-	amount_ustx: string | null;
-	lock_period: number | null;
-	pox_addr_version: number | null;
-	pox_addr_hashbytes: string | null;
-	pox_addr_btc: string | null;
-	start_cycle: number | null;
-	end_cycle: number | null;
-	signer_key: string | null;
-	signer_signature: string | null;
-	auth_id: string | null;
-	max_amount: string | null;
-	reward_cycle: number | null;
-	aggregated_amount_ustx: string | null;
-	aggregated_signer_index: number | null;
-	auth_period: number | null;
-	auth_topic: string | null;
-	auth_allowed: boolean | null;
-	result_ok: boolean;
-	result_raw: string;
-	canonical: Generated<boolean>;
-	source_cursor: string;
-	created_at: Generated<Date>;
-}
+// ── L2 decoded tables: sBTC / BNS ────────────────────────────
 
 export type Pox5EventTopic =
 	| "set-bond-admin"
@@ -1124,7 +1075,6 @@ export interface Database {
 	decoded_events: DecodedEventsTable;
 	decoder_checkpoints: DecoderCheckpointsTable;
 	chain_reorgs: ChainReorgsTable;
-	pox4_calls: Pox4CallsTable;
 	pox5_events: Pox5EventsTable;
 	pox5_cycles: Pox5CyclesTable;
 	pox5_cycle_signers: Pox5CycleSignersTable;

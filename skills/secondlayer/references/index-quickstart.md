@@ -1,6 +1,6 @@
 # Index API Quickstart
 
-The **Index API** is the decoded primitive: canonical blocks, transactions, events, and a checkpointed `consume()` / `walk()` loop so you write your own tables without writing a decoder. Boot-contract feeds (PoX-4 stacking, pox-5, sBTC) use the same envelope; they are evidence the primitive works, not extra products. Loopback reads need no key, every endpoint uses `snake_case` query params, and every response is a standard cursor envelope. Finalized pages are aggressively cacheable (immutable + ETag), so syncing the chain is cheap.
+The **Index API** is the decoded primitive: canonical blocks, transactions, events, and a checkpointed `consume()` / `walk()` loop so you write your own tables without writing a decoder. Boot-contract feeds (pox-5, sBTC) use the same envelope; they are evidence the primitive works, not extra products. Loopback reads need no key, every endpoint uses `snake_case` query params, and every response is a standard cursor envelope. Finalized pages are aggressively cacheable (immutable + ETag), so syncing the chain is cheap.
 
 This guide is runnable against a local instance (`secondlayer init` + `docker/oss`). History is whatever this instance has bootstrapped.
 
@@ -55,7 +55,7 @@ Every list response looks like:
     "finalized_height": 8170453,// everything <= this is past burn-finality (immutable)
     "lag_seconds": 120
   },
-  "reorgs": []                  // present on transactions; canonical/blocks/stacking are lean
+  "reorgs": []                  // present on transactions; canonical/blocks are lean
 }
 ```
 
@@ -174,38 +174,12 @@ if (one && one.transaction.tx_type === "contract_call") {
 
 ---
 
-## 4. Boot-contract example: stacking (`/v1/index/stacking`)
+## 4. Boot-contract history: pox-4
 
-Same Index verbs on the PoX-4 boot contract, not a stacking product. Decoded stacking actions — every call to the PoX contract, decoded into typed fields. Live era is `/v1/index/pox5/events`. Your protocol stays in `consume()` or a subgraph. Filter by `function_name` (e.g. `stack-stx`, `delegate-stx`, `delegate-stack-stx`, `revoke-delegate-stx`), `stacker`, or `caller`. Each row carries `caller`, `stacker`, `delegate_to`, `amount_ustx`, `lock_period`, `pox_addr {version, hashbytes, btc}`, `start_cycle` / `end_cycle` / `reward_cycle`, `signer_key`, and `result_ok`. Fields that don't apply to a given function (or that come from a failed call) are `null`. Full history is backfilled — 134k+ actions back to block 147,294.
+pox-4 is retired (the chain runs pox-5, at `/v1/index/pox5/events`). Its calls stay readable as plain contract calls:
 
 ```bash
-curl -s "http://127.0.0.1:3800/v1/index/stacking?function_name=delegate-stack-stx&from_height=7184000&to_height=7185000&limit=1"
-curl -s "http://127.0.0.1:3800/v1/index/stacking?stacker=SP4VG5YE...&limit=10"
-```
-
-```jsonc
-{
-  "stacking": [{
-    "cursor": "7184286:6",
-    "block_height": 7184286,
-    "function_name": "delegate-stack-stx",
-    "caller": "SP4SZE494VC2YC5JYG7AYFQ44F5Q4PYV7DVMDPBG",
-    "stacker": "SP4VG5YE38JEZD120SMCCERXVKNJWWW5J8G50GBE",
-    "amount_ustx": "1118000000",
-    "lock_period": 1,
-    "pox_addr": { "version": 4, "hashbytes": "0xcf510f80...", "btc": "bc1qeagslq8gm4ylmgxf9ngx24mnwffsqnprrsjc0n" },
-    "start_cycle": 130, "end_cycle": 130, "reward_cycle": null,
-    "result_ok": true
-  }],
-  "next_cursor": "7184286:6",
-  "tip": { "block_height": 8170630, "finalized_height": 8170453, "lag_seconds": 133 }
-}
-```
-
-```ts
-for await (const action of sl.index.stacking.walk({ stacker: "SP4VG5YE..." })) {
-  console.log(action.function_name, action.amount_ustx, action.pox_addr.btc);
-}
+curl -s "http://127.0.0.1:3800/v1/index/contract-calls?contract_id=SP000000000000000000002Q6VF78.pox-4&function_name=stack-stx&limit=10"
 ```
 
 ---

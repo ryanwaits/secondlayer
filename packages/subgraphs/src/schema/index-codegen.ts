@@ -9,7 +9,7 @@ import { pascalCase, snakeToCamel } from "./utils.ts";
 
 /**
  * Emit a portable, typed schema for the public Index read domain (blocks,
- * decoded events, transactions, stacking, sBTC, BNS, …) from the single-sourced
+ * decoded events, transactions, PoX, sBTC, BNS, …) from the single-sourced
  * `SOURCE_READ_TYPES` registry. This is the Index arm of the "typed Stacks data in
  * your own stack" story: a BYO-database consumer mirrors Index rows and gets a
  * fully-typed ORM / JSON-Schema that can't drift from the API (the registry is

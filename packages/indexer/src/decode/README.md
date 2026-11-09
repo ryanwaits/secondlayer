@@ -6,7 +6,7 @@ Decoder names use `decode.<event_type>.v<major>`.
 classic decoders (ft/nft/stx transfer, mint, burn, lock, print) read Streams'
 own reader (`readCanonicalStreamsEvents`, `../streams-events.ts`) in-process
 off one shared cursor scan — `classic-decoders.ts` — instead of over HTTP
-(plan-066). Protocol decoders (sbtc, pox4, pox5, bns) still consume the
+(plan-066). Protocol decoders (sbtc, pox5, bns) still consume the
 public `/v1/streams/events` path over HTTP; the HTTP path itself stays
 covered by the HTTP == in-process parity test
 (`packages/api/src/streams/decode-dogfood.test.ts`) and every external and

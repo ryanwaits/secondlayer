@@ -24,7 +24,7 @@ export type IndexCursorInput = {
 };
 
 /** Cursor for feeds ordered on (block_height, tx_index) — /contract-calls,
- *  /stacking, /transactions — as opposed to the (block_height, event_index)
+ *  /transactions — as opposed to the (block_height, event_index)
  *  keyset the event feeds use. */
 export type IndexTxCursorInput = {
 	block_height: number;

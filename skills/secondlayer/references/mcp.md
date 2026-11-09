@@ -2,7 +2,7 @@
 
 `@secondlayer/mcp` exposes the golden-path Secondlayer tools to MCP-capable
 agents: Index reads, Streams tip/dumps, the subgraph lifecycle, webhooks, and
-contract discovery/scaffolding. Periphery surfaces (mempool, stacking, proofs,
+contract discovery/scaffolding. Periphery surfaces (mempool, PoX, proofs,
 live Streams list reads) are REST-only — see the `/v1` OpenAPI spec.
 
 ## Hosted (api.secondlayer.tools)

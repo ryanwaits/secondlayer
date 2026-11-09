@@ -6,7 +6,7 @@ Index (decoded rows), Subgraphs (tables you define, served from your account or 
 and Streams (raw inputs). Exposes the golden-path tools only: Index reads, the
 subgraph lifecycle, webhooks, contract discovery/scaffolding, instance
 status, archive verify/bootstrap, and hosted credits/quote. Everything else
-(single-record lookups, mempool, stacking, proofs, live Streams reads) is
+(single-record lookups, mempool, PoX, proofs, live Streams reads) is
 available over REST `/v1` + OpenAPI. There is no `consume` tool.
 
 ## Hosted
@@ -92,7 +92,7 @@ Verify after mutating: `subgraphs_operations` for deploy/reindex/backfill/stop,
 `archive_bootstrap`, poll `instance_status` until decoders are ok, then
 `archive_verify`, then `codegen_index_schema`.
 
-Periphery surfaces (single block/tx lookups, mempool, stacking, proofs,
+Periphery surfaces (single block/tx lookups, mempool, PoX, proofs,
 credits/caps, live Streams reads/SSE) are REST-only: see the OpenAPI spec at
 the API host. Live Streams list reads use `GET /v1/streams/events`.
 

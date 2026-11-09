@@ -36,7 +36,7 @@ export type IndexTip = {
 	/**
 	 * Committed height per classic decoded-event type (the always-on
 	 * decode.<type>.v1 family — ft/nft transfer, stx transfer/mint/burn/lock,
-	 * ft/nft mint/burn, print). sbtc/pox4/pox5/bns decoders read separate
+	 * ft/nft mint/burn, print). sbtc/pox5/bns decoders read separate
 	 * tables and are not in this map. `indexReadTip` (index/events.ts) uses it
 	 * to sharpen `block_height` to the SPECIFIC type a request reads, instead
 	 * of the conservative cross-decoder floor below. Absent on a tip built

@@ -18,9 +18,8 @@ import {
 	rollupPox5Cycles,
 } from "./pox5-cycles.ts";
 
-// Mainnet PoX cycle math constants (genesis chain parameters from /v2/pox),
-// mirroring the pox-4 decoder's own copy (`decoders/pox-4.ts`) — pox-5
-// continues the same cycle numbering from Stacks genesis. Testnet is out of
+// Mainnet PoX cycle math constants (genesis chain parameters from /v2/pox).
+// pox-5 continues the same cycle numbering from Stacks genesis. Testnet is out of
 // scope for v0.
 const MAINNET_FIRST_BURNCHAIN_BLOCK_HEIGHT = 666_050;
 const MAINNET_REWARD_CYCLE_LENGTH = 2_100;

@@ -26,7 +26,7 @@ export type IndexTip = {
 
 /**
  * A chain reorg overlapping a returned page's height range. Height-keyed feeds
- * (`/transactions`, `/contract-calls`, `/stacking`) populate this so a consumer
+ * (`/transactions`, `/contract-calls`) populate this so a consumer
  * can reconcile: roll back every row at `block_height >= fork_point_height`
  * (the whole fork block is replaced, so the rollback is inclusive of the fork
  * height), then re-read the canonical run from the foot of `fork_point_height`.
@@ -763,61 +763,6 @@ export type TransactionsListParams = {
 export type TransactionsWalkParams = Omit<TransactionsListParams, "limit"> &
 	WalkOptions;
 
-// ── Stacking (/v1/index/stacking) ──────────────────────────────────
-
-/** A decoded PoX-4 stacking action (one per stacking contract call). */
-export type IndexStackingAction = {
-	cursor: string;
-	block_height: number;
-	block_time?: string | null;
-	burn_block_height: number;
-	tx_id: string;
-	tx_index: number;
-	function_name: string;
-	caller: string;
-	stacker: string | null;
-	delegate_to: string | null;
-	amount_ustx: string | null;
-	lock_period: number | null;
-	pox_addr: {
-		version: number | null;
-		hashbytes: string | null;
-		btc: string | null;
-	};
-	start_cycle: number | null;
-	end_cycle: number | null;
-	reward_cycle: number | null;
-	signer_key: string | null;
-	result_ok: boolean;
-};
-
-/** One page of stacking actions, with the cursor, tip, and reorgs. */
-export type StackingEnvelope = {
-	stacking: IndexStackingAction[];
-	next_cursor: string | null;
-	tip: IndexTip;
-	// Chain reorgs overlapping this page's height range; empty when none.
-	reorgs: IndexReorg[];
-	/** Present only when the PoX-4 decoder is disabled, explaining an empty feed. */
-	notes?: string;
-};
-
-/** Paging and filters for listing stacking actions. */
-export type StackingListParams = {
-	cursor?: string | null;
-	fromCursor?: string | null;
-	limit?: number;
-	functionName?: string;
-	stacker?: string;
-	caller?: string;
-	fromHeight?: number;
-	toHeight?: number;
-};
-
-/** `StackingListParams` without `limit`, plus walk options. */
-export type StackingWalkParams = Omit<StackingListParams, "limit"> &
-	WalkOptions;
-
 // ── Mempool (/v1/index/mempool) ────────────────────────────────────
 
 /** A pending (unconfirmed) transaction. Like a transaction document but
@@ -1298,7 +1243,7 @@ export interface SbtcResource {
 
 // ── PoX reward cycles (/v1/index/pox/cycles) ───────────────────────
 // Reports the CURRENT PoX (PoX-5). PoX-4 history is final and not
-// served here — see `index.stacking` for the per-call PoX-4 feed. At the
+// served here — read pox-4 calls via `index.contractCalls`. At the
 // next PoX fork, `pox_version` flips and this shape changes again; the
 // resource path stays `index.pox.cycles`.
 
@@ -1500,7 +1445,7 @@ export type Pox5EventsConsumeParams<TTx = never> = Omit<
 	IndexConsumeOptions<IndexPox5Event, Pox5EventsEnvelope, TTx>;
 
 /** `index.pox5` — decoded PoX-5 print events, the staking primitive from the
- *  epoch 4.0 hard fork onward (PoX-4's `index.stacking` stream ends there). */
+ *  epoch 4.0 hard fork onward. */
 export interface Pox5Resource {
 	events: {
 		/**
@@ -2261,29 +2206,6 @@ export class Index extends BaseClient {
 			this.getTransactionProof(txId),
 	};
 
-	/** Decoded PoX-4 stacking actions. Empty (with a `notes` hint) when the
-	 *  platform's PoX-4 decoder is disabled. */
-	readonly stacking: {
-		/**
-		 * Read one page of decoded PoX-4 stacking actions.
-		 *
-		 * One row per stacking contract call. Filter by `functionName`, `stacker`, `caller`, and a height range. The feed is empty, with a `notes` hint, when the instance's PoX-4 decoder is disabled. For the current PoX, use `pox5.events` and `pox.cycles`.
-		 */
-		list: (params?: StackingListParams) => Promise<StackingEnvelope>;
-		/**
-		 * Iterate every PoX-4 stacking action, paging for you.
-		 *
-		 * Takes the same filters as `list`. Not a live index: it does not checkpoint, ignores reorgs, and ends when it catches the tip. `batchSize` defaults to 200 (max 1000); page fetches retry on 429 and 5xx; aborting `signal` rejects the iterator.
-		 */
-		walk: (params?: StackingWalkParams) => AsyncIterable<IndexStackingAction>;
-	} = {
-		list: (params: StackingListParams = {}): Promise<StackingEnvelope> =>
-			this.listStacking(params),
-		walk: (
-			params: StackingWalkParams = {},
-		): AsyncIterable<IndexStackingAction> => this.walkStacking(params),
-	};
-
 	/** Pending (unconfirmed) transactions: paginated `list`/`walk`, plus `get` by
 	 *  tx_id (resolves to null when the tx has confirmed or dropped). */
 	readonly mempool: {
@@ -2380,8 +2302,7 @@ export class Index extends BaseClient {
 		summary: (): Promise<SbtcSummaryEnvelope> => this.getSbtcSummary(),
 	};
 
-	/** PoX reward-cycle aggregates. Distinct from `stacking` (per-call PoX-4
-	 *  actions); `cycles` is the reward-cycle rollup. */
+	/** PoX reward-cycle aggregates: `cycles` is the reward-cycle rollup. */
 	readonly pox: PoxResource = {
 		cycles: {
 			list: (params: PoxCyclesListParams = {}): Promise<PoxCyclesEnvelope> =>
@@ -2394,7 +2315,7 @@ export class Index extends BaseClient {
 	};
 
 	/** Decoded PoX-5 print events (SIP-045 Bitcoin Staking) — the raw pox-5
-	 *  boot-contract log, all 19 topics. Distinct from `stacking` (PoX-4 era). */
+	 *  boot-contract log, all 19 topics. */
 	readonly pox5: Pox5Resource = {
 		events: {
 			list: (params: Pox5EventsListParams = {}): Promise<Pox5EventsEnvelope> =>
@@ -2777,32 +2698,6 @@ export class Index extends BaseClient {
 			params,
 			(page) => this.listTransactions({ ...params, ...page }),
 			(e) => e.transactions,
-		);
-	}
-
-	private async listStacking(
-		params: StackingListParams & RequestSignal = {},
-	): Promise<StackingEnvelope> {
-		return this.request<StackingEnvelope>(
-			"GET",
-			`/v1/index/stacking${buildQuery({
-				...indexPageQuery(params),
-				function_name: params.functionName,
-				stacker: params.stacker,
-				caller: params.caller,
-			})}`,
-			undefined,
-			{ signal: params.signal },
-		);
-	}
-
-	private walkStacking(
-		params: StackingWalkParams = {},
-	): AsyncGenerator<IndexStackingAction> {
-		return this.keysetWalk(
-			params,
-			(page) => this.listStacking({ ...params, ...page }),
-			(e) => e.stacking,
 		);
 	}
 

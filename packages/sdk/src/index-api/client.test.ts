@@ -654,24 +654,6 @@ describe("Index list param forwarding", () => {
 		expect(urls[0]).toContain("sender=SP2");
 	});
 
-	test("stacking.list forwards function_name + stacker + caller", async () => {
-		const urls = recorder({
-			stacking: [],
-			next_cursor: null,
-			tip: {},
-			reorgs: [],
-		});
-		await new Index({ baseUrl: BASE_URL }).stacking.list({
-			functionName: "stack-stx",
-			stacker: "SP3",
-			caller: "SP4",
-		});
-		expect(urls[0]).toContain("/v1/index/stacking");
-		expect(urls[0]).toContain("function_name=stack-stx");
-		expect(urls[0]).toContain("stacker=SP3");
-		expect(urls[0]).toContain("caller=SP4");
-	});
-
 	test("mempool.list forwards sender + type + contract_id", async () => {
 		const urls = recorder({
 			mempool: [],

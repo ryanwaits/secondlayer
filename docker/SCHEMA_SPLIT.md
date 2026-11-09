@@ -29,7 +29,7 @@ Written by the `indexer` and `decoder` services. Read by the public API.
   `observer_journal`, `pending_fork_blocks`, `chain_read_cache`
 - Coverage: `stage_registry`, `stage_runs`, `stage_block_receipts`,
   `coverage_segments`, `stage_failures`
-- Decoded: `decoded_events`, `decoder_checkpoints`, `pox4_calls`,
+- Decoded: `decoded_events`, `decoder_checkpoints`,
   `burn_block_rewards`, `burn_block_reward_slots`, `sbtc_events`,
   `sbtc_token_events`, `bns_name_events`, `bns_namespace_events`,
   `bns_marketplace_events`, `bns_names`, `bns_namespaces`

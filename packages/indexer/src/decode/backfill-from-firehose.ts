@@ -12,7 +12,7 @@
  * fills each lagging table with no gaps, idempotently (upsert on cursor).
  *
  * Decoders are registered EXPLICITLY (no auto-discovery) so each backfill is a
- * deliberate, reviewed entry. Genuinely-genesis decoders are absent: pox4, bns,
+ * deliberate, reviewed entry. Genuinely-genesis decoders are absent: bns,
  * sbtc (cover from contract deploy) and ft_transfer/ft_mint/ft_burn → decoded_events.
  * The other generic decoders (stx_*, nft_*, print) were NOT genesis — they were
  * added go-forward and floored at ~6.8M (audit 2026-06-20), so they ARE registered

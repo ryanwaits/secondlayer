@@ -153,8 +153,6 @@ type ListOptions = {
 	/** Alias for eventType (the Streams spelling), single value. */
 	types?: string;
 	type?: string;
-	stacker?: string;
-	caller?: string;
 	fromHeight?: string;
 	toHeight?: string;
 	cursor?: string;
@@ -391,27 +389,6 @@ export function registerIndexCommand(program: Command): void {
 				emitOne(await client().transactions.get(txId), `tx ${txId}`, o.json);
 			} catch (err) {
 				fail("get transaction", err);
-			}
-		});
-
-	heightFlags(index.command("stacking"))
-		.description("List decoded PoX-4 stacking actions")
-		.option("--function-name <name>", "Filter by PoX function name")
-		.option("--stacker <principal>", "Filter by stacker")
-		.option("--caller <principal>", "Filter by caller")
-		.action(async (o: ListOptions) => {
-			try {
-				emit(
-					await client().stacking.list({
-						...heightParams(o),
-						functionName: o.functionName,
-						stacker: o.stacker,
-						caller: o.caller,
-					}),
-					o.json,
-				);
-			} catch (err) {
-				fail("list stacking actions", err);
 			}
 		});
 

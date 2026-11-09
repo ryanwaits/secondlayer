@@ -54,7 +54,6 @@ export const OPERATION_IDS: Record<string, string> = {
 	"GET /v1/index/transactions": "listTransactions",
 	"GET /v1/index/transactions/{tx_id}": "getTransaction",
 	"GET /v1/index/transactions/{tx_id}/proof": "getTransactionProof",
-	"GET /v1/index/stacking": "listPox4Stacking",
 	"GET /v1/index/pox/cycles": "listPox4Cycles",
 	"GET /v1/index/pox/cycles/{reward_cycle}": "getPox4Cycle",
 	"GET /v1/index/pox5/events": "listPox5Events",
@@ -218,7 +217,6 @@ const SCHEMA_TITLES: Record<string, string> = {
 	TransactionProof: "Transaction proof",
 	MempoolTransaction: "Mempool transaction",
 	PrintSchema: "Print schema",
-	StackingAction: "PoX-4 stacking action",
 	Pox5Cycle: "PoX-5 reward cycle",
 	Pox5CycleSigner: "PoX-5 cycle signer",
 	Pox5Event: "PoX-5 event",
@@ -297,7 +295,7 @@ export const OPENAPI_SPEC = {
 	info: {
 		title: "Secondlayer Public API",
 		version: "1.0.0",
-		description: `Public surfaces: Index (decoded chain events — stx/ft/nft transfers, mints, burns, prints, stacking), Streams (raw firehose, chain tip, reorg history), Subgraphs (reads over the schemas this instance has deployed; \`{ rows, next_cursor, tip }\` envelope with an \`_id\` keyset cursor, or a composite keyset cursor when \`_sort\` is used), and the workload plane under \`/api\` that deploys and drives them. Cursor format is \`<block_height>:<event_index>\` on Index and classic Streams; the Bitcoin feed (\`chain=bitcoin\`) and the vm clock (\`clock=vm\`) prefix it \`btc:\` and \`vm:\`, and a cursor from another feed is a 400. Opaque on Subgraphs. ${AUTH_DESCRIPTION}`,
+		description: `Public surfaces: Index (decoded chain events — stx/ft/nft transfers, mints, burns, prints, stacking locks), Streams (raw firehose, chain tip, reorg history), Subgraphs (reads over the schemas this instance has deployed; \`{ rows, next_cursor, tip }\` envelope with an \`_id\` keyset cursor, or a composite keyset cursor when \`_sort\` is used), and the workload plane under \`/api\` that deploys and drives them. Cursor format is \`<block_height>:<event_index>\` on Index and classic Streams; the Bitcoin feed (\`chain=bitcoin\`) and the vm clock (\`clock=vm\`) prefix it \`btc:\` and \`vm:\`, and a cursor from another feed is a 400. Opaque on Subgraphs. ${AUTH_DESCRIPTION}`,
 	},
 	servers: [{ url: "http://127.0.0.1:3800", description: "Local instance" }],
 	tags: [
@@ -309,7 +307,7 @@ export const OPENAPI_SPEC = {
 		{
 			name: "index",
 			description:
-				"Decoded chain events (transfers, mints/burns, prints, stacking)",
+				"Decoded chain events (transfers, mints/burns, prints, stacking locks)",
 		},
 		{
 			name: "streams",

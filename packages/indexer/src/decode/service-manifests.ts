@@ -83,38 +83,6 @@ export const SBTC_SERVICE_MANIFEST: ServiceManifest = {
 	source_path: "packages/indexer/src/decode/decoders/sbtc.ts",
 };
 
-export const POX4_SERVICE_MANIFEST: ServiceManifest = {
-	name: "decode:pox4",
-	kind: "protocol-producer",
-	description:
-		"PoX-4 contract-call decoder — stack/delegate/aggregation-commit lifecycle",
-	canonical_inputs: [...CANONICAL_ALL],
-	external_inputs: [
-		STREAMS_API_INPUT,
-		{
-			...CONTRACT_SOURCE_REGISTRY_INPUT,
-			reason:
-				"pox-4 function names, argument shapes, and reward-cycle constants (first burnchain height, cycle length) come from `@secondlayer/stacks/pox`; the decoder cannot infer them from raw_tx alone",
-		},
-		{
-			name: "stacks-node-rpc",
-			reason:
-				"reward-cycle rollups need the burn-block → cycle mapping and current stacker set; both are read from `/v2/pox` and `/v3/stacker_set/{cycle}` via IndexHttpClient",
-			source: "own-node or bundled-stacks",
-			rebuildable_from_archive: false,
-		},
-	],
-	outputs: [
-		{
-			target: "pox4_calls",
-			verification: "row-count + semantic-digest per (tx_id)",
-		},
-	],
-	r2_alone_can_rebuild: false,
-	requires_operator_state: false,
-	source_path: "packages/indexer/src/decode/decoders/pox-4.ts",
-};
-
 export const BNS_SERVICE_MANIFEST: ServiceManifest = {
 	name: "decode:bns",
 	kind: "protocol-producer",
@@ -163,6 +131,5 @@ export const BNS_SERVICE_MANIFEST: ServiceManifest = {
  */
 export const DECODER_SERVICE_MANIFESTS: readonly ServiceManifest[] = [
 	SBTC_SERVICE_MANIFEST,
-	POX4_SERVICE_MANIFEST,
 	BNS_SERVICE_MANIFEST,
 ];

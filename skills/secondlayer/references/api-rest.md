@@ -139,9 +139,9 @@ Recent chain reorgs.
 
 ---
 
-## `/v1/index` — decoded chain layer (events, contract calls, blocks, transactions, stacking, mempool)
+## `/v1/index` — decoded chain layer (events, contract calls, blocks, transactions, mempool)
 
-The decoded read layer over Stacks: events + contract calls, plus the canonical block-hash map, blocks, full transaction documents, PoX-4 stacking, and mempool (pending txs). `GET /v1/index` returns route discovery — including `event_types` and a machine-readable `event_type_filters` map (per type: `columns`, `allowed_filters`, `equality_filters`, `required_non_null`), so an agent can learn what each event type accepts at runtime. `GET /v1/streams` similarly lists `event_types` + structured `filters`. Loopback reads need no key. History is whatever this instance has bootstrapped. Query params are snake_case; the list envelope is the standard cursor shape (`<data>`, `next_cursor`, `tip`, and `reorgs` where applicable).
+The decoded read layer over Stacks: events + contract calls, plus the canonical block-hash map, blocks, full transaction documents, and mempool (pending txs). pox-4 history: `/v1/index/contract-calls?contract_id=SP000000000000000000002Q6VF78.pox-4`. `GET /v1/index` returns route discovery — including `event_types` and a machine-readable `event_type_filters` map (per type: `columns`, `allowed_filters`, `equality_filters`, `required_non_null`), so an agent can learn what each event type accepts at runtime. `GET /v1/streams` similarly lists `event_types` + structured `filters`. Loopback reads need no key. History is whatever this instance has bootstrapped. Query params are snake_case; the list envelope is the standard cursor shape (`<data>`, `next_cursor`, `tip`, and `reorgs` where applicable).
 
 ### `GET /v1/index/events`
 
@@ -196,10 +196,6 @@ Canonical blocks, cursor-paginated. Each row: `{ cursor, block_height, block_has
 ### `GET /v1/index/transactions` and `GET /v1/index/transactions/{tx_id}`
 
 Full transaction documents: the columnar fields plus enrichment decoded from `raw_tx` — `fee`, `nonce`, `sponsored`, `anchor_mode`, `post_condition_mode`, `post_conditions[]`, and a payload sub-object for the matching `tx_type` (`token_transfer`, `contract_call`, `smart_contract`, `coinbase`, `tenure_change`). Enrichment is null for undecodable rows (e.g. burnchain ops). Filter `type`/`sender`/`contract_id`. Cursor `<block_height>:<tx_index>`; always `reorgs: []`. Single form returns `{ transaction, tip }`, 404 when absent.
-
-### `GET /v1/index/stacking`
-
-Decoded PoX-4 stacking actions (`stack-stx`, `delegate-stx`, …). Filter `function_name`/`stacker`/`caller`. Each row carries `caller`, `stacker`, `delegate_to`, `amount_ustx`, `lock_period`, `pox_addr` (`{version, hashbytes, btc}`), `start_cycle`/`end_cycle`/`reward_cycle`, `signer_key`, `result_ok`. Returns `[]` plus a `notes` hint when this instance's PoX-4 decoder is disabled.
 
 ### `GET /v1/index/mempool` and `GET /v1/index/mempool/{tx_id}`
 

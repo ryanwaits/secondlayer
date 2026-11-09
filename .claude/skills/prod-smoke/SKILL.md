@@ -71,10 +71,9 @@ Divergent per-decoder lags with a growing distance = a real stall.
 
 Large lag is OK ONLY during a deliberate backfill
 (`packages/indexer/src/decode/BACKFILL.md`). Known quirks:
-`decode.pox4.v1` shadows the slowest replaying decoder's checkpoint — not independently
-broken; `settle.sbtc.v1` reports `lag_seconds`/`checkpoint`/`tip_block_height` as `null`
+`settle.sbtc.v1` reports `lag_seconds`/`checkpoint`/`tip_block_height` as `null`
 because it settles on demand rather than tailing — `status: healthy` with a recent
-`last_decoded_at` is the only signal it has. Neither is a finding.
+`last_decoded_at` is the only signal it has. Not a finding.
 
 ```bash
 # Hosted subgraphs and webhooks are offered: rows are expected once accounts deploy.

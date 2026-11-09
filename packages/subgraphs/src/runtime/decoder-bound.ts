@@ -18,7 +18,7 @@ import {
  * has committed it misses the match and never revisits.
  *
  * Bound the tip by the MIN committed height over ONLY the decoders the
- * consumer actually reads. A stalled unreferenced decoder (idle pox4) must
+ * consumer actually reads. A stalled unreferenced decoder (idle bns) must
  * never gate progress. A referenced decoder with no usable checkpoint stalls
  * the consumer rather than falling through to the raw tip.
  */

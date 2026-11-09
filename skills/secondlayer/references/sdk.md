@@ -546,7 +546,7 @@ for await (const ev of sl.streams.events.stream()) {
 
 ---
 
-## 5. `sl.index` — server-decoded events (transfers, mints/burns, prints, stacking)
+## 5. `sl.index` — server-decoded events (transfers, mints/burns, prints, stacking locks)
 
 Same physical data as `sl.streams` but pre-decoded and pre-filtered for the two most common queries. Cursor-paginated.
 
@@ -684,7 +684,6 @@ Same `list` (one page) / `walk` (every page) shape and envelope as the transfers
 | `sl.index.blocks` | `list`, `walk`, `get(heightOrHash)` | `/v1/index/blocks` |
 | `sl.index.canonical` | `list`, `walk` | `/v1/index/canonical` |
 | `sl.index.mempool` | `list`, `walk`, `get(txId)` (null once mined) | `/v1/index/mempool` |
-| `sl.index.stacking` | `list`, `walk` (PoX-4 era) | `/v1/index/stacking` |
 | `sl.index.pox5.events` | `list`, `walk`; `fields` narrows the row type | `/v1/index/pox5/events` |
 | `sl.index.pox.cycles` | `list`, `walk`, `get(rewardCycle)` | `/v1/index/pox/cycles` |
 | `sl.index.sbtc` | `deposits` (`list`, `walk`, `consume`, `get(bitcoinTxid)`), `withdrawals` (`list`, `walk`, `get(requestId)`), `events` (`list`, `walk`, `consume`), `summary()` | `/v1/index/sbtc/*` |

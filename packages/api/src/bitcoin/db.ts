@@ -275,7 +275,7 @@ export async function getBitcoinTip(
 }
 
 /** Test-only: drop the tip cache between fixtures that reuse the same
- *  process (mirrors `_resetPox4EraCacheForTests`, `../index/pox-era.ts`). */
+ *  process. */
 export function _resetBitcoinTipCacheForTests(): void {
 	tipCache = null;
 }

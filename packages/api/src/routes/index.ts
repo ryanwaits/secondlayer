@@ -113,11 +113,6 @@ import {
 	readSbtcWithdrawalById,
 } from "../index/sbtc-peg.ts";
 import {
-	STACKING_FILTERS,
-	type StackingReader,
-	getStackingResponse,
-} from "../index/stacking.ts";
-import {
 	STATE_WRITES_FILTERS,
 	type StateWritesReader,
 	getStateWritesResponse,
@@ -193,7 +188,6 @@ export type IndexRouterOptions = {
 	readBlockByRef?: BlockByRefReader;
 	readTransactions?: TransactionsReader;
 	readTransactionById?: TransactionByIdReader;
-	readStacking?: StackingReader;
 	readPoxCycles?: PoxCyclesReader;
 	readPoxCycle?: PoxCycleReader;
 	readPoxTipBurnHeight?: PoxTipBurnHeightReader;
@@ -374,13 +368,6 @@ export function createIndexRouter(opts: IndexRouterOptions = {}) {
 					method: "GET",
 					description:
 						"A single transaction document by tx_id (canonical). 404 when absent.",
-				},
-				{
-					path: "/v1/index/stacking",
-					method: "GET",
-					description:
-						"Decoded PoX-4 stacking actions (stack-stx, delegate-stx, …), filterable by function_name/stacker/caller + cursor-paginated. Returns stacking[], next_cursor, tip. Cursor: <block_height>:<tx_index>.",
-					filters: STACKING_FILTERS,
 				},
 				{
 					path: "/v1/index/pox/cycles",
@@ -750,27 +737,6 @@ export function createIndexRouter(opts: IndexRouterOptions = {}) {
 		return c.json(proof);
 	});
 
-	router.get("/stacking", async (c) => {
-		const query = new URL(c.req.url).searchParams;
-		validateQueryParams(query, STACKING_FILTERS);
-		const tip = await getTip();
-		c.set("indexTip", tip);
-		const response = await getStackingResponse({
-			query,
-			tip,
-			readStacking: opts.readStacking,
-			readReorgs: (range) => readChainReorgsForHeightRange(range),
-		});
-		const notModified = applyIndexCache(c, query, tip, {
-			stacking: response.stacking,
-			next_cursor: response.next_cursor,
-			reorgs: response.reorgs,
-		});
-		if (notModified) return notModified;
-		await meterRows(c, response.stacking);
-		return c.json(response);
-	});
-
 	// PoX cycle aggregates — reports the CURRENT PoX (PoX-5). Completed cycles
 	// are long-cached (frozen, no new actions land); the current cycle is
 	// short-cached (still accumulating). The list caches per page — short only
@@ -828,9 +794,8 @@ export function createIndexRouter(opts: IndexRouterOptions = {}) {
 		return c.json(result.response);
 	});
 
-	// PoX-5 print events — the decoded pox-5 boot-contract log (SIP-045). The
-	// pox-4-backed surfaces above go silent at the epoch 4.0 fork; this one is
-	// the staking primitive from then on. Raw rows, so the standard finality
+	// PoX-5 print events — the decoded pox-5 boot-contract log (SIP-045), the
+	// staking primitive since the epoch 4.0 fork. Raw rows, so the standard finality
 	// cache + per-row metering apply.
 	router.get("/pox5/events", async (c) => {
 		const query = new URL(c.req.url).searchParams;

@@ -81,10 +81,6 @@
 				"title": "The Print schema object"
 			},
 			{
-				"anchor": "stacking-action-object",
-				"title": "The PoX-4 stacking action object"
-			},
-			{
 				"anchor": "pox5-cycle-object",
 				"title": "The PoX-5 reward cycle object"
 			},
@@ -192,11 +188,6 @@
 				"anchor": "get-print-schema",
 				"method": "GET",
 				"title": "Print payload schemas for a contract"
-			},
-			{
-				"anchor": "list-pox4-stacking",
-				"method": "GET",
-				"title": "PoX-4 stacking actions"
 			},
 			{
 				"anchor": "list-pox4-cycles",

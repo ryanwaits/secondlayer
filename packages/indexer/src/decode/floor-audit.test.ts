@@ -78,12 +78,11 @@ describe("auditFloors", () => {
 	});
 
 	test("dedicated decoders floor at contract-deploy height, not genesis", () => {
-		// sBTC/pox-4/BNS legitimately start thousands of blocks in — the per-decoder
+		// sBTC/BNS legitimately start thousands of blocks in — the per-decoder
 		// baseline must not flag them as floored against a block-1 expectation.
 		const a = auditFloors(
 			[
 				{ decoder: "decode.sbtc.v1", floor: 328312 },
-				{ decoder: "decode.pox4.v1", floor: 147294 },
 				{ decoder: "decode.bns.v1", floor: 167540 },
 			],
 			// real baseline + tolerance

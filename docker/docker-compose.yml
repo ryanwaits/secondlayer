@@ -197,9 +197,6 @@ services:
       # enabled decoder, not just ft+nft. Mirror the values set on the
       # decoder service.
       SBTC_DECODER_ENABLED: ${SBTC_DECODER_ENABLED:-true}
-      # Default-OFF: the pox-4 era closed at PoX-5 activation. See the decoder
-      # service for the full rationale — these two defaults must stay in step.
-      POX4_DECODER_ENABLED: ${POX4_DECODER_ENABLED:-false}
       BNS_DECODER_ENABLED: ${BNS_DECODER_ENABLED:-false}
       # Surfaced on /health so deploy drift is detectable without docker ps.
       # Set by the Deploy workflow + persisted into .env by deploy.sh's
@@ -346,17 +343,6 @@ services:
       # stopgap latency win, not the fix.
       DECODER_EMPTY_BACKOFF_MS: ${DECODER_EMPTY_BACKOFF_MS:-1000}
       SBTC_DECODER_ENABLED: ${SBTC_DECODER_ENABLED:-true}
-      # PoX-4 transaction-result decoder. Mainnet-only; auto-seeds checkpoint
-      # to tip on first enable (no historical replay).
-      # Default-OFF since PoX-5 activation closed the pox-4 era: there is
-      # nothing left to decode, so the checkpoint parks at the last pox-4 block
-      # while the tip moves on. Left enabled it re-reads that fixed cursor
-      # forever, and once the free window passes it every read 402s and the
-      # container reports unhealthy. Enable only for a historical backfill, and
-      # only with INDEX_INTERNAL_API_KEY set.
-      POX4_DECODER_ENABLED: ${POX4_DECODER_ENABLED:-false}
-      POX4_DECODER_INTERVAL_MS: ${POX4_DECODER_INTERVAL_MS:-30000}
-      POX4_DECODER_BATCH_SIZE: ${POX4_DECODER_BATCH_SIZE:-500}
       # BNS-V2 print-event decoder. Subscribes to BNS-V2 contract prints,
       # writes name/namespace/marketplace events + maintains current-state
       # projections (bns_names, bns_namespaces).

@@ -24,7 +24,6 @@ import { closeDb, getSourceDb } from "@secondlayer/shared/db";
 import type { Database } from "@secondlayer/shared/db/schema";
 import type { Kysely } from "kysely";
 import { BNS_DECODER_NAME } from "./bns-storage.ts";
-import { POX4_DECODER_NAME } from "./pox4-storage.ts";
 import { POX5_DECODER_NAME } from "./pox5-storage.ts";
 import { SBTC_DECODER_NAME, SBTC_TOKEN_DECODER_NAME } from "./sbtc-storage.ts";
 import {
@@ -39,7 +38,7 @@ import {
  *
  * Generic value/asset decoders floor near block 1 — these event types exist
  * since chain genesis. Dedicated contract decoders floor at their contract's
- * deploy height (sBTC ~328k, pox-4 ~147k, BNS-v2 ~167k), NOT block 1 — which is
+ * deploy height (sBTC ~328k, BNS-v2 ~167k), NOT block 1 — which is
  * why this is a per-decoder map and not a blanket "must be < N" threshold.
  *
  * Adding a decoder? Backfill it to genesis first, then record its measured floor
@@ -59,7 +58,6 @@ export const DECODER_FLOOR_BASELINE: Record<string, number> = {
 	"decode.print.v1": 32,
 	"decode.sbtc.v1": 328312,
 	"decode.sbtc_token.v1": 329351,
-	"decode.pox4.v1": 147294,
 	// PROVISIONAL: pox-5 deploys at Epoch 4.0 activation (Bitcoin block
 	// 960,230, ~2026-07-30) — its true genesis floor is the first pox-5 event's
 	// Stacks height, unknowable before activation. Set generously ABOVE any
@@ -166,7 +164,6 @@ async function readDecoderFloor(
 	if (decoderName === SBTC_DECODER_NAME) return minOf("sbtc_events");
 	if (decoderName === SBTC_TOKEN_DECODER_NAME)
 		return minOf("sbtc_token_events");
-	if (decoderName === POX4_DECODER_NAME) return minOf("pox4_calls");
 	if (decoderName === POX5_DECODER_NAME) return minOf("pox5_events");
 	if (decoderName === BNS_DECODER_NAME) return minOf("bns_name_events");
 

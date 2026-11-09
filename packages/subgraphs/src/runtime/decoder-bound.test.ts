@@ -76,7 +76,7 @@ describe("decoder name mapping", () => {
 		expect(names).toContain("decode.print.v1");
 		expect(names).toContain("decode.ft_transfer.v1");
 		expect(names).toContain("decode.stx_transfer.v1");
-		expect(names).not.toContain("decode.pox4.v1");
+		expect(names).not.toContain("decode.pox5.v1");
 	});
 
 	test("sBTC-only chain sub references no event decoders", () => {
@@ -171,11 +171,11 @@ describe("committedHeight", () => {
 });
 
 describe("decoderBoundTip", () => {
-	test("print behind ft: floor is print; pox4 is not queried", async () => {
+	test("print behind ft: floor is print; pox5 is not queried", async () => {
 		const fake = fakeSourceDb({
 			"decode.print.v1": `8864633:${EMPTY_RANGE_EVENT_INDEX_SENTINEL}`,
 			"decode.ft_transfer.v1": `8864861:${EMPTY_RANGE_EVENT_INDEX_SENTINEL}`,
-			"decode.pox4.v1": `8000000:${EMPTY_RANGE_EVENT_INDEX_SENTINEL}`,
+			"decode.pox5.v1": `8000000:${EMPTY_RANGE_EVENT_INDEX_SENTINEL}`,
 		});
 		const names = referencedDecoderNames([
 			chainSub([{ type: "print_event", contractId: "*market*" }]),

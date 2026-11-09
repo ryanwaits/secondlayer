@@ -73,7 +73,6 @@ services:
     environment:
       <<: *common-env
       SBTC_DECODER_ENABLED: "false"
-      POX4_DECODER_ENABLED: "false"
       POX5_DECODER_ENABLED: "false"
       BNS_DECODER_ENABLED: "false"
     mem_limit: 256m

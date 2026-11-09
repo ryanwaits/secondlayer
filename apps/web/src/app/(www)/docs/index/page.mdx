@@ -366,7 +366,6 @@ One key, one call: [PoX-5 staking data](/data/pox5).
 | --- | --- | --- |
 | All 19 print topics | `/v1/index/pox5/events` | `pox5.events.list` / `walk` / `consume` |
 | Reward cycles of the current PoX | `/v1/index/pox/cycles` · `/{reward_cycle}` | `pox.cycles.list` / `walk` / `get` |
-| PoX-4 stacking actions (historical) | `/v1/index/stacking` | `stacking.list` / `walk` |
 
 ```ts
 for await (const event of sl.index.pox5.events.walk({ topic: "stake", signer: "SP…" })) {
@@ -399,7 +398,7 @@ Event filters:
 - `is_l1_lock`
 - `data.btc-lockup`
 
-`pox5.events.consume()` is the checkpointed sweep, with the same options as [Build your index on it](#build-your-index-on-it). Cycles are exact to the node and follow the chain again at the next PoX fork. PoX-4 cycle history is final and not served; rebuild it from `/v1/index/stacking` on a self-hosted instance.
+`pox5.events.consume()` is the checkpointed sweep, with the same options as [Build your index on it](#build-your-index-on-it). Cycles are exact to the node and follow the chain again at the next PoX fork. PoX-4 cycle history is final and not served; read pox-4 calls from `/v1/index/contract-calls?contract_id=SP000000000000000000002Q6VF78.pox-4`.
 
 ### sBTC
 
