@@ -18,6 +18,10 @@ import {
 	toIsoOrNull,
 } from "./_shared.ts";
 import { parseFields, projectRow } from "./field-projection.ts";
+import {
+	type PoxTipBurnHeightReader,
+	readTipBurnHeight,
+} from "./pox-cycles.ts";
 import type { IndexTip } from "./tip.ts";
 
 /**
@@ -189,7 +193,8 @@ export type SbtcWithdrawalSummary = {
 	/** BTC L1 settlement of the committed sweep: true once confirmed, false while
 	 *  pending, null when there is no sweep yet (REQUESTED). */
 	settlement_confirmed: boolean | null;
-	/** BTC confirmations on the sweep tx, null when no settlement row yet. */
+	/** BTC confirmations on the sweep tx as of the current Bitcoin tip, null
+	 *  when no settlement row yet. */
 	btc_confirmations: number | null;
 	/** Confirming BTC block height, null while unconfirmed / no sweep. */
 	btc_block_height: number | null;
@@ -681,9 +686,29 @@ function deriveStatus(
 	return "REQUESTED";
 }
 
+/**
+ * Confirmations as of the current Bitcoin tip. The settlement confirmer stops
+ * updating `btc_confirmations` once a sweep passes its reorg-watch depth, so
+ * the stored count freezes; derive it from the confirming block instead. Never
+ * below the stored count (the Stacks tip's burn height can trail bitcoind by a
+ * block). Unknown tip or block: the stored value.
+ */
+export function liveBtcConfirmations(
+	stored: number | null,
+	btcBlockHeight: number | null,
+	btcTipHeight: number | undefined,
+): number | null {
+	if (btcBlockHeight === null || !btcTipHeight) return stored;
+	const live = btcTipHeight - btcBlockHeight + 1;
+	return stored === null ? Math.max(live, 0) : Math.max(stored, live);
+}
+
 function normalizeSbtcWithdrawalSummary(
 	row: SbtcWithdrawalSummaryDbRow,
+	btcTipHeight: number | undefined,
 ): SbtcWithdrawalSummary {
+	const btcBlockHeight =
+		row.btc_block_height === null ? null : Number(row.btc_block_height);
 	return {
 		cursor: row.cursor,
 		request_id: Number(row.request_id),
@@ -694,10 +719,12 @@ function normalizeSbtcWithdrawalSummary(
 		recipient_btc_hashbytes: row.recipient_btc_hashbytes,
 		sweep_txid: row.sweep_txid,
 		settlement_confirmed: row.settlement_confirmed,
-		btc_confirmations:
+		btc_confirmations: liveBtcConfirmations(
 			row.btc_confirmations === null ? null : Number(row.btc_confirmations),
-		btc_block_height:
-			row.btc_block_height === null ? null : Number(row.btc_block_height),
+			btcBlockHeight,
+			btcTipHeight,
+		),
+		btc_block_height: btcBlockHeight,
 		confirmed_at: toIsoOrNull(row.confirmed_at),
 		settlement_seq:
 			row.settlement_seq === null ? null : Number(row.settlement_seq),
@@ -721,6 +748,8 @@ export type ReadSbtcWithdrawalsParams = {
 	confirmedAfter?: Date;
 	/** Only sweeps whose confirmation stamp (`settlement_seq`) is above this. */
 	confirmedAfterSeq?: number;
+	/** Current Bitcoin tip height; `btc_confirmations` is computed against it. */
+	btcTipHeight?: number;
 	db?: Kysely<Database>;
 };
 
@@ -843,7 +872,10 @@ export async function readSbtcWithdrawals(
 	const withdrawals = pageRows.map(
 		(row) =>
 			projectRow(
-				normalizeSbtcWithdrawalSummary(row) as Record<string, unknown>,
+				normalizeSbtcWithdrawalSummary(row, params.btcTipHeight) as Record<
+					string,
+					unknown
+				>,
 				fieldSet,
 				SBTC_WITHDRAWAL_ALWAYS,
 			) as unknown as SbtcWithdrawalSummary,
@@ -911,6 +943,7 @@ export async function getSbtcWithdrawalsResponse(opts: {
 	tip: IndexTip;
 	readSbtcWithdrawals?: SbtcWithdrawalsReader;
 	readReorgs?: StreamsReorgsReader;
+	readTipBurnHeight?: PoxTipBurnHeightReader;
 	decoderEnabled?: boolean;
 }): Promise<SbtcWithdrawalsResponse> {
 	const base = parseSbtcBaseQuery(opts.query, opts.tip);
@@ -952,6 +985,7 @@ export async function getSbtcWithdrawalsResponse(opts: {
 		confirmedAfterSeq: parseConfirmedAfterSeqFilter(
 			opts.query.get("confirmed_after_seq") ?? undefined,
 		),
+		btcTipHeight: await (opts.readTipBurnHeight ?? readTipBurnHeight)(opts.tip),
 	});
 
 	// Reorg reconciliation over the create-event range (the summary cursor keys on
@@ -1038,7 +1072,7 @@ function phaseOf(row: SbtcLifecycleDbRow): SbtcWithdrawalPhase {
 
 export async function readSbtcWithdrawalById(
 	requestId: number,
-	opts?: { db?: Kysely<Database> },
+	opts?: { db?: Kysely<Database>; btcTipHeight?: number },
 ): Promise<SbtcWithdrawalLifecycle | null> {
 	const db = opts?.db ?? getSourceDb();
 	const { rows } = await sql<SbtcLifecycleDbRow>`
@@ -1100,7 +1134,15 @@ export async function readSbtcWithdrawalById(
 		rejected: rejectRow ? phaseOf(rejectRow) : null,
 		settlement: {
 			sweep_txid: sweepTxid,
-			btc_confirmations: settlementRow?.btc_confirmations ?? null,
+			btc_confirmations: settlementRow
+				? liveBtcConfirmations(
+						Number(settlementRow.btc_confirmations),
+						settlementRow.block_height === null
+							? null
+							: Number(settlementRow.block_height),
+						opts?.btcTipHeight,
+					)
+				: null,
 			settlement_confirmed: settlementRow?.settlement_confirmed ?? null,
 			btc_block_height: settlementRow?.block_height ?? null,
 			confirmed_at: settlementRow
@@ -1138,6 +1180,7 @@ async function readSettlementForSweep(
 
 export type SbtcWithdrawalByIdReader = (
 	requestId: number,
+	opts?: { btcTipHeight?: number },
 ) => Promise<SbtcWithdrawalLifecycle | null>;
 
 export async function readSbtcDepositByBitcoinTxid(

@@ -4,6 +4,10 @@ Notable changes to Secondlayer and its SDKs. Entries dated before August 2026 de
 
 ## Index — November 2026
 
+### Withdrawal confirmations keep counting
+
+`btc_confirmations` on `/v1/index/sbtc/withdrawals` and `/v1/index/sbtc/withdrawals/{request_id}` now counts to the current Bitcoin tip. It used to stop once the sweep was deep enough to be safe from reorgs.
+
 ### PoX-5 reward calculations filter by cycle
 
 `calculate-rewards` events on `/v1/index/pox5/events` now carry `reward_cycle`, so `?reward_cycle=142&topic=calculate-rewards` returns them. It was null before; existing rows are filled in.

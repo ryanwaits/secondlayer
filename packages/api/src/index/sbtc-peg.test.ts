@@ -12,6 +12,7 @@ import {
 	getSbtcEventsResponse,
 	getSbtcSummaryResponse,
 	getSbtcWithdrawalsResponse,
+	liveBtcConfirmations,
 	readSbtcDepositByBitcoinTxid,
 	readSbtcDeposits,
 	readSbtcEvents,
@@ -43,9 +44,27 @@ const EMPTY_DEPOSITS: SbtcDepositsReader = async () => ({
 	deposits: [],
 	next_cursor: null,
 });
+const NO_BTC_TIP = async () => 0;
 const EMPTY_WITHDRAWALS: SbtcWithdrawalsReader = async () => ({
 	withdrawals: [],
 	next_cursor: null,
+});
+
+describe("liveBtcConfirmations", () => {
+	test("counts from the confirming block to the Bitcoin tip", () => {
+		// request 813: stored froze at 33188 while bitcoind reported 52445.
+		expect(liveBtcConfirmations(33_188, 900_000, 952_444)).toBe(52_445);
+	});
+
+	test("never drops below the stored count when the tip trails bitcoind", () => {
+		expect(liveBtcConfirmations(7, 900_000, 900_005)).toBe(7);
+	});
+
+	test("keeps the stored count when the block or tip is unknown", () => {
+		expect(liveBtcConfirmations(2, null, 952_444)).toBe(2);
+		expect(liveBtcConfirmations(6, 900_000, 0)).toBe(6);
+		expect(liveBtcConfirmations(null, null, 952_444)).toBeNull();
+	});
 });
 
 describe("sBTC peg helpers", () => {
@@ -104,6 +123,7 @@ describe("sBTC peg helpers", () => {
 	test("rejects an unknown withdrawal status", async () => {
 		await expect(
 			getSbtcWithdrawalsResponse({
+				readTipBurnHeight: NO_BTC_TIP,
 				query: eventsParams("?from_height=0&status=PENDING"),
 				tip: TIP,
 				readSbtcWithdrawals: EMPTY_WITHDRAWALS,
@@ -114,6 +134,7 @@ describe("sBTC peg helpers", () => {
 	test("forwards confirmed_after to the withdrawals reader as a Date", async () => {
 		let seen: Date | undefined;
 		await getSbtcWithdrawalsResponse({
+			readTipBurnHeight: NO_BTC_TIP,
 			query: eventsParams(
 				"?from_height=0&settlement_confirmed=true&confirmed_after=2026-06-29T00:00:00.000Z",
 			),
@@ -129,6 +150,7 @@ describe("sBTC peg helpers", () => {
 	test("forwards confirmed_after_seq to the withdrawals reader as a number", async () => {
 		let seen: number | undefined;
 		await getSbtcWithdrawalsResponse({
+			readTipBurnHeight: NO_BTC_TIP,
 			query: eventsParams(
 				"?from_height=0&settlement_confirmed=true&confirmed_after_seq=41",
 			),
@@ -144,6 +166,7 @@ describe("sBTC peg helpers", () => {
 	test("rejects a confirmed_after_seq that is not a non-negative integer", async () => {
 		await expect(
 			getSbtcWithdrawalsResponse({
+				readTipBurnHeight: NO_BTC_TIP,
 				query: eventsParams("?from_height=0&confirmed_after_seq=-1"),
 				tip: TIP,
 				readSbtcWithdrawals: EMPTY_WITHDRAWALS,
@@ -154,6 +177,7 @@ describe("sBTC peg helpers", () => {
 	test("rejects a confirmed_after that is not a timestamp", async () => {
 		await expect(
 			getSbtcWithdrawalsResponse({
+				readTipBurnHeight: NO_BTC_TIP,
 				query: eventsParams("?from_height=0&confirmed_after=yesterday"),
 				tip: TIP,
 				readSbtcWithdrawals: EMPTY_WITHDRAWALS,
@@ -344,6 +368,7 @@ describe("sBTC peg helpers", () => {
 	test("queries readReorgs over the withdrawal create-event range", async () => {
 		const seenRanges: Array<{ from: unknown; to: unknown }> = [];
 		await getSbtcWithdrawalsResponse({
+			readTipBurnHeight: NO_BTC_TIP,
 			query: eventsParams("?from_height=0"),
 			tip: TIP,
 			readSbtcWithdrawals: async () => ({
@@ -737,6 +762,18 @@ describe.skipIf(!HAS_DB)("sBTC peg DB reads", () => {
 		// No sweep at all → settlement fields null.
 		const noSweepRow = all.withdrawals.find((w) => w.request_id === 3);
 		expect(noSweepRow?.btc_confirmations).toBeNull();
+
+		// Past the confirmer's watch depth the stored count freezes; against the
+		// Bitcoin tip the confirmed sweep keeps counting. Pending (no block yet)
+		// keeps its stored count.
+		const live = await readSbtcWithdrawals({ ...base, btcTipHeight: 875_000 });
+		expect(
+			live.withdrawals.map((w) => [w.request_id, w.btc_confirmations]),
+		).toEqual([
+			[1, 20_001],
+			[2, 2],
+			[3, null],
+		]);
 
 		// confirmed only → req 1
 		const confirmed = await readSbtcWithdrawals({

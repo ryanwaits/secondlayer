@@ -895,7 +895,8 @@ export type IndexSbtcWithdrawal = {
 	/** BTC L1 settlement of the committed sweep: true once confirmed, false while
 	 *  pending, null when there is no sweep yet (REQUESTED). */
 	settlement_confirmed: boolean | null;
-	/** BTC confirmations on the sweep tx, null when no settlement row yet. */
+	/** BTC confirmations on the sweep tx as of the current Bitcoin tip, null
+	 *  when no settlement row yet. */
 	btc_confirmations: number | null;
 	/** Confirming BTC block height, null while unconfirmed / no sweep. */
 	btc_block_height: number | null;

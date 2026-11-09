@@ -69,6 +69,7 @@ import {
 	type PoxTipBurnHeightReader,
 	getPoxCycleResponse,
 	getPoxCyclesResponse,
+	readTipBurnHeight,
 } from "../index/pox-cycles.ts";
 import {
 	POX5_EVENTS_FILTERS,
@@ -936,6 +937,7 @@ export function createIndexRouter(opts: IndexRouterOptions = {}) {
 			tip,
 			readSbtcWithdrawals: opts.readSbtcWithdrawals,
 			readReorgs,
+			readTipBurnHeight: opts.readPoxTipBurnHeight,
 		});
 		// The rolled-up status is mutable: a withdrawal created at/below to_height
 		// can be accepted at a *later* height, so a row is never safely immutable
@@ -998,17 +1000,23 @@ export function createIndexRouter(opts: IndexRouterOptions = {}) {
 		const tip = await getTip();
 		c.set("indexTip", tip);
 		const read = opts.readSbtcWithdrawalById ?? readSbtcWithdrawalById;
-		const lifecycle = await read(Number(raw));
+		const btcTipHeight = await (opts.readPoxTipBurnHeight ?? readTipBurnHeight)(
+			tip,
+		);
+		const lifecycle = await read(Number(raw), { btcTipHeight });
 		if (!lifecycle) return c.json({ error: "Withdrawal not found" }, 404);
-		// Immutable only once terminal AND past finality — a still-REQUESTED
-		// withdrawal can still be accepted/rejected later, even if its create event
-		// is finalized.
+		// `finalized`: terminal AND past finality — a still-REQUESTED withdrawal
+		// can still be accepted/rejected later, even if its create event is
+		// finalized.
 		const { latest_height, ...withdrawal } = lifecycle;
 		const finalized =
 			lifecycle.status !== "REQUESTED" && latest_height <= tip.finalized_height;
 		const body = { withdrawal: { ...withdrawal, finalized }, tip };
-		c.header("Cache-Control", cacheControl(finalized));
-		if (finalized) {
+		// Immutable only with no sweep: an accepted withdrawal's settlement fills
+		// in later and its btc_confirmations grows with every Bitcoin block.
+		const immutable = finalized && lifecycle.settlement.sweep_txid === null;
+		c.header("Cache-Control", cacheControl(immutable));
+		if (immutable) {
 			const tag = etag(JSON.stringify(body.withdrawal));
 			c.header("ETag", tag);
 			if (matchesIfNoneMatch(c.req.header("If-None-Match"), tag)) {

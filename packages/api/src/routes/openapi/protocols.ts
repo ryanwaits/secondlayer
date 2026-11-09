@@ -1978,7 +1978,8 @@ export const protocolsSchemas = {
 			},
 			btc_confirmations: {
 				type: ["integer", "null"],
-				description: "Bitcoin confirmations on the sweep at the last check.",
+				description:
+					"Bitcoin confirmations on the sweep as of the current Bitcoin tip.",
 			},
 			btc_block_height: {
 				type: ["integer", "null"],
@@ -2087,7 +2088,8 @@ export const protocolsSchemas = {
 					},
 					btc_confirmations: {
 						type: ["integer", "null"],
-						description: "Confirmations at the last check.",
+						description:
+							"Bitcoin confirmations on the sweep as of the current Bitcoin tip.",
 					},
 					settlement_confirmed: {
 						type: ["boolean", "null"],

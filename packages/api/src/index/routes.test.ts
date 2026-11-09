@@ -1054,6 +1054,8 @@ describe("Index sBTC peg routes", () => {
 			createFixtureIndexRouter({
 				getTip: () => TIP,
 				readReorgs: async () => [],
+				// No Bitcoin tip: the default reader hits the DB.
+				readPoxTipBurnHeight: async () => 0,
 				readSbtcEvents: async () => ({
 					events: [
 						{
@@ -1111,7 +1113,7 @@ describe("Index sBTC peg routes", () => {
 					],
 					next_cursor: "9000:0",
 				}),
-				readSbtcWithdrawalById: async (requestId) =>
+				readSbtcWithdrawalById: async (requestId, readOpts) =>
 					requestId === 7
 						? {
 								request_id: 7,
@@ -1135,7 +1137,8 @@ describe("Index sBTC peg routes", () => {
 								rejected: null,
 								settlement: {
 									sweep_txid: "0xsweep",
-									btc_confirmations: null,
+									// Echo the tip the route passed so tests can see it.
+									btc_confirmations: readOpts?.btcTipHeight ?? null,
 									settlement_confirmed: null,
 									btc_block_height: null,
 									confirmed_at: null,
@@ -1202,6 +1205,7 @@ describe("Index sBTC peg routes", () => {
 			createFixtureIndexRouter({
 				getTip: () => TIP,
 				readReorgs: async () => [],
+				readPoxTipBurnHeight: async () => 0,
 				readSbtcWithdrawals: async (params) => {
 					seen.push(params.settlementConfirmed);
 					return { withdrawals: [], next_cursor: null };
@@ -1221,16 +1225,38 @@ describe("Index sBTC peg routes", () => {
 		expect(bad.status).toBe(400);
 	});
 
-	test("withdrawal by request_id returns the assembled lifecycle, immutable when terminal+finalized", async () => {
+	test("withdrawal by request_id returns the assembled lifecycle; an accepted sweep is never immutably cached", async () => {
 		const res = await sbtcApp().request("/v1/index/sbtc/withdrawals/7");
 		expect(res.status).toBe(200);
 		const body = (await res.json()) as {
 			withdrawal: { status: string; finalized: boolean; accepted: unknown };
 		};
 		expect(body.withdrawal.status).toBe("ACCEPTED");
-		// latest_height 9001 ≤ finalized_height 9994 and terminal → immutable.
+		// latest_height 9001 ≤ finalized_height 9994 and terminal → finalized,
+		// but the sweep's confirmations keep growing → short TTL, no ETag.
 		expect(body.withdrawal.finalized).toBe(true);
-		expect(res.headers.get("ETag")).not.toBeNull();
+		expect(res.headers.get("Cache-Control")).toBe("private, max-age=2");
+		expect(res.headers.get("ETag")).toBeNull();
+	});
+
+	test("withdrawal by request_id reads confirmations against the Bitcoin tip", async () => {
+		const app = new Hono();
+		app.onError(errorHandler);
+		const seen: Array<number | undefined> = [];
+		app.route(
+			"/v1/index",
+			createFixtureIndexRouter({
+				getTip: () => TIP,
+				readReorgs: async () => [],
+				readPoxTipBurnHeight: async () => 52_445,
+				readSbtcWithdrawalById: async (_id, readOpts) => {
+					seen.push(readOpts?.btcTipHeight);
+					return null;
+				},
+			}),
+		);
+		await app.request("/v1/index/sbtc/withdrawals/7");
+		expect(seen).toEqual([52_445]);
 	});
 
 	test("unknown withdrawal request_id → 404", async () => {
