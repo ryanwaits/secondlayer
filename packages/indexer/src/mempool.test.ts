@@ -1,8 +1,11 @@
 import { beforeEach, describe, expect, test } from "bun:test";
 import { getDb, sql } from "@secondlayer/shared/db";
+import { rawTxNonce } from "@secondlayer/shared/node/tx-summary";
+import { deserializeTransaction } from "@secondlayer/stacks/transactions";
 import {
 	MEMPOOL_RETENTION_HOURS,
 	buildMempoolRow,
+	evictSupersededMempoolTxs,
 	ingestMempoolTxs,
 	isGenuineDrop,
 	mempoolDepth,
@@ -10,6 +13,7 @@ import {
 	sweepStaleMempool,
 	txidFromRawTx,
 } from "./mempool.ts";
+import { persistBlock } from "./persist.ts";
 
 const HAS_DB = !!process.env.DATABASE_URL;
 
@@ -22,7 +26,34 @@ const TOKEN_TRANSFER = {
 	sender: "SP3SBQ9PZEMBNBAWTR7FRPE3XK0EFW9JWVX4G80S2",
 };
 
+// SIP-005 offsets (hex chars, after 0x): signer at 14..54, origin nonce 54..70.
+function withNonce(rawTx: string, nonce: bigint): string {
+	const hex = rawTx.slice(2);
+	return `0x${hex.slice(0, 54)}${nonce.toString(16).padStart(16, "0")}${hex.slice(70)}`;
+}
+
+const OTHER_SENDER_RAW_TX = `0x${TOKEN_TRANSFER.raw_tx.slice(2, 16)}${"11".repeat(20)}${TOKEN_TRANSFER.raw_tx.slice(56)}`;
+
 describe("mempool ingest helpers", () => {
+	test("reads the origin nonce from raw_tx bytes, matching the full decode", () => {
+		const decoded = deserializeTransaction(TOKEN_TRANSFER.raw_tx);
+		expect(rawTxNonce(TOKEN_TRANSFER.raw_tx)).toBe(
+			BigInt(decoded.auth.spendingCondition.nonce),
+		);
+		expect(rawTxNonce(withNonce(TOKEN_TRANSFER.raw_tx, 1312n))).toBe(1312n);
+	});
+
+	test("an unreadable raw_tx has no nonce", () => {
+		expect(rawTxNonce("0x00")).toBeNull();
+		expect(rawTxNonce("0xnothex")).toBeNull();
+	});
+
+	test("the other-sender fixture decodes to a different sender", () => {
+		const other = buildMempoolRow(OTHER_SENDER_RAW_TX);
+		expect(other).not.toBeNull();
+		expect(other?.sender).not.toBe(TOKEN_TRANSFER.sender);
+	});
+
 	test("derives the on-chain txid from raw_tx", () => {
 		expect(txidFromRawTx(TOKEN_TRANSFER.raw_tx)).toBe(TOKEN_TRANSFER.txid);
 	});
@@ -231,5 +262,83 @@ describe.skipIf(!HAS_DB)("mempool ingest DB", () => {
 		expect(await mempoolDepth(db)).toBe(0);
 		await ingestMempoolTxs(db, [TOKEN_TRANSFER.raw_tx]);
 		expect(await mempoolDepth(db)).toBe(1);
+	});
+
+	test("a confirmed block evicts its own txs and the sender's pending txs its nonce spent", async () => {
+		if (!db) throw new Error("missing db");
+		const height = 988_813;
+		const network = "mempool-nonce-test";
+		const cleanup = async () => {
+			await sql`DELETE FROM transactions WHERE block_height = ${height}`.execute(
+				db,
+			);
+			await sql`DELETE FROM blocks WHERE height = ${height}`.execute(db);
+			await sql`DELETE FROM index_progress WHERE network = ${network}`.execute(
+				db,
+			);
+		};
+		await cleanup();
+
+		const confirmed = withNonce(TOKEN_TRANSFER.raw_tx, 10n);
+		const replaced = withNonce(TOKEN_TRANSFER.raw_tx, 9n);
+		// Same nonce, different memo byte: a rival for the nonce that confirmed.
+		const rival = `${confirmed.slice(0, -2)}01`;
+		const stillPending = withNonce(TOKEN_TRANSFER.raw_tx, 11n);
+		await ingestMempoolTxs(db, [
+			confirmed,
+			replaced,
+			rival,
+			stillPending,
+			OTHER_SENDER_RAW_TX,
+		]);
+		expect(await count()).toBe(5);
+
+		try {
+			await persistBlock(db, {
+				block: {
+					height,
+					hash: "0xmempoolnonce",
+					parent_hash: "0xmempoolnonceparent",
+					burn_block_height: 1,
+					timestamp: 1_700_000_000,
+					canonical: true,
+				},
+				txs: [
+					{
+						tx_id: txidFromRawTx(confirmed),
+						block_height: height,
+						tx_index: 0,
+						type: "token_transfer",
+						sender: TOKEN_TRANSFER.sender,
+						status: "success",
+						raw_tx: confirmed,
+					},
+				],
+				evts: [],
+				blockHeight: height,
+				network,
+			});
+			const { rows } = await sql<{ tx_id: string }>`
+				SELECT tx_id FROM mempool_transactions ORDER BY tx_id
+			`.execute(db);
+			expect(rows.map((r) => r.tx_id)).toEqual(
+				[
+					txidFromRawTx(stillPending),
+					txidFromRawTx(OTHER_SENDER_RAW_TX),
+				].sort(),
+			);
+		} finally {
+			await cleanup();
+		}
+	});
+
+	test("superseded-nonce eviction ignores txs whose nonce cannot be read", async () => {
+		if (!db) throw new Error("missing db");
+		await ingestMempoolTxs(db, [withNonce(TOKEN_TRANSFER.raw_tx, 3n)]);
+		const evicted = await evictSupersededMempoolTxs(db, [
+			{ sender: TOKEN_TRANSFER.sender, raw_tx: "0x00" },
+		]);
+		expect(evicted).toBe(0);
+		expect(await count()).toBe(1);
 	});
 });

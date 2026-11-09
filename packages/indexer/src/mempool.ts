@@ -4,7 +4,7 @@ import type {
 	InsertMempoolTransaction,
 } from "@secondlayer/shared/db/schema";
 import { logger } from "@secondlayer/shared/logger";
-import { decodeRawTx } from "@secondlayer/shared/node/tx-summary";
+import { decodeRawTx, rawTxNonce } from "@secondlayer/shared/node/tx-summary";
 import {
 	hexToBytes,
 	txidFromBytes,
@@ -17,7 +17,8 @@ import type { Kysely } from "kysely";
  * POSTs a bare array of raw_tx hex strings — no txid — so we derive the txid by
  * hashing the serialized bytes (sha512/256), exactly how the node computes it.
  * Pending txs are pre-chain: no block_height/tx_index/result/events. Rows are
- * removed on confirmation (block ingest) or drop (`/drop_mempool_tx`); a
+ * removed on confirmation (block ingest), when a confirmed tx from the same
+ * sender spends their nonce (block ingest), or on drop (`/drop_mempool_tx`); a
  * retention sweep clears stuck rows. Writes are idempotent on tx_id because the
  * HTTP receiver runs on every indexer instance.
  */
@@ -99,6 +100,42 @@ export async function removeMempoolTxs(
 		.deleteFrom("mempool_transactions")
 		.where("tx_id", "in", txIds)
 		.execute();
+}
+
+/** Remove pending txs a confirmed tx has made unminable. Once a sender's
+ *  nonce N confirms, every pending tx of theirs at nonce <= N (replaced or
+ *  conflicting) can never confirm, and the node rarely drops it, so it would
+ *  sit here until the retention sweep while `?sender=` callers read it as in
+ *  flight. Keyed by the origin nonce (a sponsor's own nonce is not tracked).
+ *  Runs inside the block-persist tx. Returns the count evicted. */
+export async function evictSupersededMempoolTxs(
+	db: Kysely<Database>,
+	confirmed: ReadonlyArray<{ sender: string; raw_tx: string }>,
+): Promise<number> {
+	const spentNonce = new Map<string, bigint>();
+	for (const tx of confirmed) {
+		const nonce = rawTxNonce(tx.raw_tx);
+		if (nonce === null) continue;
+		const current = spentNonce.get(tx.sender);
+		if (current === undefined || nonce > current) {
+			spentNonce.set(tx.sender, nonce);
+		}
+	}
+	if (spentNonce.size === 0) return 0;
+	const pending = await db
+		.selectFrom("mempool_transactions")
+		.select(["tx_id", "sender", "raw_tx"])
+		.where("sender", "in", [...spentNonce.keys()])
+		.execute();
+	const superseded = pending
+		.filter((row) => {
+			const nonce = rawTxNonce(row.raw_tx);
+			const spent = spentNonce.get(row.sender);
+			return nonce !== null && spent !== undefined && nonce <= spent;
+		})
+		.map((row) => row.tx_id);
+	await removeMempoolTxs(db, superseded);
+	return superseded.length;
 }
 
 /** The node's own memory-pressure GC reason. A `StaleGarbageCollect` drop means

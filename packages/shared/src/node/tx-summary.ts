@@ -100,3 +100,28 @@ export function decodeRawTx(rawTx: string, txid?: string): TxSummary | null {
 		return null;
 	}
 }
+
+// SIP-005 layout up to the origin nonce: version(1) chain_id(4) auth_type(1)
+// then the origin spending condition hash_mode(1) signer(20) nonce(8). Fixed
+// for standard and sponsored auth, single- and multi-sig alike.
+const AUTH_TYPE_HEX_OFFSET = (1 + 4) * 2;
+const ORIGIN_NONCE_HEX_OFFSET = (1 + 4 + 1 + 1 + 20) * 2;
+const STANDARD_AUTH = "04";
+const SPONSORED_AUTH = "05";
+
+/**
+ * The origin account nonce of a raw Stacks tx, read straight from its bytes
+ * (no full deserialize, so it stays cheap on every confirmed tx of a block).
+ * Null when the bytes are too short or the auth type is unknown.
+ */
+export function rawTxNonce(rawTx: string): bigint | null {
+	const hex = rawTx.startsWith("0x") ? rawTx.slice(2) : rawTx;
+	const authType = hex.slice(AUTH_TYPE_HEX_OFFSET, AUTH_TYPE_HEX_OFFSET + 2);
+	if (authType !== STANDARD_AUTH && authType !== SPONSORED_AUTH) return null;
+	const nonceHex = hex.slice(
+		ORIGIN_NONCE_HEX_OFFSET,
+		ORIGIN_NONCE_HEX_OFFSET + 16,
+	);
+	if (!/^[0-9a-fA-F]{16}$/.test(nonceHex)) return null;
+	return BigInt(`0x${nonceHex}`);
+}

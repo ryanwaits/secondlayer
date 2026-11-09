@@ -7,7 +7,7 @@ import {
 } from "@secondlayer/shared/db/queries/integrity";
 import { logger } from "@secondlayer/shared/logger";
 import type { Insertable, Kysely } from "kysely";
-import { removeMempoolTxs } from "./mempool.ts";
+import { evictSupersededMempoolTxs, removeMempoolTxs } from "./mempool.ts";
 
 // Chunk large batches to stay under the Postgres bind-parameter limit.
 const TX_CHUNK_SIZE = 500;
@@ -347,6 +347,9 @@ export async function persistBlock(
 			tx,
 			txs.map((t) => t.tx_id as string),
 		);
+		// A confirmed nonce also kills the sender's other pending txs at or
+		// below it (replaced or conflicting): they can never confirm.
+		await evictSupersededMempoolTxs(tx, txs);
 
 		// Compute last_contiguous_block.
 		const progressRow = await tx

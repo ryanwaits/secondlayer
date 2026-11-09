@@ -29,7 +29,8 @@
  * when it is new to the node *after* our observer connected; it never replays
  * the existing backlog. So a freshly (re)deployed indexer starts empty and
  * accumulates over uptime (it is NOT a globally-aggregated mempool). The table
- * is maintained, not seeded: confirmed txs are evicted on block ingest, genuine
+ * is maintained, not seeded: confirmed txs, and pending txs whose nonce a
+ * confirmed tx from the same sender spent, are evicted on block ingest, genuine
  * drops removed, StaleGarbageCollect ignored, and a retention sweep is the
  * backstop — so over uptime the depth converges toward the node's recent pending
  * set rather than capping near-empty.
