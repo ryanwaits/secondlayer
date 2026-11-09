@@ -206,7 +206,7 @@ describe("decodeNamespaceEvent", () => {
 				properties: tupleCV({
 					"namespace-manager": someCV(standardPrincipalCV(MANAGER)),
 					"manager-frozen": boolCV(false),
-					"manager-transfers": boolCV(true),
+					"manager-transferable": boolCV(true),
 					"price-function": tupleCV({
 						base: uintCV(100n),
 						coeff: uintCV(2n),
@@ -214,7 +214,7 @@ describe("decodeNamespaceEvent", () => {
 						"no-vowel-discount": uintCV(1n),
 						"nonalpha-discount": uintCV(1n),
 					}),
-					"price-frozen": boolCV(false),
+					"can-update-price-function": boolCV(true),
 					lifetime: uintCV(52_560n),
 					"revealed-at": someCV(uintCV(7_500_000n)),
 					"launched-at": someCV(uintCV(7_700_000n)),
@@ -228,6 +228,7 @@ describe("decodeNamespaceEvent", () => {
 		expect(row?.manager).toBe(MANAGER);
 		expect(row?.manager_frozen).toBe(false);
 		expect(row?.manager_transfers_disabled).toBe(false);
+		expect(row?.price_frozen).toBe(false);
 		expect(row?.lifetime).toBe(52_560);
 		expect(row?.launched_at).toBe(7_700_000);
 		expect(row?.price_function).not.toBeNull();
@@ -265,12 +266,12 @@ describe("decodeNamespaceEvent", () => {
 		expect(row?.manager_frozen).toBe(true);
 	});
 
-	test("freeze-price-manager sets price_frozen=true", () => {
+	test("freeze-price-manager: can-update-price-function false is price_frozen", () => {
 		const event = buildPrintEvent(
 			tupleCV({
 				status: stringAsciiCV("freeze-price-manager"),
 				namespace: bufferCV(bytesFromString("btc", 20)),
-				properties: tupleCV({ "price-frozen": boolCV(true) }),
+				properties: tupleCV({ "can-update-price-function": boolCV(false) }),
 			}),
 		);
 		const tuple = decodePayloadFromEvent(event);
@@ -279,12 +280,12 @@ describe("decodeNamespaceEvent", () => {
 		expect(row?.price_frozen).toBe(true);
 	});
 
-	test("turn-off-manager-transfers inverts manager-transfers", () => {
+	test("turn-off-manager-transfers inverts manager-transferable", () => {
 		const event = buildPrintEvent(
 			tupleCV({
 				status: stringAsciiCV("turn-off-manager-transfers"),
 				namespace: bufferCV(bytesFromString("btc", 20)),
-				properties: tupleCV({ "manager-transfers": boolCV(false) }),
+				properties: tupleCV({ "manager-transferable": boolCV(false) }),
 			}),
 		);
 		const tuple = decodePayloadFromEvent(event);

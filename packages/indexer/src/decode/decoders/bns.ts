@@ -431,13 +431,16 @@ export function decodeNamespaceEvent(
 	const properties = asRecord(tuple.properties);
 	const manager = asString(properties?.["namespace-manager"]);
 	const managerFrozen = asBool(properties?.["manager-frozen"]);
-	const managerTransfers = asBool(properties?.["manager-transfers"]);
+	// bns-v2 prints `manager-transferable` and `can-update-price-function`;
+	// the columns store their negations.
+	const managerTransferable = asBool(properties?.["manager-transferable"]);
 	const priceFunctionRaw = properties?.["price-function"];
 	const priceFunction =
 		priceFunctionRaw !== undefined && priceFunctionRaw !== null
 			? JSON.stringify(priceFunctionRaw, jsonReplacer)
 			: null;
-	const priceFrozen = asBool(properties?.["price-frozen"]);
+	const canUpdatePrice = asBool(properties?.["can-update-price-function"]);
+	const priceFrozen = canUpdatePrice === null ? null : !canUpdatePrice;
 	const lifetime = asInt64(properties?.lifetime);
 	const revealedAt = asInt64(properties?.["revealed-at"]);
 	const launchedAt = asInt64(properties?.["launched-at"]);
@@ -457,7 +460,7 @@ export function decodeNamespaceEvent(
 		manager,
 		manager_frozen: managerFrozen,
 		manager_transfers_disabled:
-			managerTransfers === null ? null : !managerTransfers,
+			managerTransferable === null ? null : !managerTransferable,
 		price_function: priceFunction,
 		price_frozen: priceFrozen,
 		lifetime,
