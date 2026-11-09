@@ -570,7 +570,7 @@ export default async function IndexPage() {
 							},
 							{
 								q: "Should I use the index or a subgraph?",
-								a: "The index while you are exploring, a subgraph once you know the shape. Reading your own subgraph tables is free; the index bills the rows it delivers.",
+								a: "The index while you are exploring, a subgraph once you know the shape. The index bills the rows it delivers; a subgraph bills each read of its tables, whatever the page size.",
 							},
 						]}
 					/>

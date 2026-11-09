@@ -92,7 +92,7 @@ const TILES: readonly { icon: ReactNode; title: string; body: ReactNode }[] = [
 			</TileIcon>
 		),
 		title: "Idle is free",
-		body: "A stopped stack costs nothing. Reading your own subgraph tables costs nothing.",
+		body: "A stopped stack costs nothing. The first 100,000 reads of your subgraph tables each month are free.",
 	},
 	{
 		icon: (

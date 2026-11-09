@@ -5,8 +5,10 @@
 import { CHAIN_TRIGGER_TYPES } from "@secondlayer/shared/schemas/chain-triggers";
 import {
 	FREE_ROWS_PER_MONTH,
+	FREE_SUBGRAPH_READS_PER_MONTH,
 	ROW_USD_PER_M,
 	STACK_FLOOR_USD_PER_MONTH,
+	SUBGRAPH_READ_USD_PER_M,
 	WEBHOOK_USD_PER_M,
 } from "./prices";
 
@@ -184,7 +186,7 @@ Context
 - A subgraph is one TypeScript file (\`defineSubgraph\`): sources pick the chain events, schema declares the tables and columns, handlers turn each event into rows. It runs on my hosted stack and serves each table over REST.
 - Hosted sources are event filters plus \`contract_call\` and \`contract_deploy\`. Set a start block.
 - Read the real shape before writing a handler: \`index_print_schema\` for prints, \`contracts_get_abi\` for calls. Never invent event.data fields. event.data is camelCase, columns are snake_case.
-- Hosted cost: a stack that runs subgraphs bills at least $${STACK_FLOOR_USD_PER_MONTH.subgraphs}/mo while it runs, plus storage. ${(FREE_ROWS_PER_MONTH / 1_000_000).toString()}M rows a month are free, then $${ROW_USD_PER_M} per 1M. Reading my own tables is free.
+- Hosted cost: a stack that runs subgraphs bills at least $${STACK_FLOOR_USD_PER_MONTH.subgraphs}/mo while it runs, plus storage. ${(FREE_ROWS_PER_MONTH / 1_000_000).toString()}M rows a month are free, then $${ROW_USD_PER_M} per 1M. Reading my own tables costs $${SUBGRAPH_READ_USD_PER_M} per 1M reads after the first ${FREE_SUBGRAPH_READS_PER_MONTH.toLocaleString("en-US")} each month.
 
 Tools
 - MCP lookups: contracts_find, contracts_get_abi, index_print_schema, index_discover, index_events

@@ -244,8 +244,8 @@ export default function SubgraphsPage() {
 						{[
 							{
 								k: "Reading your tables",
-								v: "$0",
-								p: "Every read of your own subgraph, REST, SDK or stream. Point a dashboard at it and leave it running.",
+								v: "$10 / 1M reads",
+								p: "Per read, not per row, whatever the page size. The first 100,000 each month are free, and a stream counts once each time it sends new rows.",
 							},
 							{
 								k: "Indexing",

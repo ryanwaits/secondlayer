@@ -95,7 +95,7 @@ secondlayer subgraphs create my-contract \
 
 ## Tradeoff
 
-A hosted subgraph runs on your hosted stack, with a $10 a month minimum while it runs. Its indexing bills the event and transaction rows it reads, and reading your own subgraph tables is free ([What it costs](/docs/authentication#what-it-costs)). The tables are Postgres, but hosted serves them over REST and streams, not as a connection string; for direct SQL, [self-host](/docs/self-host).
+A hosted subgraph runs on your hosted stack, with a $10 a month minimum while it runs. Its indexing bills the event and transaction rows it reads, and reads of your own subgraph tables cost $10 per 1M after the first 100,000 each month ([What it costs](/docs/authentication#what-it-costs)). The tables are Postgres, but hosted serves them over REST and streams, not as a connection string; for direct SQL, [self-host](/docs/self-host).
 
 Every route: [List subgraph rows](/docs/api/subgraphs#list-subgraph-rows). The full file format and what runs hosted: [Subgraphs](/docs/subgraphs#what-runs-hosted).
 

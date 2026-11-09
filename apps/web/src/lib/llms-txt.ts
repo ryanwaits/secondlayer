@@ -51,7 +51,9 @@ const INTRO = `# Secondlayer: instant data for apps on Bitcoin
 - The monthly spend cap covers every charge. At the cap, reads past the free
   rows answer 402 spend_cap_reached and the stack stops, so webhooks stop
   delivering until the next month or a raised cap.
-- Reads of your own subgraph tables are free.
+- Reads of your own subgraph tables cost $10 per 1M after the first 100,000
+  each month, whatever the page size. A stream counts once each time it sends
+  new rows. Reads from the dashboard are free.
 - Self-host is unmetered. Only archive restore and backfill off our R2 is metered.
 
 ## Hosted subgraphs
