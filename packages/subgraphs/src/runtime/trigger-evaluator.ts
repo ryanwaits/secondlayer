@@ -479,6 +479,8 @@ function toAmountBigInt(v: string | number | undefined): bigint | undefined {
 	return v === undefined ? undefined : BigInt(v);
 }
 
+// `row` BIGINTs (`request_id`, `block_height`) are strings at runtime (see
+// SbtcEventRow), so compare and deliver them as numbers.
 function matchSbtcTrigger(trigger: ChainTrigger, row: SbtcEventRow): boolean {
 	const expectedTopic = SBTC_TRIGGER_TO_TOPIC[trigger.type];
 	if (!expectedTopic || row.topic !== expectedTopic) return false;
@@ -500,7 +502,10 @@ function matchSbtcTrigger(trigger: ChainTrigger, row: SbtcEventRow): boolean {
 
 	if (trigger.type === "sbtc_withdrawal_create") {
 		if (trigger.sender && row.sender !== trigger.sender) return false;
-		if (trigger.requestId !== undefined && row.request_id !== trigger.requestId)
+		if (
+			trigger.requestId !== undefined &&
+			Number(row.request_id) !== trigger.requestId
+		)
 			return false;
 		const min = toAmountBigInt(trigger.minAmount);
 		const max = toAmountBigInt(trigger.maxAmount);
@@ -514,14 +519,20 @@ function matchSbtcTrigger(trigger: ChainTrigger, row: SbtcEventRow): boolean {
 	}
 
 	if (trigger.type === "sbtc_withdrawal_accept") {
-		if (trigger.requestId !== undefined && row.request_id !== trigger.requestId)
+		if (
+			trigger.requestId !== undefined &&
+			Number(row.request_id) !== trigger.requestId
+		)
 			return false;
 		if (trigger.sweepTxid && row.sweep_txid !== trigger.sweepTxid) return false;
 		return true;
 	}
 
 	if (trigger.type === "sbtc_withdrawal_reject") {
-		if (trigger.requestId !== undefined && row.request_id !== trigger.requestId)
+		if (
+			trigger.requestId !== undefined &&
+			Number(row.request_id) !== trigger.requestId
+		)
 			return false;
 		return true;
 	}
@@ -539,7 +550,7 @@ function buildSbtcEventPayload(
 			recipient: row.recipient,
 			amount: row.amount ?? "0",
 			bitcoin_txid: row.bitcoin_txid,
-			block_height: row.block_height,
+			block_height: Number(row.block_height),
 			tx_id: row.tx_id,
 		} satisfies SbtcDepositEvent;
 	}
@@ -548,12 +559,12 @@ function buildSbtcEventPayload(
 			| "withdrawal-create"
 			| "withdrawal-accept"
 			| "withdrawal-reject",
-		request_id: row.request_id ?? 0,
+		request_id: Number(row.request_id ?? 0),
 		sender: row.sender,
 		amount: row.amount,
 		sweep_txid: row.sweep_txid,
 		settlement_confirmed: false,
-		block_height: row.block_height,
+		block_height: Number(row.block_height),
 		tx_id: row.tx_id,
 	} satisfies SbtcWithdrawalEvent;
 }

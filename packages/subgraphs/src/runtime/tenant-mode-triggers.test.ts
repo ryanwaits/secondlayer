@@ -396,6 +396,39 @@ describe("chain webhooks on a hosted tenant vs a stack with a local chain", () =
 		expect(rows[0]?.event_type).toBe("chain.sbtc_deposit.apply");
 	});
 
+	it("a withdrawal requestId filter matches its own request on both read paths", async () => {
+		const match = await makeWebhook({
+			type: "sbtc_withdrawal_create",
+			requestId: 91,
+		});
+		const miss = await makeWebhook({
+			type: "sbtc_withdrawal_create",
+			requestId: 92,
+		});
+		await runEvaluatorOnce(db, {
+			httpClient: fakeHostedIndex({ confirmedAt }),
+		});
+		const rows = await outboxFor(match);
+		expect(rows).toHaveLength(1);
+		const event = (rows[0]?.payload as { event: Record<string, unknown> })
+			.event;
+		expect(event.request_id).toBe(91);
+		expect(typeof event.block_height).toBe("number");
+		expect(await outboxFor(miss)).toHaveLength(0);
+
+		await seedLocalChain(confirmedAt);
+		await pauseWebhooks([match, miss]);
+		await setCursors(new Date(Date.now() - 60_000));
+		const local = await makeWebhook({
+			type: "sbtc_withdrawal_create",
+			requestId: 91,
+		});
+		await runEvaluatorOnce(db, {
+			httpClient: fakeHostedIndex({ confirmedAt }),
+		});
+		expect(await outboxFor(local)).toHaveLength(1);
+	});
+
 	it("tenant evaluator matches a sip-010 transfer by trait from hosted contracts", async () => {
 		const id = await makeWebhook({ type: "ft_transfer", trait: "sip-010" });
 		await runEvaluatorOnce(db, {
