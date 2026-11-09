@@ -205,10 +205,14 @@ describe("f057: reorg rewind vs in-flight catch-up walk", () => {
 		// catch-up uses in production).
 		const catchupPromise = catchUpSubgraph(makeDef(name), name, id);
 
-		// Give the walk a real head start so it is unambiguously past the fork
-		// height and still mid-walk (2000 blocks at real DB round-trip latency
-		// takes well over 50ms) when the reorg fires below.
-		await new Promise((resolve) => setTimeout(resolve, 50));
+		// Fire the reorg only once the walk has committed past the fork height
+		// and is still mid-walk. A fixed head start was a guess: a slow CI runner
+		// had only reached FORK_HEIGHT - 1 after 50ms.
+		const deadline = Date.now() + 10_000;
+		while ((await cursorOf(name)) <= FORK_HEIGHT) {
+			if (Date.now() > deadline) throw new Error("walk never passed the fork");
+			await new Promise((resolve) => setTimeout(resolve, 5));
+		}
 		await handleSubgraphReorg(FORK_HEIGHT, async () => makeDef(name));
 
 		const processedThisTick = await catchupPromise;
