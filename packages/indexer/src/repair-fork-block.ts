@@ -114,6 +114,7 @@ export async function applyForkRepair(
 		height: plan.height,
 		oldHash: plan.stored.hash,
 		newHash: plan.canonicalHash,
+		newIndexBlockHash: plan.payload.index_block_hash || null,
 		cause: "fork_repair",
 		write: (tx) => persistJournalPayload(tx, plan.payload, plan.height),
 	});

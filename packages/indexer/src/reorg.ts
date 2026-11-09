@@ -29,6 +29,7 @@ export async function handleReorg(
 	blockHeight: number,
 	oldHash: string,
 	newHash: string,
+	newIndexBlockHash?: string | null,
 ): Promise<void> {
 	logger.warn("Handling chain reorganization", {
 		blockHeight,
@@ -50,7 +51,13 @@ export async function handleReorg(
 	await getSourceDb()
 		.transaction()
 		.execute((tx) =>
-			runReorgCascade(tx, { blockHeight, oldHash, newHash, sweepBlocks: true }),
+			runReorgCascade(tx, {
+				blockHeight,
+				oldHash,
+				newHash,
+				newIndexBlockHash,
+				sweepBlocks: true,
+			}),
 		);
 }
 
@@ -71,9 +78,21 @@ async function runReorgCascade(
 		sweepBlocks: boolean;
 		/** Events at the orphaned tip measured before a write replaced them. */
 		orphanedEventCount?: number;
+		/** The new block's index hash when the caller holds its payload;
+		 *  otherwise resolved from `blocks` / `pending_fork_blocks`. */
+		newIndexBlockHash?: string | null;
 	},
 ): Promise<void> {
 	const { blockHeight, oldHash, newHash, sweepBlocks } = input;
+	// Resolved before the sweep or the write can replace the height's row.
+	const oldIndexBlockHash = await resolveIndexBlockHash(
+		tx,
+		blockHeight,
+		oldHash,
+	);
+	const newIndexBlockHash =
+		input.newIndexBlockHash ??
+		(await resolveIndexBlockHash(tx, blockHeight, newHash));
 	const affectedTip = await sql<{
 		max_height: string | number | null;
 	}>`
@@ -143,8 +162,8 @@ async function runReorgCascade(
 	const reorg = await insertChainReorg({
 		db: tx,
 		forkPointHeight: blockHeight,
-		oldIndexBlockHash: oldHash,
-		newIndexBlockHash: newHash,
+		oldIndexBlockHash,
+		newIndexBlockHash,
 		orphanedFrom: { block_height: blockHeight, event_index: 0 },
 		orphanedTo: {
 			block_height: orphanedToHeight,
@@ -163,6 +182,34 @@ async function runReorgCascade(
 	});
 }
 
+/**
+ * The index block hash (StacksBlockId) of the block at `height` with Stacks
+ * block hash `hash`. `chain_reorgs` promises index hashes, and the cascade
+ * only knows block hashes: look in `blocks` (the incumbent, or a same-hash
+ * repair), then `pending_fork_blocks` (a staged contender or a deposed
+ * incumbent). Null when neither holds it, never the block hash in its place.
+ */
+async function resolveIndexBlockHash(
+	tx: Kysely<Database>,
+	height: number,
+	hash: string,
+): Promise<string | null> {
+	const block = await tx
+		.selectFrom("blocks")
+		.select("index_block_hash")
+		.where("height", "=", height)
+		.where("hash", "=", hash)
+		.executeTakeFirst();
+	if (block?.index_block_hash) return block.index_block_hash;
+	const { rows } = await sql<{ index_block_hash: string | null }>`
+		SELECT payload->>'index_block_hash' AS index_block_hash
+		  FROM pending_fork_blocks
+		 WHERE height = ${height} AND block_hash = ${hash}
+		 LIMIT 1
+	`.execute(tx);
+	return rows[0]?.index_block_hash || null;
+}
+
 /** Why a height's canonical block changed outside live ingest. */
 export type CanonicalChangeCause =
 	| "fork_repair"
@@ -174,6 +221,8 @@ export type CanonicalChange = {
 	oldHash: string;
 	newHash: string;
 	cause: CanonicalChangeCause;
+	/** The new block's index hash, when the caller holds its payload. */
+	newIndexBlockHash?: string | null;
 	write: (tx: Transaction<Database>) => Promise<void>;
 	/**
 	 * `always` (default) cascades before the write. `if_rows_change` writes
@@ -240,6 +289,7 @@ export async function applyCanonicalChange(
 				blockHeight: change.height,
 				oldHash: change.oldHash,
 				newHash: change.newHash,
+				newIndexBlockHash: change.newIndexBlockHash,
 				sweepBlocks: false,
 			};
 			let cascaded = true;

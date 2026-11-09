@@ -36,9 +36,11 @@ function payload(
 	return {
 		block_hash: hash,
 		block_height: height,
-		index_block_hash: hash,
+		// Distinct from the block hash, as on chain: a reorg row that recorded
+		// the block hash where it promises the index hash must fail here.
+		index_block_hash: `${hash}-index`,
 		parent_block_hash: parent,
-		parent_index_block_hash: parent,
+		parent_index_block_hash: `${parent}-index`,
 		burn_block_hash: "0xburn",
 		burn_block_height: height,
 		miner_txid: "0x00",
@@ -232,7 +234,7 @@ for (const path of HAS_DB ? [directPath(), catchUpPath()] : [directPath()])
 		`.execute(db);
 			expect(brokenLinks).toHaveLength(0);
 
-			// Both directions of the battle are in the ledger.
+			// Both directions of the battle are in the ledger, by index hash.
 			const reorgs = await db
 				.selectFrom("chain_reorgs")
 				.select(["old_index_block_hash", "new_index_block_hash"])
@@ -242,8 +244,8 @@ for (const path of HAS_DB ? [directPath(), catchUpPath()] : [directPath()])
 			expect(
 				reorgs.map((r) => [r.old_index_block_hash, r.new_index_block_hash]),
 			).toEqual([
-				["0xoriginal", "0xcontender"],
-				["0xcontender", "0xoriginal"],
+				["0xoriginal-index", "0xcontender-index"],
+				["0xcontender-index", "0xoriginal-index"],
 			]);
 		});
 

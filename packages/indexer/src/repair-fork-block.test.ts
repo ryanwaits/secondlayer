@@ -86,6 +86,7 @@ async function seedFork(db: NonNullable<ReturnType<typeof getDb>>) {
 			parent_hash: "0xparent",
 			burn_block_height: 1,
 			burn_block_hash: null,
+			index_block_hash: "0xwrong-ibh",
 			timestamp: 1_700_000_000,
 			canonical: true,
 		},
@@ -268,10 +269,16 @@ describe.skipIf(!HAS_DB)("repair-fork-block", () => {
 		]);
 		const reorgs = await db
 			.selectFrom("chain_reorgs")
-			.select(["fork_point_height", "new_index_block_hash"])
+			.select(["old_index_block_hash", "new_index_block_hash"])
 			.where("fork_point_height", "=", H)
 			.execute();
-		expect(reorgs.length).toBeGreaterThan(0);
+		// Index hashes, not the block hashes the cascade is keyed by.
+		expect(reorgs).toEqual([
+			{
+				old_index_block_hash: "0xwrong-ibh",
+				new_index_block_hash: "0xcanon-ibh",
+			},
+		]);
 		// The chain above the repaired height stays canonical.
 		const child = await db
 			.selectFrom("blocks")

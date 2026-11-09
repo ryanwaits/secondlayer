@@ -158,7 +158,12 @@ async function ingestLocked(
 			db,
 			settled.height,
 		);
-		await handleReorg(settled.height, settled.incumbentHash, settled.blockHash);
+		await handleReorg(
+			settled.height,
+			settled.incumbentHash,
+			settled.blockHash,
+			(settled.payload as NewBlockPayload).index_block_hash,
+		);
 		await clearAdoptedContender(db, settled.height, settled.blockHash);
 		if (deposed && deposed.block_hash === settled.incumbentHash) {
 			await stageForkContender(db, {
