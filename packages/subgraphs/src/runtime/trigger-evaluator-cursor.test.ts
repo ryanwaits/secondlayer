@@ -545,7 +545,8 @@ describe("chain evaluator on the shared testnet stack", () => {
 		await sql`DELETE FROM webhook_outbox WHERE webhook_id = ${webhookId}::uuid`.execute(
 			db,
 		);
-	});
+		// Seeding 100k rows alone can pass 5s on a loaded CI runner.
+	}, 30_000);
 
 	it("does not emit a block older than an hour, and the cursor still moves", async () => {
 		testnet(true);
