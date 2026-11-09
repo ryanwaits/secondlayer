@@ -2,6 +2,12 @@
 
 Notable changes to Secondlayer and its SDKs. Entries dated before August 2026 describe the hosted service as it worked then (per-row read metering, API keys, `402` past the free window); it was withdrawn in August 2026 and has since returned, with hosted Index, Streams, subgraphs and webhooks at `api.secondlayer.tools` on an account key and prepaid [credits](/docs/authentication), while on a self-hosted instance reads stay yours and unmetered and archive bootstrap, backfill and reindex draw [credits](/docs/authentication#archive-credits).
 
+## Streams — November 2026
+
+### Every event has one shape at every height
+
+Older history used to read differently from recent blocks. Now `print` and nft events always carry `raw_value`, the Clarity value as `0x` hex; `value` stays only on rows that had it. `stx_transfer` always carries `memo`, as `0x` hex or `null`, here and on `/v1/index/events`. `stx_lock` always names its PoX contract in `contract_identifier` and `contract_id`, so `contract_id=…pox-4&types=stx_lock` finds every lock. `sender=` still never matches `stx_lock`, which names its principal `locked_address`.
+
 ## Index — November 2026
 
 ### Withdrawal confirmations keep counting
