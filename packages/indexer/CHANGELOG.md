@@ -1,5 +1,13 @@
 # @secondlayer/indexer
 
+## 1.17.12
+
+### Patch Changes
+
+- Updated dependencies [ae54b39]
+  - @secondlayer/sdk@18.0.0
+  - @secondlayer/shared@17.0.0
+
 ## 1.17.11
 
 ### Patch Changes
