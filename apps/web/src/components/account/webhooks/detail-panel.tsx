@@ -12,7 +12,7 @@ import { ChartSkeleton } from "@/components/charts/chart-skeleton";
 import { LazyBandBarChart } from "@/components/charts/lazy";
 import { Choice } from "@/components/choice";
 import { Legend } from "@/components/dashboard/charts/legend";
-import { ActionableInsights } from "@/components/dashboard/insight/insight-actions";
+import { InsightLine } from "@/components/dashboard/insight/insight-line";
 import { Breadcrumb } from "@/components/dashboard/shell/breadcrumb";
 import { useCompact } from "@/components/mobile/use-compact";
 import { notify } from "@/components/toast/notify";
@@ -722,7 +722,7 @@ export function WebhookDetailBody({
 				<Facts activity={activity} deliveries={deliveries} insights={ranked} />
 			</header>
 
-			<ActionableInsights insights={ranked} id="wd-finding" />
+			<InsightLine insights={ranked} id="wd-finding" />
 
 			{activity && !quiet ? (
 				<DeliveriesChart

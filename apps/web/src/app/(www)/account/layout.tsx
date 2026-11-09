@@ -2,8 +2,10 @@ import { AccountFrame } from "@/components/account/account-frame";
 import { CompactSeed } from "@/components/mobile/use-compact";
 import { AccountSeedProvider } from "@/lib/account-data";
 import { AuthSeed } from "@/lib/auth";
+import { OpenChoicesSeed } from "@/lib/insight-open-store";
 import { savedCompact } from "@/lib/server/compact-view";
 import { accountRead, accountReads } from "@/lib/server/dashboard-reads";
+import { savedOpenChoices } from "@/lib/server/open-choices";
 import { sessionToken } from "@/lib/server/session";
 import { warmHighlighter } from "@/lib/server/warm-instance";
 import { after } from "next/server";
@@ -24,11 +26,12 @@ export default async function AccountLayout({
 	// on it; the account pages that render code find it warm afterwards.
 	after(warmHighlighter);
 	const token = await sessionToken();
-	const [[seed, read], compact] = await Promise.all([
+	const [[seed, read], compact, openChoices] = await Promise.all([
 		token
 			? Promise.all([accountReads(token, ["billing"]), accountRead(token)])
 			: Promise.resolve([{}, null] as const),
 		savedCompact(),
+		savedOpenChoices(),
 	]);
 	// No cookie, or one the API rejected, is signed out. An API that is slow or
 	// down isn't: the browser asks /api/auth/me.
@@ -40,7 +43,9 @@ export default async function AccountLayout({
 			<AuthSeed account={account} />
 			<AccountSeedProvider seed={seed}>
 				<CompactSeed saved={compact}>
-					<AccountFrame signedOut={signedOut}>{children}</AccountFrame>
+					<OpenChoicesSeed saved={openChoices}>
+						<AccountFrame signedOut={signedOut}>{children}</AccountFrame>
+					</OpenChoicesSeed>
 				</CompactSeed>
 			</AccountSeedProvider>
 		</>

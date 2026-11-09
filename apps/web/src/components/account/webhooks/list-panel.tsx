@@ -7,13 +7,13 @@ import {
 	HeatStripSkeleton,
 } from "@/components/dashboard/charts/heat-strip";
 import { HourRibbon } from "@/components/dashboard/charts/hour-ribbon";
-import { ActionableInsights } from "@/components/dashboard/insight/insight-actions";
+import { InsightLine } from "@/components/dashboard/insight/insight-line";
 import { StatusSentence } from "@/components/dashboard/shell/status-sentence";
 import { useCompact } from "@/components/mobile/use-compact";
 import { getAgentPrompt } from "@/lib/agent-prompts";
 import { heatGrid } from "@/lib/dashboard-charts";
 import type { IndexView } from "@/lib/index-view";
-import type { Insight } from "@/lib/insights";
+import { type Insight, rulesHomedAt } from "@/lib/insights";
 import { forAccountRules, useInsights } from "@/lib/insights-store";
 import type { WebhooksListInitial } from "@/lib/server/dashboard-reads";
 import type { StackNotice } from "@/lib/stack-status";
@@ -345,7 +345,7 @@ export function WebhooksListBody({
 				</p>
 			</div>
 
-			<ActionableInsights insights={pageInsights} />
+			<InsightLine insights={pageInsights} />
 
 			{rows === null && notice === null ? <WebhooksListSkeleton /> : null}
 
@@ -476,7 +476,10 @@ export function WebhooksListSection({
 	}
 	return (
 		<WebhooksListBody
-			pageInsights={forAccountRules(insights, ["stack_unreachable_webhooks"])}
+			pageInsights={forAccountRules(
+				insights,
+				rulesHomedAt("/account/webhooks"),
+			)}
 			rows={rows}
 			hours={hours}
 			summaryLoaded={summaryLoaded}

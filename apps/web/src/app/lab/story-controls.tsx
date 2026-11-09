@@ -747,6 +747,22 @@ function rowsStoryData(exhausted: boolean): RowsResponse {
 						count: 5,
 						last: "2026-10-15T08:00:00.000Z",
 					},
+					...[
+						"ft-transfers",
+						"state-writes",
+						"sbtc/deposits",
+						"transactions",
+						"pox5/events",
+						"blocks",
+						"mempool",
+						"runes/balances",
+					].map((name, i) => ({
+						status: 400,
+						code: "BAD_REQUEST",
+						path: `/v1/index/${name}`,
+						count: 4 - Math.floor(i / 3),
+						last: "2026-10-15T06:00:00.000Z",
+					})),
 					{
 						status: 500,
 						code: "INTERNAL",
@@ -847,7 +863,6 @@ export type OverviewDemoState =
 	| "with-subgraph"
 	| "no-keys"
 	| "our-errors"
-	| "our-errors-recovered"
 	| "many"
 	| "loading";
 
@@ -877,6 +892,7 @@ function exampleManyWebhooks(now: Date) {
 export function OverviewDemo({ state }: { state: OverviewDemoState }) {
 	const [now] = useState(() => new Date());
 	const subgraph = exampleSubgraph(now);
+	const failing = exampleWebhooks(now, { failing: true });
 	const props = {
 		today: exampleOverview(now),
 		"webhook-failing": exampleOverview(now, {
@@ -886,8 +902,13 @@ export function OverviewDemo({ state }: { state: OverviewDemoState }) {
 			rows: exampleWebhooks(now, { attention: true }),
 		}),
 		"mixed-findings": exampleOverview(now, {
-			rows: exampleWebhooks(now, { failing: true }),
+			rows: failing,
 			subgraphFindings: [exampleSubgraphFinding()],
+			inbox: [
+				...failing.flatMap((row) => row.insights),
+				exampleSubgraphFinding(),
+				serverErrorsInsight(),
+			],
 			subgraphs: (
 				<SubgraphRows
 					items={[subgraph.item]}
@@ -917,10 +938,7 @@ export function OverviewDemo({ state }: { state: OverviewDemoState }) {
 		}),
 		"no-keys": exampleOverview(now, { keys: [] }),
 		"our-errors": exampleOverview(now, {
-			accountInsights: [serverErrorsInsight()],
-		}),
-		"our-errors-recovered": exampleOverview(now, {
-			accountInsights: [serverErrorsInsight(true)],
+			inbox: [serverErrorsInsight()],
 		}),
 		many: exampleOverview(now, {
 			rows: exampleManyWebhooks(now),

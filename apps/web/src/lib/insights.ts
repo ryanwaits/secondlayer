@@ -111,15 +111,6 @@ export function rankInsights(list: readonly Insight[]): Insight[] {
 	);
 }
 
-/** Only a top item that is losing events or about to fail opens on its own. */
-export function autoOpenId(list: readonly Insight[]): string | null {
-	const top = rankInsights(list)[0];
-	if (!top) return null;
-	return top.severity === "losing" || top.severity === "will_fail"
-		? top.id
-		: null;
-}
-
 /** The labelled cause, or null when confidence is under 0.85. */
 export function causeText(how: Insight["how"]): string | null {
 	const label = how.label;
@@ -165,6 +156,14 @@ const ACCOUNT_PAGES: Record<string, { href: string; name: string }> = {
 		name: "Subgraphs",
 	},
 };
+
+/** The account rules whose insights live on a page. Each insight has one
+ *  home; the Overview's one line is the only other place it shows. */
+export function rulesHomedAt(href: string): string[] {
+	return Object.keys(ACCOUNT_PAGES).filter(
+		(rule) => ACCOUNT_PAGES[rule]?.href === href,
+	);
+}
 
 /** The dashboard page an insight is about. */
 export function insightHref(insight: Insight): string {

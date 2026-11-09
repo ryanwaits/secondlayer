@@ -7,13 +7,13 @@ import {
 } from "@/components/charts/lazy";
 import { Legend } from "@/components/dashboard/charts/legend";
 import { Meter } from "@/components/dashboard/charts/meter";
-import { ActionableInsights } from "@/components/dashboard/insight/insight-actions";
+import { InsightLine } from "@/components/dashboard/insight/insight-line";
 import { ReadsKeyLine } from "@/components/dashboard/shell/onboarding";
 import { Skel } from "@/components/dashboard/shell/skel";
 import { StatusSentence } from "@/components/dashboard/shell/status-sentence";
 import { ensureKeys, refreshRows, useAccountData } from "@/lib/account-data";
 import { barsRows } from "@/lib/dashboard-charts";
-import type { Insight } from "@/lib/insights";
+import { type Insight, rulesHomedAt } from "@/lib/insights";
 import { forAccountRules, useInsights } from "@/lib/insights-store";
 import {
 	type KeyState,
@@ -21,10 +21,12 @@ import {
 	keyState as keyStateOf,
 } from "@/lib/onboarding";
 import {
+	ERRORS_PER_PAGE,
 	type RowsError,
 	type RowsResponse,
 	clientErrors,
 	dailyBars,
+	errorPage,
 	errorSummary,
 	markIndex,
 	serverErrors,
@@ -44,15 +46,8 @@ const SOURCE_LABEL: Record<string, string> = {
 
 const fmt = (n: number) => n.toLocaleString("en-US");
 
-/** The account-level rules about reads; the rest belong to Overview and Billing. */
-const ROWS_RULES = [
-	"duplicate_reads",
-	"polling_loop",
-	"backfill",
-	"server_errors",
-	"allowance_exhausted",
-	"revoked_key_in_use",
-];
+/** The account rules whose insights live here. */
+const ROWS_RULES = rulesHomedAt("/account/rows");
 
 function ServerErrors({ errors }: { errors: RowsError[] }) {
 	if (errors.length === 0) return null;
@@ -71,40 +66,94 @@ function ServerErrors({ errors }: { errors: RowsError[] }) {
 	);
 }
 
+function PageArrow({ back }: { back?: boolean }) {
+	return (
+		<svg
+			width="6"
+			height="10"
+			viewBox="0 0 6 10"
+			fill="none"
+			stroke="currentColor"
+			strokeWidth="1.5"
+			strokeLinecap="round"
+			strokeLinejoin="round"
+			aria-hidden="true"
+		>
+			<path d={back ? "M5 1L1 5l4 4" : "M1 1l4 4-4 4"} />
+		</svg>
+	);
+}
+
+/** Your 4xx errors, a page at a time so the panel ends level with its neighbour:
+ *  one row fewer when our own failures take a line above the table. */
 function ErrorsPanel({ errors }: { errors: RowsError[] }) {
 	const client = clientErrors(errors);
+	const ours = serverErrors(errors);
+	const [page, setPage] = useState(0);
+	const { rows, from, to, pages, current } = errorPage(
+		client,
+		page,
+		ours.length > 0 ? ERRORS_PER_PAGE - 1 : ERRORS_PER_PAGE,
+	);
 	return (
 		<section className="dash-panel bl-panel" aria-label="Your errors">
-			<span className="dash-label">Your errors · 24h</span>
-			<ServerErrors errors={serverErrors(errors)} />
+			<div className="dash-panel-h">
+				<span className="dash-label">Your errors · 24h</span>
+				{client.length > 0 ? (
+					<span className="rw-err-meta">
+						<span className="bl-note">{errorSummary(errors)}</span>
+						{pages > 1 ? (
+							<nav className="rw-pager" aria-label="Error pages">
+								<span className="bl-note">
+									{from}–{to} of {client.length}
+								</span>
+								<button
+									type="button"
+									aria-label="Previous errors"
+									disabled={current === 0}
+									onClick={() => setPage(current - 1)}
+								>
+									<PageArrow back />
+								</button>
+								<button
+									type="button"
+									aria-label="Next errors"
+									disabled={current === pages - 1}
+									onClick={() => setPage(current + 1)}
+								>
+									<PageArrow />
+								</button>
+							</nav>
+						) : null}
+					</span>
+				) : null}
+			</div>
+			<ServerErrors errors={ours} />
 			{client.length === 0 ? (
 				<p className="bl-note">No errors from you in the last 24 hours.</p>
 			) : (
-				<>
-					<div className="wd-tbl-wrap">
-						<table className="wd-tbl">
-							<thead>
-								<tr>
-									<th>Status</th>
-									<th>Path</th>
-									<th className="r">Count</th>
+				<div className="wd-tbl-wrap">
+					<table className="wd-tbl">
+						<thead>
+							<tr>
+								<th>Status</th>
+								<th>Path</th>
+								<th className="r">Count</th>
+							</tr>
+						</thead>
+						<tbody>
+							{rows.map((e) => (
+								<tr key={`${e.status}-${e.code}-${e.path}`}>
+									<td className="bad">{e.status}</td>
+									<td className="rw-path" title={e.path}>
+										{shortenPath(e.path)}
+									</td>
+									<td className="r">{fmt(e.count)}</td>
 								</tr>
-							</thead>
-							<tbody>
-								{client.map((e) => (
-									<tr key={`${e.status}-${e.code}-${e.path}`}>
-										<td className="bad">{e.status}</td>
-										<td className="rw-path" title={e.path}>
-											{shortenPath(e.path)}
-										</td>
-										<td className="r">{fmt(e.count)}</td>
-									</tr>
-								))}
-							</tbody>
-						</table>
-					</div>
-					<span className="bl-note">{errorSummary(errors)}</span>
-				</>
+							))}
+						</tbody>
+					</table>
+				</div>
 			)}
 		</section>
 	);
@@ -120,9 +169,6 @@ export interface RowsBodyProps {
 	/** The account has no key of its own yet: the empty screen asks for one first. */
 	keyState?: KeyState;
 }
-
-const hasRevokedKeyInUse = (insights: readonly Insight[]) =>
-	insights.some((i) => i.rule === "revoked_key_in_use");
 
 /** Nothing read this month and nothing on record. */
 const isUnused = (data: RowsResponse) =>
@@ -143,12 +189,9 @@ function EmptyRows({
 			<StatusSentence sub="Every row you read shows up here by day, with what it cost. The first 1M each month are free.">
 				No reads yet.
 			</StatusSentence>
-			<ActionableInsights insights={insights} />
+			<InsightLine insights={insights} />
 			{keyState === "first" || keyState === "none_active" ? (
-				// The revoked-key insight says it better than the plain line.
-				hasRevokedKeyInUse(insights) ? null : (
-					<ReadsKeyLine state={keyState} />
-				)
+				<ReadsKeyLine state={keyState} />
 			) : (
 				<CliLine command={READ_COMMAND} />
 			)}
@@ -199,9 +242,8 @@ export function RowsBody({
 	return (
 		<div className="bl-body">
 			<StatusSentence sub={copy.sub}>{copy.sentence}</StatusSentence>
-			{keyState === "none_active" && !hasRevokedKeyInUse(insights) ? (
-				<ReadsKeyLine state="none_active" />
-			) : null}
+			<InsightLine insights={insights} />
+			{keyState === "none_active" ? <ReadsKeyLine state="none_active" /> : null}
 
 			<section className="dash-panel bl-panel" aria-label="Rows per day">
 				<div className="dash-panel-h">
@@ -229,10 +271,6 @@ export function RowsBody({
 					/>
 				</ChartBox>
 			</section>
-
-			<div className="rw-notes">
-				<ActionableInsights insights={insights} />
-			</div>
 
 			<div className="bl-two even">
 				<section

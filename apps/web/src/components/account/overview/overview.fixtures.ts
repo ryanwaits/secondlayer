@@ -30,17 +30,17 @@ function hourly(delivered: number[], failed: number[] = []) {
 	return { delivered: make(delivered), failed: make(failed) };
 }
 
-/** The "server errors" insight on the Rows cell, active or already recovered. */
-export function serverErrorsInsight(recovered = false): Insight {
+/** The "server errors" insight, while it is active. */
+export function serverErrorsInsight(): Insight {
 	return {
 		id: "ins-server-errors",
 		rule: "server_errors",
-		severity: recovered ? "recovered" : "losing",
+		severity: "losing",
 		impact: 3,
 		resource: { kind: "account", id: "acct-example", name: "Account" },
 		line: "3 requests failed on our side",
-		meta: recovered ? "16:50 UTC · recovered" : "16:50 UTC",
-		lead: `Our fault, not yours. At 16:50 UTC, 3 of your requests got a server error from us. Nothing in your code caused it, and retrying is safe. ${recovered ? "No new errors for an hour, so this has cleared." : "This clears after an hour without new errors."}`,
+		meta: "16:50 UTC",
+		lead: "Our fault, not yours. At 16:50 UTC, 3 of your requests got a server error from us. Nothing in your code caused it, and retrying is safe. This clears after an hour without new errors.",
 		body: "Three reads got a 5xx answer from Secondlayer within the same minute.",
 		evidence: [
 			{
@@ -68,7 +68,7 @@ export function serverErrorsInsight(recovered = false): Insight {
 			],
 		},
 		createdAt: "2026-10-16T16:50:00.000Z",
-		resolvedAt: recovered ? "2026-10-16T17:50:00.000Z" : null,
+		resolvedAt: null,
 	};
 }
 

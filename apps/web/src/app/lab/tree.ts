@@ -46,7 +46,7 @@ export const STORY_INDEX = [
 	{ id: "mobile-account", group: "Dashboard", title: "Account (phone)" },
 	{ id: "mobile-share", group: "Dashboard", title: "Mobile share fix" },
 	{ id: "insight-card", group: "Dashboard", title: "Insight card" },
-	{ id: "insight-stack", group: "Dashboard", title: "Insight stack" },
+	{ id: "insight-line", group: "Dashboard", title: "Insight line" },
 	{ id: "handoff", group: "Dashboard", title: "Hand off" },
 	{ id: "callout", group: "Content", title: "Callout" },
 	{ id: "subgraph-tables", group: "Content", title: "Subgraph tables" },

@@ -2,7 +2,7 @@
 
 import { LazyBandBarChart } from "@/components/charts/lazy";
 import { Sparkline } from "@/components/dashboard/charts/sparkline";
-import { ActionableInsights } from "@/components/dashboard/insight/insight-actions";
+import { InsightLine } from "@/components/dashboard/insight/insight-line";
 import { PlaceholderRows } from "@/components/dashboard/shell/onboarding";
 import { StatusSentence } from "@/components/dashboard/shell/status-sentence";
 import { Sheet } from "@/components/mobile/sheet";
@@ -19,7 +19,7 @@ import {
 	useAccountData,
 } from "@/lib/account-data";
 import { barsRows } from "@/lib/dashboard-charts";
-import type { Insight } from "@/lib/insights";
+import { type Insight, rulesHomedAt } from "@/lib/insights";
 import { forAccountRules, useInsights } from "@/lib/insights-store";
 import { keyState } from "@/lib/onboarding";
 import { shortCount } from "@/lib/subgraph-view";
@@ -613,11 +613,7 @@ export function KeysBody({
 				)}
 			</div>
 			{flow}
-			{insights.length > 0 ? (
-				<div className="ky-notes">
-					<ActionableInsights insights={insights} />
-				</div>
-			) : null}
+			<InsightLine insights={insights} />
 			<KeysTable
 				keys={keys}
 				now={now}
@@ -640,7 +636,8 @@ export function KeysBody({
 }
 
 /** The reasons the Keys tab shows. */
-const KEY_RULES = ["key_unused", "revoked_key_in_use"];
+/** The account rules whose insights live here. */
+const KEY_RULES = rulesHomedAt("/account/keys");
 
 /** /account/keys: every key on the account, and a new one when you need it.
  *  `openNew` (`?new=1`, from the docs' "Make a lasting key") opens New key on
@@ -726,7 +723,9 @@ export function KeysScreen({ openNew = false }: { openNew?: boolean }) {
 			keys={keys}
 			insights={forAccountRules(
 				allInsights,
-				staleOwnKey ? KEY_RULES : ["revoked_key_in_use"],
+				staleOwnKey
+					? KEY_RULES
+					: KEY_RULES.filter((rule) => rule !== "key_unused"),
 			)}
 			now={now}
 			freshPrefix={freshPrefix}

@@ -3,7 +3,7 @@ import type { Insight } from "@/lib/insights";
 import { FIXTURE_INSIGHTS } from "@/lib/insights.fixtures";
 import type { RowsResponse } from "@/lib/rows";
 import type { ApiKey } from "@/lib/types";
-import { cellInsights, keysCell, rowsCell, stackCell } from "./overview-view";
+import { keysCell, rowsCell, stackCell } from "./overview-view";
 
 const NOW = new Date("2026-10-15T12:00:00.000Z");
 const daysAgo = (n: number) =>
@@ -197,25 +197,5 @@ describe("stackCell", () => {
 
 	test("is null until the usage response loads", () => {
 		expect(stackCell(null, burn, awake)).toBeNull();
-	});
-});
-
-describe("cellInsights", () => {
-	const fixture = (rule: string): Insight => {
-		const found = FIXTURE_INSIGHTS.find((i) => i.rule === rule);
-		if (!found) throw new Error(`missing fixture ${rule}`);
-		return found;
-	};
-
-	test("puts server errors in the rows cell and leaves money insights for the month", () => {
-		const serverErrors: Insight = {
-			...fixture("cap_pace"),
-			id: "ins-server-errors",
-			rule: "server_errors",
-		};
-		const cap = fixture("cap_pace");
-		const split = cellInsights([cap, serverErrors]);
-		expect(split.rows.map((i) => i.id)).toEqual(["ins-server-errors"]);
-		expect(split.rest.map((i) => i.id)).toEqual([cap.id]);
 	});
 });

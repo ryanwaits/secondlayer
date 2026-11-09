@@ -10,7 +10,7 @@ import {
 import { MissingResource } from "@/components/account/missing-resource";
 import { ChartSkeleton } from "@/components/charts/chart-skeleton";
 import { Choice } from "@/components/choice";
-import { ActionableInsights } from "@/components/dashboard/insight/insight-actions";
+import { InsightLine } from "@/components/dashboard/insight/insight-line";
 import { Breadcrumb } from "@/components/dashboard/shell/breadcrumb";
 import { Mark } from "@/components/dashboard/shell/mark";
 import { Skel } from "@/components/dashboard/shell/skel";
@@ -222,7 +222,7 @@ export function SubgraphDetailBody({
 				</div>
 			</header>
 
-			<ActionableInsights insights={insights ?? []} />
+			<InsightLine insights={insights ?? []} />
 
 			{windowHours ? (
 				<RowsWrittenPanel hours={windowHours} rangeLabel={range} />

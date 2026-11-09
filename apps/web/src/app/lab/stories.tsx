@@ -49,12 +49,9 @@ import { Sparkline } from "@/components/dashboard/charts/sparkline";
 import { SpendChart } from "@/components/dashboard/charts/spend-chart";
 import { Ticks } from "@/components/dashboard/charts/ticks";
 import { HandoffBlock } from "@/components/dashboard/insight/handoff-block";
-import {
-	ActionableInsights,
-	InsightActions,
-} from "@/components/dashboard/insight/insight-actions";
+import { InsightActions } from "@/components/dashboard/insight/insight-actions";
 import { InsightCard } from "@/components/dashboard/insight/insight-card";
-import { InsightStack } from "@/components/dashboard/insight/insight-stack";
+import { InsightLine } from "@/components/dashboard/insight/insight-line";
 import { Breadcrumb } from "@/components/dashboard/shell/breadcrumb";
 import { DashboardTabs } from "@/components/dashboard/shell/dashboard-tabs";
 import {
@@ -2665,30 +2662,42 @@ const META: Record<StoryId, Meta> = {
 			"No bare numbers from the model.",
 		],
 	},
-	"insight-stack": {
+	"insight-line": {
 		src: [
-			"apps/web/src/components/dashboard/insight/insight-stack.tsx",
-			"apps/web/src/components/dashboard/insight/insight-note.tsx",
+			"apps/web/src/components/dashboard/insight/insight-line.tsx",
 			"apps/web/src/components/dashboard/insight/insight-actions.tsx",
+			"apps/web/src/lib/insight-open-store.tsx",
 		],
-		rule: "Worst first. Only the top item opens on its own, and only when it is losing events or about to fail.",
+		rule: "One line per page, under the headline: the worst insight, +N more, Why. Why opens one grouped card. Each insight's card lives only on the page you fix it on; the Overview's line lists them all and links there. A hide sticks across pages and visits; a new insight that is losing events or about to fail opens it.",
 		stack: true,
 		variants: [
 			{
-				id: "stack",
+				id: "many",
 				label: "Four insights",
-				render: () => <InsightStack insights={FIXTURE_STACK} />,
+				render: () => <InsightLine insights={FIXTURE_STACK} />,
 			},
 			{
-				id: "actions",
-				label: "With dismiss actions",
-				render: () => <ActionableInsights insights={FIXTURE_STACK} />,
+				id: "one",
+				label: "One insight",
+				render: () => <InsightLine insights={FIXTURE_STACK.slice(0, 1)} />,
+			},
+			{
+				id: "inbox",
+				label: "Overview inbox",
+				render: () => (
+					<InsightLine
+						insights={FIXTURE_INSIGHTS.filter(
+							(i) => i.severity !== "recovered",
+						)}
+						inbox
+					/>
+				),
 			},
 			{
 				id: "quiet",
-				label: "Nothing opens",
+				label: "Nothing opens on its own",
 				render: () => (
-					<InsightStack
+					<InsightLine
 						insights={FIXTURE_STACK.filter(
 							(i) => i.severity === "costs" || i.severity === "recovered",
 						)}
@@ -2696,7 +2705,7 @@ const META: Record<StoryId, Meta> = {
 				),
 			},
 		],
-		usage: "<ActionableInsights insights={insights} />",
+		usage: "<InsightLine insights={insights} />",
 	},
 	"account-rows": {
 		src: [
@@ -2883,11 +2892,6 @@ const META: Record<StoryId, Meta> = {
 				id: "our-errors",
 				label: "Our errors, active",
 				render: () => <OverviewDemo state="our-errors" />,
-			},
-			{
-				id: "our-errors-recovered",
-				label: "Our errors, recovered",
-				render: () => <OverviewDemo state="our-errors-recovered" />,
 			},
 			{
 				id: "loading",

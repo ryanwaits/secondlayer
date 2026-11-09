@@ -2,11 +2,7 @@
 
 import { Meter } from "@/components/dashboard/charts/meter";
 import { Ticks } from "@/components/dashboard/charts/ticks";
-import {
-	ActionableInsights,
-	InsightActions,
-} from "@/components/dashboard/insight/insight-actions";
-import { InsightNote } from "@/components/dashboard/insight/insight-note";
+import { InsightLine } from "@/components/dashboard/insight/insight-line";
 import {
 	Checklist,
 	type ChecklistStep,
@@ -33,17 +29,8 @@ import {
 } from "@/lib/account-data";
 import { daysLeft, daysLeftLabel } from "@/lib/account-health";
 import { useAuth } from "@/lib/auth";
-import {
-	type OpenChoices,
-	resolveOpenId,
-	writeOpenChoices,
-} from "@/lib/insight-open";
 import { type Insight, rankInsights } from "@/lib/insights";
-import {
-	forAccountRules,
-	forResource,
-	useInsights,
-} from "@/lib/insights-store";
+import { forResource, useInsights } from "@/lib/insights-store";
 import {
 	type KeyState,
 	type OnboardingProgress,
@@ -99,20 +86,11 @@ import { shortenName } from "../webhooks/shared";
 import { ageShort, last24 } from "../webhooks/view";
 import { WaitingGroups } from "../webhooks/waiting";
 import { FirstRowsGuide } from "./first-rows-guide";
-import { cellInsights, overviewStackStatus } from "./overview-view";
+import { overviewStackStatus } from "./overview-view";
 import { PlumbingStrip, PlumbingStripSkeleton } from "./plumbing-strip";
 
 /** The webhook rows refresh this often while the tab is visible. */
 const POLL_MS = 30_000;
-
-/** The account-level rules the Overview shows; the rest belong to Rows. */
-export const OVERVIEW_ACCOUNT_RULES = [
-	"server_errors",
-	"cap_pace",
-	"credits_runway",
-	"revoked_key_in_use",
-	"stack_unreachable",
-];
 
 /** The column labels over the webhook rows; they name the unit the numbers count. */
 export const WEBHOOK_HEAD: ResourceRowLabels = [
@@ -241,61 +219,6 @@ export function findingsHeadline(findings: readonly Insight[]): string {
 	const noun = plural(n, first.resource.kind);
 	if (failing(first)) return `${noun} ${n === 1 ? "is" : "are"} failing.`;
 	return `${noun} ${n === 1 ? "needs" : "need"} a look.`;
-}
-
-/** The resource's name ahead of its line, unless the line already says it. */
-export function findingLabel(insight: Insight): string | undefined {
-	const { kind, name } = insight.resource;
-	if (kind === "account" || !name || insight.line.includes(name)) return;
-	return shortenName(name);
-}
-
-/** The findings as their own list above the tables. The worst opens by
- *  default; what the reader chose last comes from the cookie the server read,
- *  so the first frame already has it. One is open at a time. */
-function Findings({
-	findings,
-	saved,
-}: {
-	findings: readonly Insight[];
-	saved: OpenChoices;
-}) {
-	const ids = findings.map((f) => f.id);
-	const [choices, setChoices] = useState<OpenChoices>(saved);
-	const openId = resolveOpenId(ids, choices);
-	if (findings.length === 0) return null;
-
-	const toggle = (id: string) => {
-		const next = openId === id ? null : id;
-		const updated: Record<string, boolean> = { ...choices };
-		// Delete first so the touched ones sit newest when the cookie is capped.
-		for (const [key, open] of [
-			[openId, false],
-			[next, true],
-		] as const) {
-			if (key === null) continue;
-			delete updated[key];
-			updated[key] = open;
-		}
-		writeOpenChoices(updated, ids);
-		setChoices(updated);
-	};
-
-	return (
-		<section className="ov-findings" aria-label="Needs a look">
-			<div className="dash-label">Needs a look · {findings.length}</div>
-			{findings.map((insight) => (
-				<InsightNote
-					key={insight.id}
-					insight={insight}
-					open={openId === insight.id}
-					label={findingLabel(insight)}
-					onToggle={() => toggle(insight.id)}
-					footer={<InsightActions insight={insight} />}
-				/>
-			))}
-		</section>
-	);
 }
 
 /** Webhooks that have never matched an event: one quiet row that expands. */
@@ -510,12 +433,11 @@ export interface OverviewBodyProps {
 	keys?: ApiKey[] | null;
 	/** The clock for the keys row; defaults to now. */
 	now?: Date;
-	/** The findings the reader showed or hid, from the cookie. */
-	openChoices?: OpenChoices;
 	/** The live top insight of each flagged subgraph. */
 	subgraphFindings?: readonly Insight[];
-	/** Account-level insights (read errors, spend cap, credits). */
-	accountInsights?: readonly Insight[];
+	/** Every live insight on the account: the Overview's one line, each
+	 *  linked to the page it lives on. */
+	inbox?: readonly Insight[];
 	/** The hosted stack stopped because every webhook is paused. */
 	asleep?: boolean;
 	/** A new account's checklist; the normal Overview shows once it is complete. */
@@ -532,9 +454,8 @@ export function OverviewBody({
 	subgraphs = <OverviewSubgraphsSlot />,
 	keys = null,
 	now = new Date(),
-	openChoices = {},
 	subgraphFindings = [],
-	accountInsights = [],
+	inbox = [],
 	asleep = false,
 	onboarding = null,
 	pending = NOT_PENDING,
@@ -558,7 +479,6 @@ export function OverviewBody({
 			asleep,
 			creditsUsdMicros: billing.creditsUsdMicros,
 		}) === "stopped_no_credits";
-	const { rest: moneyInsights } = cellInsights(accountInsights);
 
 	const sub = [
 		rows ? plural(rows.length, "webhook") : null,
@@ -625,7 +545,7 @@ export function OverviewBody({
 				/>
 			) : (
 				<>
-					<Findings findings={findings} saved={openChoices} />
+					<InsightLine insights={inbox} inbox className="ov-inbox" />
 					<div key="ov-rows" className="dash-rows ov-table">
 						{active.length + quiet.length > 0 ? (
 							<ResourceRowHead labels={WEBHOOK_HEAD} />
@@ -667,7 +587,6 @@ export function OverviewBody({
 					stack={stack}
 					burn={burn}
 					now={now}
-					insights={accountInsights}
 					asleep={asleep}
 					creditsUsdMicros={billing?.creditsUsdMicros ?? null}
 				/>
@@ -676,10 +595,7 @@ export function OverviewBody({
 			{/* Below the strip, so it waits for both sections above: anything
 			    here would move when the rows or strip replace their skeletons. */}
 			{pending.list || pending.strip ? null : (
-				<>
-					<ActionableInsights insights={moneyInsights} />
-					<MonthPanel billing={billing} burn={burn} fresh={starting} />
-				</>
+				<MonthPanel billing={billing} burn={burn} fresh={starting} />
 			)}
 		</>
 	);
@@ -781,13 +697,10 @@ export function OverviewSection({
 	firstRowsCode,
 	firstRowsPrompt,
 	initial = null,
-	openChoices,
 }: {
 	firstRowsCode?: ReactNode;
 	firstRowsPrompt?: ReactNode;
 	initial?: OverviewInitial | null;
-	/** The findings the reader showed or hid, as the server read them. */
-	openChoices?: OpenChoices;
 } = {}) {
 	const { account } = useAuth();
 	const {
@@ -910,9 +823,8 @@ export function OverviewSection({
 			stack={service}
 			readUsage={rowsData}
 			keys={keys}
-			openChoices={openChoices}
 			subgraphFindings={subgraphFindings}
-			accountInsights={forAccountRules(insights, OVERVIEW_ACCOUNT_RULES)}
+			inbox={insights.filter((i) => i.severity !== "recovered")}
 			asleep={asleep}
 			onboarding={onboarding}
 		/>

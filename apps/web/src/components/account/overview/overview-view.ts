@@ -13,27 +13,6 @@ import {
 import { countedKeys, overviewKeys, staleKeys } from "../keys/key-view";
 import { ageShort } from "../webhooks/view";
 
-/**
- * Which cell of the strip an account insight is about. An insight sits in the
- * cell it is about; money insights (spend cap, credits runway) stay above the
- * month panel, so they are not listed here.
- */
-export const CELL_RULES = { rows: ["server_errors"] } as const;
-
-/** Splits account insights into the ones the Rows cell carries and the rest. */
-export function cellInsights(insights: readonly Insight[]): {
-	rows: Insight[];
-	rest: Insight[];
-} {
-	const ranked = rankInsights(insights);
-	const inRows = (i: Insight) =>
-		(CELL_RULES.rows as readonly string[]).includes(i.rule);
-	return {
-		rows: ranked.filter(inRows),
-		rest: ranked.filter((i) => !inRows(i)),
-	};
-}
-
 export interface RowsCell {
 	monthLabel: string;
 	/** Rows delivered this month, free and paid together. */

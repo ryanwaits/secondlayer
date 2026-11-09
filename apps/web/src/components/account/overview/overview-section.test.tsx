@@ -1,8 +1,8 @@
 import { describe, expect, mock, test } from "bun:test";
 import {
 	OPEN_COOKIE,
+	lineOpen,
 	parseOpenChoices,
-	resolveOpenId,
 	serializeOpenChoices,
 } from "@/lib/insight-open";
 import {
@@ -132,21 +132,31 @@ describe("checklistApplies", () => {
 });
 
 describe("remembered open choice", () => {
-	const ids = ["a", "b", "c"];
+	const costs = { id: "a", severity: "costs" };
+	const losing = { id: "b", severity: "losing" };
 
-	test("opens the first by default", () => {
-		expect(resolveOpenId(ids, {})).toBe("a");
+	test("a new insight opens only when losing events or about to fail", () => {
+		expect(lineOpen([costs], {})).toBe(false);
+		expect(lineOpen([costs, losing], {})).toBe(true);
 	});
-	test("a saved hide keeps the first closed", () => {
-		expect(resolveOpenId(ids, { a: false })).toBeNull();
+	test("a hidden line stays hidden on the next visit", () => {
+		expect(lineOpen([costs, losing], { a: false, b: false })).toBe(false);
 	});
-	test("a saved show on the second opens it instead", () => {
-		expect(resolveOpenId(ids, { b: true })).toBe("b");
+	test("a line left open stays open", () => {
+		expect(lineOpen([costs], { a: true })).toBe(true);
+	});
+	test("a new failing insight reopens a hidden line", () => {
+		expect(
+			lineOpen([costs, losing, { id: "c", severity: "will_fail" }], {
+				a: false,
+				b: false,
+			}),
+		).toBe(true);
 	});
 
 	test("the cookie round-trips, ids with colons included", () => {
 		const choices = { "rule:wh-1": true, b: false };
-		const raw = serializeOpenChoices(choices, ["rule:wh-1", "b"]);
+		const raw = serializeOpenChoices(choices);
 		expect(parseOpenChoices(raw)).toEqual(choices);
 		// The server may hand it over already decoded.
 		expect(parseOpenChoices(decodeURIComponent(raw))).toEqual(choices);
@@ -160,24 +170,19 @@ describe("remembered open choice", () => {
 			"a:2~:1~~b",
 			"%E0%A4%A",
 		]) {
-			expect(resolveOpenId(ids, parseOpenChoices(raw))).toBe("a");
+			expect(parseOpenChoices(raw)).toEqual({});
 		}
 		expect(parseOpenChoices("a:0~junk~b:1")).toEqual({ a: false, b: true });
 	});
-	test("saving drops ids that are gone and keeps the newest 20", () => {
-		expect(
-			parseOpenChoices(serializeOpenChoices({ a: true, gone: false }, ids)),
-		).toEqual({
-			a: true,
-		});
+	test("saving keeps the newest 40", () => {
 		const many = Object.fromEntries(
-			Array.from({ length: 30 }, (_, i) => [`ins-${i}`, i % 2 === 0]),
+			Array.from({ length: 50 }, (_, i) => [`ins-${i}`, i % 2 === 0]),
 		);
-		const raw = serializeOpenChoices(many, Object.keys(many));
+		const raw = serializeOpenChoices(many);
 		const kept = Object.keys(parseOpenChoices(raw));
-		expect(kept).toHaveLength(20);
+		expect(kept).toHaveLength(40);
 		expect(kept[0]).toBe("ins-10");
-		expect(raw.length).toBeLessThan(1024);
+		expect(raw.length).toBeLessThan(2048);
 	});
 });
 

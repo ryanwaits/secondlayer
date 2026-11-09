@@ -1,17 +1,23 @@
 "use client";
 
-import { type Insight, autoOpenId } from "@/lib/insights";
+import { IntentLink } from "@/components/intent-link";
+import type { Insight } from "@/lib/insights";
 import { dismiss, markExpected } from "@/lib/insights-store";
-import { useState } from "react";
-import { InsightNote } from "./insight-note";
-import { InsightStack } from "./insight-stack";
 
 /**
- * The footer of an opened insight card: a faint one-line note, "Got it" and
- * "This is expected". Both remove the insight at once and the server keeps
- * the choice. A recovered incident can only be dismissed.
+ * The footer of an opened insight card: a faint one-line note, the page the
+ * insight lives on (Overview only), "Got it" and "This is expected". Both
+ * remove the insight at once and the server keeps the choice. A recovered
+ * incident can only be dismissed.
  */
-export function InsightActions({ insight }: { insight: Insight }) {
+export function InsightActions({
+	insight,
+	home,
+}: {
+	insight: Insight;
+	/** The insight's own page, linked from the Overview's inbox. */
+	home?: { href: string; name: string };
+}) {
 	const recovered = insight.severity === "recovered";
 	return (
 		<div className="ins-actions">
@@ -21,6 +27,11 @@ export function InsightActions({ insight }: { insight: Insight }) {
 					: "Clears itself once the numbers are back to normal."}
 			</span>
 			<span className="ins-actions-btns">
+				{home ? (
+					<IntentLink className="ins-act-home" href={home.href}>
+						Open {home.name} ›
+					</IntentLink>
+				) : null}
 				<button
 					type="button"
 					className="ins-act"
@@ -40,38 +51,4 @@ export function InsightActions({ insight }: { insight: Insight }) {
 			</span>
 		</div>
 	);
-}
-
-const actionsFooter = (insight: Insight) => (
-	<InsightActions insight={insight} />
-);
-
-function SingleInsight({ insight, id }: { insight: Insight; id?: string }) {
-	const [open, setOpen] = useState(autoOpenId([insight]) !== null);
-	return (
-		<div className="ins-stack" id={id}>
-			<InsightNote
-				insight={insight}
-				open={open}
-				onToggle={() => setOpen((v) => !v)}
-				footer={<InsightActions insight={insight} />}
-			/>
-		</div>
-	);
-}
-
-/**
- * The insights on one resource or slot, each card ending in the actions. One
- * insight is a bare note (the stack header would only say "1 insight"); two
- * or more are the ranked stack. Renders nothing for an empty list.
- */
-export function ActionableInsights({
-	insights,
-	id,
-}: { insights: readonly Insight[]; id?: string }) {
-	if (insights.length === 0) return null;
-	const only = insights[0];
-	if (insights.length === 1 && only)
-		return <SingleInsight insight={only} id={id} />;
-	return <InsightStack insights={insights} footer={actionsFooter} id={id} />;
 }

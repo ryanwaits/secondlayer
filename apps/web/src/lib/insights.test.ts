@@ -1,7 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import {
 	type Insight,
-	autoOpenId,
 	causeText,
 	insightHref,
 	insightTargetName,
@@ -42,28 +41,6 @@ describe("rankInsights", () => {
 		const input = [...FIXTURE_STACK];
 		rankInsights(input);
 		expect(input.map((i) => i.id)).toEqual(FIXTURE_STACK.map((i) => i.id));
-	});
-});
-
-describe("autoOpenId", () => {
-	test("opens the top item when it is losing events", () => {
-		expect(autoOpenId(FIXTURE_STACK)).toBe(byRule("receiver_down").id);
-	});
-
-	test("opens a top will_fail item", () => {
-		expect(
-			autoOpenId([byRule("tls_expiring"), byRule("retries_recovered")]),
-		).toBe(byRule("tls_expiring").id);
-	});
-
-	test("opens nothing for only costs and recovered", () => {
-		expect(
-			autoOpenId([byRule("duplicate_webhook"), byRule("retries_recovered")]),
-		).toBeNull();
-	});
-
-	test("opens nothing for an empty list", () => {
-		expect(autoOpenId([])).toBeNull();
 	});
 });
 

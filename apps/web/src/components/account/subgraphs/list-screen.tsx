@@ -8,7 +8,7 @@ import {
 } from "@/components/dashboard/charts/heat-strip";
 import { HourRibbon } from "@/components/dashboard/charts/hour-ribbon";
 import { Sparkline } from "@/components/dashboard/charts/sparkline";
-import { ActionableInsights } from "@/components/dashboard/insight/insight-actions";
+import { InsightLine } from "@/components/dashboard/insight/insight-line";
 import {
 	ResourceRow,
 	ResourceRowHead,
@@ -18,7 +18,7 @@ import { StatusSentence } from "@/components/dashboard/shell/status-sentence";
 import { useCompact } from "@/components/mobile/use-compact";
 import { alignToWindow } from "@/lib/dashboard-charts";
 import type { IndexView } from "@/lib/index-view";
-import type { Insight } from "@/lib/insights";
+import { type Insight, rulesHomedAt } from "@/lib/insights";
 import {
 	forAccountRules,
 	forResource,
@@ -272,7 +272,7 @@ export function SubgraphsListBody({
 					in TypeScript and deploy them with <code>sl subgraphs</code>.
 				</p>
 			</div>
-			<ActionableInsights insights={pageInsights} />
+			<InsightLine insights={pageInsights} />
 			<SubgraphsListContent {...props} />
 		</>
 	);
@@ -554,7 +554,10 @@ export function SubgraphsListSection({
 			notice={notice}
 			insights={insights}
 			initialView={initialView}
-			pageInsights={forAccountRules(insights, ["stack_unreachable_subgraphs"])}
+			pageInsights={forAccountRules(
+				insights,
+				rulesHomedAt("/account/subgraphs"),
+			)}
 		/>
 	);
 }

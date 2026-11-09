@@ -12,7 +12,6 @@ import {
 	webhooksListReads,
 } from "@/lib/server/dashboard-reads";
 import { readInsights } from "@/lib/server/insights-read";
-import { savedOpenChoices } from "@/lib/server/open-choices";
 import { sessionToken } from "@/lib/server/session";
 
 // Next to the API (Hetzner HEL/fsn1), and per request: the HTML carries one
@@ -30,7 +29,6 @@ export default async function AccountOverviewPage() {
 				readInsights(token),
 			])
 		: [{} as AccountSeed, null, null, null];
-	const openChoices = await savedOpenChoices();
 	// The highlighted blocks are for the new-account guide only; every other
 	// visit skips the highlighter.
 	const pushed =
@@ -43,7 +41,6 @@ export default async function AccountOverviewPage() {
 				<AccountOverview
 					firstRowsCode={guide ? <FirstRowsCode /> : null}
 					firstRowsPrompt={guide ? <FirstRowsPrompt /> : null}
-					openChoices={openChoices}
 					initial={webhooks && subgraphs ? { webhooks, subgraphs } : null}
 				/>
 			</AccountSeedProvider>

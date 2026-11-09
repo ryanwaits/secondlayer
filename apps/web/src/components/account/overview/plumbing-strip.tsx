@@ -3,11 +3,9 @@
 import { DayStrip } from "@/components/dashboard/charts/day-strip";
 import { MemoryBand } from "@/components/dashboard/charts/memory-band";
 import { Meter } from "@/components/dashboard/charts/meter";
-import { InsightActions } from "@/components/dashboard/insight/insight-actions";
-import { InsightCard } from "@/components/dashboard/insight/insight-card";
 import { Skel } from "@/components/dashboard/shell/skel";
 import { IntentLink } from "@/components/intent-link";
-import { type Insight, autoOpenId, severityDot } from "@/lib/insights";
+import type { severityDot } from "@/lib/insights";
 import type { RowsResponse } from "@/lib/rows";
 import type { ApiKey } from "@/lib/types";
 import {
@@ -16,12 +14,11 @@ import {
 	ROWS_ALLOWANCE,
 	formatRows,
 } from "@/lib/usage";
-import { type ReactNode, useState } from "react";
+import type { ReactNode } from "react";
 import {
 	type KeysCell,
 	type RowsCell,
 	type StackCell,
-	cellInsights,
 	keysCell,
 	rowsCell,
 	stackCell,
@@ -48,40 +45,23 @@ function CellHead({
 	);
 }
 
-/** One line under a cell about the thing it holds: a dot, what is wrong, and an optional Why. */
+/** One line under a cell about the thing it holds: a dot and what is wrong. */
 function Flag({
 	dot,
-	bad = false,
 	children,
-	action,
 }: {
 	dot: ReturnType<typeof severityDot>;
-	bad?: boolean;
 	children: ReactNode;
-	action?: ReactNode;
 }) {
 	return (
 		<div className="ov-flag">
 			<span className={`ins-dot ${dot}`} />
-			<span className={`ov-flag-line${bad ? " bad" : ""}`}>{children}</span>
-			{action}
+			<span className="ov-flag-line">{children}</span>
 		</div>
 	);
 }
 
-function RowsCellView({
-	cell,
-	insights,
-	open,
-	onToggle,
-}: {
-	cell: RowsCell | null;
-	insights: readonly Insight[];
-	open: boolean;
-	onToggle: () => void;
-}) {
-	const top = insights[0];
-	const extra = insights.length - 1;
+function RowsCellView({ cell }: { cell: RowsCell | null }) {
 	return (
 		<div className="ov-cell">
 			<CellHead
@@ -105,35 +85,6 @@ function RowsCellView({
 			) : (
 				<CellSkeleton />
 			)}
-			{top ? (
-				<Flag
-					dot={severityDot(top.severity)}
-					bad={top.severity === "losing"}
-					action={
-						<button
-							type="button"
-							className="ov-flag-why"
-							aria-expanded={open}
-							aria-controls={`ins-panel-${top.id}`}
-							onClick={onToggle}
-						>
-							{`${open ? "Hide" : "Why"} ›`}
-						</button>
-					}
-				>
-					<b>{top.line}</b>
-					{top.meta ? ` · ${top.meta}` : ""}
-					{extra > 0 ? (
-						<span
-							className="ov-more"
-							title={`${extra} more ${extra === 1 ? "insight" : "insights"} on rows`}
-						>
-							{" "}
-							+{extra}
-						</span>
-					) : null}
-				</Flag>
-			) : null}
 		</div>
 	);
 }
@@ -255,8 +206,7 @@ export function PlumbingStripSkeleton() {
 /**
  * What powers the webhooks and subgraphs above: Rows (this month's meter),
  * Keys (24 days) and the hosted stack (cost per day and memory). Each cell
- * draws its own shape. A cell carries the insight about it as a one-line
- * flag; the card opens under the strip with a notch at the cell.
+ * draws its own shape. Their insights sit in the Overview's one line.
  */
 export function PlumbingStrip({
 	rows,
@@ -264,7 +214,6 @@ export function PlumbingStrip({
 	stack,
 	burn,
 	now,
-	insights,
 	asleep,
 	creditsUsdMicros,
 }: {
@@ -273,42 +222,18 @@ export function PlumbingStrip({
 	stack: HostedStack | null;
 	burn: Burn | null;
 	now: Date;
-	insights: readonly Insight[];
 	/** Every webhook is paused. */
 	asleep: boolean;
 	/** Credits left in USD micros; null until billing has loaded. */
 	creditsUsdMicros: string | null;
 }) {
-	const forRows = cellInsights(insights).rows;
-	const top = forRows[0];
-	// What the reader chose, by insight id. Until they choose, a losing or
-	// about-to-fail insight is open and a recovered one is a collapsed line.
-	const [chosen, setChosen] = useState<Record<string, boolean>>({});
-	const open = top ? (chosen[top.id] ?? autoOpenId([top]) !== null) : false;
 	return (
-		<>
-			<section className="ov-strip" aria-label="Rows, keys and hosted stack">
-				<RowsCellView
-					cell={rows ? rowsCell(rows, now) : null}
-					insights={forRows}
-					open={open}
-					onToggle={() =>
-						top && setChosen((prev) => ({ ...prev, [top.id]: !open }))
-					}
-				/>
-				<KeysCellView cell={keysCell(keys, now)} loaded={keys !== null} />
-				<StackCellView
-					cell={stackCell(stack, burn, { asleep, creditsUsdMicros })}
-				/>
-			</section>
-			{top && open ? (
-				<div className="ov-strip-card" id={`ins-panel-${top.id}`}>
-					<InsightCard
-						insight={top}
-						footer={<InsightActions insight={top} />}
-					/>
-				</div>
-			) : null}
-		</>
+		<section className="ov-strip" aria-label="Rows, keys and hosted stack">
+			<RowsCellView cell={rows ? rowsCell(rows, now) : null} />
+			<KeysCellView cell={keysCell(keys, now)} loaded={keys !== null} />
+			<StackCellView
+				cell={stackCell(stack, burn, { asleep, creditsUsdMicros })}
+			/>
+		</section>
 	);
 }

@@ -6484,31 +6484,23 @@ button.dc-heat-cell:focus-visible {
 }
 
 /* Insight note row */
-.ins-stack {
-	display: grid;
-	gap: 4px;
-}
-.ins-stack-head {
-	display: flex;
-	flex-wrap: wrap;
-	justify-content: space-between;
-	align-items: baseline;
-	gap: 12px;
-	padding-bottom: 8px;
-}
 .ins-label {
 	font: 500 10.5px / 1.2 var(--font-mono-stack);
 	letter-spacing: 0.06em;
 	text-transform: uppercase;
 	color: var(--faint);
 }
-/* A plain line flush with the page column: no dot, no rule, no tint. The
-   pointer answers by underlining the text only; nothing else changes on hover,
-   so "Why" never moves. */
-.ins-note-row {
+/* A page's insights as one line: the worst, "+N more" and Why. The pointer
+   answers by underlining the text only, so "Why" never moves. */
+.ins-line-wrap {
 	display: grid;
-	grid-template-columns: minmax(0, 1fr) auto;
-	gap: 16px;
+	grid-template-columns: minmax(0, 1fr);
+	gap: 14px;
+}
+.ins-line {
+	display: grid;
+	grid-template-columns: auto minmax(0, 1fr) auto;
+	gap: 10px;
 	align-items: baseline;
 	width: 100%;
 	padding: 4px 0;
@@ -6519,7 +6511,10 @@ button.dc-heat-cell:focus-visible {
 	border: 0;
 	cursor: pointer;
 }
-.ins-note-line {
+.ins-line .ins-dot {
+	transform: translateY(-1px);
+}
+.ins-line-text {
 	text-decoration: underline;
 	text-decoration-color: transparent;
 	text-decoration-thickness: 1px;
@@ -6527,44 +6522,118 @@ button.dc-heat-cell:focus-visible {
 	transition: text-decoration-color 150ms ease;
 }
 @media (hover: hover) {
-	.ins-note-row:hover .ins-note-line {
+	.ins-line:hover .ins-line-text {
 		text-decoration-color: var(--sub);
 	}
 }
-.ins-note-row:focus-visible {
+.ins-line:focus-visible {
 	outline: none;
 }
-.ins-note-row:focus-visible .ins-note-line {
+.ins-line:focus-visible .ins-line-text {
 	text-decoration-color: var(--pri);
 }
-.ins-note-label {
-	margin-right: 10px;
-	font: 400 13px / 1 var(--font-mono-stack);
+.ins-line-meta {
 	color: var(--sub);
 }
-.ins-note-line b {
-	font-weight: 400;
+.ins-more {
+	font: 400 12px var(--font-mono-stack);
+	color: var(--faint);
 }
-.ins-note-meta {
-	color: var(--sub);
+.ins-home {
+	margin-right: 8px;
+	font: 400 12px var(--font-mono-stack);
+	color: var(--faint);
 }
-.ins-note-why {
-	color: var(--pri);
+.ins-line-why {
 	font-size: 13px;
 	white-space: nowrap;
+	color: var(--pri);
 }
-.ins-note.att .ins-note-why {
+.ins-line-why.att {
 	color: var(--hi-text);
 }
-.ins-note.fail .ins-note-why {
+.ins-line-why.fail {
 	color: var(--alarm);
 }
-.ins-note.recovered .ins-note-line {
-	color: var(--sub);
-}
-.ins-note > div > .ins-card {
-	margin: 18px 0 16px;
+/* The grouped card: every insight listed on the left, the chosen one right. */
+.ins-group {
+	display: grid;
+	grid-template-columns: 280px minmax(0, 1fr);
+	border: 1px solid var(--line);
 	border-radius: 10px;
+	background: var(--paper);
+}
+.ins-group.single {
+	grid-template-columns: minmax(0, 1fr);
+}
+.ins-group .ins-card {
+	border: 0;
+	border-radius: 10px;
+	background: none;
+}
+.ins-group-list {
+	display: grid;
+	align-content: start;
+	gap: 2px;
+	padding: 8px;
+	border-right: 1px solid var(--line);
+}
+.ins-group-head {
+	padding: 6px 10px 8px;
+}
+.ins-group-item {
+	display: grid;
+	grid-template-columns: auto minmax(0, 1fr);
+	gap: 8px;
+	align-items: baseline;
+	padding: 9px 10px;
+	border: 0;
+	border-radius: 6px;
+	text-align: left;
+	font-size: 13px;
+	color: var(--sub);
+	background: none;
+	cursor: pointer;
+}
+.ins-group-item .ins-dot {
+	transform: translateY(-1px);
+}
+.ins-group-item small {
+	display: block;
+	margin-top: 2px;
+	font-size: 12px;
+	color: var(--faint);
+}
+@media (hover: hover) {
+	.ins-group-item:hover {
+		color: var(--ink);
+	}
+}
+.ins-group-item[aria-selected="true"] {
+	color: var(--ink);
+	background: var(--soft);
+}
+.ins-group-item:focus-visible {
+	outline: 2px solid var(--pri);
+	outline-offset: -2px;
+}
+@media (max-width: 720px) {
+	.ins-group {
+		grid-template-columns: minmax(0, 1fr);
+	}
+	.ins-group-list {
+		display: flex;
+		overflow-x: auto;
+		border-right: 0;
+		border-bottom: 1px solid var(--line);
+	}
+	.ins-group-item {
+		white-space: nowrap;
+	}
+	.ins-group-item small,
+	.ins-group-head {
+		display: none;
+	}
 }
 .ins-dot {
 	width: 8px;
@@ -6769,6 +6838,16 @@ details.ins-how[open] summary::before {
 		color: var(--ink);
 	}
 }
+.ins-actions .ins-act-home {
+	align-self: center;
+	margin-right: 8px;
+	font-size: 13px;
+	color: var(--pri);
+	text-decoration: none;
+}
+.ins-actions .ins-act-home:hover {
+	text-decoration: underline;
+}
 .ins-act:focus-visible {
 	outline: 2px solid var(--pri);
 	outline-offset: 2px;
@@ -6940,7 +7019,7 @@ details.ins-how[open] summary::before {
 @media (prefers-reduced-motion: reduce) {
 	button.dc-heat-cell,
 	details.ins-how summary::before,
-	.ins-note-line {
+	.ins-line-text {
 		transition: none;
 	}
 	button.dc-heat-cell:hover,
@@ -6985,13 +7064,8 @@ button.dash-row {
 	font-size: 12px;
 	color: var(--faint);
 }
-.ov-findings {
-	display: grid;
-	gap: 4px;
+.ov-inbox {
 	margin-top: 28px;
-}
-.ov-findings > .dash-label {
-	padding-bottom: 8px;
 }
 /* An <output> is inline, which drops the table's top margin: the first-paint
    skeleton sits at the same place as the table that replaces it. */
@@ -7188,45 +7262,12 @@ button.dash-row {
 .ov-flag-line b {
 	font-weight: 400;
 }
-.ov-flag-line.bad b {
-	color: var(--alarm);
-}
 .ov-flag-line a {
 	color: inherit;
 	text-decoration: none;
 }
 .ov-flag-line a:hover {
 	color: var(--ink);
-}
-.ov-flag-why {
-	all: unset;
-	cursor: pointer;
-	font-size: 13px;
-	color: var(--pri);
-}
-.ov-flag-why:focus-visible {
-	outline: 2px solid var(--pri);
-	outline-offset: 2px;
-	border-radius: 2px;
-}
-
-/* The flagged insight's card, under the strip, with a notch at the Rows cell. */
-.ov-strip-card {
-	position: relative;
-	margin-top: 12px;
-}
-.ov-strip-card::before {
-	content: "";
-	position: absolute;
-	z-index: 1;
-	top: -6px;
-	left: 40px;
-	width: 10px;
-	height: 10px;
-	background: var(--paper);
-	border-left: 1px solid var(--line);
-	border-top: 1px solid var(--line);
-	transform: rotate(45deg);
 }
 @media (max-width: 720px) {
 	.ov-strip {
@@ -8219,7 +8260,7 @@ button.dash-row {
 	border-color: var(--pri);
 }
 /* The insight under the header's facts strip reads as its own thing. */
-.wd-head + .ins-stack {
+.wd-head + .ins-line-wrap {
 	margin: 40px 0 44px;
 }
 /* Under the name: what the resource is and when it was made, middot-separated. */
@@ -9330,9 +9371,42 @@ button.dash-row {
 	margin-top: 2px;
 	font-size: 12.5px;
 }
-/* A list of notes under the chart. */
-.rw-notes {
+.rw-err-meta {
+	display: flex;
+	align-items: center;
+	gap: 16px;
+	/* The 22px buttons sit in the label line without making it taller. */
+	margin-block: -6px;
+}
+.rw-pager {
+	display: flex;
+	align-items: center;
+	gap: 2px;
+}
+.rw-pager .bl-note {
+	margin-right: 8px;
+	font-variant-numeric: tabular-nums;
+}
+.rw-pager button {
 	display: grid;
+	place-items: center;
+	width: 22px;
+	height: 22px;
+	padding: 0;
+	border: 0;
+	border-radius: 6px;
+	color: var(--sub);
+	background: none;
+	cursor: pointer;
+}
+.rw-pager button:hover:not(:disabled) {
+	color: var(--ink);
+	background: var(--soft);
+}
+.rw-pager button:disabled {
+	color: var(--faint);
+	opacity: 0.5;
+	cursor: default;
 }
 .rw-failed {
 	display: grid;

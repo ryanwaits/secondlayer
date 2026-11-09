@@ -3,7 +3,7 @@
 import { ChartBox } from "@/components/charts/chart-skeleton";
 import { LazySpendChart, preloadSpendChart } from "@/components/charts/lazy";
 import { Legend } from "@/components/dashboard/charts/legend";
-import { ActionableInsights } from "@/components/dashboard/insight/insight-actions";
+import { InsightLine } from "@/components/dashboard/insight/insight-line";
 import { Mark } from "@/components/dashboard/shell/mark";
 import { StatusSentence } from "@/components/dashboard/shell/status-sentence";
 import { useCompact } from "@/components/mobile/use-compact";
@@ -28,7 +28,7 @@ import {
 	isSentinelUnit,
 	monthProjection,
 } from "@/lib/billing-view";
-import type { Insight } from "@/lib/insights";
+import { type Insight, rulesHomedAt } from "@/lib/insights";
 import { forAccountRules, useInsights } from "@/lib/insights-store";
 import { useSave } from "@/lib/save-state";
 import { stackStatus } from "@/lib/stack-status";
@@ -67,8 +67,8 @@ import { LimitsAndEmails } from "./limits-and-emails";
 
 const MICROS = 1_000_000;
 
-/** The account-level rules about money; the rest belong to Overview and Rows. */
-const BILLING_RULES = ["cap_pace", "credits_runway"];
+/** The account rules whose insights live here. */
+const BILLING_RULES = rulesHomedAt("/account/credits");
 
 /** The balance as one sentence, with its days, rate and month-end pace under it. */
 function Status({
@@ -258,7 +258,7 @@ export function BillingBody({
 				projectedEnd={projection?.projectedEnd ?? null}
 			/>
 
-			<ActionableInsights insights={insights} />
+			<InsightLine insights={insights} />
 
 			<section className="dash-panel bl-panel" aria-label="Spent this month">
 				<div className="dash-panel-h">
