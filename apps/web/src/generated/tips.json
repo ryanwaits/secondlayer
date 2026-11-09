@@ -2764,7 +2764,7 @@
 					"type": "string | null"
 				},
 				{
-					"name": "sender",
+					"name": "recipient",
 					"type": "string | null"
 				}
 			],
@@ -2805,7 +2805,7 @@
 					"type": "string | null"
 				},
 				{
-					"name": "sender",
+					"name": "recipient",
 					"type": "string | null"
 				}
 			],
@@ -2850,7 +2850,7 @@
 					"type": "number | null"
 				}
 			],
-			"more": 18,
+			"more": 19,
 			"route": "/docs/sdk-reference/index",
 			"anchor": "t-IndexSbtcEvent"
 		},
@@ -4555,7 +4555,7 @@
 					"type": "boolean"
 				},
 				{
-					"name": "sender",
+					"name": "recipient",
 					"type": "string"
 				},
 				{
@@ -4592,7 +4592,7 @@
 					"type": "number"
 				},
 				{
-					"name": "sender",
+					"name": "recipient",
 					"type": "string"
 				},
 				{
@@ -4673,15 +4673,15 @@
 					"type": "string"
 				},
 				{
-					"name": "requestId",
-					"type": "number"
+					"name": "recipient",
+					"type": "string"
 				},
 				{
-					"name": "bitcoinTxid",
-					"type": "string"
+					"name": "requestId",
+					"type": "number"
 				}
 			],
-			"more": 2,
+			"more": 3,
 			"route": "/docs/sdk-reference/index",
 			"anchor": "t-SbtcEventsListParams"
 		},
@@ -4706,6 +4706,10 @@
 					"type": "string"
 				},
 				{
+					"name": "recipient",
+					"type": "string"
+				},
+				{
 					"name": "fromCursor",
 					"type": "string | null"
 				},
@@ -4716,13 +4720,9 @@
 				{
 					"name": "bitcoinTxid",
 					"type": "string"
-				},
-				{
-					"name": "requestId",
-					"type": "number"
 				}
 			],
-			"more": 6,
+			"more": 7,
 			"route": "/docs/sdk-reference/index",
 			"anchor": "t-SbtcEventsWalkParams"
 		},

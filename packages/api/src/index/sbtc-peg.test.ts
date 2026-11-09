@@ -313,7 +313,8 @@ describe("sBTC peg helpers", () => {
 						topic: "completed-deposit",
 						request_id: null,
 						amount: "1000",
-						sender: "SP1",
+						sender: null,
+						recipient: "SP1",
 						recipient_btc_version: 1,
 						recipient_btc_hashbytes: "0xab",
 						bitcoin_txid: "0xbtc",
@@ -406,6 +407,7 @@ function seed(row: SeedRow) {
 		request_id: row.request_id ?? null,
 		amount: row.amount ?? null,
 		sender: row.sender ?? null,
+		recipient: null,
 		recipient_btc_version: null,
 		recipient_btc_hashbytes: null,
 		bitcoin_txid: row.bitcoin_txid ?? null,
@@ -1074,11 +1076,11 @@ describe("sBTC deposits field projection", () => {
 			tx_index: 0,
 			event_index: 0,
 			amount: "1000",
-			sender: "SP1",
+			recipient: "SP1",
 			bitcoin_txid: "0xbtc",
 			output_index: 1,
-			recipient_btc_version: 0,
-			recipient_btc_hashbytes: "0xhash",
+			fee: "129",
+			max_fee: "80000",
 		},
 	];
 
@@ -1115,7 +1117,7 @@ describe("sBTC deposits field projection", () => {
 			"cursor",
 		]);
 		// Genuinely absent, not null — that is what makes the narrowed SDK type honest.
-		expect("sender" in row).toBe(false);
+		expect("recipient" in row).toBe(false);
 	});
 
 	test("an unknown field is refused, not silently dropped", async () => {
@@ -1139,7 +1141,7 @@ describe("sBTC deposits field projection", () => {
 			},
 			decoderEnabled: true,
 		});
-		expect(envelope.deposits[0]?.sender).toBe("SP1");
+		expect(envelope.deposits[0]?.recipient).toBe("SP1");
 	});
 
 	test("reorg span survives a projection that dropped event_index", async () => {
