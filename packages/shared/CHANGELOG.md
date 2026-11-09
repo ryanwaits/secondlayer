@@ -1,5 +1,11 @@
 # @secondlayer/shared
 
+## 15.6.1
+
+### Patch Changes
+
+- Migration 0204: the usage ledger accepts the `subgraph.read` unit, for reads of hosted subgraph tables.
+
 ## 15.6.0
 
 ### Minor Changes
