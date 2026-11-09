@@ -1491,7 +1491,7 @@
 					"name": "memo",
 					"type": "string",
 					"required": true,
-					"description": "Memo string, or \"\" when none was attached."
+					"description": "Memo as `0x` hex, or \"\" when none was attached."
 				},
 				{
 					"name": "tx",

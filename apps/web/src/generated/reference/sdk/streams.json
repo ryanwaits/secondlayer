@@ -951,14 +951,14 @@
 					"description": ""
 				},
 				{
-					"name": "value",
-					"type": "StreamsClarityValue",
-					"required": true,
-					"description": ""
-				},
-				{
 					"name": "raw_value",
 					"type": "string",
+					"required": true,
+					"description": "The token id as canonical serialized Clarity hex (`0x…`)."
+				},
+				{
+					"name": "value",
+					"type": "StreamsClarityValue",
 					"required": false,
 					"description": ""
 				}
@@ -981,14 +981,14 @@
 					"description": ""
 				},
 				{
-					"name": "value",
-					"type": "StreamsClarityValue",
-					"required": true,
-					"description": ""
-				},
-				{
 					"name": "raw_value",
 					"type": "string",
+					"required": true,
+					"description": "The token id as canonical serialized Clarity hex (`0x…`)."
+				},
+				{
+					"name": "value",
+					"type": "StreamsClarityValue",
 					"required": false,
 					"description": ""
 				}
@@ -1017,16 +1017,16 @@
 					"description": ""
 				},
 				{
-					"name": "value",
-					"type": "StreamsClarityValue",
-					"required": true,
-					"description": ""
-				},
-				{
 					"name": "raw_value",
 					"type": "string",
+					"required": true,
+					"description": "The token id as canonical serialized Clarity hex (`0x…`)."
+				},
+				{
+					"name": "value",
+					"type": "StreamsClarityValue",
 					"required": false,
-					"description": "Canonical serialized hex of `value`, when the stream carries it."
+					"description": ""
 				}
 			]
 		},
@@ -1047,14 +1047,14 @@
 					"description": ""
 				},
 				{
-					"name": "value",
-					"type": "unknown",
-					"required": false,
-					"description": ""
-				},
-				{
 					"name": "raw_value",
 					"type": "string",
+					"required": true,
+					"description": "The printed value as canonical serialized Clarity hex (`0x…`)."
+				},
+				{
+					"name": "value",
+					"type": "unknown",
 					"required": false,
 					"description": ""
 				}
@@ -3016,6 +3016,12 @@
 					"type": "string",
 					"required": true,
 					"description": ""
+				},
+				{
+					"name": "contract_identifier",
+					"type": "string",
+					"required": true,
+					"description": "The PoX contract that made the lock (`…pox-4`, `…pox-5`, …)."
 				}
 			]
 		},
@@ -3061,9 +3067,9 @@
 				},
 				{
 					"name": "memo",
-					"type": "string",
-					"required": false,
-					"description": ""
+					"type": "string | null",
+					"required": true,
+					"description": "`0x` hex, or null when the transfer carried no memo."
 				}
 			]
 		},

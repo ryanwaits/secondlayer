@@ -1,6 +1,6 @@
 {
 	"package": "@secondlayer/sdk",
-	"version": "18.0.0",
+	"version": "19.0.0",
 	"generator": "openpkg 0.13.2",
 	"surfaces": [
 		{
@@ -122,7 +122,7 @@
 			"signature": "decode(event: StreamsEvent): IndexEvent",
 			"source": {
 				"file": "packages/sdk/src/streams/decode.ts",
-				"line": 25
+				"line": 26
 			}
 		},
 		{

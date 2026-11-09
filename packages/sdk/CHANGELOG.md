@@ -1,5 +1,26 @@
 # @secondlayer/sdk
 
+## 19.0.0
+
+### Major Changes
+
+- 753b610: Contract-call `result` keeps the response branch: `(ok u6009)` decodes to `{ ok: "6009" }` and `(err u6009)` to `{ err: "6009" }` (both used to be `"6009"`). Applies to `IndexContractCall.result` and `IndexTransaction.contract_call.result`; non-response results are unchanged. Breaking: code that read the bare unwrapped value must read `.ok` / `.err`.
+
+### Minor Changes
+
+- 595597c: Streams events have one payload shape at every height. `print` and nft payloads always carry `raw_value` (`0x` hex; legacy `value` is deprecated and kept only where stored), `stx_transfer.memo` is always `0x` hex or `null` (Index too), and `stx_lock` carries `contract_identifier`, its PoX contract. New `normalizeMemoHex`, `clarityHexOf`, `mainnetPoxContractAt` and `isPoxContractId` helpers. Subgraph `stx_transfer` handlers get `memo` as `0x` hex or `""`.
+
+### Patch Changes
+
+- db9c167: `btc_confirmations` on sBTC withdrawals counts to the current Bitcoin tip. It used to freeze once the sweep passed the settlement reorg-watch depth. An accepted withdrawal's detail is no longer immutably cached, since its confirmations keep growing.
+- Updated dependencies [100e46d]
+- Updated dependencies [b2d462f]
+- Updated dependencies [3130a28]
+- Updated dependencies [4147591]
+- Updated dependencies [595597c]
+  - @secondlayer/shared@17.1.0
+  - @secondlayer/subgraphs@8.1.11
+
 ## 18.0.0
 
 ### Major Changes

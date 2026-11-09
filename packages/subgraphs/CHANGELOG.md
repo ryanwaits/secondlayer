@@ -1,5 +1,18 @@
 # @secondlayer/subgraphs
 
+## 8.1.11
+
+### Patch Changes
+
+- b2d462f: Bitcoin txids match in any form. The `sbtc_deposit` `bitcoinTxid` and withdrawal `sweepTxid` trigger fields accept bare explorer hex or `0x`-prefixed hex in any case and normalize to the stored `0x` + lowercase form; a value that isn't a 32-byte hex txid is rejected instead of silently never matching. Triggers saved before this still match. New `normalizeBtcTxid` helper. Docs no longer promise `*` wildcards on sBTC and Runes fields, which always matched exactly.
+- 595597c: Streams events have one payload shape at every height. `print` and nft payloads always carry `raw_value` (`0x` hex; legacy `value` is deprecated and kept only where stored), `stx_transfer.memo` is always `0x` hex or `null` (Index too), and `stx_lock` carries `contract_identifier`, its PoX contract. New `normalizeMemoHex`, `clarityHexOf`, `mainnetPoxContractAt` and `isPoxContractId` helpers. Subgraph `stx_transfer` handlers get `memo` as `0x` hex or `""`.
+- Updated dependencies [100e46d]
+- Updated dependencies [b2d462f]
+- Updated dependencies [3130a28]
+- Updated dependencies [4147591]
+- Updated dependencies [595597c]
+  - @secondlayer/shared@17.1.0
+
 ## 8.1.10
 
 ### Patch Changes

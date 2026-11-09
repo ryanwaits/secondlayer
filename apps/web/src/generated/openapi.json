@@ -2208,7 +2208,7 @@
 							"string",
 							"null"
 						],
-						"description": "Transfer memo, on `stx_transfer`."
+						"description": "Transfer memo as `0x` hex, on `stx_transfer`. `null` when none was attached."
 					},
 					"payload": {
 						"description": "Decoded print payload on `print`; `{ unlock_height }` on `stx_lock`."
@@ -2506,7 +2506,7 @@
 						"description": "Decoded arguments, in call order."
 					},
 					"result": {
-						"description": "Decoded result. `null` when there is none."
+						"description": "Decoded result. A response keeps its branch: `{ ok: value }` or `{ err: value }`. `null` when there is none."
 					},
 					"result_hex": {
 						"type": [
@@ -2532,7 +2532,9 @@
 						"SPD3SCZDZ52X4ZX1878XWBFBJ29YRX0MFW9Z9W4V",
 						null
 					],
-					"result": true,
+					"result": {
+						"ok": true
+					},
 					"result_hex": "0x0703"
 				}
 			},
@@ -2992,7 +2994,7 @@
 								"description": "The same arguments as hex-encoded Clarity."
 							},
 							"result": {
-								"description": "Decoded result. `null` when there is none."
+								"description": "Decoded result. A response keeps its branch: `{ ok: value }` or `{ err: value }`. `null` when there is none."
 							},
 							"result_hex": {
 								"type": [
@@ -3064,7 +3066,9 @@
 							"05161a3cb3edf945d27fa141d1de2deb9093ec74147f",
 							"09"
 						],
-						"result": true,
+						"result": {
+							"ok": true
+						},
 						"result_hex": "0x0703"
 					}
 				}
@@ -4988,7 +4992,7 @@
 							"integer",
 							"null"
 						],
-						"description": "Bitcoin confirmations on the sweep at the last check."
+						"description": "Bitcoin confirmations on the sweep as of the current Bitcoin tip."
 					},
 					"btc_block_height": {
 						"type": [
@@ -5204,7 +5208,7 @@
 									"integer",
 									"null"
 								],
-								"description": "Confirmations at the last check."
+								"description": "Bitcoin confirmations on the sweep as of the current Bitcoin tip."
 							},
 							"settlement_confirmed": {
 								"type": [
@@ -5396,12 +5400,12 @@
 							"string",
 							"null"
 						],
-						"description": "Emitting contract for `print`, asset contract for ft/nft events, `null` otherwise."
+						"description": "Emitting contract for `print`, asset contract for ft/nft events, the PoX contract for `stx_lock`, `null` otherwise."
 					},
 					"payload": {
 						"type": "object",
 						"additionalProperties": true,
-						"description": "The event body. Prints carry `topic`, `value` and `contract_id`; transfers carry `sender`, `recipient`, `amount` or `value`, and `asset_identifier`."
+						"description": "The event body, one shape per `event_type` at every height. Prints carry `topic`, `contract_id` and `raw_value`; nft events carry `raw_value`. `raw_value` is the Clarity value as `0x` hex. Legacy `value` appears only on rows before block 8,124,447, in varying shapes. `stx_transfer` carries `memo` as `0x` hex, or `null` when none was attached. `stx_lock` carries `contract_identifier`, the PoX contract. Other transfers carry `sender`, `recipient`, `amount` and `asset_identifier`."
 					},
 					"ts": {
 						"type": "string",
@@ -12062,7 +12066,9 @@
 													"05161a3cb3edf945d27fa141d1de2deb9093ec74147f",
 													"09"
 												],
-												"result": true,
+												"result": {
+													"ok": true
+												},
 												"result_hex": "0x0703"
 											}
 										},
@@ -14819,7 +14825,7 @@
 							"type": "string",
 							"example": "SP3K8BC0PPEVCV7NZ6QSRWPQ2JE9E5B6N3PA0KBR9.age000-governance-token"
 						},
-						"description": "Contract principal, or a comma-separated set. Matches print events by the emitting contract and ft/nft events by the asset's contract. Other event types never match."
+						"description": "Contract principal, or a comma-separated set. Matches print events by the emitting contract, ft/nft events by the asset's contract, and stx_lock events by the PoX contract that made the lock. Other event types never match."
 					},
 					{
 						"name": "sender",
@@ -14828,7 +14834,7 @@
 						"schema": {
 							"type": "string"
 						},
-						"description": "Principal, or a comma-separated set, matched against the payload's `sender`. Event types without a sender never match."
+						"description": "Principal, or a comma-separated set, matched against the payload's `sender`. Event types without a sender never match, including stx_lock, which names its principal `locked_address`."
 					},
 					{
 						"name": "recipient",
@@ -15150,7 +15156,7 @@
 							"type": "string",
 							"example": "SP3K8BC0PPEVCV7NZ6QSRWPQ2JE9E5B6N3PA0KBR9.age000-governance-token"
 						},
-						"description": "Contract principal, or a comma-separated set. Matches print events by the emitting contract and ft/nft events by the asset's contract. Other event types never match."
+						"description": "Contract principal, or a comma-separated set. Matches print events by the emitting contract, ft/nft events by the asset's contract, and stx_lock events by the PoX contract that made the lock. Other event types never match."
 					},
 					{
 						"name": "sender",
@@ -15159,7 +15165,7 @@
 						"schema": {
 							"type": "string"
 						},
-						"description": "Principal, or a comma-separated set, matched against the payload's `sender`. Event types without a sender never match."
+						"description": "Principal, or a comma-separated set, matched against the payload's `sender`. Event types without a sender never match, including stx_lock, which names its principal `locked_address`."
 					},
 					{
 						"name": "recipient",
