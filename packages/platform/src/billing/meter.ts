@@ -19,9 +19,9 @@ import {
 import {
 	COMMIT_TIER_MONTHLY_USD_MICROS,
 	CREDIT_USD_MICROS_PER_ROW_VOLUME,
+	MONTHLY_ALLOWANCE,
 	type MeterUnit,
 	PRICES,
-	ROWS_DELIVERED_MONTHLY_ALLOWANCE,
 	isOverMonthlyCreditCap,
 } from "./prices.ts";
 
@@ -79,31 +79,30 @@ async function priceUnit(
 	input: MeterInput,
 	occurredAt: Date,
 ): Promise<{ usdMicros: bigint; viaAllowance: boolean }> {
+	const allowance = MONTHLY_ALLOWANCE[input.unit];
+	let billableQty = input.quantity;
+	if (allowance !== undefined) {
+		if (input.quantity <= 0) return { usdMicros: 0n, viaAllowance: false };
+		const usedThisMonth = await monthlyQuantity(
+			trx,
+			input.accountId,
+			input.unit,
+			occurredAt,
+		);
+		const freeRemaining = Math.max(0, allowance - usedThisMonth);
+		billableQty = Math.max(0, input.quantity - freeRemaining);
+		if (billableQty === 0) return { usdMicros: 0n, viaAllowance: true };
+	}
+
 	if (input.unit !== "rows.delivered") {
-		// Hosted-stack units are fractional (GB-hours, GB-days); price in
-		// floating point and round to the nearest µ$. Prices are ≤ 150k µ$, so
-		// the product stays well inside Number's exact-integer range.
+		// Fractional units (GB-hours, GB-days) price in floating point and
+		// round to the nearest µ$. Prices are ≤ 150k µ$, so the product stays
+		// well inside Number's exact-integer range.
 		return {
-			usdMicros: BigInt(
-				Math.round(Number(PRICES[input.unit]) * input.quantity),
-			),
+			usdMicros: BigInt(Math.round(Number(PRICES[input.unit]) * billableQty)),
 			viaAllowance: false,
 		};
 	}
-	if (input.quantity <= 0) return { usdMicros: 0n, viaAllowance: false };
-
-	const usedThisMonth = await monthlyQuantity(
-		trx,
-		input.accountId,
-		input.unit,
-		occurredAt,
-	);
-	const freeRemaining = Math.max(
-		0,
-		ROWS_DELIVERED_MONTHLY_ALLOWANCE - usedThisMonth,
-	);
-	const billableQty = Math.max(0, input.quantity - freeRemaining);
-	if (billableQty === 0) return { usdMicros: 0n, viaAllowance: true };
 
 	// Rate is decided by spend so far THIS call, not split within the batch —
 	// same behavior as the pre-`meter()` `debitCreditedRows` (a page prices at
@@ -122,6 +121,8 @@ const CLAMPED_UNITS: ReadonlySet<MeterUnit> = new Set<MeterUnit>([
 	"memory.gb_hour",
 	"storage.gb_day",
 	"webhook.event",
+	// Metered after the fact in per-minute batches, like webhook.event.
+	"subgraph.read",
 ]);
 
 /**

@@ -1,3 +1,7 @@
+import {
+	SUBGRAPH_STREAM_BATCH_ROWS,
+	SUBGRAPH_STREAM_POLL_MS,
+} from "@secondlayer/platform/billing/prices";
 import type { Subgraph } from "@secondlayer/shared/db";
 import { getRawClient } from "@secondlayer/shared/db";
 import type { Context } from "hono";
@@ -304,7 +308,7 @@ export function handleTableStream(
 				params.push(since);
 				conds.push(`"_block_height" >= $${params.length}`);
 			}
-			const text = `SELECT * FROM ${tbl} WHERE ${conds.join(" AND ")} ORDER BY "_id" ASC LIMIT 500`;
+			const text = `SELECT * FROM ${tbl} WHERE ${conds.join(" AND ")} ORDER BY "_id" ASC LIMIT ${SUBGRAPH_STREAM_BATCH_ROWS}`;
 			const rows = await querySubgraph(subgraph, text, params);
 			for (const row of rows) {
 				const r = row as Record<string, unknown>;
@@ -319,7 +323,7 @@ export function handleTableStream(
 				await stream.writeSSE({ event: "ping", data: "" });
 				lastBeat = Date.now();
 			}
-			await stream.sleep(1500);
+			await stream.sleep(SUBGRAPH_STREAM_POLL_MS);
 		}
 	});
 }

@@ -20,6 +20,7 @@ import {
 	COMMIT_TIER_MONTHLY_USD_MICROS,
 	CREDIT_USD_MICROS_PER_ROW,
 	CREDIT_USD_MICROS_PER_ROW_VOLUME,
+	MONTHLY_ALLOWANCE,
 	PRICES,
 	RETIRED_METER_UNITS,
 	ROWS_DELIVERED_MONTHLY_ALLOWANCE,
@@ -599,5 +600,101 @@ describe.skipIf(!HAS_DB)("meter — internal accounts", () => {
 		]);
 		expect(await getCredits(db, accountId)).toBe(0n);
 		expect(await getMonthlyCreditsSpend(db, accountId)).toBe(0n);
+	});
+});
+
+const SUBGRAPH_READ_ALLOWANCE = MONTHLY_ALLOWANCE["subgraph.read"] as number;
+
+function readInput(accountId: string, quantity: number, occurredAt: Date) {
+	return {
+		accountId,
+		unit: "subgraph.read" as const,
+		quantity,
+		source: "test",
+		idempotencyKey: randomUUID(),
+		occurredAt,
+	};
+}
+
+describe.skipIf(!HAS_DB)("meter — subgraph reads", () => {
+	test("the first 100,000 subgraph reads in a month cost nothing", async () => {
+		await creditCredits(db, accountId, 1_000_000n);
+		const result = await meter(
+			db,
+			readInput(accountId, SUBGRAPH_READ_ALLOWANCE, new Date()),
+		);
+		expect(result.usdMicros).toBe(0n);
+		expect(result.viaAllowance).toBe(true);
+		expect(await getCredits(db, accountId)).toBe(1_000_000n);
+	});
+
+	test("the subgraph read after the free 100,000 costs 10 µ$", async () => {
+		await creditCredits(db, accountId, 1_000_000n);
+		const now = new Date();
+		await meter(db, readInput(accountId, SUBGRAPH_READ_ALLOWANCE, now));
+		const result = await meter(db, readInput(accountId, 1, now));
+		expect(result.usdMicros).toBe(PRICES["subgraph.read"]);
+		expect(result.usdMicros).toBe(10n);
+		expect(result.debited).toBe(true);
+	});
+
+	test("subgraph reads and rows have separate monthly allowances", async () => {
+		await creditCredits(db, accountId, 1_000_000n);
+		const now = new Date();
+		await meter(db, readInput(accountId, SUBGRAPH_READ_ALLOWANCE, now));
+		const rows = await meter(db, {
+			accountId,
+			unit: "rows.delivered",
+			quantity: ROWS_DELIVERED_MONTHLY_ALLOWANCE,
+			source: "test",
+			idempotencyKey: randomUUID(),
+			occurredAt: now,
+		});
+		expect(rows.usdMicros).toBe(0n);
+		expect(rows.viaAllowance).toBe(true);
+	});
+
+	test("subgraph reads stay at 10 µ$ after $50 of monthly spend", async () => {
+		await creditCredits(db, accountId, 200_000_000n);
+		const now = new Date();
+		await meter(
+			db,
+			readInput(accountId, SUBGRAPH_READ_ALLOWANCE + 5_000_000, now),
+		);
+		expect(await getMonthlyCreditsSpend(db, accountId)).toBeGreaterThanOrEqual(
+			COMMIT_TIER_MONTHLY_USD_MICROS,
+		);
+		const result = await meter(db, readInput(accountId, 1000, now));
+		expect(result.usdMicros).toBe(10_000n);
+	});
+
+	test("subgraph read spend counts toward the $50 that drops rows to $2", async () => {
+		await creditCredits(db, accountId, 200_000_000n);
+		const now = new Date();
+		await meter(
+			db,
+			readInput(accountId, SUBGRAPH_READ_ALLOWANCE + 5_000_000, now),
+		);
+		const rows = await meter(db, {
+			accountId,
+			unit: "rows.delivered",
+			quantity: ROWS_DELIVERED_MONTHLY_ALLOWANCE + 10,
+			source: "test",
+			idempotencyKey: randomUUID(),
+			occurredAt: now,
+		});
+		expect(rows.usdMicros).toBe(10n * CREDIT_USD_MICROS_PER_ROW_VOLUME);
+	});
+
+	test("a subgraph read charge on a short balance drains it to zero", async () => {
+		await creditCredits(db, accountId, 5_000n);
+		const result = await meter(
+			db,
+			readInput(accountId, SUBGRAPH_READ_ALLOWANCE + 1_000, new Date()),
+		);
+		expect(result.usdMicros).toBe(10_000n);
+		expect(result.debited).toBe(false);
+		expect(result.balanceAfter).toBe(0n);
+		expect(await getCredits(db, accountId)).toBe(0n);
 	});
 });

@@ -1,7 +1,9 @@
 import { describe, expect, test } from "bun:test";
 import {
 	HOURS_PER_MONTH,
+	MONTHLY_ALLOWANCE,
 	PRICES,
+	ROWS_DELIVERED_MONTHLY_ALLOWANCE,
 	STACK_FLOOR_USD_MICROS_PER_MONTH,
 	stackMemoryFloorGb,
 } from "./prices.ts";
@@ -36,5 +38,13 @@ describe("stack floor", () => {
 	test("the memory floor is derived from the dollar floor, not set in GB", () => {
 		expect(stackMemoryFloorGb(false)).toBeCloseTo(0.24462, 5);
 		expect(stackMemoryFloorGb(true)).toBeCloseTo(0.48924, 5);
+	});
+});
+
+describe("monthly allowance", () => {
+	test("the rows.delivered allowance export equals its entry in the allowance table", () => {
+		expect(MONTHLY_ALLOWANCE["rows.delivered"]).toBe(
+			ROWS_DELIVERED_MONTHLY_ALLOWANCE,
+		);
 	});
 });

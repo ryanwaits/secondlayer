@@ -18,6 +18,7 @@ export type MeterUnit =
 	| "memory.gb_hour"
 	| "storage.gb_day"
 	| "webhook.event"
+	| "subgraph.read"
 	| "sentinel.run"
 	| "sentinel.deep_audit"
 	| "sentinel.check_run"
@@ -51,6 +52,7 @@ export const PRICES: Record<MeterUnit, bigint> = {
 	"memory.gb_hour": 28_000n, // ~$0.028/GB-hour, ~$20/GB-month (founder 2026-09-24)
 	"storage.gb_day": 8_333n, // ~$0.25/GB-month billed daily (250_000n / 30)
 	"webhook.event": 10n, // $10/1M events; retries are free (never metered)
+	"subgraph.read": 10n, // $10/1M reads, same as webhook.event; per read, never per row
 
 	// Retired Sentinel units (see RETIRED_METER_UNITS). Kept for history only,
 	// so existing ledger rows still price and render. New meters are refused.
@@ -92,10 +94,26 @@ export const CREDIT_USD_MICROS_PER_ROW_VOLUME = 2n;
 /** Monthly-spend threshold for the commit-tier rate: $50 = 50M µ$. */
 export const COMMIT_TIER_MONTHLY_USD_MICROS = 50_000_000n;
 
+/** The one monthly free grant per unit, keyed by unit: per account per UTC
+ *  calendar month. Each unit's allowance is counted separately. */
+export const MONTHLY_ALLOWANCE: Partial<Record<MeterUnit, number>> = {
+	"rows.delivered": 1_000_000,
+	"subgraph.read": 100_000,
+};
+
 /** First N `rows.delivered` per account per UTC calendar month are free
  *  (founder 2026-09-24) — replaces the old free height window. Lowered from
  *  10M to 1M (founder 2026-09-27): at 10M nearly every reader was free. */
-export const ROWS_DELIVERED_MONTHLY_ALLOWANCE = 1_000_000;
+export const ROWS_DELIVERED_MONTHLY_ALLOWANCE = MONTHLY_ALLOWANCE[
+	"rows.delivered"
+] as number;
+
+/** A hosted subgraph table stream (`handleTableStream`) polls every
+ *  SUBGRAPH_STREAM_POLL_MS and sends at most SUBGRAPH_STREAM_BATCH_ROWS rows
+ *  per poll. Each poll that delivers rows is one `subgraph.read`; the
+ *  workload gateway infers polls from row timing. */
+export const SUBGRAPH_STREAM_POLL_MS = 1500;
+export const SUBGRAPH_STREAM_BATCH_ROWS = 500;
 
 /** Rows a ghost account (a signed-out reader's docs key) reads in its whole
  *  life, not per month (founder 2026-11-07). Past it the read is refused with
