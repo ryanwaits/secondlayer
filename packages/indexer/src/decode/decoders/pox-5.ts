@@ -328,8 +328,12 @@ function promoteTopicFields(
 				unlock_cycle: asInt32(tuple["unlock-cycle"]),
 				unlock_burn_height: asInt64(tuple["unlock-burn-height"]),
 			};
+		// `stx-cycle` is the reward cycle the rewards settle for (the cycle
+		// containing the print's burn height), so `?reward_cycle=` finds it.
+		// `bond-distribution` prints no cycle of its own: the cycle rollup ties
+		// it to its tx's calculate-rewards, so its `reward_cycle` stays null.
 		case "calculate-rewards":
-			return {};
+			return { reward_cycle: asInt32(tuple["stx-cycle"]) };
 		case "bond-distribution":
 			return {
 				bond_index: asInt64(tuple["bond-index"]),

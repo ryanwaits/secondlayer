@@ -4,6 +4,10 @@ Notable changes to Secondlayer and its SDKs. Entries dated before August 2026 de
 
 ## Index — November 2026
 
+### PoX-5 reward calculations filter by cycle
+
+`calculate-rewards` events on `/v1/index/pox5/events` now carry `reward_cycle`, so `?reward_cycle=142&topic=calculate-rewards` returns them. It was null before; existing rows are filled in.
+
 ### Call results say ok or err
 
 A contract call's `result` now keeps the response branch: `(ok u6009)` reads `{ "ok": "6009" }` and `(err u6009)` reads `{ "err": "6009" }`. Both used to read `"6009"`. This applies to `/v1/index/contract-calls` and the `contract_call` block of `/v1/index/transactions`; `result_hex` is unchanged.

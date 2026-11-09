@@ -378,7 +378,7 @@ describe("decodePox5Print", () => {
 		expect((row?.data as Record<string, unknown>)["new-admin"]).toBe(SIGNER);
 	});
 
-	test("calculate-rewards keeps its cycle accounting in data only", () => {
+	test("calculate-rewards promotes stx-cycle to reward_cycle", () => {
 		const row = decodePox5Print(
 			buildPrintEvent(
 				tupleCV({
@@ -397,7 +397,7 @@ describe("decodePox5Print", () => {
 				}),
 			),
 		);
-		expect(row?.reward_cycle).toBeNull();
+		expect(row?.reward_cycle).toBe(145);
 		expect((row?.data as Record<string, unknown>)["stx-cycle"]).toBe("145");
 		expect((row?.data as Record<string, unknown>)["bond-periods"]).toEqual([
 			"1",
