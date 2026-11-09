@@ -93,16 +93,16 @@ export type ReadCanonicalStreamsEventsResult = {
 	next_cursor: string | null;
 };
 
+// One tx's or one block's events are served whole: these routes have no
+// cursor, so a cap would silently drop the tail (blocks reach ~2.6k events).
 export type ReadStreamsEventsByTxIdParams = {
 	txId: string;
-	limit?: number;
 	db?: Kysely<Database>;
 };
 
 export type ReadStreamsBlockEventsParams = {
 	blockHeight?: number;
 	blockHash?: string;
-	limit?: number;
 	db?: Kysely<Database>;
 };
 
@@ -562,7 +562,6 @@ export async function readCanonicalStreamsEventsByTxId(
 				AND e.type IN (${allDbEventTypes})
 				AND e.tx_id = ${params.txId}
 			ORDER BY e.block_height ASC, t.tx_index ASC, e.event_index ASC
-			LIMIT ${params.limit ?? 1000}
 		),
 		${streamOrdinalCtes(allDbEventTypes)}
 		SELECT *
@@ -606,7 +605,6 @@ export async function readCanonicalStreamsBlockEvents(
 				AND e.type IN (${allDbEventTypes})
 				AND ${blockPredicate}
 			ORDER BY e.block_height ASC, t.tx_index ASC, e.event_index ASC
-			LIMIT ${params.limit ?? 1000}
 		),
 		${streamOrdinalCtes(allDbEventTypes)}
 		SELECT *

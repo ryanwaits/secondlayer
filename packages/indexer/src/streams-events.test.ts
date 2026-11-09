@@ -1,7 +1,11 @@
 import { afterAll, beforeEach, describe, expect, test } from "bun:test";
 import { getDb, sql } from "@secondlayer/shared/db";
 import { type PersistBlockInput, persistBlock } from "./persist.ts";
-import { readCanonicalStreamsEvents } from "./streams-events.ts";
+import {
+	readCanonicalStreamsBlockEvents,
+	readCanonicalStreamsEvents,
+	readCanonicalStreamsEventsByTxId,
+} from "./streams-events.ts";
 
 const HAS_DB = !!process.env.DATABASE_URL;
 
@@ -13,6 +17,55 @@ describe.skipIf(!HAS_DB)("readCanonicalStreamsEvents", () => {
 		await sql`DELETE FROM events`.execute(db);
 		await sql`DELETE FROM transactions`.execute(db);
 		await sql`DELETE FROM blocks`.execute(db);
+	});
+
+	test("a tx or block with more than 1000 events is served whole", async () => {
+		if (!db) throw new Error("missing db");
+		const count = 1201;
+		await db
+			.insertInto("blocks")
+			.values({
+				height: 1,
+				hash: "0x01",
+				parent_hash: "0x00",
+				burn_block_height: 101,
+				timestamp: 1000,
+				canonical: true,
+			})
+			.execute();
+		await db
+			.insertInto("transactions")
+			.values({
+				tx_id: "tx-big",
+				block_height: 1,
+				tx_index: 0,
+				type: "contract_call",
+				sender: "SP1",
+				status: "success",
+				contract_id: "SP1.big",
+				raw_tx: "0x01",
+			})
+			.execute();
+		await db
+			.insertInto("events")
+			.values(
+				Array.from({ length: count }, (_, i) => ({
+					tx_id: "tx-big",
+					block_height: 1,
+					event_index: i,
+					type: "stx_mint_event",
+					data: { recipient: "SP1", amount: "1" },
+				})),
+			)
+			.execute();
+
+		const byTx = await readCanonicalStreamsEventsByTxId({ txId: "tx-big", db });
+		const byBlock = await readCanonicalStreamsBlockEvents({
+			blockHeight: 1,
+			db,
+		});
+		expect(byTx.events).toHaveLength(count);
+		expect(byBlock.events).toHaveLength(count);
 	});
 
 	test("ordering invariant holds across multi-block, multi-tx pages", async () => {
