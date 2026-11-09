@@ -164,7 +164,7 @@ const FILTER_PARAMS = [
 			"contract_id",
 			"string",
 			false,
-			"Contract principal, or a comma-separated set. Matches print events by the emitting contract and ft/nft events by the asset's contract. Other event types never match.",
+			"Contract principal, or a comma-separated set. Matches print events by the emitting contract, ft/nft events by the asset's contract, and stx_lock events by the PoX contract that made the lock. Other event types never match.",
 		),
 		schema: {
 			type: "string",
@@ -176,7 +176,7 @@ const FILTER_PARAMS = [
 		"sender",
 		"string",
 		false,
-		"Principal, or a comma-separated set, matched against the payload's `sender`. Event types without a sender never match.",
+		"Principal, or a comma-separated set, matched against the payload's `sender`. Event types without a sender never match, including stx_lock, which names its principal `locked_address`.",
 	),
 	qp(
 		"recipient",
@@ -533,13 +533,13 @@ export const streamsSchemas = {
 			contract_id: {
 				type: ["string", "null"],
 				description:
-					"Emitting contract for `print`, asset contract for ft/nft events, `null` otherwise.",
+					"Emitting contract for `print`, asset contract for ft/nft events, the PoX contract for `stx_lock`, `null` otherwise.",
 			},
 			payload: {
 				type: "object",
 				additionalProperties: true,
 				description:
-					"The event body. Prints carry `topic`, `value` and `contract_id`; transfers carry `sender`, `recipient`, `amount` or `value`, and `asset_identifier`.",
+					"The event body, one shape per `event_type` at every height. Prints carry `topic`, `contract_id` and `raw_value`; nft events carry `raw_value`. `raw_value` is the Clarity value as `0x` hex. Legacy `value` appears only on rows before block 8,124,447, in varying shapes. `stx_transfer` carries `memo` as `0x` hex, or `null` when none was attached. `stx_lock` carries `contract_identifier`, the PoX contract. Other transfers carry `sender`, `recipient`, `amount` and `asset_identifier`.",
 			},
 			ts: {
 				type: "string",

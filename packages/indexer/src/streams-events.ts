@@ -1,6 +1,7 @@
 import {
 	DB_TO_STREAMS_EVENT_TYPE,
 	EMPTY_RANGE_EVENT_INDEX_SENTINEL,
+	MAINNET_POX_CONTRACT_ERAS,
 	STREAMS_DB_EVENT_TYPES,
 	STREAMS_EVENT_TYPES,
 	STREAMS_TO_DB_EVENT_TYPES,
@@ -8,9 +9,16 @@ import {
 	type StreamsEventType,
 	type VmEventType,
 	encodeStreamsCursor,
+	isPoxContractId,
+	mainnetPoxContractAt,
+	stacksNetwork,
 } from "@secondlayer/shared";
 import { getSourceDb, sql } from "@secondlayer/shared/db";
 import type { Database } from "@secondlayer/shared/db/schema";
+import {
+	clarityHexOf,
+	normalizeMemoHex,
+} from "@secondlayer/shared/streams-rows";
 import type { Kysely, RawBuilder } from "kysely";
 
 // Canonical event-type vocab lives in @secondlayer/shared; re-exported so
@@ -149,9 +157,44 @@ function withoutContractIdentifier(
 	return rest;
 }
 
+/** Rows written before the ingestion switch lack the lock's PoX contract;
+ *  derived from burn height, mainnet only (see `mainnetPoxContractAt`). */
+function derivesPoxContract(): boolean {
+	return stacksNetwork() === "mainnet";
+}
+
+function isNftEventType(eventType: StreamsEventType): boolean {
+	return (
+		eventType === "nft_transfer" ||
+		eventType === "nft_mint" ||
+		eventType === "nft_burn"
+	);
+}
+
+/** `raw_value` set from whichever field this row's era stored the hex in. */
+function withRawValue(
+	payload: Record<string, unknown>,
+): Record<string, unknown> {
+	const rawValue = clarityHexOf(payload);
+	return rawValue === null ? payload : { ...payload, raw_value: rawValue };
+}
+
+/**
+ * One payload shape per event type at every height. `events.data` was written
+ * by different ingestion eras (hex at `value`, then `value` + `raw_value`, then
+ * `raw_value` only; memos `0x`-prefixed, then bare; stx_lock without, then
+ * with, its contract), so the read path settles each to the newest shape:
+ *
+ * - print / nft_*: `raw_value` is always the `0x` hex; legacy `value` is kept
+ *   untouched where the row has it.
+ * - stx_transfer: `memo` is always present, `0x` hex or null.
+ * - stx_lock: `contract_identifier` is always the PoX contract, and is the
+ *   envelope `contract_id` (so `contract_id=` filters match it).
+ */
 export function normalizeStreamsEventPayload(
 	eventType: StreamsEventType,
 	data: unknown,
+	context: { burnBlockHeight: number },
 ): { payload: Record<string, unknown>; contract_id: string | null } {
 	const payload = dataRecord(data);
 	if (eventType === "print") {
@@ -161,7 +204,7 @@ export function normalizeStreamsEventPayload(
 				: typeof payload.contract_id === "string"
 					? payload.contract_id
 					: null;
-		const rest = withoutContractIdentifier(payload);
+		const rest = withRawValue(withoutContractIdentifier(payload));
 		return {
 			payload: contractId ? { ...rest, contract_id: contractId } : rest,
 			contract_id: contractId,
@@ -172,13 +215,33 @@ export function normalizeStreamsEventPayload(
 		eventType === "ft_transfer" ||
 		eventType === "ft_mint" ||
 		eventType === "ft_burn" ||
-		eventType === "nft_transfer" ||
-		eventType === "nft_mint" ||
-		eventType === "nft_burn"
+		isNftEventType(eventType)
 	) {
 		return {
-			payload,
+			payload: isNftEventType(eventType) ? withRawValue(payload) : payload,
 			contract_id: contractIdFromAssetIdentifier(payload.asset_identifier),
+		};
+	}
+
+	if (eventType === "stx_transfer") {
+		return {
+			payload: { ...payload, memo: normalizeMemoHex(payload.memo) },
+			contract_id: null,
+		};
+	}
+
+	if (eventType === "stx_lock") {
+		const contractId =
+			typeof payload.contract_identifier === "string"
+				? payload.contract_identifier
+				: derivesPoxContract()
+					? mainnetPoxContractAt(context.burnBlockHeight)
+					: null;
+		return {
+			payload: contractId
+				? { ...payload, contract_identifier: contractId }
+				: payload,
+			contract_id: contractId,
 		};
 	}
 
@@ -189,9 +252,11 @@ function normalizeRow(row: StreamsEventRow): StreamsEvent {
 	const eventType = DB_TO_STREAMS_EVENT_TYPE[row.db_event_type];
 	const eventIndex = Number(row.stream_event_index);
 	const blockHeight = Number(row.block_height);
+	const burnBlockHeight = Number(row.burn_block_height);
 	const { payload, contract_id } = normalizeStreamsEventPayload(
 		eventType,
 		row.data,
+		{ burnBlockHeight },
 	);
 
 	return {
@@ -201,7 +266,7 @@ function normalizeRow(row: StreamsEventRow): StreamsEvent {
 		}),
 		block_height: blockHeight,
 		block_hash: row.block_hash,
-		burn_block_height: Number(row.burn_block_height),
+		burn_block_height: burnBlockHeight,
 		tx_id: row.tx_id,
 		tx_index: Number(row.tx_index),
 		event_index: eventIndex,
@@ -353,9 +418,38 @@ function contractIdPredicate(
 					'nft_burn_event'
 				)
 				AND split_part(e.data->>'asset_identifier', '::', 1) IN (${list})
-			)
+			)${stxLockContractPredicate(ids, list)}
 		)
 	`;
+}
+
+/**
+ * stx_lock branch of the `contract_id` filter, matching exactly what
+ * `normalizeStreamsEventPayload` serves: the stored `contract_identifier`, else
+ * (mainnet) the PoX contract of the block's burn height. Only added when a
+ * requested id names a PoX contract, so other contract filters keep their plan.
+ */
+function stxLockContractPredicate(
+	ids: string[],
+	list: RawBuilder<unknown>,
+): RawBuilder<unknown> {
+	if (!ids.some(isPoxContractId)) return sql``;
+	const derived = derivesPoxContract()
+		? sql`CASE ${sql.join(
+				[...MAINNET_POX_CONTRACT_ERAS]
+					.reverse()
+					.map(
+						(era) =>
+							sql`WHEN b.burn_block_height >= ${era.fromBurnHeight} THEN ${era.contractId}`,
+					),
+				sql` `,
+			)} END`
+		: sql`NULL`;
+	return sql`
+			OR (
+				e.type = 'stx_lock_event'
+				AND COALESCE(e.data->>'contract_identifier', ${derived}) IN (${list})
+			)`;
 }
 
 /** Inclusion predicate on a raw payload field, or empty when unset. The key is

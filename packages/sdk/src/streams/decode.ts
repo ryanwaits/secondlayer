@@ -1,4 +1,5 @@
 import {
+	normalizeMemoHex,
 	optionalString,
 	requireAmountField,
 	requireHexValue,
@@ -43,7 +44,7 @@ export function decode(event: StreamsEvent): IndexEvent {
 				sender: requireString(p, "sender", event.event_type),
 				recipient: requireString(p, "recipient", event.event_type),
 				amount: requireAmountField(p, "amount", event.event_type),
-				memo: optionalString(p.memo),
+				memo: normalizeMemoHex(p.memo),
 			};
 		case "stx_mint":
 			return {

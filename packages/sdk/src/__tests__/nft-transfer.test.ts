@@ -16,10 +16,16 @@ const EVENT: StreamsEvent = {
 		asset_identifier: "SP1.collection::token",
 		sender: "SP1",
 		recipient: "SP2",
-		value: "0x0100000000000000000000000000000001",
+		raw_value: "0x0100000000000000000000000000000001",
 	},
 	ts: "2026-05-04T00:00:00.000Z",
 };
+
+/** A pre-normalization payload: no `raw_value`, the id only at `value`. */
+function legacyEvent(value: unknown): StreamsEvent {
+	const { raw_value: _raw, ...rest } = EVENT.payload as Record<string, unknown>;
+	return { ...EVENT, payload: { ...rest, value } } as unknown as StreamsEvent;
+}
 
 describe("nft_transfer helpers", () => {
 	test("narrows nft_transfer events", () => {
@@ -53,24 +59,15 @@ describe("nft_transfer helpers", () => {
 	});
 
 	test("accepts Hiro value objects with hex", () => {
-		const decoded = decodeNftTransfer({
-			...EVENT,
-			payload: {
-				...EVENT.payload,
-				value: { hex: "0x01" },
-			},
-		});
+		const decoded = decodeNftTransfer(legacyEvent({ hex: "0x01" }));
 
 		expect(decoded.decoded_payload.value).toBe("0x01");
 	});
 
 	test("rejects malformed values", () => {
-		expect(() =>
-			decodeNftTransfer({
-				...EVENT,
-				payload: { ...EVENT.payload, value: "u1" },
-			}),
-		).toThrow("malformed value");
+		expect(() => decodeNftTransfer(legacyEvent("u1"))).toThrow(
+			"malformed value",
+		);
 	});
 
 	test("prefers raw_value when value is a typed Clarity tuple (live shape)", () => {
@@ -96,7 +93,7 @@ describe("nft_transfer helpers", () => {
 		expect(() =>
 			decodeNftTransfer({
 				...EVENT,
-				payload: { ...EVENT.payload, value: { UInt: 1 }, raw_value: "not-hex" },
+				payload: { ...EVENT.payload, raw_value: "not-hex" },
 			}),
 		).toThrow("malformed value");
 	});

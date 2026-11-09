@@ -77,7 +77,7 @@ export interface StxTransferPayload {
 	sender: string;
 	recipient: string;
 	amount: bigint;
-	/** Memo string, or "" when none was attached. */
+	/** Memo as `0x` hex, or "" when none was attached. */
 	memo: string;
 	tx: TxMeta;
 }

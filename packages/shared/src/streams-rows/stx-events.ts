@@ -1,5 +1,6 @@
 import {
 	decodedRow,
+	normalizeMemoHex,
 	optionalString,
 	requireAmount,
 	requireAmountField,
@@ -72,7 +73,7 @@ export function decodeStxTransfer(event: StreamsEvent): DecodedStxTransfer {
 		sender: requireString(payload, "sender", "stx_transfer"),
 		recipient: requireString(payload, "recipient", "stx_transfer"),
 		amount: requireAmount(payload, "stx_transfer"),
-		memo: optionalString(payload.memo),
+		memo: normalizeMemoHex(payload.memo),
 	});
 }
 

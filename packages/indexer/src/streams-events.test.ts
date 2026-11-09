@@ -760,6 +760,141 @@ describe.skipIf(!HAS_DB)("readCanonicalStreamsEvents", () => {
 		expect(page.next_cursor).toBe("12:2147483647");
 	});
 
+	describe("stx_lock contract_id across ingestion eras", () => {
+		const POX4 = "SP000000000000000000002Q6VF78.pox-4";
+		const POX5 = "SP000000000000000000002Q6VF78.pox-5";
+
+		// Real mainnet rows: an era-A lock (no contract stored) at burn 942,851
+		// and an era-C lock that stored `pox-5` at burn 960,974.
+		async function seedLocks() {
+			if (!db) throw new Error("missing db");
+			await db
+				.insertInto("blocks")
+				.values([
+					{
+						height: 20,
+						hash: "0x20",
+						parent_hash: "0x19",
+						burn_block_height: 942_851,
+						timestamp: 3000,
+						canonical: true,
+					},
+					{
+						height: 21,
+						hash: "0x21",
+						parent_hash: "0x20",
+						burn_block_height: 960_974,
+						timestamp: 3001,
+						canonical: true,
+					},
+				])
+				.execute();
+			await db
+				.insertInto("transactions")
+				.values([
+					{
+						tx_id: "tx-lock-old",
+						block_height: 20,
+						tx_index: 0,
+						type: "contract_call",
+						sender: "SP1",
+						status: "success",
+						contract_id: "SP1.pool",
+						raw_tx: "0x20",
+					},
+					{
+						tx_id: "tx-lock-new",
+						block_height: 21,
+						tx_index: 0,
+						type: "contract_call",
+						sender: "SP1",
+						status: "success",
+						contract_id: POX5,
+						raw_tx: "0x21",
+					},
+				])
+				.execute();
+			await db
+				.insertInto("events")
+				.values([
+					{
+						tx_id: "tx-lock-old",
+						block_height: 20,
+						event_index: 0,
+						type: "stx_lock_event",
+						data: {
+							locked_amount: "1397097537707",
+							unlock_height: "945350",
+							locked_address:
+								"SP8A9HZ3PKST0S42VM9523Z9NV42SZ026V4K39WH.ccd002-treasury-mia-rewards-v3",
+						},
+					},
+					{
+						tx_id: "tx-lock-new",
+						block_height: 21,
+						event_index: 0,
+						type: "stx_lock_event",
+						data: {
+							locked_amount: "900000000",
+							unlock_height: "1163750",
+							locked_address: "SP1EPHAVJAEC6V13B9ZT65PXJPQDMN3B1Z1CMMQ0E",
+							contract_identifier: POX5,
+						},
+					},
+				])
+				.execute();
+		}
+
+		test("every lock serves its PoX contract on the envelope and payload", async () => {
+			await seedLocks();
+			const page = await readCanonicalStreamsEvents({
+				fromHeight: 0,
+				toHeight: 30,
+				types: ["stx_lock"],
+				limit: 10,
+				db: db ?? undefined,
+			});
+			expect(
+				page.events.map((e) => [e.contract_id, e.payload.contract_identifier]),
+			).toEqual([
+				[POX4, POX4],
+				[POX5, POX5],
+			]);
+		});
+
+		test("a contract_id filter returns exactly the locks it serves with that contract", async () => {
+			await seedLocks();
+			for (const contractId of [POX4, POX5]) {
+				const page = await readCanonicalStreamsEvents({
+					fromHeight: 0,
+					toHeight: 30,
+					types: ["stx_lock"],
+					contractId,
+					limit: 10,
+					db: db ?? undefined,
+				});
+				expect(page.events.map((e) => e.contract_id)).toEqual([contractId]);
+			}
+			const labelled = await readCanonicalStreamsEvents({
+				fromHeight: 0,
+				toHeight: 30,
+				filters: { old: { types: ["stx_lock"], contractId: POX4 } },
+				limit: 10,
+				db: db ?? undefined,
+			});
+			expect(labelled.events.map((e) => e.block_height)).toEqual([20]);
+			const none = await readCanonicalStreamsEvents({
+				fromHeight: 0,
+				toHeight: 30,
+				types: ["stx_lock"],
+				contractId: "SP000000000000000000002Q6VF78.pox-3",
+				limit: 10,
+				db: db ?? undefined,
+			});
+			expect(none.events).toEqual([]);
+		});
+	});
+
 	describe("labelled filter maps", () => {
 		async function seedTwoConcerns() {
 			if (!db) throw new Error("missing db");

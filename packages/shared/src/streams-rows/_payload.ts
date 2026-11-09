@@ -64,30 +64,34 @@ export function parseAssetIdentifier(
 	};
 }
 
-/** NFT token id: live streams emits a typed Clarity value at `value` and the
- *  canonical hex at `raw_value`; prefer raw_value when present. */
+const HEX_BODY = /^[0-9a-fA-F]*$/;
+
+/** The canonical `0x` hex of a payload's Clarity value, from whichever field
+ *  the row's ingestion era wrote: `raw_value` (from ~7.46M), a `0x` string at
+ *  `value` (before that), or a typed `{ hex }` object. Null when none is hex. */
+export function clarityHexOf(payload: Record<string, unknown>): string | null {
+	const rawValue = payload.raw_value;
+	if (typeof rawValue === "string") return rawValue;
+	const value = payload.value;
+	if (typeof value === "string" && value.startsWith("0x")) return value;
+	if (
+		value &&
+		typeof value === "object" &&
+		typeof (value as { hex?: unknown }).hex === "string"
+	) {
+		return (value as { hex: string }).hex;
+	}
+	return null;
+}
+
+/** NFT token id as canonical `0x` hex; throws when missing or malformed. */
 export function requireHexValue(
 	payload: Record<string, unknown>,
 	eventType: string,
 ): string {
-	const rawValue = payload.raw_value;
-	if (typeof rawValue === "string") {
-		if (!/^0x[0-9a-fA-F]*$/.test(rawValue)) {
-			throw new Error(`${eventType} payload has malformed value`);
-		}
-		return rawValue;
-	}
-
-	const value = payload.value;
 	const hex =
-		typeof value === "string"
-			? value
-			: value &&
-					typeof value === "object" &&
-					typeof (value as { hex?: unknown }).hex === "string"
-				? (value as { hex: string }).hex
-				: null;
-
+		clarityHexOf(payload) ??
+		(typeof payload.value === "string" ? payload.value : null);
 	if (!hex) {
 		throw new Error(`${eventType} payload missing value`);
 	}
@@ -95,6 +99,20 @@ export function requireHexValue(
 		throw new Error(`${eventType} payload has malformed value`);
 	}
 	return hex;
+}
+
+/**
+ * A transfer memo as `0x` hex, or null when the transfer carried none.
+ *
+ * Stored memos come in three spellings depending on ingestion era: `0x…`
+ * (before ~7.4M), bare hex (after), and missing or `""` for transfers made
+ * without a memo. Non-hex strings pass through untouched.
+ */
+export function normalizeMemoHex(memo: unknown): string | null {
+	if (typeof memo !== "string") return null;
+	const body = memo.startsWith("0x") ? memo.slice(2) : memo;
+	if (body.length === 0) return null;
+	return HEX_BODY.test(body) ? `0x${body}` : memo;
 }
 
 /** Common envelope fields shared by every decoded event, lifted off the

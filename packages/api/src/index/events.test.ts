@@ -656,6 +656,53 @@ describe.skipIf(!HAS_DB)("Index /events DB reads", () => {
 		});
 	});
 
+	test("stx_transfer memo is 0x hex or null whatever era stored it", async () => {
+		if (!db) throw new Error("missing db");
+		// Stored spellings by ingestion era: `0x…` (before ~7.4M), bare hex
+		// (after), and "" or null for transfers made without a memo.
+		const stored: [string, string | null][] = [
+			["9100:0", "0x00000000"],
+			["9100:1", "783430323a"],
+			["9100:2", ""],
+			["9100:3", null],
+			["9100:4", "0x"],
+		];
+		await db
+			.insertInto("decoded_events")
+			.values(
+				stored.map(([cursor, memo], index) => ({
+					cursor,
+					block_height: 9100,
+					tx_id: `tx-memo-${index}`,
+					tx_index: index,
+					event_index: index,
+					event_type: "stx_transfer",
+					contract_id: null,
+					sender: "SP1",
+					recipient: "SP2",
+					amount: "1",
+					memo,
+					source_cursor: cursor,
+				})),
+			)
+			.execute();
+
+		const result = await readIndexEvents({
+			db,
+			eventType: "stx_transfer",
+			fromHeight: 0,
+			toHeight: 10_000,
+			limit: 10,
+		});
+		expect(result.events.map((e) => e.memo)).toEqual([
+			"0x00000000",
+			"0x783430323a",
+			null,
+			null,
+			null,
+		]);
+	});
+
 	test("tx_context join populates tx_* without an ambiguous-column error", async () => {
 		if (!db) throw new Error("missing db");
 		// Regression: decoded_events and the LATERAL tx subquery both expose a

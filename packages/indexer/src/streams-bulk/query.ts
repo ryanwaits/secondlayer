@@ -126,6 +126,7 @@ function normalizeBulkRow(
 	const { payload, contract_id } = normalizeStreamsEventPayload(
 		eventType,
 		row.data,
+		{ burnBlockHeight: Number(row.burn_block_height) },
 	);
 
 	return {

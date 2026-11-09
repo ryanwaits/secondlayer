@@ -3,6 +3,7 @@ import { getSourceDb, sql } from "@secondlayer/shared/db";
 import { resolveTraitContractIds } from "@secondlayer/shared/db/queries/contracts";
 import type { Database } from "@secondlayer/shared/db/schema";
 import { ValidationError } from "@secondlayer/shared/errors";
+import { normalizeMemoHex } from "@secondlayer/shared/streams-rows";
 import type { Kysely, RawBuilder } from "kysely";
 import { validateQueryParams } from "../middleware/validation.ts";
 import type { StreamsReorg, StreamsReorgsReader } from "../streams/reorgs.ts";
@@ -367,11 +368,14 @@ function normalizeIndexRow(
 	for (const column of config.columns) {
 		const raw = (row as Record<string, unknown>)[column];
 		// jsonb columns (print's payload) arrive as objects from postgres.js, but
-		// parse defensively in case a driver hands back the raw string.
+		// parse defensively in case a driver hands back the raw string. Stored
+		// memos vary by ingestion era (`0x…`, bare hex, `""`); serve one spelling.
 		(event as Record<string, unknown>)[column] =
 			column === "payload" && typeof raw === "string"
 				? parseJsonColumn(raw)
-				: raw;
+				: column === "memo"
+					? normalizeMemoHex(raw)
+					: raw;
 	}
 	if (fields) {
 		// Strip what the caller didn't ask for. `block_height`/`event_index`

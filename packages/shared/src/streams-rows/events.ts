@@ -27,7 +27,8 @@ export type StxTransferPayload = {
 	sender: string;
 	recipient: string;
 	amount: string;
-	memo?: string;
+	/** `0x` hex, or null when the transfer carried no memo. */
+	memo: string | null;
 };
 export type StxMintPayload = { recipient: string; amount: string };
 export type StxBurnPayload = { sender: string; amount: string };
@@ -35,6 +36,8 @@ export type StxLockPayload = {
 	locked_address: string;
 	locked_amount: string;
 	unlock_height: string;
+	/** The PoX contract that made the lock (`…pox-4`, `…pox-5`, …). */
+	contract_identifier: string;
 };
 export type FtTransferPayload = {
 	asset_identifier: string;
@@ -56,27 +59,36 @@ export type NftTransferPayload = {
 	asset_identifier: string;
 	sender: string;
 	recipient: string;
-	value: StreamsClarityValue;
-	/** Canonical serialized hex of `value`, when the stream carries it. */
-	raw_value?: string;
+	/** The token id as canonical serialized Clarity hex (`0x…`). */
+	raw_value: string;
+	/** @deprecated Legacy, only on rows before block ~8.124M and in varying
+	 *  shapes. Read `raw_value`. */
+	value?: StreamsClarityValue;
 };
 export type NftMintPayload = {
 	asset_identifier: string;
 	recipient: string;
-	value: StreamsClarityValue;
-	raw_value?: string;
+	/** The token id as canonical serialized Clarity hex (`0x…`). */
+	raw_value: string;
+	/** @deprecated Legacy; read `raw_value`. */
+	value?: StreamsClarityValue;
 };
 export type NftBurnPayload = {
 	asset_identifier: string;
 	sender: string;
-	value: StreamsClarityValue;
-	raw_value?: string;
+	/** The token id as canonical serialized Clarity hex (`0x…`). */
+	raw_value: string;
+	/** @deprecated Legacy; read `raw_value`. */
+	value?: StreamsClarityValue;
 };
 export type PrintPayload = {
 	contract_id?: string | null;
 	topic?: string;
+	/** The printed value as canonical serialized Clarity hex (`0x…`). */
+	raw_value: string;
+	/** @deprecated Legacy, only on rows before block ~8.124M and in varying
+	 *  shapes. Read `raw_value`. */
 	value?: unknown;
-	raw_value?: string;
 };
 
 /** Union of every Streams payload shape, discriminated by `event_type` on the

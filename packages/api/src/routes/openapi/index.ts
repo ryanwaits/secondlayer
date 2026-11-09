@@ -829,7 +829,8 @@ export const indexSchemas = {
 			},
 			memo: {
 				type: ["string", "null"],
-				description: "Transfer memo, on `stx_transfer`.",
+				description:
+					"Transfer memo as `0x` hex, on `stx_transfer`. `null` when none was attached.",
 			},
 			payload: {
 				description:

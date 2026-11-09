@@ -6,6 +6,7 @@ export * from "./errors.ts";
 export * from "./finality.ts";
 export * from "./streams-cursor.ts";
 export { normalizeBtcTxid } from "./btc-txid.ts";
+export * from "./pox-contracts.ts";
 export {
 	getEnv,
 	isBnsDecoderEnabled,

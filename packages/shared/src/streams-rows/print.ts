@@ -1,4 +1,4 @@
-import { decodedRow, optionalString } from "./_payload.ts";
+import { clarityHexOf, decodedRow, optionalString } from "./_payload.ts";
 import { decodeClarityValue, toJsonSafe } from "./clarity.ts";
 import type { StreamsEvent } from "./events.ts";
 
@@ -29,20 +29,6 @@ export type DecodedPrint = {
 	source_cursor: string;
 };
 
-function printValueHex(payload: Record<string, unknown>): string | null {
-	if (typeof payload.raw_value === "string") return payload.raw_value;
-	const value = payload.value;
-	if (typeof value === "string" && value.startsWith("0x")) return value;
-	if (
-		value &&
-		typeof value === "object" &&
-		typeof (value as { hex?: unknown }).hex === "string"
-	) {
-		return (value as { hex: string }).hex;
-	}
-	return null;
-}
-
 export function isPrint(
 	event: StreamsEvent,
 ): event is StreamsEvent & { event_type: "print" } {
@@ -55,7 +41,7 @@ export function decodePrint(event: StreamsEvent): DecodedPrint {
 	}
 	const payload = event.payload;
 	const topic = optionalString(payload.topic);
-	const rawValue = printValueHex(payload);
+	const rawValue = clarityHexOf(payload);
 
 	const value = rawValue
 		? decodeClarityValue(rawValue)

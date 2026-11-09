@@ -43,7 +43,9 @@ export type {
 } from "./events.ts";
 export { RUNE_EVENT_TYPES, STREAMS_EVENT_TYPES } from "./events.ts";
 export {
+	clarityHexOf,
 	decodedRow,
+	normalizeMemoHex,
 	optionalString,
 	parseAssetIdentifier,
 	requireAmount,

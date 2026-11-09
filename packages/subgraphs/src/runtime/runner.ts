@@ -1,5 +1,6 @@
 import { getErrorMessage } from "@secondlayer/shared";
 import { logger } from "@secondlayer/shared/logger";
+import { normalizeMemoHex } from "@secondlayer/shared/streams-rows";
 import {
 	clarityValueToJS,
 	deserializeCV,
@@ -283,7 +284,8 @@ export function buildEventPayload(
 				sender: decoded.sender as string,
 				recipient: decoded.recipient as string,
 				amount: safeBigInt(decoded.amount),
-				memo: decoded.memo ?? "",
+				// Stored memos vary by ingestion era; the DB tap and Index agree here.
+				memo: normalizeMemoHex(decoded.memo) ?? "",
 				tx: txMeta,
 			};
 		case "stx_mint":
