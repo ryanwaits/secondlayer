@@ -62,24 +62,6 @@ describe("streams dumps writes through a .part file", () => {
 				const path = new URL(req.url).pathname;
 				if (path === "/full") return new Response(body);
 				if (path === "/wrong") return new Response("different bytes");
-				if (path === "/cut") {
-					// Declare more than we send, then drop the connection mid-body.
-					// The error fires on a later tick: an error inside start() fails
-					// the response before headers flush (Bun >=1.4), which would test
-					// a refused request rather than a cut body.
-					const stream = new ReadableStream<Uint8Array>({
-						start(controller) {
-							controller.enqueue(body.subarray(0, 8));
-							setTimeout(
-								() => controller.error(new Error("connection reset")),
-								20,
-							);
-						},
-					});
-					return new Response(stream, {
-						headers: { "content-length": String(body.byteLength) },
-					});
-				}
 				return new Response("nope", { status: 404 });
 			},
 		});
@@ -106,9 +88,26 @@ describe("streams dumps writes through a .part file", () => {
 		try {
 			const file = dumpFile("events/0001.parquet", body);
 			const dest = resolveDumpDest(dir, file.path);
+			// The body drops mid-download: 8 bytes, then the stream errors on a
+			// later tick. Cut on the client, not in Bun.serve: a server-side
+			// stream error makes Bun print its stack, which CI reports as an
+			// error annotation on a passing test.
+			const cutFetch = (async () =>
+				new Response(
+					new ReadableStream<Uint8Array>({
+						start(controller) {
+							controller.enqueue(body.subarray(0, 8));
+							setTimeout(
+								() => controller.error(new Error("connection reset")),
+								20,
+							);
+						},
+					}),
+					{ headers: { "content-length": String(body.byteLength) } },
+				)) as unknown as typeof fetch;
 			await expect(
-				downloadDumpTo(file, dest, fetch, `${base}/cut`),
-			).rejects.toThrow();
+				downloadDumpTo(file, dest, cutFetch, `${base}/cut`),
+			).rejects.toThrow("connection reset");
 			expect(existsSync(dest)).toBe(false);
 			expect(readdirSync(join(dir, "events"))).toEqual(["0001.parquet.part"]);
 		} finally {
