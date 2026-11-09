@@ -171,6 +171,23 @@ export function serverErrors(errors: readonly RowsError[]): RowsError[] {
 	return errors.filter((e) => e.status >= 500);
 }
 
+/** Errors per page: the table stays level with the panel beside it. */
+export const ERRORS_PER_PAGE = 5;
+
+/** One page of errors, the page index clamped so a shrinking list never lands
+ *  past its end. `from`/`to` are 1-based for "6–10 of 19". */
+export function errorPage<T>(
+	items: readonly T[],
+	page: number,
+	size = ERRORS_PER_PAGE,
+): { rows: T[]; from: number; to: number; pages: number; current: number } {
+	const pages = Math.max(1, Math.ceil(items.length / size));
+	const current = Math.min(Math.max(0, page), pages - 1);
+	const start = current * size;
+	const rows = items.slice(start, start + size);
+	return { rows, from: start + 1, to: start + rows.length, pages, current };
+}
+
 /** "10× 400 · 15× 404" for the 4xx errors, most frequent status first. */
 export function errorSummary(errors: readonly RowsError[]): string {
 	const byStatus = new Map<number, number>();

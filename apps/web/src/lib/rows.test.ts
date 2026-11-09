@@ -5,6 +5,7 @@ import {
 	type RowsError,
 	clientErrors,
 	dailyBars,
+	errorPage,
 	errorSummary,
 	hourlyPoints,
 	markIndex,
@@ -137,6 +138,32 @@ describe("errors", () => {
 	});
 	test("no 4xx gives an empty summary", () => {
 		expect(errorSummary(serverErrors(errors))).toBe("");
+	});
+});
+
+describe("errorPage", () => {
+	const items = Array.from({ length: 12 }, (_, i) => i);
+
+	test("a middle page reads as 1-based from–to", () => {
+		expect(errorPage(items, 1)).toEqual({
+			rows: [5, 6, 7, 8, 9],
+			from: 6,
+			to: 10,
+			pages: 3,
+			current: 1,
+		});
+	});
+
+	test("a page past the end clamps to the last page", () => {
+		const last = errorPage(items, 9);
+		expect(last.current).toBe(2);
+		expect(last.rows).toEqual([10, 11]);
+		expect(last.to).toBe(12);
+	});
+
+	test("an empty list is one empty page", () => {
+		expect(errorPage([], 0).pages).toBe(1);
+		expect(errorPage([], 0).rows).toEqual([]);
 	});
 });
 
