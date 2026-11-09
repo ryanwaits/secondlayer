@@ -169,11 +169,57 @@ export async function writeBnsNamespaceEvents(
 		.execute();
 }
 
+/**
+ * Fill `price_ustx`/`commission` on `buy-in-ustx` rows from the listing they
+ * bought. BNS-V2 prints only `{a: "buy-in-ustx", id}` on a buy; a buy needs a
+ * `market` entry, which only `list-in-ustx` sets, so the price is on the latest
+ * listing for that id before the buy — earlier in `rows` (stream order) or
+ * already stored. Left null when no listing is known.
+ */
+export async function fillBuyListings(
+	rows: BnsMarketplaceEventRow[],
+	opts?: { db?: Kysely<Database> },
+): Promise<void> {
+	const listings = new Map<string, BnsMarketplaceEventRow>();
+	for (const row of rows) {
+		if (row.action === "list-in-ustx") {
+			listings.set(row.bns_id, row);
+			continue;
+		}
+		if (row.action !== "buy-in-ustx" || row.price_ustx !== null) continue;
+		const listing =
+			listings.get(row.bns_id) ??
+			(await db(opts?.db)
+				.selectFrom("bns_marketplace_events")
+				.select(["price_ustx", "commission"])
+				.where("bns_id", "=", row.bns_id)
+				.where("action", "=", "list-in-ustx")
+				.where("canonical", "=", true)
+				.where((eb) =>
+					eb.or([
+						eb("block_height", "<", row.block_height),
+						eb.and([
+							eb("block_height", "=", row.block_height),
+							eb("event_index", "<", row.event_index),
+						]),
+					]),
+				)
+				.orderBy("block_height", "desc")
+				.orderBy("event_index", "desc")
+				.limit(1)
+				.executeTakeFirst());
+		row.price_ustx = listing?.price_ustx ?? null;
+		row.commission = listing?.commission ?? null;
+	}
+}
+
+/** Write marketplace events; buys carry their listing's price (`fillBuyListings`). */
 export async function writeBnsMarketplaceEvents(
 	rows: BnsMarketplaceEventRow[],
 	opts?: { db?: Kysely<Database> },
 ): Promise<void> {
 	if (rows.length === 0) return;
+	await fillBuyListings(rows, opts);
 	await db(opts?.db)
 		.insertInto("bns_marketplace_events")
 		.values(rows)

@@ -5,9 +5,10 @@ import {
 	deleteBnsName,
 	handleBnsReorg,
 	upsertBnsName,
+	writeBnsMarketplaceEvents,
 	writeBnsNameEvents,
 } from "./bns-storage.ts";
-import type { BnsNameEventRow } from "./bns-storage.ts";
+import type { BnsMarketplaceEventRow, BnsNameEventRow } from "./bns-storage.ts";
 
 const HAS_DB = !!process.env.DATABASE_URL;
 const H0 = 99_200_001;
@@ -201,3 +202,95 @@ function nameEvent(
 		source_cursor: overrides.source_cursor ?? overrides.cursor,
 	};
 }
+
+describe.skipIf(!HAS_DB)("buy-in-ustx price", () => {
+	const db = HAS_DB ? getDb() : null;
+	const COMMISSION = "SP2QEZ06AGJ3RKJPBV14SY1V5BBFNAW33D96YPGZF.commission";
+
+	function market(
+		action: BnsMarketplaceEventRow["action"],
+		height: number,
+		eventIndex: number,
+		price: string | null = null,
+	): BnsMarketplaceEventRow {
+		return {
+			cursor: `${height}:${eventIndex}`,
+			block_height: height,
+			block_time: new Date("2026-11-01T00:00:00Z"),
+			tx_id: `0x${action}${height}`,
+			tx_index: 0,
+			event_index: eventIndex,
+			action,
+			bns_id: "424242",
+			price_ustx: price,
+			commission: price ? COMMISSION : null,
+			source_cursor: `${height}:${eventIndex}`,
+		};
+	}
+
+	async function stored() {
+		if (!db) throw new Error("missing db");
+		return db
+			.selectFrom("bns_marketplace_events")
+			.select(["action", "price_ustx", "commission"])
+			.where("block_height", "in", [H0, H1])
+			.orderBy("block_height")
+			.orderBy("event_index")
+			.execute();
+	}
+
+	beforeEach(async () => {
+		if (!db) return;
+		await db
+			.deleteFrom("bns_marketplace_events")
+			.where("block_height", "in", [H0, H1])
+			.execute();
+	});
+
+	afterEach(async () => {
+		if (!db) return;
+		await db
+			.deleteFrom("bns_marketplace_events")
+			.where("block_height", "in", [H0, H1])
+			.execute();
+	});
+
+	test("a buy carries the price and commission of the latest stored listing before it", async () => {
+		if (!db) throw new Error("missing db");
+		await writeBnsMarketplaceEvents(
+			[
+				market("list-in-ustx", H0, 1, "500"),
+				market("list-in-ustx", H0, 4, "900"),
+			],
+			{ db },
+		);
+		await writeBnsMarketplaceEvents([market("buy-in-ustx", H1, 2)], { db });
+		expect((await stored()).at(-1)).toEqual({
+			action: "buy-in-ustx",
+			price_ustx: "900",
+			commission: COMMISSION,
+		});
+	});
+
+	test("a buy pairs with a listing earlier in the same batch", async () => {
+		if (!db) throw new Error("missing db");
+		await writeBnsMarketplaceEvents(
+			[market("list-in-ustx", H0, 1, "700"), market("buy-in-ustx", H0, 3)],
+			{ db },
+		);
+		expect((await stored()).at(-1)?.price_ustx).toBe("700");
+	});
+
+	test("a buy with no known listing keeps a null price", async () => {
+		if (!db) throw new Error("missing db");
+		await writeBnsMarketplaceEvents([market("buy-in-ustx", H1, 2)], { db });
+		await writeBnsMarketplaceEvents([market("list-in-ustx", H1, 5, "1")], {
+			db,
+		});
+		expect((await stored())[0]).toEqual({
+			action: "buy-in-ustx",
+			price_ustx: null,
+			commission: null,
+		});
+	});
+});
