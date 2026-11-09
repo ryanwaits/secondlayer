@@ -12,6 +12,7 @@ import {
 } from "@secondlayer/platform/db/queries/account-credits";
 import { getDb } from "@secondlayer/shared/db";
 import { Hono } from "hono";
+import { hashToken } from "../auth/keys.ts";
 import { createApiApp } from "../create-app.ts";
 import { errorHandler } from "../middleware/error.ts";
 import internalMetersRouter, {
@@ -31,6 +32,24 @@ async function makeAccount(): Promise<string> {
 		.returning("id")
 		.executeTakeFirstOrThrow();
 	accountIds.push(row.id);
+	return row.id;
+}
+
+async function makeApiKey(forAccountId: string): Promise<string> {
+	const raw = `sk-sl_meters_test_${crypto.randomUUID()}`;
+	const row = await db
+		.insertInto("api_keys")
+		.values({
+			key_hash: hashToken(raw),
+			key_prefix: raw.slice(0, 14),
+			account_id: forAccountId,
+			ip_address: "test",
+			product: "account",
+			tier: "free",
+			status: "active",
+		})
+		.returning("id")
+		.executeTakeFirstOrThrow();
 	return row.id;
 }
 
@@ -61,6 +80,14 @@ afterEach(async () => {
 afterAll(async () => {
 	if (!HAS_DB) return;
 	if (accountIds.length > 0) {
+		await db
+			.deleteFrom("usage_ledger")
+			.where("account_id", "in", accountIds)
+			.execute();
+		await db
+			.deleteFrom("api_keys")
+			.where("account_id", "in", accountIds)
+			.execute();
 		await db.deleteFrom("accounts").where("id", "in", accountIds).execute();
 	}
 });
@@ -410,6 +437,77 @@ describe.skipIf(!HAS_DB)("POST /internal/meters: per-item results", () => {
 		expect(results[2]?.usd_micros).toBe(56_000); // 2 GB-hours x 28,000 µ$
 		// Both good items debited: 1_000_000 - 1_000 - 56_000.
 		expect(await getCredits(db, accountId)).toBe(943_000n);
+	});
+
+	test("a meter item with its account's key id records it on the ledger row", async () => {
+		await creditCredits(db, accountId, 1_000_000n);
+		const keyId = await makeApiKey(accountId);
+		const idempotencyKey = `keyed-${accountId}`;
+		const res = await post([
+			{
+				accountId,
+				unit: "subgraph.read",
+				quantity: 1,
+				apiKeyId: keyId,
+				idempotencyKey,
+			},
+		]);
+		expect(res.status).toBe(200);
+		const { results } = (await res.json()) as { results: Result[] };
+		expect(results[0]?.status).toBe("ok");
+		const row = await db
+			.selectFrom("usage_ledger")
+			.select("api_key_id")
+			.where("idempotency_key", "=", idempotencyKey)
+			.executeTakeFirstOrThrow();
+		expect(row.api_key_id).toBe(keyId);
+	});
+
+	test("a meter item with another account's key id is rejected and the rest of the batch lands", async () => {
+		await creditCredits(db, accountId, 1_000_000n);
+		const otherAccount = await makeAccount();
+		const foreignKeyId = await makeApiKey(otherAccount);
+		const res = await post([
+			{
+				accountId,
+				unit: "subgraph.read",
+				quantity: 1,
+				apiKeyId: foreignKeyId,
+				idempotencyKey: `foreign-${accountId}`,
+			},
+			{
+				accountId,
+				unit: "webhook.event",
+				quantity: 100,
+				idempotencyKey: `plain-${accountId}`,
+			},
+		]);
+		expect(res.status).toBe(200);
+		const { results } = (await res.json()) as { results: Result[] };
+		expect(results.map((r) => r.status)).toEqual(["rejected", "ok"]);
+		expect(results[0]?.error).toContain("does not belong to accountId");
+		const rejected = await db
+			.selectFrom("usage_ledger")
+			.select("id")
+			.where("idempotency_key", "=", `foreign-${accountId}`)
+			.execute();
+		expect(rejected).toHaveLength(0);
+	});
+
+	test("a subgraph.read item is accepted", async () => {
+		await creditCredits(db, accountId, 1_000_000n);
+		const res = await post([
+			{
+				accountId,
+				unit: "subgraph.read",
+				quantity: 150_000,
+				idempotencyKey: `read-${accountId}`,
+			},
+		]);
+		expect(res.status).toBe(200);
+		const { results } = (await res.json()) as { results: Result[] };
+		expect(results[0]?.status).toBe("ok");
+		expect(results[0]?.usd_micros).toBe(500_000); // 50,000 past the free 100,000 x 10 µ$
 	});
 
 	test("an item for an account that does not exist is rejected, not a batch failure", async () => {

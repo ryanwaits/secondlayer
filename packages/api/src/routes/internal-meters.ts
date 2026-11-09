@@ -76,6 +76,9 @@ export function bearerToken(header: string | undefined): string | null {
 	return raw.length > 0 ? raw : null;
 }
 
+const UUID_RE =
+	/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 type MeterItemInput = {
 	accountId: string;
 	unit: MeterUnit;
@@ -86,6 +89,9 @@ type MeterItemInput = {
 	idempotencyKey: string;
 	source?: string;
 	occurredAt?: string;
+	/** The account key that made the read, for per-key usage. Must belong to
+	 *  `accountId`. */
+	apiKeyId?: string;
 };
 
 function parseItem(raw: unknown, index: number): MeterItemInput {
@@ -153,7 +159,16 @@ function parseItem(raw: unknown, index: number): MeterItemInput {
 	if (body.source !== undefined && typeof body.source !== "string") {
 		throw new ValidationError(`items[${index}].source must be a string`);
 	}
+	if (
+		body.apiKeyId !== undefined &&
+		(typeof body.apiKeyId !== "string" || body.apiKeyId.length === 0)
+	) {
+		throw new ValidationError(
+			`items[${index}].apiKeyId must be a non-empty string`,
+		);
+	}
 	return {
+		apiKeyId: body.apiKeyId as string | undefined,
 		accountId: body.accountId,
 		unit: body.unit,
 		quantity: body.quantity,
@@ -233,6 +248,26 @@ app.post("/", async (c) => {
 		);
 	}
 	const db = getDb();
+	// Which account owns each presented key id, in one query for the batch. A
+	// key id that is not the item's own account's is rejected for that item.
+	const presentedKeyIds = [
+		...new Set(
+			rawItems.flatMap((raw) => {
+				const id = (raw as { apiKeyId?: unknown } | null)?.apiKeyId;
+				// A malformed id can't match a row, and would fail the whole query.
+				return typeof id === "string" && UUID_RE.test(id) ? [id] : [];
+			}),
+		),
+	];
+	const keyOwners = new Map<string, string>();
+	if (presentedKeyIds.length > 0) {
+		const owned = await db
+			.selectFrom("api_keys")
+			.select(["id", "account_id"])
+			.where("id", "in", presentedKeyIds)
+			.execute();
+		for (const k of owned) keyOwners.set(k.id, k.account_id);
+	}
 	// One bad item never fails the batch: each item parses and meters on its
 	// own and gets its own result, so the caller drops what was rejected and
 	// resends only what failed. Replays are safe either way (idempotency key).
@@ -254,8 +289,19 @@ app.post("/", async (c) => {
 				}
 				throw err;
 			}
+			if (
+				item.apiKeyId !== undefined &&
+				keyOwners.get(item.apiKeyId) !== item.accountId
+			) {
+				return {
+					status: "rejected",
+					idempotencyKey: item.idempotencyKey,
+					error: `items[${index}].apiKeyId does not belong to accountId`,
+				};
+			}
 			try {
 				const result = await meter(db, {
+					apiKeyId: item.apiKeyId ?? null,
 					accountId: item.accountId,
 					unit: item.unit,
 					quantity: item.quantity,
