@@ -480,6 +480,6 @@ Exhausted rows land in `/dead` and can be requeued individually.
 
 ## Rate limits
 
-Self-host is unmetered: the ceiling is your Postgres. On hosted, reads bill by rows delivered (1M free per month, then $5 per 1M, $2 per 1M past $50), block headers are free, and reads of your own subgraph tables are free. The API can still answer `429` under load; the SDK throws `RateLimitError` with a `retryAfter` header. Back off and retry.
+Self-host is unmetered: the ceiling is your Postgres. On hosted, reads bill by rows delivered (1M free per month, then $5 per 1M, $2 per 1M past $50), block headers are free, and reads of your own hosted subgraph tables cost $10 per 1M after the first 100,000 a month, per read not per row. The API can still answer `429` under load; the SDK throws `RateLimitError` with a `retryAfter` header. Back off and retry.
 
 For sustained high-throughput streaming, prefer `events.consume` / `events.stream` from the SDK — they checkpoint and batch automatically.

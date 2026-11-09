@@ -105,7 +105,7 @@ Required props are in **bold**. Components poll every 5s (usage hourly) and paus
 
 `Payload` and `RowPanel` open from a row and are never placed in a spec. `Bars` and `Leaderboard` captions say "last N rows" because the server has no group-by, so never present them as full history.
 
-Billing: every catalog read is free (webhook reads, your own subgraph tables and `/api/billing/usage` are not metered). Webhook deliveries bill when they are sent, whether or not anyone watches.
+Billing: webhook reads and `/api/billing/usage` are free. Reads of your own subgraph tables with an API key cost $10 per 1M after the first 100,000 a month, per read not per row, and a stream counts once each time it sends new rows. Webhook deliveries bill when they are sent, whether or not anyone watches.
 
 ## Status
 

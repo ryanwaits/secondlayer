@@ -59,7 +59,7 @@ These are small enough to keep in the router. Everything else is in a reference 
 
   Loopback reads need no key; writes take `INSTANCE_TOKEN` always, and every read takes it past loopback. `--api-key` is shape-routed (hex → instance, `sk-sl_*` → account). Never mix the two values.
 - **Streams / Index:** local instance reads. Loopback needs no key. Public archive dumps (`secondlayer streams dumps`) are a separate signed bucket.
-- **Self-host is unmetered; hosted bills.** Hosted: 1M rows free per month, then $5 per 1M ($2 per 1M past $50); block headers and reads of your own subgraph tables are free; a hosted stack has a 0.5 GB memory minimum (about $10/mo while running) plus storage; webhook events are $10 per 1M. On self-host, `secondlayer bootstrap` / `repair` against the official archive draw prepaid credits and quote the price before charging; `secondlayer verify` is always free.
+- **Self-host is unmetered; hosted bills.** Hosted: 1M rows free per month, then $5 per 1M ($2 per 1M past $50); block headers are free; reads of your own hosted subgraph tables cost $10 per 1M after the first 100,000 a month, per read not per row; a hosted stack has a 0.5 GB memory minimum (about $10/mo while running) plus storage; webhook events are $10 per 1M. On self-host, `secondlayer bootstrap` / `repair` against the official archive draw prepaid credits and quote the price before charging; `secondlayer verify` is always free.
 - **Package manager:** prefer `bun` and `bunx`. Most package.json files in user projects declare `bun` as `packageManager`.
 - **Network inference:** addresses starting `SP`/`SM` → mainnet, `ST`/`SN` → testnet. CLI infers this automatically when scaffolding.
 
