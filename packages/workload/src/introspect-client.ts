@@ -9,7 +9,15 @@
 import type { FetchLike } from "./fetch-like.ts";
 
 export type IntrospectResult =
-	| { ok: true; accountId: string; creditsOk: boolean }
+	| {
+			ok: true;
+			accountId: string;
+			creditsOk: boolean;
+			/** The account key that was presented; null for a dashboard session
+			 *  (or an api that predates the field, so reads stay free during a
+			 *  rolling deploy). */
+			apiKeyId: string | null;
+	  }
 	| { ok: false; docsKey?: true };
 
 export interface IntrospectClientConfig {
@@ -152,10 +160,16 @@ export class IntrospectClient {
 		const body = (await res.json().catch(() => null)) as {
 			account_id?: string;
 			credits_ok?: boolean;
+			api_key_id?: string | null;
 		} | null;
 		if (!body?.account_id || typeof body.credits_ok !== "boolean") {
 			return { ok: false };
 		}
-		return { ok: true, accountId: body.account_id, creditsOk: body.credits_ok };
+		return {
+			ok: true,
+			accountId: body.account_id,
+			creditsOk: body.credits_ok,
+			apiKeyId: typeof body.api_key_id === "string" ? body.api_key_id : null,
+		};
 	}
 }

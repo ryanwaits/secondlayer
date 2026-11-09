@@ -36,6 +36,9 @@ export interface MeterBatchItem {
 	observedQuantity?: number;
 	idempotencyKey: string;
 	occurredAt?: string;
+	/** The account key that made the reads — `subgraph.read` only. Sent as-is
+	 *  to `/internal/meters`, which checks it belongs to `accountId`. */
+	apiKeyId?: string;
 }
 
 /** `storage:<account>:<yyyy-mm-dd>` (Design) — one row per tenant per day.

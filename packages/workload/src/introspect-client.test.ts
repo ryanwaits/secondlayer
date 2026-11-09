@@ -17,7 +17,33 @@ describe("IntrospectClient", () => {
 				jsonResponse(200, { account_id: "acct_1", credits_ok: true }),
 		});
 		const result = await client.resolve("sk-sl_good");
-		expect(result).toEqual({ ok: true, accountId: "acct_1", creditsOk: true });
+		expect(result).toEqual({
+			ok: true,
+			accountId: "acct_1",
+			creditsOk: true,
+			apiKeyId: null,
+		});
+	});
+
+	test("an introspected key carries its key id and a session carries null", async () => {
+		const respond = (body: unknown) =>
+			new IntrospectClient({
+				appServerUrl: "https://api.secondlayer.tools",
+				workloadHostKey: "wh-key",
+				fetchImpl: async () => jsonResponse(200, body),
+			});
+		const key = await respond({
+			account_id: "acct_1",
+			credits_ok: true,
+			api_key_id: "key_1",
+		}).resolve("sk-sl_good");
+		expect(key).toMatchObject({ ok: true, apiKeyId: "key_1" });
+		const session = await respond({
+			account_id: "acct_1",
+			credits_ok: true,
+			api_key_id: null,
+		}).resolve("ss-sl_good");
+		expect(session).toMatchObject({ ok: true, apiKeyId: null });
 	});
 
 	test("a 401 from app-server resolves to {ok:false}", async () => {
