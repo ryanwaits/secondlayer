@@ -304,6 +304,16 @@ describe("rateLabel", () => {
 		expect(rateLabel("archive.partition.events", "1")).toBe("$0.15/partition");
 	});
 
+	test("subgraph reads are labeled and priced per 1M like the platform table", () => {
+		expect(unitLabel("subgraph.read")).toEqual([
+			"Subgraph reads",
+			"Reads of your tables. First 100,000 free each month",
+		]);
+		expect(rateLabel("subgraph.read", "1")).toBe(
+			`${usd(Number(PRICES["subgraph.read"]))}/1M`,
+		);
+	});
+
 	test("Sentinel units carry their per-unit rate", () => {
 		expect(rateLabel("sentinel.check_run", "3")).toBe("$0.25/check");
 		expect(unitLabel("sentinel.check_run")[0]).toBe("Sentinel checks");

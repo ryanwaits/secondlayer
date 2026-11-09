@@ -28,6 +28,7 @@ const STORAGE_GB = [0, 0.1, 0.25, 0.5, 1] as const;
 const WEBHOOK_EVENTS = [
 	0, 10e3, 100e3, 250e3, 500e3, 1e6, 2e6, 5e6, 10e6, 20e6,
 ] as const;
+const SUBGRAPH_READS = [0, 100e3, 1e6, 2.6e6, 10e6, 26e6] as const;
 
 const count = new Intl.NumberFormat("en-US");
 
@@ -81,11 +82,13 @@ export function PricingEstimator() {
 	const [memory, setMemory] = useState(0);
 	const [storage, setStorage] = useState(2);
 	const [hooks, setHooks] = useState(3);
+	const [reads, setReads] = useState(1);
 
 	const rowCount = ROWS[rows];
 	const memoryGb = MEMORY_GB[memory];
 	const storageGb = STORAGE_GB[storage];
 	const webhookEvents = WEBHOOK_EVENTS[hooks];
+	const subgraphReads = SUBGRAPH_READS[reads];
 	const running = stack !== "stopped";
 	const hasSubgraphs = stack === "subgraphs";
 	const floorUsd =
@@ -100,6 +103,7 @@ export function PricingEstimator() {
 		memoryGb,
 		storageGb,
 		webhookEvents,
+		subgraphReads,
 	});
 	const freeRows = Math.min(rowCount, 1_000_000);
 
@@ -157,6 +161,17 @@ export function PricingEstimator() {
 					disabled={!running}
 					onChange={setHooks}
 				/>
+				{hasSubgraphs ? (
+					<Slider
+						id="est-reads"
+						label="Subgraph reads per month"
+						value={reads}
+						max={SUBGRAPH_READS.length - 1}
+						display={count.format(subgraphReads)}
+						hint="Reads of your tables with an API key. The first 100,000 are free."
+						onChange={setReads}
+					/>
+				) : null}
 			</div>
 			<div className="est-out" aria-live="polite">
 				<span className="eyebrow">Monthly estimate</span>
@@ -199,6 +214,12 @@ export function PricingEstimator() {
 						<span>Webhook events</span>
 						<span>{usdExact(e.webhooksUsd)}</span>
 					</div>
+					{hasSubgraphs ? (
+						<div className="line">
+							<span>Subgraph reads</span>
+							<span>{usdExact(e.readsUsd)}</span>
+						</div>
+					) : null}
 					<div className="line">
 						<span>Retries, headers, verify</span>
 						<span>

@@ -68,6 +68,7 @@ every charge. Prices live in one table, `packages/platform/src/billing/prices.ts
 | `memory.gb_hour` | ~$0.028/GB-hour, floored at $5/mo webhook-only or $10/mo with subgraphs per running tenant | workload host memory sampler |
 | `storage.gb_day` | ~$0.25/GB-month billed daily | workload host storage sampler |
 | `webhook.event` | $10/1M, retries free | workload host event counter |
+| `subgraph.read` | $10/1M reads, first 100k/mo free, flat | workload gateway |
 
 - The first 1M `rows.delivered` per account per UTC calendar month are free.
   An account still under the allowance, or with balance ≥
@@ -80,6 +81,20 @@ every charge. Prices live in one table, `packages/platform/src/billing/prices.ts
   reached monthly spend cap refuses with 402 `spend_cap_reached`.
 - Hosted subgraph indexing reads bill `rows.delivered` against the same
   allowance. The rows read to match webhook triggers do not.
+- `subgraph.read`: one successful `GET` of a hosted subgraph table made with
+  an `sk-sl_` account key (list, row by id, `count`, `aggregate`, and
+  `/api/subgraphs/:name/recent`) is one read, 10 µ$ flat, never per row. The
+  first 100,000 per account per UTC month are free, counted apart from the 1M
+  free rows. A stream counts once per delivered batch (the gateway infers
+  polls from row timing; opening it is free). Metadata routes
+  (`openapi.json`, `schema.json`, `docs.md`, the subgraph list and detail),
+  dashboard session reads, any non-2xx, and anything the gateway answers
+  itself (401, 402, 403, 429, 502, 503, empty reads) are free. The workload
+  gateway counts, never the tenant stack: the tenant API runs customer handler
+  code, so anything it reported about billing could be rewritten by the
+  customer. Read spend counts toward the $50 that drops rows to $2. A new
+  hosted route that returns table rows must be added to `classifyBillableRead`
+  (`packages/workload/src/read-meter.ts`) or it is a free bypass.
 - `memory.gb_hour` bills `max(sampled RAM, stackMemoryFloorGb(has_subgraphs))`
   per running tenant (`packages/workload/src/meters.ts`), so any running hosted
   stack floors at $5/mo (webhook-only, no `subgraph-processor`, ≈0.245 GB) or
@@ -118,8 +133,12 @@ Self-host subgraphs and webhooks are unmetered.
 2. **Allowance = 1M rows/mo.** At 10M nearly every reader was free.
 3. **Display = dollars everywhere.** No credit-token denomination.
    Quotes and balances print as `$`.
-4. **A pipeline priced by rows delivered, not a query service.** Tip and
-   history cost the same; the archive is the only bulk discount.
+4. **Chain data by rows, your tables by reads.** Index and Streams price rows
+   delivered, tip and history alike; the archive is the only bulk discount. A
+   hosted subgraph's own tables price per read ($10/1M, the same as a webhook
+   delivery), never per row: indexing already paid for those rows once. The
+   600/min read cap is one abuse limit for every account, not a tier, so a read
+   bill tops out near $263/mo per account.
 5. **No accountless hosted path.** Hosted subgraphs and webhooks run on an
    account key in a private stack. Anonymous handler code beside prod
    credentials does not come back.

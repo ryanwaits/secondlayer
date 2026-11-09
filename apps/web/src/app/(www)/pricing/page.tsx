@@ -13,12 +13,14 @@ import {
 	CREDIT_PACKS_USD,
 	FREE_REPAIR_PARTITIONS_PER_MONTH,
 	FREE_ROWS_PER_MONTH,
+	FREE_SUBGRAPH_READS_PER_MONTH,
 	HOURS_PER_MONTH,
 	MEMORY_USD_PER_GB_HOUR,
 	ROW_USD_PER_M,
 	ROW_USD_PER_M_VOLUME,
 	STACK_FLOOR_USD_PER_MONTH,
 	STORAGE_USD_PER_GB_MONTH,
+	SUBGRAPH_READ_USD_PER_M,
 	VOLUME_TIER_MONTHLY_USD,
 	WEBHOOK_USD_PER_M,
 	estimateMonth,
@@ -122,8 +124,8 @@ const FREE_GRID: readonly {
 	},
 	{
 		key: "tables",
-		title: "Your own tables",
-		body: "Reading the tables your subgraph fills costs nothing.",
+		title: "Tables in your dashboard",
+		body: "Reading your subgraph tables from the dashboard costs nothing.",
 	},
 	{
 		key: "stopped",
@@ -155,6 +157,7 @@ export default function PricingPage() {
 		memoryGb: 0,
 		storageGb: 0,
 		webhookEvents: 0,
+		subgraphReads: 0,
 	});
 
 	return (
@@ -338,6 +341,25 @@ export default function PricingPage() {
 								</tr>
 								<tr>
 									<td>
+										Subgraph reads<span className="tag">Subgraphs</span>
+									</td>
+									<td className="what">
+										Reads of your subgraph&apos;s tables with an API key.
+									</td>
+									<td className="price">
+										{usd(SUBGRAPH_READ_USD_PER_M)} / 1M reads
+										<small>
+											first {count.format(FREE_SUBGRAPH_READS_PER_MONTH)} free
+											each month
+										</small>
+									</td>
+									<td className="note">
+										A read costs the same whether it returns one row or a
+										thousand.
+									</td>
+								</tr>
+								<tr>
+									<td>
 										Webhook events<span className="tag">Webhooks</span>
 									</td>
 									<td className="what">Events delivered to a URL you run.</td>
@@ -443,6 +465,10 @@ export default function PricingPage() {
 							{
 								q: "Why does the stack have a minimum?",
 								a: `A running stack holds memory whether it's busy or not. Webhooks only: ${FLOOR_WEBHOOKS}/mo minimum while your stack runs. With subgraphs: ${FLOOR_SUBGRAPHS}/mo minimum, since subgraphs add a process that runs your handlers. Pause or delete every webhook and subgraph and the stack stops within minutes, and so does the memory charge. Hitting your spend cap stops it too. There's no charge per webhook.`,
+							},
+							{
+								q: "Do subgraph reads cost?",
+								a: `Per read, not per row. The first ${count.format(FREE_SUBGRAPH_READS_PER_MONTH)} each month are free, then ${usd(SUBGRAPH_READ_USD_PER_M)} per 1M, the same as webhook deliveries. A stream counts once each time it sends new rows. Reading your tables from the dashboard is free.`,
 							},
 							{
 								q: "Is checking really free?",

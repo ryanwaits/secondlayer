@@ -19,6 +19,10 @@ export const MEMORY_USD_PER_GB_HOUR = 0.028;
 export const STORAGE_USD_PER_GB_MONTH = 0.25;
 /** Webhook events: $ per 1M delivered. Retries are never billed. */
 export const WEBHOOK_USD_PER_M = 10;
+/** Hosted subgraph reads: $ per 1M. Per read, never per row. */
+export const SUBGRAPH_READ_USD_PER_M = 10;
+/** First subgraph reads each month on every account are free. */
+export const FREE_SUBGRAPH_READS_PER_MONTH = 100_000;
 
 /** Retired Sentinel meters, kept so older ledger rows still show their rate. */
 export const SENTINEL_CHECK_USD = 0.25;
@@ -66,6 +70,9 @@ export interface MonthInput {
 	memoryGb: number;
 	storageGb: number;
 	webhookEvents: number;
+	/** Reads of hosted subgraph tables with an API key in the month (free
+	 *  allowance included). */
+	subgraphReads: number;
 }
 
 export interface MonthEstimate {
@@ -77,6 +84,7 @@ export interface MonthEstimate {
 	memoryUsd: number;
 	storageUsd: number;
 	webhooksUsd: number;
+	readsUsd: number;
 	totalUsd: number;
 }
 
@@ -87,8 +95,15 @@ export interface MonthEstimate {
  * rate beyond the point it reaches the tier.
  */
 export function estimateMonth(input: MonthInput): MonthEstimate {
-	const { rows, running, hasSubgraphs, memoryGb, storageGb, webhookEvents } =
-		input;
+	const {
+		rows,
+		running,
+		hasSubgraphs,
+		memoryGb,
+		storageGb,
+		webhookEvents,
+		subgraphReads,
+	} = input;
 
 	const memoryUsd = running
 		? Math.max(
@@ -98,7 +113,13 @@ export function estimateMonth(input: MonthInput): MonthEstimate {
 		: 0;
 	const storageUsd = running ? storageGb * STORAGE_USD_PER_GB_MONTH : 0;
 	const webhooksUsd = running ? (webhookEvents / 1e6) * WEBHOOK_USD_PER_M : 0;
-	const fixedUsd = memoryUsd + storageUsd + webhooksUsd;
+	const readsUsd =
+		running && hasSubgraphs
+			? (Math.max(0, subgraphReads - FREE_SUBGRAPH_READS_PER_MONTH) / 1e6) *
+				SUBGRAPH_READ_USD_PER_M
+			: 0;
+	// Reads count toward the tier like every flat unit.
+	const fixedUsd = memoryUsd + storageUsd + webhooksUsd + readsUsd;
 
 	const billableRows = Math.max(0, rows - FREE_ROWS_PER_MONTH);
 	const roomUsd = Math.max(0, VOLUME_TIER_MONTHLY_USD - fixedUsd);
@@ -118,6 +139,7 @@ export function estimateMonth(input: MonthInput): MonthEstimate {
 		memoryUsd,
 		storageUsd,
 		webhooksUsd,
+		readsUsd,
 		totalUsd: fixedUsd + rowsUsd,
 	};
 }

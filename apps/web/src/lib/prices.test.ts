@@ -3,6 +3,7 @@ import {
 	COMMIT_TIER_MONTHLY_USD_MICROS,
 	CREDIT_USD_MICROS_PER_ROW_VOLUME,
 	HOURS_PER_MONTH,
+	MONTHLY_ALLOWANCE,
 	PRICES,
 	ROWS_DELIVERED_MONTHLY_ALLOWANCE,
 	STACK_FLOOR_USD_MICROS_PER_MONTH,
@@ -18,6 +19,13 @@ describe("web price mirror matches the platform table", () => {
 		expect(Number(PRICES["webhook.event"])).toBe(web.WEBHOOK_USD_PER_M);
 		expect(Number(CREDIT_USD_MICROS_PER_ROW_VOLUME)).toBe(
 			web.ROW_USD_PER_M_VOLUME,
+		);
+	});
+
+	test("subgraph read price and free allowance match", () => {
+		expect(Number(PRICES["subgraph.read"])).toBe(web.SUBGRAPH_READ_USD_PER_M);
+		expect(MONTHLY_ALLOWANCE["subgraph.read"]).toBe(
+			web.FREE_SUBGRAPH_READS_PER_MONTH,
 		);
 	});
 
@@ -93,6 +101,7 @@ const idle = {
 	memoryGb: 0.2,
 	storageGb: 0,
 	webhookEvents: 0,
+	subgraphReads: 0,
 };
 
 describe("estimateMonth", () => {
@@ -129,6 +138,42 @@ describe("estimateMonth", () => {
 			webhookEvents: 1_000_000,
 		});
 		expect(e.webhooksUsd).toBeCloseTo(10, 6);
+	});
+
+	test("subgraph reads under 100,000 add nothing", () => {
+		const e = web.estimateMonth({
+			...idle,
+			running: true,
+			hasSubgraphs: true,
+			subgraphReads: 100_000,
+		});
+		expect(e.readsUsd).toBe(0);
+		expect(e.totalUsd).toBe(10);
+	});
+
+	test("2.6M subgraph reads add $25", () => {
+		const e = web.estimateMonth({
+			...idle,
+			running: true,
+			hasSubgraphs: true,
+			subgraphReads: 2_600_000,
+		});
+		expect(e.readsUsd).toBeCloseTo(25, 6);
+		expect(e.totalUsd).toBeCloseTo(35, 6);
+	});
+
+	test("subgraph reads count toward the $50 that drops rows to $2", () => {
+		const base = {
+			...idle,
+			running: true,
+			hasSubgraphs: true,
+			rows: 11_000_000,
+		};
+		// $10 memory leaves $40 of room: 2M volume rows.
+		expect(web.estimateMonth(base).volumeRows).toBeCloseTo(2_000_000, -2);
+		// 3.1M reads add $30, leaving $10 of room: 8M volume rows.
+		const withReads = web.estimateMonth({ ...base, subgraphReads: 3_100_000 });
+		expect(withReads.volumeRows).toBeCloseTo(8_000_000, -2);
 	});
 
 	test("a running webhook-only stack under the floor estimates $5.00/mo", () => {

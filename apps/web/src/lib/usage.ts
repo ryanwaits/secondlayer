@@ -14,6 +14,7 @@ import {
 	SENTINEL_MONITORED_EVENT_USD_PER_M,
 	SENTINEL_RUN_USD,
 	STORAGE_USD_PER_GB_MONTH,
+	SUBGRAPH_READ_USD_PER_M,
 	WEBHOOK_USD_PER_M,
 	usd,
 } from "./prices";
@@ -45,6 +46,10 @@ const UNIT_LABEL: Record<string, [string, string]> = {
 	"archive.partition": ["Archive partitions", "Blocks and transactions"],
 	"archive.partition.events": ["Archive event partitions", "Events"],
 	"webhook.event": ["Webhook events", "Hosted webhooks, retries free"],
+	"subgraph.read": [
+		"Subgraph reads",
+		"Reads of your tables. First 100,000 free each month",
+	],
 	"memory.gb_hour": ["Hosted stack memory", "Webhooks and subgraphs"],
 	"storage.gb_day": ["Hosted stack storage", "Webhooks and subgraphs"],
 	"sentinel.check_run": ["Sentinel checks", "Billed per check"],
@@ -241,6 +246,8 @@ export function rateLabel(unit: string, quantity: string): string {
 			return `${usd(MEMORY_USD_PER_GB_HOUR)}/GB-h`;
 		case "webhook.event":
 			return `${usd(WEBHOOK_USD_PER_M)}/1M`;
+		case "subgraph.read":
+			return `${usd(SUBGRAPH_READ_USD_PER_M)}/1M`;
 		case "storage.gb_day":
 			return `${usd(STORAGE_USD_PER_GB_MONTH)}/GB-mo`;
 		case "sentinel.check_run":

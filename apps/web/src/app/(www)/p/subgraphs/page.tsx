@@ -131,7 +131,7 @@ export default function SubgraphsPage() {
 								Read the docs
 							</ButtonLink>
 						</div>
-						<p className="cap">Reading your tables is free</p>
+						<p className="cap">One price per read, any page size</p>
 						<div className="odo">
 							<span className="odo-n word">1 file</span>
 							<span className="cap">tables · REST API · client types</span>
@@ -498,7 +498,7 @@ export default function SubgraphsPage() {
 							},
 							{
 								q: "How is a hosted subgraph billed?",
-								a: "Indexing bills the event and transaction rows it reads, at $5 per 1M past the free 1M each month. The stack bills memory plus storage, $10/mo minimum while it runs (webhooks only: $5/mo), and stops on its own once you have no subgraphs or active webhooks. Reading your own tables is free.",
+								a: "Indexing bills the event and transaction rows it reads, at $5 per 1M past the free 1M each month. The stack bills memory plus storage, $10/mo minimum while it runs (webhooks only: $5/mo), and stops on its own once you have no subgraphs or active webhooks. Reads cost $10 per 1M after the first 100,000 each month, whatever the page size.",
 							},
 							{
 								q: "Can I get a webhook when a row changes?",
