@@ -265,7 +265,7 @@ export default function PricingPage() {
 				<div className="shell">
 					<div className="sec-head">
 						<Eyebrow noun="Meters" />
-						<h2>Five meters, one prepaid balance</h2>
+						<h2>Six meters, one prepaid balance</h2>
 						<p className="lede">
 							Each line on your statement maps to one row here. Nothing else is
 							billed.
