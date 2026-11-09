@@ -80,6 +80,9 @@ export interface GatewayDeps {
 	/** Count `n` billable hosted subgraph reads for an account key
 	 *  (`read-meter.ts`). Fire-and-forget; never throws. */
 	countRead?: (accountId: string, apiKeyId: string, n: number) => void;
+	/** Clock for stream batch counting. Injectable for tests; defaults to
+	 *  `Date.now`. */
+	now?: () => number;
 }
 
 /** The only testnet surface: webhooks on the shared stack. */
@@ -471,7 +474,7 @@ function countedBody(
 		return upstreamRes.body;
 	}
 	if (kind === "stream" && upstreamRes.body) {
-		const batches = createSseBatchCounter({ now: Date.now });
+		const batches = createSseBatchCounter({ now: deps.now ?? Date.now });
 		return upstreamRes.body.pipeThrough(
 			new TransformStream<Uint8Array, Uint8Array>({
 				transform(chunk, controller) {

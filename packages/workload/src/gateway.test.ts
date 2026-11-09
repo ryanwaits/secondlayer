@@ -1273,7 +1273,7 @@ describe("subgraph read counting", () => {
 	test("a stream counts each delivered batch and reaches the client byte for byte", async () => {
 		const frame = (id: number) => `id: ${id}\ndata: {"_id":${id}}\n\n`;
 		const ping = "event: ping\ndata: \n\n";
-		// Two batches of two rows (separated by a real pause) with a heartbeat
+		// Two batches of two rows (a poll apart on the fake clock) with a heartbeat
 		// between, the second row of the first batch split across two chunks.
 		const second = frame(2);
 		const pieces = [
@@ -1285,14 +1285,18 @@ describe("subgraph read counting", () => {
 			frame(4),
 		];
 		const upstreamText = pieces.join("");
+		// Fake clock, read once per row: rows 1 and 2 at t=0, rows 3 and 4 a
+		// poll later at t=1500, so two batches without any real waiting.
+		const rowTimes = [0, 0, 1500, 1500];
+		let rowsSeen = 0;
 		const { deps, counted } = setup({
+			now: () => rowTimes[rowsSeen++] ?? 1500,
 			fetchImpl: async () =>
 				new Response(
 					new ReadableStream<Uint8Array>({
-						async start(controller) {
+						start(controller) {
 							const enc = new TextEncoder();
-							for (const [i, piece] of pieces.entries()) {
-								if (i === 4) await Bun.sleep(800);
+							for (const piece of pieces) {
 								controller.enqueue(enc.encode(piece));
 							}
 							controller.close();
