@@ -169,6 +169,34 @@ export async function writeSbtcTokenEvents(
 		.execute();
 }
 
+/** A transfer memo, keyed to its `ft_transfer` (see `decodeTransferMemo`). */
+export type SbtcTransferMemo = {
+	block_height: number;
+	tx_id: string;
+	event_index: number;
+	memo: string;
+};
+
+/**
+ * Set `memo` on already-stored transfer rows: the memo print opened a page
+ * after the one that wrote its transfer.
+ */
+export async function writeSbtcTransferMemos(
+	memos: readonly SbtcTransferMemo[],
+	opts?: { db?: Kysely<Database> },
+): Promise<void> {
+	for (const memo of memos) {
+		await db(opts?.db)
+			.updateTable("sbtc_token_events")
+			.set({ memo: memo.memo })
+			.where("event_type", "=", "transfer")
+			.where("block_height", "=", memo.block_height)
+			.where("tx_id", "=", memo.tx_id)
+			.where("event_index", "=", memo.event_index)
+			.execute();
+	}
+}
+
 /**
  * Reconcile the sBTC planes on reorg. Mirrors `handleDecodedEventsReorg`
  * (storage.ts): hard-DELETE at/above the fork, NOT a canonical=false flag.

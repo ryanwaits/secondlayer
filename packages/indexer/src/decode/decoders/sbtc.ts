@@ -25,8 +25,10 @@ import {
 	SBTC_TOKEN_DECODER_NAME,
 	type SbtcEventRow,
 	type SbtcTokenEventRow,
+	type SbtcTransferMemo,
 	writeSbtcEvents,
 	writeSbtcTokenEvents,
+	writeSbtcTransferMemos,
 } from "../sbtc-storage.ts";
 import { readDecoderCheckpoint } from "../storage.ts";
 
@@ -35,6 +37,11 @@ export { SBTC_DECODER_NAME, SBTC_TOKEN_DECODER_NAME };
 const SBTC_REGISTRY_CONTRACTS: readonly string[] = [
 	`${SBTC_CONTRACTS.mainnet.address}.${SBTC_CONTRACTS.mainnet.registry}`,
 	`${SBTC_CONTRACTS.testnet.address}.${SBTC_CONTRACTS.testnet.registry}`,
+];
+
+const SBTC_TOKEN_CONTRACTS: readonly string[] = [
+	`${SBTC_CONTRACTS.mainnet.address}.${SBTC_CONTRACTS.mainnet.token}`,
+	`${SBTC_CONTRACTS.testnet.address}.${SBTC_CONTRACTS.testnet.token}`,
 ];
 
 const SBTC_TOKEN_ASSET_IDS: readonly string[] = [
@@ -65,10 +72,13 @@ function tokenContractId(): string {
 // `ft_mint` rides along so each `completed-deposit` print can be paired with
 // the mint that precedes it (see `depositRecipient`).
 const REGISTRY_STREAM_TYPES: StreamsEventType[] = ["print", "ft_mint"];
+// `print` rides along: sbtc-token prints a transfer's memo as its own event
+// right after the `ft_transfer` (see `decodeTransferMemo`).
 const TOKEN_STREAM_TYPES: StreamsEventType[] = [
 	"ft_transfer",
 	"ft_mint",
 	"ft_burn",
+	"print",
 ];
 
 const VALID_TOPICS = new Set<SbtcEventTopic>(SBTC_EVENT_TOPICS);
@@ -261,6 +271,7 @@ export async function consumeSbtcTokenDecodedEvents(
 		contractId: tokenContractId(),
 		onBatch: async (events, ctx) => {
 			const rows: SbtcTokenEventRow[] = [];
+			const memos: SbtcTransferMemo[] = [];
 			const clock: {
 				cursor: string;
 				block_height: number;
@@ -274,6 +285,8 @@ export async function consumeSbtcTokenDecodedEvents(
 			}[] = [];
 			for (const event of events) {
 				try {
+					const memo = decodeTransferMemo(event);
+					if (memo) memos.push(memo);
 					if (
 						(event.event_type !== "ft_transfer" &&
 							event.event_type !== "ft_mint" &&
@@ -320,6 +333,8 @@ export async function consumeSbtcTokenDecodedEvents(
 				}
 			}
 
+			// A memo whose transfer closed an earlier page fills the stored row.
+			const carried = attachTransferMemos(rows, memos);
 			await commitDecoderStageBatch({
 				db,
 				decoderName,
@@ -329,6 +344,7 @@ export async function consumeSbtcTokenDecodedEvents(
 				startedFrom: expectedCheckpoint,
 				writeOutput: async (tx) => {
 					if (rows.length > 0) await writeSbtcTokenEvents(rows, { db: tx });
+					await writeSbtcTransferMemos(carried, { db: tx });
 				},
 			});
 			expectedCheckpoint = ctx.cursor;
@@ -513,6 +529,57 @@ export function depositRecipient(
 	return null;
 }
 
+/**
+ * The memo of an sBTC transfer. `ft_transfer` events carry none: sbtc-token's
+ * `transfer` runs `ft-transfer?` then `(print memo)` when a memo is given, so
+ * the memo is a bare `buff` print from sbtc-token one event after its transfer
+ * in the same tx. Null for any other event.
+ */
+export function decodeTransferMemo(
+	event: StreamsEvent,
+): SbtcTransferMemo | null {
+	if (
+		event.event_type !== "print" ||
+		event.contract_id === null ||
+		!SBTC_TOKEN_CONTRACTS.includes(event.contract_id)
+	) {
+		return null;
+	}
+	const hex = clarityHex(event.payload);
+	if (hex === null) return null;
+	const cv = deserializeCV(hex);
+	if (cv.type !== "buffer") return null;
+	return {
+		block_height: event.block_height,
+		tx_id: event.tx_id,
+		event_index: event.event_index - 1,
+		memo: `0x${cv.value}`,
+	};
+}
+
+/**
+ * Set `memo` on the transfer row each memo belongs to. Returns the memos whose
+ * transfer is not in `rows` (it closed an earlier page), for
+ * `writeSbtcTransferMemos` to fill in storage.
+ */
+export function attachTransferMemos(
+	rows: SbtcTokenEventRow[],
+	memos: readonly SbtcTransferMemo[],
+): SbtcTransferMemo[] {
+	const carried: SbtcTransferMemo[] = [];
+	for (const memo of memos) {
+		const row = rows.find(
+			(r) =>
+				r.event_type === "transfer" &&
+				r.tx_id === memo.tx_id &&
+				r.event_index === memo.event_index,
+		);
+		if (row) row.memo = memo.memo;
+		else carried.push(memo);
+	}
+	return carried;
+}
+
 export function decodeTokenEvent(
 	event: StreamsEvent,
 ): SbtcTokenEventRow | null {
@@ -544,7 +611,7 @@ export function decodeTokenEvent(
 		sender: eventType === "mint" ? null : sender,
 		recipient: eventType === "burn" ? null : recipient,
 		amount,
-		memo: asHex(payload.memo),
+		memo: null,
 		source_cursor: event.cursor,
 	};
 }
@@ -552,24 +619,25 @@ export function decodeTokenEvent(
 function decodeClarityPayload(payload: Record<string, unknown>): unknown {
 	// Prefer canonical hex form (raw_value) over structured `value`.
 	// See bns.decodeClarityPayload for rationale.
-	if (typeof payload.raw_value === "string") {
-		return decodeClarityHex(payload.raw_value);
-	}
+	const hex = clarityHex(payload);
+	if (hex !== null) return cvToValue(deserializeCV(hex));
 	const value = payload.value;
-	if (value && typeof value === "object" && !Array.isArray(value)) {
-		const v = value as Record<string, unknown>;
-		if (typeof v.hex === "string") return decodeClarityHex(v.hex);
-		// Already deserialized (test fixtures sometimes hand us a plain object)
-		return v;
-	}
-	if (typeof value === "string") return decodeClarityHex(value);
+	// Already deserialized (test fixtures sometimes hand us a plain object)
+	if (value && typeof value === "object" && !Array.isArray(value)) return value;
 	return null;
 }
 
-function decodeClarityHex(hex: string): unknown {
-	const cleanHex = hex.startsWith("0x") ? hex.slice(2) : hex;
-	const cv = deserializeCV(cleanHex);
-	return cvToValue(cv);
+/** A print payload's serialized Clarity value, without `0x`; null when absent. */
+function clarityHex(payload: Record<string, unknown>): string | null {
+	const value = payload.value;
+	const hex =
+		typeof payload.raw_value === "string"
+			? payload.raw_value
+			: value && typeof value === "object" && !Array.isArray(value)
+				? (value as Record<string, unknown>).hex
+				: value;
+	if (typeof hex !== "string") return null;
+	return hex.startsWith("0x") ? hex.slice(2) : hex;
 }
 
 // ── Clarity → typed-row coercions ─────────────────────────────────────

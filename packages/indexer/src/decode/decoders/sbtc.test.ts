@@ -13,8 +13,10 @@ import {
 	SBTC_CONTRACTS,
 } from "@secondlayer/stacks/sbtc";
 import {
+	attachTransferMemos,
 	decodeRegistryPrint,
 	decodeTokenEvent,
+	decodeTransferMemo,
 	depositRecipient,
 } from "./sbtc.ts";
 
@@ -307,5 +309,83 @@ describe("depositRecipient", () => {
 
 	test("refuses a mint whose amount differs from the deposit", () => {
 		expect(depositRecipient(deposit, [mint({}, { amount: "1" })])).toBeNull();
+	});
+});
+
+describe("transfer memos", () => {
+	// Real sbtc-token memo print (prod tx 0xb3a74a80…ce2a ev 1): (print 0x7834…).
+	const MEMO_PRINT =
+		"0x020000001d783430323a6a3950346e3248583264444b4b33496f6e6e2d634b727a52";
+	const MEMO = "0x783430323a6a3950346e3248583264444b4b33496f6e6e2d634b727a52";
+
+	function event(overrides: Partial<StreamsEvent>): StreamsEvent {
+		return {
+			cursor: "100:5",
+			block_height: 100,
+			block_hash: "0xblock",
+			burn_block_height: 902481,
+			tx_id: "0xtx",
+			tx_index: 3,
+			event_index: 5,
+			event_type: "print",
+			contract_id: TOKEN_CONTRACT,
+			payload: { topic: "print", raw_value: MEMO_PRINT },
+			ts: "2026-11-01T05:17:31.000Z",
+			...overrides,
+		} as StreamsEvent;
+	}
+
+	const transfer = event({
+		cursor: "100:4",
+		event_index: 4,
+		event_type: "ft_transfer",
+		payload: {
+			asset_identifier: SBTC_ASSET_IDENTIFIER_MAINNET,
+			sender: "SP1ABC",
+			recipient: "SP2DEF",
+			amount: "1000",
+		},
+	});
+
+	test("an sbtc-token buff print is the memo of the transfer one event before it", () => {
+		expect(decodeTransferMemo(event({}))).toEqual({
+			block_height: 100,
+			tx_id: "0xtx",
+			event_index: 4,
+			memo: MEMO,
+		});
+	});
+
+	test("prints from other contracts or of non-buff values are not memos", () => {
+		expect(
+			decodeTransferMemo(event({ contract_id: REGISTRY_CONTRACT })),
+		).toBeNull();
+		expect(
+			decodeTransferMemo(
+				event({
+					payload: {
+						topic: "print",
+						raw_value: serializeCV(stringAsciiCV("hi")),
+					},
+				}),
+			),
+		).toBeNull();
+		expect(decodeTransferMemo(transfer)).toBeNull();
+	});
+
+	test("a decoded transfer has no memo until its print is attached", () => {
+		const row = decodeTokenEvent(transfer);
+		if (!row) throw new Error("row expected");
+		expect(row.memo).toBeNull();
+		const memo = decodeTransferMemo(event({}));
+		if (!memo) throw new Error("memo expected");
+		expect(attachTransferMemos([row], [memo])).toEqual([]);
+		expect(row.memo).toBe(MEMO);
+	});
+
+	test("a memo whose transfer is not in the page is carried to storage", () => {
+		const memo = decodeTransferMemo(event({}));
+		if (!memo) throw new Error("memo expected");
+		expect(attachTransferMemos([], [memo])).toEqual([memo]);
 	});
 });

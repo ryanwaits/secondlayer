@@ -123,7 +123,12 @@ describe("backfill-from-firehose", () => {
 			maxBatches: 10,
 			deps: { read, net: "mainnet" },
 		});
-		expect(calls[0]?.types).toEqual(["ft_mint", "ft_burn", "ft_transfer"]);
+		expect(calls[0]?.types).toEqual([
+			"ft_mint",
+			"ft_burn",
+			"ft_transfer",
+			"print",
+		]);
 		expect(calls[0]?.contractId).toContain("sbtc-token");
 	});
 
@@ -341,6 +346,85 @@ describe.skipIf(!HAS_DB)(
 					sender: "SP1ABC",
 					recipient: "SP2DEF",
 					amount: "150000000",
+				},
+			]);
+		});
+
+		test("a transfer's memo print fills its row even when the print opens the next page", async () => {
+			if (!db) throw new Error("missing db");
+			await persistBlock(db, {
+				block: {
+					height: H,
+					hash: "0xblockH",
+					parent_hash: "0xparent",
+					burn_block_height: 1,
+					burn_block_hash: null,
+					timestamp: 1_700_000_000,
+					canonical: true,
+				},
+				txs: [
+					{
+						tx_id: "0xsbtcmemotx",
+						block_height: H,
+						tx_index: 0,
+						type: "contract_call",
+						sender: "SP1ABC",
+						status: "success",
+						raw_tx: "0x00",
+					},
+				],
+				evts: [
+					{
+						tx_id: "0xsbtcmemotx",
+						block_height: H,
+						event_index: 0,
+						type: "ft_transfer_event",
+						data: {
+							asset_identifier: SBTC_ASSET_IDENTIFIER_MAINNET,
+							sender: "SP1ABC",
+							recipient: "SP2DEF",
+							amount: "1000",
+						},
+					},
+					{
+						// Real sbtc-token memo print (prod tx 0xb3a74a80…ce2a ev 1).
+						tx_id: "0xsbtcmemotx",
+						block_height: H,
+						event_index: 1,
+						type: "contract_event",
+						data: {
+							topic: "print",
+							raw_value:
+								"0x020000001d783430323a6a3950346e3248583264444b4b33496f6e6e2d634b727a52",
+							contract_identifier:
+								"SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4.sbtc-token",
+						},
+					},
+				],
+				blockHeight: H,
+				network: NETWORK,
+			});
+
+			await backfillFromFirehose({
+				target: "sbtc_token",
+				apply: true,
+				fromHeight: H,
+				toHeight: H,
+				limit: 1,
+				maxBatches: 5,
+				resume: false,
+				deps: { db, net: "mainnet" },
+			});
+
+			const rows = await db
+				.selectFrom("sbtc_token_events")
+				.select(["event_type", "memo"])
+				.where("block_height", "=", H)
+				.execute();
+			expect(rows).toEqual([
+				{
+					event_type: "transfer",
+					memo: "0x783430323a6a3950346e3248583264444b4b33496f6e6e2d634b727a52",
 				},
 			]);
 		});
