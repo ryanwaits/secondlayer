@@ -64,6 +64,7 @@ import {
 	type MeterBatchItem,
 	collectShutdownFlushItems,
 	createMeterSocketRegistry,
+	drainReadItems,
 	eventsMeterItem,
 	flushAll,
 	flushOnShutdown,
@@ -87,6 +88,7 @@ import {
 } from "./provisioner.ts";
 import { createPushWatch, createStoppedReporter } from "./push-watch.ts";
 import { createRateLimiter } from "./rate-limiter.ts";
+import { ReadCounter } from "./read-meter.ts";
 import { createStackStateReporter } from "./stack-state-reporter.ts";
 import { TenantCache } from "./tenant-cache.ts";
 import { skipWhileRunning } from "./tick-guard.ts";
@@ -287,6 +289,9 @@ async function main(): Promise<void> {
 
 	const workloadSha = resolveWorkloadSha();
 
+	// Hosted subgraph reads the gateway counted (read-meter.ts); drained into
+	// `subgraph.read` meter items by the same flush tick as webhook events.
+	const readCounter = new ReadCounter();
 	const server = Bun.serve({
 		port: gatewayPort,
 		hostname: "127.0.0.1",
@@ -335,6 +340,8 @@ async function main(): Promise<void> {
 						});
 					},
 					rateLimit,
+					countRead: (accountId, apiKeyId, n) =>
+						readCounter.add(accountId, apiKeyId, n),
 					testnetAccountId: provisionerCfg.testnetStack?.accountId,
 					sha: workloadSha,
 					isBusy: upgradeRunner.isBusy,
@@ -367,6 +374,8 @@ async function main(): Promise<void> {
 				const item = eventsMeterItem(accountId, counter.drain(), window);
 				if (item) fresh.push(item);
 			}
+			// Hosted subgraph reads ride the same window and flush.
+			fresh.push(...drainReadItems(readCounter, window));
 			const { items, dropped } = mergePending(
 				eventPending,
 				fresh,
@@ -560,6 +569,7 @@ async function main(): Promise<void> {
 			memory: memoryAccumulator,
 			memoryPending,
 			storagePending: storageSample.pending(),
+			readCounter,
 		});
 		await flushOnShutdown(
 			{ appServerUrl, workloadHostKey },

@@ -25,6 +25,7 @@ import {
 import type { StopReason, TenantState } from "./control-db.ts";
 import type { FetchLike } from "./fetch-like.ts";
 import type { IntrospectClient } from "./introspect-client.ts";
+import { classifyBillableRead, createSseBatchCounter } from "./read-meter.ts";
 
 export interface GatewayDeps {
 	introspect: IntrospectClient;
@@ -76,6 +77,9 @@ export interface GatewayDeps {
 	/** The one shared testnet webhook stack's account. Unset: every
 	 *  `/testnet/*` path is a 404. */
 	testnetAccountId?: string;
+	/** Count `n` billable hosted subgraph reads for an account key
+	 *  (`read-meter.ts`). Fire-and-forget; never throws. */
+	countRead?: (accountId: string, apiKeyId: string, n: number) => void;
 }
 
 /** The only testnet surface: webhooks on the shared stack. */
@@ -413,10 +417,13 @@ async function route(
 		) {
 			deps.onSubgraphDeployed?.(introspected.accountId);
 		}
-		return new Response(upstreamRes.body, {
-			status: upstreamRes.status,
-			headers: upstreamRes.headers,
-		});
+		return new Response(
+			countedBody(upstreamRes, deps, introspected, req.method, url.pathname),
+			{
+				status: upstreamRes.status,
+				headers: upstreamRes.headers,
+			},
+		);
 	} catch (err) {
 		logger.error("workload.gateway.upstream_error", {
 			accountId: introspected.accountId,
@@ -426,6 +433,56 @@ async function route(
 		});
 		return Response.json({ error: "upstream_unavailable" }, { status: 502 });
 	}
+}
+
+/**
+ * Counts a hosted subgraph table read for billing and returns the body to
+ * relay. Counts only a 2xx answered to a request made with an account key
+ * (`apiKeyId` non-null: a dashboard session is free); the path is the
+ * original one the customer asked for. A single read counts now; a stream
+ * body passes through a counter and bills each batch it delivers, bytes
+ * untouched. Metering can never break a read.
+ */
+function countedBody(
+	upstreamRes: Response,
+	deps: GatewayDeps,
+	introspected: { accountId: string; apiKeyId: string | null },
+	method: string,
+	pathname: string,
+): ReadableStream<Uint8Array> | null {
+	const { countRead } = deps;
+	const { accountId, apiKeyId } = introspected;
+	if (!upstreamRes.ok || apiKeyId === null || !countRead) {
+		return upstreamRes.body;
+	}
+	const kind = classifyBillableRead(method, pathname);
+	const count = (n: number) => {
+		try {
+			countRead(accountId, apiKeyId, n);
+		} catch (err) {
+			logger.error("workload.gateway.count_read_failed", {
+				accountId,
+				error: err instanceof Error ? err.message : String(err),
+			});
+		}
+	};
+	if (kind === "read") {
+		count(1);
+		return upstreamRes.body;
+	}
+	if (kind === "stream" && upstreamRes.body) {
+		const batches = createSseBatchCounter({ now: Date.now });
+		return upstreamRes.body.pipeThrough(
+			new TransformStream<Uint8Array, Uint8Array>({
+				transform(chunk, controller) {
+					const n = batches.push(chunk);
+					if (n > 0) count(n);
+					controller.enqueue(chunk);
+				},
+			}),
+		);
+	}
+	return upstreamRes.body;
 }
 
 const LIST_PATHS = new Set([

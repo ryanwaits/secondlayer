@@ -1164,3 +1164,146 @@ describe("testnet webhook path", () => {
 		expect(rows.map((r) => r.account_id)).toEqual(["acct_1"]);
 	});
 });
+
+describe("subgraph read counting", () => {
+	const ACCOUNT = crypto.randomUUID();
+	const KEY_ID = crypto.randomUUID();
+
+	type Counted = { accountId: string; apiKeyId: string; n: number };
+
+	function introspectWith(apiKeyId: string | null) {
+		return new IntrospectClient({
+			appServerUrl: "https://api.secondlayer.tools",
+			workloadHostKey: "wh-key",
+			fetchImpl: async () =>
+				new Response(
+					JSON.stringify({
+						account_id: ACCOUNT,
+						credits_ok: true,
+						api_key_id: apiKeyId,
+					}),
+					{ status: 200, headers: { "content-type": "application/json" } },
+				),
+		});
+	}
+
+	function setup(overrides: Partial<GatewayDeps> = {}, apiKeyId = KEY_ID) {
+		const counted: Counted[] = [];
+		const deps = baseDeps({
+			introspect: introspectWith(apiKeyId),
+			countRead: (accountId, key, n) =>
+				counted.push({ accountId, apiKeyId: key, n }),
+			...overrides,
+		});
+		return { deps, counted };
+	}
+
+	const total = (counted: Counted[]) =>
+		counted.reduce((sum, c) => sum + c.n, 0);
+
+	function get(deps: GatewayDeps, path: string) {
+		return handleGatewayRequest(deps, req({ path, auth: "Bearer sk-sl_key" }));
+	}
+
+	test("a successful table read with an account key counts one read", async () => {
+		const { deps, counted } = setup();
+		const res = await get(deps, "/v1/subgraphs/swaps/trades?limit=10");
+		expect(res.status).toBe(200);
+		expect(counted).toEqual([{ accountId: ACCOUNT, apiKeyId: KEY_ID, n: 1 }]);
+	});
+
+	test("a dashboard session read never counts", async () => {
+		const { deps, counted } = setup({ introspect: introspectWith(null) });
+		const res = await get(deps, "/v1/subgraphs/swaps/trades");
+		expect(res.status).toBe(200);
+		expect(counted).toEqual([]);
+	});
+
+	test("a 404 from the stack never counts", async () => {
+		const { deps, counted } = setup({
+			fetchImpl: async () => new Response("nope", { status: 404 }),
+		});
+		const res = await get(deps, "/v1/subgraphs/swaps/trades");
+		expect(res.status).toBe(404);
+		expect(counted).toEqual([]);
+	});
+
+	test("a rate-limited read never counts", async () => {
+		const { deps, counted } = setup({
+			rateLimit: () => ({ allowed: false, retryAfterSeconds: 3 }),
+		});
+		const res = await get(deps, "/v1/subgraphs/swaps/trades");
+		expect(res.status).toBe(429);
+		expect(counted).toEqual([]);
+	});
+
+	test("metadata reads never count", async () => {
+		const { deps, counted } = setup();
+		for (const path of [
+			"/v1/subgraphs",
+			"/v1/subgraphs/swaps",
+			"/v1/subgraphs/swaps/openapi.json",
+			"/v1/subgraphs/swaps/schema.json",
+			"/v1/subgraphs/swaps/docs.md",
+			"/api/subgraphs/swaps/health",
+		]) {
+			const res = await get(deps, path);
+			expect(res.status).toBe(200);
+		}
+		expect(counted).toEqual([]);
+	});
+
+	test("a recent-rows read counts one read", async () => {
+		const { deps, counted } = setup();
+		await get(deps, "/api/subgraphs/swaps/recent");
+		expect(total(counted)).toBe(1);
+	});
+
+	test("a count failure never breaks the read", async () => {
+		const { deps } = setup({
+			countRead: () => {
+				throw new Error("boom");
+			},
+		});
+		const res = await get(deps, "/v1/subgraphs/swaps/trades");
+		expect(res.status).toBe(200);
+		expect(await res.text()).toBe("ok");
+	});
+
+	test("a stream counts each delivered batch and reaches the client byte for byte", async () => {
+		const frame = (id: number) => `id: ${id}\ndata: {"_id":${id}}\n\n`;
+		const ping = "event: ping\ndata: \n\n";
+		// Two batches of two rows (separated by a real pause) with a heartbeat
+		// between, the second row of the first batch split across two chunks.
+		const second = frame(2);
+		const pieces = [
+			frame(1),
+			second.slice(0, 5),
+			second.slice(5),
+			ping,
+			frame(3),
+			frame(4),
+		];
+		const upstreamText = pieces.join("");
+		const { deps, counted } = setup({
+			fetchImpl: async () =>
+				new Response(
+					new ReadableStream<Uint8Array>({
+						async start(controller) {
+							const enc = new TextEncoder();
+							for (const [i, piece] of pieces.entries()) {
+								if (i === 4) await Bun.sleep(800);
+								controller.enqueue(enc.encode(piece));
+							}
+							controller.close();
+						},
+					}),
+					{ status: 200, headers: { "content-type": "text/event-stream" } },
+				),
+		});
+		const res = await get(deps, "/v1/subgraphs/swaps/trades/stream");
+		const clientText = await res.text();
+		expect(clientText).toBe(upstreamText);
+		expect(total(counted)).toBe(2);
+	});
+});
