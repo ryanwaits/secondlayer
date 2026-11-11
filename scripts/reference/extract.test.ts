@@ -36,19 +36,19 @@ describe("sibling type notes", () => {
 	const io = fileSystemIO(repo, "packages/consumer");
 
 	test("a sibling's private type never hides another sibling's exported doc", () => {
-		expect(io.typeDoc("ColumnType")).toBe("Supported column types");
+		expect(io.typeDoc?.("ColumnType")).toBe("Supported column types");
 	});
 
 	test("two siblings exporting one name resolve to the first by package name", () => {
-		expect(io.typeDoc("Shared")).toBe("From alpha");
+		expect(io.typeDoc?.("Shared")).toBe("From alpha");
 	});
 
 	test("shared wins a name over every other sibling", () => {
-		expect(io.typeDoc("Common")).toBe("From shared");
+		expect(io.typeDoc?.("Common")).toBe("From shared");
 	});
 
 	test("only an exported alias is borrowed from a sibling", () => {
-		expect(io.aliasOf("Public")).toBe("Own");
-		expect(io.aliasOf("Handle")).toBeUndefined();
+		expect(io.aliasOf?.("Public")).toBe("Own");
+		expect(io.aliasOf?.("Handle")).toBeUndefined();
 	});
 });
