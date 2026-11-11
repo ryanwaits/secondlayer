@@ -4794,7 +4794,7 @@
 							"string",
 							"null"
 						],
-						"description": "Most the depositor allowed the signers to take, from the deposit script. Null as for `fee`."
+						"description": "Most the depositor allowed the signers to take, read from Bitcoin. Null as for `fee`, and for a v2 deposit whose value is above 1,000,000 sats."
 					}
 				},
 				"example": {
@@ -4893,7 +4893,7 @@
 							"string",
 							"null"
 						],
-						"description": "Most the depositor allowed the signers to take, from the deposit script. Null as for `fee`."
+						"description": "Most the depositor allowed the signers to take, read from Bitcoin. Null as for `fee`, and for a v2 deposit whose value is above 1,000,000 sats."
 					},
 					"status": {
 						"type": "string",

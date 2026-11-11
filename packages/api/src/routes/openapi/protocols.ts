@@ -1159,7 +1159,7 @@ const SBTC_DEPOSIT_PROPERTIES = {
 	max_fee: {
 		...SATS_AMOUNT,
 		description:
-			"Most the depositor allowed the signers to take, from the deposit script. Null as for `fee`.",
+			"Most the depositor allowed the signers to take, read from Bitcoin. Null as for `fee`, and for a v2 deposit whose value is above 1,000,000 sats.",
 	},
 };
 

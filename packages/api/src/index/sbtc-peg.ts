@@ -172,7 +172,7 @@ export type SbtcDeposit = {
 	/** Sats the signers took to sweep the deposit. Null until read from
 	 *  Bitcoin, or when the stack has no Bitcoin RPC. */
 	fee: string | null;
-	/** Most the depositor allowed the signers to take, from the deposit script. */
+	/** Most the depositor allowed the signers to take, read from Bitcoin. */
 	max_fee: string | null;
 };
 

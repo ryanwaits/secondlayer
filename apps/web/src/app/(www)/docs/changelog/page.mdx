@@ -10,6 +10,10 @@ Older history used to read differently from recent blocks. Now `print` and nft e
 
 ## Index — November 2026
 
+### sBTC deposits keep `max_fee` on the new deposit format
+
+sBTC v2 deposits no longer show their max fee in the Bitcoin script, so `max_fee` on `/v1/index/sbtc/deposits` read null for them. It is now worked out from what the sweep reveals on Bitcoin and checked against the deposit's recipient. Miners move to the new format at Stacks epoch 4.1, and old and new deposits are told apart one by one, so nothing changes on that day.
+
 ### Withdrawal confirmations keep counting
 
 `btc_confirmations` on `/v1/index/sbtc/withdrawals` and `/v1/index/sbtc/withdrawals/{request_id}` now counts to the current Bitcoin tip. It used to stop once the sweep was deep enough to be safe from reorgs.
