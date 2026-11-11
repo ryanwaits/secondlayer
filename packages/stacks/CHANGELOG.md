@@ -1,5 +1,11 @@
 # @secondlayer/stacks
 
+## 7.1.0
+
+### Minor Changes
+
+- f88f30f: Contract deploys leave the Clarity version out unless you pass `clarityVersion`, so the contract deploys at the epoch's version (Clarity 6 today, was a pinned Clarity 4). Stacks epoch 4.1 rejects every deploy that names a version; `clarityVersion` is deprecated.
+
 ## 7.0.0
 
 ### Major Changes
