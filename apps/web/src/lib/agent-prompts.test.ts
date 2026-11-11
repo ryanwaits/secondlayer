@@ -4,11 +4,11 @@ import { AGENT_PROMPTS, AGENT_SETUP, getAgentPrompt } from "./agent-prompts";
 import { STACK_FLOOR_USD_PER_MONTH, WEBHOOK_USD_PER_M } from "./prices";
 
 describe("agent prompt registry", () => {
-	test("all prompts include setup once", () => {
+	test("all prompts include setup without skill install", () => {
 		for (const prompt of AGENT_PROMPTS) {
 			const text = getAgentPrompt(prompt.id);
 			expect(text.includes(AGENT_SETUP)).toBe(true);
-			expect(text.match(/bunx skills add/g)?.length).toBe(1);
+			expect(text).not.toContain("bunx skills add");
 		}
 	});
 
