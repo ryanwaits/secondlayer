@@ -31,17 +31,13 @@ concurrency:
   group: deploy
   cancel-in-progress: false
 
-# Runners are pinned to ubuntu-24.04. `ubuntu-latest` began resolving to
-# ubuntu-26.04 on 2026-11-11, where the generated reference drift check emits
-# an empty summary for a re-exported type and blocks every deploy. Unpin once
-# the generators give byte-identical output on the newer image.
 env:
   REGISTRY: ghcr.io
   IMAGE_OWNER: ${{ vars.DEPLOY_IMAGE_OWNER || github.repository_owner }}
 
 jobs:
   typecheck:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
       # Catches unbound-variable regressions like deploy incident #30.
@@ -86,7 +82,7 @@ jobs:
           git diff --exit-code -- apps/web/src/generated
 
   test:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
     services:
       postgres:
         image: postgres:16
@@ -122,7 +118,7 @@ jobs:
 
   build-images:
     needs: [typecheck, test]
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: write
@@ -220,7 +216,7 @@ jobs:
 
   deploy:
     needs: [typecheck, build-images, test]
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
     timeout-minutes: 345
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
@@ -241,7 +237,7 @@ jobs:
 
   post-deploy-smoke:
     needs: deploy
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
       - name: Run post-deploy smoke checks
@@ -263,7 +259,7 @@ jobs:
   notify:
     needs: [typecheck, deploy, post-deploy-smoke]
     if: always() && (needs.deploy.result == 'failure' || needs.post-deploy-smoke.result == 'failure')
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
     steps:
       - name: Slack notification
         uses: slackapi/slack-github-action@45a88b9581bfab2566dc881e2cd66d334e621e2c # v3.0.3
