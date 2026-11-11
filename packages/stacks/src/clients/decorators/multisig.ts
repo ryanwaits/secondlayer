@@ -53,6 +53,12 @@ export type MultiSigCallContractParams = {
 export type MultiSigDeployContractParams = {
 	contractName: string;
 	codeBody: string;
+	/**
+	 * Pin a Clarity version. Leave it out: the contract then deploys at the
+	 * epoch's version.
+	 * @deprecated Stacks epoch 4.1 (Bitcoin block 979,500) rejects every
+	 * deploy that names a version, including the epoch's own.
+	 */
 	clarityVersion?: ClarityVersion;
 	fee?: IntegerType;
 	nonce?: IntegerType;

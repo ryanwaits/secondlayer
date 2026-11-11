@@ -54,6 +54,10 @@ The hosted server at `api.secondlayer.tools/mcp` now answers `initialize` and `t
 
 ## SDK — November 2026
 
+### Contract deploys are ready for Stacks epoch 4.1
+
+Epoch 4.1 rejects any contract deploy that names a Clarity version. `deployContract` and `buildContractDeploy` in `@secondlayer/stacks` used to name Clarity 4 when you gave none, so every deploy would have failed from Bitcoin block 979,500. They now leave the version out, and the contract deploys at the epoch's version: Clarity 6 today, Clarity 7 after the fork. Passing `clarityVersion` still works until then and is deprecated.
+
 ### Bitcoin and vm cursors carry their feed
 
 Streams cursors on the Bitcoin feed (`chain=bitcoin`) and the vm clock (`clock=vm`) now start with `btc:` and `vm:`. Using a cursor on the wrong feed returns `400` instead of quietly resuming at the wrong place. Untagged cursors still work everywhere. Bitcoin and vm consumers must upgrade the SDK to resume on tagged cursors.

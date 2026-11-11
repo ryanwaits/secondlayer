@@ -13,10 +13,13 @@ import {
 	createStandardAuth,
 } from "./authorization.ts";
 import { createMultiSigSpendingCondition } from "./multisig.ts";
-import type { MultiSigHashMode, SpendingCondition } from "./types.ts";
+import type {
+	ClarityVersion,
+	MultiSigHashMode,
+	SpendingCondition,
+} from "./types.ts";
 import {
 	AnchorMode,
-	ClarityVersion,
 	PayloadType,
 	PostConditionModeWire,
 	type StacksTransaction,
@@ -58,6 +61,12 @@ export type BuildContractCallOptions = MultiSigOptions & {
 export type BuildContractDeployOptions = MultiSigOptions & {
 	contractName: string;
 	codeBody: string;
+	/**
+	 * Pin a Clarity version. Leave it out: the contract then deploys at the
+	 * epoch's version.
+	 * @deprecated Stacks epoch 4.1 (Bitcoin block 979,500) rejects every
+	 * deploy that names a version, including the epoch's own.
+	 */
 	clarityVersion?: ClarityVersion;
 	fee: IntegerType;
 	nonce: IntegerType;
@@ -192,7 +201,6 @@ export function buildContractDeploy(
 	const nonce = intToBigInt(options.nonce);
 
 	const spendingCondition = resolveSpendingCondition(options, nonce, fee);
-	const clarityVersion = options.clarityVersion ?? ClarityVersion.Clarity4;
 
 	const tx: StacksTransaction = {
 		version,
@@ -201,12 +209,22 @@ export function buildContractDeploy(
 		anchorMode: AnchorMode.Any,
 		postConditionMode: resolvePcMode(options.postConditionMode),
 		postConditions: convertPostConditions(options.postConditions),
-		payload: {
-			payloadType: PayloadType.VersionedSmartContract,
-			clarityVersion,
-			contractName: options.contractName,
-			codeBody: options.codeBody,
-		},
+		// No version given: the unversioned payload, which deploys at the
+		// epoch's Clarity version. Stacks epoch 4.1 rejects any deploy that
+		// names a version, so this is the only form valid in every epoch.
+		payload:
+			options.clarityVersion === undefined
+				? {
+						payloadType: PayloadType.SmartContract,
+						contractName: options.contractName,
+						codeBody: options.codeBody,
+					}
+				: {
+						payloadType: PayloadType.VersionedSmartContract,
+						clarityVersion: options.clarityVersion,
+						contractName: options.contractName,
+						codeBody: options.codeBody,
+					},
 	};
 
 	if (options.publicKeys) {

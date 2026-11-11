@@ -127,6 +127,9 @@ const fullySigned = signSponsor(originSigned, sponsorKey);
 | `Clarity3` | 3 |
 | `Clarity4` | 4 |
 | `Clarity5` | 5 |
+| `Clarity6` | 6 |
+
+Leave `clarityVersion` out of a deploy. The contract then deploys at the epoch's Clarity version. From Stacks epoch 4.1 (Bitcoin block 979,500) the chain rejects any deploy that names a version.
 
 ### TenureChangeCause
 
