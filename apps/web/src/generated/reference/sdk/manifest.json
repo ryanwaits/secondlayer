@@ -1,6 +1,6 @@
 {
 	"package": "@secondlayer/sdk",
-	"version": "19.0.0",
+	"version": "19.0.1",
 	"generator": "openpkg 0.13.2",
 	"surfaces": [
 		{
