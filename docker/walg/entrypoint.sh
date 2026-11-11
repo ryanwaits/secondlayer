@@ -5,8 +5,9 @@
 #   1. WAL spooler — pushes each completed segment the postgres `archive_command`
 #      dropped in /wal_archive up to R2, then deletes it (this also bounds the
 #      otherwise-unbounded local /wal_archive).
-#   2. Base backup — takes a `wal-g backup-push` on an interval (default weekly)
-#      and prunes to the last N fulls. A base + its WAL = point-in-time recovery.
+#   2. Base backup — takes a `wal-g backup-push` when the newest one in the
+#      bucket is older than the interval (default weekly), and prunes to the
+#      last N fulls. A base + its WAL = point-in-time recovery.
 set -euo pipefail
 
 : "${WALG_S3_PREFIX:?set WALG_S3_PREFIX (e.g. s3://secondlayer-db-backups/pg)}"
@@ -56,19 +57,34 @@ wal_spooler() {
   done
 }
 
+# Epoch seconds of the newest base backup in the bucket, 0 when there is none.
+# The bucket is the record, so a restarted sidecar keeps the schedule instead of
+# taking a fresh full backup (and pruning an old one) on every start. Fails when
+# the bucket cannot be listed: unknown is not the same as "no backup yet".
+last_backup_epoch() {
+  local listing newest
+  listing="$(wal-g backup-list --json 2>/dev/null)" || return 1
+  newest="$(grep -o '"time":"[^"]*"' <<<"$listing" | cut -d'"' -f4 | sort | tail -n 1)" || true
+  if [ -n "$newest" ]; then date -u -d "$newest" +%s; else echo 0; fi
+}
+
 backup_loop() {
-  local last=0 now
+  local last now announced=0
   while true; do
     now=$(date +%s)
-    if [ $(( now - last )) -ge "$BACKUP_INTERVAL_SECS" ]; then
+    if ! last=$(last_backup_epoch); then
+      log "could not list base backups; will retry next cycle"
+    elif [ $(( now - last )) -ge "$BACKUP_INTERVAL_SECS" ]; then
       log "starting base backup-push…"
       if wal-g backup-push "$PGDATA"; then
         log "base backup complete; pruning to last ${RETAIN_FULL} fulls"
         wal-g delete retain FULL "$RETAIN_FULL" --confirm || log "retention prune failed"
-        last=$now
       else
         log "backup-push failed; will retry next cycle"
       fi
+    elif [ "$announced" -eq 0 ]; then
+      log "last base backup $(date -u -d "@$last" +%FT%TZ); next due $(date -u -d "@$(( last + BACKUP_INTERVAL_SECS ))" +%FT%TZ)"
+      announced=1
     fi
     sleep 3600
   done
