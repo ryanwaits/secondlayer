@@ -30,9 +30,12 @@ export type ExtractConfig = ReferenceConfig & {
 	out: string;
 };
 
-/** A doc comment directly above a `type` or `interface` declaration. */
+/**
+ * A doc comment directly above a `type` or `interface` declaration. Groups:
+ * comment body, `export` when present, name.
+ */
 const TYPE_DOC =
-	/\/\*\*((?:(?!\*\/)[\s\S])*?)\*\/[ \t]*\n[ \t]*(?:export\s+)?(?:declare\s+)?(?:type|interface)\s+([A-Za-z_$][\w$]*)\s*(?:<|=|\{|extends)/g;
+	/\/\*\*((?:(?!\*\/)[\s\S])*?)\*\/[ \t]*\n[ \t]*(export\s+)?(?:declare\s+)?(?:type|interface)\s+([A-Za-z_$][\w$]*)\s*(?:<|=|\{|extends)/g;
 
 function commentText(body: string): string {
 	const lines = body.split("\n").map((l) => l.replace(/^\s*\*\s?/, "").trim());
@@ -40,12 +43,16 @@ function commentText(body: string): string {
 	return (tag === -1 ? lines : lines.slice(0, tag)).join("\n").trim();
 }
 
-/** `type Name = Other;`: a name for one other type, nothing added. */
+/**
+ * `type Name = Other;`: a name for one other type, nothing added. Groups:
+ * `export` when present, name, target.
+ */
 const BARE_ALIAS =
-	/^[ \t]*(?:export\s+)?(?:declare\s+)?type\s+([A-Za-z_$][\w$]*)\s*=\s*([A-Za-z_$][\w$]*)\s*;/gm;
+	/^[ \t]*(export\s+)?(?:declare\s+)?type\s+([A-Za-z_$][\w$]*)\s*=\s*([A-Za-z_$][\w$]*)\s*;/gm;
 
+/** Groups: `export` when present, name. */
 const TYPE_DECLARATION =
-	/^[ \t]*(?:export\s+)?(?:declare\s+)?(?:type|interface)\s+([A-Za-z_$][\w$]*)\s*(?:<|=|\{|extends)/gm;
+	/^[ \t]*(export\s+)?(?:declare\s+)?(?:type|interface)\s+([A-Za-z_$][\w$]*)\s*(?:<|=|\{|extends)/gm;
 
 type TypeNotes = {
 	/** Every type name the source declares. */
@@ -54,29 +61,42 @@ type TypeNotes = {
 	aliases: Map<string, string>;
 };
 
-/** Type docs and bare aliases of one package's source, by type name. */
-function readTypeNotes(srcDir: string): TypeNotes {
+/**
+ * Type docs and bare aliases of one package's source, by type name. With
+ * `exportedOnly`, a declaration without `export` is skipped: it is private to
+ * its module, so no other package can be borrowing it.
+ *
+ * Files are read in sorted order. A directory listing comes back in whatever
+ * order the filesystem keeps, which differs between machines.
+ */
+function readTypeNotes(
+	srcDir: string,
+	{ exportedOnly = false }: { exportedOnly?: boolean } = {},
+): TypeNotes {
 	const notes: TypeNotes = {
 		declared: new Set(),
 		docs: new Map(),
 		aliases: new Map(),
 	};
 	if (!existsSync(srcDir)) return notes;
-	for (const file of readdirSync(srcDir, { recursive: true })) {
-		const rel = String(file);
+	const files = readdirSync(srcDir, { recursive: true }).map(String).sort();
+	for (const rel of files) {
 		if (!rel.endsWith(".ts") || /\.(type-)?test\.ts$/.test(rel)) continue;
 		const text = readFileSync(join(srcDir, rel), "utf8");
-		for (const m of text.matchAll(TYPE_DECLARATION))
-			if (m[1]) notes.declared.add(m[1]);
+		for (const m of text.matchAll(TYPE_DECLARATION)) {
+			const [, exported, name] = m;
+			if (name && (exported || !exportedOnly)) notes.declared.add(name);
+		}
 		for (const m of text.matchAll(TYPE_DOC)) {
-			const name = m[2];
-			const doc = commentText(m[1] ?? "");
-			if (name && doc && !notes.docs.has(name)) notes.docs.set(name, doc);
+			const [, body, exported, name] = m;
+			if (!name || (exportedOnly && !exported)) continue;
+			const doc = commentText(body ?? "");
+			if (doc && !notes.docs.has(name)) notes.docs.set(name, doc);
 		}
 		for (const m of text.matchAll(BARE_ALIAS)) {
-			const [, name, target] = m;
-			if (name && target && !notes.aliases.has(name))
-				notes.aliases.set(name, target);
+			const [, exported, name, target] = m;
+			if (!name || !target || (exportedOnly && !exported)) continue;
+			if (!notes.aliases.has(name)) notes.aliases.set(name, target);
 		}
 	}
 	return notes;
@@ -91,17 +111,21 @@ export function fileSystemIO(
 	let notes: TypeNotes | undefined;
 	/**
 	 * The package's own source wins; siblings fill in the types its signatures
-	 * borrow, but never a name it declares itself. `shared` comes first: it is
-	 * where the workspace's common types live.
+	 * borrow, but never a name it declares itself, and only from what a sibling
+	 * exports. `shared` comes first: it is where the workspace's common types
+	 * live. The rest follow by name, so two siblings exporting one name resolve
+	 * the same way on every machine.
 	 */
 	const typeNotes = (): TypeNotes => {
 		if (!notes) {
 			const merged = readTypeNotes(join(repoRoot, packageDir, "src"));
-			const siblings = readdirSync(join(repoRoot, "packages")).sort(
-				(a, b) => Number(b === "shared") - Number(a === "shared"),
-			);
-			for (const sibling of siblings) {
-				const more = readTypeNotes(join(repoRoot, "packages", sibling, "src"));
+			const others = readdirSync(join(repoRoot, "packages"))
+				.filter((name) => name !== "shared")
+				.sort();
+			for (const sibling of ["shared", ...others]) {
+				const more = readTypeNotes(join(repoRoot, "packages", sibling, "src"), {
+					exportedOnly: true,
+				});
 				for (const name of more.declared) {
 					if (merged.declared.has(name)) continue;
 					merged.declared.add(name);
