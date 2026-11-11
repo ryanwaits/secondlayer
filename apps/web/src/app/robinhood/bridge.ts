@@ -30,6 +30,8 @@ export type BridgeToken = {
 	symbol: "MEGA" | "PEPE";
 	/** The SIP-010 contract on Stacks. */
 	stacks: string;
+	/** Its `define-fungible-token` name, for the lock's post-condition. */
+	asset: string;
 	/** Its ERC-20 twin on Robinhood Chain. */
 	erc20: string;
 	decimals: number;
@@ -45,6 +47,7 @@ export const BRIDGE_TOKENS: readonly BridgeToken[] = [
 		symbol: "PEPE",
 		stacks:
 			"SP1Z92MPDQEWZXW36VX71Q25HKF5K2EPCJ304F275.tokensoft-token-v4k68639zxz",
+		asset: "tokensoft-token",
 		erc20: "0x3dfed812c24d74e263293f89df1e8ff953526a72",
 		decimals: 3,
 		cap: 1_000_000,
@@ -53,6 +56,7 @@ export const BRIDGE_TOKENS: readonly BridgeToken[] = [
 	{
 		symbol: "MEGA",
 		stacks: "SP3D6PV2ACBPEKYJTCMH7HEN02KP87QSP8KTEH335.mega",
+		asset: "mega",
 		erc20: "0xf98af8c29470674a6e1f33ec587daa012f0a35c3",
 		decimals: 2,
 		cap: 10_000,

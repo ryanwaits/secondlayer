@@ -95,6 +95,7 @@ export function TesterGuide() {
 	const base = toBaseUnits(amount, token);
 	const cap = `${token.cap.toLocaleString("en-US")} ${token.symbol}`;
 	const units = base.ok ? base.units : "…";
+	const [contractAddress, contractName] = token.stacks.split(".");
 
 	return (
 		<article className="rh-g-article">
@@ -225,6 +226,25 @@ export function TesterGuide() {
 								Your EVM address, all 20 bytes, e.g. <code>0x2Ae8…81EF</code>
 							</span>,
 						],
+					]}
+				/>
+				<h3>Add the post-condition</h3>
+				<p>
+					Below the arguments, keep the mode on <code>Deny</code> and add a
+					Fungible Post Condition. Without it the lock fails and you only lose
+					the fee.
+				</p>
+				<Rows
+					rows={[
+						["Address", "Your Stacks address, the one calling lock"],
+						["Condition Code", <code key="c">Equal</code>],
+						[
+							"Amount",
+							base.ok ? <Value key="v">{base.units}</Value> : "Base units",
+						],
+						["Asset Address", <Value key="a">{contractAddress}</Value>],
+						["Asset Contract Name", <Value key="n">{contractName}</Value>],
+						["Asset Name", <Value key="s">{token.asset}</Value>],
 					]}
 				/>
 				<p className="rh-g-note">
