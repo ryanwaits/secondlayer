@@ -25,6 +25,7 @@ Compose project lives at `/opt/secondlayer/docker` on app-server.
 | `secondlayer-worker-1` | Crons: credits refill, spend-cap alerts. |
 | `secondlayer-redis-1` | Rate limits. |
 | `secondlayer-walg-backup-1` | WAL-G postgres backups (chain DB WAL archiving → `/opt/secondlayer/data/wal_archive`). |
+| `secondlayer-walg-backup-platform-1` | Same for the control-plane DB (`/opt/secondlayer/data/wal_archive_platform` → `s3://secondlayer-db-backups/pg-platform`). |
 | `secondlayer-agent` | Log watcher → Slack alerts (the thing that pages you). No DB of its own. |
 | `secondlayer-migrate-1` | One-shot migration runner, re-run by every deploy. **`Exited (0)` is its healthy state.** |
 

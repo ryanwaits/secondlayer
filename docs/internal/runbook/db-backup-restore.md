@@ -38,6 +38,30 @@ spool drained 12 GB → ~0.
 - Health: `docker logs secondlayer-walg-backup-1` ("base backup complete"),
   `docker exec secondlayer-walg-backup-1 wal-g backup-list`.
 
+### Control-plane DB (WAL-G) — since 2026-11-11
+`postgres-platform` (`secondlayer_platform`: accounts, api keys, billing ledger,
+subgraph registry) is the one database that cannot be rebuilt from the chain.
+It archives WAL the same way and has its own sidecar, **`walg-backup-platform`**,
+writing to the chain prefix plus `-platform`
+(`s3://secondlayer-db-backups/pg-platform`). Same credentials, same weekly full
+and `retain FULL 4`.
+
+- Host spool: `$DATA_DIR/wal_archive_platform`, owned by `70:70`. Create it
+  before the first start (`install -d -o 70 -g 70 …`); a root-owned dir makes
+  the archive `cp` fail and WAL accumulates in `pg_wal`.
+- Enabling `archive_mode` needs a restart: `docker compose up -d --no-deps
+  postgres-platform`, alone (see PRODUCTION.md rule 4), then
+  `docker compose up -d --no-deps walg-backup-platform`.
+- Health: `docker exec secondlayer-walg-backup-platform-1 wal-g backup-list`,
+  and `SELECT last_archived_time, failed_count FROM pg_stat_archiver` on the
+  platform DB (`failed_count` must not grow).
+- Restore: the drill below with the `-platform` prefix and
+  `/opt/secondlayer/data/postgres-platform` as the data dir. Verify with
+  `SELECT count(*) FROM accounts` instead of the `blocks` query.
+
+Why it exists: on 2026-11-11 the app-server chassis failed and the only copy of
+this database was on that host; the newest dump was three months old.
+
 ### Decommissioned 2026-06-02 — the OLD local backup system (was the disk-fill cause)
 A cron-based local system (`backup-postgres.sh` daily 22 GB pg_dump ×7 = 154 GB,
 `backup-basebackup.sh` weekly 34 GB = 96 GB, `sync-wal.sh`, `upload-snapshot.sh`)
