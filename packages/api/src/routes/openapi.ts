@@ -149,6 +149,7 @@ export const OPERATION_IDS: Record<string, string> = {
 	"POST /v1/feedback": "submitFeedback",
 	"GET /public/data/sbtc": "getPublicSbtcData",
 	"GET /public/data/pox": "getPublicPoxData",
+	"GET /public/data/runes": "getPublicRunesData",
 	"POST /mcp": "callHostedMcp",
 	"GET /api/oauth/grants": "listConnectedApps",
 	"DELETE /api/oauth/grants/{id}": "revokeConnectedApp",
@@ -778,6 +779,11 @@ function platformPublicDataPaths(): Record<string, unknown> {
 			"PoX-5 cycle and signers",
 			"No key. The current and next PoX-5 cycle totals and the current cycle's signers, largest delegation first, with the Stacks block they are as of. Read at most once a minute.",
 			"Current cycle, next cycle, signers and the tip.",
+		),
+		"/public/data/runes": read(
+			"Most-minted runes",
+			"No key. The ten most-minted runes (id, name, symbol, mints, supply) with the Bitcoin block they are as of. Read at most once a minute.",
+			"The ten most-minted runes and the Bitcoin tip.",
 		),
 	};
 }

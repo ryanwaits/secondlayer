@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import {
 	type PublicPoxData,
+	type PublicRunesData,
 	type PublicSbtcData,
 	createMemoizedReader,
 	createPublicDataRouter,
@@ -30,6 +31,21 @@ const POX = {
 	tip: TIP,
 	generated_at: "2026-11-12T12:00:00.000Z",
 } as unknown as PublicPoxData;
+
+const RUNES: PublicRunesData = {
+	most_minted: [
+		{
+			id: "1:0",
+			spaced_name: "UNCOMMON•GOODS",
+			symbol: "⧉",
+			mints: "173834708",
+			supply: "173834708",
+			divisibility: 0,
+		},
+	],
+	tip: { block_height: 975_573 },
+	generated_at: "2026-11-12T12:00:00.000Z",
+};
 
 function counter<T>(value: T) {
 	let calls = 0;
@@ -70,21 +86,39 @@ describe("/public/data routes", () => {
 		expect(body.signers).toHaveLength(1);
 	});
 
+	test("serve the most-minted runes with the bitcoin tip, no key", async () => {
+		const runes = counter(RUNES);
+		const app = createPublicDataRouter({ readRunes: runes.read });
+		const res = await app.request("/public/data/runes");
+		expect(res.status).toBe(200);
+		expect(res.headers.get("cache-control")).toBe(
+			"public, max-age=60, s-maxage=60",
+		);
+		const body = (await res.json()) as PublicRunesData;
+		expect(body.most_minted[0]?.spaced_name).toBe("UNCOMMON•GOODS");
+		expect(body.tip.block_height).toBe(975_573);
+	});
+
 	test("read the database once for requests within the TTL", async () => {
 		const sbtc = counter(SBTC);
 		const pox = counter(POX);
+		const runes = counter(RUNES);
 		let at = 0;
 		const app = createPublicDataRouter({
 			readSbtc: sbtc.read,
 			readPox: pox.read,
+			readRunes: runes.read,
 			now: () => at,
 		});
 		await app.request("/public/data/sbtc");
 		await app.request("/public/data/sbtc");
 		await app.request("/public/data/pox");
 		await app.request("/public/data/pox");
+		await app.request("/public/data/runes");
+		await app.request("/public/data/runes");
 		expect(sbtc.calls()).toBe(1);
 		expect(pox.calls()).toBe(1);
+		expect(runes.calls()).toBe(1);
 		at = 60_000;
 		await app.request("/public/data/sbtc");
 		expect(sbtc.calls()).toBe(2);
@@ -104,6 +138,17 @@ describe("/public/data routes", () => {
 		fail = false;
 		const up = await app.request("/public/data/sbtc");
 		expect(up.status).toBe(200);
+	});
+
+	test("answer 503 uncached when the runes read fails", async () => {
+		const app = createPublicDataRouter({
+			readRunes: async () => {
+				throw new Error("bitcoin db down");
+			},
+		});
+		const res = await app.request("/public/data/runes");
+		expect(res.status).toBe(503);
+		expect(res.headers.get("cache-control")).toBe("no-store");
 	});
 });
 
