@@ -29,6 +29,7 @@ describe("llmsTxt", () => {
 		for (const topic of liveDataTopics())
 			if (topic.stats) expect(text).toContain(liveDataUrl(topic.stats));
 		expect(text).toContain("https://api.secondlayer.tools/public/data/pox");
+		expect(text).toContain("https://api.secondlayer.tools/public/data/runes");
 	});
 
 	test("links the introduction's markdown twin", () => {

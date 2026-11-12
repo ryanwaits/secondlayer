@@ -26,6 +26,24 @@ function Updated({ iso }: { iso: string }) {
 	);
 }
 
+/** "As of Stacks block N · updated 1m ago": the block a live number is as of. */
+export function LiveStamp({
+	chain,
+	blockHeight,
+	generatedAt,
+}: {
+	chain: "Stacks" | "Bitcoin";
+	blockHeight: number;
+	generatedAt: string;
+}) {
+	return (
+		<p className="live-meta cap">
+			As of {chain} block {new Intl.NumberFormat("en-US").format(blockHeight)} ·
+			updated <Updated iso={generatedAt} />
+		</p>
+	);
+}
+
 /** Four big numbers with one stamp line: the Stacks block they are as of. */
 export function StatsStrip({
 	items,
@@ -62,10 +80,11 @@ export function StatsStrip({
 					</div>
 				))}
 			</div>
-			<p className="live-meta cap">
-				As of Stacks block {new Intl.NumberFormat("en-US").format(blockHeight)}{" "}
-				· updated <Updated iso={generatedAt} />
-			</p>
+			<LiveStamp
+				chain="Stacks"
+				blockHeight={blockHeight}
+				generatedAt={generatedAt}
+			/>
 		</div>
 	);
 }

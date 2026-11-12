@@ -2753,6 +2753,10 @@
 	overflow-y: auto;
 	border-block: 1px solid var(--line);
 }
+/* Ten rows fit; no inner scroll. */
+.site .live-table.whole {
+	max-height: none;
+}
 .site .live-table table {
 	width: 100%;
 	border-collapse: collapse;
@@ -2789,6 +2793,126 @@
 @media (max-width: 760px) {
 	.site .live-stats {
 		grid-template-columns: repeat(2, minmax(0, 1fr));
+	}
+}
+/* ── runes table (/data/runes) ─────────────────────────────────────── */
+.site .rune-glyph {
+	display: inline-grid;
+	place-items: center;
+	width: 26px;
+	height: 26px;
+	margin-right: 10px;
+	border: 1px solid var(--line);
+	border-radius: 4px;
+	font-size: 14px;
+	vertical-align: middle;
+}
+
+/* ── example picker (/data/<topic>) ────────────────────────────────── */
+.site .pick-sec {
+	display: grid;
+	gap: 24px;
+}
+.site .pick-head {
+	display: grid;
+	gap: 14px;
+	justify-items: start;
+	max-width: 46rem;
+}
+.site .pick-head > * {
+	margin: 0;
+}
+.site .pick-top {
+	padding-bottom: clamp(32px, 5vw, 56px);
+}
+.site .picks {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+}
+.site .pick {
+	padding: 6px 14px;
+	border: 1px solid var(--line);
+	border-radius: 999px;
+	background: var(--paper);
+	color: var(--sub);
+	font: 400 14px / 1.4 var(--font-sans-stack);
+	cursor: pointer;
+	transition: color var(--duration-snappy) var(--ease-snappy), background-color
+		var(--duration-snappy) var(--ease-snappy);
+}
+.site .pick:hover {
+	color: var(--ink);
+}
+.site .pick[aria-pressed="true"] {
+	border-color: var(--ink);
+	background: var(--ink);
+	color: var(--paper);
+}
+.site .pick:focus-visible {
+	outline: 2px solid var(--pri);
+	outline-offset: 2px;
+}
+/* The command beside what it prints, in one frame. */
+.site .pick-fig {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	margin-top: var(--spacing-xs);
+	border: 1px solid var(--line);
+	border-radius: 8px;
+	overflow: hidden;
+	background: var(--paper);
+}
+.site .pick-fig > * {
+	min-width: 0;
+}
+.site .pick-fig .cb-tabs,
+.site .pick-fig .cb-tabs.figure .cb.tabbed {
+	margin: 0;
+	border: 0;
+	border-radius: 0;
+}
+.site .pick-out {
+	border-left: 1px solid var(--line);
+	background: var(--soft);
+}
+.site .pick-out .cb-tabs,
+.site .pick-out .cb.tabbed {
+	background: var(--soft);
+}
+/* The output follows the command's tab, so its own tab strip gives way to a caption. */
+.site .pick-out .cb-bar .tabbar {
+	display: none;
+}
+.site .pick-out .cb-bar::before {
+	content: "Response";
+}
+/* The keyless tab says so. */
+.site .pick-code button[data-tab="No key"] {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+}
+.site .pick-code button[data-tab="No key"]::before {
+	order: 1;
+	content: "free";
+	font-size: 10px;
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+	color: var(--ok);
+}
+.site .pick-sec .btns {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 10px;
+}
+@media (max-width: 860px) {
+	.site .pick-fig {
+		grid-template-columns: minmax(0, 1fr);
+	}
+	.site .pick-out {
+		border-top: 1px solid var(--line);
+		border-left: 0;
 	}
 }
 .site.verify .sec-head {

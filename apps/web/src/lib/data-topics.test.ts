@@ -25,16 +25,40 @@ describe("data topics", () => {
 		);
 	});
 
-	test("the sample response is real JSON", () => {
-		for (const topic of DATA_TOPICS)
-			expect(() => JSON.parse(topic.sampleResponse)).not.toThrow();
-	});
-
-	test("samples carry the placeholder key, never a real one", () => {
+	test("keyed samples read the key from the environment, never carry one", () => {
 		for (const topic of DATA_TOPICS) {
-			expect(topic.curl).toContain("Bearer sk-sl_…");
+			expect(topic.examples.curl.code).toContain("$SECONDLAYER_API_KEY");
+			expect(topic.examples.ts.code).toContain(
+				"process.env.SECONDLAYER_API_KEY",
+			);
 			expect(text(topic)).not.toMatch(/sk-sl_[A-Za-z0-9]/);
 		}
+	});
+
+	test("the keyless command is the one hosted aggregate the page reads", () => {
+		for (const topic of DATA_TOPICS)
+			expect(topic.examples.free.code).toContain(
+				`https://api.secondlayer.tools/public/data/${topic.stats}`,
+			);
+	});
+
+	test("every topic offers exactly three recipes with a call and its output", () => {
+		for (const topic of DATA_TOPICS) {
+			expect(topic.recipes).toHaveLength(3);
+			for (const recipe of topic.recipes) {
+				expect(recipe.code).toContain("await sl.index.");
+				expect(recipe.output.length).toBeGreaterThan(0);
+			}
+		}
+	});
+
+	test("recipes handle a missing record instead of destructuring it", () => {
+		for (const topic of DATA_TOPICS)
+			for (const recipe of topic.recipes)
+				if (/\.get\(/.test(recipe.code))
+					expect(recipe.code).not.toMatch(
+						/const \{[^}]*\} = await [^;]*\.get\(/,
+					);
 	});
 
 	test("copy keeps the house voice", () => {

@@ -1,9 +1,15 @@
 import { PLATFORM_API_URL } from "@/lib/api";
-import { type DataTopic, liveDataUrl } from "@/lib/data-topics";
+import {
+	CYCLE_TOKEN,
+	type DataExample,
+	type DataTopic,
+	FALLBACK_CYCLE,
+	liveDataUrl,
+} from "@/lib/data-topics";
 import { SITE } from "@/lib/docs-agent";
 
 /**
- * Live numbers for the /data/sbtc and /data/pox5 pages, from the keyless
+ * Live numbers for the /data/sbtc, /data/pox5 and /data/runes pages, from the keyless
  * `/public/data/*` aggregates (the web app holds no server key). Every read
  * returns `null` on any failure so the page falls back to the API pitch alone.
  */
@@ -12,6 +18,8 @@ const TIMEOUT_MS = 4_000;
 const REVALIDATE_SECONDS = 60;
 
 export type SbtcStats = {
+	/** `.summary` as the API sent it, so the page's `jq .summary` output matches. */
+	summary: Record<string, unknown>;
 	supplyBtc: number;
 	deposits: number;
 	withdrawalsAccepted: number;
@@ -33,12 +41,33 @@ export type SignerRow = {
 
 export type PoxStats = {
 	cycle: number;
+	/** Micro-STX as the API sent it, exact. */
+	totalStackedUstx: string;
 	endBurnHeight: number;
 	totalStackedStx: number;
 	stakers: number;
 	signersInSet: number;
 	bondBtc: number;
 	signers: SignerRow[];
+	blockHeight: number;
+	generatedAt: string;
+};
+
+export type RuneRow = {
+	id: string;
+	/** As etched, spacers included. */
+	name: string;
+	symbol: string | null;
+	/** Decimal strings: u128 amounts never pass through `Number`. */
+	mints: string;
+	supply: string;
+	divisibility: number;
+};
+
+export type RunesStats = {
+	/** The most-minted runes, most first. */
+	runes: RuneRow[];
+	/** Bitcoin block height, not Stacks. */
 	blockHeight: number;
 	generatedAt: string;
 };
@@ -118,6 +147,7 @@ export function parseSbtcStats(body: unknown): SbtcStats | null {
 	)
 		return null;
 	return {
+		summary: s,
 		supplyBtc: satsToBtc(s.sbtc_supply_sats),
 		deposits: s.total_deposits,
 		withdrawalsAccepted: s.total_withdrawals_accepted,
@@ -163,6 +193,7 @@ export function parsePoxStats(body: unknown): PoxStats | null {
 	if (signers.some((row) => row === null)) return null;
 	return {
 		cycle: c.reward_cycle,
+		totalStackedUstx: total,
 		endBurnHeight: c.end_burn_height,
 		totalStackedStx: ustxToStx(total),
 		stakers: c.stakers,
@@ -173,7 +204,37 @@ export function parsePoxStats(body: unknown): PoxStats | null {
 	};
 }
 
-async function fetchJson(path: "sbtc" | "pox"): Promise<unknown> {
+function parseRune(raw: unknown): RuneRow | null {
+	if (
+		!isObject(raw) ||
+		typeof raw.id !== "string" ||
+		typeof raw.spaced_name !== "string" ||
+		!(raw.symbol === null || typeof raw.symbol === "string") ||
+		!isDecimal(raw.mints) ||
+		!isDecimal(raw.supply) ||
+		!isCount(raw.divisibility)
+	)
+		return null;
+	return {
+		id: raw.id,
+		name: raw.spaced_name,
+		symbol: raw.symbol,
+		mints: raw.mints,
+		supply: raw.supply,
+		divisibility: raw.divisibility,
+	};
+}
+
+export function parseRunesStats(body: unknown): RunesStats | null {
+	if (!isObject(body) || !Array.isArray(body.most_minted)) return null;
+	const stamp = readStamp(body);
+	if (!stamp || body.most_minted.length === 0) return null;
+	const runes = body.most_minted.map(parseRune);
+	if (runes.some((row) => row === null)) return null;
+	return { runes: runes as RuneRow[], ...stamp };
+}
+
+async function fetchJson(path: "sbtc" | "pox" | "runes"): Promise<unknown> {
 	try {
 		const res = await fetch(`${PLATFORM_API_URL}/public/data/${path}`, {
 			next: { revalidate: REVALIDATE_SECONDS },
@@ -193,11 +254,19 @@ export async function getPoxStats(): Promise<PoxStats | null> {
 	return parsePoxStats(await fetchJson("pox"));
 }
 
+export async function getRunesStats(): Promise<RunesStats | null> {
+	return parseRunesStats(await fetchJson("runes"));
+}
+
 export type TopicStats =
 	| { kind: "sbtc"; data: SbtcStats }
-	| { kind: "pox"; data: PoxStats };
+	| { kind: "pox"; data: PoxStats }
+	| { kind: "runes"; data: RunesStats };
 
-/** The live numbers for a topic, or null for a topic with none or on failure. */
+/** The topics whose live numbers are a strip of four. */
+export type StripStats = Exclude<TopicStats, { kind: "runes" }>;
+
+/** The live numbers for a topic, or null on failure. */
 export async function getTopicStats(
 	topic: DataTopic,
 ): Promise<TopicStats | null> {
@@ -209,7 +278,8 @@ export async function getTopicStats(
 		const data = await getPoxStats();
 		return data ? { kind: "pox", data } : null;
 	}
-	return null;
+	const data = await getRunesStats();
+	return data ? { kind: "runes", data } : null;
 }
 
 const count = new Intl.NumberFormat("en-US");
@@ -223,6 +293,10 @@ export function liveDescription(
 	if (!stats) return topic.description;
 	if (stats.kind === "sbtc")
 		return `${btc.format(stats.data.supplyBtc)} sBTC across ${count.format(stats.data.deposits)} deposits. Live supply, deposits and withdrawals, free, no key.`;
+	if (stats.kind === "runes") {
+		const [top] = stats.data.runes;
+		return `${top?.name ?? "Runes"} leads Bitcoin runes with ${count.format(Number(top?.mints ?? 0))} mints. Live most-minted runes, free, no key.`;
+	}
 	return `${count.format(stats.data.totalStackedStx)} STX stacked in PoX-5 cycle ${stats.data.cycle} by ${count.format(stats.data.stakers)} stakers and ${stats.data.signersInSet} signers. Live, free, no key.`;
 }
 
@@ -263,7 +337,7 @@ export type StripItem = {
 };
 
 /** The four big numbers for a topic, plus the line under the cycle. */
-export function stripItems(stats: TopicStats): {
+export function stripItems(stats: StripStats): {
 	items: StripItem[];
 	sub: string | null;
 } {
@@ -303,3 +377,93 @@ export function stripItems(stats: TopicStats): {
 		sub: `Cycle ${d.cycle} · ends at Bitcoin block ${count.format(d.endBurnHeight)}`,
 	};
 }
+
+/** A rune amount with its divisibility applied: `11111111100` at 2 is `111,111,111`. */
+export function formatRuneAmount(raw: string, divisibility: number): string {
+	const scale = 10n ** BigInt(divisibility);
+	const amount = BigInt(raw);
+	const whole = new Intl.NumberFormat("en-US").format(amount / scale);
+	const fraction = (amount % scale)
+		.toString()
+		.padStart(divisibility, "0")
+		.replace(/0+$/, "");
+	return fraction ? `${whole}.${fraction}` : whole;
+}
+
+/** `value` as indented JSON with a mark on the first match of `mark` in the `key` line. */
+function jsonWithMark(
+	value: Record<string, unknown>,
+	key: string,
+	mark: string,
+): string {
+	return JSON.stringify(value, null, 2)
+		.split("\n")
+		.flatMap((line) =>
+			line.trimStart().startsWith(`"${key}":`)
+				? [`${/^\s*/.exec(line)?.[0]}// !mark[/${mark}/]`, line]
+				: [line],
+		)
+		.join("\n");
+}
+
+/** What the No key command prints for these live numbers. */
+export function liveOutput(stats: TopicStats): string {
+	if (stats.kind === "sbtc") {
+		const sats = String(stats.data.summary.sbtc_supply_sats);
+		return jsonWithMark(stats.data.summary, "sbtc_supply_sats", sats);
+	}
+	if (stats.kind === "pox") {
+		const d = stats.data;
+		return jsonWithMark(
+			{
+				reward_cycle: d.cycle,
+				total_stacked_ustx: d.totalStackedUstx,
+				stakers: d.stakers,
+			},
+			"total_stacked_ustx",
+			d.totalStackedUstx,
+		);
+	}
+	const top = stats.data.runes[0];
+	if (!top) return "null";
+	return jsonWithMark(
+		{
+			id: top.id,
+			spaced_name: top.name,
+			symbol: top.symbol,
+			mints: top.mints,
+			supply: top.supply,
+			divisibility: top.divisibility,
+		},
+		"mints",
+		top.mints,
+	);
+}
+
+/**
+ * The picker's "These numbers" examples: the No key output is what the API
+ * returns right now, and PoX-5's cycle number is the current one. Other
+ * outputs stay the registry's trimmed samples.
+ */
+export function liveExamples(
+	topic: DataTopic,
+	stats: TopicStats | null,
+): DataTopic["examples"] {
+	const cycle = String(
+		stats?.kind === "pox" ? stats.data.cycle : FALLBACK_CYCLE,
+	);
+	const fill = (example: DataExample): DataExample => ({
+		code: example.code.replaceAll(CYCLE_TOKEN, cycle),
+		output: example.output.replaceAll(CYCLE_TOKEN, cycle),
+	});
+	const { free, ts, curl } = topic.examples;
+	return {
+		free: stats ? { ...fill(free), output: liveOutput(stats) } : fill(free),
+		ts: fill(ts),
+		curl: fill(curl),
+	};
+}
+
+/** The fence language for a printed result: JSON when it opens like JSON, else plain output. */
+export const outputLang = (output: string): "json" | "text" =>
+	/^[[{]/.test(output.trimStart()) ? "json" : "text";

@@ -1,7 +1,9 @@
 import { Code } from "@/components/code/code";
 import { CodeTabs } from "@/components/code/code-tabs";
+import { ExamplePicker } from "@/components/data/example-picker";
+import { RunesTable } from "@/components/data/runes-table";
 import { SignerTable } from "@/components/data/signer-table";
-import { StatsStrip } from "@/components/data/stats-strip";
+import { LiveStamp, StatsStrip } from "@/components/data/stats-strip";
 import { JsonLd } from "@/components/json-ld";
 import { ButtonLink, Eyebrow, Split } from "@/components/site";
 import {
@@ -12,10 +14,13 @@ import {
 } from "@/lib/data-topics";
 import { socialMeta } from "@/lib/og";
 import {
+	type StripStats,
 	type TopicStats,
 	datasetJsonLd,
 	getTopicStats,
 	liveDescription,
+	liveExamples,
+	outputLang,
 	stripItems,
 } from "@/lib/protocol-stats";
 import type { Metadata } from "next";
@@ -43,21 +48,87 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 	});
 }
 
-function Call({ topic }: { topic: DataTopic }) {
+/** One example: its command beside what it prints, in one frame. */
+function ExamplePair({
+	sync,
+	tabs,
+}: {
+	/** Tabs that share a key switch together, the output following the command. */
+	sync?: string;
+	tabs: readonly {
+		title: string;
+		lang: string;
+		code: string;
+		output: string;
+	}[];
+}) {
 	return (
-		<div className="art">
-			<CodeTabs variant="figure">
-				<Code lang="bash" title="cURL" code={topic.curl} />
-				<Code lang="ts" title="TypeScript" code={topic.sdk} />
-			</CodeTabs>
-			<Code
-				lang="json"
-				variant="figure"
-				title="response.json"
-				meta="status=200"
-				code={topic.sampleResponse}
-			/>
+		<div className="pick-fig">
+			<div className="pick-code">
+				<CodeTabs variant="figure" sync={sync}>
+					{tabs.map((tab) => (
+						<Code
+							key={tab.title}
+							lang={tab.lang}
+							title={tab.title}
+							code={tab.code}
+						/>
+					))}
+				</CodeTabs>
+			</div>
+			<div className="pick-out">
+				<CodeTabs variant="figure" sync={sync}>
+					{tabs.map((tab) => (
+						<Code
+							key={tab.title}
+							lang={outputLang(tab.output)}
+							title={tab.title}
+							meta="nocopy"
+							code={tab.output}
+						/>
+					))}
+				</CodeTabs>
+			</div>
 		</div>
+	);
+}
+
+/** "Get these numbers yourself": the chips, and under them the one figure the chosen chip shows. */
+function Run({ topic, stats }: { topic: DataTopic; stats: TopicStats | null }) {
+	const { free, ts, curl } = liveExamples(topic, stats);
+	return (
+		<section className="pick-sec">
+			<div className="pick-head">
+				<h2>{topic.pick.heading}</h2>
+				<p className="lede">{topic.pick.lede}</p>
+				{/* PoX-5's line is about checking the numbers above, so it sits there. */}
+				{stats?.kind === "pox" ? null : <ExtraLine topic={topic} />}
+			</div>
+			<ExamplePicker
+				labels={["These numbers", ...topic.recipes.map((r) => r.label)]}
+			>
+				<ExamplePair
+					sync={`numbers-${topic.slug}`}
+					tabs={[
+						{ title: "No key", lang: "bash", ...free },
+						{ title: "TypeScript", lang: "ts", ...ts },
+						{ title: "cURL", lang: "bash", ...curl },
+					]}
+				/>
+				{topic.recipes.map((recipe) => (
+					<ExamplePair
+						key={recipe.label}
+						tabs={[{ title: "TypeScript", lang: "ts", ...recipe }]}
+					/>
+				))}
+			</ExamplePicker>
+			<div className="btns">
+				<ButtonLink href="/signin">Get a key</ButtonLink>
+				<ButtonLink href={topic.docsHref} variant="secondary">
+					Read the docs
+				</ButtonLink>
+			</div>
+		</section>
 	);
 }
 
@@ -79,24 +150,40 @@ function ExtraLine({ topic }: { topic: DataTopic }) {
 	);
 }
 
+/** The four big numbers and the stamp under them. */
+function StripBody({ stats }: { stats: StripStats }) {
+	const { items, sub } = stripItems(stats);
+	return (
+		<StatsStrip
+			items={items}
+			sub={sub}
+			blockHeight={stats.data.blockHeight}
+			generatedAt={stats.data.generatedAt}
+		/>
+	);
+}
+
 /** The current answer: big numbers, and for PoX-5 the signers behind them. */
 function Live({ topic, stats }: { topic: DataTopic; stats: TopicStats }) {
-	const { items, sub } = stripItems(stats);
 	return (
 		<div className="live">
 			<div className="live-head">
 				<Eyebrow noun={topic.eyebrow} />
 				<h1>{topic.title}</h1>
-				<p className="lede">
-					The current answer, free with no key. Refreshed every minute.
-				</p>
+				<p className="lede">{topic.liveLede}</p>
 			</div>
-			<StatsStrip
-				items={items}
-				sub={sub}
-				blockHeight={stats.data.blockHeight}
-				generatedAt={stats.data.generatedAt}
-			/>
+			{stats.kind === "runes" ? (
+				<>
+					<RunesTable runes={stats.data.runes} />
+					<LiveStamp
+						chain="Bitcoin"
+						blockHeight={stats.data.blockHeight}
+						generatedAt={stats.data.generatedAt}
+					/>
+				</>
+			) : (
+				<StripBody stats={stats} />
+			)}
 			{stats.kind === "pox" ? (
 				<>
 					<SignerTable signers={stats.data.signers} />
@@ -124,28 +211,14 @@ export default async function DataTopicPage({ params }: Props) {
 			) : null}
 			<div className={stats ? "band-ruled" : undefined}>
 				<div className="shell">
-					<div className="hero">
-						<div className="hero-copy">
-							{stats ? (
-								<h2>Read it in your app</h2>
-							) : (
-								<>
-									<Eyebrow noun={topic.eyebrow} />
-									<h1>{topic.title}</h1>
-								</>
-							)}
+					{stats ? null : (
+						<div className="pick-head pick-top">
+							<Eyebrow noun={topic.eyebrow} />
+							<h1>{topic.title}</h1>
 							<p className="lede">{topic.lede}</p>
-							{/* PoX-5's line is about checking the numbers above, so it sits there. */}
-							{stats?.kind === "pox" ? null : <ExtraLine topic={topic} />}
-							<div className="btns">
-								<ButtonLink href="/signin">Get a key</ButtonLink>
-								<ButtonLink href={topic.docsHref} variant="secondary">
-									Read the docs
-								</ButtonLink>
-							</div>
 						</div>
-						<Call topic={topic} />
-					</div>
+					)}
+					<Run topic={topic} stats={stats} />
 				</div>
 			</div>
 

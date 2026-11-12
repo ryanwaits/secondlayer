@@ -1,12 +1,17 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import { DATA_TOPICS, dataTopic } from "./data-topics";
+import { dataTopic } from "./data-topics";
 import {
 	datasetJsonLd,
+	formatRuneAmount,
 	getPoxStats,
+	getRunesStats,
 	getSbtcStats,
 	getTopicStats,
 	liveDescription,
+	liveExamples,
+	liveOutput,
 	parsePoxStats,
+	parseRunesStats,
 	parseSbtcStats,
 	satsToBtc,
 	sharePct,
@@ -49,6 +54,29 @@ const POX_BODY = {
 		{ signer: "SP2ABCDEF", delegated_ustx: "0", in_set: false },
 	],
 	...STAMP,
+};
+
+const RUNES_BODY = {
+	most_minted: [
+		{
+			id: "1:0",
+			spaced_name: "UNCOMMON•GOODS",
+			symbol: "⧉",
+			mints: "173834713",
+			supply: "173834713",
+			divisibility: 0,
+		},
+		{
+			id: "840000:1",
+			spaced_name: "Z•Z•Z•Z•Z•FEHU•Z•Z•Z•Z•Z",
+			symbol: null,
+			mints: "1111111",
+			supply: "11111111100",
+			divisibility: 2,
+		},
+	],
+	tip: { block_height: 975_574 },
+	generated_at: "2026-11-12T12:00:00.000Z",
 };
 
 describe("formatters", () => {
@@ -103,6 +131,7 @@ describe("signers with the same contract name", () => {
 describe("parsing the keyless payloads", () => {
 	test("sbtc payload becomes the strip numbers and the tip stamp", () => {
 		expect(parseSbtcStats(SBTC_BODY)).toEqual({
+			summary: SBTC_BODY.summary,
 			supplyBtc: 2480.03,
 			deposits: 69_849,
 			withdrawalsAccepted: 9_000,
@@ -145,6 +174,38 @@ describe("parsing the keyless payloads", () => {
 	});
 });
 
+describe("runes payload", () => {
+	test("rows keep their amounts as exact decimal strings", () => {
+		const stats = parseRunesStats(RUNES_BODY);
+		expect(stats?.blockHeight).toBe(975_574);
+		expect(stats?.runes[0]).toEqual({
+			id: "1:0",
+			name: "UNCOMMON•GOODS",
+			symbol: "⧉",
+			mints: "173834713",
+			supply: "173834713",
+			divisibility: 0,
+		});
+		expect(stats?.runes[1]?.symbol).toBeNull();
+	});
+
+	test("an empty list or a bad row is not shown", () => {
+		expect(parseRunesStats({ ...RUNES_BODY, most_minted: [] })).toBeNull();
+		expect(
+			parseRunesStats({ ...RUNES_BODY, most_minted: [{ id: "1:0" }] }),
+		).toBeNull();
+		expect(parseRunesStats(null)).toBeNull();
+	});
+
+	test("supply applies divisibility without float drift", () => {
+		expect(formatRuneAmount("173834713", 0)).toBe("173,834,713");
+		expect(formatRuneAmount("11111111100", 2)).toBe("111,111,111");
+		expect(formatRuneAmount("12345", 2)).toBe("123.45");
+		expect(formatRuneAmount("5", 8)).toBe("0.00000005");
+		expect(formatRuneAmount("100000000000000000", 8)).toBe("1,000,000,000");
+	});
+});
+
 describe("fetching", () => {
 	const realFetch = globalThis.fetch;
 	afterEach(() => {
@@ -170,16 +231,18 @@ describe("fetching", () => {
 		expect(await getPoxStats()).toBeNull();
 	});
 
-	test("a topic with no live numbers never fetches", async () => {
-		let called = false;
-		globalThis.fetch = (async () => {
-			called = true;
-			return Response.json({});
+	test("the runes topic reads the keyless runes payload", async () => {
+		let url = "";
+		globalThis.fetch = (async (input: RequestInfo | URL) => {
+			url = String(input);
+			return Response.json(RUNES_BODY);
 		}) as unknown as typeof fetch;
-		const runes = DATA_TOPICS.find((topic) => topic.slug === "runes");
+		const runes = dataTopic("runes");
 		if (!runes) throw new Error("runes topic missing");
-		expect(await getTopicStats(runes)).toBeNull();
-		expect(called).toBe(false);
+		const stats = await getTopicStats(runes);
+		expect(stats?.kind).toBe("runes");
+		expect(url).toEndWith("/public/data/runes");
+		expect((await getRunesStats())?.runes).toHaveLength(2);
 	});
 });
 
@@ -211,7 +274,8 @@ describe("strip numbers", () => {
 describe("page metadata", () => {
 	const sbtc = dataTopic("sbtc");
 	const pox = dataTopic("pox5");
-	if (!sbtc || !pox) throw new Error("topics missing");
+	const runes = dataTopic("runes");
+	if (!sbtc || !pox || !runes) throw new Error("topics missing");
 
 	test("the description carries one live number, else the registry copy", () => {
 		const data = parseSbtcStats(SBTC_BODY);
@@ -227,6 +291,15 @@ describe("page metadata", () => {
 		expect(text.length).toBeLessThanOrEqual(160);
 	});
 
+	test("the runes description names the leader and stays short", () => {
+		const data = parseRunesStats(RUNES_BODY);
+		if (!data) throw new Error("fixture");
+		const text = liveDescription(runes, { kind: "runes", data });
+		expect(text).toContain("UNCOMMON•GOODS");
+		expect(text).toContain("173,834,713 mints");
+		expect(text.length).toBeLessThanOrEqual(160);
+	});
+
 	test("the Dataset names its freshness and the keyless distribution", () => {
 		const data = parsePoxStats(POX_BODY);
 		if (!data) throw new Error("fixture");
@@ -236,5 +309,80 @@ describe("page metadata", () => {
 		expect(ld.distribution).toMatchObject({
 			contentUrl: "https://api.secondlayer.tools/public/data/pox",
 		});
+	});
+});
+
+describe("picker examples", () => {
+	const sbtc = dataTopic("sbtc");
+	const pox = dataTopic("pox5");
+	const runes = dataTopic("runes");
+	if (!sbtc || !pox || !runes) throw new Error("topics missing");
+	const sbtcStats = parseSbtcStats(SBTC_BODY);
+	const poxStats = parsePoxStats(POX_BODY);
+	const runesStats = parseRunesStats(RUNES_BODY);
+	if (!sbtcStats || !poxStats || !runesStats) throw new Error("fixture");
+
+	test("the sbtc No key output is the summary the command prints, supply marked", () => {
+		const out = liveOutput({ kind: "sbtc", data: sbtcStats });
+		expect(out).toContain("// !mark[/248003000000/]");
+		const json = JSON.parse(
+			out
+				.split("\n")
+				.filter((line) => !line.trim().startsWith("//"))
+				.join("\n"),
+		);
+		expect(json).toEqual(SBTC_BODY.summary);
+	});
+
+	test("the pox No key output is exactly the jq projection", () => {
+		const out = liveOutput({ kind: "pox", data: poxStats });
+		const json = JSON.parse(
+			out
+				.split("\n")
+				.filter((line) => !line.trim().startsWith("//"))
+				.join("\n"),
+		);
+		expect(json).toEqual({
+			reward_cycle: 147,
+			total_stacked_ustx: "400000000000000",
+			stakers: 3_454,
+		});
+	});
+
+	test("the runes No key output is the first most-minted entry", () => {
+		const out = liveOutput({ kind: "runes", data: runesStats });
+		expect(out).toContain("// !mark[/173834713/]");
+		expect(out).toContain('"spaced_name": "UNCOMMON•GOODS"');
+	});
+
+	test("the current cycle fills the pox examples, else the fallback", () => {
+		const live = liveExamples(pox, { kind: "pox", data: poxStats });
+		expect(live.ts.code).toContain("cycles.get(147)");
+		expect(live.curl.code).toContain("/cycles/147");
+		const next = liveExamples(pox, {
+			kind: "pox",
+			data: { ...poxStats, cycle: 150 },
+		});
+		expect(next.ts.code).toContain("cycles.get(150)");
+		expect(next.curl.output).toContain('"reward_cycle": 150');
+		const fallback = liveExamples(pox, null);
+		expect(fallback.ts.code).toContain("cycles.get(147)");
+		expect(fallback.free.output).toContain('"reward_cycle": 147');
+		expect(`${fallback.ts.code}${fallback.curl.code}`).not.toContain("{cycle}");
+	});
+
+	test("without live numbers the registry sample stands in", () => {
+		expect(liveExamples(sbtc, null).free.output).toBe(
+			sbtc.examples.free.output,
+		);
+	});
+
+	test("every topic has the keyless command and three recipes", () => {
+		for (const topic of [sbtc, pox, runes]) {
+			expect(topic.examples.free.code).toContain(
+				`https://api.secondlayer.tools/public/data/${topic.stats}`,
+			);
+			expect(topic.recipes).toHaveLength(3);
+		}
 	});
 });
