@@ -12,6 +12,7 @@ import {
 	sharePct,
 	signerName,
 	stripItems,
+	tellSignersApart,
 	ustxToStx,
 } from "./protocol-stats";
 
@@ -74,6 +75,28 @@ describe("formatters", () => {
 			"SP1N3G…VSSV",
 		);
 		expect(signerName("SP2ABC")).toBe("SP2ABC");
+	});
+});
+
+describe("signers with the same contract name", () => {
+	test("get distinct display names while a unique one is unchanged", () => {
+		const row = (principal: string) => ({
+			principal,
+			name: signerName(principal),
+			stackedStx: 1,
+			sharePct: 1,
+			inSet: true,
+		});
+		const rows = tellSignersApart([
+			row("SP3EP7SQFX61NZY44QSAEESZJMQ9YV9QWRY4YAP9A.signer-manager"),
+			row("SP1N3G8X1X2FTZFD5Y9MAT8KHE1FVBE2GPKAPVSSV.signer-manager"),
+			row("SP2ABCDEF1234.stacks-labs"),
+		]);
+		expect(rows[0]?.name).toBe("signer-manager · SP3…AP9A");
+		expect(rows[1]?.name).toBe("signer-manager · SP1…VSSV");
+		expect(rows[0]?.name).not.toBe(rows[1]?.name);
+		expect(rows[2]?.name).toBe("stacks-labs");
+		expect(rows[0]?.principal).toContain("SP3EP7");
 	});
 });
 

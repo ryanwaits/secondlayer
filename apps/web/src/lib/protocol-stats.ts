@@ -68,6 +68,24 @@ export function signerName(principal: string): string {
 		: principal;
 }
 
+/**
+ * Rows whose contract name is shared get the deployer appended
+ * (`signer-manager · SP3…9A2F`); unique names stay as they are.
+ */
+export function tellSignersApart(rows: SignerRow[]): SignerRow[] {
+	const seen = new Map<string, number>();
+	for (const row of rows) seen.set(row.name, (seen.get(row.name) ?? 0) + 1);
+	return rows.map((row) => {
+		const dot = row.principal.indexOf(".");
+		if ((seen.get(row.name) ?? 0) < 2 || dot === -1) return row;
+		const deployer = row.principal.slice(0, dot);
+		return {
+			...row,
+			name: `${row.name} · ${deployer.slice(0, 3)}…${deployer.slice(-4)}`,
+		};
+	});
+}
+
 type Json = Record<string, unknown>;
 const isObject = (value: unknown): value is Json =>
 	typeof value === "object" && value !== null && !Array.isArray(value);
@@ -150,7 +168,7 @@ export function parsePoxStats(body: unknown): PoxStats | null {
 		stakers: c.stakers,
 		signersInSet: c.signers_in_set,
 		bondBtc: satsToBtc(c.bond_total_sats),
-		signers: signers as SignerRow[],
+		signers: tellSignersApart(signers as SignerRow[]),
 		...stamp,
 	};
 }
