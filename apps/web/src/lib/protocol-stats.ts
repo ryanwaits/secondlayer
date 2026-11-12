@@ -204,6 +204,11 @@ export function parsePoxStats(body: unknown): PoxStats | null {
 	};
 }
 
+/** A rune etched without a symbol shows the protocol's default, `¤`. */
+export function runeSymbol(symbol: string | null): string {
+	return symbol || "¤";
+}
+
 function parseRune(raw: unknown): RuneRow | null {
 	if (
 		!isObject(raw) ||

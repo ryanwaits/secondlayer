@@ -2893,6 +2893,10 @@
 	text-transform: uppercase;
 	color: var(--ok);
 }
+/* No key needs no key: the docs-key controls belong to the keyed tabs. */
+.site .pick-code:has(button[data-tab="No key"][aria-selected="true"]) .key-ctl {
+	display: none;
+}
 .site .pick-sec .btns {
 	display: flex;
 	flex-wrap: wrap;

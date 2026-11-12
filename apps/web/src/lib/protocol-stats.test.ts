@@ -13,6 +13,7 @@ import {
 	parsePoxStats,
 	parseRunesStats,
 	parseSbtcStats,
+	runeSymbol,
 	satsToBtc,
 	sharePct,
 	signerName,
@@ -103,6 +104,14 @@ describe("formatters", () => {
 			"SP1N3G…VSSV",
 		);
 		expect(signerName("SP2ABC")).toBe("SP2ABC");
+	});
+});
+
+describe("rune symbols", () => {
+	test("a rune without a symbol shows the default currency sign", () => {
+		expect(runeSymbol(null)).toBe("¤");
+		expect(runeSymbol("")).toBe("¤");
+		expect(runeSymbol("🐕")).toBe("🐕");
 	});
 });
 

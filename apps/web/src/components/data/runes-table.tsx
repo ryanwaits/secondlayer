@@ -1,4 +1,8 @@
-import { type RuneRow, formatRuneAmount } from "@/lib/protocol-stats";
+import {
+	type RuneRow,
+	formatRuneAmount,
+	runeSymbol,
+} from "@/lib/protocol-stats";
 
 const count = new Intl.NumberFormat("en-US");
 
@@ -23,7 +27,7 @@ export function RunesTable({ runes }: { runes: readonly RuneRow[] }) {
 						<tr key={rune.id}>
 							<td>
 								<span className="rune-glyph" aria-hidden="true">
-									{rune.symbol}
+									{runeSymbol(rune.symbol)}
 								</span>
 								{rune.name}
 							</td>
