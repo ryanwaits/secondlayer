@@ -147,6 +147,8 @@ export const OPERATION_IDS: Record<string, string> = {
 	"GET /api/billing/status": "getBillingStatus",
 	"POST /api/public/credits/checkout": "createCreditsCheckout",
 	"POST /v1/feedback": "submitFeedback",
+	"GET /public/data/sbtc": "getPublicSbtcData",
+	"GET /public/data/pox": "getPublicPoxData",
 	"POST /mcp": "callHostedMcp",
 	"GET /api/oauth/grants": "listConnectedApps",
 	"DELETE /api/oauth/grants/{id}": "revokeConnectedApp",
@@ -688,6 +690,7 @@ function platformSpec(): typeof OPENAPI_SPEC {
 	Object.assign(
 		paths,
 		platformMeterPaths(),
+		platformPublicDataPaths(),
 		platformFeedbackPaths(),
 		platformConnectedAppsPaths(),
 		platformKeysPaths(),
@@ -713,6 +716,11 @@ function platformSpec(): typeof OPENAPI_SPEC {
 			{
 				name: "credits",
 				description: "Prepaid archive credits.",
+			},
+			{
+				name: "public",
+				description:
+					"Keyless aggregates behind the public data pages. No key, cached for a minute.",
 			},
 			{
 				name: "feedback",
@@ -742,6 +750,36 @@ function platformSpec(): typeof OPENAPI_SPEC {
 		},
 		paths,
 	} as typeof OPENAPI_SPEC;
+}
+
+/** Keyless aggregates behind secondlayer.tools/data. Hosted only in the
+ *  document, like the other platform paths. */
+function platformPublicDataPaths(): Record<string, unknown> {
+	const read = (summary: string, description: string, ok200: string) => ({
+		get: {
+			tags: ["public"],
+			summary,
+			"x-nav-title": summary,
+			description,
+			security: [],
+			responses: {
+				"200": json200({ type: "object" }, ok200),
+				"503": jsonError("The aggregate could not be read; try again"),
+			},
+		},
+	});
+	return {
+		"/public/data/sbtc": read(
+			"sBTC supply and peg flow",
+			"No key. The sBTC scoreboard (supply, deposits, withdrawals) with the Stacks block it is as of. Read at most once a minute.",
+			"The scoreboard and the tip it is as of.",
+		),
+		"/public/data/pox": read(
+			"PoX-5 cycle and signers",
+			"No key. The current and next PoX-5 cycle totals and the current cycle's signers, largest delegation first, with the Stacks block they are as of. Read at most once a minute.",
+			"Current cycle, next cycle, signers and the tip.",
+		),
+	};
 }
 
 /** Metered archive + credits routes. Mounted only in platformSpec so the OSS

@@ -50,6 +50,7 @@ import openApiRouter from "./routes/openapi.ts";
 import proofsRouter from "./routes/proofs.ts";
 import publicContactRouter from "./routes/public-contact.ts";
 import publicCreditsRouter from "./routes/public-credits.ts";
+import publicDataRouter from "./routes/public-data.ts";
 import publicDocsFindRouter from "./routes/public-docs-find.ts";
 import publicDocsKeyRouter from "./routes/public-docs-key.ts";
 import publicUpdatesRouter from "./routes/public-updates.ts";
@@ -266,6 +267,8 @@ export function createApiApp(mode: InstanceMode): Hono {
 		app.route("/internal/sentinel", internalSentinelRouter);
 	}
 	app.route("/", statusRouter);
+	// Keyless aggregates for the public /data pages, memoized in-process.
+	app.route("/", publicDataRouter);
 	app.route("/v1/instance", createInstanceCatalogRouter());
 	if (mode === "oss") {
 		app.get("/console", (c) => c.html(renderLocalConsole()));
