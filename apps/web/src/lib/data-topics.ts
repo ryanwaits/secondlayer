@@ -23,6 +23,8 @@ export type DataTopic = {
 	libraryHref?: string;
 	/** One line under the push, with an optional link after it. */
 	extraLine?: { text: string; link?: { label: string; href: string } };
+	/** Which keyless live aggregate the page shows above the API pitch. */
+	stats: "sbtc" | "pox" | null;
 	/** Draft topics stay out of routing, the sitemap, llms.txt and the footer. */
 	live: boolean;
 };
@@ -31,10 +33,10 @@ export const DATA_TOPICS: readonly DataTopic[] = [
 	{
 		slug: "pox5",
 		eyebrow: "Stacks PoX-5",
-		title: "PoX-5 staking data: stakes, signers, bonds",
-		metaTitle: "PoX-5 staking data API: stakes, signers and bonds",
+		title: "PoX-5 stacking this cycle: total stacked, stakers, signers",
+		metaTitle: "PoX-5 stacking data, live: total stacked, stakers, signers",
 		description:
-			"Every PoX-5 print decoded and filterable by staker, signer, bond and reward cycle, from one key and one call.",
+			"Live PoX-5 cycle totals and every signer's stacked STX, free with no key. Stakes, signers and bonds decoded through one API.",
 		lede: "Every print from the pox-5 contract, decoded and filterable by staker, signer, bond or reward cycle. One key, one call.",
 		curl: `curl "https://api.secondlayer.tools/v1/index/pox5/events?topic=stake-update&limit=1&fields=block_height,staker,amount_ustx,unlock_cycle" \\
   -H "Authorization: Bearer sk-sl_…"`,
@@ -73,15 +75,16 @@ await sl.webhooks.create({
 			text: "Every row is an index you can check, not one you have to trust.",
 			link: { label: "Check it yourself", href: "/verify" },
 		},
+		stats: "pox",
 		live: true,
 	},
 	{
 		slug: "sbtc",
 		eyebrow: "sBTC on Stacks",
-		title: "sBTC deposits, withdrawals and peg totals",
-		metaTitle: "sBTC deposits and withdrawals API with Bitcoin settlement",
+		title: "sBTC supply, deposits and withdrawals, live",
+		metaTitle: "sBTC supply, deposits and withdrawals, live data",
 		description:
-			"Completed sBTC deposits, withdrawal lifecycles with Bitcoin confirmation, and peg totals, from one key and one call.",
+			"Live sBTC supply, peg flow, deposits and withdrawals, free with no key. Withdrawal lifecycles with Bitcoin settlement through one API.",
 		lede: "Completed deposits, withdrawal lifecycles with their Bitcoin confirmations, and peg totals. One key, one call.",
 		curl: `curl "https://api.secondlayer.tools/v1/index/sbtc/withdrawals?limit=1&fields=request_id,status,amount,btc_confirmations,settlement_confirmed" \\
   -H "Authorization: Bearer sk-sl_…"`,
@@ -116,6 +119,7 @@ await sl.webhooks.create({
 		extraLine: {
 			text: "Emily tracks an operation in flight; this is the decoded history and the push.",
 		},
+		stats: "sbtc",
 		live: true,
 	},
 	{
@@ -152,6 +156,7 @@ await sl.webhooks.create({
 		},
 		docsHref: "/docs/index#runes",
 		apiHref: "/docs/api/index#list-runes",
+		stats: null,
 		live: true,
 	},
 ];
@@ -163,3 +168,7 @@ export const dataTopic = (slug: string): DataTopic | undefined =>
 	liveDataTopics().find((topic) => topic.slug === slug);
 
 export const dataPath = (topic: DataTopic) => `/data/${topic.slug}`;
+
+/** The hosted keyless aggregate behind a page's live numbers. */
+export const liveDataUrl = (stats: "sbtc" | "pox") =>
+	`https://api.secondlayer.tools/public/data/${stats}`;

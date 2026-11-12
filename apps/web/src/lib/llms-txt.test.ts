@@ -3,7 +3,7 @@ import { allEndpoints } from "@/app/(www)/docs/api-reference/spec";
 import { docsNavPages } from "@/app/(www)/docs/nav";
 import { GET as getLlmsApi } from "@/app/llms-api.txt/route";
 import { GET as getLlmsFull } from "@/app/llms-full.txt/route";
-import { dataPath, liveDataTopics } from "./data-topics";
+import { dataPath, liveDataTopics, liveDataUrl } from "./data-topics";
 import { SITE, markdownPath } from "./docs-agent";
 import { endpointMarkdownUrl } from "./llms-api";
 import { llmsTxt } from "./llms-txt";
@@ -23,6 +23,12 @@ describe("llmsTxt", () => {
 		expect(text).toContain("## Protocol data");
 		for (const topic of liveDataTopics())
 			expect(text).toContain(`${SITE}${dataPath(topic)}`);
+	});
+
+	test("names the keyless JSON for every page that shows live numbers", () => {
+		for (const topic of liveDataTopics())
+			if (topic.stats) expect(text).toContain(liveDataUrl(topic.stats));
+		expect(text).toContain("https://api.secondlayer.tools/public/data/pox");
 	});
 
 	test("links the introduction's markdown twin", () => {

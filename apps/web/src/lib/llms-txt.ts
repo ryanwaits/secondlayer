@@ -1,5 +1,5 @@
 import { docsNavPages } from "@/app/(www)/docs/nav";
-import { dataPath, liveDataTopics } from "./data-topics";
+import { dataPath, liveDataTopics, liveDataUrl } from "./data-topics";
 import { SITE, markdownPath } from "./docs-agent";
 
 const INTRO = `# Secondlayer: instant data for apps on Bitcoin
@@ -90,9 +90,12 @@ export function llmsTxt(): string {
 		(page) =>
 			`- [${page.title}](${SITE}${markdownPath(page.href)}) (${page.group})`,
 	);
-	const protocols = liveDataTopics().map(
-		(topic) =>
-			`- [${topic.eyebrow}](${SITE}${dataPath(topic)}): ${topic.description}`,
-	);
+	const protocols = liveDataTopics().map((topic) => {
+		const line = `- [${topic.eyebrow}](${SITE}${dataPath(topic)}): ${topic.description}`;
+		// Current numbers need no key: agents can fetch them directly.
+		return topic.stats
+			? `${line} Current numbers as JSON, no key: ${liveDataUrl(topic.stats)}`
+			: line;
+	});
 	return `${INTRO}\n## Protocol data\n${protocols.join("\n")}\n\n## Pages\n${pages.join("\n")}\n`;
 }
