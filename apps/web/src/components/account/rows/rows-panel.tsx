@@ -11,6 +11,7 @@ import { InsightLine } from "@/components/dashboard/insight/insight-line";
 import { ReadsKeyLine } from "@/components/dashboard/shell/onboarding";
 import { Skel } from "@/components/dashboard/shell/skel";
 import { StatusSentence } from "@/components/dashboard/shell/status-sentence";
+import { PageArrow } from "@/components/page-arrow";
 import { ensureKeys, refreshRows, useAccountData } from "@/lib/account-data";
 import { barsRows } from "@/lib/dashboard-charts";
 import { type Insight, rulesHomedAt } from "@/lib/insights";
@@ -63,24 +64,6 @@ function ServerErrors({ errors }: { errors: RowsError[] }) {
 				</span>
 			</span>
 		</p>
-	);
-}
-
-function PageArrow({ back }: { back?: boolean }) {
-	return (
-		<svg
-			width="6"
-			height="10"
-			viewBox="0 0 6 10"
-			fill="none"
-			stroke="currentColor"
-			strokeWidth="1.5"
-			strokeLinecap="round"
-			strokeLinejoin="round"
-			aria-hidden="true"
-		>
-			<path d={back ? "M5 1L1 5l4 4" : "M1 1l4 4-4 4"} />
-		</svg>
 	);
 }
 

@@ -2749,13 +2749,11 @@
 }
 .site .live-table {
 	overflow-x: auto;
-	max-height: 520px;
-	overflow-y: auto;
-	border-block: 1px solid var(--line);
+	border-top: 1px solid var(--line);
 }
-/* Ten rows fit; no inner scroll. */
-.site .live-table.whole {
-	max-height: none;
+.site .live-pager {
+	justify-content: flex-end;
+	margin-top: 12px;
 }
 .site .live-table table {
 	width: 100%;
@@ -2763,9 +2761,6 @@
 	font-size: 14px;
 }
 .site .live-table th {
-	position: sticky;
-	top: 0;
-	background: var(--paper);
 	text-align: left;
 	font-family: var(--font-mono-stack);
 	font-size: 11px;
@@ -2781,9 +2776,6 @@
 	padding: 12px 16px 12px 0;
 	border-bottom: 1px solid var(--line);
 	white-space: nowrap;
-}
-.site .live-table tr:last-child td {
-	border-bottom: 0;
 }
 .site .live-table .num {
 	text-align: right;
