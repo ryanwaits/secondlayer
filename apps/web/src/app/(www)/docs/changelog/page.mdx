@@ -1,6 +1,6 @@
 # Changelog
 
-Notable changes to Secondlayer and its SDKs. Entries dated before August 2026 describe the hosted service as it worked then (per-row read metering, API keys, `402` past the free window); it was withdrawn in August 2026 and has since returned, with hosted Index, Streams, subgraphs and webhooks at `api.secondlayer.tools` on an account key and prepaid [credits](/docs/authentication), while on a self-hosted instance reads stay yours and unmetered and archive bootstrap, backfill and reindex draw [credits](/docs/authentication#archive-credits).
+Notable changes to Secondlayer and its SDKs. Entries dated before August 2026 describe the hosted service as it worked then (per-row read metering, API keys, `402` past the free window); it was withdrawn in August 2026 and has since returned, with hosted Index, Streams, subgraphs and webhooks at `api.secondlayer.tools` on an account key and prepaid [credits](/docs/authentication), while on a self-hosted instance reads stay yours and unmetered and archive bootstrap, backfill and reindex draw [credits](/docs/authentication#archive-fetches).
 
 ## Streams — November 2026
 
@@ -883,7 +883,7 @@ An instance now records where its history starts. If you never bootstrapped gene
 
 ### One account model: yours
 
-Plans, tiers, projects, and API-key tiers are gone from every surface. Deploys are open on any instance (no trial, no quota, no visibility flag), and archive bootstrap/backfill draws prepaid [archive credits](/docs/authentication#archive-credits). Hosted Index/Streams reads at `api.secondlayer.tools` later use that same balance. Removed with them: `client.apiKeys`, `client.projects`, `index.usage()`, `subgraphs.publish()`, and BYO `databaseUrl` deploys (typed ORM codegen for drizzle/prisma/kysely stays). Your schema, your Postgres, your instance: the SDK now assumes nothing else.
+Plans, tiers, projects, and API-key tiers are gone from every surface. Deploys are open on any instance (no trial, no quota, no visibility flag), and archive bootstrap/backfill draws prepaid [archive credits](/docs/authentication#archive-fetches). Hosted Index/Streams reads at `api.secondlayer.tools` later use that same balance. Removed with them: `client.apiKeys`, `client.projects`, `index.usage()`, `subgraphs.publish()`, and BYO `databaseUrl` deploys (typed ORM codegen for drizzle/prisma/kysely stays). Your schema, your Postgres, your instance: the SDK now assumes nothing else.
 
 ## CLI — August 2026
 
