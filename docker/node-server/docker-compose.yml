@@ -39,7 +39,7 @@ services:
       retries: 3
 
   stacks-node:
-    image: ghcr.io/stacks-network/stacks-core:4.0.5
+    image: ghcr.io/stacks-network/stacks-core:4.0.7@sha256:a0d7dee7ab117de231d6dd659e777b2647c18bf2c29c8737c7be94980891ba0b
     volumes:
       - ${STACKS_DATA_DIR:-/data/stacks}:/stacks-blockchain/data
       - ./Config.toml:/stacks-blockchain/Config.toml:ro

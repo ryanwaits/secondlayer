@@ -1,4 +1,4 @@
-# Stacks canonical testnet (krypton) follower. Stock stacks-core 4.0.5.
+# Stacks canonical testnet (krypton) follower. Stock stacks-core 4.0.7.
 # Based on sample/conf/testnet-follower-conf.toml @ tag 4.0.5 (d736ba0).
 # No credentials: a non-miner follower only uses the burnchain peer_port.
 

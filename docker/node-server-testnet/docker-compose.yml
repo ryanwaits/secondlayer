@@ -4,7 +4,7 @@ name: secondlayer-testnet
 
 services:
   stacks-node:
-    image: ghcr.io/stacks-network/stacks-core:4.0.5@sha256:51aa7bf6f990b99fa010ebb23abe78653cf1f1d129ab8e7d88b1fe11a403c97d
+    image: ghcr.io/stacks-network/stacks-core:4.0.7@sha256:a0d7dee7ab117de231d6dd659e777b2647c18bf2c29c8737c7be94980891ba0b
     command: ["stacks-node", "start", "--config", "/stacks-blockchain/Config.toml"]
     volumes:
       - /home/stacks-testnet:/stacks-blockchain/data
