@@ -319,6 +319,7 @@ export function datasetJsonLd(
 		url: `${SITE}${path}`,
 		dateModified: stats.data.generatedAt,
 		isAccessibleForFree: true,
+		license: "https://creativecommons.org/licenses/by/4.0/",
 		creator: {
 			"@type": "Organization",
 			name: "Secondlayer",

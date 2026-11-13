@@ -309,12 +309,13 @@ describe("page metadata", () => {
 		expect(text.length).toBeLessThanOrEqual(160);
 	});
 
-	test("the Dataset names its freshness and the keyless distribution", () => {
+	test("the Dataset names its freshness, license and the keyless distribution", () => {
 		const data = parsePoxStats(POX_BODY);
 		if (!data) throw new Error("fixture");
 		const ld = datasetJsonLd(pox, { kind: "pox", data }, "/data/pox5");
 		expect(ld["@type"]).toBe("Dataset");
 		expect(ld.dateModified).toBe("2026-11-12T12:00:00.000Z");
+		expect(ld.license).toBe("https://creativecommons.org/licenses/by/4.0/");
 		expect(ld.distribution).toMatchObject({
 			contentUrl: "https://api.secondlayer.tools/public/data/pox",
 		});
