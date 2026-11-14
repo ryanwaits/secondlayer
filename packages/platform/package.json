@@ -87,7 +87,7 @@
 	},
 	"files": ["dist"],
 	"scripts": {
-		"build": "bunup",
+		"build": "rm -rf dist && bunup",
 		"dev": "bunup --watch",
 		"typecheck": "bun check",
 		"test": "bun test"

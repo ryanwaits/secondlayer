@@ -26,7 +26,7 @@
 	},
 	"files": ["dist", "README.md"],
 	"scripts": {
-		"build": "bunup",
+		"build": "rm -rf dist && bunup",
 		"dev": "bunup --watch",
 		"test": "bun test",
 		"tools": "bun scripts/sync-tools.ts && bun scripts/sync-server-json.ts",

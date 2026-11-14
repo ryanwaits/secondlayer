@@ -60,7 +60,7 @@
 	},
 	"files": ["dist", "AGENTS.md"],
 	"scripts": {
-		"build": "bunup",
+		"build": "rm -rf dist && bunup",
 		"dev": "bunup --watch",
 		"openpkg": "bun scripts/sync-openpkg.ts",
 		"test": "bun test",
