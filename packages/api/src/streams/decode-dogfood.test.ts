@@ -363,12 +363,6 @@ describe.skipIf(!HAS_DB)("classic decoders vs. Streams HTTP parity", () => {
 		// (invisible to the old ft/nft-only assertions) is decoded too.
 		expect(result.decoded).toBe(4);
 		expect(rows.map((row) => row.cursor)).toEqual(["1:0", "1:1", "1:2", "1:3"]);
-		expect(rows.map((row) => row.source_cursor)).toEqual([
-			"1:0",
-			"1:1",
-			"1:2",
-			"1:3",
-		]);
 		expect(rows[0]).toMatchObject({
 			contract_id: "SP1.token",
 			sender: "SP1",

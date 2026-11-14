@@ -320,6 +320,5 @@ function row(
 		sender,
 		recipient,
 		value,
-		source_cursor: cursor,
 	};
 }

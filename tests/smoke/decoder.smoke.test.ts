@@ -101,10 +101,10 @@ describe("continuous service smoke: decoder", () => {
 				});
 				const httpCursors = httpPage.events.map((event) => event.cursor).sort();
 				const decodedCursors = (
-					await sql<{ source_cursor: string }>`
-						SELECT source_cursor FROM decoded_events ORDER BY source_cursor
+					await sql<{ cursor: string }>`
+						SELECT cursor FROM decoded_events ORDER BY cursor
 					`.execute(smokeDb.db)
-				).rows.map((row) => row.source_cursor);
+				).rows.map((row) => row.cursor);
 				for (const cursor of decodedCursors) {
 					expect(httpCursors).toContain(cursor);
 				}

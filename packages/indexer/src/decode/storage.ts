@@ -192,7 +192,7 @@ export async function bumpDecoderCheckpoint(opts: {
 }
 
 /**
- * Rows per INSERT. `decoded_events` binds 15 params/row — Postgres's wire
+ * Rows per INSERT. `decoded_events` binds 14 params/row — Postgres's wire
  * protocol caps a single statement at 65535 bound params, so an unchunked
  * insert wedges once one decoder's page share climbs past ~4,369 rows.
  * `DEFAULT_CLASSIC_BATCH_LIMIT` (`../decode/classic-decoders.ts`) reads up to
@@ -247,7 +247,6 @@ export async function writeDecodedEvents(
 						memo: payload.memo ?? null,
 						payload:
 							payload.payload != null ? JSON.stringify(payload.payload) : null,
-						source_cursor: event.source_cursor,
 					};
 				}),
 			)
@@ -258,7 +257,6 @@ export async function writeDecodedEvents(
 					tx_index: eb.ref("excluded.tx_index"),
 					event_index: eb.ref("excluded.event_index"),
 					event_type: eb.ref("excluded.event_type"),
-					microblock_hash: eb.ref("excluded.microblock_hash"),
 					canonical: true,
 					contract_id: eb.ref("excluded.contract_id"),
 					sender: eb.ref("excluded.sender"),
@@ -268,7 +266,6 @@ export async function writeDecodedEvents(
 					value: eb.ref("excluded.value"),
 					memo: eb.ref("excluded.memo"),
 					payload: eb.ref("excluded.payload"),
-					source_cursor: eb.ref("excluded.source_cursor"),
 				})),
 			)
 			.execute();
@@ -346,7 +343,7 @@ async function readCanonicalCheckpointBeforeBlock(
 ): Promise<string | null> {
 	const row = await decodeDb(db)
 		.selectFrom("decoded_events")
-		.select("source_cursor")
+		.select("cursor")
 		.where("block_height", "<", blockHeight)
 		.where("event_type", "=", eventType)
 		.where("canonical", "=", true)
@@ -354,5 +351,5 @@ async function readCanonicalCheckpointBeforeBlock(
 		.orderBy("event_index", "desc")
 		.limit(1)
 		.executeTakeFirst();
-	return row?.source_cursor ?? null;
+	return row?.cursor ?? null;
 }

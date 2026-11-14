@@ -44,7 +44,6 @@ describe.skipIf(SKIP)("classifyOperationWeight", () => {
 					contract_id: CONTRACT,
 					canonical: true,
 					cursor: `${1000 + i}:${i}`,
-					source_cursor: `${1000 + i}:${i}`,
 					payload: JSON.stringify({}),
 				})),
 			)

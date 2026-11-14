@@ -636,7 +636,6 @@ describe.skipIf(!HAS_DB)("Index /events DB reads", () => {
 					event_type: "print",
 					contract_id: "SP1.contract",
 					payload: JSON.stringify(payload),
-					source_cursor: "9000:0",
 				},
 			])
 			.execute();
@@ -682,7 +681,6 @@ describe.skipIf(!HAS_DB)("Index /events DB reads", () => {
 					recipient: "SP2",
 					amount: "1",
 					memo,
-					source_cursor: cursor,
 				})),
 			)
 			.execute();
@@ -883,7 +881,6 @@ function ftRow(
 		sender,
 		recipient,
 		amount,
-		source_cursor: cursor,
 	};
 }
 
@@ -900,7 +897,6 @@ function nftRow(cursor: string, blockHeight = Number(cursor.split(":")[0])) {
 		sender: "SP1",
 		recipient: "SP2",
 		value: "u1",
-		source_cursor: cursor,
 	};
 }
 

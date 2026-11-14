@@ -523,7 +523,6 @@ export interface DecodedEventsTable {
 	tx_index: number;
 	event_index: number;
 	event_type: string;
-	microblock_hash: string | null;
 	canonical: Generated<boolean>;
 	contract_id: string | null;
 	sender: string | null;
@@ -535,7 +534,6 @@ export interface DecodedEventsTable {
 	/** Decoded payload for event types that don't fit the flat columns
 	 *  (e.g. `print`: { topic, value, raw_value }). Null for transfer types. */
 	payload: unknown | null;
-	source_cursor: string;
 	created_at: Generated<Date>;
 }
 

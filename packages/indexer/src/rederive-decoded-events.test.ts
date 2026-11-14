@@ -107,7 +107,6 @@ describe.skipIf(!HAS_DB)("rederiveDecodedEvents", () => {
 				tx_index: 0,
 				event_index: 0,
 				event_type: "stx_transfer",
-				source_cursor: `${H}:0`,
 			})
 			.execute();
 

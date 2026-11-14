@@ -292,7 +292,6 @@ describe.skipIf(!HAS_DB)("print-schema DB reads", () => {
 				value: opts.decodedValue ?? (opts.topic ? { topic: opts.topic } : "42"),
 				raw_value: opts.rawHex,
 			}),
-			source_cursor: opts.cursor,
 		};
 	}
 

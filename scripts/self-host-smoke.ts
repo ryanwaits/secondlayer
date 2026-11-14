@@ -289,7 +289,6 @@ async function main() {
 			recipient: HOLDER,
 			amount: "100",
 			canonical: true,
-			source_cursor: `${HEIGHT}:0`,
 		})
 		.execute();
 

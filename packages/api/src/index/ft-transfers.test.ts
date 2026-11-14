@@ -517,6 +517,5 @@ function row(
 		sender,
 		recipient,
 		amount,
-		source_cursor: cursor,
 	};
 }

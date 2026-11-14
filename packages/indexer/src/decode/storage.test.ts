@@ -477,7 +477,6 @@ function row(cursor: string, blockHeight: number, canonical: boolean) {
 		tx_index: 0,
 		event_index: Number(cursor.split(":")[1]),
 		event_type: "ft_transfer",
-		microblock_hash: null,
 		canonical,
 		contract_id: "SP1.token",
 		sender: "SP1",
@@ -486,6 +485,5 @@ function row(cursor: string, blockHeight: number, canonical: boolean) {
 		asset_identifier: "SP1.token::token",
 		value: null,
 		memo: null,
-		source_cursor: cursor,
 	};
 }
