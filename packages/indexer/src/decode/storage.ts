@@ -174,20 +174,21 @@ export async function assertCheckpointUnmoved(opts: {
 }
 
 /**
- * Bump `updated_at` on a decoder checkpoint without touching `last_cursor`.
- * Used as a liveness signal — the runDecoder loop calls this every poll so
- * the health endpoint can tell "decoder process alive but no new work" apart
- * from "decoder process stuck/crashed."
+ * Bump `updated_at` on decoder checkpoints without touching `last_cursor`,
+ * in one statement. Used as a liveness signal — the decoder loops call this
+ * (throttled) so the health endpoint can tell "decoder process alive but no
+ * new work" apart from "decoder process stuck/crashed."
  */
 export async function bumpDecoderCheckpoint(opts: {
 	db?: Kysely<Database>;
-	decoderName: string;
+	decoderNames: readonly string[];
 }): Promise<void> {
+	if (opts.decoderNames.length === 0) return;
 	const db = decodeDb(opts.db);
 	await db
 		.updateTable("decoder_checkpoints")
 		.set({ updated_at: new Date() })
-		.where("decoder_name", "=", opts.decoderName)
+		.where("decoder_name", "in", [...opts.decoderNames])
 		.execute();
 }
 

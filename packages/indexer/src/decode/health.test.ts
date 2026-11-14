@@ -307,4 +307,77 @@ describe.skipIf(!HAS_DB)("L2 decoder health", () => {
 			checkpoint_recent: false,
 		});
 	});
+
+	async function farFromTipCheckpoint(now: Date, lastOutputAt: Date) {
+		if (!db) throw new Error("missing db");
+		const nowSec = Math.floor(now.getTime() / 1000);
+		await db
+			.insertInto("blocks")
+			.values([
+				{
+					height: 1,
+					hash: "0x01",
+					parent_hash: "0x00",
+					burn_block_height: 101,
+					timestamp: nowSec - 10_000_000,
+					canonical: true,
+				},
+				{
+					height: 10,
+					hash: "0x10",
+					parent_hash: "0x09",
+					burn_block_height: 110,
+					timestamp: nowSec,
+					canonical: true,
+				},
+			])
+			.execute();
+		await writeDecoderCheckpoint({
+			cursor: "1:0",
+			db,
+			decoderName: NFT_TRANSFER_DECODER_NAME,
+		});
+		await sql`UPDATE decoder_checkpoints SET last_output_at = ${lastOutputAt} WHERE decoder_name = ${NFT_TRANSFER_DECODER_NAME}`.execute(
+			db,
+		);
+	}
+
+	test("recent last_output_at, far from tip, fresh heartbeat is healthy", async () => {
+		if (!db) throw new Error("missing db");
+		const now = new Date();
+		await farFromTipCheckpoint(now, new Date(now.getTime() - 60_000));
+
+		const health = await getDecoderHealth({
+			db,
+			decoderName: NFT_TRANSFER_DECODER_NAME,
+			now,
+		});
+
+		expect(health).toMatchObject({
+			status: "healthy",
+			checkpoint_recent: true,
+			writes_recent: true,
+		});
+		expect(health.last_decoded_at).not.toBeNull();
+		expect(health.lag_seconds).toBeGreaterThan(300);
+	});
+
+	test("stale last_output_at (over 5 min), far from tip is unhealthy", async () => {
+		if (!db) throw new Error("missing db");
+		const now = new Date();
+		await farFromTipCheckpoint(now, new Date(now.getTime() - 10 * 60_000));
+
+		const health = await getDecoderHealth({
+			db,
+			decoderName: NFT_TRANSFER_DECODER_NAME,
+			now,
+		});
+
+		expect(health).toMatchObject({
+			status: "unhealthy",
+			checkpoint_recent: true,
+			writes_recent: false,
+		});
+		expect(health.last_decoded_at).not.toBeNull();
+	});
 });

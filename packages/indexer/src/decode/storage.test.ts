@@ -7,6 +7,7 @@ import {
 	FT_TRANSFER_DECODER_NAME,
 	NFT_TRANSFER_DECODER_NAME,
 	assertCheckpointUnmoved,
+	bumpDecoderCheckpoint,
 	getEnabledDecoderNames,
 	handleDecodedEventsReorg,
 	writeDecodedEvents,
@@ -439,6 +440,113 @@ describe.skipIf(!HAS_DB)("L2 decoded event storage", () => {
 			.where("decoder_name", "=", FT_TRANSFER_DECODER_NAME)
 			.executeTakeFirst();
 		expect(checkpoint?.last_cursor).toBe("1:0");
+	});
+
+	async function lastOutputAt(decoderName: string): Promise<Date | null> {
+		if (!db) throw new Error("missing db");
+		const row = await db
+			.selectFrom("decoder_checkpoints")
+			.select("last_output_at")
+			.where("decoder_name", "=", decoderName)
+			.executeTakeFirst();
+		return row?.last_output_at ?? null;
+	}
+
+	test("a commit that writes rows stamps last_output_at", async () => {
+		if (!db) throw new Error("missing db");
+		await writeDecoderCheckpoint({
+			db,
+			decoderName: FT_TRANSFER_DECODER_NAME,
+			cursor: "100:0",
+		});
+		await commitGenericDecoderBatch({
+			db,
+			decoderName: FT_TRANSFER_DECODER_NAME,
+			checkpointCursor: "110:1",
+			startedFrom: "100:0",
+			rows: [ftRow("110:0", 110), ftRow("110:1", 110)],
+		});
+		expect(await lastOutputAt(FT_TRANSFER_DECODER_NAME)).toBeInstanceOf(Date);
+	});
+
+	test("a commit with zero rows leaves last_output_at null", async () => {
+		if (!db) throw new Error("missing db");
+		await writeDecoderCheckpoint({
+			db,
+			decoderName: FT_TRANSFER_DECODER_NAME,
+			cursor: "100:0",
+		});
+		await commitGenericDecoderBatch({
+			db,
+			decoderName: FT_TRANSFER_DECODER_NAME,
+			checkpointCursor: "110:0",
+			startedFrom: "100:0",
+			rows: [],
+		});
+		expect(await lastOutputAt(FT_TRANSFER_DECODER_NAME)).toBeNull();
+	});
+
+	test("a rewound checkpoint abort does not stamp last_output_at", async () => {
+		if (!db) throw new Error("missing db");
+		await writeDecoderCheckpoint({
+			db,
+			decoderName: FT_TRANSFER_DECODER_NAME,
+			cursor: "90:0",
+		});
+		await expect(
+			commitGenericDecoderBatch({
+				db,
+				decoderName: FT_TRANSFER_DECODER_NAME,
+				checkpointCursor: "110:0",
+				startedFrom: "100:0",
+				rows: [ftRow("110:0", 110)],
+			}),
+		).rejects.toBeInstanceOf(DecoderCheckpointRewoundError);
+		expect(await lastOutputAt(FT_TRANSFER_DECODER_NAME)).toBeNull();
+	});
+
+	test("bumpDecoderCheckpoint refreshes every named row's updated_at and leaves last_cursor", async () => {
+		if (!db) throw new Error("missing db");
+		for (const decoderName of [
+			FT_TRANSFER_DECODER_NAME,
+			NFT_TRANSFER_DECODER_NAME,
+		]) {
+			await writeDecoderCheckpoint({ db, decoderName, cursor: "5:0" });
+		}
+		const old = new Date(Date.now() - 3_600_000);
+		await sql`UPDATE decoder_checkpoints SET updated_at = ${old}`.execute(db);
+
+		await bumpDecoderCheckpoint({
+			db,
+			decoderNames: [FT_TRANSFER_DECODER_NAME, NFT_TRANSFER_DECODER_NAME],
+		});
+
+		const rows = await db
+			.selectFrom("decoder_checkpoints")
+			.select(["last_cursor", "updated_at"])
+			.execute();
+		expect(rows).toHaveLength(2);
+		for (const r of rows) {
+			expect(r.last_cursor).toBe("5:0");
+			expect(r.updated_at.getTime()).toBeGreaterThan(old.getTime() + 1000);
+		}
+	});
+
+	test("bumpDecoderCheckpoint with an empty list is a no-op", async () => {
+		if (!db) throw new Error("missing db");
+		await writeDecoderCheckpoint({
+			db,
+			decoderName: FT_TRANSFER_DECODER_NAME,
+			cursor: "5:0",
+		});
+		const old = new Date(Date.now() - 3_600_000);
+		await sql`UPDATE decoder_checkpoints SET updated_at = ${old}`.execute(db);
+		await bumpDecoderCheckpoint({ db, decoderNames: [] });
+		const row = await db
+			.selectFrom("decoder_checkpoints")
+			.select("updated_at")
+			.executeTakeFirstOrThrow();
+		expect(row.updated_at.getTime()).toBe(old.getTime());
 	});
 });
 

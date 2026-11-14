@@ -171,6 +171,26 @@ type DecoderConsumeFn = (opts: {
 	}) => void | Promise<void>;
 }) => Promise<{ cursor: string | null; pages: number; decoded: number }>;
 
+// Health treats a heartbeat as fresh for 5 min (health.ts); one write per
+// loop every 15 s keeps it fresh without ~15 UPDATEs/s at idle.
+const LIVENESS_MIN_INTERVAL_MS = 15_000;
+const lastLivenessAt = new Map<string, number>();
+
+async function pingLiveness(names: readonly string[]): Promise<void> {
+	const now = Date.now();
+	const due = names.filter(
+		(name) => now - (lastLivenessAt.get(name) ?? 0) >= LIVENESS_MIN_INTERVAL_MS,
+	);
+	if (due.length === 0) return;
+	try {
+		await bumpDecoderCheckpoint({ decoderNames: due });
+		for (const name of due) lastLivenessAt.set(name, now);
+	} catch {
+		// Best-effort; if the DB is down the health endpoint already reports
+		// the larger problem.
+	}
+}
+
 async function runDecoder(
 	decoderName: string,
 	consume: DecoderConsumeFn,
@@ -218,12 +238,7 @@ async function runDecoder(
 			// health endpoint can tell "process alive, no new events" apart
 			// from "process stuck or crashed." Keeps deploys from bailing when
 			// a decoder finishes its work and quietly polls at-tip.
-			try {
-				await bumpDecoderCheckpoint({ decoderName });
-			} catch {
-				// Best-effort; if the DB is down the health endpoint already
-				// reports the larger problem.
-			}
+			await pingLiveness([decoderName]);
 			// Progress health fan-out (getServiceHealth ~= 60 queries) runs ONLY
 			// off the 60s progressTimer below, never off this per-wake path. A
 			// decode that writes rows used to trigger it here too, so every busy
@@ -311,14 +326,7 @@ async function runClassicDecoders(): Promise<void> {
 		} finally {
 			// Liveness ping for all 11 checkpoints — same contract as
 			// `runDecoder`'s finally block, just for every classic name at once.
-			for (const decoderName of DECODER_NAMES) {
-				try {
-					await bumpDecoderCheckpoint({ decoderName });
-				} catch {
-					// Best-effort; if the DB is down the health endpoint already
-					// reports the larger problem.
-				}
-			}
+			await pingLiveness(DECODER_NAMES);
 		}
 		if (progressed) {
 			trigger = "continue";

@@ -87,6 +87,8 @@ export async function commitDecoderStageBatch(opts: {
 	checkpointCursor: string | null;
 	failure?: DecoderAdapterFailure | null;
 	writeOutput: (tx: Kysely<Database>) => Promise<void>;
+	/** Rows `writeOutput` writes; stamps `last_output_at` when > 0. */
+	outputCount: number;
 	/** Cursor this consume believes is stored. Identity-checked FOR UPDATE
 	 *  before output; a reorg rewind aborts so we do not stamp next_cursor. */
 	startedFrom: string | null;
@@ -97,6 +99,7 @@ export async function commitDecoderStageBatch(opts: {
 		decoder_name: opts.decoderName,
 		checkpoint_cursor: opts.checkpointCursor,
 		failure: opts.failure ?? null,
+		output_count: opts.outputCount,
 		writeOutput: async (tx) => {
 			await assertCheckpointUnmoved({
 				db: tx as unknown as Kysely<Database>,
@@ -122,6 +125,7 @@ export async function commitGenericDecoderBatch(opts: {
 		checkpointCursor: opts.checkpointCursor,
 		failure: opts.failure,
 		startedFrom: opts.startedFrom,
+		outputCount: opts.rows.length,
 		writeOutput: (tx) =>
 			writeDecodedEvents(opts.rows, {
 				db: tx as unknown as Kysely<Database>,
@@ -167,6 +171,7 @@ export async function commitClassicDecoderBatch(
 			decoder_name: entry.decoderName,
 			checkpoint_cursor: entry.checkpointCursor,
 			failure: entry.failure ?? null,
+			output_count: entry.rows.length,
 			writeOutput: async (tx: Kysely<Database>) => {
 				await assertCheckpointUnmoved({
 					db: tx,

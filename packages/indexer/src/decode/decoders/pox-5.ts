@@ -128,6 +128,7 @@ export async function consumePox5DecodedEvents(
 				checkpointCursor: ctx.cursor,
 				failure: failureFromFaults(faults),
 				startedFrom: expectedCheckpoint,
+				outputCount: rows.length,
 				writeOutput: async (tx) => {
 					if (rows.length > 0) {
 						await writePox5Events(rows, { db: tx });

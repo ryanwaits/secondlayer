@@ -540,6 +540,8 @@ export interface DecoderCheckpointsTable {
 	decoder_name: string;
 	last_cursor: string | null;
 	updated_at: Generated<Date>;
+	/** Last commit that wrote output rows; health's real-work signal. */
+	last_output_at: Date | null;
 }
 
 export interface ChainReorgsTable {

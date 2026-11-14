@@ -175,6 +175,7 @@ export async function consumeSbtcRegistryDecodedEvents(
 				checkpointCursor: ctx.cursor,
 				failure: failureFromFaults(faults),
 				startedFrom: expectedCheckpoint,
+				outputCount: rows.length,
 				writeOutput: async (tx) => {
 					if (rows.length > 0) await writeSbtcEvents(rows, { db: tx });
 				},

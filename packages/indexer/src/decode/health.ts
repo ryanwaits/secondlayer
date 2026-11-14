@@ -3,9 +3,6 @@ import { getSourceDb } from "@secondlayer/shared/db";
 import { resolveChainTip } from "@secondlayer/shared/db/queries/integrity";
 import type { Database } from "@secondlayer/shared/db/schema";
 import type { Kysely } from "kysely";
-import { BNS_DECODER_NAME } from "./bns-storage.ts";
-import { POX5_DECODER_NAME } from "./pox5-storage.ts";
-import { SBTC_DECODER_NAME } from "./sbtc-storage.ts";
 import {
 	DECODER_EVENT_TYPES,
 	type DecoderName,
@@ -55,7 +52,7 @@ export async function getDecoderHealth(opts?: {
 
 	const checkpoint = await db
 		.selectFrom("decoder_checkpoints")
-		.select(["last_cursor", "updated_at"])
+		.select(["last_cursor", "updated_at", "last_output_at"])
 		.where("decoder_name", "=", decoderName)
 		.executeTakeFirst();
 	const checkpointBlockHeight = cursorBlockHeight(
@@ -76,8 +73,6 @@ export async function getDecoderHealth(opts?: {
 					.where("canonical", "=", true)
 					.executeTakeFirst();
 
-	const latestDecoded = await readLatestDecodedAt({ db, decoderName });
-
 	const checkpointBlock =
 		checkpointBlockHeight === null
 			? null
@@ -97,7 +92,7 @@ export async function getDecoderHealth(opts?: {
 		tip && checkpointBlock && Number(checkpointBlock.timestamp) > 0
 			? Math.max(0, Number(tip.timestamp) - Number(checkpointBlock.timestamp))
 			: null;
-	const lastDecodedAt = latestDecoded?.created_at ?? null;
+	const lastDecodedAt = checkpoint?.last_output_at ?? null;
 	const writesRecent = lastDecodedAt
 		? now.getTime() - lastDecodedAt.getTime() <= 5 * 60_000
 		: false;
@@ -118,6 +113,8 @@ export async function getDecoderHealth(opts?: {
 	// keeps the heartbeat fresh while writing zero rows. Treat it as NECESSARY
 	// (process must be alive), not sufficient — require a real-work signal too:
 	// either we're close to tip (no work to do) or we wrote rows recently.
+	// `last_output_at` is that signal: the commit transaction stamps it on the
+	// checkpoint row whenever a commit wrote output rows.
 	return {
 		status:
 			checkpointRecent && (nearTip || writesRecent) ? "healthy" : "unhealthy",
@@ -151,47 +148,4 @@ export async function getDecodersHealth(opts?: {
 			: "unhealthy",
 		decoders,
 	};
-}
-
-async function readLatestDecodedAt(opts: {
-	db: Kysely<Database>;
-	decoderName: string;
-}): Promise<{ created_at: Date } | undefined> {
-	if (opts.decoderName === SBTC_DECODER_NAME) {
-		return opts.db
-			.selectFrom("sbtc_events")
-			.select(["created_at"])
-			.where("canonical", "=", true)
-			.orderBy("created_at", "desc")
-			.limit(1)
-			.executeTakeFirst();
-	}
-	if (opts.decoderName === POX5_DECODER_NAME) {
-		return opts.db
-			.selectFrom("pox5_events")
-			.select(["created_at"])
-			.where("canonical", "=", true)
-			.orderBy("created_at", "desc")
-			.limit(1)
-			.executeTakeFirst();
-	}
-	if (opts.decoderName === BNS_DECODER_NAME) {
-		return opts.db
-			.selectFrom("bns_name_events")
-			.select(["created_at"])
-			.where("canonical", "=", true)
-			.orderBy("created_at", "desc")
-			.limit(1)
-			.executeTakeFirst();
-	}
-	const eventType =
-		DECODER_EVENT_TYPES[opts.decoderName as DecoderName] ?? opts.decoderName;
-	return opts.db
-		.selectFrom("decoded_events")
-		.select(["created_at"])
-		.where("event_type", "=", eventType)
-		.where("canonical", "=", true)
-		.orderBy("created_at", "desc")
-		.limit(1)
-		.executeTakeFirst();
 }

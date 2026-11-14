@@ -44,6 +44,9 @@ export type DecoderAdapterCommit = {
 	checkpoint_cursor: string | null;
 	failure?: DecoderAdapterFailure | null;
 	writeOutput: (tx: Kysely<Database>) => Promise<void>;
+	/** Rows `writeOutput` writes. When > 0 the commit stamps
+	 *  `decoder_checkpoints.last_output_at`, which decoder health reads. */
+	output_count?: number;
 	crashAfter?: DecoderCommitStep;
 };
 
@@ -55,6 +58,18 @@ export async function runDecoderCommitSteps(
 		await steps[step]();
 		if (crashAfter === step) throw new DecoderAdapterCrash(step);
 	}
+}
+
+async function stampLastOutput(
+	tx: Kysely<Database>,
+	input: Pick<DecoderAdapterCommit, "decoder_name" | "output_count">,
+): Promise<void> {
+	if (!input.output_count || input.output_count <= 0) return;
+	await tx
+		.updateTable("decoder_checkpoints")
+		.set({ last_output_at: sql`now()` })
+		.where("decoder_name", "=", input.decoder_name)
+		.execute();
 }
 
 async function upsertRegistry(
@@ -209,8 +224,14 @@ export async function commitDecoderAdapter(
 		await runDecoderCommitSteps(
 			{
 				output: () => input.writeOutput(tx),
-				checkpoint: () =>
-					writeCheckpoint(tx, input.decoder_name, input.checkpoint_cursor),
+				checkpoint: async () => {
+					await writeCheckpoint(
+						tx,
+						input.decoder_name,
+						input.checkpoint_cursor,
+					);
+					await stampLastOutput(tx, input);
+				},
 				failure: async () => {
 					if (!failure) return;
 					await upsertRegistry(tx, input.stage_id);
@@ -249,6 +270,9 @@ export async function commitDecoderAdapterBatch(
 		}
 		for (const input of inputs) {
 			await writeCheckpoint(tx, input.decoder_name, input.checkpoint_cursor);
+		}
+		for (const input of inputs) {
+			await stampLastOutput(tx, input);
 		}
 		for (const input of inputs) {
 			const failure = input.failure ?? null;

@@ -114,7 +114,7 @@ export async function consumeBnsDecodedEvents(
 		// Subsequent runs: bump updated_at so health reports checkpoint_recent
 		// immediately on container restart. Must not rewrite last_cursor — that
 		// clobbers a concurrent reorg rewind from the indexer process.
-		await bumpDecoderCheckpoint({ db, decoderName });
+		await bumpDecoderCheckpoint({ db, decoderNames: [decoderName] });
 	}
 	let expectedCheckpoint = startCursor;
 	let decoded = 0;
@@ -202,6 +202,8 @@ export async function consumeBnsDecodedEvents(
 				checkpointCursor: ctx.cursor,
 				failure: failureFromFaults(faults),
 				startedFrom: expectedCheckpoint,
+				outputCount:
+					nameRows.length + namespaceRows.length + marketplaceRows.length,
 				writeOutput: async (tx) => {
 					if (nameRows.length > 0)
 						await writeBnsNameEvents(nameRows, { db: tx });
