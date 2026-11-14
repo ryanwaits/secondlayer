@@ -80,6 +80,9 @@ const FLUSH_INTERVAL_MS = 5_000;
 /** Distinct (subgraph id, fingerprint) keys held between flushes. */
 const MAX_PENDING_KEYS = 1_000;
 
+/** Postgres SQLSTATE for a foreign-key violation. */
+const PG_FOREIGN_KEY_VIOLATION = "23503";
+
 let pending = new Map<string, PendingGroup>();
 let droppedKeys = 0;
 let flushTimer: ReturnType<typeof setInterval> | null = null;
@@ -95,7 +98,8 @@ function startFlusher(): void {
 
 /**
  * Write the coalesced groups: one upsert per distinct fingerprint (adding the
- * accumulated count), then one cap-trim per distinct subgraph. Never throws.
+ * accumulated count), each isolated so one failure never drops the rest, then
+ * one cap-trim per distinct subgraph. Never throws.
  */
 export async function flushHandlerErrors(): Promise<void> {
 	if (pending.size === 0 && droppedKeys === 0) return;
@@ -112,11 +116,20 @@ export async function flushHandlerErrors(): Promise<void> {
 	}
 	if (batch.size === 0) return;
 
+	let db: ReturnType<typeof getTargetDb>;
 	try {
-		const db = getTargetDb();
-		const subgraphIds = new Set<string>();
-		for (const group of batch.values()) {
-			subgraphIds.add(group.subgraphId);
+		db = getTargetDb();
+	} catch (err) {
+		logger.warn("Failed to flush handler error groups", {
+			error: err instanceof Error ? err.message : String(err),
+		});
+		return;
+	}
+
+	const subgraphIds = new Set<string>();
+	let skippedDeleted = 0;
+	for (const group of batch.values()) {
+		try {
 			await db
 				.insertInto("subgraph_error_groups")
 				.values({
@@ -142,10 +155,24 @@ export async function flushHandlerErrors(): Promise<void> {
 					}),
 				)
 				.execute();
+			subgraphIds.add(group.subgraphId);
+		} catch (err) {
+			if ((err as { code?: string }).code === PG_FOREIGN_KEY_VIOLATION) {
+				// The subgraph was deleted (or recreated) while errors were pending.
+				skippedDeleted++;
+				continue;
+			}
+			logger.warn("Failed to flush handler error group", {
+				subgraph: group.subgraphName,
+				fingerprint: group.fingerprint,
+				error: err instanceof Error ? err.message : String(err),
+			});
 		}
+	}
 
-		// Drop the least recently seen groups beyond the cap, once per subgraph.
-		for (const subgraphId of subgraphIds) {
+	// Drop the least recently seen groups beyond the cap, once per subgraph.
+	for (const subgraphId of subgraphIds) {
+		try {
 			await sql`
 				DELETE FROM subgraph_error_groups
 				WHERE id IN (
@@ -155,10 +182,17 @@ export async function flushHandlerErrors(): Promise<void> {
 					OFFSET ${ERROR_GROUPS_CAP_PER_SUBGRAPH}
 				)
 			`.execute(db);
+		} catch (err) {
+			logger.warn("Failed to trim handler error groups", {
+				subgraphId,
+				error: err instanceof Error ? err.message : String(err),
+			});
 		}
-	} catch (err) {
-		logger.warn("Failed to flush handler error groups", {
-			error: err instanceof Error ? err.message : String(err),
+	}
+
+	if (skippedDeleted > 0) {
+		logger.info("Handler error groups skipped: subgraph deleted", {
+			skipped: skippedDeleted,
 		});
 	}
 }

@@ -2,6 +2,7 @@ import {
 	afterAll,
 	afterEach,
 	beforeAll,
+	beforeEach,
 	describe,
 	expect,
 	test,
@@ -208,6 +209,10 @@ describe.skipIf(!HAS_DB)("recordHandlerError (db)", () => {
 		);
 	}
 
+	beforeEach(async () => {
+		await flushHandlerErrors();
+		await cleanup();
+	});
 	afterEach(cleanup);
 	afterAll(async () => {
 		// Cascades to the error groups.
@@ -224,6 +229,35 @@ describe.skipIf(!HAS_DB)("recordHandlerError (db)", () => {
 			.where("subgraph_id", "=", subgraphId)
 			.execute();
 	}
+
+	test("a group for a deleted subgraph does not drop the other groups in the flush", async () => {
+		recordHandlerError({
+			...input("orphan failure"),
+			subgraphId: crypto.randomUUID(),
+		});
+		recordHandlerError(input("real failure"));
+		await flushHandlerErrors();
+
+		const rows = await groups();
+		expect(rows).toHaveLength(1);
+		expect(Number(rows[0]?.count)).toBe(1);
+		expect(rows[0]?.message).toContain("real failure");
+	});
+
+	test("the cap trim still runs for a subgraph whose upsert succeeded", async () => {
+		recordHandlerError({
+			...input("orphan failure"),
+			subgraphId: crypto.randomUUID(),
+		});
+		for (let i = 0; i < ERROR_GROUPS_CAP_PER_SUBGRAPH + 5; i++) {
+			// Letters, not digits: digits normalize away and would share a fingerprint.
+			const letter = String.fromCharCode(97 + (i % 26));
+			recordHandlerError(input(letter.repeat(Math.floor(i / 26) + 1)));
+		}
+		await flushHandlerErrors();
+
+		expect(await groups()).toHaveLength(ERROR_GROUPS_CAP_PER_SUBGRAPH);
+	});
 
 	test("1000 identical errors coalesce into one row with count 1000", async () => {
 		for (let i = 0; i < 1000; i++) recordHandlerError(input("same failure"));
