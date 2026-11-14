@@ -1,5 +1,11 @@
 # @secondlayer/subgraphs
 
+## 8.1.13
+
+### Patch Changes
+
+- bb01421: Handler error groups for a deleted subgraph no longer stop the other subgraphs' groups from being saved in the same flush.
+
 ## 8.1.12
 
 ### Patch Changes
