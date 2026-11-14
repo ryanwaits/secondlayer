@@ -78,7 +78,7 @@ export function getEnabledDecoderNames(
 	// with sbtc-/pox5-/bns-storage.ts. Enable flags are single-sourced in
 	// @secondlayer/shared so /public/status and the decoder process agree.
 	if (isSbtcDecoderEnabled(env)) {
-		names.push("decode.sbtc.v1", "decode.sbtc_token.v1");
+		names.push("decode.sbtc.v1");
 	}
 	if (isPox5DecoderEnabled(env)) names.push("decode.pox5.v1");
 	if (isBnsDecoderEnabled(env)) names.push("decode.bns.v1");

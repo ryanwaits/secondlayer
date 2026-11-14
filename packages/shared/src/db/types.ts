@@ -716,25 +716,6 @@ export interface SbtcEventsTable {
 	created_at: Generated<Date>;
 }
 
-export type SbtcTokenEventType = "transfer" | "mint" | "burn";
-
-export interface SbtcTokenEventsTable {
-	cursor: string;
-	block_height: number;
-	block_time: Date;
-	tx_id: string;
-	tx_index: number;
-	event_index: number;
-	event_type: SbtcTokenEventType;
-	sender: string | null;
-	recipient: string | null;
-	amount: string;
-	memo: string | null;
-	canonical: Generated<boolean>;
-	source_cursor: string;
-	created_at: Generated<Date>;
-}
-
 /**
  * BTC L1 settlement status for sBTC withdrawal sweeps. Filled by the indexer's
  * settlement-confirmer worker, which polls our own bitcoind for confirmations of
@@ -1079,7 +1060,6 @@ export interface Database {
 	burn_block_rewards: BurnBlockRewardsTable;
 	burn_block_reward_slots: BurnBlockRewardSlotsTable;
 	sbtc_events: SbtcEventsTable;
-	sbtc_token_events: SbtcTokenEventsTable;
 	sbtc_settlements: SbtcSettlementsTable;
 	bns_name_events: BnsNameEventsTable;
 	bns_namespace_events: BnsNamespaceEventsTable;

@@ -102,20 +102,6 @@
 		"tx_id",
 		"tx_index"
 	],
-	"sbtc_token_events": [
-		"amount",
-		"block_height",
-		"block_time",
-		"canonical",
-		"cursor",
-		"event_index",
-		"event_type",
-		"memo",
-		"recipient",
-		"sender",
-		"tx_id",
-		"tx_index"
-	],
 	"bns_name_events": [
 		"block_height",
 		"block_time",

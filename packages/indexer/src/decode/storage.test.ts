@@ -34,7 +34,6 @@ describe("getEnabledDecoderNames", () => {
 		expect(getEnabledDecoderNames({})).toEqual([
 			...ALWAYS_ON,
 			"decode.sbtc.v1",
-			"decode.sbtc_token.v1",
 			"decode.pox5.v1",
 		]);
 	});

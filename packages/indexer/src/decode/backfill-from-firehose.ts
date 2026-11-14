@@ -55,22 +55,12 @@ import {
 	type ReadCanonicalStreamsEventsResult,
 	readCanonicalStreamsEvents,
 } from "../streams-events.ts";
-import {
-	attachTransferMemos,
-	decodeRegistryPrint,
-	decodeTokenEvent,
-	decodeTransferMemo,
-} from "./decoders/sbtc.ts";
+import { decodeRegistryPrint } from "./decoders/sbtc.ts";
 import {
 	SBTC_DECODER_NAME,
-	SBTC_TOKEN_DECODER_NAME,
 	type SbtcEventRow,
-	type SbtcTokenEventRow,
-	type SbtcTransferMemo,
 	fillDepositRecipients,
 	writeSbtcEvents,
-	writeSbtcTokenEvents,
-	writeSbtcTransferMemos,
 } from "./sbtc-storage.ts";
 import {
 	NFT_BURN_DECODER_NAME,
@@ -130,35 +120,11 @@ const sbtcEntry: BackfillEntry = {
 				topics[row.topic] = (topics[row.topic] ?? 0) + 1;
 			}
 		}
-		// Deposit recipients come from the mints, so `sbtc_token` runs first.
+		// Deposit recipients come from the classic ft_mint rows in decoded_events,
+		// so run this after decode.ft_mint.v1 covers the range.
 		await fillDepositRecipients(rows, { db: ctx.db });
 		if (ctx.apply && rows.length) await writeSbtcEvents(rows, { db: ctx.db });
 		return { written: rows.length, topics };
-	},
-};
-
-const sbtcTokenEntry: BackfillEntry = {
-	key: "sbtc_token",
-	decoderName: SBTC_TOKEN_DECODER_NAME,
-	// `print` carries transfer memos (see `decodeTransferMemo`).
-	types: ["ft_mint", "ft_burn", "ft_transfer", "print"],
-	contractId: (net) =>
-		`${SBTC_CONTRACTS[net].address}.${SBTC_CONTRACTS[net].token}`,
-	process: async (events, ctx) => {
-		const rows: SbtcTokenEventRow[] = [];
-		const memos: SbtcTransferMemo[] = [];
-		for (const event of events) {
-			const memo = decodeTransferMemo(event);
-			if (memo) memos.push(memo);
-			const row = decodeTokenEvent(event);
-			if (row) rows.push(row);
-		}
-		const carried = attachTransferMemos(rows, memos);
-		if (ctx.apply) {
-			if (rows.length) await writeSbtcTokenEvents(rows, { db: ctx.db });
-			await writeSbtcTransferMemos(carried, { db: ctx.db });
-		}
-		return { written: rows.length };
 	},
 };
 
@@ -244,7 +210,6 @@ const nftBurnEntry = genericDecodedEntry(
 
 /** The explicit registry — only decoders whose tables are recent-only. */
 export const BACKFILL_REGISTRY: readonly BackfillEntry[] = [
-	sbtcTokenEntry,
 	sbtcEntry,
 	stxTransferEntry,
 	stxMintEntry,

@@ -1,15 +1,21 @@
 import { getSourceDb, sql } from "@secondlayer/shared/db";
-import type {
-	SbtcEventTopic,
-	SbtcTokenEventType,
-} from "@secondlayer/shared/db";
+import type { SbtcEventTopic } from "@secondlayer/shared/db";
 import type { Database } from "@secondlayer/shared/db/schema";
+import {
+	SBTC_ASSET_IDENTIFIER_MAINNET,
+	SBTC_CONTRACTS,
+} from "@secondlayer/stacks/sbtc";
 import type { Kysely } from "kysely";
 import { deleteOrphanedSettlements } from "./settlement.ts";
 import { writeDecoderCheckpoint } from "./storage.ts";
 
 export const SBTC_DECODER_NAME = "decode.sbtc.v1";
-export const SBTC_TOKEN_DECODER_NAME = "decode.sbtc_token.v1";
+
+/** The sBTC fungible-token asset ids, mainnet and testnet. */
+export const SBTC_TOKEN_ASSET_IDS: readonly string[] = [
+	SBTC_ASSET_IDENTIFIER_MAINNET,
+	`${SBTC_CONTRACTS.testnet.address}.${SBTC_CONTRACTS.testnet.token}::sbtc-token`,
+];
 
 export type SbtcEventRow = {
 	cursor: string;
@@ -41,21 +47,6 @@ export type SbtcEventRow = {
 	signer_threshold: number | null;
 	signer_address: string | null;
 	signer_keys_count: number | null;
-	source_cursor: string;
-};
-
-export type SbtcTokenEventRow = {
-	cursor: string;
-	block_height: number;
-	block_time: Date;
-	tx_id: string;
-	tx_index: number;
-	event_index: number;
-	event_type: SbtcTokenEventType;
-	sender: string | null;
-	recipient: string | null;
-	amount: string;
-	memo: string | null;
 	source_cursor: string;
 };
 
@@ -115,7 +106,8 @@ export async function writeSbtcEvents(
  * Fill `recipient` on `completed-deposit` rows from already-decoded sBTC mints:
  * the mint one event earlier in the same tx, same amount (see
  * `depositRecipient` in decoders/sbtc.ts). For replays that read prints
- * without the mints beside them; needs `sbtc_token_events` decoded first.
+ * without the mints beside them; needs the classic `decode.ft_mint.v1` output
+ * for the range in `decoded_events`.
  */
 export async function fillDepositRecipients(
 	rows: SbtcEventRow[],
@@ -126,9 +118,14 @@ export async function fillDepositRecipients(
 	);
 	if (deposits.length === 0) return;
 	const mints = await db(opts?.db)
-		.selectFrom("sbtc_token_events")
+		.selectFrom("decoded_events")
 		.select(["tx_id", "event_index", "recipient", "amount"])
-		.where("event_type", "=", "mint")
+		.where("event_type", "=", "ft_mint")
+		.where("canonical", "=", true)
+		.where("asset_identifier", "in", [...SBTC_TOKEN_ASSET_IDS])
+		.where("block_height", "in", [
+			...new Set(deposits.map((row) => row.block_height)),
+		])
 		.where("tx_id", "in", [...new Set(deposits.map((row) => row.tx_id))])
 		.execute();
 	for (const row of deposits) {
@@ -142,73 +139,18 @@ export async function fillDepositRecipients(
 	}
 }
 
-export async function writeSbtcTokenEvents(
-	rows: SbtcTokenEventRow[],
-	opts?: { db?: Kysely<Database> },
-): Promise<void> {
-	if (rows.length === 0) return;
-	await db(opts?.db)
-		.insertInto("sbtc_token_events")
-		.values(rows)
-		.onConflict((oc) =>
-			oc.column("cursor").doUpdateSet((eb) => ({
-				block_height: eb.ref("excluded.block_height"),
-				block_time: eb.ref("excluded.block_time"),
-				tx_id: eb.ref("excluded.tx_id"),
-				tx_index: eb.ref("excluded.tx_index"),
-				event_index: eb.ref("excluded.event_index"),
-				event_type: eb.ref("excluded.event_type"),
-				sender: eb.ref("excluded.sender"),
-				recipient: eb.ref("excluded.recipient"),
-				amount: eb.ref("excluded.amount"),
-				memo: eb.ref("excluded.memo"),
-				canonical: true,
-				source_cursor: eb.ref("excluded.source_cursor"),
-			})),
-		)
-		.execute();
-}
-
-/** A transfer memo, keyed to its `ft_transfer` (see `decodeTransferMemo`). */
-export type SbtcTransferMemo = {
-	block_height: number;
-	tx_id: string;
-	event_index: number;
-	memo: string;
-};
-
-/**
- * Set `memo` on already-stored transfer rows: the memo print opened a page
- * after the one that wrote its transfer.
- */
-export async function writeSbtcTransferMemos(
-	memos: readonly SbtcTransferMemo[],
-	opts?: { db?: Kysely<Database> },
-): Promise<void> {
-	for (const memo of memos) {
-		await db(opts?.db)
-			.updateTable("sbtc_token_events")
-			.set({ memo: memo.memo })
-			.where("event_type", "=", "transfer")
-			.where("block_height", "=", memo.block_height)
-			.where("tx_id", "=", memo.tx_id)
-			.where("event_index", "=", memo.event_index)
-			.execute();
-	}
-}
-
 /**
  * Reconcile the sBTC planes on reorg. Mirrors `handleDecodedEventsReorg`
  * (storage.ts): hard-DELETE at/above the fork, NOT a canonical=false flag.
  *
- * Both tables key on `cursor` = block_height:stream_event_index, a DENSE
- * per-block ordinal recomputed by readCanonicalStreamsEvents, and their writers
- * upsert on `cursor` with `canonical=true` hard-coded. So a post-reorg re-decode
+ * `sbtc_events` keys on `cursor` = block_height:stream_event_index, a DENSE
+ * per-block ordinal recomputed by readCanonicalStreamsEvents, and its writer
+ * upserts on `cursor` with `canonical=true` hard-coded. So a post-reorg re-decode
  * lands on SHIFTED cursors and inserts ALONGSIDE the old-fork rows; a flag-only
  * mark gets resurrected by a later range re-derive (the 2026-05-26 reorg left 5
- * stale sBTC rows exactly this way). The sBTC decoders own these tables, so an
- * unscoped delete-by-height is correct. Runs inside the leader-gated reorg tx;
- * each decoder's checkpoint is rewound to the last source event it processed
+ * stale sBTC rows exactly this way). The sBTC registry decoder owns the table, so
+ * an unscoped delete-by-height is correct. Runs inside the leader-gated reorg
+ * tx; the decoder's checkpoint is rewound to the last source event it processed
  * before the fork so it re-derives the new fork from a clean slate.
  */
 export async function handleSbtcReorg(
@@ -221,23 +163,12 @@ export async function handleSbtcReorg(
 }> {
 	const client = db(opts?.db);
 
-	// Each table maps to its own decoder/checkpoint; rewind both before
-	// deleting so consume-side FOR UPDATE serializes on the checkpoint row.
+	// Rewind the checkpoint before deleting so consume-side FOR UPDATE
+	// serializes on the checkpoint row.
 	const registryCheckpoint =
 		(
 			await client
 				.selectFrom("sbtc_events")
-				.select("source_cursor")
-				.where("block_height", "<", blockHeight)
-				.orderBy("block_height", "desc")
-				.orderBy("event_index", "desc")
-				.limit(1)
-				.executeTakeFirst()
-		)?.source_cursor ?? null;
-	const tokenCheckpoint =
-		(
-			await client
-				.selectFrom("sbtc_token_events")
 				.select("source_cursor")
 				.where("block_height", "<", blockHeight)
 				.orderBy("block_height", "desc")
@@ -250,19 +181,9 @@ export async function handleSbtcReorg(
 		db: opts?.db,
 		decoderName: SBTC_DECODER_NAME,
 	});
-	await writeDecoderCheckpoint({
-		cursor: tokenCheckpoint,
-		db: opts?.db,
-		decoderName: SBTC_TOKEN_DECODER_NAME,
-	});
 
 	const eventsResult = await client
 		.deleteFrom("sbtc_events")
-		.where("block_height", ">=", blockHeight)
-		.executeTakeFirst();
-
-	const tokenResult = await client
-		.deleteFrom("sbtc_token_events")
 		.where("block_height", ">=", blockHeight)
 		.executeTakeFirst();
 
@@ -271,13 +192,10 @@ export async function handleSbtcReorg(
 	const orphanedSettlements = await deleteOrphanedSettlements({ db: opts?.db });
 
 	return {
-		deleted:
-			Number(eventsResult.numDeletedRows ?? 0) +
-			Number(tokenResult.numDeletedRows ?? 0),
+		deleted: Number(eventsResult.numDeletedRows ?? 0),
 		orphanedSettlements,
 		checkpoints: {
 			[SBTC_DECODER_NAME]: registryCheckpoint,
-			[SBTC_TOKEN_DECODER_NAME]: tokenCheckpoint,
 		},
 	};
 }

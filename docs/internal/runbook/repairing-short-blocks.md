@@ -76,7 +76,7 @@ than reporting false success. A re-run of the dry-run afterward should report
 
 **Run this AFTER the repair above, never before.** A decoded row can
 currently be *ahead* of a short source table (e.g. a reorg left
-`decoded_events` / `sbtc_token_events` holding rows the source temporarily
+`decoded_events` / `sbtc_events` holding rows the source temporarily
 lacks) — re-deriving first would wipe those rows before the repair puts the
 source back.
 
@@ -87,7 +87,6 @@ one it prints, or use this table as reference:
 | Decoder | Table(s) | Command |
 |---|---|---|
 | Generic decoded events | `decoded_events` | `bun run packages/indexer/src/rederive-decoded-events.ts --from-height <from> --to-height <to> --types <types> --apply` (types = exactly what the window holds; the `--derive` output fills this in for you) |
-| sBTC token transfers | `sbtc_token_events` | `bun run packages/indexer/src/decode/backfill-from-firehose.ts --target sbtc_token --from-height <from> --to-height <to> --apply` |
 | PoX-5 staking events | `pox5_events` | `bun run packages/indexer/src/decode/rederive-pox5-events.ts --from-height <from> --to-height <to> --apply` |
 | BNS event logs | `bns_name_events`, `bns_namespace_events`, `bns_marketplace_events` | `bun run packages/indexer/src/decode/rederive-bns-events.ts --from-height <from> --to-height <to> --apply` |
 | Contracts registry | `contracts` | `bun run packages/indexer/src/contracts/rederive-registry.ts --limit 2000` (no window — anti-joins `transactions` against `contracts` and registers whatever isn't there yet; run it more than once, or raise `--limit`, if a window has more than the default) |

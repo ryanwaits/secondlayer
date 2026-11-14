@@ -485,9 +485,6 @@ async function main(): Promise<void> {
 			);
 		}
 		console.log(
-			`  bun run packages/indexer/src/decode/backfill-from-firehose.ts --target sbtc_token --from-height ${from} --to-height ${to} --apply`,
-		);
-		console.log(
 			`  bun run packages/indexer/src/decode/rederive-pox5-events.ts --from-height ${from} --to-height ${to} --apply`,
 		);
 		console.log(

@@ -17,10 +17,7 @@ import {
 } from "./classic-decoders.ts";
 import { consumeBnsDecodedEvents } from "./decoders/bns.ts";
 import { consumePox5DecodedEvents } from "./decoders/pox-5.ts";
-import {
-	consumeSbtcRegistryDecodedEvents,
-	consumeSbtcTokenDecodedEvents,
-} from "./decoders/sbtc.ts";
+import { consumeSbtcRegistryDecodedEvents } from "./decoders/sbtc.ts";
 import { getDecodersHealth } from "./health.ts";
 import {
 	SETTLEMENT_CONFIRMER_NAME,
@@ -60,14 +57,14 @@ const DECODED_EVENT_DECODERS = {
 } as const;
 const decodedTotals: Record<string, number> = {
 	...DECODED_EVENT_DECODERS,
-	...(SBTC_ENABLED ? { "decode.sbtc.v1": 0, "decode.sbtc_token.v1": 0 } : {}),
+	...(SBTC_ENABLED ? { "decode.sbtc.v1": 0 } : {}),
 	...(POX5_ENABLED ? { "decode.pox5.v1": 0 } : {}),
 	...(BNS_ENABLED ? { "decode.bns.v1": 0 } : {}),
 	...(SETTLEMENT_CONFIRMER_ENABLED ? { [SETTLEMENT_CONFIRMER_NAME]: 0 } : {}),
 };
 const decodedThisMinute: Record<string, number> = {
 	...DECODED_EVENT_DECODERS,
-	...(SBTC_ENABLED ? { "decode.sbtc.v1": 0, "decode.sbtc_token.v1": 0 } : {}),
+	...(SBTC_ENABLED ? { "decode.sbtc.v1": 0 } : {}),
 	...(POX5_ENABLED ? { "decode.pox5.v1": 0 } : {}),
 	...(BNS_ENABLED ? { "decode.bns.v1": 0 } : {}),
 	...(SETTLEMENT_CONFIRMER_ENABLED ? { [SETTLEMENT_CONFIRMER_NAME]: 0 } : {}),
@@ -348,9 +345,6 @@ async function runDecoders(): Promise<void> {
 	const tasks = [runClassicDecoders()];
 	if (SBTC_ENABLED) {
 		tasks.push(runDecoder("decode.sbtc.v1", consumeSbtcRegistryDecodedEvents));
-		tasks.push(
-			runDecoder("decode.sbtc_token.v1", consumeSbtcTokenDecodedEvents),
-		);
 	} else {
 		logger.info("decoder.sbtc_disabled");
 	}

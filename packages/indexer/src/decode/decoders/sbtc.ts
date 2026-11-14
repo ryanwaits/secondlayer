@@ -7,7 +7,6 @@ import type {
 } from "@secondlayer/shared/streams-rows";
 import { cvToValue, deserializeCV } from "@secondlayer/stacks/clarity";
 import {
-	SBTC_ASSET_IDENTIFIER_MAINNET,
 	SBTC_CONTRACTS,
 	SBTC_EVENT_TOPICS,
 	type SbtcEventTopic,
@@ -22,31 +21,17 @@ import {
 import { requireInternalStreamsApiKey } from "../internal-auth.ts";
 import {
 	SBTC_DECODER_NAME,
-	SBTC_TOKEN_DECODER_NAME,
+	SBTC_TOKEN_ASSET_IDS,
 	type SbtcEventRow,
-	type SbtcTokenEventRow,
-	type SbtcTransferMemo,
 	writeSbtcEvents,
-	writeSbtcTokenEvents,
-	writeSbtcTransferMemos,
 } from "../sbtc-storage.ts";
 import { readDecoderCheckpoint } from "../storage.ts";
 
-export { SBTC_DECODER_NAME, SBTC_TOKEN_DECODER_NAME };
+export { SBTC_DECODER_NAME };
 
 const SBTC_REGISTRY_CONTRACTS: readonly string[] = [
 	`${SBTC_CONTRACTS.mainnet.address}.${SBTC_CONTRACTS.mainnet.registry}`,
 	`${SBTC_CONTRACTS.testnet.address}.${SBTC_CONTRACTS.testnet.registry}`,
-];
-
-const SBTC_TOKEN_CONTRACTS: readonly string[] = [
-	`${SBTC_CONTRACTS.mainnet.address}.${SBTC_CONTRACTS.mainnet.token}`,
-	`${SBTC_CONTRACTS.testnet.address}.${SBTC_CONTRACTS.testnet.token}`,
-];
-
-const SBTC_TOKEN_ASSET_IDS: readonly string[] = [
-	SBTC_ASSET_IDENTIFIER_MAINNET,
-	`${SBTC_CONTRACTS.testnet.address}.${SBTC_CONTRACTS.testnet.token}::sbtc-token`,
 ];
 
 // Per-network contract IDs for the server-side streams filter. Without
@@ -72,14 +57,6 @@ function tokenContractId(): string {
 // `ft_mint` rides along so each `completed-deposit` print can be paired with
 // the mint that precedes it (see `depositRecipient`).
 const REGISTRY_STREAM_TYPES: StreamsEventType[] = ["print", "ft_mint"];
-// `print` rides along: sbtc-token prints a transfer's memo as its own event
-// right after the `ft_transfer` (see `decodeTransferMemo`).
-const TOKEN_STREAM_TYPES: StreamsEventType[] = [
-	"ft_transfer",
-	"ft_mint",
-	"ft_burn",
-	"print",
-];
 
 const VALID_TOPICS = new Set<SbtcEventTopic>(SBTC_EVENT_TOPICS);
 
@@ -226,125 +203,6 @@ export async function consumeSbtcRegistryDecodedEvents(
 				startedFrom: expectedCheckpoint,
 				writeOutput: async (tx) => {
 					if (rows.length > 0) await writeSbtcEvents(rows, { db: tx });
-				},
-			});
-			expectedCheckpoint = ctx.cursor;
-			decoded += rows.length;
-			await opts.onProgress?.({
-				decoded: rows.length,
-				cursor: ctx.cursor,
-				lagSeconds: ctx.tip.lag_seconds,
-			});
-			return ctx.cursor;
-		},
-	});
-
-	return { cursor: result.cursor, pages: result.pages, decoded };
-}
-
-/**
- * Token-events decoder — `ft_transfer/mint/burn` against the sbtc-token
- * contract. Writes to `sbtc_token_events`. Tracks via the
- * `decode.sbtc_token.v1` checkpoint.
- */
-export async function consumeSbtcTokenDecodedEvents(
-	opts: ConsumeSbtcOptions = {},
-): Promise<{ cursor: string | null; pages: number; decoded: number }> {
-	const db = opts.db;
-	const decoderName = opts.decoderName ?? SBTC_TOKEN_DECODER_NAME;
-	const streamsClient = opts.streamsClient ?? createInternalStreamsClient();
-	const startCursor =
-		opts.fromCursor !== undefined
-			? opts.fromCursor
-			: await readDecoderCheckpoint({ db, decoderName });
-	let expectedCheckpoint = startCursor;
-	let decoded = 0;
-
-	const result = await streamsClient.events.consume({
-		fromCursor: startCursor,
-		batchSize: opts.batchSize ?? 100,
-		emptyBackoffMs: opts.emptyBackoffMs,
-		maxPages: opts.maxPages,
-		maxEmptyPolls: opts.maxEmptyPolls,
-		signal: opts.signal,
-		types: TOKEN_STREAM_TYPES,
-		contractId: tokenContractId(),
-		onBatch: async (events, ctx) => {
-			const rows: SbtcTokenEventRow[] = [];
-			const memos: SbtcTransferMemo[] = [];
-			const clock: {
-				cursor: string;
-				block_height: number;
-				block_hash: string;
-				matched: boolean;
-			}[] = [];
-			const faults: {
-				cursor: string;
-				class: ReturnType<typeof classifyGenericDecodeFault>;
-				error: string;
-			}[] = [];
-			for (const event of events) {
-				try {
-					const memo = decodeTransferMemo(event);
-					if (memo) memos.push(memo);
-					if (
-						(event.event_type !== "ft_transfer" &&
-							event.event_type !== "ft_mint" &&
-							event.event_type !== "ft_burn") ||
-						!isSbtcTokenAsset(event)
-					) {
-						clock.push({
-							cursor: event.cursor,
-							block_height: event.block_height,
-							block_hash: event.block_hash,
-							matched: false,
-						});
-						continue;
-					}
-					const row = decodeTokenEvent(event);
-					if (row) rows.push(row);
-					clock.push({
-						cursor: event.cursor,
-						block_height: event.block_height,
-						block_hash: event.block_hash,
-						matched: Boolean(row),
-					});
-				} catch (error) {
-					const fault = classifyGenericDecodeFault(error);
-					logger.warn("decoder.decode_skipped", {
-						decoder: decoderName,
-						cursor: event.cursor,
-						tx_id: event.tx_id,
-						event_type: event.event_type,
-						fault,
-						error: String(error),
-					});
-					clock.push({
-						cursor: event.cursor,
-						block_height: event.block_height,
-						block_hash: event.block_hash,
-						matched: false,
-					});
-					faults.push({
-						cursor: event.cursor,
-						class: fault,
-						error: error instanceof Error ? error.message : String(error),
-					});
-				}
-			}
-
-			// A memo whose transfer closed an earlier page fills the stored row.
-			const carried = attachTransferMemos(rows, memos);
-			await commitDecoderStageBatch({
-				db,
-				decoderName,
-				checkpointCursor: ctx.cursor,
-				receipts: planGenericDecoderReceipts(clock),
-				failure: failureFromFaults(faults),
-				startedFrom: expectedCheckpoint,
-				writeOutput: async (tx) => {
-					if (rows.length > 0) await writeSbtcTokenEvents(rows, { db: tx });
-					await writeSbtcTransferMemos(carried, { db: tx });
 				},
 			});
 			expectedCheckpoint = ctx.cursor;
@@ -527,93 +385,6 @@ export function depositRecipient(
 		return asString(payload.recipient);
 	}
 	return null;
-}
-
-/**
- * The memo of an sBTC transfer. `ft_transfer` events carry none: sbtc-token's
- * `transfer` runs `ft-transfer?` then `(print memo)` when a memo is given, so
- * the memo is a bare `buff` print from sbtc-token one event after its transfer
- * in the same tx. Null for any other event.
- */
-export function decodeTransferMemo(
-	event: StreamsEvent,
-): SbtcTransferMemo | null {
-	if (
-		event.event_type !== "print" ||
-		event.contract_id === null ||
-		!SBTC_TOKEN_CONTRACTS.includes(event.contract_id)
-	) {
-		return null;
-	}
-	const hex = clarityHex(event.payload);
-	if (hex === null) return null;
-	const cv = deserializeCV(hex);
-	if (cv.type !== "buffer") return null;
-	return {
-		block_height: event.block_height,
-		tx_id: event.tx_id,
-		event_index: event.event_index - 1,
-		memo: `0x${cv.value}`,
-	};
-}
-
-/**
- * Set `memo` on the transfer row each memo belongs to. Returns the memos whose
- * transfer is not in `rows` (it closed an earlier page), for
- * `writeSbtcTransferMemos` to fill in storage.
- */
-export function attachTransferMemos(
-	rows: SbtcTokenEventRow[],
-	memos: readonly SbtcTransferMemo[],
-): SbtcTransferMemo[] {
-	const carried: SbtcTransferMemo[] = [];
-	for (const memo of memos) {
-		const row = rows.find(
-			(r) =>
-				r.event_type === "transfer" &&
-				r.tx_id === memo.tx_id &&
-				r.event_index === memo.event_index,
-		);
-		if (row) row.memo = memo.memo;
-		else carried.push(memo);
-	}
-	return carried;
-}
-
-export function decodeTokenEvent(
-	event: StreamsEvent,
-): SbtcTokenEventRow | null {
-	const payload = event.payload as Record<string, unknown>;
-	const eventType: SbtcTokenEventRow["event_type"] | null =
-		event.event_type === "ft_transfer"
-			? "transfer"
-			: event.event_type === "ft_mint"
-				? "mint"
-				: event.event_type === "ft_burn"
-					? "burn"
-					: null;
-	if (!eventType) return null;
-
-	const amount = asDecimal(payload.amount);
-	if (amount === null) return null;
-
-	const sender = asString(payload.sender);
-	const recipient = asString(payload.recipient);
-
-	return {
-		cursor: event.cursor,
-		block_height: event.block_height,
-		block_time: new Date(event.ts),
-		tx_id: event.tx_id,
-		tx_index: event.tx_index,
-		event_index: event.event_index,
-		event_type: eventType,
-		sender: eventType === "mint" ? null : sender,
-		recipient: eventType === "burn" ? null : recipient,
-		amount,
-		memo: null,
-		source_cursor: event.cursor,
-	};
 }
 
 function decodeClarityPayload(payload: Record<string, unknown>): unknown {

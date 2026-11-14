@@ -117,7 +117,6 @@ export function subgraphProcessorVerdict(input: {
 const DECODER_EVENT_TYPE: Record<string, string> = {
 	...DECODER_EVENT_TYPES,
 	"decode.sbtc.v1": "sbtc",
-	"decode.sbtc_token.v1": "sbtc_token",
 	"decode.pox5.v1": "pox5_event",
 	"decode.bns.v1": "bns_print",
 };

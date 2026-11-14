@@ -69,10 +69,6 @@ export const SBTC_SERVICE_MANIFEST: ServiceManifest = {
 			verification: "row-count + semantic-digest per (tx_id, event_index)",
 		},
 		{
-			target: "sbtc_token_events",
-			verification: "row-count + semantic-digest per (tx_id, event_index)",
-		},
-		{
 			target: "sbtc_settlements",
 			verification:
 				"row-count per L1 settlement plus witness-based proof against the raw block bytes",

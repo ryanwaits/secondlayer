@@ -462,7 +462,6 @@ describe.skipIf(!HAS_DB)("sBTC peg DB reads", () => {
 		if (!db) return;
 		await sql`DELETE FROM sbtc_settlements`.execute(db);
 		await sql`DELETE FROM sbtc_events`.execute(db);
-		await sql`DELETE FROM sbtc_token_events`.execute(db);
 	});
 
 	test("events: returns only canonical rows, ordered, across topics", async () => {
