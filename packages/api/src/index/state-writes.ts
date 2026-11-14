@@ -22,7 +22,7 @@ import { type IndexTip, indexSourceWindowTip } from "./tip.ts";
  * Present only from the height this instance's node subscribed to the
  * `state_writes` observer key. Reads ride the `(block_height, ordinal)`
  * primary key; `tx_context` looks each writing tx up through
- * `transactions_block_height_idx` within its own block.
+ * `transactions_height_tx_index_uniq` within its own block.
  */
 export const STATE_WRITES_FILTERS = [
 	"limit",
@@ -106,7 +106,7 @@ function contractKeyPrefix(contractId: string): string {
 }
 
 /** The tx at `(block_height, tx_index)`, looked up inside the write's own
- *  block (one `transactions_block_height_idx` probe per block). */
+ *  block (one `transactions_height_tx_index_uniq` probe per block). */
 const TX_CONTEXT_JOIN = sql`
 	LEFT JOIN LATERAL (
 		SELECT t.tx_id, t.sender AS tx_sender, t.type AS tx_type,

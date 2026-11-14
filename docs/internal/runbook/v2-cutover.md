@@ -104,8 +104,15 @@ GO: stop indexer (node stalls, no gap) → replay last rows → repoint SOURCE �
 
 2.1 Migrate: one-off `migrate` with `SOURCE_DATABASE_URL=db-server`, TARGET
     unchanged. TARGET is already at head, so it's a no-op there.
-2.2 Hand-build the 0199 index (`CREATE UNIQUE INDEX CONCURRENTLY …` per the
-    migration's NOTICE). Time it.
+2.2 Hand-build the 0199 index (`CREATE UNIQUE INDEX CONCURRENTLY
+    transactions_height_tx_index_uniq ON transactions (block_height, tx_index)`,
+    after the duplicate check in the 0199 header). Time it. Then drop the
+    plain index it covers, which the migrate run kept because the unique index
+    didn't exist yet (NOTICE "transactions_block_height_idx kept"):
+    `DROP INDEX CONCURRENTLY IF EXISTS transactions_block_height_idx;`
+    If the migrate log also said "events_block_height_idx kept", check
+    `events_height_type_idx` / `events_logical_id_uniq` exist and are valid,
+    then drop it the same way.
 2.3 Decoder rebuild against db-server:
     - Before the rebuild (table empty, migrated): drop the three filter
       composites so the genesis load doesn't maintain them row by row:

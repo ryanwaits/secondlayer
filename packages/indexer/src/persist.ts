@@ -35,9 +35,9 @@ export type PersistBlockInput = {
  * onConflict-doNothing), so a reused height accumulates duplicate
  * (block_height, tx_index) rows that collide downstream — Streams cursor dupes
  * that wedge the L2 decoders (#46). The node only emits canonical blocks, so we
- * clear the height and re-insert the incoming set. Both
- * transactions_block_height_idx and events_block_height_idx exist, so the
- * deletes are cheap.
+ * clear the height and re-insert the incoming set. `events_height_type_idx`
+ * and `transactions_height_tx_index_uniq` (both lead with block_height) serve
+ * the deletes, so they stay cheap.
  */
 /**
  * Copy the transactions/events currently at `blockHeight` into the archive
