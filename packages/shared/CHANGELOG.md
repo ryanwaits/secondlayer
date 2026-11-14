@@ -1,5 +1,21 @@
 # @secondlayer/shared
 
+## 18.0.0
+
+### Major Changes
+
+- e68a8e5: Drop the `sbtc_token_events` table and its `decode.sbtc_token.v1` decoder. Shared drops the `sbtc_token_events` table type and the `SbtcTokenEventType` export (the migration drops the table), and `codegen index` no longer emits `sbtc_token_events`. sBTC token transfers, mints and burns are read from `/v1/index/ft-transfers?asset_identifier=SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4.sbtc-token::sbtc-token`, or Streams filtered by that `contract_id`.
+- 7cec65b: Decoder commits no longer write per-block coverage receipts. The `@secondlayer/shared/coverage` exports `applyDecoderReceipts` and `DecoderAdapterReceipt` are removed, the `receipts` and `run_id` fields leave `DecoderAdapterCommit`, `DECODER_COMMIT_STEPS` drops `"receipt"`, and the `stage_block_receipts`, `coverage_segments` and `stage_runs` table types are removed. A migration drops those tables and `stage_failures.run_id`. The registry row is now upserted only when a failure is written.
+
+### Minor Changes
+
+- 4d2c815: Decoder health reads the last-output time from `decoder_checkpoints.last_output_at`, stamped in the commit transaction when a commit wrote rows. `DecoderAdapterCommit` gains `output_count`, and `DecoderCheckpointsTable` gains `last_output_at`. Decoder liveness pings are batched into one statement and throttled. The migration drops the health-only `decoded_events_evt_canon_created_idx` index.
+
+### Patch Changes
+
+- edd8a2d: decoded_events drops two indexes no query uses and two dead columns; its contract/sender/recipient indexes skip rows where that column is empty.
+- 850de0b: events and transactions drop indexes that another index already covers, so each insert maintains fewer indexes.
+
 ## 17.1.0
 
 ### Minor Changes
