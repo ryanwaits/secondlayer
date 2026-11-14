@@ -26,7 +26,6 @@ import {
 	classifyGenericDecodeFault,
 	commitDecoderStageBatch,
 	failureFromFaults,
-	planGenericDecoderReceipts,
 } from "../generic-commit.ts";
 import { requireInternalStreamsApiKey } from "../internal-auth.ts";
 import {
@@ -141,12 +140,6 @@ export async function consumeBnsDecodedEvents(
 			const nameRows: BnsNameEventRow[] = [];
 			const namespaceRows: BnsNamespaceEventRow[] = [];
 			const marketplaceRows: BnsMarketplaceEventRow[] = [];
-			const clock: {
-				cursor: string;
-				block_height: number;
-				block_hash: string;
-				matched: boolean;
-			}[] = [];
 			const faults: {
 				cursor: string;
 				class: ReturnType<typeof classifyGenericDecodeFault>;
@@ -160,12 +153,6 @@ export async function consumeBnsDecodedEvents(
 						event.contract_id === null ||
 						!BNS_V2_CONTRACTS.includes(event.contract_id)
 					) {
-						clock.push({
-							cursor: event.cursor,
-							block_height: event.block_height,
-							block_hash: event.block_hash,
-							matched: false,
-						});
 						continue;
 					}
 					const payload = decodeClarityPayload(event.payload);
@@ -181,42 +168,17 @@ export async function consumeBnsDecodedEvents(
 					if (typeof tuple.topic === "string") {
 						const row = decodeNameEvent(event, tuple);
 						if (row) nameRows.push(row);
-						clock.push({
-							cursor: event.cursor,
-							block_height: event.block_height,
-							block_hash: event.block_hash,
-							matched: Boolean(row),
-						});
 						continue;
 					}
 					if (typeof tuple.status === "string") {
 						const row = decodeNamespaceEvent(event, tuple);
 						if (row) namespaceRows.push(row);
-						clock.push({
-							cursor: event.cursor,
-							block_height: event.block_height,
-							block_hash: event.block_hash,
-							matched: Boolean(row),
-						});
 						continue;
 					}
 					if (typeof tuple.a === "string") {
 						const row = decodeMarketplaceEvent(event, tuple);
 						if (row) marketplaceRows.push(row);
-						clock.push({
-							cursor: event.cursor,
-							block_height: event.block_height,
-							block_hash: event.block_hash,
-							matched: Boolean(row),
-						});
-						continue;
 					}
-					clock.push({
-						cursor: event.cursor,
-						block_height: event.block_height,
-						block_hash: event.block_hash,
-						matched: false,
-					});
 				} catch (error) {
 					const fault = classifyGenericDecodeFault(error);
 					logger.warn("decoder.decode_skipped", {
@@ -225,12 +187,6 @@ export async function consumeBnsDecodedEvents(
 						tx_id: event.tx_id,
 						fault,
 						error: String(error),
-					});
-					clock.push({
-						cursor: event.cursor,
-						block_height: event.block_height,
-						block_hash: event.block_hash,
-						matched: false,
 					});
 					faults.push({
 						cursor: event.cursor,
@@ -244,7 +200,6 @@ export async function consumeBnsDecodedEvents(
 				db,
 				decoderName,
 				checkpointCursor: ctx.cursor,
-				receipts: planGenericDecoderReceipts(clock),
 				failure: failureFromFaults(faults),
 				startedFrom: expectedCheckpoint,
 				writeOutput: async (tx) => {

@@ -319,16 +319,6 @@ export async function handleDecodedEventsReorg(
 		.where("block_height", ">=", blockHeight)
 		.executeTakeFirst();
 
-	// Coverage receipts/segments for the orphaned fork must not stay green.
-	await db
-		.deleteFrom("stage_block_receipts")
-		.where("block_height", ">=", blockHeight)
-		.execute();
-	await db
-		.deleteFrom("coverage_segments")
-		.where("to_height", ">=", blockHeight)
-		.execute();
-
 	return {
 		deleted: Number(result.numDeletedRows ?? 0),
 		checkpoints,

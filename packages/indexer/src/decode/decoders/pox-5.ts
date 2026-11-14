@@ -16,7 +16,6 @@ import {
 	classifyGenericDecodeFault,
 	commitDecoderStageBatch,
 	failureFromFaults,
-	planGenericDecoderReceipts,
 } from "../generic-commit.ts";
 import { requireInternalStreamsApiKey } from "../internal-auth.ts";
 import { maintainPox5Cycles } from "../pox5-cycles-storage.ts";
@@ -90,12 +89,6 @@ export async function consumePox5DecodedEvents(
 		contractId: POX5_CONTRACT,
 		onBatch: async (events, ctx) => {
 			const rows: Pox5EventRow[] = [];
-			const clock: {
-				cursor: string;
-				block_height: number;
-				block_hash: string;
-				matched: boolean;
-			}[] = [];
 			const faults: {
 				cursor: string;
 				class: ReturnType<typeof classifyGenericDecodeFault>;
@@ -107,22 +100,10 @@ export async function consumePox5DecodedEvents(
 						event.event_type !== "print" ||
 						event.contract_id !== POX5_CONTRACT
 					) {
-						clock.push({
-							cursor: event.cursor,
-							block_height: event.block_height,
-							block_hash: event.block_hash,
-							matched: false,
-						});
 						continue;
 					}
 					const row = decodePox5Print(event);
 					if (row) rows.push(row);
-					clock.push({
-						cursor: event.cursor,
-						block_height: event.block_height,
-						block_hash: event.block_hash,
-						matched: Boolean(row),
-					});
 				} catch (error) {
 					const fault = classifyGenericDecodeFault(error);
 					logger.warn("decoder.decode_skipped", {
@@ -132,12 +113,6 @@ export async function consumePox5DecodedEvents(
 						event_type: event.event_type,
 						fault,
 						error: String(error),
-					});
-					clock.push({
-						cursor: event.cursor,
-						block_height: event.block_height,
-						block_hash: event.block_hash,
-						matched: false,
 					});
 					faults.push({
 						cursor: event.cursor,
@@ -151,7 +126,6 @@ export async function consumePox5DecodedEvents(
 				db,
 				decoderName,
 				checkpointCursor: ctx.cursor,
-				receipts: planGenericDecoderReceipts(clock),
 				failure: failureFromFaults(faults),
 				startedFrom: expectedCheckpoint,
 				writeOutput: async (tx) => {

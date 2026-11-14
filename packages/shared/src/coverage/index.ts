@@ -83,7 +83,6 @@ export type {
 export {
 	DECODER_COMMIT_STEPS,
 	DecoderAdapterCrash,
-	applyDecoderReceipts,
 	commitDecoderAdapter,
 	commitDecoderAdapterBatch,
 	rewindDecoderCheckpoint,
@@ -92,7 +91,6 @@ export {
 export type {
 	DecoderAdapterCommit,
 	DecoderAdapterFailure,
-	DecoderAdapterReceipt,
 	DecoderCommitStep,
 } from "./adapter.ts";
 export {

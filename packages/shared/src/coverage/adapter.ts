@@ -1,10 +1,8 @@
 /**
  * Atomic decoder adapter.
  *
- * One transaction writes decoded output, the decoder checkpoint, block
- * receipts, and an optional failure. A crash after any step rolls all
- * four back — the property `commitDecodedBatch` already had for rows+
- * checkpoint, now covering the coverage kernel too.
+ * One transaction writes decoded output, the decoder checkpoint, and an
+ * optional failure. A crash after any step rolls all three back.
  *
  * `crashAfter` is a test probe. It throws inside the transaction so the
  * matrix can abort after each step without simulating a real process kill.
@@ -14,18 +12,10 @@ import { sql } from "kysely";
 import type { Kysely } from "kysely";
 import type { Database } from "../db/types.ts";
 import type { FailureClass, FailureUnit, RetryState } from "./constraints.ts";
-import type { DecoderClockReceipt } from "./decoder-clock.ts";
-import {
-	type RunnerEvent,
-	type RunnerResult,
-	type RunnerState,
-	applyRunnerEvent,
-} from "./runner.ts";
 
 export const DECODER_COMMIT_STEPS = [
 	"output",
 	"checkpoint",
-	"receipt",
 	"failure",
 ] as const;
 export type DecoderCommitStep = (typeof DECODER_COMMIT_STEPS)[number];
@@ -47,17 +37,11 @@ export type DecoderAdapterFailure = {
 	retry_count?: number;
 };
 
-export type DecoderAdapterReceipt = DecoderClockReceipt & {
-	effect_digest: string;
-};
-
 export type DecoderAdapterCommit = {
 	stage_id: string;
-	run_id?: string | null;
 	decoder_name: string;
 	/** Null = do not move the checkpoint (empty page). */
 	checkpoint_cursor: string | null;
-	receipts: readonly DecoderAdapterReceipt[];
 	failure?: DecoderAdapterFailure | null;
 	writeOutput: (tx: Kysely<Database>) => Promise<void>;
 	crashAfter?: DecoderCommitStep;
@@ -71,32 +55,6 @@ export async function runDecoderCommitSteps(
 		await steps[step]();
 		if (crashAfter === step) throw new DecoderAdapterCrash(step);
 	}
-}
-
-export function applyDecoderReceipts(
-	state: RunnerState,
-	receipts: readonly DecoderAdapterReceipt[],
-): RunnerResult {
-	let current = state;
-	if (current.status === "pending") {
-		const started = applyRunnerEvent(current, { type: "start" });
-		if (!started.ok) return started;
-		current = started.state;
-	}
-	for (const receipt of receipts) {
-		const event: RunnerEvent = {
-			type: "ack",
-			height: receipt.height,
-			hash: receipt.hash,
-			input_count: receipt.input_count,
-			input_digest: receipt.input_digest,
-			effect_digest: receipt.effect_digest,
-		};
-		const next = applyRunnerEvent(current, event);
-		if (!next.ok) return next;
-		current = next.state;
-	}
-	return { ok: true, state: current, effects: [] };
 }
 
 async function upsertRegistry(
@@ -214,63 +172,15 @@ async function writeCheckpoint(
 	await sql`SELECT pg_notify('index:tip', ${decoderName})`.execute(tx);
 }
 
-/** Rows per INSERT, matching `DECODED_EVENTS_CHUNK_SIZE`
- *  (`packages/indexer/src/decode/storage.ts`) — one receipt per distinct
- *  block height in a batch, which stays small for a normal page but isn't
- *  bounded by row count alone: a decoder catching up through a long sparse
- *  range (few events across many blocks) can carry one receipt per block, and
- *  a large in-process page (e.g. the classic loop's whole-block-in-one-call
- *  cap) could otherwise push a single INSERT's bound params past Postgres's
- *  65535 limit (7 columns/row here). */
-const RECEIPTS_CHUNK_SIZE = 1000;
-
-async function writeReceipts(
-	tx: Kysely<Database>,
-	stageId: string,
-	runId: string | null,
-	receipts: readonly DecoderAdapterReceipt[],
-): Promise<void> {
-	if (receipts.length === 0) return;
-	for (let i = 0; i < receipts.length; i += RECEIPTS_CHUNK_SIZE) {
-		const chunk = receipts.slice(i, i + RECEIPTS_CHUNK_SIZE);
-		await tx
-			.insertInto("stage_block_receipts")
-			.values(
-				chunk.map((receipt) => ({
-					stage_id: stageId,
-					run_id: runId,
-					block_height: receipt.height,
-					block_hash: receipt.hash,
-					input_count: receipt.input_count,
-					input_digest: receipt.input_digest,
-					effect_digest: receipt.effect_digest,
-				})),
-			)
-			.onConflict((oc) =>
-				oc
-					.columns(["stage_id", "block_height", "block_hash"])
-					.doUpdateSet((eb) => ({
-						input_count: eb.ref("excluded.input_count"),
-						input_digest: eb.ref("excluded.input_digest"),
-						effect_digest: eb.ref("excluded.effect_digest"),
-						run_id: eb.ref("excluded.run_id"),
-					})),
-			)
-			.execute();
-	}
-}
-
 async function writeFailure(
 	tx: Kysely<Database>,
 	stageId: string,
-	runId: string | null,
 	failure: DecoderAdapterFailure,
 ): Promise<void> {
 	await tx
 		.insertInto("stage_failures")
 		.values({
 			stage_id: stageId,
-			run_id: runId,
 			unit_kind: failure.unit_kind,
 			from_height: failure.from_height,
 			to_height: failure.to_height,
@@ -283,9 +193,9 @@ async function writeFailure(
 }
 
 /**
- * Persist output + checkpoint + receipts + failure in one transaction.
- * Runner validation is the caller's job (`applyDecoderReceipts`) so a
- * rejected ack never opens a transaction.
+ * Persist output + checkpoint + failure in one transaction. The registry row
+ * is upserted only when a failure is written, to satisfy the
+ * `stage_failures.stage_id` foreign key.
  *
  * No production caller (decoders use the batch form); kept as the exported
  * single-decoder entry point and covered by decoder-adapter-crash.test.ts.
@@ -294,20 +204,18 @@ export async function commitDecoderAdapter(
 	db: Kysely<Database>,
 	input: DecoderAdapterCommit,
 ): Promise<void> {
-	const runId = input.run_id ?? null;
 	const failure = input.failure ?? null;
 	await db.transaction().execute(async (tx) => {
-		await upsertRegistry(tx, input.stage_id);
 		await runDecoderCommitSteps(
 			{
 				output: () => input.writeOutput(tx),
 				checkpoint: () =>
 					writeCheckpoint(tx, input.decoder_name, input.checkpoint_cursor),
-				receipt: () => writeReceipts(tx, input.stage_id, runId, input.receipts),
-				failure: () =>
-					failure
-						? writeFailure(tx, input.stage_id, runId, failure)
-						: Promise.resolve(),
+				failure: async () => {
+					if (!failure) return;
+					await upsertRegistry(tx, input.stage_id);
+					await writeFailure(tx, input.stage_id, failure);
+				},
 			},
 			input.crashAfter,
 		);
@@ -321,8 +229,8 @@ export async function commitDecoderAdapter(
  * checkpoints + their decoded rows land together, so a crash mid-batch
  * cannot leave one type's checkpoint ahead of another's rows.
  *
- * Steps run in four PASSES across the whole batch, not step-by-step per
- * entry, so the global order stays output → checkpoint → receipt → failure
+ * Steps run in three PASSES across the whole batch, not step-by-step per
+ * entry, so the global order stays output → checkpoint → failure
  * (matching the single-entry commit) while every entry's output — including
  * its `assertCheckpointUnmoved` FOR UPDATE check — lands before any entry's
  * new checkpoint is written. Entries are locked in the order given, which
@@ -337,26 +245,16 @@ export async function commitDecoderAdapterBatch(
 ): Promise<void> {
 	await db.transaction().execute(async (tx) => {
 		for (const input of inputs) {
-			await upsertRegistry(tx, input.stage_id);
-		}
-		for (const input of inputs) {
 			await input.writeOutput(tx);
 		}
 		for (const input of inputs) {
 			await writeCheckpoint(tx, input.decoder_name, input.checkpoint_cursor);
 		}
 		for (const input of inputs) {
-			await writeReceipts(
-				tx,
-				input.stage_id,
-				input.run_id ?? null,
-				input.receipts,
-			);
-		}
-		for (const input of inputs) {
 			const failure = input.failure ?? null;
 			if (failure) {
-				await writeFailure(tx, input.stage_id, input.run_id ?? null, failure);
+				await upsertRegistry(tx, input.stage_id);
+				await writeFailure(tx, input.stage_id, failure);
 			}
 		}
 	});

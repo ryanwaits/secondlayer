@@ -3,34 +3,19 @@ import { Kysely, sql } from "kysely";
 import { PostgresJSDialect } from "kysely-postgres-js";
 import postgres from "postgres";
 import { up as upCoverage } from "../migrations/0116_coverage_schema.ts";
+import { up as upDropReceipts } from "../migrations/0214_drop_coverage_receipts.ts";
 import {
 	DECODER_COMMIT_STEPS,
 	DecoderAdapterCrash,
-	type DecoderAdapterReceipt,
 	type DecoderCommitStep,
 	commitDecoderAdapter,
 	rewindDecoderCheckpoint,
 } from "../src/coverage/adapter.ts";
-import { inputDigest } from "../src/coverage/decoder-clock.ts";
 import { setMigrationRole } from "../src/db/migration-role.ts";
 import { hasTestDb } from "../src/db/test-helpers.ts";
 import type { Database } from "../src/db/types.ts";
 
 const HAS_DB = hasTestDb("decoder adapter crash matrix");
-
-function adapterReceipt(height: number): DecoderAdapterReceipt {
-	const cursors = [`${height}:0`];
-	return {
-		height,
-		hash: `0x${height}`,
-		input_count: 1,
-		input_cursors: cursors,
-		input_digest: inputDigest(cursors),
-		through_cursor: `${height}:0`,
-		no_match: false,
-		effect_digest: "e",
-	};
-}
 
 describe.skipIf(!HAS_DB)("crash matrix (postgres)", () => {
 	async function withSchema(
@@ -47,6 +32,7 @@ describe.skipIf(!HAS_DB)("crash matrix (postgres)", () => {
 			await sql`CREATE SCHEMA ${sql.ref(schema)}`.execute(db);
 			await sql`SET search_path TO ${sql.ref(schema)}`.execute(db);
 			await upCoverage(db as Kysely<unknown>);
+			await upDropReceipts(db as Kysely<unknown>);
 			await sql`
 				CREATE TABLE decoder_checkpoints (
 					decoder_name TEXT PRIMARY KEY,
@@ -71,10 +57,9 @@ describe.skipIf(!HAS_DB)("crash matrix (postgres)", () => {
 	async function counts(db: Kysely<Database>): Promise<{
 		output: number;
 		checkpoints: number;
-		receipts: number;
 		failures: number;
 	}> {
-		const [output, checkpoints, receipts, failures] = await Promise.all([
+		const [output, checkpoints, failures] = await Promise.all([
 			sql<{
 				n: string;
 			}>`SELECT count(*)::text AS n FROM decoder_output`.execute(db),
@@ -83,15 +68,11 @@ describe.skipIf(!HAS_DB)("crash matrix (postgres)", () => {
 			}>`SELECT count(*)::text AS n FROM decoder_checkpoints`.execute(db),
 			sql<{
 				n: string;
-			}>`SELECT count(*)::text AS n FROM stage_block_receipts`.execute(db),
-			sql<{
-				n: string;
 			}>`SELECT count(*)::text AS n FROM stage_failures`.execute(db),
 		]);
 		return {
 			output: Number(output.rows[0]?.n ?? 0),
 			checkpoints: Number(checkpoints.rows[0]?.n ?? 0),
-			receipts: Number(receipts.rows[0]?.n ?? 0),
 			failures: Number(failures.rows[0]?.n ?? 0),
 		};
 	}
@@ -105,7 +86,6 @@ describe.skipIf(!HAS_DB)("crash matrix (postgres)", () => {
 			stage_id: "decode:ft_transfer",
 			decoder_name: "decode.ft_transfer.v1",
 			checkpoint_cursor: "12:0",
-			receipts: [adapterReceipt(10), adapterReceipt(11)],
 			failure: withFailure
 				? {
 						unit_kind: "block",
@@ -126,7 +106,7 @@ describe.skipIf(!HAS_DB)("crash matrix (postgres)", () => {
 		});
 	}
 
-	test("a crash after any step leaves no output, checkpoint, receipt, or failure", async () => {
+	test("a crash after any step leaves no output, checkpoint, or failure", async () => {
 		await withSchema(async (db) => {
 			for (const step of DECODER_COMMIT_STEPS) {
 				await expect(commit(db, step)).rejects.toBeInstanceOf(
@@ -135,20 +115,18 @@ describe.skipIf(!HAS_DB)("crash matrix (postgres)", () => {
 				expect(await counts(db)).toEqual({
 					output: 0,
 					checkpoints: 0,
-					receipts: 0,
 					failures: 0,
 				});
 			}
 		});
 	});
 
-	test("a clean commit writes all four", async () => {
+	test("a clean commit writes output, checkpoint and failure", async () => {
 		await withSchema(async (db) => {
 			await commit(db);
 			expect(await counts(db)).toEqual({
 				output: 1,
 				checkpoints: 1,
-				receipts: 2,
 				failures: 1,
 			});
 			const checkpoint = await db
@@ -167,7 +145,6 @@ describe.skipIf(!HAS_DB)("crash matrix (postgres)", () => {
 					stage_id: "decode:ft_transfer",
 					decoder_name: "decode.ft_transfer.v1",
 					checkpoint_cursor: cursor,
-					receipts: [],
 					writeOutput: async () => {},
 				});
 			const stored = async () =>
@@ -193,16 +170,33 @@ describe.skipIf(!HAS_DB)("crash matrix (postgres)", () => {
 		});
 	});
 
-	test("a second commit of the same receipts is idempotent", async () => {
+	test("a repeated commit without a failure is idempotent", async () => {
 		await withSchema(async (db) => {
 			await commit(db, undefined, false);
 			await commit(db, undefined, false);
 			expect(await counts(db)).toEqual({
 				output: 1,
 				checkpoints: 1,
-				receipts: 2,
 				failures: 0,
 			});
+		});
+	});
+
+	test("the registry row is written only when a failure is", async () => {
+		await withSchema(async (db) => {
+			const registered = async () =>
+				(
+					await sql<{
+						n: string;
+					}>`SELECT count(*)::text AS n FROM stage_registry WHERE id = 'decode:ft_transfer'`.execute(
+						db,
+					)
+				).rows[0]?.n;
+			await commit(db, undefined, false);
+			expect(await registered()).toBe("0");
+			await commit(db);
+			expect(await registered()).toBe("1");
+			expect((await counts(db)).failures).toBe(1);
 		});
 	});
 });

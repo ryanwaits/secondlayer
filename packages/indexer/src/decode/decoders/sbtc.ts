@@ -16,7 +16,6 @@ import {
 	classifyGenericDecodeFault,
 	commitDecoderStageBatch,
 	failureFromFaults,
-	planGenericDecoderReceipts,
 } from "../generic-commit.ts";
 import { requireInternalStreamsApiKey } from "../internal-auth.ts";
 import {
@@ -115,12 +114,6 @@ export async function consumeSbtcRegistryDecodedEvents(
 		onBatch: async (events, ctx) => {
 			const rows: SbtcEventRow[] = [];
 			const unpaired: SbtcEventRow[] = [];
-			const clock: {
-				cursor: string;
-				block_height: number;
-				block_hash: string;
-				matched: boolean;
-			}[] = [];
 			const faults: {
 				cursor: string;
 				class: ReturnType<typeof classifyGenericDecodeFault>;
@@ -136,12 +129,6 @@ export async function consumeSbtcRegistryDecodedEvents(
 						event.contract_id === null ||
 						!SBTC_REGISTRY_CONTRACTS.includes(event.contract_id)
 					) {
-						clock.push({
-							cursor: event.cursor,
-							block_height: event.block_height,
-							block_hash: event.block_hash,
-							matched: false,
-						});
 						continue;
 					}
 					const row = decodeRegistryPrint(event);
@@ -152,12 +139,6 @@ export async function consumeSbtcRegistryDecodedEvents(
 						}
 						rows.push(row);
 					}
-					clock.push({
-						cursor: event.cursor,
-						block_height: event.block_height,
-						block_hash: event.block_hash,
-						matched: Boolean(row),
-					});
 				} catch (error) {
 					const fault = classifyGenericDecodeFault(error);
 					logger.warn("decoder.decode_skipped", {
@@ -167,12 +148,6 @@ export async function consumeSbtcRegistryDecodedEvents(
 						event_type: event.event_type,
 						fault,
 						error: String(error),
-					});
-					clock.push({
-						cursor: event.cursor,
-						block_height: event.block_height,
-						block_hash: event.block_hash,
-						matched: false,
 					});
 					faults.push({
 						cursor: event.cursor,
@@ -198,7 +173,6 @@ export async function consumeSbtcRegistryDecodedEvents(
 				db,
 				decoderName,
 				checkpointCursor: ctx.cursor,
-				receipts: planGenericDecoderReceipts(clock),
 				failure: failureFromFaults(faults),
 				startedFrom: expectedCheckpoint,
 				writeOutput: async (tx) => {

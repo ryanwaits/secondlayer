@@ -27,8 +27,7 @@ Written by the `indexer` and `decoder` services. Read by the public API.
   `state_writes_archive`, `mempool_transactions`, `dead_letter_events`,
   `index_progress`, `contracts`, `chain_reorgs`, `service_heartbeats`,
   `observer_journal`, `pending_fork_blocks`, `chain_read_cache`
-- Coverage: `stage_registry`, `stage_runs`, `stage_block_receipts`,
-  `coverage_segments`, `stage_failures`
+- Coverage: `stage_registry`, `stage_failures`
 - Decoded: `decoded_events`, `decoder_checkpoints`,
   `burn_block_rewards`, `burn_block_reward_slots`, `sbtc_events`,
   `bns_name_events`, `bns_namespace_events`,

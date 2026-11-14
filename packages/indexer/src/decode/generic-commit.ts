@@ -10,10 +10,8 @@ import {
 } from "@secondlayer/shared";
 import {
 	type DecoderAdapterFailure,
-	type DecoderAdapterReceipt,
 	commitDecoderAdapter,
 	commitDecoderAdapterBatch,
-	inputDigest,
 } from "@secondlayer/shared/coverage";
 import { getSourceDb } from "@secondlayer/shared/db";
 import type { Database } from "@secondlayer/shared/db/schema";
@@ -61,47 +59,6 @@ export function classifyGenericDecodeFault(error: unknown): GenericDecodeFault {
 	return "omission";
 }
 
-export type GenericClockEvent = {
-	cursor: string;
-	block_height: number;
-	block_hash: string;
-	matched: boolean;
-};
-
-export function planGenericDecoderReceipts(
-	events: readonly GenericClockEvent[],
-): DecoderAdapterReceipt[] {
-	const byHeight = new Map<
-		number,
-		{ hash: string; matched: string[]; last: string }
-	>();
-	for (const event of events) {
-		const group = byHeight.get(event.block_height);
-		if (!group) {
-			byHeight.set(event.block_height, {
-				hash: event.block_hash,
-				matched: event.matched ? [event.cursor] : [],
-				last: event.cursor,
-			});
-			continue;
-		}
-		if (event.matched) group.matched.push(event.cursor);
-		group.last = event.cursor;
-	}
-	return [...byHeight.entries()]
-		.sort(([a], [b]) => a - b)
-		.map(([height, group]) => ({
-			height,
-			hash: group.hash,
-			input_count: group.matched.length,
-			input_cursors: group.matched,
-			input_digest: inputDigest(group.matched),
-			through_cursor: group.last,
-			no_match: group.matched.length === 0,
-			effect_digest: inputDigest(group.matched),
-		}));
-}
-
 export function failureFromFaults(
 	faults: readonly {
 		cursor: string;
@@ -128,7 +85,6 @@ export async function commitDecoderStageBatch(opts: {
 	db?: Kysely<Database>;
 	decoderName: string;
 	checkpointCursor: string | null;
-	receipts: readonly DecoderAdapterReceipt[];
 	failure?: DecoderAdapterFailure | null;
 	writeOutput: (tx: Kysely<Database>) => Promise<void>;
 	/** Cursor this consume believes is stored. Identity-checked FOR UPDATE
@@ -140,7 +96,6 @@ export async function commitDecoderStageBatch(opts: {
 		stage_id: opts.decoderName,
 		decoder_name: opts.decoderName,
 		checkpoint_cursor: opts.checkpointCursor,
-		receipts: opts.receipts,
 		failure: opts.failure ?? null,
 		writeOutput: async (tx) => {
 			await assertCheckpointUnmoved({
@@ -158,7 +113,6 @@ export async function commitGenericDecoderBatch(opts: {
 	decoderName: string;
 	checkpointCursor: string | null;
 	rows: readonly DecodedEventRow[];
-	receipts: readonly DecoderAdapterReceipt[];
 	failure?: DecoderAdapterFailure | null;
 	startedFrom: string | null;
 }): Promise<void> {
@@ -166,7 +120,6 @@ export async function commitGenericDecoderBatch(opts: {
 		db: opts.db,
 		decoderName: opts.decoderName,
 		checkpointCursor: opts.checkpointCursor,
-		receipts: opts.receipts,
 		failure: opts.failure,
 		startedFrom: opts.startedFrom,
 		writeOutput: (tx) =>
@@ -185,7 +138,6 @@ export type GenericDecoderBatchEntry = {
 	decoderName: string;
 	checkpointCursor: string | null;
 	rows: readonly DecodedEventRow[];
-	receipts: readonly DecoderAdapterReceipt[];
 	failure?: DecoderAdapterFailure | null;
 	startedFrom: string | null;
 };
@@ -214,7 +166,6 @@ export async function commitClassicDecoderBatch(
 			stage_id: entry.decoderName,
 			decoder_name: entry.decoderName,
 			checkpoint_cursor: entry.checkpointCursor,
-			receipts: entry.receipts,
 			failure: entry.failure ?? null,
 			writeOutput: async (tx: Kysely<Database>) => {
 				await assertCheckpointUnmoved({

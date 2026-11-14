@@ -56,14 +56,12 @@ import type { Kysely } from "kysely";
 import { readCanonicalStreamsEvents } from "../streams-events.ts";
 import { getCurrentCanonicalTip } from "../streams-tip.ts";
 import {
-	type GenericClockEvent,
 	type GenericDecodeFault,
 	type GenericDecoderBatchEntry,
 	checkpointAdvance,
 	classifyGenericDecodeFault,
 	commitClassicDecoderBatch,
 	failureFromFaults,
-	planGenericDecoderReceipts,
 } from "./generic-commit.ts";
 import {
 	DECODER_EVENT_TYPES,
@@ -302,7 +300,6 @@ export async function runClassicDecodeCycle(opts?: {
 		// Per-page accumulators — reset every iteration so memory is bounded
 		// by one page's worth of rows, never the whole backlog.
 		const rowsByDecoder = {} as Record<DecoderName, DecodedEventRow[]>;
-		const clockEventsByDecoder = {} as Record<DecoderName, GenericClockEvent[]>;
 		const faultsByDecoder = {} as Record<
 			DecoderName,
 			{ cursor: string; class: GenericDecodeFault; error: string }[]
@@ -312,7 +309,6 @@ export async function runClassicDecodeCycle(opts?: {
 		const lastMatchThisPage = {} as Record<DecoderName, string | null>;
 		for (const name of DECODER_NAMES) {
 			rowsByDecoder[name] = [];
-			clockEventsByDecoder[name] = [];
 			faultsByDecoder[name] = [];
 			lastMatchThisPage[name] = null;
 		}
@@ -337,12 +333,6 @@ export async function runClassicDecodeCycle(opts?: {
 			try {
 				const row = CLASSIC_DECODE_BY_TYPE[event.event_type](event);
 				rowsByDecoder[decoderName].push(row);
-				clockEventsByDecoder[decoderName].push({
-					cursor: event.cursor,
-					block_height: event.block_height,
-					block_hash: event.block_hash,
-					matched: true,
-				});
 			} catch (error) {
 				const fault = classifyGenericDecodeFault(error);
 				logger.warn("decoder.decode_skipped", {
@@ -351,12 +341,6 @@ export async function runClassicDecodeCycle(opts?: {
 					tx_id: event.tx_id,
 					fault,
 					error: String(error),
-				});
-				clockEventsByDecoder[decoderName].push({
-					cursor: event.cursor,
-					block_height: event.block_height,
-					block_hash: event.block_hash,
-					matched: false,
 				});
 				faultsByDecoder[decoderName].push({
 					cursor: event.cursor,
@@ -389,7 +373,6 @@ export async function runClassicDecodeCycle(opts?: {
 			decoderName: name,
 			checkpointCursor: pageCheckpoints[name],
 			rows: rowsByDecoder[name],
-			receipts: planGenericDecoderReceipts(clockEventsByDecoder[name]),
 			failure: failureFromFaults(faultsByDecoder[name]),
 			startedFrom: currentCheckpoints[name],
 		}));

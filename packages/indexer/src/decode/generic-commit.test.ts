@@ -4,7 +4,6 @@ import {
 	checkpointAdvance,
 	classifyGenericDecodeFault,
 	failureFromFaults,
-	planGenericDecoderReceipts,
 	shortPageCheckpointCursor,
 } from "./generic-commit.ts";
 
@@ -22,45 +21,6 @@ describe("classifyGenericDecodeFault", () => {
 		expect(
 			classifyGenericDecodeFault(new Error("unknown decoder version")),
 		).toBe("version");
-	});
-});
-
-describe("planGenericDecoderReceipts", () => {
-	test("groups matched events per height and marks omitted ones no-match", () => {
-		const receipts = planGenericDecoderReceipts([
-			{
-				cursor: "10:0",
-				block_height: 10,
-				block_hash: "0xa",
-				matched: true,
-			},
-			{
-				cursor: "10:1",
-				block_height: 10,
-				block_hash: "0xa",
-				matched: false,
-			},
-			{
-				cursor: "11:0",
-				block_height: 11,
-				block_hash: "0xb",
-				matched: false,
-			},
-		]);
-		expect(receipts).toHaveLength(2);
-		expect(receipts[0]).toMatchObject({
-			height: 10,
-			hash: "0xa",
-			input_count: 1,
-			input_cursors: ["10:0"],
-			no_match: false,
-		});
-		expect(receipts[1]).toMatchObject({
-			height: 11,
-			hash: "0xb",
-			input_count: 0,
-			no_match: true,
-		});
 	});
 });
 

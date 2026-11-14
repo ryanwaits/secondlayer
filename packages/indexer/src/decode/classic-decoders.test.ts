@@ -28,7 +28,6 @@ describe.skipIf(!HAS_DB)("classic decoder in-process loop", () => {
 		await sql`DELETE FROM decoded_events`.execute(db);
 		await sql`DELETE FROM decoder_checkpoints`.execute(db);
 		await sql`DELETE FROM stage_failures`.execute(db);
-		await sql`DELETE FROM stage_block_receipts`.execute(db);
 		await sql`DELETE FROM events`.execute(db);
 		await sql`DELETE FROM transactions`.execute(db);
 		await sql`DELETE FROM blocks`.execute(db);
@@ -329,7 +328,6 @@ describe.skipIf(!HAS_DB)("classic decoder in-process loop", () => {
 		await sql`DELETE FROM decoded_events`.execute(db);
 		await sql`DELETE FROM decoder_checkpoints`.execute(db);
 		await sql`DELETE FROM stage_failures`.execute(db);
-		await sql`DELETE FROM stage_block_receipts`.execute(db);
 
 		// Single-call path: the default row cap comfortably covers all 12 rows
 		// in one reader call.
@@ -396,7 +394,6 @@ describe.skipIf(!HAS_DB)("classic decoder in-process loop", () => {
 								source_cursor: "10:0",
 							},
 						],
-						receipts: [],
 						// Stale: the batch thinks it started from "3:0", but the row
 						// actually holds "5:2147483647".
 						startedFrom: "3:0",
@@ -421,7 +418,6 @@ describe.skipIf(!HAS_DB)("classic decoder in-process loop", () => {
 								source_cursor: "10:1",
 							},
 						],
-						receipts: [],
 						// This one's expectation IS correct — it must still abort,
 						// because the batch commits atomically.
 						startedFrom: "5:2147483647",

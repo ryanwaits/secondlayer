@@ -47,9 +47,6 @@ export const TABLE_TO_DB = {
 	sync_scopes: "source",
 	// Coverage kernel — attests the chain it sits next to.
 	stage_registry: "source",
-	stage_runs: "source",
-	stage_block_receipts: "source",
-	coverage_segments: "source",
 	stage_failures: "source",
 	// ── SOURCE: decoded ──
 	decoded_events: "source",

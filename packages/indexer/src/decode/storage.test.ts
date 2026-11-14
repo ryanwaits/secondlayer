@@ -325,7 +325,6 @@ describe.skipIf(!HAS_DB)("L2 decoded event storage", () => {
 				checkpointCursor: "110:0",
 				startedFrom: "100:0",
 				rows: [ftRow("110:0", 110)],
-				receipts: [],
 			}),
 		).rejects.toBeInstanceOf(DecoderCheckpointRewoundError);
 
@@ -356,7 +355,6 @@ describe.skipIf(!HAS_DB)("L2 decoded event storage", () => {
 			checkpointCursor: "110:0",
 			startedFrom: "100:0",
 			rows: [ftRow("110:0", 110)],
-			receipts: [],
 		});
 		const checkpoint = await db
 			.selectFrom("decoder_checkpoints")
@@ -392,7 +390,6 @@ describe.skipIf(!HAS_DB)("L2 decoded event storage", () => {
 				checkpointCursor: "100:0",
 				startedFrom: "100:0",
 				rows: [],
-				receipts: [],
 			});
 			await commitGenericDecoderBatch({
 				db,
@@ -400,7 +397,6 @@ describe.skipIf(!HAS_DB)("L2 decoded event storage", () => {
 				checkpointCursor: "100:0",
 				startedFrom: "100:0",
 				rows: [],
-				receipts: [],
 			});
 			// A genuine advance still notifies exactly once.
 			await commitGenericDecoderBatch({
@@ -409,7 +405,6 @@ describe.skipIf(!HAS_DB)("L2 decoded event storage", () => {
 				checkpointCursor: "110:0",
 				startedFrom: "100:0",
 				rows: [ftRow("110:0", 110)],
-				receipts: [],
 			});
 			await new Promise((resolve) => setTimeout(resolve, 200));
 			expect(received).toEqual([FT_TRANSFER_DECODER_NAME]);
@@ -437,7 +432,6 @@ describe.skipIf(!HAS_DB)("L2 decoded event storage", () => {
 			checkpointCursor: "1:0",
 			startedFrom: null,
 			rows: [ftRow("1:0", 1)],
-			receipts: [],
 		});
 		const checkpoint = await db
 			.selectFrom("decoder_checkpoints")
