@@ -2,7 +2,7 @@
  * Manual, immediate trigger for contract-registry discovery — the re-derive
  * command for a repaired window's `contracts` rows.
  *
- * Unlike `decoded_events` / `sbtc_token_events` / `pox5_events` / the BNS event
+ * Unlike `decoded_events` / `sbtc_events` / `pox5_events` / the BNS event
  * logs, the contracts registry needs no delete-then-redecode and no height
  * window at all: `discoverDeploys` anti-joins `transactions` (type =
  * `smart_contract`) against `contracts` and registers whatever isn't there yet,

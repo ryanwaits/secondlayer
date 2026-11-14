@@ -135,9 +135,9 @@ GO: stop indexer (node stalls, no gap) → replay last rows → repoint SOURCE �
     - Protocol tables are filled by the scripts below. They read the new DB
       in-process through `getSourceDb()`, so run each with
       `SOURCE_DATABASE_URL=db-server`. All are dry-run unless `--apply` is given.
-      - sBTC (`sbtc_token` first: deposit recipients come from the mints):
-        `bun run packages/indexer/src/decode/backfill-from-firehose.ts --target sbtc_token --from-height 0 --restart --apply`
-        then the same command with `--target sbtc`.
+      - sBTC (run only after the classic decoders' `ft_mint` output covers the
+        range: `fillDepositRecipients` reads the `decoded_events` `ft_mint` rows):
+        `bun run packages/indexer/src/decode/backfill-from-firehose.ts --target sbtc --from-height 0 --restart --apply`.
         `--to-height` defaults to the new DB's canonical tip. `--restart`
         ignores the script's own `backfill.<key>` checkpoint.
       - PoX-5 (`backfill-from-firehose` has no pox5 entry):
