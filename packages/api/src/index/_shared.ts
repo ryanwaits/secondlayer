@@ -308,6 +308,24 @@ export function parseIndexBaseQuery<
 	};
 }
 
+/** `next_cursor` for an event page, nulled once the requested range is done:
+ *  a short page (fewer rows than `limit`) that read desc (reached
+ *  from_height) or asc to a `to_height` below the tip. Asc reads up to the
+ *  tip keep their cursor so live followers resume from it. */
+export function rangeAwareNextCursor(opts: {
+	nextCursor: string | null;
+	rowCount: number;
+	limit: number;
+	order: IndexOrder;
+	toHeight: number;
+	tipHeight: number;
+}): string | null {
+	if (opts.rowCount >= opts.limit) return opts.nextCursor;
+	if (opts.order === "desc") return null;
+	if (opts.toHeight < opts.tipHeight) return null;
+	return opts.nextCursor;
+}
+
 /** Resolve overlapping reorgs for the [first, last] event range of a page.
  *  Empty page → no reorg lookup.
  *

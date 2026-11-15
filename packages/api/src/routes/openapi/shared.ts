@@ -175,6 +175,7 @@ export function json200(schema: Record<string, unknown>, description = "OK") {
 export function envelope(
 	arrayKey = "events",
 	item: Record<string, unknown> = { type: "object" },
+	nextCursorDescription = "The last row's cursor. Pass it back as `cursor` to continue; a short page means you are at the tip. `null` when the page is empty.",
 ) {
 	return {
 		"200": {
@@ -188,8 +189,7 @@ export function envelope(
 							[arrayKey]: { type: "array", items: item },
 							next_cursor: {
 								type: ["string", "null"],
-								description:
-									"The last row's cursor. Pass it back as `cursor` to continue; a short page means you are at the tip. `null` when the page is empty.",
+								description: nextCursorDescription,
 								example: "7960000:42",
 							},
 							tip: { $ref: "#/components/schemas/Tip" },
@@ -209,6 +209,11 @@ export function envelope(
 		"429": jsonError(ERROR_429),
 	};
 }
+
+/** `next_cursor` text for the Index event feeds, which null it once the
+ *  requested height range is exhausted. */
+export const EVENT_NEXT_CURSOR_DESCRIPTION =
+	"The last row's cursor. Pass it back as `cursor` to continue. `null` when the requested range is exhausted: a short page (fewer rows than `limit`) with `order=desc`, or with `order=asc` and a `to_height` below the tip. An `asc` short page that reads up to the tip keeps its cursor so you can resume as new blocks land. `null` when the page is empty.";
 
 /** What each shared error status means, so no response reads just "Error". */
 export const ERROR_400 =

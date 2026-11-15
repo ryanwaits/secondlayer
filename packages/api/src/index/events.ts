@@ -15,6 +15,7 @@ import {
 	parseFilter,
 	parseIndexBaseQuery,
 	parseListFilter,
+	rangeAwareNextCursor,
 	readReorgsForEvents,
 	sortDirection,
 	toIsoOrNull,
@@ -833,7 +834,14 @@ export async function getIndexEventsResponse(opts: {
 
 	return {
 		events: result.events,
-		next_cursor: result.next_cursor,
+		next_cursor: rangeAwareNextCursor({
+			nextCursor: result.next_cursor,
+			rowCount: result.events.length,
+			limit: parsed.limit,
+			order: parsed.order,
+			toHeight: parsed.toHeight,
+			tipHeight: tip.block_height,
+		}),
 		tip,
 		reorgs,
 	};

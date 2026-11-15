@@ -7,6 +7,7 @@ import {
 	CONTRACT_ID_PARAM,
 	ERROR_401,
 	ERROR_429,
+	EVENT_NEXT_CURSOR_DESCRIPTION,
 	INDEX_RANGE_PARAMS,
 	ORDER_PARAM,
 	READ_SECURITY,
@@ -258,7 +259,11 @@ export const indexPaths = {
 				),
 				WAIT_PARAM,
 			],
-			responses: envelope("events", ref("IndexEvent")),
+			responses: envelope(
+				"events",
+				ref("IndexEvent"),
+				EVENT_NEXT_CURSOR_DESCRIPTION,
+			),
 		},
 	},
 	"/v1/index/ft-transfers": {
@@ -294,7 +299,11 @@ export const indexPaths = {
 					`Comma-separated columns to return, from ${list(FT_TRANSFER_FIELDS)} and \`event_type\`. \`cursor\` and \`block_height\` always come back; an unknown name is refused.`,
 				),
 			],
-			responses: envelope("events", ref("FtTransfer")),
+			responses: envelope(
+				"events",
+				ref("FtTransfer"),
+				EVENT_NEXT_CURSOR_DESCRIPTION,
+			),
 		},
 	},
 	"/v1/index/nft-transfers": {
@@ -330,7 +339,11 @@ export const indexPaths = {
 					`Comma-separated columns to return, from ${list(NFT_TRANSFER_FIELDS)} and \`event_type\`. \`cursor\` and \`block_height\` always come back; an unknown name is refused.`,
 				),
 			],
-			responses: envelope("events", ref("NftTransfer")),
+			responses: envelope(
+				"events",
+				ref("NftTransfer"),
+				EVENT_NEXT_CURSOR_DESCRIPTION,
+			),
 		},
 	},
 	"/v1/index/contract-calls": {

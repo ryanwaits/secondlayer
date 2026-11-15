@@ -6,6 +6,7 @@ import {
 	type IndexOrder,
 	parseFilter,
 	parseIndexBaseQuery,
+	rangeAwareNextCursor,
 	readReorgsForEvents,
 } from "./_shared.ts";
 import { indexReadTip, readIndexEvents } from "./events.ts";
@@ -192,7 +193,14 @@ export async function getFtTransfersResponse(opts: {
 
 	return {
 		events: result.events,
-		next_cursor: result.next_cursor,
+		next_cursor: rangeAwareNextCursor({
+			nextCursor: result.next_cursor,
+			rowCount: result.events.length,
+			limit: parsed.limit,
+			order: parsed.order,
+			toHeight: parsed.toHeight,
+			tipHeight: tip.block_height,
+		}),
 		tip,
 		reorgs,
 	};
