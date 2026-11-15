@@ -5,7 +5,7 @@ You don't decode them: every print is indexed already parsed from Clarity into J
 <CodeTabs sync="lang">
 
 ```bash
-curl "$SECONDLAYER_API_URL/v1/index/events?event_type=print&contract_id=SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4.sbtc-registry&order=desc&limit=1" \
+curl "https://api.secondlayer.tools/v1/index/events?event_type=print&contract_id=SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4.sbtc-registry&order=desc&limit=1" \
   -H "Authorization: Bearer sk-sl_…"
 ```
 
@@ -68,7 +68,7 @@ A contract prints different shapes under different topics. The print-schema call
 <CodeTabs sync="lang">
 
 ```bash
-curl "$SECONDLAYER_API_URL/v1/index/contracts/SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4.sbtc-registry/print-schema" \
+curl "https://api.secondlayer.tools/v1/index/contracts/SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4.sbtc-registry/print-schema" \
   -H "Authorization: Bearer sk-sl_…"
 ```
 
