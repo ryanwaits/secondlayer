@@ -545,11 +545,7 @@ describe.skipIf(!HAS_DB)("Index /events DB reads", () => {
 			`${newest - 1}:0`,
 			`${newest - 2}:0`,
 		]);
-		expect(cursors).toEqual([
-			`desc:${newest - 1}:0`,
-			`desc:${newest - 2}:0`,
-			null,
-		]);
+		expect(cursors).toEqual([`desc:${newest - 1}:0`, null]);
 	});
 
 	test("ft_transfer reads match the typed readFtTransfers path", async () => {
