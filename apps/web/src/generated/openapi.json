@@ -10686,7 +10686,7 @@
 												"string",
 												"null"
 											],
-											"description": "The last row's cursor. Pass it back as `cursor` to continue; a short page means you are at the tip. `null` when the page is empty.",
+											"description": "The last row's cursor. Pass it back as `cursor` to continue. `null` when the requested range is exhausted: a short page (fewer rows than `limit`) with `order=desc`, or with `order=asc` and a `to_height` below the tip. An `asc` short page that reads up to the tip keeps its cursor so you can resume as new blocks land. `null` when the page is empty.",
 											"example": "7960000:42"
 										},
 										"tip": {
@@ -10877,7 +10877,7 @@
 												"string",
 												"null"
 											],
-											"description": "The last row's cursor. Pass it back as `cursor` to continue; a short page means you are at the tip. `null` when the page is empty.",
+											"description": "The last row's cursor. Pass it back as `cursor` to continue. `null` when the requested range is exhausted: a short page (fewer rows than `limit`) with `order=desc`, or with `order=asc` and a `to_height` below the tip. An `asc` short page that reads up to the tip keeps its cursor so you can resume as new blocks land. `null` when the page is empty.",
 											"example": "7960000:42"
 										},
 										"tip": {
@@ -11068,7 +11068,7 @@
 												"string",
 												"null"
 											],
-											"description": "The last row's cursor. Pass it back as `cursor` to continue; a short page means you are at the tip. `null` when the page is empty.",
+											"description": "The last row's cursor. Pass it back as `cursor` to continue. `null` when the requested range is exhausted: a short page (fewer rows than `limit`) with `order=desc`, or with `order=asc` and a `to_height` below the tip. An `asc` short page that reads up to the tip keeps its cursor so you can resume as new blocks land. `null` when the page is empty.",
 											"example": "7960000:42"
 										},
 										"tip": {

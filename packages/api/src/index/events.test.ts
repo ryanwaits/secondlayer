@@ -545,11 +545,7 @@ describe.skipIf(!HAS_DB)("Index /events DB reads", () => {
 			`${newest - 1}:0`,
 			`${newest - 2}:0`,
 		]);
-		expect(cursors).toEqual([
-			`desc:${newest - 1}:0`,
-			`desc:${newest - 2}:0`,
-			null,
-		]);
+		expect(cursors).toEqual([`desc:${newest - 1}:0`, null]);
 	});
 
 	test("ft_transfer reads match the typed readFtTransfers path", async () => {
@@ -978,5 +974,57 @@ describe.skipIf(!HAS_DB)("Index /events field selection", () => {
 		expect(row).toHaveProperty("tx_id");
 		expect(row).toHaveProperty("sender");
 		expect(row).toHaveProperty("asset_identifier");
+	});
+});
+
+describe("Index /events next_cursor at range end", () => {
+	function rows(n: number) {
+		return Array.from({ length: n }, (_, i) => ({
+			cursor: `${100 + i}:0`,
+			block_height: 100 + i,
+			event_index: 0,
+		})) as never[];
+	}
+	async function page(query: string, count: number) {
+		return getIndexEventsResponse({
+			query: new URL(`http://localhost/v1/index/events${query}`).searchParams,
+			tip: TIP,
+			readEvents: async () => ({
+				events: rows(count),
+				next_cursor: count > 0 ? `${100 + count - 1}:0` : null,
+			}),
+		});
+	}
+
+	test("short asc page with to_height below tip returns null", async () => {
+		const res = await page(
+			"?event_type=ft_transfer&from_height=0&to_height=20000&limit=1000",
+			277,
+		);
+		expect(res.next_cursor).toBeNull();
+	});
+
+	test("short asc page reading to tip keeps the cursor", async () => {
+		const res = await page(
+			"?event_type=ft_transfer&from_height=0&limit=1000",
+			277,
+		);
+		expect(res.next_cursor).toBe("376:0");
+	});
+
+	test("full page below tip keeps the cursor", async () => {
+		const res = await page(
+			"?event_type=ft_transfer&from_height=0&to_height=20000&limit=277",
+			277,
+		);
+		expect(res.next_cursor).toBe("376:0");
+	});
+
+	test("short desc page returns null", async () => {
+		const res = await page(
+			"?event_type=ft_transfer&from_height=0&order=desc&limit=1000",
+			277,
+		);
+		expect(res.next_cursor).toBeNull();
 	});
 });

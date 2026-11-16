@@ -519,3 +519,44 @@ function row(
 		amount,
 	};
 }
+
+describe("Index ft-transfers next_cursor at range end", () => {
+	function rows(n: number) {
+		return Array.from({ length: n }, (_, i) => ({
+			cursor: `${100 + i}:0`,
+			block_height: 100 + i,
+			event_index: 0,
+		})) as never[];
+	}
+	async function page(query: string, count: number) {
+		return getFtTransfersResponse({
+			query: new URL(`http://localhost/v1/index/ft-transfers${query}`)
+				.searchParams,
+			tip: TIP,
+			readTransfers: async () => ({
+				events: rows(count),
+				next_cursor: count > 0 ? `${100 + count - 1}:0` : null,
+			}),
+		});
+	}
+
+	test("short asc page with to_height below tip returns null", async () => {
+		const res = await page("?from_height=0&to_height=20000&limit=1000", 277);
+		expect(res.next_cursor).toBeNull();
+	});
+
+	test("short asc page reading to tip keeps the cursor", async () => {
+		const res = await page("?from_height=0&limit=1000", 277);
+		expect(res.next_cursor).toBe("376:0");
+	});
+
+	test("full page below tip keeps the cursor", async () => {
+		const res = await page("?from_height=0&to_height=20000&limit=277", 277);
+		expect(res.next_cursor).toBe("376:0");
+	});
+
+	test("short desc page returns null", async () => {
+		const res = await page("?from_height=0&order=desc&limit=1000", 277);
+		expect(res.next_cursor).toBeNull();
+	});
+});
