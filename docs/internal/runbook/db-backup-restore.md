@@ -27,9 +27,11 @@ sidecar** (`docker/walg/`, in `docker-compose.hetzner.yml`) spools each archived
 segment to R2 and deletes it (bounding local `/wal_archive`), plus a weekly
 `wal-g backup-push` with `delete retain FULL 4`. Base + WAL = **point-in-time
 recovery**. Backups go to the private R2 bucket `secondlayer-db-backups`
-(`s3://secondlayer-db-backups/pg`) using a dedicated scoped token in prod `.env`
-(`WALG_R2_ACCESS_KEY_ID/SECRET` + `WALG_S3_PREFIX`; endpoint auto-reuses
-`STREAMS_BULK_R2_ENDPOINT`). First full verified: `wal-verify integrity` OK, the
+(historically `s3://secondlayer-db-backups/pg`, unencrypted; new chains use an
+encrypted prefix, see below) using a dedicated scoped token in prod `.env`
+(`WALG_R2_ACCESS_KEY_ID/SECRET` + `WALG_S3_PREFIX`). The endpoint may reuse
+`STREAMS_BULK_R2_ENDPOINT`; the credential never falls back to the Streams one.
+Backups are libsodium-encrypted client-side (`WALG_LIBSODIUM_KEY`). First full verified: `wal-verify integrity` OK, the
 spool drained 12 GB → ~0.
 
 - **Gotcha (already fixed in compose):** `wal-g backup-push` requires its data-dir
@@ -37,6 +39,35 @@ spool drained 12 GB → ~0.
   `/var/lib/postgresql/data` (not `/pgdata`). Keep them equal.
 - Health: `docker logs secondlayer-walg-backup-1` ("base backup complete"),
   `docker exec secondlayer-walg-backup-1 wal-g backup-list`.
+
+### Encryption and credentials (since 2026-11-18)
+Compose refuses to start the sidecars without `WALG_R2_ACCESS_KEY_ID`,
+`WALG_R2_SECRET_ACCESS_KEY`, `WALG_LIBSODIUM_KEY` and `WALG_S3_PREFIX`. Founder
+steps, in order:
+
+1. In Cloudflare, create an R2 API token scoped to the `secondlayer-db-backups`
+   bucket only (Object Read & Write). Set it as `WALG_R2_ACCESS_KEY_ID` /
+   `WALG_R2_SECRET_ACCESS_KEY` on app-server and db-server. Keep the existing
+   scoped token if it is already bucket-scoped.
+2. Generate the key: `openssl rand -base64 32`. Store it in the password manager
+   **and** one offsite place before setting `WALG_LIBSODIUM_KEY`. A lost key
+   means unreadable backups.
+3. Set `WALG_S3_PREFIX` to a NEW prefix, e.g. `s3://secondlayer-db-backups/pg-enc`;
+   platform gets `-platform` appended. Encrypted and unencrypted objects must
+   not share a chain.
+4. `docker compose ... up -d --no-deps walg-backup walg-backup-platform`, then
+   confirm a new base backup lists:
+   `docker exec secondlayer-walg-backup-1 wal-g backup-list`. It can take up to
+   the backup interval; run `wal-g backup-push` once by hand inside the
+   container to start the chain now.
+5. Run the restore drill against the new prefix (with the key set) before
+   trusting it.
+6. Keep the old unencrypted prefixes until the new chain has one verified
+   restore. Then delete them (founder decision).
+7. Optional delete protection: an R2 bucket lock rule on the backup bucket with
+   a retention shorter than `RETAIN_FULL x BACKUP_INTERVAL` (e.g. 21 days with 4
+   weekly fulls), so a stolen credential cannot erase recent backups and the
+   weekly prune still works.
 
 ### Control-plane DB (WAL-G) — since 2026-11-11
 `postgres-platform` (`secondlayer_platform`: accounts, api keys, billing ledger,
@@ -89,7 +120,9 @@ exact observer callback bytes before journal activation.
 ## Restore drill (WAL-G)
 
 Run from a box with `wal-g` + the same `WALG_S3_PREFIX`/R2 env (e.g. exec into
-the `walg-backup` sidecar, or a one-off container from `docker/walg`).
+the `walg-backup` sidecar, or a one-off container from `docker/walg`). The
+restoring shell also needs `WALG_LIBSODIUM_KEY` and
+`WALG_LIBSODIUM_KEY_TRANSFORM=base64` set, or the fetch cannot decrypt.
 
 ```bash
 # 0. Stop the stack writers (api/indexer/etc.); keep the postgres image.

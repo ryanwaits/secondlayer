@@ -9,10 +9,15 @@
 
 # Shared by both WAL-G sidecars; each adds its own prefix, host and database.
 x-walg-environment: &walg-environment
-  # R2 is S3-compatible; map the existing Streams R2 creds straight through.
-  AWS_ACCESS_KEY_ID: ${WALG_R2_ACCESS_KEY_ID:-${STREAMS_BULK_R2_ACCESS_KEY_ID}}
-  AWS_SECRET_ACCESS_KEY: ${WALG_R2_SECRET_ACCESS_KEY:-${STREAMS_BULK_R2_SECRET_ACCESS_KEY}}
-  AWS_ENDPOINT: ${WALG_R2_ENDPOINT:-${STREAMS_BULK_R2_ENDPOINT}}
+  # A scoped R2 token for the private backup bucket only. Never the Streams
+  # dump credential: that one writes the public bucket.
+  AWS_ACCESS_KEY_ID: ${WALG_R2_ACCESS_KEY_ID:?set WALG_R2_ACCESS_KEY_ID (scoped to the backup bucket)}
+  AWS_SECRET_ACCESS_KEY: ${WALG_R2_SECRET_ACCESS_KEY:?set WALG_R2_SECRET_ACCESS_KEY}
+  # The endpoint is the account's R2 host, not a secret; reusing it is fine.
+  AWS_ENDPOINT: ${WALG_R2_ENDPOINT:-${STREAMS_BULK_R2_ENDPOINT:?set WALG_R2_ENDPOINT}}
+  # Client-side encryption: R2 only ever holds ciphertext.
+  WALG_LIBSODIUM_KEY: ${WALG_LIBSODIUM_KEY:?set WALG_LIBSODIUM_KEY (openssl rand -base64 32)}
+  WALG_LIBSODIUM_KEY_TRANSFORM: base64
   AWS_S3_FORCE_PATH_STYLE: "true"
   AWS_REGION: auto
   WALG_COMPRESSION_METHOD: zstd
@@ -79,9 +84,9 @@ services:
 
   # Offsite backups: ships the WAL postgres archives to /wal_archive up to R2 and
   # takes periodic base backups (point-in-time recovery). See
-  # docs/internal/runbook/db-backup-restore.md. Reuses the Streams R2 creds by
-  # default; WALG_S3_PREFIX should point at a SEPARATE PRIVATE bucket from the
-  # public dumps bucket. Purely additive — postgres is unchanged.
+  # docs/internal/runbook/db-backup-restore.md. Uses its own scoped R2 credential
+  # and encrypts client-side; WALG_S3_PREFIX must point at a SEPARATE PRIVATE
+  # bucket from the public dumps bucket. Purely additive — postgres is unchanged.
   walg-backup:
     build:
       context: ./walg
@@ -91,7 +96,7 @@ services:
         condition: service_healthy
     environment:
       <<: *walg-environment
-      WALG_S3_PREFIX: ${WALG_S3_PREFIX:-s3://secondlayer-db-backups/pg}
+      WALG_S3_PREFIX: ${WALG_S3_PREFIX:?set WALG_S3_PREFIX}
       PGHOST: postgres
       PGDATABASE: ${POSTGRES_DB:-secondlayer}
     volumes:
@@ -112,7 +117,7 @@ services:
         condition: service_healthy
     environment:
       <<: *walg-environment
-      WALG_S3_PREFIX: ${WALG_S3_PREFIX:-s3://secondlayer-db-backups/pg}-platform
+      WALG_S3_PREFIX: ${WALG_S3_PREFIX:?set WALG_S3_PREFIX}-platform
       PGHOST: postgres-platform
       PGDATABASE: ${POSTGRES_PLATFORM_DB:-secondlayer_platform}
     volumes:

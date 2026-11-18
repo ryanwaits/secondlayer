@@ -12,6 +12,7 @@ set -euo pipefail
 
 : "${WALG_S3_PREFIX:?set WALG_S3_PREFIX (e.g. s3://secondlayer-db-backups/pg)}"
 : "${AWS_ACCESS_KEY_ID:?}" "${AWS_SECRET_ACCESS_KEY:?}" "${AWS_ENDPOINT:?}"
+: "${WALG_LIBSODIUM_KEY:?set WALG_LIBSODIUM_KEY}"
 
 export PGHOST="${PGHOST:-postgres}"
 export PGPORT="${PGPORT:-5432}"
