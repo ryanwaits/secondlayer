@@ -28,6 +28,7 @@ const config: DefineConfigItem = defineConfig({
 		"src/subgraphs/spec.ts",
 		"src/db/queries/webhooks.ts",
 		"src/db/queries/webhook-replays.ts",
+		"src/db/queries/api-keys.ts",
 		"src/types.ts",
 		"src/env.ts",
 		"src/mode.ts",
