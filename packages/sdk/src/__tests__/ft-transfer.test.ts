@@ -55,7 +55,6 @@ describe("ft_transfer helpers", () => {
 			tx_index: 2,
 			event_index: 4,
 			event_type: "ft_transfer",
-			source_cursor: "123:4",
 			decoded_payload: {
 				asset_identifier: "SP1.token::sbtc",
 				contract_id: "SP1.token",

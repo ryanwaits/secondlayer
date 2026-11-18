@@ -391,7 +391,6 @@ describe.skipIf(!HAS_DB)("classic decoder in-process loop", () => {
 									recipient: "SP2",
 									amount: "1",
 								},
-								source_cursor: "10:0",
 							},
 						],
 						// Stale: the batch thinks it started from "3:0", but the row
@@ -415,7 +414,6 @@ describe.skipIf(!HAS_DB)("classic decoder in-process loop", () => {
 									amount: "1",
 									memo: null,
 								},
-								source_cursor: "10:1",
 							},
 						],
 						// This one's expectation IS correct — it must still abort,

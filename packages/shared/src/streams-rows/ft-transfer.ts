@@ -30,7 +30,6 @@ export type DecodedFtTransfer = {
 	event_index: number;
 	event_type: "ft_transfer";
 	decoded_payload: DecodedFtTransferPayload;
-	source_cursor: string;
 };
 
 export function isFtTransfer(event: StreamsEvent): event is FtTransferEvent {

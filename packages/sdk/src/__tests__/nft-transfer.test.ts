@@ -54,7 +54,6 @@ describe("nft_transfer helpers", () => {
 				recipient: "SP2",
 				value: "0x0100000000000000000000000000000001",
 			},
-			source_cursor: "1:0",
 		});
 	});
 

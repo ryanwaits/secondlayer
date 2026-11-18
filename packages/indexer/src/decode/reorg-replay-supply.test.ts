@@ -39,7 +39,6 @@ function ftEvent(opts: {
 			recipient: "SP2",
 			amount: String(opts.amount),
 		},
-		source_cursor: opts.cursor,
 	};
 }
 

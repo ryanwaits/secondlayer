@@ -23,7 +23,6 @@ export type DecodedStxTransfer = {
 	event_index: number;
 	event_type: "stx_transfer";
 	decoded_payload: DecodedStxTransferPayload;
-	source_cursor: string;
 };
 
 export type DecodedStxMintPayload = {
@@ -39,7 +38,6 @@ export type DecodedStxMint = {
 	event_index: number;
 	event_type: "stx_mint";
 	decoded_payload: DecodedStxMintPayload;
-	source_cursor: string;
 };
 
 export type DecodedStxBurnPayload = {
@@ -55,7 +53,6 @@ export type DecodedStxBurn = {
 	event_index: number;
 	event_type: "stx_burn";
 	decoded_payload: DecodedStxBurnPayload;
-	source_cursor: string;
 };
 
 export function isStxTransfer(
@@ -128,7 +125,6 @@ export type DecodedStxLock = {
 	event_index: number;
 	event_type: "stx_lock";
 	decoded_payload: DecodedStxLockPayload;
-	source_cursor: string;
 };
 
 export function isStxLock(

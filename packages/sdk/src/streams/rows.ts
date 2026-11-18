@@ -1,7 +1,6 @@
 /**
  * `@secondlayer/sdk/streams/rows` — the per-type guard + decode pairs that
- * produce **database row** shapes (`decoded_payload` nested, `source_cursor`
- * carried), as opposed to the flat API rows `decode()` returns.
+ * produce **database row** shapes (`decoded_payload` nested), as opposed to the flat API rows `decode()` returns.
  *
  * These are a lower-level API and the subpath says so: you have to reach for
  * it. Reach for it when you are building a `decoded_events`-shaped projection

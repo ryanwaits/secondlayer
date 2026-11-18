@@ -23,7 +23,6 @@ export type DecodedFtMint = {
 	event_index: number;
 	event_type: "ft_mint";
 	decoded_payload: DecodedFtMintPayload;
-	source_cursor: string;
 };
 
 export type DecodedFtBurnPayload = {
@@ -42,7 +41,6 @@ export type DecodedFtBurn = {
 	event_index: number;
 	event_type: "ft_burn";
 	decoded_payload: DecodedFtBurnPayload;
-	source_cursor: string;
 };
 
 export type DecodedNftMintPayload = {
@@ -61,7 +59,6 @@ export type DecodedNftMint = {
 	event_index: number;
 	event_type: "nft_mint";
 	decoded_payload: DecodedNftMintPayload;
-	source_cursor: string;
 };
 
 export type DecodedNftBurnPayload = {
@@ -80,7 +77,6 @@ export type DecodedNftBurn = {
 	event_index: number;
 	event_type: "nft_burn";
 	decoded_payload: DecodedNftBurnPayload;
-	source_cursor: string;
 };
 
 function assetFields(event: StreamsEvent, eventType: string) {

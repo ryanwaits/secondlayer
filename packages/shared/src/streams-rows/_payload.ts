@@ -129,7 +129,6 @@ export function decodedRow<T extends string, P>(
 	event_index: number;
 	event_type: T;
 	decoded_payload: P;
-	source_cursor: string;
 } {
 	return {
 		cursor: event.cursor,
@@ -139,6 +138,5 @@ export function decodedRow<T extends string, P>(
 		event_index: event.event_index,
 		event_type: eventType,
 		decoded_payload,
-		source_cursor: event.cursor,
 	};
 }

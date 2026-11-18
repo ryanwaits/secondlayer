@@ -26,7 +26,6 @@ export type DecodedPrint = {
 	event_index: number;
 	event_type: "print";
 	decoded_payload: DecodedPrintPayload;
-	source_cursor: string;
 };
 
 export function isPrint(

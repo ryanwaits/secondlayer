@@ -30,7 +30,6 @@ export type DecodedNftTransfer = {
 	event_index: number;
 	event_type: "nft_transfer";
 	decoded_payload: DecodedNftTransferPayload;
-	source_cursor: string;
 };
 
 export function isNftTransfer(event: StreamsEvent): event is NftTransferEvent {

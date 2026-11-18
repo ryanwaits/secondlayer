@@ -163,7 +163,6 @@ describe.skipIf(!HAS_DB)("L2 decoded event storage", () => {
 						recipient: "SP4",
 						amount: "25",
 					},
-					source_cursor: "10:0",
 				},
 			],
 			{ db },
@@ -200,7 +199,6 @@ describe.skipIf(!HAS_DB)("L2 decoded event storage", () => {
 				amount,
 				memo: null,
 			},
-			source_cursor: "20:0",
 		});
 
 		// Two events colliding on one cursor must not throw "ON CONFLICT ...
@@ -237,7 +235,6 @@ describe.skipIf(!HAS_DB)("L2 decoded event storage", () => {
 						recipient: "SP2",
 						value: "0x0100000000000000000000000000000001",
 					},
-					source_cursor: "12:0",
 				},
 			],
 			{ db },
@@ -566,7 +563,6 @@ function ftRow(cursor: string, blockHeight: number) {
 			recipient: "SP2",
 			amount: "1",
 		},
-		source_cursor: cursor,
 	};
 }
 

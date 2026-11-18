@@ -1,8 +1,7 @@
 /**
  * `@secondlayer/shared/streams-rows` — the raw Streams event primitives
  * (`StreamsEvent`, payload types) plus the per-type guard + decode pairs that
- * produce **database row** shapes (`decoded_payload` nested, `source_cursor`
- * carried), as opposed to the flat API rows the SDK's `decode()` returns.
+ * produce **database row** shapes (`decoded_payload` nested), as opposed to the flat API rows the SDK's `decode()` returns.
  *
  * Canonical home for what our own indexer/decoder consumes; the SDK re-exports
  * this surface unchanged (root types + `@secondlayer/sdk/streams/rows`).
