@@ -156,6 +156,13 @@ export async function resetWakeListenerForTests(): Promise<void> {
 	wakeBus = null;
 }
 
+/** Test-only: resolve once the current connect attempt settles. True when the
+ *  wake bus is connected. */
+export async function wakeListenerReadyForTests(): Promise<boolean> {
+	await starting;
+	return wakeBus !== null;
+}
+
 /** The wake bus's current generation counter, or 0 when it hasn't connected
  *  (yet, or ever). Exported so a long-poll loop can record "the generation as
  *  of just before this build()" and later tell whether a NOTIFY landed since —
