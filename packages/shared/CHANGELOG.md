@@ -1,5 +1,11 @@
 # @secondlayer/shared
 
+## 18.0.2
+
+### Patch Changes
+
+- 469eded: The status page's events total is counted once and shared through a saved baseline, so a new API process no longer recounts every chain event.
+
 ## 18.0.1
 
 ### Patch Changes

@@ -1,5 +1,17 @@
 # @secondlayer/api
 
+## 1.64.16
+
+### Patch Changes
+
+- 469eded: The status page's events total is counted once and shared through a saved baseline, so a new API process no longer recounts every chain event.
+- 561afdc: `/v1/index/transactions` and `/v1/index/contract-calls` page with a row-value keyset, so a deep page costs the same as the first.
+- Updated dependencies [469eded]
+- Updated dependencies [0c67afe]
+  - @secondlayer/shared@18.0.2
+  - @secondlayer/subgraphs@8.1.14
+  - @secondlayer/platform@0.10.29
+
 ## 1.64.15
 
 ### Patch Changes

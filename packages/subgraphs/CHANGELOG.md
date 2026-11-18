@@ -1,5 +1,13 @@
 # @secondlayer/subgraphs
 
+## 8.1.14
+
+### Patch Changes
+
+- 0c67afe: Catch-up reads trait and factory membership once per batch instead of once per block.
+- Updated dependencies [469eded]
+  - @secondlayer/shared@18.0.2
+
 ## 8.1.13
 
 ### Patch Changes
