@@ -1,10 +1,14 @@
 /**
- * Ops tool: rewind L2 decoder checkpoints to backfill history.
+ * Ops tool: rewind classic decoder checkpoints to backfill history.
  *
  * The decoders that were added go-forward (stx/mints/burns/lock, print) only
  * hold data since their deploy. Rewinding a decoder's checkpoint makes it
  * replay from that point on its next poll — writes are idempotent upserts on
  * `cursor`, so re-processing the recent tail is harmless.
+ *
+ * The start cursor is the end of block H-1, so block H is decoded from its
+ * first event (index 0). Height 0 clears the checkpoint (start from genesis).
+ * Forward moves skip history and are refused without `--allow-forward`.
  *
  * Defaults to a ~90-day window and DRY-RUN. Run against the target DB
  * (prod env / indexer container) and pass `--apply` to actually write:
@@ -18,6 +22,12 @@
  * restart the indexer to force immediate pickup. Reset one group at a time to
  * avoid overloading the Streams API / DB.
  */
+import {
+	blockEndCursor,
+	compareStreamsCursor,
+	decodeStreamsCursor,
+	encodeStreamsCursor,
+} from "@secondlayer/shared";
 import { closeDb, getSourceDb, sql } from "@secondlayer/shared/db";
 import type { Database } from "@secondlayer/shared/db/schema";
 import type { Kysely } from "kysely";
@@ -43,22 +53,25 @@ type Args = {
 	fromHeight?: number;
 	decoders: readonly string[];
 	apply: boolean;
+	allowForward: boolean;
 };
 
-function parseArgs(argv: string[]): Args {
+export function parseArgs(argv: string[]): Args {
 	let days = 90;
 	let fromHeight: number | undefined;
 	let decoders: readonly string[] = GO_FORWARD_DECODERS;
 	let apply = false;
+	let allowForward = false;
 
 	for (let i = 0; i < argv.length; i++) {
 		const arg = argv[i];
 		if (arg === "--apply") apply = true;
+		else if (arg === "--allow-forward") allowForward = true;
 		else if (arg === "--days") days = Number(argv[++i]);
 		else if (arg === "--from-height") fromHeight = Number(argv[++i]);
 		else if (arg === "--decoders") {
 			decoders = (argv[++i] ?? "").split(",").filter(Boolean);
-		}
+		} else throw new Error(`unknown flag: ${arg}`);
 	}
 
 	if (!Number.isFinite(days) || days <= 0) {
@@ -73,7 +86,7 @@ function parseArgs(argv: string[]): Args {
 	if (unknown.length > 0) {
 		throw new Error(`unknown decoders: ${unknown.join(", ")}`);
 	}
-	return { days, fromHeight, decoders, apply };
+	return { days, fromHeight, decoders, apply, allowForward };
 }
 
 async function resolveStartHeight(
@@ -91,25 +104,82 @@ async function resolveStartHeight(
 	return h === null || h === undefined ? 0 : Number(h);
 }
 
+/** Checkpoint meaning "everything before block `height` is decoded". */
+export function startCursorForHeight(height: number): string | null {
+	return height <= 0 ? null : encodeStreamsCursor(blockEndCursor(height - 1));
+}
+
+export type ResetPlanRow = {
+	decoderName: string;
+	current: string | null;
+	next: string | null;
+	direction: "backward" | "same" | "forward";
+};
+
+export function planReset(input: {
+	startHeight: number;
+	current: Record<string, string | null>;
+	decoders: readonly string[];
+}): ResetPlanRow[] {
+	const next = startCursorForHeight(input.startHeight);
+	return input.decoders.map((decoderName) => {
+		const current = input.current[decoderName] ?? null;
+		let direction: ResetPlanRow["direction"];
+		if (current === next) direction = "same";
+		else if (next === null) direction = "backward";
+		else if (current === null) direction = "forward";
+		else {
+			direction =
+				compareStreamsCursor(
+					decodeStreamsCursor(next),
+					decodeStreamsCursor(current),
+				) > 0
+					? "forward"
+					: "backward";
+		}
+		return { decoderName, current, next, direction };
+	});
+}
+
 async function main(): Promise<void> {
 	const args = parseArgs(process.argv.slice(2));
 	const db = getSourceDb();
 	const startHeight = await resolveStartHeight(db, args);
-	const cursor = `${startHeight}:0`;
 
 	console.log(
-		`[reset-checkpoints] start cursor ${cursor} (${
+		`[reset-checkpoints] start height ${startHeight} (${
 			args.fromHeight !== undefined ? "explicit" : `~${args.days}d window`
 		}) · ${args.decoders.length} decoders · ${
 			args.apply ? "APPLY" : "dry-run"
 		}`,
 	);
 
+	const current: Record<string, string | null> = {};
 	for (const name of args.decoders) {
-		const current = await readDecoderCheckpoint({ db, decoderName: name });
-		console.log(`  ${name}: ${current ?? "(none)"} -> ${cursor}`);
-		if (args.apply) {
-			await writeDecoderCheckpoint({ db, decoderName: name, cursor });
+		current[name] = await readDecoderCheckpoint({ db, decoderName: name });
+	}
+	const plan = planReset({ startHeight, current, decoders: args.decoders });
+	for (const row of plan) {
+		console.log(
+			`  ${row.decoderName}: ${row.current ?? "(none)"} -> ${row.next ?? "(genesis)"} [${row.direction}]`,
+		);
+	}
+
+	const forward = plan.filter((row) => row.direction === "forward");
+	if (forward.length > 0 && !args.allowForward) {
+		throw new Error(
+			`${forward.map((row) => row.decoderName).join(", ")}: refusing to move a checkpoint forward (that skips history); pass --allow-forward if intended`,
+		);
+	}
+
+	if (args.apply) {
+		for (const row of plan) {
+			if (row.direction === "same") continue;
+			await writeDecoderCheckpoint({
+				db,
+				decoderName: row.decoderName,
+				cursor: row.next,
+			});
 		}
 	}
 
@@ -122,4 +192,10 @@ async function main(): Promise<void> {
 	await closeDb();
 }
 
-void main();
+if (import.meta.main) {
+	main().catch(async (error) => {
+		console.error(error instanceof Error ? error.message : error);
+		await closeDb().catch(() => {});
+		process.exit(1);
+	});
+}
