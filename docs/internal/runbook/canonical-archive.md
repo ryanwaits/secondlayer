@@ -231,7 +231,7 @@ stale the moment the repo copy changes.
 ## Decoder rebuild declarations
 
 `packages/indexer/src/decode/service-manifests.ts` — one manifest per built-in
-decoder (sBTC, pox-4, bns). Each says whether R2-alone can rebuild the output
+decoder (sBTC, BNS; the pox-5 decoder has no manifest yet). Each says whether R2-alone can rebuild the output
 tables and what else is required. Declarations only; stateful re-run is later
 work. Read them before claiming a decoder is archive-rebuildable.
 

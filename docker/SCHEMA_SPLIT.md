@@ -64,7 +64,7 @@ Written by `api`, `worker`, `subgraph-processor`.
    `DATABASE_URL` — the LISTEN/NOTIFY listener is split-aware as of shared@6.21.0,
    so it no longer needs it). Manual, founder-driven — run
    `docker/scripts/split-platform-db.sh` per
-   `docs/runbook/db-source-target-cutover.md`. Executed in prod 2026-06-05.
+   `docs/internal/runbook/db-source-target-cutover.md`. Executed in prod 2026-06-05.
 
 `postgres-platform` is now **default-on** (part of the standard topology — an
 empty, idle DB until cutover). The split stays dormant while

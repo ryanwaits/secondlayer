@@ -69,8 +69,8 @@ operator rules) — egress allowlist for every tenant compose network:
   packet within one tenant's own network never hits these rules, because the
   physdev ACCEPT above already matched it); and the Hetzner metadata IP
   (`169.254.169.254`) explicitly, unscoped.
-- The emitter's own app-level SSRF check (043,
-  `packages/subgraphs/src/runtime/ssrf.ts`) stays as the first line — this
+- The emitter's own app-level SSRF check (043, the SSRF guard in
+  `packages/subgraphs/src/runtime/emitter.ts`) stays as the first line — this
   host-level rule is the backstop, not a replacement.
 
 **2. `WORKLOAD-INPUT`** (a dedicated chain hooked into `INPUT` for traffic

@@ -32,7 +32,7 @@ GO: stop indexer (node stalls, no gap) → replay last rows → repoint SOURCE �
 |---|---|
 | Postgres | feeder 17.11, prod 17.11, db-server `postgres:17-alpine` pinned |
 | v2 DB | name `secondlayer_feeder`, user `secondlayer`, 821 GB at 91%, ~1 TB at tip |
-| v2 migrations | 179 applied, head `0181_push_sent`; prod at repo head `0215_decoder_checkpoints_last_output_at`. Pending on v2: 0182–0215 (34) |
+| v2 migrations | 179 applied, head `0181_push_sent`; repo head `0216_events_total_baseline`. Pending on v2: 0182–0216 (35) |
 | v2 empty tables | `decoded_events` (prod 393 GB), `sbtc_*`, `bns_*`, `pox5_*`, `stage_*`, `contracts` |
 | v2 extra | `vm_events` 328 GB, `state_writes` 137 GB, `observer_journal` 185 GB (genesis→H0) |
 | VM data after H0 | `vm_events` / `state_writes` end at H0 until the node swap (stock journal bodies carry none); VM readers see empty ranges after H0 that look real |

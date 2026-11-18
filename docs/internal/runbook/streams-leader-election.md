@@ -13,7 +13,7 @@ only matters when you scale the indexer horizontally.
 
 - Each instance with `INDEXER_LEADER_ELECTION=true` competes for one Postgres
   **advisory lock** (`INDEXER_LEADER_LOCK_KEY = 7702026`) held on a dedicated
-  `max:1` connection (`packages/indexer/src/leader.ts`).
+  `max:1` connection (`packages/shared/src/leader.ts`).
 - **Acquire poll** every ~15s: `pg_try_advisory_lock`. The winner logs
   `Acquired leader lock` and starts the leader loops.
 - **Heartbeat** every ~10s: the leader verifies it *still* holds the lock by
@@ -77,5 +77,5 @@ behavior.
 
 ## Related
 
-- Bulk-dumps publisher finality + GA: `docs/runbook/streams-bulk-dumps-ga.md`
+- Bulk-dumps publisher finality + GA: `docs/internal/runbook/streams-bulk-dumps-ga.md`
   (the publisher is a leader-only loop and uses the burn-confirmation boundary).
