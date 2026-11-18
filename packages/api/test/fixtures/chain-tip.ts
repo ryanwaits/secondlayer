@@ -1,6 +1,6 @@
 import { stacksNetwork } from "@secondlayer/shared";
 import { getDb } from "@secondlayer/shared/db";
-import { resetChainTipCache } from "../../src/routes/subgraphs.ts";
+import { resetChainTipCache } from "../../src/lib/chain-tip.ts";
 
 /**
  * Give the test database a chain with `height` blocks, so routes that refuse

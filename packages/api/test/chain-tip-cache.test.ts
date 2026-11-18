@@ -7,7 +7,7 @@ import {
 	test,
 } from "bun:test";
 import { getDb } from "@secondlayer/shared/db";
-import { getChainTip, resetChainTipCache } from "../src/routes/subgraphs.ts";
+import { getChainTip, resetChainTipCache } from "../src/lib/chain-tip.ts";
 
 /**
  * getChainTip() TTL cache: per-request `index_progress` reads on the hot

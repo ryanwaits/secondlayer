@@ -7,9 +7,8 @@ import {
 	scanHandlerDeterminism,
 } from "@secondlayer/bundler";
 import { bucketHourly, getErrorMessage, logger } from "@secondlayer/shared";
-import { getDb, getSourceDb } from "@secondlayer/shared/db";
+import { getDb } from "@secondlayer/shared/db";
 import type { Subgraph, SubgraphOperation } from "@secondlayer/shared/db";
-import { stacksNetworkFromEnv } from "@secondlayer/shared/db/queries/instance";
 import {
 	countSubgraphMissingBlocks,
 	findSubgraphGaps,
@@ -34,7 +33,6 @@ import {
 	pgSchemaName,
 	transitionSubgraph,
 } from "@secondlayer/shared/db/queries/subgraphs";
-import { createInternalIndexHttpClient } from "@secondlayer/shared/index-http";
 import {
 	type DeploySubgraphRequest,
 	DeploySubgraphRequestSchema,
@@ -55,6 +53,7 @@ import {
 	fetchHostedPrintSchema,
 	getPrintSchemaBody,
 } from "../index/print-schema.ts";
+import { getChainTip } from "../lib/chain-tip.ts";
 import { getApiKeyId } from "../lib/ownership.ts";
 import { InvalidJSONError } from "../middleware/error.ts";
 import { clampLimit, clampOffset } from "../parse-query.ts";
@@ -247,77 +246,6 @@ export function buildSyncInfo(
 		gaps,
 		integrity,
 	};
-}
-
-const CHAIN_TIP_TTL_MS = 2_000;
-
-/** The platform read sits on the dashboard's request path and its client
- *  retries without a timeout, so a slow platform must cost at most this much. */
-const PLATFORM_TIP_TIMEOUT_MS = 500;
-
-/** Platform Index tip: the highest block a hosted subgraph can process.
- *  Authenticates with `INDEX_INTERNAL_API_KEY`, which the tenant api has. */
-async function readPlatformTip(): Promise<number> {
-	let timer: ReturnType<typeof setTimeout> | undefined;
-	const timeout = new Promise<number>((resolve) => {
-		timer = setTimeout(() => resolve(0), PLATFORM_TIP_TIMEOUT_MS);
-	});
-	try {
-		return await Promise.race([
-			createInternalIndexHttpClient()
-				.getIndexTip()
-				.catch(() => 0),
-			timeout,
-		]);
-	} finally {
-		clearTimeout(timer);
-	}
-}
-
-let chainTipCache: { value: number; fetchedAt: number } | null = null;
-
-export function resetChainTipCache(): void {
-	chainTipCache = null;
-}
-
-export async function getChainTip(now: number = Date.now()): Promise<number> {
-	if (chainTipCache && now - chainTipCache.fetchedAt < CHAIN_TIP_TTL_MS) {
-		return chainTipCache.value;
-	}
-
-	const network = stacksNetworkFromEnv();
-	const selectTip = (db: ReturnType<typeof getDb>) =>
-		db
-			.selectFrom("index_progress")
-			.select(["highest_seen_block", "last_contiguous_block"])
-			.where("network", "=", network)
-			.executeTakeFirst()
-			.catch(() => null);
-
-	const progressRow =
-		(await selectTip(getSourceDb()).catch(() => null)) ??
-		(await selectTip(getDb()).catch(() => null));
-	let value = Number(progressRow?.highest_seen_block ?? 0);
-
-	// A hosted tenant has no indexer, so its own `index_progress` stays empty:
-	// ask the platform's Index tip instead (same env contract and key as the
-	// tenant's processors).
-	if (value === 0 && (await hasNoLocalChain().catch(() => false))) {
-		value = await readPlatformTip();
-	}
-
-	// A transient read failure/absence must not overwrite a previously known
-	// tip with 0 — that would make every caller's `blocks_behind` jump to the
-	// full chain height on a single blip in `index_progress`. The TTL still
-	// restarts, so a source that stays empty is re-read once per window, not
-	// on every request.
-	if (value === 0 && chainTipCache) {
-		chainTipCache = { value: chainTipCache.value, fetchedAt: now };
-		return chainTipCache.value;
-	}
-
-	chainTipCache = { value, fetchedAt: now };
-	return value;
 }
 
 /** Persisted (event type, contract) probe pairs — null when not sparse-eligible. */

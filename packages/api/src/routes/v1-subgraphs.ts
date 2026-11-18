@@ -11,6 +11,7 @@ import {
 	missingCredentialError,
 } from "../auth/read-plane.ts";
 import { instanceTokenMatches } from "../instance-bind.ts";
+import { getChainTip } from "../lib/chain-tip.ts";
 import {
 	SubgraphNotFoundError,
 	handleRowById,
@@ -32,7 +33,6 @@ import {
 import {
 	buildSubgraphDetailFromRow,
 	cache,
-	getChainTip,
 	readSpecOptions,
 } from "./subgraphs.ts";
 import {
