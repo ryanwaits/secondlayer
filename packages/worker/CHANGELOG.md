@@ -1,5 +1,15 @@
 # @secondlayer/worker
 
+## 1.4.60
+
+### Patch Changes
+
+- 22c0320: API key states, liveness and revocation move to `@secondlayer/shared/db/queries/api-keys`. Unused-key insights no longer count expired keys, and a key revoked twice at once is revoked once.
+- Updated dependencies [22c0320]
+- Updated dependencies [e7cde08]
+  - @secondlayer/shared@19.0.0
+  - @secondlayer/platform@0.10.30
+
 ## 1.4.59
 
 ### Patch Changes

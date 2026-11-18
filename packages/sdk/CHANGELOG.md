@@ -1,5 +1,20 @@
 # @secondlayer/sdk
 
+## 20.0.0
+
+### Major Changes
+
+- e7cde08: Removes unused exports: the coverage receipt, sealer, runner, queue, repair and deep-verify helpers, and the runtime isolate, embedded-migration, upgrade and status helpers. Decoded row shapes no longer carry `source_cursor`, which always equalled `cursor`; read `cursor` instead.
+
+### Patch Changes
+
+- Updated dependencies [2cd6b34]
+- Updated dependencies [22c0320]
+- Updated dependencies [e7cde08]
+  - @secondlayer/stacks@7.2.0
+  - @secondlayer/shared@19.0.0
+  - @secondlayer/subgraphs@8.1.15
+
 ## 19.0.2
 
 ### Patch Changes

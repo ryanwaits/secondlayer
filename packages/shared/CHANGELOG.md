@@ -1,5 +1,20 @@
 # @secondlayer/shared
 
+## 19.0.0
+
+### Major Changes
+
+- e7cde08: Removes unused exports: the coverage receipt, sealer, runner, queue, repair and deep-verify helpers, and the runtime isolate, embedded-migration, upgrade and status helpers. Decoded row shapes no longer carry `source_cursor`, which always equalled `cursor`; read `cursor` instead.
+
+### Minor Changes
+
+- 22c0320: API key states, liveness and revocation move to `@secondlayer/shared/db/queries/api-keys`. Unused-key insights no longer count expired keys, and a key revoked twice at once is revoked once.
+
+### Patch Changes
+
+- Updated dependencies [2cd6b34]
+  - @secondlayer/stacks@7.2.0
+
 ## 18.0.2
 
 ### Patch Changes

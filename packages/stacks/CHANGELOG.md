@@ -1,5 +1,11 @@
 # @secondlayer/stacks
 
+## 7.2.0
+
+### Minor Changes
+
+- 2cd6b34: `@secondlayer/stacks/bitcoin` exports `bitcoinRpcCall`, a Bitcoin Core JSON-RPC transport (Basic auth, optional timeout, typed `BitcoinRpcError` / `BitcoinRpcTransportError` whose messages never carry the node URL or credentials), and `bitcoinRpcConfigFromEnv`. `bitcoinRpcSource` uses it; its errors are unchanged except that a network failure no longer echoes the underlying fetch error text.
+
 ## 7.1.0
 
 ### Minor Changes
