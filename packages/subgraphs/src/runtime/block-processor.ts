@@ -14,6 +14,7 @@ import { type Kysely, type Transaction, sql } from "kysely";
 import { pgSchemaName } from "../schema/utils.ts";
 import type { SubgraphDefinition } from "../types.ts";
 import { discoverFactoryAddresses, matchBlock } from "./apply-block.ts";
+import type { BatchMembership } from "./batch-membership.ts";
 import { resolveBlockSource } from "./block-source.ts";
 import { chainDataReader } from "./chain-data-reader.ts";
 import {
@@ -37,7 +38,7 @@ interface SubgraphRoute {
 }
 const routeCache = new Map<string, SubgraphRoute>();
 
-async function resolveRoute(
+export async function resolveRoute(
 	subgraphId: string | undefined,
 	subgraphName: string,
 	targetDb: Kysely<Database>,
@@ -95,6 +96,16 @@ async function readCursor(
  *    Without this pass the first event from every discovered contract is
  *    silently lost.
  */
+/** Discovering sources (`factory.from`) of a subgraph's factory sources. */
+export function factoryDiscoverers(subgraph: SubgraphDefinition): Set<string> {
+	const discoverers = new Set<string>();
+	for (const source of Object.values(subgraph.sources)) {
+		const factory = (source as { factory?: { from: string } }).factory;
+		if (factory) discoverers.add(factory.from);
+	}
+	return discoverers;
+}
+
 /**
  * Exported as a test seam. Both guarantees this function carries — a contract
  * discovered in block N receiving its OWN block-N events, and the persisted set
@@ -109,33 +120,33 @@ export async function resolveFactoryContracts(
 	txs: TxRecord[],
 	evts: EventRecord[],
 	vmEvts: EventRecord[] = [],
+	knownSets?: Map<string, Set<string>>,
 ): Promise<{
 	resolved: Map<string, ReadonlySet<string>>;
 	discovered: Array<{ sourceName: string; address: string }>;
 }> {
 	// Keyed by the DISCOVERING source (`factory.from`), not the consuming one.
-	const discoverers = new Set<string>();
-	for (const source of Object.values(subgraph.sources)) {
-		const factory = (source as { factory?: { from: string } }).factory;
-		if (factory) discoverers.add(factory.from);
-	}
-	const known = new Map<string, Set<string>>();
+	const discoverers = factoryDiscoverers(subgraph);
+	const known = knownSets ?? new Map<string, Set<string>>();
 	if (discoverers.size === 0) return { resolved: known, discovered: [] };
 
-	// 1. Everything revealed at or below this height.
-	for (const discoveringSource of discoverers) {
-		const set = new Set<string>();
-		try {
-			const rows = await sql<{ address: string }>`
-				SELECT address FROM ${sql.raw(`"${schemaName}"."_factory_addresses"`)}
-				WHERE source_name = ${discoveringSource} AND block_height <= ${blockHeight}
-			`.execute(db);
-			for (const row of rows.rows) set.add(row.address);
-		} catch {
-			// Table absent (first deploy before DDL, or a non-factory subgraph):
-			// treat as an empty set rather than failing the block.
+	// 1. Everything revealed at or below this height (a catch-up batch passes
+	//    its cached view instead of querying).
+	if (!knownSets) {
+		for (const discoveringSource of discoverers) {
+			const set = new Set<string>();
+			try {
+				const rows = await sql<{ address: string }>`
+					SELECT address FROM ${sql.raw(`"${schemaName}"."_factory_addresses"`)}
+					WHERE source_name = ${discoveringSource} AND block_height <= ${blockHeight}
+				`.execute(db);
+				for (const row of rows.rows) set.add(row.address);
+			} catch {
+				// Table absent (first deploy before DDL, or a non-factory subgraph):
+				// treat as an empty set rather than failing the block.
+			}
+			known.set(discoveringSource, set);
 		}
-		known.set(discoveringSource, set);
 	}
 
 	// 2. This block's own reveals — before matching, so same-block events
@@ -215,6 +226,8 @@ export interface ProcessBlockResult {
 	processed: number;
 	errors: number;
 	skipped: boolean;
+	/** Factory addresses this block revealed; set only on a committed block. */
+	discovered?: Array<{ sourceName: string; address: string }>;
 	timing?: ProcessBlockTiming;
 }
 
@@ -241,6 +254,8 @@ export interface ProcessBlockOptions {
 	skipProgressUpdate?: boolean;
 	/** Pre-loaded block data — skips DB reads when provided (used by batch catch-up). */
 	preloaded?: PreloadedBlockData;
+	/** Catch-up only: trait/factory sets cached for the batch. Absent = resolve per block. */
+	membership?: BatchMembership;
 	/**
 	 * Crash-safe sequential processing. Two checkpoint scopes:
 	 * - `{ status }` (reindex): a written block commits
@@ -439,7 +454,9 @@ export async function processBlock(
 	const route = await resolveRoute(subgraphId, subgraphName, targetDb);
 	const schemaName = route.schemaName;
 
-	const traitContracts = await resolveTraitContracts(subgraph, blockHeight);
+	const traitContracts = opts?.membership
+		? opts.membership.traitsAsOf(blockHeight)
+		: await resolveTraitContracts(subgraph, blockHeight);
 	// Factory sets resolve BEFORE matching so a contract revealed in this
 	// block receives its own block-N events (see resolveFactoryContracts).
 	const { resolved: factoryContracts, discovered } =
@@ -451,6 +468,7 @@ export async function processBlock(
 			txs,
 			evts,
 			vmEvts,
+			opts?.membership?.factoryAsOf(blockHeight),
 		);
 	const matched = matchBlock(
 		subgraph,
@@ -696,6 +714,7 @@ export async function processBlock(
 	// load-bearing forensic evidence (f068's own re-derivation of it), so a
 	// skip must not inflate it: only count blocks that actually ran handlers.
 	if (!result.skipped) {
+		if (discovered.length > 0) result.discovered = discovered;
 		result.timing = {
 			totalMs: Math.round(totalMs),
 			handlerMs: Math.round(handlerMs),

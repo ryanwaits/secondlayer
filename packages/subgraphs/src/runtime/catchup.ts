@@ -10,6 +10,10 @@ import { logger } from "@secondlayer/shared/logger";
 import type { SubgraphDefinition } from "../types.ts";
 import { type BlockData, avgEventsPerBlock } from "./batch-loader.ts";
 import {
+	type BatchMembership,
+	loadBatchMembership,
+} from "./batch-membership.ts";
+import {
 	clearBillingPause,
 	inBillingBackoff,
 	recordBillingPause,
@@ -18,6 +22,7 @@ import {
 	BLOCK_RETRY_DELAYS_MS,
 	type ProcessBlockResult,
 	processBlockWithRetry,
+	resolveRoute,
 	subgraphTraits,
 } from "./block-processor.ts";
 import { resolveBlockSource } from "./block-source.ts";
@@ -488,6 +493,19 @@ export async function catchUpSubgraph(
 			// Process each block from pre-loaded data
 			let stopCatchup = false;
 
+			// Trait and factory sets read once for this batch. Dropped on a lost
+			// cursor race (another writer's discoveries may be missing from it),
+			// falling back to per-block resolution for the rest of the batch.
+			let membership: BatchMembership | undefined = await loadBatchMembership(
+				subgraph,
+				{
+					topHeight: batchEnd,
+					schemaName: (await resolveRoute(subgraphId, subgraphName, targetDb))
+						.schemaName,
+					db: targetDb,
+				},
+			);
+
 			for (let height = currentHeight; height <= batchEnd; height++) {
 				let blockData = batch.get(height);
 				if (!blockData) {
@@ -524,6 +542,7 @@ export async function catchUpSubgraph(
 						return processBlockWithRetry(subgraph, subgraphName, height, {
 							preloaded,
 							subgraphId,
+							membership,
 						});
 					});
 				} catch (err) {
@@ -561,6 +580,8 @@ export async function catchUpSubgraph(
 					stopCatchup = true;
 					break;
 				}
+				if (result.skipped) membership = undefined;
+				else membership?.addDiscoveries(height, result.discovered ?? []);
 				processed++;
 
 				if (result.timing) {
