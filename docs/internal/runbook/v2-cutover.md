@@ -139,7 +139,10 @@ GO: stop indexer (node stalls, no gap) → replay last rows → repoint SOURCE �
     - `ALTER DATABASE secondlayer_feeder RENAME TO secondlayer`;
     - `ALTER ROLE secondlayer PASSWORD` the db-server `.env` value (never echo it).
 1.6 WAL-G: the cluster changed (new system id). Point `WALG_S3_PREFIX` at a fresh
-    prefix (`pg-db-server-v2`), `up -d walg-backup`, then confirm a base backup lists.
+    prefix (`pg-db-server-v2-enc`), `up -d walg-backup`, then confirm a base backup lists.
+    Backups are encrypted: `WALG_LIBSODIUM_KEY` is already in db-server's `.env`
+    (same key as app-server, copy in `/root/walg-libsodium.key` on both hosts).
+    Keep it; a backup without its key cannot be restored.
 
 **Verify:**
 - `SELECT max(height), count(*) FROM blocks` matches H0, from an app-server
