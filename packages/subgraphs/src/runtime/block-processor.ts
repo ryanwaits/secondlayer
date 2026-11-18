@@ -157,14 +157,20 @@ async function persistFactoryDiscoveries(
 	discovered: Array<{ sourceName: string; address: string }>,
 ): Promise<void> {
 	if (discovered.length === 0) return;
-	for (const { sourceName, address } of discovered) {
-		await sql`
-			INSERT INTO ${sql.raw(`"${schemaName}"."_factory_addresses"`)}
-				(source_name, address, block_height)
-			VALUES (${sourceName}, ${address}, ${blockHeight})
-			ON CONFLICT (source_name, address) DO NOTHING
-		`.execute(db);
-	}
+	const unique = new Map<string, { sourceName: string; address: string }>();
+	for (const d of discovered)
+		unique.set(`${d.sourceName}\u0000${d.address}`, d);
+	await sql`
+		INSERT INTO ${sql.raw(`"${schemaName}"."_factory_addresses"`)}
+			(source_name, address, block_height)
+		VALUES ${sql.join(
+			[...unique.values()].map(
+				({ sourceName, address }) =>
+					sql`(${sourceName}, ${address}, ${blockHeight})`,
+			),
+		)}
+		ON CONFLICT (source_name, address) DO NOTHING
+	`.execute(db);
 }
 
 /** Distinct traits a subgraph's sources are scoped to (empty for most). */
