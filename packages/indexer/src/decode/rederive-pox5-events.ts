@@ -9,36 +9,55 @@
  * short-block `events` table (rows the source is temporarily missing), a
  * re-derive run first would wipe them before the repair puts the source back.
  *
- * Dry-run by default; `--apply` deletes + writes, one transaction per window.
- * Keeps NO checkpoint of its own and never touches the live
+ * Dry-run by default; `--apply` deletes and rewrites each chunk of N heights
+ * (`--chunk-blocks`, default 10,000) in one transaction, so a crash leaves every
+ * chunk fully old or fully new. Rerunning a range already done deletes and
+ * rewrites it; for an incremental top-up, pass `--from-height` = the previous
+ * run's `--to-height` + 1. Keeps NO checkpoint of its own and never touches the live
  * `decode.pox5.v1` checkpoint, so the live decoder stays at tip.
  *
  * Usage:
  *   bun run packages/indexer/src/decode/rederive-pox5-events.ts --from-height 8831514 --to-height 8831514
  *   bun run packages/indexer/src/decode/rederive-pox5-events.ts --from-height 8831514 --to-height 8831514 --apply
+ *   ... --chunk-blocks 5000   # heights per transaction
  */
 import { decodeStreamsCursor } from "@secondlayer/shared";
 import { closeDb, getSourceDb, sql } from "@secondlayer/shared/db";
+import type { Database } from "@secondlayer/shared/db/schema";
 import { logger } from "@secondlayer/shared/logger";
 import type { StreamsEvent } from "@secondlayer/shared/streams-rows";
 import { POX5_CONTRACT_ID_MAINNET } from "@secondlayer/stacks/pox5";
+import type { Kysely } from "kysely";
 import { readCanonicalStreamsEvents } from "../streams-events.ts";
 import { decodePox5Print } from "./decoders/pox-5.ts";
 import { type Pox5EventRow, writePox5Events } from "./pox5-storage.ts";
 
 const PAGE_LIMIT = 1000;
+const DEFAULT_CHUNK_BLOCKS = 10_000;
 
-type Args = { fromHeight: number; toHeight: number; apply: boolean };
+type Args = {
+	fromHeight: number;
+	toHeight: number;
+	apply: boolean;
+	chunkBlocks?: number;
+};
 
-function parseArgs(argv: string[]): Args {
+export function parseArgs(argv: string[]): Args {
 	let fromHeight: number | undefined;
 	let toHeight: number | undefined;
 	let apply = false;
+	let chunkBlocks: number | undefined;
 	for (let i = 0; i < argv.length; i++) {
 		const arg = argv[i];
 		if (arg === "--apply") apply = true;
 		else if (arg === "--from-height") fromHeight = Number(argv[++i]);
 		else if (arg === "--to-height") toHeight = Number(argv[++i]);
+		else if (arg === "--chunk-blocks") {
+			chunkBlocks = Number(argv[++i]);
+			if (!Number.isSafeInteger(chunkBlocks) || chunkBlocks <= 0) {
+				throw new Error("--chunk-blocks must be a positive integer");
+			}
+		} else throw new Error(`unknown flag: ${arg}`);
 	}
 	if (
 		fromHeight === undefined ||
@@ -49,21 +68,30 @@ function parseArgs(argv: string[]): Args {
 	) {
 		throw new Error("--from-height and --to-height (from <= to) are required");
 	}
-	return { fromHeight, toHeight, apply };
+	return { fromHeight, toHeight, apply, chunkBlocks };
 }
 
-export async function rederivePox5Events(args: Args): Promise<{
-	deleted: number;
-	read: number;
-	decoded: number;
-}> {
-	const db = getSourceDb();
+type Chunk = { fromHeight: number; toHeight: number };
+
+export type RederiveOptions = {
+	db?: Kysely<Database>;
+	/** Heights per transaction. Default 10,000. */
+	chunkBlocks?: number;
+	/** Test seam: called inside each chunk's transaction after its writes, before commit. */
+	beforeChunkCommit?: (chunk: Chunk) => Promise<void> | void;
+};
+
+async function rederiveChunk(
+	handle: Kysely<Database>,
+	chunk: Chunk,
+	apply: boolean,
+): Promise<{ deleted: number; read: number; decoded: number }> {
 	let deleted = 0;
-	if (args.apply) {
+	if (apply) {
 		const res = await sql`
 			DELETE FROM pox5_events
-			WHERE block_height >= ${args.fromHeight} AND block_height <= ${args.toHeight}
-		`.execute(db);
+			WHERE block_height >= ${chunk.fromHeight} AND block_height <= ${chunk.toHeight}
+		`.execute(handle);
 		deleted = Number(res.numAffectedRows ?? 0n);
 	}
 
@@ -73,12 +101,12 @@ export async function rederivePox5Events(args: Args): Promise<{
 	for (;;) {
 		const page = await readCanonicalStreamsEvents({
 			after,
-			fromHeight: after ? undefined : args.fromHeight,
-			toHeight: args.toHeight,
+			fromHeight: after ? undefined : chunk.fromHeight,
+			toHeight: chunk.toHeight,
 			types: ["print"],
 			contractId: POX5_CONTRACT_ID_MAINNET,
 			limit: PAGE_LIMIT,
-			db,
+			db: handle,
 		});
 		read += page.events.length;
 
@@ -96,15 +124,46 @@ export async function rederivePox5Events(args: Args): Promise<{
 			}
 		}
 		decoded += rows.length;
-		if (args.apply && rows.length > 0) await writePox5Events(rows, { db });
+		if (apply && rows.length > 0) await writePox5Events(rows, { db: handle });
 
 		if (!page.next_cursor) break;
 		const next = decodeStreamsCursor(page.next_cursor);
-		if (page.events.length === 0 && next.block_height >= args.toHeight) break;
+		if (page.events.length === 0 && next.block_height >= chunk.toHeight) break;
 		after = next;
 	}
 
 	return { deleted, read, decoded };
+}
+
+export async function rederivePox5Events(
+	args: Args,
+	opts?: RederiveOptions,
+): Promise<{
+	deleted: number;
+	read: number;
+	decoded: number;
+}> {
+	const db = opts?.db ?? getSourceDb();
+	const chunkBlocks =
+		opts?.chunkBlocks ?? args.chunkBlocks ?? DEFAULT_CHUNK_BLOCKS;
+	const total = { deleted: 0, read: 0, decoded: 0 };
+	for (let from = args.fromHeight; from <= args.toHeight; from += chunkBlocks) {
+		const chunk = {
+			fromHeight: from,
+			toHeight: Math.min(from + chunkBlocks - 1, args.toHeight),
+		};
+		const result = args.apply
+			? await db.transaction().execute(async (trx) => {
+					const res = await rederiveChunk(trx, chunk, true);
+					await opts?.beforeChunkCommit?.(chunk);
+					return res;
+				})
+			: await rederiveChunk(db, chunk, false);
+		total.deleted += result.deleted;
+		total.read += result.read;
+		total.decoded += result.decoded;
+	}
+	return total;
 }
 
 async function main(): Promise<void> {
@@ -120,5 +179,9 @@ async function main(): Promise<void> {
 }
 
 if (import.meta.main) {
-	void main();
+	main().catch(async (error) => {
+		console.error(error instanceof Error ? error.message : error);
+		await closeDb().catch(() => {});
+		process.exit(1);
+	});
 }
