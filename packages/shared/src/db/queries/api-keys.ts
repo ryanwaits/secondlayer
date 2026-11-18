@@ -67,7 +67,7 @@ export function revokeApiKey(
 	db: Kysely<any>,
 	id: string,
 	now: Date = new Date(),
-) {
+): Promise<{ id: string } | null> {
 	return casTransition<ApiKeyStatus, { id: string }>(db, {
 		table: "api_keys",
 		id,
