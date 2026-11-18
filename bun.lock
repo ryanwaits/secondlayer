@@ -29,7 +29,7 @@
     },
     "apps/web": {
       "name": "@secondlayer/web",
-      "version": "0.14.18",
+      "version": "0.14.28",
       "dependencies": {
         "@mdx-js/loader": "^3.1.1",
         "@mdx-js/react": "^3.1.1",
@@ -40,7 +40,7 @@
         "@secondlayer/verify": "workspace:*",
         "@shikijs/langs": "4.0.2",
         "github-slugger": "^2.0.0",
-        "next": "16.4.2",
+        "next": "16.4.6",
         "posthog-js": "^1.407.2",
         "react": "19.2.9",
         "react-dom": "19.2.9",
@@ -62,22 +62,22 @@
     },
     "packages/api": {
       "name": "@secondlayer/api",
-      "version": "1.63.1",
+      "version": "1.64.14",
       "dependencies": {
         "@aws-sdk/client-s3": "^3.1042.0",
         "@aws-sdk/s3-request-presigner": "3.1042.0",
         "@modelcontextprotocol/sdk": "^1.32.1",
         "@secondlayer/bitcoin": "workspace:*",
         "@secondlayer/bundler": "^0.7.3",
-        "@secondlayer/indexer": "^1.17.8",
+        "@secondlayer/indexer": "^1.17.14",
         "@secondlayer/mcp": "workspace:*",
         "@secondlayer/platform": "workspace:*",
-        "@secondlayer/sdk": "^16.2.0",
-        "@secondlayer/shared": "^15.0.1",
-        "@secondlayer/stacks": "^6.5.4",
-        "@secondlayer/subgraphs": "^8.0.1",
+        "@secondlayer/sdk": "^19.0.2",
+        "@secondlayer/shared": "^18.0.0",
+        "@secondlayer/stacks": "^7.0.0",
+        "@secondlayer/subgraphs": "^8.1.12",
         "ai": "7.0.133",
-        "hono": "^4.0.0",
+        "hono": "^4.13.19",
         "stripe": "^22.0.2",
         "zod": "^4.6.7",
       },
@@ -88,7 +88,7 @@
     },
     "packages/bitcoin": {
       "name": "@secondlayer/bitcoin",
-      "version": "0.0.2",
+      "version": "0.0.3",
       "dependencies": {
         "@noble/hashes": "2.0.1",
         "kysely": "0.28.17",
@@ -114,7 +114,7 @@
     },
     "packages/cli": {
       "name": "@secondlayer/cli",
-      "version": "23.4.1",
+      "version": "24.0.2",
       "bin": {
         "secondlayer": "./dist/cli.js",
         "sl": "./dist/cli.js",
@@ -125,12 +125,12 @@
         "@dsnp/parquetjs": "~1.8.8",
         "@inquirer/prompts": "^8.2.0",
         "@secondlayer/bundler": "^0.7.3",
-        "@secondlayer/scaffold": "^1.6.3",
-        "@secondlayer/sdk": "^16.2.0",
-        "@secondlayer/shared": "^15.0.1",
-        "@secondlayer/stacks": "^6.6.0",
-        "@secondlayer/subgraphs": "^8.0.1",
-        "@secondlayer/verify": "^0.6.1",
+        "@secondlayer/scaffold": "^1.6.4",
+        "@secondlayer/sdk": "^19.0.2",
+        "@secondlayer/shared": "^18.0.0",
+        "@secondlayer/stacks": "^7.0.0",
+        "@secondlayer/subgraphs": "^8.1.12",
+        "@secondlayer/verify": "^0.6.4",
         "esbuild": "^0.28.2",
         "smol-toml": "^1.9.1",
         "typescript": "^5",
@@ -155,14 +155,14 @@
     },
     "packages/indexer": {
       "name": "@secondlayer/indexer",
-      "version": "1.17.8",
+      "version": "1.17.14",
       "dependencies": {
         "@aws-sdk/client-s3": "^3.1042.0",
         "@aws-sdk/lib-storage": "^3.1108.0",
         "@dsnp/parquetjs": "~1.8.8",
-        "@secondlayer/sdk": "^16.0.0",
-        "@secondlayer/shared": "^15.0.0",
-        "@secondlayer/stacks": "^6.5.4",
+        "@secondlayer/sdk": "^19.0.2",
+        "@secondlayer/shared": "^18.0.0",
+        "@secondlayer/stacks": "^7.0.0",
       },
       "devDependencies": {
         "@types/bun": "latest",
@@ -171,7 +171,7 @@
     },
     "packages/mcp": {
       "name": "@secondlayer/mcp",
-      "version": "11.5.0",
+      "version": "11.6.7",
       "bin": {
         "mcp": "./dist/bin.js",
         "secondlayer-mcp": "./dist/bin.js",
@@ -181,11 +181,11 @@
       "dependencies": {
         "@modelcontextprotocol/sdk": "^1.32.1",
         "@secondlayer/bundler": "^0.7.3",
-        "@secondlayer/scaffold": "^1.6.3",
-        "@secondlayer/sdk": "^16.2.0",
-        "@secondlayer/shared": "^15.0.0",
-        "@secondlayer/stacks": "^6.5.3",
-        "@secondlayer/subgraphs": "^8.0.1",
+        "@secondlayer/scaffold": "^1.6.4",
+        "@secondlayer/sdk": "^19.0.2",
+        "@secondlayer/shared": "^18.0.0",
+        "@secondlayer/stacks": "^7.0.0",
+        "@secondlayer/subgraphs": "^8.1.12",
         "zod": "^4.6.7",
       },
       "devDependencies": {
@@ -195,7 +195,7 @@
     },
     "packages/platform": {
       "name": "@secondlayer/platform",
-      "version": "0.10.11",
+      "version": "0.10.27",
       "dependencies": {
         "@secondlayer/shared": "workspace:*",
         "kysely": "0.28.17",
@@ -211,10 +211,10 @@
     },
     "packages/scaffold": {
       "name": "@secondlayer/scaffold",
-      "version": "1.6.3",
+      "version": "1.6.4",
       "dependencies": {
-        "@secondlayer/stacks": "^6.0.0",
-        "@secondlayer/subgraphs": "^8.0.0",
+        "@secondlayer/stacks": "^7.0.0",
+        "@secondlayer/subgraphs": "^8.1.9",
       },
       "devDependencies": {
         "@types/bun": "latest",
@@ -223,11 +223,11 @@
     },
     "packages/sdk": {
       "name": "@secondlayer/sdk",
-      "version": "16.2.1",
+      "version": "19.0.2",
       "dependencies": {
-        "@secondlayer/shared": "^15.0.0",
-        "@secondlayer/stacks": "^6.5.3",
-        "@secondlayer/subgraphs": "^8.0.1",
+        "@secondlayer/shared": "^18.0.0",
+        "@secondlayer/stacks": "^7.0.0",
+        "@secondlayer/subgraphs": "^8.1.12",
       },
       "devDependencies": {
         "@openpkg-ts/cli": "^0.13.2",
@@ -250,9 +250,9 @@
     },
     "packages/shared": {
       "name": "@secondlayer/shared",
-      "version": "15.2.0",
+      "version": "18.0.0",
       "dependencies": {
-        "@secondlayer/stacks": "^6.5.4",
+        "@secondlayer/stacks": "^7.0.0",
         "kysely": "0.28.17",
         "kysely-postgres-js": "3.0.0",
         "postgres": "^3.4.6",
@@ -271,7 +271,7 @@
     },
     "packages/stacks": {
       "name": "@secondlayer/stacks",
-      "version": "6.6.0",
+      "version": "7.1.0",
       "dependencies": {
         "@noble/ciphers": "2.1.1",
         "@noble/curves": "2.0.1",
@@ -299,11 +299,11 @@
     },
     "packages/subgraphs": {
       "name": "@secondlayer/subgraphs",
-      "version": "8.0.3",
+      "version": "8.1.13",
       "dependencies": {
-        "@secondlayer/shared": "^15.0.1",
-        "@secondlayer/stacks": "^6.5.4",
-        "@secondlayer/verify": "^0.6.1",
+        "@secondlayer/shared": "^18.0.0",
+        "@secondlayer/stacks": "^7.0.0",
+        "@secondlayer/verify": "^0.6.4",
         "esbuild": "^0.28.2",
         "kysely": "0.28.17",
         "zod": "^4.6.7",
@@ -316,11 +316,11 @@
     },
     "packages/verify": {
       "name": "@secondlayer/verify",
-      "version": "0.6.3",
+      "version": "0.6.4",
       "dependencies": {
         "@noble/curves": "2.0.1",
         "@noble/hashes": "2.0.1",
-        "@secondlayer/stacks": "^6.5.3",
+        "@secondlayer/stacks": "^7.0.0",
       },
       "devDependencies": {
         "@types/bun": "latest",
@@ -329,10 +329,10 @@
     },
     "packages/worker": {
       "name": "@secondlayer/worker",
-      "version": "1.4.41",
+      "version": "1.4.57",
       "dependencies": {
         "@secondlayer/platform": "workspace:*",
-        "@secondlayer/shared": "^15.0.1",
+        "@secondlayer/shared": "^18.0.0",
         "ai": "7.0.133",
         "kysely": "0.28.17",
         "stripe": "^22.0.2",
@@ -344,10 +344,10 @@
     },
     "packages/workload": {
       "name": "@secondlayer/workload",
-      "version": "0.2.29",
+      "version": "0.2.45",
       "dependencies": {
         "@secondlayer/platform": "workspace:*",
-        "@secondlayer/shared": "^15.0.1",
+        "@secondlayer/shared": "^18.0.0",
         "postgres": "^3.4.6",
       },
       "devDependencies": {
@@ -357,23 +357,22 @@
     },
   },
   "overrides": {
-    "@hono/node-server": "1.19.17",
+    "@hono/node-server": "1.19.19",
     "@types/bun": "1.4.3",
     "body-parser": "2.4.0",
     "dompurify": "3.4.17",
     "esbuild": "0.28.2",
     "fast-uri": "3.1.9",
-    "hono": "4.13.13",
+    "hono": "4.13.19",
     "http-cache-semantics": "4.3.0",
     "ip-address": "10.7.5",
-    "js-yaml": "3.15.2",
     "nanoid": "3.3.18",
-    "next": "16.4.2",
+    "next": "16.4.6",
     "path-to-regexp": "8.4.0",
     "picomatch": "2.3.2",
     "postcss": "8.5.23",
     "proxy-addr": "2.0.8",
-    "qs": "6.16.0",
+    "qs": "6.17.1",
     "sharp": "0.35.5",
     "source-map-js": "1.2.2",
     "toml": "5.0.1",
@@ -660,7 +659,7 @@
 
     "@fortawesome/fontawesome-free": ["@fortawesome/fontawesome-free@6.7.2", "", {}, "sha512-JUOtgFW6k9u4Y+xeIaEiLr3+cjoUPiAuLXoyKOJSia6Duzb7pq+A76P9ZdPDoAoxHdHzq6gE9/jKBGXlZT8FbA=="],
 
-    "@hono/node-server": ["@hono/node-server@1.19.17", "", { "peerDependencies": { "hono": "^4" } }, "sha512-dSneS5qhiauZWGDCeK4o695Xd9nUNjviSZCMQrj10eetr8Uln1ucn6bbphOM6UynAMMtNIzZNSpL9vnASJwrPQ=="],
+    "@hono/node-server": ["@hono/node-server@1.19.19", "", { "peerDependencies": { "hono": "^4" } }, "sha512-Fy9R7PACOzHU9LDpfnuzVyuVYevKQRcEG2mZhmfc+DRdmayEd3RVfa2XOt2IgGcPNgA77Yk63KBszepcMFK5Ng=="],
 
     "@iconify/types": ["@iconify/types@2.0.0", "", {}, "sha512-+wluvCrRhXrhyOmRDJ3q8mux9JkKy5SJ/v8ol2tu4FVjyYvtEzkc/3pK15ET6RKg4b4w4BmTk1+gsCUhf21Ykg=="],
 
@@ -782,25 +781,25 @@
 
     "@napi-rs/wasm-runtime": ["@napi-rs/wasm-runtime@1.1.0", "", { "dependencies": { "@emnapi/core": "^1.7.1", "@emnapi/runtime": "^1.7.1", "@tybys/wasm-util": "^0.10.1" } }, "sha512-Fq6DJW+Bb5jaWE69/qOE0D1TUN9+6uWhCeZpdnSBk14pjLcCWR7Q8n49PTSPHazM37JqrsdpEthXy2xn6jWWiA=="],
 
-    "@next/env": ["@next/env@16.4.2", "", {}, "sha512-nTUTFH7G5/J/fmpkjVLegOkqyKOP0CEsJcMsyO4UCYeN1su+YMW/MfaSErnJskL7XM+UDK6aTvslxsRCyya/sA=="],
+    "@next/env": ["@next/env@16.4.6", "", {}, "sha512-SunBjJ6t+oBtecS3dTjdVuMhUogP5wD/vrGL5EVuQYM1iS4O5ilL51HkiJ3sPjMzRHiCChvr4dbaSJbR7F3lxA=="],
 
     "@next/mdx": ["@next/mdx@16.3.5", "", { "dependencies": { "source-map": "^0.7.0" }, "peerDependencies": { "@mdx-js/loader": ">=0.15.0", "@mdx-js/react": ">=0.15.0" }, "optionalPeers": ["@mdx-js/loader", "@mdx-js/react"] }, "sha512-fBRelmCwqZR7TMeAIEI2mb6P1H88D9A4poIZOOhlcuiEbiF7jOTJTKQWfd7pCPW4CeZ9UG/6AgoHRREqqInlqQ=="],
 
-    "@next/swc-darwin-arm64": ["@next/swc-darwin-arm64@16.4.2", "", { "os": "darwin", "cpu": "arm64" }, "sha512-ONkhFvZNFWlsEHOM/81AtxdyuJP2KRYKYR0JxPwvcu1AuPMMMgcL+wW2luldJvMtZwKtUxoSkCychW5wIeoYSw=="],
+    "@next/swc-darwin-arm64": ["@next/swc-darwin-arm64@16.4.6", "", { "os": "darwin", "cpu": "arm64" }, "sha512-kJ4VVZkley17xKaJx72QN2IBqjrj7zenCQZaUF0l9ShS/1Mt2kW4+Z5KGG6vgr3L/J562xTOizVyM1iA/u5nlg=="],
 
-    "@next/swc-darwin-x64": ["@next/swc-darwin-x64@16.4.2", "", { "os": "darwin", "cpu": "x64" }, "sha512-luPCMbOsCoaF+kXJEUjmjmOZg1lC3BflhmUu+ZmW4tBu2vW/4AXak8JBFvePizGkxVmNiAw/r9ra+6UviCWtWQ=="],
+    "@next/swc-darwin-x64": ["@next/swc-darwin-x64@16.4.6", "", { "os": "darwin", "cpu": "x64" }, "sha512-eIPGZIqC+8JKaeZmvnCANJQF4xWkkHqSnAAajtFxgwDMAOnCgxNvP52SeWZ41PyVwoe+Le/NQuZSaQ8j7YshSA=="],
 
-    "@next/swc-linux-arm64-gnu": ["@next/swc-linux-arm64-gnu@16.4.2", "", { "os": "linux", "cpu": "arm64" }, "sha512-xhwFTAncJyaCNy5KqKKuKaIIdCy1/1ZV1s5S1G0hhT7wGMkDTlfJ6aQbfRFnIG/s3/kDrxQ8aycVe+c5QnP8ow=="],
+    "@next/swc-linux-arm64-gnu": ["@next/swc-linux-arm64-gnu@16.4.6", "", { "os": "linux", "cpu": "arm64" }, "sha512-9nI6O8vvczH2D9ZNdMGqb/3NuT15T9ksOZnAmx9/gjF2cOi74+xxyf1Hk96uIMfm14c9y6wHeBq6SH8g6udvcA=="],
 
-    "@next/swc-linux-arm64-musl": ["@next/swc-linux-arm64-musl@16.4.2", "", { "os": "linux", "cpu": "arm64" }, "sha512-T1PNmfbPcxr5ndtWUL/3wQtLXsz808lq6sc2GrNT5k2oquF7UyqZddHSuAewHVsWsGXe6nsl9HoN1YNriVjuSg=="],
+    "@next/swc-linux-arm64-musl": ["@next/swc-linux-arm64-musl@16.4.6", "", { "os": "linux", "cpu": "arm64" }, "sha512-7/qPhTxDp2ScluOJOhLuhWmlA17o1yZ0SIgpISBCpBxXgtnK4+KGywBpFkfLPiU1rnSM1faFGzYkH6i7JdTrqA=="],
 
-    "@next/swc-linux-x64-gnu": ["@next/swc-linux-x64-gnu@16.4.2", "", { "os": "linux", "cpu": "x64" }, "sha512-N9cDUOCGtkJG5PNKDFZUF3xXndrJJcpLp121uAGjIGvO/U2p9tfdNOM9htj7+5f72l0m8rMw/cvYacUJBQoudg=="],
+    "@next/swc-linux-x64-gnu": ["@next/swc-linux-x64-gnu@16.4.6", "", { "os": "linux", "cpu": "x64" }, "sha512-oOpbNa8XOW1qCGd9VvzC4fbkkRxEls7/WI6tz+YHC0xRA7KpV1U7DrAnCPjzVyOk/karzWEepCOcTIDmwK8FwQ=="],
 
-    "@next/swc-linux-x64-musl": ["@next/swc-linux-x64-musl@16.4.2", "", { "os": "linux", "cpu": "x64" }, "sha512-yY2uh1YhX6ufuYy2FCbw1dqblbhI57GLYAJfCkqD9auTv6pLrH67Uccjc3QMKBeCYAG6lkgu08ExmX1bbjejjQ=="],
+    "@next/swc-linux-x64-musl": ["@next/swc-linux-x64-musl@16.4.6", "", { "os": "linux", "cpu": "x64" }, "sha512-aM8CZ+OR2EwXaAYw7KGkW2GDmNDsLBIRe1MMRZCJPTdw/xhTD0IMUVO4sf3KqrzuRouGzwwLZn34+gFeVXiUQA=="],
 
-    "@next/swc-win32-arm64-msvc": ["@next/swc-win32-arm64-msvc@16.4.2", "", { "os": "win32", "cpu": "arm64" }, "sha512-j/ArWRIHpMMB6wYLMhr2puTguBt70lNU/Cmjl9p6dTDE8DGknYJMP9PdwPk2dqpCNL/KIX9yfngDvIesxJPmsg=="],
+    "@next/swc-win32-arm64-msvc": ["@next/swc-win32-arm64-msvc@16.4.6", "", { "os": "win32", "cpu": "arm64" }, "sha512-U0p7/tEtqvHX2crhd841CDwKtp5CFkKXVjOhmfccR3Pvp64sj8KBwRqsvltqLOwVBbj0NtkxwXSDpEHYGbxeXQ=="],
 
-    "@next/swc-win32-x64-msvc": ["@next/swc-win32-x64-msvc@16.4.2", "", { "os": "win32", "cpu": "x64" }, "sha512-AA4edyWHDko3NCSo0x6GomsdgFb0oR1J3MXU1b5xt6FRFg4AucrMPW3S0hCe/9onU0O1BbpGQBsqo1r0Gneu1g=="],
+    "@next/swc-win32-x64-msvc": ["@next/swc-win32-x64-msvc@16.4.6", "", { "os": "win32", "cpu": "x64" }, "sha512-3ZG15/5WIdlTQsIEvc9sPTTSL5XFrlLklIKmfF4fwsDnoAhu6NcBDXsk3mbGxNyo6aVLEGex+fHCv2MahY7a9g=="],
 
     "@noble/ciphers": ["@noble/ciphers@2.1.1", "", {}, "sha512-bysYuiVfhxNJuldNXlFEitTVdNnYUc+XNJZd7Qm2a5j1vZHgY+fazadNFWFaMK/2vye0JVlxV3gHmC0WDfAOQw=="],
 
@@ -1528,7 +1527,7 @@
 
     "ansis": ["ansis@4.2.0", "", {}, "sha512-HqZ5rWlFjGiV0tDm3UxxgNRqsOTniqoKZu0pIAfh7TZQMGuZK+hH0drySty0si0QXj1ieop4+SkSfPZBPPkHig=="],
 
-    "argparse": ["argparse@1.0.10", "", { "dependencies": { "sprintf-js": "~1.0.2" } }, "sha512-o5Roy6tNG4SL/FOkCAN6RzjiakZS25RLYFrcMttJqbdd8BWrnA+fGz57iN5Pb06pvBGvl5gQ0B48dJlslXvoTg=="],
+    "argparse": ["argparse@2.0.1", "", {}, "sha512-8+9WqebbFzpX9OR+Wa6O29asIogeRMzcGtAINdpMHHyAg10f05aSFVBbcEqGf/PXw1EjAZ+q2/bEBg3DvurK3Q=="],
 
     "aria-hidden": ["aria-hidden@1.2.6", "", { "dependencies": { "tslib": "^2.0.0" } }, "sha512-ik3ZgC9dY/lYVVM++OISsaYDeg1tb0VtP5uL3ouh1koGOaUMDPpbFIei4JkFimWUFPn90sbMNMXQAIVOlnYKJA=="],
 
@@ -1990,7 +1989,7 @@
 
     "hastscript": ["hastscript@8.0.0", "", { "dependencies": { "@types/hast": "^3.0.0", "comma-separated-tokens": "^2.0.0", "hast-util-parse-selector": "^4.0.0", "property-information": "^6.0.0", "space-separated-tokens": "^2.0.0" } }, "sha512-dMOtzCEd3ABUeSIISmrETiKuyydk1w0pa+gE/uormcTpSYuaNJPbX1NU3JLyscSLjwAQM8bWMhhIlnCqnRvDTw=="],
 
-    "hono": ["hono@4.13.13", "", {}, "sha512-CQ46U0ZkAGmbT/4UxdzzGJpacP2IeKgY4a5/tOI9AABbpOMfK739wfDXmv1usCk+3RkKj1hQy4/fjhiwa2xlrA=="],
+    "hono": ["hono@4.13.19", "", {}, "sha512-KmXvQAXwcAHV+muzbIwoJ23niEB5nMoDVr9WcRkU8mvjUECm/1+7v4Jgp7P7a+H6MLFrh+vXrGonGrGS+RQfkA=="],
 
     "html-void-elements": ["html-void-elements@3.0.0", "", {}, "sha512-bEqo66MRXsUGxWHV5IP0PUiAWwoEjba4VCzg0LjFJBpchPaTfyfCKTG6bc5F8ucKec3q5y6qOdGyYTSBEvhCrg=="],
 
@@ -2070,7 +2069,7 @@
 
     "js-tokens": ["js-tokens@4.0.0", "", {}, "sha512-RdJUflcE3cUzKiMqQgsCu06FPu9UdIJO0beYbPhHN4k6apgJtifcoCtT9bcxOpYBtpD2kCM6Sbzg4CausW/PKQ=="],
 
-    "js-yaml": ["js-yaml@3.15.2", "", { "dependencies": { "argparse": "^1.0.7", "esprima": "^4.0.0" }, "bin": { "js-yaml": "bin/js-yaml.js" } }, "sha512-6EuL879VkRA+1Cz578mKMiKvjPNEuk6+r1JaFzoSWejZmtf7xWbIyw1e3KkxlkzTIt9Taw6JBhEppG7utc1P+w=="],
+    "js-yaml": ["js-yaml@4.3.2", "", { "dependencies": { "argparse": "^2.0.1" }, "bin": { "js-yaml": "bin/js-yaml.js" } }, "sha512-SFNOvSJ+Dgf/9An904Yx+CgSlIPCkIpao4qo51lpee25TIRejdH3rhR4EZMGoNx3/TP3O+wzWuiTFl4sqbltzA=="],
 
     "jsesc": ["jsesc@3.1.0", "", { "bin": { "jsesc": "bin/jsesc" } }, "sha512-/sM3dO2FOzXjKQhJuo0Q173wf2KOo8t4I8vHy6lF9poUp7bKT0/NHE8fPX23PwfhnykfqnC2xRxOnVw5XuGIaA=="],
 
@@ -2324,7 +2323,7 @@
 
     "negotiator": ["negotiator@0.6.4", "", {}, "sha512-myRT3DiWPHqho5PrJaIRyaMv2kgYf0mUVgBNOYMuCH5Ki1yEiQaf/ZJuQ62nvpc44wL5WDbTX7yGJi1Neevw8w=="],
 
-    "next": ["next@16.4.2", "", { "dependencies": { "@next/env": "16.4.2", "@swc/helpers": "0.5.23", "baseline-browser-mapping": "^2.9.19", "caniuse-lite": "^1.0.30001579", "postcss": "8.5.23", "styled-jsx": "5.1.6" }, "optionalDependencies": { "@next/swc-darwin-arm64": "16.4.2", "@next/swc-darwin-x64": "16.4.2", "@next/swc-linux-arm64-gnu": "16.4.2", "@next/swc-linux-arm64-musl": "16.4.2", "@next/swc-linux-x64-gnu": "16.4.2", "@next/swc-linux-x64-musl": "16.4.2", "@next/swc-win32-arm64-msvc": "16.4.2", "@next/swc-win32-x64-msvc": "16.4.2", "sharp": "^0.35.5" }, "peerDependencies": { "@opentelemetry/api": "^1.1.0", "@playwright/test": "^1.51.1", "babel-plugin-react-compiler": "*", "react": "^18.2.0 || 19.0.0-rc-de68d2f4-20241204 || ^19.0.0", "react-dom": "^18.2.0 || 19.0.0-rc-de68d2f4-20241204 || ^19.0.0", "sass": "^1.3.0" }, "optionalPeers": ["@opentelemetry/api", "@playwright/test", "babel-plugin-react-compiler", "sass"], "bin": { "next": "dist/bin/next" } }, "sha512-r+oBJojfefUjOiWkBhXgLS+igxX/7BWyK59uHnyOyplMSLtBZ+QLP3okrdYTbrfrbrmNTVWLBPaHDX9KRaIt3w=="],
+    "next": ["next@16.4.6", "", { "dependencies": { "@next/env": "16.4.6", "@swc/helpers": "0.5.23", "baseline-browser-mapping": "^2.9.19", "caniuse-lite": "^1.0.30001579", "postcss": "8.5.23", "styled-jsx": "5.1.6" }, "optionalDependencies": { "@next/swc-darwin-arm64": "16.4.6", "@next/swc-darwin-x64": "16.4.6", "@next/swc-linux-arm64-gnu": "16.4.6", "@next/swc-linux-arm64-musl": "16.4.6", "@next/swc-linux-x64-gnu": "16.4.6", "@next/swc-linux-x64-musl": "16.4.6", "@next/swc-win32-arm64-msvc": "16.4.6", "@next/swc-win32-x64-msvc": "16.4.6", "sharp": "^0.35.5" }, "peerDependencies": { "@opentelemetry/api": "^1.1.0", "@playwright/test": "^1.51.1", "babel-plugin-react-compiler": "*", "react": "^18.2.0 || 19.0.0-rc-de68d2f4-20241204 || ^19.0.0", "react-dom": "^18.2.0 || 19.0.0-rc-de68d2f4-20241204 || ^19.0.0", "sass": "^1.3.0" }, "optionalPeers": ["@opentelemetry/api", "@playwright/test", "babel-plugin-react-compiler", "sass"], "bin": { "next": "dist/bin/next" } }, "sha512-QZJiYhaZLJMo2KpkQGQIwvmd79WVsAWeYIU554a8d7zArS3si/IRy3lBNV/rtYhE70oLwdLYhPAXLPx8HwcwtA=="],
 
     "node-fetch": ["node-fetch@2.7.0", "", { "dependencies": { "whatwg-url": "^5.0.0" }, "peerDependencies": { "encoding": "^0.1.0" }, "optionalPeers": ["encoding"] }, "sha512-c4FRfUm/dbcWZ7U+1Wq0AwCyFL+3nt2bEw05wfxSz+DWpWsitgmSgYmy2dQdWyKC1694ELPqMs/YzUSNozLt8A=="],
 
@@ -2472,7 +2471,7 @@
 
     "q": ["q@1.5.1", "", {}, "sha512-kV/CThkXo6xyFEZUugw/+pIOywXcDbFYgSct5cT3gqlbkBE1SJdwy6UQoZvodiWF/ckQLZyDE/Bu1M6gVu5lVw=="],
 
-    "qs": ["qs@6.16.0", "", { "dependencies": { "es-define-property": "^1.0.1", "side-channel": "^1.1.1" } }, "sha512-h6fhOIaRrID2CbEY2fqs+7t+UXZo+MLAnU5gRIq85uFtdiUPCdsApMlHhXogKVM4HM2DVbIjGNTTYH2OcmP1vA=="],
+    "qs": ["qs@6.17.1", "", { "dependencies": { "es-define-property": "^1.0.1", "side-channel": "^1.1.1" } }, "sha512-jd3COkaKVgGUW+ZHyEHCG9bH7RoaaiWuMgzsIBjUMVjLAaWGWpoUAVwljVvBHxRu/2qEHnadLGZrkutYUBPQJA=="],
 
     "quansync": ["quansync@0.2.11", "", {}, "sha512-AifT7QEbW9Nri4tAwR5M/uzpBuqfZf+zwaEM/QkzEjj7NBuFD2rBuy0K3dE+8wltbezDV7JMA0WfnCPYRSYbXA=="],
 
@@ -3086,6 +3085,8 @@
 
     "react-router/cookie": ["cookie@1.1.1", "", {}, "sha512-ei8Aos7ja0weRpFzJnEA9UHJ/7XQmqglbRwnf2ATjcB9Wq874VKH9kfjjirM6UhU2/E5fFYadylyhFldcqSidQ=="],
 
+    "read-yaml-file/js-yaml": ["js-yaml@3.15.2", "", { "dependencies": { "argparse": "^1.0.7", "esprima": "^4.0.0" }, "bin": { "js-yaml": "bin/js-yaml.js" } }, "sha512-6EuL879VkRA+1Cz578mKMiKvjPNEuk6+r1JaFzoSWejZmtf7xWbIyw1e3KkxlkzTIt9Taw6JBhEppG7utc1P+w=="],
+
     "readable-stream/buffer": ["buffer@6.0.3", "", { "dependencies": { "base64-js": "^1.3.1", "ieee754": "^1.2.1" } }, "sha512-FTiCpNxtwiZZHEZbcbTIcZjERVICn9yq/pDFkTl95/AxzD1naBctN7YO68riM/gLSDY7sdrMby8hofADYuuqOA=="],
 
     "restore-cursor/signal-exit": ["signal-exit@3.0.7", "", {}, "sha512-wnD2ZE+l+SPC/uoS0vXeE9L1+0wuaMqKlfz9AMUo38JsyLSBWSFcHR1Rri62LZc12vLr1gb3jl7iwQhgwpAbGQ=="],
@@ -3371,6 +3372,8 @@
     "hast-util-from-dom/hastscript/property-information": ["property-information@7.1.0", "", {}, "sha512-TwEZ+X+yCJmYfL7TPUOcvBZ4QfoT5YenQiJuX//0th53DE6w0xxLEtfK3iyryQFddXuvkIk51EEgrJQ0WJkOmQ=="],
 
     "ora/strip-ansi/ansi-regex": ["ansi-regex@6.2.2", "", {}, "sha512-Bq3SmSpyFHaWjPk8If9yc6svM8c56dB5BAtW4Qbw5jHTwwXXcTLoRMkpDJp6VL0XzlWaCHTXrkFURMYmD0sLqg=="],
+
+    "read-yaml-file/js-yaml/argparse": ["argparse@1.0.10", "", { "dependencies": { "sprintf-js": "~1.0.2" } }, "sha512-o5Roy6tNG4SL/FOkCAN6RzjiakZS25RLYFrcMttJqbdd8BWrnA+fGz57iN5Pb06pvBGvl5gQ0B48dJlslXvoTg=="],
 
     "serve-static/send/debug": ["debug@2.6.9", "", { "dependencies": { "ms": "2.0.0" } }, "sha512-bC7ElrdJaJnPbAP+1EotYvqZsb3ecl5wi6Bfi6BJTUcNowp6cvspg0jXznRTKDjm/E7AdgFBVeAPVMNcKGsHMA=="],
 
