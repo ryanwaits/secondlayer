@@ -1,4 +1,5 @@
 import { ApiError, apiRequest } from "@/lib/api";
+import { crossSiteRefusal } from "@/lib/same-origin";
 import type { Account } from "@/lib/types";
 import { NextResponse } from "next/server";
 
@@ -6,6 +7,19 @@ import { NextResponse } from "next/server";
 export const preferredRegion = "fra1";
 
 export async function POST(req: Request) {
+	const refused = crossSiteRefusal(req);
+	if (refused) return refused;
+	if (
+		!req.headers
+			.get("content-type")
+			?.toLowerCase()
+			.startsWith("application/json")
+	) {
+		return NextResponse.json(
+			{ error: "Content-Type must be application/json" },
+			{ status: 415, headers: { "Cache-Control": "no-store" } },
+		);
+	}
 	try {
 		const body = await req.json();
 		const data = await apiRequest<{ sessionToken: string; account: Account }>(

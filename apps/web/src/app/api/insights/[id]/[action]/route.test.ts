@@ -11,14 +11,23 @@ const UUID = "0b9c2f6e-1d4a-4c3b-8e7f-5a6d7c8b9e01";
 function req(method: string, cookie = "sl_session=tok"): Request {
 	return new Request("http://localhost/api/insights/x/dismiss", {
 		method,
-		headers: cookie ? { cookie } : {},
+		headers: {
+			origin: "http://localhost",
+			host: "localhost",
+			...(cookie ? { cookie } : {}),
+		},
 	});
 }
 
 function snoozeReq(body: string): Request {
 	return new Request("http://localhost/api/insights/x/snooze", {
 		method: "POST",
-		headers: { cookie: "sl_session=tok", "Content-Type": "application/json" },
+		headers: {
+			origin: "http://localhost",
+			host: "localhost",
+			cookie: "sl_session=tok",
+			"Content-Type": "application/json",
+		},
 		body,
 	});
 }

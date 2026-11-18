@@ -9,6 +9,11 @@ afterEach(() => {
 function verifyRequest() {
 	return new Request("http://localhost/api/auth/verify", {
 		method: "POST",
+		headers: {
+			origin: "http://localhost",
+			host: "localhost",
+			"content-type": "application/json",
+		},
 		body: JSON.stringify({ token: "magic-link-token" }),
 	});
 }
@@ -58,5 +63,24 @@ describe("POST /api/auth/verify", () => {
 		expect(body).toEqual({ account });
 		expect(res.headers.get("Set-Cookie")).toContain("sl_session=session-abc");
 		expect(calls.map((c) => c.url.split("/api/")[1])).toEqual(["auth/verify"]);
+	});
+
+	test("refuses a same-origin request that is not JSON with 415, calling nothing", async () => {
+		const calls = stubFetch(() => jsonResponse({}));
+		const { POST } = await import("./route");
+		const res = await POST(
+			new Request("http://localhost/api/auth/verify", {
+				method: "POST",
+				headers: {
+					origin: "http://localhost",
+					host: "localhost",
+					"content-type": "text/plain",
+				},
+				body: JSON.stringify({ token: "magic-link-token" }),
+			}),
+		);
+
+		expect(res.status).toBe(415);
+		expect(calls).toEqual([]);
 	});
 });
