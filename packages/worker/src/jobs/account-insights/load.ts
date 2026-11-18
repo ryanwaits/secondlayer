@@ -8,6 +8,7 @@ import {
 	monthBounds,
 } from "@secondlayer/platform/db/queries/usage-ledger";
 import type { Database } from "@secondlayer/shared/db";
+import { liveKeyWhere } from "@secondlayer/shared/db/queries/api-keys";
 import { PAGE_CAP_ROWS } from "@secondlayer/shared/insights";
 import { type Kysely, sql } from "kysely";
 import type { AccountRuleInput } from "./rules.ts";
@@ -146,7 +147,7 @@ export async function loadAccountInput(
 		.select(["id", "name", "key_prefix", "created_at", "last_used_at"])
 		.where("account_id", "=", accountId)
 		.where("product", "=", "account")
-		.where("status", "=", "active")
+		.where(liveKeyWhere(now))
 		.execute();
 
 	const [caps, spentMonth, balance, burn] = await Promise.all([
