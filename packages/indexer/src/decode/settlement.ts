@@ -1,5 +1,6 @@
 import { getSourceDb } from "@secondlayer/shared/db";
 import type { Database } from "@secondlayer/shared/db/schema";
+import { bitcoinRpcConfigFromEnv } from "@secondlayer/stacks/bitcoin";
 import { type Kysely, sql } from "kysely";
 import {
 	type RawTransaction,
@@ -80,21 +81,13 @@ async function sleep(ms: number, signal?: AbortSignal): Promise<void> {
 }
 
 function readerFromEnv(): SweepReader {
-	const url = process.env.BITCOIN_RPC_URL;
-	if (!url) {
+	const config = bitcoinRpcConfigFromEnv(process.env);
+	if (!config) {
 		throw new Error(
 			"BITCOIN_RPC_URL is required for the sBTC settlement confirmer",
 		);
 	}
-	const auth =
-		process.env.BITCOIN_RPC_AUTH ??
-		(process.env.BITCOIN_RPC_USERNAME && process.env.BITCOIN_RPC_PASSWORD
-			? {
-					username: process.env.BITCOIN_RPC_USERNAME,
-					password: process.env.BITCOIN_RPC_PASSWORD,
-				}
-			: undefined);
-	return bitcoinConfirmationReader({ url, auth });
+	return bitcoinConfirmationReader(config);
 }
 
 /**

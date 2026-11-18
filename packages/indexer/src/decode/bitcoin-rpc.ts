@@ -1,3 +1,12 @@
+import {
+	type BitcoinRpcConfig,
+	BitcoinRpcError,
+	RPC_NO_SUCH_TX,
+	bitcoinRpcCall,
+} from "@secondlayer/stacks/bitcoin";
+
+export type { BitcoinRpcConfig };
+
 /**
  * Minimal Bitcoin Core JSON-RPC reader for the settlement confirmer.
  *
@@ -6,21 +15,13 @@
  * not yet in a block (`packages/stacks/src/bitcoin/proof.ts`). For this worker,
  * "not yet confirmed" is the normal steady state, so we need a reader that
  * returns 0 confirmations gracefully instead of throwing. The request/auth shape
- * mirrors that module conceptually. If an external SDK consumer ever needs raw
- * confirmation reads, promote this into the published `./bitcoin` module instead.
+ * is the shared `bitcoinRpcCall` transport from `@secondlayer/stacks/bitcoin`.
+ * If an external SDK consumer ever needs raw confirmation reads, promote this
+ * into the published `./bitcoin` module instead.
  *
  * The node must run with `-txindex` so `getrawtransaction` can resolve a historical
  * sweep txid (verified on prod: `docker/node-server/bitcoin.conf`).
  */
-
-export interface BitcoinRpcConfig {
-	/** Bitcoin Core JSON-RPC endpoint URL. */
-	url: string;
-	/** Basic auth — `{ username, password }` or a pre-encoded base64 string. */
-	auth?: { username: string; password: string } | string;
-	/** Override the fetch implementation (testing / custom agents). */
-	fetch?: typeof fetch;
-}
 
 export interface TxConfirmation {
 	txid: string;
@@ -42,19 +43,6 @@ export interface RawTransaction {
 	vout: { value: number; n: number }[];
 }
 
-/** Bitcoin Core returns this code for an unknown txid (no such mempool/chain tx). */
-const RPC_ERROR_NO_SUCH_TX = -5;
-
-class BitcoinRpcError extends Error {
-	constructor(
-		message: string,
-		readonly code: number,
-	) {
-		super(message);
-		this.name = "BitcoinRpcError";
-	}
-}
-
 /**
  * Build a reader bound to a bitcoind RPC endpoint. The returned `getConfirmations`
  * never throws on a per-tx "unknown/unconfirmed" state — those are normal — but
@@ -65,55 +53,16 @@ export function bitcoinConfirmationReader(config: BitcoinRpcConfig): {
 	getConfirmations(txid: string): Promise<TxConfirmation>;
 	getRawTransaction(txid: string): Promise<RawTransaction | null>;
 } {
-	const doFetch = config.fetch ?? fetch;
-
-	async function rpc<T>(method: string, params: unknown[]): Promise<T> {
-		const headers: Record<string, string> = {
-			"content-type": "application/json",
-		};
-		if (config.auth) {
-			const basic =
-				typeof config.auth === "string"
-					? config.auth
-					: btoa(`${config.auth.username}:${config.auth.password}`);
-			headers.authorization = `Basic ${basic}`;
-		}
-		const res = await doFetch(config.url, {
-			method: "POST",
-			headers,
-			body: JSON.stringify({
-				jsonrpc: "1.0",
-				id: "secondlayer-settlement",
-				method,
-				params,
-			}),
-		});
-		// Bitcoin Core delivers JSON-RPC errors (e.g. -5 "no such transaction")
-		// with an HTTP 500 status AND the error in the body — so parse the body
-		// BEFORE throwing on `!res.ok`, or the graceful -5 path in getConfirmations
-		// is unreachable and every unknown/unbroadcast sweep crashes the loop. A
-		// genuine transport outage (HTML 502/503, unparseable body) carries no
-		// JSON-RPC error and still throws as an HTTP failure.
-		let json: {
-			result: T;
-			error: { code: number; message: string } | null;
-		} | null;
-		try {
-			json = (await res.json()) as typeof json;
-		} catch {
-			json = null;
-		}
-		if (json?.error) {
-			throw new BitcoinRpcError(
-				`bitcoin rpc ${method} error: ${json.error.message}`,
-				json.error.code,
-			);
-		}
-		if (!res.ok) {
-			throw new Error(`bitcoin rpc ${method} failed: HTTP ${res.status}`);
-		}
-		return (json as { result: T }).result;
-	}
+	// Core delivers JSON-RPC errors (e.g. -5 "no such transaction") with HTTP
+	// 500 and the error in the body; the transport reads the body before the
+	// status so the graceful -5 path in getConfirmations stays reachable. The
+	// 60s timeout makes a hung bitcoind throw so the loop backs off.
+	const call = bitcoinRpcCall(
+		{ timeoutMs: 60_000, ...config },
+		{ id: "secondlayer-settlement" },
+	);
+	const rpc = <T>(method: string, params: unknown[]): Promise<T> =>
+		call<T>(method, params);
 
 	return {
 		/** Verbose tx, or null when the node has no such txid. */
@@ -122,10 +71,7 @@ export function bitcoinConfirmationReader(config: BitcoinRpcConfig): {
 			try {
 				return await rpc<RawTransaction>("getrawtransaction", [rpcTxid, true]);
 			} catch (error) {
-				if (
-					error instanceof BitcoinRpcError &&
-					error.code === RPC_ERROR_NO_SUCH_TX
-				) {
+				if (error instanceof BitcoinRpcError && error.code === RPC_NO_SUCH_TX) {
 					return null;
 				}
 				throw error;
@@ -143,10 +89,7 @@ export function bitcoinConfirmationReader(config: BitcoinRpcConfig): {
 			} catch (error) {
 				// Unknown txid is a normal state (never broadcast / pruned mempool),
 				// not a node failure — report it as not-found rather than throwing.
-				if (
-					error instanceof BitcoinRpcError &&
-					error.code === RPC_ERROR_NO_SUCH_TX
-				) {
+				if (error instanceof BitcoinRpcError && error.code === RPC_NO_SUCH_TX) {
 					return {
 						txid,
 						found: false,

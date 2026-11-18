@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { BitcoinRpcTransportError } from "@secondlayer/stacks/bitcoin";
 import { bitcoinConfirmationReader } from "./bitcoin-rpc.ts";
 
 type RpcResult = {
@@ -203,5 +204,22 @@ describe("bitcoinConfirmationReader.getConfirmations", () => {
 		await expect(reader.getConfirmations("0xsweep")).rejects.toThrow(
 			/some other error/,
 		);
+	});
+
+	test("a hung bitcoind times out instead of hanging the confirmer", async () => {
+		const reader = bitcoinConfirmationReader({
+			url: "http://node/",
+			timeoutMs: 1,
+			fetch: ((_url: string, init: RequestInit) =>
+				new Promise<Response>((_resolve, reject) => {
+					init.signal?.addEventListener("abort", () =>
+						reject(new Error("aborted")),
+					);
+				})) as unknown as typeof fetch,
+		});
+
+		const error = await reader.getConfirmations("0xsweep").catch((e) => e);
+		expect(error).toBeInstanceOf(BitcoinRpcTransportError);
+		expect((error as BitcoinRpcTransportError).failure).toBe("timeout");
 	});
 });

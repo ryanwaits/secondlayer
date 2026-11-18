@@ -224,3 +224,53 @@ describe("bitcoinRpcClient retry", () => {
 		expect(calls.length).toBe(0);
 	});
 });
+
+describe("bitcoinRpcClient retry policy", () => {
+	test("a 503 without a JSON-RPC body is retried", async () => {
+		let call = 0;
+		const fakeFetch = (async () => {
+			call += 1;
+			if (call === 1) return new Response("unavailable", { status: 503 });
+			return jsonResponse({ result: 9, error: null });
+		}) as unknown as typeof fetch;
+		const { sleep } = recordingSleep();
+		const originalError = console.error;
+		console.error = () => {};
+		try {
+			const client = bitcoinRpcClient({
+				url: "http://fake",
+				username: "u",
+				password: "p",
+				fetch: fakeFetch,
+				sleep,
+			});
+			expect(await client.getblockcount()).toBe(9);
+			expect(call).toBe(2);
+		} finally {
+			console.error = originalError;
+		}
+	});
+
+	test("a JSON-RPC error is never retried", async () => {
+		let call = 0;
+		const fakeFetch = (async () => {
+			call += 1;
+			return jsonResponse(
+				{ result: null, error: { code: -32601, message: "Method not found" } },
+				500,
+			);
+		}) as unknown as typeof fetch;
+		const { sleep } = recordingSleep();
+		const client = bitcoinRpcClient({
+			url: "http://fake",
+			username: "u",
+			password: "p",
+			fetch: fakeFetch,
+			sleep,
+		});
+		const error = await client.getblockcount().catch((e) => e);
+		expect(error).toBeInstanceOf(BitcoinRpcError);
+		expect((error as BitcoinRpcError).code).toBe(-32601);
+		expect(call).toBe(1);
+	});
+});

@@ -188,13 +188,15 @@ CMD ["bun", "run", "packages/subgraphs/src/webhook-service.ts"]
 # Bitcoin/Runes follower — the oss self-host `bitcoin` compose profile's
 # `runes` service (plan 062, D18). Runs from source, no build step (same as
 # the `packages/bitcoin` copy above, which the api target already needs for
-# its db types and rune helpers).
+# its db types and rune helpers). The follower imports the shared Bitcoin RPC
+# transport from `@secondlayer/stacks`, so that built package is copied too.
 # =============================================================================
 FROM base AS bitcoin
 
 WORKDIR /app
 
 COPY --from=deps /app/node_modules ./node_modules
+COPY --from=builder /app/packages/stacks ./packages/stacks
 COPY --from=builder /app/packages/bitcoin ./packages/bitcoin
 COPY --from=builder /app/package.json ./
 

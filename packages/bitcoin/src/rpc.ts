@@ -1,12 +1,15 @@
 /**
- * Bitcoin Core JSON-RPC client for the Runes decoder spike.
- *
- * Parse-before-`res.ok` pattern copied from
- * `packages/indexer/src/decode/bitcoin-rpc.ts:81-106`: Bitcoin Core returns
- * JSON-RPC errors (e.g. -5 "no such transaction") with an HTTP 500 status AND
- * the error in the body, so the body must be parsed before checking `res.ok`
- * or every RPC-level error is masked as a generic HTTP failure.
+ * Bitcoin Core JSON-RPC client for the Runes decoder spike. The request, auth
+ * and parse-before-`res.ok` handling live in the shared `bitcoinRpcCall`
+ * transport (`@secondlayer/stacks/bitcoin`); this file adds the retry policy
+ * and maps the transport's errors onto this package's own error classes.
  */
+import {
+	BitcoinRpcTransportError,
+	BitcoinRpcError as TransportRpcError,
+	bitcoinRpcCall,
+	bitcoinRpcConfigFromEnv,
+} from "@secondlayer/stacks/bitcoin";
 
 export interface BitcoinRpcConfig {
 	url: string;
@@ -31,12 +34,10 @@ export class BitcoinRpcError extends Error {
 	}
 }
 
-/** A fetch-layer failure (network error, abort, timeout) — always retryable. Wraps whatever `fetch` itself threw. */
+/** A fetch-layer failure (network error or timeout) — always retryable. The message names the failure kind only, never the fetch error text. */
 class RpcNetworkError extends Error {
-	constructor(method: string, cause: unknown) {
-		super(
-			`bitcoin rpc ${method} network error: ${cause instanceof Error ? cause.message : String(cause)}`,
-		);
+	constructor(method: string, failure: "network" | "timeout") {
+		super(`bitcoin rpc ${method} ${failure} error`);
 		this.name = "RpcNetworkError";
 	}
 }
@@ -143,12 +144,16 @@ export interface BitcoinRpcClient {
 
 /** Build a JSON-RPC client bound to a bitcoind endpoint. */
 export function bitcoinRpcClient(config: BitcoinRpcConfig): BitcoinRpcClient {
-	const doFetch = config.fetch ?? fetch;
-	const basicAuth = btoa(`${config.username}:${config.password}`);
 	const defaultTimeoutMs = config.timeoutMs ?? DEFAULT_TIMEOUT_MS;
 	const sleepFn = config.sleep ?? sleep;
-	const timeoutSignalFn =
-		config.timeoutSignal ?? ((ms: number) => AbortSignal.timeout(ms));
+	const call = bitcoinRpcCall(
+		{
+			url: config.url,
+			auth: { username: config.username, password: config.password },
+			fetch: config.fetch,
+		},
+		{ id: "secondlayer-bitcoin", timeoutSignal: config.timeoutSignal },
+	);
 
 	async function rpcOnce<T>(
 		method: string,
@@ -156,56 +161,38 @@ export function bitcoinRpcClient(config: BitcoinRpcConfig): BitcoinRpcClient {
 		fetchTimeoutMs: number,
 		callerSignal?: AbortSignal,
 	): Promise<T> {
-		const signal = callerSignal
-			? AbortSignal.any([timeoutSignalFn(fetchTimeoutMs), callerSignal])
-			: timeoutSignalFn(fetchTimeoutMs);
-		let res: Response;
 		try {
-			res = await doFetch(config.url, {
-				method: "POST",
-				headers: {
-					"content-type": "application/json",
-					authorization: `Basic ${basicAuth}`,
-				},
-				body: JSON.stringify({
-					jsonrpc: "1.0",
-					id: "secondlayer-bitcoin",
-					method,
-					params,
-				}),
-				signal,
+			return await call<T>(method, params, {
+				timeoutMs: fetchTimeoutMs,
+				signal: callerSignal,
 			});
 		} catch (error) {
-			// The caller's own signal firing is a deliberate cancel, distinct from
-			// the timeout signal firing — rethrown as `RpcAbortedError` so `rpc()`
-			// below never retries it.
-			if (callerSignal?.aborted) throw new RpcAbortedError(method);
-			throw new RpcNetworkError(method, error);
+			if (error instanceof TransportRpcError) {
+				throw new BitcoinRpcError(
+					`bitcoin rpc ${method} error: ${error.rpcMessage}`,
+					error.code,
+				);
+			}
+			if (error instanceof BitcoinRpcTransportError) {
+				const message = `bitcoin rpc ${method} failed: HTTP ${error.status}`;
+				switch (error.failure) {
+					// The caller's own signal firing is a deliberate cancel, distinct
+					// from the timeout — `rpc()` below never retries it.
+					case "aborted":
+						throw new RpcAbortedError(method);
+					case "network":
+					case "timeout":
+						throw new RpcNetworkError(method, error.failure);
+					case "http":
+						if ((error.status ?? 0) >= 500)
+							throw new RetryableHttpError(message);
+						throw new Error(message);
+					case "bad-body":
+						throw new RetryableHttpError(message);
+				}
+			}
+			throw error;
 		}
-		// Bitcoin Core delivers JSON-RPC errors with an HTTP 500 status AND the
-		// error in the body — parse the body BEFORE throwing on `!res.ok`, or the
-		// specific RPC error code/message is unreachable.
-		let json: {
-			result: T;
-			error: { code: number; message: string } | null;
-		} | null;
-		try {
-			json = (await res.json()) as typeof json;
-		} catch {
-			json = null;
-		}
-		if (json?.error) {
-			throw new BitcoinRpcError(
-				`bitcoin rpc ${method} error: ${json.error.message}`,
-				json.error.code,
-			);
-		}
-		if (!res.ok) {
-			const message = `bitcoin rpc ${method} failed: HTTP ${res.status}`;
-			if (res.status >= 500) throw new RetryableHttpError(message);
-			throw new Error(message);
-		}
-		return (json as { result: T }).result;
 	}
 
 	/**
@@ -265,13 +252,31 @@ export function bitcoinRpcClient(config: BitcoinRpcConfig): BitcoinRpcClient {
 }
 
 export function bitcoinRpcClientFromEnv(): BitcoinRpcClient {
-	const url = process.env.BITCOIN_RPC_URL;
-	const username = process.env.BITCOIN_RPC_USERNAME;
-	const password = process.env.BITCOIN_RPC_PASSWORD;
-	if (!url || !username || !password) {
+	const config = bitcoinRpcConfigFromEnv(process.env);
+	const credentials = config?.auth ? credentialsOf(config.auth) : undefined;
+	if (!config || !credentials) {
 		throw new Error(
-			"BITCOIN_RPC_URL, BITCOIN_RPC_USERNAME, BITCOIN_RPC_PASSWORD are required",
+			"BITCOIN_RPC_URL and either BITCOIN_RPC_AUTH or BITCOIN_RPC_USERNAME + BITCOIN_RPC_PASSWORD are required",
 		);
 	}
-	return bitcoinRpcClient({ url, username, password });
+	return bitcoinRpcClient({ url: config.url, ...credentials });
+}
+
+/** `BITCOIN_RPC_AUTH` is base64 `username:password`; split on the first `:` only. */
+function credentialsOf(
+	auth: { username: string; password: string } | string,
+): { username: string; password: string } | undefined {
+	if (typeof auth !== "string") return auth;
+	let decoded: string;
+	try {
+		decoded = atob(auth);
+	} catch {
+		return undefined;
+	}
+	const colon = decoded.indexOf(":");
+	if (colon < 0) return undefined;
+	return {
+		username: decoded.slice(0, colon),
+		password: decoded.slice(colon + 1),
+	};
 }
