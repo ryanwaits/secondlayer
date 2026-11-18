@@ -1,5 +1,11 @@
 # @secondlayer/shared
 
+## 18.0.1
+
+### Patch Changes
+
+- c4c4e6f: `loadReference` accepts `redirect` and `maxBytes` fetch options.
+
 ## 18.0.0
 
 ### Major Changes
