@@ -26,6 +26,13 @@ function lockRegistry() {
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
+async function waitFor(cond: () => boolean, timeoutMs = 3000): Promise<void> {
+	const deadline = Date.now() + timeoutMs;
+	while (!cond() && Date.now() < deadline) {
+		await sleep(10);
+	}
+}
+
 describe("startInsightsLoop", () => {
 	test("only the leader evaluates", async () => {
 		const { backend } = lockRegistry();
@@ -45,7 +52,7 @@ describe("startInsightsLoop", () => {
 				b++;
 			},
 		});
-		await sleep(10);
+		await waitFor(() => a === 1);
 		expect(a).toBe(1);
 		expect(b).toBe(0);
 		await stopA();
@@ -62,7 +69,7 @@ describe("startInsightsLoop", () => {
 				runs++;
 			},
 		});
-		await sleep(110);
+		await waitFor(() => runs >= 3);
 		await stop();
 		expect(runs).toBeGreaterThanOrEqual(3);
 	});
@@ -78,7 +85,7 @@ describe("startInsightsLoop", () => {
 				throw new Error("db down");
 			},
 		});
-		await sleep(90);
+		await waitFor(() => runs >= 2);
 		await stop();
 		expect(runs).toBeGreaterThanOrEqual(2);
 	});
@@ -87,6 +94,7 @@ describe("startInsightsLoop", () => {
 		const { backend } = lockRegistry();
 		let active = 0;
 		let maxActive = 0;
+		let completed = 0;
 		const stop = startInsightsLoop({
 			createBackend: backend,
 			intervalMs: 10,
@@ -95,9 +103,10 @@ describe("startInsightsLoop", () => {
 				maxActive = Math.max(maxActive, active);
 				await sleep(50);
 				active--;
+				completed++;
 			},
 		});
-		await sleep(120);
+		await waitFor(() => completed >= 2);
 		await stop();
 		expect(maxActive).toBe(1);
 	});
@@ -112,7 +121,7 @@ describe("startInsightsLoop", () => {
 				runs++;
 			},
 		});
-		await sleep(50);
+		await waitFor(() => runs >= 1);
 		await stop();
 		const after = runs;
 		await sleep(80);
@@ -127,7 +136,7 @@ describe("startInsightsLoop", () => {
 				second++;
 			},
 		});
-		await sleep(10);
+		await waitFor(() => second === 1);
 		expect(second).toBe(1);
 		await stop2();
 	});
