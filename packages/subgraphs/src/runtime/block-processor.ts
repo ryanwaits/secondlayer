@@ -80,6 +80,16 @@ async function readCursor(
 	return row ? Number(row.last_processed_block) : undefined;
 }
 
+/** Discovering sources (`factory.from`) of a subgraph's factory sources. */
+export function factoryDiscoverers(subgraph: SubgraphDefinition): Set<string> {
+	const discoverers = new Set<string>();
+	for (const source of Object.values(subgraph.sources)) {
+		const factory = (source as { factory?: { from: string } }).factory;
+		if (factory) discoverers.add(factory.from);
+	}
+	return discoverers;
+}
+
 /**
  * Resolve each distinct trait used by a subgraph's sources to its conforming
  * contract-id set, as of `blockHeight`, from the contract registry. Empty map
@@ -96,16 +106,6 @@ async function readCursor(
  *    Without this pass the first event from every discovered contract is
  *    silently lost.
  */
-/** Discovering sources (`factory.from`) of a subgraph's factory sources. */
-export function factoryDiscoverers(subgraph: SubgraphDefinition): Set<string> {
-	const discoverers = new Set<string>();
-	for (const source of Object.values(subgraph.sources)) {
-		const factory = (source as { factory?: { from: string } }).factory;
-		if (factory) discoverers.add(factory.from);
-	}
-	return discoverers;
-}
-
 /**
  * Exported as a test seam. Both guarantees this function carries — a contract
  * discovered in block N receiving its OWN block-N events, and the persisted set
