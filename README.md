@@ -107,7 +107,11 @@ docker compose up -d
 ## Development
 
 ```bash
-bun install && bun run build && bun run test
+bun install
+bun run db          # Postgres on 127.0.0.1:5440
+bun run migrate
+bun run build
+DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:5440/secondlayer bun run test
 ```
 
 Releases flow through [Changesets](https://github.com/changesets/changesets):

@@ -2,7 +2,7 @@
 
 ## Architecture
 
-Two-server setup:
+See [Hosts](../PRODUCTION.md#hosts) for every host. The two hosts this file's commands cover:
 
 | Server | Hardware | SSH | Services |
 |--------|----------|-----|----------|

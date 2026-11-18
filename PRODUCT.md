@@ -12,21 +12,21 @@ Primary: a funded Stacks app team (roughly 2–8 people) whose contract is live 
 
 Secondary: a data/infra engineer who wants the signed raw or decoded plane so they can build their own indexer, subgraph runtime, or webhook sender. They may compete with our out-of-the-box products. They still pay for the plane.
 
-Planned (gated on Phase 0 demand, 2026-09-22): a Bitcoin app team (wallet, marketplace, launchpad, portfolio tool) that needs Runes balances and inscription ownership, hosted or on their own node, and lost its neutral provider when the largest one shut down its L1 APIs in 2026-03.
+Secondary (live since 2026-10-15 for Runes): a Bitcoin app team (wallet, marketplace, launchpad, portfolio tool) that needs Runes balances, hosted or on their own node, and lost its neutral provider when the largest one shut down its L1 APIs in 2026-03. Inscription ownership is next, gated on demand.
 
 Tertiary: a TypeScript engineer who wants a typed Stacks client (`@secondlayer/stacks`). They are a package audience, not the first marketing door.
 
 ## Product Purpose
 
-Secondlayer is one account that sells chain data for Bitcoin and its L2s at two altitudes. Stacks today. Bitcoin Runes and inscriptions next, as Index data on the same plane (STRATEGY.md, Bitcoin).
+Secondlayer is one account that sells chain data for Bitcoin and its L2s at two altitudes. Stacks and Bitcoin Runes today, inscriptions next, as Index data on the same plane (STRATEGY.md, Bitcoin).
 
-**Index and Streams** are the metered primitives. Index is decoded rows (Stacks events today; Runes and inscriptions once shipped). Streams is the signed raw firehose and dumps. An operator can self-host the runtime beside a node, or consume the primitives from us. Either way, this is the atomic layer: enough to build your own subgraphs, your own webhooks, or anything else. We still charge for that usage. SDK and tooling exist so someone can compete with our opinionated products and remain a customer.
+**Index and Streams** are the metered primitives. Index is decoded rows (Stacks events and Runes today; inscriptions next). Streams is the signed raw firehose and dumps. An operator can self-host the runtime beside a node, or consume the primitives from us. Either way, this is the atomic layer: enough to build your own subgraphs, your own webhooks, or anything else. We still charge for that usage. SDK and tooling exist so someone can compete with our opinionated products and remain a customer.
 
 **Subgraphs** is a product on that plane: one TypeScript file becomes a schema, tables, and a REST API. We fill it from Index/Streams. Hosted in a private stack per account, or self-host on their own instance.
 
 **Webhooks** is a product on that plane: they name the chain events and a URL they run; the instance matches, signs, retries, and POSTs to that URL, hosted or self-host. They host the receiver. The registered row is a *subscription* internally; the product noun is Webhooks.
 
-**Archive** is the history primitive under both: the signed canonical archive that Index and Streams bootstrap from. Verify, repair, bootstrap. The only line billed today.
+**Archive** is the history primitive under both: the signed canonical archive that Index and Streams bootstrap from. Verify, repair, bootstrap. Billed per fetch.
 
 Success is a team querying their own contract's data, or receiving signed POSTs for it, without writing an indexer, and paying for the plane work that made it true. A team that skips Subgraphs and Webhooks and builds their own on Index/Streams is also success.
 
@@ -46,7 +46,7 @@ The claim a neighbor cannot copy: the out-of-the-box products and the primitives
 
 - OSS self-host path: `docker/oss` compose beside a node, archive bootstrap, subgraph deploy, subscription against their instance.
 - Hosted path: archive plus keyed Index/Streams reads. Hosted subgraphs (a private stack per account) and webhooks (chain events, signed, retried) run on an account key; accountless play and the old hosted meters were removed 2026-09-23.
-- Meter: archive bootstrap/backfill today; usage of Index/Streams primitives is the intended charge. SKUs are the meters in `docs/internal/economics-metered-model.md` (founder-resolved 2026-09-11).
+- Meter: official-archive bootstrap, archive backfill/reindex, `secondlayer repair` past 24 partitions a month, hosted Index/Streams reads and subgraph indexing rows past the monthly allowance, hosted subgraph table reads past 100k a month, running hosted stack memory (floored $5/mo webhook-only, $10/mo with subgraphs) and storage, and hosted webhook events. Prices live in `packages/platform/src/billing/prices.ts`; the full billable table is in STRATEGY.md. SKUs are the meters in `docs/internal/economics-metered-model.md` (founder-resolved 2026-09-11).
 - Golden path for an app team: scaffold their contract → table they query → optional webhook to a URL they own.
 - Docs, CLI, SDK, MCP are channels, not products.
 - `@secondlayer/stacks` is a viem-style chain client in the same org. It is the one thing adopted without a runtime or account, so it is the one thing with its own home: `stacks.secondlayer.tools`. Wallet half frozen except nonce coordination.
@@ -55,14 +55,14 @@ The claim a neighbor cannot copy: the out-of-the-box products and the primitives
 
 Confirmed:
 
-- Archive, Index, Streams, Subgraphs, Webhooks already exist in the runtime. Webhooks still answers to `subscriptions` in the API, CLI, SDK, MCP and docs until `plans/rename-webhooks.md` lands.
+- Archive, Index, Streams, Subgraphs, Webhooks exist in the runtime. Webhooks is the name in the API, CLI, SDK, MCP and docs.
 - We do not host their webhook endpoint. We send to it.
 - Same payload shapes on hosted and self-host so a team can fork later.
 - OSS loopback `/v1` reads are keyless; hosted `/v1` is keyed (`Authorization: Bearer`, account key `sk-sl_*`). Keys gate hosted reads and all writes.
 - Voice: calm infrastructure. No exclamation points, no emoji, no hype, no competitor naming in public copy.
 - Hosted decoded reads stay. Generic decoders power hosted Index, and self-hosted Subgraphs and webhook triggers. Protocol decoders (sBTC, pox-5 today) earn their place; on Bitcoin, BRC-20, sats names, Alkanes and similar are noted and deferred until a customer asks.
 - Bitcoin scope excludes general L1 address/UTXO indexing (BTC balances, address tx history) and inscription content serving; rune-bearing outputs carry their address, as data about the rune, not a separate Bitcoin index. `ord` is the parity reference for Runes and inscriptions.
-- Team is 1–2 people. Two Hetzner boxes today (node-server with stacks-node and bitcoind, app-server). Every product noun is a door and a parity tax; the family is five nouns, not a junk drawer.
+- Team is 1–2 people. Hosts are listed in `docker/PRODUCTION.md`. Every product noun is a door and a parity tax; the family is five nouns, not a junk drawer.
 - We do not host a public Explore catalog of other people's subgraphs unless a later grant explicitly funds a protocol catalog (sBTC, PoX, BNS) as a public good.
 
 Resolved 2026-09-12 (was open):
