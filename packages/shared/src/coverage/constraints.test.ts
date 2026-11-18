@@ -1,6 +1,5 @@
 import { describe, expect, test } from "bun:test";
 import {
-	type CoverageRange,
 	FAILURE_CLASSES,
 	FAILURE_UNITS,
 	type FailureRow,
@@ -8,7 +7,6 @@ import {
 	REPAIR_MODES,
 	RETRY_STATES,
 	RUN_STATUSES,
-	type ReceiptRow,
 	STAGE_KINDS,
 	defaultRetainUntil,
 	failureRangeHolds,
@@ -22,8 +20,6 @@ import {
 	isRunStatus,
 	isStageKind,
 	rangeIsOrdered,
-	receiptRetentionHolds,
-	segmentsOverlap,
 } from "./constraints.ts";
 
 const SEED = 0xc0ffee;
@@ -82,78 +78,6 @@ describe("coverage range properties", () => {
 			expect(rangeIsOrdered(-1, lo)).toBe(false);
 			expect(isNonNegativeInt(-1)).toBe(false);
 		}
-	});
-
-	test("overlap is symmetric and reflexive", () => {
-		const rand = mulberry32(SEED + 1);
-		for (let i = 0; i < ITERATIONS; i++) {
-			const a: CoverageRange = {
-				from_height: intIn(rand, 0, 1_000),
-				to_height: 0,
-			};
-			a.to_height = a.from_height + intIn(rand, 0, 200);
-			const b: CoverageRange = {
-				from_height: intIn(rand, 0, 1_000),
-				to_height: 0,
-			};
-			b.to_height = b.from_height + intIn(rand, 0, 200);
-			expect(segmentsOverlap(a, b)).toBe(segmentsOverlap(b, a));
-			expect(segmentsOverlap(a, a)).toBe(true);
-		}
-	});
-
-	test("disjoint adjacent ranges do not overlap", () => {
-		expect(
-			segmentsOverlap(
-				{ from_height: 0, to_height: 9 },
-				{ from_height: 10, to_height: 20 },
-			),
-		).toBe(false);
-		expect(
-			segmentsOverlap(
-				{ from_height: 0, to_height: 10 },
-				{ from_height: 10, to_height: 20 },
-			),
-		).toBe(true);
-	});
-});
-
-describe("receipt retention", () => {
-	test("compacted implies finalized, for random rows", () => {
-		const rand = mulberry32(SEED + 2);
-		for (let i = 0; i < ITERATIONS; i++) {
-			const row: ReceiptRow = {
-				block_height: intIn(rand, 0, 8_000_000),
-				input_count: intIn(rand, 0, 400),
-				finalized: rand() < 0.5,
-				compacted_at: rand() < 0.5 ? new Date(intIn(rand, 1, 1e12)) : null,
-			};
-			const ok = receiptRetentionHolds(row);
-			if (row.compacted_at !== null && !row.finalized) {
-				expect(ok).toBe(false);
-			} else {
-				expect(ok).toBe(true);
-			}
-		}
-	});
-
-	test("negative height or input count fails", () => {
-		expect(
-			receiptRetentionHolds({
-				block_height: -1,
-				input_count: 0,
-				finalized: true,
-				compacted_at: null,
-			}),
-		).toBe(false);
-		expect(
-			receiptRetentionHolds({
-				block_height: 0,
-				input_count: -1,
-				finalized: true,
-				compacted_at: null,
-			}),
-		).toBe(false);
 	});
 });
 

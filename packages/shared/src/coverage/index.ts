@@ -19,8 +19,6 @@ export {
 	isRunStatus,
 	isStageKind,
 	rangeIsOrdered,
-	receiptRetentionHolds,
-	segmentsOverlap,
 } from "./constraints.ts";
 export type {
 	CoverageRange,
@@ -28,7 +26,6 @@ export type {
 	FailureRow,
 	FailureUnit,
 	NativeClock,
-	ReceiptRow,
 	RepairMode,
 	RetryState,
 	RunStatus,
@@ -46,41 +43,6 @@ export {
 	topoSort,
 } from "./evaluate.ts";
 export {
-	DEFAULT_MAX_RETRIES,
-	RUNNER_EVENT_TYPES,
-	RUNNER_STATUSES,
-	RUNNER_TRANSITION_TABLE,
-	applyRunnerEvent,
-	createRunnerState,
-	expectedAckHeight,
-	lookupTransition,
-	versionsEqual,
-} from "./runner.ts";
-export type {
-	RunnerEffect,
-	RunnerEvent,
-	RunnerEventType,
-	RunnerFailure,
-	RunnerResult,
-	RunnerState,
-	RunnerStatus,
-	RunnerVersion,
-	TransitionRule,
-} from "./runner.ts";
-export {
-	cursorIsAfterBlock,
-	cursorIsBeforeBlock,
-	inputDigest,
-	planDecoderReceipts,
-} from "./decoder-clock.ts";
-export type {
-	CanonicalBlock,
-	DecoderClockEvent,
-	DecoderClockInput,
-	DecoderClockReceipt,
-	DecoderClockResult,
-} from "./decoder-clock.ts";
-export {
 	DECODER_COMMIT_STEPS,
 	DecoderAdapterCrash,
 	commitDecoderAdapter,
@@ -93,46 +55,6 @@ export type {
 	DecoderAdapterFailure,
 	DecoderCommitStep,
 } from "./adapter.ts";
-export {
-	rangeDigestOf,
-	receiptsAfterReorg,
-	sealFinalizedRange,
-	segmentsSurviveReorg,
-} from "./sealer.ts";
-export type { SealResult, SealableReceipt, SealedSegment } from "./sealer.ts";
-export {
-	canonicalizeMutations,
-	hashEffectManifest,
-	manifestsEqual,
-} from "./effect-manifest.ts";
-export type { EffectMutation, EffectOp } from "./effect-manifest.ts";
-export {
-	SUBGRAPH_COMMIT_STEPS,
-	SubgraphAdapterCrash,
-	commitSubgraphAdapter,
-	runSubgraphCommitSteps,
-} from "./subgraph-adapter.ts";
-export type {
-	SubgraphCommitInput,
-	SubgraphCommitStep,
-} from "./subgraph-adapter.ts";
-export { proofsAgree, sequentialDigests, sparseDigests } from "./sparse.ts";
-export { applyMutations, deepVerify, finalRowDigest } from "./deep-verify.ts";
-export type { DeepVerifyResult, RowSnapshot } from "./deep-verify.ts";
-export {
-	QUEUE_STAGES,
-	applyQueueEvent,
-	emptyQueueState,
-	queueCaughtUp,
-} from "./queue.ts";
-export type {
-	QueueApply,
-	QueueEvent,
-	QueueStage,
-	QueueState,
-} from "./queue.ts";
-export { SAFE_REPAIR_MODES, planRepair } from "./repair.ts";
-export type { RepairDefect, RepairPlan } from "./repair.ts";
 export {
 	VERIFY_EXIT,
 	datasetMatchesTarget,

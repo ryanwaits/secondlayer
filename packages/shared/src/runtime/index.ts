@@ -16,24 +16,6 @@ export type {
 export { createSupervisor } from "./supervisor.ts";
 export type { Supervisor, SupervisorHealth } from "./supervisor.ts";
 export {
-	ISOLATION_FAULTS,
-	IsolationKillError,
-	IsolationNetworkError,
-	IsolationOomError,
-	isolateHandler,
-} from "./isolate.ts";
-export type {
-	IsolationFault,
-	IsolationLimits,
-	IsolationResult,
-} from "./isolate.ts";
-export {
-	MIGRATION_LOCK_KEY,
-	createMemoryMigrationRunner,
-	migrateEmbedded,
-} from "./migrate-embed.ts";
-export type { EmbeddedMigration, MigrationRunner } from "./migrate-embed.ts";
-export {
 	NETWORKS,
 	NODE_MODES,
 	OPTIONAL_KEYS,
@@ -48,12 +30,6 @@ export type {
 	RuntimeConfig,
 	RuntimeNetwork,
 } from "./config.ts";
-export { STATUS_PLANES, actionFor, reportRuntimeStatus } from "./status.ts";
-export type {
-	PlaneStatus,
-	RuntimeStatusReport,
-	StatusPlane,
-} from "./status.ts";
 export {
 	BACKUP_MANIFEST_VERSION,
 	BACKUP_PARTS,
@@ -70,8 +46,6 @@ export type {
 	BackupPlan,
 	RestorePrecheck,
 } from "./backup.ts";
-export { UPGRADE_STEPS, applyUpgrade, planUpgrade } from "./upgrade.ts";
-export type { UpgradePlan, UpgradeStep } from "./upgrade.ts";
 export { FLOORS, diskFloorGb, preflightResources } from "./guardrails.ts";
 export type {
 	DiskEstimates,

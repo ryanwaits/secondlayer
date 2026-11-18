@@ -62,13 +62,6 @@ export type CoverageRange = {
 	to_height: number;
 };
 
-export type ReceiptRow = {
-	block_height: number;
-	input_count: number;
-	finalized: boolean;
-	compacted_at: Date | null;
-};
-
 export type FailureRow = {
 	from_height: number | null;
 	to_height: number | null;
@@ -122,14 +115,6 @@ export function rangeIsOrdered(from: number, to: number): boolean {
 	return isNonNegativeInt(from) && isNonNegativeInt(to) && from <= to;
 }
 
-/** Compacted receipts must already be finalized. */
-export function receiptRetentionHolds(row: ReceiptRow): boolean {
-	if (!isNonNegativeInt(row.block_height)) return false;
-	if (!isNonNegativeInt(row.input_count)) return false;
-	if (row.compacted_at !== null && !row.finalized) return false;
-	return true;
-}
-
 export function failureRangeHolds(row: FailureRow): boolean {
 	if (row.from_height !== null && !isNonNegativeInt(row.from_height)) {
 		return false;
@@ -153,11 +138,6 @@ export function failureRetentionHolds(row: FailureRow): boolean {
 	if (row.retain_until.getTime() < row.created_at.getTime()) return false;
 	if (row.retry_state === "resolved") return row.resolved_at !== null;
 	return true;
-}
-
-/** Two closed ranges on the same stage must not overlap. */
-export function segmentsOverlap(a: CoverageRange, b: CoverageRange): boolean {
-	return a.from_height <= b.to_height && b.from_height <= a.to_height;
 }
 
 export function defaultRetainUntil(createdAt: Date): Date {
