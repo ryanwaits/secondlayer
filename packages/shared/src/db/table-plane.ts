@@ -39,6 +39,8 @@ export const TABLE_TO_DB = {
 	// Chain-derived read memo — keyed on index_block_hash, lives with the
 	// blocks it pins to.
 	chain_read_cache: "source",
+	// Shared events-total baseline for `/public/status`.
+	events_total_baseline: "source",
 	// Staged fork contenders — raw chain data, resolved during ingest.
 	pending_fork_blocks: "source",
 	// Exact observer callback receipts — the replay authority sits with chain data.

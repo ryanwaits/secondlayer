@@ -861,6 +861,18 @@ export interface BnsNamespacesTable {
  * `index_block_hash` marks a caller-declared contract-constant value, cached
  * once per contract+args instead of once per block.
  */
+export interface EventsTotalBaselineTable {
+	id: Generated<boolean>;
+	through: ColumnType<number | null, number | null | undefined, number | null>;
+	count: ColumnType<
+		string | null,
+		string | number | null | undefined,
+		string | number | null
+	>;
+	taken_at: Date | null;
+	claimed_at: Date | null;
+}
+
 export interface ChainReadCacheTable {
 	id: Generated<number>;
 	contract_id: string;
@@ -1026,6 +1038,7 @@ export interface Database {
 	bns_namespaces: BnsNamespacesTable;
 	service_heartbeats: ServiceHeartbeatsTable;
 	chain_read_cache: ChainReadCacheTable;
+	events_total_baseline: EventsTotalBaselineTable;
 	pending_fork_blocks: PendingForkBlocksTable;
 	observer_journal: ObserverJournalTable;
 	sync_scopes: SyncScopesTable;

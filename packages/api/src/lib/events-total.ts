@@ -21,12 +21,30 @@ import { StreamsTipUnavailableError, getStreamsTip } from "../streams/tip.ts";
  * Rows at or below the burn-finality boundary can't reorg, so the baseline is
  * only ever extended. It is fully recounted every `rebaselineMs` anyway, so an
  * operator repair/dedupe below finality is picked up without a restart.
+ *
+ * The finalized baseline is shared between processes through the one-row
+ * `events_total_baseline` table. A new process adopts it and only counts above
+ * it; one process per rebaseline period wins a claim on that row and recounts,
+ * and the others adopt the result.
  */
 export type EventsTotalBounds = {
 	/** Highest canonical block height. */
 	tip: number;
 	/** Highest height past burn finality (immutable). */
 	finalized: number;
+};
+
+export type SavedBaseline = { through: number; count: number; takenAt: number };
+
+/** Where the finalized baseline is shared between processes. */
+export type EventsTotalStore = {
+	load(): Promise<SavedBaseline | null>;
+	/** Try to become the one process that runs the full recount. True = go. */
+	claimRebaseline(): Promise<boolean>;
+	/** Publish a full recount and release the claim. */
+	save(baseline: SavedBaseline): Promise<void>;
+	/** Publish an extension; ignored unless it moves `through` forward. */
+	extend(through: number, count: number): Promise<void>;
 };
 
 export type EventsTotalOptions = {
@@ -39,6 +57,10 @@ export type EventsTotalOptions = {
 	rebaselineMs?: number;
 	/** Heights per baseline query, so no single statement scans all history. */
 	chunkBlocks?: number;
+	/** Shared baseline; without one the counter keeps it per process only. */
+	store?: EventsTotalStore;
+	/** How long a rebaseline claim holds before another process may take over. */
+	claimTtlMs?: number;
 };
 
 export type EventsTotalCounter = {
@@ -73,6 +95,61 @@ export async function countCanonicalEvents(
 	return Number(rows[0]?.n ?? 0);
 }
 
+export function postgresEventsTotalStore(
+	dbOverride?: Kysely<Database>,
+	claimTtlMs = 30 * 60_000,
+): EventsTotalStore {
+	// Resolved per call so importing this module never opens a pool.
+	const db = () => dbOverride ?? getSourceDb();
+	return {
+		async load() {
+			const { rows } = await sql<{
+				through: string | number | null;
+				count: string | number | null;
+				taken_at: Date | null;
+			}>`
+				SELECT through, count, taken_at FROM events_total_baseline WHERE id
+			`.execute(db());
+			const row = rows[0];
+			if (!row || row.through == null || row.count == null || !row.taken_at) {
+				return null;
+			}
+			return {
+				through: Number(row.through),
+				count: Number(row.count),
+				takenAt: row.taken_at.getTime(),
+			};
+		},
+		async claimRebaseline() {
+			const { rows } = await sql<{ id: boolean }>`
+				INSERT INTO events_total_baseline (id, claimed_at) VALUES (TRUE, now())
+				ON CONFLICT (id) DO UPDATE SET claimed_at = now()
+				WHERE events_total_baseline.claimed_at IS NULL
+					OR events_total_baseline.claimed_at < now() - make_interval(secs => ${claimTtlMs / 1000})
+				RETURNING id
+			`.execute(db());
+			return rows.length > 0;
+		},
+		async save(baseline) {
+			await sql`
+				UPDATE events_total_baseline
+				SET through = ${baseline.through},
+					count = ${baseline.count},
+					taken_at = to_timestamp(${baseline.takenAt} / 1000.0),
+					claimed_at = NULL
+				WHERE id
+			`.execute(db());
+		},
+		async extend(through, count) {
+			await sql`
+				UPDATE events_total_baseline
+				SET through = ${through}, count = ${count}
+				WHERE id AND through IS NOT NULL AND through < ${through}
+			`.execute(db());
+		},
+	};
+}
+
 export function createEventsTotalCounter(
 	opts: EventsTotalOptions = {},
 ): EventsTotalCounter {
@@ -82,9 +159,9 @@ export function createEventsTotalCounter(
 	const refreshMs = opts.refreshMs ?? 10_000;
 	const rebaselineMs = opts.rebaselineMs ?? 6 * 60 * 60 * 1000;
 	const chunkBlocks = opts.chunkBlocks ?? 250_000;
+	const store = opts.store;
 
-	let baseline: { through: number; count: number; takenAt: number } | null =
-		null;
+	let baseline: SavedBaseline | null = null;
 	let value: number | null = null;
 	let refreshedAt = Number.NEGATIVE_INFINITY;
 	let inflight: Promise<void> | null = null;
@@ -109,24 +186,44 @@ export function createEventsTotalCounter(
 			return;
 		}
 		const frozen = Math.min(bounds.finalized, bounds.tip);
-		if (
+		if (!baseline && store) baseline = await store.load();
+		const stale =
 			!baseline ||
 			frozen < baseline.through ||
-			startedAt - baseline.takenAt >= rebaselineMs
-		) {
-			baseline = {
-				through: frozen,
-				count: await countChunked(0, frozen),
-				takenAt: startedAt,
-			};
-		} else if (frozen > baseline.through) {
+			startedAt - baseline.takenAt >= rebaselineMs;
+		if (stale) {
+			if (!store) {
+				baseline = {
+					through: frozen,
+					count: await countChunked(0, frozen),
+					takenAt: startedAt,
+				};
+			} else if (await store.claimRebaseline()) {
+				// If the count throws the claim stays set and expires after
+				// `claimTtlMs`, so a crashed recount blocks others only that long.
+				baseline = {
+					through: frozen,
+					count: await countChunked(0, frozen),
+					takenAt: startedAt,
+				};
+				await store.save(baseline);
+			} else {
+				// Another process is recounting; adopt what it saved if usable.
+				const saved = await store.load();
+				if (!saved || saved.through > frozen) return;
+				baseline = saved;
+			}
+		}
+		if (baseline && frozen > baseline.through) {
 			baseline = {
 				...baseline,
 				through: frozen,
 				count:
 					baseline.count + (await countChunked(baseline.through + 1, frozen)),
 			};
+			await store?.extend(baseline.through, baseline.count);
 		}
+		if (!baseline) return;
 		const tail =
 			bounds.tip > baseline.through
 				? await countRange(baseline.through + 1, bounds.tip)
@@ -160,4 +257,6 @@ export function createEventsTotalCounter(
 }
 
 /** Process-wide counter behind `/public/status` `index.events_total`. */
-export const eventsTotal = createEventsTotalCounter();
+export const eventsTotal = createEventsTotalCounter({
+	store: postgresEventsTotalStore(),
+});
