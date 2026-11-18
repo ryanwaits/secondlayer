@@ -1,5 +1,6 @@
 import { rowsByKeyDaily } from "@secondlayer/platform/db/queries/usage-ledger";
 import { getDb } from "@secondlayer/shared/db";
+import { revokeApiKey } from "@secondlayer/shared/db/queries/api-keys";
 import { AuthorizationError, RateLimitError } from "@secondlayer/shared/errors";
 import { type Context, Hono } from "hono";
 import { z } from "zod";
@@ -224,12 +225,7 @@ app.delete("/:id", requireAuth(), async (c) => {
 	}
 
 	// Already-revoked stays a no-op success: `revoked_at` keeps its first value.
-	await db
-		.updateTable("api_keys")
-		.set({ status: "revoked", revoked_at: new Date() })
-		.where("id", "=", id)
-		.where("status", "=", "active")
-		.execute();
+	await revokeApiKey(db, id);
 
 	return c.json({ revoked: true, id });
 });

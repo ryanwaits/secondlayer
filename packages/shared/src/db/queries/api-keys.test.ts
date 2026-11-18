@@ -37,7 +37,7 @@ describe.skipIf(!process.env.DATABASE_URL)("api key revocation", () => {
 		return db
 			.insertInto("api_keys")
 			.values({
-				key_hash: crypto.randomUUID().replaceAll("-", ""),
+				key_hash: crypto.randomUUID().replace(/-/g, ""),
 				key_prefix: "sk-sl_test",
 				ip_address: "test",
 				account_id: accountId,

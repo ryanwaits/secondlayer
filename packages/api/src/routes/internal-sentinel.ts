@@ -27,6 +27,7 @@ import {
 	linkSentinelAccount,
 } from "@secondlayer/platform/db/queries/accounts";
 import { getDb } from "@secondlayer/shared/db";
+import { revokeApiKey } from "@secondlayer/shared/db/queries/api-keys";
 import {
 	AuthenticationError,
 	ForbiddenError,
@@ -306,17 +307,18 @@ export function createInternalSentinelRouter() {
 		if (!accountId) throw new ValidationError("accountId is required");
 		const id = c.req.param("id");
 		await requireLinkedAccount(accountId);
-		const revoked = UUID_RE.test(id)
-			? await getDb()
-					.updateTable("api_keys")
-					.set({ status: "revoked", revoked_at: new Date() })
+		const db = getDb();
+		const sentinelKey = UUID_RE.test(id)
+			? await db
+					.selectFrom("api_keys")
+					.select("id")
 					.where("id", "=", id)
 					.where("account_id", "=", accountId)
 					.where("product", "=", "sentinel")
 					.where("status", "=", "active")
-					.returning("id")
 					.executeTakeFirst()
 			: undefined;
+		const revoked = sentinelKey ? await revokeApiKey(db, id) : null;
 		if (!revoked) throw new NotFoundError("Key not found");
 		return c.json({ revoked: true });
 	});

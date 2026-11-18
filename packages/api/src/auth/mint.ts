@@ -1,4 +1,5 @@
 import type { getDb } from "@secondlayer/shared/db";
+import { revokeApiKey } from "@secondlayer/shared/db/queries/api-keys";
 import {
 	AuthorizationError,
 	ValidationError,
@@ -158,14 +159,16 @@ export async function revokeKeysByName(
 	accountId: string,
 	name: string,
 ): Promise<void> {
-	await db
-		.updateTable("api_keys")
-		.set({ status: "revoked", revoked_at: new Date() })
+	const now = new Date();
+	const rows = await db
+		.selectFrom("api_keys")
+		.select("id")
 		.where("account_id", "=", accountId)
 		.where("name", "=", name)
 		.where("product", "=", "tenant")
 		.where("status", "=", "active")
 		.execute();
+	for (const { id } of rows) await revokeApiKey(db, id, now);
 }
 
 /** Lifetime of a docs key. */
@@ -191,13 +194,14 @@ export async function mintDocsKey(
 		run: (trx: ReturnType<typeof getDb>) => Promise<T>,
 	): Promise<T> => (db.isTransaction ? run(db) : db.transaction().execute(run));
 	const minted = await inTransaction(async (trx) => {
-		await trx
-			.updateTable("api_keys")
-			.set({ status: "revoked", revoked_at: now })
+		const previous = await trx
+			.selectFrom("api_keys")
+			.select("id")
 			.where("account_id", "=", input.accountId)
 			.where("product", "=", "docs")
 			.where("status", "=", "active")
 			.execute();
+		for (const { id } of previous) await revokeApiKey(trx, id, now);
 		return mintApiKey(trx, {
 			accountId: input.accountId,
 			name: DOCS_KEY_NAME,
@@ -256,11 +260,14 @@ export async function rotateApiKey(
 				error: "Only account keys can be rotated.",
 			};
 		}
-		await trx
-			.updateTable("api_keys")
-			.set({ status: "revoked", revoked_at: new Date() })
-			.where("id", "=", old.id)
-			.execute();
+		const revoked = await revokeApiKey(trx, old.id);
+		if (revoked === null) {
+			return {
+				ok: false,
+				status: 409,
+				error: "This key is already revoked. Rotate an active key.",
+			};
+		}
 		const minted = await mint(trx, {
 			accountId: input.accountId,
 			name: old.name,
