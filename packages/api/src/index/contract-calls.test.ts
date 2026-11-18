@@ -324,4 +324,62 @@ describe.skipIf(!HAS_DB)("Index /contract-calls DB reads", () => {
 		});
 		expect(result.contract_calls).toEqual([]);
 	});
+
+	test("pages through every contract call exactly once with a cursor", async () => {
+		if (!db) throw new Error("missing db");
+		const heights = [9000, 9001, 9002];
+		await db
+			.insertInto("blocks")
+			.values(
+				heights.map((height) => ({
+					height,
+					hash: `0xb${height}`,
+					parent_hash: `0xb${height - 1}`,
+					burn_block_height: 1,
+					timestamp: 1_700_000_000 + height,
+					canonical: true,
+				})),
+			)
+			.execute();
+		const expected = heights.flatMap((height) =>
+			[0, 1, 2].map((tx_index) => `0xc${height}_${tx_index}`),
+		);
+		await db
+			.insertInto("transactions")
+			.values(
+				heights.flatMap((height) =>
+					[0, 1, 2].map((tx_index) => ({
+						tx_id: `0xc${height}_${tx_index}`,
+						block_height: height,
+						tx_index,
+						type: "contract_call" as const,
+						sender: "SP2",
+						status: "success" as const,
+						contract_id: "SP1.token",
+						function_name: "transfer",
+						function_args: [HEX_UINT_100],
+						raw_result: HEX_BOOL_TRUE,
+						raw_tx: "0x00",
+					})),
+				),
+			)
+			.execute();
+
+		const seen: string[] = [];
+		let after: { block_height: number; tx_index: number } | undefined;
+		for (let guard = 0; guard < 20; guard++) {
+			const page = await readContractCalls({
+				db,
+				fromHeight: 0,
+				toHeight: 10_000,
+				limit: 2,
+				after,
+			});
+			seen.push(...page.contract_calls.map((c) => c.tx_id));
+			if (page.contract_calls.length < 2 || !page.next_cursor) break;
+			const [height, index] = page.next_cursor.split(":").map(Number);
+			after = { block_height: height as number, tx_index: index as number };
+		}
+		expect(seen).toEqual(expected);
+	});
 });

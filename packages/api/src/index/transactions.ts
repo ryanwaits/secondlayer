@@ -277,14 +277,9 @@ export function parseTransactionsQuery(
 	};
 }
 
-export async function readTransactions(
+export function transactionsQuery(
 	params: ReadTransactionsParams,
-): Promise<ReadTransactionsResult> {
-	if (params.toHeight < params.fromHeight) {
-		return { transactions: [], next_cursor: null };
-	}
-
-	const db = params.db ?? getSourceDb();
+): RawBuilder<TransactionDbRow> {
 	// transactions has no canonical column; canonicality is keyed off the block
 	// at that height (same approach as the contract-calls reader).
 	const predicates: RawBuilder<unknown>[] = [
@@ -302,24 +297,36 @@ export async function readTransactions(
 		predicates.push(sql`t.contract_id = ${params.contractId}`);
 	}
 	if (params.after) {
-		predicates.push(sql`
-			(
-				t.block_height > ${params.after.block_height}
-				OR (
-					t.block_height = ${params.after.block_height}
-					AND t.tx_index > ${params.after.tx_index}
-				)
-			)
-		`);
+		// Sargable row-values keyset over the (block_height, tx_index) unique
+		// index, the same fix `/events` took. The OR form
+		// (`bh > X OR (bh = X AND ti > Y)`) is non-sargable: a cursored page has
+		// fromHeight 0, so the planner walked the index from genesis up to the
+		// cursor on every page. The explicit height bound lets it start at the
+		// cursor's height. Ascending only: this route offers no `order`.
+		predicates.push(
+			sql`t.block_height >= ${params.after.block_height}`,
+			sql`(t.block_height, t.tx_index) > (${params.after.block_height}, ${params.after.tx_index})`,
+		);
 	}
 
-	const { rows } = await sql<TransactionDbRow>`
+	return sql<TransactionDbRow>`
 		SELECT ${TRANSACTION_COLUMNS}
 		FROM transactions t
 		WHERE ${sql.join(predicates, sql` AND `)}
 		ORDER BY t.block_height ASC, t.tx_index ASC
 		LIMIT ${params.limit}
-	`.execute(db);
+	`;
+}
+
+export async function readTransactions(
+	params: ReadTransactionsParams,
+): Promise<ReadTransactionsResult> {
+	if (params.toHeight < params.fromHeight) {
+		return { transactions: [], next_cursor: null };
+	}
+
+	const db = params.db ?? getSourceDb();
+	const { rows } = await transactionsQuery(params).execute(db);
 
 	// Cursor comes from the RAW rows: `tx_index` is itself projectable, so
 	// reading it off the projected row breaks pagination for anyone who omits it.

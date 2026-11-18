@@ -224,15 +224,16 @@ export async function readContractCalls(
 		);
 	}
 	if (params.after) {
-		predicates.push(sql`
-			(
-				t.block_height > ${params.after.block_height}
-				OR (
-					t.block_height = ${params.after.block_height}
-					AND t.tx_index > ${params.after.tx_index}
-				)
-			)
-		`);
+		// Sargable row-values keyset over the (block_height, tx_index) unique
+		// index, the same fix `/events` took. The OR form
+		// (`bh > X OR (bh = X AND ti > Y)`) is non-sargable: a cursored page has
+		// fromHeight 0, so the planner walked the index from genesis up to the
+		// cursor on every page. The explicit height bound lets it start at the
+		// cursor's height. Ascending only: this route offers no `order`.
+		predicates.push(
+			sql`t.block_height >= ${params.after.block_height}`,
+			sql`(t.block_height, t.tx_index) > (${params.after.block_height}, ${params.after.tx_index})`,
+		);
 	}
 
 	const { rows } = await sql<ContractCallDbRow>`

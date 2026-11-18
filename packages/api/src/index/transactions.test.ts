@@ -10,6 +10,7 @@ import {
 	parseTransactionsQuery,
 	readTransactionById,
 	readTransactions,
+	transactionsQuery,
 } from "./transactions.ts";
 
 const HAS_DB = !!process.env.DATABASE_URL;
@@ -295,5 +296,104 @@ describe.skipIf(!HAS_DB)("Index transactions DB reads", () => {
 		}
 		// Cursor built from the RAW rows — never "9000:undefined".
 		expect(result.next_cursor).toBe("9000:1");
+	});
+
+	async function seedPagedTransactions() {
+		if (!db) throw new Error("missing db");
+		const heights = [9000, 9001, 9002];
+		await db
+			.insertInto("blocks")
+			.values(
+				heights.map((height) => ({
+					height,
+					hash: `0x${height}`,
+					parent_hash: `0x${height - 1}`,
+					burn_block_height: height + 10_000,
+					burn_block_hash: `0xb${height}`,
+					timestamp: 1_700_000_000 + height,
+					canonical: true,
+				})),
+			)
+			.execute();
+		await db
+			.insertInto("transactions")
+			.values(
+				heights.flatMap((height) =>
+					[0, 1, 2].map((tx_index) => ({
+						tx_id: `0xp${height}_${tx_index}`,
+						block_height: height,
+						tx_index,
+						type: "token_transfer" as const,
+						sender: "SP1",
+						status: "success" as const,
+						contract_id: null,
+						function_name: null,
+						function_args: null,
+						raw_result: null,
+						raw_tx: "0x00",
+					})),
+				),
+			)
+			.execute();
+		return heights.flatMap((height) =>
+			[0, 1, 2].map((tx_index) => `0xp${height}_${tx_index}`),
+		);
+	}
+
+	test("pages through every row exactly once with a cursor", async () => {
+		const expected = await seedPagedTransactions();
+		const seen: string[] = [];
+		let after: { block_height: number; tx_index: number } | undefined;
+		for (let guard = 0; guard < 20; guard++) {
+			const page = await readTransactions({
+				db: db ?? undefined,
+				fromHeight: 0,
+				toHeight: 10_000,
+				limit: 2,
+				after,
+			});
+			seen.push(...page.transactions.map((t) => t.tx_id));
+			if (page.transactions.length < 2 || !page.next_cursor) break;
+			const [height, index] = page.next_cursor.split(":").map(Number);
+			after = { block_height: height as number, tx_index: index as number };
+		}
+		expect(seen).toEqual(expected);
+	});
+
+	test("a cursor in the middle of a block resumes at the next tx_index", async () => {
+		await seedPagedTransactions();
+		const page = await readTransactions({
+			db: db ?? undefined,
+			fromHeight: 0,
+			toHeight: 10_000,
+			limit: 2,
+			after: { block_height: 9001, tx_index: 0 },
+		});
+		expect(page.transactions.map((t) => t.tx_id)).toEqual([
+			"0xp9001_1",
+			"0xp9001_2",
+		]);
+	});
+
+	test("the keyset is served by the (block_height, tx_index) index", async () => {
+		if (!db) throw new Error("missing db");
+		await seedPagedTransactions();
+		const plan = await db.transaction().execute(async (trx) => {
+			// Tiny CI tables favour a seq scan; forbid it to see whether the
+			// index can serve the keyset at all.
+			await sql`SET LOCAL enable_seqscan = off`.execute(trx);
+			const query = transactionsQuery({
+				fromHeight: 0,
+				toHeight: 10_000,
+				limit: 10,
+				after: { block_height: 9001, tx_index: 1 },
+			});
+			const { rows } = await sql<{
+				"QUERY PLAN": string;
+			}>`EXPLAIN ${query}`.execute(trx);
+			return rows.map((r) => r["QUERY PLAN"]).join("\n");
+		});
+		expect(plan).toMatch(/transactions_height_tx_index_uniq/);
+		expect(plan).toMatch(/Index Cond: .*block_height/);
 	});
 });
