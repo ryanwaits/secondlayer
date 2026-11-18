@@ -49,7 +49,7 @@ Every list response looks like:
 ```jsonc
 {
   "<resource>": [ /* rows, each with a "cursor" */ ],
-  "next_cursor": "8153348:0",   // pass back as ?cursor= to page forward; null at the end
+  "next_cursor": "8153348:0",   // pass back as ?cursor= to page forward; null only on an empty page
   "tip": {
     "block_height": 8170629,    // current chain tip we've indexed
     "finalized_height": 8170453,// everything <= this is past burn-finality (immutable)

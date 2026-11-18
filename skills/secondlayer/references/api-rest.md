@@ -50,7 +50,7 @@ Paginated reads return an envelope, never a bare array:
 }
 ```
 
-Cursors are opaque strings of the form `<block_height>:<event_index>`. **Do not parse them.** Pass `next_cursor` back as `cursor` to fetch the next page. `null` means end of stream.
+Cursors are opaque strings of the form `<block_height>:<event_index>`. **Do not parse them.** Pass `next_cursor` back as `cursor` to fetch the next page. `next_cursor` is set on every page with rows and is `null` only on an empty page, so a poller can resume from it. On Index, a page shorter than `limit` is the last one when `to_height` is at or below `tip.block_height`.
 
 Errors use HTTP status + a JSON body:
 
