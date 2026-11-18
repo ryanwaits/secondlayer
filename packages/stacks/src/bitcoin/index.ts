@@ -14,7 +14,6 @@ export {
 } from "./serialize.ts";
 
 export {
-	type BitcoinRpcConfig,
 	BitcoinSourceError,
 	type BitcoinSourceErrorCode,
 	type BlockForTx,
@@ -26,6 +25,19 @@ export {
 	type ProofSource,
 	type SpvProof,
 } from "./proof.ts";
+
+export {
+	BitcoinRpcError,
+	type BitcoinRpcCall,
+	type BitcoinRpcCallOptions,
+	type BitcoinRpcConfig,
+	BitcoinRpcTransportError,
+	type BitcoinRpcTransportFailure,
+	bitcoinRpcCall,
+	bitcoinRpcConfigFromEnv,
+	RPC_METHOD_NOT_FOUND,
+	RPC_NO_SUCH_TX,
+} from "./rpc.ts";
 
 export {
 	buildMerkleProof,

@@ -1,5 +1,12 @@
 import { bytesToHex, hexToBytes, without0x } from "../utils/encoding.ts";
 import { type MerkleProof, buildMerkleProof, rootFromProof } from "./merkle.ts";
+import {
+	type BitcoinRpcConfig,
+	BitcoinRpcError,
+	BitcoinRpcTransportError,
+	RPC_NO_SUCH_TX,
+	bitcoinRpcCall,
+} from "./rpc.ts";
 import { parseBitcoinTx, parseBlockHeader, reverseBytes } from "./serialize.ts";
 
 /**
@@ -178,15 +185,6 @@ export function fallbackProofSource(sources: ProofSource[]): ProofSource {
 	};
 }
 
-export interface BitcoinRpcConfig {
-	/** Bitcoin Core JSON-RPC endpoint URL. */
-	url: string;
-	/** Basic auth — `{ username, password }` or a pre-encoded base64 string. */
-	auth?: { username: string; password: string } | string;
-	/** Override the fetch implementation (testing / custom agents). */
-	fetch?: typeof fetch;
-}
-
 /**
  * A `ProofSource` backed by the integrator's own Bitcoin Core node over
  * JSON-RPC. This is the trustless default. The node must run with `-txindex`
@@ -194,60 +192,28 @@ export interface BitcoinRpcConfig {
  * resolve the confirming block.
  */
 export function bitcoinRpcSource(config: BitcoinRpcConfig): ProofSource {
-	const doFetch = config.fetch ?? fetch;
+	const call = bitcoinRpcCall(config, { id: "secondlayer" });
 
 	async function rpc<T>(method: string, rpcParams: unknown[]): Promise<T> {
-		const headers: Record<string, string> = {
-			"content-type": "application/json",
-		};
-		if (config.auth) {
-			const basic =
-				typeof config.auth === "string"
-					? config.auth
-					: btoa(`${config.auth.username}:${config.auth.password}`);
-			headers.authorization = `Basic ${basic}`;
-		}
-		let res: Response;
 		try {
-			res = await doFetch(config.url, {
-				method: "POST",
-				headers,
-				body: JSON.stringify({
-					jsonrpc: "1.0",
-					id: "secondlayer",
-					method,
-					params: rpcParams,
-				}),
-			});
+			return await call<T>(method, rpcParams);
 		} catch (error) {
-			throw new BitcoinSourceError(
-				"unavailable",
-				`bitcoin rpc ${method} failed: ${error instanceof Error ? error.message : "network error"}`,
-			);
+			if (error instanceof BitcoinRpcError) {
+				throw new BitcoinSourceError(
+					error.code === RPC_NO_SUCH_TX ? "not-found" : "unavailable",
+					`bitcoin rpc ${method} error: ${error.rpcMessage}`,
+				);
+			}
+			if (error instanceof BitcoinRpcTransportError) {
+				throw new BitcoinSourceError(
+					"unavailable",
+					error.failure === "http" || error.failure === "bad-body"
+						? `bitcoin rpc ${method} failed: HTTP ${error.status}`
+						: error.message,
+				);
+			}
+			throw error;
 		}
-		// Core answers RPC errors with HTTP 500 and the error in the JSON body.
-		let json: { result: T; error: { code?: number; message: string } | null };
-		try {
-			json = (await res.json()) as typeof json;
-		} catch {
-			throw new BitcoinSourceError(
-				"unavailable",
-				`bitcoin rpc ${method} failed: HTTP ${res.status}`,
-			);
-		}
-		if (json.error) {
-			throw new BitcoinSourceError(
-				json.error.code === -5 ? "not-found" : "unavailable",
-				`bitcoin rpc ${method} error: ${json.error.message}`,
-			);
-		}
-		if (!res.ok) {
-			throw new BitcoinSourceError(
-				"unavailable",
-				`bitcoin rpc ${method} failed: HTTP ${res.status}`,
-			);
-		}
-		return json.result;
 	}
 
 	return {
