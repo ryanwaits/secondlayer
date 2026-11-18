@@ -51,6 +51,8 @@ iptables -I DOCKER-USER 1 -p tcp --dport 3700 -s <node-ip>     -j RETURN   # Sta
 - `docker/systemd/secondlayer-firewall.service` re-applies it on boot (`After=docker.service`), because Docker recreates `DOCKER-USER` **empty** when the daemon starts.
 - `deploy.sh` installs + enables the unit on every deploy, so `git reset --hard` (which every deploy runs) and freshly-provisioned servers self-heal.
 
+The same rule covers the testnet indexer (host port 3701 maps to container port 3700, and `DOCKER-USER` sees the packet post-DNAT as port 3700). The script reads its rules back with `iptables -C`, and `deploy.sh` stops before changing any container when the rule did not apply. `scripts/ops/indexer-firewall.test.ts` pins both facts.
+
 Verified post-deploy: external IP blocked (timeout), node IP `200`, internal container health OK.
 
 ## 4. Residual risk — why this is not "fixed"
@@ -60,7 +62,8 @@ This is **network-layer only**. Single points of failure that silently reopen th
 | Failure mode | Result |
 |--------------|--------|
 | Node IP changes without updating `STACKS_NODE_RPC_URL` | Legitimate delivery breaks **and** the allow-rule points at the wrong host; if operator re-widens the rule to debug, hole reopens |
-| `secondlayer-firewall.service` fails / is disabled | Rules gone after next docker-daemon restart or reboot |
+| `secondlayer-firewall.service` fails / is disabled | A failing unit now fails the deploy. Still silent between deploys: rules are gone after the next docker-daemon restart or reboot |
+| Testnet node moves to another host | Testnet deliveries break (the allow rule admits one node host); the CI test flags the mismatch |
 | Docker daemon restarts between deploys | `DOCKER-USER` cleared until the systemd unit re-runs (boot) — a window if the daemon is restarted manually without reboot |
 | New host / alternate deploy path that skips `deploy.sh` | No firewall, port wide open |
 | Attacker already on the docker bridge or the node host | Fully trusted by the rule; can forge freely |

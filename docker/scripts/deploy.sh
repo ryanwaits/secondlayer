@@ -75,7 +75,8 @@ remove_oneoffs() {
 # published 3700 to the Stacks node — the ingest endpoints have no app-layer
 # auth). The live rule survives normal deploys (docker daemon isn't restarted)
 # but not reboots, so a systemd oneshot re-applies it After=docker.service.
-# Idempotent; never fatal to a deploy.
+# Idempotent. Fatal is safe: this runs before any container changes, so
+# stopping here leaves the running stack as it was.
 install_indexer_firewall() {
 	local unit=systemd/secondlayer-firewall.service
 	local dest=/etc/systemd/system/secondlayer-firewall.service
@@ -85,9 +86,15 @@ install_indexer_firewall() {
 	fi
 	systemctl enable secondlayer-firewall.service >/dev/null 2>&1 || true
 	# restart re-runs the oneshot's ExecStart → re-applies the rules now.
-	systemctl restart secondlayer-firewall.service || echo "WARN: indexer firewall unit failed to start"
+	systemctl restart secondlayer-firewall.service || {
+		echo "ERROR: indexer firewall unit failed; see: journalctl -u secondlayer-firewall.service" >&2
+		return 1
+	}
 }
-install_indexer_firewall || echo "WARN: install_indexer_firewall failed (non-fatal)"
+install_indexer_firewall || {
+	echo "ERROR: indexer ingest firewall not applied; refusing to deploy (the ingest port would be public). Running containers are unchanged." >&2
+	exit 1
+}
 
 # Snapshot vars supplied by the deploy invocation (CI workflow env or manual
 # operator export) BEFORE sourcing .env. `record_successful_deploy` persists

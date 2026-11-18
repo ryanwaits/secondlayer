@@ -59,7 +59,10 @@ services:
       STREAMS_BULK_PUBLISHER_ENABLED: "false"
       STACKS_NODE_RPC_URL: http://37.27.171.220:21443
     ports:
-      # Container port 3700: the existing DOCKER-USER rules gate it post-DNAT.
+      # Container port 3700: firewall-indexer.sh's DOCKER-USER rule matches it
+      # post-DNAT, so it must stay 3700. The testnet node host must also equal
+      # the mainnet node's (the rule allows one node IP). Pinned by
+      # scripts/ops/indexer-firewall.test.ts.
       - "3701:3700"
     mem_limit: 384m
     cpus: 0.5

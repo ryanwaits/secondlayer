@@ -47,4 +47,16 @@ iptables -I DOCKER-USER 1 -p tcp --dport "$PORT" -s "$DOCKER_NET" -j RETURN || e
 iptables -I DOCKER-USER 1 -p tcp --dport "$PORT" -s "$NODE_IP" -j RETURN || exit 1
 iptables -I DOCKER-USER 3 -p tcp --dport "$PORT" -j DROP || exit 1
 
-echo "firewall-indexer: port $PORT restricted to $NODE_IP + $DOCKER_NET"
+# Read back what we inserted: a rule that isn't there leaves the port public.
+for spec in \
+	"-p tcp --dport $PORT -s $NODE_IP -j RETURN" \
+	"-p tcp --dport $PORT -s $DOCKER_NET -j RETURN" \
+	"-p tcp --dport $PORT -j DROP"; do
+	# shellcheck disable=SC2086 # word-split the spec on purpose
+	if ! iptables -C DOCKER-USER $spec 2>/dev/null; then
+		echo "firewall-indexer: rule missing after insert: $spec" >&2
+		exit 1
+	fi
+done
+
+echo "firewall-indexer: port $PORT (mainnet 3700, testnet 3701 post-DNAT) restricted to $NODE_IP + $DOCKER_NET"
