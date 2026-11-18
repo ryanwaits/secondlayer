@@ -5,10 +5,60 @@ import {
 	getContract as defaultGetContract,
 	listContractsByTrait as defaultListContractsByTrait,
 } from "@secondlayer/shared/db/queries/contracts";
-import { Hono } from "hono";
+import { RateLimitError } from "@secondlayer/shared/errors";
+import { isPlatformMode } from "@secondlayer/shared/mode";
+import { Hono, type MiddlewareHandler } from "hono";
+import { getClientIp, ipBucket } from "../auth/http.ts";
+import { getRateLimitStore } from "../auth/rate-limit-store.ts";
+import {
+	DEFAULT_INDEX_TOKEN_STORE,
+	type IndexEnv,
+	type IndexTokenStore,
+	indexBearerAuth,
+} from "../index/auth.ts";
 import { clampLimit } from "../parse-query.ts";
 
 const CONFORMANCE = new Set<Conformance>(["declared", "inferred", "any"]);
+
+/** Sliding windows (hosted only). An account key buys the higher limit;
+ *  anonymous callers share one window per client IP. Hosted subgraph tenants
+ *  call from a shared workload IP with their own key, so they land in their
+ *  account window, never the anonymous one. */
+export const CONTRACTS_RATE_LIMITS = {
+	account: { limit: 20, windowMs: 1_000 },
+	anonymous: { limit: 5, windowMs: 1_000 },
+} as const;
+
+/** ABI blobs are large: an ABI page is capped well below a summary page. */
+const MAX_LIMIT = 500;
+const MAX_LIMIT_WITH_ABI = 100;
+
+function contractsRateLimit(): MiddlewareHandler<IndexEnv> {
+	return async (c, next) => {
+		// Self-host is single-tenant: the operator's own box, no fairness throttle.
+		if (!isPlatformMode()) return next();
+		const tenant = c.get("indexTenant");
+		if (tenant?.tier === "internal") return next();
+		const { limit, windowMs } = tenant
+			? CONTRACTS_RATE_LIMITS.account
+			: CONTRACTS_RATE_LIMITS.anonymous;
+		const key = tenant
+			? `contracts:${tenant.tenant_id}`
+			: `contracts:anon:${ipBucket(getClientIp(c))}`;
+		const result = await getRateLimitStore().check(key, limit, windowMs);
+		c.header("X-RateLimit-Limit", String(limit));
+		c.header(
+			"X-RateLimit-Remaining",
+			String(Math.max(0, limit - result.count)),
+		);
+		c.header("X-RateLimit-Reset", String(result.resetAt));
+		if (!result.allowed) {
+			c.header("Retry-After", String(result.retryAfter));
+			throw new RateLimitError("Rate limit exceeded");
+		}
+		return next();
+	};
+}
 
 /** Injectable seams. Default to the real source-plane db + registry queries;
  *  tests pass fakes here instead of mocking `@secondlayer/shared/db` globally
@@ -17,6 +67,7 @@ export type ContractsRouterOptions = {
 	getSourceDb?: typeof getSourceDb;
 	listContractsByTrait?: typeof defaultListContractsByTrait;
 	getContract?: typeof defaultGetContract;
+	tokens?: IndexTokenStore;
 };
 
 /** Public projection — the ABI blob is omitted by default (opt in via ?include=abi). */
@@ -46,7 +97,16 @@ export function createContractsRouter(opts: ContractsRouterOptions = {}) {
 		opts.listContractsByTrait ?? defaultListContractsByTrait;
 	const getContract = opts.getContract ?? defaultGetContract;
 
-	const app = new Hono();
+	const app = new Hono<IndexEnv>();
+	// Anonymous reads stay open; a key is recognized so it gets its own window.
+	app.use(
+		"*",
+		indexBearerAuth({
+			tokens: opts.tokens ?? DEFAULT_INDEX_TOKEN_STORE,
+			allowAnon: true,
+		}),
+	);
+	app.use("*", contractsRateLimit());
 
 	app.get("/", async (c) => {
 		const trait = c.req.query("trait");
@@ -82,9 +142,13 @@ export function createContractsRouter(opts: ContractsRouterOptions = {}) {
 				400,
 			);
 		}
-		const limit = clampLimit(c.req.query("limit"), 100, 500);
-		const cursor = c.req.query("cursor") || undefined;
 		const includeAbi = c.req.query("include") === "abi";
+		const limit = clampLimit(
+			c.req.query("limit"),
+			100,
+			includeAbi ? MAX_LIMIT_WITH_ABI : MAX_LIMIT,
+		);
+		const cursor = c.req.query("cursor") || undefined;
 
 		// `contracts` is a SOURCE-plane table (TABLE_TO_DB.contracts === "source"):
 		// read from the chain DB, not the control/target DB, or this 500s with the

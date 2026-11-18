@@ -1,9 +1,10 @@
-import { describe, expect, test } from "bun:test";
+import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import type { Database } from "@secondlayer/shared/db";
 import { Hono } from "hono";
 import type { Kysely } from "kysely";
+import { _resetRateLimitStoreForTests } from "../auth/rate-limit-store.ts";
 import { errorHandler } from "../middleware/error.ts";
-import { createContractsRouter } from "./contracts.ts";
+import { CONTRACTS_RATE_LIMITS, createContractsRouter } from "./contracts.ts";
 
 // Reproduces the prod 500 on GET /v1/contracts: the `contracts` table is a
 // SOURCE-plane table (TABLE_TO_DB.contracts === "source"), but the route read
@@ -137,5 +138,72 @@ describe("GET /v1/contracts classified_after", () => {
 			"2026-10-15T17:15:45.764Z",
 			null,
 		]);
+	});
+});
+
+describe("GET /v1/contracts bounds", () => {
+	let prevMode: string | undefined;
+	beforeEach(async () => {
+		prevMode = process.env.INSTANCE_MODE;
+		await _resetRateLimitStoreForTests();
+	});
+	afterEach(() => {
+		if (prevMode === undefined) delete process.env.INSTANCE_MODE;
+		else process.env.INSTANCE_MODE = prevMode;
+	});
+
+	function appRecording(seen: number[]) {
+		const router = createContractsRouter({
+			getSourceDb: () => SOURCE_DB,
+			listContractsByTrait: async (_db, _trait, opts) => {
+				seen.push(opts?.limit ?? -1);
+				return [];
+			},
+		});
+		const a = new Hono();
+		a.onError(errorHandler);
+		a.route("/v1/contracts", router);
+		return a;
+	}
+
+	test("include=abi caps a page at 100 rows", async () => {
+		process.env.INSTANCE_MODE = "oss";
+		const seen: number[] = [];
+		const res = await appRecording(seen).request(
+			"/v1/contracts?trait=sip-010&include=abi&limit=500",
+		);
+		expect(res.status).toBe(200);
+		expect(seen).toEqual([101]);
+	});
+
+	test("without abi a page can still be 500", async () => {
+		process.env.INSTANCE_MODE = "oss";
+		const seen: number[] = [];
+		await appRecording(seen).request("/v1/contracts?trait=sip-010&limit=500");
+		expect(seen).toEqual([501]);
+	});
+
+	test("anonymous hosted callers are limited per IP", async () => {
+		process.env.INSTANCE_MODE = "platform";
+		const a = appRecording([]);
+		const call = (ip: string) =>
+			a.request("/v1/contracts?trait=sip-010", {
+				headers: { "x-forwarded-for": ip },
+			});
+		for (let i = 0; i < CONTRACTS_RATE_LIMITS.anonymous.limit; i++) {
+			expect((await call("203.0.113.7")).status).toBe(200);
+		}
+		const limited = await call("203.0.113.7");
+		expect(limited.status).toBe(429);
+		expect(Number(limited.headers.get("retry-after"))).toBeGreaterThan(0);
+		expect((await call("203.0.113.8")).status).toBe(200);
+	});
+
+	test("self-host is not rate limited", async () => {
+		process.env.INSTANCE_MODE = "oss";
+		const a = appRecording([]);
+		for (let i = 0; i < 10; i++) {
+			expect((await a.request("/v1/contracts?trait=sip-010")).status).toBe(200);
+		}
 	});
 });

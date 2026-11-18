@@ -152,6 +152,47 @@ describe("/public/data routes", () => {
 	});
 });
 
+describe("/public/data stale serving", () => {
+	test("serve the last good payload when a refresh fails", async () => {
+		let at = 0;
+		let fail = false;
+		const app = createPublicDataRouter({
+			readSbtc: async () => {
+				if (fail) throw new Error("db down");
+				return SBTC;
+			},
+			now: () => at,
+		});
+		const first = await app.request("/public/data/sbtc");
+		expect(first.status).toBe(200);
+		const firstBody = await first.json();
+		fail = true;
+		at = 60_000;
+		const second = await app.request("/public/data/sbtc");
+		expect(second.status).toBe(200);
+		expect(await second.json()).toEqual(firstBody);
+	});
+
+	test("answer 503 once the last good payload is older than staleMs", async () => {
+		let at = 0;
+		let fail = false;
+		const app = createPublicDataRouter({
+			readSbtc: async () => {
+				if (fail) throw new Error("db down");
+				return SBTC;
+			},
+			now: () => at,
+			staleMs: 120_000,
+		});
+		expect((await app.request("/public/data/sbtc")).status).toBe(200);
+		fail = true;
+		at = 120_000;
+		const res = await app.request("/public/data/sbtc");
+		expect(res.status).toBe(503);
+		expect(res.headers.get("cache-control")).toBe("no-store");
+	});
+});
+
 describe("createMemoizedReader", () => {
 	test("concurrent callers share one in-flight read", async () => {
 		let calls = 0;

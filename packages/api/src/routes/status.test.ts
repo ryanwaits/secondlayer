@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, test } from "bun:test";
+import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import {
 	type DecodersHealth,
 	getEnabledDecoderNames,
@@ -7,11 +7,17 @@ import { _resetBitcoinDbForTests } from "../bitcoin/db.ts";
 import type { StreamsTip } from "../streams/tip.ts";
 import statusApp, {
 	NODE_LAG_DEGRADED_SECONDS,
+	_resetPublicStatusMemoForTests,
 	nodeStatusFromStreamsTip,
 	publicBitcoinStatus,
 	publicIndexStatusFromDecoderHealth,
 	subgraphProcessorVerdict,
 } from "./status.ts";
+
+// /public/status is memoized per process; each test builds its own state.
+beforeEach(() => {
+	_resetPublicStatusMemoForTests();
+});
 
 // publicIndexStatusFromDecoderHealth surfaces every enabled decoder, defaulting
 // any decoder the health snapshot omits to "unavailable". The fixtures below

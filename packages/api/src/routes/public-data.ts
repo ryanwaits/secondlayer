@@ -1,3 +1,4 @@
+import { logger } from "@secondlayer/shared/logger";
 import { type Context, Hono } from "hono";
 import { getBitcoinTip } from "../bitcoin/db.ts";
 import {
@@ -13,6 +14,7 @@ import {
 	getSbtcSummaryResponse,
 } from "../index/sbtc-peg.ts";
 import { type IndexTip, getIndexTip } from "../index/tip.ts";
+import { createMemoizedReader } from "../lib/memoized-reader.ts";
 
 /**
  * Keyless aggregates behind the public /data/sbtc, /data/pox5 and /data/runes
@@ -63,37 +65,15 @@ export type PublicDataOptions = {
 	readRunes?: () => Promise<PublicRunesData>;
 	now?: () => number;
 	ttlMs?: number;
+	/** How long a last-good payload may be served while refreshes fail. */
+	staleMs?: number;
 };
 
 const TTL_MS = 60_000;
+const STALE_MS = 10 * 60_000;
+const WAIT_MS = 10_000;
 
-/** Run `read` at most once per `ttlMs`; null when it fails (not cached). */
-export function createMemoizedReader<T>(
-	read: () => Promise<T>,
-	{
-		now = Date.now,
-		ttlMs = TTL_MS,
-	}: { now?: () => number; ttlMs?: number } = {},
-): () => Promise<T | null> {
-	let cached: { at: number; value: T } | null = null;
-	let inflight: Promise<T | null> | null = null;
-	return () => {
-		if (cached && now() - cached.at < ttlMs)
-			return Promise.resolve(cached.value);
-		if (inflight) return inflight;
-		inflight = read()
-			.then((value): T | null => {
-				cached = { at: now(), value };
-				return value;
-			})
-			.catch((): T | null => null)
-			.then((value) => {
-				inflight = null;
-				return value;
-			});
-		return inflight;
-	};
-}
+export { createMemoizedReader } from "../lib/memoized-reader.ts";
 
 function publicTip(tip: IndexTip): PublicDataTip {
 	return { block_height: tip.block_height, lag_seconds: tip.lag_seconds };
@@ -165,11 +145,23 @@ async function readRunesData(): Promise<PublicRunesData> {
 
 export function createPublicDataRouter(opts: PublicDataOptions = {}) {
 	const app = new Hono();
-	const memo = { now: opts.now, ttlMs: opts.ttlMs };
-	const sbtc = createMemoizedReader(opts.readSbtc ?? readSbtcData, memo);
-	const pox = createMemoizedReader(opts.readPox ?? readPoxData, memo);
-
-	const runes = createMemoizedReader(opts.readRunes ?? readRunesData, memo);
+	const memoFor = (route: string) => ({
+		now: opts.now,
+		ttlMs: opts.ttlMs ?? TTL_MS,
+		staleMs: opts.staleMs ?? STALE_MS,
+		waitMs: WAIT_MS,
+		onError: (error: unknown) =>
+			logger.warn("public_data.read_failed", { route, error: String(error) }),
+	});
+	const sbtc = createMemoizedReader(
+		opts.readSbtc ?? readSbtcData,
+		memoFor("sbtc"),
+	);
+	const pox = createMemoizedReader(opts.readPox ?? readPoxData, memoFor("pox"));
+	const runes = createMemoizedReader(
+		opts.readRunes ?? readRunesData,
+		memoFor("runes"),
+	);
 
 	const serve = (read: () => Promise<unknown>) => async (c: Context) => {
 		const body = await read();

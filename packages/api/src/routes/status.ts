@@ -8,6 +8,7 @@ import { stacksNetwork } from "@secondlayer/shared";
 import { getDb, getDbSplitStatus, getSourceDb } from "@secondlayer/shared/db";
 import { checkChainDataIntegrity } from "@secondlayer/shared/db/queries/integrity";
 import { getGapSummaryBySubgraph } from "@secondlayer/shared/db/queries/subgraph-gaps";
+import { logger } from "@secondlayer/shared/logger";
 import { getInstanceMode } from "@secondlayer/shared/mode";
 import { Hono } from "hono";
 import { sql } from "kysely";
@@ -17,6 +18,7 @@ import {
 	isBitcoinConfigured,
 } from "../bitcoin/db.ts";
 import { eventsTotal } from "../lib/events-total.ts";
+import { createMemoizedReader } from "../lib/memoized-reader.ts";
 import { readNodeTip } from "../lib/node-tip.ts";
 import {
 	type StreamsDumpsFreshness,
@@ -298,7 +300,7 @@ app.get("/health", async (c) => {
 	});
 });
 
-app.get("/public/status", async (c) => {
+async function buildPublicStatus() {
 	const db = getDb();
 	const mode = getInstanceMode();
 	// Chain + decoded tables (blocks, decoder_checkpoints) live on SOURCE; read
@@ -448,10 +450,7 @@ app.get("/public/status", async (c) => {
 					reason: "check_failed",
 				};
 
-	// Keyless and polled by every open marketing tab: a short shared-cache TTL
-	// lets a CDN absorb the load (events_total itself refreshes every ~10s).
-	c.header("Cache-Control", "public, max-age=5, s-maxage=5");
-	return c.json({
+	return {
 		status: chainIntegrity.ok ? overallPublicStatus(services) : "degraded",
 		chainTip,
 		chainIntegrity,
@@ -478,7 +477,36 @@ app.get("/public/status", async (c) => {
 		...(bitcoin ? { bitcoin } : {}),
 		services,
 		timestamp: new Date().toISOString(),
+	};
+}
+
+const newPublicStatusReader = () =>
+	createMemoizedReader(buildPublicStatus, {
+		ttlMs: 5_000,
+		staleMs: 60_000,
+		waitMs: 20_000,
+		onError: (error) =>
+			logger.warn("public_status.build_failed", { error: String(error) }),
 	});
+let readPublicStatus = newPublicStatusReader();
+
+/** Drop the memoized /public/status body so a test sees its own state. */
+export function _resetPublicStatusMemoForTests(): void {
+	readPublicStatus = newPublicStatusReader();
+}
+
+app.get("/public/status", async (c) => {
+	const body = await readPublicStatus();
+	if (!body) {
+		c.header("Cache-Control", "no-store");
+		return c.json({ status: "unavailable" }, 503);
+	}
+	// Keyless and polled by every open marketing tab: a short shared-cache TTL
+	// lets a CDN absorb the load (events_total itself refreshes every ~10s). The
+	// body is also built at most once per 5s per process, so the header is no
+	// longer the only bound.
+	c.header("Cache-Control", "public, max-age=5, s-maxage=5");
+	return c.json(body);
 });
 
 app.get("/public/streams/dumps/manifest", async (c) => {
