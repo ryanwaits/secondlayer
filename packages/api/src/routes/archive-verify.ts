@@ -20,6 +20,7 @@ import {
 import {
 	type ArchiveManifest,
 	type LoadReferenceOptions,
+	OFFICIAL_ARCHIVE_HOST,
 	checkSignature,
 	loadReference,
 	resolveArchivePublicKey,
@@ -30,14 +31,63 @@ import {
 	parseVerifyTarget,
 } from "@secondlayer/shared/coverage";
 import { getSourceDb as defaultGetSourceDb } from "@secondlayer/shared/db";
-import { ValidationError } from "@secondlayer/shared/errors";
+import { RateLimitError, ValidationError } from "@secondlayer/shared/errors";
+import { logger } from "@secondlayer/shared/logger";
 import { isPlatformMode } from "@secondlayer/shared/mode";
-import { Hono } from "hono";
+import { Hono, type MiddlewareHandler } from "hono";
+import { getClientIp, ipBucket } from "../auth/http.ts";
+import { getRateLimitStore } from "../auth/rate-limit-store.ts";
+import {
+	DEFAULT_INDEX_TOKEN_STORE,
+	type IndexEnv,
+	type IndexTokenStore,
+	indexBearerAuth,
+} from "../index/auth.ts";
 import { InvalidJSONError } from "../middleware/error.ts";
 
-/** Cap on ranges verified without a height window. ~2M heights at 50k/partition.
+/** Cap on ranges digested per request, with or without a height window.
  *  CLI can still walk the full chain; HTTP must not hold a proxy open for 90s+. */
-export const MAX_RANGES_WITHOUT_WINDOW = 40;
+export const MAX_RANGES_PER_REQUEST = 40;
+
+/** 40 ranges of 50k blocks: one request digests at most what it did before,
+ *  window or not. Revisit if the archive partition size changes. */
+export const MAX_HEIGHTS_PER_REQUEST = 2_000_000;
+
+/** Largest manifest the API process reads from a caller-named host. */
+const MAX_MANIFEST_BYTES = 16 * 1024 * 1024;
+
+/** Hosted fairness: each digest is a row_number() + md5 pass over the chain DB. */
+export const ARCHIVE_VERIFY_RATE_LIMITS = {
+	account: { limit: 6, windowMs: 60_000 },
+	anonymous: { limit: 0, windowMs: 60_000 },
+} as const;
+
+function archiveVerifyRateLimit(): MiddlewareHandler<IndexEnv> {
+	return async (c, next) => {
+		// Self-host is single-tenant: the operator's own box, no fairness throttle.
+		if (!isPlatformMode()) return next();
+		const tenant = c.get("indexTenant");
+		if (tenant?.tier === "internal") return next();
+		const { limit, windowMs } = tenant
+			? ARCHIVE_VERIFY_RATE_LIMITS.account
+			: ARCHIVE_VERIFY_RATE_LIMITS.anonymous;
+		const key = tenant
+			? `archive-verify:${tenant.tenant_id}`
+			: `archive-verify:anon:${ipBucket(getClientIp(c))}`;
+		const result = await getRateLimitStore().check(key, limit, windowMs);
+		c.header("X-RateLimit-Limit", String(limit));
+		c.header(
+			"X-RateLimit-Remaining",
+			String(Math.max(0, limit - result.count)),
+		);
+		c.header("X-RateLimit-Reset", String(result.resetAt));
+		if (!result.allowed) {
+			c.header("Retry-After", String(result.retryAfter));
+			throw new RateLimitError("Rate limit exceeded");
+		}
+		return next();
+	};
+}
 
 const RAW_DATASETS = new Set<string>(ARCHIVE_DATASETS);
 
@@ -47,6 +97,7 @@ export type ArchiveVerifyRouterOptions = {
 	computeRangeDigest?: typeof defaultComputeRangeDigest;
 	getSourceDb?: typeof defaultGetSourceDb;
 	resolvePublicKey?: typeof resolveArchivePublicKey;
+	tokens?: IndexTokenStore;
 };
 
 type VerifyRangeStatus =
@@ -181,20 +232,42 @@ function parseBody(raw: unknown): ParsedBody {
 
 export function createArchiveVerifyRouter(
 	opts: ArchiveVerifyRouterOptions = {},
-): Hono {
+): Hono<IndexEnv> {
 	const fetchImpl = opts.fetchImpl;
 	const computeRangeDigest =
 		opts.computeRangeDigest ?? defaultComputeRangeDigest;
 	const getSourceDb = opts.getSourceDb ?? defaultGetSourceDb;
 	const resolvePublicKey = opts.resolvePublicKey ?? resolveArchivePublicKey;
 
-	const app = new Hono();
+	const app = new Hono<IndexEnv>();
+	app.use(
+		"*",
+		indexBearerAuth({ tokens: opts.tokens ?? DEFAULT_INDEX_TOKEN_STORE }),
+	);
 
-	app.post("/verify", async (c) => {
+	app.post("/verify", archiveVerifyRateLimit(), async (c) => {
 		const raw = await c.req.json().catch(() => {
 			throw new InvalidJSONError();
 		});
 		const parsed = parseBody(raw);
+		const hosted = isPlatformMode();
+		if (hosted) {
+			if (parsed.insecure) {
+				throw new ValidationError(
+					"insecure is not accepted on the hosted API; run `secondlayer verify --insecure` against your own instance",
+				);
+			}
+			if (parsed.publicKeyPem) {
+				throw new ValidationError(
+					"public_key_pem is not accepted on the hosted API; the platform key is used",
+				);
+			}
+			if (new URL(parsed.against).hostname !== OFFICIAL_ARCHIVE_HOST) {
+				throw new ValidationError(
+					`against must be on ${OFFICIAL_ARCHIVE_HOST} on the hosted API`,
+				);
+			}
+		}
 		let target: VerifyTarget;
 		try {
 			target = parseVerifyTarget(parsed.target);
@@ -217,7 +290,7 @@ export function createArchiveVerifyRouter(
 				envPem:
 					process.env.ARCHIVE_SIGNING_PUBLIC_KEY ??
 					process.env.STREAMS_SIGNING_PUBLIC_KEY,
-				allowHostedApi: isPlatformMode(),
+				allowHostedApi: hosted,
 			});
 		} catch {
 			publicKey = parsed.publicKeyPem;
@@ -238,9 +311,20 @@ export function createArchiveVerifyRouter(
 			({ manifest } = await loadReference(parsed.against, {
 				publicKeyPem: publicKey,
 				fetchImpl,
+				redirect: "manual",
+				maxBytes: MAX_MANIFEST_BYTES,
 			}));
 		} catch (err) {
-			const reason = err instanceof Error ? err.message : "could not fetch";
+			let reason = err instanceof Error ? err.message : "could not fetch";
+			if (hosted) {
+				// Fetch errors can carry internal addresses; the operator reads
+				// the log, the caller gets a fixed string.
+				logger.warn("archive_verify.fetch_failed", {
+					against: parsed.against,
+					error: reason,
+				});
+				reason = "could not fetch or read the manifest";
+			}
 			return c.json(
 				unanchored(
 					parsed.against,
@@ -280,9 +364,25 @@ export function createArchiveVerifyRouter(
 
 		const hasWindow =
 			parsed.fromBlock !== undefined || parsed.toBlock !== undefined;
-		if (!hasWindow && reference.length > MAX_RANGES_WITHOUT_WINDOW) {
+		if (reference.length > MAX_RANGES_PER_REQUEST) {
 			throw new ValidationError(
-				`Too many ranges to verify without a height window (max ${MAX_RANGES_WITHOUT_WINDOW}). Pass from_block and to_block.`,
+				hasWindow
+					? `Too many ranges in this window (max ${MAX_RANGES_PER_REQUEST}). Narrow from_block and to_block.`
+					: `Too many ranges to verify without a height window (max ${MAX_RANGES_PER_REQUEST}). Pass from_block and to_block.`,
+			);
+		}
+		let heights = 0;
+		for (const range of reference) {
+			if (range.to_block < range.from_block) {
+				throw new ValidationError(
+					"Manifest holds a range whose to_block is below its from_block",
+				);
+			}
+			heights += range.to_block - range.from_block + 1;
+		}
+		if (heights > MAX_HEIGHTS_PER_REQUEST) {
+			throw new ValidationError(
+				`Too many heights in one request (max ${MAX_HEIGHTS_PER_REQUEST}). Narrow from_block and to_block.`,
 			);
 		}
 

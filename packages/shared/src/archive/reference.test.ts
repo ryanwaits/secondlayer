@@ -110,3 +110,36 @@ describe("checkSignature", () => {
 		expect(checkSignature(signed, publicPem, false).verified).toBe(true);
 	});
 });
+
+describe("loadReference remote fetch options", () => {
+	const url = "https://archive.secondlayer.tools/latest-manifest.json";
+	const body = JSON.stringify({
+		partitions: snapshotFixture.partitions,
+		pad: "x".repeat(2_000),
+	});
+
+	test("refuses a redirect when redirect is manual", async () => {
+		const fetchImpl = async () =>
+			new Response(null, {
+				status: 302,
+				headers: { location: "https://elsewhere/x.json" },
+			});
+		await expect(
+			loadReference(url, { redirect: "manual", fetchImpl }),
+		).rejects.toThrow(/redirect/);
+	});
+
+	test("refuses a manifest larger than maxBytes", async () => {
+		const fetchImpl = async () => new Response(body);
+		await expect(
+			loadReference(url, { maxBytes: 1_000, fetchImpl }),
+		).rejects.toThrow(/larger/);
+	});
+
+	test("reads a manifest within maxBytes", async () => {
+		const fetchImpl = async () => new Response(body);
+		const loaded = await loadReference(url, { maxBytes: 10_000, fetchImpl });
+		expect(loaded.manifest.partitions).toHaveLength(1);
+		expect(loaded.isRemote).toBe(true);
+	});
+});

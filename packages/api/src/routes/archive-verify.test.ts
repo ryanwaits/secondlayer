@@ -7,14 +7,21 @@ import {
 import { signStreamsBulkManifest } from "@secondlayer/shared/streams-bulk-manifest";
 import { Hono } from "hono";
 import { createApiApp } from "../create-app.ts";
+import {
+	INDEX_READ_SCOPE,
+	type IndexEnv,
+	type IndexTokenStore,
+} from "../index/auth.ts";
 import { errorHandler } from "../middleware/error.ts";
 import {
 	DELETED_ROUTE_FIXTURES,
 	RETAINED_ROUTE_FIXTURES,
 } from "../route-manifest.ts";
 import {
+	ARCHIVE_VERIFY_RATE_LIMITS,
 	type ArchiveVerifyRouterOptions,
-	MAX_RANGES_WITHOUT_WINDOW,
+	MAX_HEIGHTS_PER_REQUEST,
+	MAX_RANGES_PER_REQUEST,
 	createArchiveVerifyRouter,
 } from "./archive-verify.ts";
 import { OPENAPI_SPEC, openapiSpec } from "./openapi.ts";
@@ -50,17 +57,22 @@ function fetchManifest(
 		});
 }
 
-function buildApp(opts: ArchiveVerifyRouterOptions = {}): Hono {
-	const app = new Hono();
+function buildApp(opts: ArchiveVerifyRouterOptions = {}): Hono<IndexEnv> {
+	const app = new Hono<IndexEnv>();
 	app.onError(errorHandler);
 	app.route("/v1/archive", createArchiveVerifyRouter(opts));
 	return app;
 }
 
-async function post(app: Hono, body: unknown, raw?: string): Promise<Response> {
+async function post(
+	app: Hono<IndexEnv>,
+	body: unknown,
+	raw?: string,
+	headers: Record<string, string> = {},
+): Promise<Response> {
 	return await app.request("/v1/archive/verify", {
 		method: "POST",
-		headers: { "content-type": "application/json" },
+		headers: { "content-type": "application/json", ...headers },
 		body: raw ?? JSON.stringify(body),
 	});
 }
@@ -140,9 +152,8 @@ describe("POST /v1/archive/verify", () => {
 	});
 
 	test("more than 40 ranges, no window → 400", async () => {
-		const ranges = Array.from(
-			{ length: MAX_RANGES_WITHOUT_WINDOW + 1 },
-			(_, i) => digest(i * 50_000, i * 50_000 + 49_999, `d${i}`),
+		const ranges = Array.from({ length: MAX_RANGES_PER_REQUEST + 1 }, (_, i) =>
+			digest(i * 50_000, i * 50_000 + 49_999, `d${i}`),
 		);
 		const app = buildApp({
 			getSourceDb: noDb,
@@ -156,6 +167,43 @@ describe("POST /v1/archive/verify", () => {
 		const body = (await res.json()) as { error: string };
 		expect(body.error).toMatch(/from_block/);
 		expect(body.error).toMatch(/to_block/);
+	});
+
+	test("more than 40 ranges inside a window → 400", async () => {
+		const ranges = Array.from({ length: MAX_RANGES_PER_REQUEST + 1 }, (_, i) =>
+			digest(i * 50_000, i * 50_000 + 49_999, `d${i}`),
+		);
+		const app = buildApp({
+			getSourceDb: noDb,
+			fetchImpl: fetchManifest({ range_digests: ranges }),
+		});
+		const res = await post(app, {
+			against: AGAINST,
+			insecure: true,
+			from_block: 0,
+			to_block: 41 * 50_000,
+		});
+		expect(res.status).toBe(400);
+		const body = (await res.json()) as { error: string };
+		expect(body.error).toContain("Too many ranges in this window");
+	});
+
+	test("a range wider than the height budget → 400", async () => {
+		const app = buildApp({
+			getSourceDb: noDb,
+			fetchImpl: fetchManifest({
+				range_digests: [digest(0, MAX_HEIGHTS_PER_REQUEST, "wide")],
+			}),
+		});
+		const res = await post(app, {
+			against: AGAINST,
+			insecure: true,
+			from_block: 0,
+			to_block: MAX_HEIGHTS_PER_REQUEST,
+		});
+		expect(res.status).toBe(400);
+		const body = (await res.json()) as { error: string };
+		expect(body.error).toContain("Too many heights in one request");
 	});
 
 	test("insecure: true on unsigned still compares", async () => {
@@ -226,5 +274,141 @@ describe("POST /v1/archive/verify fixtures", () => {
 			paths: Record<string, unknown>;
 		};
 		expect(oss.paths["/v1/archive/verify"]).toBeDefined();
+	});
+});
+
+describe("POST /v1/archive/verify hosted", () => {
+	const HOSTED_AGAINST =
+		"https://archive.secondlayer.tools/streams/latest.json";
+	const KEY = "sk-sl_archive_verify_fixture";
+	const AUTH = { authorization: `Bearer ${KEY}` };
+	const tokensFor = (tenantId: string): IndexTokenStore =>
+		new Map([
+			[
+				KEY,
+				{
+					tenant_id: tenantId,
+					account_id: tenantId,
+					tier: "free",
+					scopes: [INDEX_READ_SCOPE],
+				},
+			],
+		]);
+	const tokens = tokensFor("account:archive-verify-fixture");
+	let prevMode: string | undefined;
+
+	beforeEach(() => {
+		prevMode = process.env.INSTANCE_MODE;
+		process.env.INSTANCE_MODE = "platform";
+	});
+
+	afterEach(() => {
+		if (prevMode === undefined) delete process.env.INSTANCE_MODE;
+		else process.env.INSTANCE_MODE = prevMode;
+	});
+
+	test("no key → 401", async () => {
+		const app = buildApp({ tokens, getSourceDb: noDb });
+		const res = await post(app, { against: HOSTED_AGAINST });
+		expect(res.status).toBe(401);
+	});
+
+	test("insecure → 400", async () => {
+		const app = buildApp({ tokens, getSourceDb: noDb });
+		const res = await post(
+			app,
+			{ against: HOSTED_AGAINST, insecure: true },
+			undefined,
+			AUTH,
+		);
+		expect(res.status).toBe(400);
+		const body = (await res.json()) as { error: string };
+		expect(body.error).toContain("insecure is not accepted");
+	});
+
+	test("public_key_pem → 400", async () => {
+		const app = buildApp({ tokens, getSourceDb: noDb });
+		const res = await post(
+			app,
+			{ against: HOSTED_AGAINST, public_key_pem: signingKeys().publicPem },
+			undefined,
+			AUTH,
+		);
+		expect(res.status).toBe(400);
+		const body = (await res.json()) as { error: string };
+		expect(body.error).toContain("public_key_pem is not accepted");
+	});
+
+	test("against off the archive host → 400", async () => {
+		const app = buildApp({ tokens, getSourceDb: noDb });
+		const res = await post(app, { against: AGAINST }, undefined, AUTH);
+		expect(res.status).toBe(400);
+		const body = (await res.json()) as { error: string };
+		expect(body.error).toContain(
+			"against must be on archive.secondlayer.tools",
+		);
+	});
+
+	test("fetch failure text is generic", async () => {
+		const app = buildApp({
+			tokens,
+			getSourceDb: noDb,
+			resolvePublicKey: async () => signingKeys().publicPem,
+			fetchImpl: async () => {
+				throw new Error("connect ECONNREFUSED 10.0.0.5:5432");
+			},
+		});
+		const res = await post(app, { against: HOSTED_AGAINST }, undefined, AUTH);
+		expect(res.status).toBe(200);
+		const body = (await res.json()) as { status: string; reason: string };
+		expect(body.status).toBe("unanchored");
+		expect(body.reason).toBe("could not fetch or read the manifest");
+		expect(JSON.stringify(body)).not.toContain("10.0.0.5");
+	});
+
+	test("request past the per-minute limit → 429", async () => {
+		const app = buildApp({
+			tokens: tokensFor("account:archive-verify-limited"),
+			getSourceDb: noDb,
+			resolvePublicKey: async () => signingKeys().publicPem,
+			fetchImpl: async () => {
+				throw new Error("down");
+			},
+		});
+		for (let i = 0; i < ARCHIVE_VERIFY_RATE_LIMITS.account.limit; i++) {
+			const ok = await post(app, { against: HOSTED_AGAINST }, undefined, AUTH);
+			expect(ok.status).toBe(200);
+		}
+		const res = await post(app, { against: HOSTED_AGAINST }, undefined, AUTH);
+		expect(res.status).toBe(429);
+		expect(res.headers.get("retry-after")).not.toBeNull();
+	});
+});
+
+describe("POST /v1/archive/verify self-host fetch errors", () => {
+	let prevMode: string | undefined;
+
+	beforeEach(() => {
+		prevMode = process.env.INSTANCE_MODE;
+		process.env.INSTANCE_MODE = "oss";
+	});
+
+	afterEach(() => {
+		if (prevMode === undefined) delete process.env.INSTANCE_MODE;
+		else process.env.INSTANCE_MODE = prevMode;
+	});
+
+	test("OSS: fetch failure text stays detailed", async () => {
+		const app = buildApp({
+			getSourceDb: noDb,
+			resolvePublicKey: async () => signingKeys().publicPem,
+			fetchImpl: async () => {
+				throw new Error("connect ECONNREFUSED 10.0.0.5:5432");
+			},
+		});
+		const res = await post(app, { against: AGAINST });
+		expect(res.status).toBe(200);
+		const body = (await res.json()) as { reason: string };
+		expect(body.reason).toContain("ECONNREFUSED");
 	});
 });

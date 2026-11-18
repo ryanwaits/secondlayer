@@ -62,6 +62,10 @@ type LatestPointer = {
 	key_id?: string;
 };
 
+/** Official archive host; same value as `OFFICIAL_ARCHIVE_HOST` in
+ *  `packages/cli/src/lib/archive-gate.ts`. */
+export const OFFICIAL_ARCHIVE_HOST = "archive.secondlayer.tools";
+
 function isLatestPointer(value: ArchiveManifest): boolean {
 	const pointer = value as LatestPointer;
 	return (
@@ -75,22 +79,69 @@ function isLatestPointer(value: ArchiveManifest): boolean {
  *  a pointer someone rewrote, and it must not steer a fetch. */
 const SNAPSHOT_PATH_PATTERN = /^snapshots\/[0-9a-f]{64}\.json$/;
 
+type FetchImpl = (
+	input: string | URL | Request,
+	init?: RequestInit,
+) => Promise<Response>;
+
+type FetchJsonOptions = {
+	redirect: "follow" | "manual" | "error";
+	maxBytes?: number;
+};
+
+async function readCapped(
+	response: Response,
+	maxBytes: number,
+): Promise<Uint8Array> {
+	const tooLarge = () => new Error("manifest larger than the allowed size");
+	const declared = Number(response.headers.get("content-length"));
+	if (Number.isFinite(declared) && declared > maxBytes) throw tooLarge();
+	if (!response.body) return new Uint8Array();
+	const reader = response.body.getReader();
+	const chunks: Uint8Array[] = [];
+	let total = 0;
+	for (;;) {
+		const { done, value } = await reader.read();
+		if (done) break;
+		total += value.byteLength;
+		if (total > maxBytes) {
+			await reader.cancel();
+			throw tooLarge();
+		}
+		chunks.push(value);
+	}
+	const bytes = new Uint8Array(total);
+	let offset = 0;
+	for (const chunk of chunks) {
+		bytes.set(chunk, offset);
+		offset += chunk.byteLength;
+	}
+	return bytes;
+}
+
 async function fetchJson(
 	url: string,
-	fetchImpl: (
-		input: string | URL | Request,
-		init?: RequestInit,
-	) => Promise<Response>,
+	fetchImpl: FetchImpl,
+	options: FetchJsonOptions,
 ): Promise<unknown> {
 	const response = await fetchImpl(url, {
 		signal: AbortSignal.timeout(30_000),
+		redirect: options.redirect,
 	});
+	if (
+		(response.status >= 300 && response.status < 400) ||
+		response.type === "opaqueredirect"
+	) {
+		throw new Error("could not fetch manifest (redirect refused)");
+	}
 	if (!response.ok) {
 		throw new Error(
 			`could not fetch manifest (${response.status} ${response.statusText})`,
 		);
 	}
-	return response.json();
+	if (options.maxBytes === undefined) return response.json();
+	const bytes = await readCapped(response, options.maxBytes);
+	return JSON.parse(new TextDecoder().decode(bytes));
 }
 
 export type LoadReferenceOptions = {
@@ -100,10 +151,12 @@ export type LoadReferenceOptions = {
 	 *  validly signed, snapshot. */
 	publicKeyPem?: string;
 	/** Test/SDK seam; production CLI leaves this unset and uses global fetch. */
-	fetchImpl?: (
-		input: string | URL | Request,
-		init?: RequestInit,
-	) => Promise<Response>;
+	fetchImpl?: FetchImpl;
+	/** Redirect handling for remote fetches. Defaults to "follow" (CLI);
+	 *  the hosted API passes "manual" so a manifest host cannot bounce it. */
+	redirect?: "follow" | "manual" | "error";
+	/** Max bytes read per remote manifest fetch. Default: no cap. */
+	maxBytes?: number;
 };
 
 export async function loadReference(
@@ -112,11 +165,19 @@ export async function loadReference(
 ): Promise<LoadedReference> {
 	const isRemote = /^https?:\/\//.test(source);
 	const fetchImpl = options.fetchImpl ?? globalThis.fetch;
+	const fetchOptions: FetchJsonOptions = {
+		redirect: options.redirect ?? "follow",
+		maxBytes: options.maxBytes,
+	};
 	let manifest: ArchiveManifest;
 	let root: string;
 
 	if (isRemote) {
-		manifest = (await fetchJson(source, fetchImpl)) as ArchiveManifest;
+		manifest = (await fetchJson(
+			source,
+			fetchImpl,
+			fetchOptions,
+		)) as ArchiveManifest;
 		const url = new URL(source);
 		// Both `<root>/latest.json` and `<root>/snapshots/<digest>.json` resolve
 		// their partition paths against `<root>`.
@@ -178,6 +239,7 @@ export async function loadReference(
 		? ((await fetchJson(
 				`${root.replace(/\/$/, "")}/${snapshotPath}`,
 				fetchImpl,
+				fetchOptions,
 			)) as ArchiveManifest)
 		: (JSON.parse(
 				await readFile(join(root, snapshotPath), "utf8"),

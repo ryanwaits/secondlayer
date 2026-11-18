@@ -9216,7 +9216,7 @@
 				],
 				"summary": "Verify this instance against a signed archive",
 				"x-nav-title": "Verify against archive",
-				"description": "Compares identity digests of this instance's blocks, transactions and events against the range digests in a signed archive manifest. Read-only: the instance fetches the manifest, nothing is uploaded. Semantic replay (`--deep`) is CLI only. Without `from_block` or `to_block`, a manifest with more than 40 matching ranges is refused with 400. A missing key, an unreachable manifest, a failed signature or no matching digests answer 200 `unanchored` with a `reason`, never `clean`.",
+				"description": "Compares identity digests of this instance's blocks, transactions and events against the range digests in a signed archive manifest. Read-only: the instance fetches the manifest, nothing is uploaded. Semantic replay (`--deep`) is CLI only. One request digests at most 40 ranges and 2000000 heights, with or without a window; past either it is refused with 400. The hosted API needs a key, is rate limited, and accepts only manifests on `archive.secondlayer.tools`, with no `insecure` or `public_key_pem`. A missing key, an unreachable manifest, a failed signature or no matching digests answer 200 `unanchored` with a `reason`, never `clean`.",
 				"security": [
 					{},
 					{
@@ -9246,7 +9246,7 @@
 									"from_block": {
 										"type": "integer",
 										"minimum": 0,
-										"description": "First height to check. Needed, with or without `to_block`, when the manifest has more than 40 matching ranges."
+										"description": "First height to check. Narrow the window with this and `to_block` when the manifest has more than 40 matching ranges or 2000000 heights."
 									},
 									"to_block": {
 										"type": "integer",
@@ -9285,7 +9285,7 @@
 						}
 					},
 					"400": {
-						"description": "The body is not JSON (`INVALID_JSON`), `against` is missing or not https, a field has the wrong type, `target` is not recognised, `to_block` is below `from_block`, or more than 40 ranges matched without a height window (`VALIDATION_ERROR`)",
+						"description": "The body is not JSON (`INVALID_JSON`), `against` is missing or not https, a field has the wrong type, `target` is not recognised, `to_block` is below `from_block`, more than 40 ranges or 2000000 heights matched, or, on the hosted API, `insecure`, `public_key_pem` or an `against` off `archive.secondlayer.tools` was sent (`VALIDATION_ERROR`)",
 						"content": {
 							"application/json": {
 								"schema": {
@@ -9296,6 +9296,16 @@
 					},
 					"401": {
 						"description": "This bind requires the instance token, and it was missing or wrong",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"429": {
+						"description": "Rate limited; retry after `Retry-After` seconds",
 						"content": {
 							"application/json": {
 								"schema": {

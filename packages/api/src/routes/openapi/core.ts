@@ -1,8 +1,12 @@
 import { ARCHIVE_DATASETS } from "@secondlayer/shared/archive/datasets";
-import { MAX_RANGES_WITHOUT_WINDOW } from "../archive-verify.ts";
+import {
+	MAX_HEIGHTS_PER_REQUEST,
+	MAX_RANGES_PER_REQUEST,
+} from "../archive-verify.ts";
 import { BATCH_MAX_ITEMS } from "../batch.ts";
 import {
 	ERROR_401,
+	ERROR_429,
 	READ_SECURITY,
 	json200,
 	jsonBody,
@@ -93,7 +97,7 @@ export const corePaths = {
 			tags: ["archive"],
 			summary: "Verify this instance against a signed archive",
 			"x-nav-title": "Verify against archive",
-			description: `Compares identity digests of this instance's blocks, transactions and events against the range digests in a signed archive manifest. Read-only: the instance fetches the manifest, nothing is uploaded. Semantic replay (\`--deep\`) is CLI only. Without \`from_block\` or \`to_block\`, a manifest with more than ${MAX_RANGES_WITHOUT_WINDOW} matching ranges is refused with 400. A missing key, an unreachable manifest, a failed signature or no matching digests answer 200 \`unanchored\` with a \`reason\`, never \`clean\`.`,
+			description: `Compares identity digests of this instance's blocks, transactions and events against the range digests in a signed archive manifest. Read-only: the instance fetches the manifest, nothing is uploaded. Semantic replay (\`--deep\`) is CLI only. One request digests at most ${MAX_RANGES_PER_REQUEST} ranges and ${MAX_HEIGHTS_PER_REQUEST} heights, with or without a window; past either it is refused with 400. The hosted API needs a key, is rate limited, and accepts only manifests on \`archive.secondlayer.tools\`, with no \`insecure\` or \`public_key_pem\`. A missing key, an unreachable manifest, a failed signature or no matching digests answer 200 \`unanchored\` with a \`reason\`, never \`clean\`.`,
 			security: READ_SECURITY,
 			requestBody: jsonBody({
 				type: "object",
@@ -114,7 +118,7 @@ export const corePaths = {
 					from_block: {
 						type: "integer",
 						minimum: 0,
-						description: `First height to check. Needed, with or without \`to_block\`, when the manifest has more than ${MAX_RANGES_WITHOUT_WINDOW} matching ranges.`,
+						description: `First height to check. Narrow the window with this and \`to_block\` when the manifest has more than ${MAX_RANGES_PER_REQUEST} matching ranges or ${MAX_HEIGHTS_PER_REQUEST} heights.`,
 					},
 					to_block: {
 						type: "integer",
@@ -146,9 +150,10 @@ export const corePaths = {
 					"The comparison, or `unanchored` with the reason it could not run",
 				),
 				"400": jsonError(
-					`The body is not JSON (\`INVALID_JSON\`), \`against\` is missing or not https, a field has the wrong type, \`target\` is not recognised, \`to_block\` is below \`from_block\`, or more than ${MAX_RANGES_WITHOUT_WINDOW} ranges matched without a height window (\`VALIDATION_ERROR\`)`,
+					`The body is not JSON (\`INVALID_JSON\`), \`against\` is missing or not https, a field has the wrong type, \`target\` is not recognised, \`to_block\` is below \`from_block\`, more than ${MAX_RANGES_PER_REQUEST} ranges or ${MAX_HEIGHTS_PER_REQUEST} heights matched, or, on the hosted API, \`insecure\`, \`public_key_pem\` or an \`against\` off \`archive.secondlayer.tools\` was sent (\`VALIDATION_ERROR\`)`,
 				),
 				"401": jsonError(ERROR_401),
+				"429": jsonError(ERROR_429),
 			},
 		},
 	},
