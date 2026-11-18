@@ -303,11 +303,25 @@ describe.skipIf(SKIP)("Subgraphs API Routes", () => {
       SELECT 200, 'bulk', 'nft-' || n, 'SP_BULK', n, 'active' FROM generate_series(1, 2500) n
     `);
 		try {
-			await client.unsafe(`ANALYZE ${PG_SCHEMA}.listings`);
-			const res = await app.request(`/subgraphs/${SUBGRAPH_NAME}`);
+			const [{ n }] = await client.unsafe(
+				`SELECT count(*)::int AS n FROM ${PG_SCHEMA}.listings`,
+			);
+			// ANALYZE sets the catalog's live-tuple figure, but a connection that
+			// inserted rows flushes its own pending counters later and adds them on
+			// top (an idle pool connection can do that up to seconds afterwards).
+			// Re-analyze until those flushes have landed and the figure settles.
 			// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
-			const body = (await res.json()) as any;
-			expect(body.tables.listings.rowCount).toBe(2504);
+			let body: any;
+			const deadline = Date.now() + 15_000;
+			do {
+				await client.unsafe(`ANALYZE ${PG_SCHEMA}.listings`);
+				const res = await app.request(`/subgraphs/${SUBGRAPH_NAME}`);
+				body = await res.json();
+				if (body.tables.listings.rowCount === n) break;
+				await new Promise((resolve) => setTimeout(resolve, 100));
+			} while (Date.now() < deadline);
+			expect(n).toBeGreaterThanOrEqual(2500);
+			expect(body.tables.listings.rowCount).toBe(n);
 			expect(body.tables.listings.storageBytes).toBeGreaterThan(0);
 			expect(body.storageBytes).toBeGreaterThan(0);
 			expect(body.health.emptyMapping).toBe(false);
@@ -316,7 +330,7 @@ describe.skipIf(SKIP)("Subgraphs API Routes", () => {
 				`DELETE FROM ${PG_SCHEMA}.listings WHERE "_tx_id" = 'bulk'`,
 			);
 		}
-	});
+	}, 30_000);
 
 	// ── GET /subgraphs/:subgraphName/recent ─────────────────────────────────
 
