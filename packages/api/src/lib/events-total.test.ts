@@ -28,9 +28,16 @@ function fakeChain(perHeight: number[]) {
 	};
 }
 
+type MemoryStore = EventsTotalStore & {
+	saved: SavedBaseline | null;
+	claimed: boolean;
+	claims: number;
+	extends: number;
+};
+
 /** In-memory store. `claimRebaseline` grants the claim once until `save`. */
 function memoryStore(saved: SavedBaseline | null = null, claimable = true) {
-	const store = {
+	const store: MemoryStore = {
 		saved,
 		claimed: false,
 		claims: 0,
@@ -52,7 +59,7 @@ function memoryStore(saved: SavedBaseline | null = null, claimable = true) {
 				store.saved = { ...store.saved, through, count };
 			}
 		},
-	} satisfies EventsTotalStore & Record<string, unknown>;
+	};
 	return store;
 }
 
