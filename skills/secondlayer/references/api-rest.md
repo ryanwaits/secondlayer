@@ -50,7 +50,7 @@ Paginated reads return an envelope, never a bare array:
 }
 ```
 
-Cursors are opaque strings of the form `<block_height>:<event_index>`. **Do not parse them.** Pass `next_cursor` back as `cursor` to fetch the next page. `null` means end of stream.
+Cursors are opaque strings of the form `<block_height>:<event_index>`. **Do not parse them.** Pass `next_cursor` back as `cursor` to fetch the next page. `null` only on an empty page.
 
 Errors use HTTP status + a JSON body:
 

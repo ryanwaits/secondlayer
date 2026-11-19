@@ -276,7 +276,7 @@ curl -G "$SECONDLAYER_API_URL/v1/contracts" \
 | `trait` | `sip-009`, `sip-010`, or `sip-013`. Required. |
 | `conformance` | `declared`, `inferred`, or `any` (default). |
 | `limit` | 1 to 500, default 100. |
-| `cursor` | The previous [`next_cursor`](hover:next); `null` on the last page. |
+| `cursor` | The previous [`next_cursor`](hover:next); `null` only on an empty page. |
 | `include` | `abi` adds each contract's ABI. |
 | `classified_after` | ISO timestamp. Only contracts classified at or after it, to sync a list without re-reading it. |
 
