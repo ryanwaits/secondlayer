@@ -13,6 +13,7 @@ import { upsertStackStates } from "./hosted-stack-state.ts";
 import {
 	creditsAdded,
 	hostedStackSnapshot,
+	monthlyQuantity,
 	rowsByKeyDaily,
 	rowsDaily,
 	rowsHourlyToday,
@@ -388,5 +389,107 @@ describe.skipIf(!HAS_DB)("rows screen queries", () => {
 		const bins = await rowsPerCallHistogram(db, accountId, 30, now);
 		expect(bins).toHaveLength(5);
 		expect(bins.every((b) => b.calls === 0 && b.rows === 0)).toBe(true);
+	});
+});
+
+describe.skipIf(!HAS_DB)("monthly usage totals", () => {
+	async function ledgerSum(unit: string, from: Date, to: Date) {
+		const row = await db
+			.selectFrom("usage_ledger")
+			.select((eb) => eb.fn.sum<string>("quantity").as("total"))
+			.where("account_id", "=", accountId)
+			.where("unit", "=", unit)
+			.where("occurred_at", ">=", from)
+			.where("occurred_at", "<", to)
+			.executeTakeFirst();
+		return Number(row?.total ?? 0);
+	}
+
+	test("two meter calls add up to the month's ledger sum", async () => {
+		for (const [key, quantity] of [
+			["a", 300],
+			["b", 700],
+		] as const) {
+			await meter(db, {
+				accountId,
+				unit: "rows.delivered",
+				quantity,
+				source: "test",
+				idempotencyKey: `total-${key}-${accountId}`,
+			});
+		}
+		const now = new Date();
+		const start = new Date(
+			Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1),
+		);
+		const end = new Date(
+			Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1),
+		);
+		expect(await monthlyQuantity(db, accountId, "rows.delivered")).toBe(1000);
+		expect(await ledgerSum("rows.delivered", start, end)).toBe(1000);
+	});
+
+	test("a replayed idempotency key counts once", async () => {
+		const input = {
+			accountId,
+			unit: "rows.delivered" as const,
+			quantity: 250,
+			source: "test",
+			idempotencyKey: `replay-${accountId}`,
+		};
+		await meter(db, input);
+		await meter(db, input);
+		expect(await monthlyQuantity(db, accountId, "rows.delivered")).toBe(250);
+	});
+
+	test("an item dated in the previous UTC month lands in that month only", async () => {
+		const now = new Date();
+		const prev = new Date(
+			Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1, 15, 12),
+		);
+		await meter(db, {
+			accountId,
+			unit: "rows.delivered",
+			quantity: 40,
+			source: "test",
+			idempotencyKey: `prev-${accountId}`,
+			occurredAt: prev,
+		});
+		expect(await monthlyQuantity(db, accountId, "rows.delivered", prev)).toBe(
+			40,
+		);
+		expect(await monthlyQuantity(db, accountId, "rows.delivered", now)).toBe(0);
+	});
+
+	test("fractional quantities total exactly", async () => {
+		for (const key of ["a", "b"]) {
+			await meter(db, {
+				accountId,
+				unit: "memory.gb_hour",
+				quantity: 0.5,
+				observedQuantity: 0.5,
+				source: "test",
+				idempotencyKey: `frac-${key}-${accountId}`,
+			});
+		}
+		expect(await monthlyQuantity(db, accountId, "memory.gb_hour")).toBe(1);
+	});
+
+	test("deleting the account removes its totals", async () => {
+		const id = await makeAccount();
+		await meter(db, {
+			accountId: id,
+			unit: "rows.delivered",
+			quantity: 5,
+			source: "test",
+			idempotencyKey: `cascade-${id}`,
+		});
+		await db.deleteFrom("accounts").where("id", "=", id).execute();
+		const rows = await db
+			.selectFrom("usage_monthly_totals")
+			.select("account_id")
+			.where("account_id", "=", id)
+			.execute();
+		expect(rows).toHaveLength(0);
 	});
 });

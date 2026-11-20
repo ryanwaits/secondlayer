@@ -10,7 +10,10 @@ import {
 	GHOST_ACCOUNT_ROWS_LIMIT,
 	ROWS_DELIVERED_MONTHLY_ALLOWANCE,
 } from "@secondlayer/platform/billing/prices";
-import { lifetimeQuantity } from "@secondlayer/platform/db/queries/usage-ledger";
+import {
+	claimLedgerEntry,
+	lifetimeQuantity,
+} from "@secondlayer/platform/db/queries/usage-ledger";
 import { getDb } from "@secondlayer/shared/db";
 import { RateLimitError } from "@secondlayer/shared/errors";
 import { Hono } from "hono";
@@ -87,20 +90,18 @@ let ipSeq = 0;
 const freshIp = () => `198.51.100.${++ipSeq}`;
 
 async function addRows(accountId: string, rows: number, occurredAt?: Date) {
-	await db
-		.insertInto("usage_ledger")
-		.values({
-			account_id: accountId,
-			unit: "rows.delivered",
-			quantity: rows,
-			usd_micros: 0,
-			source: "test",
-			api_key_id: null,
-			observed_quantity: null,
-			idempotency_key: crypto.randomUUID(),
-			...(occurredAt ? { occurred_at: occurredAt } : {}),
-		})
-		.execute();
+	await claimLedgerEntry(db, {
+		accountId,
+		unit: "rows.delivered",
+		quantity: rows,
+		observedQuantity: null,
+		usdMicros: 0n,
+		debitedUsdMicros: 0n,
+		source: "test",
+		apiKeyId: null,
+		idempotencyKey: crypto.randomUUID(),
+		occurredAt: occurredAt ?? new Date(),
+	});
 }
 
 describe.skipIf(!HAS_DB)("signed-out docs key", () => {

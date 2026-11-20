@@ -132,7 +132,7 @@ export async function getCredits(
 	return row ? BigInt(row.balance_usd_micros) : 0n;
 }
 
-function monthKey(now: Date = new Date()): string {
+export function monthKey(now: Date = new Date()): string {
 	return `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, "0")}`;
 }
 

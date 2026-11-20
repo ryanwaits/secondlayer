@@ -1,5 +1,6 @@
 import type { Database, UsageLedgerRow } from "@secondlayer/shared/db";
 import { type Kysely, sql } from "kysely";
+import { monthKey } from "./account-credits.ts";
 import { type ServiceState, getServiceState } from "./hosted-stack-state.ts";
 
 /**
@@ -36,6 +37,8 @@ export type LedgerEntry = {
  * unique constraint on `idempotency_key` makes the claim race-safe, so a
  * caller only debits a balance when `claimed` is true; a replay (concurrent
  * or retried) always sees `claimed: false` and must not charge again.
+ * Callers run it inside a transaction so the ledger row and the monthly
+ * total commit together.
  */
 export async function claimLedgerEntry(
 	db: Kysely<Database>,
@@ -59,7 +62,23 @@ export async function claimLedgerEntry(
 		.onConflict((oc) => oc.column("idempotency_key").doNothing())
 		.returningAll()
 		.executeTakeFirst();
-	if (inserted) return { row: inserted, claimed: true };
+	if (inserted) {
+		await db
+			.insertInto("usage_monthly_totals")
+			.values({
+				account_id: entry.accountId,
+				unit: entry.unit,
+				month: monthKey(entry.occurredAt),
+				quantity: entry.quantity,
+			})
+			.onConflict((oc) =>
+				oc.columns(["account_id", "unit", "month"]).doUpdateSet({
+					quantity: sql`usage_monthly_totals.quantity + ${entry.quantity}`,
+				}),
+			)
+			.execute();
+		return { row: inserted, claimed: true };
+	}
 	const existing = await db
 		.selectFrom("usage_ledger")
 		.selectAll()
@@ -124,24 +143,23 @@ export function monthBounds(now: Date): { start: Date; end: Date } {
 	return { start, end };
 }
 
-/** Sum of `quantity` for `unit` this account has recorded in `now`'s UTC
- *  calendar month — the allowance counter for `rows.delivered`. */
+/** Running total of `quantity` for `unit` this account has recorded in
+ *  `now`'s UTC calendar month — the allowance counter for `rows.delivered`.
+ *  Reads `usage_monthly_totals`, which `claimLedgerEntry` keeps in step. */
 export async function monthlyQuantity(
 	db: Kysely<Database>,
 	accountId: string,
 	unit: string,
 	now: Date = new Date(),
 ): Promise<number> {
-	const { start, end } = monthBounds(now);
 	const row = await db
-		.selectFrom("usage_ledger")
-		.select((eb) => eb.fn.sum<string>("quantity").as("total"))
+		.selectFrom("usage_monthly_totals")
+		.select("quantity")
 		.where("account_id", "=", accountId)
 		.where("unit", "=", unit)
-		.where("occurred_at", ">=", start)
-		.where("occurred_at", "<", end)
+		.where("month", "=", monthKey(now))
 		.executeTakeFirst();
-	return row?.total ? Number(row.total) : 0;
+	return row ? Number(row.quantity) : 0;
 }
 
 /** Sum of `quantity` for `unit` over the account's whole ledger. Only for

@@ -100,6 +100,7 @@ export const TABLE_TO_DB = {
 	archive_fetches: "target",
 	// ── TARGET: metered ledger (one append-only row per billable event) ──
 	usage_ledger: "target",
+	usage_monthly_totals: "target",
 	account_balance_alerts: "target",
 	hosted_stack_state: "target",
 	webhook_incident_alerts: "target",

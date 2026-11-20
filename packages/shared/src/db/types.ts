@@ -1046,6 +1046,7 @@ export interface Database {
 	stage_failures: StageFailuresTable;
 	archive_fetches: ArchiveFetchesTable;
 	usage_ledger: UsageLedgerTable;
+	usage_monthly_totals: UsageMonthlyTotalsTable;
 	account_balance_alerts: AccountBalanceAlertsTable;
 	hosted_stack_state: HostedStackStateTable;
 	webhook_incident_alerts: WebhookIncidentAlertsTable;
@@ -1136,6 +1137,16 @@ export interface ArchiveFetchesTable {
 export type ArchiveFetch = Selectable<ArchiveFetchesTable>;
 export type InsertArchiveFetch = Insertable<ArchiveFetchesTable>;
 export type UpdateArchiveFetch = Updateable<ArchiveFetchesTable>;
+
+/** Running `usage_ledger` quantity per account, unit and UTC month of
+ *  `occurred_at` — kept in step by `claimLedgerEntry`. */
+export interface UsageMonthlyTotalsTable {
+	account_id: string;
+	unit: string;
+	/** `YYYY-MM`, UTC. */
+	month: string;
+	quantity: Generated<string | number | bigint>;
+}
 
 /**
  * One metered ledger for every billable unit (archive partitions, hosted
