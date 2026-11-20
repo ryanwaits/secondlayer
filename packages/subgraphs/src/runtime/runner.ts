@@ -190,10 +190,6 @@ export function buildEventPayload(
 		functionName: tx.function_name ?? null,
 	};
 
-	// Decoded function args + result for contract_call payloads
-	const decodedArgs = decodeFunctionArgs(tx.function_args);
-	const decodedResult = decodeRawResult(tx.raw_result);
-
 	// No event — tx-level match (contract_call or contract_deploy)
 	if (!event) {
 		switch (filter.type) {
@@ -204,9 +200,9 @@ export function buildEventPayload(
 					contractId: tx.contract_id ?? "",
 					functionName: tx.function_name ?? "",
 					sender: tx.sender,
-					args: decodedArgs,
+					args: decodeFunctionArgs(tx.function_args),
 					...(input !== undefined ? { input } : {}),
-					result: decodedResult,
+					result: decodeRawResult(tx.raw_result),
 					resultHex: tx.raw_result ?? null,
 					tx: txMeta,
 				};
@@ -314,11 +310,14 @@ export function buildEventPayload(
 			// source-independent and clean — the node's verbose serde-tagged
 			// `value` (e.g. `{Optional:{data:null}}`) is not reproducible from the
 			// Index API and is no longer used (same rationale as nft tokenId).
-			// decodeEventData skips hex ≤10 chars, so decode `raw_value` directly.
+			// decodeEventData already decoded hex >10 chars into `decoded.raw_value`;
+			// it skips shorter hex, so decode that directly.
 			const rawHex = (event.data as Record<string, unknown> | null)?.raw_value;
 			const rawValue =
 				typeof rawHex === "string" && rawHex.startsWith("0x")
-					? decodeClarityValue(rawHex)
+					? rawHex.length > 10
+						? decoded.raw_value
+						: decodeClarityValue(rawHex)
 					: decoded.value;
 			// Extract topic from decoded Clarity value (not raw event topic which is always "print")
 			const clarityObj =
@@ -364,9 +363,9 @@ export function buildEventPayload(
 				contractId: tx.contract_id ?? "",
 				functionName: tx.function_name ?? "",
 				sender: tx.sender,
-				args: decodedArgs,
+				args: decodeFunctionArgs(tx.function_args),
 				...(input !== undefined ? { input } : {}),
-				result: decodedResult,
+				result: decodeRawResult(tx.raw_result),
 				resultHex: tx.raw_result ?? null,
 				tx: txMeta,
 			};

@@ -1,4 +1,10 @@
 import { describe, expect, test } from "bun:test";
+import {
+	serializeCV,
+	stringAsciiCV,
+	tupleCV,
+	uintCV,
+} from "@secondlayer/stacks/clarity";
 import type { SubgraphFilter } from "../types.ts";
 import { buildEventPayload } from "./runner.ts";
 import type { MatchedTx } from "./source-matcher.ts";
@@ -82,6 +88,40 @@ describe("buildEventPayload print contractId", () => {
 			},
 		} as unknown as MatchedTx["events"][0]);
 		expect(payload.contractId).toBe("SP.legacy");
+	});
+});
+
+describe("buildEventPayload print value from raw_value", () => {
+	const filter = { type: "print_event" } as SubgraphFilter;
+	const printEvent = (rawValue: string) =>
+		({
+			type: "smart_contract_event",
+			event_index: 0,
+			tx_id: tx.tx_id,
+			id: "e1",
+			data: {
+				topic: "print",
+				contract_identifier: "SP.foo",
+				value: { Tuple: {} },
+				raw_value: rawValue,
+			},
+		}) as unknown as MatchedTx["events"][0];
+
+	test("long hex: topic and camelized data come from the decoded tuple", () => {
+		const hex = `0x${serializeCV(
+			tupleCV({
+				topic: stringAsciiCV("transfer"),
+				"token-amount": uintCV(5n),
+			}),
+		)}`;
+		const payload = buildEventPayload(filter, tx, printEvent(hex));
+		expect(payload.topic).toBe("transfer");
+		expect(payload.data).toEqual({ tokenAmount: 5n });
+	});
+
+	test("short hex (≤10 chars) still decodes to the primitive value", () => {
+		const payload = buildEventPayload(filter, tx, printEvent("0x03"));
+		expect(payload.data).toBe(true);
 	});
 });
 
