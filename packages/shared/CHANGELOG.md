@@ -1,5 +1,11 @@
 # @secondlayer/shared
 
+## 19.0.1
+
+### Patch Changes
+
+- Add `usage_monthly_totals` (migration 0217): a running usage total per account, unit and month, so monthly allowance checks read one row instead of summing the month's usage ledger.
+
 ## 19.0.0
 
 ### Major Changes

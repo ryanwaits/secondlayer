@@ -1,5 +1,13 @@
 # @secondlayer/subgraphs
 
+## 8.1.16
+
+### Patch Changes
+
+- Handlers for token, NFT, STX and print events no longer pay to decode the transaction's call arguments and result, and print values are decoded once instead of twice. Payloads are unchanged; building one is up to ~80x faster on events from contract calls.
+- Updated dependencies
+  - @secondlayer/shared@19.0.1
+
 ## 8.1.15
 
 ### Patch Changes
