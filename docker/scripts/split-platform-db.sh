@@ -88,6 +88,7 @@ CONTROL_TABLES=(
   account_credits
   archive_fetches
   usage_ledger
+  usage_monthly_totals
   account_balance_alerts
   webhook_incident_alerts
   cli_device_logins
