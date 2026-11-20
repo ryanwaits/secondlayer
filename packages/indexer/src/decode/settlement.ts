@@ -9,6 +9,7 @@ import {
 } from "./bitcoin-rpc.ts";
 import { fillDepositFees } from "./deposit-fees.ts";
 import type { DecoderHealth } from "./health.ts";
+import { sleep } from "./sleep.ts";
 import { writeDecoderCheckpoint } from "./storage.ts";
 
 /**
@@ -63,21 +64,6 @@ interface PendingSweep {
 
 function db(handle?: Kysely<Database>): Kysely<Database> {
 	return handle ?? getSourceDb();
-}
-
-async function sleep(ms: number, signal?: AbortSignal): Promise<void> {
-	if (signal?.aborted) return;
-	await new Promise<void>((resolve) => {
-		const timeout = setTimeout(resolve, ms);
-		signal?.addEventListener(
-			"abort",
-			() => {
-				clearTimeout(timeout);
-				resolve();
-			},
-			{ once: true },
-		);
-	});
 }
 
 function readerFromEnv(): SweepReader {

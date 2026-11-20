@@ -24,6 +24,7 @@ import {
 	consumeSbtcSettlements,
 	getSettlementConfirmerHealth,
 } from "./settlement.ts";
+import { sleep } from "./sleep.ts";
 import {
 	DECODER_NAMES,
 	DecoderCheckpointRewoundError,
@@ -101,21 +102,6 @@ async function initWakeBus(): Promise<void> {
 			},
 		);
 	}
-}
-
-async function sleep(ms: number, signal?: AbortSignal): Promise<void> {
-	if (signal?.aborted) return;
-	await new Promise<void>((resolve) => {
-		const timeout = setTimeout(resolve, ms);
-		signal?.addEventListener(
-			"abort",
-			() => {
-				clearTimeout(timeout);
-				resolve();
-			},
-			{ once: true },
-		);
-	});
 }
 
 // getDecodersHealth covers the enabled-decoder set; the settlement confirmer is
