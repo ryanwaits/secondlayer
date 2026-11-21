@@ -202,7 +202,7 @@ export async function readJournalPage(
 			   AND sequence > ${opts.afterSequence}::bigint
 			   ${upper}
 			   AND path IN (${sql.join([...REPLAY_PATHS])})
-			 ORDER BY sequence ASC
+			 ORDER BY observer_journal.sequence ASC
 			 LIMIT ${opts.limit}
 		`.execute(tx);
 		return result.rows;

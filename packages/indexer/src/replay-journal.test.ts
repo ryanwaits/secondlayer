@@ -1,5 +1,6 @@
 import { afterAll, beforeEach, describe, expect, test } from "bun:test";
 import { getDb } from "@secondlayer/shared/db";
+import { sql } from "kysely";
 import {
 	checkReply,
 	findStartSequence,
@@ -285,6 +286,29 @@ describe.skipIf(!HAS_DB)("replayJournal", () => {
 			'{"n":5}',
 		]);
 		expect(summary.replayed).toBe(5);
+	});
+
+	test("pages in numeric sequence order across a digit-count boundary", async () => {
+		// The page selects sequence as text; ordering by the text alias would
+		// put 10000000000 before 9999999999 and skip rows across the boundary.
+		// Far above the identity range, so other tests' rows never collide.
+		const sequences = ["9999999999", "10000000000", "10000000001"];
+		for (const sequence of sequences) {
+			await sql`
+				INSERT INTO observer_journal
+					(sequence, network, path, source, raw_body, raw_body_sha256, status)
+				OVERRIDING SYSTEM VALUE
+				VALUES (${sequence}::bigint, ${NETWORK}, '/new_block', 'test',
+					${Buffer.from(`{"s":${sequence}}`)}, 'test', 'processed')
+			`.execute(getDb());
+		}
+
+		const summary = await run({ afterSequence: "9999999998", pageSize: 2 });
+
+		expect(requests.map((r) => r.body)).toEqual(
+			sequences.map((sequence) => `{"s":${sequence}}`),
+		);
+		expect(summary.lastSequence).toBe("10000000001");
 	});
 
 	test("findStartSequence returns the row just below the first block at height minus margin", async () => {
