@@ -8,6 +8,14 @@ import {
 const HAS_DB = !!process.env.DATABASE_URL;
 const PG_LOCK_KEY = 770_2099; // dedicated test key, distinct from prod's
 
+/** Poll until `cond` holds; real Postgres round-trips have no fixed latency. */
+async function waitFor(cond: () => boolean, timeoutMs = 5_000) {
+	const deadline = Date.now() + timeoutMs;
+	while (!cond() && Date.now() < deadline) {
+		await new Promise((r) => setTimeout(r, 20));
+	}
+}
+
 /** A single shared lock across "instances", simulating one Postgres lock. */
 function lockRegistry() {
 	const held = new Set<number>();
@@ -116,7 +124,7 @@ describe.skipIf(!HAS_DB)("withLeaderLock (real Postgres advisory lock)", () => {
 		);
 
 		// Let A acquire (real round-trip to Postgres).
-		await new Promise((r) => setTimeout(r, 200));
+		await waitFor(() => aLeader);
 		expect(aLeader).toBe(true);
 
 		const stopB = withLeaderLock(
@@ -135,7 +143,7 @@ describe.skipIf(!HAS_DB)("withLeaderLock (real Postgres advisory lock)", () => {
 
 		// A releases (closes its connection) → B's poll acquires.
 		await stopA();
-		await new Promise((r) => setTimeout(r, 600));
+		await waitFor(() => bLeader);
 		expect(bLeader).toBe(true);
 
 		await stopB();
