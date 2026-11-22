@@ -150,7 +150,14 @@ fi
 # ---------------------------------------------------------------------------
 # CRITICAL tier: canonical tip progress — the actual product invariant.
 # ---------------------------------------------------------------------------
+# The chain DB the indexer writes: SOURCE_DATABASE_URL when set (a separate
+# db host), else the compose postgres service.
 default_tip_query() {
+  if [ -n "${SOURCE_DATABASE_URL:-}" ]; then
+    psql "$SOURCE_DATABASE_URL" -tAc \
+      'SELECT max(height) FROM blocks WHERE canonical=true' 2>/dev/null
+    return
+  fi
   (cd "$COMPOSE_DIR" 2>/dev/null && docker compose exec -T "$PG_SERVICE" \
     psql -U "${POSTGRES_USER:-postgres}" -d "${POSTGRES_DB:-postgres}" -tAc \
     'SELECT max(height) FROM blocks WHERE canonical=true') 2>/dev/null
