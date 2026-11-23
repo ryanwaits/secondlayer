@@ -16,138 +16,161 @@ import type { AccountRuleInput } from "./rules.ts";
 const HOUR_MS = 3_600_000;
 const DAY_MS = 86_400_000;
 export const REQUEST_LOG_MAX_ROWS = 50_000;
+/**
+ * Memory cap per `api_failed_requests` read. Newest rows are kept. The 5xx
+ * and stack reads cover one hour, so a count shown to the user stops at this
+ * cap only past ~14 failures a second; revoked-key calls are counted in SQL.
+ */
+export const FAILED_REQUEST_MAX_ROWS = 50_000;
 
 export async function loadAccountInput(
 	db: Kysely<Database>,
 	accountId: string,
 	now: Date = new Date(),
 	requestLogLimit: number = REQUEST_LOG_MAX_ROWS,
+	failedRequestLimit: number = FAILED_REQUEST_MAX_ROWS,
 ): Promise<AccountRuleInput> {
 	const since24h = new Date(now.getTime() - DAY_MS);
 	const since1h = new Date(now.getTime() - HOUR_MS);
 	const since7d = new Date(now.getTime() - 7 * DAY_MS);
 	const { start, end } = monthBounds(now);
 
-	const requestRows = await db
-		.selectFrom("api_request_log")
-		.select([
-			"api_key_id",
-			"path_template",
-			"params_hash",
-			"cursor_hash",
-			"page_size",
-			"rows",
-			"status",
-			"created_at",
-		])
-		.where("account_id", "=", accountId)
-		.where("created_at", ">=", since24h)
-		.where((eb) =>
-			eb.or([
-				eb("path_template", "like", "/v1/index%"),
-				eb("path_template", "like", "/v1/streams%"),
-			]),
-		)
-		// Newest first so the limit keeps the recent rows the rules need.
-		.orderBy("created_at", "desc")
-		.limit(requestLogLimit)
-		.execute();
-	requestRows.reverse();
-
-	const failedRows = await db
-		.selectFrom("api_failed_requests")
-		.select(["path", "status", "created_at"])
-		.where("account_id", "=", accountId)
-		.where("status", ">=", 500)
-		.where("created_at", ">=", since1h)
-		.execute();
-
-	const stackRows = await db
-		.selectFrom("api_failed_requests")
-		.select(["method", "path", "status", "created_at"])
-		.where("account_id", "=", accountId)
-		.where("status", "in", [502, 503, 504])
-		// 503 while the stack is created or woken is normal, not an outage.
-		.where("message", "not in", ["provisioning", "starting"])
-		.where((eb) =>
-			eb.or([
-				eb("path", "like", "/api/webhooks%"),
-				eb("path", "like", "/api/subgraphs%"),
-			]),
-		)
-		.where("created_at", ">=", since1h)
-		.orderBy("created_at", "asc")
-		.execute();
-
-	const revokedRows = await db
-		.selectFrom("api_failed_requests as f")
-		.innerJoin("api_keys as k", "k.id", "f.api_key_id")
-		.select([
-			"k.id as key_id",
-			"f.path",
-			"f.created_at",
-			"k.name",
-			"k.key_prefix",
-			"k.revoked_at",
-		])
-		.where("f.account_id", "=", accountId)
-		.where("f.code", "=", "KEY_REVOKED")
-		.where("f.created_at", ">=", since24h)
-		.execute();
-
-	const paid = await db
-		.selectFrom("usage_ledger")
-		.select((eb) => [
-			eb.fn.min<Date>("occurred_at").as("first_paid_at"),
-			eb.fn.sum<string>("quantity").as("rows"),
-			eb.fn.sum<string>("usd_micros").as("usd_micros"),
-		])
-		.where("account_id", "=", accountId)
-		.where("unit", "=", "rows.delivered")
-		.where("occurred_at", ">=", start)
-		.where("occurred_at", "<", end)
-		.where("usd_micros", ">", "0")
-		.executeTakeFirst();
-
-	const days = await sql<{
-		day: string;
-		rows: string;
-		pages: string;
-		full_pages: string;
-		usd_micros: string;
-	}>`
-		SELECT to_char(occurred_at AT TIME ZONE 'UTC', 'YYYY-MM-DD') AS day,
-			sum(quantity) AS rows,
-			count(*) AS pages,
-			count(*) FILTER (WHERE quantity >= ${PAGE_CAP_ROWS}) AS full_pages,
-			sum(usd_micros) AS usd_micros
-		FROM usage_ledger
-		WHERE account_id = ${accountId}
-			AND unit = 'rows.delivered'
-			AND occurred_at >= ${start}
-			AND occurred_at < ${end}
-		GROUP BY 1
-		ORDER BY 1
-	`.execute(db);
-
-	const charges7d = await db
-		.selectFrom("usage_ledger")
-		.select((eb) => eb.fn.sum<string>("usd_micros").as("total"))
-		.where("account_id", "=", accountId)
-		.where("occurred_at", ">=", since7d)
-		.where("occurred_at", "<=", now)
-		.where("usd_micros", ">", "0")
-		.executeTakeFirst();
-
-	const keyRows = await db
-		.selectFrom("api_keys")
-		.select(["id", "name", "key_prefix", "created_at", "last_used_at"])
-		.where("account_id", "=", accountId)
-		.where("product", "=", "account")
-		.where(liveKeyWhere(now))
-		.execute();
-
-	const [caps, spentMonth, balance, burn] = await Promise.all([
+	const [
+		requestRows,
+		failedRows,
+		stackRows,
+		revokedRows,
+		paid,
+		days,
+		charges7d,
+		keyRows,
+		caps,
+		spentMonth,
+		balance,
+		burn,
+	] = await Promise.all([
+		db
+			.selectFrom("api_request_log")
+			.select([
+				"api_key_id",
+				"path_template",
+				"params_hash",
+				"cursor_hash",
+				"page_size",
+				"rows",
+				"status",
+				"created_at",
+			])
+			.where("account_id", "=", accountId)
+			.where("created_at", ">=", since24h)
+			.where((eb) =>
+				eb.or([
+					eb("path_template", "like", "/v1/index%"),
+					eb("path_template", "like", "/v1/streams%"),
+				]),
+			)
+			// Newest first so the limit keeps the recent rows the rules need.
+			.orderBy("created_at", "desc")
+			.limit(requestLogLimit)
+			.execute()
+			.then((rows) => rows.reverse()),
+		db
+			.selectFrom("api_failed_requests")
+			.select(["path", "status", "created_at"])
+			.where("account_id", "=", accountId)
+			.where("status", ">=", 500)
+			.where("created_at", ">=", since1h)
+			.orderBy("created_at", "desc")
+			.limit(failedRequestLimit)
+			.execute()
+			.then((rows) => rows.reverse()),
+		db
+			.selectFrom("api_failed_requests")
+			.select(["method", "path", "status", "created_at"])
+			.where("account_id", "=", accountId)
+			.where("status", "in", [502, 503, 504])
+			// 503 while the stack is created or woken is normal, not an outage.
+			.where("message", "not in", ["provisioning", "starting"])
+			.where((eb) =>
+				eb.or([
+					eb("path", "like", "/api/webhooks%"),
+					eb("path", "like", "/api/subgraphs%"),
+				]),
+			)
+			.where("created_at", ">=", since1h)
+			.orderBy("created_at", "desc")
+			.limit(failedRequestLimit)
+			.execute()
+			.then((rows) => rows.reverse()),
+		db
+			.selectFrom("api_failed_requests as f")
+			.innerJoin("api_keys as k", "k.id", "f.api_key_id")
+			.select((eb) => [
+				"k.id as key_id",
+				"f.path",
+				"k.name",
+				"k.key_prefix",
+				"k.revoked_at",
+				eb.fn.countAll<string>().as("calls"),
+				eb.fn.max<Date>("f.created_at").as("last_at"),
+			])
+			.where("f.account_id", "=", accountId)
+			.where("f.code", "=", "KEY_REVOKED")
+			.where("f.created_at", ">=", since24h)
+			.groupBy(["k.id", "f.path"])
+			.orderBy((eb) => eb.fn.min("f.created_at"), "asc")
+			.orderBy("k.id")
+			.orderBy("f.path")
+			.limit(failedRequestLimit)
+			.execute(),
+		db
+			.selectFrom("usage_ledger")
+			.select((eb) => [
+				eb.fn.min<Date>("occurred_at").as("first_paid_at"),
+				eb.fn.sum<string>("quantity").as("rows"),
+				eb.fn.sum<string>("usd_micros").as("usd_micros"),
+			])
+			.where("account_id", "=", accountId)
+			.where("unit", "=", "rows.delivered")
+			.where("occurred_at", ">=", start)
+			.where("occurred_at", "<", end)
+			.where("usd_micros", ">", "0")
+			.executeTakeFirst(),
+		sql<{
+			day: string;
+			rows: string;
+			pages: string;
+			full_pages: string;
+			usd_micros: string;
+		}>`
+			SELECT to_char(occurred_at AT TIME ZONE 'UTC', 'YYYY-MM-DD') AS day,
+				sum(quantity) AS rows,
+				count(*) AS pages,
+				count(*) FILTER (WHERE quantity >= ${PAGE_CAP_ROWS}) AS full_pages,
+				sum(usd_micros) AS usd_micros
+			FROM usage_ledger
+			WHERE account_id = ${accountId}
+				AND unit = 'rows.delivered'
+				AND occurred_at >= ${start}
+				AND occurred_at < ${end}
+			GROUP BY 1
+			ORDER BY 1
+		`.execute(db),
+		db
+			.selectFrom("usage_ledger")
+			.select((eb) => eb.fn.sum<string>("usd_micros").as("total"))
+			.where("account_id", "=", accountId)
+			.where("occurred_at", ">=", since7d)
+			.where("occurred_at", "<=", now)
+			.where("usd_micros", ">", "0")
+			.executeTakeFirst(),
+		db
+			.selectFrom("api_keys")
+			.select(["id", "name", "key_prefix", "created_at", "last_used_at"])
+			.where("account_id", "=", accountId)
+			.where("product", "=", "account")
+			.where(liveKeyWhere(now))
+			.execute(),
 		getCaps(db, accountId),
 		getMonthlyCreditsSpend(db, accountId, now),
 		getCredits(db, accountId),
@@ -221,7 +244,8 @@ export function groupRevokedCalls(
 	rows: readonly {
 		key_id: string;
 		path: string;
-		created_at: Date;
+		calls: number | string;
+		last_at: Date;
 		name: string | null;
 		key_prefix: string;
 		revoked_at: Date | null;
@@ -247,12 +271,13 @@ export function groupRevokedCalls(
 			prefix: r.key_prefix,
 			revokedAt: r.revoked_at,
 			calls: 0,
-			lastAt: r.created_at,
+			lastAt: r.last_at,
 			paths: new Map<string, number>(),
 		};
-		entry.calls += 1;
-		if (r.created_at > entry.lastAt) entry.lastAt = r.created_at;
-		entry.paths.set(r.path, (entry.paths.get(r.path) ?? 0) + 1);
+		const calls = Number(r.calls);
+		entry.calls += calls;
+		if (r.last_at > entry.lastAt) entry.lastAt = r.last_at;
+		entry.paths.set(r.path, (entry.paths.get(r.path) ?? 0) + calls);
 		byKey.set(r.key_id, entry);
 	}
 	return [...byKey.values()]

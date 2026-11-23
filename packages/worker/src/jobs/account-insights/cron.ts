@@ -7,6 +7,7 @@ import { listActiveAccountIds } from "./load.ts";
 
 const INTERVAL_MS = 5 * 60 * 1000;
 const FIRST_TICK_MS = 30_000;
+const ACCOUNT_CONCURRENCY = 4;
 
 export interface AccountInsightsCronDeps {
 	mode?: () => string;
@@ -28,16 +29,27 @@ export async function evaluateActiveAccounts(
 		((accountId, at) =>
 			evaluateAccountInsights(getDb(), accountId, { now: at }));
 
-	for (const accountId of accountIds) {
-		try {
-			await evaluate(accountId, now);
-		} catch (err) {
-			logger.warn("insights.account_evaluate_failed", {
-				accountId,
-				error: getErrorMessage(err),
-			});
+	let next = 0;
+	const drain = async () => {
+		while (next < accountIds.length) {
+			const accountId = accountIds[next++];
+			if (accountId === undefined) continue;
+			try {
+				await evaluate(accountId, now);
+			} catch (err) {
+				logger.warn("insights.account_evaluate_failed", {
+					accountId,
+					error: getErrorMessage(err),
+				});
+			}
 		}
-	}
+	};
+	await Promise.all(
+		Array.from(
+			{ length: Math.min(ACCOUNT_CONCURRENCY, accountIds.length) },
+			drain,
+		),
+	);
 	return accountIds.length;
 }
 

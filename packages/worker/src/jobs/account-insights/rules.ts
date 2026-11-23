@@ -116,13 +116,29 @@ function groupRequests(rows: RequestLogRow[]): Map<string, RequestLogRow[]> {
 	return out;
 }
 
+const groupCache = new WeakMap<RequestLogRow[], Map<string, RequestLogRow[]>>();
+
+function groupedRequests(rows: RequestLogRow[]): Map<string, RequestLogRow[]> {
+	const cached = groupCache.get(rows);
+	if (cached) return cached;
+	const groups = groupRequests(rows);
+	groupCache.set(rows, groups);
+	return groups;
+}
+
 const servedRows = (row: RequestLogRow) => row.rows ?? 0;
 
-interface PageSequence {
+export interface PageSequence {
 	startedAt: Date;
 	pageSizes: number[];
 	rows: number;
 	signature: string;
+}
+
+export interface DuplicateRead {
+	first: PageSequence;
+	second: PageSequence;
+	path: string;
 }
 
 function sequencesOf(rows: RequestLogRow[]): PageSequence[] {
@@ -152,35 +168,49 @@ function sequencesOf(rows: RequestLogRow[]): PageSequence[] {
 	return out;
 }
 
+export function duplicateReadPair(
+	requests: RequestLogRow[],
+	now: Date,
+): DuplicateRead | null {
+	const since = now.getTime() - DUPLICATE_READS_LOOKBACK_MS;
+	let best: DuplicateRead | null = null;
+
+	for (const rows of groupedRequests(requests).values()) {
+		const bySignature = new Map<
+			string,
+			{ items: PageSequence[]; head: number }
+		>();
+		for (const second of sequencesOf(rows)) {
+			const startedAt = second.startedAt.getTime();
+			const earlier = bySignature.get(second.signature) ?? {
+				items: [],
+				head: 0,
+			};
+			while (
+				(earlier.items[earlier.head]?.startedAt.getTime() ?? startedAt) <
+				startedAt - DUPLICATE_READS_WINDOW_MS
+			) {
+				earlier.head++;
+			}
+			const first = earlier.items[earlier.head];
+			if (
+				first &&
+				startedAt >= since &&
+				(!best || startedAt > best.second.startedAt.getTime())
+			) {
+				best = { first, second, path: rows[0]?.pathTemplate ?? "" };
+			}
+			earlier.items.push(second);
+			bySignature.set(second.signature, earlier);
+		}
+	}
+	return best;
+}
+
 const duplicateReads: InsightRule<AccountRuleInput> = {
 	id: "duplicate_reads",
 	evaluate(input) {
-		const since = input.now.getTime() - DUPLICATE_READS_LOOKBACK_MS;
-		let best: {
-			first: PageSequence;
-			second: PageSequence;
-			path: string;
-		} | null = null;
-
-		for (const rows of groupRequests(input.requests).values()) {
-			const sequences = sequencesOf(rows);
-			for (let j = 1; j < sequences.length; j++) {
-				const second = sequences[j];
-				if (!second || second.startedAt.getTime() < since) continue;
-				for (let i = 0; i < j; i++) {
-					const first = sequences[i];
-					if (!first || first.signature !== second.signature) continue;
-					const gap = second.startedAt.getTime() - first.startedAt.getTime();
-					if (gap > DUPLICATE_READS_WINDOW_MS) continue;
-					if (
-						!best ||
-						second.startedAt.getTime() > best.second.startedAt.getTime()
-					) {
-						best = { first, second, path: rows[0]?.pathTemplate ?? "" };
-					}
-				}
-			}
-		}
+		const best = duplicateReadPair(input.requests, input.now);
 		if (!best) return null;
 
 		const { first, second, path } = best;
@@ -275,7 +305,7 @@ const pollingLoop: InsightRule<AccountRuleInput> = {
 			empty: number;
 		} | null = null;
 
-		for (const all of groupRequests(input.requests).values()) {
+		for (const all of groupedRequests(input.requests).values()) {
 			const rows = all.filter((r) => r.createdAt.getTime() >= since);
 			const polls = pollsOf(rows);
 			if (polls.length < POLLING_MIN_REQUESTS) continue;

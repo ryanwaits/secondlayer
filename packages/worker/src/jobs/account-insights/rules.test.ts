@@ -1,9 +1,15 @@
 import { describe, expect, test } from "bun:test";
-import type { DetectedInsight } from "@secondlayer/shared/insights";
+import {
+	DUPLICATE_READS_LOOKBACK_MS,
+	DUPLICATE_READS_MIN_PAGES,
+	DUPLICATE_READS_WINDOW_MS,
+	type DetectedInsight,
+} from "@secondlayer/shared/insights";
 import {
 	ACCOUNT_RULES,
 	type AccountRuleInput,
 	type RequestLogRow,
+	duplicateReadPair,
 } from "./rules.ts";
 
 const NOW = new Date("2026-10-15T18:00:00.000Z");
@@ -193,6 +199,239 @@ describe("duplicate_reads", () => {
 				input({ requests: [...nullRows(at(40)), ...nullRows(at(20))] }),
 			),
 		).not.toBeNull();
+	});
+});
+
+describe("duplicateReadPair matches the original quadratic scan", () => {
+	interface ReferenceSequence {
+		startedAt: Date;
+		pageSizes: number[];
+		rows: number;
+		signature: string;
+	}
+
+	function referencePair(requests: RequestLogRow[], now: Date) {
+		const keyOf = (row: RequestLogRow) =>
+			JSON.stringify([row.apiKeyId, row.pathTemplate, row.paramsHash]);
+		const groups = new Map<string, RequestLogRow[]>();
+		for (const row of requests) {
+			const list = groups.get(keyOf(row)) ?? [];
+			list.push(row);
+			groups.set(keyOf(row), list);
+		}
+		const served = (row: RequestLogRow) => row.rows ?? 0;
+		const sequencesOf = (rows: RequestLogRow[]) => {
+			const out: ReferenceSequence[] = [];
+			let current: RequestLogRow[] | null = null;
+			const close = () => {
+				if (current && current.length >= DUPLICATE_READS_MIN_PAGES) {
+					out.push({
+						startedAt: current[0]?.createdAt ?? new Date(0),
+						pageSizes: current.map(served),
+						rows: current.reduce((sum, r) => sum + served(r), 0),
+						signature: current
+							.map((r) => `${r.pageSize ?? 0}:${served(r)}`)
+							.join(","),
+					});
+				}
+			};
+			for (const row of rows) {
+				if (row.cursorHash === null) {
+					close();
+					current = [row];
+				} else if (current) {
+					current.push(row);
+				}
+			}
+			close();
+			return out;
+		};
+
+		const since = now.getTime() - DUPLICATE_READS_LOOKBACK_MS;
+		let best: {
+			first: ReferenceSequence;
+			second: ReferenceSequence;
+			path: string;
+		} | null = null;
+		for (const rows of groups.values()) {
+			const sequences = sequencesOf(rows);
+			for (let j = 1; j < sequences.length; j++) {
+				const second = sequences[j];
+				if (!second || second.startedAt.getTime() < since) continue;
+				for (let i = 0; i < j; i++) {
+					const first = sequences[i];
+					if (!first || first.signature !== second.signature) continue;
+					const gap = second.startedAt.getTime() - first.startedAt.getTime();
+					if (gap > DUPLICATE_READS_WINDOW_MS) continue;
+					if (
+						!best ||
+						second.startedAt.getTime() > best.second.startedAt.getTime()
+					) {
+						best = { first, second, path: rows[0]?.pathTemplate ?? "" };
+					}
+				}
+			}
+		}
+		return best;
+	}
+
+	function prng(seed: number) {
+		let a = seed >>> 0;
+		return () => {
+			a = (a + 0x6d2b79f5) >>> 0;
+			let t = a;
+			t = Math.imul(t ^ (t >>> 15), t | 1);
+			t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+			return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+		};
+	}
+
+	const W = DUPLICATE_READS_WINDOW_MS;
+	const SINCE = NOW.getTime() - DUPLICATE_READS_LOOKBACK_MS;
+	const GROUPS: Partial<RequestLogRow>[] = [
+		{},
+		{ apiKeyId: "key-2" },
+		{ paramsHash: "p2" },
+		{ pathTemplate: "/v1/streams/events" },
+		{ apiKeyId: null, paramsHash: null },
+	];
+
+	const TEMPLATES: [number | null, number | null][][] = [
+		[
+			[1000, 1000],
+			[1000, 1000],
+			[1000, 587],
+		],
+		[
+			[500, 500],
+			[500, 500],
+			[500, 0],
+			[500, null],
+		],
+		[
+			[null, null],
+			[null, null],
+			[null, null],
+		],
+		[
+			[1000, 1000],
+			[1000, 0],
+		],
+	];
+
+	function randomRequests(rand: () => number): RequestLogRow[] {
+		const pick = <T>(items: readonly T[]): T =>
+			items[Math.floor(rand() * items.length)] as T;
+		const starts: number[] = [];
+		const nextStart = () => {
+			const previous = starts.length > 0 ? pick(starts) : SINCE;
+			const start = pick([
+				() => SINCE,
+				() => SINCE - 1,
+				() => SINCE + 1,
+				() => SINCE - W,
+				() => NOW.getTime() - W,
+				() => previous,
+				() => previous + W,
+				() => previous - W,
+				() => previous + W + 1,
+				() => previous + W - 1,
+				() => previous + Math.floor(rand() * W),
+				() => previous - Math.floor(rand() * W),
+				() =>
+					SINCE - W + Math.floor(rand() * (DUPLICATE_READS_LOOKBACK_MS + W)),
+			])();
+			starts.push(start);
+			return start;
+		};
+
+		const rows: RequestLogRow[] = [];
+		const reads = Math.floor(rand() * 40);
+		for (let r = 0; r < reads; r++) {
+			const group = pick(GROUPS);
+			const start = nextStart();
+			const pages: [number | null, number | null][] =
+				rand() < 0.8
+					? pick(TEMPLATES)
+					: Array.from({ length: 1 + Math.floor(rand() * 5) }, () => [
+							pick([1000, 500, null]),
+							pick([1000, 587, 0, null]),
+						]);
+			const step = pick([0, 1, 1000, 1000, 30_000]);
+			for (const [p, [pageSize, served]] of pages.entries()) {
+				rows.push(
+					request({
+						...group,
+						at: new Date(start + p * step),
+						cursorHash: p === 0 ? null : `cursor-${r}-${p}`,
+						pageSize,
+						rows: served,
+					}),
+				);
+			}
+			if (rand() < 0.1) {
+				rows.push(
+					request({
+						...group,
+						at: new Date(start - 1),
+						cursorHash: `orphan-${r}`,
+					}),
+				);
+			}
+		}
+		return rows.sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
+	}
+
+	test("deep-equal on 500 seeded random inputs, edges included", () => {
+		let found = 0;
+		let atWindowEdge = 0;
+		let atSince = 0;
+		for (let seed = 1; seed <= 500; seed++) {
+			const requests = randomRequests(prng(seed));
+			const expected = referencePair(requests, NOW);
+			expect(duplicateReadPair(requests, NOW), `seed ${seed}`).toEqual(
+				expected,
+			);
+			if (!expected) continue;
+			found++;
+			const gap =
+				expected.second.startedAt.getTime() -
+				expected.first.startedAt.getTime();
+			if (gap === W) atWindowEdge++;
+			if (expected.second.startedAt.getTime() === SINCE) atSince++;
+		}
+		expect(found).toBeGreaterThan(100);
+		expect(atWindowEdge).toBeGreaterThan(0);
+		expect(atSince).toBeGreaterThan(0);
+	});
+
+	test("picks the newest repeat and its earliest match in the window", () => {
+		const a = [1000, 1000, 587];
+		const b = [500, 500, 500];
+		const requests = [
+			...pagedRead(at(90), b),
+			...pagedRead(at(80), a),
+			...pagedRead(at(50), a),
+			...pagedRead(at(20), a),
+			...pagedRead(at(10), b),
+		];
+		const pair = duplicateReadPair(requests, NOW);
+		expect(pair?.first.startedAt).toEqual(at(80));
+		expect(pair?.second.startedAt).toEqual(at(20));
+		expect(pair?.second.pageSizes).toEqual(a);
+		expect(pair?.path).toBe("/v1/index/ft-transfers");
+	});
+
+	test("scans 2,000 repeated reads in under 100ms", () => {
+		const requests = Array.from({ length: 2000 }, (_, k) =>
+			pagedRead(at(2000 - k), [1000, 1000, 587]),
+		).flat();
+		const started = performance.now();
+		const pair = duplicateReadPair(requests, NOW);
+		const elapsed = performance.now() - started;
+		expect(pair?.second.startedAt).toEqual(at(1));
+		expect(pair?.first.startedAt).toEqual(at(61));
+		expect(elapsed).toBeLessThan(100);
 	});
 });
 
