@@ -1,94 +1,87 @@
-# secondlayer
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset=".github/assets/hero-dark.svg">
+    <img alt="Secondlayer: Instant data for apps on Bitcoin. Every Stacks block, decoded from genesis and delivered at tip." src=".github/assets/hero-light.svg" width="100%">
+  </picture>
+</p>
 
-Your app needs Stacks data that no public API has — your contract, your
-schema, your uptime. Today that means writing an indexer.
+<p align="center">
+  <a href="https://www.secondlayer.tools/signin"><b>Start free</b></a> ·
+  <a href="https://www.secondlayer.tools/docs">Docs</a> ·
+  <a href="https://www.secondlayer.tools/pricing">Pricing</a> ·
+  <a href="#self-host">Self-host</a>
+</p>
 
-secondlayer is the runtime instead: decoded chain data in your own database,
-backfilled from genesis, reorg-safe, kept current. Get tables and a REST API
-out of the box, or stream rows into your own schema — Postgres, SQLite, or
-anything you already run — and serve them however you already serve things.
+## What you can do with it
 
-Run it hosted on `api.secondlayer.tools` (account key, 1M rows free every
-month) or self-host: Postgres plus one container, on your hardware.
+- **Know what changed in any Stacks contract, when, and who changed it.** Every map and variable write, with the transaction that made it. From block 1. Nowhere else on Stacks.
+- **Turn your contract into a table you query.** One TypeScript file becomes a schema, tables and a REST API, backfilled from genesis.
+- **Hear about it first.** Name the chain events, give us a URL. Signed, retried, logged.
+- **Check it yourself.** Prove any block your rows came from back to Bitcoin, without trusting us.
 
-Hosted quickstart: https://www.secondlayer.tools/docs. Self-host: https://www.secondlayer.tools/docs/self-host.
-
-```bash
-curl "http://127.0.0.1:3800/v1/index/events?event_type=ft_transfer&limit=5"
-```
-
-## Quickstart
+## Install
 
 ```bash
 bun add -g @secondlayer/cli
-secondlayer init --network mainnet
-cd docker/oss && docker compose up -d
-secondlayer observer --mode indexer --endpoint secondlayer:3700
-secondlayer bootstrap --against <manifest>
-secondlayer verify all --against <manifest>
-
-# Index a contract into a typed, queryable Postgres table
-export SL_API_URL=http://127.0.0.1:3800
-secondlayer subgraphs scaffold SP1234ABCD.my-contract -o subgraphs/my-contract.ts
-secondlayer subgraphs deploy subgraphs/my-contract.ts --start-block <recent-block>
-secondlayer subgraphs query my-contract <table> --sort _block_height --order desc
 ```
 
-A webhook fires on raw chain events:
+Then sign in with `secondlayer login`, or [self-host](#self-host) with no key at all.
+
+## Products
+
+| | What it is | Use it when |
+|---|---|---|
+| **Index** | Every Stacks event, already decoded, from block 1. Includes contract state writes. | You want rows now, by contract, event or block. |
+| **Streams** | Exactly what the Stacks node emitted, in order, from any block. | You build your own indexer and want the raw feed. |
+| **Subgraphs** | Your contract, as a table you query. | Your app screens need positions, balances, history. |
+| **Webhooks** | Your server, told first. | Something should happen the moment the chain moves. |
+| **Archive** | Signed history. Check your copy free, repair only what's broken. | You self-host and want genesis without a six-week replay. |
+
+## Start in two minutes
+
+**1. Sign up.** [secondlayer.tools/signin](https://www.secondlayer.tools/signin): email code, no card.
+
+**2. Get a key.** Make one under **Account → Keys** and export it as `SECONDLAYER_API_KEY`. The CLI signs in with:
 
 ```bash
-secondlayer webhooks create amm-swaps \
-  --url https://my-app.com/webhook \
-  --trigger '{"type":"contract_call","contractId":"SP....amm","functionName":"swap-*"}'
+secondlayer login
 ```
 
-Docs → [self-host](https://www.secondlayer.tools/docs/self-host) ·
-CLI → [packages/cli/README.md](packages/cli/README.md).
+**3. Read.** Who changed this contract, and what they changed:
 
-## Read it from your instance
+```bash
+curl -H "Authorization: Bearer $SECONDLAYER_API_KEY" \
+  "https://api.secondlayer.tools/v1/index/state-writes?contract_id=SP2C2YFP12AJZB4MABJBAJ55XECVS7E4PMMZ89YZR.arkadiko-dao&tx_context=true&limit=5"
+```
 
-SDK default is `http://127.0.0.1:3800` (or `SL_API_URL`).
+Or from TypeScript:
 
-```typescript
+```ts
 import { SecondLayer } from "@secondlayer/sdk";
 
-const sl = new SecondLayer();
-const { rows, next_cursor, tip } = await sl.subgraphs.rows("my-contract", "<table>", {
-  order: "desc",
-  limit: 25,
+// An sk-sl_ key points the client at api.secondlayer.tools.
+const sl = new SecondLayer({ apiKey: process.env.SECONDLAYER_API_KEY });
+const { state_writes } = await sl.index.stateWrites.list({
+  contractId: "SP2C2YFP12AJZB4MABJBAJ55XECVS7E4PMMZ89YZR.arkadiko-dao",
+  txContext: true,
 });
 ```
 
-```bash
-curl "http://127.0.0.1:3800/v1/subgraphs/my-contract/<table>?_limit=25"
-```
+> **1M rows free every month.** Then $5 per 1M rows, same price live or history. [Pricing →](https://www.secondlayer.tools/pricing)
 
-Pages are `_id`-keyset: pass `?cursor=<next_cursor>` to resume, `_order=asc|desc`
-for direction.
+<details>
+<summary>What contract state does and doesn't cover</summary>
 
-**MCP** — `bunx -p @secondlayer/mcp secondlayer-mcp` (default local API).
-Set `INSTANCE_TOKEN` from `secondlayer init` for writes on your instance; against
-`api.secondlayer.tools` it uses `SECONDLAYER_API_KEY` instead (the key follows the host).
-See [MCP README](packages/mcp/README.md).
+- The current value of one key was always readable from a node. What's new is every past write and who made it.
+- Rows exist after a transaction lands. It warns, it doesn't prevent. A transaction that fails outright leaves no rows.
+- Stored values and calls between contracts, not every intermediate value in the code.
+- State writes are checkable against the block's state root. Inner calls are not committed on chain.
 
-## Packages
-
-Two TypeScript SDKs, one chooser: **`@secondlayer/sdk`** talks to this instance
-(query subgraphs, manage webhooks); **`@secondlayer/stacks`** is low-level
-chain primitives (Clarity decoding, reads). Most apps only need `sdk`.
-
-| Package | Description |
-|---|---|
-| [`@secondlayer/cli`](packages/cli/README.md) | `secondlayer` binary — init, bootstrap, verify, deploy |
-| [`@secondlayer/sdk`](packages/sdk/README.md) | TypeScript SDK — Streams, Index, subgraphs, webhooks |
-| [`@secondlayer/mcp`](packages/mcp/README.md) | MCP server — instance tools for agents |
-| [`@secondlayer/stacks`](packages/stacks/README.md) | viem-style Stacks client — public/wallet, BNS |
-| [`@secondlayer/verify`](packages/verify/README.md) | Check a Stacks block yourself: Bitcoin headers, signers, state proofs |
-| [`@secondlayer/subgraphs`](packages/subgraphs/README.md) | `defineSubgraph()` — schema, triggers, handlers |
-| [`@secondlayer/shared`](packages/shared/README.md) | Shared db, schemas, crypto helpers |
-| [`@secondlayer/api`](packages/api/README.md) | REST API for the instance |
+</details>
 
 ## Self-host
+
+Same API, your Postgres, your box. MIT, free forever.
 
 ```bash
 git clone https://github.com/ryanwaits/secondlayer
@@ -97,14 +90,20 @@ secondlayer init --network mainnet
 docker compose up -d
 ```
 
-[OSS quickstart](docker/oss/README.md).
+Point it at a Stacks node you run, then pull history from the signed Archive instead of replaying it. [Self-host guide →](https://www.secondlayer.tools/docs/self-host) · [Compose reference](docker/oss/README.md)
 
-## Built on secondlayer
+## Packages
 
-- [robinhood-bridge](https://github.com/ryanwaits/robinhood-bridge): Stacks
-  SIP-010 to Robinhood Chain and back, behind 2-of-2 keys. Demo token only.
+| Package | |
+|---|---|
+| [`@secondlayer/cli`](packages/cli/README.md) | `secondlayer` binary: login, deploy, verify |
+| [`@secondlayer/sdk`](packages/sdk/README.md) | TypeScript client for Index, Streams, Subgraphs, Webhooks |
+| [`@secondlayer/mcp`](packages/mcp/README.md) | MCP server, 50 tools |
+| [`@secondlayer/subgraphs`](packages/subgraphs/README.md) | `defineSubgraph()`: schema, triggers, handlers |
+| [`@secondlayer/verify`](packages/verify/README.md) | Check a Stacks block yourself |
+| [`@secondlayer/stacks`](packages/stacks/README.md) | viem-style Stacks client |
 
-## Development
+## Contributing
 
 ```bash
 bun install
@@ -114,9 +113,6 @@ bun run build
 DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:5440/secondlayer bun run test
 ```
 
-Releases flow through [Changesets](https://github.com/changesets/changesets):
-`bun run version` to bump, `bun run release` to publish.
+Releases go through [Changesets](https://github.com/changesets/changesets): `bun run version`, then `bun run release`. The hero image is generated: `bun run readme-hero` in `apps/web`.
 
-## License
-
-MIT
+MIT licensed.
