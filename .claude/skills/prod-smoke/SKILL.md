@@ -14,6 +14,14 @@ API: https://api.secondlayer.tools.
 Topology + runbooks: `docker/PRODUCTION.md`. CI's deploy-time twin: `scripts/ci/post-deploy-smoke.sh`
 (this skill is the anytime + deeper version — don't duplicate its envelope checks, go past them).
 
+**Chain DB is on db-server** (since the 2026-11-22 v2 cutover), reached from app-server
+over WireGuard via `SOURCE_DATABASE_URL`. `secondlayer-postgres-1` on app-server is the
+frozen pre-cutover copy kept for rollback: never health-check it. Query the live one with:
+```bash
+CHAIN='cd /opt/secondlayer/docker; set -a; . ./.env >/dev/null 2>&1; set +a; psql "$SOURCE_DATABASE_URL"'
+ssh app-server "$CHAIN -tAc 'SELECT 1'"     # never echo the URL
+```
+
 **Before flagging API failures**: `gh run list --workflow deploy.yml --limit 1` — every push
 to main deploys with a 1–2 min 502 window. A deploy `in_progress` explains transient 502s.
 
@@ -31,14 +39,14 @@ webhooks are offered: a running `subgraph-processor` on the workload host is exp
 ```bash
 # Husk canaries — count(*), NEVER min/max (a husk shows plausible ranges).
 # Chain: ≥ 8,250,000 blocks and max(height) within ~100 of now (5s blocks).
-docker exec secondlayer-postgres-1 psql -U secondlayer -d secondlayer -tAc 'SELECT count(*), max(height) FROM blocks'
+ssh app-server "$CHAIN -tAc 'SELECT count(*), max(height) FROM blocks'"
 # Platform: accounts ≥ 3, api_keys ≥ 12 (floors as of 2026-08). NOT growth-only —
 # prod was deliberately pruned in 2026-08 (accounts 6→3, keys 13→12, balance subgraphs
 # dropped). Re-baseline these numbers after any intentional prune instead of flagging.
 docker exec secondlayer-postgres-platform-1 psql -U secondlayer -d secondlayer_platform -tAc 'SELECT (SELECT count(*) FROM accounts), (SELECT count(*) FROM api_keys)'
 # Connections: limit 200; flag > 150. FATALs last 30m: expect 0 on both DBs.
-docker exec secondlayer-postgres-1 psql -U secondlayer -d secondlayer -tAc 'SELECT count(*) FROM pg_stat_activity'
-docker logs secondlayer-postgres-1 --since 30m 2>&1 | grep -c FATAL
+ssh app-server "$CHAIN -tAc 'SELECT count(*) FROM pg_stat_activity'"
+ssh db-server 'docker logs db-server-postgres-1 --since 30m 2>&1 | grep -c FATAL'
 docker logs secondlayer-postgres-platform-1 --since 30m 2>&1 | grep -c FATAL
 ```
 FATAL flavors and their meanings (all previously seen in prod):
@@ -116,9 +124,8 @@ For each balance subgraph that is public AND synced (skip mid-reindex):
 ```bash
 curl -s 'https://api.secondlayer.tools/v1/subgraphs/<name>/balances/aggregate?_sum=balance&_count=true'
 # ledger side (SSH; amount is a COLUMN, not payload JSON; filter canonical):
-docker exec secondlayer-postgres-1 psql -U secondlayer -d secondlayer -tAc \
-  "SELECT (SELECT COALESCE(sum(amount::numeric),0) FROM decoded_events WHERE event_type='ft_mint' AND contract_id='<cid>' AND canonical)
-        - (SELECT COALESCE(sum(amount::numeric),0) FROM decoded_events WHERE event_type='ft_burn' AND contract_id='<cid>' AND canonical)"
+ssh app-server "$CHAIN -tAc \"SELECT (SELECT COALESCE(sum(amount::numeric),0) FROM decoded_events WHERE event_type='ft_mint' AND contract_id='<cid>' AND canonical)
+        - (SELECT COALESCE(sum(amount::numeric),0) FROM decoded_events WHERE event_type='ft_burn' AND contract_id='<cid>' AND canonical)\""
 # negative balances (uint CHECK makes this impossible; nonzero = constraint regression):
 docker exec secondlayer-postgres-platform-1 psql -U secondlayer -d secondlayer_platform -tAc \
   "SELECT count(*) FROM <schema_name>.balances WHERE balance < 0"
@@ -157,7 +164,7 @@ To assert against `chain` exactly, re-read `get-total-supply` with `?tip=<hash a
 CID='SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4.sbtc-token'
 ADDR="${CID%.*}"; NAME="${CID#*.}"
 API=$(ssh app-server 'docker ps --format {{.Names}} | grep -m1 secondlayer-api')
-H=$(ssh app-server 'docker exec secondlayer-postgres-1 psql -U secondlayer -d secondlayer -tAc "SELECT max(height)-50 FROM blocks"')
+H=$(ssh app-server "$CHAIN -tAc 'SELECT max(height)-50 FROM blocks'")
 
 # chain — node get-total-supply. Pipe the curl script to `sh` over stdin (NOT as a
 # nested `sh -c` arg — the triple quoting mangles the JSON body). $STACKS_NODE_RPC_URL
@@ -173,7 +180,7 @@ select
 -(select coalesce(sum(amount::numeric),0) from decoded_events where event_type='ft_burn' and contract_id='$CID' and canonical and block_height <= $H),
  (with d as (select distinct e.block_height,e.tx_id,e.event_index,e.type,(e.data->>'amount')::numeric amt from events e join blocks b on b.height=e.block_height where b.canonical and e.block_height <= $H and e.data->>'asset_identifier' like '$CID::%' and e.type in ('ft_mint_event','ft_burn_event'))
   select coalesce(sum(amt) filter (where type='ft_mint_event'),0)-coalesce(sum(amt) filter (where type='ft_burn_event'),0) from d);
-" | ssh app-server 'docker exec -i secondlayer-postgres-1 psql -U secondlayer -d secondlayer -tAF" "')
+" | ssh app-server "$CHAIN -tAF' '")
 
 echo "sbtc H=$H chain@tip=$chain decoded_net@H=$decoded_net raw_net@H=$raw_net"
 # assert decoded_net == raw_net EXACTLY; chain - decoded_net = net minted in (H, tip] and
@@ -247,8 +254,9 @@ docker logs secondlayer-agent --since 2h 2>&1 | grep -iE 'Pattern:|alert' | tail
 #    still canonical). Probe both shapes at once: per (block,tx) in a recorded reorg
 #    window, decoded-row count must be ≤ raw streams-event count (excess = stale, covers
 #    orphans AND dups; ≤ never false-positives on disabled decoders or decode-skips).
-#    MUST be 0. Drives off chain_reorgs (15 rows as of 2026-08, oldest 2026-05-07, most
-#    single-block) → index range scans over a few dozen blocks total, returns in seconds; a
+#    MUST be 0. Drives off the DISTINCT heights in chain_reorgs: the v2 table carries 7,647
+#    rows from the genesis re-sync over 7,133 distinct heights (2026-11-22), and driving
+#    per row double-counts repeats (a 193,501 false alarm). Index lookups, ~1 min; a
 #    bare `JOIN ... BETWEEN` over the 57M table seq-scans, do NOT use it. The supply side
 #    of the same residue is also gated by Phase 4b decoded_net vs chain.
 RAW="'stx_transfer_event','stx_mint_event','stx_burn_event','stx_lock_event','ft_transfer_event','ft_mint_event','ft_burn_event','nft_transfer_event','nft_mint_event','nft_burn_event','smart_contract_event','contract_event'"
@@ -256,15 +264,15 @@ printf '%s\n' "
 SELECT coalesce(sum(greatest(d.cnt - coalesce(r.cnt,0),0)),0) AS stale_excess
 FROM (
   SELECT de.block_height, de.tx_id, count(*) cnt
-  FROM chain_reorgs cr CROSS JOIN LATERAL (
-    SELECT block_height, tx_id FROM decoded_events
-    WHERE block_height BETWEEN cr.fork_point_height AND cr.orphaned_to_height
+  FROM (SELECT DISTINCT generate_series(fork_point_height, orphaned_to_height) h
+        FROM chain_reorgs) cr CROSS JOIN LATERAL (
+    SELECT block_height, tx_id FROM decoded_events WHERE block_height = cr.h
   ) de GROUP BY 1,2
 ) d
 LEFT JOIN LATERAL (
   SELECT count(*) cnt FROM events e
   WHERE e.block_height=d.block_height AND e.tx_id=d.tx_id AND e.type IN ($RAW)
-) r ON true;" | ssh app-server 'docker exec -i secondlayer-postgres-1 psql -U secondlayer -d secondlayer -tA'
+) r ON true;" | ssh app-server "$CHAIN -tA"
 # Nonzero ⇒ a reorg left residue (UPSERT-without-delete bug back, or a new reorg hit a
 # pre-fix decoder). Realign the window with rederive-decoded-events.ts (--types from a
 # `GROUP BY event_type` over the range first), then re-run this + Phase 4b.
