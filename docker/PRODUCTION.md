@@ -18,9 +18,9 @@ Compose project lives at `/opt/secondlayer/docker` on app-server.
 - **app-server** — everything below.
 - **node-server** (37.27.171.220) — the stacks-node. Pushes the event-observer
   firehose to `indexer`; also serves RPC (`:20443`) for tx-proof endpoints.
-  Today `events_keys = ["*"]`. Flip `"storage"` / `"contract_calls"` only
-  after this host runs the eval-hook fork image; collapse procedure:
-  [genesis-feeder.md](../docs/internal/runbook/genesis-feeder.md#after-catch-up-collapse-to-one-hooked-follower).
+  Runs the eval-hook fork image (`sl-4.0.7`) with
+  `events_keys = ["*", "storage", "contract_calls", "state_writes"]` since
+  2026-11-23, so `vm_events` / `state_writes` land for every new block.
 
 ## Containers (all required unless noted)
 
@@ -113,22 +113,20 @@ transaction as their rows; a resumed/requeued op starts at `cursor_block + 1`.
 
 ## vm_events / fork image (node-server)
 
-Prod `docker/node-server/Config.toml` stays `events_keys = ["*"]` until
-node-server's stacks-node image is the eval-hook fork. Unknown keys panic
-on start. Miners/signers never get `"storage"` / `"contract_calls"`.
+node-server runs the fork image with the VM keys on. History from genesis
+came from the feeder's re-sync (the v2 DB); new blocks come from this node.
+Unknown keys panic on a stock image, so a rollback to stock
+`stacks-core:4.0.7` must also set `events_keys = ["*"]`. Both images share
+the same chainstate format, so the rollback is image + config only.
+Miners/signers never get `"storage"` / `"contract_calls"`.
 
-When that image is deployed, full historical `vm_events` is still **not**
-"flip the keys on the current disk." Hiro/archive chainstate skips Clarity
-execution; the hook never sees that history.
+Every fork release (e.g. epoch 4.1) runs on the feeder first: witness checks
+(`marf-witness` built from the same fork branch) plus a stock-vs-fork diff
+of blocks/transactions/events, then node-server.
 
-1. Run a dedicated empty-disk feeder (fork binary, keys on,
-   `vm_trace_max_bytes = 0`) at the indexer until tip.
-2. Snapshot feeder chainstate **and** the indexer DB together.
-3. Restore that pair onto node-server (the live observer). Keep the keys on
-   for new blocks. History stays in Postgres. Retire the IBD box.
-
-Do not extract a Hiro chainstate tarball into the collecting node's
-`STACKS_DATA_DIR`. Unhooked `/v2` RPC can be a different machine.
+Do not extract a Hiro chainstate tarball into a collecting node's
+`STACKS_DATA_DIR`: archive chainstate skips Clarity execution, so the hook
+never sees that history.
 
 Canonical steps:
 [docs/internal/runbook/genesis-feeder.md](../docs/internal/runbook/genesis-feeder.md).
