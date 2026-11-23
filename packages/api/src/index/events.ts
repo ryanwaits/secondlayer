@@ -773,13 +773,47 @@ function parseFieldsParam(
 	return requested;
 }
 
+/** Canonical height of a transaction, or null when it is not indexed. */
+export type TxHeightResolver = (txId: string) => Promise<number | null>;
+
+async function readCanonicalTxHeight(txId: string): Promise<number | null> {
+	const row = await getSourceDb()
+		.selectFrom("transactions as t")
+		.innerJoin("blocks as b", "b.height", "t.block_height")
+		.select("t.block_height")
+		.where("t.tx_id", "=", txId)
+		.where("b.canonical", "=", true)
+		.limit(1)
+		.executeTakeFirst();
+	return row ? Number(row.block_height) : null;
+}
+
 export async function getIndexEventsResponse(opts: {
 	query: URLSearchParams;
 	tip: IndexTip;
 	readEvents?: IndexEventsReader;
 	readReorgs?: StreamsReorgsReader;
+	resolveTxHeight?: TxHeightResolver;
 }): Promise<IndexEventsResponse> {
 	const parsed = parseIndexEventsQuery(opts.query, opts.tip);
+
+	// A tx_id read with no window of its own reads that transaction's block.
+	// The default window covers only recent blocks, so an older transaction
+	// would otherwise come back empty.
+	if (
+		parsed.filters.tx_id !== undefined &&
+		parsed.cursorRaw === undefined &&
+		!opts.query.has("from_height") &&
+		!opts.query.has("to_height")
+	) {
+		const height = await (opts.resolveTxHeight ?? readCanonicalTxHeight)(
+			parsed.filters.tx_id,
+		);
+		if (height !== null && height <= parsed.toHeight) {
+			parsed.fromHeight = height;
+			parsed.toHeight = height;
+		}
+	}
 
 	const tip = indexReadTip(opts.tip, parsed.eventType);
 	const vmClock = isVmIndexEventType(parsed.eventType);

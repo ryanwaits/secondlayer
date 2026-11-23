@@ -264,6 +264,61 @@ describe("Index /events query parsing", () => {
 	});
 });
 
+describe("Index /events tx_id window", () => {
+	const empty = async () => ({ events: [], next_cursor: null });
+
+	test("a tx_id read with no window reads the transaction's own block", async () => {
+		let seen: { fromHeight?: number; toHeight?: number } = {};
+		await getIndexEventsResponse({
+			query: params("?event_type=nested_contract_call&tx_id=0xabc"),
+			tip: TIP,
+			resolveTxHeight: async () => 7,
+			readEvents: async (p) => {
+				seen = { fromHeight: p.fromHeight, toHeight: p.toHeight };
+				return empty();
+			},
+		});
+		expect(seen).toEqual({ fromHeight: 7, toHeight: 7 });
+	});
+
+	test("an explicit from_height keeps the caller's window", async () => {
+		let resolved = false;
+		let seenFrom: number | undefined;
+		await getIndexEventsResponse({
+			query: params("?event_type=map_set&tx_id=0xabc&from_height=3"),
+			tip: TIP,
+			resolveTxHeight: async () => {
+				resolved = true;
+				return 7;
+			},
+			readEvents: async (p) => {
+				seenFrom = p.fromHeight;
+				return empty();
+			},
+		});
+		expect(resolved).toBe(false);
+		expect(seenFrom).toBe(3);
+	});
+
+	test("an unknown tx_id keeps the default window", async () => {
+		let seenFrom: number | undefined;
+		const expected = parseIndexEventsQuery(
+			params("?event_type=map_set&tx_id=0xnone"),
+			TIP,
+		).fromHeight;
+		await getIndexEventsResponse({
+			query: params("?event_type=map_set&tx_id=0xnone"),
+			tip: TIP,
+			resolveTxHeight: async () => null,
+			readEvents: async (p) => {
+				seenFrom = p.fromHeight;
+				return empty();
+			},
+		});
+		expect(seenFrom).toBe(expected);
+	});
+});
+
 describe("Index /events response", () => {
 	test("successful responses always include reorgs array", async () => {
 		const response = await getIndexEventsResponse({
