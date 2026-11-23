@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto";
 import { verify } from "@secondlayer/shared/crypto/standard-webhooks";
 import { getDb } from "@secondlayer/shared/db";
 import { createWebhook } from "@secondlayer/shared/db/queries/webhooks";
-import { startEmitter } from "./emitter.ts";
+import { __releaseClaimedRowsForTest, startEmitter } from "./emitter.ts";
 
 // Per-suite afterAll only cleans up its own data. Never call `closeDb()` —
 // it destroys the shared Kysely singleton and breaks sibling test files
@@ -403,4 +403,84 @@ describe("startEmitter end-to-end", () => {
 			await receiver.stop();
 		}
 	}, 8_000);
+});
+
+describe("paused-webhook release fencing", () => {
+	it("releases only pending rows still held by this claim", async () => {
+		await stopEmitter?.();
+		stopEmitter = null;
+		const { webhook } = await createWebhook(db, {
+			accountId,
+			name: `release-fence-${randomUUID().slice(0, 8)}`,
+			triggers: [{ type: "stx_transfer" }],
+			url: "http://localhost:1",
+			timeoutMs: 5_000,
+		});
+		webhookIds.push(webhook.id);
+		await db
+			.updateTable("webhooks")
+			.set({ status: "paused", pause_reason: "user", updated_at: new Date() })
+			.where("id", "=", webhook.id)
+			.execute();
+
+		const claimToken = `test-emitter:${randomUUID()}`;
+		const otherToken = `other-emitter:${randomUUID()}`;
+		const lockedUntil = new Date(Date.now() + 10 * 60_000);
+		const seed = (n: number) => ({
+			webhook_id: webhook.id,
+			block_height: 5000 + n,
+			tx_id: `0xfence${n}`,
+			row_pk: { blockHeight: 5000 + n, txId: `0xfence${n}`, rowIndex: 0 },
+			event_type: "chain.stx_transfer.apply",
+			payload: { sender: "SP1", recipient: "SP2", amount: "1" },
+			dedup_key: `test-fence-${randomUUID().slice(0, 12)}`,
+			next_attempt_at: lockedUntil,
+			locked_until: lockedUntil,
+		});
+		const [owned, stolen, dead] = await db
+			.insertInto("webhook_outbox")
+			.values([
+				{ ...seed(0), locked_by: claimToken },
+				{ ...seed(1), locked_by: otherToken },
+				{
+					...seed(2),
+					locked_by: claimToken,
+					status: "dead",
+					dead_reason: "orphaned",
+					failed_at: new Date(),
+				},
+			])
+			.returning("id")
+			.execute();
+		if (!owned || !stolen || !dead) throw new Error("seed failed");
+
+		await __releaseClaimedRowsForTest(
+			db,
+			[owned.id, stolen.id, dead.id],
+			claimToken,
+		);
+
+		const rows = await db
+			.selectFrom("webhook_outbox")
+			.select(["id", "status", "locked_by", "locked_until", "next_attempt_at"])
+			.where("webhook_id", "=", webhook.id)
+			.execute();
+		const byId = new Map(rows.map((r) => [r.id, r]));
+
+		const ownedRow = byId.get(owned.id);
+		expect(ownedRow?.locked_by).toBeNull();
+		expect(ownedRow?.locked_until).toBeNull();
+		expect(ownedRow?.next_attempt_at.getTime()).toBeLessThanOrEqual(Date.now());
+
+		const stolenRow = byId.get(stolen.id);
+		expect(stolenRow?.locked_by).toBe(otherToken);
+		expect(stolenRow?.locked_until?.getTime()).toBe(lockedUntil.getTime());
+		expect(stolenRow?.next_attempt_at.getTime()).toBe(lockedUntil.getTime());
+
+		const deadRow = byId.get(dead.id);
+		expect(deadRow?.status).toBe("dead");
+		expect(deadRow?.locked_by).toBe(claimToken);
+		expect(deadRow?.locked_until?.getTime()).toBe(lockedUntil.getTime());
+		expect(deadRow?.next_attempt_at.getTime()).toBe(lockedUntil.getTime());
+	});
 });

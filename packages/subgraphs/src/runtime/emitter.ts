@@ -822,6 +822,30 @@ interface ClaimResult {
 	mayHaveMore: boolean;
 }
 
+async function releaseClaimedRows(
+	db: Kysely<Database>,
+	ids: string[],
+	claimToken: string,
+): Promise<void> {
+	await db
+		.updateTable("webhook_outbox")
+		.set({ next_attempt_at: new Date(), locked_by: null, locked_until: null })
+		.where("id", "in", ids)
+		.where("status", "=", "pending")
+		.where("locked_by", "=", claimToken)
+		.execute();
+}
+
+/**
+ * Test-only seam: exposes `releaseClaimedRows` (otherwise module-private) so
+ * its pending-status and lock-owner fencing can be exercised directly.
+ */
+export const __releaseClaimedRowsForTest: (
+	db: Kysely<Database>,
+	ids: string[],
+	claimToken: string,
+) => Promise<void> = releaseClaimedRows;
+
 /**
  * One claim pass: SELECT a batch, mark it locked, then hand each sub's slice
  * to its persistent queue and return — WITHOUT waiting for any of it to
@@ -955,11 +979,7 @@ async function claimAndDispatchOnce(
 		// Claimable again immediately: a webhook that's already resumed by the
 		// time we notice the release loses nothing waiting for LOCK_WINDOW_MS
 		// (up to several minutes) to expire on its own.
-		await db
-			.updateTable("webhook_outbox")
-			.set({ next_attempt_at: new Date(), locked_by: null, locked_until: null })
-			.where("id", "in", releasedIds)
-			.execute();
+		await releaseClaimedRows(db, releasedIds, claimToken);
 	}
 
 	const oldestCreatedAtMs = Math.min(
