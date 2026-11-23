@@ -2,7 +2,6 @@ import type { ReplayProgress } from "@secondlayer/shared/schemas/webhooks";
 import type { ChainState, ChainTip } from "./chain-tip";
 import { replayPercent } from "./replays";
 
-/** live, behind, stalled under 15 min, stalled 15 min or more, unreachable. */
 export type ChainLevel = 0 | 1 | 2 | 3 | 4;
 
 export const STALLED_SEVERE_MINUTES = 15;
@@ -39,12 +38,6 @@ function newestFirst(a: ReplayProgress, b: ReplayProgress): number {
 	return Date.parse(b.startedAt) - Date.parse(a.startedAt);
 }
 
-/**
- * What the pill and the Activity drawer show, most urgent first: unreachable
- * chain, running or scanning replays (newest first), behind or stalled chain,
- * then done or failed replays not cleared and finished in the last 24 hours.
- * Chain items at or below `dismissedLevel` are left out.
- */
 export function activities(input: {
 	chain: ChainState;
 	dismissedLevel: ChainLevel;
@@ -74,7 +67,6 @@ export function activities(input: {
 	return out;
 }
 
-/** The pill's short label. */
 export function pillLabel(a: Activity): string {
 	if (a.kind === "chain") {
 		switch (a.state.kind) {
@@ -99,7 +91,6 @@ export function pillLabel(a: Activity): string {
 	}
 }
 
-/** The dot beside an item: red for unreachable and failed, a ring for other chain problems, a spinner while running, a check when done. */
 export function activityDot(a: Activity): ActivityDot {
 	if (a.kind === "chain") return a.level === 4 ? "bad" : "ring";
 	switch (a.progress.status) {
@@ -113,12 +104,10 @@ export function activityDot(a: Activity): ActivityDot {
 	}
 }
 
-/** A stable identity for an item, so React keeps its section across ticks. */
 export function activityKey(a: Activity): string {
 	return a.kind === "chain" ? "chain" : `replay:${a.progress.replayId}`;
 }
 
-/** The dismissal after the chain moves: going live clears it (0); otherwise it stays. */
 export function nextDismissedLevel(
 	prev: ChainLevel,
 	s: ChainState,
@@ -130,7 +119,6 @@ type ChainTrouble = Exclude<ChainState, { kind: "live" }>;
 
 const fmt = (n: number) => n.toLocaleString("en-US");
 
-/** The drawer title when this is the only item. */
 export function chainHeadline(s: ChainTrouble): string {
 	switch (s.kind) {
 		case "behind":
@@ -142,7 +130,6 @@ export function chainHeadline(s: ChainTrouble): string {
 	}
 }
 
-/** The section heading when the drawer holds several items. */
 export function chainLabel(s: ChainTrouble): string {
 	switch (s.kind) {
 		case "behind":
@@ -154,7 +141,6 @@ export function chainLabel(s: ChainTrouble): string {
 	}
 }
 
-/** Key and value rows under a chain problem. */
 export function chainRows(
 	s: ChainTrouble,
 	tip: ChainTip,
@@ -192,7 +178,6 @@ export function chainRows(
 	];
 }
 
-/** The paragraph under the rows. */
 export function chainBody(s: ChainTrouble): string {
 	switch (s.kind) {
 		case "stalled":
@@ -204,7 +189,6 @@ export function chainBody(s: ChainTrouble): string {
 	}
 }
 
-/** The hint under Dismiss. */
 export function dismissHint(s: ChainTrouble): string {
 	return s.kind === "unreachable"
 		? "Hidden until it clears."

@@ -12,7 +12,7 @@ export interface RuneEntry {
 	mints: bigint;
 	number: bigint;
 	premine: bigint;
-	rune: bigint; // Rune.n
+	rune: bigint;
 	spacers: number;
 	symbol?: string;
 	terms?: Terms;
@@ -48,7 +48,7 @@ export function runeEntryStart(entry: RuneEntry): bigint | undefined {
 	const absolute = terms.height[0];
 
 	if (relative !== undefined && absolute !== undefined) {
-		return relative > absolute ? relative : absolute; // .max
+		return relative > absolute ? relative : absolute;
 	}
 	return relative ?? absolute;
 }
@@ -62,12 +62,11 @@ export function runeEntryEnd(entry: RuneEntry): bigint | undefined {
 	const absolute = terms.height[1];
 
 	if (relative !== undefined && absolute !== undefined) {
-		return relative < absolute ? relative : absolute; // .min
+		return relative < absolute ? relative : absolute;
 	}
 	return relative ?? absolute;
 }
 
-/** `RuneEntry::mintable` — `{ ok: bigint }` on success, `{ err: MintError }` on failure. */
 export function runeEntryMintable(
 	entry: RuneEntry,
 	height: bigint,

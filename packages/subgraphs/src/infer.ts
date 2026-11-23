@@ -7,8 +7,6 @@ import type {
 	TxMeta,
 } from "./types.ts";
 
-// ── Column type mapping ──────────────────────────────────────────────────
-
 /** Maps a ColumnType string literal to its TypeScript equivalent */
 export type ColumnToTS<T extends string> = T extends "uint" | "int"
 	? bigint
@@ -28,8 +26,6 @@ export type InferColumnType<C extends SubgraphColumn> =
 			: ColumnToTS<C["type"]>
 		: unknown;
 
-// ── System columns added to every row ───────────────────────────────────
-
 /** Shape of system columns on every returned row (camelCase, underscore-prefixed) */
 export interface SystemRow {
 	_id: string;
@@ -38,14 +34,10 @@ export interface SystemRow {
 	_createdAt: string;
 }
 
-// ── Table row inference ──────────────────────────────────────────────────
-
 /** Infer the row shape for a single table definition */
 export type InferTableRow<T extends SubgraphTable> = SystemRow & {
 	[K in keyof T["columns"]]: InferColumnType<T["columns"][K]>;
 };
-
-// ── Query input types ────────────────────────────────────────────────────
 
 /** Comparison operators for a scalar value */
 export type ComparisonFilter<T> = {
@@ -85,8 +77,6 @@ export type SystemOrderByAliases = {
 	createdAt?: "asc" | "desc";
 	id?: "asc" | "desc";
 };
-
-// ── Per-table client ─────────────────────────────────────────────────────
 
 export interface FindManyOptions<TRow> {
 	where?: WhereInput<TRow> & SystemWhereAliases;
@@ -130,19 +120,11 @@ export interface SubscribeOptions<TRow> {
 	onError?: (err: unknown) => void;
 }
 
-// ── Aggregate spec + result inference ────────────────────────────────────
-
-/**
- * Numeric column keys of a row — those whose (non-null) TS type is `bigint`
- * (uint/int columns, incl. nullable, plus the system `_blockHeight`). Only
- * these are valid SUM/MIN/MAX targets at compile time.
- */
 type NumericKeys<TRow> = {
 	[K in keyof TRow]-?: NonNullable<TRow[K]> extends bigint ? K : never;
 }[keyof TRow] &
 	string;
 
-/** Any column key of a row (valid COUNT DISTINCT target). */
 type AnyKey<TRow> = keyof TRow & string;
 
 /** Aggregate request spec. SUM/MIN/MAX restricted to numeric columns. */
@@ -155,7 +137,6 @@ export interface AggregateSpec<TRow> {
 	where?: WhereInput<TRow> & SystemWhereAliases;
 }
 
-/** Narrows the literal column names listed under a spec key. */
 type ColsOf<A, K extends keyof A> = A[K] extends readonly (infer C extends
 	string)[]
 	? C
@@ -218,9 +199,6 @@ export interface SubgraphTableClient<TRow> {
 	): () => void;
 }
 
-// ── Writable row + typed handler context ──────────────────────────────────
-
-/** A column is optional on insert when it's nullable or has a SQL default. */
 type IsOptionalColumn<C> = C extends { nullable: true }
 	? true
 	: C extends { default: string | number | boolean }
@@ -353,8 +331,6 @@ export interface TypedSubgraphContext<S extends SubgraphSchema> {
 		where: RowWhere<S, T>,
 	): Promise<InferTableRow<S[T]>[]>;
 }
-
-// ── Full subgraph client inference ────────────────────────────────────────
 
 /** Infer a typed client object from a subgraph definition shape */
 export type InferSubgraphClient<T> = T extends { schema: infer S }

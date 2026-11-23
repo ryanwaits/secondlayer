@@ -25,7 +25,6 @@ import {
 const TENANT_TIMEOUT_MS = 5_000;
 const REPLAY_LIMIT = 50;
 const WEBHOOK_LIMIT = 200;
-/** A replay that finished longer ago than this is never reported. */
 export const REPLAY_WINDOW_MS = 30 * 60_000;
 
 export interface PushPlatform {
@@ -33,7 +32,6 @@ export interface PushPlatform {
 	workloadHostKey: string;
 }
 
-/** What `POST /internal/push` accepts (minus `observedAt`, added when posting). */
 export interface PushBody {
 	accountId: string;
 	replays?: Array<{
@@ -53,7 +51,6 @@ export interface PushBody {
 	}>;
 }
 
-/** Posts one push report with the host key. Never throws; a failure is logged. */
 export async function postPush(
 	platform: PushPlatform,
 	body: PushBody,
@@ -88,7 +85,6 @@ export async function postPush(
 	}
 }
 
-/** The processor watch's `onStopped`: one report per stopped subgraph. */
 export function createStoppedReporter(
 	platform: PushPlatform,
 	deps: { fetchImpl?: FetchLike; now?: () => number } = {},
@@ -129,15 +125,12 @@ export interface PushWatchDeps {
 	now?: () => number;
 }
 
-/** One tick: report finished replays for every running tenant. Never throws;
- *  a failing tenant or post is logged and skipped. */
 export function createPushWatch(
 	cfg: ProvisionerConfig,
 	platform: PushPlatform,
 	deps: PushWatchDeps = {},
 ): () => Promise<void> {
 	const doFetch: FetchLike = deps.fetchImpl ?? fetch;
-	// The shared testnet stack has no pushes: see the incident watch.
 	const listTenants =
 		deps.listTenants ??
 		(async () =>

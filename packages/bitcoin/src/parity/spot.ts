@@ -49,7 +49,6 @@ export async function fetchOrdBlockHeight(
 	return height;
 }
 
-/** Our own checkpoint height (`runes_checkpoint`); `undefined` if never checkpointed. */
 export async function fetchOurCheckpointHeight(
 	db: Kysely<Database>,
 ): Promise<number | undefined> {
@@ -66,11 +65,8 @@ export interface WaitForOrdMatchDeps {
 	doFetch?: typeof fetch;
 	sleep?: (ms: number) => Promise<void>;
 	now?: () => number;
-	/** Defaults to 30 minutes (plan 062 design). */
 	timeoutMs?: number;
-	/** Defaults to 30 seconds. */
 	intervalMs?: number;
-	/** Test seam: overrides the real `fetchOrdBlockHeight` call. */
 	fetchHeight?: (ordUrl: string, doFetch: typeof fetch) => Promise<number>;
 }
 
@@ -170,7 +166,6 @@ function toBigInt(v: JsonBigIntValue | undefined, fallback = 0n): bigint {
 	throw new Error(`expected bigint/string/null, got ${JSON.stringify(v)}`);
 }
 
-/** Parses ord's `/rune/<id>` JSON — see this file's header for the shape and its unverified-live-capture caveat. */
 export function normalizeOrdRuneEntry(json: JsonBigIntValue): RuneStats {
 	const root = asObject(json);
 	if (!root) throw new Error("expected a JSON object");
@@ -211,7 +206,6 @@ export interface SpotParityMismatch {
 	ord: string;
 }
 
-/** Diffs mints/burned/supply for one rune. Empty when both sides agree on all three. */
 export function compareRuneStats(
 	runeId: string,
 	ours: RuneStats,
@@ -241,7 +235,6 @@ export interface SpotParityDeps {
 	pollIntervalMs?: number;
 	windowBlocks?: number;
 	topN?: number;
-	// Test seams — default to the real DB/HTTP implementations above.
 	fetchCheckpoint?: (db: Kysely<Database>) => Promise<number | undefined>;
 	fetchOrdHeight?: (ordUrl: string, doFetch: typeof fetch) => Promise<number>;
 	fetchTopRuneIds?: (
@@ -267,12 +260,6 @@ export interface SpotParityResult {
 	mismatches: SpotParityMismatch[];
 }
 
-/**
- * Daily spot parity (plan 062, Gate 2): waits for ord to reach our
- * checkpoint (up to 30 min), then compares mints/burned/supply for the runes
- * with the most recent activity — cheap enough to run every day, unlike the
- * weekly full-dump frozen parity (`cli.ts parity-state`).
- */
 export async function runSpotParity(
 	deps: SpotParityDeps,
 ): Promise<SpotParityResult> {

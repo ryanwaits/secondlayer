@@ -4,12 +4,6 @@ import Link from "next/link";
 import { useEffect, useId, useRef } from "react";
 import { createPortal } from "react-dom";
 
-/**
- * A card that floats in from the right for quick account jobs (keys,
- * credits). The page stays readable and usable beside it, nudged left, with
- * no overlay; one card at a time. Expand opens the job's full page. Escape
- * and any click outside close it; focus moves in on open and back on close.
- */
 export function FloatingCard({
 	open,
 	onClose,
@@ -24,21 +18,12 @@ export function FloatingCard({
 }: {
 	open: boolean;
 	onClose: () => void;
-	/** Usually plain text; the delivery card adds a status dot beside it. */
 	title: React.ReactNode;
 	subtitle?: React.ReactNode;
-	/** The full page for this job, opened by the expand button. Omitted when
-	 *  the card has no page of its own (the delivery card) — the expand
-	 *  button then doesn't render. */
 	expandHref?: string;
-	/** Runs just before expanding, to carry state the page can't refetch. */
 	onExpand?: () => void;
-	/** Rendered before expand/close, e.g. the delivery card's Newer/Older
-	 *  buttons. */
 	headerActions?: React.ReactNode;
 	footer?: React.ReactNode;
-	/** A pointerdown on a target this returns true for does not close the card
-	 *  (a row that swaps the card's content in place, say). */
 	ignoreOutside?: (target: Element) => boolean;
 	children: React.ReactNode;
 }) {

@@ -26,7 +26,6 @@ function Updated({ iso }: { iso: string }) {
 	);
 }
 
-/** "As of Stacks block N · updated 1m ago": the block a live number is as of. */
 export function LiveStamp({
 	chain,
 	blockHeight,
@@ -44,7 +43,6 @@ export function LiveStamp({
 	);
 }
 
-/** Four big numbers with one stamp line: the Stacks block they are as of. */
 export function StatsStrip({
 	items,
 	sub,

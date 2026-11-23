@@ -44,16 +44,10 @@ export interface SubgraphRuleInput {
 	errorGroups: SubgraphErrorGroupInput[];
 }
 
-/** `0x4c1e…a90b`: enough of a transaction id to find it, short enough for a cell. */
 function shortTx(txId: string): string {
 	return txId.length > 14 ? `${txId.slice(0, 6)}…${txId.slice(-4)}` : txId;
 }
 
-/**
- * The events that failed: one sample per error group (block, transaction,
- * short error), then how many more failed since when, and where in the handler.
- * The subgraph page charts handler errors per hour; this names the events.
- */
 function failedEventsEvidence(
 	groups: SubgraphErrorGroupInput[],
 	errors: number,
@@ -240,7 +234,6 @@ const lag: InsightRule<SubgraphRuleInput> = {
 	},
 };
 
-/** Per-snapshot lag, newest first, for snapshots that know both positions. */
 function lagSamples(input: SubgraphRuleInput): { at: Date; blocks: number }[] {
 	return input.snapshots
 		.map((s) => ({

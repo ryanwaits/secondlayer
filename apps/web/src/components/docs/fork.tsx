@@ -8,17 +8,11 @@ import {
 
 type ForkPathProps = { value: string; label: string; children?: ReactNode };
 
-/** One answer to a `<Fork>`: the code and prose that follow if it is chosen. */
 export function ForkPath({ children }: ForkPathProps) {
 	return <>{children}</>;
 }
 
-/**
- * A question whose answer swaps the code you would write. Radios plus CSS
- * `:has()` show the chosen path, so it works without script. Paths are
- * `<ForkPath value label>` children (up to four); the first is chosen first.
- * Content goes in children so the markdown twin keeps it.
- */
+/** Content goes in children so the markdown twin keeps it. */
 export function Fork({
 	question,
 	name,

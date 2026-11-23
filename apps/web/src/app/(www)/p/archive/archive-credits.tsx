@@ -7,12 +7,6 @@ import { useState } from "react";
 const PACKS = [10, 25, 50, 100] as const;
 const PACK_OPTIONS = PACKS.map((p) => ({ value: String(p), label: `$${p}` }));
 
-/**
- * Inline credits purchase: pack templates, amount and email, handed off to
- * Stripe Checkout. The
- * checkout API only accepts the fixed packs, so custom amounts explain
- * themselves instead of failing at the server.
- */
 export function ArchiveCredits() {
 	const [amount, setAmount] = useState<number>(25);
 	const [email, setEmail] = useState("");
@@ -20,7 +14,6 @@ export function ArchiveCredits() {
 	const [error, setError] = useState<string | null>(null);
 
 	const isPack = (PACKS as readonly number[]).includes(amount);
-	// Partition prices in cents: $0.05 block or transaction, $0.15 event.
 	const blockTxPartitions = isPack ? Math.floor((amount * 100) / 5) : null;
 	const eventPartitions = isPack ? Math.floor((amount * 100) / 15) : null;
 

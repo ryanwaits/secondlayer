@@ -2,23 +2,15 @@ export type StripPointer = {
 	label: string;
 	sub?: string;
 	role: "a" | "b";
-	/** Position on the strip, 0–100. */
 	pos: number;
 };
 
-/**
- * Density strip + labeled pointers, the visual core of the D1 explorer.
- * Merge rule: when two pointers come within `mergeThreshold` percent they
- * collapse into one merged pointer (gradient stem, `mergedLabel`) at the
- * rightmost position. Pure render — state lives in the composing explorer.
- */
 export function PointerStrip({
 	cells,
 	pointers,
 	mergedLabel,
 	mergeThreshold = 10,
 }: {
-	/** Hit flag per cell, left to right. */
 	cells: boolean[];
 	pointers: StripPointer[];
 	mergedLabel?: string;

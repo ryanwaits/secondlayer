@@ -10,7 +10,7 @@ import { parseContractId } from "../../utils/address.ts";
 import { bytesToHex, with0x } from "../../utils/encoding.ts";
 
 export type ReadContractParams = {
-	contract: string; // "address.name"
+	contract: string;
 	functionName: string;
 	args?: ClarityValue[];
 	sender?: string;

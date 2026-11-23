@@ -1,8 +1,3 @@
-/**
- * Unified verify targets — library used by CLI (and REST later).
- * Exit codes match `sl verify`: 0 clean, 1 diverged, 2 unanchored.
- */
-
 import { ARCHIVE_DATASETS } from "../archive/datasets.ts";
 
 export const VERIFY_EXIT = {

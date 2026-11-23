@@ -9,7 +9,6 @@ export interface WaitingItem {
 }
 
 export interface WaitingGroup {
-	/** "SP1A27…ADJ7.v0-vault-sbtc", or null for names that don't name a contract. */
 	contract: string | null;
 	items: WaitingItem[];
 }
@@ -17,11 +16,6 @@ export interface WaitingGroup {
 const WATCH_NAME =
 	/^(?:[a-z][a-z0-9-]*:)?(S[PMTN][0-9A-Z]{26,41}\.[A-Za-z][A-Za-z0-9-]*):(.+)$/;
 
-/** Group never-matched webhooks by the contract their name watches. A name
- *  like `sentinel:SP….vault:set-impl` (prefix optional) groups under
- *  `SP….vault` with label `set-impl`; any other name lands in the null group
- *  with its whole (shortened) name as the label. Groups keep first-seen order;
- *  the null group goes last. */
 export function groupWaiting(
 	webhooks: readonly Pick<WebhookSummary, "id" | "name">[],
 ): WaitingGroup[] {
@@ -46,7 +40,6 @@ export function groupWaiting(
 	return groups;
 }
 
-/** Who set the waiting webhooks up (when one owner did) and the oldest start. */
 export function waitingMeta(
 	webhooks: readonly Pick<WebhookSummary, "managedBy" | "createdAt">[],
 ): { owner: string | null; since: string } {

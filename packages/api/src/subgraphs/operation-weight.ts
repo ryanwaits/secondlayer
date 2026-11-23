@@ -21,8 +21,6 @@ export const LIGHT_MAX_EVENTS = 500_000;
 
 export type OperationWeight = {
 	weight: "light" | "heavy";
-	/** Bounded candidate count — the honest progress denominator. Null when
-	 *  the op isn't sparse-classifiable (heavy by structure, not by size). */
 	estimatedEvents: number | null;
 };
 

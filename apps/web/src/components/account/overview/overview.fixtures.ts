@@ -11,16 +11,9 @@ import { type WebhookRowModel, rowModel } from "../webhooks/rows";
 import { FIXTURE_HOURS, summary } from "../webhooks/webhook.fixtures";
 import type { OverviewBodyProps } from "./overview-section";
 
-/**
- * Example Overview data for tests and lab stories. Example names and round
- * numbers only: never real account data. Times hang off `now`, so "10 minutes
- * ago" stays that whenever it renders.
- */
-
 const HOUR = 3_600_000;
 const DAY = 24 * HOUR;
 
-/** A 168-hour series with deliveries at these positions of the last 24 hours. */
 function hourly(delivered: number[], failed: number[] = []) {
 	const make = (at: number[]) => {
 		const out = new Array<number>(168).fill(0);
@@ -30,7 +23,6 @@ function hourly(delivered: number[], failed: number[] = []) {
 	return { delivered: make(delivered), failed: make(failed) };
 }
 
-/** The "server errors" insight, while it is active. */
 export function serverErrorsInsight(): Insight {
 	return {
 		id: "ins-server-errors",
@@ -72,7 +64,6 @@ export function serverErrorsInsight(): Insight {
 	};
 }
 
-/** This month: past the free 1M, with a little read today. */
 export function exampleRows(now: Date): RowsResponse {
 	const hour = (ago: number, rows: number) => ({
 		hour: new Date(
@@ -99,7 +90,6 @@ export function exampleRows(now: Date): RowsResponse {
 	};
 }
 
-/** One key, read today and on no other day in the last 24. */
 export function exampleKeys(now: Date): ApiKey[] {
 	const rowsDaily = new Array<number>(30).fill(0);
 	rowsDaily[29] = 52;
@@ -131,7 +121,6 @@ export function exampleStack(state: HostedStack["state"], now: Date) {
 	} satisfies HostedStack;
 }
 
-/** The webhook rows: two that deliver (one failing, if asked) and six that never matched. */
 export function exampleWebhooks(
 	now: Date,
 	{
@@ -189,7 +178,6 @@ export function exampleWebhooks(
 	return [first, second, ...waiting];
 }
 
-/** One subgraph that is at the tip and wrote through the day. */
 export function exampleSubgraph(now: Date): {
 	item: SubgraphListItem;
 	health: SubgraphHealthData;
@@ -223,7 +211,6 @@ export function exampleSubgraph(now: Date): {
 	};
 }
 
-/** A subgraph finding for the Overview's list, aimed at the example subgraph. */
 export function exampleSubgraphFinding(): Insight {
 	const base = FIXTURE_INSIGHTS[1] as Insight;
 	return {
@@ -235,7 +222,6 @@ export function exampleSubgraphFinding(): Insight {
 	};
 }
 
-/** The props for a healthy account; each state overrides what it changes. */
 export function exampleOverview(
 	now: Date,
 	over: Partial<OverviewBodyProps> = {},

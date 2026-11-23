@@ -7,12 +7,6 @@ import { type ScoredItem, rankCommandItems } from "@/lib/command-center/search";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-/**
- * Command center v1: navigation + discovery only. Fuzzy search over nav
- * routes, your subgraphs/webhooks, and docs pages.
- * Selecting a result opens its page — no verbs, no writes, no remote
- * search, no loading states (docs/specs/command-center.spec.md).
- */
 export function CommandPalette() {
 	const router = useRouter();
 	const { logout } = useAuth();
@@ -29,7 +23,6 @@ export function CommandPalette() {
 	const { groups, flat } = useMemo(() => {
 		if (query.trim())
 			return rankCommandItems(query, [...NAV_ITEMS, ...DOCS_ITEMS], boosts);
-		// Empty state: nav shortcuts (recents-boosted).
 		return rankCommandItems("", NAV_ITEMS, boosts);
 	}, [query, boosts]);
 	const ms = performance.now() - t0;
@@ -66,7 +59,6 @@ export function CommandPalette() {
 		[closePalette, router, logout],
 	);
 
-	// Global ⌘K shortcut
 	useEffect(() => {
 		function onKeyDown(e: KeyboardEvent) {
 			if (e.key === "k" && (e.metaKey || e.ctrlKey)) {
@@ -81,7 +73,6 @@ export function CommandPalette() {
 		return () => window.removeEventListener("keydown", onKeyDown);
 	}, [open, openPalette, closePalette]);
 
-	// Focus input when palette opens
 	useEffect(() => {
 		if (open) setTimeout(() => inputRef.current?.focus(), 0);
 	}, [open]);
@@ -114,7 +105,6 @@ export function CommandPalette() {
 		setSelectedIdx(0);
 	}, [query]);
 
-	// Wire the topbar/sidebar ⌘K affordances
 	useEffect(() => {
 		function onClick(e: Event) {
 			if ((e.target as HTMLElement).closest(".dash-cmdk")) {

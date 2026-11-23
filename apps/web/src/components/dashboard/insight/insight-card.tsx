@@ -3,21 +3,14 @@ import { Fragment, type ReactNode } from "react";
 import { Evidence } from "./evidence";
 import { HandoffBlock } from "./handoff-block";
 
-/** The detector's rule, as a sentence. */
 const sentence = (rule: string): string =>
 	rule
 		? `${rule[0]?.toUpperCase()}${rule.slice(1)}${/[.!?]$/.test(rule) ? "" : "."}`
 		: rule;
 
-/** A bare count reads with digit groups (1361 → 1,361); anything else as is. */
 const factValue = (value: string): string =>
 	/^\d{4,}$/.test(value) ? Number(value).toLocaleString("en-US") : value;
 
-/**
- * One insight, opened: what we saw, the evidence, a hand-off for the user's
- * agent, and how we got there. The cause is named only at confidence >= 0.85;
- * below that the card says "Cause unknown" and shows the facts.
- */
 export function InsightCard({
 	insight,
 	footer,

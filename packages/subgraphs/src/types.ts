@@ -41,10 +41,6 @@ export interface SubgraphTable {
 /** Maps table names to table definitions. */
 export type SubgraphSchema = Record<string, SubgraphTable>;
 
-// ── SubgraphFilter ──────────────────────────────────────────────────
-// Discriminated union of event filter types.
-// Sources are named objects: { sourceName: SubgraphFilter }
-
 /** STX event filters */
 export interface StxTransferFilter {
 	type: "stx_transfer";
@@ -69,11 +65,6 @@ export interface StxLockFilter {
 	minAmount?: bigint;
 }
 
-/**
- * Restrict a source to contracts conforming to a trait/standard (e.g. "sip-010")
- * instead of a fixed contract — resolved from the contract registry at match time,
- * as-of each processed block. Lets a source index "all SIP-010 tokens" etc.
- */
 type TraitScope = { trait?: string };
 
 /**

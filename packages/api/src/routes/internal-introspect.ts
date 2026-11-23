@@ -1,22 +1,8 @@
 /**
- * `POST /internal/keys/introspect` — resolves a presented `sk-sl_*` account
- * key OR `ss-sl_*` dashboard session token to `{account_id, credits_ok, api_key_id}`
- * (`api_key_id` is null for a session) for
- * the gateway on the workload host: it introspects the customer's
- * credential here (cached 60s positive / 10s negative) before ever
- * forwarding a request into that account's tenant stack. The credential
- * never reaches the stack (the gateway swaps in the stack's own
- * `INSTANCE_TOKEN` after this call).
- *
  * Because the gateway's cache is positive for 60s, a session revoked (e.g.
  * the user logs out) right after a successful introspect can keep working
  * against the gateway for up to that long. Same tradeoff the `sk-sl_*` path
  * already accepts for a revoked key; no invalidation hook exists for either.
- *
- * Guard is the same `workloadHostKeyMatches()` + `bearerToken()` pair
- * `/internal/meters` uses (`./internal-meters.ts`) — reused, not copied, so
- * the workload host authenticates against this API with one key and one
- * compare.
  *
  * Key lookup mirrors `requireAuth()`'s `sk-sl_*` branch
  * (`../auth/middleware.ts`): same hash, same `api_keys` table, same
@@ -110,7 +96,6 @@ app.post("/", async (c) => {
 		return c.json({ error: "invalid_key" }, 401);
 	}
 
-	// Same rule as the provisioner's poll: positive balance and under the cap.
 	const status = await getCreditsStatus(db, accountId);
 	return c.json({
 		account_id: accountId,

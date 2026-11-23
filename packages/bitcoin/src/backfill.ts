@@ -46,7 +46,6 @@ import {
 	isP2tr,
 } from "./runes/updater.ts";
 
-/** `Runestone::COMMIT_CONFIRMATIONS` — mirrors the constant `runes/updater.ts`'s (removed) inline check used. */
 const COMMIT_CONFIRMATIONS = 6;
 
 /**
@@ -101,7 +100,6 @@ const commitmentRpcLimit = new Semaphore(8);
  * loop's `etched()` short-circuits on `runeToId` before ever consulting the
  * map, exactly as it did before this change existed.
  */
-/** Exported for `follow.ts`'s near-tip one-block-at-a-time apply loop, which needs the same commitment resolution this uses per block during backfill. */
 export async function resolveBlockCommitments(
 	rpc: BitcoinRpcClient,
 	block: ParsedBlock,
@@ -204,8 +202,6 @@ export class ContinuityError extends Error {
 }
 
 /**
- * `prevHash(H) == hash(H-1)` — the plan's fail-closed reorg check (deep reorg
- * handling is Phase 2 / D10; this only catches a break, it doesn't undo one).
  * `previousHash` is `undefined` only at the very first block ever applied
  * (genesis height, fresh state).
  */
@@ -242,7 +238,6 @@ export interface BackfillOptions {
 	network?: Network;
 	/** Defaults to `GENESIS_HEIGHT` (840,000, mainnet's Runes activation height). Regtest-test-only override — see `network`. */
 	genesisHeight?: number;
-	/** Called after every flush with row-count/timing stats plus how many blocks were in this window and the wall-clock ms since the previous flush (for a blocks/s log line). */
 	onFlush?: (
 		stats: FlushStats &
 			FlushPhaseTimers & {
@@ -251,7 +246,6 @@ export interface BackfillOptions {
 				windowMs: number;
 			},
 	) => void;
-	/** Directory to write `invariant-<height>.json` to on a fail-closed invariant break. Defaults to cwd. */
 	invariantReportDir?: string;
 	/** Test-only override for `DEFER_INDEX_THRESHOLD` (`db/read-indexes.ts`) — production never sets this. */
 	deferIndexThreshold?: number;
@@ -353,7 +347,6 @@ export async function* fetchBlocksInOrder(
 	}
 }
 
-/** Runs the backfill from the resumed checkpoint (or 840,000 on a fresh state) through `options.toHeight`, inclusive. */
 export async function runBackfill(
 	options: BackfillOptions,
 ): Promise<RuneState> {

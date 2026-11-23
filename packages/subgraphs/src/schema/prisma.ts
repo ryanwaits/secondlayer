@@ -14,7 +14,6 @@ import { pascalCase, pgSchemaName, snakeToCamel } from "./utils.ts";
  * against a deployed schema produces a matching model (no drift).
  */
 
-/** Clarity/subgraph column type → Prisma field type + optional `@db` native type. */
 const PRISMA_TYPE: Record<ColumnType, { type: string; db?: string }> = {
 	// uint128/int128 exceed JS/Prisma BigInt-safe range — Decimal is lossless.
 	uint: { type: "Decimal", db: "@db.Numeric" },
@@ -64,7 +63,6 @@ function renderTable(tableName: string, table: SubgraphTable): string {
 		);
 	}
 
-	// Block attributes: per-column @@index, composite @@index, @@unique.
 	const block: string[] = [];
 	for (const [colName, col] of Object.entries(table.columns)) {
 		if (col.indexed) block.push(`  @@index([${snakeToCamel(colName)}])`);

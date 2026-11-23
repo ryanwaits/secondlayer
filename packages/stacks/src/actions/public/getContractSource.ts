@@ -3,7 +3,7 @@ import { HttpRequestError } from "../../errors/http.ts";
 import { parseContractId } from "../../utils/address.ts";
 
 export type GetContractSourceParams = {
-	contract: string; // "address.name"
+	contract: string;
 };
 
 export type ContractSourceResponse = {

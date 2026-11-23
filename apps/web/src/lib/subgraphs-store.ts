@@ -10,14 +10,8 @@ import { HEALTH_WEEK_HOURS } from "./subgraph-view";
 export { poll } from "./webhooks-store";
 
 /**
- * The Subgraphs list/detail store, same shape as `webhooks-store.ts`: one
- * module-level `state`, `useSubgraphsCache()` through `useSyncExternalStore`.
- * Reads go through the dashboard's own read-only `/api/subgraphs/*` proxy.
  * A refresher writes only on `{ kind: "ok" }`, so a starting stack or a rate
  * limit never overwrites good data still on screen.
- *
- * The shapes below are what the tenant API returns today, declared here
- * because the SDK has no types for `/health`, `/errors` or `storageBytes`.
  */
 
 export interface SubgraphListItem {
@@ -32,7 +26,6 @@ export interface SubgraphListItem {
 	lastError?: string | null;
 	updatedAt?: string | null;
 	createdAt: string;
-	/** Present when the list was requested with `?health=`. */
 	health?: SubgraphHealthData;
 }
 
@@ -59,7 +52,6 @@ export interface SubgraphSourceInfo {
 	functionName?: string;
 }
 
-/** A subgraph's authored source, as the proxy returns it (no deployed bundle). */
 export interface SubgraphSource {
 	name: string;
 	version: string;
@@ -82,9 +74,7 @@ export interface SubgraphDetailData {
 		status: string;
 		blocksRemaining: number;
 		chainTip: number;
-		/** Share of the blocks done, 0 to 1. */
 		progress?: number;
-		/** Event counts a running operation reports on a sparse sync. */
 		processedEvents?: number;
 		estimatedEvents?: number;
 	};
@@ -130,8 +120,6 @@ type State = {
 	health: Record<string, CacheEntry<SubgraphHealthData>>;
 	errors: Record<string, CacheEntry<SubgraphErrorGroup[]>>;
 	source: Record<string, CacheEntry<SubgraphSource>>;
-	/** Names the API answered 404 for: true when this cache still had the
-	 *  subgraph (so it was just deleted), false when it never did. */
 	missing: Record<string, boolean>;
 };
 
@@ -145,7 +133,6 @@ const EMPTY: State = {
 };
 
 let state: State = EMPTY;
-/** Bumped on sign-out: a read that started before it must not fill the next account's cache. */
 const epoch = createEpoch();
 const listeners = new Set<() => void>();
 
@@ -167,15 +154,14 @@ export function subgraphsSnapshot(): State {
 	return state;
 }
 
-/** What a server render read for the page, in cache shape. */
 export type SubgraphsSeed = Partial<State>;
 
 const appliedSeeds = new WeakSet<object>();
 const serverStates = new WeakMap<object, State>();
 const seedsByInitial = new WeakMap<object, SubgraphsSeed>();
 
-/** Puts a seed into the client cache, once per seed. Quiet on purpose: it runs
- *  while a component renders, so it must not wake other subscribers. */
+/** Quiet on purpose: it runs while a component renders, so it must not wake
+ *  other subscribers. */
 function applySeed(seed: SubgraphsSeed): void {
 	if (typeof window === "undefined" || appliedSeeds.has(seed)) return;
 	appliedSeeds.add(seed);
@@ -189,9 +175,7 @@ function applySeed(seed: SubgraphsSeed): void {
 	};
 }
 
-/** The cache. With a seed, the server render and the hydration pass read the
- *  seed (so the HTML carries the data), and the client cache starts from it.
- *  The server never writes the module cache: it is shared across requests. */
+/** The server never writes the module cache: it is shared across requests. */
 export function useSubgraphsCache(seed?: SubgraphsSeed): State {
 	if (seed) applySeed(seed);
 	let server = EMPTY;
@@ -202,7 +186,6 @@ export function useSubgraphsCache(seed?: SubgraphsSeed): State {
 	return useSyncExternalStore(subscribe, subgraphsSnapshot, () => server);
 }
 
-/** A server-read list (with each item's health) as a seed. */
 export function listSeed(
 	initial: SubgraphsResult<SubgraphListItem[]>,
 ): SubgraphsSeed {
@@ -224,7 +207,6 @@ export function listSeed(
 	return seed;
 }
 
-/** The reads a server render made for one subgraph, as a seed. */
 export interface SubgraphDetailReads {
 	detail: SubgraphsResult<SubgraphDetailData>;
 	health: SubgraphsResult<SubgraphHealthData>;
@@ -258,7 +240,6 @@ export function detailSeed(
 	return seed;
 }
 
-/** Forget every cached subgraph on sign-out. */
 export function clearSubgraphsData(options: { deferred?: boolean } = {}): void {
 	epoch.bump();
 	state = EMPTY;
@@ -275,22 +256,17 @@ async function request<T>(path: string): Promise<SubgraphsResult<T>> {
 	let body: unknown = null;
 	try {
 		body = await res.json();
-	} catch {
-		// An empty error body falls through to the status-only message.
-	}
+	} catch {}
 	return resultFromResponse<T>(res, body);
 }
 
 const seg = encodeURIComponent;
 
-/** The request-cache key for a list read; each query shape has its own. */
 export const listKey = (health?: number): string =>
 	health ? `subgraphs:list:h${health}` : "subgraphs:list";
 
 /** A 404 on the list means the account has no subgraphs (and maybe no stack
- *  yet), so it reads as an empty list, never as `not_found`. With `health`,
- *  the response also carries each subgraph's hourly health for that many
- *  hours; it lands in the health slice in the same write as the list. */
+ *  yet), so it reads as an empty list, never as `not_found`. */
 export function refreshList(
 	options: { health?: number } = {},
 ): Promise<
@@ -323,9 +299,6 @@ export function refreshList(
 	});
 }
 
-/** One list read that also brings every subgraph's 24-hour health. A tenant
- *  still on an older image ignores `?health=`, so those items fall back to a
- *  health read each; drop the fallback once every tenant has rolled. */
 export async function refreshListAndHealth() {
 	const res = await refreshList({ health: HEALTH_WEEK_HOURS });
 	if (res.kind === "ok") {
@@ -361,8 +334,6 @@ export function refreshDetail(
 	});
 }
 
-/** A subgraph the API no longer has: out of the list and detail caches, so
- *  every page stops showing it, marked deleted when this cache knew it. */
 function forget(name: string): Partial<State> {
 	const { list, detail, missing } = current();
 	const known =
@@ -377,7 +348,6 @@ function forget(name: string): Partial<State> {
 	};
 }
 
-/** Hourly buckets, oldest first, ending with the current hour. */
 export function refreshHealth(
 	name: string,
 	hours = 24,
@@ -442,8 +412,6 @@ export function refreshSource(
 	});
 }
 
-/** The newest rows across a subgraph's tables, in one read. Not cached:
- *  callers hold what they read. */
 export function fetchRecentRows(
 	name: string,
 ): Promise<SubgraphsResult<{ data: RecentRow[] }>> {

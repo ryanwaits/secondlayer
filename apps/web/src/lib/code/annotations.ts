@@ -1,6 +1,5 @@
 import { normalizeLang } from "../highlight";
 
-/** Annotation names the renderer understands. Anything else is an authoring error (see budget.test.ts). */
 export const ANNOTATION_NAMES = [
 	"mark",
 	"callout",
@@ -12,33 +11,22 @@ export const ANNOTATION_NAMES = [
 	"pick",
 ] as const;
 
-/** A block that marks everything marks nothing: per-block limits that keep color meaningful (budget.test.ts, and the SDK reference's examples). */
 export const ANNOTATION_LIMITS = { mark: 2, callout: 3, tip: 2 } as const;
 
 export type FenceOptions = {
 	lang: string;
 	title?: string;
-	/** First line number; `lines` alone starts at 1. */
 	lines?: number;
 	nocopy?: boolean;
-	/** No docs-key slot: the page already has the reader's own key in hand. */
 	nokey?: boolean;
 	wrap?: boolean;
-	/** Clamp height in lines. The renderer applies its own default when absent. */
 	max?: number;
 	exit?: number;
-	/** HTTP status chip in the bar: green below 300, red from 400. */
 	status?: number;
-	/** Hosted base URLs in the source follow the page's Base URL switch. */
 	base?: boolean;
-	/** Render as a figure: numbered source, margin notes. */
 	figure?: boolean;
 };
 
-/**
- * The opening fence's info string: `ts consumer.ts lines=14 wrap`. The title is
- * the first bare token containing `.`, `/` or `~`; everything else is a flag.
- */
 export function parseFenceOptions(info: string): FenceOptions {
 	const [first = "", ...rest] = info.trim().split(/\s+/);
 	const options: FenceOptions = { lang: normalizeLang(first) };
@@ -61,17 +49,13 @@ export function parseFenceOptions(info: string): FenceOptions {
 
 export type Annotation = {
 	name: string;
-	/** Index into the output lines of the first targeted line. */
 	from: number;
-	/** Index of the last targeted line (inclusive). */
 	to: number;
-	/** Token selector; with the `g` flag every match on a line, otherwise the first. */
 	regex: RegExp | null;
 	value: string;
 };
 
 export type ParsedCode = {
-	/** Source lines with annotation comments removed. */
 	lines: string[];
 	annotations: Annotation[];
 };
@@ -93,7 +77,6 @@ const COMMENT_TOKEN: Record<string, string> = {
 
 const escapeRegex = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
-/** `(2:4)`, `(3)` or `[/re/g]` groups, in either order, then the free-text value. */
 const GROUP = /^(?:\((\d+)(?::(\d+))?\)|\[\/(.+?)\/([a-z]*)\])/;
 
 function lineMatcher(lang: string): RegExp | null {
@@ -143,17 +126,10 @@ export function parseAnnotations(source: string, lang: string): ParsedCode {
 	return { lines, annotations };
 }
 
-/** Source with annotation lines removed: `.md` twins, search text, anywhere text leaves the page. */
 export function stripAnnotations(source: string, lang: string): string {
 	return parseAnnotations(source, lang).lines.join("\n");
 }
 
-/**
- * A fence as the `.md` twin and search text carry it. Callouts stay as plain
- * comments directly above the line they target (a `text` fence is program
- * output, so its callouts go); a fence with `!diff` lines becomes a unified
- * `diff` fence. Every other annotation is a rendering hint and is dropped.
- */
 export function markdownFence(
 	info: string,
 	body: string,

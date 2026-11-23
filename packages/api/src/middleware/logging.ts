@@ -2,22 +2,16 @@ import { logger } from "@secondlayer/shared";
 import type { Context, Next } from "hono";
 import { getRequestId } from "./request-id.ts";
 
-/**
- * Request logging middleware
- * Logs incoming requests and response times
- */
 export async function requestLogger(c: Context, next: Next) {
 	const start = Date.now();
 	const method = c.req.method;
 	const path = c.req.path;
 	const requestId = getRequestId(c);
 
-	// Log request
 	logger.debug("Incoming request", { method, path, requestId });
 
 	await next();
 
-	// Log response
 	const duration = Date.now() - start;
 	const status = c.res.status;
 

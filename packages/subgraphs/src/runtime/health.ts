@@ -40,7 +40,6 @@ export async function maybeRecordHealthSnapshot(
 		if (last !== undefined && now - last < SNAPSHOT_INTERVAL_MS) return;
 		lastWrittenMs.set(input.subgraphId, now);
 
-		// Cumulative table counters: deltas between snapshots give rows written.
 		const stats = await sql<{
 			rows_written_total: string;
 			storage_bytes: string;

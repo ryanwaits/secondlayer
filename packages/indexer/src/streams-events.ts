@@ -21,9 +21,6 @@ import {
 } from "@secondlayer/shared/streams-rows";
 import type { Kysely, RawBuilder } from "kysely";
 
-// Canonical event-type vocab lives in @secondlayer/shared; re-exported so
-// existing indexer consumers (streams-bulk/query.ts, reorg.ts) keep importing
-// it from here.
 export {
 	DB_TO_STREAMS_EVENT_TYPE,
 	STREAMS_DB_EVENT_TYPES,
@@ -50,14 +47,7 @@ export type StreamsEvent = {
 	contract_id: string | null;
 	payload: Record<string, unknown>;
 	ts: string;
-	/** True for the canonical chain. The firehose only returns canonical
-	 *  events today; the field is here so clients can write type-safe
-	 *  reorg-aware code and so future non-canonical streams can flip it.
-	 *  Optional for backwards compat with pre-2026-05 callers + test
-	 *  fixtures that pre-date the field. */
 	canonical?: boolean;
-	/** Which labelled filter groups this event satisfied, when the request
-	 *  used `filters`. One event can match several labels. */
 	matched?: string[];
 };
 
@@ -67,15 +57,12 @@ export type VmStreamsEvent = Omit<StreamsEvent, "event_type"> & {
 	event_type: VmEventType;
 };
 
-/** What a Streams events read returns: one clock per page. */
 export type StreamsWireEvent = StreamsEvent | VmStreamsEvent;
 
 export type ReadCanonicalStreamsEventsParams = {
 	after?: StreamsEventCursor;
 	fromHeight?: number;
 	toHeight: number;
-	/** Classic types on the default clock; VM_EVENT_TYPES only on `clock=vm`.
-	 *  Each reader keeps its own vocabulary — a page never mixes clocks. */
 	types?: readonly (StreamsEventType | VmEventType)[];
 	/** Event types to exclude. Applied after `types`, so `not_types` narrows the
 	 *  included set further (an empty result is a no-op page that still advances
@@ -129,12 +116,9 @@ type StreamsEventRow = {
 	db_event_type: (typeof STREAMS_DB_EVENT_TYPES)[number];
 	data: unknown;
 	stream_event_index: string | number;
-	/** Labels whose filter group this row satisfied. Absent unless the
-	 *  request used a labelled filter map. */
 	matched?: string[] | null;
 };
 
-/** Alias of the shared codec; kept for existing indexer import sites. */
 export const encodeStreamsEventCursor = encodeStreamsCursor;
 
 function dataRecord(data: unknown): Record<string, unknown> {
@@ -171,7 +155,6 @@ function isNftEventType(eventType: StreamsEventType): boolean {
 	);
 }
 
-/** `raw_value` set from whichever field this row's era stored the hex in. */
 function withRawValue(
 	payload: Record<string, unknown>,
 ): Record<string, unknown> {
@@ -308,8 +291,6 @@ export async function readCanonicalStreamsEvents(
 		return { events: [], next_cursor: null };
 	}
 
-	// `not_types` narrows the included set rather than adding a NOT IN clause, so
-	// the existing `type IN (...)` path covers both inclusion and exclusion.
 	const includedStreamsTypes = requestedStreamsTypes.filter(
 		(eventType) => !params.notTypes?.includes(eventType),
 	);
@@ -379,7 +360,6 @@ export async function readCanonicalStreamsEvents(
 	return { events, next_cursor };
 }
 
-/** Normalize a single value or list into a non-empty array, or undefined. */
 function toFilterList(
 	value: string | readonly string[] | undefined,
 ): string[] | undefined {
@@ -388,7 +368,6 @@ function toFilterList(
 	return list.length > 0 ? list : undefined;
 }
 
-/** A parameterized `IN (...)` list (each value bound separately, safe). */
 function inList(values: string[]): RawBuilder<unknown> {
 	return sql.join(values.map((value) => sql`${value}`));
 }
@@ -470,9 +449,6 @@ function stxLockContractPredicate(
 	)`;
 }
 
-/** Inclusion predicate on a raw payload field, or empty when unset. The key is
- *  bound as a parameter (safe) and the `->>` operator accepts it. A list matches
- *  any of its values. */
 function payloadFieldPredicate(
 	field: string,
 	value: string | readonly string[] | undefined,
@@ -485,7 +461,6 @@ function payloadFieldPredicate(
 	return sql` AND e.data->>${field} IN (${inList(values)})`;
 }
 
-/** Combined WHERE predicate for all payload filters Streams exposes. */
 function streamsFilterPredicate(
 	params: {
 		contractId?: string | readonly string[];
@@ -504,7 +479,6 @@ function streamsFilterPredicate(
 	)}`;
 }
 
-/** One labelled filter group. Fields within a group AND together. */
 export type StreamsLabelledFilter = {
 	types?: readonly StreamsEventType[];
 	contractId?: string | readonly string[];
@@ -513,7 +487,6 @@ export type StreamsLabelledFilter = {
 	assetIdentifier?: string;
 };
 
-/** Restrict a group to its own event types (its share of the candidate scan). */
 function groupTypePredicate(
 	types: readonly StreamsEventType[] | undefined,
 ): RawBuilder<unknown> {
@@ -526,7 +499,6 @@ function groupTypePredicate(
 	return sql` AND e.type IN (${dbTypes})`;
 }
 
-/** The AND-ed body of one labelled group (no leading AND). */
 function groupBody(filter: StreamsLabelledFilter): RawBuilder<unknown> {
 	return sql`TRUE${groupTypePredicate(filter.types)}${streamsFilterPredicate(filter, filter.types)}`;
 }
@@ -586,7 +558,6 @@ function matchedSelect(
 	return sql`, ARRAY_REMOVE(ARRAY[${sql.join(cases, sql`, `)}], NULL) AS matched`;
 }
 
-/** Forward `matched` out of `candidate_events` into `ordered_events`. */
 function matchedForward(
 	filters: Readonly<Record<string, StreamsLabelledFilter>> | undefined,
 ): RawBuilder<unknown> {

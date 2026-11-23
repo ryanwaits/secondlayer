@@ -13,12 +13,10 @@ export default function SignInPage() {
 	const [code, setCode] = useState("");
 	const { email } = state;
 
-	// Already signed in: go where `?next=` asked, else the account page.
 	useEffect(() => {
 		if (account) router.replace(currentNext());
 	}, [account, router]);
 
-	// `?email=`: the code is already on its way, so open on the code step.
 	useEffect(() => {
 		const sentTo = codeStepEmail(window.location.search);
 		if (sentTo) dispatch({ type: "enter_code", email: sentTo });
@@ -50,8 +48,6 @@ export default function SignInPage() {
 		return () => window.removeEventListener("keydown", onKeyDown);
 	}, [router]);
 
-	/** Sends the code (a first send from the form, or a resend from the code
-	 *  step) and reports the answer to the machine. */
 	const send = useCallback(async () => {
 		try {
 			rememberNext(currentNext());

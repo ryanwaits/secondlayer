@@ -4,8 +4,6 @@ import {
 	isSbtcDecoderEnabled,
 } from "@secondlayer/shared";
 
-/** Default modules on a standard OSS instance. Idle flags consume no work. */
-
 export const INSTANCE_FEATURE_MANIFEST = {
 	rawRest: true,
 	rawSse: true,

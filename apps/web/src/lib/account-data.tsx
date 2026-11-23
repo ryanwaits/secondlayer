@@ -18,17 +18,9 @@ import {
 } from "./usage";
 import { clearWebhooksData } from "./webhooks-store";
 
-/**
- * Account data the nav chip, the floating cards and the /account pages all read. One
- * store, so a top-up that lands on the credits page moves the balance in the
- * nav too, and a key created in the card shows up on the keys page.
- */
-
-/** Credit packs the API sells (`CREDIT_PACKS_USD` in packages/api). */
 export const PACKS_USD = [10, 25, 50, 100] as const;
 export type PackUsd = (typeof PACKS_USD)[number];
 
-/** A whole-dollar amount the top-up route accepts. */
 export function isTopupUsd(n: number): boolean {
 	return Number.isInteger(n) && n >= TOPUP_MIN_USD && n <= TOPUP_MAX_USD;
 }
@@ -40,8 +32,6 @@ export type Billing = {
 
 export type BalanceAlerts = { notify7d: boolean; notify2d: boolean };
 
-/** Monthly spend cap for hosted Index/Streams reads past the free rows
- *  allowance. `monthlyCapCents: null` means no cap set. */
 export type Caps = {
 	monthlyCapCents: number | null;
 	alertThresholdPct: number;
@@ -52,29 +42,18 @@ export type Caps = {
 type State = {
 	billing: Billing | null;
 	keys: ApiKey[] | null;
-	/** Apps signed in to the hosted MCP (OAuth grants). */
 	apps: ConnectedApp[] | null;
 	usage: UsageByMonth;
-	/** Day-by-day spend, keyed by month like `usage` — only the requested
-	 *  month's chart data. */
 	daily: Record<string, DailySpend[]>;
-	/** Trailing-24h burn rate. Always "now", independent of whichever
-	 *  month's usage was last fetched — the latest response always wins. */
 	burn: Burn | null;
-	/** Hosted stack state + last-24h memory. Same "always now" rule as
-	 *  `burn`. */
 	service: HostedStack | null;
 	alerts: BalanceAlerts | null;
 	caps: Caps | null;
-	/** Latest top-ups and grants, newest first. */
 	credits: CreditAdded[] | null;
-	/** Rows delivered: allowance, per day, sources, call sizes, errors. */
 	rows: RowsResponse | null;
-	/** Why a slot above is still `null`: its first read is under way, or failed. */
 	status: Partial<Record<Slot, "loading" | "error">>;
 };
 
-/** The slots that start `null` and fill from one read. */
 export type Slot =
 	| "billing"
 	| "keys"
@@ -84,14 +63,12 @@ export type Slot =
 	| "credits"
 	| "rows";
 
-/** One slot as a screen reads it: a read that failed is not a read still loading. */
 export type Resource<T> =
 	| { status: "idle" }
 	| { status: "loading" }
 	| { status: "ok"; data: T }
 	| { status: "error" };
 
-/** The slot's data once it has some, else why it has none. */
 export function resourceOf<S extends Slot>(
 	account: State,
 	slot: S,
@@ -117,7 +94,6 @@ const EMPTY: State = {
 	status: {},
 };
 let state: State = EMPTY;
-/** Bumped on sign-out: a read that started before it must not fill the next account's store. */
 let epoch = 0;
 const listeners = new Set<() => void>();
 
@@ -138,11 +114,6 @@ function setStatus(slot: Slot, status: "loading" | "error" | undefined) {
 	set({ status: next });
 }
 
-/**
- * One read into one slot. A failed first read marks the slot `error` (a
- * failed refresh keeps the data it had), and a read that began before
- * sign-out is dropped instead of refilling the store.
- */
 function loadSlot<T>(
 	slot: Slot,
 	run: () => Promise<T | null>,
@@ -169,7 +140,6 @@ function loadSlot<T>(
 	});
 }
 
-/** The JSON of a GET, or null when it was refused. */
 async function getJson<T>(url: string): Promise<T | null> {
 	const res = await fetch(url);
 	return res.ok ? ((await res.json()) as T) : null;
@@ -180,12 +150,10 @@ function subscribe(l: () => void) {
 	return () => listeners.delete(l);
 }
 
-/** A plain (non-hook) read of the current state, for refreshers and tests. */
 export function accountSnapshot(): State {
 	return current();
 }
 
-/** What a server render read for the page, in store shape. */
 export type AccountSeed = Partial<State>;
 
 const AccountSeedContext = createContext<AccountSeed | null>(null);
@@ -193,8 +161,8 @@ const AccountSeedContext = createContext<AccountSeed | null>(null);
 const appliedSeeds = new WeakSet<object>();
 const serverStates = new WeakMap<object, State>();
 
-/** Puts a seed into the client store, once per seed. Quiet on purpose: it runs
- *  while a component renders, so it must not wake other subscribers. */
+/** Quiet on purpose: it runs while a component renders, so it must not wake
+ *  other subscribers. */
 function applySeed(seed: AccountSeed): void {
 	if (typeof window === "undefined" || appliedSeeds.has(seed)) return;
 	appliedSeeds.add(seed);
@@ -206,10 +174,7 @@ function applySeed(seed: AccountSeed): void {
 	};
 }
 
-/** Hands a page's server-read account data to every `useAccountData()` below
- *  it, and starts the client store from it. The nav sits outside this tree and
- *  reads the store, so it gets the same data once the client has it. The
- *  server never writes the module store: it is shared across requests. */
+/** The server never writes the module store: it is shared across requests. */
 export function AccountSeedProvider({
 	seed,
 	children,
@@ -225,8 +190,6 @@ export function AccountSeedProvider({
 	);
 }
 
-/** The account data. Under a seed, the server render and the hydration pass
- *  read it, so the HTML carries the data. */
 export function useAccountData(): State {
 	const seed = useContext(AccountSeedContext);
 	let server = EMPTY;
@@ -245,18 +208,14 @@ export function refreshBilling(): Promise<Billing | null> {
 	);
 }
 
-/** For a screen mounting: load billing unless the page already carried it. */
 export function ensureBilling(): Promise<unknown> {
 	return current().billing ? Promise.resolve() : refreshBilling();
 }
 
-/** This account's usage_ledger for one UTC calendar month (`YYYY-MM`),
- *  grouped by unit, plus that month's daily chart data and the always-now
- *  burn rate + hosted stack snapshot. Writes only that month's `usage`/
- *  `daily` entry, so a slow response for a month the caller has moved on
- *  from can't overwrite whatever month is on screen now — `burn` and
- *  `service` always take the latest response, since they're never
- *  month-scoped. Mirrors `refreshBilling`. */
+/** Writes only that month's `usage`/`daily` entry, so a slow response for a
+ *  month the caller has moved on from can't overwrite whatever month is on
+ *  screen now — `burn` and `service` always take the latest response, since
+ *  they're never month-scoped. */
 export function refreshUsage(month: string): Promise<UsageResponse | null> {
 	return shared(`usage:${month}`, async () => {
 		const started = epoch;
@@ -278,12 +237,10 @@ export function refreshUsage(month: string): Promise<UsageResponse | null> {
 	});
 }
 
-/** For a screen mounting: load a month's usage unless it is already here. */
 export function ensureUsage(month: string): Promise<unknown> {
 	return current().usage[month] ? Promise.resolve() : refreshUsage(month);
 }
 
-/** The signed-in account's balance-alert email preferences. */
 export function refreshAlerts(): Promise<BalanceAlerts | null> {
 	return loadSlot(
 		"alerts",
@@ -292,7 +249,6 @@ export function refreshAlerts(): Promise<BalanceAlerts | null> {
 	);
 }
 
-/** For a screen mounting: load the alert switches unless they are already here. */
 export function ensureAlerts(): Promise<unknown> {
 	return current().alerts ? Promise.resolve() : refreshAlerts();
 }
@@ -300,9 +256,6 @@ export function ensureAlerts(): Promise<unknown> {
 let alertsWrites = 0;
 let capWrites = 0;
 
-/** Optimistic PUT: the caller flips the switch immediately, this persists
- *  it and reconciles with what the server actually stored (or rolls back
- *  on failure — the caller shows a toast). */
 export async function updateAlerts(
 	patch: Partial<BalanceAlerts>,
 ): Promise<BalanceAlerts | null> {
@@ -320,7 +273,6 @@ export async function updateAlerts(
 	return alerts;
 }
 
-/** The signed-in account's monthly spend-cap setting. */
 export function refreshCaps(): Promise<Caps | null> {
 	return loadSlot(
 		"caps",
@@ -329,12 +281,10 @@ export function refreshCaps(): Promise<Caps | null> {
 	);
 }
 
-/** For a screen mounting: load the cap unless it is already here. */
 export function ensureCaps(): Promise<unknown> {
 	return current().caps ? Promise.resolve() : refreshCaps();
 }
 
-/** The signed-in account's latest top-ups and grants. */
 export function refreshCredits(): Promise<CreditAdded[] | null> {
 	return loadSlot(
 		"credits",
@@ -345,14 +295,10 @@ export function refreshCredits(): Promise<CreditAdded[] | null> {
 	);
 }
 
-/** For a screen mounting: load the credits list unless it is already here. */
 export function ensureCredits(): Promise<unknown> {
 	return current().credits ? Promise.resolve() : refreshCredits();
 }
 
-/** Rows delivered for the signed-in account. Keeps the last good data on a
- *  failed refresh and returns null, so the caller can tell a first-load
- *  failure from a stale refresh. */
 export function refreshRows(): Promise<RowsResponse | null> {
 	return loadSlot(
 		"rows",
@@ -361,7 +307,6 @@ export function refreshRows(): Promise<RowsResponse | null> {
 	);
 }
 
-/** Set or clear the monthly spend cap. `monthlyCapCents: null` clears it. */
 export async function updateCap(
 	monthlyCapCents: number | null,
 ): Promise<Caps | null> {
@@ -387,7 +332,6 @@ export async function refreshKeys(): Promise<void> {
 	);
 }
 
-/** For a screen mounting: load keys unless they are already here. */
 export function ensureKeys(): Promise<void> {
 	return current().keys ? Promise.resolve() : refreshKeys();
 }
@@ -402,12 +346,10 @@ export async function refreshApps(): Promise<void> {
 	);
 }
 
-/** For a screen mounting: load connected apps unless they are already here. */
 export function ensureApps(): Promise<void> {
 	return current().apps ? Promise.resolve() : refreshApps();
 }
 
-/** Revoke an app: its tokens stop working at once. */
 export async function revokeApp(id: string): Promise<void> {
 	const res = await fetch(`/api/oauth/grants/${encodeURIComponent(id)}`, {
 		method: "DELETE",
@@ -419,9 +361,6 @@ export async function revokeApp(id: string): Promise<void> {
 	await refreshApps();
 }
 
-/** Forget everything on sign-out so the next account never sees it.
- *  `deferred` wakes subscribers a microtask later, for a clear that runs while
- *  a component renders. */
 export function clearAccountData(options: { deferred?: boolean } = {}): void {
 	epoch++;
 	state = EMPTY;
@@ -432,12 +371,10 @@ export function clearAccountData(options: { deferred?: boolean } = {}): void {
 	clearRequestCache();
 }
 
-/** A refused key creation: the status tells the cap (403) from the rate limit (429). */
 export class CreateKeyError extends Error {
 	constructor(
 		message: string,
 		public status: number,
-		/** Seconds until another key can be made, on a 429. */
 		public retryAfter?: number,
 	) {
 		super(message);
@@ -445,7 +382,6 @@ export class CreateKeyError extends Error {
 	}
 }
 
-/** Mint a key. Returns its full value, which is never retrievable again. */
 export async function createKey(name: string): Promise<string> {
 	const res = await fetch("/api/keys", {
 		method: "POST",
@@ -476,7 +412,6 @@ export async function revokeKey(id: string): Promise<void> {
 	await refreshKeys();
 }
 
-/** Replace a key's secret. Returns the new value, which is never retrievable again. */
 export async function rotateKey(
 	id: string,
 ): Promise<{ key: string; name: string }> {
@@ -503,17 +438,10 @@ export async function rotateKey(
 
 const TOPUP_STORAGE = "sl_topup";
 
-/**
- * What the credits list showed when checkout began: the newest top-up's time
- * (null when there was none). A top-up that lands afterwards is a newer row.
- * The whole value is null when the list could not be read, and then nothing
- * can be confirmed.
- */
 export type CreditsBaseline = { latestTopupAt: string | null } | null;
 
 type PendingTopup = { amount: number; creditsBaseline: CreditsBaseline };
 
-/** The baseline a credits list gives. Null when the list isn't known. */
 export function creditsBaseline(
 	credits: readonly CreditAdded[] | null,
 ): CreditsBaseline {
@@ -530,11 +458,6 @@ export function creditsBaseline(
 	};
 }
 
-/**
- * Send the reader to Stripe Checkout. The credits list before paying is kept
- * for the return trip, so the credits page can tell "still confirming" from
- * "landed" from the server's own record of top-ups.
- */
 export async function startCheckout(amount: number): Promise<void> {
 	const res = await fetch("/api/billing/topup", {
 		method: "POST",
@@ -555,9 +478,7 @@ export async function startCheckout(amount: number): Promise<void> {
 	};
 	try {
 		sessionStorage.setItem(TOPUP_STORAGE, JSON.stringify(pending));
-	} catch {
-		// Storage blocked: the return still shows, just without the amount.
-	}
+	} catch {}
 	window.location.href = data.url;
 }
 
@@ -569,7 +490,6 @@ export type TopupReturn =
 	  }
 	| { result: "cancelled" };
 
-/** Read (once) whether this page load is the way back from Stripe. */
 export function takeTopupReturn(): TopupReturn | null {
 	const params = new URLSearchParams(location.search);
 	const result = params.get("topup");
@@ -592,11 +512,9 @@ export function takeTopupReturn(): TopupReturn | null {
 export type TopupStatus = "landed" | "waiting" | "unknown";
 
 /**
- * Has the top-up shown up in the credits list? A top-up is a row newer than
- * the baseline (and, when the amount is known, for that amount). Without a
- * baseline nothing can be told apart from an older top-up, so the answer is
- * `unknown`, never `landed`. The balance isn't consulted: spending moves it
- * both ways while the payment is confirmed.
+ * Without a baseline nothing can be told apart from an older top-up, so the
+ * answer is `unknown`, never `landed`. The balance isn't consulted: spending
+ * moves it both ways while the payment is confirmed.
  */
 export function topupStatus(
 	credits: readonly CreditAdded[] | null,
@@ -630,7 +548,6 @@ export function formatDate(iso: string | null): string {
 	});
 }
 
-/** "Nov 3, 2026, 14:21 UTC": the exact moment, for a hover over an age. */
 export function formatDateTime(iso: string): string {
 	const time = new Date(iso).toLocaleTimeString("en-US", {
 		timeZone: "UTC",
@@ -649,8 +566,6 @@ const AGE_UNITS: [string, number][] = [
 	["minute", 60_000],
 ];
 
-/** "5 days ago", "3 hours ago", "just now": the coarsest whole unit, spelled
- *  out for a sentence. */
 export function formatAge(iso: string, now: number = Date.now()): string {
 	const ms = now - new Date(iso).getTime();
 	for (const [unit, size] of AGE_UNITS) {

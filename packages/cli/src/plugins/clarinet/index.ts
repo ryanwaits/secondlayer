@@ -1,8 +1,3 @@
-/**
- * Clarinet contract source for @secondlayer/cli
- * Loads simnet ABIs from a local Clarinet project.
- */
-
 import { toCamelCase } from "@secondlayer/stacks/clarity";
 import { normalizeAbi } from "@secondlayer/stacks/clarity";
 import type { AbiContract } from "@secondlayer/stacks/clarity";
@@ -12,10 +7,6 @@ import { parseContractId } from "../../utils/contract-id";
 const CLARINET_SDK_INSTALL_HINT =
 	"This command needs @stacks/clarinet-sdk. Install it in your project: bun add -d @stacks/clarinet-sdk";
 
-/**
- * True when `error` is Node/Bun's module-resolution failure for exactly
- * `moduleName`, not some other missing module the resolver hit along the way.
- */
 function isModuleNotFoundError(error: unknown, moduleName: string): boolean {
 	if (!(error instanceof Error)) return false;
 	const code = (error as NodeJS.ErrnoException).code;
@@ -75,9 +66,6 @@ export interface ClarinetLoadedContract {
 	_clarinetSource: true;
 }
 
-/**
- * Sanitize contract name to be a valid JavaScript identifier using camelCase
- */
 function sanitizeContractName(name: string): string {
 	return toCamelCase(name);
 }
@@ -114,7 +102,6 @@ export async function readManifestInfo(
 		const { promises: fs } = await import("node:fs");
 		const tomlContent = await fs.readFile(manifestPath, "utf-8");
 
-		// Simple TOML parsing: [contracts.NAME] sections
 		const projectContracts = new Set<string>();
 		const contractSectionRegex = /^\[contracts\.([^\]]+)\]/gm;
 		let match: RegExpExecArray | null = contractSectionRegex.exec(tomlContent);
@@ -123,9 +110,6 @@ export async function readManifestInfo(
 			match = contractSectionRegex.exec(tomlContent);
 		}
 
-		// Requirements: `contract_id = "SP....name"` entries — covers both the
-		// inline `requirements = [{ contract_id = "..." }]` and the
-		// `[[project.requirements]]` table-array forms.
 		const requirementIds = new Set<string>();
 		const requirementRegex = /contract_id\s*=\s*["']([^"']+)["']/g;
 		match = requirementRegex.exec(tomlContent);
@@ -161,21 +145,20 @@ export function classifyContract(
 		return "system";
 	}
 
-	// Fallback heuristics: boot contracts have well-known names/addresses
 	const systemContractPatterns = [
-		/^pox-\d+$/, // pox-2, pox-3, etc.
-		/^bns$/, // Blockchain Name System
-		/^costs-\d+$/, // costs-2, costs-3, etc.
-		/^lockup$/, // lockup contract
-		/^signer-manager$/, // SIP-045 (epoch 4.0) boot contract
+		/^pox-\d+$/,
+		/^bns$/,
+		/^costs-\d+$/,
+		/^lockup$/,
+		/^signer-manager$/,
 	];
 	if (systemContractPatterns.some((pattern) => pattern.test(contractName))) {
 		return "system";
 	}
 
 	const systemAddresses = [
-		DEFAULT_SENDER_ADDRESS, // Boot contracts address
-		"ST000000000000000000002AMW42H", // Boot contracts address (testnet)
+		DEFAULT_SENDER_ADDRESS,
+		"ST000000000000000000002AMW42H",
 	];
 	if (systemAddresses.includes(address)) {
 		return "system";

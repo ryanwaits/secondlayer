@@ -5,7 +5,7 @@ import { MalformedResponseError } from "../../errors/response.ts";
 import { parseContractId } from "../../utils/address.ts";
 
 export type GetDataVarParams = {
-	contract: string; // "address.name"
+	contract: string;
 	varName: string;
 };
 

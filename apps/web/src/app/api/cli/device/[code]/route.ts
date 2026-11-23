@@ -1,7 +1,6 @@
 import { ApiError, apiRequest, getSessionFromRequest } from "@/lib/api";
 import { NextResponse } from "next/server";
 
-/** What the CLI sign-in approval page shows. Session only; the API checks it. */
 export async function GET(
 	req: Request,
 	context: { params: Promise<{ code: string }> },

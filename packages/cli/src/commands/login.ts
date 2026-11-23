@@ -32,11 +32,6 @@ export function loginTarget(): string {
 	return resolveArchiveOpsUrl();
 }
 
-/**
- * Non-interactive login: read an API key from stdin, verify it against the
- * account endpoint, and persist it as the stored credential. For CI/headless
- * use, e.g. `echo "$SECONDLAYER_API_KEY" | secondlayer login --with-token`.
- */
 async function runTokenLogin(): Promise<void> {
 	const token = await readStdin();
 	if (!token) {
@@ -115,7 +110,6 @@ export async function shouldContinueLogin(
 			);
 			return true;
 		}
-		// Offline or a server error: we can't tell, so keep the saved login.
 	}
 	info(
 		`Already logged in as ${accountLabel(existing.email, existing.accountId)} (${target}).`,
@@ -206,7 +200,6 @@ export async function pollDeviceToken(
 	return { kind: "expired" };
 }
 
-/** Machine name shown on the approval page. */
 function clientName(): string {
 	return hostname().trim().slice(0, 64) || "this machine";
 }

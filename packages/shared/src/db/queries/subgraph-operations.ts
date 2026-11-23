@@ -196,7 +196,6 @@ export async function waitForSubgraphOperationsClear(
 	return false;
 }
 
-/** Max concurrently-running 'heavy' ops (broad/non-sparse syncs). */
 const HEAVY_OP_BUDGET = 2;
 
 export async function claimSubgraphOperation(

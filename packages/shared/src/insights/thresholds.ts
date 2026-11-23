@@ -1,7 +1,3 @@
-// Detector thresholds. Named constants, not config. Tune from real data;
-// until then these stay conservative: a wrong insight costs more trust than
-// a missed one.
-//
 // This file must stay import-free. The SDK's webhook doctor imports it, and
 // the doctor reaches the browser through apps/web, so anything imported here
 // would ship to the client bundle.
@@ -9,7 +5,6 @@
 // Constants computed from an expression carry an explicit `: number`: the
 // bundled `.d.ts` otherwise types them `unknown`.
 
-// ── Webhook doctor (shared with the SDK / `sl webhooks doctor`) ────────
 export const RATE_LIMITED_MIN_ATTEMPTS = 10;
 export const RATE_LIMITED_MIN_RATIO = 0.5;
 export const DOWN_MIN_CONSECUTIVE = 5;
@@ -21,7 +16,6 @@ export const LAG_WINDOW = 20;
 export const LAG_MIN_SAMPLES = 5;
 export const LAG_THRESHOLD_MS = 60_000;
 
-// ── Tenant rules ───────────────────────────────────────────────────────
 /** Consecutive newest 2xx HTML responses that mean a login wall. */
 export const LOGIN_WALL_MIN_CONSECUTIVE = 20;
 /** Share of prior-week 2xx responses that must have been JSON. */
@@ -42,7 +36,6 @@ export const SUBGRAPH_LAG_BLOCKS = 20;
 export const SUBGRAPH_LAG_SNAPSHOTS = 3;
 export const SUBGRAPH_LAG_LOSING_BLOCKS = 500;
 
-// ── Platform rules ─────────────────────────────────────────────────────
 /**
  * Index and Streams cap one page at 1000 rows
  * (`packages/api/src/index/_shared.ts` `Math.min(1000, parsed)`,
@@ -79,7 +72,6 @@ export const KEY_UNUSED_DAYS = 30;
  *  count toward the 24h evidence, so the insight clears once calls stop. */
 export const REVOKED_KEY_ACTIVE_MS = 3_600_000;
 
-// ── Lifecycle ──────────────────────────────────────────────────────────
 /** A resolved insight stays visible as "recovered" for this long. */
 export const RECOVERED_VISIBLE_MS: number = 24 * 3600_000;
 /** Consecutive clean evaluations before an open insight resolves. */

@@ -1,8 +1,3 @@
-/**
- * Decoder-stage commit — generic (STX/FT/NFT/print) and protocol
- * (sBTC/PoX/BNS) producers share the atomic decoder adapter here.
- */
-
 import {
 	blockEndCursor,
 	committedHeight,
@@ -40,7 +35,6 @@ export function shortPageCheckpointCursor(opts: {
 	eventCount: number;
 	requestedBatchSize: number;
 	tipHeight: number;
-	/** `envelope.next_cursor` — used whenever the short-page proof doesn't apply. */
 	fallback: string | null;
 }): string | null {
 	if (opts.eventCount === 0 || opts.eventCount >= opts.requestedBatchSize) {
@@ -87,7 +81,6 @@ export async function commitDecoderStageBatch(opts: {
 	checkpointCursor: string | null;
 	failure?: DecoderAdapterFailure | null;
 	writeOutput: (tx: Kysely<Database>) => Promise<void>;
-	/** Rows `writeOutput` writes; stamps `last_output_at` when > 0. */
 	outputCount: number;
 	/** Cursor this consume believes is stored. Identity-checked FOR UPDATE
 	 *  before output; a reorg rewind aborts so we do not stamp next_cursor. */
@@ -133,11 +126,6 @@ export async function commitGenericDecoderBatch(opts: {
 	});
 }
 
-/**
- * One entry of a multi-decoder batch commit — same shape
- * `commitGenericDecoderBatch` takes for a single decoder, grouped under one
- * decoder name so several types can land in ONE transaction.
- */
 export type GenericDecoderBatchEntry = {
 	decoderName: string;
 	checkpointCursor: string | null;
@@ -184,13 +172,6 @@ export async function commitClassicDecoderBatch(
 	);
 }
 
-/**
- * True log point for `decoder_checkpoint_advanced`: only when a checkpoint
- * write moves the committed height forward (not every mid-block cursor
- * bump within the same block). Pure and exported so it's unit-testable
- * without a live DB or a real Streams client — measurement only, no
- * behavior change to the commit path itself.
- */
 export function checkpointAdvance(
 	previousCursor: string | null,
 	nextCursor: string | null,

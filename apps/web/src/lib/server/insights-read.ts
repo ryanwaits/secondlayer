@@ -4,12 +4,9 @@ import { type Insight, rankInsights } from "@/lib/insights";
 import { UPSTREAM_READ_TIMEOUT_MS, logIfTimeout } from "@/lib/upstream-timeout";
 
 /**
- * The dashboard's insights: the stack's (webhooks, subgraphs) and the
- * account's (reads, billing) merged and ranked. A side that fails contributes
- * nothing and is reported in `source`, so one unreachable half never blanks
- * the other. Ids are prefixed `t:` (stack) or `a:` (account) so the action
- * route knows which API owns them. Used by the `/api/insights` proxy and by
- * the pages that render insights on the server.
+ * A side that fails contributes nothing and is reported in `source`, so one
+ * unreachable half never blanks the other. Ids are prefixed `t:` (stack) or
+ * `a:` (account) so the action route knows which API owns them.
  */
 
 export type InsightSource = "ok" | "unavailable";
@@ -18,7 +15,6 @@ export async function fetchInsightSide(
 	path: string,
 	prefix: "t" | "a",
 	sessionToken: string,
-	/** Page reads give up early; the browser's proxy waits. */
 	timeoutMs?: number,
 ): Promise<{ data: Insight[]; source: InsightSource }> {
 	try {
@@ -39,8 +35,6 @@ export async function fetchInsightSide(
 	}
 }
 
-/** The ranked insights, or null when neither side answered (the browser then
- *  fetches them itself). Never throws. */
 export async function readInsights(
 	sessionToken: string,
 ): Promise<Insight[] | null> {

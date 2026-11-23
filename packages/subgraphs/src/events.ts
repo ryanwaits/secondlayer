@@ -1,11 +1,3 @@
-/**
- * Typed event payloads passed to subgraph handlers, one per source `type`.
- *
- * Each interface mirrors exactly what the runtime builds in
- * `runtime/runner.ts` `buildEventPayload`. `EventForFilter` maps a source
- * filter to its payload so handlers are typed by their source's `type` (no
- * `event as {...}` casts).
- */
 import type {
 	AbiContract,
 	ExtractFunctionArgs,
@@ -24,8 +16,6 @@ import type {
 	SubgraphFilter,
 	TxMeta,
 } from "./types.ts";
-
-// ── FT events ────────────────────────────────────────────────────────────
 
 export interface FtTransferPayload {
 	sender: string;
@@ -47,10 +37,6 @@ export interface FtBurnPayload {
 	tx: TxMeta;
 }
 
-// ── NFT events ───────────────────────────────────────────────────────────
-// `tokenId` is the decoded Clarity value as-is — its shape depends on the
-// asset, so it stays `unknown` (narrow it in the handler).
-
 export interface NftTransferPayload {
 	sender: string;
 	recipient: string;
@@ -70,8 +56,6 @@ export interface NftBurnPayload {
 	assetIdentifier: string;
 	tx: TxMeta;
 }
-
-// ── STX events ───────────────────────────────────────────────────────────
 
 export interface StxTransferPayload {
 	sender: string;
@@ -98,8 +82,6 @@ export interface StxLockPayload {
 	tx: TxMeta;
 }
 
-// ── Print event ──────────────────────────────────────────────────────────
-
 export interface PrintEventPayload {
 	contractId: string;
 	/** Decoded print topic (the Clarity tuple's `topic` field), or "". */
@@ -112,15 +94,11 @@ export interface PrintEventPayload {
 	tx: TxMeta;
 }
 
-// ── Contract deploy ──────────────────────────────────────────────────────
-
 export interface ContractDeployPayload {
 	contractId: string;
 	deployer: string;
 	tx: TxMeta;
 }
-
-// ── Contract call ────────────────────────────────────────────────────────
 
 /**
  * Contract-call payload. When the source carries a `const` `abi` and a known
@@ -137,7 +115,6 @@ export type ContractCallPayload<F> = F extends {
 		: ContractCallEvent
 	: ContractCallEvent;
 
-// ── VM events (opt-in `vm_events` clock) ─────────────────────────────────
 // Raw hex fields stay strings. The runner must not run them through
 // recursive Clarity decoding — uint hex becomes bigint, short boolean hex
 // stays a string, and handlers cannot round-trip the node body.
@@ -218,8 +195,6 @@ export type MapDeletePayload<F = unknown> = F extends {
 		: MapDeleteEvent
 	: MapDeleteEvent;
 
-// ── Filter → payload mapping ─────────────────────────────────────────────
-
 /**
  * Print event typed per topic. When a `print_event` source declares a `prints`
  * map, the payload is a discriminated union keyed by `topic` with `data` typed
@@ -253,8 +228,6 @@ type OptionalFieldKeys<T> = {
 	[K in keyof T]: T[K] extends { optional: true } ? K : never;
 }[keyof T];
 
-/** Collapse an intersection into one object literal, so hovering `event.data`
- *  shows the fields rather than `A & B`. */
 type Flatten<T> = { [K in keyof T]: T[K] } & {};
 
 /**

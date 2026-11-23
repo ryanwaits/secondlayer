@@ -344,17 +344,14 @@ export async function deleteSubgraph(
 	const subgraph = await getSubgraph(db, name, accountId);
 	if (!subgraph) return null;
 
-	// Use stored schema_name if available, otherwise compute
 	const schemaName = subgraph.schema_name ?? pgSchemaName(name);
 
 	// One transaction: DDL is transactional in Postgres, so a failed row delete
 	// leaves the schema in place instead of a registered subgraph with no tables.
 	const remove = async (trx: Kysely<Database>) => {
-		// Drop the subgraph's schema (CASCADE drops all tables within).
 		await sql`DROP SCHEMA IF EXISTS ${sql.raw(`"${schemaName}"`)} CASCADE`.execute(
 			trx,
 		);
-		// Remove from registry
 		await trx.deleteFrom("subgraphs").where("id", "=", subgraph.id).execute();
 	};
 	if (db.isTransaction) await remove(db);

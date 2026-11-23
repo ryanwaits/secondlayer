@@ -1,16 +1,3 @@
-/**
- * One-shot rebuild of the materialized pox-5 cycle rollup (`pox5_cycles` /
- * `pox5_cycle_signers`) from ALL canonical `pox5_events` — for bootstrap
- * (first deploy of the rollup) and repair (after a source fix that the live
- * decoder's per-batch maintenance wouldn't otherwise revisit).
- *
- * Dry-run by default: recomputes and reports without writing. `--apply`
- * writes, same as the live decoder's own maintenance path.
- *
- * Usage:
- *   bun run packages/indexer/src/decode/rebuild-pox5-cycles.ts
- *   bun run packages/indexer/src/decode/rebuild-pox5-cycles.ts --apply
- */
 import { closeDb } from "@secondlayer/shared/db";
 import {
 	MAINNET_POX5_CYCLE_PARAMS,

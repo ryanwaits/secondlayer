@@ -1,10 +1,8 @@
-/** WalletConnect v2 relay client (wss://relay.walletconnect.com) */
-
 import { createRelayAuthJwt, encodeBase64, encryptType0 } from "./crypto.ts";
 import type { WcRelayMessage } from "./types.ts";
 
 const DEFAULT_RELAY = "wss://relay.walletconnect.com";
-const DEFAULT_TTL = 300; // 5 minutes
+const DEFAULT_TTL = 300;
 
 type PendingRpc = {
 	resolve: (v: unknown) => void;
@@ -33,8 +31,6 @@ export class WcRelay {
 		this.projectId = projectId;
 		this.url = relayUrl ?? DEFAULT_RELAY;
 	}
-
-	// -- Connection --
 
 	async connect(): Promise<void> {
 		if (this.ws?.readyState === WebSocket.OPEN) return;
@@ -85,8 +81,6 @@ export class WcRelay {
 		return this.connectPromise;
 	}
 
-	// -- Publish/Subscribe --
-
 	async subscribe(
 		topic: string,
 		handler: SubscriptionHandler,
@@ -127,8 +121,6 @@ export class WcRelay {
 		await this.publish(topic, encodeBase64(envelope), tag, ttl);
 	}
 
-	// -- Internal --
-
 	private rpc(
 		method: string,
 		params: Record<string, unknown>,
@@ -152,7 +144,6 @@ export class WcRelay {
 			return;
 		}
 
-		// RPC response
 		if ("id" in msg && msg.id != null && this.pending.has(msg.id)) {
 			// biome-ignore lint/style/noNonNullAssertion: value is non-null after preceding check or by construction; TS narrowing limitation
 			const p = this.pending.get(msg.id)!;
@@ -165,7 +156,6 @@ export class WcRelay {
 			return;
 		}
 
-		// Server push (irn_subscription)
 		if (msg.method === "irn_subscription" && msg.params) {
 			const { id: subId, data } = msg.params;
 			const topic = data?.topic ?? this.subIdToTopic.get(subId);
@@ -178,7 +168,6 @@ export class WcRelay {
 					tag: data.tag ?? 0,
 				});
 			}
-			// Acknowledge
 			if (msg.id != null) {
 				this.ws?.send(
 					JSON.stringify({ id: msg.id, jsonrpc: "2.0", result: true }),
@@ -209,7 +198,6 @@ export class WcRelay {
 			this.reconnecting = false;
 			try {
 				await this.connect();
-				// Re-subscribe all topics
 				for (const [topic] of this.subscriptions) {
 					const subId = (await this.rpc("irn_subscribe", { topic })) as string;
 					this.subIdToTopic.set(subId, topic);

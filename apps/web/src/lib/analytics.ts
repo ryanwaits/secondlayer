@@ -30,7 +30,6 @@ function scheduleIdle(callback: () => void) {
 	}
 }
 
-/** Schedules the SDK import and init. Idempotent; never throws. */
 export function loadAnalytics(
 	importer: Importer = () => import("posthog-js"),
 ): void {
@@ -103,7 +102,6 @@ export function capture(event: string, properties?: Record<string, unknown>) {
 	run((ph) => ph.capture(event, properties));
 }
 
-/** Subscribes once flags resolve. The returned unsubscribe works before and after load. */
 export function onFeatureFlags(callback: () => void): () => void {
 	let cancelled = false;
 	let unsubscribe: (() => void) | undefined;
@@ -117,18 +115,14 @@ export function onFeatureFlags(callback: () => void): () => void {
 	};
 }
 
-/** This visitor's PostHog id, for a request whose server-side event should
- *  join their pageviews. `undefined` until the SDK loads. */
 export function distinctId(): string | undefined {
 	return client?.get_distinct_id() || undefined;
 }
 
-/** `undefined` until the SDK loads, which reads as "not disabled". */
 export function isFeatureEnabled(flag: string): boolean | undefined {
 	return client?.isFeatureEnabled(flag);
 }
 
-/** Test-only: clears module state so each test starts unloaded. */
 export function resetAnalytics() {
 	client = null;
 	started = false;

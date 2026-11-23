@@ -2,13 +2,9 @@ import { type ReactNode, isValidElement } from "react";
 
 export type Fence = {
 	code: string;
-	/** The language as authored (`ts`, `bash`). */
 	lang: string;
-	/** The rest of the info string: title and options. */
 	meta?: string;
-	/** A title the info string cannot spell. */
 	title?: string;
-	/** The names this block may tip automatically. */
 	tips?: readonly string[];
 };
 
@@ -39,7 +35,6 @@ export function fenceFromCode(codeEl: CodeElement | undefined): Fence | null {
 
 type FenceProps = {
 	children?: CodeElement;
-	/** Set when the element is a `<Code>` itself. */
 	code?: string;
 	lang?: string;
 	meta?: string;
@@ -47,7 +42,6 @@ type FenceProps = {
 	tips?: readonly string[];
 };
 
-/** A fence from either shape it travels in: an MDX `<pre>` or a `<Code code lang meta>` element a component built. */
 export function fenceOf(node: ReactNode): Fence | null {
 	if (!isValidElement<FenceProps>(node)) return null;
 	const { code, lang, meta, title, tips, children } = node.props;

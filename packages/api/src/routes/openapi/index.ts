@@ -36,7 +36,6 @@ const TX_RANGE_PARAMS = INDEX_RANGE_PARAMS.map((p) =>
 		: p,
 );
 
-/** Blocks, the canonical map and the mempool never return `reorgs`. */
 function envelopeWithoutReorgs(
 	arrayKey: string,
 	item: Record<string, unknown>,
@@ -55,7 +54,6 @@ function envelopeWithoutReorgs(
 	};
 }
 
-/** Point reads: no query params to refuse, so no 400. */
 function pointResponses(
 	success: Record<string, unknown>,
 	notFound: string,
@@ -78,15 +76,12 @@ const TRAIT_PARAM = {
 	schema: { type: "string", enum: [...TRAIT_STANDARDS] },
 };
 
-/** A real tip snapshot from mainnet, used in the single-resource examples. */
 const TIP_EXAMPLE = {
 	block_height: 9048938,
 	finalized_height: 9048671,
 	lag_seconds: 23,
 	source_block_height: 9048938,
 };
-
-// ── Examples: real mainnet rows, shaped by each route's serializer ──
 
 const BLOCK_EXAMPLE = {
 	cursor: "9048502:0",
@@ -169,7 +164,6 @@ const MEMPOOL_EXAMPLE = {
 	},
 };
 
-/** Chain reads: events, transfers, blocks, transactions, mempool. */
 export const indexPaths = {
 	"/v1/index": {
 		get: {
@@ -663,7 +657,6 @@ export const indexPaths = {
 	},
 };
 
-/** Mempool cursors are opaque, not `<block_height>:<n>`. */
 function mempoolEnvelope() {
 	const out = envelopeWithoutReorgs("mempool", ref("MempoolTransaction"));
 	const schema = out["200"].content["application/json"].schema;
@@ -690,8 +683,6 @@ function mempoolEnvelope() {
 		},
 	};
 }
-
-// ── Shared property fragments ──
 
 const CURSOR_PROP = {
 	type: "string",
@@ -724,7 +715,6 @@ const EVENT_INDEX_PROP = {
 		"The event's position in the block. With `block_height`, the cursor.",
 };
 
-/** Fields shared by the confirmed and pending transaction documents. */
 const TX_DECODED_PROPS = {
 	tx_type: {
 		type: "string",
@@ -791,7 +781,6 @@ const TX_DECODED_PROPS = {
 	},
 };
 
-/** Resource schemas for these rows, merged into `components.schemas`. */
 export const indexSchemas = {
 	IndexEvent: {
 		type: "object",

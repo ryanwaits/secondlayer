@@ -1,23 +1,11 @@
-/**
- * The SDK reference as one overview and one page per surface, in sidebar
- * order. Counts and member lists come from the generated reference; what is
- * kept here is only what no source file says: the page order, a one-line
- * blurb for the overview map, and which guide and API page each surface
- * answers to.
- */
-
 export type SdkSurfacePageInfo = {
 	slug: string;
-	/** Sidebar and pager title. */
 	title: string;
-	/** What the overview map says under the surface's name. */
 	blurb: string;
-	/** The product guide, and the HTTP page serving the same data. */
 	guide?: { title: string; href: string };
 	api?: { title: string; href: string };
 };
 
-/** Pages generated from a surface file (`<slug>.json`), in sidebar order. */
 export const SDK_SURFACES: SdkSurfacePageInfo[] = [
 	{
 		slug: "client",
@@ -77,23 +65,17 @@ export const SDK_SURFACES: SdkSurfacePageInfo[] = [
 
 export const SDK_BASE = "/docs/sdk-reference";
 
-/** Function-first packages: one page each, sectioned by group instead of one page per surface. */
 export type PackageKey = "subgraphs" | "verify" | "filters";
 
 export type PackagePageInfo = {
 	key: PackageKey;
-	/** Where the page lives. */
 	href: string;
-	/** Sidebar and pager title. */
 	title: string;
-	/** What the import line says. */
 	specifier: string;
-	/** One line under each group's title, by group slug. */
 	groups: Record<string, string>;
 	guide?: { title: string; href: string };
 };
 
-/** The function-first reference pages, in sidebar order. */
 export const PACKAGE_PAGES: PackagePageInfo[] = [
 	{
 		key: "subgraphs",
@@ -157,10 +139,6 @@ export function findPackagePage(key: PackageKey): PackagePageInfo {
 
 export type SdkPage = { href: string; title: string };
 
-/**
- * Every page of the reference in sidebar order: the SDK's overview, surfaces,
- * helpers and errors, then one page per function-first package.
- */
 export function sdkPages(): SdkPage[] {
 	return [
 		{ href: SDK_BASE, title: "Overview" },

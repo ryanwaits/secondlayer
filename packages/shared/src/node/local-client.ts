@@ -1,10 +1,3 @@
-/**
- * Local replay client — reconstructs NewBlockPayload from our own Postgres.
- *
- * Used for re-orgs, reprocessing, and self-serve replay after genesis sync.
- * Eliminates need for self-hosted Hiro API for blocks already in our DB.
- */
-
 import type { Kysely } from "kysely";
 import type { Database } from "../db/types.ts";
 import {
@@ -175,7 +168,6 @@ export class LocalClient {
 					sender_address: tx.sender,
 					raw_result: tx.raw_result ?? null,
 				};
-				// Include function_args if stored (for contract_call txs)
 				if (tx.function_args) {
 					const args =
 						typeof tx.function_args === "string"
@@ -191,8 +183,6 @@ export class LocalClient {
 				const data = (evt.data ?? {}) as Record<string, unknown>;
 				const eventType = evt.type;
 
-				// Reconstruct the flat event structure the indexer expects:
-				// { txid, event_index, committed, type, [type_key]: data }
 				const payload: ReplayEventPayload = {
 					txid: evt.tx_id,
 					event_index: evt.event_index,
@@ -200,7 +190,6 @@ export class LocalClient {
 					type: eventType,
 				};
 
-				// Attach event-specific data under the correct key
 				if (eventType && data) {
 					payload[eventType] = data;
 				}

@@ -26,8 +26,6 @@ const SUBGRAPH_GUIDES: readonly Guide[] = [
 	},
 ];
 
-/** No subgraphs yet: say what one is, hand over the deploy command and a
- *  prompt for the person's agent, with the guides beside it. */
 export function SubgraphsEmptyState() {
 	return (
 		<EmptyStart

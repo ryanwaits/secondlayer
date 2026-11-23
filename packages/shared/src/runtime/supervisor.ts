@@ -1,8 +1,3 @@
-/**
- * Unified supervisor — start a profile, contain per-module faults, aggregate
- * health so unrelated reads stay up when one loop dies.
- */
-
 import {
 	MODULE_MACHINE,
 	type ModuleHealth,
@@ -71,9 +66,7 @@ export function createSupervisor(
 				}
 				try {
 					await mod.start();
-				} catch {
-					// contained — other modules still start
-				}
+				} catch {}
 			}
 		},
 		async stop(id) {
@@ -97,9 +90,7 @@ export function createSupervisor(
 			restarts.set(id, (restarts.get(id) ?? 0) + 1);
 			try {
 				await mod.start();
-			} catch {
-				// contained
-			}
+			} catch {}
 		},
 		health() {
 			const modules = snapshot();

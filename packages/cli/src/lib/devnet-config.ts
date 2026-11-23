@@ -16,7 +16,6 @@ export const DEFAULT_INDEXER_OBSERVER = "host.docker.internal:3700";
 /** Walk up from `startDir` until a directory containing `Clarinet.toml` is found. */
 export function findClarinetProject(startDir: string): string | null {
 	let dir = startDir;
-	// Stop at the filesystem root — parsePath(root).root === root.
 	const { root } = parsePath(dir);
 	while (true) {
 		if (existsSync(join(dir, "Clarinet.toml"))) return dir;
@@ -55,7 +54,7 @@ export function ensureEventObserver(
 		}
 	}
 
-	const entry = JSON.stringify(endpoint); // TOML strings are JSON-compatible here
+	const entry = JSON.stringify(endpoint);
 
 	// Case 1: an ACTIVE array already exists — insert at its head (works for
 	// `[]`, `["x"]`, and multi-line arrays alike). The leading `[^#\n]*` keeps
@@ -73,7 +72,6 @@ export function ensureEventObserver(
 		return { status: "added" };
 	}
 
-	// Case 2: a [devnet] table exists but lacks the key — add it under the header.
 	const header = original.match(/^\[devnet\]\s*$/m);
 	if (header) {
 		const at = (header.index ?? 0) + header[0].length;
@@ -82,7 +80,6 @@ export function ensureEventObserver(
 		return { status: "added" };
 	}
 
-	// Case 3: no [devnet] table (or no file) — append a fresh block.
 	const prefix =
 		original && !original.endsWith("\n") ? `${original}\n` : original;
 	const block = `${prefix}${original.trim() ? "\n" : ""}[devnet]\nstacks_node_events_observers = [${entry}]\n`;

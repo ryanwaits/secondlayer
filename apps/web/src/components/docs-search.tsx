@@ -34,13 +34,11 @@ import { refreshList, useWebhooksCache } from "@/lib/webhooks-store";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 
-/** The precompiled docs index with its postings built and rows ready to render. */
 type LoadedIndex = { index: DocsSearchIndex; items: Map<string, CommandItem> };
 
 let loaded: LoadedIndex | null = null;
 let loading: Promise<LoadedIndex> | null = null;
 
-/** Fetched once per page load, on the first focus of the field. */
 function loadIndex(): Promise<LoadedIndex> {
 	loading ??= fetch("/docs/search-index.json")
 		.then((res) => {
@@ -55,7 +53,6 @@ function loadIndex(): Promise<LoadedIndex> {
 			return loaded;
 		})
 		.catch((err) => {
-			// A failed fetch retries on the next focus.
 			loading = null;
 			throw err;
 		});
@@ -80,16 +77,12 @@ type Row =
 	| { kind: "copy" };
 
 const MAX_HITS = 5;
-/** Text results handed to the fusion; the embedding side returns its own 30. */
 const FIND_POOL = 30;
-/** Idle time before an unsure search asks the API for its nearest sections. */
 const FIND_DEBOUNCE_MS = 250;
 const MAX_YOURS = 3;
 const MAX_EMPTY_DOCS = 4;
 const MAX_ATTACH_DOCS = 12;
-/** Pages and endpoints only: what can be ranked before the index arrives. */
 const BASE_POOL = docsSearchPool([], apiNav, {});
-/** `@` at the start or after a space, running to the end of the input. */
 const ATTACH = /(^|\s)@(\S*)$/;
 const WEBHOOK_PREFIX = "webhook:";
 const PROMPT_VERB = /^\/prompt\s+/;
@@ -98,7 +91,6 @@ function wordCount(text: string): number {
 	return text.split(/\s+/).filter(Boolean).length;
 }
 
-/** Same page: jump to the anchor through a hash change. */
 function jumpOnPage(anchor: string | undefined) {
 	if (!anchor) {
 		window.scrollTo({ top: 0 });
@@ -128,10 +120,6 @@ function SearchIcon() {
 	);
 }
 
-/**
- * The docs top-nav search: type to search pages, sections and endpoints,
- * `/prompt` to copy a prompt for a coding agent. Runs entirely in the browser.
- */
 export function DocsSearch() {
 	const router = useRouter();
 	const pathname = usePathname();
@@ -145,17 +133,13 @@ export function DocsSearch() {
 	const [dismissed, setDismissed] = useState(false);
 	const [selected, setSelected] = useState(0);
 	const [busy, setBusy] = useState(false);
-	/** Bumped when a nearest-sections answer lands, so the rows read it from the cache. */
 	const [answers, setAnswers] = useState(0);
-	/** Row the reader arrowed or hovered onto and where it sits; a late answer never moves it. */
 	const arrowed = useRef<{ id: string; index: number } | null>(null);
-	/** Items attached with `@`; they feed the prompt and nothing else. */
 	const [chips, setChips] = useState<CommandItem[]>([]);
 	const { account } = useAuth();
 	const { keys } = useAccountData();
 	const { list } = useWebhooksCache();
 	const fetchedAccount = useRef(false);
-	/** The prompt, shown for hand-copying when the clipboard refuses. */
 	const [manual, setManual] = useState<string | null>(null);
 
 	const [ready, setReady] = useState<LoadedIndex | null>(loaded);
@@ -220,9 +204,7 @@ export function DocsSearch() {
 	const textSure = confident(results);
 	const findable = plain && !!ready && shouldFind(text, textSure);
 
-	/** `sure`: the top hit clearly beats the rest (nothing reads it yet). */
 	const { hits, sure } = useMemo(() => {
-		// `answers` re-reads the cache when the API's answer lands.
 		void answers;
 		if (!plain) return { hits: [] as CommandItem[], sure: false };
 		if (!ready) {
@@ -276,14 +258,12 @@ export function DocsSearch() {
 	const open = focused && !dismissed && (rows.length > 0 || manual !== null);
 	const activeId = open && !manual ? `${listId}-${selected}` : undefined;
 
-	// An unsure search that has sat idle asks for its nearest sections; typing on cancels it.
 	useEffect(() => {
 		if (!findable || cachedNearest(text) !== undefined) return;
 		const ctrl = new AbortController();
 		const timer = setTimeout(() => {
 			requestNearest(text, ctrl.signal).then(
 				() => setAnswers((n) => n + 1),
-				// Offline, rate limited, aborted: the text results stand.
 				() => {},
 			);
 		}, FIND_DEBOUNCE_MS);
@@ -293,14 +273,11 @@ export function DocsSearch() {
 		};
 	}, [findable, text]);
 
-	// A late answer re-sorts the rows; the selection stays on the row the
-	// reader was on, or on the new first row if they never moved.
 	useEffect(() => {
 		const row = arrowed.current;
 		setSelected(row ? (row.id === "to-prompt" ? hits.length : row.index) : 0);
 	}, [hits]);
 
-	// ⌘K / Ctrl+K focuses this field; the palette yields on docs pages.
 	useEffect(() => {
 		function onKeyDown(e: KeyboardEvent) {
 			if (e.key.toLowerCase() === "k" && (e.metaKey || e.ctrlKey)) {
@@ -322,7 +299,6 @@ export function DocsSearch() {
 		setSelected(0);
 	}
 
-	/** Signed-in readers' lists load the first time the field is focused. */
 	function loadAccount() {
 		if (!account || fetchedAccount.current) return;
 		fetchedAccount.current = true;
@@ -342,7 +318,6 @@ export function DocsSearch() {
 		setDismissed(false);
 		setSelected(0);
 		setManual(null);
-		// "/prompt " turns into the verb chip, the rest stays as the task.
 		if (!verb && PROMPT_VERB.test(next)) {
 			setVerb(true);
 			setValue(next.replace(PROMPT_VERB, ""));
@@ -358,9 +333,7 @@ export function DocsSearch() {
 		try {
 			const res = await fetch(markdownPath(pathname));
 			if (res.ok) pageMd = await res.text();
-		} catch {
-			// Build without the page's notes.
-		}
+		} catch {}
 		const attached = chips
 			.filter((c) => c.id.startsWith(WEBHOOK_PREFIX))
 			.map((c) => c.id.slice(WEBHOOK_PREFIX.length));
@@ -413,7 +386,6 @@ export function DocsSearch() {
 		}
 	}
 
-	/** Moves the selection by the reader's hand; late answers then leave that row alone. */
 	function select(index: number) {
 		setSelected(index);
 		const row = rows[index];
@@ -539,7 +511,6 @@ export function DocsSearch() {
 					data-confident={sure || undefined}
 					role="presentation"
 					onMouseDown={(e) => {
-						// Keep focus in the input while a row is clicked.
 						if ((e.target as HTMLElement).tagName !== "TEXTAREA")
 							e.preventDefault();
 					}}

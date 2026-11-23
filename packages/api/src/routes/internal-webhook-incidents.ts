@@ -1,12 +1,3 @@
-/**
- * `POST /internal/webhook-incidents` — the workload host reports, once a
- * minute per running tenant, which of the account's webhooks are down. This
- * route keeps the incident debounce table and sends one email per account
- * when an incident opens. Tenant stacks never call it: the workload host is
- * the only process that reads tenant webhooks and talks to the platform.
- *
- * Auth: `WORKLOAD_HOST_KEY` only (not the Sentinel key).
- */
 import {
 	MAX_EMAIL_ATTEMPTS,
 	claimIncidentEmails,
@@ -26,7 +17,6 @@ import { buildWebhookIncidentEmail } from "../lib/webhook-incident-email.ts";
 import { InvalidJSONError } from "../middleware/error.ts";
 import { bearerToken, workloadHostKeyMatches } from "./internal-meters.ts";
 
-/** Clock-skew tolerance between the workload host and this server. */
 const OBSERVED_AT_TOLERANCE_MS = 5 * 60 * 1000;
 
 const bodySchema = z.object({

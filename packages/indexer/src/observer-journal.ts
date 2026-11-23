@@ -31,7 +31,6 @@ export const OBSERVER_JOURNAL_MACHINE = defineMachine({
 	},
 });
 
-/** Consecutive identical apply errors after which a row is poisoned. */
 export const POISON_AFTER = 10;
 
 export type ObserverPath = "/new_block" | "/new_burn_block";
@@ -56,7 +55,6 @@ export function sha256Hex(value: Uint8Array | string): string {
 	return createHash("sha256").update(value).digest("hex");
 }
 
-/** Stable JSON encoding for semantic comparisons across runtimes. */
 export function canonicalJson(value: unknown): string {
 	if (value === null) return "null";
 	if (typeof value === "string" || typeof value === "boolean") {
@@ -247,12 +245,9 @@ export async function markObserverFailed(
 }
 
 export interface JournalBacklog {
-	/** Unapplied `/new_block` receipts. */
 	received: number;
 	oldestReceivedAt: Date | null;
-	/** Receipts that failed and were never redelivered successfully. */
 	failed: number;
-	/** Receipts skipped after repeating the same error. */
 	poisoned: number;
 }
 
@@ -297,7 +292,6 @@ export async function journalBacklog(
 export class FailureTracker {
 	private readonly seen = new Map<string, { message: string; count: number }>();
 
-	/** Record a failure; returns how many times in a row this message has hit. */
 	record(sequence: string, message: string): number {
 		const prev = this.seen.get(sequence);
 		const count = prev?.message === message ? prev.count + 1 : 1;

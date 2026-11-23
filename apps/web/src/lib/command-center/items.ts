@@ -2,19 +2,12 @@ import { apiPageHref, pageForTag } from "@/app/(www)/docs/api-reference/pages";
 import { docsNavPages } from "@/app/(www)/docs/nav";
 import { actions } from "@/lib/actions/registry";
 
-/**
- * Unified result model for the command center. Every item OPENS a page —
- * there are no verbs, no writes, no drill-downs (see
- * docs/specs/command-center.spec.md §2).
- */
-
 export type CommandGroup =
 	| "navigation"
 	| "your subgraphs"
 	| "webhooks"
 	| "docs";
 
-/** Fixed render order; empty groups collapse. */
 export const GROUP_ORDER: CommandGroup[] = [
 	"navigation",
 	"your subgraphs",
@@ -28,13 +21,11 @@ export interface CommandItem {
 	id: string;
 	group: CommandGroup;
 	label: string;
-	/** Mono context line: status · rows, table target, docs section. */
 	sub?: string;
 	badge?: { text: string; tone: "live" | "warn" | "muted" };
 	href?: string;
 	newTab?: boolean;
 	keywords?: string[];
-	/** Registry actions with side effects (logout) instead of an href. */
 	actionId?: string;
 }
 
@@ -47,7 +38,6 @@ export const NAV_ITEMS: CommandItem[] = actions.map((a) => ({
 	actionId: a.id,
 }));
 
-/** Vocabulary users reach for that page titles don't carry. */
 const DOCS_KEYWORDS: Record<string, string[]> = {
 	"/docs/webhooks": ["webhook", "webhooks", "push"],
 	"/docs/index": ["events", "transfers", "decoded"],
@@ -69,7 +59,6 @@ export const DOCS_ITEMS: CommandItem[] = docsNavPages().map((page) => ({
 	],
 }));
 
-/** Fallback row when nothing matches — discovery never dead-ends. */
 export const DOCS_FALLBACK: CommandItem = {
 	id: "docs:fallback",
 	group: "docs",
@@ -86,7 +75,6 @@ export const DOCS_FALLBACK: CommandItem = {
  */
 export type Phrasings = Record<string, { phrasings: string[] }>;
 
-/** The docs field's per-section rows: one per `##`/`###` heading, sub = its page. */
 export function docsHeadingItems(
 	index: { href: string; anchor: string; title: string }[],
 	titleFor: (href: string) => string,
@@ -102,8 +90,6 @@ export function docsHeadingItems(
 	}));
 }
 
-/** One row per generated API endpoint, jumping to it on the API page that
- *  holds it (the page opens its drawer). */
 export function docsEndpointItems(
 	nav: {
 		tag: string;
@@ -125,7 +111,6 @@ export function docsEndpointItems(
 	});
 }
 
-/** One row per reference method or function, jumping to its entry on its page. */
 export function docsMethodItems(
 	nav: {
 		page: string;
@@ -148,7 +133,6 @@ export function docsMethodItems(
 	);
 }
 
-/** The docs field's whole search pool: pages, sections, API endpoints and SDK methods. */
 export function docsSearchPool(
 	headings: { href: string; anchor: string; title: string }[],
 	apiNav: Parameters<typeof docsEndpointItems>[0],

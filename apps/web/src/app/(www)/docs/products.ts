@@ -14,12 +14,9 @@ export interface DocsProduct {
 	key: ProductKey;
 	title: string;
 	href: string;
-	/** Intro stack row. */
 	stack: { get: string; write: string };
-	/** Product page "You get / You write" pair. */
 	get: string;
 	write: string;
-	/** Verify's check map: what you can prove, the command, what you still trust. */
 	check: { prove: string; run: string; trust: string };
 }
 
@@ -104,7 +101,6 @@ export const DOCS_PRODUCTS: DocsProduct[] = [
 	},
 ];
 
-/** The base row of the check map: the check that sits under every layer. */
 export const BLOCK_CHECK = {
 	title: "Any block",
 	prove: "A block, its transactions, its state writes and its Bitcoin anchor",
@@ -112,7 +108,6 @@ export const BLOCK_CHECK = {
 	trust: "The checkpoint shipped in the release",
 };
 
-/** What the neighbour one layer away offers you, keyed `${from}>${to}`. */
 export const SEAM_CELLS: Record<string, { why: string; tease: string }> = {
 	"archive>streams": {
 		why: "Read the history as a raw, signed stream.",
@@ -148,7 +143,6 @@ export const SEAM_CELLS: Record<string, { why: string; tease: string }> = {
 	},
 };
 
-/** The products one layer toward the chain (`down`) and toward your app (`up`). */
 export function neighbours(key: ProductKey): {
 	down?: DocsProduct;
 	up?: DocsProduct;
@@ -169,12 +163,10 @@ export interface StartCell {
 
 export interface StartPage {
 	key: StartKey;
-	/** Absent when the page opens without a get/write pair (Verify). */
 	yields?: { get: string; writeLabel: string; write: string };
 	seam: [StartCell, StartCell];
 }
 
-/** The three Start pages: their opening pair and the two pages they hand off to. */
 export const START_PAGES: StartPage[] = [
 	{
 		key: "keys",

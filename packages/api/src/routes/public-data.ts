@@ -17,9 +17,6 @@ import { type IndexTip, getIndexTip } from "../index/tip.ts";
 import { createMemoizedReader } from "../lib/memoized-reader.ts";
 
 /**
- * Keyless aggregates behind the public /data/sbtc, /data/pox5 and /data/runes
- * pages.
- *
  * Aggregates only, never a filterable list of rows: the sBTC scoreboard, the
  * PoX-5 current and next cycle plus the current cycle's signers (tens of rows
  * from the materialized rollup), and the ten most-minted runes. The pages are public and indexed, so request
@@ -36,10 +33,8 @@ export type PublicSbtcData = {
 };
 
 export type PublicPoxData = {
-	/** Null before the first pox-5 cycle starts. */
 	current: Pox5Cycle | null;
 	next: Pox5Cycle | null;
-	/** The current cycle's signers, largest delegation first. */
 	signers: Pox5CycleSigner[];
 	tip: PublicDataTip;
 	generated_at: string;
@@ -52,9 +47,7 @@ export type PublicRune = Pick<
 >;
 
 export type PublicRunesData = {
-	/** The ten most-minted runes, most first. */
 	most_minted: PublicRune[];
-	/** Bitcoin block height, a separate clock from the Stacks tip. */
 	tip: { block_height: number };
 	generated_at: string;
 };
@@ -65,7 +58,6 @@ export type PublicDataOptions = {
 	readRunes?: () => Promise<PublicRunesData>;
 	now?: () => number;
 	ttlMs?: number;
-	/** How long a last-good payload may be served while refreshes fail. */
 	staleMs?: number;
 };
 

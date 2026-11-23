@@ -43,12 +43,10 @@ export function FastAnchorScroll() {
 
 			event.preventDefault();
 			const startY = window.scrollY;
-			// Let the browser jump (records the hash), then note the target.
 			if (location.hash === url.hash) target.scrollIntoView();
 			else location.hash = url.hash;
 			const targetY = window.scrollY;
 			if (targetY === startY) return;
-			// Back to where we were, same frame, then move.
 			window.scrollTo({ top: startY, left: 0, behavior: "instant" });
 			scrollWindowTo(targetY);
 		}

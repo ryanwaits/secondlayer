@@ -19,7 +19,6 @@ import {
 } from "./handlers";
 
 const DEFAULT_MAX = 30;
-/** Hiding fewer lines than this is not worth a "Show more" button. */
 const MIN_HIDDEN = 4;
 
 const LANG_LABEL: Record<string, string> = {
@@ -31,24 +30,14 @@ const LANG_LABEL: Record<string, string> = {
 
 export type CodeProps = {
 	code: string;
-	/** The fence language as authored (`ts`, `sh`, `text`). */
 	lang?: string;
-	/** The rest of the fence info string: title and options. */
 	meta?: string;
-	/** A bar title the fence info string cannot spell (words, not a path). */
 	title?: string;
 	variant?: Variant;
-	/**
-	 * The names that may carry an automatic tip (SDK methods, types, endpoint
-	 * path templates). Absent: none, so a block tips only what its author wrote
-	 * with `!tip`. The page decides which (remark-code-tips.mjs, the reference).
-	 */
 	tips?: readonly string[];
-	/** Inside `<CodeTabs>`: the tab group draws the frame, the bar and Copy. */
 	tabbed?: boolean;
 };
 
-/** 2xx is ok, 4xx and 5xx alarm, anything between stays quiet. */
 const statusTone = (status: number) =>
 	status < 300 ? "ok" : status >= 400 ? "bad" : "";
 
@@ -58,32 +47,17 @@ const isShellCommand = (line: string, previous: string | undefined) =>
 	!line.startsWith("#") &&
 	!(previous !== undefined && /\\$/.test(previous));
 
-/** A block as markup: its frame's classes and everything inside it as one string. */
 export type RenderedCode = {
 	className: string;
-	/** Whether Copy has anything to give. */
 	copyable: boolean;
-	/** Whether the block names `$SECONDLAYER_API_KEY`, so a signed-in reader can fill it. */
 	hasKey: boolean;
 	html: string;
-	/** A figure's margin notes as markup, or "" when it has none. */
 	notes: string;
-	/** Where the first row starts below the figure's top edge, for the notes to align to. */
 	noteTop: string;
-	/** Whether a bare block's docs key controls live in a margin note beside it instead of its frame. */
 	keyed: boolean;
-	/** Whether the key note may sit in the page margin: its row index lines up with its line. */
 	margin: boolean;
 };
 
-/**
- * The one code renderer: fence options and annotation comments in, markup out.
- * A block is one HTML string the handlers build, so it costs the page one
- * element and one span per token (a React element per token is about four times
- * the bytes, and a block travels in the page twice, as markup and as RSC
- * payload). Tokens carry their color as a ladder class. All interactivity is the
- * page's single `CodeClient` listener; nothing here ships JavaScript.
- */
 export async function renderCode({
 	code,
 	lang = "text",
@@ -95,15 +69,12 @@ export async function renderCode({
 }: CodeProps): Promise<RenderedCode> {
 	const options = parseFenceOptions(`${lang} ${meta ?? ""}`);
 	const figure = variant === "figure";
-	// Figures number their source; a transcript is not source.
 	if (figure && options.lang !== "text" && !options.lines) options.lines = 1;
 	const source = code.replace(/^\n+/, "").trimEnd();
 	const parsed = parseAnnotations(source, options.lang);
 	const isText = options.lang === "text";
 	const isShell = options.lang === "bash";
 
-	// In `text` blocks a leading "$ " is a prompt column, and the rest is shell.
-	// A `text` command carries on while a line ends in a backslash or a single quote is open.
 	let carrying = false;
 	let quoted = false;
 	const prompts = parsed.lines.map((line, i) => {
@@ -116,7 +87,6 @@ export async function renderCode({
 			return command ? "$" : "";
 		}
 		if (isShell) {
-			// A line inside an open single quote (a multi-line `--json '…'`) is the argument, not a new command.
 			const command = !quoted && isShellCommand(line, parsed.lines[i - 1]);
 			if ((line.split("'").length - 1) % 2 === 1) quoted = !quoted;
 			return command ? "$" : "";
@@ -145,7 +115,6 @@ export async function renderCode({
 		display,
 		lang: options.lang,
 		variant,
-		// Output is never tipped: it is what a command printed, not what to write.
 		tips: tipTable && tips ? { table: tipTable, allow: new Set(tips) } : null,
 		base: options.base,
 	});
@@ -153,7 +122,6 @@ export async function renderCode({
 	if (figure && (options.wrap || plan.collapses.length || plan.hasError))
 		throw new Error("figures take no wrap, !collapse or !error");
 	const notes: string[] = [];
-	/** A noted row and its notes share an ordinal, so hovering the token can light its note. */
 	const noteOf = new Map<number, number>();
 	if (figure)
 		plan.lines.forEach((l, i) => {
@@ -178,10 +146,8 @@ export async function renderCode({
 		hasPrompt ? "2ch" : "0px",
 	].join(" + ");
 
-	// A shell block whose only gutter is the prompt hangs it in the row's padding.
 	const hanging =
 		isShell && hasPrompt && !options.lines && !plan.hasDiff && !options.wrap;
-	// Plain rows are just their tokens; a gutter or soft wrap needs the `.tx` column beside it.
 	const gutterRows =
 		Boolean(options.lines) ||
 		plan.hasDiff ||
@@ -239,7 +205,6 @@ export async function renderCode({
 		(Boolean(barTitle) || options.exit != null || options.status != null);
 	// Hidden until the page knows who is reading (never server-rendered visible).
 	const useKey = copyable && hasKey && !tabbed && hasBar ? KEY_CONTROLS : "";
-	// A bare block's key controls leave the frame for a margin note on the key's own line.
 	const bareKey = copyable && hasKey && !tabbed && !hasBar;
 	const keyLine = plan.lines.findIndex((l) =>
 		l.ranges.some(
@@ -284,26 +249,21 @@ export async function renderCode({
 		notes: notes.join(""),
 		keyed: bareKey && keyLine >= 0,
 		margin,
-		// The frame's border, the bar, then the body's padding; a tab group's bar sits outside the pane.
 		noteTop: tabbed ? "12px" : hasBar ? "calc(var(--bar) + 13px)" : "13px",
 	};
 }
 
-/** A block's frame as markup. */
 export const frameOf = (r: RenderedCode) =>
 	`<div class="${r.className}"${r.copyable ? " data-copyable" : ""}>${r.html}</div>`;
 
-/** A figure's wrapper class: a docs key note makes it `key`, and `under` when it cannot sit in the margin. */
 const figureClass = (r: RenderedCode) =>
 	`cf${r.keyed ? " key" : ""}${r.keyed && !r.margin ? " under" : ""}`;
 
-/** A figure: the frame beside its notes (`.cf`), or the bare frame when it has none. */
 export const figureOf = (r: RenderedCode) =>
 	r.notes
 		? `<div class="${figureClass(r)}" style="--nt:${r.noteTop}">${frameOf(r)}<div class="cf-notes">${r.notes}</div></div>`
 		: frameOf(r);
 
-/** `renderCode` as one element: the block's frame, its contents a single string. */
 export async function Code(props: CodeProps) {
 	const rendered = await renderCode(props);
 	const { className, copyable, html } = rendered;
@@ -328,7 +288,6 @@ export async function Code(props: CodeProps) {
 	);
 }
 
-/** Rows with `!collapse` ranges folded behind one summary button and rows past `clampAt` behind "Show more". */
 function bodyRows(
 	plan: Plan,
 	lines: string[],

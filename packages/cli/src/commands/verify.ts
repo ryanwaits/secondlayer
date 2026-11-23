@@ -84,7 +84,6 @@ function parseHeight(value: string, flag: string): number {
 	return parsed;
 }
 
-/** Heights listed per divergent range in human output; --json has them all. */
 const MAX_HEIGHTS_SHOWN = 20;
 
 function statusLabel(status: RangeComparison["status"]): string {
@@ -219,7 +218,6 @@ Exit codes:
 							human: () => {},
 						});
 
-					// Tell "the archive has no such dataset" apart from "range not covered".
 					const published = (manifest.range_digests ?? []).filter((d) =>
 						datasetMatchesTarget(d.dataset, target),
 					);
@@ -383,8 +381,6 @@ Exit codes:
 						(typeof all)[number] & { divergent_heights?: DivergentHeight[] }
 					> = all.filter((c) => c.status !== "match");
 
-					// Narrow each divergent range to exact heights from the archive's
-					// per-height sidecars (free, read from the reference root).
 					const digestIndex = manifest.digest_index as
 						| DigestIndexPartition[]
 						| undefined;

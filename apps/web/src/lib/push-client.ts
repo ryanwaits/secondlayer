@@ -1,21 +1,9 @@
-/**
- * Browser side of web push for the installed phone app. `pushState` is pure
- * so every state is testable; `turnOnPush` / `turnOffPush` are the thin calls
- * into the service worker and the account's push API.
- */
-
 export type PushState =
-	/** No service worker, PushManager or Notification. */
 	| "unsupported"
-	/** iOS Safari outside the home-screen app. */
 	| "needs_install"
-	/** The server has no VAPID key. */
 	| "unavailable"
-	/** The person said no in the browser's settings. */
 	| "blocked"
-	/** Supported, not subscribed. */
 	| "off"
-	/** Subscribed. */
 	| "on";
 
 export interface PushEnv {
@@ -38,7 +26,6 @@ export function pushState(env: PushEnv): PushState {
 	return env.subscribed && env.permission === "granted" ? "on" : "off";
 }
 
-/** The VAPID public key as the bytes `pushManager.subscribe` wants. */
 export function urlBase64ToUint8Array(base64: string): Uint8Array<ArrayBuffer> {
 	const padded = base64 + "=".repeat((4 - (base64.length % 4)) % 4);
 	const raw = atob(padded.replace(/-/g, "+").replace(/_/g, "/"));
@@ -70,7 +57,6 @@ async function currentSubscription(): Promise<PushSubscription | null> {
 	return (await registration?.pushManager.getSubscription()) ?? null;
 }
 
-/** Reads this browser's push state; `publicKey` comes from `GET /api/push/prefs`. */
 export async function readPushState(
 	publicKey: string | null,
 ): Promise<PushState> {

@@ -2,16 +2,7 @@ import { ApiError, apiRequest, getSessionFromRequest } from "@/lib/api";
 import { isSameOrigin } from "@/lib/same-origin";
 import { NextResponse } from "next/server";
 
-// Next to the API, so each dashboard read and write takes the short hop.
 export const preferredRegion = "fra1";
-
-/**
- * Replace one of the signed-in account's keys with a new secret under the same
- * name. The session cookie is the only credential (an Authorization header is
- * refused), the request must come from this site's own pages, and the response
- * is never cached. The new key is in the response body once; this route does
- * not log it and the API stores only its hash. The API checks ownership.
- */
 
 const NO_STORE = { "Cache-Control": "no-store" };
 

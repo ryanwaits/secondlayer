@@ -1,12 +1,9 @@
 export interface RowsTableProps {
 	columns: readonly string[];
-	/** Rightmost column is right-aligned. */
 	rows: readonly (readonly string[])[];
-	/** Optional per-row cell class for the first column (e.g. in/out). */
 	firstClass?: (row: readonly string[]) => string | undefined;
 }
 
-/** Small mono example-rows table used on dataset cards. */
 export function RowsTable({ columns, rows, firstClass }: RowsTableProps) {
 	const last = columns.length - 1;
 	return (

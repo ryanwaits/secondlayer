@@ -16,20 +16,19 @@ export function formatUnits(
 	const integer = (v / divisor).toString();
 	let fraction = (v % divisor).toString().padStart(decimals, "0");
 
-	// Trim trailing zeros, but keep at least one decimal
 	fraction = fraction.replace(/0+$/, "") || "0";
 
 	const result = `${integer}.${fraction}`;
 	return negative ? `-${result}` : result;
 }
 
+const DECIMAL_STRING = /^-?\d+(\.\d+)?$/;
+
 /**
  * Parse a decimal string into a bigint with the given number of decimals.
  * @example parseUnits("1.5", 6) → 1500000n
  * @example parseUnits("1", 6) → 1000000n
  */
-const DECIMAL_STRING = /^-?\d+(\.\d+)?$/;
-
 export function parseUnits(value: string | number, decimals: number): bigint {
 	if (typeof value === "number" && !Number.isFinite(value)) {
 		throw new RangeError(`Cannot parse ${value} as a decimal amount`);

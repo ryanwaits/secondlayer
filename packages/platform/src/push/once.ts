@@ -37,7 +37,6 @@ export async function pushOnce(
 	}
 }
 
-/** Drops claims older than `olderThanDays`; a key never repeats that late. */
 export async function purgePushSent(
 	db: Kysely<Database>,
 	olderThanDays = 30,

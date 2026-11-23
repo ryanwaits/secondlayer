@@ -66,7 +66,6 @@ function transfersOnly(input: TraitScaffoldInput): string {
 	);
 }
 
-/** FT mint/burn/transfer → balances table with atomic deltas. */
 function balancesScaffold(input: TraitScaffoldInput): string {
 	if (input.trait === "sip-009") {
 		throw new Error(

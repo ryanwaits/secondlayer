@@ -20,9 +20,6 @@ export interface ContractInterfaceInput {
 	abi: AbiContract;
 }
 
-/**
- * Generate shared network utilities for the generated code
- */
 function generateNetworkUtils(): string {
 	return `/**
  * Default public API URLs per network (used when no override is configured).
@@ -76,7 +73,7 @@ const CONTRACT_NAME_REGEX = /^[a-zA-Z][a-zA-Z0-9_\\-]{0,127}$/;`;
 }
 
 /**
- * Import lines for the generated file header. Every symbol must resolve
+ * Every symbol must resolve
  * against the current `@secondlayer/stacks` subpath exports — root imports
  * are forbidden here (the root barrel is curated and does not re-export
  * these).
@@ -125,24 +122,20 @@ function generateContract(contract: ContractInterfaceInput): string {
 		)
 		.join(",\n\n  ");
 
-	// Generate maps object if contract has maps
 	const mapsObject = generateMapsObject(abi.maps || [], address, contractName);
 
-	// Generate vars object if contract has variables (only data vars, not constants)
 	const varsObject = generateVarsObject(
 		abi.variables || [],
 		address,
 		contractName,
 	);
 
-	// Generate constants object if contract has constants
 	const constantsObject = generateConstantsObject(
 		abi.variables || [],
 		address,
 		contractName,
 	);
 
-	// Combine all members
 	const allMembers = [methods, mapsObject, varsObject, constantsObject].filter(
 		Boolean,
 	);
@@ -221,8 +214,8 @@ export type ${prefix}Types = {
 // biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 function generateAbiConstant(name: string, abi: any): string {
 	const abiJson = JSON.stringify(abi, null, 2)
-		.replace(/"([a-zA-Z_$][a-zA-Z0-9_$]*)":/g, "$1:") // Only remove quotes from valid JS identifiers
-		.replace(/"/g, "'"); // Use single quotes
+		.replace(/"([a-zA-Z_$][a-zA-Z0-9_$]*)":/g, "$1:")
+		.replace(/"/g, "'");
 
 	return `const _${name}Abi = ${abiJson} as const
 
@@ -304,9 +297,6 @@ function generateMethod(
   }`;
 }
 
-/**
- * Generate maps object with type-safe accessors for contract data maps
- */
 function generateMapsObject(
 	maps: readonly AbiMap[],
 	address: string,
@@ -370,9 +360,6 @@ function generateMapsObject(
   }`;
 }
 
-/**
- * Generate vars object with type-safe accessors for contract data variables
- */
 function generateVarsObject(
 	variables: readonly AbiVariable[],
 	address: string,
@@ -382,7 +369,6 @@ function generateVarsObject(
 		return "";
 	}
 
-	// Filter to only include mutable data variables (not constants)
 	const dataVars = variables.filter((v) => v.access === "variable");
 
 	if (dataVars.length === 0) {
@@ -427,9 +413,6 @@ function generateVarsObject(
   }`;
 }
 
-/**
- * Generate constants object with type-safe accessors for contract constants
- */
 function generateConstantsObject(
 	variables: readonly AbiVariable[],
 	address: string,
@@ -439,7 +422,6 @@ function generateConstantsObject(
 		return "";
 	}
 
-	// Filter to only include constants
 	const constants = variables.filter((v) => v.access === "constant");
 
 	if (constants.length === 0) {

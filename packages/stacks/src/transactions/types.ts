@@ -1,13 +1,11 @@
 import type { ClarityValue } from "../clarity/types.ts";
 
-// Auth types
 export const AuthType = {
 	Standard: 0x04,
 	Sponsored: 0x05,
 } as const;
 export type AuthType = (typeof AuthType)[keyof typeof AuthType];
 
-// Payload types
 export const PayloadType = {
 	TokenTransfer: 0x00,
 	SmartContract: 0x01,
@@ -21,14 +19,13 @@ export const PayloadType = {
 } as const;
 export type PayloadType = (typeof PayloadType)[keyof typeof PayloadType];
 
-// Clarity version
 export const ClarityVersion = {
 	Clarity1: 1,
 	Clarity2: 2,
 	Clarity3: 3,
 	Clarity4: 4,
 	Clarity5: 5,
-	Clarity6: 6, // SIP-044, Epoch 4.0
+	Clarity6: 6,
 } as const;
 export type ClarityVersion =
 	(typeof ClarityVersion)[keyof typeof ClarityVersion];
@@ -41,28 +38,25 @@ export const AnchorMode = {
 } as const;
 export type AnchorMode = (typeof AnchorMode)[keyof typeof AnchorMode];
 
-// Post condition mode
 export const PostConditionModeWire = {
 	Allow: 0x01,
 	Deny: 0x02,
-	Originator: 0x03, // SIP-040, Epoch 3.4
+	Originator: 0x03,
 } as const;
 export type PostConditionModeWire =
 	(typeof PostConditionModeWire)[keyof typeof PostConditionModeWire];
 
-// Address hash modes
 export const AddressHashMode = {
 	P2PKH: 0x00,
 	P2SH: 0x01,
 	P2WPKH: 0x02,
 	P2WSH: 0x03,
-	P2SH_NonSequential: 0x05, // SIP-027
-	P2WSH_P2SH_NonSequential: 0x07, // SIP-027
+	P2SH_NonSequential: 0x05,
+	P2WSH_P2SH_NonSequential: 0x07,
 } as const;
 export type AddressHashMode =
 	(typeof AddressHashMode)[keyof typeof AddressHashMode];
 
-// Pub key encoding
 export const PubKeyEncoding = {
 	Compressed: 0x00,
 	Uncompressed: 0x01,
@@ -70,7 +64,6 @@ export const PubKeyEncoding = {
 export type PubKeyEncoding =
 	(typeof PubKeyEncoding)[keyof typeof PubKeyEncoding];
 
-// Fungible condition codes (wire format)
 export const FungibleConditionCode = {
 	Equal: 0x01,
 	Greater: 0x02,
@@ -79,14 +72,12 @@ export const FungibleConditionCode = {
 	LessEqual: 0x05,
 } as const;
 
-// Non-fungible condition codes (wire format)
 export const NonFungibleConditionCode = {
 	Sends: 0x10,
 	DoesNotSend: 0x11,
-	MaybeSent: 0x12, // SIP-040, Epoch 3.4
+	MaybeSent: 0x12,
 } as const;
 
-// PoX condition codes (wire format, SIP-045)
 export const PoxConditionCode = {
 	WillNotPerform: 0x30,
 	MayPerform: 0x31,
@@ -95,23 +86,20 @@ export const PoxConditionCode = {
 export type PoxConditionCode =
 	(typeof PoxConditionCode)[keyof typeof PoxConditionCode];
 
-// Post condition principal types
 export const PostConditionPrincipalId = {
 	Origin: 0x01,
 	Standard: 0x02,
 	Contract: 0x03,
 } as const;
 
-// Post condition asset types
 export const AssetType = {
 	STX: 0x00,
 	Fungible: 0x01,
 	NonFungible: 0x02,
-	Staking: 0x03, // SIP-045
-	Pox: 0x04, // SIP-045
+	Staking: 0x03,
+	Pox: 0x04,
 } as const;
 
-// Auth field types
 export const AuthFieldType = {
 	PublicKeyCompressed: 0x00,
 	PublicKeyUncompressed: 0x01,
@@ -124,9 +112,8 @@ export const MEMO_MAX_LENGTH_BYTES = 34;
 export const MAX_STRING_LENGTH_BYTES = 128;
 export const COINBASE_BYTES_LENGTH = 32;
 export const VRF_PROOF_BYTES_LENGTH = 80;
-export const MICROBLOCK_HEADER_BYTES_LENGTH = 132; // 1 + 2 + 32 + 32 + 65
+export const MICROBLOCK_HEADER_BYTES_LENGTH = 132;
 
-// Tenure change cause
 export const TenureChangeCause = {
 	BlockFound: 0x00,
 	Extended: 0x01,
@@ -139,15 +126,13 @@ export const TenureChangeCause = {
 export type TenureChangeCause =
 	(typeof TenureChangeCause)[keyof typeof TenureChangeCause];
 
-// Token transfer payload
 export type TokenTransferPayload = {
 	payloadType: typeof PayloadType.TokenTransfer;
-	recipient: ClarityValue; // PrincipalCV
+	recipient: ClarityValue;
 	amount: bigint;
 	memo: string;
 };
 
-// Contract call payload
 export type ContractCallPayload = {
 	payloadType: typeof PayloadType.ContractCall;
 	contractAddress: string;
@@ -156,7 +141,6 @@ export type ContractCallPayload = {
 	functionArgs: ClarityValue[];
 };
 
-// Smart contract deploy payload
 export type SmartContractPayload = {
 	payloadType:
 		| typeof PayloadType.SmartContract
@@ -166,44 +150,39 @@ export type SmartContractPayload = {
 	codeBody: string;
 };
 
-// Coinbase payload (appears in every pre-Nakamoto block)
 export type CoinbasePayload = {
 	payloadType: typeof PayloadType.Coinbase;
-	coinbaseBuffer: string; // 32 bytes hex
+	coinbaseBuffer: string;
 };
 
-// Coinbase to alt recipient payload
 export type CoinbaseToAltRecipientPayload = {
 	payloadType: typeof PayloadType.CoinbaseToAltRecipient;
-	coinbaseBuffer: string; // 32 bytes hex
-	recipient: ClarityValue; // PrincipalCV
+	coinbaseBuffer: string;
+	recipient: ClarityValue;
 };
 
-// Poison microblock payload
 export type PoisonMicroblockPayload = {
 	payloadType: typeof PayloadType.PoisonMicroblock;
-	header1: string; // 132 bytes hex (raw microblock header)
-	header2: string; // 132 bytes hex (raw microblock header)
+	header1: string;
+	header2: string;
 };
 
-// Tenure change payload (Nakamoto)
 export type TenureChangePayload = {
 	payloadType: typeof PayloadType.TenureChange;
-	tenureConsensusHash: string; // 20 bytes hex
-	prevTenureConsensusHash: string; // 20 bytes hex
-	burnViewConsensusHash: string; // 20 bytes hex
-	previousTenureEnd: string; // 32 bytes hex
-	previousTenureBlocks: number; // u32
+	tenureConsensusHash: string;
+	prevTenureConsensusHash: string;
+	burnViewConsensusHash: string;
+	previousTenureEnd: string;
+	previousTenureBlocks: number;
 	cause: TenureChangeCause;
-	pubkeyHash: string; // 20 bytes hex
+	pubkeyHash: string;
 };
 
-// Nakamoto coinbase payload
 export type NakamotoCoinbasePayload = {
 	payloadType: typeof PayloadType.NakamotoCoinbase;
-	coinbaseBuffer: string; // 32 bytes hex
-	recipient: ClarityValue | null; // Optional PrincipalCV
-	vrfProof: string; // 80 bytes hex
+	coinbaseBuffer: string;
+	recipient: ClarityValue | null;
+	vrfProof: string;
 };
 
 export type TransactionPayload =
@@ -216,20 +195,19 @@ export type TransactionPayload =
 	| TenureChangePayload
 	| NakamotoCoinbasePayload;
 
-// Spending condition
 export type SingleSigSpendingCondition = {
 	hashMode: typeof AddressHashMode.P2PKH | typeof AddressHashMode.P2WPKH;
-	signer: string; // hash160 hex
+	signer: string;
 	nonce: bigint;
 	fee: bigint;
 	keyEncoding: PubKeyEncoding;
-	signature: string; // 65-byte recoverable sig hex
+	signature: string;
 };
 
 export type TransactionAuthField = {
 	pubKeyEncoding: PubKeyEncoding;
 	type: "publicKey" | "signature";
-	data: string; // hex
+	data: string;
 };
 
 export type MultiSigHashMode =
@@ -264,7 +242,6 @@ export type SponsoredAuthorization = {
 
 export type Authorization = StandardAuthorization | SponsoredAuthorization;
 
-// Full transaction
 export type StacksTransaction = {
 	version: number;
 	chainId: number;
@@ -278,7 +255,6 @@ export type StacksTransaction = {
 	_multisig?: { publicKeys: string[] };
 };
 
-// Wire post condition types
 export type PostConditionWire =
 	| StxPostConditionWire
 	| FtPostConditionWire

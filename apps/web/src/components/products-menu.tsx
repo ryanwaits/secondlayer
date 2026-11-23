@@ -7,11 +7,6 @@ import { useEffect, useRef, useState } from "react";
 
 const CLOSE_DELAY_MS = 120;
 
-/**
- * The five products as a hover menu, shared by the marketing and docs bars.
- * Hover opens it; click and Enter toggle it for touch and keyboard. Escape,
- * an outside click and navigation close it.
- */
 export function ProductsMenu({ className }: { className?: string }) {
 	const pathname = usePathname();
 	const [open, setOpen] = useState(false);

@@ -1,8 +1,3 @@
-/**
- * Shared code-generation utility for converting TypeScript values to ClarityValue expressions.
- * Used by contract, actions, and testing generators.
- */
-
 import {
 	type AbiType,
 	isAbiBuffer,

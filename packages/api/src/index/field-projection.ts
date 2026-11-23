@@ -1,16 +1,6 @@
 import { ValidationError } from "@secondlayer/shared/errors";
 
 /**
- * Shared `fields` projection for Index reads.
- *
- * Projection shipped on `/v1/index/events` first and stayed there, so every
- * sibling resource kept returning full rows whether or not the caller wanted
- * them. Factored here rather than copied per resource: the rule that a typo
- * must be refused, and the rule that pagination keys always survive, are the
- * kind of thing that drifts the moment there are two of them.
- */
-
-/**
  * Columns that survive any projection, everywhere.
  *
  * `cursor` is how the caller paginates and `block_height` is what the reorg
@@ -30,7 +20,6 @@ export const ALWAYS_PROJECTED = ["cursor", "block_height"] as const;
 export function parseFields(
 	raw: string | null,
 	allowed: Iterable<string>,
-	/** Extra names always acceptable (a discriminant, say). */
 	extra: Iterable<string> = [],
 ): readonly string[] | undefined {
 	if (raw === null) return undefined;

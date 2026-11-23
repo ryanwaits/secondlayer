@@ -1,6 +1,5 @@
 import type { ReactNode } from "react";
 
-/** "Run it yourself" band: heading left, copy and reference links right. */
 export function SelfHostSlot({
 	title = "Run it yourself",
 	children,

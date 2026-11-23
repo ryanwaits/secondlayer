@@ -106,7 +106,6 @@ export async function evaluateTenantInsights(
 		evaluated.push(...result.evaluated);
 	}
 
-	// Deleted resources: their open rows are evaluated with nothing to fire.
 	const live = new Set([
 		...webhookInputs.map((i) => `webhook\u0000${i.webhook.id}`),
 		...subgraphInputs.map((i) => `subgraph\u0000${i.subgraph.name}`),

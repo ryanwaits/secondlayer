@@ -21,14 +21,6 @@ import {
 	exampleFence,
 } from "./use-examples";
 
-/**
- * "Use in your app": how to read one table from your own code. A chip per
- * table, four recipes, and the code as the SDK, the CLI or cURL, written from
- * the table's real columns and its newest row. The code frame is rendered by
- * the docs code renderer on the server (`/api/code`), because Shiki doesn't
- * run in the browser; the plain code shows until it arrives.
- */
-
 const LANGS: readonly { id: Lang; label: string }[] = [
 	{ id: "sdk", label: "SDK" },
 	{ id: "cli", label: "CLI" },
@@ -54,8 +46,6 @@ async function readSample(name: string, table: string): Promise<Sample> {
 
 const fenceKeyOf = (fence: Fence): string => `${fence.lang}\n${fence.code}`;
 
-/** Renders fences with the docs code renderer, in as few requests as the cap
- *  allows. Resolves with whatever rendered; a failed batch just stays plain. */
 async function renderFences(
 	fences: readonly Fence[],
 ): Promise<[string, RenderedBlock][]> {
@@ -92,8 +82,6 @@ async function renderFences(
 	return results.flat();
 }
 
-/** The plain code, laid out like the rendered frame (same body, rows and
- *  prompt), so only the colors change when the highlighted version lands. */
 function PlainFence({ fence }: { fence: Fence }) {
 	const rows = copyText(fence).split("\n");
 	const shell = fence.lang === "bash";
@@ -120,12 +108,10 @@ export function UseSection({
 }: {
 	name: string;
 	tables: Record<string, SubgraphTableInfo>;
-	/** A table picked elsewhere on the page; its chip is pressed. */
 	selected?: string | null;
 	/** Bumps on every pick, so picking the same table again still applies. */
 	selectedAt?: number;
 }) {
-	// The same order as the Tables panel: biggest first.
 	const ordered = useMemo(
 		() =>
 			Object.entries(tables)
@@ -158,7 +144,6 @@ export function UseSection({
 	}, []);
 	const requested = useRef(new Set<string>());
 
-	// A table opened in the Tables section becomes this section's table.
 	// biome-ignore lint/correctness/useExhaustiveDependencies: selectedAt re-applies a repeat pick of the same table
 	useEffect(() => {
 		if (selected) setTable(selected);
@@ -168,10 +153,6 @@ export function UseSection({
 		chosen !== null && ordered.includes(chosen) ? chosen : (ordered[0] ?? "");
 	const info = tables[table];
 
-	// Everything one table needs: its newest row, then every recipe in every
-	// language rendered in one go, so switching recipe or language is instant.
-	// Called for the shown table and on intent (hover, focus, touch) for the
-	// others, like the webhook payload prefetch. Each piece is asked for once.
 	const samplesRef = useRef(new Map<string, Sample>());
 	const warm = useCallback(
 		async (target: string) => {
@@ -183,7 +164,7 @@ export function UseSection({
 				samplesRef.current.set(target, sample);
 				setSamples((prev) => new Map(prev).set(target, sample));
 			}
-			if (!samplesRef.current.has(target)) return; // another call is reading it
+			if (!samplesRef.current.has(target)) return;
 			const sample = samplesRef.current.get(target) ?? null;
 			const fences = RECIPES.flatMap(({ id }) =>
 				LANGS.map(({ id: l }) =>
@@ -238,7 +219,6 @@ export function UseSection({
 	const fenceKey = fence ? fenceKeyOf(fence) : null;
 	const block = fenceKey ? rendered.get(fenceKey) : undefined;
 
-	// The SDK example's tips need the page's tip listeners.
 	useEffect(() => {
 		if (block?.html.includes('class="tip"'))
 			import("@/components/code/tips").then((m) => m.activate());

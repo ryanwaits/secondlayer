@@ -6,13 +6,9 @@ import type {
 	SubgraphListItem,
 } from "@/lib/subgraphs-store";
 
-/** Example subgraphs for tests, the lab and visual checks. Names and values
- *  are invented; nothing here is account data. */
-
 const C32 = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
 const HEX = "0123456789abcdef";
 
-/** A small deterministic generator so fixtures are stable across runs. */
 function sequence(seed: number) {
 	let s = seed;
 	return () => {
@@ -144,7 +140,6 @@ export const exampleList: SubgraphListItem[] = [
 	},
 ];
 
-/** The founder's real `perf-test-sbtc` subgraph source, verbatim. */
 export const PERF_TEST_SBTC_SOURCE = `import { defineSubgraph } from '@secondlayer/subgraphs';
 
 // \`prints\` below is INFERRED from 2000 sampled on-chain events, blocks 328312–9405901.
@@ -332,7 +327,6 @@ export default defineSubgraph({
 });
 `;
 
-/** Three real rows per table, newest first. */
 export const PERF_TEST_SBTC_ROWS: Record<string, Record<string, unknown>[]> = {
 	completed_deposit: [
 		{
@@ -611,7 +605,6 @@ const PERF_TEST_SBTC_TOPICS: Record<string, string> = {
 	keyRotation: "key-rotation",
 };
 
-/** The detail response for the real subgraph above: five tables and five print sources. */
 export const perfTestSbtcDetail: SubgraphDetailData = {
 	name: "perf-test-sbtc",
 	version: "1.0.0",

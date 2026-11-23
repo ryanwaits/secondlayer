@@ -2,16 +2,7 @@ import { ApiError, apiRequest, getSessionFromRequest } from "@/lib/api";
 import { isSameOrigin } from "@/lib/same-origin";
 import { NextResponse } from "next/server";
 
-// Next to the API, so each dashboard read and write takes the short hop.
 export const preferredRegion = "fra1";
-
-/**
- * The signed-in reader's docs key: a read-only (Streams + Index), 24 hour key
- * for the code samples. The session cookie is the only credential (an
- * Authorization header is refused), the request must come from this site's own
- * pages, and the response is never cached. The key is in the response body
- * once; this route does not log it and the API stores only its hash.
- */
 
 const NO_STORE = { "Cache-Control": "no-store" };
 

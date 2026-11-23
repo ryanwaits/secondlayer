@@ -57,7 +57,6 @@ export interface TxInclusionFailure {
 /** A stripped serialization of this size can be an inner merkle node (CVE-2017-12842). */
 const INNER_NODE_SIZE = 64;
 
-/** Merkle branch length for a block of `txCount` txs. */
 function branchLength(txCount: number): number {
 	return txCount <= 1 ? 0 : Math.ceil(Math.log2(txCount));
 }

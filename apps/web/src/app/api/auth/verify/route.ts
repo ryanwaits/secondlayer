@@ -3,7 +3,6 @@ import { crossSiteRefusal } from "@/lib/same-origin";
 import type { Account } from "@/lib/types";
 import { NextResponse } from "next/server";
 
-// Next to the API, so each dashboard read and write takes the short hop.
 export const preferredRegion = "fra1";
 
 export async function POST(req: Request) {
@@ -37,7 +36,6 @@ export async function POST(req: Request) {
 			"HttpOnly",
 			"SameSite=Lax",
 			"Max-Age=7776000",
-			// Shared across subdomains (app.* + marketing root) when configured.
 			...(cookieDomain ? [`Domain=${cookieDomain}`] : []),
 			...(isProduction ? ["Secure"] : []),
 		].join("; ");

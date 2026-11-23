@@ -18,9 +18,6 @@ export type DecoderHealth = {
 	decoder: string;
 	checkpoint: string | null;
 	checkpoint_block_height: number | null;
-	/** Highest height this checkpoint has fully committed (the shared
-	 *  committed-height rule — sentinel cursor = H done, mid-block = H-1).
-	 *  Null when there's no checkpoint yet, same as `checkpoint_block_height`. */
 	checkpoint_committed_height: number | null;
 	tip_block_height: number | null;
 	lag_seconds: number | null;

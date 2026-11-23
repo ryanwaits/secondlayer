@@ -36,11 +36,6 @@ function StartLink({ cell }: { cell: StartCell }) {
 	);
 }
 
-/**
- * The foot of a product page: one cell toward the chain, one toward your app,
- * each with a line of that layer's code. The ends of the stack say where it
- * stops. Start pages show their two next pages instead. Reference sections start after it (`data-outline-reference`).
- */
 export function Seam({ page }: { page: ProductKey | StartKey }) {
 	const start = START_PAGES.find((p) => p.key === page);
 	if (start) {

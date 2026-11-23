@@ -65,7 +65,6 @@ export function registerAccountTools(
 	);
 }
 
-/** The slice of a `GET /api/keys` row these tools use. */
 interface ListedKey {
 	id: string;
 	prefix: string;

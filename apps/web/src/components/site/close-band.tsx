@@ -1,6 +1,5 @@
 import type { ReactNode } from "react";
 
-/** Closing band: big line, two actions. */
 export function CloseBand({
 	title,
 	cta,

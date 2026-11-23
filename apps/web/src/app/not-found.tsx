@@ -19,10 +19,6 @@ const titleFor = (href: string) =>
 	SITE_TITLES[href] ??
 	(href.slice(1).charAt(0).toUpperCase() + href.slice(2) || "Home");
 
-/**
- * Every unmatched URL lands here. The server lists the pages a visitor could
- * have meant; the view reads the path in the browser and offers the closest.
- */
 export default function NotFound() {
 	const docs: Route[] = [
 		...new Map(

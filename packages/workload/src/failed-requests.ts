@@ -14,25 +14,17 @@ export interface FailedRequestRecorderConfig {
 	appServerUrl: string;
 	workloadHostKey: string;
 	fetchImpl?: FetchLike;
-	/** Default 5000. */
 	flushIntervalMs?: number;
-	/** Rows per POST, and the buffered size that triggers an early flush.
-	 *  Default 50. */
 	maxBatch?: number;
-	/** Default 1000. */
 	maxBuffer?: number;
-	/** Clock for the warn throttle. */
 	now?: () => number;
 }
 
 const WARN_THROTTLE_MS = 60_000;
 
 export interface FailedRequestRecorder {
-	/** Sync, never throws; flushes in the background at `maxBatch`. */
 	record(row: FailedRequestRecord): void;
-	/** Sends up to `maxBatch` per POST until empty; swallows errors. */
 	flush(): Promise<void>;
-	/** Starts the interval flush; the returned stop clears it and resolves after the final flush. */
 	start(): () => Promise<void>;
 	size(): number;
 }

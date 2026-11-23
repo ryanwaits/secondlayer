@@ -1,14 +1,3 @@
-/**
- * A fake Index HTTP server that replays a synthetic chain, counting every row
- * it returns (what the real Index would meter). Tests use it to exercise the
- * real `IndexHttpClient` -> `PublicApiBlockSource` -> `reindexSubgraph` path
- * without touching any hosted API.
- *
- * The chain: every block carries `backgroundPrintsPerBlock` print events spread
- * over `backgroundContracts` unrelated contracts (the "every print on chain"
- * volume). The target contract prints with `otherTopic` every
- * `targetEvery` blocks, and with `wantedTopic` only at `wantedHeights`.
- */
 import { Cl, serializeCV } from "@secondlayer/stacks/clarity";
 
 export type FakeIndexOptions = {
@@ -151,7 +140,6 @@ export function startFakeIndex(opts: FakeIndexOptions) {
 			contracts.size === 1 &&
 			contracts.has(opts.targetContract);
 		for (let h = Math.max(from, 1); h <= to && items.length < limit; h++) {
-			// Scoped to the target: skip the (vast) background heights outright.
 			if (scopedToTarget && targetPrints(h).length === 0) continue;
 			for (const row of eventsAt(h, contracts)) {
 				if (after && h === after.height && row.event_index <= after.index) {
@@ -162,7 +150,6 @@ export function startFakeIndex(opts: FakeIndexOptions) {
 			}
 		}
 		const last = items[items.length - 1];
-		// A full page may have more behind it; an empty follow-up page is fine.
 		if (last && items.length === limit) {
 			next = `${last.block_height}:${last.event_index}`;
 		}
@@ -203,8 +190,6 @@ export function startFakeIndex(opts: FakeIndexOptions) {
 		};
 	}
 
-	// When set, every row read is refused the way a metered account past its
-	// allowance is (`402 { error }`); the tip stays readable.
 	let refusal: string | null = null;
 
 	const server = Bun.serve({

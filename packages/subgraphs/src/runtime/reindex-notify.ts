@@ -70,7 +70,6 @@ export async function notifyReindexComplete(
 
 		await sendEmail({ to: account.email, subject, html, text });
 	} catch (err) {
-		// Never let a notification failure affect the reindex result.
 		logger.warn("reindex-complete email threw", {
 			subgraph: subgraphName,
 			error: getErrorMessage(err),

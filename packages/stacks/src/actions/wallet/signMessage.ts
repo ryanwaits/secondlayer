@@ -24,7 +24,6 @@ export async function signMessage(
 	const account = client.account;
 	if (!account) throw new Error("Account required");
 
-	// Provider: delegate to wallet
 	if (isProviderAccount(account)) {
 		const method = params.domain
 			? "stx_signStructuredMessage"

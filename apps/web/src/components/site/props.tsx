@@ -6,7 +6,6 @@ export interface PropItem {
 	body: ReactNode;
 }
 
-/** Three short claims, ink rule on top of each. */
 export function Props({ items }: { items: readonly PropItem[] }) {
 	return (
 		<div className="props">

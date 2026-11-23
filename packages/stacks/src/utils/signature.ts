@@ -14,8 +14,6 @@ export interface RecoverableSignature {
 	s: string;
 }
 
-// --- Format conversion ---
-
 /**
  * Parse a 65-byte VRS hex signature into components.
  * VRS format: recovery (1 byte) + r (32 bytes) + s (32 bytes)
@@ -54,8 +52,6 @@ export function signatureRsvToVrs(rsv: string): string {
 	return clean.slice(-2) + clean.slice(0, -2);
 }
 
-// --- Recovery ---
-
 /**
  * Recover a public key from a message hash and VRS signature.
  * @returns hex-encoded public key (33 bytes compressed, or 65 bytes uncompressed)
@@ -87,8 +83,6 @@ export function recoverAddress(
 	return c32address(addressVersion, pubkeyHash);
 }
 
-// --- Verification ---
-
 /**
  * Verify an ECDSA signature against a message hash and public key.
  * Accepts compact (64-byte) signature as hex or Uint8Array.
@@ -101,7 +95,6 @@ export function verifySignature(
 	return verify(signature, hash, publicKey, { lowS: false });
 }
 
-/** Bitcoin-style varint encoding for message length prefix. */
 function encodeVarint(n: number): Uint8Array {
 	if (n < 0xfd) return new Uint8Array([n]);
 	if (n <= 0xffff) {
@@ -123,7 +116,6 @@ function encodeVarint(n: number): Uint8Array {
 const STACKS_MESSAGE_PREFIX = "\x17Stacks Signed Message:\n";
 const LEGACY_MESSAGE_PREFIX = "\x18Stacks Message Signing:\n";
 
-/** Hash a message with the Stacks structured message prefix. */
 function hashMessage(message: string | Uint8Array, prefix: string): Uint8Array {
 	const messageBytes =
 		typeof message === "string" ? utf8ToBytes(message) : message;
@@ -151,7 +143,6 @@ export function verifyMessage(params: VerifyMessageParams): boolean {
 	const msgHash = hashMessage(message, STACKS_MESSAGE_PREFIX);
 	if (verify(compactSig, msgHash, publicKey, { lowS: false })) return true;
 
-	// Fallback to legacy prefix
 	if (typeof message === "string") {
 		const legacyHash = hashMessage(message, LEGACY_MESSAGE_PREFIX);
 		if (verify(compactSig, legacyHash, publicKey, { lowS: false })) return true;

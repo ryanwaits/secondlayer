@@ -89,10 +89,8 @@ import { FirstRowsGuide } from "./first-rows-guide";
 import { overviewStackStatus } from "./overview-view";
 import { PlumbingStrip, PlumbingStripSkeleton } from "./plumbing-strip";
 
-/** The webhook rows refresh this often while the tab is visible. */
 const POLL_MS = 30_000;
 
-/** The column labels over the webhook rows; they name the unit the numbers count. */
 export const WEBHOOK_HEAD: ResourceRowLabels = [
 	"Webhooks",
 	"State",
@@ -101,7 +99,6 @@ export const WEBHOOK_HEAD: ResourceRowLabels = [
 	"Last",
 ];
 
-/** The subgraph rows' own header: they count rows written, not deliveries. */
 export const SUBGRAPH_HEAD: ResourceRowLabels = [
 	"Subgraphs",
 	"State",
@@ -110,11 +107,8 @@ export const SUBGRAPH_HEAD: ResourceRowLabels = [
 	"Last",
 ];
 
-/** Each group on the Overview shows this many of its newest; a link covers the rest. */
 export const OVERVIEW_ROWS = 3;
 
-/** One row per subgraph, under their own header. Empty until the Overview's
- *  poll has loaded the list, and for an account with no subgraphs. */
 export function OverviewSubgraphsSlot({ seed }: { seed?: SubgraphsSeed } = {}) {
 	return (
 		<OverviewSubgraphsRows
@@ -128,7 +122,6 @@ export function OverviewSubgraphsSlot({ seed }: { seed?: SubgraphsSeed } = {}) {
 const plural = (n: number, one: string, many = `${one}s`) =>
 	`${n.toLocaleString("en-US")} ${n === 1 ? one : many}`;
 
-/** A row's state when something is off: a dot and the reason, red when failing. */
 function StateCell({
 	group,
 	text,
@@ -149,7 +142,6 @@ function WebhookRow({
 	stopped = false,
 }: {
 	model: WebhookRowModel;
-	/** The hosted stack is stopped: nothing is delivering, and the webhook isn't at fault. */
 	stopped?: boolean;
 }) {
 	const { webhook, series, state } = model;
@@ -190,12 +182,10 @@ function WebhookRow({
 	);
 }
 
-/** A resource's worst insight that is still live; a recovered one is not a finding. */
 export function topFinding(insights: readonly Insight[]): Insight | undefined {
 	return rankInsights(insights).find((i) => i.severity !== "recovered");
 }
 
-/** One finding per flagged webhook or subgraph, worst first. */
 export function overviewFindings(
 	webhooks: readonly Pick<WebhookRowModel, "insights">[],
 	subgraphs: readonly Insight[],
@@ -204,8 +194,6 @@ export function overviewFindings(
 	return rankInsights([...tops, ...subgraphs]);
 }
 
-/** "1 webhook is failing." when every finding is one kind and severity,
- *  else "N things need a look." */
 export function findingsHeadline(findings: readonly Insight[]): string {
 	const first = findings[0];
 	if (!first) return "";
@@ -221,7 +209,6 @@ export function findingsHeadline(findings: readonly Insight[]): string {
 	return `${noun} ${n === 1 ? "needs" : "need"} a look.`;
 }
 
-/** Webhooks that have never matched an event: one quiet row that expands. */
 function QuietGroup({ models }: { models: WebhookRowModel[] }) {
 	const [open, setOpen] = useState(false);
 	if (models.length === 0) return null;
@@ -257,7 +244,6 @@ function MonthPanel({
 }: {
 	billing: Billing | null;
 	burn: Burn | null;
-	/** A new account: nothing spent, nothing to pay, the free rows untouched. */
 	fresh?: boolean;
 }) {
 	const runway = daysLeftLabel(daysLeft(billing, burn));
@@ -283,7 +269,6 @@ function MonthPanel({
 					/>
 				</>
 			) : (
-				// The strip's Rows cell carries the meter; this panel is the money.
 				<div className="dash-big">
 					{billing ? formatUsd(billing.spentThisMonthUsdMicros) : "–"}{" "}
 					<span>
@@ -298,14 +283,10 @@ function MonthPanel({
 	);
 }
 
-/** Where a new account is, for the Overview's checklist. */
 export interface OverviewOnboarding {
 	progress: OnboardingProgress;
-	/** The key just made, or the newest one, for "<name> is ready". */
 	keyName: string | null;
-	/** The name-a-key flow, while it is open. */
 	flow: ReactNode;
-	/** Step 2's guide: a prompt, then one read three ways. */
 	firstRows?: ReactNode;
 }
 
@@ -335,7 +316,6 @@ export function onboardingSteps({
 	return steps;
 }
 
-/** The sentence and sub-line over a new account's checklist. */
 export function OnboardingSentence({
 	progress,
 }: { progress: OnboardingProgress }) {
@@ -360,13 +340,10 @@ const OVERVIEW_PLACEHOLDERS = [
 	{ state: 48, count: 44 },
 ];
 
-/** What the Overview's first paint waits for. Each field is whether that data has loaded (or is known not to exist). */
 export interface OverviewFirstWave {
 	keys: boolean;
 	billing: boolean;
-	/** The usage response, which carries the hosted stack state. */
 	service: boolean;
-	/** "none" means no hosted stack: no webhooks or subgraphs to wait for. */
 	stackState: HostedStack["state"] | null;
 	webhooks: boolean;
 	asleep: boolean;
@@ -375,28 +352,19 @@ export interface OverviewFirstWave {
 	insights: boolean;
 }
 
-/** Which sections of the Overview still wait for data. Each shows its own
- *  skeleton at its final size while the rest paint what they have. */
 export interface OverviewPending {
-	/** The sentence, findings and the webhook and subgraph rows. */
 	list: boolean;
-	/** The strip's flags, and what sits under it (insights, the month). */
 	strip: boolean;
-	/** Nothing has loaded: the sentence says so. */
 	all: boolean;
 }
 
 export function overviewPending(w: OverviewFirstWave): OverviewPending {
 	const stackless = w.stackState === "none";
 	return {
-		// Keys decide whether the checklist replaces the rows, insights the
-		// findings above them.
 		list:
 			!w.keys ||
 			!w.insights ||
 			!(stackless || ((w.webhooks || w.asleep) && w.subgraphs)),
-		// Each cell of the strip skeletons itself; only the flags the insights
-		// add to its cells would move it.
 		strip: !w.insights,
 		all:
 			!w.keys &&
@@ -411,40 +379,26 @@ export function overviewPending(w: OverviewFirstWave): OverviewPending {
 
 const NOT_PENDING: OverviewPending = { list: false, strip: false, all: false };
 
-/** The sentence's line box (30px type at 1.15), so its skeleton holds the same height. */
 const SENTENCE_SKELETON_HEIGHT = 34;
 
-/** How many placeholder rows the first-paint skeleton shows. */
 const SKELETON_ROWS = 3;
 
 export interface OverviewBodyProps {
-	/** The sections still waiting for data; each holds its own skeleton. */
 	pending?: OverviewPending;
-	/** Null until the webhook list has loaded. */
 	rows: WebhookRowModel[] | null;
 	billing: Billing | null;
 	burn: Burn | null;
 	stack: HostedStack | null;
-	/** This month's reads (the Rows cell); null until they have loaded. */
 	readUsage?: RowsResponse | null;
-	/** The subgraph rows under their own header; defaults to the ones the Overview's poll loads. */
 	subgraphs?: ReactNode;
-	/** The account's API keys; null until they have loaded. */
 	keys?: ApiKey[] | null;
-	/** The clock for the keys row; defaults to now. */
 	now?: Date;
-	/** The live top insight of each flagged subgraph. */
 	subgraphFindings?: readonly Insight[];
-	/** Every live insight on the account: the Overview's one line, each
-	 *  linked to the page it lives on. */
 	inbox?: readonly Insight[];
-	/** The hosted stack stopped because every webhook is paused. */
 	asleep?: boolean;
-	/** A new account's checklist; the normal Overview shows once it is complete. */
 	onboarding?: OverviewOnboarding | null;
 }
 
-/** The Overview: one sentence, a row per webhook and subgraph, the strip under them, and the month. */
 export function OverviewBody({
 	rows,
 	billing,
@@ -504,7 +458,6 @@ export function OverviewBody({
 			>
 				<ResourceRowHead labels={WEBHOOK_HEAD} />
 				{Array.from({ length: SKELETON_ROWS }).map((_, i) => (
-					// Fixed skeleton row count; position is the identity.
 					// biome-ignore lint/suspicious/noArrayIndexKey: static skeleton rows
 					<ResourceRowSkeleton key={i} />
 				))}
@@ -592,8 +545,6 @@ export function OverviewBody({
 				/>
 			)}
 
-			{/* Below the strip, so it waits for both sections above: anything
-			    here would move when the rows or strip replace their skeletons. */}
 			{pending.list || pending.strip ? null : (
 				<MonthPanel billing={billing} burn={burn} fresh={starting} />
 			)}
@@ -601,12 +552,6 @@ export function OverviewBody({
 	);
 }
 
-/**
- * The checklist is for an account that has not started: no key yet, or a key
- * that has not read. The first read, the first webhook or subgraph, or Skip
- * ends it for good. An account whose keys are all revoked gets the normal
- * screens; the name-a-key flow stays up until its Done.
- */
 export function checklistApplies(
 	state: KeyState,
 	flowOpen: boolean,
@@ -615,11 +560,6 @@ export function checklistApplies(
 	return state === "first" || flowOpen || (state === "active" && !underway);
 }
 
-/**
- * The new-account checklist for the Overview, or null when it does not apply.
- * The name-a-key flow stays up through the key being made (the keys list
- * changes under it) until its Done.
- */
 function useOnboarding({
 	keys,
 	now,
@@ -639,8 +579,6 @@ function useOnboarding({
 }): OverviewOnboarding | null {
 	const progress = onboardingProgress(keys, now, pushed);
 	const state = keyState(keys, now);
-	// The flow opens the first time we see an account that never had a key, and
-	// stays open when that changes under it.
 	const [flow, dispatch] = useKeyFlow(KEY_FLOW_IDLE, state === "first");
 	const flowOpen = keyFlowOpen(flow);
 	const [made, setMade] = useState<string | null>(null);
@@ -682,17 +620,11 @@ function useOnboarding({
 	};
 }
 
-/** What the server read for the lists below the sentence. */
 export interface OverviewInitial {
 	webhooks: WebhooksListInitial;
 	subgraphs: SubgraphsListInitial;
 }
 
-/** /account: is everything running, what needs you, what it costs. The
- *  first-rows blocks are server-rendered by the page and passed in, and so
- *  are the first reads (`initial`, with the account data in the page's
- *  `AccountSeedProvider`): a read the server made isn't made again on mount,
- *  and its poll waits a full interval. */
 export function OverviewSection({
 	firstRowsCode,
 	firstRowsPrompt,
@@ -718,8 +650,6 @@ export function OverviewSection({
 	const { rows } = useWebhookRows(webhooksSeed);
 	const { data: insights, status: insightsStatus } = useInsights();
 	const month = monthParam(currentUtcMonth());
-	// Whether each read came with the page, fixed at mount: a later refresh
-	// must not restart its poll.
 	const [usageSeeded] = useState(usage[month] !== undefined);
 	const [rowsSeeded] = useState(rowsData !== null);
 
@@ -729,8 +659,6 @@ export function OverviewSection({
 		ensureKeys();
 	}, []);
 
-	// Every 60s while the tab is visible, as the usage page does; this is
-	// also what keeps burn and the hosted stack's state current.
 	useEffect(() => {
 		return poll(
 			async () => {
@@ -779,7 +707,6 @@ export function OverviewSection({
 		);
 	}, [webhooksLoaded]);
 
-	// The subgraph list and its health, for the checklist and the rows below.
 	useSubgraphsPoll(initial?.subgraphs);
 
 	const subgraphs = useSubgraphsCache(subgraphsSeed).list;
@@ -815,7 +742,6 @@ export function OverviewSection({
 	return (
 		<OverviewBody
 			pending={pending}
-			// No hosted stack means no webhooks, so there is nothing to wait for.
 			subgraphs={<OverviewSubgraphsSlot seed={subgraphsSeed} />}
 			rows={rows ?? (service?.state === "none" ? [] : null)}
 			billing={billing}

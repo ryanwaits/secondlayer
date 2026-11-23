@@ -4,11 +4,6 @@ import {
 } from "@secondlayer/shared/error-envelope";
 import type { Context, MiddlewareHandler } from "hono";
 
-/**
- * Assigns every request an id (reusing a well-formed incoming
- * `X-Request-Id`) and echoes it as the `X-Request-Id` response header,
- * including on `onError` / `notFound` responses.
- */
 export function requestId(): MiddlewareHandler {
 	return async (c, next) => {
 		const incoming = c.req.header("x-request-id");

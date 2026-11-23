@@ -247,7 +247,6 @@ export const dbStateWritesCoverage: CachedCoverage = cachedCoverage(
 );
 
 let httpCoverage: StateWritesCoverage | undefined;
-/** The Index API's coverage: the first `/v1/index/state-writes` row. */
 function httpStateWritesCoverage(): StateWritesCoverage {
 	httpCoverage ??= cachedCoverage(() =>
 		buildHttpClient().firstStateWriteHeight(),
@@ -273,8 +272,6 @@ export function stateWriteContracts(
 	const contracts = new Set<string>();
 	for (const f of sourceFilters(subgraph)) {
 		const pinned = pinnedContracts(f);
-		// A source with no fixed contract (wildcard, factory) needs every
-		// contract's writes.
 		if (!pinned) return { contracts: null };
 		for (const id of pinned) contracts.add(id);
 	}
@@ -365,7 +362,6 @@ const EVENT_FILTER_TO_INDEX_TYPE: Record<string, string> = {
 	map_delete: "map_delete",
 };
 
-// Tx-level source types — matched against /v1/index/transactions, not events.
 const TX_SOURCE_TYPES = new Set(["contract_call", "contract_deploy"]);
 // Second clock (ordinal). Never part of a tx's classic event set: a
 // contract_call/contract_deploy source fetches every CLASSIC type, and vm
@@ -459,7 +455,6 @@ export function isStreamsIndexEligible(subgraph: SubgraphDefinition): boolean {
 	return true;
 }
 
-/** Merge of overlapping walks: one row per (type, height, event_index). */
 function dedupeEvents(rows: IndexEventRow[]): IndexEventRow[] {
 	const seen = new Set<string>();
 	return rows.filter((e) => {
@@ -578,8 +573,6 @@ export class PublicApiBlockSource implements BlockSource {
 				events: [],
 			});
 		}
-		// For event-only subgraphs, materialize only the event-bearing txs from
-		// joined event context instead of every transaction in the range.
 		const txs = this.needsTransactions
 			? txRows.map(reconstructTransaction)
 			: synthesizeTxsFromEvents(events);
@@ -606,7 +599,6 @@ export class PublicApiBlockSource implements BlockSource {
 				bd.vmEvents = fed.vmEvents;
 			}
 		}
-		// Canonical ordering — multi-type event walks merge here, per clock.
 		for (const bd of map.values()) {
 			bd.txs.sort((a, b) => (a.tx_index ?? 0) - (b.tx_index ?? 0));
 			bd.events.sort((a, b) => a.event_index - b.event_index);
@@ -671,8 +663,6 @@ export class PublicApiBlockSource implements BlockSource {
 	}
 }
 
-/** The writing tx a `tx_context=true` row carries; null for block-level
- *  writes or a row whose tx the Index could not join. */
 function writeTx(row: IndexStateWriteRow): TxRecord | null {
 	if (row.tx_index === null || !row.tx_id) return null;
 	return {
@@ -791,7 +781,6 @@ export class FallbackBlockSource implements BlockSource {
 
 const postgresBlockSource = new PostgresBlockSource();
 
-/** The Postgres tap for a subgraph: its `state_writes` feed when it has one. */
 function postgresSourceFor(feed: StateWriteFeed | null): BlockSource {
 	return feed ? new PostgresBlockSource(feed) : postgresBlockSource;
 }

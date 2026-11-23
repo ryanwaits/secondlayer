@@ -179,8 +179,6 @@ export async function loadReference(
 			fetchOptions,
 		)) as ArchiveManifest;
 		const url = new URL(source);
-		// Both `<root>/latest.json` and `<root>/snapshots/<digest>.json` resolve
-		// their partition paths against `<root>`.
 		url.pathname = url.pathname
 			.replace(/\/snapshots\/[^/]+$/, "")
 			.replace(/\/[^/]+\.json$/, "");

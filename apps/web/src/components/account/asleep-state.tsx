@@ -5,7 +5,6 @@ import type { WebhooksResult } from "@/lib/dashboard-results";
 import { useWake } from "@/lib/use-stack";
 import { refreshList } from "@/lib/webhooks-store";
 
-/** Ghost rows behind the asleep message: list-shaped, static, faded. */
 const ASLEEP_GHOSTS = [
 	{ name: 34, state: 62, sub: 28 },
 	{ name: 26, state: 54, sub: 34 },
@@ -14,16 +13,11 @@ const ASLEEP_GHOSTS = [
 
 const wakeStack = () => refreshList({ wake: true });
 
-/** Every webhook is paused, so the stack stopped and stops billing. What lives
- *  on the stack (webhooks, subgraphs) can't be read, so this empty state
- *  stands in for it. Waking is the user's call: the next poll then shows it
- *  starting, and a wake that hasn't landed in 30 seconds says so. */
 export function AsleepState({
 	noun = "webhooks",
 	wake = wakeStack,
 }: {
 	noun?: string;
-	/** The wake request; the Lab swaps it to show a wake that never lands. */
 	wake?: () => Promise<WebhooksResult<unknown>>;
 } = {}) {
 	const { waking, error, start } = useWake(wake);

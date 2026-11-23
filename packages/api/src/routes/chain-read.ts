@@ -1,7 +1,4 @@
 /**
- * `POST /v1/chain-read/v2/contracts/call-read/:address/:name/:fn?tip=…`:
- * contract reads for hosted subgraph processors.
- *
  * A hosted tenant stack has no Stacks node, so a handler's `readContractAt`
  * comes here instead, and this api (which has the node) answers it. The path
  * mirrors the node's own `call-read` route and the body is returned verbatim,
@@ -43,7 +40,6 @@ const ACCOUNT_CONCURRENCY = 4;
 /** Per api process: the node's call-read capacity also serves proofs and
  *  sBTC supply. */
 const GLOBAL_CONCURRENCY = 16;
-/** How long a read waits for a free slot before it is told to back off. */
 const SLOT_WAIT_MS = 2_000;
 const MAX_BODY_BYTES = 16 * 1024;
 const MAX_ARGS = 32;
@@ -64,20 +60,15 @@ const TIP_RE = /^(0x)?[0-9a-fA-F]{64}$/;
 const HEX_ARG_RE = /^(0x)?([0-9a-fA-F]{2})*$/;
 
 export type ChainReadRouterOptions = {
-	/** The node's RPC base URL. Defaults to `STACKS_NODE_RPC_URL`. */
 	nodeUrl?: () => string | undefined;
 	fetchImpl?: typeof fetch;
 	nodeTimeoutMs?: number;
 	readsPerMinute?: number;
 };
 
-/** A slot whose holder died frees itself after this; well past a node call. */
 const ACCOUNT_SLOT_TTL_MS = 60_000;
 const ACCOUNT_SLOT_POLL_MS = 25;
 
-/** One of an account's `ACCOUNT_CONCURRENCY` slots, shared across API
- *  replicas when Redis is configured. Waits up to `SLOT_WAIT_MS` for one to
- *  free up; `null` when none did. */
 async function acquireAccountSlot(
 	accountId: string,
 ): Promise<(() => Promise<void>) | null> {
@@ -95,7 +86,6 @@ async function acquireAccountSlot(
 	}
 }
 
-/** A counting semaphore whose waiters give up after a deadline. */
 class Slots {
 	private active = 0;
 	private readonly waiters: Array<() => void> = [];
@@ -392,7 +382,6 @@ export function createChainReadRouter(opts: ChainReadRouterOptions = {}): Hono {
 							function_name: fn,
 							args_hash: argsHash,
 							index_block_hash: tip,
-							// The route knows the block id, not its height.
 							block_height: null,
 							result_hex: body.result as string,
 						})

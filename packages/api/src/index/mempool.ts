@@ -69,9 +69,6 @@ export const MEMPOOL_FILTERS = [
 	"function_name",
 ] as const;
 
-/** A pending (unconfirmed) transaction. The columnar fields plus `raw_tx`
- *  enrichment — but pre-chain, so no block_height/tx_index/result/events; the
- *  cursor is the mempool insertion sequence, not a block position. */
 export type MempoolTransaction = {
 	cursor: string;
 	tx_id: string;
@@ -180,8 +177,6 @@ function normalizeMempool(row: MempoolDbRow): MempoolTransaction {
 	if (decoded?.coinbase) tx.coinbase = decoded.coinbase;
 	if (decoded?.tenure_change) tx.tenure_change = decoded.tenure_change;
 
-	// Deep BigInt→string over the whole tx — decoded args/result and NFT
-	// post-condition asset_value carry bigints that throw in JSON.stringify.
 	return jsonSafeBigInt(tx);
 }
 

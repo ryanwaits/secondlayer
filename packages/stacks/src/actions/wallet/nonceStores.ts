@@ -25,8 +25,6 @@ export type RedisStoreParams = {
 	prefix?: string;
 };
 
-// Warm path: counter exists → atomically hand out the current value and bump.
-// Returns the nonce (bulk string) or `false` (RESP nil) when the key is unset.
 const TAKE_IF_PRESENT = `local v = redis.call('GET', KEYS[1])
 if v == false then return false end
 redis.call('INCR', KEYS[1])
@@ -126,7 +124,6 @@ export function postgresStore(params: PostgresStoreParams): NonceStore {
 		async reserve(key, getFloor) {
 			await ensureTable();
 
-			// Warm path: bump and return the pre-increment value atomically.
 			const updated =
 				await sql`UPDATE stacks_nonce_state SET next = next + 1 WHERE key = ${key} RETURNING next - 1 AS nonce`;
 			const warm = updated[0];

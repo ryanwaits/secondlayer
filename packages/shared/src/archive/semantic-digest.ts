@@ -78,8 +78,6 @@ export function canonicalJson(value: unknown): string {
 			.map((key) => `${JSON.stringify(key)}:${canonicalJson(object[key])}`)
 			.join(",")}}`;
 	}
-	// undefined / function / symbol — never present in decoded chain rows.
-	// Fall through as null so tests catch unexpected shapes.
 	return "null";
 }
 
@@ -90,9 +88,6 @@ function scalar(value: string | number | bigint | null | undefined): string {
 			throw new Error("semanticDigest: non-finite number");
 		}
 		if (!Number.isInteger(value)) {
-			// Chain heights, indexes, timestamps are all integer; a fractional
-			// value here is a schema bug we want to surface loudly, not silently
-			// serialize with float precision that varies by runtime.
 			throw new Error(`semanticDigest: non-integer scalar ${value}`);
 		}
 		return String(value);

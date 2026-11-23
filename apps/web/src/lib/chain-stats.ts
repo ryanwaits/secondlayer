@@ -7,16 +7,6 @@ import {
 } from "@/lib/archive-freshness";
 import { readEventsTotal } from "@/lib/status-fields";
 
-/**
- * Chain figures for the marketing pages, server side.
- *
- * `signed` comes from the signed archive manifest (changes once per publish,
- * cached an hour). `liveEvents` is the hosted index's running event total from
- * `/public/status` (cached 30s); the client keeps it ticking with
- * `LiveEventsOdometer`. Either fetch failing falls back to the last signed publish
- * we shipped, so a slow upstream never blocks or breaks a render.
- */
-
 export const ARCHIVE_MANIFEST_URL =
 	"https://archive.secondlayer.tools/latest.json";
 
@@ -24,15 +14,11 @@ export interface SignedCounts {
 	blocks: number;
 	transactions: number;
 	events: number;
-	/** Highest block in the signed set (coverage.to_block). */
 	toBlock: number;
-	/** When the manifest was promoted (ISO); null if the manifest has no date. */
 	promotedAt: string | null;
-	/** Snapshot manifest path (`snapshots/<digest>.json`); null if unknown. */
 	snapshotPath: string | null;
 }
 
-/** 2026-10-07 publish. Used only when the manifest can't be read. */
 const FALLBACK: SignedCounts = {
 	blocks: 9_137_865,
 	transactions: 29_861_044,
@@ -83,7 +69,6 @@ export async function getSignedCounts(): Promise<SignedCounts> {
 export const ARCHIVE_STATUS_URL =
 	"https://archive.secondlayer.tools/status.json";
 
-/** The archive's published status, or null on any failure. */
 export async function getArchiveFreshness(): Promise<ArchiveFreshnessData | null> {
 	try {
 		const res = await fetch(ARCHIVE_STATUS_URL, {
@@ -96,7 +81,6 @@ export async function getArchiveFreshness(): Promise<ArchiveFreshnessData | null
 	}
 }
 
-/** Newest partition names per dataset from the signed snapshot manifest; null on any failure. */
 export async function getLatestPartitions(
 	snapshotPath: string | null,
 ): Promise<PartitionNames | null> {
@@ -117,7 +101,6 @@ export async function getLatestPartitions(
 
 export const STATUS_URL = `${PLATFORM_API_URL}/public/status`;
 
-/** Running event total, or the signed count when the status read fails. */
 export async function getLiveEvents(signed: SignedCounts): Promise<number> {
 	try {
 		const res = await fetch(STATUS_URL, {
@@ -134,7 +117,6 @@ export async function getLiveEvents(signed: SignedCounts): Promise<number> {
 const fmt = new Intl.NumberFormat("en-US");
 export const formatCount = (n: number) => fmt.format(n);
 
-/** Manifest table rows: count, share of the set, coverage, for each dataset. */
 export function manifestRows(c: SignedCounts) {
 	const total = c.blocks + c.transactions + c.events;
 	const share = (n: number) => Math.round((n / total) * 10_000) / 100;

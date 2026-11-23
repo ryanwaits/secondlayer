@@ -1,4 +1,3 @@
-/** The chevron inside a pager's back/next buttons. */
 export function PageArrow({ back }: { back?: boolean }) {
 	return (
 		<svg

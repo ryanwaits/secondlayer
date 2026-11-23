@@ -12,58 +12,38 @@ import {
 	triggerVolume,
 } from "./triggers";
 
-/**
- * One pure generator that turns any chain trigger into its row line, focus
- * prose, annotated code and the "Copy for agent" prompt. Deterministic: no
- * model, no React. Every piece of text a webhook shows about its triggers
- * comes from here so phrasing can't drift between surfaces.
- */
-
-/** A run of text; `code` renders it as inline code. */
 export type Piece = { text: string; code?: boolean };
-/** A phrase of the sentence. With `focus`, it is a focus link to the rows carrying that ref. */
 export type Segment = { pieces: Piece[]; focus?: string };
 export type TriggerDescription = {
-	/** The row's one-liner: "Print events from pox-5 where signer is one of these 2 contracts". */
 	line: Piece[];
-	/** "Fires on every …" as segments, then the closing ".". */
 	prose: Segment[];
-	/** Plain sentences after the prose: the sibling sentence or the cost sentence. */
 	tail: string;
-	/** The trigger's lines with `// !ref` annotation comments. */
 	source: string;
 };
 
 type Fields = Record<string, unknown>;
 type Phrase = Piece[];
 
-/** The most phrases that become focus links; the rest fold into one. */
 const MAX_FOCUS = 4;
-/** Two where-values read inline only while "a or b" stays this short. */
 const INLINE_LIST_LIMIT = 40;
 
 const text = (value: string): Piece => ({ text: value });
 const code = (value: string): Piece => ({ text: value, code: true });
 const plain = (pieces: Piece[]): string => pieces.map((p) => p.text).join("");
 
-// ── Value formatting ──────────────────────────────────────────────────────
-
 const PRINCIPAL = /^S[PMTN][0-9A-Z]{20,}/;
 const isPrincipal = (value: string): boolean => PRINCIPAL.test(value);
 const SBTC_ASSET = /\.sbtc-token(::|$)/;
 
-/** Short form of a Bitcoin address or txid: first 6, last 4. */
 function shortHash(value: string): string {
 	return value.length > 12 ? `${value.slice(0, 6)}…${value.slice(-4)}` : value;
 }
 
-/** Contract principal -> contract name; standard principal -> short address. */
 function principalName(value: string): string {
 	const dot = value.indexOf(".");
 	return dot > 0 ? value.slice(dot + 1) : shortenPrincipal(value);
 }
 
-/** A name that may carry a `*` wildcard: plain prose when wildcarded, code when exact. */
 function pattern(value: string, kind: string): Piece {
 	if (!value.includes("*")) return code(principalName(value));
 	const afterAddress = value.includes(".")
@@ -103,7 +83,6 @@ function formatUnits(raw: unknown, decimals: number): string {
 	return `${negative ? "-" : ""}${whole.toLocaleString("en-US")}${fraction ? `.${fraction}` : ""}`;
 }
 
-/** An amount split into number and unit so a range can drop the first unit. */
 function amount(
 	trigger: Fields,
 	raw: unknown,
@@ -125,7 +104,6 @@ function amountPhrase(trigger: Fields): string {
 	return `${amountText(amount(trigger, max))} or less`;
 }
 
-/** One value inline, two when they stay short, else a count. */
 function listPieces(values: string[]): Piece[] {
 	const formatted = values.map((v) => (isPrincipal(v) ? principalName(v) : v));
 	const [first, second] = formatted;
@@ -140,8 +118,6 @@ function listPieces(values: string[]): Piece[] {
 	const kind = values.every(isPrincipal) ? "contracts" : "values";
 	return [text(`one of these ${values.length} ${kind}`)];
 }
-
-// ── Phrase table ──────────────────────────────────────────────────────────
 
 const str = (value: unknown): string => String(value);
 
@@ -177,7 +153,6 @@ const PHRASES: Record<string, (trigger: Fields, value: unknown) => Phrase> = {
 	address: (_t, v) => [text("to "), code(shortHash(str(v)))],
 };
 
-/** `with {field} {value}`: what an unknown field renders as. */
 const fallbackPhrase = (field: string, value: unknown): Phrase => [
 	text("with "),
 	code(field),
@@ -185,16 +160,12 @@ const fallbackPhrase = (field: string, value: unknown): Phrase => [
 	code(str(value)),
 ];
 
-// ── Describe ──────────────────────────────────────────────────────────────
-
 /** A where key's ref is its position, never its text: print keys can hold characters a ref name can't. */
 const whereRef = (index: number): string => `where-${index}`;
 
 type Part = {
-	/** Focus ref; the code rows of `fields` carry it. */
 	ref: string;
 	phrase: Phrase;
-	/** Source fields this phrase covers (`where-{i}` for the i-th where key). */
 	fields: string[];
 };
 
@@ -255,8 +226,8 @@ function buildParts(trigger: Fields, keys: string[]): Part[] {
 			continue;
 		}
 		if (key === "minAmount" || key === "maxAmount") {
-			if (unitField) continue; // merged into the asset or rune phrase
-			if (key === "maxAmount" && hasMin) continue; // range handled at min
+			if (unitField) continue;
+			if (key === "maxAmount" && hasMin) continue;
 			parts.push({
 				ref: hasMin && hasMax ? "amount" : key,
 				fields: amountFields,
@@ -329,8 +300,6 @@ function siblingTail(
 	return sentences.join(" ");
 }
 
-// ── Source ────────────────────────────────────────────────────────────────
-
 const HELPERS = new Set([
 	"stx_transfer",
 	"stx_mint",
@@ -364,7 +333,6 @@ const objectKey = (key: string): string =>
 
 type Row = { line: string; ref: string | null };
 
-/** The trigger's code lines, each tagged with the field ref it belongs to. */
 function sourceRows(trigger: Fields, refOf: (field: string) => string): Row[] {
 	const { type, ...rest } = trigger;
 	const keys = Object.keys(rest).filter((k) => rest[k] !== undefined);
@@ -406,7 +374,6 @@ function sourceRows(trigger: Fields, refOf: (field: string) => string): Row[] {
 	return rows;
 }
 
-/** Inserts `// !ref(1:n)` comments above each run of rows sharing a ref. */
 function annotate(rows: Row[], folded: ReadonlySet<string>): string {
 	const out: string[] = [];
 	for (let i = 0; i < rows.length; ) {
@@ -426,8 +393,6 @@ function annotate(rows: Row[], folded: ReadonlySet<string>): string {
 	}
 	return out.join("\n");
 }
-
-// ── Public API ────────────────────────────────────────────────────────────
 
 export function describeTrigger(
 	trigger: ChainTrigger,
@@ -503,7 +468,6 @@ const CALL_HEAD = [
 	"await sl.webhooks.create({",
 ];
 
-/** The full create call with no annotations, and where each trigger starts (1-based line). */
 export function webhookSource(
 	webhook: Pick<WebhookDetail, "name" | "url" | "triggers">,
 ): { text: string; starts: number[] } {
@@ -522,7 +486,6 @@ export function webhookSource(
 	return { text: lines.join("\n"), starts };
 }
 
-/** Each trigger's description, and the code frame "Listens for" shows for it. */
 export function listensForCode(
 	webhook: WebhookDetail,
 	activity: WebhookActivity | null,
@@ -568,7 +531,6 @@ function utcDateTime(iso: string): string {
 	return `${MONTHS[d.getUTCMonth()]} ${d.getUTCDate()} ${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())} UTC`;
 }
 
-/** The "Copy for agent" kick-off prompt. */
 export function agentPrompt(
 	webhook: WebhookDetail,
 	stacksHeight: number | null,

@@ -69,12 +69,6 @@ export function normalizeLang(lang: string): string {
 
 export type { ThemedToken };
 
-/**
- * One array of tokens per source line. Both themes ride on each token as CSS
- * variables (`--shiki-light`, `--shiki-dark`), so a single set of spans serves
- * either color scheme. Unsupported languages come back as one plain token per
- * line so callers never branch on them.
- */
 export async function tokenize(
 	code: string,
 	lang = "typescript",
@@ -95,7 +89,6 @@ export async function tokenize(
 	}).tokens;
 }
 
-/** Dual-theme Shiki HTML, for the two surfaces that need Shiki's own markup: the agent prompt card and the writing hero art. Code blocks go through `<Code>`. */
 export async function highlight(
 	code: string,
 	lang = "typescript",

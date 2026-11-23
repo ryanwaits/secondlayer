@@ -3,20 +3,17 @@ import { shortCount } from "@/lib/subgraph-view";
 import type { ApiKey, ApiKeyProduct } from "@/lib/types";
 import { formatRelative } from "@/lib/webhooks-data";
 
-/** A key unused for this many days is flagged. */
 export const STALE_AFTER_DAYS = 30;
 
 const HOUR = 3_600_000;
 const DAY = 24 * HOUR;
 
-/** `/account/keys?new=1` (where the docs' "Make a lasting key" lands) opens New key. */
 export function opensNewKeyFlow(params: {
 	new?: string | string[];
 }): boolean {
 	return params.new === "1";
 }
 
-/** What a key is for, in the reader's words. */
 export function keyForLabel(product: ApiKeyProduct): string {
 	switch (product) {
 		case "docs":
@@ -30,20 +27,15 @@ export function keyForLabel(product: ApiKeyProduct): string {
 	}
 }
 
-/** Keys made for the reader's own tools. The rest are made for them. */
 export function isOwnKey(product: ApiKeyProduct): boolean {
 	return product !== "tenant" && product !== "sentinel";
 }
 
 export interface KeyFlags {
-	/** Whole days unused, 30 or more. Revocable keys only. */
 	staleDays?: number;
-	/** Hours until a docs key stops working. */
 	expiresInHours?: number;
 }
 
-/** Unused for 30+ days (from the last use, else from creation), or a docs
- *  key's time left. Docs keys expire on their own, so they are never stale. */
 export function keyFlags(key: ApiKey, now: Date): KeyFlags {
 	if (key.product === "docs") {
 		if (!key.expiresAt) return {};
@@ -58,8 +50,6 @@ export function keyFlags(key: ApiKey, now: Date): KeyFlags {
 	return days >= STALE_AFTER_DAYS ? { staleDays: days } : {};
 }
 
-/** Active keys in two groups: the reader's own (plus a live docs key), and
- *  the ones made for them. A revoked or expired key shows in neither. */
 export function groupKeys(
 	keys: ApiKey[] | null,
 	now: Date,
@@ -74,7 +64,6 @@ export function groupKeys(
 	};
 }
 
-/** Why a key you didn't make exists, in one line. */
 export function keyWhy(product: ApiKeyProduct): string {
 	switch (product) {
 		case "docs":
@@ -88,23 +77,18 @@ export function keyWhy(product: ApiKeyProduct): string {
 	}
 }
 
-/** "3h ago", or null when the key has never been used. */
 export function agoLong(iso: string | null, now: Date): string | null {
 	return iso ? formatRelative(iso, now.getTime()) : null;
 }
 
-/** "3h", or an en dash when the key has never been used. */
 export function agoShort(iso: string | null, now: Date): string {
 	return agoLong(iso, now)?.replace(" ago", "") ?? "–";
 }
 
-/** The keys the summaries count: the ones you made, not a docs key that
- *  renews itself. Revoked and expired keys are already out. */
 export function countedKeys(keys: ApiKey[] | null, now: Date): ApiKey[] {
 	return groupKeys(keys, now).own.filter((k) => k.product !== "docs");
 }
 
-/** Stale keys, the longest unused first. */
 export function staleKeys(
 	keys: ApiKey[],
 	now: Date,
@@ -117,7 +101,6 @@ export function staleKeys(
 		.sort((a, b) => b.days - a.days);
 }
 
-/** The key read most recently, or null when none has been used. */
 export function lastReadKey(keys: ApiKey[]): ApiKey | null {
 	let best: ApiKey | null = null;
 	for (const k of keys) {
@@ -128,14 +111,12 @@ export function lastReadKey(keys: ApiKey[]): ApiKey | null {
 	return best;
 }
 
-/** Rows read with these keys in 30 days; null when the API sent no counts. */
 export function totalRows30d(keys: ApiKey[]): number | null {
 	const counted = keys.filter((k) => k.rows30d !== undefined);
 	if (counted.length === 0) return null;
 	return counted.reduce((sum, k) => sum + (k.rows30d ?? 0), 0);
 }
 
-/** Rows per UTC day summed over the keys, last `points` days; null when no key has a series. */
 export function sumDaily(keys: ApiKey[], points: number): number[] | null {
 	const series = keys.flatMap((k) => (k.rowsDaily ? [k.rowsDaily] : []));
 	if (series.length === 0) return null;
@@ -150,7 +131,6 @@ export function sumDaily(keys: ApiKey[], points: number): number[] | null {
 	return total.slice(-points);
 }
 
-/** "Oct 13" for each of the last `count` UTC days, ending with `now`'s day. */
 export function dayLabels(now: Date, count = 30): string[] {
 	const day = 86_400_000;
 	return Array.from({ length: count }, (_, i) =>
@@ -164,7 +144,6 @@ export function dayLabels(now: Date, count = 30): string[] {
 
 const keysWord = (n: number) => (n === 1 ? "key" : "keys");
 
-/** "a", "a and b", "a, b and 2 more". */
 function nameList(names: string[]): string {
 	if (names.length <= 2) return names.join(" and ");
 	return `${names.slice(0, 2).join(", ")} and ${names.length - 2} more`;
@@ -175,7 +154,6 @@ export interface KeysSentence {
 	sub?: string;
 }
 
-/** The user's own keys that were revoked (docs keys never count). */
 export function revokedOwnKeys(keys: ApiKey[] | null): ApiKey[] {
 	return (keys ?? []).filter(
 		(k) =>
@@ -183,7 +161,6 @@ export function revokedOwnKeys(keys: ApiKey[] | null): ApiKey[] {
 	);
 }
 
-/** The Keys screen's one-line answer: are your keys in use, and which are not. */
 export function keysSentence(
 	keys: ApiKey[] | null,
 	now: Date,
@@ -239,13 +216,11 @@ export function keysSentence(
 export interface OverviewKeys {
 	tone: "ok" | "hi";
 	state: string;
-	/** Rows per day, last 24 days; null when the API sent no series. */
 	spark: number[] | null;
 	count: string;
 	age: string;
 }
 
-/** The Overview's `keys` row; null when the account has no keys of its own. */
 export function overviewKeys(
 	keys: ApiKey[] | null,
 	now: Date,

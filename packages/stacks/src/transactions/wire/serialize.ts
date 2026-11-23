@@ -35,20 +35,17 @@ import {
 	type TransactionPayload,
 } from "../types.ts";
 
-// Address serialization: version (1 byte) + hash160 (20 bytes)
 function serializeAddress(c32Address: string): Uint8Array {
 	const [version, hash160] = c32addressDecode(c32Address);
 	return concatBytes(new Uint8Array([version]), hexToBytes(hash160));
 }
 
-// LP string: length prefix (n bytes) + content bytes
 function serializeLPString(str: string, prefixBytes = 1): Uint8Array {
 	const content = utf8ToBytes(str);
 	const prefix = hexToBytes(intToHex(content.byteLength, prefixBytes));
 	return concatBytes(prefix, content);
 }
 
-// LP string for code body (4-byte prefix)
 function serializeLPStringLong(str: string): Uint8Array {
 	return serializeLPString(str, 4);
 }
@@ -64,20 +61,17 @@ function serializeMemo(memo: string): Uint8Array {
 function serializeSpendingCondition(condition: SpendingCondition): Uint8Array {
 	const parts: Uint8Array[] = [
 		writeUInt8(condition.hashMode),
-		hexToBytes(condition.signer), // 20 bytes
+		hexToBytes(condition.signer),
 		intToBytes(condition.nonce, 8),
 		intToBytes(condition.fee, 8),
 	];
 
 	if ("signature" in condition) {
-		// Single sig
 		const sc = condition as SingleSigSpendingCondition;
 		parts.push(writeUInt8(sc.keyEncoding));
-		parts.push(hexToBytes(sc.signature)); // 65 bytes
+		parts.push(hexToBytes(sc.signature));
 	} else {
-		// Multi sig
 		const mc = condition as MultiSigSpendingCondition;
-		// Fields as LP list
 		parts.push(writeUInt32BE(mc.fields.length));
 		for (const field of mc.fields) {
 			parts.push(serializeAuthField(field));

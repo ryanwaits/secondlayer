@@ -9,7 +9,6 @@ import { logger } from "@secondlayer/shared/logger";
 import type { Insertable, Kysely } from "kysely";
 import { evictSupersededMempoolTxs, removeMempoolTxs } from "./mempool.ts";
 
-// Chunk large batches to stay under the Postgres bind-parameter limit.
 const TX_CHUNK_SIZE = 500;
 const EVT_CHUNK_SIZE = 1000;
 
@@ -17,12 +16,9 @@ export type PersistBlockInput = {
 	block: Insertable<Database["blocks"]>;
 	txs: Insertable<Database["transactions"]>[];
 	evts: Insertable<Database["events"]>[];
-	/** Second clock. Empty when the `/new_block` body had no `vm_events` field. */
 	vmEvts?: Insertable<Database["vm_events"]>[];
-	/** Storage-layer MARF writes. Empty when the body had no `state_writes` field. */
 	stateWrites?: Insertable<Database["state_writes"]>[];
 	blockHeight: number;
-	/** Defaults to STACKS_NETWORK env (or "mainnet"). */
 	network?: string;
 };
 
@@ -34,16 +30,10 @@ export type PersistBlockInput = {
  * orphaned block's transactions/events behind (the inserts only do
  * onConflict-doNothing), so a reused height accumulates duplicate
  * (block_height, tx_index) rows that collide downstream — Streams cursor dupes
- * that wedge the L2 decoders (#46). The node only emits canonical blocks, so we
+ * that wedge the decoders (#46). The node only emits canonical blocks, so we
  * clear the height and re-insert the incoming set. `events_height_type_idx`
  * and `transactions_height_tx_index_uniq` (both lead with block_height) serve
  * the deletes, so they stay cheap.
- */
-/**
- * Copy the transactions/events currently at `blockHeight` into the archive
- * tables before they are replaced by a reorg. `orphanedHash` is the hash of the
- * block being displaced, kept for audit. Idempotent enough for our use — only
- * called on a real hash change.
  */
 async function archiveOrphanedHeight(
 	tx: Kysely<Database>,
@@ -347,11 +337,8 @@ export async function persistBlock(
 			tx,
 			txs.map((t) => t.tx_id as string),
 		);
-		// A confirmed nonce also kills the sender's other pending txs at or
-		// below it (replaced or conflicting): they can never confirm.
 		await evictSupersededMempoolTxs(tx, txs);
 
-		// Compute last_contiguous_block.
 		const progressRow = await tx
 			.selectFrom("index_progress")
 			.select("last_contiguous_block")
@@ -362,7 +349,6 @@ export async function persistBlock(
 		let newContiguous = currentContiguous;
 
 		if (blockHeight === currentContiguous + 1) {
-			// Next sequential block — extend the contiguous chain.
 			newContiguous = await computeContiguousTip(tx, currentContiguous + 1);
 		} else if (currentContiguous === 0 && blockHeight > 1) {
 			// First block above genesis on a fresh instance: count from the

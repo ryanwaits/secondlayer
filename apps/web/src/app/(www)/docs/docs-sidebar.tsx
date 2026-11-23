@@ -12,14 +12,8 @@ import { useDocsDrawer } from "./docs-drawer";
 import { DOCS_NAV } from "./nav";
 import { activeHeading, isAtScrollEnd } from "./outline-spy";
 
-/** Gap kept between a revealed row and the sidebar's edge. */
 const REVEAL_MARGIN = 8;
 
-/**
- * Scrolls the sidebar only if `row` is not fully inside it, and only by the
- * distance that brings it just inside (never re-centres), so rows that are
- * already visible never move when the active section changes.
- */
 function revealNearest(nav: HTMLElement, row: HTMLElement) {
 	const r = row.getBoundingClientRect();
 	const n = nav.getBoundingClientRect();
@@ -32,26 +26,15 @@ function revealNearest(nav: HTMLElement, row: HTMLElement) {
 interface Head {
 	id: string;
 	text: string;
-	/** An API family heading, shown as a label over its endpoints. */
 	family?: boolean;
-	/** An endpoint or object section: the id of the family it nests under. */
 	child?: string;
-	/** Label shown over this row: the first section after the page's seam. */
 	group?: string;
 }
 
-/** The open page's visible h2s, listed under its row. Reads them from the
- *  rendered article (rehype-slug gives stable ids), skips any inside a
- *  collapsed `<details>`, and marks the last one whose top has reached the
- *  spy line as the place being read. Headings after a `data-outline-reference`
- *  marker (the page's seam) start a Reference group. An h3 marked `data-outline-child` (an API endpoint or object) is
- *  listed too, under the family whose id the attribute carries.
- *  Other docs pages have no such h3s, so their outline is unchanged. */
 function PageOutline({ onNavigate }: { onNavigate: () => void }) {
 	const pathname = usePathname();
 	const [heads, setHeads] = useState<Head[]>([]);
 	const [activeId, setActiveId] = useState("");
-	// The id of a clicked row, which stays active until the reader scrolls.
 	const held = useRef("");
 
 	// biome-ignore lint/correctness/useExhaustiveDependencies: pathname is a trigger — re-read headings on route change
@@ -69,8 +52,6 @@ function PageOutline({ onNavigate }: { onNavigate: () => void }) {
 				family: h.hasAttribute("data-outline-family"),
 				child: h.dataset.outlineChild,
 			}));
-		// The family headings sit together in the page's index, ahead of the
-		// sections, so each family's sections are pulled up under it.
 		const found = all.flatMap((h) =>
 			h.family
 				? [h, ...all.filter((c) => c.child === h.id)]
@@ -78,8 +59,6 @@ function PageOutline({ onNavigate }: { onNavigate: () => void }) {
 					? []
 					: [h],
 		);
-		// Sections after the page's seam marker are listed under a Reference
-		// label; API pages (trees) have no seam.
 		const seam = article?.querySelector("[data-outline-reference]");
 		const first = seam
 			? found.find((h) => {
@@ -180,8 +159,6 @@ function PageOutline({ onNavigate }: { onNavigate: () => void }) {
 		};
 	}, [heads]);
 
-	// Keep the active outline row inside the sidebar, moving it by the least
-	// distance.
 	// biome-ignore lint/correctness/useExhaustiveDependencies: activeId is the trigger — the active link is read from the DOM
 	useEffect(() => {
 		const nav = document.querySelector<HTMLElement>(".docs-nav");
@@ -190,8 +167,6 @@ function PageOutline({ onNavigate }: { onNavigate: () => void }) {
 	}, [activeId]);
 
 	if (heads.length === 0) return null;
-	// An API page lists its endpoints as a tree: an Overview row for the
-	// index at the top, family headings as plain labels.
 	const tree = heads.some((h) => h.child);
 	const atOverview =
 		tree && (heads.find((h) => h.id === activeId)?.family ?? true);
@@ -252,12 +227,10 @@ function PageOutline({ onNavigate }: { onNavigate: () => void }) {
 	);
 }
 
-/** Marks a page or section added in the last NEW_DAYS. */
 function NewChip() {
 	return <span className="docs-nav-new">New</span>;
 }
 
-/** Page rows whose title carries a "new" mark, by route. */
 const NEW_PAGES: Record<string, string> = docsNewPages;
 
 function Chevron() {
@@ -287,14 +260,11 @@ export function DocsSidebar() {
 	useEffect(() => setNow(Date.now()), []);
 	// A hash click doesn't change the route, so the phone drawer closes here.
 	const outline = <PageOutline onNavigate={() => setOpen(false)} />;
-	// The open API page's endpoint tree folds under its row.
 	const [folded, setFolded] = useState(false);
 	// biome-ignore lint/correctness/useExhaustiveDependencies: pathname is a trigger — each page opens unfolded
 	useEffect(() => {
 		setFolded(false);
 	}, [pathname]);
-	// Bring the current page's row into view on arrival. A row already on
-	// screen stays put; one off screen moves in by the least distance.
 	// biome-ignore lint/correctness/useExhaustiveDependencies: pathname is a trigger — reveal the active row per page
 	useEffect(() => {
 		const nav = document.querySelector<HTMLElement>(".docs-nav");
@@ -305,13 +275,11 @@ export function DocsSidebar() {
 		revealNearest(nav, row);
 	}, [pathname]);
 
-	// Close the mobile drawer whenever the route changes (i.e. a link is tapped).
 	// biome-ignore lint/correctness/useExhaustiveDependencies: pathname is a trigger — close the drawer on navigation
 	useEffect(() => {
 		setOpen(false);
 	}, [pathname, setOpen]);
 
-	// Close on Escape while the drawer is open.
 	useEffect(() => {
 		if (!open) return;
 		function onKey(e: KeyboardEvent) {
@@ -332,11 +300,6 @@ export function DocsSidebar() {
 				/>
 			)}
 			<aside className={`docs-nav${open ? " open" : ""}`}>
-				{/* Site links live up here on mobile (the top bar's links are gone);
-				    desktop keeps them in the top bar, so this group hides.
-				    Labeled "Site" because that's what it is — Home, Archive, Docs,
-				    Blog. It said "Products" until 2026-08, which told a mobile
-				    reader our products were "Home" and "Blog". */}
 				<div className="docs-nav-group docs-nav-products">
 					<div className="docs-nav-grouplabel">Site</div>
 					<div className="docs-nav-products-grid">

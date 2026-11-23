@@ -2,12 +2,6 @@
 
 import { type ReactNode, useState } from "react";
 
-/**
- * A9 Term — hover-defined vocabulary for coined terms (receipt, bookmark,
- * sink). Dotted underline signals "defined here"; hover on pointer
- * devices, tap or focus elsewhere (tap pins, tap again unpins). Keep one
- * glossary per post so definitions are identical at every mention.
- */
 export function Term({
 	children,
 	label,

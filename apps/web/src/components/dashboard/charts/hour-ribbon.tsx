@@ -6,18 +6,14 @@ import type { HeatUnits } from "./heat-strip";
 
 const DEFAULT_UNITS: HeatUnits = { n: "delivered", f: "failed" };
 
-/** A day label needs this many hours of room; a narrower day gets the tick only. */
 const LABEL_MIN_HOURS = 8;
 
 interface Hover {
 	index: number;
-	/** Viewport coordinates of the cell's top centre. */
 	x: number;
 	y: number;
 }
 
-/** The window's UTC days: where each starts (a column index) and how many of
- *  its hours the window holds. */
 function windowDays(now: number) {
 	return heatGrid([], now).days.flatMap((day) => {
 		const first = day.cells.findIndex((cell) => cell !== null);
@@ -34,12 +30,6 @@ function windowDays(now: number) {
 	});
 }
 
-/**
- * Seven days of hours as one continuous strip on the 168-hour UTC window, with
- * a faint tick at each midnight. Colour follows the heat strip (`f` is
- * `--alarm`, an empty hour `--soft`, else volume as opacity). Cells are not
- * clickable: the row around the ribbon is the target. Hover shows the hour.
- */
 export function HourRibbon({
 	hours,
 	now,
@@ -47,13 +37,10 @@ export function HourRibbon({
 	units = DEFAULT_UNITS,
 	tone,
 }: {
-	/** Rolling window, index 0 = the hour 167 h before `now`. */
 	hours: readonly { n: number; f: number }[];
 	now: number;
-	/** Accessible name for the strip. */
 	label: string;
 	units?: HeatUnits;
-	/** The row this sits in is attention: delivered cells use `--hi`. */
 	tone?: "att";
 }) {
 	const max = useMemo(() => Math.max(1, ...hours.map((c) => c.n)), [hours]);
@@ -75,7 +62,6 @@ export function HourRibbon({
 		return () => window.removeEventListener("scroll", hide, { capture: true });
 	}, [hover]);
 
-	// Hover only changes the tooltip, so the 168 cells are reused.
 	const cells = useMemo(
 		() =>
 			hours.map((cell, index) => {
@@ -145,9 +131,6 @@ export function HourRibbon({
 	);
 }
 
-/** The ribbon's column header: a day label at each UTC midnight, on the same
- *  168 columns as the cells. The first full day says UTC once for all of them: it always has room, where a
- *  partial last day would clip it. */
 export function RibbonDays({ now }: { now: number }) {
 	const days = useMemo(() => windowDays(now), [now]);
 	const utcDay = days.find((day) => day.midnight && day.span === 24)?.index;

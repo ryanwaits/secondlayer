@@ -7,9 +7,6 @@ import {
 	deserializeTransaction,
 } from "@secondlayer/stacks/transactions";
 
-/** Our transaction taxonomy, collapsing the wire payload variants a consumer
- *  rarely distinguishes (the three coinbase kinds, the two smart-contract
- *  kinds). */
 export type TxType =
 	| "token_transfer"
 	| "contract_call"
@@ -59,10 +56,6 @@ export type DecodedPostCondition =
 			condition_code_name: string | null;
 	  };
 
-/** Fields decoded from `raw_tx` that the `transactions` table does not persist:
- *  fee/nonce, post-conditions, sponsorship, and the payload specifics for kinds
- *  whose detail isn't already columnar (token_transfer, coinbase, tenure_change,
- *  smart_contract version). contract_call detail comes from the DB row. */
 export type DecodedTx = {
 	tx_type: TxType;
 	fee: string;
@@ -95,7 +88,6 @@ const ANCHOR_MODE_NAME: Record<number, DecodedTx["anchor_mode"]> = {
 	[AnchorMode.Any]: "any",
 };
 
-// Fungible (STX + FT) and non-fungible post-condition codes per SIP-005.
 const FUNGIBLE_CONDITION_NAME: Record<number, string> = {
 	1: "sent_eq",
 	2: "sent_gt",

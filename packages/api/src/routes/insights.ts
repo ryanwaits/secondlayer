@@ -19,12 +19,6 @@ import { InvalidJSONError } from "../middleware/error.ts";
 
 const MAX_SNOOZE_MS = 7 * 24 * 60 * 60 * 1000;
 
-/**
- * Ranked insights, shared by the tenant surface (`/api/insights`, scope
- * `{ accountId: null }`: the stack's own database) and the platform surface
- * (`/api/accounts/insights`, scoped to the signed-in account). Only the
- * scope differs.
- */
 export function createInsightsRoutes(
 	getScope: (c: Context) => InsightScope,
 ): Hono {
@@ -91,7 +85,6 @@ function notFound(id: string): NotFoundError {
 	return new NotFoundError(`No insight with id ${id}`);
 }
 
-/** An ISO time after now and at most 7 days ahead. */
 function parseSnoozeUntil(raw: unknown): Date {
 	const until = typeof raw === "string" ? new Date(raw) : null;
 	const now = Date.now();
@@ -124,5 +117,4 @@ function parseResource(raw: string | undefined): {
 	return { kind: parsedKind.data, id };
 }
 
-/** Tenant surface: the stack's own insights (no account scoping). */
 export default createInsightsRoutes(() => ({ accountId: null }));

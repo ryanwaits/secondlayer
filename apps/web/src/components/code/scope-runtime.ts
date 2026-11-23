@@ -1,12 +1,3 @@
-/**
- * The scope script. Prose reaches code through names (`!ref`, `!pick`) and this
- * resolves them in the DOM, within one scope: a docs `##` section, a whole
- * writing post, a `<CodeSteps>` block, or an element marked `data-scope`
- * (an entry of the generated SDK reference). Blocks stay server components; they
- * only carry `data-ref`, `data-refs` and `data-pick` hooks.
- */
-
-/** The elements one name resolves among: a section's siblings, or one container. */
 type Scope = Element[];
 
 const SECTION_START = ".section-heading-wrap";
@@ -14,14 +5,11 @@ const SECTION_START = ".section-heading-wrap";
 function scopeOf(el: Element): Scope {
 	const steps = el.closest("[data-steps]");
 	if (steps) return [steps];
-	// A generated entry (one SDK method) is its own scope.
 	const own = el.closest("[data-scope]");
 	if (own) return [own];
 	const article = el.closest(".docs-article, .writing-article");
 	if (!article) return [document.body];
-	// A post is one scope.
 	if (article.classList.contains("writing-article")) return [article];
-	// A docs `##` section: the siblings from its heading to the next one.
 	let top: Element = el;
 	while (top.parentElement && top.parentElement !== article)
 		top = top.parentElement;
@@ -45,7 +33,6 @@ const find = (scope: Scope, selector: string): HTMLElement[] =>
 const hasName = (el: Element, attr: string, name: string) =>
 	(el.getAttribute(attr) ?? "").split(" ").includes(name);
 
-/** Light every token, row and mention that answers to `name`. */
 function light(scope: Scope, name: string, on: boolean) {
 	for (const el of find(scope, ".ref"))
 		if (hasName(el, "data-ref", name)) el.classList.toggle("lit", on);
@@ -59,7 +46,6 @@ const holds = (row: Element, name: string) =>
 	hasName(row, "data-refs", name) ||
 	[...row.querySelectorAll(".ref")].some((e) => hasName(e, "data-ref", name));
 
-/** Dim the rows that do not hold `name`, in each block that has any; null clears. */
 function focusRef(scope: Scope, name: string | null) {
 	for (const cb of find(scope, ".cb")) {
 		const rows = [...cb.querySelectorAll<HTMLElement>(".row")];
@@ -73,7 +59,6 @@ function focusRef(scope: Scope, name: string | null) {
 
 const touchOnly = () => matchMedia("(hover: none)").matches;
 
-/** Mentions light on hover and keyboard focus; the pointer moving between a mention's own children does not count. */
 function onMention(event: Event, on: boolean) {
 	const from = event.target instanceof Element ? event.target : null;
 	const mention = from?.closest<HTMLElement>(".mention");
@@ -87,7 +72,6 @@ function onMention(event: Event, on: boolean) {
 function onClick(event: MouseEvent) {
 	if (!(event.target instanceof Element)) return;
 	const mention = event.target.closest<HTMLElement>(".mention");
-	// A tap has no hover: it toggles.
 	if (mention && touchOnly()) {
 		light(
 			scopeOf(mention),
@@ -116,7 +100,6 @@ function onClick(event: MouseEvent) {
 	}
 }
 
-/** Fill each empty `<Pick>` with chips from the options its section's `!pick` declares. */
 function setUpPickers() {
 	for (const picker of document.querySelectorAll<HTMLElement>(
 		"[data-picker]:not([data-ready])",
@@ -141,7 +124,6 @@ function setUpPickers() {
 	}
 }
 
-/** Choosing rewrites every token the name marks in the section; Copy reads the rows, so it follows. */
 function choose(chip: HTMLElement) {
 	const name = chip.dataset.choose ?? "";
 	const value = chip.textContent ?? "";
@@ -152,7 +134,6 @@ function choose(chip: HTMLElement) {
 			other.setAttribute("aria-pressed", String(other === chip));
 }
 
-/** Make `name` the active step: mark it, focus its rows, light its tokens. */
 function stepTo(container: HTMLElement, name: string) {
 	const scope = [container];
 	for (const step of find(scope, ".cs-step")) {
@@ -167,13 +148,11 @@ function stepTo(container: HTMLElement, name: string) {
 	light(scope, name, true);
 }
 
-/** One observer per steps block: the step crossing the middle of the viewport is the active one. */
 function setUpSteps() {
 	for (const container of document.querySelectorAll<HTMLElement>(
 		"[data-steps]:not([data-ready])",
 	)) {
 		container.dataset.ready = "";
-		// Steps take the keyboard only once the script can act on them.
 		for (const step of container.querySelectorAll<HTMLElement>(".cs-step"))
 			step.tabIndex = 0;
 		const first = container.querySelector<HTMLElement>(".cs-step");
@@ -192,7 +171,6 @@ function setUpSteps() {
 	}
 }
 
-/** Jump to a step: activate it and bring it to the middle. */
 function jumpTo(step: HTMLElement) {
 	const container = step.closest<HTMLElement>("[data-steps]");
 	if (!container) return;
@@ -215,10 +193,6 @@ function onKey(event: KeyboardEvent) {
 
 let listening = false;
 
-/**
- * Install the page's delegated listeners once, then wake whatever this page
- * rendered. Every `<CodeScope>` calls it, so it is safe to call again.
- */
 export function mountScope() {
 	setUpPickers();
 	setUpSteps();

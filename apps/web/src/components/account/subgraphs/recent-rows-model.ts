@@ -2,10 +2,8 @@
 
 export type RecentRow = { table: string; row: Record<string, unknown> };
 
-/** What "Recent rows" shows: the rows, or that the read failed. */
 export type RecentRowsData = { rows: RecentRow[]; failed: boolean };
 
-/** Newest block first, then newest id. */
 export function sortRecent(rows: readonly RecentRow[]): RecentRow[] {
 	return [...rows].sort(
 		(a, b) =>
@@ -14,7 +12,6 @@ export function sortRecent(rows: readonly RecentRow[]): RecentRow[] {
 	);
 }
 
-/** The recent-rows read as the panel shows it (`null` when the read failed). */
 export function recentRowsData(
 	rows: readonly RecentRow[] | null,
 ): RecentRowsData {

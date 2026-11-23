@@ -7,15 +7,6 @@ import { z } from "zod";
 import { textResponse } from "../lib/format.ts";
 import { defineTool } from "../lib/tool.ts";
 
-/**
- * Codegen over MCP.
- *
- * An agent that has just read rows off `/v1/index` usually wants the ORM types
- * for them next, and the CLI path (`sl codegen index`) means shelling out of
- * the conversation. These are thin wrappers over the same generators the CLI
- * calls, so the emitted schema is identical either way — no second
- * implementation to drift.
- */
 const TARGETS = ["prisma", "kysely", "drizzle", "json-schema"] as const;
 
 export function registerCodegenTools(server: McpServer) {

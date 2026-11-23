@@ -5,12 +5,6 @@ type Demand = {
 	others: number;
 };
 
-/**
- * The public demand board: which tokens people want bridged, how many asked,
- * and whether a team is behind it. Aggregates only; the API already drops
- * contacts and anything that isn't a ticker two people asked for. Renders
- * nothing until a token qualifies, or if the API is unreachable.
- */
 export async function RequestedTokens() {
 	let demand: Demand;
 	try {

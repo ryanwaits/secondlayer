@@ -40,8 +40,6 @@ function db(client?: Kysely<Database>): Kysely<Database> {
 	return client ?? getSourceDb();
 }
 
-/** Every canonical `pox5_events` row, joined to `blocks` for the burn height
- *  the rollup needs, in canonical replay order. */
 export async function readPox5RollupEvents(
 	client?: Kysely<Database>,
 ): Promise<Pox5RollupEventRow[]> {
@@ -113,11 +111,6 @@ export type MaintainPox5CyclesResult = {
 	durationMs: number;
 };
 
-/**
- * Recomputes `pox5_cycles` / `pox5_cycle_signers` from ALL canonical
- * `pox5_events` and rewrites both tables to match, inside one transaction.
- * Call after a committed pox5 decoder batch and after `handlePox5Reorg`.
- */
 export async function maintainPox5Cycles(opts?: {
 	db?: Kysely<Database>;
 	params?: Pox5CycleParams;

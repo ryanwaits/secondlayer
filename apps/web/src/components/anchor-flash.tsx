@@ -6,9 +6,6 @@ import { useEffect } from "react";
 const FLASH = "anchor-flash";
 const HEADING = "h1, h2, h3, h4, h5, h6";
 
-/** Briefly highlight where an anchor jump landed: the heading itself, or the
- *  first heading of the section it names. The scroll is near-instant, so the
- *  flash is what tells the eye where it ended up. */
 function flash(hash: string) {
 	if (hash.length < 2) return;
 	const target = document.getElementById(decodeURIComponent(hash.slice(1)));

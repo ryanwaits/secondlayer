@@ -15,10 +15,8 @@ import type { AccountRuleInput } from "./rules.ts";
 
 const HOUR_MS = 3_600_000;
 const DAY_MS = 86_400_000;
-/** Safety cap on one account's 24 hours of request-log rows. */
 export const REQUEST_LOG_MAX_ROWS = 50_000;
 
-/** Everything the account rules read, for one account. */
 export async function loadAccountInput(
 	db: Kysely<Database>,
 	accountId: string,
@@ -54,7 +52,6 @@ export async function loadAccountInput(
 		.orderBy("created_at", "desc")
 		.limit(requestLogLimit)
 		.execute();
-	// The rules read oldest first.
 	requestRows.reverse();
 
 	const failedRows = await db
@@ -220,7 +217,6 @@ export async function loadAccountInput(
  */
 const LOGIN_CHECK_PATHS: ReadonlySet<string> = new Set(["/api/accounts/me"]);
 
-/** `KEY_REVOKED` failures, one entry per key, most-called first. */
 export function groupRevokedCalls(
 	rows: readonly {
 		key_id: string;

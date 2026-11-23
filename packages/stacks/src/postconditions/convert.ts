@@ -20,7 +20,7 @@ import type {
 	PoxComparator,
 } from "./types.ts";
 
-const MAX_U64 = 18446744073709551615n; // 2^64 - 1
+const MAX_U64 = 18446744073709551615n;
 
 /** Parse a PC amount; throw if outside the u64 the wire can carry. */
 export function parsePostConditionAmount(amount: IntegerType): bigint {

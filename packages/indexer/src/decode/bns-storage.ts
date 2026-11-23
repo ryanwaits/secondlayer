@@ -10,8 +10,6 @@ import { writeDecoderCheckpoint } from "./storage.ts";
 
 export const BNS_DECODER_NAME = "decode.bns.v1";
 
-// ── Event row types ─────────────────────────────────────────────────────────
-
 export type BnsNameEventRow = {
 	cursor: string;
 	block_height: number;
@@ -68,8 +66,6 @@ export type BnsMarketplaceEventRow = {
 	source_cursor: string;
 };
 
-// ── Projection upsert types ─────────────────────────────────────────────────
-
 export type BnsNameUpsert = {
 	fqn: string;
 	namespace: string;
@@ -96,8 +92,6 @@ export type BnsNamespaceUpsert = {
 function db(client?: Kysely<Database>): Kysely<Database> {
 	return client ?? getSourceDb();
 }
-
-// ── Event writers ───────────────────────────────────────────────────────────
 
 export async function writeBnsNameEvents(
 	rows: BnsNameEventRow[],
@@ -213,7 +207,6 @@ export async function fillBuyListings(
 	}
 }
 
-/** Write marketplace events; buys carry their listing's price (`fillBuyListings`). */
 export async function writeBnsMarketplaceEvents(
 	rows: BnsMarketplaceEventRow[],
 	opts?: { db?: Kysely<Database> },
@@ -241,8 +234,6 @@ export async function writeBnsMarketplaceEvents(
 		.execute();
 }
 
-// ── Projection upserts ──────────────────────────────────────────────────────
-
 export async function upsertBnsName(
 	row: BnsNameUpsert,
 	opts?: { db?: Kysely<Database> },
@@ -266,7 +257,6 @@ export async function upsertBnsName(
 		.execute();
 }
 
-/** burn-name handler: removes the FQN from the projection. */
 export async function deleteBnsName(
 	fqn: string,
 	opts?: { db?: Kysely<Database> },
@@ -359,8 +349,6 @@ async function reconvergeBnsNamespace(
 		{ db: client },
 	);
 }
-
-// ── Reorg handling ──────────────────────────────────────────────────────────
 
 /**
  * Reconcile the BNS event planes on reorg. Mirrors `handleDecodedEventsReorg`

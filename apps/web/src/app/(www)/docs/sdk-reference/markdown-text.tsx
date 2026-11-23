@@ -31,7 +31,6 @@ export function parseInline(text: string): Piece[] {
 	return out;
 }
 
-/** Prose without its markup: the text of a box that is itself a link. */
 export function plain(text: string): string {
 	return text
 		.replace(/\[([^\]]*)\]\([^)]*\)/g, "$1")
@@ -40,7 +39,6 @@ export function plain(text: string): string {
 		.trim();
 }
 
-/** Paragraphs of a doc comment; line breaks inside one are spaces. */
 export function paragraphs(text: string): string[] {
 	return text
 		.split(/\n\s*\n/)
@@ -66,12 +64,10 @@ function Inline({ pieces }: { pieces: Piece[] }): ReactNode {
 	});
 }
 
-/** One line of prose: a cell, a caption. */
 export function Text({ text }: { text: string }) {
 	return <Inline pieces={parseInline(text.replace(/\s*\n\s*/g, " ").trim())} />;
 }
 
-/** A doc comment as paragraphs. */
 export function Paragraphs({
 	text,
 	className,

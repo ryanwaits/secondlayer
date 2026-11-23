@@ -13,7 +13,6 @@ export function generateSubgraphStarter(name: string): string {
 	return `${nextStepsHeader(name)}${starter(name)}`;
 }
 
-/** Header comment at the top of every scaffolded subgraph file. */
 function nextStepsHeader(name: string): string {
 	return `// ───────────────────────────────────────────────────────────────────
 // What to do next

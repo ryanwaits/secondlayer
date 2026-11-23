@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 
 export type AccountSegment = "usage" | "keys" | "push";
 
-/** The phone's Account segments, in order. Each is its own route. */
 export const ACCOUNT_SEGMENTS: readonly {
 	id: AccountSegment;
 	label: string;
@@ -16,7 +15,6 @@ export const ACCOUNT_SEGMENTS: readonly {
 	{ id: "push", label: "Push", href: "/account/push" },
 ];
 
-/** The segmented control without the router, so tests and the Lab render it. */
 export function AccountSegments({
 	current,
 	onSelect,
@@ -42,7 +40,6 @@ export function AccountSegments({
 	);
 }
 
-/** Under the shell's "Account" title: switches between Usage, Keys and Push. */
 export function AccountCompactHeader({ current }: { current: AccountSegment }) {
 	const router = useRouter();
 	return (

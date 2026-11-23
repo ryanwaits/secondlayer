@@ -22,7 +22,6 @@ const NIL_UUID = "00000000-0000-0000-0000-000000000000";
 const UUID_RE =
 	/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-/** SQL predicate scoping a table to one account (or to the NULL tenant scope). */
 function scopeWhere(scope: InsightScope, column = sql.ref("account_id")) {
 	return scope.accountId === null
 		? sql`${column} IS NULL`

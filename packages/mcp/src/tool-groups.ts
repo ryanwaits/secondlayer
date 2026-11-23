@@ -95,7 +95,6 @@ export const TOOL_GROUPS: readonly ToolGroup[] = [
 		group: "instance",
 		register: (s, d = ENV_TOOL_DEPS) =>
 			registerInstanceTools(s, d.clientProvider),
-		// Self-host diagnosis.
 		hosted: false,
 	},
 	{

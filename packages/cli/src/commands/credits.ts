@@ -28,7 +28,6 @@ interface BillingStatusResponse {
 	};
 }
 
-/** The slice of `GET /api/billing/rows` this command prints. */
 interface RowsUsageResponse {
 	allowance: {
 		monthly: number;

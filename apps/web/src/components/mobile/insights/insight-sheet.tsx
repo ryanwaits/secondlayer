@@ -13,13 +13,11 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { Sheet } from "../sheet";
 
-/** What the sheet shows under its title. Rendered alone by the Lab and tests; `Sheet` portals. */
 export function InsightSheetBody({
 	insight,
 	extraAction,
 }: {
 	insight: Insight;
-	/** Beside the primary action (Share fix). */
 	extraAction?: ReactNode;
 }) {
 	const cause = causeText(insight.how);
@@ -57,7 +55,6 @@ export function InsightSheetEyebrow({ insight }: { insight: Insight }) {
 	);
 }
 
-/** An insight in a bottom sheet. Holds no screen state, so Pulse and pushes can open it too. */
 export function InsightSheet({
 	insight,
 	onClose,

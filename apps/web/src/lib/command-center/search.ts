@@ -16,7 +16,6 @@ import {
 export interface ScoredItem {
 	item: CommandItem;
 	score: number;
-	/** [start, end) highlight range in the label for substring-class matches. */
 	range: [number, number] | null;
 }
 
@@ -32,7 +31,6 @@ function scoreText(q: string, text: string): ScoredItem["score"] {
 		const boundary = text[idx - 1] === " " || text[idx - 1] === "-";
 		return (boundary ? 300 : 200) - Math.min(idx, 50);
 	}
-	// subsequence
 	let qi = 0;
 	for (let i = 0; i < text.length && qi < q.length; i++) {
 		if (text[i] === q[qi]) qi++;
@@ -47,10 +45,10 @@ export function scoreItem(q: string, item: CommandItem): ScoredItem | null {
 		const idx = label.indexOf(q);
 		return { item, score: labelScore, range: [idx, idx + q.length] };
 	}
-	let best = labelScore; // 50 (subsequence) or 0
+	let best = labelScore;
 	for (const k of item.keywords ?? []) {
 		const s = scoreText(q, k.toLowerCase());
-		if (s > best) best = Math.min(s, 180); // keyword hits rank below label hits
+		if (s > best) best = Math.min(s, 180);
 	}
 	if (item.sub) {
 		const s = scoreText(q, item.sub.toLowerCase());

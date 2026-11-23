@@ -1,6 +1,3 @@
-// State witness v2: every node local to block N's trie, enough to recompute
-// N's state_index_root and enumerate every leaf trie N holds.
-//
 //   v3    := 0x03 | u32 n_anc | [32]*n_anc ancestor roots | u32 n_tbl | [32]*n_tbl ancestor block ids | node
 //   node  := u8 id | u8 plen | path | u16 n_ptrs | ptr* | child*   (one child per local ptr, in order)
 //   ptr   := u8 id | (id != 0: u8 chr) | (backptr: u32 tbl_idx)    (empty ptr = 0x00, chr 0)
@@ -135,7 +132,6 @@ const padValue = (valueHash: Bytes): Bytes => {
 	return v;
 };
 
-/** Leaf value equals a full 40-byte MARFValue (hash head, zero tail). */
 const leafHolds = (leaf: WitnessLeaf, value: Bytes): boolean =>
 	value.length === MARF_VALUE_SIZE &&
 	bytesEqual(padValue(leaf.valueHash), value);

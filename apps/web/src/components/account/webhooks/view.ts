@@ -9,12 +9,8 @@ import type {
 import { pauseReasonOf } from "@secondlayer/shared/webhooks/health";
 import { displayStatus } from "./shared";
 
-/** Pure view helpers for the webhooks screens: state lines, range series,
- *  attempt grouping and the delivery stats row. */
-
 const HOUR_MS = 3_600_000;
 
-/** One webhook's hourly counts out of `GET /api/webhooks/activity`. */
 export interface HourlySeries {
 	delivered: number[];
 	failed: number[];
@@ -23,7 +19,6 @@ export interface HourlySeries {
 export interface RowState {
 	tone: Tone;
 	text: string;
-	/** The line reads as a problem (red text). */
 	bad: boolean;
 }
 
@@ -39,16 +34,10 @@ export function last24(series: HourlySeries | undefined): {
 	};
 }
 
-/** "16:00" for the UTC hour at `iso`. */
 export function utcClock(iso: string): string {
 	return new Date(iso).toISOString().slice(11, 16);
 }
 
-/**
- * Index of the first hour of the latest outage in `hours`: the run of hours
- * with failures and no deliveries that ends at the newest hour that had any
- * attempt. Null when the newest active hour delivered.
- */
 export function outageStartIndex(
 	hours: readonly { delivered: number; failed: number }[],
 ): number | null {
@@ -65,13 +54,6 @@ export function outageStartIndex(
 	return start;
 }
 
-/**
- * The one-line state of a webhook from what the list and the hourly summary
- * know: a failing receiver, a pause, a quiet day, or what was delivered.
- * The server's insights replace this line when present. While the hourly
- * summary is `pending`, a row with nothing else to say reads "Counting…"
- * instead of claiming a quiet day it cannot know about.
- */
 export function listRowState(
 	webhook: WebhookSummary,
 	series: HourlySeries | undefined,
@@ -132,29 +114,22 @@ export function listRowState(
 	};
 }
 
-/** "Oct 8 16:05:12" in UTC. */
 export function utcStamp(iso: string): string {
 	return `${MONTH_DAY.format(new Date(iso))} ${iso.slice(11, 19)}`;
 }
 
-/** "3h" from "3h ago", "–" for never. */
 export function ageShort(iso: string | null): string {
 	return iso ? formatRelative(iso).replace(" ago", "") : "–";
 }
-
-// ── Range series for the deliveries chart ────────────────────────────────
 
 export type Range = "24h" | "48h" | "7d" | "30d";
 export const RANGES: readonly Range[] = ["24h", "48h", "7d", "30d"];
 
 export interface RangeBars {
 	rows: { n: number; f: number }[];
-	/** `[lo, hi]` per bar, only for the hourly ranges that fit a usual range. */
 	band: [number, number][] | null;
 	labels: [number, string][];
-	/** Tooltip heading per bar: "Thu 14:00 UTC", or "Oct 6" for days. */
 	pointLabels: string[];
-	/** Index of the first plotted hour within the 168-hour array. */
 	offset: number;
 }
 
@@ -168,7 +143,6 @@ const MONTH_DAY = new Intl.DateTimeFormat("en-US", {
 	timeZone: "UTC",
 });
 
-/** Bars for a range: hourly slices of the 168 hours, or the 30 daily counts. */
 export function rangeBars(
 	range: Range,
 	activity: Pick<WebhookActivity, "hours" | "usualByHourOfDay">,
@@ -233,26 +207,16 @@ export function rangeBars(
 	};
 }
 
-// ── Attempts ─────────────────────────────────────────────────────────────
-
 export interface AttemptGroup {
 	key: string;
-	/** Oldest attempt first. */
 	attempts: DeliveryRow[];
-	/** The newest attempt: its status is the event's current outcome. */
 	latest: DeliveryRow;
 }
 
-/** Event groups the deliveries panel shows before "Show all". */
 export const VISIBLE_GROUPS = 10;
 
-/** Attempts the server's first read of a webhook's deliveries asks for; the
- *  page's polls then read the full list. */
 export const FIRST_DELIVERIES = 25;
 
-/** One group per event. The key is block:tx:index when all three are known,
- *  otherwise the attempt's own id. Groups keep the newest-first order of
- *  `rows`. */
 export function groupAttempts(rows: readonly DeliveryRow[]): AttemptGroup[] {
 	const groups = new Map<string, DeliveryRow[]>();
 	for (const row of rows) {
@@ -286,7 +250,6 @@ function percentile(sorted: readonly number[], p: number): number | null {
 	return sorted[index] ?? null;
 }
 
-/** Retry count and response percentiles over the fetched deliveries. */
 export function deliveryStats(rows: readonly DeliveryRow[]): {
 	retried: number;
 	p50: number | null;
@@ -303,8 +266,6 @@ export function deliveryStats(rows: readonly DeliveryRow[]): {
 	};
 }
 
-// ── Hour filter ──────────────────────────────────────────────────────────
-
 const HOUR_LABEL = new Intl.DateTimeFormat("en-US", {
 	weekday: "short",
 	month: "short",
@@ -312,8 +273,6 @@ const HOUR_LABEL = new Intl.DateTimeFormat("en-US", {
 	timeZone: "UTC",
 });
 
-/** The hour a heat square stands for, from `?hour=<ISO>`; null when it does
- *  not parse. Snaps to the start of the UTC hour. */
 export function hourWindow(
 	param: string | null,
 ): { from: string; to: string; label: string } | null {
@@ -329,7 +288,6 @@ export function hourWindow(
 	};
 }
 
-/** A one-line, user-facing reason for anything short of `{ kind: "ok" }`. */
 export function describeFailure(
 	res: Exclude<WebhooksResult<unknown>, { kind: "ok" }>,
 ): string {

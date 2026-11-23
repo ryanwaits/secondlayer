@@ -38,7 +38,6 @@ export function getStreamsSigner(): StreamsSigner | null {
 	return cached;
 }
 
-/** Reset the memoized signer. Tests only. */
 export function resetStreamsSignerForTest(): void {
 	cached = undefined;
 }

@@ -37,7 +37,6 @@ export function migrationTargets(): MigrationTarget[] {
 	// land on a different database than the process it prepares.
 	const source = configuredSourceUrl();
 	const target = configuredTargetUrl();
-	// Single-DB / collapsed split → one pass, role 'both'.
 	if (source && target && source === target) {
 		return [{ url: source, role: "both" }];
 	}
@@ -125,9 +124,6 @@ async function migrateOne(connectionString: string) {
 	await sql`SET statement_timeout = '60s'`.execute(db);
 	await sql`SET idle_in_transaction_session_timeout = '60s'`.execute(db);
 
-	// Snapshot current migration state + pg_stat_activity so if we hang or fail
-	// the deploy logs show what was already applied vs. pending, plus what
-	// other sessions might be blocking us.
 	try {
 		const { rows: applied } = await sql<{
 			name: string;
@@ -140,7 +136,6 @@ async function migrateOne(connectionString: string) {
 			console.log(`   last: ${applied[applied.length - 1].name}`);
 		}
 	} catch {
-		// kysely_migration table may not exist yet on first run
 		console.log("📋 no kysely_migration table yet (first run)");
 	}
 
@@ -157,7 +152,6 @@ async function migrateOne(connectionString: string) {
 	} catch (error) {
 		console.error("❌ Migration failed:", error);
 		if (!import.meta.main) throw error;
-		// Dump active sessions on failure to diagnose lock contention remotely.
 		try {
 			const { rows } = await sql<{
 				pid: number;
@@ -185,8 +179,6 @@ async function migrateOne(connectionString: string) {
 	}
 }
 
-// Only run when executed directly (`bun run …/migrate.ts`), not when imported
-// (tests import `migrationTargets`).
 if (import.meta.main) {
 	runMigrations();
 }

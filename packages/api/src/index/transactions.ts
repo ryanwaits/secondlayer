@@ -16,13 +16,6 @@ import { parseFields, projectRow } from "./field-projection.ts";
 import { type IndexTip, indexSourceWindowTip } from "./tip.ts";
 import { type DecodedTx, decodeTransaction } from "./transaction-decode.ts";
 
-/**
- * Projectable columns on a transaction row.
- *
- * The widest row Index serves, and the one most worth projecting: the nested
- * `contract_call` / `smart_contract` objects carry hex function args that
- * dwarf the scalar columns.
- */
 export const TRANSACTION_FIELDS = [
 	"block_time",
 	"burn_block_height",
@@ -41,7 +34,6 @@ export const TRANSACTION_FIELDS = [
 	"token_transfer",
 ] as const;
 
-/** Transaction columns that survive any projection — `tx_id` identifies it. */
 export const TRANSACTION_ALWAYS = ["cursor", "block_height", "tx_id"] as const;
 
 export const TRANSACTIONS_FILTERS = [
@@ -58,10 +50,6 @@ export const TRANSACTIONS_FILTERS = [
 
 export type TransactionCursor = IndexTxCursorInput;
 
-/** The full transaction document: the columnar fields from `transactions` plus
- *  the `raw_tx`-decoded enrichment (fee/nonce/post-conditions/payload detail).
- *  Payload sub-objects are present only for the matching `tx_type`. Enrichment
- *  fields are null when `raw_tx` isn't decodable (e.g. burnchain ops). */
 export type IndexTransaction = {
 	cursor: string;
 	tx_id: string;
@@ -124,7 +112,6 @@ export type TransactionsReorgsReader = (range: {
 }) => Promise<StreamsReorg[]>;
 
 export type ReadTransactionsParams = {
-	/** Columns to return; omit for the full row. */
 	fields?: readonly string[];
 	after?: TransactionCursor;
 	fromHeight: number;
@@ -191,7 +178,6 @@ const TRANSACTION_COLUMNS = sql`
 	t.raw_tx
 `;
 
-/** function_args as the raw array of hex-encoded ClarityValue strings. */
 function rawArgs(raw: unknown): string[] {
 	let parsed = raw;
 	if (typeof parsed === "string") {
@@ -250,9 +236,6 @@ function normalizeTransaction(row: TransactionDbRow): IndexTransaction {
 	if (decoded?.coinbase) tx.coinbase = decoded.coinbase;
 	if (decoded?.tenure_change) tx.tenure_change = decoded.tenure_change;
 
-	// Deep BigInt→string over the whole tx — decoded payloads carry bigints in
-	// several spots (decoded args/result, and NFT post-condition asset_value)
-	// that throw in JSON.stringify (c.json + ETag).
 	return jsonSafeBigInt(tx);
 }
 
@@ -280,8 +263,6 @@ export function parseTransactionsQuery(
 export function transactionsQuery(
 	params: ReadTransactionsParams,
 ): RawBuilder<TransactionDbRow> {
-	// transactions has no canonical column; canonicality is keyed off the block
-	// at that height (same approach as the contract-calls reader).
 	const predicates: RawBuilder<unknown>[] = [
 		sql`t.block_height >= ${params.fromHeight}`,
 		sql`t.block_height <= ${params.toHeight}`,

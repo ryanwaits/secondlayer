@@ -24,37 +24,28 @@ import type { DocsSearchDoc } from "@/lib/docs-bm25";
 import GithubSlugger from "github-slugger";
 
 /**
- * Reads the docs' own MDX as plain markdown, so an agent can fetch a page
- * instead of scraping the rendered HTML for it.
- *
  * The MDX files ARE the source of truth — nothing is duplicated into a second
- * agent-facing copy that would drift. What gets stripped is only what a
- * markdown reader can't use: the `export const metadata` block and the JSX
- * component wrappers around otherwise-plain prose.
+ * agent-facing copy that would drift.
  */
 
 const DOCS_ROOT = join(process.cwd(), "src", "app", "(www)", "docs");
 
-/** The shared agent setup steps as a markdown section; one source with the prompts. */
 const AGENT_SETUP_MD = `## Setup\n\n${AGENT_SETUP}`;
 
 export type DocsPage = { href: string; title: string; group: string };
 
-/** Every page in the sidebar, in sidebar order, sub-pages included. */
 export function docsPages(): DocsPage[] {
 	return docsNavPages();
 }
 
-/** `/docs/subgraphs` → `<docs>/subgraphs/page.mdx`; `/docs` → `<docs>/page.mdx`. */
 function sourcePath(href: string): string {
 	const rel = href.replace(/^\/docs\/?/, "");
 	return rel ? join(DOCS_ROOT, rel, "page.mdx") : join(DOCS_ROOT, "page.mdx");
 }
 
 /**
- * A page's `export const agent = \`…\`` block: advice for coding agents, never
- * rendered on the page, appended to its `.md`. The template literal must not
- * contain backticks or `${`; write code as plain words or single quotes.
+ * The template literal must not contain backticks or `${`; write code as plain
+ * words or single quotes.
  */
 export function extractAgentNotes(source: string): {
 	notes: string | null;
@@ -68,16 +59,9 @@ export function extractAgentNotes(source: string): {
 	};
 }
 
-/**
- * MDX → markdown. Deliberately conservative: unwrap the component shells that
- * carry prose, drop the metadata export, and leave every fence, table, and link
- * exactly as authored.
- */
 export function mdxToMarkdown(source: string): string {
 	return (
 		source
-			// Callouts stay as comments, `!diff` lines become a unified diff, every
-			// other annotation is a rendering hint and goes.
 			.replace(
 				/^(`{3,}|~{3,})([^\n]*)\n([\s\S]*?)^\1[ \t]*$/gm,
 				(_m, fence: string, info: string, body: string) => {
@@ -85,36 +69,29 @@ export function mdxToMarkdown(source: string): string {
 					return `${fence}${out.info}\n${out.body}\n${fence}`;
 				},
 			)
-			// Prose that points at code (`[text](hover:name)`) or carries a tip
-			// (`[text](tip "words")`) reads as its text.
 			.replace(/\[([^\]]*)\]\((?:hover|focus):[^)]*\)/g, "$1")
 			.replace(/\[([^\]]*)\]\(tip\s+"[^"]*"\)/g, "$1")
-			// MDX module syntax (`export const metadata = {...}`, `import`, `export`)
-			// is build-time only. Fences match first and pass through untouched, so
-			// code samples keep their own import/export lines.
+			// Fences match first and pass through untouched, so code samples keep their
+			// own import/export lines.
 			.replace(
 				/^(`{3,}|~{3,})[^\n]*\n[\s\S]*?^\1[ \t]*$|^export const metadata\s*=\s*\{[\s\S]*?\n\};?\n?|^export .*$|^import .*$/gm,
 				(m, fence?: string) => (fence ? m : ""),
 			)
-			// Native disclosures: markdown readers get a plain heading.
 			.replace(/^<details\b[^>]*>\s*$/gm, "")
 			.replace(/^<\/details>\s*$/gm, "")
 			.replace(/^<summary>(.*)<\/summary>\s*$/gm, "### $1")
-			// <Callout type="warning" title="..."> … </Callout> → a quoted aside.
 			.replace(
 				/<Callout[^>]*title="([^"]*)"[^>]*>/g,
 				(_m, title) => `> **${title}**\n>`,
 			)
 			.replace(/<Callout[^>]*>/g, "> ")
 			.replace(/<\/Callout>/g, "")
-			// Remaining self-closing or wrapper components carry layout, not text.
 			.replace(/<\/?[A-Z][A-Za-z0-9]*(\s[^>]*)?\/?>/g, "")
 			.replace(/\n{3,}/g, "\n\n")
 			.trim()
 	);
 }
 
-/** One page as markdown, or null when the href isn't a docs page. */
 export async function readDocsMarkdown(
 	href: string,
 	{ setup = true }: { setup?: boolean } = {},
@@ -152,11 +129,6 @@ export async function readDocsMarkdown(
 	}
 }
 
-/**
- * Docs pages in one file (all of them, or those `include` accepts),
- * sidebar-ordered, each under an `# href` heading
- * so a model can cite the page a passage came from.
- */
 export async function readAllDocsMarkdown(
 	include: (page: DocsPage) => boolean = () => true,
 ): Promise<string> {
@@ -191,7 +163,6 @@ const GENERATED_PAGES = new Set([
 
 const NOT_SEARCHABLE = new Set(["notes for agents", "setup"]);
 
-/** Heading text as the rendered page shows it: no code ticks, links, or emphasis. */
 function plainHeading(text: string): string {
 	return text
 		.replace(/\[([^\]]*)\]\([^)]*\)/g, "$1")
@@ -232,7 +203,6 @@ export function headingsFromMdx(href: string, source: string): DocsHeading[] {
 	return out;
 }
 
-/** Every searchable section of every hand-written docs page, sidebar-ordered. */
 export async function docsHeadingIndex(): Promise<DocsHeading[]> {
 	const pages = docsPages().filter((p) => !GENERATED_PAGES.has(p.href));
 	const perPage = await Promise.all(
@@ -248,14 +218,12 @@ export async function docsHeadingIndex(): Promise<DocsHeading[]> {
 	return perPage.flat();
 }
 
-/** Markdown reduced to prose: no fences, links, markup, or tags. */
 export function proseOf(markdown: string): string {
 	return markdown
 		.replace(/```[\s\S]*?```/g, "")
 		.replace(/\[([^\]]*)\]\([^)]*\)/g, "$1")
 		.split(/(`[^`]*`)/)
 		.map((part, i) =>
-			// Odd parts are inline code: drop the backticks, keep every character.
 			i % 2 ? part.slice(1, -1) : part.replace(/[*_>|#]/g, ""),
 		)
 		.join("")
@@ -264,7 +232,6 @@ export function proseOf(markdown: string): string {
 		.trim();
 }
 
-/** The first two sentences of some markdown, capped for the search index. */
 function leadOf(markdown: string): string {
 	const prose = proseOf(markdown);
 	return (prose.match(/[^.!?]+[.!?]+/g) ?? [prose])
@@ -273,11 +240,7 @@ function leadOf(markdown: string): string {
 		.slice(0, 400);
 }
 
-/**
- * Every docs search candidate (pages, sections, endpoints) with the text
- * ranked against: title, page, generated phrasings, and a short body. Ids match
- * `docsSearchPool`; the browser fetches this as `/docs/search-index.json`.
- */
+/** Ids match `docsSearchPool`; the browser fetches this as `/docs/search-index.json`. */
 export async function docsSearchDocs(): Promise<DocsSearchDoc[]> {
 	const sdkNav = methodNav();
 	const summaries = new Map(
@@ -292,7 +255,6 @@ export async function docsSearchDocs(): Promise<DocsSearchDoc[]> {
 		sdkNav,
 	);
 	const lines = new Map<string, string[]>();
-	/** Sections of one page sharing a title are matched in document order. */
 	const taken = new Map<string, number>();
 	const docs: DocsSearchDoc[] = [];
 	for (const item of pool) {

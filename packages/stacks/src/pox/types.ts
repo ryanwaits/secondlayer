@@ -1,7 +1,7 @@
 /** Bitcoin address in Clarity tuple format for PoX */
 export interface PoxAddress {
-	version: Uint8Array; // buff 1
-	hashbytes: Uint8Array; // buff 32
+	version: Uint8Array;
+	hashbytes: Uint8Array;
 }
 
 /** User-facing params for stack-stx */
@@ -13,7 +13,7 @@ export interface StackStxParams {
 	signerKey: Uint8Array; // buff 33 (compressed pubkey)
 	maxAmount: bigint;
 	authId: bigint;
-	startBurnHeight: bigint; // burn height at which stacking begins
+	startBurnHeight: bigint;
 }
 
 /** User-facing params for delegate-stx */

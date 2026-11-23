@@ -104,7 +104,6 @@ async function resolveStartHeight(
 	return h === null || h === undefined ? 0 : Number(h);
 }
 
-/** Checkpoint meaning "everything before block `height` is decoded". */
 export function startCursorForHeight(height: number): string | null {
 	return height <= 0 ? null : encodeStreamsCursor(blockEndCursor(height - 1));
 }

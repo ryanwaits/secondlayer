@@ -17,7 +17,6 @@ const CHART_DAYS = 30;
 
 type KeyLook = { dot: "ok" | "ring" | "off"; line: string };
 
-/** The dot and the one line a key shows: when it was last used, or why it is quiet. */
 export function keyLook(k: ApiKey, now: Date): KeyLook {
 	if (k.status === "revoked") return { dot: "off", line: "Revoked" };
 	const { staleDays } = keyFlags(k, now);
@@ -35,7 +34,6 @@ export function keyLook(k: ApiKey, now: Date): KeyLook {
 	};
 }
 
-/** The keys the phone lists: the ones you made, in use first, revoked last. */
 export function phoneKeys(keys: ApiKey[], now: Date): ApiKey[] {
 	return [
 		...groupKeys(keys, now).own.filter((k) => k.product !== "docs"),
@@ -98,7 +96,6 @@ function KeyFace({ k, now }: { k: ApiKey; now: Date }) {
 	);
 }
 
-/** The phone's key list: tap or swipe a key to open its sheet. */
 export function KeysCompactList({
 	keys,
 	now,
@@ -175,7 +172,6 @@ const shortDay = (date: Date) =>
 		timeZone: "UTC",
 	});
 
-/** The key sheet's contents: reads, facts, and the hold that revokes. */
 export function KeySheetBody({
 	k,
 	now,
@@ -248,7 +244,6 @@ export function KeySheetBody({
 	);
 }
 
-/** Sheet title block: the dot and kind above, the name in mono below. */
 export function keySheetHead(k: ApiKey, now: Date) {
 	const look = keyLook(k, now);
 	return {
@@ -303,7 +298,6 @@ function KeySheet({
 	);
 }
 
-/** /account/keys on a phone: the list, and a sheet to revoke with a hold. */
 export function KeysCompact({
 	keys,
 	now,

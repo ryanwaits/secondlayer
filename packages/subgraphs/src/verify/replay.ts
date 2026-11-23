@@ -96,7 +96,6 @@ export interface ReplayOptions {
 /** Verify blocks 512 at a time: the top by one MARF jump, the rest by parent links. */
 export const REPLAY_WINDOW = 512;
 
-/** What verifyBlock says, mapped onto replay links. */
 const STEP_OF: Partial<Record<VerifyStep, ReplayStep>> = {
 	ancestry: "blocks",
 	block: "blocks",
@@ -199,7 +198,6 @@ export function checkPin(
 	return { status: "ok", notes };
 }
 
-/** One verified block, reduced to what the handlers need. */
 interface ProvenBlock {
 	meta: BlockMeta;
 	txs: TxRecord[];
@@ -425,7 +423,6 @@ function cacheWitnesses(source: ProofSource): ProofSource {
 			let w = recent.get(id);
 			if (!w) {
 				w = source.getWitness(id);
-				// A failed fetch is not cached; the caller still sees the error.
 				w.catch(() => recent.delete(id));
 				recent.set(id, w);
 				while (recent.size > 2)

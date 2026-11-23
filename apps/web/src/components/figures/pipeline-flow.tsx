@@ -3,12 +3,6 @@ const STAGE_Y = 26;
 const EDGE_W = 40;
 const PAD = 12;
 
-/**
- * B5 PipelineFlow — multi-stage system, flowing left to right. Adopts
- * the service-flow node grammar: Chrome default, tinted "data" stage,
- * exactly ONE filled-accent "api" node for the product surface. Edge
- * dashes march via CSS (still under reduced-motion).
- */
 export function PipelineFlow({
 	stages,
 	ariaLabel,

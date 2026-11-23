@@ -1,13 +1,8 @@
 #!/usr/bin/env bun
-/**
- * Seed script — populates the dev database with realistic Stacks blockchain data.
- * Run: bun run seed
- */
 import { closeDb, getDb, sql } from "./index.ts";
 import { jsonb } from "./jsonb.ts";
 const db = getDb();
 
-// ── Helpers ─────────────────────────────────────────────────────────
 const randomHex = (len: number) =>
 	Array.from({ length: len }, () =>
 		Math.floor(Math.random() * 16).toString(16),
@@ -31,7 +26,7 @@ const contractIds = [
 	"SP2C2YFP12AJZB1MADC9PK03NGKJQ8MFGE4ESPDAZ.alex-vault",
 	"SP1Y5YSTAHZ88XYK1VPDH24GY0HPX5J4JECTMY4A1.stackingdao-core",
 	null,
-	null, // some txs have no contract
+	null,
 ];
 
 const txTypes = [
@@ -62,7 +57,6 @@ const pick = <T>(arr: T[]) => arr[Math.floor(Math.random() * arr.length)];
 
 console.log("Seeding database...\n");
 
-// ── 1. Accounts ─────────────────────────────────────────────────────
 const accountEmails = [
 	"ryan@secondlayer.xyz",
 	"alice@stacksbuilder.io",
@@ -82,7 +76,6 @@ const accountRows = await db
 
 console.log(`  accounts: ${accountRows.length}`);
 
-// ── 2. API Keys ─────────────────────────────────────────────────────
 const apiKeyRows = await db
 	.insertInto("api_keys")
 	.values(
@@ -100,7 +93,6 @@ const apiKeyRows = await db
 
 console.log(`  api_keys: ${apiKeyRows.length}`);
 
-// ── 3. Blocks (200 blocks starting at height 180000) ────────────────
 const BLOCK_START = 180000;
 const BLOCK_COUNT = 200;
 const blocks = Array.from({ length: BLOCK_COUNT }, (_, i) => {
@@ -110,7 +102,7 @@ const blocks = Array.from({ length: BLOCK_COUNT }, (_, i) => {
 		hash: randomHash(),
 		parent_hash: randomHash(),
 		burn_block_height: 850000 + i,
-		timestamp: Math.floor(Date.now() / 1000) - (BLOCK_COUNT - i) * 600, // ~10min apart
+		timestamp: Math.floor(Date.now() / 1000) - (BLOCK_COUNT - i) * 600,
 		canonical: true,
 	};
 });
@@ -122,7 +114,6 @@ await db
 	.execute();
 console.log(`  blocks: ${BLOCK_COUNT}`);
 
-// ── 4. Transactions (~3-5 per block) ────────────────────────────────
 const txRows: Array<{
 	tx_id: string;
 	block_height: number;
@@ -152,7 +143,6 @@ for (const block of blocks) {
 	}
 }
 
-// batch insert in chunks
 for (let i = 0; i < txRows.length; i += 100) {
 	await db
 		.insertInto("transactions")
@@ -162,7 +152,6 @@ for (let i = 0; i < txRows.length; i += 100) {
 }
 console.log(`  transactions: ${txRows.length}`);
 
-// ── 5. Events (~1-3 per transaction) ────────────────────────────────
 const eventRows: Array<{
 	tx_id: string;
 	block_height: number;
@@ -222,7 +211,6 @@ for (let i = 0; i < eventRows.length; i += 100) {
 }
 console.log(`  events: ${eventRows.length}`);
 
-// ── 6. Subgraphs ───────────────────────────────────────────────────
 const subgraphDefs = [
 	{
 		name: "token-balances",
@@ -275,7 +263,6 @@ await db
 
 console.log(`  subgraphs: ${subgraphDefs.length}`);
 
-// ── 7. Index Progress ───────────────────────────────────────────────
 await db
 	.insertInto("index_progress")
 	.values({
@@ -295,7 +282,6 @@ await db
 
 console.log("  index_progress: 1");
 
-// ── 8. Sessions ─────────────────────────────────────────────────────
 await db
 	.insertInto("sessions")
 	.values(
@@ -311,6 +297,5 @@ await db
 
 console.log("  sessions: 3");
 
-// ── Done ────────────────────────────────────────────────────────────
 console.log("\nDone!\n");
 await closeDb();

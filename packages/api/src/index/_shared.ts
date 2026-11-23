@@ -24,9 +24,6 @@ export type IndexCursorInput = {
 	event_index: number;
 };
 
-/** Cursor for feeds ordered on (block_height, tx_index) — /contract-calls,
- *  /transactions — as opposed to the (block_height, event_index)
- *  keyset the event feeds use. */
 export type IndexTxCursorInput = {
 	block_height: number;
 	tx_index: number;
@@ -64,7 +61,6 @@ export function decodeClarityArgs(raw: unknown): unknown[] {
 	);
 }
 
-/** Clarity type-id prefixes of a top-level response value. */
 const RESPONSE_OK_PREFIX = "07";
 const RESPONSE_ERR_PREFIX = "08";
 
@@ -86,11 +82,8 @@ export function decodeClarityResult(raw: string | null): unknown {
 	return decoded;
 }
 
-// Canonical implementations live in ../parse-query.ts; re-exported here for
-// existing index-surface import sites.
 export { parseCursor, parseNonNegativeInteger };
 
-/** Index surfaces default to 200 rows per page. */
 export function parseLimit(value: string | undefined): number {
 	return parseSharedLimit(value, 200);
 }
@@ -106,8 +99,6 @@ export function parseFilter(
 	return value;
 }
 
-/** `bitcoin_txid` filter/param: bare explorer hex or `0x`-prefixed, any case,
- *  normalized to the stored `0x` + lowercase form so it actually matches. */
 export function parseBtcTxidFilter(
 	value: string | undefined,
 	name: string,
@@ -151,7 +142,6 @@ export function parseListFilter(
 			`${name} accepts at most ${maxItems} values (got ${items.length})`,
 		);
 	}
-	// Duplicates would inflate the IN list without changing the result set.
 	return [...new Set(items)];
 }
 
@@ -185,8 +175,6 @@ export function jsonSafeBigInt<T>(value: T): T {
 
 export { encodeStreamsCursor as encodeIndexCursor } from "@secondlayer/shared";
 
-/** Read direction for the event feeds. `asc` (default) is the forward feed a
- *  consumer tails; `desc` reads newest first and pages toward genesis. */
 export type IndexOrder = "asc" | "desc";
 
 /** Marks a cursor issued by a `desc` page. Asc cursors stay the bare
@@ -195,7 +183,6 @@ export type IndexOrder = "asc" | "desc";
  *  rows it already returned. */
 const DESC_CURSOR_PREFIX = "desc:";
 
-/** `next_cursor` for a page read in `order`. */
 export function encodeOrderedCursor(
 	cursor: IndexCursorInput,
 	order: IndexOrder | undefined,
@@ -204,8 +191,6 @@ export function encodeOrderedCursor(
 	return order === "desc" ? `${DESC_CURSOR_PREFIX}${raw}` : raw;
 }
 
-/** Keyset comparison for a resume cursor: past it going forward, below it
- *  going back. */
 export function keysetOp(order: IndexOrder | undefined) {
 	return order === "desc" ? sql`<` : sql`>`;
 }
@@ -220,7 +205,6 @@ export function parseOrder(value: string | undefined): IndexOrder {
 	throw new ValidationError("order must be asc or desc");
 }
 
-/** Strip a cursor's order marker, refusing one issued under the other order. */
 function cursorForOrder(raw: string, order: IndexOrder): string {
 	const issuedFor: IndexOrder = raw.startsWith(DESC_CURSOR_PREFIX)
 		? "desc"
@@ -233,8 +217,6 @@ function cursorForOrder(raw: string, order: IndexOrder): string {
 	return order === "desc" ? raw.slice(DESC_CURSOR_PREFIX.length) : raw;
 }
 
-/** Shared cursor / height-window parsing for every Index read endpoint.
- *  Resolves cursor vs from_height precedence and the default last-day window. */
 export type IndexBaseQuery<C = IndexCursorInput> = {
 	cursor?: C;
 	cursorRaw?: string;
@@ -250,9 +232,6 @@ export function parseIndexBaseQuery<
 >(
 	query: URLSearchParams,
 	tip: IndexTip,
-	/** Defaults to the (block_height, event_index) keyset; tx-index feeds pass
-	 *  `parseTxIndexCursor`. Everything else about the window contract is
-	 *  shared. */
 	parseCursorValue: (raw: string) => C = parseCursor as unknown as (
 		raw: string,
 	) => C,
@@ -342,7 +321,6 @@ export async function readReorgsForEvents(
 	const head = events.at(0);
 	const tail = events.at(-1);
 	if (!head || !tail) return [];
-	// A desc page runs newest → oldest; the lookup wants low → high.
 	const [firstEvent, lastEvent] =
 		head.block_height > tail.block_height ||
 		(head.block_height === tail.block_height &&

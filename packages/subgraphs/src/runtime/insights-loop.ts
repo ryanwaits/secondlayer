@@ -37,7 +37,6 @@ export function startInsightsLoop(
 			let inFlight: Promise<void> | null = null;
 
 			const tick = () => {
-				// Never overlap passes: a slow pass skips the next tick.
 				if (inFlight) return;
 				inFlight = evaluate()
 					.catch((err) => {

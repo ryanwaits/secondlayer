@@ -21,27 +21,8 @@ import { buildForFormat } from "./formats/index.ts";
 import { recordDelivery } from "./meter-socket.ts";
 import { refreshReceiverCerts } from "./receiver-cert.ts";
 
-/**
- * Webhook emitter — drains `webhook_outbox` and POSTs deliveries.
- *
- * Hot path: LISTEN on `webhooks:new_outbox` and `webhooks:changed`.
- * On notify, claim a batch with `FOR UPDATE SKIP LOCKED LIMIT 50`, dispatch
- * each row via HTTP, write a `webhook_deliveries` attempt row, then
- * either mark `status='delivered'` or schedule the next attempt.
- *
- * Backoff schedule (attempt → wait):
- *   0 → 30s, 1 → 2m, 2 → 10m, 3 → 1h, 4 → 6h, 5 → 24h, 6 → 72h.
- * After `max_retries` (default 7) attempts → `status='dead'`.
- *
- * Per-sub circuit breaker: 20 consecutive failures → sub flipped to
- * `paused` with `pause_reason='circuit'`. Manual /resume drains backlog.
- *
- * Per-sub concurrency cap: in-memory semaphore, default 4 in-flight HTTP
- * requests per webhook. Sprint-4 adds SSRF allowlist.
- */
-
 const BATCH_SIZE = 50;
-const LIVE_SHARE = 0.9; // 90% of batch to non-replay, 10% to replay
+const LIVE_SHARE = 0.9;
 const BACKOFF_SECONDS = [30, 120, 600, 3600, 21600, 86400, 259200];
 const CIRCUIT_THRESHOLD = 20;
 /**
@@ -58,7 +39,7 @@ const CIRCUIT_THRESHOLD = 20;
  * own timeout.
  */
 export const MAX_WEBHOOK_TIMEOUT_MS: number = webhookTimeoutMsCeiling();
-export const LOCK_WINDOW_MS: number = MAX_WEBHOOK_TIMEOUT_MS + 60_000; // ceiling + settle margin
+export const LOCK_WINDOW_MS: number = MAX_WEBHOOK_TIMEOUT_MS + 60_000;
 
 /** A sub's persistent delivery queue + in-flight counter. Lives for as long
  *  as the sub has (or recently had) work — see `enqueueForSub`/`pumpSub`.
@@ -102,56 +83,35 @@ function nextDelaySeconds(attempt: number): number {
 	return BACKOFF_SECONDS[Math.min(attempt, BACKOFF_SECONDS.length - 1)]!;
 }
 
-// ── SSRF guard ────────────────────────────────────────────────────────
-// Block deliveries to private/loopback/link-local ranges unless
-// SECONDLAYER_ALLOW_PRIVATE_EGRESS=true (self-host + local-dev opt-in).
-
 const PRIVATE_V4_PATTERNS = [
-	/^127\./, // loopback
-	/^10\./, // private class A
-	/^172\.(1[6-9]|2\d|3[01])\./, // private class B
-	/^192\.168\./, // private class C
-	/^169\.254\./, // link-local
-	/^0\./, // "this" network
-	/^100\.(6[4-9]|[7-9]\d|1[01]\d|12[0-7])\./, // CGNAT 100.64/10
-	/^198\.(1[89])\./, // benchmarking 198.18.0.0/15
-	/^(22[4-9]|23[0-9])\./, // multicast 224.0.0.0/4
-	/^(24[0-9]|25[0-5])\./, // reserved 240.0.0.0/4 (incl. 255.255.255.255 broadcast)
+	/^127\./,
+	/^10\./,
+	/^172\.(1[6-9]|2\d|3[01])\./,
+	/^192\.168\./,
+	/^169\.254\./,
+	/^0\./,
+	/^100\.(6[4-9]|[7-9]\d|1[01]\d|12[0-7])\./,
+	/^198\.(1[89])\./,
+	/^(22[4-9]|23[0-9])\./,
+	/^(24[0-9]|25[0-5])\./,
 ];
 
-/**
- * Classify a raw IP address literal (v4 or v6, no brackets, already lowercased
- * or not) as private/loopback/link-local/reserved. Covers v4 private ranges +
- * link-local (incl. `169.254.169.254`), `0.0.0.0`, benchmarking
- * (`198.18.0.0/15`), multicast (`224.0.0.0/4`), reserved/broadcast
- * (`240.0.0.0/4`, incl. `255.255.255.255`), IPv6 loopback (`::1`), unspecified
- * (`::`), unique-local (`fc00::/7`), link-local (`fe80::/10`), IPv6 multicast
- * (`ff00::/8`), IPv4-mapped IPv6 (`::ffff:127.0.0.1`, `::ffff:7f00:0001`), and
- * NAT64 (`64:ff9b::/96`, embedded v4 classified the same as IPv4-mapped).
- *
- * Shared by `isPrivateEgress` (literal-hostname fast-fail) and the resolved-
- * DNS-address check in `checkEgressAllowed` (rebinding mitigation).
- */
 function isPrivateIp(address: string): boolean {
 	const host = address.toLowerCase();
 
 	if (host === "0.0.0.0") return true;
 	if (host === "::" || host === "::1") return true;
-	// Unique-local (fc00::/7) + link-local (fe80::/10) + multicast (ff00::/8)
 	if (/^f[cd][0-9a-f]{2}:/.test(host)) return true;
 	if (/^fe[89ab][0-9a-f]:/.test(host)) return true;
 	if (/^ff[0-9a-f]{2}:/.test(host)) return true;
 
-	// IPv4-mapped IPv6 — `::ffff:127.0.0.1` or `::ffff:7f00:0001`
 	const mapped = host.match(/^::ffff:(.+)$/);
 	if (mapped) {
 		// biome-ignore lint/style/noNonNullAssertion: value is non-null after preceding check or by construction; TS narrowing limitation
 		const inner = mapped[1]!;
-		// Dotted form: rerun v4 checks.
 		if (/^\d+\.\d+\.\d+\.\d+$/.test(inner)) {
 			for (const p of PRIVATE_V4_PATTERNS) if (p.test(inner)) return true;
 		}
-		// Hex form: 7f00:0001 → 127.0.0.1
 		const hex = inner.match(/^([0-9a-f]{1,4}):([0-9a-f]{1,4})$/);
 		if (hex) {
 			// biome-ignore lint/style/noNonNullAssertion: value is non-null after preceding check or by construction; TS narrowing limitation
@@ -202,13 +162,12 @@ function isPrivateEgress(url: string): boolean {
 	try {
 		parsed = new URL(url);
 	} catch {
-		return true; // malformed URL: reject
+		return true;
 	}
 	if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
 		return true;
 	}
 
-	// Strip brackets from IPv6 literals.
 	const raw = parsed.hostname.toLowerCase();
 	const host =
 		raw.startsWith("[") && raw.endsWith("]") ? raw.slice(1, -1) : raw;
@@ -217,7 +176,6 @@ function isPrivateEgress(url: string): boolean {
 	return isPrivateIp(host);
 }
 
-/** How often the emitter re-probes receivers' TLS certificates. */
 const RECEIVER_CERT_INTERVAL_MS = 30 * 60_000;
 
 export function allowPrivateEgress(): boolean {
@@ -313,8 +271,6 @@ export async function checkEgressAllowed(url: string): Promise<string | null> {
 	return null;
 }
 
-/** The wire result of one POST attempt (no DB side effect) — shared by the
- *  emitter hot path and the `deliverTestEvent` test path. */
 interface PostResult {
 	ok: boolean;
 	statusCode: number | null;
@@ -401,7 +357,6 @@ async function postToWebhook(
 			}
 
 			ok = res.ok;
-			// Collect small response preview for the delivery log (≤8KB).
 			const buf = await res.arrayBuffer();
 			const truncated = buf.byteLength > 8192 ? buf.slice(0, 8192) : buf;
 			responseBody = Buffer.from(truncated).toString("utf8");
@@ -474,8 +429,6 @@ async function dispatchOne(
 	};
 }
 
-/** A representative (non-persisted) outbox row for a test delivery, so
- *  `buildForFormat` produces a realistic body. */
 function buildTestOutboxRow(sub: Webhook): WebhookOutbox {
 	const now = new Date();
 	return {
@@ -653,8 +606,6 @@ async function settleFailed(
 				locked_by: null,
 				locked_until: null,
 			})
-			// Guard against a reorg that marked this row `dead` (orphaned) while
-			// the POST was in flight — see the matching guard in `settleDelivered`.
 			.where("id", "=", outboxRow.id)
 			.where("status", "=", "pending")
 			.where("locked_by", "=", claimOf(outboxRow))
@@ -708,12 +659,6 @@ async function settleFailed(
 	});
 }
 
-/** What woke this claim cycle — purely for the diagnostic log below; the
- *  claim/dispatch logic itself doesn't branch on it. `"drain-loop"` marks a
- *  pass this function re-ran on itself (see `claimAndDrain`) because a wake
- *  arrived (or a per-lane batch cap was hit) while the previous pass was
- *  still claiming. `"changed"` is a resume (or any webhook edit) — see the
- *  `webhooks:changed` listener. */
 type ClaimTrigger = "notify" | "poll" | "startup" | "changed" | "drain-loop";
 
 /**
@@ -942,13 +887,6 @@ async function claimAndDispatchOnce(
 			.execute();
 	}
 
-	// One line per claim pass: what woke it, how much it found, how it split
-	// between dispatched-now and released-back (paused), how stale the oldest
-	// row was, and how loaded the in-flight pool already was — everything
-	// needed to tell "briefly busy" apart from "actually stuck" without
-	// reproducing it live. `in_flight`/`concurrency` sum across only the subs
-	// THIS pass touched (a quiet sub's unrelated cap doesn't dilute the
-	// reading).
 	const oldestCreatedAtMs = Math.min(
 		...combined.map((r) => new Date(r.created_at).getTime()),
 	);
@@ -1039,8 +977,6 @@ function pumpSub(
 	}
 }
 
-/** Dispatch one claimed row end to end (POST, settle), then release its
- *  in-flight slot and try to pull more work for the same sub. */
 async function runOne(
 	db: Kysely<Database>,
 	state: RunningState,
@@ -1174,17 +1110,11 @@ export async function startEmitter(
 		},
 		{ connectionString: listenUrl },
 	);
-	// Names both channels + the exact host/db LISTENed on (no credentials) so
-	// a split-DB misconfiguration — the wake never reaching this process — is
-	// visible in `docker logs` at boot, not only inferred from a delivery
-	// latency graph later.
 	logger.info("[emitter] wake listeners connected", {
 		channels: ["webhooks:new_outbox", "webhooks:changed"],
 		db: describeDbUrl(listenUrl),
 	});
 
-	// Poll every pollIntervalMs as a safety net for missed notifications +
-	// backoff wakeups (rows whose next_attempt_at has passed).
 	const poll = setInterval(() => {
 		if (!state.running) return;
 		void claimAndDrain(db, state, emitterId, "poll").catch((err) =>
@@ -1194,10 +1124,8 @@ export async function startEmitter(
 		);
 	}, pollIntervalMs);
 
-	// Kick once on startup so any rows that arrived before we started drain.
 	void claimAndDrain(db, state, emitterId, "startup");
 
-	// Retention sweep — hourly by default.
 	const retention = setInterval(() => {
 		if (!state.running) return;
 		void runRetention(db).catch((err) =>

@@ -6,10 +6,6 @@ import {
 
 const count = new Intl.NumberFormat("en-US");
 
-/**
- * The most-minted runes, most first. A plain server-rendered table so
- * crawlers read every row; on narrow screens it scrolls sideways in its own box.
- */
 export function RunesTable({ runes }: { runes: readonly RuneRow[] }) {
 	return (
 		<div className="live-table">

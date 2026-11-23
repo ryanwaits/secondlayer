@@ -30,7 +30,6 @@ function isColumnType(field: PrintField): field is ColumnType {
 	return typeof field === "string" && COLUMN_TYPES.has(field);
 }
 
-/** Does a decoded value match one declared field? */
 function matchesField(field: PrintField, value: unknown): boolean {
 	if (isColumnType(field)) {
 		switch (field) {

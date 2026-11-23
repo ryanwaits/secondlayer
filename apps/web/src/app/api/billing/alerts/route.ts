@@ -2,12 +2,10 @@ import { ApiError, apiRequest, getSessionFromRequest } from "@/lib/api";
 import { crossSiteRefusal } from "@/lib/same-origin";
 import { NextResponse } from "next/server";
 
-// Next to the API, so each dashboard read and write takes the short hop.
 export const preferredRegion = "fra1";
 
 type Alerts = { notify7d: boolean; notify2d: boolean };
 
-/** The signed-in account's balance-runway email preferences. */
 export async function GET(req: Request) {
 	const sessionToken = getSessionFromRequest(req);
 	if (!sessionToken) {

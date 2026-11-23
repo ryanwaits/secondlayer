@@ -67,8 +67,6 @@ export function marfValue(value: string): Bytes {
 	return v;
 }
 
-// ---------- hashing (bits.rs) ----------
-
 function pathPreimage(path: Bytes): Bytes {
 	if (path.length > 32) throw new Error("trie path longer than 32 bytes");
 	return concat([Uint8Array.of(path.length), path]);
@@ -86,8 +84,6 @@ export function nodeHash(node: TrieNode, children: Bytes[]): Bytes {
 	parts.push(pathPreimage(node.path), ...children);
 	return hashAll(parts);
 }
-
-// ---------- proof codec ----------
 
 type NodeKind = "Node4" | "Node16" | "Node48" | "Node256";
 const PROOF_KIND = [
@@ -146,8 +142,6 @@ function decodeProof(bytes: Bytes): ProofStep[] {
 	if (!r.done) throw new Error("trailing bytes after proof");
 	return steps;
 }
-
-// ---------- verification (proofs.rs) ----------
 
 const isShunt = (s: ProofStep | undefined): s is ShuntStep =>
 	s?.kind === "Shunt";

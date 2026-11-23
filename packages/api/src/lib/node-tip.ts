@@ -16,7 +16,6 @@ export type NodeTip = {
 };
 
 export type NodeTipOptions = {
-	/** The node's `/v2/info` body. */
 	fetchInfo?: () => Promise<unknown>;
 	now?: () => number;
 	ttlMs?: number;
@@ -31,7 +30,6 @@ function fetchNodeInfo(): Promise<unknown> {
 	}).then((res) => (res.ok ? res.json() : null));
 }
 
-/** The two heights out of a `/v2/info` body; null when either is unusable. */
 export function readNodeInfo(body: unknown): NodeTip | null {
 	const info = body as {
 		stacks_tip_height?: unknown;

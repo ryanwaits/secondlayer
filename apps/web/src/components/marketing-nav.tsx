@@ -26,20 +26,6 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 
-/**
- * Marketing bar: brand, a Products menu (the five products), Verify, Pricing,
- * Docs, Blog; Sign in + Start free on the right. Fixed 64px. Docs keeps its
- * own chrome, so this renders null there. The floating AuthBar is hidden
- * wherever this bar is present (globals.css), so the bar owns the top edge.
- *
- * The right edge follows the session: signed out gets "Sign in" and the
- * Start free menu (hosted key or self-host install); signed in gets the
- * account chip; while the session check is in flight a blank chip holds the
- * space, so "Sign in" never flashes at someone who is already signed in.
- *
- * On /account the center links give way to the dashboard tabs, and the chain
- * heartbeat and a ⌘K hint lead the right edge.
- */
 export function MarketingNav() {
 	const pathname = usePathname();
 	const { account, loading, logout } = useAuth();
@@ -48,8 +34,6 @@ export function MarketingNav() {
 	const { missing: missingSubgraphs } = useSubgraphsCache();
 	const [open, setOpen] = useState(false);
 
-	// Close the sheet on navigation; Escape closes it and scroll locks while
-	// it is open.
 	// biome-ignore lint/correctness/useExhaustiveDependencies: pathname is the close trigger
 	useEffect(() => {
 		setOpen(false);
@@ -70,8 +54,6 @@ export function MarketingNav() {
 
 	if (pathname.startsWith("/docs")) return null;
 
-	// Hold the dashboard bar through the session check so the marketing links
-	// never flash on /account.
 	const onAccount = pathname === "/account" || pathname.startsWith("/account/");
 	const dash = onAccount && (loading || account !== null);
 	const failingWebhooks = list

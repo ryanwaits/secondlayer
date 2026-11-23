@@ -20,7 +20,6 @@ export interface HandlerErrorInput {
 	err: unknown;
 }
 
-/** Strip values that vary per occurrence so repeats of one bug share a group. */
 function normalizeMessage(message: string): string {
 	return message
 		.replace(/0x[0-9a-f]+/gi, "<hex>")
@@ -77,10 +76,8 @@ interface PendingGroup {
 }
 
 const FLUSH_INTERVAL_MS = 5_000;
-/** Distinct (subgraph id, fingerprint) keys held between flushes. */
 const MAX_PENDING_KEYS = 1_000;
 
-/** Postgres SQLSTATE for a foreign-key violation. */
 const PG_FOREIGN_KEY_VIOLATION = "23503";
 
 let pending = new Map<string, PendingGroup>();
@@ -92,7 +89,6 @@ function startFlusher(): void {
 	flushTimer = setInterval(() => {
 		void flushHandlerErrors();
 	}, FLUSH_INTERVAL_MS);
-	// Never keep the process alive just to flush diagnostics.
 	flushTimer.unref();
 }
 
@@ -158,7 +154,6 @@ export async function flushHandlerErrors(): Promise<void> {
 			subgraphIds.add(group.subgraphId);
 		} catch (err) {
 			if ((err as { code?: string }).code === PG_FOREIGN_KEY_VIOLATION) {
-				// The subgraph was deleted (or recreated) while errors were pending.
 				skippedDeleted++;
 				continue;
 			}
@@ -170,7 +165,6 @@ export async function flushHandlerErrors(): Promise<void> {
 		}
 	}
 
-	// Drop the least recently seen groups beyond the cap, once per subgraph.
 	for (const subgraphId of subgraphIds) {
 		try {
 			await sql`

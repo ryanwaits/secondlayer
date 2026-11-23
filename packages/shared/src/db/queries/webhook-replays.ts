@@ -204,7 +204,6 @@ export function progressOf(
 	};
 }
 
-/** Progress for one record, finalizing it once nothing is pending. */
 async function progressWithFinalize(
 	db: Kysely<Database>,
 	record: WebhookReplay,
@@ -228,7 +227,6 @@ async function progressWithFinalize(
 		.returningAll()
 		.executeTakeFirst();
 	if (finalized) return progressOf(finalized, 0);
-	// Lost a race to another finalizer (or a requeue): re-read.
 	const fresh = await db
 		.selectFrom("webhook_replays")
 		.selectAll()

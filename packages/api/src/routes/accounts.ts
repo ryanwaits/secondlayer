@@ -16,8 +16,6 @@ function requireAccountId(c: Context): string {
 	return accountId;
 }
 
-// ── /me ──────────────────────────────────────────────────────────
-
 app.get("/me", async (c) => {
 	const accountId = requireAccountId(c);
 	const db = getDb();
@@ -32,12 +30,9 @@ app.get("/me", async (c) => {
 		avatarUrl: account.avatar_url,
 		notifyReindexComplete: account.notify_reindex_complete,
 		createdAt: account.created_at.toISOString(),
-		// Analytics marks a first-party account's person as internal.
 		internal: account.internal,
 	});
 });
-
-// ── /me (PATCH) ───────────────────────────────────────────────────
 
 app.patch("/me", async (c) => {
 	const accountId = requireAccountId(c);
@@ -60,8 +55,6 @@ app.patch("/me", async (c) => {
 		notifyReindexComplete: updated.notify_reindex_complete,
 	});
 });
-
-// ── /me/updates ──────────────────────────────────────────────────
 
 // The account email's place on the updates list, so the signup form can
 // step aside for a reader already on it. The token is the same one every
@@ -87,9 +80,6 @@ app.get("/me/updates", async (c) => {
 	});
 });
 
-// ── /insights ─────────────────────────────────────────────────────
-
-// Account-level insights (reads, billing), scoped to the signed-in account.
 app.route(
 	"/insights",
 	createInsightsRoutes((c) => ({ accountId: requireAccountId(c) })),

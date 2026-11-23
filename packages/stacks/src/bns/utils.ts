@@ -106,7 +106,6 @@ export function hashPreorder(
 	const nameBytes = new TextEncoder().encode(name);
 	const namespaceBytes = new TextEncoder().encode(namespace);
 
-	// Concatenate: name + namespace + salt
 	const combined = new Uint8Array(
 		nameBytes.length + namespaceBytes.length + salt.length,
 	);

@@ -31,8 +31,6 @@ export function LazyCommandPalette() {
 	const [hidden, setHidden] = useState(false);
 
 	useEffect(() => {
-		// Fires on the first flags response and on every later refresh.
-		// Returns its own unsubscribe, which is the effect cleanup.
 		return onFeatureFlags(() => {
 			setHidden(isFeatureEnabled("disable-command-palette") === true);
 		});

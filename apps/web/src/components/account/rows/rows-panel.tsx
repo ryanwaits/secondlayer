@@ -47,7 +47,6 @@ const SOURCE_LABEL: Record<string, string> = {
 
 const fmt = (n: number) => n.toLocaleString("en-US");
 
-/** The account rules whose insights live here. */
 const ROWS_RULES = rulesHomedAt("/account/rows");
 
 function ServerErrors({ errors }: { errors: RowsError[] }) {
@@ -67,8 +66,6 @@ function ServerErrors({ errors }: { errors: RowsError[] }) {
 	);
 }
 
-/** Your 4xx errors, a page at a time so the panel ends level with its neighbour:
- *  one row fewer when our own failures take a line above the table. */
 function ErrorsPanel({ errors }: { errors: RowsError[] }) {
 	const client = clientErrors(errors);
 	const ours = serverErrors(errors);
@@ -145,19 +142,15 @@ function ErrorsPanel({ errors }: { errors: RowsError[] }) {
 export interface RowsBodyProps {
 	status: "not_loaded" | "failed" | "ok";
 	data: RowsResponse | null;
-	/** Insights about the account's reads, ranked by the server. */
 	insights?: readonly Insight[];
 	now: Date;
 	onRetry: () => void;
-	/** The account has no key of its own yet: the empty screen asks for one first. */
 	keyState?: KeyState;
 }
 
-/** Nothing read this month and nothing on record. */
 const isUnused = (data: RowsResponse) =>
 	data.allowance.usedThisMonth === 0 && data.daily.length === 0;
 
-/** A new account's Rows: what will show up here, and the one step to get it. */
 function EmptyRows({
 	data,
 	keyState,
@@ -193,7 +186,6 @@ function EmptyRows({
 	);
 }
 
-/** Rows: the free allowance, rows per day, where they came from, call sizes and your errors. */
 export function RowsBody({
 	status,
 	data,
@@ -298,7 +290,6 @@ export function RowsBody({
 	);
 }
 
-/** The Rows screen's shape while it loads: real labels, boxes at their final heights. */
 export function RowsSkeleton() {
 	return (
 		<output className="bl-body" aria-busy="true" aria-label="Loading rows">
@@ -335,7 +326,6 @@ export function RowsSkeleton() {
 	);
 }
 
-/** /account/rows: loads the rows data and shows it. */
 export function RowsSection() {
 	const { rows, keys } = useAccountData();
 	const { data: allInsights, status: insightsStatus } = useInsights();
@@ -350,7 +340,6 @@ export function RowsSection() {
 
 	// biome-ignore lint/correctness/useExhaustiveDependencies: load once on mount
 	useEffect(() => {
-		// The page carries the rows; read them here only when it couldn't.
 		if (!rows) load();
 		preloadBandBarChart();
 		ensureKeys();

@@ -1,5 +1,3 @@
-/** WalletConnect v2 session state machine (pairing → proposal → settlement) */
-
 import {
 	bytesToHex,
 	decodeBase64,
@@ -22,7 +20,7 @@ import type {
 } from "./types.ts";
 
 const STORAGE_KEY = "@secondlayer/wc:session";
-const SESSION_EXPIRY = 7 * 24 * 60 * 60; // 7 days in seconds
+const SESSION_EXPIRY = 7 * 24 * 60 * 60;
 
 const STACKS_METHODS = [
 	"stx_getAddresses",
@@ -52,7 +50,6 @@ export class WcSession {
 	private config: WcProviderConfig;
 	private chains: string[];
 
-	// Pairing state
 	private pairingSymKey: Uint8Array | null = null;
 	private pairingTopic: string | null = null;
 	private selfKeyPair: {
@@ -60,7 +57,6 @@ export class WcSession {
 		publicKey: Uint8Array;
 	} | null = null;
 
-	// Session state
 	private sessionData: WcSessionData | null = null;
 	private sessionSymKey: Uint8Array | null = null;
 	private pending = new Map<
@@ -87,7 +83,6 @@ export class WcSession {
 			}
 			this.sessionData = data;
 			this.sessionSymKey = hexToBytes(data.symKey);
-			// Subscribe to session topic for incoming requests (fire-and-forget)
 			this.subscribeSession().catch(() => {});
 			return true;
 		} catch {
@@ -165,7 +160,6 @@ export class WcSession {
 				method: "wc_sessionDelete",
 				params: { code: 6000, message: "User disconnected" },
 			};
-			// Best-effort notify peer
 			this.relay
 				.publishEncrypted(
 					this.sessionData.topic,
@@ -186,8 +180,6 @@ export class WcSession {
 		return this.sessionData;
 	}
 
-	// -- Internal --
-
 	private handlePairingMessage(
 		message: string,
 		resolve: (v: WcSessionSettled) => void,
@@ -196,7 +188,6 @@ export class WcSession {
 		const envelope = decodeBase64(message);
 		let plaintext: string;
 
-		// Could be type 0 (symmetric) or type 1 (asymmetric)
 		if (envelope[0] === 0x01 && this.selfKeyPair) {
 			plaintext = decryptType1(this.selfKeyPair.privateKey, envelope);
 		} else if (this.pairingSymKey) {
@@ -228,7 +219,6 @@ export class WcSession {
 			const proposal = rpc.params;
 			const peerPublicKey = hexToBytes(proposal.proposer.publicKey);
 
-			// Generate session key pair + derive session symmetric key
 			const sessionKp = generateKeyPair();
 			const sessionSymKey = deriveSymKey(sessionKp.privateKey, peerPublicKey);
 			const sessionTopic = symKeyToTopic(sessionSymKey);
@@ -252,7 +242,6 @@ export class WcSession {
 				expiry,
 			};
 
-			// Approve the proposal on the pairing topic
 			const approvePayload = {
 				id: rpc.id,
 				jsonrpc: "2.0",
@@ -271,7 +260,6 @@ export class WcSession {
 				1101, // tag for session propose response
 			);
 
-			// Subscribe to session topic
 			this.sessionSymKey = sessionSymKey;
 			this.sessionData = {
 				topic: sessionTopic,
@@ -284,7 +272,6 @@ export class WcSession {
 
 			await this.subscribeSession();
 
-			// Send session settle on the new session topic
 			const settlePayload = {
 				id: this.nextId++,
 				jsonrpc: "2.0",
@@ -299,7 +286,6 @@ export class WcSession {
 				1104, // tag for session settle
 			);
 
-			// Persist
 			getStorage()?.setItem(STORAGE_KEY, JSON.stringify(this.sessionData));
 
 			resolve(settled);
@@ -318,7 +304,6 @@ export class WcSession {
 				const plaintext = decryptType0(symKey, envelope);
 				const rpc = JSON.parse(plaintext);
 
-				// Response to our request
 				if ("id" in rpc && this.pending.has(rpc.id)) {
 					// biome-ignore lint/style/noNonNullAssertion: value is non-null after preceding check or by construction; TS narrowing limitation
 					const p = this.pending.get(rpc.id)!;
@@ -330,16 +315,13 @@ export class WcSession {
 					}
 				}
 
-				// Session delete from peer
 				if (rpc.method === "wc_sessionDelete") {
 					this.sessionData = null;
 					this.sessionSymKey = null;
 					this.pending.clear();
 					getStorage()?.removeItem(STORAGE_KEY);
 				}
-			} catch {
-				// ignore malformed messages
-			}
+			} catch {}
 		});
 	}
 }

@@ -45,7 +45,6 @@ import {
 export type RestoreRange = { fromBlock: number; toBlock: number };
 
 export type RestoreResult = {
-	/** One key per dataset the manifest publishes. */
 	restored: Partial<Record<CanonicalDataset, number>>;
 	partitionsRead: number;
 	proof: {
@@ -163,13 +162,8 @@ export async function restoreCanonicalSnapshot(params: {
 	manifest: CanonicalSnapshotManifest;
 	db: Kysely<Database>;
 	range: RestoreRange;
-	/** The network this database serves; a snapshot of another network is
-	 *  refused. Defaults to `STACKS_NETWORK` (or `mainnet`). */
 	network?: string;
-	/** Where the proof re-export writes its regenerated partitions. */
 	proofDir: string;
-	/** Continue an interrupted restore of the SAME snapshot: complete
-	 *  partitions are skipped, a partial one is deleted and reloaded. */
 	resume?: boolean;
 	/** Raw postgres.js client used for `COPY ... FROM STDIN`. Defaults to the
 	 *  same source-role connection `db` normally resolves to; only override
@@ -181,8 +175,6 @@ export async function restoreCanonicalSnapshot(params: {
 	const log = params.log ?? (() => {});
 	const rawClient = params.rawClient ?? getRawClient("source");
 
-	// Before anything is written: rows from another network, or a layout this
-	// restore does not know how to read, must not reach the database.
 	if (manifest.schema_version !== CANONICAL_EXPORT_SCHEMA_VERSION) {
 		throw new Error(
 			`snapshot schema_version ${manifest.schema_version} is not the version this restore reads (${CANONICAL_EXPORT_SCHEMA_VERSION})`,
@@ -218,7 +210,6 @@ export async function restoreCanonicalSnapshot(params: {
 		}
 	}
 
-	// Verify every needed object BEFORE the first insert.
 	const datasets = ARCHIVE_DATASETS.filter((dataset) =>
 		manifestPublishes(manifest, dataset),
 	);
@@ -269,8 +260,6 @@ export async function restoreCanonicalSnapshot(params: {
 		log(`restored ${restored[dataset]} ${dataset} rows`);
 	}
 
-	// The proof: re-export the restored range through the same writer and
-	// demand the regenerated partitions carry the archive's own digests.
 	const reExport = await exportCanonicalSnapshot({
 		network: manifest.network,
 		outDir: params.proofDir,
@@ -304,8 +293,6 @@ export async function restoreCanonicalSnapshot(params: {
 			});
 		}
 	}
-	// Every archive partition in range must be regenerated — a silently
-	// missing one is a failure, not a pass.
 	if (reExport.manifest.partitions.length !== selected.length) {
 		for (const partition of selected) {
 			if (

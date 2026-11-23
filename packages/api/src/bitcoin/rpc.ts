@@ -10,22 +10,10 @@ import {
 
 export { RPC_METHOD_NOT_FOUND, RPC_NO_SUCH_TX };
 
-/**
- * The instance's own Bitcoin Core node over JSON-RPC, for the routes that
- * read it live (`/v1/proofs/bitcoin-tx`, `/v1/bitcoin/outspend`).
- * `BITCOIN_RPC_URL` unset means the instance has no Bitcoin node: those
- * routes answer 503 rather than failing.
- */
-
-/**
- * `BITCOIN_RPC_URL` plus auth from `BITCOIN_RPC_AUTH` (pre-encoded) or, when
- * both are set, `BITCOIN_RPC_USERNAME` and `BITCOIN_RPC_PASSWORD`.
- */
 export function bitcoinRpcFromEnv(): BitcoinRpcConfig | undefined {
 	return bitcoinRpcConfigFromEnv(process.env);
 }
 
-/** A JSON-RPC answer with an error object: a real reply from bitcoind. */
 export class BitcoindRpcError extends Error {
 	constructor(
 		readonly method: string,

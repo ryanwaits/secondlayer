@@ -6,7 +6,6 @@ import { signInThen } from "@/lib/safe-next";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 
-/** The product that started the sign-in; absent is `sl login`. */
 export type CliProduct = "sentinel";
 
 type View =
@@ -32,12 +31,7 @@ function isUnsafeCodePoint(cp: number): boolean {
 	);
 }
 
-/**
- * `clientName` is whatever the requesting machine sent. Show it as plain
- * text: no control or bidi characters, whitespace collapsed, length capped.
- */
 export function displayClientName(raw: string): string {
-	// Line breaks and tabs become spaces first, so words stay apart.
 	const kept = Array.from(raw.replace(/\s+/g, " "))
 		.filter((ch) => !isUnsafeCodePoint(ch.codePointAt(0) ?? 0))
 		.join("")
@@ -57,7 +51,6 @@ const COPY = {
 
 const copyFor = (product?: CliProduct) => COPY[product ?? "sl"];
 
-/** The card is pure so each state can be rendered and checked on its own. */
 export function CliLoginCard({
 	view,
 	code,
@@ -167,7 +160,6 @@ export function CliLogin() {
 	const [view, setView] = useState<View>({ kind: "loading" });
 	const [busy, setBusy] = useState(false);
 	const [error, setError] = useState<string | null>(null);
-	// Signed out: sign in, then come back to this same code.
 	useEffect(() => {
 		if (!loading && !unreachable && !account) {
 			router.replace(signInThen(`/cli/login?code=${encodeURIComponent(code)}`));

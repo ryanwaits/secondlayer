@@ -2,16 +2,6 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { renderEmail } from "./render.ts";
 
-/**
- * Writes every customer email (example values, current copy) as .html + .txt
- * pairs into `email-previews/` at the repo root, so they can be opened and
- * reviewed without sending anything. Not a test — the examples below mirror
- * the `renderEmail()` calls in each sender file; keep them in sync by hand
- * when that copy changes.
- *
- * Run with: `bun run packages/shared/src/email/preview.ts`
- */
-
 const OUT_DIR = join(import.meta.dir, "../../../../email-previews");
 
 const CREDITS = "https://secondlayer.tools/account/credits";

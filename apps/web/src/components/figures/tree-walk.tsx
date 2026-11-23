@@ -21,11 +21,6 @@ export type TreeEdge = {
 	y2: number;
 };
 
-/**
- * B8 TreeWalk — the log-time seek, performed. Choosing a key lights the
- * path from root to leaf one level at a time (instantly under
- * reduced-motion); the comparison counter is the argument.
- */
 export function TreeWalk({
 	nodes,
 	edges,
@@ -35,7 +30,6 @@ export function TreeWalk({
 }: {
 	nodes: TreeNode[];
 	edges: TreeEdge[];
-	/** Each seek lights `path` (node and edge ids, root first). */
 	seeks: { label: string; path: string[] }[];
 	viewBox: string;
 	ariaLabel: string;

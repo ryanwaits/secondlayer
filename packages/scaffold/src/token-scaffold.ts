@@ -1,8 +1,3 @@
-/**
- * SIP-010/009 token-transfer scaffold — single-sourced for CLI `subgraphs scaffold`
- * and MCP `subgraphs_scaffold` when a contract has no observed prints.
- */
-
 import type { AbiContract } from "@secondlayer/stacks/clarity";
 import { classifyContract } from "@secondlayer/stacks/clarity";
 

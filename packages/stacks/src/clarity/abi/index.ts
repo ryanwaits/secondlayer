@@ -1,4 +1,3 @@
-// ABI type definitions
 export type {
 	AbiType,
 	AbiPrimitiveType,
@@ -22,10 +21,8 @@ export type {
 } from "./types.ts";
 export { CONTRACT_NAME_REGEX } from "./types.ts";
 
-// Type mappings
 export type { AbiToTS, ResponseOk, ResponseErr, Response } from "./mappings.ts";
 
-// Contract/function types
 export type {
 	FunctionAccess,
 	FunctionArg,
@@ -41,10 +38,8 @@ export type {
 	AbiContract,
 } from "./contract.ts";
 
-// Codegen type brand
 export type { ContractTypes, TypedAbi, AbiTypesOf } from "./typed.ts";
 
-// Extractors
 export type {
 	ExtractFunctionNames,
 	ExtractFunction,
@@ -69,7 +64,6 @@ export type {
 	ExtractImplementedTraits,
 } from "./extractors.ts";
 
-// Guards
 export {
 	isUint128,
 	isInt128,
@@ -95,7 +89,6 @@ export {
 	isAbiTraitReference,
 } from "./guards.ts";
 
-// Converters
 export {
 	ClarityConversionError,
 	jsToClarity,
@@ -104,7 +97,6 @@ export {
 	validateArgsArray,
 } from "./converters.ts";
 
-// Standard ABIs
 export {
 	SIP010_ABI,
 	SIP009_ABI,
@@ -114,7 +106,6 @@ export {
 	sip013Abi,
 } from "./standards.ts";
 
-// Trait classification / discovery
 export {
 	classifyContract,
 	parseDeclaredStandards,
@@ -122,7 +113,6 @@ export {
 	TRAIT_STANDARDS,
 } from "./classify.ts";
 
-// Utils
 export type { ToCamelCase } from "./utils.ts";
 export { toCamelCase } from "./utils.ts";
 export {

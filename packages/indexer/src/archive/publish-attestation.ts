@@ -54,8 +54,6 @@ export async function publishNodeAttestation(
 	const key = `${CANONICAL_ARCHIVE_PREFIX}/attestations/${doc.snapshot_digest}/${doc.kind}.json`;
 	const log = options.log ?? (() => {});
 
-	// Immutable-by-name means an existing key at this path is either the same
-	// bytes (a re-run) or a bug. Refuse rather than silently overwrite.
 	try {
 		await options.client.send(
 			new HeadObjectCommand({ Bucket: options.bucket, Key: key }),
@@ -79,9 +77,6 @@ export async function publishNodeAttestation(
 	return { key, published: true, reason: "written" };
 }
 
-// Cache/ContentType constants are intentional design notes for a future
-// putJsonObject signature expansion; keep them referenced so the intent
-// survives grep-based refactors.
 void CACHE_ATTESTATION;
 void CONTENT_TYPE;
 

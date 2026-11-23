@@ -6,7 +6,6 @@ import { COMPACT_QUERY, useCompact } from "@/components/mobile/use-compact";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 
-/** The phone's Push settings. Desktop has no such page: wider windows go to the Overview. */
 export default function AccountPushPage() {
 	const compact = useCompact();
 	const router = useRouter();

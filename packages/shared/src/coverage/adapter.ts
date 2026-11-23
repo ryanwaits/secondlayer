@@ -1,13 +1,3 @@
-/**
- * Atomic decoder adapter.
- *
- * One transaction writes decoded output, the decoder checkpoint, and an
- * optional failure. A crash after any step rolls all three back.
- *
- * `crashAfter` is a test probe. It throws inside the transaction so the
- * matrix can abort after each step without simulating a real process kill.
- */
-
 import { sql } from "kysely";
 import type { Kysely } from "kysely";
 import type { Database } from "../db/types.ts";

@@ -13,13 +13,10 @@ const WINDOW_MS = 1_000;
 
 export function streamsRateLimit(): MiddlewareHandler<StreamsEnv> {
 	return async (c, next) => {
-		// Self-hosted (oss/dedicated): single-tenant own box, no multi-tenant
-		// fairness throttle. The operator owns access control (API_KEY / proxy).
 		if (!isPlatformMode()) {
 			await next();
 			return;
 		}
-		// Pay-as-you-go: a credited free account is unthrottled (it pays per row).
 		if (c.get("credited")) {
 			await next();
 			return;

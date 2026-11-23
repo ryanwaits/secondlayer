@@ -122,12 +122,10 @@ export function parseTransaction(
 	tx: TransactionPayload,
 	blockHeight: number,
 ): InsertTransaction | null {
-	// Skip if no txid (completely malformed)
 	if (!tx.txid) {
 		return null;
 	}
 
-	// Decode raw_tx to extract tx_type and sender_address
 	// The Stacks node events observer sends raw_tx but not tx_type or sender_address
 	// Burnchain ops (raw_tx = "0x00" or "0x") are Bitcoin-originated, with no
 	// Stacks transaction bytes; the node describes them in `burnchain_op`
@@ -136,14 +134,12 @@ export function parseTransaction(
 		? decodeRawTx(tx.raw_tx, tx.txid)
 		: summarizeBurnchainOp(tx.burnchain_op);
 
-	// Use decoded values, falling back to payload values if available, then defaults
 	const txType = decoded?.txType ?? tx.tx_type ?? "unknown";
 	const sender = decoded?.sender ?? tx.sender_address ?? "unknown";
 	let contractId = decoded?.contractId ?? null;
 	let functionName = decoded?.functionName ?? null;
 	let functionArgs: string[] | null = decoded?.functionArgs ?? null;
 
-	// If decoding failed but payload has contract info, use that as fallback
 	if (!decoded) {
 		if (tx.tx_type === "contract_call") {
 			// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
@@ -202,7 +198,6 @@ export function parseEvent(
 ): InsertEvent | null {
 	const { txid, event_index, type } = txEvent;
 
-	// Skip if type is missing
 	if (!type) {
 		return null;
 	}
@@ -213,7 +208,6 @@ export function parseEvent(
 		return null;
 	}
 
-	// Extract the actual event data based on type (property name matches type string)
 	const eventData =
 		(txEvent as unknown as Record<string, unknown>)[type] ?? txEvent;
 

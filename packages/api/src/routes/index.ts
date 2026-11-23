@@ -172,8 +172,6 @@ const EVENTS_ALLOWED = [
 	"var_name",
 	"caller",
 	"tx_id",
-	// Long-poll — /events only, not the ft/nft-transfers aliases
-	// or the other filtered routes below (no `longPollIndex` wiring for them).
 	"wait",
 ];
 
@@ -213,7 +211,6 @@ export type IndexRouterOptions = {
 	readMempoolByTxId?: MempoolByIdReader;
 	readReorgs?: StreamsReorgsReader;
 	readPrintSchema?: PrintSchemaReader;
-	/** Injectable so tests don't share the process-wide schema memo. */
 	printSchemaCache?: PrintSchemaCache;
 };
 
@@ -248,12 +245,6 @@ export function createIndexRouter(opts: IndexRouterOptions = {}) {
 	const getRunesTip = opts.getBitcoinTip ?? getBitcoinTip;
 	const readRuneReorgs = opts.readBtcReorgs ?? readBtcReorgs;
 
-	/**
-	 * Debit one page of decoded rows against a credited (pay-as-you-go) caller.
-	 * Usage counters died with the plan/usage surface (gate-g Slice D) — the
-	 * credit debit is the only per-row consequence left. No-op for anonymous
-	 * callers and empty pages. Call AFTER the cache check — a 304 must not debit.
-	 */
 	const meterRows = async (c: Context<IndexEnv>, rows: readonly unknown[]) => {
 		c.set("rowsServed", rows.length);
 		if (!isPlatformMode()) return;
@@ -264,7 +255,6 @@ export function createIndexRouter(opts: IndexRouterOptions = {}) {
 
 	const router = new Hono<IndexEnv>();
 
-	// Discovery — anonymous, lists endpoints + filters.
 	router.get("/", (c) =>
 		c.json({
 			routes: [
@@ -282,9 +272,6 @@ export function createIndexRouter(opts: IndexRouterOptions = {}) {
 						note: "Contract state: what changed in a contract, when, and who changed it. Hosted mainnet serves them from block 1. A self-hosted instance has them from the height its node subscribed to the storage / contract_calls observer keys. Cursor second component is ordinal.",
 					},
 					filters: EVENTS_ALLOWED,
-					// Allowed filters vary by event_type — this map is the precise,
-					// machine-readable vocabulary (generated from the event registry, so
-					// it can't drift from what the endpoint actually accepts).
 					event_type_filters: Object.fromEntries(
 						ALL_INDEX_EVENT_TYPES.map((t) => {
 							const cfg =
@@ -735,7 +722,7 @@ export function createIndexRouter(opts: IndexRouterOptions = {}) {
 				404,
 			);
 		}
-		c.header("Cache-Control", cacheControl(true)); // proofs are immutable
+		c.header("Cache-Control", cacheControl(true));
 		return c.json(proof);
 	});
 
@@ -754,8 +741,6 @@ export function createIndexRouter(opts: IndexRouterOptions = {}) {
 			readPoxCycles: opts.readPoxCycles,
 			readTipBurnHeight: opts.readPoxTipBurnHeight,
 		});
-		// Short-cache only when the page actually contains a still-accumulating
-		// (not-yet-frozen) cycle. Frozen cycles are immutable.
 		const anyOpen = response.cycles.some((cycle) => !cycle.is_frozen);
 		c.header(
 			"Cache-Control",
@@ -787,7 +772,6 @@ export function createIndexRouter(opts: IndexRouterOptions = {}) {
 			return c.json({ error: "not_found", notes: POX4_NOT_SERVED_NOTE }, 404);
 		}
 		if (result.kind === "not_found") return c.json({ error: "not_found" }, 404);
-		// Immutable cache once frozen; short while the cycle is still open.
 		const maxAge = result.response.cycle.is_frozen ? 3600 : 30;
 		c.header(
 			"Cache-Control",
@@ -796,9 +780,6 @@ export function createIndexRouter(opts: IndexRouterOptions = {}) {
 		return c.json(result.response);
 	});
 
-	// PoX-5 print events — the decoded pox-5 boot-contract log (SIP-045), the
-	// staking primitive since the epoch 4.0 fork. Raw rows, so the standard finality
-	// cache + per-row metering apply.
 	router.get("/pox5/events", async (c) => {
 		const query = new URL(c.req.url).searchParams;
 		validateQueryParams(query, POX5_EVENTS_FILTERS);
@@ -820,9 +801,6 @@ export function createIndexRouter(opts: IndexRouterOptions = {}) {
 		return c.json(response);
 	});
 
-	// Runes — plan 058 (D15: more data on the existing Index plane, not a new
-	// brand). Reads a separate Bitcoin/Runes Postgres (`../bitcoin/db.ts`, D18)
-	// on a separate clock (`getRunesTip`, Bitcoin block height, not Stacks).
 	// Static list routes first, `/runes/:rune` registered later (with the
 	// other point-gets) so it doesn't shadow `/runes/activity` or
 	// `/runes/balances` — same ordering rule as `/sbtc/*` below.
@@ -853,8 +831,6 @@ export function createIndexRouter(opts: IndexRouterOptions = {}) {
 			readRuneActivity: opts.readRuneActivity,
 			readReorgs: readRuneReorgs,
 		});
-		// Same event-log shape as pox5/sbtc events (raw rows keyed
-		// `<height>:<event_index>`) — the standard finality cache applies.
 		const notModified = applyIndexCache(c, query, tip, {
 			events: response.events,
 			next_cursor: response.next_cursor,
@@ -881,10 +857,6 @@ export function createIndexRouter(opts: IndexRouterOptions = {}) {
 		return c.json(response);
 	});
 
-	// sBTC peg feed — the sharpest data-plane moat (decoded peg events Hiro
-	// declined, SBA #1709). Raw events + typed deposits use the standard
-	// finality cache; the withdrawals rollup never does (its derived status can
-	// change as later accept/reject events land — see the route).
 	router.get("/sbtc/events", async (c) => {
 		const query = new URL(c.req.url).searchParams;
 		validateQueryParams(query, SBTC_EVENTS_FILTERS);
@@ -1036,7 +1008,6 @@ export function createIndexRouter(opts: IndexRouterOptions = {}) {
 		);
 		const deposit = txid ? await read(txid) : null;
 		if (!deposit) return c.json({ error: "Deposit not found" }, 404);
-		// Deposits are terminal (completed-deposit only); immutable once finalized.
 		const finalized = deposit.block_height <= tip.finalized_height;
 		c.header("Cache-Control", cacheControl(finalized));
 		if (finalized) {
@@ -1083,7 +1054,6 @@ export function createIndexRouter(opts: IndexRouterOptions = {}) {
 	// in-process per contract; tip is attached fresh, so the ETag covers only
 	// the stable slice and survives tip movement.
 	router.get("/contracts/:contract_id/print-schema", async (c) => {
-		// No query params accepted — but reject unknowns like sibling endpoints.
 		validateQueryParams(new URL(c.req.url).searchParams, []);
 		const contractId = parsePrintSchemaContractId(c.req.param("contract_id"));
 		const tip = await getTip();

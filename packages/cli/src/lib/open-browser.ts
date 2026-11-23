@@ -23,7 +23,5 @@ export function openBrowser(url: string): void {
 		const child = spawn(cmd, args, { detached: true, stdio: "ignore" });
 		child.on("error", () => {});
 		child.unref();
-	} catch {
-		// ignored on purpose
-	}
+	} catch {}
 }

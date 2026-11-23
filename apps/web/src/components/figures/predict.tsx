@@ -2,11 +2,6 @@
 
 import { type ReactNode, useState } from "react";
 
-/**
- * D4 Predict — the reader commits to a guess before the reveal. Wrong
- * picks stay visible so the correction lands. One per post, placed at
- * the turn.
- */
 export function Predict({
 	question,
 	options,

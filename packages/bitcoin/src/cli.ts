@@ -1,14 +1,4 @@
 #!/usr/bin/env bun
-// `migrate | backfill --to <H> | follow [--until <H>] |
-// parity-decode --blocks <list|range> |
-// parity-state --height <H> --ord-runes <file> --ord-balances <file> |
-// parity-spot | repair-entries | repair-block-times | digests --from <A> --to <B> | state-hash`.
-//
-// `follow` wakes on bitcoind's own `waitfornewblock` RPC (plan 070, D12
-// amended 2026-09-26) over the existing BITCOIN_RPC_*/BITCOIN_DATABASE_URL
-// envs — no extra port needed. `--until <H>` (plan 062) stops it cleanly at
-// H instead of running forever — used by the weekly frozen-parity procedure
-// to pin our side and ord to the same height before diffing.
 
 import { bytesToHex } from "@noble/hashes/utils.js";
 import { runBackfill } from "./backfill.ts";
@@ -459,12 +449,6 @@ async function cmdFollow(args: string[]): Promise<void> {
 	}
 }
 
-/**
- * Daily spot parity (plan 062, Gate 2): waits for ord's `/blockheight` to
- * reach our checkpoint (up to 30 min), then compares mints/burned/supply for
- * the runes with the most events in the last 144 blocks against ord's
- * `/rune/<id>` JSON. Writes a report and exits non-zero on any mismatch.
- */
 async function cmdParitySpot(): Promise<void> {
 	const ordUrl = process.env.ORD_URL ?? "http://127.0.0.1:8089";
 	const db = openStore(requireEnv("BITCOIN_DATABASE_URL"));
@@ -516,14 +500,6 @@ async function main(): Promise<void> {
 }
 
 if (import.meta.main) {
-	// Every one-shot command (everything but a `follow` with no `--until`)
-	// awaits its final DB write and `closeStore()` before `main()` resolves —
-	// so it's always safe to force-exit here. `follow` with no `--until` runs
-	// until SIGINT/SIGTERM and must keep its own lifecycle (plan 081: root
-	// cause of the hang wasn't found in the time box — this is the
-	// unconditional backstop for it); `follow --until <H>` (plan 062) is a
-	// one-shot command in disguise and force-exits itself inside `cmdFollow`
-	// once it reaches H, so this branch never has to.
 	const [command] = process.argv.slice(2);
 	main()
 		.then(() => {

@@ -16,10 +16,6 @@ import {
 // repo's mono-area-line-chart.tsx: a recharts ComposedChart with token-only
 // colors, the shared ChartTooltip, and animation off.
 
-/**
- * Two lines on one scale: a dashed `context` series (what we expected, such as
- * "Matched on chain" or "Our timeout") and the measured `--ch-a` series.
- */
 export function ContextLineChart({
 	context,
 	values,
@@ -35,11 +31,8 @@ export function ContextLineChart({
 	contextName: string;
 	valueName: string;
 	height?: number;
-	/** `[index, label]` pairs; only these points get an x tick. */
 	xLabels: [number, string][];
-	/** Tooltip heading per point, such as "Thu 14:00 UTC". Falls back to the x tick. */
 	pointLabels?: readonly string[];
-	/** Suffix for y labels (such as "s"). Omit for compact counts (1.2k). */
 	yUnit?: string;
 }) {
 	const rows = values.map((value, i) => ({

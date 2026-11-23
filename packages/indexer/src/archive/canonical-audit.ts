@@ -34,8 +34,6 @@ export type CanonicalCoverageAudit = {
 		blocks: number;
 		transactions: number;
 		events: number;
-		/** Present only when the instance holds `state_writes` from the start
-		 *  of the audited range (see `exportableDatasets`). */
 		state_writes?: number;
 	};
 	continuity: CanonicalContinuity;
@@ -71,13 +69,6 @@ export type CanonicalContinuity = {
 	first_short_block_height: number | null;
 };
 
-/**
- * Two ordering invariants the other checks cannot see. `(block_height,
- * tx_index)` is unique among canonical transactions (bounded to the trailing
- * desync window: the grouping is a scan of `transactions`), and
- * `burn_block_height` never decreases going up the canonical chain (whole
- * chain: a window function over `blocks` only).
- */
 export type RowInvariants = {
 	healthy: boolean;
 	duplicate_tx_index_count: number;
@@ -119,10 +110,6 @@ export type BlockFieldGaps = {
  */
 export const TX_EVENT_HEIGHT_DESYNC_WINDOW_BLOCKS = 200_000;
 
-/**
- * The floor height for the bounded desync window, clamped so it can never go
- * negative (small chains, e.g. in tests) and never exceed the tip itself.
- */
 export function computeDesyncFloorHeight(
 	tipHeight: number,
 	windowBlocks: number = TX_EVENT_HEIGHT_DESYNC_WINDOW_BLOCKS,
@@ -431,8 +418,6 @@ async function summarizeBrokenLinks(db: Kysely<Database>): Promise<{
 	broken_link_count: number;
 	first_broken_link_height: number | null;
 }> {
-	// Missing parent heights are reported by summarizeGaps. This query covers
-	// the distinct case where both rows exist but the child's parent hash differs.
 	const { rows } = await sql<{
 		broken_link_count: string | number;
 		first_broken_link_height: string | null;
@@ -498,13 +483,6 @@ async function summarizeShortBlocks(db: Kysely<Database>): Promise<{
 	};
 }
 
-/**
- * The tx/event height-desync invariant: an event's block_height must agree
- * with its own transaction's block_height. This is the invariant behind the
- * 2026-08-16 incident's crash half (fixed as the reorg-replace delete fix);
- * this check gives it a standing audit instead of no monitoring at all.
- * Bounded to the trailing window — see TX_EVENT_HEIGHT_DESYNC_WINDOW_BLOCKS.
- */
 async function summarizeTxEventHeightDesync(
 	db: Kysely<Database>,
 	floorHeight: number,
@@ -626,13 +604,6 @@ export type FinalizedBound = {
 	confirmations: number;
 };
 
-/**
- * Bound an audit or export at the burn-confirmation finality boundary instead
- * of a hand-picked height, so a scheduled run always covers genesis→finalized
- * without an operator refreshing the number. Uses the same rule as the
- * streams-bulk publisher: burn tip − N confirmations, mapped to the highest
- * Stacks height anchored at or below it.
- */
 export async function resolveFinalizedBound(
 	db: Kysely<Database> = getSourceDb(),
 ): Promise<FinalizedBound> {

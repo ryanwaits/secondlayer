@@ -21,19 +21,6 @@ import {
 	qp,
 } from "./shared.ts";
 
-/**
- * `/v1/subgraphs` reads (`../v1-subgraphs.ts`, row cores in
- * `../../subgraphs/read-core.ts`, grammar in `../subgraph-query-helpers.ts`).
- *
- * Subgraph tables are user-defined, so rows are documented generically: the
- * four system columns every table carries, plus the JSON type each column
- * type comes back as. The worked example is the table `sl subgraphs scaffold`
- * writes for the sBTC token, filled with a real sBTC transfer from mainnet
- * block 9048926.
- */
-
-// ── Example subgraph ────────────────────────────────────────────────────
-
 const EXAMPLE_NAME = "sbtc-token";
 const EXAMPLE_TABLE = "transfers";
 const EXAMPLE_SERVER = "http://127.0.0.1:3800";
@@ -67,7 +54,6 @@ const EXAMPLE_ROW = {
 	asset_identifier: SBTC_ASSET,
 };
 
-/** What `buildSubgraphDetailFromRow` hands the doc generators for it. */
 const EXAMPLE_DETAIL: SubgraphDetail = {
 	name: EXAMPLE_NAME,
 	version: "1.0.0",
@@ -112,13 +98,10 @@ const EXAMPLE_DETAIL: SubgraphDetail = {
 	updatedAt: "2026-09-23T15:10:29.114Z",
 };
 
-/** Self-hosted reads document the `/v1` surface (`readSpecOptions`). */
 const EXAMPLE_SPEC_OPTIONS = {
 	serverUrl: EXAMPLE_SERVER,
 	generatedAt: "2026-09-23T15:12:00.000Z",
 };
-
-// ── Shared fragments ────────────────────────────────────────────────────
 
 const NAME_PARAM = pp(
 	"name",
@@ -138,7 +121,6 @@ const HOSTED_429 =
 
 const OPS = [...Object.keys(COMPARISON_OPS), ...Object.keys(IN_OPS)];
 
-/** Free-form column filters: one query param per filter, so the object form. */
 const FILTERS_PARAM = {
 	name: "filters",
 	in: "query",
@@ -179,15 +161,12 @@ function jsonSuccess(description: string, schema: Record<string, unknown>) {
 	return { description, content: { "application/json": { schema } } };
 }
 
-/** The three generated-doc routes share one parameter set. */
 const SERVER_PARAM = qp(
 	"server",
 	"string",
 	false,
 	"Base URL written into the document's endpoints and examples. Defaults to this request's origin, honoring `X-Forwarded-Proto`.",
 );
-
-// ── Paths ───────────────────────────────────────────────────────────────
 
 export const subgraphsPaths = {
 	"/v1/subgraphs": {
@@ -530,8 +509,6 @@ export const subgraphsPaths = {
 	},
 };
 
-// ── Schemas ─────────────────────────────────────────────────────────────
-
 const SUBGRAPH_TIP = {
 	type: "object",
 	description: "How far this subgraph has indexed, against the chain tip.",
@@ -573,7 +550,6 @@ const STATUS_DESCRIPTION =
 const SOURCES_DESCRIPTION =
 	"Contracts the definition reads from: each source's `contractId`, and the contract half of each `assetIdentifier`.";
 
-/** Resource schemas for these responses, merged into `components.schemas`. */
 export const subgraphsSchemas = {
 	SubgraphRow: {
 		type: "object",
@@ -669,8 +645,6 @@ export const subgraphsSchemas = {
 				description: "Maximum per `_max` column. `null` over no rows.",
 			},
 		},
-		// `?_tx_id=<EXAMPLE_ROW._tx_id>&_count=true&_countDistinct=sender&_sum=amount&_max=amount`:
-		// that transaction moved 14000 sats of sBTC through three hops.
 		example: {
 			count: 3,
 			countDistinct: { sender: 3 },

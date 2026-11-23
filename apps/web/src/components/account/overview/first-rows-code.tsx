@@ -25,10 +25,6 @@ for (const t of events) console.log(t.sender, t.recipient, t.amount);`;
 const HTTP = `curl "https://api.secondlayer.tools/v1/index/ft-transfers?contract_id=${SBTC}&order=desc&limit=5" \\
   -H "Authorization: Bearer $SECONDLAYER_API_KEY"`;
 
-/**
- * The first-rows guide's server-rendered blocks: one read three ways, and the
- * prompt. `nokey`: the reader just made their own key, so no docs-key slot.
- */
 export function FirstRowsCode() {
 	return (
 		<CodeTabs sync="first-rows">

@@ -9,20 +9,12 @@ export type TrackMarker = {
 	label: string;
 	value?: string;
 	role?: "a" | "b" | "muted";
-	/** "dot" (default) renders a pin; "tick" a thin vertical bar. */
 	kind?: "dot" | "tick";
 	pos: number;
 };
 
 export type TrackState = { label: string; markers: TrackMarker[] };
 
-/**
- * B1 PositionTrack — positions on one axis (heights, offsets), with
- * named states toggled by segmented buttons. Collision rule: markers
- * within 8% merge their flags into one combined label (joined " · ")
- * and collapse duplicate values; flags stagger on two tiers when
- * neighboring groups sit close.
- */
 export function PositionTrack({ states }: { states: TrackState[] }) {
 	const [idx, setIdx] = useState(0);
 	const name = useId();

@@ -30,7 +30,6 @@ export const LINKS: readonly { step: VerifyStep; label: string }[] = [
 
 const n = (v: number | bigint) => v.toLocaleString("en-US");
 
-/** What each link proved, for the human view. */
 function linkDetail(
 	step: VerifyStep,
 	r: BlockVerification,
@@ -113,7 +112,6 @@ export function describeLinks(
 	for (const [i, link] of LINKS.entries()) {
 		const { step, label } = link;
 		const failure = r.failures.find((f) => f.step === step);
-		// Ancestry is a link only below the checkpoint.
 		if (step === "ancestry" && !failure && !r.ancestry) continue;
 		const skipped = (detail: string): LinkLine => ({
 			step,

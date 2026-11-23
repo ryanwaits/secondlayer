@@ -54,9 +54,6 @@ async function runInstanceDoctor(jsonOutput?: boolean): Promise<void> {
 	}
 	results.apiHealthy = apiHealthy;
 
-	// `doctor` and `status` read the same payload through the same diagnosis, so
-	// doctor can no longer report "All checks passed" while status reports
-	// DEGRADED — that contradiction left callers guessing whether to proceed.
 	const diagnosis = statusData ? diagnoseInstanceStatus(statusData) : null;
 	const issues: InstanceIssue[] = diagnosis
 		? diagnosis.issues
@@ -83,7 +80,6 @@ async function runInstanceDoctor(jsonOutput?: boolean): Promise<void> {
 	console.log(`  ${config.network} ${dim(`(${apiUrl})`)}`);
 	console.log("");
 
-	// API health
 	console.log(blue("API"));
 	console.log(
 		`  ${apiHealthy ? green("✓") : red("✗")} ${apiHealthy ? green("reachable") : red("unreachable")}`,
@@ -106,7 +102,6 @@ async function runInstanceDoctor(jsonOutput?: boolean): Promise<void> {
 		console.log("");
 	}
 
-	// Issues
 	console.log(blue("Issues"));
 	if (issues.length === 0) {
 		console.log(`  ${green("None")}`);
@@ -133,7 +128,6 @@ async function runInstanceDoctor(jsonOutput?: boolean): Promise<void> {
 	console.log("");
 }
 
-/** Why the run ended with issues, in the fewest words that stay true. */
 function doctorVerdictSuffix(diagnosis: InstanceDiagnosis | null): string {
 	if (!diagnosis) return " — the CLI could not reach this instance.";
 	if (diagnosis.state === "empty-index") {
@@ -162,7 +156,6 @@ async function runLocalDoctor(jsonOutput?: boolean): Promise<void> {
 	);
 	console.log("");
 
-	// Node
 	console.log(blue("Node"));
 	if (report.node.running) {
 		const heightStr = report.node.height?.toString() ?? "syncing...";
@@ -185,7 +178,6 @@ async function runLocalDoctor(jsonOutput?: boolean): Promise<void> {
 	}
 	console.log("");
 
-	// Containers
 	if (report.containers.length > 0) {
 		console.log(blue("Containers"));
 		for (const c of report.containers) {
@@ -202,7 +194,6 @@ async function runLocalDoctor(jsonOutput?: boolean): Promise<void> {
 		console.log("");
 	}
 
-	// Services
 	if (report.services.length > 0) {
 		console.log(blue("Services"));
 		for (const s of report.services) {
@@ -226,19 +217,16 @@ async function runLocalDoctor(jsonOutput?: boolean): Promise<void> {
 		console.log("");
 	}
 
-	// Infrastructure
 	console.log(blue("Infrastructure"));
 	console.log(
 		`  ${report.infrastructure.postgres ? green("✓") : red("✗")} PostgreSQL`,
 	);
 	console.log("");
 
-	// Config check
 	console.log(blue("Config"));
 	console.log(formatKeyValue([["  Config", dim(getConfigPath())]]));
 	console.log("");
 
-	// Log file sizes
 	try {
 		const { getLogsDir } = await import("../lib/dev-state.ts");
 		const logsDir = getLogsDir();
@@ -251,7 +239,6 @@ async function runLocalDoctor(jsonOutput?: boolean): Promise<void> {
 		}
 	} catch {}
 
-	// Issues
 	console.log(blue("Issues"));
 	if (report.issues.length === 0) {
 		console.log(`  ${green("None")}`);

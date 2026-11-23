@@ -90,8 +90,6 @@ const traits = {
 	directHelpers: TRAIT_CONTRACTS.directHelpers,
 };
 
-// ── User Actions ──
-
 export async function deposit(
 	client: Client,
 	params: DepositParams,
@@ -178,8 +176,6 @@ export async function withdrawIdle(
 		},
 	);
 }
-
-// ── Read-only Queries ──
 
 export async function getStSTXBalance(
 	client: Client,

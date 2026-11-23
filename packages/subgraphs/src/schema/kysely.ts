@@ -39,7 +39,6 @@ function renderTable(tableName: string, table: SubgraphTable): string {
 	for (const [colName, col] of Object.entries(table.columns)) {
 		let type = KYSELY_TYPE[col.type];
 		if (col.nullable) type = `${type} | null`;
-		// A DB-side default makes the column optional on insert — Generated<> models that.
 		if (col.default !== undefined) type = `Generated<${type}>`;
 		lines.push(`  ${colName}: ${type};`);
 	}
@@ -63,13 +62,11 @@ export function generateKyselySchema(
 		renderTable(name, table),
 	);
 
-	// DB registry — schema-qualified keys so `db.selectFrom("schema.table")` resolves.
 	const dbEntries = Object.keys(def.schema).map(
 		(name) => `  "${schemaName}.${name}": ${pascalCase(name)};`,
 	);
 	const dbRegistry = `export interface DB {\n${dbEntries.join("\n")}\n}`;
 
-	// Selectable row aliases for ergonomic typed reads.
 	const rowExports = Object.keys(def.schema).map(
 		(name) =>
 			`export type ${pascalCase(name)}Row = Selectable<${pascalCase(name)}>;`,

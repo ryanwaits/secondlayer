@@ -76,16 +76,6 @@ export type ConsumeSbtcOptions = {
 	}) => void | Promise<void>;
 };
 
-/**
- * Registry-events decoder — `print` events on `<network>.sbtc-registry`.
- * Writes to `sbtc_events`. Tracks via the `decode.sbtc.v1` checkpoint.
- *
- * Uses `batchSize: 100` and a server-side `contractId` filter for the
- * same reason BNS does: limit=500 against the broader streams scan
- * exceeds Bun's fetch socket timeout, and an unfiltered scan from a
- * stale checkpoint compounds it. See `decoders/bns.ts` for the original
- * lesson learned.
- */
 export async function consumeSbtcRegistryDecodedEvents(
 	opts: ConsumeSbtcOptions = {},
 ): Promise<{ cursor: string | null; pages: number; decoded: number }> {
@@ -216,7 +206,6 @@ export function decodeRegistryPrint(event: StreamsEvent): SbtcEventRow | null {
 	const topicRaw = tuple.topic;
 	if (typeof topicRaw !== "string") return null;
 	if (!VALID_TOPICS.has(topicRaw as SbtcEventTopic)) {
-		// Unknown topic from a future protocol revision — log + skip.
 		logger.warn("sbtc_decoder.unknown_topic", {
 			cursor: event.cursor,
 			topic: topicRaw,
@@ -363,17 +352,13 @@ export function depositRecipient(
 }
 
 function decodeClarityPayload(payload: Record<string, unknown>): unknown {
-	// Prefer canonical hex form (raw_value) over structured `value`.
-	// See bns.decodeClarityPayload for rationale.
 	const hex = clarityHex(payload);
 	if (hex !== null) return cvToValue(deserializeCV(hex));
 	const value = payload.value;
-	// Already deserialized (test fixtures sometimes hand us a plain object)
 	if (value && typeof value === "object" && !Array.isArray(value)) return value;
 	return null;
 }
 
-/** A print payload's serialized Clarity value, without `0x`; null when absent. */
 function clarityHex(payload: Record<string, unknown>): string | null {
 	const value = payload.value;
 	const hex =
@@ -385,8 +370,6 @@ function clarityHex(payload: Record<string, unknown>): string | null {
 	if (typeof hex !== "string") return null;
 	return hex.startsWith("0x") ? hex.slice(2) : hex;
 }
-
-// ── Clarity → typed-row coercions ─────────────────────────────────────
 
 function asString(value: unknown): string | null {
 	return typeof value === "string" ? value : null;

@@ -12,7 +12,6 @@ import { scheduleCron } from "./cron-schedule.ts";
 const INTERVAL_MS = 60 * 60 * 1000;
 const RETENTION_MS = 30 * 24 * 60 * 60 * 1000;
 
-/** Deletes sessions and magic links expired more than 30 days before `now`. */
 export async function purgeExpiredAuthRecords(
 	now = new Date(),
 ): Promise<{ sessions: number; magicLinks: number }> {

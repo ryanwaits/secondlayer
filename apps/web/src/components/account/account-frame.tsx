@@ -6,22 +6,11 @@ import { useAuth } from "@/lib/auth";
 import { insightsSnapshot, startInsightsPolling } from "@/lib/insights-store";
 import { useEffect } from "react";
 
-/**
- * The account pages frame. The tabs, the chain heartbeat and the current
- * view's CLI command live in the top bar (MarketingNav renders them on
- * /account), and Keys lives in the account menu. The
- * keys and credits flows also open as sheets from that menu; these pages are
- * the home for them, and where Stripe returns a top-up. On phones (≤640px)
- * the bottom tab bar and large-title header replace the top bar (globals.css
- * hides it).
- */
 export function AccountFrame({
 	children,
 	signedOut = false,
 }: {
 	children: React.ReactNode;
-	/** The server saw no session cookie: the sign-in card is in the HTML and
-	 *  no page mounts. An expired cookie still falls back to `/auth/me` below. */
 	signedOut?: boolean;
 }) {
 	const { account, loading, unreachable } = useAuth();

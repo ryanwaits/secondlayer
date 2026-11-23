@@ -1,5 +1,3 @@
-// Client-side verifier for a trustless Stacks index: check Clarity state
-// against Nakamoto headers with zero trust in the serving node.
 export { type Bytes, hex, unhex } from "./bytes.ts";
 export {
 	type Epoch2Header,

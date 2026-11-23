@@ -22,7 +22,6 @@ export function checkoutReducer(
 ): CheckoutFlow {
 	switch (event.type) {
 		case "start":
-			// A second tap while the first is opening does nothing.
 			return flow.step === "redirecting" ? flow : { step: "redirecting" };
 		case "fail":
 			return flow.step === "redirecting"

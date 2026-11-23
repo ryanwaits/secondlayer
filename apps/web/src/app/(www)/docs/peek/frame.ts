@@ -1,29 +1,16 @@
-/**
- * The frame a peek opens in: a hairline box under the link's block with a bar
- * (the crumb, Pin, Open page, close), the borrowed nodes, and a clamp with a
- * "Show all" when they run long. Plain DOM, built with `textContent`; the
- * trail drives it and owns what the buttons do (they carry `data-peek`). The
- * frame is its own scope (`data-scope`), so names in the borrowed prose and
- * code resolve inside it and not against the page it sits on.
- */
-
 import type { PeekKind } from "../trail-store";
 
-/** The body's height while clamped: about ten lines. */
 const CLAMP = 248;
-/** A body this close to the clamp is shown whole rather than cut for a few lines. */
 const SLACK = 40;
 
 export type Frame = {
 	el: HTMLElement;
-	/** The borrowed nodes arrived: name the frame, fill the body, clamp if long. */
 	fill(parts: {
 		title: string;
 		pageTitle: string;
 		nodes: Element[];
 	}): void;
 	markSaved(saved: boolean): void;
-	/** Drop the clamp and the button. */
 	expand(): void;
 	focusSave(): void;
 	close(): void;
@@ -32,7 +19,6 @@ export type Frame = {
 const plural = (count: number, word: string) =>
 	`${count} ${word}${count === 1 ? "" : "s"}`;
 
-/** "1 example, 2 tables, 1 list": what a clamped body still holds. Empty when none. */
 export function countsLabel(counts: {
 	examples: number;
 	tables: number;
@@ -47,7 +33,6 @@ export function countsLabel(counts: {
 		.join(", ");
 }
 
-/** Count the code blocks, tables and lists in a body; nested ones count with their outer. */
 function countsOf(body: Element) {
 	return {
 		examples: [...body.querySelectorAll(".cb")].filter(
@@ -69,10 +54,6 @@ function button(action: string, text: string, className = ""): HTMLElement {
 	return el;
 }
 
-/**
- * Open a frame right after `block` (the article's direct child that holds the
- * link), so the text above it never moves. The body is empty until `fill`.
- */
 export function openFrame(
 	block: Element,
 	{ kind, saved }: { kind: PeekKind; saved: boolean },
@@ -113,7 +94,6 @@ export function openFrame(
 	return {
 		el,
 		fill({ title, pageTitle, nodes }) {
-			// A page peek is the page itself: one name, no "page / section".
 			const whole = kind === "page";
 			el.setAttribute(
 				"aria-label",

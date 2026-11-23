@@ -19,7 +19,6 @@ import { ValidationError } from "@secondlayer/shared/errors";
 
 export type SortDir = "asc" | "desc";
 
-/** Decoded payload of a sorted cursor: the row it left off at. */
 export interface SortedCursorPosition {
 	/** Sort column's value at the cursor row, kept as a string end-to-end —
 	 *  NUMERIC values can exceed `Number.MAX_SAFE_INTEGER`, so this is never
@@ -43,7 +42,6 @@ function invalidCursor(raw: string): ValidationError {
 	return new ValidationError(`invalid cursor: ${raw}`);
 }
 
-/** Builds the opaque cursor string for a `_sort`-paginated page. */
 export function encodeSortedCursor(
 	column: string,
 	order: SortDir,

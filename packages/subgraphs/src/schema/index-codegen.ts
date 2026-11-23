@@ -39,7 +39,6 @@ export interface IndexCodegenOptions {
 
 type IndexTables = typeof SOURCE_READ_TYPES;
 
-/** Resolve the requested tables (validated) → ordered [table, columns] entries. */
 function selectTables(
 	opts: IndexCodegenOptions,
 ): Array<[string, Record<string, IndexColumn>]> {

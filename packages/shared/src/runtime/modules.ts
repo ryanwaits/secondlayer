@@ -1,8 +1,3 @@
-/**
- * Lifecycle modules — each runtime plane exposes start/stop/health so a
- * supervisor can restart one without taking the others down.
- */
-
 import { type Machine, defineMachine } from "../db/transition.ts";
 
 export const MODULE_IDS = [

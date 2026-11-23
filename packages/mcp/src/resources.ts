@@ -20,16 +20,6 @@ import { getClient, readApiKey } from "./lib/client.ts";
 import { formatSubgraphSummary } from "./lib/format.ts";
 import { getRegisteredToolNames } from "./lib/tool.ts";
 
-// SubgraphFilter vocabulary — the per-type fields an agent may set on a source
-// filter. Fields are hand-authored (the per-type breakdown lives only in the
-// SubgraphFilter interfaces), but the drift test in resources.test.ts locks the
-// type set to VALID_FILTER_TYPES and asserts every field is accepted by the
-// `.strict()` SubgraphFilterSchema, so this can never advertise a field the
-// validator rejects. `trait` (TraitScope) indexes all contracts of a standard
-// (e.g. all SIP-010 tokens). `prints` on print_event is type-level only (not a
-// runtime match field) and is intentionally omitted.
-// One-line human blurb per SIP trait standard, keyed by TRAIT_STANDARDS so a new
-// standard forces an entry here.
 const TRAIT_BLURBS: Record<(typeof TRAIT_STANDARDS)[number], string> = {
 	"sip-009": "Non-fungible token (NFT) standard",
 	"sip-010": "Fungible token standard",
@@ -44,8 +34,6 @@ const TRAIT_BLURBS: Record<(typeof TRAIT_STANDARDS)[number], string> = {
 export const FILTERS_REFERENCE: Array<{ type: string; fields: string[] }> =
 	filterFieldsByType();
 
-// Human blurb per column type, keyed by ColumnType so adding a type to the union
-// forces an entry here (the drift test in resources.test.ts asserts full coverage).
 const COLUMN_TYPE_DESCRIPTIONS: Record<ColumnType, string> = {
 	text: "UTF-8 string",
 	uint: "Unsigned integer (Clarity uint) — NUMERIC for lossless 128-bit range",
@@ -56,8 +44,6 @@ const COLUMN_TYPE_DESCRIPTIONS: Record<ColumnType, string> = {
 	jsonb: "Arbitrary JSON data",
 };
 
-// Derived from the subgraphs TYPE_MAP so the type→SQL mapping can't drift behind
-// the deployer (which is what actually creates the columns).
 export const COLUMN_TYPES: Array<Record<string, unknown>> = [
 	...(Object.keys(TYPE_MAP) as ColumnType[]).map((type) => ({
 		type,
@@ -71,9 +57,6 @@ export const COLUMN_TYPES: Array<Record<string, unknown>> = [
 	},
 ];
 
-// One-line human blurb per product surface; the tool list for each is
-// generated from the live tool registry (see buildCapabilities) so it can't
-// drift behind the actual surface.
 const PRODUCT_BLURBS: Record<string, string> = {
 	index: "decoded events, transfers, contract calls, blocks, transactions",
 	streams:
@@ -135,7 +118,6 @@ export function buildCapabilities(server?: McpServer) {
 	};
 }
 
-/** Per-product read-auth tiers — what an agent must know before reading. */
 function readAuthTiers(credential: string, hosted: boolean) {
 	if (hosted) {
 		const reads = `keyed: every read uses ${credential} and is metered to the account's credits (the first 1M rows each month are free)`;
@@ -149,8 +131,6 @@ function readAuthTiers(credential: string, hosted: boolean) {
 	};
 }
 
-/** Credential the resolved API host expects: the account key on the hosted
- *  API, the instance token anywhere else. */
 function credentialLabel(): string {
 	return isHostedApiUrl(resolveBaseUrl())
 		? "SECONDLAYER_API_KEY (an sk-sl_ account key)"
@@ -180,8 +160,6 @@ export async function buildContext(
 ) {
 	const credential = deps.hosted ? HOSTED_CREDENTIAL : credentialLabel();
 	const unavailable = `unavailable: set ${credential}`;
-	// The SDK says why a field is missing; pass that reason through so the
-	// agent can tell an unreachable API from a rejected token.
 	const orNull = <T>(field: ContextField<T> | undefined) => {
 		if (!field) return unavailable;
 		if (field.value != null) return field.value;
@@ -301,7 +279,6 @@ export function registerResources(
 		}),
 	);
 
-	// Webhook triggers: the hosted MCP has no webhook tools.
 	if (!deps.hosted) {
 		server.resource(
 			"chain-triggers",
@@ -322,7 +299,6 @@ export function registerResources(
 		);
 	}
 
-	// Template: 5 camelCased print samples + empirical field list. Host-loadable.
 	// Decoded camel data only — never raw_value hex dumps.
 	server.resource(
 		"samples",

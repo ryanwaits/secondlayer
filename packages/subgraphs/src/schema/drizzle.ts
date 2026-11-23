@@ -13,7 +13,6 @@ import { pascalCase, pgSchemaName, snakeToCamel } from "./utils.ts";
  * them read-only and never `drizzle-kit push`.
  */
 
-/** Subgraph column type → Drizzle pg-core builder. */
 const DRIZZLE_BUILDER: Record<ColumnType, (col: string) => string> = {
 	// numeric() returns string in Drizzle — lossless for Clarity uint128/int128.
 	uint: (c) => `numeric("${c}")`,
@@ -60,7 +59,6 @@ function renderTable(
 		cols.push(`${line},`);
 	}
 
-	// Third-arg table extras: indexes + unique constraints.
 	const extras: string[] = [];
 	for (const [colName, col] of Object.entries(table.columns)) {
 		if (col.indexed) {
@@ -97,7 +95,6 @@ export function generateDrizzleSchema(
 ): string {
 	const schemaName = opts.schemaName ?? pgSchemaName(def.name);
 
-	// Only import the column builders actually used (+ always-used system ones).
 	const used = new Set<string>(["bigserial", "bigint", "text", "timestamp"]);
 	let needsIndex = false;
 	let needsUnique = false;

@@ -72,10 +72,6 @@ function Slider({
 	);
 }
 
-/**
- * Month estimator. The math is `estimateMonth` in `lib/prices.ts`, which
- * mirrors the platform meter; sliders step through fixed, round values.
- */
 export function PricingEstimator() {
 	const [rows, setRows] = useState(6);
 	const [stack, setStack] = useState<StackChoice>("webhooks");

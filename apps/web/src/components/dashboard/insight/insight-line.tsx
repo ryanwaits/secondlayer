@@ -13,7 +13,6 @@ import { useState } from "react";
 import { InsightActions } from "./insight-actions";
 import { InsightCard } from "./insight-card";
 
-/** The class that colors Why: red for failing, yellow for attention. */
 const WHY_TONE: Record<Insight["severity"], string> = {
 	losing: "fail",
 	will_fail: "att",
@@ -21,8 +20,6 @@ const WHY_TONE: Record<Insight["severity"], string> = {
 	recovered: "",
 };
 
-/** Where an insight lives, ahead of its line on the Overview, unless the
- *  line already names it. */
 function homeTag(i: Insight) {
 	const name = insightTargetName(i);
 	return i.line.includes(name) ? null : (
@@ -30,14 +27,6 @@ function homeTag(i: Insight) {
 	);
 }
 
-/**
- * A page's insights as one line, worst first: the worst one, "+N more" and
- * Why. Why opens one grouped card: the list on the left, the chosen insight
- * on the right. Shown or hidden is the reader's choice, kept per insight
- * across pages and visits; until they choose, a new insight that is losing
- * events or about to fail opens it. `inbox` is the Overview's: every insight
- * names its home page and links there. Renders nothing for an empty list.
- */
 export function InsightLine({
 	insights,
 	inbox = false,
@@ -46,9 +35,7 @@ export function InsightLine({
 }: {
 	insights: readonly Insight[];
 	inbox?: boolean;
-	/** Spacing from the page around it. */
 	className?: string;
-	/** Anchor id, for links that scroll to it. */
 	id?: string;
 }) {
 	const saved = useOpenChoices();

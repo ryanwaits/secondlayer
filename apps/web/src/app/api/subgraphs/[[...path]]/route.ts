@@ -4,7 +4,6 @@ import { upstreamAgent } from "@/lib/upstream-agent";
 import { NextResponse } from "next/server";
 import type { Agent } from "undici";
 
-// Next to the API, so each dashboard read and write takes the short hop.
 export const preferredRegion = "fra1";
 
 /**
@@ -20,7 +19,6 @@ export const preferredRegion = "fra1";
 export const dynamic = "force-dynamic";
 
 const SEGMENT_RE = /^[A-Za-z0-9_-]+$/;
-/** The one literal that carries a dot. */
 const SCHEMA_JSON = "schema.json";
 const READ_SUFFIXES = new Set([
 	"health",
@@ -31,14 +29,10 @@ const READ_SUFFIXES = new Set([
 	SCHEMA_JSON,
 ]);
 
-/** Query keys the proxy forwards: `_sort`, `_order`, `cursor` and table
- *  columns with an optional `.gte`-style suffix. Values are validated upstream. */
 const QUERY_KEY_RE = /^[A-Za-z0-9_.]+$/;
 
 type Target = { path: string; stream: boolean };
 
-/** The upstream path for an allowed shape, or null (405). `segments` excludes
- *  the leading `/api/subgraphs`. */
 function targetFor(segments: string[]): Target | null {
 	const [name, kind, table, tail] = segments;
 	if (segments.length === 0) return { path: "/api/subgraphs", stream: false };

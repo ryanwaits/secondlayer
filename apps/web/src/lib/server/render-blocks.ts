@@ -1,8 +1,7 @@
 import { renderCode } from "@/components/code/code";
 import type { CodeBlockInput, RenderedBlock } from "@/lib/code/blocks";
 
-/** Renders TypeScript or shell blocks with the docs code renderer. Renders only the
- *  text it's given, escaped by `renderCode`; reads no account data. */
+/** Renders only the text it's given, escaped by `renderCode`; reads no account data. */
 export async function renderBlocks(
 	blocks: readonly CodeBlockInput[],
 ): Promise<RenderedBlock[]> {

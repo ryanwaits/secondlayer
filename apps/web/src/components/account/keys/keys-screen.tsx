@@ -50,9 +50,7 @@ import {
 } from "./key-view";
 import { NewKeyFlow, createErrorMessage, useKeyFlow } from "./new-key-flow";
 
-/** How long a just-made key's row keeps its yellow dot. */
 export const FRESH_MS = 9_000;
-/** A key's prefix as the list shows it: `sk-sl_` plus 8 characters. */
 const PREFIX_LENGTH = 14;
 
 const FOOTER =
@@ -102,7 +100,6 @@ function KeyPanel({
 	k: ApiKey;
 	now: Date;
 	onRevoke: () => void;
-	/** Omitted where a key can't be rotated. */
 	onRotate?: () => void;
 }) {
 	const flags = keyFlags(k, now);
@@ -236,7 +233,6 @@ function KeyRow({
 	);
 }
 
-/** Inline confirm. `onDone(true)` once the key is revoked, `onDone(false)` on Cancel. */
 export function RevokeConfirm({
 	k,
 	onDone,
@@ -286,10 +282,6 @@ export function RevokeConfirm({
 	);
 }
 
-/**
- * Inline confirm. `onDone` gets the new key once it is rotated, or null on
- * Cancel.
- */
 export function RotateConfirm({
 	k,
 	onDone,
@@ -387,7 +379,6 @@ function MadeForYou({
 	);
 }
 
-/** The empty row once every key is revoked, with the revoked ones a click away. */
 function NoActiveRows({ keys }: { keys: ApiKey[] }) {
 	const [open, setOpen] = useState(false);
 	const gone = revokedOwnKeys(keys).sort((a, b) =>
@@ -415,7 +406,6 @@ function NoActiveRows({ keys }: { keys: ApiKey[] }) {
 	);
 }
 
-/** The keys table: yours, then the ones made for you, which can't be revoked here. */
 export function KeysTable({
 	keys,
 	now,
@@ -426,18 +416,13 @@ export function KeysTable({
 	onRotateBlocked,
 	onRetry,
 }: {
-	/** Null until the list has loaded. */
 	keys: ApiKey[] | null;
 	now: Date;
-	/** The prefix of a key made a moment ago: first row, with a fading yellow dot. */
 	freshPrefix?: string | null;
 	initialOpen?: string | null;
 	madeOpen?: boolean;
-	/** A key was rotated; omitted, rows offer no Rotate. */
 	onRotated?: (key: string, name: string) => void;
-	/** Set while a new key is unseen: Rotate calls it instead of asking to rotate. */
 	onRotateBlocked?: () => void;
-	/** Set when the list failed to load: shown with a Retry. */
 	onRetry?: () => void;
 }) {
 	const [open, setOpen] = useState<string | null>(initialOpen);
@@ -549,30 +534,22 @@ export function KeysTable({
 }
 
 export interface KeysBodyProps {
-	/** Null until the list has loaded. */
 	keys: ApiKey[] | null;
 	insights?: readonly Insight[];
 	now: Date;
 	freshPrefix?: string | null;
-	/** Apps signed in to the hosted MCP; omitted, the section is not shown. */
 	apps?: ConnectedApp[] | null;
-	/** The create flow, when it is open. */
 	flow?: React.ReactNode;
 	onNew: () => void;
 	initialOpen?: string | null;
 	madeOpen?: boolean;
-	/** A key was rotated: its new value, shown once. Omitted, rows offer no Rotate. */
 	onRotated?: (key: string, name: string) => void;
-	/** Set while a new key is unseen: Rotate calls it instead of asking to rotate. */
 	onRotateBlocked?: () => void;
-	/** Set when the keys failed to load: the list shows Retry, not "Loading". */
 	onRetry?: () => void;
-	/** Apps' load failed; set with `onRetryApps`. */
 	appsFailed?: boolean;
 	onRetryApps?: () => void;
 }
 
-/** Keys: one sentence, why a key went quiet, and a row per key. */
 export function KeysBody({
 	keys,
 	insights = [],
@@ -635,20 +612,14 @@ export function KeysBody({
 	);
 }
 
-/** The reasons the Keys tab shows. */
-/** The account rules whose insights live here. */
 const KEY_RULES = rulesHomedAt("/account/keys");
 
-/** /account/keys: every key on the account, and a new one when you need it.
- *  `openNew` (`?new=1`, from the docs' "Make a lasting key") opens New key on
- *  load; the param is then dropped so a reload doesn't open it again. */
 export function KeysScreen({ openNew = false }: { openNew?: boolean }) {
 	const { keys, apps, status } = useAccountData();
 	const { data: allInsights } = useInsights();
 	const compact = useCompact();
 	const router = useRouter();
 	const now = new Date();
-	// An account that never made a key is offered the name step straight away.
 	const firstRun = keyState(keys, now) === "first";
 	const [flow, dispatch] = useKeyFlow(
 		openNew ? KEY_FLOW_NAMING : KEY_FLOW_IDLE,
@@ -678,8 +649,6 @@ export function KeysScreen({ openNew = false }: { openNew?: boolean }) {
 		timer.current = setTimeout(() => setFreshPrefix(null), FRESH_MS);
 	}, []);
 
-	// The unused-key note is re-checked every 5 minutes; once no listed key is
-	// stale (say, it was just revoked) it would only be out of date.
 	const staleOwnKey = hasStaleOwnKey(keys, now);
 
 	const existingNames = groupKeys(keys, now)

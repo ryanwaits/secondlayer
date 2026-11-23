@@ -3,7 +3,6 @@ import type { Billing, Caps } from "@/lib/account-data";
 import { type Insight, rankInsights } from "@/lib/insights";
 import type { WebhooksActivitySummary } from "@/lib/webhooks-data";
 
-/** Insights that need you now: losing or about to fail, worst first. */
 export function needsYou(insights: readonly Insight[]): Insight[] {
 	return rankInsights(
 		insights.filter(
@@ -14,7 +13,6 @@ export function needsYou(insights: readonly Insight[]): Insight[] {
 
 const WINDOW = 24;
 
-/** Delivered and failed per hour across all webhooks, for the last 24 hours. */
 export function last24(summary: WebhooksActivitySummary | undefined): {
 	delivered: number[];
 	failed: number[];
@@ -30,7 +28,6 @@ export function last24(summary: WebhooksActivitySummary | undefined): {
 	return { delivered: sum("delivered"), failed: sum("failed"), hours };
 }
 
-/** Deliveries (delivered + failed) since 00:00 UTC. */
 export function todayEvents(
 	summary: WebhooksActivitySummary | undefined,
 	now: Date,
@@ -53,7 +50,6 @@ function capLabel(cents: number): string {
 		: `$${(cents / 100).toFixed(2)}`;
 }
 
-/** "$40.10 of $50", or "$40.10 · no cap"; null until billing loads. */
 export function spendLine(
 	billing: Billing | null,
 	caps: Caps | null,
@@ -66,7 +62,6 @@ export function spendLine(
 
 const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
 
-/** The all-clear line under "All delivering". */
 export function healthyLine(
 	webhookCount: number,
 	subgraphCount: number,
@@ -74,7 +69,6 @@ export function healthyLine(
 	return `${plural(webhookCount, "webhook")}, ${plural(subgraphCount, "subgraph")}. Nothing failed in 24 h.`;
 }
 
-/** True only once both lists have loaded and both are empty. */
 export function isNewAccount(
 	webhooks: unknown[] | null,
 	subgraphs: unknown[] | null | undefined,
@@ -87,7 +81,6 @@ export function isNewAccount(
 	);
 }
 
-/** "just now", "42s ago", "3 min ago". */
 export function updatedLabel(at: number, now: number): string {
 	const seconds = Math.max(0, Math.floor((now - at) / 1000));
 	if (seconds < 10) return "just now";

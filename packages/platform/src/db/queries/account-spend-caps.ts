@@ -6,11 +6,6 @@ import type {
 } from "@secondlayer/shared/db";
 import type { Kysely } from "kysely";
 
-/**
- * Spend-cap state for an account. Both the metering crons (check + set
- * frozen_at) and the dashboard (read + update caps) call through here.
- */
-
 export async function getCaps(
 	db: Kysely<Database>,
 	accountId: string,
@@ -23,10 +18,6 @@ export async function getCaps(
 	return row ?? null;
 }
 
-/**
- * Upsert semantics: row is created on first write (default threshold
- * 80%), subsequent writes PATCH. `updated_at` is always bumped.
- */
 export async function upsertCaps(
 	db: Kysely<Database>,
 	accountId: string,
@@ -55,8 +46,6 @@ export async function upsertCaps(
 		.executeTakeFirstOrThrow();
 }
 
-/** The two email-debounce marks on a cap row: `frozen_at` (cap-reached email
- *  sent) and `alert_sent_at` (threshold email sent this month). */
 export type CapMark = "frozen_at" | "alert_sent_at";
 
 /**
@@ -104,11 +93,6 @@ export async function releaseCapMark(
 		.execute();
 }
 
-/**
- * Clear the frozen + alert state — called on `invoice.paid` webhook at
- * cycle rollover (new billing period starts fresh) OR when the user
- * explicitly raises their cap above current usage.
- */
 export async function clearFreeze(
 	db: Kysely<Database>,
 	accountId: string,

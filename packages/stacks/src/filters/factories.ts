@@ -19,8 +19,6 @@ import {
 	hasWildcard,
 } from "./validate.ts";
 
-// ── Field metadata driving validation and projections ────────────────────
-
 const PRINCIPAL_FIELDS = new Set([
 	"sender",
 	"recipient",
@@ -29,7 +27,6 @@ const PRINCIPAL_FIELDS = new Set([
 	"lockedAddress",
 ]);
 const AMOUNT_FIELDS = new Set(["minAmount", "maxAmount"]);
-/** Fields with no filtering semantics — safe to drop in a projection. */
 const DECORATIVE_FIELDS = new Set(["abi", "prints"]);
 
 function specEntries(spec: ChainEventFilterSpec): Array<[string, unknown]> {
@@ -99,8 +96,6 @@ function assertNotTraitAndContract(
 		);
 	}
 }
-
-// ── Projections ──────────────────────────────────────────────────────────
 
 function toChainTrigger(spec: ChainEventFilterSpec): ChainTriggerShape {
 	const out: Record<string, string | number> = {};
@@ -285,16 +280,11 @@ function toContractCallsParams(
 }
 
 function toSubgraphSource(spec: ChainEventFilterSpec): ChainEventFilterSpec {
-	// The spec IS the subgraph source shape (camelCase, bigint amounts,
-	// literal prints/abi preserved). Strip the projection methods by copying
-	// data fields only.
 	return Object.fromEntries([
 		["type", spec.type],
 		...specEntries(spec),
 	]) as unknown as ChainEventFilterSpec;
 }
-
-// ── Factory ──────────────────────────────────────────────────────────────
 
 const DECODED_MEMBERS = new Set<ChainEventFilterType>([
 	"stx_transfer",
@@ -361,7 +351,6 @@ export function fromSubgraphSource(
 	) as unknown as ChainEventFilter<SubgraphMemberType>;
 }
 
-/** The fields a filter factory takes for one event type, without `type`. */
 type Fields<T extends ChainEventFilterType> = Omit<SpecFor<T>, "type">;
 
 /** The `on.*` namespace, annotated explicitly — bunup's dts emitter needs an

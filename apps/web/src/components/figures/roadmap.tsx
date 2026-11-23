@@ -1,19 +1,11 @@
 export type RoadmapStop = {
-	/** Short mono label: "Phase 0", "Today". */
 	when: string;
 	title: string;
 	body: string;
-	/** shipped: ink pin. next: the yellow mark. later: an outline. */
 	state: "shipped" | "next" | "later";
-	/** Optional status words under the body ("built · grant pending"). */
 	note?: string;
 };
 
-/**
- * B11 Roadmap — stops on one track, read left to right (top to bottom on a
- * phone). Static on purpose: direction, not dates. Ink means shipped, yellow
- * marks the next stop, outlines are everything after it.
- */
 export function Roadmap({
 	stops,
 	ariaLabel,

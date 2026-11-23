@@ -1,4 +1,3 @@
-// Re-export from parent types for convenience
 export type {
 	StacksTransaction,
 	Authorization,

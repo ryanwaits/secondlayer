@@ -32,7 +32,6 @@ async function lockGaps(db: Kysely<Database>, subgraphId: string) {
 	);
 }
 
-/** Runs `fn` in a transaction, or in the caller's when it already has one. */
 function inTransaction<T>(
 	db: Kysely<Database>,
 	fn: (trx: Kysely<Database>) => Promise<T>,
@@ -42,7 +41,6 @@ function inTransaction<T>(
 
 type Span = { start: number; end: number };
 
-/** `span` minus every range in `taken`: the pieces nothing covers yet. */
 function uncovered(span: Span, taken: Span[]): Span[] {
 	const pieces: Span[] = [];
 	let cursor = span.start;
@@ -90,7 +88,6 @@ export async function recordGapBatch(
 				.execute()
 		).map((r) => ({ start: Number(r.gap_start), end: Number(r.gap_end) }));
 
-		// Each insert also counts as taken for the ones after it in the batch.
 		const taken = [...existing];
 		const rows: Array<{
 			subgraph_id: string;

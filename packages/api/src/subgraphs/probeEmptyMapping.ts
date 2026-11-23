@@ -20,7 +20,6 @@ export type EmptyMappingProbeResult =
 	  }
 	| { ok: false; code: "HANDLER_IMPORT_FAILED"; error: string };
 
-/** Dummy `event.data` value for an observed print-schema field. */
 export function dummyValueForColumnType(columnType: string): unknown {
 	switch (columnType) {
 		case "uint":
@@ -39,7 +38,6 @@ export function dummyValueForColumnType(columnType: string): unknown {
 	}
 }
 
-/** Synthesize minimal print `data` from always_present fields only. */
 export function synthesizePrintData(
 	fields: Array<{
 		camel_name: string;
@@ -55,10 +53,6 @@ export function synthesizePrintData(
 	return data;
 }
 
-/**
- * True when matched events wrote 0 rows after the processor has actually run.
- * Uses already-fetched table rowCounts — no extra COUNT.
- */
 export function isEmptyMappingHealth(input: {
 	totalProcessed: number;
 	totalRows: number;
@@ -96,10 +90,6 @@ function topicsForSource(
 	return topics.filter((t) => t.topic === topicFilter);
 }
 
-/**
- * Import the already-written handler file (same path the processor uses) and
- * probe pinned print sources against dummy observed fields. No Index reads.
- */
 export async function probeEmptyMapping(input: {
 	def: Pick<SubgraphDefinition, "sources" | "schema">;
 	handlerPath: string;

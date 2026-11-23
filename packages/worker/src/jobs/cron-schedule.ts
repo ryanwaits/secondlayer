@@ -1,4 +1,3 @@
-/** Ticks currently running, across every cron in the process. */
 const inFlight = new Set<Promise<unknown>>();
 
 /**
@@ -12,9 +11,7 @@ export function scheduleCron(
 	intervalMs: number,
 ): () => void {
 	const run = () => {
-		const pending = tick().catch(() => {
-			// Each tick reports its own failures; the schedule keeps going.
-		});
+		const pending = tick().catch(() => {});
 		inFlight.add(pending);
 		pending.finally(() => inFlight.delete(pending));
 	};
@@ -26,8 +23,6 @@ export function scheduleCron(
 	};
 }
 
-/** Wait for running ticks to finish, giving up after `timeoutMs`. Returns
- *  how many were still running when it gave up (0 = all settled). */
 export async function settleInFlightTicks(timeoutMs = 10_000): Promise<number> {
 	if (inFlight.size === 0) return 0;
 	let timer: ReturnType<typeof setTimeout> | undefined;
@@ -43,8 +38,6 @@ export async function settleInFlightTicks(timeoutMs = 10_000): Promise<number> {
 	return inFlight.size;
 }
 
-/** Test-only: forget every tracked tick (a test that schedules a never-settling
- *  tick would otherwise leave it here for the rest of the process). */
 export function resetInFlightTicksForTests(): void {
 	inFlight.clear();
 }

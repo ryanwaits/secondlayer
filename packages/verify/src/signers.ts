@@ -6,7 +6,6 @@ import { c32address, hash160 } from "@secondlayer/stacks/utils";
 import { type Bytes, hex } from "./bytes.ts";
 import { type NakamotoHeader, signerSignatureHash } from "./header.ts";
 
-/** Mainnet single-sig (p2pkh) address version. */
 const MAINNET_P2PKH = 22;
 
 /** Boot contract holding `cycle-signer-set`, one entry per reward cycle. */

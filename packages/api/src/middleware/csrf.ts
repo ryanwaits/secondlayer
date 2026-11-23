@@ -30,7 +30,6 @@ import type { MiddlewareHandler } from "hono";
  * operator's box.
  */
 
-/** Error code → 415, mapped in shared `CODE_TO_STATUS`. */
 export const UNSUPPORTED_MEDIA_TYPE = "UNSUPPORTED_MEDIA_TYPE";
 
 /**
@@ -76,7 +75,6 @@ export class UnsupportedMediaTypeError extends Error {
 	}
 }
 
-/** `application/json`, with or without parameters. Nothing else. */
 export function isJsonContentType(value: string | null | undefined): boolean {
 	if (!value) return false;
 	const essence = value.split(";")[0]?.trim().toLowerCase();
@@ -89,22 +87,11 @@ function isExempt(path: string): boolean {
 	);
 }
 
-/** Whether this request carries a payload at all. A body-less POST is how the
- *  console proxy and the SDK invoke action routes (`/stop`, `/pause`,
- *  `/rotate-secret`), and how `reindex` is called with no options. */
 function hasBody(contentLength: string | undefined, body: unknown): boolean {
 	if (contentLength === "0") return false;
 	return body !== null && body !== undefined;
 }
 
-/**
- * Reject writes a browser could have sent without a preflight.
- *
- * - Content-Type present → must be `application/json`.
- * - Content-Type absent  → allowed only when the request carries no payload
- *   *and* no `Origin` header. The inline comment below says why both halves
- *   are needed.
- */
 export function requireJsonWrites(): MiddlewareHandler {
 	return async (c, next) => {
 		const method = c.req.method.toUpperCase();
@@ -132,8 +119,6 @@ export function requireJsonWrites(): MiddlewareHandler {
 		// `Origin` header, which the Fetch spec requires on every cross-origin
 		// request and on every request whose method is not GET/HEAD — so a
 		// browser cannot omit it, and a server-to-server caller never sends it.
-		// Anything failing both tests is not browser-shaped, and body-less writes
-		// from the console proxy and the SDK keep working.
 		const payload = hasBody(c.req.header("content-length"), c.req.raw.body);
 		const browserShaped = c.req.header("origin") !== undefined;
 		if (payload || browserShaped) throw new UnsupportedMediaTypeError(null);

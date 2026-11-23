@@ -17,11 +17,9 @@ preloadContextLineChart();
 
 const DAY_MS = 86_400_000;
 
-/** Tick labels for a window of hourly points: the start, the middle and now. */
 export function hourLabels(count: number): [number, string][] {
 	if (count < 2) return [];
 	const middle = Math.floor((count - 1) / 2);
-	// A week of hourly points reads in days, not "-168h".
 	const ago = (hours: number): string =>
 		count > 48 ? `-${Math.round(hours / 24)}d` : `-${hours}h`;
 	return [
@@ -31,14 +29,12 @@ export function hourLabels(count: number): [number, string][] {
 	];
 }
 
-/** Tooltip heading per hourly point: "14:00 UTC". */
 export function hourPointLabels(
 	hours: readonly SubgraphHealthHour[],
 ): string[] {
 	return hours.map((h) => `${utcClock(h.hour)} UTC`);
 }
 
-/** Rows the subgraph wrote, per hour. */
 export function RowsWrittenPanel({
 	hours,
 	rangeLabel = "24h",
@@ -75,7 +71,6 @@ export function HealthPanelsSkeleton() {
 	);
 }
 
-/** Handler errors seen in the last 24 hours, grouped by message and frame. */
 export function HandlerErrorsPanel({
 	groups,
 	now = Date.now(),

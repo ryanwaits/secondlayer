@@ -102,7 +102,6 @@ function jsonToNumberOrNull(v: JsonBigIntValue | undefined): number | null {
 	throw new Error(`expected bigint/null, got ${JSON.stringify(v)}`);
 }
 
-/** Normalizes ord's `/decode/{txid}` response `.runestone` field. */
 export function normalizeOrdDecode(json: JsonBigIntValue): NormalizedArtifact {
 	const root = asObject(json);
 	if (!root) throw new Error("expected a JSON object");
@@ -181,7 +180,6 @@ export function normalizeOrdDecode(json: JsonBigIntValue): NormalizedArtifact {
 	);
 }
 
-/** Normalizes our own `runestoneDecipher` output into the same shape. */
 export function normalizeOurArtifact(artifact: Artifact): NormalizedArtifact {
 	if (artifact.type === "cenotaph") {
 		const c = artifact.cenotaph;
@@ -262,7 +260,6 @@ export interface DecodeMismatch {
 	ord: NormalizedArtifact;
 }
 
-/** Deciphers `tx` ourselves and diffs it against ord's `/decode/{txid}`. Returns `undefined` if the two sides agree. */
 export async function diffOne(
 	tx: TxLike & { txid: string },
 	ordUrl: string,

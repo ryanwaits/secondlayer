@@ -246,7 +246,6 @@ async function readBlockRange(
 	return result;
 }
 
-/** `state_writes` over the range, scoped to the feed's contracts' keys. */
 async function loadStateWrites(
 	db: Kysely<Database>,
 	fromHeight: number,

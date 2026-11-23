@@ -9,16 +9,6 @@ import {
 	resolveInstanceToken,
 } from "../instance-bind.ts";
 
-/**
- * OSS-mode auth factories.
- *
- * - `noAuth()` — pass-through; no auth context set.
- * - `instanceTokenAuth()` — pass-through when no instance token is set;
- *   otherwise requires `Authorization: Bearer $INSTANCE_TOKEN` (API_KEY alias).
- *
- * Platform mode uses `requireAuth()` from `packages/api/src/auth` directly.
- */
-
 const SKIP_PREFIXES = ["/health", "/public"];
 
 export function shouldSkipInstanceAuth(path: string): boolean {
@@ -27,7 +17,6 @@ export function shouldSkipInstanceAuth(path: string): boolean {
 	);
 }
 
-/** Pass-through middleware — used in OSS mode when no key is configured. */
 export function noAuth(): MiddlewareHandler {
 	return async (_c, next) => {
 		await next();

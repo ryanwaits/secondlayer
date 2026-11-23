@@ -1,6 +1,3 @@
-/**
- * Raw Stacks transaction -> the summary fields Secondlayer stores per tx.
- */
 import { serializeCV } from "@secondlayer/stacks/clarity";
 import {
 	AddressHashMode,
@@ -47,14 +44,10 @@ export function decodeRawTx(rawTx: string, txid?: string): TxSummary | null {
 	try {
 		const tx = deserializeTransaction(rawTx);
 
-		// Get tx type
 		const txType = TX_TYPE_NAMES[tx.payload.payloadType] ?? "unknown";
 
-		// Get sender address from spending condition
 		const { signer, hashMode } = tx.auth.spendingCondition;
 
-		// Determine address version based on tx version and hash mode
-		// tx.version: 0 = mainnet, 128 = testnet
 		const isMainnet = tx.version === 0;
 		const isSingleSig =
 			hashMode === AddressHashMode.P2PKH || hashMode === AddressHashMode.P2WPKH;
@@ -72,7 +65,6 @@ export function decodeRawTx(rawTx: string, txid?: string): TxSummary | null {
 
 		const sender = c32address(addressVersion, signer);
 
-		// Extract contract details if applicable
 		let contractId: string | null = null;
 		let functionName: string | null = null;
 		let functionArgs: string[] | null = null;
@@ -92,7 +84,6 @@ export function decodeRawTx(rawTx: string, txid?: string): TxSummary | null {
 
 		return { txType, sender, contractId, functionName, functionArgs };
 	} catch (error) {
-		// Some transactions can't be decoded - log for debugging and use fallback values
 		logger.warn("Failed to decode raw_tx", {
 			txid,
 			error: String(error).split("\n")[0],

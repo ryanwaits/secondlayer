@@ -13,10 +13,6 @@ export function generateStaticParams(): Params[] {
 	);
 }
 
-/**
- * One variant in one theme, with no lab chrome. The story page embeds it in an
- * iframe for its 400 view, so viewport media queries fire at the real width.
- */
 export default async function FramePage({
 	params,
 }: { params: Promise<Params> }) {

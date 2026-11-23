@@ -1,8 +1,4 @@
 /**
- * "Talk to us" messages. No session: the email is the identity.
- *
- *   POST /api/public/contact  { name, email, message, company?, volume?, source_page? }
- *
  * Mounted only in platform mode. The row is stored first, then the operator
  * (`CONTACT_NOTIFY_EMAIL`) is emailed with Reply-To set to the sender; a
  * failed or skipped email leaves `notified_at` null and still answers 201,
@@ -63,7 +59,6 @@ export type ParsedContact = Omit<
 	source_page: string | null;
 };
 
-/** Trimmed string; null when absent or blank; undefined when not a string. */
 function trimmed(value: unknown): string | null | undefined {
 	if (value === undefined || value === null) return null;
 	if (typeof value !== "string") return undefined;
@@ -71,7 +66,6 @@ function trimmed(value: unknown): string | null | undefined {
 	return t.length === 0 ? null : t;
 }
 
-/** Validates a contact body into an insertable row, or names the bad field. */
 export function parseContact(
 	body: Record<string, unknown>,
 ): Parsed<ParsedContact> {

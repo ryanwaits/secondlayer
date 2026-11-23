@@ -12,11 +12,6 @@ export const metadata: Metadata = {
 	robots: { index: false, follow: false },
 };
 
-/**
- * Internal component lab, outside (www), so no marketing nav or footer.
- * `labEnabled()` is the whole gate, for the shell and the bare frames alike:
- * anything else is a 404.
- */
 export default function LabLayout({ children }: { children: ReactNode }) {
 	if (!labEnabled()) notFound();
 	return children;

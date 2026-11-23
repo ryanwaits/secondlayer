@@ -12,19 +12,10 @@ import { ACCOUNT_RULES, type AccountRuleInput } from "./rules.ts";
 
 export interface AccountEvaluateDeps {
 	now?: Date;
-	/** Injectable for tests; defaults to the platform database queries. */
 	load?: (accountId: string, now: Date) => Promise<AccountRuleInput>;
-	/** Injectable for tests; defaults to the debounced sender. */
 	push?: typeof pushOnce;
 }
 
-/**
- * One pass over one account: run the account rules over its request log,
- * ledger and caps, then persist under the account's scope. Account insights
- * have a single resource: the account itself. Insights that open this pass and
- * have a push preference (`PUSH_RULES`) also go to the account's phones, once
- * per opened insight. Storage and listing do not depend on the push.
- */
 export async function evaluateAccountInsights(
 	db: Kysely<Database>,
 	accountId: string,

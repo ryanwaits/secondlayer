@@ -36,7 +36,6 @@ export function encode(n: bigint): Uint8Array {
 	return Uint8Array.from(out);
 }
 
-/** Returns `[value, bytesConsumed]`. Throws `VarintDecodeError` on malformed input, matching ord's `Result<(u128, usize), Error>`. */
 export function decode(buffer: Uint8Array): [bigint, number] {
 	let n = 0n;
 

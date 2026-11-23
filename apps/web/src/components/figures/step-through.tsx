@@ -3,19 +3,11 @@
 import { useState } from "react";
 
 export type Step = {
-	/** Index of the highlighted line at this step. */
 	now: number;
-	/** Line indices struck through at this step (the crash case). */
 	dead?: number[];
 	caption: string;
 };
 
-/**
- * D3 StepThrough — an algorithm, one move at a time, for logic where
- * the reader must hold intermediate state in their head. Arrow keys
- * work on the stage; the final step often rewinds to the failure case,
- * which is the payoff.
- */
 export function StepThrough({
 	lines,
 	steps,

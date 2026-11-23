@@ -34,7 +34,6 @@ export interface BlockResponse {
 	parent_index_block_hash: string;
 	miner_txid: string;
 	txs: string[];
-	// Full block data varies by endpoint — kept minimal for fetch use case
 }
 
 export class StacksNodeClient {

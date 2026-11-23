@@ -5,7 +5,6 @@ const MAX_CHARS = 1500;
 /** Longest key prefix we echo. Defensive: a prefix is never a whole key. */
 const MAX_PREFIX = 12;
 
-/** The key `/prompt` names: first active one, by name and prefix only. */
 export type KeyHint = { name: string; prefix: string };
 
 export function keyHint(keys: ApiKey[] | null): KeyHint | null {
@@ -30,11 +29,7 @@ function webhookLine(w: WebhookSummary): string {
 	return `Webhook ${w.name}${host ? ` → ${host}` : ""} (${w.status}${failing})`;
 }
 
-/**
- * Plain lines about the reader's account for `/prompt`: attached webhooks
- * first, then the key, then the rest. Keys appear as name + prefix, receivers
- * as host only. Capped at 1500 characters, whole lines only.
- */
+/** Keys appear as name + prefix, receivers as host only. */
 export function accountSummary({
 	keys,
 	webhooks,
@@ -42,7 +37,6 @@ export function accountSummary({
 }: {
 	keys: ApiKey[] | null;
 	webhooks: WebhookSummary[] | null;
-	/** Webhook ids the reader attached with `@`. */
 	attached?: string[];
 }): string {
 	const all = webhooks ?? [];

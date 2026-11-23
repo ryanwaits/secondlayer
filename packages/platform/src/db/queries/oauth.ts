@@ -19,30 +19,24 @@ import { type Kysely, type Transaction, sql } from "kysely";
 
 export const OAUTH_ACCESS_PREFIX = "oat-sl_";
 export const OAUTH_REFRESH_PREFIX = "ort-sl_";
-/** The one scope: use the hosted MCP as the account. */
 export const OAUTH_SCOPE = "mcp";
 
 export interface OauthTtl {
 	readonly accessSeconds: number;
 	readonly refreshMs: number;
-	/** The consent window for an authorize request. */
 	readonly requestMs: number;
 	readonly codeMs: number;
-	/** A registered client that never got a token is dropped after this. */
 	readonly unusedClientMs: number;
 }
 
 export const OAUTH_TTL: OauthTtl = {
 	accessSeconds: 60 * 60,
 	refreshMs: 30 * 24 * 60 * 60 * 1000,
-	/** The consent window for an authorize request. */
 	requestMs: 10 * 60 * 1000,
 	codeMs: 10 * 60 * 1000,
-	/** A registered client that never got a token is dropped after this. */
 	unusedClientMs: 24 * 60 * 60 * 1000,
 };
 
-/** `grants.last_used_at` is written at most this often per grant. */
 const LAST_USED_GRANULARITY = "1 minute";
 
 type Db = Kysely<Database>;
@@ -53,7 +47,6 @@ export function hashOauthSecret(raw: string): string {
 	return createHash("sha256").update(raw).digest("hex");
 }
 
-/** PKCE S256 (RFC 7636 §4.6): BASE64URL(SHA256(verifier)) equals the challenge. */
 export function pkceMatches(verifier: string, challenge: string): boolean {
 	const computed = Buffer.from(
 		createHash("sha256").update(verifier).digest("base64url"),
@@ -72,7 +65,6 @@ export type OauthTokens = {
 	scope: string;
 };
 
-/** An RFC 6749 §5.2 error, for the token endpoint to send as-is. */
 export type OauthTokenError = {
 	error: "invalid_grant" | "invalid_target";
 	error_description: string;
@@ -86,8 +78,6 @@ const grantError = (description: string): OauthTokenResult => ({
 	ok: false,
 	error: { error: "invalid_grant", error_description: description },
 });
-
-// ── clients ─────────────────────────────────────────────────────────────
 
 export async function registerOauthClient(
 	db: Db,
@@ -120,8 +110,6 @@ export async function getOauthClient(
 		? { id: row.id, name: row.name, redirectUris: row.redirect_uris }
 		: null;
 }
-
-// ── authorize requests (answered on the consent page) ───────────────────
 
 export async function createOauthRequest(
 	db: Db,
@@ -156,7 +144,6 @@ export type OauthRequestView = {
 	expiresAt: Date;
 };
 
-/** A request still waiting for an answer, with its client's name; else null. */
 export async function getOpenOauthRequest(
 	db: Db,
 	requestId: string,
@@ -179,7 +166,6 @@ export async function getOpenOauthRequest(
 		: null;
 }
 
-/** Answer a pending request; `then` runs in the same transaction. */
 async function answerRequest<T>(
 	db: Db,
 	requestId: string,
@@ -215,7 +201,6 @@ async function answerRequest<T>(
 	});
 }
 
-/** The person allowed it: mint the one-time code. Null if not pending. */
 export async function approveOauthRequest(
 	db: Db,
 	requestId: string,
@@ -245,7 +230,6 @@ export async function approveOauthRequest(
 	);
 }
 
-/** The person said no. Null if not pending. */
 export async function denyOauthRequest(
 	db: Db,
 	requestId: string,
@@ -259,8 +243,6 @@ export async function denyOauthRequest(
 		async (_trx, row) => ({ redirectUri: row.redirect_uri, state: row.state }),
 	);
 }
-
-// ── tokens ──────────────────────────────────────────────────────────────
 
 async function issueTokens(
 	trx: Transaction<Database>,
@@ -306,8 +288,6 @@ async function issueTokens(
 	};
 }
 
-/** Revoke a grant and delete every token it issued. True when it was live.
- *  With `accountId`, only that account's grant. */
 export async function revokeOauthGrant(
 	db: Db | Transaction<Database>,
 	grantId: string,
@@ -466,8 +446,6 @@ export async function refreshOauthTokens(
 	return grantError(invalid);
 }
 
-/** A live access token's grant and account; null when unknown, expired or
- *  revoked. Callers decide where the token may be used at all. */
 export async function resolveOauthAccessToken(
 	db: Db,
 	raw: string,
@@ -502,8 +480,6 @@ export async function resolveOauthAccessToken(
 	return { grantId: row.id, accountId: row.account_id };
 }
 
-// ── connected apps (the keys page) ──────────────────────────────────────
-
 export type OauthGrantSummary = {
 	id: string;
 	clientName: string;
@@ -511,7 +487,6 @@ export type OauthGrantSummary = {
 	lastUsedAt: Date | null;
 };
 
-/** An account's live grants: not revoked, with a refresh token still valid. */
 export async function listOauthGrants(
 	db: Db,
 	accountId: string,
@@ -541,14 +516,6 @@ export async function listOauthGrants(
 	}));
 }
 
-// ── purge (hourly, worker) ──────────────────────────────────────────────
-
-/**
- * Drop expired requests, codes and tokens, retired refresh tokens past a
- * refresh lifetime, grants with no token left (revoked or run out), clients
- * never used within a day, and clients with no grant left a refresh lifetime
- * after their last use. Returns the rows deleted.
- */
 export async function purgeOauth(
 	db: Db,
 	now: Date = new Date(),

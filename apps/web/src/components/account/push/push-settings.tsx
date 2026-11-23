@@ -150,7 +150,6 @@ function DeviceRow({
 	);
 }
 
-/** The Push segment's markup without the fetching, so tests and the Lab render it. */
 export function PushSettingsView({
 	state,
 	prefs,
@@ -162,7 +161,6 @@ export function PushSettingsView({
 }: {
 	state: PushState;
 	prefs: PushPrefValues;
-	/** On iOS the home-screen hint stays until push is on. */
 	ios?: boolean;
 	busy?: boolean;
 	onToggle: (key: keyof PushPrefValues) => void;
@@ -243,7 +241,6 @@ function PushSkeleton() {
 
 type Loaded = { publicKey: string | null; prefs: PushPrefValues };
 
-/** The phone's Push segment: this device's state and the six toggles. */
 export function PushSettings() {
 	const [loaded, setLoaded] = useState<Loaded | null>(null);
 	const [state, setState] = useState<PushState>("off");
@@ -282,8 +279,6 @@ export function PushSettings() {
 		}, []),
 	);
 
-	// Each toggle shows its own save in flight; a failed one goes back to what
-	// is stored without touching the others.
 	const shown = loaded
 		? (Object.fromEntries(
 				(Object.keys(loaded.prefs) as (keyof PushPrefValues)[]).map((key) => [

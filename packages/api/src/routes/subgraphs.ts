@@ -87,29 +87,20 @@ const app = new Hono();
 // No application-level count check — if a tenant hits their limits, PG
 // simply runs out of resources and we surface it via monitoring.
 
-// Subgraph registry cache — auto-refreshes via PG NOTIFY
 export const cache = new SubgraphRegistryCache(async () => {
 	const db = getDb();
 	return listSubgraphs(db);
 });
 
-/** Start the cache listener. Call once on API startup. */
 export async function startSubgraphCache(): Promise<void> {
 	await cache.start();
 }
 
-/** Stop the cache listener. Call on API shutdown. */
 export async function stopSubgraphCache(): Promise<void> {
 	await cache.stop();
 }
 
-// ── Helpers ─────────────────────────────────────────────────────────────
-// query/SubgraphNotFoundError live in subgraphs/read-core.ts, shared with the
-// open /v1/subgraphs read surface.
-
-/** Columns a redeploy or a fresh start clears when it lifts a halt. */
 const CLEAR_HALT = { last_error: null, last_error_at: null } as const;
-/** An explicit reindex starts over: no resume metadata from a halted run. */
 const FRESH_REINDEX = {
 	...CLEAR_HALT,
 	reindex_from_block: null,
@@ -248,7 +239,6 @@ export function buildSyncInfo(
 	};
 }
 
-/** Persisted (event type, contract) probe pairs — null when not sparse-eligible. */
 function parseProbeTargets(
 	raw: unknown,
 ): { eventType: string; contractId?: string }[] | null {
@@ -264,8 +254,6 @@ function requireSubgraph(subgraphName: string): Subgraph {
 	}
 	return subgraph;
 }
-
-// ── Deploy a subgraph ───────────────────────────────────────────────────
 
 const DATA_DIR = process.env.DATA_DIR ?? "./data";
 
@@ -331,7 +319,6 @@ export function hasDeployStartBlockChanged(input: {
 
 app.post("/", (c) => runSubgraphDeploy(c));
 
-/** Deploy handler for the authed `/api/subgraphs` POST. */
 async function runSubgraphDeploy(c: Context): Promise<Response> {
 	const body = await c.req.json().catch(() => {
 		throw new InvalidJSONError();
@@ -372,8 +359,6 @@ async function executeSubgraphDeploy(
 		mkdirSync(subgraphsDir, { recursive: true });
 	}
 
-	// Unique filename per deploy so import() below loads fresh under Bun (which
-	// ignores ?query cache-busting). Prune older files for this subgraph first.
 	pruneSubgraphHandlerFiles(subgraphsDir, name);
 	const handlerPath = subgraphHandlerPath(subgraphsDir, name);
 	await Bun.write(handlerPath, handlerCode);
@@ -463,9 +448,7 @@ async function executeSubgraphDeploy(
 		const lint = await lintPrintFields(def, printSchemaLookup);
 		printFieldWarnings = lint.warnings;
 		printFieldErrors = lint.errors;
-	} catch {
-		// Non-blocking by contract.
-	}
+	} catch {}
 	// Findings against a DECLARED `prints` map are refusals: the developer
 	// stated the payload shape, so a field no observed event carries is a
 	// defect that would otherwise write nulls for an entire deploy.
@@ -521,7 +504,6 @@ async function executeSubgraphDeploy(
 	);
 	const db = getDb();
 
-	// Dry run: return the DDL plan without touching anything.
 	if (data.dryRun) {
 		const plan = renderDeployPlan(def, planSchemaName);
 		return c.json({
@@ -635,8 +617,6 @@ async function executeSubgraphDeploy(
 
 	await cache.refresh();
 
-	// Auto-trigger initial population (reindex: drop + rebuild) for new deploys
-	// and breaking schema changes.
 	let operationId: string | undefined;
 	let reindexEstimatedEvents: number | undefined;
 	const needsPopulation =
@@ -794,11 +774,6 @@ async function executeSubgraphDeploy(
 	);
 }
 
-// ── Bundle (server-side esbuild for chat authoring loop) ─────────────────
-//
-// Accepts a TypeScript subgraph source and returns the bundled handler +
-// extracted metadata. Called by the web chat session proxy so Vercel
-// serverless can skip esbuild entirely. CLI/MCP still bundle locally.
 // Declared before any `/:subgraphName/...` route so Hono doesn't treat
 // "bundle" as a subgraph name.
 
@@ -865,8 +840,6 @@ app.post("/bundle", async (c) => {
 		return c.json({ ok: false, error: message, code: "BUNDLE_FAILED" }, 400);
 	}
 });
-
-// ── Reindex / backfill operations ─────────────────────────────────────
 
 app.post("/:subgraphName/reindex", async (c) => {
 	const { subgraphName } = c.req.param();
@@ -935,8 +908,6 @@ app.post("/:subgraphName/reindex", async (c) => {
 	}
 });
 
-// ── Stop a running reindex/backfill ──────────────────────────────────
-
 app.post("/:subgraphName/stop", async (c) => {
 	const { subgraphName } = c.req.param();
 	const subgraph = requireSubgraph(subgraphName);
@@ -959,8 +930,6 @@ app.post("/:subgraphName/stop", async (c) => {
 		status: "cancel_requested",
 	});
 });
-
-// ── Halt a subgraph that cannot make progress ───────────────────────────
 
 /** Mark a subgraph `error` with a reason. The workload host calls this (with
  *  the stack's instance token, over loopback) for a subgraph whose handler
@@ -995,8 +964,6 @@ app.post("/:subgraphName/halt", async (c) => {
 
 	return c.json({ message: `Subgraph "${subgraphName}" halted`, reason });
 });
-
-// ── Backfill a subgraph (non-destructive) ────────────────────────────────
 
 app.post("/:subgraphName/backfill", async (c) => {
 	const { subgraphName } = c.req.param();
@@ -1056,9 +1023,6 @@ app.post("/:subgraphName/backfill", async (c) => {
 	}
 });
 
-// ── Delete a subgraph ────────────────────────────────────────────────────
-
-/** How long DELETE waits for a live runner to release a cancelled operation. */
 export const DELETE_OPERATION_WAIT_MS = 5_000;
 
 app.delete("/:subgraphName", async (c) => {
@@ -1105,26 +1069,21 @@ app.delete("/:subgraphName", async (c) => {
 		}
 	}
 
-	// deleteSubgraph drops the PG schema + removes the registry row atomically
 	const { deleteSubgraph } = await import(
 		"@secondlayer/shared/db/queries/subgraphs"
 	);
 	await deleteSubgraph(db, subgraphName);
 
-	// Clean up handler file if it exists
 	if (subgraph.handler_path) {
 		try {
 			unlinkSync(subgraph.handler_path);
 		} catch {}
 	}
 
-	// Refresh cache
 	await cache.refresh();
 
 	return c.json({ message: `Subgraph "${subgraphName}" deleted` });
 });
-
-// ── Hourly health, shared by the single read and the list's `?health=` ──
 
 const HEALTH_MAX_HOURS = 168;
 
@@ -1137,7 +1096,6 @@ const HEALTH_SNAPSHOT_COLUMNS = [
 	"total_processed",
 ] as const;
 
-/** An integer 1 to `HEALTH_MAX_HOURS`; `fallback` when the param is absent. */
 function parseHealthHours(
 	raw: string | undefined,
 	param: string,
@@ -1174,12 +1132,9 @@ function summarizeHealth(
 	};
 }
 
-// ── List all subgraphs ──────────────────────────────────────────────────
-
 app.get("/", async (c) => {
 	const allSubgraphs = cache.getAll();
 
-	// `?health=<hours>` also returns each subgraph's hourly health.
 	const healthParam = c.req.query("health");
 	let healthHours: number | null = null;
 	if (healthParam !== undefined) {
@@ -1189,7 +1144,6 @@ app.get("/", async (c) => {
 	}
 	const now = Date.now();
 
-	// Fetch live stats, chain tip, and gap summaries in parallel
 	const db = getDb();
 	const [liveResult, chainTip, gapSummaries, healthSnapshots] =
 		await Promise.all([
@@ -1246,7 +1200,6 @@ app.get("/", async (c) => {
 	>();
 	for (const g of gapSummaries) gapMap.set(g.subgraphName, g);
 
-	// Approximate row counts per subgraph schema (single pg_stat query)
 	const rowCountMap = new Map<string, number>();
 	try {
 		const { rows } = await sql
@@ -1309,8 +1262,6 @@ app.get("/", async (c) => {
 		}),
 	});
 });
-
-// ── Subgraph metadata + docs ────────────────────────────────────────────
 
 /**
  * The subgraph's active (queued/running) operation, mapped to the `opInfo`
@@ -1425,7 +1376,6 @@ async function readTableStats(
 	return { rowCounts, storageBytes };
 }
 
-// Shared with /v1/subgraphs doc routes.
 export async function buildSubgraphDetailFromRow(
 	subgraph: Subgraph,
 ): Promise<SubgraphDetail> {
@@ -1615,8 +1565,6 @@ app.get("/:subgraphName", async (c) => {
 
 	const schemaEntries = Object.entries(subgraphSchema);
 
-	// Fetch live stats, COUNT queries, chain tip, gaps, and the active op
-	// (ETA/progress source) in parallel
 	const db = getDb();
 	const [
 		{ rowCounts, storageBytes: storageByTable },
@@ -1702,7 +1650,6 @@ app.get("/:subgraphName", async (c) => {
 		};
 	}
 
-	// Use live DB values for stats, fall back to cache
 	const live = liveRow ?? subgraph;
 	const totalProcessed = live.total_processed;
 	const totalErrors = live.total_errors;
@@ -1712,7 +1659,6 @@ app.get("/:subgraphName", async (c) => {
 		0,
 	);
 
-	// Build sync object
 	const totalMissingBlocks = gapResult.gaps.reduce((sum, g) => sum + g.size, 0);
 	const hasGaps = gapResult.total > 0;
 	const sync = buildSyncInfo(
@@ -1728,8 +1674,6 @@ app.get("/:subgraphName", async (c) => {
 				reason: g.reason,
 			})),
 		},
-		// An active history fill ALWAYS reads as history_filling — a clean
-		// tip-first fill records no gap rows, but the history is still absent.
 		activeOpResult.activeOpKind === "backfill"
 			? "history_filling"
 			: hasGaps
@@ -1772,8 +1716,6 @@ app.get("/:subgraphName", async (c) => {
 	});
 });
 
-// ── Get source (for chat read/edit loop) ───────────────────────────────
-
 app.get("/:subgraphName/source", async (c) => {
 	const { subgraphName } = c.req.param();
 	const subgraph = requireSubgraph(subgraphName);
@@ -1790,8 +1732,6 @@ app.get("/:subgraphName/source", async (c) => {
 		])
 		.where("id", "=", subgraph.id)
 		.executeTakeFirst();
-	// What a replay runs and checks the pin against: the stored bundle and the
-	// canonical JSON its pin hashes. Null for local or older deploys.
 	const replayInputs = {
 		handlerCode: row?.handler_code ?? null,
 		pin: row?.pin ?? null,
@@ -1819,8 +1759,6 @@ app.get("/:subgraphName/source", async (c) => {
 		updatedAt: row.updated_at.toISOString(),
 	});
 });
-
-// ── Subgraph gaps ──────────────────────────────────────────────────────
 
 app.get("/:subgraphName/gaps", async (c) => {
 	const { subgraphName } = c.req.param();
@@ -1861,7 +1799,6 @@ app.get("/:subgraphName/gaps", async (c) => {
 	});
 });
 
-// ── Health history + grouped handler errors ────────────────────────────
 // Declared before `/:subgraphName/:tableName` so neither word is captured
 // as a table name.
 
@@ -1916,7 +1853,6 @@ app.get("/:subgraphName/errors", async (c) => {
 	});
 });
 
-// ── Newest rows across every table ──────────────────────────────────────
 // One call for the dashboard's "Recent rows". Declared before
 // `/:subgraphName/:tableName` so "recent" is never captured as a table name.
 
@@ -1930,7 +1866,6 @@ app.get("/:subgraphName/recent", async (c) => {
 	if (tables.length === 0) return c.json({ data: [] });
 	const schema = ident(subgraphSchemaName(subgraph));
 
-	// One statement picks the newest keys across all tables.
 	const params: unknown[] = [];
 	const perTable = tables.map((table) => {
 		params.push(table);
@@ -1970,7 +1905,6 @@ app.get("/:subgraphName/recent", async (c) => {
 	});
 });
 
-// ── Print-validate violations (control plane; not under /v1) ────────────
 // Declared before `/:subgraphName/:tableName` so "violations" is never
 // captured as a table name.
 
@@ -2022,8 +1956,6 @@ app.get("/:subgraphName/violations", async (c) => {
 	});
 });
 
-// ── Operation status (poll reindex/backfill/stop progress) ───────────────
-
 /**
  * Fraction complete for a tracked operation, or null when nothing has been
  * reported yet. Ordered most- to least-precise:
@@ -2065,7 +1997,6 @@ export function deriveOperationProgress(
 	return null;
 }
 
-/** Map a tracked operation to the public status shape (+ derived progress). */
 function toOperationResponse(
 	op: SubgraphOperation,
 	chainTip: number,

@@ -115,7 +115,6 @@ export async function resolveWebhookRef(
 		};
 	}
 
-	// Non-UUID ref not matched by name → it can't be a valid webhook ID.
 	const UUID_RE =
 		/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 	if (!UUID_RE.test(ref)) {
@@ -212,9 +211,6 @@ function printWebhookDetail(sub: WebhookDetail): void {
 	console.log(JSON.stringify(sub.triggers, null, 2));
 }
 
-/** CLI-only titles for each doctor issue code — kept separate from the
- *  dashboard's own copy in `diagnosis.tsx` (the CLI never needs the button
- *  text the dashboard already has next to it). */
 const DOCTOR_ISSUE_TITLES: Record<DoctorIssueCode, string> = {
 	warning: "This webhook can't fire yet",
 	paused: "This webhook is paused",
@@ -332,7 +328,6 @@ export function buildWebhookTestFixture(input: {
 }): { body: string; headers: Record<string, string>; curl: string } {
 	const nowSeconds = input.nowSeconds ?? Math.floor(Date.now() / 1000);
 	const sub = input.webhook;
-	// Webhooks deliver an apply envelope keyed `chain.{type}.apply`.
 	const type = `chain.${sub.triggers[0]?.type ?? "event"}.apply`;
 	const data = {
 		action: "apply",
@@ -367,7 +362,6 @@ export function buildWebhookTestFixture(input: {
 	return { body, headers, curl };
 }
 
-/** A synthetic (non-persisted) chain event keyed off the first trigger. */
 function representativeRow(sub: WebhookDetail): Record<string, unknown> {
 	return {
 		tx_id: "0xexampletransaction",
@@ -558,7 +552,6 @@ Examples:
 					const msg = err instanceof Error ? err.message : String(err);
 					const status = (err as { status?: number } | undefined)?.status;
 					if (status === 404 || /not found/i.test(msg)) {
-						// Idempotent: second delete is a no-op, not a 500.
 						if (options.json)
 							printJson({ deleted: false, reason: "not_found" });
 						else info(`Webhook "${idOrName}" not found (already deleted?)`);
@@ -832,9 +825,6 @@ export function registerWebhooksCommand(program: Command): void {
 		.command("webhooks")
 		.alias("hooks")
 		.description("Manage webhooks: a signed POST to a URL you run");
-	// Hosted (plan 044): allowed against api.secondlayer.tools when a
-	// SECONDLAYER_API_KEY (sk-sl_*) is set — the gateway on the workload
-	// host resolves that key to a tenant stack. Self-host is unaffected.
 	webhooks.hook("preAction", () => assertInstanceOrAccountKey());
 	attachWebhookSubcommands(webhooks);
 }

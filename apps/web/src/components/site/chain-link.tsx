@@ -1,18 +1,12 @@
 import type { ReactNode } from "react";
 import { type Chain, MARKS } from "./chain-marks";
 
-/**
- * A chain named inline in prose: its mark as a small chip, then the name,
- * underlined as a link. The chip and name never wrap apart. The shapes live
- * in `chain-marks.ts`; the colors come from `.chain-*` rules in site.css.
- */
 export function ChainLink({
 	chain,
 	href,
 	children,
 }: {
 	chain: Chain;
-	/** Where the name leads. Without one, the chip and name read as plain text. */
 	href?: string;
 	children: ReactNode;
 }) {
@@ -31,7 +25,6 @@ export function ChainLink({
 	);
 }
 
-/** A chain's mark alone, in its brand colors (the `.chain-*` rules in site.css). */
 export function ChainMark({ chain }: { chain: Chain }) {
 	const { size, shapes } = MARKS[chain];
 	return (

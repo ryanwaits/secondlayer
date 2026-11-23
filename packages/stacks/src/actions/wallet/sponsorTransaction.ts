@@ -34,7 +34,6 @@ export async function sponsorTransaction(
 		throw new Error("Provider accounts cannot sponsor transactions");
 	}
 
-	// Resolve sponsor nonce
 	const managed = params.nonce == null && client.nonceManager !== undefined;
 	const nonce =
 		params.nonce != null
@@ -52,14 +51,12 @@ export async function sponsorTransaction(
 		throw error;
 	}
 
-	// Create sponsor spending condition
 	const sponsorCondition = createSingleSigSpendingCondition(
 		account.publicKey,
 		nonce,
 		fee,
 	);
 
-	// Set sponsor spending condition on the tx
 	const auth = transaction.auth as SponsoredAuthorization;
 	const sponsored: StacksTransaction = {
 		...transaction,
@@ -69,6 +66,5 @@ export async function sponsorTransaction(
 		},
 	};
 
-	// Sign as sponsor
 	return signSponsorWithAccount(sponsored, account);
 }

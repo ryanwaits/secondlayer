@@ -38,15 +38,10 @@ function piecesHtml(pieces: Piece[], links: boolean): string {
 		.join("");
 }
 
-/**
- * One line of JSDoc prose (inline code and links) as markup. `links: false`
- * keeps a link's text and drops the anchor, for prose that sits inside a link.
- */
 export function inlineHtml(text: string, { links = true } = {}): string {
 	return piecesHtml(parseInline(text.replace(/\s*\n\s*/g, " ").trim()), links);
 }
 
-/** A box on the overview (it is a link, so its prose carries no links of its own). */
 export function mapBoxHtml(
 	href: string,
 	name: string,
@@ -56,7 +51,6 @@ export function mapBoxHtml(
 	return `<a class="sdkr-box" href="${escAttr(href)}"><b>${esc(name)}</b><span>${inlineHtml(blurb, { links: false })}</span>${meta ? `<em>${esc(meta)}</em>` : ""}</a>`;
 }
 
-/** The error family as a preformatted tree; a class without a status says what it is, as inline prose. */
 export function errorTreeHtml(
 	lines: ErrorLine[],
 	href?: (name: string) => string,
@@ -86,7 +80,6 @@ function paramTable(rows: ParamRow[]): string {
 	return `<table class="sdkr-t sdkr-params"><tbody>${body}</tbody></table>`;
 }
 
-/** The parameter groups: required first, options after, the long tail folded. */
 export function paramGroupsHtml(groups: ParamGroup[]): string {
 	const inner = groups
 		.map((g) => {
@@ -113,7 +106,6 @@ function disclosureHtml(label: string, code: string, fields: Field[]): string {
 	return `<details><summary><span>${esc(label)} <b>${esc(code)}</b></span></summary>${fieldListHtml(fields)}</details>`;
 }
 
-/** Callback contexts and what the method returns, each folded over its field table. */
 export function disclosuresHtml(
 	callbacks: Callback[],
 	returns: { type: string; fields: Field[] } | null,
@@ -141,16 +133,10 @@ function glanceRow(m: Method): string {
 	return `<tr data-q="${escAttr(`${m.path} ${m.summary}`.toLowerCase())}"><td class="mn"><a href="#${methodAnchor(m.id)}">${esc(m.path.startsWith("new ") ? m.path : m.id)}(${esc(args)})</a></td><td class="ret">${first ? esc(glanceReturn(first.returns.type)) : ""}</td><td class="use">${inlineHtml(m.summary)}</td></tr>`;
 }
 
-/** The at-a-glance table: method, what it returns, what it is for. */
 export function glanceHtml(methods: Method[]): string {
 	return `<table class="sdkr-t sdkr-glance"><tbody>${methods.map(glanceRow).join("")}</tbody></table>`;
 }
 
-/**
- * The at-a-glance table of a package page: one table, so its columns line up,
- * with a label row where each group starts. A group with no function has no
- * label; the filter hides a label whose rows it has all hidden.
- */
 export function glanceGroupsHtml(
 	groups: { title: string; methods: Method[] }[],
 ): string {
@@ -164,7 +150,6 @@ export function glanceGroupsHtml(
 	return `<table class="sdkr-t sdkr-glance sdkr-glance-pkg"><tbody>${rows}</tbody></table>`;
 }
 
-/** Exported values that are not callable: name, then what they are. */
 export function constantListHtml(constants: Constant[]): string {
 	return constants
 		.map((c) => {
@@ -179,10 +164,8 @@ export function constantListHtml(constants: Constant[]): string {
 		.join("");
 }
 
-/** A type with no summary shows the names of its first fields instead. */
 const FIELDS_SHOWN = 6;
 
-/** "Types on this page": name and one line each; a deprecated alias is struck through with its replacement. */
 export function typeListHtml(types: TypeDoc[]): string {
 	return types
 		.map((t) => {

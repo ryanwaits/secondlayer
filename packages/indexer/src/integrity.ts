@@ -29,7 +29,6 @@ import { ingestNewBlock } from "./ingest.ts";
 import { applyCanonicalChange } from "./reorg.ts";
 import type { NewBlockPayload } from "./types/node-events.ts";
 
-// Auto-backfill state (visible to /health/integrity)
 export const integrityState = {
 	lastCheckAt: null as Date | null,
 	gapCount: 0,
@@ -42,28 +41,18 @@ export const integrityState = {
 	// autoBackfillRemaining/InProgress which reset to 0/false after every attempt —
 	// that reset made a permanently-stuck gap look identical to "caught up").
 	autoBackfillUnfillable: [] as number[],
-	/** Canonical heights whose parent_hash does not match the block below. */
 	brokenLinks: [] as number[],
-	/** Canonical heights where `transactions` doesn't match `blocks.tx_count`. */
 	shortBlocks: [] as ShortBlock[],
-	/** Canonical `(height, tx_index)` pairs held by more than one transaction. */
 	duplicateTxIndexes: [] as DuplicateTxIndex[],
-	/** Canonical blocks anchored to a Bitcoin block below their parent's. */
 	burnHeightRegressions: [] as BurnHeightRegression[],
-	/** Canonical blocks whose events disagree with `blocks.event_count`. */
 	eventCountMismatches: [] as EventCountMismatch[],
-	/** Whether `events_logical_id_uniq` exists; null until the first check. */
 	eventsLogicalIndex: null as EventsLogicalIndexState | null,
-	/** Recent canonical heights whose raw `event_index` is not the event's
-	 *  0-based position in the block (`STREAMS_CURSOR_VERSION` defines it). */
 	eventIndexMismatches: [] as number[],
 	/** Blocks the contract registry trails the tip. Trait-scoped subgraphs wait
 	 *  this long, so a growing value means a stalled registry worker. */
 	registryLagBlocks: null as number | null,
 };
 
-/** Blocks the recent `event_index` check covers. The full-history walk is
- *  `scripts/audit-event-index.ts`. */
 const EVENT_INDEX_WINDOW = 1_000;
 
 // The windowed broken-link query only sees the last 10k blocks, so a break
@@ -76,7 +65,6 @@ let integrityRuns = 0;
 let fullScanLinks: number[] = [];
 let fullScanShortBlocks: ShortBlock[] = [];
 
-// Track when gaps were first seen (for 5-min cooldown)
 const gapFirstSeen = new Map<string, Date>();
 
 function gapKey(gap: Gap): string {
@@ -147,7 +135,6 @@ async function runIntegrityCheck() {
 		integrityState.totalMissing = missing;
 		integrityState.gaps = gaps;
 
-		// Always reconcile last_contiguous_block from actual data
 		await recomputeContiguous(db);
 
 		if (gaps.length === 0) {
@@ -157,7 +144,6 @@ async function runIntegrityCheck() {
 			return;
 		}
 
-		// Track when gaps were first seen
 		const currentKeys = new Set<string>();
 		for (const gap of gaps) {
 			const key = gapKey(gap);
@@ -166,7 +152,6 @@ async function runIntegrityCheck() {
 				gapFirstSeen.set(key, new Date());
 			}
 		}
-		// Clean up gaps that no longer exist
 		for (const key of gapFirstSeen.keys()) {
 			if (!currentKeys.has(key)) {
 				gapFirstSeen.delete(key);
@@ -179,7 +164,6 @@ async function runIntegrityCheck() {
 			ranges: gaps.slice(0, 5).map((g: Gap) => `${g.gapStart}-${g.gapEnd}`),
 		});
 
-		// Task 4.2: Auto-backfill if enabled
 		if (integrityState.autoBackfillEnabled) {
 			await autoBackfill(gaps);
 		}
@@ -188,9 +172,6 @@ async function runIntegrityCheck() {
 	}
 }
 
-/** Recent-window row checks surfaced on /health/integrity. The full-history
- *  versions of the tx_index and burn-height checks run in the daily canonical
- *  audit. */
 async function checkRowInvariants(db: ReturnType<typeof getSourceDb>) {
 	integrityState.duplicateTxIndexes = await findDuplicateTxIndexes(db, {
 		limit: 20,
@@ -375,9 +356,8 @@ async function autoBackfill(gaps: Gap[]) {
 	}
 
 	const now = new Date();
-	const cooldownMs = 5 * 60 * 1000; // 5 minutes
+	const cooldownMs = 5 * 60 * 1000;
 
-	// Only fill gaps that have been seen for >5 minutes
 	const staleGaps = gaps.filter((gap) => {
 		const firstSeen = gapFirstSeen.get(gapKey(gap));
 		return firstSeen && now.getTime() - firstSeen.getTime() > cooldownMs;
@@ -401,8 +381,6 @@ async function autoBackfill(gaps: Gap[]) {
 	const db = getSourceDb();
 
 	try {
-		// Phase 1: Try local DB for each gap height (reprocessing/replays).
-		// Ingest in-process — see tip-follower for why self-POST is wrong.
 		const remainingHeights = new Set<number>();
 		for (const gap of staleGaps) {
 			for (let height = gap.gapStart; height <= gap.gapEnd; height++) {
@@ -497,7 +475,6 @@ export function startIntegrityLoop(intervalMs = 300_000): () => void {
 		autoBackfill: integrityState.autoBackfillEnabled,
 	});
 
-	// Run immediately on start
 	runIntegrityCheck();
 
 	const timer = setInterval(runIntegrityCheck, intervalMs);

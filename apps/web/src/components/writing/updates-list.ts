@@ -1,9 +1,5 @@
 import { PUBLIC_API_URL } from "@/lib/public-api";
 
-/**
- * Spends a subscriber token on the updates list (`unsubscribe`,
- * `resubscribe`); the confirmed address on success, null otherwise.
- */
 export async function postUpdatesToken(
 	path: "unsubscribe" | "resubscribe",
 	token: string,
@@ -20,16 +16,6 @@ export async function postUpdatesToken(
 	return res.ok && body?.email ? body.email : null;
 }
 
-/**
- * What this browser knows about its reader's place on the updates list, so
- * the signup form steps aside for someone already on it. Readers without an
- * account have nothing else; signed-in readers get the account's answer
- * instead. A per-browser convenience only: storage can be empty, blocked or
- * throw, and the form then simply shows.
- *
- *   pending    joined here, confirmation link not clicked yet (no token)
- *   confirmed  confirmed or resubscribed here; token is the unsubscribe link's
- */
 export type UpdatesMemory =
 	| { status: "pending"; email: string }
 	| { status: "confirmed"; email: string; token: string };

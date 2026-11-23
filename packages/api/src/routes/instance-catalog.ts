@@ -20,10 +20,6 @@ export function createInstanceCatalogRouter() {
 		}),
 	);
 
-	// Operational vitals for the console: process uptime, database footprint,
-	// 24h webhook delivery outcomes, and a rows-processed series derived from
-	// health snapshots. Everything here is cheap aggregates; an unreachable
-	// table degrades to null rather than failing the whole payload.
 	app.get("/metrics", async (c) => {
 		const db = getDb();
 		const uptimeSeconds = Math.floor((Date.now() - PROCESS_STARTED_AT) / 1000);
@@ -75,9 +71,6 @@ export function createInstanceCatalogRouter() {
 			deliveries = null;
 		}
 
-		// Total rows processed over recent snapshots, bucketed hourly — the
-		// overview sparkline. Per subgraph take the hour's max cumulative
-		// counter, then sum across subgraphs. Sparse snapshots → fewer points.
 		let rowsSeries: { t: string; rows: number }[] = [];
 		try {
 			const buckets = await sql<{ t: string; rows: string }>`

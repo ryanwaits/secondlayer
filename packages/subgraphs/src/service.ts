@@ -1,5 +1,3 @@
-// Subgraph processor service entry point
-// Run with: bun run packages/subgraphs/src/service.ts
 import { assertDbSplit, getDb } from "@secondlayer/shared/db";
 import { logger } from "@secondlayer/shared/logger";
 import { sql } from "kysely";
@@ -33,7 +31,6 @@ const processor = await startSubgraphProcessor({
 await writeHeartbeat();
 const heartbeatInterval = setInterval(writeHeartbeat, HEARTBEAT_INTERVAL_MS);
 
-// Graceful shutdown
 const shutdown = async () => {
 	logger.info("Shutting down subgraph processor...");
 	clearInterval(heartbeatInterval);

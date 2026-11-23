@@ -50,20 +50,10 @@ import type { Agent } from "undici";
 import { publicSource } from "./public-source";
 import { renderBlocks } from "./render-blocks";
 
-/**
- * What a dashboard page reads on the server, so its HTML arrives with the
- * data in it. These go straight to the platform API with the session cookie
- * as the bearer (the same calls the `/api/*` proxies make for the browser),
- * and map every status to the same `WebhooksResult` kinds the browser side
- * uses, so a starting, asleep or unfunded stack reads the same either way.
- * Reads only: nothing here starts a stack.
- */
+/** Reads only: nothing here starts a stack. */
 
-/** A path segment from the URL; same rule as the proxies. */
 const SEGMENT_RE = /^[A-Za-z0-9_-]+$/;
 
-/** One authenticated GET against the platform API. Never throws: a read the
- *  API doesn't answer in time is `null`. */
 async function fetchApi(
 	token: string,
 	path: string,
@@ -72,16 +62,13 @@ async function fetchApi(
 		const res = await fetch(`${PLATFORM_API_URL}${path}`, {
 			headers: { Authorization: `Bearer ${token}` },
 			cache: "no-store",
-			// Why: reuse warm connections to the API; undici's default drops idle ones after 4 s.
 			dispatcher: upstreamAgent,
 			signal: AbortSignal.timeout(UPSTREAM_READ_TIMEOUT_MS),
 		} as RequestInit & { dispatcher: Agent });
 		let body: unknown = null;
 		try {
 			body = await res.json();
-		} catch {
-			// An empty error body falls through to the status-only message.
-		}
+		} catch {}
 		return { res, body };
 	} catch (err) {
 		logIfTimeout(err, path);
@@ -89,9 +76,6 @@ async function fetchApi(
 	}
 }
 
-/** One authenticated GET as a result. A read the API doesn't answer in time
- *  comes back as an error, so the page renders without that slice and the
- *  browser loads it. */
 async function readApiOnce<T>(
 	token: string,
 	path: string,
@@ -101,12 +85,9 @@ async function readApiOnce<T>(
 	return resultFromResponse<T>(got.res, got.body);
 }
 
-/** `readApi` with its answers shared by `memoize` (React's per-request
- *  `cache`): a layout and its page asking for the same path reach the API once. */
 export function sharedReadApi(
 	memoize: <A extends unknown[], R>(fn: (...args: A) => R) => (...args: A) => R,
 ): typeof readApiOnce {
-	// Memoizing erases the generic; the answer is still the caller's `T`.
 	return memoize(readApiOnce) as typeof readApiOnce;
 }
 
@@ -114,7 +95,6 @@ export const readApi = sharedReadApi(cache);
 
 const NOT_FOUND: WebhooksResult<never> = { kind: "not_found" };
 
-/** `{ data: T[] }` list responses as their rows. */
 function rowsOf<T>(res: WebhooksResult<{ data: T[] }>): WebhooksResult<T[]> {
 	return res.kind === "ok" ? { kind: "ok", data: res.data.data } : res;
 }
@@ -128,12 +108,8 @@ function emptyOnNotFound<T>(
 	return res.kind === "not_found" ? { kind: "ok", data: empty } : res;
 }
 
-// ── Account ──────────────────────────────────────────────────────────────
-
-/** The account read: the account, `rejected` when the API refused the session
- *  (401/403: expired or invalid), or `unavailable` when it didn't answer in
- *  time or failed. Only a rejection means signed out; for an unavailable API
- *  the browser asks `/api/auth/me`, which also clears a stale cookie. */
+/** Only a rejection means signed out; for an unavailable API the browser asks
+ *  `/api/auth/me`, which also clears a stale cookie. */
 export type AccountReadResult =
 	| { kind: "ok"; account: Account }
 	| { kind: "rejected" }
@@ -150,7 +126,6 @@ export async function accountRead(token: string): Promise<AccountReadResult> {
 		: { kind: "unavailable" };
 }
 
-/** The account reads a page can ask for, one per store slice. */
 export type AccountRead =
 	| "billing"
 	| "caps"
@@ -161,9 +136,6 @@ export type AccountRead =
 	| "usage"
 	| "rows";
 
-/** Reads the asked-for slices at once and returns the ones that came back ok,
- *  in store shape. A slice that failed is left out, and the browser loads it
- *  when the page mounts. */
 export async function accountReads(
 	token: string,
 	wanted: readonly AccountRead[],
@@ -232,8 +204,6 @@ export async function accountReads(
 	return seed;
 }
 
-// ── Webhooks ─────────────────────────────────────────────────────────────
-
 export interface WebhooksListInitial {
 	list: WebhooksResult<WebhookSummary[]>;
 	summary: WebhooksResult<WebhooksActivitySummary>;
@@ -253,7 +223,6 @@ export async function webhooksListReads(
 }
 
 export interface WebhookDetailInitial extends DetailFetch {
-	/** The "Listens for" code frames, rendered for this webhook's version. */
 	listens: RenderedBlock[] | null;
 }
 
@@ -299,9 +268,7 @@ export async function webhookDetailReads(
 			listens = await renderBlocks(
 				listensForCode(webhook.data, activityData).blocks,
 			);
-		} catch {
-			// The page falls back to plain code and `/api/code`.
-		}
+		} catch {}
 	}
 	return {
 		webhook,
@@ -311,11 +278,8 @@ export async function webhookDetailReads(
 	};
 }
 
-// ── Subgraphs ────────────────────────────────────────────────────────────
-
 export type SubgraphsListInitial = WebhooksResult<SubgraphListItem[]>;
 
-/** The list with every subgraph's week of hourly health, as the browser asks. */
 export async function subgraphsListReads(
 	token: string,
 ): Promise<SubgraphsListInitial> {
@@ -331,9 +295,7 @@ export interface SubgraphDetailInitial {
 	health: WebhooksResult<SubgraphHealthData>;
 	errors: WebhooksResult<SubgraphErrorGroup[]>;
 	source: WebhooksResult<SubgraphSource>;
-	/** The newest rows of the biggest tables; null when the detail didn't load. */
 	rows: RecentRowsData | null;
-	/** The "Tables" code frames, rendered for this subgraph's version. */
 	tableBlocks: RenderedBlock[] | null;
 }
 

@@ -125,7 +125,6 @@ export function injectSourceAbis(
 				keyText(p.name, sf) === "abi",
 		);
 		if (hasAbi) continue;
-		// Right after the source's opening `{`.
 		inserts.push({
 			pos: src.initializer.getStart(sf) + 1,
 			text: ` abi: ${JSON.stringify(abi)},`,
@@ -138,9 +137,6 @@ export function injectSourceAbis(
 	return out;
 }
 
-/** For `ts.isStringLiteralLike(name) || ts.isNumericLiteral(name)` return the
- * bare text; otherwise fall back to the identifier's source text. Both
- * quoted and unquoted keys resolve to the same bare key. */
 function keyText(name: ts.PropertyName, sf: ts.SourceFile): string {
 	if (ts.isStringLiteralLike(name) || ts.isNumericLiteral(name)) {
 		return name.text;
@@ -207,10 +203,6 @@ function evalLiteral(node: ts.Expression, sf: ts.SourceFile): unknown {
 	);
 }
 
-/**
- * Find the sole top-level `defineSubgraph({...})` call in the source.
- * Throws on zero or more than one match — never guesses.
- */
 function findSoleDefineSubgraphArg(
 	sf: ts.SourceFile,
 ): ts.ObjectLiteralExpression {

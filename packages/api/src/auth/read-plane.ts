@@ -20,7 +20,6 @@ import { instanceTokenMatches, isLoopbackReachable } from "../instance-bind.ts";
  * token. Callers may pass `{ platform: true }` only in tests.
  */
 
-/** Tenant id for a caller who authenticated with the instance's own token. */
 export const INSTANCE_TENANT_ID = "tenant_instance";
 
 const HINT =
@@ -53,7 +52,6 @@ export function invalidCredentialError(): AuthenticationError {
  * authoritative at call time, not at module load.
  */
 export function allowsAnonymousRead(opts?: {
-	/** Explicit pin. Tests use it. Production callers should omit it. */
 	platform?: boolean;
 	env?: NodeJS.ProcessEnv;
 }): boolean {
@@ -61,7 +59,6 @@ export function allowsAnonymousRead(opts?: {
 	return isLoopbackReachable(opts?.env ?? process.env);
 }
 
-/** The bearer token on a request, or null when there is no usable one. */
 export function bearerToken(c: Context): string | null {
 	const header = c.req.header("authorization");
 	if (!header?.startsWith("Bearer ")) return null;

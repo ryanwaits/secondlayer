@@ -129,7 +129,6 @@ export function watchVerdict(subgraph: {
 		: { kind: "running" };
 }
 
-/** Consecutive failed polls `status --watch` rides out before giving up. */
 const WATCH_TRANSIENT_FAILURE_LIMIT = 3;
 
 /** Bundle a subgraph source through the same stubbed build the remote deploy
@@ -151,8 +150,6 @@ export async function loadSubgraphDefinition(
 	return { mod: await import(url), bundled };
 }
 
-/** Run `bunx tsc --noEmit` against the handler file using the user's local
- *  TypeScript install. Throws if the type-check reports any errors. */
 async function typecheckHandler(absPath: string): Promise<void> {
 	await new Promise<void>((res, rej) => {
 		const child = spawn(
@@ -232,7 +229,6 @@ export function collectPinnedPrintSources(
 	return out;
 }
 
-/** codegen flags that only apply to ORM targets — rejected with --payloads. */
 const ORM_ONLY_CODEGEN_FLAGS: Record<string, string> = {
 	target: "--target",
 	schema: "--schema",
@@ -365,7 +361,6 @@ async function writeOrPrintSubgraphSpec(
 	success(`Created ${outPath}`);
 }
 
-/** Build an API spec from a local subgraph .ts file (bundle → synthetic detail). */
 async function specFromLocalFile(
 	absPath: string,
 	format: SubgraphSpecFormat,
@@ -631,11 +626,6 @@ export function formatVerificationStatus(
 		: head;
 }
 
-/**
- * Scan the bundle and derive the level the server will derive, so a
- * nondeterministic handler on provable sources fails here, with positions in
- * the author's files, before anything is uploaded.
- */
 function checkDeterminism(
 	def: Pick<SubgraphDefinition, "sources" | "backfillMode">,
 	findings: HandlerFinding[],
@@ -769,7 +759,6 @@ function formatSubgraphSync(sync: {
 	const processedBlocks = sync.processedBlocks;
 	const progress = `${(sync.progress * 100).toFixed(1)}%`;
 
-	// Queued: position + estimated start beat a meaningless 0%.
 	if (sync.queue) {
 		const pos =
 			sync.queue.position != null
@@ -791,7 +780,6 @@ function formatSubgraphSync(sync: {
 		};
 	}
 
-	// Event-based progress for sparse syncs: "41% of ~38k events · est 6m".
 	if (
 		sync.estimatedEvents != null &&
 		sync.estimatedEvents > 0 &&
@@ -848,7 +836,6 @@ export function registerSubgraphsCommand(program: Command): void {
 
 	subgraphs.hook("preAction", () => assertInstanceOrAccountKey());
 
-	// --- new ---
 	subgraphs
 		.command("create <name>")
 		.description(
@@ -945,8 +932,6 @@ Examples:
 								name,
 								topics: schema.topics,
 								tablePerTopic: opts.tablePerTopic,
-								// Stamp the inference provenance into the file — `prints`
-								// is empirical, and a reader deserves the sample size.
 								sample: schema.sample,
 							}),
 							scaffoldStartBlock(schema),
@@ -979,7 +964,6 @@ Examples:
 			},
 		);
 
-	// --- add ---
 	subgraphs
 		.command("add <file>")
 		.description(
@@ -1053,7 +1037,6 @@ Examples:
 			},
 		);
 
-	// --- dev ---
 	subgraphs
 		.command("dev <file>")
 		.description("Watch a subgraph file and auto-redeploy on change")
@@ -1071,7 +1054,6 @@ Examples:
 
 			const deploySubgraph = async () => {
 				try {
-					// Clear module cache for hot reload
 					delete require.cache[absPath];
 					const mod = await import(`${absPath}?t=${Date.now()}`);
 					const def = mod.default ?? mod;
@@ -1108,7 +1090,6 @@ Examples:
 						);
 					}
 
-					// Show handler stats
 					const handlerKeys = Object.keys(def.handlers);
 					info(`  Handlers: ${handlerKeys.join(", ")}`);
 				} catch (err) {
@@ -1116,13 +1097,10 @@ Examples:
 				}
 			};
 
-			// One deploy at a time; saves during a deploy collapse into one re-run.
 			const runner = createCoalescedRunner(deploySubgraph);
 
-			// Initial deploy
 			await runner.trigger();
 
-			// Watch with debounce
 			let timeout: ReturnType<typeof setTimeout> | null = null;
 			const watcher = watch(absPath, () => {
 				if (timeout) clearTimeout(timeout);
@@ -1133,7 +1111,6 @@ Examples:
 				}, 300);
 			});
 
-			// Graceful shutdown
 			process.on("SIGINT", () => {
 				watcher.close();
 				if (timeout) clearTimeout(timeout);
@@ -1141,11 +1118,9 @@ Examples:
 				process.exit(0);
 			});
 
-			// Keep process alive
 			await new Promise(() => {});
 		});
 
-	// --- deploy ---
 	subgraphs
 		.command("deploy <file>")
 		.alias("update")
@@ -1216,7 +1191,6 @@ Examples:
 						await typecheckHandler(absPath);
 					}
 
-					// Load and validate locally for fast feedback
 					info(`Loading subgraph from ${absPath}`);
 					const { validateSubgraphDefinition } = await import(
 						"@secondlayer/subgraphs/validate"
@@ -1281,7 +1255,6 @@ Examples:
 					if (genesis) warn(genesis);
 
 					if (config.network !== "local") {
-						// ── Remote deploy ──────────────────────────────────────
 						info(
 							`${dryRun ? "Bundling for remote deploy dry run" : "Bundling for remote deploy"} (${config.network})...`,
 						);
@@ -1309,8 +1282,6 @@ Examples:
 							return;
 						}
 
-						// The server decides whether this creates, updates, or reindexes.
-						// Always forward startBlock — CLI flag takes priority, then definition file.
 						const deployStartBlock = startBlock ?? effectiveDef.startBlock;
 
 						// Destructive-deploy confirmation runs BEFORE the request: the
@@ -1380,8 +1351,6 @@ Examples:
 								: {}),
 						});
 
-						// Advisory deploy lints (e.g. handler reads a print field never
-						// observed on-chain) — surface but never block.
 						for (const w of result.warnings ?? []) warn(w);
 
 						// The server's derivation is authoritative; an older server
@@ -1419,9 +1388,7 @@ Examples:
 								info(
 									`  Watch:     secondlayer subgraphs status ${effectiveDef.name}`,
 								);
-							} catch {
-								// Footer is decorative — never block deploy on URL derivation
-							}
+							} catch {}
 						};
 
 						if (result.action === "unchanged") {
@@ -1435,14 +1402,12 @@ Examples:
 							);
 							printVerification();
 						} else if (result.action === "created") {
-							// Fresh deploy — no existing data to drop, no confirmation needed
 							success(
 								`Subgraph "${effectiveDef.name}" created → v${result.version}`,
 							);
 							printVerification();
 							await printDeployFooter();
 						} else if (result.action === "reindexed") {
-							// Show diff if available
 							if (result.diff) {
 								const { addedTables, addedColumns, breakingChanges } =
 									result.diff;
@@ -1466,7 +1431,6 @@ Examples:
 							printVerification();
 							await printDeployFooter();
 						} else {
-							// "updated" — additive changes, no confirmation needed
 							if (result.diff) {
 								const { addedTables, addedColumns } = result.diff;
 								if (addedTables.length > 0)
@@ -1482,9 +1446,6 @@ Examples:
 							await printDeployFooter();
 						}
 					} else {
-						// ── Local deploy ───────────────────────────────────────
-						// The local processor runs the file itself, so the bundle is
-						// only scanned, using the bundle built when the file loaded.
 						const verification = checkDeterminism(
 							effectiveDef,
 							bundled.findings,
@@ -1547,7 +1508,6 @@ Examples:
 			},
 		);
 
-	// --- list ---
 	subgraphs
 		.command("list")
 		.alias("ls")
@@ -1591,7 +1551,6 @@ Examples:
 			}
 		});
 
-	// --- status ---
 	subgraphs
 		.command("status <name>")
 		.alias("get")
@@ -1633,7 +1592,6 @@ Examples:
 							remaining: "N/A",
 						};
 
-				// Gap summary
 				const gapSummary =
 					sync && sync.gaps.count > 0
 						? `${sync.gaps.count} unresolved (${sync.gaps.totalMissingBlocks} missing blocks)`
@@ -1673,7 +1631,6 @@ Examples:
 					console.log(dim(`\nRun: secondlayer subgraphs gaps ${name}`));
 				}
 
-				// Show table endpoints
 				const tableEntries = Object.entries(subgraph.tables);
 				if (tableEntries.length > 0) {
 					console.log(dim("\nTable endpoints:"));
@@ -1730,7 +1687,6 @@ Examples:
 			}
 		});
 
-	// --- spec (deployed subgraph name OR local .ts file) ---
 	subgraphs
 		.command("spec <nameOrFile>")
 		.description(
@@ -1781,7 +1737,6 @@ Examples:
 			},
 		);
 
-	// --- test (run handlers against real chain data, no deploy) ---
 	subgraphs
 		.command("test <file>")
 		.description(
@@ -1799,9 +1754,6 @@ Examples:
   $ secondlayer subgraphs test subgraphs/bns-names.ts --from 167484 --to 167600
   $ secondlayer subgraphs test subgraphs/bns-names.ts --offline`,
 		)
-		// Wrapped: an escaping rejection here used to print the SDK's stack trace
-		// through packages/sdk/dist. Bundler, import, and cassette failures now
-		// take the same actionable path every other command's errors take.
 		.action(async (file: string, options) => {
 			const { runSubgraphTest } = await import("./subgraph-test.ts");
 			await withErrorHandling(runSubgraphTest, {
@@ -1809,7 +1761,6 @@ Examples:
 			})(file, options);
 		});
 
-	// --- preview (per-event IN/OUT against a small Index sample) ---
 	subgraphs
 		.command("preview <file>")
 		.description(
@@ -1832,7 +1783,6 @@ Examples:
 			})(file, options);
 		});
 
-	// --- reindex ---
 	subgraphs
 		.command("reindex <name>")
 		.description(
@@ -1878,7 +1828,6 @@ Examples:
 			},
 		);
 
-	// --- backfill ---
 	subgraphs
 		.command("backfill <name>")
 		.description("Backfill a block range without dropping existing data")
@@ -1930,7 +1879,6 @@ Examples:
 			},
 		);
 
-	// --- stop ---
 	subgraphs
 		.command("stop <name>")
 		.description("Stop a running reindex or backfill operation")
@@ -1954,7 +1902,6 @@ Examples:
 			}
 		});
 
-	// --- operations ---
 	subgraphs
 		.command("operations <name> [operationId]")
 		.description(
@@ -2028,7 +1975,6 @@ Examples:
 			},
 		);
 
-	// --- source ---
 	subgraphs
 		.command("source <name>")
 		.description("Print the source of a deployed subgraph definition")
@@ -2078,7 +2024,6 @@ Examples:
 			},
 		);
 
-	// --- gaps ---
 	subgraphs
 		.command("gaps <name>")
 		.description("Show block gaps for a subgraph")
@@ -2135,7 +2080,6 @@ Examples:
 			},
 		);
 
-	// --- query ---
 	subgraphs
 		.command("query <name> <table>")
 		.description("Query a subgraph table")
@@ -2246,7 +2190,6 @@ Examples:
 			},
 		);
 
-	// --- delete ---
 	subgraphs
 		.command("delete <name>")
 		.alias("rm")
@@ -2286,7 +2229,6 @@ Examples:
 			},
 		);
 
-	// --- scaffold ---
 	subgraphs
 		.command("scaffold [contractAddress]")
 		.description(
@@ -2365,7 +2307,6 @@ Examples:
 
 					let content: string;
 					if (trait) {
-						// Trait mode — no contract to fetch.
 						info(`Generating trait-scoped scaffold for ${trait}...`);
 						content = await generateSubgraphScaffold({
 							trait,

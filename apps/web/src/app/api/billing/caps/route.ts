@@ -2,7 +2,6 @@ import { ApiError, apiRequest, getSessionFromRequest } from "@/lib/api";
 import { crossSiteRefusal } from "@/lib/same-origin";
 import { NextResponse } from "next/server";
 
-// Next to the API, so each dashboard read and write takes the short hop.
 export const preferredRegion = "fra1";
 
 type Caps = {
@@ -12,7 +11,6 @@ type Caps = {
 	alertSentAt: string | null;
 };
 
-/** The signed-in account's monthly spend-cap setting. */
 export async function GET(req: Request) {
 	const started = performance.now();
 	const sessionToken = getSessionFromRequest(req);
@@ -24,7 +22,6 @@ export async function GET(req: Request) {
 			sessionToken,
 		});
 		const upstream = performance.now() - started;
-		// Single-call control for the insights timings: one upstream read, no fan-out.
 		return NextResponse.json(caps, {
 			headers: {
 				"Server-Timing": `upstream;dur=${upstream.toFixed(1)}, total;dur=${upstream.toFixed(1)}`,

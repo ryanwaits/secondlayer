@@ -50,10 +50,6 @@ export type RangeDigest = {
 	digest_spec: typeof RANGE_DIGEST_SPEC;
 };
 
-/**
- * Identity columns per dataset. `blocks` carries the whole corruption surface
- * we care about, which is why quick mode leans on it.
- */
 function identityExpression(dataset: RangeDigestDataset) {
 	switch (dataset) {
 		case "blocks":

@@ -1,14 +1,11 @@
 import tips from "@/generated/tips.json";
 
-/** What a tip shows. Never a link: `route` and `anchor` only let a tip light its row on that reference page. */
+/** Never a link: `route` and `anchor` only let a tip light its row on that reference page. */
 export type Tip = {
 	kind: "method" | "type" | "endpoint";
 	summary: string;
-	/** Methods: one line from the first overload. */
 	sig?: string;
-	/** Types: the first fields. */
 	fields?: { name: string; type: string }[];
-	/** Fields past the ones listed. */
 	more?: number;
 	route: string;
 	anchor: string;

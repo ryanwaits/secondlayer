@@ -46,7 +46,6 @@ export function getStripeOrNull(): Stripe | null {
 	return instance;
 }
 
-/** Webhook signing secret — only needed when the webhook route is mounted. */
 export function getStripeWebhookSecret(): string {
 	const secret = process.env.STRIPE_WEBHOOK_SECRET;
 	if (!secret) {

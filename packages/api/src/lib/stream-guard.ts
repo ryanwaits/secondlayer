@@ -4,13 +4,6 @@ import { keyLiveness } from "../auth/key-state.ts";
 import { checkRowsAllowance, isGhostAccount } from "./read-credits.ts";
 import { getSlotCounter } from "./slot-counter.ts";
 
-/**
- * Gates for a live SSE connection. The HTTP gates run once when it opens;
- * a stream then serves pages for as long as the caller stays, so the same
- * conditions are re-checked while it runs and the connection is bounded.
- */
-
-/** Live SSE connections one metered account may hold at once. */
 export const STREAM_MAX_CONNECTIONS_PER_ACCOUNT = 3;
 /** A connection is closed after this long (platform). The SDK reconnects from
  *  its cursor; a raw client does the same with `from_cursor`. */
@@ -18,15 +11,12 @@ export const STREAM_MAX_AGE_MS = 15 * 60_000;
 /** How often an open connection re-reads the allowance and the key. A paying
  *  account's connection costs two indexed lookups per interval, not per poll. */
 export const STREAM_RECHECK_MS = 10_000;
-/** Rows served between checks before one is forced early. */
 const STREAM_RECHECK_ROWS = 10_000;
-/** A slot whose holder died frees itself; outlasts the age limit. */
 const STREAM_SLOT_TTL_MS = STREAM_MAX_AGE_MS + 5 * 60_000;
 
 export const STREAM_BUSY_MESSAGE = `An account may hold ${STREAM_MAX_CONNECTIONS_PER_ACCOUNT} live streams at once. Close one and retry.`;
 
 export type StreamTiming = {
-	/** Poll cadence of the tail loop. */
 	pollMs?: number;
 	recheckMs?: number;
 	maxAgeMs?: number;
@@ -38,11 +28,6 @@ type StreamTenant = {
 	api_key_id?: string;
 };
 
-/**
- * Take one of the account's live-connection slots, held until `release`.
- * `"busy"` when it already holds the maximum. Nothing is held for anon,
- * internal or self-host callers.
- */
 export async function beginStreamConnection(
 	tenant: StreamTenant | undefined,
 ): Promise<"busy" | { release: () => Promise<void> }> {
@@ -58,8 +43,6 @@ export async function beginStreamConnection(
 	return release ? { release } : "busy";
 }
 
-/** Why a connection is being ended; `body` goes to the caller in the final
- *  `end` event. */
 export type StreamEnd = { reason: string; body: Record<string, unknown> };
 
 async function keyEnd(apiKeyId: string): Promise<StreamEnd | null> {

@@ -3,12 +3,6 @@ const PLOT_RIGHT = 640;
 const ROW_H = 34;
 const BAR_H = 16;
 
-/**
- * C2 BarChart — horizontal magnitude comparison. Thin marks, rounded on
- * the data end only, every bar direct-labeled (the dataviz-method
- * alternative to a hover legend). Scale runs to `domainMax` so a chart
- * can deliberately show small bars against a larger domain.
- */
 export function BarChart({
 	bars,
 	domainMax,
@@ -16,9 +10,7 @@ export function BarChart({
 	ariaLabel,
 }: {
 	bars: { label: string; value: number; display?: string }[];
-	/** Axis maximum; defaults to the largest value. */
 	domainMax?: number;
-	/** Axis note at the bottom right ("seeks to resume"). */
 	unit?: string;
 	ariaLabel: string;
 }) {

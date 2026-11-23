@@ -29,13 +29,11 @@ export const CONTRACTS_RATE_LIMITS = {
 	anonymous: { limit: 5, windowMs: 1_000 },
 } as const;
 
-/** ABI blobs are large: an ABI page is capped well below a summary page. */
 const MAX_LIMIT = 500;
 const MAX_LIMIT_WITH_ABI = 100;
 
 function contractsRateLimit(): MiddlewareHandler<IndexEnv> {
 	return async (c, next) => {
-		// Self-host is single-tenant: the operator's own box, no fairness throttle.
 		if (!isPlatformMode()) return next();
 		const tenant = c.get("indexTenant");
 		if (tenant?.tier === "internal") return next();
@@ -70,7 +68,6 @@ export type ContractsRouterOptions = {
 	tokens?: IndexTokenStore;
 };
 
-/** Public projection — the ABI blob is omitted by default (opt in via ?include=abi). */
 function toSummary(c: Contract, includeAbi: boolean) {
 	return {
 		contract_id: c.contract_id,
@@ -86,11 +83,6 @@ function toSummary(c: Contract, includeAbi: boolean) {
 	};
 }
 
-/**
- * Contract discovery — "find all contracts conforming to a trait" (SIP-009/010/013).
- * Backed by the contract registry: `declared` traits parsed from Clarity source,
- * `inferred` standards from static ABI shape-matching. Anonymous public read.
- */
 export function createContractsRouter(opts: ContractsRouterOptions = {}) {
 	const getDbHandle = opts.getSourceDb ?? getSourceDb;
 	const listContractsByTrait =
@@ -98,7 +90,6 @@ export function createContractsRouter(opts: ContractsRouterOptions = {}) {
 	const getContract = opts.getContract ?? defaultGetContract;
 
 	const app = new Hono<IndexEnv>();
-	// Anonymous reads stay open; a key is recognized so it gets its own window.
 	app.use(
 		"*",
 		indexBearerAuth({
@@ -154,7 +145,6 @@ export function createContractsRouter(opts: ContractsRouterOptions = {}) {
 		// read from the chain DB, not the control/target DB, or this 500s with the
 		// split live (target has no `contracts` table).
 		const db = getDbHandle();
-		// Fetch one extra to compute the next cursor without a count query.
 		const rows = await listContractsByTrait(db, trait, {
 			conformance,
 			limit: limit + 1,

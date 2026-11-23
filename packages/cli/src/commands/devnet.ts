@@ -157,7 +157,6 @@ function resolveProject(explicit?: string): string {
 export async function connect(options: ConnectOptions): Promise<void> {
 	const project = resolveProject(options.project);
 
-	// 1. Patch settings/Devnet.toml so the devnet node forwards events to us.
 	const devnetToml = join(project, "settings", "Devnet.toml");
 	mkdirSync(dirname(devnetToml), { recursive: true });
 	const result = ensureEventObserver(devnetToml, DEFAULT_INDEXER_OBSERVER);
@@ -180,7 +179,6 @@ export async function connect(options: ConnectOptions): Promise<void> {
 		);
 	}
 
-	// 2. Write the embedded compose for the published OSS images.
 	const composePath = join(project, COMPOSE_REL);
 	mkdirSync(dirname(composePath), { recursive: true });
 	writeFileSync(
@@ -189,7 +187,6 @@ export async function connect(options: ConnectOptions): Promise<void> {
 	);
 	console.log(`${green("✓")} wrote ${COMPOSE_REL}`);
 
-	// 3. Bring the stack up (unless --no-up).
 	if (!options.up) {
 		console.log(
 			dim(
@@ -281,7 +278,6 @@ async function logs(
 	const args = ["logs", "--tail", options.lines ?? "200"];
 	if (options.follow) args.push("-f");
 	if (service) args.push(service);
-	// stdio is inherited, so `-f` streams until the user Ctrl-C's.
 	process.exit(dockerCompose(composePath, args));
 }
 
@@ -301,12 +297,10 @@ async function jget(url: string): Promise<any | null> {
 	}
 }
 
-/** The generated stack's token, unless the caller exported their own. */
 function statusToken(): string {
 	return resolveEnvKey() ?? DEV_INSTANCE_TOKEN;
 }
 
-// System columns the subgraph runtime adds — hidden from the activity summary.
 const SYS_COLS = new Set([
 	"_id",
 	"_block_height",
@@ -316,7 +310,6 @@ const SYS_COLS = new Set([
 	"tx_id",
 ]);
 
-// Truncate principals / hashes to head…tail; leave short values (amounts) alone.
 export function shortVal(v: unknown): string {
 	const s = typeof v === "object" && v !== null ? JSON.stringify(v) : String(v);
 	return s.length > 18 ? `${s.slice(0, 6)}…${s.slice(-4)}` : s;
@@ -331,7 +324,6 @@ async function renderStatus(limit: number): Promise<string> {
 	]);
 	const out: string[] = [];
 
-	// STACK
 	out.push(bold("STACK"));
 	out.push(
 		`  ${health ? green("●") : red("●")} indexer   ${health ? "healthy" : "down"}   ${dim(":3700")}`,
@@ -347,7 +339,6 @@ async function renderStatus(limit: number): Promise<string> {
 		return out.join("\n");
 	}
 
-	// INGEST
 	const tip = Number(health.lastSeenHeight ?? integrity?.lastIndexedBlock ?? 0);
 	const indexed = Number(integrity?.lastIndexedBlock ?? tip);
 	const lag = Math.max(0, tip - indexed);
@@ -358,7 +349,6 @@ async function renderStatus(limit: number): Promise<string> {
 		`  chain tip ${cyan(String(tip))}   indexed ${indexed}   lag ${lag === 0 ? green("caught up") : yellow(`${lag} blk`)}   ${dim(`last block ${ago != null ? `${ago}s ago` : "?"}`)}`,
 	);
 
-	// SUBGRAPHS
 	// biome-ignore lint/suspicious/noExplicitAny: untyped API rows
 	const subs: any[] = subsRes?.data ?? [];
 	out.push("");
@@ -378,7 +368,6 @@ async function renderStatus(limit: number): Promise<string> {
 		}
 	}
 
-	// ACTIVITY — recent rows across every deployed subgraph table.
 	out.push("");
 	out.push(bold("ACTIVITY") + dim("  (recent)"));
 	const rows: { block: number; table: string; summary: string }[] = [];
@@ -418,7 +407,7 @@ async function status(options: StatusOptions): Promise<void> {
 	}
 	const tick = async () => {
 		const body = await renderStatus(limit);
-		process.stdout.write("\x1b[2J\x1b[H"); // clear + home
+		process.stdout.write("\x1b[2J\x1b[H");
 		console.log(
 			`${dim("secondlayer devnet status")}  ${dim("· ctrl-c to stop")}\n`,
 		);

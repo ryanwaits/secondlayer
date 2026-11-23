@@ -5,18 +5,12 @@ const RAMP = [
 	"var(--fig-role-a)",
 ];
 
-/**
- * C8 HeatCalendar — activity across days when WHEN matters more than how
- * many. Sequential single-hue ramp, lightness monotonic, 2px gaps. Each
- * cell carries a title with the exact value.
- */
 export function HeatCalendar({
 	weeks,
 	unit = "events",
 	legend = true,
 	ariaLabel,
 }: {
-	/** weeks[w][d] = activity level 0–3 (columns are weeks, rows days). */
 	weeks: number[][];
 	unit?: string;
 	legend?: boolean;

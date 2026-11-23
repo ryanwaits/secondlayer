@@ -37,7 +37,7 @@ export interface SetPrimaryParams {
 export interface PreorderParams {
 	name: string;
 	namespace?: string;
-	salt?: Uint8Array; // Optional - auto-generated if not provided
+	salt?: Uint8Array;
 }
 
 export interface RegisterParams {
@@ -49,5 +49,5 @@ export interface RegisterParams {
 export interface UpdateZonefileParams {
 	name: string;
 	namespace?: string;
-	zonefile: string | Uint8Array | null; // null to clear zonefile
+	zonefile: string | Uint8Array | null;
 }

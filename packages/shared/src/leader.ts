@@ -85,7 +85,6 @@ export function createPostgresLeaderBackend(url?: string): LeaderBackend {
 			}
 		},
 		async close() {
-			// Closing the session releases all advisory locks it held.
 			await sql.end({ timeout: 5 });
 		},
 	};

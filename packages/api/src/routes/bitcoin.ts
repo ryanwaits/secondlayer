@@ -26,14 +26,6 @@ import {
 import { debitCreditedRead, indexCreditsGate } from "../index/credits-gate.ts";
 import { validateQueryParams } from "../middleware/validation.ts";
 
-/**
- * `/v1/bitcoin/*`: reads answered live from the instance's own Bitcoin node
- * (`BITCOIN_RPC_URL`; unset → 503). Keyed and metered like Index on hosted:
- * one row per answer.
- */
-
-/** Hosted only, per account (or client IP). Internal keys are exempt. The
- *  bitcoind work behind it is bounded separately (`../bitcoin/outspend.ts`). */
 export const OUTSPEND_RATE_LIMIT = { limit: 20, windowMs: 1_000 } as const;
 
 /** An outpoint's index is a u32 on the wire. */
@@ -41,14 +33,12 @@ const MAX_VOUT = 0xffff_ffff;
 
 export type BitcoinRouterOptions = {
 	tokens?: IndexTokenStore;
-	/** Read per request so the operator's env is authoritative at call time. */
 	bitcoinRpc?: () => BitcoinRpcConfig | undefined;
 	outspend?: OutspendOptions;
 };
 
 function outspendRateLimit(): MiddlewareHandler<IndexEnv> {
 	return async (c, next) => {
-		// Self-host is single-tenant: the operator's own box.
 		if (!isPlatformMode()) return next();
 		const tenant = c.get("indexTenant");
 		if (tenant?.tier === "internal") return next();

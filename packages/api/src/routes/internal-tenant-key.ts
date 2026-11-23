@@ -19,9 +19,6 @@
  * Idempotent/rotating per name: revokes any previous key of that name for the
  * account first, then mints a fresh one, so calling this twice never leaves
  * two keys of the same name active.
- *
- * Guard is the same `workloadHostKeyMatches()` + `bearerToken()` pair
- * `/internal/meters` and `/internal/keys/introspect` use.
  */
 
 import { getDb } from "@secondlayer/shared/db";
@@ -79,8 +76,6 @@ app.post("/", async (c) => {
 			name,
 			product: "tenant",
 			ip: "workload-host",
-			// The evaluator's reads are ours, not the customer's rows; customer
-			// code's reads are the customer's, so that key is metered.
 			internal: name === HOSTED_STACK_KEY_NAME,
 		});
 	});

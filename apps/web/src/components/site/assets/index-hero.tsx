@@ -1,4 +1,3 @@
-/** Three decoded event cards leading to a cursor. Illustrative values. */
 export function IndexHero() {
 	return (
 		<svg

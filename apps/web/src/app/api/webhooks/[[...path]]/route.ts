@@ -4,7 +4,6 @@ import { upstreamAgent } from "@/lib/upstream-agent";
 import { NextResponse } from "next/server";
 import type { Agent } from "undici";
 
-// Next to the API, so each dashboard read and write takes the short hop.
 export const preferredRegion = "fra1";
 
 /**
@@ -23,18 +22,14 @@ const SEGMENT_RE = /^[A-Za-z0-9_-]+$/;
 
 type Method = "GET" | "POST" | "PATCH";
 
-/** Query params the dashboard reads with; everything else is dropped. */
 const FORWARDED_QUERY = ["from", "to", "days", "_limit", "_offset", "wake"];
 
 const MAX_NAME_LENGTH = 128;
 
-/** Matches an allowed (method, path-shape) pair. `segments` excludes the
- *  leading `/api/webhooks`. Anything not matched here is refused with 405,
- *  before it is forwarded to the platform API. */
 function isAllowed(method: Method, segments: string[]): boolean {
 	if (method === "GET") {
-		if (segments.length === 0) return true; // list
-		if (segments.length === 1) return true; // get one
+		if (segments.length === 0) return true;
+		if (segments.length === 1) return true;
 		if (
 			segments.length === 2 &&
 			(segments[1] === "deliveries" ||
@@ -44,7 +39,6 @@ function isAllowed(method: Method, segments: string[]): boolean {
 			return true;
 		}
 		if (segments.length === 2 && segments[1] === "replays") return true;
-		// one delivery, read when a dashboard row is opened; one replay's progress
 		return (
 			segments.length === 3 &&
 			(segments[1] === "deliveries" || segments[1] === "replays")
@@ -62,7 +56,6 @@ function isAllowed(method: Method, segments: string[]): boolean {
 				segments[1] === "replay")
 		);
 	}
-	// PATCH: rename one webhook
 	return segments.length === 1;
 }
 
@@ -77,7 +70,6 @@ function notAvailable() {
 	);
 }
 
-/** The trimmed name when the body is exactly `{ name }` with a 1-128 character string; else null. */
 function nameOnlyBody(body: unknown): string | null {
 	if (typeof body !== "object" || body === null || Array.isArray(body)) {
 		return null;
@@ -94,7 +86,6 @@ function nameOnlyBody(body: unknown): string | null {
 
 const REPLAY_ID_RE = /^[0-9a-f]{16}$/;
 
-/** True when `body` is a plain object whose keys are all in `allowed`. */
 function onlyKeys(body: unknown, allowed: readonly string[]): boolean {
 	return (
 		typeof body === "object" &&
@@ -104,7 +95,6 @@ function onlyKeys(body: unknown, allowed: readonly string[]): boolean {
 	);
 }
 
-/** The cleaned replay request when `body` is `{ fromBlock, toBlock, force? }`; else null. */
 function replayBody(
 	body: unknown,
 ): { fromBlock: number; toBlock: number; force?: string } | null {
@@ -121,7 +111,6 @@ function replayBody(
 	return { fromBlock: from, toBlock: to, force };
 }
 
-/** The cleaned bulk-requeue request when `body` is `{}` or has `replayId` / `since`; else null. */
 function requeueBody(
 	body: unknown,
 ): { replayId?: string; since?: string } | null {

@@ -5,7 +5,6 @@ import { dropAccountKey } from "@/lib/code/docs-key-store";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect } from "react";
 
-/** Show one pane of a tab group; a group without that tab stays as it is. */
 function selectTab(group: HTMLElement, key: string) {
 	const tabs = group.querySelectorAll<HTMLElement>("button[data-tab]");
 	if (![...tabs].some((t) => t.dataset.tab === key)) return;
@@ -15,19 +14,11 @@ function selectTab(group: HTMLElement, key: string) {
 		pane.hidden = pane.dataset.tab !== key;
 }
 
-/**
- * The only JavaScript code blocks need: one delegated click listener for the
- * whole page, mounted once in the layout. Blocks are server-rendered markup
- * with `data-*` hooks; Copy reads the block's own rows.
- */
 export function CodeClient() {
 	const pathname = usePathname();
 	const router = useRouter();
 	const { account, loading, unreachable, login } = useAuth();
 
-	// The docs key: the key module loads only on a page that has a sample to
-	// fill, for every reader. Signed in, the account mints it; signed out, the
-	// API mints one for the tab. Signing out drops the account's key.
 	// biome-ignore lint/correctness/useExhaustiveDependencies: `pathname` re-runs the scan for the samples a soft navigation brings in
 	useEffect(() => {
 		// A session that couldn't be read isn't a sign-out: keep the key.
@@ -43,7 +34,6 @@ export function CodeClient() {
 			load();
 			return;
 		}
-		// A sample that mounts later (the API drawer) loads it when it arrives.
 		const arrivals = new MutationObserver((records) => {
 			for (const record of records)
 				for (const node of record.addedNodes)
@@ -61,9 +51,6 @@ export function CodeClient() {
 		return () => arrivals.disconnect();
 	}, [account, loading, unreachable, login, router, pathname]);
 
-	// Tips: the module loads on the first page that has one, and a soft
-	// navigation closes whatever was open. A tip that mounts later (the API
-	// drawer) loads it when it arrives.
 	// biome-ignore lint/correctness/useExhaustiveDependencies: `pathname` re-runs the scan for the tips a soft navigation brings in
 	useEffect(() => {
 		const load = () =>
@@ -75,7 +62,6 @@ export function CodeClient() {
 			load();
 			return;
 		}
-		// The page we left may have left a popover open.
 		if (document.querySelector(".tip-box"))
 			import("./tips").then((m) => m.dismiss());
 		const arrivals = new MutationObserver((records) => {
@@ -101,15 +87,12 @@ export function CodeClient() {
 
 			const copy = target.closest<HTMLElement>("[data-copy-button]");
 			if (copy) {
-				// A tab group's Copy takes the visible pane; a block's own Copy its block.
 				const tabs = copy.closest(".cb-tabs");
 				const block = tabs
 					? tabs.querySelector<HTMLElement>(
 							'[role="tabpanel"]:not([hidden]) [data-copyable]',
 						)
 					: copy.closest<HTMLElement>("[data-copyable]");
-				// Copy is what the rows say, so the Base URL switch's current value
-				// comes along and removed diff lines do not.
 				const text = [
 					...(block?.querySelectorAll(".cb-body .row:not(.del)") ?? []),
 				]
@@ -157,7 +140,6 @@ export function CodeClient() {
 			const tab = target.closest<HTMLElement>("button[data-tab]");
 			const group = tab?.closest<HTMLElement>(".cb-tabs");
 			if (tab && group) {
-				// Every group on the page with this sync key follows, where it has the tab.
 				const sync = group.dataset.sync;
 				const groups = sync
 					? document.querySelectorAll<HTMLElement>(

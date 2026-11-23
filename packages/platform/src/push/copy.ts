@@ -1,8 +1,3 @@
-/**
- * Every push string, and the rule to preference map, in one place. Pure: no
- * I/O. Copy says what happened and what it means, in plain words, with no em
- * dashes. URLs are same-origin paths the service worker opens.
- */
 import { utcTime } from "@secondlayer/shared/insights";
 import type { PushKind } from "../db/queries/push.ts";
 import type { PushPayload } from "./send.ts";

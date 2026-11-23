@@ -14,14 +14,6 @@ import {
 import { useMediaQuery } from "./use-media-query";
 
 /**
- * A5 Sidenote — a numbered aside for hedges, sources, and precision
- * upgrades that would break the paragraph's stride.
- *
- * Two presentations, chosen per post via `notes` in the writings registry:
- *
- *   inline    a ruled aside dropped into the column, always visible
- *   popover   the column stays unbroken; the marker opens the note
- *
  * There is deliberately no margin variant any more. Notes used to float into
  * the margin at a fixed -216px offset, which clipped silently the moment the
  * post shell moved. Both of these are independent of page geometry, so the
@@ -29,9 +21,6 @@ import { useMediaQuery } from "./use-media-query";
  *
  * Popovers want a pointer, so a coarse-pointer device gets the inline
  * treatment regardless of what the post asked for.
- *
- * Usage: place inside the paragraph right after the referenced phrase, with
- * the note body as children.
  */
 export function Sidenote({
 	n,
@@ -40,7 +29,6 @@ export function Sidenote({
 }: {
 	n: number;
 	children: ReactNode;
-	/** Overrides the post's mode for a single note. Rarely needed. */
 	variant?: "inline" | "popover";
 }) {
 	const pathname = usePathname();
@@ -81,8 +69,6 @@ function SidenotePopover({
 	const wrapRef = useRef<HTMLSpanElement | null>(null);
 	const cardRef = useRef<HTMLSpanElement | null>(null);
 
-	// Keep the card inside the reading column — a marker near the end of a line
-	// would otherwise open a card that runs off the measure.
 	useLayoutEffect(() => {
 		if (!open) {
 			setShift(0);

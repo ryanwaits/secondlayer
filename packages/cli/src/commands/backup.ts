@@ -1,7 +1,4 @@
 /**
- * `secondlayer backup` / `secondlayer restore` — the operator lifecycle the
- * self-host docs previously described but did not ship.
- *
  * The index can be rebuilt from the archive. The keys cannot. So the bundle
  * carries both, the keys are encrypted under an operator passphrase, and a
  * restore refuses before writing anything if the key the instance will actually

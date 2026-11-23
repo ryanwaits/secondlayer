@@ -93,7 +93,6 @@ export interface RunSubgraphTestInput {
 	trace?: boolean;
 }
 
-/** Tx fields the live runner copies onto `ctx.tx` / `event.tx` from an Index row. */
 function txFromRow(row: IndexTestRow): Partial<TxMeta> {
 	const r = row as Record<string, unknown>;
 	return {
@@ -107,8 +106,6 @@ function txFromRow(row: IndexTestRow): Partial<TxMeta> {
 	};
 }
 
-/** A print source's `where` against an Index print row's decoded tuple —
- *  the same equality the live matcher applies. */
 function indexPrintWhereAllows(
 	where: Record<string, string | readonly string[]> | undefined,
 	row: IndexEventRow,
@@ -186,8 +183,6 @@ export function toHandlerPayload(
 			tx,
 		};
 	}
-	// Token/STX events: the Index row is already flat and camel-free; map the
-	// snake_case wire names onto the handler payload names.
 	return {
 		...(r.sender !== undefined ? { sender: r.sender } : {}),
 		...(r.recipient !== undefined ? { recipient: r.recipient } : {}),
@@ -284,7 +279,6 @@ function unusedInKeysAcross(traces: EventTrace[]): string[] | undefined {
 			for (const k of o.keys) outKeys.add(k);
 		}
 	}
-	// Compare camel IN keys to snake OUT columns loosely: tokenX ↔ token_x.
 	const outNormalized = new Set(
 		[...outKeys].map((k) => k.replace(/_/g, "").toLowerCase()),
 	);

@@ -1,4 +1,3 @@
-/** A consumer reading events in order with a saved cursor. Illustrative values. */
 export function StreamsHero() {
 	return (
 		<svg

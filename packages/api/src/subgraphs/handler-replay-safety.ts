@@ -30,28 +30,20 @@ const METHODS = DELTA_CTX_METHODS.join("|");
  * 2. `ctx["update"]` — bracket access with a string key.
  * 3. `const { update } = ctx` — destructuring a delta method off `ctx`.
  *
- * Known residual gap (needs a real AST / data-flow pass — see ROADMAP): aliasing
+ * Known residual gap: aliasing
  * the context object itself (`const c = ctx; c.update(...)`) or a computed key
  * (`ctx[name]`). Those require scope tracking a regex can't do safely.
  */
 const PATTERNS: RegExp[] = [
-	// Member access (dot or optional-chain), called or referenced.
 	new RegExp(`\\bctx\\s*\\??\\.\\s*(?:${METHODS})\\b`),
-	// Bracket access with a quoted key: ctx["update"] / ctx['increment'].
 	new RegExp(`\\bctx\\s*\\[\\s*(['"\`])(?:${METHODS})\\1\\s*\\]`),
-	// Destructuring off ctx: const { update, ... } = ctx.
 	new RegExp(`\\{[^{}]*\\b(?:${METHODS})\\b[^{}]*\\}\\s*=\\s*ctx\\b`),
 ];
 
-/**
- * Back-compat export: the original member-call pattern. Prefer
- * {@link hasNonReplayableWrites}, which applies the full pattern set.
- */
 export const NON_REPLAYABLE_HANDLER_RE = new RegExp(
 	`\\bctx\\.(${METHODS})\\s*\\(`,
 );
 
-/** True when handler/source code applies non-replayable deltas. */
 export function hasNonReplayableWrites(
 	handlerCode: string | null | undefined,
 	sourceCode?: string | null,

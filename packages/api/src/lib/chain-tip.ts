@@ -9,8 +9,6 @@ const CHAIN_TIP_TTL_MS = 2_000;
  *  retries without a timeout, so a slow platform must cost at most this much. */
 const PLATFORM_TIP_TIMEOUT_MS = 500;
 
-/** Platform Index tip: the highest block a hosted subgraph can process.
- *  Authenticates with `INDEX_INTERNAL_API_KEY`, which the tenant api has. */
 async function readPlatformTip(): Promise<number> {
 	let timer: ReturnType<typeof setTimeout> | undefined;
 	const timeout = new Promise<number>((resolve) => {

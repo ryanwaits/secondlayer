@@ -15,16 +15,13 @@ import type {
  * contract may be brand new; empty index must not fail deploy.
  */
 
-/** Identifier after `.data.` — matches how handlers read decoded print fields. */
 const DATA_FIELD_ACCESS = /\.data\.([A-Za-z_$][\w$]*)/g;
 
-/** Tip-free print-schema source; the API injects the cached getPrintSchemaBody. */
 export type PrintSchemaLookup = (
 	contractId: string,
 ) => Promise<{ topics: InferredTopicSchema[] }>;
 
 export interface PrintLintResult {
-	/** Advisory findings on sources that did NOT declare `prints`. */
 	warnings: string[];
 	/**
 	 * Findings on sources that DID declare `prints`. Declaring the schema is
@@ -74,18 +71,14 @@ export async function lintPrintFields(
 		const relevant = filter.topic
 			? topics.filter((t) => t.topic === filter.topic)
 			: topics;
-		// Declared topic never observed → nothing to lint against.
 		if (relevant.length === 0) continue;
 
-		// Handlers see camelized keys on e.data, plus the topic discriminant.
 		const known = new Set<string>(["topic"]);
 		for (const topic of relevant) {
 			for (const field of topic.fields) known.add(field.camel_name);
 		}
 
 		const topicList = relevant.map((t) => t.topic).join(", ");
-		// A declared `prints` map is an explicit claim about the payload shape,
-		// so findings against it are errors rather than advice.
 		const declared = filter.prints !== undefined;
 		const seen = new Set<string>();
 		for (const match of source.matchAll(DATA_FIELD_ACCESS)) {

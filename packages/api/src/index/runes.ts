@@ -1,27 +1,4 @@
 /**
- * Runes read surface — `/v1/index/runes/*` (plan 058, D15: Runes is more data
- * on the existing Index plane, not a new brand). Reads the separate Bitcoin/
- * Runes Postgres (`packages/bitcoin`, D18) through `../bitcoin/db.ts`, and
- * follows the newest Index family (`pox5-events.ts`) section by section:
- * FILTERS const, response row type, a reader with a `db?` seam, raw `sql`,
- * `LIMIT limit+1` keyset pagination, a `getXResponse` that owns cursor/window
- * parsing and the not-configured soft-flag.
- *
- * Four operations:
- *   - `listRunes`    — the rune catalog (search by name prefix, sort by etch
- *                       order or mint count).
- *   - `getRune`      — one rune's full entry, with computed `supply`.
- *   - `listRuneActivity`  — the etch/mint/transfer/burn event log
- *                            (`rune_events`), cursor `<height>:<event_index>`
- *                            like every other decoded-event feed.
- *   - `listRuneBalances`  — current per-outpoint balances (`rune_balances`),
- *                            looked up by address or outpoint.
- *
- * Every rune identity in a response is the same small bundle — `id`, `name`
- * (no spacers), `spaced_name`, `symbol`, `divisibility` — so a client
- * rendering an activity feed or a balance list never needs a second lookup
- * just to show a name (plan 058 decision).
- *
  * `listRunes`/`getRune` read a snapshot table (`rune_entries`) that ingest
  * already keeps reorg-correct — a rewind (`../../packages/bitcoin/src/rewind.ts`)
  * mutates entries/balances in place rather than leaving orphaned rows behind.
@@ -71,32 +48,16 @@ function hasRunesData(tip: BitcoinIndexTip): boolean {
  *  months of Bitcoin blocks instead of one day. */
 const BITCOIN_BLOCKS_PER_DAY = 144;
 
-// ── Identity ─────────────────────────────────────────────────────────────
-
-/** The rune identity bundle every response embeds (plan 058 decision) — a
- *  client never needs a second lookup to show a name next to an event or a
- *  balance. */
 export type RuneRefSummary = {
 	id: string;
-	/** No spacers, uppercase — `rune_entries.name` (migration 0005). */
 	name: string;
-	/** As etched, spacers included (`•`) — `rune_entries.spaced_rune`. */
 	spaced_name: string;
 	symbol: string | null;
 	divisibility: number;
 };
 
-/** `resolveRuneId` inverse-lookup row shape. */
 type RuneEntryIdRow = { rune_id: string };
 
-/** Resolve a `RuneRef` to its canonical `rune_id` for filtering
- *  `rune_events`/`rune_balances` (both key on `rune_id`, not the raw `rune`
- *  integer). An id-form ref needs no round trip — it already *is* the key,
- *  even if it turns out to match no row (the caller's query then just
- *  matches nothing, same as any other unknown filter value). A name-form ref
- *  needs one lookup; `undefined` means no rune has that name, so the caller
- *  should short-circuit to an empty page rather than run a query that can
- *  only ever match zero rows. */
 async function resolveRuneId(
 	ref: RuneRef,
 	db: Kysely<BitcoinDatabase>,
@@ -109,8 +70,6 @@ async function resolveRuneId(
 		.executeTakeFirst();
 	return (row as RuneEntryIdRow | undefined)?.rune_id;
 }
-
-// ── listRunes / getRune (rune_entries) ──────────────────────────────────
 
 export const RUNES_LIST_FILTERS = [
 	"search",
@@ -127,9 +86,6 @@ function parseRunesListSort(raw: string | null): RunesListSort {
 	throw new ValidationError('sort must be "number" or "mints"');
 }
 
-/** `search=` normalizes exactly like a `RuneRef` name: spacers and case are
- *  ignored, so `search=dog` and `search=DOG` prefix-match the same rows as
- *  `rune_entries.name` (itself spacer-stripped, migration 0005). */
 function normalizeSearchTerm(raw: string | undefined): string | undefined {
 	if (raw === undefined) return undefined;
 	const normalized = raw.toUpperCase().replace(/[.\s•]/g, "");
@@ -139,10 +95,6 @@ function normalizeSearchTerm(raw: string | undefined): string | undefined {
 	return normalized;
 }
 
-/** Escapes a `LIKE` pattern's special characters. `name` is always pure
- *  A-Z (`runeFromString`'s alphabet), so a legitimate search never contains
- *  `%`/`_`/`\` — this only stops a caller-supplied one of those from being
- *  read as a wildcard instead of a literal. */
 function escapeLikePattern(value: string): string {
 	return value.replace(/[\\%_]/g, (c) => `\\${c}`);
 }
@@ -199,8 +151,6 @@ function parseRunesListCursor(
 	return { sort: "mints", mints: BigInt(mints), number: BigInt(number) };
 }
 
-/** Minted terms — absent (`null`) for a premine-only rune that was never
- *  mintable (`has_terms = false`, migration 0003's `RuneEntriesTable.has_terms`). */
 export type RuneTerms = {
 	amount: string | null;
 	cap: string | null;
@@ -211,13 +161,8 @@ export type RuneTerms = {
 };
 
 export type RuneEntry = RuneRefSummary & {
-	/** Etch sequence number — 0 is the genesis-seeded reserved rune, then
-	 *  assigned in etch order. Default list sort. */
 	number: string;
-	/** u128 decimal string. Never `Number()` — see plan rule. */
 	premine: string;
-	/** `premine + mints × terms.amount` (0 with no terms) — computed here, not
-	 *  stored; `rune_entries` only carries the two multiplicands. */
 	supply: string;
 	burned: string;
 	mints: string;
@@ -232,8 +177,6 @@ export type RunesResponse = {
 	runes: RuneEntry[];
 	next_cursor: string | null;
 	tip: BitcoinIndexTip;
-	/** Always `[]` — see the module doc: `rune_entries` is a reorg-corrected
-	 *  snapshot, not an append-only log. */
 	reorgs: BtcReorg[];
 	notes?: string;
 };
@@ -454,10 +397,6 @@ export async function getRunesResponse(opts: {
 	};
 }
 
-/** Discriminated so the route can tell "no such rune" from "Runes isn't
- *  configured on this instance" apart — both are a 404, but only the latter
- *  carries the soft-flag note (plan 058: `getRune` → 404 `NOT_FOUND` with the
- *  same note other endpoints put in `notes`, here in `details`). */
 export type GetRuneResult =
 	| { found: true; rune: RuneEntry; tip: BitcoinIndexTip }
 	| { found: false; notes?: string };
@@ -477,8 +416,6 @@ export async function getRuneResponse(opts: {
 	if (!rune) return { found: false };
 	return { found: true, rune, tip: opts.tip };
 }
-
-// ── listRuneActivity (rune_events) ──────────────────────────────────────
 
 export const RUNE_ACTIVITY_FILTERS = [
 	"limit",
@@ -514,9 +451,6 @@ const RUNE_EVENT_KIND_DB_TO_WIRE: Record<DbRuneEventKind, RuneEventKind> = {
 	burn: "rune_burn",
 };
 
-/** Parses the `kind` list filter (up to all 4 values) and maps wire → DB
- *  vocabulary (plan 058: wire is `rune_etch|rune_mint|rune_transfer|rune_burn`,
- *  the `rune_events.kind` column is the shorter `etch|mint|transfer|burn`). */
 function parseRuneEventKinds(
 	raw: string | undefined,
 ): DbRuneEventKind[] | undefined {
@@ -540,11 +474,8 @@ export type RuneEvent = {
 	txid: string;
 	event_index: number;
 	kind: RuneEventKind;
-	/** u128 decimal string. Never `Number()`. */
 	amount: string;
 	vout: number | null;
-	/** The output's mainnet address; only ever set on a `transfer` event
-	 *  (migration 0004). */
 	address: string | null;
 	rune: RuneRefSummary;
 };
@@ -755,7 +686,6 @@ export async function getRuneActivityResponse(opts: {
 	readReorgs?: BtcReorgsReader;
 	configured?: boolean;
 }): Promise<RuneActivityResponse> {
-	// Parse/validate before the not-configured check — see getRunesResponse.
 	const base = parseRuneActivityBaseQuery(opts.query, opts.tip);
 	const runeRaw = opts.query.get("rune") ?? undefined;
 	const rune = runeRaw !== undefined ? parseRuneRef(runeRaw) : undefined;
@@ -808,8 +738,6 @@ export async function getRuneActivityResponse(opts: {
 	};
 }
 
-// ── listRuneBalances (rune_balances) ────────────────────────────────────
-
 export const RUNE_BALANCES_FILTERS = [
 	"limit",
 	"cursor",
@@ -823,7 +751,6 @@ export type RuneBalance = {
 	address: string | null;
 	txid: string;
 	vout: number;
-	/** u128 decimal string. Never `Number()`. */
 	amount: string;
 };
 
@@ -831,8 +758,6 @@ export type RuneBalancesResponse = {
 	balances: RuneBalance[];
 	next_cursor: string | null;
 	tip: BitcoinIndexTip;
-	/** Always `[]` — see the module doc: balances are a reorg-corrected
-	 *  snapshot, not an append-only log. */
 	reorgs: BtcReorg[];
 	notes?: string;
 };
@@ -987,7 +912,6 @@ export async function getRuneBalancesResponse(opts: {
 	readRuneBalances?: RuneBalancesReader;
 	configured?: boolean;
 }): Promise<RuneBalancesResponse> {
-	// Parse/validate before the not-configured check — see getRunesResponse.
 	const addressRaw = opts.query.get("address") ?? undefined;
 	const outpointRaw = opts.query.get("outpoint") ?? undefined;
 	if ((addressRaw === undefined) === (outpointRaw === undefined)) {

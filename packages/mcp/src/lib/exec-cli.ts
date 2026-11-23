@@ -103,9 +103,7 @@ function killProcessGroup(child: ChildProcess): void {
 		try {
 			process.kill(-pid, "SIGKILL");
 			return;
-		} catch {
-			// mocked pid or already exited
-		}
+		} catch {}
 	}
 	child.kill("SIGKILL");
 }

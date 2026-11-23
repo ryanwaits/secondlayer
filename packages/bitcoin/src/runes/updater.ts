@@ -29,13 +29,6 @@ import {
 	takeOutpointBalances,
 } from "./state.ts";
 
-/**
- * Per-flush phase timers (plan 039 step 4 profiling), accumulated across the
- * blocks in one flush window then reset. `backfill.ts` owns `fetchWaitMs` and
- * `integrityMs` directly; this module only ever adds to `decipherMs`,
- * `applyMs`, `commitRpcMs` and `commitRpcCount`. Optional so existing tests
- * that build an `UpdaterContext` without one are unaffected.
- */
 export interface FlushPhaseTimers {
 	fetchWaitMs: number;
 	integrityMs: number;
@@ -85,7 +78,6 @@ function isOpReturn(script: Uint8Array): boolean {
 	return script.length > 0 && script[0] === OP_RETURN;
 }
 
-/** Exported for `backfill.ts`'s fetch-worker commitment resolver (plan 039 step 5). */
 export function isP2tr(script: Uint8Array): boolean {
 	return script.length === 34 && script[0] === 0x51 && script[1] === 0x20;
 }
@@ -173,7 +165,6 @@ function txCommitsToRune(
 	return false;
 }
 
-/** Exported for `backfill.ts`'s fetch-worker commitment resolver (plan 039 step 5). */
 export function hexToScript(hex: string): Uint8Array {
 	const out = new Uint8Array(hex.length / 2);
 	for (let i = 0; i < out.length; i++) {
@@ -199,7 +190,6 @@ function runeIdIsDefault(id: RuneId): boolean {
 	return id.block === 0n && id.tx === 0n;
 }
 
-/** `RuneUpdater::mint`. */
 function mint(
 	state: RuneState,
 	runeId: string,
@@ -217,7 +207,6 @@ function mint(
 	return result.ok;
 }
 
-/** `RuneUpdater::etched`. */
 function etched(
 	state: RuneState,
 	txIndex: number,
@@ -256,7 +245,6 @@ function etched(
 	};
 }
 
-/** `RuneUpdater::create_rune_entry`. */
 function createRuneEntry(
 	state: RuneState,
 	txid: string,
@@ -323,7 +311,6 @@ function createRuneEntry(
 	});
 }
 
-/** `RuneUpdater::unallocated`. */
 function unallocated(state: RuneState, tx: ParsedTx): Map<string, bigint> {
 	const result = new Map<string, bigint>();
 	for (const input of tx.inputs) {
@@ -419,7 +406,6 @@ export async function applyTransaction(
 				};
 
 				if (edict.output === tx.outputs.length) {
-					// find non-OP_RETURN outputs
 					const destinations: number[] = [];
 					tx.outputs.forEach((out, i) => {
 						if (!isOpReturn(out.script)) destinations.push(i);
@@ -512,7 +498,6 @@ export async function applyTransaction(
 		}
 	}
 
-	// update outpoint balances
 	for (let vout = 0; vout < allocated.length; vout++) {
 		const balances = allocated[vout] as Map<string, bigint>;
 		if (balances.size === 0) continue;
@@ -554,7 +539,6 @@ export async function applyTransaction(
 		}
 	}
 
-	// accumulate burns for the block (folded into entry.burned by applyBlock)
 	for (const [runeId, amount] of burned) {
 		blockBurned.set(runeId, (blockBurned.get(runeId) ?? 0n) + amount);
 		state.events.push({
@@ -567,11 +551,6 @@ export async function applyTransaction(
 		});
 	}
 
-	// No RPC happens in this function any more (plan 039 step 5: commitment
-	// resolution moved to the parallel fetch worker), so `applyMs` is simply
-	// the remaining time after `decipherMs` — `commitRpcMs`/`commitRpcCount`
-	// stay at 0 in the optimized profile, which is itself the signal that the
-	// optimization landed.
 	if (timers) {
 		const totalMs = performance.now() - txStart;
 		timers.applyMs += totalMs - decipherMs;

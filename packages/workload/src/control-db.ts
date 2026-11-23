@@ -1,9 +1,4 @@
 /**
- * The workload host's own small control Postgres — NOT a tenant database.
- * One table, `tenants`, tracking which account maps to which compose
- * project and what state it's in. No migration framework (044 executor
- * notes): one idempotent `CREATE TABLE IF NOT EXISTS`, run at boot.
- *
  * Secrets (`INSTANCE_TOKEN`, `POSTGRES_PASSWORD`, ...) are NOT stored here —
  * they live in files on disk, root-only, one directory per tenant (Design).
  * This table only ever holds routing/state, so a leak of it leaks no
@@ -60,11 +55,6 @@ export interface TenantRow {
 	created_at: Date;
 	stopped_at: Date | null;
 	storage_cap_bytes: string | null;
-	/** The full 40-char sha of the `secondlayer-api` image this tenant's `api`/
-	 *  `webhook-service` last came up on (`upgrade.ts`'s `resolveTargetSha`
-	 *  reports the deployed target; `up()`/`start()`/`upgradeTenants` write
-	 *  the sha they actually started). `null` until the first `up()`/`start()`
-	 *  after this column existed. */
 	image_sha: string | null;
 	/** The deploy sequence (`/health`'s `deploy_sequence`) of that image's
 	 *  deploy, as a string (BIGINT). A tenant is never rolled onto a target
@@ -91,11 +81,7 @@ export interface TenantRow {
 	 *  subgraph count. Picks the compose profile (`subgraph-processor` runs
 	 *  only when true) and the memory floor (`stackMemoryFloorGb`). */
 	has_subgraphs: boolean;
-	/** UTC calendar day of the last storage sample that reached the platform
-	 *  (`storage.gb_day` is one row per day). `null` until the first one. */
 	last_storage_sample_day: Date | null;
-	/** When the last nightly dump of this tenant's database finished. `null`
-	 *  until the first one. */
 	last_backup_at: Date | null;
 }
 
@@ -114,9 +100,6 @@ export function acct8For(accountId: string): string {
 
 let sql: postgres.Sql | undefined;
 
-/** Lazy singleton, mirroring `@secondlayer/shared/db`'s pool-per-URL
- *  pattern but far simpler: the workload host only ever talks to ONE
- *  control database, never a tenant's. */
 export function getControlDb(
 	url: string | undefined = process.env.CONTROL_DATABASE_URL,
 ): postgres.Sql {
@@ -134,8 +117,6 @@ export function getControlDb(
 	return sql;
 }
 
-/** Test-only: drop the cached singleton so a new `CONTROL_DATABASE_URL` (or
- *  a fresh test database) takes effect on the next `getControlDb()` call. */
 export function resetControlDb(): void {
 	sql = undefined;
 }
@@ -160,7 +141,6 @@ export async function ensureControlSchema(db: postgres.Sql): Promise<void> {
 	await db.unsafe(
 		`CREATE SEQUENCE IF NOT EXISTS tenant_api_port_seq START ${API_PORT_SEQUENCE_START}`,
 	);
-	// Same pattern for the per-tenant network index: never reused.
 	await db`CREATE SEQUENCE IF NOT EXISTS tenant_subnet_seq START 1`;
 	await ensureSequenceBounds(db);
 	await db`
@@ -175,17 +155,12 @@ export async function ensureControlSchema(db: postgres.Sql): Promise<void> {
 			storage_cap_bytes BIGINT
 		)
 	`;
-	// Upgrade path for a `tenants` table created before `api_port` existed
-	// (no migration framework — this is the idempotent equivalent).
 	await db`
 		ALTER TABLE tenants
 		ADD COLUMN IF NOT EXISTS api_port INTEGER UNIQUE
 		DEFAULT nextval('tenant_api_port_seq')
 	`;
 	await db`ALTER TABLE tenants ALTER COLUMN api_port SET NOT NULL`;
-	// Upgrade path for a `tenants` table created before auto-upgrade tracked
-	// what each tenant runs (plan 064) — same idempotent-column pattern as
-	// `api_port` above.
 	await db`ALTER TABLE tenants ADD COLUMN IF NOT EXISTS image_sha TEXT`;
 	await db`ALTER TABLE tenants ADD COLUMN IF NOT EXISTS image_sequence BIGINT`;
 	await db`ALTER TABLE tenants ADD COLUMN IF NOT EXISTS template_sha TEXT`;
@@ -372,7 +347,6 @@ export async function insertProvisioningTenant(
 export interface TransitionTenant {
 	from: readonly TenantState[];
 	to: TenantState;
-	/** Required exactly when `to` is `stopped`. */
 	reason?: StopReason;
 	/** Only move a row whose `started_at` is still this value (`null` = never
 	 *  stamped). The idle stop passes the one it read, so a stack restarted in
@@ -418,9 +392,6 @@ export async function transitionTenant(
 	return rows[0] ?? null;
 }
 
-/** Records the sha of the image a tenant's `api`/`webhook-service` just came
- *  up on (`up()`, `start()`, `upgradeTenants` in `upgrade.ts`) — read back by
- *  `upgradeTenants` to decide which `running` tenants are stale. */
 export async function setTenantImageSha(
 	db: postgres.Sql,
 	accountId: string,
@@ -436,8 +407,6 @@ export async function setTenantImageSha(
 	`;
 }
 
-/** Records the fingerprint of the compose template a tenant just came up on —
- *  read back by `upgradeTenants` so a template-only change rolls tenants too. */
 export async function setTenantTemplateSha(
 	db: postgres.Sql,
 	accountId: string,
@@ -446,7 +415,6 @@ export async function setTenantTemplateSha(
 	await db`UPDATE tenants SET template_sha = ${templateSha} WHERE account_id = ${accountId}`;
 }
 
-/** Written only by the subgraph-processor reconcile (`processor-watch.ts`). */
 export async function setTenantHasSubgraphs(
 	db: postgres.Sql,
 	accountId: string,
@@ -466,10 +434,6 @@ export async function listTenants(db: postgres.Sql): Promise<TenantRow[]> {
 	return db<TenantRow[]>`SELECT * FROM tenants ORDER BY created_at ASC`;
 }
 
-/** `running` or `stopped` tenants — the two states the 5-minute credits poll
- *  (`provisioner.ts`'s `pollCredits`) acts on. `provisioning`/`destroyed`
- *  rows are excluded: a provisioning tenant isn't up yet to stop, and a
- *  destroyed one is a tombstone with no stack. */
 export async function listPollableTenants(
 	db: postgres.Sql,
 ): Promise<TenantRow[]> {
@@ -496,7 +460,6 @@ export function utcDay(now: Date): string {
 	return now.toISOString().slice(0, 10);
 }
 
-/** Running tenants with no storage sample for the current UTC day. */
 export async function listTenantsDueStorageSample(
 	db: postgres.Sql,
 	now: Date,
@@ -540,8 +503,6 @@ export async function markBackedUp(
 	await db`UPDATE tenants SET last_backup_at = ${at} WHERE account_id = ${accountId}`;
 }
 
-/** Tenants with no good dump inside `maxAgeMs`: older than that, or never
- *  dumped and created longer ago than that. */
 export async function listTenantsWithStaleBackup(
 	db: postgres.Sql,
 	now: Date,

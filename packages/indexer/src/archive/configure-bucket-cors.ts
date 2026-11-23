@@ -28,11 +28,8 @@ import {
 const CORS_RULES = [
 	{
 		AllowedOrigins: ["*"],
-		// Read verbs only. A public archive has no browser-initiated writes.
 		AllowedMethods: ["GET", "HEAD"],
 		AllowedHeaders: ["Range", "If-None-Match", "If-Modified-Since"],
-		// Without these a browser cannot see the headers that make ranged and
-		// cache-aware reads work.
 		ExposeHeaders: [
 			"Content-Length",
 			"Content-Range",

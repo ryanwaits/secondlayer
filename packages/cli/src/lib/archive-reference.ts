@@ -179,7 +179,6 @@ export async function fetchWithRetry(
 			const retryable = response.status === 429 || response.status >= 500;
 			if (!retryable) return response;
 			lastReason = `${response.status} ${response.statusText}`.trim();
-			// Release the connection; the body of a 5xx is not worth keeping.
 			await response.body?.cancel().catch(() => {});
 		}
 		if (attempt <= retries) {
@@ -196,9 +195,6 @@ export async function fetchWithRetry(
  *  Data partitions and digest-index sidecars both satisfy it. */
 export type FetchablePartition = ArchivePartition | DigestIndexPartition;
 
-/** One re-issue on an expired presigned URL, on top of the transient retries
- *  in `fetchWithRetry`. Isolated so `fetchVerifiedPartition` reads as "get
- *  the bytes" regardless of which path produced them. */
 async function fetchViaGate(
 	gate: ArchiveFetchGate,
 	partition: FetchablePartition,

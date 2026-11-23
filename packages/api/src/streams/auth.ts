@@ -30,16 +30,12 @@ export type StreamsTenant = {
 
 export type StreamsEnv = {
 	Variables: {
-		/** Unset on an anonymous loopback read — Streams has no tenant then. */
 		streamsTenant?: StreamsTenant;
 		streamsTip: StreamsTip;
 		/** Set only so the error envelope can attribute a revoked-key failure.
 		 *  Never authorizes anything. */
 		revokedApiKey?: RevokedAccountKey;
-		/** Rows in the page just served; read by the request log. */
 		rowsServed?: number;
-		/** Set by the credits gate when a free account is on pay-as-you-go:
-		 *  bypasses retention + rate limit, debited per row read. */
 		credited?: { accountId: string; balance: bigint };
 	};
 };
@@ -107,10 +103,7 @@ export const DEFAULT_STREAMS_TOKEN_STORE: StreamsTokenStore =
 export function streamsBearerAuth(opts?: {
 	tokens?: StreamsTokenStore;
 	requiredScope?: string;
-	/** Override the read-plane policy (`allowsAnonymousRead`). Tests pin it;
-	 *  routes should let the policy decide. */
 	allowAnon?: boolean;
-	/** Tests inject; defaults to the DB lookup. */
 	findRevoked?: (rawToken: string) => Promise<RevokedAccountKey | null>;
 }): MiddlewareHandler<StreamsEnv> {
 	const tokens = opts?.tokens ?? DEFAULT_STREAMS_TOKEN_STORE;

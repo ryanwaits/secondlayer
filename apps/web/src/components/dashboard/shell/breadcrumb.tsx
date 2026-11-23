@@ -7,7 +7,6 @@ export function Breadcrumb({
 }: {
 	parent: { href: string; label: string };
 	current: string;
-	/** The full name, when `current` is a shortened one. */
 	title?: string;
 }) {
 	return (

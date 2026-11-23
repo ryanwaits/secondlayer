@@ -7,7 +7,6 @@ const CLASS = {
 	ghost: "btn btn-ghost",
 } as const;
 
-/** Flat 4px-radius button. Primary is blue and means an action. External hrefs open in a new tab. */
 export function ButtonLink({
 	href,
 	variant = "primary",

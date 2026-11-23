@@ -1,8 +1,3 @@
-/**
- * Which view each index page shows, Rows or Ribbon. Kept in a small
- * first-party cookie so the server render already shows the right one.
- */
-
 export const INDEX_VIEW_COOKIE = "sl_index_view";
 const MAX_AGE_S = 365 * 24 * 60 * 60;
 
@@ -13,7 +8,6 @@ export type IndexViews = Partial<Record<IndexPage, IndexView>>;
 const PAGES: readonly IndexPage[] = ["webhooks", "subgraphs"];
 const isView = (v: string): v is IndexView => v === "rows" || v === "ribbon";
 
-/** `webhooks:ribbon~subgraphs:rows`, URL-encoded. */
 export function serializeIndexViews(views: IndexViews): string {
 	return encodeURIComponent(
 		PAGES.flatMap((page) => {
@@ -23,15 +17,12 @@ export function serializeIndexViews(views: IndexViews): string {
 	);
 }
 
-/** The saved views; anything malformed is dropped, so the default applies. */
 export function parseIndexViews(raw: string | null | undefined): IndexViews {
 	if (!raw) return {};
 	let text = raw;
 	try {
 		text = decodeURIComponent(raw);
-	} catch {
-		// Already decoded, or not ours: parse it as it is.
-	}
+	} catch {}
 	const out: IndexViews = {};
 	for (const part of text.split("~")) {
 		const [page, view] = part.split(":");
@@ -42,7 +33,6 @@ export function parseIndexViews(raw: string | null | undefined): IndexViews {
 	return out;
 }
 
-/** The cookie as the browser holds it now, so a write keeps the other page's choice. */
 export function readIndexViews(): IndexViews {
 	try {
 		const entry = document.cookie
@@ -54,13 +44,9 @@ export function readIndexViews(): IndexViews {
 	}
 }
 
-/** Writes the cookie from the browser. A blocked cookie means the choice
- *  lasts for this visit only. */
 export function writeIndexViews(views: IndexViews): void {
 	try {
 		const secure = window.location.protocol === "https:" ? "; Secure" : "";
 		document.cookie = `${INDEX_VIEW_COOKIE}=${serializeIndexViews(views)}; path=/account; max-age=${MAX_AGE_S}; SameSite=Lax${secure}`;
-	} catch {
-		// Cookies are blocked.
-	}
+	} catch {}
 }

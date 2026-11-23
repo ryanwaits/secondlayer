@@ -49,11 +49,8 @@ import type {
  * forever. A failure after derived state committed is never poisoned.
  */
 
-/** Unapplied blocks at which the reply waits for the applier. */
 export const CATCH_UP_BACKLOG_LIMIT = 2_000;
-/** Live mode needs the backlog under this… */
 export const LIVE_BACKLOG_MAX = 10;
-/** …and the block within this many burn blocks of the node's burn tip. */
 export const LIVE_BURN_TIP_DISTANCE = 6;
 
 const BATCH_SIZE = 32;
@@ -61,7 +58,6 @@ const IDLE_POLL_MS = 1_000;
 const RETRY_MIN_MS = 500;
 const RETRY_MAX_MS = 30_000;
 const NODE_TIP_TTL_MS = 30_000;
-/** A burn receipt still `received` this long was orphaned: the handler applies it inline. */
 const BURN_ORPHAN_AGE_SECONDS = 60;
 const BURN_SWEEP_EVERY_MS = 30_000;
 
@@ -169,7 +165,6 @@ export class JournalApplier {
 		db?: Kysely<Database>;
 		ingest?: (payload: NewBlockPayload) => Promise<IngestResult>;
 		backlogLimit?: number;
-		/** Replays `/new_burn_block` receipts orphaned by a crash (idempotent write). */
 		applyBurn?: (payload: NewBurnBlockPayload) => Promise<unknown>;
 		poisonAfter?: number;
 	}) {
@@ -187,7 +182,6 @@ export class JournalApplier {
 		return this.running !== null;
 	}
 
-	/** Start draining. */
 	start(): void {
 		if (this.running) return;
 		this.stopped = false;
@@ -207,7 +201,6 @@ export class JournalApplier {
 		for (const resolve of this.idleWaiters.splice(0)) resolve();
 	}
 
-	/** A row was journaled. */
 	notify(): void {
 		this.backlog++;
 		this.poke();
@@ -218,7 +211,6 @@ export class JournalApplier {
 		this.wake?.();
 	}
 
-	/** Resolve once `sequence` is applied; reject if its apply failed. */
 	waitApplied(sequence: string): Promise<IngestResult> {
 		const promise = new Promise<IngestResult>((resolve, reject) => {
 			this.waiters.set(sequence, { resolve, reject });
@@ -231,13 +223,11 @@ export class JournalApplier {
 		return promise;
 	}
 
-	/** Resolve once the backlog is within the limit (backpressure). */
 	waitForRoom(): Promise<void> {
 		if (this.backlog <= this.backlogLimit) return Promise.resolve();
 		return new Promise((resolve) => this.roomWaiters.push(resolve));
 	}
 
-	/** Resolve after a drain pass finds nothing left to apply. */
 	whenIdle(): Promise<void> {
 		return new Promise((resolve) => {
 			this.idleWaiters.push(resolve);
@@ -537,7 +527,6 @@ export class JournalApplier {
 		for (const resolve of this.roomWaiters.splice(0)) resolve();
 	}
 
-	/** Waiters whose rows another instance (or an earlier pass) handled. */
 	private async settleForeignWaiters(): Promise<void> {
 		for (const sequence of [...this.waiters.keys()]) {
 			await this.settleFromJournal(sequence);
@@ -567,10 +556,6 @@ export type ReceiveOutcome =
 	| { mode: "live"; sequence: string; result: IngestResult }
 	| { mode: "catch-up"; sequence: string; block_height: number };
 
-/**
- * `/new_block` for a journaling indexer: append, then reply after the apply
- * (live) or right away (catch-up, subject to backpressure).
- */
 export async function receiveNewBlock(
 	deps: {
 		db?: Kysely<Database>;

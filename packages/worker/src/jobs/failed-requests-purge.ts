@@ -1,8 +1,3 @@
-/**
- * Hourly purge of `api_failed_requests` rows older than 24h. The table is
- * short-lived feedback evidence, not a log. No-op outside platform mode.
- */
-
 import { purgeFailedRequests } from "@secondlayer/platform/db/queries/api-failed-requests";
 import { getErrorMessage, logger } from "@secondlayer/shared";
 import { getDb } from "@secondlayer/shared/db";
@@ -12,7 +7,6 @@ import { scheduleCron } from "./cron-schedule.ts";
 const INTERVAL_MS = 60 * 60 * 1000;
 const RETENTION_MS = 24 * 60 * 60 * 1000;
 
-/** Deletes records older than 24h as of `now`; returns the deleted count. */
 export async function purgeExpiredFailedRequests(
 	now = new Date(),
 ): Promise<number> {

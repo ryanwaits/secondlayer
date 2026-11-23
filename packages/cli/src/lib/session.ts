@@ -36,7 +36,7 @@ const SessionSchema = z.object({
 	// Null for an account with no email on file (a key minted before sign-up).
 	email: z.string().email().nullable(),
 	accountId: z.string().uuid(),
-	expiresAt: z.string(), // ISO 8601
+	expiresAt: z.string(),
 });
 
 export type Session = z.infer<typeof SessionSchema>;
@@ -134,9 +134,7 @@ export async function readSession(
 			{ sessions: { ...file.sessions, [key]: legacy } },
 			path,
 		);
-	} catch {
-		// Adopting is best effort; the login still works for this call.
-	}
+	} catch {}
 	return legacy;
 }
 
@@ -158,13 +156,6 @@ async function writeSessionFile(
 	await rename(tmp, path);
 }
 
-// `path` override exists only so tests can point writeSession at a temp
-// file. Callers in this package never pass it.
-//
-// Both mutators are read-modify-write with no lock. Two logins racing on
-// different slots can drop one another's write; the rename is atomic so the
-// file is never torn, and re-running the login repairs it. Fine for a CLI a
-// person drives by hand; add a lock if scripted parallel logins ever bite.
 export async function writeSession(
 	session: Session,
 	apiUrl: string = resolveArchiveOpsUrl(),

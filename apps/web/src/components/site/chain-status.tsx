@@ -19,9 +19,7 @@ import {
 import { ChainMark } from "./chain-link";
 
 const fmt = (n: number) => n.toLocaleString("en-US");
-/** "16:41 UTC". */
 const utc = (ms: number) => `${new Date(ms).toISOString().slice(11, 16)} UTC`;
-/** "7s ago", "4m 12s ago". */
 const ago = (sec: number) => {
 	const s = Math.max(0, Math.floor(sec));
 	return s < 60 ? `${s}s ago` : `${Math.floor(s / 60)}m ${s % 60}s ago`;
@@ -29,7 +27,6 @@ const ago = (sec: number) => {
 
 const GROUPED = { useGrouping: true } as const;
 
-/** A block height that rolls to its next value. */
 function Height({ value }: { value: number }) {
 	return (
 		<span className="cstat-n cstat-fade">
@@ -38,10 +35,6 @@ function Height({ value }: { value: number }) {
 	);
 }
 
-/**
- * A chain's mark. `beat` remounts it on every new block, which replays the
- * ring once; the first render has no ring.
- */
 function Mark({ chain, beat }: { chain: "stacks" | "bitcoin"; beat: number }) {
 	return (
 		<span key={beat} className={beat > 0 ? "cstat-mark pulse" : "cstat-mark"}>
@@ -52,7 +45,6 @@ function Mark({ chain, beat }: { chain: "stacks" | "bitcoin"; beat: number }) {
 
 type Row = [label: string, value: string];
 
-/** The tooltip: who owns the problem, what happened, and what it means for your data. */
 function Tip({
 	title,
 	owner,
@@ -178,14 +170,8 @@ function label(state: ChainState, tip: ChainTip): string {
 	return `${heights}.`;
 }
 
-/** The Stacks mark plus its padding: the pill's width at rest when live. */
 const REST_PX = 30;
 
-/**
- * At rest the pill shows only its right edge: the Stacks mark, and the cause
- * when down. The whole pill is always laid out; `--rest` sets how much of it
- * the clip leaves visible, so opening is one reveal that never moves the mark.
- */
 function useRestWidth(shown: boolean) {
 	const body = useRef<HTMLDivElement>(null);
 	const cause = useRef<HTMLSpanElement>(null);
@@ -205,11 +191,6 @@ function useRestWidth(shown: boolean) {
 	return { body, cause };
 }
 
-/**
- * The pill itself, from a tip and a clock; renders nothing before the first
- * height. `open` shows the whole pill and its tooltip (a tap on touch screens;
- * hover and focus do it in CSS).
- */
 export function ChainStatusView({
 	tip,
 	now,
@@ -275,7 +256,6 @@ export function ChainStatusView({
 	);
 }
 
-/** Marketing pages carry the pill; docs, blog and account pages don't. */
 export function showsChainStatus(pathname: string): boolean {
 	return (
 		pathname === "/" ||
@@ -285,17 +265,11 @@ export function showsChainStatus(pathname: string): boolean {
 	);
 }
 
-/**
- * The chain status, fixed bottom-right on marketing pages: Stacks and Bitcoin
- * heights that roll on each block, and when something is down, what stopped
- * and whose problem it is. The tooltip (hover or focus) has the details.
- */
 export function ChainStatus() {
 	const pathname = usePathname();
 	return showsChainStatus(pathname) ? <LiveChainStatus /> : null;
 }
 
-/** Polls only while mounted, so pages without the pill make no status calls. */
 function LiveChainStatus() {
 	const tip = useChainTip();
 	const [now, setNow] = useState(() => Date.now());
@@ -304,7 +278,6 @@ function LiveChainStatus() {
 		const id = setInterval(() => setNow(Date.now()), 1000);
 		return () => clearInterval(id);
 	}, []);
-	// Touch screens have no hover: a tap opens the pill, a tap anywhere else closes it.
 	useEffect(() => {
 		if (!open) return;
 		const close = (e: PointerEvent) => {

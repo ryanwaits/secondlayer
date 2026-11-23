@@ -170,7 +170,6 @@ const OP_1 = 0x51;
 export function parseOutputScript(script: Uint8Array): ParsedOutputScript {
 	const n = script.length;
 
-	// P2PKH: OP_DUP OP_HASH160 <20> ... OP_EQUALVERIFY OP_CHECKSIG
 	if (
 		n === 25 &&
 		script[0] === OP_DUP &&
@@ -182,7 +181,6 @@ export function parseOutputScript(script: Uint8Array): ParsedOutputScript {
 		return { type: "p2pkh", hash: script.slice(3, 23) };
 	}
 
-	// P2SH: OP_HASH160 <20> ... OP_EQUAL
 	if (
 		n === 23 &&
 		script[0] === OP_HASH160 &&
@@ -192,22 +190,18 @@ export function parseOutputScript(script: Uint8Array): ParsedOutputScript {
 		return { type: "p2sh", hash: script.slice(2, 22) };
 	}
 
-	// P2WPKH: OP_0 <20>
 	if (n === 22 && script[0] === OP_0 && script[1] === 0x14) {
 		return { type: "p2wpkh", hash: script.slice(2, 22) };
 	}
 
-	// P2WSH: OP_0 <32>
 	if (n === 34 && script[0] === OP_0 && script[1] === 0x20) {
 		return { type: "p2wsh", hash: script.slice(2, 34) };
 	}
 
-	// P2TR: OP_1 <32>
 	if (n === 34 && script[0] === OP_1 && script[1] === 0x20) {
 		return { type: "p2tr", hash: script.slice(2, 34) };
 	}
 
-	// OP_RETURN: data carrier
 	if (n >= 1 && script[0] === OP_RETURN) {
 		return { type: "op_return", data: script.slice(1) };
 	}

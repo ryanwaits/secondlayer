@@ -1,7 +1,4 @@
 /**
- * Opt-in archive-credit auto-refill. Charges the saved card when the
- * prepaid balance drops under the account's threshold. Default is off.
- *
  * Credit lands on payment_intent.succeeded (kind=credits_refill), not here.
  * We claim the attempt (a conditional write of refill_last_at that only one
  * runner wins) before charging, so a crash or an overlapping run cannot
@@ -58,7 +55,6 @@ export type RefillDeps = {
 	sendEmail?: typeof sendEmail;
 };
 
-/** Stripe errors that mean "no charge happened, try again later". */
 function isTransientStripeError(err: unknown): boolean {
 	const type = (err as { type?: string } | null)?.type;
 	return (
@@ -85,7 +81,7 @@ async function turnOffRefill(
 	const db = getDb();
 	await setCreditRefill(db, accountId, { belowUsdMicros: null, packUsd: null });
 	const account = await getAccountById(db, accountId);
-	if (!account?.email) return; // ghost account: nothing to email
+	if (!account?.email) return;
 	const subject =
 		reason === "authentication"
 			? "Auto top-up is off: your card needs authentication"
@@ -143,7 +139,6 @@ export async function runDueRefills(deps: RefillDeps = {}): Promise<number> {
 	for (const row of due) {
 		let charging = false; // only a failed CHARGE turns auto top-up off
 		const attemptAt = await claimRefill(db, row.accountId);
-		// Another runner claimed it, or the balance was topped up since listing.
 		if (!attemptAt) continue;
 		try {
 			const customer = await stripe.customers.retrieve(row.stripeCustomerId);

@@ -60,7 +60,6 @@ async function isNodeRunning(): Promise<boolean> {
 export async function checkHealth(): Promise<HealthReport> {
 	const issues: string[] = [];
 
-	// Node health
 	const node: NodeHealth = {
 		running: false,
 		network: null,
@@ -107,12 +106,9 @@ export async function checkHealth(): Promise<HealthReport> {
 				node.peers =
 					(peers.inbound?.length ?? 0) + (peers.outbound?.length ?? 0);
 			}
-		} catch {
-			// ignore
-		}
+		} catch {}
 	}
 
-	// Container health
 	const containers: ContainerHealth[] = [];
 	try {
 		const result =
@@ -132,7 +128,6 @@ export async function checkHealth(): Promise<HealthReport> {
 					else if (status.includes("Up")) health = "running";
 					else if (status.includes("Exited")) health = "exited";
 
-					// Get restart count
 					let restartCount = 0;
 					try {
 						const inspect =
@@ -160,7 +155,6 @@ export async function checkHealth(): Promise<HealthReport> {
 		}
 	} catch {}
 
-	// Service health
 	const services: ServiceHealth[] = [];
 	const devState = await loadDevState();
 
@@ -175,9 +169,7 @@ export async function checkHealth(): Promise<HealthReport> {
 						signal: AbortSignal.timeout(2000),
 					});
 					responsive = res.ok;
-				} catch {
-					// Not responsive
-				}
+				} catch {}
 			}
 
 			services.push({
@@ -198,7 +190,6 @@ export async function checkHealth(): Promise<HealthReport> {
 		}
 	}
 
-	// Infrastructure health
 	const infrastructure: InfraHealth = { postgres: false };
 
 	try {
@@ -208,7 +199,6 @@ export async function checkHealth(): Promise<HealthReport> {
 		infrastructure.postgres = pg.stdout.toString().trim().length > 0;
 	} catch {}
 
-	// Port conflict detection
 	const portsToCheck = [
 		{ port: 3800, name: "API" },
 		{ port: 3700, name: "Indexer" },

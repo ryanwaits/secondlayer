@@ -36,10 +36,7 @@ export type IndexEnv = {
 		/** Set only so the error envelope can attribute a revoked-key failure.
 		 *  Never authorizes anything. */
 		revokedApiKey?: RevokedAccountKey;
-		/** Rows in the page just served; read by the request log. */
 		rowsServed?: number;
-		/** Set by the credits gate when a free account is on pay-as-you-go:
-		 *  bypasses the free window + rate limit, debited per row read. */
 		credited?: { accountId: string; balance: bigint };
 	};
 };
@@ -51,8 +48,6 @@ export type IndexTokenStore = {
 	): IndexTenant | undefined | Promise<IndexTenant | undefined>;
 };
 
-// Static seed tokens cover post-deploy smoke and test fixtures; production
-// customer traffic resolves via createApiKeyTokenStore (api_keys.tier).
 export const DEFAULT_INDEX_TOKENS: IndexTokenStore = new Map([
 	[
 		"sk-sl_index_free_test",
@@ -98,18 +93,13 @@ export const DEFAULT_INDEX_TOKEN_STORE: IndexTokenStore =
 export function indexBearerAuth(opts?: {
 	tokens?: IndexTokenStore;
 	requiredScope?: string;
-	/** Override the read-plane policy (`allowsAnonymousRead`). Tests pin it;
-	 *  routes should let the policy decide. */
 	allowAnon?: boolean;
-	/** Tests inject; defaults to the DB lookup. */
 	findRevoked?: (rawToken: string) => Promise<RevokedAccountKey | null>;
 }): MiddlewareHandler<IndexEnv> {
 	const tokens = opts?.tokens ?? DEFAULT_INDEX_TOKEN_STORE;
 	const requiredScope = opts?.requiredScope ?? INDEX_READ_SCOPE;
 
 	return async (c, next) => {
-		// Same rule as Streams and subgraphs: open on a loopback bind, instance
-		// token past it. Hosted (`platform`) is keyed.
 		const allowAnon = opts?.allowAnon ?? allowsAnonymousRead();
 		const apiKeyHeader = c.req.header("x-api-key");
 		const rawToken = bearerToken(c);
@@ -119,8 +109,6 @@ export function indexBearerAuth(opts?: {
 				await next();
 				return;
 			}
-			// X-API-Key is never a credential here; say so rather than leaving
-			// the caller to guess why their key did nothing.
 			throw apiKeyHeader
 				? new AuthenticationError(
 						"Use Authorization: Bearer <key>, not X-API-Key",

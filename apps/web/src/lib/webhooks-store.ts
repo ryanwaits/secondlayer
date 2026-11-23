@@ -22,31 +22,20 @@ import {
 } from "./webhooks-data";
 
 /**
- * The webhooks list/detail store, modeled on `account-data.ts`: one
- * module-level `state`, `set(patch)`, `subscribe`, `useWebhooksCache()` via
- * `useSyncExternalStore`. A page's server render hands its first reads in as
- * a seed (see `useWebhooksCache`); after that, polls keep the cache current.
- * Nothing is persisted: a reload paints from the server again.
- *
  * A refresher only writes into the cache on `{ kind: "ok" }` — a starting
  * hosted stack, a rate limit or a dropped connection never overwrites
- * good data still on screen; the caller gets the raw result back to decide
- * what notice (if any) to show.
+ * good data still on screen.
  */
 
 export type CacheEntry<T> = { data: T; at: number } | undefined;
 
-/** The status a pause or resume is moving a webhook to. */
 export type PauseTarget = "active" | "paused";
 
-/** A pause or resume in flight for one webhook. */
 export interface PendingPause {
 	target: PauseTarget;
 	seq: number;
 }
 
-/** The fields a pause or resume changes, and so the ones a stale read must
- *  not put back. */
 const PAUSE_FIELDS = [
 	"status",
 	"pauseReason",
@@ -55,18 +44,15 @@ const PAUSE_FIELDS = [
 	"circuitFailures",
 ] as const;
 
-/** What a poll must know to tell a stale read of a webhook from a fresh one. */
 export interface PauseMarks {
 	pending: Record<string, PendingPause>;
-	/** When each webhook's last pause or resume was applied (ms). */
 	settledAt: Record<string, number>;
 }
 
 /**
- * A polled webhook folded over the cached one. A read must not undo a pause
- * the reader just made: while the write is in flight, or when the read began
- * before the write was applied, the cached pause fields stand and the rest
- * (name, counters, activity) still refresh.
+ * A read must not undo a pause the reader just made: while the write is in
+ * flight, or when the read began before the write was applied, the cached
+ * pause fields stand and the rest (name, counters, activity) still refresh.
  */
 export function mergePolled<T extends { id: string }>(
 	cached: T | undefined,
@@ -95,12 +81,8 @@ type State = {
 	detail: Record<string, CacheEntry<WebhookDetail>>;
 	deliveries: Record<string, CacheEntry<DeliveryRow[]>>;
 	activity: Record<string, CacheEntry<WebhookActivity>>;
-	/** Hourly delivered/failed for every webhook (heat strips, sparklines). */
 	summary: CacheEntry<WebhooksActivitySummary>;
-	/** Deliveries for one hour, keyed `${id}:${fromIso}`. */
 	deliveriesWindow: Record<string, CacheEntry<DeliveryRow[]>>;
-	/** Ids the API answered 404 for. The value is the webhook's name when this
-	 *  cache still had it (so it was just deleted), null when it never did. */
 	missing: Record<string, string | null>;
 } & PauseMarks;
 
@@ -117,7 +99,6 @@ const EMPTY: State = {
 };
 
 let state: State = EMPTY;
-/** Bumped on sign-out: a read that started before it must not fill the next account's cache. */
 const epoch = createEpoch();
 const listeners = new Set<() => void>();
 
@@ -135,21 +116,17 @@ function subscribe(l: () => void) {
 	return () => listeners.delete(l);
 }
 
-/** A plain (non-hook) read of the current cache — what `useWebhooksCache`
- *  hands React, and what a refresher or a test reads without a component
- *  around it. */
 export function webhooksSnapshot(): State {
 	return state;
 }
 
-/** What a server render read for the page, in cache shape. */
 export type WebhooksSeed = Partial<State>;
 
 const appliedSeeds = new WeakSet<object>();
 const serverStates = new WeakMap<object, State>();
 
-/** Puts a seed into the client cache, once per seed. Quiet on purpose: it runs
- *  while a component renders, so it must not wake other subscribers. */
+/** Quiet on purpose: it runs while a component renders, so it must not wake
+ *  other subscribers. */
 function applySeed(seed: WebhooksSeed): void {
 	if (typeof window === "undefined" || appliedSeeds.has(seed)) return;
 	appliedSeeds.add(seed);
@@ -168,7 +145,6 @@ function applySeed(seed: WebhooksSeed): void {
 
 const seedsByInitial = new WeakMap<object, WebhooksSeed>();
 
-/** A server-read detail bundle as a seed: only the reads that came back ok. */
 export function detailSeed(id: string, initial: DetailFetch): WebhooksSeed {
 	const known = seedsByInitial.get(initial);
 	if (known) return known;
@@ -190,7 +166,6 @@ export function detailSeed(id: string, initial: DetailFetch): WebhooksSeed {
 	return seed;
 }
 
-/** A server-read list and summary as a seed: only the reads that came back ok. */
 export function listSeed(initial: {
 	list: WebhooksResult<WebhookSummary[]>;
 	summary: WebhooksResult<WebhooksActivitySummary>;
@@ -210,9 +185,7 @@ export function listSeed(initial: {
 	return seed;
 }
 
-/** The cache. With a seed, the server render and the hydration pass read the
- *  seed (so the HTML carries the data), and the client cache starts from it.
- *  The server never writes the module cache: it is shared across requests. */
+/** The server never writes the module cache: it is shared across requests. */
 export function useWebhooksCache(seed?: WebhooksSeed): State {
 	if (seed) applySeed(seed);
 	let server = EMPTY;
@@ -223,7 +196,6 @@ export function useWebhooksCache(seed?: WebhooksSeed): State {
 	return useSyncExternalStore(subscribe, webhooksSnapshot, () => server);
 }
 
-/** Forget every cached row on sign-out, same path as `clearAccountData`. */
 export function clearWebhooksData(options: { deferred?: boolean } = {}): void {
 	epoch.bump();
 	state = EMPTY;
@@ -267,8 +239,6 @@ export function refreshList(
 	});
 }
 
-/** Hourly activity for every webhook. Same rule as the other refreshers:
- *  only an ok result writes. */
 export function refreshSummary(): Promise<
 	WebhooksResult<WebhooksActivitySummary>
 > {
@@ -282,10 +252,8 @@ export function refreshSummary(): Promise<
 	});
 }
 
-/** Hour windows kept per cache; the oldest fall out first. */
 export const MAX_WINDOWS = 20;
 
-/** The deliveries inside one window (an hour from a heat square). */
 export function refreshDeliveriesWindow(
 	id: string,
 	window: { from: string; to: string },
@@ -308,8 +276,6 @@ export function refreshDeliveriesWindow(
 	});
 }
 
-/** Put a webhook the API just returned (after a rename, pause or resume) in
- *  the cache, so the page and the list agree before the next poll. */
 export function applyWebhook(webhook: WebhookDetail): void {
 	set(appliedPatch(webhook));
 }
@@ -345,12 +311,6 @@ function appliedPatch(webhook: WebhookDetail): Partial<State> {
 
 let pauseSeq = 0;
 
-/**
- * Pause (`paused`) or resume (`active`) a webhook and keep the cache honest
- * around it: while the write is in flight, and for any read that began before
- * it landed, polls don't overwrite the pause state. Resolves with the API's
- * answer; the cache only moves on `ok`.
- */
 export async function setWebhookPaused(
 	id: string,
 	target: PauseTarget,
@@ -373,8 +333,6 @@ export async function setWebhookPaused(
 	return res;
 }
 
-/** A webhook the API no longer has: out of the list and detail caches, so
- *  every page stops showing it, with its name kept when this cache knew it. */
 function forget(id: string): Partial<State> {
 	const { list, detail, missing } = current();
 	const name =
@@ -393,19 +351,11 @@ function forget(id: string): Partial<State> {
 export interface DetailFetch {
 	webhook: WebhooksResult<WebhookDetail>;
 	deliveries: WebhooksResult<DeliveryRow[]>;
-	/** `null` when this call was told to skip activity (the caller's own
-	 *  fast poll already has it covered this round). */
 	activity: WebhooksResult<WebhookActivity> | null;
 }
 
-/** Fires the detail reads for one webhook at once — none of them wait on the
- *  webhook object first, unlike the old serial `GET /:id` → logs chain. Each
- *  only writes its own slice of the cache on an `ok`, so one endpoint being
- *  slow or rate-limited never blocks or clears the others.
- *
- *  `activity: false` skips that one read entirely — the detail page passes
- *  it while its own faster activity-only poll is already running, so the
- *  two don't both fetch `/activity` on the same tick. */
+/** Each read only writes its own slice of the cache on an `ok`, so one
+ *  endpoint being slow or rate-limited never blocks or clears the others. */
 export function refreshDetail(
 	id: string,
 	opts: { activity?: boolean } = {},
@@ -461,10 +411,6 @@ export function refreshDetail(
 	});
 }
 
-/** The fast standalone `/activity` poll (5s, while a receiver is down or
- *  events are waiting) — refreshes only that one slice, not the whole
- *  detail bundle, so the catch-up view doesn't re-fetch deliveries on
- *  every tick. */
 export function refreshActivity(
 	id: string,
 ): Promise<WebhooksResult<WebhookActivity>> {
@@ -484,15 +430,6 @@ export function refreshActivity(
 	});
 }
 
-/**
- * Calls `run` right away (or, with `immediate: false`, after the first
- * interval: for a screen whose data just came from the server), then again
- * every `intervalMs` for as long as the tab stays visible — paused polls are skipped, not queued, and a return to
- * "visible" fires immediately instead of waiting out the rest of the
- * interval. `run` can shorten its own next wait (e.g. a server's
- * `Retry-After`) by returning `{ retryAfterMs }`; otherwise the fixed
- * interval applies. Guarded for a `document`-less environment (tests, SSR).
- */
 export function poll(
 	run: () => Promise<{ retryAfterMs?: number } | undefined>,
 	intervalMs: number,

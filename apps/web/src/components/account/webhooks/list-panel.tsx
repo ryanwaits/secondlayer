@@ -45,16 +45,9 @@ import { WebhooksListSkeleton } from "./skeletons";
 import { ageShort } from "./view";
 import { WaitingBlock } from "./waiting";
 
-/** The list polls this often while the tab is visible, so new webhooks and
- *  status changes show up without a reload. */
 const LIST_POLL_MS = 15_000;
 const HOUR_MS = 3_600_000;
 
-/** Polls the list and the hourly summary. A notice only appears while there
- *  are no cached rows to show: once rows have landed, a later starting, rate
- *  limit or error just keeps retrying behind them. A page that opened with the
- *  server's reads (`initial`) waits a full interval for the first poll, unless
- *  its list or summary didn't load. */
 function useListPoll(initial: WebhooksListInitial | null): StackNotice | null {
 	const listLoaded =
 		initial?.list.kind === "ok" && initial.summary.kind === "ok";
@@ -93,7 +86,6 @@ function Notice({
 	);
 }
 
-/** The create call from the webhooks guide: the filter lives in your code. */
 const CREATE_EXAMPLE = `import { trigger } from "@secondlayer/sdk";
 
 await sl.webhooks.create({
@@ -153,7 +145,6 @@ function EmptyState() {
 	);
 }
 
-/** A webhook as the index shows it: its model plus what the row says about it. */
 interface WebhookIndexRow {
 	model: WebhookRowModel;
 	status: RowStatus;
@@ -180,10 +171,8 @@ function WebhookListRow({
 	row: WebhookIndexRow;
 	hours: readonly string[];
 	view: IndexView;
-	/** The last row carries the hour axis the others leave out. */
 	isLast: boolean;
 	onOpenHour: (id: string, hourIso: string) => void;
-	/** The hourly summary hasn't landed: hold the strip's space. */
 	stripPending: boolean;
 }) {
 	const {
@@ -311,16 +300,12 @@ function pendingStripDays(): number {
 }
 
 export interface WebhooksListBodyProps {
-	/** Null until the first list has loaded. */
 	rows: WebhookRowModel[] | null;
 	hours: readonly string[];
 	notice: StackNotice | null;
 	onOpenHour: (id: string, hourIso: string) => void;
-	/** The hourly summary has loaded. Defaults to true. */
 	summaryLoaded?: boolean;
-	/** Account-level insights about this page (the stack not answering). */
 	pageInsights?: readonly Insight[];
-	/** The view the visitor left this page in. Defaults to Rows. */
 	initialView?: IndexView;
 }
 
@@ -418,7 +403,6 @@ export function WebhooksListBody({
 	);
 }
 
-/** /account/webhooks. `initial` is what the server read for this visit. */
 export function WebhooksListSection({
 	initial = null,
 	initialView,

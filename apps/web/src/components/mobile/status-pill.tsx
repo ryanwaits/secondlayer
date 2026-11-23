@@ -43,21 +43,13 @@ function readCleared(): ReadonlySet<string> {
 function write(key: string, value: string) {
 	try {
 		sessionStorage.setItem(key, value);
-	} catch {
-		// Per-tab convenience only.
-	}
+	} catch {}
 }
 
-/** The dot beside a pill or an activity: ok, bad, a hollow ring, or a spinner. */
 export function PillDot({ kind }: { kind: ActivityDot }) {
 	return <span className={`mrp-dot is-${kind}`} aria-hidden="true" />;
 }
 
-/**
- * The pill: the most urgent item's dot and short label, `+N` for the rest.
- * Hook-free so the Lab can render it with injected items. It animates in when
- * the set of items changes (a new key), never on a progress tick.
- */
 export function StatusPillView({
 	items,
 	onOpen,
@@ -87,7 +79,6 @@ export function StatusPillView({
 	);
 }
 
-/** The status pill beside every phone screen title, with the Activity drawer behind it. */
 export function StatusPill() {
 	const tip = useChainTip();
 	const replays = useRecentReplays();
@@ -105,7 +96,6 @@ export function StatusPill() {
 
 	const chain = chainState(tip, now);
 	const chainKind = chain.kind;
-	// Going live clears the dismissal; any other change keeps it.
 	// biome-ignore lint/correctness/useExhaustiveDependencies: only the chain kind matters here
 	useEffect(() => {
 		setDismissedLevel((prev) => {
@@ -127,7 +117,6 @@ export function StatusPill() {
 		[chain, dismissedLevel, replays, cleared, now],
 	);
 
-	// Nothing left to show: close the drawer.
 	useEffect(() => {
 		if (open && items.length === 0) setOpen(false);
 	}, [open, items.length]);

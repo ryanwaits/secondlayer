@@ -25,7 +25,6 @@ export const metadata: Metadata = {
 	},
 };
 
-/** The blog index: one ruled row per post, newest first, on the site grid. */
 export default function WritingIndexPage() {
 	const posts = [...getVisiblePosts()].sort((a, b) => b.number - a.number);
 

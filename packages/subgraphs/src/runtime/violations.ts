@@ -54,7 +54,6 @@ async function defaultRecordPrintViolation(
 			})
 			.execute();
 
-		// Delete oldest beyond the cap (same write path; no separate sweep).
 		await sql`
 			DELETE FROM subgraph_violations
 			WHERE id IN (

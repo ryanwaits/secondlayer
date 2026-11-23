@@ -176,8 +176,6 @@ async function loadPartition(
 	return written;
 }
 
-/** `1,000 blocks, 20 transactions, 30 events` — one entry per loaded dataset,
- *  in load order. */
 function restoredSummary(loaded: Partial<Record<ArchiveDataset, number>>) {
 	return LOAD_ORDER.filter((d) => loaded[d] !== undefined)
 		.map((d) => `${(loaded[d] ?? 0).toLocaleString()} ${d}`)
@@ -441,7 +439,6 @@ Exit codes:
 					gate = createGatedFetcher(paths, "bootstrap");
 				}
 
-				// Lead with the comparison — it is the reason this command exists.
 				if (!opts.json) {
 					console.error("");
 					console.error(

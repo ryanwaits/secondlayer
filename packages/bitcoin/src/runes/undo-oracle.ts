@@ -12,15 +12,11 @@ import {
 import type { UndoBalanceRow, UndoEntryDelta, UndoPayload } from "./undo.ts";
 
 export interface StateSnapshot {
-	/** `balanceKey(outpoint, runeId)` -> amount, for every live balance. */
 	balances: Map<string, bigint>;
-	/** outpoint -> address, mirroring `state.balanceAddresses`. */
 	addresses: Map<string, string>;
-	/** runeId -> `{mints, burned}`, for every rune entry that exists. */
 	entries: Map<string, { mints: bigint; burned: bigint }>;
 }
 
-/** A full copy of the parts of `state` a block can change. */
 export function snapshotState(state: RuneState): StateSnapshot {
 	const balances = new Map<string, bigint>();
 	for (const [outpoint, runeId, amount] of iterateBalances(state)) {
@@ -38,7 +34,6 @@ function splitBalanceKey(key: string): { outpoint: string; runeId: string } {
 	return { outpoint: key.slice(0, sep), runeId: key.slice(sep + 1) };
 }
 
-/** Diffs `before` (a `snapshotState` taken immediately before block `height`) against `state` immediately after. */
 export function buildUndoPayloadFromSnapshot(
 	height: number,
 	before: StateSnapshot,
@@ -59,7 +54,7 @@ export function buildUndoPayloadFromSnapshot(
 		const afterAmount = afterKeys.has(key)
 			? getBalance(state, outpoint, runeId)
 			: undefined;
-		if (beforeAmount === afterAmount) continue; // untouched by this block
+		if (beforeAmount === afterAmount) continue;
 
 		if (beforeAmount !== undefined) {
 			balancesSpent.push({

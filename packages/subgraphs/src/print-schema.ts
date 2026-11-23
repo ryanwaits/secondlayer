@@ -224,7 +224,6 @@ function unify(a: Tree, b: Tree): Tree {
 	}
 }
 
-/** Merge into an existing union: join a compatible member, else append. */
 function unionAdd(members: Tree[], t: Tree): Tree {
 	if (t.kind === "union") {
 		let acc: Tree = { kind: "union", members };
@@ -345,7 +344,6 @@ function toColumnType(t: Tree | null): ColumnType {
 	}
 }
 
-/** Per-topic deserialization budget: spread across the newest + oldest rows that have raw hex */
 const MAX_DECODED_PER_TOPIC_NEWEST = 75;
 const MAX_DECODED_PER_TOPIC_OLDEST = 25;
 
@@ -395,9 +393,7 @@ export function inferPrintTopics(
 				const cv = deserializeCV(p.rawHex);
 				decoded++;
 				if (cv.type === "tuple") tuples.push(cv);
-			} catch {
-				// undecodable hex contributes nothing to typing
-			}
+			} catch {}
 		}
 
 		// Only claim non_tuple when something actually decoded to a non-tuple;

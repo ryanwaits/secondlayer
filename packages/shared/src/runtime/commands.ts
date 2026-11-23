@@ -1,8 +1,3 @@
-/**
- * Child-process commands the one-box supervisor starts.
- * Publisher stays off the default profile.
- */
-
 import type { ModuleId } from "./modules.ts";
 
 export const MODULE_COMMANDS: Record<ModuleId, readonly string[]> = {

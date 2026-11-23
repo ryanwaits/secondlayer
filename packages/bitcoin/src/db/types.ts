@@ -42,7 +42,6 @@ export interface RuneBalancesTable {
 	vout: number;
 	rune_id: string;
 	amount: string;
-	/** Mainnet address derived from the outpoint's scriptPubKey (`../address.ts`), null for a non-standard script. Migration 0004. */
 	address: string | null;
 }
 

@@ -10,13 +10,9 @@ import { sessionToken } from "@/lib/server/session";
 import { warmHighlighter } from "@/lib/server/warm-instance";
 import { after } from "next/server";
 
-// Next to the API (Hetzner HEL/fsn1), and per request: the HTML carries one
-// account's data, so it is never prerendered or shared.
 export const preferredRegion = "fra1";
 export const dynamic = "force-dynamic";
 
-/** The balance for the top bar's account menu, read once for every page under
- *  /account. The rest of the frame is the client shell. */
 export default async function AccountLayout({
 	children,
 }: {

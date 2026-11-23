@@ -12,23 +12,17 @@
 export type BackSlot = {
 	path: string;
 	scrollY: number;
-	/** The link's index among `#docs-article a[data-link]`; the pages are static, so it is stable. */
 	linkIndex: number;
-	/** The nearest heading before the link, else the page title. */
 	label: string;
 };
 
-/** What a docs link points at, and so what a peek shows (see remark-docs-links). */
 export type PeekKind = "section" | "page" | "api";
 
-/** A section kept from a peek. */
 export type SavedItem = {
 	href: string;
-	/** The section or endpoint; for a page, the page. */
 	title: string;
 	pageTitle: string;
 	kind: PeekKind;
-	/** Where it was saved from, so the row can say. */
 	from: { path: string; label: string };
 	savedAt: number;
 };
@@ -36,14 +30,10 @@ export type SavedItem = {
 const BACK_KEY = "sl.docs.back";
 const RESTORE_KEY = "sl.docs.restore";
 const SAVED_KEY = "sl.docs.saved";
-/** The oldest Saved item falls off past this. */
 const SAVED_CAP = 50;
-/** Fired on `window` whenever the slot changes, so the bar can follow. */
 export const TRAIL_EVENT = "docs-trail";
-/** The bar's height; a link under it is as good as off screen. */
 const BAR_HEIGHT = 56;
 
-/** The tab's storage, or the browser's for what must outlive the tab. */
 const area = (persistent: boolean) =>
 	persistent ? localStorage : sessionStorage;
 
@@ -68,7 +58,6 @@ function announce() {
 	} catch {}
 }
 
-/** The slot, or null when empty or not one of ours. */
 export function peekBack(): BackSlot | null {
 	const raw = read(BACK_KEY);
 	if (!raw) return null;
@@ -86,13 +75,11 @@ export function peekBack(): BackSlot | null {
 	return null;
 }
 
-/** Replace the slot. */
 export function setBack(slot: BackSlot) {
 	write(BACK_KEY, JSON.stringify(slot));
 	announce();
 }
 
-/** Read the slot and clear it. */
 export function takeBack(): BackSlot | null {
 	const slot = peekBack();
 	write(BACK_KEY, null);
@@ -100,12 +87,10 @@ export function takeBack(): BackSlot | null {
 	return slot;
 }
 
-/** A scroll offset to land on after the next docs navigation (read by DocsScrollTop). */
 export function setPendingRestore(scrollY: number) {
 	write(RESTORE_KEY, String(scrollY));
 }
 
-/** The pending offset, once. */
 export function takePendingRestore(): number | null {
 	const raw = read(RESTORE_KEY);
 	write(RESTORE_KEY, null);
@@ -114,7 +99,6 @@ export function takePendingRestore(): number | null {
 	return Number.isFinite(scrollY) ? scrollY : null;
 }
 
-/** Whether any part of an element at viewport `top`..`bottom` is readable above the bar. */
 export function onScreen(
 	top: number,
 	bottom: number,
@@ -123,12 +107,6 @@ export function onScreen(
 	return bottom > 0 && top < viewportHeight - BAR_HEIGHT;
 }
 
-/**
- * Will the jump to a link's target scroll the link out of sight? Coordinates
- * are document coordinates. The jump lands the target at `paddingTop`
- * (clamped to the page's scroll range), so the link's place after it is known
- * without waiting for the glide to end.
- */
 export function leavesScreen({
 	linkTop,
 	linkBottom,
@@ -148,12 +126,10 @@ export function leavesScreen({
 	return !onScreen(linkTop - landing, linkBottom - landing, viewportHeight);
 }
 
-/** The text of the nearest heading before `link` in its article, else the page title. */
 export function labelFor(link: Element): string {
 	const article = link.closest("#docs-article");
 	let label = "";
 	for (const heading of article?.querySelectorAll("h2, h3, h4") ?? []) {
-		// A peeked section's own headings are not places on this page.
 		if (heading.closest(".docs-peek")) continue;
 		if (
 			!(
@@ -170,11 +146,6 @@ export function labelFor(link: Element): string {
 	);
 }
 
-/**
- * The text of the last heading whose top has reached `line` (viewport
- * coordinates, in document order), else null. This is the heading a reader is
- * under when no link marks the spot.
- */
 export function headingAbove(
 	headings: { top: number; text: string }[],
 	line: number,
@@ -187,7 +158,6 @@ export function headingAbove(
 	return found;
 }
 
-/** The heading above the top of the viewport, else the page title. */
 export function labelAtTop(): string {
 	const article = document.getElementById("docs-article");
 	const paddingTop =
@@ -225,7 +195,6 @@ function isSavedItem(value: unknown): value is SavedItem {
 	);
 }
 
-/** Saved items, oldest first. Anything in storage that is not one is dropped. */
 export function listSaved(): SavedItem[] {
 	const raw = read(SAVED_KEY, true);
 	if (!raw) return [];
@@ -240,7 +209,6 @@ export function listSaved(): SavedItem[] {
 export const isSaved = (href: string) =>
 	listSaved().some((item) => item.href === href);
 
-/** Keep a section: saving one again moves it to the end, and the oldest past 50 drops. */
 export function addSaved(item: Omit<SavedItem, "savedAt">, now = Date.now()) {
 	const kept = listSaved().filter((saved) => saved.href !== item.href);
 	kept.push({ ...item, savedAt: now });

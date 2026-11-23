@@ -280,10 +280,6 @@ export function resolveCatchupBatchConfig(
 	};
 }
 
-/**
- * Adjust batch size based on event density.
- * Sparse blocks (early chain) → larger batches. Dense blocks → smaller batches.
- */
 function adjustBatchSize(
 	current: number,
 	avgEvents: number,
@@ -316,7 +312,6 @@ export async function catchUpSubgraph(
 		const source = await resolveBlockSource(subgraph);
 		const targetDb = getTargetDb();
 
-		// Re-read from DB to avoid stale lastProcessedBlock
 		const subgraphRow = await getSubgraph(targetDb, subgraphName);
 		// The caller's row was deleted and registered again under this name:
 		// that new row gets its own walk on the next tick.
@@ -400,8 +395,6 @@ export async function catchUpSubgraph(
 		const batchConfig = resolveCatchupBatchConfig();
 		let batchSize = batchConfig.defaultBatchSize;
 		let currentHeight = startBlock;
-		// f057: snapshot the epoch once — see the guard comment above
-		// `subgraphBlockLockHeld` for the invariant this protects.
 		const walkEpoch = getReorgEpoch(subgraphName);
 
 		// Pipeline: start loading first batch and track the prefetched range.
@@ -414,8 +407,6 @@ export async function catchUpSubgraph(
 		// A prefetch dropped by a throw (billing pause, handler failure) must not
 		// surface as an unhandled rejection; awaiting it still rethrows.
 		nextBatchPromise?.catch(() => {});
-		// A pause recorded by an earlier tick (or process) clears on the first
-		// successful read.
 		let pauseCleared = subgraphRow.billing_paused_at === null;
 
 		while (currentHeight <= chainTip) {
@@ -441,7 +432,6 @@ export async function catchUpSubgraph(
 				break;
 			}
 
-			// Check if subgraph status changed (e.g. reindex started) — bail if so
 			const currentRow = await getSubgraph(targetDb, subgraphName);
 			if (
 				!currentRow ||
@@ -464,7 +454,6 @@ export async function catchUpSubgraph(
 				batch = await nextBatchPromise;
 				batchEnd = prefetchedBatchEnd;
 
-				// Start prefetching next batch while we process this one.
 				const nextStart = batchEnd + 1;
 				if (nextStart <= chainTip) {
 					prefetchedBatchEnd = Math.min(nextStart + batchSize - 1, chainTip);
@@ -477,8 +466,6 @@ export async function catchUpSubgraph(
 					nextBatchPromise = undefined;
 				}
 			} else {
-				// Low-memory mode: load only the current batch, process it, then size
-				// and load the next batch after this iteration completes.
 				batchEnd = Math.min(currentHeight + batchSize - 1, chainTip);
 				batch = await source.loadBlockRange(currentHeight, batchEnd);
 			}
@@ -490,7 +477,6 @@ export async function catchUpSubgraph(
 				});
 			}
 
-			// Process each block from pre-loaded data
 			let stopCatchup = false;
 
 			// Trait and factory sets read once for this batch. Dropped on a lost
@@ -602,18 +588,14 @@ export async function catchUpSubgraph(
 				}
 			}
 
-			// A missing block or persistent failure stops the walk with the
-			// cursor before the problem height — never record-and-skip.
 			if (stopCatchup) break;
 
-			// Adaptive batch sizing based on event density
 			const avg = avgEventsPerBlock(batch);
 			batchSize = adjustBatchSize(batchSize, avg, batchConfig);
 
 			currentHeight = batchEnd + 1;
 		}
 
-		// Flush remaining stats
 		await stats.flush(targetDb);
 
 		logger.info("Subgraph catch-up complete", {

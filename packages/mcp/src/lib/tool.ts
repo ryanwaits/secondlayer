@@ -6,14 +6,8 @@ interface ToolResult {
 	isError?: boolean;
 }
 
-// Names of every tool registered via defineTool, in registration order. The
-// context resource generates its capability list from this so CAPABILITIES can
-// never drift behind the actual tool surface (a new tool auto-appears). A Set
-// dedupes across repeated createServer() calls in tests.
 const registeredToolNames = new Set<string>();
-/** The same, per server: a hosted server lists only what it registered. */
 const serverToolNames = new WeakMap<McpServer, Set<string>>();
-/** Which tools a server takes (createServer's hosted set); absent = all. */
 const serverToolFilters = new WeakMap<McpServer, (name: string) => boolean>();
 
 /** Tool names registered so far: on `server`, or on any unrestricted server

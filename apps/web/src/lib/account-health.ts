@@ -9,12 +9,6 @@ import {
 	runwayDays,
 } from "./usage";
 
-/**
- * The one definition of "this account needs attention". The Overview page,
- * the nav chip and its menu all read it, so they never disagree. A new kind
- * of problem goes here and shows up everywhere.
- */
-
 export type ProblemKind =
 	| "low_balance"
 	| "cap_frozen"
@@ -24,9 +18,7 @@ export type ProblemKind =
 export type Problem = {
 	kind: ProblemKind;
 	label: string;
-	/** Where the fix lives. */
 	href: string;
-	/** Button text for that fix. */
 	action: string;
 };
 
@@ -35,14 +27,9 @@ export type HealthInput = {
 	burn: Burn | null;
 	service: HostedStack | null;
 	caps: Caps | null;
-	/** `null` until the webhooks list has loaded. */
 	webhooks: readonly WebhookSummary[] | null;
 };
 
-/**
- * Days of balance left at the trailing-24h burn. `null` while either input
- * is unknown, `Infinity` when nothing is burning.
- */
 export function daysLeft(
 	billing: Billing | null,
 	burn: Burn | null,
@@ -54,7 +41,6 @@ export function daysLeft(
 	);
 }
 
-/** "about 86 days" / "under a day"; `null` when unknown or nothing burns. */
 export function daysLeftLabel(days: number | null): string | null {
 	if (days === null || !Number.isFinite(days)) return null;
 	if (days < 1) return "under a day";

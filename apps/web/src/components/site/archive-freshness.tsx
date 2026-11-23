@@ -11,7 +11,6 @@ import NumberFlow from "@number-flow/react";
 
 type Props = Omit<ArchiveFreshnessData, "promotedAt" | "state"> & {
 	promotedAt: string | null;
-	/** Archive state from status.json; "unknown" when the status couldn't be read. */
 	state: string;
 };
 
@@ -24,7 +23,6 @@ const flow = (v: number) => (
 	/>
 );
 
-/** The line under the Archive counter. `behind` is chain tip minus `toBlock`, null when unknown. */
 export function ArchiveFreshnessView({
 	toBlock,
 	promotedAt,
@@ -74,7 +72,6 @@ export function ArchiveFreshnessView({
 	);
 }
 
-/** Rolls with the live chain tip; SSR renders the server's figure so nothing shifts. */
 export function ArchiveFreshness({ behindTip, ...rest }: Props) {
 	const { height } = useChainTip();
 	const behind =

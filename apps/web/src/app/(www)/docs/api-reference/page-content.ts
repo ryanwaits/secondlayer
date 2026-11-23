@@ -35,12 +35,10 @@ export type PageContent = {
 	objects: ObjectEntry[];
 };
 
-/** Family titles as heading ids, the way rehype-slug makes them. */
 export function familyId(title: string): string {
 	return new GithubSlugger().slug(title);
 }
 
-/** A page's endpoints grouped into its families, in spec order within each. */
 export function pageContent(page: ApiPage): PageContent {
 	const byFamily = new Map<string, Endpoint[]>();
 	for (const endpoint of allEndpoints()) {
@@ -67,8 +65,6 @@ export function pageContent(page: ApiPage): PageContent {
 	};
 }
 
-/** A page's families, endpoints and objects as markdown, one level below the
- *  page's own `#` title. The same spec text the page renders. */
 export function pageMarkdown(page: ApiPage): string {
 	const { families, objects } = pageContent(page);
 	const demote = (md: string) => md.replace(/^(#{2,3}) /gm, "#$1 ");
@@ -90,7 +86,6 @@ export function pageMarkdown(page: ApiPage): string {
 	].join("\n\n");
 }
 
-/** Every endpoint and object anchor with the page slug that holds it. */
 export function anchorPages(): Record<string, string> {
 	const out: Record<string, string> = {};
 	for (const endpoint of allEndpoints()) {

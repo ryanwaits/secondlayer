@@ -9,7 +9,6 @@ const withdrawTuple = {
 
 export const STACKING_DAO_CORE_ABI = {
 	functions: [
-		// Public — deposit STX, receive stSTX
 		{
 			name: "deposit",
 			access: "public",
@@ -24,7 +23,6 @@ export const STACKING_DAO_CORE_ABI = {
 			],
 			outputs: { response: { ok: "uint128", error: "uint128" } },
 		},
-		// Public — initiate withdrawal (burn stSTX, get NFT receipt)
 		{
 			name: "init-withdraw",
 			access: "public",
@@ -35,7 +33,6 @@ export const STACKING_DAO_CORE_ABI = {
 			],
 			outputs: { response: { ok: "uint128", error: "uint128" } },
 		},
-		// Public — finalize withdrawal (burn NFT, receive STX)
 		{
 			name: "withdraw",
 			access: "public",
@@ -47,7 +44,6 @@ export const STACKING_DAO_CORE_ABI = {
 			],
 			outputs: { response: { ok: withdrawTuple, error: "uint128" } },
 		},
-		// Public — withdraw idle STX (instant, no NFT)
 		{
 			name: "withdraw-idle",
 			access: "public",

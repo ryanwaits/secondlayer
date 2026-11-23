@@ -8,7 +8,6 @@ const colorEnabled = (() => {
 	return Boolean(process.stdout.isTTY);
 })();
 
-// ANSI color codes
 const colors = {
 	reset: "\x1b[0m",
 	red: "\x1b[31m",
@@ -80,7 +79,6 @@ export function info(message: string): void {
 	console.error(blue(`ℹ ${message}`));
 }
 
-// A dim secondary line (cursors, counts, hints) — chrome, so stderr.
 export function note(message: string): void {
 	console.error(dim(message));
 }
@@ -144,23 +142,19 @@ export function wrapText(text: string, width = 76): string[] {
 	return lines;
 }
 
-// Strip ANSI codes for length calculation
 function stripAnsi(text: string): string {
 	return text.replace(ANSI_ESCAPE_PATTERN, "");
 }
 
 export function formatTable(headers: string[], rows: string[][]): string {
-	// Calculate column widths
 	const widths = headers.map((h, i) => {
 		const colValues = [h, ...rows.map((r) => r[i] || "")];
 		return Math.max(...colValues.map((v) => stripAnsi(v).length));
 	});
 
-	// Format header
 	const headerRow = headers.map((h, i) => h.padEnd(widths[i] ?? 0)).join("  ");
 	const separator = widths.map((w) => "-".repeat(w)).join("  ");
 
-	// Format data rows
 	const dataRows = rows.map((row) =>
 		row
 			.map((cell, i) => {

@@ -1,11 +1,3 @@
-/**
- * Input checks for the OAuth endpoints: which redirect URIs a public client
- * may register, which client names may be shown on the consent page, and who
- * a rate limit counts.
- */
-
-/** A redirect a public client may register: https, or http on a loopback
- *  host (RFC 8252 §7.3). No fragment, no userinfo, at most 512 characters. */
 export function allowedRedirect(raw: string): boolean {
 	if (raw.length > 512) return false;
 	let u: URL;
@@ -53,8 +45,6 @@ export function hasInvisible(s: string): boolean {
 	return false;
 }
 
-/** Why a DCR `client_name` is refused, or null when it may be shown. It is the
- *  app's own claim, quoted on the consent page: one line, nothing hidden. */
 export function clientNameProblem(name: unknown): string | null {
 	if (typeof name !== "string") return "client_name: a string.";
 	if (name.trim().length < 1 || [...name].length > 64)
@@ -83,7 +73,6 @@ export function rateKeyOf(ip: string): string {
 	if (mapped) return mapped[1];
 	const [head, tail = ""] = raw.split("::");
 	const left = head ? head.split(":") : [];
-	// A dotted IPv4 tail fills the last two groups.
 	const right = (tail ? tail.split(":") : []).flatMap((g) =>
 		g.includes(".") ? ["0", "0"] : [g],
 	);

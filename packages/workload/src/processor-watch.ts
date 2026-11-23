@@ -50,7 +50,6 @@ import {
 	tenantDir,
 } from "./provisioner.ts";
 
-/** A cursor that hasn't moved for this long while the hosted tip has is stalled. */
 export const STALL_MS = 10 * 60_000;
 export const MAX_RESTARTS_PER_HEIGHT = 3;
 /**
@@ -65,9 +64,7 @@ export interface SubgraphCursor {
 	name: string;
 	status: string;
 	lastProcessedBlock: number;
-	/** A reindex that is queued behind another operation rather than running. */
 	queued?: boolean;
-	/** Latest indexing error. */
 	lastError?: string | null;
 	/** Set while the account's metered reads are refused (spend cap / credits):
 	 *  a deliberate pause, never a stall. */
@@ -81,17 +78,13 @@ const isBillingPaused = (sub: SubgraphCursor): boolean =>
 export interface SubgraphStoppedEvent {
 	accountId: string;
 	subgraph: string;
-	/** `error`: the subgraph's own status flipped to `error` (handler errors past the runner's threshold, or another halt). */
 	reason: "out_of_memory" | "crashed" | "stalled" | "error";
-	/** Cursor when it stopped. */
 	height: number;
 	lastError: string | null;
 	at: number;
 }
 
-/** What `docker inspect` says about the processor container. */
 export interface ProcessorState {
-	/** Restarts performed by docker's restart policy since the container was created. */
 	restartCount: number;
 	oomKilled: boolean;
 	/** Exit code of the last run (137 = SIGKILL, what the OOM killer sends). */
@@ -100,7 +93,6 @@ export interface ProcessorState {
 }
 
 export interface ProcessorWatchDeps {
-	/** The processor container's restart/exit state, or `null` when it doesn't exist. */
 	inspectProcessor: (acct8: string) => Promise<ProcessorState | null>;
 	listSubgraphs: (tenant: TenantEndpoint) => Promise<SubgraphCursor[]>;
 	haltSubgraph: (
@@ -111,9 +103,7 @@ export interface ProcessorWatchDeps {
 	/** Hosted chain tip; `null` when unknown (stall detection then waits). */
 	hostedTip: () => Promise<number | null>;
 	restartProcessor: (tenant: TenantRow) => Promise<boolean>;
-	/** Creates and starts the processor for a tenant that just got subgraphs. */
 	startProcessor: (tenant: TenantRow) => Promise<boolean>;
-	/** Stops and removes the processor for a tenant with no subgraphs left. */
 	removeProcessor: (tenant: TenantRow) => Promise<boolean>;
 	now: () => number;
 	/** Fires once per stop. Optional; defaults to a no-op. Must not throw into the watch. */
@@ -126,20 +116,13 @@ export interface TenantEndpoint {
 }
 
 interface Tracker {
-	/** Cursor as of the latest tick. */
 	height: number;
-	/** When `height` last changed. */
 	movedAt: number;
-	/** Hosted tip at that moment. */
 	tipAtMove: number | null;
-	/** How far the cursor moved since the previous tick; `null` on first sight. */
 	creep: number | null;
-	/** Consecutive processor deaths (or watchdog restarts) near one cursor:
-	 *  `count` of them, none past `highWater` + `CURSOR_CREEP_MARGIN`. */
 	streak: { count: number; highWater: number } | null;
 }
 
-/** The container name compose gives the processor (project `tenant-<acct8>`). */
 function processorContainer(acct8: string): string {
 	return `tenant-${acct8}-subgraph-processor-1`;
 }
@@ -162,8 +145,6 @@ export function tenantEndpoint(
 	}
 }
 
-/** Real dependencies: `docker inspect`, the tenant api over loopback, the
- *  hosted tip over HTTP, and `docker compose restart`. */
 export function realProcessorWatchDeps(
 	cfg: ProvisionerConfig,
 	opts: {
@@ -284,9 +265,6 @@ export function realProcessorWatchDeps(
 }
 
 export interface ProcessorReconciler {
-	/** Makes the processor match the subgraph count: runs it when `count > 0`,
-	 *  removes it at 0, and keeps `has_subgraphs` (the floor) in step.
-	 *  Returns whether a processor exists afterwards. */
 	reconcile: (
 		tenant: TenantRow,
 		subgraphCount: number,
@@ -370,11 +348,6 @@ export function createProcessorReconciler(
 	};
 }
 
-/**
- * One check over every running tenant. Returns the per-tick function the
- * 5-minute loop calls. Never throws: one tenant's failure is logged and the
- * rest are still checked.
- */
 export function createProcessorWatch(
 	cfg: ProvisionerConfig,
 	deps: ProcessorWatchDeps = realProcessorWatchDeps(cfg),
@@ -384,9 +357,7 @@ export function createProcessorWatch(
 	/** `FinishedAt` of the last OOM kill already counted, per account, so a
 	 *  sticky `OOMKilled` flag can't count the same death every tick. */
 	const handledOom = new Map<string, string>();
-	/** Docker's `RestartCount` as of the previous tick, per account. */
 	const lastRestartCount = new Map<string, number>();
-	/** Each subgraph's status as of the previous tick; a stop is the move to `error`. */
 	const lastStatus = new Map<string, string>();
 
 	async function emitStopped(event: SubgraphStoppedEvent): Promise<void> {
@@ -416,7 +387,6 @@ export function createProcessorWatch(
 			listed.length,
 			container !== null,
 		);
-		// Just removed: nothing left to watch. Just started: a fresh container.
 		if (!processorExists) container = null;
 
 		// A subgraph turning `error` is a stop. First sight and billing pauses

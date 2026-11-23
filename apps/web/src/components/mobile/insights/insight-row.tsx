@@ -19,10 +19,6 @@ function RowFace({ insight, isNew }: { insight: Insight; isNew: boolean }) {
 	);
 }
 
-/**
- * One insight on the phone list. Open rows swipe left for "Until tomorrow"
- * and "Done"; recovered rows only open the sheet.
- */
 export function InsightRow({
 	insight,
 	isNew,

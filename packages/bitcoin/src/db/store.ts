@@ -1,20 +1,3 @@
-// Loads/flushes RuneState (../runes/state.ts) to Postgres. Not a port of any
-// ord file — ord persists to redb tables directly from the updater; this is
-// the equivalent boundary for our separate DB (D18).
-//
-// Batching note (added after a reviewer-caught defect): the Runes launch
-// window touches tens of thousands of (outpoint, rune) balance pairs per
-// 1,000-block flush, most of them created and fully spent within the same
-// window (mint -> immediately transferred -> transferred again, all before
-// the next flush). The first version of this file did one DELETE and one
-// INSERT per touched outpoint — a single flush measured in pg_stat_activity
-// issuing one-row-at-a-time statements for 45+ minutes with zero rows
-// committed. `computeBalanceChanges` fixes this: a pair that ends the window
-// at zero is only ever deleted (never inserted), and every write is batched
-// into chunked multi-row statements instead of one round trip per row. A
-// delete of a row that was never persisted (created and spent inside the
-// window) is a no-op.
-
 import { hexToBytes } from "@noble/hashes/utils.js";
 import { Kysely, sql } from "kysely";
 import { PostgresJSDialect } from "kysely-postgres-js";
@@ -123,7 +106,6 @@ export function entryToRow(runeId: string, entry: RuneEntry): RuneEntriesTable {
 /** Postgres's hard limit on bind parameters in a single extended-protocol statement. */
 export const POSTGRES_MAX_PARAMETERS = 65_534;
 
-/** Splits `items` into chunks of at most `size` — keeps every batched statement under Postgres's parameter limit. */
 export function chunk<T>(items: T[], size: number): T[][] {
 	const out: T[][] = [];
 	for (let i = 0; i < items.length; i += size)
@@ -138,11 +120,6 @@ export function openStore(databaseUrl: string): Kysely<Database> {
 	});
 }
 
-/**
- * The `entryToRow` inverse — rebuilds the in-memory `RuneEntry` from a
- * `rune_entries` row. Pure (no DB access) so the round trip is directly
- * unit-testable; `loadState` is its only caller.
- */
 /**
  * Closes the pool, but never waits longer than `timeoutMs`. On a long-lived
  * host-networked connection `destroy()` has been seen to never settle, which
@@ -277,7 +254,6 @@ export interface BalanceRow {
 	vout: number;
 	runeId: string;
 	amount: bigint;
-	/** The outpoint's mainnet address (`state.balanceAddresses`), null for a non-standard script. */
 	address: string | null;
 }
 export interface BalanceRowKey {
@@ -375,9 +351,9 @@ export const RUNE_EVENTS_PARAMS_PER_ROW = 9; // height, tx_index, txid, kind, ru
 export const RUNE_ENTRIES_PARAMS_PER_ROW = 24;
 
 export const DELETE_CHUNK_SIZE = 10_000; // unnest arrays are 1 param each regardless of row count — not parameter-bound, just a sane batch size
-export const UPSERT_CHUNK_SIZE = 5_000; // 4 params/row -> 20,000/chunk
-export const EVENT_CHUNK_SIZE = 5_000; // 7 params/row -> 35,000/chunk
-export const ENTRY_CHUNK_SIZE = 1_000; // 24 params/row -> 24,000/chunk
+export const UPSERT_CHUNK_SIZE = 5_000;
+export const EVENT_CHUNK_SIZE = 5_000;
+export const ENTRY_CHUNK_SIZE = 1_000;
 
 export interface FlushStats {
 	height: number;
@@ -487,9 +463,6 @@ export async function flush(
 			`.execute(trx);
 		}
 
-		// Batched upserts — kysely's `.values([...])` already emits one
-		// multi-row INSERT per call; chunking just keeps each statement under
-		// Postgres's ~65535 bind-parameter limit (4 params/row here).
 		for (const batch of chunk(toUpsert, UPSERT_CHUNK_SIZE)) {
 			await trx
 				.insertInto("rune_balances")
@@ -588,8 +561,6 @@ export async function flush(
 			)
 			.execute();
 
-		// Fail-closed invariant check, inside the transaction: a violation rolls
-		// the whole flush back rather than persisting a corrupt state.
 		checkInvariant(state, state.dirtyRuneIds);
 	});
 

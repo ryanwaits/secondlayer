@@ -8,11 +8,6 @@ export type RowState = {
 	caption: string;
 };
 
-/**
- * B10 StateRow — a linear status progression the reader operates to
- * understand. Click advances (wraps); arrow keys move both ways. House
- * badge colors by state; past states dim, the current one fills.
- */
 export function StateRow({
 	states,
 	ariaLabel,

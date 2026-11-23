@@ -2,7 +2,6 @@ import { ApiError, apiRequest, getSessionFromRequest } from "@/lib/api";
 import { isSameOrigin } from "@/lib/same-origin";
 import { NextResponse } from "next/server";
 
-/** Cancel a CLI sign-in. Nothing is minted. Session cookie only, from this site's own pages. */
 export async function POST(
 	req: Request,
 	context: { params: Promise<{ code: string }> },

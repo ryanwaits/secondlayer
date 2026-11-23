@@ -158,7 +158,6 @@ export class WebSocketChannel {
 			return;
 		}
 
-		// RPC response
 		if ("id" in msg && msg.id != null) {
 			const rpc = msg as JsonRpcResponse;
 			const p = this.pending.get(rpc.id);
@@ -176,7 +175,6 @@ export class WebSocketChannel {
 			return;
 		}
 
-		// Notification
 		const notif = msg as JsonRpcNotification;
 		if (!notif.method) return;
 
@@ -185,9 +183,7 @@ export class WebSocketChannel {
 				for (const cb of entry.callbacks) {
 					try {
 						cb(notif.params);
-					} catch {
-						// subscriber error — don't crash channel
-					}
+					} catch {}
 				}
 			}
 		}
@@ -196,7 +192,6 @@ export class WebSocketChannel {
 	private handleDisconnect() {
 		this.ws = null;
 
-		// reject pending RPCs
 		for (const [, p] of this.pending) {
 			p.reject(new WebSocketError("WebSocket disconnected"));
 		}
@@ -273,10 +268,8 @@ export class WebSocketChannel {
 		let entry = this.subs.get(key);
 
 		if (entry) {
-			// Dedup: reuse existing WS subscription
 			entry.callbacks.add(callback);
 		} else {
-			// New WS subscription
 			entry = { params, callbacks: new Set([callback]) };
 			this.subs.set(key, entry);
 			await this.sendRpc("subscribe", params);
@@ -289,11 +282,9 @@ export class WebSocketChannel {
 				e.callbacks.delete(callback);
 				if (e.callbacks.size === 0) {
 					this.subs.delete(key);
-					// Best-effort unsubscribe RPC
 					if (this.ws?.readyState === WebSocket.OPEN) {
 						this.sendRpc("unsubscribe", params).catch(() => {});
 					}
-					// Auto-close when no subscribers remain
 					if (this.subs.size === 0) this.closeQuietly();
 				}
 			},

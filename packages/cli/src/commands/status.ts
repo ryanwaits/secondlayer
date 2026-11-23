@@ -27,7 +27,6 @@ export function registerStatusCommand(program: Command): void {
 				const diagnosis = diagnoseInstanceStatus(status);
 				output({
 					json: options.json,
-					// Additive: the raw payload is unchanged, `diagnosis` explains it.
 					data: { ...status, diagnosis },
 					human: () => printPublicStatus(status, diagnosis),
 				});
@@ -87,8 +86,6 @@ function printPublicStatus(
 		}
 		console.log("");
 	}
-	// A degraded verdict is useless without a cause and a next command — the
-	// most common one, a fresh instance with no blocks, is not a fault at all.
 	if (diagnosis.issues.length > 0) {
 		console.log(blue("Diagnosis"));
 		for (const issue of diagnosis.issues) {

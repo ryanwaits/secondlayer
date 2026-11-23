@@ -7,35 +7,22 @@ const STATUS_URL = `${PUBLIC_API_URL}/public/status`;
 export const POLL_MS = 5_000;
 const MAX_INTERVALS = 10;
 
-/** No Stacks block for this long is down: the same bar the API uses for its node. */
 export const DOWN_AFTER_SEC = 180;
-/** The node this many blocks ahead of our index is us falling behind, not pipeline delay. */
 export const BEHIND_BLOCKS = 10;
-/** Failed reads in a row before the browser calls us unreachable. */
 export const UNREACHABLE_AFTER = 2;
 
 export type ChainTip = {
 	height: number | null;
-	/** ms epoch when the current height was first seen (seeded from lag_seconds on the first read). */
 	seenAt: number | null;
-	/** Seconds between the last ≤10 observed height changes, oldest first. */
 	intervals: number[];
-	/** Mean of `intervals`; null until 2 height changes were observed. */
 	avgBlockSec: number | null;
-	/** Increments on every observed height change (drives the pulse). */
 	beat: number;
-	/** Newest Bitcoin block: the node's own view, else the one our tip is anchored to. */
 	bitcoin: number | null;
-	/** ms epoch the current Bitcoin height was first seen; null until it changes once. */
 	bitcoinSeenAt: number | null;
 	bitcoinBeat: number;
-	/** The Bitcoin block our latest Stacks block is anchored to. */
 	anchor: number | null;
-	/** The node's Stacks tip; null when the status didn't carry it. */
 	nodeTip: number | null;
-	/** Failed reads in a row. */
 	failures: number;
-	/** ms epoch of the last good read. */
 	okAt: number | null;
 };
 
@@ -54,7 +41,6 @@ export const EMPTY_TIP: ChainTip = {
 	okAt: null,
 };
 
-/** Fold one observed Stacks height into the state. Returns `prev` itself when nothing changed. */
 export function nextTip(
 	prev: ChainTip,
 	height: number,
@@ -99,7 +85,6 @@ export type StatusRead = {
 const num = (value: unknown) =>
 	typeof value === "number" && Number.isFinite(value) ? value : null;
 
-/** Pull the heights out of a /public/status body; null when the Stacks height is unusable. */
 export function readTip(body: unknown): StatusRead | null {
 	const status = body as {
 		streams?: { tip?: Record<string, unknown> };
@@ -118,7 +103,6 @@ export function readTip(body: unknown): StatusRead | null {
 	};
 }
 
-/** Fold a good read: the Stacks height, the Bitcoin height, and the node's view. */
 export function foldRead(
 	prev: ChainTip,
 	read: StatusRead,
@@ -141,14 +125,10 @@ export function foldRead(
 	};
 }
 
-/** What the status pill says. Checked in order: unreachable, behind, stalled, live. */
 export type ChainState =
 	| { kind: "live" }
-	/** No Stacks block for `DOWN_AFTER_SEC` while our node is level with our index. */
 	| { kind: "stalled"; minutes: number; bitcoinSince: number | null }
-	/** The node is `blocks` ahead of our index. */
 	| { kind: "behind"; blocks: number }
-	/** The browser hasn't heard from us; the heights are from `okAt`. */
 	| { kind: "unreachable" };
 
 export function chainState(tip: ChainTip, now: number): ChainState {
@@ -172,11 +152,6 @@ export function chainState(tip: ChainTip, now: number): ChainState {
 	return { kind: "live" };
 }
 
-/**
- * One poller per tab. It reads only while the tab is visible and someone is
- * subscribed, keeps the last good heights through failures, and counts the
- * failures so the pill can say it can't reach us.
- */
 let state: ChainTip = EMPTY_TIP;
 let timer: ReturnType<typeof setTimeout> | undefined;
 let inflight = false;

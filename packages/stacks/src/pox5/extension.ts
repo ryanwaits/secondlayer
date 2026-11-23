@@ -141,14 +141,11 @@ async function getStakerState(
 /** Actions provided by the pox5 extension. */
 export type Pox5Actions = {
 	pox5: {
-		// activation
 		isActive: () => Promise<boolean>;
 		getActivation: () => Promise<Pox5Activation | undefined>;
 		getPoxInfo: () => Promise<Pox5Info>;
 		contractId: () => string;
-		// batched state
 		getStakerState: (staker: string) => Promise<StakerState>;
-		// reads
 		getStakerInfo: (staker: string) => Promise<StakerInfo>;
 		getBondMembership: (staker: string) => Promise<BondMembership>;
 		getProtocolBond: (bondIndex: IntegerType) => Promise<ProtocolBond>;
@@ -209,7 +206,6 @@ export type Pox5Actions = {
 		eligiblePauseRewards: (
 			params: EligibleAdminParams,
 		) => Promise<EligibilityResult>;
-		// wallet actions (txids; pair with waitForTransactionReceipt)
 		setupBond: (params: SetupBondParams) => Promise<string>;
 		registerForBond: (params: RegisterForBondParams) => Promise<string>;
 		updateBondRegistration: (

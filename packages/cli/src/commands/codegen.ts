@@ -14,7 +14,6 @@ export function registerCodegenCommand(program: Command): void {
 		.command("codegen")
 		.description("Generate typed code: contracts, subgraphs, Index, clients");
 
-	// --- contracts ---
 	codegen
 		.command("contracts [files...]")
 		.description("Generate TypeScript interfaces from Clarity contracts")
@@ -29,7 +28,6 @@ export function registerCodegenCommand(program: Command): void {
 			await generate(files, { ...options, out: options.output });
 		});
 
-	// --- subgraph ORM schema / print payloads ---
 	codegen
 		.command("subgraph <file>")
 		.description(
@@ -56,7 +54,6 @@ export function registerCodegenCommand(program: Command): void {
 			);
 		});
 
-	// --- Index domain tables ---
 	codegen
 		.command("index")
 		.description(
@@ -79,7 +76,6 @@ export function registerCodegenCommand(program: Command): void {
 			await runIndexCodegen(options);
 		});
 
-	// --- typed query client for a deployed subgraph ---
 	codegen
 		.command("client <subgraphName>")
 		.description("Generate a typed query client for a deployed subgraph")
@@ -89,7 +85,6 @@ export function registerCodegenCommand(program: Command): void {
 			await runSubgraphClientCodegen(subgraphName, options);
 		});
 
-	// --- print payload types for a subgraph's pinned print sources ---
 	codegen
 		.command("prints <file>")
 		.description(

@@ -19,8 +19,6 @@ interface ReadIndex {
 	drop: (db: Kysely<Database>) => Promise<void>;
 }
 
-// Identical to migration 0005_read_indexes.ts's `up`/`down` for these two
-// indexes — same builder calls, same column lists, same options (none).
 const READ_INDEXES: readonly ReadIndex[] = [
 	{
 		name: "rune_events_address_height_event_index_idx",

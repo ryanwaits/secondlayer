@@ -2,15 +2,6 @@ import { GetObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
 /**
- * R2 client + presigner for the archive fetch gate (`routes/archive.ts`).
- *
- * Deliberately NOT imported from `@secondlayer/indexer/streams-bulk/upload`
- * — the API must not depend on the indexer package for this. Reads the
- * SAME `STREAMS_BULK_R2_*` env vars the publisher does (no new env
- * plumbing); the small duplication of the config reader + client factory
- * against `packages/indexer/src/streams-bulk/upload.ts` is accepted.
- * Consolidating both into `@secondlayer/shared` is follow-up, not done here.
- *
  * `getArchiveR2ConfigFromEnv` returns `null` (never throws) when the env is
  * unset, so importing this module never crashes an OSS-mode boot — the
  * route checks for `null` and answers 503 instead of mounting broken.

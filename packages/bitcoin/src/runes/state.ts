@@ -1,4 +1,3 @@
-// In-memory Runes state, updated by updater.ts and flushed by ../db/store.ts.
 // Not a direct port of any single ord file — ord keeps this in redb tables
 // (`src/index.rs`'s table definitions); this is the equivalent in-memory shape
 // for the spike, keyed the same way (`RuneId` as `block:tx`, `OutPoint` as
@@ -94,7 +93,6 @@ export interface RuneState {
 	runeToId: Map<string, string>;
 	statisticRunes: bigint;
 	statisticReservedRunes: bigint;
-	/** Dirty rune IDs since the last flush — upserted and invariant-checked at flush time. */
 	dirtyRuneIds: Set<string>;
 	/**
 	 * `(outpoint, runeId)` pairs touched since the last flush, as
@@ -141,7 +139,6 @@ export function balanceKey(outpoint: string, runeId: string): string {
 	return `${outpoint}|${runeId}`;
 }
 
-/** Starts recording pre-images for the block about to be applied. Pair with `endUndoCapture`. */
 export function beginUndoCapture(state: RuneState): UndoRecorder {
 	const recorder: UndoRecorder = {
 		balances: new Map(),
@@ -169,7 +166,6 @@ function recordEntryPreImage(state: RuneState, runeId: string): void {
 	);
 }
 
-/** Adds a newly etched rune. */
 export function insertEntry(
 	state: RuneState,
 	runeId: string,
@@ -179,13 +175,11 @@ export function insertEntry(
 	state.entries.set(runeId, entry);
 }
 
-/** Adds `n` to an existing rune's `mints`. */
 export function addMints(state: RuneState, runeId: string, n: bigint): void {
 	recordEntryPreImage(state, runeId);
 	(state.entries.get(runeId) as RuneEntry).mints += n;
 }
 
-/** Adds `n` to an existing rune's `burned`. */
 export function addBurned(state: RuneState, runeId: string, n: bigint): void {
 	recordEntryPreImage(state, runeId);
 	(state.entries.get(runeId) as RuneEntry).burned += n;
@@ -208,7 +202,6 @@ export function getBalance(
 	return amountHeld(state.balances.get(outpoint), runeId);
 }
 
-/** Adds `delta` to `runeId`'s running live supply, dropping the entry when it reaches zero. */
 function adjustLiveSupply(
 	state: RuneState,
 	runeId: string,
@@ -332,7 +325,6 @@ export function seedBalance(
 	if (address !== null) state.balanceAddresses.set(outpoint, address);
 }
 
-/** Removes every rune balance held at `outpoint` (spending it), returning what it held. */
 export function takeOutpointBalances(
 	state: RuneState,
 	outpoint: string,
@@ -347,7 +339,6 @@ export function takeOutpointBalances(
 	return snapshot;
 }
 
-/** Every live `(outpoint, runeId, amount)` in `state.balances`, in insertion order. */
 export function* iterateBalances(
 	state: RuneState,
 ): Generator<[outpoint: string, runeId: string, amount: bigint]> {
@@ -360,7 +351,6 @@ export function* iterateBalances(
 	}
 }
 
-/** Sum of every live balance of `runeId` across all outpoints — the invariant's `sum(balances)` term. */
 export function sumRuneBalance(state: RuneState, runeId: string): bigint {
 	return state.liveSupply.get(runeId) ?? 0n;
 }

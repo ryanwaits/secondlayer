@@ -19,7 +19,6 @@ function Svg({ children }: { children: ReactNode }) {
 	);
 }
 
-/** The five bottom-tab icons. */
 export function TabIcon({ id }: { id: MobileTabId }) {
 	switch (id) {
 		case "pulse":

@@ -48,7 +48,6 @@ function parseArgs(argv: string[]): Options {
 const sameSet = (a: string[], b: string[]): boolean =>
 	a.length === b.length && [...a].sort().join() === [...b].sort().join();
 
-/** Core logic, extracted so tests can run it in-process. */
 export async function reclassifyRegistry(
 	db: Kysely<Database>,
 	{ batch = 1000, dryRun = false }: Partial<Options> = {},

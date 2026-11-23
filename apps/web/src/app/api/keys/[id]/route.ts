@@ -2,10 +2,8 @@ import { ApiError, apiRequest, getSessionFromRequest } from "@/lib/api";
 import { crossSiteRefusal } from "@/lib/same-origin";
 import { NextResponse } from "next/server";
 
-// Next to the API, so each dashboard read and write takes the short hop.
 export const preferredRegion = "fra1";
 
-/** Revoke one of the signed-in account's keys. The API checks ownership. */
 export async function DELETE(
 	req: Request,
 	context: { params: Promise<{ id: string }> },

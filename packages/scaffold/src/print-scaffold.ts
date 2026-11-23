@@ -70,12 +70,10 @@ function escapeJs(s: string): string {
 		.replace(/[\u2028\u2029]/g, (c) => `\\u${c.charCodeAt(0).toString(16)}`);
 }
 
-/** Single-quoted JS string literal with chain-derived content escaped. */
 function str(s: string): string {
 	return `'${escapeJs(s)}'`;
 }
 
-/** Object-literal key — quoted+escaped when not a valid identifier (kebab topics). */
 function key(k: string): string {
 	return IDENT_RE.test(k) ? k : str(k);
 }
@@ -89,7 +87,6 @@ function camelToSnake(str: string): string {
 	return str.replace(/([A-Z])/g, (c) => `_${c.toLowerCase()}`);
 }
 
-/** Sanitized SQL-safe table name from a contract or topic name. */
 function tableName(str: string): string {
 	const cleaned = str
 		.toLowerCase()
@@ -137,18 +134,12 @@ ${handlers}
 `.trimStart();
 }
 
-/** `event.data.x`, or `event.data["x"]` when the key is not an identifier. */
 function dataRef(camel: string): string {
 	return IDENT_RE.test(camel)
 		? `event.data.${camel}`
 		: `event.data[${str(camel)}]`;
 }
 
-/**
- * One-line insert handler: each column reads its print field off
- * `event.data`; the discriminant column (no `camel`) reads `event.topic`.
- * Fields not always present fall back to null, matching their nullable column.
- */
 function insertHandler(
 	srcKey: string,
 	table: string,
@@ -163,7 +154,6 @@ function insertHandler(
 	return `    ${key(srcKey)}: (event, ctx) => {\n      ctx.insert(${str(table)}, {\n${fields}\n      });\n    }`;
 }
 
-/** Source entry: pinned print_event + prints. */
 function sourceEntry(
 	srcKey: string,
 	contractId: string,
@@ -183,9 +173,7 @@ function sourceEntry(
 		seen.add(f.camel_name);
 		// Honor always_present: a field seen on only SOME sampled events is
 		// declared optional, so `event.data.x` is `T | undefined` rather than
-		// a lie. This emitter used to drop the flag while `--payloads`
-		// honored it — the same schema, two different answers about
-		// optionality.
+		// a lie.
 		const declared = f.always_present
 			? str(f.column_type)
 			: `{ type: ${str(f.column_type)}, optional: true }`;
@@ -200,7 +188,6 @@ function sourceEntry(
 	return `    ${key(srcKey)}: {\n${lines.join("\n")}\n    }`;
 }
 
-/** Wildcard-only contract (non-tuple prints): one generic source + jsonb table. */
 function wildcardScaffold(
 	name: string,
 	contractId: string,
@@ -235,7 +222,6 @@ interface WideColumn {
 	alwaysPresentEverywhere: boolean;
 }
 
-/** Header comment recording that `prints` is INFERRED, and from what. */
 function provenanceComment(input: PrintScaffoldInput): string {
 	if (!input.sample) return "";
 	const { size, oldest_height, newest_height } = input.sample;
@@ -270,8 +256,6 @@ export function generatePrintSchemaSubgraph(input: PrintScaffoldInput): string {
 		return wildcardScaffold(name, input.contractId, wideTable, src);
 	}
 
-	// Distinct topics can camelize to the same source key — suffix later ones
-	// so sources/handlers don't silently overwrite each other.
 	const dedupeSourceKey = makeDeduper(input.reservedSourceKeys ?? []);
 	const sourceKeyByTopic = new Map<string, string>();
 	for (const t of topics) {
@@ -316,7 +300,6 @@ export function generatePrintSchemaSubgraph(input: PrintScaffoldInput): string {
 			.join(",\n");
 		const handlers = perTopic
 			.map(({ topic: t, table, snakeFor }) => {
-				// Empty-field topics store the whole `event.data` as jsonb.
 				if (t.fields.length === 0) {
 					return `    ${key(srcKey(t))}: (event, ctx) => {\n      ctx.insert(${str(table)}, { value: event.data ?? null });\n    }`;
 				}
@@ -335,8 +318,6 @@ export function generatePrintSchemaSubgraph(input: PrintScaffoldInput): string {
 		return wrap(name, sources, schema, handlers, provenanceComment(input));
 	}
 
-	// Default: single wide table — union of every topic's columns + a `topic`
-	// discriminant, nullable unless the field is always present on every topic.
 	const columns = new Map<string, WideColumn>();
 	for (const t of topics) {
 		for (const f of t.fields) {

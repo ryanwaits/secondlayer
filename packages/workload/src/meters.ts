@@ -52,7 +52,6 @@ export function storageIdempotencyKey(accountId: string, at: Date): string {
 	return `storage:${accountId}:${at.toISOString().slice(0, 10)}`;
 }
 
-/** The half-open span `[start, end)` an accumulated meter item covers. */
 export interface MeterWindow {
 	start: Date;
 	end: Date;
@@ -78,8 +77,6 @@ export function memoryWindowKey(
 	return windowKey("mem", accountId, window);
 }
 
-/** `evt:<account>:<startISO>..<endISO>` — same window rule as memory: a
- *  same-minute restart can no longer reuse the previous flush's key. */
 export function eventsWindowKey(
 	accountId: string,
 	window: MeterWindow,
@@ -106,9 +103,6 @@ export class DrainWindow {
 	}
 }
 
-/** GB-hours accumulated per tenant since the last drain. The sampler adds;
- *  the hourly flush and the shutdown flush both `drain`, so each item is
- *  keyed by the window it actually covers. */
 export class MemoryAccumulator {
 	private readonly gbHours = new Map<string, number>();
 	private readonly observedGbHours = new Map<string, number>();
@@ -126,7 +120,6 @@ export class MemoryAccumulator {
 		);
 	}
 
-	/** One item per account with a positive total, then reset. */
 	drain(now: Date = new Date()): MeterBatchItem[] {
 		const window = this.window.roll(now);
 		const items: MeterBatchItem[] = [];
@@ -204,9 +197,6 @@ function sortItemResults(
 	return outcome;
 }
 
-/** POST one batch to `/internal/meters`. Empty batches are a no-op — never
- *  worth a round trip. Resolves with the per-item outcome; a non-JSON or
- *  non-200/503 answer throws, failing the whole page. */
 export async function flushMeterBatch(
 	cfg: MetersClientConfig,
 	items: MeterBatchItem[],
@@ -254,14 +244,10 @@ export async function flushMeterBatch(
 export class EventCounter {
 	private count = 0;
 
-	/** Add `n` delivered events (never negative — a malformed push is
-	 *  ignored, not subtracted). */
 	add(n: number): void {
 		if (Number.isFinite(n) && n > 0) this.count += Math.floor(n);
 	}
 
-	/** Read and zero the counter atomically (single-threaded JS — no lock
-	 *  needed), so a flush never double-counts what it already sent. */
 	drain(): number {
 		const n = this.count;
 		this.count = 0;
@@ -301,16 +287,10 @@ export function startMeterSocketServer(
 }
 
 export interface MeterSocketRegistry {
-	/** A counter exists only for a tenant whose socket server is up. */
 	readonly counters: Map<string, EventCounter>;
-	/** The tenant's counter, starting its socket server on first call; `undefined`
-	 *  when the server could not start (retried by the next call). */
 	ensure(accountId: string): EventCounter | undefined;
-	/** `ensure` for every running tenant, then check the gauge. */
 	sync(runningAccountIds: readonly string[]): void;
-	/** Running tenants vs socket servers up among them, as of the last `sync`. */
 	gauge(): { running: number; servers: number };
-	/** Stops every server; counters stay readable for the final flush. */
 	stopAll(): void;
 }
 
@@ -374,9 +354,7 @@ export function createMeterSocketRegistry(opts: {
 }
 
 export interface MemorySample {
-	/** GB-hours for the sample interval, floored at the stack minimum. */
 	quantity: number;
-	/** The same interval at the raw, unfloored RSS. */
 	observedQuantity: number;
 }
 
@@ -427,7 +405,6 @@ export async function sampleStorageGbDay(
 	};
 }
 
-/** One tenant's drained event count for `window`, keyed and dated by it. */
 export function eventsMeterItem(
 	accountId: string,
 	count: number,
@@ -463,7 +440,6 @@ export function readsMeterItem(
 	};
 }
 
-/** Drains `counter` into one item per account key for `window`. */
 export function drainReadItems(
 	counter: ReadCounter | undefined,
 	window: MeterWindow,
@@ -485,7 +461,6 @@ export interface DockerResult {
 
 export type RunDocker = (args: string[]) => Promise<DockerResult>;
 
-/** Real `docker` invocation for the memory/storage samplers below. */
 export const spawnDocker: RunDocker = async (args) => {
 	const proc = Bun.spawn(["docker", ...args], {
 		stdout: "pipe",
@@ -526,10 +501,6 @@ export function parseMemUsageToBytes(value: string): number {
 	return amount * multiplier;
 }
 
-/** Sum memory bytes across every line of a `docker stats --no-stream
- *  --format "{{.MemUsage}}"` run against one tenant's containers (one line
- *  per container: `api`, `webhook-service`, `postgres`, ...). Each line is
- *  `"<used> / <limit>"` — only `<used>` (before the ` / `) counts. */
 export function parseDockerStatsMemUsageBytes(output: string): number {
 	let total = 0;
 	for (const line of output.split("\n")) {
@@ -572,8 +543,6 @@ export async function sampleTenantMemoryBytes(
 	return parseDockerStatsMemUsageBytes(stats.stdout);
 }
 
-/** Parse `psql -tAc "SELECT pg_database_size(...)"` output — a bare integer
- *  string, one line, possibly with trailing whitespace. */
 export function parsePgDatabaseSizeOutput(output: string): number {
 	const n = Number(output.trim());
 	return Number.isFinite(n) ? n : 0;
@@ -674,21 +643,9 @@ export interface ShutdownFlushState {
 	memory: MemoryAccumulator;
 	memoryPending: MeterBatchItem[];
 	storagePending: MeterBatchItem[];
-	/** Hosted subgraph reads counted by the gateway; drained into the event
-	 *  window like webhook events. */
 	readCounter?: ReadCounter;
 }
 
-/**
- * Drains every meter's live in-process state into one item list for a final
- * shutdown flush, ahead of each meter's own already-buffered retry items.
- * Event and memory items are keyed by the window they cover, which starts
- * where the previous flush ended, so this flush can never share a key with
- * an earlier flush in the same minute or hour. Storage has no in-process
- * accumulator to drain — each sample reads live `pg_database_size` — so only
- * its pending retry buffer is included. Mutates `state`: drains each
- * counter and the memory accumulator, like the periodic loops do.
- */
 export function collectShutdownFlushItems(
 	state: ShutdownFlushState,
 	now: Date = new Date(),
@@ -710,9 +667,6 @@ export function collectShutdownFlushItems(
 	return items;
 }
 
-/** Structured record of meter quantities that will never be billed (buffer
- *  overflow, failed shutdown flush). Totals per unit plus the heaviest
- *  accounts, so the loss can be reconciled by hand. */
 export function logDroppedMeters(
 	reason: string,
 	dropped: MeterBatchItem[],

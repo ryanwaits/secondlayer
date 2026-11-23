@@ -20,5 +20,4 @@ export const ZONEFILE_RESOLVER_CONTRACTS = {
 	},
 } as const;
 
-// BNS v2 uses .btc namespace primarily
 export const DEFAULT_NAMESPACE = "btc";

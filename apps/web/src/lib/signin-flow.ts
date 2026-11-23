@@ -1,19 +1,11 @@
-/**
- * The sign-in page as a state machine: ask for an email, send a code, take
- * the code. Every state has a way forward and a way out, and a request in
- * flight (`sending`, `verifying`) ignores a second submit.
- */
 export type SigninState =
 	| { step: "email"; email: string; error: string | null }
 	| { step: "sending"; email: string; resend: boolean }
 	| {
 			step: "code";
 			email: string;
-			/** A resend request was just answered. */
 			resent: boolean;
 			error: string | null;
-			/** The code step opened from `?email=` with the code already sent
-			 *  elsewhere: there is no resend from here, only a different email. */
 			canResend: boolean;
 			devToken: string | null;
 	  }
@@ -22,7 +14,6 @@ export type SigninState =
 
 export type SigninEvent =
 	| { type: "edit"; email: string }
-	/** The page opened with `?email=`: the code was sent elsewhere. */
 	| { type: "enter_code"; email: string }
 	| { type: "submit" }
 	| { type: "resend" }
@@ -38,7 +29,6 @@ export const SIGNIN_START: SigninState = {
 	error: null,
 };
 
-/** The code step the docs panel sends a reader to (`?email=`). */
 export function enterCodeStep(email: string): SigninState {
 	return {
 		step: "code",
@@ -86,7 +76,6 @@ export function signinReducer(
 				: state;
 		case "send_failed":
 			if (state.step !== "sending") return state;
-			// A failed resend keeps the code the reader may still have.
 			return state.resend
 				? {
 						step: "code",

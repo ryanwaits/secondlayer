@@ -1,5 +1,3 @@
-/** Minimal wallet picker modal (injected wallets + WC QR) */
-
 import { isWalletInstalled } from "../provider.ts";
 import { qrSvg } from "./qr.ts";
 
@@ -28,7 +26,6 @@ export interface ModalOptions {
 export function showModal(opts: ModalOptions): () => void {
 	if (typeof document === "undefined") return () => {};
 
-	// Remove existing
 	document.getElementById(MODAL_ID)?.remove();
 
 	const overlay = document.createElement("div");
@@ -42,20 +39,17 @@ export function showModal(opts: ModalOptions): () => void {
 	box.className = "sl-wc-box";
 	box.style.position = "relative";
 
-	// Close button
 	const close = document.createElement("button");
 	close.className = "sl-wc-close";
 	close.textContent = "\u00d7";
 	close.onclick = dismiss;
 	box.appendChild(close);
 
-	// Title
 	const title = document.createElement("h2");
 	title.className = "sl-wc-title";
 	title.textContent = "Connect Wallet";
 	box.appendChild(title);
 
-	// Injected wallet button
 	if (isWalletInstalled()) {
 		const btn = document.createElement("button");
 		btn.className = "sl-wc-btn";
@@ -67,7 +61,6 @@ export function showModal(opts: ModalOptions): () => void {
 		box.appendChild(btn);
 	}
 
-	// QR code
 	if (opts.wcUri) {
 		if (isWalletInstalled()) {
 			const divider = document.createElement("div");

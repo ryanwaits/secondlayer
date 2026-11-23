@@ -13,18 +13,11 @@ import { createPortal } from "react-dom";
 import { type Detent, settleSheet } from "./gesture";
 
 type SheetContent = {
-	/** Visible title; also the dialog's accessible name. */
 	title: ReactNode;
-	/** Small line above the title (severity, resource name). */
 	eyebrow?: ReactNode;
 	children: ReactNode;
 };
 
-/**
- * The sheet's markup without the portal, focus or gesture wiring. `Sheet`
- * renders this; the Lab and tests render it directly because a portal does not
- * exist on the server.
- */
 export function SheetPanel({
 	title,
 	eyebrow,
@@ -34,7 +27,6 @@ export function SheetPanel({
 	titleId,
 	grabHandlers,
 }: SheetContent & {
-	/** `"auto"` sizes to the content (max 92%). */
 	detent: Detent | "auto";
 	panelRef?: Ref<HTMLDivElement>;
 	titleId?: string;
@@ -89,8 +81,6 @@ function SheetLayer({
 	);
 	const drag = useRef<{ y0: number; dy: number } | null>(null);
 
-	// Escape closes, focus moves into the sheet and returns to the opener, and
-	// the page behind stops scrolling while it is open.
 	useEffect(() => {
 		const opener = document.activeElement as HTMLElement | null;
 		const onKey = (e: KeyboardEvent) => {
@@ -130,7 +120,6 @@ function SheetLayer({
 			const state = drag.current;
 			if (!state || !panelRef.current) return;
 			state.dy = e.clientY - state.y0;
-			// Dragging up resists: the sheet expands on release, it does not follow.
 			panelRef.current.style.transform = `translateY(${state.dy > 0 ? state.dy : state.dy / 3}px)`;
 		},
 		onPointerUp: () => endDrag(true),
@@ -159,11 +148,6 @@ function SheetLayer({
 	);
 }
 
-/**
- * A bottom sheet for the phone screens. Drag the grab handle: down closes (or
- * drops full to half), up expands half to full. Portals to the body, locks page
- * scroll, closes on Escape or a scrim tap, and returns focus to the opener.
- */
 export function Sheet({
 	open,
 	onClose,
@@ -173,7 +157,6 @@ export function Sheet({
 }: SheetContent & {
 	open: boolean;
 	onClose: () => void;
-	/** `"auto"` = height of content (max 92%); otherwise the allowed detents. */
 	detents?: "auto" | readonly Detent[];
 	initialDetent?: Detent;
 }) {

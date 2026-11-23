@@ -1,16 +1,3 @@
-/**
- * Bitcoin/Runes data-plane access for the `/v1/index/runes/*` read surface
- * (plan 058). A separate Postgres from the Stacks source DB (D18,
- * `docs/internal/bitcoin-runtime.md`) — `packages/bitcoin` owns the schema
- * and ingest (`packages/bitcoin/src/db/store.ts`), this file only reads it.
- *
- * `BITCOIN_DATABASE_URL` unset is a normal, supported state — Runes simply
- * isn't provisioned on this instance — not an error. Every reader here
- * degrades to the soft-flag pattern the rest of Index already uses
- * (`../index/pox5-events.ts`'s `POX5_DISABLED_NOTE`): an empty tip, an empty
- * `readBtcReorgs`, and `../index/runes.ts`'s response builders attach the
- * `notes` field instead of calling a reader that has no DB to read.
- */
 import type { Database as BitcoinDatabase } from "@secondlayer/bitcoin/db";
 import { CHECKPOINT_NAME } from "@secondlayer/bitcoin/db";
 import { spacedRuneFromString } from "@secondlayer/bitcoin/rune";
@@ -90,7 +77,6 @@ function isBitcoinDbUnreachable(err: unknown): boolean {
 	return typeof code === "string" && UNREACHABLE_CODES.has(code);
 }
 
-/** How often an open breaker re-checks the database in the background. */
 const BREAKER_PROBE_MS = 10_000;
 
 /** A healthy connect to this host-local Postgres takes milliseconds; 2s is
@@ -168,12 +154,6 @@ class BitcoinDialect extends PostgresJSDialect {
 let bitcoinDb: Kysely<BitcoinDatabase> | undefined;
 let bitcoinDbResolved = false;
 
-/**
- * Lazy singleton, resolved once from `BITCOIN_DATABASE_URL` — `undefined`
- * when it isn't set. Every reader in `../index/runes.ts` takes an optional
- * `db` override, so DB-backed tests point at a scratch database directly and
- * never touch this singleton.
- */
 export function getBitcoinDb(): Kysely<BitcoinDatabase> | undefined {
 	if (bitcoinDbResolved) return bitcoinDb;
 	bitcoinDbResolved = true;
@@ -192,16 +172,11 @@ export function getBitcoinDb(): Kysely<BitcoinDatabase> | undefined {
 	return bitcoinDb;
 }
 
-/** Test-only: undo `getBitcoinDb`'s memoized "no URL" / client resolution so
- *  a later test that sets `BITCOIN_DATABASE_URL` gets a fresh read of it. */
 export function _resetBitcoinDbForTests(): void {
 	bitcoinDb = undefined;
 	bitcoinDbResolved = false;
 }
 
-/** Bitcoin block height a Runes read was served against — a separate clock
- *  from the Stacks `IndexTip` (`../index/tip.ts`): Runes ingest tracks the
- *  Bitcoin chain, not Stacks blocks. */
 export type BitcoinIndexTip = {
 	block_height: number;
 	finalized_height: number;
@@ -252,7 +227,6 @@ export async function getBitcoinTip(
 			.where("name", "=", CHECKPOINT_NAME)
 			.executeTakeFirst();
 	} catch (err) {
-		// Database or `runes_checkpoint` table doesn't exist yet — same as unconfigured.
 		if (!isBitcoinSchemaAbsent(err)) throw err;
 		row = undefined;
 	}
@@ -274,18 +248,10 @@ export async function getBitcoinTip(
 	return value;
 }
 
-/** Test-only: drop the tip cache between fixtures that reuse the same
- *  process. */
 export function _resetBitcoinTipCacheForTests(): void {
 	tipCache = null;
 }
 
-/** Same fields as `packages/bitcoin/src/db/types.ts`'s `BtcReorgsTable` —
- *  shaped like the Stacks `ChainReorgRecord`
- *  (`packages/shared/src/db/queries/chain-reorgs.ts`) in spirit (a fork the
- *  indexer rolled back), not field-for-field identical: a Bitcoin reorg has
- *  no Stacks-style event_index component, so its orphaned range is plain
- *  block heights. */
 export type BtcReorg = {
 	id: string;
 	detected_at: string;
@@ -326,13 +292,6 @@ export type BtcReorgsReader = (
 	toHeight: number,
 ) => Promise<BtcReorg[]>;
 
-/**
- * Reorgs whose orphaned range overlaps `[fromHeight, toHeight]` — the same
- * overlap test `readChainReorgsForHeightRange`
- * (`packages/shared/src/db/queries/chain-reorgs.ts`) runs for Stacks,
- * simpler here because a Bitcoin reorg is block-level only (no event_index
- * tiebreak to carry).
- */
 export async function readBtcReorgs(
 	fromHeight: number,
 	toHeight: number,
@@ -349,19 +308,11 @@ export async function readBtcReorgs(
 			.execute();
 		return rows.map(normalizeBtcReorg);
 	} catch (err) {
-		// Database or `btc_reorgs` table doesn't exist yet — same as unconfigured.
 		if (!isBitcoinSchemaAbsent(err)) throw err;
 		return [];
 	}
 }
 
-/**
- * A `RuneRef` — the id/name union every `:rune` path param and `rune=` query
- * filter accepts (plan 058). `id` is the canonical `<block>:<tx>` text
- * primary key (`rune_entries.rune_id`); `rune` is the name's base-26 integer
- * encoding (`rune_entries.rune`) — `../index/runes.ts`'s readers resolve
- * either form to a `rune_id` before it reaches SQL.
- */
 export type RuneRef = { id: string } | { rune: bigint };
 
 const RUNE_ID_RE = /^(\d+):(\d+)$/;

@@ -3,14 +3,10 @@ import { rankInsights } from "@/lib/insights";
 import { fetchInsightSide } from "@/lib/server/insights-read";
 import { NextResponse } from "next/server";
 
-// Next to the API, so each dashboard read and write takes the short hop.
 export const preferredRegion = "fra1";
-
-/** One list for the dashboard: see `readInsights`. */
 
 const ms = (n: number) => n.toFixed(1);
 
-/** Times one half so Server-Timing shows which side paid for a cold connection. */
 async function timed<T>(run: () => Promise<T>): Promise<[T, number]> {
 	const start = performance.now();
 	const result = await run();

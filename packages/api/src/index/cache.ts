@@ -4,7 +4,6 @@ import type { IndexTip } from "./tip.ts";
 
 export type IndexCachePlan = {
 	cacheControl: string;
-	/** True when the resolved page is past finality and safe to cache forever. */
 	fullyFinalized: boolean;
 };
 

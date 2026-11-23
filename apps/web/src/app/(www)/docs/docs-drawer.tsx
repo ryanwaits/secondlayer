@@ -7,7 +7,6 @@ const DocsDrawerContext = createContext<{
 	setOpen: (open: boolean) => void;
 }>({ open: false, setOpen: () => {} });
 
-/** Phone nav drawer: the top bar's burger opens it, the sidebar renders it. */
 export function useDocsDrawer() {
 	return useContext(DocsDrawerContext);
 }

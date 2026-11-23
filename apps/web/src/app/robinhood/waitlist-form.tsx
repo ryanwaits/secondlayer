@@ -18,7 +18,6 @@ type Status =
 	| { kind: "error"; message: string }
 	| { kind: "done"; token: string; contact: string };
 
-/** Token symbols are all caps; uppercase as they type, keeping the caret. */
 function upperCaseInPlace(e: FormEvent<HTMLInputElement>) {
 	const input = e.currentTarget;
 	const upper = input.value.toUpperCase();
@@ -99,7 +98,6 @@ export function WaitlistForm() {
 				<span className="rh-done-body">
 					Got your details. We'll reach out soon.
 				</span>
-				{/* What we captured, so a typo in the handle is caught here. */}
 				<span className="rh-done-captured">
 					<span>
 						<span className="rh-done-key">Token</span>

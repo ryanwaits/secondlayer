@@ -1,10 +1,3 @@
-/**
- * Shared type mapping utility for Clarity types to TypeScript types
- *
- * This module provides a single, consistent implementation for mapping
- * Clarity types to their TypeScript equivalents, used across all generators.
- */
-
 import {
 	type AbiType,
 	isAbiBuffer,
@@ -40,7 +33,6 @@ export function clarityTypeToTS(
 		direction === "output"
 			? "Uint8Array"
 			: "Uint8Array | string | { type: 'ascii' | 'utf8' | 'hex'; value: string }";
-	// Handle string primitive types
 	if (typeof type === "string") {
 		switch (type) {
 			case "uint128":
@@ -52,10 +44,7 @@ export function clarityTypeToTS(
 			case "trait_reference":
 				return "string";
 			default: {
-				// Handle shorthand string formats (e.g., "string-ascii", "string-utf8", "buff")
-				// Cast to string since TypeScript narrows to never in exhaustive switches
 				const typeStr = type as string;
-				// Handle "none" type (commonly used in response types)
 				if (typeStr === "none") {
 					return "null";
 				}
@@ -77,37 +66,30 @@ export function clarityTypeToTS(
 		}
 	}
 
-	// Handle buffer types - support flexible input
 	if (isAbiBuffer(type)) {
 		return bufferType;
 	}
 
-	// Handle string types
 	if (isAbiStringAscii(type) || isAbiStringUtf8(type)) {
 		return "string";
 	}
 
-	// Handle optional types
 	if (isAbiOptional(type)) {
 		const innerType = clarityTypeToTS(type.optional, direction);
-		// Wrap union types in parentheses for correct precedence
 		if (innerType.includes(" | ") && !innerType.startsWith("(")) {
 			return `(${innerType}) | null`;
 		}
 		return `${innerType} | null`;
 	}
 
-	// Handle list types
 	if (isAbiList(type)) {
 		const innerType = clarityTypeToTS(type.list.type, direction);
-		// Wrap union types in parentheses for correct precedence
 		if (innerType.includes(" | ") && !innerType.startsWith("(")) {
 			return `(${innerType})[]`;
 		}
 		return `${innerType}[]`;
 	}
 
-	// Handle tuple types
 	if (isAbiTuple(type)) {
 		const fields = type.tuple
 			.map(
@@ -118,14 +100,12 @@ export function clarityTypeToTS(
 		return `{ ${fields} }`;
 	}
 
-	// Handle response types
 	if (isAbiResponse(type)) {
 		const okType = clarityTypeToTS(type.response.ok, direction);
 		const errType = clarityTypeToTS(type.response.error, direction);
 		return `{ ok: ${okType} } | { err: ${errType} }`;
 	}
 
-	// Fallback for unknown types
 	return "any";
 }
 

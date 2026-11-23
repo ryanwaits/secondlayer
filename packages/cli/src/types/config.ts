@@ -1,7 +1,3 @@
-/**
- * Configuration types for @secondlayer/cli
- */
-
 import type { AbiContract } from "@secondlayer/stacks/clarity";
 import type { ClarinetOptions } from "../plugins/clarinet/index";
 
@@ -80,7 +76,6 @@ export interface ResolvedContract {
 	source: "api" | "local";
 }
 
-// Helper function type
 export type ConfigDefiner = (config: SecondLayerConfig) => SecondLayerConfig;
 
 export type { ClarinetOptions };

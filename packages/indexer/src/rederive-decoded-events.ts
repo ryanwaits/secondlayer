@@ -52,7 +52,6 @@ import {
 import { writeDecodedEvents } from "./decode/storage.ts";
 import { readCanonicalStreamsEvents } from "./streams-events.ts";
 
-// event_type → the live decode fn. Covers every type `decoded_events` stores.
 const DECODERS: Record<string, (event: StreamsEvent) => DecodedEventRow> = {
 	stx_transfer: decodeStxTransfer,
 	stx_mint: decodeStxMint,
@@ -124,9 +123,6 @@ export type RederiveDecodedEventsResult = {
 	skipped: number;
 };
 
-/** Core logic, extracted from `main` so a caller (tests, `--derive` tooling)
- *  can run it in-process without spawning the CLI. `main` below is a thin
- *  argv/console wrapper around this. */
 export async function rederiveDecodedEvents(
 	args: Args,
 	opts?: {
@@ -165,7 +161,6 @@ export async function rederiveDecodedEvents(
 		}
 	}
 
-	// Page the clean firehose over the bounded range, decode every type, write.
 	let after: { block_height: number; event_index: number } | undefined;
 	let read = 0;
 	let decoded = 0;

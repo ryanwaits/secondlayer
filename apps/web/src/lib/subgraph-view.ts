@@ -1,8 +1,6 @@
 import type { Tone } from "@/lib/tone";
 import { type SubgraphSyncState, syncState } from "@secondlayer/shared/schemas";
 
-/** Pure view helpers for the Subgraphs screens: counts, lag and state lines. */
-
 /** Group a digit string without ever going through `Number`: values can
  *  exceed 2^53. */
 export function groupDigits(digits: string): string {
@@ -11,17 +9,12 @@ export function groupDigits(digits: string): string {
 	return `${match[1]}${(match[2] ?? "").replace(/\B(?=(\d{3})+(?!\d))/g, ",")}`;
 }
 
-/** The week of hourly health the list and the detail's default range draw. */
 export const HEALTH_WEEK_HOURS = 168;
 
 /** A subgraph one block behind is at the tip: the chain moves on every few
  *  seconds, so "caught up" can't mean exactly equal. */
 const TIP_SLACK_BLOCKS = 1;
 
-/** The one answer to "is this subgraph caught up?" for every screen:
- *  `syncState` measured against the tip with a block of slack. `chainTip`
- *  comes from the detail read; the list derives it from how far behind the
- *  subgraph says it is. */
 export function subgraphSync(
 	item: {
 		status: string;
@@ -34,9 +27,8 @@ export function subgraphSync(
 	return syncState(item, tip - TIP_SLACK_BLOCKS);
 }
 
-/** Whole percent done of a reindex or catch-up. Uses the event counts when
- *  the operation has them, since the block share misleads on a sparse sync.
- *  Never reads 100 while blocks remain; null when there is nothing to go on. */
+/** Uses the event counts when the operation has them, since the block share
+ *  misleads on a sparse sync. */
 export function syncPercent(sync: {
 	blocksRemaining: number;
 	progress?: number;
@@ -57,14 +49,12 @@ const plural = (n: number, one: string) => `${n} ${n === 1 ? one : `${one}s`}`;
 
 export const blocksLabel = (n: number): string => plural(n, "block");
 
-/** "413k", "1.2M": compact counts for table tabs. */
 export function shortCount(n: number): string {
 	if (n < 1_000) return String(n);
 	if (n < 1_000_000) return `${Math.round(n / 1_000)}k`;
 	return `${+(n / 1_000_000).toFixed(1)}M`;
 }
 
-/** "1.2 GB", "340 MB": storage as a person reads it. */
 export function formatBytes(bytes: number): string {
 	const units = ["B", "KB", "MB", "GB", "TB"];
 	let value = bytes;
@@ -76,9 +66,6 @@ export function formatBytes(bytes: number): string {
 	return `${i === 0 ? value : +value.toFixed(value < 10 ? 1 : 0)} ${units[i]}`;
 }
 
-/** Handler errors in the last 24 hours: the sum of the newest 24 hourly
- *  buckets from `/health`. The one definition both screens, the row tone
- *  and the sentence use; null until health has loaded. */
 export function handlerErrors24h(
 	health: { hours: readonly { errors: number }[] } | undefined,
 ): number | null {
@@ -86,9 +73,6 @@ export function handlerErrors24h(
 	return health.hours.slice(-24).reduce((sum, h) => sum + h.errors, 0);
 }
 
-/** A halted subgraph's line: why it stopped and how to bring it back. Null
- *  unless the subgraph is halted (status `error`). A catch-up halt already
- *  names the way out; a watchdog or operator halt gets it added. */
 export function haltLine(item: {
 	status: string;
 	lastError?: string | null;
@@ -101,14 +85,11 @@ export function haltLine(item: {
 		: `${reason}. Redeploy or reindex to resume.`;
 }
 
-/** Failing for an errored subgraph or any handler error in 24 hours, neutral
- *  while it is not active (reindexing, stopped), else healthy. */
 export function subgraphTone(status: string, errors24h: number | null): Tone {
 	if (status === "error" || (errors24h ?? 0) > 0) return "alarm";
 	return status === "active" ? "ok" : "idle";
 }
 
-/** The list row's state line: lag, rows and, when known, errors in 24 hours. */
 export function stateLine(
 	sync: SubgraphSyncState,
 	blocksBehind: number,

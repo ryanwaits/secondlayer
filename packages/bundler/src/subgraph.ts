@@ -101,7 +101,6 @@ export async function bundleSubgraphCode(
 	};
 }
 
-/** Parse esbuild's map, naming the stdin entry after the author's file. */
 function readSourceMap(text: string, fileName = "subgraph.ts"): ScanSourceMap {
 	const map = JSON.parse(text) as ScanSourceMap;
 	return {

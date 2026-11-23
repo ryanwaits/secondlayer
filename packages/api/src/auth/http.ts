@@ -38,8 +38,6 @@ export function getClientIp(c: Context): string {
 			?.split(",")
 			.map((s) => s.trim())
 			.filter(Boolean);
-		// The trusted proxy appends the source IP it saw to the tail; the real
-		// client sits `hops` from the end. Fewer entries than hops → can't trust.
 		const ip = parts?.[parts.length - hops];
 		if (ip) return ip;
 	}
@@ -56,8 +54,6 @@ function peerAddress(c: Context): string | null {
 	return server.requestIP(c.req.raw)?.address ?? null;
 }
 
-/** Loopback, RFC 1918, link-local and unique-local: the addresses a proxy on
- *  our own host or compose network connects from. IPv4-mapped IPv6 unwraps. */
 function isPrivateAddress(address: string): boolean {
 	const addr = (address.split("%")[0] ?? address).toLowerCase();
 	const mapped = addr.startsWith("::ffff:") ? addr.slice(7) : addr;
@@ -105,10 +101,8 @@ export function ipBucket(ip: string): string {
 	return `${[g0, g1, g2, g3].map((g) => g.toString(16)).join(":")}::/64`;
 }
 
-/** The eight 16-bit groups of a valid IPv6 string, or null. */
 function ipv6Groups(addr: string): number[] | null {
 	let text = addr.toLowerCase();
-	// A dotted tail (::ffff:1.2.3.4) becomes two hex groups.
 	const dotted = text.match(/^(.*:)(\d+)\.(\d+)\.(\d+)\.(\d+)$/);
 	if (dotted) {
 		const [, head, a, b, c, d] = dotted.map(String);

@@ -27,7 +27,6 @@ import {
 const TENANT_TIMEOUT_MS = 5_000;
 const LIST_LIMIT = 200;
 
-/** The subset of the tenant `GET /api/webhooks` summary this watch reads. */
 export interface WebhookSummaryLike {
 	id: string;
 	name: string;
@@ -91,8 +90,6 @@ export interface WebhookIncidentWatchDeps {
 	now?: () => number;
 }
 
-/** One tick: report every running tenant. Never throws; a failing tenant or
- *  post is logged and skipped. */
 export function createWebhookIncidentWatch(
 	cfg: ProvisionerConfig,
 	platform: { appServerUrl: string; workloadHostKey: string },

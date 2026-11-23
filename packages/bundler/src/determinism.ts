@@ -188,7 +188,6 @@ export function scanHandlerDeterminism(
 	return findings;
 }
 
-/** Every name bound anywhere in the file (flat, see the scan's doc). */
 function collectDeclaredNames(sf: ts.SourceFile): Set<string> {
 	const names = new Set<string>(["arguments"]);
 	const addBinding = (name: ts.BindingName | undefined) => {
@@ -229,8 +228,6 @@ function collectDeclaredNames(sf: ts.SourceFile): Set<string> {
 	return names;
 }
 
-/** True when the identifier reads a binding (rather than naming a property,
- *  label, declaration or import/export specifier). */
 function isReference(id: ts.Identifier): boolean {
 	const p = id.parent;
 	if (!p) return false;
@@ -272,8 +269,6 @@ function isReference(id: ts.Identifier): boolean {
 	return true;
 }
 
-// ── Sourcemap ───────────────────────────────────────────────────────────
-
 type Segment = [genCol: number, src: number, line: number, col: number];
 
 function positionMapper(
@@ -301,7 +296,6 @@ function positionMapper(
 const BASE64 =
 	"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 
-/** Decode v3 `mappings` into per-generated-line segments, sorted by column. */
 function decodeMappings(mappings: string): Segment[][] {
 	const out: Segment[][] = [];
 	let src = 0;

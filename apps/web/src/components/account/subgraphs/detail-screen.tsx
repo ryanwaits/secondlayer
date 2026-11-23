@@ -49,13 +49,10 @@ import { UseSection } from "./use-section";
 const DETAIL_POLL_MS = 10_000;
 const HEALTH_POLL_MS = 60_000;
 
-/** Stat cells `SubgraphDetailBody` renders, and the settled page's measured
- *  chart height. */
 const SKELETON_FACTS = 3;
 const CHART_SKELETON_HEIGHT = 206;
 const SKELETON_TABLE_ROWS = 5;
 
-/** Health stops at seven days. */
 export type SubgraphRange = "24h" | "48h" | "7d";
 const RANGE_HOURS: Record<SubgraphRange, number> = {
 	"24h": 24,
@@ -66,14 +63,12 @@ const RANGE_OPTIONS = (Object.keys(RANGE_HOURS) as SubgraphRange[]).map(
 	(value) => ({ value, label: value }),
 );
 
-/** An insight about this subgraph that is still open. */
 const hasOpenInsight = (
 	insights: readonly Insight[] | undefined,
 	rule: string,
 ) =>
 	(insights ?? []).some((i) => i.rule === rule && i.severity !== "recovered");
 
-/** Reindexing or catching up; nothing at the tip. */
 function lagFactOf(
 	detail: Pick<SubgraphDetailData, "status" | "lastProcessedBlock" | "sync">,
 ): { label: string; percent: number | null; caption: string } | null {
@@ -87,11 +82,9 @@ function lagFactOf(
 	};
 }
 
-/** The registry name in "SM3V….sbtc-registry". */
 const contractName = (contractId: string): string =>
 	contractId.slice(contractId.lastIndexOf(".") + 1);
 
-/** The contracts the sources read, by full id. */
 const sourceContracts = (detail: SubgraphDetailData): string[] => [
 	...new Set(
 		Object.values(detail.sources ?? {})
@@ -100,8 +93,6 @@ const sourceContracts = (detail: SubgraphDetailData): string[] => [
 	),
 ];
 
-/** The one contract the sources read, with a copy of its full id, or "N
- *  contracts" for several; nothing when no source names one. */
 function SourceMeta({ detail }: { detail: SubgraphDetailData }) {
 	const contracts = sourceContracts(detail);
 	const [only] = contracts;
@@ -117,18 +108,14 @@ export interface SubgraphDetailBodyProps {
 	detail: SubgraphDetailData;
 	health: SubgraphHealthData | undefined;
 	errors: readonly SubgraphErrorGroup[];
-	/** The authored source; null while it loads or when unavailable. */
 	source: SubgraphSource | null;
 	range: SubgraphRange;
-	/** Insights about this subgraph, ranked by the server. */
 	insights?: readonly Insight[];
 	onRange: (range: SubgraphRange) => void;
-	/** What the server read for the recent rows and rendered for the tables. */
 	initialRows?: RecentRowsData | null;
 	initialBlocks?: SubgraphDetailInitial["tableBlocks"];
 }
 
-/** One subgraph: facts and a chart, what each table writes, and its newest rows. */
 export function SubgraphDetailBody({
 	detail,
 	health,
@@ -140,7 +127,6 @@ export function SubgraphDetailBody({
 	initialRows,
 	initialBlocks,
 }: SubgraphDetailBodyProps) {
-	// A table opened in Tables, with a counter so reopening it re-applies.
 	const [picked, setPicked] = useState<{ table: string; at: number } | null>(
 		null,
 	);
@@ -256,9 +242,6 @@ export function SubgraphDetailBody({
 	);
 }
 
-/** Stands in for the whole page: breadcrumb, title, facts, the chart and a few
- *  table rows, built from the same wrappers, so nothing moves when the real
- *  content lands. */
 function DetailSkeleton({ name }: { name: string }) {
 	return (
 		<>
@@ -321,8 +304,6 @@ function NotFound({
 	);
 }
 
-/** /account/subgraphs/<name>: loads and refreshes one subgraph. `initial` is
- *  what the server read for this visit; without it the browser loads it all. */
 export function SubgraphDetailSection({
 	name,
 	initial = null,
@@ -336,8 +317,6 @@ export function SubgraphDetailSection({
 	const { data: insights } = useInsights();
 	const [range, setRange] = useState<SubgraphRange>("7d");
 
-	// The server's reads are fresh, so each poll's first tick waits a full
-	// interval; one that failed to load retries right away.
 	const detailSeeded = initial?.detail.kind === "ok";
 	const healthSeeded = useRef(initial?.health.kind === "ok");
 	const errorsSeeded = initial?.errors.kind === "ok";
@@ -359,7 +338,6 @@ export function SubgraphDetailSection({
 		[name],
 	);
 
-	// The seed covers the first run only (the week-long range).
 	useEffect(() => {
 		const immediate = !healthSeeded.current;
 		healthSeeded.current = false;

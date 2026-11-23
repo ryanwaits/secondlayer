@@ -15,7 +15,6 @@ import type { L1LockupOutput } from "./actions.ts";
 /** pox-5 ABI: `(list 14 (buff 32))`. SIP-044 allows 24; we throw rather than truncate. */
 const MAX_LEAF_HASHES = 14;
 
-/** P2WSH scriptPubKey: `0x0020 || sha256(witness script)`. */
 function lockupScriptPubKey(lockScript: Uint8Array): Uint8Array {
 	return concatBytes(Uint8Array.of(0x00, 0x20), sha256(lockScript));
 }

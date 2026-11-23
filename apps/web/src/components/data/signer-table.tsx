@@ -7,11 +7,6 @@ import { useState } from "react";
 const stx = new Intl.NumberFormat("en-US");
 const PAGE_SIZE = 10;
 
-/**
- * Signers of the current cycle, largest delegation first, ten at a time.
- * Every row is in the server HTML (the other pages are `hidden`), so crawlers
- * read all of them; back/next only change which ten show.
- */
 export function SignerTable({ signers }: { signers: readonly SignerRow[] }) {
 	const [page, setPage] = useState(0);
 	const pages = Math.ceil(signers.length / PAGE_SIZE);

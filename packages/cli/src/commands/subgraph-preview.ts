@@ -18,12 +18,6 @@ import {
 import { error, info, printError, success, warn } from "../lib/output.ts";
 import { indexReadFailure } from "./subgraph-test.ts";
 
-/**
- * `secondlayer subgraphs preview` — show IN/OUT for N real Index events.
- * Reuses the shared test run (`trace: true`); fetch is the same Index client
- * as `subgraphs test`, bounded by `--sample` instead of a cassette.
- */
-
 type CassetteRow = IndexEvent | IndexContractCall;
 
 function eventTypeFor(filter: { type: string }): DecodedEventType | null {

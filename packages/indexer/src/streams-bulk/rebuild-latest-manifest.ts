@@ -40,7 +40,6 @@ export async function rebuildStreamsBulkLatestManifest(opts: {
 	const r2 = getStreamsBulkR2ConfigFromEnv();
 	const client = createStreamsBulkS3Client(r2);
 
-	// Collect every history manifest key.
 	const historyPrefix = `${prefix}/manifest/history/`;
 	const keys: string[] = [];
 	let token: string | undefined;
@@ -58,7 +57,6 @@ export async function rebuildStreamsBulkLatestManifest(opts: {
 		token = page.IsTruncated ? page.NextContinuationToken : undefined;
 	} while (token);
 
-	// Union all files across every history manifest, deduped by path.
 	let files: StreamsBulkManifestFile[] = [];
 	let newest: StreamsBulkManifest | null = null;
 	for (const key of keys) {

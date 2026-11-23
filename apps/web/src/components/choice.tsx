@@ -17,16 +17,11 @@ type Mode =
 export type ChoiceProps = {
 	name: string;
 	options: readonly ChoiceOption[];
-	/** `sm` is the compact control for view switches beside a title. */
 	size?: "sm";
 } & Name &
 	Mode;
 
 /**
- * Pick one value. Radio inputs under joined cells, so arrow keys and form
- * submit work without script. Pass `defaultValue` for a form field, or
- * `value` + `onChange` for a view switch. `legend` is the accessible name
- * (visually hidden); `labelledBy` points at a visible label elsewhere.
  * More than three options stack into a column on narrow containers (an inner
  * div is the size container; a fieldset can't be one reliably).
  */

@@ -1,6 +1,4 @@
 /**
- * `POST /v1/archive/verify` — compare this instance against a signed archive.
- *
  * Read-only. Free. The caller sends a manifest URL, never chain bytes. Identity
  * digests only (`raw`); `--deep` / semantic replay is CLI. Signature failure is
  * HTTP 200 `unanchored`, never 500 and never `clean`.
@@ -53,7 +51,6 @@ export const MAX_RANGES_PER_REQUEST = 40;
  *  window or not. Revisit if the archive partition size changes. */
 export const MAX_HEIGHTS_PER_REQUEST = 2_000_000;
 
-/** Largest manifest the API process reads from a caller-named host. */
 const MAX_MANIFEST_BYTES = 16 * 1024 * 1024;
 
 /** Hosted fairness: each digest is a row_number() + md5 pass over the chain DB. */
@@ -64,7 +61,6 @@ export const ARCHIVE_VERIFY_RATE_LIMITS = {
 
 function archiveVerifyRateLimit(): MiddlewareHandler<IndexEnv> {
 	return async (c, next) => {
-		// Self-host is single-tenant: the operator's own box, no fairness throttle.
 		if (!isPlatformMode()) return next();
 		const tenant = c.get("indexTenant");
 		if (tenant?.tier === "internal") return next();
@@ -92,7 +88,6 @@ function archiveVerifyRateLimit(): MiddlewareHandler<IndexEnv> {
 const RAW_DATASETS = new Set<string>(ARCHIVE_DATASETS);
 
 export type ArchiveVerifyRouterOptions = {
-	/** Test/SDK seam; production uses global fetch via `loadReference`. */
 	fetchImpl?: LoadReferenceOptions["fetchImpl"];
 	computeRangeDigest?: typeof defaultComputeRangeDigest;
 	getSourceDb?: typeof defaultGetSourceDb;

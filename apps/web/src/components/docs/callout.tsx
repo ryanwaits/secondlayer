@@ -1,9 +1,7 @@
 import type { ReactNode } from "react";
 
-/** Aside variants — each maps to a semantic color token (see globals.css). */
 type CalloutType = "note" | "tip" | "info" | "warning" | "danger";
 
-// Inline icons (no icon-lib dependency): 16px, currentColor stroke.
 const ICONS: Record<CalloutType, ReactNode> = {
 	note: (
 		<svg
@@ -73,18 +71,12 @@ const ICONS: Record<CalloutType, ReactNode> = {
 	),
 };
 
-/**
- * Inline aside for breaking up prose runs — a tinted hairline card with an
- * icon and optional title. Provided globally to MDX (mdx-components.tsx), so
- * `<Callout type="tip" title="…">…</Callout>` works in any .mdx with no import.
- */
 export function Callout({
 	id,
 	type = "note",
 	title,
 	children,
 }: {
-	/** Anchor for deep links, e.g. `/docs/webhooks#coming-from-chainhook`. */
 	id?: string;
 	type?: CalloutType;
 	title?: ReactNode;
@@ -103,10 +95,6 @@ export function Callout({
 	);
 }
 
-/**
- * Full-width lead-in strip — a louder, title-forward break than Callout, for
- * "what you'll build" / key-takeaway moments. Optional accent label + arrow.
- */
 export function Banner({
 	label,
 	title,

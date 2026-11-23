@@ -25,13 +25,6 @@ export {
 } from "@secondlayer/platform/billing/prices";
 
 /**
- * Shared pay-as-you-go read metering for Index + Streams. Every keyed read
- * with an account meters `rows.delivered` (`@secondlayer/platform/billing/meter`):
- * the first 1M rows/month are free (the allowance), rows past it debit the
- * prepaid `account_credits` balance. One balance covers both surfaces.
- */
-
-/**
  * Platform only: a tenant with no account has nothing to meter or debit, so
  * only a first-party `internal` one may read. Anything else is a seed
  * credential that slipped past the token store; refuse it. Anon (no tenant)
@@ -101,17 +94,9 @@ export async function meterRowsDelivered(
 	}
 }
 
-/** Accounts this process has already checked for a first read. Cleared when
- *  it grows past `KNOWN_READERS_MAX`, which only costs a re-check. */
 const knownReaders = new Set<string>();
 const KNOWN_READERS_MAX = 50_000;
 
-/**
- * `first_request` once per account: when the account's earliest
- * `rows.delivered` row is the one just written. One indexed lookup per
- * account per process, off the request path. A ghost (signed-out docs key)
- * goes out without a person profile, under the ghost's id like its mint.
- */
 async function trackFirstRead(
 	accountId: string,
 	ledgerId: string,
@@ -178,7 +163,6 @@ export const GHOST_READS_IN_FLIGHT = 2;
 export const GHOST_READS_BUSY_MESSAGE =
 	"A docs key reads two requests at a time. Retry in a moment.";
 
-/** A ghost read is a page or two; a slot whose holder died frees itself. */
 const GHOST_READ_SLOT_TTL_MS = 60_000;
 
 /** Ghost-ness never changes (a ghost cannot gain an email), so it is looked
@@ -201,14 +185,6 @@ export async function isGhostAccount(accountId: string): Promise<boolean> {
 	return ghost;
 }
 
-/**
- * Take one of a ghost account's `GHOST_READS_IN_FLIGHT` read slots, before
- * `checkRowsAllowance` and held until the read has been metered. Returns a
- * `release` to call once the read is done, or `"busy"` when the ghost
- * already has that many reads running. Nothing is held for a non-ghost,
- * internal or self-host caller. Slots are shared across API replicas when
- * Redis is configured (`lib/slot-counter.ts`).
- */
 export async function beginGhostRead(
 	accountId: string | undefined,
 	tier: string | undefined,

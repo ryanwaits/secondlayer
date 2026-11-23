@@ -1,6 +1,4 @@
 /**
- * Stripe webhook endpoint — credits payments only.
- *
  * Signature is verified against STRIPE_WEBHOOK_SECRET — bodies that don't
  * verify are rejected 400 (Stripe will retry). Verified events are audited
  * via `processed_stripe_events`; only `checkout.session.completed` (prepaid
@@ -115,8 +113,6 @@ app.post("/", async (c) => {
 
 export type StripeWebhookOutcome = "processed" | "duplicate" | "ignored";
 
-/** Metadata Sentinel puts on its Stripe objects (customers, subscriptions,
- *  checkout sessions, and the invoices that inherit a subscription's). */
 const SENTINEL_PRODUCT = "sentinel";
 
 type MetadataCarrier = {
@@ -127,8 +123,6 @@ type MetadataCarrier = {
 	} | null;
 };
 
-/** True when the event's object belongs to Sentinel: its own metadata, or for
- *  an invoice the subscription metadata it carries (both Stripe API shapes). */
 export function isSentinelEvent(event: Stripe.Event): boolean {
 	const obj = event.data.object as unknown as MetadataCarrier | null;
 	if (!obj) return false;
@@ -179,13 +173,10 @@ export async function processStripeEvent(
 				event.id,
 			);
 		}
-		// Every other event type (incl. legacy subscription lifecycle) falls
-		// through: marker persisted, effectless, acked 2xx by the route.
 		return "processed";
 	});
 }
 
-/** A Stripe object reference: the id, whether expanded or not. */
 function stripeId(
 	ref: string | { id: string } | null | undefined,
 ): string | null {
@@ -193,21 +184,10 @@ function stripeId(
 	return typeof ref === "string" ? ref : ref.id;
 }
 
-/** The ledger key a top-up is credited under: the payment intent, so the same
- *  payment arriving on two events credits once. Falls back to the event id
- *  only when Stripe sent no payment intent. */
 function topupKey(paymentIntentId: string | null, eventId: string): string {
 	return paymentIntentId ? `stripe:pi:${paymentIntentId}` : `stripe:${eventId}`;
 }
 
-/**
- * checkout.session.completed — credit a prepaid dev-credits top-up.
- *
- * Only one-time payment sessions tagged `kind: "credits_topup"` (mode=payment,
- * payment_status=paid); subscription checkouts flow through the events above.
- * Idempotent via `processed_stripe_events`. `amount_total` (what the card
- * actually paid) is the source of truth, cents → USD micros (1¢ = 10,000µ$).
- */
 async function onCheckoutCompleted(
 	db: Kysely<Database>,
 	session: Stripe.Checkout.Session,
@@ -245,7 +225,6 @@ async function onCheckoutCompleted(
 	});
 }
 
-/** Off-session auto-refill. Checkout top-ups stay on checkout.session.completed. */
 async function onPaymentIntentSucceeded(
 	db: Kysely<Database>,
 	intent: Stripe.PaymentIntent,
@@ -363,7 +342,6 @@ async function onDisputeCreated(
 	});
 }
 
-/** The account a charge's metadata names, only for our own credit payments. */
 function creditAccountFromMetadata(
 	metadata: Record<string, string> | null | undefined,
 ): string | null {

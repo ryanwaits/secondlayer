@@ -19,7 +19,6 @@ import { z } from "zod";
 import { InvalidJSONError } from "../middleware/error.ts";
 import { bearerToken, workloadHostKeyMatches } from "./internal-meters.ts";
 
-/** Clock-skew tolerance between the workload host and this server. */
 const OBSERVED_AT_TOLERANCE_MS = 5 * 60 * 1000;
 const PURGE_EVERY_MS = 60 * 60 * 1000;
 let lastPurgeAt = 0;

@@ -12,7 +12,6 @@ function esc(s: string): string {
 		.replaceAll('"', "&quot;");
 }
 
-/** RSS 2.0 feed of published writings. Registry-driven; no MDX rendering. */
 export function GET(): Response {
 	const items = getPublishedPosts()
 		.map((post) => {

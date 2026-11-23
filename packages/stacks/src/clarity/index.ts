@@ -64,10 +64,8 @@ export {
 	cvToPrincipal,
 } from "./prettyPrint.ts";
 
-// ABI type system
 export * from "./abi/index.ts";
 
-// JS ↔ ClarityValue bridge
 export {
 	jsToClarityValue,
 	clarityValueToJS,

@@ -1,5 +1,3 @@
-// Steps 6-8 of verifyBlock: a block's state witness against its authenticated
-// header root, every leaf of its trie named, and indexed rows against the diff.
 import { type Bytes, bytesEqual, hex, unhex } from "./bytes.ts";
 import { dataVarKey } from "./keys.ts";
 import {
@@ -153,7 +151,6 @@ const leafHex = (l: WitnessLeaf): DiffLeaf => ({
 	valueHash: hex(l.valueHash),
 });
 
-/** Last write per key, in ordinal order, with its value as the stored string. */
 function lastWrites(
 	writes: StateWrite[],
 	failures: StateFailure[],
@@ -195,10 +192,6 @@ function rowWrite(row: VmEventRow): [key: string, value: string] {
 	return [key, `0a${strip0x(need(row.raw_value, "raw_value")).toLowerCase()}`];
 }
 
-/**
- * Rows against the block's leaves: every row's key must be a leaf, and the
- * last row per key must carry the leaf's value.
- */
 function checkRows(
 	rows: VmEventRow[],
 	leaves: WitnessLeaf[],

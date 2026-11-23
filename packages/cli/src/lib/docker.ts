@@ -1,7 +1,3 @@
-/**
- * Docker availability helpers
- */
-
 import { spawnSync } from "node:child_process";
 
 export class DockerNotAvailableError extends Error {
@@ -35,7 +31,6 @@ export async function isDockerAvailable(): Promise<boolean> {
  * Require Docker to be available, throw helpful error if not
  */
 export async function requireDocker(): Promise<void> {
-	// First check if docker command exists
 	if (!run("which", ["docker"]).ok) {
 		throw new DockerNotAvailableError(
 			"Docker is not installed.\n\n" +
@@ -46,7 +41,6 @@ export async function requireDocker(): Promise<void> {
 		);
 	}
 
-	// Check if Docker daemon is running
 	const available = await isDockerAvailable();
 	if (!available) {
 		throw new DockerNotAvailableError(

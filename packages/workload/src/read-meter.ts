@@ -17,7 +17,6 @@ import {
 	SUBGRAPH_STREAM_POLL_MS,
 } from "@secondlayer/platform/billing/prices";
 
-/** `/v1/subgraphs/:name/<x>` answers metadata, not rows, for exactly these. */
 const METADATA_SEGMENTS: ReadonlySet<string> = new Set([
 	"openapi.json",
 	"schema.json",
@@ -46,7 +45,6 @@ export function classifyBillableRead(
 			: pathname;
 	const segments = path.split("/").slice(1);
 
-	// /api/subgraphs/:name/recent
 	if (
 		segments.length === 4 &&
 		segments[0] === "api" &&
@@ -57,7 +55,6 @@ export function classifyBillableRead(
 	}
 
 	if (segments[0] !== "v1" || segments[1] !== "subgraphs") return null;
-	// segments: v1, subgraphs, :name, then the rest
 	const rest = segments.slice(3);
 	if (segments.length < 4 || segments[2] === "") return null;
 	const table = rest[0];
@@ -69,7 +66,6 @@ export function classifyBillableRead(
 		const tail = rest[1];
 		if (tail === undefined || tail === "") return null;
 		if (tail === "stream") return "stream";
-		// count, aggregate, or a row id
 		return "read";
 	}
 	return null;
@@ -142,14 +138,12 @@ export function createSseBatchCounter(opts: { now: () => number }): {
 	};
 }
 
-/** Reads counted since the last drain, per account and API key. */
 export class ReadCounter {
 	private counts = new Map<
 		string,
 		{ accountId: string; apiKeyId: string; count: number }
 	>();
 
-	/** Add `n` reads (non-finite or non-positive is ignored, fractions floor). */
 	add(accountId: string, apiKeyId: string, n: number): void {
 		if (!Number.isFinite(n) || n <= 0) return;
 		const whole = Math.floor(n);
@@ -160,7 +154,6 @@ export class ReadCounter {
 		else this.counts.set(key, { accountId, apiKeyId, count: whole });
 	}
 
-	/** Read and zero, so a flush never double-counts what it already sent. */
 	drain(): Array<{ accountId: string; apiKeyId: string; count: number }> {
 		const out = [...this.counts.values()];
 		this.counts = new Map();

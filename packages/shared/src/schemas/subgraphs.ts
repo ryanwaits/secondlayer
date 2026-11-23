@@ -1,7 +1,5 @@
 import { z } from "zod";
 
-// ── Deploy Subgraph Request ─────────────────────────────────────────────────
-
 /** The body for deploying a subgraph: sources, schema, and handler code. */
 export interface DeploySubgraphRequest {
 	name: string;
@@ -89,8 +87,6 @@ export interface DeploySubgraphResponse {
 		breakingChanges: string[];
 	};
 }
-
-// Subgraph API response types
 
 /** Every state `subgraphs.status` can hold; mirrored by the
  *  `subgraphs_status_check` CHECK (migration 0189). */

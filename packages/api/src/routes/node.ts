@@ -3,7 +3,6 @@ import { Hono } from "hono";
 
 const app = new Hono();
 
-// GET /contracts/:contractId/abi — proxy to local Stacks node
 app.get("/contracts/:contractId{.+\\..*}/abi", async (c) => {
 	const contractId = c.req.param("contractId");
 	const node = new StacksNodeClient();

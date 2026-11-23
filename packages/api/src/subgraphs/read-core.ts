@@ -20,10 +20,6 @@ import {
 	subgraphSchemaName,
 } from "../routes/subgraph-query-helpers.ts";
 
-// Read primitives shared by the authed /api/subgraphs surface and the open
-// /v1/subgraphs surface. Each handler takes an already-resolved subgraph —
-// subgraph resolution is the caller's concern, never this layer's.
-
 export class SubgraphNotFoundError extends Error {
 	code = "SUBGRAPH_NOT_FOUND";
 	constructor(subgraphName: string) {
@@ -32,7 +28,6 @@ export class SubgraphNotFoundError extends Error {
 	}
 }
 
-// Serving reads route to the managed target DB.
 export async function querySubgraph(
 	_subgraph: Subgraph,
 	text: string,
@@ -154,8 +149,6 @@ export async function handleTableAggregate(
 		const result = await querySubgraph(subgraph, text, params);
 		const row = (result[0] ?? {}) as Record<string, string | number | null>;
 
-		// Reshape the single result row from `kind__col` aliases into the grouped
-		// response. count/countDistinct → numbers; sum/min/max → lossless strings.
 		const response: {
 			count?: number;
 			countDistinct?: Record<string, number>;
@@ -230,13 +223,6 @@ export async function handleRowById(
 	return c.json({ data: result[0] });
 }
 
-/**
- * SSE: stream rows as they're indexed. Poll-based — tails the table by a
- * monotonic `_id` cursor every ~1.5s and pushes each new row as an SSE message;
- * reuses the same filter query params as the REST list endpoints. Go-forward by
- * default; `?since=<block>` replays from a block then tails. No webhook
- * record is created — this is ephemeral.
- */
 export function handleTableStream(
 	c: Context,
 	subgraph: Subgraph,
@@ -287,10 +273,8 @@ export function handleTableStream(
 			);
 			const minId = (r[0] as { m?: number | string | null })?.m;
 			if (minId != null) {
-				// First matching row is _id = minId; `_id > cursor` includes it.
 				cursor = Number(minId) - 1;
 			} else {
-				// Nothing at/after `since` yet — tail live from the current tip.
 				const max = await querySubgraph(
 					subgraph,
 					`SELECT COALESCE(MAX("_id"), 0) AS m FROM ${tbl}`,

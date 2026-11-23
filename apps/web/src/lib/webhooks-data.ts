@@ -14,28 +14,13 @@ import type {
 } from "@secondlayer/shared/schemas/webhooks";
 import { type WebhooksResult, resultFromResponse } from "./dashboard-results";
 
-/**
- * Client-only fetchers for /account/webhooks, calling the dashboard's own
- * `/api/webhooks/*` proxy (never the platform API directly — same style as
- * `account-data.ts`). Every call maps the proxy's status code to one of a
- * few outcomes the UI actually branches on, instead of throwing: a starting
- * hosted stack and a zero balance are expected states here, not errors.
- */
-
-/** One UTC day of delivery attempts, from `GET /:id/activity`. */
 export type WebhookActivityDay = WebhookActivity["days"][number];
 
-/** `GET /api/webhooks/activity`: 168 UTC hour starts, oldest first, and each
- *  webhook's delivered and failed counts aligned to them. The SDK has no
- *  method or type for this route yet, so the shape is declared here. */
 export interface WebhooksActivitySummary {
 	hours: string[];
 	webhooks: Array<{ id: string; delivered: number[]; failed: number[] }>;
 }
 
-/** A tenant on an older API image can omit `blockTime` from a delivery row
- *  entirely (plan 064 fixes the auto-upgrade gap) — normalize that absence
- *  to `null`, same as a row that genuinely has none. */
 export function normalizeDeliveryRow(row: DeliveryRow): DeliveryRow {
 	return { ...row, blockTime: row.blockTime ?? null };
 }
@@ -53,9 +38,7 @@ async function request<T>(
 	let body: unknown = null;
 	try {
 		body = await res.json();
-	} catch {
-		// Empty body on some error responses; fall through to the status-only message.
-	}
+	} catch {}
 	return resultFromResponse<T>(res, body);
 }
 
@@ -64,7 +47,6 @@ async function requestList<T>(path: string): Promise<WebhooksResult<T[]>> {
 	return res.kind === "ok" ? { kind: "ok", data: res.data.data } : res;
 }
 
-/** `wake` starts an asleep stack; without it a read leaves the stack asleep. */
 export function listWebhooks(
 	opts: { wake?: boolean } = {},
 ): Promise<WebhooksResult<WebhookSummary[]>> {
@@ -75,8 +57,6 @@ export function getWebhook(id: string): Promise<WebhooksResult<WebhookDetail>> {
 	return request<WebhookDetail>(`/${encodeURIComponent(id)}`);
 }
 
-/** Deliveries, newest first. A `window` (ISO `from`/`to`, at most 31 days)
- *  narrows to one stretch, such as the hour a heat square stands for. */
 export async function getDeliveries(
 	id: string,
 	window?: { from: string; to: string },
@@ -92,7 +72,6 @@ export async function getDeliveries(
 		: res;
 }
 
-/** One delivery with its payload, read when a dashboard row is opened. */
 export function getDelivery(
 	id: string,
 	deliveryId: string,
@@ -106,16 +85,13 @@ export function getDead(id: string): Promise<WebhooksResult<DeadRow[]>> {
 	return requestList<DeadRow>(`/${encodeURIComponent(id)}/dead`);
 }
 
-/** A week of hourly counts and 30 UTC days of daily counts. */
 export function getActivity(
 	id: string,
 ): Promise<WebhooksResult<WebhookActivity>> {
 	return request<WebhookActivity>(`/${encodeURIComponent(id)}/activity`);
 }
 
-/** Hourly delivered and failed counts for every webhook, for the heat strips
- *  and sparklines. A 404 (no hosted stack yet) reads as no activity, like the
- *  list endpoint. */
+/** A 404 (no hosted stack yet) reads as no activity, like the list endpoint. */
 export async function getActivitySummary(): Promise<
 	WebhooksResult<WebhooksActivitySummary>
 > {
@@ -141,7 +117,6 @@ export function resumeWebhook(
 	});
 }
 
-/** Send one test event to the webhook's server; it is logged as a delivery. */
 export function testWebhook(
 	id: string,
 ): Promise<WebhooksResult<WebhookTestResult>> {
@@ -158,8 +133,6 @@ function postJson<T>(path: string, body: unknown): Promise<WebhooksResult<T>> {
 	});
 }
 
-/** Replay a block range. A 409 (a scan is already running) comes back as an
- *  `error` carrying the API's text. */
 export function startReplay(
 	id: string,
 	range: { fromBlock: number; toBlock: number },
@@ -167,7 +140,6 @@ export function startReplay(
 	return postJson<ReplayResult>(`/${encodeURIComponent(id)}/replay`, range);
 }
 
-/** A webhook's recent replays, plus the range presets and what gave up. */
 export function getReplays(
 	id: string,
 ): Promise<WebhooksResult<{ data: ReplayProgress[]; ranges: ReplayRanges }>> {
@@ -183,14 +155,12 @@ export function getReplay(
 	);
 }
 
-/** Replays running now or started in the last 24 hours, across the account. */
 export function getRecentReplays(): Promise<
 	WebhooksResult<{ data: ReplayProgress[] }>
 > {
 	return request("/replays?_limit=20");
 }
 
-/** Requeue dead events: those of one replay, those since a time, or all. */
 export function requeueDead(
 	id: string,
 	opts: { replayId?: string; since?: string },
@@ -198,8 +168,6 @@ export function requeueDead(
 	return postJson(`/${encodeURIComponent(id)}/dead/requeue`, opts);
 }
 
-/** Rename a webhook. Only the label changes. A 409 (a Sentinel-managed name,
- *  or a name already in use) comes back as an `error` carrying the API's text. */
 export function renameWebhook(
 	id: string,
 	name: string,
@@ -211,8 +179,6 @@ export function renameWebhook(
 	});
 }
 
-/** "12s ago" / "41m ago" / "3h ago" / "6d ago"; "never" for `null`. Coarsest
- *  unit only, matching the mock — nobody needs "3d 4h ago" on a list row. */
 export function formatRelative(
 	iso: string | null,
 	now: number = Date.now(),
@@ -230,9 +196,6 @@ export function formatRelative(
 	return `${d}d ago`;
 }
 
-/** The host part of a webhook's target URL, for the list row sub-line. Falls
- *  back to a naive strip when the URL somehow doesn't parse (never should —
- *  the API validates it on create). */
 export function hostOf(url: string): string {
 	try {
 		return new URL(url).host;

@@ -5,11 +5,6 @@ import type {
 } from "@secondlayer/shared/db";
 import type { Kysely } from "kysely";
 
-/**
- * Web push storage: one row per subscribed browser and one preferences row per
- * account. A missing preferences row means the defaults below.
- */
-
 export type PushKind =
 	| "webhook_failing"
 	| "subgraph_stopped"
@@ -49,7 +44,6 @@ function toMap(row: PushPrefs): PushPrefMap {
 	};
 }
 
-/** The account's toggles, or the defaults when it never changed one. */
 export async function getPushPrefs(
 	db: Kysely<Database>,
 	accountId: string,
@@ -62,7 +56,6 @@ export async function getPushPrefs(
 	return row ? toMap(row) : { ...PUSH_DEFAULTS };
 }
 
-/** Changes only the given toggles; the rest keep their stored (or default) value. */
 export async function upsertPushPrefs(
 	db: Kysely<Database>,
 	accountId: string,
@@ -86,10 +79,6 @@ export async function upsertPushPrefs(
 	return toMap(row);
 }
 
-/**
- * Stores a subscription. The endpoint is unique: the same browser
- * re-subscribing, or signing in as another account, moves its row.
- */
 export async function saveSubscription(
 	db: Kysely<Database>,
 	accountId: string,
@@ -121,7 +110,6 @@ export async function saveSubscription(
 		.execute();
 }
 
-/** Removes the caller's own subscription for an endpoint; returns how many. */
 export async function deleteSubscription(
 	db: Kysely<Database>,
 	accountId: string,
@@ -159,12 +147,8 @@ export async function markSent(
 		.execute();
 }
 
-/** Consecutive delivery errors after which a subscription is dropped. The
- *  device subscribes again the next time the app opens. */
 export const MAX_PUSH_FAILURES = 10;
 
-/** Counts one delivery error. Returns true when it was the last allowed one
- *  and the subscription was removed. */
 export async function markFailed(
 	db: Kysely<Database>,
 	id: string,
@@ -180,7 +164,6 @@ export async function markFailed(
 	return true;
 }
 
-/** The push service says the subscription is gone (404/410). */
 export async function removeSubscription(
 	db: Kysely<Database>,
 	id: string,

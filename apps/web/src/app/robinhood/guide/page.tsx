@@ -13,11 +13,6 @@ export const metadata: Metadata = socialMeta({
 	path: "/robinhood/guide",
 });
 
-/**
- * The bridge's tester guide: one page that always covers the current phase
- * (old phase URLs redirect here), a single 720px column on the bridge's own
- * chrome, kept out of /docs because it belongs to this microsite.
- */
 export default function GuidePage() {
 	return (
 		<div className="site rh">

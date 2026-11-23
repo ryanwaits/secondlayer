@@ -40,10 +40,8 @@ export type ReplayWebhook = Pick<
 	| "createdAt"
 >;
 
-/** What the sheet shows right now. */
 export type ReplayView =
 	| { kind: "loading" }
-	/** The server is still failing: a replay now would fail too. */
 	| { kind: "gated" }
 	| { kind: "picker"; ranges: ReplayRanges; selected: number; busy: boolean }
 	| {
@@ -107,10 +105,6 @@ function Step({
 	);
 }
 
-/**
- * A replay's progress. Pure: the parent feeds it new values and the DOM only
- * updates text and bar width, so nothing re-mounts or re-animates.
- */
 export function ReplayProgressView({
 	progress,
 	minutesLeft,
@@ -221,7 +215,6 @@ function Gate({ onClose }: { onClose: () => void }) {
 	);
 }
 
-/** True when the preset reaches back past what the outbox keeps. */
 const isLowerBound = (blocks: number) => blocks === 10000;
 
 function Picker({
@@ -296,7 +289,6 @@ function Picker({
 	);
 }
 
-/** The sheet's body for a view. Pure, so the Lab and tests render it directly. */
 export function ReplayBody({
 	view,
 	onClose,
@@ -353,11 +345,6 @@ export function ReplayBody({
 	}
 }
 
-/**
- * Requeue what a finished replay gave up. On success the replay's record goes
- * back to running; `onProgress` receives that so the view moves at once, and
- * the next poll corrects the counts.
- */
 export function useReplayRequeue(
 	progress: ReplayProgress | null,
 	onProgress?: (next: ReplayProgress) => void,
@@ -404,10 +391,6 @@ export function useReplayRequeue(
 	return { busy, requeue };
 }
 
-/**
- * Start a replay of a block range and watch it finish, in one sheet. The sheet
- * stays mounted from picker to done; only the values inside it change.
- */
 export function ReplaySheet({
 	webhook,
 	open,
@@ -427,7 +410,6 @@ export function ReplaySheet({
 	const minutesLeft = useMinutesLeft(progress);
 	const webhookId = webhook.id;
 
-	// Each time the sheet opens: forget the last run, then read this webhook's.
 	useEffect(() => {
 		if (!open || gated) return;
 		let cancelled = false;

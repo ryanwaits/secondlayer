@@ -1,10 +1,5 @@
 import { STACKS_SYMBOL_PATH } from "./stacks-symbol";
 
-/**
- * The round trip as flat art: the locked SIP-010 and its ERC-20 twin, linked
- * 1:1. Illustrative amounts. Robin Neon appears once, on the twin's "minted"
- * chip, next to the official feather avatar (black on Robin Neon, unmodified).
- */
 export function TwinsHero() {
 	return (
 		<svg

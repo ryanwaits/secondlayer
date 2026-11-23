@@ -11,7 +11,6 @@ const HEX_PREFIXED = /^0x[0-9a-fA-F]+$/;
 const LONG_HEX = /^[0-9a-fA-F]{20,}$/;
 const PRINCIPAL = /^S[PTMN][0-9A-Z]{20,}(\.[A-Za-z][A-Za-z0-9-]*)?$/;
 
-/** Replaces ids, hashes and principals in a path with `:param`. */
 export function pathTemplate(path: string): string {
 	return path
 		.split("/")
@@ -54,7 +53,6 @@ export function queryFingerprint(url: URL): {
 	return { paramsHash, cursorHash, pageSize };
 }
 
-// Throttle recorder failures so a DB outage doesn't log once per request.
 let lastRecordFailLogMs = 0;
 function warnRecordFailure(err: unknown): void {
 	const now = Date.now();
@@ -101,7 +99,6 @@ export function requestLog(opts: {
 			duration_ms: Math.round(performance.now() - started),
 		};
 
-		// Fire-and-forget: never delays or alters the response.
 		void (async () => opts.record(row))().catch(warnRecordFailure);
 	};
 }

@@ -3,12 +3,6 @@ const ROW0 = 48;
 const ROW_H = 37;
 const W = 620;
 
-/**
- * B6 SequenceDiagram — 3+ parties exchanging messages where order
- * matters. Hover or focus a message: it and both endpoints light (pure
- * CSS :hover/:focus-visible — no JS, so this stays a server component).
- * Returns are dashed. Keep to ≤6 messages; past that it's two diagrams.
- */
 export function SequenceDiagram({
 	actors,
 	messages,

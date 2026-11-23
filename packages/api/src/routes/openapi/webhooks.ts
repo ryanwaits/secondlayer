@@ -16,13 +16,6 @@ import {
 	writeResponses,
 } from "./shared.ts";
 
-/**
- * Webhooks (`src/routes/webhooks.ts`). Request shapes come from
- * `@secondlayer/shared/schemas/webhooks` (the Zod schemas the route parses
- * with); response shapes from the route's `toSummary` / `toDetail` and the
- * inline deliveries / dead-letter mappers.
- */
-
 const ID_PARAM = pp("id", "Webhook id (UUID), as returned by create or list.");
 
 const NOT_FOUND = jsonError("No webhook with this id");
@@ -34,17 +27,12 @@ function writeResponsesWithout200(extra: Record<string, unknown>) {
 	return rest;
 }
 
-// Mirrors `WebhookKind` in `@secondlayer/shared/schemas/webhooks` (a TS union,
-// no runtime constant).
 const WEBHOOK_KINDS = ["chain"];
 
 const SUBGRAPH_WEBHOOKS_REMOVED_NOTE =
 	"A body carrying `subgraphName`, `tableName` or `filter` is answered with `SUBGRAPH_WEBHOOKS_REMOVED`: subgraph webhooks were removed";
 
-// ── Example values (fake ids; block, tx and principals from mainnet) ──
-
 const EXAMPLE_ID = "3f1c2a9e-8b7d-4c21-9a55-6e0d4b2f7c18";
-// Real secrets are 64 hex chars (`generateSecret` in shared/crypto/hmac.ts).
 const FAKE_SECRET =
 	"deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef";
 const EXAMPLE_TX =
@@ -161,8 +149,6 @@ const OK_SCHEMA = {
 	example: { ok: true },
 };
 
-// ── Shared property sets ──────────────────────────────────────────────
-
 const FORMAT_PROP = {
 	type: "string",
 	enum: [...WEBHOOK_FORMATS],
@@ -268,8 +254,6 @@ const AUTH_PROP = {
 	},
 };
 
-// Request-only: accepted by create/update, never returned by a read (see
-// `AUTH_PROP` above for what a read gets instead).
 const TUNING_PROPS = {
 	authConfig: {
 		type: "object",
@@ -326,8 +310,6 @@ const DETAIL_PROPERTIES = {
 	},
 };
 
-/** Every trigger field, described with the types that accept it (derived
- *  from the validator's own per-type field list, so it cannot drift). */
 const TRIGGER_FIELD_TEXT: Record<string, string> = {
 	sender: "Sender principal. `*` wildcards allowed.",
 	recipient: "Recipient principal. `*` wildcards allowed.",
@@ -380,8 +362,6 @@ function triggerFieldSchema(field: string): Record<string, unknown> {
 const TRIGGER_FIELD_NAMES = [
 	...new Set(Object.values(CHAIN_TRIGGER_FIELDS).flat()),
 ];
-
-// ── Insights (`src/routes/insights.ts`) ──
 
 const INSIGHT_ID_PARAM = pp(
 	"id",
@@ -1159,7 +1139,6 @@ export const webhooksPaths = {
 	...insightsPaths,
 };
 
-/** Resource schemas for these responses, merged into `components.schemas`. */
 export const webhooksSchemas = {
 	WebhookSummary: {
 		type: "object",

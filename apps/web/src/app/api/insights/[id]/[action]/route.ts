@@ -2,14 +2,7 @@ import { ApiError, apiRequest, getSessionFromRequest } from "@/lib/api";
 import { crossSiteRefusal } from "@/lib/same-origin";
 import { NextResponse } from "next/server";
 
-// Next to the API, so each dashboard read and write takes the short hop.
 export const preferredRegion = "fra1";
-
-/**
- * Dismiss, snooze or mark an insight expected, and undo each. The snooze POST
- * forwards `{ until }`; the rest send no body. The id carries the side that
- * owns it: `t:<uuid>` is the stack's, `a:<uuid>` the account's.
- */
 
 const UUID_RE = /^[0-9a-f-]{36}$/;
 

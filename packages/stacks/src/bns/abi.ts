@@ -2,7 +2,6 @@ import type { AbiContract } from "../clarity/abi/contract.ts";
 
 export const BNS_ABI = {
 	functions: [
-		// Name resolution (read-only)
 		{
 			name: "get-owner-name",
 			access: "read-only",
@@ -132,7 +131,6 @@ export const BNS_ABI = {
 			},
 		},
 
-		// Name registration (public)
 		{
 			name: "name-preorder",
 			access: "public",
@@ -172,7 +170,6 @@ export const BNS_ABI = {
 			outputs: { response: { ok: "bool", error: "uint128" } },
 		},
 
-		// Name management (public)
 		{
 			name: "transfer",
 			access: "public",

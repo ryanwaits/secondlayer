@@ -51,7 +51,6 @@ export function parseStateWriteKey(key: string): StateWriteKey | null {
 
 const utf8 = new TextDecoder("utf-8", { fatal: true });
 
-/** The stored value string a `value_hex` encodes (lowercase hex of a CV). */
 function storedValue(w: StateWriteRow): string {
 	const h = w.value_hex.startsWith("0x") ? w.value_hex.slice(2) : w.value_hex;
 	const bytes = new Uint8Array(h.length / 2);
@@ -71,7 +70,6 @@ function storedValue(w: StateWriteRow): string {
 	return value;
 }
 
-/** The handler event one named write becomes, or null when it is not one. */
 function writeEvent(
 	w: StateWriteRow,
 ): { type: string; data: Record<string, string> } | null {

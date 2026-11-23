@@ -57,11 +57,8 @@ export const BrowserDistinctIdSchema = z
 	.optional()
 	.catch(undefined);
 
-/** Who an event belongs to. `anonymous` sends it without a person profile. */
 export type EventSubject = { distinctId: string; anonymous?: boolean };
 
-/** The subject for a fact with no person account yet: the browser's id, else
- *  `fallbackId` (or a throwaway one) with no person profile. */
 export function visitorSubject(
 	browserDistinctId: string | undefined,
 	fallbackId: string = randomUUID(),
@@ -99,7 +96,5 @@ export function trackProductEvent(
 			}),
 			signal: AbortSignal.timeout(SEND_TIMEOUT_MS),
 		}).catch(() => {});
-	} catch {
-		// Analytics never fails a request.
-	}
+	} catch {}
 }

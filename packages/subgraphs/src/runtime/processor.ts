@@ -129,7 +129,6 @@ export function handlerCacheKey(
 	return `${path}:${content}`;
 }
 
-// Hot-reload caches, keyed per subgraph id by handlerCacheKey.
 const knownKeys = new Map<string, string>();
 const definitionCache = new Map<string, SubgraphDefinition>();
 
@@ -148,7 +147,6 @@ export async function loadSubgraphDefinition(
 
 	let def: SubgraphDefinition;
 	if (sg.verification?.level === "state" && sg.handler_code) {
-		// Verifiable (state-level, scan-clean at deploy): run in the deterministic realm.
 		def = await loadDeterministicDefinition(sg.handler_code);
 	} else if (sg.handler_code) {
 		// Import the stored bundle from a data: URL, not a file. Bun caches
@@ -159,7 +157,6 @@ export async function loadSubgraphDefinition(
 		const mod = await import(url);
 		def = mod.default ?? mod;
 	} else {
-		// Local deploy: the source file runs in place.
 		const mod = await import(handlerImportUrl(sg.handler_path));
 		def = mod.default ?? mod;
 	}
@@ -169,8 +166,6 @@ export async function loadSubgraphDefinition(
 	definitionCache.set(sg.id, def);
 
 	if (prevKey && prevKey !== key) {
-		// A redeploy changed the handler, so drop the cached route alongside
-		// the handler def.
 		invalidateSubgraphRoute(sg.id);
 		logger.info("Subgraph handler reloaded", {
 			subgraph: sg.name,
@@ -181,7 +176,6 @@ export async function loadSubgraphDefinition(
 	return def;
 }
 
-/** Remove cached entries for subgraphs that no longer exist. */
 function cleanupCaches(active: Subgraph[]): void {
 	const ids = new Set(active.map((sg) => sg.id));
 	for (const id of knownKeys.keys()) {
@@ -218,7 +212,6 @@ async function runSubgraphOperation(
 		if (operation.from_block == null || operation.to_block == null) {
 			throw new Error("Backfill operation is missing from_block or to_block");
 		}
-		// Resume from the op's own checkpoint: committed blocks never replay.
 		const resumeFrom =
 			operation.cursor_block != null
 				? Math.max(
@@ -320,7 +313,6 @@ export async function startSubgraphOperationRunner(opts?: {
 			}
 		}
 	} catch (err) {
-		// The sweep is best-effort — a failure must not stop the runner.
 		logger.warn("Stranded-reindex sweep failed", {
 			error: getErrorMessage(err),
 		});
@@ -533,7 +525,6 @@ export async function startSubgraphProcessor(opts?: {
 	// doesn't wait a poll interval. NOTIFY/poll below are no-ops on non-leaders.
 	const stopCatchUpLeader = startCatchUpLeader({ onAcquire: runCatchUp });
 
-	// Listen for new blocks — NOTIFY is fired from the indexer on the source DB
 	const stopListening = await listen(
 		CHANNEL_NEW_BLOCK,
 		async () => {
@@ -544,7 +535,6 @@ export async function startSubgraphProcessor(opts?: {
 		{ connectionString: sourceListenerUrl() },
 	);
 
-	// Listen for reorgs — also fired from the indexer on the source DB
 	const stopReorgListening = await listen(
 		"subgraph_reorg",
 		async (payload: string | undefined) => {
@@ -564,7 +554,6 @@ export async function startSubgraphProcessor(opts?: {
 		{ connectionString: sourceListenerUrl() },
 	);
 
-	// Poll as backup (reads subgraphs table — target DB)
 	const pollInterval = setInterval(() => {
 		void runCatchUp();
 	}, POLL_INTERVAL_MS);
@@ -580,14 +569,8 @@ export async function startSubgraphProcessor(opts?: {
 				)
 			: undefined;
 
-	// The real-time webhook delivery plane (evaluator + emitter + chain-reorg)
-	// now runs in the dedicated webhook-processor service, isolated from
-	// subgraph indexing. This process handles subgraph ops + catch-up + the
-	// subgraph-reorg rewind only.
-
 	logger.info("Subgraph processor ready");
 
-	// Return shutdown function
 	return async () => {
 		running = false;
 		clearInterval(pollInterval);

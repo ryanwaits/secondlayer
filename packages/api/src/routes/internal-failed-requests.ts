@@ -162,7 +162,6 @@ app.post("/", async (c) => {
 			await insertFailedRequest(db, item);
 			accepted++;
 		} catch (e) {
-			// Unknown account: skip the item, keep the batch.
 			if (pgCode(e) === "23503") {
 				skipped++;
 				continue;

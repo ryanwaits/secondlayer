@@ -54,7 +54,6 @@ export function mnemonicToBitcoinKeys(
 		addressIndex = 0,
 	} = options;
 
-	// BIP44 coin type: 0' mainnet, 1' testnet/regtest.
 	const coinType = network === "mainnet" ? 0 : 1;
 	const path = `m/${PURPOSE[type]}'/${coinType}'/${accountIndex}'/${changeIndex}/${addressIndex}`;
 

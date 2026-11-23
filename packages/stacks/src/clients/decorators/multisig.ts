@@ -201,7 +201,6 @@ export function multisigActions(client: Client): MultiSigActions {
 		},
 
 		async sendTransaction(params) {
-			// Auto-finalize before broadcast
 			const finalized = finalizeMultiSig(params.transaction, signers);
 			return sendTransaction(client, {
 				transaction: finalized,

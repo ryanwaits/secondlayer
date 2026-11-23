@@ -6,7 +6,6 @@ import type {
 } from "./event-types.ts";
 import type { AssetIdentifier } from "./validate.ts";
 
-// ── Canonical filter specs ───────────────────────────────────────────────
 // One spelling of a chain-event filter, projected to each surface's wire
 // shape by the methods on `ChainEventFilter`. Amounts are ALWAYS `bigint`
 // here; `toChainTrigger()` converts to string at the JSON boundary — the
@@ -259,8 +258,6 @@ export type SubgraphSourceSpec = Extract<
 	{ type: SubgraphMemberType }
 >;
 
-// ── Projection output shapes ─────────────────────────────────────────────
-
 /** Wire shape of a chain trigger (Webhooks), derived per member from
  *  the spec: same fields, with `bigint` amounts stringified (uint128 exceeds
  *  JS safe integers) and the type-only `abi`/`prints` decorations dropped.
@@ -331,7 +328,6 @@ export type StreamsVmParamsShape<T extends VmMember = VmMember> = {
 	contractId?: string | readonly string[];
 };
 
-// ── Member → projection capability ───────────────────────────────────────
 // A surface a member doesn't reach is a MISSING METHOD, not a runtime error:
 // "Property 'toIndexParams' does not exist" beats "argument of type never".
 //

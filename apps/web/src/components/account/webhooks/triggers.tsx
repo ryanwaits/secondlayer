@@ -1,13 +1,6 @@
 import type { ChainTrigger, WebhookActivity } from "@secondlayer/sdk";
 import type { ChainTriggerType } from "@secondlayer/sdk/webhooks/triggers";
 
-/**
- * Vocabulary the trigger describer reads from: a noun per type, the order a
- * trigger's fields read in, and a trigger's 7-day match volume.
- */
-
-// ── Copy: one noun per chain-trigger type, for each trigger's sentence. ───
-
 export const TRIGGER_NOUN: Record<ChainTriggerType, string> = {
 	stx_transfer: "STX transfer",
 	stx_mint: "STX mint",
@@ -38,7 +31,6 @@ export const TRIGGER_NOUN: Record<ChainTriggerType, string> = {
 	rune_burn: "rune burn",
 };
 
-/** One phrase per field, in reading order, for a trigger's sentence. */
 export const SENTENCE_FIELD_ORDER = [
 	"assetIdentifier",
 	"contractId",
@@ -63,17 +55,10 @@ export const SENTENCE_FIELD_ORDER = [
 	"maxAmount",
 ] as const;
 
-// ── Per-trigger volume (design 5) ───────────────────────────────────────
-
-/** `stx_transfer` → `chain.stx_transfer.apply`, the outbox `event_type` a
- *  chain trigger's matches are counted under. */
 export function chainEventType(triggerType: ChainTriggerType): string {
 	return `chain.${triggerType}.apply`;
 }
 
-/** 7-day matched count for one trigger, and whether another trigger of the
- *  same type shares that count (trigger ids don't exist yet, so same-type
- *  triggers can't be told apart — plan 074 maintenance note). */
 export function triggerVolume(
 	trigger: ChainTrigger,
 	allTriggers: ChainTrigger[],
@@ -84,8 +69,6 @@ export function triggerVolume(
 	return { count, shared };
 }
 
-/** "About N a day" for an unfiltered trigger's warning — the 7-day count,
- *  averaged and rounded. */
 export function perDay(count: number): number {
 	return Math.round(count / 7);
 }

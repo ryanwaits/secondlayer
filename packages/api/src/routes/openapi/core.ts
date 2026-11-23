@@ -13,8 +13,6 @@ import {
 	jsonError,
 } from "./shared.ts";
 
-/** Instance-level `/v1` routes: discovery, batch, archive verify, this spec. */
-
 const BATCH_EXAMPLE_REQUEST = {
 	requests: [
 		{ path: "/v1/streams/tip" },
@@ -223,7 +221,6 @@ export const corePaths = {
 	},
 };
 
-/** Resource schemas for these responses, merged into `components.schemas`. */
 export const coreSchemas = {
 	V1Discovery: {
 		type: "object",

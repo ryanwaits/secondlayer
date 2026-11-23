@@ -11,9 +11,7 @@ export function disconnect(): void {
 	clearStorage();
 	try {
 		getProvider().disconnect?.();
-	} catch {
-		// provider may not exist — that's fine
-	}
+	} catch {}
 }
 
 export function isConnected(): boolean {

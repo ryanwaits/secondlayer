@@ -127,7 +127,7 @@ function resolveVersionAndChainId(chain?: StacksChain): {
 	version: number;
 	chainId: number;
 } {
-	if (!chain) return { version: 0x00, chainId: 0x00000001 }; // mainnet defaults
+	if (!chain) return { version: 0x00, chainId: 0x00000001 };
 	return { version: chain.transactionVersion, chainId: chain.id };
 }
 

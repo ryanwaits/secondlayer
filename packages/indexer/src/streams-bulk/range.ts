@@ -58,12 +58,6 @@ export function latestCompleteFinalizedRange(params: {
 	};
 }
 
-/**
- * Latest complete range whose end is at or below an already-finalized Stacks
- * height. The streams-bulk path derives `finalizedHeight` from the
- * burn-confirmation boundary (`@secondlayer/shared` `finalizedBurnHeight` →
- * `getFinalizedStacksHeight`) so it matches the Streams read path.
- */
 export function finalizedRangeFromHeight(params: {
 	finalizedHeight: number;
 	rangeSizeBlocks?: number;

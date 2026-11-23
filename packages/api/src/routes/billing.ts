@@ -1,22 +1,3 @@
-/**
- * Billing routes — the metered-archive credits surface. Session-authed
- * upstream via `requireAuth`; the writes that change what the card is charged
- * (refill, caps) also demand a signed-in session, never an account API key
- * (`sessionOnly`).
- *
- *   GET   /api/billing/status   credits balance + refill config snapshot
- *   POST  /api/billing/topup    one-time prepaid credit pack → Stripe Checkout
- *   POST  /api/billing/refill   opt-in auto-refill threshold
- *   GET   /api/billing/caps     monthly spend cap + alert threshold
- *   PATCH /api/billing/caps
- *   GET   /api/billing/usage    this month's usage_ledger, by unit
- *   GET   /api/billing/credits  latest top-ups and grants
- *   GET   /api/billing/rows     rows delivered: allowance, per day, sources, errors
- *
- * Plan plumbing (/upgrade, /resolve, /cancel, /portal) was removed with the
- * plan/tier retirement — credits are the only paid rail.
- */
-
 import { ROWS_DELIVERED_MONTHLY_ALLOWANCE } from "@secondlayer/platform/billing/prices";
 import {
 	getBalanceAlerts,
@@ -113,11 +94,6 @@ const refillSchema = z
 		path: ["belowUsd"],
 	});
 
-/**
- * Validate an auto-refill request: `belowUsd: null` turns it off, otherwise
- * `1 <= belowUsd <= min(packUsd, 1000)` and `packUsd` one of the credit packs
- * (default 25).
- */
 export function parseRefillInput(body: {
 	belowUsd?: unknown;
 	packUsd?: unknown;
@@ -167,10 +143,6 @@ const capsSchema = z.object({
 		.optional(),
 });
 
-/**
- * Validate a spend-cap request. `monthlyCapCents` is whole cents >= 0, `null`
- * clears the cap, omitted leaves it. `alertThresholdPct` is a whole 1-100.
- */
 export function parseCapsInput(
 	body: unknown,
 ):
@@ -208,9 +180,6 @@ export async function applyMonthlyCap(
 	return upsertCaps(db, accountId, patch);
 }
 
-/** The caps body the dashboard reads. `frozenAt` is set exactly while this
- *  month's spend is at the cap: the time the cap email went out, or now when
- *  the daily check has not run yet. */
 async function capsBody(
 	db: Kysely<Database>,
 	accountId: string,
@@ -273,8 +242,6 @@ export async function ensureStripeCustomer(
 		});
 	}
 	const customer = await stripe.customers.create({
-		// NULL for ghost accounts (unreachable here in practice — billing is
-		// session-gated and ghosts can't log in until claimed).
 		email: account.email ?? undefined,
 		metadata: { secondlayer_account_id: account.id },
 	});
@@ -310,7 +277,6 @@ export async function createCreditsCheckoutSession(opts: {
 	stripe: StripeClient;
 	db: ReturnType<typeof getDb>;
 	account: AccountRow;
-	/** Whole dollars, already validated by the caller (a pack, or a custom top-up amount). */
 	usd: number;
 	successUrl: string;
 	cancelUrl: string;
@@ -392,8 +358,6 @@ app.post("/topup", async (c) => {
 		db,
 		account,
 		usd,
-		// Signed-in top-ups land back on /account/credits, which confirms the
-		// top-up once Stripe's webhook moves the balance.
 		successUrl: `${dashboardBaseUrl()}/account/credits?topup=success`,
 		cancelUrl: `${dashboardBaseUrl()}/account/credits?topup=cancelled`,
 	});
@@ -423,7 +387,6 @@ app.get("/status", async (c) => {
 	return c.json({
 		stripeCustomerId: account.stripe_customer_id ?? null,
 		creditsUsdMicros: credits.toString(),
-		// Real PAYG draw-down this month (reads beyond the free window).
 		creditsSpentThisMonthUsdMicros: spent.toString(),
 		refill: {
 			belowUsd:
@@ -436,13 +399,6 @@ app.get("/status", async (c) => {
 	});
 });
 
-/**
- * POST /api/billing/refill
- *   { belowUsd: number | null, packUsd?: 10|25|50|100 }
- *
- * Opt-in auto-refill. Default is off (`belowUsd: null`). Requires a saved
- * card from a prior checkout (`setup_future_usage: off_session`).
- */
 app.post("/refill", sessionOnly(), async (c) => {
 	const accountId = getAccountId(c);
 	if (!accountId) return c.json({ error: "Unauthorized" }, 401);
@@ -481,8 +437,6 @@ app.patch("/caps", sessionOnly(), async (c) => {
 	const parsed = parseCapsInput(body);
 	if (!parsed.ok) return c.json({ error: parsed.error }, 400);
 
-	// Callers send cents directly; null explicitly clears a cap. Omitted
-	// leaves the cap as is.
 	const extra: Parameters<typeof upsertCaps>[2] = {};
 	if (parsed.alertThresholdPct !== undefined) {
 		extra.alert_threshold_pct = parsed.alertThresholdPct;
@@ -498,17 +452,6 @@ app.patch("/caps", sessionOnly(), async (c) => {
 
 const MONTH_RE = /^\d{4}-\d{2}$/;
 
-/**
- * GET /api/billing/usage?month=YYYY-MM
- *
- * Per-unit quantity + cost from `usage_ledger` for one UTC calendar month
- * (default: this month), plus the day-by-day breakdown for that month's
- * chart, the trailing-24h burn rate, and the hosted stack's state and
- * last-24h memory — both of the latter always reflect right now, independent
- * of `month`, since the runway and service card never browse the past.
- * Read-only; the ledger is the source of truth, this route only groups it.
- * Consumer: the web account credits page (`apps/web/src/app/account/credits`).
- */
 app.get("/usage", async (c) => {
 	const accountId = getAccountId(c);
 	if (!accountId) return c.json({ error: "Unauthorized" }, 401);
@@ -534,8 +477,6 @@ app.get("/usage", async (c) => {
 		usage,
 		daily,
 		burn: { rateDayUsdMicros: rateDayUsdMicros.toString(), windowHours: 24 },
-		// `stack` is the real state; `state` keeps the old three values until
-		// the web app reads `stack`.
 		service: {
 			...service,
 			stack: service.state,
@@ -544,12 +485,6 @@ app.get("/usage", async (c) => {
 	});
 });
 
-/**
- * GET /api/billing/credits
- *
- * The account's latest top-ups and grants, newest first: the billing page's
- * "Credits added" table. Amounts are positive USD-micros strings.
- */
 app.get("/credits", async (c) => {
 	const accountId = getAccountId(c);
 	if (!accountId) return c.json({ error: "Unauthorized" }, 401);
@@ -563,8 +498,6 @@ export type RowsSourceTotal = {
 	calls: number;
 };
 
-/** Rows and metered pages per source, folded from `rowsDaily` output (same
- *  window and filters), ordered by source. */
 export function rowsBySource(
 	daily: Pick<RowsDay, "source" | "rows" | "calls">[],
 ): RowsSourceTotal[] {
@@ -593,9 +526,6 @@ export type RowsAllowance = {
 	resetsOn: string;
 };
 
-/** The free-allowance picture for `now`'s UTC month from `rowsDaily` output
- *  (which may reach back into the previous month; those days are ignored).
- *  `exhaustedOn` is the first day the running total reaches the allowance. */
 export function rowsAllowance(
 	daily: Pick<RowsDay, "date" | "rows" | "paidRows" | "paidUsdMicros">[],
 	now: Date,
@@ -629,14 +559,6 @@ export function rowsAllowance(
 	};
 }
 
-/**
- * GET /api/billing/rows
- *
- * Rows delivered, for the Rows screen and `sl credits usage`: the free
- * allowance this month, rows per UTC day and source (30 days), today by hour,
- * totals per source, calls by rows-per-call bucket, and the caller's own
- * 4xx/5xx grouped by path (24h). Money is a USD-micros string.
- */
 app.get("/rows", async (c) => {
 	const accountId = getAccountId(c);
 	if (!accountId) return c.json({ error: "Unauthorized" }, 401);
@@ -666,12 +588,6 @@ app.get("/rows", async (c) => {
 	});
 });
 
-/**
- * GET /api/billing/alerts
- *
- * The signed-in account's balance-runway email preferences (missing row =
- * both on, matching the default `meter()` row on first write).
- */
 app.get("/alerts", async (c) => {
 	const accountId = getAccountId(c);
 	if (!accountId) return c.json({ error: "Unauthorized" }, 401);
@@ -683,12 +599,6 @@ app.get("/alerts", async (c) => {
 	});
 });
 
-/**
- * PUT /api/billing/alerts   body: { notify7d?: boolean, notify2d?: boolean }
- *
- * Either field alone leaves the other untouched; the row is created on
- * first write.
- */
 app.put("/alerts", async (c) => {
 	const accountId = getAccountId(c);
 	if (!accountId) return c.json({ error: "Unauthorized" }, 401);

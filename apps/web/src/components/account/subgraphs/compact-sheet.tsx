@@ -24,18 +24,13 @@ import { utcClock } from "../webhooks/view";
 
 export interface SubgraphSheetBodyProps {
 	item: SubgraphListItem;
-	/** Undefined until the detail has loaded (the chain tip comes from it). */
 	detail: SubgraphDetailData | undefined;
 	health: SubgraphHealthData | undefined;
-	/** Undefined until the error groups have loaded. */
 	errors: readonly SubgraphErrorGroup[] | undefined;
-	/** Every insight the server holds; the sheet picks this subgraph's. */
 	insights?: readonly Insight[];
-	/** Opens the share sheet for the insight. Without it there is no button. */
 	onShare?: (insight: Insight) => void;
 }
 
-/** The open, non-recovered insight about this subgraph that carries a prompt to hand off. */
 export function shareableInsight(
 	insights: readonly Insight[],
 	name: string,
@@ -59,7 +54,6 @@ function headLabel(item: SubgraphListItem, errors24h: number): string {
 	return "Synced";
 }
 
-/** The sheet's title block: label above, the name below. */
 export function sheetHead(
 	item: SubgraphListItem,
 	health: SubgraphHealthData | undefined,
@@ -134,11 +128,6 @@ function Errors({ groups }: { groups: readonly SubgraphErrorGroup[] }) {
 	);
 }
 
-/**
- * What the sheet shows: lag, rows and errors. Rendered alone by the Lab and
- * tests; `SubgraphSheet` puts it in the sheet. Whether the "drag up" hint shows
- * is CSS on the half detent, so the body does not need to know the detent.
- */
 export function SubgraphSheetBody({
 	item,
 	detail,
@@ -186,7 +175,6 @@ export function SubgraphSheetBody({
 	);
 }
 
-/** The Lab's frame: the sheet markup at a fixed detent, with no portal. */
 export function SubgraphSheetPanel({
 	detent,
 	...props
@@ -198,11 +186,6 @@ export function SubgraphSheetPanel({
 	);
 }
 
-/**
- * A subgraph's facts and error groups in a bottom sheet: half height first,
- * drag up for the errors. Fetches the detail and errors once on open; the
- * list's own polling keeps the rest fresh.
- */
 export function SubgraphSheet({
 	name,
 	onClose,

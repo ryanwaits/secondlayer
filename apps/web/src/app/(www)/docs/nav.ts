@@ -142,13 +142,6 @@ export interface DocsNavPage {
 	group: string;
 }
 
-/**
- * Every docs page in sidebar order.
- *
- * Anything that answers "what pages exist" reads this rather than walking
- * `group.items` directly: previous/next links, the agent-facing markdown source,
- * and the command palette all do.
- */
 export function docsNavPages(): DocsNavPage[] {
 	return DOCS_NAV.flatMap((group) =>
 		group.items.map((item) => ({

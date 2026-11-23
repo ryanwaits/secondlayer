@@ -1,7 +1,3 @@
-/**
- * Hourly purge of `api_request_log` rows older than 7 days. No-op outside platform mode.
- */
-
 import { purgeRequestLog } from "@secondlayer/platform/db/queries/api-request-log";
 import { getErrorMessage, logger } from "@secondlayer/shared";
 import { getDb } from "@secondlayer/shared/db";
@@ -11,7 +7,6 @@ import { scheduleCron } from "./cron-schedule.ts";
 const INTERVAL_MS = 60 * 60 * 1000;
 const RETENTION_MS = 7 * 24 * 60 * 60 * 1000;
 
-/** Deletes records older than 7 days as of `now`; returns the deleted count. */
 export async function purgeExpiredRequestLog(
 	now = new Date(),
 ): Promise<number> {

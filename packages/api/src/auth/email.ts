@@ -1,9 +1,6 @@
 import { renderEmail, sendEmail } from "@secondlayer/shared/email";
 import { isDevMode } from "../lib/dev-mode.ts";
 
-/**
- * Magic link email service. Uses Resend in production, logs to console in DEV_MODE.
- */
 export async function sendMagicLink(
 	email: string,
 	token: string,
@@ -31,7 +28,6 @@ export async function sendMagicLink(
 			"Didn't ask to sign in? Ignore this email. Nobody gets in without this code or link.",
 	});
 
-	// Code first so it reads from the notification without opening the email.
 	await sendEmail({
 		to: email,
 		subject: `${code} is your secondlayer sign-in code`,

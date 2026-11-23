@@ -96,7 +96,6 @@ const JOBS: readonly {
 	},
 ];
 
-/** Partition fetch price per dataset; rows and shares come from the manifest. */
 const FETCH: Record<string, string> = {
 	events: "$0.15 / partition",
 	transactions: "$0.05 / partition",

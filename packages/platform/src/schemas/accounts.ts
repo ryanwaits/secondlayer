@@ -1,15 +1,8 @@
 import { z } from "zod";
 
-/**
- * Account profile shapes for the metered-archive account surface
- * (display_name, bio, notification toggle). The hosted-console `slug`
- * field died with the public directory (gate-g Slice D).
- */
-
 export interface UpdateProfileRequest {
 	display_name?: string;
 	bio?: string;
-	/** Opt-out toggle for the subgraph reindex-completion email. */
 	notify_reindex_complete?: boolean;
 }
 

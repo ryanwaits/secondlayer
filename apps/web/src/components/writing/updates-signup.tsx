@@ -21,7 +21,6 @@ import {
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-/** The one account ask at the end of a post, for readers without one. */
 const START_LINE =
 	"Instant data for apps on Bitcoin. 1M rows free every month.";
 
@@ -34,7 +33,6 @@ type Status =
 
 type Confirmed = UpdatesMemory & { status: "confirmed" };
 
-/** The signed-in account's place on the list, as the form remembers it. */
 async function accountUpdates(): Promise<UpdatesMemory | null> {
 	const res = await fetch("/api/updates");
 	if (!res.ok) throw new Error(`updates ${res.status}`);
@@ -48,13 +46,6 @@ async function accountUpdates(): Promise<UpdatesMemory | null> {
 	return null;
 }
 
-/*
- * The reader's place on the list, shared by everything on the page that
- * shows it: the signup, and a post's Unsubscribe link in its end row.
- * Found once per page and sign-in state; undefined until then, so nothing
- * flashes. Forgotten when the last reader of it unmounts, so the next page
- * asks again and sees a signup made on this one.
- */
 let known: UpdatesMemory | null | undefined;
 let knownFor: boolean | undefined;
 const listeners = new Set<() => void>();
@@ -104,10 +95,6 @@ function useKnown(): UpdatesMemory | null | undefined {
 	return loading ? undefined : value;
 }
 
-/**
- * Unsubscribes in place: the form comes back and a toast offers Undo
- * (⌘Z), which puts the reader back on the list with the same token.
- */
 async function unsubscribe(memory: Confirmed) {
 	const { email: address, token } = memory;
 	const gone = await postUpdatesToken("unsubscribe", token).catch(() => null);
@@ -140,15 +127,8 @@ async function unsubscribe(memory: Confirmed) {
 }
 
 /**
- * Email signup for new posts and launches. Double opt-in: the API sends a
- * confirmation link, and the sent state never says whether the address was
- * already on the list. A signed-in reader gets their address pre-filled;
- * nothing is sent until they click. A reader already on the list, by their
- * account or by what this browser remembers, sees one quiet line instead.
- *
- * `inPost`: the end of a post. A confirmed reader's Unsubscribe moves to the
- * post's end row (`UpdatesUnsubscribe`), and readers without an account get
- * one line pointing at an account.
+ * The sent state never says whether the address was
+ * already on the list.
  */
 export function UpdatesSignup({
 	heading = false,
@@ -171,7 +151,6 @@ export function UpdatesSignup({
 	);
 }
 
-/** A post's end-row Unsubscribe, shown only to a reader confirmed on the list. */
 export function UpdatesUnsubscribe() {
 	const memory = useKnown();
 	if (memory?.status !== "confirmed") return null;
@@ -194,10 +173,6 @@ function StartLine() {
 	);
 }
 
-/**
- * The form itself, given the address to pre-fill and the reader's place on
- * the list.
- */
 function UpdatesSignupForm({
 	heading,
 	prefill,

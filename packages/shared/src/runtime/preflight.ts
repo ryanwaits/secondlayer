@@ -1,10 +1,4 @@
 /**
- * Boot-time resource preflight — the thing that makes the guardrail floors real.
- *
- * `preflightResources` existed and was correct for a long time, but nothing
- * called it, so the self-host docs claimed "constrained boxes fail at start"
- * while no box ever did. This module closes that gap.
- *
  * The refusal is deliberately overridable. Enforcing a floor on a runtime that
  * is already released can stop a running install from coming back up after an
  * upgrade — a box that was undersized yesterday is still undersized today, and
@@ -42,8 +36,6 @@ export function decidePreflight(input: {
 	);
 
 	const messages: string[] = [];
-	// Say what we could not see. An operator debugging a surprising pass
-	// deserves to know the check was partial.
 	if (input.measured.unknown.length > 0) {
 		messages.push(
 			`resource preflight could not measure: ${input.measured.unknown.join(", ")}`,

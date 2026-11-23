@@ -17,7 +17,7 @@ export const STREAMS_BLOCKS_PER_DAY = 17_280;
 export const STREAMS_DEFAULT_FROM_HEIGHT_WINDOW_BLOCKS = 1_000;
 
 /** Reorg-safety margin for the public Streams tip: events are served only up to
- *  `tip - this` blocks so consumers never read a height likely to reorg. The L2
+ *  `tip - this` blocks so consumers never read a height likely to reorg. The
  *  decoder and SDK consumer rewind on reorg, so a small margin is sufficient.
  *  Replaces an earlier clamp that subtracted `lag_seconds` (a wall-clock value)
  *  from a block height — a unit mismatch that, post-Nakamoto (~10s blocks), held
@@ -46,10 +46,6 @@ export const STREAMS_TIP_REORG_MARGIN_BLOCKS = 2;
  */
 export const STREAMS_INTERNAL_TIP_REORG_MARGIN_BLOCKS = 0;
 
-/** Per-second rate-limit bucket for accountless (no-tenant) Streams reads.
- *  More generous than the keyless Index anon limit
- *  (`INDEX_ANON_RATE_LIMIT_PER_SECOND` = 10). Like that bucket, it is a single
- *  shared global counter, not per-caller. */
 export const STREAMS_ANON_RATE_LIMIT_PER_SECOND = 50;
 
 // No retention ladder (founder decision, 2026-09-24): every account reads

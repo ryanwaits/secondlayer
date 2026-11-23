@@ -126,9 +126,9 @@ export async function canRegister(
 			namespace: stringToBytes(namespace),
 			name: stringToBytes(name),
 		});
-		return false; // resolved = taken
+		return false;
 	} catch (e) {
-		if (e instanceof ContractResponseError) return true; // errored = available
+		if (e instanceof ContractResponseError) return true;
 		throw e;
 	}
 }
@@ -216,19 +216,15 @@ export async function preorder(
 
 	const { name, namespace } = parseFQN(fqn);
 
-	// Check availability
 	const available = await canRegister(client, fqn);
 	if (!available) {
 		throw new Error(`Name ${fqn} is not available for registration`);
 	}
 
-	// Get price
 	const price = await getNamePrice(client, fqn);
 
-	// Generate or use provided salt
 	const salt = providedSalt ?? generateSalt();
 
-	// Calculate hash commitment
 	const hashedSaltedFqn = hashPreorder(name, namespace, salt);
 
 	const bns = getBnsContract(client);
@@ -302,13 +298,11 @@ export async function claimFast(
 
 	const { name, namespace } = parseFQN(fqn);
 
-	// Check availability
 	const available = await canRegister(client, fqn);
 	if (!available) {
 		throw new Error(`Name ${fqn} is not available for registration`);
 	}
 
-	// Get price
 	const price = await getNamePrice(client, fqn);
 
 	const bns = getBnsContract(client);
@@ -467,7 +461,6 @@ export async function updateZonefile(
 
 	const { name, namespace } = parseFQN(fqn);
 
-	// Verify ownership
 	const currentOwner = await resolveName(client, fqn);
 	if (!currentOwner) {
 		throw new Error(`Name ${fqn} does not exist`);
@@ -475,7 +468,6 @@ export async function updateZonefile(
 
 	const zonefileContract = getZonefileContract(client);
 
-	// Convert zonefile to Uint8Array or null
 	let zonefileBytes: Uint8Array | null = null;
 	if (zonefile !== null) {
 		zonefileBytes =

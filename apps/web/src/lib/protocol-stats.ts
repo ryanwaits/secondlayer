@@ -29,19 +29,15 @@ export type SbtcStats = {
 };
 
 export type SignerRow = {
-	/** Full principal, shown on hover. */
 	principal: string;
-	/** Contract name, or a shortened principal when it has none. */
 	name: string;
 	stackedStx: number;
-	/** Percent of the cycle's total stacked, one decimal. */
 	sharePct: number;
 	inSet: boolean;
 };
 
 export type PoxStats = {
 	cycle: number;
-	/** Micro-STX as the API sent it, exact. */
 	totalStackedUstx: string;
 	endBurnHeight: number;
 	totalStackedStx: number;
@@ -55,7 +51,6 @@ export type PoxStats = {
 
 export type RuneRow = {
 	id: string;
-	/** As etched, spacers included. */
 	name: string;
 	symbol: string | null;
 	/** Decimal strings: u128 amounts never pass through `Number`. */
@@ -65,14 +60,12 @@ export type RuneRow = {
 };
 
 export type RunesStats = {
-	/** The most-minted runes, most first. */
 	runes: RuneRow[];
 	/** Bitcoin block height, not Stacks. */
 	blockHeight: number;
 	generatedAt: string;
 };
 
-/** Whole STX from a micro-STX decimal string. */
 export function ustxToStx(ustx: string): number {
 	return Number(BigInt(ustx) / 1_000_000n);
 }
@@ -81,14 +74,12 @@ export function satsToBtc(sats: string): number {
 	return Number(sats) / 1e8;
 }
 
-/** Share of `total` in percent, one decimal; 0 when the total is empty. */
 export function sharePct(part: string, total: string): number {
 	const denominator = BigInt(total);
 	if (denominator === 0n) return 0;
 	return Number((BigInt(part) * 1000n) / denominator) / 10;
 }
 
-/** `meria-signer-manager` from `SP1N3G8….meria-signer-manager`. */
 export function signerName(principal: string): string {
 	const dot = principal.indexOf(".");
 	if (dot !== -1 && dot < principal.length - 1) return principal.slice(dot + 1);
@@ -97,10 +88,6 @@ export function signerName(principal: string): string {
 		: principal;
 }
 
-/**
- * Rows whose contract name is shared get the deployer appended
- * (`signer-manager · SP3…9A2F`); unique names stay as they are.
- */
 export function tellSignersApart(rows: SignerRow[]): SignerRow[] {
 	const seen = new Map<string, number>();
 	for (const row of rows) seen.set(row.name, (seen.get(row.name) ?? 0) + 1);
@@ -123,7 +110,6 @@ const isDecimal = (value: unknown): value is string =>
 const isCount = (value: unknown): value is number =>
 	typeof value === "number" && Number.isFinite(value);
 
-/** The tip height and timestamp every payload carries, or null. */
 function readStamp(
 	body: Json,
 ): { blockHeight: number; generatedAt: string } | null {
@@ -204,7 +190,6 @@ export function parsePoxStats(body: unknown): PoxStats | null {
 	};
 }
 
-/** A rune etched without a symbol shows the protocol's default, `¤`. */
 export function runeSymbol(symbol: string | null): string {
 	return symbol || "¤";
 }
@@ -268,10 +253,8 @@ export type TopicStats =
 	| { kind: "pox"; data: PoxStats }
 	| { kind: "runes"; data: RunesStats };
 
-/** The topics whose live numbers are a strip of four. */
 export type StripStats = Exclude<TopicStats, { kind: "runes" }>;
 
-/** The live numbers for a topic, or null on failure. */
 export async function getTopicStats(
 	topic: DataTopic,
 ): Promise<TopicStats | null> {
@@ -290,7 +273,6 @@ export async function getTopicStats(
 const count = new Intl.NumberFormat("en-US");
 const btc = new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 });
 
-/** One real number in the meta description, so a crawl sees fresh text. */
 export function liveDescription(
 	topic: DataTopic,
 	stats: TopicStats | null,
@@ -305,7 +287,6 @@ export function liveDescription(
 	return `${count.format(stats.data.totalStackedStx)} STX stacked in PoX-5 cycle ${stats.data.cycle} by ${count.format(stats.data.stakers)} stakers and ${stats.data.signersInSet} signers. Live, free, no key.`;
 }
 
-/** schema.org Dataset for the page, built at render time. */
 export function datasetJsonLd(
 	topic: DataTopic,
 	stats: TopicStats,
@@ -336,13 +317,10 @@ export function datasetJsonLd(
 export type StripItem = {
 	label: string;
 	value: number;
-	/** Unit after the number: "BTC", "STX". */
 	unit?: string;
-	/** Fraction digits to show. */
 	decimals: number;
 };
 
-/** The four big numbers for a topic, plus the line under the cycle. */
 export function stripItems(stats: StripStats): {
 	items: StripItem[];
 	sub: string | null;
@@ -384,7 +362,6 @@ export function stripItems(stats: StripStats): {
 	};
 }
 
-/** A rune amount with its divisibility applied: `11111111100` at 2 is `111,111,111`. */
 export function formatRuneAmount(raw: string, divisibility: number): string {
 	const scale = 10n ** BigInt(divisibility);
 	const amount = BigInt(raw);
@@ -396,7 +373,6 @@ export function formatRuneAmount(raw: string, divisibility: number): string {
 	return fraction ? `${whole}.${fraction}` : whole;
 }
 
-/** `value` as indented JSON with a mark on the first match of `mark` in the `key` line. */
 function jsonWithMark(
 	value: Record<string, unknown>,
 	key: string,
@@ -412,7 +388,6 @@ function jsonWithMark(
 		.join("\n");
 }
 
-/** What the No key command prints for these live numbers. */
 export function liveOutput(stats: TopicStats): string {
 	if (stats.kind === "sbtc") {
 		const sats = String(stats.data.summary.sbtc_supply_sats);
@@ -446,11 +421,6 @@ export function liveOutput(stats: TopicStats): string {
 	);
 }
 
-/**
- * The picker's "These numbers" examples: the No key output is what the API
- * returns right now, and PoX-5's cycle number is the current one. Other
- * outputs stay the registry's trimmed samples.
- */
 export function liveExamples(
 	topic: DataTopic,
 	stats: TopicStats | null,
@@ -470,6 +440,5 @@ export function liveExamples(
 	};
 }
 
-/** The fence language for a printed result: JSON when it opens like JSON, else plain output. */
 export const outputLang = (output: string): "json" | "text" =>
 	/^[[{]/.test(output.trimStart()) ? "json" : "text";

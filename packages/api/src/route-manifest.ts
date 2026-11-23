@@ -35,7 +35,6 @@ export const HOSTED_ROUTE_FIXTURES = [
 	{ method: "POST", path: "/api/public/docs-key" },
 	{ method: "GET", path: "/api/public/waitlist/robinhood/demand" },
 	{ method: "POST", path: "/v1/feedback" },
-	// Contract reads for hosted subgraph processors (tenant keys only).
 	{
 		method: "POST",
 		path: "/v1/chain-read/v2/contracts/call-read/SP000000000000000000002Q6VF78/pox-4/get-pox-info",
@@ -48,14 +47,11 @@ export const HOSTED_ROUTE_FIXTURES = [
 	{ method: "POST", path: "/oauth/register" },
 	{ method: "GET", path: "/oauth/authorize" },
 	{ method: "POST", path: "/oauth/token" },
-	// The hosted MCP endpoint.
 	{ method: "POST", path: "/mcp" },
-	// The consent page's answers and connected apps (sessions only).
 	{ method: "GET", path: "/api/oauth/requests/oar_fixture" },
 	{ method: "GET", path: "/api/oauth/grants" },
 ] as const;
 
-/** Gate-g Slice D deletions + the x402 rail — 404 in oss and platform alike. */
 export const DELETED_ROUTE_FIXTURES = [
 	{ method: "GET", path: "/x402/supported" },
 	{ method: "GET", path: "/v1/x402/supported" },
@@ -73,19 +69,13 @@ export const DELETED_ROUTE_FIXTURES = [
 	{ method: "GET", path: "/v1/streams/usage" },
 	{ method: "POST", path: "/api/auth/claim" },
 	{ method: "POST", path: "/api/auth/claim/verify" },
-	// Publishing claimed a name in a hosted global namespace. Self-hosted
-	// instances have no such namespace, so the verb has nothing to mean.
 	{ method: "POST", path: "/api/subgraphs/:subgraphName/publish" },
 	{ method: "POST", path: "/api/subgraphs/:subgraphName/unpublish" },
-	// Accountless hosted play ran anonymous handler code in-process on the
-	// platform. Hosted subgraphs are not offered.
 	{ method: "POST", path: "/v1/play" },
 	{ method: "GET", path: "/v1/play" },
 	{ method: "GET", path: "/v1/play/estimate" },
 ] as const;
 
-/** Kept meter surface (manifest §3): auth, credits billing, checkout,
- * Stripe webhook, key management, account profile. */
 export const RETAINED_METER_ROUTE_FIXTURES = [
 	{ method: "POST", path: "/api/auth/login" },
 	{ method: "GET", path: "/api/billing/status" },
@@ -110,7 +100,6 @@ export const RETAINED_ROUTE_FIXTURES = [
 	{ method: "POST", path: "/v1/archive/verify" },
 	{ method: "GET", path: "/v1/streams" },
 	{ method: "GET", path: "/v1/contracts" },
-	// Live reads from the instance's own bitcoind (BITCOIN_RPC_URL).
 	{
 		method: "GET",
 		path: "/v1/bitcoin/outspend/2f3cbf7a1f7cbd1b8b2b4e0e9d3d1c8e7a6b5c4d3e2f1a0b9c8d7e6f5a4b3c2d/0",
@@ -121,11 +110,6 @@ export const RETAINED_ROUTE_FIXTURES = [
 	{ method: "POST", path: "/v1/batch" },
 ] as const;
 
-/** Workload surface: deploying and executing handler code, reading what it
- *  indexed, delivering webhooks, driving the node. Mounted in oss only — the
- *  archive deployment serves data and does not run anyone's workload. 404s
- *  in platform/archive. Not a deletion candidate: deletion scans must treat
- *  these as retained. */
 export const WORKLOAD_ROUTE_FIXTURES = [
 	{ method: "GET", path: "/api/subgraphs" },
 	{ method: "GET", path: "/v1/subgraphs" },

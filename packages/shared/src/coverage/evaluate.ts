@@ -1,13 +1,3 @@
-/**
- * Coverage evaluator — one library for stage state.
- *
- * Pure. Callers assemble evidence; this file does not touch the database.
- * `complete` is coverage through the recorded target, not currency.
- * `caught_up` additionally requires a fresh source tip and coverage through
- * the finalized boundary. `complete_through` is never conflated with
- * `source_tip`.
- */
-
 import { decodeStreamsCursor } from "../streams-cursor.ts";
 import {
 	type CoverageRange,
@@ -480,7 +470,6 @@ function evaluateOne(
 	let completeThrough = contiguousThrough(ranges, input.scope.start_height);
 	if (dep?.complete_through !== null && dep?.complete_through !== undefined) {
 		if (completeThrough === null) {
-			// stay null
 		} else {
 			completeThrough = Math.min(completeThrough, dep.complete_through);
 		}

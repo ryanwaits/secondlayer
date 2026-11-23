@@ -2,8 +2,6 @@ import { timingSafeEqual } from "node:crypto";
 import type { Account, Database } from "@secondlayer/shared/db";
 import { type Kysely, sql } from "kysely";
 
-/** First-party service account (`accounts.internal`): usage is recorded at
- *  $0 and no balance, floor or cap stops it. */
 export async function isInternalAccount(
 	db: Kysely<Database>,
 	accountId: string,
@@ -16,9 +14,6 @@ export async function isInternalAccount(
 	return row?.internal === true;
 }
 
-/** Trim + lowercase: the one identity of an email address. Everything that
- *  stores or looks up an account or magic-link email goes through it, and
- *  `accounts_email_lower_idx` backs it up. */
 export function normalizeEmail(email: string): string {
 	return email.trim().toLowerCase();
 }
@@ -57,8 +52,6 @@ export async function findOrCreateAccountByEmail(
 const UUID_RE =
 	/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-/** Record that Sentinel may touch this account. Idempotent: an existing row
- *  (and its original `via`) is kept. */
 export async function linkSentinelAccount(
 	db: Kysely<Database>,
 	accountId: string,
@@ -83,7 +76,6 @@ export async function isSentinelLinked(
 	return row !== undefined;
 }
 
-/** Subset of `accountIds` that Sentinel may touch. */
 export async function sentinelLinkedIds(
 	db: Kysely<Database>,
 	accountIds: string[],
@@ -166,7 +158,6 @@ export async function setStripeCustomerId(
 	return current.stripe_customer_id ?? stripeCustomerId;
 }
 
-/** Resolve an account by its Stripe customer id. Null if no match. */
 export async function getAccountByStripeCustomerId(
 	db: Kysely<Database>,
 	stripeCustomerId: string,
@@ -210,10 +201,6 @@ export async function createMagicLink(
 	else await db.transaction().execute(issue);
 }
 
-/**
- * Verify a magic link token. Returns the email if valid, null otherwise.
- * Marks the token as used atomically. Rejects after 3 failed attempts.
- */
 export async function verifyMagicLink(
 	db: Kysely<Database>,
 	token: string,
@@ -230,7 +217,6 @@ export async function verifyMagicLink(
 
 	if (result?.email) return result.email;
 
-	// Increment failed attempts if token exists but didn't verify
 	await db
 		.updateTable("magic_links")
 		.set({ failed_attempts: sql`failed_attempts + 1` })
@@ -242,7 +228,6 @@ export async function verifyMagicLink(
 	return null;
 }
 
-/** Guesses one set of codes for an address accepts before it locks. */
 export const MAGIC_CODE_MAX_ATTEMPTS = 3;
 
 /**

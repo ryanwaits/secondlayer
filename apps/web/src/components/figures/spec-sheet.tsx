@@ -1,7 +1,3 @@
-/**
- * A10 SpecSheet — key-value facts about one thing (an endpoint, a table),
- * in the house mono data-table voice. Static by design.
- */
 export function SpecSheet({
 	rows,
 }: {

@@ -12,58 +12,42 @@ import { ladderStep } from "@/lib/syntax-theme";
 
 export type Variant = "docs" | "figure";
 
-/** A token range on one line, in indexes of the text the row displays. */
 export type MarkRange = {
 	start: number;
 	end: number;
 	kind: "hi" | "act" | "bad" | "tip" | "err" | "swap" | "ref" | "pick" | "key";
-	/** `tip`: what the tooltip and popover show. */
 	tip?: TipData;
-	/** `ref` and `pick`: the name prose reaches it by. */
 	name?: string;
-	/** `pick`: the options, on the occurrence that declares them. */
 	options?: string[];
-	/** `swap`: the index into `BASE_SWAPS` the Base URL switch rewrites. */
 	swap?: number;
-	/** `swap`: the credential is also a docs key slot. */
 	keySlot?: boolean;
-	/** `key`: the slot takes the key as a string literal (an SDK sample), not bare (a shell sample). */
 	quote?: boolean;
 };
 
-/** A tip's payload: a table entry, or just the words of a hand `!tip`. */
 export type TipData = { summary: string } & Partial<Omit<Tip, "summary">>;
 
 export type LinePlan = {
 	ranges: MarkRange[];
-	/** `!mark` without a selector: the whole row takes the soft fill. */
 	mline: boolean;
 	diff?: "+" | "-";
 	callouts: { col: number; text: string }[];
-	/** Compiler messages shown under the row. */
 	errors: string[];
-	/** `!ref` without a selector: names that point at the whole row. */
 	refs: string[];
 };
 
 export type Plan = {
 	lines: LinePlan[];
-	/** Any `!error`: the block shows a mistake, so it never offers Copy. */
 	hasError: boolean;
 	collapses: { from: number; to: number }[];
 	hasDiff: boolean;
 };
 
 type Context = {
-	/** The text each row displays, after any shell prompt is split off. */
 	display: string[];
 	lang: string;
 	variant: Variant;
-	/** Automatic tips: the table, and the names this block may tip. Absent when the block gets none. */
 	tips?: { table: TipTable; allow: ReadonlySet<string> } | null;
-	/** Wrap the hosted base URL and credential for the Base URL switch. */
 	base?: boolean;
-	/** Wrap each credential placeholder so a signed-in reader's docs key can fill it. */
 	key?: boolean;
 };
 
@@ -96,14 +80,12 @@ function markKind(a: Annotation, ctx: Context): "hi" | "act" | "bad" {
 
 const NAME = /^[\w-]+$/;
 
-/** A `!ref` or `!pick` name: a word the prose links to, safe inside an attribute list. */
 function refName(a: Annotation, verb: string): string {
 	if (!NAME.test(a.value))
 		throw new Error(`!${verb} needs a name of letters, digits, - or _`);
 	return a.value;
 }
 
-/** `event: ft_transfer | nft_mint` declares the options; a bare `event` joins a declared name. */
 function parsePick(value: string): { name: string; options?: string[] } {
 	const colon = value.indexOf(":");
 	const name = (colon < 0 ? value : value.slice(0, colon)).trim();
@@ -122,14 +104,8 @@ function parsePick(value: string): { name: string; options?: string[] } {
 const overlaps = (ranges: MarkRange[], start: number, end: number) =>
 	ranges.some((r) => start < r.end && end > r.start);
 
-/** Annotations that explain their line: a line carrying one needs no automatic tip. Refs are plumbing, not explanation. */
 const EXPLAINS = new Set(["callout", "mark", "error", "tip", "pick", "diff"]);
 
-/**
- * Turn the parsed annotations into what each row needs: mark ranges, soft rows,
- * diff signs, callouts, tips, errors and fold ranges. Unknown names are ignored
- * here and reported by the budget test.
- */
 export function planAnnotations(parsed: ParsedCode, ctx: Context): Plan {
 	const lines: LinePlan[] = parsed.lines.map(() => ({
 		ranges: [],
@@ -138,14 +114,10 @@ export function planAnnotations(parsed: ParsedCode, ctx: Context): Plan {
 		errors: [],
 		refs: [],
 	}));
-	/** Spans a callout points at: not drawn, but the names there get no automatic tip, anywhere in the block. */
 	const pointed: { row: number; start: number; end: number }[] = [];
-	/** Figure callouts mark their token, unless the author already marked it. */
 	const noted: { row: number; start: number; end: number }[] = [];
-	/** Hand tips wait until every other range is placed: a mark, ref or error on the token wins. */
 	const handTips: { row: number; start: number; end: number; text: string }[] =
 		[];
-	/** Rows an explaining annotation targets. */
 	const explained = new Set<number>();
 	const collapses: Plan["collapses"] = [];
 	let hasError = false;
@@ -186,7 +158,6 @@ export function planAnnotations(parsed: ParsedCode, ctx: Context): Plan {
 			else if (a.name === "tip") {
 				if (!a.regex || !a.value)
 					throw new Error("!tip needs a [/token/] and its text");
-				// First occurrence only, within the annotation's lines.
 				if (tipped || !hit) continue;
 				tipped = true;
 				handTips.push({
@@ -268,7 +239,6 @@ export function planAnnotations(parsed: ParsedCode, ctx: Context): Plan {
 	};
 }
 
-/** The hosted origin and credential, wrapped so the Base URL switch can rewrite them. */
 function addBaseSwaps(lines: LinePlan[], display: string[], keyed: boolean) {
 	lines.forEach((line, i) => {
 		const text = display[i] ?? "";
@@ -290,7 +260,6 @@ function addBaseSwaps(lines: LinePlan[], display: string[], keyed: boolean) {
 	});
 }
 
-/** Each credential placeholder, wrapped so the docs key can take its place. A Base URL swap already holds its own. */
 function addKeySlots(lines: LinePlan[], display: string[]) {
 	lines.forEach((line, i) => {
 		const text = display[i] ?? "";
@@ -310,18 +279,12 @@ function addKeySlots(lines: LinePlan[], display: string[]) {
 	});
 }
 
-/** A table entry as a tip's payload. */
 function tipData(table: TipTable, name: string): TipData | null {
 	const tip =
 		table.symbols[name] ?? table.endpoints.find((e) => e.path === name)?.tip;
 	return tip ?? null;
 }
 
-/**
- * The names the page allowed become tips: each once per block, never inside
- * another range, never where a callout points (on any line), never on a line
- * the author annotated or commented. One channel per token.
- */
 function addAutoTips(
 	lines: LinePlan[],
 	ctx: Context,
@@ -368,14 +331,8 @@ function addAutoTips(
 export const esc = (text: string) =>
 	text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
-/** `esc` for a value inside a quoted attribute. */
 export const escAttr = (text: string) => esc(text).replace(/"/g, "&quot;");
 
-/**
- * A keyed sample's controls, all hidden until the key module paints them: the
- * key's chip, the action that fills, shows or hides it, and, for a signed-out
- * reader, a message when they have had today's key and "Make a lasting key".
- */
 export const KEY_CONTROLS =
 	'<span class="key-ctl">' +
 	'<button type="button" class="key-chip mono" data-key-chip aria-haspopup="dialog" aria-expanded="false" hidden></button>' +
@@ -384,7 +341,6 @@ export const KEY_CONTROLS =
 	'<button type="button" class="key-link" data-key-lasting aria-haspopup="dialog" hidden>Make a lasting key</button>' +
 	"</span>";
 
-/** A range's wrapper: marks fill, tips explain, errors squiggle, swaps wait for the Base URL switch. */
 function wrap(range: MarkRange, inner: string): string {
 	switch (range.kind) {
 		case "hi":
@@ -401,7 +357,6 @@ function wrap(range: MarkRange, inner: string): string {
 				: `<span data-swap="${range.swap}">${inner}</span>`;
 		case "key":
 			return `<span class="ph-no-capture" data-key-slot${range.quote ? " data-quote" : ""}>${inner}</span>`;
-		// Invisible until the scope script lights it.
 		case "ref":
 			return `<span class="ref" data-ref="${escAttr(range.name ?? "")}">${inner}</span>`;
 		case "pick": {
@@ -416,7 +371,6 @@ function wrap(range: MarkRange, inner: string): string {
 	}
 }
 
-/** The token's color: a class for a ladder step, inline custom properties for anything else. */
 function styleOf(token: ThemedToken): {
 	cls: string;
 	style: string;
@@ -443,7 +397,6 @@ type Piece = {
 	range: MarkRange | null;
 };
 
-/** Cut tokens at range edges, keeping each half's color, then merge neighbours of equal style. */
 function pieces(tokens: ThemedToken[], ranges: MarkRange[]): Piece[] {
 	const sorted = [...ranges]
 		.sort((a, b) => a.start - b.start)
@@ -482,7 +435,6 @@ function pieces(tokens: ThemedToken[], ranges: MarkRange[]): Piece[] {
 	return out;
 }
 
-/** One row's tokens as markup, with ranges wrapped. */
 export function renderTokens(
 	tokens: ThemedToken[],
 	ranges: MarkRange[],
@@ -498,7 +450,6 @@ export function renderTokens(
 		.map((run) => {
 			const spans = run.pieces
 				.map((piece) => {
-					// Whitespace takes no color, so it takes no span.
 					const { cls, style } = piece.text.trim()
 						? styleOf(piece.token)
 						: { cls: "", style: "" };
@@ -512,12 +463,10 @@ export function renderTokens(
 		.join("");
 }
 
-/** A note under its line: a faint caret at the token's column (monospace makes `ch` exact), then the words. */
 export function calloutRow(col: number, text: string): string {
 	return `<div class="co" style="--col:${col}"><span class="co-caret">^</span>${esc(text)}</div>`;
 }
 
-/** A margin note pinned to its row by index, the line number saying which one. Figure notes and the docs key note share it. */
 export function marginNote(
 	row: number,
 	line: number,
@@ -527,7 +476,6 @@ export function marginNote(
 	return `<p class="cf-note" style="--i:${row}"${attrs}><b>${line}</b>${inner}</p>`;
 }
 
-/** A figure's margin note; `note` pairs it with its row. */
 export function figureNote(
 	row: number,
 	line: number,
@@ -542,7 +490,6 @@ export function figureNote(
 	);
 }
 
-/** The compiler's words under the line it rejects. */
 export function errorRow(text: string): string {
 	return `<div class="emsg">✗ ${esc(text)}</div>`;
 }

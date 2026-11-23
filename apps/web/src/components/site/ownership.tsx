@@ -4,20 +4,14 @@ export interface OwnershipNode {
 	who: string;
 	name: string;
 	body: string;
-	/** Runs on the reader's side: drawn dashed. */
 	yours?: boolean;
 }
 
 export interface OwnershipLink {
 	label: string;
-	/** Price tag hung on the link, where billing happens. */
 	meter?: string;
 }
 
-/**
- * Who runs what: nodes left to right with the link between each pair, then
- * one line for each side. `links[i]` joins `nodes[i]` to `nodes[i + 1]`.
- */
 export function Ownership({
 	nodes,
 	links,

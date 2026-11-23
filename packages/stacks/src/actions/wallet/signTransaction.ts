@@ -20,7 +20,6 @@ export async function signTransactionAction(
 	const account = client.account;
 	if (!account) throw new Error("Account required");
 
-	// Provider: send hex to wallet, get signed hex back
 	if (isProviderAccount(account)) {
 		const hex = serializeTransactionHex(params.transaction);
 		const result = await account.provider.request("stx_signTransaction", {
@@ -31,7 +30,6 @@ export async function signTransactionAction(
 		});
 	}
 
-	// Multi-sig: auto-detect from fields or _multisig metadata
 	const condition = params.transaction.auth.spendingCondition;
 	if ("fields" in condition) {
 		const publicKeys =
@@ -41,6 +39,5 @@ export async function signTransactionAction(
 		return signMultiSigWithAccount(params.transaction, account, publicKeys);
 	}
 
-	// Local/Custom: sign with account
 	return signTransactionWithAccount(params.transaction, account);
 }

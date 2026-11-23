@@ -5,14 +5,12 @@ import {
 	manifestRows,
 } from "@/lib/chain-stats";
 
-/** Used when the snapshot manifest can't be read. */
 const STATIC_NAMES: PartitionNames = {
 	blocks: "8940000-8949999-e4ea….parquet",
 	transactions: "8940000-8949999-9b1c….parquet",
 	events: "8940000-8949999-03d7….parquet",
 };
 
-/** Signed partitions and the zero-gap arithmetic, from the signed manifests. */
 export function ArchiveHero({
 	counts,
 	partitions,

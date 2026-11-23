@@ -2,7 +2,7 @@ import type { Client } from "../../clients/types.ts";
 import { parseContractId } from "../../utils/address.ts";
 
 export type GetContractAbiParams = {
-	contract: string; // "address.name"
+	contract: string;
 };
 
 export async function getContractAbi(

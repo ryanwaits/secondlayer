@@ -26,7 +26,6 @@ export function saveReducer<T>(
 ): SaveState<T> {
 	switch (event.type) {
 		case "start":
-			// Saves are numbered in order; an out-of-order start is ignored.
 			return event.seq > state.seq
 				? { seq: event.seq, status: "saving", next: event.next }
 				: state;
@@ -41,14 +40,12 @@ export function saveReducer<T>(
 	}
 }
 
-/** The value to show while a save is out, else undefined (show what is stored). */
 export function pendingValue<T>(
 	state: SaveState<T> | undefined,
 ): T | undefined {
 	return state?.status === "saving" ? state.next : undefined;
 }
 
-/** What `run` says happened. `stale` means a newer save of the same setting superseded it. */
 export type SaveResult = "saved" | "failed" | "stale";
 
 type Keyed<K extends string, T> = Partial<Record<K, SaveState<T>>>;
@@ -62,10 +59,6 @@ function keyedReducer<K extends string, T>(
 	return next === prev ? state : { ...state, [action.key]: next };
 }
 
-/**
- * Saves for several settings at once, each with its own pending value and its
- * own sequence. `write` resolves to null (or throws) when the save failed.
- */
 export function useSaves<K extends string, T>(
 	write: (key: K, next: T) => Promise<unknown>,
 ) {
@@ -103,7 +96,6 @@ export function useSaves<K extends string, T>(
 	return { saves, run, pending: (key: K) => pendingValue(saves[key]) };
 }
 
-/** One setting's save: `useSaves` with a single key. */
 export function useSave<T>(write: (next: T) => Promise<unknown>) {
 	const writeOne = useCallback(
 		(_key: "value", next: T) => write(next),

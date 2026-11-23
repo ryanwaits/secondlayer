@@ -69,7 +69,6 @@ export class SubgraphRegistryCache {
 		);
 	}
 
-	/** Reload, keeping the last good cache when the load fails. */
 	async refreshQuietly(): Promise<void> {
 		try {
 			await this.refresh();

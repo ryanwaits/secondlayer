@@ -18,7 +18,6 @@ import {
 
 const DEFAULT_REF = "9137005";
 
-/** The verifier's short labels, spelled out for the page; the CLI keeps its own. */
 const LABEL: Record<string, string> = {
 	cycle: "signer set",
 	txs: "transactions",
@@ -46,7 +45,6 @@ type View =
 	  }
 	| { kind: "error"; message: string };
 
-/** A height, or a 32-byte index block hash (0x optional). Null when neither. */
 function parseRef(raw: string): number | string | null {
 	if (/^\d+$/.test(raw)) {
 		const height = Number(raw);
@@ -62,10 +60,6 @@ function Mark({ status }: { status: LinkLine["status"] | "pending" }) {
 	return <span className="bc-mute">{status === "pending" ? "…" : "·"}</span>;
 }
 
-/**
- * Wrap the first occurrence of each match in a link. A match that is not in the
- * text is skipped, so a reworded line degrades to plain text instead of throwing.
- */
 export function linkify(
 	text: string,
 	links: { match: string; href: string }[],
@@ -90,7 +84,6 @@ export function linkify(
 	return out;
 }
 
-/** How to repeat the check without us. */
 export function RerunHint({
 	target,
 	below,
@@ -124,7 +117,6 @@ export function RerunHint({
 	);
 }
 
-/** The hashes a proven line prints, paired with the explorer that shows each. */
 function lineLinks(
 	step: VerifyStep,
 	view: { blockId?: string; bitcoinBlockHash?: string },
@@ -171,11 +163,6 @@ function Row({
 	);
 }
 
-/**
- * Check one Stacks block in the browser: the same links `secondlayer verify
- * block` proves, computed here against the free proofs API. No key, no account.
- * The verifier loads on the first check, not with the page.
- */
 export function BlockChecker({ source }: { source?: ProofSource }) {
 	const [input, setInput] = useState(DEFAULT_REF);
 	const [view, setView] = useState<View>({ kind: "idle" });
@@ -187,7 +174,6 @@ export function BlockChecker({ source }: { source?: ProofSource }) {
 		};
 	}, []);
 	const running = view.kind === "running";
-	// The link after the last one to pass, so a link the verifier skips never sticks.
 	const next =
 		view.kind === "running"
 			? view.order[

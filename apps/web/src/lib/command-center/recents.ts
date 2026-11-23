@@ -1,9 +1,3 @@
-/**
- * Frecency for the command center — last 50 selections in localStorage.
- * Pure tie-breaker: a recent pick floats above an equal-score match, it
- * never makes a non-match appear. No server round-trip, no account sync.
- */
-
 const KEY = "cc-recents";
 const MAX = 50;
 
@@ -30,12 +24,9 @@ export function recordSelection(id: string): void {
 		}
 		all.sort((a, b) => b.ts - a.ts);
 		window.localStorage.setItem(KEY, JSON.stringify(all.slice(0, MAX)));
-	} catch {
-		// Storage full/denied — frecency is a nicety, never an error.
-	}
+	} catch {}
 }
 
-/** id → boost. Log-scaled count, halved past a week of staleness. */
 export function frecencyBoosts(): Map<string, number> {
 	const map = new Map<string, number>();
 	const week = 7 * 24 * 60 * 60 * 1000;

@@ -24,7 +24,6 @@ export interface SubgraphRef {
 	name: string;
 }
 
-/** Subgraph id -> epoch ms before which catch-up should not re-check. */
 const backoffUntil = new Map<string, number>();
 
 export function inBillingBackoff(

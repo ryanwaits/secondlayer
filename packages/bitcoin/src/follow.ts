@@ -5,12 +5,6 @@
 // block at a time near it, flushing (and writing an undo row for) every
 // block individually so a shallow reorg (D10, `UNDO_DEPTH`) can be reversed
 // in place instead of forcing a rebuild.
-//
-// `BlockNotifier` is the wake-up source for "check the tip again" — this
-// module never polls for new blocks itself. `RpcWaitNotifier`
-// (`./rpc-wait-notifier.ts`, D12 amended 2026-09-26: wakes on bitcoind's
-// `waitfornewblock` RPC, not ZMQ) is the real one; `FakeNotifier` in
-// `follow.test.ts` drives the unit tests.
 
 import type { Kysely } from "kysely";
 import {
@@ -61,12 +55,10 @@ export interface ReorgInfo {
 	oldCheckpointHeight: number;
 }
 
-/** `runFollow`'s periodic liveness snapshot — see `onHeartbeat` below. */
 export interface HeartbeatInfo {
 	checkpointHeight: number | undefined;
 	tipHeight: number;
 	lag: number;
-	/** True once `lag` has stayed above `STALE_LAG_BLOCKS` continuously for more than `STALE_AFTER_MS`. */
 	stale: boolean;
 }
 
@@ -92,9 +84,7 @@ export interface FollowDeps {
 	onHeartbeat?: (info: HeartbeatInfo) => void;
 	/** Test seam: overrides `Date.now` for the heartbeat's interval/staleness tracking. */
 	now?: () => number;
-	/** Defaults to `Network.Bitcoin` (mainnet). Only ever overridden by the regtest reorg test (`test/regtest/`) — see `backfill.ts`'s `BackfillOptions.network`. */
 	network?: Network;
-	/** Defaults to `GENESIS_HEIGHT` (840,000). Regtest-test-only override — see `network`. */
 	genesisHeight?: number;
 	/**
 	 * Caps both the batch catch-up and the per-block loop at this height —
@@ -240,7 +230,6 @@ export async function syncOnce(
 	if (state === undefined) {
 		state = await loadState(deps.db);
 		if (state.height === undefined && network === Network.Bitcoin) {
-			// UNCOMMON•GOODS is mainnet-only — see backfill.ts's runBackfill.
 			seedGenesis(state);
 		}
 	}
@@ -248,8 +237,6 @@ export async function syncOnce(
 	state = await reconcileCheckpoint(deps, state);
 
 	const rawTipHeight = await deps.rpc.getblockcount();
-	// Capped at `deps.until` (plan 062) so a bounded `follow --until <H>` never
-	// fetches or applies a block past H, even if the live chain has moved on.
 	const tipHeight =
 		deps.until !== undefined
 			? Math.min(rawTipHeight, deps.until)
@@ -308,17 +295,10 @@ export async function syncOnce(
 	return { state, blocksApplied };
 }
 
-/** `runFollow`'s heartbeat cadence and staleness threshold (plan 076). */
 const HEARTBEAT_INTERVAL_MS = 10 * 60 * 1000;
 const STALE_LAG_BLOCKS = 12;
 const STALE_AFTER_MS = 30 * 60 * 1000;
 
-/**
- * Tracks `runFollow`'s liveness state across iterations and decides, on each
- * `record()` call, whether it's time to report a heartbeat. Factored out
- * (plan 076) so its interval/staleness bookkeeping is directly unit-testable
- * against an injected clock, without driving a whole `runFollow` loop.
- */
 export interface HeartbeatTracker {
 	/**
 	 * Called once per `runFollow` iteration with the checkpoint `syncOnce`
@@ -332,7 +312,6 @@ export interface HeartbeatTracker {
 	): HeartbeatInfo | undefined;
 }
 
-/** `now` defaults to `Date.now`; a test passes a fake clock instead. */
 export function createHeartbeatTracker(
 	now: () => number = Date.now,
 ): HeartbeatTracker {
@@ -409,9 +388,7 @@ export async function runFollow(
 				const tipHeight = await deps.rpc.getblockcount();
 				const info = heartbeat.record(state.height, tipHeight);
 				if (info) deps.onHeartbeat(info);
-			} catch {
-				// A failed liveness check shouldn't take down follow itself.
-			}
+			} catch {}
 		}
 
 		if (

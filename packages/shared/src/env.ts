@@ -1,6 +1,5 @@
 import { z } from "zod";
 
-// Parse comma-separated networks
 const networksSchema = z.string().transform((val) => {
 	const networks = val
 		.split(",")
@@ -77,7 +76,6 @@ export function getEnv(): Env {
 		throw new Error("Invalid environment configuration");
 	}
 
-	// Compute enabled networks from NETWORKS or NETWORK
 	let enabledNetworks: ("mainnet" | "testnet")[];
 	if (result.data.NETWORKS && result.data.NETWORKS.length > 0) {
 		enabledNetworks = result.data.NETWORKS;
@@ -151,5 +149,4 @@ export function isBnsDecoderEnabled(env: EnvMap = process.env): boolean {
 	return env.BNS_DECODER_ENABLED === "true";
 }
 
-// Export for testing
 export { envSchema };

@@ -27,7 +27,6 @@ import {
 } from "./values.ts";
 import { Cl } from "./values.ts";
 
-/** CV type tags — mirrors the discriminants of `ClarityValue`. */
 const CV_TYPE_TAGS = new Set([
 	"int",
 	"uint",
@@ -60,12 +59,6 @@ export function isClarityValue(value: unknown): value is ClarityValue {
 
 const HEX_PAIRS_REGEX = /^(?:[0-9a-fA-F]{2})+$/;
 
-/**
- * Coerce a flexible buffer input to a BufferCV. Accepts `Uint8Array`, a
- * pre-built `BufferCV`, a tagged `{ type: 'ascii' | 'utf8' | 'hex', value }`
- * object, or a bare string (even-length hex — optionally 0x-prefixed — is
- * decoded as hex; anything else is UTF-8 encoded).
- */
 function coerceBuffer(value: unknown): ClarityValue {
 	if (value instanceof Uint8Array) return bufferCV(value);
 	if (typeof value === "object" && value !== null && "type" in value) {
@@ -203,7 +196,6 @@ function clarityValueToJSInner(abiType: AbiType, cv: ClarityValue): unknown {
 	if (isAbiBuffer(abiType)) {
 		if (cv.type !== "buffer")
 			throw new Error(`Expected buffer CV, got ${cv.type}`);
-		// BufferCV stores hex string; convert back to Uint8Array
 		const hex = cv.value;
 		const bytes = new Uint8Array(hex.length / 2);
 		for (let i = 0; i < bytes.length; i++) {

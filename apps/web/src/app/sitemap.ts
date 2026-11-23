@@ -5,7 +5,6 @@ import type { MetadataRoute } from "next";
 
 const BASE = "https://www.secondlayer.tools";
 
-/** The site's own pages, outside docs, data and the blog. */
 export const ROUTES = [
 	"/",
 	"/p/archive",
@@ -29,7 +28,6 @@ export default function sitemap(): MetadataRoute.Sitemap {
 		changeFrequency: path === "/" ? "weekly" : "monthly",
 		priority: path === "/" ? 1 : 0.6,
 	}));
-	// Every docs page, from the sidebar (which lists every page 1:1).
 	const docs: MetadataRoute.Sitemap = [
 		...new Set(docsNavPages().map((page) => page.href.split("#")[0])),
 	].map((path) => ({
@@ -37,13 +35,11 @@ export default function sitemap(): MetadataRoute.Sitemap {
 		changeFrequency: "weekly",
 		priority: path === "/docs" ? 0.8 : 0.7,
 	}));
-	// One page per live protocol, from the registry.
 	const data: MetadataRoute.Sitemap = liveDataTopics().map((topic) => ({
 		url: `${BASE}${dataPath(topic)}`,
 		changeFrequency: "monthly",
 		priority: 0.7,
 	}));
-	// Published posts only — drafts and the internal /lab routes stay out.
 	const posts: MetadataRoute.Sitemap = getPublishedPosts().map((post) => ({
 		url: `${BASE}/blog/${post.slug}`,
 		lastModified: new Date(`${post.date}T00:00:00Z`),

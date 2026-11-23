@@ -1,7 +1,3 @@
-/**
- * A 6px track with a `--ch-a` fill and a caption on each side. `over` adds a
- * `--ch-mark` segment for paid units past `total`, sized in proportion.
- */
 export function Meter({
 	used,
 	total,
@@ -12,11 +8,9 @@ export function Meter({
 }: {
 	used: number;
 	total: number;
-	/** Paid units past `total`; draws a second, highlighted segment. */
 	over?: number;
 	left?: string;
 	right?: string;
-	/** Accessible name for the bar. */
 	label: string;
 }) {
 	const percent =

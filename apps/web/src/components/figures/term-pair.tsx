@@ -1,8 +1,3 @@
-/**
- * A2 TermPair — two concepts held apart, side by side. The role colors
- * established here follow both terms through every later figure in the
- * post (blue = role a, amber = role b, never cycled).
- */
 export function TermPair({
 	a,
 	b,

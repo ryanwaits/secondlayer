@@ -25,7 +25,6 @@ type GroupState = {
 
 const SwipeContext = createContext<GroupState | null>(null);
 
-/** One open row at a time inside a group (a list). */
 export function SwipeGroup({ children }: { children: ReactNode }) {
 	const [openId, setOpenId] = useState<string | null>(null);
 	return (
@@ -35,11 +34,6 @@ export function SwipeGroup({ children }: { children: ReactNode }) {
 	);
 }
 
-/**
- * A list row that reveals one or two actions when swiped left. Vertical drags
- * stay native scrolling. The action buttons are real buttons, and focusing one
- * opens the row, so the actions are reachable without a gesture.
- */
 export function SwipeRow({
 	id,
 	actions,
@@ -47,9 +41,7 @@ export function SwipeRow({
 	children,
 }: {
 	id: string;
-	/** 1 or 2 actions, revealed on the right by swiping left. */
 	actions: readonly SwipeAction[];
-	/** Tap on the row face (only when no drag happened and the row is closed). */
 	onTap?: () => void;
 	children: ReactNode;
 }) {
@@ -119,7 +111,6 @@ export function SwipeRow({
 		const g = gesture.current;
 		gesture.current = null;
 		if (!g || g.axis !== "x") return;
-		// The click that follows a drag is not a tap.
 		dragged.current = true;
 		setTimeout(() => {
 			dragged.current = false;

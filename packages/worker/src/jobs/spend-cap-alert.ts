@@ -8,9 +8,7 @@
  * answer 402, and the workload host's 5-minute poll stops the hosted stack
  * (`credits_ok` is false over the cap), so webhooks stop delivering and
  * subgraphs stop indexing until the month rolls over or the cap is raised.
- * (The earlier version projected the
- * Stripe invoice — flat base price, since no metered overage is emitted —
- * so it could never trip; see the 2026-06-18 billing audit.) For each
+ * For each
  * account with a `monthly_cap_cents` set:
  *   - Month's credit spend >= threshold_pct (default 80%) → send email + bump
  *     `alert_sent_at` (debounced once per calendar month)
@@ -42,11 +40,8 @@ import { getInstanceMode } from "@secondlayer/shared/mode";
 import { claimThenSend } from "./claim-then-send.ts";
 import { scheduleCron } from "./cron-schedule.ts";
 
-const INTERVAL_MS = 24 * 60 * 60 * 1000; // 24h — threshold alerts are not a
-// minute-to-minute concern; the hard stop is enforced in real time on the read
-// path, so daily is plenty for the courtesy alert + display freeze.
+const INTERVAL_MS = 24 * 60 * 60 * 1000;
 
-/** Cap dimensions are stored in cents; credit spend in USD-micros (1¢ = 10k µ$). */
 const USD_MICROS_PER_CENT = 10_000n;
 
 export function startSpendCapAlertCron(): () => void {
@@ -109,7 +104,6 @@ export async function checkAllCaps(deps: CapAlertDeps = {}): Promise<void> {
 
 interface CapRow {
 	account_id: string;
-	/** NULL only for ghost accounts (no address to alert). */
 	email: string | null;
 	monthly_cap_cents: number | null;
 	alert_threshold_pct: number;
@@ -143,7 +137,6 @@ async function checkOneCap(row: CapRow, send: typeof sendEmail): Promise<void> {
 			release: () => releaseCapMark(db, row.account_id, mark, now, previous),
 		});
 
-	// Cap hit: send the cap-reached email once. Strongest action first.
 	if (projected >= cap && !row.frozen_at) {
 		if (await alert("frozen_at", null, "frozen")) {
 			logger.info("Account spend cap hit — alerted", {
@@ -203,7 +196,7 @@ async function sendCapAlert(
 	send: typeof sendEmail,
 	now: Date = new Date(),
 ): Promise<void> {
-	if (!row.email) return; // no address to alert (ghost account — shouldn't have a cap)
+	if (!row.email) return;
 
 	const spent$ = `$${(projectedCents / 100).toFixed(2)}`;
 	const cap$ = `$${(capCents / 100).toFixed(2)}`;

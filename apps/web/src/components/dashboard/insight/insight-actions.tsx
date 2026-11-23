@@ -4,18 +4,11 @@ import { IntentLink } from "@/components/intent-link";
 import type { Insight } from "@/lib/insights";
 import { dismiss, markExpected } from "@/lib/insights-store";
 
-/**
- * The footer of an opened insight card: a faint one-line note, the page the
- * insight lives on (Overview only), "Got it" and "This is expected". Both
- * remove the insight at once and the server keeps the choice. A recovered
- * incident can only be dismissed.
- */
 export function InsightActions({
 	insight,
 	home,
 }: {
 	insight: Insight;
-	/** The insight's own page, linked from the Overview's inbox. */
 	home?: { href: string; name: string };
 }) {
 	const recovered = insight.severity === "recovered";

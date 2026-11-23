@@ -73,7 +73,6 @@ export function generateTenantSecrets(): TenantSecrets {
  *  firewall accepts before the private-range drops. */
 const TENANT_NETWORK_FIRST_OCTET = 10;
 const TENANT_NETWORK_SECOND_OCTET_BASE = 64;
-/** 64 second-octet values x 256 third-octet values. */
 export const TENANT_NETWORK_CAPACITY = 64 * 256;
 
 /** The private /24 and static postgres address for the tenant whose
@@ -124,9 +123,6 @@ export function buildTenantEnv(opts: {
 		TENANT_SUBNET: network.subnet,
 		TENANT_PG_IP: network.pgIp,
 		TENANT_SOCKET_DIR: opts.tenantSocketDir,
-		// Loopback-only publish port for this tenant's `api` (review fix: the
-		// gateway is a host process with no compose-network DNS, so it reaches
-		// `api` over 127.0.0.1:<port>, never `tenant-<acct8>-api`).
 		TENANT_API_PORT: String(opts.apiPort),
 	};
 }
@@ -141,8 +137,6 @@ export function renderEnvFile(env: Record<string, string>): string {
 		.join("\n")}\n`;
 }
 
-/** Inverse of `renderEnvFile`: `KEY=value` lines, literal `\n` back to a
- *  newline (PEM keys). Blank lines and `#` comments are skipped. */
 export function parseEnvFile(contents: string): Record<string, string> {
 	const env: Record<string, string> = {};
 	for (const line of contents.split("\n")) {
@@ -182,8 +176,6 @@ export const spawnCompose: RunCompose = async (args, env) => {
 	return { code: exitCode, stdout, stderr };
 };
 
-/** One account's answer from `/internal/accounts/credits`: may its stack run,
- *  and if not, why. */
 export interface CreditsStatus {
 	ok: boolean;
 	reason: Exclude<StopReason, "idle"> | null;
@@ -251,9 +243,6 @@ export type MintTenantKey = (
 	name: TenantKeyName,
 ) => Promise<string>;
 
-/** Real implementation: `POST /internal/keys/tenant` on app-server (Design
- *  fix: mint a DEDICATED key for the tenant rather than forwarding the
- *  customer's own presented key into the stack). */
 export function makeMintTenantKey(
 	hostedApiUrl: string,
 	workloadHostKey: string,
@@ -282,21 +271,14 @@ export function makeMintTenantKey(
 
 export interface ProvisionerConfig {
 	db: postgres.Sql;
-	/** Root-only directory holding one subdirectory per tenant. */
 	secretsRoot: string;
 	composeFile: string;
 	hostedApiUrl: string;
-	/** Shared with app-server's `/internal/*` guards. Only needed for the
-	 *  default `mintTenantKey`/`pollCredits` implementations — a test that
-	 *  injects both can leave this unset. */
 	workloadHostKey?: string;
 	runCompose?: RunCompose;
 	mintTenantKey?: MintTenantKey;
 	checkCreditsOk?: CheckCreditsOk;
-	/** Active webhooks + subgraphs in one tenant (`meters.ts`'s
-	 *  `countTenantWorkloads`), injectable for tests. `null` = unreadable. */
 	countWorkloads?: (acct8: string) => Promise<number | null>;
-	/** Tenant backup bucket (`backups.ts`). `destroy()` refuses without it. */
 	backups?: BackupConfig | null;
 	fetchImpl?: FetchLike;
 	/** The current deployed-image target (`upgrade.ts`'s `resolveTargetSha`,
@@ -314,8 +296,6 @@ export interface ProvisionerConfig {
 	/** Called after every control-DB write that changes a tenant row, so the
 	 *  gateway's short-lived tenant cache never routes on a stale state. */
 	onTenantChanged?: (accountId: string) => void;
-	/** The one shared, free testnet webhook stack: its account, the testnet
-	 *  API it reads, and the key it reads it with. Unset on a host without it. */
 	testnetStack?: TestnetStackConfig;
 }
 
@@ -436,10 +416,6 @@ export function tenantServices(hasSubgraphs: boolean): string[] {
 	return hasSubgraphs ? [...services, "subgraph-processor"] : services;
 }
 
-/** Env for every compose call on a tenant: the image tag compose needs to
- *  parse the file (`requireTargetSha`), plus `COMPOSE_PROFILES=subgraphs`
- *  when the tenant runs subgraphs, so `subgraph-processor` (profile
- *  `subgraphs` in `tenant.compose.yml`) is part of the project. */
 export function composeEnv(
 	imageTag: string,
 	hasSubgraphs: boolean,
@@ -464,7 +440,6 @@ function writeSecretsToDisk(
 	chmodSync(path, 0o600);
 }
 
-/** `- ./resolv.conf:/etc/resolv.conf:ro` style bind mounts of local files. */
 const LOCAL_MOUNT = /^\s*-\s+["']?(\.{1,2}\/[^:\s"']+):/gm;
 
 /**
@@ -499,7 +474,6 @@ export function templateSha(cfg: ProvisionerConfig): string | null {
 	}
 }
 
-/** Records what a tenant was just brought up on (image + template). */
 export async function recordTenantRelease(
 	cfg: ProvisionerConfig,
 	accountId: string,
@@ -632,8 +606,6 @@ export async function up(
 	}
 	if (existing) {
 		if (existing.state === "stopped") {
-			// Top-up path: `stopped → running` (Design) restarts the existing
-			// stack — secrets and data are untouched, so this is just `start`.
 			await start(cfg, accountId);
 			return "running";
 		}
@@ -668,8 +640,6 @@ export async function up(
  *  `up()`. */
 const provisioningInFlight = new Set<string>();
 
-/** The body of `up()` for an account with no stack: allocate (or, on a retry,
- *  reuse) the row's port and subnet, mint keys, write secrets, run compose. */
 async function provisionStack(
 	cfg: ProvisionerConfig,
 	runCompose: RunCompose,
@@ -691,7 +661,6 @@ async function provisionStack(
 		const insert = await insertProvisioningTenant(cfg.db, accountId, acct8);
 		cfg.onTenantChanged?.(accountId);
 		if (!insert.inserted) {
-			// Lost the race to another concurrent request for the same account.
 			const row = await getTenant(cfg.db, accountId);
 			return row?.state ?? "provisioning";
 		}
@@ -881,7 +850,6 @@ export async function recoverInterruptedProvisions(
 	return rows.length;
 }
 
-/** Workloads in one tenant, `null` when unreadable. */
 function workloadCount(
 	cfg: ProvisionerConfig,
 	acct8: string,
@@ -1004,10 +972,6 @@ async function stopOnce(
  *  and the poll starts too, so callers share one. */
 const startsInFlight = new Map<string, Promise<void>>();
 
-/** `stopped → running`: undoes `stop()`. Also used by `up()` for a returning
- *  top-up on an already-provisioned account. Callers racing on one account
- *  share a single run. Does nothing for a tenant that is not `stopped`, and
- *  refuses a `destroyed` one. */
 export function start(
 	cfg: ProvisionerConfig,
 	accountId: string,
@@ -1107,7 +1071,6 @@ async function destroyOnce(
 			`refusing to destroy tenant-${acct8}: no backup store configured (TENANT_BACKUP_*)`,
 		);
 	}
-	// No row, or a tombstone = already destroyed: nothing left to dump.
 	const row = await getTenant(cfg.db, accountId);
 	if (row && row.state !== "destroyed") {
 		await finalBackupTenant(cfg.backups, acct8);

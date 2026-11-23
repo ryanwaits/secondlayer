@@ -30,7 +30,6 @@ import { notFound } from "next/navigation";
 type Props = { params: Promise<{ topic: string }> };
 
 export const dynamicParams = false;
-/** Live numbers refresh every minute; the page stays statically generated. */
 export const revalidate = 60;
 
 export function generateStaticParams() {
@@ -48,12 +47,10 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 	});
 }
 
-/** One example: its command beside what it prints, in one frame. */
 function ExamplePair({
 	sync,
 	tabs,
 }: {
-	/** Tabs that share a key switch together, the output following the command. */
 	sync?: string;
 	tabs: readonly {
 		title: string;
@@ -93,7 +90,6 @@ function ExamplePair({
 	);
 }
 
-/** "Get these numbers yourself": the chips, and under them the one figure the chosen chip shows. */
 function Run({ topic, stats }: { topic: DataTopic; stats: TopicStats | null }) {
 	const { free, ts, curl } = liveExamples(topic, stats);
 	return (
@@ -101,7 +97,6 @@ function Run({ topic, stats }: { topic: DataTopic; stats: TopicStats | null }) {
 			<div className="pick-head">
 				<h2>{topic.pick.heading}</h2>
 				<p className="lede">{topic.pick.lede}</p>
-				{/* PoX-5's line is about checking the numbers above, so it sits there. */}
 				{stats?.kind === "pox" ? null : <ExtraLine topic={topic} />}
 			</div>
 			<ExamplePicker
@@ -150,7 +145,6 @@ function ExtraLine({ topic }: { topic: DataTopic }) {
 	);
 }
 
-/** The four big numbers and the stamp under them. */
 function StripBody({ stats }: { stats: StripStats }) {
 	const { items, sub } = stripItems(stats);
 	return (
@@ -163,7 +157,6 @@ function StripBody({ stats }: { stats: StripStats }) {
 	);
 }
 
-/** The current answer: big numbers, and for PoX-5 the signers behind them. */
 function Live({ topic, stats }: { topic: DataTopic; stats: TopicStats }) {
 	return (
 		<div className="live">

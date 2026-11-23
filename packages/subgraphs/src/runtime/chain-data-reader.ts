@@ -86,8 +86,6 @@ export type SettlementScanRow = {
 	block_timestamp: number;
 };
 
-// ── Local tables (self-host, platform) ──────────────────────────────────────
-
 export function databaseChainDataReader(db: Kysely<Database>): ChainDataReader {
 	return {
 		async sbtcEvents(fromHeight, toHeight, topics) {
@@ -151,12 +149,8 @@ export function databaseChainDataReader(db: Kysely<Database>): ChainDataReader {
 	};
 }
 
-// ── Hosted Index API (tenant stacks) ────────────────────────────────────────
-
-/** `to_height` meaning "through the tip"; the server clamps it. */
 const THROUGH_TIP = Number.MAX_SAFE_INTEGER;
 
-/** Re-read the changes at most this often; a Stacks block is a few seconds. */
 const TRAIT_REFRESH_MS = 5_000;
 /** Classification writes can commit out of order; re-read this far back and
  *  dedupe so a late commit with an earlier timestamp is not skipped. */
@@ -344,8 +338,6 @@ export function hostedChainDataReader(
 		},
 	};
 }
-
-// ── Selection ───────────────────────────────────────────────────────────────
 
 /**
  * The reader for this stack, decided on first use (so a caller with no sBTC or

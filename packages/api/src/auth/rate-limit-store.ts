@@ -3,9 +3,6 @@ import { isPlatformMode } from "@secondlayer/shared/mode";
 import { RedisClient } from "bun";
 import { SlidingWindow, type WindowResult } from "./sliding-window.ts";
 
-/** Per-check options. `failClosed` flips the Redis-outage behavior from the
- *  default fail-open (allow, keep reads available) to deny — for abuse-sensitive
- *  limiters (auth, anonymous key mint) where an open limiter is the bigger risk. */
 export type CheckOptions = { failClosed?: boolean };
 
 /**
@@ -27,9 +24,6 @@ export interface RateLimitStore {
 }
 
 export class InProcRateLimitStore implements RateLimitStore {
-	// One SlidingWindow per distinct windowMs (its window length is fixed at
-	// construction). All callers sharing a windowMs share cleanup, not counters
-	// (keys are namespaced by the caller).
 	private readonly windows = new Map<number, SlidingWindow>();
 
 	private windowFor(windowMs: number): SlidingWindow {
@@ -47,7 +41,6 @@ export class InProcRateLimitStore implements RateLimitStore {
 		windowMs: number,
 		_opts?: CheckOptions,
 	): Promise<WindowResult> {
-		// In-process store never throws, so failClosed is moot here.
 		return this.windowFor(windowMs).check(key, limit);
 	}
 
@@ -56,10 +49,6 @@ export class InProcRateLimitStore implements RateLimitStore {
 	}
 }
 
-// Atomic sliding-window check in one round-trip: drop expired members, count,
-// and (if under limit) add the new request. Returns {allowed, count, oldestMs}.
-// oldestMs is the score of the earliest live member (0 when none) so the caller
-// can compute retryAfter/resetAt identically to the in-proc window.
 const SLIDING_WINDOW_LUA = `
 local key = KEYS[1]
 local now = tonumber(ARGV[1])
@@ -85,8 +74,6 @@ const REDIS_COMMAND_TIMEOUT_MS = 250;
 
 const redisClients = new Map<string, RedisClient>();
 
-/** One Redis connection per URL, shared by the rate-limit store and the
- *  in-flight slot counters. */
 export function getRedisClient(url: string): RedisClient {
 	let client = redisClients.get(url);
 	if (!client) {
@@ -96,8 +83,6 @@ export function getRedisClient(url: string): RedisClient {
 	return client;
 }
 
-/** Run one Redis command, rejecting after `REDIS_COMMAND_TIMEOUT_MS` so a
- *  slow or unreachable Redis can't hang a request. */
 export async function redisSendWithTimeout(
 	redis: RedisClient,
 	command: string,
@@ -190,7 +175,6 @@ export class RedisRateLimitStore implements RateLimitStore {
 	}
 
 	async clear(): Promise<void> {
-		// Test-only: drop every limiter key. SCAN avoids blocking on KEYS.
 		let cursor = "0";
 		do {
 			const [next, keys] = (await this.redis.send("SCAN", [
@@ -206,7 +190,6 @@ export class RedisRateLimitStore implements RateLimitStore {
 	}
 }
 
-// Throttle the Redis-outage warning so an outage doesn't spam one line/request.
 let lastRedisFailLogMs = 0;
 function logRedisFailure(): void {
 	const now = Date.now();
@@ -237,7 +220,6 @@ export function getRateLimitStore(): RateLimitStore {
 	return cachedStore;
 }
 
-/** Reset both the store contents and the memoized singleton (tests only). */
 export async function _resetRateLimitStoreForTests(): Promise<void> {
 	if (cachedStore) await cachedStore.clear();
 	cachedStore = null;

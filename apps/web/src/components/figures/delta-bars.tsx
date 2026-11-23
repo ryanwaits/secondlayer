@@ -13,17 +13,10 @@ const GROUP_GAP = 12;
 
 export type DeltaGroup = {
 	label: string;
-	/** Role-b bar (the before/worse regime). */
 	b: { value: number; tooltip: string };
-	/** Role-a bar (the after/better regime); direct-labeled. */
 	a: { value: number; tooltip: string; display?: string };
 };
 
-/**
- * C6 DeltaBars — before and after, paired per entity on a shared
- * baseline. The role colors carry which regime is which, consistent
- * with every other figure in the post.
- */
 export function DeltaBars({
 	groups,
 	legend,
@@ -31,7 +24,6 @@ export function DeltaBars({
 	ariaLabel,
 }: {
 	groups: DeltaGroup[];
-	/** [role-b label, role-a label]. */
 	legend: [string, string];
 	max?: number;
 	ariaLabel: string;

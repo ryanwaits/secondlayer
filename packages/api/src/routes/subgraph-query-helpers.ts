@@ -22,7 +22,6 @@ export const COMPARISON_OPS: Record<string, string> = {
 	like: "ILIKE",
 };
 
-// Set membership ops — value is a comma list, emitted as `IN ($1,$2,…)`.
 export const IN_OPS: Record<string, string> = {
 	in: "IN",
 	notIn: "NOT IN",
@@ -72,7 +71,6 @@ export class TooManyAggregatesError extends ValidationError {
 }
 
 const KNOWN_OPS = [...Object.keys(COMPARISON_OPS), ...Object.keys(IN_OPS)];
-// Matches known ops in "col=op.value" (PostgREST-style misplacement).
 const VALUE_LOOKS_LIKE_OP = /^(gte|lte|gt|lt|neq|like|in|notIn)\./i;
 // Matches any short lowercase word before "." — catches unknown ops like "bogus.1"
 // without false-positiving on Stacks principals (uppercase) or hyphenated values.
@@ -82,13 +80,10 @@ export interface ParsedQuery {
 	filters: {
 		column: string;
 		op: string;
-		/** Single value for binary ops (=, >=, ILIKE…). */
 		value?: string;
-		/** Value set for IN / NOT IN. */
 		values?: string[];
 		isLike?: boolean;
 	}[];
-	/** Ordered sort columns (multi-column). Empty → caller defaults to `_id`. */
 	sorts: { column: string; order: "ASC" | "DESC" }[];
 	limit: number;
 	offset: number;
@@ -103,7 +98,6 @@ export function parseQueryParams(
 	tableName?: string,
 ): ParsedQuery {
 	const filters: ParsedQuery["filters"] = [];
-	// Captured raw, zipped into `sorts` after the loop (params order is arbitrary).
 	let sortRaw: string | undefined;
 	let orderRaw: string | undefined;
 	let limit = DEFAULT_LIMIT;
@@ -144,7 +138,6 @@ export function parseQueryParams(
 			continue;
 		}
 		if (key === "_sort") {
-			// One or more columns: "_sort=a,b". Validate each.
 			for (const c of value.split(",").map((s) => s.trim())) {
 				if (!validColumns.has(c)) throw new InvalidColumnError(c);
 			}
@@ -182,7 +175,6 @@ export function parseQueryParams(
 			continue;
 		}
 
-		// Comparison operators: column.op=value
 		const dotIdx = key.lastIndexOf(".");
 		if (dotIdx > 0) {
 			const col = key.slice(0, dotIdx);
@@ -211,7 +203,6 @@ export function parseQueryParams(
 				filters.push({ column: col, op: inOp, values });
 				continue;
 			}
-			// Looks intentional (col.unknownOp) — reject explicitly with hint.
 			if (validColumns.has(col)) {
 				throw new ValidationError(
 					`unknown filter operator "${op}" for column "${col}" (allowed: ${KNOWN_OPS.join(", ")})`,
@@ -219,7 +210,6 @@ export function parseQueryParams(
 			}
 		}
 
-		// Catch "?col=op.value" — common typo for "?col.op=value".
 		if (validColumns.has(key) && VALUE_LOOKS_LIKE_ANY_OP.test(value)) {
 			const maybeOp = value.split(".", 1)[0]?.toLowerCase() ?? "";
 			if (VALUE_LOOKS_LIKE_OP.test(value)) {
@@ -232,13 +222,10 @@ export function parseQueryParams(
 			);
 		}
 
-		// Equality filter
 		if (!validColumns.has(key)) throw new InvalidColumnError(key);
 		filters.push({ column: key, op: "=", value });
 	}
 
-	// Zip _sort + _order into ordered, parallel sort entries. Missing/short
-	// _order defaults remaining columns to ASC.
 	const sorts: ParsedQuery["sorts"] = [];
 	if (sortRaw) {
 		const cols = sortRaw.split(",").map((s) => s.trim());
@@ -259,7 +246,6 @@ export function buildWhereConditions(
 
 	for (const f of parsed.filters) {
 		if (f.values) {
-			// IN / NOT IN — one placeholder per value, all parameterized.
 			const placeholders = f.values.map((v) => {
 				params.push(v);
 				return `$${params.length}`;
@@ -290,16 +276,10 @@ export function buildWhereConditions(
 	return conditions;
 }
 
-// ── Aggregate query helpers ──────────────────────────────────────────────
-
-/** Column types eligible for SUM/MIN/MAX. */
 const NUMERIC_COLUMN_TYPES = new Set(["uint", "int"]);
-/** System columns that are numeric and thus valid SUM/MIN/MAX targets. */
 const NUMERIC_SYSTEM_COLUMNS = new Set(["_block_height"]);
-/** Cost guard — total agg columns across all functions in one request. */
 export const MAX_AGGREGATE_COLUMNS = 32;
 
-/** Parsed aggregate control params (api-internal; mirrors shared SubgraphAggregateParams). */
 export interface AggregateControl {
 	count?: boolean;
 	countDistinct?: string[];

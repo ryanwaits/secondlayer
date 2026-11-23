@@ -42,7 +42,6 @@ import { StatsAccumulator } from "./stats.ts";
 const LOG_INTERVAL = 1000;
 const HEALTH_FLUSH_INTERVAL = 1000;
 const PROGRESS_FLUSH_INTERVAL_MS = 5_000;
-/** Consecutive fully-empty batches before the walk halts as source-degraded. */
 const EMPTY_BATCH_HALT_THRESHOLD = 3;
 const REINDEX_BATCH_CONFIG = {
 	defaultBatchSize: 500,
@@ -73,9 +72,6 @@ export function resolveReindexResumeBlock(
 	return Math.max(lastProcessedBlock + 1, reindexFromBlock);
 }
 
-/**
- * Coalesce individual block heights + reasons into contiguous gap ranges.
- */
 function coalesceFailedBlocks(
 	blocks: { height: number; reason: GapRange["reason"] }[],
 ): GapRange[] {
@@ -118,7 +114,6 @@ export interface ReindexOptions {
 	signal?: AbortSignal;
 }
 
-/** True when any block in the batch carries an event (either clock). */
 function batchHasEvents(batch: Map<number, BlockData>): boolean {
 	for (const data of batch.values()) {
 		if (data.events.length > 0 || (data.vmEvents?.length ?? 0) > 0) return true;
@@ -126,11 +121,6 @@ function batchHasEvents(batch: Map<number, BlockData>): boolean {
 	return false;
 }
 
-/**
- * Shared block range processor used by both reindex and backfill.
- * Processes blocks in batches with prefetch pipeline.
- * Supports cancellation via AbortSignal — breaks cleanly at batch boundaries.
- */
 async function processBlockRange(
 	def: SubgraphDefinition,
 	opts: {
@@ -218,8 +208,6 @@ async function processBlockRange(
 		lastHealthFlushAt = Date.now();
 	};
 
-	/** Walk checkpoint outside a block's own tx. Backfill checkpoints on its op
-	 *  row; reindex on the subgraph cursor, which only moves while `reindexing`. */
 	const checkpoint = async (height: number) => {
 		if (opCursor) {
 			// Conditional, so it can't regress the in-tx advances written by
@@ -254,9 +242,6 @@ async function processBlockRange(
 		throw new Error(`${subgraphName}: halted at block ${height}: ${errorMsg}`);
 	};
 
-	// Pipeline: start loading first batch and track the prefetched range.
-	// batchEnd must match what was actually loaded — not recalculated from a
-	// potentially resized batchSize (adaptive sizing can change it between iterations).
 	type InFlightBatch = {
 		from: number;
 		end: number;
@@ -273,11 +258,9 @@ async function processBlockRange(
 		return { from, end, promise };
 	};
 	let inFlight: InFlightBatch | null = startBatch(currentHeight);
-	// A pause code left by an earlier run clears on the first good read.
 	let pauseCleared = false;
 
 	walk: while (currentHeight <= toBlock) {
-		// Check for abort at batch boundary
 		if (opts.signal?.aborted) {
 			aborted = true;
 			logger.info("Block processing aborted", {
@@ -356,8 +339,6 @@ async function processBlockRange(
 		for (let height = currentHeight; height <= batchEnd; height++) {
 			let blockData = batch.get(height);
 			if (!blockData) {
-				// Could be a transient source hiccup — refetch the single height
-				// before concluding the block is genuinely absent.
 				const refetch = () => source.loadBlockRange(height, height);
 				const refetched = await loadWhileBillingPaused(
 					targetDb,
@@ -474,7 +455,6 @@ async function processBlockRange(
 				blocksProcessed % 100 === 0 ||
 				now - lastProgressFlushAt >= PROGRESS_FLUSH_INTERVAL_MS;
 			if (shouldFlushProgress) {
-				// Covers write-less stretches.
 				await checkpoint(height);
 				if (leftReindex) break;
 				if (opts.operationId) {
@@ -523,7 +503,6 @@ async function processBlockRange(
 			await flushHealth();
 		}
 
-		// Record any gaps from this batch
 		if (batchFailedBlocks.length > 0) {
 			const gaps = coalesceFailedBlocks(batchFailedBlocks);
 			await recordGapBatch(targetDb, opts.subgraphId, subgraphName, gaps).catch(
@@ -571,7 +550,6 @@ async function processBlockRange(
 			}
 		}
 
-		// Adaptive batch sizing
 		const avg = avgEventsPerBlock(batch);
 		if (avg > 50)
 			batchSize = Math.max(
@@ -585,7 +563,6 @@ async function processBlockRange(
 			);
 
 		currentHeight = batchEnd + 1;
-		// Nothing prefetched (a quiet sparse stretch the probe declined to skip).
 		if (!inFlight && currentHeight <= toBlock) {
 			inFlight = startBatch(currentHeight);
 		}
@@ -673,9 +650,6 @@ async function resetCancelledReindex(
 	if (row) await clearReindexMetadata(db, subgraphId);
 }
 
-/**
- * Clear reindex metadata columns after completion or cancellation.
- */
 async function clearReindexMetadata(
 	db: ReturnType<typeof getTargetDb>,
 	subgraphId: string,
@@ -704,7 +678,6 @@ export async function reindexSubgraph(
 	def: SubgraphDefinition,
 	opts: ReindexOptions,
 ): Promise<{ processed: number }> {
-	// Chain tip reads hit the block source; subgraph rows + tenant schemas live in target
 	const source = await resolveBlockSource(def);
 	const targetDb = getTargetDb();
 	const client = getRawClient("target");
@@ -738,7 +711,6 @@ export async function reindexSubgraph(
 			return { processed: 0 };
 		}
 
-		// Drop and recreate schema + tables (tenant-side DDL)
 		await client.unsafe(`DROP SCHEMA IF EXISTS "${schemaName}" CASCADE`);
 		const { statements } = generateSubgraphSQL(def, schemaName);
 		for (const stmt of statements) {
@@ -806,7 +778,6 @@ export async function reindexSubgraph(
 			signal: opts?.signal,
 		});
 
-		// Handle abort
 		if (result.aborted) {
 			const reason = String(opts?.signal?.reason ?? "unknown");
 			if (reason === "user-cancelled") {
@@ -829,7 +800,6 @@ export async function reindexSubgraph(
 			{ last_processed_block: toBlock },
 		);
 		if (!finished) {
-			// Halted after the walk's last checkpoint: the halt stands.
 			logger.warn(
 				"Reindex walk finished but the subgraph is no longer reindexing",
 				{
@@ -845,7 +815,6 @@ export async function reindexSubgraph(
 			events: result.totalEventsProcessed,
 			errors: result.totalErrors,
 		});
-		// Fire-and-forget — never delay or fail the reindex on a notify hiccup.
 		void notifyReindexComplete(targetDb, subgraphName, {
 			blocks: result.blocksProcessed,
 			events: result.totalEventsProcessed,
@@ -900,7 +869,6 @@ export async function resumeReindex(
 	const fromBlock = resolveReindexResumeBlock(row);
 	const toBlock = Number(row.reindex_to_block);
 
-	// Legacy: no reindex metadata — fall back to full reindex
 	if (fromBlock == null) {
 		logger.info("No reindex metadata, starting fresh reindex", {
 			subgraph: subgraphName,

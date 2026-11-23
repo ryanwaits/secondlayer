@@ -9,7 +9,6 @@ function failure(e: unknown) {
 	return NextResponse.json({ error: "Internal error" }, { status: 500 });
 }
 
-/** Registers this browser for the signed-in account's push. */
 export async function POST(req: Request) {
 	const refused = crossSiteRefusal(req);
 	if (refused) return refused;
@@ -31,7 +30,6 @@ export async function POST(req: Request) {
 	}
 }
 
-/** Forgets this browser. */
 export async function DELETE(req: Request) {
 	const refused = crossSiteRefusal(req);
 	if (refused) return refused;

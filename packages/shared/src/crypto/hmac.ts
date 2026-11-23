@@ -29,7 +29,6 @@ export function verifySignature(
 ): boolean {
 	const expectedSignature = signPayload(payload, secret);
 
-	// Constant-time comparison
 	if (signature.length !== expectedSignature.length) {
 		return false;
 	}
@@ -66,9 +65,8 @@ export function verifySignatureHeader(
 	payload: string,
 	header: string,
 	secret: string,
-	toleranceSeconds = 300, // 5 minutes
+	toleranceSeconds = 300,
 ): boolean {
-	// Parse header
 	const parts = header.split(",");
 	const timestamp = parts.find((p) => p.startsWith("t="))?.slice(2);
 	const signature = parts.find((p) => p.startsWith("v1="))?.slice(3);
@@ -82,13 +80,11 @@ export function verifySignatureHeader(
 		return false;
 	}
 
-	// Check timestamp is within tolerance
 	const now = Math.floor(Date.now() / 1000);
 	if (Math.abs(now - ts) > toleranceSeconds) {
 		return false;
 	}
 
-	// Verify signature
 	const signedPayload = `${ts}.${payload}`;
 	return verifySignature(signedPayload, signature, secret);
 }

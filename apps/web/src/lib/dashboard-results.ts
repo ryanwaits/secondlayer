@@ -1,22 +1,17 @@
 /**
- * How a dashboard read ends, shared by the browser fetchers (through the
- * `/api/*` proxies) and the server reads (straight to the platform API). A
- * starting hosted stack, an asleep one and a zero balance are expected states
+ * A starting hosted stack, an asleep one and a zero balance are expected states
  * here, not errors, so both sides map status codes to the same few kinds.
  */
 
 export type WebhooksResult<T> =
 	| { kind: "ok"; data: T }
 	| { kind: "starting"; retryAfter: number }
-	/** The stack stopped while nothing used it; reads don't restart it. */
 	| { kind: "asleep" }
 	| { kind: "no_credits" }
 	| { kind: "rate_limited"; retryAfter: number }
 	| { kind: "not_found" }
 	| { kind: "error"; message: string };
 
-/** Pure status → result-kind mapping. Returns `null` for a 2xx, meaning the
- *  caller should read the response body as the success payload. */
 export function resultForStatus(
 	status: number,
 	retryAfterHeader: string | null,
@@ -34,7 +29,6 @@ export function resultForStatus(
 	return { kind: "error", message: errorMessage };
 }
 
-/** The API's `{ error }` text, or a status-only message. */
 export function errorMessageOf(body: unknown, status: number): string {
 	return body &&
 		typeof body === "object" &&
@@ -44,7 +38,6 @@ export function errorMessageOf(body: unknown, status: number): string {
 		: `Request failed (${status})`;
 }
 
-/** The API's `{ code }` string, when the body has one. */
 export function errorCodeOf(body: unknown): string | undefined {
 	return body &&
 		typeof body === "object" &&
@@ -54,7 +47,6 @@ export function errorCodeOf(body: unknown): string | undefined {
 		: undefined;
 }
 
-/** A response and its parsed JSON body (`null` when it had none) as a result. */
 export function resultFromResponse<T>(
 	res: Pick<Response, "status" | "headers">,
 	body: unknown,
@@ -66,17 +58,15 @@ export function resultFromResponse<T>(
 		errorCodeOf(body),
 	);
 	if (mapped) return mapped;
-	// A 2xx with no readable body has no payload to hand the page.
 	if (body === null || body === undefined) {
 		return { kind: "error", message: "Couldn't reach the API" };
 	}
 	return { kind: "ok", data: body as T };
 }
 
-/** The notice a page starts with from its server read. A server read that
- *  failed (in practice, one that timed out) is no notice: the browser retries
- *  at once, so the page shows its skeleton until that retry itself fails.
- *  `noticeFor` is the page's own read-to-notice mapping. */
+/** A server read that failed (in practice, one that timed out) is no notice:
+ *  the browser retries at once, so the page shows its skeleton until that
+ *  retry itself fails. */
 export function initialNotice<T, N>(
 	res: WebhooksResult<T>,
 	noticeFor: (res: WebhooksResult<T>) => N | null | undefined,

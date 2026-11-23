@@ -258,12 +258,6 @@ export async function consumeSbtcSettlements(opts: {
 	return { cursor: null, pages, decoded };
 }
 
-/**
- * Health for the confirmer, shaped like `DecoderHealth` so it slots into the
- * `/health` decoders array. Mirrors getDecoderHealth's necessary-but-not-sufficient
- * logic: the checkpoint heartbeat must be fresh (process alive) AND there must be a
- * real-work signal — either the queue is drained (backlog 0) or we wrote recently.
- */
 export async function getSettlementConfirmerHealth(opts?: {
 	db?: Kysely<Database>;
 	now?: Date;

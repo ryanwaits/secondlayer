@@ -1,11 +1,3 @@
-// Webhook processor service entry point
-// Run with: bun run packages/subgraphs/src/webhook-service.ts
-//
-// Boots ONLY the real-time webhook delivery plane (chain-trigger evaluator,
-// outbox emitter, chain-reorg rewind) — isolated from subgraph indexing, so a
-// crash-looping or CPU-hot subgraph can't stall webhook delivery, and the plane
-// scales out on its own. This is the SOLE booter of the plane (the two-deploy
-// cutover is complete; subgraph-processor no longer boots it).
 import { assertWebhookSigningConfigured } from "@secondlayer/shared/crypto/secondlayer-webhook";
 import { assertDbSplit, getDb } from "@secondlayer/shared/db";
 import { logger } from "@secondlayer/shared/logger";

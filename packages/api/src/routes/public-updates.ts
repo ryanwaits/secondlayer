@@ -1,12 +1,4 @@
 /**
- * The email updates list (new posts and launches), double opt-in. No
- * session: the emailed token is the credential.
- *
- *   POST /api/public/updates              { email, source_page? }  join (always 202)
- *   POST /api/public/updates/confirm      { token }                confirm from the emailed link
- *   POST /api/public/updates/unsubscribe  ?t=token or { token }    opt out (also RFC 8058 one-click)
- *   POST /api/public/updates/resubscribe  { token }                opt back in
- *
  * Mounted only in platform mode. Joining never reveals list membership: the
  * answer is `202 { ok: true }` whether the address is new, pending,
  * confirmed or unsubscribed. A new or returning address gets a confirm email
@@ -51,7 +43,6 @@ function newToken(): string {
 	return randomBytes(32).toString("base64url");
 }
 
-/** The JSON object body, or null when it is not one. */
 async function readObject(req: { json(): Promise<unknown> }): Promise<Record<
 	string,
 	unknown
@@ -78,7 +69,6 @@ export function createUpdatesRouter(opts?: {
 	const resolveDb = opts?.getDb ?? getDb;
 	const send = opts?.send ?? sendEmail;
 
-	/** Emails the confirm link; true when it actually went out. */
 	async function sendConfirm(email: string, token: string): Promise<boolean> {
 		const { subject, html, text } = confirmEmail(token);
 		try {

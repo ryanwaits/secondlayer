@@ -1,4 +1,4 @@
-import type { Experimental_DecisionModel } from "ai"; // type-only: erased at runtime
+import type { Experimental_DecisionModel } from "ai";
 import { logger } from "../logger.ts";
 import { systemOneModel } from "./system-one.ts";
 import type { ClassifierName } from "./types.ts";

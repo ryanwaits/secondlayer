@@ -40,21 +40,16 @@ export async function loadConfig(): Promise<Config> {
 			const raw = await readJsonFile<unknown>(configPath());
 			config = ConfigSchema.parse(raw);
 		} catch (error) {
-			// If validation fails, return defaults
 			console.error("Warning: Invalid config file, using defaults");
 			config = { ...DEFAULT_CONFIG };
 		}
 	}
 
-	// Apply environment variable overrides (from .env or shell)
 	config = applyEnvOverrides(config);
 
 	return config;
 }
 
-/**
- * Apply environment variable overrides to config
- */
 function applyEnvOverrides(config: Config): Config {
 	const result = { ...config };
 
@@ -82,7 +77,6 @@ function applyEnvOverrides(config: Config): Config {
  * Save config to disk after validation
  */
 export async function saveConfig(config: Config): Promise<void> {
-	// Validate before saving
 	const validated = ConfigSchema.parse(config);
 	await ensureConfigDir();
 	await writeTextFile(configPath(), `${JSON.stringify(validated, null, 2)}\n`);

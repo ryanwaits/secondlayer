@@ -136,11 +136,6 @@ import type { NavItem } from "./tree";
 const DESIGN_URL =
 	"https://github.com/ryanwaits/secondlayer/blob/main/DESIGN.md#6-components";
 
-/**
- * The lab's shell: top bar, story tree and the story pane. The component filter
- * lives in the bar and narrows the tree, so bar and tree share one client
- * boundary; the story itself arrives as server-rendered `children`.
- */
 export function LabChrome({
 	items,
 	children,
@@ -249,19 +244,12 @@ const VIEW_KEY = "lab:view";
 
 export type StoryViewProps = {
 	storyId: string;
-	/** Each variant's frames, rendered on the server; the view only shows one. */
 	variants: { id: string; label: string; node: ReactNode }[];
 	width?: { min: number; max: number; value: number };
 	stack?: boolean;
-	/** Props, Usage and Rules panes, rendered on the server. */
 	panes: { id: string; label: string; node: ReactNode }[];
 };
 
-/**
- * A frame route in an iframe, as tall as its content. Same origin, so the
- * document is readable: its height is measured on load and followed with a
- * ResizeObserver, which the cleanup disconnects.
- */
 function FrameEmbed({ src, title }: { src: string; title: string }) {
 	const ref = useRef<HTMLIFrameElement>(null);
 	const [height, setHeight] = useState(0);
@@ -316,23 +304,18 @@ export function StoryView({
 	const [px, setPx] = useState(width?.value ?? 0);
 	const [tab, setTab] = useState("controls");
 
-	// Per-viewer convenience: the last theme and viewport, if storage allows.
 	useEffect(() => {
 		try {
 			const saved = JSON.parse(localStorage.getItem(VIEW_KEY) ?? "{}");
 			if (THEMES.some((t) => t.value === saved.theme)) setTheme(saved.theme);
 			if (VIEWPORTS.some((v) => v.value === saved.viewport))
 				setViewport(saved.viewport);
-		} catch {
-			// Storage is optional.
-		}
+		} catch {}
 	}, []);
 	const remember = (next: { theme: string; viewport: string }) => {
 		try {
 			localStorage.setItem(VIEW_KEY, JSON.stringify(next));
-		} catch {
-			// Storage is optional.
-		}
+		} catch {}
 	};
 
 	const tabs = [{ id: "controls", label: "Controls" }, ...panes];
@@ -459,7 +442,6 @@ export function StoryView({
 	);
 }
 
-/** The heat strip's click callback is a function, which a server page cannot pass. */
 export function HeatStripDemo({
 	hours,
 	now,
@@ -482,7 +464,6 @@ export function HeatStripDemo({
 	);
 }
 
-/** AmountPicker is controlled, so its story needs state a server page cannot hold. */
 export function AmountDemo({
 	name,
 	options,
@@ -504,7 +485,6 @@ export function AmountDemo({
 	);
 }
 
-/** The webhook title row: `onRename` is a function, which a server page cannot pass. */
 export function WebhookHeaderDemo({
 	name,
 	managedBy,
@@ -572,7 +552,6 @@ const PAYLOAD_STORY_TRIGGERS: ChainTrigger[] = [
 	},
 ];
 
-/** An opened delivery row's payload viewer, from a real delivery with no network. `kept: false` is a delivery whose payload was cleaned up; `asleep` is a paused webhook whose hosted stack stopped. */
 export function PayloadViewDemo({
 	kept,
 	asleep = false,
@@ -667,7 +646,6 @@ export function PayloadViewDemo({
 
 const ROWS_STORY_NOW = new Date("2026-10-15T12:00:00.000Z");
 
-/** Made-up reads for the Rows story: a month that runs out of free rows on Oct 6, or one that never does. */
 function rowsStoryData(exhausted: boolean): RowsResponse {
 	const today = Date.UTC(2026, 9, 15);
 	const daily: RowsDay[] = [];
@@ -775,7 +753,6 @@ function rowsStoryData(exhausted: boolean): RowsResponse {
 	};
 }
 
-/** The Rows screen: `onRetry` is a function, which a server page cannot pass. */
 export function RowsDemo({ exhausted }: { exhausted: boolean }) {
 	return (
 		<RowsBody
@@ -787,7 +764,6 @@ export function RowsDemo({ exhausted }: { exhausted: boolean }) {
 	);
 }
 
-/** A new account's empty Rows screen, with and without a key. */
 export function RowsEmptyDemo({ firstRun }: { firstRun: boolean }) {
 	const data = rowsStoryData(false);
 	return (
@@ -808,7 +784,6 @@ export function RowsEmptyDemo({ firstRun }: { firstRun: boolean }) {
 	);
 }
 
-/** The Overview's new-account checklist at each stage. */
 export function OverviewOnboardingDemo({
 	stage,
 	firstRowsCode,
@@ -866,7 +841,6 @@ export type OverviewDemoState =
 	| "many"
 	| "loading";
 
-/** Six webhooks that delivered at different times, plus the example's quiet ones. */
 function exampleManyWebhooks(now: Date) {
 	const [first, second, ...waiting] = exampleWebhooks(now);
 	const delivering = [first, second].filter((row) => row !== undefined);
@@ -888,7 +862,6 @@ function exampleManyWebhooks(now: Date) {
 	return [...copies, ...waiting];
 }
 
-/** The whole Overview on example data, one variant per state it has to get right. */
 export function OverviewDemo({ state }: { state: OverviewDemoState }) {
 	const [now] = useState(() => new Date());
 	const subgraph = exampleSubgraph(now);
@@ -966,7 +939,6 @@ export function OverviewDemo({ state }: { state: OverviewDemoState }) {
 	return <OverviewBody {...props} />;
 }
 
-/** The Keys screen and the create flow: callbacks are functions, which a server page cannot pass. */
 const EXAMPLE_APPS: ConnectedApp[] = [
 	{
 		id: "6f1c2a7e-3b4d-4e5f-8a9b-0c1d2e3f4a5b",
@@ -982,7 +954,6 @@ const EXAMPLE_APPS: ConnectedApp[] = [
 	},
 ];
 
-/** The real create flow with a fake key, so the whole lifecycle can be driven. */
 function KeyFlowDemo() {
 	const [flow, dispatch] = useKeyFlow({ step: "naming", error: null });
 	return (
@@ -1083,7 +1054,6 @@ function billingDaily() {
 	return out;
 }
 
-/** The Billing screen on example data: the Add credits panel and the limits are live, so the amount row and the limit field can be tried. */
 export function BillingDemo({ state }: { state: BillingDemoState }) {
 	const co = useCheckout();
 	const fresh = state === "fresh";
@@ -1169,12 +1139,10 @@ export function BillingDemo({ state }: { state: BillingDemoState }) {
 	);
 }
 
-/** Lab-only toast host: the Lab sits outside (www), which mounts the app's one host. */
 export function LabToaster() {
 	return <ToastHost position="bottom-center" />;
 }
 
-/** Fires each toast kind so the style, the stack and the undo shortcut can be checked. */
 export function ToastsDemo() {
 	return (
 		<div
@@ -1250,7 +1218,6 @@ export function ToastsDemo() {
 const LONG_ERROR =
 	"POST https://hooks.example.com/stacks/ingest/very/long/path/that/keeps/going -> 500 Internal Server Error: upstream connect error or disconnect/reset before headers. reset reason: connection termination";
 
-/** Opens a `Sheet` from a button; `detents` picks the auto or the half/full variant. */
 export function SheetDemo({ variant }: { variant: "auto" | "detents" }) {
 	const [open, setOpen] = useState(false);
 	return (
@@ -1306,7 +1273,6 @@ export function SheetDemo({ variant }: { variant: "auto" | "detents" }) {
 	);
 }
 
-/** Three swipe rows in one group: two with Pause and Replay, one with a lone Revoke. */
 export function SwipeRowDemo() {
 	const rows = [
 		{ id: "a", name: "ci-runner", two: true },
@@ -1369,7 +1335,6 @@ export function SwipeRowDemo() {
 	);
 }
 
-/** One `HoldButton` that toasts when the hold completes. */
 export function HoldButtonDemo() {
 	return (
 		<div style={{ padding: 16 }}>
@@ -1416,7 +1381,6 @@ const PHONE_ROWS_FAILING: WebhookRowModel[] = [
 	...PHONE_ROWS_HEALTHY.slice(1, 3),
 ];
 
-/** The phone list with local state, so swipe, Pause and Undo work with no server. */
 export function LocalWebhooksList({
 	failing: oneFailing,
 }: { failing: boolean }) {
@@ -1480,7 +1444,6 @@ export function LocalWebhooksList({
 	);
 }
 
-/** The phone detail with a local test and resume, so the three steps can be walked. */
 export function LocalWebhookDetail({
 	failing: startsFailing,
 	tested = false,
@@ -1522,7 +1485,6 @@ export function LocalWebhookDetail({
 	];
 	const [requeued, setRequeued] = useState<number | null>(null);
 	const [replayOpen, setReplayOpen] = useState(false);
-	// Resuming ends "failing", but the steps stay until the requeue is done.
 	const recovering = useRef(false);
 	if (failing) recovering.current = true;
 	return (
@@ -1591,7 +1553,6 @@ const FAILING_DETAIL = {
 	lastError: "502 Bad Gateway",
 } as const;
 
-/** Subgraphs the phone list shows: at the tip, behind, throwing, reindexing. */
 const PHONE_SUBGRAPHS: SubgraphListItem[] = [
 	...exampleList,
 	{
@@ -1620,7 +1581,6 @@ const PHONE_SUBGRAPHS: SubgraphListItem[] = [
 	},
 ];
 
-/** The phone list with a local sheet, so a row opens the facts and Share fix opens the share sheet with no server. */
 export function LocalSubgraphsList({
 	only,
 	empty = false,
@@ -1678,7 +1638,6 @@ export function LocalSubgraphsList({
 	);
 }
 
-/** The sheet's markup for the throwing subgraph, at a fixed detent, with or without Share fix. */
 export function SubgraphSheetDemo({
 	detent,
 	withErrors = true,
@@ -1709,7 +1668,6 @@ export function SubgraphSheetDemo({
 
 const ACCOUNT_NOW = new Date("2026-10-17T12:00:00.000Z");
 
-/** Daily spend: `early` a day for days 1 to 10, `late` a day for days 11 to 17. */
 function accountDaily(early: number, late: number): DailySpend[] {
 	return Array.from({ length: 17 }, (_, i) => ({
 		date: `2026-10-${String(i + 1).padStart(2, "0")}`,
@@ -1769,7 +1727,6 @@ function accountUsageProps(scenario: AccountScenario) {
 	};
 }
 
-/** A fake checkout: picks an amount, never leaves the Lab. */
 function useLabCheckout() {
 	const [amount, setAmount] = useState(25);
 	return {
@@ -1784,7 +1741,6 @@ function useLabCheckout() {
 	};
 }
 
-/** The phone Usage screen, with a top-up sheet that opens from the button. */
 export function LocalAccountUsage({ scenario }: { scenario: AccountScenario }) {
 	const [open, setOpen] = useState(false);
 	const co = useLabCheckout();
@@ -1806,7 +1762,6 @@ export function LocalAccountUsage({ scenario }: { scenario: AccountScenario }) {
 	);
 }
 
-/** The top-up sheet's markup at a fixed height. */
 export function TopupSheetDemo() {
 	const co = useLabCheckout();
 	const props = accountUsageProps("near-cap");
@@ -1826,7 +1781,6 @@ const ACCOUNT_KEYS: ApiKey[] = [
 	),
 ];
 
-/** The phone key list; a row opens its sheet, where a full hold revokes the key. */
 export function LocalAccountKeys() {
 	const [openId, setOpenId] = useState<string | null>(null);
 	const [revoked, setRevoked] = useState<string[]>([]);
@@ -1874,7 +1828,6 @@ const PUSH_DEFAULTS: PushPrefValues = {
 	keyRepeat: false,
 };
 
-/** The phone's Push segment in one device state; the switches flip locally. */
 export function LocalPushSettings({ state }: { state: PushState }) {
 	const [prefs, setPrefs] = useState(PUSH_DEFAULTS);
 	const [current, setCurrent] = useState(state);
@@ -1893,7 +1846,6 @@ export function LocalPushSettings({ state }: { state: PushState }) {
 	);
 }
 
-/** The key sheet's markup; holding to the end revokes the key locally. */
 export function KeySheetDemo({
 	revoked: startRevoked = false,
 }: { revoked?: boolean }) {
@@ -1921,8 +1873,6 @@ export function KeySheetDemo({
 		</>
 	);
 }
-
-/* ---------- Replay and status pill ---------- */
 
 const REPLAY_RANGES: ReplayRanges = {
 	tip: 9_612_408,
@@ -1978,12 +1928,6 @@ const replayDone = (gaveUp: number): ReplayProgress =>
 
 type ReplayStart = "picker" | "gated" | "running" | "done";
 
-/**
- * The replay sheet with a fake server: pick a range, watch it run, see it
- * finish, requeue what gave up. It has the same shape as `ReplaySheet` (one
- * `Sheet`, only its body changes), so the "Tick" button shows that progress
- * updates never replay the slide-up. Ticks also run on a timer when `ticking`.
- */
 export function LocalReplaySheet({
 	start,
 	open: controlledOpen,
@@ -2139,7 +2083,6 @@ const PILL_TIP = {
 	bitcoinSeenAt: Date.now() - 3 * 60_000,
 };
 
-/** The status pill beside a screen title, with the Activity drawer behind it. */
 export function PillHeaderDemo({
 	items,
 	openDrawer = false,
@@ -2176,7 +2119,6 @@ export function PillHeaderDemo({
 	);
 }
 
-/** Every label the pill can wear, one title row each. */
 export function PillStatesDemo() {
 	const rows: Array<[string, readonly Activity[]]> = [
 		["Replay running", [REPLAY_RUNNING]],
@@ -2230,14 +2172,11 @@ export function PillStatesDemo() {
 	);
 }
 
-/** A running replay and a stalled chain: the pill reads "Replay 38%" with "+1". */
 export const PILL_REPLAY_AND_STALLED: readonly Activity[] = [
 	REPLAY_RUNNING,
 	STALLED_4,
 ];
 
-/** The webhooks index with a week of deliveries per row: one failing, one
- *  paused. A client demo, since the row models come from a client module. */
 export function WebhooksIndexDemo({
 	count,
 	initialView,
@@ -2246,12 +2185,7 @@ export function WebhooksIndexDemo({
 }: {
 	count: number;
 	initialView?: IndexView;
-	/** One webhook paused by you and one by the circuit breaker. */
 	pauses?: boolean;
-	/** token-transfers has failed 10 times in a row and not succeeded for weeks.
-	 *  `clock`: the row carries no verdict, so the browser works it out and
-	 *  shows it failing. `server`: the server's verdict says ok and the pill
-	 *  follows it. */
 	staleReceiver?: "clock" | "server";
 }) {
 	const week = (delivered: number, failedFrom = 168) => ({
@@ -2308,9 +2242,6 @@ export function WebhooksIndexDemo({
 	);
 }
 
-/** The asleep state with a wake that never lands or errors, so the 30 s
- *  fallback and the error line can be seen. Functions can't cross from a story
- *  to a client component, so the wake lives here. */
 export function AsleepWakeDemo({ outcome }: { outcome: "never" | "errors" }) {
 	return (
 		<AsleepState

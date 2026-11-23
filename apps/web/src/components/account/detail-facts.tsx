@@ -6,21 +6,16 @@ import { formatAge, formatDateTime } from "@/lib/account-data";
 import { useCopied } from "@/lib/use-copied";
 import type { ReactNode } from "react";
 
-/** The quiet line under a detail page's name: what the resource is and when
- *  it was made. Items are separated by middots. */
 export function MetaLine({ children }: { children: ReactNode }) {
 	return <p className="wd-meta">{children}</p>;
 }
 
-/** A meta item that copies its full value, e.g. the contract behind a short
- *  name or a receiver URL behind its host. */
 export function MetaCopy({
 	label,
 	shown,
 	full,
 	mark,
 }: {
-	/** What gets copied, for the button's label: "contract", "receiver URL". */
 	label: string;
 	shown: string;
 	full: string;
@@ -44,7 +39,6 @@ export function MetaCopy({
 	);
 }
 
-/** "Created 5 days ago", the exact time on hover or focus. */
 export function CreatedAgo({ iso }: { iso: string }) {
 	const exact = formatDateTime(iso);
 	return (
@@ -66,7 +60,6 @@ export function CreatedAgo({ iso }: { iso: string }) {
 	);
 }
 
-/** One health number. Zero reads quiet; a value that is wrong gets a mark. */
 export function Stat({
 	label,
 	value,
@@ -94,7 +87,6 @@ export function Stat({
 	);
 }
 
-/** A reindex or catch-up: percent done, a bar, and the blocks still to go. */
 export function ProgressStat({
 	label,
 	percent,
@@ -113,7 +105,6 @@ export function ProgressStat({
 		<div className="wd-stat-wide">
 			{label}
 			<b>{mark ? <Mark tone={mark}>{value}</Mark> : value}</b>
-			{/* The percent above already says it; the bar is for the eye. */}
 			<span className="wd-prog" aria-hidden="true">
 				<i style={{ width: `${percent}%` }} />
 			</span>

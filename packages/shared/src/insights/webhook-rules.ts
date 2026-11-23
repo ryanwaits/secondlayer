@@ -39,8 +39,6 @@ const ATTEMPT_WINDOW = 300;
 const ATTEMPT_LOOKBACK_DAYS = 8;
 const PRIOR_WINDOW_MS = 7 * DAY_MS;
 
-// ── Inputs ─────────────────────────────────────────────────────────────
-
 export interface DeliveryAttempt {
 	outboxId: string | null;
 	statusCode: number | null;
@@ -106,8 +104,6 @@ export interface WebhookRuleInput {
 	abiAvailable: boolean;
 }
 
-// ── Small helpers ──────────────────────────────────────────────────────
-
 function consecutiveFromStart(
 	rows: DeliveryAttempt[],
 	predicate: (row: DeliveryAttempt) => boolean,
@@ -149,8 +145,6 @@ function shapeKey(d: DeliveryAttempt): string {
 	return `${codeLabel(d.statusCode)}\u0000${shapeText(d)}`;
 }
 
-/** Distinct (status, body) shapes, most common first. `isNew` = not seen in
- *  the 7 days before these attempts. */
 function buildShapes(
 	affected: DeliveryAttempt[],
 	earlier: DeliveryAttempt[],
@@ -239,11 +233,6 @@ export function bodyExcerpt(text: string | null | undefined): string | null {
 		: tidy;
 }
 
-/**
- * What the endpoint sent back on its latest failed attempt, then when it last
- * worked, when it first failed and when we try again. The webhook page already
- * charts deliveries; this is the part it does not show.
- */
 function responseEvidence(
 	input: WebhookRuleInput,
 	latest: DeliveryAttempt | undefined,
@@ -317,8 +306,6 @@ export function canonicalJson(value: unknown): string {
 	}
 	return JSON.stringify(value) ?? "null";
 }
-
-// ── Rules ──────────────────────────────────────────────────────────────
 
 const receiverDown: InsightRule<WebhookRuleInput> = {
 	id: "receiver_down",
@@ -617,7 +604,6 @@ const receiverLoginWall: InsightRule<WebhookRuleInput> = {
 	},
 };
 
-/** Least-squares line through (x, y). */
 function fitLine(points: { x: number; y: number }[]) {
 	const n = points.length;
 	const meanX = points.reduce((s, p) => s + p.x, 0) / n;
@@ -966,7 +952,6 @@ const duplicateWebhook: InsightRule<WebhookRuleInput> = {
 			(s) => s.url === webhook.url && canonicalJson(s.triggers) === mine,
 		);
 		if (!twin) return null;
-		// One card, on the newer webhook (ties broken by id).
 		const newer =
 			webhook.createdAt.getTime() !== twin.createdAt.getTime()
 				? webhook.createdAt.getTime() > twin.createdAt.getTime()
@@ -1099,8 +1084,6 @@ export const WEBHOOK_RULES: InsightRule<WebhookRuleInput>[] = [
 
 export type { DetectedInsight };
 
-// ── ABI lookup ─────────────────────────────────────────────────────────
-
 const ABI_TTL_MS = 24 * 3600_000;
 
 export interface AbiCache {
@@ -1161,12 +1144,9 @@ async function fetchFunctionNames(
 	}
 }
 
-// ── Loader ─────────────────────────────────────────────────────────────
-
 type Num = string | number | null;
 const num = (v: Num): number | null => (v === null ? null : Number(v));
 
-/** A byte count from a header or a length; null when it is missing or not a number. */
 const sizeOf = (v: string | null): number | null => {
 	if (v === null) return null;
 	const n = Number(v);
@@ -1349,8 +1329,6 @@ export async function loadWebhookInputs(
 		new Date(dayStart + i * DAY_MS).toISOString().slice(0, 10),
 	);
 
-	// ABI lookups: only literal contract_call triggers, only when a hosted
-	// read key and URL exist. Cached 24h per contract.
 	const baseUrl = abiDeps.env.STREAMS_API_URL?.trim();
 	const apiKey = abiDeps.env.INDEX_INTERNAL_API_KEY?.trim();
 	const abiEnabled = Boolean(baseUrl && apiKey);

@@ -47,7 +47,6 @@ export function reconstructBlock(b: IndexBlockRow): Block {
 		// `ctx.client.readOnly` rather than an unpinned tip read.
 		index_block_hash: b.index_block_hash ?? null,
 		timestamp: isoToUnixSeconds(b.block_time),
-		// Index serves canonical rows only.
 		canonical: true,
 		created_at: new Date(0),
 	} as Block;
@@ -137,7 +136,6 @@ export function reconstructEvent(e: IndexEventRow): Event {
 					asset_identifier: e.asset_identifier,
 					sender: e.sender,
 					recipient: e.recipient,
-					// Canonical hex → runner decodes tokenId from raw_value.
 					raw_value: e.value,
 				},
 			} as Event;

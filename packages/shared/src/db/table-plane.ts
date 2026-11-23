@@ -21,7 +21,6 @@ export type DbPlane = "source" | "target" | "both";
  * `Database`) and exist on both — they are intentionally not listed here.
  */
 export const TABLE_TO_DB = {
-	// ── SOURCE: raw chain ──
 	blocks: "source",
 	transactions: "source",
 	events: "source",
@@ -39,7 +38,6 @@ export const TABLE_TO_DB = {
 	// Chain-derived read memo — keyed on index_block_hash, lives with the
 	// blocks it pins to.
 	chain_read_cache: "source",
-	// Shared events-total baseline for `/public/status`.
 	events_total_baseline: "source",
 	// Staged fork contenders — raw chain data, resolved during ingest.
 	pending_fork_blocks: "source",
@@ -50,7 +48,6 @@ export const TABLE_TO_DB = {
 	// Coverage kernel — attests the chain it sits next to.
 	stage_registry: "source",
 	stage_failures: "source",
-	// ── SOURCE: decoded ──
 	decoded_events: "source",
 	decoder_checkpoints: "source",
 	pox5_events: "source",
@@ -65,7 +62,6 @@ export const TABLE_TO_DB = {
 	bns_marketplace_events: "source",
 	bns_names: "source",
 	bns_namespaces: "source",
-	// ── TARGET: accounts / auth / billing ──
 	instances: "target",
 	accounts: "target",
 	api_keys: "target",
@@ -80,14 +76,12 @@ export const TABLE_TO_DB = {
 	oauth_refresh_retired: "target",
 	account_spend_caps: "target",
 	processed_stripe_events: "target",
-	// ── TARGET: webhooks ──
 	webhooks: "target",
 	webhook_outbox: "target",
 	webhook_deliveries: "target",
 	webhook_delivery_hours: "target",
 	webhook_replays: "target",
 	trigger_evaluator_state: "target",
-	// ── TARGET: subgraphs + metadata ──
 	subgraphs: "target",
 	subgraph_operations: "target",
 	subgraph_health_snapshots: "target",
@@ -96,35 +90,25 @@ export const TABLE_TO_DB = {
 	subgraph_error_groups: "target",
 	subgraph_processing_stats: "target",
 	account_credits: "target",
-	// ── TARGET: archive fetch gate charge log ──
 	archive_fetches: "target",
-	// ── TARGET: metered ledger (one append-only row per billable event) ──
 	usage_ledger: "target",
 	usage_monthly_totals: "target",
 	account_balance_alerts: "target",
 	hosted_stack_state: "target",
 	webhook_incident_alerts: "target",
-	// ── TARGET: accounts Sentinel's service key may touch ──
 	sentinel_accounts: "target",
-	// ── TARGET: public waitlist pages ──
 	waitlists: "target",
 	waitlist_signups: "target",
 	contact_requests: "target",
 	update_subscribers: "target",
 	update_sends: "target",
-	// ── TARGET: 24h hosted failed-request record (feedback evidence) ──
 	api_failed_requests: "target",
-	// ── TARGET: 7-day account read log (dashboard insight evidence) ──
 	api_request_log: "target",
-	// ── TARGET: ranked dashboard insights + "expected" mutes ──
 	insights: "target",
 	insight_mutes: "target",
-	// ── TARGET: hosted problem reports ──
 	feedback_tickets: "target",
-	// ── TARGET: web push subscriptions + per-account toggles ──
 	push_subscriptions: "target",
 	push_prefs: "target",
 	push_sent: "target",
-	// ── BOTH ──
 	service_heartbeats: "both",
 } satisfies Record<keyof Database, DbPlane>;

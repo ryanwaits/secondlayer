@@ -76,10 +76,7 @@ async function runReorgCascade(
 		oldHash: string;
 		newHash: string;
 		sweepBlocks: boolean;
-		/** Events at the orphaned tip measured before a write replaced them. */
 		orphanedEventCount?: number;
-		/** The new block's index hash when the caller holds its payload;
-		 *  otherwise resolved from `blocks` / `pending_fork_blocks`. */
 		newIndexBlockHash?: string | null;
 	},
 ): Promise<void> {
@@ -210,7 +207,6 @@ async function resolveIndexBlockHash(
 	return rows[0]?.index_block_hash || null;
 }
 
-/** Why a height's canonical block changed outside live ingest. */
 export type CanonicalChangeCause =
 	| "fork_repair"
 	| "orphan_reclaim"
@@ -221,7 +217,6 @@ export type CanonicalChange = {
 	oldHash: string;
 	newHash: string;
 	cause: CanonicalChangeCause;
-	/** The new block's index hash, when the caller holds its payload. */
 	newIndexBlockHash?: string | null;
 	write: (tx: Transaction<Database>) => Promise<void>;
 	/**
@@ -233,8 +228,6 @@ export type CanonicalChange = {
 	cascade?: "always" | "if_rows_change";
 };
 
-/** Fingerprint of what derived planes read at a height: its transactions and
- *  events, independent of insertion order. */
 async function heightRowsFingerprint(
 	tx: Kysely<Database>,
 	height: number,
@@ -499,10 +492,6 @@ export async function reconcileReorgedRange(
 	return { checked, repaired };
 }
 
-/**
- * Detects if a new block represents a reorganization
- * Returns true if reorg detected
- */
 export async function detectReorg(
 	blockHeight: number,
 	newHash: string,

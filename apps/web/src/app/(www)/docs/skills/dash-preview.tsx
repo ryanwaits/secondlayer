@@ -2,13 +2,6 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { DashPreviewClient } from "./dash-preview-client";
 
-/**
- * The dashboard an agent builds with the `secondlayer` skill, drawn by the
- * skill's own kit (kit.js, kit.css, the webhook-health recipe) on an example
- * account. Read from the skill at build time, so the preview can't drift
- * from what an agent ships.
- */
-
 const TEMPLATE = join(
 	process.cwd(),
 	"..",
@@ -22,8 +15,6 @@ const RECIPES = join(TEMPLATE, "..", "recipes");
 
 const read = (path: string) => readFileSync(path, "utf8");
 
-/** kit.css for a shadow root: its page-level rules land on the host. The
- *  docs window frames the page, so the kit's own frame and bar go. */
 export function shadowKitCss(css: string): string {
 	return `${css.replace(/:root\b/g, ":host").replace(/^body\s*\{/m, ":host {")}
 :host { display: block; padding: 0; background: none; }

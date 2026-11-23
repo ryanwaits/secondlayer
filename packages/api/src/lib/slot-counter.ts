@@ -16,8 +16,6 @@ import {
  * same as the data-read rate limiters: a blip must not refuse reads.
  */
 export interface SlotCounter {
-	/** A `release` for the slot taken, or `null` when `key` already holds
-	 *  `limit`. `release` is idempotent. */
 	acquire(
 		key: string,
 		limit: number,
@@ -46,8 +44,6 @@ export class InProcSlotCounter implements SlotCounter {
 	}
 }
 
-// Take a slot atomically: count up, back out if over the limit, and refresh
-// the expiry so an idle key's counter cleans itself up.
 const ACQUIRE_LUA = `
 local n = redis.call('INCR', KEYS[1])
 if n > tonumber(ARGV[1]) then
@@ -96,9 +92,7 @@ export class RedisSlotCounter implements SlotCounter {
 					"1",
 					redisKey,
 				]);
-			} catch {
-				// The TTL reclaims it.
-			}
+			} catch {}
 		};
 	}
 
@@ -138,7 +132,6 @@ export function getSlotCounter(): SlotCounter {
 	return cached;
 }
 
-/** Drop the memoized counter and any Redis slots (tests only). */
 export async function _resetSlotCounterForTests(): Promise<void> {
 	if (cached instanceof RedisSlotCounter) await cached.clear();
 	cached = null;

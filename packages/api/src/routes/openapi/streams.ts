@@ -17,13 +17,6 @@ import {
 	qp,
 } from "./shared.ts";
 
-/**
- * Streams: the raw, ordered event firehose (`routes/streams.ts`,
- * `streams/*.ts`). Rows are `StreamsEventEnvelope` (`streams/events.ts`).
- */
-
-// Classic types on the default clock, contract state types on `clock=vm`. One
-// enum so the reference lists every type the route accepts.
 const EVENT_TYPES = [...DECODED_EVENT_TYPES, ...VM_EVENT_TYPES];
 const VM_TYPES_LIST = VM_EVENT_TYPES.join(", ");
 
@@ -34,7 +27,6 @@ const STREAMS_429 = `Rate limited on the hosted API (${STREAMS_ANON_RATE_LIMIT_P
 const STREAMS_503 =
 	"No canonical block indexed yet (`CHAIN_DATA_UNAVAILABLE`): wait for the indexer to ingest its first block. With `chain=bitcoin`, the Bitcoin database is configured but unreachable (`BITCOIN_DATA_UNAVAILABLE`): retry shortly";
 
-/** Headers `respondSignedJson` adds when `STREAMS_SIGNING_PRIVATE_KEY` is set. */
 const SIGNATURE_HEADERS = {
 	"X-Signature": {
 		description:
@@ -60,9 +52,6 @@ function signedJson200(
 	};
 }
 
-/** `chain=` (plan 059) — every Streams route accepts it. `bitcoin` serves
- *  Runes events (`RuneStreamsEvent`) on their own cursor space instead of the
- *  Stacks default; see that schema. */
 const CHAIN_PARAM = {
 	...qp(
 		"chain",
@@ -73,7 +62,6 @@ const CHAIN_PARAM = {
 	schema: { type: "string", enum: ["stacks", "bitcoin"], default: "stacks" },
 };
 
-/** `chain=bitcoin`-only filters on `/events` and `/events/stream`. */
 const BITCOIN_FILTER_PARAMS = [
 	qp(
 		"rune",
@@ -109,8 +97,6 @@ function eventTypesParam(name: string, description: string) {
 	};
 }
 
-/** Start position and filters, shared by the page read and the SSE tail
- *  (both parse the same `STREAMS_EVENTS_ALLOWED` set). */
 const START_PARAMS = [
 	{
 		...qp(
@@ -491,7 +477,6 @@ export const streamsPaths = {
 	},
 };
 
-/** Resource schemas for these responses, merged into `components.schemas`. */
 export const streamsSchemas = {
 	StreamsEvent: {
 		type: "object",
@@ -751,7 +736,6 @@ export const streamsSchemas = {
 					divisibility: 5,
 					premine: "10000000000000000",
 					turbo: false,
-					// Premine-only: never had mint terms.
 					terms: null,
 				},
 			},
@@ -778,8 +762,6 @@ export const streamsSchemas = {
 				description: "Seconds since this checkpoint was written.",
 			},
 		},
-		// block_hash isn't tracked in the row set this was pulled from (2026-09-28),
-		// so it's an explicit all-zero placeholder rather than an invented one.
 		example: {
 			block_height: 968925,
 			block_hash:
@@ -802,8 +784,6 @@ export const streamsSchemas = {
 				description: "Always `true`.",
 			},
 		},
-		// DOG's etch block; block_hash isn't tracked in the row set this was
-		// pulled from, so it's an explicit all-zero placeholder.
 		example: {
 			block_height: 840000,
 			block_hash:

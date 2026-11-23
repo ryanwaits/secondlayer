@@ -2,11 +2,6 @@
 
 import { AgentPromptBlock } from "@/components/agent-prompt";
 
-/**
- * D7 CopyBlock — ADOPTS the production agent-prompt block (one
- * implementation, two mounts; never forked). A copyable
- * hand-to-your-agent block with the collapse mask for long prompts.
- */
 export function CopyBlock({
 	title,
 	code,

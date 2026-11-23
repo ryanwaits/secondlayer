@@ -1,7 +1,6 @@
 import { IntentLink } from "@/components/intent-link";
 import type { ReactNode } from "react";
 
-/** Rows only: reads need a key. A link to Keys, never a button (the button lives on Keys). */
 export function ReadsKeyLine({ state }: { state: "first" | "none_active" }) {
 	return (
 		<p className="ob-key">
@@ -21,13 +20,10 @@ export interface ChecklistStep {
 	title: string;
 	body: ReactNode;
 	done: boolean;
-	/** The step to do next: gets the blue ring. */
 	current: boolean;
-	/** Shown under the body while this step is the current one. */
 	extra?: ReactNode;
 }
 
-/** A short ordered list: a numbered circle per step, a check when done. */
 export function Checklist({ steps }: { steps: readonly ChecklistStep[] }) {
 	return (
 		<ol className="ob-steps">
@@ -55,20 +51,16 @@ export function Checklist({ steps }: { steps: readonly ChecklistStep[] }) {
 }
 
 export interface PlaceholderRow {
-	/** Real text for the first cell, or a grey bar when absent. */
 	name?: string;
-	/** Bar widths, in percent, for the state and count cells. */
 	state?: number;
 	count?: number;
 }
 
-/** Faint rows that preview what fills in. Not interactive, hidden from readers. */
 export function PlaceholderRows({
 	rows,
 	note,
 }: {
 	rows: readonly PlaceholderRow[];
-	/** A line under the rows, such as "These fill in as you go." */
 	note?: string;
 }) {
 	return (

@@ -3,9 +3,6 @@ import { Hono } from "hono";
 import { getClientIp } from "../auth/http.ts";
 
 /**
- * `POST /v1/batch` — up to 10 public reads in one round trip.
- *
- * Built for LLM agents, which pay per round trip in both latency and tokens.
  * Each item re-dispatches through the full app pipeline (auth, quotas,
  * rate limits all apply per item), so this is purely a transport optimization
  * — no payment or permission semantics change. Forwarded Authorization
@@ -31,8 +28,6 @@ type BatchItem = {
 export type BatchDispatch = (
 	path: string,
 	init: { headers: Record<string, string>; signal?: AbortSignal },
-	/** The batch request itself, so a dispatcher can carry its audience
-	 *  (an MCP-made batch makes MCP-made items: auth/oauth/audience.ts). */
 	parent: Request,
 ) => Promise<Response>;
 
@@ -121,7 +116,6 @@ export function createBatchRouter(dispatch: BatchDispatch) {
 						).toString()}`
 					: "";
 				try {
-					// A caller that hangs up cancels every item still running.
 					const res = await dispatch(
 						`${target}${qs}`,
 						{ headers, signal: c.req.raw.signal },

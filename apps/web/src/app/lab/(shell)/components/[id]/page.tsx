@@ -51,7 +51,6 @@ export default async function StoryPage({
 	const story = getStory((await params).id);
 	if (!story) notFound();
 
-	// Every variant renders once per theme frame, all on the server.
 	const variants = story.variants.map((variant) => ({
 		id: variant.id,
 		label: variant.label,

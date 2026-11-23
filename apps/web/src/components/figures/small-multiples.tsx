@@ -3,11 +3,6 @@ const PH = 90;
 const PT = 34;
 const GAP = 28;
 
-/**
- * C3 SmallMultiples — the same measure across many entities. Shared
- * scales always (a per-panel scale is a lie); one measure, mono panel
- * titles, endpoint dots instead of a legend.
- */
 export function SmallMultiples({
 	panels,
 	yMax,

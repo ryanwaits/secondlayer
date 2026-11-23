@@ -357,7 +357,6 @@ export function createChainReadClient(ctx: ChainReadContext): ChainReadClient {
 	): Promise<unknown> => {
 		const db = ctx.db ?? getSourceDb();
 		const rpcUrl = ctx.rpcUrl || process.env.STACKS_NODE_RPC_URL || undefined;
-		// No node and no hosted api to fall back to: say so before any I/O.
 		if (!rpcUrl && !process.env.SUBGRAPH_INDEX_API_URL) {
 			throw new HandlerReadError(NO_NODE_MESSAGE);
 		}
@@ -400,7 +399,6 @@ export function createChainReadClient(ctx: ChainReadContext): ChainReadClient {
 					// change" is a claim about future blocks, not a license to read
 					// a tip that may be ahead of the one being processed.
 					if (!ctx.indexBlockHash && target.kind === "hosted") {
-						// The hosted route only ever answers pinned reads.
 						throw new HandlerReadError(
 							`Block ${ctx.blockHeight} has no index_block_hash, so a hosted contract read cannot be pinned to it. Reindex the subgraph from this block once the block is re-ingested.`,
 						);

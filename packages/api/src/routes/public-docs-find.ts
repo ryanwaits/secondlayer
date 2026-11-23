@@ -1,8 +1,4 @@
 /**
- * Docs search finder: the sections nearest in meaning to a query.
- *
- *   POST /api/public/docs-find  { q }  →  { results: [{ id, cos }] }   (top 30)
- *
  * Mounted only in platform mode. The browser calls it directly so the rate
  * limit sees the visitor's IP. The route embeds the query with the model the
  * published section vectors were built with and returns cosines against them;
@@ -35,7 +31,6 @@ const ANSWER_CACHE_MAX = 500;
 const TOP_K = 30;
 const DEFAULT_VECTORS_URL = "https://www.secondlayer.tools/docs/vectors.json";
 
-/** The file `bun run docs:vectors` writes, served at /docs/vectors.json. */
 export type VectorFile = {
 	model: string;
 	dims: number;
@@ -44,7 +39,6 @@ export type VectorFile = {
 
 export type Nearest = { id: string; cos: number };
 
-/** The vectors decoded once: row `i` of `matrix` belongs to `ids[i]`. */
 export type VectorIndex = {
 	model: string;
 	dims: number;
@@ -63,7 +57,6 @@ function isVectorFile(value: unknown): value is VectorFile {
 	);
 }
 
-/** Dequantizes int8 rows; rows of the wrong length are dropped. */
 export function decodeVectors(file: VectorFile): VectorIndex {
 	const rows = file.items.filter(
 		(i) =>
@@ -87,7 +80,6 @@ export function decodeVectors(file: VectorFile): VectorIndex {
 	};
 }
 
-/** First `dims` values, scaled to unit length. */
 export function unitPrefix(vector: number[], dims: number): Float32Array {
 	const out = Float32Array.from(vector.slice(0, dims));
 	const norm = Math.hypot(...out) || 1;
@@ -95,7 +87,6 @@ export function unitPrefix(vector: number[], dims: number): Float32Array {
 	return out;
 }
 
-/** Cosine of the query against every row (rows are unit length), best `k` first. */
 export function nearest(
 	index: VectorIndex,
 	query: Float32Array,
@@ -111,10 +102,8 @@ export function nearest(
 	return scored.sort((a, b) => b.cos - a.cos).slice(0, k);
 }
 
-/** Lowercased, whitespace-collapsed: the cache key for a query. */
 const normalize = (q: string) => q.toLowerCase().replace(/\s+/g, " ");
 
-/** Section vectors from a fixed URL, cached 10 min, last good copy kept on failure. */
 export function createVectorSource(opts?: {
 	fetchImpl?: typeof fetch;
 	now?: () => number;

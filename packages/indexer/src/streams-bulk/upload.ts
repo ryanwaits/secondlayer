@@ -74,7 +74,6 @@ export async function objectExists(params: {
 	}
 }
 
-/** Fetch and parse a JSON object, or null when the key doesn't exist. */
 export async function getJsonObject<T>(params: {
 	client: S3Client;
 	bucket: string;
@@ -95,7 +94,6 @@ export async function getJsonObject<T>(params: {
 	}
 }
 
-/** Like {@link getJsonObject}, with the object's ETag for a conditional write. */
 export async function getJsonObjectWithEtag<T>(params: {
 	client: S3Client;
 	bucket: string;
@@ -124,7 +122,6 @@ export async function getJsonObjectWithEtag<T>(params: {
 	}
 }
 
-/** The object changed (or appeared) since it was read: a conditional write lost. */
 export class PreconditionFailedError extends Error {
 	constructor(readonly key: string) {
 		super(`${key} changed since it was read`);

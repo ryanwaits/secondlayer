@@ -6,7 +6,6 @@ export interface MeterItem {
 	body: ReactNode;
 }
 
-/** Price/allowance tiles. */
 export function Meters({ items }: { items: readonly MeterItem[] }) {
 	return (
 		<div className="meters">

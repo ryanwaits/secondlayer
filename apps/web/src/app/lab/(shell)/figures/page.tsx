@@ -110,7 +110,6 @@ function Cat({
 	);
 }
 
-// C1 demo data: event age climbing near 39k, backlog at ~0, deterministic.
 const C1_POINTS = Array.from({ length: 41 }, (_, i) => {
 	const t = 9 + (i / 40) * 10;
 	return {
@@ -120,7 +119,6 @@ const C1_POINTS = Array.from({ length: 41 }, (_, i) => {
 	};
 });
 
-// C8 demo data: dense early weeks fading to an empty recent month.
 const C8_WEEKS = Array.from({ length: 8 }, (_, w) =>
 	Array.from({ length: 7 }, (_, d) =>
 		w < 3

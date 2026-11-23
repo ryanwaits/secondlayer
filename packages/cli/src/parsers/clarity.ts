@@ -27,16 +27,11 @@ import { normalizeAbi } from "@secondlayer/stacks/clarity";
  * `clarinet: true`, which pulls real ABIs out of simnet.
  */
 
-// ---------------------------------------------------------------------------
-// Reader
-// ---------------------------------------------------------------------------
-
 type Node =
 	| { kind: "atom"; value: string }
 	| { kind: "list"; items: Node[] }
 	| { kind: "tuple"; fields: Array<{ name: string; value: Node }> };
 
-/** Characters that terminate an atom and stand on their own as tokens. */
 const DELIMITERS = new Set(["(", ")", "{", "}", ",", ":"]);
 
 function isWhitespace(char: string): boolean {
@@ -64,7 +59,6 @@ function tokenize(source: string): string[] {
 			continue;
 		}
 
-		// Keep string literals whole so their contents never look like syntax.
 		if (char === '"') {
 			let end = i + 1;
 			while (end < source.length && source[end] !== '"') {
@@ -99,10 +93,6 @@ function tokenize(source: string): string[] {
 	return tokens;
 }
 
-/**
- * Parse Clarity source into s-expressions, with `{ key: type }` sugar read as
- * a tuple node so both tuple spellings reach {@link typeToAbi} the same way.
- */
 function readForms(source: string): Node[] {
 	const tokens = tokenize(source);
 	let pos = 0;
@@ -135,7 +125,7 @@ function readForms(source: string): Node[] {
 			const node = readNode();
 			if (node) items.push(node);
 		}
-		pos++; // closing paren
+		pos++;
 		return items;
 	}
 
@@ -149,7 +139,7 @@ function readForms(source: string): Node[] {
 			const value = readNode();
 			if (value) fields.push({ name, value });
 		}
-		pos++; // closing brace
+		pos++;
 		return fields;
 	}
 
@@ -160,10 +150,6 @@ function readForms(source: string): Node[] {
 	}
 	return forms;
 }
-
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
 
 /**
  * Stand-in for a type the source does not declare. Generators fall through to
@@ -188,19 +174,16 @@ function atomToAbi(value: string): AbiType {
 		case "trait_reference":
 			return "trait_reference";
 		default:
-			// `<sip-010-trait>` and friends.
 			return value.startsWith("<") ? "trait_reference" : UNKNOWN;
 	}
 }
 
-/** Sized types (`(buff 32)`) are only usable with their declared length. */
 function readLength(node: Node | undefined): number | null {
 	if (node?.kind !== "atom") return null;
 	const length = Number.parseInt(node.value, 10);
 	return Number.isSafeInteger(length) && length >= 0 ? length : null;
 }
 
-/** Read `(name type)` pairs into tuple fields, skipping malformed entries. */
 function readFieldPairs(nodes: Node[]): Array<{ name: string; type: AbiType }> {
 	return nodes.flatMap((node) => {
 		if (node.kind !== "list") return [];
@@ -225,7 +208,6 @@ function typeToAbi(node: Node): AbiType {
 	const [head, ...args] = node.items;
 	if (!head) return UNKNOWN;
 
-	// Legacy tuple spelling: `((name type) (name type))`.
 	if (head.kind !== "atom") {
 		const fields = readFieldPairs(node.items);
 		return fields.length > 0 ? { tuple: fields } : UNKNOWN;
@@ -264,10 +246,6 @@ function typeToAbi(node: Node): AbiType {
 	}
 }
 
-// ---------------------------------------------------------------------------
-// Definitions
-// ---------------------------------------------------------------------------
-
 const FUNCTION_ACCESS: Record<string, FunctionAccess> = {
 	"define-public": "public",
 	"define-read-only": "read-only",
@@ -301,28 +279,24 @@ function toFunction(form: Node[], access: FunctionAccess): AbiFunction | null {
 	};
 }
 
-/** `(define-map name key value)` — both shapes are declared in source. */
 function toMap(form: Node[]): AbiMap | null {
 	const [, nameNode, key, value] = form;
 	if (nameNode?.kind !== "atom" || !key || !value) return null;
 	return { name: nameNode.value, key: typeToAbi(key), value: typeToAbi(value) };
 }
 
-/** `(define-data-var name type initial-value)`. */
 function toVariable(form: Node[]): AbiVariable | null {
 	const [, nameNode, type] = form;
 	if (nameNode?.kind !== "atom" || !type) return null;
 	return { name: nameNode.value, type: typeToAbi(type), access: "variable" };
 }
 
-/** `(define-fungible-token name [max-supply])`. */
 function toFungibleToken(form: Node[]): AbiFungibleToken | null {
 	const nameNode = form[1];
 	if (nameNode?.kind !== "atom") return null;
 	return { name: nameNode.value };
 }
 
-/** `(define-non-fungible-token name identifier-type)`. */
 function toNonFungibleToken(form: Node[]): AbiNonFungibleToken | null {
 	const [, nameNode, type] = form;
 	if (nameNode?.kind !== "atom") return null;

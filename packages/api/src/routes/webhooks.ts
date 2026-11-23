@@ -73,8 +73,6 @@ const REPLAY_RANGE_TOO_LARGE_RE = /^replay range exceeds \d+k? blocks$/;
 const UUID_RE =
 	/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-/** What a requeue does to a dead outbox row. Shared by the per-row and bulk
- *  requeue so they can't drift. */
 const REQUEUE_SET = {
 	status: "pending",
 	dead_reason: null,
@@ -181,9 +179,6 @@ function toDetail(sub: Webhook) {
 	};
 }
 
-// Subgraph-row webhooks were removed. A pinned CLI or SDK still sending their
-// fields gets an explicit code instead of a generic "triggers required".
-// Delete this guard on the next major.
 const SUBGRAPH_WEBHOOK_FIELDS = ["subgraphName", "tableName", "filter"];
 
 function subgraphWebhooksRemoved(body: unknown): boolean {
@@ -200,7 +195,6 @@ const SUBGRAPH_WEBHOOKS_REMOVED_RESPONSE = {
 	code: "SUBGRAPH_WEBHOOKS_REMOVED",
 } as const;
 
-// ── Shared testnet stack rules (only when TESTNET_WEBHOOK_STACK=true) ──
 // One free stack serves every testnet account, so creation is allowlisted
 // and capped. A trigger type added later is refused until listed here.
 
@@ -224,7 +218,6 @@ const MAX_TESTNET_WEBHOOKS_TOTAL = 500;
 const MAX_TESTNET_TRIGGERS = 5;
 const MAX_TESTNET_CONCURRENCY = 5;
 
-/** A 400 body when the request breaks a testnet shape rule, else null. */
 function testnetShapeError(input: {
 	triggers?: ChainTrigger[];
 	concurrency?: number;
@@ -257,9 +250,6 @@ function testnetShapeError(input: {
 
 const RUNE_TRIGGER_TYPE_SET = new Set<string>(RUNE_EVENT_TYPES);
 
-/** The minimal Kysely surface `resolveRuneId` needs — a real `getBitcoinDb()`
- *  handle satisfies this, and a test can pass a lightweight stub instead of
- *  standing up a scratch Bitcoin/Runes database for this one lookup. */
 export type RuneEntryLookupDb = {
 	selectFrom(table: "rune_entries"): {
 		select(column: "rune_id"): {
@@ -272,9 +262,6 @@ export type RuneEntryLookupDb = {
 	};
 };
 
-/** Resolve a `RuneRef` (id or name) to its canonical `rune_id`. Mirrors the
- *  private `resolveRuneId` in `../index/runes.ts` and `../streams/bitcoin.ts` —
- *  an id-form ref already is the key; a name-form ref needs one lookup. */
 export async function resolveRuneId(
 	ref: ReturnType<typeof parseRuneRef>,
 	db: RuneEntryLookupDb,
@@ -289,12 +276,6 @@ export async function resolveRuneId(
 }
 
 /**
- * Normalize every Runes trigger's `rune` field (an id like `840000:3` or a
- * name like `DOG•GO•TO•THE•MOON`) to its canonical `rune_id` before storage
- * (plan 060 design) — the Bitcoin evaluator then matches with a plain string
- * compare against a Streams event's `rune_id`, no lookup at match time.
- * Throws `ValidationError` (→ 400) for an unparseable or unresolvable rune.
- *
  * With no live Bitcoin data to resolve against (Bitcoin not configured on
  * this instance, or configured but the lazy singleton has no connection) an
  * id-form ref is still accepted (re-encoded to its canonical form — it IS the
@@ -303,9 +284,6 @@ export async function resolveRuneId(
  * compares against `rune_id`, not a name. Rejecting up front (rather than
  * degrading to a no-op like other chain-trigger fields) is what actually
  * prevents a dead-on-arrival webhook here.
- *
- * `opts` is a test seam (`webhooks-runes.test.ts`, no scratch DB); real
- * callers omit it.
  */
 export async function normalizeRuneTriggers(
 	triggers: ChainTrigger[],
@@ -349,8 +327,6 @@ export async function normalizeRuneTriggers(
 	return normalized;
 }
 
-// ── GET /api/webhooks ──────────────────────────────────────────────
-
 app.get("/", async (c) => {
 	const accountId = getTenantScopedAccountId(c);
 	if (accountId === null) {
@@ -361,8 +337,6 @@ app.get("/", async (c) => {
 	const rows = await listWebhooks(getDb(), accountId, { limit, offset });
 	return c.json({ data: rows.map(toSummary) });
 });
-
-// ── POST /api/webhooks ─────────────────────────────────────────────
 
 app.post("/", async (c) => {
 	const accountId = getTenantScopedAccountId(c);
@@ -454,7 +428,6 @@ app.post("/", async (c) => {
 	}
 });
 
-// ── GET /api/webhooks/activity ─────────────────────────────────────
 // One call for the list page's heat strips. Registered before `/:id` so the
 // literal path can never be read as an id (ids are UUIDs, but order is the
 // contract). Delivered/failed are attempts from `webhook_deliveries`.
@@ -510,7 +483,6 @@ app.get("/activity", async (c) => {
 	return c.json({ hours, webhooks: [...slots.values()] });
 });
 
-// ── GET /api/webhooks/replays ──────────────────────────────────────
 // Replays in progress or started in the last 24h across the account. Registered
 // before `/:id` for the same reason as `/activity`.
 
@@ -529,7 +501,6 @@ app.get("/replays", async (c) => {
 	return c.json({ data });
 });
 
-// ── GET /api/webhooks/signing-key ──────────────────────────────────
 // The public half of the key this stack signs deliveries with. Hosted stacks
 // each hold their own key, so `/public/streams/signing-key` can't verify them.
 // Registered before `/:id` for the same reason as `/activity`.
@@ -550,8 +521,6 @@ app.get("/signing-key", (c) => {
 	});
 });
 
-// ── GET /api/webhooks/:id ──────────────────────────────────────────
-
 app.get("/:id", async (c) => {
 	const accountId = getTenantScopedAccountId(c);
 	if (accountId === null) {
@@ -562,8 +531,6 @@ app.get("/:id", async (c) => {
 	if (!sub) return c.json({ error: "Webhook not found" }, 404);
 	return c.json(toDetail(sub));
 });
-
-// ── PATCH /api/webhooks/:id ────────────────────────────────────────
 
 app.patch("/:id", async (c) => {
 	const accountId = getTenantScopedAccountId(c);
@@ -640,8 +607,6 @@ app.patch("/:id", async (c) => {
 	return c.json(toDetail(updated));
 });
 
-// ── POST /api/webhooks/:id/pause ───────────────────────────────────
-
 app.post("/:id/pause", async (c) => {
 	const accountId = getTenantScopedAccountId(c);
 	if (accountId === null) return c.json({ error: "Unauthorized" }, 401);
@@ -656,8 +621,6 @@ app.post("/:id/pause", async (c) => {
 	return c.json(toDetail(sub));
 });
 
-// ── POST /api/webhooks/:id/resume ──────────────────────────────────
-
 app.post("/:id/resume", async (c) => {
 	const accountId = getTenantScopedAccountId(c);
 	if (accountId === null) return c.json({ error: "Unauthorized" }, 401);
@@ -671,8 +634,6 @@ app.post("/:id/resume", async (c) => {
 	await notifyWebhooksChanged(getDb(), accountId);
 	return c.json(toDetail(sub));
 });
-
-// ── POST /api/webhooks/:id/rotate-secret ───────────────────────────
 
 app.post("/:id/rotate-secret", async (c) => {
 	const accountId = getTenantScopedAccountId(c);
@@ -690,9 +651,6 @@ app.post("/:id/rotate-secret", async (c) => {
 	});
 });
 
-// Send a one-off test webhook to the webhook's URL (built for its configured
-// format, SSRF-guarded) and log it as a delivery row (null outbox_id) so it shows
-// up under the webhook's deliveries.
 app.post("/:id/test", async (c) => {
 	const accountId = getTenantScopedAccountId(c);
 	if (accountId === null) return c.json({ error: "Unauthorized" }, 401);
@@ -702,8 +660,6 @@ app.post("/:id/test", async (c) => {
 	return c.json(result);
 });
 
-// ── GET /api/webhooks/:id/deliveries ───────────────────────────────
-
 const MAX_WINDOW_MS = 31 * 24 * 3_600_000;
 
 app.get("/:id/deliveries", async (c) => {
@@ -712,8 +668,6 @@ app.get("/:id/deliveries", async (c) => {
 	const sub = await getWebhook(getDb(), accountId, c.req.param("id"));
 	if (!sub) return c.json({ error: "Webhook not found" }, 404);
 
-	// Optional `from`/`to` window (hour drill-down). Without it: newest 100, or
-	// the newest `_limit` (1 to 100) for a first screen's worth.
 	const limit = clampLimit(c.req.query("_limit"), 100, 100);
 	const fromParam = c.req.query("from");
 	const toParam = c.req.query("to");
@@ -749,7 +703,6 @@ app.get("/:id/deliveries", async (c) => {
 			"d.status_code",
 			"d.error_message",
 			"d.duration_ms",
-			// Preview only: the full body is on the single-delivery read.
 			sql<string | null>`left(d.response_body, 512)`.as("response_body"),
 			"d.dispatched_at",
 			"o.block_height",
@@ -784,9 +737,7 @@ app.get("/:id/deliveries", async (c) => {
 			seq: total - i,
 			attempt: r.attempt,
 			statusCode: r.status_code,
-			// Null when the outbox row was already compacted away.
 			blockHeight: r.block_height === null ? null : Number(r.block_height),
-			// Null when the outbox row is gone, or predates the block_time column.
 			blockTime: r.block_time === null ? null : r.block_time.toISOString(),
 			errorMessage: r.error_message,
 			durationMs: r.duration_ms,
@@ -798,12 +749,6 @@ app.get("/:id/deliveries", async (c) => {
 	});
 });
 
-// ── GET /api/webhooks/:id/activity ─────────────────────────────────
-// Hourly delivered/waiting/gave-up counts over the last 7 days (zero-filled
-// to 168 hours), plus the current queue depth — the events chart and the
-// catch-up bar on the detail page poll this. One query over `webhook_outbox`
-// keyed on (webhook_id, created_at), matching the `outbox_sub_idx` index.
-
 const ACTIVITY_HOURS = 168;
 const ACTIVITY_KEY_BY_STATUS: Record<
 	OutboxStatus,
@@ -814,14 +759,12 @@ const ACTIVITY_KEY_BY_STATUS: Record<
 	dead: "gaveUp",
 };
 
-/** A delivery attempt that got a 2xx response. */
 const SUCCESS_ATTEMPT = sql`(status_code >= 200 AND status_code < 300)`;
 
 const BAND_DAYS = 28;
 /** Below this median attempts/hour, "usual" says nothing and the band hides. */
 const BAND_MIN_MEDIAN = 1;
 
-/** Nearest-rank percentile (`p` in 0..1) of unsorted `values`. */
 export function percentileNearestRank(values: number[], p: number): number {
 	if (values.length === 0) return 0;
 	const sorted = [...values].sort((a, b) => a - b);
@@ -829,11 +772,6 @@ export function percentileNearestRank(values: number[], p: number): number {
 	return sorted[Math.min(rank, sorted.length) - 1] as number;
 }
 
-/**
- * p10/p90 of delivered attempts per UTC hour of day over the last 28 full
- * days. `counts` maps an hour-start ISO timestamp to its 2xx attempts (missing
- * hours are zero). Null when the median hourly count is under one.
- */
 export function usualBand(
 	counts: Map<string, number>,
 	now: Date,
@@ -856,8 +794,6 @@ export function usualBand(
 	}));
 }
 
-/** `count` hour-aligned UTC ISO timestamps, oldest first, ending on the
- *  current (partial) hour. */
 function hourBucketsUtc(now: Date, count: number): string[] {
 	const currentHourMs = Math.floor(now.getTime() / 3_600_000) * 3_600_000;
 	const buckets: string[] = [];
@@ -908,9 +844,6 @@ app.get("/:id/activity", async (c) => {
 				)
 				.groupBy("status")
 				.execute(),
-			// Same window and index as the hourly query above, grouped by
-			// `event_type` instead of hour × status — the config card's
-			// per-trigger volume (design 5).
 			db
 				.selectFrom("webhook_outbox")
 				.select(["event_type", db.fn.countAll<string>().as("n")])
@@ -1010,13 +943,10 @@ app.get("/:id/activity", async (c) => {
 	});
 });
 
-// ── GET /api/webhooks/:id/deliveries/:deliveryId — one attempt ────
 // The delivery card's data: the delivery row plus its outbox context
 // (payload, event/tx/block info), left-joined since the outbox row may
 // already be compacted away (7-day retention on delivered rows).
 
-/** A chain-trigger row's `row_pk` carries `event_index`. Settlement and reorg
- *  rows carry neither. */
 function eventIndexFromRowPk(rowPk: unknown): number | null {
 	if (!rowPk || typeof rowPk !== "object") return null;
 	const pk = rowPk as Record<string, unknown>;
@@ -1081,8 +1011,6 @@ app.get("/:id/deliveries/:deliveryId", async (c) => {
 	});
 });
 
-// ── GET /api/webhooks/:id/dead — DLQ preview ──────────────────────
-
 app.get("/:id/dead", async (c) => {
 	const accountId = getTenantScopedAccountId(c);
 	if (accountId === null) return c.json({ error: "Unauthorized" }, 401);
@@ -1125,8 +1053,6 @@ app.get("/:id/dead", async (c) => {
 	});
 });
 
-// ── POST /api/webhooks/:id/dead/:outboxId/requeue ─────────────────
-
 app.post("/:id/dead/:outboxId/requeue", async (c) => {
 	const accountId = getTenantScopedAccountId(c);
 	if (accountId === null) return c.json({ error: "Unauthorized" }, 401);
@@ -1145,8 +1071,6 @@ app.post("/:id/dead/:outboxId/requeue", async (c) => {
 	if (!ok) return c.json({ error: "Dead row not found" }, 404);
 	return c.json({ ok: true });
 });
-
-// ── POST /api/webhooks/:id/dead/requeue — bulk requeue ─────────────
 
 app.post("/:id/dead/requeue", async (c) => {
 	const accountId = getTenantScopedAccountId(c);
@@ -1183,7 +1107,6 @@ app.post("/:id/dead/requeue", async (c) => {
 	const requeued = Number((await q.executeTakeFirst()).numUpdatedRows ?? 0);
 
 	if (replayId && requeued > 0) {
-		// Track the retry: progress and the final counts start over.
 		await db
 			.updateTable("webhook_replays")
 			.set({
@@ -1200,8 +1123,6 @@ app.post("/:id/dead/requeue", async (c) => {
 	}
 	return c.json({ requeued });
 });
-
-// ── GET /api/webhooks/:id/replays ──────────────────────────────────
 
 app.get("/:id/replays", async (c) => {
 	const accountId = getTenantScopedAccountId(c);
@@ -1244,8 +1165,6 @@ app.get("/:id/replays", async (c) => {
 	return c.json({ data, ranges });
 });
 
-// ── GET /api/webhooks/:id/replays/:replayId ────────────────────────
-
 app.get("/:id/replays/:replayId", async (c) => {
 	const accountId = getTenantScopedAccountId(c);
 	if (accountId === null) return c.json({ error: "Unauthorized" }, 401);
@@ -1257,8 +1176,6 @@ app.get("/:id/replays/:replayId", async (c) => {
 	if (!progress) return c.json({ error: "Replay not found" }, 404);
 	return c.json(progress);
 });
-
-// ── POST /api/webhooks/:id/replay ──────────────────────────────────
 
 app.post("/:id/replay", async (c) => {
 	const accountId = getTenantScopedAccountId(c);
@@ -1313,8 +1230,6 @@ app.post("/:id/replay", async (c) => {
 		);
 	}
 });
-
-// ── DELETE /api/webhooks/:id ───────────────────────────────────────
 
 app.delete("/:id", async (c) => {
 	const accountId = getTenantScopedAccountId(c);

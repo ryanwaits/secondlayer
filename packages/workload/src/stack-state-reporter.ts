@@ -43,17 +43,11 @@ export interface StackStateReport {
 }
 
 export interface StackStateReporter {
-	/** Report this account after a short quiet period. */
 	schedule(accountId: string): void;
-	/** Report every tenant. Resolves true when every batch was accepted. */
 	reconcile(): Promise<boolean>;
-	/** Cancel pending debounced reports (shutdown). */
 	stop(): void;
 }
 
-/** A tenant row without a row (a failed provision deletes its row) is a
- *  stack that does not exist: reported as `destroyed`, which the platform
- *  reads as `none`. */
 function toReport(
 	accountId: string,
 	row: Pick<TenantRow, "state" | "stop_reason"> | null,

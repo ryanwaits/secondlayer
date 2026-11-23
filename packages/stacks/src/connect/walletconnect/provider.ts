@@ -1,5 +1,3 @@
-/** WalletProvider adapter for WalletConnect v2 */
-
 import type { WalletProvider } from "../types.ts";
 import { WcSession } from "./session.ts";
 import type { WcPairResult, WcProviderConfig, WcSessionData } from "./types.ts";

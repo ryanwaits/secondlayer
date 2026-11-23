@@ -15,20 +15,12 @@ import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { type Piece, type TableDescription, tableCode } from "./describe-table";
 
 /**
- * "Tables": one small card per table with its live row count. Details opens
- * full width under the card's grid row: a sentence whose phrases are
- * click-to-press focus links, above the table's real handler source in the
- * docs code frame. Card order is frozen per subgraph version, so nothing jumps
- * while counts change. The frame is rendered on the server because Shiki
+ * The frame is rendered on the server because Shiki
  * doesn't run in the browser: the page render hands the frames in
  * (`initialBlocks`), and `/api/code` renders them again when the subgraph's
  * version changes.
  */
 
-/**
- * Table names in card order: the names of the previous order that still exist,
- * then any new tables, biggest first. With no previous order, biggest first.
- */
 export function frozenOrder(
 	prev: readonly string[] | null,
 	tables: Record<string, SubgraphTableInfo>,
@@ -41,7 +33,6 @@ export function frozenOrder(
 	return [...kept, ...biggestFirst.filter((table) => !kept.includes(table))];
 }
 
-/** Index of the card the open table's details follow: the last card in its grid row. */
 export function detailsAfter(
 	openIndex: number,
 	perRow: number,
@@ -65,13 +56,11 @@ function Pieces({ pieces }: { pieces: Piece[] }) {
 	);
 }
 
-/** The open card's panel: the sentence with its focus links, above the handler code. */
 export function TableDetails({
 	description,
 	block,
 }: {
 	description: TableDescription | undefined;
-	/** The server-rendered frame, when it has arrived. */
 	block: RenderedBlock | undefined;
 }) {
 	if (!description) return null;
@@ -121,11 +110,8 @@ export function TablesSection({
 	name: string;
 	tables: Record<string, SubgraphTableInfo>;
 	sources: Record<string, SubgraphSourceInfo> | undefined;
-	/** Null while the source loads or when it is unavailable. */
 	source: SubgraphSource | null;
-	/** The frames the server rendered for this subgraph's current version. */
 	initialBlocks?: RenderedBlock[] | null;
-	/** Called with the table that was opened, or null when it closed. */
 	onOpen?: (table: string | null) => void;
 }) {
 	const sourceCode = source?.sourceCode ?? null;
@@ -134,7 +120,6 @@ export function TablesSection({
 		[name, tables, sources, sourceCode],
 	);
 
-	// Card order holds for a subgraph version: counts move, cards don't.
 	const orderKey = `${name}:${source?.updatedAt ?? ""}`;
 	// biome-ignore lint/correctness/useExhaustiveDependencies: re-sort only when the version changes, not on every poll
 	const baseOrder = useMemo(() => frozenOrder(null, tables), [orderKey]);
@@ -143,7 +128,6 @@ export function TablesSection({
 		[baseOrder, tables],
 	);
 
-	// The tables the frames belong to, in the order the frames were made.
 	const codeTables = descriptions
 		.filter((d) => d.description.code !== null)
 		.slice(0, blocks.length)
@@ -151,7 +135,6 @@ export function TablesSection({
 	const frameTables = useRef(codeTables);
 
 	const key = source ? `${name}:${source.updatedAt}` : null;
-	// The version the server's frames belong to; a newer version refetches.
 	const seededKey = useRef(initialBlocks ? key : null);
 	const [rendered, setRendered] = useState<RenderedBlock[] | null>(
 		initialBlocks ?? null,
@@ -180,9 +163,7 @@ export function TablesSection({
 			.then((body: { blocks: RenderedBlock[] }) => {
 				if (live) setRendered(body.blocks);
 			})
-			.catch(() => {
-				// The plain code below stays: the section never depends on this.
-			});
+			.catch(() => {});
 		return () => {
 			live = false;
 		};

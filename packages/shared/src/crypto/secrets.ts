@@ -11,33 +11,10 @@ import {
 import { dirname, resolve } from "node:path";
 import { getInstanceMode } from "../mode.ts";
 
-/**
- * AES-256-GCM symmetric envelope for encrypted secrets at rest (tenant keys,
- * webhook signing secrets, etc.).
- *
- * Ciphertext layout: `iv (12 bytes) || authTag (16 bytes) || ciphertext`
- *
- * The key comes from `SECONDLAYER_SECRETS_KEY` — 32 bytes hex. In OSS mode,
- * if the env var is unset on first use we autogenerate a key and persist it
- * to `secrets.env` under `DATA_DIR` (a volume, so it survives a container
- * recreate) so subsequent restarts pick it up without user intervention.
- * With no `DATA_DIR` (a bare `bun run`) it goes to `.env.local` in the
- * current working directory. A key already in `.env.local` is carried into
- * `DATA_DIR` on first boot. Dedicated/platform modes throw — those runtimes
- * must provision the key explicitly.
- *
- * Rotation strategy: re-encrypt all rows with the new key and swap the env
- * var. Not zero-downtime, but acceptable at v2 scale. For real KMS (AWS
- * KMS, Vault, GCP KMS), wrap the same byte layout behind an
- * `EncryptSecret`/`DecryptSecret` interface and swap at startup.
- */
-
 const KEY_ENV = "SECONDLAYER_SECRETS_KEY";
 const IV_LEN = 12;
 const TAG_LEN = 16;
 
-/** Where an OSS instance keeps its generated key: the `DATA_DIR` volume when
- *  there is one, else `.env.local` beside the process. */
 function keyFilePath(): string {
 	const dataDir = process.env.DATA_DIR?.trim();
 	return dataDir
@@ -45,7 +22,6 @@ function keyFilePath(): string {
 		: resolve(process.cwd(), ".env.local");
 }
 
-/** Where earlier versions wrote the key, before `DATA_DIR` held it. */
 function legacyKeyFilePath(): string {
 	return resolve(process.cwd(), ".env.local");
 }
@@ -71,7 +47,6 @@ const POLL_MS = 25;
 function bootstrapOssKey(): string {
 	const envPath = keyFilePath();
 
-	// Fast path — key already on disk from a prior run.
 	const existing = readExistingKey(envPath);
 	if (existing) {
 		process.env[KEY_ENV] = existing;
@@ -89,7 +64,6 @@ function bootstrapOssKey(): string {
 	}
 
 	if (lockFd === null) {
-		// Another process is bootstrapping. Poll for its result.
 		const deadline = Date.now() + STALE_LOCK_MS;
 		while (Date.now() < deadline) {
 			const key = readExistingKey(envPath);
@@ -99,7 +73,6 @@ function bootstrapOssKey(): string {
 			}
 			Bun.sleepSync(POLL_MS);
 		}
-		// Lock holder died mid-write — force-clean and retry once.
 		try {
 			unlinkSync(lockPath);
 		} catch {}

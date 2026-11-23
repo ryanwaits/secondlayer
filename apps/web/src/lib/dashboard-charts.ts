@@ -1,10 +1,7 @@
-/** Pure data shaping for the dashboard charts. */
-
 const HOUR = 3_600_000;
 const DAY = 24 * HOUR;
 const WINDOW_HOURS = 168;
 
-/** Round up to 1/2/5/10 x 10^k. Never returns 0 or NaN. */
 export function niceMax(v: number): number {
 	if (!Number.isFinite(v) || v <= 0) return 1;
 	const p = 10 ** Math.floor(Math.log10(v));
@@ -12,7 +9,6 @@ export function niceMax(v: number): number {
 	return (m <= 1 ? 1 : m <= 2 ? 2 : m <= 5 ? 5 : 10) * p;
 }
 
-/** Axis label: `value` plus `unit` when given, else a compact count (999, 1.2k, 3M). */
 export function formatAxis(value: number, unit?: string): string {
 	if (unit) return `${value}${unit}`;
 	if (value >= 1_000_000) return `${+(value / 1_000_000).toFixed(1)}M`;
@@ -20,7 +16,6 @@ export function formatAxis(value: number, unit?: string): string {
 	return String(Math.round(value));
 }
 
-/** Dollar axis tick: 0 is "$0", under 10 keeps one decimal ("$2.5"), else whole dollars. */
 export function formatUsdTick(value: number): string {
 	if (value === 0) return "$0";
 	return `$${value.toFixed(value < 1 ? 2 : value < 10 ? 1 : 0)}`;
@@ -36,12 +31,10 @@ export interface HeatDay {
 	cells: (HeatCell | null)[];
 }
 
-/** Start of the rolling window: the hour 167 h before `now`, floored to the hour. */
 function windowStart(now: number): number {
 	return Math.floor(now / HOUR) * HOUR - (WINDOW_HOURS - 1) * HOUR;
 }
 
-/** Puts hourly points on the 168-hour window ending at `endHourIso` (inclusive). Missing hours are {n:0,f:0}; points outside the window are dropped. */
 export function alignToWindow(
 	points: readonly { hour: string; n: number; f: number }[],
 	endHourIso: string,
@@ -61,11 +54,6 @@ export function alignToWindow(
 	return out;
 }
 
-/**
- * Lay a rolling 168-hour array (index 0 = the hour 167 h before `now`) on UTC
- * calendar days: one row per day the window touches, 24 columns. Cells outside
- * the window are null.
- */
 export function heatGrid(
 	hours: readonly { n: number; f: number }[],
 	now: number,
@@ -103,7 +91,6 @@ const DAY_LABEL = new Intl.DateTimeFormat("en-US", {
 	timeZone: "UTC",
 });
 
-/** "Thu, Oct 8 · 23:00–00:00 UTC" for the hour at `index`. */
 export function hourWindowLabel(index: number, now: number): string {
 	const start = windowStart(now) + index * HOUR;
 	const date = DAY_LABEL.format(new Date(start));
@@ -111,7 +98,6 @@ export function hourWindowLabel(index: number, now: number): string {
 	return `${date} · ${clock(start)}:00–${clock(start + HOUR)}:00 UTC`;
 }
 
-/** Cumulative spend and a projection at the mean of the last (up to) 7 days. */
 export function spendProjection(daily: readonly number[], daysInMonth: number) {
 	let running = 0;
 	const cumulative = daily.map((d) => {
@@ -141,7 +127,6 @@ export interface BarsRow {
 	highlighted: boolean;
 }
 
-/** Recharts-ready rows. The band `[low, high]` becomes bandLow + bandRange. */
 export function barsRows(
 	series: readonly { n?: number; p?: number; f?: number }[],
 	opts: {

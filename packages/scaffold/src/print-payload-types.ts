@@ -39,12 +39,10 @@ export interface PrintPayloadTypesInput {
 
 const IDENT_RE = /^[A-Za-z_$][A-Za-z0-9_$]*$/;
 
-/** Object-type key — quoted when not a valid identifier. */
 function key(k: string): string {
 	return IDENT_RE.test(k) ? k : `'${k}'`;
 }
 
-/** kebab/camel/anything → PascalCase type-name fragment. */
 function pascalCase(str: string): string {
 	const cleaned = str
 		.replace(/[^A-Za-z0-9]+([A-Za-z0-9])/g, (_, c: string) => c.toUpperCase())
@@ -53,14 +51,12 @@ function pascalCase(str: string): string {
 	return cleaned[0].toUpperCase() + cleaned.slice(1);
 }
 
-/** Type-name fragment for a topic; "*" pseudo-topic → "Wildcard". */
 function topicTypeName(topic: string): string {
 	return pascalCase(topic) || "Wildcard";
 }
 
 function dataType(topic: PrintPayloadTopic): string {
 	if (topic.non_tuple || topic.fields.length === 0) {
-		// Non-tuple prints have no inferable shape.
 		return "Record<string, unknown>";
 	}
 	const fields = topic.fields

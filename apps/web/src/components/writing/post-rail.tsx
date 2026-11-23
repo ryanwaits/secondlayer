@@ -6,14 +6,6 @@ import { useEffect, useState } from "react";
 
 type Entry = { id: string; title: string };
 
-/**
- * The post rail, sticky right of the column: the post's number, date and
- * length, and its sections and figures. Scroll
- * position lights the current section and the current figure, each in its
- * own list. Sections come from the article's h2 ids, figures from its
- * FigShell titles, so the rail always matches the page. Below 760px the rail hides and PostHeader's
- * inline line carries the date and length.
- */
 export function PostRail() {
 	const pathname = usePathname();
 	const post = getPost(pathname.split("/").filter(Boolean)[1] ?? "");
@@ -40,9 +32,6 @@ export function PostRail() {
 				title: f.querySelector(".fig-title")?.textContent?.trim() ?? "",
 			})),
 		);
-		// Each list lights on its own: the section is the last heading above the
-		// reading line (the first one until then); the figure, the last one
-		// whose top has reached mid-screen.
 		let frame = 0;
 		const track = () => {
 			frame = 0;

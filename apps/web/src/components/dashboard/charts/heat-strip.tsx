@@ -9,7 +9,6 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 
 interface Hover {
 	cell: HeatCell;
-	/** Viewport coordinates of the cell's top centre. */
 	x: number;
 	y: number;
 }
@@ -21,13 +20,6 @@ export interface HeatUnits {
 
 const DEFAULT_UNITS: HeatUnits = { n: "delivered", f: "failed" };
 
-/**
- * Seven days of deliveries as an hour-by-day grid, laid on UTC calendar days.
- * Cell opacity follows volume, `--alarm` marks hours with failures, and an
- * empty hour is `--soft`. Hover or focus shows a tooltip; click reports the
- * hour index so a screen can list that hour's deliveries. Without
- * `onCellClick`, a click passes to whatever the strip sits in.
- */
 export function HeatStrip({
 	hours,
 	now,
@@ -37,18 +29,12 @@ export function HeatStrip({
 	tone,
 	hourAxis = true,
 }: {
-	/** Rolling window, index 0 = the hour 167 h before `now`. */
 	hours: readonly { n: number; f: number }[];
 	now: number;
 	onCellClick?: (hourIndex: number) => void;
-	/** Accessible name for the grid. */
 	label: string;
-	/** What a cell counts, for its label and tooltip: `n` for the volume,
-	 *  `f` for the failures. */
 	units?: HeatUnits;
-	/** The row this sits in is attention: delivered cells use `--hi`; failed cells stay `--alarm`. */
 	tone?: "att";
-	/** The 00/06/12/18 labels under the grid. A list of strips shows them once, under the last. */
 	hourAxis?: boolean;
 }) {
 	const { days } = useMemo(() => heatGrid(hours, now), [hours, now]);
@@ -72,7 +58,6 @@ export function HeatStrip({
 		setHover({ cell, x: rect.left + rect.width / 2, y: rect.top });
 	}, []);
 
-	// Hover only changes the tooltip, so the 168-cell grid is reused.
 	const grid = useMemo(
 		() => (
 			<section className="dc-heat" aria-label={label}>
@@ -155,7 +140,6 @@ export function HeatStrip({
 	);
 }
 
-/** The 00/06/12/18 labels, on the grid's own columns. */
 function HourAxis() {
 	return (
 		<HeatRow>
@@ -170,13 +154,10 @@ function HourAxis() {
 	);
 }
 
-/** One grid row. `display: contents` keeps all rows on the one 25-column grid. */
 function HeatRow({ children }: { children: React.ReactNode }) {
 	return <div className="dc-heat-row">{children}</div>;
 }
 
-/** The strip's exact grid while its hours are still loading: same columns,
- *  same rows, shimmer-toned cells, so the real strip replaces it in place. */
 export function HeatStripSkeleton({
 	days = 8,
 	hourAxis = true,

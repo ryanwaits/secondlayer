@@ -10,14 +10,8 @@ const LABEL =
 const LABEL_TALL =
 	"Chain of trust, vertical: checkpoint, Bitcoin headers, signer set, Stacks block, state root, your row";
 
-/** x of the Nth box in the wide layout (checkpoint is box 0). */
 const WIDE_X = [0.5, 188.5, 362.5, 536.5, 710.5] as const;
 
-/**
- * The Verify page's chain: a dashed, trusted-as-is checkpoint first, then four
- * checked links ending on the yellow row. Two SVGs; `.chain-wide` /
- * `.chain-tall` in site.css show one per breakpoint.
- */
 export function VerifyChainArt() {
 	return (
 		<>

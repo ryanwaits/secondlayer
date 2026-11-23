@@ -27,17 +27,17 @@ export function runeIdNext(
 	block: bigint,
 	tx: bigint,
 ): RuneId | undefined {
-	if (block < 0n || block > U64_MAX) return undefined; // block.try_into::<u64>()
+	if (block < 0n || block > U64_MAX) return undefined;
 	const newBlock = self.block + block;
-	if (newBlock > U64_MAX) return undefined; // checked_add overflow
+	if (newBlock > U64_MAX) return undefined;
 
 	let newTx: bigint;
 	if (block === 0n) {
-		if (tx < 0n || tx > U32_MAX) return undefined; // tx.try_into::<u32>()
+		if (tx < 0n || tx > U32_MAX) return undefined;
 		newTx = self.tx + tx;
-		if (newTx > U32_MAX) return undefined; // checked_add overflow
+		if (newTx > U32_MAX) return undefined;
 	} else {
-		if (tx < 0n || tx > U32_MAX) return undefined; // tx.try_into::<u32>()
+		if (tx < 0n || tx > U32_MAX) return undefined;
 		newTx = tx;
 	}
 
@@ -48,11 +48,11 @@ export function runeIdDelta(
 	self: RuneId,
 	next: RuneId,
 ): [bigint, bigint] | undefined {
-	if (next.block < self.block) return undefined; // checked_sub
+	if (next.block < self.block) return undefined;
 	const block = next.block - self.block;
 	let tx: bigint;
 	if (block === 0n) {
-		if (next.tx < self.tx) return undefined; // checked_sub
+		if (next.tx < self.tx) return undefined;
 		tx = next.tx - self.tx;
 	} else {
 		tx = next.tx;

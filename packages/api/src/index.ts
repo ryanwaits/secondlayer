@@ -15,10 +15,6 @@ import { startStreamsTipInvalidationListener } from "./streams/tip.ts";
 
 const mode = getInstanceMode();
 
-// Refuse to boot if DEV_MODE leaked into production. DEV_MODE bypasses
-// auth (`packages/api/src/auth/middleware.ts:18`) and leaks magic-link
-// tokens in response bodies (`auth.ts:84`); a single typo on the host
-// would mean total compromise. Catch it at startup, not at runtime.
 if (process.env.NODE_ENV === "production" && process.env.DEV_MODE === "true") {
 	logger.error(
 		"DEV_MODE=true is set in NODE_ENV=production — refusing to start",
@@ -26,12 +22,6 @@ if (process.env.NODE_ENV === "production" && process.env.DEV_MODE === "true") {
 	process.exit(1);
 }
 
-// Refuse to boot the hosted platform without a shared rate-limit store.
-// Without REDIS_URL the limiter falls back to process-local counters
-// (`packages/api/src/auth/rate-limit-store.ts:200`), so each replica enforces
-// the full limit independently — N replicas silently allow N× the intended
-// rate, defeating auth brute-force protection and paid per-key limits. Scoped
-// to production: non-prod platform-mode runs keep the warn-only fallback.
 if (
 	process.env.NODE_ENV === "production" &&
 	mode === "platform" &&
@@ -69,7 +59,6 @@ logger.info("Starting API service", {
 	mode,
 });
 
-// Subgraph routes mount on self-host only; hosted runs no subgraphs.
 if (mode !== "platform") {
 	startSubgraphCache().catch((err) => {
 		logger.warn(

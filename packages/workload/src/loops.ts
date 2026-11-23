@@ -1,8 +1,4 @@
 /**
- * The workload host's background ticks, as factories with injected effects so
- * each one is testable without a docker daemon or an app-server. `index.ts`
- * wires the real effects and schedules them.
- *
  * The daily jobs (storage sample, backup) are short ticks that read their
  * per-tenant "last done" marker from the control DB: a restart the same day
  * neither skips the job nor repeats it. Every tick is wrapped in
@@ -33,7 +29,6 @@ import {
 } from "./meters.ts";
 import { skipWhileRunning } from "./tick-guard.ts";
 
-/** How often the daily jobs check whether they are due. */
 export const DAILY_JOB_TICK_MS = 10 * 60_000;
 /** A backup older than this is an incident: nightly plus two hours of slack. */
 export const BACKUP_STALE_MS = 26 * 60 * 60_000;
@@ -43,7 +38,6 @@ function errorMessage(err: unknown): string {
 	return err instanceof Error ? err.message : String(err);
 }
 
-/** Nominal gap between memory samples, used for a tenant's first sample. */
 export const MEMORY_SAMPLE_INTERVAL_MS = 60_000;
 /** Longest span one memory sample is charged for, so a stalled process never
  *  bills a tenant for the whole outage. */
@@ -111,7 +105,6 @@ export function createMemorySampleTick(deps: {
 
 export interface StorageSampleTick {
 	tick: () => Promise<void>;
-	/** Samples that have not reached the platform yet (for the shutdown flush). */
 	pending: () => MeterBatchItem[];
 }
 
@@ -171,11 +164,6 @@ export function createStorageSampleTick(deps: {
 	return { tick, pending: () => pending };
 }
 
-/** Dumps every running or stopped tenant whose last dump predates today's UTC
- *  day, one at a time, recording each success. One tenant's failure never
- *  skips the rest. After the pass: the 30-day sweep of destroy-time dumps
- *  (once per process-day), and an alert for any tenant with no dump inside
- *  `BACKUP_STALE_MS` (at most hourly). */
 export function createBackupTick(deps: {
 	db: postgres.Sql;
 	backups: BackupConfig;

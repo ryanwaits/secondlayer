@@ -51,8 +51,6 @@ function allowedInnerPath(path: string): boolean {
 const bearerOf = (c: Context) =>
 	c.req.header("authorization")?.match(/^Bearer\s+(\S+)$/i)?.[1];
 
-/** True when `token` is a credential the hosted MCP takes: a live account
- *  key or a live OAuth access token. */
 async function credentialIsLive(token: string): Promise<boolean> {
 	if (token.startsWith(OAUTH_ACCESS_PREFIX)) {
 		return (await resolveOauthAccessToken(getDb(), token)) !== null;
@@ -81,11 +79,8 @@ function unauthorized(c: Context, invalid: boolean) {
 	);
 }
 
-/** Methods that describe the server and touch no account data. */
 const OPEN_METHODS = new Set(["initialize", "ping", "tools/list"]);
 
-/** True when every JSON-RPC message in `body` is an open method or a
- *  notification. Unparseable: false. */
 function anonymousAllowed(body: ArrayBuffer): boolean {
 	let parsed: unknown;
 	try {
@@ -123,7 +118,6 @@ function dumpsOrigin(): string | null {
 	}
 }
 
-/** Answers one POST with `server`, then closes both ends. */
 async function serve(
 	c: Context,
 	body: ArrayBuffer,
@@ -235,7 +229,6 @@ export function createMcpRouter(
 		);
 	});
 
-	// Stateless: there is no SSE stream to open and no session to delete.
 	app.on(["GET", "DELETE", "PUT", "PATCH"], "/", (c) =>
 		c.json({ error: "Use POST.", code: "METHOD_NOT_ALLOWED" }, 405, {
 			Allow: "POST",

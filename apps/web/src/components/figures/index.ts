@@ -1,13 +1,10 @@
 /**
- * Writings figure library — see FIGURES.md for the tier taxonomy and
- * when-to-use lines, and /lab/figures for the live catalog. Posts
- * import figures explicitly (never via the global MDX map, which would
+ * Posts import figures explicitly (never via the global MDX map, which would
  * put client figures on every docs bundle).
  */
 export { FigShell } from "./fig-shell";
 export { mergeMarkers } from "./collide";
 
-// A — text-first
 export { StatTile, type StatTileItem } from "./stat-tile";
 export { TermPair } from "./term-pair";
 export { Matrix, type MatrixCell } from "./matrix";
@@ -17,7 +14,6 @@ export { Term } from "./term";
 export { SpecSheet } from "./spec-sheet";
 export { SourceQuote } from "./source-quote";
 
-// B — diagrams
 export {
 	PositionTrack,
 	type TrackMarker,
@@ -39,7 +35,6 @@ export { BeforeAfter, type BaMarker, type BaState } from "./before-after";
 export { StateRow, type RowState } from "./state-row";
 export { Roadmap, type RoadmapStop } from "./roadmap";
 
-// C — charts
 export { LineChart, type LineSeries } from "./line-chart";
 export { BarChart } from "./bar-chart";
 export { SmallMultiples } from "./small-multiples";
@@ -49,8 +44,6 @@ export { DeltaBars, type DeltaGroup } from "./delta-bars";
 export { InlineSpark } from "./inline-spark";
 export { HeatCalendar } from "./heat-calendar";
 
-// D — explorers (D6 MiniSandbox deferred: dataset-sandbox was removed
-// from production; the slot stays reserved until a post needs it)
 export { ParamExplorer } from "./param-explorer";
 export { PointerStrip, type StripPointer } from "./pointer-strip";
 export { ScenarioToggle } from "./scenario-toggle";

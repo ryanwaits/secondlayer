@@ -66,7 +66,6 @@ export async function signTransactionWithAccount(
 	const sigHash = signBegin(tx);
 	const condition = tx.auth.spendingCondition as SingleSigSpendingCondition;
 
-	// Origin always signs with AuthType.Standard (even for sponsored txs)
 	const sigHashPre = sigHashPreSign(
 		sigHash,
 		AuthType.Standard,
@@ -74,7 +73,6 @@ export async function signTransactionWithAccount(
 		condition.nonce,
 	);
 
-	// account.sign returns 65-byte VRS (recovery + r + s)
 	const sigBytes = await account.sign(hexToBytes(sigHashPre));
 	const nextSig = bytesToHex(sigBytes);
 
@@ -99,12 +97,10 @@ export function getTransactionId(tx: StacksTransaction): string {
 export function getOriginSigHash(tx: StacksTransaction): string {
 	const condition = tx.auth.spendingCondition;
 
-	// Multi-sig: replay through all fields
 	if ("fields" in condition) {
 		return replayMultiSigSigHash(tx);
 	}
 
-	// Single-sig
 	const initialSigHash = signBegin(tx);
 	const sc = condition as SingleSigSpendingCondition;
 	const preSign = sigHashPreSign(

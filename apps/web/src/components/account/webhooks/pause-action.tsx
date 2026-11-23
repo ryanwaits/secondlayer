@@ -3,15 +3,12 @@ import { type PauseTarget, setWebhookPaused } from "@/lib/webhooks-store";
 import { shortenName } from "./shared";
 import { describeFailure } from "./view";
 
-/** The target a pause button moves a webhook to from where it stands. */
 export function pauseTargetOf(webhook: { status: string }): PauseTarget {
 	return webhook.status === "paused" ? "active" : "paused";
 }
 
 /**
- * Pause or resume a webhook and say what happened. The list and the detail
- * page both call this, so the toast, the retry and the undo are the same
- * everywhere. Retry and undo each carry an explicit target, never "toggle":
+ * Retry and undo each carry an explicit target, never "toggle":
  * a webhook that changed under the toast can't be sent the wrong way.
  */
 export async function changePause(

@@ -7,8 +7,6 @@ import type { AbiToTS } from "./mappings.ts";
 import type { AbiType } from "./types.ts";
 import type { ToCamelCase } from "./utils.ts";
 
-// Function extractors
-
 export type ExtractFunctionNames<
 	C extends AbiContract,
 	Access extends FunctionAccess = FunctionAccess,
@@ -49,8 +47,6 @@ export type ExtractReadOnlyFunctions<C extends AbiContract> =
 export type ExtractPrivateFunctions<C extends AbiContract> =
 	ExtractFunctionNames<C, "private">;
 
-// Map extractors
-
 export type ExtractMapNames<C extends AbiContract> =
 	C["maps"] extends ReadonlyArray<{ name: infer N extends string }> ? N : never;
 
@@ -72,8 +68,6 @@ export type ExtractMapValue<
 > = ExtractMap<C, N> extends { value: infer V extends AbiType }
 	? AbiToTS<V>
 	: never;
-
-// Variable extractors
 
 export type ExtractVariableNames<
 	C extends AbiContract,
@@ -108,8 +102,6 @@ export type ExtractDataVars<C extends AbiContract> = ExtractVariableNames<
 	"variable"
 >;
 
-// Token extractors
-
 export type ExtractFungibleTokenNames<C extends AbiContract> =
 	C["fungible_tokens"] extends ReadonlyArray<{ name: infer N extends string }>
 		? N
@@ -130,8 +122,6 @@ export type ExtractNFTAssetType<
 		? AbiToTS<A>
 		: never
 	: never;
-
-// Trait extractors
 
 export type ExtractDefinedTraitNames<C extends AbiContract> =
 	C["defined_traits"] extends ReadonlyArray<{ name: infer N extends string }>

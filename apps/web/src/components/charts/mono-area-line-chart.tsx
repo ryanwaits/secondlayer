@@ -24,14 +24,11 @@ import { ChartTooltip } from "./recharts-tooltip";
 
 export interface AreaLinePoint {
 	x: number;
-	/** The connected line's value — a real sample, or a floor fallback. */
 	value: number;
 	/** The real (not-fallen-back) sample, or `null`. The area fill only
 	 *  covers stretches where this is non-null (`connectNulls={false}`
 	 *  breaks the fill, never the line, at a `null`). */
 	areaValue: number | null;
-	/** Extra flat fields a caller wants surfaced as their own tooltip row
-	 *  (e.g. the billed floor alongside the actual sample). */
 	[key: string]: number | null | undefined;
 }
 
@@ -56,12 +53,9 @@ export function MonoAreaLineChart({
 	xTickFormatter: (value: number) => string;
 	yTicks: number[];
 	yTickFormatter: (value: number) => string;
-	/** A dashed horizontal marker (the credits chart's stack minimum). */
 	referenceLineY?: { value: number; label: string };
 	showEndpointDot?: boolean;
 	valueName: string;
-	/** Extra flat fields to surface as their own tooltip row, invisible on
-	 *  the chart itself (e.g. `{ dataKey: "billedGb", name: "Billed" }`). */
 	extraSeries?: Array<{ dataKey: string; name: string }>;
 	tooltipFormatter?: (value: number | string, name: string) => ReactNode;
 }) {

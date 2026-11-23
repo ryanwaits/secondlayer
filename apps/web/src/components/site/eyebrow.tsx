@@ -1,4 +1,3 @@
-/** Mono tag + the product's one verb: "Index · decodes". */
 export function Eyebrow({ noun, verb }: { noun: string; verb?: string }) {
 	return (
 		<span className="eyebrow">

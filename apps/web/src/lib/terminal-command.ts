@@ -1,4 +1,3 @@
-/** Long commands show first 38 + "…" + last 18; Copy still copies the whole thing. */
 export function truncateMiddle(cmd: string, max = 64, head = 38, tail = 18) {
 	if (cmd.length <= max) return cmd;
 	return `${cmd.slice(0, head)}…${cmd.slice(-tail)}`;
@@ -12,9 +11,6 @@ function decode(segment: string): string {
 	}
 }
 
-/** The CLI command that shows the same thing as an account route; null = no
- *  footer. A detail page whose webhook or subgraph is gone (`isMissing`) gets
- *  its list command: there's nothing left to inspect. */
 export function commandForPath(
 	pathname: string | null,
 	nameForId?: (id: string) => string | undefined,

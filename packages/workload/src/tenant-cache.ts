@@ -10,7 +10,6 @@ import type { TenantRow } from "./control-db.ts";
 
 export interface TenantCacheConfig {
 	load: (accountId: string) => Promise<TenantRow | undefined>;
-	/** Reads the tenant's `INSTANCE_TOKEN`; throws when it is missing. */
 	readToken: (accountId: string) => string;
 	ttlMs?: number;
 	now?: () => number;

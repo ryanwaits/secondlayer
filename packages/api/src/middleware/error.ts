@@ -22,11 +22,7 @@ export function isUniqueViolation(error: unknown): boolean {
 	);
 }
 
-/**
- * Global error handler (app.onError)
- */
 export const errorHandler: ErrorHandler = (error, c) => {
-	// Handle Zod validation errors
 	if (error instanceof ZodError) {
 		return c.json(
 			{
@@ -41,7 +37,6 @@ export const errorHandler: ErrorHandler = (error, c) => {
 		);
 	}
 
-	// Handle invalid JSON body
 	if (error instanceof InvalidJSONError) {
 		return c.json(
 			{
@@ -52,8 +47,6 @@ export const errorHandler: ErrorHandler = (error, c) => {
 		);
 	}
 
-	// A duplicate that slipped past a handler's existence check (two writers,
-	// same name) is the caller's conflict, not a server fault.
 	if (isUniqueViolation(error)) {
 		return c.json(
 			{
@@ -85,7 +78,6 @@ export const errorHandler: ErrorHandler = (error, c) => {
 		}
 	}
 
-	// Fallback instanceof checks for SecondLayerError subtypes without mapped codes
 	if (error instanceof SecondLayerError) {
 		return c.json(
 			{
@@ -96,7 +88,6 @@ export const errorHandler: ErrorHandler = (error, c) => {
 		);
 	}
 
-	// Handle Hono HTTP exceptions
 	if (error instanceof HTTPException) {
 		return c.json(
 			{
@@ -107,7 +98,6 @@ export const errorHandler: ErrorHandler = (error, c) => {
 		);
 	}
 
-	// Unknown error
 	console.error("Unhandled error:", error);
 	return c.json(
 		{

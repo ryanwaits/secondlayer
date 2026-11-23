@@ -16,24 +16,19 @@ import {
 /** The most active keys an account can hold. Mirrors the API's default. */
 export const KEY_LIMIT = 50;
 export const NAME_MAX = 64;
-/** The character counter shows once the name is past this. */
 export const NAME_COUNT_FROM = 48;
-/** A key's prefix as the list shows it: `sk-sl_` plus 8 characters. */
 const PREFIX_LENGTH = 14;
 
 const EMPTY_NAME_ERROR = "Give the key a name";
 
-/** Why a name can't be used, or null when it can. */
 export function nameError(name: string): string | null {
 	return name.trim() ? null : EMPTY_NAME_ERROR;
 }
 
-/** Create key waits for a name and for the last request to finish. */
 export function createKeyDisabled(name: string, busy: boolean): boolean {
 	return busy || nameError(name) !== null;
 }
 
-/** A refused creation in words: the cap, the rate limit, or whatever the API said. */
 export function createErrorMessage(err: unknown): string {
 	if (err instanceof CreateKeyError) {
 		if (err.status === 403) {
@@ -51,7 +46,6 @@ export function createErrorMessage(err: unknown): string {
 const sameName = (a: string, b: string) =>
 	a.trim().toLowerCase() === b.trim().toLowerCase();
 
-/** The name already on one of your keys, if the typed name repeats it. */
 export function duplicateName(
 	name: string,
 	existing: readonly string[],
@@ -71,12 +65,9 @@ export const USE_IT_TABS: { value: UseItTab; label: string }[] = [
 ];
 
 export interface UseItSnippet {
-	/** What the block shows. Shows the key's prefix, never the whole key. */
 	shown: string;
-	/** What Copy puts on the clipboard: the same, except where the whole key is needed. */
 	copy: string;
 	note: string;
-	/** A shell command, drawn with a `$`. */
 	command: boolean;
 }
 
@@ -94,7 +85,6 @@ const mcpBlock = (apiKey: string) =>
   }
 }`;
 
-/** The four ways to put a new key to work. The whole key is only ever copied. */
 export function useItSnippets(key: string): Record<UseItTab, UseItSnippet> {
 	const hidden = `${key.slice(0, PREFIX_LENGTH)}…`;
 	return {
@@ -133,7 +123,6 @@ const sl = new SecondLayer({
 	};
 }
 
-/** Step 1: a name, so keys can be told apart later. */
 export function NameStep({
 	existingNames = [],
 	busy = false,
@@ -143,14 +132,12 @@ export function NameStep({
 	onSubmit,
 	onCancel,
 }: {
-	/** Names of the keys you already have, for the repeat warning. */
 	existingNames?: readonly string[];
 	busy?: boolean;
 	error?: string | null;
 	initialName?: string;
 	cancelLabel?: string;
 	onSubmit: (name: string) => void;
-	/** Without it the step has no Cancel: the flow is the screen's only job. */
 	onCancel?: () => void;
 }) {
 	const [name, setName] = useState(initialName);
@@ -238,7 +225,6 @@ function Snippet({ snippet }: { snippet: UseItSnippet }) {
 	);
 }
 
-/** Step 2: the whole key, once, and four ways to use it. */
 export function RevealStep({
 	value,
 	name,
@@ -254,11 +240,9 @@ export function RevealStep({
 	initialTab?: UseItTab;
 	/** The key reached the clipboard. Owned by the flow, so it survives a remount. */
 	copied?: boolean;
-	/** The reader tried to leave without copying. */
 	warned?: boolean;
 	onCopied?: () => void;
 	onWarn?: () => void;
-	/** `force` is Close anyway: leave although the key was never copied. */
 	onDone: (force?: boolean) => void;
 }) {
 	const { copied: flash, copy: copyValue } = useCopied();
@@ -360,11 +344,6 @@ export function useKeyFlow(initial: KeyFlow = KEY_FLOW_IDLE, open = false) {
 	return [flow, dispatch] as const;
 }
 
-/**
- * Make a key: name it, then see it once with ways to use it. State in, events
- * out (`useKeyFlow`), no routing, so the Keys tab and onboarding can both host
- * it. Renders nothing while the flow is idle.
- */
 export function NewKeyFlow({
 	flow,
 	dispatch,
@@ -379,9 +358,7 @@ export function NewKeyFlow({
 	existingNames?: readonly string[];
 	create?: (name: string) => Promise<string>;
 	cancelLabel?: string;
-	/** False when the flow is the screen's only job: no Cancel on the name step. */
 	dismissible?: boolean;
-	/** The key exists; the whole value is still on screen. */
 	onCreated?: (key: string, name: string) => void;
 }) {
 	if (flow.step === "idle") return null;

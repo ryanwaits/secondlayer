@@ -136,7 +136,6 @@ export function diagnoseInstanceStatus(
 	}
 
 	if (issues.length === 0 && overall !== "healthy") {
-		// Do not invent a cause: report the contradiction and where to look.
 		issues.push({
 			title: `The API reports status=${overall} but names no failing service.`,
 			detail:
@@ -151,8 +150,6 @@ export function diagnoseInstanceStatus(
 		issues,
 	};
 }
-
-// ── context ────────────────────────────────────────────────────────────
 
 export interface ContextProbe {
 	/** The endpoint the snapshot was read from. */

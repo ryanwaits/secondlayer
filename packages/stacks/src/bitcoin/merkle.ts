@@ -16,12 +16,10 @@ export interface MerkleProof {
 	txCount: number;
 }
 
-/** Combine an ordered pair of nodes into their parent hash. */
 function hashPair(left: Uint8Array, right: Uint8Array): Uint8Array {
 	return doubleSha256(concatBytes(left, right));
 }
 
-/** Collapse one merkle level into the next, duplicating the last node if odd. */
 function nextLevel(level: Uint8Array[]): Uint8Array[] {
 	const next: Uint8Array[] = [];
 	for (let i = 0; i < level.length; i += 2) {
@@ -79,7 +77,6 @@ export function buildMerkleProof(
 		const siblingIndex = isRight ? index - 1 : index + 1;
 		const self = level[index];
 		if (self === undefined) throw new Error("buildMerkleProof: missing node");
-		// When the node is the last of an odd level, it is paired with itself.
 		siblings.push(level[siblingIndex] ?? self);
 		level = nextLevel(level);
 		index = Math.floor(index / 2);

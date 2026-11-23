@@ -25,7 +25,6 @@ export async function rewindMissedReorgs(
 	subgraphs: Subgraph[],
 	loadSubgraphDef: (sg: Subgraph) => Promise<SubgraphDefinition>,
 ): Promise<void> {
-	// Subgraphs sharing a cursor height share one hash lookup this pass.
 	const canonicalHashes = new Map<number, Promise<string | null>>();
 
 	for (const sg of subgraphs) {

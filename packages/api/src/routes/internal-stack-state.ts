@@ -3,12 +3,6 @@
  * hosted stacks (`tenants.state` + `stop_reason` in its control DB). The
  * platform keeps the latest per account in `hosted_stack_state`; a report
  * older than the stored one is ignored, so a late retry never rewinds it.
- *
- * Body `{ states: [{ account_id, state, stop_reason, observed_at }] }` ->
- * `{ applied }`. `stop_reason` is set exactly when `state` is `stopped`.
- *
- * Guard is the same `workloadHostKeyMatches()` + `bearerToken()` pair every
- * other first-party workload-host route uses.
  */
 
 import {
@@ -24,7 +18,6 @@ import { InvalidJSONError } from "../middleware/error.ts";
 import { bearerToken, workloadHostKeyMatches } from "./internal-meters.ts";
 
 export const MAX_STACK_STATES_BATCH = 500;
-/** Clock-skew tolerance between the workload host and this server. */
 const OBSERVED_AT_TOLERANCE_MS = 5 * 60 * 1000;
 
 const bodySchema = z.object({

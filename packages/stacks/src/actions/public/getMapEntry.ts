@@ -7,7 +7,7 @@ import { parseContractId } from "../../utils/address.ts";
 import { bytesToHex, with0x } from "../../utils/encoding.ts";
 
 export type GetMapEntryParams = {
-	contract: string; // "address.name"
+	contract: string;
 	mapName: string;
 	key: ClarityValue;
 };

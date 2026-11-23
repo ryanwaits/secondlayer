@@ -8,7 +8,6 @@ export interface Action {
 }
 
 export const actions: Action[] = [
-	// Platform
 	{
 		id: "home",
 		label: "Home",
@@ -23,7 +22,6 @@ export const actions: Action[] = [
 		category: "Platform",
 		href: "/p/subgraphs",
 	},
-	// Account
 	{
 		id: "logout",
 		label: "Log Out",

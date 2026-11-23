@@ -1,9 +1,3 @@
-/**
- * Memory against its ceiling: a `--ch-a` line over a faint area, scaled to the
- * stack's size and drawn under a dashed size line (with no known size, to
- * twice its peak). Turns `--alarm` when the stack is stopped. Plain SVG so it
- * renders on the server.
- */
 export function MemoryBand({
 	points,
 	capacity,
@@ -12,9 +6,7 @@ export function MemoryBand({
 	title,
 	stopped = false,
 }: {
-	/** Memory in GB per hour. */
 	points: readonly number[];
-	/** Stack size in GB; the y scale tops out here. */
 	capacity: number;
 	width?: number;
 	height?: number;

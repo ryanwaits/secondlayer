@@ -43,21 +43,11 @@ import {
 export type MeterInput = {
 	accountId: string;
 	unit: MeterUnit;
-	/** Count of units consumed (rows, partitions, GB-hours, events). */
 	quantity: number;
-	/** Raw sampled quantity before any floor (`memory.gb_hour`'s actual RAM,
-	 *  before the stack's minimum). Every other unit omits this — pricing
-	 *  always uses `quantity`, never this. */
 	observedQuantity?: number;
-	/** Free-text origin for the usage view / audit trail, e.g. "index",
-	 *  "streams", "archive", "internal:provisioner". */
 	source: string;
-	/** Unique per real-world event. A retried submission with the same key
-	 *  is a no-op, not a second charge. */
 	idempotencyKey: string;
 	occurredAt?: Date;
-	/** The API key that made the request, for per-key usage; omit for
-	 *  anything not caused by a keyed read. */
 	apiKeyId?: string | null;
 };
 
@@ -65,12 +55,8 @@ export type MeterResult = {
 	ledgerId: string;
 	usdMicros: bigint;
 	debited: boolean;
-	/** Amount actually taken from the balance (`0..usdMicros`); a clamped
-	 *  stack charge can take part of its price. */
 	debitedUsdMicros: bigint;
 	balanceAfter: bigint;
-	/** True when the entire charge was covered by the monthly free
-	 *  allowance (`rows.delivered` only; always false for other units). */
 	viaAllowance: boolean;
 };
 
@@ -104,9 +90,6 @@ async function priceUnit(
 		};
 	}
 
-	// Rate is decided by spend so far THIS call, not split within the batch —
-	// same behavior as the pre-`meter()` `debitCreditedRows` (a page prices at
-	// one flat rate; the next page sees the updated monthly total).
 	const monthlySpend = await getMonthlyCreditsSpend(trx, input.accountId);
 	const rate =
 		monthlySpend >= COMMIT_TIER_MONTHLY_USD_MICROS
@@ -115,13 +98,10 @@ async function priceUnit(
 	return { usdMicros: BigInt(billableQty) * rate, viaAllowance: false };
 }
 
-/** Hosted-stack units: a short balance is drained to 0 rather than refused
- *  (`debitCreditsUpTo`). Everything else is all-or-nothing. */
 const CLAMPED_UNITS: ReadonlySet<MeterUnit> = new Set<MeterUnit>([
 	"memory.gb_hour",
 	"storage.gb_day",
 	"webhook.event",
-	// Metered after the fact in per-minute batches, like webhook.event.
 	"subgraph.read",
 ]);
 
@@ -139,9 +119,6 @@ function withTransaction<T>(
 	return db.isTransaction ? fn(db) : db.transaction().execute(fn);
 }
 
-/** The ledger's shape, asserted before anything is written (the DB CHECKs in
- *  migration 0196 are the second line): a known unit and a finite,
- *  non-negative quantity, so a charge can never be a credit. */
 function assertChargeInput(input: MeterInput): void {
 	if (!Object.prototype.hasOwnProperty.call(PRICES, input.unit)) {
 		throw new Error(`meter: unknown unit ${String(input.unit)}`);
@@ -200,7 +177,6 @@ export async function meter(
 
 		let taken = priced.usdMicros;
 		if (priced.usdMicros > 0n) {
-			// The cap caps every unit: a charge past it is recorded, never taken.
 			const caps = await getCaps(trx, input.accountId);
 			// Spend is counted in the month the charge is taken, never the item's
 			// own `occurredAt`: a late item from last month must not rewrite the
@@ -302,22 +278,12 @@ export async function recordTopup(
 
 export type GrantInput = {
 	accountId: string;
-	/** The positive amount credited, in USD-micros. */
 	usdMicros: bigint;
-	/** Free-text origin of the grant. */
 	source: string;
-	/** Unique per grant. A retried call with the same key credits once. */
 	idempotencyKey: string;
 	occurredAt?: Date;
 };
 
-/**
- * Credit a promotional grant (e.g. a starter credit): `creditCredits` + a
- * `unit: "grant"` ledger row, same transaction. Modelled on `recordTopup`,
- * idempotent on `idempotencyKey`: a second call with the same key returns
- * `granted: false` and never credits again. Callers own the amount policy
- * (who may grant, how much); this only moves the money.
- */
 export async function grantCredits(
 	db: Kysely<Database>,
 	input: GrantInput,
@@ -353,7 +319,6 @@ export type RefundInput = {
 	 *  flowing OUT, like a charge). */
 	usdMicros: bigint;
 	source: string;
-	/** Unique per refund step or dispute. A redelivery claws back once. */
 	idempotencyKey: string;
 	occurredAt?: Date;
 };

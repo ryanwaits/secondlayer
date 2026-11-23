@@ -68,11 +68,6 @@ export type PromotionCheck = {
 	detail: string;
 };
 
-/**
- * Coverage must tile the declared range with no holes. A missing partition in
- * the middle is the dangerous case: counts still look plausible, and the gap
- * only surfaces when someone queries into it.
- */
 export function checkCoverageContiguous(
 	manifest: CanonicalSnapshotManifest,
 ): PromotionCheck {
@@ -83,8 +78,6 @@ export function checkCoverageContiguous(
 		expected.push(`${start}-${Math.min(start + size - 1, to_block)}`);
 	}
 
-	// A range is covered if it either shipped an object or was explicitly
-	// declared empty. Silence is not coverage.
 	const covered = new Set<string>();
 	for (const p of manifest.partitions) {
 		if (p.dataset === "blocks") covered.add(`${p.from_block}-${p.to_block}`);
@@ -273,8 +266,6 @@ async function main(): Promise<void> {
 			},
 		}),
 	];
-	// The snapshot manifest itself must be in the bucket, or `latest.json`
-	// would point at something that does not exist.
 	const manifestKey = `${CANONICAL_ARCHIVE_PREFIX}/snapshots/${snapshotDigest}.json`;
 	checks.push({
 		name: "snapshot manifest uploaded",

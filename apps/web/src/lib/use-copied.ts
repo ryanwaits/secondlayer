@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { copyText } from "./docs-clipboard";
 
-/** A flag that turns on, then off again after `ms`. Firing again restarts the wait. */
 export function createFlash(ms: number, set: (on: boolean) => void) {
 	let timer: ReturnType<typeof setTimeout> | undefined;
 	return {
@@ -18,11 +17,6 @@ export function createFlash(ms: number, set: (on: boolean) => void) {
 	};
 }
 
-/**
- * Copy to the clipboard and flash `copied` for `resetMs`. `copied` turns on
- * only once the write resolved; `copy` returns whether it did, so a caller can
- * fall back when the clipboard refuses. The timer is cleared on unmount.
- */
 export function useCopied(resetMs = 1400) {
 	const [copied, setCopied] = useState(false);
 	const flash = useRef<ReturnType<typeof createFlash> | null>(null);

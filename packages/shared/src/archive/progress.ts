@@ -62,8 +62,6 @@ export function createProgressReporter(
 		if (options.total !== undefined && options.total > 0) {
 			const pct = Math.floor((completed / options.total) * 100);
 			parts.push(`${completed}/${options.total} (${pct}%)`);
-			// ETA only once there is a rate to extrapolate from; a prediction made
-			// from zero progress is noise dressed as information.
 			if (completed > 0 && elapsed > 0) {
 				const remaining = ((options.total - completed) / completed) * elapsed;
 				parts.push(`eta ${formatDuration(remaining)}`);

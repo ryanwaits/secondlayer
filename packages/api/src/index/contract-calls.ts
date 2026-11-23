@@ -53,11 +53,9 @@ export type ContractCallsQuery = {
 	toHeight: number;
 	limit: number;
 	contractId?: string;
-	/** Set only when `contract_id` carried more than one value. */
 	contractIds?: string[];
 	functionName?: string;
 	sender?: string;
-	/** Restrict to contracts conforming to this trait/standard (resolved as-of toHeight). */
 	trait?: string;
 	cursorPastTip: boolean;
 };
@@ -75,11 +73,9 @@ export type ReadContractCallsParams = {
 	toHeight: number;
 	limit: number;
 	contractId?: string;
-	/** Scope to several contracts at once (emitted as an IN list). */
 	contractIds?: readonly string[];
 	functionName?: string;
 	sender?: string;
-	/** Restrict to contracts conforming to this trait/standard (resolved as-of toHeight). */
 	trait?: string;
 	db?: Kysely<Database>;
 };
@@ -120,9 +116,6 @@ export function parseContractCallsQuery(
 
 	return {
 		...base,
-		// One id keeps the scalar equality; several become an IN scope. Ordering
-		// here is fixed on (block_height, tx_index), so unlike /events the list
-		// form needs no special handling beyond the predicate.
 		contractId: contractIds?.length === 1 ? contractIds[0] : undefined,
 		contractIds:
 			contractIds && contractIds.length > 1 ? contractIds : undefined,
@@ -135,7 +128,6 @@ export function parseContractCallsQuery(
 	};
 }
 
-/** Trait filter is mutually exclusive with an explicit contract_id. */
 function parseTrait(
 	query: URLSearchParams,
 	contractIds: string[] | undefined,
@@ -150,8 +142,6 @@ function parseTrait(
 function normalizeRow(row: ContractCallDbRow): ContractCall {
 	const blockHeight = Number(row.block_height);
 	const txIndex = Number(row.tx_index);
-	// Deep BigInt→string over the whole row — decoded Clarity args/result carry
-	// bigints that throw in JSON.stringify (c.json + ETag).
 	return jsonSafeBigInt({
 		cursor: `${blockHeight}:${txIndex}`,
 		block_height: blockHeight,

@@ -50,7 +50,6 @@ export async function classify<
 			answers: runRules(input.questions, input.rules, input.state),
 		};
 	}
-	// An explicit provider override ignores CLASSIFIER_MODEL (it pins one backend).
 	const modelId =
 		input.modelId ??
 		(input.provider ? undefined : envModel(env)) ??

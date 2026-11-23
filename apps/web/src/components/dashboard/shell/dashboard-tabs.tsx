@@ -14,7 +14,6 @@ export const DASHBOARD_TABS: DashboardTab[] = [
 	{ href: "/account/credits", label: "Billing", ready: true },
 ];
 
-/** Overview is `/account` itself, so it only matches exactly. */
 export function isCurrent(pathname: string | null, href: string): boolean {
 	if (!pathname) return false;
 	if (href === "/account") return pathname === href;

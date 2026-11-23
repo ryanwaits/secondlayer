@@ -162,8 +162,6 @@ export const OPERATION_IDS: Record<string, string> = {
 
 const HTTP_METHODS = ["get", "post", "put", "patch", "delete"] as const;
 
-/** Stamp each operation with its `OPERATION_IDS` entry. An operation missing
- *  from the map is left bare for `openapi.test.ts` to name. */
 function withOperationIds(
 	paths: Record<string, unknown>,
 ): Record<string, unknown> {
@@ -199,11 +197,6 @@ export const SCHEMAS_BY_FILE = {
 
 const TAG_SCHEMAS = Object.assign({}, ...Object.values(SCHEMAS_BY_FILE));
 
-/**
- * Display names for the objects the reference shows ("The PoX-5 event
- * object"). Schema names are code identifiers; these are what a reader sees, in sentence case (the sidebar lists them bare).
- * `openapi.test.ts` fails if a returned object has no title.
- */
 const SCHEMA_TITLES: Record<string, string> = {
 	V1Discovery: "API discovery",
 	BatchResponse: "Batch response",
@@ -290,9 +283,6 @@ function withTitles<T extends Record<string, object>>(schemas: T): T {
 	) as T;
 }
 
-/** The public API description. Exported so the docs site can render it as the
- *  API reference instead of restating it by hand — `bun run openapi` in
- *  apps/web writes it to src/generated/openapi.json. */
 export const OPENAPI_SPEC = {
 	openapi: "3.1.0",
 	info: {
@@ -392,8 +382,6 @@ export const OPENAPI_SPEC = {
 							"Highest block whose contract deploys are all classified by the contract registry. Trait-scoped subgraphs wait here. `null` when unknown.",
 					},
 				},
-				// Heights are a real mainnet snapshot (2026-09-23 14:00 UTC);
-				// lag_seconds is illustrative.
 				example: {
 					block_height: 9048690,
 					finalized_height: 9048457,
@@ -440,7 +428,6 @@ export const OPENAPI_SPEC = {
 						example: "7960000:42",
 					},
 				},
-				// A real mainnet reorg, 2026-09-15.
 				example: {
 					id: "3f16c2c5-9551-4ae9-adb0-923668e5c65e",
 					detected_at: "2026-09-15T15:39:38.129Z",
@@ -681,7 +668,6 @@ function platformSpec(): typeof OPENAPI_SPEC {
 	const paths: Record<string, unknown> = {};
 	for (const [key, value] of Object.entries(OPENAPI_SPEC.paths)) {
 		if (isWorkloadPath(key)) continue;
-		// Discovery GET `/v1/index` and `/v1/streams` stay open; key children.
 		const keyed =
 			key !== "/v1/index" &&
 			key !== "/v1/streams" &&
@@ -753,8 +739,6 @@ function platformSpec(): typeof OPENAPI_SPEC {
 	} as typeof OPENAPI_SPEC;
 }
 
-/** Keyless aggregates behind secondlayer.tools/data. Hosted only in the
- *  document, like the other platform paths. */
 function platformPublicDataPaths(): Record<string, unknown> {
 	const read = (summary: string, description: string, ok200: string) => ({
 		get: {
@@ -894,7 +878,6 @@ const CONNECTED_APP = {
 	},
 };
 
-/** Apps signed in to the hosted MCP with OAuth (the keys page's Apps list). */
 function platformConnectedAppsPaths(): Record<string, unknown> {
 	return {
 		"/mcp": {
@@ -1018,7 +1001,6 @@ function platformConnectedAppsPaths(): Record<string, unknown> {
 	};
 }
 
-/** Account keys: list, create, revoke and rotate (`src/auth/routes.ts`). */
 function platformKeysPaths(): Record<string, unknown> {
 	const KEY_ID_EXAMPLE = "3b1f8c52-6d0e-4a7b-9c14-2e5a7d8f9b01";
 	const NEW_KEY_ID_EXAMPLE = "9a2e4d71-5c3b-4f68-8e0d-1b7c6a5f4e32";
@@ -1480,14 +1462,12 @@ function platformMeterPaths(): Record<string, unknown> {
 	};
 }
 
-/** Tags that only exist on the workload plane (self-host only). */
 const WORKLOAD_TAGS = ["subgraphs", "deployments", "webhooks", "node"] as const;
 
 function isWorkloadPath(path: string): boolean {
 	return WORKLOAD_OPENAPI_PREFIXES.some((prefix) => path.startsWith(prefix));
 }
 
-/** Re-declare every operation on a path item as bearer-required. */
 function keyedOperations(item: unknown): unknown {
 	const entries = Object.entries(
 		item as Record<string, Record<string, unknown>>,
@@ -1500,7 +1480,6 @@ function keyedOperations(item: unknown): unknown {
 	);
 }
 
-/** OSS drops any hosted-only paths (currently none) and rewrites `/v1/instance`. */
 export function openapiSpec(
 	mode: InstanceMode = getInstanceMode(),
 ): typeof OPENAPI_SPEC {
@@ -1567,8 +1546,6 @@ export function openapiSpec(
 			description: `This instance: Index (decoded chain events), Streams (raw firehose), Subgraphs (the schemas you deployed), and the \`/api\` write plane that deploys and drives them. Cursor format is \`<block_height>:<event_index>\` on Index and classic Streams; the Bitcoin feed (\`chain=bitcoin\`) and the vm clock (\`clock=vm\`) prefix it \`btc:\` and \`vm:\`, and a cursor from another feed is a 400. Opaque on Subgraphs. ${AUTH_DESCRIPTION}`,
 		},
 		servers: [{ url: "/", description: "This instance" }],
-		// `instance` exists only on a self-hosted box, so it is declared here
-		// rather than in the shared tag list.
 		tags: [
 			...OPENAPI_SPEC.tags,
 			{

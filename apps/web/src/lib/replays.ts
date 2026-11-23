@@ -6,7 +6,6 @@ import { WEBHOOK_USD_PER_M } from "./prices";
 import { getRecentReplays } from "./webhooks-data";
 import { poll } from "./webhooks-store";
 
-/** Percent delivered or given up, 0-100, floor. 0 when total is 0. */
 export function replayPercent(p: ReplayProgress): number {
 	if (p.total <= 0) return 0;
 	return Math.min(100, Math.floor((p.processed / p.total) * 100));
@@ -14,11 +13,6 @@ export function replayPercent(p: ReplayProgress): number {
 
 export type ReplaySample = { at: number; settled: number };
 
-/**
- * Minutes left from samples of `{ at: ms, settled: delivered + gave up }`.
- * Null until the first and last samples are 2 s+ apart and show progress.
- * Never below 1.
- */
 export function minutesLeft(
 	samples: readonly ReplaySample[],
 	total: number,
@@ -34,19 +28,12 @@ export function minutesLeft(
 	return Math.max(1, minutes);
 }
 
-/**
- * "About 3,812 events · $0.04". `knownEvents` is a lower bound, so pass
- * `lowerBound` when the range reaches past what the outbox keeps and the line
- * reads "At least". Cost is events x the webhook rate, two decimals, "under
- * $0.01" below a cent.
- */
 export function estimateLine(knownEvents: number, lowerBound: boolean): string {
 	const cost = (knownEvents * WEBHOOK_USD_PER_M) / 1e6;
 	const price = cost < 0.005 ? "under $0.01" : `$${cost.toFixed(2)}`;
 	return `${lowerBound ? "At least" : "About"} ${knownEvents.toLocaleString("en-US")} events · ${price}`;
 }
 
-/** The step-3 model for a failing webhook: requeue when something gave up, else a done note. */
 export function recoveryStep3(dead: { count: number }):
 	| { kind: "requeue"; count: number }
 	| { kind: "nothing" } {
@@ -59,7 +46,6 @@ export function isReplayActive(p: ReplayProgress): boolean {
 	return p.status === "scanning" || p.status === "running";
 }
 
-/** Poll cadence for the account-wide list: fast while a replay runs. */
 export const REPLAYS_ACTIVE_MS = 3000;
 export const REPLAYS_IDLE_MS = 30_000;
 
@@ -87,14 +73,12 @@ function start() {
 	}, REPLAYS_IDLE_MS);
 }
 
-/** Insert or update one replay at once, without waiting for the next poll. */
 export function noteReplayStarted(p: ReplayProgress) {
 	const rest = (recent ?? []).filter((r) => r.replayId !== p.replayId);
 	const becameActive =
 		isReplayActive(p) && !(recent ?? []).some(isReplayActive);
 	publish([p, ...rest]);
 	if (becameActive && stop) {
-		// The pending timer is the idle one; restart so the 3 s cadence applies.
 		stop();
 		start();
 	}
@@ -112,7 +96,6 @@ function subscribe(listener: () => void) {
 	};
 }
 
-/** The account's recent and running replays; null until the first read. */
 export function useRecentReplays(): ReplayProgress[] | null {
 	return useSyncExternalStore(
 		subscribe,
@@ -121,7 +104,6 @@ export function useRecentReplays(): ReplayProgress[] | null {
 	);
 }
 
-/** The replay of `webhookId` that is scanning or running, newest first. */
 export function runningReplayFor(
 	replays: readonly ReplayProgress[] | null,
 	webhookId: string,
@@ -134,10 +116,6 @@ export function runningReplayFor(
 	);
 }
 
-/**
- * Minutes left for a replay that updates over time. Keeps the last 10 values it
- * has seen; null until they show progress (see `minutesLeft`).
- */
 export function useMinutesLeft(progress: ReplayProgress | null): number | null {
 	const samples = useRef<ReplaySample[]>([]);
 	const replayId = useRef<string | null>(null);

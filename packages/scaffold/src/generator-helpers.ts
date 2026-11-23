@@ -1,7 +1,3 @@
-/**
- * Shared utilities for plugin code generators (actions, testing).
- */
-
 import {
 	type AbiType,
 	type FunctionArg,

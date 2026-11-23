@@ -23,21 +23,12 @@ export interface GenerateOptions {
 	watch?: boolean;
 }
 
-/**
- * Check if a string looks like a deployed contract address (ADDRESS.contract-name)
- */
 function isContractAddress(input: string): boolean {
-	// Contract addresses are in format: SP/ST/SM/SN...ADDRESS.contract-name
-	// SP = mainnet standard, ST = testnet standard
-	// SM = mainnet multisig, SN = testnet multisig
 	const contractIdPattern =
 		/^(SP|ST|SM|SN)[A-Z0-9]{38,}\.[a-zA-Z][a-zA-Z0-9-]*$/;
 	return contractIdPattern.test(input);
 }
 
-/**
- * Parse inputs and separate into local files and deployed contract addresses
- */
 interface ParsedInputs {
 	files: string[];
 	contractIds: string[];
@@ -48,13 +39,11 @@ async function parseInputs(inputs: string[]): Promise<ParsedInputs> {
 	const contractIds: string[] = [];
 
 	for (const input of inputs) {
-		// Check if it's a deployed contract address
 		if (isContractAddress(input)) {
 			contractIds.push(input);
 			continue;
 		}
 
-		// Check if it's a glob pattern
 		if (input.includes("*") || input.includes("?")) {
 			const matches = await fg(input, { cwd: process.cwd(), absolute: true });
 			for (const file of matches) {
@@ -65,7 +54,6 @@ async function parseInputs(inputs: string[]): Promise<ParsedInputs> {
 			continue;
 		}
 
-		// Direct file path
 		if (input.endsWith(".clar")) {
 			const absolutePath = path.resolve(process.cwd(), input);
 			files.push(absolutePath);
@@ -78,23 +66,16 @@ async function parseInputs(inputs: string[]): Promise<ParsedInputs> {
 	};
 }
 
-/**
- * Convert filename to camelCase contract name
- */
 function deriveContractName(filePath: string): string {
 	const basename = path.basename(filePath, ".clar");
-	// Convert kebab-case or snake_case to camelCase
 	return basename
 		.replace(/[-_](.)/g, (_, char) => char.toUpperCase())
 		.replace(/^(.)/, (_, char) => char.toLowerCase())
-		.replace(/^\d/, "_$&"); // Prefix with underscore if starts with digit
+		.replace(/^\d/, "_$&");
 }
 
 const DEFAULT_DEVNET_ADDRESS = "ST1PQHQKV0RJXZFY1DGX8MNSNYVE3VGZJSRTPGZGM";
 
-/**
- * Build config from direct inputs (local files and/or deployed contract addresses)
- */
 async function buildConfigFromInputs(
 	parsedInputs: ParsedInputs,
 	outPath: string,
@@ -103,7 +84,6 @@ async function buildConfigFromInputs(
 	const contracts = [];
 	const deployer = defaultAddress || DEFAULT_DEVNET_ADDRESS;
 
-	// Warn about placeholder address for local files
 	if (parsedInputs.files.length > 0 && !defaultAddress) {
 		warn(
 			`Using placeholder address (${deployer}) for local contracts. Generated contract addresses won't match deployed addresses. Set defaultAddress in config or use deployed contract addresses.`,
@@ -118,7 +98,6 @@ async function buildConfigFromInputs(
 		);
 	}
 
-	// Process local .clar files
 	for (const file of parsedInputs.files) {
 		const abi = await parseClarityFile(file);
 		const name = deriveContractName(file);
@@ -131,7 +110,6 @@ async function buildConfigFromInputs(
 		});
 	}
 
-	// Process deployed contract addresses (fetch from API)
 	for (const contractId of parsedInputs.contractIds) {
 		const { address, contractName } = parseContractId(contractId);
 		const network = inferNetwork(address) ?? "mainnet";
@@ -161,7 +139,6 @@ async function buildConfigFromInputs(
 	};
 }
 
-/** Convert a config contract with an ABI into a ResolvedContract */
 function toResolvedContract(
 	// biome-ignore lint/suspicious/noExplicitAny: config contracts carry optional plugin-era flags
 	contract: any,
@@ -210,9 +187,7 @@ async function runGenerate(
 	try {
 		let config: SecondLayerConfig;
 
-		// Check if direct inputs were provided (files or contract addresses)
 		if (files && files.length > 0) {
-			// Require -o/--out when using direct inputs
 			if (!options.out) {
 				printError("Output path required", {
 					hint: "When using direct inputs, pass -o/--output.",
@@ -227,7 +202,6 @@ async function runGenerate(
 				return;
 			}
 
-			// Parse inputs to separate files from contract addresses
 			const parsedInputs = await parseInputs(files);
 			const totalInputs =
 				parsedInputs.files.length + parsedInputs.contractIds.length;
@@ -242,7 +216,6 @@ async function runGenerate(
 
 			config = await buildConfigFromInputs(parsedInputs, options.out);
 		} else {
-			// Use config file (existing behavior)
 			config = await loadConfig(options.config);
 		}
 
@@ -264,7 +237,6 @@ async function runGenerate(
 		await fs.mkdir(path.dirname(outPath), { recursive: true });
 		await fs.writeFile(outPath, contractsCode, "utf-8");
 
-		// Check if @secondlayer/stacks is installed and warn if not
 		await checkBaseDependencies(process.cwd());
 
 		const contractCount = processedContracts.length;
@@ -281,9 +253,6 @@ async function runGenerate(
 	}
 }
 
-// --- Watch mode ---
-
-/** File names that should trigger regeneration when they change. */
 function isWatchRelevant(filename: string): boolean {
 	return (
 		filename.endsWith(".clar") ||
@@ -303,7 +272,7 @@ async function collectWatchTargets(
 	files: string[],
 	options: GenerateOptions,
 ): Promise<{ path: string; recursive: boolean }[]> {
-	const dirs = new Map<string, boolean>(); // path → recursive
+	const dirs = new Map<string, boolean>();
 	const addParentDir = (filePath: string) => {
 		const dir = path.dirname(path.resolve(process.cwd(), filePath));
 		if (!dirs.get(dir)) dirs.set(dir, false);
@@ -330,7 +299,6 @@ async function collectWatchTargets(
 			// config file's parent dir is already watched, so we recover on save.
 		}
 
-		// Clarinet project: watch the manifest dir and the contracts dir
 		const manifestPath = path.resolve(process.cwd(), "Clarinet.toml");
 		try {
 			await fs.access(manifestPath);
@@ -339,12 +307,8 @@ async function collectWatchTargets(
 			try {
 				const stat = await fs.stat(contractsDir);
 				if (stat.isDirectory()) dirs.set(contractsDir, true);
-			} catch {
-				// no contracts dir
-			}
-		} catch {
-			// no Clarinet project
-		}
+			} catch {}
+		} catch {}
 	}
 
 	return [...dirs.entries()].map(([dir, recursive]) => ({
@@ -404,6 +368,5 @@ async function watchAndRegenerate(files: string[], options: GenerateOptions) {
 		}
 	}
 
-	// fs.watch keeps the event loop alive; block forever until Ctrl+C.
 	await new Promise(() => {});
 }

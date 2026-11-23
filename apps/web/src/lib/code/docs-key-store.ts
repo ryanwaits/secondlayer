@@ -1,10 +1,8 @@
 /** Where the reader's docs key lives for the tab (sessionStorage, never a cookie or a URL). */
 export const DOCS_KEY_STORE = "sl-docs-key";
 
-/** Fired on sign-out so a loaded key module drops the key it holds in memory. */
 export const DOCS_KEY_FORGET = "sl-docs-key-forget";
 
-/** The owner a signed-out reader's key is stored under (an account's is its id). */
 export const ANON_OWNER = "anon";
 
 /**
@@ -23,8 +21,6 @@ export function dropAccountKey(): void {
 	if (owner === ANON_OWNER) return;
 	try {
 		sessionStorage.removeItem(DOCS_KEY_STORE);
-	} catch {
-		// Storage is optional.
-	}
+	} catch {}
 	window.dispatchEvent(new Event(DOCS_KEY_FORGET));
 }

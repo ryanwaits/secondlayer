@@ -13,12 +13,6 @@ import {
 	sortRecent,
 } from "./recent-rows-model";
 
-/**
- * "Recent rows": the newest rows across a subgraph's tables, built like the
- * webhook page's "Recent deliveries". A row opens into the same payload
- * frame, showing its raw JSON.
- */
-
 const VISIBLE_ROWS = 10;
 const COPIED_MS = 1200;
 
@@ -28,7 +22,6 @@ const asText = (value: unknown): string =>
 const shortTx = (tx: string): string =>
 	tx.length > 11 ? `${tx.slice(0, 6)}…${tx.slice(-4)}` : tx || "–";
 
-/** "HH:MM:SS" of an ISO timestamp, in UTC. */
 const clock = (iso: string): string =>
 	iso.length >= 19 ? iso.slice(11, 19) : "–";
 
@@ -45,7 +38,6 @@ const rowKey = ({ table, row }: RecentRow): string =>
 
 type Tab = "fields" | "json";
 
-/** A row's own columns, without the system ones (`_id`, `_block_height`, …). */
 function ownColumns(row: Record<string, unknown>): Record<string, unknown> {
 	return Object.fromEntries(
 		Object.entries(row).filter(([key]) => !key.startsWith("_")),
@@ -57,7 +49,6 @@ const fieldText = (value: unknown): string =>
 		? JSON.stringify(value)
 		: String(value);
 
-/** What Copy puts on the clipboard: where the row lives, then its values. */
 function rowCopyText({ name, table, row }: RecentRow & { name: string }) {
 	const tx = asText(row._tx_id);
 	return [
@@ -70,7 +61,6 @@ function rowCopyText({ name, table, row }: RecentRow & { name: string }) {
 	].join("\n");
 }
 
-/** The opened row's frame: its columns as Fields, or the raw JSON. */
 export function RowPayload({ name, table, row }: RecentRow & { name: string }) {
 	const [tab, setTab] = useState<Tab>("fields");
 	const { copied, copy } = useCopied(COPIED_MS);
@@ -177,7 +167,6 @@ function RecentRowView({
 	);
 }
 
-/** The pure body: `rows` is null while loading. */
 export function RecentRowsBody({
 	name,
 	rows,
@@ -255,8 +244,6 @@ export function RecentRowsBody({
 	);
 }
 
-/** The newest rows across the subgraph's tables. The page's server render
- *  reads them (`initial`); without it the browser reads them once. */
 export function RecentRows({
 	name,
 	initial,
@@ -265,7 +252,6 @@ export function RecentRows({
 	initial?: RecentRowsData | null;
 }) {
 	const [data, setData] = useState<RecentRowsData | null>(initial ?? null);
-	// The subgraph the server's rows belong to; another name reads again.
 	const seededName = useRef(initial ? name : null);
 
 	useEffect(() => {

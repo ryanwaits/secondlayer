@@ -42,7 +42,6 @@ export function normalizeAccess(
  */
 export function normalizeType(type: unknown): AbiType {
 	if (typeof type === "string") {
-		// Handle string primitive types
 		switch (type) {
 			case "uint128":
 			case "int128":
@@ -51,7 +50,6 @@ export function normalizeType(type: unknown): AbiType {
 			case "trait_reference":
 				return type;
 			default:
-				// Unknown string type, return as-is
 				return type as AbiType;
 		}
 	}
@@ -62,7 +60,6 @@ export function normalizeType(type: unknown): AbiType {
 
 	const typeObj = type as Record<string, unknown>;
 
-	// Handle buffer vs buff (API uses buffer, we use buff)
 	if ("buffer" in typeObj) {
 		const buffer = typeObj.buffer as { length?: number };
 		return {
@@ -72,7 +69,6 @@ export function normalizeType(type: unknown): AbiType {
 		};
 	}
 
-	// Already in internal format
 	if ("buff" in typeObj) {
 		const buff = typeObj.buff as { length?: number };
 		return {
@@ -82,7 +78,6 @@ export function normalizeType(type: unknown): AbiType {
 		};
 	}
 
-	// String types
 	if ("string-ascii" in typeObj) {
 		const strAscii = typeObj["string-ascii"] as { length?: number };
 		return {
@@ -101,7 +96,6 @@ export function normalizeType(type: unknown): AbiType {
 		};
 	}
 
-	// Response type - recursively normalize ok and error types
 	if ("response" in typeObj) {
 		const response = typeObj.response as { ok?: unknown; error?: unknown };
 		return {
@@ -112,14 +106,12 @@ export function normalizeType(type: unknown): AbiType {
 		};
 	}
 
-	// Optional type - recursively normalize inner type
 	if ("optional" in typeObj) {
 		return {
 			optional: normalizeType(typeObj.optional),
 		};
 	}
 
-	// List type - recursively normalize element type
 	if ("list" in typeObj) {
 		const list = typeObj.list as { type?: unknown; length?: number };
 		return {
@@ -130,7 +122,6 @@ export function normalizeType(type: unknown): AbiType {
 		};
 	}
 
-	// Tuple type - recursively normalize field types
 	if ("tuple" in typeObj) {
 		const tuple = typeObj.tuple as Array<{ name: string; type: unknown }>;
 		return {
@@ -141,7 +132,6 @@ export function normalizeType(type: unknown): AbiType {
 		};
 	}
 
-	// Unknown type - fail explicitly
 	throw new Error(`Unknown ABI type structure: ${JSON.stringify(type)}`);
 }
 
@@ -253,7 +243,6 @@ export function normalizeAbi(abi: unknown): AbiContract {
 	const implementedTraits: string[] = [];
 	const definedTraits: AbiTraitDefinition[] = [];
 
-	// Normalize functions
 	if (Array.isArray(abiObj.functions)) {
 		for (const func of abiObj.functions) {
 			if (typeof func === "object" && func !== null) {
@@ -262,7 +251,6 @@ export function normalizeAbi(abi: unknown): AbiContract {
 		}
 	}
 
-	// Normalize maps
 	if (Array.isArray(abiObj.maps)) {
 		for (const map of abiObj.maps) {
 			if (typeof map === "object" && map !== null) {
@@ -271,7 +259,6 @@ export function normalizeAbi(abi: unknown): AbiContract {
 		}
 	}
 
-	// Normalize variables
 	if (Array.isArray(abiObj.variables)) {
 		for (const variable of abiObj.variables) {
 			if (typeof variable === "object" && variable !== null) {

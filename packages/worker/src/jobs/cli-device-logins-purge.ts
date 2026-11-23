@@ -12,7 +12,6 @@ import { scheduleCron } from "./cron-schedule.ts";
 const INTERVAL_MS = 60 * 60 * 1000;
 const RETENTION_MS = 24 * 60 * 60 * 1000;
 
-/** Deletes attempts that expired more than a day before `now`; returns the count. */
 export async function purgeExpiredCliDeviceLogins(
 	now = new Date(),
 ): Promise<number> {

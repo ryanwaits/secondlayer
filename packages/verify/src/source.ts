@@ -115,7 +115,6 @@ interface HttpOptions {
 const MAX_ATTEMPTS = 3;
 const MAX_RETRY_SECONDS = 10;
 
-/** GET with retries on 429 and 503 (honoring retry-after); null on 404. */
 async function get(
 	url: string,
 	opts: HttpOptions,
@@ -187,7 +186,6 @@ const isHex = (v: unknown): v is string =>
 const isCount = (v: unknown): v is number =>
 	typeof v === "number" && Number.isSafeInteger(v) && v >= 0;
 
-/** Decode `/v1/proofs/bitcoin-tx/{txid}` into an `SpvProof`. */
 const toBitcoinTxProof = (url: string, j: unknown): SpvProof => {
 	const w = j as Record<string, unknown> | null;
 	if (
@@ -242,7 +240,6 @@ const VM_WRITE_TYPES = [
 ] as const;
 const PAGE = 1000;
 
-/** Follow `next_cursor` until a page comes back empty. Null when the first page 404s. */
 async function pages<T>(
 	field: string,
 	url: string,

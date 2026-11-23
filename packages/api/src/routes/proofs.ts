@@ -51,8 +51,6 @@ import { parseNonNegativeInteger } from "../parse-query.ts";
  * each one is a MARF walk on the node box.
  */
 
-/** Sliding windows (hosted only). An account key buys the higher limit;
- *  anonymous callers share one window per client IP. */
 export const PROOFS_RATE_LIMITS = {
 	account: {
 		default: { limit: 20, windowMs: 1_000 },
@@ -73,12 +71,9 @@ const NODE_TIMEOUT_MS = 30_000;
 
 export type ProofsRouterOptions = {
 	tokens?: IndexTokenStore;
-	/** Read per request so the operator's env is authoritative at call time. */
 	sidecarUrl?: () => string | undefined;
 	nodeRpcUrl?: () => string;
-	/** Bitcoin Core RPC for `/bitcoin-tx`; undefined → 503. Read per request. */
 	bitcoinRpc?: () => BitcoinRpcConfig | undefined;
-	/** One canonical block's `state_writes`, in ordinal order. */
 	readBlockWrites?: typeof readBlockStateWrites;
 };
 
@@ -86,7 +81,6 @@ type Bucket = keyof typeof PROOFS_RATE_LIMITS.account;
 
 function proofsRateLimit(bucket: Bucket): MiddlewareHandler<IndexEnv> {
 	return async (c, next) => {
-		// Self-host is single-tenant: the operator's own box, no fairness throttle.
 		if (!isPlatformMode()) return next();
 		const tenant = c.get("indexTenant");
 		if (tenant?.tier === "internal") return next();
@@ -128,8 +122,6 @@ function notModified(c: Context, tag: string): Response | null {
 	});
 }
 
-/** A 32-byte hash path param: 64 hex, optional `0x`. Returned bare lowercase,
- *  the form the node and sidecar parse. */
 function hash32(value: string, name: string): string {
 	return hexParam(value, name, 64);
 }
@@ -166,19 +158,13 @@ function errorResponse(
 }
 
 type ProxySpec = {
-	/** Names the source in error messages. */
 	source: string;
 	timeoutMs: number;
 	contentType: "application/octet-stream" | "application/json";
-	/** Cache directive for a 200. */
 	cache: string;
-	/** ETag for a 200 (immutable routes only). */
 	etag?: string;
-	/** 404 message: what the source has no record of. */
 	notFound: string;
-	/** Upstream response headers copied onto a 200. */
 	passHeaders?: readonly string[];
-	/** Answers an upstream 404 instead of NOT_FOUND: the next source to try. */
 	onNotFound?: () => Response | Promise<Response>;
 };
 
@@ -473,7 +459,6 @@ export function createProofsRouter(opts: ProofsRouterOptions = {}) {
 				"no state_writes for a canonical block at that height",
 			);
 		}
-		// The canonical block at a height can change until it is final.
 		return c.json({ block_height: height, state_writes: writes }, 200, {
 			"cache-control": MUTABLE_CACHE_CONTROL,
 		});

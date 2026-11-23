@@ -14,10 +14,6 @@ type ClientProvider = typeof getClient;
 
 // Source ABIs from the platform contract registry (prod-safe). The old
 // `/api/node/contracts/:id/abi` proxy is OSS/dedicated-only and 404s in prod.
-//
-// Prefer observed print events (`index.printSchema`). ABI functions are a
-// fallback when the contract has never printed; SIP-010/009 assets fall back
-// to token-transfer scaffolds. `abi.maps` is define-map STORAGE — not print topics.
 async function fetchAbi(
 	clientProvider: ClientProvider,
 	contractId: string,

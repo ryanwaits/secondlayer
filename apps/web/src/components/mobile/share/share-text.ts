@@ -18,14 +18,12 @@ export const SHARE_TARGETS: Record<
 /** Cursor rejects deep links over 8,000 characters; one cap for all three. */
 export const MAX_URL = 8000;
 
-/** The dashboard page for an insight, absolute so it works outside the app. */
 export function shareLinkFor(insight: Insight): string {
 	return `${SITE}${insightHref(insight)}`;
 }
 
 type Parts = { prompt: string; commands: readonly string[] };
 
-/** The one place the shared text is laid out; shortening reuses it. */
 function compose(insight: Insight, { prompt, commands }: Parts): string {
 	const cause = causeText(insight.how);
 	const blocks = [
@@ -52,7 +50,6 @@ export function buildShareText(insight: Insight): {
 	};
 }
 
-/** The target's deep link. Over the cap, only the prompt shrinks; the dashboard link always survives. */
 export function shareUrl(target: ShareTarget, insight: Insight): string {
 	const { base } = SHARE_TARGETS[target];
 	const build = (parts: Parts) =>

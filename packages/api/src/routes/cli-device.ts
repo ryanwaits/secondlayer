@@ -10,16 +10,6 @@ import { generateSessionToken, hashToken } from "../auth/keys.ts";
 import { requireAuth } from "../auth/middleware.ts";
 import { InvalidJSONError } from "../middleware/error.ts";
 
-/**
- * Browser sign-in for the CLI (`sl login`), modeled on RFC 8628.
- * `sentinel login` uses the same flow with `product: "sentinel"`, so the
- * approval page names Sentinel.
- *
- * The CLI creates an attempt (`POST /`) and polls `POST /token` with its secret
- * device code. A signed-in user approves the short user code in the browser
- * (`/:userCode/approve`). The key is minted on the first poll after approval,
- * so the plaintext exists only in that one response.
- */
 const app = new Hono();
 
 const EXPIRES_IN_SECONDS = 15 * 60;
@@ -49,7 +39,6 @@ export function generateUserCode(): string {
 	return `${chars.slice(0, 4).join("")}-${chars.slice(4).join("")}`;
 }
 
-/** `wdjb mjht`, `WDJBMJHT`, `wdjb-mjht` → `WDJB-MJHT`; null if malformed. */
 export function normalizeUserCode(raw: string): string | null {
 	const flat = raw.toUpperCase().replace(/[\s-]/g, "");
 	if (flat.length !== USER_CODE_LENGTH) return null;
@@ -68,7 +57,6 @@ async function readJson(c: { req: { json(): Promise<unknown> } }) {
 	});
 }
 
-/** Approving and reading attempts is a signed-in-user action, never an API key. */
 function requireSession(c: unknown): string {
 	// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 	const ctx = c as any;
@@ -86,7 +74,6 @@ function parseUserCode(raw: string): string {
 	return code;
 }
 
-// Start an attempt (no auth)
 app.post("/", async (c) => {
 	const { clientName, product } = CreateSchema.parse(await readJson(c));
 	const db = getDb();
@@ -124,7 +111,6 @@ app.post("/", async (c) => {
 	});
 });
 
-// Poll (no auth; the device code is the secret)
 app.post("/token", async (c) => {
 	const { deviceCode } = TokenSchema.parse(await readJson(c));
 	const db = getDb();
@@ -147,7 +133,6 @@ app.post("/token", async (c) => {
 	if (!row.account_id) return c.json({ error: "expired_token" }, 410);
 	const accountId = row.account_id;
 
-	// One transaction: claim the row, then open a session for the account.
 	// Signing in makes a session (expires, revoked by `logout`), never an API
 	// key: keys are for reading data and live on the Keys tab.
 	const result = await db.transaction().execute(async (trx) => {
@@ -176,14 +161,12 @@ app.post("/token", async (c) => {
 			.executeTakeFirstOrThrow();
 		return { sessionToken: raw, account };
 	});
-	// Lost the race to a concurrent poll.
 	if (!result) return c.json({ error: "expired_token" }, 410);
 	// `key` repeats the session token for CLI 21.3.0, which reads that field
 	// and stores it as its bearer; a session token works wherever it did.
 	return c.json({ ...result, key: result.sessionToken });
 });
 
-// What the approval page shows (session)
 app.get("/:userCode", requireAuth(), async (c) => {
 	requireSession(c);
 	const row = await getDb()
@@ -201,10 +184,6 @@ app.get("/:userCode", requireAuth(), async (c) => {
 	});
 });
 
-/**
- * Answer a pending attempt. `then` runs in the same transaction as the
- * answer, so its writes land only if the answer does.
- */
 async function settle(
 	userCode: string,
 	set: Record<string, unknown>,

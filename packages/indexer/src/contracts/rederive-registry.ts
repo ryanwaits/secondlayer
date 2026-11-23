@@ -37,8 +37,6 @@ function parseArgs(argv: string[]): { limit: number } {
 	return { limit };
 }
 
-/** Core logic, extracted so a caller (tests, `--derive` tooling) can run it
- *  in-process without spawning the CLI. */
 export async function rederiveRegistry(
 	db: Kysely<Database>,
 	opts: { limit: number },

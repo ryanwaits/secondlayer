@@ -21,7 +21,6 @@ const MARKS: Record<ShareTarget, ReactNode> = {
 
 const CHECK = "Check: ";
 
-/** Hand a title and link to the phone's share sheet (Slack is in it); copy the link when there is none. */
 export async function shareLink(title: string, url: string): Promise<void> {
 	if (typeof navigator.share === "function") {
 		try {
@@ -74,10 +73,8 @@ function PreviewLine({ line }: { line: string }) {
 	);
 }
 
-/** What the sheet shows. Rendered alone by the Lab and tests; `Sheet` portals. */
 export function ShareFixBody({ insight }: { insight: Insight }) {
 	const { title, text, url } = buildShareText(insight);
-	// `text` starts with the bold title and ends with the link, which has its own row.
 	const body = text.slice(title.length, text.length - url.length).trim();
 	return (
 		<>
@@ -144,7 +141,6 @@ export function ShareFixBody({ insight }: { insight: Insight }) {
 	);
 }
 
-/** Share an insight's fix as a bottom sheet. */
 export function ShareFixSheet({
 	insight,
 	onClose,

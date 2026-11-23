@@ -8,31 +8,17 @@ import type {
 	SubgraphTableInfo,
 } from "@/lib/subgraphs-store";
 
-/**
- * What a subgraph table is, in words, read from the deployed source: the
- * closed row's sentence, the open row's prose (phrases are focus links) and
- * the table's handler excerpt with `// !ref` comments the code frame turns
- * into focus targets. Pure; reads user text, so it never throws: when the
- * handler can't be found, `code` is null and the page shows prose only.
- */
-
 export type Piece = { text: string; code?: boolean };
 export type Segment = { pieces: Piece[]; focus?: string };
 
 export interface TableDescription {
-	/** The source type, e.g. "print_event". */
 	type: string;
-	/** The closed row's sentence. */
 	line: Piece[];
-	/** The open row's prose; segments with `focus` become click-to-press links. */
 	prose: Segment[];
-	/** The handler excerpt with `// !ref(1:n) <name>` lines inserted; null when it can't be found. */
 	code: string | null;
-	/** 1-based line number of the excerpt's first source line. */
 	start: number;
 }
 
-/** The code frame renders at most this many characters per block. */
 const MAX_EXCERPT_CHARS = 7500;
 
 const HANDLER_KEY =
@@ -48,7 +34,6 @@ const indentOf = (line: string): string => /^\s*/.exec(line)?.[0] ?? "";
 
 interface Handler {
 	key: string;
-	/** 0-based index of the handler's key line. */
 	keyIndex: number;
 	excerpt: string | null;
 	columnCount: number;
@@ -141,14 +126,12 @@ export function describeTable(input: {
 	const printTopic =
 		source?.type === "print_event" && source.topic ? source.topic : null;
 
-	// How the closed line and the prose name the event the rows come from.
 	let line: Piece[];
 	let lead: Piece[];
 	let event: Piece[];
 	let between: string;
 	let columnsPhrase: string;
 	if (!handler) {
-		// No handler identified: name no handler, only the facts we have.
 		const noHandlerProse: Segment[] = [
 			{
 				pieces: [
@@ -205,8 +188,6 @@ export function describeTable(input: {
 	};
 }
 
-/** Every table described, biggest first, and the code frames the page shows
- *  for the ones whose handler was found (in the same order, up to the cap). */
 export function tableCode(input: {
 	name: string;
 	tables: Record<string, SubgraphTableInfo>;

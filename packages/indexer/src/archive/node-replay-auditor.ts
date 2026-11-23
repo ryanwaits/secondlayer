@@ -128,8 +128,6 @@ export function isObserverSyntheticBootTx(
 	);
 }
 
-/** Our stored txids for a height, in consensus tx-merkle order, with
- *  observer-synthetic boot-deploy txs excluded (see {@link isObserverSyntheticBootTx}). */
 export function attestedTxIds(txs: AttestableTx[], network: string): string[] {
 	return txs
 		.filter((tx) => !isObserverSyntheticBootTx(tx, network))
@@ -196,16 +194,12 @@ export interface NodeReplayAuditOptions {
 	fromBlock: number;
 	toBlock: number;
 	snapshotDigest?: string | null;
-	/** Cap the mismatch list to keep the report bounded on catastrophic drift.
-	 *  Every mismatch is still counted in `stats`. */
 	maxMismatchesReported?: number;
-	/** Report at most this many successful checks as evidence (default 5). */
 	maxSampleMatches?: number;
 	generatedAt?: string;
 	db?: Kysely<Database>;
 	fetchImpl?: typeof fetch;
 	signingPrivateKeyPem?: string;
-	/** Log progress every N heights. */
 	progressEvery?: number;
 	onProgress?: (checked: number, total: number) => void;
 	/**
@@ -224,7 +218,6 @@ const DEFAULT_MAX_SAMPLES = 5;
 const DEFAULT_PROGRESS_EVERY = 1_000;
 const DEFAULT_CONCURRENCY = 8;
 
-/** Exact counters plus capped evidence lists for one audit run. */
 export type AuditOutcomeBuckets = {
 	matches: number;
 	mismatchCount: number;
@@ -245,10 +238,6 @@ export function emptyAuditBuckets(): AuditOutcomeBuckets {
 	};
 }
 
-/**
- * Record one height. Lists stay capped so a catastrophic run cannot emit a
- * gigabyte of JSON; counters stay exact so `stats` cannot lie by omission.
- */
 export function recordAuditOutcome(
 	buckets: AuditOutcomeBuckets,
 	result: BlockCheck,
@@ -275,10 +264,6 @@ export function recordAuditOutcome(
 	}
 }
 
-/**
- * Compare the local canonical index at [fromBlock, toBlock] against a
- * stacks-node's block identities. Returns the attestation document.
- */
 export async function runNodeReplayAudit(
 	options: NodeReplayAuditOptions,
 ): Promise<NodeAttestation> {
@@ -297,11 +282,6 @@ export async function runNodeReplayAudit(
 	let checked = 0;
 	const BATCH_ROWS = 500;
 
-	// Per-row check: no shared mutable state, safe to run concurrently. Returns
-	// a `BlockCheck` describing what we found for that height. The caller
-	// merges into the outer accumulators in height-ascending order so the
-	// bounded `sample_matches`, `mismatches`, and `unavailable` lists stay
-	// deterministic regardless of network completion order.
 	const checkOne = async (row: {
 		height: number;
 		expectedHash: string;
@@ -486,11 +466,6 @@ export async function runNodeReplayAudit(
 	return doc;
 }
 
-/**
- * Write a node attestation to disk under `<outDir>/attestations/<snapshot>/node.json`
- * (or `pending/node.json` when no snapshot digest is known yet). Returns the
- * absolute path.
- */
 export async function writeNodeAttestation(
 	outDir: string,
 	attestation: NodeAttestation,

@@ -34,7 +34,6 @@ export type StreamsBulkManifest = {
 	/** ed25519 signature over the manifest's canonical bytes (manifest JSON minus
 	 *  these envelope fields). Absent on legacy unsigned manifests. */
 	signature?: string;
-	/** Short id of the signing public key, for rotation. */
 	key_id?: string;
 };
 

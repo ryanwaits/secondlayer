@@ -249,14 +249,12 @@ export const API_PAGES: ApiPage[] = [
 	},
 ];
 
-/** A path list claims a path exactly, or by prefix when the entry ends in `*`. */
 function claims(family: ApiFamily, path: string): boolean {
 	return family.paths.some((p) =>
 		p.endsWith("*") ? path.startsWith(p.slice(0, -1)) : p === path,
 	);
 }
 
-/** Every family on the page that claims this path (exactly one is correct). */
 export function familiesClaiming(page: ApiPage, path: string): ApiFamily[] {
 	return page.families.filter((f) => claims(f, path));
 }

@@ -30,7 +30,6 @@ import {
 	matchSources,
 } from "./source-matcher.ts";
 
-/** Trigger types that match a whole transaction (not an individual event). */
 const TX_LEVEL_TRIGGER_TYPES = new Set(["contract_call", "contract_deploy"]);
 
 /**
@@ -122,9 +121,6 @@ export function chainTriggerToFilter(trigger: ChainTrigger): SubgraphFilter {
 		minAmount?: string | number;
 		maxAmount?: string | number;
 	};
-	// Spread copies all set keys; amounts (string|number) are then overwritten
-	// with bigint where present. An absent optional amount isn't in the spread,
-	// so there's nothing to strip.
 	const filter = { ...trigger } as Record<string, unknown>;
 	const minAmount = toAmount(t.minAmount);
 	const maxAmount = toAmount(t.maxAmount);
@@ -143,8 +139,6 @@ export function buildSourcesMap(chainSubs: Webhook[]): ChainSourcesMap {
 	const keyMeta = new Map<string, TriggerKeyMeta>();
 	for (const sub of chainSubs) {
 		triggersOf(sub).forEach((trigger, triggerIndex) => {
-			// sBTC triggers are handled by emitSbtcOutbox — skip them here so
-			// matchSources never tries to find sbtc_events in decoded_events.
 			if (isSbtcTriggerType(trigger.type)) return;
 			const key = sourceKey(sub.id, triggerIndex);
 			sources[key] = chainTriggerToFilter(trigger);
@@ -163,7 +157,6 @@ export function referencedEventTypes(chainSubs: Webhook[]): string[] {
 	const filterTypes = new Set<string>();
 	for (const sub of chainSubs) {
 		for (const trigger of triggersOf(sub)) {
-			// sBTC events live in sbtc_events, not in the Index event stream.
 			if (!isSbtcTriggerType(trigger.type)) filterTypes.add(trigger.type);
 		}
 	}
@@ -203,11 +196,6 @@ export function referencedTraits(chainSubs: Webhook[]): string[] {
 	return [...traits];
 }
 
-/**
- * `opts.reader` wins; an explicit `opts.sourceDb` (test seam) reads those
- * tables; otherwise the stack's own reader (`chainDataReader`): the source
- * plane, or the hosted Index API on a tenant with no local chain.
- */
 function readerFor(opts?: {
 	sourceDb?: Kysely<Database>;
 	reader?: ChainDataReader;
@@ -259,12 +247,6 @@ export function evaluateBlock(
 	);
 }
 
-// ── Outbox emission ─────────────────────────────────────────────────────────
-
-// Apply-envelope shape is single-sourced as `ChainApplyEnvelope` in
-// `@secondlayer/shared` (shared with the SDK consumer); reorg emits a matching
-// `ChainReorgRollbackEnvelope`, see `handleChainReorg`.
-
 /**
  * Stable dedup identity for a chain delivery — (webhook, tx, event,
  * block_hash). A tx-level match (contract_call/deploy) has no event, so
@@ -293,8 +275,6 @@ function chainDedupKey(
 	return replayId ? `replay:${replayId}:${base}` : base;
 }
 
-/** Which ordinal `event_index` carries: classic `events.event_index` or the
- *  opt-in `vm_events.ordinal`. Never mixed. */
 type DeliveryClock = "classic" | "vm";
 
 const VM_TRIGGER_TYPES = new Set<string>([
@@ -431,8 +411,6 @@ export async function emitChainOutbox(
 		.executeTakeFirst();
 	return Number(result.numInsertedOrUpdatedRows ?? 0);
 }
-
-// ── sBTC event matching ──────────────────────────────────────────────────────
 
 function sbtcSubsOf(chainSubs: Webhook[]): Webhook[] {
 	return chainSubs.filter((sub) =>
@@ -707,7 +685,6 @@ export async function emitSbtcSettlementOutbox(
 			? null
 			: Number(state.last_settlement_scan_seq);
 	const floor = state?.last_settlement_scan_at ?? null;
-	// Uninitialized → fast-forward, emit nothing (forward-only).
 	if (seqCursor === null && floor === null) {
 		await db
 			.updateTable("trigger_evaluator_state")

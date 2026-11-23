@@ -3,11 +3,6 @@
 import { useEffect, useState } from "react";
 import { useReducedMotion } from "./use-reduced-motion";
 
-/**
- * B2 FlowLoop — a request/response loop between two parties. The counter
- * row is the argument; the shuttle dot is atmosphere (CSS keyframes,
- * paused under reduced-motion, where the counter also stops ticking).
- */
 export function FlowLoop({
 	left,
 	right,
@@ -16,9 +11,7 @@ export function FlowLoop({
 }: {
 	left: { kicker: string; body: string };
 	right: { kicker: string; body: string };
-	/** A live tally, e.g. { label: "polls", intervalMs: 2200 }. */
 	counter?: { label: string; intervalMs?: number };
-	/** Static readout entries after the counter ("blocks read client-side: 0"). */
 	extras?: { label: string; value: string }[];
 }) {
 	const [n, setN] = useState(0);

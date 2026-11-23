@@ -4,8 +4,6 @@ export { MAX_U128, MAX_I128, MIN_I128 };
 
 export { CONTRACT_NAME_REGEX } from "../../utils/address.ts";
 
-// Primitive types
-
 export type AbiUInt128 = "uint128";
 export type AbiInt128 = "int128";
 export type AbiBool = "bool";
@@ -61,8 +59,6 @@ export type AbiType =
 	| AbiTupleType
 	| AbiOptionalType
 	| AbiResponseType;
-
-// Generic versions for better type inference
 
 export type AbiList<T extends AbiType = AbiType, L extends number = number> = {
 	list: { type: T; length: L };

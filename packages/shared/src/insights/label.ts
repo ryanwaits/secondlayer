@@ -98,7 +98,6 @@ export async function maybeLabel(
 			logger.warn("insights.label_failed", { error: String(err) });
 			return null;
 		});
-		// Provider down: leave the insight alone and try again next pass.
 		if (!result) return insight;
 		const answer = result.answers.cause;
 		outcome =

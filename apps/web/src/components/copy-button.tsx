@@ -9,10 +9,7 @@ export function CopyButton({
 	inline,
 }: {
 	code: string;
-	/** Optional text label rendered before the icon (toggles to "copied"). */
 	label?: string;
-	/** Render statically in-flow (header/toolbar) instead of the default
-	 *  absolute, hover-revealed icon used inside code blocks. Implied by `label`. */
 	inline?: boolean;
 }) {
 	const { copied, copy } = useCopied(1500);
@@ -49,7 +46,6 @@ const iconProps = {
 	strokeLinejoin: "round",
 } as const;
 
-/** The copy glyph every copy control shares. */
 export function CopyIcon() {
 	return (
 		<svg aria-hidden="true" {...iconProps}>
@@ -59,7 +55,6 @@ export function CopyIcon() {
 	);
 }
 
-/** The check a copy control swaps in once it has copied. */
 export function CheckIcon() {
 	return (
 		<svg aria-hidden="true" {...iconProps}>

@@ -1,5 +1,4 @@
 import { stacksNetwork } from "@secondlayer/shared";
-// Indexer service - receives events from Stacks node
 // Uses native Bun.serve routes instead of Hono (fixes stack overflow issues)
 import { assertDbSplit, getSourceDb } from "@secondlayer/shared/db";
 import {
@@ -173,7 +172,6 @@ async function getObserverJournalHealth(
 	}
 }
 
-// Task 2.2: Startup integrity check
 async function runStartupIntegrityCheck() {
 	try {
 		const db = getSourceDb();
@@ -198,7 +196,6 @@ async function runStartupIntegrityCheck() {
 			highestSeenBlock: progress.highest_seen_block,
 		});
 
-		// Initialize lastSeenHeight for out-of-order tracking
 		initIngestState((await resolveChainTip(db, "seen")) ?? 0);
 
 		// Wrong/empty-volume guard: if the tip is high but the deep history it
@@ -250,7 +247,6 @@ async function runStartupIntegrityCheck() {
 
 await runStartupIntegrityCheck();
 await ensureBootstrapSpoolConsumed();
-// Resume a crash-interrupted backlog without waiting for the next block.
 if (OBSERVER_JOURNAL_ENABLED && !(await isBootstrapSpoolMode())) {
 	await ensureApplierStarted();
 }
@@ -262,7 +258,6 @@ const server = Bun.serve({
 	port: PORT,
 
 	routes: {
-		// Health check
 		"/health": () => {
 			const ingest = getIngestTelemetry();
 			return Response.json({
@@ -278,8 +273,6 @@ const server = Bun.serve({
 					network: NETWORK,
 					paths: ["/new_block", "/new_burn_block"],
 				},
-				// Catch-up ingest: the node is acked on journal commit and the
-				// applier runs behind. `backlog` is journaled-but-unapplied blocks.
 				ingest: {
 					mode: lastIngestMode,
 					lastReceivedHeight,
@@ -333,11 +326,8 @@ const server = Bun.serve({
 					lastContiguousBlock = row.last_contiguous_block;
 					lastIndexedBlock = row.last_indexed_block;
 				}
-			} catch {
-				// DB unavailable
-			}
+			} catch {}
 
-			// Use live DB data to override stale in-memory gap count
 			const gapCount =
 				lastContiguousBlock >= lastIndexedBlock ? 0 : integrityState.gapCount;
 			const totalMissing =
@@ -397,11 +387,9 @@ const server = Bun.serve({
 			});
 		},
 
-		// New block event
 		"/new_block": {
 			POST: async (req) => {
 				try {
-					// Skip recording for self-sourced blocks (tip-follower, auto-backfill)
 					const source = req.headers.get("X-Source");
 					if (!source) recordBlockReceived();
 
@@ -420,8 +408,6 @@ const server = Bun.serve({
 						return Response.json(await ingestNewBlock(payload));
 					}
 
-					// Spool: journal only. The drain (consumeBootstrapSpool) reads the
-					// received rows once the archive import lands.
 					if (await isBootstrapSpoolMode()) {
 						const receipt = await captureObserverRequest(
 							req,
@@ -481,11 +467,6 @@ const server = Bun.serve({
 			},
 		},
 
-		// New burn block event — persists PoX reward payouts + reward-set
-		// membership (the burnchain dataset). Replace-per-height write is
-		// idempotent on redelivery and heals burnchain reorgs of any depth
-		// as the node re-announces each replaced height (see
-		// persistBurnBlockRewards for the full contract).
 		"/new_burn_block": {
 			POST: async (req) => {
 				let receipt: ObserverReceipt | null = null;
@@ -542,9 +523,6 @@ const server = Bun.serve({
 			},
 		},
 
-		// Mempool: the node POSTs a bare array of raw_tx hex strings. Decode +
-		// derive the txid + upsert (idempotent, runs on every instance). Decode
-		// failures skip that tx rather than 500 the whole batch.
 		"/new_mempool_tx": {
 			POST: async (req) => {
 				try {
@@ -561,11 +539,6 @@ const server = Bun.serve({
 			},
 		},
 
-		// Mempool drops: hard-delete by txid for GENUINE drops (RBF, replace, …).
-		// StaleGarbageCollect — the node's memory-pressure GC — is ignored so one
-		// node's aggressive GC doesn't drain the mempool; those clear via
-		// eviction-on-confirmation or the retention sweep. Mined txs aren't dropped
-		// here either — eviction-on-confirmation runs in block ingest.
 		"/drop_mempool_tx": {
 			POST: async (req) => {
 				try {
@@ -592,10 +565,8 @@ const server = Bun.serve({
 		},
 	},
 
-	// Fallback for unmatched routes
 	fetch: handleNotFound,
 
-	// Global error handler
 	error(error) {
 		logger.error("Unhandled server error", { error });
 		return Response.json(
@@ -610,14 +581,10 @@ const server = Bun.serve({
 // instance would double-write. The HTTP server (above) runs on every instance.
 function startLeaderLoops(): StopFn {
 	const stops = [
-		// integrity (gap detection + optional auto-backfill)
 		startIntegrityLoop(),
-		// tip follower (auto-fallback when the node stops pushing blocks)
 		startTipFollower(),
 		startStreamsBulkPublisher(),
-		// contract registry (gated on CONTRACT_REGISTRY_ENABLED)
 		startContractRegistry(),
-		// mempool retention sweep (clears stuck pending txs)
 		startMempoolSweep(),
 	];
 	return () => {
@@ -637,7 +604,6 @@ const stopLeaderLoops: () => Promise<void> = leaderElectionEnabled
 			};
 		})();
 
-// Graceful shutdown
 const shutdown = async () => {
 	logger.info("Shutting down indexer service...");
 	await stopLeaderLoops();

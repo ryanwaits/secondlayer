@@ -206,14 +206,12 @@ async function planRange(
 		}
 		localByHeight.delete(block.height);
 	}
-	// Whatever remains is canonical locally but absent from the archive.
 	const extraHeights = [...localByHeight.keys()].sort((a, b) => a - b);
 
 	return { fixes, extraHeights };
 }
 
 type ChildDataset = Exclude<ArchiveDataset, "blocks">;
-/** Every dataset hanging off `blocks`, in FK (load) order. */
 const CHILD_DATASETS: readonly ChildDataset[] = ARCHIVE_DATASETS.filter(
 	(d): d is ChildDataset => d !== "blocks",
 );
@@ -238,7 +236,6 @@ function publishedChildren(
 	return CHILD_DATASETS.filter((d) => manifestPublishes(manifest, d));
 }
 
-/** The datasets a report names: blocks plus every published child. */
 function reportedDatasets(children: readonly ChildDataset[]): ArchiveDataset[] {
 	return ARCHIVE_DATASETS.filter(
 		(d) => d === "blocks" || (children as readonly string[]).includes(d),
@@ -436,7 +433,6 @@ async function applyFixes(
 			);
 		}
 		applied.rows.blocks = targets.length;
-		// FK (load) order: transactions before the events that reference them.
 		for (const dataset of CHILD_DATASETS) {
 			const keep = new Set(children.rewritable[dataset] ?? []);
 			for (const [path, { partition: child }] of children.byPartition) {
@@ -458,10 +454,6 @@ async function applyFixes(
 	return applied;
 }
 
-/** Re-verify every dataset the reference publishes digests for over the
- *  repaired ranges. A repair that does not end in a clean verification is
- *  not a repair, it is a hope; a repair verified on blocks alone is a
- *  narrower hope. */
 async function reverify(
 	db: ReturnType<typeof getDb>,
 	reference: LoadedReference,
@@ -535,7 +527,6 @@ export type ChildRangeMismatch = {
 	to_block: number;
 } & Partial<Record<ChildDataset, ChildRowCount>>;
 
-/** Table column labels for the child-only plan. */
 const CHILD_LABEL: Record<ChildDataset, string> = {
 	transactions: "TX",
 	events: "EVENTS",
@@ -600,8 +591,6 @@ export async function planChildPartitionDivergence(
 	return mismatches;
 }
 
-/** The child datasets a mismatch rewrites: every diverging dataset plus its
- *  `REWRITE_TOGETHER` partners, in FK order. */
 function childRewritesFor(mismatch: ChildRangeMismatch): ChildDataset[] {
 	const rewrite = new Set<ChildDataset>();
 	for (const dataset of CHILD_DATASETS) {
@@ -671,7 +660,6 @@ async function applyChildRangeFix(
 				[mismatch.from_block, mismatch.to_block],
 			);
 		}
-		// FK order: children out before their parents, parents in first.
 		for (const dataset of [...rewrite].reverse()) {
 			await tx.unsafe(
 				`DELETE FROM ${dataset} WHERE block_height BETWEEN $1 AND $2`,
@@ -979,8 +967,6 @@ Exit codes:
 						(toBlock !== undefined && from > toBlock)
 					);
 
-				// Find divergent ranges the cheap way first, so repair only reads
-				// the partitions it actually needs.
 				const referenceDigests = (
 					reference.manifest.range_digests ?? []
 				).filter(
@@ -1010,8 +996,6 @@ Exit codes:
 				const divergent = compareRangeDigests(local, referenceDigests).filter(
 					(c) => c.status !== "match",
 				);
-				// Child datasets this reference publishes. An optional one it
-				// leaves out is not repaired, reported, or counted as missing.
 				const children = publishedChildren(reference.manifest);
 				const reported = reportedDatasets(children);
 
@@ -1091,7 +1075,6 @@ Exit codes:
 					note(`  metered: ${quoteLine}`);
 					if (shouldPromptForGatedFetch(opts)) {
 						if (opts.json) {
-							// `--json` shapes the output; it never stands in for `-y`.
 							writeData(
 								JSON.stringify(confirmationRequiredPayload(result.quote)),
 							);
@@ -1218,8 +1201,6 @@ Exit codes:
 				// `heights_missing_child_partitions`, and the operator watching the
 				// run sees the exact command either way.
 				if (missingHeights.length > 0) {
-					// Name the exact remedy: these heights are consistent on
-					// blocks and stale underneath, and nothing else says so.
 					for (const dataset of children) {
 						const heights = missingChild.get(dataset) ?? [];
 						if (heights.length === 0) continue;

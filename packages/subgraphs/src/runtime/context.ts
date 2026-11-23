@@ -81,7 +81,6 @@ export interface TxMeta {
 	functionName?: string | null;
 }
 
-/** Validate that a column name is safe for SQL identifiers */
 function validateColumnName(name: string): void {
 	if (!/^[a-z_][a-z0-9_]*$/i.test(name)) {
 		throw new Error(`Invalid column name: ${name}`);
@@ -156,8 +155,6 @@ export class SubgraphContext {
 		this._tx = tx;
 	}
 
-	// --- Write operations (batched) ---
-
 	insert(table: string, row: Record<string, unknown>): void {
 		this.validateTable(table);
 		this.ops.push({
@@ -186,7 +183,6 @@ export class SubgraphContext {
 		if (!tableDef) return;
 		const keyColumns = Object.keys(key);
 
-		// Check if there's a matching uniqueKeys constraint
 		const hasUniqueConstraint = tableDef.uniqueKeys?.some(
 			(uk) =>
 				uk.length === keyColumns.length &&
@@ -196,14 +192,12 @@ export class SubgraphContext {
 		const meta = { _block_height: this.block.height, _tx_id: this._tx.txId };
 
 		if (hasUniqueConstraint) {
-			// Use ON CONFLICT for proper upsert
 			this.ops.push({
 				kind: "insert",
 				table,
 				data: { ...key, ...row, ...meta, _upsert_keys: keyColumns },
 			});
 		} else {
-			// Fallback: log warning, use findOne + conditional insert/update
 			logger.warn(
 				"upsert called without matching uniqueKeys constraint, using fallback",
 				{
@@ -280,8 +274,6 @@ export class SubgraphContext {
 		});
 	}
 
-	// --- Ops checkpoint (per-event atomicity) ---
-
 	/** Current length of the pending-ops queue. Pair with {@link rollbackTo}. */
 	opsCheckpoint(): number {
 		return this.ops.length;
@@ -297,8 +289,6 @@ export class SubgraphContext {
 		if (checkpoint < 0 || checkpoint > this.ops.length) return;
 		this.ops.length = checkpoint;
 	}
-
-	// --- Read operations (immediate) ---
 
 	/**
 	 * Committed rows matching `where`, BEFORE the pending-ops overlay. The one
@@ -343,8 +333,6 @@ export class SubgraphContext {
 		return this.overlayMany(table, where, await this.readRows(table, where));
 	}
 
-	// --- Pending-ops overlay (read-your-writes) ---
-
 	/**
 	 * Replay pending ops for `table` over a single DB-read result so reads
 	 * observe earlier same-block writes. Mirrors flush semantics: upserts
@@ -384,8 +372,6 @@ export class SubgraphContext {
 			} else if (op.kind === "delete") {
 				result = result.filter((r) => !rowMatches(r, op.data));
 			} else {
-				// insert / increment — merge into the keyed row, or append if the
-				// new row satisfies the filter.
 				const upsertKeys = op.data._upsert_keys as string[] | undefined;
 				const clean = stripControlKeys(op.data);
 				const idx = upsertKeys
@@ -480,8 +466,6 @@ export class SubgraphContext {
 		return result;
 	}
 
-	// --- Flush ---
-
 	/** Number of pending write operations */
 	get pendingOps(): number {
 		return this.ops.length;
@@ -519,7 +503,6 @@ export class SubgraphContext {
 				op.kind === "update" || op.kind === "increment"
 					? { ...op.data, ...(op.set ?? {}) }
 					: { ...op.data };
-			// Strip upsert control keys — not part of the row shape
 			(baseRow as Record<string, unknown>)._upsert_keys = undefined;
 			(baseRow as Record<string, unknown>)._upsert_fallback_keys = undefined;
 			(baseRow as Record<string, unknown>)._upsert_fallback_set = undefined;
@@ -615,7 +598,6 @@ export class SubgraphContext {
 			data[c] === "NOW()" ? "NOW()" : escapeLiteral(data[c]),
 		);
 
-		// Batch key: table + sorted columns + upsert key signature (spread to avoid mutating cols)
 		const batchKey = `${op.table}:${[...cols].sort().join(",")}:${upsertKeys ? [...upsertKeys].sort().join(",") : ""}`;
 
 		return { data, cols, vals, upsertKeys, batchKey };
@@ -695,7 +677,6 @@ export class SubgraphContext {
 	private buildStatements(ops: WriteOp[]): FlushStatement[] {
 		const statements: FlushStatement[] = [];
 
-		// Group consecutive inserts by batch key
 		type InsertBatch = {
 			table: string;
 			cols: string[];
@@ -864,10 +845,8 @@ export class SubgraphContext {
 				const { cols, vals, upsertKeys, batchKey } = this.prepareInsert(op);
 
 				if (batchKey === currentBatchKey && currentBatch) {
-					// Same table + columns + upsert key — append to batch
 					currentBatch.rows.push(vals);
 				} else {
-					// Different batch — flush previous and start new
 					flushInsertBatch();
 					currentBatch = { table: op.table, cols, rows: [vals], upsertKeys };
 					currentBatchKey = batchKey;
@@ -903,7 +882,6 @@ export class SubgraphContext {
 					});
 				}
 			} else {
-				// Non-insert — flush any pending batches first
 				flushInsertBatch();
 				flushIncrementBatch();
 
@@ -930,7 +908,6 @@ export class SubgraphContext {
 			}
 		}
 
-		// Flush any remaining batches
 		flushInsertBatch();
 		flushIncrementBatch();
 
@@ -946,8 +923,6 @@ export class SubgraphContext {
 	}
 }
 
-// --- Helpers ---
-
 /**
  * System columns (`_block_height`, `_tx_id`, `_created_at`, `_id`) record a
  * row's creation. The write that creates a key sets them; a later upsert or
@@ -959,7 +934,6 @@ function isSystemColumn(col: string): boolean {
 	return col.startsWith("_");
 }
 
-/** Drop internal upsert control keys from an op's data. */
 function stripControlKeys(
 	data: Record<string, unknown>,
 ): Record<string, unknown> {
@@ -972,14 +946,12 @@ function stripControlKeys(
 	return clean;
 }
 
-/** Loose value equality across bigint/number/string representations. */
 function valEq(a: unknown, b: unknown): boolean {
 	if (a === b) return true;
 	if (a == null || b == null) return false;
 	return String(a) === String(b);
 }
 
-/** Does `row` satisfy every column constraint in `where`? */
 function rowMatches(
 	row: Record<string, unknown>,
 	where: Record<string, unknown>,
@@ -997,7 +969,6 @@ function toBigIntOr0(v: unknown): bigint {
 	}
 }
 
-/** Coerce a row for JSON serialization — bigints become strings. */
 function jsonSafe(row: Record<string, unknown>): Record<string, unknown> {
 	const out: Record<string, unknown> = {};
 	for (const [k, v] of Object.entries(row)) {
@@ -1013,7 +984,6 @@ function escapeLiteral(value: unknown): string {
 	if (typeof value === "boolean") return value ? "TRUE" : "FALSE";
 	if (typeof value === "object")
 		return `'${JSON.stringify(value, (_k, v) => (typeof v === "bigint" ? v.toString() : v)).replace(/'/g, "''")}'::jsonb`;
-	// String — escape single quotes
 	return `'${String(value).replace(/'/g, "''")}'`;
 }
 

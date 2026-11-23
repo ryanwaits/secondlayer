@@ -20,14 +20,12 @@ function authenticate(req: IncomingMessage): boolean {
 
 const httpServer = createHttpServer(
 	async (req: IncomingMessage, res: ServerResponse) => {
-		// Only handle /mcp endpoint
 		const url = new URL(req.url ?? "/", `http://localhost:${port}`);
 		if (url.pathname !== "/mcp") {
 			res.writeHead(404).end(JSON.stringify({ error: "Not found" }));
 			return;
 		}
 
-		// Auth check
 		if (!authenticate(req)) {
 			res.writeHead(401).end(JSON.stringify({ error: "Unauthorized" }));
 			return;
@@ -36,7 +34,6 @@ const httpServer = createHttpServer(
 		const sessionId = req.headers["mcp-session-id"] as string | undefined;
 
 		if (req.method === "POST") {
-			// Read body with 1MB limit
 			const MAX_BODY = 1_048_576;
 			const chunks: Buffer[] = [];
 			let totalSize = 0;
@@ -59,13 +56,11 @@ const httpServer = createHttpServer(
 				return;
 			}
 
-			// Check if this is an initialize request (new session)
 			const isInitialize = Array.isArray(body)
 				? body.some((m: { method?: string }) => m.method === "initialize")
 				: body.method === "initialize";
 
 			if (isInitialize) {
-				// Create new session
 				const transport = new StreamableHTTPServerTransport({
 					sessionIdGenerator: () => crypto.randomUUID(),
 				});
@@ -80,7 +75,6 @@ const httpServer = createHttpServer(
 					// The session id is assigned while the initialize is handled.
 					await transport.handleRequest(req, res, body);
 				} catch (err) {
-					// A failed init must not leak its transport.
 					await transport.close().catch(() => {});
 					if (!res.headersSent) {
 						res
@@ -98,7 +92,6 @@ const httpServer = createHttpServer(
 				return;
 			}
 
-			// Existing session
 			const existing = sessions.get(sessionId);
 			if (!existing) {
 				res
@@ -108,7 +101,6 @@ const httpServer = createHttpServer(
 			}
 			await existing.handleRequest(req, res, body);
 		} else if (req.method === "GET") {
-			// SSE stream for existing session
 			const existing = sessions.get(sessionId);
 			if (!existing) {
 				res
@@ -118,7 +110,6 @@ const httpServer = createHttpServer(
 			}
 			await existing.handleRequest(req, res);
 		} else if (req.method === "DELETE") {
-			// Session teardown
 			const transport = sessions.get(sessionId);
 			if (sessionId && transport) {
 				await transport.handleRequest(req, res);

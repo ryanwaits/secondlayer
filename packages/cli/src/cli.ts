@@ -70,7 +70,6 @@ Self-host, from docker/oss in a checkout:
 `,
 );
 
-// Getting started
 program.commandsGroup("Getting started:");
 registerInitCommand(program);
 registerBootstrapCommand(program);
@@ -80,23 +79,18 @@ registerLogoutCommand(program);
 registerWhoamiCommand(program);
 registerKeysCommand(program);
 
-// Your data — the three surfaces, plus webhook delivery over them.
 program.commandsGroup("Your data:");
 registerSubgraphsCommand(program);
 registerWebhooksCommand(program);
 registerStreamsCommand(program);
 registerIndexCommand(program);
 
-// Project & codegen — one verb for every generated artifact.
 program.commandsGroup("Project & codegen:");
 registerCodegenCommand(program);
 
-// Local development. `devnet` (Clarinet → local Secondlayer stack) is the
-// supported Clarinet loop.
 program.commandsGroup("Local development:");
 registerDevnetCommand(program);
 
-// Diagnostics
 program.commandsGroup("Diagnostics:");
 registerStatusCommand(program);
 registerDoctorCommand(program);
@@ -107,7 +101,6 @@ registerRepairCommand(program);
 registerBackupCommand(program);
 registerRestoreCommand(program);
 
-// Archive — the history plane. Credits pay for pulling it.
 program.commandsGroup("Archive:");
 registerCreditsCommand(program);
 registerArchiveCommand(program);

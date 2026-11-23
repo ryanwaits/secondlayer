@@ -59,10 +59,6 @@ export const PrintFieldSchema: z.ZodType<unknown> = z.lazy(() =>
 	]),
 );
 
-/**
- * A Clarity ABI type: a primitive name, or one of the composite shapes.
- * Recursive, so nested tuples/lists/optionals are checked all the way down.
- */
 const AbiTypeSchema: z.ZodType<unknown> = z.lazy(() =>
 	z.union([
 		z.string(),
@@ -166,9 +162,7 @@ const contractIdField = z.union([
 	z.array(z.string()).min(1).max(20),
 ]);
 
-/** Fields shared by the trait-scopable filters. */
 const traitScope = { trait: z.string().optional() };
-/** Dynamic address set discovered from another source's events. */
 const factoryScope = {
 	factory: z
 		.object({ from: z.string().min(1), field: z.string().min(1) })
@@ -366,7 +360,6 @@ const SubgraphFilterUnion = z.discriminatedUnion("type", [
 export const SubgraphFilterSchema: z.ZodType<SubgraphFilter> =
 	SubgraphFilterUnion as unknown as z.ZodType<SubgraphFilter>;
 
-/** Pinned contractId: a non-empty string or a non-empty array of ids. */
 function hasPinnedContractId(
 	contractId: string | readonly string[] | undefined,
 ): boolean {
@@ -375,11 +368,6 @@ function hasPinnedContractId(
 	return false;
 }
 
-/**
- * Deploy gates beyond the per-filter union: pinned print_event needs a
- * non-empty `prints` map, contract_call+functionName needs `abi`, and every
- * source needs a handler of the same name.
- */
 function refineDeployGates(
 	def: {
 		sources: Record<string, SubgraphFilter>;
@@ -484,7 +472,6 @@ export function filterFieldsByType(): Array<{
 	const options = (SubgraphFilterUnion as any)?._def?.options ?? [];
 	const out: Array<{ type: string; fields: string[] }> = [];
 	for (const option of options) {
-		// `.superRefine()` wraps the union, so unwrap one level when present.
 		const shape = option?.shape ?? option?._def?.shape;
 		if (!shape) continue;
 		const literal =

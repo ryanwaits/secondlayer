@@ -8,12 +8,10 @@ import {
 	unitLabel,
 } from "@/lib/usage";
 
-/** What the month was spent on, one line per unit. Sentinel's runs sit last on lines of their own. */
 export function ByUnitTable({
 	usage,
 	monthName,
 }: {
-	/** Null until the month has loaded. */
 	usage: UsageRow[] | undefined;
 	monthName: string;
 }) {

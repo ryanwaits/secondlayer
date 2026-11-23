@@ -5,26 +5,17 @@
  * Changing a price = edit both files.
  */
 
-/** Rows delivered: $ per 1M rows (1 µ$ per row = $1 per 1M). */
 export const ROW_USD_PER_M = 5;
-/** Rows delivered once the month's total spend reaches the volume tier. */
 export const ROW_USD_PER_M_VOLUME = 2;
-/** Monthly spend (all meters) at which rows drop to the volume rate. */
 export const VOLUME_TIER_MONTHLY_USD = 50;
-/** First rows each month on every account are free. */
 export const FREE_ROWS_PER_MONTH = 1_000_000;
 
 export const MEMORY_USD_PER_GB_HOUR = 0.028;
-/** 8_333 µ$ per GB-day x 30 days = 249_990 µ$, billed as "about $0.25". */
 export const STORAGE_USD_PER_GB_MONTH = 0.25;
-/** Webhook events: $ per 1M delivered. Retries are never billed. */
 export const WEBHOOK_USD_PER_M = 10;
-/** Hosted subgraph reads: $ per 1M. Per read, never per row. */
 export const SUBGRAPH_READ_USD_PER_M = 10;
-/** First subgraph reads each month on every account are free. */
 export const FREE_SUBGRAPH_READS_PER_MONTH = 100_000;
 
-/** Retired Sentinel meters, kept so older ledger rows still show their rate. */
 export const SENTINEL_CHECK_USD = 0.25;
 export const SENTINEL_RUN_USD = 1.5;
 export const SENTINEL_AUDIT_USD = 3;
@@ -34,26 +25,18 @@ export const ARCHIVE_PARTITION_USD = 0.05;
 export const ARCHIVE_EVENTS_PARTITION_USD = 0.15;
 export const FREE_REPAIR_PARTITIONS_PER_MONTH = 24;
 
-/** Prepaid credit packs, in dollars (`CREDIT_PACKS_USD` in the API). */
 export const CREDIT_PACKS_USD = [10, 25, 50, 100] as const;
 
-/** Any whole-dollar top-up in this range (`TOPUP_MIN_USD` / `TOPUP_MAX_USD` in the API). */
 export const TOPUP_MIN_USD = 5;
 export const TOPUP_MAX_USD = 1000;
 
-/** Months are 730 hours (`HOURS_PER_MONTH` in the platform table). */
 export const HOURS_PER_MONTH = 730;
 
-/** A running stack bills at least this much a month, set in dollars
- *  (`STACK_FLOOR_USD_MICROS_PER_MONTH`). Webhook-only stacks run no
- *  subgraph processor, so they cost half. */
 export const STACK_FLOOR_USD_PER_MONTH = {
 	webhooks: 5,
 	subgraphs: 10,
 } as const;
 
-/** The dollar floor as the memory the workload host bills at minimum, in GB
- *  (`stackMemoryFloorGb` in the platform table): ≈0.245 / ≈0.489 GB. */
 export function stackMemoryFloorGb(hasSubgraphs: boolean): number {
 	const floor =
 		STACK_FLOOR_USD_PER_MONTH[hasSubgraphs ? "subgraphs" : "webhooks"];
@@ -61,23 +44,17 @@ export function stackMemoryFloorGb(hasSubgraphs: boolean): number {
 }
 
 export interface MonthInput {
-	/** Rows delivered in the month (free allowance included). */
 	rows: number;
-	/** Hosted stack running. A stopped or absent stack bills nothing. */
 	running: boolean;
-	/** The stack runs subgraphs (the higher monthly minimum). */
 	hasSubgraphs: boolean;
 	memoryGb: number;
 	storageGb: number;
 	webhookEvents: number;
-	/** Reads of hosted subgraph tables with an API key in the month (free
-	 *  allowance included). */
 	subgraphReads: number;
 }
 
 export interface MonthEstimate {
 	billableRows: number;
-	/** Billable rows priced at the volume rate. */
 	volumeRows: number;
 	rowsUsd: number;
 	volumeUsd: number;
@@ -118,7 +95,6 @@ export function estimateMonth(input: MonthInput): MonthEstimate {
 			? (Math.max(0, subgraphReads - FREE_SUBGRAPH_READS_PER_MONTH) / 1e6) *
 				SUBGRAPH_READ_USD_PER_M
 			: 0;
-	// Reads count toward the tier like every flat unit.
 	const fixedUsd = memoryUsd + storageUsd + webhooksUsd + readsUsd;
 
 	const billableRows = Math.max(0, rows - FREE_ROWS_PER_MONTH);
@@ -144,10 +120,6 @@ export function estimateMonth(input: MonthInput): MonthEstimate {
 	};
 }
 
-/**
- * "$5", "$0.05", "$0.028", "$10.22". Whole dollars drop the cents; amounts
- * that are not whole cents (per-unit prices) keep a third decimal.
- */
 export function usd(n: number): string {
 	if (Number.isInteger(n)) return `$${n}`;
 	const cents = n * 100;
@@ -155,7 +127,6 @@ export function usd(n: number): string {
 	return `$${n.toFixed(wholeCents ? 2 : 3)}`;
 }
 
-/** Statement style: always two decimals, thousands separated. */
 export function usdExact(n: number): string {
 	return n.toLocaleString("en-US", {
 		style: "currency",

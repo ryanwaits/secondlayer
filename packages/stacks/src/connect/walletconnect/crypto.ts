@@ -1,5 +1,3 @@
-/** WalletConnect v2 envelope encryption (Type 0 + Type 1) + relay JWT auth */
-
 import { gcm } from "@noble/ciphers/aes.js";
 import { ed25519, x25519 } from "@noble/curves/ed25519.js";
 import { hkdf } from "@noble/hashes/hkdf.js";
@@ -12,8 +10,6 @@ const IV_LENGTH = 12;
 const KEY_LENGTH = 32;
 const TYPE_0 = 0x00;
 const TYPE_1 = 0x01;
-
-// -- Key generation --
 
 export function generateKeyPair() {
 	const privateKey = randomBytes(KEY_LENGTH);
@@ -38,8 +34,6 @@ export function deriveSymKey(
 export function symKeyToTopic(symKey: Uint8Array): string {
 	return bytesToHex(sha256(symKey));
 }
-
-// -- Base64 helpers (browser-safe) --
 
 export function encodeBase64(data: Uint8Array): string {
 	let binary = "";
@@ -118,8 +112,6 @@ export function decryptType1(
 	return new TextDecoder().decode(plain);
 }
 
-// -- Unified decrypt --
-
 export function decrypt(
 	keyOrPrivate: Uint8Array,
 	envelope: Uint8Array,
@@ -129,9 +121,6 @@ export function decrypt(
 		: decryptType0(keyOrPrivate, envelope);
 }
 
-// -- Relay JWT auth (Ed25519 + did:key) --
-
-/** Ed25519 multicodec varint prefix */
 const ED25519_MULTICODEC = new Uint8Array([0xed, 0x01]);
 
 function encodeDidKey(publicKey: Uint8Array): string {
@@ -164,7 +153,7 @@ export function createRelayAuthJwt(relayUrl: string): {
 			sub: bytesToHex(randomBytes(32)),
 			aud: relayUrl,
 			iat: now,
-			exp: now + 86400, // 24 hours
+			exp: now + 86400,
 			act: "client_auth",
 		}),
 	);

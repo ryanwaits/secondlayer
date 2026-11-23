@@ -12,7 +12,6 @@ export function ExamplePicker({
 	children,
 }: {
 	labels: readonly string[];
-	/** One pane per label, in order. */
 	children: ReactNode;
 }) {
 	const id = useId();

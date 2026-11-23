@@ -5,14 +5,6 @@ import type {
 } from "@secondlayer/shared/db";
 import type { Kysely } from "kysely";
 
-/**
- * 24h record of failed hosted API requests. The error-envelope middleware
- * writes (`insertFailedRequest`), feedback reports read back the server-side
- * evidence by `request_id` (`getFailedRequest`), and the worker purges
- * (`packages/worker/src/jobs/failed-requests-purge.ts`).
- */
-
-/** Idempotent on `request_id`: a duplicate insert is a no-op. */
 export async function insertFailedRequest(
 	db: Kysely<Database>,
 	row: InsertApiFailedRequest,
@@ -24,7 +16,6 @@ export async function insertFailedRequest(
 		.execute();
 }
 
-/** Always scoped to `accountId`: never returns another account's row. */
 export async function getFailedRequest(
 	db: Kysely<Database>,
 	accountId: string,
@@ -39,7 +30,6 @@ export async function getFailedRequest(
 	return row ?? null;
 }
 
-/** Deletes rows created before `olderThan`; returns the deleted count. */
 export async function purgeFailedRequests(
 	db: Kysely<Database>,
 	olderThan: Date,
@@ -56,18 +46,14 @@ export type FailedRequestGroup = {
 	code: string;
 	path: string;
 	count: number;
-	last: string; // ISO
+	last: string;
 };
 
-/** Index and Streams: the paths the Rows page reports on. */
 export const READ_PATH_PREFIXES: readonly string[] = [
 	"/v1/index/",
 	"/v1/streams/",
 ];
 
-/** The account's failed requests since `since`, grouped by status, code and
- *  path, most frequent first (top 20). `pathPrefixes` keeps only paths that
- *  start with one of them, so a page reports only its own surface. */
 export async function failedRequestsByPath(
 	db: Kysely<Database>,
 	accountId: string,

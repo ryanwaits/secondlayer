@@ -179,7 +179,6 @@ export type JournalRow = {
 	raw_body: Buffer;
 };
 
-/** One page of journal rows in arrival order, read in a READ ONLY transaction. */
 export async function readJournalPage(
 	db: Kysely<Database>,
 	opts: {
@@ -211,7 +210,6 @@ export async function readJournalPage(
 
 const NEW_BLOCK_OK = new Set(["ok", "duplicate", "staged"]);
 
-/** Does this reply mean "applied"? Anything else must stop the replay. */
 export function checkReply(
 	path: string,
 	httpStatus: number,

@@ -7,21 +7,14 @@ export type ToastKind = "done" | "ok" | "fail" | "busy";
 
 export interface ToastOptions {
 	desc?: ReactNode;
-	/** Shows "Undo ⌘Z"; ⌘Z runs it while this is the newest undoable toast. */
 	undo?: () => unknown;
-	/** Shows "Retry". */
 	retry?: () => unknown;
-	/** Any other single action. */
 	action?: { label: string; run: () => void };
-	/** Reuse an id to replace a toast (busy to result). */
 	id?: string | number;
-	/** Short-lived: copy confirmations, simple saves. */
 	quick?: boolean;
-	/** Overrides the default duration, in ms. */
 	duration?: number;
 }
 
-/** The only duration table. */
 export function durationFor(
 	kind: ToastKind,
 	opts: Pick<ToastOptions, "quick" | "undo" | "duration"> = {},
@@ -34,7 +27,6 @@ export function durationFor(
 	return 5000;
 }
 
-// Undo registry: the newest undoable toast owns the shortcut.
 type UndoEntry = { id: string | number; run: () => unknown };
 let currentUndo: UndoEntry | null = null;
 

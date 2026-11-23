@@ -30,9 +30,7 @@ function allOf<T extends string>() {
 	): A => values;
 }
 
-/** `SubgraphOperationKind`, `shared/src/db/types.ts`. */
 const OPERATION_KINDS = allOf<SubgraphOperationKind>()(["reindex", "backfill"]);
-/** `SubgraphOperationStatus`, `shared/src/db/types.ts`. */
 const OPERATION_STATUSES = allOf<SubgraphOperationStatus>()([
 	"queued",
 	"running",
@@ -40,7 +38,6 @@ const OPERATION_STATUSES = allOf<SubgraphOperationStatus>()([
 	"failed",
 	"cancelled",
 ]);
-/** `DeploySubgraphResponse["action"]`, `shared/src/schemas/subgraphs.ts`. */
 const DEPLOY_ACTIONS = allOf<DeploySubgraphResponse["action"]>()([
 	"created",
 	"unchanged",
@@ -48,21 +45,17 @@ const DEPLOY_ACTIONS = allOf<DeploySubgraphResponse["action"]>()([
 	"updated",
 	"reindexed",
 ]);
-/** `SubgraphSyncInfo["status"]`, `shared/src/schemas/subgraphs.ts`. */
 const SYNC_STATUSES = allOf<SubgraphSyncInfo["status"]>()([
 	"synced",
 	"catching_up",
 	"reindexing",
 	"error",
 ]);
-/** `SubgraphSyncInfo["integrity"]`, `shared/src/schemas/subgraphs.ts`. */
 const INTEGRITY_STATES = allOf<SubgraphSyncInfo["integrity"]>()([
 	"complete",
 	"gaps_detected",
 	"history_filling",
 ]);
-/** `weight` in `createSubgraphOperation`,
- *  `shared/src/db/queries/subgraph-operations.ts`. */
 const OPERATION_WEIGHTS = ["light", "heavy"] as const;
 /** `subgraphs.status`: `SUBGRAPH_STATES` in `shared/src/schemas/subgraphs.ts`,
  *  mirrored by a CHECK. A billing pause is not a status; see `billingPausedCode`. */
@@ -96,8 +89,6 @@ function ok200(ref: string, description: string) {
 	};
 }
 
-// Worked example: the `sbtc-flows` subgraph from /docs/subgraphs, deployed
-// at block 8,000,000 on an instance whose tip is 9,048,712.
 const EXAMPLE_TIP = 9048712;
 const EXAMPLE_SOURCES = {
 	transfers: {
@@ -142,7 +133,6 @@ export default defineSubgraph({
   },
 });
 `;
-/** What `/bundle` returns for `EXAMPLE_SOURCE_CODE` (724 bytes). */
 const EXAMPLE_HANDLER_CODE = `// secondlayer-stub:@secondlayer/subgraphs
 function defineSubgraph(def) {
   return def;
@@ -895,7 +885,6 @@ const SYNC_EXAMPLE = {
 	integrity: "complete",
 };
 
-/** Resource schemas for these responses, merged into `components.schemas`. */
 export const deploymentsSchemas = {
 	DeploySubgraphRequest: {
 		type: "object",

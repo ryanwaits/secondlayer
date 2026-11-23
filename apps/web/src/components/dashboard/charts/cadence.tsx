@@ -1,10 +1,8 @@
-/** Bars of seconds between recent blocks. The newest bar is `--ch-a`, the rest `--ch-b`. */
 export function Cadence({
 	intervals,
 	width = 300,
 	height = 44,
 }: {
-	/** Seconds between consecutive blocks, oldest first. */
 	intervals: readonly number[];
 	width?: number;
 	height?: number;

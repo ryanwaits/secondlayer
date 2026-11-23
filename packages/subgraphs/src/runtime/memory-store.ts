@@ -195,8 +195,6 @@ export class MemorySubgraphContext extends SubgraphContext {
 	}
 }
 
-/** Loose value equality across the bigint/number/string boundary decoded
- *  Clarity values straddle. */
 function sameValue(a: unknown, b: unknown): boolean {
 	if (a === b) return true;
 	if (

@@ -26,7 +26,7 @@ export type MobileTab = {
 };
 
 export const MOBILE_TABS: readonly MobileTab[] = [
-	{ id: "pulse", href: "/account", label: "Pulse", match: [] }, // exact /account only
+	{ id: "pulse", href: "/account", label: "Pulse", match: [] },
 	{
 		id: "insights",
 		href: "/account/insights",
@@ -64,7 +64,6 @@ function underPrefix(pathname: string, prefix: string): boolean {
 	return pathname === prefix || pathname.startsWith(`${prefix}/`);
 }
 
-/** The current tab: Pulse only on exactly /account; others when the path equals or sits under a match prefix. */
 export function currentTab(pathname: string): MobileTabId | null {
 	if (pathname === "/account") return "pulse";
 	const tab = MOBILE_TABS.find((t) =>
@@ -73,7 +72,6 @@ export function currentTab(pathname: string): MobileTabId | null {
 	return tab?.id ?? null;
 }
 
-/** Header for a path: large title for tab roots; a back link for detail pages. */
 export function mobileHeader(
 	pathname: string,
 ):
@@ -90,7 +88,6 @@ export function mobileHeader(
 	return { kind: "title", title: tab?.label ?? "Account" };
 }
 
-/** Insights created after `seenAt` (ms) and not resolved. */
 export function newInsightCount(
 	insights: readonly Insight[],
 	seenAt: number,
@@ -100,7 +97,6 @@ export function newInsightCount(
 	).length;
 }
 
-/** The status pill (running replay, chain problem). Phone only: nothing mounts, polls or subscribes above 640px. */
 export function StatusPillSlot(): ReactNode {
 	const compact = useCompact();
 	return compact ? <StatusPill /> : null;
@@ -195,9 +191,7 @@ function readSeenAt(): number {
 function writeSeenAt(at: number): void {
 	try {
 		localStorage.setItem(SEEN_KEY, String(at));
-	} catch {
-		// Per-device convenience only.
-	}
+	} catch {}
 }
 
 /**

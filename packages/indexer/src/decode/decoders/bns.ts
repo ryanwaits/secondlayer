@@ -266,13 +266,6 @@ export type BnsDecodedEvent =
 	| { kind: "namespace"; row: BnsNamespaceEventRow }
 	| { kind: "marketplace"; row: BnsMarketplaceEventRow };
 
-/**
- * Decode one canonical BNS-V2 print event into whichever of the three event
- * logs it belongs to (or `null` for a non-BNS / undecodable event). The exact
- * dispatch `consumeBnsDecodedEvents` uses inline, factored out so a bounded
- * window re-derive (`rederive-bns-events.ts`) can reuse it without
- * duplicating the topic/status/`a`-key discriminator.
- */
 export function decodeBnsPrintEvent(
 	event: StreamsEvent,
 ): BnsDecodedEvent | null {
@@ -300,8 +293,6 @@ export function decodeBnsPrintEvent(
 	return null;
 }
 
-// ── Name-event decoder (topic discriminator) ────────────────────────────────
-
 export function decodeNameEvent(
 	event: StreamsEvent,
 	tuple: Record<string, unknown>,
@@ -316,9 +307,6 @@ export function decodeNameEvent(
 	}
 	const topic = topicRaw as BnsNameEventTopic;
 
-	// Live BNS-V2 emits the name as a nested tuple `{name: <buff>, namespace:
-	// <buff>}` (per the on-chain contract). Earlier fixtures used flat keys —
-	// support both so test fixtures keep working.
 	const nameTuple = asRecord(tuple.name);
 	const namespace = decodeBuffUtf8(nameTuple?.namespace ?? tuple.namespace);
 	const name = decodeBuffUtf8(nameTuple?.name ?? tuple.name);
@@ -365,8 +353,6 @@ export function decodeNameEvent(
 		source_cursor: event.cursor,
 	};
 }
-
-// ── Namespace-event decoder (status discriminator) ──────────────────────────
 
 export function decodeNamespaceEvent(
 	event: StreamsEvent,
@@ -427,8 +413,6 @@ export function decodeNamespaceEvent(
 	};
 }
 
-// ── Marketplace-event decoder (a discriminator) ─────────────────────────────
-
 export function decodeMarketplaceEvent(
 	event: StreamsEvent,
 	tuple: Record<string, unknown>,
@@ -466,8 +450,6 @@ export function decodeMarketplaceEvent(
 		source_cursor: event.cursor,
 	};
 }
-
-// ── Projection appliers ─────────────────────────────────────────────────────
 
 async function applyNameProjection(
 	row: BnsNameEventRow,
@@ -512,8 +494,6 @@ async function applyNamespaceProjection(
 		{ db },
 	);
 }
-
-// ── Helpers ─────────────────────────────────────────────────────────────────
 
 function decodeClarityPayload(payload: Record<string, unknown>): unknown {
 	// Prefer the canonical hex form (`raw_value`) — the streams API also
@@ -580,7 +560,6 @@ function asInt64(value: unknown): number | null {
 	return null;
 }
 
-/** Decode a `(buff N)` hex string into a UTF-8 label, trimming trailing nulls. */
 function decodeBuffUtf8(value: unknown): string | null {
 	const hex = asHex(value);
 	if (!hex) return null;

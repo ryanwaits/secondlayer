@@ -69,7 +69,6 @@ const BATCH_HEIGHTS = 10_000;
 
 const with0x = (hex: string) => (hex.startsWith("0x") ? hex : `0x${hex}`);
 
-/** Decide what to fill for one stored row. Pure: the node reads are passed in. */
 export function planBlockFieldRepair(
 	stored: StoredBlock,
 	node: NodeBlock,
@@ -200,10 +199,6 @@ export async function loadBrokenBlocks(
 	}));
 }
 
-/**
- * Fill only what is still empty, and only on the row whose hash we checked.
- * Returns the number of rows changed.
- */
 export async function applyBlockFieldRepairs(
 	db: Kysely<Database>,
 	repairs: BlockFieldRepair[],

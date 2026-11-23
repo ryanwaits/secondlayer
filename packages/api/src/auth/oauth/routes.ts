@@ -40,9 +40,7 @@ const AUTHORIZE_PER_MIN = 30;
 const TOKEN_PER_MIN = 60;
 const MAX_BODY_BYTES = 16 * 1024;
 const MAX_STATE = 512;
-/** RFC 7636 §4.1: 43–128 unreserved characters. */
 const VERIFIER_RE = /^[A-Za-z0-9\-._~]{43,128}$/;
-/** BASE64URL(SHA256(verifier)) is always 43 characters. */
 const CHALLENGE_RE = /^[A-Za-z0-9_-]{43}$/;
 
 export const OAUTH_PATHS = [
@@ -56,7 +54,6 @@ export const OAUTH_PATHS = [
 
 const NO_STORE = { "Cache-Control": "no-store", Pragma: "no-cache" };
 
-/** CORS for the OAuth endpoints and `/mcp`: any origin, never credentials. */
 export const oauthCors = cors({
 	origin: "*",
 	credentials: false,
@@ -95,7 +92,6 @@ function errorPage(message: string, status = 400) {
 	);
 }
 
-/** `redirect_uri` plus the answer, `state` and `iss` (RFC 9207). */
 export function redirectWith(
 	redirectUri: string,
 	params: Record<string, string | null>,
@@ -108,8 +104,6 @@ export function redirectWith(
 	return u.toString();
 }
 
-/** True when this caller (IPv6 by /64) has used up `limit` in `windowMs`.
- *  Fails closed if the shared store is down: these are abuse-sensitive. */
 async function limited(
 	c: Context,
 	scope: string,
@@ -292,7 +286,6 @@ export function createOauthRouter(): Hono {
 				`This app asked for the wrong resource: it must be ${resource}.`,
 			);
 
-		// One scope: an unknown scope is ignored, not an error (D10).
 		const requestId = await createOauthRequest(getDb(), {
 			clientId: client.id,
 			redirectUri,

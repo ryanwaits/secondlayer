@@ -213,8 +213,6 @@ export function decodePox5Print(event: StreamsEvent): Pox5EventRow | null {
 	return { ...base, ...promoteTopicFields(topic, tuple) };
 }
 
-// Per-topic promoted columns. Field names follow pox-5.clar's print tuples
-// exactly; anything not listed here is reachable via the `data` JSONB.
 function promoteTopicFields(
 	topic: Pox5EventTopic,
 	tuple: Record<string, unknown>,
@@ -333,7 +331,6 @@ function promoteTopicFields(
 				signer_manager: asString(tuple["signer-manager"]),
 				staker: asString(tuple.staker),
 				reward_cycle: asInt32(tuple["reward-cycle"]),
-				// (optional uint) — cvToValue unwraps `(some x)` to x, `none` to null.
 				bond_index: asInt64(tuple["bond-index"]),
 			};
 		case "grant-signer-key":
@@ -352,8 +349,6 @@ function promoteTopicFields(
 }
 
 function decodeClarityPayload(payload: Record<string, unknown>): unknown {
-	// Prefer canonical hex form (raw_value) over structured `value`.
-	// See bns.decodeClarityPayload for rationale.
 	if (typeof payload.raw_value === "string") {
 		return decodeClarityHex(payload.raw_value);
 	}
@@ -361,7 +356,6 @@ function decodeClarityPayload(payload: Record<string, unknown>): unknown {
 	if (value && typeof value === "object" && !Array.isArray(value)) {
 		const v = value as Record<string, unknown>;
 		if (typeof v.hex === "string") return decodeClarityHex(v.hex);
-		// Already deserialized (test fixtures sometimes hand us a plain object)
 		return v;
 	}
 	if (typeof value === "string") return decodeClarityHex(value);
@@ -393,8 +387,6 @@ function toJsonSafe(value: unknown): unknown {
 	}
 	return value;
 }
-
-// ── Clarity → typed-row coercions (house pattern: per-decoder copies) ──
 
 function asString(value: unknown): string | null {
 	return typeof value === "string" ? value : null;

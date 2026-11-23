@@ -1,17 +1,7 @@
-/**
- * Fetch a docs page and cut out what a link points at. Docs pages are static,
- * so a same-origin `fetch(path)` returns the full page; the parsed document is
- * cached per path, so a prefetch on hover makes the click instant. The slicing
- * itself is `slice.ts`; this file owns the DOM: building the descriptors,
- * cloning the nodes and making the clones safe to drop into another page.
- * Plain DOM, no React.
- */
-
 import type { PeekKind } from "../trail-store";
 import { type Child, type Range, ledeRange, sectionRange } from "./slice";
 
 export type Target = {
-	/** The heading or endpoint summary; for a page, the page title. */
 	title: string;
 	pageTitle: string;
 	nodes: Element[];
@@ -40,7 +30,6 @@ export function loadDocument(path: string): Promise<Document | null> {
 	return found;
 }
 
-/** Warm the cache for a link's page. */
 export function prefetch(href: string) {
 	loadDocument(new URL(href, location.origin).pathname);
 }
@@ -48,21 +37,14 @@ export function prefetch(href: string) {
 const describe = (el: Element): Child => ({
 	tag: el.tagName.toLowerCase(),
 	className: el.getAttribute("class") ?? "",
-	// A `##` wrap holds its h2, which carries the id.
 	id: el.querySelector(":scope > h2")?.id || el.id,
 });
 
-/**
- * Make a clone safe to live in another page: no ids (they would duplicate the
- * target's), no scripts, no permalink chrome, and links that still mean what
- * they meant on their own page. `path` is the page the clone came from.
- */
 function clean(root: Element, path: string) {
 	root.removeAttribute("id");
 	for (const el of root.querySelectorAll("[id]")) el.removeAttribute("id");
 	for (const el of root.querySelectorAll("script, .apiref-copy-url"))
 		el.remove();
-	// A permalink beside a field, not part of the text.
 	for (const el of root.querySelectorAll(".apiref-field-link")) el.remove();
 	// A heading's text sits inside its permalink, so unwrap rather than remove.
 	for (const el of root.querySelectorAll(".heading-anchor"))
@@ -71,12 +53,10 @@ function clean(root: Element, path: string) {
 		el.setAttribute("data-link-in-peek", el.getAttribute("data-link") ?? "");
 		el.removeAttribute("data-link");
 	}
-	// `#x` on the target page is not `#x` on this one.
 	for (const a of root.querySelectorAll<HTMLAnchorElement>('a[href^="#"]'))
 		a.setAttribute("href", `${path}${a.getAttribute("href")}`);
 }
 
-/** Clones of `range` from `children`, ready to insert. */
 function take(children: Element[], range: Range, path: string): Element[] {
 	return children.slice(range.start, range.end).map((child) => {
 		const clone = document.importNode(child, true) as Element;
@@ -85,7 +65,6 @@ function take(children: Element[], range: Range, path: string): Element[] {
 	});
 }
 
-/** The endpoint's route, summary and parameters; the right column is left out. */
 function endpoint(section: Element, path: string): Element | null {
 	const route = section.querySelector(".apiref-route");
 	const desc = section.querySelector(":scope > .apiref-desc");
@@ -118,11 +97,6 @@ function endpoint(section: Element, path: string): Element | null {
 	return out;
 }
 
-/**
- * What `href` points at, cut from its page. Null when the page cannot be
- * fetched or has no article, the heading or endpoint is not there, or the
- * slice is empty; the caller then navigates instead.
- */
 export async function loadTarget(
 	href: string,
 	kind: PeekKind,

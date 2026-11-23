@@ -1,7 +1,6 @@
 import type { DeliveryRow, WebhookDeliveryDetail } from "@secondlayer/sdk";
 import { isOk } from "./view";
 
-/** Insight rules that describe this webhook's deliveries failing. */
 export const FAILURE_RULES: ReadonlySet<string> = new Set([
 	"receiver_down",
 	"receiver_rejects",
@@ -24,7 +23,6 @@ export function plainLine(text: string | null | undefined, max = 80): string {
 	return flat.length > max ? `${flat.slice(0, max - 1).trimEnd()}...` : flat;
 }
 
-/** "+4m 02s" from the first attempt; the first attempt itself has no offset. */
 export function offsetLabel(ms: number): string {
 	if (ms <= 0) return "";
 	const seconds = Math.round(ms / 1000);
@@ -37,8 +35,6 @@ export function codeLabel(row: Pick<DeliveryRow, "statusCode">): string {
 	return row.statusCode === null ? "timeout" : String(row.statusCode);
 }
 
-/** The attempt whose response the Response tab shows: the newest that got
- *  one, else the newest attempt. `attempts` is oldest first. */
 export function answeredAttempt<T extends { responseBody?: string | null }>(
 	attempts: readonly T[],
 ): T {
@@ -53,13 +49,10 @@ function tries(attempts: readonly DeliveryRow[]): number {
 	return Math.max(attempts.length, latest?.attempt ?? 0);
 }
 
-/** "8 tries" when the event was retried, else null. `attempts` is oldest first. */
 export function statusSuffix(attempts: readonly DeliveryRow[]): string | null {
 	const n = tries(attempts);
 	return n > 1 ? `${n} tries` : null;
 }
-
-// ── Fields ───────────────────────────────────────────────────────────────
 
 export interface DeliveryField {
 	group: string | null;
@@ -71,8 +64,6 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
 	return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-/** The delivered body: `{ event, trigger, block_time, … }`, whether or not it
- *  arrives wrapped in a `{ type, data }` envelope. */
 function eventBody(payload: unknown): Record<string, unknown> | null {
 	if (!isPlainObject(payload)) return null;
 	if ("event" in payload) return payload;
@@ -102,8 +93,6 @@ function flatten(
 	return out;
 }
 
-/** The values people read: the decoded event first, then where it came from.
- *  Empty when the payload has no `event.data`, which hides the Fields tab. */
 export function deliveryFields(payload: unknown): DeliveryField[] {
 	const body = eventBody(payload);
 	const event = body?.event;
@@ -125,22 +114,16 @@ export function deliveryFields(payload: unknown): DeliveryField[] {
 	return fields;
 }
 
-/** The block's hash from a delivered body, for the explorer link. */
 export function payloadBlockHash(payload: unknown): string | null {
 	const hash = eventBody(payload)?.block_hash;
 	return typeof hash === "string" ? hash : null;
 }
 
-// ── Copy ─────────────────────────────────────────────────────────────────
-
 export interface DeliveryCopyInput {
 	webhookName: string;
 	host: string;
-	/** Oldest first. */
 	attempts: readonly DeliveryRow[];
-	/** The latest attempt's detail; null while it loads. */
 	detail: WebhookDeliveryDetail | null;
-	/** The page finding that describes these failures, when there is one. */
 	finding: string | null;
 }
 
@@ -156,8 +139,6 @@ function clock(iso: string): string {
 	return `${iso.slice(11, 19)} UTC`;
 }
 
-/** Plain evidence about one event, for pasting anywhere. It never asks an
- *  agent to act: that is the insight card's hand-off. */
 export function deliveryCopyText({
 	webhookName,
 	host,

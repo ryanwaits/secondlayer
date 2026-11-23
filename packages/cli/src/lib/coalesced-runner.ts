@@ -23,9 +23,7 @@ export function createCoalescedRunner(task: () => Promise<void>): {
 			state = "deploying";
 			try {
 				await task();
-			} catch {
-				// The task reports its own failures; keep the runner usable.
-			}
+			} catch {}
 		} while ((state as RunnerState) === "deployingDirty");
 		state = "idle";
 	};

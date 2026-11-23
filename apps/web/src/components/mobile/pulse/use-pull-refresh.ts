@@ -3,16 +3,13 @@
 import { useEffect, useRef, useState } from "react";
 import { PULL_REFRESH_DY, dragAxis } from "../gesture";
 
-/** The pull is dampened to half the finger's travel, and stops here. */
 const DAMPEN = 0.5;
 const MAX_PULL = 90;
 
 export type PullPhase = "idle" | "pull" | "ready" | "busy";
 
-/** Page-level pull-to-refresh: a downward drag from the very top of the page. */
 export function usePullRefresh(onRefresh: () => Promise<unknown>): {
 	phase: PullPhase;
-	/** Indicator height in px; 0 under reduced motion, where only the text shows. */
 	offset: number;
 } {
 	const [state, setState] = useState<{ phase: PullPhase; offset: number }>({
@@ -38,7 +35,6 @@ export function usePullRefresh(onRefresh: () => Promise<unknown>): {
 			if (busy || !atTop() || inSheet(target)) return;
 			start = { x, y, axis: null };
 		};
-		/** Returns true when the drag is a pull the page should not also scroll for. */
 		const move = (x: number, y: number): boolean => {
 			if (!start || busy) return false;
 			const dy = y - start.y;

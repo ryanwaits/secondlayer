@@ -83,7 +83,7 @@ export const POX5_SIGNER_DOMAIN = {
  * `serialize-c-script-num` rejects values at or above 2^39 — the ceiling of a
  * 5-byte minimally-encoded ScriptNum (`ERR_INVALID_UNLOCK_HEIGHT`).
  */
-export const C_SCRIPT_NUM_MAX = 549_755_813_888n; // 2^39
+export const C_SCRIPT_NUM_MAX = 549_755_813_888n;
 
 /**
  * Bitcoin treats CLTV values >= 500,000,000 as Unix timestamps (BIP-65); the

@@ -7,10 +7,6 @@ export const MODES = [
 
 export type Mode = (typeof MODES)[number]["mode"];
 
-/**
- * One variant in one theme frame. The story page shows it inline with a
- * caption; the frame route serves it bare, so an iframe gets a real viewport.
- */
 export function LabFrame({
 	story,
 	variant,

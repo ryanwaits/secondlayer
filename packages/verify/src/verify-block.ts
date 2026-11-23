@@ -86,17 +86,14 @@ export type VerifyStep =
 
 export type VerifyFailureCode =
 	| StateFailureCode
-	/** The source could not serve something the step needs. */
 	| "unavailable"
 	| "id-mismatch"
-	/** The block's transactions do not hash to its header's tx_merkle_root. */
 	| "tx-root-mismatch"
 	| "height-mismatch"
 	| "invalid-header"
 	| "preimage-mismatch"
 	| "burn-not-in-chain"
 	| "before-checkpoint"
-	/** The block is not the checkpoint chain's block at its height. */
 	| "not-ancestor"
 	| "ancestry-proof-invalid"
 	| "anchor-not-found"
@@ -109,13 +106,9 @@ export type VerifyFailureCode =
 	| "bad-signature"
 	/** A Bitcoin tx's raw bytes do not parse, or are a 64-byte merkle-node lookalike. */
 	| "tx-parse"
-	/** The raw tx does not hash to the proof's txid. */
 	| "txid-mismatch"
-	/** The merkle branch is malformed or does not fold to the header's root. */
 	| "merkle-mismatch"
-	/** The proof's Bitcoin header is not in the checkpoint's Bitcoin chain. */
 	| "bitcoin-header-not-in-chain"
-	/** No output of the transaction matches what was expected. */
 	| "output-not-found";
 
 export interface VerifyFailure {
@@ -231,7 +224,6 @@ const fail = (f: VerifyFailure): never => {
 	throw new Broken(f);
 };
 
-/** Run a source call; a throw becomes an `unavailable` failure of `step`. */
 async function fetchFor<T>(
 	step: VerifyStep,
 	what: string,
@@ -865,7 +857,6 @@ export class BlockVerifier {
 		if (rows) out.rowsChecked = state.rowsChecked;
 		out.notes.push(...state.notes);
 		out.failures.push(...state.failures);
-		// Links pass in order up to the first one with a failure.
 		const broken = new Set(state.failures.map((f) => f.step));
 		for (const step of ["witness", "names", "rows"] as const) {
 			if (broken.has(step) || (step === "rows" && !rows)) break;
@@ -1257,7 +1248,6 @@ export class BlockVerifier {
 	}
 }
 
-/** The authenticated header's identity fields, for callers that rebuild the block. */
 function describeHeader(header: StacksHeader, out: BlockVerification): void {
 	out.stateRoot = hex(header.stateIndexRoot);
 	out.consensusHash = hex(header.consensusHash);

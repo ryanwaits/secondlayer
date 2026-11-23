@@ -9,11 +9,6 @@ import { SENTINEL_KEY_PREFIX, generateApiKey } from "./keys.ts";
 
 export type MintProduct = "account" | "sentinel" | "docs" | "tenant";
 
-/**
- * The single tier every minted key gets. Plan/tier selection is retired —
- * the metered archive has one tier, and the credit-gated read path
- * (`lib/read-credits.ts` — `tier === "free"`) meters exactly this value.
- */
 export const DEFAULT_MINT_TIER = "free";
 
 /**
@@ -35,19 +30,8 @@ export const INTERNAL_MINT_TIER = "internal";
  */
 const MAX_ACTIVE_KEYS = 50;
 
-/**
- * The credential that authenticated the mint request. `isSession` is true for a
- * dashboard session token; otherwise `apiKeyProduct` is the `product` of the
- * presenting API key.
- */
 export type MintCaller = { isSession: boolean; apiKeyProduct?: string | null };
 
-/**
- * Only an owner credential may create API keys: a dashboard session, or an
- * `account`-product key (which grants both streams + index reads). A scoped
- * `streams`/`index` key must NOT be able to mint — otherwise any leaked read
- * key is a privilege-escalation vector. `requireAuth` itself does no such check.
- */
 export function assertCanMint(caller: MintCaller): void {
 	if (!caller.isSession && caller.apiKeyProduct !== "account") {
 		throw new AuthorizationError(
@@ -56,10 +40,6 @@ export function assertCanMint(caller: MintCaller): void {
 	}
 }
 
-/**
- * Product of the key to mint. Account keys only — scoped streams/index keys
- * are retired. Sessions requesting them throw so clients notice.
- */
 export function resolveMintProduct(
 	_caller: MintCaller,
 	requested: MintProduct | string | undefined,
@@ -72,7 +52,6 @@ export function resolveMintProduct(
 	return "account";
 }
 
-/** Throw if the account is already at its active-key ceiling. */
 export async function assertUnderKeyCeiling(
 	db: ReturnType<typeof getDb>,
 	accountId: string,
@@ -82,7 +61,6 @@ export async function assertUnderKeyCeiling(
 		.select((eb) => eb.fn.countAll<string>().as("active"))
 		.where("account_id", "=", accountId)
 		.where(liveKeyWhere())
-		// Docs keys are ephemeral (24h) and never count toward the ceiling.
 		.where("product", "!=", "docs")
 		.executeTakeFirstOrThrow();
 	if (Number(row.active) >= MAX_ACTIVE_KEYS) {
@@ -101,20 +79,15 @@ export type MintedKey = {
 	createdAt: string;
 };
 
-/** Insert a new key and return the plaintext ONCE (only the hash is stored).
- * Every key is minted at `DEFAULT_MINT_TIER` — there is no tier selection. */
 export async function mintApiKey(
 	db: ReturnType<typeof getDb>,
 	input: {
 		accountId: string;
 		name?: string | null;
 		product: MintProduct;
-		/** Sentinel permission areas; stored only on `sentinel` keys. */
 		areas?: Record<string, string>;
 		ip: string;
-		/** First-party service key (unmetered, unthrottled). Internal routes only. */
 		internal?: boolean;
-		/** Hard expiry; enforced on every lookup. Set only on `docs` keys. */
 		expiresAt?: Date;
 	},
 ): Promise<MintedKey> {
@@ -147,13 +120,6 @@ export async function mintApiKey(
 	};
 }
 
-/**
- * Revoke every active tenant-product key with `name` for one account (a
- * customer's own key that happens to share the name is left alone). Used before minting a
- * rotating, named, first-party key (e.g. the workload host's per-tenant
- * `hosted-stack` key, `routes/internal-tenant-key.ts`) so re-provisioning
- * never leaves an old copy of that specific key active.
- */
 export async function revokeKeysByName(
 	db: ReturnType<typeof getDb>,
 	accountId: string,
@@ -171,10 +137,8 @@ export async function revokeKeysByName(
 	for (const { id } of rows) await revokeApiKey(db, id, now);
 }
 
-/** Lifetime of a docs key. */
 export const DOCS_KEY_TTL_MS = 24 * 60 * 60 * 1000;
 export const DOCS_KEY_NAME = "Docs key";
-/** Docs keys minted per account per rolling day. */
 export const DOCS_KEY_DAILY_LIMIT = 10;
 
 /**

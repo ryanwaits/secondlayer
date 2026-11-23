@@ -1,4 +1,3 @@
-/** A shimmering placeholder block (`.wh-skel`), sized like the content it stands in for. */
 export function Skel({
 	width,
 	height = 14,

@@ -64,8 +64,6 @@ function RibbonIcon() {
 	);
 }
 
-/** A row's name, with its status next to it when something needs the reader.
- *  A failing name gets the red box; a healthy row shows no status at all. */
 export function RowName({
 	name,
 	display = name,
@@ -73,10 +71,8 @@ export function RowName({
 	children,
 }: {
 	name: string;
-	/** The name as shown, when it differs (long addresses shortened). */
 	display?: string;
 	status: RowStatus;
-	/** Anything that belongs right after the name, like the managed-by chip. */
 	children?: ReactNode;
 }) {
 	return (
@@ -93,17 +89,13 @@ export function RowName({
 	);
 }
 
-/** One index row: the whole box opens the resource (the link inside is the
- *  keyboard and screen-reader way in), and its hover fill is the box itself. */
 export function RowShell({
 	href,
 	children,
 	main,
 }: {
 	href: string;
-	/** What sits beside the text: the strip, the numbers. */
 	children: ReactNode;
-	/** The text column, inside the link. */
 	main: ReactNode;
 }) {
 	const row = useRowLink(href);
@@ -117,7 +109,6 @@ export function RowShell({
 	);
 }
 
-/** The one-line why under a name, red for a failing row. */
 export function RowWhy({
 	text,
 	group,
@@ -130,7 +121,6 @@ export function RowWhy({
 	);
 }
 
-/** Where a healthy webhook sends: its kind and the host it posts to. */
 export function WebhookRoute({
 	webhook,
 }: {
@@ -143,7 +133,6 @@ export function WebhookRoute({
 	);
 }
 
-/** Where a healthy subgraph's rows go: its tables. */
 export function SubgraphRoute({ tables }: { tables: number }) {
 	return (
 		<span className="ix-route">
@@ -155,7 +144,6 @@ export function SubgraphRoute({ tables }: { tables: number }) {
 	);
 }
 
-/** Three numbers at the bottom of a Rows-view row. */
 export function RowStats({
 	stats,
 }: {
@@ -213,21 +201,15 @@ function IndexKey({
 
 export interface IndexListProps<T> {
 	page: IndexPage;
-	/** Plural, lowercase: "webhooks". */
 	noun: string;
-	/** Singular, lowercase: "webhook". */
 	singular: string;
 	rows: readonly T[];
 	rowKey: (row: T) => string;
-	/** What search matches: the name and the route text. */
 	textOf: (row: T) => string;
 	groupOf: (row: T) => StatusGroup;
 	groupLabels: Record<StatusGroup, string>;
-	/** The key's red square: "Failed" or "Handler failed". */
 	failedLabel: string;
-	/** The Ribbon header's number column: "7 days" or "Rows". */
 	numberLabel: string;
-	/** Midpoint of the newest hour of the one shared timeline; null while it is unknown. */
 	now: number | null;
 	initialView?: IndexView;
 	renderRow: (
@@ -236,8 +218,6 @@ export interface IndexListProps<T> {
 	) => ReactNode;
 }
 
-/** The index page's list: toolbar (search and status once there are enough
- *  rows, the view switch always), a count with the colour key, and the rows. */
 export function IndexList<T>({
 	page,
 	noun,
@@ -270,7 +250,6 @@ export function IndexList<T>({
 	}
 	const flagged = (counts.get("hi") ?? 0) > 0;
 
-	// "/" focuses search from anywhere that isn't a field.
 	useEffect(() => {
 		if (!findable) return;
 		const onKey = (e: KeyboardEvent) => {

@@ -3,12 +3,6 @@ import { type Route, closestRoutes } from "@/lib/not-found-match";
 import Link from "next/link";
 import "@/components/not-found/not-found.css";
 
-/**
- * A detail page whose webhook or subgraph isn't on this account: name what's
- * missing, then what the account does have, closest name first. `others` is
- * null until the list has loaded. `deleted` is the resource's name when this
- * visit saw it before it went away: then it was deleted, so nothing is guessed.
- */
 export function MissingResource({
 	kind,
 	id,

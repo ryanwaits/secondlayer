@@ -46,8 +46,6 @@ const COLS: { title: string; links: readonly FooterLink[] }[] = [
 	},
 ];
 
-/** Site footer on every product, auth and dashboard page: brand, tagline,
- *  three link columns. Hidden on docs. */
 export function SiteFooter() {
 	const pathname = usePathname();
 	if (pathname.startsWith("/docs")) return null;

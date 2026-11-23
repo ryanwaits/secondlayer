@@ -7,15 +7,6 @@ import { buildEventPayload } from "../runtime/runner.ts";
 import type { SubgraphFilter, SubgraphSchema } from "../types.ts";
 
 /**
- * `@secondlayer/subgraphs/testing` — run a handler without deploying.
- *
- * There was no way to execute a handler outside production: seventeen `sl
- * subgraphs` subcommands and none ran one, `dev` deployed DDL and printed
- * handler keys, `--dry-run` validated schema only. The cost was measurable —
- * three of four production subgraphs shipped broken, including one that held
- * 0 rows chain-wide for a whole release because of a 3-line field-mapping bug
- * that a single fixture event would have caught.
- *
  * The context here is the REAL {@link SubgraphContext} with its row store
  * swapped for memory. Read-your-writes, upsert merging, increment deltas,
  * where-matching, and control-key handling all come from the one
@@ -149,8 +140,6 @@ export function buildEvent<const F extends SubgraphFilter>(
 		base.result = null;
 		base.resultHex = null;
 	}
-	// Double cast: the exact return type is the point, but TS cannot check
-	// the assignment through the deep ABI conditional (see above).
 	return { ...base, ...payload } as unknown as EventForFilter<F>;
 }
 

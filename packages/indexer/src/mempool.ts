@@ -23,14 +23,10 @@ import type { Kysely } from "kysely";
  * HTTP receiver runs on every indexer instance.
  */
 
-/** Derive the 0x-prefixed Stacks txid from a raw_tx hex string. */
 export function txidFromRawTx(rawTx: string): string {
 	return `0x${txidFromBytes(hexToBytes(without0x(rawTx)))}`;
 }
 
-/** Build a mempool row from a raw_tx hex string, or null if it can't be
- *  decoded (e.g. a malformed/unsupported tx — skipped rather than dropping the
- *  whole batch). */
 export function buildMempoolRow(
 	rawTx: string,
 ): InsertMempoolTransaction | null {
@@ -173,7 +169,6 @@ export async function sweepStaleMempool(
 export const MEMPOOL_RETENTION_HOURS = 72;
 const MEMPOOL_SWEEP_INTERVAL_MS = 15 * 60_000;
 
-/** Current row count of the mempool table — the accumulation depth. */
 export async function mempoolDepth(db: Kysely<Database>): Promise<number> {
 	const result = await db
 		.selectFrom("mempool_transactions")
@@ -182,9 +177,6 @@ export async function mempoolDepth(db: Kysely<Database>): Promise<number> {
 	return Number(result?.n ?? 0);
 }
 
-/** Leader-gated periodic retention sweep (singleton — see startLeaderLoops).
- *  Logs the post-sweep depth at info level so accumulation is observable in
- *  prod (the table should climb over uptime, not sit near-empty). */
 export function startMempoolSweep(): () => void {
 	const interval = setInterval(async () => {
 		try {

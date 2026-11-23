@@ -38,7 +38,6 @@ function maxPools(): number {
 	return Number.parseInt(process.env.DATABASE_MAX_POOLS ?? "25", 10);
 }
 
-/** Close the least-recently-used non-(source/target) pool when over the cap. */
 function evictIfNeeded(): void {
 	if (pools.size <= maxPools()) return;
 	const protectedUrls = new Set([resolveSourceUrl(), resolveTargetUrl()]);
@@ -58,7 +57,6 @@ function evictIfNeeded(): void {
 	if (!lruUrl || !lruEntry) return;
 	pools.delete(lruUrl);
 	const evicted = lruEntry;
-	// Close in the background — never block pool creation on teardown.
 	void evicted.db
 		.destroy()
 		.catch(() => {})
@@ -121,7 +119,6 @@ export function describeDbUrl(url: string): string {
 	}
 }
 
-/** Warn-once latch — one line per process, not one per import or connection. */
 let warnedDefaultUrlFallthrough = false;
 
 /**
@@ -263,8 +260,6 @@ function getOrCreatePool(url: string): PoolEntry {
 	}
 
 	const poolMax = Number.parseInt(process.env.DATABASE_POOL_MAX ?? "20", 10);
-	// Close idle connections so extra pools don't pin connections they no
-	// longer need (0 = never; postgres.js default).
 	const idleTimeout = Number.parseInt(
 		process.env.DATABASE_IDLE_TIMEOUT ?? "300",
 		10,
@@ -276,10 +271,6 @@ function getOrCreatePool(url: string): PoolEntry {
 	});
 	const db = new Kysely<Database>({
 		dialect: new PostgresJSDialect({ postgres: rawClient }),
-		// Diagnostic hook: surface the failing SQL whenever postgres rejects
-		// with code 42P10 (ON CONFLICT target doesn't match any unique
-		// constraint). Temporary — remove once we've caught the culprit
-		// query in prod logs and fixed the schema drift.
 		log: (event) => {
 			if (event.level !== "error") return;
 			const err = event.error as {

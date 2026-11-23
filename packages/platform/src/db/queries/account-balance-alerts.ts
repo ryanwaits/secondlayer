@@ -6,13 +6,6 @@ import type {
 } from "@secondlayer/shared/db";
 import type { Kysely } from "kysely";
 
-/**
- * Preferences + debounce state for the balance-runway email alerts
- * (`packages/worker/src/jobs/balance-alert.ts`). Both the cron (read +
- * debounce-mark) and `GET/PUT /api/billing/alerts` (read + preference write)
- * call through here.
- */
-
 export async function getBalanceAlerts(
 	db: Kysely<Database>,
 	accountId: string,
@@ -25,8 +18,6 @@ export async function getBalanceAlerts(
 	return row ?? null;
 }
 
-/** Upsert semantics: row is created on first write (both notifications on
- *  by default), subsequent writes PATCH. */
 export async function upsertBalanceAlerts(
 	db: Kysely<Database>,
 	accountId: string,
@@ -48,8 +39,6 @@ export async function upsertBalanceAlerts(
 		.executeTakeFirstOrThrow();
 }
 
-/** Re-arm: clear every debounce mark, so a top-up that pushes runway back
- *  over 7 days lets the next crossing alert again. */
 export async function clearSentBalanceAlerts(
 	db: Kysely<Database>,
 	accountId: string,
@@ -88,7 +77,6 @@ export async function claimBalanceAlert(
 	return row !== undefined;
 }
 
-/** Undo `claimBalanceAlert` after the send failed, so the next tick retries. */
 export async function releaseBalanceAlert(
 	db: Kysely<Database>,
 	accountId: string,

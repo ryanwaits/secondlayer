@@ -16,11 +16,8 @@ export interface BitcoinRpcConfig {
 	username: string;
 	password: string;
 	fetch?: typeof fetch;
-	/** Per-call HTTP timeout (ms). Defaults to 60,000. */
 	timeoutMs?: number;
-	/** Test seam: overrides the real `setTimeout`-based sleep used for retry backoff. */
 	sleep?: (ms: number) => Promise<void>;
-	/** Test seam: overrides `AbortSignal.timeout` so a test can observe the ms a call requests without waiting on a real timer. */
 	timeoutSignal?: (ms: number) => AbortSignal;
 }
 
@@ -119,7 +116,6 @@ export interface BitcoinRpcClient {
 		txid: string,
 		verbose: true,
 	): Promise<RawTransactionVerbose>;
-	/** Raw tx hex (verbosity 0) — used by `cli.ts repair-entries` (plan 040), which parses it itself instead of trusting bitcoind's decode. */
 	getrawtransaction(txid: string, verbose: false): Promise<string>;
 	/**
 	 * Blocks until a new block arrives or `timeoutMs` elapses (whichever
@@ -138,11 +134,9 @@ export interface BitcoinRpcClient {
 		timeoutMs: number,
 		signal?: AbortSignal,
 	): Promise<{ hash: string; height: number }>;
-	/** Used by `RpcWaitNotifier`'s fallback path when `waitfornewblock` answers `-32601` (method not found). */
 	getbestblockhash(): Promise<string>;
 }
 
-/** Build a JSON-RPC client bound to a bitcoind endpoint. */
 export function bitcoinRpcClient(config: BitcoinRpcConfig): BitcoinRpcClient {
 	const defaultTimeoutMs = config.timeoutMs ?? DEFAULT_TIMEOUT_MS;
 	const sleepFn = config.sleep ?? sleep;
@@ -214,7 +208,6 @@ export function bitcoinRpcClient(config: BitcoinRpcConfig): BitcoinRpcClient {
 				return await rpcOnce<T>(method, params, timeoutMs, callerSignal);
 			} catch (error) {
 				if (error instanceof BitcoinRpcError) throw error;
-				// A deliberate caller cancel — not 076's retry loop's business.
 				if (error instanceof RpcAbortedError) throw error;
 				if (!isRetryable(error) || attempt >= MAX_RETRIES) throw error;
 				const wait = jitteredBackoff(attempt + 1);

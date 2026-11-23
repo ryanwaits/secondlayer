@@ -24,10 +24,7 @@ export function isSameOrigin(req: Request): boolean {
 	return host !== "" && url.host === host.split(",")[0]?.trim();
 }
 
-/**
- * The 403 for a write that did not come from this site's own pages, or null to
- * go on. Never cached: some of these routes answer with a credential.
- */
+/** Never cached: some of these routes answer with a credential. */
 export function crossSiteRefusal(req: Request): Response | null {
 	if (isSameOrigin(req)) return null;
 	return Response.json(

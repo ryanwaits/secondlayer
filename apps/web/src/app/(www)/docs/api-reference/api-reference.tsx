@@ -31,7 +31,6 @@ import {
 	typeLabel,
 } from "./spec";
 
-/** Spec prose uses backticks for code; that's the only markup it carries. */
 function Prose({ text }: { text?: string }) {
 	if (!text) return null;
 	return (
@@ -127,7 +126,6 @@ function statusTone(code: string): string {
 	return "warn";
 }
 
-/** The route row: method pill, path, a copy-URL icon, and a self-host note. */
 function Methods({ endpoint }: { endpoint: Endpoint }) {
 	return (
 		<span className="apiref-route">
@@ -145,8 +143,6 @@ function Methods({ endpoint }: { endpoint: Endpoint }) {
 	);
 }
 
-/** cURL and the SDK call for one endpoint, one tab each. The cURL carries the
- *  hosted base URL; the page's Base URL switch rewrites it in place. */
 function RequestPanel({ endpoint }: { endpoint: Endpoint }) {
 	const sdk = sdkSample(endpoint.op);
 	return (
@@ -182,8 +178,6 @@ function ResponsePanel({
 
 type HrefFor = (anchor: string) => string;
 
-/** One endpoint in full: the docs on the left, and on the right (sticky) the
- *  agent prompt, the request and the response. Rendered on the server. */
 function EndpointSection({
 	endpoint,
 	family,
@@ -311,8 +305,6 @@ function EndpointSection({
 	);
 }
 
-/** One object in full, laid out like an endpoint: attributes on the left, the
- *  prompt and the example object on the right. */
 function ObjectSection({
 	entry,
 	hrefFor,
@@ -413,8 +405,6 @@ function ObjectRow({ entry }: { entry: ObjectEntry }) {
 	);
 }
 
-/** One family in the page's index: heading, summary, a row per entry. The
- *  heading is the family's anchor and its label in the docs sidebar. */
 function FamilyIndex({
 	id,
 	title,
@@ -439,12 +429,6 @@ function FamilyIndex({
 	);
 }
 
-/**
- * One API page as one long scroll. An index of every endpoint and object
- * comes first, grouped by family (plain in-page links), then every endpoint
- * in full, then the page's objects. The docs sidebar lists each section and
- * follows the one on screen.
- */
 export function ApiPage({ slug }: { slug: string }) {
 	const page = findApiPage(slug);
 	if (!page) throw new Error(`No API reference page "${slug}"`);
@@ -499,7 +483,6 @@ export function ApiPage({ slug }: { slug: string }) {
 	);
 }
 
-/** The reference's front page: the six pages, with what each one covers. */
 export function ApiPageList() {
 	return (
 		<div className="apiref-rows apiref-pages">

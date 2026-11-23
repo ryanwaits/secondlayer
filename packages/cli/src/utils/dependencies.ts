@@ -23,7 +23,7 @@ export async function getPackageManager(
 	if (packageManager === "yarn@berry") return "yarn";
 	if (packageManager === "pnpm@6") return "pnpm";
 	if (packageManager === "bun") return "bun";
-	if (packageManager === "deno") return "npm"; // Fallback to npm for deno
+	if (packageManager === "deno") return "npm";
 
 	return packageManager ?? "npm";
 }
@@ -65,7 +65,6 @@ export async function getMissingDependenciesFor(
 	devDependencies: string[];
 }> {
 	if (!(await hasPackageJson(targetDir))) {
-		// If no package.json, all dependencies are missing
 		return {
 			dependencies: [...requiredDeps.dependencies],
 			devDependencies: [...requiredDeps.devDependencies],
@@ -127,7 +126,6 @@ export async function installDependencies(
 ): Promise<void> {
 	const packageManager = await getPackageManager(targetDir);
 
-	// Install regular dependencies
 	if (dependencies.length > 0) {
 		console.log(
 			chalk.gray(`  Installing dependencies: ${dependencies.join(", ")}`),
@@ -147,7 +145,6 @@ export async function installDependencies(
 		}
 	}
 
-	// Install dev dependencies
 	if (devDependencies.length > 0) {
 		console.log(
 			chalk.gray(

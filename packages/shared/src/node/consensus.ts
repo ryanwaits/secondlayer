@@ -4,8 +4,7 @@ import { recoverPublicKey } from "@secondlayer/stacks/utils";
  * Consensus verification: do ≥70% of a reward cycle's signer weight attest to a
  * Nakamoto block? Each header `signer_signature` is a recoverable ECDSA over the
  * block_hash; recover the pubkey, match it to the cycle's reward set, and sum the
- * matched signers' weights. Verified bit-exact against mainnet 3.4.0.0.3 (see
- * docs/design/trustless-verification-proofs.md, signer-signature appendix).
+ * matched signers' weights.
  */
 const strip = (h: string): string => (h.startsWith("0x") ? h.slice(2) : h);
 
@@ -78,7 +77,7 @@ export function verifySignerSignatures(
 		try {
 			pubkey = recoverSignerKey(blockHashHex, sig);
 		} catch {
-			continue; // malformed signature → no credit
+			continue;
 		}
 		const weight = byKey.get(pubkey);
 		if (weight !== undefined && !seen.has(pubkey)) {

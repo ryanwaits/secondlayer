@@ -4,12 +4,6 @@ import type {
 	WebhookDetail,
 } from "@secondlayer/sdk";
 
-/**
- * Example account behind the dashboard preview on /docs/mcp. The kit draws it
- * exactly as it draws a real account: these are the bodies the read-only
- * proxy would return. Example names and receivers only, never real data.
- */
-
 const MIN = 60_000;
 const HOUR = 60 * MIN;
 const DAY = 24 * HOUR;
@@ -19,7 +13,6 @@ type Hook = {
 	name: string;
 	url: string;
 	triggers: WebhookDetail["triggers"];
-	/** Deliveries per day, before the wobble. */
 	perDay: number;
 	event: (i: number) => Record<string, unknown>;
 };
@@ -86,7 +79,6 @@ const HOOKS: Record<string, Hook[]> = {
 	],
 };
 
-/** Deterministic day-to-day wobble so the sparklines have a shape. */
 const wobble = (seed: number) =>
 	0.75 + ((Math.sin(seed * 12.9898) + 1) / 2) * 0.5;
 
@@ -188,7 +180,6 @@ const BASES: Record<string, string> = {
 	testnet: "https://api.secondlayer.tools/testnet",
 };
 
-/** Bodies by proxy path (`/api/sl/<network>/api/webhooks…`), or null. */
 export function demoBody(path: string, now = Date.now()): unknown {
 	if (path === "/api/sl/health") {
 		return Object.fromEntries(
@@ -219,7 +210,6 @@ export function demoBody(path: string, now = Date.now()): unknown {
 	return null;
 }
 
-/** A `fetch` for the kit that answers from the example account. */
 export function demoFetch(input: string): Promise<Response> {
 	const body = demoBody(input);
 	return Promise.resolve(

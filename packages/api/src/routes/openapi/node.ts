@@ -38,7 +38,6 @@ export const nodePaths = {
 	},
 };
 
-/** Resource schemas for these responses, merged into `components.schemas`. */
 export const nodeSchemas = {
 	ContractAbi: {
 		type: "object",

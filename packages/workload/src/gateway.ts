@@ -29,9 +29,6 @@ import { classifyBillableRead, createSseBatchCounter } from "./read-meter.ts";
 
 export interface GatewayDeps {
 	introspect: IntrospectClient;
-	/** Resolve (and, if missing, start provisioning) a tenant's current
-	 *  state. Returning `undefined` means "no tenant yet — kick off
-	 *  provisioning and answer 503." */
 	resolveTenant: (accountId: string) => Promise<TenantState | undefined>;
 	/** `provisioner.up()` — called fire-and-forget on a `none` tenant so the
 	 *  first caller doesn't block on the full provision; they get 503 +
@@ -46,22 +43,12 @@ export interface GatewayDeps {
 	 *  5-minute poll). The caller still gets 503 + Retry-After on THIS
 	 *  request; the stack is usually up well before the retry. */
 	startTenant: (accountId: string) => void;
-	/** Why a `stopped` tenant stopped. Read only for a read against a stopped
-	 *  tenant: an `idle` stack stays asleep for reads (see `asleepRead`). */
 	stopReason: (accountId: string) => Promise<StopReason | null>;
-	/** `127.0.0.1:<api_port>`-shaped base URL for a running tenant's `api`
-	 *  service (review fix: the gateway is a HOST process — it has no
-	 *  compose-network DNS, so this can never be a `tenant-<acct8>-api`
-	 *  service name), and its `INSTANCE_TOKEN` to swap in. */
 	tenantUpstream: (
 		accountId: string,
 	) => Promise<{ baseUrl: string; instanceToken: string }>;
-	/** Fire-and-forget after a successful subgraph deploy: starts the tenant's
-	 *  processor now instead of on the next watch tick (`processor-watch.ts`).
-	 *  The deploy itself never needs it. */
 	onSubgraphDeployed?: (accountId: string) => void;
 	fetchImpl?: FetchLike;
-	/** Wait between upstream retries; injectable so tests don't sleep. */
 	sleep?: (ms: number) => Promise<void>;
 	rateLimit?: RateLimiter;
 	/** Git sha this process started from, served at `/healthz` so the
@@ -80,12 +67,9 @@ export interface GatewayDeps {
 	/** Count `n` billable hosted subgraph reads for an account key
 	 *  (`read-meter.ts`). Fire-and-forget; never throws. */
 	countRead?: (accountId: string, apiKeyId: string, n: number) => void;
-	/** Clock for stream batch counting. Injectable for tests; defaults to
-	 *  `Date.now`. */
 	now?: () => number;
 }
 
-/** The only testnet surface: webhooks on the shared stack. */
 function isTestnetWebhookPath(pathname: string): boolean {
 	return (
 		pathname === "/testnet/api/webhooks" ||
@@ -98,8 +82,6 @@ export interface RateLimitDecision {
 	retryAfterSeconds?: number;
 }
 
-/** Per-account, per-bucket rate limiter (Design, step 4's numbers — the
- *  bucket→limit mapping lives on the caller, this just counts). */
 export type RateLimiter = (
 	accountId: string,
 	bucket: string,
@@ -111,11 +93,6 @@ function bearerToken(header: string | null): string | null {
 	return raw.length > 0 ? raw : null;
 }
 
-/** Coarse rate-limit bucket for a webhooks or subgraphs request, matching
- *  the Design's step 4 numbers (create/update/delete 30/min, test 10/min,
- *  replay 5/hour, reads 600/min). Method/path based, so it serves every
- *  prefix the gateway routes. The gateway only classifies; the actual limiter
- *  is injected. */
 export function classifyRequest(
 	method: string,
 	pathname: string,
@@ -128,15 +105,10 @@ export function classifyRequest(
 
 const PROVISIONING_RETRY_AFTER_SECONDS = 30;
 
-// Reads retry a refused or reset upstream connection with backoff
-// 250ms, 500ms, 1s, 1s, ... until this much time has been spent waiting.
 const UPSTREAM_RETRY_FIRST_DELAY_MS = 250;
 const UPSTREAM_RETRY_MAX_DELAY_MS = 1000;
 const UPSTREAM_RETRY_BUDGET_MS = 10_000;
 
-/** Gateway entry: one request id end to end (a valid incoming
- *  `X-Request-Id` is reused, else minted), forwarded upstream and set on every
- *  response; error responses get the hosted envelope and are recorded. */
 export async function handleGatewayRequest(
 	deps: GatewayDeps,
 	req: Request,
@@ -149,7 +121,6 @@ export async function handleGatewayRequest(
 	return finalize(deps, req, res, requestId, ctx.accountId);
 }
 
-/** Error bodies above this are passed through unrewritten. */
 const MAX_REWRITE_BYTES = 65536;
 
 async function finalize(
@@ -162,7 +133,6 @@ async function finalize(
 	const headers = new Headers(res.headers);
 	headers.set("x-request-id", requestId);
 	const status = res.status;
-	// Success streams untouched: its body is never read here.
 	if (status < 400) return new Response(res.body, { status, headers });
 
 	let code = DEFAULT_CODE_BY_STATUS[status] ?? "HTTP_ERROR";
@@ -188,9 +158,7 @@ async function finalize(
 				message = String(augmented.error ?? "").slice(0, 200);
 				headers.delete("content-length");
 			}
-		} catch {
-			// Not JSON after all: pass the text through unchanged.
-		}
+		} catch {}
 	}
 
 	// A rate limit or an asleep stack is not a failed request.
@@ -208,9 +176,7 @@ async function finalize(
 				query: redactQuery(url.searchParams),
 				origin: normalizeOrigin(req.headers.get("x-sl-origin") ?? undefined),
 			});
-		} catch {
-			// Recording never affects the response.
-		}
+		} catch {}
 	}
 	return new Response(outBody, { status, headers });
 }
@@ -222,7 +188,6 @@ async function route(
 	ctx: { accountId?: string },
 ): Promise<Response> {
 	const url = new URL(req.url);
-	// Unauthenticated liveness + version probe (loopback only, like the rest).
 	if (url.pathname === "/healthz") {
 		return Response.json({
 			status: "ok",
@@ -495,8 +460,6 @@ const LIST_PATHS = new Set([
 	"/api/insights",
 ]);
 
-/** What a read returns for an account with no tenant: an empty list for a
- *  collection path, otherwise a 404 worded for the resource asked about. */
 function emptyRead(pathname: string): Response {
 	if (LIST_PATHS.has(pathname.replace(/\/+$/, ""))) {
 		return Response.json({ data: [] }, { status: 200 });

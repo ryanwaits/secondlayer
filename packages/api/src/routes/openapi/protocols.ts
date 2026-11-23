@@ -40,7 +40,6 @@ void _withdrawalStatusesExhaustive;
 
 const LIMIT = { $ref: "#/components/parameters/Limit" };
 
-/** `parseSbtcBaseQuery`: `true` clamps `to_height` to the finality boundary. */
 const SBTC_CONFIRMED = qp(
 	"confirmed",
 	"boolean",
@@ -53,8 +52,6 @@ const SBTC_NOTES = {
 	description: "Present only when sBTC decoding is off on this instance.",
 };
 
-/** Envelope plus the `notes` field these routes add, and the 304 their
- *  finality cache answers with (`applyIndexCache`). */
 function feedResponses(
 	rowKey: string,
 	row: string,
@@ -77,7 +74,6 @@ function feedResponses(
 		: base;
 }
 
-/** A tip read from mainnet alongside the examples below (2026-09-23). */
 const TIP_EXAMPLE = {
 	block_height: 9048929,
 	finalized_height: 9048671,
@@ -92,14 +88,8 @@ const NOT_MODIFIED_POINT = {
 		"The resource is past finality and matches your `If-None-Match` ETag.",
 };
 
-// ── Runes (plan 058) — a separate clock and reorg source from the Stacks
-// `Tip`/`Reorg` schemas above, so these get their own refs rather than
-// reusing `envelope()` (which hardcodes `$ref: Tip`/`Reorg`).
-
 const BITCOIN_TIP = { $ref: "#/components/schemas/BitcoinTip" };
 
-/** A tip read from mainnet Bitcoin (live feeder DB, 2026-09-28), past the
- *  DOG examples' heights below. */
 const BITCOIN_TIP_EXAMPLE = {
 	block_height: 968_925,
 	finalized_height: 968_919,
@@ -180,11 +170,6 @@ function runesEnvelope(
 	};
 }
 
-// ── Examples: real mainnet rows, shaped by each route's serializer ──────────
-
-/** `readPoxCycle(141)` — pox-5's first reward cycle. `total_stacked_ustx` and
- *  `rewards_per_token_stx` are the exact mainnet values (plan 078); the rest
- *  are illustrative. */
 const POX_CYCLE_EXAMPLE = {
 	reward_cycle: 141,
 	start_burn_height: 962_150,
@@ -209,7 +194,6 @@ const POX_CYCLE_EXAMPLE = {
 	is_frozen: true,
 };
 
-/** `readPoxCycle(141)`'s per-signer breakdown, same cycle as above. */
 const POX_CYCLE_SIGNER_EXAMPLE = {
 	signer:
 		"SPMPMA1V6P430M8C91QS1G9XJ95S59JS1TZFZ4Q4.fastpool-max500-signer-manager",
@@ -243,7 +227,6 @@ const RUNE_ENTRY_EXAMPLE = {
 	terms: null,
 };
 
-// A real DOG transfer (live feeder DB, 2026-09-28).
 const RUNE_EVENT_EXAMPLE = {
 	cursor: "968919:3",
 	block_height: 968919,
@@ -263,7 +246,6 @@ const RUNE_EVENT_EXAMPLE = {
 	},
 };
 
-// A real DOG balance (live feeder DB, 2026-09-28).
 const RUNE_BALANCE_EXAMPLE = {
 	rune: {
 		id: "840000:3",
@@ -289,7 +271,6 @@ const BTC_REORG_EXAMPLE = {
 	new_tip_height: 851205,
 };
 
-/** The `completed-deposit` at 9,048,911:4. */
 const SBTC_DEPOSIT_EXAMPLE = {
 	cursor: "9048911:4",
 	block_height: 9048911,
@@ -306,7 +287,6 @@ const SBTC_DEPOSIT_EXAMPLE = {
 	max_fee: "80000",
 };
 
-/** Withdrawal request 3405: accepted, sweep confirmed on Bitcoin. */
 const SBTC_WITHDRAWAL_SWEEP =
 	"0x0efad88eb01e248fd8321ada99cb74f7258948226eae106f8be5a5917d7473e4";
 
@@ -340,7 +320,6 @@ const SBTC_WITHDRAWAL_LIFECYCLE_EXAMPLE = {
 	finalized: true,
 };
 
-/** `readSbtcSummary` over mainnet, with supply from `get-total-supply`. */
 const SBTC_SUMMARY_EXAMPLE = {
 	total_deposits: 28077,
 	total_withdrawals_requested: 3408,
@@ -352,7 +331,6 @@ const SBTC_SUMMARY_EXAMPLE = {
 	sbtc_supply_sats: "247872312898",
 };
 
-/** Protocol reads decoded from boot and protocol contracts: PoX-5, sBTC. */
 export const protocolsPaths = {
 	"/v1/index/pox/cycles": {
 		get: {
@@ -1088,8 +1066,6 @@ export const protocolsPaths = {
 	},
 };
 
-// ── Shared property blocks ──────────────────────────────────────────────────
-
 const CURSOR_PROP = {
 	type: "string",
 	description: "`<block_height>:<event_index>`. Pass as `cursor`.",
@@ -1182,7 +1158,6 @@ const STATUS_PROP = {
 		"`REQUESTED` until the signers act, then `ACCEPTED` or `REJECTED` from the latest resolution event.",
 };
 
-/** Resource schemas for these rows, merged into `components.schemas`. */
 export const protocolsSchemas = {
 	Pox5Cycle: {
 		type: "object",
@@ -1311,7 +1286,6 @@ export const protocolsSchemas = {
 					"True once totals can no longer change: the tip has reached `prepare_start_burn_height`. Closed and current cycles are always frozen; only a not-yet-started future cycle is open.",
 			},
 		},
-		// A real cycle: mainnet, reward cycle 141 (pox-5's first).
 		example: POX_CYCLE_EXAMPLE,
 	},
 	Pox5CycleSigner: {
@@ -1457,7 +1431,6 @@ export const protocolsSchemas = {
 					"The full decoded print tuple. Nested shapes (btc-lockup, bond-rewards, bond-periods) come through intact.",
 			},
 		},
-		// A real row: mainnet, block 9,048,679.
 		example: {
 			cursor: "9048679:0",
 			block_height: 9048679,
@@ -1879,7 +1852,6 @@ export const protocolsSchemas = {
 				description: "Number of signer keys in the new set, on `key-rotation`.",
 			},
 		},
-		// A real row: mainnet, withdrawal request 3406.
 		example: {
 			cursor: "9048486:2",
 			block_height: 9048486,
@@ -1917,7 +1889,6 @@ export const protocolsSchemas = {
 			"A completed peg-in: one `completed-deposit` event. Keyed by the Bitcoin txid; deposits carry no request id.",
 		required: ["cursor", "block_height", "tx_id", "tx_index", "event_index"],
 		properties: SBTC_DEPOSIT_PROPERTIES,
-		// A real row: mainnet, block 9,048,911.
 		example: SBTC_DEPOSIT_EXAMPLE,
 	},
 	SbtcDepositDetail: {
@@ -2007,7 +1978,6 @@ export const protocolsSchemas = {
 					"Block time of the accept or reject. Null while requested.",
 			},
 		},
-		// A real row: mainnet, withdrawal request 3405.
 		example: {
 			cursor: "9048225:2",
 			request_id: 3405,
@@ -2113,7 +2083,6 @@ export const protocolsSchemas = {
 					"True once the withdrawal is accepted or rejected and every event is past finality. Nothing about it will change.",
 			},
 		},
-		// A real row: mainnet, withdrawal request 3405.
 		example: SBTC_WITHDRAWAL_LIFECYCLE_EXAMPLE,
 	},
 	SbtcSummary: {
@@ -2166,7 +2135,6 @@ export const protocolsSchemas = {
 					"Circulating sBTC in sats, read from `sbtc-token` `get-total-supply` on this instance's node. Null when `STACKS_NODE_RPC_URL` is unset or the node does not answer.",
 			},
 		},
-		// A real read: mainnet, 2026-09-23.
 		example: SBTC_SUMMARY_EXAMPLE,
 	},
 };

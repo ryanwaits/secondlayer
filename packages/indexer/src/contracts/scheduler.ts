@@ -3,14 +3,6 @@ import { logger } from "@secondlayer/shared/logger";
 import { StacksNodeClient } from "@secondlayer/shared/node/client";
 import { discoverDeploys, processPendingAbis } from "./registry.ts";
 
-/**
- * Periodic worker that keeps the contract registry populated: discover new
- * deploys, then fetch + classify pending ABIs. Each tick advances both the tip
- * (new deploys registered immediately) and the historical backfill (drained
- * newest-first over successive ticks). Gated on `CONTRACT_REGISTRY_ENABLED` so
- * it can be rolled out independently. Idempotent + non-overlapping.
- */
-
 const DEFAULT_INTERVAL_MS = 30_000;
 
 export const contractRegistryState = {
@@ -42,7 +34,7 @@ export function startContractRegistry(): () => void {
 
 	let running = false;
 	const tick = async () => {
-		if (running) return; // never overlap ticks
+		if (running) return;
 		running = true;
 		try {
 			const db = getSourceDb();

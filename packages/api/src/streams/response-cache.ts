@@ -29,7 +29,6 @@ export class StreamsResponseCache {
 	get(key: string): CachedStreamsPage | undefined {
 		const hit = this.store.get(key);
 		if (hit === undefined) return undefined;
-		// Refresh recency.
 		this.store.delete(key);
 		this.store.set(key, hit);
 		return hit;
@@ -54,5 +53,4 @@ export class StreamsResponseCache {
 	}
 }
 
-/** Shared cache for the live API process. */
 export const streamsResponseCache = new StreamsResponseCache();

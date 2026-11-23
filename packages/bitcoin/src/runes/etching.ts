@@ -22,17 +22,16 @@ export const ETCHING_MAX_SPACERS = 0b00000111_11111111_11111111_11111111;
 
 const U128_MAX = (1n << 128n) - 1n;
 
-/** `Etching::supply` — `undefined` on overflow (`checked_add`/`checked_mul` failure), matching `Option<u128>`. */
 export function etchingSupply(self: Etching): bigint | undefined {
 	const premine = self.premine ?? 0n;
 	const cap = self.terms?.cap ?? 0n;
 	const amount = self.terms?.amount ?? 0n;
 
 	const product = cap * amount;
-	if (product > U128_MAX) return undefined; // checked_mul overflow
+	if (product > U128_MAX) return undefined;
 
 	const total = premine + product;
-	if (total > U128_MAX) return undefined; // checked_add overflow
+	if (total > U128_MAX) return undefined;
 
 	return total;
 }

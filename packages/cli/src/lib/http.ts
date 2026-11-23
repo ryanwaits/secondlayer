@@ -86,7 +86,6 @@ async function request<T>(
 		throw new CliHttpError(res.status, code, body, message);
 	}
 
-	// 204 / empty
 	if (res.status === 204) return undefined as T;
 	return (await res.json()) as T;
 }
@@ -201,7 +200,6 @@ export async function httpArchiveOps<T>(
 		});
 	} catch (err) {
 		if (err instanceof CliHttpError && err.status === 401) {
-			// An env account key beats a saved login; a rejected session means log in again.
 			const remedy =
 				source === "session"
 					? `Your saved login was rejected (${err.message}). Run \`secondlayer login\`, or set SECONDLAYER_API_KEY (it takes precedence over a saved login).`

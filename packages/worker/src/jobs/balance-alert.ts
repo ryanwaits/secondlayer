@@ -1,21 +1,7 @@
 /**
- * Balance-runway email alerts: at $0 the workload host stops a tenant's
- * hosted stack within 5 minutes (`packages/workload/src/provisioner.ts`
- * `pollCredits`) with no warning to the customer first. This cron closes
- * that gap — hourly, for every account with recent spend or a delivery
- * service that isn't `none`:
- *
- *   - `low` (runway ≤7d) & `notify7d` & not yet sent this crossing → email
- *   - `crit` (runway ≤2d) & `notify2d` & not yet sent this crossing → email
- *   - `stopped` (service stopped, balance ≤$0) & `notify2d` & not yet sent
- *     → email
- *   - runway back over 7 days (a top-up) → clear every debounce mark, so
- *     the next crossing alerts again
- *
  * Runway/level math mirrors `apps/web/src/lib/usage.ts` exactly (Design's
  * Definitions) via the shared `@secondlayer/platform/billing/runway`
- * helpers, so the email and the credits page never disagree. No-op in
- * non-platform mode.
+ * helpers, so the email and the credits page never disagree.
  */
 
 import { balanceLevel, runwayDays } from "@secondlayer/platform/billing/runway";
@@ -43,9 +29,7 @@ import { getInstanceMode } from "@secondlayer/shared/mode";
 import { claimThenSend } from "./claim-then-send.ts";
 import { scheduleCron } from "./cron-schedule.ts";
 
-const INTERVAL_MS = 60 * 60 * 1000; // hourly — a runway crossing doesn't
-// need minute-level precision; the hard stop is real-time on the read/
-// provisioner path regardless.
+const INTERVAL_MS = 60 * 60 * 1000;
 
 const DASHBOARD_LINK = "https://secondlayer.tools/account/credits";
 
@@ -72,7 +56,6 @@ export function startBalanceAlertCron(): () => void {
 
 interface AccountRow {
 	id: string;
-	/** NULL only for ghost accounts (no address to alert). */
 	email: string | null;
 }
 
@@ -168,10 +151,6 @@ function formatUsd(usdMicros: bigint): string {
 	return `$${(Number(usdMicros) / 1_000_000).toFixed(2)}`;
 }
 
-/** Now + runway days, date only, UTC, "Mon D" — matches Definitions'
- *  "Runs out" and `apps/web/src/lib/usage.ts`'s `runsOutDate` exactly:
- *  floor `runway` to whole days, then add that many calendar days to
- *  `now`'s UTC date. */
 function runsOutDate(now: Date, runway: number): string {
 	const at = new Date(
 		Date.UTC(
@@ -187,7 +166,6 @@ function runsOutDate(now: Date, runway: number): string {
 	});
 }
 
-/** "Mon D HH:MM UTC" — when the hosted stack stopped. */
 function stoppedAtLabel(now: Date): string {
 	const date = now.toLocaleDateString("en-US", {
 		month: "short",
@@ -214,7 +192,7 @@ async function sendBalanceAlert(
 	},
 	send: typeof sendEmail,
 ): Promise<void> {
-	if (!account.email) return; // no address to alert (ghost account)
+	if (!account.email) return;
 
 	let subject: string;
 	let preheader: string;

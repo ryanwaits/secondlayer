@@ -74,7 +74,6 @@ function Line({ label, value }: { label: string; value: string }) {
 
 export type PulseBodyProps = {
 	insights: readonly Insight[];
-	/** Hourly delivered and failed for every webhook; undefined until it loads. */
 	summary: WebhooksActivitySummary | undefined;
 	rows: RowsResponse | null;
 	billing: Billing | null;
@@ -82,12 +81,9 @@ export type PulseBodyProps = {
 	webhookCount: number;
 	subgraphCount: number;
 	isNew: boolean;
-	/** Insights and the webhook list have both loaded, so "All delivering" is true. */
 	loaded: boolean;
 	now: Date;
-	/** Text after "Updated". */
 	updated: string;
-	/** Insights created after this (ms) show NEW. */
 	seenAt: number;
 	onOpen: (id: string) => void;
 };
@@ -113,7 +109,6 @@ function NeedsYou({
 			<div className="m-pulse-group">
 				{needs.length === 0 && !loaded ? (
 					<div className="m-pulse-row">
-						{/* The height of the "All delivering" row it becomes. */}
 						<ChartSkeleton height={39} />
 					</div>
 				) : needs.length === 0 ? (
@@ -200,7 +195,6 @@ function Last24({ summary }: { summary: WebhooksActivitySummary | undefined }) {
 					</>
 				) : (
 					<>
-						{/* The caption's line, so the chart doesn't drop when it lands. */}
 						<div className="m-pulse-cap">&nbsp;</div>
 						<ChartBox height={120} />
 					</>
@@ -210,7 +204,6 @@ function Last24({ summary }: { summary: WebhooksActivitySummary | undefined }) {
 	);
 }
 
-/** The Pulse body from plain props, so the Lab and tests render it with no stores. */
 export function PulseBody({
 	insights,
 	summary,
@@ -297,7 +290,6 @@ export function PulseBody({
 	);
 }
 
-/** The pull-to-refresh indicator above the body. */
 function PullIndicator({ phase, offset }: ReturnType<typeof usePullRefresh>) {
 	if (phase === "idle") return null;
 	return (
@@ -311,7 +303,6 @@ function PullIndicator({ phase, offset }: ReturnType<typeof usePullRefresh>) {
 	);
 }
 
-/** The phone Pulse tab: what needs you, the last 24 hours, and today. */
 export function PulseScreen({
 	initial = null,
 }: { initial?: OverviewInitial | null } = {}) {
@@ -363,7 +354,6 @@ export function PulseScreen({
 	);
 	useSubgraphsPoll(initial?.subgraphs);
 
-	// "Updated" ages on its own; tick so the label stays honest.
 	useEffect(() => {
 		const id = setInterval(() => setNow(new Date()), 10_000);
 		return () => clearInterval(id);
@@ -406,7 +396,6 @@ export function PulseScreen({
 	);
 }
 
-/** Pulse over plain props with its insight sheets wired, for the Lab. */
 export function LocalPulse(props: Omit<PulseBodyProps, "onOpen">) {
 	const { open, sheets } = useInsightSheets(props.insights);
 	return (

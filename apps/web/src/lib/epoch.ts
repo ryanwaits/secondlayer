@@ -16,8 +16,8 @@ export function createEpoch() {
 	};
 }
 
-/** Wakes every listener. `deferred` waits a microtask, for a clear that runs
- *  while a component renders (React forbids waking other components then). */
+/** `deferred` waits a microtask, for a clear that runs while a component
+ *  renders (React forbids waking other components then). */
 export function notifyAll(
 	listeners: ReadonlySet<() => void>,
 	deferred = false,

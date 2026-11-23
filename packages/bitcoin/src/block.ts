@@ -17,14 +17,12 @@ export interface TxInput {
 	/** Big-endian (display order) txid of the spent output, all-zero for coinbase. */
 	prevTxid: string;
 	prevVout: number;
-	/** Witness stack items, empty for a non-segwit input. */
 	witness: Uint8Array[];
 }
 
 export interface TxOutput {
 	/** Satoshis. */
 	value: bigint;
-	/** Raw scriptPubKey bytes. */
 	script: Uint8Array;
 }
 
@@ -67,7 +65,6 @@ class ByteReader {
 		this.pos = pos;
 	}
 
-	/** Returns the bytes from `start` up to (not including) the current position. */
 	sliceFrom(start: number): Uint8Array {
 		return this.buf.subarray(start, this.pos);
 	}
@@ -195,7 +192,6 @@ function parseTx(r: ByteReader): ParsedTx {
 		if (marker === 0x00 && flag === 0x01) {
 			segwit = true;
 		} else {
-			// Not a marker/flag pair — rewind, this is the real input count.
 			r.rewindTo(markerFlagPos);
 		}
 	}
@@ -296,12 +292,12 @@ export function parseBlock(hex: string): ParsedBlock {
 
 	// Header (80 bytes): version(4) + prevBlockHash(32) + merkleRoot(32) + time(4) + bits(4) + nonce(4).
 	const headerStart = r.offset;
-	r.bytes(4); // version
-	const prevHashInternal = r.bytes(32); // view, not a copy — see the parseTx comment above
+	r.bytes(4);
+	const prevHashInternal = r.bytes(32);
 	const merkleRootBytes = r.bytes(32);
 	const time = r.u32le();
-	r.bytes(4); // bits
-	r.bytes(4); // nonce
+	r.bytes(4);
+	r.bytes(4);
 	const header = buf.subarray(headerStart, r.offset);
 	const hash = displayHex(doubleSha256(header));
 	const prevHash = displayHex(prevHashInternal);
@@ -315,12 +311,6 @@ export function parseBlock(hex: string): ParsedBlock {
 	return { hash, prevHash, merkleRootBytes, time, txs };
 }
 
-/**
- * Parses a single raw transaction (the hex `getrawtransaction <txid> false`
- * returns — no block header, no other txs). Used by `cli.ts repair-entries`
- * (plan 040 step 2) to re-decipher an etching tx fetched on its own, outside
- * `parseBlock`'s per-block loop.
- */
 export function parseTransaction(hex: string): ParsedTx {
 	return parseTx(new ByteReader(hexToBytes(hex)));
 }

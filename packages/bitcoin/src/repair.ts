@@ -1,10 +1,3 @@
-// `cli.ts repair-entries` (plan 040 step 2): backfills `symbol_codepoint`
-// and `has_terms` (migration 0003) on `rune_entries` rows written before
-// those columns existed. Split into a pure per-row decision
-// (`resolveRepairForRow`, unit-testable with a stub RPC, no DB) and thin DB
-// glue (`repairEntries`) that scans/writes Postgres — same split as
-// `computeBalanceChanges`/`flush` in ./db/store.ts.
-
 import { type Kysely, sql } from "kysely";
 import { parseTransaction } from "./block.ts";
 import { chunk } from "./db/store.ts";
@@ -17,7 +10,6 @@ import {
 	seedGenesis,
 } from "./runes/state.ts";
 
-/** Minimal shape `resolveRepairForRow` needs from a `rune_entries` row — narrower than `RuneEntriesTable` so tests don't need a full row. */
 export interface RepairSourceRow {
 	runeId: string;
 	etchingTxid: string;
@@ -31,7 +23,6 @@ export interface RepairOutcome {
 	runeId: string;
 	symbolCodepoint: number | null;
 	hasTerms: boolean;
-	/** Whether resolving this row required an RPC round trip. */
 	usedRpc: boolean;
 }
 
@@ -66,11 +57,6 @@ function genesisEntry() {
 	return entry;
 }
 
-/**
- * Resolves one row's `symbol_codepoint`/`has_terms`: from column data alone
- * when that's already unambiguous, else by re-fetching and re-deciphering
- * the etching tx.
- */
 export async function resolveRepairForRow(
 	row: RepairSourceRow,
 	fetcher: EtchingTxFetcher,
@@ -142,7 +128,6 @@ export async function resolveRepairForRow(
 	};
 }
 
-/** Bounded-concurrency worker pool — same shape as `cli.ts`'s `parity-decode` pool. */
 async function runPool<T>(
 	items: T[],
 	concurrency: number,
@@ -294,14 +279,12 @@ export async function repairEntries(
 	};
 }
 
-/** The one RPC shape `repairBlockTimes` needs: a block's header time (unix seconds) by hash. */
 export interface BlockTimeFetcher {
 	getBlockTime(hash: string): Promise<number>;
 }
 
 export interface RepairBlockTimesOptions {
 	concurrency?: number;
-	/** Rows resolved and written per round; progress is logged once per batch. */
 	batchSize?: number;
 	onProgress?: (filled: number) => void;
 }

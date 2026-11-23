@@ -1,9 +1,4 @@
 /**
- * Hosted problem reports. An agent whose call failed sends back the
- * `request_id` from the error body plus one line of intent.
- *
- *   POST /v1/feedback  { intent, request_id?, kind_hint?, expected?, evidence? }
- *
  * Mounted only in platform mode (self-hosted error bodies link to a GitHub
  * issue instead). `attempted` is the server's own record of the failed call
  * from `api_failed_requests` (this account, last 24h), never caller input:
@@ -57,7 +52,6 @@ export type FeedbackInput = {
 	intent: string;
 	request_id: string | null;
 	kind_hint: FeedbackKind | null;
-	/** Any JSON value: a sentence or a shape. */
 	expected: unknown;
 	evidence: FeedbackEvidence | null;
 };
@@ -72,7 +66,6 @@ const ALLOWED_KEYS = new Set([
 	"evidence",
 ]);
 
-/** Max length per string evidence field. */
 const EVIDENCE_STRING_MAX = {
 	tx_id: 128,
 	contract_id: 160,
@@ -81,7 +74,6 @@ const EVIDENCE_STRING_MAX = {
 	table: 64,
 } as const;
 
-/** Trimmed string within bounds, null when absent/blank, undefined when invalid. */
 function text(value: unknown, max: number): string | null | undefined {
 	if (value === undefined || value === null) return null;
 	if (typeof value !== "string") return undefined;
@@ -134,7 +126,6 @@ function parseEvidence(value: unknown): Parsed<FeedbackEvidence | null> {
 	return { ok: Object.keys(out).length > 0 ? out : null };
 }
 
-/** Validates a report body, or names the bad field. */
 export function parseFeedback(
 	body: Record<string, unknown>,
 ): Parsed<FeedbackInput> {
@@ -199,7 +190,6 @@ export function parseFeedback(
 	};
 }
 
-/** Absent header → null. Otherwise 1..128 printable ASCII, no spaces. */
 export function parseIdempotencyKey(
 	header: string | undefined,
 ): Parsed<string | null> {

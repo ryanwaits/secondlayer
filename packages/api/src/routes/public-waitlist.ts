@@ -1,9 +1,4 @@
 /**
- * Public waitlist signup. No session — the contact field is the identity.
- *
- *   POST /api/public/waitlist  { list, contact, ...answers }
- *   GET  /api/public/waitlist/:list/demand
- *
  * Mounted only in platform mode. A list takes signups when it has a row in
  * `waitlists` with `closed_at` null AND an answer parser below; the parser
  * is what keeps a scripted POST from writing arbitrary JSON. A repeat
@@ -21,7 +16,6 @@ const app = new Hono();
 type Answers = Record<string, string | null>;
 type Parsed<T> = { ok: T } | { error: string };
 
-/** Trimmed string within bounds, null when absent/blank, undefined when invalid. */
 function text(value: unknown, max: number): string | null | undefined {
 	if (value === undefined || value === null) return null;
 	if (typeof value !== "string") return undefined;
@@ -32,7 +26,6 @@ function text(value: unknown, max: number): string | null | undefined {
 
 const ROBINHOOD_ROLES = ["issuer", "builder", "holder"] as const;
 
-/** Stacks → Robinhood Chain bridge: which token, and who is asking. */
 function parseRobinhoodAnswers(body: Record<string, unknown>): Parsed<Answers> {
 	const role = body.role;
 	if (
@@ -52,7 +45,6 @@ function parseRobinhoodAnswers(body: Record<string, unknown>): Parsed<Answers> {
 	return { ok: { role, token, contract, note } };
 }
 
-/** One answer parser per list slug. A list with no parser takes no signups. */
 export const WAITLIST_ANSWERS: Record<
 	string,
 	(body: Record<string, unknown>) => Parsed<Answers>
@@ -60,7 +52,6 @@ export const WAITLIST_ANSWERS: Record<
 	robinhood: parseRobinhoodAnswers,
 };
 
-/** Validates a signup body into an insertable row, or names the bad field. */
 export function parseSignup(
 	body: Record<string, unknown>,
 ): Parsed<InsertWaitlistSignup> {
@@ -112,9 +103,7 @@ app.post("/", async (c) => {
 	return c.json({ ok: true });
 });
 
-/** A ticker, not free text: what the public board is allowed to print. */
 const SYMBOL_RE = /^[A-Z0-9][A-Z0-9.$-]{0,15}$/;
-/** A token needs this many different people behind it to be shown. */
 const MIN_REQUESTS = 2;
 const MAX_SHOWN = 8;
 

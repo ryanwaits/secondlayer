@@ -1,4 +1,3 @@
-/** The story tree: one row per component story, grouped for the left rail. The registry (stories.tsx) adds each story's body. */
 export const STORY_INDEX = [
 	{ id: "color", group: "Foundations", title: "Color" },
 	{ id: "type", group: "Foundations", title: "Type" },
@@ -63,7 +62,6 @@ export type StoryGroup = (typeof STORY_INDEX)[number]["group"];
 
 export type NavItem = { href: string; label: string; group: string };
 
-/** Everything the rail links to, in order: the stories, then the figure catalog. */
 export const NAV_ITEMS: NavItem[] = [
 	...STORY_INDEX.map((s) => ({
 		href: `/lab/components/${s.id}`,

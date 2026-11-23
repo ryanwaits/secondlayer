@@ -19,11 +19,6 @@ export type BaState = {
 	zone?: { left: number; width: number; visible: boolean };
 };
 
-/**
- * B9 BeforeAfter — one geometry, two (or more) states. A segmented
- * toggle switches states; shared markers keep their identity (keyed by
- * id) so only the deltas move and the eye tracks WHAT changed.
- */
 export function BeforeAfter({ states }: { states: BaState[] }) {
 	const [idx, setIdx] = useState(0);
 	const name = useId();

@@ -17,7 +17,6 @@ import { createHash } from "node:crypto";
 import type { SubgraphSchema, SubgraphTable } from "../types.ts";
 import type { ReplayFailure } from "./replay.ts";
 
-/** A table row as a plain column-to-value record. */
 type Row = Record<string, unknown>;
 
 export interface TableComparison {
@@ -38,7 +37,6 @@ export interface RowComparison {
 	tables: TableComparison[];
 }
 
-/** RFC 8785-style JSON: sorted keys, bigints as decimal strings. */
 function canonicalJson(value: unknown): unknown {
 	if (typeof value === "bigint") return value.toString();
 	if (Array.isArray(value)) return value.map(canonicalJson);
@@ -86,7 +84,6 @@ function canonicalValue(type: string | undefined, value: unknown): unknown {
 	}
 }
 
-/** Declared columns + `_block_height`, in a fixed order. */
 function canonicalRow(
 	def: SubgraphTable,
 	row: Row,
@@ -161,7 +158,6 @@ export function compareRows(
 
 		const keyCols = def.uniqueKeys?.[0];
 		if (!keyCols?.length) {
-			// Multiset: count each canonical line on both sides.
 			const counts = new Map<string, number>();
 			for (const l of mineLines) counts.set(l, (counts.get(l) ?? 0) + 1);
 			for (const l of theirLines) counts.set(l, (counts.get(l) ?? 0) - 1);

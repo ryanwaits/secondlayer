@@ -10,7 +10,6 @@ import {
 import Link from "next/link";
 import type { ReactNode } from "react";
 
-/** One glyph per product, shared by the stack and the seam. */
 export const PRODUCT_GLYPH: Record<ProductKey, () => ReactNode> = {
 	archive: LayersIcon,
 	streams: WavesIcon,
@@ -19,12 +18,6 @@ export const PRODUCT_GLYPH: Record<ProductKey, () => ReactNode> = {
 	webhooks: PulseIcon,
 };
 
-/**
- * The five products as one stack, in the sidebar's chain-to-app order: Archive
- * (closest to the chain) first, Webhooks (closest to your app) last, with
- * Verify under all. Each row says what you get and what you write there.
- * Intro page only.
- */
 export function Stack() {
 	return (
 		<div className="docs-stack">

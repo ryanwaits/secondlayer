@@ -32,7 +32,6 @@ export interface TransactionProofResponse {
 	raw_tx: string;
 	raw_header: string;
 	tx_merkle_path: MerkleProofStep[];
-	/** Reward cycle + signer set, present when the reward set could be resolved. */
 	consensus?: { reward_cycle: number; reward_set: RewardSet };
 }
 
@@ -66,8 +65,6 @@ export function buildTransactionProof(params: {
 	};
 }
 
-/** Reader over the composed (DB + node) proof gatherer, as exposed at the
- *  route layer — the route only ever calls the "default" composed version. */
 export type TransactionProofReader = (
 	txId: string,
 ) => Promise<TransactionProofResponse | null>;
@@ -77,11 +74,9 @@ export type ProofTxReader = (txId: string) => Promise<{
 	tx_index: number;
 	raw_tx: string;
 	burn_block_height: number;
-	/** Persisted block id; null on rows ingested before it was stored. */
 	index_block_hash?: string | null;
 } | null>;
 
-/** Ordered canonical txids of a block (must match the block's tx set). */
 export type BlockTxidsReader = (blockHeight: number) => Promise<string[]>;
 
 export interface ProofNodeClient {
@@ -104,9 +99,6 @@ export class IncompleteBlockTxSetError extends Error {
 	}
 }
 
-/** Thrown when the stacks-node (the signed-header source) can't be reached.
- *  The proof endpoint needs `STACKS_NODE_RPC_URL` reachable from the api
- *  container; absent that, surface a clean 503 instead of an opaque 500. */
 export class ProofNodeUnavailableError extends Error {
 	constructor(cause: unknown) {
 		super(
@@ -116,11 +108,6 @@ export class ProofNodeUnavailableError extends Error {
 	}
 }
 
-/**
- * Gather the proof pieces from our DB + the stacks-node and assemble. Returns
- * null when the tx or its block can't be found. Readers are injected so the
- * route can supply defaults and tests can supply fakes.
- */
 export async function getTransactionProof(opts: {
 	txId: string;
 	readTx: ProofTxReader;
@@ -178,8 +165,6 @@ export async function getTransactionProof(opts: {
 	return proof;
 }
 
-// ── Default readers (chain data on the source DB; canonicity via blocks join) ──
-
 const defaultProofTxReader: ProofTxReader = async (txId) => {
 	const { rows } = await sql<{
 		block_height: number;
@@ -211,11 +196,6 @@ const defaultBlockTxidsReader: BlockTxidsReader = async (height) => {
 	return rows.map((r) => r.tx_id);
 };
 
-/**
- * Default proof gatherer wired to the source DB + a stacks-node. Needs
- * `STACKS_NODE_RPC_URL` reachable from the api container (the proof endpoint
- * fetches the signed block header from `/v3/blocks`).
- */
 export function getTransactionProofDefault(
 	txId: string,
 ): Promise<TransactionProofResponse | null> {

@@ -122,44 +122,22 @@ export const DEFAULT_CLASSIC_BATCH_LIMIT = 10_000;
  *  of one call synchronously draining an entire backlog. */
 export const DEFAULT_MAX_PAGES_PER_CYCLE = 25;
 
-/** Test seam: swaps the real multi-decoder commit for a spy so a test can
- *  observe each page's commit (call count, row counts) without a different
- *  code path from production. Defaults to `commitClassicDecoderBatch`. */
 export type ClassicDecoderCommitFn = (
 	entries: readonly GenericDecoderBatchEntry[],
 	opts?: { db?: Kysely<Database> },
 ) => Promise<void>;
 
 export type ClassicDecodeCycleResult = {
-	/** Rows actually decoded and written this cycle (excludes faulted events). */
 	decoded: number;
-	/** Per-decoder rows written this cycle. */
 	decodedByDecoder: Record<DecoderName, number>;
-	/** Raw classic events scanned this cycle, across every page. */
 	scanned: number;
-	/** Commits made this cycle (0 when idle). */
 	pagesCommitted: number;
-	/** False when every classic decoder was already at/past the source tip —
-	 *  the caller should back off instead of looping immediately. */
 	progressed: boolean;
-	/** Every decoder's checkpoint cursor after this cycle (unchanged ones too). */
 	checkpoints: Record<DecoderName, string | null>;
-	/** First not-yet-committed height this cycle scanned from — the lowest
-	 *  classic checkpoint plus one. Null when every checkpoint is unset (never
-	 *  committed, scan starts at genesis) is represented as 0, not null; null
-	 *  here means the cycle never reached a tip read at all (no canonical
-	 *  block exists yet). Instrumentation for tracing decode-cycle latency. */
 	fromHeight: number | null;
-	/** Source-tip height this cycle bounded itself to. Null only when no
-	 *  canonical block exists yet. */
 	toHeight: number | null;
-	/** Wall time spent inside `readCanonicalStreamsEvents`, summed across
-	 *  every page this cycle read. */
 	readMs: number;
-	/** Wall time spent inside `commit`, summed across every page this cycle
-	 *  committed. */
 	commitMs: number;
-	/** Wall time for the whole cycle, start to return. */
 	totalMs: number;
 };
 
@@ -261,7 +239,6 @@ export async function runClassicDecodeCycle(opts?: {
 	const toHeight = tip.block_height;
 
 	if (lowestCommittedHeight !== null && lowestCommittedHeight >= toHeight) {
-		// Every classic decoder already committed through the source tip.
 		return emptyCheckpointResult(startCheckpoints, {
 			fromHeight,
 			toHeight,
@@ -297,15 +274,11 @@ export async function runClassicDecodeCycle(opts?: {
 		const events = page.events as StreamsEvent[];
 		scanned += events.length;
 
-		// Per-page accumulators — reset every iteration so memory is bounded
-		// by one page's worth of rows, never the whole backlog.
 		const rowsByDecoder = {} as Record<DecoderName, DecodedEventRow[]>;
 		const faultsByDecoder = {} as Record<
 			DecoderName,
 			{ cursor: string; class: GenericDecodeFault; error: string }[]
 		>;
-		/** Last cursor of THIS type seen in THIS page — null means no match
-		 *  this page (distinct from "unchanged", handled below). */
 		const lastMatchThisPage = {} as Record<DecoderName, string | null>;
 		for (const name of DECODER_NAMES) {
 			rowsByDecoder[name] = [];
@@ -326,8 +299,6 @@ export async function runClassicDecodeCycle(opts?: {
 					decodeStreamsCursor(checkpoint),
 				) <= 0
 			) {
-				// Already committed: this type's own checkpoint is ahead of the
-				// shared scan's start (a different type was the laggard).
 				continue;
 			}
 			try {
@@ -429,8 +400,6 @@ export async function runClassicDecodeCycle(opts?: {
 	};
 }
 
-/** The slice of `WakeBus` the classic-decoder loop's wait step needs — a
- *  plain object literal satisfies this in tests, no real LISTEN required. */
 export type ClassicDecodeWakeBus = {
 	wait: () => Promise<void>;
 	generation: () => number;

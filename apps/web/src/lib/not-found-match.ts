@@ -1,12 +1,5 @@
-/**
- * What a 404 visitor was probably looking for. Pure and dependency-free: the
- * not-found page runs it in the browser against the routes the server knows,
- * so a renamed or mistyped path lands on its page with no redirect map to keep.
- */
-
 export type Route = { href: string; title: string };
 
-/** Edit distance with adjacent swaps counting once (`skils` → `skills` is 1). */
 export function editDistance(a: string, b: string): number {
 	if (a === b) return 0;
 	if (!a.length) return b.length;
@@ -44,7 +37,6 @@ const slug = (text: string) =>
 		.replace(/[^a-z0-9]+/g, "-")
 		.replace(/^-|-$/g, "");
 
-/** How far a missed path is from a route, 0 (same) to 1 (nothing shared). */
 function distance(path: string, route: Route): number {
 	const href = clean(route.href);
 	// A deeper path under a real page (`/docs/webhooks/old-section`) wants that
@@ -63,14 +55,8 @@ function distance(path: string, route: Route): number {
 	);
 }
 
-/** Close enough to send someone there: about one typo in three characters. */
 const MAX_DISTANCE = 0.34;
 
-/**
- * Routes ranked by how likely the missed path meant them, best first. Only
- * plausible matches come back, so an empty list means "no idea" and the page
- * should fall back to its home.
- */
 export function closestRoutes(
 	path: string,
 	routes: readonly Route[],
@@ -85,7 +71,6 @@ export function closestRoutes(
 		.map((r) => r.route);
 }
 
-/** The words in a missed path, for a docs search: `/docs/webhook-retries` → `webhook retries`. */
 export function pathQuery(path: string, prefix = ""): string {
 	return clean(path)
 		.slice(prefix.length)
@@ -100,11 +85,6 @@ const sharedPrefix = (a: string, b: string) => {
 	return i;
 };
 
-/**
- * Swap each search token the index doesn't know for its nearest known one,
- * so a typo still finds its sections. Short words get one edit, longer two;
- * on a tie the word sharing the longer start wins (`skil` → `skill`, not `skip`).
- */
 export function correctTokens(
 	tokens: readonly string[],
 	vocabulary: ReadonlySet<string>,

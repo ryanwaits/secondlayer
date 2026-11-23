@@ -55,7 +55,6 @@ export type IndexTip = {
 	registry_classified_through?: number | null;
 };
 
-/** Zero tip served when no canonical block exists yet (oss/self-host only). */
 const EMPTY_INDEX_TIP: IndexTip = {
 	block_height: 0,
 	finalized_height: 0,
@@ -100,19 +99,6 @@ export type DecodedTypeHeights = Record<string, number | null>;
 export type DecodedHeightsReader = () => Promise<DecodedTypeHeights>;
 export type RegistryHeightReader = () => Promise<number | null>;
 
-/**
- * Committed height (the shared committed-height rule: sentinel cursor = H
- * done, mid-block = H-1) for every always-on classic decoder, keyed by its
- * public event_type. One indexed `IN` query over the small, fixed decoder
- * set — cheap enough to run on every tip refresh (the same 500ms cache as
- * everything else `createIndexTipProvider` computes).
- *
- * A decoder with no checkpoint row yet (fresh instance, nothing decoded)
- * reports `null`, not 0 — a real caller bounding itself by that specific
- * decoder needs to tell "hasn't started" apart from "committed nothing past
- * genesis", the same distinction local-mode `decoderBoundTip` already makes
- * (`committedHeight(undefined) === null`).
- */
 export async function getDecoderCommittedHeights(
 	db: Kysely<Database> = getSourceDb(),
 ): Promise<DecodedTypeHeights> {
@@ -202,14 +188,6 @@ export async function getLatestDecodedTipBlock(
 	};
 }
 
-/**
- * Bound for a read spanning several decoded event types at once (a future
- * multi-type Index read, or a subgraph-style consumer): the MIN over each
- * type's own committed height, same rule `decoderBoundTip` applies in the
- * subgraph runtime. `null` when the tip carries no `decoded_heights` map
- * (a hand-built fixture) or a requested type isn't in it — callers should
- * treat that as "unknown", not "committed to height 0".
- */
 export function committedHeightForEventTypes(
 	tip: IndexTip,
 	eventTypes: readonly string[],
@@ -234,14 +212,7 @@ export function getIndexLagSeconds(tipTs: Date, nowMs = Date.now()): number {
 export function createIndexTipProvider(opts?: {
 	readSourceTip?: IndexSourceTipReader;
 	readDecodedTip?: DecodedTipReader;
-	/** Per-type committed heights (see `IndexTip.decoded_heights`). Defaults
-	 *  to `getDecoderCommittedHeights` — override in tests to avoid a real DB
-	 *  read; omitting it there yields `decoded_heights: {}` (unknown), which
-	 *  `indexReadTip` treats as "leave block_height alone". */
 	readDecodedHeights?: DecodedHeightsReader;
-	/** Registry classified-through height (see
-	 *  `IndexTip.registry_classified_through`). Defaults to unknown (`null`);
-	 *  a rejection also yields `null` rather than failing the tip. */
 	readRegistryHeight?: RegistryHeightReader;
 	readFinalizedHeight?: IndexFinalizedHeightReader;
 	btcConfirmations?: number;
@@ -254,16 +225,6 @@ export function createIndexTipProvider(opts?: {
 	 * genuinely missing canonical tip surfaces as an incident.
 	 */
 	allowEmptyTip?: boolean;
-	/**
-	 * Called once, synchronously, at creation with a function that drops this
-	 * instance's cached value. Only the process-wide `getIndexTip` singleton
-	 * wires this up (to the `index:tip` NOTIFY, see
-	 * `startIndexTipInvalidationListener`) — a hand-built provider in a test
-	 * has no reason to invalidate early and can omit it, leaving `cacheTtlMs`
-	 * as the only staleness bound, unchanged from before this option existed.
-	 * Same pattern as `createStreamsTipProvider`'s `onInvalidate`
-	 * (`../streams/tip.ts`).
-	 */
 	onInvalidate?: (invalidate: () => void) => void;
 }): IndexTipProvider {
 	const readSourceTip = opts?.readSourceTip ?? getCurrentCanonicalTip;
@@ -309,8 +270,6 @@ export function createIndexTipProvider(opts?: {
 			sourceTip.burn_block_height,
 			btcConfirmations,
 		);
-		// Independent reads off the same snapshot — run concurrently rather than
-		// serially stacking three round trips onto every cache-miss tip refresh.
 		const [
 			finalized_height,
 			decodedTip,
@@ -347,9 +306,6 @@ export function createIndexTipProvider(opts?: {
 	};
 }
 
-/** Invalidators registered by every `getIndexTip`-style singleton created with
- *  `onInvalidate` (in practice just the one below — plural only so a second
- *  instance, e.g. in a future entrypoint, doesn't have to reinvent this). */
 const indexTipInvalidators = new Set<() => void>();
 
 export const getIndexTip = createIndexTipProvider({

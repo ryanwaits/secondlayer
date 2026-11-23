@@ -40,7 +40,6 @@ const PHASES: {
 	title: string;
 	body: string;
 	status: "live" | "next" | "planned";
-	/** The live phase links to the tester guide. */
 	guide?: string;
 }[] = [
 	{
@@ -76,7 +75,6 @@ const PHASES: {
 	},
 ];
 
-/** The mainnet round trip's public txs. */
 const PROOF = [
 	{
 		label: "Lock",
@@ -117,7 +115,6 @@ const DRILLS = {
 	),
 };
 
-/** Phase 0's trust model, from robinhood-bridge NOTE.md. */
 const TRUST = [
 	{
 		title: "The keys are the bridge",
@@ -133,12 +130,6 @@ const TRUST = [
 	},
 ];
 
-/**
- * Waitlist microsite for the Stacks ⇄ Robinhood Chain SIP-010 bridge, on the
- * marketing kit (`.site`) with the standalone chrome from ./chrome (Robinhood
- * Chain logo rules are there). Robin Neon stays on the chain 4663 side of the
- * hero art.
- */
 export default function RobinhoodPage() {
 	return (
 		<div className="site rh">
@@ -163,9 +154,6 @@ export default function RobinhoodPage() {
 									See the roadmap
 								</ButtonLink>
 							</div>
-							{/* Each logo stands alone with its own clear space: Robinhood
-							    Chain's rules forbid combining their mark with other
-							    branding or text, so no lockup and no logo inside a sentence. */}
 							<div
 								className="rh-route"
 								aria-label="Route: Stacks to Robinhood Chain and back"

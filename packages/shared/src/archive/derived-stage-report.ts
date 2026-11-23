@@ -1,33 +1,3 @@
-/**
- * Derived-stage acceptance — what each service reads, writes, and needs
- * beyond the canonical archive.
- *
- * The canonical archive rebuilds `blocks`, `transactions`, and `events`
- * deterministically from R2 alone. Every stage downstream of those tables
- * (decoders, subgraphs, webhook delivery) has its own inputs, outputs,
- * and rebuild requirements — and an operator restoring from the archive
- * needs to know exactly which of those it also needs to source, replay, or
- * re-derive.
- *
- * This module defines the reporting shape. Each producer/service declares
- * itself once (a `ServiceManifest`) and the aggregator emits one report per
- * service to `reports/derived/<service>.json`. Stateful verification —
- * actually re-running the service and comparing outputs — is Phase 4 work
- * (see P4.10 effect manifests, P4.13 stateful deep verify); this shape is
- * what Phase 4 will populate.
- *
- * The report answers three operator questions:
- *   1. What canonical inputs does this service consume? (archive suffices)
- *   2. What external inputs does it need? (RPC endpoints, envelope journal,
- *      contract source, ORACLE feeds — anything not in the archive)
- *   3. If I restore from R2 alone, can this service resume? If not, what
- *      is missing?
- *
- * Silence is the failure mode we most want to prevent: a service that ships
- * without a manifest is a service whose rebuild story is undocumented.
- * `assertAllServicesDeclared()` fails a build when a known service is missing.
- */
-
 import { ARCHIVE_DATASETS, type ArchiveDataset } from "./datasets.ts";
 
 export const DERIVED_STAGE_REPORT_SCHEMA_VERSION = 1 as const;

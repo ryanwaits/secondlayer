@@ -59,6 +59,5 @@ function mapType(abiType: AbiType, nullable: boolean): MappedColumn {
 	}
 	if (isAbiOptional(abiType)) return mapType(abiType.optional, true);
 
-	// tuple / list / response → jsonb
 	return { type: "jsonb", nullable };
 }

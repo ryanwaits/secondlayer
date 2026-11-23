@@ -3,7 +3,6 @@ import { Eyebrow } from "./eyebrow";
 
 export type ReadingLink = { href: string; title: string; body: string };
 
-/** Three links out to the posts and guides behind a page. */
 export function FurtherReading({ items }: { items: readonly ReadingLink[] }) {
 	return (
 		<div className="band" style={{ paddingTop: 0 }}>

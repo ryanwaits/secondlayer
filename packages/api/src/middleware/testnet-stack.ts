@@ -6,8 +6,6 @@ import type { MiddlewareHandler } from "hono";
  *  the shared testnet stack. Never set for any other stack. */
 export const ACCOUNT_SCOPE_HEADER = "x-secondlayer-account-id";
 
-/** The only surface the shared testnet stack serves, plus the liveness probe
- *  its container healthcheck hits. */
 function isTestnetStackPath(path: string): boolean {
 	return (
 		path === "/health" ||

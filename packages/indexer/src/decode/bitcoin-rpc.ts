@@ -25,17 +25,12 @@ export type { BitcoinRpcConfig };
 
 export interface TxConfirmation {
 	txid: string;
-	/** false when the node has no record of the txid (Core error -5). */
 	found: boolean;
-	/** 0 when in the mempool / unconfirmed / not found. */
 	confirmations: number;
-	/** Confirming block hash, or null while unconfirmed. */
 	blockHash: string | null;
-	/** Confirming block height, or null while unconfirmed. */
 	blockHeight: number | null;
 }
 
-/** The parts of a verbose `getrawtransaction` the sBTC workers read. */
 export interface RawTransaction {
 	txid: string;
 	vin: { txid?: string; vout?: number; txinwitness?: string[] }[];
@@ -65,7 +60,6 @@ export function bitcoinConfirmationReader(config: BitcoinRpcConfig): {
 		call<T>(method, params);
 
 	return {
-		/** Verbose tx, or null when the node has no such txid. */
 		async getRawTransaction(txid: string): Promise<RawTransaction | null> {
 			const rpcTxid = txid.startsWith("0x") ? txid.slice(2) : txid;
 			try {
@@ -87,8 +81,6 @@ export function bitcoinConfirmationReader(config: BitcoinRpcConfig): {
 			try {
 				tx = await rpc("getrawtransaction", [rpcTxid, true]);
 			} catch (error) {
-				// Unknown txid is a normal state (never broadcast / pruned mempool),
-				// not a node failure — report it as not-found rather than throwing.
 				if (error instanceof BitcoinRpcError && error.code === RPC_NO_SUCH_TX) {
 					return {
 						txid,

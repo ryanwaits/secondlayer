@@ -20,10 +20,6 @@ function pairFor(page: ProductKey | StartKey) {
 	return { get: product.get, writeLabel: "You write", write: product.write };
 }
 
-/**
- * "You get / You write" for a product or start page: what it hands you, and the
- * one thing you author or set there. Opens the page.
- */
 export function Yields({ page }: { page: ProductKey | StartKey }) {
 	const { get, writeLabel, write } = pairFor(page);
 	return (

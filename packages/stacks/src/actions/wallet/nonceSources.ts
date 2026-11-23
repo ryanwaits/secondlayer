@@ -7,20 +7,6 @@ import {
 } from "../public/txSources.ts";
 import type { NonceManagerSource } from "./nonceManager.ts";
 
-/**
- * Mempool-aware {@link NonceManagerSource}s.
- *
- * The default {@link jsonRpcSource} reads only the confirmed nonce, so a tx
- * sitting in the mempool is invisible — broadcasting many quickly forces manual
- * tracking. These sources fold pending (mempool) txs into the next-nonce
- * computation. The gap-filling core is generic; where the pending set comes from
- * is pluggable, so you are never locked to any one provider:
- *
- *   - {@link mempoolAwareSource} — bring your own `getPending`.
- *   - {@link indexSource}: prebuilt over a Secondlayer instance's `/v1/index/mempool`.
- *   - {@link hiroNonceSource} — prebuilt over Hiro's `/extended` nonces endpoint.
- */
-
 type FetchImpl = typeof globalThis.fetch;
 
 function resolveFetch(fetchImpl?: FetchImpl): FetchImpl {

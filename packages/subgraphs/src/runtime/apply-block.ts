@@ -1,7 +1,4 @@
 /**
- * The pure block core: match one block's data against a subgraph's sources
- * and run its handlers against a context. No database, no flush, no cursor.
- *
  * `processBlock` (Postgres) and replay (memory) both go through here, so the
  * rows a served subgraph holds and the rows a client recomputes come from the
  * same matcher and the same dispatch order.

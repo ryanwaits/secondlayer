@@ -17,7 +17,6 @@ const LANG_LABEL: Record<string, string> = {
 
 type Tab = Fence & { key: string; label: string };
 
-/** The tab's identity: its title if it has one, else its language. Same key, same tab across groups. */
 function tabOf(fence: Fence): Tab {
 	const options = parseFenceOptions(`${fence.lang} ${fence.meta ?? ""}`);
 	const title = fence.title ?? options.title;
@@ -29,16 +28,6 @@ function tabOf(fence: Fence): Tab {
 	};
 }
 
-/**
- * Consecutive fences as tabs: the language (or the fence's title) is the label,
- * one Copy in the bar copies the visible pane, and choosing a tab switches
- * every group on the page with the same `sync` key and that tab. Nothing is
- * stored, so a new page starts on its default tab. In MDX, put the fences
- * inside `<CodeTabs sync="lang">` separated by blank lines. Server-rendered
- * markup, one string like a single block; the page's one `CodeClient` listener
- * does the switching. In a `figure` group each pane is its own figure: its
- * margin notes live inside the pane, so they swap with the tab.
- */
 export async function CodeTabs({
 	sync,
 	variant = "docs",
@@ -62,9 +51,7 @@ export async function CodeTabs({
 			}),
 		),
 	);
-	// One control for the group: the visible pane's Copy is the one that reads the key.
 	const useKey = panes.some((pane) => pane.hasKey) ? KEY_CONTROLS : "";
-	// Like a single block: no Copy when no pane can be copied (`nocopy`, output).
 	const copy = panes.some((pane) => pane.copyable)
 		? '<button type="button" class="copy" data-copy-button>Copy</button>'
 		: "";

@@ -10,14 +10,9 @@ import { insightRowState } from "../webhooks/rows";
 import type { WebhookRowModel } from "../webhooks/rows";
 import { displayStatus, shortenName } from "../webhooks/shared";
 
-/**
- * What an index row says about itself. A healthy row says nothing: `label` is
- * null and the row shows no status at all.
- */
 export type StatusGroup = "ok" | "hi" | "alarm" | "idle";
 export type RowStatus = { group: StatusGroup; label: string | null };
 
-/** The Status filter's words for each group, per page. */
 export const WEBHOOK_GROUP_LABELS: Record<StatusGroup, string> = {
 	ok: "Healthy",
 	hi: "Needs a look",
@@ -86,9 +81,6 @@ export function subgraphStatus(
 
 const escapeRegExp = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
-/** An insight's line often opens with the resource's own name, which the row
- *  already shows. Drops that and capitalizes what is left; a line that doesn't
- *  open with the name comes back unchanged. */
 export function trimLeadingName(line: string, name: string): string {
 	for (const candidate of new Set([name, shortenName(name)])) {
 		const match = new RegExp(`^${escapeRegExp(candidate)}\\s+`).exec(line);
@@ -100,8 +92,6 @@ export function trimLeadingName(line: string, name: string): string {
 	return line;
 }
 
-/** The one line under a webhook's name: its top insight, else the reading of a
- *  failing or still-counting row. Null when the numbers and chip say it all. */
 export function webhookWhyLine(model: WebhookRowModel): string | null {
 	const top = model.insights[0];
 	if (top) return trimLeadingName(top.line, model.webhook.name);

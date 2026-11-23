@@ -57,9 +57,7 @@ export async function probeCertExpiry(
 			clearTimeout(timer);
 			try {
 				open.socket?.destroy();
-			} catch {
-				// already closed
-			}
+			} catch {}
 			resolve(expires);
 		};
 		const timer = setTimeout(() => finish(null), timeoutMs);

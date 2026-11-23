@@ -14,7 +14,6 @@ export const tipFollowerState = {
 	blocksFetchedViaPoll: 0,
 };
 
-/** Called from /new_block handler — resets silence timer, flips back to normal */
 export function recordBlockReceived() {
 	tipFollowerState.lastBlockReceivedAt = Date.now();
 	if (tipFollowerState.mode === "polling") {
@@ -68,7 +67,6 @@ export function startTipFollower(intervalMs?: number): () => void {
 			const ourHeight = (await resolveChainTip(db, "seen")) ?? 0;
 			if (chainTip <= ourHeight) return;
 
-			// Log the gap — integrity loop handles actual backfill via archive replay
 			const gap = chainTip - ourHeight;
 			logger.info("Tip follower: behind chain tip", {
 				ourHeight,
@@ -76,10 +74,6 @@ export function startTipFollower(intervalMs?: number): () => void {
 				gap,
 			});
 
-			// For small gaps, try replaying from local DB (blocks we already have).
-			// Ingest in-process — self-POSTing to localhost is wrong behind a load
-			// balancer. The replay payload is runtime-compatible with NewBlockPayload
-			// (same shape the HTTP observer path consumed).
 			if (gap <= 10) {
 				const localClient = new LocalClient();
 

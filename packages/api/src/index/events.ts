@@ -28,7 +28,6 @@ import {
 	readVmIndexEvents,
 } from "./vm-events.ts";
 
-/** Pagination/window params every Index read endpoint accepts. */
 const PAGINATION_FILTERS = [
 	"limit",
 	"cursor",
@@ -38,7 +37,6 @@ const PAGINATION_FILTERS = [
 	"order",
 ] as const;
 
-/** Pagination plus the principal/contract filters the transfer types expose. */
 const INDEX_COMMON_FILTERS = [
 	...PAGINATION_FILTERS,
 	"contract_id",
@@ -60,13 +58,9 @@ export type IndexEqualityFilter =
 	| "tx_id";
 
 export type IndexEventConfig = {
-	/** Type-specific columns selected beyond the universal base, in SELECT order. */
 	columns: readonly string[];
-	/** Columns constrained to NOT NULL — the rows this event type guarantees. */
 	requiredNonNull: readonly string[];
-	/** Equality filters in ORDER BY precedence order. */
 	equalityFilters: readonly IndexEqualityFilter[];
-	/** Allowed query params (event_type is always allowed on /events). */
 	allowedFilters: readonly string[];
 };
 
@@ -206,9 +200,6 @@ function configFor(eventType: IndexEventType | VmEventType): IndexEventConfig {
 	return INDEX_EVENT_CONFIG[eventType];
 }
 
-/** A decoded event in flat form, discriminated by `event_type`. Type-specific
- *  fields are optional at the type level; the per-type NOT NULL constraints
- *  guarantee their presence for the rows a given event_type returns. */
 export type IndexEvent = {
 	cursor: string;
 	block_height: number;
@@ -275,13 +266,9 @@ export type IndexEventsQuery = {
 	toHeight: number;
 	limit: number;
 	filters: Partial<Record<IndexEqualityFilter, string>>;
-	/** Set only when `contract_id` carried more than one value. */
 	contractIds?: string[];
-	/** Restrict to contracts conforming to this trait/standard (resolved as-of toHeight). */
 	trait?: string;
-	/** Join the submitting tx for `tx_*` fields (opt-in; powers subgraph reindex). */
 	withTx: boolean;
-	/** Return only these columns (see `ReadIndexEventsParams.fields`). */
 	fields?: readonly string[];
 	order: IndexOrder;
 	cursorPastTip: boolean;
@@ -305,9 +292,7 @@ export type ReadIndexEventsParams = {
 	 *  than one `contract_id`; a single id stays in `filters` so it keeps the
 	 *  contract-led ORDER BY. See the ordering note in the reader. */
 	contractIds?: readonly string[];
-	/** Restrict to contracts conforming to this trait/standard (resolved as-of toHeight). */
 	trait?: string;
-	/** Join the submitting tx for `tx_*` fields (opt-in; powers subgraph reindex). */
 	withTx?: boolean;
 	/**
 	 * Return only these columns. Validated against the event type's own
@@ -324,7 +309,6 @@ export type ReadIndexEventsParams = {
 	 * skipping the `blocks` join entirely.
 	 */
 	fields?: readonly string[];
-	/** `desc` reads newest first; `after` then means "older than". Default asc. */
 	order?: IndexOrder;
 	db?: Kysely<Database>;
 };
@@ -348,7 +332,6 @@ export type IndexEventsReader = (
 	params: ReadIndexEventsParams,
 ) => Promise<ReadIndexEventsResult>;
 
-/** Response fields that survive any projection. */
 const ALWAYS_FIELDS = new Set(["cursor", "block_height", "event_type"]);
 
 function normalizeIndexRow(
@@ -379,16 +362,12 @@ function normalizeIndexRow(
 					: raw;
 	}
 	if (fields) {
-		// Strip what the caller didn't ask for. `block_height`/`event_index`
-		// were selected regardless (cursor + reorg span need them), so the
-		// projection happens HERE rather than in the SELECT list.
 		for (const key of Object.keys(event)) {
 			if (!ALWAYS_FIELDS.has(key) && !fields.has(key)) {
 				delete (event as Record<string, unknown>)[key];
 			}
 		}
 	}
-	// Submitting-tx context (present only when the read joined it).
 	if (row.tx_sender !== undefined) {
 		event.tx_sender = row.tx_sender;
 		event.tx_type = row.tx_type;
@@ -468,8 +447,6 @@ export async function readIndexEvents(
 		);
 	}
 
-	// Trait scope: resolve "all contracts of standard X (as-of toHeight)" to a
-	// contract-id set and filter on it. No matches → empty page (skip the read).
 	if (params.trait) {
 		const ids = await resolveTraitContractIds(
 			db,
@@ -495,10 +472,6 @@ export async function readIndexEvents(
 	const orderBy = leadFilter
 		? sql`${sql.ref(leadFilter)} ${dir}, block_height ${dir}, event_index ${dir}`
 		: sql`block_height ${dir}, event_index ${dir}`;
-	// Projection: select only the type-specific columns the caller asked for.
-	// The universal columns below are handled separately — `block_height` and
-	// `event_index` are always selected (cursor encoding + reorg-span lookup
-	// read them) and stripped from the response instead.
 	const wanted = params.fields ? new Set(params.fields) : undefined;
 	const selectedColumns = wanted
 		? config.columns.filter((column) => wanted.has(column))
@@ -522,7 +495,6 @@ export async function readIndexEvents(
 			ON b.height = decoded_events.block_height
 			AND b.canonical = true`
 		: sql``;
-	// Universal columns other than the always-present ones.
 	const optionalBase = ["tx_id", "tx_index", "contract_id"] as const;
 	const baseSelect = sql.join(
 		optionalBase
@@ -537,8 +509,7 @@ export async function readIndexEvents(
 
 	// Opt-in submitting-tx context. A LATERAL lookup on the canonical (tx_id,
 	// block_height) — one PK-indexed probe per row, only when requested — so the
-	// subgraph reindex stops fetching every transaction in the range (the ~37x
-	// over-fetch; see docs/sprints/indexing-speed/plan.md T2). The derived columns
+	// subgraph reindex stops fetching every transaction in the range. The derived columns
 	// are aliased to `tx_*` INSIDE the subquery, so the `tx` table exposes no bare
 	// `contract_id`/`sender`/etc. that would collide with decoded_events' own
 	// columns — the outer bare-column references (SELECT contract_id, WHERE
@@ -571,8 +542,6 @@ export async function readIndexEvents(
 	`.execute(db);
 
 	const pageRows = rows.slice(0, params.limit);
-	// Capture the span from the RAW rows: block_height/event_index are always
-	// selected, but the projection may strip event_index from the response.
 	const firstRow = pageRows.at(0);
 	const lastRow = pageRows.at(-1);
 	const span =
@@ -638,8 +607,6 @@ export function parseIndexEventsQuery(
 	}
 
 	const config = configFor(eventTypeRaw);
-	// Trait scoping applies only to event types keyed by a contract (those with a
-	// contract_id equality filter) — not the STX events.
 	const traitSupported = (config.equalityFilters as readonly string[]).includes(
 		"contract_id",
 	);
@@ -658,8 +625,6 @@ export function parseIndexEventsQuery(
 	let contractIds: string[] | undefined;
 	for (const filter of config.equalityFilters) {
 		if (filter === "contract_id") {
-			// One id keeps the scalar path (and its contract-led ORDER BY); several
-			// become an IN scope that must stay out of `filters`.
 			const ids = parseListFilter(query.get(filter) ?? undefined, filter);
 			if (ids === undefined) continue;
 			if (ids.length === 1) filters.contract_id = ids[0];
@@ -720,7 +685,6 @@ export function indexReadTip(
 	return { ...tip, block_height: committed };
 }
 
-/** Universal columns every decoded event carries. */
 const UNIVERSAL_FIELDS = [
 	"cursor",
 	"block_height",
@@ -731,7 +695,6 @@ const UNIVERSAL_FIELDS = [
 	"event_type",
 	"contract_id",
 ] as const;
-/** Only meaningful alongside `tx_context=true`. */
 const TX_CONTEXT_FIELDS = [
 	"tx_sender",
 	"tx_type",
@@ -740,11 +703,6 @@ const TX_CONTEXT_FIELDS = [
 	"tx_function_name",
 ] as const;
 
-/**
- * Parse and validate `fields`. Unknown names are refused (rather than
- * silently ignored) so a typo can't quietly drop a column the caller
- * believes they requested.
- */
 function parseFieldsParam(
 	raw: string | null,
 	config: IndexEventConfig,
@@ -773,7 +731,6 @@ function parseFieldsParam(
 	return requested;
 }
 
-/** Canonical height of a transaction, or null when it is not indexed. */
 export type TxHeightResolver = (txId: string) => Promise<number | null>;
 
 async function readCanonicalTxHeight(txId: string): Promise<number | null> {

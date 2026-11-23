@@ -123,7 +123,6 @@ export function emitTableDDL(
 		`CREATE TABLE IF NOT EXISTS ${qualifiedName} (\n  ${columnDefs.join(",\n  ")}\n)`,
 	);
 
-	// Auto-indexes on meta columns.
 	statements.push(
 		`CREATE INDEX IF NOT EXISTS ${quotePgIdent(`idx_${schemaName}_${tableName}_block_height`)} ON ${qualifiedName} (_block_height)`,
 	);
@@ -145,7 +144,6 @@ export function emitTableDDL(
 		}
 	}
 
-	// Trigram GIN indexes for search columns.
 	for (const [colName, col] of Object.entries(tableDef.columns)) {
 		if (col.search) {
 			statements.push(
@@ -154,7 +152,6 @@ export function emitTableDDL(
 		}
 	}
 
-	// Composite indexes.
 	if (tableDef.indexes) {
 		for (let i = 0; i < tableDef.indexes.length; i++) {
 			// biome-ignore lint/style/noNonNullAssertion: value is non-null after preceding check or by construction; TS narrowing limitation
@@ -239,7 +236,6 @@ export function generateSubgraphSQL(
 	const schemaName = schemaNameOverride ?? pgSchemaName(def.name);
 	const statements: string[] = [];
 
-	// Check if any column uses search (trigram)
 	const needsTrgm = Object.values(def.schema).some((table) =>
 		Object.values(table.columns).some((col) => col.search),
 	);
@@ -248,17 +244,13 @@ export function generateSubgraphSQL(
 		statements.push("CREATE EXTENSION IF NOT EXISTS pg_trgm");
 	}
 
-	// Schema namespace
 	statements.push(`CREATE SCHEMA IF NOT EXISTS ${schemaName}`);
 
-	// One table per schema entry (single-sourced per-table DDL).
 	for (const [tableName, tableDef] of Object.entries(def.schema)) {
 		statements.push(...emitTableDDL(schemaName, tableName, tableDef));
 	}
 
-	// Revert journal (one per schema) — see emitJournalDDL.
 	statements.push(...emitJournalDDL(schemaName));
-	// Only when a source actually uses a factory — no dead table otherwise.
 	if (
 		Object.values(def.sources ?? {}).some(
 			(src) => (src as { factory?: unknown }).factory !== undefined,

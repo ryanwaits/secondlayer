@@ -31,7 +31,6 @@ function scrub(value: unknown, depth: number): unknown {
 	return out;
 }
 
-/** PostHog `before_send`: the event with every API key replaced. */
 export function redactKeys<T>(event: T): T {
 	return scrub(event, 0) as T;
 }

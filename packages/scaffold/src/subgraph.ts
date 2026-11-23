@@ -1,9 +1,3 @@
-/**
- * Browser-safe subgraph scaffold generator — string templating, plus the
- * shared ABI normalizer (the emitted `as const` ABI must be canonical or
- * `event.input` typing silently degrades).
- */
-
 import { normalizeAbi } from "@secondlayer/stacks/clarity";
 
 type AbiType = string | Record<string, unknown>;
@@ -135,10 +129,6 @@ function buildColumns(
 		.join(",\n");
 }
 
-/** TS cast target for a decoded value, from the column type it lands in.
- *  Mirrors `ColumnToTS` in @secondlayer/subgraphs — until the source carries a
- *  `const abi` (typed `event.input`), decoded values arrive as `unknown` and
- *  the insert needs an explicit cast. */
 function tsCastFor(columnType: string): string {
 	switch (columnType) {
 		case "uint":
@@ -149,7 +139,6 @@ function tsCastFor(columnType: string): string {
 		case "jsonb":
 			return "Record<string, unknown>";
 		default:
-			// text | principal | timestamp
 			return "string";
 	}
 }
@@ -226,8 +215,6 @@ export function generateSubgraphCode(
 			if (isAbiTuple(ev.value)) {
 				columns = buildColumns(ev.value.tuple);
 			} else {
-				// Matches the non-tuple handler below: scalar print values aren't
-				// decoded onto the payload, so only the occurrence is recorded.
 				columns = "        topic: { type: 'text' }";
 			}
 			tableDefs.push(
@@ -246,10 +233,6 @@ export function generateSubgraphCode(
 
 	const schemaBlock = tableDefs.join(",\n");
 
-	// `defineSubgraph` expects `sources` keyed by handler name + `handlers`
-	// keyed by the same name. Each event gets a `print_event` filter; each
-	// public function gets a `contract_call` filter. The key is the table
-	// name (snake-case), which is also what the handler inserts into.
 	const sourceEntries: string[] = [];
 	const handlerEntries: string[] = [];
 
@@ -288,8 +271,6 @@ export function generateSubgraphCode(
 
 	for (const fn of publicFunctions) {
 		const tableName = toSnake(fn.name);
-		// `abi` on the source is what makes `event.input` the named, typed,
-		// decoded arguments instead of a positional `unknown[]`.
 		sourceEntries.push(
 			`    ${tableName}: { type: 'contract_call', contractId: '${contractId}', functionName: '${fn.name}', abi }`,
 		);

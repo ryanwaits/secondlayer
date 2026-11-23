@@ -28,46 +28,34 @@ import { StreamsTipUnavailableError, getStreamsTip } from "../streams/tip.ts";
  * and the others adopt the result.
  */
 export type EventsTotalBounds = {
-	/** Highest canonical block height. */
 	tip: number;
-	/** Highest height past burn finality (immutable). */
 	finalized: number;
 };
 
 export type SavedBaseline = { through: number; count: number; takenAt: number };
 
-/** Where the finalized baseline is shared between processes. */
 export type EventsTotalStore = {
 	load(): Promise<SavedBaseline | null>;
-	/** Try to become the one process that runs the full recount. True = go. */
 	claimRebaseline(): Promise<boolean>;
-	/** Publish a full recount and release the claim. */
 	save(baseline: SavedBaseline): Promise<void>;
 	/** Publish an extension; ignored unless it moves `through` forward. */
 	extend(through: number, count: number): Promise<void>;
 };
 
 export type EventsTotalOptions = {
-	/** Null when no canonical block exists yet (empty install → total 0). */
 	readBounds?: () => Promise<EventsTotalBounds | null>;
-	/** Canonical events with `from <= block_height <= to`. */
 	countRange?: (from: number, to: number) => Promise<number>;
 	now?: () => number;
 	refreshMs?: number;
 	rebaselineMs?: number;
 	/** Heights per baseline query, so no single statement scans all history. */
 	chunkBlocks?: number;
-	/** Shared baseline; without one the counter keeps it per process only. */
 	store?: EventsTotalStore;
-	/** How long a rebaseline claim holds before another process may take over. */
 	claimTtlMs?: number;
 };
 
 export type EventsTotalCounter = {
-	/** Cached total, or null until the first count lands. Never blocks; kicks a
-	 *  background refresh when the value is older than `refreshMs`. */
 	read(): number | null;
-	/** Run (or join) a refresh. Exposed for tests and warm-up. */
 	refresh(): Promise<void>;
 };
 
@@ -208,7 +196,6 @@ export function createEventsTotalCounter(
 				};
 				await store.save(baseline);
 			} else {
-				// Another process is recounting; adopt what it saved if usable.
 				const saved = await store.load();
 				if (!saved || saved.through > frozen) return;
 				baseline = saved;
@@ -244,7 +231,6 @@ export function createEventsTotalCounter(
 		read() {
 			if (!inflight && now() - refreshedAt >= refreshMs) {
 				refresh().catch((err) => {
-					// Keep serving the last good value; retry on the next read.
 					logger.warn("events total refresh failed", {
 						error: err instanceof Error ? err.message : String(err),
 					});
@@ -256,7 +242,6 @@ export function createEventsTotalCounter(
 	};
 }
 
-/** Process-wide counter behind `/public/status` `index.events_total`. */
 export const eventsTotal = createEventsTotalCounter({
 	store: postgresEventsTotalStore(),
 });

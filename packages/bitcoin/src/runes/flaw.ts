@@ -13,7 +13,6 @@ export enum Flaw {
 	Varint = "varint",
 }
 
-/** Matches ord's `Display for Flaw` (used in logs / diagnostics, not decoding logic). */
 export function flawDisplay(flaw: Flaw): string {
 	switch (flaw) {
 		case Flaw.EdictOutput:

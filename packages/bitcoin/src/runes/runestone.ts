@@ -43,7 +43,6 @@ export function defaultRunestone(): Runestone {
 
 /** `Runestone::MAGIC_NUMBER` — `OP_PUSHNUM_13`. */
 export const MAGIC_NUMBER = 0x5d;
-/** `Runestone::COMMIT_CONFIRMATIONS`. */
 export const COMMIT_CONFIRMATIONS = 6;
 
 const OP_RETURN = 0x6a;
@@ -64,8 +63,6 @@ export type ScriptInstruction =
 
 /**
  * Mirrors rust-bitcoin's `Script::instructions()` push/opcode classification.
- * Exported for reuse by `updater.ts`'s tapscript commitment scan
- * (`tx_commits_to_rune` in `rune_updater.rs` also walks pushdata instructions).
  */
 export function* scriptInstructions(
 	script: Uint8Array,
@@ -178,7 +175,6 @@ export function findPayload(tx: TxLike): PayloadResult | undefined {
 	return undefined;
 }
 
-/** `Runestone::integers` — throws `VarintDecodeError` on malformed input. */
 export function runestoneIntegers(payload: Uint8Array): bigint[] {
 	const integers: bigint[] = [];
 	let i = 0;
@@ -233,7 +229,7 @@ export function runestoneDecipher(tx: TxLike): Artifact | undefined {
 	if (flagTake(Flag.Etching, flagsRef)) {
 		const divisibility = tagTake(Tag.Divisibility, fields, 1, ([d]) => {
 			const value = d as bigint;
-			if (value < 0n || value > 255n) return undefined; // u8::try_from
+			if (value < 0n || value > 255n) return undefined;
 			const div = Number(value);
 			return div <= ETCHING_MAX_DIVISIBILITY ? div : undefined;
 		});
@@ -241,7 +237,7 @@ export function runestoneDecipher(tx: TxLike): Artifact | undefined {
 		const runeField = tagTake(Tag.Rune, fields, 1, ([r]) => rune(r as bigint));
 		const spacers = tagTake(Tag.Spacers, fields, 1, ([s]) => {
 			const value = s as bigint;
-			if (value < 0n || value > U32_MAX) return undefined; // u32::try_from
+			if (value < 0n || value > U32_MAX) return undefined;
 			const sp = Number(value);
 			return sp <= ETCHING_MAX_SPACERS ? sp : undefined;
 		});
@@ -297,7 +293,7 @@ export function runestoneDecipher(tx: TxLike): Artifact | undefined {
 
 	const pointer = tagTake(Tag.Pointer, fields, 1, ([p]) => {
 		const value = p as bigint;
-		if (value < 0n || value > U32_MAX) return undefined; // u32::try_from
+		if (value < 0n || value > U32_MAX) return undefined;
 		const pNum = Number(value);
 		return pNum < tx.outputs.length ? pNum : undefined;
 	});
@@ -328,6 +324,4 @@ export function runestoneDecipher(tx: TxLike): Artifact | undefined {
 	return artifactRunestone({ edicts, etching, mint, pointer });
 }
 
-// Re-exported so callers (updater.ts, parity/decode.ts) don't need to reach
-// into ./rune.ts just for the etched-rune type.
 export type { Rune };

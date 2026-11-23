@@ -1,13 +1,3 @@
-/**
- * Guest archive-credit checkout. No session — email is the identity.
- *
- *   POST /api/public/credits/checkout  { email, amount }
- *   GET  /api/public/credits/packs
- *
- * Mounted only in platform mode, outside PLATFORM_PATHS. Card charge lands
- * via checkout.session.completed (same as session-authed /api/billing/topup).
- */
-
 import {
 	findOrCreateAccountByEmail,
 	normalizeEmail,

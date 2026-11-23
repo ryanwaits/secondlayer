@@ -41,7 +41,6 @@ export const metadata: Metadata = socialMeta({
 	path: "/pricing",
 });
 
-/** Free tier plus the per-1M row rate, from the same constants the page prints. */
 const PRICING_JSON_LD = {
 	"@context": "https://schema.org",
 	"@type": "SoftwareApplication",
@@ -77,9 +76,6 @@ const MEMORY_USD_PER_GB_MONTH = Math.round(
 const FLOOR_WEBHOOKS = usd(STACK_FLOOR_USD_PER_MONTH.webhooks);
 const FLOOR_SUBGRAPHS = usd(STACK_FLOOR_USD_PER_MONTH.subgraphs);
 
-/** The hero's example statement: a first month that stays inside every free
- *  allowance, so the first price on the page is $0. Figures come from the
- *  estimator math. */
 const EXAMPLE = {
 	rows: 640_000,
 	headers: 43_800,

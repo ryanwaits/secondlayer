@@ -15,9 +15,7 @@ import { isPushServiceEndpoint } from "./endpoint.ts";
 export interface PushPayload {
 	title: string;
 	body: string;
-	/** Same-origin path the tap opens, e.g. "/account/webhooks/wh_123". */
 	url: string;
-	/** Same tag replaces an earlier notification on the device instead of stacking. */
 	tag: string;
 }
 
@@ -32,7 +30,6 @@ export interface PushTarget {
 
 export interface SendPushDeps {
 	env?: Record<string, string | undefined>;
-	/** Injectable for tests; defaults to web-push's sendNotification. */
 	send?: (sub: PushTarget, body: string) => Promise<void>;
 	now?: Date;
 }

@@ -58,7 +58,6 @@ function isDuplicateDatabaseError(err: unknown): boolean {
 	);
 }
 
-/** The database name from a Postgres connection URL's path (e.g. `"bitcoin"` from `.../bitcoin`). */
 export function databaseNameFromUrl(url: string): string {
 	const name = new URL(url).pathname.replace(/^\//, "");
 	if (!name) throw new Error(`no database name in the URL's path: ${url}`);

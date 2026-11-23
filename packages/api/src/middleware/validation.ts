@@ -1,7 +1,5 @@
 import { ValidationError } from "@secondlayer/shared/errors";
 
-/** Reject requests with query params outside the allowed set.
- *  Throws ValidationError → 400 JSON via global error handler. */
 export function validateQueryParams(
 	query: URLSearchParams,
 	allowed: readonly string[],

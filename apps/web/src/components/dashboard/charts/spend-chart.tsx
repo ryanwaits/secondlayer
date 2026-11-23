@@ -25,21 +25,14 @@ import {
 const usd = (n: number) =>
 	`$${Math.abs(n) < 0.01 && n !== 0 ? n.toFixed(4) : n.toFixed(2)}`;
 
-/**
- * Cumulative spend this month: a `--ch-a` line over a faint area, a dashed
- * projection to month end at the mean of the last 7 days, today's value above
- * the end dot and the projected total to its right.
- */
 export function SpendChart({
 	daily,
 	daysInMonth,
 	monthLabel,
 	height = 150,
 }: {
-	/** Cost per day so far, day 1 first. */
 	daily: readonly number[];
 	daysInMonth: number;
-	/** Short month name for the first tick, such as "Oct". */
 	monthLabel: string;
 	height?: number;
 }) {

@@ -15,10 +15,6 @@ import { timingSafeEqual } from "node:crypto";
  * "Reachable only from this box" is the declared bind, except in a container,
  * where the bind must be `0.0.0.0` and the operator's intent lives in the
  * publish spec instead (`API_PUBLISH_ADDR`). See `isLoopbackReachable`.
- *
- * (An earlier version of this comment claimed the token gated *every* request
- * once set. It never did: `instanceTokenAuth` is mounted on the write plane
- * and `/status` only, and the docs promise keyless loopback reads.)
  */
 
 export const LOOPBACK_HOSTS = new Set([
@@ -78,7 +74,6 @@ export function parsePublishHost(spec: string): string | null {
 	const raw = spec.trim();
 	if (raw.length === 0) return null;
 
-	// Bracketed IPv6: [::1]:3800 — the only unambiguous v6 form.
 	if (raw.startsWith("[")) {
 		const close = raw.indexOf("]");
 		if (close <= 1) return null;
@@ -159,7 +154,6 @@ export type InstanceAuthDecision =
 	| { start: true; requireToken: true }
 	| { start: false; reason: "unauthenticated-bind" };
 
-/** Bind/auth matrix used by tests and boot. */
 export function decideInstanceAuth(input: {
 	host: string;
 	token: string | null;

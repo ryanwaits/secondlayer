@@ -1,9 +1,3 @@
-/**
- * Helpers and shared fragments for the OpenAPI description. Each tag's paths
- * live in their own file beside this one; `../openapi.ts` assembles them.
- */
-/** `contract_id` on the two consume-able feeds accepts a comma-separated set,
- *  so one cursor can follow a whole protocol. */
 export const CONTRACT_ID_PARAM = qp(
 	"contract_id",
 	"string",
@@ -27,8 +21,6 @@ export const CONTRACT_ID_PARAM = qp(
  */
 export const READ_SECURITY = [{}, { bearerAuth: [] }];
 
-/** Cursor and height window, shared by every Index list (`_shared.ts`
- *  `parseIndexBaseQuery`). With none of them, a read covers the last day. */
 export const INDEX_RANGE_PARAMS = [
 	{
 		...qp(
@@ -54,8 +46,6 @@ export const INDEX_RANGE_PARAMS = [
 	qp("to_height", "integer", false, "Last block height to read, inclusive."),
 ];
 
-/** Read direction: the decoded-event reads (`/v1/index/events` and the
- *  ft/nft transfer aliases) only. */
 export const ORDER_PARAM = {
 	...qp(
 		"order",
@@ -76,8 +66,6 @@ export const WAIT_PARAM = qp(
 	"Seconds (max 25) to hold the response open when there's nothing new past your cursor/from_height, instead of answering immediately. Returns early the moment new data commits, or at the timeout — either way you get a normal response, just later. Omit for the old poll-and-retry behavior.",
 );
 
-/** `/api` writes: the instance token is required whenever one is set, and an
- *  instance reachable past loopback refuses to boot without one. */
 export const WRITE_SECURITY = [{ bearerAuth: [] }];
 
 export const AUTH_DESCRIPTION =
@@ -108,8 +96,6 @@ export function pp(name: string, description?: string) {
 	};
 }
 
-/** Every `/v1` read can 401: the credential is optional on a loopback bind and
- *  required once the instance is reachable past it. */
 export function ok(
 	success: Record<string, unknown> = {
 		description: "OK",
@@ -123,8 +109,6 @@ export function ok(
 	};
 }
 
-/** Reads under `/api`. The instance token is required whenever one is set, and
- *  GET is not subject to the JSON content-type guard. */
 export function apiReadResponses(extra: Record<string, unknown> = {}) {
 	return {
 		"200": { description: "OK", content: { "application/json": {} } },
@@ -167,11 +151,6 @@ export function json200(schema: Record<string, unknown>, description = "OK") {
 	};
 }
 
-/**
- * Index/Streams list envelope. `arrayKey` is the route's real row key
- * (`blocks`, `transactions`, …); `item` is the row schema, a bare object
- * until that route's resource schema is written (plan 041).
- */
 export function envelope(
 	arrayKey = "events",
 	item: Record<string, unknown> = { type: "object" },
@@ -210,12 +189,9 @@ export function envelope(
 	};
 }
 
-/** `next_cursor` text for the Index event feeds, which null it once the
- *  requested height range is exhausted. */
 export const EVENT_NEXT_CURSOR_DESCRIPTION =
 	"The last row's cursor. Pass it back as `cursor` to continue. `null` when the requested range is exhausted: a short page (fewer rows than `limit`) with `order=desc`, or with `order=asc` and a `to_height` below the tip. An `asc` short page that reads up to the tip keeps its cursor so you can resume as new blocks land. `null` when the page is empty.";
 
-/** What each shared error status means, so no response reads just "Error". */
 export const ERROR_400 =
 	"A parameter, filter, cursor or body field was refused; `code` says which";
 export const ERROR_401 =

@@ -14,11 +14,8 @@ import { isPaused, shortenName } from "./shared";
 import { ageShort } from "./view";
 
 export interface WebhooksCompactListProps {
-	/** Null until the first list has loaded. */
 	rows: WebhookRowModel[] | null;
-	/** Rows that read as failing. */
 	failing: number;
-	/** The webhook whose pause or resume is in flight. */
 	busyId: string | null;
 	onOpen: (id: string) => void;
 	onTogglePause: (row: WebhookRowModel) => void;
@@ -55,7 +52,6 @@ function RowSkeleton() {
 	);
 }
 
-/** The phone list: swipe a webhook left to pause, resume or replay it, tap to open it. */
 export function WebhooksCompactList({
 	rows,
 	failing,

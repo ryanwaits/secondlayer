@@ -54,10 +54,6 @@ export const DECODER_EVENT_TYPES: Record<DecoderName, string> = {
 	[PRINT_DECODER_NAME]: "print",
 };
 
-// Returns ft+nft (always on) plus sbtc/pox5/bns conditional on env flags.
-// Both indexer and api containers read the same docker .env, so this view is
-// consistent across processes. Used as the default for `getDecodersHealth`
-// so /public/status reports every enabled decoder, not just the hardcoded two.
 export function getEnabledDecoderNames(
 	env: NodeJS.ProcessEnv = process.env,
 ): readonly string[] {
@@ -119,11 +115,6 @@ export async function writeDecoderCheckpoint(opts: {
 	);
 }
 
-/**
- * Thrown when an in-flight consume finds `last_cursor` is no longer the
- * value it started this batch from — the indexer reorg path rewound it.
- * The batch must not persist output or stamp `next_cursor` over the rewind.
- */
 export class DecoderCheckpointRewoundError extends Error {
 	readonly name = "DecoderCheckpointRewoundError";
 	constructor(
@@ -173,12 +164,6 @@ export async function assertCheckpointUnmoved(opts: {
 	}
 }
 
-/**
- * Bump `updated_at` on decoder checkpoints without touching `last_cursor`,
- * in one statement. Used as a liveness signal — the decoder loops call this
- * (throttled) so the health endpoint can tell "decoder process alive but no
- * new work" apart from "decoder process stuck/crashed."
- */
 export async function bumpDecoderCheckpoint(opts: {
 	db?: Kysely<Database>;
 	decoderNames: readonly string[];
@@ -228,9 +213,6 @@ export async function writeDecodedEvents(
 			.insertInto("decoded_events")
 			.values(
 				chunk.map((event) => {
-					// Every decoded payload is a subset of DecodedEventColumns, so columns
-					// map generically — the decoder decides which fields a given event
-					// type populates; absent ones fall to null.
 					const payload = event.decoded_payload as DecodedEventColumns;
 					return {
 						cursor: event.cursor,

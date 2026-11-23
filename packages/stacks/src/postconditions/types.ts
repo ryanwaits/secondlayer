@@ -14,7 +14,7 @@ export type FtPostCondition = {
 	type: "ft-postcondition";
 	address: string;
 	condition: FungibleComparator;
-	asset: string; // "address.contract::token-name"
+	asset: string;
 	amount: string | bigint | number;
 };
 
@@ -22,7 +22,7 @@ export type NftPostCondition = {
 	type: "nft-postcondition";
 	address: string;
 	condition: NonFungibleComparator;
-	asset: string; // "address.contract::token-name"
+	asset: string;
 	assetId: ClarityValue;
 };
 

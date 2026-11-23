@@ -47,8 +47,6 @@ export function NotFoundView({ routes }: { routes: Routes }) {
 	return <SiteNotFound path={path} routes={routes.site} />;
 }
 
-// ── site: block 404 ─────────────────────────────────────────────────────
-
 /** Stacks block 404, from Index. Final since 2021, so it's written down
  *  here instead of read on every 404. */
 const BLOCK_404 = {
@@ -124,11 +122,8 @@ function SiteNotFound({ path, routes }: { path: string; routes: Route[] }) {
 	);
 }
 
-// ── docs: closest page and matching sections ────────────────────────────
-
 type DocsHit = { href: string; label: string; sub: string };
 
-/** The search index the docs bar uses, ranked for the words in the path. */
 function useDocsHits(path: string, closest: Route | undefined) {
 	const closestHref = closest?.href;
 	const closestTitle = closest?.title;
@@ -143,7 +138,6 @@ function useDocsHits(path: string, closest: Route | undefined) {
 			.then((docs) => {
 				if (!live || !docs.length) return;
 				const index = buildIndex(docs);
-				// The closest page's title says what the path was reaching for.
 				const tokens = correctTokens(
 					tokenize(`${pathQuery(path, "/docs")} ${closestTitle ?? ""}`),
 					new Set(index.postings.keys()),
@@ -227,8 +221,6 @@ function DocsNotFound({ path, routes }: { path: string; routes: Route[] }) {
 		</DocsDrawerProvider>
 	);
 }
-
-// ── account: stay in the account chrome ─────────────────────────────────
 
 function AccountNotFound({ path, routes }: { path: string; routes: Route[] }) {
 	const near = closestRoutes(path, routes, 1);

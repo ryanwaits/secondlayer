@@ -1,21 +1,16 @@
 import type { Insight } from "./insights";
 
-/**
- * Example insights for tests and lab stories. Example names and round numbers
- * only: never real account data.
- */
+/** Example names and round numbers only: never real account data. */
 
 const P95_SECONDS = [
 	1.2, 1.3, 1.5, 1.6, 1.9, 2.1, 2.4, 2.8, 3.1, 3.6, 4, 4.6, 5.2, 5.9,
 ];
 
-/** p95 ms by day for the last 14 days; the incident day is index 10. */
 const P95_BY_DAY = [
 	240, 250, 235, 260, 245, 255, 240, 250, 260, 245, 5800, 250, 240, 255,
 ];
 const P95_INCIDENT = P95_BY_DAY.map((_, i) => (i === 10 ? 1 : 0));
 
-/** Calls per minute over the last hour: mostly 6, a few with rows. */
 const POLL_CALLS = Array.from({ length: 60 }, (_, i) => (i % 5 === 0 ? 1 : 6));
 
 export const FIXTURE_INSIGHTS: Insight[] = [
@@ -471,7 +466,6 @@ export const FIXTURE_INSIGHTS: Insight[] = [
 	},
 ];
 
-/** The four insights of the ranked-stack story, in no particular order. */
 export const FIXTURE_STACK: Insight[] = [
 	FIXTURE_INSIGHTS[3],
 	FIXTURE_INSIGHTS[0],

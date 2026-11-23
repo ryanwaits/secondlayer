@@ -1,10 +1,3 @@
-/**
- * A word-scale trend line: `--ch-a` line (`--hi` on an attention row, `--alarm`
- * on a failing one) over a faint area, an end dot, and
- * short `--alarm` ticks along the bottom at indices that had failures.
- * Geometry ported from the approved dashboard mock; plain SVG so it renders on
- * the server.
- */
 export function Sparkline({
 	points,
 	fails = [],
@@ -14,12 +7,10 @@ export function Sparkline({
 	tone,
 }: {
 	points: readonly number[];
-	/** Failure counts per point; a tick is drawn where the count is above 0. */
 	fails?: readonly number[];
 	width?: number;
 	height?: number;
 	title: string;
-	/** The row this sits in is flagged: the line follows it. */
 	tone?: "att" | "fail";
 }) {
 	const color = tone === "att" ? "hi" : tone === "fail" ? "alarm" : "a";

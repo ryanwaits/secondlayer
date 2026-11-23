@@ -40,10 +40,6 @@ export const BACKUP_PARTS = [
 ] as const;
 export type BackupPart = (typeof BACKUP_PARTS)[number];
 
-/**
- * Sealed under the secrets key at backup time and opened at restore time. The
- * value is arbitrary; only the round-trip matters.
- */
 const CANARY_PLAINTEXT = "secondlayer-secrets-key-canary-v1";
 
 const IV_LEN = 12;

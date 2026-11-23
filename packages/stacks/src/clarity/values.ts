@@ -37,8 +37,6 @@ const MAX_U128 = BigInt("0xffffffffffffffffffffffffffffffff");
 const MIN_I128 = BigInt("-170141183460469231731687303715884105728");
 const MAX_I128 = BigInt("0x7fffffffffffffffffffffffffffffff");
 
-// Primitives
-
 export function intCV(value: IntegerType): IntCV {
 	let v: IntegerType = value;
 	if (typeof v === "string" && v.toLowerCase().startsWith("0x")) {
@@ -71,7 +69,6 @@ export function bufferCV(buffer: Uint8Array): BufferCV {
 }
 
 export function standardPrincipalCV(address: string): StandardPrincipalCV {
-	// Validate by decoding
 	const [version, hash160] = c32addressDecode(address);
 	const normalized = c32address(version, hash160);
 	return { type: "address", value: normalized };
@@ -131,8 +128,6 @@ export function stringAsciiCV(value: string): StringAsciiCV {
 export function stringUtf8CV(value: string): StringUtf8CV {
 	return { type: "utf8", value };
 }
-
-// Cl namespace — clean API
 
 export const Cl: {
 	readonly int: (value: IntegerType) => IntCV;

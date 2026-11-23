@@ -256,7 +256,6 @@ export function fixtureHeightRows(
 	return accumulator.drain(range.from_block, range.to_block);
 }
 
-/** The exporter's sidecar schema (`createDigestIndexParquetSchema`). */
 const DIGEST_INDEX_SCHEMA = new ParquetSchema({
 	height: INT64,
 	block_digest: STRING,

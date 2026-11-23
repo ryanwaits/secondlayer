@@ -1,12 +1,6 @@
 import { stripAnnotations } from "@/lib/code/annotations";
 import { blockTitle } from "@/lib/code/blocks";
 
-/**
- * "Use in your app": the code a reader pastes to read one table, as the SDK,
- * the CLI or cURL. Pure text builders. The recipes and the filter rule live
- * only here; the section renders whatever comes back.
- */
-
 export type Recipe = "newest" | "filter" | "count" | "live";
 export type Lang = "sdk" | "cli" | "curl";
 export type Columns = Record<string, { type: string }>;
@@ -21,7 +15,6 @@ export const RECIPES: readonly { id: Recipe; label: string }[] = [
 
 const PAGE_LIMIT = 20;
 
-/** "perf-test-sbtc" -> "perfTestSbtc"; a leading digit gets a "subgraph" prefix. */
 export function clientName(subgraph: string): string {
 	const parts = subgraph.split(/[^A-Za-z0-9]+/).filter(Boolean);
 	const joined = parts
@@ -41,7 +34,6 @@ const isDigits = (value: unknown): value is string | number =>
 	(typeof value === "string" || typeof value === "number") &&
 	/^-?\d+$/.test(String(value));
 
-/** Digits grouped with `_` from 7 digits up, as a TypeScript literal reads. */
 function groupUnderscore(digits: string): string {
 	const match = /^(-?)(\d+)$/.exec(digits);
 	if (!match) return digits;
@@ -51,25 +43,19 @@ function groupUnderscore(digits: string): string {
 	}`;
 }
 
-/** A shell word: bare when plain, single-quoted otherwise. */
 function shellWord(text: string): string {
 	return /^[\w.:/@,=-]+$/.test(text)
 		? text
 		: `'${text.replace(/'/g, "'\\''")}'`;
 }
 
-/** A `curl -d` argument: double-quoted when plain, single-quoted otherwise. */
 function dataArg(text: string): string {
 	return /^[\w.:/@,=-]+$/.test(text) ? `"${text}"` : shellWord(text);
 }
 
-/** What the filter recipe matches on, and its value in each language. */
 type Filter = {
-	/** CLI/REST key: `sender`, `amount.gte`. */
 	key: string;
-	/** Raw value for the CLI and REST. */
 	raw: string;
-	/** The SDK `where` clause body. */
 	sdk: string;
 };
 
@@ -273,7 +259,6 @@ export function exampleFence(args: {
 	return { code: curlCode(args), lang: "bash" };
 }
 
-/** What Copy puts on the clipboard: the fence without its annotation lines. */
 export function copyText(fence: Fence): string {
 	return stripAnnotations(fence.code, fence.lang);
 }

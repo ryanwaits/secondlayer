@@ -20,7 +20,7 @@ export function edictFromIntegers(
 	amount: bigint,
 	output: bigint,
 ): Edict | undefined {
-	if (output < 0n || output > U32_MAX) return undefined; // u32::try_from(output)
+	if (output < 0n || output > U32_MAX) return undefined;
 	const outputNum = Number(output);
 
 	// note that this allows `output == tx.output.len()`, which means to divide

@@ -25,7 +25,6 @@ const RETENTION_MS = 7 * DAY_MS;
 const KEYLESS_RETENTION_MS = 8 * DAY_MS;
 const BATCH_SIZE = 500;
 
-/** Ids of up to `BATCH_SIZE` ghosts due for deletion, skipping `skip`. */
 async function dueGhostIds(now: Date, skip: ReadonlySet<string>) {
 	const cutoff = new Date(now.getTime() - RETENTION_MS);
 	const keylessCutoff = new Date(now.getTime() - KEYLESS_RETENTION_MS);
@@ -39,7 +38,6 @@ async function dueGhostIds(now: Date, skip: ReadonlySet<string>) {
 					.select("api_keys.id")
 					.whereRef("api_keys.account_id", "=", "accounts.id");
 			return eb.or([
-				// Has keys, and none is live or recent.
 				eb.and([
 					exists(keysOf()),
 					not(
@@ -53,7 +51,6 @@ async function dueGhostIds(now: Date, skip: ReadonlySet<string>) {
 						),
 					),
 				]),
-				// No keys at all: age the account itself.
 				eb.and([
 					not(exists(keysOf())),
 					eb("accounts.created_at", "<", keylessCutoff),
@@ -77,7 +74,6 @@ async function deleteAccounts(ids: string[]): Promise<number> {
 	return Number(res.numDeletedRows);
 }
 
-/** Deletes ghosts that are due; returns the count. */
 export async function purgeExpiredGhostAccounts(
 	now = new Date(),
 ): Promise<number> {

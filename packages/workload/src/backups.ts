@@ -14,16 +14,12 @@ export const NIGHTLY_KEEP_DAYS = 7;
 export const FINAL_KEEP_DAYS = 30;
 const DAY_MS = 24 * 60 * 60 * 1000;
 
-/** The bucket operations backups need, injectable for tests. */
 export interface BackupStore {
-	/** Streams `body` to `key`. */
 	upload(key: string, body: ReadableStream<Uint8Array>): Promise<void>;
-	/** Every key under `prefix`. */
 	list(prefix: string): Promise<string[]>;
 	delete(key: string): Promise<void>;
 }
 
-/** A running `pg_dump`: its output stream and its exit code. */
 export interface DumpProcess {
 	stdout: ReadableStream<Uint8Array>;
 	exited: Promise<number>;
@@ -54,7 +50,6 @@ export const spawnTenantDump: SpawnDump = (acct8) => {
 
 export interface BackupConfig {
 	store: BackupStore;
-	/** Key prefix inside the bucket. */
 	prefix: string;
 	spawnDump?: SpawnDump;
 }
@@ -186,7 +181,6 @@ export async function backupTenant(
 	return { key, pruned };
 }
 
-/** The dump `destroy()` takes before tearing a tenant down. */
 export async function finalBackupTenant(
 	cfg: BackupConfig,
 	acct8: string,

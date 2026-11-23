@@ -35,13 +35,9 @@ const IMAGE_SHA_PATTERN = /^[0-9a-f]{40}$/;
 
 export interface TargetShaCache {
 	lastGood: string | null;
-	/** `deploy_sequence` that came with `lastGood`; `null` when the api did not
-	 *  report one. */
 	sequence?: number | null;
 }
 
-/** Fresh, empty cache — one per process, held by whatever loop calls
- *  `resolveTargetSha` on a timer (`index.ts`). */
 export function createTargetShaCache(): TargetShaCache {
 	return { lastGood: null, sequence: null };
 }
@@ -185,8 +181,6 @@ export async function upgradeTenants(
 	for (const tenant of stale) {
 		const acct8 = tenant.acct8;
 
-		// Older tenants predate the subgraph key and network vars; the template
-		// needs them. Non-fatal by contract (never throws).
 		await ensureTenantEnv(cfg, tenant.account_id);
 
 		const pullResult = await runCompose(
@@ -248,12 +242,8 @@ export async function upgradeTenants(
 }
 
 export interface UpgradeRunner {
-	/** One round; a no-op while another is in flight or after `drain`. */
 	run(targetSha: string): Promise<void>;
-	/** True while a round is in flight. */
 	isBusy(): boolean;
-	/** Stops any new round from starting, then resolves `true` once the
-	 *  in-flight round (if any) finishes, or `false` after `timeoutMs`. */
 	drain(timeoutMs: number): Promise<boolean>;
 }
 

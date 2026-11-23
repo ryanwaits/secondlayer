@@ -8,11 +8,6 @@ import { Odometer } from "./odometer";
 const STATUS_URL = `${PUBLIC_API_URL}/public/status`;
 const POLL_MS = 10_000;
 
-/**
- * One poller per tab, shared by every live figure on the page. It reads only
- * while the tab is visible and someone is subscribed, and keeps the last good
- * value through failures.
- */
 let events: number | null = null;
 let timer: ReturnType<typeof setTimeout> | undefined;
 let inflight = false;
@@ -31,7 +26,6 @@ async function poll() {
 				for (const l of listeners) l();
 			}
 		} catch {
-			// Keep the last value; the next tick retries.
 		} finally {
 			inflight = false;
 		}
@@ -59,10 +53,6 @@ function subscribe(listener: () => void) {
 	};
 }
 
-/**
- * Event total that keeps counting while the page is open. `initial` is the
- * server-rendered figure; the live value only ever moves it forward.
- */
 export function LiveEventsOdometer({
 	initial,
 	label,

@@ -16,9 +16,6 @@ import type { MDXComponents } from "mdx/types";
 import Link from "next/link";
 import type { AnchorHTMLAttributes, ReactNode } from "react";
 
-/** Fenced code block: MDX renders <pre><code class="language-x" data-meta="…">…</code></pre>.
- *  Pull the language, the fence options (remark-code-meta) and the source off
- *  the inner <code> and hand them to the one `<Code>` renderer. */
 function MdxPre({ children }: { children?: ReactNode }) {
 	const fence = fenceFromCode(children as Parameters<typeof fenceFromCode>[0]);
 	if (!fence) return null;
@@ -26,11 +23,6 @@ function MdxPre({ children }: { children?: ReactNode }) {
 	return <Code {...fence} variant={figure ? "figure" : undefined} />;
 }
 
-/** Inline `code` styling rule: API endpoints/routes get the branded blue
- *  chip (`.code-api`); everything else (params, types, symbols, values,
- *  status codes, commands) stays the neutral keycap. One regex = the rule,
- *  applied across every docs page with no manual tagging. Fenced code never
- *  reaches here — it's intercepted by MdxPre. */
 const ENDPOINT_RE = /\/(v1|api)\b/;
 const METHOD_RE = /^(GET|POST|PUT|PATCH|DELETE)\s/;
 function MdxCode({ children }: { children?: ReactNode }) {
@@ -39,12 +31,6 @@ function MdxCode({ children }: { children?: ReactNode }) {
 	return <code className={isApi ? "code-api" : undefined}>{children}</code>;
 }
 
-/** Internal links use next/link; external open in a new tab. Styling comes
- *  from `.docs-article a` (mirrors marketing `.prose a`). `hover:name` and
- *  `focus:name` are not links: they point at a `!ref` in the same section.
- *  `[text](tip "words")` is not a link either: it explains a word in place.
- *  The rest props carry `data-link` / `data-peek-kind` (remark-docs-links) to
- *  the DOM, where the docs trail reads them. */
 function MdxLink({
 	href = "",
 	title,
@@ -72,13 +58,10 @@ function MdxLink({
 	);
 }
 
-/** Page title — marketing's `.page-title` (Geist, 15px/500). */
 function MdxH1({ children }: { children?: ReactNode }) {
 	return <h1 className="page-title">{children}</h1>;
 }
 
-/** A self-link wrapping heading text: clicking sets the URL hash and scrolls,
- *  and a `#` affordance appears on hover (see `.heading-anchor` in globals). */
 function HeadingAnchor({
 	id,
 	children,
@@ -108,7 +91,6 @@ function MdxH2({ id, children }: { id?: string; children?: ReactNode }) {
 	);
 }
 
-/** Subsection heading — no rule, but still a deep-linkable permalink. */
 function MdxH3({ id, children }: { id?: string; children?: ReactNode }) {
 	return (
 		<h3 id={id}>
@@ -117,7 +99,6 @@ function MdxH3({ id, children }: { id?: string; children?: ReactNode }) {
 	);
 }
 
-/** A subsection's own subsection, same permalink. */
 function MdxH4({ id, children }: { id?: string; children?: ReactNode }) {
 	return (
 		<h4 id={id}>
@@ -126,7 +107,6 @@ function MdxH4({ id, children }: { id?: string; children?: ReactNode }) {
 	);
 }
 
-/** A markdown table, scrolling inside its own box when it is wider than the column. */
 function MdxTable({ children }: { children?: ReactNode }) {
 	return (
 		<div className="docs-table">

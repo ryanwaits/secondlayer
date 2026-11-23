@@ -22,16 +22,12 @@ function lookup(pathname: string) {
 	};
 }
 
-/** "Copy" (the page and its agent notes) and ".md" for pages with a markdown twin: ghost pills
- *  above the article, right-aligned. */
 function PageActions({ pathname }: { pathname: string }) {
 	const [copy, setCopy] = useState<"idle" | "done" | "failed">("idle");
 	const timer = useRef(0);
 
 	useEffect(() => () => clearTimeout(timer.current), []);
 
-	// Only pages in the sidebar have a markdown twin, so the pills that point
-	// at one are left off elsewhere.
 	const hasMarkdown = docsNavPages().some(
 		(page) => page.href === pathname.replace(/\/$/, ""),
 	);
@@ -72,8 +68,6 @@ function PageActions({ pathname }: { pathname: string }) {
 	);
 }
 
-/** Opens every `<details>` holding the element a hash names (the changelog's
- *  older releases), then scrolls to it. */
 function openHashTarget(hash: string) {
 	const id = decodeURIComponent(hash.replace(/^#/, ""));
 	const target = id ? document.getElementById(id) : null;
@@ -92,7 +86,6 @@ function openHashTarget(hash: string) {
 	if (opened) target.scrollIntoView();
 }
 
-/** The page actions and previous/next chrome around a docs page's MDX body. */
 export function DocsView({ children }: { children: ReactNode }) {
 	const pathname = usePathname();
 	const info = lookup(pathname);

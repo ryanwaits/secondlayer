@@ -68,7 +68,6 @@ function Html({ html, className }: { html: string; className?: string }) {
 
 let endpointIndex: Map<string, string> | undefined;
 
-/** `GET /v1/streams/events` → the API page anchor that documents it. */
 function endpointHref(rest: string): string | null {
 	endpointIndex ??= new Map(
 		allEndpoints().flatMap((e) => {
@@ -94,14 +93,8 @@ function tabLabels(method: Method): string[] {
 	});
 }
 
-/** Type tips one entry's signatures carry: one. */
 const TIPS_PER_ENTRY = 1;
 
-/**
- * The type names an entry's signatures may tip: ones the tip table knows, first
- * on the page, one. The page passes one ledger down the entries in the
- * order they render, so a name is explained where it first appears.
- */
 function entryTips(
 	method: Method,
 	types: ReadonlyMap<string, TypeDoc>,
@@ -156,7 +149,6 @@ async function MethodEntry({
 			tips={tips}
 		/>
 	));
-	// A method with a REST twin pairs its example with the cURL call.
 	const examples = method.examples.map((ex) => {
 		const ts = (
 			<Code
@@ -269,7 +261,6 @@ async function MethodEntry({
 	);
 }
 
-/** One surface: every method at a glance, then each in full, then the types they use. */
 export async function SdkSurfacePage({ slug }: { slug: string }) {
 	const info = findSurface(slug);
 	if (!info) throw new Error(`No SDK reference page "${slug}"`);
@@ -327,10 +318,6 @@ export async function SdkSurfacePage({ slug }: { slug: string }) {
 	);
 }
 
-/**
- * A function-first package on one page: every function at a glance, then each
- * group as a section of full entries, its constants, and the types they use.
- */
 export async function PackageReferencePage({ pkg }: { pkg: PackageKey }) {
 	const info = findPackagePage(pkg);
 	const m = manifest(pkg);
@@ -427,7 +414,6 @@ export async function PackageReferencePage({ pkg }: { pkg: PackageKey }) {
 	);
 }
 
-/** The helpers you import directly, each with its signature. */
 export async function SdkHelpersPage() {
 	const m = manifest();
 	return (
@@ -470,7 +456,6 @@ export async function SdkHelpersPage() {
 	);
 }
 
-/** The error classes: the family tree, then each one's status and meaning. */
 export function SdkErrorsPage() {
 	const m = manifest();
 	const tree = errorTree(m.errors);
@@ -503,7 +488,6 @@ export function SdkErrorsPage() {
 	);
 }
 
-/** The client drawn as a map: the root, its surfaces with counts, the helpers, the errors. */
 export function SdkOverview() {
 	const m = manifest();
 	const counts = new Map(m.surfaces.map((s) => [s.slug, s.methodCount]));

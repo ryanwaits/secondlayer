@@ -1,14 +1,7 @@
-/**
- * Shared code formatting utilities using Biome
- */
-
 import { Biome, Distribution } from "@biomejs/js-api";
 
 let biome: Biome | null = null;
 
-/**
- * Lazily initialize Biome singleton
- */
 async function getBiome(): Promise<Biome> {
 	if (!biome) {
 		biome = await Biome.create({
@@ -55,13 +48,11 @@ async function getBiome(): Promise<Biome> {
 export async function formatCode(code: string): Promise<string> {
 	const b = await getBiome();
 
-	// Use lintContent with SafeFixes to organize imports
 	const linted = b.lintContent(code, {
 		filePath: "generated.ts",
 		fixFileMode: "SafeFixes",
 	});
 
-	// Then format
 	const formatted = b.formatContent(linted.content, {
 		filePath: "generated.ts",
 	});

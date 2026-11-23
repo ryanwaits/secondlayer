@@ -15,12 +15,6 @@ import type { IndexTip } from "./tip.ts";
 
 export type { IndexCursorInput };
 
-/**
- * Projectable columns on an nft-transfer row. `cursor`/`block_height` always
- * survive (ALWAYS_PROJECTED) and `event_type` is the discriminant — the
- * delegate reader keeps all three regardless. Omitting `block_time` skips the
- * `blocks` join entirely (see readIndexEvents).
- */
 export const NFT_TRANSFER_FIELDS = [
 	"block_time",
 	"tx_id",
@@ -58,7 +52,6 @@ export type NftTransfersQuery = {
 	assetIdentifier?: string;
 	sender?: string;
 	recipient?: string;
-	/** Return only these columns (validated against NFT_TRANSFER_FIELDS). */
 	fields?: readonly string[];
 	order: IndexOrder;
 	cursorPastTip: boolean;
@@ -80,9 +73,7 @@ export type ReadNftTransfersParams = {
 	assetIdentifier?: string;
 	sender?: string;
 	recipient?: string;
-	/** Columns to return; omit for the full row (see ReadIndexEventsParams.fields). */
 	fields?: readonly string[];
-	/** `desc` reads newest first (see ReadIndexEventsParams.order). */
 	order?: IndexOrder;
 	db?: Kysely<Database>;
 };
@@ -90,8 +81,6 @@ export type ReadNftTransfersParams = {
 export type ReadNftTransfersResult = {
 	events: NftTransferEvent[];
 	next_cursor: string | null;
-	/** Raw page span for the reorg lookup — survives a projection that
-	 *  dropped `event_index` (see ReadIndexEventsResult.span). */
 	span?: {
 		from: { block_height: number; event_index: number };
 		to: { block_height: number; event_index: number };
@@ -185,7 +174,6 @@ export async function getNftTransfersResponse(opts: {
 		fields: parsed.fields,
 		order: parsed.order,
 	});
-	// Prefer the raw span (survives a projection that dropped event_index).
 	const reorgs = await readReorgsForEvents(
 		result.span ? [result.span.from, result.span.to] : result.events,
 		opts.readReorgs,

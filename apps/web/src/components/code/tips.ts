@@ -1,14 +1,6 @@
 /**
- * Tips in code blocks: a tooltip on hover or focus, a popover on click.
- * Loaded on demand by `CodeClient`, only on a page that has a `.tip`; nothing
- * here is in a page's first load. A tip is a `span.tip` whose `data-tip` holds
- * its payload as JSON (see `wrap` in handlers.tsx). One floating element exists
+ * One floating element exists
  * per page, built with `textContent`, never `innerHTML`: the payload is data.
- *
- * The tooltip says what a name is. When there is more (a method's signature, a
- * type's fields) it says "Click for details", and a click pins the popover.
- * A tip never navigates. On the reference page the tip belongs to, hovering it
- * lights that entry's row, the way a parameter row lights its token.
  */
 
 type TipData = {
@@ -27,7 +19,6 @@ const MARGIN = 8;
 
 let installed = false;
 let box: HTMLElement | null = null;
-/** The tip the floating element belongs to, and whether a click pinned it open. */
 let current: { tip: HTMLElement; pinned: boolean } | null = null;
 let lit: Element | null = null;
 let timer: ReturnType<typeof setTimeout> | undefined;
@@ -53,7 +44,6 @@ function el(tag: string, className?: string, text?: string): HTMLElement {
 	return node;
 }
 
-/** The popover's body: the signature, or the type's fields. */
 function details(data: TipData): HTMLElement[] {
 	const out: HTMLElement[] = [];
 	if (data.sig) out.push(el("code", "tip-sig", data.sig));
@@ -71,7 +61,6 @@ function details(data: TipData): HTMLElement[] {
 	return out;
 }
 
-/** Below the token when there is room, above when there is not; kept inside the viewport. */
 function place() {
 	if (!box || !current) return;
 	const anchor = current.tip.getBoundingClientRect();
@@ -89,7 +78,6 @@ function place() {
 	box.style.left = `${left}px`;
 }
 
-/** Light the reference row a tip belongs to, when the reader is already on that page. */
 function lightRow(data: TipData, on: boolean) {
 	if (lit) {
 		lit.classList.remove("lit");
@@ -165,11 +153,6 @@ function hideSoon(tip: HTMLElement) {
 const tipOf = (target: EventTarget | null) =>
 	target instanceof Element ? target.closest<HTMLElement>(".tip") : null;
 
-/**
- * Open the popover on a tip with details; a second go closes it. A tip with
- * only a summary has nothing to open: a pointer already shows its tooltip, and
- * a tap (no hover) toggles it.
- */
 function toggle(tip: HTMLElement) {
 	const data = dataOf(tip);
 	if (!data) return;
@@ -181,7 +164,6 @@ function toggle(tip: HTMLElement) {
 	show(tip, hasDetails(data));
 }
 
-/** Install the page's tip listeners. Safe to call again: they are delegated and live for the page. */
 export function activate() {
 	if (installed) return;
 	installed = true;
@@ -214,7 +196,6 @@ export function activate() {
 			toggle(tip);
 			return;
 		}
-		// Outside the popover: close it. Inside it, the reader is selecting text.
 		if (
 			current?.pinned &&
 			!(event.target instanceof Node && box?.contains(event.target))
@@ -233,7 +214,6 @@ export function activate() {
 		}
 	});
 	window.addEventListener("resize", place);
-	// A tooltip is only for a moment; a pinned popover follows its token.
 	document.addEventListener(
 		"scroll",
 		() => {
@@ -244,7 +224,6 @@ export function activate() {
 	);
 }
 
-/** Close whatever is open: a soft navigation replaces the tips under it. */
 export function dismiss() {
 	close();
 }

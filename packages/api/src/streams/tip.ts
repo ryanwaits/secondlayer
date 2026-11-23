@@ -15,10 +15,6 @@ export type StreamsTip = {
 	block_height: number;
 	block_hash: string;
 	burn_block_height: number;
-	/**
-	 * Highest Stacks height treated as immutable: blocks at or below this are
-	 * past the burn-confirmation finality boundary and safe to cache forever.
-	 */
 	finalized_height: number;
 	lag_seconds: number;
 };
@@ -36,14 +32,6 @@ export type StreamsTipProviderOptions = {
 	btcConfirmations?: number;
 	now?: () => number;
 	cacheTtlMs?: number;
-	/**
-	 * Called once, synchronously, at creation with a function that drops this
-	 * instance's cached value. Only the process-wide `getStreamsTip` singleton
-	 * wires this up (to the `indexer:new_block` NOTIFY, see
-	 * `startStreamsTipInvalidationListener`) — a hand-built provider in a test
-	 * has no reason to invalidate early and can omit it, leaving `cacheTtlMs`
-	 * as the only staleness bound, unchanged from before this option existed.
-	 */
 	onInvalidate?: (invalidate: () => void) => void;
 };
 
@@ -127,10 +115,6 @@ export function createStreamsTipProvider(
 	};
 }
 
-/** Invalidators registered by every `getStreamsTip`-style singleton created
- *  with `onInvalidate` (in practice just the one below — plural only so a
- *  second instance, e.g. in a future entrypoint, doesn't have to reinvent
- *  this). */
 const streamsTipInvalidators = new Set<() => void>();
 
 export const getStreamsTip = createStreamsTipProvider({
@@ -163,8 +147,6 @@ export function startStreamsTipInvalidationListener(opts?: {
 		{ connectionString: url },
 	)
 		.then((stop) => {
-			// Names the channel + the exact host/db LISTENed on (no credentials) so
-			// a split-DB misconfiguration is visible in `docker logs` at boot.
 			logger.info("streams tip invalidation listener connected", {
 				channel: "indexer:new_block",
 				db: describeDbUrl(url),

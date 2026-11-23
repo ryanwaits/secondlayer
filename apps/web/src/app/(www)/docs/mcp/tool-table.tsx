@@ -1,11 +1,5 @@
 import { firstSentence, resourceRows, toolGroups, toolNote } from "./tools";
 
-/**
- * The MCP page's tool and resource tables, rendered from the generated
- * registry snapshot. `/docs/mcp.md` gets the same tables as markdown
- * (docs-source.ts), since the markdown twin strips components.
- */
-
 export function McpResources() {
 	return (
 		<div className="docs-table">

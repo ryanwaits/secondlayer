@@ -8,17 +8,6 @@ import {
 import { getCaps } from "./account-spend-caps.ts";
 import { isInternalAccount } from "./accounts.ts";
 
-/**
- * Prepaid credits — the balance `meter()` (`../billing/meter.ts`) debits for
- * every billable unit (archive partitions, hosted Index/Streams rows, and
- * future hosted-stack meters). Atomic debit, keyed by `account_id`. A
- * Stripe card top-up credits the balance; `recordCreditsSpend` accumulates a
- * rolling monthly counter for the optional per-account cap
- * (`account_spend_caps`). `usage_ledger` (`./usage-ledger.ts`) is the
- * append-only record of what moved this balance; this table is only the
- * cached total.
- */
-
 export function usdToMicros(usd: number): bigint {
 	return BigInt(Math.round(usd * 1_000_000));
 }
@@ -46,7 +35,6 @@ export async function creditCredits(
 	return BigInt(row.balance_usd_micros);
 }
 
-/** Atomic debit: succeeds only when the balance covers the price. */
 export async function debitCredits(
 	db: Kysely<Database>,
 	accountId: string,
@@ -136,9 +124,6 @@ export function monthKey(now: Date = new Date()): string {
 	return `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, "0")}`;
 }
 
-/** Accumulate consumption into the rolling month bucket — the per-account
- *  cap's real-time counter (`meter()` and the daily spend-cap cron both read
- *  it). */
 export async function recordCreditsSpend(
 	db: Kysely<Database>,
 	accountId: string,
@@ -183,34 +168,17 @@ export async function getMonthlyCreditsSpend(
 	return BigInt(row.spent_month_usd_micros);
 }
 
-/** Why an account's hosted stack may not run: no balance left, or this
- *  month's spend reached its cap. */
 export type CreditsStopReason = "credits" | "cap";
 
 export type AccountSpendState = {
 	balance: bigint;
-	/** This month's spend has reached the account's monthly cap. Always false
-	 *  for an internal account. */
 	overCap: boolean;
-	/** May take a paid read: a page's worth of balance and under the cap. */
 	canRead: boolean;
-	/** Why a paid read is refused, cap first (a limit the account chose
-	 *  outranks a balance problem); null when `canRead`. */
 	readBlock: CreditsStopReason | null;
-	/** May the hosted stack run: a positive balance and under the cap. A cap
-	 *  that let the stack keep billing would not be a cap. */
 	canRunStack: boolean;
-	/** Why the stack may not run, balance first; null when `canRunStack`. */
 	stackBlock: CreditsStopReason | null;
 };
 
-/**
- * The one answer to "may this account spend?". Every gate reads it: the
- * keyed-read rate-limit bypass and refusal (`api/lib/read-credits.ts`), the
- * gateway introspect and the provisioner's 5-minute poll
- * (`getCreditsStatus`). Internal accounts always may; `meter()` still prices
- * them at $0.
- */
 export async function accountSpendState(
 	db: Kysely<Database>,
 	accountId: string,
@@ -253,8 +221,6 @@ export async function accountSpendState(
 	};
 }
 
-/** `accountSpendState`'s stack verdict, the shape `/internal/accounts/credits`
- *  and `/internal/keys/introspect` answer with. */
 export async function getCreditsStatus(
 	db: Kysely<Database>,
 	accountId: string,
@@ -289,7 +255,6 @@ export async function getCreditRefill(
 	};
 }
 
-/** `belowUsdMicros: null` turns refill off. Ensures a row exists. */
 export async function setCreditRefill(
 	db: Kysely<Database>,
 	accountId: string,

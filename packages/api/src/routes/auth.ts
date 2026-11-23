@@ -27,13 +27,10 @@ const app = new Hono();
 
 const MagicLinkSchema = z.object({
 	email: z.string().email(),
-	// Analytics only: which form asked, and the browser's PostHog id.
 	from: SigninFromSchema,
 	distinctId: BrowserDistinctIdSchema,
 });
 
-// A closed set, as on the CLI device route. `sentinel` links an account this
-// request creates; an email that already had one consents elsewhere.
 const ProductSchema = z.enum(["sentinel"]).optional();
 
 const VerifySchema = z.union([
@@ -51,7 +48,6 @@ const VerifySchema = z.union([
 const VERIFY_RATE_LIMIT = 10;
 const VERIFY_WINDOW_MS = 15 * 60_000;
 
-// Request magic link (no auth)
 app.post("/magic-link", async (c) => {
 	const body = await c.req.json().catch(() => {
 		throw new InvalidJSONError();
@@ -60,14 +56,12 @@ app.post("/magic-link", async (c) => {
 	const parsed = MagicLinkSchema.parse(body);
 	const db = getDb();
 
-	// Generate secure magic link token (for URL)
 	const bytes = new Uint8Array(32);
 	crypto.getRandomValues(bytes);
 	const token = Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join(
 		"",
 	);
 
-	// Generate 6-digit numeric code (for manual entry)
 	const codeNum = crypto.getRandomValues(new Uint32Array(1))[0] % 1_000_000;
 	const code = String(codeNum).padStart(6, "0");
 
@@ -95,7 +89,6 @@ app.post("/magic-link", async (c) => {
 	});
 });
 
-// Verify token or code → create account + session token (no auth)
 app.post("/verify", async (c) => {
 	const ip = ipBucket(getClientIp(c));
 	const key = ip === "unknown" ? "auth:verify:unknown" : `auth:verify:${ip}`;
@@ -151,7 +144,6 @@ app.post("/verify", async (c) => {
 		);
 	}
 
-	// Create session token
 	const { raw, hash, prefix } = generateSessionToken();
 	await db
 		.insertInto("sessions")
@@ -173,7 +165,6 @@ app.post("/verify", async (c) => {
 	});
 });
 
-// Logout — revoke session (requires auth, handled by middleware)
 app.post("/logout", async (c) => {
 	const authHeader = c.req.header("authorization");
 	if (!authHeader?.startsWith("Bearer ")) {
@@ -192,7 +183,6 @@ app.post("/logout", async (c) => {
 		.updateTable("sessions")
 		.set({ revoked_at: new Date() })
 		.where("token_hash", "=", tokenHash)
-		// A second logout keeps the first `revoked_at`.
 		.where("revoked_at", "is", null)
 		.execute();
 

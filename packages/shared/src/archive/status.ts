@@ -159,16 +159,10 @@ function publishWeekdayName(date: Date): "Sunday" | "Wednesday" {
 	return date.getUTCDay() === 0 ? "Sunday" : "Wednesday";
 }
 
-/**
- * Durations here run to days, and "beyond the 120h objective" makes a reader do
- * arithmetic before they can tell whether that is alarming.
- */
 function formatAge(seconds: number): string {
 	const hours = seconds / 3_600;
 	if (hours < 48) return `${Math.round(hours)}h`;
 	const days = hours / 24;
-	// One decimal only when it changes the reading: 4d and 4.5d are different
-	// facts during an incident, 5.0d is noise.
 	const rounded = Math.round(days * 10) / 10;
 	return `${Number.isInteger(rounded) ? rounded : rounded.toFixed(1)}d`;
 }
@@ -248,8 +242,6 @@ export function deriveArchiveStatus(inputs: StatusInputs): ArchiveStatus {
 		};
 	}
 
-	// Source unreachable: report the gap in KNOWLEDGE rather than guessing. The
-	// archive may be perfectly healthy; we cannot currently say so.
 	if (inputs.sourceTipHeight === null || inputs.finalizedHeight === null) {
 		return {
 			...base,

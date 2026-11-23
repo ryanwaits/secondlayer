@@ -68,14 +68,6 @@ export async function stageForkContender(
 	});
 }
 
-/**
- * Has an incoming block just settled a staged fork one height below it?
- *
- * A block names exactly one parent. If that parent is a contender we staged
- * rather than the block we kept canonical, the chain has chosen — and it chose
- * against us. Returns the staged fork to apply, or null when nothing is
- * pending or the incumbent was right all along.
- */
 export async function findSettledFork(
 	db: Kysely<Database>,
 	childHeight: number,
@@ -89,7 +81,6 @@ export async function findSettledFork(
 		.executeTakeFirst();
 	if (!staged) return null;
 
-	// The contender is only interesting if it is not already what we hold.
 	const incumbent = await db
 		.selectFrom("blocks")
 		.select("hash")

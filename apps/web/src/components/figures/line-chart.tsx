@@ -20,12 +20,6 @@ export type LineSeries = {
 	points: { x: number; y: number }[];
 };
 
-/**
- * C1 LineChart — change over time, ≤4 series. Direct end labels with
- * vertical collision resolution (nudged ≥14px apart, clamped inside the
- * plot, pushed off the threshold label's band); crosshair + tooltip
- * clamped to both container edges; touch drags the crosshair.
- */
 export function LineChart({
 	series,
 	yMax,
@@ -46,7 +40,6 @@ export function LineChart({
 	const { show, hide, tooltip } = useFigTooltip(wrapRef);
 	const [crossX, setCrossX] = useState<number | null>(null);
 
-	// Cheap enough to recompute per render (a handful of series, ~40 points).
 	const xs = series.flatMap((s) => s.points.map((p) => p.x));
 	const xDomain = [Math.min(...xs), Math.max(...xs)] as const;
 
@@ -54,8 +47,6 @@ export function LineChart({
 		PL + ((v - xDomain[0]) / (xDomain[1] - xDomain[0] || 1)) * PW;
 	const y = (v: number) => PT + PH - (v / yMax) * PH;
 
-	// End labels: nudge pairs ≥MIN_GAP apart, clamp inside the plot, and
-	// push off the threshold label's band (which places first).
 	const threshY = threshold ? y(threshold.y) - 6 : null;
 	const clampY = (v: number) => Math.max(PT + 10, Math.min(PT + PH - 4, v));
 	let endLabels = series.map((s) =>
@@ -86,7 +77,6 @@ export function LineChart({
 			return;
 		}
 		const xv = xDomain[0] + ((px - PL) / PW) * (xDomain[1] - xDomain[0]);
-		// nearest sample of the first series drives the crosshair for all
 		const pts = series[0].points;
 		let best = 0;
 		pts.forEach((p, i) => {
@@ -214,7 +204,6 @@ export function LineChart({
 function formatX(v: number, ticks: { v: number; label: string }[]): string {
 	const exact = ticks.find((t) => t.v === v);
 	if (exact) return exact.label;
-	// time-style ticks ("9:00") interpolate to h:mm; else show the number
 	if (ticks[0]?.label.includes(":")) {
 		const hh = Math.floor(v);
 		const mm = String(Math.round((v - hh) * 60)).padStart(2, "0");

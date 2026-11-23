@@ -21,7 +21,6 @@
 import { mkdir, rename, writeFile } from "node:fs/promises";
 import { basename, dirname, isAbsolute, join } from "node:path";
 
-/** The locally-served public archive tree, or null when nothing is served. */
 export function getPublicArchiveDir(): string | null {
 	const dir = process.env.ARCHIVE_PUBLIC_DIR?.trim();
 	return dir ? dir : null;
@@ -54,9 +53,6 @@ export async function mirrorToPublicArchive(params: {
 
 	const target = join(dir, params.name);
 	const targetDir = dirname(target);
-	// Only auto-create for a nested name. A flat name's parent IS the tree
-	// root, and an unwritable root should still fail loudly rather than be
-	// silently created.
 	if (targetDir !== dir) {
 		await mkdir(targetDir, { recursive: true });
 	}

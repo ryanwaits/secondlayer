@@ -115,7 +115,6 @@ function prepareSource(src: ProofSource): ProofSource {
 	return out;
 }
 
-/** One line per link, then the verdict. */
 function report(
 	r: BlockVerification,
 	cp: VerifyCheckpoint,
@@ -147,7 +146,6 @@ export function verificationJson(r: BlockVerification): string {
 	);
 }
 
-/** 0 proven, 1 a link is broken, 2 the source could not serve a link. */
 function exitCodeOf(r: BlockVerification): number {
 	if (r.ok) return VERIFY_EXIT.CLEAN;
 	return r.failures[0]?.code === "unavailable"

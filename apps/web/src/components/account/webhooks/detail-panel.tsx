@@ -86,7 +86,6 @@ import {
 	utcStamp,
 } from "./view";
 
-/** The server read only the first page of deliveries, and it came back full. */
 function mayBeTruncated(initial: WebhookDetailInitial | null): boolean {
 	return (
 		initial?.deliveries.kind === "ok" &&
@@ -94,20 +93,13 @@ function mayBeTruncated(initial: WebhookDetailInitial | null): boolean {
 	);
 }
 
-/** How often the detail bundle (webhook, deliveries, activity)
- *  refreshes together while the tab is visible. */
 const DETAIL_POLL_MS = 10_000;
-/** The fast standalone `/activity` poll while events are waiting to send. */
 const ACTIVITY_POLL_MS = 5_000;
 
 const RANGE_OPTIONS = RANGES.map((value) => ({ value, label: value }));
 
 type DetailNotice = StackNotice | { kind: "not_found" };
 
-/** What a webhook read means for the page: the notice to show, `null` for
- *  none, or `undefined` to leave the notice as it is. A failure only becomes
- *  the notice when no page is cached to keep showing; `not_found` always
- *  wins, since a deleted webhook shouldn't keep showing. */
 function detailNoticeFor(
 	webhook: WebhooksResult<WebhookDetail>,
 	hasCached: boolean,
@@ -118,10 +110,6 @@ function detailNoticeFor(
 }
 
 /**
- * Reads the whole detail bundle in parallel and again every `DETAIL_POLL_MS`
- * while the tab is visible. A page that opened with the server's reads
- * (`initial`) starts from them: its first poll waits a full interval, unless
- * the webhook didn't load, in which case it retries right away.
  * `asleep` tracks the stack whether or not a page is cached, since cached
  * rows can't open a payload on an asleep stack.
  */
@@ -167,8 +155,6 @@ function useDetailPoll(
 	return { notice, asleep };
 }
 
-// ── Title row ────────────────────────────────────────────────────────────
-
 export function TitleRow({
 	name,
 	managedBy,
@@ -176,7 +162,6 @@ export function TitleRow({
 }: {
 	name: string;
 	managedBy: string | null;
-	/** Resolves true when the new name was saved. */
 	onRename: (name: string) => Promise<boolean>;
 }) {
 	const [editing, setEditing] = useState(false);
@@ -263,19 +248,14 @@ export function TitleRow({
 	);
 }
 
-// ── Facts ────────────────────────────────────────────────────────────────
-
 const sumOf = (values: readonly number[]) => values.reduce((a, b) => a + b, 0);
 
-/** A webhook still pointed at a throwaway test endpoint. */
 const hasTestEndpoint = (insights: readonly Insight[]) =>
 	insights.some((i) => i.rule === "test_endpoint");
 
-/** An open insight that says this webhook is failing. */
 const isFailing = (insights: readonly Insight[]) =>
 	insights.some((i) => i.severity === "losing");
 
-/** What the webhook sends to and when it was made, under the name. */
 export function Meta({
 	webhook,
 	insights = [],
@@ -296,7 +276,6 @@ export function Meta({
 	);
 }
 
-/** Delivery health for the range and the last 100 deliveries. */
 export function Facts({
 	activity,
 	deliveries,
@@ -345,8 +324,6 @@ export function Facts({
 	);
 }
 
-// ── Deliveries ───────────────────────────────────────────────────────────
-
 function DeliveriesPanel({
 	webhook,
 	rows,
@@ -357,15 +334,11 @@ function DeliveriesPanel({
 	finding,
 }: {
 	webhook: Pick<WebhookDetail, "id" | "name" | "url" | "triggers">;
-	/** Null while the hour's window is still loading. */
 	rows: readonly DeliveryRow[] | null;
 	hour: { label: string } | null;
 	onClearHour: () => void;
 	asleep: boolean;
-	/** Only the server's first page of deliveries is in hand, so the total
-	 *  isn't known yet. */
 	partial: boolean;
-	/** The page finding that describes failing deliveries, if any. */
 	finding: string | null;
 }) {
 	const [open, setOpen] = useState<string | null>(null);
@@ -551,8 +524,6 @@ function DeliveryRowView({
 	);
 }
 
-/** One line per try of a retried event. Picking a line opens that try's
- *  response. `attempts` is oldest first. */
 export function AttemptList({
 	attempts,
 	selectedId,
@@ -634,8 +605,6 @@ export function AttemptList({
 	);
 }
 
-// ── The page ─────────────────────────────────────────────────────────────
-
 export interface WebhookDetailBodyProps {
 	webhook: WebhookDetail;
 	deliveries: DeliveryRow[];
@@ -644,19 +613,14 @@ export interface WebhookDetailBodyProps {
 	insights: Insight[];
 	range: Range;
 	onRange: (range: Range) => void;
-	/** The hour a heat square opened, when `?hour=` is set. */
 	hour: { label: string } | null;
-	/** Deliveries inside that hour; null while loading. */
 	hourDeliveries: DeliveryRow[] | null;
 	onClearHour: () => void;
 	pauseBusy: boolean;
 	onTogglePause: () => void;
 	onRename: (name: string) => Promise<boolean>;
-	/** The last poll found the hosted stack asleep. */
 	stackAsleep: boolean;
-	/** The "Listens for" frames the server rendered for this webhook. */
 	listensBlocks?: WebhookDetailInitial["listens"];
-	/** Only the server's first page of deliveries is in hand. */
 	deliveriesPartial?: boolean;
 }
 
@@ -760,8 +724,6 @@ export function WebhookDetailBody({
 	);
 }
 
-/** /account/webhooks/<id>. `initial` is what the server read for this visit;
- *  without it (signed out, or a client-only render) the page loads in the browser. */
 export function WebhookDetailSection({
 	id,
 	initial = null,
@@ -788,7 +750,6 @@ export function WebhookDetailSection({
 	const insights = forResource(useInsights().data, "webhook", id);
 	const outage = activity ? outageStartIndex(activity.hours) : null;
 	const [pickedRange, setPickedRange] = useState<Range | null>(null);
-	// A page that opens on an outage starts on the 48h view that shows it.
 	const range: Range = pickedRange ?? (outage === null ? "7d" : "48h");
 
 	const [pauseBusy, setPauseBusy] = useState(false);
@@ -821,7 +782,6 @@ export function WebhookDetailSection({
 		? (cache.deliveriesWindow[`${id}:${hourFrom}`]?.data ?? null)
 		: null;
 
-	// Bring the deliveries into view once, when the page opens on an hour.
 	const scrolledTo = useRef<string | null>(null);
 	useEffect(() => {
 		if (!hourFrom || hourDeliveries === null) return;

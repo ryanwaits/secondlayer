@@ -1,4 +1,3 @@
-/** A list whose first read failed: say so, and let the reader try again. */
 export function LoadFailed({
 	what,
 	onRetry,

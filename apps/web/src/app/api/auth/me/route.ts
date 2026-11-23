@@ -2,7 +2,6 @@ import { ApiError, apiRequest, getSessionFromRequest } from "@/lib/api";
 import type { Account } from "@/lib/types";
 import { NextResponse } from "next/server";
 
-// Next to the API, so each dashboard read and write takes the short hop.
 export const preferredRegion = "fra1";
 
 export async function GET(req: Request) {
@@ -23,7 +22,6 @@ export async function GET(req: Request) {
 		if (!(e instanceof ApiError) || e.status >= 500) {
 			return NextResponse.json({ error: "unreachable" }, { status: 503 });
 		}
-		// Session expired or invalid — clear the cookie
 		const res = NextResponse.json({ account: null });
 		if (e.status === 401) {
 			// Domain must match the set cookie to override it across subdomains.

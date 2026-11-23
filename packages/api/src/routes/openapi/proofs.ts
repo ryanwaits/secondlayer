@@ -14,7 +14,6 @@ const ref = (name: string) => ({ $ref: `#/components/schemas/${name}` });
 const INDEX_BLOCK_HASH_EXAMPLE =
 	"990152a894e12288960c8b68e5790ad7994f9d261e9ad8adc13c72e76f914339";
 
-/** Mainnet block 150,000, header shortened. */
 const EPOCH2_HEADER_EXAMPLE = {
 	consensus_hash: "0898651bac6711e8c7679d76bdf5ffb11e9d6f7c",
 	header: "070000004b4c5f4fb400000000000249f0…",
@@ -298,7 +297,6 @@ export const proofsPaths = {
 	},
 };
 
-/** Resource schemas for these responses, merged into `components.schemas`. */
 export const proofsSchemas = {
 	ProofBurnBlock: {
 		type: "object",
@@ -347,7 +345,6 @@ export const proofsSchemas = {
 				description: "80-byte headers, hex, in height order.",
 			},
 		},
-		// Bitcoin's genesis header.
 		example: {
 			from: 0,
 			headers: [

@@ -25,14 +25,6 @@ import verifyManifest from "@/generated/reference/verify/manifest.json";
 import verifyProofs from "@/generated/reference/verify/proofs.json";
 import verifySources from "@/generated/reference/verify/sources.json";
 import verifyBlock from "@/generated/reference/verify/verify-block.json";
-/**
- * The reference's data: the files `bun run openpkg` writes under
- * `generated/reference/<package>`, plus the pure rules that turn them into what
- * the pages show (signatures, parameter rows, REST links). Nothing here
- * renders; `sdk-reference.tsx` and the markdown twin both read it, so the two
- * cannot disagree. The SDK is the default package; the function-first ones
- * (subgraphs, verify, filters) pass their key.
- */
 import { ANNOTATION_LIMITS, parseAnnotations } from "@/lib/code/annotations";
 import { PACKAGE_PAGES, type PackageKey, SDK_BASE } from "./pages";
 
@@ -55,7 +47,6 @@ export type Overload = {
 	description: string;
 	typeParams?: TypeParam[];
 	params: (Field & { fields?: Field[] })[];
-	/** An empty type is a constructor: it returns its class and the signature says nothing. */
 	returns: { type: string; description: string };
 };
 
@@ -89,7 +80,6 @@ export type Constructor = {
 	overloads: Overload[];
 };
 
-/** An exported value that is not callable. */
 export type Constant = {
 	name: string;
 	summary: string;
@@ -100,7 +90,6 @@ export type Constant = {
 export type Surface = {
 	slug: string;
 	root: string;
-	/** Function groups: where the names import from, when not the package itself. */
 	from?: string;
 	constructor?: Constructor;
 	methods: Method[];
@@ -128,7 +117,6 @@ export type Manifest = {
 	symbols: Record<string, string>;
 };
 
-/** `sdk`, or a function-first package (`PackageKey` in pages.ts). */
 export type ReferencePackage = "sdk" | PackageKey;
 
 const DATA: Record<
@@ -190,7 +178,6 @@ export function surface(slug: string, pkg: ReferencePackage = "sdk"): Surface {
 	return found;
 }
 
-/** Same rule as `scripts/reference/build.ts`; a test pins it to `symbols`. */
 export function methodAnchor(id: string): string {
 	return `m-${id.replace(/\./g, "-")}`;
 }
@@ -201,12 +188,9 @@ export const groupAnchor = (slug: string) => `g-${slug}`;
 export const helperAnchor = (name: string) => `h-${name}`;
 export const errorAnchor = (name: string) => `e-${name}`;
 
-// ── types as text ──────────────────────────────────────────────────────
-
 const OPEN = new Set(["<", "(", "[", "{"]);
 const CLOSE = new Set([">", ")", "]", "}"]);
 
-/** Split `text` on `sep` where it is not nested in brackets, generics or quotes. */
 export function splitTop(text: string, sep: string): string[] {
 	const parts: string[] = [];
 	let depth = 0;
@@ -232,12 +216,6 @@ export function splitTop(text: string, sep: string): string[] {
 	return parts.filter(Boolean);
 }
 
-/**
- * Break a long type across lines: intersection and union arms one per line,
- * object members one per line. A type that fits stays on one line, and what
- * has no break point (generic arguments, a long literal union inside an array)
- * stays long.
- */
 export function formatType(type: string, indent = 0, width = 80): string {
 	const text = type.trim();
 	if (indent + text.length <= width) return text;
@@ -275,15 +253,8 @@ function typeParamsText(params: TypeParam[] | undefined): string {
 	return `<${each.join(", ")}>`;
 }
 
-/** The ref name a parameter or field carries between its table row and the code. */
 const REF_BEFORE = "(?<![\\w.])";
 
-/**
- * One overload's signature as TypeScript: the method's path, its parameters
- * and what it returns. Parameter names get `!ref` annotations, so a hovered
- * table row lights them. The path itself is a ref too, which keeps the block
- * from linking the method to its own entry.
- */
 export function signatureOf(
 	method: Method,
 	overload: Overload,
@@ -305,7 +276,6 @@ export function signatureOf(
 }
 
 function indentLines(text: string, by: number): string {
-	// The first line is already placed by the caller's join; continuation lines are pre-indented by formatType.
 	return `${" ".repeat(by)}${text}`;
 }
 
@@ -313,7 +283,6 @@ function escapeRegex(s: string): string {
 	return s.replace(/[.*+?^${}()|[\]\\/]/g, "\\$&");
 }
 
-/** `!ref` annotation lines above each line that opens with (or contains) a known name as a key. */
 export function withRefs(
 	code: string,
 	names: ReadonlySet<string>,
@@ -334,15 +303,8 @@ export function withRefs(
 	return out.join("\n");
 }
 
-/** What an example file may annotate with: marks that explain, never ones that change what the block shows. */
 const EXAMPLE_ANNOTATIONS = new Set(["callout", "mark"]);
 
-/**
- * Example code with a `!ref` above each line that names a field as an object
- * key. A reference example may mark and call out; focus, diff, collapse,
- * errors, picks and refs of its own would change what the block shows, so they
- * fail the build instead of rendering.
- */
 export function exampleWithRefs(
 	code: string,
 	names: ReadonlySet<string>,
@@ -354,7 +316,6 @@ export function exampleWithRefs(
 			throw new Error(
 				`${file}: "!${a.name}" is not allowed in a reference example (only ${[...EXAMPLE_ANNOTATIONS].join(", ")}).`,
 			);
-	// The docs budget, one rule everywhere (budget.test.ts holds the docs fences to it).
 	for (const name of ["callout", "mark"] as const) {
 		const n = annotations.filter((a) => a.name === name).length;
 		if (n > ANNOTATION_LIMITS[name])
@@ -376,16 +337,12 @@ export function exampleWithRefs(
 	return out.join("\n");
 }
 
-// ── parameters ─────────────────────────────────────────────────────────
-
 export type ParamRow = Field & {
-	/** Variants this parameter belongs to, when it is not on every overload (`Bitcoin`). */
 	only?: string;
 };
 
 const baseName = (type: string) => /^([A-Za-z_]\w*)/.exec(type.trim())?.[1];
 
-/** `a: string; b?: number` members of an object literal's body. */
 function memberFields(body: string): Field[] {
 	return splitTop(body, ";").flatMap((member) => {
 		const m = /^(readonly\s+)?([A-Za-z_$][\w$]*)(\?)?\s*:\s*([\s\S]+)$/.exec(
@@ -404,11 +361,6 @@ function memberFields(body: string): Field[] {
 	});
 }
 
-/**
- * The fields of an options type: a named type with fields, an inline object,
- * or an intersection of both (later arms refine earlier ones, keeping their
- * docs). Null when the type is not a plain object, so it stays one row.
- */
 export function fieldsOfType(
 	type: string,
 	types: ReadonlyMap<string, TypeDoc>,
@@ -435,12 +387,6 @@ export function fieldsOfType(
 	return merged.size ? [...merged.values()] : null;
 }
 
-/**
- * The rows of a method's parameter table: object parameters open into their
- * fields, other parameters are a row each, and overloads are merged by name.
- * A row on only some overloads says which (`Bitcoin`) when the overloads are
- * named variants.
- */
 export function paramRows(
 	method: Method,
 	types: ReadonlyMap<string, TypeDoc>,
@@ -480,10 +426,8 @@ export function paramRows(
 	});
 }
 
-/** A field's name as the code spells it: `opts.chain` is `chain` in an object. */
 export const refKey = (name: string) => name.split(".").pop() ?? name;
 
-/** Options past this many in a group fold behind a disclosure. */
 export const OPTIONS_SHOWN = 8;
 const FOLD_SLACK = 2;
 
@@ -493,10 +437,6 @@ export type ParamGroup = {
 	folded: ParamRow[];
 };
 
-/**
- * Required first, then everything else as Options, in the order the type
- * declares them. Past `OPTIONS_SHOWN`, the rest fold.
- */
 export function groupParams(rows: ParamRow[]): ParamGroup[] {
 	const required = rows.filter((r) => r.required);
 	const options = rows.filter((r) => !r.required);
@@ -514,7 +454,6 @@ export function groupParams(rows: ParamRow[]): ParamGroup[] {
 	return groups;
 }
 
-/** Cut a type for a table cell; the full text is in the signature. */
 export function shortType(type: string, max = 56): string {
 	const flat = type.replace(/\s+/g, " ").trim();
 	return flat.length <= max ? flat : `${flat.slice(0, max - 1)}…`;
@@ -522,11 +461,6 @@ export function shortType(type: string, max = 56): string {
 
 export type Callback = { param: string; type: string; fields: Field[] };
 
-/**
- * The `ctx` argument of the callbacks in a method's parameters
- * (`ctx: ConsumerBatchContext`), once per type, when the type has documented
- * fields and is not a deprecated alias.
- */
 export function callbackArgs(
 	rows: ParamRow[],
 	types: ReadonlyMap<string, TypeDoc>,
@@ -558,7 +492,6 @@ export function callbackArgs(
 	return [...found.values()];
 }
 
-/** The fields of what a method returns, looking through `Promise<…>`. */
 export function returnFields(
 	overload: Overload,
 	types: ReadonlyMap<string, TypeDoc>,
@@ -592,7 +525,6 @@ export function typeMap(s: Surface): Map<string, TypeDoc> {
 	return new Map(s.types.map((t) => [t.name, t]));
 }
 
-/** Every group of a function-first package's types as one set, the first group's entry winning. */
 export function packageTypes(groups: readonly Surface[]): TypeDoc[] {
 	const all = new Map<string, TypeDoc>();
 	for (const g of groups)
@@ -600,19 +532,11 @@ export function packageTypes(groups: readonly Surface[]): TypeDoc[] {
 	return [...all.values()].sort((a, b) => a.name.localeCompare(b.name));
 }
 
-/** `Promise<X>` read as `X` for a glance table; cut to fit. */
 export function glanceReturn(type: string, max = 36): string {
 	const inner = /^Promise<([\s\S]*)>$/.exec(type.trim())?.[1] ?? type;
 	return shortType(inner.replace(/, any, any>/, ">"), max);
 }
 
-// ── REST twins ─────────────────────────────────────────────────────────
-
-/**
- * A method's `rest` (`GET /v1/subgraphs/{name}/{table}{cursorQs}`) as the
- * endpoint it calls: trailing template holes that are not path segments
- * (`{options}`) drop away.
- */
 export function restTarget(rest: string): { method: string; path: string } {
 	const [method = "GET", ...path] = rest.split(" ");
 	return {
@@ -621,18 +545,13 @@ export function restTarget(rest: string): { method: string; path: string } {
 	};
 }
 
-// ── errors ─────────────────────────────────────────────────────────────
-
 export type ErrorLine = {
 	prefix: string;
 	name: string;
-	/** The HTTP status, or a label for the root. */
 	note: string;
-	/** What the class is (inline markdown), for a class that has no status. */
 	summary: string;
 };
 
-/** The error family as tree lines: the root (the parent no listed error extends past), then each class under its parent. */
 export function errorTree(errors: Manifest["errors"]): ErrorLine[] {
 	const names = new Set(errors.map((e) => e.name));
 	const children = new Map<string, Manifest["errors"]>();
@@ -670,7 +589,6 @@ export function errorTree(errors: Manifest["errors"]): ErrorLine[] {
 const FEATURED_HELPERS = 11;
 const FEATURED_SUMMARY_MAX = 60;
 
-/** Helpers worth a box on the overview: the ones with a short one-line summary. */
 export function shortHelpers(
 	helpers: Manifest["helpers"],
 ): Manifest["helpers"] {
@@ -679,12 +597,8 @@ export function shortHelpers(
 		.slice(0, FEATURED_HELPERS);
 }
 
-// ── what the nav and the overview need ────────────────────────────────
-
 export type MethodNav = {
-	/** The page the methods are on; an anchor is appended to it. */
 	page: string;
-	/** Extra words a search for these methods may use. */
 	keywords: string[];
 	methods: { anchor: string; path: string; summary: string }[];
 };
@@ -696,7 +610,6 @@ const navMethods = (pkg: ReferencePackage, slug: string) =>
 		summary,
 	}));
 
-/** Method paths and one-line summaries, for the docs search index. */
 export function methodNav(): MethodNav[] {
 	return [
 		...manifest().surfaces.map((s) => ({
@@ -720,10 +633,6 @@ const slugOf = (name: string) =>
 		.replace(/[^a-z0-9]+/g, "-")
 		.replace(/^-|-$/g, "");
 
-/**
- * Where an export of the old single-page reference lives now, keyed by the
- * `x-<slug>` anchor that page gave it, and the old `##` area anchors.
- */
 export function legacyOwners(): Record<string, string> {
 	const owners: Record<string, string> = {
 		client: "/docs/sdk-reference/client",

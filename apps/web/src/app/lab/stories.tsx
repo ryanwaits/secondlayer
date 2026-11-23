@@ -120,21 +120,15 @@ import { STORY_INDEX, type StoryId } from "./tree";
 export type StoryVariant = {
 	id: string;
 	label: string;
-	/** `key` is unique per frame, so radio groups in the light and dark frame stay apart. */
 	render: (key: string) => ReactNode;
 };
 
 export type Story = (typeof STORY_INDEX)[number] & {
-	/** Source files the story renders. */
 	src: string[];
-	/** The DESIGN.md section that holds the rules; left out where DESIGN.md is silent. */
 	design?: string;
-	/** One line, the rule the component exists to keep. */
 	rule: string;
 	variants: StoryVariant[];
-	/** Container width control (px) for components that answer to their container. */
 	width?: { min: number; max: number; value: number };
-	/** One frame per row: the story needs more room than half the pane. */
 	stack?: boolean;
 	props?: { name: string; type: string; note: string }[];
 	usage?: string;
@@ -181,7 +175,6 @@ const PERF_TEST_SBTC_SOURCE_RESPONSE = {
 	updatedAt: "2026-11-03T19:50:00Z",
 };
 
-/** A week of hourly health for the subgraphs list story. */
 function weekHealth(errors24h: number) {
 	const day = exampleHealth(errors24h).hours;
 	const hours = Array.from({ length: 168 }, (_, i) => ({
@@ -193,8 +186,6 @@ function weekHealth(errors24h: number) {
 	return { hours, errors24h };
 }
 
-/** Subgraphs for the index story: healthy, catching up, reindexing and
- *  failing rows, each on a week of health. */
 const MANY_SUBGRAPHS = [
 	{ ...exampleList[0], name: "sbtc-deposits" },
 	{ ...exampleList[1], name: "vault-events", blocksRemaining: 112 },
@@ -361,7 +352,6 @@ const LAB_ACCOUNT = {
 	createdAt: "2026-04-01T00:00:00Z",
 };
 
-/** A slice of the nav bar, so the open menu hangs off a real hairline. */
 const navSlice = (children: ReactNode) => (
 	<div style={{ position: "relative", height: 360 }}>
 		<div
@@ -406,15 +396,12 @@ const LAB_TIP: ChainTip = {
 	nodeTip: 9_226_704,
 	okAt: NOW,
 };
-/** The pill in place (not fixed) with its tooltip open, so every state reads at once. */
 const statusRow = (tip: ChainTip) => (
 	<div className="lab-cs">
 		<ChainStatusView tip={tip} now={NOW} open />
 	</div>
 );
 
-/** One page's worth of status in a single tone: the sentence, a row whose
- *  chart follows it, a neutral paused row, and the fact that is wrong. */
 function StatusStory({ tone }: { tone: Tone }) {
 	const flag = tone === "hi" ? "att" : tone === "alarm" ? "fail" : undefined;
 	const sentence = {
@@ -499,7 +486,6 @@ const SHELL_ROWS: { name: string; tone: Tone; state: string; count: string }[] =
 const LONG_COMMAND =
 	"sl webhooks doctor sentinel:SP000000000000000000002Q6VF78.vault:~0123456789abcdef";
 
-/** Deterministic daily rhythm for the chart stories: no randomness, no real data. */
 const wave = (i: number, base: number, swing: number) =>
 	Math.round(base + swing * Math.sin((((i % 24) - 15) / 24) * 2 * Math.PI));
 
@@ -539,7 +525,6 @@ const insightFor = (rule: string) => {
 
 const STORY_BLOCK_GAPS = [8, 11, 7, 9, 14, 8, 6, 9, 10, 8, 7, 12, 9, 8, 9, 10];
 
-/** Pulse fixtures: 48 hours ending at a fixed "now", with a failing tail for the incident. */
 const PULSE_NOW = new Date("2026-10-18T14:30:00.000Z");
 function pulseProps(
 	state: "incident" | "healthy" | "new",
@@ -608,7 +593,6 @@ function pulseProps(
 	};
 }
 
-/** A 390px phone-width column for the gesture primitives. */
 function PhoneColumn({ children }: { children: ReactNode }) {
 	return (
 		<div
@@ -626,7 +610,6 @@ function PhoneColumn({ children }: { children: ReactNode }) {
 	);
 }
 
-/** A 390px phone frame showing the mobile header and tab bar in place. */
 function MobileFrame({
 	pathname,
 	failingWebhooks,

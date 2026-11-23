@@ -1,8 +1,5 @@
 import type { StreamsEventType } from "./event-types.ts";
 
-// The physical event `type` labels as stored in the chain `events` table — the
-// firehose vocab. Distinct from STREAMS_EVENT_TYPES (the decoded/public names in
-// event-types.ts); these are the raw DB labels the indexer reads/counts.
 /**
  * Version of the cursor ordinal contract. A Streams cursor is
  * `block_height:stream_event_index`, where the index is a dense ordinal over
@@ -62,8 +59,6 @@ export const DB_TO_STREAMS_EVENT_TYPE: Record<
 	contract_event: "print",
 };
 
-// Each streams type maps to one or more DB type labels. Print maps to two
-// (see comment on STREAMS_DB_EVENT_TYPES); all other types are 1:1.
 export const STREAMS_TO_DB_EVENT_TYPES: Record<
 	StreamsEventType,
 	readonly StreamsDbEventType[]

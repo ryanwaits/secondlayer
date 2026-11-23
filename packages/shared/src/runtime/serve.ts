@@ -1,7 +1,3 @@
-/**
- * One-box entrypoint: validate config, migrate under an advisory lock,
- * then supervise the default profile as child processes.
- */
 import { spawn } from "node:child_process";
 import { MODULE_COMMANDS } from "./commands.ts";
 import { parseRuntimeConfig } from "./config.ts";

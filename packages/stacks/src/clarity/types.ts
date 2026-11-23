@@ -34,7 +34,6 @@ export const ClarityWireType = {
 	utf8: 0x0e,
 } as const satisfies Record<ClarityType, number>;
 
-/** Reverse lookup: wire byte → ClarityType string */
 const wireTypeToClarity = Object.fromEntries(
 	Object.entries(ClarityWireType).map(([k, v]) => [v, k]),
 ) as Record<number, ClarityType>;
@@ -44,8 +43,6 @@ export function clarityTypeFromByte(byte: number): ClarityType {
 	if (!type) throw new Error(`Unknown clarity wire type: ${byte}`);
 	return type;
 }
-
-// CV types
 
 export type IntCV = { readonly type: "int"; readonly value: bigint };
 export type UIntCV = { readonly type: "uint"; readonly value: bigint };
@@ -74,7 +71,7 @@ export type StandardPrincipalCV = {
 };
 export type ContractPrincipalCV = {
 	readonly type: "contract";
-	readonly value: string; // "address.name"
+	readonly value: string;
 };
 export type PrincipalCV = StandardPrincipalCV | ContractPrincipalCV;
 export type ListCV = {

@@ -4,13 +4,6 @@ import type {
 	RuneEventType,
 } from "../streams-rows/events.ts";
 
-// Wire shapes delivered to a direct chain-event webhook's webhook. Canonical
-// here so the producer (subgraphs trigger evaluator + reorg handler) and consumers
-// (SDK webhook verify) share one definition and can't drift. The delivered body is
-// the envelope; `event` is the matched chain event (decoded shape varies by trigger).
-
-// ── sBTC typed event payloads ─────────────────────────────────────────────────
-
 /**
  * Payload for `sbtc_deposit` (topic: completed-deposit).
  * `recipient` is the Stacks principal the deposit minted sBTC to (a wallet or

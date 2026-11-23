@@ -31,7 +31,6 @@ export type MulticallResult<T extends boolean> = T extends true
 	? (MulticallSuccessResult | MulticallFailureResult)[]
 	: ClarityValue[];
 
-/** Run `fn` over `items` with at most `limit` in flight, preserving order. */
 async function mapWithConcurrency<T, R>(
 	items: readonly T[],
 	limit: number,

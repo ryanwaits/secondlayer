@@ -10,15 +10,8 @@ import {
 } from "./stack-status";
 import { poll } from "./webhooks-store";
 
-/**
- * Polls a list read and keeps the notice it implies. A notice means "no data
- * to show": the page decides when to show it (only while nothing is cached).
- * A page that opened with the server's read (`initial`) waits a full interval
- * for the first poll unless `immediate` says that read wasn't enough.
- */
 export function usePollNotice<T>(opts: {
 	initial: WebhooksResult<T> | null | undefined;
-	/** Runs one read (and any siblings the page wants refreshed with it). */
 	run: () => Promise<WebhooksResult<unknown>>;
 	intervalMs: number;
 	immediate: boolean;
@@ -47,11 +40,6 @@ export function usePollNotice<T>(opts: {
 	return notice;
 }
 
-/**
- * Wake an asleep stack. `waking` falls back to a failure after
- * `WAKE_TIMEOUT_MS`, so a wake that never lands doesn't read "Waking…"
- * forever.
- */
 export function useWake(wake: () => Promise<WebhooksResult<unknown>>): {
 	waking: boolean;
 	error: string | null;

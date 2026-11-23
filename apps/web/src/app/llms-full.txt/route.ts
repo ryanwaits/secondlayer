@@ -1,9 +1,7 @@
 import { readAllDocsMarkdown } from "@/lib/docs-source";
 
-/** Sidebar groups that are guides; the generated references are listed in `llms-api.txt` and per-page `.md`. */
 const GUIDE_GROUPS = ["Start", "Products", "Tools", "Guides"];
 
-/** The one reference page agents need to use any endpoint: envelope, cursors, filters, SSE. */
 const REST_CONVENTIONS = "/docs/rest-api";
 
 /**

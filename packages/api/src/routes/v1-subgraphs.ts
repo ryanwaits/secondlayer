@@ -116,7 +116,6 @@ function buildSortedKeysetPredicate(
 		const idRef = pushIdParam();
 		return `(${col} IS NULL AND "_id" > ${idRef})`;
 	}
-	// DESC
 	if (position.value !== null) {
 		params.push(position.value);
 		const vRef = `$${params.length}::${sqlType}`;
@@ -127,22 +126,8 @@ function buildSortedKeysetPredicate(
 	return `((${col} IS NULL AND "_id" < ${idRef}) OR ${col} IS NOT NULL)`;
 }
 
-/**
- * Open read surface for subgraphs: /v1/subgraphs. Self-host only: hosted
- * does not run subgraphs, so the platform app does not mount this router.
- *
- * Posture matches the other /v1 surfaces — wildcard CORS, anon reads allowed
- * on a loopback bind, cursor envelope. Names are unique per instance.
- *
- * The authed /api/subgraphs surface (deploys, ops) is unchanged.
- */
-
 const app = new Hono();
 
-// ── Auth ────────────────────────────────────────────────────────────────
-
-// Same rule as Index and Streams: open on a loopback bind, instance token
-// past it.
 app.use("*", async (c, next) => {
 	const raw = bearerToken(c);
 	if (raw !== null && instanceTokenMatches(raw)) {
@@ -155,22 +140,12 @@ app.use("*", async (c, next) => {
 	await next();
 });
 
-// ── Resolution ──────────────────────────────────────────────────────────
-
 function requireReadableSubgraph(name: string): Subgraph {
 	const subgraph = cache.get(name);
 	if (!subgraph) throw new SubgraphNotFoundError(name);
 	return subgraph;
 }
 
-// ── Discovery ───────────────────────────────────────────────────────────
-
-/**
- * Contract provenance from the definition's source filters: contractId on
- * call/deploy/print filters, the principal half of assetIdentifier
- * ("SP….contract::token") on FT/NFT filters. Directory cards and the
- * "build one like this" scaffold CTA both key off this.
- */
 function extractSources(v: Subgraph): string[] {
 	const sources = (v.definition as { sources?: Record<string, unknown> })
 		.sources;
@@ -212,7 +187,6 @@ function summarize(
 	};
 }
 
-/** Approximate per-schema row counts (single pg_stat scan on the managed DB). */
 async function getRowCounts(): Promise<Map<string, number>> {
 	const counts = new Map<string, number>();
 	try {
@@ -334,8 +308,6 @@ app.get("/:subgraphName", async (c) => {
 	});
 });
 
-// ── Generated docs ──────────────────────────────────────────────────────
-
 // Same generators as /api/subgraphs. Registered before
 // /:subgraphName/:tableName so the static segments win.
 
@@ -371,8 +343,6 @@ app.get("/:subgraphName/docs.md", async (c) => {
 	});
 });
 
-// ── Table reads (delegated cores share logic with /api/subgraphs) ───────
-
 app.get("/:subgraphName/:tableName/count", async (c) => {
 	const { subgraphName, tableName } = c.req.param();
 	const subgraph = requireReadableSubgraph(subgraphName);
@@ -397,8 +367,6 @@ app.get("/:subgraphName/:tableName/:id", async (c) => {
 	const subgraph = requireReadableSubgraph(subgraphName);
 	return handleRowById(c, subgraph, tableName, id);
 });
-
-// ── Cursor-paginated rows ───────────────────────────────────────────────
 
 // /v1 envelope: { rows, next_cursor, tip } with keyset pagination — by `_id`
 // by default, or by `?_sort=<column>&_order=asc|desc` (single column; the
@@ -467,8 +435,6 @@ app.get("/:subgraphName/:tableName", async (c) => {
 
 	try {
 		const parsed = parseQueryParams(query, validColumns, tableDef, tableName);
-		// parsed.sorts has at most one entry here — the pre-check above rejects
-		// a comma list before parseQueryParams ever sees it.
 		const sortSpec = parsed.sorts[0];
 		// The sort column's direction doubles as the _id tiebreaker's direction
 		// (composite keyset comparisons must be monotonic). Without _sort,

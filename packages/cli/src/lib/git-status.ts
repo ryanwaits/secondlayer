@@ -1,11 +1,3 @@
-/**
- * Git status inspection for subgraph source files.
- *
- * Used to warn when deploying a subgraph definition whose source isn't
- * staged or committed: the deployed definition would then exist only as a
- * database row, with no recoverable copy.
- */
-
 import { execFileSync } from "node:child_process";
 import { dirname } from "node:path";
 
@@ -55,8 +47,6 @@ export function inspectSourceGitState(absPath: string): SourceGitState {
 	// without a commit in between.
 	const unstaged = runGit(["diff", "--name-only", "--", absPath], cwd);
 	if (unstaged === null) {
-		// git is present and the repo is valid, but the diff call itself
-		// failed unexpectedly, so fall back to the permissive outcome.
 		return { kind: "not-a-repo" };
 	}
 	if (unstaged.length > 0) {

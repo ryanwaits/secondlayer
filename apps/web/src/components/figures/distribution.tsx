@@ -12,11 +12,6 @@ const PB = 30;
 const PW = W - PL - PR;
 const PH = H - PT - PB;
 
-/**
- * C5 Distribution — the spread, not the average. Percentile markers are
- * dashed ink (not a series color) and direct-labeled; per-bin hover
- * gives the exact count.
- */
 export function Distribution({
 	bins,
 	binWidth,
@@ -26,12 +21,9 @@ export function Distribution({
 	countUnit = "samples",
 	ariaLabel,
 }: {
-	/** Count per bin, left to right; bin i covers [i*binWidth, (i+1)*binWidth). */
 	bins: number[];
 	binWidth: number;
-	/** Unit label for the x axis, e.g. "ms". */
 	unit: string;
-	/** Direct-labeled dashed markers, x in axis units. */
 	percentiles?: { label: string; x: number }[];
 	xTicks: number[];
 	countUnit?: string;

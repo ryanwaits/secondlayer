@@ -17,18 +17,13 @@ export function ResourceRow({
 	href: string;
 	name: string;
 	tone: Tone;
-	/** Small faint label after the name. */
 	kind?: string;
-	/** The state line (text, or text plus a "Why ›" span). */
 	state?: ReactNode;
-	/** A chart element from a later plan, or nothing. */
 	spark?: ReactNode;
 	count?: string;
 	age?: string;
-	/** Full name for the title tooltip when the shown name is shortened. */
 	nameTitle?: string;
 }) {
-	// Healthy and neutral rows show nothing; attention and failing tint the row.
 	const flag = flagClass(tone);
 	return (
 		<IntentLink href={href} className={flag ? `dash-row ${flag}` : "dash-row"}>
@@ -44,7 +39,6 @@ export function ResourceRow({
 	);
 }
 
-/** The five column labels of a resource table. */
 export type ResourceRowLabels = [string, string, string, string, string];
 
 export function ResourceRowHead({
@@ -52,7 +46,6 @@ export function ResourceRowHead({
 	className,
 }: {
 	labels: ResourceRowLabels;
-	/** Extra class, for a second header further down the same table. */
 	className?: string;
 }) {
 	return (
@@ -66,7 +59,6 @@ export function ResourceRowHead({
 	);
 }
 
-/** A row's shape while the Overview's first data is in flight. */
 export function ResourceRowSkeleton() {
 	return (
 		<div className="dash-row" aria-hidden="true">

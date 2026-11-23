@@ -1,10 +1,3 @@
-/**
- * Account insights: every 5 minutes, evaluate the account-level rules (reads,
- * billing) for each account with recent activity, and for each account that
- * still has an open insight so it can clear. Webhook and subgraph insights are
- * evaluated inside each tenant stack instead. No-op outside platform mode.
- */
-
 import { getErrorMessage, logger } from "@secondlayer/shared";
 import { getDb } from "@secondlayer/shared/db";
 import { getInstanceMode } from "@secondlayer/shared/mode";
@@ -23,7 +16,6 @@ export interface AccountInsightsCronDeps {
 	firstTickMs?: number;
 }
 
-/** One pass over every active account. A failing account never stops the rest. */
 export async function evaluateActiveAccounts(
 	deps: AccountInsightsCronDeps = {},
 	now: Date = new Date(),
@@ -59,7 +51,6 @@ export function startAccountInsightsCron(
 
 	let running = false;
 	const tick = async () => {
-		// Never overlap passes: a slow one skips the next tick.
 		if (running) return;
 		running = true;
 		try {

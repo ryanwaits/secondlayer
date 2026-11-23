@@ -37,7 +37,6 @@ function bare(txid: string): string {
 	return txid.startsWith("0x") ? txid.slice(2) : txid;
 }
 
-/** Deposit output value − minted amount, in sats. Null when the output is missing. */
 export function depositFee(
 	depositTx: RawTransaction,
 	outputIndex: number,
@@ -151,10 +150,6 @@ export function depositMaxFee(
  */
 const unreadableMaxFee = new Set<string>();
 
-/**
- * Canonical deposits still missing a fee, or missing only `max_fee` while
- * their sweep is known, newest first.
- */
 async function readPendingDeposits(
 	db: Kysely<Database>,
 	limit: number,
@@ -189,13 +184,11 @@ async function readPendingDeposits(
 	return rows as PendingDeposit[];
 }
 
-/** Fill `fee`/`max_fee` on up to `limit` deposits. Returns rows filled. */
 export async function fillDepositFees(opts: {
 	reader: DepositTxReader;
 	db?: Kysely<Database>;
 	limit?: number;
 	signal?: AbortSignal;
-	/** Injected by tests. Defaults to the process-wide set. */
 	unreadable?: Set<string>;
 }): Promise<number> {
 	const db = opts.db ?? getSourceDb();
@@ -233,7 +226,6 @@ export async function fillDepositFees(opts: {
 					deposit.output_index,
 					{ recipient: deposit.recipient, fee },
 				);
-				// The sweep was read and still gave nothing: retrying cannot help.
 				if (maxFee === null) unreadable.add(deposit.cursor);
 			}
 		}

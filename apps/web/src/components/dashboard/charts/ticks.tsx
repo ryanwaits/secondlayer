@@ -1,9 +1,3 @@
-/**
- * Delivery ticks: one thin bar per hour that had deliveries, `--alarm` where
- * any failed. Deliveries are discrete events, so a tick marks presence, never
- * magnitude: every bar is the same height. Plain SVG so it renders on the
- * server.
- */
 export function Ticks({
 	delivered,
 	failed = [],
@@ -12,14 +6,11 @@ export function Ticks({
 	title,
 	tone,
 }: {
-	/** Deliveries per hour. */
 	delivered: readonly number[];
-	/** Failed deliveries per hour, same length as `delivered`. */
 	failed?: readonly number[];
 	width?: number;
 	height?: number;
 	title: string;
-	/** The row this sits in is attention: delivered ticks follow it. */
 	tone?: "att";
 }) {
 	const slot = width / (delivered.length || 1);

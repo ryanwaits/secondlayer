@@ -5,11 +5,8 @@ import {
 	NextResponse,
 } from "next/server";
 
-/** Server-side PostHog ingestion; the browser's /ingest rewrite points here. */
 const POSTHOG_CAPTURE = "https://us.i.posthog.com/capture/";
 
-/** The session cookie. A visitor who has one is signed in (a stale one is
- *  cleared by `/api/auth/me` on the account page's first read). */
 const SESSION_COOKIE = "sl_session";
 
 /**

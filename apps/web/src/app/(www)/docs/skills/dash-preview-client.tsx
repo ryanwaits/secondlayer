@@ -8,9 +8,6 @@ import {
 } from "../../../../../../../skills/secondlayer/dash/template/kit.js";
 import { demoFetch } from "./dash-demo";
 
-/** Mounts the real kit on the example account, in a shadow root so docs
- *  styles never reach it. It polls `demoFetch` like it polls the local proxy,
- *  and stops when the preview unmounts. */
 export function DashPreviewClient({
 	css,
 	spec,

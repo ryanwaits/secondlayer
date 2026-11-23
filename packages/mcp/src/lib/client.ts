@@ -65,8 +65,6 @@ export function getArchiveOpsClient(): SecondLayer {
 	});
 }
 
-// Appended to 401/403 errors raised on keyless requests — the operation needs
-// a write/account key, so point at where to get one.
 export function keyHint(baseUrl: string = resolveBaseUrl()): string {
 	return isHostedApiUrl(baseUrl)
 		? " — set SECONDLAYER_API_KEY (an sk-sl_ key from secondlayer.tools/account/keys)"

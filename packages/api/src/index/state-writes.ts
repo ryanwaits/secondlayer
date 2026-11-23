@@ -35,8 +35,6 @@ export const STATE_WRITES_FILTERS = [
 	"tx_context",
 ] as const;
 
-/** The writing transaction, joined when the read passed `tx_context=true`.
- *  Null fields for block-level writes. */
 export type StateWriteTxContext = {
 	tx_id: string | null;
 	tx_sender: string | null;
@@ -50,7 +48,6 @@ export type IndexStateWrite = {
 	cursor: string;
 	block_height: number;
 	ordinal: number;
-	/** Null for block-level writes. */
 	tx_index: number | null;
 	key: string;
 	value_hex: string;
@@ -69,9 +66,7 @@ export type ReadStateWritesParams = {
 	fromHeight: number;
 	toHeight: number;
 	limit: number;
-	/** Only the data map and data var writes of this contract. */
 	contractId?: string;
-	/** Join the writing transaction onto each row. */
 	txContext?: boolean;
 	db?: Kysely<Database>;
 };
@@ -93,7 +88,6 @@ type StateWriteRow = {
 	value_hex: string;
 } & Partial<StateWriteTxContext>;
 
-/** `<principal>.<contract-name>`, nothing else: the filter is a key prefix. */
 const CONTRACT_ID = /^S[0-9A-Z]{1,40}\.[a-zA-Z][a-zA-Z0-9_-]{0,127}$/;
 
 /**
@@ -105,8 +99,6 @@ function contractKeyPrefix(contractId: string): string {
 	return `vm::${contractId}::`;
 }
 
-/** The tx at `(block_height, tx_index)`, looked up inside the write's own
- *  block (one `transactions_height_tx_index_uniq` probe per block). */
 const TX_CONTEXT_JOIN = sql`
 	LEFT JOIN LATERAL (
 		SELECT t.tx_id, t.sender AS tx_sender, t.type AS tx_type,
@@ -119,7 +111,6 @@ const TX_CONTEXT_JOIN = sql`
 
 const TX_CONTEXT_COLUMNS = sql`, tx.tx_id, tx.tx_sender, tx.tx_type, tx.tx_status, tx.tx_contract_id, tx.tx_function_name`;
 
-/** The page query, exported so a test can EXPLAIN it. */
 export function stateWritesQuery(
 	params: Omit<ReadStateWritesParams, "db">,
 ): RawBuilder<StateWriteRow> {
@@ -150,7 +141,6 @@ export function stateWritesQuery(
 	`;
 }
 
-/** Canonical `state_writes` in `(block_height, ordinal)` order. */
 export async function readStateWrites(
 	params: ReadStateWritesParams,
 ): Promise<ReadStateWritesResult> {
@@ -191,11 +181,6 @@ export async function readStateWrites(
 	};
 }
 
-/**
- * One canonical block's writes, whole and in ordinal order: what
- * `/v1/proofs/writes/{height}` serves for naming a block's diff. Empty when
- * the block is not canonical or this node never delivered its writes.
- */
 export async function readBlockStateWrites(
 	height: number,
 	db: Kysely<Database> = getSourceDb(),
@@ -215,7 +200,6 @@ export async function readBlockStateWrites(
 	}));
 }
 
-/** `contract_id` and `tx_context`, validated. */
 export function parseStateWritesFilters(query: URLSearchParams): {
 	contractId?: string;
 	txContext: boolean;
@@ -233,11 +217,6 @@ export function parseStateWritesFilters(query: URLSearchParams): {
 	return { contractId, txContext: raw === "true" };
 }
 
-/**
- * Fold `block_height=H` into the shared window params: `from_height=H&
- * to_height=H`, or `to_height=H` under a cursor that must sit at H. Every
- * downstream parse (window, cache plan) then sees one shape.
- */
 export function resolveStateWritesQuery(
 	query: URLSearchParams,
 ): URLSearchParams {
@@ -262,7 +241,6 @@ export function resolveStateWritesQuery(
 }
 
 export async function getStateWritesResponse(opts: {
-	/** Already through `resolveStateWritesQuery`. */
 	query: URLSearchParams;
 	tip: IndexTip;
 	readStateWrites?: StateWritesReader;

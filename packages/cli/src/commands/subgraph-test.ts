@@ -19,17 +19,10 @@ import { error, info, printError, success, warn } from "../lib/output.ts";
 export { toContractCallPayload, toHandlerPayload };
 
 /**
- * `secondlayer subgraphs test` — run a subgraph's handlers against real chain data
- * WITHOUT deploying.
- *
  * The verb is `test`, not `replay`: `replay` already means "re-deliver
  * historical rows to a webhook" in two places in this CLI
  * (`secondlayer webhooks replay`, `@secondlayer/subgraphs/runtime/replay`), and
  * overloading it would be a third meaning for the same word.
- *
- * Until now the only feedback loop was production, and it showed: three of
- * four production subgraphs shipped broken, one holding 0 rows chain-wide
- * for a whole release because of a 3-line field-mapping bug.
  *
  * Reads are metered, so a range is REQUIRED and results are recorded to a
  * cassette. The cassette is keyed by the source filters and the decoder
@@ -52,11 +45,9 @@ interface Cassette {
 	events: Record<string, CassetteRow[]>;
 }
 
-/** Index event or contract-call row stored in a cassette. */
 type CassetteRow = IndexEvent | IndexContractCall;
 
 export function filterHashOf(sources: Record<string, unknown>): string {
-	// Stable across key order so a cosmetic reshuffle doesn't invalidate.
 	const stable = JSON.stringify(
 		Object.fromEntries(
 			Object.entries(sources).sort(([a], [b]) => a.localeCompare(b)),
@@ -96,22 +87,10 @@ export function loadCassette(
 	return parsed;
 }
 
-/** Index event types a source filter maps onto, or null when unsupported. */
-/**
- * Subgraph source type → the `event_type` `/v1/index/events` accepts, or null
- * when the source isn't an events read at all.
- *
- * Validated against the canonical decoded vocabulary rather than returned as a
- * bare `string`: this used to hand back `string` and the call site cast it with
- * `as any`, so a source type the Index API doesn't serve would have sailed
- * through to a 400 at runtime.
- */
 function eventTypeFor(filter: { type: string }):
 	| DecodedEventType
 	| VmEventType
 	| null {
-	// contract_call uses index.contractCalls.list (handled in the fetch loop).
-	// contract_deploy has no Index list endpoint.
 	if (filter.type === "contract_deploy") {
 		return null;
 	}
@@ -374,11 +353,6 @@ export async function runSubgraphTest(
 				});
 				events[name] = envelope.events;
 			} catch (err) {
-				// Every failure of this read used to escape as an unhandled
-				// rejection: the CLI printed a stack through `packages/sdk/dist`
-				// and, on a 401, blamed a credential that had deployed a subgraph
-				// ninety seconds earlier. Name the read, the endpoint, and a next
-				// command instead.
 				const failure = indexReadFailure(err, {
 					source: name,
 					fromHeight,
@@ -418,7 +392,6 @@ export async function runSubgraphTest(
 		}
 	}
 
-	// ── Run the LOCAL handlers ─────────────────────────────────────────
 	for (const name of Object.keys(events)) {
 		const handler =
 			(def.handlers as Record<string, unknown>)[name] ??
@@ -435,7 +408,6 @@ export async function runSubgraphTest(
 		events: events as Parameters<typeof applySubgraphTest>[0]["events"],
 	});
 
-	// ── Report ─────────────────────────────────────────────────────────
 	info("");
 	for (const table of result.tables) {
 		info(`  ${table.name.padEnd(24)} ${String(table.rows).padStart(6)} rows`);
@@ -452,7 +424,6 @@ export async function runSubgraphTest(
 	info("");
 
 	if (result.code === "NO_EVENTS") {
-		// Nothing matched in this range — not a handler defect.
 		warn(
 			result.hint ??
 				`No events matched these sources in blocks ${fromHeight}–${toHeight}. Widen the range (--to) or check the source filters.`,

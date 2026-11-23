@@ -40,9 +40,6 @@ import {
  * distinct `replayIdSuffix` (e.g. a timestamp) to get a fresh key.
  */
 
-/** Default cap on blocks per replay call — overridable via
- *  `WEBHOOK_REPLAY_MAX_BLOCKS` for an operator who wants a tighter (or, for a
- *  trusted self-host, looser) limit. Read live, not baked in at import. */
 const WEBHOOK_REPLAY_MAX_BLOCKS_DEFAULT = 100_000;
 
 function webhookReplayMaxBlocks(): number {
@@ -54,9 +51,6 @@ function webhookReplayMaxBlocks(): number {
 		: WEBHOOK_REPLAY_MAX_BLOCKS_DEFAULT;
 }
 
-/** Renders a block count the way the original hardcoded message did
- *  ("100k blocks") for round thousands, falling back to the raw number for a
- *  ceiling that isn't a clean multiple of 1000. */
 function formatBlockCount(n: number): string {
 	return n % 1000 === 0 ? `${n / 1000}k` : `${n}`;
 }
@@ -179,7 +173,6 @@ export async function replayChainWebhook(
 	const source =
 		opts?.source ??
 		new PublicApiBlockSource(buildHttpClient(), referencedEventTypes([sub]));
-	// sBTC + trait reads: this stack's tables, or hosted Index on a tenant.
 	const reader = chainDataReader();
 
 	let scanned = 0;

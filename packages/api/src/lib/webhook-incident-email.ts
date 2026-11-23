@@ -1,11 +1,5 @@
 import { renderEmail } from "@secondlayer/shared/email";
 
-/**
- * Copy for the "webhook can't reach your server" email. One email per account
- * per tick: a single webhook gets the detailed layout, several get a list.
- * Sent from `POST /internal/webhook-incidents`.
- */
-
 export interface IncidentEmailItem {
 	id: string;
 	name: string;
@@ -32,7 +26,6 @@ const MONTHS = [
 	"Dec",
 ];
 
-/** "Oct 15, 09:05 UTC" */
 function formatUtc(date: Date): string {
 	const hh = String(date.getUTCHours()).padStart(2, "0");
 	const mm = String(date.getUTCMinutes()).padStart(2, "0");

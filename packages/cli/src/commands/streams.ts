@@ -35,8 +35,6 @@ function client(): ReturnType<typeof createStreamsClient> {
 	});
 }
 
-/** Client for the public bulk dumps. Dumps are unauthenticated, so no API key
- *  is required — only the public dumps base URL. */
 function dumpsClient(
 	dumpsUrl: string | undefined,
 ): ReturnType<typeof createStreamsClient> {
@@ -194,7 +192,6 @@ function rejectStacksFilters(
 	}
 }
 
-/** Parse a single-or-comma-list filter into a string (one) or string[] (many). */
 const CHAIN_HELP =
 	"stacks (default) or bitcoin (Runes events, their own cursors)";
 
@@ -496,7 +493,6 @@ Examples:
 			},
 		);
 
-	// --- dumps ---
 	const runDumps = async (options: {
 		to: string;
 		dumpsUrl?: string;

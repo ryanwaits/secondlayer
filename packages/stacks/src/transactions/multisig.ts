@@ -30,7 +30,6 @@ import {
 } from "./types.ts";
 import { serializeTransaction } from "./wire/serialize.ts";
 
-// OP codes for redeem script
 const OP_CHECKMULTISIG = 0xae;
 
 /** Check if hash mode is non-sequential (SIP-027) */
@@ -38,7 +37,6 @@ export function isNonSequential(hashMode: number): boolean {
 	return (hashMode & 0x04) !== 0;
 }
 
-/** Build a Bitcoin-style redeem script for m-of-n multi-sig */
 function makeRedeemScript(
 	publicKeys: string[],
 	signaturesRequired: number,
@@ -47,7 +45,7 @@ function makeRedeemScript(
 	parts.push(new Uint8Array([0x50 + signaturesRequired])); // OP_n
 	for (const pk of publicKeys) {
 		const pkBytes = hexToBytes(pk);
-		parts.push(new Uint8Array([pkBytes.length])); // length prefix (0x21 for compressed)
+		parts.push(new Uint8Array([pkBytes.length]));
 		parts.push(pkBytes);
 	}
 	parts.push(new Uint8Array([0x50 + publicKeys.length])); // OP_m
@@ -68,7 +66,7 @@ export function makeMultiSigAddress(
 	}
 	const redeemScript = makeRedeemScript(publicKeys, signaturesRequired);
 	const signer = hash160(redeemScript);
-	const version = chain?.addressVersion?.multiSig ?? 20; // mainnet default
+	const version = chain?.addressVersion?.multiSig ?? 20;
 	return c32address(version, bytesToHex(signer));
 }
 
@@ -93,7 +91,6 @@ export function createMultiSigSpendingCondition(
 	};
 }
 
-/** Compute the initial sighash for a transaction (same as signBegin) */
 function initialSigHash(tx: StacksTransaction): string {
 	const cleared: StacksTransaction = {
 		...tx,
@@ -102,7 +99,6 @@ function initialSigHash(tx: StacksTransaction): string {
 	return txidFromBytes(serializeTransaction(cleared));
 }
 
-/** Compute the presign-sighash used by all non-sequential signers */
 function nonSequentialPreSignHash(tx: StacksTransaction): string {
 	const condition = tx.auth.spendingCondition as MultiSigSpendingCondition;
 	const initHash = initialSigHash(tx);
@@ -121,7 +117,6 @@ export function replayMultiSigSigHash(tx: StacksTransaction): string {
 	// Non-sequential: all signers sign the same presign-sighash, no field chaining
 	if (isNonSequential(condition.hashMode)) {
 		const preSign = nonSequentialPreSignHash(tx);
-		// Chain through all fields to get the final sighash
 		let curSigHash = preSign;
 		for (const field of condition.fields) {
 			curSigHash = sigHashPostSign(
@@ -133,7 +128,6 @@ export function replayMultiSigSigHash(tx: StacksTransaction): string {
 		return curSigHash;
 	}
 
-	// Sequential: chain through all fields
 	let curSigHash = initialSigHash(tx);
 	for (const field of condition.fields) {
 		const preSign = sigHashPreSign(
@@ -167,16 +161,13 @@ export function signMultiSig(
 		...(tx.auth.spendingCondition as MultiSigSpendingCondition),
 	};
 
-	// Non-sequential: all signers sign the same presign-sighash independently
 	if (isNonSequential(condition.hashMode)) {
 		return signNonSequential(tx, condition, privateKey);
 	}
 
-	// Sequential: existing P2SH behavior
 	return signSequential(tx, condition, privateKey, publicKeys, signerIndex);
 }
 
-/** Non-sequential signing: compute presign-sighash from initial tx, sign, append */
 function signNonSequential(
 	tx: StacksTransaction,
 	condition: MultiSigSpendingCondition,
@@ -185,7 +176,6 @@ function signNonSequential(
 	const fields = [...condition.fields];
 	const preSignHash = nonSequentialPreSignHash(tx);
 
-	// Sign the presign-sighash directly
 	const keyBytes = hexToBytes(privateKey).slice(0, 32);
 	const sig = nobleSign(preSignHash, keyBytes, { lowS: true });
 	const recoveryIdHex = intToHex(sig.recovery, 1);
@@ -200,7 +190,6 @@ function signNonSequential(
 	const newCondition: MultiSigSpendingCondition = { ...condition, fields };
 	const sigCount = fields.filter((f) => f.type === "signature").length;
 
-	// Auto-finalize: non-sequential needs no pubkey gap-filling
 	if (sigCount >= condition.signaturesRequired) {
 		return {
 			...tx,
@@ -214,7 +203,6 @@ function signNonSequential(
 	};
 }
 
-/** Sequential signing: existing P2SH behavior */
 function signSequential(
 	tx: StacksTransaction,
 	condition: MultiSigSpendingCondition,
@@ -224,7 +212,6 @@ function signSequential(
 ): StacksTransaction {
 	const fields = [...condition.fields];
 
-	// Replay sighash through existing fields
 	let curSigHash = initialSigHash(tx);
 	for (const field of fields) {
 		const preSign = sigHashPreSign(
@@ -236,7 +223,6 @@ function signSequential(
 		curSigHash = sigHashPostSign(preSign, field.pubKeyEncoding, field.data);
 	}
 
-	// Fill intervening positions with pubkey fields
 	for (let i = fields.length; i < signerIndex; i++) {
 		const pubKeyField: TransactionAuthField = {
 			type: "publicKey",
@@ -258,7 +244,6 @@ function signSequential(
 		);
 	}
 
-	// Sign at signerIndex
 	const { nextSig, nextSigHash } = nextSignature(
 		curSigHash,
 		AuthType.Standard,
@@ -276,11 +261,9 @@ function signSequential(
 
 	const newCondition: MultiSigSpendingCondition = { ...condition, fields };
 
-	// Count signatures so far
 	const sigCount = fields.filter((f) => f.type === "signature").length;
 	let finalCondition = newCondition;
 
-	// Auto-finalize if enough signatures collected
 	if (sigCount >= condition.signaturesRequired) {
 		finalCondition = finalizeMultiSigCondition(
 			newCondition,
@@ -317,12 +300,10 @@ export async function signMultiSigWithAccount(
 		...(tx.auth.spendingCondition as MultiSigSpendingCondition),
 	};
 
-	// Non-sequential: all signers sign the same presign-sighash independently
 	if (isNonSequential(condition.hashMode)) {
 		return signNonSequentialWithAccount(tx, condition, account);
 	}
 
-	// Sequential: existing behavior
 	return signSequentialWithAccount(
 		tx,
 		condition,
@@ -332,7 +313,6 @@ export async function signMultiSigWithAccount(
 	);
 }
 
-/** Non-sequential signing with account */
 async function signNonSequentialWithAccount(
 	tx: StacksTransaction,
 	condition: MultiSigSpendingCondition,
@@ -358,7 +338,6 @@ async function signNonSequentialWithAccount(
 	};
 }
 
-/** Sequential signing with account */
 async function signSequentialWithAccount(
 	tx: StacksTransaction,
 	condition: MultiSigSpendingCondition,
@@ -368,7 +347,6 @@ async function signSequentialWithAccount(
 ): Promise<StacksTransaction> {
 	const fields = [...condition.fields];
 
-	// Replay sighash through existing fields
 	let curSigHash = initialSigHash(tx);
 	for (const field of fields) {
 		const preSign = sigHashPreSign(
@@ -380,7 +358,6 @@ async function signSequentialWithAccount(
 		curSigHash = sigHashPostSign(preSign, field.pubKeyEncoding, field.data);
 	}
 
-	// Fill intervening positions with pubkey fields
 	for (let i = fields.length; i < signerIndex; i++) {
 		const pubKeyField: TransactionAuthField = {
 			type: "publicKey",
@@ -402,7 +379,6 @@ async function signSequentialWithAccount(
 		);
 	}
 
-	// Sign at signerIndex
 	const preSign = sigHashPreSign(
 		curSigHash,
 		AuthType.Standard,
@@ -426,11 +402,9 @@ async function signSequentialWithAccount(
 
 	const newCondition: MultiSigSpendingCondition = { ...condition, fields };
 
-	// Count signatures so far
 	const sigCount = fields.filter((f) => f.type === "signature").length;
 	let finalCondition = newCondition;
 
-	// Auto-finalize if enough signatures collected
 	if (sigCount >= condition.signaturesRequired) {
 		finalCondition = finalizeMultiSigCondition(
 			newCondition,
@@ -455,7 +429,6 @@ export function finalizeMultiSig(
 ): StacksTransaction {
 	const condition = tx.auth.spendingCondition as MultiSigSpendingCondition;
 
-	// Non-sequential: no pubkey gap-filling needed
 	if (isNonSequential(condition.hashMode)) {
 		return tx;
 	}
@@ -476,7 +449,6 @@ export function finalizeMultiSig(
 	};
 }
 
-/** Internal: finalize remaining pubkey slots (sequential only) */
 function finalizeMultiSigCondition(
 	condition: MultiSigSpendingCondition,
 	publicKeys: string[],
@@ -485,7 +457,6 @@ function finalizeMultiSigCondition(
 	const fields = [...condition.fields];
 	let sigHash = curSigHash;
 
-	// Fill remaining positions
 	for (let i = fields.length; i < publicKeys.length; i++) {
 		const pubKeyField: TransactionAuthField = {
 			type: "publicKey",
@@ -523,7 +494,6 @@ export function combineMultiSigSignatures(
 		);
 	}
 
-	// Collect all signature fields from each signed tx
 	const seenSigs = new Set<string>();
 	const signatures: TransactionAuthField[] = [];
 

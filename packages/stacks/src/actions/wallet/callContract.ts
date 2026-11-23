@@ -24,7 +24,7 @@ import {
 } from "./utils.ts";
 
 export type CallContractParams = {
-	contract: string; // "address.name"
+	contract: string;
 	functionName: string;
 	args?: ClarityValue[];
 	/** @deprecated Use `args` (same as readContract). */
@@ -48,7 +48,6 @@ export async function callContract(
 	const [contractAddress, contractName] = parseContractId(params.contract);
 	const args = resolveCallArgs(params);
 
-	// Provider: delegate to wallet
 	if (isProviderAccount(account)) {
 		assertNoFeeTierForProvider(params.fee);
 		const result = await account.provider.request("stx_callContract", {
@@ -59,7 +58,6 @@ export async function callContract(
 		return result.txid;
 	}
 
-	// Local/Custom: build → sign → broadcast
 	const managed =
 		params.nonce === undefined && client.nonceManager !== undefined;
 	const nonce = params.nonce ?? (await resolveNonce(client, account.address));

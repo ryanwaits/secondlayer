@@ -3,15 +3,10 @@ export type StatTileItem = {
 	value: string;
 	sub?: string;
 	subTone?: "good";
-	/** Optional word-scale spark under the value. */
 	spark?: number[];
 	sparkRole?: "a" | "b";
 };
 
-/**
- * A1 StatTile — one number IS the point. Tabular numerals, optional
- * spark with emphasized endpoint. Never three tiles saying the same thing.
- */
 export function StatTile({ tiles }: { tiles: StatTileItem[] }) {
 	return (
 		<div className="fig-tiles">

@@ -99,10 +99,6 @@ async function loadDirJournalPayload(
 	return { hash: canonical.hash, payload };
 }
 
-/** The canonical journal payload for a height — the `/new_block` body whose
- *  `block_hash` matches what we currently hold canonical there. `null` if the
- *  height isn't canonical, or no journal row was ever captured for it (e.g.
- *  heights before `observer_journal` existed, 2026-08-11). */
 export async function loadCanonicalJournalPayload(
 	db: Kysely<Database>,
 	height: number,
@@ -144,14 +140,10 @@ export type HeightDiff = {
 	status: HeightDiffStatus;
 	journalTxCount: number | null;
 	dbTxCount: number;
-	/** In the journal, absent from `transactions`. */
 	missingTxIds: string[];
-	/** In `transactions`, absent from the journal — a tx that doesn't belong here. */
 	extraTxIds: string[];
 };
 
-/** Compare a height's `transactions` against its own canonical journal
- *  payload. Read-only. */
 export async function diffHeightAgainstJournal(
 	db: Kysely<Database>,
 	height: number,
@@ -214,9 +206,6 @@ export async function diffHeightAgainstJournal(
 	};
 }
 
-/** Whether a height gets re-persisted: a diverged tx set always, a matching
- *  one only under `--force` (re-parse after a parser fix). Heights without a
- *  canonical block or journal payload never: there is nothing to rebuild from. */
 export function shouldRepair(
 	status: HeightDiffStatus,
 	force: boolean,
@@ -224,9 +213,6 @@ export function shouldRepair(
 	return status === "diverged" || (force && status === "match");
 }
 
-/** Re-persist a height from its canonical journal payload through the normal
- *  persist path (replace-per-height + the fail-loud completeness assertion).
- *  Throws if the height has no journal payload — never guesses. */
 export async function repairHeightFromJournal(
 	db: Kysely<Database>,
 	height: number,
@@ -250,10 +236,6 @@ export async function repairHeightFromJournal(
 	});
 }
 
-/** Parse a journaled `/new_block` body and persist it at `height` through the
- *  normal persist path — the one parse used by every journal-sourced repair.
- *  A different stored hash at `height` is archived as an orphan by
- *  `persistBlock`, exactly as on a live reorg. */
 export async function persistJournalPayload(
 	db: Kysely<Database>,
 	payload: NewBlockPayload,
@@ -290,10 +272,6 @@ export type NodeVerifyResult =
 	| { status: "mismatch" }
 	| { status: "node-unavailable"; reason: string };
 
-/** Recompute the stored txids' tx merkle root for a height and compare it
- *  against the node's own header. Independent of the journal — this checks
- *  what's in `transactions` right now against consensus, not against our own
- *  recorded callback. */
 export async function verifyHeightAgainstNode(
 	db: Kysely<Database>,
 	height: number,
@@ -346,9 +324,7 @@ type Args = {
 	verifyNode: boolean;
 	derive: boolean;
 	nodeUrl: string;
-	/** Re-persist matching heights too (re-parse after a parser fix). */
 	force: boolean;
-	/** Read payloads from `<dir>/<height>.json` instead of `observer_journal`. */
 	journalDir?: string;
 };
 

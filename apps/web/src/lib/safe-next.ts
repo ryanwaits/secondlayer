@@ -21,7 +21,6 @@ export function safeNextPath(
 	}
 }
 
-/** Where a signed-out visitor on `path` goes to sign in and come back. */
 export function signInThen(path: string): string {
 	return `/signin?next=${encodeURIComponent(path)}`;
 }
@@ -30,15 +29,12 @@ const NEXT_STORAGE = "sl_next";
 /** How long a remembered return path survives: the magic-link email's life. */
 const NEXT_TTL_MS = 15 * 60 * 1000;
 
-/** The sign-in page's `?next=`, checked. Read at call time so the page needs
- *  no Suspense boundary for `useSearchParams`. */
+/** Read at call time so the page needs no Suspense boundary for `useSearchParams`. */
 export function currentNext(): string {
 	if (typeof window === "undefined") return "/account";
 	return safeNextPath(new URLSearchParams(window.location.search).get("next"));
 }
 
-/** The sign-in page's `?email=`, when it is an address: the code was already
- *  sent (docs "Make a lasting key"), so the page opens on the code step. */
 export function codeStepEmail(search: string): string | null {
 	const email = new URLSearchParams(search).get("email")?.trim() ?? "";
 	return email.length <= 254 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
@@ -46,17 +42,13 @@ export function codeStepEmail(search: string): string | null {
 		: null;
 }
 
-/** Keep the return path for the emailed link, which opens in a new tab. */
 export function rememberNext(path: string, now = Date.now()): void {
 	try {
 		if (path === "/account") localStorage.removeItem(NEXT_STORAGE);
 		else localStorage.setItem(NEXT_STORAGE, JSON.stringify({ path, at: now }));
-	} catch {
-		// Storage blocked: the emailed link lands on /account instead.
-	}
+	} catch {}
 }
 
-/** The remembered return path, once; `/account` when none or expired. */
 export function takeRememberedNext(now = Date.now()): string {
 	try {
 		const raw = localStorage.getItem(NEXT_STORAGE);

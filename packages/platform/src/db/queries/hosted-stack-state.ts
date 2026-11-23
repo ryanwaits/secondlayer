@@ -1,12 +1,6 @@
 import type { Database } from "@secondlayer/shared/db";
 import type { Kysely } from "kysely";
 
-/**
- * The hosted stack's real state, as reported by the workload host (the owner
- * of `tenants.state`). One row per account in `hosted_stack_state`; no row
- * means nothing has been reported yet.
- */
-
 /** Mirrors the workload control DB's `TENANT_STATES` and the table CHECK. */
 export const HOSTED_STACK_STATES = [
 	"provisioning",
@@ -16,12 +10,9 @@ export const HOSTED_STACK_STATES = [
 ] as const;
 export type HostedStackState = (typeof HOSTED_STACK_STATES)[number];
 
-/** Mirrors the workload control DB's `STOP_REASONS` and the table CHECK. */
 export const HOSTED_STACK_STOP_REASONS = ["credits", "cap", "idle"] as const;
 export type HostedStackStopReason = (typeof HOSTED_STACK_STOP_REASONS)[number];
 
-/** What the platform knows about an account's hosted stack. `none` means no
- *  stack: never reported, or destroyed. It is never "stopped". */
 export type ServiceState =
 	| "none"
 	| "provisioning"
@@ -37,7 +28,6 @@ export type StackStateReport = {
 	observedAt: Date;
 };
 
-/** The one place a reported (state, reason) pair becomes a `ServiceState`. */
 export function serviceStateOf(
 	row: {
 		state: HostedStackState;
@@ -56,15 +46,10 @@ export function serviceStateOf(
 	}
 }
 
-/** True for the two stops the customer fixes by adding credits or raising the
- *  cap. An idle stop is never a billing event. */
 export function isBillingStop(state: ServiceState): boolean {
 	return state === "stopped_credits" || state === "stopped_cap";
 }
 
-/** The three-value state `GET /api/billing/usage` has always returned as
- *  `service.state`, for clients that predate `service.stack`. Remove once
- *  the web app reads `stack`. */
 export function legacyServiceState(
 	state: ServiceState,
 ): "running" | "stopped" | "none" {
@@ -72,8 +57,6 @@ export function legacyServiceState(
 	return state.startsWith("stopped_") ? "stopped" : "none";
 }
 
-/** Upserts reports for existing accounts. A report older than the stored one
- *  is ignored. Returns the number applied. */
 export async function upsertStackStates(
 	db: Kysely<Database>,
 	reports: StackStateReport[],

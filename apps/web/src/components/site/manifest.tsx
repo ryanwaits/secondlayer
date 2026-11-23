@@ -1,12 +1,10 @@
 export interface ManifestRow {
 	dataset: string;
 	rows: string;
-	/** 0-100, rendered as an ink bar. */
 	share: number;
 	coverage: string;
 }
 
-/** Signed-manifest table: yellow seal, dataset rows with ink share bars. */
 export function Manifest({
 	title,
 	rows,

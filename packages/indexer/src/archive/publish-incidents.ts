@@ -63,7 +63,6 @@ const REQUIRED_FIELDS = [
 	"root_cause",
 ] as const;
 
-/** A report missing its root cause is a notification, not an incident report. */
 export function validateReport(report: IncidentReport, file: string): void {
 	for (const field of REQUIRED_FIELDS) {
 		if (!report[field]) {
@@ -99,7 +98,6 @@ export function buildIndex(
 	return {
 		schema_version: 1,
 		updated_at: updatedAt,
-		// Newest first: a consumer checking "anything new?" reads the top.
 		incidents: [...reports]
 			.sort((a, b) => b.id.localeCompare(a.id))
 			.map((r) => ({

@@ -91,8 +91,6 @@ const HOSTED_SURFACES = [
 	},
 ] as const;
 
-/** GET /v1 — surface discovery. Lists the public surfaces and where
- *  their per-surface indexes / OpenAPI live. Anonymous, no rate limit. */
 export function createV1IndexRouter() {
 	const router = new Hono();
 

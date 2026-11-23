@@ -1,23 +1,6 @@
 import type { Database } from "@secondlayer/shared/db";
 import type { Kysely } from "kysely";
 
-/**
- * The archive fetch gate's charge log. Append-only: one row
- * per priced attempt to fetch a partition object from the API's
- * `/api/archive/{quote,fetch}` routes. Two read paths this module serves:
- *
- *   - `recentChargedPaths` — the 24h re-issue window. A path already paid
- *     for by this account within the last day re-presigns for free.
- *   - `allowancePartitionsUsedThisMonth` — the monthly free-repair
- *     allowance counter (partitions, not bundles — the route divides by 3
- *     when reporting bundles to the caller).
- *
- * Mirrors `account-credits.ts` in this directory: plain functions over an
- * injected `Kysely<Database>` (or `Transaction<Database>`, which extends
- * it), so the archive route can run the whole charge-and-log sequence
- * inside one DB transaction.
- */
-
 export type ArchiveFetchRecord = {
 	accountId: string;
 	path: string;
@@ -28,7 +11,6 @@ export type ArchiveFetchRecord = {
 
 const RE_ISSUE_WINDOW_MS = 24 * 60 * 60 * 1000;
 
-/** The subset of `paths` this account already paid for within the last 24h. */
 export async function recentChargedPaths(
 	db: Kysely<Database>,
 	accountId: string,
@@ -47,7 +29,6 @@ export async function recentChargedPaths(
 	return new Set(rows.map((row) => row.path));
 }
 
-/** UTC calendar-month bounds `now` falls in: `[start, end)`. */
 function monthBounds(now: Date): { start: Date; end: Date } {
 	const start = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
 	const end = new Date(
@@ -56,8 +37,6 @@ function monthBounds(now: Date): { start: Date; end: Date } {
 	return { start, end };
 }
 
-/** Count of partitions this account has pulled via the free repair allowance
- *  in `now`'s UTC calendar month. */
 export async function allowancePartitionsUsedThisMonth(
 	db: Kysely<Database>,
 	accountId: string,
@@ -75,7 +54,6 @@ export async function allowancePartitionsUsedThisMonth(
 	return row ? Number(row.count) : 0;
 }
 
-/** Insert one charge-log row. Never updated after insert. */
 export async function recordFetch(
 	db: Kysely<Database>,
 	record: ArchiveFetchRecord,

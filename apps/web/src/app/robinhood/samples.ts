@@ -11,7 +11,6 @@ export const TWIN_MINT = String.raw`function mint(uint256 lockNonce, address to,
     emit Minted(lockNonce, to, amount);
 }`;
 
-/** How the relayer reads locks, from relayer/src/sources.ts. */
 export const RELAYER_READ = String.raw`const client = createStreamsClient({
   baseUrl: config.apiUrl,
   apiKey: config.apiKey,

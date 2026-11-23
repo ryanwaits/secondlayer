@@ -4,9 +4,6 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 /**
- * Post masthead: a "Blog / 02" breadcrumb, the title, the dek. The rail beside the column
- * carries the date, length, sections and figures; below 760px the rail hides
- * and the one-line meta under the title carries the date and length.
  * Title lives ONLY here — post MDX bodies start at h2 so the docs MdxH1
  * mapping is never hit.
  *

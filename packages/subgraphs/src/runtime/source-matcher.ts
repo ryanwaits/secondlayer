@@ -34,11 +34,8 @@ export type EventRecord = {
 	clock?: "vm";
 };
 
-// ── Wildcard matching (shared with v1) ──────────────────────────────
-
 const patternCache = new Map<string, RegExp>();
 
-/** Match a value against one pattern, or ANY pattern in a set. */
 function matchAny(value: string, pattern: string | readonly string[]): boolean {
 	return Array.isArray(pattern)
 		? pattern.some((p) => matchPattern(value, p))
@@ -72,11 +69,6 @@ const EMPTY_SET: ReadonlySet<string> = new Set();
  *  caller as-of the block being processed. */
 export type FactoryContracts = ReadonlyMap<string, ReadonlySet<string>>;
 
-/**
- * A factory-scoped source matches only contracts its factory has revealed.
- * Same shape as {@link traitAllows}: the set is injected, so this module
- * stays pure and sync.
- */
 function factoryAllows(
 	filter: { factory?: { from: string; field: string } },
 	contractId: string | undefined | null,
@@ -110,7 +102,6 @@ function traitAllows(
 	return (traitContracts.get(trait) ?? EMPTY_SET).has(contractId);
 }
 
-/** Extract the contract id from an asset identifier (`<contract>::<token>`). */
 function assetContract(assetId: string | undefined): string | undefined {
 	return assetId?.split("::")[0];
 }
@@ -140,11 +131,6 @@ const decodedPrints = new WeakMap<
 	Record<string, unknown> | null
 >();
 
-/**
- * The print's decoded top-level tuple, from the canonical `raw_value` hex
- * (source-independent: the node and Index reconstruct both carry it). `null`
- * when the hex is missing, undecodable, or not a tuple.
- */
 function decodedPrintTuple(
 	event: EventRecord,
 	data: Record<string, unknown>,
@@ -185,7 +171,6 @@ export function printFieldEquals(
 		: expected.includes(actual);
 }
 
-/** `topic` and `where` on a print source, matched against the decoded tuple. */
 function printFieldsAllow(
 	filter: {
 		topic?: string;
@@ -205,8 +190,6 @@ function printFieldsAllow(
 	return true;
 }
 
-// ── Per-filter-type matchers ────────────────────────────────────────
-
 function matchFilter(
 	filter: SubgraphFilter,
 	transactions: TxRecord[],
@@ -218,7 +201,6 @@ function matchFilter(
 	const results: { tx: TxRecord; events: EventRecord[] }[] = [];
 
 	switch (filter.type) {
-		// ── STX events ──
 		case "stx_transfer":
 		case "stx_mint":
 		case "stx_burn":
@@ -229,7 +211,6 @@ function matchFilter(
 				const matched = txEvents.filter((e) => e.type === eventType);
 				if (matched.length === 0) continue;
 
-				// Apply address filters
 				const filtered = matched.filter((e) => {
 					const data = e.data as Record<string, unknown> | null;
 					if (!data) return false;
@@ -247,7 +228,6 @@ function matchFilter(
 						)
 							return false;
 					}
-					// Amount filters
 					if ("minAmount" in filter && filter.minAmount !== undefined) {
 						const amount = BigInt(
 							(data.amount ?? data.locked_amount ?? "0") as string,
@@ -272,7 +252,6 @@ function matchFilter(
 			break;
 		}
 
-		// ── FT events ──
 		case "ft_transfer":
 		case "ft_mint":
 		case "ft_burn": {
@@ -284,13 +263,11 @@ function matchFilter(
 					const data = e.data as Record<string, unknown> | null;
 					if (!data) return false;
 
-					// Asset identifier filter
 					if (filter.assetIdentifier) {
 						const assetId = data.asset_identifier as string | undefined;
 						if (!assetId || !matchPattern(assetId, filter.assetIdentifier))
 							return false;
 					}
-					// Trait scope — the asset's contract must conform.
 					if (
 						!traitAllows(
 							filter,
@@ -299,7 +276,6 @@ function matchFilter(
 						)
 					)
 						return false;
-					// Address filters
 					if ("sender" in filter && filter.sender) {
 						if (!matchPattern(data.sender as string, filter.sender))
 							return false;
@@ -308,7 +284,6 @@ function matchFilter(
 						if (!matchPattern(data.recipient as string, filter.recipient))
 							return false;
 					}
-					// Amount filter
 					if (filter.minAmount !== undefined) {
 						const amount = BigInt((data.amount ?? "0") as string);
 						if (amount < filter.minAmount) return false;
@@ -323,7 +298,6 @@ function matchFilter(
 			break;
 		}
 
-		// ── NFT events ──
 		case "nft_transfer":
 		case "nft_mint":
 		case "nft_burn": {
@@ -366,19 +340,15 @@ function matchFilter(
 			break;
 		}
 
-		// ── Contract call ──
 		case "contract_call": {
 			for (const tx of transactions) {
 				if (tx.type !== "contract_call") continue;
 
-				// Contract filter
 				if (filter.contractId) {
 					if (!tx.contract_id || !matchAny(tx.contract_id, filter.contractId))
 						continue;
 				}
-				// Factory scope: only contracts this source's factory revealed.
 				if (!factoryAllows(filter, tx.contract_id, factoryContracts)) continue;
-				// Function filter
 				if (filter.functionName) {
 					if (
 						!tx.function_name ||
@@ -386,11 +356,9 @@ function matchFilter(
 					)
 						continue;
 				}
-				// Caller filter
 				if (filter.caller) {
 					if (!matchPattern(tx.sender, filter.caller)) continue;
 				}
-				// Trait scope — the called contract must conform.
 				if (!traitAllows(filter, tx.contract_id, traitContracts)) continue;
 
 				const txEvents = eventsByTx.get(tx.tx_id) ?? [];
@@ -399,7 +367,6 @@ function matchFilter(
 			break;
 		}
 
-		// ── Contract deploy ──
 		case "contract_deploy": {
 			for (const tx of transactions) {
 				if (tx.type !== "smart_contract") continue;
@@ -488,7 +455,6 @@ function matchFilter(
 			break;
 		}
 
-		// ── Print event ──
 		case "print_event": {
 			for (const tx of transactions) {
 				const txEvents = eventsByTx.get(tx.tx_id) ?? [];
@@ -534,7 +500,6 @@ export function matchSources(
 	/** Opt-in `vm_events` rows (second clock). Only vm-typed sources read them. */
 	vmEvents: EventRecord[] = [],
 ): MatchedTx[] {
-	// Index events by txId — one map per clock.
 	const eventsByTx = new Map<string, EventRecord[]>();
 	for (const event of events) {
 		const list = eventsByTx.get(event.tx_id) ?? [];

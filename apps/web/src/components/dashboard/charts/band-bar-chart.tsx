@@ -29,11 +29,6 @@ import {
 
 const MARK_FONT_SIZE = 10.5;
 
-/**
- * Stacked bars per category (`n` in `--ch-a`, `p` in `--ch-b`, `f` in
- * `--alarm`; `emphasis="p"` swaps the two blues) over an optional "usual range" band. Highlighted categories fill
- * `--ch-mark`; an optional mark draws a dashed line with a pill label.
- */
 export function BandBarChart({
 	rows,
 	height = 180,
@@ -46,18 +41,11 @@ export function BandBarChart({
 }: {
 	rows: BarsRow[];
 	height?: number;
-	/** `[index, label]` pairs; only these categories get an x tick. */
 	xLabels: [number, string][];
-	/** Tooltip heading per point, such as "Thu 14:00 UTC". Falls back to the x tick. */
 	pointLabels?: readonly string[];
-	/** Suffix for y labels (such as "ms"). Omit for compact counts (1.2k). */
 	yUnit?: string;
-	/** A dashed vertical line at a category, with a `--ch-mark` pill. */
 	mark?: { index: number; label: string };
-	/** Tooltip names for the `n`, `p` and `f` stacks. */
 	seriesNames?: { n: string; p: string; f: string };
-	/** The stack drawn in the strong blue; the other gets the lighter step.
-	 *  Rows sets `p` so paid usage, not the free allowance, is what stands out. */
 	emphasis?: "n" | "p";
 }) {
 	const tone = {

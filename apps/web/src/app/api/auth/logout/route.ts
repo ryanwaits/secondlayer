@@ -2,7 +2,6 @@ import { ApiError, apiRequest, getSessionFromRequest } from "@/lib/api";
 import { crossSiteRefusal } from "@/lib/same-origin";
 import { NextResponse } from "next/server";
 
-// Next to the API, so each dashboard read and write takes the short hop.
 export const preferredRegion = "fra1";
 
 export async function POST(req: Request) {
@@ -33,12 +32,10 @@ export async function POST(req: Request) {
 		);
 		return res;
 	} catch (e) {
-		// Clear cookie even on error
 		const res = NextResponse.json(
 			{ error: e instanceof ApiError ? e.message : "Internal error" },
 			{ status: e instanceof ApiError ? e.status : 500 },
 		);
-		// Domain must match the set cookie or the browser won't clear it.
 		const cookieDomain = process.env.SESSION_COOKIE_DOMAIN;
 		res.headers.set(
 			"Set-Cookie",

@@ -12,12 +12,10 @@ import { resolveAnchor } from "./resolve-anchor";
 
 const BASE_KEY = "apiref-base";
 
-/** Show `base`'s value in every swappable span under `scope`. */
 function applyBase(scope: ParentNode, base: Base) {
 	for (const el of scope.querySelectorAll<HTMLElement>("[data-swap]")) {
 		const swap = BASE_SWAPS[Number(el.dataset.swap)];
 		if (!swap) continue;
-		// Token spans inside keep their color; the first text node takes the whole value.
 		const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
 		let first = true;
 		for (let n = walker.nextNode(); n; n = walker.nextNode()) {
@@ -27,13 +25,6 @@ function applyBase(scope: ParentNode, base: Base) {
 	}
 }
 
-/**
- * Which base URL every cURL on the page targets. The examples render once,
- * with the hosted base wrapped in `data-swap` spans; this flips `data-base` on
- * the page root and rewrites those spans in place. Every example is in the
- * page at render time; the observer also covers code that mounts late. Copy
- * reads `data-base` to match. Remembered per viewer; storage is optional.
- */
 export function BaseUrlSwitch() {
 	const [base, setBase] = useState<Base>("hosted");
 
@@ -41,18 +32,14 @@ export function BaseUrlSwitch() {
 		try {
 			const saved = localStorage.getItem(BASE_KEY);
 			if (saved === "hosted" || saved === "local") setBase(saved);
-		} catch {
-			// Private windows and blocked storage fall back to hosted.
-		}
+		} catch {}
 	}, []);
 
 	useEffect(() => {
 		document.documentElement.setAttribute("data-base", base);
 		try {
 			localStorage.setItem(BASE_KEY, base);
-		} catch {
-			// Not persisted; the choice still applies to this visit.
-		}
+		} catch {}
 		applyBase(document, base);
 		const arrivals = new MutationObserver((records) => {
 			for (const record of records)
@@ -111,9 +98,7 @@ export function CopyText({
 	className,
 	children,
 }: {
-	/** The text itself, or (fetchFrom) a URL to fetch it from on click. */
 	text?: string;
-	/** Read on click, ahead of `text`, for values that depend on page state. */
 	getText?: () => string;
 	fetchFrom?: string;
 	label: string;
@@ -191,11 +176,6 @@ export function ApiHashRedirect({
 	return null;
 }
 
-/**
- * The prompt to hand a coding agent for one endpoint: one row with a Show
- * toggle and a Copy button. Show reveals the text, with the markdown URL as a
- * link and env vars in weight; Copy always writes the plain text.
- */
 export function PromptBar({
 	text,
 	parts,
@@ -243,7 +223,6 @@ export function PromptBar({
 	);
 }
 
-/** Copies an endpoint's full URL for the page's current Base URL choice. */
 export function CopyUrl({ path }: { path: string }) {
 	return (
 		<CopyText
@@ -258,7 +237,6 @@ export function CopyUrl({ path }: { path: string }) {
 	);
 }
 
-/** Copy link · Copy as Markdown · Open .md, for one section. */
 export function SectionActions({ anchor }: { anchor: string }) {
 	// The section's markdown twin, served statically by the docs .md route;
 	// fetched on click rather than shipped inline for all ~120 sections.

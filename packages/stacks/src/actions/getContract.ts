@@ -34,8 +34,6 @@ import { readContract } from "./public/readContract.ts";
 import { callContract } from "./wallet/callContract.ts";
 import { resolveFee, setUnsignedFee } from "./wallet/utils.ts";
 
-// --- Type helpers for unwrapping response types ---
-
 /**
  * Unwrap `(response ok err)` → just the `ok` branch type. Distributes over the
  * `{ ok } | { err }` union: the `err` branch maps to `never` (it throws
@@ -58,7 +56,6 @@ type IsEmptyArgs<A> = [keyof A & string] extends [never]
 		? true
 		: false;
 
-/** No-arg ABI functions may omit the dummy `{}`. Functions with args stay required. */
 type ContractMethod<
 	A,
 	R,
@@ -72,13 +69,6 @@ type ReadMethodReturn<
 	N extends ExtractReadOnlyFunctions<C>,
 > = UnwrapResponse<ExtractFunctionOutput<C, N>>;
 
-// --- Public type for the contract instance ---
-
-/**
- * When the ABI carries a codegen brand (`TypedAbi`), method types resolve to
- * the generated named aliases — cleaner hovers and error messages. Un-branded
- * ABIs fall back to structural inference over the as-const literal.
- */
 type TypedReadMethods<T extends ContractTypes> = {
 	[K in keyof T["functions"] as T["functions"][K]["access"] extends "read-only"
 		? K
@@ -192,7 +182,6 @@ export function getContract<const TAbi extends AbiContract>(
 	const { client, address, name: contractName, abi } = params;
 	const contractId = `${address}.${contractName}`;
 
-	// Index functions/maps by name for fast lookup
 	const fnByName = new Map<string, AbiFunction>();
 	for (const fn of abi.functions) {
 		fnByName.set(fn.name, fn as AbiFunction);
@@ -205,7 +194,6 @@ export function getContract<const TAbi extends AbiContract>(
 		}
 	}
 
-	// Build kebab→camel reverse map for function/map names
 	const camelToKebab = new Map<string, string>();
 	for (const fn of abi.functions) {
 		camelToKebab.set(toCamelCase(fn.name), fn.name);
@@ -232,7 +220,6 @@ export function getContract<const TAbi extends AbiContract>(
 
 				const jsValue = clarityValueToJSUntyped(fn.outputs as AbiType, result);
 
-				// Auto-unwrap: if output is response type, unwrap ok / throw on err
 				if (isResponseOutput(fn.outputs as AbiType)) {
 					const resp = jsValue as { ok?: unknown; err?: unknown };
 					if ("ok" in resp) return resp.ok;
@@ -331,12 +318,10 @@ export function getContract<const TAbi extends AbiContract>(
 					key: clarityKey,
 				});
 
-				// Map entries come back as (optional ...). If none, return null.
 				if (result.type === "none") return null;
 				if (result.type === "some") {
 					return clarityValueToJSUntyped(map.value as AbiType, result.value);
 				}
-				// Direct value (shouldn't normally happen, but handle gracefully)
 				return clarityValueToJSUntyped(map.value as AbiType, result);
 			};
 		},
@@ -358,8 +343,6 @@ export function resolveNetworkContract<
 	}
 	return contracts[client.chain.network];
 }
-
-// --- Helpers ---
 
 /**
  * Encode an ABI function's named args into positional ClarityValues. Exported

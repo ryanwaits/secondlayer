@@ -1,12 +1,4 @@
 /**
- * Web push routes — the installed phone app's notification settings.
- * Session-authed upstream via `resourceAuth`. Not in the public OpenAPI.
- *
- *   GET    /api/push/prefs           VAPID public key + the six toggles
- *   PUT    /api/push/prefs           any subset of the toggles
- *   POST   /api/push/subscriptions   register this browser
- *   DELETE /api/push/subscriptions   forget this browser
- *
  * With no VAPID keys in the environment, `publicKey` is null and subscribing
  * answers 503: push is off, nothing else breaks.
  */
@@ -28,7 +20,6 @@ import { InvalidJSONError } from "../middleware/error.ts";
 
 const app = new Hono();
 
-/** The API speaks camelCase; the columns are snake_case. */
 const FIELDS = {
 	webhookFailing: "webhook_failing",
 	subgraphStopped: "subgraph_stopped",

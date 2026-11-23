@@ -213,7 +213,6 @@ export function parseJsonPreservingBigInts(text: string): JsonBigIntValue {
 	return result;
 }
 
-// Small type-narrowing helpers for callers walking the untyped tree.
 export function asObject(
 	v: JsonBigIntValue,
 ): { [key: string]: JsonBigIntValue } | undefined {

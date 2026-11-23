@@ -88,7 +88,6 @@ const SANS =
 const MONO =
 	"'Geist Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace";
 
-// DESIGN.md roles. Light inline; dark via the head <style> classes below.
 const LIGHT = {
 	paper: "#fbfaf7",
 	ink: "#14110d",

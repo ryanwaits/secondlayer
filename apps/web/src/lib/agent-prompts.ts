@@ -1,7 +1,3 @@
-/**
- * Agent prompts used across platform + marketing touchpoints.
- */
-
 import { CHAIN_TRIGGER_TYPES } from "@secondlayer/shared/schemas/chain-triggers";
 import {
 	FREE_ROWS_PER_MONTH,
@@ -28,12 +24,6 @@ export type AgentPromptSurface =
 export interface AgentPromptContext {
 	webhookId?: string;
 	webhookName?: string;
-	/**
-	 * Facts the console can already see about the webhook. Appended to
-	 * diagnosis-shaped prompts so the agent starts from evidence rather than
-	 * re-deriving it, and so the operator can read exactly what state is being
-	 * handed over.
-	 */
 	observed?: ObservedWebhookState;
 }
 
@@ -41,7 +31,6 @@ export interface ObservedWebhookState {
 	status?: string;
 	url?: string;
 	format?: string;
-	/** ISO instant the state was read, so a stale paste is obvious. */
 	capturedAt?: string;
 	circuitOpenedAt?: string | null;
 	circuitFailures?: number;
@@ -94,9 +83,8 @@ ${body}`.trim();
 }
 
 /**
- * Renders the observed state as a plain bullet list. Omits every field the
- * console couldn't read, so the agent is never handed a confident-looking
- * "unknown" it might reason from.
+ * Omits every field the console couldn't read, so the agent is never handed a
+ * confident-looking "unknown" it might reason from.
  */
 function formatObserved(observed?: ObservedWebhookState): string {
 	if (!observed) return "";

@@ -3,10 +3,6 @@ import { PRODUCT_GLYPH } from "@/components/docs/stack";
 import { ShieldCheckIcon } from "@/components/site/icons";
 import Link from "next/link";
 
-/**
- * Verify's check map, in the intro stack's order and glyphs: one row per
- * layer (Webhooks down to Archive), then the check under all of them.
- */
 export function Checks() {
 	return (
 		<div className="docs-checks">

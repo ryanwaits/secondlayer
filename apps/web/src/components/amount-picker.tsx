@@ -9,16 +9,10 @@ type Name =
 export type AmountPickerProps = {
 	name: string;
 	options: readonly AmountOption[];
-	/** The chosen value; any value not in `options` leaves nothing selected. */
 	value: string;
 	onChange: (value: string) => void;
 } & Name;
 
-/**
- * Pick one amount. Same radio markup as Choice, laid out as boxes with an
- * optional caption under the amount. Selected is a pri tint (wash, 1px pri
- * edge); the solid pri stays the action button's.
- */
 export function AmountPicker({
 	name,
 	options,

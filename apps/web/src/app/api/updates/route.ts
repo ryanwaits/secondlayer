@@ -7,7 +7,6 @@ export type AccountUpdates = {
 	token: string | null;
 };
 
-/** The signed-in account's place on the updates list. */
 export async function GET(req: Request) {
 	const sessionToken = getSessionFromRequest(req);
 	if (!sessionToken) {

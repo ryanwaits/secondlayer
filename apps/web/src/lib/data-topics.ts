@@ -1,17 +1,11 @@
 /**
- * The protocol data pages at /data/<slug>: one registry, one template. Every
- * call, field and trigger here is one the hosted API and SDK serve today; the
- * decoded-protocols section of /docs/index is the source of record.
+ * Every call, field and trigger here is one the hosted API and SDK serve today;
+ * the decoded-protocols section of /docs/index is the source of record.
  */
-/** One way to get a number: the command and what it prints. */
 export type DataExample = { code: string; output: string };
 
 export type DataRecipe = { label: string; code: string; output: string };
 
-/**
- * Stands in for the current PoX-5 reward cycle in the pox5 examples;
- * `liveExamples` fills it from the live numbers, else `FALLBACK_CYCLE`.
- */
 export const CYCLE_TOKEN = "{cycle}";
 export const FALLBACK_CYCLE = 147;
 
@@ -24,30 +18,20 @@ const sl = new SecondLayer({ apiKey: process.env.SECONDLAYER_API_KEY });
 export type DataTopic = {
 	slug: "pox5" | "sbtc" | "runes";
 	eyebrow: string;
-	/** The H1, in the words people search. */
 	title: string;
-	/** `<title>` before the root template appends the brand. */
 	metaTitle: string;
 	description: string;
 	lede: string;
-	/** The line under the H1 when live numbers are showing. */
 	liveLede: string;
-	/** "Get these numbers yourself": the section above the picker. */
 	pick: { heading: string; lede: string };
-	/** The first chip: the same numbers the page shows, three ways to get them. */
 	examples: { free: DataExample; ts: DataExample; curl: DataExample };
-	/** Exactly three chips after "These numbers", each a TypeScript call with a trimmed real output. */
 	recipes: readonly DataRecipe[];
-	/** The push: omitted when the protocol has nothing to subscribe to. */
 	webhook: { lede: string; code: string } | null;
 	docsHref: string;
 	apiHref: string;
 	libraryHref?: string;
-	/** One line under the push, with an optional link after it. */
 	extraLine?: { text: string; link?: { label: string; href: string } };
-	/** Which keyless live aggregate the page shows above the picker. */
 	stats: "sbtc" | "pox" | "runes";
-	/** Draft topics stay out of routing, the sitemap, llms.txt and the footer. */
 	live: boolean;
 };
 
@@ -350,6 +334,5 @@ export const dataTopic = (slug: string): DataTopic | undefined =>
 
 export const dataPath = (topic: DataTopic) => `/data/${topic.slug}`;
 
-/** The hosted keyless aggregate behind a page's live numbers. */
 export const liveDataUrl = (stats: "sbtc" | "pox" | "runes") =>
 	`https://api.secondlayer.tools/public/data/${stats}`;

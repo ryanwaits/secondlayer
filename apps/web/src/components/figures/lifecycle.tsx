@@ -25,12 +25,6 @@ export type LifecycleStep = {
 	caption: string;
 };
 
-/**
- * B4 Lifecycle — a state machine you can walk. "Step" advances along the
- * main path (the last step repeats); event buttons jump to their step,
- * and the next "step" follows the event's `resume` transition back. The
- * caption narrates every transition in words.
- */
 export function Lifecycle({
 	nodes,
 	edges,
@@ -46,7 +40,6 @@ export function Lifecycle({
 	ariaLabel: string;
 	mainPath: LifecycleStep[];
 	events?: { label: string; step: LifecycleStep; resume: LifecycleStep }[];
-	/** Caption when stepping past the end of the main path. */
 	idleCaption?: string;
 }) {
 	const [state, setState] = useState<{

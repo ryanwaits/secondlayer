@@ -32,15 +32,10 @@ export interface WebhookCompactDetailProps {
 	onTest: () => void;
 }
 
-/** What the phone detail needs beyond the webhook itself. */
 export interface CompactReplayProps {
-	/** Keep the recovery steps on screen: the webhook was failing and may since have been resumed. */
 	showRecovery: boolean;
-	/** Dead events since it last succeeded; null until read. */
 	dead: { count: number } | null;
-	/** The bulk requeue of step 3: in flight, or how many went out. */
 	requeue: { busy: boolean; requeued: number | null; onRequeue: () => void };
-	/** This webhook's replay while it runs. */
 	replay: { progress: ReplayProgress; minutesLeft: number | null } | null;
 	onReplay: () => void;
 }
@@ -232,7 +227,6 @@ function Recovery({
 	);
 }
 
-/** The phone detail: what is wrong, the steps back to delivering, and the last day. Pure; `WebhookCompactDetail` feeds it. */
 export function WebhookCompactDetailView({
 	webhook,
 	activity,
@@ -375,10 +369,6 @@ export function WebhookCompactDetailView({
 	);
 }
 
-/**
- * The phone detail with replay and requeue wired in. Everything that talks to
- * the replay API lives here, so it only runs on a phone.
- */
 export function WebhookCompactDetail(props: WebhookCompactDetailProps) {
 	const { webhook } = props;
 	const failing = displayStatus(webhook) === "error";

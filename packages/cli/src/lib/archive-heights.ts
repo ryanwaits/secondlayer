@@ -36,7 +36,6 @@ export type HeightPart =
 
 export type DivergentHeight = { height: number; parts: HeightPart[] };
 
-/** Datasets the per-height sidecar carries a part for. */
 type SidecarDataset = Exclude<CanonicalDataset, "state_writes">;
 
 const PART_FOR_DATASET = {

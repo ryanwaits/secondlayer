@@ -1,32 +1,21 @@
 import { PUBLIC_API_URL } from "@/lib/public-api";
 
-/**
- * The semantic half of the docs search: when the text search is not sure, the
- * API embeds the query and returns the nearest sections by cosine. The browser
- * fuses that with its BM25 scores and re-ranks the same rows in place.
- * Nothing here renders.
- */
-
 export type Scored = { id: string; score: number };
 export type Nearest = { id: string; cos: number };
 export type Fused = { id: string; score: number };
 
-/** Weight of the embedding signal; BM25 gets the rest. */
 const COS_WEIGHT = 0.5;
-/** Fused top-1 minus top-2, in z units, at or above which the lead is trusted. */
 export const FUSED_GAP = 0.8;
 const MIN_WORDS = 3;
 const MIN_CHARS = 12;
 const MAX_CHARS = 200;
 
-/** Long enough to be a question, short enough for the API, and BM25 unsure. */
 export function shouldFind(text: string, sure: boolean): boolean {
 	const t = text.trim();
 	if (sure || t.length > MAX_CHARS) return false;
 	return t.split(/\s+/).length >= MIN_WORDS || t.length >= MIN_CHARS;
 }
 
-/** z-scores of one signal over the union; a missing score counts as the signal's minimum. */
 function zScores(
 	ids: string[],
 	scores: Map<string, number>,
@@ -41,10 +30,6 @@ function zScores(
 	return new Map(ids.map((id, i) => [id, (values[i] - mean) / sd]));
 }
 
-/**
- * 50/50 blend of z-scored BM25 and cosine over the union of both lists, best
- * first. Ties keep BM25 order, then cosine order.
- */
 export function fuse(bm25: Scored[], nearest: Nearest[]): Fused[] {
 	const ids = [
 		...new Set([...bm25.map((r) => r.id), ...nearest.map((r) => r.id)]),
@@ -61,7 +46,6 @@ export function fuse(bm25: Scored[], nearest: Nearest[]): Fused[] {
 		.sort((a, b) => b.score - a.score);
 }
 
-/** The fused lead is trusted when it clears the runner-up by the gap. */
 export function fusedSure(fused: { score: number }[]): boolean {
 	return (
 		fused.length > 0 &&
@@ -69,11 +53,6 @@ export function fusedSure(fused: { score: number }[]): boolean {
 	);
 }
 
-/**
- * Re-ranks the visible rows by fused score. `pinned` is the row the reader is
- * on (arrowed or hovered) with the index it sits at: it keeps both, and the
- * rest fill the other slots in fused order.
- */
 export function reorder<T extends { id: string }>({
 	fused,
 	items,
@@ -104,7 +83,6 @@ const cache = new Map<string, Nearest[]>();
 const cacheKey = (text: string) =>
 	text.trim().toLowerCase().replace(/\s+/g, " ");
 
-/** Settled answers of this tab; `undefined` = never asked. */
 export function cachedNearest(text: string): Nearest[] | undefined {
 	return cache.get(cacheKey(text));
 }
@@ -114,11 +92,6 @@ function isNearest(value: unknown): value is Nearest {
 	return !!v && typeof v.id === "string" && typeof v.cos === "number";
 }
 
-/**
- * Asks the API for the nearest sections. Resolves the list and remembers it;
- * rejects on any error, 429, or abort so callers can stay silent and keep the
- * text results.
- */
 export async function requestNearest(
 	text: string,
 	signal: AbortSignal,

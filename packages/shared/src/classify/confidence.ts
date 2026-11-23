@@ -62,7 +62,6 @@ export function normalizeAnswer(question: Question, raw: RawAnswer): Answer {
 	}
 	if (raw.type === "choice" && question.type === "choice") {
 		const probabilities = raw.probabilities ?? {};
-		// Never fabricate a distribution: no probabilities means confidence 0.
 		return {
 			type: "choice",
 			choice: raw.choice,

@@ -78,7 +78,6 @@ const INT64_FIELD = { type: "INT64", compression: "SNAPPY" } as const;
 
 export type CanonicalDataset = ArchiveDataset;
 
-/** Fixed schema for the per-height digest sidecar. Row order is height asc. */
 function createDigestIndexParquetSchema(): ParquetSchema {
 	return new ParquetSchema({
 		height: INT64_FIELD,
@@ -144,9 +143,6 @@ export type CanonicalPartition = {
 	path: string;
 	row_count: number;
 	byte_size: number;
-	/** sha256 of the Parquet object bytes — exact-body fidelity to this
-	 *  encoding. Cannot prove two independent nodes agree; see the semantic
-	 *  digest for that. */
 	sha256: string;
 	/** sha256 of the concatenated per-row semantic-v1 digests in stream
 	 *  order. Two runtimes speaking v1 agree here even if their Parquet
@@ -181,7 +177,6 @@ export type CanonicalSnapshotManifest = {
 	genesis: { height: number; hash: string };
 	archive_tip: { height: number; hash: string };
 	source_tip: { height: number; hash: string };
-	/** `state_writes` is present only when the snapshot publishes it. */
 	counts: {
 		blocks: number;
 		transactions: number;
@@ -206,11 +201,6 @@ export type CanonicalSnapshotManifest = {
 	 * runtimes can produce byte-different Parquets from identical rows.
 	 */
 	partition_semantic_digests: PartitionSemanticDigest[];
-	/**
-	 * Per-height digest sidecars — one Parquet per partition, addressable by
-	 * height. Enables "verify one block" without downloading a whole raw
-	 * partition. Same partition grid as `partitions[]`.
-	 */
 	digest_index: DigestIndexPartition[];
 	assurance_ranges: Array<{
 		dataset: CanonicalDataset;
@@ -228,15 +218,12 @@ export type CanonicalSnapshotManifest = {
 export type ExportCanonicalSnapshotOptions = {
 	network: string;
 	outDir: string;
-	/** Explicit finalized bound; omit to resolve from burn confirmations. */
 	toBlock?: number;
 	fromBlock?: number;
 	partitionSizeBlocks?: number;
 	db?: Kysely<Database>;
 	generatedAt?: string;
 	signingPrivateKeyPem?: string;
-	/** The most recent prior snapshot manifest, if one exists, used only to
-	 *  size the free-space requirement (see `deriveExportSpaceRequirement`). */
 	previousManifest?: CanonicalSnapshotManifest;
 };
 
@@ -246,8 +233,6 @@ export type ExportCanonicalSnapshotResult = {
 	snapshotDigest: string;
 };
 
-/** Sum of every partition's on-disk bytes a manifest declares — this run's
- *  own footprint, not a chain-wide total (zero-record ranges write nothing). */
 export function manifestTotalBytes(
 	manifest: CanonicalSnapshotManifest,
 ): number {
@@ -317,9 +302,7 @@ export async function loadLatestLocalManifest(
 			) {
 				latest = parsed;
 			}
-		} catch {
-			// Skip a partial/corrupt manifest file rather than fail the export.
-		}
+		} catch {}
 	}
 	return latest;
 }
@@ -342,7 +325,6 @@ export async function exportCanonicalSnapshot(
 		options.toBlock !== undefined
 			? {
 					toBlock: options.toBlock,
-					// Filled from inside the snapshot below.
 					burnTip: 0,
 					finalizedBurnHeight: 0,
 					confirmations: 0,
@@ -354,8 +336,6 @@ export async function exportCanonicalSnapshot(
 			tx,
 		);
 
-		// The audit and the export must describe ONE database state: same
-		// snapshot, same bound. Fail closed on anything short of complete.
 		const audit = await auditCanonicalCoverageInSnapshot(tx, {
 			network: options.network,
 			expectedFromBlock: fromBlock,
@@ -474,9 +454,6 @@ export async function exportCanonicalSnapshot(
 			`${counts.blocks.toLocaleString()} blocks, ${counts.events.toLocaleString()} events`,
 		);
 
-		// Exported row totals must equal the audited totals — a mismatch means
-		// the export itself dropped or duplicated rows, and nothing signed may
-		// leave the building in that state.
 		if (
 			counts.blocks !== bound.toBlock - fromBlock + 1 ||
 			(audit.coverage.to_block === bound.toBlock &&
@@ -610,8 +587,6 @@ async function writeDatasetPartition(params: {
 	toBlock: number;
 	outDir: string;
 	batchRows?: number;
-	/** Shared with sibling dataset writes so one partition's per-height
-	 *  digest sidecar can be emitted after all three datasets finish. */
 	perHeight?: PerHeightDigestAccumulator;
 }): Promise<CanonicalPartition | null> {
 	const { tx, dataset, fromBlock, toBlock, perHeight } = params;

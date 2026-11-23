@@ -4,17 +4,11 @@ import { useHoverPin } from "./use-hover-pin";
 
 export type CrossSegment = string | { pair: string; text: string };
 
-/**
- * D5 CrossHighlight — input↔output correspondence (query ↔ rows). Hover
- * or focus either side and its counterpart lights. Unpaired fields
- * staying dim is information too: they came along for free.
- */
 export function CrossHighlight({
 	chips,
 	segments,
 }: {
 	chips: { pair: string; kicker: string; label: string }[];
-	/** The output, split into plain strings and paired values. */
 	segments: CrossSegment[];
 }) {
 	const { active, bind } = useHoverPin();

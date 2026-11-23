@@ -1,9 +1,3 @@
-/**
- * Mainnet facts for the Stacks ⇄ Robinhood Chain bridge, shared by /robinhood
- * and its phase 0 guide. Public data only, from robinhood-bridge
- * deployments/mainnet.json and its evidence log.
- */
-
 export const HIRO_MAINNET_TX = "https://explorer.hiro.so/txid/";
 export const RH_MAINNET_TX = "https://robinhoodchain.blockscout.com/tx/";
 export const RH_MAINNET_ADDRESS =
@@ -28,20 +22,14 @@ export const ROBINHOOD_CHAIN = {
 
 export type BridgeToken = {
 	symbol: "MEGA" | "PEPE";
-	/** The SIP-010 contract on Stacks. */
 	stacks: string;
-	/** Its `define-fungible-token` name, for the lock's post-condition. */
 	asset: string;
-	/** Its ERC-20 twin on Robinhood Chain. */
 	erc20: string;
 	decimals: number;
-	/** Whole tokens, for everyone together. */
 	cap: number;
-	/** A sensible first amount, in whole tokens. */
 	example: string;
 };
 
-/** Tokens bridging now, in the order the guide offers them. */
 export const BRIDGE_TOKENS: readonly BridgeToken[] = [
 	{
 		symbol: "PEPE",
@@ -65,10 +53,8 @@ export const BRIDGE_TOKENS: readonly BridgeToken[] = [
 ];
 
 export type RoundTrip = {
-	/** The tester's Stacks address (the locker and the release recipient). */
 	stacksAddress: string;
 	token: BridgeToken["symbol"];
-	/** Whole tokens, as shown. */
 	amount: string;
 	lock: string;
 	mint: string;
@@ -76,14 +62,8 @@ export type RoundTrip = {
 	release: string;
 };
 
-/**
- * Round trips run by someone other than the builder, newest first. Add a row
- * when a release lands: the four ids are in robinhood-bridge's
- * evidence-mainnet.jsonl. The list stays hidden on /robinhood while empty.
- */
 export const ROUND_TRIPS: readonly RoundTrip[] = [];
 
-/** `SP2J6Z…8RXK`: enough of each end to tell addresses apart. */
 export function shortAddress(address: string): string {
 	return address.length <= 12
 		? address
@@ -94,10 +74,6 @@ export type BaseUnits =
 	| { ok: true; units: string; overCap: boolean }
 	| { ok: false; reason: "empty" | "invalid" | "decimals" };
 
-/**
- * Whole tokens as typed (`25`, `1,000.5`) to the base units a contract call
- * takes, in exact integer math: 25 MEGA at 2 decimals is `2500`.
- */
 export function toBaseUnits(input: string, token: BridgeToken): BaseUnits {
 	const raw = input.trim().replaceAll(",", "");
 	if (raw === "") return { ok: false, reason: "empty" };

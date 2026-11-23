@@ -39,7 +39,6 @@ export const CANONICAL_ARCHIVE_PREFIX = "secondlayer/mainnet/canonical/v1";
 
 const PARQUET_CONTENT_TYPE = "application/vnd.apache.parquet";
 const IMMUTABLE_CACHE = "public, max-age=31536000, immutable";
-/** 64 MiB parts: a 1–2 GB partition uploads in ~20–30 parts. */
 const MULTIPART_PART_SIZE = 64 * 1024 * 1024;
 
 export type VerifyFailure = {
@@ -49,11 +48,6 @@ export type VerifyFailure = {
 	actual: string;
 };
 
-/**
- * Re-hash every partition in the manifest against the local export directory.
- * Returns the failures; an empty array means the local tree is exactly what
- * the manifest signed.
- */
 export async function verifyLocalSnapshot(
 	dir: string,
 	manifest: CanonicalSnapshotManifest,
@@ -235,7 +229,6 @@ export async function uploadCanonicalSnapshot(params: {
 		);
 	}
 
-	// Manifest last: its presence certifies the objects above it.
 	const manifestKey = `${CANONICAL_ARCHIVE_PREFIX}/snapshots/${snapshotDigest}.json`;
 	if (!params.dryRun) {
 		const existing = await headObjectSize({ client, bucket, key: manifestKey });
@@ -283,7 +276,6 @@ async function main(): Promise<void> {
 	const manifest = await readJsonFile<CanonicalSnapshotManifest>(
 		args.manifestPath,
 	);
-	// snapshots/<digest>.json sits one level below the export root.
 	const dir = join(args.manifestPath, "..", "..");
 
 	const config = getStreamsBulkR2ConfigFromEnv();

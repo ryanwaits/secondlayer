@@ -1,16 +1,9 @@
-/**
- * Minimal QR code generator for WalletConnect URIs.
- * Produces SVG string. Byte-mode encoding, error correction level L.
- * Supports versions 1-10 (up to 271 bytes — plenty for WC URIs).
- */
-
-// Version capacity table (byte mode, EC level L)
 const CAPACITIES = [0, 17, 32, 53, 78, 106, 134, 154, 192, 230, 271];
 
 // Generator polynomials for EC codewords per version (L level)
 // [totalCodewords, ecCodewordsPerBlock, numBlocks]
 const EC_PARAMS: [number, number, number][] = [
-	[0, 0, 0], // v0 placeholder
+	[0, 0, 0],
 	[26, 7, 1],
 	[44, 10, 1],
 	[70, 15, 1],
@@ -31,7 +24,6 @@ function selectVersion(len: number): number {
 	throw new Error("QR data too long");
 }
 
-// GF(256) arithmetic for Reed-Solomon
 const GF_EXP = new Uint8Array(512);
 const GF_LOG = new Uint8Array(256);
 {
@@ -87,21 +79,18 @@ function encodeData(bytes: Uint8Array, version: number): Uint8Array {
 	const [totalCw, ecPerBlock, numBlocks] = EC_PARAMS[version]!;
 	const dataCw = totalCw - ecPerBlock * numBlocks;
 
-	// Build byte-mode bitstream
 	const bits: number[] = [];
 	const push = (val: number, len: number) => {
 		for (let i = len - 1; i >= 0; i--) bits.push((val >> i) & 1);
 	};
 
-	push(0b0100, 4); // byte mode indicator
-	push(bytes.length, version <= 9 ? 8 : 16); // character count
+	push(0b0100, 4);
+	push(bytes.length, version <= 9 ? 8 : 16);
 	for (const b of bytes) push(b, 8);
-	push(0, 4); // terminator (up to 4 bits)
+	push(0, 4);
 
-	// Pad to byte boundary
 	while (bits.length % 8 !== 0) bits.push(0);
 
-	// Build codeword array
 	const codewords = new Uint8Array(dataCw);
 	for (let i = 0; i < dataCw; i++) {
 		let byte = 0;
@@ -113,14 +102,12 @@ function encodeData(bytes: Uint8Array, version: number): Uint8Array {
 		codewords[i] = byte;
 	}
 
-	// Pad codewords
 	let padByte = 0xec;
 	for (let i = Math.ceil(bits.length / 8); i < dataCw; i++) {
 		codewords[i] = padByte;
 		padByte = padByte === 0xec ? 0x11 : 0xec;
 	}
 
-	// Reed-Solomon EC
 	const cwPerBlock = Math.floor(dataCw / numBlocks);
 	const dataBlocks: Uint8Array[] = [];
 	const ecBlocks: Uint8Array[] = [];
@@ -133,7 +120,6 @@ function encodeData(bytes: Uint8Array, version: number): Uint8Array {
 		offset += blockLen;
 	}
 
-	// Interleave
 	const result: number[] = [];
 	const maxDataLen = Math.max(...dataBlocks.map((b) => b.length));
 	for (let i = 0; i < maxDataLen; i++) {
@@ -151,8 +137,6 @@ function encodeData(bytes: Uint8Array, version: number): Uint8Array {
 
 	return new Uint8Array(result);
 }
-
-// QR matrix operations
 
 type Matrix = Uint8Array[];
 
@@ -205,18 +189,15 @@ function addFormatInfo(m: Matrix, res: Matrix) {
 	const n = m.length;
 	for (let i = 0; i < 15; i++) {
 		const bit = (fmt >> (14 - i)) & 1;
-		// Around top-left finder
 		if (i < 6) setModule(m, 8, i, bit, res);
 		else if (i === 6) setModule(m, 8, 7, bit, res);
 		else if (i === 7) setModule(m, 8, 8, bit, res);
 		else if (i === 8) setModule(m, 7, 8, bit, res);
 		else setModule(m, 14 - i, 8, bit, res);
 
-		// Around other finders
 		if (i < 8) setModule(m, n - 1 - i, 8, bit, res);
 		else setModule(m, 8, n - 15 + i, bit, res);
 	}
-	// Dark module
 	setModule(m, n - 8, 8, 1, res);
 }
 
@@ -229,7 +210,7 @@ function placeData(m: Matrix, res: Matrix, data: Uint8Array) {
 	let upward = true;
 
 	while (col >= 0) {
-		if (col === 6) col--; // skip timing column
+		if (col === 6) col--;
 		const rows = upward
 			? Array.from({ length: n }, (_, i) => n - 1 - i)
 			: Array.from({ length: n }, (_, i) => i);
@@ -243,7 +224,6 @@ function placeData(m: Matrix, res: Matrix, data: Uint8Array) {
 					const bitPos = 7 - (bitIdx & 7);
 					// biome-ignore lint/style/noNonNullAssertion: bit-encoding routine where index is provably bounded by surrounding loop/length checks
 					const bit = (data[byteIdx]! >> bitPos) & 1;
-					// Apply mask 0: (row + col) % 2 === 0
 					// biome-ignore lint/style/noNonNullAssertion: bit-encoding routine where index is provably bounded by surrounding loop/length checks
 					m[row]![c] = bit ^ ((row + c) % 2 === 0 ? 1 : 0);
 					bitIdx++;
@@ -259,9 +239,8 @@ function placeData(m: Matrix, res: Matrix, data: Uint8Array) {
 function buildMatrix(version: number, codewords: Uint8Array): Matrix {
 	const n = version * 4 + 17;
 	const m = createMatrix(n);
-	const res = createMatrix(n); // reserved modules
+	const res = createMatrix(n);
 
-	// Finder patterns
 	addFinderPattern(m, 0, 0, res);
 	addFinderPattern(m, 0, n - 7, res);
 	addFinderPattern(m, n - 7, 0, res);
@@ -269,12 +248,10 @@ function buildMatrix(version: number, codewords: Uint8Array): Matrix {
 	addTimingPatterns(m, res);
 	addFormatInfo(m, res);
 
-	// Alignment patterns for v >= 2
 	if (version >= 2) {
-		const pos = [6, version * 4 + 10]; // simplified for v2-v6
+		const pos = [6, version * 4 + 10];
 		for (const r of pos) {
 			for (const c of pos) {
-				// Skip if overlapping finder
 				if (res[r]?.[c]) continue;
 				for (let dr = -2; dr <= 2; dr++) {
 					for (let dc = -2; dc <= 2; dc++) {
@@ -308,7 +285,7 @@ export function qrSvg(
 	const matrix = buildMatrix(version, codewords);
 
 	const n = matrix.length;
-	const quiet = 4; // quiet zone modules
+	const quiet = 4;
 	const total = n + quiet * 2;
 	const scale = size / total;
 

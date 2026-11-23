@@ -21,23 +21,6 @@ import type {
 import type { Kysely } from "kysely";
 import { readReorgGeneration } from "./trigger-evaluator-loop.ts";
 
-/**
- * The Bitcoin (Runes) chain-trigger evaluator (plan 060) — a SECOND, separate
- * evaluator loop alongside the Stacks one in `trigger-evaluator-loop.ts`. Same
- * leader lock (`webhook-leader.ts` starts both under one election) and the
- * same forward-only, fast-forward-to-tip posture, but its own clock: it reads
- * `chain=bitcoin` Streams events (plan 059's Runes feed) instead of Stacks
- * blocks, and advances its own `bitcoin_last_cursor` column rather than
- * `last_processed_block`.
- *
- * Unlike the Stacks evaluator, there's no block/tx reconstruction here — a
- * `RuneStreamsEvent` row already carries everything a Runes trigger needs
- * (`rune_id`, `payload.address`, `payload.amount`), so matching happens
- * directly against the wire row. No long-poll either (Bitcoin blocks are
- * ~10 minutes apart; a plain 15s tick is more than fast enough and Streams'
- * `chain=bitcoin` tip has no `wait` support — see the plan's Refresh note).
- */
-
 const BITCOIN_TRIGGER_POLL_MS = 15_000;
 
 const RUNE_TRIGGER_TYPE_SET = new Set<string>(RUNE_EVENT_TYPES);
@@ -46,7 +29,6 @@ function isRuneTriggerType(type: string): type is RuneEventType {
 	return RUNE_TRIGGER_TYPE_SET.has(type);
 }
 
-/** A webhook's rune triggers only, paired with their index for traceability. */
 function runeTriggersOf(sub: Webhook): ChainTrigger[] {
 	const triggers = (sub.triggers ?? []) as ChainTrigger[];
 	return triggers.filter((trigger) => isRuneTriggerType(trigger.type));
@@ -175,8 +157,6 @@ export async function emitRuneOutbox(
 	return Number(result.numInsertedOrUpdatedRows ?? 0);
 }
 
-// ── Cursor (`trigger_evaluator_state.bitcoin_last_cursor`) ─────────────────
-
 async function readBitcoinCursor(db: Kysely<Database>): Promise<string | null> {
 	const row = await db
 		.selectFrom("trigger_evaluator_state")
@@ -263,8 +243,6 @@ export async function advanceBitcoinCursor(
 	return { advanced, reorged };
 }
 
-// ── Source seam (HTTP in prod, a stub in tests) ────────────────────────────
-
 export interface BitcoinStreamsSource {
 	/** Current `chain=bitcoin` Streams tip height. */
 	getTip(): Promise<number>;
@@ -294,8 +272,6 @@ export function buildBitcoinStreamsSource(
 	};
 }
 
-// ── One tick ────────────────────────────────────────────────────────────────
-
 export type BitcoinEvaluatorTickResult = {
 	emitted: number;
 	advanced: boolean;
@@ -323,8 +299,6 @@ export async function runBitcoinEvaluatorOnce(
 	db: Kysely<Database> = getTargetDb(),
 	source: BitcoinStreamsSource = buildBitcoinStreamsSource(),
 ): Promise<BitcoinEvaluatorTickResult> {
-	// Snapshot before loading anything — mirrors the Stacks evaluator (see its
-	// own comment in `runEvaluatorOnce`).
 	const generation = await readReorgGeneration(db);
 	const chainSubs = await listActiveChainWebhooks(db);
 	const runeSubs = runeSubsOf(chainSubs);
@@ -350,8 +324,6 @@ export async function runBitcoinEvaluatorOnce(
 	if (page.events.length === 0 && advanceTo === null) {
 		return { emitted: 0, advanced: false };
 	}
-	// Outbox rows and the cursor move in one transaction, rejected if a reorg
-	// landed since `generation` was read.
 	const res = await commitRunePage(db, advanceTo, generation, (trx) =>
 		emitRuneOutbox(trx, page.events, runeSubs),
 	);

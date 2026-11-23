@@ -6,7 +6,6 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 
-/** Messages that say nothing the visitor can act on; they get the friendly copy. */
 const GENERIC_ERRORS = new Set(["", "internal error", "verification failed"]);
 const LINK_FAILED =
 	"That sign-in link didn't work. It may have expired or been used already.";

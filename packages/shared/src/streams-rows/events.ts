@@ -1,7 +1,3 @@
-// The raw Streams event shape + payload vocabulary. Canonical home for the
-// event primitives shared by the SDK's Streams surface and the indexer's
-// decoders — the SDK re-exports these unchanged (`StreamsEvent`,
-// `StreamsEventType`, payload types), so the public API is unmoved.
 import type {
 	RuneEventType,
 	StreamsEventType,
@@ -209,19 +205,11 @@ export type VmStreamsEvent =
 	| VmStreamsEventOf<"map_insert", MapWritePayload>
 	| VmStreamsEventOf<"map_delete", MapDeletePayload>;
 
-// ── chain=bitcoin rows (Runes events, plan 059) ────────────────────────────
 // `rune_*` events live in Streams alongside the Stacks rows above, selected by
 // the request's `chain` param — never inside the cursor, so Stacks cursors
 // stay byte-identical (`<height>:<event_index>` is chain-relative, valid only
 // against the chain it was issued for). A response never mixes chains, same
 // rule as `clock`.
-//
-// No `burn_block_height` (Bitcoin has no burn chain of its own) and no `ts`:
-// the Runes Postgres (`packages/bitcoin`, D18) has no per-block wall-clock
-// column — `btc_blocks` is height+hash only (see `RUNE_EVENT_TYPES`'s doc and
-// `packages/bitcoin/migrations/0001_runes.ts`). Adding one is a bitcoin-package
-// migration, out of this plan's scope; a future plan can add `ts` once that
-// column exists.
 
 /** The etch a `rune_etch` event created — everything a consumer needs to
  *  render a fresh rune without a second lookup, minus what the envelope

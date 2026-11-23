@@ -1,6 +1,5 @@
 "use client";
 
-/** Last resort when the async clipboard API refuses: select + execCommand. */
 function copyViaTextarea(text: string): boolean {
 	const ta = document.createElement("textarea");
 	ta.value = text;
@@ -28,9 +27,8 @@ export async function copyText(text: string): Promise<boolean> {
 	}
 }
 
-/** Fetch the page's markdown and put it on the clipboard. The fetch is handed
- *  to the clipboard as a pending item, so Safari still counts the write as
- *  part of the click; other browsers fall back to writeText, then a textarea. */
+/** The fetch is handed to the clipboard as a pending item, so Safari still
+ *  counts the write as part of the click. */
 export async function copyMarkdown(url: string): Promise<boolean> {
 	const load = fetch(url)
 		.then((res) => {
@@ -47,9 +45,7 @@ export async function copyMarkdown(url: string): Promise<boolean> {
 				}),
 			]);
 			return true;
-		} catch {
-			// Fall through; a failed fetch rejects again below.
-		}
+		} catch {}
 	}
 	return copyText(await load);
 }

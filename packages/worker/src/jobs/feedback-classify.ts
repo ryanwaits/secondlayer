@@ -1,10 +1,4 @@
 /**
- * Feedback ticket labeller: every minute, claims `status = 'new'` rows from
- * `feedback_tickets` and routes each to a review queue. Deterministic rules
- * run first; only an undecided ticket goes to the shared classifier
- * (`CLASSIFIER=jev|kev|clef|rules`). The full classifier output is stored on
- * the ticket so agreement with human labels can be measured.
- *
  * Hosted only (no-op outside platform mode). Nothing here deletes, hides or
  * closes a ticket: every route is a visible queue, and a classifier failure
  * or refusal fails open to `human`. Until the eval gate documented on
@@ -47,8 +41,6 @@ const DEFAULT_DEPS: ClassifyDeps = {
 	resolveProviderFn: resolveProvider,
 };
 
-/** Claims and routes up to `limit` new tickets, one short transaction each.
- *  Returns how many were routed. */
 export async function classifyNewTickets(
 	opts: { limit?: number; now?: Date; deps?: ClassifyDeps } = {},
 ): Promise<number> {
@@ -75,9 +67,6 @@ type Claimed = Pick<
 	"intent" | "expected" | "kind_hint" | "evidence" | "attempted" | "origin"
 > & { id: string };
 
-/** Rules, then classifier, then policy. Any throw fails open to human with
- *  reason job_error so one bad ticket never stalls the queue; only ids and
- *  the error message are logged. */
 async function decide(row: Claimed, deps: ClassifyDeps) {
 	try {
 		const ticket: FeedbackTicketInput = {
@@ -91,7 +80,6 @@ async function decide(row: Claimed, deps: ClassifyDeps) {
 		};
 		const rules = rulesFor(ticket);
 
-		// With no model configured the ticket goes to human/fail_open.
 		const result =
 			rules === null && deps.resolveProviderFn(process.env).name !== "rules"
 				? await deps.classifyFn({
@@ -137,7 +125,6 @@ async function decide(row: Claimed, deps: ClassifyDeps) {
 	}
 }
 
-/** Returns false when no unclaimed new ticket is left. */
 async function classifyOne(now: Date, deps: ClassifyDeps): Promise<boolean> {
 	const db = getDb();
 	return db.transaction().execute(async (tx) => {

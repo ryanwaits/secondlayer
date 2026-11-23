@@ -3,8 +3,6 @@
 import { useAuth } from "@/lib/auth";
 import { useState } from "react";
 
-/** The session couldn't be read, which isn't the same as signed out: pages
- *  that would send a signed-out visitor to /signin show this and retry. */
 export function SessionUnreachable() {
 	const { refresh } = useAuth();
 	const [retrying, setRetrying] = useState(false);

@@ -39,15 +39,11 @@ import type { NewBlockPayload } from "./types/node-events.ts";
 export type ForkRepairPlan = {
 	height: number;
 	stored: { hash: string; canonical: boolean };
-	/** The hash block H+1 names as its parent — the canonical block at H. */
 	canonicalHash: string;
 	payload: NewBlockPayload;
 	alreadyCorrect: boolean;
 };
 
-/** Resolve the canonical block for `height` from the journal, confirmed by the
- *  canonical child at H+1. Read-only. Throws (never guesses) when the height is
- *  a gap, has no canonical child, or the journal never captured the block. */
 export async function planForkRepair(
 	db: Kysely<Database>,
 	height: number,
@@ -102,10 +98,6 @@ export async function planForkRepair(
 	};
 }
 
-/** Replace the height with the journaled canonical block, through the same
- *  cascade a live reorg runs (subgraph rewind, decoded rewind, `chain_reorgs`)
- *  and under the apply lock. The losing block's rows are archived as orphans
- *  by `persistBlock`. */
 export async function applyForkRepair(
 	db: Kysely<Database>,
 	plan: ForkRepairPlan,

@@ -35,9 +35,7 @@ const DEFAULTS = {
 	/** Raw-block reads in flight at once, across every request. bitcoind's
 	 *  RPC threads are shared with the node's other readers. */
 	maxBlockReads: 2,
-	/** Requests that may wait for a block-read slot before one is refused. */
 	maxWaiting: 16,
-	/** Parsed blocks kept: watchers polling at a new tip share one read. */
 	blockCacheSize: 8,
 	memoSize: 10_000,
 };
@@ -59,10 +57,8 @@ export type Outspend =
 			note?: string;
 	  };
 
-/** The outpoint does not exist, or can never be spent. */
 export class OutspendNotFoundError extends Error {}
 
-/** Every block-read slot and waiting place is taken. */
 export class OutspendBusyError extends Error {}
 
 type VerboseTx = {
@@ -75,7 +71,6 @@ type VerboseTx = {
 
 type BlockSpends = {
 	prevHash: string;
-	/** `txid:vout` spent in this block → the spender and its input index. */
 	spends: Map<string, { txid: string; vin: number }>;
 };
 
@@ -85,7 +80,6 @@ type Memo =
 
 const outpointKey = (txid: string, vout: number) => `${txid}:${vout}`;
 
-/** Insert as newest, dropping the oldest past `limit`. */
 function remember<K, V>(map: Map<K, V>, key: K, value: V, limit: number) {
 	map.delete(key);
 	map.set(key, value);
@@ -113,7 +107,6 @@ async function getTx(
 	}
 }
 
-/** At most `max` tasks run; up to `maxWaiting` more queue; the rest refuse. */
 function limiter(max: number, maxWaiting: number) {
 	let active = 0;
 	const waiting: Array<() => void> = [];
@@ -127,7 +120,6 @@ function limiter(max: number, maxWaiting: number) {
 		try {
 			return await task();
 		} finally {
-			// Hand the slot straight to the next waiter, or free it.
 			const next = waiting.shift();
 			if (next) next();
 			else active--;
@@ -141,7 +133,6 @@ export function createOutspendLookup(options: OutspendOptions = {}) {
 	const blocks = new Map<string, Promise<BlockSpends>>();
 	const blockRead = limiter(opts.maxBlockReads, opts.maxWaiting);
 
-	/** One raw-block read per hash, shared by every request asking for it. */
 	function blockSpends(rpc: BitcoindCall, hash: string): Promise<BlockSpends> {
 		const cached = blocks.get(hash);
 		if (cached) return cached;
@@ -190,7 +181,6 @@ export function createOutspendLookup(options: OutspendOptions = {}) {
 	const deeperNote = () =>
 		`Spent in a block more than ${opts.scanBlocks} blocks below the tip. Lookups search that many blocks, so the spending transaction is not reported.`;
 
-	/** The memo's confirmed answer, or null when it no longer holds. */
 	async function fromMemo(
 		rpc: BitcoindCall,
 		txid: string,

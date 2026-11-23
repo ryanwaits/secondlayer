@@ -9,17 +9,11 @@ import { Legend } from "../charts/legend";
 
 type SeriesEvidence = Extract<InsightEvidence, { kind: "series" }>;
 
-/** A shape is loud when the receiver errored, or answered 200 with a new kind of body. */
 function isLoudShape(code: string, isNew: boolean): boolean {
 	const status = Number(code);
 	return status >= 400 || (status >= 200 && status < 300 && isNew);
 }
 
-/**
- * Series rendering rule: any `context` series makes a context line chart (the
- * context dashed, then the first `a` series). Otherwise bars from the first `a`
- * series, with indices where a `mark` series is above 0 filled `--ch-mark`.
- */
 function SeriesChart({ item }: { item: SeriesEvidence }) {
 	const context = item.series.find((s) => s.role === "context");
 	const measured = item.series.find((s) => s.role === "a");
@@ -62,7 +56,6 @@ function SeriesChart({ item }: { item: SeriesEvidence }) {
 	);
 }
 
-/** Label/value pairs on one wrapping line, values in mono. */
 function Facts({ facts }: { facts: [string, string][] }) {
 	if (facts.length === 0) return null;
 	return (

@@ -19,8 +19,6 @@ import type { Webhook, WebhookOutbox } from "@secondlayer/shared/db";
  * SDK accepts out of the box.
  */
 
-/** The chain that produced the event. Runes (Bitcoin) payloads carry
- *  `chain: "bitcoin"`; every other trigger matches Stacks events. */
 function chainOf(payload: unknown): "stacks" | "bitcoin" {
 	return (payload as { chain?: unknown } | null)?.chain === "bitcoin"
 		? "bitcoin"

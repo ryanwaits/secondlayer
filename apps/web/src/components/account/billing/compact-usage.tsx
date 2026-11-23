@@ -26,7 +26,6 @@ import type { useCheckout } from "../credits-panel";
 
 const MICROS = 1_000_000;
 const DEFAULT_ALERT_PCT = 80;
-/** Other units listed under Rows read. */
 const MAX_UNIT_LINES = 3;
 
 const monthDay = (date: Date) =>
@@ -37,9 +36,7 @@ const monthDay = (date: Date) =>
 	});
 
 /**
- * The first UTC day on which spend, at a flat `ratePerDay`, reaches `cap`.
- * `spent` is what has been spent through the end of today. Null when nothing
- * is burning. The rate is the one the spend line projects with, so change both
+ * The rate is the one the spend line projects with, so change both
  * together.
  */
 export function capHitDate(
@@ -122,23 +119,17 @@ function Pace({
 export interface UsageBodyProps {
 	now: Date;
 	billing: Billing | null;
-	/** Whole-dollar spend cap, or null for none. */
 	capUsd: number | null;
-	/** True until the cap has loaded: its meter and hint take their room so the
-	 *  page doesn't move when they appear. */
 	capPending?: boolean;
-	/** Percent of the cap that sends the warning email. */
 	alertPct?: number;
 	usage: UsageRow[] | undefined;
 	daily: DailySpend[] | undefined;
 	burn: Burn | null;
 	service: HostedStack | null;
-	/** The way back from Stripe, above the month. */
 	notice?: ReactNode;
 	onTopUp: () => void;
 }
 
-/** Usage on a phone: spend against the cap, what was used, the balance. */
 export function UsageBody({
 	now,
 	billing,
@@ -245,9 +236,7 @@ export function UsageBody({
 					<span className="mac-faint">· {formatRows(ROWS_ALLOWANCE)} free</span>
 				</Kv>
 				{usage === undefined
-					? // The month's other units, at their most, so the balance below
-						// stays put when they land.
-						Array.from({ length: MAX_UNIT_LINES }, (_, i) => (
+					? Array.from({ length: MAX_UNIT_LINES }, (_, i) => (
 							// biome-ignore lint/suspicious/noArrayIndexKey: fixed placeholders
 							<div key={i} className="mac-kv" aria-hidden="true" />
 						))
@@ -289,7 +278,6 @@ export function UsageBody({
 
 type Checkout = ReturnType<typeof useCheckout>;
 
-/** The top-up sheet's contents: amount, what it does to the balance, off to Stripe. */
 export function TopupSheetBody({
 	co,
 	billing,
@@ -341,7 +329,6 @@ export function TopupSheetBody({
 	);
 }
 
-/** /account/credits on a phone: the usage body and its top-up sheet. */
 export function UsageCompact({
 	co,
 	...props

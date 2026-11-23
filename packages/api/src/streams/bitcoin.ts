@@ -1,11 +1,4 @@
 /**
- * `chain=bitcoin` Streams reads (plan 059) — Runes events served alongside
- * the Stacks feed, filtered by the request's `chain` param rather than a
- * second product. Reuses 058's Bitcoin DB module (`../bitcoin/db.ts`) for the
- * connection, `isBitcoinConfigured`, `parseRuneRef`, and `readBtcReorgs`; this
- * file owns the Streams-shaped keyset reader over `rune_events` and the
- * chain=bitcoin query parsing that mirrors `./events.ts`.
- *
  * Not configured (no `BITCOIN_DATABASE_URL`): readers return an empty page —
  * same soft-flag posture as 058, but Streams has no `notes` field in its
  * envelope, so an empty page is the whole signal (a self-hosted instance that
@@ -38,9 +31,6 @@ import type { StreamsCursorInput } from "./cursor.ts";
 import { encodeFeedCursor, encodeStreamsCursor } from "./cursor.ts";
 import type { StreamsReorg, StreamsReorgsReader } from "./reorgs.ts";
 
-// Bitcoin blocks per day at the ~10 minute target cadence — see
-// `../index/runes.ts`'s `BITCOIN_BLOCKS_PER_DAY` doc comment for why this is
-// its own constant rather than reusing `./tiers.ts`'s Stacks-tuned one.
 const BITCOIN_BLOCKS_PER_DAY = 144;
 
 /** Mirrors `../bitcoin/db.ts`'s private `BITCOIN_FINALITY_CONFIRMATIONS` —
@@ -112,7 +102,6 @@ export async function getStreamsBitcoinTip(
 	return value;
 }
 
-/** Test-only: drop the tip cache between fixtures in the same process. */
 export function _resetStreamsBitcoinTipCacheForTests(): void {
 	tipCache = null;
 }
@@ -123,9 +112,6 @@ export type StreamsBitcoinCanonicalBlock = {
 	is_canonical: true;
 };
 
-/** `/v1/streams/canonical/:height?chain=bitcoin` — no `burn_block_height`/
- *  `burn_block_hash` fields (Bitcoin has no burn chain of its own), unlike the
- *  Stacks shape at the same route. */
 export async function readStreamsBitcoinCanonicalBlock(
 	height: number,
 	db: Kysely<BitcoinDatabase> | undefined = getBitcoinDb(),
@@ -139,8 +125,6 @@ export async function readStreamsBitcoinCanonicalBlock(
 	if (!row) return null;
 	return { block_height: row.height, block_hash: row.hash, is_canonical: true };
 }
-
-// ── kind mapping (wire <-> DB), mirrors ../index/runes.ts ─────────────────
 
 type DbRuneEventKind = "etch" | "mint" | "transfer" | "burn";
 
@@ -269,12 +253,9 @@ export function parseStreamsBitcoinEventsQuery(
 	};
 }
 
-// ── rune_events reader ──────────────────────────────────────────────────
-
 type RuneStreamsEventDbRow = {
 	block_height: string | number;
 	block_hash: string;
-	/** Block header time, unix seconds; null until `repair-block-times` fills a pre-0006 row. */
 	time: number | null;
 	tx_index: string | number;
 	txid: string;
@@ -396,8 +377,6 @@ export type StreamsBitcoinEventsReader = (
 	params: ReadStreamsBitcoinEventsParams,
 ) => Promise<ReadStreamsBitcoinEventsResult>;
 
-/** Resolve a `RuneRef` name to its `rune_id`; an id-form ref already is the
- *  key. Mirrors `../index/runes.ts`'s private `resolveRuneId`. */
 async function resolveRuneId(
 	ref: RuneRef,
 	db: Kysely<BitcoinDatabase>,
@@ -478,8 +457,6 @@ export async function readStreamsBitcoinEvents(
 	return { events, next_cursor };
 }
 
-/** `finalized` is computed at the route layer, not the reader, mirroring
- *  `../streams/events.ts`'s `markFinalized`. */
 export function markBitcoinFinalized(
 	events: readonly RuneStreamsEvent[],
 	finalizedHeight: number,
@@ -497,9 +474,6 @@ export type StreamsBitcoinEventsResponse = {
 	reorgs: StreamsReorg[];
 };
 
-/** `chain=bitcoin` counterpart of `../streams/events.ts`'s
- *  `getStreamsEventsResponse` — same cursor-past-tip short-circuit and reorg
- *  range shape, without the classic/vm clock split (bitcoin has one clock). */
 export async function getStreamsBitcoinEventsResponse(opts: {
 	query: URLSearchParams;
 	tip: StreamsBitcoinTip;
@@ -602,8 +576,6 @@ export async function readStreamsBitcoinBlockEvents(
 	return { events: rows.map(normalizeRuneStreamsEvent) };
 }
 
-// ── reorgs (btc_reorgs, normalized to the Stacks ChainReorgRecord shape) ──
-
 /**
  * `readBtcReorgs` (058) returns `BtcReorg` — block-level fields
  * (`orphaned_from`/`orphaned_to`/`new_tip_height`), not the Stacks
@@ -662,9 +634,6 @@ export type StreamsBitcoinReorgsSinceParams = {
 	limit: number;
 };
 
-/** `/v1/streams/reorgs?chain=bitcoin&since=...` — same time-cursor semantics
- *  as `readChainReorgsSince` (`packages/shared/src/db/queries/chain-reorgs.ts`),
- *  reimplemented against `btc_reorgs` (a separate Postgres, D18). */
 export async function readStreamsBitcoinReorgsSince(
 	params: StreamsBitcoinReorgsSinceParams,
 	db: Kysely<BitcoinDatabase> | undefined = getBitcoinDb(),

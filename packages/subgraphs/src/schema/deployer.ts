@@ -23,7 +23,6 @@ import { pgSchemaName } from "./utils.ts";
 
 type AnyDb = Kysely<Database>;
 
-/** Deep-clone an object, converting BigInts to strings for JSON serialization. */
 function toJsonSafe(obj: unknown): unknown {
 	return JSON.parse(
 		JSON.stringify(obj, (_key, value) =>
@@ -64,13 +63,11 @@ export interface ConstraintDiff {
 	removedIndexes: string[][];
 }
 
-/** Column identity minus the index flags: what actually shapes stored data. */
 function columnDataShape(col: unknown): string {
 	const { indexed, search, ...rest } = (col ?? {}) as Record<string, unknown>;
 	return JSON.stringify(rest, Object.keys(rest).sort());
 }
 
-/** Diff two `string[][]` lists (uniqueKeys / indexes) by column-list value. */
 function diffKeyLists(
 	existing: readonly (readonly string[])[] | undefined,
 	incoming: readonly (readonly string[])[] | undefined,
@@ -190,7 +187,6 @@ export function hasBreakingChanges(diff: TableDiff): {
 	return { breaking: reasons.length > 0, reasons };
 }
 
-/** Increment the patch segment of a semver string. "1.0.2" → "1.0.3" */
 function bumpPatch(version: string): string {
 	const parts = version.split(".");
 	if (parts.length !== 3) return "1.0.1";
@@ -210,12 +206,6 @@ export interface DeployDiff {
 	addedUniqueKeys?: Record<string, string[][]>;
 }
 
-/**
- * Map a raw `TableDiff` (+ breaking reasons) into the wire `DeployDiff`. `null`
- * diff (e.g. same-hash force reindex, where no schema diff exists) → empty
- * added/removed/columns with reasons preserved. Single source for both the
- * non-refuse "reindexed" result and the refuse-path error payload.
- */
 function toDeployDiff(diff: TableDiff | null, reasons: string[]): DeployDiff {
 	return {
 		addedTables: diff?.addedTables ?? [],
@@ -318,7 +308,6 @@ export async function deploySchema(
 
 	const schemaName = opts?.schemaName ?? pgSchemaName(def.name);
 
-	// Server owns versioning: bump patch from existing, or start at 1.0.0
 	const newVersion = existing ? bumpPatch(existing.version) : "1.0.0";
 
 	const regData = {
@@ -370,7 +359,6 @@ export async function deploySchema(
 		}
 
 		if (existing.schema_hash === hash && !opts?.forceReindex) {
-			// Update handler path and code in case file moved or handler changed.
 			const handlerChanged =
 				opts?.handlerCode != null && opts.handlerCode !== existing.handler_code;
 			const { updateSubgraphHandlerPath } = await import(
@@ -404,7 +392,6 @@ export async function deploySchema(
 		}
 
 		if (existing.schema_hash === hash && opts?.forceReindex) {
-			// Same schema but force reindex requested — drop and recreate.
 			await sql
 				.raw(`DROP SCHEMA IF EXISTS "${schemaName}" CASCADE`)
 				.execute(ddlDb);
@@ -428,7 +415,6 @@ export async function deploySchema(
 			const { breaking, reasons } = hasBreakingChanges(diff);
 
 			if (breaking || opts?.forceReindex) {
-				// Breaking change or forced: drop schema, recreate, register
 				await sql
 					.raw(`DROP SCHEMA IF EXISTS "${schemaName}" CASCADE`)
 					.execute(ddlDb);
@@ -467,7 +453,6 @@ export async function deploySchema(
 					await sql.raw(stmt).execute(ddlDb);
 				}
 			}
-			// Add columns to existing tables
 			for (const [tableName, colDiff] of Object.entries(diff.tables)) {
 				if (colDiff.added.length === 0) continue;
 				const qualifiedName = `${schemaName}.${tableName}`;
@@ -640,7 +625,6 @@ export async function deploySchema(
 		}
 	}
 
-	// New subgraph — execute all DDL
 	for (const stmt of statements) {
 		await sql.raw(stmt).execute(ddlDb);
 	}

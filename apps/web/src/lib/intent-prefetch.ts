@@ -10,14 +10,7 @@ type PrefetchKind = NonNullable<Parameters<Router["prefetch"]>[1]>["kind"];
 // static shell. The enum lives in a private module, so the value is spelled.
 const FULL = "full" as PrefetchKind;
 
-/**
- * Starts a full prefetch of a link's page when the pointer or focus lands on
- * it (or a finger touches it), a few hundred milliseconds before the click.
- * These pages render their data on the server, so the prefetched payload
- * carries it and the navigation paints without waiting. Never prefetches on
- * viewport entry: a list would fire one data read per row. Pair it with
- * `<Link prefetch={false}>`. `alsoOnIntent` runs first, on the same events.
- */
+/** Never prefetches on viewport entry: a list would fire one data read per row. */
 export function useIntentPrefetch(): (
 	href: string,
 	alsoOnIntent?: () => void,
@@ -43,13 +36,7 @@ export function useIntentPrefetch(): (
 	);
 }
 
-/**
- * A list row that opens `href` wherever it's clicked, not just on its link,
- * and prefetches on intent like the link would. The row's `<Link>` stays the
- * keyboard and screen-reader target; this only widens the pointer target. A
- * click on any link or control inside the row, or one a child already
- * handled (`preventDefault`), is left alone, and so is a text selection.
- */
+/** The row's `<Link>` stays the keyboard and screen-reader target; this only widens the pointer target. */
 export function useRowLink(href: string) {
 	const router = useRouter();
 	const intent = useIntentPrefetch();

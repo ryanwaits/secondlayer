@@ -18,7 +18,6 @@ function prefersReducedMotion(): boolean {
 	return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 }
 
-/** Scroll the window to `top`, gliding briefly for short moves. */
 export function scrollWindowTo(top: number): void {
 	cancelAnimationFrame(frame);
 	const startY = window.scrollY;
@@ -45,7 +44,6 @@ export function scrollWindowTo(top: number): void {
 	frame = requestAnimationFrame(step);
 }
 
-/** Scroll so `el` sits at the top, honouring `scroll-padding-top`. */
 export function scrollToElement(el: Element): void {
 	const pad =
 		Number.parseFloat(

@@ -1,10 +1,3 @@
-/**
- * The New key / Rotate lifecycle as one reducer. A key's value is shown once,
- * so nothing may unmount or replace the reveal until the key is copied (or the
- * reader chooses to close anyway). A key that arrives while another is still
- * unseen waits its turn instead of replacing it.
- */
-
 export interface RevealedKey {
 	key: string;
 	name: string;
@@ -18,11 +11,8 @@ export type KeyFlow =
 			step: "revealed";
 			key: string;
 			name: string;
-			/** Where the key came from: Create key, or Rotate on a row. */
 			source: "created" | "rotated";
-			/** The clipboard write resolved. Never true on a rejected write. */
 			copied: boolean;
-			/** The reader tried to leave or start another key without copying. */
 			warned: boolean;
 			waiting: readonly RevealedKey[];
 	  };
@@ -54,14 +44,12 @@ const reveal = (
 	waiting,
 });
 
-/** True while a key is on screen that has not been copied, or being made. */
 export function keyActionsBlocked(flow: KeyFlow): boolean {
 	return (
 		flow.step === "submitting" || (flow.step === "revealed" && !flow.copied)
 	);
 }
 
-/** The flow takes over the space where New key was. */
 export function keyFlowOpen(flow: KeyFlow): boolean {
 	return flow.step !== "idle";
 }

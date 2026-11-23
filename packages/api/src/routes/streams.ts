@@ -81,7 +81,6 @@ const STREAMS_EVENTS_ALLOWED = [
 	"from_height",
 	"to_height",
 	"types",
-	// Alias for a single-value `types` — the Index spelling, honored here.
 	"event_type",
 	"not_types",
 	"contract_id",
@@ -91,20 +90,15 @@ const STREAMS_EVENTS_ALLOWED = [
 	"filters",
 	"limit",
 	"clock",
-	// chain=bitcoin (plan 059): a separate cursor space, own filter vocabulary.
 	"chain",
 	"rune",
 	"address",
 ] as const;
 const STREAMS_REORGS_ALLOWED = ["since", "limit", "chain"] as const;
-/** Every non-`/events` route's query surface is just the chain switch. */
 const STREAMS_CHAIN_ONLY_ALLOWED = ["chain"] as const;
 
 export type StreamsChain = "stacks" | "bitcoin";
 
-/** `chain=` on every Streams route (plan 059): `stacks` (default, unchanged
- *  cursor/response shape) or `bitcoin` (Runes events, its own cursor space —
- *  see `../streams/bitcoin.ts`). */
 function resolveStreamsChain(query: URLSearchParams): StreamsChain {
 	const raw = query.get("chain");
 	if (raw === null || raw === "stacks") return "stacks";
@@ -112,12 +106,9 @@ function resolveStreamsChain(query: URLSearchParams): StreamsChain {
 	throw new ValidationError('chain must be "stacks" or "bitcoin"');
 }
 
-// SSE tail cadence: poll the forward cursor every `POLL_MS`, and emit a `ping`
-// keepalive after `HEARTBEAT_MS` of no events.
 const STREAMS_SSE_POLL_MS = 1500;
 const STREAMS_SSE_HEARTBEAT_MS = 20_000;
 
-// Machine-readable filter spec for GET /v1/streams discovery (name + type).
 const STREAMS_EVENTS_FILTER_SPEC = [
 	{
 		name: "types",
@@ -182,8 +173,6 @@ export type StreamsRouterOptions = {
 	readReorgs?: StreamsReorgsReader;
 	readReorgsSince?: StreamsReorgsSinceReader;
 	responseCache?: StreamsResponseCache;
-	// chain=bitcoin (plan 059) — mirrors the Stacks options above, own readers
-	// since it's a separate Postgres (`packages/bitcoin`, D18).
 	getBitcoinTip?: StreamsBitcoinTipProvider;
 	readBitcoinEvents?: StreamsBitcoinEventsReader;
 	readBitcoinEventsByTxId?: (
@@ -197,7 +186,6 @@ export type StreamsRouterOptions = {
 	readBitcoinReorgsSince?: (
 		params: StreamsBitcoinReorgsSinceParams,
 	) => ReturnType<typeof readStreamsBitcoinReorgsSince>;
-	/** SSE timing, overridable so tests don't wait out real intervals. */
 	sse?: StreamTiming;
 };
 
@@ -211,7 +199,6 @@ export function createStreamsRouter(opts: StreamsRouterOptions = {}) {
 	const responseCache = opts.responseCache ?? new StreamsResponseCache();
 	const router = new Hono<StreamsEnv>();
 
-	// Discovery endpoint — anonymous, lists routes + envelope shape.
 	router.get("/", (c) =>
 		c.json({
 			routes: [
@@ -297,9 +284,7 @@ export function createStreamsRouter(opts: StreamsRouterOptions = {}) {
 	});
 
 	// Streams reads follow the same rule as Index and subgraphs: open on a
-	// loopback bind, instance token past it. (It was key-mandatory in every
-	// mode, which contradicted every doc page and left the internal decoder
-	// key as the only credential a caller could actually use.)
+	// loopback bind, instance token past it.
 	router.use(
 		"*",
 		streamsBearerAuth({ tokens: opts.tokens ?? DEFAULT_STREAMS_TOKEN_STORE }),
@@ -310,8 +295,6 @@ export function createStreamsRouter(opts: StreamsRouterOptions = {}) {
 	// after auth, before the rate limiter.
 	router.use("*", streamsCreditsGate());
 	router.use("*", streamsRateLimit());
-	// No retention floor: every account reads full history. Still
-	// sets `streamsTip` for the /events handler below.
 	router.use("/events", async (c, next) => {
 		c.set("streamsTip", await getTip());
 		await next();
@@ -465,7 +448,6 @@ export function createStreamsRouter(opts: StreamsRouterOptions = {}) {
 					} else {
 						const tip = await getTip();
 						if (!initialized) {
-							// No start given → live-tail from the current (reorg-clamped) tip.
 							const q = new URLSearchParams(filterParams);
 							q.set(
 								"from_height",
@@ -503,7 +485,6 @@ export function createStreamsRouter(opts: StreamsRouterOptions = {}) {
 							await debitStreamsCreditedRead(c, response.events);
 						}
 						lastBeat = Date.now();
-						// Resume strictly after the last delivered cursor (input-exclusive).
 						const next =
 							response.next_cursor ?? response.events.at(-1)?.cursor ?? null;
 						const q = new URLSearchParams(filterParams);

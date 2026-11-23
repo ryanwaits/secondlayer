@@ -30,8 +30,6 @@ export type {
 	StageKind,
 } from "../coverage/constraints.ts";
 
-// ── Table interfaces ──────────────────────────────────────────────────
-
 export interface BlocksTable {
 	height: number;
 	hash: string;
@@ -88,9 +86,6 @@ export interface EventsTable {
 	created_at: Generated<Date>;
 }
 
-// Reorg archive (see migration 0084): orphaned transactions/events copied here
-// before a reused height is replaced, preserving the raw log instead of
-// deleting it.
 export interface TransactionsArchiveTable {
 	archive_id: Generated<string>;
 	tx_id: string;
@@ -148,9 +143,6 @@ export interface VmEventsArchiveTable {
 	archived_at: Generated<Date>;
 }
 
-// Opt-in node storage-layer writes (migration 0154): the exact MARF writes a
-// block committed, in node order. `tx_index` is null for block-level writes.
-// Primary key `(block_height, ordinal)`.
 export interface StateWritesTable {
 	block_height: number;
 	ordinal: number;
@@ -172,9 +164,6 @@ export interface StateWritesArchiveTable {
 	archived_at: Generated<Date>;
 }
 
-// Dead-letter log (see migration 0085): events whose decoded payload failed
-// schema validation on ingest. Append-only diagnostic; the event still lands in
-// `events`, so chain data is never lost.
 export interface DeadLetterEventsTable {
 	id: Generated<string>;
 	block_height: number;
@@ -186,10 +175,6 @@ export interface DeadLetterEventsTable {
 	created_at: Generated<Date>;
 }
 
-// Pending (unconfirmed) transactions (see migration 0086). Pre-chain, so no
-// block_height/tx_index/result/events and never canonical. tx_id is derived
-// from raw_tx; function_args holds hex-encoded ClarityValues (jsonb), like
-// `transactions`.
 export interface MempoolTransactionsTable {
 	seq: Generated<string>;
 	tx_id: string;
@@ -559,8 +544,6 @@ export interface ChainReorgsTable {
 	created_at: Generated<Date>;
 }
 
-// ── L2 decoded tables: sBTC / BNS ────────────────────────────
-
 export type Pox5EventTopic =
 	| "set-bond-admin"
 	| "set-pause-admin"
@@ -582,9 +565,6 @@ export type Pox5EventTopic =
 	| "grant-signer-key"
 	| "revoke-signer-grant";
 
-// PoX-5 print events (SIP-045). Promoted columns cover hot query paths; the
-// full decoded tuple always lands in `data` (nested shapes: btc-lockup,
-// bond-rewards lists, bond-periods).
 export interface Pox5EventsTable {
 	cursor: string;
 	block_height: number;
@@ -611,9 +591,6 @@ export interface Pox5EventsTable {
 	created_at: Generated<Date>;
 }
 
-// Materialized per-cycle PoX-5 rollup (`rollupPox5Cycles`), maintained after
-// every committed pox5 decoder batch and after a pox5 reorg. Fully
-// rebuildable from `pox5_events` via `rebuild-pox5-cycles.ts --apply`.
 export interface Pox5CyclesTable {
 	reward_cycle: number;
 	start_burn_height: number;
@@ -639,7 +616,6 @@ export interface Pox5CyclesTable {
 	updated_at: Generated<Date>;
 }
 
-// Per-signer half of the pox-5 cycle rollup.
 export interface Pox5CycleSignersTable {
 	reward_cycle: number;
 	signer: string;
@@ -650,8 +626,6 @@ export interface Pox5CycleSignersTable {
 	rewards_claimed: string;
 }
 
-// Actual BTC PoX payout — one row per reward slot (≤2 per burn block), from the
-// /new_burn_block reward_recipients array. `amount_sats`/`burn_amount` are sats.
 export interface BurnBlockRewardsTable {
 	cursor: string;
 	burn_block_height: number;
@@ -664,7 +638,6 @@ export interface BurnBlockRewardsTable {
 	created_at: Generated<Date>;
 }
 
-// Reward-set membership per burn block, from /new_burn_block reward_slot_holders.
 export interface BurnBlockRewardSlotsTable {
 	cursor: string;
 	burn_block_height: number;
@@ -852,8 +825,6 @@ export interface BnsNamespacesTable {
 	name_count: Generated<number>;
 	updated_at: Generated<Date>;
 }
-
-// ── Database interface ────────────────────────────────────────────────
 
 /**
  * Memoized `ctx.client.readOnly()` results. Keyed on `index_block_hash` so a
@@ -1382,8 +1353,6 @@ export type AccountBalanceAlerts = Selectable<AccountBalanceAlertsTable>;
 export type InsertAccountBalanceAlerts = Insertable<AccountBalanceAlertsTable>;
 export type UpdateAccountBalanceAlerts = Updateable<AccountBalanceAlertsTable>;
 
-// ── Convenience types ─────────────────────────────────────────────────
-
 export type Block = Selectable<BlocksTable>;
 export type InsertBlock = Insertable<BlocksTable>;
 export type UpdateBlock = Updateable<BlocksTable>;
@@ -1440,8 +1409,6 @@ export type InsertSubgraphHealthSnapshot =
 
 export type SubgraphGap = Selectable<SubgraphGapsTable>;
 export type InsertSubgraphGap = Insertable<SubgraphGapsTable>;
-
-// ── Webhooks (chain event webhooks) ─────────────────────
 
 export type WebhookStatus = "active" | "paused";
 export type { WebhookPauseReason };

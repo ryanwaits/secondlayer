@@ -17,14 +17,6 @@ import {
 import type { Kysely } from "kysely";
 
 /**
- * Contract registry worker — populates `contracts` for trait-based discovery.
- * Decoupled from the hot persist path: it scans `transactions` for
- * `smart_contract` deploys (via the partial index) and records any not yet
- * registered, then fetches + classifies ABIs for pending rows. The same two
- * steps drive both go-forward sync and historical backfill (B1c).
- */
-
-/**
  * Discover contract deploys not yet in the registry and record them. Anti-joins
  * against `contracts` (newest-first) so it's self-progressing: new tip deploys
  * are registered immediately and historical deploys drain over successive ticks,
@@ -72,13 +64,6 @@ export async function discoverDeploys(
 	return recorded;
 }
 
-/**
- * Fetch + classify ABIs for contracts awaiting one (`pending`, plus `failed`
- * rows due for a retry). Resilient: a contract whose ABI can't be fetched is
- * backed off (`failed`, retried up to the attempt cap), one that can't be
- * parsed is `unparseable` — neither wedges the worker. Inferred standards (shape) + declared standards
- * (source `impl-trait`) are merged.
- */
 export async function processPendingAbis(
 	db: Kysely<Database>,
 	node: StacksNodeClient,
@@ -114,9 +99,7 @@ export async function processPendingAbis(
 				contract: contract.contract_id,
 			});
 			if (result) declared = parseDeclaredStandards(result.source);
-		} catch {
-			// Source unavailable — declared stays empty, inferred still applies.
-		}
+		} catch {}
 
 		await setContractAbi(db, contract.contract_id, {
 			abi,

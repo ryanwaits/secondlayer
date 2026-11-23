@@ -1,26 +1,15 @@
-/**
- * BM25F over the docs search index: pure, dependency-free, runs in the browser.
- * The index (`/docs/search-index.json`) is compiled at build time; postings are
- * built once on first use.
- */
-
 export type DocsSearchDoc = {
-	/** `docs:<href>` for a page, `docs:<href>#<anchor>` for a section or endpoint. */
 	id: string;
 	href: string;
 	label: string;
 	sub: string;
 	kind: "page" | "section" | "endpoint" | "method";
 	title: string;
-	/** Parent page or group name. */
 	page: string;
-	/** Plain-language queries written per section at build time. */
 	phrasings: string[];
-	/** First two sentences under the heading; empty for endpoints. */
 	body: string;
 };
 
-/** Generic English function words only; nothing domain-specific. */
 const STOPWORDS = new Set(
 	"a an the of to in on for and or is are was be my me i it its do does how what why when where which who with without from at by as this that these those can we you your our get got up out want about into over after before than then so if not no".split(
 		" ",
@@ -35,10 +24,8 @@ const FIELDS = Object.keys(FIELD_WEIGHTS) as Field[];
 
 const K1 = 1.2;
 const B = 0.75;
-/** Top score must beat the runner-up by this ratio to count as a sure hit. */
 const CONFIDENT_RATIO = 1.4;
 
-/** Strip one suffix when the word keeps at least three characters. */
 function stem(word: string): string {
 	for (const suffix of SUFFIXES) {
 		if (word.length > suffix.length + 2 && word.endsWith(suffix)) {
@@ -58,20 +45,13 @@ export function tokenize(text: string): string[] {
 
 export type DocsSearchIndex = {
 	ids: string[];
-	/** Per doc, per field: term → count. */
 	tf: Map<string, number>[][];
-	/** Per doc, per field: token count. */
 	len: number[][];
 	avgLen: number[];
-	/** Per doc: the stemmed tokens of its title, for exact and prefix matches. */
 	titles: string[][];
-	/** Term → docs containing it in any field. */
 	postings: Map<string, number[]>;
-	/** Per doc: what its score is multiplied by (see `LANE_KINDS`). */
 	weight: number[];
-	/** Term → docs of the main lane containing it; with `size`, what IDF is computed from. */
 	df: Map<string, number>;
-	/** Docs in the main lane. */
 	size: number;
 };
 
@@ -147,22 +127,15 @@ export function buildIndex(docs: DocsSearchDoc[]): DocsSearchIndex {
 export type DocsSearchResult = {
 	id: string;
 	score: number;
-	/** 2: title equals the query; 1: title starts with it; 0: anything else. */
 	tier: 0 | 1 | 2;
 };
 
-/** Compares stemmed title tokens to the stemmed query tokens, in order. */
 function titleTier(title: string[], query: string[]): 0 | 1 | 2 {
 	if (!query.length || title.length < query.length) return 0;
 	if (!query.every((t, i) => title[i] === t)) return 0;
 	return title.length === query.length ? 2 : 1;
 }
 
-/**
- * Top `k` docs for a query, best first; docs with no query term are omitted.
- * Order: exact title, then title prefix, then everything else; each tier by
- * BM25 score, then doc order.
- */
 export function search(
 	index: DocsSearchIndex,
 	query: string,
@@ -171,7 +144,6 @@ export function search(
 	return searchTokens(index, tokenize(query), k);
 }
 
-/** `search` over tokens already run through `tokenize` (and maybe corrected). */
 export function searchTokens(
 	index: DocsSearchIndex,
 	queryTokens: string[],
@@ -208,10 +180,6 @@ export function searchTokens(
 		.map(({ d, score, tier }) => ({ id: index.ids[d], score, tier }));
 }
 
-/**
- * A sure hit: an exact title match, or the top score clearly beats the
- * runner-up (or stands alone).
- */
 export function confident(
 	results: { score: number; tier?: number }[],
 ): boolean {

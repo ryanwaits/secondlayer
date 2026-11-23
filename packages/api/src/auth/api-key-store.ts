@@ -13,26 +13,18 @@ import { hashToken } from "./keys.ts";
 import { isMcpRequest } from "./oauth/audience.ts";
 import { INSTANCE_TENANT_ID } from "./read-plane.ts";
 
-/** Two kinds of caller: `free` is the single metered tier every minted key
- *  gets (see auth/mint.ts), `internal` is a first-party service credential
- *  that is neither throttled nor metered. There is no paid ladder. */
 export type ProductTier = "free" | "internal";
 
 export type ProductTenant<TTier extends ProductTier = ProductTier> = {
 	tenant_id: string;
 	account_id?: string;
 	tier: TTier;
-	/** Set only for DB-backed `sk-sl_` keys; absent for static seed tokens
-	 *  and the self-host instance token. */
 	api_key_id?: string;
-	/** Set only for an OAuth access token (hosted MCP); no `api_key_id`. */
 	grant_id?: string;
 	scopes: readonly string[];
 };
 
 export type ProductTokenStore<TTenant> = {
-	/** `req` is the request the token came on: an OAuth access token
-	 *  resolves only on one the hosted MCP handler made (oauth/audience.ts). */
 	get(
 		rawToken: string,
 		req?: Request,
@@ -41,8 +33,6 @@ export type ProductTokenStore<TTenant> = {
 
 export type RevokedAccountKey = { id: string; account_id: string };
 
-/** A revoked `account` key behind this raw token, or null. Only called on
- *  the failure path (the token did not authenticate), platform only. */
 export async function findRevokedAccountKey(
 	rawToken: string,
 	getDb: typeof defaultGetDb = defaultGetDb,
@@ -107,8 +97,6 @@ async function lookupAccountApiKey(
 	getDb: typeof defaultGetDb,
 ): Promise<ApiKeyRecord | null> {
 	const db = getDb();
-	// Scoped streams/index rows are retired (auth-007). Liveness (status and
-	// expiry) is judged by `isKeyLive` in the store, on every lookup.
 	const row = await db
 		.selectFrom("api_keys")
 		.select(["id", "account_id", "status", "expires_at", "tier"])
@@ -120,9 +108,6 @@ async function lookupAccountApiKey(
 	return {
 		id: row.id,
 		account_id: row.account_id,
-		// DB-backed keys are the single metered tier, except a first-party
-		// `internal` key (only mintable by an internal route, see
-		// `INTERNAL_MINT_TIER`).
 		status: row.status,
 		expires_at: row.expires_at,
 		tier: row.tier === "internal" ? "internal" : "free",
@@ -154,12 +139,6 @@ async function resolveOauthTenant<TTenant extends ProductTenant>(
 	} as unknown as TTenant;
 }
 
-/**
- * Runtime token store: static seed tokens (first-party service credentials;
- * only `internal` ones on platform) first, then the instance token, then `api_keys` by hash on the metered
- * archive. Every DB-backed key resolves to the single metered `free` tier,
- * except a first-party `internal` key.
- */
 export function createApiKeyTokenStore<TTenant extends ProductTenant>(
 	opts: ApiKeyTokenStoreOptions<TTenant>,
 ): ProductTokenStore<TTenant> {
@@ -185,8 +164,6 @@ export function createApiKeyTokenStore<TTenant extends ProductTenant>(
 			if (!isPlatformMode() && instanceTokenMatches(rawToken)) {
 				return {
 					tenant_id: INSTANCE_TENANT_ID,
-					// No account_id: the operator's own reads are never metered
-					// and never throttled.
 					tier: "internal",
 					scopes: [opts.requiredScope],
 				} as unknown as TTenant;

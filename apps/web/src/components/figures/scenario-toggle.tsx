@@ -3,11 +3,6 @@
 import { Choice } from "@/components/choice";
 import { type ReactNode, useId, useState } from "react";
 
-/**
- * D2 ScenarioToggle — two (or more) named worlds to compare. Segmented
- * buttons switch which panel renders. Panels are plain ReactNode, so
- * server MDX can compose this with static figure children directly.
- */
 export function ScenarioToggle({
 	labels,
 	panels,

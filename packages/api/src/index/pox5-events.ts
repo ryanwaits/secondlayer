@@ -39,15 +39,12 @@ import type { IndexTip } from "./tip.ts";
 const POX5_DISABLED_NOTE =
 	"PoX-5 decoding is disabled (POX5_DECODER_ENABLED=false); the pox-5 feed is empty until re-enabled.";
 
-/** The `pox5_events` topic vocabulary — stacks const, same list the decoder
- *  writes. A Set, so the guard stays O(1) instead of a 19-arm chain. */
 const POX5_TOPICS: ReadonlySet<string> = new Set(POX5_EVENT_TOPICS);
 
 function isPox5Topic(value: string): value is Pox5EventTopic {
 	return POX5_TOPICS.has(value);
 }
 
-/** Projectable columns on a pox-5 event row. */
 export const POX5_EVENT_FIELDS = [
 	"block_time",
 	"tx_id",
@@ -68,7 +65,6 @@ export const POX5_EVENT_FIELDS = [
 	"data",
 ] as const;
 
-/** `topic` always survives — it is the row's discriminant. */
 export const POX5_EVENT_ALWAYS = ["cursor", "block_height", "topic"] as const;
 
 export const POX5_EVENTS_FILTERS = [
@@ -103,9 +99,7 @@ export type Pox5Event = {
 	signer: string | null;
 	signer_manager: string | null;
 	bond_index: number | null;
-	/** ustx, bigint-safe string. */
 	amount_ustx: string | null;
-	/** sats, bigint-safe string. */
 	amount_sats: string | null;
 	reward_cycle: number | null;
 	first_reward_cycle: number | null;
@@ -113,7 +107,6 @@ export type Pox5Event = {
 	unlock_burn_height: number | null;
 	is_l1_lock: boolean | null;
 	signer_key: string | null;
-	/** The full decoded print tuple as JSON. */
 	data: unknown;
 };
 
@@ -163,14 +156,9 @@ function parseIntegerFilter(
 }
 
 function keysetPredicate(after: IndexCursorInput): RawBuilder<unknown> {
-	// Sargable row-values keyset over (block_height, event_index) — same form as
-	// every other decoded-event read, so Postgres range-scans the page.
 	return sql`(block_height, event_index) > (${after.block_height}, ${after.event_index})`;
 }
 
-// pox5_events carries its own NOT NULL `block_time` column (unlike
-// decoded_events, which needs a correlated `blocks` lookup), so select it
-// directly — no per-row subquery.
 const POX5_EVENT_COLUMNS = sql`
 	cursor,
 	block_height,
@@ -247,7 +235,6 @@ function normalizePox5Event(row: Pox5EventDbRow): Pox5Event {
 }
 
 export type ReadPox5EventsParams = {
-	/** Columns to return; omit for the full row. */
 	fields?: readonly string[];
 	after?: IndexCursorInput;
 	fromHeight: number;

@@ -1,20 +1,12 @@
-/**
- * Pure helpers for the Rows screen: the `GET /api/billing/rows` shape and the
- * shaping from it to chart bars, copy and the errors table. No React, no
- * fetch, so `bun test` covers it.
- */
-
 import { dollars } from "./billing-view";
 import { formatRows } from "./usage";
 
 export type RowsAllowance = {
 	monthly: number;
 	usedThisMonth: number;
-	/** First UTC day this month the free allowance ran out (YYYY-MM-DD). */
 	exhaustedOn: string | null;
 	paidRowsThisMonth: number;
 	paidUsdMicrosThisMonth: string;
-	/** First day of next month (YYYY-MM-DD). */
 	resetsOn: string;
 };
 
@@ -51,7 +43,6 @@ export type RowsError = {
 	last: string;
 };
 
-/** `GET /api/billing/rows`. */
 export type RowsResponse = {
 	allowance: RowsAllowance;
 	daily: RowsDay[];
@@ -67,7 +58,6 @@ function utcDate(ms: number): string {
 	return new Date(ms).toISOString().slice(0, 10);
 }
 
-/** "Oct 6" for a `YYYY-MM-DD` UTC date. */
 export function shortDate(date: string): string {
 	return new Date(`${date}T00:00:00.000Z`).toLocaleDateString("en-US", {
 		month: "short",
@@ -78,10 +68,8 @@ export function shortDate(date: string): string {
 
 export type RowsBar = { date: string; t: string; n: number; p: number };
 
-/** The last 30 UTC days ending with `now`'s day: free rows as `n`, paid as
- *  `p`, summed across sources, zero-filled for days with no reads. The split
- *  is per metered page (a page that crossed the allowance counts as paid),
- *  so it is approximate at the crossing. */
+/** The split is per metered page (a page that crossed the allowance counts as
+ *  paid), so it is approximate at the crossing. */
 export function dailyBars(daily: readonly RowsDay[], now: Date): RowsBar[] {
 	const byDate = new Map<string, { n: number; p: number }>();
 	for (const day of daily) {
@@ -102,11 +90,9 @@ export function dailyBars(daily: readonly RowsDay[], now: Date): RowsBar[] {
 	});
 }
 
-/** Where the "free 1M used up" mark sits: between the exhaustion day's bar
- *  and the next one. The chart draws a mark at a bar's left edge, so that is
- *  the next bar's index; when the allowance ran out today there is no next
- *  bar and the mark sits at today's left edge. Null when not exhausted, or
- *  the day is outside the window. */
+/** The chart draws a mark at a bar's left edge, so that is the next bar's
+ *  index; when the allowance ran out today there is no next bar and the mark
+ *  sits at today's left edge. */
 export function markIndex(
 	days: readonly RowsBar[],
 	exhaustedOn: string | null,
@@ -116,8 +102,6 @@ export function markIndex(
 	return index === -1 ? null : Math.min(index + 1, days.length - 1);
 }
 
-/** x labels at the first day, the 1st of the month, the exhaustion day and
- *  today. A label that lands on an already-labelled bar is dropped. */
 export function xLabels(
 	days: readonly RowsBar[],
 	exhaustedOn: string | null,
@@ -136,7 +120,6 @@ export function xLabels(
 
 const fmt = (n: number) => n.toLocaleString("en-US");
 
-/** The status sentence and its sub-line. */
 export function statusCopy(allowance: RowsAllowance): {
 	sentence: string;
 	sub: string;
@@ -156,17 +139,14 @@ export function statusCopy(allowance: RowsAllowance): {
 	};
 }
 
-/** Long hex runs (tx ids, hashes) shortened to 8 characters and an ellipsis. */
 export function shortenPath(path: string): string {
 	return path.replace(/[0-9a-f]{40,}/gi, (hex) => `${hex.slice(0, 8)}…`);
 }
 
-/** Your own mistakes: 4xx only. */
 export function clientErrors(errors: readonly RowsError[]): RowsError[] {
 	return errors.filter((e) => e.status < 500);
 }
 
-/** Failures on our side: 5xx only. */
 export function serverErrors(errors: readonly RowsError[]): RowsError[] {
 	return errors.filter((e) => e.status >= 500);
 }
@@ -174,8 +154,6 @@ export function serverErrors(errors: readonly RowsError[]): RowsError[] {
 /** Errors per page: the table stays level with the panel beside it. */
 export const ERRORS_PER_PAGE = 5;
 
-/** One page of errors, the page index clamped so a shrinking list never lands
- *  past its end. `from`/`to` are 1-based for "6–10 of 19". */
 export function errorPage<T>(
 	items: readonly T[],
 	page: number,
@@ -188,7 +166,6 @@ export function errorPage<T>(
 	return { rows, from: start + 1, to: start + rows.length, pages, current };
 }
 
-/** "10× 400 · 15× 404" for the 4xx errors, most frequent status first. */
 export function errorSummary(errors: readonly RowsError[]): string {
 	const byStatus = new Map<number, number>();
 	for (const e of clientErrors(errors)) {
@@ -200,8 +177,6 @@ export function errorSummary(errors: readonly RowsError[]): string {
 		.join(" · ");
 }
 
-/** Rows per UTC hour from midnight to the current hour, summed across sources
- *  and zero-filled: the Overview row's sparkline. */
 export function hourlyPoints(hourly: readonly RowsHour[], now: Date): number[] {
 	const midnight = Date.UTC(
 		now.getUTCFullYear(),

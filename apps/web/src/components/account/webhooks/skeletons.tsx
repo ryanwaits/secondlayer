@@ -1,11 +1,5 @@
 "use client";
 
-/**
- * Loading placeholders for the list and detail pages, shaped like the content
- * they stand in for so the page doesn't jump when real data lands. Every
- * block is `.wh-skel`: one shimmering tone from existing tokens.
- */
-
 import { HeatStripSkeleton } from "@/components/dashboard/charts/heat-strip";
 import { Skel } from "@/components/dashboard/shell/skel";
 
@@ -13,7 +7,6 @@ export function WebhooksListSkeleton() {
 	return (
 		<output className="wl-skel" aria-label="Loading webhooks" aria-busy="true">
 			{Array.from({ length: 3 }).map((_, i) => (
-				// Fixed skeleton row count; position is the identity.
 				// biome-ignore lint/suspicious/noArrayIndexKey: static skeleton rows
 				<div className="wl-row" key={i}>
 					<div className="wl-main">
@@ -33,8 +26,6 @@ export function WebhooksListSkeleton() {
 export function WebhookDetailSkeleton({
 	hideHead = false,
 }: {
-	/** Skip the name placeholder when a real header (from the list cache, or
-	 *  the webhook itself) is already rendered above this. */
 	hideHead?: boolean;
 } = {}) {
 	return (

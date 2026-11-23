@@ -1,5 +1,3 @@
-/** Pure hourly bucketing of subgraph health snapshots, used by the API health route. */
-
 const HOUR_MS = 3_600_000;
 
 export interface HealthSnapshotPoint {
@@ -19,7 +17,6 @@ export interface HealthHour {
 	eventsHandled: number;
 }
 
-/** Sum of positive consecutive differences; a counter reset counts as 0. */
 function positiveDeltas(values: (number | null)[]): number {
 	let total = 0;
 	let prev: number | null = null;

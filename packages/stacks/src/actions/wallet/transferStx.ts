@@ -42,7 +42,6 @@ export async function transferStx(
 	if (!validateStacksAddress(params.to))
 		throw new Error(`Invalid recipient address: ${params.to}`);
 
-	// Provider: delegate to wallet
 	if (isProviderAccount(account)) {
 		assertNoFeeTierForProvider(params.fee);
 		const result = await account.provider.request("stx_transferStx", {
@@ -53,7 +52,6 @@ export async function transferStx(
 		return result.txid;
 	}
 
-	// Local/Custom: build → sign → broadcast
 	const managed =
 		params.nonce === undefined && client.nonceManager !== undefined;
 	const nonce = params.nonce ?? (await resolveNonce(client, account.address));

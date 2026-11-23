@@ -1,11 +1,5 @@
 import type { ReactNode } from "react";
 
-/**
- * Product-page glyphs: common shapes in the house hand. 20-unit grid with 2 of
- * padding, 1.2 stroke, round ends, currentColor. Each shape is used once across
- * the /p pages; the docs product stack reuses one per product. At most one accent part per glyph (DESIGN.md, Product glyphs):
- * `glyph-pri` for what the claim is about, `glyph-alarm` for a failure.
- */
 function Glyph({ children }: { children: ReactNode }) {
 	return (
 		<svg
@@ -32,7 +26,6 @@ export function LockIcon() {
 	);
 }
 
-/** Stacked partitions at the logo's layer slant. */
 export function LayersIcon() {
 	return (
 		<Glyph>
@@ -110,7 +103,6 @@ export function ShieldCheckIcon() {
 	);
 }
 
-/** Webhooks: a signal arriving. */
 export function PulseIcon() {
 	return (
 		<Glyph>
@@ -120,7 +112,6 @@ export function PulseIcon() {
 	);
 }
 
-/** Subgraphs: a table you define. */
 export function TableIcon() {
 	return (
 		<Glyph>
@@ -130,7 +121,6 @@ export function TableIcon() {
 	);
 }
 
-/** Index: decoded rows. */
 export function RowsIcon() {
 	return (
 		<Glyph>
@@ -140,7 +130,6 @@ export function RowsIcon() {
 	);
 }
 
-/** Streams: events flowing. */
 export function WavesIcon() {
 	return (
 		<Glyph>

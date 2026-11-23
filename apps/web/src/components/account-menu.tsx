@@ -17,7 +17,6 @@ import { refreshList } from "@/lib/webhooks-store";
 import Link from "next/link";
 import { useEffect, useId, useRef, useState } from "react";
 
-/** The account's initial on a small ink square (paper on a dark theme). */
 export function AccountAvatar({
 	account,
 	size = 24,
@@ -38,7 +37,6 @@ export function AccountAvatar({
 	);
 }
 
-/** The one-click way in, beside the account trigger on every page. */
 export function DashboardButton({ onClick }: { onClick?: () => void }) {
 	return (
 		<Link
@@ -52,10 +50,6 @@ export function DashboardButton({ onClick }: { onClick?: () => void }) {
 	);
 }
 
-/**
- * The nav trigger: initial tile and a chevron. Pure, so the healthy and
- * alert looks render the same everywhere.
- */
 export function AccountChip({
 	account,
 	alert,
@@ -96,8 +90,6 @@ export function AccountChip({
 	);
 }
 
-/** Balance and this month's spend, then Keys and Billing, then the money and
- *  exit actions. Dashboard is its own button beside the trigger. */
 export function AccountMenuPanel({
 	id,
 	balance,
@@ -109,7 +101,6 @@ export function AccountMenuPanel({
 }: {
 	id?: string;
 	balance: string | null;
-	/** The current month's name, e.g. "October". */
 	monthLabel: string;
 	spent: string | null;
 	onNavigate?: () => void;
@@ -155,10 +146,6 @@ export function AccountMenuPanel({
 	);
 }
 
-/**
- * Signed-in nav: a Dashboard button, then a trigger whose menu shows balance
- * and month spend, links Keys and Billing, and opens the credits card in place.
- */
 export function AccountMenu({
 	account,
 	onSignOut,

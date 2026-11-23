@@ -21,7 +21,6 @@ import {
 	type StandardAuthorization,
 } from "./types.ts";
 
-// Ensure sync signing is available
 etc.hmacSha256Sync = (key: Uint8Array, ...msgs: Uint8Array[]) => {
 	const h = hmac.create(sha256, key);
 	for (const msg of msgs) h.update(msg);
@@ -148,7 +147,6 @@ export function sigHashPostSign(
 	return txidFromBytes(data);
 }
 
-/** Sign with private key and return VRS signature (recoveryId + r + s) */
 function signWithKey(privateKey: string, messageHash: string): string {
 	const keyBytes = hexToBytes(privateKey).slice(0, 32);
 	const sig = sign(messageHash, keyBytes, { lowS: true });

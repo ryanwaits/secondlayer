@@ -1,10 +1,4 @@
 /**
- * A docs key for a signed-out reader.
- *
- *   POST /api/public/docs-key  { distinctId? }  →  201 { key, prefix, expiresAt }
- *
- * `distinctId` (optional) is the browser's PostHog id, for analytics only.
- *
  * Mounted only in platform mode. The browser calls it directly (never through
  * the web server) so the rate limit sees the reader's IP. Each mint creates a
  * ghost account (no email) that owns one `docs` key: read-only Streams and
@@ -34,7 +28,6 @@ import {
 	visitorSubject,
 } from "../lib/product-events.ts";
 
-/** Mints per IP bucket (IPv4, or IPv6 /64) per rolling day. */
 export const ANON_DOCS_KEY_DAILY_LIMIT = 1;
 /** Mints across every reader per rolling day: each is a ghost account with
  *  its own row budget, so a proxy pool cannot mint without bound. */

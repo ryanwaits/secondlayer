@@ -7,7 +7,6 @@ export enum Network {
 	Regtest = "regtest",
 }
 
-/** Bitcoin's halving interval, in blocks. */
 export const SUBSIDY_HALVING_INTERVAL = 210_000;
 
 export interface Rune {
@@ -71,7 +70,6 @@ export function runeFirstHeight(network: Network): number {
 	return SUBSIDY_HALVING_INTERVAL * multiplier;
 }
 
-/** `height` is a block height (u32 range). Returns the minimum valid Rune at that height. */
 export function runeMinimumAtHeight(network: Network, height: number): Rune {
 	const offset = saturatingAddU32(BigInt(height), 1n);
 

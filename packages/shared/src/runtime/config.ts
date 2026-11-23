@@ -65,7 +65,6 @@ const KNOWN = new Set<string>([
 	"ALLOW_UNSIGNED_WEBHOOKS",
 	"OBSERVER_JOURNAL_ENABLED",
 	"STACKS_NETWORK",
-	// Set by the shipped image/compose (docker/oss/docker-compose.yml).
 	"STREAMS_API_URL",
 	"STREAMS_INTERNAL_API_KEY",
 	"SUBGRAPH_SOURCE",

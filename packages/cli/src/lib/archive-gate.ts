@@ -128,8 +128,6 @@ export async function quoteArchiveFetch(
 	}
 }
 
-/** The literal command printed alongside every insufficient-balance
- *  message — never upsell prose, just the fix. */
 const BUY_CREDITS_COMMAND = "secondlayer credits buy";
 
 /** Printed when `quote.sufficient` is false. The shortfall is arithmetic on
@@ -225,8 +223,7 @@ export type ArchiveGate = {
 
 /** URLs page in batches of 16, not the server's max of 64: presigned URLs
  *  expire in 900s (`ARCHIVE_PRESIGN_TTL_SECONDS`) and events partitions COPY
- *  slowly, so a batch must be fully consumable within the TTL. If real
- *  restores show URL expiry churn, lower this further. */
+ *  slowly, so a batch must be fully consumable within the TTL. */
 const FETCH_BATCH_SIZE = 16;
 
 /** A cached URL with less than this long to live is re-issued before it is
@@ -293,7 +290,6 @@ export function createGatedFetcher(
 	return {
 		async getUrl(path, opts) {
 			if (opts?.forceRefresh) {
-				// Expiry recovery: the cached URL 403'd downstream.
 				return reissue(path, "expired");
 			}
 

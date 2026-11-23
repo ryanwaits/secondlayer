@@ -18,7 +18,6 @@ import { bytesToHex, concatBytes, hexToBytes } from "../utils/encoding.ts";
  */
 export const SBTC_V2_SIGNING_BURN_HEIGHT_MAINNET = 972_295;
 
-/** Most signer keys a v2 peg script may hold (`sbtc::MAX_SIGNERS`). */
 const MAX_SIGNERS = 16;
 
 /**
@@ -34,7 +33,7 @@ const CHAIN_CODE_DOMAIN = new TextEncoder().encode("sbtc/signer/chain-code/v1");
 const OP_CHECKSIG = 0xac;
 const OP_CHECKSIGADD = 0xba;
 const OP_NUMEQUAL = 0x9c;
-const OP_PUSHNUM_BASE = 0x50; // OP_1 = 0x51 … OP_16 = 0x60
+const OP_PUSHNUM_BASE = 0x50;
 const TAPSCRIPT_LEAF_VERSION = 0xc0;
 
 /**

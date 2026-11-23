@@ -25,7 +25,6 @@ type SubgraphClientProvider = typeof getClient;
 
 type SkippedSource = { source: string; reason: string };
 
-/** Index event_type for a source filter, or null when unreadable. */
 function eventTypeFor(filter: { type: string }): DecodedEventType | null {
 	if (filter.type === "contract_deploy") return null;
 	const candidate = filter.type === "print_event" ? "print" : filter.type;
@@ -40,7 +39,6 @@ function skipReason(name: string, filter: { type: string }): string {
 		: `source "${name}" (${filter.type}) is not readable from Index — skipped.`;
 }
 
-/** Stage bundled handler ESM and import the defineSubgraph default export. */
 async function loadBundledDefinition(handlerCode: string): Promise<{
 	handlers?: Record<string, unknown>;
 	schema?: unknown;

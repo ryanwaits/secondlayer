@@ -3,22 +3,6 @@ import type {
 	ServiceManifest,
 } from "@secondlayer/shared/archive/derived-stage-report";
 
-/**
- * Decoder service manifests — one entry per built-in protocol producer.
- *
- * These are the first worked examples of the derived-stage acceptance report
- * (see `@secondlayer/shared/archive/derived-stage-report`). Each manifest
- * answers the operator's rebuild question honestly: given only the canonical
- * archive, could you resurrect this decoder's output tables? If not, what
- * else do you need — a stacks-node RPC, a contract source, the Streams API,
- * something else — and why?
- *
- * Actual stateful re-run + digest comparison is Phase 4 (P4.10 effect
- * manifests, P4.13 stateful deep verify). This file is intentionally a
- * declarations-only layer: it tells the truth about dependencies so the
- * Phase 4 verifier knows what to pin.
- */
-
 /** Every archive dataset a decoder reads — not `ARCHIVE_DATASETS`: a dataset
  *  joins this list only when a decoder actually consumes it. No decoder reads
  *  `state_writes`, so it is left out. */
@@ -28,11 +12,6 @@ const CANONICAL_ALL = [
 	"events",
 ] as const satisfies readonly CanonicalInput[];
 
-/**
- * Shared external inputs that most decoders take. Extracted so the
- * declarations stay easy to skim and so adding a new decoder is a
- * paste-and-adjust job, not a from-scratch decision on shared boilerplate.
- */
 const STREAMS_API_INPUT = {
 	name: "streams-api",
 	reason:
@@ -121,10 +100,6 @@ export const BNS_SERVICE_MANIFEST: ServiceManifest = {
 	source_path: "packages/indexer/src/decode/decoders/bns.ts",
 };
 
-/**
- * The registry every derived-stage report reads. Adding a new decoder is a
- * push here; the report aggregator picks it up automatically.
- */
 export const DECODER_SERVICE_MANIFESTS: readonly ServiceManifest[] = [
 	SBTC_SERVICE_MANIFEST,
 	BNS_SERVICE_MANIFEST,

@@ -14,8 +14,6 @@ import {
 import { readInsights } from "@/lib/server/insights-read";
 import { sessionToken } from "@/lib/server/session";
 
-// Next to the API (Hetzner HEL/fsn1), and per request: the HTML carries one
-// account's data, so it is never prerendered or shared.
 export const preferredRegion = "fra1";
 export const dynamic = "force-dynamic";
 
@@ -29,8 +27,6 @@ export default async function AccountOverviewPage() {
 				readInsights(token),
 			])
 		: [{} as AccountSeed, null, null, null];
-	// The highlighted blocks are for the new-account guide only; every other
-	// visit skips the highlighter.
 	const pushed =
 		(webhooks?.list.kind === "ok" && webhooks.list.data.length > 0) ||
 		(subgraphs?.kind === "ok" && subgraphs.data.length > 0);

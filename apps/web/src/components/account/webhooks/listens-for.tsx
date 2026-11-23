@@ -11,9 +11,7 @@ import { useEffect, useRef, useState } from "react";
 import { type Piece, agentPrompt, listensForCode } from "./describe-trigger";
 
 /**
- * "Listens for": one closed row per trigger. Details opens the docs-style
- * section: a sentence whose phrases are focus links, then that trigger's code
- * in the docs frame. Shiki doesn't run in the browser, so the page render
+ * Shiki doesn't run in the browser, so the page render
  * hands the frames in (`initialBlocks`) and `/api/code` renders them again
  * when the webhook's version changes.
  */
@@ -39,13 +37,11 @@ export function ListensFor({
 }: {
 	webhook: WebhookDetail;
 	activity: WebhookActivity | null;
-	/** The frames the server rendered for this webhook's current version. */
 	initialBlocks?: RenderedBlock[] | null;
 }) {
 	const { triggers } = webhook;
 	const { descriptions, blocks } = listensForCode(webhook, activity);
 	const key = `${webhook.id}:${webhook.updatedAt}`;
-	// The version the server's frames belong to; a newer version refetches.
 	const seededKey = useRef(initialBlocks ? key : null);
 	const [rendered, setRendered] = useState<RenderedBlock[] | null>(
 		initialBlocks ?? null,
@@ -71,9 +67,7 @@ export function ListensFor({
 			.then((body: { blocks: RenderedBlock[] }) => {
 				if (live) setRendered(body.blocks);
 			})
-			.catch(() => {
-				// The plain code below stays: the section never depends on this.
-			});
+			.catch(() => {});
 		return () => {
 			live = false;
 		};
@@ -88,7 +82,6 @@ export function ListensFor({
 
 	async function copy() {
 		if (await copyPrompt(prompt)) return;
-		// No clipboard access: show the text, selected, to copy by hand.
 		const details = peek.current;
 		const text = peekText.current;
 		if (!details || !text) return;

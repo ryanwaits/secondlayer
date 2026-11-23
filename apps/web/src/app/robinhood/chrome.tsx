@@ -1,10 +1,6 @@
 import { Logo } from "@/components/logo";
 import Link from "next/link";
 
-/**
- * An official vendor logo, unmodified: the dark asset on light ground, the
- * light asset on dark ground. Theme swap is CSS-only (.rh-logo-*).
- */
 export function VendorLogo({
 	light,
 	dark,

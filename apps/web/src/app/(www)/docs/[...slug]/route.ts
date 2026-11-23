@@ -7,8 +7,6 @@ import {
 import { SITE } from "@/lib/docs-agent";
 import { docsPages, readDocsMarkdown } from "@/lib/docs-source";
 
-/** One API reference section as markdown: `list-pox5-events` or
- *  `pox5-event-object`. Null when no section has that anchor. */
 function apiReferenceSection(anchor: string): string | null {
 	const endpoint = allEndpoints().find((e) => e.anchor === anchor);
 	if (endpoint) return endpointMarkdown(endpoint);
@@ -19,16 +17,6 @@ function apiReferenceSection(anchor: string): string | null {
 	return null;
 }
 
-/**
- * `GET /docs/<page>.md` — the markdown behind any docs page.
- *
- * An agent that wants one page shouldn't have to fetch `llms-full.txt` and
- * find it, nor parse the rendered HTML. Appending `.md` to any docs URL
- * returns exactly that page's source.
- *
- * Only `.md` requests reach this handler; every other path under /docs is an
- * MDX page and is matched first by the more specific route.
- */
 export const dynamicParams = false;
 
 export function generateStaticParams() {
@@ -37,8 +25,6 @@ export function generateStaticParams() {
 			"/",
 		),
 	}));
-	// Every API reference section is its own `.md`, so a shared anchor has a
-	// markdown twin: `/docs/api-reference/list-pox5-events.md`.
 	const sections = [
 		...allEndpoints().map((e) => e.anchor),
 		...[...objectsByTag().values()].flat().map((o) => o.anchor),

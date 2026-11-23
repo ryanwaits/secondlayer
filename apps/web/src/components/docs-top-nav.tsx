@@ -9,10 +9,6 @@ import { useAuth } from "@/lib/auth";
 import Link from "next/link";
 import { useDocsDrawer } from "../app/(www)/docs/docs-drawer";
 
-/**
- * Docs top bar: brand, the ⌘K search field, site links and session chrome.
- * Sign in never flashes for a session that is already in.
- */
 export function DocsTopNav() {
 	const { account, loading, logout } = useAuth();
 	const { open, setOpen } = useDocsDrawer();

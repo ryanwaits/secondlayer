@@ -24,20 +24,6 @@ import {
 } from "./pox-cycles.ts";
 import type { IndexTip } from "./tip.ts";
 
-/**
- * Typed sBTC peg read surface over the already-decoded `sbtc_events` table
- * (topics `completed-deposit` / `withdrawal-{create,accept,reject}` /
- * `key-rotation` / `update-protocol-contract`). The single sharpest data-plane
- * moat: Hiro declined peg-event filtering (SBA #1709), so this is the only
- * productized decoded sBTC peg feed on Stacks. Packaging, not ingestion — the
- * rows already exist with reorg-canonical handling.
- *
- * Event-indexed like the decoded-event endpoints: cursor = `block_height:event_index`,
- * sargable `(block_height, event_index)` keyset, reorg reconciliation over the
- * page's event range. Reuses the shared Index helpers so the envelope, finality,
- * and pagination never diverge from the rest of `/v1/index`.
- */
-
 export { isSbtcDecoderEnabled };
 
 const SBTC_DISABLED_NOTE =
@@ -45,8 +31,6 @@ const SBTC_DISABLED_NOTE =
 
 const DEPOSIT_TOPIC: SbtcEventTopic = "completed-deposit";
 
-/** The `sbtc_events` topic vocabulary — stacks const, same list the decoder
- *  writes. */
 const SBTC_TOPICS: ReadonlySet<string> = new Set(SBTC_EVENT_TOPICS);
 
 export const SBTC_EVENTS_FILTERS = [
@@ -98,7 +82,6 @@ export const SBTC_WITHDRAWAL_FIELDS = [
 	"resolved_at",
 ] as const;
 
-/** Withdrawal columns that survive any projection. */
 export const SBTC_WITHDRAWAL_ALWAYS = ["cursor", "request_id"] as const;
 
 export const SBTC_WITHDRAWAL_FILTERS = [
@@ -121,8 +104,6 @@ export const SBTC_WITHDRAWAL_FILTERS = [
 
 export type SbtcWithdrawalStatus = "REQUESTED" | "ACCEPTED" | "REJECTED";
 
-/** A raw decoded sBTC protocol-state event — the full `sbtc_events` row shape
- *  (declared columns in SOURCE_READ_COLUMNS), one per event across all topics. */
 export type SbtcEvent = {
 	cursor: string;
 	block_height: number;
@@ -163,16 +144,13 @@ export type SbtcDeposit = {
 	tx_id: string;
 	tx_index: number;
 	event_index: number;
-	/** Sats minted: the deposited BTC minus `fee`. */
 	amount: string | null;
-	/** Stacks principal the deposit minted sBTC to. */
 	recipient: string | null;
 	bitcoin_txid: string | null;
 	output_index: number | null;
 	/** Sats the signers took to sweep the deposit. Null until read from
 	 *  Bitcoin, or when the stack has no Bitcoin RPC. */
 	fee: string | null;
-	/** Most the depositor allowed the signers to take, read from Bitcoin. */
 	max_fee: string | null;
 };
 
@@ -190,15 +168,9 @@ export type SbtcWithdrawalSummary = {
 	recipient_btc_version: number | null;
 	recipient_btc_hashbytes: string | null;
 	sweep_txid: string | null;
-	/** BTC L1 settlement of the committed sweep: true once confirmed, false while
-	 *  pending, null when there is no sweep yet (REQUESTED). */
 	settlement_confirmed: boolean | null;
-	/** BTC confirmations on the sweep tx as of the current Bitcoin tip, null
-	 *  when no settlement row yet. */
 	btc_confirmations: number | null;
-	/** Confirming BTC block height, null while unconfirmed / no sweep. */
 	btc_block_height: number | null;
-	/** When the sweep crossed the confirmation threshold (ISO), null otherwise. */
 	confirmed_at: string | null;
 	/** Monotonic stamp taken when the sweep became confirmed. Unlike
 	 *  `confirmed_at` it follows commit order, so it is safe to resume a scan
@@ -232,8 +204,6 @@ export type SbtcWithdrawalsResponse = {
 	notes?: string;
 };
 
-// --- shared query parsing -------------------------------------------------
-
 type SbtcBaseQuery = {
 	cursor?: IndexCursorInput;
 	cursorRaw?: string;
@@ -243,9 +213,6 @@ type SbtcBaseQuery = {
 	cursorPastTip: boolean;
 };
 
-/** Base window/cursor parse + the `?confirmed=true` hard "settled" filter:
- *  clamp `to_height` to `tip.finalized_height` so only rows past the reorg
- *  margin are returned — the safety-critical view a settlement consumer wants. */
 function parseSbtcBaseQuery(
 	query: URLSearchParams,
 	tip: IndexTip,
@@ -274,13 +241,9 @@ function parseRequestIdFilter(value: string | undefined): number | undefined {
 }
 
 function keysetPredicate(after: IndexCursorInput): RawBuilder<unknown> {
-	// Sargable row-values keyset over (block_height, event_index) — same form as
-	// the decoded-event reads, so Postgres range-scans rather than re-scanning.
 	return sql`(block_height, event_index) > (${after.block_height}, ${after.event_index})`;
 }
 
-// sbtc_events carries its own NOT NULL `block_time` column (unlike
-// decoded_events, which needs a correlated `blocks` lookup), so select it directly.
 const SBTC_EVENT_COLUMNS = sql`
 	cursor,
 	block_height,
@@ -309,8 +272,6 @@ const SBTC_EVENT_COLUMNS = sql`
 	signer_threshold,
 	signer_address,
 	signer_keys_count`;
-
-// --- raw events (T1) ------------------------------------------------------
 
 type SbtcEventDbRow = {
 	cursor: string;
@@ -500,8 +461,6 @@ export async function getSbtcEventsResponse(opts: {
 	};
 }
 
-/** Projectable columns on a deposit row. `cursor`/`block_height` always
- *  survive (see ALWAYS_PROJECTED) — pagination and the reorg span need them. */
 export const SBTC_DEPOSIT_FIELDS = [
 	"block_time",
 	"tx_id",
@@ -514,8 +473,6 @@ export const SBTC_DEPOSIT_FIELDS = [
 	"fee",
 	"max_fee",
 ] as const;
-
-// --- deposits (T2) --------------------------------------------------------
 
 function normalizeSbtcDeposit(row: SbtcEventDbRow): SbtcDeposit {
 	return {
@@ -535,7 +492,6 @@ function normalizeSbtcDeposit(row: SbtcEventDbRow): SbtcDeposit {
 }
 
 export type ReadSbtcDepositsParams = {
-	/** Columns to return; omit for the full row. */
 	fields?: readonly string[];
 	after?: IndexCursorInput;
 	fromHeight: number;
@@ -656,8 +612,6 @@ export async function getSbtcDepositsResponse(opts: {
 	};
 }
 
-// --- withdrawals rolled-up list (T3) --------------------------------------
-
 type SbtcWithdrawalSummaryDbRow = {
 	cursor: string;
 	block_height: string | number;
@@ -734,7 +688,6 @@ function normalizeSbtcWithdrawalSummary(
 }
 
 export type ReadSbtcWithdrawalsParams = {
-	/** Columns to return; omit for the full row. */
 	fields?: readonly string[];
 	after?: IndexCursorInput;
 	fromHeight: number;
@@ -744,11 +697,8 @@ export type ReadSbtcWithdrawalsParams = {
 	sender?: string;
 	requestId?: number;
 	settlementConfirmed?: boolean;
-	/** Only sweeps confirmed on Bitcoin strictly after this instant. */
 	confirmedAfter?: Date;
-	/** Only sweeps whose confirmation stamp (`settlement_seq`) is above this. */
 	confirmedAfterSeq?: number;
-	/** Current Bitcoin tip height; `btc_confirmations` is computed against it. */
 	btcTipHeight?: number;
 	db?: Kysely<Database>;
 };
@@ -866,8 +816,6 @@ export async function readSbtcWithdrawals(
 	`.execute(db);
 
 	const pageRows = rows.slice(0, params.limit);
-	// Cursor is built from the RAW rows, so projecting the normalized ones
-	// cannot break pagination.
 	const fieldSet = params.fields ? new Set(params.fields) : undefined;
 	const withdrawals = pageRows.map(
 		(row) =>
@@ -1003,18 +951,12 @@ export async function getSbtcWithdrawalsResponse(opts: {
 	};
 }
 
-// --- by-id lifecycle detail (T6) ------------------------------------------
-
-/** One phase of a withdrawal's lifecycle (the on-Stacks event that drove it). */
 export type SbtcWithdrawalPhase = {
 	block_height: number;
 	block_time: string | null;
 	tx_id: string;
 };
 
-/** A single peg-out's full assembled lifecycle, joined by request_id. The
- *  settlement block is filled from `sbtc_settlements` by the BTC L1 confirmer:
- *  null fields mean the committed sweep has not been observed on Bitcoin yet. */
 export type SbtcWithdrawalLifecycle = {
 	request_id: number;
 	status: SbtcWithdrawalStatus;
@@ -1034,18 +976,12 @@ export type SbtcWithdrawalLifecycle = {
 		sweep_txid: string | null;
 		btc_confirmations: number | null;
 		settlement_confirmed: boolean | null;
-		/** Confirming Bitcoin block height; null until the sweep confirms. */
 		btc_block_height: number | null;
-		/** ISO timestamp the sweep first crossed the confirmation threshold. */
 		confirmed_at: string | null;
 	};
-	/** The highest block_height across the lifecycle's events — the route uses it
-	 *  to decide finality (and whether the row is immutably cacheable). */
 	latest_height: number;
 };
 
-/** A completed peg-in fetched by its Bitcoin txid (deposits carry no request_id).
- *  Single terminal event, so status is always COMPLETED. */
 export type SbtcDepositDetail = SbtcDeposit & { status: "COMPLETED" };
 
 type SbtcLifecycleDbRow = {
@@ -1153,8 +1089,6 @@ export async function readSbtcWithdrawalById(
 	};
 }
 
-/** The BTC L1 settlement status the confirmer recorded for a committed sweep,
- *  or null if there is no sweep or it has not been observed on Bitcoin yet. */
 async function readSettlementForSweep(
 	db: Kysely<Database>,
 	sweepTxid: string | null,
@@ -1207,11 +1141,6 @@ export type SbtcDepositByTxidReader = (
 	bitcoinTxid: string,
 ) => Promise<SbtcDepositDetail | null>;
 
-// --- summary scoreboard (T7) ----------------------------------------------
-
-/** The peg "scoreboard" cap — a single scalar row summarizing the whole bridge:
- *  lifecycle counts, net peg flow, locked sats, and circulating sBTC supply.
- *  No window/cursor — it's an all-time canonical aggregate. */
 export type SbtcSummary = {
 	total_deposits: number;
 	total_withdrawals_requested: number;
@@ -1235,7 +1164,6 @@ export type SbtcSummary = {
 	 * fees and unmatched accepts.
 	 */
 	net_peg_flow_sats: string;
-	/** Same figure as net_peg_flow_sats: sats still held by the peg. */
 	total_locked_sats: string;
 	/** `withdrawal-accept` events with no canonical `withdrawal-create` for their
 	 *  request_id. Their amounts are unknown, so they are left out of
@@ -1267,7 +1195,6 @@ type SbtcSummaryDbRow = {
 	matched_accepts: string | number;
 };
 
-/** Reads authoritative circulating sBTC supply (sats) or null when unavailable. */
 export type SbtcSupplyReader = () => Promise<string | null>;
 
 const SBTC_TOKEN_CONTRACT =
@@ -1300,7 +1227,6 @@ export async function readSbtcTokenSupply(opts?: {
 		if (!res.ok) return null;
 		const data = (await res.json()) as { okay?: boolean; result?: string };
 		if (!data.okay || !data.result) return null;
-		// (response (ok uint) (err …)) → { type: "ok", value: { type: "uint", value: bigint } }
 		const cv = deserializeCVBytes(data.result);
 		if (cv.type === "ok" && cv.value.type === "uint") {
 			return cv.value.value.toString();

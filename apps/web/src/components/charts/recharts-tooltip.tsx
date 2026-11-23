@@ -22,7 +22,6 @@ export interface ChartTooltipContentProps {
 	payload?: TooltipPayloadItem[];
 	label?: string | number;
 	formatter?: (value: number | string, name: string) => ReactNode;
-	/** Passed through by recharts from `<Tooltip labelFormatter>`. */
 	labelFormatter?: (label: string | number) => ReactNode;
 }
 

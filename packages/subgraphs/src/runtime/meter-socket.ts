@@ -1,17 +1,3 @@
-/**
- * Hosted-stack event meter counter (plan 044, step 5). Counts webhook
- * deliveries (never retries) and pushes the count to the provisioner over a
- * unix socket every 60s. Inert unless `WEBHOOK_METER_SOCKET` is set — a
- * self-host instance never has this env var, so this module is a total
- * no-op there (no socket, no interval, no behavior change).
- *
- * Runs only inside `webhook-processor` (`webhook-service.ts` /
- * `webhook-plane.ts`) — never the subgraph indexer, never `api`. Counts
- * never touch this instance's own Postgres, so once 046 runs customer
- * handler code in `api`, that code has no path to lower them (Design,
- * "Open" section).
- */
-
 import { logger } from "@secondlayer/shared";
 
 const FLUSH_INTERVAL_MS = 60_000;
@@ -83,7 +69,7 @@ export function startMeterSocketReporter(): () => void {
 
 	if (flushTimer) clearInterval(flushTimer);
 	flushTimer = setInterval(() => {
-		flush(path).catch(() => {}); // flush() already logs; never throw into the timer
+		flush(path).catch(() => {});
 	}, FLUSH_INTERVAL_MS);
 
 	return () => {

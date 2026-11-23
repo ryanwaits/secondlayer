@@ -24,7 +24,6 @@ function AlertSwitch({
 }: {
 	id: string;
 	checked: boolean;
-	/** Until the stored settings have loaded, the switch shows a default, not a choice. */
 	disabled: boolean;
 	onChange: () => void;
 	title: string;
@@ -58,8 +57,6 @@ export function limitDigits(raw: string): string {
 	return raw.replace(/\D/g, "");
 }
 
-/** The monthly limit: one field, empty means no limit. Commits on blur or
- *  Enter; an empty box clears the limit. */
 export function MonthlyLimitRow({
 	capUsd,
 	onCapChange,
@@ -67,7 +64,6 @@ export function MonthlyLimitRow({
 }: {
 	capUsd: number | null;
 	onCapChange: (next: number | null) => void;
-	/** This month's spend in dollars, for the limit's line. */
 	spentUsd: number;
 }) {
 	const id = useId();
@@ -131,7 +127,6 @@ function AlertRow({
 	alertKey: keyof BalanceAlerts;
 	id: string;
 	sub: string;
-	/** Null until the stored settings have loaded. */
 	alerts: BalanceAlerts | null;
 }) {
 	const save = useSave<boolean>((on) => updateAlerts({ [alertKey]: on }));
@@ -162,8 +157,6 @@ function AlertRow({
 	);
 }
 
-/** The account's limits: the monthly limit and the two balance emails. The
- *  switches are bound to `GET/PUT /api/billing/alerts`. */
 export function LimitsAndEmails({
 	capUsd,
 	onCapChange,

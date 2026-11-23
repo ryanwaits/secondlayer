@@ -27,24 +27,19 @@ const JUMP_LINKS = '#docs-article a[data-link="jump"]';
 const PEEK_LINKS = '#docs-article a[data-link="peek"]';
 const FIELD = 'input, textarea, select, [contenteditable="true"]';
 
-/** The frame that is open: one at a time. */
 type Peek = {
-	/** Tells a late fetch whether its frame is still the open one. */
 	id: number;
 	link: HTMLAnchorElement;
 	href: string;
 	kind: PeekKind;
 	frame: Frame;
-	/** Empty until the target has loaded. */
 	title: string;
 	pageTitle: string;
 };
 
-/** Every guide link in the article, in order; the slot remembers an index into this. */
 const guideLinks = () =>
 	document.querySelectorAll<HTMLAnchorElement>("#docs-article a[data-link]");
 
-/** The article's direct child that holds `el`: where a frame goes, under the whole block. */
 function topBlock(el: Element): Element {
 	const article = el.closest("#docs-article");
 	let block = el;
@@ -53,11 +48,6 @@ function topBlock(el: Element): Element {
 	return block;
 }
 
-/**
- * Light the sentence you came from: the link in the reference color and its
- * row in `soft` (DESIGN.md: lit references). The mark stays until the next
- * click anywhere. Returns what undoes it.
- */
 function markLink(linkIndex: number): () => void {
 	const link = guideLinks()[linkIndex];
 	if (!link) return () => {};
@@ -82,7 +72,6 @@ function markLink(linkIndex: number): () => void {
 	};
 }
 
-/** The bar itself: Back and Saved, or nothing when it has neither. */
 export function TrailBar({
 	slot,
 	saved = [],
@@ -126,7 +115,6 @@ export function TrailBar({
 			) : null}
 			{listOpen && saved.length ? (
 				<ul className="docs-trail-list" aria-label="Pinned sections">
-					{/* Newest first. */}
 					{[...saved].reverse().map((item) => (
 						<li key={item.href} className="docs-trail-row">
 							<button
@@ -156,20 +144,11 @@ export function TrailBar({
 	);
 }
 
-/**
- * The trail holds your place in the docs. A link in a guide that scrolls its
- * own sentence off screen leaves a Back at the bottom of the reading column;
- * it only watches those clicks, so FastAnchorScroll still does the scrolling
- * and the jump's landing is predicted rather than waited for. A link to another
- * docs page opens what it points at in a frame under its block (a peek), whose
- * bar saves it for later or opens the page with a Back to the sentence.
- */
 export function DocsTrail() {
 	const pathname = usePathname();
 	const router = useRouter();
 	const [slot, setSlot] = useState<BackSlot | null>(null);
 	const unmark = useRef<(() => void) | null>(null);
-	// A Back from another page marks its link once that page has mounted.
 	const markAfterNav = useRef<{ path: string; linkIndex: number } | null>(null);
 	// The jump's own scrolling starts with the link in view; only a link seen
 	// leaving counts as one the reader can return to by hand.
@@ -186,14 +165,11 @@ export function DocsTrail() {
 		const sync = () => {
 			setSlot(peekBack());
 			setSaved(listSaved());
-			// An open card follows the list: a pin removed from the trail, here or
-			// in another tab, puts its button back to Pin.
 			const open = peek.current;
 			if (open) open.frame.markSaved(isSaved(open.href));
 		};
 		sync();
 		window.addEventListener(TRAIL_EVENT, sync);
-		// Saved is shared by every tab.
 		window.addEventListener("storage", sync);
 		return () => {
 			window.removeEventListener(TRAIL_EVENT, sync);
@@ -201,12 +177,10 @@ export function DocsTrail() {
 		};
 	}, []);
 
-	// Nothing left to list.
 	useEffect(() => {
 		if (!saved.length) setListOpen(false);
 	}, [saved]);
 
-	// Esc and an outside click close the Saved list.
 	useEffect(() => {
 		if (!listOpen) return;
 		const onPointerDown = (e: PointerEvent) => {
@@ -226,12 +200,10 @@ export function DocsTrail() {
 		if (refocus) open.link.focus({ preventScroll: true });
 	}, []);
 
-	// A frame belongs to the page it was opened on.
 	// biome-ignore lint/correctness/useExhaustiveDependencies: pathname is the trigger
 	useEffect(() => () => closePeek(false), [pathname, closePeek]);
 
 	useEffect(() => {
-		/** Where a link sits now: the Back a frame's Open or a link inside it leaves. */
 		const spotOf = (link: HTMLAnchorElement): BackSlot => ({
 			path: location.pathname,
 			scrollY: window.scrollY,
@@ -254,8 +226,6 @@ export function DocsTrail() {
 			peek.current = open;
 			link.setAttribute("aria-expanded", "true");
 			open.frame.focusSave();
-			// A cold page fills in when it arrives; one that cannot be had
-			// still gets the reader there.
 			loadTarget(href, kind).then((found) => {
 				if (peek.current?.id !== open.id) return;
 				if (!found) {
@@ -269,7 +239,6 @@ export function DocsTrail() {
 			});
 		};
 
-		/** What a frame's buttons and keys do. */
 		const act = (action: string | undefined) => {
 			const open = peek.current;
 			if (!open) return;
@@ -290,7 +259,6 @@ export function DocsTrail() {
 			} else if (action === "open") {
 				setBack(spotOf(open.link));
 				closePeek(false);
-				// The new page starts at its target, not where this one was.
 				router.push(open.href);
 			}
 		};
@@ -341,7 +309,6 @@ export function DocsTrail() {
 				e.preventDefault();
 				const open = peek.current;
 				closePeek(false);
-				// Another click on the open link closes it.
 				if (open?.link !== peekLink) openPeek(peekLink);
 				return;
 			}
@@ -373,8 +340,6 @@ export function DocsTrail() {
 			setBack(spotOf(link));
 		};
 
-		// Esc closes the Pinned list first, then the frame; P and O act on the
-		// frame while focus is inside it.
 		const onKey = (e: KeyboardEvent) => {
 			if (e.metaKey || e.ctrlKey || e.altKey) return;
 			if (e.key === "Escape" && listOpenRef.current) {
@@ -395,7 +360,6 @@ export function DocsTrail() {
 			}
 		};
 
-		// A hovered or focused link warms the page, so the click finds it.
 		const warm = (e: Event) => {
 			const link = (e.target as Element | null)?.closest?.<HTMLAnchorElement>(
 				PEEK_LINKS,
@@ -415,7 +379,6 @@ export function DocsTrail() {
 		};
 	}, [closePeek, router]);
 
-	// The reader scrolled back to the link themselves: the bar has done its job.
 	useEffect(() => {
 		if (!slot || slot.path !== pathname) return;
 		let frame = 0;
@@ -467,7 +430,6 @@ export function DocsTrail() {
 		router.push(taken.path);
 	};
 
-	// A Saved row opens its page, and the place you left it for is the way Back.
 	const openSaved = (item: SavedItem) => {
 		setBack({
 			path: location.pathname,

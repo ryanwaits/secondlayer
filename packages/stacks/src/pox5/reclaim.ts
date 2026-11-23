@@ -57,12 +57,10 @@ function bytesEqual(a: Uint8Array, b: Uint8Array): boolean {
 	return bytesToHex(a) === bytesToHex(b);
 }
 
-/** P2WSH `scriptPubKey`: `0x0020 || sha256(lockScript)`. */
 function scriptToWshOutput(lockScript: Uint8Array): Uint8Array {
 	return concatBytes(Uint8Array.of(0x00, 0x20), sha256(lockScript));
 }
 
-/** Ops in the fixed lockup scaffold before the early-unlock subscript. */
 const SCAFFOLD_PREFIX_LEN = 10;
 
 /**

@@ -49,7 +49,6 @@ export async function deployContract(
 	if (!isClarityName(params.contractName))
 		throw new Error(`Invalid contract name: ${params.contractName}`);
 
-	// Provider: delegate to wallet
 	if (isProviderAccount(account)) {
 		assertNoFeeTierForProvider(params.fee);
 		const result = await account.provider.request("stx_deployContract", {
@@ -60,7 +59,6 @@ export async function deployContract(
 		return result.txid;
 	}
 
-	// Local/Custom: build → sign → broadcast
 	const managed =
 		params.nonce === undefined && client.nonceManager !== undefined;
 	const nonce = params.nonce ?? (await resolveNonce(client, account.address));

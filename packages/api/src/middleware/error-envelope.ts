@@ -17,7 +17,6 @@ export type { FailedRequestRecord };
 
 const MAX_MESSAGE_CHARS = 200;
 
-/** Account behind this request, once auth resolved one (hosted only). */
 export function resolveAccountId(c: Context): string | undefined {
 	const direct = c.get("accountId") as string | undefined;
 	if (direct) return direct;
@@ -27,7 +26,6 @@ export function resolveAccountId(c: Context): string | undefined {
 	return streams?.account_id;
 }
 
-// Throttle recorder failures so a DB outage doesn't log once per request.
 let lastRecordFailLogMs = 0;
 function warnRecordFailure(err: unknown): void {
 	const now = Date.now();
@@ -95,7 +93,6 @@ export function errorEnvelope(opts: {
 			origin: normalizeOrigin(c.req.header("x-sl-origin")),
 			api_key_id: revoked?.id ?? null,
 		};
-		// Fire-and-forget: never delays or alters the response.
 		void (async () => record(row))().catch(warnRecordFailure);
 	};
 }

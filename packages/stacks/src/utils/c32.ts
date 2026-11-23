@@ -31,12 +31,10 @@ function c32encode(inputHex: string): string {
 		}
 	}
 
-	// Strip leading c32 zeros
 	let leadingZeros = 0;
 	while (leadingZeros < res.length && res[leadingZeros] === "0") leadingZeros++;
 	const stripped = res.slice(leadingZeros);
 
-	// Preserve leading zero bytes from hex
 	const bytes = hexToBytes(hex);
 	let zeroBytesCount = 0;
 	while (zeroBytesCount < bytes.length && bytes[zeroBytesCount] === 0)
@@ -76,7 +74,6 @@ function c32decode(c32input: string): string {
 
 	if (res.length % 2 === 1) res.unshift("0");
 
-	// Strip leading hex zeros
 	let hexLeadingZeros = 0;
 	while (hexLeadingZeros < res.length && res[hexLeadingZeros] === "0")
 		hexLeadingZeros++;

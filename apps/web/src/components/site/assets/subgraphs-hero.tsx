@@ -1,4 +1,3 @@
-/** A subgraph file deploying into a table. Illustrative rows. */
 export function SubgraphsHero() {
 	return (
 		<svg

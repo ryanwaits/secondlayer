@@ -3,43 +3,19 @@ import { type Kysely, sql } from "kysely";
 import { monthKey } from "./account-credits.ts";
 import { type ServiceState, getServiceState } from "./hosted-stack-state.ts";
 
-/**
- * The metered ledger: one append-only row per billable (or free
- * -allowance) unit. Written only by `meter()` (`../billing/meter.ts`); this
- * module is the plain DB access underneath it, mirroring `account-credits.ts`
- * and `archive-fetches.ts` — functions over an injected `Kysely<Database>`
- * (or `Transaction<Database>`) so `meter()` can run inside a caller's own
- * transaction (the archive fetch gate's aggregate charge, for one).
- */
-
 export type LedgerEntry = {
 	accountId: string;
 	unit: string;
 	quantity: number;
-	/** Raw sampled quantity before any floor (`memory.gb_hour` only; every
-	 *  other unit passes `null`). */
 	observedQuantity: number | null;
 	usdMicros: bigint;
-	/** Amount taken from the balance, `0..usdMicros`. Inserted optimistic
-	 *  (the whole price) and corrected by `recordLedgerDebit` in the same
-	 *  transaction once the debit resolves. */
 	debitedUsdMicros: bigint;
 	source: string;
 	idempotencyKey: string;
 	occurredAt: Date;
-	/** API key behind the request; null for anything not a keyed read. */
 	apiKeyId?: string | null;
 };
 
-/**
- * Atomically claim an idempotency key: insert the row, or — if a prior call
- * already wrote it — return that row untouched with `claimed: false`. The
- * unique constraint on `idempotency_key` makes the claim race-safe, so a
- * caller only debits a balance when `claimed` is true; a replay (concurrent
- * or retried) always sees `claimed: false` and must not charge again.
- * Callers run it inside a transaction so the ledger row and the monthly
- * total commit together.
- */
 export async function claimLedgerEntry(
 	db: Kysely<Database>,
 	entry: LedgerEntry,
@@ -106,8 +82,6 @@ export async function recordLedgerDebit(
 		.execute();
 }
 
-/** The account behind a ledger row, found by its idempotency key. How a
- *  Stripe refund or dispute finds the account its original top-up credited. */
 export async function accountForLedgerKey(
 	db: Kysely<Database>,
 	idempotencyKey: string,
@@ -120,8 +94,6 @@ export async function accountForLedgerKey(
 	return row?.account_id ?? null;
 }
 
-/** The highest cumulative cents already recorded under
- *  `<prefix><cumulative cents>` keys, 0 when none. */
 export async function lastCumulativeCents(
 	db: Kysely<Database>,
 	prefix: string,
@@ -134,7 +106,6 @@ export async function lastCumulativeCents(
 	return Number(rows[0]?.cents ?? 0);
 }
 
-/** UTC calendar-month bounds `now` falls in: `[start, end)`. */
 export function monthBounds(now: Date): { start: Date; end: Date } {
 	const start = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
 	const end = new Date(
@@ -143,9 +114,6 @@ export function monthBounds(now: Date): { start: Date; end: Date } {
 	return { start, end };
 }
 
-/** Running total of `quantity` for `unit` this account has recorded in
- *  `now`'s UTC calendar month — the allowance counter for `rows.delivered`.
- *  Reads `usage_monthly_totals`, which `claimLedgerEntry` keeps in step. */
 export async function monthlyQuantity(
 	db: Kysely<Database>,
 	accountId: string,
@@ -189,8 +157,6 @@ export type UsageByUnit = {
 	unpaidUsdMicros: string;
 };
 
-/** Per-unit quantity + cost for `now`'s UTC calendar month — the account
- *  usage view (`GET /api/billing/usage`). */
 export async function usageForMonth(
 	db: Kysely<Database>,
 	accountId: string,
@@ -220,7 +186,7 @@ export async function usageForMonth(
 }
 
 export type DailySpend = {
-	date: string; // "YYYY-MM-DD", UTC
+	date: string;
 	unit: string;
 	usdMicros: string;
 };
@@ -264,15 +230,12 @@ export async function dailySpendForMonth(
 }
 
 export type CreditAdded = {
-	occurredAt: string; // ISO
+	occurredAt: string;
 	kind: "topup" | "grant";
 	source: string;
-	usdMicros: string; // positive amount credited
+	usdMicros: string;
 };
 
-/** The account's most recent top-ups and grants, newest first: the billing
- *  page's "Credits added" table. Stored with negative `usd_micros` (money in);
- *  returned positive. */
 export async function creditsAdded(
 	db: Kysely<Database>,
 	accountId: string,
@@ -297,9 +260,6 @@ export async function creditsAdded(
 	});
 }
 
-/** Sum of positive `usd_micros` across every unit in the trailing 24h — the
- *  "burning now" rate. Always relative to `now`, independent of whatever
- *  month the usage table is browsing. */
 export async function burnRateUsdMicros(
 	db: Kysely<Database>,
 	accountId: string,
@@ -318,11 +278,6 @@ export async function burnRateUsdMicros(
 	return row?.total ? BigInt(row.total) : 0n;
 }
 
-/** Distinct `account_id`s the balance-alert cron needs to check: anything
- *  with a positive charge in the last 24h (so it has a burn rate to project
- *  from), or a `memory.gb_hour` row in the last 35 days (a hosted stack
- *  that isn't `none` — it could still be `stopped`, which is exactly the
- *  case the "your service stopped" email exists for). */
 export async function accountsToCheckForBalanceAlerts(
 	db: Kysely<Database>,
 	now: Date = new Date(),
@@ -351,13 +306,12 @@ export async function accountsToCheckForBalanceAlerts(
 }
 
 export type MemoryHourRow = {
-	hour: string; // ISO
+	hour: string;
 	billedGb: number;
 	observedGb: number | null;
 };
 
 export type HostedStackSnapshot = {
-	/** The workload host's reported state; `none` = no stack. */
 	state: ServiceState;
 	lastChargedAt: string | null;
 	memory24h: MemoryHourRow[];
@@ -366,9 +320,6 @@ export type HostedStackSnapshot = {
 const LAST_CHARGE_WINDOW_MS = 35 * 24 * 60 * 60 * 1000;
 const MEMORY_24H_WINDOW_MS = 24 * 60 * 60 * 1000;
 
-/** The hosted stack's reported state (`hosted_stack_state`, written by the
- *  workload host) plus the last `memory.gb_hour` charge and the last 24h of
- *  memory. State is never inferred from ledger rows. */
 export async function hostedStackSnapshot(
 	db: Kysely<Database>,
 	accountId: string,
@@ -425,8 +376,6 @@ export async function hostedStackSnapshot(
 
 const ROWS_UNIT = "rows.delivered";
 
-/** UTC midnight that opens a window of `days` calendar days ending with
- *  `now`'s day (so `days = 30` is today plus the 29 days before it). */
 function windowStart(now: Date, days: number): Date {
 	return new Date(
 		Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()) -
@@ -434,10 +383,6 @@ function windowStart(now: Date, days: number): Date {
 	);
 }
 
-/** Rows delivered per API key per UTC day over the trailing `days` days, for
- *  the keys list. Each key maps to `days` numbers, oldest first, zero where
- *  it read nothing. Keys with no attributed reads are absent; rows with a NULL
- *  key (older rows, session and internal callers) are not counted. */
 export async function rowsByKeyDaily(
 	db: Kysely<Database>,
 	accountId: string,
@@ -480,7 +425,7 @@ export async function rowsByKeyDaily(
 }
 
 export type RowsDay = {
-	date: string; // "YYYY-MM-DD", UTC
+	date: string;
 	source: string;
 	rows: number;
 	freeRows: number;
@@ -538,13 +483,12 @@ export async function rowsDaily(
 }
 
 export type RowsHour = {
-	hour: string; // ISO, top of the UTC hour
+	hour: string;
 	source: string;
 	rows: number;
 	calls: number;
 };
 
-/** Rows delivered per UTC hour × source since UTC midnight of `now`'s day. */
 export async function rowsHourlyToday(
 	db: Kysely<Database>,
 	accountId: string,
@@ -593,8 +537,6 @@ export type RowsPerCallBin = {
 	rows: number;
 };
 
-/** Metered pages by how many rows each carried, over the trailing `days`
- *  days. Always returns all five buckets, zero-filled. */
 export async function rowsPerCallHistogram(
 	db: Kysely<Database>,
 	accountId: string,

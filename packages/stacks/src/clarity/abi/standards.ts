@@ -230,7 +230,6 @@ export const SIP013_ABI = {
 	non_fungible_tokens: [],
 } as const satisfies AbiContract;
 
-// Camel-case aliases for better DX
 export const sip010Abi: AbiContract = SIP010_ABI;
 export const sip009Abi: AbiContract = SIP009_ABI;
 export const sip013Abi: AbiContract = SIP013_ABI;

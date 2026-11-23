@@ -5,7 +5,6 @@ export interface FaqItem {
 	a: ReactNode;
 }
 
-/** Native <details> accordion; the first item opens by default. */
 export function Faq({ items }: { items: readonly FaqItem[] }) {
 	return (
 		<div className="faq">

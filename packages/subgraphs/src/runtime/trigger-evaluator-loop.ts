@@ -48,21 +48,16 @@ const POLL_MS = 5_000;
 // and re-asking. Kept under `MAX_INDEX_WAIT_SECONDS` (25) with headroom.
 const WAIT_SECONDS = 20;
 const BATCH = 200;
-// Bound work per tick so a large gap (e.g. after downtime) is caught up in
-// steps rather than one huge fetch.
 const MAX_BLOCKS_PER_TICK = 2_000;
 
 // Shared testnet stack rules (TESTNET_WEBHOOK_STACK=true only). Testnet is
 // free and has no backfill, so the loop protects itself and the host the
 // paying tenants share.
-/** A cursor this far above the source tip means the testnet chain was reset. */
 const TESTNET_WIPE_GAP = 1_000;
 /** Testnet ingest has no backfill: a missing height this far under tip is a
  *  permanent hole, not lag. */
 const TESTNET_HOLE_DEPTH = 6;
-/** Events from blocks older than this aren't delivered (outage catch-up). */
 const TESTNET_MAX_EVENT_AGE_MS = 3_600_000;
-/** Pending outbox rows past which the stack stops evaluating. */
 const TESTNET_OUTBOX_LIMIT = 100_000;
 
 // A concurrent reorg rewind and the evaluator's forward advance target the same
@@ -214,10 +209,6 @@ export async function runEvaluatorOnce(
 	let boundTip: number | null = null;
 	let cursorBefore: number | null = null;
 	let cursorAfter: number | null = null;
-	// Instrumentation only, for `chain_evaluator_tick` (tracing residual
-	// decoder-committed → outbox misses): whether this tick asked to long-poll,
-	// how long that fetch itself took (isolated from the concurrent settlement
-	// scan below), and why it returned.
 	const waitRequested = (opts?.waitSeconds ?? 0) > 0;
 	let waitMs = 0;
 	try {
@@ -257,8 +248,6 @@ export async function runEvaluatorOnce(
 					chainSubsNeedTransactions(chainSubs),
 					opts?.httpClient,
 				);
-		// sBTC, trait and settlement reads: this stack's own tables, or the
-		// hosted Index API on a tenant (whose tables are empty).
 		const reader = chainDataReader({ httpClient: opts?.httpClient });
 		// sBTC settlement webhooks fire on Bitcoin confirmations, async to Stacks
 		// blocks — scan every tick on their own cursor, independent of (and before)
@@ -334,8 +323,6 @@ export async function runEvaluatorOnce(
 			});
 			return { emitted, advanced: true, rawTip, idleAtTip: false };
 		}
-		// Forward-looking: uninitialized cursor or no webhooks → jump to tip so
-		// nothing backfills history.
 		if (cursor === 0 || chainSubs.length === 0) {
 			const res = await advanceCursor(db, tip, generation);
 			if (res.advanced) {
@@ -354,7 +341,6 @@ export async function runEvaluatorOnce(
 		for (let from = cursor + 1; from <= target; from = from + BATCH) {
 			const to = Math.min(from + BATCH - 1, target);
 			const blocks = await source.loadBlockRange(from, to);
-			// Trait membership only grows; resolve once per batch as of its top height.
 			const traitContracts = await buildTraitContracts(chainSubs, to, {
 				reader,
 			});
@@ -364,7 +350,6 @@ export async function runEvaluatorOnce(
 			const sbtcByHeight = await loadSbtcEventsForRange(chainSubs, from, to, {
 				reader,
 			});
-			// Last height this batch fully resolved; the cursor never moves past it.
 			let lastDone = to;
 			let stopped = false;
 			let staleSkipped = 0;
@@ -378,8 +363,6 @@ export async function runEvaluatorOnce(
 			for (let h = from; h <= to; h++) {
 				let bd = blocks.get(h);
 				if (!bd) {
-					// Refetch once — distinguishes a transient source hiccup from a
-					// genuinely absent block.
 					bd = (await source.loadBlockRange(h, h)).get(h);
 				}
 				if (!bd && testnet && h <= tip - TESTNET_HOLE_DEPTH) {
@@ -426,8 +409,6 @@ export async function runEvaluatorOnce(
 				});
 			}
 			if (lastDone >= from) {
-				// Outbox rows and the cursor move in one transaction, rejected if a
-				// reorg landed since `generation` was read.
 				const res = await commitBatch(db, lastDone, generation, async (trx) => {
 					let count = 0;
 					for (const { height, bd, blockTime } of resolved) {
@@ -464,9 +445,6 @@ export async function runEvaluatorOnce(
 		}
 		return { emitted, advanced, rawTip, idleAtTip };
 	} finally {
-		// Measurement-only: one info log per tick so Gate 1's per-hop latency
-		// numbers (raw tip → bound tip → cursor advance → emit) can be pulled
-		// straight from logs, regardless of which early return above fired.
 		logger.info("Chain evaluator tick", {
 			event: "chain_evaluator_tick",
 			raw_tip: rawTip,
@@ -475,9 +453,6 @@ export async function runEvaluatorOnce(
 			cursor_after: cursorAfter,
 			emitted,
 			tick_ms: Date.now() - tickStart,
-			// Long-poll tracing (see `classifyWaitOutcome`): whether this tick
-			// asked the server to hold the request, the baseline height it sent,
-			// how long that fetch itself took, and why it returned when it did.
 			wait_requested: waitRequested,
 			known_height: opts?.knownTip ?? null,
 			wait_ms: waitMs,

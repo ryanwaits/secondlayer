@@ -79,7 +79,7 @@ export function buildUndoPayload(
 		const { outpoint, runeId } = splitBalanceKey(key);
 		const held = getBalance(state, outpoint, runeId);
 		const afterAmount = held === 0n ? undefined : held;
-		if (beforeAmount === afterAmount) continue; // written but unchanged by this block
+		if (beforeAmount === afterAmount) continue;
 
 		if (beforeAmount !== undefined) {
 			balancesSpent.push({

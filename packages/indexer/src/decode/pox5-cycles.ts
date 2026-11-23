@@ -30,11 +30,9 @@ import type { Pox5EventRow } from "./pox5-storage.ts";
  *  threshold that separates `delegated` from `reward_shares`. */
 const MIN_SIGNER_USTX = 50_000_000_000n;
 
-/** A bond's active window, in reward cycles (12 = `BOND_LENGTH_CYCLES`). */
 const BOND_WINDOW_CYCLES = BOND_GAP_CYCLES * 6;
 
 export type Pox5CycleParams = BondCycleParams & {
-	/** `/v2/pox` `prepare_cycle_length` (mainnet 100). */
 	prepareCycleLength: number;
 };
 
@@ -55,13 +53,10 @@ export type Pox5CycleRow = {
 	start_burn_height: number;
 	prepare_start_burn_height: number;
 	end_burn_height: number;
-	/** STX + bond ustx delegated to signers this cycle (`ustx-delegated-per-cycle`). */
 	total_stacked_ustx: bigint;
-	/** STX actually counted toward rewards (>= 50k-per-signer threshold met). */
 	reward_eligible_ustx: bigint;
 	stakers: number;
 	signers_in_set: number;
-	/** bond index (as string) -> sats staked for this cycle. */
 	bond_sats: Record<string, string>;
 	bond_total_sats: bigint;
 	/** Global running total (`get-total-sbtc-staked` takes no cycle argument);
@@ -71,7 +66,6 @@ export type Pox5CycleRow = {
 	rewards_allocated_bond: bigint;
 	reserve_deposit: bigint;
 	rewards_per_token_stx: bigint | null;
-	/** bond index (as string) -> cumulative rewards-per-sat for this cycle. */
 	rewards_per_token_bond: Record<string, string>;
 	distributions: number;
 	rewards_claimed: bigint;
@@ -93,9 +87,6 @@ export type Pox5RollupWarning = { message: string; cursor: string };
 export type Pox5RollupResult = {
 	cycles: Pox5CycleRow[];
 	signers: Pox5CycleSignerRow[];
-	/** Consistency-check messages (a contract invariant the replay expected
-	 *  didn't hold for some event). Never thrown — informational, mirroring
-	 *  `replay.ts`'s `warn` list. */
 	warnings: Pox5RollupWarning[];
 };
 
@@ -265,9 +256,6 @@ export function rollupPox5Cycles(
 		stakerShares.set(key(c, bond, staker, signer), sats);
 	}
 
-	/** Moves a bond staker's shares from one signer to another for one cycle,
-	 *  without changing the bond's total (used by `update-bond-registration`,
-	 *  which re-points an existing bond membership at a new signer). */
 	function moveBondCycle(
 		staker: string,
 		oldSigner: string,
@@ -478,7 +466,6 @@ export function rollupPox5Cycles(
 			case "claim-staker-rewards-for-signer":
 				rewards.push({ topic: e.topic, tx_id: e.tx_id, e });
 				break;
-			// No effect on cycle state.
 			case "set-bond-admin":
 			case "set-pause-admin":
 			case "pause-rewards":
@@ -587,7 +574,6 @@ export function rollupPox5Cycles(
 		}
 	}
 
-	// ── Build output rows from the final per-cycle state. ──
 	const cycleSet = new Set<number>();
 	for (const c of ustxDelegated.keys()) cycleSet.add(c);
 	for (const c of cycleRewards.keys()) cycleSet.add(c);

@@ -86,10 +86,6 @@ export function planTornImport(input: {
 		truncateFrom[dataset] = torn ? torn.from_block : null;
 	}
 
-	// Cascade down the FK chain (`FK_PARENT`, walked in load order so a
-	// parent is settled before its children). A truncated parent takes its
-	// children with it from the same height, and a child can never count as
-	// sealed beyond what its parent has sealed.
 	const minDefined = (...values: Array<number | null>) => {
 		const defined = values.filter((v): v is number => v !== null);
 		return defined.length === 0 ? null : Math.min(...defined);

@@ -36,11 +36,9 @@ function sleep(ms: number, signal?: AbortSignal): Promise<void> {
 
 export interface RpcWaitNotifierOptions {
 	rpc: Pick<BitcoinRpcClient, "waitfornewblock" | "getbestblockhash">;
-	/** Defaults to 30000. */
 	timeoutMs?: number;
 	/** Fallback poll interval once `-32601` is seen. Defaults to 5000. */
 	pollMs?: number;
-	/** Test seam: overrides the real `setTimeout`-based sleep used for backoff and fallback polling. Receives `close()`'s abort signal so a test can assert it's wired through. */
 	sleep?: (ms: number, signal?: AbortSignal) => Promise<void>;
 }
 

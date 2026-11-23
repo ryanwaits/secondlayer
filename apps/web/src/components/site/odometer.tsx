@@ -3,12 +3,6 @@
 import NumberFlow from "@number-flow/react";
 import { type ReactNode, useEffect, useRef, useState } from "react";
 
-/**
- * Big figure with a caption. SSR renders the final number; on mount it
- * snaps to just below and rolls up once. Later value changes (live counts)
- * roll from the current figure. NumberFlow skips the motion for
- * prefers-reduced-motion, and we skip the snap-down in that case.
- */
 export function Odometer({
 	value,
 	label,

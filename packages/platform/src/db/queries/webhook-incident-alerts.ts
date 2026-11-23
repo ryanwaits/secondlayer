@@ -1,12 +1,6 @@
 import type { Database, WebhookIncidentAlert } from "@secondlayer/shared/db";
 import { type Kysely, sql } from "kysely";
 
-/**
- * Debounce state for the webhook-down email
- * (`POST /internal/webhook-incidents`). One row per incident; a partial unique
- * index allows at most one open row per (account, webhook).
- */
-
 export interface DownIncident {
 	id: string;
 	name: string;
@@ -14,9 +8,7 @@ export interface DownIncident {
 }
 
 export interface IncidentReport {
-	/** Every webhook id the workload host saw for the account this tick. */
 	webhookIds: string[];
-	/** The subset currently down. */
 	down: DownIncident[];
 }
 
@@ -95,11 +87,8 @@ export async function syncIncidents(
 	});
 }
 
-/** Send attempts per incident before giving up on a failing email. */
 export const MAX_EMAIL_ATTEMPTS = 5;
 
-/** Open incidents of the account that still need their email: not yet sent
- *  and under the attempt limit. */
 export async function dueIncidents(
 	db: Kysely<Database>,
 	accountId: string,
@@ -153,7 +142,6 @@ export async function releaseEmailClaim(
 		.execute();
 }
 
-/** Drops resolved incidents older than `olderThanDays`. Returns rows deleted. */
 export async function purgeResolved(
 	db: Kysely<Database>,
 	olderThanDays = 90,

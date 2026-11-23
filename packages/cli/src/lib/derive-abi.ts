@@ -130,7 +130,6 @@ export async function withDerivedAbis(
 		try {
 			contract = await interfaceOf(contractId);
 		} catch {
-			// The source is valid without an interface; nothing to check against.
 			continue;
 		}
 		const defined = (

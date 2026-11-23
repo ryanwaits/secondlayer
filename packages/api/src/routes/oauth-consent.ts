@@ -31,7 +31,6 @@ const REQUEST_ID_RE = /^oar_[A-Za-z0-9_-]{1,64}$/;
 const UUID_RE =
 	/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-/** Only a session bearer gets as far as `requireAuth`. */
 const sessionBearerOnly: MiddlewareHandler = async (c, next) => {
 	const header = c.req.header("authorization");
 	if (header?.startsWith("Bearer ") && !header.slice(7).startsWith("ss-sl_")) {
@@ -42,7 +41,6 @@ const sessionBearerOnly: MiddlewareHandler = async (c, next) => {
 	await next();
 };
 
-/** The account behind a session (requireAuth has run). */
 function sessionAccount(c: { get(key: string): unknown }): string {
 	if (!c.get("session")) {
 		throw new AuthorizationError(
@@ -81,7 +79,6 @@ app.use("*", async (c, next) => {
 	await next();
 });
 
-// What the consent page shows for a request still waiting for an answer.
 app.get("/requests/:id", async (c) => {
 	sessionAccount(c);
 	const r = await getOpenOauthRequest(getDb(), requestId(c.req.param("id")));
@@ -95,7 +92,6 @@ app.get("/requests/:id", async (c) => {
 	});
 });
 
-// Allow: a one-time code goes back to the app's registered redirect.
 app.post("/requests/:id/approve", async (c) => {
 	const accountId = sessionAccount(c);
 	const ok = await approveOauthRequest(
@@ -114,7 +110,6 @@ app.post("/requests/:id/approve", async (c) => {
 	});
 });
 
-// Deny: the app gets `access_denied`.
 app.post("/requests/:id/deny", async (c) => {
 	const accountId = sessionAccount(c);
 	const ok = await denyOauthRequest(
@@ -136,7 +131,6 @@ app.post("/requests/:id/deny", async (c) => {
 	});
 });
 
-// Connected apps, for the keys page.
 app.get("/grants", async (c) => {
 	const accountId = sessionAccount(c);
 	const grants = await listOauthGrants(getDb(), accountId);
@@ -150,7 +144,6 @@ app.get("/grants", async (c) => {
 	});
 });
 
-// Revoke: its tokens stop working at once.
 app.delete("/grants/:id", async (c) => {
 	const accountId = sessionAccount(c);
 	const id = c.req.param("id");

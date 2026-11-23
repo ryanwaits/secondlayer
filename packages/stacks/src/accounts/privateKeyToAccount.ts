@@ -26,11 +26,9 @@ export function privateKeyToAccount(
 	const keyBytes = normalizePrivateKey(privateKey);
 	const rawKey = keyBytes.slice(0, 32);
 
-	// Always derive compressed public key
 	const publicKeyBytes = nobleGetPublicKey(rawKey, true);
 	const publicKeyHex = bytesToHex(publicKeyBytes);
 
-	// Default to mainnet single-sig (22)
 	const addressVersion = options?.addressVersion ?? 22;
 	const address = c32address(
 		addressVersion,

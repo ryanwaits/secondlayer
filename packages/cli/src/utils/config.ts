@@ -7,10 +7,6 @@ import { pathToFileURL } from "node:url";
 import { loadClarinetContracts } from "../plugins/clarinet/index";
 import type { ConfigDefiner, SecondLayerConfig } from "../types/config";
 
-/**
- * Config file utilities
- */
-
 const CONFIG_FILE_NAMES = [
 	"secondlayer.config.ts",
 	"secondlayer.config",
@@ -23,9 +19,7 @@ export async function findConfigFile(cwd: string): Promise<string | null> {
 		try {
 			await fs.access(filePath);
 			return filePath;
-		} catch {
-			// File doesn't exist, continue
-		}
+		} catch {}
 	}
 	return null;
 }
@@ -51,18 +45,13 @@ export async function loadConfig(
 	if (resolvedPath.endsWith(".ts")) {
 		const code = await fs.readFile(resolvedPath, "utf-8");
 
-		// Transform TypeScript to JavaScript, replacing the @secondlayer/cli import
-		// For development/linked packages, we need to resolve to the actual package location
-		// This will work both for published packages and local development
 		let replacementPath: string;
 
 		try {
-			// Try to resolve @secondlayer/cli as if it were a normal package
 			const require = createRequire(import.meta.url);
 			const packagePath = require.resolve("@secondlayer/cli");
 			replacementPath = pathToFileURL(packagePath).href;
 		} catch {
-			// Fallback: resolve relative to current module (for development)
 			const currentModuleDir = path.dirname(new URL(import.meta.url).pathname);
 			const indexPath = path.resolve(currentModuleDir, "../index");
 			replacementPath = pathToFileURL(indexPath).href;

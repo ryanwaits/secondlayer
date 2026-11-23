@@ -8,7 +8,6 @@ import type { AbiContract } from "../clarity/abi/contract.ts";
 
 export const POX_ABI = {
 	functions: [
-		// Read-only
 		{
 			name: "get-pox-info",
 			access: "read-only",
@@ -101,7 +100,6 @@ export const POX_ABI = {
 			outputs: { response: { ok: "bool", error: "int128" } },
 		},
 
-		// Public
 		{
 			name: "stack-stx",
 			access: "public",

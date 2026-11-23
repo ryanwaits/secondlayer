@@ -52,10 +52,6 @@ export function usesDecodedIndexPlane(subgraph: SubgraphDefinition): boolean {
 	);
 }
 
-// `committedHeight` moved to `@secondlayer/shared` (streams-cursor.ts) so the
-// Index `/public/status` route and this module share one implementation of
-// the committed-height rule. Re-exported here so existing importers of
-// `./decoder-bound.ts` are unaffected.
 export { committedHeight };
 
 export type DecoderBound =

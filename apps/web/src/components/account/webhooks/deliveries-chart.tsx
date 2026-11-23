@@ -26,7 +26,6 @@ export function DeliveriesChart({
 	activity: WebhookActivity;
 	days: readonly WebhookActivityDay[] | undefined;
 	range: Range;
-	/** A losing insight is on the page, so mark where the outage began. */
 	losing: boolean;
 }) {
 	const bars = rangeBars(range, activity, days);

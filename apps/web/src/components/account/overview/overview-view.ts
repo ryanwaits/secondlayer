@@ -15,23 +15,14 @@ import { ageShort } from "../webhooks/view";
 
 export interface RowsCell {
 	monthLabel: string;
-	/** Rows delivered this month, free and paid together. */
 	used: number;
-	/** The part of `used` inside the free 1M. */
 	free: number;
-	/** The part of `used` past the free 1M. */
 	paid: number;
-	/** Rows delivered since midnight UTC. */
 	today: number;
 	caption: string;
-	/** When the last read landed, short ("1h"), or "–". */
 	age: string;
 }
 
-/**
- * The Rows cell: this month's meter split into free and paid, today's count,
- * and how long ago the last read landed.
- */
 export function rowsCell(data: RowsResponse, now: Date): RowsCell {
 	const used = data.allowance.usedThisMonth;
 	const free = Math.min(used, ROWS_ALLOWANCE);
@@ -55,23 +46,17 @@ export function rowsCell(data: RowsResponse, now: Date): RowsCell {
 	};
 }
 
-/** How many days the Keys cell's strip covers. */
 const KEY_DAYS = 24;
 
 export interface KeysCell {
-	/** The keys read most recently (up to two), then "+N" for the rest. */
 	names: string[];
-	/** Rows read per day, oldest first; zeros when the API sent no series. */
 	days: number[];
-	/** How many of those days any key read. */
 	daysRead: number;
 	caption: string;
 	age: string;
-	/** The longest-unused key, once it has been idle 30+ days. */
 	stale: { name: string; days: number } | null;
 }
 
-/** The Keys cell; null when the account has no keys of its own. */
 export function keysCell(keys: ApiKey[] | null, now: Date): KeysCell | null {
 	const view = overviewKeys(keys, now);
 	if (!view) return null;
@@ -94,16 +79,11 @@ export function keysCell(keys: ApiKey[] | null, now: Date): KeysCell | null {
 	};
 }
 
-/** What the hosted stack cell needs to know beyond the stack itself. */
 export interface StackContext {
-	/** Every webhook is paused, so the stack was put to sleep on purpose. */
 	asleep: boolean;
-	/** Credits left in USD micros; null until billing has loaded. */
 	creditsUsdMicros: string | null;
 }
 
-/** The stack's status from the Overview's reads: the webhooks list either
- *  came back asleep or got through, and billing may not have loaded. */
 export function overviewStackStatus(
 	stack: HostedStack,
 	{ asleep, creditsUsdMicros }: StackContext,
@@ -117,19 +97,14 @@ export function overviewStackStatus(
 }
 
 export interface StackCell {
-	/** ok shows no dot; alarm is out of credits; idle is asleep, starting or not started. */
 	tone: "ok" | "alarm" | "idle";
 	word: "running" | "stopped" | "asleep" | "starting" | "not started";
-	/** Cost per day ("$0.33"), or null while the burn rate has not loaded. */
 	perDay: string | null;
-	/** Latest memory in GB, two decimals, or null before any hour is recorded. */
 	gb: string | null;
-	/** Memory per hour, last 24 hours. */
 	points: number[];
 	caption: string;
 }
 
-/** The hosted stack cell; null until the usage response has loaded. */
 export function stackCell(
 	stack: HostedStack | null,
 	burn: Burn | null,
@@ -150,7 +125,6 @@ export function stackCell(
 				points: [],
 				caption: "Starts with your first webhook.",
 			};
-		// Stopped, so nothing is charging, whatever the last 24 hours burned.
 		case "stopped_no_credits":
 			return {
 				tone: "alarm",

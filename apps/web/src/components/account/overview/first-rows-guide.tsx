@@ -5,11 +5,6 @@ import { useCopied } from "@/lib/use-copied";
 import Link from "next/link";
 import { type ReactNode, useState } from "react";
 
-/**
- * Checklist step 2 for an account with a key and no reads: one prompt for a
- * coding assistant, or one read three ways. The blocks are server-rendered
- * (`first-rows-code.tsx`) and passed in.
- */
 export function FirstRowsGuide({
 	code,
 	prompt,

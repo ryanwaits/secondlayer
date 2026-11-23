@@ -8,16 +8,9 @@ import { type ReactNode, useId, useState } from "react";
 export interface Guide {
 	title: string;
 	description: string;
-	/** A docs page, or a heading on one (`/docs/webhooks#receive-and-verify`). */
 	href: string;
 }
 
-/**
- * The empty state of a resource page: what it is and how to start on the
- * left, the guides for it on the right. The web never creates the resource;
- * the code sample and the agent prompt both hand creation to the person's
- * own code and agent.
- */
 export function EmptyStart({
 	children,
 	guides,
@@ -62,11 +55,6 @@ export function EmptyStart({
 
 const COPIED_MS = 1800;
 
-/**
- * Copies an interview-style prompt for the person's agent. Only the icon and
- * the hint change once copied; the button keeps its label and width, so
- * nothing beside it moves.
- */
 export function CopyForAgent({
 	prompt,
 	hint,
@@ -78,8 +66,6 @@ export function CopyForAgent({
 			<button
 				type="button"
 				className="acct-btn solid copy-agent-btn"
-				// A refused clipboard leaves the button as it was rather than claim
-				// a copy that didn't happen.
 				onClick={() => copy(prompt)}
 			>
 				<span className="copy-agent-icon">

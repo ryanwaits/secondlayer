@@ -8,11 +8,6 @@ import {
 	useState,
 } from "react";
 
-/**
- * Shared chart tooltip: mouse/touch-following, clamped to BOTH container
- * edges. Charts call `show(event, content)` from their marks and render
- * `tooltip` inside their `.fig-chart-wrap` (which must be the ref target).
- */
 export function useFigTooltip(wrapRef: RefObject<HTMLDivElement | null>) {
 	const [content, setContent] = useState<ReactNode>(null);
 	const [pos, setPos] = useState({ left: 0, top: 8 });

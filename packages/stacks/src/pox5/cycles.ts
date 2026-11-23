@@ -185,8 +185,7 @@ export function bondStatusAtHeight(
 	if (cycle < start - BOND_GAP_CYCLES) return "too-early";
 	if (cycle < start) {
 		// Prepare of the start cycle (last prepareCycleLength blocks of
-		// cycle start-1) permanently closes registration. Other prepares
-		// in the window still report `open`; st-022 layers isInPreparePhase.
+		// cycle start-1) permanently closes registration.
 		if (cycle === start - 1 && isInPreparePhase(burnHeight, params)) {
 			return "locked";
 		}

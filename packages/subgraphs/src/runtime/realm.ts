@@ -138,8 +138,6 @@ function createRealm(): vm.Context {
 	return context;
 }
 
-// ── ctx facade ──────────────────────────────────────────────────────────
-
 /** Reject row values whose stored form can differ across engines or runs. */
 export function checkRowValues(
 	where: string,
@@ -265,9 +263,6 @@ export function deterministicContext(
 	};
 }
 
-// ── Loading ─────────────────────────────────────────────────────────────
-
-/** Definitions this module loaded into a realm. */
 const realmDefinitions = new WeakSet<SubgraphDefinition>();
 
 /** True for a definition {@link loadDeterministicDefinition} produced: a
@@ -308,7 +303,6 @@ export async function loadDeterministicDefinition(
 	const sources = structuredClone(def.sources);
 	const schema = structuredClone(def.schema);
 
-	// One facade per block context (the runner builds a fresh ctx per block).
 	const facades = new WeakMap<SubgraphContext, SubgraphContext>();
 	const handlers: SubgraphDefinition["handlers"] = {};
 	for (const [name, handler] of Object.entries(def.handlers ?? {})) {

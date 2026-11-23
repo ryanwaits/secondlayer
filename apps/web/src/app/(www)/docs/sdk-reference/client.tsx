@@ -3,11 +3,6 @@
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import { resolveLegacy } from "./legacy";
 
-/**
- * The filter above a surface's at-a-glance table. It hides rows whose method
- * path or summary lacks any typed word, and nothing else: the method entries
- * below stay put. The table is server-rendered; this only toggles `hidden`.
- */
 export function GlanceFilter({
 	count,
 	noun = "methods",
@@ -19,8 +14,6 @@ export function GlanceFilter({
 	function apply(query: string) {
 		const words = query.toLowerCase().split(/\s+/).filter(Boolean);
 		let shown = 0;
-		// A package page marks where each group starts with a label row; a label
-		// whose rows are all hidden hides with them.
 		let label: HTMLElement | null = null;
 		let inGroup = false;
 		for (const row of table.current?.querySelectorAll<HTMLElement>(
@@ -64,7 +57,6 @@ export function GlanceFilter({
 	);
 }
 
-/** Old single-page anchors (`#x-streamsbatch`) follow the export to its new page. */
 export function SdkHashRedirect({
 	owners,
 }: { owners: Record<string, string> }) {

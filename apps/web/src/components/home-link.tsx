@@ -4,7 +4,6 @@ import { useIntentPrefetch } from "@/lib/intent-prefetch";
 import Link from "next/link";
 import type { ReactNode } from "react";
 
-/** Where the logo goes: a signed-in reader's Overview, everyone else's home. */
 export const homeHref = (signedIn: boolean): string =>
 	signedIn ? "/account" : "/";
 
@@ -23,7 +22,6 @@ export function HomeLink({
 }: {
 	signedIn: boolean;
 	className: string;
-	/** Accessible name when the link shows only a mark. */
 	label?: string;
 	children: ReactNode;
 }) {

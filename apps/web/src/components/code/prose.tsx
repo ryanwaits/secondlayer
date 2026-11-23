@@ -1,14 +1,6 @@
 import type { ReactNode } from "react";
 import { CodeScope } from "./code-scope";
 
-/**
- * Prose that points at code. `[text](hover:name)` in MDX becomes a mention and
- * `[text](focus:name)` a focus link (see `MdxLink`); both resolve `name`
- * against the `!ref` annotations in the same section. They are plain buttons
- * the page's scope script wakes up, so without JavaScript they read as text.
- */
-
-/** Hover, focus or tap: the matching tokens and rows take the yellow marker. */
 export function Mention({
 	name,
 	children,
@@ -23,13 +15,6 @@ export function Mention({
 	);
 }
 
-/**
- * Chips that choose the value of a `!pick` token for the whole section, and
- * with it what Copy gives. The options come from the fence that declares them
- * (`!pick[/re/] name: a | b | c`). `default` is that fence's first option: it
- * is the text a reader sees before (or without) JavaScript, and the budget test
- * checks it against the declaration.
- */
 export function Pick({
 	name,
 	default: first,
@@ -44,14 +29,8 @@ export function Pick({
 	);
 }
 
-/** A prose tip is read in a glance: this many characters at most. */
 export const MAX_TIP_TEXT = 120;
 
-/**
- * Why a prose tip's words are not acceptable, or null when they are: required,
- * plain text (a backtick would show), at most two short sentences, no em dash,
- * no URL, no `/docs` path. The budget test reuses this so both fail alike.
- */
 export function tipTextProblem(text: string | undefined): string | null {
 	const t = text?.trim();
 	if (!t) return "has no words";
@@ -66,11 +45,6 @@ export function tipTextProblem(text: string | undefined): string | null {
 	return null;
 }
 
-/**
- * `[text](tip "words")`: a word the reader may ask about. Hover or focus shows
- * the author's one line. It never links: the words are all it has. The page's
- * `CodeClient` wakes it.
- */
 export function Tip({
 	text,
 	children,
@@ -92,7 +66,6 @@ export function Tip({
 	);
 }
 
-/** Blue, because clicking changes the code: it focuses the rows holding `name`. Again clears. */
 export function FocusLink({
 	name,
 	children,

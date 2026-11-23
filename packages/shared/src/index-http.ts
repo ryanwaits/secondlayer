@@ -5,18 +5,6 @@ import {
 } from "./index-internal-auth.ts";
 import type { RuneStreamsEvent } from "./streams-rows/events.ts";
 
-/**
- * Low-level transport for the public Index (`/v1/index`) + Streams clock
- * (`/v1/streams`) HTTP APIs: cursor-paginated reads, tip, reorgs. Lives in
- * `shared` (a leaf both the SDK and the subgraph runtime depend on) so the wire
- * format has one home and no package cycle. The SDK's ergonomic client should
- * eventually consume these row types too (see the plan's convergence task).
- *
- * This is intentionally minimal — just the GETs the subgraph runtime's
- * PublicApiBlockSource needs. It is NOT the SDK's full client (walk/consume/
- * retries/auth resolution).
- */
-
 const PAGE_LIMIT = 1000;
 
 /** Ceiling on the Index long-poll `wait` param (seconds), shared by client and
@@ -81,7 +69,6 @@ export class BillingPausedError extends IndexHttpStatusError {
 	}
 }
 
-/** `BillingPausedError` when `status`/`body` is exactly a billing refusal. */
 function billingPausedFrom(
 	status: number,
 	body: string,
@@ -93,9 +80,7 @@ function billingPausedFrom(
 		if (typeof code === "string" && BILLING_PAUSED_CODES.has(code)) {
 			return new BillingPausedError(code as BillingPausedCode, message);
 		}
-	} catch {
-		// Not JSON: not a billing refusal.
-	}
+	} catch {}
 	return null;
 }
 
@@ -103,7 +88,6 @@ type Envelope<K extends string, T> = {
 	[P in K]: T[];
 } & { next_cursor: string | null };
 
-// ── Index API wire shapes (single source of truth) ─────────────────────────
 export type IndexBlockRow = {
 	block_height: number;
 	block_hash: string;
@@ -293,7 +277,6 @@ export type IndexSbtcWithdrawalRow = {
 	resolved_at?: string | null;
 };
 
-/** Page size for `/v1/contracts`, its server-side maximum. */
 const CONTRACTS_PAGE_LIMIT = 500;
 
 /** `to_height` meaning "through the tip": the server clamps it to its tip. */
@@ -379,9 +362,6 @@ export class IndexHttpClient {
 				// An explicit abort/cancel is intentional — surface it immediately
 				// rather than burning the retry budget masking it as transient.
 				if (err instanceof Error && err.name === "AbortError") throw err;
-				// Otherwise a transport-level failure (connection refused/reset) —
-				// e.g. an api replica mid-recreate. Retry; the next attempt
-				// round-robins to a healthy replica.
 				lastErr = err;
 				if (attempt >= MAX_ATTEMPTS) break;
 				await delay(RETRY_BASE_MS * 2 ** (attempt - 1));

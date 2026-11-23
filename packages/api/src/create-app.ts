@@ -79,7 +79,6 @@ const WORKLOAD_PATHS = [
 	"/api/node/*",
 ];
 
-/** Account-scoped archive surface: who you are, what you owe, what you hold. */
 const ACCOUNT_PATHS = [
 	"/api/accounts",
 	"/api/accounts/*",
@@ -106,7 +105,6 @@ const PUBLIC_EXPOSE_HEADERS = [
 	"X-Request-Id",
 ];
 
-/** Hono app with routes for `mode`. Does not listen or start the cache. */
 export function createApiApp(mode: InstanceMode): Hono {
 	const app = new Hono();
 
@@ -148,8 +146,6 @@ export function createApiApp(mode: InstanceMode): Hono {
 					: undefined,
 		}),
 	);
-	// Tenant stacks: the account-scope header means the shared testnet stack,
-	// and the testnet stack serves webhooks only (middleware/testnet-stack.ts).
 	if (mode !== "platform") app.use("*", testnetStackGuard());
 	// Hosted: 7-day log of account-attributed Index/Streams reads. A new
 	// account-attributed /v1 read surface must be added here.
@@ -197,9 +193,6 @@ export function createApiApp(mode: InstanceMode): Hono {
 				});
 
 	if (mode === "platform") {
-		// OAuth for the hosted MCP: metadata, registration, authorize, token.
-		// At the root, outside `/api`: its own `*` CORS without credentials,
-		// and a form-encoded token endpoint the `/api` JSON rule would refuse.
 		app.route("/", createOauthRouter());
 		// The consent page's answers and the account's connected apps:
 		// browser sessions only (keys and app tokens get 403), limited per
@@ -223,7 +216,6 @@ export function createApiApp(mode: InstanceMode): Hono {
 		app.use("/api/public/updates/*", ipRateLimit(60));
 		app.route("/api/public/updates", publicUpdatesRouter);
 		app.route("/api/public/docs-find", publicDocsFindRouter);
-		// Signed-out docs key: its own 1-per-IP-per-day bucket in the router.
 		app.route("/api/public/docs-key", publicDocsKeyRouter);
 	}
 
@@ -243,14 +235,9 @@ export function createApiApp(mode: InstanceMode): Hono {
 		app.route("/api/billing", billingRouter);
 		app.route("/api/push", pushRouter);
 		app.route("/api/archive", archiveRouter);
-		// Hosted problem reports: an agent sends back the request_id from an
-		// error body plus what it was trying to do. Self-hosted instances point
-		// their error bodies at a GitHub issue instead (no route here).
 		app.use("/v1/feedback", requireJsonWrites());
 		app.use("/v1/feedback", resourceAuth);
 		app.route("/v1/feedback", feedbackRouter);
-		// Contract reads for hosted subgraph processors, which have no node of
-		// their own. Tenant keys only; self-host processors read their node.
 		app.route("/v1/chain-read", chainReadRouter);
 		// Own bearer guard (WORKLOAD_HOST_KEY), not the session/instance-token
 		// `resourceAuth` the ACCOUNT_PATHS above use — this is a first-party
@@ -267,7 +254,6 @@ export function createApiApp(mode: InstanceMode): Hono {
 		app.route("/internal/sentinel", internalSentinelRouter);
 	}
 	app.route("/", statusRouter);
-	// Keyless aggregates for the public /data pages, memoized in-process.
 	app.route("/", publicDataRouter);
 	app.route("/v1/instance", createInstanceCatalogRouter());
 	if (mode === "oss") {
@@ -280,7 +266,6 @@ export function createApiApp(mode: InstanceMode): Hono {
 	app.route("/v1/archive", archiveVerifyRouter);
 	// Free in every mode: checking a row is never metered.
 	app.route("/v1/proofs", proofsRouter);
-	// Live reads from the instance's own bitcoind; keyed and metered like Index.
 	app.route("/v1/bitcoin", bitcoinRouter);
 	// Subgraph reads are self-host only: hosted runs no subgraphs.
 	if (mode !== "platform") app.route("/v1/subgraphs", v1SubgraphsRouter);
@@ -297,8 +282,6 @@ export function createApiApp(mode: InstanceMode): Hono {
 		}),
 	);
 	if (mode === "platform") {
-		// The hosted MCP: stateless, one server per request, every tool call
-		// dispatched back into this app in process (routes/mcp.ts).
 		app.use("/mcp", oauthCors);
 		app.route(
 			"/mcp",

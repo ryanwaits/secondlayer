@@ -1,13 +1,10 @@
 import { nextScheduledArchivePublish } from "@secondlayer/shared/archive/status";
 
-/** What the Archive page says about how far the signed copy reaches. */
 export interface ArchiveFreshnessData {
 	toBlock: number;
 	promotedAt: string;
 	state: string;
-	/** Next scheduled publish (UTC ISO); null until the status carries it. */
 	nextPublishAt: string | null;
-	/** Chain tip minus toBlock as the status last saw it. */
 	behindTip: number | null;
 }
 
@@ -15,7 +12,6 @@ const isNum = (v: unknown): v is number =>
 	typeof v === "number" && Number.isFinite(v);
 const isStr = (v: unknown): v is string => typeof v === "string" && v !== "";
 
-/** Pull the figures out of a `status.json` body; null when the shape is unusable. */
 export function readArchiveFreshness(
 	body: unknown,
 ): ArchiveFreshnessData | null {
@@ -38,7 +34,6 @@ export function readArchiveFreshness(
 	};
 }
 
-/** The first scheduled run after the last promotion: the one that is overdue when stale. */
 export function overdueSince(promotedAt: string): string {
 	return nextScheduledArchivePublish(new Date(promotedAt)).toISOString();
 }
@@ -59,13 +54,11 @@ const MONTH = [
 	"Dec",
 ];
 
-/** "Oct 7", in UTC. */
 export function formatDay(iso: string): string {
 	const d = new Date(iso);
 	return `${MONTH[d.getUTCMonth()]} ${d.getUTCDate()}`;
 }
 
-/** "Sun Oct 18, 08:00 UTC", in UTC. */
 export function formatPublishTime(iso: string): string {
 	const d = new Date(iso);
 	const hh = String(d.getUTCHours()).padStart(2, "0");
@@ -82,7 +75,6 @@ const DATASETS: readonly PartitionDataset[] = [
 	"events",
 ];
 
-/** Newest partition per dataset, named `from-to-sha4….parquet`; null unless all three exist. Other datasets are ignored. */
 export function lastPartitions(snapshot: unknown): PartitionNames | null {
 	const list = (snapshot as { partitions?: unknown } | null)?.partitions;
 	if (!Array.isArray(list)) return null;

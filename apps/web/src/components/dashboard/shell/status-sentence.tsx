@@ -1,6 +1,5 @@
 import type { ReactNode } from "react";
 
-/** The one-line answer at the top of a dashboard screen, with an optional sub-line. */
 export function StatusSentence({
 	children,
 	sub,

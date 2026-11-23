@@ -41,8 +41,6 @@ export async function handleSubgraphReorg(
 	blockHeight: number,
 	loadSubgraphDef: (sg: Subgraph) => Promise<SubgraphDefinition>,
 ): Promise<void> {
-	// The subgraphs registry and every subgraph's data plane live on the
-	// managed target DB.
 	const targetDb = getTargetDb();
 	const activeSubgraphs = (await listSubgraphs(targetDb)).filter(
 		(v: Subgraph) =>
@@ -181,9 +179,6 @@ async function rewindCursorTo(
 	);
 }
 
-/** The per-subgraph revert+reprocess sequence, run while holding both the
- *  in-process block lock (f057) and the cross-process advisory lock (f069,
- *  see the call site in {@link handleSubgraphReorg}). */
 async function reorgOneSubgraph(
 	sg: Subgraph,
 	schema: SubgraphSchema,
@@ -200,10 +195,8 @@ async function reorgOneSubgraph(
 	// A halted subgraph keeps its rows and cursor; they must match the chain
 	// when it resumes, so it is reverted and rewound like a running one.
 	if (!["active", "reindexing", "error"].includes(current.status)) return;
-	// A cursor below the fork wrote nothing from the orphaned range.
 	if (Number(current.last_processed_block) < blockHeight) return;
 	const schemaName = sg.schema_name ?? pgSchemaName(sg.name);
-	// Rows live on the managed target DB.
 	const client = getRawClient("target");
 
 	const tableNames = Object.keys(schema);
@@ -230,12 +223,10 @@ async function reorgOneSubgraph(
 					FROM "${schemaName}"."_journal"
 					WHERE block_height >= $1 AND table_name = $2
 					ORDER BY row_key, _jid ASC`;
-				// 1. Drop the current (orphaned) versions of journaled rows.
 				await tx.unsafe(
 					`DELETE FROM "${schemaName}"."${tableName}" t USING (${earliest}) e WHERE to_jsonb(t.*) @> e.row_key`,
 					[blockHeight, tableName],
 				);
-				// 2. Sweep append-only rows born at/after the fork.
 				await tx.unsafe(
 					`DELETE FROM "${schemaName}"."${tableName}" WHERE "_block_height" >= $1`,
 					[blockHeight],

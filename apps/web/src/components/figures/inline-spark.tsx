@@ -2,11 +2,6 @@ const W = 64;
 const H = 14;
 const PAD = 2;
 
-/**
- * C7 InlineSpark — a word-scale sparkline inside a sentence. No axes, an
- * endpoint dot, and a required title (also the aria-label) describing the
- * trend for readers who can't see it.
- */
 export function InlineSpark({
 	points,
 	tone = "a",

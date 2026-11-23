@@ -20,16 +20,13 @@ import type {
 import { insightRowState } from "../webhooks/rows";
 
 export interface SubgraphsCompactListProps {
-	/** Null until the first list has loaded. */
 	items: readonly SubgraphListItem[] | null;
 	health: Record<string, SubgraphHealthData | undefined>;
-	/** Every insight the server holds; each row picks its own by name. */
 	insights: readonly Insight[];
 	notice: StackNotice | null;
 	onOpen: (name: string) => void;
 }
 
-/** How far a reindex has got, 0 to 100. */
 export function reindexPercent(item: SubgraphListItem): number {
 	const done = item.lastProcessedBlock;
 	const total = done + (item.blocksRemaining ?? 0);
@@ -111,7 +108,6 @@ function Row({
 	);
 }
 
-/** The phone list: one row per subgraph, tap to open its sheet. Read-only. */
 export function SubgraphsCompactList({
 	items,
 	health,

@@ -37,7 +37,6 @@ function capDetails(body: string | undefined): string | undefined {
 	return `${head}... [truncated ${bytes.length - MAX_ERROR_DETAILS_BYTES} bytes]`;
 }
 
-/** 5xx and 429 are transient and worth a retry. Every other status is not. */
 function isRetryableStatus(status: number): boolean {
 	return status === 429 || status >= 500;
 }
@@ -46,8 +45,6 @@ function isRetryableStatus(status: number): boolean {
  *  asking for minutes should not stall a transport-level retry. */
 const MAX_RETRY_AFTER_MS = 60_000;
 
-/** Parse a `Retry-After` header (delta-seconds or HTTP-date) into a delay,
- *  or undefined when absent/unparseable/over the cap. */
 function retryAfterMs(response: Response): number | undefined {
 	const value = response.headers.get("Retry-After");
 	if (!value) return undefined;
@@ -69,7 +66,6 @@ function abortReason(signal: AbortSignal): Error {
 	);
 }
 
-/** Sleep that wakes early (rejecting with the abort reason) when `signal` fires. */
 function sleep(ms: number, signal?: AbortSignal): Promise<void> {
 	return new Promise((resolve, reject) => {
 		if (signal?.aborted) return reject(abortReason(signal));
@@ -199,7 +195,6 @@ export async function fetchWithRetry<T = Response>(
 			}
 
 			lastError = new HttpRequestError(response.status, { url, method });
-			// A server-sent Retry-After (429/503) overrides the linear backoff.
 			const delay = retryAfterMs(response) ?? retryDelay * (attempt + 1);
 			response.body?.cancel().catch(() => {});
 			// The attempt is over: a Retry-After longer than `timeout` must not

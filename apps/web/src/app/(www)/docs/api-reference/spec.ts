@@ -1,13 +1,6 @@
 import raw from "@/generated/openapi.json";
 import { HOSTED_BASE, LOCAL_BASE } from "@/lib/code/base-url";
 
-/**
- * The API reference's view of the OpenAPI description. Everything the page,
- * the per-endpoint `.md` routes, and "Copy as Markdown" show is derived here
- * from `src/generated/openapi.json` (written by `bun run openapi` in
- * packages/api), so none of them can drift from what the API ships.
- */
-
 export type Schema = {
 	$ref?: string;
 	title?: string;
@@ -38,7 +31,6 @@ export type Operation = {
 	operationId: string;
 	tags?: string[];
 	summary?: string;
-	/** The short name the docs sidebar lists the endpoint by. */
 	"x-nav-title"?: string;
 	description?: string;
 	security?: Array<Record<string, unknown>>;
@@ -65,11 +57,8 @@ const SPEC = raw as unknown as Spec;
 
 const METHODS = ["get", "post", "put", "patch", "delete"] as const;
 
-/** Tags served only by a self-hosted instance: node reads and the instance
- *  catalog. Webhooks and subgraph deploys also run hosted (same base URL). */
 const SELF_HOST_TAGS = new Set(["node", "instance"]);
 
-/** Query parameters that shape the window rather than filter rows. */
 const PAGING_PARAMS = new Set([
 	"limit",
 	"cursor",
@@ -84,7 +73,6 @@ const PAGING_PARAMS = new Set([
 	"_order",
 ]);
 
-/** `listPox5Events` → `list-pox5-events`. The `#` anchor people share. */
 export function kebab(id: string): string {
 	return id
 		.replace(/([a-z0-9])([A-Z])/g, "$1-$2")
@@ -125,7 +113,6 @@ function resolveParam(param: Param): Param {
 	return SPEC.components.parameters?.[refName(param.$ref)] ?? param;
 }
 
-/** Every operation, grouped by tag in the spec's tag order. */
 export function tagGroups(): TagGroup[] {
 	const order = (SPEC.tags ?? []).map((t) => t.name);
 	const groups = new Map<string, TagGroup>();
@@ -165,7 +152,6 @@ export function findEndpoint(anchor: string): Endpoint | undefined {
 
 export type ParamGroup = { title: string; params: Param[] };
 
-/** Path parameters, then filters, then the paging/window controls. */
 export function paramGroups(op: Operation): ParamGroup[] {
 	const params = (op.parameters ?? []).map(resolveParam);
 	const path = params.filter((p) => p.in === "path");
@@ -185,7 +171,6 @@ export function enumValues(schema: Schema | undefined): string[] {
 	return (schema?.enum ?? []).filter((v) => v !== null).map(String);
 }
 
-/** One schema's type as the reference prints it: `integer · 1 to 1000`. */
 export function typeLabel(schema: Schema | undefined): string {
 	if (!schema) return "string";
 	if (schema.$ref) return refName(schema.$ref);
@@ -209,7 +194,6 @@ export type BodyField = {
 	schema: Schema;
 };
 
-/** A JSON request body's top-level fields, `$ref` resolved. */
 export function bodyFields(op: Operation): BodyField[] {
 	const schema = resolveSchema(
 		op.requestBody?.content?.["application/json"]?.schema,
@@ -231,10 +215,6 @@ export function successContentType(op: Operation): string | undefined {
 	return Object.keys(successResponse(op)?.res?.content ?? {})[0];
 }
 
-/**
- * The object an operation returns: the row schema of a list envelope, or the
- * named schema a single read returns. Null when the body is inline or not JSON.
- */
 export function returnedObject(
 	op: Operation,
 ): { name: string; list: boolean; key?: string } | null {
@@ -261,7 +241,6 @@ export type ObjectEntry = {
 	returnedBy: Endpoint[];
 };
 
-/** Every object some operation returns, in the order the endpoints use them. */
 export function objectsByTag(): Map<string, ObjectEntry[]> {
 	const out = new Map<string, ObjectEntry[]>();
 	const seen = new Map<string, ObjectEntry>();
@@ -287,8 +266,6 @@ export function objectsByTag(): Map<string, ObjectEntry[]> {
 	return out;
 }
 
-/** An object's display name: its schema `title` (`PoX-5 event`), else its
- *  schema name split into words. */
 export function objectName(name: string): string {
 	const title = schemaByName(name)?.title;
 	if (title) return title;
@@ -321,7 +298,6 @@ function exampleOf(schema: Schema | undefined): unknown {
 	return undefined;
 }
 
-/** The success body, assembled from the examples its schema carries. */
 export function responseExample(op: Operation): unknown {
 	const res = successResponse(op)?.res;
 	return exampleOf(res?.content?.["application/json"]?.schema);
@@ -336,17 +312,12 @@ function paramExample(param: Param): string | undefined {
 	return value === undefined ? undefined : String(value);
 }
 
-/** Does this operation need a credential on the chosen base URL? */
 function needsToken(endpoint: Endpoint, base: "hosted" | "local"): boolean {
 	if (base === "hosted") return true;
 	const security = endpoint.op.security ?? [];
 	return !security.some((s) => Object.keys(s).length === 0);
 }
 
-/**
- * The cURL for one endpoint. Path parameters use their example (or stay as a
- * `{placeholder}`); filter parameters appear only when the spec gives an example.
- */
 export function curlFor(endpoint: Endpoint, base: "hosted" | "local"): string {
 	const effective = endpoint.selfHostOnly ? "local" : base;
 	const origin = effective === "hosted" ? HOSTED_BASE : LOCAL_BASE;
@@ -383,8 +354,6 @@ export function curlFor(endpoint: Endpoint, base: "hosted" | "local"): string {
 export function sdkSample(op: Operation): string | undefined {
 	return op["x-codeSamples"]?.find((s) => s.lang === "TypeScript")?.source;
 }
-
-// ── Markdown (Copy as Markdown, /docs/api-reference/<anchor>.md, llms-full) ──
 
 function mdValues(schema: Schema | undefined): string {
 	const values = enumValues(schema);
@@ -459,7 +428,6 @@ export function objectMarkdown(entry: ObjectEntry): string {
 		.join("\n\n");
 }
 
-/** The whole reference as markdown, tag by tag. */
 export function referenceMarkdown(): string {
 	const objects = objectsByTag();
 	return tagGroups()

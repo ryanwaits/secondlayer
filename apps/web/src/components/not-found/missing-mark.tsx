@@ -1,5 +1,3 @@
-/** The logo with its blue top layer missing: drawn wherever a thing we
- *  looked up isn't there. */
 export function MissingMark({ size = 44 }: { size?: number }) {
 	return (
 		<svg

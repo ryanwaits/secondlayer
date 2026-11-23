@@ -2,14 +2,12 @@ import { ApiError, apiRequest } from "@/lib/api";
 import { crossSiteRefusal } from "@/lib/same-origin";
 import { NextResponse } from "next/server";
 
-// Next to the API, so each dashboard read and write takes the short hop.
 export const preferredRegion = "fra1";
 
 export async function POST(req: Request) {
 	const refused = crossSiteRefusal(req);
 	if (refused) return refused;
 	try {
-		// `from` and `distinctId` feed the API's analytics event only.
 		const { email, from, distinctId } = await req.json();
 		const data = await apiRequest("/api/auth/magic-link", {
 			method: "POST",

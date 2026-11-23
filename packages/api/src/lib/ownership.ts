@@ -4,10 +4,6 @@ import type { Context } from "hono";
 import type { Kysely } from "kysely";
 import { liveKeyWhere } from "../auth/key-state.ts";
 
-/**
- * Get all api_key_ids belonging to the same account as the current key.
- * Enables account-level resource scoping across key rotations.
- */
 export async function getAccountKeyIds(
 	db: Kysely<Database>,
 	accountId: string,
@@ -22,31 +18,15 @@ export async function getAccountKeyIds(
 	return keys.map((k) => k.id);
 }
 
-/** Extract api_key_id from Hono context, or undefined in DEV_MODE */
 export function getApiKeyId(c: Context): string | undefined {
 	const apiKey = c.get("apiKey") as { id: string } | undefined;
 	return apiKey?.id;
 }
 
-/** Extract account_id from Hono context, or undefined in DEV_MODE */
 export function getAccountId(c: Context): string | undefined {
 	return c.get("accountId") as string | undefined;
 }
 
-/**
- * Resolve the api_key_id to attribute a write to.
- *
- * If the request was authenticated with an API key (sk-sl_…), returns that
- * key's id directly. If the request was authenticated with a session cookie
- * (ss-sl_…), the caller has an accountId but no apiKey — so we look up the
- * account's oldest active API key and return that. This lets session-scoped
- * chat deploys land on the user's "primary" key without prompting for key
- * selection in the UI.
- *
- * Returns undefined if:
- *   - the request isn't authenticated at all (neither apiKey nor accountId)
- *   - the account has zero active API keys (caller should 403 with NO_API_KEY)
- */
 export async function resolveApiKeyIdForWrite(
 	c: Context,
 ): Promise<string | undefined> {

@@ -3,12 +3,10 @@ import { SITE } from "./docs-agent";
 
 export const OPENAPI_URL = "https://api.secondlayer.tools/v1/openapi.json";
 
-/** The `.md` twin of one endpoint, as served by the docs `[...slug]` route. */
 export function endpointMarkdownUrl(anchor: string): string {
 	return `${SITE}/docs/api-reference/${anchor}.md`;
 }
 
-/** `llms-api.txt`: the hosted OpenAPI URL plus one line per endpoint, each linking its markdown page. */
 export function llmsApiTxt(): string {
 	const lines = allEndpoints().map(
 		(e) =>

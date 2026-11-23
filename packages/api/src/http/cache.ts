@@ -12,16 +12,13 @@ import { createHash } from "node:crypto";
  * conditional-request matching every surface reuses.
  */
 
-/** Long-lived directive for finalized/immutable pages. */
 export const IMMUTABLE_CACHE_CONTROL = "public, max-age=31536000, immutable";
-/** Short private TTL for pages that can still change (tip-spanning). */
 export const MUTABLE_CACHE_CONTROL = "private, max-age=2";
 
 export function cacheControl(fullyFinalized: boolean): string {
 	return fullyFinalized ? IMMUTABLE_CACHE_CONTROL : MUTABLE_CACHE_CONTROL;
 }
 
-/** Weak ETag over a response body. Immutable pages hash to a stable value. */
 export function etag(body: string): string {
 	return `W/"${createHash("sha256").update(body).digest("base64url")}"`;
 }

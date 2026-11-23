@@ -13,8 +13,6 @@ import type {
 	AbiType,
 } from "./types.ts";
 
-// Value guards
-
 export function isUint128(value: unknown): value is bigint {
 	return typeof value === "bigint" && value >= 0n && value <= MAX_U128;
 }
@@ -95,8 +93,6 @@ export function isResponse<T, E>(
 	if ("err" in value && !("ok" in value)) return errGuard(obj.err);
 	return false;
 }
-
-// ABI type definition guards
 
 export function isAbiList(type: AbiType): type is AbiListType {
 	return typeof type === "object" && type !== null && "list" in type;

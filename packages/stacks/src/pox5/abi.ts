@@ -1,7 +1,6 @@
 /**
  * Curated pox-5 ABI — the 32 functions this module calls, subset of the full
- * boot-contract interface (88 functions). Regenerate when stacks-core bumps
- * pox-5: `bun spike/pox5-getContract/extract-abi.ts`, then re-curate.
+ * boot-contract interface (88 functions).
  * Drift-guarded by __tests__/actions.simnet.test.ts.
  */
 import type { AbiContract } from "../clarity/abi/contract.ts";
@@ -14,7 +13,6 @@ import type { AbiContract } from "../clarity/abi/contract.ts";
 
 export const POX5_ABI = {
 	functions: [
-		// Read-only
 		{
 			name: "current-pox-reward-cycle",
 			access: "read-only",
@@ -161,7 +159,6 @@ export const POX5_ABI = {
 			outputs: "uint128",
 		},
 
-		// Public
 		{
 			name: "announce-l1-early-exit",
 			access: "public",

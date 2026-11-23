@@ -52,8 +52,6 @@ import { tipCursor } from "./bitcoin-trigger-evaluator.ts";
  * `trigger-evaluator-loop.ts` for the evaluator's side of that handshake.
  */
 
-/** Max orphaned events embedded per rollback payload (bounds memory; reorgs are
- *  shallow). Beyond this the payload is marked truncated. */
 const MAX_ORPHANED_PER_SUB = 500;
 
 /**
@@ -92,7 +90,6 @@ const OUTBOX_BLOCK_HASH = sql<
 	string | null
 >`coalesce(block_hash, payload->>'block_hash')`;
 
-/** Bitcoin (Runes) apply rows only — `chain.rune_etch.apply`, etc. */
 const RUNE_APPLY_EVENT_TYPE_PREFIX = "chain.rune";
 
 export async function handleChainReorg(
@@ -198,7 +195,6 @@ export async function handleChainReorg(
 				rollbackRows.push(entry);
 				continue;
 			}
-			// status === "pending"
 			const maybeDelivered =
 				row.attempt > 0 ||
 				(row.locked_until !== null && row.locked_until >= now);
@@ -239,7 +235,6 @@ export async function handleChainReorg(
 				.execute();
 		}
 
-		// Snapshot delivered + maybe-delivered applies, grouped per webhook.
 		const bySub = new Map<string, ChainReorgOrphanedEntry[]>();
 		for (const row of rollbackRows) {
 			const list = bySub.get(row.webhook_id) ?? [];
@@ -338,9 +333,6 @@ export async function handleChainReorg(
 	});
 }
 
-/** Parse the `<block_height>` prefix off a `bitcoin_last_cursor` value
- *  (`<block_height>:<event_index>`). Malformed/empty → null (treated as
- *  uninitialized, so the rewind below is skipped rather than throwing). */
 function bitcoinCursorHeight(cursor: string): number | null {
 	const height = Number(cursor.split(":")[0]);
 	return Number.isFinite(height) ? height : null;

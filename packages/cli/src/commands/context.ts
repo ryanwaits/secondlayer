@@ -31,9 +31,6 @@ export function registerContextCommand(program: Command): void {
 				const sl = new SecondLayer({ baseUrl: apiUrl, apiKey });
 				const snapshot = await sl.context();
 
-				// Flatten the SDK's `{ value, error? }` fields: the printed snapshot
-				// keeps one key per field, and every failed read lands under
-				// `errors` with the code and status the API answered with.
 				const values: Record<string, unknown> = {};
 				const errors: Record<string, ContextFieldError> = {};
 				for (const [field, entry] of Object.entries(snapshot) as Array<
@@ -43,8 +40,6 @@ export function registerContextCommand(program: Command): void {
 					if (entry.error) errors[field] = entry.error;
 				}
 
-				// A null still reads the same whether the instance is
-				// unbootstrapped, unauthorized, or down. Probe once and say which.
 				const diagnostics = await explain(values, apiUrl, apiKey);
 				const payload = {
 					...values,
@@ -67,7 +62,6 @@ export function registerContextCommand(program: Command): void {
 		});
 }
 
-/** `null` when nothing is null — a full snapshot needs no explanation. */
 async function explain(
 	snapshot: Record<string, unknown>,
 	apiUrl: string,

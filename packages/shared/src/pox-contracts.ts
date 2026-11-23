@@ -20,13 +20,9 @@ export const MAINNET_POX_CONTRACT_ERAS: readonly {
 	contractId: string;
 }[] = [
 	{ fromBurnHeight: 0, contractId: `${BOOT}.pox` },
-	// Epoch 2.1
 	{ fromBurnHeight: 781_551, contractId: `${BOOT}.pox-2` },
-	// Epoch 2.4
 	{ fromBurnHeight: 789_250, contractId: `${BOOT}.pox-3` },
-	// Epoch 2.5
 	{ fromBurnHeight: 840_360, contractId: `${BOOT}.pox-4` },
-	// Epoch 4.0 (EPOCH_4_ACTIVATION_BURN_HEIGHT_MAINNET in @secondlayer/stacks)
 	{ fromBurnHeight: 960_230, contractId: `${BOOT}.pox-5` },
 ];
 

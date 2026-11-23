@@ -9,12 +9,6 @@ export type Layer = {
 	note: string;
 };
 
-/**
- * B7 LayerStack — layered architecture, top = the reader's code, bottom
- * = the chain. Hover or tap a layer: it lifts sideways and narrates
- * itself in the note below. Node grammar matches the service-flow
- * diagram (one filled accent layer for the product surface).
- */
 export function LayerStack({ layers }: { layers: Layer[] }) {
 	const [active, setActive] = useState<number | null>(null);
 

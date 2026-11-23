@@ -150,17 +150,10 @@ export async function assertOk(res: Response): Promise<void> {
 	throw new Error(`HTTP ${res.status}`);
 }
 
-/**
- * SDK client targeting the platform API. Honors SECONDLAYER_API_URL / INSTANCE_TOKEN for
- * CI/OSS, and an account key (`SECONDLAYER_API_KEY`) against the hosted API;
- * otherwise uses the active session token.
- */
 async function getPlatformClient(): Promise<SecondLayer> {
 	const { apiUrl, ephemeralKey } = await resolveHostedAuth();
 	return new SecondLayer({ baseUrl: apiUrl, apiKey: ephemeralKey });
 }
-
-// ── Subgraphs ──────────────────────────────────────────────────────────
 
 export async function listSubgraphsApi(): Promise<{ data: SubgraphSummary[] }> {
 	return (await getPlatformClient()).subgraphs.list();
@@ -288,14 +281,10 @@ export async function getSubgraphRowsApi(
 	);
 }
 
-// ── Index ───────────────────────────────────────────────────────────────
-
 /** Empirical per-topic print schema for a contract (anon-ok read; 404 → null). */
 export async function getContractPrintSchema(
 	contractId: string,
 ): Promise<PrintSchemaResponse | null> {
-	// Open read — when no session/key resolves, fall back to an anonymous
-	// client instead of demanding `secondlayer login`.
 	let client: SecondLayer;
 	try {
 		client = await getPlatformClient();

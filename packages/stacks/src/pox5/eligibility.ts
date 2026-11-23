@@ -412,7 +412,6 @@ export async function eligibleUnstakeSbtc(
 		readCycleClock(client),
 		getBondMembership(client, params.staker),
 	]);
-	// unstake-sbtc uses verify-not-prepare-phase → ERR_STAKE_IN_PREPARE_PHASE
 	if (inPrepare(clock)) reasons.push(Pox5ErrorCode.StakeInPreparePhase);
 	if (!membership) reasons.push(Pox5ErrorCode.NotBondParticipant);
 	else {

@@ -1,22 +1,13 @@
 import { parseAnnotations, parseFenceOptions } from "./annotations";
 
-/**
- * What prose can point at is resolved within a scope: a docs page's `##`
- * section, or a whole writing post. This reads an MDX file the way the runtime
- * resolves it, so the budget test can check names before a reader finds the
- * link dead.
- */
 export type Scope = {
-	/** The scope's heading (or "intro" before the first `##`). */
 	where: string;
-	/** MDX outside fences. */
 	prose: string;
 	fences: { lang: string; body: string }[];
 };
 
 const FENCE_OPEN = /^\s*(`{3,}|~{3,})(.*)$/;
 
-/** Split MDX into scopes. `whole` keeps the file as one scope (writing posts). */
 export function scopesOf(source: string, whole: boolean): Scope[] {
 	const scopes: Scope[] = [{ where: "intro", prose: "", fences: [] }];
 	let fence: { mark: string; info: string; body: string[] } | null = null;
@@ -51,7 +42,6 @@ export function scopesOf(source: string, whole: boolean): Scope[] {
 	return scopes;
 }
 
-/** Every distinct name a scope's fences declare with one annotation verb. */
 export function declared(scope: Scope, verb: "ref" | "pick"): Set<string> {
 	const names = new Set<string>();
 	for (const f of scope.fences)
@@ -60,7 +50,6 @@ export function declared(scope: Scope, verb: "ref" | "pick"): Set<string> {
 	return names;
 }
 
-/** The first option of each `!pick name: a | b` declaration: what a `<Pick>` shows without JavaScript. */
 function firstOptions(scope: Scope): Map<string, string> {
 	const first = new Map<string, string>();
 	for (const f of scope.fences)
@@ -73,7 +62,6 @@ function firstOptions(scope: Scope): Map<string, string> {
 	return first;
 }
 
-/** Problems with one MDX file's prose-to-code wiring, as lines for a test to print. */
 export function proseProblems(file: string, source: string): string[] {
 	const found: string[] = [];
 	const whole = file.startsWith("blog/");

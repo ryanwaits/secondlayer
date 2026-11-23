@@ -38,10 +38,7 @@ export type ClassifyResult<Q extends Record<string, Question>> = {
 
 /** Deterministic answers for the offline provider. Return a value per question
  *  it can decide; omitted questions come back as `{ type: "refusal" }`. */
-export type RuleValue =
-	| string /* choice option */
-	| number /* score level index */
-	| boolean;
+export type RuleValue = string | number | boolean;
 export type RulesFn<Q extends Record<string, Question>> = (
 	state: string | Record<string, unknown>,
 ) => { [K in keyof Q]?: RuleValue } | null;

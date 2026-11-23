@@ -1,6 +1,6 @@
 /**
- * AI crawler tokens as they appear in real user agents. Google-Extended and
- * Applebot-Extended are robots.txt tokens only and never show up in a UA.
+ * Google-Extended and Applebot-Extended are robots.txt tokens only and never
+ * show up in a UA.
  */
 export const AI_BOTS = [
 	"GPTBot",
@@ -23,7 +23,6 @@ export const AI_BOTS = [
  */
 export const AI_BOT_UA_MATCHER = `.*(?:${AI_BOTS.join("|")}).*`;
 
-/** Maps a user-agent header (case-insensitive) to the AI bot's name, or null for anyone else. */
 export function aiBot(ua: string | null): string | null {
 	if (!ua) return null;
 	const lower = ua.toLowerCase();

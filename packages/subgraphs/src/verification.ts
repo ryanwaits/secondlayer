@@ -18,8 +18,6 @@ export type { SubgraphVerification };
 /** Runtime identity baked into every pin: matcher, decode and flush semantics. */
 export const SUBGRAPHS_RUNTIME: string = `@secondlayer/subgraphs@${pkg.version}`;
 
-// ── Determinism contract ────────────────────────────────────────────────
-
 /**
  * Globals a handler may not touch, with the reason shown to the developer.
  * The deploy scan reports them; the realm replaces each with a getter that
@@ -177,8 +175,6 @@ export function formatFinding(f: HandlerFinding): string {
 	return `${f.file}:${f.line}:${f.column} ${f.name}: ${f.reason}`;
 }
 
-// ── Derived level ───────────────────────────────────────────────────────
-
 /**
  * Sources whose every field is a named state write: provable per block from
  * the header-backed witness plus `state_writes`. Not `map_insert`: storage
@@ -193,7 +189,6 @@ const STATE_SOURCE_TYPES: ReadonlySet<string> = new Set([
 
 const LEVEL_RANK = { state: 0, events: 1, none: 2 } as const;
 
-/** Handler findings listed in `reasons`; the rest are counted. */
 const MAX_LISTED_FINDINGS = 10;
 
 /**
@@ -235,7 +230,6 @@ export function deriveVerification(
 		reasons.push("backfillMode concurrent: tip-first order is not chain order");
 	}
 	if (findings.some((f) => f.kind === "needs-events")) raise("events");
-	// A large bundled library can trip dozens of findings; list a few.
 	for (const f of findings.slice(0, MAX_LISTED_FINDINGS)) {
 		reasons.push(
 			f.kind === "needs-events"
@@ -271,8 +265,6 @@ export function deriveVerification(
 export function isDeterminismViolation(v: SubgraphVerification): boolean {
 	return v.level === "state" && v.reasons.length > 0;
 }
-
-// ── Pin ─────────────────────────────────────────────────────────────────
 
 /** What a pin is computed from: schema hash, handler code, network. */
 export interface PinInput {

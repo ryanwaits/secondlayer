@@ -5,14 +5,8 @@ import { type ReactNode, useState } from "react";
 import { ShareFixSheet } from "../share/share-fix-sheet";
 import { InsightSheet } from "./insight-sheet";
 
-/** Which sheet is up: the insight, or its Share fix (which replaces it). */
 type SheetState = { kind: "insight" | "share"; id: string } | null;
 
-/**
- * The insight sheet and its Share fix, one at a time. `open(id)` shows the
- * insight; its "Share fix" button swaps in the share sheet. Render `sheets`
- * anywhere in the screen: both portal.
- */
 export function useInsightSheets(insights: readonly Insight[]): {
 	open: (id: string) => void;
 	sheets: ReactNode;

@@ -54,9 +54,6 @@ type PublicIndexStatus = {
 };
 
 type PublicStatusIndex = PublicIndexStatus & {
-	/** Canonical chain events stored — the set the signed archive counts as
-	 *  its `events` dataset. Served from an in-memory counter refreshed every
-	 *  ~10s (`lib/events-total.ts`); null until the first count lands. */
 	events_total: number | null;
 };
 
@@ -90,11 +87,6 @@ const SUBGRAPH_PROCESSOR_STALE_MS = 90_000;
  */
 const SUBGRAPH_PROCESSOR_LAG_BLOCKS = 500;
 
-/**
- * The subgraph processor's verdict from BOTH signals: is it alive, and is it
- * moving? Exported so the stalled-but-heartbeating case has a test — that is
- * the shape that went unnoticed for hours in production.
- */
 export function subgraphProcessorVerdict(input: {
 	ageSeconds: number;
 	blocksBehind: number | null;
@@ -111,11 +103,6 @@ export function subgraphProcessorVerdict(input: {
 	return { status: "ok", reason: "fresh" };
 }
 
-// Built per-request from env flags so the public status response surfaces
-// every enabled decoder, not just the always-on ft + nft pair. The base
-// decoders reuse the indexer's canonical event-type map (so they never drift);
-// the env-gated sbtc/pox5/bns decoders live in separate storage modules
-// and carry their public labels here.
 const DECODER_EVENT_TYPE: Record<string, string> = {
 	...DECODER_EVENT_TYPES,
 	"decode.sbtc.v1": "sbtc",
@@ -346,7 +333,6 @@ async function buildPublicStatus() {
 		status: SemanticHealthStatus;
 		lastSeen: string | null;
 		ageSeconds: number | null;
-		/** Furthest-behind active subgraph vs the chain tip; null when unknown. */
 		blocksBehind: number | null;
 		reason: string;
 	} = (() => {
@@ -490,7 +476,6 @@ const newPublicStatusReader = () =>
 	});
 let readPublicStatus = newPublicStatusReader();
 
-/** Drop the memoized /public/status body so a test sees its own state. */
 export function _resetPublicStatusMemoForTests(): void {
 	readPublicStatus = newPublicStatusReader();
 }
@@ -522,7 +507,6 @@ app.get("/public/streams/dumps/manifest", async (c) => {
 	return c.json(snapshot.manifest);
 });
 
-// Public ed25519 key consumers use to verify Streams response signatures.
 app.get("/public/streams/signing-key", (c) => {
 	const signer = getStreamsSigner();
 	if (!signer) {
@@ -542,8 +526,6 @@ app.get("/public/streams/signing-key", (c) => {
 app.get("/status", async (c) => {
 	const db = getDb();
 	const mode = getInstanceMode();
-	// index_progress + decoder_checkpoints are chain/decoded → SOURCE. subgraphs
-	// + subgraph_gaps + service_heartbeats are control plane → getDb()/TARGET.
 	const sourceDb = getSourceDb();
 
 	const [

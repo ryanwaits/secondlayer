@@ -22,7 +22,6 @@ class Logger {
 			this._level = env.LOG_LEVEL;
 			this._isProduction = env.NODE_ENV === "production";
 		} catch {
-			// Fallback when env is unavailable (e.g. tests without DATABASE_URL)
 			this._level = "info";
 			this._isProduction = false;
 		}
@@ -53,7 +52,6 @@ class Logger {
 		const timestamp = new Date().toISOString();
 
 		if (this.isProduction) {
-			// JSON output for production
 			return JSON.stringify({
 				timestamp,
 				level,
@@ -62,7 +60,6 @@ class Logger {
 			});
 		}
 
-		// Human-readable output for development
 		const metaStr = meta ? ` ${JSON.stringify(meta)}` : "";
 		return `[${timestamp}] ${level.toUpperCase()}: ${message}${metaStr}`;
 	}
@@ -96,5 +93,4 @@ class Logger {
 	}
 }
 
-// Export singleton instance
 export const logger: Logger = new Logger();

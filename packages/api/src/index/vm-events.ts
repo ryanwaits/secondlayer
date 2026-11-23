@@ -26,7 +26,6 @@ const PAGINATION_FILTERS = [
 
 const VM_COMMON = [...PAGINATION_FILTERS, "contract_id", "tx_id"] as const;
 
-/** Filter keys on GET /v1/index/events for vm types. `map` is map_name. */
 export type VmIndexEqualityFilter =
 	| "contract_id"
 	| "function_name"
@@ -191,7 +190,6 @@ function normalizeVmRow(
 	return event;
 }
 
-/** Index read over vm_events. Cursor second component is ordinal. */
 export async function readVmIndexEvents(
 	params: ReadIndexEventsParams,
 ): Promise<ReadIndexEventsResult> {
@@ -211,8 +209,6 @@ export async function readVmIndexEvents(
 		sql`vm.type = ${params.eventType}`,
 		sql`vm.block_height >= ${params.fromHeight}`,
 		sql`vm.block_height <= ${params.toHeight}`,
-		// Parity with the classic reader: the rows this event_type guarantees.
-		// A malformed `data` (no contract_identifier) never reaches a page.
 		...config.requiredNonNull.map(
 			(column) =>
 				sql`${FILTER_EXPR[column as VmIndexEqualityFilter]} IS NOT NULL`,

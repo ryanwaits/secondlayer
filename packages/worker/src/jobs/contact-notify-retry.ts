@@ -18,7 +18,6 @@ const SETTLE_MS = 2 * 60 * 1000;
 const MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 const BATCH = 20;
 
-/** Notifies unnotified contact requests; returns how many went out. */
 export async function retryUnnotifiedContacts(
 	now = new Date(),
 	notify = notifyContact,

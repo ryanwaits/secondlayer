@@ -12,7 +12,6 @@ export class ApiError extends Error {
 	constructor(
 		public status: number,
 		message: string,
-		/** Seconds from the upstream `Retry-After` header, when it sent one. */
 		public retryAfter?: number,
 	) {
 		super(message);
@@ -53,8 +52,6 @@ export async function apiRequest<T>(
 		sessionToken?: string;
 		tags?: string[];
 		headers?: Record<string, string>;
-		/** Give up after this long (rejects with a `TimeoutError`). For reads a
-		 *  page waits on; a write is never cut short. */
 		timeoutMs?: number;
 	} = {},
 ): Promise<T> {
@@ -79,7 +76,6 @@ export async function apiRequest<T>(
 		headers,
 		body: body ? JSON.stringify(body) : undefined,
 		next: nextOptions,
-		// Why: reuse warm connections to the API; undici's default drops idle ones after 4 s.
 		dispatcher: upstreamAgent,
 		signal: timeoutMs ? AbortSignal.timeout(timeoutMs) : undefined,
 	} as RequestInit & { dispatcher: Agent });

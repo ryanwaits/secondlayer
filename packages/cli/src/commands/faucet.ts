@@ -31,7 +31,6 @@ import { dim, note, output, printError, success } from "../lib/output.ts";
  */
 
 const DUST_LIMIT_SATS = 546n;
-/** 0.01 sBTC — enough to exercise transfers and post-conditions. */
 const DEFAULT_AMOUNT_SATS = 1_000_000n;
 
 type DevnetAccounts = {
@@ -56,7 +55,6 @@ async function readDeployerMnemonic(projectDir: string): Promise<string> {
 	return mnemonic;
 }
 
-/** Burn height and hash the deposit must reference, read from the node. */
 async function readBurnAnchor(
 	rpcUrl: string,
 ): Promise<{ height: number; hash: string }> {
@@ -135,9 +133,6 @@ is what makes minting possible without Bitcoin.`,
 		.action(async (opts) => {
 			try {
 				const network = process.env.STACKS_NETWORK ?? "devnet";
-				// Minting is only possible where we are the signer set. Anywhere
-				// else this same call is a real protocol call against a chain we do
-				// not control, and it would fail — loudly here is better.
 				if (network !== "devnet" && network !== "local") {
 					printError(
 						`secondlayer devnet faucet only works on devnet, not ${network}.`,
@@ -192,7 +187,6 @@ is what makes minting possible without Bitcoin.`,
 						Cl.uint(anchor.height),
 						Cl.bufferFromHex(sweepTxid),
 					],
-					// A mint has no sender-side asset movement to constrain.
 					postConditionMode: "allow",
 				});
 

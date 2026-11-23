@@ -26,7 +26,7 @@ export const POX_VERSION = 5 as const;
 // Mainnet PoX cycle math constants — mirrors the indexer's own copy
 // (`pox5-cycles-storage.ts`). Kept as a local copy rather than an
 // indexer import: the read API doesn't otherwise depend on indexer
-// internals, and pox-5 is mainnet-only for now (same scope as pox-4).
+// internals, and pox-5 is mainnet-only (same scope as pox-4).
 const MAINNET_FIRST_BURNCHAIN_BLOCK_HEIGHT = 666_050;
 const MAINNET_REWARD_CYCLE_LENGTH = 2_100;
 const POX5_CYCLE_PARAMS = {
@@ -41,8 +41,6 @@ export const FIRST_POX5_REWARD_CYCLE = 141;
 export const POX4_NOT_SERVED_NOTE =
 	"PoX-4 cycles are final and not served. Read pox-4 history from /v1/index/contract-calls?contract_id=SP000000000000000000002Q6VF78.pox-4.";
 
-/** A pox-5 reward cycle's materialized totals, before the tip-relative
- *  `is_current` / `is_frozen` flags are applied. */
 export type Pox5CycleData = {
 	reward_cycle: number;
 	start_burn_height: number;
@@ -52,7 +50,6 @@ export type Pox5CycleData = {
 	reward_eligible_ustx: string;
 	stakers: number;
 	signers_in_set: number;
-	/** bond index (as string) -> sats staked for this cycle. */
 	bond_sats: Record<string, string>;
 	bond_total_sats: string;
 	sbtc_custodied_sats: string;
@@ -60,7 +57,6 @@ export type Pox5CycleData = {
 	rewards_allocated_bond: string;
 	reserve_deposit: string;
 	rewards_per_token_stx: string | null;
-	/** bond index (as string) -> cumulative rewards-per-sat for this cycle. */
 	rewards_per_token_bond: Record<string, string>;
 	distributions: number;
 	rewards_claimed: string;
@@ -68,7 +64,6 @@ export type Pox5CycleData = {
 };
 
 export type Pox5Cycle = Pox5CycleData & {
-	/** The tip's reward cycle. */
 	is_current: boolean;
 	/**
 	 * Totals can no longer change — the tip's burn height has reached this
@@ -168,8 +163,6 @@ function mapSignerRow(row: SignerDbRow): Pox5CycleSigner {
 	};
 }
 
-/** The reward cycle a burn height falls in, or `null` before pox-5's genesis
- *  burn height (an empty/dev instance's zero tip) — nothing is "current". */
 function safeCurrentCycle(tipBurnHeight: number): number | null {
 	if (tipBurnHeight < POX5_CYCLE_PARAMS.firstBurnchainBlockHeight) return null;
 	return burnHeightToRewardCycle(tipBurnHeight, POX5_CYCLE_PARAMS);
@@ -187,9 +180,6 @@ function withFlags(
 	};
 }
 
-/** Resolves the tip's burn height from its Stacks height — injectable so
- *  callers can test `is_current` / `is_frozen` at synthetic tips without a
- *  database. */
 export type PoxTipBurnHeightReader = (tip: IndexTip) => Promise<number>;
 
 export async function readTipBurnHeight(
@@ -227,9 +217,6 @@ function parseCycleCursor(raw: string | null): number | undefined {
 
 export type PoxCyclesQuery = {
 	limit: number;
-	/** Exclusive upper bound on `reward_cycle` — the caller's `cursor` if
-	 *  given, else `currentCycle + 2` so the list starts at `currentCycle +
-	 *  1`. `undefined` means unbounded (highest cycle first). */
 	before?: number;
 };
 
@@ -313,8 +300,6 @@ export async function getPoxCyclesResponse(opts: {
 	readPoxCycles?: PoxCyclesReader;
 	readTipBurnHeight?: PoxTipBurnHeightReader;
 }): Promise<PoxCyclesResponse> {
-	// Validate first: a bad `limit`/`cursor` should 400 without ever touching
-	// the tip.
 	const limit = parseCycleLimit(opts.query.get("limit"));
 	const cursor = parseCycleCursor(opts.query.get("cursor"));
 

@@ -46,8 +46,6 @@ interface Window {
 	resetAt: number;
 }
 
-/** In-memory fixed-window limiter. `now` is injectable for tests; a real
- *  gateway process just uses `Date.now`. */
 export function createRateLimiter(
 	env: NodeJS.ProcessEnv = process.env,
 	now: () => number = Date.now,

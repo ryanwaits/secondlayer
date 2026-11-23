@@ -1,8 +1,4 @@
 /**
- * Pure core of the feedback classify job: state, questions, deterministic
- * rules and the routing policy. No IO (no db, fetch or model calls) so every
- * decision is unit-testable with plain objects.
- *
  * Privacy: the state sent to a model carries only codes, method, path,
  * status, query param NAMES, capped agent text and public chain ids. Never
  * query values, never request or response bodies.
@@ -16,7 +12,6 @@ import type {
 
 export const FEEDBACK_SCHEMA_VERSION = 1 as const;
 
-/** Narrow, IO-free view of a feedback_tickets row. */
 export type FeedbackTicketInput = {
 	id: string;
 	intent: string;
@@ -131,8 +126,6 @@ const MISSING_COLUMN_CODES = new Set(["INVALID_COLUMN", "TABLE_NOT_FOUND"]);
 
 export type RuleHit = { kind: FeedbackKind; route: Route; rule: string };
 
-/** Deterministic rules, first match wins. null = undecided, ask the model.
- *  New rules come from labelled data, not guesses. */
 export function rulesFor(t: FeedbackTicketInput): RuleHit | null {
 	const a = t.attempted;
 	if (
@@ -152,17 +145,12 @@ export function rulesFor(t: FeedbackTicketInput): RuleHit | null {
 	return null;
 }
 
-/** Kind confidence needed before the model's kind picks a queue. Per
- *  provider because calibration differs (kev: fitted temperature; jev: RLCD;
- *  clef: its own). kev/clef values are PLACEHOLDERS: tune them with
- *  scripts/ops/classifier-compare.ts on labelled tickets before trusting. */
 export const KIND_CONFIDENCE_MIN: Record<ClassifierName, number> = {
 	jev: 0.85,
 	kev: 0.85,
 	clef: 0.85,
 	rules: 1,
 };
-/** risk is a 0-based mean over [safe, review, dangerous]; >= 1.5 leans dangerous. */
 export const RISK_DANGEROUS_MIN = 1.5;
 export const CHAIN_EVIDENCE_MIN = 0.5;
 /**

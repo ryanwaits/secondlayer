@@ -1,4 +1,3 @@
-/** A delivery log with a 503 retried to success. Illustrative. */
 export function WebhooksHero() {
 	return (
 		<svg

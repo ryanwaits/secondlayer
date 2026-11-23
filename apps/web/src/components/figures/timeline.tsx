@@ -1,7 +1,6 @@
 import { mergeMarkers } from "./collide";
 
 export type TimelineEvent = {
-	/** Position on the axis, 0–100. */
 	pos: number;
 	label?: string;
 	value?: string;
@@ -9,11 +8,6 @@ export type TimelineEvent = {
 	major?: boolean;
 };
 
-/**
- * B3 Timeline — ordered events on one horizontal axis, with an optional
- * shaded span. Flags obey the B1 collision rule: events within 8% merge
- * their labels into one combined flag (joined with " · ").
- */
 export function Timeline({
 	events,
 	span,

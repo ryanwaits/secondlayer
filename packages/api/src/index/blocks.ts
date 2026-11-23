@@ -12,11 +12,6 @@ import {
 	indexSourceWindowTip,
 } from "./tip.ts";
 
-/** Window/pagination params the blocks list accepts. Blocks carry no content
- *  filters — height is the only axis. `wait` long-polls when
- *  the requested window has nothing new yet — see `../index/wait.ts`.
- *  `tip_only` skips the row query entirely, and `event_types` narrows which
- *  decoders that tip is judged by — see the doc on `getBlocksResponse`. */
 export const BLOCKS_FILTERS = [
 	"limit",
 	"cursor",
@@ -114,8 +109,6 @@ function normalizeBlock(row: BlockRow): IndexBlock {
 	};
 }
 
-/** Canonical-only block list, ordered by height. Cursor shares the Index
- *  `height:n` shape (event_index pinned to 0). */
 export async function readBlocks(
 	params: ReadBlocksParams,
 ): Promise<ReadBlocksResult> {

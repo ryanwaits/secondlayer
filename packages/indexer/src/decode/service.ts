@@ -38,9 +38,6 @@ const controller = new AbortController();
 const SBTC_ENABLED = isSbtcDecoderEnabled();
 const POX5_ENABLED = isPox5DecoderEnabled();
 const BNS_ENABLED = isBnsDecoderEnabled();
-// Opt-in (needs bitcoind RPC creds): the BTC L1 settlement confirmer for sBTC
-// withdrawals. Kept OUT of getEnabledDecoderNames/floor-audit — it has its own
-// health path (see settlement.ts).
 const SETTLEMENT_CONFIRMER_ENABLED =
 	process.env.SBTC_SETTLEMENT_CONFIRMER_ENABLED === "true";
 const DECODED_EVENT_DECODERS = {
@@ -234,35 +231,12 @@ async function runDecoder(
 	}
 }
 
-/**
- * One loop for all 11 classic decoders: each wake reads every
- * classic checkpoint, scans the source DB once from the lowest of them
- * through the current source tip, and commits every advanced checkpoint +
- * decoded row together. Replaces 11 separate HTTP `runDecoder` loops.
- *
- * Mirrors `runDecoder`'s shape (wake/backoff, liveness ping, rewind
- * handling) but drives `runClassicDecodeCycle` instead of an SDK consume
- * loop, and bumps liveness for all 11 checkpoint names per iteration.
- */
 async function runClassicDecoders(): Promise<void> {
-	// Deliberately NOT `DECODER_BATCH_SIZE` — that constant is the page size for
-	// the OTHER classic-style decoders (bns/pox5/sbtc), real HTTP Streams
-	// consumers via `runDecoder` below, and moving it would change public-facing
-	// Streams page-size behavior. This loop reads the source DB in-process, so
-	// it can afford a much larger cap: a heavy block (thousands of rows) then
-	// costs ONE reader call/full-block-scan instead of N (see
-	// `DEFAULT_CLASSIC_BATCH_LIMIT`'s doc in `./classic-decoders.ts`).
 	const limit = DEFAULT_CLASSIC_BATCH_LIMIT;
 	const emptyBackoffMs = Number.parseInt(
 		process.env.DECODER_EMPTY_BACKOFF_MS ?? "1000",
 		10,
 	);
-	// Instrumentation for tracing hosted-webhook p95 tail latency: which class
-	// of slow decode cycle a given block fell into. `trigger` names what woke
-	// THIS iteration ("continue" — the previous cycle still had more to do,
-	// "wake" — a NOTIFY, "timer" — the empty-poll backoff fired first);
-	// `waitStartedAt` measures how long this iteration actually waited before
-	// starting.
 	let trigger: "wake" | "timer" | "continue" = "timer";
 	let waitStartedAt = Date.now();
 	while (!controller.signal.aborted) {
@@ -310,8 +284,6 @@ async function runClassicDecoders(): Promise<void> {
 				await sleep(5_000, controller.signal);
 			}
 		} finally {
-			// Liveness ping for all 11 checkpoints — same contract as
-			// `runDecoder`'s finally block, just for every classic name at once.
 			await pingLiveness(DECODER_NAMES);
 		}
 		if (progressed) {

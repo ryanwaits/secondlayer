@@ -11,11 +11,6 @@ import {
 } from "react";
 import { HOLD_MS } from "./gesture";
 
-/**
- * A destructive action that fires only after being held: a fill sweeps left to
- * right, the label changes while held, and releasing early cancels. Works with
- * pointer and with Enter or Space.
- */
 export function HoldButton({
 	label,
 	holdingLabel = "Keep holding…",
@@ -23,7 +18,6 @@ export function HoldButton({
 	durationMs = HOLD_MS,
 	disabled,
 }: {
-	/** "Hold to revoke ci-runner" */
 	label: string;
 	holdingLabel?: string;
 	onConfirm: () => void;

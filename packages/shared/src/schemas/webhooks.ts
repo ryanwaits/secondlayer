@@ -118,33 +118,18 @@ export const WebhookStatusSchema: z.ZodType<WebhookStatus> =
 export const WebhookFormatSchema: z.ZodType<WebhookFormat> =
 	z.enum(WEBHOOK_FORMATS);
 
-// --- Chain triggers (direct chain-level webhooks) -----------------------
-// A chain webhook reacts to raw chain events matched directly off the
-// Index/Streams clock (no subgraph). `triggers` is an array of these filters —
-// the JSON mirror of the subgraph runtime's `SubgraphFilter` union. Defined
-// here (not imported from @secondlayer/subgraphs) to avoid a shared→subgraphs
+// Defined here (not imported from @secondlayer/subgraphs) to avoid a shared→subgraphs
 // cycle; the evaluator maps these to `SubgraphFilter` at match time. Amounts are
 // non-negative integer strings (uint128 can exceed JS safe-int) or numbers.
 
-/** Runes trigger types (plan 060) — matched off `chain=bitcoin` Streams events
- *  (plan 059), not the Stacks Index clock. `rune` is a RuneRef (an id like
- *  `840000:3` or a name like `DOG•GO•TO•THE•MOON`); the API resolves and
- *  normalizes it to its canonical id at create time (see `../../routes/webhooks.ts`),
- *  rejecting an unresolvable one with 400 when Bitcoin data is configured. */
 const runeRef = z.string().trim().min(1);
 
 const triggerAmount = z.union([
 	z.string().trim().regex(/^\d+$/, "must be a non-negative integer string"),
 	z.number().int().nonnegative(),
 ]);
-/** Principal/identifier/name patterns on Stacks chain-event triggers — `*`
- *  wildcards allowed (`matchPattern` in the subgraphs source matcher). */
 const triggerPattern = z.string().trim().min(1);
-/** sBTC and Runes fields are matched by equality against decoded rows — no
- *  wildcards. */
 const triggerExact = z.string().trim().min(1);
-/** Bitcoin txid: bare explorer hex or `0x`-prefixed, any case. Normalized to
- *  the stored form (`0x` + lowercase) so it matches `sbtc_events` rows. */
 const btcTxid = z.string().transform((value, ctx) => {
 	const txid = normalizeBtcTxid(value);
 	if (txid === null) {
@@ -586,7 +571,6 @@ export type ChainTrigger =
 	  }
 	| { type: "rune_burn"; rune?: string };
 
-/** Args for a chain-trigger builder — every field of a variant except `type`. */
 type TriggerArgs<T extends ChainTrigger["type"]> = Omit<
 	Extract<ChainTrigger, { type: T }>,
 	"type"

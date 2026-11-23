@@ -320,7 +320,6 @@ export function startNonceReconciler(
 	}
 
 	const timer = setInterval(tick, intervalMs);
-	// Don't keep the event loop alive solely for reconciliation (Node/Bun).
 	(timer as { unref?: () => void }).unref?.();
 
 	return {

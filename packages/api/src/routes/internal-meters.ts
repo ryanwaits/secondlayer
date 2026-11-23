@@ -1,14 +1,4 @@
 /**
- * `POST /internal/meters` — batched ingest for hosted-stack meters (044's
- * provisioner, 046's gateway): memory GB-hours, storage GB-days, webhook
- * events. Not a customer-facing route; a first-party workload host submits
- * a batch, each item becomes one `meter()` call.
- *
- * Guard mirrors `instanceTokenMatches` (`api/src/instance-bind.ts`): a
- * constant-time compare against `WORKLOAD_HOST_KEY`, and an unset key
- * authenticates nobody — every request 401s rather than silently accepting
- * an unauthenticated batch.
- *
  * Every item gets its own result (`ok`, `rejected` or `failed`); see `ItemResult`.
  * The response is 200 unless an item hit a transient failure (503: resend the
  * batch, replays are idempotent).
@@ -36,7 +26,6 @@ import { Hono } from "hono";
 import { InvalidJSONError } from "../middleware/error.ts";
 
 const VALID_UNITS = new Set<string>(Object.keys(PRICES));
-/** Units that take new charges: priced, and not retired. */
 const METERABLE_UNITS = [...VALID_UNITS].filter(
 	(unit) => !RETIRED_METER_UNITS.has(unit as MeterUnit),
 );
@@ -67,9 +56,6 @@ export function workloadHostKeyMatches(
 	return timingSafeEqual(a, b);
 }
 
-/** Exported so `internal-introspect.ts` reuses the exact same parse — one
- *  `Authorization: Bearer` convention for every first-party workload-host
- *  route, not a copy that can drift. */
 export function bearerToken(header: string | undefined): string | null {
 	if (!header?.startsWith("Bearer ")) return null;
 	const raw = header.slice(7).trim();
@@ -83,14 +69,10 @@ type MeterItemInput = {
 	accountId: string;
 	unit: MeterUnit;
 	quantity: number;
-	/** Raw sampled quantity before any floor — `memory.gb_hour` only.
-	 *  Optional; non-negative when present. */
 	observedQuantity?: number;
 	idempotencyKey: string;
 	source?: string;
 	occurredAt?: string;
-	/** The account key that made the read, for per-key usage. Must belong to
-	 *  `accountId`. */
 	apiKeyId?: string;
 };
 
@@ -190,14 +172,11 @@ type ItemResult =
 			balance_after_usd_micros: number;
 	  }
 	| {
-			/** Will never succeed as sent (bad input, unknown account, a ledger
-			 *  CHECK): drop it. */
 			status: "rejected";
 			idempotencyKey: string | null;
 			error: string;
 	  }
 	| {
-			/** A transient failure: resend (safe, idempotent). */
 			status: "failed";
 			idempotencyKey: string;
 			error: string;
@@ -341,8 +320,6 @@ app.post("/", async (c) => {
 		}),
 	);
 
-	// Only a transient failure asks the caller to resend; rejected items never
-	// will succeed and are reported, not retried.
 	const failed = results.some((r) => r.status === "failed");
 	return c.json({ results }, failed ? 503 : 200);
 });

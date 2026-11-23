@@ -7,7 +7,6 @@ import { useState } from "react";
 import { LoadFailed } from "../load-failed";
 import { agoLong } from "./key-view";
 
-/** One app's item, or its inline revoke confirm. */
 function AppRow({ app, now }: { app: ConnectedApp; now: Date }) {
 	const [confirming, setConfirming] = useState(false);
 	const [busy, setBusy] = useState(false);
@@ -83,7 +82,6 @@ function AppRow({ app, now }: { app: ConnectedApp; now: Date }) {
 	);
 }
 
-/** Apps signed in to the hosted MCP with OAuth. Null until loaded. */
 export function AppsPanel({
 	apps,
 	now,
@@ -91,7 +89,6 @@ export function AppsPanel({
 }: {
 	apps: ConnectedApp[] | null;
 	now: Date;
-	/** Set when the list failed to load: shown with a Retry. */
 	onRetry?: () => void;
 }) {
 	return (

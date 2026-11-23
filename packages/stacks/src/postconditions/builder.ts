@@ -120,12 +120,10 @@ class PartialPcNftWithCode {
 		let id: ClarityValue;
 
 		if (assetId !== undefined) {
-			// 3 args: contractId, tokenName, assetId
 			[contractAddress, contractName] = parseContractId(assetOrContractId);
 			tokenName = tokenNameOrAssetId as string;
 			id = assetId;
 		} else {
-			// 2 args: assetString (addr.contract::token), assetId
 			const [principal, tName] = assetOrContractId.split("::");
 			if (!principal || !tName)
 				throw new Error(`Invalid asset name: ${assetOrContractId}`);

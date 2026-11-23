@@ -23,7 +23,6 @@ import {
 
 const SEEN_KEY = "sl.insights.seenAt";
 
-/** Where the screen reads insights and sends actions; the store by default, local state in the Lab. */
 export type InsightsSource = {
 	ready: boolean;
 	data: readonly Insight[];
@@ -82,7 +81,6 @@ function emptyFor(view: View, anything: boolean) {
 	);
 }
 
-/** The phone Insights tab: Open and Resolved, swipe to snooze or finish, tap for the sheet. */
 export function InsightsScreen({ source }: { source?: InsightsSource }) {
 	const fromStore = useStoreSource();
 	const { ready, data, snooze, dismiss, restore } = source ?? fromStore;

@@ -18,7 +18,6 @@ const TOKEN_OPTIONS = BRIDGE_TOKENS.map((t) => ({
 	label: t.symbol,
 }));
 
-/** A value the tester pastes somewhere: shown whole, copied in one click. */
 function Value({ children }: { children: string }) {
 	return (
 		<span className="rh-g-val">
@@ -46,7 +45,6 @@ function Rows({ rows }: { rows: [React.ReactNode, React.ReactNode][] }) {
 	);
 }
 
-/** The round trip, in page order: the list under the warning links to each. */
 const STEPS = [
 	{ id: "lock", title: "Lock on Stacks", who: "you · 1 tx" },
 	{ id: "mint", title: "Wait for the twin", who: "~70 min + approval" },
@@ -79,11 +77,6 @@ function Waits({ items }: { items: [string, string][] }) {
 	);
 }
 
-/**
- * The tester guide for the current phase (phase 0). One page; the token
- * switch rewrites every address, decimal and cap in place, and the amount
- * field turns whole tokens into the base units both contract calls take.
- */
 export function TesterGuide() {
 	const [symbol, setSymbol] = useState<string>(BRIDGE_TOKENS[0].symbol);
 	const token =

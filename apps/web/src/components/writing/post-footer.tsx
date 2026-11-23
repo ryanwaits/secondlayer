@@ -20,12 +20,6 @@ function Neighbor({ post, label }: { post: WritingPost; label: string }) {
 	);
 }
 
-/**
- * The end of a post: the previous and next posts, and where a neighbor is
- * missing, the way back to every post, so the newest post still leads
- * somewhere. Then the post's related pages and the feed, with Unsubscribe
- * at the far end for a reader on the list.
- */
 export function PostFooter({ slug }: { slug: string }) {
 	const { prev, next } = getAdjacentPosts(slug);
 	const count = getVisiblePosts().length;

@@ -8,7 +8,6 @@ import { signInThen } from "@/lib/safe-next";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 
-/** A request id as the API mints it (`oar_` + base64url). */
 export const REQUEST_ID_RE = /^oar_[A-Za-z0-9_-]{1,64}$/;
 
 export type ConsentView =
@@ -33,7 +32,6 @@ export function OauthConsentCard({
 }: {
 	view: ConsentView;
 	email: string | null;
-	/** The account's balance, formatted; null while it loads. */
 	balance?: string | null;
 	busy: boolean;
 	error: string | null;

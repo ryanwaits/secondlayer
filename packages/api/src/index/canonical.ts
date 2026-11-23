@@ -4,8 +4,6 @@ import type { Kysely } from "kysely";
 import { encodeIndexCursor, parseIndexBaseQuery } from "./_shared.ts";
 import type { IndexTip } from "./tip.ts";
 
-/** Window/pagination params the canonical map accepts. No content filters: the
- *  map is a lean sync primitive keyed purely on height. */
 export const CANONICAL_FILTERS = [
 	"limit",
 	"cursor",
@@ -53,11 +51,6 @@ export type CanonicalRangeReader = (
 	params: ReadCanonicalRangeParams,
 ) => Promise<ReadCanonicalRangeResult>;
 
-/** Read an ordered, canonical-only slice of the chain by height. One row per
- *  height — non-canonical (orphaned) blocks are excluded, so a client can sync
- *  only the current canonical chain. Cursor shares the Index `height:n` shape
- *  (event_index pinned to 0) so the base-query and cache machinery apply
- *  unchanged. */
 export async function readCanonicalRange(
 	params: ReadCanonicalRangeParams,
 ): Promise<ReadCanonicalRangeResult> {

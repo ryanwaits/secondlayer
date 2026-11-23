@@ -16,21 +16,11 @@ import {
 	payloadBlockHash,
 } from "./delivery-view";
 
-/**
- * One delivery's payload as readable JSON: what we sent, and what the
- * receiver sent back. Pretty-printed (no tree, no folding, no highlighter),
- * with long strings clamped inline and values the trigger filtered on marked.
- * Mounted only when a delivery row is open, so closed rows cost nothing.
- */
-
-/** A JSON string longer than this (quotes included) is clamped. */
 const CLAMP_OVER = 80;
 const CLAMP_HEAD = 26;
 const CLAMP_TAIL = 12;
 /** The emitter stores at most this much of a receiver's response. */
 const RESPONSE_CAP = 8192;
-
-// ── Pure helpers ─────────────────────────────────────────────────────────
 
 function collectStrings(value: unknown, into: string[]): void {
 	if (typeof value === "string") into.push(value);
@@ -40,9 +30,6 @@ function collectStrings(value: unknown, into: string[]): void {
 	}
 }
 
-/** True for a string equal to one of the triggers' filter values; a value
- *  ending in `*` matches by prefix. Amount filters are not strings, so they
- *  never mark. */
 export function markMatcher(
 	triggers: readonly ChainTrigger[],
 ): (value: string) => boolean {
@@ -62,7 +49,6 @@ export function markMatcher(
 		exact.has(value) || prefixes.some((prefix) => value.startsWith(prefix));
 }
 
-/** Pieces of a JSON-encoded string (quotes included), or null when it fits. */
 export function clampString(
 	json: string,
 ): { head: string; tail: string; hidden: number } | null {
@@ -88,8 +74,6 @@ export function parseBody(
 function kb(text: string): string {
 	return `${(new TextEncoder().encode(text).length / 1024).toFixed(1)} KB`;
 }
-
-// ── JSON renderer ────────────────────────────────────────────────────────
 
 export function Clamp({ json, marked }: { json: string; marked: boolean }) {
 	const [open, setOpen] = useState(false);
@@ -165,8 +149,6 @@ function renderNode(
 	);
 }
 
-/** Pretty-printed JSON with the docs code ladder; `isMarked` values get the
- *  yellow mark. */
 export function JsonView({
 	value,
 	isMarked = () => false,
@@ -174,17 +156,12 @@ export function JsonView({
 	return <div className="j">{renderNode(value, 0, isMarked)}</div>;
 }
 
-// ── The viewer ───────────────────────────────────────────────────────────
-
 export type Load =
 	| { status: "loading" }
 	| { status: "error" }
-	/** The hosted stack is asleep: the payload lives there, the response
-	 *  came with the deliveries list. */
 	| { status: "asleep" }
 	| { status: "ok"; detail: WebhookDeliveryDetail };
 
-/** Delivery details already read, so reopening a row doesn't refetch. */
 const cache = new Map<string, WebhookDeliveryDetail>();
 
 function initialLoad(deliveryId: string, asleep: boolean): Load {
@@ -203,8 +180,6 @@ export function readDelivery(webhookId: string, deliveryId: string) {
 	});
 }
 
-/** Starts a delivery's read before its row opens. Never throws: the click
- *  path reads again if this one failed. */
 export async function prefetchDelivery(
 	webhookId: string,
 	deliveryId: string,
@@ -212,13 +187,9 @@ export async function prefetchDelivery(
 	if (cache.has(deliveryId)) return;
 	try {
 		await readDelivery(webhookId, deliveryId);
-	} catch {
-		// Ignored on purpose.
-	}
+	} catch {}
 }
 
-/** Pointer, focus or touch reached a delivery row. A read never wakes an
- *  asleep stack, and an open row has already started its own read. */
 export function prefetchOnIntent({
 	webhookId,
 	deliveryId,
@@ -234,8 +205,6 @@ export function prefetchOnIntent({
 	void prefetchDelivery(webhookId, deliveryId);
 }
 
-/** Reads one delivery, unless the page already knows the stack is asleep
- *  (a read there never wakes it). Waking re-runs the read. */
 function useDelivery(
 	webhookId: string,
 	deliveryId: string,
@@ -260,7 +229,6 @@ function useDelivery(
 	return load;
 }
 
-/** The delivery's detail once read; null while loading, asleep or failed. */
 export function useDeliveryDetail(
 	webhookId: string,
 	deliveryId: string,
@@ -289,7 +257,6 @@ export function PayloadView({
 }: {
 	webhookId: string;
 	deliveryId: string;
-	/** The page's last poll found the hosted stack asleep. */
 	asleep: boolean;
 } & Omit<PayloadPanelProps, "load">) {
 	return (
@@ -300,23 +267,16 @@ export function PayloadView({
 interface PayloadPanelProps {
 	load: Load;
 	triggers: readonly ChainTrigger[];
-	/** The response of the attempt shown on the Response tab. */
 	responseBody: string | null;
 	statusCode: number | null;
-	/** True when that attempt is the one the fetched detail describes, so the
-	 *  detail's (untruncated-by-the-list) body may stand in for `responseBody`. */
 	responseIsLatest: boolean;
 	host: string;
 	webhookName: string;
-	/** Every attempt of this event, oldest first. Copy reads them. */
 	attempts: readonly DeliveryRow[];
-	/** The page finding that describes these failures, if any. */
 	finding: string | null;
-	/** Set to an attempt's id when the reader picks it: opens Response. */
 	picked?: string | null;
 }
 
-/** "0x9b5a…cc41" */
 function shortTx(txId: string): string {
 	return `${txId.slice(0, 6)}…${txId.slice(-4)}`;
 }
@@ -345,7 +305,6 @@ function Fields({
 	);
 }
 
-/** The viewer itself, given a delivery already read (or still loading). */
 export function PayloadPanel({
 	load,
 	triggers,

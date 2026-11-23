@@ -6,7 +6,6 @@ import { useInsights } from "@/lib/insights-store";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 
-/** The phone's Insights tab. Desktop has no Insights page: wider windows go to the Overview. */
 export function InsightsPage() {
 	const compact = useCompact();
 	const router = useRouter();

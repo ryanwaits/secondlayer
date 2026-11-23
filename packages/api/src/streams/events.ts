@@ -39,12 +39,7 @@ export type StreamsEventsReader = (
 ) => Promise<ReadCanonicalStreamsEventsResult>;
 
 export type StreamsEventsQuery = {
-	/** `vm` reads vm_events / ordinal. Default classic is Streams 1.0. */
 	clock: "classic" | "vm";
-	/**
-	 * Explicit cursor wins over the server default window. `from_cursor=0:0`
-	 * and `cursor=0:0` start at genesis, subject to tier retention.
-	 */
 	cursor?: StreamsCursorInput;
 	cursorRaw?: string;
 	/**
@@ -65,10 +60,6 @@ export type StreamsEventsQuery = {
 	cursorPastTip: boolean;
 };
 
-/**
- * Wire event: the indexer event plus `finalized`, true when the event's block
- * is at or below the tip's burn-confirmation finality boundary (immutable).
- */
 export type StreamsEventEnvelope = StreamsWireEvent & { finalized: boolean };
 
 export type StreamsEventsResponse = {
@@ -84,10 +75,6 @@ export function markFinalized(
 ): StreamsEventEnvelope[] {
 	return events.map((event) => ({
 		...event,
-		// Additive (plan 059): every Stacks Streams response now tags its chain,
-		// same as `finalized` above — the Stacks default shape is otherwise
-		// byte-identical. `chain=bitcoin` pages never pass through this
-		// function; they're already `chain: "bitcoin"` from `../streams/bitcoin.ts`.
 		chain: "stacks" as const,
 		finalized: event.block_height <= finalizedHeight,
 	}));
@@ -143,8 +130,6 @@ function resolveTypesParam(query: URLSearchParams): string | undefined {
 	return alias;
 }
 
-/** Parse a single-or-comma-list filter. Returns a string for one value and a
- *  string[] for many, so single-value callers keep the simpler shape. */
 function parseListFilter(
 	value: string | undefined,
 	name: string,
@@ -273,8 +258,6 @@ function parseFilters(
 	return parsed;
 }
 
-/** Normalize a JSON string-or-array field into the comma form the flat
- *  query-param parsers already validate, so both wire shapes share one rule. */
 function joinFilterValue(value: unknown, name: string): string | undefined {
 	if (value === undefined) return undefined;
 	if (typeof value === "string") return value;
@@ -289,7 +272,7 @@ function joinFilterValue(value: unknown, name: string): string | undefined {
 /**
  * Highest height the public Streams API will serve. Held back from the raw tip
  * by a fixed reorg-safety margin (in blocks) so consumers never read a height
- * likely to reorg; the L2 decoder and SDK consumer rewind on reorg, so a small
+ * likely to reorg; the decoder and SDK consumer rewind on reorg, so a small
  * margin suffices. The margin is a block count — NOT `lag_seconds`, which is a
  * wall-clock value and would hold the tip back ~lag_seconds blocks (the bug this
  * replaces). Override via `STREAMS_TIP_REORG_MARGIN_BLOCKS` for ops tuning.
@@ -401,7 +384,6 @@ export function parseStreamsEventsQuery(
 export async function getStreamsEventsResponse(opts: {
 	query: URLSearchParams;
 	tip: StreamsTip;
-	/** The requesting tenant's tier — `"internal"` reads at margin 0 (D1). */
 	tier?: StreamsTier;
 	readEvents?: StreamsEventsReader;
 	readReorgs?: StreamsReorgsReader;

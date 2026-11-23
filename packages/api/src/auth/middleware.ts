@@ -16,7 +16,6 @@ import { hashToken } from "./keys.ts";
 import { isMcpRequest } from "./oauth/audience.ts";
 import { lookupSession } from "./session.ts";
 
-// Debounce last_used_at updates: tokenHash → last DB write timestamp
 const lastUpdatedMap = new Map<string, number>();
 
 /**
@@ -47,10 +46,7 @@ export function requireAuth(opts?: {
 }): MiddlewareHandler {
 	const getDb = opts?.getDb ?? _getDb;
 	return async (c, next) => {
-		// DEV_MODE bypass — local dev without auth. Forced false in
-		// `NODE_ENV=production` by `isDevMode()`.
 		if (isDevMode()) {
-			// Still try to resolve accountId from token if present
 			const devAuth = c.req.header("authorization");
 			if (devAuth?.startsWith("Bearer ")) {
 				const devRaw = devAuth.slice(7);
@@ -88,7 +84,6 @@ export function requireAuth(opts?: {
 		const db = getDb();
 
 		if (raw.startsWith("ss-sl_")) {
-			// Session token flow
 			const lookup = await lookupSession(db, tokenHash);
 
 			if (lookup.status === "not_found") {
@@ -105,7 +100,6 @@ export function requireAuth(opts?: {
 			c.set("accountId", session.account_id);
 			c.set("session", session);
 
-			// Debounced last_used_at + sliding window expiry extension
 			const now = Date.now();
 			const lastUpdated = lastUpdatedMap.get(tokenHash) ?? 0;
 			if (now - lastUpdated > 60_000) {
@@ -117,10 +111,9 @@ export function requireAuth(opts?: {
 					})
 					.where("id", "=", session.id)
 					.execute()
-					.catch(() => {}); // fire-and-forget
+					.catch(() => {});
 			}
 		} else if (raw.startsWith("sk-sl_")) {
-			// API key flow
 			const keyRecord = await db
 				.selectFrom("api_keys")
 				.selectAll()
@@ -131,8 +124,6 @@ export function requireAuth(opts?: {
 				throw new AuthenticationError("Invalid API key");
 			}
 
-			// Revoked and expired keys (docs keys, 24h) are refused before any
-			// product logic, on every lookup, each under its own code.
 			const liveness = keyLiveness(keyRecord);
 			if (liveness === "revoked") {
 				if (keyRecord.product === "account") {
@@ -147,23 +138,16 @@ export function requireAuth(opts?: {
 				throw new ApiKeyExpiredError();
 			}
 
-			// Docs keys read Streams and Index and nothing else: the management
-			// plane (keys, webhooks, billing, archive fetch, feedback) is 403.
 			if (keyRecord.product === "docs") {
 				throw new AuthorizationError(
 					"Docs keys can only read Streams and Index.",
 				);
 			}
 
-			// Account keys only. Product keys (e.g. `sentinel`) are resolved
-			// server-to-server by their product and never open account routes.
 			if (keyRecord.product !== "account") {
 				throw new AuthenticationError("Invalid API key");
 			}
 
-			// Ghost guard: keys owned by an unclaimed ghost account are read-only.
-			// Only checked on mutating methods, so the hot GET path pays nothing;
-			// for writes it's one indexed PK read on accounts — acceptable.
 			const method = c.req.method.toUpperCase();
 			if (method !== "GET" && method !== "HEAD" && method !== "OPTIONS") {
 				const owner = await db
@@ -179,7 +163,6 @@ export function requireAuth(opts?: {
 			c.set("apiKey", keyRecord);
 			c.set("accountId", keyRecord.account_id);
 
-			// Debounced last_used_at update
 			const now = Date.now();
 			const lastUpdated = lastUpdatedMap.get(tokenHash) ?? 0;
 			if (now - lastUpdated > 60_000) {
@@ -188,11 +171,9 @@ export function requireAuth(opts?: {
 					.set({ last_used_at: new Date() })
 					.where("id", "=", keyRecord.id)
 					.execute()
-					.catch(() => {}); // fire-and-forget
+					.catch(() => {});
 			}
 		} else if (raw.startsWith(OAUTH_ACCESS_PREFIX)) {
-			// An app's token: never a session or a key, and refused outright on
-			// a request that did not come from the hosted MCP handler.
 			if (!opts?.oauth?.(c) || !isMcpRequest(c.req.raw)) {
 				throw new AuthenticationError("Invalid token");
 			}

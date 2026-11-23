@@ -67,10 +67,8 @@ import { LimitsAndEmails } from "./limits-and-emails";
 
 const MICROS = 1_000_000;
 
-/** The account rules whose insights live here. */
 const BILLING_RULES = rulesHomedAt("/account/credits");
 
-/** The balance as one sentence, with its days, rate and month-end pace under it. */
 function Status({
 	billing,
 	burn,
@@ -84,7 +82,6 @@ function Status({
 	service: HostedStack | null;
 	capUsd: number | null;
 	now: Date;
-	/** Where the month ends up at the last 7 days' pace, or null until the daily spend loads. */
 	projectedEnd: number | null;
 }) {
 	if (!billing) {
@@ -144,7 +141,6 @@ function Status({
 	);
 }
 
-/** A month with nothing spent and no credits yet: the free 1M and when to add more. */
 function isFreshAccount(billing: Billing | null): boolean {
 	return (
 		billing !== null &&
@@ -153,8 +149,6 @@ function isFreshAccount(billing: Billing | null): boolean {
 	);
 }
 
-/** The Add credits band: the page's anchor for "add credits" links. Yellow
- *  only while the balance is running short; a stopped stack is neutral. */
 function CreditsBand({
 	urgent,
 	children,
@@ -175,26 +169,18 @@ export interface BillingBodyProps {
 	billing: Billing | null;
 	burn: Burn | null;
 	service: HostedStack | null;
-	/** This month's usage by unit, or undefined until it loads. */
 	usage: UsageRow[] | undefined;
 	daily: DailySpend[] | undefined;
-	/** The spend cap in whole dollars, or null for none. */
 	capUsd: number | null;
 	onCapChange: (next: number | null) => void;
 	credits: CreditAdded[] | null;
-	/** Set when the credits list failed to load: the table shows Retry. */
 	onRetryCredits?: () => void;
-	/** Insights about the account's spend, ranked by the server. */
 	insights?: readonly Insight[];
-	/** Shown above the status sentence, such as the way back from Stripe. */
 	notice?: ReactNode;
-	/** The Add credits band's cells: amount, runway line, checkout button. */
 	addCredits: ReactNode;
-	/** The limit and email settings, under the credits added. */
 	settings: ReactNode;
 }
 
-/** Billing: the balance, this month's spend line, adding credits, where it goes, and what was added. */
 export function BillingBody({
 	now,
 	billing,
@@ -300,7 +286,6 @@ export function BillingBody({
 	);
 }
 
-/** /account/credits: balance, spend and limits, with the way back from Stripe. */
 export function BillingScreen({ ret }: { ret: TopupReturn | null }) {
 	const { billing, burn, service, usage, daily, caps, credits, status } =
 		useAccountData();
@@ -324,14 +309,11 @@ export function BillingScreen({ ret }: { ret: TopupReturn | null }) {
 		preloadSpendChart();
 	}, []);
 
-	// A landed top-up is a new row in the credits list.
 	const landed = st?.kind === "landed";
 	useEffect(() => {
 		if (landed) refreshCredits();
 	}, [landed]);
 
-	// Every 60s while the tab is visible, refresh the month's usage. This is
-	// also how `burn` and `service` (always "now") stay live.
 	useEffect(() => {
 		return poll(
 			async () => {
@@ -343,7 +325,6 @@ export function BillingScreen({ ret }: { ret: TopupReturn | null }) {
 		);
 	}, [month, usageSeeded]);
 
-	// What is stored, and while a save is out, what it will be.
 	const storedCapUsd = capDollars(caps?.monthlyCapCents ?? null);
 	const pendingCap = capSave.pending;
 	const capUsd = pendingCap !== undefined ? pendingCap : storedCapUsd;
@@ -354,7 +335,6 @@ export function BillingScreen({ ret }: { ret: TopupReturn | null }) {
 		// A newer save of the cap is out: its answer is the one to report.
 		if (outcome === "stale") return;
 		if (outcome === "failed") {
-			// Take whatever the server has, in case an earlier save landed.
 			refreshCaps();
 			notify.fail("Couldn't save your spend cap", {
 				desc:

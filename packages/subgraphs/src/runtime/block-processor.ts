@@ -26,12 +26,6 @@ import {
 import { runHandlers } from "./runner.ts";
 import type { EventRecord, TxRecord } from "./source-matcher.ts";
 
-/**
- * The data-plane route for a subgraph: which schema its tables live in and the
- * managed target DB the writes/reads land on. Cached per subgraph to avoid a
- * per-block lookup; invalidated on redeploy via
- * {@link invalidateSubgraphRoute}.
- */
 interface SubgraphRoute {
 	schemaName: string;
 	dataDb: Kysely<Database>;
@@ -66,7 +60,6 @@ export function invalidateSubgraphRoute(subgraphId: string): void {
 	routeCache.delete(subgraphId);
 }
 
-/** The cursor of one subgraph row, by id. A deleted row reads as absent. */
 async function readCursor(
 	db: Kysely<Database>,
 	subgraphId: string | undefined,
@@ -125,13 +118,10 @@ export async function resolveFactoryContracts(
 	resolved: Map<string, ReadonlySet<string>>;
 	discovered: Array<{ sourceName: string; address: string }>;
 }> {
-	// Keyed by the DISCOVERING source (`factory.from`), not the consuming one.
 	const discoverers = factoryDiscoverers(subgraph);
 	const known = knownSets ?? new Map<string, Set<string>>();
 	if (discoverers.size === 0) return { resolved: known, discovered: [] };
 
-	// 1. Everything revealed at or below this height (a catch-up batch passes
-	//    its cached view instead of querying).
 	if (!knownSets) {
 		for (const discoveringSource of discoverers) {
 			const set = new Set<string>();
@@ -325,8 +315,6 @@ function opCursorMode(
 	return ap && "operationId" in ap ? ap : undefined;
 }
 
-/** True only for the reorg fork-block reprocess — see `reorgRewind` on
- *  {@link ProcessBlockOptions}. */
 function isReorgRewind(opts?: ProcessBlockOptions): boolean {
 	return opts?.reorgRewind === true;
 }
@@ -404,7 +392,6 @@ export async function processBlock(
 		skipped: false,
 	};
 
-	// 1. Load block from source DB (shared indexer) — use pre-loaded data if available
 	let block: PreloadedBlockData["block"] | undefined;
 	let txs: PreloadedBlockData["txs"];
 	let evts: PreloadedBlockData["events"];
@@ -415,8 +402,6 @@ export async function processBlock(
 		evts = opts.preloaded.events;
 		vmEvts = opts.preloaded.vmEvents ?? [];
 	} else {
-		// The block source returns canonical blocks only, so a missing entry
-		// means the block is absent or non-canonical — skip either way.
 		const data = (
 			await (
 				await resolveBlockSource(subgraph)
@@ -457,8 +442,6 @@ export async function processBlock(
 	const traitContracts = opts?.membership
 		? opts.membership.traitsAsOf(blockHeight)
 		: await resolveTraitContracts(subgraph, blockHeight);
-	// Factory sets resolve BEFORE matching so a contract revealed in this
-	// block receives its own block-N events (see resolveFactoryContracts).
 	const { resolved: factoryContracts, discovered } =
 		await resolveFactoryContracts(
 			subgraph,
@@ -500,8 +483,6 @@ export async function processBlock(
 		return result;
 	}
 
-	// 4. Data plane (managed target DB) — resolved above, since factory-set
-	// resolution needs the schema name.
 	const blockMeta: BlockMeta = {
 		height: block.height,
 		hash: block.hash,
@@ -585,7 +566,6 @@ export async function processBlock(
 		}
 	};
 
-	// Managed: a single atomic transaction on the target DB.
 	try {
 		await targetDb.transaction().execute(async (tx: Transaction<Database>) => {
 			// Replay guard (sequential walks only): committed writes always carry
@@ -674,8 +654,6 @@ export async function processBlock(
 					blockHeight,
 				);
 				if (!advanced) {
-					// A racing writer (zombie/claimer) already covered this height —
-					// abort OUR writes; the winner's commit stands.
 					throw new CursorRaceLostError(opMode.operationId, blockHeight);
 				}
 			}
@@ -693,9 +671,6 @@ export async function processBlock(
 			err instanceof CursorRaceLostError ||
 			err instanceof LiveCursorRaceLostError
 		) {
-			// Success-shaped: the block IS committed (by the winner). Surfacing
-			// this as an error would mint a false gap row and re-invite the
-			// double-apply through gap repair.
 			logger.warn("cursor race lost — block already covered", {
 				subgraph: subgraphName,
 				blockHeight,
@@ -722,7 +697,6 @@ export async function processBlock(
 		};
 	}
 
-	// 7. Row count warning — sample every 1000 blocks (uses pg_stat estimate, not COUNT(*))
 	if (blockHeight % 1000 === 0) {
 		try {
 			const tables = Object.keys(subgraph.schema);

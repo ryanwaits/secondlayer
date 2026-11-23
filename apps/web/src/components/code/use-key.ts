@@ -24,52 +24,30 @@ import {
 import { rememberNext } from "@/lib/safe-next";
 
 /**
- * The reader's docs key in the code samples. Loaded on demand by `CodeClient`,
- * only when the page has a `[data-use-key]` control; nothing here is in the
- * page's first load.
- *
- * The key is a read-only, 24 hour credential (Streams and Index). Signed in,
- * the account mints it; signed out, the API mints it for a ghost account, one
- * a day per IP. It lives in this module's memory and in `sessionStorage`
+ * The key lives in this module's memory and in `sessionStorage`
  * (tab-scoped). It is never rendered on the server, never put in a URL, and
  * never leaves the slots it fills: each slot keeps the real key as text (so
  * Copy, which reads the row's text, copies it) and shows a mask drawn by CSS
- * from `data-mask`. A slot with `data-quote` sits in an SDK sample and takes
- * the key as a string literal. The slots carry `ph-no-capture`, which keeps
+ * from `data-mask`. The slots carry `ph-no-capture`, which keeps
  * them out of PostHog autocapture and replay.
- *
- * Controls: a chip names the key (`sk-sl_9f4c…a3f9 · 23h left`) and opens a
- * panel about it; one link mints it, then shows and hides it. When the key
- * expires the chip says so and the samples go back to their placeholder.
- * Signed out, "Make a lasting key" opens the panel on a sign-in form: the
- * emailed link or code signs the reader in and lands on New key.
  */
 
-/** Who is reading, and what the page lends the module to sign them in. */
 export type KeyReader = {
-	/** The signed-in account's id; null for a signed-out reader. */
 	accountId: string | null;
-	/** Emails a sign-in link and code (`useAuth().login`). */
 	login: (email: string, from: SigninFrom) => Promise<unknown>;
-	/** Client-side navigation. */
 	navigate: (href: string) => void;
 };
 
-/** A held key, as the state machine carries it. */
 type HeldKey = Extract<KeyState["key"], { kind: "held" }>;
 
 const MINUTE = 60_000;
 
-/** Everything the key can be, in one value (`lib/code/docs-key-state.ts`).
- *  Change it only through `dispatch`. */
 let state: KeyState = INITIAL_KEY_STATE;
-/** The page's callbacks for the current reader; not part of the state. */
 let reader: KeyReader | null = null;
 let timer: ReturnType<typeof setTimeout> | undefined;
 let ticker: ReturnType<typeof setInterval> | undefined;
 let watching = false;
 let panel: HTMLElement | null = null;
-/** A slot's own markup, to put back when the key goes away. */
 const originals = new WeakMap<Element, string>();
 
 const ownerOf = (r: KeyReader) => r.accountId ?? ANON_OWNER;
@@ -83,7 +61,6 @@ const short = (key: string) => `${key.slice(0, 10)}…${key.slice(-4)}`;
 const isLocalBase = () =>
 	document.documentElement.getAttribute("data-base") === "local";
 
-/** Apply one event, run what the change needs (storage, timers), repaint. */
 function dispatch(event: KeyEvent) {
 	const before = state.key;
 	state = nextKeyState(state, event);
@@ -91,13 +68,11 @@ function dispatch(event: KeyEvent) {
 	paint();
 }
 
-/** A new key arms its expiry and is kept for the tab; any other change clears both. */
 function keyChanged(before: KeyState["key"], now: KeyState["key"]) {
 	if (now.kind !== "held") {
 		stop();
 		return;
 	}
-	// Show/Hide re-creates the held value but changes neither the key nor its clock.
 	if (
 		before.kind === "held" &&
 		before.key === now.key &&
@@ -113,16 +88,13 @@ function keyChanged(before: KeyState["key"], now: KeyState["key"]) {
 				accountId: now.owner,
 			}),
 		);
-	} catch {
-		// Not persisted; the key still works on this page.
-	}
+	} catch {}
 	clearTimeout(timer);
 	clearInterval(ticker);
 	timer = setTimeout(
 		() => dispatch({ type: "expire" }),
 		expiryDelay(now.expiresAt),
 	);
-	// The chip's "23h left" counts down.
 	ticker = setInterval(() => paint(), MINUTE);
 }
 
@@ -143,7 +115,6 @@ const slotsIn = (root: ParentNode): HTMLElement[] => [
 	...root.querySelectorAll<HTMLElement>("[data-key-slot]"),
 ];
 
-/** The outer frame of the block a slot sits in: a tab group, or the block itself. */
 const frameOf = (slot: Element) =>
 	slot.closest<HTMLElement>(".cb-tabs") ?? slot.closest<HTMLElement>(".cb");
 
@@ -184,7 +155,6 @@ function restore(slot: HTMLElement) {
 	}
 }
 
-/** The line under a keyed block that says its samples carry the docs key. */
 function note(frame: HTMLElement, on: boolean) {
 	const existing = frame.querySelector<HTMLElement>(":scope > .key-note");
 	if (!on) {
@@ -243,7 +213,6 @@ function paint(root: ParentNode = document) {
 					? "Get a new docs key"
 					: "Fill in a docs key";
 	}
-	// Signed in, the panel's link goes to the keys page as it always has.
 	for (const link of root.querySelectorAll<HTMLButtonElement>(
 		"[data-key-lasting]",
 	))
@@ -256,12 +225,9 @@ function stop() {
 	clearInterval(ticker);
 	try {
 		sessionStorage.removeItem(DOCS_KEY_STORE);
-	} catch {
-		// Storage is optional; the in-memory key is already gone.
-	}
+	} catch {}
 }
 
-/** Drop the key from memory, storage and every slot; a mint in flight is orphaned. */
 export function forget() {
 	dispatch({ type: "forget" });
 	stop();
@@ -288,7 +254,6 @@ function restoreStored(owner: string) {
 			typeof h.expiresAt === "string" &&
 			h.accountId === owner
 		) {
-			// A lapsed key becomes "expired": the chip says so, samples revert.
 			if (expiryDelay(h.expiresAt) > 0)
 				dispatch({
 					type: "adopt",
@@ -299,9 +264,7 @@ function restoreStored(owner: string) {
 			else dispatch({ type: "expire" });
 			return;
 		}
-	} catch {
-		// Fall through: anything unreadable is dropped.
-	}
+	} catch {}
 	forget();
 }
 
@@ -353,7 +316,6 @@ function fillPanel(el: HTMLElement) {
 	}
 }
 
-/** The lasting-key form was sent: email a sign-in link, then say where it went. */
 async function sendLink(event: SubmitEvent) {
 	event.preventDefault();
 	const form = event.currentTarget as HTMLFormElement;
@@ -362,7 +324,6 @@ async function sendLink(event: SubmitEvent) {
 	if (state.panel.sending || !reader || !email) return;
 	const { login, navigate } = reader;
 	dispatch({ type: "sendStart" });
-	// The emailed link opens in a new tab; it finds where to go here.
 	rememberNext(LASTING_KEY_NEXT);
 	try {
 		await login(email, "lasting_key");
@@ -389,7 +350,6 @@ async function sendLink(event: SubmitEvent) {
 	});
 }
 
-/** The panel the chip opens: built once, in the top layer, so no frame clips it. */
 function ensurePanel(): HTMLElement {
 	if (panel) return panel;
 	const el = document.createElement("div");
@@ -412,7 +372,6 @@ function ensurePanel(): HTMLElement {
 		'<p class="kp-fine">New here? This creates your account.</p>' +
 		"</form>";
 	el.querySelector(".kp-forget")?.addEventListener("click", forget);
-	// Signed out there is no keys page yet: the link turns the panel into the sign-in form.
 	el.querySelector(".kp-make")?.addEventListener("click", (e) => {
 		if (!signedOut()) return;
 		e.preventDefault();
@@ -429,7 +388,6 @@ function ensurePanel(): HTMLElement {
 		))
 			control.setAttribute("aria-expanded", String(open));
 	});
-	// It is placed from the chip once; scrolling away closes it rather than leaving it adrift.
 	window.addEventListener(
 		"scroll",
 		() => {
@@ -452,7 +410,6 @@ function showMode(mode: "about" | "lasting") {
 		panel?.querySelector<HTMLInputElement>(".kp-email")?.focus();
 }
 
-/** Open or close the panel under `anchor`, showing `mode`. */
 function togglePanelAt(anchor: HTMLElement, mode: "about" | "lasting") {
 	const el = ensurePanel();
 	if (el.matches(":popover-open")) {
@@ -470,12 +427,10 @@ function togglePanelAt(anchor: HTMLElement, mode: "about" | "lasting") {
 		el.querySelector<HTMLInputElement>(".kp-email")?.focus();
 }
 
-/** The chip was clicked: open or close the panel about the key. */
 export function togglePanel(chip: HTMLElement) {
 	togglePanelAt(chip, "about");
 }
 
-/** "Make a lasting key" was clicked (signed out): open or close the sign-in form. */
 export function toggleLasting(link: HTMLElement) {
 	togglePanelAt(link, "lasting");
 }
@@ -494,7 +449,6 @@ function watch() {
 				)
 					paint(node);
 	}).observe(document.body, { childList: true, subtree: true });
-	// The Base URL switch rewrites the credential's text; put the key back.
 	new MutationObserver(() => {
 		const held = heldKey();
 		if (held && !isLocalBase())
@@ -506,27 +460,22 @@ function watch() {
 	window.addEventListener(DOCS_KEY_FORGET, forget);
 }
 
-/** Show the controls and bring back this tab's key. Safe to call on every page. */
 export function activate(next: KeyReader) {
 	const owner = ownerOf(next);
-	// A different reader (sign-out or sign-in, maybe in another tab) starts clean.
 	const switched = state.owner !== null && state.owner !== owner;
 	reader = next;
 	dispatch({ type: "activate", owner });
 	if (switched) closePanel();
 	watch();
-	// A mint in flight will land the key itself.
 	if (!isLive(state) && state.key.kind !== "minting") restoreStored(owner);
 }
 
-/** The link was clicked: mint the key, or flip between the mask and the key. */
 export async function useKey(): Promise<void> {
 	if (state.key.kind === "minting" || reader === null) return;
 	if (isLive(state)) {
 		dispatch({ type: "toggleReveal" });
 		return;
 	}
-	// A held key past its time that the timer has not retired yet.
 	if (state.key.kind === "held") dispatch({ type: "expire" });
 	dispatch({ type: "mint" });
 	const started = currentKey();
@@ -569,7 +518,6 @@ export async function useKey(): Promise<void> {
 		event = { type: "mintFailed", epoch };
 		flash = "Try again";
 	}
-	// The reader changed under the request: its result is not this reader's.
 	if (state.epoch !== epoch) return;
 	dispatch(event);
 	if (flash) {

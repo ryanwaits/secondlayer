@@ -33,7 +33,6 @@ function wrap(
 	sources: string,
 	schema: string,
 	handlers: string,
-	/** Emitted above the definition — the `as const` ABI that types `event.input`. */
 	preamble = "",
 ): string {
 	return `
@@ -74,7 +73,6 @@ const abi = ${json} as const;
 `;
 }
 
-/** Single generic calls table for a non-token contract. */
 function genericCallsScaffold(name: string, contractId: string): string {
 	return wrap(
 		name,
@@ -92,7 +90,6 @@ function genericCallsScaffold(name: string, contractId: string): string {
 	);
 }
 
-/** Typed table per allowlisted public function (positional arg decode). */
 function functionsScaffold(
 	name: string,
 	contractId: string,
@@ -130,7 +127,6 @@ function functionsScaffold(
 		.join(",\n");
 	const handlers = fns
 		.map((f) => {
-			// Named and typed off the ABI — no positional index, no cast.
 			const inserts = f.args
 				.map(
 					(arg: { name: string }) =>
@@ -171,17 +167,14 @@ export async function generateSubgraphScaffold(
 	}
 	const name = input.subgraphName ?? contractId.split(".").pop() ?? contractId;
 
-	// Explicit function allowlist → typed contract_call tables.
 	if (input.functions && input.functions.length > 0) {
 		return formatCode(
 			functionsScaffold(name, contractId, abi, input.functions),
 		);
 	}
 
-	// Standard detection → the right event source for tokens (shared with MCP).
 	const token = generateTokenSubgraphFromAbi({ contractId, abi, name });
 	if (token) return formatCode(token);
 
-	// Non-token → generic calls table.
 	return formatCode(genericCallsScaffold(name, contractId));
 }

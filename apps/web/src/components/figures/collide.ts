@@ -1,21 +1,10 @@
-/**
- * Label-collision helpers shared by the figure library. All positions are
- * percentages (0–100) of the drawable axis unless noted.
- */
-
 export type AxisMarker<T> = T & { pos: number };
 
 export type MarkerGroup<T> = {
-	/** Render position for the merged flag — mean of member positions. */
 	pos: number;
 	members: AxisMarker<T>[];
 };
 
-/**
- * B1/B3 collision rule: markers within `threshold` percent of each other
- * merge their flags into one combined label. Input need not be sorted;
- * grouping is transitive (a–b close + b–c close → one group of three).
- */
 export function mergeMarkers<T>(
 	markers: AxisMarker<T>[],
 	threshold = 8,

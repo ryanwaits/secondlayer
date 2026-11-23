@@ -64,15 +64,9 @@ import { SubgraphsCompactList } from "./compact-list";
 import { SubgraphSheet } from "./compact-sheet";
 import { SubgraphsEmptyState } from "./empty-state";
 
-/** The list and each subgraph's hourly health refresh this often while the
- *  tab is visible. */
 const LIST_POLL_MS = 30_000;
 const HOUR_MS = 3_600_000;
 
-/** Polls the list and its hourly health. A notice shows only while there is
- *  nothing cached to display. A page that opened with the server's read
- *  (`initial`) waits a full interval for the first poll, unless the read failed
- *  or some subgraph came without its health. */
 export function useSubgraphsPoll(
 	initial?: SubgraphsResult<SubgraphListItem[]>,
 ): StackNotice | null {
@@ -93,7 +87,6 @@ function SubgraphRow({
 }: {
 	item: SubgraphListItem;
 	health: SubgraphHealthData | undefined;
-	/** Ranked insights about this subgraph. */
 	insights: readonly Insight[];
 }) {
 	const errors24h = handlerErrors24h(health);
@@ -139,7 +132,6 @@ function SubgraphRow({
 	);
 }
 
-/** The plain link under an Overview group that has more than it shows. */
 export function OverviewViewAll({
 	total,
 	noun,
@@ -162,10 +154,6 @@ export function OverviewViewAll({
 	);
 }
 
-/** One resource row per subgraph: what is off (or where it sends), a 24-hour
- *  sparkline of rows written, the row count and how long ago it last wrote.
- *  `head` puts a column header of its own above them, for a table that has
- *  other rows above (the Overview's webhooks). */
 export function SubgraphRows({
 	items,
 	health,
@@ -175,10 +163,8 @@ export function SubgraphRows({
 }: {
 	items: readonly SubgraphListItem[];
 	health: Record<string, SubgraphHealthData | undefined>;
-	/** Every insight the server holds; each row picks its own by name. */
 	insights?: readonly Insight[];
 	head?: ResourceRowLabels;
-	/** When the rows are only the newest few, the link to the rest. */
 	viewAll?: { total: number; href: string; noun: string };
 }) {
 	return (
@@ -201,7 +187,6 @@ export function SubgraphRows({
 	);
 }
 
-/** Newest write first; a subgraph that has never written goes last. */
 const byUpdatedDesc = (a: SubgraphListItem, b: SubgraphListItem) =>
 	(b.updatedAt ? Date.parse(b.updatedAt) : Number.NEGATIVE_INFINITY) -
 	(a.updatedAt ? Date.parse(a.updatedAt) : Number.NEGATIVE_INFINITY);
@@ -213,18 +198,13 @@ const healthByName = (
 		Object.entries(health).map(([name, entry]) => [name, entry?.data]),
 	);
 
-/** The Overview's subgraph rows, read from the cache the Overview's own
- *  `useSubgraphsPoll` fills. Quiet until the list has loaded, and nothing at
- *  all when the account has no subgraphs. */
 export function OverviewSubgraphsRows({
 	head,
 	seed,
 	limit,
 }: {
 	head?: ResourceRowLabels;
-	/** How many of the newest to show; a link covers the rest. */
 	limit: number;
-	/** What the server read, so the rows are in the HTML. */
 	seed?: SubgraphsSeed;
 }) {
 	const { list, health } = useSubgraphsCache(seed);
@@ -247,18 +227,14 @@ export function OverviewSubgraphsRows({
 }
 
 export interface SubgraphsListBodyProps {
-	/** Null until the first list has loaded. */
 	items: readonly SubgraphListItem[] | null;
 	health: Record<string, SubgraphHealthData | undefined>;
 	notice: StackNotice | null;
 	insights?: readonly Insight[];
-	/** Account-level insights about this page (the stack not answering). */
 	pageInsights?: readonly Insight[];
-	/** The view the visitor left this page in. Defaults to Rows. */
 	initialView?: IndexView;
 }
 
-/** The page insight sits above every state, so it shows even when the list can't load. */
 export function SubgraphsListBody({
 	pageInsights = [],
 	...props
@@ -278,16 +254,13 @@ export function SubgraphsListBody({
 	);
 }
 
-/** A subgraph as the index shows it, with its week on the page's shared timeline. */
 interface SubgraphIndexRow {
 	item: SubgraphListItem;
 	status: RowStatus;
 	why: string | null;
-	/** Null until the subgraph's health has loaded. */
 	cells: { n: number; f: number }[] | null;
 }
 
-/** The newest hour any subgraph has health for: the one end every strip aligns to. */
 function sharedEndHour(
 	health: Record<string, SubgraphHealthData | undefined>,
 ): string | null {
@@ -336,8 +309,6 @@ function indexRows(
 const UNITS = { n: "rows written", f: "handler errors" };
 const count = (n: number) => n.toLocaleString("en-US");
 
-/** One index row: name, what needs a look and what flows where, three numbers,
- *  and seven days of rows written as a heat grid or a ribbon beside it. */
 function SubgraphListRow({
 	row,
 	now,
@@ -347,7 +318,6 @@ function SubgraphListRow({
 	row: SubgraphIndexRow;
 	now: number | null;
 	view: IndexView;
-	/** The last row carries the hour axis the others leave out. */
 	isLast: boolean;
 }) {
 	const { item, status, why, cells } = row;
@@ -436,7 +406,6 @@ function SubgraphListRow({
 	);
 }
 
-/** The non-empty list, on one timeline: the newest hour any subgraph reports. */
 function SubgraphsIndex({
 	items,
 	health,
@@ -515,8 +484,6 @@ function SubgraphsListContent({
 	);
 }
 
-/** /account/subgraphs: the empty state, or one row per subgraph. `initial` is
- *  what the server read for this visit. */
 export function SubgraphsListSection({
 	initial,
 	initialView,

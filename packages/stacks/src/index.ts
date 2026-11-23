@@ -1,4 +1,3 @@
-// Clients
 export {
 	createClient,
 	createPublicClient,
@@ -23,7 +22,6 @@ export type {
 	MultiSigActions,
 } from "./clients/index.ts";
 
-// Nonce management
 export {
 	createNonceManager,
 	jsonRpcSource,
@@ -80,7 +78,6 @@ export {
 	type TransactionStatusSource,
 } from "./actions/public/txSources.ts";
 
-// Transports
 export { http } from "./transports/http.ts";
 export { custom } from "./transports/custom.ts";
 export { fallback } from "./transports/fallback.ts";
@@ -97,18 +94,8 @@ export type {
 	RequestOptions,
 } from "./transports/types.ts";
 
-// Subscriptions (WebSocket address watchers)
 export type { Subscription } from "./subscriptions/types.ts";
 
-// `on.*` — the canonical chain-event filter vocabulary.
-// Usage: `import { on } from "@secondlayer/stacks"; on.ftTransfer({ … })`,
-// then project it onto a surface: `.toIndexParams()`, `.toStreamsParams()`,
-// `.toChainTrigger()`, `.toSubgraphSource()`.
-//
-// This name used to hold a second, older set of factories keyed on snake_case
-// database column names and typed `Record<string, …>` — so a typo compiled and
-// silently matched nothing. They had no consumers and are gone; `on` is the
-// unified union, at the root and at `@secondlayer/stacks/filters` alike.
 export { on } from "./filters/index.ts";
 export type {
 	ChainEventFilter,
@@ -117,7 +104,6 @@ export type {
 	ChainTriggerOf,
 } from "./filters/index.ts";
 
-// Accounts
 export { providerToAccount } from "./accounts/providerToAccount.ts";
 export type {
 	StacksProvider,
@@ -126,12 +112,10 @@ export type {
 	CustomAccount,
 } from "./accounts/types.ts";
 
-// Chains (re-export common ones for convenience)
 export { mainnet, testnet, devnet, mocknet } from "./chains/definitions.ts";
 export { defineChain } from "./chains/defineChain.ts";
 export type { StacksChain } from "./chains/types.ts";
 
-// Utils (re-export most-used for convenience)
 export { formatStx, parseStx } from "./utils/units.ts";
 export {
 	ZERO_ADDRESS,
@@ -145,7 +129,6 @@ export {
 	getContractAddress,
 } from "./utils/address.ts";
 
-// Errors
 export {
 	BaseError,
 	TransactionError,

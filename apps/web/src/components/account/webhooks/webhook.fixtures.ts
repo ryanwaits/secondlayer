@@ -5,16 +5,9 @@ import type {
 	WebhookSummary,
 } from "@secondlayer/sdk";
 
-/**
- * Example webhooks, deliveries and activity for tests and lab stories.
- * Example names and round numbers only: never real account data.
- */
-
-/** A UTC hour start, so the 168-hour window is stable across runs. */
 export const FIXTURE_NOW = Date.parse("2026-10-15T12:30:00Z");
 const HOUR = 3_600_000;
 
-/** 168 ISO hour starts, oldest first, ending at the hour of `FIXTURE_NOW`. */
 export const FIXTURE_HOURS: string[] = Array.from({ length: 168 }, (_, i) =>
 	new Date(
 		Math.floor(FIXTURE_NOW / HOUR) * HOUR - (167 - i) * HOUR,
@@ -55,7 +48,6 @@ export function detail(over: Partial<WebhookDetail> = {}): WebhookDetail {
 	};
 }
 
-/** One attempt. Defaults to a first-try 200. */
 export function attempt(over: Partial<DeliveryRow> = {}): DeliveryRow {
 	return {
 		id: "d_1",
@@ -73,7 +65,6 @@ export function attempt(over: Partial<DeliveryRow> = {}): DeliveryRow {
 	};
 }
 
-/** Hourly counts for the whole window: `delivered` per hour, no failures. */
 export function activityFor(
 	delivered: number,
 	over: Partial<WebhookActivity> = {},

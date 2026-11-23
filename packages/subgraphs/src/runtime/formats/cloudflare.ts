@@ -15,7 +15,6 @@ import type { Webhook, WebhookOutbox } from "@secondlayer/shared/db";
 function resolveBearer(sub: Webhook): string | null {
 	const cfg = sub.auth_config as { token?: string; tokenEnc?: string };
 	if (cfg.tokenEnc) {
-		// Let decrypt errors propagate — see trigger.ts comment.
 		return decryptSecret(Buffer.from(cfg.tokenEnc, "base64"));
 	}
 	return cfg.token ?? null;

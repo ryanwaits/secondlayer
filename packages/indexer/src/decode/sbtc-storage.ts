@@ -11,7 +11,6 @@ import { writeDecoderCheckpoint } from "./storage.ts";
 
 export const SBTC_DECODER_NAME = "decode.sbtc.v1";
 
-/** The sBTC fungible-token asset ids, mainnet and testnet. */
 export const SBTC_TOKEN_ASSET_IDS: readonly string[] = [
 	SBTC_ASSET_IDENTIFIER_MAINNET,
 	`${SBTC_CONTRACTS.testnet.address}.${SBTC_CONTRACTS.testnet.token}::sbtc-token`,
@@ -28,7 +27,6 @@ export type SbtcEventRow = {
 	request_id: number | null;
 	amount: string | null;
 	sender: string | null;
-	/** `completed-deposit` only: the principal the deposit minted sBTC to. */
 	recipient: string | null;
 	recipient_btc_version: number | null;
 	recipient_btc_hashbytes: string | null;

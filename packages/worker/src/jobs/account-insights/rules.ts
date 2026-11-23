@@ -33,15 +33,12 @@ const MINUTE_MS = 60_000;
 const DAY_MS = 86_400_000;
 const USD_MICROS_PER_CENT = 10_000n;
 
-// ── Inputs ─────────────────────────────────────────────────────────────
-
 export interface RequestLogRow {
 	apiKeyId: string | null;
 	pathTemplate: string;
 	paramsHash: string | null;
 	cursorHash: string | null;
 	pageSize: number | null;
-	/** NULL means no rows were served; treated as 0. */
 	rows: number | null;
 	status: number;
 	createdAt: Date;
@@ -49,26 +46,20 @@ export interface RequestLogRow {
 
 export interface AccountRuleInput {
 	now: Date;
-	/** Index and Streams reads from the last 24 hours, oldest first. */
 	requests: RequestLogRow[];
-	/** 5xx answers recorded for this account in the last hour. */
 	failed5xx: { path: string; status: number; createdAt: Date }[];
-	/** Gateway calls to the hosted stack that got no answer, last hour, oldest first. */
 	stackFailures: {
 		method: string;
 		path: string;
 		status: number;
 		createdAt: Date;
 	}[];
-	/** The month's first paid `rows.delivered` row, and what followed. */
 	allowance: {
 		firstPaidAt: Date | null;
 		paidRows: number;
 		paidUsdMicros: bigint;
 	};
-	/** This month's `rows.delivered` quantity. */
 	monthRows: number;
-	/** This month, one entry per UTC day with `rows.delivered` ledger rows. */
 	rowsByDay: {
 		day: string;
 		rows: number;
@@ -78,15 +69,11 @@ export interface AccountRuleInput {
 	}[];
 	cap: {
 		monthlyCapCents: number | null;
-		/** This month's prepaid-credit spend (what the cap is compared to). */
 		spentMonthUsdMicros: bigint;
-		/** Positive ledger charges in the last 7 days. */
 		last7dChargesUsdMicros: bigint;
 	};
 	balanceUsdMicros: bigint;
-	/** Positive ledger charges in the last 24 hours. */
 	burnPerDayUsdMicros: bigint;
-	/** Active keys the user made themselves (`account` product). */
 	keys: {
 		id: string;
 		name: string;
@@ -94,7 +81,6 @@ export interface AccountRuleInput {
 		createdAt: Date;
 		lastUsedAt: Date | null;
 	}[];
-	/** Calls with a revoked account key in the last 24 hours, one entry per key. */
 	revokedKeyCalls: {
 		keyId: string;
 		name: string;
@@ -102,12 +88,9 @@ export interface AccountRuleInput {
 		revokedAt: Date | null;
 		calls: number;
 		lastAt: Date;
-		/** Paths by call count, most first, at most 3. */
 		topPaths: { path: string; calls: number }[];
 	}[];
 }
-
-// ── Helpers ────────────────────────────────────────────────────────────
 
 const RESOURCE = { kind: "account", id: "account", name: "Account" } as const;
 
@@ -135,8 +118,6 @@ function groupRequests(rows: RequestLogRow[]): Map<string, RequestLogRow[]> {
 
 const servedRows = (row: RequestLogRow) => row.rows ?? 0;
 
-// ── duplicate_reads ────────────────────────────────────────────────────
-
 interface PageSequence {
 	startedAt: Date;
 	pageSizes: number[];
@@ -144,7 +125,6 @@ interface PageSequence {
 	signature: string;
 }
 
-/** Pages for one request, split into sequences at each first page. */
 function sequencesOf(rows: RequestLogRow[]): PageSequence[] {
 	const out: PageSequence[] = [];
 	let current: RequestLogRow[] | null = null;
@@ -154,7 +134,6 @@ function sequencesOf(rows: RequestLogRow[]): PageSequence[] {
 				startedAt: current[0]?.createdAt ?? new Date(0),
 				pageSizes: current.map(servedRows),
 				rows: current.reduce((sum, r) => sum + servedRows(r), 0),
-				// Page size asked for and rows served, per page, in order.
 				signature: current
 					.map((r) => `${r.pageSize ?? 0}:${servedRows(r)}`)
 					.join(","),
@@ -255,8 +234,6 @@ const duplicateReads: InsightRule<AccountRuleInput> = {
 	},
 };
 
-// ── polling_loop ───────────────────────────────────────────────────────
-
 function stddev(values: number[], mean: number): number {
 	const variance =
 		values.reduce((sum, v) => sum + (v - mean) ** 2, 0) / values.length;
@@ -335,7 +312,6 @@ const pollingLoop: InsightRule<AccountRuleInput> = {
 		const everySeconds = Math.max(1, Math.round(meanMs / 1000));
 		const emptyPercent = Math.round((empty / polls) * 100);
 
-		// Calls per minute for the last hour, split by whether rows came back.
 		const minutes = 60;
 		const end = Math.floor(input.now.getTime() / MINUTE_MS) * MINUTE_MS;
 		const withRows = new Array<number>(minutes).fill(0);
@@ -397,8 +373,6 @@ const pollingLoop: InsightRule<AccountRuleInput> = {
 		};
 	},
 };
-
-// ── server_errors ──────────────────────────────────────────────────────
 
 const serverErrors: InsightRule<AccountRuleInput> = {
 	id: "server_errors",
@@ -463,8 +437,6 @@ const serverErrors: InsightRule<AccountRuleInput> = {
 	},
 };
 
-// ── stack_unreachable ──────────────────────────────────────────────────
-
 type StackPage = "all" | "webhooks" | "subgraphs";
 
 const stackPath = (path: string): "webhooks" | "subgraphs" =>
@@ -502,7 +474,6 @@ const STACK_COPY: Record<
 	},
 };
 
-/** "17:42" (utcTime without its zone suffix, for places that say UTC once). */
 const clock = (date: Date): string => utcTime(date).replace(" UTC", "");
 
 function stackUnreachable(
@@ -550,7 +521,6 @@ function stackUnreachable(
 					},
 				];
 
-	// Cell i covers the whole minute now - (59 - i) minutes.
 	const nowMinute = Math.floor(input.now.getTime() / MINUTE_MS);
 	const failed = new Array<boolean>(STACK_MINUTES).fill(false);
 	for (const t of times) {
@@ -592,7 +562,6 @@ function stackUnreachable(
 					.map((f) => [clock(f.createdAt), `${f.method} ${f.path}`, f.status]),
 			},
 		],
-		// No hand-off: the fault is ours, so the card shows no hand-off block.
 		handoff: { prompt: "", commands: [] },
 		how: {
 			detector: `${STACK_UNREACHABLE_MIN_FAILURES} or more calls to the hosted stack answered 502, 503 or 504 (not while it was starting) in the last hour, the newest within ${STACK_UNREACHABLE_ACTIVE_MS / MINUTE_MS} minutes`,
@@ -619,8 +588,6 @@ const stackUnreachableSubgraphs: InsightRule<AccountRuleInput> = {
 	id: "stack_unreachable_subgraphs",
 	evaluate: (input) => stackUnreachable("subgraphs", input),
 };
-
-// ── allowance_exhausted ────────────────────────────────────────────────
 
 const allowanceExhausted: InsightRule<AccountRuleInput> = {
 	id: "allowance_exhausted",
@@ -673,8 +640,6 @@ const allowanceExhausted: InsightRule<AccountRuleInput> = {
 		};
 	},
 };
-
-// ── backfill ───────────────────────────────────────────────────────────
 
 const backfill: InsightRule<AccountRuleInput> = {
 	id: "backfill",
@@ -737,8 +702,6 @@ const backfill: InsightRule<AccountRuleInput> = {
 		};
 	},
 };
-
-// ── cap_pace ───────────────────────────────────────────────────────────
 
 const capPace: InsightRule<AccountRuleInput> = {
 	id: "cap_pace",
@@ -803,10 +766,7 @@ const capPace: InsightRule<AccountRuleInput> = {
 	},
 };
 
-// ── credits_runway ─────────────────────────────────────────────────────
-
 /**
- * Today's balance, the day it reaches $0, and the month's end, in date order.
  * The Billing page already charts spend; it does not show where the balance ends.
  */
 function runwayTimeline(
@@ -886,8 +846,6 @@ const creditsRunway: InsightRule<AccountRuleInput> = {
 	},
 };
 
-// ── key_unused ─────────────────────────────────────────────────────────
-
 const keyUnused: InsightRule<AccountRuleInput> = {
 	id: "key_unused",
 	evaluate(input) {
@@ -954,8 +912,6 @@ const keyUnused: InsightRule<AccountRuleInput> = {
 		};
 	},
 };
-
-// ── revoked_key_in_use ─────────────────────────────────────────────────
 
 const revokedKeyInUse: InsightRule<AccountRuleInput> = {
 	id: "revoked_key_in_use",

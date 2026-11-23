@@ -19,19 +19,15 @@ export type Chain =
 	| "robinhood"
 	| "sentinel";
 
-/** bg: the chip; fg: the glyph; dim: Clarity's outer parentheses. */
 export type MarkRole = "bg" | "fg" | "dim";
 
 export type MarkShape =
-	/** A rounded square filling the mark. */
 	| { role: MarkRole; rx: number }
-	/** A path; `stroke` draws it as a line instead of filling it. */
 	| { role: MarkRole; d: string; transform?: string; stroke?: true };
 
 export type Mark = {
 	size: number;
 	shapes: readonly MarkShape[];
-	/** The mark's own colors, for anywhere CSS can't reach (share cards). */
 	colors: Record<MarkRole, string>;
 };
 

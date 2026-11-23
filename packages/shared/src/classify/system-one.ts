@@ -1,4 +1,4 @@
-import type { Experimental_DecisionModel } from "ai"; // type-only: erased at runtime
+import type { Experimental_DecisionModel } from "ai";
 
 type DecisionModelV4 = Extract<
 	Experimental_DecisionModel,
@@ -30,7 +30,6 @@ function toWireState(state: DoDecideOptions["state"]): unknown {
 	return parts.length === 1 ? parts[0] : parts;
 }
 
-/** Divide by the sum so the distribution sums to exactly 1. */
 function renormalize(p: Record<string, number>): Record<string, number> {
 	const sum = Object.values(p).reduce((a, b) => a + b, 0);
 	if (!(sum > 0)) return p;

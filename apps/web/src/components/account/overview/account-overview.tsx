@@ -8,7 +8,6 @@ import { type OverviewInitial, OverviewSection } from "./overview-section";
 export function AccountOverview(props: {
 	firstRowsCode: ReactNode;
 	firstRowsPrompt: ReactNode;
-	/** What the server read for this visit. */
 	initial?: OverviewInitial | null;
 }) {
 	const compact = useCompact();

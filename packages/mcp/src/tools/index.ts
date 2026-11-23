@@ -9,7 +9,6 @@ type ClientProvider = typeof getClient;
 
 const INDEX_EVENT_TYPES = [...DECODED_EVENT_TYPES, ...VM_EVENT_TYPES] as const;
 
-/** Filters shared by the height/cursor-paginated Index endpoints. */
 const rangeFilters = {
 	contractId: z.string().optional().describe("Filter by contract id"),
 	fromHeight: z.number().optional().describe("Start block height (inclusive)"),
@@ -21,8 +20,6 @@ const rangeFilters = {
 	limit: z.number().optional().describe("Max rows for this page"),
 };
 
-/** Height-range subset for endpoints that don't filter by contract (blocks). */
-/** Read direction for the decoded-event tools only. */
 const orderFilter = {
 	order: z
 		.enum(["asc", "desc"])

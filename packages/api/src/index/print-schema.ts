@@ -25,7 +25,6 @@ import type { IndexTip } from "./tip.ts";
 const NEWEST_WINDOW = 1500;
 /** Oldest-rows window: catches fields the contract stopped emitting. */
 const OLDEST_WINDOW = 500;
-/** Count cap — beyond this we report 50000 + total_events_capped: true. */
 const COUNT_CAP = 50_000;
 
 /** Loose Stacks contract principal shape — enough to 400 obvious garbage
@@ -48,7 +47,6 @@ export type PrintSchemaWindowRow = {
 };
 
 export type PrintSchemaReadResult = {
-	/** Deduped union of the newest + oldest windows. */
 	rows: PrintSchemaWindowRow[];
 	total_events: number;
 	total_events_capped: boolean;
@@ -64,8 +62,6 @@ type WindowRow = {
 	payload: unknown;
 };
 
-/** Two index-driven windows + a capped count over canonical print events.
- *  decoded_events lives on the SOURCE plane → getSourceDb, raw sql. */
 export async function readPrintSchemaWindows(params: {
 	contractId: string;
 	db?: ReturnType<typeof getSourceDb>;
@@ -132,7 +128,6 @@ function parseStoredPayload(raw: unknown): StoredPrintPayload | null {
 	return value as StoredPrintPayload;
 }
 
-/** Real topic = decoded tuple's `topic` field; missing/non-string → "*". */
 function extractTopic(payload: StoredPrintPayload): string {
 	const value = payload.value;
 	if (value && typeof value === "object" && !Array.isArray(value)) {
@@ -142,8 +137,6 @@ function extractTopic(payload: StoredPrintPayload): string {
 	return "*";
 }
 
-/** Canonical hex for typing: raw_value, else value when it's a 0x string
- *  (printValueHex precedent). Null → the row still counts, just untyped. */
 function extractRawHex(payload: StoredPrintPayload): string | null {
 	if (typeof payload.raw_value === "string") return payload.raw_value;
 	if (typeof payload.value === "string" && payload.value.startsWith("0x")) {
@@ -195,7 +188,6 @@ export class PrintSchemaCache {
 			this.store.delete(key);
 			return undefined;
 		}
-		// Refresh recency.
 		this.store.delete(key);
 		this.store.set(key, hit);
 		return hit.body;
@@ -228,10 +220,8 @@ export function isEmptySchema(body: PrintSchemaBody): boolean {
 	return body.total_events === 0;
 }
 
-/** Shared cache for the live API process. */
 export const printSchemaCache = new PrintSchemaCache();
 
-/** Tip-free schema body — the cacheable unit, also the deploy-lint entry. */
 export async function getPrintSchemaBody(opts: {
 	contractId: string;
 	read?: PrintSchemaReader;

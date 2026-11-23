@@ -18,7 +18,6 @@ import type { ReplayProgress } from "@secondlayer/shared/schemas/webhooks";
 import Link from "next/link";
 import { Sheet } from "./sheet";
 
-/** The drawer title: the one item's headline, or how many things are going on. */
 export function activityTitle(items: readonly Activity[]): string {
 	const only = items.length === 1 ? items[0] : undefined;
 	if (items.length === 0) return "Nothing going on";
@@ -104,10 +103,6 @@ function ReplaySection({
 	);
 }
 
-/**
- * Everything going on, one section per item. The sheet stays mounted while
- * progress ticks; only the values inside change.
- */
 export function ActivitySheet({
 	open,
 	onClose,

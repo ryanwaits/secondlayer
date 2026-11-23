@@ -1,23 +1,10 @@
 /**
- * Universal genesis backfill for L2 decoder tables — replays the full-genesis
- * indexer firehose through the SAME decode functions the live decoders use.
- *
- * Architecture: indexer DB (full genesis: blocks/transactions/events) → Streams →
- * Index → Subgraphs. Some Index-layer domain decoders were added AFTER Streams
- * and only ran from a recent checkpoint (~7.9M), so their tables are recent-only
- * even though the firehose holds the data from genesis. (The bulk dumps are a
- * separate analytics export — no product reads them, and this tool never touches
- * them.) `readCanonicalStreamsEvents` reads the indexer DB in-process with no
+ * `readCanonicalStreamsEvents` reads the indexer DB in-process with no
  * retention gate and emits live-identical cursors, so replaying it genesis→tip
  * fills each lagging table with no gaps, idempotently (upsert on cursor).
  *
  * Decoders are registered EXPLICITLY (no auto-discovery) so each backfill is a
- * deliberate, reviewed entry. Genuinely-genesis decoders are absent: bns,
- * sbtc (cover from contract deploy) and ft_transfer/ft_mint/ft_burn → decoded_events.
- * The other generic decoders (stx_*, nft_*, print) were NOT genesis — they were
- * added go-forward and floored at ~6.8M (audit 2026-06-20), so they ARE registered
- * here now. (Earlier this comment wrongly claimed all generic decoders were
- * already-genesis, which hid the gap.)
+ * deliberate, reviewed entry.
  *
  * It does NOT touch live decoder checkpoints — the live consumer keeps owning the
  * tip; overlapping ranges re-write identical rows.
@@ -92,15 +79,11 @@ export type EventsReader = (
 type ProcessCtx = { apply: boolean; db: Kysely<Database> };
 type ProcessResult = { written: number; topics?: Record<string, number> };
 
-/** An explicitly-registered decoder backfill: a firehose filter + decode/write. */
 export type BackfillEntry = {
 	key: string;
 	decoderName: string;
 	types: readonly StreamsEventType[];
-	/** Firehose contract filter. OMIT for generic (all-contract) decoders —
-	 *  stx/nft/ft events span every contract, so they filter by event type only. */
 	contractId?: (net: Network) => string;
-	/** Decode a page of firehose events and (when apply) write the rows. */
 	process: (events: StreamsEvent[], ctx: ProcessCtx) => Promise<ProcessResult>;
 };
 
@@ -128,14 +111,6 @@ const sbtcEntry: BackfillEntry = {
 	},
 };
 
-/**
- * Generic decoded-event backfill: decode a whole event TYPE across ALL contracts
- * into `decoded_events` (mirrors the live `consumeDecodedEvents` path). No
- * contractId — these decoders aren't contract-scoped. Fixes the go-forward
- * decoders (stx/nft *) that were added after the original genesis backfill and
- * never backfilled, so `decoded_events` is recent-only for them (the index
- * service's genesis-completeness contract).
- */
 function genericDecodedEntry(
 	key: string,
 	decoderName: string,
@@ -208,7 +183,6 @@ const nftBurnEntry = genericDecodedEntry(
 	decodeNftBurn,
 );
 
-/** The explicit registry — only decoders whose tables are recent-only. */
 export const BACKFILL_REGISTRY: readonly BackfillEntry[] = [
 	sbtcEntry,
 	stxTransferEntry,
@@ -227,7 +201,6 @@ export type RunEntryStats = {
 	topics: Record<string, number>;
 };
 
-/** Cursor-walk the firehose for one registry entry, decoding + writing per page. */
 export async function runEntry(
 	entry: BackfillEntry,
 	opts: {
@@ -239,7 +212,6 @@ export async function runEntry(
 		limit: number;
 		maxBatches: number;
 		apply: boolean;
-		/** Resume from a persisted checkpoint if present (default true). */
 		resume?: boolean;
 		readCheckpoint?: CheckpointReader;
 		writeCheckpoint?: CheckpointWriter;
@@ -325,13 +297,12 @@ export async function runEntry(
 }
 
 export async function backfillFromFirehose(opts: {
-	target: string; // a registry key or "all"
+	target: string;
 	apply: boolean;
 	fromHeight: number;
 	toHeight: number;
 	limit: number;
 	maxBatches: number;
-	/** Resume from the persisted checkpoint if present (default true). */
 	resume?: boolean;
 	deps?: {
 		read?: EventsReader;
@@ -395,8 +366,6 @@ async function main() {
 	};
 	const target = flag("--target") ?? "sbtc";
 	const apply = args.includes("--apply");
-	// Resume from the persisted checkpoint by default; --restart ignores it and
-	// re-walks from --from-height (idempotent, but redoes completed work).
 	const resume = !args.includes("--restart");
 	const fromHeight = Number(flag("--from-height") ?? 0);
 	const limit = Number(flag("--limit") ?? 500);

@@ -172,7 +172,6 @@ type ListOptions = {
 	json?: boolean;
 };
 
-/** Coerce the height/cursor/limit params shared by the paginated endpoints. */
 function heightParams(o: ListOptions) {
 	return {
 		fromHeight: o.fromHeight ? Number.parseInt(o.fromHeight, 10) : undefined,
@@ -182,7 +181,6 @@ function heightParams(o: ListOptions) {
 	};
 }
 
-/** As {@link heightParams} plus the shared `--contract-id` filter. */
 function rangeParams(o: ListOptions) {
 	return { contractId: o.contractId, ...heightParams(o) };
 }
@@ -198,7 +196,6 @@ function emit(env: { next_cursor: string | null }, json?: boolean): void {
 	});
 }
 
-/** Print a single fetched document; SDK get(...) resolves null on 404. */
 function emitOne(doc: unknown, label: string, json?: boolean): void {
 	if (doc == null) {
 		logError(`Not found: ${label}`);
@@ -225,7 +222,6 @@ export function registerIndexCommand(program: Command): void {
 			.option("--limit <n>", "Rows per page")
 			.option("--json", "Print the full envelope as JSON");
 
-	// Height-paginated endpoints that don't filter by contract.
 	const heightFlags = (cmd: Command): Command =>
 		cmd
 			.option("--from-height <n>", "Start block height (inclusive)")
@@ -234,7 +230,6 @@ export function registerIndexCommand(program: Command): void {
 			.option("--limit <n>", "Rows per page")
 			.option("--json", "Print the full envelope as JSON");
 
-	// Decoded-event lists only; contract-calls and transactions page by tx.
 	const orderFlag = (cmd: Command): Command =>
 		cmd.option(
 			"--order <asc|desc>",

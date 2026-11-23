@@ -1,8 +1,4 @@
 /**
- * The docs key on a page as one state value and one pure transition. The DOM
- * module (`components/code/use-key.ts`) holds a single `KeyState`, feeds events
- * through `nextKeyState`, and paints from the result.
- *
  * `epoch` counts the times the key was thrown away under a mint (the reader
  * changed, or the key was forgotten). A mint carries the epoch it started in;
  * its result is dropped when the epoch has moved on, so a mint begun for one
@@ -11,7 +7,6 @@
 
 export type DocsKey =
 	| { kind: "none" }
-	/** A mint is in flight. `after` is where a failed mint goes back to. */
 	| { kind: "minting"; epoch: number; after: "none" | "expired" }
 	| {
 			kind: "held";
@@ -21,14 +16,12 @@ export type DocsKey =
 			revealed: boolean;
 	  }
 	| { kind: "expired" }
-	/** Signed out and already given today's key: the note says this instead. */
 	| { kind: "limited"; text: string };
 
 export type PanelMode = "closed" | "about" | "lasting";
 
 export type Panel = {
 	mode: PanelMode;
-	/** The sign-in link for a lasting key is being sent. */
 	sending: boolean;
 	error: string | null;
 	/** When the panel last closed (ms): a click on the chip light-dismisses it
@@ -37,7 +30,6 @@ export type Panel = {
 };
 
 export type KeyState = {
-	/** Who the page is read as; null before the first `activate`. */
 	owner: string | null;
 	epoch: number;
 	key: DocsKey;
@@ -74,22 +66,18 @@ export const INITIAL_KEY_STATE: KeyState = {
 	panel: CLOSED_PANEL(0),
 };
 
-/** Milliseconds until a key stops working; 0 when it already has. */
 export function expiryDelay(expiresAt: string, now = Date.now()): number {
 	return Math.max(0, Date.parse(expiresAt) - now);
 }
 
-/** Whether `state` holds a key that has not expired by `now`. */
 export function isLive(state: KeyState, now = Date.now()): boolean {
 	return state.key.kind === "held" && expiryDelay(state.key.expiresAt, now) > 0;
 }
 
-/** True while the mint for `epoch` is the one the state is waiting on. */
 function awaiting(state: KeyState, epoch: number): boolean {
 	return state.key.kind === "minting" && state.key.epoch === epoch;
 }
 
-/** Throw the key away and orphan any mint in flight. A daily-limit note stays. */
 function discard(state: KeyState): KeyState {
 	return {
 		...state,

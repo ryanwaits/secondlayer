@@ -1,9 +1,7 @@
 import type { ApiKey } from "@/lib/types";
 
-/** The clock the Keys stories run on. */
 export const KEYS_EXAMPLE_NOW = new Date("2026-10-15T12:00:00.000Z");
 
-/** An example key shown whole in the reveal step. Not a real credential. */
 export const EXAMPLE_NEW_KEY = "sk-sl_9f3a6c1e0b7d4825a1c9e3f60d2b8a47";
 
 const day = 86_400_000;
@@ -34,7 +32,6 @@ function exampleKey(
 const prodDaily = series(48_000, (i) => 0.7 + 0.3 * Math.sin(i / 3));
 const ciDaily = series(900, (i) => (i % 7 < 5 ? 1 : 0.1));
 
-/** Every key in use, plus the keys made for the account. */
 export const EXAMPLE_KEYS: ApiKey[] = [
 	exampleKey({
 		id: "a1b2c3d4",
@@ -83,7 +80,6 @@ export const EXAMPLE_KEYS: ApiKey[] = [
 	}),
 ];
 
-/** One key went quiet 41 days ago. */
 export const EXAMPLE_KEYS_STALE: ApiKey[] = [
 	...EXAMPLE_KEYS,
 	exampleKey({

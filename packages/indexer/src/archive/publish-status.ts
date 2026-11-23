@@ -35,7 +35,6 @@ import type { CanonicalLatestPointer } from "./promote-snapshot.ts";
 import { mirrorToPublicArchive } from "./public-mirror.ts";
 import { CANONICAL_ARCHIVE_PREFIX } from "./upload-snapshot.ts";
 
-/** Most recent audit report written by the nightly job, if readable. */
 async function readLatestAudit(): Promise<{
 	complete: boolean;
 	checkedAt: string;
@@ -74,7 +73,6 @@ export async function buildStatus(): Promise<ArchiveStatus> {
 		key: `${CANONICAL_ARCHIVE_PREFIX}/latest.json`,
 	});
 
-	// Source measurements. Failure here is reported, not swallowed into health.
 	let sourceTipHeight: number | null = null;
 	let finalizedHeight: number | null = null;
 	let decoderHead: number | null = null;
@@ -151,8 +149,6 @@ async function main(): Promise<void> {
 			Key: `${CANONICAL_ARCHIVE_PREFIX}/status.json`,
 			Body: `${JSON.stringify(status, null, 2)}\n`,
 			ContentType: "application/json; charset=utf-8",
-			// Short cache: a cached-healthy status during an outage is the exact
-			// failure this object exists to prevent.
 			CacheControl: "public, max-age=60",
 		}),
 	);

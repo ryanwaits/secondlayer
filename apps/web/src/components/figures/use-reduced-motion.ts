@@ -10,7 +10,6 @@ function subscribe(cb: () => void) {
 	return () => mq.removeEventListener("change", cb);
 }
 
-/** True when the user prefers reduced motion; false during SSR. */
 export function useReducedMotion(): boolean {
 	return useSyncExternalStore(
 		subscribe,

@@ -78,7 +78,6 @@ export async function recordDeadLetterEvents(
  * balancer and the reason this was extracted.
  */
 
-// Out-of-order tracking (ephemeral, resets on restart).
 let lastSeenHeight = 0;
 let blocksReceivedOutOfOrder = 0;
 let parentHashMismatches = 0;
@@ -96,8 +95,6 @@ export function getIngestTelemetry(): {
 }
 
 export type IngestResult = {
-	/** `staged` — the block claimed a height we already hold and is parked
-	 *  until a later block names one of the two as its parent. */
 	status: "ok" | "duplicate" | "staged";
 	block_height: number;
 	transactions: number;
@@ -131,10 +128,6 @@ async function ingestLocked(
 		hash: payload.block_hash,
 	});
 
-	// Does this block settle a fork we parked one height below? A block names
-	// exactly one parent, so if it names a contender we staged instead of the
-	// block we kept, the chain has ruled — apply that reorg now, then let this
-	// block land on top of it.
 	const settled = await findSettledFork(
 		db,
 		payload.block_height,
@@ -231,10 +224,6 @@ async function ingestLocked(
 		payload.block_hash,
 	);
 	if (reorgCheck.isReorg && reorgCheck.oldHash) {
-		// A hash mismatch is NOT proof the chain moved — the observer emits
-		// competing blocks at the same height as a matter of course. Adopting on
-		// sight backed the losing fork twice in one week. Park it; the next block
-		// names a parent and settles it.
 		await stageForkContender(db, {
 			height: payload.block_height,
 			blockHash: payload.block_hash,
@@ -250,7 +239,6 @@ async function ingestLocked(
 		};
 	}
 	{
-		// Duplicate — only skip if already canonical.
 		const existing = await db
 			.selectFrom("blocks")
 			.selectAll()
@@ -285,7 +273,6 @@ async function ingestLocked(
 		lastSeenHeight = payload.block_height;
 	}
 
-	// Parent hash validation (observability only).
 	if (payload.block_height > 1) {
 		const parentRow = await db
 			.selectFrom("blocks")
@@ -336,9 +323,6 @@ async function ingestLocked(
 		payload.block_height,
 	);
 
-	// Persist block + txs/events atomically. Replace-per-height inside (deletes
-	// stale rows at this height before insert) keeps reorged heights free of
-	// orphaned duplicates — see persistBlock / #46.
 	await persistBlock(db, {
 		block,
 		txs,

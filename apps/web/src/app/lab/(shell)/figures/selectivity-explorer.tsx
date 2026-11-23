@@ -6,7 +6,6 @@ const CELLS = 64;
 const TIP_PCT = 97;
 const SPAN_BLOCKS = 40_000;
 
-/** Deterministic per-cell noise so the strip is stable across renders. */
 function cellNoise(i: number): number {
 	return Math.abs(Math.sin(i * 12.9898) * 43758.5453) % 1;
 }
@@ -24,11 +23,6 @@ function layout(selectivity: number) {
 	return { hits, receiptPct, gap: TIP_PCT - receiptPct };
 }
 
-/**
- * Fig 5 of "Why your indexer resumes from the same block": filter
- * selectivity splits/merges the receipt and bookmark pointers. The one
- * explorer of the post, composed from the library's D1 primitives.
- */
 export function SelectivityExplorer() {
 	return (
 		<ParamExplorer

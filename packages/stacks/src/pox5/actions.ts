@@ -51,10 +51,6 @@ function getPox5Contract(client: Client) {
 	return getContract({ client, address, name, abi: POX5_ABI });
 }
 
-// ---------------------------------------------------------------------------
-// L1 BTC lockup proof shape (register-for-bond's ok-branch outputs)
-// ---------------------------------------------------------------------------
-
 /**
  * One proven L1 timelock output — a Bitcoin SPV inclusion proof of the lockup
  * tx plus which output is the lockup. `@secondlayer/stacks/bitcoin`'s
@@ -82,12 +78,10 @@ export type BtcLockup =
 	| { l1Outputs: L1LockupOutput[]; stakerUnlockBytes: Uint8Array | string }
 	| { sbtcSats: IntegerType };
 
-/** ABI buff args take `Uint8Array`; hex strings decode exactly like `Cl.bufferFromHex`. */
 function toBytes(input: Uint8Array | string): Uint8Array {
 	return typeof input === "string" ? hexToBytes(input) : input;
 }
 
-/** ABI `(optional (buff …))` args are required-with-null. */
 function optionalBytes(input?: Uint8Array | string): Uint8Array | null {
 	return input === undefined ? null : toBytes(input);
 }
@@ -95,7 +89,6 @@ function optionalBytes(input?: Uint8Array | string): Uint8Array | null {
 const MAX_LOCKUP_OUTPUTS = 10;
 const MAX_LEAF_HASHES = 14;
 
-/** Map `BtcLockup` to the ABI's `(response (tuple …) uint)` arg shape. */
 function btcLockupArg(lockup: BtcLockup) {
 	if ("sbtcSats" in lockup) return { err: intToBigInt(lockup.sbtcSats) };
 	if (lockup.l1Outputs.length === 0) {
@@ -133,10 +126,6 @@ function btcLockupArg(lockup: BtcLockup) {
 		},
 	};
 }
-
-// ---------------------------------------------------------------------------
-// Wallet actions (broadcast a pox-5 contract call, return the txid)
-// ---------------------------------------------------------------------------
 
 export type SetupBondParams = TxOptions & {
 	bondIndex: IntegerType;
@@ -480,10 +469,6 @@ export function pauseRewards(
 ): Promise<string> {
 	return getPox5Contract(client).call.pauseRewards({}, params ?? {});
 }
-
-// ---------------------------------------------------------------------------
-// Reads (JS-mapped return types — see types.ts)
-// ---------------------------------------------------------------------------
 
 /** `get-staker-info` — lock dimensions + signer, `none` when expired/absent. */
 export async function getStakerInfo(

@@ -28,7 +28,6 @@ export const metadata: Metadata = socialMeta({
 	path: "/",
 });
 
-/** Longer hero lines. The short nav line lives in PRODUCTS. */
 const SPINE_LINE: Record<(typeof PRODUCTS)[number]["noun"], string> = {
 	Archive: "Signed history. Check your copy free, repair only what's broken.",
 	Streams: "Exactly what the Stacks node emitted, in order, from any block.",

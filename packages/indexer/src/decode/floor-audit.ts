@@ -57,12 +57,6 @@ export const DECODER_FLOOR_BASELINE: Record<string, number> = {
 	"decode.stx_lock.v1": 9,
 	"decode.print.v1": 32,
 	"decode.sbtc.v1": 328312,
-	// PROVISIONAL: pox-5 deploys at Epoch 4.0 activation (Bitcoin block
-	// 960,230, ~2026-07-30) — its true genesis floor is the first pox-5 event's
-	// Stacks height, unknowable before activation. Set generously ABOVE any
-	// plausible first-event height so the guard can't false-alarm on launch
-	// (floor BELOW baseline passes; only floor > baseline+tolerance fails).
-	// Re-measure and tighten to the real floor once events exist.
 	"decode.pox5.v1": 8_900_000,
 	"decode.bns.v1": 167540,
 };
@@ -79,11 +73,8 @@ export type FloorStatus = "ok" | "floored" | "unbaselined" | "empty";
 
 export type DecoderFloor = {
 	decoder: string;
-	/** min canonical block_height, or null if the decoder has written no rows. */
 	floor: number | null;
-	/** recorded known-good floor, or null if this decoder has no baseline. */
 	baseline: number | null;
-	/** baseline + tolerance; floors above this are regressions. */
 	ceiling: number | null;
 	status: FloorStatus;
 };
@@ -91,17 +82,10 @@ export type DecoderFloor = {
 export type FloorAudit = {
 	ok: boolean;
 	decoders: DecoderFloor[];
-	/** floor above ceiling — history went missing. */
 	floored: DecoderFloor[];
-	/** enabled decoder with no baseline entry — add one (after backfilling). */
 	unbaselined: DecoderFloor[];
 };
 
-/**
- * Pure floor-comparison logic — no DB. Given each enabled decoder's measured
- * floor, classify it against the baseline. `ok` is false if anything is floored
- * or unbaselined; an empty decoder (no rows yet) is informational, not a failure.
- */
 export function auditFloors(
 	floors: ReadonlyArray<{ decoder: string; floor: number | null }>,
 	opts?: { baseline?: Record<string, number>; tolerance?: number },
@@ -175,7 +159,6 @@ async function readDecoderFloor(
 	return row?.floor == null ? null : Number(row.floor);
 }
 
-/** Read the live floor for every enabled decoder. */
 export async function readDecoderFloors(opts?: {
 	db?: Kysely<Database>;
 	decoderNames?: readonly string[];
@@ -190,7 +173,6 @@ export async function readDecoderFloors(opts?: {
 	);
 }
 
-/** Read live floors and audit them against the baseline in one call. */
 export async function runFloorAudit(opts?: {
 	db?: Kysely<Database>;
 	decoderNames?: readonly string[];

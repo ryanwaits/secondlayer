@@ -3,7 +3,6 @@
 import { truncateMiddle } from "@/lib/terminal-command";
 import { useCopied } from "@/lib/use-copied";
 
-/** Commands longer than this truncate in the middle; a click copies the whole one. */
 const CHIP_MAX = 34;
 
 const iconProps = {
@@ -30,8 +29,6 @@ const CheckIcon = () => (
 	</svg>
 );
 
-/** The CLI command for the current view, as a copy bar in the dashboard
- *  nav. Click copies it: the dashboard always points back to the terminal. */
 export function ViewCommand({ command }: { command: string }) {
 	const { copied, copy: copyCommand } = useCopied(1200);
 

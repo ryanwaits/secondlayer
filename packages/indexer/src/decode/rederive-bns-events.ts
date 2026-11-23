@@ -100,9 +100,7 @@ type RederiveResult = {
 
 export type RederiveOptions = {
 	db?: Kysely<Database>;
-	/** Heights per transaction. Default 10,000. */
 	chunkBlocks?: number;
-	/** Test seam: called inside each chunk's transaction after its writes, before commit. */
 	beforeChunkCommit?: (chunk: Chunk) => Promise<void> | void;
 };
 

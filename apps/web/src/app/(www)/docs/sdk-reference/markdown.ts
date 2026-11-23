@@ -21,12 +21,6 @@ import {
 	typeMap,
 } from "./reference";
 
-/**
- * The markdown twins of the SDK reference pages, built from the same data the
- * pages render. Methods are `###` entries under `## Methods`, parameters are a
- * table each, and the types a surface uses follow as a list.
- */
-
 const cell = (text: string) =>
 	text
 		.replace(/\s*\n\s*/g, " ")
@@ -149,7 +143,6 @@ function overviewMarkdown(): string {
 	].join("\n\n");
 }
 
-/** A function-first package: each group is a `##` section of entries, then one list of types. */
 function packageMarkdown(key: PackageKey): string {
 	const info = findPackagePage(key);
 	const groups = manifest(key).surfaces.map((s) => ({
@@ -184,7 +177,6 @@ function packageMarkdown(key: PackageKey): string {
 	return out.join("\n\n");
 }
 
-/** The generated body of a reference page (the SDK's or a package's), or null when `href` is not one. */
 export function sdkPageMarkdown(href: string): string | null {
 	const pkg = PACKAGE_PAGES.find((p) => p.href === href);
 	if (pkg) return packageMarkdown(pkg.key);

@@ -42,8 +42,6 @@ export function useCheckout() {
 	const [amount, setAmount] = useState<number>(25);
 	const [valid, setValid] = useState(true);
 	const [flow, dispatch] = useReducer(checkoutReducer, CHECKOUT_EDITING);
-	// Back from Stripe via the browser's back button restores this page as it
-	// was, mid-redirect; start over instead of staying on "Opening checkout...".
 	useEffect(() => {
 		const onShow = (e: PageTransitionEvent) => {
 			if (e.persisted) dispatch({ type: "reset" });
@@ -51,7 +49,6 @@ export function useCheckout() {
 		window.addEventListener("pageshow", onShow);
 		return () => window.removeEventListener("pageshow", onShow);
 	}, []);
-	/** A valid amount, or null while the Other box holds something invalid. */
 	function choose(next: number | null) {
 		setValid(next !== null);
 		if (next !== null) setAmount(next);
@@ -80,7 +77,6 @@ export function useCheckout() {
 
 type Checkout = ReturnType<typeof useCheckout>;
 
-/** What the picked amount does to the balance, and when it runs out. */
 export function RunwayLine({
 	amount,
 	valid,
@@ -96,7 +92,6 @@ export function RunwayLine({
 	rateDayUsdMicros: number;
 	stopped: boolean;
 	now: Date;
-	/** Say "One-time payment." here, where no fine print follows the button. */
 	oneTime?: boolean;
 }) {
 	if (!valid) {
@@ -147,7 +142,6 @@ function CheckoutButton({ co }: { co: Checkout }) {
 	);
 }
 
-/** Go to Stripe for the picked amount. Stripe brings the reader back after. */
 export function CheckoutAction({ co }: { co: Checkout }) {
 	return (
 		<>
@@ -160,10 +154,6 @@ export function CheckoutAction({ co }: { co: Checkout }) {
 	);
 }
 
-/** Pick an amount, see where it takes the balance, then off to Stripe. One
- *  flow for the billing page's band and the account menu's sheet. With `band`
- *  the three parts are bare cells of the band's grid and the line carries
- *  "One-time payment."; otherwise they stack with the fine print. */
 export function AddCredits({
 	co,
 	billing,
@@ -192,7 +182,6 @@ export function AddCredits({
 					oneTime={band}
 				/>
 			) : band ? (
-				// Holds the band's middle cell while the balance loads.
 				<p className="bl-runway" />
 			) : null}
 			{band ? (
@@ -207,7 +196,6 @@ export function AddCredits({
 	);
 }
 
-/** The credits flow in a floating card: balance, amount, then off to Stripe. */
 export function CreditsCard({
 	open,
 	onClose,
@@ -252,7 +240,6 @@ export function CreditsCard({
 export type ReturnState =
 	| { kind: "pending"; amount: number | null }
 	| { kind: "slow" }
-	/** Back from Stripe with nothing to compare against: not confirmed, not denied. */
 	| { kind: "unknown"; amount: number | null }
 	| { kind: "landed"; amount: number | null }
 	| { kind: "cancelled" };

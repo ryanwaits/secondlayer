@@ -27,7 +27,6 @@ export function ParamExplorer({
 	max?: number;
 	initial?: number;
 	step?: number;
-	/** Captions under the slider's two ends. */
 	endLabels?: [ReactNode, ReactNode];
 	ariaLabel: string;
 	children?: (value: number) => ReactNode;

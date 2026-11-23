@@ -284,7 +284,6 @@ export function generateSubgraphAgentSchema(
 			...(table.uniqueKeys ? { uniqueKeys: table.uniqueKeys } : {}),
 			query: {
 				parameters: queryParameters(table),
-				// /v1 is _id keyset only — no _sort.
 				sortable: [],
 				selectable: selectableColumns(table),
 				searchable: searchableColumns(table),

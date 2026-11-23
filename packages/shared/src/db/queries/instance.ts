@@ -122,7 +122,6 @@ export async function ensureInstance(
 			.executeTakeFirstOrThrow();
 		return toInstance(inserted);
 	} catch {
-		// Lost the singleton race — the other writer won.
 		const raced = await getInstance(db);
 		if (!raced) throw new Error("failed to create instance");
 		if (raced.network !== input.network) {

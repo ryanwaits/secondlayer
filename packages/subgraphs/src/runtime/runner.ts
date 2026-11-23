@@ -20,7 +20,6 @@ import { abortsBlock } from "./realm.ts";
 import { type MatchedTx, printContractId } from "./source-matcher.ts";
 import { recordPrintViolation } from "./violations.ts";
 
-/** Max consecutive handler errors before marking subgraph as error */
 const DEFAULT_ERROR_THRESHOLD = 50;
 
 export interface RunResult {
@@ -37,15 +36,6 @@ export interface RunResult {
 	skipped?: number;
 }
 
-/**
- * Decode function_args (hex-encoded ClarityValues) to an array of JS values.
- * Returns decoded values via cvToValue.
- *
- * The string branch is legacy tolerance, not driver behaviour: rows written
- * before 2026-08-12 hold a jsonb *string* containing JSON because the writer
- * pre-serialized the array (see docs/incidents/INCIDENTS.md). Correct rows arrive
- * as arrays. Keep both paths until every environment has been backfilled.
- */
 function decodeFunctionArgs(args: unknown): unknown[] {
 	let parsed = args;
 	if (typeof parsed === "string") {
@@ -62,9 +52,6 @@ function decodeFunctionArgs(args: unknown): unknown[] {
 	});
 }
 
-/**
- * Decode raw_result (hex-encoded Clarity return value) to JS value.
- */
 function decodeRawResult(raw: unknown): unknown {
 	if (typeof raw === "string" && raw.length > 2) {
 		return decodeClarityValue(raw);
@@ -72,7 +59,6 @@ function decodeRawResult(raw: unknown): unknown {
 	return null;
 }
 
-/** Decode a hex Clarity value without mutating the original string field. */
 function decodeRawHex(hex: string): unknown {
 	if (hex.startsWith("0x") && hex.length > 2) {
 		return decodeClarityValue(hex);
@@ -92,7 +78,6 @@ function decodeStateHex(hex: string, abiType: unknown): unknown {
 		return decodeRawHex(hex);
 	}
 	try {
-		// Non-generic cast: see buildContractCallInput.
 		const decode = clarityValueToJS as unknown as (
 			type: unknown,
 			cv: unknown,
@@ -103,14 +88,12 @@ function decodeStateHex(hex: string, abiType: unknown): unknown {
 	}
 }
 
-/** Declared ABI types for a map: `[key, value]`, undefined when the abi lacks it. */
 function mapAbiTypes(filter: SubgraphFilter, name: string): unknown[] {
 	const abi = "abi" in filter ? filter.abi : undefined;
 	const def = abi?.maps?.find((m) => m.name === name);
 	return def ? [def.key, def.value] : [];
 }
 
-/** Safely convert a value to BigInt. Handles string, number, bigint. Returns 0n on failure. */
 function safeBigInt(val: unknown): bigint {
 	if (typeof val === "bigint") return val;
 	if (typeof val === "number") return BigInt(val);
@@ -190,7 +173,6 @@ export function buildEventPayload(
 		functionName: tx.function_name ?? null,
 	};
 
-	// No event — tx-level match (contract_call or contract_deploy)
 	if (!event) {
 		switch (filter.type) {
 			case "contract_call": {
@@ -218,11 +200,9 @@ export function buildEventPayload(
 		}
 	}
 
-	// Decode event data (Clarity values auto-unwrapped via cvToValue)
 	const decoded = decodeEventData(event.data) as Record<string, unknown>;
 
 	switch (filter.type) {
-		// ── FT events ──
 		case "ft_transfer":
 			return {
 				sender: decoded.sender as string,
@@ -246,7 +226,6 @@ export function buildEventPayload(
 				tx: txMeta,
 			};
 
-		// ── NFT events ──
 		// tokenId decodes from the canonical hex (`raw_value`), not the node's
 		// verbose serde-tagged `value` (`{UInt:223}`). The hex is source-
 		// independent — present in both the DB tap and the Index API — so a
@@ -274,7 +253,6 @@ export function buildEventPayload(
 				tx: txMeta,
 			};
 
-		// ── STX events ──
 		case "stx_transfer":
 			return {
 				sender: decoded.sender as string,
@@ -304,7 +282,6 @@ export function buildEventPayload(
 				tx: txMeta,
 			};
 
-		// ── Print event ──
 		case "print_event": {
 			// Decode the print value from the canonical hex (`raw_value`) so it's
 			// source-independent and clean — the node's verbose serde-tagged
@@ -327,7 +304,6 @@ export function buildEventPayload(
 			const topic = clarityObj?.topic
 				? String(clarityObj.topic)
 				: ((decoded.topic as string) ?? "");
-			// Camelize remaining keys for developer convenience
 			const { topic: _, ...rest } = clarityObj ?? {};
 			const data =
 				Object.keys(rest).length > 0
@@ -343,7 +319,6 @@ export function buildEventPayload(
 			};
 		}
 
-		// ── Contract call (with events) ──
 		case "contract_call": {
 			// Normalize the spread event Clarity `value` to the decoded canonical
 			// (from `raw_value`), so it's identical whether the event came from the
@@ -371,7 +346,6 @@ export function buildEventPayload(
 			};
 		}
 
-		// ── Contract deploy ──
 		case "contract_deploy":
 			return {
 				contractId: tx.contract_id ?? "",
@@ -444,7 +418,6 @@ export function buildEventPayload(
 		}
 
 		default:
-			// Fallback: spread decoded data with tx metadata
 			return {
 				...decoded,
 				_eventType: event.type,
@@ -473,7 +446,6 @@ export async function runHandlers(
 	let delivered = 0;
 	const threshold = opts?.errorThreshold ?? DEFAULT_ERROR_THRESHOLD;
 
-	// Build filter lookup from sources (supports both array and named object)
 	const filterLookup = new Map<string, SubgraphFilter>();
 	if (!Array.isArray(subgraph.sources)) {
 		for (const [name, filter] of Object.entries(
@@ -557,7 +529,6 @@ export async function runHandlers(
 		try {
 			let payload: Record<string, unknown>;
 			if (event === null) {
-				// Tx-level match (contract_call / contract_deploy)
 				payload = filter
 					? buildEventPayload(filter, tx, null)
 					: {
@@ -626,7 +597,6 @@ export async function runHandlers(
 						txId: tx.tx_id,
 						reason: verdict.reason,
 					});
-					// Persist for the authed violations GET — never throw.
 					void recordPrintViolation({
 						subgraphId: opts?.subgraphId,
 						subgraphName: subgraph.name,

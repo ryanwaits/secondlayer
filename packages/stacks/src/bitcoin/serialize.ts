@@ -136,11 +136,6 @@ interface ScanResult {
 	legacy: Uint8Array;
 }
 
-/**
- * Single-pass scan of a raw Bitcoin tx. Captures the inputs/outputs slice and
- * reassembles the legacy serialization so both `parseBitcoinTx` and
- * `stripWitness` share one parser (and one set of foot-guns).
- */
 function scanTx(rawTx: Uint8Array): ScanResult {
 	const r = new BtcReader(rawTx);
 	const version = r.readUInt32LE();
@@ -149,7 +144,7 @@ function scanTx(rawTx: Uint8Array): ScanResult {
 	// legacy tx can never have a zero input count, so 0x00 here is unambiguous.
 	let hasWitness = false;
 	if (r.peekUInt8() === 0x00) {
-		r.readUInt8(); // marker
+		r.readUInt8();
 		const flag = r.readUInt8();
 		if (flag !== 0x01) {
 			throw new Error(`Unexpected SegWit flag 0x${flag.toString(16)}`);

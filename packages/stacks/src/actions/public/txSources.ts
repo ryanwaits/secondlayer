@@ -69,7 +69,6 @@ export class IndexSourceConfigError extends Error {
 	override name = "IndexSourceConfigError";
 }
 
-/** Hosts that serve Hiro's API, never a Secondlayer instance. */
 function isHiroHost(url: string, client: Client): boolean {
 	let hostname: string;
 	try {
@@ -166,7 +165,6 @@ function decodeResultHex(hex: string | null | undefined): {
 	}
 }
 
-/** Map a Hiro `tx_status` string onto the receipt vocabulary. */
 function normalizeStatus(txStatus: string): TransactionStatus | undefined {
 	switch (txStatus) {
 		case "pending":
@@ -203,7 +201,7 @@ export function extendedApiSource(): TransactionStatusSource {
 
 			const txStatus =
 				typeof data?.tx_status === "string" ? data.tx_status : undefined;
-			if (!txStatus) return { receipt: null }; // unexpected shape
+			if (!txStatus) return { receipt: null };
 
 			const status = normalizeStatus(txStatus);
 			if (!status) return { receipt: null };

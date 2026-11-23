@@ -1,19 +1,6 @@
 /**
- * `/internal/sentinel/*`: the identity contract between Sentinel's worker (a
- * product on this platform, with its own sign-in, console and Stripe billing)
- * and the shared secondlayer account underneath it. Server-to-server only.
- * Money is not here: Sentinel bills on its own Stripe subscriptions.
- *
- *   POST /accounts/resolve   { email }                                  find-or-create (+ linked)
- *   POST /accounts/link      { accountId }                              owner opted in (via consent)
- *   POST /tokens/resolve     { tokenHash }                              SHA-256 hex of a presented ss-sl_/sk-snt_ token (session: + email, linked)
- *   POST /keys               { accountId, name, areas }                 mint a sentinel agent key (raw key shown once)
- *   GET  /keys?accountId=                                               list the account's active sentinel keys
- *   DELETE /keys/:id?accountId=                                         revoke one of that account's sentinel keys
- *
  * Guard: `SENTINEL_SERVICE_KEY` ONLY (constant-time, unset key authenticates
- * nobody). `WORKLOAD_HOST_KEY` does not open these routes. `/internal/meters`
- * no longer takes this key: every `sentinel.*` unit is retired.
+ * nobody). `WORKLOAD_HOST_KEY` does not open these routes.
  * Every route past resolve/link also requires the account to be in
  * `sentinel_accounts` (created by Sentinel, or linked with consent), else 403
  * `account_not_linked`: a leaked key can't touch an arbitrary account.
@@ -88,7 +75,6 @@ const AREA_LEVELS = ["none", "read", "write"] as const;
 type AreaLevel = (typeof AREA_LEVELS)[number];
 export type SentinelAreas = Record<(typeof AREA_NAMES)[number], AreaLevel>;
 
-/** Exactly the three known areas, each none|read|write. Anything else is rejected. */
 export function parseAreas(raw: unknown): SentinelAreas {
 	if (typeof raw !== "object" || raw === null || Array.isArray(raw)) {
 		throw new ValidationError("areas must be an object");
@@ -117,7 +103,6 @@ const SHA256_HEX_RE = /^[0-9a-f]{64}$/;
 const UUID_RE =
 	/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-/** Existing account that Sentinel may touch, else 404 / 403 account_not_linked. */
 async function requireLinkedAccount(accountId: string) {
 	const account = await requireAccount(accountId);
 	if (!(await isSentinelLinked(getDb(), accountId))) {
@@ -206,8 +191,6 @@ export function createInternalSentinelRouter() {
 		const db = getDb();
 		const lookup = await lookupSession(db, tokenHash);
 		if (lookup.status === "ok") {
-			// A session is a person who signed in with this email, so Sentinel
-			// can create its user from it. `linked` says whether it may spend.
 			const accountId = lookup.session.account_id;
 			const [account, linked] = await Promise.all([
 				getAccountById(db, accountId),

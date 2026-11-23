@@ -21,18 +21,13 @@ export type IntrospectResult =
 	| { ok: false; docsKey?: true };
 
 export interface IntrospectClientConfig {
-	/** app-server's base URL, e.g. https://api.secondlayer.tools */
 	appServerUrl: string;
-	/** `WORKLOAD_HOST_KEY` — the same first-party key `/internal/meters` and
-	 *  `/internal/keys/introspect` both guard with. */
 	workloadHostKey: string;
 	fetchImpl?: FetchLike;
 	now?: () => number;
 	positiveTtlMs?: number;
 	negativeTtlMs?: number;
-	/** How old a cached result may be and still serve a write. Default 5_000. */
 	writeTtlMs?: number;
-	/** Cache size bound; the oldest entry is evicted past it. Default 10_000. */
 	maxEntries?: number;
 }
 
@@ -57,7 +52,6 @@ export class IntrospectClient {
 		return this.cache.size;
 	}
 
-	/** Drop every cached entry. Test-only / operator-triggered flush. */
 	clearCache(): void {
 		this.cache.clear();
 	}
@@ -113,8 +107,6 @@ export class IntrospectClient {
 		return result;
 	}
 
-	/** Keep the map bounded: at capacity drop expired entries, then the oldest
-	 *  insertion (Map iterates in insertion order). */
 	private makeRoom(now: number): void {
 		const max = this.cfg.maxEntries ?? DEFAULT_MAX_ENTRIES;
 		if (this.cache.size < max) return;

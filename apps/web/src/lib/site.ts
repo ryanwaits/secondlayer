@@ -1,10 +1,4 @@
-/**
- * Single source for the marketing shell: the five products (names, verb lines,
- * order, routes) and the top-bar links. The nav, footer, home spine and
- * "rest of the platform" all read this. Adding a product = one entry.
- *
- * Client-safe: marketing-nav.tsx and site-footer.tsx are client components.
- */
+/** Client-safe: marketing-nav.tsx and site-footer.tsx are client components. */
 
 export const GITHUB_URL = "https://github.com/ryanwaits/secondlayer";
 
@@ -55,7 +49,6 @@ export const SITE_LINKS = [
 	{ label: "Blog", href: "/blog" },
 ] as const;
 
-/** True when `pathname` is `href` or beneath it. */
 export function isActive(pathname: string, href: string): boolean {
 	return pathname === href || pathname.startsWith(`${href}/`);
 }

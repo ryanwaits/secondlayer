@@ -70,12 +70,8 @@ export async function startWebhookPlane(): Promise<() => Promise<void>> {
 		? startTriggerEvaluatorLeader()
 		: undefined;
 
-	// The emitter drains the shared outbox for BOTH subgraph and chain
-	// webhooks; FOR UPDATE SKIP LOCKED makes it safe across replicas.
 	const stopEmitter = await startEmitter();
 
-	// Hosted-stack event meter (plan 044, step 5): a no-op unless
-	// WEBHOOK_METER_SOCKET is set (self-host never sets it).
 	const stopMeterSocket = startMeterSocketReporter();
 
 	// Dashboard insights: webhook and subgraph rules, evaluated every minute

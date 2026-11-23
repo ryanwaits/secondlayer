@@ -121,7 +121,6 @@ export function normalizeOrdRunesJson(
 	return out;
 }
 
-/** Normalizes our own `RuneState.entries` into the same shape, for a 1:1 diff against `normalizeOrdRunesJson`'s output. */
 export function normalizeOurEntries(
 	state: RuneState,
 ): Map<string, NormalizedRuneInfo> {
@@ -215,7 +214,6 @@ export function normalizeOrdBalancesJson(
 	return out;
 }
 
-/** Builds the spacedRune -> runeId lookup `normalizeOrdBalancesJson` needs, from a `normalizeOrdRunesJson` (or `normalizeOurEntries`) result. */
 export function runeIdByName(
 	entries: Map<string, NormalizedRuneInfo>,
 ): Map<string, string> {
@@ -224,7 +222,6 @@ export function runeIdByName(
 	return out;
 }
 
-/** Normalizes our own `RuneState.balances` into the same shape. */
 export function normalizeOurBalances(state: RuneState): NormalizedBalanceRow[] {
 	const out: NormalizedBalanceRow[] = [];
 	for (const [outpoint, runeId, amount] of iterateBalances(state)) {

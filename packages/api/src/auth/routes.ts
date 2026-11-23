@@ -19,9 +19,6 @@ import {
 } from "./mint.ts";
 import { getRateLimitStore } from "./rate-limit-store.ts";
 
-// No tier field: every key mints at the single metered tier (see mint.ts).
-// A legacy `tier` in the body is silently stripped by zod.
-// Account keys only — scoped streams/index products 400.
 export const CreateKeySchema = z.object({
 	name: z.string().max(255).optional(),
 	product: z.enum(["account"]).default("account"),
@@ -30,7 +27,6 @@ export const CreateKeySchema = z.object({
 const KEY_CREATE_LIMIT = 20;
 const KEY_CREATE_WINDOW_MS = 60 * 60 * 1000;
 
-/** Shared by create and rotate: both mint a key, so they share one bucket. */
 async function assertKeyCreateLimit(
 	c: Context,
 	accountId: string,
@@ -49,9 +45,6 @@ async function assertKeyCreateLimit(
 
 const app = new Hono();
 
-// Create key (requires auth — tied to account). Owner-gated: only a dashboard
-// session or an account-product key may mint. All keys mint at the single
-// metered tier as product `account`.
 app.post("/", requireAuth(), async (c) => {
 	const body = await c.req.json().catch(() => ({}));
 	const parsed = CreateKeySchema.parse(body);
@@ -146,7 +139,6 @@ app.post("/:id/rotate", requireAuth(), async (c) => {
 	return c.json(result.minted, 201);
 });
 
-// List keys (requires auth, scoped to account)
 app.get("/", requireAuth(), async (c) => {
 	// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety
 	const accountId = (c as any).get("accountId");
@@ -167,7 +159,6 @@ app.get("/", requireAuth(), async (c) => {
 				"expires_at",
 			])
 			.where("account_id", "=", accountId)
-			// An expired docs key disappears from the list.
 			.where(notExpiredWhere())
 			.orderBy("created_at", "desc")
 			.execute(),
@@ -194,7 +185,6 @@ app.get("/", requireAuth(), async (c) => {
 	});
 });
 
-// Revoke key (requires auth, same account)
 app.delete("/:id", requireAuth(), async (c) => {
 	const { id } = c.req.param();
 	// biome-ignore lint/suspicious/noExplicitAny: interop boundary or dynamic-shape value where typing adds friction without runtime safety

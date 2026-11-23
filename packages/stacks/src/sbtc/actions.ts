@@ -31,7 +31,6 @@ function getRegistryContract(client: Client) {
 	});
 }
 
-/** Bitcoin network for the client's chain — devnet/mocknet map to regtest. */
 function bitcoinNetworkFromChain(client: Client): BitcoinNetwork {
 	const chain = client.chain;
 	if (!chain) throw new Error("Client must have a chain configured");

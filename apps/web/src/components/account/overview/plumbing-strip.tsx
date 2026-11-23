@@ -24,7 +24,6 @@ import {
 	stackCell,
 } from "./overview-view";
 
-/** "1h" reads "1h ago" in a cell header; a read that just landed stays "just now". */
 const agoLabel = (age: string) =>
 	age === "–" ? "" : age === "just now" ? age : `${age} ago`;
 
@@ -45,7 +44,6 @@ function CellHead({
 	);
 }
 
-/** One line under a cell about the thing it holds: a dot and what is wrong. */
 function Flag({
 	dot,
 	children,
@@ -174,8 +172,6 @@ function StackCellView({ cell }: { cell: StackCell | null }) {
 	);
 }
 
-/** A cell whose data has not arrived, as tall as the one that replaces it
- *  (the hosted stack cell, the tallest): a big figure, a chart, a caption. */
 function CellSkeleton() {
 	return (
 		<>
@@ -186,8 +182,6 @@ function CellSkeleton() {
 	);
 }
 
-/** The strip's shape while the Overview's first data is in flight. Each line
- *  is as tall as what replaces it, so the swap doesn't move anything. */
 export function PlumbingStripSkeleton() {
 	return (
 		<div className="ov-strip" aria-hidden="true">
@@ -203,11 +197,6 @@ export function PlumbingStripSkeleton() {
 	);
 }
 
-/**
- * What powers the webhooks and subgraphs above: Rows (this month's meter),
- * Keys (24 days) and the hosted stack (cost per day and memory). Each cell
- * draws its own shape. Their insights sit in the Overview's one line.
- */
 export function PlumbingStrip({
 	rows,
 	keys,
@@ -222,9 +211,7 @@ export function PlumbingStrip({
 	stack: HostedStack | null;
 	burn: Burn | null;
 	now: Date;
-	/** Every webhook is paused. */
 	asleep: boolean;
-	/** Credits left in USD micros; null until billing has loaded. */
 	creditsUsdMicros: string | null;
 }) {
 	return (

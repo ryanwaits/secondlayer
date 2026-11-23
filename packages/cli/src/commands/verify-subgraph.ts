@@ -169,7 +169,6 @@ function firstFailure(r: Report): ReplayFailure | undefined {
 	return r.result?.failures[0] ?? r.comparison?.failures[0];
 }
 
-/** One line per link, then the verdict. Returns the exit code. */
 function report(r: Report, from: number, to: number): number {
 	const first = firstFailure(r);
 	const broken = first
@@ -313,7 +312,6 @@ export async function runVerifySubgraph(
 			pin,
 			pinValue: served.pin ?? null,
 			contracts: Array.isArray(contracts) ? contracts : [],
-			// This runtime's own rules for what replay leaves unproven.
 			unproven: deriveVerification(def).unproven,
 		};
 		if (pin.status !== "failed") {

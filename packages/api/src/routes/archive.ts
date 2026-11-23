@@ -1,16 +1,4 @@
 /**
- * The archive fetch gate — quote, charge, presign.
- *
- *   POST /api/archive/quote   authed, free, idempotent — prices a batch of
- *                             R2 partition keys without charging anything.
- *   POST /api/archive/fetch   authed, charges, returns presigned GET URLs —
- *                             the only route that debits credits or reads
- *                             gated bytes.
- *
- * Session-authed upstream via the `PLATFORM_PATHS` block in `create-app.ts`
- * (same pattern as `routes/billing.ts`), platform mode only — self-host
- * instances don't host the archive, so they never mount this router.
- *
  * Pricing lives here ONLY (never echoed back to or trusted from the CLI):
  * the request carries R2 object keys, and the dataset — the only thing that
  * determines price — is derived from the key itself via
@@ -64,8 +52,6 @@ const PRICE_MICROS: Record<ArchiveDataset, bigint> = {
 	state_writes: PRICES["archive.partition.events"],
 };
 
-/** The `meter()` unit for a dataset — events and state_writes price
- *  differently from blocks/tx. */
 function meterUnitForDataset(
 	dataset: ArchiveDataset,
 ): "archive.partition" | "archive.partition.events" {
@@ -81,9 +67,6 @@ function meterUnitForDataset(
 	}
 }
 
-/** Object key prefix the archive publisher writes under
- *  (`CANONICAL_ARCHIVE_PREFIX` in `packages/indexer/src/archive/upload-snapshot.ts`).
- *  Overridable so a bucket layout change is a config edit, not a deploy. */
 function archiveKeyPrefix(): string {
 	return process.env.ARCHIVE_R2_PREFIX ?? "secondlayer/mainnet/canonical/v1";
 }
@@ -100,39 +83,22 @@ export const ARCHIVE_PARTITION_KEY_RE = new RegExp(
 	`^(${ARCHIVE_DATASETS.join("|")})/\\d+-\\d+-[0-9a-f]{16}\\.parquet$`,
 );
 
-/**
- * The signed manifest's `partition.path` is relative
- * (`<dataset>/<from>-<to>-<hash16>.parquet` — `export-snapshot.ts:555`); the
- * CLI never learns the R2 prefix, so it sends that relative form as-is. A
- * full R2 key (already carrying the prefix) is accepted unchanged too, so
- * older callers and direct-key tests still work. Strips the prefix when
- * present, then matches the bare partition shape either way.
- */
 function stripArchivePrefix(path: string): string {
 	const prefix = archiveKeyPrefix();
 	return path.startsWith(`${prefix}/`) ? path.slice(prefix.length + 1) : path;
 }
 
-/**
- * Resolve a path (relative or already-prefixed) to the full R2 object key
- * used at presign time. Already-prefixed paths pass through unchanged;
- * relative paths get the archive prefix prepended.
- */
 export function resolveObjectKey(path: string): string {
 	const prefix = archiveKeyPrefix();
 	return path.startsWith(`${prefix}/`) ? path : `${prefix}/${path}`;
 }
 
-/** Batch cap for `/fetch` — the CLI pages larger restores across calls. */
 const MAX_FETCH_BATCH = 64;
 
 /** Monthly free-repair allowance, in partitions (6 bundle-equivalents × 4
  *  datasets per bundle). `flow: "repair"` only. */
 const ALLOWANCE_MONTHLY_PARTITIONS = 24;
 
-/** Derive the dataset a full R2 object key belongs to, or `null` if the key
- *  doesn't match the archive prefix + partition shape. Never trust a
- *  client-sent dataset field — this is the sole authority. */
 export function deriveDatasetFromPath(path: string): ArchiveDataset | null {
 	const rest = stripArchivePrefix(path);
 	const match = ARCHIVE_PARTITION_KEY_RE.exec(rest);
@@ -186,8 +152,6 @@ class InsufficientArchiveCreditsError extends Error {
 	}
 }
 
-/** Thrown inside the charge transaction when the monthly spend cap refused
- *  a debit the balance could cover. Same rollback as the error above. */
 class ArchiveSpendCapError extends Error {
 	constructor() {
 		super("spend cap reached for archive fetch batch");
@@ -201,10 +165,6 @@ type PricedPath = {
 	viaAllowance: boolean;
 };
 
-/** Price every path in the batch, applying the 24h re-issue window and (for
- *  `repair` flow) the monthly allowance, in path order. Pure pricing logic —
- *  no writes — shared by `/quote` (preview) and `/fetch` (charged inside a
- *  transaction on the same connection). */
 async function priceBatch(params: {
 	db: Parameters<typeof recentChargedPaths>[0];
 	accountId: string;
@@ -222,7 +182,6 @@ async function priceBatch(params: {
 
 	const priced: PricedPath[] = [];
 	for (const path of paths) {
-		// Validated by the caller before priceBatch runs.
 		const dataset = deriveDatasetFromPath(path) as ArchiveDataset;
 		if (alreadyCharged.has(path)) {
 			priced.push({ path, dataset, usdMicros: 0n, viaAllowance: false });
@@ -244,13 +203,8 @@ async function priceBatch(params: {
 }
 
 export type ArchiveRouterOptions = {
-	/** Injectable so tests never touch R2. Defaults to reading the real
-	 *  `STREAMS_BULK_R2_*` env and returning `null` when unset. */
 	getConfig?: () => ArchiveR2Config | null;
-	/** Injectable presigner. Defaults to a real R2 `GetObjectCommand` presign
-	 *  built from `getConfig()`'s credentials. */
 	presign?: (params: { bucket: string; key: string }) => Promise<string>;
-	/** Injectable clock for the 24h re-issue window and allowance month. */
 	now?: () => Date;
 };
 
@@ -263,8 +217,6 @@ export function createArchiveRouter(options: ArchiveRouterOptions = {}): Hono {
 		(async (params: { bucket: string; key: string }) => {
 			const config = getConfig();
 			if (!config) {
-				// Guarded by the route's own 503 check before presign is ever
-				// called — this is a defensive backstop, not a reachable path.
 				throw new Error("archive R2 not configured");
 			}
 			const client = createArchiveS3Client(config);
@@ -275,13 +227,6 @@ export function createArchiveRouter(options: ArchiveRouterOptions = {}): Hono {
 			});
 		});
 
-	/**
-	 * POST /api/archive/quote   body: { paths: string[], flow: "bootstrap" | "repair" }
-	 *
-	 * Free, idempotent price preview. Never debits, never writes. Reflects
-	 * the 24h re-issue window and (for `repair`) the monthly allowance, so
-	 * the number the operator confirms is the number `/fetch` will charge.
-	 */
 	app.post("/quote", async (c) => {
 		if (!getConfig()) {
 			return c.json({ error: "archive_gate_not_configured" }, 503);
@@ -340,15 +285,6 @@ export function createArchiveRouter(options: ArchiveRouterOptions = {}): Hono {
 		});
 	});
 
-	/**
-	 * POST /api/archive/fetch   body: { paths: string[], flow: "bootstrap" | "repair" }
-	 *
-	 * Charges (re-deriving price server-side — never trusts a client-echoed
-	 * quote) and returns presigned GET URLs. One DB transaction per batch:
-	 * an aggregate debit for the batch total, so a partial restore never
-	 * half-charges — either the whole batch's price is affordable and every
-	 * path is charged + logged, or nothing is.
-	 */
 	app.post("/fetch", async (c) => {
 		const config = getConfig();
 		if (!config) {
@@ -399,15 +335,7 @@ export function createArchiveRouter(options: ArchiveRouterOptions = {}): Hono {
 
 				const total = priced.reduce((sum, p) => sum + p.usdMicros, 0n);
 				if (total > 0n) {
-					// Balance BEFORE any of this batch's debits — the shortfall on
-					// failure is against this fixed point, matching the old single
-					// aggregate `debitCredits(total)` regardless of per-item order.
 					const startingBalance = await getCredits(trx, accountId);
-					// One `meter()` call per priced (non-free) path, each its own
-					// ledger row (unit archive.partition[.events]) — but still inside
-					// this one transaction, so a failure partway rolls back every
-					// debit already taken this batch. Free (allowance/24h-reissue)
-					// paths never call `meter()`; that pre-check stays above.
 					for (const p of priced) {
 						if (p.usdMicros === 0n) continue;
 						const result = await meter(trx, {
