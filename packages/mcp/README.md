@@ -77,7 +77,7 @@ bunx -p @secondlayer/mcp secondlayer-mcp-http
 
 | Domain | Tools |
 | --- | --- |
-| **Index** (10) | `index_events`, `index_ft_transfers`, `index_nft_transfers`, `index_contract_calls`, `index_state_writes`, `index_blocks`, `index_transactions`, `index_print_schema`, `index_discover`, `batch_query` |
+| **Index** (14) | `index_events`, `index_ft_transfers`, `index_nft_transfers`, `index_contract_calls`, `index_state_writes`, `index_blocks`, `index_transactions`, `index_print_schema`, `index_discover`, `index_runes`, `index_rune`, `index_rune_balances`, `index_rune_activity`, `batch_query` |
 | **Subgraphs** (13) | `subgraphs_list`, `subgraphs_status`, `subgraphs_spec`, `subgraphs_scaffold`, `subgraphs_test`, `subgraphs_deploy`, `subgraphs_delete`, `subgraphs_query`, `subgraphs_backfill`, `subgraphs_reindex`, `subgraphs_stop`, `subgraphs_operations`, `subgraphs_gaps` |
 | **Webhooks** (13) | `webhooks_create`, `webhooks_list`, `webhooks_get`, `webhooks_update`, `webhooks_delete`, `webhooks_test`, `webhooks_pause`, `webhooks_resume`, `webhooks_rotate_secret`, `webhooks_deliveries`, `webhooks_dead`, `webhooks_requeue`, `webhooks_replay` |
 | **Streams** (2) | `streams_tip`, `streams_dumps` |

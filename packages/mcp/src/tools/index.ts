@@ -1,4 +1,8 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import type {
+	IndexRuneEventKind,
+	RuneBalancesListParams,
+} from "@secondlayer/sdk";
 import { DECODED_EVENT_TYPES, VM_EVENT_TYPES } from "@secondlayer/shared";
 import { z } from "zod";
 import { getClient } from "../lib/client.ts";
@@ -28,6 +32,18 @@ const orderFilter = {
 			"asc (default) reads oldest first; desc reads newest first. A cursor only resumes under the order that issued it.",
 		),
 };
+
+const RUNE_EVENT_KINDS = [
+	"rune_etch",
+	"rune_mint",
+	"rune_transfer",
+	"rune_burn",
+] as const satisfies readonly IndexRuneEventKind[];
+
+const RUNES_AUTH =
+	"Keyless on OSS loopback; otherwise needs INSTANCE_TOKEN (OSS) or SECONDLAYER_API_KEY (hosted). Self-host needs the bitcoin compose profile.";
+
+const RUNES_NOTE = `${RUNES_AUTH} \`notes\` says when Runes is not configured.`;
 
 const heightFilters = {
 	fromHeight: rangeFilters.fromHeight,
@@ -291,6 +307,118 @@ export function registerIndexTools(
 		"Discover the Index vocabulary: every event type and its columns, allowed/equality filters, and required-non-null fields (and which types accept `trait`). Read this before building Index queries instead of guessing filters. Keyless on OSS loopback; otherwise needs INSTANCE_TOKEN (OSS) or SECONDLAYER_API_KEY (hosted).",
 		{},
 		async () => jsonResponse(await clientProvider().index.discover()),
+	);
+
+	defineTool<{
+		search?: string;
+		sort?: "number" | "mints";
+		cursor?: string;
+		limit?: number;
+	}>(
+		server,
+		"index_runes",
+		`List the Bitcoin Runes catalog: identity, supply, mints, and mint terms. ${RUNES_NOTE}`,
+		{
+			search: z
+				.string()
+				.optional()
+				.describe(
+					"Name prefix, spacers and case ignored (dog matches DOG•GO•TO•THE•MOON)",
+				),
+			sort: z
+				.enum(["number", "mints"])
+				.optional()
+				.describe("number (etch order, default) or mints (busiest first)"),
+			cursor: rangeFilters.cursor,
+			limit: rangeFilters.limit,
+		},
+		async (params) =>
+			jsonResponse(await clientProvider().index.runes.list(params)),
+	);
+
+	defineTool<{ rune: string }>(
+		server,
+		"index_rune",
+		`Get one Bitcoin Rune by id or name. Returns null when not found or Runes is not configured. ${RUNES_AUTH}`,
+		{
+			rune: z
+				.string()
+				.describe(
+					"Rune id (840000:3) or name, any case, with or without spacers",
+				),
+		},
+		async (params) =>
+			jsonResponse(await clientProvider().index.runes.get(params.rune)),
+	);
+
+	defineTool<{
+		address?: string;
+		outpoint?: string;
+		rune?: string;
+		cursor?: string;
+		limit?: number;
+	}>(
+		server,
+		"index_rune_balances",
+		`List current Bitcoin Runes balances per unspent output. Pass exactly one of address or outpoint. ${RUNES_NOTE}`,
+		{
+			address: z
+				.string()
+				.optional()
+				.describe("Bitcoin address. Exclusive with outpoint."),
+			outpoint: z
+				.string()
+				.optional()
+				.describe("Output as txid:vout. Exclusive with address."),
+			rune: z.string().optional().describe("Narrow to one rune (id or name)"),
+			cursor: rangeFilters.cursor,
+			limit: rangeFilters.limit,
+		},
+		async (params) =>
+			jsonResponse(
+				await clientProvider().index.runes.balances(
+					params as RuneBalancesListParams,
+				),
+			),
+	);
+
+	defineTool<{
+		rune?: string;
+		address?: string;
+		kind?: IndexRuneEventKind[];
+		txid?: string;
+		fromHeight?: number;
+		toHeight?: number;
+		cursor?: string;
+		limit?: number;
+	}>(
+		server,
+		"index_rune_activity",
+		`List Bitcoin Runes etch, mint, transfer, and burn events. Heights are Bitcoin block heights. ${RUNES_NOTE}`,
+		{
+			rune: z.string().optional().describe("Filter by rune (id or name)"),
+			address: z
+				.string()
+				.optional()
+				.describe("Filter by Bitcoin address (transfers only carry one)"),
+			kind: z
+				.array(z.enum(RUNE_EVENT_KINDS))
+				.optional()
+				.describe("Event kinds to include"),
+			txid: z.string().optional().describe("Restrict to one Bitcoin txid"),
+			fromHeight: z
+				.number()
+				.optional()
+				.describe("Start Bitcoin block height (inclusive)"),
+			toHeight: z
+				.number()
+				.optional()
+				.describe("End Bitcoin block height (inclusive)"),
+			cursor: rangeFilters.cursor,
+			limit: rangeFilters.limit,
+		},
+		async (params) =>
+			jsonResponse(await clientProvider().index.runes.activity.list(params)),
 	);
 
 	defineTool<{

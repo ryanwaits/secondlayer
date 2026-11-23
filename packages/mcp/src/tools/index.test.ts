@@ -72,6 +72,10 @@ describe("index MCP tools", () => {
 			"index_ft_transfers",
 			"index_nft_transfers",
 			"index_print_schema",
+			"index_rune",
+			"index_rune_activity",
+			"index_rune_balances",
+			"index_runes",
 			"index_state_writes",
 			"index_transactions",
 		]);
@@ -165,5 +169,102 @@ describe("index MCP tools", () => {
 			?.handler({ contractId: "SP1.registry" });
 		expect(calls.printSchema).toBe("SP1.registry");
 		expect(schema?.content[0]?.text).toContain("SP1.registry");
+	});
+
+	it("registers the Runes tools and forwards params to index.runes", async () => {
+		const tools: RegisteredTool[] = [];
+		const calls: Record<string, unknown> = {};
+		const client = {
+			index: {
+				runes: {
+					list: async (params: unknown) => {
+						calls.list = params;
+						return { runes: [], next_cursor: null };
+					},
+					get: async (rune: string) => {
+						calls.get = rune;
+						return rune === "840000:3" ? { rune: { id: rune } } : null;
+					},
+					balances: async (params: unknown) => {
+						calls.balances = params;
+						return { balances: [], next_cursor: null };
+					},
+					activity: {
+						list: async (params: unknown) => {
+							calls.activity = params;
+							return { events: [], next_cursor: null };
+						},
+					},
+				},
+			},
+		};
+		registerIndexTools(
+			fakeServer(tools),
+			() =>
+				client as unknown as ReturnType<
+					typeof import("../lib/client.ts").getClient
+				>,
+		);
+		const tool = (name: string) => {
+			const found = tools.find((t) => t.name === name);
+			if (!found) throw new Error(`missing tool ${name}`);
+			return found;
+		};
+
+		expect(Object.keys(tool("index_runes").schema).sort()).toEqual([
+			"cursor",
+			"limit",
+			"search",
+			"sort",
+		]);
+		expect(Object.keys(tool("index_rune").schema)).toEqual(["rune"]);
+		expect(Object.keys(tool("index_rune_balances").schema).sort()).toEqual([
+			"address",
+			"cursor",
+			"limit",
+			"outpoint",
+			"rune",
+		]);
+		expect(Object.keys(tool("index_rune_activity").schema).sort()).toEqual([
+			"address",
+			"cursor",
+			"fromHeight",
+			"kind",
+			"limit",
+			"rune",
+			"toHeight",
+			"txid",
+		]);
+
+		await tool("index_runes").handler({ search: "dog", sort: "mints" });
+		expect(calls.list).toEqual({ search: "dog", sort: "mints" });
+
+		const found = await tool("index_rune").handler({ rune: "840000:3" });
+		expect(calls.get).toBe("840000:3");
+		expect(found.content[0]?.text).toContain("840000:3");
+		const missing = await tool("index_rune").handler({ rune: "NOPE" });
+		expect(missing.content[0]?.text).toBe("null");
+
+		await tool("index_rune_balances").handler({
+			address: "bc1qexample",
+			rune: "840000:3",
+			limit: 10,
+		});
+		expect(calls.balances).toEqual({
+			address: "bc1qexample",
+			rune: "840000:3",
+			limit: 10,
+		});
+
+		await tool("index_rune_activity").handler({
+			rune: "DOG•GO•TO•THE•MOON",
+			kind: ["rune_mint", "rune_burn"],
+			fromHeight: 840000,
+		});
+		expect(calls.activity).toEqual({
+			rune: "DOG•GO•TO•THE•MOON",
+			kind: ["rune_mint", "rune_burn"],
+			fromHeight: 840000,
+		});
 	});
 });

@@ -205,6 +205,30 @@
 			"remote": true
 		},
 		{
+			"name": "index_rune",
+			"group": "index",
+			"description": "Get one Bitcoin Rune by id or name. Returns null when not found or Runes is not configured. Keyless on OSS loopback; otherwise needs INSTANCE_TOKEN (OSS) or SECONDLAYER_API_KEY (hosted). Self-host needs the bitcoin compose profile.",
+			"remote": true
+		},
+		{
+			"name": "index_rune_activity",
+			"group": "index",
+			"description": "List Bitcoin Runes etch, mint, transfer, and burn events. Heights are Bitcoin block heights. Keyless on OSS loopback; otherwise needs INSTANCE_TOKEN (OSS) or SECONDLAYER_API_KEY (hosted). Self-host needs the bitcoin compose profile. `notes` says when Runes is not configured.",
+			"remote": true
+		},
+		{
+			"name": "index_rune_balances",
+			"group": "index",
+			"description": "List current Bitcoin Runes balances per unspent output. Pass exactly one of address or outpoint. Keyless on OSS loopback; otherwise needs INSTANCE_TOKEN (OSS) or SECONDLAYER_API_KEY (hosted). Self-host needs the bitcoin compose profile. `notes` says when Runes is not configured.",
+			"remote": true
+		},
+		{
+			"name": "index_runes",
+			"group": "index",
+			"description": "List the Bitcoin Runes catalog: identity, supply, mints, and mint terms. Keyless on OSS loopback; otherwise needs INSTANCE_TOKEN (OSS) or SECONDLAYER_API_KEY (hosted). Self-host needs the bitcoin compose profile. `notes` says when Runes is not configured.",
+			"remote": true
+		},
+		{
 			"name": "index_state_writes",
 			"group": "index",
 			"description": "List the exact contract-state writes each block committed, in node order: {block_height, ordinal, tx_index, key, value_hex}. Shows which storage key a transaction changed when its events don't. Read one block with blockHeight, or a contract's writes over a height range.",
