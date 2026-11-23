@@ -29,7 +29,7 @@
     },
     "apps/web": {
       "name": "@secondlayer/web",
-      "version": "0.14.30",
+      "version": "0.14.31",
       "dependencies": {
         "@mdx-js/loader": "^3.1.1",
         "@mdx-js/react": "^3.1.1",
@@ -63,20 +63,20 @@
     },
     "packages/api": {
       "name": "@secondlayer/api",
-      "version": "1.64.19",
+      "version": "1.64.21",
       "dependencies": {
         "@aws-sdk/client-s3": "^3.1042.0",
         "@aws-sdk/s3-request-presigner": "3.1042.0",
         "@modelcontextprotocol/sdk": "^1.32.1",
         "@secondlayer/bitcoin": "workspace:*",
         "@secondlayer/bundler": "^0.7.3",
-        "@secondlayer/indexer": "^1.17.14",
+        "@secondlayer/indexer": "^1.17.15",
         "@secondlayer/mcp": "workspace:*",
         "@secondlayer/platform": "workspace:*",
-        "@secondlayer/sdk": "^19.0.2",
-        "@secondlayer/shared": "^18.0.0",
-        "@secondlayer/stacks": "^7.0.0",
-        "@secondlayer/subgraphs": "^8.1.12",
+        "@secondlayer/sdk": "^20.1.1",
+        "@secondlayer/shared": "^19.1.1",
+        "@secondlayer/stacks": "^7.2.0",
+        "@secondlayer/subgraphs": "^8.1.16",
         "ai": "7.0.133",
         "hono": "^4.13.19",
         "stripe": "^22.0.2",
@@ -116,7 +116,7 @@
     },
     "packages/cli": {
       "name": "@secondlayer/cli",
-      "version": "24.1.0",
+      "version": "24.1.2",
       "bin": {
         "secondlayer": "./dist/cli.js",
         "sl": "./dist/cli.js",
@@ -128,10 +128,10 @@
         "@inquirer/prompts": "^8.2.0",
         "@secondlayer/bundler": "^0.7.3",
         "@secondlayer/scaffold": "^1.6.4",
-        "@secondlayer/sdk": "^19.0.2",
-        "@secondlayer/shared": "^18.0.0",
-        "@secondlayer/stacks": "^7.0.0",
-        "@secondlayer/subgraphs": "^8.1.12",
+        "@secondlayer/sdk": "^20.1.1",
+        "@secondlayer/shared": "^19.1.1",
+        "@secondlayer/stacks": "^7.2.0",
+        "@secondlayer/subgraphs": "^8.1.15",
         "@secondlayer/verify": "^0.6.4",
         "esbuild": "^0.28.2",
         "smol-toml": "^1.9.1",
@@ -162,9 +162,9 @@
         "@aws-sdk/client-s3": "^3.1042.0",
         "@aws-sdk/lib-storage": "^3.1108.0",
         "@dsnp/parquetjs": "~1.8.8",
-        "@secondlayer/sdk": "^19.0.2",
-        "@secondlayer/shared": "^18.0.0",
-        "@secondlayer/stacks": "^7.0.0",
+        "@secondlayer/sdk": "^20.0.0",
+        "@secondlayer/shared": "^19.0.0",
+        "@secondlayer/stacks": "^7.2.0",
       },
       "devDependencies": {
         "@types/bun": "latest",
@@ -173,7 +173,7 @@
     },
     "packages/mcp": {
       "name": "@secondlayer/mcp",
-      "version": "11.7.0",
+      "version": "11.7.1",
       "bin": {
         "mcp": "./dist/bin.js",
         "secondlayer-mcp": "./dist/bin.js",
@@ -184,10 +184,10 @@
         "@modelcontextprotocol/sdk": "^1.32.1",
         "@secondlayer/bundler": "^0.7.3",
         "@secondlayer/scaffold": "^1.6.4",
-        "@secondlayer/sdk": "^19.0.2",
-        "@secondlayer/shared": "^18.0.0",
-        "@secondlayer/stacks": "^7.0.0",
-        "@secondlayer/subgraphs": "^8.1.12",
+        "@secondlayer/sdk": "^20.1.1",
+        "@secondlayer/shared": "^19.1.0",
+        "@secondlayer/stacks": "^7.2.0",
+        "@secondlayer/subgraphs": "^8.1.15",
         "zod": "^4.6.7",
       },
       "devDependencies": {
@@ -197,7 +197,7 @@
     },
     "packages/platform": {
       "name": "@secondlayer/platform",
-      "version": "0.10.32",
+      "version": "0.10.33",
       "dependencies": {
         "@secondlayer/shared": "workspace:*",
         "kysely": "0.28.17",
@@ -225,7 +225,7 @@
     },
     "packages/sdk": {
       "name": "@secondlayer/sdk",
-      "version": "20.1.0",
+      "version": "20.1.1",
       "dependencies": {
         "@secondlayer/shared": "^19.1.0",
         "@secondlayer/stacks": "^7.2.0",
@@ -252,7 +252,7 @@
     },
     "packages/shared": {
       "name": "@secondlayer/shared",
-      "version": "19.1.0",
+      "version": "19.1.1",
       "dependencies": {
         "@secondlayer/stacks": "^7.2.0",
         "kysely": "0.28.17",
@@ -288,6 +288,7 @@
         "@stacks/clarinet-sdk": "3.21.1",
         "@stacks/transactions": "7.0.6",
         "@types/bun": "latest",
+        "jsqr": "1.4.0",
       },
       "peerDependencies": {
         "@stacks/clarinet-sdk": "^3",
@@ -331,10 +332,10 @@
     },
     "packages/worker": {
       "name": "@secondlayer/worker",
-      "version": "1.4.62",
+      "version": "1.4.63",
       "dependencies": {
         "@secondlayer/platform": "workspace:*",
-        "@secondlayer/shared": "^18.0.0",
+        "@secondlayer/shared": "^19.1.1",
         "ai": "7.0.133",
         "kysely": "0.28.17",
         "stripe": "^22.0.2",
@@ -346,10 +347,10 @@
     },
     "packages/workload": {
       "name": "@secondlayer/workload",
-      "version": "0.2.50",
+      "version": "0.2.51",
       "dependencies": {
         "@secondlayer/platform": "workspace:*",
-        "@secondlayer/shared": "^18.0.0",
+        "@secondlayer/shared": "^19.1.1",
         "postgres": "^3.4.6",
       },
       "devDependencies": {
@@ -2086,6 +2087,8 @@
     "json5": ["json5@2.2.3", "", { "bin": { "json5": "lib/cli.js" } }, "sha512-XmOWe7eyHYH14cLdVPoyg+GOH3rYX++KpzrylJwSW98t3Nk+U8XOl8FWKOgwtzdb8lXGf6zYwDUzeHMWfxasyg=="],
 
     "jsonfile": ["jsonfile@4.0.0", "", { "optionalDependencies": { "graceful-fs": "^4.1.6" } }, "sha512-m6F1R3z8jjlf2imQHS2Qez5sjKWQzbuuhuJ/FKYFRZvPE3PuHcSMVZzfsLhGVOkfd20obL5SWEBew5ShlquNxg=="],
+
+    "jsqr": ["jsqr@1.4.0", "", {}, "sha512-dxLob7q65Xg2DvstYkRpkYtmKm2sPJ9oFhrhmudT1dZvNFFTlroai3AWSpLey/w5vMcLBXRgOJsbXpdN9HzU/A=="],
 
     "jwa": ["jwa@2.0.1", "", { "dependencies": { "buffer-equal-constant-time": "^1.0.1", "ecdsa-sig-formatter": "1.0.11", "safe-buffer": "^5.0.1" } }, "sha512-hRF04fqJIP8Abbkq5NKGN0Bbr3JxlQ+qhZufXVr0DvujKy93ZCbXZMHDL4EOtodSbCWxOqR8MS1tXA5hwqCXDg=="],
 

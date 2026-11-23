@@ -113,7 +113,8 @@ function encodeData(bytes: Uint8Array, version: number): Uint8Array {
 	const ecBlocks: Uint8Array[] = [];
 	let offset = 0;
 	for (let b = 0; b < numBlocks; b++) {
-		const blockLen = cwPerBlock + (b < dataCw % numBlocks ? 1 : 0);
+		const blockLen =
+			cwPerBlock + (b >= numBlocks - (dataCw % numBlocks) ? 1 : 0);
 		const block = codewords.subarray(offset, offset + blockLen);
 		dataBlocks.push(block);
 		ecBlocks.push(rsEncode(block, ecPerBlock));
@@ -139,6 +140,34 @@ function encodeData(bytes: Uint8Array, version: number): Uint8Array {
 }
 
 type Matrix = Uint8Array[];
+
+const ALIGNMENT: number[][] = [
+	[],
+	[],
+	[6, 18],
+	[6, 22],
+	[6, 26],
+	[6, 30],
+	[6, 34],
+	[6, 22, 38],
+	[6, 24, 42],
+	[6, 26, 46],
+	[6, 28, 50],
+];
+
+function addVersionInfo(m: Matrix, version: number, res: Matrix) {
+	let rem = version;
+	for (let i = 0; i < 12; i++) rem = (rem << 1) ^ ((rem >> 11) * 0x1f25);
+	const bits = (version << 12) | rem;
+	const n = m.length;
+	for (let i = 0; i < 18; i++) {
+		const bit = (bits >> i) & 1;
+		const a = Math.floor(i / 3);
+		const b = (i % 3) + n - 11;
+		setModule(m, a, b, bit, res);
+		setModule(m, b, a, bit, res);
+	}
+}
 
 function createMatrix(size: number): Matrix {
 	return Array.from({ length: size }, () => new Uint8Array(size));
@@ -195,7 +224,7 @@ function addFormatInfo(m: Matrix, res: Matrix) {
 		else if (i === 8) setModule(m, 7, 8, bit, res);
 		else setModule(m, 14 - i, 8, bit, res);
 
-		if (i < 8) setModule(m, n - 1 - i, 8, bit, res);
+		if (i < 7) setModule(m, n - 1 - i, 8, bit, res);
 		else setModule(m, 8, n - 15 + i, bit, res);
 	}
 	setModule(m, n - 8, 8, 1, res);
@@ -219,15 +248,14 @@ function placeData(m: Matrix, res: Matrix, data: Uint8Array) {
 			for (const dc of [0, -1]) {
 				const c = col + dc;
 				if (c < 0 || res[row]?.[c]) continue;
+				let bit = 0;
 				if (bitIdx < totalBits) {
-					const byteIdx = bitIdx >> 3;
-					const bitPos = 7 - (bitIdx & 7);
 					// biome-ignore lint/style/noNonNullAssertion: bit-encoding routine where index is provably bounded by surrounding loop/length checks
-					const bit = (data[byteIdx]! >> bitPos) & 1;
-					// biome-ignore lint/style/noNonNullAssertion: bit-encoding routine where index is provably bounded by surrounding loop/length checks
-					m[row]![c] = bit ^ ((row + c) % 2 === 0 ? 1 : 0);
+					bit = (data[bitIdx >> 3]! >> (7 - (bitIdx & 7))) & 1;
 					bitIdx++;
 				}
+				// biome-ignore lint/style/noNonNullAssertion: bit-encoding routine where index is provably bounded by surrounding loop/length checks
+				m[row]![c] = bit ^ ((row + c) % 2 === 0 ? 1 : 0);
 			}
 		}
 
@@ -248,11 +276,18 @@ function buildMatrix(version: number, codewords: Uint8Array): Matrix {
 	addTimingPatterns(m, res);
 	addFormatInfo(m, res);
 
+	if (version >= 7) addVersionInfo(m, version, res);
 	if (version >= 2) {
-		const pos = [6, version * 4 + 10];
-		for (const r of pos) {
-			for (const c of pos) {
-				if (res[r]?.[c]) continue;
+		const pos = ALIGNMENT[version] ?? [];
+		const last = pos.length - 1;
+		for (const [i, r] of pos.entries()) {
+			for (const [j, c] of pos.entries()) {
+				if (
+					(i === 0 && j === 0) ||
+					(i === 0 && j === last) ||
+					(i === last && j === 0)
+				)
+					continue;
 				for (let dr = -2; dr <= 2; dr++) {
 					for (let dc = -2; dc <= 2; dc++) {
 						const val =

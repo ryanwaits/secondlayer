@@ -124,7 +124,8 @@
 	"devDependencies": {
 		"@stacks/clarinet-sdk": "3.21.1",
 		"@stacks/transactions": "7.0.6",
-		"@types/bun": "latest"
+		"@types/bun": "latest",
+		"jsqr": "1.4.0"
 	},
 	"peerDependencies": {
 		"@stacks/clarinet-sdk": "^3",
