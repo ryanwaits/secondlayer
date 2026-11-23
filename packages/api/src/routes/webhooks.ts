@@ -430,7 +430,7 @@ app.post("/", async (c) => {
 
 // One call for the list page's heat strips. Registered before `/:id` so the
 // literal path can never be read as an id (ids are UUIDs, but order is the
-// contract). Delivered/failed are attempts from `webhook_deliveries`.
+// contract). Delivered/failed are attempts from `webhook_delivery_hours`.
 
 app.get("/activity", async (c) => {
 	const accountId = getTenantScopedAccountId(c);
@@ -453,23 +453,10 @@ app.get("/activity", async (c) => {
 	if (slots.size > 0) {
 		const hourIndex = new Map(hours.map((hour, i) => [hour, i]));
 		const rows = await db
-			.selectFrom("webhook_deliveries")
-			.select([
-				"webhook_id",
-				sql<Date>`date_trunc('hour', dispatched_at AT TIME ZONE 'UTC') AT TIME ZONE 'UTC'`.as(
-					"hour",
-				),
-				sql<string>`count(*) filter (where ${SUCCESS_ATTEMPT})`.as("delivered"),
-				sql<string>`count(*) filter (where not coalesce(${SUCCESS_ATTEMPT}, false))`.as(
-					"failed",
-				),
-			])
+			.selectFrom("webhook_delivery_hours")
+			.select(["webhook_id", "hour", "delivered", "failed"])
 			.where("webhook_id", "in", [...slots.keys()])
-			.where("dispatched_at", ">=", new Date(hours[0] as string))
-			.groupBy("webhook_id")
-			.groupBy(
-				sql`date_trunc('hour', dispatched_at AT TIME ZONE 'UTC') AT TIME ZONE 'UTC'`,
-			)
+			.where("hour", ">=", new Date(hours[0] as string))
 			.execute();
 		for (const row of rows) {
 			const i = hourIndex.get(row.hour.toISOString());
@@ -758,8 +745,6 @@ const ACTIVITY_KEY_BY_STATUS: Record<
 	pending: "waiting",
 	dead: "gaveUp",
 };
-
-const SUCCESS_ATTEMPT = sql`(status_code >= 200 AND status_code < 300)`;
 
 const BAND_DAYS = 28;
 /** Below this median attempts/hour, "usual" says nothing and the band hides. */

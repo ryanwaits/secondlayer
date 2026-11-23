@@ -1689,6 +1689,13 @@ describe.skipIf(SKIP)("Webhooks API validation", () => {
 					status_code: 502,
 					dispatched_at: at,
 				},
+				{
+					webhook_id: busy,
+					outbox_id: null,
+					attempt: 2,
+					status_code: null,
+					dispatched_at: at,
+				},
 			])
 			.execute();
 		const res = await app.request("/webhooks/activity");
@@ -1700,7 +1707,7 @@ describe.skipIf(SKIP)("Webhooks API validation", () => {
 		const busyRow = body.webhooks.find((w) => w.id === busy);
 		expect(busyRow?.delivered).toHaveLength(168);
 		expect(busyRow?.delivered[index]).toBe(2);
-		expect(busyRow?.failed[index]).toBe(1);
+		expect(busyRow?.failed[index]).toBe(2);
 		const quietRow = body.webhooks.find((w) => w.id === quiet);
 		expect(quietRow?.delivered.every((n) => n === 0)).toBe(true);
 		expect(quietRow?.failed.every((n) => n === 0)).toBe(true);
