@@ -1,5 +1,5 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { DECODED_EVENT_TYPES } from "@secondlayer/shared";
+import { DECODED_EVENT_TYPES, VM_EVENT_TYPES } from "@secondlayer/shared";
 import { z } from "zod";
 import { getClient } from "../lib/client.ts";
 import { jsonResponse } from "../lib/format.ts";
@@ -7,7 +7,7 @@ import { defineTool } from "../lib/tool.ts";
 
 type ClientProvider = typeof getClient;
 
-const INDEX_EVENT_TYPES = DECODED_EVENT_TYPES;
+const INDEX_EVENT_TYPES = [...DECODED_EVENT_TYPES, ...VM_EVENT_TYPES] as const;
 
 /** Filters shared by the height/cursor-paginated Index endpoints. */
 const rangeFilters = {
@@ -114,6 +114,11 @@ export function registerIndexTools(
 		recipient?: string;
 		assetIdentifier?: string;
 		trait?: string;
+		functionName?: string;
+		caller?: string;
+		map?: string;
+		varName?: string;
+		txId?: string;
 		txContext?: boolean;
 		fromHeight?: number;
 		toHeight?: number;
@@ -123,11 +128,13 @@ export function registerIndexTools(
 	}>(
 		server,
 		"index_events",
-		"List decoded chain events from the Index by event type. Use this for event types without a dedicated tool (stx_*, ft_mint/burn, nft_mint/burn, print), and for trait-scoped queries: set `trait` (e.g. sip-010) to match all contracts conforming to a standard — pair with contracts_find to discover traits. For ft/nft transfers without a trait prefer index_ft_transfers / index_nft_transfers.",
+		"List chain events from the Index by event type. Use this for event types without a dedicated tool (stx_*, ft_mint/burn, nft_mint/burn, print), and for trait-scoped queries: set `trait` (e.g. sip-010) to match all contracts conforming to a standard — pair with contracts_find to discover traits. For ft/nft transfers without a trait prefer index_ft_transfers / index_nft_transfers. Clarity state types (nested_contract_call, var_set, map_set, map_insert, map_delete) show what a transaction did inside contracts: every inner contract-call? and every data-var and map write, from genesis on hosted mainnet.",
 		{
 			eventType: z
 				.enum(INDEX_EVENT_TYPES)
-				.describe("Required. Decoded event type to list."),
+				.describe(
+					"Required. Event type to list: a decoded type or a Clarity state type.",
+				),
 			...rangeFilters,
 			...orderFilter,
 			sender: z.string().optional().describe("Filter by sender principal"),
@@ -145,6 +152,25 @@ export function registerIndexTools(
 				.describe(
 					"Match contracts conforming to a trait/standard (e.g. sip-010). Mutually exclusive with contractId; contract-keyed event types only.",
 				),
+			functionName: z
+				.string()
+				.optional()
+				.describe("nested_contract_call only: the called function"),
+			caller: z
+				.string()
+				.optional()
+				.describe(
+					"nested_contract_call only: the calling contract or principal",
+				),
+			map: z
+				.string()
+				.optional()
+				.describe("map_set / map_insert / map_delete only: the map name"),
+			varName: z
+				.string()
+				.optional()
+				.describe("var_set only: the data-var name"),
+			txId: z.string().optional().describe("Restrict to one transaction"),
 			txContext: z
 				.boolean()
 				.optional()
@@ -154,6 +180,33 @@ export function registerIndexTools(
 		},
 		async (params) =>
 			jsonResponse(await clientProvider().index.events.list(params)),
+	);
+
+	defineTool<{
+		blockHeight?: number;
+		contractId?: string;
+		txContext?: boolean;
+		fromHeight?: number;
+		toHeight?: number;
+		cursor?: string;
+		limit?: number;
+	}>(
+		server,
+		"index_state_writes",
+		"List the exact contract-state writes each block committed, in node order: {block_height, ordinal, tx_index, key, value_hex}. Shows which storage key a transaction changed when its events don't. Read one block with blockHeight, or a contract's writes over a height range.",
+		{
+			...rangeFilters,
+			blockHeight: z
+				.number()
+				.optional()
+				.describe("Read one block (excludes fromHeight/toHeight)"),
+			txContext: z
+				.boolean()
+				.optional()
+				.describe("Join the writing transaction onto each row"),
+		},
+		async (params) =>
+			jsonResponse(await clientProvider().index.stateWrites.list(params)),
 	);
 
 	defineTool<{

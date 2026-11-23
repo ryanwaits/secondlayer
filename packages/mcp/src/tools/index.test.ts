@@ -44,6 +44,7 @@ describe("index MCP tools", () => {
 				nftTransfers: surface("nft"),
 				events: surface("events"),
 				contractCalls: surface("calls"),
+				stateWrites: surface("writes"),
 				discover: async () => {
 					discovered = true;
 					return { event_type_filters: { ft_transfer: {} } };
@@ -71,6 +72,7 @@ describe("index MCP tools", () => {
 			"index_ft_transfers",
 			"index_nft_transfers",
 			"index_print_schema",
+			"index_state_writes",
 			"index_transactions",
 		]);
 
@@ -122,6 +124,30 @@ describe("index MCP tools", () => {
 			eventType: "ft_transfer",
 			trait: "sip-010",
 		});
+
+		// Clarity state types and their filters reach the client unchanged.
+		await tools
+			.find((t) => t.name === "index_events")
+			?.handler({
+				eventType: "map_set",
+				contractId: "SP1.pool",
+				map: "reserve",
+			});
+		expect(calls.events).toEqual({
+			eventType: "map_set",
+			contractId: "SP1.pool",
+			map: "reserve",
+		});
+		for (const key of ["functionName", "caller", "map", "varName", "txId"]) {
+			expect(
+				Object.keys(tools.find((t) => t.name === "index_events")?.schema ?? {}),
+			).toContain(key);
+		}
+
+		await tools
+			.find((t) => t.name === "index_state_writes")
+			?.handler({ blockHeight: 9550921 });
+		expect(calls.writes).toEqual({ blockHeight: 9550921 });
 
 		await tools
 			.find((t) => t.name === "index_contract_calls")
