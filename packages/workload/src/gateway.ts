@@ -123,6 +123,18 @@ export async function handleGatewayRequest(
 
 const MAX_REWRITE_BYTES = 65536;
 
+const STRIPPED_RESPONSE_HEADERS = [
+	"set-cookie",
+	"connection",
+	"keep-alive",
+	"transfer-encoding",
+	"te",
+	"trailer",
+	"upgrade",
+	"proxy-authenticate",
+	"proxy-authorization",
+] as const;
+
 async function finalize(
 	deps: GatewayDeps,
 	req: Request,
@@ -333,6 +345,18 @@ async function route(
 		? url.pathname.slice("/testnet".length)
 		: url.pathname;
 	const forwardUrl = new URL(forwardPath + url.search, upstream.baseUrl);
+	if (
+		!forwardPath.startsWith("/") ||
+		forwardPath.startsWith("//") ||
+		forwardUrl.origin !== new URL(upstream.baseUrl).origin
+	) {
+		logger.warn("workload.gateway.invalid_forward_url", {
+			accountId: introspected.accountId,
+			requestId,
+			path: url.pathname,
+		});
+		return Response.json({ error: "invalid_path" }, { status: 400 });
+	}
 	const doFetch = deps.fetchImpl ?? fetch;
 
 	const forwardHeaders = new Headers(req.headers);
@@ -385,11 +409,15 @@ async function route(
 		) {
 			deps.onSubgraphDeployed?.(introspected.accountId);
 		}
+		const responseHeaders = new Headers(upstreamRes.headers);
+		for (const name of STRIPPED_RESPONSE_HEADERS) {
+			responseHeaders.delete(name);
+		}
 		return new Response(
 			countedBody(upstreamRes, deps, introspected, req.method, url.pathname),
 			{
 				status: upstreamRes.status,
-				headers: upstreamRes.headers,
+				headers: responseHeaders,
 			},
 		);
 	} catch (err) {

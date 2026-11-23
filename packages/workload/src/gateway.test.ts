@@ -1311,3 +1311,92 @@ describe("subgraph read counting", () => {
 		expect(total(counted)).toBe(2);
 	});
 });
+
+describe("upstream isolation", () => {
+	function capturing(response: () => Response = () => new Response("ok")) {
+		const forwarded: string[] = [];
+		const deps = baseDeps({
+			testnetAccountId: "testnet-stack-account",
+			fetchImpl: async (input) => {
+				forwarded.push(String(input));
+				return response();
+			},
+		});
+		return { deps, forwarded };
+	}
+
+	test("a protocol-relative path → 400 invalid_path, upstream never called", async () => {
+		const { deps, forwarded } = capturing();
+		const request = req({
+			path: "//evil.example/api/webhooks",
+			auth: "Bearer sk-sl_ok",
+		});
+		expect(new URL(request.url).pathname).toBe("//evil.example/api/webhooks");
+		const res = await handleGatewayRequest(deps, request);
+		expect(res.status).toBe(400);
+		expect(((await res.json()) as { error: string }).error).toBe(
+			"invalid_path",
+		);
+		expect(forwarded).toEqual([]);
+	});
+
+	test("a protocol-relative testnet path never reaches upstream", async () => {
+		const { deps, forwarded } = capturing();
+		const request = req({
+			path: "/testnet//evil.example/api/webhooks",
+			auth: "Bearer sk-sl_ok",
+		});
+		expect(new URL(request.url).pathname).toBe(
+			"/testnet//evil.example/api/webhooks",
+		);
+		const res = await handleGatewayRequest(deps, request);
+		expect(res.status).toBe(404);
+		expect(forwarded).toEqual([]);
+	});
+
+	test("a normal path still forwards to the tenant origin", async () => {
+		const { deps, forwarded } = capturing();
+		const res = await handleGatewayRequest(
+			deps,
+			req({ path: "/api/webhooks", auth: "Bearer sk-sl_ok" }),
+		);
+		expect(res.status).toBe(200);
+		expect(forwarded).toEqual(["http://127.0.0.1:20001/api/webhooks"]);
+	});
+
+	test("upstream Set-Cookie headers are stripped, other headers kept", async () => {
+		const { deps } = capturing(() => {
+			const headers = new Headers({
+				"content-type": "application/json",
+				"x-request-id": "agent-turn-123",
+				"x-upstream-trace": "t-1",
+				connection: "keep-alive",
+				"keep-alive": "timeout=5",
+				upgrade: "websocket",
+				"proxy-authenticate": "Basic",
+			});
+			headers.append("set-cookie", "session=evil; Domain=.secondlayer.tools");
+			headers.append("set-cookie", "other=evil; Domain=.secondlayer.tools");
+			return new Response("{}", { status: 200, headers });
+		});
+		const res = await handleGatewayRequest(
+			deps,
+			new Request("https://gateway.internal/api/webhooks", {
+				headers: {
+					authorization: "Bearer sk-sl_ok",
+					"x-request-id": "agent-turn-123",
+				},
+			}),
+		);
+		expect(res.status).toBe(200);
+		expect(res.headers.get("set-cookie")).toBeNull();
+		expect(res.headers.getSetCookie()).toEqual([]);
+		expect(res.headers.get("connection")).toBeNull();
+		expect(res.headers.get("keep-alive")).toBeNull();
+		expect(res.headers.get("upgrade")).toBeNull();
+		expect(res.headers.get("proxy-authenticate")).toBeNull();
+		expect(res.headers.get("content-type")).toBe("application/json");
+		expect(res.headers.get("x-request-id")).toBe("agent-turn-123");
+		expect(res.headers.get("x-upstream-trace")).toBe("t-1");
+	});
+});
