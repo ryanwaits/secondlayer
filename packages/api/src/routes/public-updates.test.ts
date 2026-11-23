@@ -7,7 +7,10 @@ import {
 	_resetRateLimitStoreForTests,
 } from "../auth/rate-limit-store.ts";
 import { createApiApp } from "../create-app.ts";
-import { createUpdatesRouter } from "./public-updates.ts";
+import {
+	UPDATE_SUBSCRIBER_MACHINE,
+	createUpdatesRouter,
+} from "./public-updates.ts";
 
 afterEach(async () => {
 	await _resetRateLimitStoreForTests();
@@ -381,4 +384,24 @@ describe("the updates list with a database", () => {
 			expect(unsub.status).toBe(404);
 		},
 	);
+});
+
+describe("UPDATE_SUBSCRIBER_MACHINE", () => {
+	test("allows confirm, opt-out, re-join and resubscribe", () => {
+		const m = UPDATE_SUBSCRIBER_MACHINE;
+		expect(m.canTransition("pending", "confirmed")).toBe(true);
+		expect(m.canTransition("pending", "unsubscribed")).toBe(true);
+		expect(m.canTransition("confirmed", "unsubscribed")).toBe(true);
+		expect(m.canTransition("unsubscribed", "pending")).toBe(true);
+		expect(m.canTransition("unsubscribed", "confirmed")).toBe(true);
+	});
+
+	test("never moves a confirmed subscriber back to pending", () => {
+		expect(
+			UPDATE_SUBSCRIBER_MACHINE.canTransition("confirmed", "pending"),
+		).toBe(false);
+		expect(() =>
+			UPDATE_SUBSCRIBER_MACHINE.assert("confirmed", "pending"),
+		).toThrow("illegal transition confirmed -> pending");
+	});
 });

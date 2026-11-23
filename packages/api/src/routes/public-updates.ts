@@ -13,7 +13,16 @@
 import { createHash, randomBytes } from "node:crypto";
 import { normalizeEmail } from "@secondlayer/platform/db/queries/accounts";
 import { logger } from "@secondlayer/shared";
-import { getDb } from "@secondlayer/shared/db";
+import {
+	type Database,
+	UPDATE_SUBSCRIBER_STATUSES,
+	type UpdateSubscriberStatus,
+	getDb,
+} from "@secondlayer/shared/db";
+import {
+	casTransition,
+	defineMachine,
+} from "@secondlayer/shared/db/transition";
 import {
 	UPDATES_FROM,
 	confirmEmail,
@@ -21,6 +30,7 @@ import {
 } from "@secondlayer/shared/email";
 import { RateLimitError } from "@secondlayer/shared/errors";
 import { Hono } from "hono";
+import type { Kysely } from "kysely";
 import { getClientIp, ipBucket } from "../auth/http.ts";
 import {
 	type RateLimitStore,
@@ -34,6 +44,39 @@ const CONFIRM_TTL_MS = 7 * 24 * 3_600_000;
 const RESEND_COOLDOWN_MS = 10 * 60_000;
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const KNOWN_FIELDS = new Set(["email", "source_page", "website"]);
+
+/**
+ * Subscriber lifecycle. Re-joining after an opt-out starts a new confirm
+ * (`unsubscribed -> pending`); a resubscribe link restores it directly
+ * (`unsubscribed -> confirmed`).
+ */
+export const UPDATE_SUBSCRIBER_MACHINE = defineMachine({
+	states: UPDATE_SUBSCRIBER_STATUSES,
+	transitions: {
+		pending: ["confirmed", "unsubscribed"],
+		confirmed: ["unsubscribed"],
+		unsubscribed: ["pending", "confirmed"],
+	},
+});
+
+function transitionSubscriber(
+	db: Kysely<Database>,
+	id: string,
+	from: readonly UpdateSubscriberStatus[],
+	to: UpdateSubscriberStatus,
+	set: Record<string, unknown>,
+): Promise<{ id: string } | null> {
+	for (const state of from) UPDATE_SUBSCRIBER_MACHINE.assert(state, to);
+	return casTransition<UpdateSubscriberStatus, { id: string }>(db, {
+		table: "update_subscribers",
+		id,
+		from,
+		to,
+		set,
+		stampUpdatedAt: false,
+		returning: ["id"],
+	});
+}
 
 function hashIp(ip: string): string {
 	return createHash("sha256").update(ip).digest("hex");
@@ -161,16 +204,18 @@ export function createUpdatesRouter(opts?: {
 		if (existing.status === "confirmed") return c.json({ ok: true }, 202);
 
 		if (existing.status === "unsubscribed") {
-			await db
-				.updateTable("update_subscribers")
-				// The old `confirm_sent_at` must not make an old link valid again.
-				.set({
-					status: "pending",
-					unsubscribed_at: null,
-					confirm_sent_at: null,
-				})
-				.where("id", "=", existing.id)
-				.execute();
+			// The old `confirm_sent_at` must not make an old link valid again.
+			const rejoined = await transitionSubscriber(
+				db,
+				existing.id,
+				["unsubscribed"],
+				"pending",
+				{ unsubscribed_at: null, confirm_sent_at: null },
+			);
+			if (!rejoined) {
+				logger.warn("updates.rejoin_lost_race", { subscriberId: existing.id });
+				return c.json({ ok: true }, 202);
+			}
 		} else if (
 			existing.confirm_sent_at &&
 			Date.now() - existing.confirm_sent_at.getTime() < RESEND_COOLDOWN_MS
@@ -243,11 +288,16 @@ export function createUpdatesRouter(opts?: {
 		if (!row) return c.json({ status: "invalid" }, 404);
 
 		if (row.status !== "unsubscribed") {
-			await db
-				.updateTable("update_subscribers")
-				.set({ status: "unsubscribed", unsubscribed_at: new Date() })
-				.where("id", "=", row.id)
-				.execute();
+			const left = await transitionSubscriber(
+				db,
+				row.id,
+				["pending", "confirmed"],
+				"unsubscribed",
+				{ unsubscribed_at: new Date() },
+			);
+			if (!left) {
+				logger.warn("updates.unsubscribe_lost_race", { subscriberId: row.id });
+			}
 		}
 		return c.json({ status: "unsubscribed", email: row.email });
 	});
@@ -267,16 +317,16 @@ export function createUpdatesRouter(opts?: {
 
 		if (row.status === "pending") return c.json({ status: "pending" }, 409);
 		if (row.status === "unsubscribed") {
-			await db
-				.updateTable("update_subscribers")
-				.set({
-					status: "confirmed",
-					confirmed_at: new Date(),
-					unsubscribed_at: null,
-				})
-				.where("id", "=", row.id)
-				.where("status", "=", "unsubscribed")
-				.execute();
+			const restored = await transitionSubscriber(
+				db,
+				row.id,
+				["unsubscribed"],
+				"confirmed",
+				{ confirmed_at: new Date(), unsubscribed_at: null },
+			);
+			if (!restored) {
+				logger.warn("updates.resubscribe_lost_race", { subscriberId: row.id });
+			}
 		}
 		return c.json({ status: "confirmed", email: row.email });
 	});

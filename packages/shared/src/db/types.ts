@@ -1659,6 +1659,15 @@ export interface ContactRequestsTable {
 	created_at: Generated<Date>;
 }
 
+/** Mirrored by the CHECK on `update_subscribers.status`. */
+export const UPDATE_SUBSCRIBER_STATUSES = [
+	"pending",
+	"confirmed",
+	"unsubscribed",
+] as const;
+export type UpdateSubscriberStatus =
+	(typeof UPDATE_SUBSCRIBER_STATUSES)[number];
+
 /**
  * A member of the email updates list. `pending` until the emailed link is
  * confirmed (`confirm_sent_at` starts the 7-day window), `confirmed` while
@@ -1668,7 +1677,7 @@ export interface ContactRequestsTable {
 export interface UpdateSubscribersTable {
 	id: Generated<string>;
 	email: string;
-	status: Generated<"pending" | "confirmed" | "unsubscribed">;
+	status: Generated<UpdateSubscriberStatus>;
 	token: string;
 	source_page: string | null;
 	/** Hex sha256 of the client IP, never the address. */
