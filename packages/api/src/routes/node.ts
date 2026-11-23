@@ -1,3 +1,4 @@
+import { logger } from "@secondlayer/shared";
 import { StacksNodeClient } from "@secondlayer/shared/node";
 import { Hono } from "hono";
 
@@ -15,7 +16,8 @@ app.get("/contracts/:contractId{.+\\..*}/abi", async (c) => {
 		if (msg.includes("404")) {
 			return c.json({ error: "Contract not found" }, 404);
 		}
-		return c.json({ error: `Failed to fetch ABI: ${msg}` }, 502);
+		logger.warn("node.abi_fetch_failed", { contractId, error: msg });
+		return c.json({ error: "Failed to fetch contract ABI" }, 502);
 	}
 });
 

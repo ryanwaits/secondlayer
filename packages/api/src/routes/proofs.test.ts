@@ -5,6 +5,7 @@ import {
 	beforeEach,
 	describe,
 	expect,
+	spyOn,
 	test,
 } from "bun:test";
 import {
@@ -239,6 +240,25 @@ describe("proofs passthrough (self-hosted, loopback)", () => {
 		expect(((await res.json()) as { code: string }).code).toBe(
 			"PROOF_SOURCE_ERROR",
 		);
+	});
+
+	test("an unreachable source's 502 does not leak its address", async () => {
+		const fetchSpy = spyOn(globalThis, "fetch").mockRejectedValue(
+			new Error("Unable to connect to http://10.0.0.5:20443/v2/headers"),
+		);
+		try {
+			const res = await get(`/v1/proofs/block/${ID}`);
+			expect(res.status).toBe(502);
+			const text = await res.text();
+			expect(JSON.parse(text)).toEqual({
+				error: "could not reach the stacks node",
+				code: "PROOF_SOURCE_ERROR",
+			});
+			expect(text).not.toContain("10.0.0.5");
+			expect(text).not.toContain("20443");
+		} finally {
+			fetchSpy.mockRestore();
+		}
 	});
 
 	test("burn returns the sidecar's JSON, cached immutable", async () => {

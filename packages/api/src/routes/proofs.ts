@@ -1,3 +1,4 @@
+import { logger } from "@secondlayer/shared";
 import { RateLimitError, ValidationError } from "@secondlayer/shared/errors";
 import { isPlatformMode } from "@secondlayer/shared/mode";
 import {
@@ -185,11 +186,15 @@ async function proxy(c: Context, url: string, spec: ProxySpec) {
 		});
 	} catch (err) {
 		const reason = err instanceof Error ? err.message : String(err);
+		logger.warn("proofs.upstream_unreachable", {
+			source: spec.source,
+			error: reason,
+		});
 		return errorResponse(
 			c,
 			502,
 			"PROOF_SOURCE_ERROR",
-			`could not reach the ${spec.source}: ${reason}`,
+			`could not reach the ${spec.source}`,
 		);
 	}
 
