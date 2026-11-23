@@ -5,7 +5,7 @@ Requires=docker.service
 
 [Service]
 Type=oneshot
-EnvironmentFile=-/opt/secondlayer/docker/.env
+EnvironmentFile=-/opt/secondlayer/docker/prod/.env
 ExecStart=/opt/secondlayer/docker/scripts/health-alert.sh
 StandardOutput=append:/var/log/secondlayer-health-alert.log
 StandardError=append:/var/log/secondlayer-health-alert.log

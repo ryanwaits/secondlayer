@@ -18,7 +18,7 @@
 #              pages, not 1. A tip that cannot be read at all (postgres down)
 #              is itself a CRITICAL page, not a script crash.
 #
-# Requires SLACK_WEBHOOK_URL (read from /opt/secondlayer/docker/.env via the
+# Requires SLACK_WEBHOOK_URL (read from /opt/secondlayer/docker/prod/.env via the
 # systemd unit's EnvironmentFile). Two state files, one per tier, so a
 # standing WARN and a standing CRITICAL are tracked and cleared independently.
 # WARN pages go through slack-gate (Jev). CRITICAL stall pages --force.
@@ -27,7 +27,7 @@ set -uo pipefail
 # shellcheck source=lib/post-slack.sh
 . "$(dirname "$0")/lib/post-slack.sh"
 
-COMPOSE_DIR="${COMPOSE_DIR:-/opt/secondlayer/docker}"
+COMPOSE_DIR="${COMPOSE_DIR:-/opt/secondlayer/docker/prod}"
 STATUS_URL="${HEALTH_STATUS_URL:-https://api.secondlayer.tools/public/status}"
 CADDY_CONTAINER="${CADDY_CONTAINER:-secondlayer-caddy-1}"
 # A /v1 route family (first three path segments, e.g. /v1/index/runes) with at

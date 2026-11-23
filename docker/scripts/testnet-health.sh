@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # Standalone testnet health check -> Slack. Never touches prod alerting state.
 # Pages once per new problem, all-clear when the set empties. Needs
-# SLACK_WEBHOOK_URL (the unit loads docker/.env for it; prod DB and node vars
-# are dropped below). No-op until docker/testnet/.env exists.
+# SLACK_WEBHOOK_URL (the unit loads docker/prod/.env for it; prod DB and node vars
+# are dropped below). No-op until docker/hosts/testnet/.env exists.
 set -uo pipefail
 
 # shellcheck source=lib/post-slack.sh
@@ -11,13 +11,13 @@ set -uo pipefail
 # This check must never hold prod credentials, whatever the unit loaded.
 for v in $(compgen -e | grep -E '^(STACKS_|DATABASE|POSTGRES_)'); do unset "$v"; done
 
-COMPOSE_DIR="${COMPOSE_DIR:-/opt/secondlayer/docker}"
+TESTNET_DIR="${TESTNET_DIR:-/opt/secondlayer/docker/hosts/testnet}"
 STATE_FILE="${TESTNET_HEALTH_STATE_FILE:-/var/run/secondlayer-testnet-health.state}"
 HEALTH_URL="${TESTNET_HEALTH_URL:-http://127.0.0.1:3701/health}"
 HIRO_URL="${TESTNET_HIRO_INFO_URL:-https://api.testnet.hiro.so/v2/info}"
 DISK_PATH="${TESTNET_DISK_PATH:-/data/bitcoin}"
 
-[ -f "$COMPOSE_DIR/testnet/.env" ] || exit 0
+[ -f "$TESTNET_DIR/.env" ] || exit 0
 
 json_field() { python3 -c 'import json,sys; v=json.load(sys.stdin).get(sys.argv[1]); print("" if v is None else v)' "$1" 2>/dev/null; }
 
@@ -54,7 +54,7 @@ fi
 used=$(df --output=pcent "$DISK_PATH" 2>/dev/null | tail -1 | tr -dc '0-9')
 if [ -n "$used" ] && [ "$used" -ge 80 ]; then
   if [ "$used" -ge 90 ]; then
-    docker compose -p secondlayer-testnet -f "$COMPOSE_DIR/testnet/docker-compose.yml" --env-file "$COMPOSE_DIR/testnet/.env" stop >/dev/null 2>&1
+    docker compose -p secondlayer-testnet -f "$TESTNET_DIR/docker-compose.yml" --env-file "$TESTNET_DIR/.env" stop >/dev/null 2>&1
     problems+=("disk|testnet: $DISK_PATH at ${used}%, stack stopped")
   else
     problems+=("disk|testnet: $DISK_PATH at ${used}% (stack stops at 90%)")

@@ -5,7 +5,7 @@ Wants=network-online.target
 
 [Service]
 Type=oneshot
-EnvironmentFile=-/opt/secondlayer/docker/.env
+EnvironmentFile=-/opt/secondlayer/docker/prod/.env
 ExecStart=/opt/secondlayer/docker/scripts/upload-snapshot.sh
 StandardOutput=append:/var/log/secondlayer-backup-upload.log
 StandardError=append:/var/log/secondlayer-backup-upload.log

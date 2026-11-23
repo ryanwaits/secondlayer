@@ -74,7 +74,7 @@ services:
   migrate:
     image: ghcr.io/${DEPLOY_IMAGE_OWNER:-secondlayer-labs}/secondlayer-api:${DEPLOY_IMAGE_TAG:-latest}
     build:
-      context: ..
+      context: ../..
       dockerfile: docker/Dockerfile
       target: api
     command: ["bun", "run", "packages/shared/src/db/migrate.ts"]
@@ -86,7 +86,7 @@ services:
       # SOURCE/TARGET per channel via queue/listener.ts), so blanking is safe.
       # `-` (not `:-`) keeps an explicit empty value; unset → single-DB default.
       DATABASE_URL: ${DATABASE_URL-postgres://${POSTGRES_USER:-secondlayer}:${POSTGRES_PASSWORD:-secondlayer}@postgres:5432/${POSTGRES_DB:-secondlayer}}
-      # Source/target split (see docker/SCHEMA_SPLIT.md): unset → both resolve to
+      # Source/target split (see docs/ops/SCHEMA_SPLIT.md): unset → both resolve to
       # DATABASE_URL (single DB, no behavior change). Set at cutover.
       SOURCE_DATABASE_URL: ${SOURCE_DATABASE_URL:-}
       TARGET_DATABASE_URL: ${TARGET_DATABASE_URL:-}
@@ -101,7 +101,7 @@ services:
   api:
     image: ghcr.io/${DEPLOY_IMAGE_OWNER:-secondlayer-labs}/secondlayer-api:${DEPLOY_IMAGE_TAG:-latest}
     build:
-      context: ..
+      context: ../..
       dockerfile: docker/Dockerfile
       target: api
     # Host gateway, for a bitcoin plane published on the docker bridge (see
@@ -118,7 +118,7 @@ services:
       # SOURCE/TARGET per channel via queue/listener.ts), so blanking is safe.
       # `-` (not `:-`) keeps an explicit empty value; unset → single-DB default.
       DATABASE_URL: ${DATABASE_URL-postgres://${POSTGRES_USER:-secondlayer}:${POSTGRES_PASSWORD:-secondlayer}@postgres:5432/${POSTGRES_DB:-secondlayer}}
-      # Source/target split (see docker/SCHEMA_SPLIT.md): unset → both resolve to
+      # Source/target split (see docs/ops/SCHEMA_SPLIT.md): unset → both resolve to
       # DATABASE_URL (single DB, no behavior change). Set at cutover.
       SOURCE_DATABASE_URL: ${SOURCE_DATABASE_URL:-}
       TARGET_DATABASE_URL: ${TARGET_DATABASE_URL:-}
@@ -243,7 +243,7 @@ services:
   indexer:
     image: ghcr.io/${DEPLOY_IMAGE_OWNER:-secondlayer-labs}/secondlayer-indexer:${DEPLOY_IMAGE_TAG:-latest}
     build:
-      context: ..
+      context: ../..
       dockerfile: docker/Dockerfile
       target: indexer
     environment:
@@ -254,7 +254,7 @@ services:
       # SOURCE/TARGET per channel via queue/listener.ts), so blanking is safe.
       # `-` (not `:-`) keeps an explicit empty value; unset → single-DB default.
       DATABASE_URL: ${DATABASE_URL-postgres://${POSTGRES_USER:-secondlayer}:${POSTGRES_PASSWORD:-secondlayer}@postgres:5432/${POSTGRES_DB:-secondlayer}}
-      # Source/target split (see docker/SCHEMA_SPLIT.md): unset → both resolve to
+      # Source/target split (see docs/ops/SCHEMA_SPLIT.md): unset → both resolve to
       # DATABASE_URL (single DB, no behavior change). Set at cutover.
       SOURCE_DATABASE_URL: ${SOURCE_DATABASE_URL:-}
       TARGET_DATABASE_URL: ${TARGET_DATABASE_URL:-}
@@ -310,7 +310,7 @@ services:
   decoder:
     image: ghcr.io/${DEPLOY_IMAGE_OWNER:-secondlayer-labs}/secondlayer-decoder:${DECODER_IMAGE_TAG:-${DEPLOY_IMAGE_TAG:-latest}}
     build:
-      context: ..
+      context: ../..
       dockerfile: docker/Dockerfile
       target: decoder
     environment:
@@ -321,7 +321,7 @@ services:
       # SOURCE/TARGET per channel via queue/listener.ts), so blanking is safe.
       # `-` (not `:-`) keeps an explicit empty value; unset → single-DB default.
       DATABASE_URL: ${DATABASE_URL-postgres://${POSTGRES_USER:-secondlayer}:${POSTGRES_PASSWORD:-secondlayer}@postgres:5432/${POSTGRES_DB:-secondlayer}}
-      # Source/target split (see docker/SCHEMA_SPLIT.md): unset → both resolve to
+      # Source/target split (see docs/ops/SCHEMA_SPLIT.md): unset → both resolve to
       # DATABASE_URL (single DB, no behavior change). Set at cutover.
       SOURCE_DATABASE_URL: ${SOURCE_DATABASE_URL:-}
       TARGET_DATABASE_URL: ${TARGET_DATABASE_URL:-}
@@ -381,7 +381,7 @@ services:
   worker:
     image: ghcr.io/${DEPLOY_IMAGE_OWNER:-secondlayer-labs}/secondlayer-worker:${DEPLOY_IMAGE_TAG:-latest}
     build:
-      context: ..
+      context: ../..
       dockerfile: docker/Dockerfile
       target: worker
     environment:
@@ -392,7 +392,7 @@ services:
       # SOURCE/TARGET per channel via queue/listener.ts), so blanking is safe.
       # `-` (not `:-`) keeps an explicit empty value; unset → single-DB default.
       DATABASE_URL: ${DATABASE_URL-postgres://${POSTGRES_USER:-secondlayer}:${POSTGRES_PASSWORD:-secondlayer}@postgres:5432/${POSTGRES_DB:-secondlayer}}
-      # Source/target split (see docker/SCHEMA_SPLIT.md): unset → both resolve to
+      # Source/target split (see docs/ops/SCHEMA_SPLIT.md): unset → both resolve to
       # DATABASE_URL (single DB, no behavior change). Set at cutover.
       SOURCE_DATABASE_URL: ${SOURCE_DATABASE_URL:-}
       TARGET_DATABASE_URL: ${TARGET_DATABASE_URL:-}

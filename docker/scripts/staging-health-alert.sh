@@ -11,7 +11,7 @@
 # paged red when a starved runner was cancelled. Running it here makes the
 # cadence real and takes GitHub's runner queue out of the alerting path.
 #
-# Requires SLACK_WEBHOOK_URL (read from /opt/secondlayer/docker/.env via the
+# Requires SLACK_WEBHOOK_URL (read from /opt/secondlayer/docker/prod/.env via the
 # systemd unit's EnvironmentFile). State file dedupes: a stale decoder is a
 # standing condition until it catches up, so it pages once per incident and
 # posts an all-clear on recovery.
@@ -39,7 +39,7 @@ fi
 
 
 
-# The zero-timestamp check needs a host-reachable SOURCE DB. docker/.env ships
+# The zero-timestamp check needs a host-reachable SOURCE DB. docker/prod/.env ships
 # DATABASE_URL empty (the containers get theirs from compose) and POSTGRES_PORT
 # is a full bind spec like "127.0.0.1:5432", not a port — so build the URL from
 # the parts rather than reusing either. Password is percent-encoded: it is

@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # Cutover helper for the chain/control-plane DB split (see
-# docker/SCHEMA_SPLIT.md + docs/runbook/db-source-target-cutover.md).
+# docs/ops/SCHEMA_SPLIT.md + docs/runbook/db-source-target-cutover.md).
 #
 # Copies the CONTROL-PLANE tables (accounts/auth/billing/webhooks) and the
 # per-tenant subgraph schemas from SOURCE (the chain DB) into TARGET (the new

@@ -11,14 +11,14 @@ SSH: `ssh app-server '<cmd>'` / `ssh node-server '<cmd>'` — direct, no jump ho
 older revision of this skill hopped through `ssh ryan@claude-mini`, which fails from
 any machine that cannot reach the mini — if you see that pattern anywhere, it is stale.)
 API: https://api.secondlayer.tools.
-Topology + runbooks: `docker/PRODUCTION.md`. CI's deploy-time twin: `scripts/ci/post-deploy-smoke.sh`
+Topology + runbooks: `docs/ops/PRODUCTION.md`. CI's deploy-time twin: `scripts/ci/post-deploy-smoke.sh`
 (this skill is the anytime + deeper version — don't duplicate its envelope checks, go past them).
 
 **Chain DB is on db-server** (since the 2026-11-22 v2 cutover), reached from app-server
 over WireGuard via `SOURCE_DATABASE_URL`. `secondlayer-postgres-1` on app-server is the
 frozen pre-cutover copy kept for rollback: never health-check it. Query the live one with:
 ```bash
-CHAIN='cd /opt/secondlayer/docker; set -a; . ./.env >/dev/null 2>&1; set +a; psql "$SOURCE_DATABASE_URL"'
+CHAIN='cd /opt/secondlayer/docker/prod; set -a; . ./.env >/dev/null 2>&1; set +a; psql "$SOURCE_DATABASE_URL"'
 ssh app-server "$CHAIN -tAc 'SELECT 1'"     # never echo the URL
 ```
 

@@ -4,11 +4,11 @@
 
 | Host | Role | Compose dir | Notes |
 |---|---|---|---|
-| app-server | API, indexer, decoder, worker, Caddy, Postgres | `docker/docker-compose.yml` + `docker-compose.hetzner.yml` | AX52. Chain DB lives here until the v2 cutover. |
-| node-server | stacks-node, bitcoind | `docker/node-server/` | AX162-S, 37.27.171.220. |
+| app-server | API, indexer, decoder, worker, Caddy, Postgres | `docker/prod/docker-compose.yml` + `docker-compose.hetzner.yml` | AX52. Chain DB lives here until the v2 cutover. |
+| node-server | stacks-node, bitcoind | `docker/hosts/node-server/` | AX162-S. |
 | workload-host | One hosted stack per account (Caddy + `packages/workload` gateway) | `docker/workload-host/` | Runbook: `docs/internal/runbook/workload-host.md`. |
-| db-server | Stacks Postgres on its own host, reached by app-server over WireGuard | `docker/db-server/docker-compose.yml` | AX162-1. Provisioned; the chain DB moves here at the v2 cutover (`docs/internal/runbook/v2-cutover.md`). |
-| stacks-feeder | Genesis sync for the v2 chain DB | `docker/feeder/docker-compose.yml` | Temporary. Stays stopped after the cutover snapshot. Never run on node-server or app-server. |
+| db-server | Stacks Postgres on its own host, reached by app-server over WireGuard | `docker/hosts/db-server/docker-compose.yml` | AX162-1. Provisioned; the chain DB moves here at the v2 cutover (`docs/internal/runbook/v2-cutover.md`). |
+| stacks-feeder | Genesis sync for the v2 chain DB | `docker/hosts/feeder/docker-compose.yml` | Temporary. Stays stopped after the cutover snapshot. Never run on node-server or app-server. |
 
 SSH: `ssh app-server` / `ssh node-server` — direct, no jump host. Each
 machine authenticates with its own key; add a new machine by appending its public
@@ -16,7 +16,7 @@ key to `~/.ssh/authorized_keys` on both hosts rather than copying an existing ke
 Compose project lives at `/opt/secondlayer/docker` on app-server.
 
 - **app-server** — everything below.
-- **node-server** (37.27.171.220) — the stacks-node. Pushes the event-observer
+- **node-server** — the stacks-node. Pushes the event-observer
   firehose to `indexer`; also serves RPC (`:20443`) for tx-proof endpoints.
   Runs the eval-hook fork image (`sl-4.0.7`) with
   `events_keys = ["*", "storage", "contract_calls", "state_writes"]` since
@@ -129,4 +129,4 @@ Do not extract a Hiro chainstate tarball into a collecting node's
 never sees that history.
 
 Canonical steps:
-[docs/internal/runbook/genesis-feeder.md](../docs/internal/runbook/genesis-feeder.md).
+[docs/internal/runbook/genesis-feeder.md](../internal/runbook/genesis-feeder.md).

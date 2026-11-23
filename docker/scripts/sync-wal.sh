@@ -3,7 +3,7 @@
 # Cron: */5 * * * * /opt/secondlayer/docker/scripts/sync-wal.sh
 set -euo pipefail
 
-ENV_FILE="${ENV_FILE:-/opt/secondlayer/docker/.env}"
+ENV_FILE="${ENV_FILE:-/opt/secondlayer/docker/prod/.env}"
 if [ -f "$ENV_FILE" ]; then
   while IFS= read -r line || [ -n "$line" ]; do
     line="${line%$'\r'}"

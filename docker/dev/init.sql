@@ -1,6 +1,6 @@
 -- Initialize database
 -- Runs once when the postgres container first creates its data directory.
--- THIS FILE IS DEV-ONLY: mounted by `docker/docker-compose.dev.yml` and not
+-- THIS FILE IS DEV-ONLY: mounted by `docker/dev/docker-compose.yml` and not
 -- by the Hetzner production compose. Production deploys use real secrets
 -- supplied via env, never this script.
 --

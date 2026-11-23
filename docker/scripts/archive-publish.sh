@@ -24,7 +24,7 @@ set -uo pipefail
 # shellcheck source=lib/post-slack.sh
 . "$(dirname "$0")/lib/post-slack.sh"
 
-COMPOSE_DIR="${COMPOSE_DIR:-/opt/secondlayer/docker}"
+COMPOSE_DIR="${COMPOSE_DIR:-/opt/secondlayer/docker/prod}"
 INDEXER_CONTAINER="${INDEXER_CONTAINER:-secondlayer-indexer-1}"
 # Container-side path passed to the exporter.
 STAGING_DIR="${ARCHIVE_STAGING_DIR:-/data/archive/canonical-v1-staging}"

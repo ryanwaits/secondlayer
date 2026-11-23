@@ -7,7 +7,7 @@
 # when the audit reports anything but complete — the 2026-08-11 fork-point
 # corruptions sat invisible for months precisely because nothing ran this.
 #
-# Requires SLACK_WEBHOOK_URL (read from /opt/secondlayer/docker/.env via the
+# Requires SLACK_WEBHOOK_URL (read from /opt/secondlayer/docker/prod/.env via the
 # systemd unit's EnvironmentFile). A dedicated state file dedupes: a broken
 # chain is a standing condition until repaired, so it pages once per incident
 # and posts an all-clear when the audit passes again.
@@ -16,7 +16,7 @@ set -uo pipefail
 # shellcheck source=lib/post-slack.sh
 . "$(dirname "$0")/lib/post-slack.sh"
 
-COMPOSE_DIR="${COMPOSE_DIR:-/opt/secondlayer/docker}"
+COMPOSE_DIR="${COMPOSE_DIR:-/opt/secondlayer/docker/prod}"
 INDEXER_CONTAINER="${INDEXER_CONTAINER:-secondlayer-indexer-1}"
 AUDIT_CMD="${CANONICAL_AUDIT_CMD:-bun run packages/indexer/src/archive/canonical-audit.ts}"
 # Hard cap so a hung audit can never wedge the systemd oneshot — on timeout the

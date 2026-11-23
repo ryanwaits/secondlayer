@@ -25,7 +25,7 @@
 //   4. A `btc_reorgs` row records the rewind.
 //
 // Requires Docker and a local Postgres at 127.0.0.1:5440
-// (`docker/docker-compose.dev.yml`, `bun run db` from the repo root) —
+// (`docker/dev/docker-compose.yml`, `bun run db` from the repo root) —
 // creates its own scratch databases there, never touches an existing one.
 // Not part of the default `bun test` (this file doesn't end in `.test.ts`,
 // and needs Docker + real wall-clock time for block generation); run with
@@ -44,7 +44,7 @@ import { Network } from "../../src/runes/rune.ts";
 import { encodeEtchingWithTerms, encodeMint } from "./runestone-encode.ts";
 
 const CONTAINER = "sl-bitcoin-regtest-057";
-// Reviewer note: node-server's compose (`docker/node-server/docker-compose.yml`)
+// Reviewer note: node-server's compose (`docker/hosts/node-server/docker-compose.yml`)
 // runs `kylemanna/bitcoind:latest` (unversioned) — pinned here to an official,
 // explicit release instead. 29.4 was the newest 29.x release available on
 // Docker Hub at the time this was written (checked via

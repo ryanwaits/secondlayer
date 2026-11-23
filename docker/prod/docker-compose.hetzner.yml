@@ -5,7 +5,7 @@
 #   DATA_DIR         - base data directory (default: /opt/secondlayer/data)
 #
 # Note: stacks-node + bitcoind run on a separate node server.
-# See docker/node-server/ for node server setup.
+# See docker/hosts/node-server/ for node server setup.
 
 # Shared by both WAL-G sidecars; each adds its own prefix, host and database.
 x-walg-environment: &walg-environment
@@ -89,7 +89,7 @@ services:
   # bucket from the public dumps bucket. Purely additive — postgres is unchanged.
   walg-backup:
     build:
-      context: ./walg
+      context: ../walg
     restart: unless-stopped
     depends_on:
       postgres:
@@ -110,7 +110,7 @@ services:
   # and never share a WAL timeline.
   walg-backup-platform:
     build:
-      context: ./walg
+      context: ../walg
     restart: unless-stopped
     depends_on:
       postgres-platform:

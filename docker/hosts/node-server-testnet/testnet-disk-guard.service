@@ -4,4 +4,4 @@ After=docker.service
 
 [Service]
 Type=oneshot
-ExecStart=/opt/secondlayer/docker/node-server-testnet/testnet-disk-guard.sh
+ExecStart=/opt/secondlayer/docker/hosts/node-server-testnet/testnet-disk-guard.sh

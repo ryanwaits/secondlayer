@@ -3,7 +3,7 @@
 # compose no longer points at the real bind-mounted data dirs. Belt and
 # braces for the bind-vs-named-volume drift class (bit prod twice, 2026-06).
 set -euo pipefail
-cd "$(dirname "$0")/.."
+cd "$(dirname "$0")/../prod"
 
 fail() { echo "✗ preflight-data: $1" >&2; exit 1; }
 

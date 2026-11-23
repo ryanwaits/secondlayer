@@ -2,7 +2,7 @@
 # postgres + feat indexer. Do not run on node-server or app-server. Do not
 # add this file to deploy.sh.
 #
-#   cd docker/feeder && docker compose up -d postgres-feeder
+#   cd docker/hosts/feeder && docker compose up -d postgres-feeder
 #   docker compose up -d migrate-feeder
 #   docker compose up -d indexer-feeder
 #   docker compose up -d stacks-feeder

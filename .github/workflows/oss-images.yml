@@ -16,7 +16,6 @@ on:
       - "apps/**"
       - "*.md"
       - "docs/**"
-      - "docker/docs/**"
       - "packages/*/README.md"
       - "packages/*/CHANGELOG.md"
       - "plans/**"

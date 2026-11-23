@@ -10,7 +10,7 @@ for cmd in docker curl; do
 	fi
 done
 
-cd /opt/secondlayer/docker
+cd /opt/secondlayer/docker/prod
 COMPOSE="docker compose -f docker-compose.yml -f docker-compose.hetzner.yml"
 
 if [ -f .env ]; then

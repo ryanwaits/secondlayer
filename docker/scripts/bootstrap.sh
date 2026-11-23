@@ -11,7 +11,7 @@
 #   4. Print status
 #
 # Note: stacks-node + bitcoind run on a separate node server.
-# See docker/node-server/setup.sh for node provisioning.
+# See docker/hosts/node-server/setup.sh for node provisioning.
 
 set -euo pipefail
 
@@ -30,12 +30,12 @@ while [[ $# -gt 0 ]]; do
 done
 
 # ---------------------------------------------------------------------------
-# Resolve working directory — must run from docker/
+# Resolve working directory: the prod compose in docker/prod/
 # ---------------------------------------------------------------------------
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 DOCKER_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
-REPO_DIR="$(cd "$DOCKER_DIR/.." && pwd)"
-cd "$DOCKER_DIR"
+PROD_DIR="$DOCKER_DIR/prod"
+cd "$PROD_DIR"
 
 COMPOSE="docker compose -f docker-compose.yml -f docker-compose.hetzner.yml"
 
@@ -123,9 +123,9 @@ else
   mkdir -p /opt/secondlayer/data/postgres /opt/secondlayer/data/subgraphs
 
   # Generate .env if not exists
-  if [ ! -f "$DOCKER_DIR/.env" ]; then
+  if [ ! -f "$PROD_DIR/.env" ]; then
     PG_PASS=$(openssl rand -base64 24 | tr -d '/+=' | head -c 32)
-    cat > "$DOCKER_DIR/.env" <<ENVEOF
+    cat > "$PROD_DIR/.env" <<ENVEOF
 POSTGRES_USER=secondlayer
 POSTGRES_PASSWORD=${PG_PASS}
 POSTGRES_DB=secondlayer
@@ -151,7 +151,7 @@ Requires=docker.service
 [Service]
 Type=oneshot
 RemainAfterExit=yes
-WorkingDirectory=${REPO_DIR}/docker
+WorkingDirectory=${PROD_DIR}
 ExecStart=/usr/bin/docker compose -f docker-compose.yml -f docker-compose.hetzner.yml up -d
 ExecStop=/usr/bin/docker compose -f docker-compose.yml -f docker-compose.hetzner.yml down
 TimeoutStartSec=300
@@ -241,4 +241,4 @@ echo "  curl -s localhost:3700/health | jq .     # indexer health"
 echo "  curl -s localhost:3800/health | jq .     # api health"
 echo ""
 echo "Next: provision node server (bitcoind + stacks-node)"
-echo "  See docker/node-server/setup.sh"
+echo "  See docker/hosts/node-server/setup.sh"

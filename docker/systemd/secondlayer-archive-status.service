@@ -5,7 +5,7 @@ Requires=docker.service
 
 [Service]
 Type=oneshot
-EnvironmentFile=-/opt/secondlayer/docker/.env
+EnvironmentFile=-/opt/secondlayer/docker/prod/.env
 ExecStart=/opt/secondlayer/docker/scripts/archive-status.sh
 StandardOutput=append:/var/log/secondlayer-archive-status.log
 StandardError=append:/var/log/secondlayer-archive-status.log

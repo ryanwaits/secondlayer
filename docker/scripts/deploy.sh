@@ -50,7 +50,24 @@ install_host_js_deps() {
 
 install_host_js_deps
 
-cd /opt/secondlayer/docker
+DOCKER_DIR=/opt/secondlayer/docker
+
+# Host env files live beside their compose (docker/prod, docker/hosts/testnet).
+# Moves a pre-regroup file once and leaves a link at the old path, which the
+# installed systemd units still read.
+move_env_beside_compose() {
+	local old="$1" new="$2"
+	if [ -f "$old" ] && [ ! -L "$old" ] && [ ! -e "$new" ]; then
+		mv "$old" "$new"
+		ln -s "$new" "$old"
+		echo "📦 moved $old -> $new (link left at old path)"
+	fi
+}
+move_env_beside_compose "$DOCKER_DIR/.env" "$DOCKER_DIR/prod/.env"
+move_env_beside_compose "$DOCKER_DIR/testnet/.env" "$DOCKER_DIR/hosts/testnet/.env"
+[ -f "$DOCKER_DIR/prod/.env" ] || { echo "ERROR: $DOCKER_DIR/prod/.env missing, refusing to deploy" >&2; exit 1; }
+
+cd "$DOCKER_DIR/prod"
 COMPOSE="docker compose -f docker-compose.yml -f docker-compose.hetzner.yml"
 # This deploy owns only its own compose project. Other projects share the
 # host (the Bitcoin plane runs as `secondlayer-bitcoin`, with its own `migrate`
@@ -69,7 +86,7 @@ remove_oneoffs() {
 
 # Refuse to deploy against husk databases or a de-bound overlay (the
 # bind-vs-named-volume drift class). See scripts/preflight-data.sh.
-./scripts/preflight-data.sh
+"$DOCKER_DIR/scripts/preflight-data.sh"
 
 # Install/refresh the indexer port firewall (source-restricts the publicly
 # published 3700 to the Stacks node — the ingest endpoints have no app-layer
@@ -78,9 +95,9 @@ remove_oneoffs() {
 # Idempotent. Fatal is safe: this runs before any container changes, so
 # stopping here leaves the running stack as it was.
 install_indexer_firewall() {
-	local unit=systemd/secondlayer-firewall.service
+	local unit="$DOCKER_DIR/systemd/secondlayer-firewall.service"
 	local dest=/etc/systemd/system/secondlayer-firewall.service
-	chmod +x scripts/firewall-indexer.sh 2>/dev/null || true
+	chmod +x "$DOCKER_DIR/scripts/firewall-indexer.sh" 2>/dev/null || true
 	if ! cmp -s "$unit" "$dest" 2>/dev/null; then
 		cp "$unit" "$dest" && systemctl daemon-reload
 	fi
@@ -352,7 +369,7 @@ _upsert_env_var() {
 }
 
 pin_deploy_env() {
-  local env_file="/opt/secondlayer/docker/.env"
+  local env_file="/opt/secondlayer/docker/prod/.env"
   if [ -f "$env_file" ]; then
     _upsert_env_var "$env_file" DEPLOY_IMAGE_OWNER "$DEPLOY_IMAGE_OWNER" || true
     _upsert_env_var "$env_file" DEPLOY_IMAGE_TAG "$DEPLOY_IMAGE_TAG" || true
@@ -456,4 +473,4 @@ record_successful_deploy
 
 # Testnet follows the deployed images, detached so it can't affect this deploy.
 systemd-run --no-block --collect -p RuntimeMaxSec=600 --unit=secondlayer-testnet-up \
-  "$PWD/scripts/testnet-up.sh" "$DEPLOY_IMAGE_OWNER" "$DEPLOY_IMAGE_TAG" 2>/dev/null || true
+  "$DOCKER_DIR/scripts/testnet-up.sh" "$DEPLOY_IMAGE_OWNER" "$DEPLOY_IMAGE_TAG" 2>/dev/null || true

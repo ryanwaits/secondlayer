@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Provision the dedicated node server (Hetzner) for bitcoind + stacks-node.
 #
-# Matches live prod (37.27.171.220): 2x NVMe in a RAID1 mirror provisioned by
+# Matches live prod node-server: 2x NVMe in a RAID1 mirror provisioned by
 # Hetzner's installimage (NOT by this script) — md2 → / (~2 TB), md3 → /home
 # (~1.5 TB). bitcoind chainstate lives on /home/bitcoin (md3); stacks-node data
 # on /data/stacks, a dir under / (md2). No LVM, no per-drive purpose split.
@@ -11,7 +11,7 @@
 # firewall, and writes the node config/.env. (The old version formatted raw
 # /dev/nvme*n1 directly, which would destroy the live RAID members — removed.)
 #
-# Usage: bash docker/node-server/setup.sh
+# Usage: bash docker/hosts/node-server/setup.sh
 #
 # Prerequisites:
 #   - Ubuntu 24.04 with the Hetzner RAID1 install (md2 → /, md3 → /home)
@@ -28,7 +28,6 @@ die()  { echo "FATAL: $*" >&2; exit 1; }
 [[ $EUID -ne 0 ]] && die "Must run as root"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
 # ---------------------------------------------------------------------------
 # Prompts

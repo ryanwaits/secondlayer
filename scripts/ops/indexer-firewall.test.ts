@@ -5,7 +5,7 @@ import { join, resolve } from "node:path";
 
 const ROOT = resolve(import.meta.dir, "../..");
 const SCRIPT = join(ROOT, "docker/scripts/firewall-indexer.sh");
-const TESTNET_COMPOSE = join(ROOT, "docker/testnet/docker-compose.yml");
+const TESTNET_COMPOSE = join(ROOT, "docker/hosts/testnet/docker-compose.yml");
 
 const IPTABLES = `#!/bin/bash
 echo "$*" >> "$IPT_LOG"

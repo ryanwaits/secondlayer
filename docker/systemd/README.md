@@ -45,7 +45,7 @@ unassigned ~15 min and was cancelled with zero steps run, which paged red while
 saying nothing about prod, and only ~4 of 48 daily firings materialized. That
 workflow is gone.
 
-Each service sources `/opt/secondlayer/docker/.env` for `DATA_DIR`,
+Each service sources `/opt/secondlayer/docker/prod/.env` for `DATA_DIR`,
 `STORAGEBOX_USER`, `STORAGEBOX_HOST`, `STORAGEBOX_PATH`, `STORAGEBOX_PORT`, and
 `SLACK_WEBHOOK_URL` (health-alert + floor-audit + staging-health).
 Alert scripts post through `scripts/ops/slack-gate.ts`, which classifies with

@@ -8,7 +8,7 @@ Requires=docker.service
 Type=oneshot
 # Optional (leading -): supplies STACKS_NODE_RPC_URL so the script derives the
 # allowed node IP. Falls back to a built-in default if absent.
-EnvironmentFile=-/opt/secondlayer/docker/.env
+EnvironmentFile=-/opt/secondlayer/docker/prod/.env
 ExecStart=/opt/secondlayer/docker/scripts/firewall-indexer.sh
 RemainAfterExit=yes
 

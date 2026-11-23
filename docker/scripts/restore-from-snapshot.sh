@@ -5,7 +5,7 @@
 set -euo pipefail
 
 DATA_DIR="${DATA_DIR:-/opt/secondlayer/data}"
-COMPOSE_DIR="${COMPOSE_DIR:-/opt/secondlayer/docker}"
+COMPOSE_DIR="${COMPOSE_DIR:-/opt/secondlayer/docker/prod}"
 COMPOSE="docker compose -f ${COMPOSE_DIR}/docker-compose.yml -f ${COMPOSE_DIR}/docker-compose.hetzner.yml"
 
 STORAGEBOX_USER="${STORAGEBOX_USER:?STORAGEBOX_USER required}"

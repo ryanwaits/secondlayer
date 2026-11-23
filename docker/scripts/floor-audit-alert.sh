@@ -6,7 +6,7 @@
 # floor regressed above baseline (history went missing) or a new decoder shipped
 # without a recorded baseline.
 #
-# Requires SLACK_WEBHOOK_URL (read from /opt/secondlayer/docker/.env via the
+# Requires SLACK_WEBHOOK_URL (read from /opt/secondlayer/docker/prod/.env via the
 # systemd unit's EnvironmentFile). A dedicated state file dedupes: a floored
 # decoder is a standing condition until it's backfilled + baselined, so it pages
 # once per incident, not every day, and posts an all-clear when it recovers.
@@ -15,7 +15,7 @@ set -uo pipefail
 # shellcheck source=lib/post-slack.sh
 . "$(dirname "$0")/lib/post-slack.sh"
 
-COMPOSE_DIR="${COMPOSE_DIR:-/opt/secondlayer/docker}"
+COMPOSE_DIR="${COMPOSE_DIR:-/opt/secondlayer/docker/prod}"
 DECODER_CONTAINER="${DECODER_CONTAINER:-secondlayer-decoder-1}"
 AUDIT_CMD="${FLOOR_AUDIT_CMD:-bun run packages/indexer/src/decode/floor-audit.ts}"
 # Hard cap so a hung audit can never wedge the systemd oneshot — on timeout the

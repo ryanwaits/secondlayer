@@ -12,7 +12,7 @@ export type DbPlane = "source" | "target" | "both";
  *
  * `satisfies Record<keyof Database, DbPlane>` makes adding a table to `Database`
  * without classifying it here a COMPILE error. This is the single source of
- * truth for the split — `docker/SCHEMA_SPLIT.md` and the cutover script's
+ * truth for the split — `docs/ops/SCHEMA_SPLIT.md` and the cutover script's
  * `CONTROL_TABLES` mirror the `target` set (guarded by `table-plane.test.ts`).
  * Use it to decide which migration helper a table's DDL belongs in
  * (`onControlPlane` for `target`, `onChainPlane` for `source`).

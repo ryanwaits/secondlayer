@@ -20,7 +20,7 @@ export type { BitcoinRpcConfig };
  * into the published `./bitcoin` module instead.
  *
  * The node must run with `-txindex` so `getrawtransaction` can resolve a historical
- * sweep txid (verified on prod: `docker/node-server/bitcoin.conf`).
+ * sweep txid (verified on prod: `docker/hosts/node-server/bitcoin.conf`).
  */
 
 export interface TxConfirmation {

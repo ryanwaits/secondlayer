@@ -5,7 +5,7 @@
 # gaps_detected / degraded stay quiet (auto-backfill still running).
 # curl/HTTP/JSON failure stays quiet (health-alert WARN covers a down indexer).
 #
-# Requires SLACK_WEBHOOK_URL (read from /opt/secondlayer/docker/.env via the
+# Requires SLACK_WEBHOOK_URL (read from /opt/secondlayer/docker/prod/.env via the
 # systemd unit's EnvironmentFile). A dedicated state file dedupes: one page
 # per incident, all-clear on recovery.
 set -uo pipefail

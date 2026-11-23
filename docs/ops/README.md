@@ -2,7 +2,7 @@
 
 ## Architecture
 
-See [Hosts](../PRODUCTION.md#hosts) for every host. The two hosts this file's commands cover:
+See [Hosts](PRODUCTION.md#hosts) for every host. The two hosts this file's commands cover:
 
 | Server | Hardware | SSH | Services |
 |--------|----------|-----|----------|
@@ -19,7 +19,7 @@ The node server pushes Stacks block events to the app server indexer on port 370
 # App server — run from /opt/secondlayer/docker
 COMPOSE="docker compose -f docker-compose.yml -f docker-compose.hetzner.yml"
 
-# Node server — run from /opt/secondlayer/docker/node-server
+# Node server — run from /opt/secondlayer/docker/hosts/node-server
 # Just use: docker compose
 ```
 
@@ -60,7 +60,7 @@ ufw allow from <node-server-ip> to any port 3700
 ```bash
 ssh node-server
 git clone <repo> /opt/secondlayer
-bash /opt/secondlayer/docker/node-server/setup.sh
+bash /opt/secondlayer/docker/hosts/node-server/setup.sh
 # prompts for app server IP
 ```
 
@@ -91,14 +91,14 @@ Full chain sync from block 0. Takes ~10-14 days total. **All steps are manual** 
 
 ```bash
 ssh node-server
-cd /opt/secondlayer/docker/node-server
+cd /opt/secondlayer/docker/hosts/node-server
 docker compose up -d bitcoind
 ```
 
 Monitor progress (~1-3 days to reach block 666050):
 ```bash
 ssh node-server
-RPC_PW=$(grep BITCOIN_RPC_PASSWORD /opt/secondlayer/docker/node-server/.env | cut -d= -f2)
+RPC_PW=$(grep BITCOIN_RPC_PASSWORD /opt/secondlayer/docker/hosts/node-server/.env | cut -d= -f2)
 docker exec secondlayer-bitcoind-1 bitcoin-cli -rpcuser=stacks -rpcpassword=$RPC_PW \
   getblockchaininfo | jq '{blocks,headers,verificationprogress}'
 ```
@@ -119,11 +119,11 @@ TIP_FOLLOWER_ENABLED=false $COMPOSE up -d
 ```bash
 # Verify Bitcoin is past Stacks genesis burn height
 ssh node-server
-RPC_PW=$(grep BITCOIN_RPC_PASSWORD /opt/secondlayer/docker/node-server/.env | cut -d= -f2)
+RPC_PW=$(grep BITCOIN_RPC_PASSWORD /opt/secondlayer/docker/hosts/node-server/.env | cut -d= -f2)
 docker exec secondlayer-bitcoind-1 bitcoin-cli -rpcuser=stacks -rpcpassword=$RPC_PW getblockcount
 # Must be > 666050
 
-cd /opt/secondlayer/docker/node-server
+cd /opt/secondlayer/docker/hosts/node-server
 docker compose up -d stacks-node
 # Bitcoin and Stacks sync in parallel from here (~3-7 days)
 ```
@@ -131,7 +131,7 @@ docker compose up -d stacks-node
 Monitor:
 ```bash
 # Node server
-ssh node-server "cd /opt/secondlayer/docker/node-server && docker compose logs -f stacks-node"
+ssh node-server "cd /opt/secondlayer/docker/hosts/node-server && docker compose logs -f stacks-node"
 
 # App server
 ssh app-server "cd /opt/secondlayer/docker && \
@@ -157,8 +157,8 @@ TIP_FOLLOWER_ENABLED=true $COMPOSE up -d --force-recreate indexer
 
 ```bash
 # Node server: wipe stacks chainstate (check STACKS_DATA_DIR in .env)
-ssh node-server "source /opt/secondlayer/docker/node-server/.env && rm -rf \${STACKS_DATA_DIR}/mainnet \${STACKS_DATA_DIR}/event_observers.sqlite"
-ssh node-server "cd /opt/secondlayer/docker/node-server && docker compose stop stacks-node && docker compose start stacks-node"
+ssh node-server "source /opt/secondlayer/docker/hosts/node-server/.env && rm -rf \${STACKS_DATA_DIR}/mainnet \${STACKS_DATA_DIR}/event_observers.sqlite"
+ssh node-server "cd /opt/secondlayer/docker/hosts/node-server && docker compose stop stacks-node && docker compose start stacks-node"
 
 # App server: truncate DB
 ssh app-server "docker exec secondlayer-postgres-1 psql -U secondlayer -d secondlayer \
@@ -177,8 +177,8 @@ $COMPOSE logs --tail 50
 $COMPOSE logs -f indexer
 
 # Node server
-ssh node-server "cd /opt/secondlayer/docker/node-server && docker compose logs -f stacks-node"
-ssh node-server "cd /opt/secondlayer/docker/node-server && docker compose logs --since 30m bitcoind"
+ssh node-server "cd /opt/secondlayer/docker/hosts/node-server && docker compose logs -f stacks-node"
+ssh node-server "cd /opt/secondlayer/docker/hosts/node-server && docker compose logs --since 30m bitcoind"
 ```
 
 ### Health Checks
@@ -213,7 +213,7 @@ docker exec secondlayer-postgres-1 psql -U secondlayer \
 
 # Bitcoin sync (node server)
 ssh node-server
-RPC_PW=$(grep BITCOIN_RPC_PASSWORD /opt/secondlayer/docker/node-server/.env | cut -d= -f2)
+RPC_PW=$(grep BITCOIN_RPC_PASSWORD /opt/secondlayer/docker/hosts/node-server/.env | cut -d= -f2)
 docker exec secondlayer-bitcoind-1 bitcoin-cli -rpcuser=stacks -rpcpassword=$RPC_PW \
   getblockchaininfo | jq '{blocks,headers,verificationprogress}'
 ```
@@ -270,7 +270,7 @@ $COMPOSE up -d --scale worker=3
 
 # Node server: update stacks-node (edit docker-compose.yml image tag first)
 ssh node-server
-cd /opt/secondlayer/docker/node-server
+cd /opt/secondlayer/docker/hosts/node-server
 docker compose pull stacks-node && docker compose up -d stacks-node
 
 # Node server: full restart
@@ -350,8 +350,8 @@ Prerequisites verified 2026-11-02: Compose 5.6.1 on both hosts;
 **1. Node-server: restore, do not start the node yet**
 
 ```bash
-scp -r docker/node-server-testnet node-server:/opt/secondlayer/docker/
-cp /opt/secondlayer/docker/node-server-testnet/*.service /opt/secondlayer/docker/node-server-testnet/*.timer /etc/systemd/system/
+scp -r docker/hosts/node-server-testnet node-server:/opt/secondlayer/docker/hosts/
+cp /opt/secondlayer/docker/hosts/node-server-testnet/*.service /opt/secondlayer/docker/hosts/node-server-testnet/*.timer /etc/systemd/system/
 systemctl daemon-reload; systemctl enable --now testnet-rpc-firewall testnet-disk-guard.timer
 U=https://archive.hiro.so/testnet/stacks-blockchain; D=/home/stacks-testnet
 mkdir -p $D /home/stacks-testnet-dl; cd /home/stacks-testnet-dl
@@ -374,13 +374,13 @@ cp systemd/secondlayer-testnet-health.* /etc/systemd/system/; systemctl daemon-r
 **3. Node-server: start, watch it catch up**
 
 ```bash
-cd /opt/secondlayer/docker/node-server-testnet && docker compose -p secondlayer-testnet up -d
+cd /opt/secondlayer/docker/hosts/node-server-testnet && docker compose -p secondlayer-testnet up -d
 ```
 
-From app-server, `curl -s 37.27.171.220:21443/v2/info` shows `server_version`
+From app-server, `curl -s <node-server-ip>:21443/v2/info` shows `server_version`
 4.0.5, `network_id` 2147483648, `parent_network_id` 3669344250, tip near
 `api.testnet.hiro.so`, and matching `pox_consensus` at the same burn height.
-Off-host, `nc -z 37.27.171.220 21443` must fail. Catch-up is serial: about
+Off-host, `nc -z <node-server-ip> 21443` must fail. Catch-up is serial: about
 5,000 blocks plus 9,000 per day of snapshot age.
 
 **4. App-server: after the first block**
@@ -389,7 +389,7 @@ Off-host, `nc -z 37.27.171.220 21443` must fail. Catch-up is serial: about
 $C up -d testnet-api testnet-decoder; systemctl enable --now secondlayer-testnet-health.timer
 ```
 
-Check: off-host `curl -m5 65.21.135.94:3701/health` times out; from node-server
+Check: off-host `curl -m5 api.secondlayer.tools:3701/health` times out; from node-server
 it returns 200. `/health/integrity` is `healthy`; `/health`
 `observerJournal.network` is `testnet`. From the workload host with the token:
 `https://api.secondlayer.tools/testnet/v1/streams/tip` returns ~tip; from
@@ -500,10 +500,6 @@ docker/scripts/sl.sh verify raw --against https://archive.secondlayer.tools/late
 
 ### Backup Strategy
 
-This section covers the **shared control-plane DB**. For per-tenant Postgres
-backups (hourly dumps, 7d/30d retention ladder, restore runbook), see
-[`TENANT_BACKUPS.md`](./TENANT_BACKUPS.md).
-
 Three-layer backup system with ~5-minute RPO:
 
 | Schedule | Script | What | Retention |
@@ -611,7 +607,7 @@ curl -s localhost:3700/health/integrity | jq
 
 Bootstrap stacks-node from Hiro's archive (~800-900 GB) instead of syncing from scratch. Note: still need a backfill strategy for the indexer DB.
 
-**Not for the `vm_events` observer.** A Hiro restore skips Clarity execution, so the eval-hook never sees that history. When node-server runs the fork image and collects `"storage"` / `"contract_calls"`, its `STACKS_DATA_DIR` must be the genesis-feeder's own chainstate (or empty disk). Collapse after IBD: [genesis-feeder.md](../../docs/internal/runbook/genesis-feeder.md#after-catch-up-collapse-to-one-hooked-follower). Unhooked `/v2` RPC may still use a Hiro snapshot on a **different** node.
+**Not for the `vm_events` observer.** A Hiro restore skips Clarity execution, so the eval-hook never sees that history. When node-server runs the fork image and collects `"storage"` / `"contract_calls"`, its `STACKS_DATA_DIR` must be the genesis-feeder's own chainstate (or empty disk). Collapse after IBD: [genesis-feeder.md](../internal/runbook/genesis-feeder.md#after-catch-up-collapse-to-one-hooked-follower). Unhooked `/v2` RPC may still use a Hiro snapshot on a **different** node.
 
 ```bash
 ssh node-server
@@ -621,7 +617,7 @@ curl --continue-at - -L -o /tmp/snapshot.tar.zst \
   https://archive.hiro.so/mainnet/stacks-blockchain/mainnet-stacks-blockchain-latest.tar.zst
 
 # 2. Stop stacks-node
-cd /opt/secondlayer/docker/node-server
+cd /opt/secondlayer/docker/hosts/node-server
 docker compose stop stacks-node
 
 # 3. Extract to STACKS_DATA_DIR (check .env — default /data/stacks)
@@ -635,7 +631,7 @@ docker compose start stacks-node
 rm /tmp/snapshot.tar.zst
 ```
 
-> **CRITICAL:** `STACKS_DATA_DIR` in `/opt/secondlayer/docker/node-server/.env` must match the extraction path. A mismatch causes stacks-node to find an empty data dir and re-sync from genesis.
+> **CRITICAL:** `STACKS_DATA_DIR` in `/opt/secondlayer/docker/hosts/node-server/.env` must match the extraction path. A mismatch causes stacks-node to find an empty data dir and re-sync from genesis.
 >
 > First boot after snapshot restore runs a sortDB migration — this is normal and takes a few minutes. Do not kill the process.
 
@@ -650,7 +646,7 @@ rm /tmp/snapshot.tar.zst
    leave `["*"]` — `"storage"` / `"contract_calls"` panic on start. After the
    eval-hook image is on this host, those keys add `vm_events`; flipping them
    on a Hiro-restored disk does **not** backfill history. Feeder then collapse:
-   [genesis-feeder.md](../../docs/internal/runbook/genesis-feeder.md). Do not
+   [genesis-feeder.md](../internal/runbook/genesis-feeder.md). Do not
    flip the keys as a “fix” for empty `vm_events`. `"state_writes"` (same
    image) records each block's named writes; `state`-level subgraphs read them
    once the instance holds them from the subgraph's `startBlock`, and
@@ -668,7 +664,7 @@ ssh app-server "ufw status"   # must have node-server IP → 3700
 Upgrade stacks-node image tag in `docker-compose.yml`, then:
 ```bash
 ssh node-server
-cd /opt/secondlayer/docker/node-server
+cd /opt/secondlayer/docker/hosts/node-server
 docker compose pull stacks-node && docker compose up -d stacks-node
 ```
 
@@ -676,7 +672,7 @@ docker compose pull stacks-node && docker compose up -d stacks-node
 
 ```bash
 ssh node-server
-cd /opt/secondlayer/docker/node-server
+cd /opt/secondlayer/docker/hosts/node-server
 docker compose stop stacks-node
 rm /data/stacks/event_observers.sqlite
 docker compose start stacks-node

@@ -80,7 +80,7 @@ services:
   # own so this host never shares a backup chain with another Postgres.
   walg-backup:
     build:
-      context: ../walg
+      context: ../../walg
     restart: unless-stopped
     depends_on:
       postgres:

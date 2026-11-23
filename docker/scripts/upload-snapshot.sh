@@ -5,7 +5,7 @@
 set -euo pipefail
 
 # Source env vars when running from cron
-ENV_FILE="${ENV_FILE:-/opt/secondlayer/docker/.env}"
+ENV_FILE="${ENV_FILE:-/opt/secondlayer/docker/prod/.env}"
 if [ -f "$ENV_FILE" ]; then
   set -a
   source "$ENV_FILE"

@@ -67,7 +67,7 @@ import { apiTelemetry } from "./telemetry/api.ts";
 /** Routes that run an operator's workload: deploying and executing handler
  *  code, delivering webhooks. Mounted only on a self-hosted (non-platform)
  *  instance; hosted serves them from each account's own stack, routed by
- *  Caddy (`docker/Caddyfile` `@workload`). */
+ *  Caddy (`docker/prod/Caddyfile` `@workload`). */
 const WORKLOAD_PATHS = [
 	"/api/subgraphs",
 	"/api/subgraphs/*",
