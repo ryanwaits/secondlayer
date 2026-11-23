@@ -249,6 +249,9 @@ export async function handleChainReorg(
 		}
 
 		if (bySub.size > 0) {
+			const forkTag = scope?.orphanedBlockHash
+				? `:${scope.orphanedBlockHash}`
+				: "";
 			const rows: InsertWebhookOutbox[] = [];
 			for (const [webhookId, entries] of bySub) {
 				const truncated = entries.length > MAX_ORPHANED_PER_SUB;
@@ -274,8 +277,8 @@ export async function handleChainReorg(
 					// same numeric height can't dedup each other.
 					dedup_key:
 						chain === "bitcoin"
-							? `btcreorg:${webhookId}:${forkHeight}`
-							: `chainreorg:${webhookId}:${forkHeight}`,
+							? `btcreorg:${webhookId}:${forkHeight}${forkTag}`
+							: `chainreorg:${webhookId}:${forkHeight}${forkTag}`,
 				});
 			}
 			await trx

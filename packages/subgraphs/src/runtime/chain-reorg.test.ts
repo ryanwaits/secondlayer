@@ -475,6 +475,43 @@ describe("handleChainReorg scoped to the orphaned blocks", () => {
 			["0xlegacy", "0xlegacy101", 101],
 		]);
 	});
+
+	it("emits distinct rollbacks for two forks at the same height and deduplicates a replay of the same fork", async () => {
+		const sub = await makeSub();
+		await insertApply(sub, 100, "0xtxA", "delivered", {
+			blockHash: "0xforkA",
+		});
+		await handleChainReorg(100, db, "stacks", {
+			orphanedBlockHash: "0xforkA",
+			orphanedToHeight: 100,
+		});
+
+		await insertApply(sub, 100, "0xtxB", "delivered", {
+			blockHash: "0xforkB",
+		});
+		await handleChainReorg(100, db, "stacks", {
+			orphanedBlockHash: "0xforkB",
+			orphanedToHeight: 100,
+		});
+
+		const rollbacks = (await rows(sub)).filter(
+			(r) => r.event_type === "chain.reorg.rollback",
+		);
+		expect(rollbacks).toHaveLength(2);
+		expect(rollbacks.map((r) => r.dedup_key).sort()).toEqual([
+			`chainreorg:${sub}:100:0xforkA`,
+			`chainreorg:${sub}:100:0xforkB`,
+		]);
+
+		await handleChainReorg(100, db, "stacks", {
+			orphanedBlockHash: "0xforkB",
+			orphanedToHeight: 100,
+		});
+		const afterReplay = (await rows(sub)).filter(
+			(r) => r.event_type === "chain.reorg.rollback",
+		);
+		expect(afterReplay).toHaveLength(2);
+	});
 });
 
 describe("reorgScope", () => {
