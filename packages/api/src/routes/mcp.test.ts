@@ -48,6 +48,7 @@ const HOSTED_TOOLS = [
 	"index_ft_transfers",
 	"index_nft_transfers",
 	"index_print_schema",
+	"index_state_writes",
 	"index_transactions",
 	"streams_dumps",
 	"streams_tip",
