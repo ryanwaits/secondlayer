@@ -2,10 +2,13 @@ import {
 	SUBGRAPH_STREAM_BATCH_ROWS,
 	SUBGRAPH_STREAM_POLL_MS,
 } from "@secondlayer/platform/billing/prices";
+import { logger } from "@secondlayer/shared";
 import type { Subgraph } from "@secondlayer/shared/db";
 import { getRawClient } from "@secondlayer/shared/db";
+import { RateLimitError } from "@secondlayer/shared/errors";
 import type { Context } from "hono";
 import { streamSSE } from "hono/streaming";
+import { getSlotCounter } from "../lib/slot-counter.ts";
 import {
 	InvalidColumnError,
 	NonNumericColumnError,
@@ -223,11 +226,27 @@ export async function handleRowById(
 	return c.json({ data: result[0] });
 }
 
-export function handleTableStream(
+export type TableStreamOptions = {
+	pollMs?: number;
+	heartbeatMs?: number;
+	maxAgeMs?: number;
+	maxConnections?: number;
+};
+
+const SUBGRAPH_STREAM_HEARTBEAT_MS = 20_000;
+const SUBGRAPH_STREAM_MAX_CONNECTIONS = 16;
+const SUBGRAPH_STREAM_SLOT_TTL_MS = 60 * 60_000;
+const SUBGRAPH_STREAM_SLOT_KEY = "subgraph-sse";
+
+export async function handleTableStream(
 	c: Context,
 	subgraph: Subgraph,
 	tableName: string,
-): Response {
+	opts: TableStreamOptions = {},
+): Promise<Response> {
+	const pollMs = opts.pollMs ?? SUBGRAPH_STREAM_POLL_MS;
+	const heartbeatMs = opts.heartbeatMs ?? SUBGRAPH_STREAM_HEARTBEAT_MS;
+	const maxConnections = opts.maxConnections ?? SUBGRAPH_STREAM_MAX_CONNECTIONS;
 	const tableDef = getSubgraphSchema(subgraph)[tableName];
 	if (!tableDef) {
 		return c.json({ error: "Table not found", code: "TABLE_NOT_FOUND" }, 404);
@@ -252,62 +271,104 @@ export function handleTableStream(
 			? Number(sinceRaw)
 			: null;
 
+	const releaseSlot = await getSlotCounter().acquire(
+		SUBGRAPH_STREAM_SLOT_KEY,
+		maxConnections,
+		SUBGRAPH_STREAM_SLOT_TTL_MS,
+	);
+	if (!releaseSlot) {
+		c.header("Retry-After", "5");
+		throw new RateLimitError(
+			`This instance holds ${maxConnections} live subgraph streams. Close one and retry.`,
+		);
+	}
+	let released = false;
+	const release = async () => {
+		if (released) return;
+		released = true;
+		await releaseSlot();
+	};
+
 	return streamSSE(c, async (stream) => {
-		// Seed the keyset cursor. No `since` → tail from the current max _id.
-		// With `?since`, seed from MIN(_id) at/after that block height so we jump
-		// straight to the replay window instead of scanning from _id=0 on every
-		// poll. The in-loop `_block_height >= since` filter stays as a correctness
-		// guard (reorg reprocessing can insert a lower-height row at a higher _id).
-		let cursor = 0;
-		if (since == null) {
-			const r = await querySubgraph(
-				subgraph,
-				`SELECT COALESCE(MAX("_id"), 0) AS m FROM ${tbl}`,
-			);
-			cursor = Number((r[0] as { m?: number | string })?.m ?? 0);
-		} else {
-			const r = await querySubgraph(
-				subgraph,
-				`SELECT MIN("_id") AS m FROM ${tbl} WHERE "_block_height" >= $1`,
-				[since],
-			);
-			const minId = (r[0] as { m?: number | string | null })?.m;
-			if (minId != null) {
-				cursor = Number(minId) - 1;
-			} else {
-				const max = await querySubgraph(
+		const startedAt = Date.now();
+		try {
+			// Seed the keyset cursor. No `since` → tail from the current max _id.
+			// With `?since`, seed from MIN(_id) at/after that block height so we jump
+			// straight to the replay window instead of scanning from _id=0 on every
+			// poll. The in-loop `_block_height >= since` filter stays as a correctness
+			// guard (reorg reprocessing can insert a lower-height row at a higher _id).
+			let cursor = 0;
+			if (since == null) {
+				const r = await querySubgraph(
 					subgraph,
 					`SELECT COALESCE(MAX("_id"), 0) AS m FROM ${tbl}`,
 				);
-				cursor = Number((max[0] as { m?: number | string })?.m ?? 0);
+				cursor = Number((r[0] as { m?: number | string })?.m ?? 0);
+			} else {
+				const r = await querySubgraph(
+					subgraph,
+					`SELECT MIN("_id") AS m FROM ${tbl} WHERE "_block_height" >= $1`,
+					[since],
+				);
+				const minId = (r[0] as { m?: number | string | null })?.m;
+				if (minId != null) {
+					cursor = Number(minId) - 1;
+				} else {
+					const max = await querySubgraph(
+						subgraph,
+						`SELECT COALESCE(MAX("_id"), 0) AS m FROM ${tbl}`,
+					);
+					cursor = Number((max[0] as { m?: number | string })?.m ?? 0);
+				}
 			}
-		}
-		let lastBeat = Date.now();
-		while (!stream.aborted) {
-			const params: unknown[] = [];
-			const conds = buildWhereConditions(parsed, params);
-			params.push(cursor);
-			conds.push(`"_id" > $${params.length}`);
-			if (since != null) {
-				params.push(since);
-				conds.push(`"_block_height" >= $${params.length}`);
+			let lastBeat = Date.now();
+			while (!stream.aborted) {
+				if (opts.maxAgeMs != null && Date.now() - startedAt >= opts.maxAgeMs) {
+					await stream.writeSSE({
+						event: "end",
+						data: JSON.stringify({ reason: "max_age" }),
+					});
+					return;
+				}
+				const params: unknown[] = [];
+				const conds = buildWhereConditions(parsed, params);
+				params.push(cursor);
+				conds.push(`"_id" > $${params.length}`);
+				if (since != null) {
+					params.push(since);
+					conds.push(`"_block_height" >= $${params.length}`);
+				}
+				const text = `SELECT * FROM ${tbl} WHERE ${conds.join(" AND ")} ORDER BY "_id" ASC LIMIT ${SUBGRAPH_STREAM_BATCH_ROWS}`;
+				const rows = await querySubgraph(subgraph, text, params);
+				for (const row of rows) {
+					const r = row as Record<string, unknown>;
+					await stream.writeSSE({ data: JSON.stringify(r), id: String(r._id) });
+					cursor = Math.max(cursor, Number(r._id));
+				}
+				if (rows.length > 0) {
+					lastBeat = Date.now();
+				} else if (Date.now() - lastBeat > heartbeatMs) {
+					// Heartbeat (custom event so SDK onmessage ignores it) keeps the
+					// connection + any proxies alive during idle stretches.
+					await stream.writeSSE({ event: "ping", data: "" });
+					lastBeat = Date.now();
+				}
+				await stream.sleep(pollMs);
 			}
-			const text = `SELECT * FROM ${tbl} WHERE ${conds.join(" AND ")} ORDER BY "_id" ASC LIMIT ${SUBGRAPH_STREAM_BATCH_ROWS}`;
-			const rows = await querySubgraph(subgraph, text, params);
-			for (const row of rows) {
-				const r = row as Record<string, unknown>;
-				await stream.writeSSE({ data: JSON.stringify(r), id: String(r._id) });
-				cursor = Math.max(cursor, Number(r._id));
-			}
-			if (rows.length > 0) {
-				lastBeat = Date.now();
-			} else if (Date.now() - lastBeat > 20_000) {
-				// Heartbeat (custom event so SDK onmessage ignores it) keeps the
-				// connection + any proxies alive during idle stretches.
-				await stream.writeSSE({ event: "ping", data: "" });
-				lastBeat = Date.now();
-			}
-			await stream.sleep(SUBGRAPH_STREAM_POLL_MS);
+		} catch (err) {
+			logger.warn("Subgraph table stream failed", {
+				subgraph: subgraph.name,
+				table: tableName,
+				error: err instanceof Error ? err.message : String(err),
+			});
+			await stream
+				.writeSSE({
+					event: "error",
+					data: JSON.stringify({ error: "stream_error" }),
+				})
+				.catch(() => {});
+		} finally {
+			await release();
 		}
 	});
 }

@@ -360,10 +360,10 @@ app.get("/:subgraphName/:tableName/aggregate", async (c) => {
 	return handleTableAggregate(c, subgraph, tableName);
 });
 
-app.get("/:subgraphName/:tableName/stream", (c) => {
+app.get("/:subgraphName/:tableName/stream", async (c) => {
 	const { subgraphName, tableName } = c.req.param();
 	const subgraph = requireReadableSubgraph(subgraphName);
-	return handleTableStream(c, subgraph, tableName);
+	return await handleTableStream(c, subgraph, tableName);
 });
 
 app.get("/:subgraphName/:tableName/:id", async (c) => {
