@@ -656,6 +656,28 @@ export const trigger = {
 		type: "print_event",
 		...f,
 	}),
+	nestedContractCall: (
+		f: TriggerArgs<"nested_contract_call"> = {},
+	): ChainTrigger => ({
+		type: "nested_contract_call",
+		...f,
+	}),
+	varSet: (f: TriggerArgs<"var_set"> = {}): ChainTrigger => ({
+		type: "var_set",
+		...f,
+	}),
+	mapSet: (f: TriggerArgs<"map_set"> = {}): ChainTrigger => ({
+		type: "map_set",
+		...f,
+	}),
+	mapInsert: (f: TriggerArgs<"map_insert"> = {}): ChainTrigger => ({
+		type: "map_insert",
+		...f,
+	}),
+	mapDelete: (f: TriggerArgs<"map_delete"> = {}): ChainTrigger => ({
+		type: "map_delete",
+		...f,
+	}),
 	sbtcDeposit: (f: TriggerArgs<"sbtc_deposit"> = {}): ChainTrigger => ({
 		type: "sbtc_deposit",
 		...f,

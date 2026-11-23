@@ -147,6 +147,23 @@ describe("print_event where", () => {
 		expect(r.success).toBe(true);
 	});
 
+	it("every chain trigger type has a trigger.* builder that validates", () => {
+		const builders = trigger as Record<string, () => { type: string }>;
+		for (const type of CHAIN_TRIGGER_TYPES) {
+			const name = type.replace(/_([a-z])/g, (_, c: string) => c.toUpperCase());
+			expect(builders[name]?.().type).toBe(type);
+			expect(ChainTriggerSchema.safeParse(builders[name]()).success).toBe(true);
+		}
+	});
+
+	it("trigger.mapSet scopes a state trigger to one contract map", () => {
+		expect(trigger.mapSet({ contractId: "SP1.pool", map: "reserve" })).toEqual({
+			type: "map_set",
+			contractId: "SP1.pool",
+			map: "reserve",
+		});
+	});
+
 	it("trigger.printEvent carries where onto the wire trigger", () => {
 		expect(
 			trigger.printEvent({ contractId: POX5, where: { cycle: "112" } }),
