@@ -1,5 +1,13 @@
 # @secondlayer/api
 
+## 1.64.21
+
+### Patch Changes
+
+- Updated dependencies [3bd52dc]
+  - @secondlayer/shared@19.1.1
+  - @secondlayer/platform@0.10.33
+
 ## 1.64.20
 
 ### Patch Changes

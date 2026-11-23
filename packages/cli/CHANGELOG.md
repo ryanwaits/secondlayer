@@ -1,5 +1,13 @@
 # @secondlayer/cli
 
+## 24.1.2
+
+### Patch Changes
+
+- 3bd52dc: `sl verify --counts` and `sl repair` count child rows with a plain count instead of building a range digest, so busy ranges no longer hit Postgres's 1 GB string limit.
+- Updated dependencies [3bd52dc]
+  - @secondlayer/shared@19.1.1
+
 ## 24.1.1
 
 ### Patch Changes
