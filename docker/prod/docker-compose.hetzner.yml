@@ -23,7 +23,7 @@ x-walg-environment: &walg-environment
   WALG_COMPRESSION_METHOD: zstd
   PGPORT: "5432"
   PGUSER: ${POSTGRES_USER:-secondlayer}
-  PGPASSWORD: ${POSTGRES_PASSWORD:-secondlayer}
+  PGPASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
   # Must equal Postgres's own data_directory — wal-g backup-push refuses if
   # the path differs from what Postgres reports. So mount at the same path.
   PGDATA: /var/lib/postgresql/data

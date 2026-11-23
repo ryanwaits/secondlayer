@@ -6,7 +6,7 @@ services:
     image: postgres:17-alpine
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-secondlayer}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-secondlayer}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB:-secondlayer}
     volumes:
       # The chain data (100s of GB) lives here. FOOTGUN: do NOT `docker compose
@@ -44,7 +44,7 @@ services:
     image: postgres:17-alpine
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-secondlayer}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-secondlayer}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_PLATFORM_DB:-secondlayer_platform}
     volumes:
       # Local/OSS default — prod overrides via the hetzner overlay (see above).
@@ -85,7 +85,7 @@ services:
       # collapsing back to one DB. The LISTEN/NOTIFY listener is split-aware (binds
       # SOURCE/TARGET per channel via queue/listener.ts), so blanking is safe.
       # `-` (not `:-`) keeps an explicit empty value; unset → single-DB default.
-      DATABASE_URL: ${DATABASE_URL-postgres://${POSTGRES_USER:-secondlayer}:${POSTGRES_PASSWORD:-secondlayer}@postgres:5432/${POSTGRES_DB:-secondlayer}}
+      DATABASE_URL: ${DATABASE_URL-postgres://${POSTGRES_USER:-secondlayer}:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-secondlayer}}
       # Source/target split (see docs/ops/SCHEMA_SPLIT.md): unset → both resolve to
       # DATABASE_URL (single DB, no behavior change). Set at cutover.
       SOURCE_DATABASE_URL: ${SOURCE_DATABASE_URL:-}
@@ -117,7 +117,7 @@ services:
       # collapsing back to one DB. The LISTEN/NOTIFY listener is split-aware (binds
       # SOURCE/TARGET per channel via queue/listener.ts), so blanking is safe.
       # `-` (not `:-`) keeps an explicit empty value; unset → single-DB default.
-      DATABASE_URL: ${DATABASE_URL-postgres://${POSTGRES_USER:-secondlayer}:${POSTGRES_PASSWORD:-secondlayer}@postgres:5432/${POSTGRES_DB:-secondlayer}}
+      DATABASE_URL: ${DATABASE_URL-postgres://${POSTGRES_USER:-secondlayer}:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-secondlayer}}
       # Source/target split (see docs/ops/SCHEMA_SPLIT.md): unset → both resolve to
       # DATABASE_URL (single DB, no behavior change). Set at cutover.
       SOURCE_DATABASE_URL: ${SOURCE_DATABASE_URL:-}
@@ -253,7 +253,7 @@ services:
       # collapsing back to one DB. The LISTEN/NOTIFY listener is split-aware (binds
       # SOURCE/TARGET per channel via queue/listener.ts), so blanking is safe.
       # `-` (not `:-`) keeps an explicit empty value; unset → single-DB default.
-      DATABASE_URL: ${DATABASE_URL-postgres://${POSTGRES_USER:-secondlayer}:${POSTGRES_PASSWORD:-secondlayer}@postgres:5432/${POSTGRES_DB:-secondlayer}}
+      DATABASE_URL: ${DATABASE_URL-postgres://${POSTGRES_USER:-secondlayer}:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-secondlayer}}
       # Source/target split (see docs/ops/SCHEMA_SPLIT.md): unset → both resolve to
       # DATABASE_URL (single DB, no behavior change). Set at cutover.
       SOURCE_DATABASE_URL: ${SOURCE_DATABASE_URL:-}
@@ -320,7 +320,7 @@ services:
       # collapsing back to one DB. The LISTEN/NOTIFY listener is split-aware (binds
       # SOURCE/TARGET per channel via queue/listener.ts), so blanking is safe.
       # `-` (not `:-`) keeps an explicit empty value; unset → single-DB default.
-      DATABASE_URL: ${DATABASE_URL-postgres://${POSTGRES_USER:-secondlayer}:${POSTGRES_PASSWORD:-secondlayer}@postgres:5432/${POSTGRES_DB:-secondlayer}}
+      DATABASE_URL: ${DATABASE_URL-postgres://${POSTGRES_USER:-secondlayer}:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-secondlayer}}
       # Source/target split (see docs/ops/SCHEMA_SPLIT.md): unset → both resolve to
       # DATABASE_URL (single DB, no behavior change). Set at cutover.
       SOURCE_DATABASE_URL: ${SOURCE_DATABASE_URL:-}
@@ -391,7 +391,7 @@ services:
       # collapsing back to one DB. The LISTEN/NOTIFY listener is split-aware (binds
       # SOURCE/TARGET per channel via queue/listener.ts), so blanking is safe.
       # `-` (not `:-`) keeps an explicit empty value; unset → single-DB default.
-      DATABASE_URL: ${DATABASE_URL-postgres://${POSTGRES_USER:-secondlayer}:${POSTGRES_PASSWORD:-secondlayer}@postgres:5432/${POSTGRES_DB:-secondlayer}}
+      DATABASE_URL: ${DATABASE_URL-postgres://${POSTGRES_USER:-secondlayer}:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-secondlayer}}
       # Source/target split (see docs/ops/SCHEMA_SPLIT.md): unset → both resolve to
       # DATABASE_URL (single DB, no behavior change). Set at cutover.
       SOURCE_DATABASE_URL: ${SOURCE_DATABASE_URL:-}
