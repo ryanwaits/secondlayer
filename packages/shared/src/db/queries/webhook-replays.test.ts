@@ -8,6 +8,7 @@ import {
 	finalizeReplays,
 	finishScan,
 	progressOf,
+	restartReplay,
 } from "./webhook-replays.ts";
 import { createWebhook } from "./webhooks.ts";
 
@@ -244,5 +245,53 @@ describe.skipIf(!HAS_DB)("replay scan transitions", () => {
 		expect(row.status).toBe("failed");
 		expect(row.error).toBe("boom");
 		expect(row.finished_at).not.toBeNull();
+	});
+});
+
+describe.skipIf(!HAS_DB)("restartReplay", () => {
+	const db = HAS_DB ? getDb() : (null as never);
+	const accountId = randomUUID();
+	const webhookIds: string[] = [];
+
+	afterAll(async () => {
+		if (webhookIds.length > 0)
+			await db.deleteFrom("webhooks").where("id", "in", webhookIds).execute();
+	});
+
+	async function webhookWithReplay(status: "done" | "running") {
+		process.env.SECONDLAYER_SECRETS_KEY ??= "0".repeat(64);
+		const { webhook } = await createWebhook(db, {
+			accountId,
+			name: `restart-${randomUUID().slice(0, 8)}`,
+			triggers: [{ type: "stx_transfer" }],
+			url: "https://hooks.example.dev/restart",
+		});
+		webhookIds.push(webhook.id);
+		const id = randomUUID().replace(/-/g, "").slice(0, 16);
+		await db
+			.insertInto("webhook_replays")
+			.values({
+				id,
+				webhook_id: webhook.id,
+				from_block: 1,
+				to_block: 2,
+				status,
+			})
+			.execute();
+		return { webhookId: webhook.id, id };
+	}
+
+	test("re-opens a settled replay of its own webhook only", async () => {
+		const mine = await webhookWithReplay("done");
+		const other = await webhookWithReplay("done");
+		expect(await restartReplay(db, other.webhookId, mine.id)).toBe(false);
+		expect(await restartReplay(db, mine.webhookId, mine.id)).toBe(true);
+		expect(await restartReplay(db, mine.webhookId, mine.id)).toBe(false);
+		const row = await db
+			.selectFrom("webhook_replays")
+			.select("status")
+			.where("id", "=", mine.id)
+			.executeTakeFirstOrThrow();
+		expect(row.status).toBe("running");
 	});
 });

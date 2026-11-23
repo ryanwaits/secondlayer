@@ -23,7 +23,7 @@ import { notReorgOrphaned } from "./webhooks.ts";
 /**
  * Replay lifecycle. Any settled or running replay re-enters `scanning` when
  * its range is replayed again ({@link beginReplay}); a settled one re-enters
- * `running` when its dead rows are requeued.
+ * `running` when its dead rows are requeued ({@link restartReplay}).
  */
 export const WEBHOOK_REPLAY_MACHINE: Machine<WebhookReplayStatus> =
 	defineMachine({
@@ -177,6 +177,29 @@ export async function failScan(
 	const row = await transitionReplay(db, id, ["scanning"], "failed", {
 		error,
 		finished_at: sql`now()`,
+	});
+	return row !== null;
+}
+
+/** Re-open a settled replay of `webhookId` once its dead rows are requeued.
+ *  Returns false when the replay belongs to another webhook, is gone, or is
+ *  still scanning or running. */
+export async function restartReplay(
+	db: Kysely<Database>,
+	webhookId: string,
+	id: string,
+): Promise<boolean> {
+	const owned = await db
+		.selectFrom("webhook_replays")
+		.select("id")
+		.where("id", "=", id)
+		.where("webhook_id", "=", webhookId)
+		.executeTakeFirst();
+	if (!owned) return false;
+	const row = await transitionReplay(db, id, ["done", "failed"], "running", {
+		finished_at: null,
+		delivered: null,
+		gave_up: null,
 	});
 	return row !== null;
 }

@@ -8,6 +8,7 @@ import {
 	listReplays,
 	listWebhookReplays,
 	readReplay,
+	restartReplay,
 } from "@secondlayer/shared/db/queries/webhook-replays";
 import {
 	createWebhook,
@@ -1092,19 +1093,13 @@ app.post("/:id/dead/requeue", async (c) => {
 	const requeued = Number((await q.executeTakeFirst()).numUpdatedRows ?? 0);
 
 	if (replayId && requeued > 0) {
-		await db
-			.updateTable("webhook_replays")
-			.set({
-				status: "running",
-				finished_at: null,
-				delivered: null,
-				gave_up: null,
-			})
-			.where("id", "=", replayId)
-			.where("webhook_id", "=", sub.id)
-			// Only a settled replay restarts: never flip one that is still scanning.
-			.where("status", "in", ["done", "failed"])
-			.execute();
+		const restarted = await restartReplay(db, sub.id, replayId);
+		if (!restarted) {
+			logger.info("Requeued dead rows of a replay that is not settled", {
+				webhookId: sub.id,
+				replayId,
+			});
+		}
 	}
 	return c.json({ requeued });
 });
