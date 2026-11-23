@@ -1507,7 +1507,14 @@ export interface WebhookOutboxTable {
 	created_at: Generated<Date>;
 }
 
-export type WebhookReplayStatus = "scanning" | "running" | "done" | "failed";
+/** Mirrored by the CHECK on `webhook_replays.status`. */
+export const WEBHOOK_REPLAY_STATUSES = [
+	"scanning",
+	"running",
+	"done",
+	"failed",
+] as const;
+export type WebhookReplayStatus = (typeof WEBHOOK_REPLAY_STATUSES)[number];
 
 export interface WebhookReplaysTable {
 	id: string;

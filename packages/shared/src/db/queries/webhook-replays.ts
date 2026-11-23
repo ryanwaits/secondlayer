@@ -1,6 +1,12 @@
 import { type Kysely, sql } from "kysely";
 import type { ReplayProgress } from "../../schemas/webhooks.ts";
-import type { Database, WebhookReplay } from "../types.ts";
+import { type Machine, casTransition, defineMachine } from "../transition.ts";
+import {
+	type Database,
+	WEBHOOK_REPLAY_STATUSES,
+	type WebhookReplay,
+	type WebhookReplayStatus,
+} from "../types.ts";
 import { notReorgOrphaned } from "./webhooks.ts";
 
 /**
@@ -13,6 +19,40 @@ import { notReorgOrphaned } from "./webhooks.ts";
  * has no index on `replay_id` on purpose). Rows that gave up are counted once,
  * when the replay finalizes.
  */
+
+/**
+ * Replay lifecycle. Any settled or running replay re-enters `scanning` when
+ * its range is replayed again ({@link beginReplay}); a settled one re-enters
+ * `running` when its dead rows are requeued.
+ */
+export const WEBHOOK_REPLAY_MACHINE: Machine<WebhookReplayStatus> =
+	defineMachine({
+		states: WEBHOOK_REPLAY_STATUSES,
+		transitions: {
+			scanning: ["running", "failed"],
+			running: ["done", "scanning"],
+			done: ["running", "scanning"],
+			failed: ["running", "scanning"],
+		},
+	});
+
+function transitionReplay(
+	db: Kysely<Database>,
+	id: string,
+	from: readonly WebhookReplayStatus[],
+	to: WebhookReplayStatus,
+	set: Record<string, unknown>,
+): Promise<WebhookReplay | null> {
+	for (const state of from) WEBHOOK_REPLAY_MACHINE.assert(state, to);
+	return casTransition<WebhookReplayStatus, WebhookReplay>(db, {
+		table: "webhook_replays",
+		id,
+		from,
+		to,
+		set,
+		stampUpdatedAt: false,
+	});
+}
 
 /** A `scanning` row older than this is a crashed process, not a live scan. */
 const STALE_SCAN_MINUTES = 30;
@@ -122,17 +162,11 @@ export async function finishScan(
 	id: string,
 	counts: { scanned: number; enqueued: number },
 ): Promise<boolean> {
-	const result = await db
-		.updateTable("webhook_replays")
-		.set({
-			status: "running",
-			scanned_count: counts.scanned,
-			enqueued_count: sql`enqueued_count + ${counts.enqueued}`,
-		})
-		.where("id", "=", id)
-		.where("status", "=", "scanning")
-		.executeTakeFirst();
-	return Number(result.numUpdatedRows ?? 0) > 0;
+	const row = await transitionReplay(db, id, ["scanning"], "running", {
+		scanned_count: counts.scanned,
+		enqueued_count: sql`enqueued_count + ${counts.enqueued}`,
+	});
+	return row !== null;
 }
 
 export async function failScan(
@@ -140,13 +174,11 @@ export async function failScan(
 	id: string,
 	error: string,
 ): Promise<boolean> {
-	const result = await db
-		.updateTable("webhook_replays")
-		.set({ status: "failed", error, finished_at: sql`now()` })
-		.where("id", "=", id)
-		.where("status", "=", "scanning")
-		.executeTakeFirst();
-	return Number(result.numUpdatedRows ?? 0) > 0;
+	const row = await transitionReplay(db, id, ["scanning"], "failed", {
+		error,
+		finished_at: sql`now()`,
+	});
+	return row !== null;
 }
 
 /** Outbox rows of this replay still waiting to be delivered or to give up. */
@@ -213,19 +245,12 @@ async function progressWithFinalize(
 	if (pending > 0) return progressOf(record, pending);
 
 	const dead = await deadCount(db, record.webhook_id, record.id);
-	const finalized = await db
-		.updateTable("webhook_replays")
-		.set({
-			status: "done",
-			finished_at: sql`now()`,
-			total: sql`enqueued_count`,
-			gave_up: dead,
-			delivered: sql`enqueued_count - ${dead}`,
-		})
-		.where("id", "=", record.id)
-		.where("status", "=", "running")
-		.returningAll()
-		.executeTakeFirst();
+	const finalized = await transitionReplay(db, record.id, ["running"], "done", {
+		finished_at: sql`now()`,
+		total: sql`enqueued_count`,
+		gave_up: dead,
+		delivered: sql`enqueued_count - ${dead}`,
+	});
 	if (finalized) return progressOf(finalized, 0);
 	const fresh = await db
 		.selectFrom("webhook_replays")
