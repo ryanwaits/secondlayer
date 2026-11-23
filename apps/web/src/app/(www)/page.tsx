@@ -31,8 +31,8 @@ export const metadata: Metadata = socialMeta({
 /** Longer hero lines. The short nav line lives in PRODUCTS. */
 const SPINE_LINE: Record<(typeof PRODUCTS)[number]["noun"], string> = {
 	Archive: "Signed history. Check your copy free, repair only what's broken.",
-	Streams: "Every event in order. You hold the cursor.",
-	Index: "Typed rows from genesis, filtered before they cost you.",
+	Streams: "Exactly what the Stacks node emitted, in order, from any block.",
+	Index: "Every Stacks event, already decoded, from block 1.",
 	Subgraphs: "Your contract, as a table you query.",
 	Webhooks: "Your server, told first. Signed, retried, logged.",
 };
@@ -205,7 +205,7 @@ export function HomeView() {
 				<div className="shell">
 					<div className="sec-head">
 						<Eyebrow noun="Datasets" />
-						<h2>Data nobody else decodes.</h2>
+						<h2>Data you can't get anywhere else on Stacks.</h2>
 						<p className="lede">Same rows, same price as everything else.</p>
 					</div>
 					<div className="next-cols">
@@ -243,24 +243,41 @@ export function HomeView() {
 							</div>
 						</div>
 						<div className="next-col">
-							<StatusDot state="soon" />
+							<StatusDot state="live" />
 							<p>
 								<span id="clarity-state-writes">
-									<ChainLink chain="clarity">Clarity</ChainLink> contract state:
-									every map and variable write, including inner contract calls.
+									Know what changed in any{" "}
+									<ChainLink
+										chain="clarity"
+										href="/docs/guides/read-contract-state"
+									>
+										Clarity
+									</ChainLink>{" "}
+									contract, when, and who changed it. From block 1. Nowhere else
+									on Stacks.
 								</span>
 							</p>
 							<div className="next-example">
 								<RowsTable
 									columns={["op", "contract", "key", "value"]}
 									rows={[
-										["map_set", "amm-pool", "reserves[u1]", "u98400"],
-										["map_set", "sbtc-token", "balances[SP2J…4K]", "u1200"],
-										["map_delete", "amm-pool", "pending[u42]", "none"],
+										["call", "kiki-token", "transfer", "(ok true)"],
+										[
+											"map_set",
+											"amm-vault-v2-01",
+											"reserve[token-wkiki]",
+											"u2122910416441083",
+										],
+										[
+											"map_set",
+											"amm-registry-v2-01",
+											"pools-data-map[alex, wkiki]",
+											"{…}",
+										],
 									]}
 								/>
 								<span className="cap">
-									example rows · one swap; sbtc-token is an inner call
+									real rows · one ALEX swap, block 1,230,200
 								</span>
 							</div>
 						</div>

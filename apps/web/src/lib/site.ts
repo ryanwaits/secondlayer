@@ -26,13 +26,13 @@ export const PRODUCTS = [
 		noun: "Streams",
 		verb: "Stream raw events",
 		href: "/p/streams",
-		line: "Every event. You hold the cursor.",
+		line: "Exactly what the node emitted.",
 	},
 	{
 		noun: "Index",
-		verb: "Query decoded rows",
+		verb: "Read decoded events",
 		href: "/p/index",
-		line: "Typed rows from genesis.",
+		line: "Every event, already decoded.",
 	},
 	{
 		noun: "Subgraphs",

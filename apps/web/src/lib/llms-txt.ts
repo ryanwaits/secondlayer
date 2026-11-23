@@ -25,10 +25,11 @@ const INTRO = `# Secondlayer: instant data for apps on Bitcoin
 
 ## Products
 - Archive: ${SITE}/p/archive. Signed history. Check your copy free.
-- Streams: ${SITE}/p/streams. Every event. You hold the cursor.
-- Index: ${SITE}/p/index. Typed rows from genesis.
+- Streams: ${SITE}/p/streams. Exactly what the Stacks node emitted, in order, from any block.
+- Index: ${SITE}/p/index. Every Stacks event, already decoded, from block 1.
 - Subgraphs: ${SITE}/p/subgraphs. Your contract, as a table.
 - Webhooks: ${SITE}/p/webhooks. Your server, told first.
+- Contract state: ${SITE}/docs/guides/read-contract-state. Know what changed in any Stacks contract, when, and who changed it, from block 1.
 - Verify: ${SITE}/verify. Check a block or transaction yourself.
 - Pricing: ${SITE}/pricing. 1M rows free per month.
 
@@ -57,7 +58,8 @@ const INTRO = `# Secondlayer: instant data for apps on Bitcoin
 - Self-host is unmetered. Only archive restore and backfill off our R2 is metered.
 
 ## Hosted subgraphs
-- Hostable sources: event filters and contract_call / contract_deploy. Anything
+- Hostable sources: event filters (including the five contract state types) and
+  contract_call / contract_deploy. Anything
   else returns 422 SOURCE_NOT_HOSTABLE.
 - After 3 stall or OOM deaths at one height a subgraph is marked error.
 - Set startBlock so the first deploy does not backfill from genesis.

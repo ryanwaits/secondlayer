@@ -113,6 +113,18 @@ const TRIGGERS: readonly {
 		),
 	},
 	{
+		name: "Contract state",
+		status: "live",
+		types: [
+			"nested_contract_call",
+			"var_set",
+			"map_set",
+			"map_insert",
+			"map_delete",
+		],
+		body: "Know the moment your protocol's rules change, however the change was made. Fires once the block lands: it warns, it doesn't prevent.",
+	},
+	{
 		name: "sBTC",
 		status: "live",
 		types: [
@@ -384,7 +396,7 @@ export default function WebhooksPage() {
 						exclude={["/p/webhooks", "/p/archive"]}
 						blurbs={{
 							"/p/streams": {
-								title: "You hold the cursor",
+								title: "Exactly what the node emitted",
 								body: "Best when you already run a consumer and would rather pull than be pushed to.",
 							},
 							"/p/subgraphs": {
@@ -392,8 +404,8 @@ export default function WebhooksPage() {
 								body: "Best when the shape is settled and you want rows to query, not events to process.",
 							},
 							"/p/index": {
-								title: "You ask, we answer",
-								body: "Best for history and lookups: every event from genesis, typed, behind one key.",
+								title: "Every event, already decoded",
+								body: "Best for history and lookups: every event from block 1, decoded, behind one key.",
 							},
 						}}
 					/>

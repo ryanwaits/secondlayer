@@ -33,7 +33,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 const LEDE =
-	"Write an indexer against every Stacks event since genesis, in one TypeScript file. Run it on Railway, Render, Fly or your own box. We meter the rows it reads.";
+	"Amounts, addresses and contract values as plain fields from block 1, so you write filters, not parsers. Run your indexer on Railway, Render, Fly or your own box. We meter the rows it reads.";
 
 export const metadata: Metadata = socialMeta({
 	title: {
@@ -173,6 +173,11 @@ const EVENT_TYPES = [
 	"contract_call",
 	"contract_deploy",
 	"print_event",
+	"nested_contract_call",
+	"var_set",
+	"map_set",
+	"map_insert",
+	"map_delete",
 ] as const;
 
 const DATASETS: readonly {
@@ -194,10 +199,13 @@ const DATASETS: readonly {
 		example: ["deposit · 0.25 BTC", "Bitcoin transaction 7c1e…a0 · confirmed"],
 	},
 	{
-		status: "soon",
-		name: "Contract state writes",
-		body: "Every var and map a contract committed, keyed, including contracts that never print.",
-		example: ["map_set · balances", "key SP3F…Q9A → u2500000"],
+		status: "live",
+		name: "Contract state",
+		body: "Know what changed in any contract, when, and who changed it, from block 1. Including contracts that never print.",
+		example: [
+			"map_set · amm-vault-v2-01 · reserve",
+			"block 1,230,200 · u2122910416441083",
+		],
 	},
 	{
 		status: "rolling",
@@ -219,7 +227,7 @@ export default async function IndexPage() {
 					<div className="hero-copy">
 						<Eyebrow noun={index.noun} verb={index.verb} />
 						<h1>
-							The whole chain, <Highlight>already decoded</Highlight>
+							Every Stacks event, <Highlight>already decoded</Highlight>
 						</h1>
 						<p className="lede">{LEDE}</p>
 						<div className="btns">
@@ -454,7 +462,7 @@ export default async function IndexPage() {
 				<div className="shell">
 					<div className="sec-head">
 						<Eyebrow noun="Decoded datasets" />
-						<h2>Data nobody else decodes</h2>
+						<h2>Data you can't get anywhere else on Stacks</h2>
 						<p className="lede">
 							Same rows, same price as any other event. Each one says exactly
 							what it covers.
@@ -480,7 +488,7 @@ export default async function IndexPage() {
 				<div className="shell">
 					<div className="sec-head">
 						<Eyebrow noun="Coverage" />
-						<h2>Thirteen event types, every contract</h2>
+						<h2>Every event type, every contract</h2>
 						<p className="lede">
 							Scope any of them to one contract, a set of up to twenty, a trait,
 							or the addresses a factory deployed.
@@ -506,7 +514,7 @@ export default async function IndexPage() {
 						exclude={["/p/index", "/p/archive"]}
 						blurbs={{
 							"/p/streams": {
-								title: "You hold the cursor",
+								title: "Exactly what the node emitted",
 								body: "Best when you already run a sink and a supervisor, and want no state on our side.",
 							},
 							"/p/subgraphs": {

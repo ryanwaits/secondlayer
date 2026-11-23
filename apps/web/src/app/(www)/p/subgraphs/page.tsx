@@ -10,7 +10,6 @@ import {
 	RestOfPlatform,
 	SelfHostSlot,
 	Split,
-	StatusDot,
 } from "@/components/site";
 import { SubgraphsHero } from "@/components/site/assets";
 import { BoxIcon, FileXIcon, UndoIcon } from "@/components/site/icons";
@@ -339,7 +338,7 @@ export default function SubgraphsPage() {
 								<Eyebrow noun="Rows anyone can recompute" />
 								<h2>Check the table without asking us</h2>
 								<p className="lede">
-									A subgraph built only from contract state writes earns the{" "}
+									A subgraph built only from stored contract values earns the{" "}
 									<span className="mono">state</span> level. Anyone can rebuild
 									its rows from block proofs and compare them with what the API
 									serves.
@@ -365,9 +364,8 @@ export default function SubgraphsPage() {
 									</div>
 								</div>
 								<p className="limit">
-									<b>Not covered yet:</b> which transaction made a write, and
-									writes overwritten inside one block. State-write history on
-									hosted is <StatusDot state="soon" label="coming soon" />
+									<b>Not covered:</b> a value written twice inside one block
+									shows only its final write in the checkable feed.
 								</p>
 							</>
 						}
@@ -438,10 +436,10 @@ export default function SubgraphsPage() {
 						blurbs={{
 							"/p/index": {
 								title: "Before you know the shape",
-								body: "Query decoded events by type, contract or address while you work out which table you want.",
+								body: "Read decoded events by type, contract or address while you work out which table you want.",
 							},
 							"/p/streams": {
-								title: "You hold the cursor",
+								title: "Exactly what the node emitted",
 								body: "Every event as a pull you resume yourself, when you already run a sink and want no state on our side.",
 							},
 							"/p/webhooks": {

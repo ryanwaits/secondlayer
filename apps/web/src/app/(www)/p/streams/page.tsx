@@ -23,7 +23,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 const LEDE =
-	"A long-running pull from any point in chain history, one event per line. You decide where to resume, and reorgs are a list you can read.";
+	"In order, from any block in Stacks history. Nothing added, nothing dropped. Decode it your way, resume where you left off, and read reorgs as a list.";
 
 export const metadata: Metadata = socialMeta({
 	title: {
@@ -104,7 +104,7 @@ export default async function StreamsPage() {
 					<div className="hero-copy">
 						<Eyebrow noun={streams.noun} verb={streams.verb} />
 						<h1>
-							Hold your <Highlight>own cursor</Highlight>
+							Exactly what the <Highlight>node emitted</Highlight>
 						</h1>
 						<p className="lede">{LEDE}</p>
 						<div className="btns">
@@ -237,7 +237,7 @@ export default async function StreamsPage() {
 						flip
 						copy={
 							<>
-								<Eyebrow noun="The firehose" />
+								<Eyebrow noun="Live feed" />
 								<h2>Every frame is signed</h2>
 								<p className="lede">
 									The SSE stream carries each event with an ed25519 signature.
@@ -364,7 +364,7 @@ export default async function StreamsPage() {
 					<div className="rest">
 						<Link href={index.href}>
 							<span className="n">Index</span>
-							<p>The decoded set these events come from, as typed rows.</p>
+							<p>The same events, already decoded.</p>
 						</Link>
 						<Link href={archive.href}>
 							<span className="n">Archive</span>

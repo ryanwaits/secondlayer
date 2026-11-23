@@ -31,7 +31,7 @@ import type { ReactNode } from "react";
 import { ArchiveCredits } from "./archive-credits";
 
 const LEDE =
-	"Genesis to tip as signed, digest-addressed partitions. Check a running database against them read-only, repair only the ranges that break, or stand up a fresh box in hours.";
+	"Every block since genesis, signed. Check a running database against it, repair only what breaks, or stand up a new box in hours.";
 
 export const metadata: Metadata = socialMeta({
 	title: "Stacks chain archive: signed history dumps",
@@ -435,12 +435,12 @@ export default async function ArchivePage() {
 						exclude={["/p/archive"]}
 						blurbs={{
 							"/p/index": {
-								title: "Typed rows from genesis",
-								body: "Query decoded events behind one key, with the same manifest to check against.",
+								title: "Every event, already decoded",
+								body: "Amounts, addresses and contract values as plain fields behind one key, checked against the same manifest.",
 							},
 							"/p/streams": {
-								title: "You hold the cursor",
-								body: "Every event in order, pulled from any point in history.",
+								title: "Exactly what the node emitted",
+								body: "Every event in order, from any point in history. Decode it your way.",
 							},
 							"/p/subgraphs": {
 								title: "Your contract, as a table",
