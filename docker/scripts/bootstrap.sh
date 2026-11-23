@@ -142,23 +142,7 @@ ENVEOF
   fi
 
   # Systemd service
-  cat > /etc/systemd/system/secondlayer.service <<SVCEOF
-[Unit]
-Description=Second Layer
-After=docker.service
-Requires=docker.service
-
-[Service]
-Type=oneshot
-RemainAfterExit=yes
-WorkingDirectory=${PROD_DIR}
-ExecStart=/usr/bin/docker compose -f docker-compose.yml -f docker-compose.hetzner.yml up -d
-ExecStop=/usr/bin/docker compose -f docker-compose.yml -f docker-compose.hetzner.yml down
-TimeoutStartSec=300
-
-[Install]
-WantedBy=multi-user.target
-SVCEOF
+  cp "$DOCKER_DIR/systemd/secondlayer.service" /etc/systemd/system/secondlayer.service
   systemctl daemon-reload
   systemctl enable secondlayer
   log "Systemd service installed"

@@ -6,6 +6,8 @@ Install the backup + health units on the production host.
 
 | Unit | Purpose | Cadence |
 |---|---|---|
+| `secondlayer.service` | boot: `compose up -d` the prod stack in `docker/prod`; deploy.sh installs it (file update only, never restarted) | at boot |
+| `secondlayer-firewall.service` | re-applies the indexer :3700 firewall; deploy.sh installs + restarts it | at boot, every deploy |
 | `secondlayer-backup-upload.{service,timer}` | rsync `$DATA_DIR/backups/` to Hetzner Storage Box | hourly at :45 (+ ≤5 min jitter) |
 | `secondlayer-health-alert.{service,timer}` | two independent tiers: WARN (curl `/public/status` + `docker compose ps`, one alert per incident, all-clear on recovery) and CRITICAL (canonical tip advancing — the product invariant; tip unchanged 15+ min pages, then re-pages every 30 min while the stall is outstanding, distinct all-clear on recovery; a tip that cannot be read at all is itself a CRITICAL page; if the stacks node is at the same tip it pages UPSTREAM instead — chain-wide stall — escalating to CRITICAL past 60m) | every 5 min |
 | `secondlayer-floor-audit.{service,timer}` | run `floor-audit.ts` in the decoder container → Slack if any decoder regressed below its genesis baseline or shipped unbaselined (one alert per incident, all-clear on recovery) | daily at 06:00 |

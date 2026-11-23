@@ -67,6 +67,12 @@ move_env_beside_compose "$DOCKER_DIR/.env" "$DOCKER_DIR/prod/.env"
 move_env_beside_compose "$DOCKER_DIR/testnet/.env" "$DOCKER_DIR/hosts/testnet/.env"
 [ -f "$DOCKER_DIR/prod/.env" ] || { echo "ERROR: $DOCKER_DIR/prod/.env missing, refusing to deploy" >&2; exit 1; }
 
+# The boot unit for this stack. File update only: restarting it would run its
+# ExecStop (compose down).
+if ! cmp -s "$DOCKER_DIR/systemd/secondlayer.service" /etc/systemd/system/secondlayer.service 2>/dev/null; then
+	cp "$DOCKER_DIR/systemd/secondlayer.service" /etc/systemd/system/secondlayer.service && systemctl daemon-reload
+fi
+
 cd "$DOCKER_DIR/prod"
 COMPOSE="docker compose -f docker-compose.yml -f docker-compose.hetzner.yml"
 # This deploy owns only its own compose project. Other projects share the

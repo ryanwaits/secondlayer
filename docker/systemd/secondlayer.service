@@ -1,0 +1,15 @@
+[Unit]
+Description=Secondlayer prod stack (docker/prod)
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+WorkingDirectory=/opt/secondlayer/docker/prod
+ExecStart=/usr/bin/docker compose -f docker-compose.yml -f docker-compose.hetzner.yml up -d
+ExecStop=/usr/bin/docker compose -f docker-compose.yml -f docker-compose.hetzner.yml down
+TimeoutStartSec=300
+
+[Install]
+WantedBy=multi-user.target
