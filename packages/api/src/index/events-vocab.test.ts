@@ -55,19 +55,11 @@ describe("Index event vocabulary", () => {
 		}
 	});
 
-	// VM event types need an unreleased stacks-core node. Their filters are
-	// accepted by the route but stay out of the public reference until it ships.
-	it("OpenAPI /v1/index/events keeps VM-only filters out of the public reference", () => {
+	it("OpenAPI /v1/index/events declares every Clarity state type's filters", () => {
 		const names = specParams();
-		const released = new Set(
-			Object.values(INDEX_EVENT_CONFIG).flatMap(
-				(cfg) => cfg.allowedFilters as readonly string[],
-			),
-		);
 		for (const cfg of Object.values(VM_INDEX_EVENT_CONFIG)) {
 			for (const filter of cfg.allowedFilters) {
-				if (released.has(filter)) continue;
-				expect(names.has(filter), filter).toBe(false);
+				expect(names.has(filter), filter).toBe(true);
 			}
 		}
 	});

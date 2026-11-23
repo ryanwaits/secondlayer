@@ -361,31 +361,8 @@ const TRIGGER_AMOUNT = {
 	],
 };
 
-/**
- * Trigger types fed by the node's opt-in `storage` / `contract_calls` observer
- * keys, which only an unreleased stacks-core fork emits. The validator accepts
- * them; the public reference doesn't advertise them until that node ships.
- */
-const UNRELEASED_TRIGGER_TYPES: ReadonlySet<string> = new Set([
-	"nested_contract_call",
-	"var_set",
-	"map_set",
-	"map_insert",
-	"map_delete",
-]);
-
-const PUBLIC_TRIGGER_TYPES = CHAIN_TRIGGER_TYPES.filter(
-	(t) => !UNRELEASED_TRIGGER_TYPES.has(t),
-);
-
-const PUBLIC_TRIGGER_FIELDS = Object.fromEntries(
-	Object.entries(CHAIN_TRIGGER_FIELDS).filter(
-		([type]) => !UNRELEASED_TRIGGER_TYPES.has(type),
-	),
-);
-
 function triggerFieldSchema(field: string): Record<string, unknown> {
-	const types = Object.entries(PUBLIC_TRIGGER_FIELDS)
+	const types = Object.entries(CHAIN_TRIGGER_FIELDS)
 		.filter(([, fields]) => fields.includes(field))
 		.map(([type]) => `\`${type}\``);
 	const base =
@@ -401,7 +378,7 @@ function triggerFieldSchema(field: string): Record<string, unknown> {
 }
 
 const TRIGGER_FIELD_NAMES = [
-	...new Set(Object.values(PUBLIC_TRIGGER_FIELDS).flat()),
+	...new Set(Object.values(CHAIN_TRIGGER_FIELDS).flat()),
 ];
 
 // ── Insights (`src/routes/insights.ts`) ──
@@ -1222,7 +1199,7 @@ export const webhooksSchemas = {
 		properties: {
 			type: {
 				type: "string",
-				enum: [...PUBLIC_TRIGGER_TYPES],
+				enum: [...CHAIN_TRIGGER_TYPES],
 				description: "Event to match.",
 			},
 			...Object.fromEntries(

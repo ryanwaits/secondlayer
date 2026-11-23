@@ -1,4 +1,7 @@
-import { DECODED_EVENT_TYPES } from "@secondlayer/stacks/filters";
+import {
+	DECODED_EVENT_TYPES,
+	VM_EVENT_TYPES,
+} from "@secondlayer/stacks/filters";
 import {
 	STREAMS_ANON_RATE_LIMIT_PER_SECOND,
 	STREAMS_DEFAULT_FROM_HEIGHT_WINDOW_BLOCKS,
@@ -19,10 +22,10 @@ import {
  * `streams/*.ts`). Rows are `StreamsEventEnvelope` (`streams/events.ts`).
  */
 
-// Released event types only. The vm types need an unreleased stacks-core node;
-// the route accepts them (with `clock=vm`), the public reference doesn't list
-// them until that node ships.
-const EVENT_TYPES = [...DECODED_EVENT_TYPES];
+// Classic types on the default clock, Clarity state types on `clock=vm`. One
+// enum so the reference lists every type the route accepts.
+const EVENT_TYPES = [...DECODED_EVENT_TYPES, ...VM_EVENT_TYPES];
+const VM_TYPES_LIST = VM_EVENT_TYPES.join(", ");
 
 const FREE_TIER = STREAMS_TIER_CONFIG.free;
 
@@ -135,7 +138,18 @@ const START_PARAMS = [
 	),
 ];
 
+const CLOCK_PARAM = {
+	...qp(
+		"clock",
+		"string",
+		false,
+		`\`classic\` (default) is the chain event feed. \`vm\` is the Clarity state feed: every inner \`contract-call?\` and every data-var and map write, from genesis, as ${VM_TYPES_LIST} rows ordered by their position in the block. Cursors are prefixed \`vm:\`. \`contract_id\` matches the contract that was called or written. \`sender\`, \`recipient\`, \`asset_identifier\` and \`filters\` answer 400 with \`clock=vm\`. Stacks-only.`,
+	),
+	schema: { type: "string", enum: ["classic", "vm"], default: "classic" },
+};
+
 const FILTER_PARAMS = [
+	CLOCK_PARAM,
 	qp(
 		"to_height",
 		"integer",
@@ -144,7 +158,7 @@ const FILTER_PARAMS = [
 	),
 	eventTypesParam(
 		"types",
-		"Comma-separated event types to include. Default: all of them.",
+		`Comma-separated event types to include. Default: all of them. ${VM_TYPES_LIST} need \`clock=vm\`; the other types need the default clock.`,
 	),
 	{
 		...qp(
@@ -523,7 +537,7 @@ export const streamsSchemas = {
 			event_index: {
 				type: "integer",
 				description:
-					"The event's position among the block's Streams events, from 0.",
+					"The event's position among the block's Streams events, from 0. On `clock=vm` it is the row's position among the block's Clarity state rows instead.",
 			},
 			event_type: {
 				type: "string",
@@ -533,13 +547,13 @@ export const streamsSchemas = {
 			contract_id: {
 				type: ["string", "null"],
 				description:
-					"Emitting contract for `print`, asset contract for ft/nft events, the PoX contract for `stx_lock`, `null` otherwise.",
+					"Emitting contract for `print`, asset contract for ft/nft events, the PoX contract for `stx_lock`, the called or written contract on `clock=vm` rows, `null` otherwise.",
 			},
 			payload: {
 				type: "object",
 				additionalProperties: true,
 				description:
-					"The event body, one shape per `event_type` at every height. Prints carry `topic`, `contract_id` and `raw_value`; nft events carry `raw_value`. `raw_value` is the Clarity value as `0x` hex. Legacy `value` appears only on rows before block 8,124,447, in varying shapes. `stx_transfer` carries `memo` as `0x` hex, or `null` when none was attached. `stx_lock` carries `contract_identifier`, the PoX contract. Other transfers carry `sender`, `recipient`, `amount` and `asset_identifier`.",
+					"The event body, one shape per `event_type` at every height. Prints carry `topic`, `contract_id` and `raw_value`; nft events carry `raw_value`. `raw_value` is the Clarity value as `0x` hex. Rows imported from an older self-hosted archive can also carry a legacy `value`; read `raw_value`. `stx_transfer` carries `memo` as `0x` hex, or `null` when none was attached. `stx_lock` carries `contract_identifier`, the PoX contract. Other transfers carry `sender`, `recipient`, `amount` and `asset_identifier`. On `clock=vm`: `nested_contract_call` carries `contract_identifier`, `sender`, `caller`, `function_name`, `function_args` (hex each) and `raw_result`; `var_set` carries `contract_identifier`, `var_name` and `raw_value`; `map_set` and `map_insert` carry `contract_identifier`, `map_name`, `raw_key` and `raw_value`; `map_delete` carries `contract_identifier`, `map_name` and `raw_key`.",
 			},
 			ts: {
 				type: "string",

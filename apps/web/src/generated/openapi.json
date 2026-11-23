@@ -2157,7 +2157,12 @@
 							"ft_burn",
 							"nft_mint",
 							"nft_burn",
-							"print"
+							"print",
+							"nested_contract_call",
+							"var_set",
+							"map_set",
+							"map_insert",
+							"map_delete"
 						],
 						"description": "The event type. Decides which columns are set."
 					},
@@ -2166,7 +2171,7 @@
 							"string",
 							"null"
 						],
-						"description": "Contract that emitted the event. `null` for STX transfers, mints, burns and locks."
+						"description": "Contract that emitted the event, or the called or written contract on Clarity state types. `null` for STX transfers, mints, burns and locks."
 					},
 					"asset_identifier": {
 						"type": [
@@ -2212,6 +2217,65 @@
 					},
 					"payload": {
 						"description": "Decoded print payload on `print`; `{ unlock_height }` on `stx_lock`."
+					},
+					"caller": {
+						"type": [
+							"string",
+							"null"
+						],
+						"description": "Contract that issued the inner call, on `nested_contract_call`."
+					},
+					"function_name": {
+						"type": [
+							"string",
+							"null"
+						],
+						"description": "Called function, on `nested_contract_call`."
+					},
+					"function_args": {
+						"type": [
+							"array",
+							"null"
+						],
+						"items": {
+							"type": "string"
+						},
+						"description": "Arguments as Clarity `0x` hex, on `nested_contract_call`."
+					},
+					"raw_result": {
+						"type": [
+							"string",
+							"null"
+						],
+						"description": "The inner call's result as Clarity `0x` hex, on `nested_contract_call`."
+					},
+					"var_name": {
+						"type": [
+							"string",
+							"null"
+						],
+						"description": "Data var written, on `var_set`."
+					},
+					"map": {
+						"type": [
+							"string",
+							"null"
+						],
+						"description": "Map written, on the map types."
+					},
+					"raw_key": {
+						"type": [
+							"string",
+							"null"
+						],
+						"description": "Map key as Clarity `0x` hex, on the map types."
+					},
+					"raw_value": {
+						"type": [
+							"string",
+							"null"
+						],
+						"description": "Value written as Clarity `0x` hex, on `var_set`, `map_set` and `map_insert`."
 					},
 					"tx_sender": {
 						"type": [
@@ -5376,7 +5440,7 @@
 					},
 					"event_index": {
 						"type": "integer",
-						"description": "The event's position among the block's Streams events, from 0."
+						"description": "The event's position among the block's Streams events, from 0. On `clock=vm` it is the row's position among the block's Clarity state rows instead."
 					},
 					"event_type": {
 						"type": "string",
@@ -5391,7 +5455,12 @@
 							"nft_transfer",
 							"nft_mint",
 							"nft_burn",
-							"print"
+							"print",
+							"nested_contract_call",
+							"var_set",
+							"map_set",
+							"map_insert",
+							"map_delete"
 						],
 						"description": "The event's type."
 					},
@@ -5400,12 +5469,12 @@
 							"string",
 							"null"
 						],
-						"description": "Emitting contract for `print`, asset contract for ft/nft events, the PoX contract for `stx_lock`, `null` otherwise."
+						"description": "Emitting contract for `print`, asset contract for ft/nft events, the PoX contract for `stx_lock`, the called or written contract on `clock=vm` rows, `null` otherwise."
 					},
 					"payload": {
 						"type": "object",
 						"additionalProperties": true,
-						"description": "The event body, one shape per `event_type` at every height. Prints carry `topic`, `contract_id` and `raw_value`; nft events carry `raw_value`. `raw_value` is the Clarity value as `0x` hex. Legacy `value` appears only on rows before block 8,124,447, in varying shapes. `stx_transfer` carries `memo` as `0x` hex, or `null` when none was attached. `stx_lock` carries `contract_identifier`, the PoX contract. Other transfers carry `sender`, `recipient`, `amount` and `asset_identifier`."
+						"description": "The event body, one shape per `event_type` at every height. Prints carry `topic`, `contract_id` and `raw_value`; nft events carry `raw_value`. `raw_value` is the Clarity value as `0x` hex. Rows imported from an older self-hosted archive can also carry a legacy `value`; read `raw_value`. `stx_transfer` carries `memo` as `0x` hex, or `null` when none was attached. `stx_lock` carries `contract_identifier`, the PoX contract. Other transfers carry `sender`, `recipient`, `amount` and `asset_identifier`. On `clock=vm`: `nested_contract_call` carries `contract_identifier`, `sender`, `caller`, `function_name`, `function_args` (hex each) and `raw_result`; `var_set` carries `contract_identifier`, `var_name` and `raw_value`; `map_set` and `map_insert` carry `contract_identifier`, `map_name`, `raw_key` and `raw_value`; `map_delete` carries `contract_identifier`, `map_name` and `raw_key`."
 					},
 					"ts": {
 						"type": "string",
@@ -7635,6 +7704,11 @@
 							"contract_call",
 							"contract_deploy",
 							"print_event",
+							"nested_contract_call",
+							"var_set",
+							"map_set",
+							"map_insert",
+							"map_delete",
 							"sbtc_deposit",
 							"sbtc_withdrawal_create",
 							"sbtc_withdrawal_accept",
@@ -7649,7 +7723,7 @@
 					},
 					"sender": {
 						"type": "string",
-						"description": "Sender principal. `*` wildcards allowed. Accepted on `stx_transfer`, `stx_burn`, `ft_transfer`, `ft_burn`, `nft_transfer`, `nft_burn`, `sbtc_withdrawal_create`."
+						"description": "Sender principal. `*` wildcards allowed. Accepted on `stx_transfer`, `stx_burn`, `ft_transfer`, `ft_burn`, `nft_transfer`, `nft_burn`, `nested_contract_call`, `sbtc_withdrawal_create`."
 					},
 					"recipient": {
 						"type": "string",
@@ -7691,19 +7765,19 @@
 					},
 					"trait": {
 						"type": "string",
-						"description": "Match only contracts that implement this trait (e.g. `sip-010`). Accepted on `ft_transfer`, `ft_mint`, `ft_burn`, `nft_transfer`, `nft_mint`, `nft_burn`, `contract_call`, `print_event`."
+						"description": "Match only contracts that implement this trait (e.g. `sip-010`). Accepted on `ft_transfer`, `ft_mint`, `ft_burn`, `nft_transfer`, `nft_mint`, `nft_burn`, `contract_call`, `print_event`, `nested_contract_call`, `var_set`, `map_set`, `map_insert`, `map_delete`."
 					},
 					"contractId": {
 						"type": "string",
-						"description": "Contract principal. `*` wildcards allowed. Accepted on `contract_call`, `print_event`."
+						"description": "Contract principal. `*` wildcards allowed. Accepted on `contract_call`, `print_event`, `nested_contract_call`, `var_set`, `map_set`, `map_insert`, `map_delete`."
 					},
 					"functionName": {
 						"type": "string",
-						"description": "Function name. `*` wildcards allowed (e.g. `swap-*`). Accepted on `contract_call`."
+						"description": "Function name. `*` wildcards allowed (e.g. `swap-*`). Accepted on `contract_call`, `nested_contract_call`."
 					},
 					"caller": {
 						"type": "string",
-						"description": "Calling principal. `*` wildcards allowed. Accepted on `contract_call`."
+						"description": "Calling principal. `*` wildcards allowed. Accepted on `contract_call`, `nested_contract_call`."
 					},
 					"deployer": {
 						"type": "string",
@@ -7720,6 +7794,14 @@
 					"where": {
 						"type": "string",
 						"description": "where Accepted on `print_event`."
+					},
+					"varName": {
+						"type": "string",
+						"description": "Data-var name. `*` wildcards allowed. Accepted on `var_set`."
+					},
+					"map": {
+						"type": "string",
+						"description": "Map name. `*` wildcards allowed. Accepted on `map_set`, `map_insert`, `map_delete`."
 					},
 					"bitcoinTxid": {
 						"type": "string",
@@ -10501,7 +10583,7 @@
 				],
 				"summary": "Decoded events by event_type",
 				"x-nav-title": "Events",
-				"description": "One `event_type` per request, oldest first unless `order=desc`. Which filters and `fields` apply depends on the type; anything a type does not accept is refused.",
+				"description": "One `event_type` per request, oldest first unless `order=desc`. Which filters and `fields` apply depends on the type; anything a type does not accept is refused. `nested_contract_call`, `var_set`, `map_set`, `map_insert` and `map_delete` are Clarity state: every inner `contract-call?` and every data-var and map write, from genesis. Their cursor's second part is the row's position among the block's state rows.",
 				"security": [
 					{},
 					{
@@ -10526,7 +10608,12 @@
 								"ft_burn",
 								"nft_mint",
 								"nft_burn",
-								"print"
+								"print",
+								"nested_contract_call",
+								"var_set",
+								"map_set",
+								"map_insert",
+								"map_delete"
 							]
 						},
 						"description": "The event type to read. Required, unless you pass `types` instead."
@@ -10643,6 +10730,51 @@
 							"type": "string"
 						},
 						"description": "Receiving principal. Types with a recipient only."
+					},
+					{
+						"name": "function_name",
+						"in": "query",
+						"required": false,
+						"schema": {
+							"type": "string"
+						},
+						"description": "Called function. `nested_contract_call` only."
+					},
+					{
+						"name": "caller",
+						"in": "query",
+						"required": false,
+						"schema": {
+							"type": "string"
+						},
+						"description": "The contract that issued the inner `contract-call?`. `nested_contract_call` only."
+					},
+					{
+						"name": "var_name",
+						"in": "query",
+						"required": false,
+						"schema": {
+							"type": "string"
+						},
+						"description": "Data var name. `var_set` only."
+					},
+					{
+						"name": "map",
+						"in": "query",
+						"required": false,
+						"schema": {
+							"type": "string"
+						},
+						"description": "Map name. `map_set`, `map_insert` and `map_delete` only."
+					},
+					{
+						"name": "tx_id",
+						"in": "query",
+						"required": false,
+						"schema": {
+							"type": "string"
+						},
+						"description": "Transaction that made the write or inner call. Clarity state types only."
 					},
 					{
 						"name": "tx_context",
@@ -14743,6 +14875,20 @@
 						"description": "First block height to read. Mutually exclusive with a cursor. With neither, the read starts 1000 blocks behind the tip."
 					},
 					{
+						"name": "clock",
+						"in": "query",
+						"required": false,
+						"schema": {
+							"type": "string",
+							"enum": [
+								"classic",
+								"vm"
+							],
+							"default": "classic"
+						},
+						"description": "`classic` (default) is the chain event feed. `vm` is the Clarity state feed: every inner `contract-call?` and every data-var and map write, from genesis, as nested_contract_call, var_set, map_set, map_insert, map_delete rows ordered by their position in the block. Cursors are prefixed `vm:`. `contract_id` matches the contract that was called or written. `sender`, `recipient`, `asset_identifier` and `filters` answer 400 with `clock=vm`. Stacks-only."
+					},
+					{
 						"name": "to_height",
 						"in": "query",
 						"required": false,
@@ -14772,11 +14918,16 @@
 									"nft_transfer",
 									"nft_mint",
 									"nft_burn",
-									"print"
+									"print",
+									"nested_contract_call",
+									"var_set",
+									"map_set",
+									"map_insert",
+									"map_delete"
 								]
 							}
 						},
-						"description": "Comma-separated event types to include. Default: all of them."
+						"description": "Comma-separated event types to include. Default: all of them. nested_contract_call, var_set, map_set, map_insert, map_delete need `clock=vm`; the other types need the default clock."
 					},
 					{
 						"name": "event_type",
@@ -14795,7 +14946,12 @@
 								"nft_transfer",
 								"nft_mint",
 								"nft_burn",
-								"print"
+								"print",
+								"nested_contract_call",
+								"var_set",
+								"map_set",
+								"map_insert",
+								"map_delete"
 							]
 						},
 						"description": "One event type, as an alias for `types`. Mutually exclusive with `types`; a set must use `types`."
@@ -14821,7 +14977,12 @@
 									"nft_transfer",
 									"nft_mint",
 									"nft_burn",
-									"print"
+									"print",
+									"nested_contract_call",
+									"var_set",
+									"map_set",
+									"map_insert",
+									"map_delete"
 								]
 							}
 						},
@@ -15074,6 +15235,20 @@
 						"description": "First block height to read. Mutually exclusive with a cursor. With neither, the read starts 1000 blocks behind the tip."
 					},
 					{
+						"name": "clock",
+						"in": "query",
+						"required": false,
+						"schema": {
+							"type": "string",
+							"enum": [
+								"classic",
+								"vm"
+							],
+							"default": "classic"
+						},
+						"description": "`classic` (default) is the chain event feed. `vm` is the Clarity state feed: every inner `contract-call?` and every data-var and map write, from genesis, as nested_contract_call, var_set, map_set, map_insert, map_delete rows ordered by their position in the block. Cursors are prefixed `vm:`. `contract_id` matches the contract that was called or written. `sender`, `recipient`, `asset_identifier` and `filters` answer 400 with `clock=vm`. Stacks-only."
+					},
+					{
 						"name": "to_height",
 						"in": "query",
 						"required": false,
@@ -15103,11 +15278,16 @@
 									"nft_transfer",
 									"nft_mint",
 									"nft_burn",
-									"print"
+									"print",
+									"nested_contract_call",
+									"var_set",
+									"map_set",
+									"map_insert",
+									"map_delete"
 								]
 							}
 						},
-						"description": "Comma-separated event types to include. Default: all of them."
+						"description": "Comma-separated event types to include. Default: all of them. nested_contract_call, var_set, map_set, map_insert, map_delete need `clock=vm`; the other types need the default clock."
 					},
 					{
 						"name": "event_type",
@@ -15126,7 +15306,12 @@
 								"nft_transfer",
 								"nft_mint",
 								"nft_burn",
-								"print"
+								"print",
+								"nested_contract_call",
+								"var_set",
+								"map_set",
+								"map_insert",
+								"map_delete"
 							]
 						},
 						"description": "One event type, as an alias for `types`. Mutually exclusive with `types`; a set must use `types`."
@@ -15152,7 +15337,12 @@
 									"nft_transfer",
 									"nft_mint",
 									"nft_burn",
-									"print"
+									"print",
+									"nested_contract_call",
+									"var_set",
+									"map_set",
+									"map_insert",
+									"map_delete"
 								]
 							}
 						},

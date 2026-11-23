@@ -78,20 +78,6 @@ const TRAIT_PARAM = {
 	schema: { type: "string", enum: [...TRAIT_STANDARDS] },
 };
 
-/** Event types only an unreleased node emits. The route accepts them; the
- *  public reference doesn't advertise them until that node ships. */
-const UNRELEASED_EVENT_TYPES: ReadonlySet<string> = new Set([
-	"nested_contract_call",
-	"var_set",
-	"map_set",
-	"map_insert",
-	"map_delete",
-]);
-
-const PUBLIC_EVENT_TYPES = ALL_INDEX_EVENT_TYPES.filter(
-	(t) => !UNRELEASED_EVENT_TYPES.has(t),
-);
-
 /** A real tip snapshot from mainnet, used in the single-resource examples. */
 const TIP_EXAMPLE = {
 	block_height: 9048938,
@@ -204,7 +190,7 @@ export const indexPaths = {
 			summary: "Decoded events by event_type",
 			"x-nav-title": "Events",
 			description:
-				"One `event_type` per request, oldest first unless `order=desc`. Which filters and `fields` apply depends on the type; anything a type does not accept is refused.",
+				"One `event_type` per request, oldest first unless `order=desc`. Which filters and `fields` apply depends on the type; anything a type does not accept is refused. `nested_contract_call`, `var_set`, `map_set`, `map_insert` and `map_delete` are Clarity state: every inner `contract-call?` and every data-var and map write, from genesis. Their cursor's second part is the row's position among the block's state rows.",
 			security: READ_SECURITY,
 			parameters: [
 				{
@@ -214,7 +200,7 @@ export const indexPaths = {
 						true,
 						"The event type to read. Required, unless you pass `types` instead.",
 					),
-					schema: { type: "string", enum: [...PUBLIC_EVENT_TYPES] },
+					schema: { type: "string", enum: [...ALL_INDEX_EVENT_TYPES] },
 				},
 				qp(
 					"types",
@@ -244,6 +230,31 @@ export const indexPaths = {
 					"string",
 					false,
 					"Receiving principal. Types with a recipient only.",
+				),
+				qp(
+					"function_name",
+					"string",
+					false,
+					"Called function. `nested_contract_call` only.",
+				),
+				qp(
+					"caller",
+					"string",
+					false,
+					"The contract that issued the inner `contract-call?`. `nested_contract_call` only.",
+				),
+				qp("var_name", "string", false, "Data var name. `var_set` only."),
+				qp(
+					"map",
+					"string",
+					false,
+					"Map name. `map_set`, `map_insert` and `map_delete` only.",
+				),
+				qp(
+					"tx_id",
+					"string",
+					false,
+					"Transaction that made the write or inner call. Clarity state types only.",
 				),
 				qp(
 					"tx_context",
@@ -811,13 +822,13 @@ export const indexSchemas = {
 			},
 			event_type: {
 				type: "string",
-				enum: [...PUBLIC_EVENT_TYPES],
+				enum: [...ALL_INDEX_EVENT_TYPES],
 				description: "The event type. Decides which columns are set.",
 			},
 			contract_id: {
 				type: ["string", "null"],
 				description:
-					"Contract that emitted the event. `null` for STX transfers, mints, burns and locks.",
+					"Contract that emitted the event, or the called or written contract on Clarity state types. `null` for STX transfers, mints, burns and locks.",
 			},
 			asset_identifier: {
 				type: ["string", "null"],
@@ -848,6 +859,43 @@ export const indexSchemas = {
 			payload: {
 				description:
 					"Decoded print payload on `print`; `{ unlock_height }` on `stx_lock`.",
+			},
+			caller: {
+				type: ["string", "null"],
+				description:
+					"Contract that issued the inner call, on `nested_contract_call`.",
+			},
+			function_name: {
+				type: ["string", "null"],
+				description: "Called function, on `nested_contract_call`.",
+			},
+			function_args: {
+				type: ["array", "null"],
+				items: { type: "string" },
+				description:
+					"Arguments as Clarity `0x` hex, on `nested_contract_call`.",
+			},
+			raw_result: {
+				type: ["string", "null"],
+				description:
+					"The inner call's result as Clarity `0x` hex, on `nested_contract_call`.",
+			},
+			var_name: {
+				type: ["string", "null"],
+				description: "Data var written, on `var_set`.",
+			},
+			map: {
+				type: ["string", "null"],
+				description: "Map written, on the map types.",
+			},
+			raw_key: {
+				type: ["string", "null"],
+				description: "Map key as Clarity `0x` hex, on the map types.",
+			},
+			raw_value: {
+				type: ["string", "null"],
+				description:
+					"Value written as Clarity `0x` hex, on `var_set`, `map_set` and `map_insert`.",
 			},
 			tx_sender: {
 				type: ["string", "null"],

@@ -20,6 +20,10 @@ Older history used to read differently from recent blocks. Now `print` and nft e
 
 ## Index — November 2026
 
+### Clarity state from genesis
+
+See what a transaction actually did inside a contract, not just its prints. `/v1/index/events` now serves every inner `contract-call?` (`nested_contract_call`) and every data-var and map write (`var_set`, `map_set`, `map_insert`, `map_delete`) on mainnet, from genesis to the tip. Filter by `contract_id`, `function_name`, `caller`, `var_name` or `map`. Streams serves the same rows in block order with `clock=vm`, webhooks fire on them, and `/v1/index/state-writes` returns the exact state each block committed.
+
 ### sBTC deposits keep `max_fee` on the new deposit format
 
 sBTC v2 deposits no longer show their max fee in the Bitcoin script, so `max_fee` on `/v1/index/sbtc/deposits` read null for them. It is now worked out from what the sweep reveals on Bitcoin and checked against the deposit's recipient. Miners move to the new format at Stacks epoch 4.1, and old and new deposits are told apart one by one, so nothing changes on that day.

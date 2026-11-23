@@ -275,11 +275,11 @@ export function createIndexRouter(opts: IndexRouterOptions = {}) {
 						"Decoded chain events for a chosen event_type, filterable + cursor-paginated. Returns events[], next_cursor, tip, reorgs[]. `wait` (seconds, max 25) long-polls: holds the response until a new event lands or `wait` elapses, instead of a poll loop.",
 					required: ["event_type"],
 					event_types: ALL_INDEX_EVENT_TYPES,
-					// Opt-in node traces: not in `*`, not in old archives. Discovery
-					// must not read as "mainnet inner-call history exists".
+					// Opt-in node traces: not in `*`, not in old archives. A
+					// self-hosted instance has them only from its own subscription.
 					vm_event_types: {
 						types: VM_INDEX_EVENT_TYPES,
-						note: "Present only from the height this instance's node subscribed to the storage / contract_calls observer keys. No earlier history. Cursor second component is ordinal.",
+						note: "Clarity state. Hosted mainnet serves them from genesis. A self-hosted instance has them from the height its node subscribed to the storage / contract_calls observer keys. Cursor second component is ordinal.",
 					},
 					filters: EVENTS_ALLOWED,
 					// Allowed filters vary by event_type — this map is the precise,
@@ -342,7 +342,7 @@ export function createIndexRouter(opts: IndexRouterOptions = {}) {
 					path: "/v1/index/state-writes",
 					method: "GET",
 					description:
-						"The exact MARF writes each canonical block committed, in node order: {block_height, ordinal, tx_index, key, value_hex}. `block_height` reads one block. Present only from the height this instance's node subscribed to the state_writes observer key. No earlier history. Cursor: <block_height>:<ordinal>.",
+						"The exact MARF writes each canonical block committed, in node order: {block_height, ordinal, tx_index, key, value_hex}. `block_height` reads one block. Hosted mainnet serves them from genesis. A self-hosted instance has them from the height its node subscribed to the state_writes observer key. Cursor: <block_height>:<ordinal>.",
 					filters: STATE_WRITES_FILTERS,
 				},
 				{
