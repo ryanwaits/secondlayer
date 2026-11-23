@@ -30,7 +30,7 @@ bun add @secondlayer/mcp
 
 ## Auth
 
-Most reads are public: `index_*` and `contracts_find` work with no key. Subgraph tools need an `INSTANCE_TOKEN` past loopback, and so does `GET /v1/subgraphs/<name>/<table>` over HTTP (`{ rows, next_cursor, tip }` cursor envelope); on loopback it is open. There is no per-subgraph public or private flag. `streams_dumps` needs no key: the dumps manifest is public; the tool only needs `SL_STREAMS_DUMPS_URL` configured. `streams_tip` is key-mandatory (keyless → 401). Live Streams list reads are REST-only (`GET /v1/streams/*`). Writes (deploy, reindex, delete, webhooks) need a key, and the key follows the host: on `https://api.secondlayer.tools` the server uses `SECONDLAYER_API_KEY` (`sk-sl_*`) automatically; anywhere else it uses `INSTANCE_TOKEN` from `secondlayer init`. Hosted credits/quote use `SECONDLAYER_API_KEY` too. On the hosted API, subgraph sources are limited to event filters and `contract_call`/`contract_deploy` (`422 SOURCE_NOT_HOSTABLE` otherwise); set `startBlock`. Read `secondlayer://context` first: it reports auth state and read-auth tiers.
+On local OSS loopback, reads (`index_*`, `contracts_find`) work with no key; past loopback they need `INSTANCE_TOKEN`. On hosted (`api.secondlayer.tools`), every tool requires `SECONDLAYER_API_KEY` (`sk-sl_*`). Subgraph tools need an `INSTANCE_TOKEN` past loopback, and so does `GET /v1/subgraphs/<name>/<table>` over HTTP (`{ rows, next_cursor, tip }` cursor envelope); on loopback it is open. There is no per-subgraph public or private flag. `streams_dumps` needs no key: the dumps manifest is public; the tool only needs `SL_STREAMS_DUMPS_URL` configured. `streams_tip` is key-mandatory (keyless → 401). Live Streams list reads are REST-only (`GET /v1/streams/*`). Writes (deploy, reindex, delete, webhooks) need a key, and the key follows the host: on `https://api.secondlayer.tools` the server uses `SECONDLAYER_API_KEY` (`sk-sl_*`) automatically; anywhere else it uses `INSTANCE_TOKEN` from `secondlayer init`. Hosted credits/quote use `SECONDLAYER_API_KEY` too. On the hosted API, subgraph sources are limited to event filters and `contract_call`/`contract_deploy` (`422 SOURCE_NOT_HOSTABLE` otherwise); set `startBlock`. Read `secondlayer://context` first: it reports auth state and read-auth tiers.
 
 ## Quick Start — Stdio (IDE)
 
@@ -65,7 +65,7 @@ bunx -p @secondlayer/mcp secondlayer-mcp-http
 
 | Variable | Required | Default | Description |
 | --- | --- | --- | --- |
-| `INSTANCE_TOKEN` | Writes on your instance | — | From `secondlayer init`. Required for write tools elsewhere than `api.secondlayer.tools`; reads are public. Not sent to the hosted API. |
+| `INSTANCE_TOKEN` | Writes on your instance | — | From `secondlayer init`. Required for write tools elsewhere than `api.secondlayer.tools`, and for reads once the API is reachable past loopback. Not sent to the hosted API. |
 | `SECONDLAYER_API_KEY` | Hosted API, credits/quote/latest | — | `sk-sl_*`, used automatically when `SECONDLAYER_API_URL` is `https://api.secondlayer.tools`. |
 | `SECONDLAYER_API_URL` | No | `http://127.0.0.1:3800` | Instance API, or `https://api.secondlayer.tools` for hosted. |
 | `SECONDLAYER_BIN` | CLI tools | `secondlayer` on PATH | Path to the CLI binary (`bootstrap`, `repair`). |
@@ -77,12 +77,13 @@ bunx -p @secondlayer/mcp secondlayer-mcp-http
 
 | Domain | Tools |
 | --- | --- |
-| **Index** (9) | `index_events`, `index_ft_transfers`, `index_nft_transfers`, `index_contract_calls`, `index_blocks`, `index_transactions`, `index_print_schema`, `index_discover`, `batch_query` |
-| **Subgraphs** (12) | `subgraphs_list`, `subgraphs_status`, `subgraphs_spec`, `subgraphs_scaffold`, `subgraphs_deploy`, `subgraphs_delete`, `subgraphs_query`, `subgraphs_backfill`, `subgraphs_reindex`, `subgraphs_stop`, `subgraphs_operations`, `subgraphs_gaps` |
+| **Index** (10) | `index_events`, `index_ft_transfers`, `index_nft_transfers`, `index_contract_calls`, `index_state_writes`, `index_blocks`, `index_transactions`, `index_print_schema`, `index_discover`, `batch_query` |
+| **Subgraphs** (13) | `subgraphs_list`, `subgraphs_status`, `subgraphs_spec`, `subgraphs_scaffold`, `subgraphs_test`, `subgraphs_deploy`, `subgraphs_delete`, `subgraphs_query`, `subgraphs_backfill`, `subgraphs_reindex`, `subgraphs_stop`, `subgraphs_operations`, `subgraphs_gaps` |
 | **Webhooks** (13) | `webhooks_create`, `webhooks_list`, `webhooks_get`, `webhooks_update`, `webhooks_delete`, `webhooks_test`, `webhooks_pause`, `webhooks_resume`, `webhooks_rotate_secret`, `webhooks_deliveries`, `webhooks_dead`, `webhooks_requeue`, `webhooks_replay` |
 | **Streams** (2) | `streams_tip`, `streams_dumps` |
 | **Contracts** (2) | `contracts_find`, `contracts_get_abi` |
 | **Instance** (1) | `instance_status` |
+| **Codegen** (1) | `codegen_index_schema` |
 | **Archive** (5) | `archive_verify`, `archive_bootstrap`, `archive_repair`, `archive_latest`, `archive_quote` |
 | **Credits** (1) | `credits_balance` (needs `SECONDLAYER_API_KEY`) |
 | **Account** (4) | `account_whoami`, `account_create_key`, `account_list_keys`, `account_rotate_key` (only when pointed at `https://api.secondlayer.tools`) |

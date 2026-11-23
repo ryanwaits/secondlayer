@@ -98,7 +98,7 @@ Point it at a Stacks node you run, then pull history from the signed Archive ins
 |---|---|
 | [`@secondlayer/cli`](packages/cli/README.md) | `secondlayer` binary: login, deploy, verify |
 | [`@secondlayer/sdk`](packages/sdk/README.md) | TypeScript client for Index, Streams, Subgraphs, Webhooks |
-| [`@secondlayer/mcp`](packages/mcp/README.md) | MCP server, 50 tools |
+| [`@secondlayer/mcp`](packages/mcp/README.md) | MCP server, 52 tools |
 | [`@secondlayer/subgraphs`](packages/subgraphs/README.md) | `defineSubgraph()`: schema, triggers, handlers |
 | [`@secondlayer/verify`](packages/verify/README.md) | Check a Stacks block yourself |
 | [`@secondlayer/stacks`](packages/stacks/README.md) | viem-style Stacks client |

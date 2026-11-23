@@ -53,7 +53,7 @@ export function registerIndexTools(
 	}>(
 		server,
 		"index_ft_transfers",
-		"List decoded SIP-010 fungible-token transfers from Index. Reads are keyless.",
+		"List decoded SIP-010 fungible-token transfers from Index. Keyless on OSS loopback; otherwise needs INSTANCE_TOKEN (OSS) or SECONDLAYER_API_KEY (hosted).",
 		{
 			...rangeFilters,
 			...orderFilter,
@@ -86,7 +86,7 @@ export function registerIndexTools(
 	}>(
 		server,
 		"index_nft_transfers",
-		"List decoded SIP-009 non-fungible-token transfers from Index. Reads are keyless.",
+		"List decoded SIP-009 non-fungible-token transfers from Index. Keyless on OSS loopback; otherwise needs INSTANCE_TOKEN (OSS) or SECONDLAYER_API_KEY (hosted).",
 		{
 			...rangeFilters,
 			...orderFilter,
@@ -245,7 +245,7 @@ export function registerIndexTools(
 	}>(
 		server,
 		"index_blocks",
-		"List decoded blocks from Index. Reads are keyless.",
+		"List decoded blocks from Index. Keyless on OSS loopback; otherwise needs INSTANCE_TOKEN (OSS) or SECONDLAYER_API_KEY (hosted).",
 		{ ...heightFilters },
 		async (params) =>
 			jsonResponse(await clientProvider().index.blocks.list(params)),
@@ -262,7 +262,7 @@ export function registerIndexTools(
 	}>(
 		server,
 		"index_transactions",
-		"List decoded transactions from Index. Filter by type, sender, or contract. Reads are keyless.",
+		"List decoded transactions from Index. Filter by type, sender, or contract. Keyless on OSS loopback; otherwise needs INSTANCE_TOKEN (OSS) or SECONDLAYER_API_KEY (hosted).",
 		{
 			...rangeFilters,
 			type: z.string().optional().describe("Filter by transaction type"),
@@ -275,7 +275,7 @@ export function registerIndexTools(
 	defineTool<{ contractId: string }>(
 		server,
 		"index_print_schema",
-		"Empirical per-topic print payload schemas for a contract, inferred from sampled on-chain events: each topic's fields with observed Clarity types, decoded TS types, subgraph column types, and presence rates. Use before writing print_event subgraph handlers to learn what's on e.data. Anonymous read.",
+		"Empirical per-topic print payload schemas for a contract, inferred from sampled on-chain events: each topic's fields with observed Clarity types, decoded TS types, subgraph column types, and presence rates. Use before writing print_event subgraph handlers to learn what's on e.data. Keyless on OSS loopback; otherwise needs INSTANCE_TOKEN (OSS) or SECONDLAYER_API_KEY (hosted).",
 		{
 			contractId: z
 				.string()
@@ -288,7 +288,7 @@ export function registerIndexTools(
 	defineTool<Record<string, never>>(
 		server,
 		"index_discover",
-		"Discover the Index vocabulary: every event type and its columns, allowed/equality filters, and required-non-null fields (and which types accept `trait`). Read this before building Index queries instead of guessing filters. Anonymous read.",
+		"Discover the Index vocabulary: every event type and its columns, allowed/equality filters, and required-non-null fields (and which types accept `trait`). Read this before building Index queries instead of guessing filters. Keyless on OSS loopback; otherwise needs INSTANCE_TOKEN (OSS) or SECONDLAYER_API_KEY (hosted).",
 		{},
 		async () => jsonResponse(await clientProvider().index.discover()),
 	);

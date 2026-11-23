@@ -147,8 +147,8 @@ points at.
 
 | Command | What it does |
 |---|---|
-| `secondlayer index ft-transfers` / `nft-transfers` / `events --event-type <t>` / `contract-calls` | Decoded Index layer. Anonymous reads OK |
-| `secondlayer index runes` / `runes get <rune>` / `runes balances (--address <a> \| --outpoint <txid:vout>)` / `runes activity [--kind etch,mint,transfer,burn]` | Bitcoin Runes: catalog, one rune, balances, activity. Hosted answers a "not configured" note until Runes data lands there |
+| `secondlayer index ft-transfers` / `nft-transfers` / `events --event-type <t>` / `contract-calls` | Decoded Index layer. Keyless on OSS loopback; otherwise needs `INSTANCE_TOKEN` (OSS) or `SECONDLAYER_API_KEY` (hosted) |
+| `secondlayer index runes` / `runes get <rune>` / `runes balances (--address <a> \| --outpoint <txid:vout>)` / `runes activity [--kind etch,mint,transfer,burn]` | Bitcoin Runes: catalog, one rune, balances, activity. Hosted serves Runes. Self-host needs the `bitcoin` compose profile; without it, reads answer a "not configured" note |
 | `secondlayer streams tip` / `events` / `consume` / `reorgs` / `canonical <h>` / `dumps` | Exactly what the Stacks node emitted, in order. `consume` emits one event per line; a reorg appears inline as `{"kind":"reorg","fork_point_height":…}` and the loop rewinds to re-deliver the canonical run, so a reader drops rows at or above the fork point when it sees one. `--max-pages` must be a positive integer. `events`, `events by-tx`, `consume` and `reorgs` take `--chain bitcoin` for Runes events (`rune_*` types; Stacks-only filters are refused). **Requires `INSTANCE_TOKEN` past loopback** |
 
 Reads emit JSON to stdout (`--json` accepted across all read commands); `-o/--output` is a file path, not a format.
