@@ -10,6 +10,8 @@ import { sessionToken } from "@/lib/server/session";
 import { warmHighlighter } from "@/lib/server/warm-instance";
 import { after } from "next/server";
 
+// Next to the API, and per request: the HTML carries one account's data, so
+// no page under /account is ever prerendered or shared.
 export const preferredRegion = "fra1";
 export const dynamic = "force-dynamic";
 
