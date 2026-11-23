@@ -1,0 +1,159 @@
+# See what a transaction did inside its contracts
+
+One swap can run 20 contract calls and write to maps that no print shows. Read every inner call and every map or variable write, from genesis, with one key:
+
+<CodeTabs sync="lang">
+
+```bash
+curl "$SECONDLAYER_API_URL/v1/index/events?event_type=nested_contract_call&tx_id=0xf53d86108ccd4a7d7418101a86e4030ebe8c9ff942d47888987d5f6bac7c279b" \
+  -H "Authorization: Bearer sk-sl_…"
+```
+
+```ts
+import { Index } from "@secondlayer/sdk";
+
+const index = new Index();
+
+const { events } = await index.events.list({
+  eventType: "nested_contract_call",
+  txId: "0xf53d86108ccd4a7d7418101a86e4030ebe8c9ff942d47888987d5f6bac7c279b",
+});
+```
+
+</CodeTabs>
+
+```json response.json status=200
+{
+  "events": [
+    {
+      "cursor": "1230200:13",
+      "block_height": 1230200,
+      "block_time": "2025-05-21T09:56:51.000Z",
+      "tx_id": "0xf53d86108ccd4a7d7418101a86e4030ebe8c9ff942d47888987d5f6bac7c279b",
+      "tx_index": 0,
+      "event_index": 13,
+      "event_type": "nested_contract_call",
+      "contract_id": "SP26BVHEKMZSAKZ4PZ5SFPZVMRHDKH99D2Z38TK1Y.kiki-token",
+      "sender": "SP1E5PQRC5Y4WWEY1BP80254TGR2HDCSN5NF0VSFR",
+      // !mark[/"caller"/]
+      "caller": "SP102V8P0F7JX67ARQ77WEA3D3CFB5XW39REDT0AM.token-wkiki",
+      "function_name": "transfer",
+      "function_args": ["0x0100000000000000000000009062fc6a00", "0x05165c5b5f0c2f89ce3bc15d9001149a860516b3352d", "0x0616402da2c079e5d31d58b9cfc7286d1b1eb2f7834e0f616d6d2d7661756c742d76322d3031", "0x09"],
+      "raw_result": "0x0703"
+    }
+  ]
+}
+```
+
+That ALEX swap is one signed call to `swap-helper`. Inside it ran 22 contract calls and two map writes; the response above shows one of them. `event_index` is the row's position in the block, so sorting by it replays the transaction in order.
+
+## What you can read
+
+Five types cover everything a contract does to its own storage and to other contracts.
+
+| `event_type` | One row per | Filters beyond `contractId`, `txId` and heights |
+| --- | --- | --- |
+| `nested_contract_call` | `contract-call?` made inside a transaction, including ones that failed and were handled | `functionName`, `caller`, `sender` |
+| `var_set` | Data-var write | `varName` |
+| `map_set` | Map entry overwrite | `map` |
+| `map_insert` | New map entry | `map` |
+| `map_delete` | Map entry deletion | `map` |
+
+- Keys, values, arguments and results are Clarity values as `0x` hex.
+- Every filter and column: [List events](/docs/api/index#list-events).
+
+### Who made the call
+
+An inner call carries two principals, and they differ more often than you'd expect.
+
+| Field | Means |
+| --- | --- |
+| `contract_id` | The contract called |
+| `caller` | Who made the call: Clarity's `contract-caller` |
+| `sender` | `tx-sender` at that moment. `as-contract` swaps it for the contract that used it |
+
+- A token transfer whose `caller` is a contract you don't recognize and whose `sender` is a vault means that contract moved the vault's tokens. That is how a vault drained through a fake token shows up.
+- The vault's own call into that contract has `sender` equal to `caller`.
+
+## Read a map's history
+
+Walk one map's writes to know what any key held after any transaction, without asking a node.
+
+```ts
+import { cvToValue, deserializeCV } from "@secondlayer/stacks/clarity";
+
+for await (const write of index.events.walk({
+  eventType: "map_set",
+  contractId: "SP102V8P0F7JX67ARQ77WEA3D3CFB5XW39REDT0AM.amm-vault-v2-01",
+  map: "reserve",
+  fromHeight: 0,
+})) {
+  const token = cvToValue(deserializeCV(write.raw_key));
+  const reserve = cvToValue(deserializeCV(write.raw_value));
+  console.log(write.block_height, token, reserve);
+}
+// 1230200 SP102V8P0F7JX67ARQ77WEA3D3CFB5XW39REDT0AM.token-wkiki 2122910416441083n
+```
+
+No print carries that reserve write. A node can read the current value, but not which transaction set it or every key the map holds.
+
+## The exact writes a block committed
+
+When you need storage keys rather than named maps, read [state writes](/docs/index#state-writes): every key a block wrote, in node order, each provable against the block.
+
+## Follow it live
+
+The same rows stream in block order with `clock: "vm"`, through the checkpointed consumer on [Index](/docs/index#build-your-index-on-it).
+
+```ts
+await sl.streams.events.consume({
+  clock: "vm",
+  types: ["map_set", "var_set"],
+  fromCursor: await db.loadCheckpoint(),
+  onBatch: async (rows, ctx) => {
+    await db.save(rows, ctx.cursor);
+    return ctx.cursor;
+  },
+  onReorg: (reorg) => db.deleteFromHeight(reorg.fork_point_height),
+});
+```
+
+To be pushed instead of pulling, a webhook fires on the same types. This one fires whenever a vault's reserves change:
+
+```ts
+import { trigger } from "@secondlayer/sdk";
+
+await sl.webhooks.create({
+  name: "vault-reserves",
+  url: "https://your.app/hooks/reserves",
+  triggers: [
+    trigger.mapSet({
+      contractId: "SP102V8P0F7JX67ARQ77WEA3D3CFB5XW39REDT0AM.amm-vault-v2-01",
+      map: "reserve",
+    }),
+  ],
+});
+```
+
+For tables you query instead of rows you process, a [subgraph](/docs/subgraphs) takes `map_set` and `var_set` as sources. Built only from writes, anyone can rebuild its rows.
+
+## Tradeoff
+
+Hosted reads are metered like any event row ([What it costs](/docs/authentication#what-it-costs)). A busy contract writes on every call, so scope by contract and map before you walk. Hosted mainnet serves these rows from genesis; a self-hosted instance has them only from the block its node first emitted them, on a node build that does.
+
+export const metadata = {
+	title: "See what a transaction did inside its contracts",
+	description:
+		"Read every inner contract call and every Clarity map and data-var write on Stacks, from genesis: one transaction, one map's history, or a live stream.",
+	alternates: { canonical: "/docs/guides/read-contract-state" },
+};
+
+export const agent = `
+- Endpoint: GET /v1/index/events with event_type one of nested_contract_call, var_set, map_set, map_insert, map_delete (SDK: index.events.list / .walk / .consume). Filters: contract_id, tx_id, from_height, to_height, plus function_name, caller, sender (nested_contract_call), var_name (var_set), map (map_*).
+- Rows carry Clarity values as 0x hex: function_args, raw_result, raw_key, raw_value. Decode with deserializeCV + cvToValue from @secondlayer/stacks/clarity.
+- event_index on these types is the row's position among the block's state rows (the cursor's second part), not a classic event index. Sorting a transaction's rows by it replays the transaction in order.
+- nested_contract_call includes inner calls that failed and were handled by their caller; check raw_result.
+- Hosted mainnet serves these rows from genesis. A self-hosted instance has them only from the block its node first emitted them (needs a node build that emits storage and contract_calls events).
+- Streams: clock "vm" with types from the five; cursors carry a vm: prefix and only resume on clock vm. Webhooks: trigger.nestedContractCall, trigger.varSet, trigger.mapSet, trigger.mapInsert, trigger.mapDelete.
+- Exact storage keys per block: GET /v1/index/state-writes (index.stateWrites, MCP index_state_writes).
+`;

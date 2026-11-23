@@ -836,7 +836,8 @@ export const indexSchemas = {
 			},
 			sender: {
 				type: ["string", "null"],
-				description: "Sending principal. The locked address on `stx_lock`.",
+				description:
+					"Sending principal. The locked address on `stx_lock`. On `nested_contract_call`, `tx-sender` at the call: `as-contract` swaps it for the contract that used it, so it can differ from `caller`.",
 			},
 			recipient: {
 				type: ["string", "null"],
@@ -863,7 +864,7 @@ export const indexSchemas = {
 			caller: {
 				type: ["string", "null"],
 				description:
-					"Contract that issued the inner call, on `nested_contract_call`.",
+					"Who made the inner call (Clarity's `contract-caller`), on `nested_contract_call`.",
 			},
 			function_name: {
 				type: ["string", "null"],

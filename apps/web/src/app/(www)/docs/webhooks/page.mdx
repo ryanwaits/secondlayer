@@ -124,6 +124,11 @@ Stacks principal, identifier and name fields take `*` wildcards; `trait` scopes 
 | `trigger.stxBurn` | `stx_burn` | `sender`, `minAmount` |
 | `trigger.stxLock` | `stx_lock` | `lockedAddress`, `minAmount` |
 | `trigger.printEvent` | `print_event` | `contractId`, `topic`, `where`, `trait` |
+| `trigger.nestedContractCall` | `nested_contract_call` | `contractId`, `functionName`, `caller`, `sender`, `trait` |
+| `trigger.varSet` | `var_set` | `contractId`, `varName`, `trait` |
+| `trigger.mapSet` | `map_set` | `contractId`, `map`, `trait` |
+| `trigger.mapInsert` | `map_insert` | `contractId`, `map`, `trait` |
+| `trigger.mapDelete` | `map_delete` | `contractId`, `map`, `trait` |
 | `trigger.sbtcDeposit` | `sbtc_deposit` | `recipient`, `minAmount`, `maxAmount`, `bitcoinTxid` |
 | `trigger.sbtcWithdrawalCreate` | `sbtc_withdrawal_create` | `sender`, `minAmount`, `maxAmount`, `requestId` |
 | `trigger.sbtcWithdrawalAccept` | `sbtc_withdrawal_accept` | `requestId`, `sweepTxid` |
@@ -133,6 +138,8 @@ Stacks principal, identifier and name fields take `*` wildcards; `trait` scopes 
 | `trigger.runeMint` | `rune_mint` | `rune` |
 | `trigger.runeTransfer` | `rune_transfer` | `rune`, `address`, `minAmount` |
 | `trigger.runeBurn` | `rune_burn` | `rune` |
+
+The last five fire on contract state: an inner call, or a write to a map or data var ([what they carry](/docs/guides/read-contract-state#what-you-can-read)).
 
 Validation is strict per type:
 

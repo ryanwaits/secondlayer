@@ -222,7 +222,7 @@ secondlayer index transactions get 0x<tx_id>
 secondlayer index mempool --contract-id SP….token
 ```
 
-Tool names for agents are on [MCP](/docs/mcp); see the [CLI](/docs/cli) for the rest. Mempool, state writes, PoX-5, sBTC and Runes have no MCP tool; use REST or the SDK. To be pushed instead of pulling: [Webhooks](/docs/webhooks).
+Tool names for agents are on [MCP](/docs/mcp); see the [CLI](/docs/cli) for the rest. Mempool, PoX-5, sBTC and Runes have no MCP tool; use REST or the SDK. To be pushed instead of pulling: [Webhooks](/docs/webhooks).
 
 ### Print schemas
 
@@ -282,6 +282,10 @@ curl -G "$SECONDLAYER_API_URL/v1/contracts" \
 
 `GET /v1/contracts/{contract_id}` returns one contract. `trait` also filters the event and contract-call feeds, and a subgraph source can target a trait and pick up contracts deployed later: [Index by standard](/docs/subgraphs#index-by-standard-not-by-address).
 
+### Contract state
+
+Every inner contract call and every map or data-var write is an event type too, from genesis on hosted mainnet. [See what a transaction did inside its contracts](/docs/guides/read-contract-state) reads them by transaction, by map, or live.
+
 ### State writes
 
 The exact contract-state writes each canonical block committed, in node order. Use it to see which key a transaction changed, which events alone don't show.
@@ -317,7 +321,7 @@ Each row is one write to contract storage.
 | `key` | The chain's storage key |
 | `value_hex` | The new value |
 
-History starts at the block where your node first sent the `state_writes` observer key. There is no earlier history.
+Hosted mainnet serves them from genesis. On your own box, history starts at the block where your node first sent the `state_writes` observer key.
 
 - `block_height` reads one block; it excludes `from_height` and `to_height`.
 - On your own box this needs a node build that emits state writes. The stock node doesn't yet.

@@ -183,7 +183,7 @@
 		{
 			"name": "index_events",
 			"group": "index",
-			"description": "List decoded chain events from the Index by event type. Use this for event types without a dedicated tool (stx_*, ft_mint/burn, nft_mint/burn, print), and for trait-scoped queries: set `trait` (e.g. sip-010) to match all contracts conforming to a standard — pair with contracts_find to discover traits. For ft/nft transfers without a trait prefer index_ft_transfers / index_nft_transfers.",
+			"description": "List chain events from the Index by event type. Use this for event types without a dedicated tool (stx_*, ft_mint/burn, nft_mint/burn, print), and for trait-scoped queries: set `trait` (e.g. sip-010) to match all contracts conforming to a standard — pair with contracts_find to discover traits. For ft/nft transfers without a trait prefer index_ft_transfers / index_nft_transfers. Clarity state types (nested_contract_call, var_set, map_set, map_insert, map_delete) show what a transaction did inside contracts: every inner contract-call? and every data-var and map write, from genesis on hosted mainnet.",
 			"remote": true
 		},
 		{
@@ -202,6 +202,12 @@
 			"name": "index_print_schema",
 			"group": "index",
 			"description": "Empirical per-topic print payload schemas for a contract, inferred from sampled on-chain events: each topic's fields with observed Clarity types, decoded TS types, subgraph column types, and presence rates. Use before writing print_event subgraph handlers to learn what's on e.data. Anonymous read.",
+			"remote": true
+		},
+		{
+			"name": "index_state_writes",
+			"group": "index",
+			"description": "List the exact contract-state writes each block committed, in node order: {block_height, ordinal, tx_index, key, value_hex}. Shows which storage key a transaction changed when its events don't. Read one block with blockHeight, or a contract's writes over a height range.",
 			"remote": true
 		},
 		{

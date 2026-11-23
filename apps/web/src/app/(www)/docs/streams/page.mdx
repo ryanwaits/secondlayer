@@ -222,6 +222,10 @@ await sl.streams.events.consume({
 
 One `filters` object can follow several concerns on one cursor.
 
+### Contract state
+
+`clock: "vm"` streams inner contract calls and map or data-var writes in block order, from genesis on hosted mainnet. Its cursors carry a `vm:` prefix. Example and row types: [See what a transaction did inside its contracts](/docs/guides/read-contract-state#follow-it-live).
+
 ### Two concerns, one loop
 
 A flat filter is one AND-ed set, so tracking sBTC mints *and* treasury spends
