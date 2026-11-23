@@ -9,6 +9,7 @@
 		"test": "bun test",
 		"typecheck": "bun check",
 		"og": "bun scripts/generate-og.tsx",
+		"readme-hero": "bun scripts/generate-readme-hero.ts",
 		"docs:phrasings": "bun scripts/docs-phrasings.ts",
 		"docs:vectors": "bun scripts/docs-vectors.ts",
 		"docs:tips": "bun scripts/docs-tips.ts",
@@ -42,6 +43,7 @@
 		"@types/react": "^19.1.0",
 		"@types/react-dom": "^19.1.0",
 		"ai": "7.0.133",
+		"opentype.js": "2.0.0",
 		"typescript": "^5.8.0"
 	}
 }
