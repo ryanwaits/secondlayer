@@ -14,8 +14,17 @@
 
 import { getErrorMessage, logger } from "@secondlayer/shared";
 import { classify, resolveProvider } from "@secondlayer/shared/classify";
-import { getDb, jsonb } from "@secondlayer/shared/db";
-import type { FeedbackTicket } from "@secondlayer/shared/db";
+import {
+	FEEDBACK_TICKET_STATUSES,
+	type FeedbackTicket,
+	type FeedbackTicketStatus,
+	getDb,
+	jsonb,
+} from "@secondlayer/shared/db";
+import {
+	casTransition,
+	defineMachine,
+} from "@secondlayer/shared/db/transition";
 import { getInstanceMode } from "@secondlayer/shared/mode";
 import { scheduleCron } from "./cron-schedule.ts";
 import {
@@ -26,6 +35,14 @@ import {
 	route,
 	rulesFor,
 } from "./feedback-classify-core.ts";
+
+/** A ticket is classified once and never returns to `new`. */
+export const FEEDBACK_TICKET_MACHINE = defineMachine({
+	states: FEEDBACK_TICKET_STATUSES,
+	transitions: {
+		new: ["classified"],
+	},
+});
 
 const INTERVAL_MS = 60_000;
 const BATCH_MAX = 50;
@@ -149,19 +166,27 @@ async function classifyOne(now: Date, deps: ClassifyDeps): Promise<boolean> {
 
 		const outcome = await decide(row, deps);
 
-		await tx
-			.updateTable("feedback_tickets")
-			.set({
-				status: "classified",
+		FEEDBACK_TICKET_MACHINE.assert("new", "classified");
+		const classified = await casTransition<FeedbackTicketStatus>(tx, {
+			table: "feedback_tickets",
+			id: row.id,
+			from: ["new"],
+			to: "classified",
+			stampUpdatedAt: false,
+			returning: ["id"],
+			set: {
 				route: outcome.route,
 				classified_at: now,
 				classification: jsonb<Record<string, unknown>>({
 					schema_version: FEEDBACK_SCHEMA_VERSION,
 					...outcome.classification,
 				}),
-			})
-			.where("id", "=", row.id)
-			.execute();
+			},
+		});
+		if (!classified) {
+			logger.warn("Feedback ticket was no longer new", { ticketId: row.id });
+			return false;
+		}
 		return true;
 	});
 }

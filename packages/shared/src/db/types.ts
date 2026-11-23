@@ -1744,6 +1744,10 @@ export interface ApiRequestLogTable {
 export type ApiRequestLogRow = Selectable<ApiRequestLogTable>;
 export type InsertApiRequestLogRow = Insertable<ApiRequestLogTable>;
 
+/** Mirrored by the CHECK on `feedback_tickets.status`. */
+export const FEEDBACK_TICKET_STATUSES = ["new", "classified"] as const;
+export type FeedbackTicketStatus = (typeof FEEDBACK_TICKET_STATUSES)[number];
+
 /**
  * Hosted problem report. `attempted` is the server's own copy of the failed
  * request (never caller-supplied); `status` starts `new` until classified.
@@ -1760,7 +1764,7 @@ export interface FeedbackTicketsTable {
 	evidence: Record<string, unknown> | null;
 	attempted: Record<string, unknown> | null;
 	origin: string;
-	status: Generated<"new" | "classified">;
+	status: Generated<FeedbackTicketStatus>;
 	route: string | null;
 	classification: Record<string, unknown> | null;
 	classified_at: Date | null;

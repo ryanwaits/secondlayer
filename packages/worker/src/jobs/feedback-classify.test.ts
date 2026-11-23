@@ -1,7 +1,11 @@
 import { afterAll, describe, expect, test } from "bun:test";
 import type { Answer } from "@secondlayer/shared/classify";
 import { getDb, jsonb } from "@secondlayer/shared/db";
-import { type ClassifyDeps, classifyNewTickets } from "./feedback-classify.ts";
+import {
+	type ClassifyDeps,
+	FEEDBACK_TICKET_MACHINE,
+	classifyNewTickets,
+} from "./feedback-classify.ts";
 
 const db = getDb();
 const accountIds: string[] = [];
@@ -244,5 +248,19 @@ describe("classifyNewTickets", () => {
 		expect(bad.route).toBe("human");
 		expect(bad.classification?.reason).toBe("job_error");
 		expect((await load(next)).route).toBe("docs");
+	});
+});
+
+describe("FEEDBACK_TICKET_MACHINE", () => {
+	test("a new ticket is classified once and never reopened", () => {
+		expect(FEEDBACK_TICKET_MACHINE.canTransition("new", "classified")).toBe(
+			true,
+		);
+		expect(FEEDBACK_TICKET_MACHINE.canTransition("classified", "new")).toBe(
+			false,
+		);
+		expect(() =>
+			FEEDBACK_TICKET_MACHINE.assert("classified", "classified"),
+		).toThrow("illegal transition classified -> classified");
 	});
 });
