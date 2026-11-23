@@ -179,6 +179,25 @@ async function rewindCursorTo(
 	);
 }
 
+async function cleanupAuxiliaryReorgState(
+	tx: Pick<ReturnType<typeof getRawClient>, "unsafe">,
+	schemaName: string,
+	subgraphId: string,
+	blockHeight: number,
+): Promise<void> {
+	await tx.unsafe(
+		`DO $$ BEGIN
+			IF to_regclass('"${schemaName}"."_factory_addresses"') IS NOT NULL THEN
+				DELETE FROM "${schemaName}"."_factory_addresses" WHERE block_height >= ${Number(blockHeight)};
+			END IF;
+		END $$`,
+	);
+	await tx.unsafe(
+		"DELETE FROM subgraph_violations WHERE subgraph_id = $1 AND block_height >= $2",
+		[subgraphId, blockHeight],
+	);
+}
+
 async function reorgOneSubgraph(
 	sg: Subgraph,
 	schema: SubgraphSchema,
@@ -213,6 +232,7 @@ async function reorgOneSubgraph(
 	)[0]?.r;
 	if (hasJournal) {
 		await client.begin(async (tx) => {
+			await cleanupAuxiliaryReorgState(tx, schemaName, sg.id, blockHeight);
 			for (const tableName of tableNames) {
 				// Pre-fork state per row = prev_row of the EARLIEST journal
 				// entry at/after the fork (pre-images compose: the first one
@@ -254,6 +274,7 @@ async function reorgOneSubgraph(
 			{ subgraph: sg.name, blockHeight },
 		);
 		await client.begin(async (tx) => {
+			await cleanupAuxiliaryReorgState(tx, schemaName, sg.id, blockHeight);
 			for (const tableName of tableNames) {
 				await tx.unsafe(
 					`DELETE FROM "${schemaName}"."${tableName}" WHERE "_block_height" >= $1`,
@@ -263,27 +284,6 @@ async function reorgOneSubgraph(
 			await rewindCursorTo(tx, sg.id, blockHeight - 1);
 		});
 	}
-
-	// Factory-discovered addresses are chain-derived state like any
-	// row: an address revealed on the orphaned fork must not keep
-	// matching forever. `IF EXISTS` because the table is only
-	// created for subgraphs that actually use a factory.
-	await client.unsafe(
-		`DO $$ BEGIN
-			IF to_regclass('"${schemaName}"."_factory_addresses"') IS NOT NULL THEN
-				DELETE FROM "${schemaName}"."_factory_addresses" WHERE block_height >= ${Number(blockHeight)};
-			END IF;
-		END $$`,
-	);
-
-	// Print-validate skips live on the control plane (same DB as `subgraphs`),
-	// not in the per-subgraph schema. Clear orphan rows that would accuse the
-	// live chain of a mismatch that only existed on the rolled-back fork.
-	await targetDb
-		.deleteFrom("subgraph_violations")
-		.where("subgraph_id", "=", sg.id)
-		.where("block_height", ">=", blockHeight)
-		.execute();
 
 	logger.info("Subgraph reorg cleanup done", {
 		subgraph: sg.name,
