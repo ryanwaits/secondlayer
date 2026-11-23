@@ -175,6 +175,7 @@ export type StreamsEventForFilter<F, D extends boolean = false> = F extends {
 		? IndexEvent
 		: StreamsEvent;
 
+/** Cursor, height range, and limit shared by every list call. */
 type StreamsEventsListParamsCommon = {
 	cursor?: string | null;
 	fromHeight?: number;
@@ -227,6 +228,7 @@ export type StreamsEventsListParams =
 	| StreamsEventsStacksListParams
 	| StreamsEventsBitcoinListParams;
 
+/** Cursor, batching, and stop options shared by every event stream. */
 type StreamsEventsStreamCommon = {
 	fromCursor?: string | null;
 	batchSize?: number;
@@ -632,6 +634,7 @@ export type StreamsBatch<TEvent = StreamsEvent, TTip = StreamsTip> = {
 	reorgs: StreamsReorg[];
 };
 
+/** Cursor, batch size, and polling options shared by every consume loop. */
 type StreamsConsumeCommon = {
 	/** Resume strictly after this cursor; omit to start from the oldest seekable page. */
 	cursor?: string | null;

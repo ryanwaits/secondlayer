@@ -351,6 +351,7 @@ export function fromSubgraphSource(
 	) as unknown as ChainEventFilter<SubgraphMemberType>;
 }
 
+/** The fields a filter factory takes for one event type, without `type`. */
 type Fields<T extends ChainEventFilterType> = Omit<SpecFor<T>, "type">;
 
 /** The `on.*` namespace, annotated explicitly — bunup's dts emitter needs an

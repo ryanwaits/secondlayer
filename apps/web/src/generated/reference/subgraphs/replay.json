@@ -138,7 +138,7 @@
 			"description": "Compares replayed tables with the served ones over a block range.\n\nRows are matched on `_block_height` within `[from, to]`. Keyed tables, by\ntheir first `uniqueKeys` tuple, compare row by row, and unkeyed tables\ncompare as multisets.",
 			"source": {
 				"file": "packages/subgraphs/src/verify/compare.ts",
-				"line": 123
+				"line": 124
 			},
 			"overloads": [
 				{
@@ -853,7 +853,7 @@
 		},
 		{
 			"name": "Row",
-			"summary": "",
+			"summary": "A table row as a plain column-to-value record.",
 			"definition": "Record<string, unknown>"
 		},
 		{
