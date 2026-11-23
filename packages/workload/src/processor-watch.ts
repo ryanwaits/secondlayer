@@ -43,6 +43,7 @@ import {
 	type ProvisionerConfig,
 	type RunCompose,
 	composeEnv,
+	inLane,
 	isTestnetStackAccount,
 	parseEnvFile,
 	projectName,
@@ -159,28 +160,44 @@ export function realProcessorWatchDeps(
 	const authed = (t: TenantEndpoint) => ({
 		authorization: `Bearer ${t.instanceToken}`,
 	});
-	/** One compose call on the processor. Compose interpolates the whole file,
-	 *  so it needs SOME image tag; the one this tenant already runs keeps a
-	 *  started processor on the same image as the rest of its stack. */
-	async function processorCompose(
+	/** Compose calls on the processor, in order, inside the account's lane and
+	 *  only while the tenant is still `running`; stops at the first failure.
+	 *  Compose interpolates the whole file, so it needs SOME image tag; the one
+	 *  this tenant already runs keeps a started processor on the same image as
+	 *  the rest of its stack. */
+	function processorCompose(
 		tenant: TenantRow,
-		args: string[],
+		...steps: string[][]
 	): Promise<boolean> {
-		const tag = tenant.image_sha ?? cfg.getTargetSha();
-		if (!tag) return false;
-		const res = await runCompose(
-			[
-				"-p",
-				projectName(tenant.acct8),
-				"-f",
-				cfg.composeFile,
-				"--env-file",
-				join(tenantDir(cfg, tenant.acct8), ".env"),
-				...args,
-			],
-			composeEnv(tag, true),
-		);
-		return res.code === 0;
+		return inLane(tenant.account_id, async () => {
+			const current = await getTenant(cfg.db, tenant.account_id);
+			if (current?.state !== "running") {
+				logger.info("workload.processor.compose_skipped_not_running", {
+					accountId: tenant.account_id,
+					acct8: tenant.acct8,
+					state: current?.state ?? null,
+				});
+				return false;
+			}
+			const tag = current.image_sha ?? cfg.getTargetSha();
+			if (!tag) return false;
+			for (const args of steps) {
+				const res = await runCompose(
+					[
+						"-p",
+						projectName(tenant.acct8),
+						"-f",
+						cfg.composeFile,
+						"--env-file",
+						join(tenantDir(cfg, tenant.acct8), ".env"),
+						...args,
+					],
+					composeEnv(tag, true),
+				);
+				if (res.code !== 0) return false;
+			}
+			return true;
+		});
 	}
 
 	return {
@@ -258,8 +275,11 @@ export function realProcessorWatchDeps(
 				"subgraph-processor",
 			]),
 		removeProcessor: async (tenant) =>
-			(await processorCompose(tenant, ["stop", "subgraph-processor"])) &&
-			(await processorCompose(tenant, ["rm", "-f", "subgraph-processor"])),
+			processorCompose(
+				tenant,
+				["stop", "subgraph-processor"],
+				["rm", "-f", "subgraph-processor"],
+			),
 		now: () => Date.now(),
 	};
 }

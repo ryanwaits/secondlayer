@@ -37,6 +37,7 @@ import {
 	destroy,
 	ensureTenantEnv,
 	generateTenantSecrets,
+	inLane,
 	makeCheckCreditsOk,
 	makeMintTenantKey,
 	parseEnvFile,
@@ -1065,6 +1066,161 @@ describe.skipIf(!HAS_DB)("provisioner up/stop/start/destroy", () => {
 		await expect(up(cfg(), accountId)).rejects.toThrow("compose up failed");
 		expect((await getTenant(db, accountId))?.state).toBe("provisioning");
 		await deleteTenant(db, accountId);
+	});
+
+	describe("account lane", () => {
+		const LANE_TEST_TIMEOUT_MS = 5_000;
+
+		test(
+			"up() on a stopped tenant restarts it inside the lane, alongside a start(), without deadlocking",
+			async () => {
+				secretsRoot = mkdtempSync(join(tmpdir(), "workload-secrets-"));
+				const accountId = crypto.randomUUID();
+				await up(cfg(), accountId);
+				await stop(cfg(), accountId, "credits");
+				composeCalls.length = 0;
+
+				const [viaUp] = await Promise.all([
+					up(cfg(), accountId),
+					start(cfg(), accountId),
+				]);
+
+				expect(viaUp).toBe("running");
+				expect(composeCalls.filter((c) => c.args.includes("up"))).toHaveLength(
+					1,
+				);
+				expect((await getTenant(db, accountId))?.state).toBe("running");
+
+				await deleteTenant(db, accountId);
+			},
+			LANE_TEST_TIMEOUT_MS,
+		);
+
+		test(
+			"up() that loses its row to a destroy while compose ran tears the new stack down",
+			async () => {
+				secretsRoot = mkdtempSync(join(tmpdir(), "workload-secrets-"));
+				const accountId = crypto.randomUUID();
+				const racing: ProvisionerConfig = {
+					...cfg(),
+					runCompose: async (args, env) => {
+						composeCalls.push({ args, env });
+						if (args.includes("up")) {
+							await forceTenantState(db, accountId, "destroyed");
+						}
+						return { code: 0, stdout: "", stderr: "" };
+					},
+				};
+
+				expect(await up(racing, accountId)).toBe("destroyed");
+
+				const last = composeCalls.at(-1);
+				expect(last?.args).toContain(`tenant-${acct8For(accountId)}`);
+				expect(last?.args).toContain("down");
+				expect(last?.args).toContain("-v");
+				expect((await getTenant(db, accountId))?.state).toBe("destroyed");
+
+				await deleteTenant(db, accountId);
+			},
+			LANE_TEST_TIMEOUT_MS,
+		);
+
+		for (const owner of ["running", "stopped"] as const) {
+			test(
+				`up() that loses its row to a ${owner} owner leaves the stack alone`,
+				async () => {
+					secretsRoot = mkdtempSync(join(tmpdir(), "workload-secrets-"));
+					const accountId = crypto.randomUUID();
+					const racing: ProvisionerConfig = {
+						...cfg(),
+						runCompose: async (args, env) => {
+							composeCalls.push({ args, env });
+							if (args.includes("up")) {
+								await forceTenantState(db, accountId, owner);
+							}
+							return { code: 0, stdout: "", stderr: "" };
+						},
+					};
+
+					expect(await up(racing, accountId)).toBe(owner);
+
+					expect(composeCalls.some((c) => c.args.includes("down"))).toBe(false);
+
+					await deleteTenant(db, accountId);
+				},
+				LANE_TEST_TIMEOUT_MS,
+			);
+		}
+
+		test(
+			"a destroy during a slow up() waits for it, then removes the stack it brought up",
+			async () => {
+				secretsRoot = mkdtempSync(join(tmpdir(), "workload-secrets-"));
+				const accountId = crypto.randomUUID();
+				const events: string[] = [];
+				let releaseUp = () => {};
+				const slow: ProvisionerConfig = {
+					...cfg(),
+					backups: fakeBackups(0).cfg,
+					runCompose: async (args) => {
+						const op = args.includes("down") ? "down" : "up";
+						events.push(`${op}:begin`);
+						if (op === "up") {
+							await new Promise<void>((resolve) => {
+								releaseUp = resolve;
+							});
+						}
+						events.push(`${op}:end`);
+						return { code: 0, stdout: "", stderr: "" };
+					},
+				};
+
+				const provisioning = up(slow, accountId);
+				while (!events.includes("up:begin")) await Bun.sleep(1);
+				const destroying = destroy(slow, accountId);
+				await Bun.sleep(30);
+				expect(events).toEqual(["up:begin"]);
+
+				releaseUp();
+				const [state] = await Promise.all([provisioning, destroying]);
+
+				expect(state).toBe("running");
+				expect(events).toEqual([
+					"up:begin",
+					"up:end",
+					"down:begin",
+					"down:end",
+				]);
+				expect((await getTenant(db, accountId))?.state).toBe("destroyed");
+
+				await deleteTenant(db, accountId);
+			},
+			LANE_TEST_TIMEOUT_MS,
+		);
+
+		test(
+			"up() answers for a running tenant without waiting on a busy lane",
+			async () => {
+				secretsRoot = mkdtempSync(join(tmpdir(), "workload-secrets-"));
+				const accountId = crypto.randomUUID();
+				await up(cfg(), accountId);
+				let release = () => {};
+				const held = inLane(
+					accountId,
+					() =>
+						new Promise<void>((resolve) => {
+							release = resolve;
+						}),
+				);
+
+				expect(await up(cfg(), accountId)).toBe("running");
+
+				release();
+				await held;
+				await deleteTenant(db, accountId);
+			},
+			LANE_TEST_TIMEOUT_MS,
+		);
 	});
 });
 

@@ -587,33 +587,51 @@ export async function ensureTenantEnv(
  * retries on the same row instead of burning a new allocation. A
  * `provisioning` row this process is not working on (`provisioningInFlight`)
  * is such a leftover, from a failure or a restart.
+ *
+ * Provisioning and restarting run in the account's lane (`inLane`), after
+ * any start, stop, destroy, upgrade or processor reconcile on it. An account
+ * this process is already provisioning, a `running` tenant and a `destroyed`
+ * tombstone answer from the row without waiting for the lane, so a caller
+ * polling `up()` never queues behind a slow compose run.
  */
 export async function up(
+	cfg: ProvisionerConfig,
+	accountId: string,
+): Promise<TenantRow["state"]> {
+	if (provisioningInFlight.has(accountId)) return "provisioning";
+	const settled = upSettledState(accountId, await getTenant(cfg.db, accountId));
+	if (settled) return settled;
+	return inLane(accountId, () => upOnce(cfg, accountId));
+}
+
+function upSettledState(
+	accountId: string,
+	row: TenantRow | undefined,
+): TenantRow["state"] | null {
+	if (row?.state === "destroyed") {
+		logger.warn("workload.provisioner.up_refused_destroyed", {
+			accountId,
+			acct8: acct8For(accountId),
+		});
+		return "destroyed";
+	}
+	if (row?.state === "running") return "running";
+	return null;
+}
+
+async function upOnce(
 	cfg: ProvisionerConfig,
 	accountId: string,
 ): Promise<TenantRow["state"]> {
 	const runCompose = cfg.runCompose ?? spawnCompose;
 	const acct8 = acct8For(accountId);
 	const existing = await getTenant(cfg.db, accountId);
-	if (existing?.state === "destroyed") {
-		// A tombstone: a deleted account never gets a stack again, whatever key
-		// it still holds.
-		logger.warn("workload.provisioner.up_refused_destroyed", {
-			accountId,
-			acct8,
-		});
-		return "destroyed";
+	const settled = upSettledState(accountId, existing);
+	if (settled) return settled;
+	if (existing?.state === "stopped") {
+		await startOnce(cfg, accountId);
+		return (await getTenant(cfg.db, accountId))?.state ?? "destroyed";
 	}
-	if (existing) {
-		if (existing.state === "stopped") {
-			await start(cfg, accountId);
-			return "running";
-		}
-		// A `provisioning` row nothing in this process is working on is a failed
-		// or interrupted provision: fall through and retry it on the same row.
-		if (existing.state !== "provisioning") return existing.state;
-	}
-	if (provisioningInFlight.has(accountId)) return "provisioning";
 
 	// Checked before the row insert (not just before the compose call) so an
 	// undetermined target never leaves behind a stuck `provisioning` row that
@@ -745,6 +763,9 @@ async function provisionStack(
 			acct8,
 			state: row?.state ?? null,
 		});
+		if (!row || row.state === "destroyed") {
+			await teardownProvision(cfg, runCompose, accountId, acct8, targetSha);
+		}
 		return row?.state ?? "destroyed";
 	}
 	await recordTenantRelease(cfg, accountId, targetSha);
@@ -857,13 +878,16 @@ function workloadCount(
 	return (cfg.countWorkloads ?? countTenantWorkloads)(acct8);
 }
 
-/** One lane per account for every compose operation (start, stop, destroy):
- *  they run one after another, never side by side on one project. A stop moves
- *  the row to `stopped` before compose runs, so a gateway start can arrive
- *  mid-stop; it waits here, then re-reads the row. */
 const lanes = new Map<string, Promise<unknown>>();
 
-function inLane<T>(accountId: string, op: () => Promise<T>): Promise<T> {
+/** One lane per account for every compose operation on its project (up,
+ *  start, stop, destroy, upgrade, processor reconcile): they run one after
+ *  another, never side by side. A stop moves the row to `stopped` before
+ *  compose runs, so a gateway start can arrive mid-stop; it waits here, then
+ *  re-reads the row. Not re-entrant: `op` must never call a lane-taking
+ *  function (`up`, `start`, `stop`, `destroy`, `inLane`) for the same
+ *  account, or it waits on itself forever. */
+export function inLane<T>(accountId: string, op: () => Promise<T>): Promise<T> {
 	const previous = lanes.get(accountId) ?? Promise.resolve();
 	const run = previous.then(op, op);
 	const tail = run.catch(() => {});

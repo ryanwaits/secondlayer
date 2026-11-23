@@ -28,6 +28,7 @@ import {
 } from "./control-db.ts";
 import {
 	type ProvisionerConfig,
+	inLane,
 	parseEnvFile,
 	renderEnvFile,
 	templateSha,
@@ -616,6 +617,48 @@ describe.skipIf(!HAS_DB)("upgradeTenants", () => {
 		await deleteTenant(db, a);
 		await deleteTenant(db, b);
 	});
+
+	for (const left of ["stopped", "destroyed"] as const) {
+		test(`a tenant ${left} while it waited for its lane is skipped, and the round goes on`, async () => {
+			const a = await seedRunningTenant(OTHER_SHA);
+			const b = await seedRunningTenant(OTHER_SHA);
+			composeCalls = [];
+			let release = () => {};
+			const held = inLane(
+				a,
+				() =>
+					new Promise<void>((resolve) => {
+						release = resolve;
+					}),
+			);
+
+			const round = upgradeTenants(
+				cfg(async (args, env) => {
+					composeCalls.push({ args, env });
+					return { code: 0, stdout: "", stderr: "" };
+				}),
+				GOOD_SHA,
+			);
+			await Bun.sleep(30);
+			expect(
+				composeCalls.some((c) => c.args.includes(`tenant-${acct8For(a)}`)),
+			).toBe(false);
+			await forceTenantState(db, a, left);
+			release();
+			await held;
+			await round;
+
+			expect(
+				composeCalls.some((c) => c.args.includes(`tenant-${acct8For(a)}`)),
+			).toBe(false);
+			expect((await getTenant(db, a))?.image_sha).toBe(OTHER_SHA);
+			expect((await getTenant(db, a))?.state).toBe(left);
+			expect((await getTenant(db, b))?.image_sha).toBe(GOOD_SHA);
+
+			await deleteTenant(db, a);
+			await deleteTenant(db, b);
+		}, 5_000);
+	}
 
 	test("createUpgradeRunner skips a round that overlaps one still in flight", async () => {
 		const a = await seedRunningTenant(OTHER_SHA);

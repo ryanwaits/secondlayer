@@ -17,6 +17,7 @@ import {
 	getTenant,
 	insertProvisioningTenant,
 	setTenantHasSubgraphs,
+	setTenantImageSha,
 } from "./control-db.ts";
 import {
 	MAX_RESTARTS_PER_HEIGHT,
@@ -29,7 +30,11 @@ import {
 	createProcessorWatch,
 	realProcessorWatchDeps,
 } from "./processor-watch.ts";
-import { type ProvisionerConfig, renderEnvFile } from "./provisioner.ts";
+import {
+	type ProvisionerConfig,
+	inLane,
+	renderEnvFile,
+} from "./provisioner.ts";
 import { forceTenantState } from "./tenant-fixture.ts";
 
 const HAS_DB = !!process.env.DATABASE_URL;
@@ -792,6 +797,79 @@ describe.skipIf(!HAS_DB)("processor watch", () => {
 		expect(removed).toEqual([id]);
 		expect(await hasSubgraphs(id)).toBe(false);
 	});
+
+	describe("real compose calls", () => {
+		let calls: { args: string[]; env: Record<string, string> }[];
+
+		function realDeps(
+			runCompose?: ProvisionerConfig["runCompose"],
+		): ProcessorWatchDeps {
+			calls = [];
+			return realProcessorWatchDeps(cfg(), {
+				runCompose:
+					runCompose ??
+					(async (args, env) => {
+						calls.push({ args, env });
+						return { code: 0, stdout: "", stderr: "" };
+					}),
+			});
+		}
+
+		test("restart targets only subgraph-processor, on the tag the tenant already runs", async () => {
+			const id = await seedTenant();
+			await setTenantImageSha(db, id, "c".repeat(40));
+			const d = realDeps();
+
+			const ok = await d.restartProcessor((await getTenant(db, id)) as never);
+
+			expect(ok).toBe(true);
+			expect(calls[0]?.args.slice(-2)).toEqual([
+				"restart",
+				"subgraph-processor",
+			]);
+			expect(calls[0]?.env.WORKLOAD_IMAGE_TAG).toBe("c".repeat(40));
+		});
+
+		test("a tenant that left running before its turn gets no compose call", async () => {
+			const id = await seedTenant();
+			const listed = (await getTenant(db, id)) as never;
+			const d = realDeps();
+
+			await forceTenantState(db, id, "stopped");
+			expect(await d.startProcessor(listed)).toBe(false);
+			await forceTenantState(db, id, "destroyed");
+			expect(await d.removeProcessor(listed)).toBe(false);
+			expect(await d.restartProcessor(listed)).toBe(false);
+
+			expect(calls).toHaveLength(0);
+		});
+
+		test("removing the processor waits for a compose op already in the account's lane, and stop and rm run back to back", async () => {
+			const id = await seedTenant();
+			const events: string[] = [];
+			let release = () => {};
+			const held = inLane(id, async () => {
+				events.push("held:begin");
+				await new Promise<void>((resolve) => {
+					release = resolve;
+				});
+				events.push("held:end");
+			});
+			const d = realDeps(async (args) => {
+				events.push(args.includes("stop") ? "stop" : "rm");
+				return { code: 0, stdout: "", stderr: "" };
+			});
+
+			const removing = d.removeProcessor((await getTenant(db, id)) as never);
+			await Bun.sleep(30);
+			expect(events).toEqual(["held:begin"]);
+
+			release();
+			await held;
+			expect(await removing).toBe(true);
+			expect(events).toEqual(["held:begin", "held:end", "stop", "rm"]);
+		}, 5_000);
+	});
 });
 
 describe("realProcessorWatchDeps", () => {
@@ -872,23 +950,6 @@ describe("realProcessorWatchDeps", () => {
 			["b", false],
 			["c", undefined],
 		]);
-	});
-
-	test("restart targets only subgraph-processor, on the tag the tenant already runs", async () => {
-		const calls: { args: string[]; env: Record<string, string> }[] = [];
-		const d = realProcessorWatchDeps(base, {
-			runCompose: async (args, env) => {
-				calls.push({ args, env });
-				return { code: 0, stdout: "", stderr: "" };
-			},
-		});
-		const ok = await d.restartProcessor({
-			acct8: "abcd1234",
-			image_sha: "c".repeat(40),
-		} as never);
-		expect(ok).toBe(true);
-		expect(calls[0]?.args.slice(-2)).toEqual(["restart", "subgraph-processor"]);
-		expect(calls[0]?.env.WORKLOAD_IMAGE_TAG).toBe("c".repeat(40));
 	});
 
 	test("halt posts the reason with the tenant's instance token", async () => {

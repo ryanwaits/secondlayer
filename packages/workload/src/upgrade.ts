@@ -15,13 +15,14 @@
 
 import { join } from "node:path";
 import { logger } from "@secondlayer/shared";
-import { type TenantRow, listRunningTenants } from "./control-db.ts";
+import { type TenantRow, getTenant, listRunningTenants } from "./control-db.ts";
 import type { FetchLike } from "./fetch-like.ts";
 import {
 	type ProvisionerConfig,
 	type RunCompose,
 	composeEnv,
 	ensureTenantEnv,
+	inLane,
 	isTestnetStackAccount,
 	projectName,
 	recordTenantRelease,
@@ -135,6 +136,10 @@ function composeArgs(
  * logs `workload.upgrade.rolled_back`, and stops the round the same way (a
  * bad image fails every tenant identically — trying the next one just fails
  * it too).
+ *
+ * Each tenant rolls inside its own account lane (`inLane`), one lane at a
+ * time, and its row is re-read there: a tenant stopped or destroyed while it
+ * waited is skipped, and the roll uses the row as it is now.
  */
 export async function upgradeTenants(
 	cfg: ProvisionerConfig,
@@ -178,67 +183,83 @@ export async function upgradeTenants(
 		);
 	if (stale.length === 0) return;
 
-	for (const tenant of stale) {
-		const acct8 = tenant.acct8;
-
-		await ensureTenantEnv(cfg, tenant.account_id);
-
-		const pullResult = await runCompose(
-			composeArgs(cfg, acct8, [
-				"pull",
-				...tenantServices(tenant.has_subgraphs),
-			]),
-			composeEnv(targetSha, tenant.has_subgraphs),
+	for (const listed of stale) {
+		const outcome = await inLane(listed.account_id, () =>
+			upgradeTenant(cfg, runCompose, listed.account_id, targetSha, template),
 		);
-		if (pullResult.code !== 0) {
-			logger.error("workload.upgrade.pull_failed", {
-				accountId: tenant.account_id,
-				targetSha,
-				stderr: pullResult.stderr.slice(0, 2000),
-			});
-			return;
-		}
-
-		const upResult = await runCompose(
-			composeArgs(cfg, acct8, ["up", "-d", "--wait"]),
-			composeEnv(targetSha, tenant.has_subgraphs),
-		);
-		if (upResult.code !== 0) {
-			logger.error("workload.upgrade.up_failed", {
-				accountId: tenant.account_id,
-				targetSha,
-				stderr: upResult.stderr.slice(0, 2000),
-			});
-			const previousSha = tenant.image_sha;
-			if (previousSha) {
-				await runCompose(
-					composeArgs(cfg, acct8, ["up", "-d", "--wait"]),
-					composeEnv(previousSha, tenant.has_subgraphs),
-				);
-			} else {
-				// No prior sha recorded for this tenant (its first upgrade round
-				// since `image_sha` started being tracked) — nothing to roll back
-				// TO, so leave it on whatever `up -d --wait` left running.
-				logger.warn("workload.upgrade.rollback_skipped_no_previous_sha", {
-					accountId: tenant.account_id,
-				});
-			}
-			logger.error("workload.upgrade.rolled_back", {
-				accountId: tenant.account_id,
-				from: targetSha,
-				to: previousSha,
-				stderr: upResult.stderr.slice(0, 2000),
-			});
-			return;
-		}
-
-		await recordTenantRelease(cfg, tenant.account_id, targetSha, template);
-		logger.info("workload.upgrade.tenant_upgraded", {
-			accountId: tenant.account_id,
-			from: tenant.image_sha,
-			to: targetSha,
-		});
+		if (outcome === "failed") return;
 	}
+}
+
+async function upgradeTenant(
+	cfg: ProvisionerConfig,
+	runCompose: RunCompose,
+	accountId: string,
+	targetSha: string,
+	template: string | null,
+): Promise<"upgraded" | "skipped" | "failed"> {
+	const tenant = await getTenant(cfg.db, accountId);
+	if (tenant?.state !== "running") {
+		logger.info("workload.upgrade.skipped_tenant_not_running", {
+			accountId,
+			state: tenant?.state ?? null,
+		});
+		return "skipped";
+	}
+	const acct8 = tenant.acct8;
+
+	await ensureTenantEnv(cfg, accountId);
+
+	const pullResult = await runCompose(
+		composeArgs(cfg, acct8, ["pull", ...tenantServices(tenant.has_subgraphs)]),
+		composeEnv(targetSha, tenant.has_subgraphs),
+	);
+	if (pullResult.code !== 0) {
+		logger.error("workload.upgrade.pull_failed", {
+			accountId,
+			targetSha,
+			stderr: pullResult.stderr.slice(0, 2000),
+		});
+		return "failed";
+	}
+
+	const upResult = await runCompose(
+		composeArgs(cfg, acct8, ["up", "-d", "--wait"]),
+		composeEnv(targetSha, tenant.has_subgraphs),
+	);
+	if (upResult.code !== 0) {
+		logger.error("workload.upgrade.up_failed", {
+			accountId,
+			targetSha,
+			stderr: upResult.stderr.slice(0, 2000),
+		});
+		const previousSha = tenant.image_sha;
+		if (previousSha) {
+			await runCompose(
+				composeArgs(cfg, acct8, ["up", "-d", "--wait"]),
+				composeEnv(previousSha, tenant.has_subgraphs),
+			);
+		} else {
+			logger.warn("workload.upgrade.rollback_skipped_no_previous_sha", {
+				accountId,
+			});
+		}
+		logger.error("workload.upgrade.rolled_back", {
+			accountId,
+			from: targetSha,
+			to: previousSha,
+			stderr: upResult.stderr.slice(0, 2000),
+		});
+		return "failed";
+	}
+
+	await recordTenantRelease(cfg, accountId, targetSha, template);
+	logger.info("workload.upgrade.tenant_upgraded", {
+		accountId,
+		from: tenant.image_sha,
+		to: targetSha,
+	});
+	return "upgraded";
 }
 
 export interface UpgradeRunner {
