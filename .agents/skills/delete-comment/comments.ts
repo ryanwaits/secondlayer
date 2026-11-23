@@ -5,8 +5,9 @@
  * records. The baseline only shrinks; run the /delete-comment skill to cut it.
  *
  * Exempt: tool directives (biome-ignore, @ts-*, pragmas), license headers,
- * and, in published packages, JSDoc on exported symbols and on type members
- * (openpkg specs + IDE hovers read it; that is customer documentation).
+ * and, in published packages, JSDoc on exported symbols, type members and every
+ * type declaration, exported or not (openpkg specs + IDE hovers read it, including
+ * non-exported types a public signature names; that is customer documentation).
  *
  *   bun .agents/skills/delete-comment/comments.ts                  check
  *   bun .agents/skills/delete-comment/comments.ts --write          rewrite the baseline
@@ -52,7 +53,13 @@ function publicJsDocStarts(sf: ts.SourceFile): Set<number> {
 	const starts = new Set<number>();
 	const visit = (node: ts.Node, exported: boolean) => {
 		for (const doc of (node as { jsDoc?: ts.JSDoc[] }).jsDoc ?? []) {
-			if (exported || ts.isTypeElement(node)) starts.add(doc.pos);
+			if (
+				exported ||
+				ts.isTypeElement(node) ||
+				ts.isTypeAliasDeclaration(node) ||
+				ts.isInterfaceDeclaration(node)
+			)
+				starts.add(doc.pos);
 		}
 		ts.forEachChild(node, (child) => visit(child, exported));
 	};

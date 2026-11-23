@@ -27,14 +27,8 @@ bun $S/comments.ts --write          # rewrite baseline (coordinator only)
 
 Exempt by the script: tool directives (`biome-ignore`, `@ts-*`, pragmas), license
 and attribution headers (MIT/CC0), and in published packages JSDoc on exported
-symbols and type members (openpkg + IDE hovers). Never touch tests, `scripts/`,
-generated files (e.g. `checkpoint-mainnet.ts`), or string/template contents.
-
-**Keep JSDoc on a non-exported type that an exported signature names** (e.g.
-`type Row`, `type StreamsConsumeCommon`). The script counts it, but openpkg
-publishes its summary into the reference docs, and `reference-lint.test.ts` fails CI
-without one. Label it Decision Record. Check: is the type name in a parameter,
-return, or member type of an exported symbol?
+symbols, type members and every type declaration (openpkg + IDE hovers). Never
+touch tests, `scripts/`, generated files (e.g. `checkpoint-mainnet.ts`), or string/template contents.
 
 ## 1. List
 
