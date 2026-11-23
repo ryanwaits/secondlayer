@@ -269,13 +269,20 @@ if [ "$MIGRATIONS_CHANGED" = "true" ]; then
   # `select * from subgraphs` queries queued behind our ALTER. Killing them
   # now guarantees ACCESS EXCLUSIVE on subgraphs can be acquired immediately.
   # Services auto-reconnect via postgres.js on their next statement after restart.
-  echo "🔌 Terminating zombie sessions on tenant DB..."
-  docker exec secondlayer-postgres-1 psql -U "${POSTGRES_USER:-secondlayer}" -d "${POSTGRES_DB:-secondlayer}" -c "
-    SELECT pg_terminate_backend(pid)
-    FROM pg_stat_activity
-    WHERE datname = current_database()
-      AND pid <> pg_backend_pid();
-  " 2>/dev/null || true
+  echo "🔌 Terminating zombie app sessions on the chain and platform DBs..."
+  # Both migration targets, via their URLs from inside the platform postgres
+  # container (compose hostnames resolve there; the chain DB may be on its own
+  # host). Only the app role's sessions: WAL-G and admin sessions stay up.
+  for url in "${SOURCE_DATABASE_URL:-}" "${TARGET_DATABASE_URL:-}"; do
+    [ -n "$url" ] || continue
+    docker exec secondlayer-postgres-platform-1 psql "$url" -qtAc "
+      SELECT count(pg_terminate_backend(pid))
+      FROM pg_stat_activity
+      WHERE datname = current_database()
+        AND usename = current_user
+        AND pid <> pg_backend_pid();
+    " 2>/dev/null || true
+  done
 
   # Run migrations synchronously — fail fast on error
   $COMPOSE run --rm migrate
