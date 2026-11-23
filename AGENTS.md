@@ -48,6 +48,12 @@ request), supported, documented.
 - Every status write goes through `casTransition`; `null` = lost race, log and stop. `scripts/ci/status-writes.ts` fails CI on new raw `.set({ status:` / `SET status` sites (baseline file; shrink it, never grow it).
 - Derived states ("is live", "is down", "caught up") = one exported pure fn, no inline copies.
 
+### Comments
+
+- Product code (`packages/<name>/src`, `apps/web/src`) carries no comments. Say it in names, types, tests.
+- Exempt: tool directives, license headers, JSDoc on exported symbols of published packages (openpkg + IDE hovers).
+- `scripts/ci/comments.ts` fails CI on new comment lines (baseline file; shrink it, never grow it). `/delete-comment <path>` shrinks it.
+
 ### Process
 
 - Work directly on `main`; push only when the founder asks (every push deploys prod).

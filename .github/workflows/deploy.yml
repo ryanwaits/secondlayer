@@ -113,6 +113,8 @@ jobs:
         run: bun scripts/ci/check-pox5-pin.ts
       - name: Raw status writes (no new sites outside casTransition)
         run: bun scripts/ci/status-writes.ts
+      - name: Comment ratchet (no new comments in product code)
+        run: bun scripts/ci/comments.ts
       - name: Scripts tests
         run: bun test scripts/ci/indexnow.test.ts scripts/ops skills/secondlayer/dash/test
 
