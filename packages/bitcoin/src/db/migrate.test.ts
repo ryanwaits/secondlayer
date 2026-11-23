@@ -84,6 +84,55 @@ describe.skipIf(!testUrl)("migrateToLatest self-provisioning", () => {
 		await admin.unsafe(`DROP DATABASE "${dbName}"`);
 	});
 
+	test("runes keyset indexes replace the address-only balances index", async () => {
+		const dbName = "bitcoin_migrate_runes_sort_indexes_test";
+		const dbUrl = new URL(serverUrl);
+		dbUrl.pathname = `/${dbName}`;
+		await admin.unsafe(`DROP DATABASE IF EXISTS "${dbName}"`);
+
+		const prevUrl = process.env.BITCOIN_DATABASE_URL;
+		process.env.BITCOIN_DATABASE_URL = dbUrl.toString();
+		try {
+			await migrateToLatest();
+		} finally {
+			if (prevUrl === undefined) delete process.env.BITCOIN_DATABASE_URL;
+			else process.env.BITCOIN_DATABASE_URL = prevUrl;
+		}
+
+		const client = postgres(dbUrl.toString(), { max: 1 });
+		try {
+			const rows = await client<{ indexname: string; indexdef: string }[]>`
+				SELECT indexname, indexdef FROM pg_indexes
+				WHERE tablename IN ('rune_entries', 'rune_balances')
+			`;
+			const defs = new Map(rows.map((r) => [r.indexname, r.indexdef]));
+			expect(defs.get("rune_entries_mints_number_idx")).toContain(
+				"(mints DESC, number DESC)",
+			);
+			expect(defs.get("rune_balances_address_keyset_idx")).toContain(
+				"(address, rune_id, txid, vout)",
+			);
+			expect(defs.has("rune_balances_address_idx")).toBe(false);
+
+			await client`SET enable_seqscan = off`;
+			const mintsPlan = await client.unsafe(
+				"EXPLAIN SELECT * FROM rune_entries WHERE (mints, number) < (10, 10) ORDER BY mints DESC, number DESC LIMIT 5",
+			);
+			expect(JSON.stringify(mintsPlan)).toContain(
+				"rune_entries_mints_number_idx",
+			);
+			const balancesPlan = await client.unsafe(
+				"EXPLAIN SELECT * FROM rune_balances WHERE address = 'bc1q' AND (rune_id, txid, vout) > ('1:0', 'aa', 0) ORDER BY rune_id, txid, vout LIMIT 5",
+			);
+			expect(JSON.stringify(balancesPlan)).toContain(
+				"rune_balances_address_keyset_idx",
+			);
+		} finally {
+			await client.end();
+			await admin.unsafe(`DROP DATABASE "${dbName}"`);
+		}
+	});
+
 	test("a role without CREATEDB gets a clear, actionable error instead of a bare Postgres error", async () => {
 		const roleName = "bitcoin_migrate062_nocreatedb_test";
 		const dbName = "bitcoin_migrate062_norole_test"; // never created — the role can't create it either
