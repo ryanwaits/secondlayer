@@ -325,6 +325,13 @@ export function createArchiveRouter(options: ArchiveRouterOptions = {}): Hono {
 		let priced: PricedPath[];
 		try {
 			priced = await db.transaction().execute(async (trx) => {
+				await trx
+					.selectFrom("accounts")
+					.select("id")
+					.where("id", "=", accountId)
+					.forUpdate()
+					.executeTakeFirst();
+
 				const { priced } = await priceBatch({
 					db: trx,
 					accountId,

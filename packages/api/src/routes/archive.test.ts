@@ -617,6 +617,60 @@ describe.skipIf(!HAS_DB)("POST /fetch", () => {
 		);
 	});
 
+	test("concurrent repair fetches serialize allowance accounting per account", async () => {
+		const accountId = await makeAccount();
+		const app = buildTestApp({ accountId });
+
+		const batchA = Array.from({ length: 15 }, (_, i) =>
+			partitionPath(
+				"blocks",
+				i * 50_000,
+				(i + 1) * 50_000,
+				`60000000000000${i.toString(16).padStart(2, "0")}`,
+			),
+		);
+		const batchB = Array.from({ length: 15 }, (_, i) =>
+			partitionPath(
+				"blocks",
+				(i + 15) * 50_000,
+				(i + 16) * 50_000,
+				`60000000000000${(i + 15).toString(16).padStart(2, "0")}`,
+			),
+		);
+
+		const responses = await Promise.all([
+			postJson(app, "/fetch", { flow: "repair", paths: batchA }),
+			postJson(app, "/fetch", { flow: "repair", paths: batchB }),
+		]);
+
+		const okRes = responses.find((r) => r.status === 200);
+		const deniedRes = responses.find((r) => r.status === 402);
+		expect(responses.map((r) => r.status).sort((a, b) => a - b)).toEqual([
+			200, 402,
+		]);
+		expect(okRes).toBeDefined();
+		expect(deniedRes).toBeDefined();
+
+		const okBody = (await okRes?.json()) as {
+			urls: Array<{ path: string; charged_usd_micros: number }>;
+			charged_total_usd_micros: number;
+		};
+		expect(okBody.urls).toHaveLength(15);
+		expect(okBody.charged_total_usd_micros).toBe(0);
+
+		const deniedBody = (await deniedRes?.json()) as { error: string };
+		expect(deniedBody.error).toBe("insufficient_credits");
+
+		const allowanceRows = await db
+			.selectFrom("archive_fetches")
+			.select("id")
+			.where("account_id", "=", accountId)
+			.where("via_allowance", "=", true)
+			.execute();
+		expect(allowanceRows.length).toBeLessThanOrEqual(24);
+		expect(allowanceRows).toHaveLength(15);
+	});
+
 	test("batch of 65 paths → 413", async () => {
 		const accountId = await makeAccount();
 		const app = buildTestApp({ accountId });
