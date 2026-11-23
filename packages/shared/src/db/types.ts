@@ -1228,11 +1228,14 @@ export interface PushSentTable {
 	sent_at: Generated<Date>;
 }
 
-export type CliDeviceLoginStatus =
-	| "pending"
-	| "approved"
-	| "denied"
-	| "consumed";
+/** Mirrored by the CHECK on `cli_device_logins.status`. */
+export const CLI_DEVICE_LOGIN_STATUSES = [
+	"pending",
+	"approved",
+	"denied",
+	"consumed",
+] as const;
+export type CliDeviceLoginStatus = (typeof CLI_DEVICE_LOGIN_STATUSES)[number];
 
 /** The product that started a CLI sign-in; null is `sl login`. */
 export type CliDeviceProduct = "sentinel";

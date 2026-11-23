@@ -10,7 +10,11 @@ import { getDb, sql } from "@secondlayer/shared/db";
 import { generateSessionToken, hashToken } from "../auth/keys.ts";
 import { getRateLimitStore } from "../auth/rate-limit-store.ts";
 import { createApiApp } from "../create-app.ts";
-import { generateUserCode, normalizeUserCode } from "./cli-device.ts";
+import {
+	CLI_DEVICE_LOGIN_MACHINE,
+	generateUserCode,
+	normalizeUserCode,
+} from "./cli-device.ts";
 
 describe("user codes", () => {
 	test("generated codes are XXXX-XXXX from the no-vowel alphabet", () => {
@@ -436,5 +440,24 @@ describe.skipIf(!HAS_DB)("CLI device login", () => {
 		for (let i = 0; i < 15; i++) await poll(d.deviceCode);
 		const res = await post("/api/auth/magic-link", { email: "nobody@example" });
 		expect(res.status).not.toBe(429);
+	});
+});
+
+describe("CLI_DEVICE_LOGIN_MACHINE", () => {
+	test("a pending login is answered once, an approved one consumed once", () => {
+		const m = CLI_DEVICE_LOGIN_MACHINE;
+		expect(m.canTransition("pending", "approved")).toBe(true);
+		expect(m.canTransition("pending", "denied")).toBe(true);
+		expect(m.canTransition("approved", "consumed")).toBe(true);
+	});
+
+	test("denied and consumed are terminal; pending is never consumed", () => {
+		const m = CLI_DEVICE_LOGIN_MACHINE;
+		expect(m.canTransition("pending", "consumed")).toBe(false);
+		expect(m.canTransition("denied", "approved")).toBe(false);
+		expect(m.canTransition("consumed", "approved")).toBe(false);
+		expect(() => m.assert("consumed", "consumed")).toThrow(
+			"illegal transition consumed -> consumed",
+		);
 	});
 });

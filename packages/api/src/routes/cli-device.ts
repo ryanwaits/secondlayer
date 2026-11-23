@@ -1,6 +1,16 @@
 import { linkSentinelAccount } from "@secondlayer/platform/db/queries/accounts";
+import { logger } from "@secondlayer/shared";
 import { getDb, sql } from "@secondlayer/shared/db";
-import type { CliDeviceProduct, Database } from "@secondlayer/shared/db/schema";
+import {
+	CLI_DEVICE_LOGIN_STATUSES,
+	type CliDeviceLoginStatus,
+	type CliDeviceProduct,
+	type Database,
+} from "@secondlayer/shared/db/schema";
+import {
+	casTransition,
+	defineMachine,
+} from "@secondlayer/shared/db/transition";
 import { AuthorizationError, NotFoundError } from "@secondlayer/shared/errors";
 import { Hono } from "hono";
 import type { Transaction } from "kysely";
@@ -11,6 +21,18 @@ import { requireAuth } from "../auth/middleware.ts";
 import { InvalidJSONError } from "../middleware/error.ts";
 
 const app = new Hono();
+
+/**
+ * CLI sign-in lifecycle. A browser session answers a `pending` login once;
+ * the CLI's poll consumes an `approved` one exactly once.
+ */
+export const CLI_DEVICE_LOGIN_MACHINE = defineMachine({
+	states: CLI_DEVICE_LOGIN_STATUSES,
+	transitions: {
+		pending: ["approved", "denied"],
+		approved: ["consumed"],
+	},
+});
 
 const EXPIRES_IN_SECONDS = 15 * 60;
 const POLL_INTERVAL_SECONDS = 5;
@@ -136,14 +158,20 @@ app.post("/token", async (c) => {
 	// Signing in makes a session (expires, revoked by `logout`), never an API
 	// key: keys are for reading data and live on the Keys tab.
 	const result = await db.transaction().execute(async (trx) => {
-		const claimed = await trx
-			.updateTable("cli_device_logins")
-			.set({ status: "consumed", consumed_at: new Date() })
-			.where("id", "=", row.id)
-			.where("status", "=", "approved")
-			.returning("id")
-			.executeTakeFirst();
-		if (!claimed) return null;
+		CLI_DEVICE_LOGIN_MACHINE.assert("approved", "consumed");
+		const claimed = await casTransition<CliDeviceLoginStatus>(trx, {
+			table: "cli_device_logins",
+			id: row.id,
+			from: ["approved"],
+			to: "consumed",
+			set: { consumed_at: new Date() },
+			stampUpdatedAt: false,
+			returning: ["id"],
+		});
+		if (!claimed) {
+			logger.warn("cli_device.consume_lost_race", { loginId: row.id });
+			return null;
+		}
 		const { raw, hash, prefix } = generateSessionToken();
 		await trx
 			.insertInto("sessions")
