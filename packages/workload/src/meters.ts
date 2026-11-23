@@ -543,6 +543,75 @@ export async function sampleTenantMemoryBytes(
 	return parseDockerStatsMemUsageBytes(stats.stdout);
 }
 
+const TENANT_PROJECT_PREFIX = "tenant-";
+
+function nonEmptyLines(output: string): string[] {
+	return output
+		.split("\n")
+		.map((line) => line.trim())
+		.filter(Boolean);
+}
+
+function acct8ForContainerId(
+	id: string,
+	idToAcct8: Map<string, string>,
+): string | undefined {
+	const exact = idToAcct8.get(id);
+	if (exact !== undefined) return exact;
+	for (const [known, acct8] of idToAcct8) {
+		if (known.startsWith(id) || id.startsWith(known)) return acct8;
+	}
+	return undefined;
+}
+
+export async function sampleAllTenantMemoryBytes(
+	runDocker: RunDocker = spawnDocker,
+): Promise<Map<string, number>> {
+	const ps = await runDocker([
+		"ps",
+		"--filter",
+		"label=com.docker.compose.project",
+		"--format",
+		'{{.ID}}\t{{.Label "com.docker.compose.project"}}',
+	]);
+	if (ps.code !== 0) {
+		throw new Error(`docker ps exited ${ps.code}: ${ps.stderr.trim()}`);
+	}
+	const idToAcct8 = new Map<string, string>();
+	for (const line of nonEmptyLines(ps.stdout)) {
+		const [id, project] = line.split("\t").map((part) => part.trim());
+		if (!id || !project?.startsWith(TENANT_PROJECT_PREFIX)) continue;
+		const acct8 = project.slice(TENANT_PROJECT_PREFIX.length);
+		if (acct8) idToAcct8.set(id, acct8);
+	}
+	const bytesByAcct8 = new Map<string, number>();
+	if (idToAcct8.size === 0) return bytesByAcct8;
+
+	const stats = await runDocker([
+		"stats",
+		"--no-stream",
+		"--format",
+		"{{.ID}}\t{{.MemUsage}}",
+		...idToAcct8.keys(),
+	]);
+	if (stats.code !== 0) {
+		throw new Error(
+			`docker stats exited ${stats.code}: ${stats.stderr.trim()}`,
+		);
+	}
+	for (const line of nonEmptyLines(stats.stdout)) {
+		const [id, memUsage] = line.split("\t").map((part) => part.trim());
+		if (!id || !memUsage) continue;
+		const acct8 = acct8ForContainerId(id, idToAcct8);
+		if (acct8 === undefined) continue;
+		bytesByAcct8.set(
+			acct8,
+			(bytesByAcct8.get(acct8) ?? 0) + parseDockerStatsMemUsageBytes(memUsage),
+		);
+	}
+	return bytesByAcct8;
+}
+
 export function parsePgDatabaseSizeOutput(output: string): number {
 	const n = Number(output.trim());
 	return Number.isFinite(n) ? n : 0;

@@ -26,6 +26,7 @@ import {
 	parseMemUsageToBytes,
 	parsePgDatabaseSizeOutput,
 	readsMeterItem,
+	sampleAllTenantMemoryBytes,
 	sampleMemoryGbHour,
 	sampleStorageGbDay,
 	sampleTenantDatabaseBytes,
@@ -1088,6 +1089,122 @@ describe("sampleTenantMemoryBytes (review fix 4)", () => {
 		};
 		expect(await sampleTenantMemoryBytes("acct1234", runDocker)).toBe(0);
 		expect(statsCalled).toBe(false);
+	});
+});
+
+describe("sampleAllTenantMemoryBytes", () => {
+	const PS_FORMAT = '{{.ID}}\t{{.Label "com.docker.compose.project"}}';
+
+	test("one docker ps + one docker stats, summed per tenant, non-tenant projects ignored", async () => {
+		const calls: string[][] = [];
+		const runDocker = async (args: string[]) => {
+			calls.push(args);
+			if (args[0] === "ps") {
+				return {
+					code: 0,
+					stdout: [
+						"aaaaaaaaaaa1\ttenant-acct1111",
+						"aaaaaaaaaaa2\ttenant-acct1111",
+						"bbbbbbbbbbb1\ttenant-acct2222",
+						"ccccccccccc1\tdocker",
+						"",
+					].join("\n"),
+					stderr: "",
+				};
+			}
+			return {
+				code: 0,
+				stdout: [
+					"aaaaaaaaaaa1\t100MiB / 15.66GiB",
+					"aaaaaaaaaaa2\t200MiB / 15.66GiB",
+					"bbbbbbbbbbb1\t1.5GiB / 15.66GiB",
+					"",
+				].join("\n"),
+				stderr: "",
+			};
+		};
+		const bytes = await sampleAllTenantMemoryBytes(runDocker);
+		expect(calls).toHaveLength(2);
+		expect(calls[0]).toEqual([
+			"ps",
+			"--filter",
+			"label=com.docker.compose.project",
+			"--format",
+			PS_FORMAT,
+		]);
+		expect(calls[1]).toEqual([
+			"stats",
+			"--no-stream",
+			"--format",
+			"{{.ID}}\t{{.MemUsage}}",
+			"aaaaaaaaaaa1",
+			"aaaaaaaaaaa2",
+			"bbbbbbbbbbb1",
+		]);
+		expect([...bytes.keys()].sort()).toEqual(["acct1111", "acct2222"]);
+		expect(bytes.get("acct1111")).toBeCloseTo(300 * 1024 ** 2, 0);
+		expect(bytes.get("acct2222")).toBeCloseTo(1.5 * 1024 ** 3, 0);
+	});
+
+	test("stats ids that are a prefix or extension of ps ids still match", async () => {
+		const runDocker = async (args: string[]) => {
+			if (args[0] === "ps") {
+				return {
+					code: 0,
+					stdout: "aaaaaaaaaaa1\ttenant-acct1111\n",
+					stderr: "",
+				};
+			}
+			return {
+				code: 0,
+				stdout: "aaaaaaaaaaa1ffffffff\t64MiB / 8GiB\n",
+				stderr: "",
+			};
+		};
+		const bytes = await sampleAllTenantMemoryBytes(runDocker);
+		expect(bytes.get("acct1111")).toBeCloseTo(64 * 1024 ** 2, 0);
+	});
+
+	test("zero tenant containers → empty map, docker stats is never called", async () => {
+		let statsCalled = false;
+		const runDocker = async (args: string[]) => {
+			if (args[0] === "stats") statsCalled = true;
+			return { code: 0, stdout: "ccccccccccc1\tdocker\n", stderr: "" };
+		};
+		const bytes = await sampleAllTenantMemoryBytes(runDocker);
+		expect(bytes.size).toBe(0);
+		expect(statsCalled).toBe(false);
+	});
+
+	test("a non-zero docker stats exit throws instead of returning zeros", async () => {
+		const runDocker = async (args: string[]) => {
+			if (args[0] === "ps") {
+				return {
+					code: 0,
+					stdout: "aaaaaaaaaaa1\ttenant-acct1111\n",
+					stderr: "",
+				};
+			}
+			return {
+				code: 1,
+				stdout: "",
+				stderr: "Error response from daemon: No such container: aaaaaaaaaaa1",
+			};
+		};
+		await expect(sampleAllTenantMemoryBytes(runDocker)).rejects.toThrow(
+			"docker stats exited 1",
+		);
+	});
+
+	test("a non-zero docker ps exit throws", async () => {
+		const runDocker = async () => ({
+			code: 1,
+			stdout: "",
+			stderr: "Cannot connect to the Docker daemon",
+		});
+		await expect(sampleAllTenantMemoryBytes(runDocker)).rejects.toThrow(
+			"docker ps exited 1",
+		);
 	});
 });
 

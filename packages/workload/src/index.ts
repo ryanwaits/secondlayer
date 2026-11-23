@@ -43,6 +43,7 @@ import {
 	flushOnShutdown,
 	logDroppedMeters,
 	mergePending,
+	sampleAllTenantMemoryBytes,
 	sampleTenantDatabaseBytes,
 	sampleTenantMemoryBytes,
 } from "./meters.ts";
@@ -356,6 +357,7 @@ async function main(): Promise<void> {
 		createMemorySampleTick({
 			listRunning: () => listRunningTenants(db),
 			sampleBytes: (accountId) => sampleTenantMemoryBytes(acct8For(accountId)),
+			sampleAllBytes: () => sampleAllTenantMemoryBytes(),
 			accumulator: memoryAccumulator,
 			onRunning: (accountIds) => meterSockets.sync(accountIds),
 			onSkip: () =>

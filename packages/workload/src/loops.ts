@@ -50,6 +50,7 @@ export const MEMORY_SAMPLE_CAP_MS = 5 * 60_000;
 export function createMemorySampleTick(deps: {
 	listRunning: () => Promise<TenantRow[]>;
 	sampleBytes: (accountId: string) => Promise<number>;
+	sampleAllBytes?: () => Promise<Map<string, number>>;
 	accumulator: MemoryAccumulator;
 	onRunning?: (accountIds: string[]) => void;
 	now?: () => Date;
@@ -73,7 +74,21 @@ export function createMemorySampleTick(deps: {
 		for (const accountId of lastSampleAt.keys()) {
 			if (!runningIds.has(accountId)) lastSampleAt.delete(accountId);
 		}
+		let bytesByAcct8: Map<string, number> | undefined;
+		if (deps.sampleAllBytes && running.length > 0) {
+			try {
+				bytesByAcct8 = await deps.sampleAllBytes();
+			} catch (err) {
+				logger.error("workload.meters.memory_sample_batch_failed", {
+					error: errorMessage(err),
+				});
+			}
+		}
 		for (const tenant of running) {
+			const batch = bytesByAcct8;
+			const sampleBytes = batch
+				? async () => batch.get(tenant.acct8) ?? 0
+				: deps.sampleBytes;
 			const at = now().getTime();
 			const previous = lastSampleAt.get(tenant.account_id);
 			const elapsedMs =
@@ -83,7 +98,7 @@ export function createMemorySampleTick(deps: {
 			try {
 				const item = await sampleMemoryGbHour(
 					tenant.account_id,
-					deps.sampleBytes,
+					sampleBytes,
 					elapsedMs / 1000,
 					tenant.has_subgraphs,
 				);

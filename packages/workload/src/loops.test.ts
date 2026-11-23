@@ -1,7 +1,9 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
+import { stackMemoryFloorGb } from "@secondlayer/platform/billing/prices";
 import postgres from "postgres";
 import type { BackupConfig } from "./backups.ts";
 import {
+	type TenantRow,
 	acct8For,
 	deleteTenant,
 	ensureControlSchema,
@@ -10,11 +12,90 @@ import {
 } from "./control-db.ts";
 import {
 	BACKUP_STALE_MS,
+	MEMORY_SAMPLE_INTERVAL_MS,
 	createBackupTick,
+	createMemorySampleTick,
 	createStorageSampleTick,
 } from "./loops.ts";
-import type { MeterBatchItem } from "./meters.ts";
+import { MemoryAccumulator, type MeterBatchItem } from "./meters.ts";
 import { forceTenantState } from "./tenant-fixture.ts";
+
+describe("memory sample tick, batched", () => {
+	const GIB = 1024 ** 3;
+	const HOURS = MEMORY_SAMPLE_INTERVAL_MS / 3_600_000;
+	const FLOOR = stackMemoryFloorGb(false);
+	const at = Date.parse("2026-11-07T10:00:00Z");
+	const running = [
+		{ account_id: "acct-a", acct8: "aaaa1111", has_subgraphs: false },
+		{ account_id: "acct-b", acct8: "bbbb2222", has_subgraphs: false },
+		{ account_id: "acct-c", acct8: "cccc3333", has_subgraphs: false },
+	] as TenantRow[];
+
+	function harness(
+		sampleAllBytes: () => Promise<Map<string, number>>,
+		sampleBytes: (accountId: string) => Promise<number>,
+	) {
+		const accumulator = new MemoryAccumulator(new Date(at));
+		const tick = createMemorySampleTick({
+			listRunning: async () => running,
+			sampleBytes,
+			sampleAllBytes,
+			accumulator,
+			now: () => new Date(at),
+		});
+		const gbHours = () =>
+			new Map(
+				accumulator
+					.drain(new Date(at))
+					.map((item) => [item.accountId, item.quantity]),
+			);
+		return { tick, gbHours };
+	}
+
+	test("one batch call per tick, each tenant billed its own bytes, absent tenant at the floor", async () => {
+		let batchCalls = 0;
+		const perTenant: string[] = [];
+		const { tick, gbHours } = harness(
+			async () => {
+				batchCalls++;
+				return new Map([
+					["aaaa1111", 3 * FLOOR * GIB],
+					["bbbb2222", 2 * FLOOR * GIB],
+				]);
+			},
+			async (id) => {
+				perTenant.push(id);
+				return 0;
+			},
+		);
+		await tick();
+		expect(batchCalls).toBe(1);
+		expect(perTenant).toEqual([]);
+		const billed = gbHours();
+		expect(billed.get("acct-a")).toBeCloseTo(3 * FLOOR * HOURS);
+		expect(billed.get("acct-b")).toBeCloseTo(2 * FLOOR * HOURS);
+		expect(billed.get("acct-c")).toBeCloseTo(FLOOR * HOURS);
+	});
+
+	test("a failed batch falls back to per-tenant sampling for that tick", async () => {
+		const perTenant: string[] = [];
+		const { tick, gbHours } = harness(
+			async () => {
+				throw new Error("docker stats exited 1");
+			},
+			async (id) => {
+				perTenant.push(id);
+				return 1.5 * FLOOR * GIB;
+			},
+		);
+		await tick();
+		expect(perTenant).toEqual(["acct-a", "acct-b", "acct-c"]);
+		const billed = gbHours();
+		for (const tenant of running) {
+			expect(billed.get(tenant.account_id)).toBeCloseTo(1.5 * FLOOR * HOURS);
+		}
+	});
+});
 
 const HAS_DB = !!process.env.DATABASE_URL;
 const db = HAS_DB
