@@ -1,6 +1,6 @@
-# See what a transaction did inside its contracts
+# Know what changed in a Stacks contract, when, and who changed it
 
-One swap can run 20 contract calls and write to maps that no print shows. Read every inner call and every map or variable write, from genesis, with one key:
+From block 1. Nowhere else on Stacks. One key, one call, for any transaction:
 
 <CodeTabs sync="lang">
 
@@ -45,26 +45,39 @@ const { events } = await index.events.list({
 }
 ```
 
-That ALEX swap is one signed call to `swap-helper`. Inside it ran 22 contract calls and two map writes; the response above shows one of them. `event_index` is the row's position in the block, so sorting by it replays the transaction in order.
+That ALEX swap is one signed call. Underneath, it ran 22 calls between contracts and wrote two maps; the response above shows one of them. A transaction id is enough: the read finds the transaction's block for you.
 
-## What you can read
+## What it covers
 
-Five types cover everything a contract does to its own storage and to other contracts.
+Know the limits before you build on it.
 
-| `event_type` | One row per | Filters beyond `contractId`, `txId` and heights |
+| Covered | Not covered |
+| --- | --- |
+| Values a contract stores, and calls between contracts | Every intermediate value in the code |
+| Transactions that landed | Anything before it lands: it warns, it does not prevent. A transaction that fails outright leaves no rows |
+| History from block 1, and who made each change | Something new about one key's current value: a node could always read that |
+| Stored values, checkable against the block's state root | Calls between contracts: not committed on chain, so not provable |
+
+The node patch that records this is public. What takes time is the history: a six-week replay from block 1.
+
+## What you can know
+
+Five event types cover what a contract stores and every call it makes to another contract.
+
+| `event_type` | Tells you | Filters beyond `contractId`, `txId` and heights |
 | --- | --- | --- |
-| `nested_contract_call` | `contract-call?` made inside a transaction, including ones that failed and were handled | `functionName`, `caller`, `sender` |
-| `var_set` | Data-var write | `varName` |
-| `map_set` | Map entry overwrite | `map` |
-| `map_insert` | New map entry | `map` |
-| `map_delete` | Map entry deletion | `map` |
+| `nested_contract_call` | Who really uses a contract, including the apps that route through another one, and calls that failed and were handled | `functionName`, `caller`, `sender` |
+| `var_set` | A setting or counter changed | `varName` |
+| `map_set` | An entry changed | `map` |
+| `map_insert` | A new position, listing or balance | `map` |
+| `map_delete` | An entry was removed | `map` |
 
 - Keys, values, arguments and results are Clarity values as `0x` hex.
 - Every filter and column: [List events](/docs/api/index#list-events).
 
 ### Who made the call
 
-An inner call carries two principals, and they differ more often than you'd expect.
+Every call between contracts carries two principals, and the difference between them is often the story.
 
 | Field | Means |
 | --- | --- |
@@ -72,12 +85,19 @@ An inner call carries two principals, and they differ more often than you'd expe
 | `caller` | Who made the call: Clarity's `contract-caller` |
 | `sender` | `tx-sender` at that moment. `as-contract` swaps it for the contract that used it |
 
-- A token transfer whose `caller` is a contract you don't recognize and whose `sender` is a vault means that contract moved the vault's tokens. That is how a vault drained through a fake token shows up.
-- The vault's own call into that contract has `sender` equal to `caller`.
+The ALEX drain at block 1,508,068 shows why both matter. The vault called a fake token, and the fake token then moved the vault's real tokens:
 
-## Read a map's history
+| Rows | Call | `caller` | `sender` |
+| --- | --- | --- | --- |
+| 21 | Vault calls the fake token's `transfer-fixed` | vault | vault |
+| 14, 16, 18, 20 | Fake token moves aBTC, sBTC, ALEX and sUSDT | fake token | vault |
 
-Walk one map's writes to know what any key held after any transaction, without asking a node.
+- A transfer whose `caller` is a contract you don't recognize and whose `sender` is a vault means that contract is moving the vault's tokens.
+- The vault's own outgoing call has `sender` equal to `caller`, so that row alone looks normal.
+
+## What a value was on any day
+
+Walk one map's writes to know what any key held after any transaction, without having planned for it.
 
 ```ts
 import { cvToValue, deserializeCV } from "@secondlayer/stacks/clarity";
@@ -95,13 +115,13 @@ for await (const write of index.events.walk({
 // 1230200 SP102V8P0F7JX67ARQ77WEA3D3CFB5XW39REDT0AM.token-wkiki 2122910416441083n
 ```
 
-No print carries that reserve write. A node can read the current value, but not which transaction set it or every key the map holds.
+No print carries that reserve write. A node can read a key's current value; it can't tell you which transaction set it, or list every key the map holds.
 
 ## The exact writes a block committed
 
-When you need storage keys rather than named maps, read [state writes](/docs/index#state-writes): every key a block wrote, in node order, each provable against the block.
+When you need storage keys rather than named maps, read [state writes](/docs/index#state-writes): every key a block wrote, in node order, each checkable against the block's state root.
 
-## Follow it live
+## Find out the moment it changes
 
 The same rows stream in block order with `clock: "vm"`, through the checkpointed consumer on [Index](/docs/index#build-your-index-on-it).
 
@@ -118,7 +138,7 @@ await sl.streams.events.consume({
 });
 ```
 
-To be pushed instead of pulling, a webhook fires on the same types. This one fires whenever a vault's reserves change:
+To be told instead of checking, a webhook fires on the same types once the block lands. It warns; it doesn't prevent. This one fires whenever a vault's reserves change:
 
 ```ts
 import { trigger } from "@secondlayer/sdk";
@@ -135,25 +155,28 @@ await sl.webhooks.create({
 });
 ```
 
-For tables you query instead of rows you process, a [subgraph](/docs/subgraphs) takes `map_set` and `var_set` as sources. Built only from writes, anyone can rebuild its rows.
+For tables you read instead of rows you process, a [subgraph](/docs/subgraphs) takes `map_set` and `var_set` as sources. Built only from stored values, anyone can rebuild its rows.
 
 ## Tradeoff
 
-Hosted reads are metered like any event row ([What it costs](/docs/authentication#what-it-costs)). A busy contract writes on every call, so scope by contract and map before you walk. Hosted mainnet serves these rows from genesis; a self-hosted instance has them only from the block its node first emitted them, on a node build that does.
+Hosted reads are metered like any event row ([What it costs](/docs/authentication#what-it-costs)). A busy contract writes on every call, so scope by contract and map before you walk. Hosted mainnet serves these rows from block 1; a self-hosted instance has them only from the block its node first recorded them, on a node build that does.
 
 export const metadata = {
-	title: "See what a transaction did inside its contracts",
+	title: "Know what changed in a Stacks contract, when, and who changed it",
 	description:
-		"Read every inner contract call and every Clarity map and data-var write on Stacks, from genesis: one transaction, one map's history, or a live stream.",
+		"Know what changed in any Stacks contract, when and who changed it, from block 1: one transaction, one map's history, or a live feed.",
 	alternates: { canonical: "/docs/guides/read-contract-state" },
 };
 
 export const agent = `
 - Endpoint: GET /v1/index/events with event_type one of nested_contract_call, var_set, map_set, map_insert, map_delete (SDK: index.events.list / .walk / .consume). Filters: contract_id, tx_id, from_height, to_height, plus function_name, caller, sender (nested_contract_call), var_name (var_set), map (map_*).
+- A tx_id read with no from_height/to_height/cursor reads that transaction's own block, so an old transaction needs no start height. Without tx_id, a read with no start height covers only recent blocks: pass from_height (0 for all history).
 - Rows carry Clarity values as 0x hex: function_args, raw_result, raw_key, raw_value. Decode with deserializeCV + cvToValue from @secondlayer/stacks/clarity.
-- event_index on these types is the row's position among the block's state rows (the cursor's second part), not a classic event index. Sorting a transaction's rows by it replays the transaction in order.
-- nested_contract_call includes inner calls that failed and were handled by their caller; check raw_result.
-- Hosted mainnet serves these rows from genesis. A self-hosted instance has them only from the block its node first emitted them (needs a node build that emits storage and contract_calls events).
-- Streams: clock "vm" with types from the five; cursors carry a vm: prefix and only resume on clock vm. Webhooks: trigger.nestedContractCall, trigger.varSet, trigger.mapSet, trigger.mapInsert, trigger.mapDelete.
+- event_index on these types is the row's position among the block's contract state rows in node order (the cursor's second part), not a classic event index.
+- caller is Clarity's contract-caller; sender is tx-sender at the call, which as-contract replaces with the calling contract. caller != sender on a token transfer out of a vault means another contract moved the vault's tokens (ALEX drain, block 1,508,068).
+- nested_contract_call includes inner calls that failed and were handled by their caller; check raw_result. A transaction that fails outright leaves no rows.
+- Only stored values (state writes) are checkable against the block's state root. Calls between contracts are not committed on chain: never describe them as provable.
+- Hosted mainnet serves these rows from block 1. A self-hosted instance has them only from the block its node first recorded them (needs a node build that emits storage and contract_calls events).
+- Streams: clock "vm" with types from the five; cursors carry a vm: prefix and only resume on clock vm. Webhooks: trigger.nestedContractCall, trigger.varSet, trigger.mapSet, trigger.mapInsert, trigger.mapDelete; they fire after the block lands (warn, not prevent).
 - Exact storage keys per block: GET /v1/index/state-writes (index.stateWrites, MCP index_state_writes).
 `;

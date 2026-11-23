@@ -1,6 +1,6 @@
 # Index
 
-Decoded rows you sweep into your own tables. You write the loop; the decoding, the backfill, and the reorg rewind are done.
+Every Stacks event, already decoded, from block 1: you write filters, not parsers, and the backfill and reorg rewind are done. Want the node's own output? Use [Streams](/docs/streams).
 
 1M rows free a month hosted, [no meter on your own box](/docs/self-host#instance-token).
 
@@ -284,7 +284,7 @@ curl -G "$SECONDLAYER_API_URL/v1/contracts" \
 
 ### Contract state
 
-Every inner contract call and every map or data-var write is an event type too, from genesis on hosted mainnet. [See what a transaction did inside its contracts](/docs/guides/read-contract-state) reads them by transaction, by map, or live.
+Know what changed in any Stacks contract, when, and who changed it, from block 1. The five contract state types read like any event: [What changed in a contract](/docs/guides/read-contract-state). A node could always read one key's current value; what's new is the history and who made each change.
 
 ### State writes
 
@@ -522,6 +522,6 @@ export const agent = `
 export const metadata = {
 	title: "Read decoded Stacks data (Index)",
 	description:
-		"Decoded Stacks data, kept indexed: sweep it into your own tables with a checkpointed consumer, cursors, reorg rewind, and codegen.",
+		"Every Stacks event, already decoded, from block 1: amounts, addresses and contract values as plain fields, swept into your own tables with reorgs handled.",
 	alternates: { canonical: "/docs/index" },
 };

@@ -45,8 +45,8 @@ export const DOCS_PRODUCTS: DocsProduct[] = [
 		key: "streams",
 		title: "Streams",
 		href: "/docs/streams",
-		stack: { get: "Raw signed events, replayable", write: "your own decoder" },
-		get: "Raw signed events, replayable, reorgs rewound for you",
+		stack: { get: "Every event in order, signed", write: "your own decoder" },
+		get: "Exactly what the node emitted, in order, reorgs rewound for you",
 		write: "A consume() loop and your own decoder",
 		check: {
 			prove: "Each frame is signed",
@@ -59,10 +59,10 @@ export const DOCS_PRODUCTS: DocsProduct[] = [
 		title: "Index",
 		href: "/docs/index",
 		stack: {
-			get: "Decoded rows, swept into your own tables",
+			get: "Every event, already decoded, in your own tables",
 			write: "a consume() loop",
 		},
-		get: "Decoded rows from genesis, typed per event",
+		get: "Every event and contract change, decoded, from block 1",
 		write: "A consume() loop into your schema",
 		check: {
 			prove: "A transaction is in its block",

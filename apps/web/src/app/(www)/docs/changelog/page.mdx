@@ -20,9 +20,9 @@ Older history used to read differently from recent blocks. Now `print` and nft e
 
 ## Index — November 2026
 
-### Clarity state from genesis
+### Know what changed in any Stacks contract
 
-See what a transaction actually did inside a contract, not just its prints. `/v1/index/events` now serves every inner `contract-call?` (`nested_contract_call`) and every data-var and map write (`var_set`, `map_set`, `map_insert`, `map_delete`) on mainnet, from genesis to the tip. Filter by `contract_id`, `function_name`, `caller`, `var_name` or `map`. Streams serves the same rows in block order with `clock=vm`, webhooks fire on them, and `/v1/index/state-writes` returns the exact state each block committed.
+Know what changed in any Stacks contract, when, and who changed it, from block 1. Index, Streams, webhooks and subgraphs read the five contract state types on hosted mainnet. Rows exist once a transaction lands, so a webhook warns rather than prevents, and only stored values are checkable against the chain. [Read the guide](/docs/guides/read-contract-state).
 
 ### sBTC deposits keep `max_fee` on the new deposit format
 

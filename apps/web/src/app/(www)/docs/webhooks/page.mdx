@@ -139,7 +139,7 @@ Stacks principal, identifier and name fields take `*` wildcards; `trait` scopes 
 | `trigger.runeTransfer` | `rune_transfer` | `rune`, `address`, `minAmount` |
 | `trigger.runeBurn` | `rune_burn` | `rune` |
 
-The last five fire on contract state: an inner call, or a write to a map or data var ([what they carry](/docs/guides/read-contract-state#what-you-can-read)).
+The last five fire on contract state: know the moment your protocol's rules change, however the change was made ([what they carry](/docs/guides/read-contract-state#what-you-can-know)). They fire after the block lands, so they warn; they don't prevent.
 
 Validation is strict per type:
 

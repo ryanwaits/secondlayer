@@ -106,7 +106,7 @@ export const DOCS_NAV: DocsNavGroup[] = [
 				href: "/docs/guides/handle-reorgs",
 			},
 			{
-				title: "Read contract state",
+				title: "What changed in a contract",
 				href: "/docs/guides/read-contract-state",
 			},
 		],

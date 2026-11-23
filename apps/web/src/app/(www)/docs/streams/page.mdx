@@ -1,6 +1,6 @@
 # Streams
 
-The raw firehose, for when you want to decode it yourself. Most people want [Index](/docs/index); this is what Index is built on.
+Exactly what the Stacks node emitted, in order, from any block, with nothing added or dropped. Want it readable? Use [Index](/docs/index), which is built on this.
 
 Hosted reads are keyed ([Keys and billing](/docs/authentication)); on your own box see [Self-host](/docs/self-host#instance-token). Cold history beyond what your instance holds restores from the signed archive ([credits](tip "Your prepaid balance, spent per archive bundle you fetch. Verifying is always free.")).
 
@@ -224,7 +224,7 @@ One `filters` object can follow several concerns on one cursor.
 
 ### Contract state
 
-`clock: "vm"` streams inner contract calls and map or data-var writes in block order, from genesis on hosted mainnet. Its cursors carry a `vm:` prefix. Example and row types: [See what a transaction did inside its contracts](/docs/guides/read-contract-state#follow-it-live).
+Contract changes stream in block order too, from block 1. Pass `clock: "vm"` ([example](/docs/guides/read-contract-state#find-out-the-moment-it-changes)); those cursors only resume on the same clock.
 
 ### Two concerns, one loop
 
@@ -318,6 +318,6 @@ export const agent = `
 export const metadata = {
 	title: "Stacks event stream (Streams)",
 	description:
-		"Raw Stacks chain event firehose: cursor-paginated, idempotent, replayable from any block.",
+		"Exactly what the Stacks node emitted, in order, from any block: resumable, with reorgs listed. Nothing added, nothing dropped.",
 	alternates: { canonical: "/docs/streams" },
 };
