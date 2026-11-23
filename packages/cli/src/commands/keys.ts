@@ -1,6 +1,10 @@
 import { resolveAccountKey } from "@secondlayer/sdk";
 import type { Command } from "commander";
-import { httpArchiveOps, resolveArchiveOpsUrl } from "../lib/http.ts";
+import {
+	type HttpOptions,
+	httpArchiveOps,
+	resolveArchiveOpsUrl,
+} from "../lib/http.ts";
 import {
 	blue,
 	confirmDestructive,
@@ -42,9 +46,33 @@ export interface RotatedKey {
 	rotatedFrom: string;
 }
 
+/** The `201` body of `POST /api/keys`. */
+export interface CreatedKey {
+	key: string;
+	prefix: string;
+	id: string;
+	product: string;
+	tier: string | null;
+	createdAt: string;
+}
+
+/** The `200` body of `DELETE /api/keys/{id}`. */
+export interface RevokedKey {
+	revoked: boolean;
+	id: string;
+}
+
+/** I/O seams for `keys create` and `keys revoke`; real by default. */
+export interface KeysDeps {
+	http: <T>(path: string, opts?: HttpOptions) => Promise<T>;
+	login: Partial<RotationDeps>;
+}
+
+const DEFAULT_KEYS_DEPS: KeysDeps = { http: httpArchiveOps, login: {} };
+
 const MIN_ID_REF_LENGTH = 8;
 
-/** Only active account keys can be rotated. */
+/** Only active account keys can be rotated or revoked. */
 export function rotatableKeys(keys: ListedKey[]): ListedKey[] {
 	return keys.filter((k) => k.status === "active" && k.product === "account");
 }
@@ -131,6 +159,25 @@ export async function saveRotatedLogin(
 	}
 }
 
+/**
+ * Whether the saved CLI login or `SECONDLAYER_API_KEY` holds the key with this
+ * prefix. A login that can't be read counts as not using it.
+ */
+export async function keyInUse(
+	prefix: string,
+	deps: Partial<RotationDeps> = {},
+): Promise<{ login: boolean; env: boolean }> {
+	const apiUrl = deps.apiUrl ?? resolveArchiveOpsUrl();
+	const read = deps.readSession ?? readSession;
+	const envKey = "envKey" in deps ? deps.envKey : resolveAccountKey();
+	if (!prefix) return { login: false, env: false };
+	const session = await read(apiUrl).catch(() => null);
+	return {
+		login: session?.token.startsWith(prefix) ?? false,
+		env: envKey?.startsWith(prefix) ?? false,
+	};
+}
+
 function fail(err: unknown): never {
 	if (err instanceof Error) {
 		logError(err.message);
@@ -139,8 +186,10 @@ function fail(err: unknown): never {
 	throw err;
 }
 
-async function fetchKeys(): Promise<ListedKey[]> {
-	const res = await httpArchiveOps<{ keys: ListedKey[] }>("/api/keys");
+async function fetchKeys(
+	http: KeysDeps["http"] = httpArchiveOps,
+): Promise<ListedKey[]> {
+	const res = await http<{ keys: ListedKey[] }>("/api/keys");
 	return res.keys;
 }
 
@@ -158,9 +207,7 @@ async function runList(opts: { json?: boolean }): Promise<void> {
 		},
 		human: () => {
 			if (keys.length === 0) {
-				note(
-					"No active account keys. Make one at https://www.secondlayer.tools/account/keys",
-				);
+				note("No active account keys. Run: secondlayer keys create");
 				return;
 			}
 			console.log(
@@ -232,6 +279,89 @@ async function runRotate(
 	if (envStale) warn("SECONDLAYER_API_KEY still holds the old key. Update it.");
 }
 
+/** `keys create`: mint an account key and print its secret once. */
+export async function runCreate(
+	opts: { name?: string; json?: boolean },
+	deps: KeysDeps = DEFAULT_KEYS_DEPS,
+): Promise<void> {
+	let created: CreatedKey;
+	try {
+		created = await deps.http<CreatedKey>("/api/keys", {
+			method: "POST",
+			body: opts.name === undefined ? {} : { name: opts.name },
+		});
+	} catch (err) {
+		fail(err);
+	}
+
+	if (opts.json) {
+		writeData(JSON.stringify(created, null, 2));
+		return;
+	}
+	success(`Created ${blue(opts.name ?? "(unnamed)")} (${created.prefix}…).`);
+	writeData(created.key);
+	note("Shown once. Copy it now.");
+}
+
+/** `keys revoke`: stop a key working at once, after confirmation. */
+export async function runRevoke(
+	ref: string,
+	opts: { yes?: boolean; json?: boolean },
+	deps: KeysDeps = DEFAULT_KEYS_DEPS,
+): Promise<void> {
+	let target: ListedKey;
+	try {
+		target = resolveKeyRef(await fetchKeys(deps.http), ref);
+	} catch (err) {
+		fail(err);
+	}
+	const label = target.name ?? "(unnamed)";
+	const ok = await confirmDestructive({
+		message: `Revoke "${label}" (${target.prefix}…)? Anything using it gets a 401 at once. This cannot be undone.`,
+		yes: opts.yes,
+	});
+	if (!ok) {
+		info("Cancelled");
+		return;
+	}
+
+	let revoked: RevokedKey;
+	try {
+		revoked = await deps.http<RevokedKey>(`/api/keys/${target.id}`, {
+			method: "DELETE",
+		});
+	} catch (err) {
+		fail(err);
+	}
+
+	const inUse = await keyInUse(target.prefix, deps.login);
+
+	if (opts.json) {
+		writeData(
+			JSON.stringify(
+				{
+					...revoked,
+					prefix: target.prefix,
+					name: target.name,
+					loginRevoked: inUse.login,
+				},
+				null,
+				2,
+			),
+		);
+	} else {
+		success(
+			`Revoked ${blue(label)} (${target.prefix}…). It has stopped working.`,
+		);
+	}
+	if (inUse.login) {
+		warn("Your CLI login used this key. Run: secondlayer login");
+	}
+	if (inUse.env) {
+		warn("SECONDLAYER_API_KEY holds the revoked key. Replace or unset it.");
+	}
+}
+
 export function registerKeysCommand(program: Command): void {
 	const keys = program.command("keys").description("Manage account keys");
 
@@ -243,11 +373,27 @@ export function registerKeysCommand(program: Command): void {
 		.action((opts: { json?: boolean }) => runList(opts));
 
 	keys
+		.command("create")
+		.description("Create an account key; its secret is shown once")
+		.option("--name <name>", "Label for the key")
+		.option("--json", "Output as JSON")
+		.action((opts: { name?: string; json?: boolean }) => runCreate(opts));
+
+	keys
 		.command("rotate <ref>")
 		.description("Replace a key's secret; the old one stops working at once")
 		.option("-y, --yes", "Skip confirmation")
 		.option("--json", "Output as JSON")
 		.action((ref: string, opts: { yes?: boolean; json?: boolean }) =>
 			runRotate(ref, opts),
+		);
+
+	keys
+		.command("revoke <ref>")
+		.description("Revoke a key; it stops working at once")
+		.option("-y, --yes", "Skip confirmation")
+		.option("--json", "Output as JSON")
+		.action((ref: string, opts: { yes?: boolean; json?: boolean }) =>
+			runRevoke(ref, opts),
 		);
 }

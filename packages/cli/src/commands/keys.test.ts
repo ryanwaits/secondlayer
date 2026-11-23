@@ -1,12 +1,16 @@
-import { describe, expect, test } from "bun:test";
+import { afterEach, beforeEach, describe, expect, spyOn, test } from "bun:test";
 import { Command } from "commander";
 import type { Session } from "../lib/session.ts";
 import {
+	type KeysDeps,
 	type ListedKey,
 	applyRotationToLogin,
+	keyInUse,
 	registerKeysCommand,
 	resolveKeyRef,
 	rotatableKeys,
+	runCreate,
+	runRevoke,
 	saveRotatedLogin,
 } from "./keys.ts";
 
@@ -38,18 +42,20 @@ const LAPTOP = key({
 });
 
 describe("secondlayer keys", () => {
-	test("registers list and rotate with their flags", () => {
+	test("registers list, create, rotate and revoke with their flags", () => {
 		const program = new Command();
 		registerKeysCommand(program);
 		const keys = program.commands.find((c) => c.name() === "keys");
 		const names = (keys?.commands ?? []).map((c) => c.name());
-		expect(names).toEqual(["list", "rotate"]);
+		expect(names).toEqual(["list", "create", "rotate", "revoke"]);
 
 		const flags = (name: string) =>
 			keys?.commands.find((c) => c.name() === name)?.options.map((o) => o.long);
 		expect(flags("rotate")).toContain("--yes");
 		expect(flags("rotate")).toContain("--json");
 		expect(flags("list")).toEqual(["--json"]);
+		expect(flags("create")).toEqual(["--name", "--json"]);
+		expect(flags("revoke")).toEqual(["--yes", "--json"]);
 	});
 });
 
@@ -209,5 +215,218 @@ describe("applyRotationToLogin", () => {
 		const { deps } = harness(session(`${PREFIX}OLD`));
 		const result = await saveRotatedLogin(PREFIX, NEW_KEY, deps);
 		expect(result).toEqual({ loginUpdated: true, envStale: false });
+	});
+});
+
+const API_URL = "https://api.example.test";
+const SESSION_BASE = {
+	email: "dev@example.com",
+	accountId: "44444444-dddd-4ddd-8ddd-dddddddddddd",
+	expiresAt: "2027-01-01T00:00:00.000Z",
+};
+
+type Call = { path: string; method: string; body: unknown };
+
+function fakeDeps(opts: {
+	token?: string;
+	envKey?: string;
+	keys?: ListedKey[];
+}): { deps: KeysDeps; calls: Call[] } {
+	const calls: Call[] = [];
+	const deps: KeysDeps = {
+		http: async <T>(
+			path: string,
+			init?: { method?: string; body?: unknown },
+		): Promise<T> => {
+			const method = init?.method ?? "GET";
+			calls.push({ path, method, body: init?.body });
+			if (method === "GET") return { keys: opts.keys ?? [CI, LAPTOP] } as T;
+			if (method === "POST") {
+				return {
+					key: "sk-sl_new00001SECRETSECRETSECRET00",
+					prefix: "sk-sl_new00001",
+					id: "55555555-eeee-4eee-8eee-eeeeeeeeeeee",
+					product: "account",
+					tier: "free",
+					createdAt: "2026-11-23T00:00:00.000Z",
+				} as T;
+			}
+			const id = path.split("/").pop();
+			return { revoked: true, id } as T;
+		},
+		login: {
+			apiUrl: API_URL,
+			readSession: async () =>
+				opts.token ? { ...SESSION_BASE, token: opts.token } : null,
+			writeSession: async () => {},
+			envKey: opts.envKey,
+		},
+	};
+	return { deps, calls };
+}
+
+function capture() {
+	const out: string[] = [];
+	const err: string[] = [];
+	const stdout = spyOn(process.stdout, "write").mockImplementation(((
+		chunk: string,
+	) => {
+		out.push(String(chunk));
+		return true;
+	}) as typeof process.stdout.write);
+	const stderr = spyOn(console, "error").mockImplementation(
+		(...args: unknown[]) => {
+			err.push(args.map(String).join(" "));
+		},
+	);
+	return {
+		stdout: () => out.join(""),
+		stderr: () => err.join("\n"),
+		restore: () => {
+			stdout.mockRestore();
+			stderr.mockRestore();
+		},
+	};
+}
+
+describe("runCreate", () => {
+	let io: ReturnType<typeof capture>;
+	beforeEach(() => {
+		io = capture();
+	});
+	afterEach(() => io.restore());
+
+	test("posts the name and prints the secret once", async () => {
+		const { deps, calls } = fakeDeps({});
+		await runCreate({ name: "ci" }, deps);
+		expect(calls).toEqual([
+			{ path: "/api/keys", method: "POST", body: { name: "ci" } },
+		]);
+		expect(io.stdout()).toBe("sk-sl_new00001SECRETSECRETSECRET00\n");
+		expect(io.stderr()).toContain("Created ci (sk-sl_new00001…).");
+		expect(io.stderr()).toContain("Shown once. Copy it now.");
+	});
+
+	test("sends an empty body without --name", async () => {
+		const { deps, calls } = fakeDeps({});
+		await runCreate({}, deps);
+		expect(calls[0]?.body).toEqual({});
+		expect(io.stderr()).toContain("Created (unnamed)");
+	});
+
+	test("--json prints the response body", async () => {
+		const { deps } = fakeDeps({});
+		await runCreate({ name: "ci", json: true }, deps);
+		const body = JSON.parse(io.stdout());
+		expect(body.key).toBe("sk-sl_new00001SECRETSECRETSECRET00");
+		expect(body.prefix).toBe("sk-sl_new00001");
+		expect(io.stderr()).toBe("");
+	});
+});
+
+describe("runRevoke", () => {
+	let io: ReturnType<typeof capture>;
+	beforeEach(() => {
+		io = capture();
+	});
+	afterEach(() => io.restore());
+
+	for (const ref of [CI.id, "11111111", "sk-sl_ci000001", "ci"]) {
+		test(`-y revokes the key matched by "${ref}"`, async () => {
+			const { deps, calls } = fakeDeps({});
+			await runRevoke(ref, { yes: true }, deps);
+			expect(calls.at(-1)).toEqual({
+				path: `/api/keys/${CI.id}`,
+				method: "DELETE",
+				body: undefined,
+			});
+			expect(io.stderr()).toContain(
+				"Revoked ci (sk-sl_ci000001…). It has stopped working.",
+			);
+			expect(io.stderr()).not.toContain("secondlayer login");
+		});
+	}
+
+	test("warns when the CLI login used the revoked key", async () => {
+		const { deps } = fakeDeps({ token: "sk-sl_ci000001REST" });
+		await runRevoke("ci", { yes: true }, deps);
+		expect(io.stderr()).toContain(
+			"Your CLI login used this key. Run: secondlayer login",
+		);
+	});
+
+	test("warns when SECONDLAYER_API_KEY holds the revoked key", async () => {
+		const { deps } = fakeDeps({ envKey: "sk-sl_ci000001REST" });
+		await runRevoke("ci", { yes: true }, deps);
+		expect(io.stderr()).toContain("SECONDLAYER_API_KEY holds the revoked key");
+	});
+
+	test("--json reports the revoke and whether the login used it", async () => {
+		const { deps } = fakeDeps({ token: "sk-sl_ci000001REST" });
+		await runRevoke("ci", { yes: true, json: true }, deps);
+		expect(JSON.parse(io.stdout())).toEqual({
+			revoked: true,
+			id: CI.id,
+			prefix: "sk-sl_ci000001",
+			name: "ci",
+			loginRevoked: true,
+		});
+	});
+
+	test("without -y on a non-TTY exits 1 and never calls DELETE", async () => {
+		const { deps, calls } = fakeDeps({});
+		const tty = Object.getOwnPropertyDescriptor(process.stdin, "isTTY");
+		Object.defineProperty(process.stdin, "isTTY", {
+			value: false,
+			configurable: true,
+		});
+		const exit = spyOn(process, "exit").mockImplementation(((code?: number) => {
+			throw new Error(`exit ${code}`);
+		}) as typeof process.exit);
+		try {
+			await expect(runRevoke("ci", {}, deps)).rejects.toThrow("exit 1");
+		} finally {
+			exit.mockRestore();
+			if (tty) Object.defineProperty(process.stdin, "isTTY", tty);
+			else delete (process.stdin as { isTTY?: boolean }).isTTY;
+		}
+		expect(calls.map((c) => c.method)).toEqual(["GET"]);
+		expect(io.stderr()).toContain("Re-run with -y");
+	});
+});
+
+describe("keyInUse", () => {
+	const deps = (token: string | null, envKey?: string) => ({
+		apiUrl: API_URL,
+		readSession: async () => (token ? { ...SESSION_BASE, token } : null),
+		envKey,
+	});
+
+	test("matches a saved key login by prefix", async () => {
+		expect(await keyInUse("sk-sl_ci000001", deps("sk-sl_ci000001X"))).toEqual({
+			login: true,
+			env: false,
+		});
+	});
+
+	test("ignores a browser login and other keys", async () => {
+		expect(await keyInUse("sk-sl_ci000001", deps("ss-sl_browser"))).toEqual({
+			login: false,
+			env: false,
+		});
+		expect(
+			await keyInUse("sk-sl_ci000001", deps(null, "sk-sl_lp000002X")),
+		).toEqual({ login: false, env: false });
+	});
+
+	test("an unreadable login counts as not in use", async () => {
+		const result = await keyInUse("sk-sl_ci000001", {
+			apiUrl: API_URL,
+			readSession: async () => {
+				throw new Error("EACCES");
+			},
+			envKey: undefined,
+		});
+		expect(result).toEqual({ login: false, env: false });
 	});
 });
