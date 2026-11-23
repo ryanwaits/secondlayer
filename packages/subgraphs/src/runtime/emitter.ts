@@ -291,6 +291,66 @@ interface PostResult {
  */
 export const MAX_REDIRECT_HOPS: number = 3;
 
+const MAX_RESPONSE_BODY_BYTES = 8192;
+
+const CROSS_ORIGIN_SAFE_HEADERS = new Set([
+	"content-type",
+	"user-agent",
+	"webhook-id",
+	"webhook-timestamp",
+	"webhook-signature",
+]);
+
+const SENSITIVE_HEADER_RE = /(auth|token|secret|key|cookie)/i;
+
+function stripSensitiveHeaders(
+	headers: Record<string, string>,
+): Record<string, string> {
+	const next: Record<string, string> = {};
+	for (const [k, v] of Object.entries(headers)) {
+		const lower = k.toLowerCase();
+		if (
+			!CROSS_ORIGIN_SAFE_HEADERS.has(lower) &&
+			SENSITIVE_HEADER_RE.test(lower)
+		) {
+			continue;
+		}
+		next[k] = v;
+	}
+	return next;
+}
+
+async function readResponseBodyCapped(
+	res: Response,
+	maxBytes = MAX_RESPONSE_BODY_BYTES,
+): Promise<string> {
+	if (!res.body) return "";
+	const reader = res.body.getReader();
+	const chunks: Uint8Array[] = [];
+	let total = 0;
+	try {
+		while (total < maxBytes) {
+			const { done, value } = await reader.read();
+			if (done) break;
+			if (!value || value.byteLength === 0) continue;
+			const remaining = maxBytes - total;
+			if (value.byteLength >= remaining) {
+				chunks.push(
+					value.byteLength > remaining ? value.subarray(0, remaining) : value,
+				);
+				total = maxBytes;
+				await reader.cancel().catch(() => {});
+				break;
+			}
+			chunks.push(value);
+			total += value.byteLength;
+		}
+	} finally {
+		reader.releaseLock();
+	}
+	return Buffer.concat(chunks).toString("utf8");
+}
+
 /** POST a pre-built body to a webhook URL with the SSRF guard + timeout.
  *  Pure transport: returns the attempt result; the caller logs the delivery row.
  *  Follows redirects manually (up to `MAX_REDIRECT_HOPS`), re-running the
@@ -306,6 +366,7 @@ async function postToWebhook(
 ): Promise<PostResult> {
 	const start = performance.now();
 	let target = url;
+	let currentHeaders: Record<string, string> = { ...headers };
 	let statusCode: number | null = null;
 	let error: string | null = null;
 	let ok = false;
@@ -343,7 +404,7 @@ async function postToWebhook(
 
 			const res = await fetch(target, {
 				method: "POST",
-				headers,
+				headers: currentHeaders,
 				body,
 				redirect: "manual",
 				signal: AbortSignal.timeout(timeoutMs),
@@ -352,14 +413,28 @@ async function postToWebhook(
 
 			const location = res.headers.get("location");
 			if (res.status >= 300 && res.status < 400 && location) {
-				target = new URL(location, target).toString();
+				const prevUrl = new URL(target);
+				const nextUrl = new URL(location, target);
+				await res.body?.cancel().catch(() => {});
+				if (prevUrl.protocol === "https:" && nextUrl.protocol === "http:") {
+					return {
+						ok: false,
+						statusCode,
+						error: "redirect refused: https to http downgrade",
+						durationMs: Math.round(performance.now() - start),
+						responseBody: null,
+						responseHeaders: null,
+					};
+				}
+				if (nextUrl.origin !== prevUrl.origin) {
+					currentHeaders = stripSensitiveHeaders(currentHeaders);
+				}
+				target = nextUrl.toString();
 				continue;
 			}
 
 			ok = res.ok;
-			const buf = await res.arrayBuffer();
-			const truncated = buf.byteLength > 8192 ? buf.slice(0, 8192) : buf;
-			responseBody = Buffer.from(truncated).toString("utf8");
+			responseBody = await readResponseBodyCapped(res, MAX_RESPONSE_BODY_BYTES);
 			responseHeaders = Object.fromEntries(res.headers.entries());
 			break;
 		}
