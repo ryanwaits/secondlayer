@@ -193,7 +193,7 @@ or poll the subgraph API: see
 | `SECONDLAYER_API_KEY` | Hosted account key (`sk-sl_*`) |
 | `SECONDLAYER_API_URL` | API URL. Default `http://127.0.0.1:3800`, or hosted with only `SECONDLAYER_API_KEY` set |
 | `STACKS_NETWORK` | Default network (also via `--network <mainnet\|testnet\|devnet>`) |
-| `DATABASE_URL` | Postgres that `bootstrap`, `verify`, `repair`, and `backup` connect to. Point it at the compose Postgres (`postgres://secondlayer:<POSTGRES_PASSWORD>@127.0.0.1:5432/secondlayer`); unset, the shared dev URL `postgres://postgres:postgres@localhost:5432/secondlayer_dev` is used |
+| `DATABASE_URL` | Postgres that `bootstrap`, `verify`, `repair`, and `backup` connect to. Point it at the compose Postgres (`postgres://secondlayer:<POSTGRES_PASSWORD>@127.0.0.1:5432/secondlayer`); unset, it falls back to the repo's dev compose URL `postgresql://postgres:postgres@127.0.0.1:5440/secondlayer`, which is not a self-host install |
 | `HIRO_API_KEY` | Used by `secondlayer codegen contracts` for remote contract fetches |
 
 ## Code generation (`secondlayer codegen contracts`)

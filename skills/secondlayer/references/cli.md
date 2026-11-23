@@ -24,7 +24,7 @@ The `secondlayer` binary (alias `secondlayer`) is the official CLI for Secondlay
 | `SIGNING_SECRET` | webhooks test | Standard-Webhooks signing secret used to sign test fixtures. |
 | `STACKS_NETWORK` | global | Network override (set by `--network`). |
 | `SL_STREAMS_DUMPS_URL` | streams dumps | Public bulk-dump bucket base URL (dumps are public — no API key). Alternative to `--dumps-url`. |
-| `DATABASE_URL` | bootstrap, verify, repair, backup | Postgres URL. Point it at the compose Postgres (`postgres://secondlayer:<POSTGRES_PASSWORD>@127.0.0.1:5432/secondlayer`); unset, it defaults to `postgres://postgres:postgres@localhost:5432/secondlayer_dev`. |
+| `DATABASE_URL` | bootstrap, verify, repair, backup | Postgres URL. Point it at the compose Postgres (`postgres://secondlayer:<POSTGRES_PASSWORD>@127.0.0.1:5432/secondlayer`); unset, it falls back to the repo's dev compose URL `postgresql://postgres:postgres@127.0.0.1:5440/secondlayer`, which is not a self-host install. |
 | `INDEXER_URL` | doctor, status | Local indexer URL; defaults to `http://localhost:3700`. |
 | `DEBUG` | codegen contracts | When set, prints stack traces on failure. |
 

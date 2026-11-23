@@ -9,8 +9,7 @@ import type { Database } from "./types.ts";
 
 export type { Database } from "./types.ts";
 
-const DEFAULT_URL =
-	"postgres://postgres:postgres@localhost:5432/secondlayer_dev";
+const DEFAULT_URL = "postgresql://postgres:postgres@127.0.0.1:5440/secondlayer";
 
 interface PoolEntry {
 	db: Kysely<Database>;
@@ -129,15 +128,15 @@ let warnedDefaultUrlFallthrough = false;
  * dev `DEFAULT_URL`. In a test run that means one of two silent outcomes: the
  * suite's own `skipIf(!process.env.DATABASE_URL)` guard disables it entirely,
  * or an unguarded test connects to whatever Postgres happens to be on
- * localhost:5432. Both exit 0 and read as "tests passed".
+ * 127.0.0.1:5440. Both exit 0 and read as "tests passed".
  *
  * Fires at MODULE LOAD, not from a getter: DB-backed suites guard `getDb()`
  * behind their own `skipIf`, so when the env is missing no getter is ever
  * called — import is the only point where this is still observable.
  *
  * Gated to `NODE_ENV=test` on purpose. `@secondlayer/shared` is published, and
- * end users running `sl local` / `sl dev` rely on `DEFAULT_URL` legitimately —
- * it matches what the CLI provisions. They must see nothing. Fail-soft: warns,
+ * the published CLI falls back to `DEFAULT_URL` (the repo's dev compose) when
+ * `DATABASE_URL` is unset. Its users must see nothing. Fail-soft: warns,
  * never throws, matching `assertDbSplit`'s contract.
  */
 function warnIfTestRunFallsThroughToDefault(): void {

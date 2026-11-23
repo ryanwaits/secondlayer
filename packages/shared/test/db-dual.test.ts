@@ -201,7 +201,7 @@ describe("DEFAULT_URL fallthrough warning", () => {
 		expect(warning).toBeDefined();
 		// Names the built-in target and the package-local fix, so the reader
 		// knows both what went wrong and what to do about it.
-		expect(warning).toContain("localhost:5432/secondlayer_dev");
+		expect(warning).toContain("127.0.0.1:5440/secondlayer");
 		expect(warning).toContain(".env.example");
 	});
 
@@ -255,7 +255,7 @@ describe("assertDbSplit", () => {
 			"../src/db/index.ts"
 		);
 		// Target falls through to the built-in DEFAULT_URL — the silent wrong-DB case.
-		expect(getDbSplitStatus().targetDb).toBe("localhost:5432/secondlayer_dev");
+		expect(getDbSplitStatus().targetDb).toBe("127.0.0.1:5440/secondlayer");
 		expect(() => assertDbSplit()).not.toThrow();
 	});
 
