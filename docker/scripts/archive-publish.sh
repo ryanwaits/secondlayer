@@ -40,9 +40,10 @@ STAGING_DIR="${ARCHIVE_STAGING_DIR:-/data/archive/canonical-v1-staging}"
 # shutdown itself, but reading the manifest from the shared bind mount stays
 # the recovery path for whatever hangs next.
 HOST_STAGING_DIR="${ARCHIVE_HOST_STAGING_DIR:-/opt/secondlayer/data/archive/canonical-v1-staging}"
-# The export reads ~240M rows; the cap is generous but bounded so a wedged run
-# cannot hold the weekly timer open forever.
-EXPORT_TIMEOUT="${ARCHIVE_EXPORT_TIMEOUT:-21600}"
+# The export reads ~320M rows over the network from the chain DB host; the
+# 2026-11-23 run reached 190/192 chunks at 6 h. The cap is generous but bounded
+# so a wedged run cannot hold the weekly timer open forever.
+EXPORT_TIMEOUT="${ARCHIVE_EXPORT_TIMEOUT:-43200}"
 UPLOAD_TIMEOUT="${ARCHIVE_UPLOAD_TIMEOUT:-7200}"
 STATE_FILE="${ARCHIVE_PUBLISH_STATE_FILE:-/var/run/secondlayer-archive-publish.state}"
 
