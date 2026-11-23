@@ -100,6 +100,19 @@ export function parseAreas(raw: unknown): SentinelAreas {
 
 const SHA256_HEX_RE = /^[0-9a-f]{64}$/;
 
+function requireSha256Hex(
+	body: Record<string, unknown>,
+	field: string,
+): string {
+	const v = requireString(body, field, 64);
+	if (!SHA256_HEX_RE.test(v)) {
+		throw new ValidationError(
+			`${field} must be a lowercase SHA-256 hex digest`,
+		);
+	}
+	return v;
+}
+
 const UUID_RE =
 	/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -170,8 +183,14 @@ export function createInternalSentinelRouter() {
 	app.post("/accounts/link", async (c) => {
 		const body = await readBody(c.req);
 		const accountId = requireString(body, "accountId");
+		const sessionTokenHash = requireSha256Hex(body, "sessionTokenHash");
 		await requireAccount(accountId);
-		await linkSentinelAccount(getDb(), accountId, "consent");
+		const db = getDb();
+		const lookup = await lookupSession(db, sessionTokenHash);
+		if (lookup.status !== "ok" || lookup.session.account_id !== accountId) {
+			throw new ForbiddenError("owner_session_required");
+		}
+		await linkSentinelAccount(db, accountId, "consent");
 		return c.json({ linked: true });
 	});
 
@@ -182,12 +201,7 @@ export function createInternalSentinelRouter() {
 	// to use; it never resolves. Anything else is a flat 404.
 	app.post("/tokens/resolve", async (c) => {
 		const body = await readBody(c.req);
-		const tokenHash = requireString(body, "tokenHash", 64);
-		if (!SHA256_HEX_RE.test(tokenHash)) {
-			throw new ValidationError(
-				"tokenHash must be a lowercase SHA-256 hex digest",
-			);
-		}
+		const tokenHash = requireSha256Hex(body, "tokenHash");
 		const db = getDb();
 		const lookup = await lookupSession(db, tokenHash);
 		if (lookup.status === "ok") {
