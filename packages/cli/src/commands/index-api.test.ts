@@ -231,6 +231,34 @@ describe("index event order", () => {
 		]);
 	});
 
+	test("events takes contract state types and their filters", async () => {
+		await run(
+			"events",
+			"--event-type",
+			"nested_contract_call",
+			"--tx-id",
+			"0xabc",
+			"--caller",
+			"SP1.router",
+			"--json",
+		);
+		await run(
+			"events",
+			"--event-type",
+			"map_set",
+			"--map",
+			"reserve",
+			"--json",
+		);
+		const [calls, writes] = urls.map((u) => Object.fromEntries(u.searchParams));
+		expect(calls).toMatchObject({
+			event_type: "nested_contract_call",
+			tx_id: "0xabc",
+			caller: "SP1.router",
+		});
+		expect(writes).toMatchObject({ event_type: "map_set", map: "reserve" });
+	});
+
 	test("--order accepts asc or desc only", () => {
 		expect(parseIndexOrder("asc")).toBe("asc");
 		expect(parseIndexOrder("desc")).toBe("desc");

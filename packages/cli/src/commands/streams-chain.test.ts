@@ -1,6 +1,11 @@
 import { afterEach, beforeEach, describe, expect, spyOn, test } from "bun:test";
 import { Command } from "commander";
-import { parseChain, parseTypes, registerStreamsCommand } from "./streams.ts";
+import {
+	parseChain,
+	parseClock,
+	parseTypes,
+	registerStreamsCommand,
+} from "./streams.ts";
 
 /**
  * `--chain bitcoin` reaches the wire on every Streams read that has a chain,
@@ -122,5 +127,21 @@ describe("chain parsing", () => {
 		expect(() => parseTypes("print", "--types", "bitcoin")).toThrow(
 			/rune_etch, rune_mint, rune_transfer, rune_burn/,
 		);
+	});
+
+	test("--clock vm switches the type vocabulary to contract state", () => {
+		expect(parseClock(undefined)).toBeUndefined();
+		expect(parseClock("classic")).toBeUndefined();
+		expect(parseClock("vm")).toBe("vm");
+		expect(() => parseClock("wall")).toThrow(/invalid --clock "wall"/);
+		expect(() => parseClock("vm", "bitcoin")).toThrow(/Stacks-only/);
+		expect(parseTypes("map_set,var_set", "--types", undefined, "vm")).toEqual([
+			"map_set",
+			"var_set",
+		]);
+		expect(() => parseTypes("print", "--types", undefined, "vm")).toThrow(
+			/nested_contract_call/,
+		);
+		expect(() => parseTypes("map_set")).toThrow(/invalid --types/);
 	});
 });

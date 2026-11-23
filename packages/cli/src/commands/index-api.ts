@@ -7,6 +7,8 @@ import {
 import {
 	DECODED_EVENT_TYPES,
 	type DecodedEventType,
+	VM_EVENT_TYPES,
+	type VmEventType,
 } from "@secondlayer/shared";
 import type { Command } from "commander";
 import { writeTextFile } from "../lib/fs.ts";
@@ -25,15 +27,20 @@ import {
 
 // Single-sourced from @secondlayer/shared so the CLI can't advertise a stale
 // subset of the Index event vocab (drift test in index-vocab.test.ts).
-export const VALID_INDEX_TYPES: readonly DecodedEventType[] =
-	DECODED_EVENT_TYPES;
+// Contract state types (inner calls, map and data-var writes) read on the same
+// route, so they're valid here too.
+type IndexEventTypeArg = DecodedEventType | VmEventType;
+export const VALID_INDEX_TYPES: readonly IndexEventTypeArg[] = [
+	...DECODED_EVENT_TYPES,
+	...VM_EVENT_TYPES,
+];
 
 /** One decoded event type for `index events`. Index pagination is keyed per
  *  type, so a comma list is refused (use `streams events` for a multi-type feed). */
 export function parseIndexEventType(
 	eventType?: string,
 	types?: string,
-): DecodedEventType {
+): IndexEventTypeArg {
 	if (eventType !== undefined && types !== undefined) {
 		throw new Error("--event-type and --types are mutually exclusive");
 	}
@@ -48,12 +55,12 @@ export function parseIndexEventType(
 			"--types takes ONE value on Index reads. Pagination is keyed per event type; make one request per type (or use `secondlayer streams events` for a multi-type feed)",
 		);
 	}
-	if (!VALID_INDEX_TYPES.includes(raw as DecodedEventType)) {
+	if (!VALID_INDEX_TYPES.includes(raw as IndexEventTypeArg)) {
 		throw new Error(
 			`invalid --event-type "${raw}"; expected one of: ${VALID_INDEX_TYPES.join(", ")}`,
 		);
 	}
-	return raw as DecodedEventType;
+	return raw as IndexEventTypeArg;
 }
 
 /**
@@ -149,6 +156,10 @@ type ListOptions = {
 	recipient?: string;
 	assetIdentifier?: string;
 	functionName?: string;
+	caller?: string;
+	map?: string;
+	varName?: string;
+	txId?: string;
 	eventType?: string;
 	/** Alias for eventType (the Streams spelling), single value. */
 	types?: string;
@@ -274,11 +285,11 @@ export function registerIndexCommand(program: Command): void {
 
 	orderFlag(rangeFlags(index.command("events")))
 		.description(
-			"List decoded events by type (stx_*, ft/nft mint/burn, print, …)",
+			"List events by type: decoded chain events, or contract state (inner calls, map and data-var writes)",
 		)
 		.option(
 			"--event-type <type>",
-			`decoded event type (${VALID_INDEX_TYPES.join(", ")})`,
+			`event type (${VALID_INDEX_TYPES.join(", ")})`,
 		)
 		.option(
 			"--types <type>",
@@ -287,6 +298,20 @@ export function registerIndexCommand(program: Command): void {
 		.option("--sender <principal>", "Filter by sender")
 		.option("--recipient <principal>", "Filter by recipient")
 		.option("--asset-identifier <id>", "Filter by asset identifier")
+		.option(
+			"--function-name <name>",
+			"Filter inner calls by called function (nested_contract_call)",
+		)
+		.option(
+			"--caller <principal>",
+			"Filter inner calls by who made them (nested_contract_call)",
+		)
+		.option("--map <name>", "Filter map writes by map name (map_*)")
+		.option("--var-name <name>", "Filter data-var writes by name (var_set)")
+		.option(
+			"--tx-id <txid>",
+			"One transaction's rows (contract state types; reads its block when no height is given)",
+		)
 		.action(async (o: ListOptions) => {
 			try {
 				emit(
@@ -297,6 +322,11 @@ export function registerIndexCommand(program: Command): void {
 						sender: o.sender,
 						recipient: o.recipient,
 						assetIdentifier: o.assetIdentifier,
+						functionName: o.functionName,
+						caller: o.caller,
+						map: o.map,
+						varName: o.varName,
+						txId: o.txId,
 					}),
 					o.json,
 				);

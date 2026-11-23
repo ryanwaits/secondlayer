@@ -15,7 +15,11 @@ import type {
 	StreamsReorgsListEnvelope,
 	StreamsTip,
 } from "@secondlayer/sdk";
-import { RUNE_EVENT_TYPES, STREAMS_EVENT_TYPES } from "@secondlayer/shared";
+import {
+	RUNE_EVENT_TYPES,
+	STREAMS_EVENT_TYPES,
+	VM_EVENT_TYPES,
+} from "@secondlayer/shared";
 import type { Command } from "commander";
 import { error as logError, note, writeData } from "../lib/output.ts";
 import { resolveApiUrl, resolveDataPlaneKey } from "../lib/resolve-auth.ts";
@@ -130,16 +134,37 @@ export function parseChain(value?: string): "bitcoin" | undefined {
 	return "bitcoin";
 }
 
-/** Validate against the chain's own vocab: Rune events on bitcoin, decoded
- *  Stacks events otherwise. */
+/** `--clock`: omitted or `classic` means the classic feed, so nothing is
+ *  forwarded; `vm` is the contract state feed (Stacks only). */
+export function parseClock(
+	value: string | undefined,
+	chain?: "bitcoin",
+): "vm" | undefined {
+	if (value === undefined || value === "classic") return undefined;
+	if (value !== "vm") {
+		throw new Error(`invalid --clock "${value}"; expected classic or vm`);
+	}
+	if (chain === "bitcoin") {
+		throw new Error("--clock vm is Stacks-only; drop it with --chain bitcoin");
+	}
+	return "vm";
+}
+
+/** Validate against the feed's own vocab: Rune events on bitcoin, contract
+ *  state types on the vm clock, Stacks events otherwise. */
 export function parseTypes(
 	value?: string,
 	flag = "--types",
 	chain?: "bitcoin",
+	clock?: "vm",
 ): string[] | undefined {
 	if (!value) return undefined;
 	const valid: readonly string[] =
-		chain === "bitcoin" ? RUNE_EVENT_TYPES : VALID_TYPES;
+		chain === "bitcoin"
+			? RUNE_EVENT_TYPES
+			: clock === "vm"
+				? VM_EVENT_TYPES
+				: VALID_TYPES;
 	const parts = value.split(",").map((s) => s.trim());
 	for (const p of parts) {
 		if (!valid.includes(p)) {
@@ -270,8 +295,12 @@ export function registerStreamsCommand(program: Command): void {
 		.description("List events (cursor-paginated; one page per call)")
 		.option("--chain <chain>", CHAIN_HELP)
 		.option(
+			"--clock <clock>",
+			"classic (default) or vm: contract state (inner calls, map and data-var writes) in block order",
+		)
+		.option(
 			"--types <types>",
-			`comma-separated event types (${VALID_TYPES.join(", ")}; ${RUNE_EVENT_TYPES.join(", ")} with --chain bitcoin)`,
+			`comma-separated event types (${VALID_TYPES.join(", ")}; ${VM_EVENT_TYPES.join(", ")} with --clock vm; ${RUNE_EVENT_TYPES.join(", ")} with --chain bitcoin)`,
 		)
 		.option(
 			"--event-type <type>",
@@ -294,11 +323,13 @@ Examples:
   $ secondlayer streams events --not-types print --contract-id SP00....token,SP01....token
   $ secondlayer streams events --sender SP1...,SP2... --from-block 150000 --to-block 160000
   $ secondlayer streams events --cursor 150000:3
+  $ secondlayer streams events --clock vm --types map_set --contract-id SP102V8P0F7JX67ARQ77WEA3D3CFB5XW39REDT0AM.amm-vault-v2-01
   $ secondlayer streams events --chain bitcoin --types rune_mint --limit 50`,
 		)
 		.action(
 			async (options: {
 				chain?: string;
+				clock?: string;
 				types?: string;
 				eventType?: string;
 				notTypes?: string;
@@ -313,14 +344,17 @@ Examples:
 				try {
 					const chain = parseChain(options.chain);
 					rejectStacksFilters(chain, options);
+					const clock = parseClock(options.clock, chain);
 					const envelope = await client().events.list({
 						chain,
+						clock,
 						types: parseTypes(
 							options.types ?? options.eventType,
 							"--types",
 							chain,
+							clock,
 						),
-						notTypes: parseTypes(options.notTypes, "--not-types", chain),
+						notTypes: parseTypes(options.notTypes, "--not-types", chain, clock),
 						contractId: parseList(options.contractId),
 						sender: parseList(options.sender),
 						recipient: parseList(options.recipient),
@@ -365,8 +399,12 @@ Examples:
 		)
 		.option("--chain <chain>", CHAIN_HELP)
 		.option(
+			"--clock <clock>",
+			"classic (default) or vm: contract state (inner calls, map and data-var writes) in block order",
+		)
+		.option(
 			"--types <types>",
-			`comma-separated event types (${VALID_TYPES.join(", ")}; ${RUNE_EVENT_TYPES.join(", ")} with --chain bitcoin)`,
+			`comma-separated event types (${VALID_TYPES.join(", ")}; ${VM_EVENT_TYPES.join(", ")} with --clock vm; ${RUNE_EVENT_TYPES.join(", ")} with --chain bitcoin)`,
 		)
 		.option("--not-types <types>", "comma-separated event types to exclude")
 		.option("--contract-id <ids>", "comma-separated contract identifier(s)")
@@ -385,6 +423,7 @@ Examples:
 		.action(
 			async (options: {
 				chain?: string;
+				clock?: string;
 				types?: string;
 				notTypes?: string;
 				contractId?: string;
@@ -399,6 +438,7 @@ Examples:
 					const maxPages = parseMaxPages(options.maxPages);
 					const chain = parseChain(options.chain);
 					rejectStacksFilters(chain, options);
+					const clock = parseClock(options.clock, chain);
 					note(
 						'# streaming events to stdout (jsonl); reorgs appear inline as {"kind":"reorg"}; next_cursor printed to stderr',
 					);
@@ -408,9 +448,10 @@ Examples:
 					});
 					await client().events.consume({
 						chain,
+						clock,
 						fromCursor: options.cursor,
-						types: parseTypes(options.types, "--types", chain),
-						notTypes: parseTypes(options.notTypes, "--not-types", chain),
+						types: parseTypes(options.types, "--types", chain, clock),
+						notTypes: parseTypes(options.notTypes, "--not-types", chain, clock),
 						contractId: parseList(options.contractId),
 						sender: parseList(options.sender),
 						recipient: parseList(options.recipient),

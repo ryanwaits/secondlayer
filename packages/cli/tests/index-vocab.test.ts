@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { DECODED_EVENT_TYPES } from "@secondlayer/shared";
+import { DECODED_EVENT_TYPES, VM_EVENT_TYPES } from "@secondlayer/shared";
 import { Command } from "commander";
 import {
 	VALID_INDEX_TYPES,
@@ -11,11 +11,14 @@ import {
 // VALID_INDEX_TYPES must stay sourced from @secondlayer/shared so `sl index events`
 // accepts (and its help advertises) exactly the types the API supports.
 describe("cli index vocab ↔ shared", () => {
-	it("accepts exactly the shared decoded event types", () => {
-		expect([...VALID_INDEX_TYPES]).toEqual([...DECODED_EVENT_TYPES]);
+	it("accepts exactly the shared decoded and contract state event types", () => {
+		expect([...VALID_INDEX_TYPES]).toEqual([
+			...DECODED_EVENT_TYPES,
+			...VM_EVENT_TYPES,
+		]);
 	});
 
-	it("lists every decoded event type on `index events --help`", () => {
+	it("lists every event type on `index events --help`", () => {
 		const program = new Command();
 		registerIndexCommand(program);
 		const events = program.commands
@@ -23,7 +26,7 @@ describe("cli index vocab ↔ shared", () => {
 			?.commands.find((c) => c.name() === "events");
 		const eventType = events?.options.find((o) => o.long === "--event-type");
 		expect(eventType?.description).toBeDefined();
-		for (const type of DECODED_EVENT_TYPES) {
+		for (const type of [...DECODED_EVENT_TYPES, ...VM_EVENT_TYPES]) {
 			expect(eventType?.description).toContain(type);
 		}
 	});
