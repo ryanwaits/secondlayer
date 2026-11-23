@@ -54,3 +54,39 @@ re-signed from it. Before cutover, the feeder rolls the 2026-10-19 parser fixes
 A pattern repair of statuses (`(err …)` result ⇒ abort_by_response) was tested
 and rejected: ~5% of node-sourced `(err …)` aborts are real post-condition
 aborts. Replay harness: `scripts/ops/hiro-tsv/`.
+
+## v2 cutover results (2026-11-22)
+
+Plan 317 ran against the v2 copy (H0 = 9,538,869) before GO. Prod moved to
+the v2 DB at T = 9,547,130 (17:16 UTC). Full log: `plans/031-cutover-log.md`.
+
+| Check | Result |
+|---|---|
+| 1 integrity (v2, 0..H0) | PASS: 0 missing heights, 0 empty burn/index hash, 0 `timestamp=0`, 0 unknown type/sender, 0 events on non-success txs, 0 noncanonical blocks |
+| 2 self-replay (7 windows) | GREEN: 6 windows 0 diverging; w0050k 59 heights differ only in tx digests, all rows changed by the approved 198-row patch below |
+| 3 statuses | PASS: 1,198,450 `post_condition` → `abort_by_response` moves, all below 7.43M; the 1.39–1.5M estimate above was a heuristic. Public API agrees 17/17 sampled |
+| 3.2 decoded counts per 1M | PASS (explained): 19 diffs, all v2 > prod (+281,406). v2 decoded = v2 raw success-tx events in every type×bucket ≥ 7M; prod raw is short (the gaps above) |
+| 4 per-height digests | PASS after one patch, every family explained (below) |
+| 5 subgraph runner | PASS: sip10 22,012/22,012 exact; other diffs are known classes; v2-only rows are prod-shape filter misses |
+
+Check 4 families:
+
+- **`tx_core` 0–200k (v2 defect, patched with founder go):** 198 burnchain-op
+  `stack-stx` txs had a 4-byte placeholder `raw_tx` on both sides, so v2 had
+  NULL `contract_id`/`function_args`. 194 copied from prod; the 4 failed ones
+  absent everywhere got `SP000000000000000000002Q6VF78.pox`, args NULL.
+- **`event_encoding` 7.44M–8.2M:** prod contract events carry an extra decoded
+  `value` key; v2 has `raw_value` only. Otherwise identical; decoders read
+  `raw_value` first.
+- **`tx_core` above 200k:** 1,272 txs at 370 heights; v2 `raw_tx` hashes to its
+  `tx_id` 1,272/1,272, prod has 774 placeholders (REST era + islands).
+- **`tx_count` / `event_shape`:** prod missing data; the public API agrees with
+  v2 on every sample.
+
+Other parity at GO: `contracts` rows ≤ H0 copied from prod (153,072; 0
+orphans); sBTC topic counts ≤ H0 v2 = prod; settlements 3,325 = 3,325; sBTC
+supply at 9,547,116 chain = decoded = raw (248,663,193,223).
+
+VM data (`vm_events`, `state_writes`) is continuous genesis → tip since
+2026-11-23: H0..9,550,710 copied from the feeder (fork image), then prod's node
+moved to the same fork. Per-height digests prod = feeder, 0 diff.

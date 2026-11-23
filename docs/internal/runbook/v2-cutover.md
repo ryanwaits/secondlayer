@@ -25,6 +25,8 @@ GO: stop indexer (node stalls, no gap) → replay last rows → repoint SOURCE �
   snapshot pair and goes to node-server later, with the fork move after a
   4.1-ready fork image passes on the feeder (founder 2026-11-13). This removes
   the 1.5 TB rollback copy and the node downtime from cutover day.
+  **Outcome (founder 2026-11-22):** prod moved to the fork before 4.1 as an
+  image-only swap (no chainstate swap). See "After".
 
 ## Facts (measured 2026-11-13/14)
 
@@ -32,10 +34,10 @@ GO: stop indexer (node stalls, no gap) → replay last rows → repoint SOURCE �
 |---|---|
 | Postgres | feeder 17.11, prod 17.11, db-server `postgres:17-alpine` pinned |
 | v2 DB | name `secondlayer_feeder`, user `secondlayer`, 821 GB at 91%, ~1 TB at tip |
-| v2 migrations | 179 applied, head `0181_push_sent`; repo head `0216_events_total_baseline`. Pending on v2: 0182–0216 (35) |
+| v2 migrations | 179 applied, head `0181_push_sent`; repo head at GO was `0217_usage_monthly_totals`. Pending on v2: 0182–0217 (36) |
 | v2 empty tables | `decoded_events` (prod 393 GB), `sbtc_*`, `bns_*`, `pox5_*`, `stage_*`, `contracts` |
 | v2 extra | `vm_events` 328 GB, `state_writes` 137 GB, `observer_journal` 185 GB (genesis→H0) |
-| VM data after H0 | `vm_events` / `state_writes` end at H0 until the node swap (stock journal bodies carry none); VM readers see empty ranges after H0 that look real |
+| VM data after H0 | `vm_events` / `state_writes` end at H0 until the node swap (stock journal bodies carry none); VM readers see empty ranges after H0 that look real. Closed 2026-11-23 (see "After") |
 | Prod journal | `observer_journal` from 8,739,026 (raw `/new_block` bodies, arrival order) |
 | db-server | `/data` 3.1 TB free; PG binds 10.77.0.1 (WireGuard) only; WAL-G prefix `pg-db-server` |
 | Feeder ↔ db-server | FSN1 → HEL1, ~4–5 h per TB-scale copy (estimate, measure on phase 1) |
@@ -131,8 +133,11 @@ GO: stop indexer (node stalls, no gap) → replay last rows → repoint SOURCE �
 1.2 Stop, in order: feeder stacks-node, then the indexer, then Postgres (clean
     shutdown). Record `H0 = max(blocks.height)` and the node tip.
     **The feeder stays stopped. H0 is the snapshot pair.**
-1.3 Snapshot pair → db-server `/data/snapshots/` as zstd tars of
-    `/mnt/HC_Volume_106907790/{postgres-v2,stacks-v2}` with a sha256 manifest.
+1.3 Snapshot pair as zstd tars of
+    `/mnt/HC_Volume_106907790/{postgres-v2,stacks-v2}` with a sha256 manifest,
+    written on the **feeder volume** after the copy
+    (`/mnt/HC_Volume_106907790/snapshots-h0-<H0>/`). db-server's 3.1 TB can't
+    hold the copy (1.3 TB) + tars (~0.5 TB) + rebuild growth.
 1.4 Live copy: rsync `postgres-v2/` → db-server `/data/postgres/`. First
     `docker compose down` on db-server and move the empty cluster aside.
 1.5 db-server: `docker compose up -d postgres`, then:
@@ -159,6 +164,9 @@ GO: stop indexer (node stalls, no gap) → replay last rows → repoint SOURCE �
       migration or the timeout on the day.
     - Then one-off `migrate` with `SOURCE_DATABASE_URL=db-server`, TARGET
       unchanged. TARGET is already at head, so it's a no-op there.
+    - Every one-off URL to db-server needs `?sslmode=disable`:
+      `shared/src/db/tls.ts` forces TLS for a dotted host and db-server PG has
+      none (WireGuard carries the link).
 2.2 Hand-build the 0199 index (`CREATE UNIQUE INDEX CONCURRENTLY
     transactions_height_tx_index_uniq ON transactions (block_height, tx_index)`,
     after the duplicate check in the 0199 header). Time it. Then drop the
@@ -223,10 +231,17 @@ GO: stop indexer (node stalls, no gap) → replay last rows → repoint SOURCE �
       `CREATE INDEX decoded_events_contract_height_event_idx ON decoded_events (contract_id, block_height, event_index) WHERE contract_id IS NOT NULL;`
       (same for `sender`, `recipient`). Compare `pg_indexes.indexdef` with a
       freshly migrated dev database: identical.
+    - Contract registry: v2 `contracts` starts empty. Copy prod's canonical
+      `contracts` rows ≤ H0 (2026-11-22: 153,072 rows, 0 orphans, every row
+      has a v2 `smart_contract` tx), then `rederive-registry --limit 5000`
+      for v2-only deploys. Without it, check 5 and every ABI reader miss rows.
     Live prod decoders are untouched. Track rate; this is likely the long pole.
 2.4 Journal catch-up (0.1 tool), into the replay indexer (0.5).
-    - **Start condition:** only after every classic `decoder_checkpoints` row
-      is ≥ H0. `SELECT decoder_name, last_cursor FROM decoder_checkpoints WHERE decoder_name LIKE 'decode.%' ORDER BY 1;`
+    - **Start condition:** every classic `decoder_checkpoints` row is
+      ≥ copy tip − 14. Classic decoders keep a 14-block finality margin
+      (`to_height = tip − 14`), so "≥ H0" is unreachable before the replay
+      adds blocks (2026-11-22 lost ~1.5 h waiting on it).
+      `SELECT decoder_name, last_cursor FROM decoder_checkpoints WHERE decoder_name LIKE 'decode.%' ORDER BY 1;`
       (cursor is `<height>:<index>`).
     - **First run:** `--from-height <H0> --margin 200 --apply`.
     - **Then:** repeat with `--from-sequence <last_sequence>` to stay close
@@ -251,6 +266,9 @@ journal replay `last_sequence` recorded; 0 poisoned/failed rows; settlement drai
 
 3.1 Run checks 1–5 against db-server (the copy at H0 + journal rows). Results
     go into `docs/internal/audits/hiro-era-history-2026-10-19.md`.
+    `check4-diff.sh` needs absolute directory arguments (it `cd`s, so relative
+    paths break and it exits 1). Check 4 on prod reads ~320 GB of the live DB:
+    off-peak, `PARALLEL=2`.
 3.2 Extra: decoded-row counts per decoder per 1M heights, v2 vs prod. Any
     difference must be a known Hiro-era difference.
 3.3 **Founder GO** on the 317 summary. No GO = stop; prod is untouched.
@@ -276,8 +294,14 @@ journal replay `last_sequence` recorded; 0 poisoned/failed rows; settlement drai
 5.2b Stop the replay indexer.
 5.3 Let decoders on db-server reach T. Run the protocol reruns (2.3 "Before
     GO") up to T. Then stop the one-off decoder. Leave the confirmer drained.
-5.4 `.env`: `SOURCE_DATABASE_URL` → `postgres://…@10.77.0.1:5432/secondlayer`.
+5.4 `.env`: `SOURCE_DATABASE_URL` → `postgres://…@10.77.0.1:5432/secondlayer?sslmode=disable`.
     Keep the old value commented for rollback. `TARGET_DATABASE_URL` unchanged.
+5.4b Host scripts that read the chain DB outside compose must follow
+    `SOURCE_DATABASE_URL`, not the old `secondlayer-postgres-1` container.
+    Missed on 2026-11-22: `health-alert.sh` read the frozen DB and paged a false
+    "chain ingest STALLED" (fixed `8015adb4b`); `sl.sh`, the `deploy.sh`
+    zombie-session kill and `preflight-data.sh` had the same problem.
+    `grep -rn postgres-1 docker/scripts` before GO.
 5.5 Start the indexer, decoder, api, worker and subgraph-processor on the new
     URL (hetzner overlay). The node resumes and delivers T+1.
 5.6 sBTC cursor, in EVERY stack running `webhook-service` with an
@@ -310,13 +334,34 @@ after GO), restart. The old DB is deleted only after 7 green days + founder go.
 - Plan 317 "After cutover": archive re-export, re-sign, verify; reindex
   subgraphs storing `tx.status`.
 - Measure week-1 DB growth on db-server.
-- VM data on db-server resumes only after the node swap; until then do not
-  advertise VM ranges past H0.
-- Feeder: stays stopped. The fork dry run (sl/4.0.7) can run on it from H0 now
-  that the pair is snapshotted.
-- Later (post-4.1): node chainstate swap to v2 + fork image. Its own runbook
-  step: rollback copy of prod `/data/stacks` (1.5 TB) to the feeder volume,
-  then swap. Delete the feeder only after that, with founder go.
+- **Feeder dry run (done 2026-11-22):** feeder on `sl-4.0.7` from the H0
+  chainstate. 4.0.7 migrates the MARF to schema v4 on first start
+  (irreversible; rollback = the H0 snapshot). Gates: stock vs fork digests
+  H0..T 0 diff (8,262 blocks, 19,695 txs, 394,260 events); witness 200/200
+  fork-emitted heights. `marf-witness` must be rebuilt from each fork release
+  (the October binary cannot open schema v4): `/opt/secondlayer-feeder/bin/marf-witness-sl-4.0.7`,
+  unit drop-in `sl-4.0.7.conf`, source branch `sl/4.0.7-witness`.
+- **Prod node swap (done 2026-11-23 02:29 UTC):** node-server image stock
+  4.0.7 → `sl-4.0.7`, `events_keys` adds `storage`, `contract_calls`,
+  `state_writes`. Image-only: prod already ran 4.0.7, so no chainstate
+  migration and no snapshot. Rollback = stock image + `events_keys = ["*"]`.
+  First fork-emitted block 9,550,711.
+- **VM backfill (done):** feeder `vm_events` / `state_writes`
+  H0..9,550,710 copied into db-server (INSERT … ON CONFLICT DO NOTHING; copy
+  only heights prod already ingested, since persist deletes a height before
+  inserting). Per-height digests prod = feeder to 9,550,774, 0 diff. Timer
+  `sl-vm-recheck` on app-server rechecks the copied range daily until
+  2026-11-30 and pages Slack on drift (a re-persisted stock-era block would
+  drop its VM rows). Remove it with the old DB.
+- Feeder: stays running on `sl-4.0.7` at tip for the 4.1 fork test. Delete it
+  only with founder go.
+- Later: each fork release (4.1 before BTC 979,500, ~Dec 9) goes feeder
+  first (witness + stock-vs-fork digest), then node-server.
+- Known follow-ups: `prod-smoke` Phase 5 #4 reorg probe must drive off
+  DISTINCT heights (v2 `chain_reorgs` has 7,647 rows over 7,133 heights from
+  the feeder IBD; the per-row LATERAL double-counts). Stale
+  `PROVISIONER_SOURCE_DB_READONLY_PASSWORD` is unused by code: remove it from
+  `.env` and examples.
 
 ## Open before GO
 
