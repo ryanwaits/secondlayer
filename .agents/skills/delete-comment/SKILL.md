@@ -87,6 +87,7 @@ bun run --filter <pkg> test          # if under ~2 min
 bun $S/comments.ts --count <target>
 # sdk, stacks, subgraphs, verify: regenerate the reference docs, then lint them
 bun run --filter <pkg> openpkg && bun test packages/<pkg>/src/reference-lint.test.ts
+(cd apps/web && bun run docs:tips)   # code tips are built from the reference
 git status --short apps/web/src/generated   # changed? include it in the commit
 ```
 
