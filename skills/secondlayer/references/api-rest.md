@@ -76,7 +76,7 @@ Response: `{ block_height, block_hash, burn_block_height, finalized_height, lag_
 
 ### `GET /v1/streams/events`
 
-Cursor-paginated firehose of decoded events.
+Exactly what the Stacks node emitted, in order, cursor-paginated. `clock=vm` returns contract state rows instead.
 
 | Query param | Type | Description |
 |---|---|---|
