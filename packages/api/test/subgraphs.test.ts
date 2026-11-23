@@ -674,6 +674,51 @@ describe.skipIf(SKIP)("Subgraphs API Routes", () => {
 		expect(String(body.rows[1]._id)).toBe(body.next_cursor);
 	});
 
+	test("/v1 _sort=_created_at preserves TIMESTAMPTZ microseconds across ASC and DESC pagination", async () => {
+		const client = getRawClient();
+		await client.unsafe(`
+      INSERT INTO ${PG_SCHEMA}.offers ("_block_height", "_tx_id", "_created_at", "bidder", "amount")
+      VALUES
+        (200, 'us1', '2026-01-01T00:00:00.123100Z', 'SP_U1', 1),
+        (200, 'us2', '2026-01-01T00:00:00.123400Z', 'SP_U2', 2),
+        (200, 'us3', '2026-01-01T00:00:00.123900Z', 'SP_U3', 3)
+    `);
+		try {
+			const walk = async (order: "asc" | "desc") => {
+				const seen: Record<string, unknown>[] = [];
+				let cursor: string | null = null;
+				for (let page = 0; page < 10; page++) {
+					const url = cursor
+						? `/v1/subgraphs/${SUBGRAPH_NAME}/offers?_sort=_created_at&_order=${order}&_limit=1&cursor=${encodeURIComponent(cursor)}`
+						: `/v1/subgraphs/${SUBGRAPH_NAME}/offers?_sort=_created_at&_order=${order}&_limit=1`;
+					const res = await app.request(url);
+					expect(res.status).toBe(200);
+					// biome-ignore lint/suspicious/noExplicitAny: test mock typing for stubs/spies; constraining types adds noise without safety benefit
+					const body = (await res.json()) as any;
+					if (body.rows.length === 0) {
+						expect(body.next_cursor).toBeNull();
+						return seen;
+					}
+					for (const row of body.rows as Record<string, unknown>[]) {
+						expect("__sl_sort_cursor" in row).toBe(false);
+						seen.push(row);
+					}
+					cursor = body.next_cursor;
+					if (!cursor) return seen;
+				}
+				throw new Error(`pagination did not terminate for order=${order}`);
+			};
+
+			const ascRows = await walk("asc");
+			expect(ascRows.map((r) => r._tx_id)).toEqual(["us1", "us2", "us3"]);
+
+			const descRows = await walk("desc");
+			expect(descRows.map((r) => r._tx_id)).toEqual(["us3", "us2", "us1"]);
+		} finally {
+			await client.unsafe(`DELETE FROM ${PG_SCHEMA}.offers`);
+		}
+	});
+
 	test("unknown column in filter returns 400", async () => {
 		const res = await app.request(
 			`/v1/subgraphs/${SUBGRAPH_NAME}/listings?nonexistent=foo`,

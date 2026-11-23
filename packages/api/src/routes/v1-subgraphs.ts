@@ -106,10 +106,16 @@ function buildSortedKeysetPredicate(
 		params.push(position.id);
 		return `$${params.length}::BIGINT`;
 	};
+	const pushValueParam = (value: string) => {
+		params.push(value);
+		const ref = `$${params.length}`;
+		return sqlType === "TIMESTAMPTZ"
+			? `(${ref}::TEXT)::TIMESTAMPTZ`
+			: `${ref}::${sqlType}`;
+	};
 	if (dir === "ASC") {
 		if (position.value !== null) {
-			params.push(position.value);
-			const vRef = `$${params.length}::${sqlType}`;
+			const vRef = pushValueParam(position.value);
 			const idRef = pushIdParam();
 			return `((${col} IS NOT NULL AND (${col}, "_id") > (${vRef}, ${idRef})) OR ${col} IS NULL)`;
 		}
@@ -117,8 +123,7 @@ function buildSortedKeysetPredicate(
 		return `(${col} IS NULL AND "_id" > ${idRef})`;
 	}
 	if (position.value !== null) {
-		params.push(position.value);
-		const vRef = `$${params.length}::${sqlType}`;
+		const vRef = pushValueParam(position.value);
 		const idRef = pushIdParam();
 		return `(${col} IS NOT NULL AND (${col}, "_id") < (${vRef}, ${idRef}))`;
 	}
@@ -450,19 +455,22 @@ app.get("/:subgraphName/:tableName", async (c) => {
 		const sn = subgraphSchemaName(subgraph);
 		const params: unknown[] = [];
 		const conditions = buildWhereConditions(parsed, params);
+		const sortSqlType = sortSpec
+			? sortColumnSqlType(sortSpec.column, tableDef)
+			: null;
+		const isTimestamptzSort = sortSpec != null && sortSqlType === "TIMESTAMPTZ";
 
-		if (sortSpec) {
+		if (sortSpec && sortSqlType) {
 			const dir = sortSpec.order.toLowerCase() as SortDir;
 			if (cursorRaw != null) {
 				const position = decodeSortedCursor(cursorRaw, {
 					column: sortSpec.column,
 					order: dir,
 				});
-				const sqlType = sortColumnSqlType(sortSpec.column, tableDef);
 				conditions.push(
 					buildSortedKeysetPredicate(
 						sortSpec.column,
-						sqlType,
+						sortSqlType,
 						sortSpec.order,
 						position,
 						params,
@@ -496,11 +504,15 @@ app.get("/:subgraphName/:tableName", async (c) => {
 		const wantsSortColumn =
 			!sortSpec || !parsed.fields || parsed.fields.includes(sortSpec.column);
 		const forcedColumns = sortSpec ? ["_id", sortSpec.column] : ["_id"];
-		const selectFields = parsed.fields
+		const baseSelectFields = parsed.fields
 			? [...new Set([...forcedColumns, ...parsed.fields])]
 					.map((f) => ident(f))
 					.join(", ")
 			: "*";
+		const selectFields =
+			isTimestamptzSort && sortSpec
+				? `${baseSelectFields}, to_char(${ident(sortSpec.column)} AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS "__sl_sort_cursor"`
+				: baseSelectFields;
 		let text = `SELECT ${selectFields} FROM ${ident(sn)}.${ident(tableName)}`;
 		if (conditions.length > 0) text += ` WHERE ${conditions.join(" AND ")}`;
 		if (sortSpec) {
@@ -530,10 +542,15 @@ app.get("/:subgraphName/:tableName", async (c) => {
 		if (lastRow?._id != null) {
 			if (sortSpec) {
 				const rawSortValue = lastRow[sortSpec.column];
+				const cursorSortVal = isTimestamptzSort
+					? ((lastRow.__sl_sort_cursor as string | null) ?? null)
+					: rawSortValue == null
+						? null
+						: stringifySortValue(rawSortValue);
 				nextCursor = encodeSortedCursor(
 					sortSpec.column,
 					sortSpec.order.toLowerCase() as SortDir,
-					rawSortValue == null ? null : stringifySortValue(rawSortValue),
+					cursorSortVal,
 					String(lastRow._id),
 				);
 			} else {
@@ -543,6 +560,7 @@ app.get("/:subgraphName/:tableName", async (c) => {
 		const stripKeys: string[] = [];
 		if (!wantsId) stripKeys.push("_id");
 		if (sortSpec && !wantsSortColumn) stripKeys.push(sortSpec.column);
+		if (isTimestamptzSort) stripKeys.push("__sl_sort_cursor");
 		const emitted =
 			stripKeys.length === 0
 				? Array.from(rows)
