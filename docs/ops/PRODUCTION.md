@@ -13,7 +13,7 @@
 SSH: `ssh app-server` / `ssh node-server` — direct, no jump host. Each
 machine authenticates with its own key; add a new machine by appending its public
 key to `~/.ssh/authorized_keys` on both hosts rather than copying an existing key.
-Compose project lives at `/opt/secondlayer/docker` on app-server.
+Compose project lives at `/opt/secondlayer/docker/prod` on app-server.
 
 - **app-server** — everything below.
 - **node-server** — the stacks-node. Pushes the event-observer

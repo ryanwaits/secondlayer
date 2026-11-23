@@ -16,7 +16,7 @@ The node server pushes Stacks block events to the app server indexer on port 370
 ## Quick Reference
 
 ```bash
-# App server — run from /opt/secondlayer/docker
+# App server — run from /opt/secondlayer/docker/prod
 COMPOSE="docker compose -f docker-compose.yml -f docker-compose.hetzner.yml"
 
 # Node server — run from /opt/secondlayer/docker/hosts/node-server
@@ -24,6 +24,14 @@ COMPOSE="docker compose -f docker-compose.yml -f docker-compose.hetzner.yml"
 ```
 
 > Always use both compose files on app server. Plain `docker compose` creates a fresh named volume instead of using the bind-mounted data at `/opt/secondlayer/data/postgres`.
+
+### Host layout rules
+
+- Each compose file pins its project `name:`. Moving a compose dir keeps its containers and volumes; never remove a pin.
+- Host `.env` files sit beside their compose (`docker/prod/.env`, `docker/hosts/<host>/.env`). `deploy.sh` moved app-server's on 2026-11-23 and left `docker/.env` as a link. That link is permanent: installed systemd units and host scripts read it.
+- `docker/scripts/` and `docker/workload-host/` never move. Host units and the workload host's self-upgrade unit call them by absolute path.
+- Single-file bind mounts (`Config.toml`, `nginx.conf`, `Caddyfile`) pin the file at container create. A `git pull` that changes or moves one does nothing until the container is recreated, and a restart after a move finds the source missing. app-server deploys recreate caddy every time. node-server has no automated deploys, so after a pull there, recreate on purpose.
+- node-server still has links at `docker/node-server/{Config.toml,nginx/nginx.conf,.env}` and `docker/node-server-testnet/Config.toml`, because its running containers were created from those paths. Delete them once every container there has been recreated from `docker/hosts/`. The next `compose up` there also recreates bitcoind (its image is now pinned by digest; same image).
 
 ---
 
@@ -34,8 +42,7 @@ COMPOSE="docker compose -f docker-compose.yml -f docker-compose.hetzner.yml"
 ```bash
 ssh app-server
 git clone <repo> /opt/secondlayer
-cd /opt/secondlayer/docker
-bash scripts/bootstrap.sh
+bash /opt/secondlayer/docker/scripts/bootstrap.sh
 ```
 
 `bootstrap.sh` phases:
@@ -107,7 +114,7 @@ docker exec secondlayer-bitcoind-1 bitcoin-cli -rpcuser=stacks -rpcpassword=$RPC
 
 ```bash
 ssh app-server
-cd /opt/secondlayer/docker
+cd /opt/secondlayer/docker/prod
 # Truncate DB for clean genesis sync
 docker exec secondlayer-postgres-1 psql -U secondlayer -d secondlayer \
   -c "TRUNCATE blocks, transactions, events, jobs, deliveries, index_progress CASCADE;"
@@ -134,7 +141,7 @@ Monitor:
 ssh node-server "cd /opt/secondlayer/docker/hosts/node-server && docker compose logs -f stacks-node"
 
 # App server
-ssh app-server "cd /opt/secondlayer/docker && \
+ssh app-server "cd /opt/secondlayer/docker/prod && \
   $COMPOSE logs -f indexer"
 ```
 
@@ -142,7 +149,7 @@ ssh app-server "cd /opt/secondlayer/docker && \
 
 ```bash
 ssh app-server
-cd /opt/secondlayer/docker
+cd /opt/secondlayer/docker/prod
 
 # Check for placeholder transactions (excluding burnchain ops which legitimately have raw_tx = '0x00')
 docker exec secondlayer-postgres-1 psql -U secondlayer -d secondlayer \
@@ -257,7 +264,7 @@ $COMPOSE restart indexer
 
 # Full rebuild + deploy
 cd /opt/secondlayer && git pull
-cd docker && $COMPOSE up -d --build
+cd docker/prod && $COMPOSE up -d --build
 
 # Single service rebuild
 $COMPOSE up -d --build indexer
@@ -364,9 +371,9 @@ rm -f $D/event_observers.sqlite; cd ..; rm -rf stacks-testnet-dl
 **2. App-server: stack first, because the node stalls until its observer answers**
 
 ```bash
-mkdir -p /data/bitcoin/testnet-pg; cd /opt/secondlayer/docker
-# write testnet/.env, chmod 600: new password, new token, current owner and tag. No values in chat or commits.
-C="docker compose -p secondlayer-testnet -f testnet/docker-compose.yml --env-file testnet/.env"
+mkdir -p /data/bitcoin/testnet-pg; cd /opt/secondlayer/docker/hosts/testnet
+# write .env, chmod 600: new password, new token, current owner and tag. No values in chat or commits.
+C="docker compose -p secondlayer-testnet -f docker-compose.yml --env-file .env"
 $C up -d testnet-postgres; $C run --rm testnet-migrate; $C up -d testnet-indexer
 cp systemd/secondlayer-testnet-health.* /etc/systemd/system/; systemctl daemon-reload
 ```
