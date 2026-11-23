@@ -1147,15 +1147,105 @@
 			"what happens after free monthly reads"
 		]
 	},
-	"/docs/index": {
-		"hash": "bf89fe94d3d986ab",
+	"/docs/guides/read-contract-state": {
+		"hash": "596b47696610cc60",
 		"phrasings": [
-			"decoded rows into my own tables",
-			"sweep blockchain data into postgres",
-			"index onchain events into database",
-			"secondlayer indexing product overview",
-			"store decoded contract events locally",
-			"sync onchain data to my tables"
+			"stacks contract history from block 1",
+			"track contract changes since genesis stacks",
+			"read contract state changes stacks api",
+			"contract changes history stacks",
+			"contract event history stacks no indexer"
+		]
+	},
+	"/docs/guides/read-contract-state#find-out-the-moment-it-changes": {
+		"hash": "2d98e0aca1a97998",
+		"phrasings": [
+			"subscribe to contract state changes in real time",
+			"get notified when storage value changes",
+			"stream contract storage updates in block order",
+			"checkpoint consumer resume after indexer restart",
+			"event stream for state changes as they happen",
+			"watch a variable for changes live"
+		]
+	},
+	"/docs/guides/read-contract-state#the-exact-writes-a-block-committed": {
+		"hash": "cd631af0d1a91247",
+		"phrasings": [
+			"list storage slots changed in block",
+			"raw storage keys written by block",
+			"verify storage writes against state root",
+			"which storage slots did block modify",
+			"get all state diffs for a block",
+			"node order storage writes per block",
+			"block state changes by storage key"
+		]
+	},
+	"/docs/guides/read-contract-state#tradeoff": {
+		"hash": "a03a6b6daaf0d146",
+		"phrasings": [
+			"are hosted contract reads billed per request",
+			"why do contract state reads cost credits",
+			"hosted reads metered like event rows",
+			"contract state read pricing tradeoff",
+			"does reading contract state count against quota",
+			"hosted vs self hosted contract read cost",
+			"keys and billing for contract reads",
+			"reduce cost of reading contract state"
+		]
+	},
+	"/docs/guides/read-contract-state#what-a-value-was-on-any-day": {
+		"hash": "5fbe39dab4b2e3bf",
+		"phrasings": [
+			"historical value of mapping key at past block",
+			"what was balance on a certain date",
+			"reconstruct contract storage at past transaction",
+			"value of variable after specific transaction",
+			"get state of map key at height",
+			"replay mapping writes to past point",
+			"how to query old contract state by date"
+		]
+	},
+	"/docs/guides/read-contract-state#what-it-covers": {
+		"hash": "75dfc71775fa5783",
+		"phrasings": [
+			"limits of contract state reads",
+			"what can contract history not do",
+			"read contract state known limitations",
+			"does contract state tracking cover all events"
+		]
+	},
+	"/docs/guides/read-contract-state#what-you-can-know": {
+		"hash": "f2b48ceefcb73f39",
+		"phrasings": [
+			"contract storage and contract call events",
+			"which event types track contract calls",
+			"five event types stacks contract",
+			"what data can i get from contract events",
+			"track contract storage writes and calls"
+		]
+	},
+	"/docs/guides/read-contract-state#who-made-the-call": {
+		"hash": "aba1ff1673665f52",
+		"phrasings": [
+			"tx origin vs msg sender in contract calls",
+			"who called my contract internally",
+			"find original sender of internal transaction",
+			"msg sender differs from tx origin",
+			"trace which contract initiated a call",
+			"internal call caller address when debugging",
+			"contract to contract call principal identity",
+			"why is msg sender a contract"
+		]
+	},
+	"/docs/index": {
+		"hash": "0b5a7499cda4a23b",
+		"phrasings": [
+			"decoded stacks events from block 1",
+			"index stacks events without writing parsers",
+			"backfill and reorg handling for stacks index",
+			"how to filter decoded stacks events",
+			"does index handle chain reorgs automatically",
+			"prebuilt stacks event decoder filters"
 		]
 	},
 	"/docs/index#build-your-index-on-it": {
@@ -1191,6 +1281,17 @@
 			"track spending of peg utxo",
 			"get spending transaction for bond output",
 			"monitor bitcoin address output spend events"
+		]
+	},
+	"/docs/index#contract-state": {
+		"hash": "1ec45bf4b5be27ca",
+		"phrasings": [
+			"who changed a stacks contract and when",
+			"track contract changes stacks index",
+			"stacks contract change history from genesis",
+			"monitor smart contract state updates",
+			"which address modified contract state",
+			"contract state history since block 1"
 		]
 	},
 	"/docs/index#cost-and-history": {
@@ -1286,16 +1387,16 @@
 		]
 	},
 	"/docs/index#pox-5": {
-		"hash": "4eea501c0be1acf5",
+		"hash": "fdcf342dca372be8",
 		"phrasings": [
 			"pox 5 boot contract decoded prints",
-			"what is sip 045 pox 5 contract",
-			"per cycle stacking totals pox 5",
-			"reward cycle totals from boot contract",
-			"decode pox 5 print events",
-			"stacking totals since block 960230",
-			"pox 5 events not showing up",
-			"bitcoin block 960230 boot contract activity"
+			"sip 045 pox 5 events stacks",
+			"pox 5 per cycle totals",
+			"bitcoin block 960230 pox 5 activation",
+			"how to decode pox 5 print events",
+			"stacks stacking cycle totals query",
+			"pox 5 contract live since block",
+			"when did pox 5 go live"
 		]
 	},
 	"/docs/index#print-schemas": {
@@ -1360,15 +1461,16 @@
 		]
 	},
 	"/docs/index#state-writes": {
-		"hash": "022e59610c54868d",
+		"hash": "514bf91d6a7ce286",
 		"phrasings": [
-			"contract state changes per block stacks",
-			"which contract writes happened in a block",
-			"list of state writes committed by block",
-			"stacks canonical block state diff order",
-			"how to get contract storage changes per block",
-			"node order contract state writes query",
-			"missing contract state updates for a block"
+			"stacks block contract state changes",
+			"what state did each block write",
+			"get contract storage writes per block",
+			"stacks node order state writes",
+			"how to read committed contract state changes",
+			"why is my contract state not updating",
+			"list of map writes in a block",
+			"stacks contract state diff per block"
 		]
 	},
 	"/docs/mcp": {
@@ -2308,26 +2410,27 @@
 		]
 	},
 	"/docs/streams": {
-		"hash": "61a3cb42d2deeb82",
+		"hash": "85d3acc17ced77b4",
 		"phrasings": [
-			"raw firehose decode it myself",
-			"stream raw block data without decoding",
-			"unprocessed event feed for custom decoding",
-			"how to consume raw blockchain firehose",
-			"decode raw stacks events myself",
-			"firehose api for custom parsers"
+			"what does stacks node emit per block",
+			"raw node output in order from blocks",
+			"how to get unfiltered stacks events",
+			"stacks node events not filtered or dropped",
+			"stream every event from stacks blocks",
+			"why are my stacks events missing",
+			"get exact node emitted events in sequence",
+			"stacks raw event feed without modification"
 		]
 	},
 	"/docs/streams#bitcoin-events-runes": {
-		"hash": "b8ce69a4346791b2",
+		"hash": "b721e823bcf3bae4",
 		"phrasings": [
-			"runes events cursor on bitcoin chain",
+			"runes events on bitcoin chain stream",
+			"chain bitcoin runes cursor",
 			"separate cursor for runes events",
-			"how to fetch rune transfers on bitcoin",
-			"bitcoin runes stream returns no events",
-			"chain bitcoin runes event feed",
-			"runes events missing from stream query",
-			"where to get runes activity data"
+			"how to fetch bitcoin runes events",
+			"runes stream cursor space bitcoin",
+			"why are my runes cursors not matching stacks"
 		]
 	},
 	"/docs/streams#build-an-indexer-on-it": {
@@ -2363,6 +2466,17 @@
 			"gap or duplicate at backfill seam",
 			"replay old events then switch to live",
 			"signed bulk dumps stream backfill"
+		]
+	},
+	"/docs/streams#contract-state": {
+		"hash": "950c93ad5d907c17",
+		"phrasings": [
+			"stream smart contract state changes in order",
+			"contract state changes from block 1",
+			"how to subscribe to contract storage updates",
+			"block ordered contract change feed",
+			"track clarity contract state stream",
+			"contract variable changes stream history"
 		]
 	},
 	"/docs/streams#dumps-and-duckdb": {
@@ -3094,14 +3208,14 @@
 		]
 	},
 	"/docs/webhooks#triggers": {
-		"hash": "333d33c2c12eccdc",
+		"hash": "386a4fd9ba5b4978",
 		"phrasings": [
-			"webhook trigger factory example",
-			"create webhook with trigger object",
-			"raw trigger objects for webhooks",
+			"webhook trigger factory vs raw object",
+			"create webhook trigger object example",
 			"how to define webhook triggers",
-			"webhook trigger configuration syntax",
-			"trigger factories vs raw objects webhook"
+			"webhook triggers raw json format",
+			"trigger factories for webhook creation",
+			"equivalent raw webhook trigger config"
 		]
 	},
 	"/docs/webhooks#triggers-and-limits": {

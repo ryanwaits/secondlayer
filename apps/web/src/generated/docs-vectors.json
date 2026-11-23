@@ -16,9 +16,9 @@
 		},
 		{
 			"id": "docs:/docs#deploy",
-			"hash": "26b1b836788462c0",
-			"scale": 0.0016411270509206803,
-			"q": "5xMW4QoRLdv64vAGgS31EhUQGyYpHv8A/vMANejnJwIY5AYx39XxT8PXF7zi6hw75hdE/93130r1/Cno/AzhCyZG7CD3Nfso1ES8Db8REc7d8f7J5foSJgAMJSmxIu77AHra5NZYCvYQNiAm2czv7DPmOwb1RAYVEeMZ/LAM2O77AejkKOYE+yIA+Awq2A0I00oMMgPECgHY5R8IEhzX9wsD7PAx2vX0HuzjMUUL4CCvxVUYu7/vPdkpwizG0tQiBhbNEyMeHRQ+z9D7MNDfCNRW/t8kHDf7xuLHBPHpMdjAGh4Z+/HR4e4HAdDU9ef31RIS5+Qp2AIiE7ocygYZOA=="
+			"hash": "55ebf0554eacf6d4",
+			"scale": 0.0016116459280507598,
+			"q": "6ggW3BgNMOYD4/EMgR/2CxcQIhU1EgIEAPYCLefpMQcS4w0v5M/0S7/YGLTg6yI56xxB/dr2z1T9ASnj/xbmCDJB5SL4Mgku0kW/B7YPD9Pg6/3I7PoVKf4QISy8I+3/BHTd4NlhDvoCNygazsz86DDtTAv5TAQTGfMfA6wV1Oz0A+jiJfAGAykAAAIjzBgUzUwWLfy2C/zZ5igEDA3ZAQoN9+8l5O/1JfXkKj8M2R2ty14RvcDjOtwkxB+72c8yCxjDEyMoHh8z2tECMMfjDs5Y+twkIzL60NDIAe7oN9/BFSka/fvY3PgK+93H9d3z1RUT6fUj3QMiF64lyPoUMg=="
 		},
 		{
 			"id": "docs:/docs#get-started",
@@ -181,12 +181,6 @@
 			"hash": "e835d2b2d339ca1e",
 			"scale": 0.0014384052805947838,
 			"q": "Gx4N8hz/7wMe0+gO0/oeP6ZOzSnRESYy8uctxgP1MPPQNBDJpajkY9kb/QhO/+Tf2hd/8O5OBy4byf/3FQmoH9L1Hu0CStc+tgDl44QS7v4pzfbyCPpaAUDUVAQQ7+XJARvDh/8FxQMFDvMi5+xS6cYsKhkY9b/3oSE189zjTu5W/ts97/TSF/y299f74eXo4QvW5fsP28fWw/VIvf7wEQv0Fd8BEmPiNQ0aAwIdESLyz+4G/yUAADoK1enD0NgA3wOz9RDmNtAILgYD7awU/lXh4/FU/QjwEBPoLAAYDBE86AjqziPiI11M+QQhG2n/L/FCPwPtlym03eU8nSTU+w=="
-		},
-		{
-			"id": "docs:/docs/api/index#list-pox4-stacking",
-			"hash": "393c0bbb9d01da55",
-			"scale": 0.0014969137387065123,
-			"q": "5vP8zAXW6jvwrSEX1u8kL+fvxQzV+PHT89DM2ub0B+nH1PPr0crgKvMVGgA+ASHNCABG5Sk/NODVBTYWBASeNSAeNPEDZBQ5HBHf1cxD9x4O0PHI+TYk40DvRMwh8gD60DYvwALt8yMM8goXJz0L0A0OOf4EBtTGygUdAgsnPeEsvxL9LdEB7v75E5z7/bHZ4NLO8Bec49qW/SpDuSTcF7oaONrw6CbHJjMb5w7aIyEbCgEKBejk7zPO9/HQ8uge0w6c7knbf/jy3+En8qsDBGUHweM1JhXyOOjm3bzrUuDt0wQDyAnwEWQm+Cg9FHYLAiwOUhjyDjXc4t0IuPvsBw=="
 		},
 		{
 			"id": "docs:/docs/api/index#list-pox5-events",
@@ -803,8 +797,8 @@
 		{
 			"id": "docs:/docs/authentication#archive-fetches",
 			"hash": "606bad312c3c7a9a",
-			"scale": 0.00140143881101144,
-			"q": "DhcLkDYi3UMZ1zbm4wkBTNb5L7pyNhAF9AAVKPXtHxC66PX2GRwG8+XQTvUkHBQm+FUq5AQYtlfN2kb/GivKA+Mj1TvwGRhe0QLHH44zEgzHCi37AQfAIvwAGvbICyrxIhTjAu0sNAX86ZgX4Pj94FgLQ9QfC81WIipF+cANLuLi1KMMLfDs8TlGP7i35RL08iPVIVyj9vO7Jn8P3djcGP4WJgbMJCYVF+L6HiMW4+/d1Ece6+QfKOA0ps/r4eUY8RzSxClWEgv6LsUbEvbQ7+lDz833BjHL+bQs27LB+8v11DcaIjDB3ScbMD4oTaXvHzgR7WW57vGz5cwn4R8p9A=="
+			"scale": 0.0014072954150860662,
+			"q": "DRgLkDYi3UMY1zXm4wkATNX4LrpyNhEF9AAUJ/XtHxG66PX2GRsF8+XQTfUkHBQm+VUq5AMYt1fO2kYAGivLA+Mi1TvwGhhe0QLHH48zEgzGCiz7AAfBIvwAGffICirxIhTjAu0rMwX86JgX4fj+4FkKQ9MfC85WISpE+cANLuLi1aMLLfHt8TlHP7m45BP18yPVIVuj9fK8Jn8P3djcGf4WJgbMIyYUF+L7HSQV4+/d1UYd7OQfKOA0ptDs4eUY8RzSxCpVEwv6LsUbEvbR7+hD0M74BjHM+bUs3LLA+8z11DYaIS/B3SYbMT4mTabwIDcS7WS57vG05cwn4R8p9A=="
 		},
 		{
 			"id": "docs:/docs/authentication#balance-alerts",
@@ -820,15 +814,15 @@
 		},
 		{
 			"id": "docs:/docs/authentication#how-rows-are-counted",
-			"hash": "38b7f6477f96e3e8",
-			"scale": 0.0014058622400609682,
-			"q": "/wHtnTUONBgG3M3xrRrI/csu4wxdLBYH7Tr78OHQCfAOIwg8zcvzXLUgUc2xhjQr6QhIFPPq8zng50TbDATQ5SkDDQrMBOkt+hT0/4ErFP3ru+rh/TYAU/AhLg31Jem54zjgsClT+8/v7RQovfE26UfvZiMdWCIIEPFIHdIqCQLVy+098AXPmwAYH+P8ykfmCBwxFAmX7/jfG1EtFgXw+REGBff4whL5GxzqMVj5yefN/jAxFtkNTPEElRzj5r4VyhWl3EEkMBTzMqAMGhYCyrIy1u0BDDT9s9axBQveQ/faIl0DCk8ezQ4STgX6D8US6gQ6ID0bDfMa0qEL4PoHTA=="
+			"hash": "e422d0abcf5a0f01",
+			"scale": 0.0014380928945600963,
+			"q": "BwD1oTIFNBgG2tHstCnB/tQv3RVYIhz/6T32+N7OA+UHHgVJzdr2Vb8cV9SrhSYl8g9QF/Dm+Dny5kffBQDY7CgXFAzSCegtARH3B4EpEPz9tPnh9DcAVu4aLAUIJ+W16y/guCZV8szs9xka1fEy6UTybC4bVyEJEfxFF9AgDvve0eg08gHTmQ0SFO30zEXuDyE1BQKa8O3rFFAvI/7v9hIA//v4wwf5GwnyNl7w0ubI+S01FtcRTeQDmhnk6MgL0ha04TckKSD+MaoIHwwBzqox2/X1DDj7r9aw+/7hPu/YIVX5EFMiyggOSArsDsAN4g46KDwRFfcY26IQ4vv+TA=="
 		},
 		{
 			"id": "docs:/docs/authentication#read-with-it",
-			"hash": "563f193375a043c7",
-			"scale": 0.0013499432242693491,
-			"q": "CgfXrP0RPw8lpS4yOW7VGwH4CNduWwvv/yT9RxbK6QEY+Dg/1w8d68pAI9kCzA0P075AAtH4Cl4AwCnI3Rj7JgjQZ1DY9dhV4AXS7dYc/QAEwe7B5RchJQcsMBg6ZTUi7BrY3fxEDeWYGPsl6PAMyjMTRv/x/DHJBecp5uBaF8jPscEf3ATgqW0YAfji4UcPElR/PuiV9efPFVVGzPSnDe7qDw4l0hsUGgLbGhHlDAfiGCE/EvQeTdAe9fSpxYQc1CnZoDwW/TogCNsq/+4A88gSxR7y2/si2tP7Q83BpcvUEezzICcX13VH0yoB7+gj31oMQiL8+sX1/swf2doHOQ=="
+			"hash": "db9de36682e4a96b",
+			"scale": 0.0014081881425388814,
+			"q": "FQjQwAARQgshtSQpMmnUGg39Cd5tUQz0/B8DPBXL4v0c9D851BAe8sg6IN0GxQkR0so2CM/qDlUGvTDG3RkEJQHHZUrW7t5J5AHT790c/wAPyPC91h0iLAQpKxkwYSMY8BLZ5v9ACeKcFAgc7ukK2igLPQLx+zHHAO0r7NVUIcjOrMQZ3f3hq2wY//7q3EYPFlFyR+mV8ercIFNCxvWlDerxDQ8pyRATCvreE/zhCQLmHB8/B/MbTNEbAPiryYEa2yjcqTkY9jAkEeMk+u/+7MMSwxvx1QEW59/vPNLCqcreEfPuISoP4W860SX/7+8Z3l0KPyv+/McHCM0Y2dX6PQ=="
 		},
 		{
 			"id": "docs:/docs/authentication#rotate-a-key",
@@ -856,9 +850,9 @@
 		},
 		{
 			"id": "docs:/docs/authentication#what-it-costs",
-			"hash": "69a7f9c6418bedb3",
-			"scale": 0.001452022806230107,
-			"q": "5ffswQohU0NHlfASqAzpBOklFb5SQRAj9S4Z+PTvNxEYGCUO1AURLOc/A/L3wUYQ5PFyKfYV8FLrvCzV2SLp+zXgMRzV3dga8DYD8K4CFfcZ2RnvEEruXdo5+gktKCn26zDrAfhQTOnDsgMbuvsmAhw7LRv96P/38vcrM8o7EdDjoNwP9eoLtEj6IcYQn3ofJCdJHd+B2fjaIHAb7Qb+9vYXQif+6gMATyL1DT3j6u/xBiou2QkOKeb95fPp88EN70LL0CErFzkIId4a/ADN8bgjh94OIgP4/Oal6hCs4/cQESj35Dzw+CMMAxbu+8HyuiETCEfWE+oR66ExyNEXOg=="
+			"hash": "cb62c4cef965fd57",
+			"scale": 0.0017274558401586559,
+			"q": "6efm1AsMO0xIpvgfug7tEOEpBr03LRMR/ygbAAr2M/gNEhsI3A4TH+wv9QcE1TIR6OdgE+8NAEXx0S/W3hbs9CzVKhnj2uYO7DgL7LQKDe8O3RPxDj3yRuguCwcqJhzt7/8B9wc7LOjSwPQf0Q4k+xknHhP+6gLz+AUbKdtCGN3yutv6+vkFukQGKrYMvGYPIBQ8EvqF5+zfJEYT7gcMBO0cMSrs4w/9NSIECR/t7+L3BRwm6AwSL+/03PsA9csC8zzS2yEiHDT+HPId8gnr+NsPgesKIPz6E+nO5xS96gYUBjTr2yP+CB39EAfqANHyxywTEVXSBAD47Kgmy9kOLA=="
 		},
 		{
 			"id": "docs:/docs/authentication#your-key",
@@ -881,7 +875,7 @@
 		{
 			"id": "docs:/docs/cli#command-map",
 			"hash": "9cd0385ec8470803",
-			"scale": 0.0012081842198806956,
+			"scale": 0.0012081842198806958,
 			"q": "HTet6ysmNT5W9ivV6iP99+Tx+hLuBiu4PjfZFzFYzBb9ADnnPSzyGLQWKfu7W/gX+vHz596m6xDexqIIEFHZGtsaUBsW57tewyW44UFsDc0x4hq7KRcv9P4wIfmaDN3i+CqW8BcbJmWDFdtRIAIzHDGVOfvS+Mw2D1Ekt71wYO0Uwefw4NI8Eu4UBAWsNAQV5OEXOu4BHguFHlXlqA/eNBCR0AIagVvXKhsO+Oz1+DLJF1sENe0cH9Emlcq0nM//5/mx/iEWKc7I/+RXNcpGK0ke9Lqr9Q1jVul9cyopBtiyzEPkvSRDUiIRxf3l5+RIKA47L/HnBDQP4p8eyCTQSw=="
 		},
 		{
@@ -1192,9 +1186,9 @@
 		},
 		{
 			"id": "docs:/docs/guides/index-contract-into-postgres#tradeoff",
-			"hash": "729791b7f5713ac5",
-			"scale": 0.001459000738185987,
-			"q": "yv85+AjxJMglG+Phm9vsAu4PUxY1I+sp+fcR4tcVEWIYFOszDJgKLur3Ba/qRQczGulTAxL+7mn9FdrpCf3h9Dtt2S3zRjIm8iPPH8USHSbr47vcEOf0LeAuEEbsHPwA7H+42tRlEgcSLCIUtfwO7Cr3IwsQB774//BNCJj02Q772zQmFQz78Tbn9/z2uCE/32L8Igm39e3R82cOKQG2Bx8JC/j7DwMNPvjH9j8Q5z/N5HQ+xuDsFBjaH9HG4KYiCACN6TFUSxg05bbwFvzu6w8zxOEdFx0o6tvKEuuzPLDQ5CJSFB708wUgEggAFsv03OYT9ekgNfsnGL46+fzh/Q=="
+			"hash": "88fe46a18e6cb375",
+			"scale": 0.0014445588901433532,
+			"q": "yQA09QbyH8UqFuTiltfuA/AJVBc3He4o+PgT49UWFWQZDO0yEJsGLe/1BbDsRAgxGOlTAhP/7Wz9GeDtAgDj8zdv1y7zTC0t8CDJHMQTGyns4L7ZEev1L+AvCUjrHvwE63+33tNnFQ4RMCETtvwP7Sv/JgsQCMD/B/NMCZf41RP92jQfFQz67jTl+PzzuSJD3Wb7IQSz+ejR8mYRKQK2CSAJDPn4EP4KPfjK9T0S5UHM4HU8w93qFBbbHM7B4agnCf2O6jNYSxo257PzGPfw7RM3zOIbGh8j6dHMFOi2PK7S3iVVDx309AgiEgf5GMny3OgS9fEkO/4hG749+vrY+g=="
 		},
 		{
 			"id": "docs:/docs/guides/index-contract-into-postgres#try-it-on-real-blocks",
@@ -1257,10 +1251,58 @@
 			"q": "5czQ1BYT+PYz1tD99hEIHOgzH6MqVfIB+uhZDs3NBjUHE/wgJMQtBr8KNQHRJVLnwQxSLe7R1XQU/0DmxzTG5xVZ5jEVAQwp9Sm0DagPFzPKv8cH7C8OBd5KWvf2aT7pCGDz8flM3uMaKuIQyUwHl2J6MvQP8N47QxtSHvE94dHly0gO1hDr+jjdz9Xb8ipHFxlVAzKJ8Nm+AVIt5DmZGRb+NwHoDy/ZM9/h5yHYFv/36kgzAbTKNkkP3PME16j57xPJ1go7KzL/IgoTIiw7QT8qjQj++SX744H6DQ7TAtjN0VQdKvoyRz/1DjIU9d7RAxxNOTYAMCHrBrAF+hLw/Q=="
 		},
 		{
+			"id": "docs:/docs/guides/read-contract-state",
+			"hash": "af5891a25550b641",
+			"scale": 0.001356282910789556,
+			"q": "o/nB/hHXF+wc0v44xEwCMOnq4Ob5+zff9Nz//ErlD6L1xAX6phfnYZUhzwcQJ8QNpRloA/k5ISDrFczqCBUHKmzy9K/g/7D11SUI8+smFfXsF8P4CB1/Rv5jGUPtCg31FRS11yAk9jRIR/82JR4CBR4gN+3i9/g9JN0cOgD+AiNG80fQRsju4w31N/Q66yPkDBJE9hC/2MOguw4CVjUN80dn7fUSrTIiSghmRgAfCv0lBkjy3tHuMDPmzBgZvJ4VE0ai8CBPNRn60b82Htsl30X32fwR0w/EOujQ0BDDHRwjHFT68LcM5AEYwMU592zXzjTs0SnE6ALx1foM3MikLA=="
+		},
+		{
+			"id": "docs:/docs/guides/read-contract-state#find-out-the-moment-it-changes",
+			"hash": "4cc55a7b29999e3a",
+			"scale": 0.001371819554284085,
+			"q": "6SDyD+7k7f4GxRYWqFlcJgw9Jv4dClbN9P/7PeP45thg5/ARrxMAQL3+AMTkSZta3SFnFMH98zcV+vgT3RcyE1Uo/84TMvEPwkXy4tYtPPYN3RwkzvgtKe7vOjbXKifz6BjaFwptgQJVfhneR/Ai/AcjByQeEtIk5L72F70XKiIe8ygNcbfr6ikj8kwWrxEBCkM4GyvY+6rECATvMyTE5REywOy34nYuINwSJiD3LNUaAf4nGuzyLfvbuOIalpn57knL0gxHHBZz9soP9IwBChs8OyIGAQSmGg6t8tbK+/c1+EUYJN5D6gL86uATAh3fvxcgDBfb1vzl9tHuLd/lFg=="
+		},
+		{
+			"id": "docs:/docs/guides/read-contract-state#the-exact-writes-a-block-committed",
+			"hash": "9cb6809ddfcd6794",
+			"scale": 0.0015460475492504165,
+			"q": "5xfY3Bc08xEZwgP03EwJa/oV9dIqDiCy+i4DLynjGucA/k5Gyhf6VOhiDNsePsgn2BcRMfLUHvTU6wYa6FLoVT0XBeEc5dr1v2nC5M4dK9kU4Q/f1Qc5DA8rEeHiBevzCP6mCyYfpC01/u7nAe3VCOsRADfkMtJBBOvlMbUaTwz4+/bJHOcP9/k8TTAU4zMLIyt/C/rwELPREB/iMCjRGTwcvdX47z8fMi3oOA8v9O4e/v8B79oiRxXn1Br465Y0yybKDxgS7u0+HM0e9+cE93AqCxz2BgTr//3gGyTHNAEC7jv78cstCCs7zrEB90YEFggb8QrrwuYG/Mbr5vjtAA=="
+		},
+		{
+			"id": "docs:/docs/guides/read-contract-state#tradeoff",
+			"hash": "06199ef637c208e6",
+			"scale": 0.0014868331061660882,
+			"q": "zDQgngEL+RsqyAn82hzCRADyNQksZ/4Q78BjFjLY8fjeyhwmEiTyHwUrAfDOI+cjAyJKQvjrv1zx1AUG/xz4OAo81xYKBQ8oLi62ALYEJ/Qky+Gj6TXpH8Et1QQXGjb0Fy7o6+VZH+NMFAvl3SkS1x8SSOXl4N4nNvA0AaL+7N7cxjj0Hf8WqO6+7gwJ5gxX/hYuDBKqDbDnIjr0fxjP7hYU6CTSJi72DwboLDUKDyns2HQu5LwWBAjn7eTc583cJxbl8h0vMjsl68AKCQb2GBo/pfdS7U8n1cDc6rTOAP/y4T76DiX/ACS2IzDOAtwRCS8iLCPm8QDbBJ8EwQ7O+A=="
+		},
+		{
+			"id": "docs:/docs/guides/read-contract-state#what-a-value-was-on-any-day",
+			"hash": "fba434f966817669",
+			"scale": 0.0014131893712137729,
+			"q": "1QfoKenoJy8esdf72zMUOPPxKdVCOg/vyDU4NATTHffk0xfzthsDddgH5d8kaOnz3DFBOQXZ3T4Em9AD+S7mXTTT8/v42IEGsjS/0r43Lf31EdW70QZaK+RbEbMZ2m3l2CPaKQluGCr0OuMLGdYEU/048w3sAxgGJQ0iKc4LPt36FyDADv3P5hcRE+n55R4rAv0oVhTZB9/SJAPeDkz2Ex0L19Dw/XMkdDK4+iQkE+4s9RUu3AD1MwckvPH2w8EmKDC/GRVR5Pg0KdsWL/EbDWgh1A8sELjL7MUM9w7D/AYu21QKCOjk8kUl/r/m5DHZ9U8RG//YzfeyBPXl2yO+Lg=="
+		},
+		{
+			"id": "docs:/docs/guides/read-contract-state#what-it-covers",
+			"hash": "502a94adebb68bf1",
+			"scale": 0.0015278540102813991,
+			"q": "zxgIvwj/L/8P0BI4vNK7IvvWG+UFFD4gvPDuJejyD+7lrw/34xLLbgLfAg32G/L9zRQjIer260/o0b/v+foxWCwf6eDkDJnv/vrF+QIWFAsg5L3qyxtXKeYy9RAMHSH0DwKyKAtf+fdcRfS9KQsQCygw9trJ+vkN+AMj9a/v8jP9zy7WLgPy4MboJQoV4hkZBQ8WH0sD9L0hy/LuYBI4/CU7D/kRFi7RbvXtWAAK8BYaCuYL2OjiDCIFDgTRjc0ADUwACjR/HiM29AcmVL3k5R0bAvrq9RPeMeX8DLKxFgRBwAMB/bj/4tDpEvfgtVbO6yHw8isa1fn+OMTW2vmzIg=="
+		},
+		{
+			"id": "docs:/docs/guides/read-contract-state#what-you-can-know",
+			"hash": "1c299ea474c5f473",
+			"scale": 0.0015351784951988107,
+			"q": "8eSy4dy8QAUL6usFzRgZM+jN2dL4DQb3+fXzNxDm9bP8wOwN3z3yeNQLCRjnDebpAjR/CNsfDXLy1dLvPRf8J0o08/bezNQc1E/PD/ULGt4a3NYN8EIfOuMoCCrjOvQJ0zvF4RJjABRoSic+DOY7Def6Aw3dCOQTIiQP9AoP6z0W6UblH+uz9wL0DwgipRH5H/MjCCfeFaUB+wLwOiniAQ4i6ekCxDz9ZBgKMOse7t8n9k3o7QTZA/7S1fXduNg57QbpABZWKPgHwrUFO7T7NyIc7C7TKfAEItDsIQjiT/0v1gv8Ec4HIObwB/IM63DmNiMuJ9LsyPnkF8XwFOeZCQ=="
+		},
+		{
+			"id": "docs:/docs/guides/read-contract-state#who-made-the-call",
+			"hash": "3fc73033e98def28",
+			"scale": 0.0016858349407660083,
+			"q": "9f4QFPjSIRoJCO8g0/b7Cc7I+NUQDC4Z8P0RDEAO98ET3CIq9PUAE+Y3zvQPC/Xn6Rg6Ggbq/kYsH/Ee8AB/Sw0tBs/pFskrIvfE+gnkA+oS5tP998kpDc3+zxMJJdcCDgDrpfk3ERQwc+4hKcUg+c/U+Ev+BL3ZGAfp8OkIywYRAUj57+fzKA0v/hHMBhhMGSAbKR6x6dQKBzodHPr1F+P10+0p3QD4KfEtMAH+8hcKFScB9CzrHv8tGdrM4QBgEQLW7Sz0HOE+ALoPKeP58RMFGAiq4NwICcjsLOjtXuT59V6+8837CtkN8NMLDVfkKyITSNryzhUpaOISDbfJCg=="
+		},
+		{
 			"id": "docs:/docs/index",
-			"hash": "2090282be93fec13",
-			"scale": 0.001503224115208117,
-			"q": "8vEFJhL8VuIYOef8sA3iEukbGlcsGS73zt407YHy+PQDGv4m18/TdccgA9zaGNJ21U4t6fPEEkPw6bLM4d/XHs4TGf/YFw4h0wIO6N8VTs7xGpUY9NobAQLsGDO2A9z+GBv9JRxaOtI/WDo0E/8h8e8fGigxEgfTPe4XKswODfkj4BgcBRPCHBME2xQAyxDV7i0m8xLsF92o4wIjCznn8NUFDd86xzQfErnBHiEWwPbXyiAQxo7bE6oG2SiQ08gJ5CuwB/9PFeocyQj0GOIQAirRCC7WAvQm3MHCEvHGKAEr200WRPwq3PUa4xQYBQf11TjNGtL98uwFEeT8FD/ZJw=="
+			"hash": "a65eb5862098942c",
+			"scale": 0.001338912452674349,
+			"q": "rcjgOFQQHQMjAQY91EHXMdcD2SI/9yAF2BLaE88s4eUaKg0m7unlcqg6FwcmIwF4x2Z3lwPmKgnl8eniE+neFyTxBoHuB/lG9g/5MgETDAT6+cTA2vkfM/X1GzPmEdwf7jH22yU4IgIiIkkz4wIP5BYQ3CEjFiLfZQk2IicSCCcx5/zmRRfGGij4MMkm2/G25Q418voYE/vLCSxmBQ3jX/NKKMdIqR/zXOD8AAYx9bO4vV7YiZDb+vf5vxfS58P20Ba2/w03PODS+vrtJfwNDkcR2VvIGRvs+5SrDh+zUuYEB2FEJ7Hy9SBE+igfGhbIr1fAxNfo9tAM+PDLEzTMYg=="
 		},
 		{
 			"id": "docs:/docs/index#build-your-index-on-it",
@@ -1279,6 +1321,12 @@
 			"hash": "e1bdc4bbb86f76e0",
 			"scale": 0.0016388708595117647,
 			"q": "+/bQ/APr/vMw5yM9OU02HM3hJAj/BkgQpiQuEcC3CA0JRTIfy/QJL+8tU9IP9wBCGRQY97k06ivX0wfq+QHVMCUvHdMvJfIp1EYBEfDS9vcfGsy03Os/G7cNL9s1wB0l7y0a1OB/COUQ4BvbIwcF8v1G2SxB+AQKDNDxDtnvGA0GJmTsCesEIjX4ECID6iYp9Dn3Bj4O8dWvDihO+wkDJB8AAhX7BikM6vLz2PIn6vn2C0sf8zflJOXQ9h0Z7L4H6Qzt4A/uG+AC/O7q4+Ma8EsX5O0DOgvm8K8A3RwQAc/0NVPxGvXsSBcyHu4Q4RHT/B0xG+jto9UuCALZytOgAQ=="
+		},
+		{
+			"id": "docs:/docs/index#contract-state",
+			"hash": "1ef2e50dae0756f1",
+			"scale": 0.00134606205422342,
+			"q": "tRLHCv/J7dcLsBdNtFI4NcHuz/H9+E3y/f0YADrqBNITyhQhuCDof7Qz2eA6WscOxSlI/9c3FTvd/83s8QwFUmr297rzCcwbtgMFAu0XJhz6DdHYBhRzRyEtLVDp3izwNyTa3iRL8xRTXRMQFRIMBSgt/yzt9/wxKPvyNPL4+BUu7VHrTcfb6yQUGv5Pxwrc+Q5O/hHDu7OqvQYRTCf4DylLwecBvUkFYAJIPvkSHucjDFMH0AgRFzjL5PEYsLUFDk7J9iY3OxguwMIzFcca9nj38PYa4B/ULNO09//lKR01BV0I6dv9DAoqv88h9mHEzTbd1QLlvyPYtgMU8dCLHA=="
 		},
 		{
 			"id": "docs:/docs/index#cost-and-history",
@@ -1330,9 +1378,9 @@
 		},
 		{
 			"id": "docs:/docs/index#pox-5",
-			"hash": "b4d7542bcd554fd7",
-			"scale": 0.0013748825384907125,
-			"q": "4DH1xh7qJuFo4vNNBkgVVp4O2wTl8RRH1/UL+fnlJODg/OYw8uXZO9Tv3Qk4Lu788VpHseInxVrj3CqyJs/EJfj++vjr+6xIohX+4ZgqPgsSxgwzCDhAUC3wDSEj9eUY1yQBp+U47lnvCr355vMjHMnq+CnNBOwPBEAQIfv/Y0dZ70kFDBTm7Brg4vQx3foX+TAA/vzrJ63ooeUdGDEq/DsHB7Qf7freKcNGJMoIIAnruDfcrPvYN9wN+hzNxOUL4gj46AwFRmgKHN4o4Ownzji9p+At+/HdNI7z0PPfAeg37WkJ/w8D7UU24QPLXE765u0nyAjoxOmi3aYtgcnVFg=="
+			"hash": "aa242f71c777017f",
+			"scale": 0.0013383379626727993,
+			"q": "6Tby1xzfFAFf1u9V6UwnTL//wf7V8RE4v/shBQYAJc3X8dtABfffQNXk2h41JgoC+E5gv8k5xkbO5R61DtmzMBrl/Qnw67pUmS8I2qMYRwoX3gIvClxDSDr+EyMhAeIm3SfrqfVJ/lXeCsQD6u4tFtsE9TXIBuoKBS8PL/P8ZzJM+UT0FxbfAijZ8PQ74vcW6TP6CvzSIKjetdUlET5P8T4L/bIf1/TqIcI3HMsLLB/wyUrKwBHbPN8P4SjSwN/65xnq6RYCQGkMCuAg2eEj4z2wjuws+RXKRYPcvQnqBvhC8mn/3BvzATkb3QvNWVbmyw4cu//2txez2MQngcjMKA=="
 		},
 		{
 			"id": "docs:/docs/index#print-schemas",
@@ -1366,9 +1414,9 @@
 		},
 		{
 			"id": "docs:/docs/index#state-writes",
-			"hash": "f11f23d67d185ec6",
-			"scale": 0.001580005582485586,
-			"q": "zCK66yv45/H63f8KzEEPQO4b7+oiD/DU8BbuI/3k/94VyDsX1xv8ZdpOBuItQ+AY3xYrFPHgCQLk5eIyAA/QcTsf8sgY5sP8zDy4AOwfJf8g5PXE3Bc8FxoyNfHcAPX1+yXbCyJH0EpBJu4E9Qny8i4W/BHvLA4tIhIeJt4SHg/0BFyxBL7sAQhD6uEi4AfzFQ1YCvHh3sy3Ax3aJRbZCR/1zs3o8CgRXS0PHN8I1u821Tj42tAM+hva1iD4z6oz9jDwB/0wJSBRMNk2BdsL9H9IBxrx/Rba4+imCRLfSvsxBD0nAvAEE0Ai7OPT7Ujj70sn0PIUuzb81c/40vq//A=="
+			"hash": "2809b5a51a6f4b72",
+			"scale": 0.0014430209739110474,
+			"q": "tRvJ+iIAAQIYyQb7wl4LV90J7Ok0Ge3J5wzkNwrZAuQVx0gowyLsaNpPE9U6TMsW2x0cHfbjFBXt4c0tESTleksk/rsT47kBw0TDCusmI/c24/2/5iM9Hy4pRO7e9fP1+yLG+C9dzmBJI+r5+Qnq+iAS9RXbLv40IQ8eLNgSPQz19kml/97f9wY3+OMq7QPyGRpiBu/u8cm6CBnCNxLW9zb/ycrj8UcVeCPzNOYO6/ow8D/sz8IKDTLe0Bf2w6Yq/yXbDfpCHCNHH9o0F9kWBn9I+yP/7RnB2OLBEgHWUfka+DsKBPAZE0cT5svG3ljz8VYiy+z/2Cwb2csG0v20/Q=="
 		},
 		{
 			"id": "docs:/docs/mcp",
@@ -1535,8 +1583,8 @@
 		{
 			"id": "docs:/docs/sdk-reference",
 			"hash": "808049af285a9e88",
-			"scale": 0.001578548190499656,
-			"q": "xgCBwuTQE/8F9T8/JVkLNQS57/Ds//fOIQML/C7x2qXK6yHq+CICLPcIEBfq0Qvx8NQMCEI+MiPaEdc/9R3/JNfvN+oRGKwsEuyptgMCwdwb3OcJ/RsKKe0AE9P9GerJ7AL2BP//Hejm4e0WExoA4BXwGqQDBgDPKOTO9ekLJi1G/wDlG+FKExg18P7j4e0FGOv77uT8GxCD4DLs1wGM59rHP/OMvTSxBhYxLxTyAAvkDxYKJe/p+g3hyMjVBs8W/h6u2QsKAurXze5J4qwBCEwzuwrMIkAyFPAN+ChJIeYKNgvF3DIZA99k6AgY8B767TXv/C+5/NoRANxP9gwaEg=="
+			"scale": 0.0015848935319540739,
+			"q": "xgCBwuTQEgAF9T8/JVkLNQS57/DsAPfOIAMM/C7y2qXK7CLq+CICK/gHEBfq0Qvy8NQMCEE+MSLaEdc/9Rz+JdjwN+oSGawsE+yqtgMDwtwb3ecJ/hoKKO3/EtP+GerJ7QH1BP8AHejm4ewXFBoA4RXwGaUCBQDPKOTO9eoKJy1G/wHlHOBJFBg08P7k4u4FGOz87+T8GxCE4DLs1wKM5trHP/ONvjOxBhYxLhPyAAzkDhUJJe7q+g3hyMjWBs8W/h6v2QsKAurXze5J4qwBCEwzvAnNIj8xFO8M9yhJIuYKNgvF3DEZA99k6AgY8B777DTw/S+5/NsR/9xQ9QwaEg=="
 		},
 		{
 			"id": "docs:/docs/sdk-reference/archive",
@@ -1894,15 +1942,15 @@
 		},
 		{
 			"id": "docs:/docs/streams",
-			"hash": "5b54a29146abc4b6",
-			"scale": 0.0014379531305463871,
-			"q": "svbjFey8TRpQDeoo5j4EIO9NHwYg7wvyDj7q5gBBE8b4AOQy3AMnM5VEBw/nIsUdBhls7PT0HwINBN6p0Nby/RYPPwrvIAjuwjhaOc3wKhXf4+689SFITvfqDEkb0fX1MUT68DkE0d0JLR3Z9gkBxO0PISfZOgbLBe02+t3XAttS9u0O6cvJ73ET4wQRvRLa8UJcz/4K9M/r1vYfCgbKFLEaGeAcqRQLBebOJuzn8Nna6ekqALbaXasCyiUpyN7yxCyN+NQ0K+ZE6fsbFSEQ+ObvuCEbChEJ68q/7wnW6d4S4mvZH/8d91IK1DHjYv/MwnX7s/IE2szCCu/sP+7Tfw=="
+			"hash": "8b3ae1ce717dc726",
+			"scale": 0.0016791433449560018,
+			"q": "xO76FyHBP90w7ton0TMBKxAaAvL2tQfwAEvg+CQKRugU8SE28vweOKkxB84MO9QvABB///PuO9T4If8B9gb3/jMtGOMBDQbixUMLH+XvFhwQ5Te47UomV+EjEw0f1s7xCjP5uDIq4wzqAQYGLg0iIyPUGiLaKunkLOVD/ib7NeBI5O/FQOjO4zMe+/YZ5f/4IzxR/QPt6djt6xgRBfclDfEoE809sBb3Ffgd//XeGtf33S31y+XoMNHO2ScC+MYWySfqCNYgBvAyC89A7ugG1hD5uDHuIA31582+3wu6C9fs+yPAFO7y+RsG8e34ExbG2EoC/PkI8/sSB9/3AsvOYQ=="
 		},
 		{
 			"id": "docs:/docs/streams#bitcoin-events-runes",
-			"hash": "2ea725e29fa8cfd4",
-			"scale": 0.0016743373546257198,
-			"q": "1CfbveDSGuETAt0MJ1EVDCT27AMO1wcO2AMKKADMEf0yNBkG8jkr8OgwE8UMGy8QKBxXwMHc9dIEB+Ic/fut4QYcNxIbEPXs2X/MBO66Gv346Pnt0BscLvQ+5gu1+TcV8vfA6hgvDdz5AhDlBSQnAlYK8woy9hr0OdpbEuEMFwDeGATD4+8NKSoX1w7/2iT0M0wV/Tjo8LoQBj7ntQYSM/n21gQzwhz7C97z5fwfI7Xc3DYTFArbG8nl4isc7wHt0x3n1voa6foXDdAQQuAE0P71yBL1Ficv9aKi4S8RDg4eJjvQHsf2TxYY5QXTByq+2iYvEx/+rObxBcsQ8BfeCw=="
+			"hash": "178867a408b93c3c",
+			"scale": 0.0015656432331453965,
+			"q": "1A8IxtrXL9oS1N4PAEv8NkD+4wot/xv9tQjsOiHTGA8pOSkh7Tkiy+IZIKocGiYPMDU2nL/rCd0H+uIlB/e5wRwuNwEyEP0D33/d/u/SBAzdzgHXyAMGGOhY5hDA8i0aAPrG3ThJFfDrAf3IBBcc+0YF9wcY9A4IUddkEf8JQAXbEPC39gEoISQA3RkG5BIGMlEu+yL9+sAP+VnzzQ0oPQHktgw5wgzxJt/z5P8dOL7a5kL1//PZNMD97CIh7PruyRjmxQwvCAEqHLwQN8oH0PwS3iXjDjEd5Jei2TcCKAsjG0HYBd4APeLz1vq6FRXb1x8MFxT4sdsVLMXx3gvQGA=="
 		},
 		{
 			"id": "docs:/docs/streams#build-an-indexer-on-it",
@@ -1921,6 +1969,12 @@
 			"hash": "3904d198e749e48e",
 			"scale": 0.0014735725008209837,
 			"q": "qhPXBSvPIvMOFBgCzjksDAVFG8Am+UcJ0xYlG+kcJygqACg3/SEKBeccDcsr6TI2MgZd+z3a5Q8Q0+MGtwPeFOAY+lvICAskrgrQQsm8F//l3g3hyx0rDw4Q7tnu/ScOGRjaCQ1/NP8PKfnzLR4vF1E/Kf0gBUvs6MoVLe7BFtUN58j1Dsj55BzzERb3tjMCBHYk7Wj/xcvP7VD6BBMPIv8N9QAq0gsCVUw4GRvK+vDDsAI63skDNAQQp03uw1DE4UbT09Af+iot/ScQNtsEER8Izw+YDjPpyKHy0f7t6L8p1RvwFLL3uasr8d7eFgTs+28I+eTa08USB8sG4g3NJg=="
+		},
+		{
+			"id": "docs:/docs/streams#contract-state",
+			"hash": "86beeedfd8c14efb",
+			"scale": 0.0012658085873891666,
+			"q": "y07s69W2F98O3P4i5UQ9GvUhINMRzjvHE/wGVhPN3L4bx9ggrz0GOMRQA9neXcIKBzB2JLsgFApBFuUqvyIlMkk++f0RDe8Xx1KcBc01QwQs7yQL7SNaINLTJxjh7T3yFtOzGRt9pwlhfvbPTAf+DSsMExvv/gAn7hUKJ+z4QBc59TrRXMcGAEIuBjcQ0SMJLhtS+z+wxY7i4wL1MEkH0DQygejkBB4bPvIhEjojYM1R4RAQ/AbpWizNqh8avtvz6F/qy/lEAgB3BtpFBKDr00AtUDPL7ffN/wqE8NjapPAk9lrXI6c75f3ureXk/CnguTUP2DQQtvQEIM4K+cPANQ=="
 		},
 		{
 			"id": "docs:/docs/streams#dumps-and-duckdb",
@@ -2080,9 +2134,9 @@
 		},
 		{
 			"id": "docs:/docs/subgraphs#read-rows",
-			"hash": "3c0ff49c370dae9f",
-			"scale": 0.001957524487175652,
-			"q": "8CIM5P0xK8jnFtbr6yL6BSLhIhMiGvna1kINE+DQChQC5AUv8xEV8PX7JO8G8wsKCf1MKBgIDv3YGvwK3P3pFgQnIQD9MdMNDwDyG+EDJxgb9ADpEAwJNMbpzwkMHQj02mPOCCEp/e0AJQYdAt4O/xoHFxIFCgTb78lIFuYaC+Dw2SwsHvQIDwYF7hr5+xUVB38eLere5+7O5kUL+wXb3Qj1C+w05/bvG/XgGjoIEhP1+g4rw9rxDckb4v+e1fUc6h29xgUs5yAZALMdGNoP9KgZGyvD8en76PDMNdwP4tfXE+z+Ef0B+gYn5AAH+P/o7wEtLNwQEM0Z5sAj8yr4LA=="
+			"hash": "a9da4c86e07f84e7",
+			"scale": 0.0019239558536771212,
+			"q": "9SQJ4QMwLdbyFdvp5hn9BibhIf4sGPzl1UANEeHPBxoE3g82/QEU8PH+JeEF8BIOB/tILgoK/g3fGQUJ1QTrFw4sHgH+KtkaEw3yGNT+Ihwc8wDfAwULPsP0zQ8QJw374WHM/x44/ezzJAYN99wYAiAMIBgADALe+dtJFuYeDN3m3SUuIvQNDhcB5xDy8SEgBH8kLd/R6+jH51MR+PXS5g30F+wq8e7xIPDlEjMEEBT1+yUky+DkFcka3/2j3ukg+h620gMt8C4ZC7YdFtkL+qQlFB/R8vH77+DMLtQJ6dnPEu4IGgEN+Qwl7ATy++fl4AgqLuoMF8wk77gz7Rz5Lg=="
 		},
 		{
 			"id": "docs:/docs/subgraphs#read-your-table",
@@ -2398,9 +2452,9 @@
 		},
 		{
 			"id": "docs:/docs/webhooks#triggers",
-			"hash": "6c34d56a8daca5a7",
-			"scale": 0.0014323854825563293,
-			"q": "5OeqHg29Te8Q0jLtG/TeJRN3Aa1pO9spPUfkCUUlvPEz9DzZ0vcVH8n2LTnkCSveFPsTzfgmspUBRQk42+z/xtMVINcccvjj7eP47dAhA//Y87fwyfvkGLzY+U7WG7zs+DoS+uX/wtY3Pd/iEe8D0RLQ/B8B994aEPAZwYHvAxFNzsQtBtju9gvvLdoN2QP6GykmEi65N6AFzh8YOr/N4dcy/DYarvbzTBwxFL33IAIjDQsMwv74JP3RD9reE83+ARCKuSxZM9z0+QIDIZ8PtB0b1B0K6uf9I9Uf/M75F+7SDQ2/44oNMiX+4uxOENIp09P4HDX+6OQLDd6mW+0oDg=="
+			"hash": "910fa6745596e325",
+			"scale": 0.001406423856546161,
+			"q": "4+eoGQuzQOse2SHeKezoJwp+ELJeMcwmRz/nDlM2vu8v8zfKxAYJI7/7I0HdGy3dG/cc1/osqosBMwEtzuz/08oVHN4NcwPf7ucH9M0lAQrV5rnswPzzDNzTC07nGsfs9zoZ+dj708kpRfPiEO0C2A/TBScF/OIVDeMcv4HmCwpExro1/dLl+wjrHsoN1wH9HjsvET2kP6wEzxwVRrnJ5ssu8TgbsPcFTyM4KbjrGwMkB/4Ryf7sKQHcEd7nFt0E8B2CxiNcKMn2/QYAJZ8GvQEUyBz+7OgJKN0b+dD1EeDkCRzE64oVMSX+2+hV/dop29YAK0gC4uMIFtaoYOkcBw=="
 		},
 		{
 			"id": "docs:/docs/webhooks#triggers-and-limits",

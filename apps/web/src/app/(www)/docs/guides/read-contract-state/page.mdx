@@ -159,7 +159,7 @@ For tables you read instead of rows you process, a [subgraph](/docs/subgraphs) t
 
 ## Tradeoff
 
-Hosted reads are metered like any event row ([What it costs](/docs/authentication#what-it-costs)). A busy contract writes on every call, so scope by contract and map before you walk. Hosted mainnet serves these rows from block 1; a self-hosted instance has them only from the block its node first recorded them, on a node build that does.
+Hosted reads are metered like any event row ([Keys and billing](/docs/authentication#what-it-costs)). A busy contract writes on every call, so scope by contract and map before you walk. Hosted mainnet serves these rows from block 1; a self-hosted instance has them only from the block its node first recorded them, on a node build that does.
 
 export const metadata = {
 	title: "Know what changed in a Stacks contract, when, and who changed it",
