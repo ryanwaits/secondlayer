@@ -1,9 +1,6 @@
 {
-	"packages/api/src/routes/cli-device.ts": 1,
-	"packages/api/src/routes/public-updates.ts": 4,
-	"packages/api/src/routes/webhooks.ts": 1,
+	"packages/api/src/routes/public-updates.ts": 1,
 	"packages/shared/src/db/queries/subgraph-operations.ts": 5,
-	"packages/shared/src/db/queries/webhook-replays.ts": 4,
-	"packages/subgraphs/src/runtime/chain-reorg.ts": 1,
-	"packages/worker/src/jobs/feedback-classify.ts": 1
+	"packages/shared/src/db/queries/webhook-replays.ts": 1,
+	"packages/subgraphs/src/runtime/chain-reorg.ts": 1
 }
