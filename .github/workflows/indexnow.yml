@@ -38,4 +38,4 @@ jobs:
           from=$(gh api -X GET "repos/$GITHUB_REPOSITORY/deployments" \
             -f environment="$ENVIRONMENT" -f per_page=2 --jq '.[1].sha // empty')
           [ -n "$from" ] || { echo "no earlier deploy"; exit 0; }
-          bun scripts/indexnow.ts "$site" --from "$from" --to "$TO"
+          bun scripts/ci/indexnow.ts "$site" --from "$from" --to "$TO"

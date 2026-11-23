@@ -15,14 +15,14 @@ import type { Database } from "@secondlayer/shared/db/schema";
  *
  * Usage:
  *   cd docker/oss && docker compose up -d --build postgres migrate api
- *   bun run scripts/self-host-smoke.ts
+ *   bun run tests/smoke/self-host.ts
  *
  * Env:
  *   SMOKE_API_URL       default http://localhost:3800
  *   SMOKE_DATABASE_URL  default postgres://secondlayer:secondlayer@127.0.0.1:5432/secondlayer
  */
 import { type Kysely, sql } from "kysely";
-import { mintApiKey } from "../packages/api/src/auth/mint.ts";
+import { mintApiKey } from "../../packages/api/src/auth/mint.ts";
 
 const API = process.env.SMOKE_API_URL ?? "http://localhost:3800";
 const DB_URL =

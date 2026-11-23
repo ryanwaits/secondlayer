@@ -1,13 +1,10 @@
 import { describe, expect, test } from "bun:test";
 import { readdirSync } from "node:fs";
 import { join } from "node:path";
-import catalogJson from "../../skills/secondlayer/dash/template/catalog.json";
-import {
-	type Catalog,
-	validateSpec,
-} from "../../skills/secondlayer/dash/template/kit.js";
+import catalogJson from "../template/catalog.json";
+import { type Catalog, validateSpec } from "../template/kit.js";
 
-const DASH = join(import.meta.dir, "..", "..", "skills", "secondlayer", "dash");
+const DASH = join(import.meta.dir, "..");
 const catalog = catalogJson as Catalog;
 
 const recipes = readdirSync(join(DASH, "recipes")).filter((f) =>

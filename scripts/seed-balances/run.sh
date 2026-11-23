@@ -3,7 +3,7 @@
 # genesis-exempt founder account. Balances are only correct from genesis,
 # so this MUST run with an account allowed full-history backfill.
 #
-# Usage: SECONDLAYER_API_KEY=sk-sl_... ./scripts/seed-balances.sh
+# Usage: SECONDLAYER_API_KEY=sk-sl_... ./scripts/seed-balances/run.sh
 set -euo pipefail
 cd "$(dirname "$0")/.."
 

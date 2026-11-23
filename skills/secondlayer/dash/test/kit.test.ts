@@ -1,8 +1,8 @@
 import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import catalogJson from "../../skills/secondlayer/dash/template/catalog.json";
-import { missingPrompts } from "../../skills/secondlayer/dash/template/check.ts";
+import catalogJson from "../template/catalog.json";
+import { missingPrompts } from "../template/check.ts";
 import {
 	CATALOG,
 	type Catalog,
@@ -10,9 +10,9 @@ import {
 	buildPrompt,
 	decideNetworks,
 	validateSpec,
-} from "../../skills/secondlayer/dash/template/kit.js";
+} from "../template/kit.js";
 
-const ROOT = join(import.meta.dir, "..", "..");
+const ROOT = join(import.meta.dir, "..", "..", "..", "..");
 const catalog = catalogJson as Catalog;
 
 function spec(elements: Spec["elements"], extra: Partial<Spec> = {}): Spec {

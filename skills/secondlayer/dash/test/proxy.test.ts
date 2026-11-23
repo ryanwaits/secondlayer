@@ -6,7 +6,7 @@ import {
 	expect,
 	test,
 } from "bun:test";
-import { GET } from "../../skills/secondlayer/dash/template/api/sl/[...path].ts";
+import { GET } from "../template/api/sl/[...path].ts";
 import { type Stub, startUpstream } from "./upstream.ts";
 
 const KEY = "sk-sl_test_key";

@@ -2,8 +2,8 @@
 /**
  * Tells IndexNow engines (Bing and others) which pages a deploy changed.
  *
- * bun scripts/indexnow.ts <www|stacks> --from <sha> --to <sha>   changed pages
- * bun scripts/indexnow.ts <www|stacks> --all                     whole sitemap
+ * bun scripts/ci/indexnow.ts <www|stacks> --from <sha> --to <sha>   changed pages
+ * bun scripts/ci/indexnow.ts <www|stacks> --all                     whole sitemap
  *
  * Only URLs in the live sitemap are sent, so drafts and signed-in routes never
  * leave. The key is public by design: engines fetch it from the site to prove

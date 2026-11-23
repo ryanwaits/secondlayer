@@ -114,7 +114,7 @@ jobs:
       - name: Raw status writes (no new sites outside casTransition)
         run: bun scripts/ci/status-writes.ts
       - name: Scripts tests
-        run: bun test scripts/indexnow.test.ts scripts/ops scripts/dash
+        run: bun test scripts/ci/indexnow.test.ts scripts/ops skills/secondlayer/dash/test
 
   build-images:
     needs: [typecheck, test]

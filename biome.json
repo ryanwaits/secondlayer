@@ -13,13 +13,11 @@
 			"**/build/**",
 			"packages/subgraphs/test/fixtures/blockdata-8100000-8100100.json",
 			"apps/web/src/generated/**",
-			".cadence/**",
 			".vercel/**",
 			".claude/**",
-			".impeccable/**",
-			".mcp.json",
-			"skills-lock.json",
-			"skills/**",
+			"skills/secondlayer/dash/template/**",
+			"skills/secondlayer/dash/recipes/**",
+			"skills/secondlayer/examples/**",
 			"docs/mocks/**"
 		]
 	},

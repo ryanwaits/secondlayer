@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
-import { probe } from "../../skills/secondlayer/dash/template/probe.ts";
+import { probe } from "../template/probe.ts";
 import { type Stub, closedUrl, startUpstream } from "./upstream.ts";
 
 const ENV = [
