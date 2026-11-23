@@ -65,6 +65,7 @@ function makeCheckoutEvent(
 	eventId: string,
 	accountId: string,
 	amountTotal: number,
+	paymentIntent?: string,
 ): Stripe.Event {
 	return {
 		id: eventId,
@@ -73,12 +74,30 @@ function makeCheckoutEvent(
 			object: {
 				mode: "payment",
 				payment_status: "paid",
+				...(paymentIntent ? { payment_intent: paymentIntent } : {}),
 				metadata: {
 					kind: "credits_topup",
 					secondlayer_account_id: accountId,
 				},
 				amount_total: amountTotal,
 			} as unknown as Stripe.Checkout.Session,
+		},
+	} as Stripe.Event;
+}
+
+function makeChargeRefundedEvent(
+	eventId: string,
+	paymentIntent: string,
+	amountRefunded: number,
+): Stripe.Event {
+	return {
+		id: eventId,
+		type: "charge.refunded",
+		data: {
+			object: {
+				payment_intent: paymentIntent,
+				amount_refunded: amountRefunded,
+			} as unknown as Stripe.Charge,
 		},
 	} as Stripe.Event;
 }
@@ -220,6 +239,52 @@ describe.skipIf(!HAS_DB)("processStripeEvent", () => {
 
 		// Cleanup
 		await cleanupEvents(eventId);
+		await cleanupAccount(accountId);
+	});
+
+	test("concurrent partial refunds debit only the cumulative refunded amount", async () => {
+		const accountId = await makeAccount(
+			`webhook-test-concurrent-refund-${Date.now()}@test.invalid`,
+		);
+		const paymentIntentId = `pi_concurrent_refund_${crypto.randomUUID()}`;
+		const topupEventId = `evt_topup_${crypto.randomUUID()}`;
+		const refund500EventId = `evt_refund_500_${crypto.randomUUID()}`;
+		const refund1000EventId = `evt_refund_1000_${crypto.randomUUID()}`;
+
+		await cleanupEvents(topupEventId);
+		await cleanupEvents(refund500EventId);
+		await cleanupEvents(refund1000EventId);
+		await cleanupAccount(accountId);
+
+		const topupOutcome = await processStripeEvent(
+			db,
+			makeCheckoutEvent(topupEventId, accountId, 2000, paymentIntentId),
+		);
+		expect(topupOutcome).toBe("processed");
+
+		const [first, second] = await Promise.all([
+			processStripeEvent(
+				db,
+				makeChargeRefundedEvent(refund500EventId, paymentIntentId, 500),
+			),
+			processStripeEvent(
+				db,
+				makeChargeRefundedEvent(refund1000EventId, paymentIntentId, 1000),
+			),
+		]);
+		expect(first).toBe("processed");
+		expect(second).toBe("processed");
+
+		const credits = await db
+			.selectFrom("account_credits")
+			.select("balance_usd_micros")
+			.where("account_id", "=", accountId)
+			.executeTakeFirst();
+		expect(BigInt(credits?.balance_usd_micros ?? "0")).toBe(10_000_000n);
+
+		await cleanupEvents(topupEventId);
+		await cleanupEvents(refund500EventId);
+		await cleanupEvents(refund1000EventId);
 		await cleanupAccount(accountId);
 	});
 });

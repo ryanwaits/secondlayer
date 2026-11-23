@@ -24,6 +24,7 @@
  */
 
 import { recordRefund, recordTopup } from "@secondlayer/platform/billing/meter";
+import { lockAccountCredits } from "@secondlayer/platform/db/queries/account-credits";
 import {
 	accountForLedgerKey,
 	lastCumulativeCents,
@@ -278,6 +279,7 @@ async function onChargeRefunded(
 		});
 		return;
 	}
+	await lockAccountCredits(db, accountId);
 	const prefix = `stripe:refund:${paymentIntentId}:`;
 	const refundedCents = charge.amount_refunded;
 	const newCents = refundedCents - (await lastCumulativeCents(db, prefix));
