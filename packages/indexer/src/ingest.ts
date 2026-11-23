@@ -157,7 +157,6 @@ async function ingestLocked(
 			settled.blockHash,
 			(settled.payload as NewBlockPayload).index_block_hash,
 		);
-		await clearAdoptedContender(db, settled.height, settled.blockHash);
 		if (deposed && deposed.block_hash === settled.incumbentHash) {
 			await stageForkContender(db, {
 				height: settled.height,
@@ -176,6 +175,7 @@ async function ingestLocked(
 		// Replays through this same path, so a fork several blocks deep unwinds
 		// one height at a time. Each step is strictly lower, so this terminates.
 		await ingestLocked(settled.payload as NewBlockPayload, options);
+		await clearAdoptedContender(db, settled.height, settled.blockHash);
 
 		// The settle above only re-establishes settled.height itself. A tx a
 		// same-height collision (or the old doNothing re-mine bug) moved off a

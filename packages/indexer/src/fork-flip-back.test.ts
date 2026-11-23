@@ -8,7 +8,7 @@ import {
 } from "bun:test";
 import { getSourceDb, sql } from "@secondlayer/shared/db";
 import { JournalApplier, receiveNewBlock } from "./catch-up.ts";
-import { findSettledFork } from "./fork-choice.ts";
+import { findSettledFork, stageForkContender } from "./fork-choice.ts";
 import { ingestNewBlock } from "./ingest.ts";
 import { bodyFromText } from "./observer-journal.ts";
 import type { NewBlockPayload } from "./types/node-events.ts";
@@ -198,6 +198,60 @@ for (const path of HAS_DB ? [directPath(), catchUpPath()] : [directPath()])
 			expect(flipBack?.blockHash).toBe("0xoriginal");
 			expect(flipBack?.incumbentHash).toBe("0xcontender");
 		});
+
+		async function stagedHashesAtH() {
+			if (!db) throw new Error("missing db");
+			await settle();
+			const rows = await db
+				.selectFrom("pending_fork_blocks")
+				.select("block_hash")
+				.where("height", "=", H)
+				.orderBy("block_hash")
+				.execute();
+			return rows.map((r) => r.block_hash);
+		}
+
+		test("a settled winner leaves staging only once it is persisted", async () => {
+			await ingest(payload(H - 1, "0xbase", "0xancestor"));
+			await ingest(payload(H, "0xoriginal", "0xbase"));
+			await ingest(payload(H, "0xcontender", "0xbase"));
+			await ingest(payload(H + 1, "0xchild-of-contender", "0xcontender"));
+
+			expect((await canonicalRow(H))?.hash).toBe("0xcontender");
+			expect(await stagedHashesAtH()).toEqual(["0xoriginal"]);
+		});
+
+		test.skipIf(path.name !== "direct ingest")(
+			"a winner that fails to persist stays staged so a retry can settle it",
+			async () => {
+				if (!db) throw new Error("missing db");
+				await ingest(payload(H - 1, "0xbase", "0xancestor"));
+				await ingest(payload(H, "0xoriginal", "0xbase"));
+				const unpersistable = {
+					...payload(H, "0xcontender", "0xbase"),
+					burn_block_height: "not-a-height" as unknown as number,
+				};
+				await ingest(unpersistable);
+				const child = payload(H + 1, "0xchild-of-contender", "0xcontender");
+
+				await expect(ingest(child)).rejects.toThrow();
+				expect(await canonicalRow(H)).toBeUndefined();
+				expect(await stagedHashesAtH()).toEqual(["0xcontender", "0xoriginal"]);
+
+				await stageForkContender(db, {
+					height: H,
+					blockHash: "0xcontender",
+					parentHash: "0xbase",
+					incumbentHash: "0xoriginal",
+					payload: payload(H, "0xcontender", "0xbase"),
+				});
+				await ingest(child);
+
+				expect((await canonicalRow(H))?.hash).toBe("0xcontender");
+				expect((await canonicalRow(H + 1))?.parent_hash).toBe("0xcontender");
+				expect(await stagedHashesAtH()).toEqual(["0xoriginal"]);
+			},
+		);
 
 		test("a settle-then-abandon fork restores the fork point instead of leaving a broken link", async () => {
 			if (!db) throw new Error("missing db");
