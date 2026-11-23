@@ -15,10 +15,7 @@ import {
 	serializeCScriptNum,
 } from "../script.ts";
 
-const MANIFEST = resolve(
-	import.meta.dir,
-	"../../../../../contracts/Clarinet.toml",
-);
+const MANIFEST = resolve(import.meta.dir, "../../../contracts/Clarinet.toml");
 const POX5_ADDRESS = "SP000000000000000000002Q6VF78";
 const POX5_NAME = "pox-5";
 

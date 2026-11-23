@@ -20,10 +20,7 @@ import { pox5 } from "../extension.ts";
 // interface Clarinet ships for Epoch 4.0. A renamed function, reordered or
 // retyped argument upstream fails this suite.
 
-const MANIFEST = resolve(
-	import.meta.dir,
-	"../../../../../contracts/Clarinet.toml",
-);
+const MANIFEST = resolve(import.meta.dir, "../../../contracts/Clarinet.toml");
 const POX5_ID = "SP000000000000000000002Q6VF78.pox-5";
 const ACCOUNT = privateKeyToAccount("11".repeat(32));
 const TXID = `0x${"ab".repeat(32)}`;

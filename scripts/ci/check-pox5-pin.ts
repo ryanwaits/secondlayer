@@ -28,7 +28,10 @@ const POX5_SHA256 =
 	"ffad35ad181d85832ebd7b998f445204c92d5cd19549166e644fb1f3988fa385";
 const RAW_URL = `https://raw.githubusercontent.com/stacks-network/stacks-core/${STACKS_CORE_TAG}/stackslib/src/chainstate/stacks/boot/pox-5.clar`;
 const POX5_ID = "SP000000000000000000002Q6VF78.pox-5";
-const MANIFEST = resolve(import.meta.dir, "../../contracts/Clarinet.toml");
+const MANIFEST = resolve(
+	import.meta.dir,
+	"../../packages/stacks/contracts/Clarinet.toml",
+);
 
 function toHex(bytes: Uint8Array): string {
 	return Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");

@@ -124,7 +124,7 @@ const spk = parseOutputScript(out.script);     // { type: "p2pkh" | "p2wpkh" | "
 
 ## The reference adapter
 
-Built-ins are callable only from *inside* a contract, never over RPC. The reference [`spv-adapter`](https://github.com/ryanwaits/secondlayer/blob/main/contracts/contracts/spv-adapter.clar) wraps them: read-only, no state, no custody, at `clarity_version = 6` / `epoch = "4.0"`. Copy it, or ship your own with the same shape.
+Built-ins are callable only from *inside* a contract, never over RPC. The reference [`spv-adapter`](https://github.com/ryanwaits/secondlayer/blob/main/packages/stacks/contracts/contracts/spv-adapter.clar) wraps them: read-only, no state, no custody, at `clarity_version = 6` / `epoch = "4.0"`. Copy it, or ship your own with the same shape.
 
 | Network | Adapter |
 | --- | --- |

@@ -13,10 +13,7 @@ import { bytesToHex, hexToBytes } from "../../utils/encoding.ts";
 import { SPV_ADAPTER_ABI } from "../abi/spvAdapter.ts";
 import { buildMerkleProof, merkleRoot, reverseBytes } from "../index.ts";
 
-const MANIFEST = resolve(
-	import.meta.dir,
-	"../../../../../contracts/Clarinet.toml",
-);
+const MANIFEST = resolve(import.meta.dir, "../../../contracts/Clarinet.toml");
 
 const internal = (display: string): Uint8Array =>
 	reverseBytes(hexToBytes(display));

@@ -8,10 +8,7 @@ import { MAX_CV_DEPTH, deserializeCV } from "../deserialize.ts";
 import { serializeCVBytes } from "../serialize.ts";
 import { Cl } from "../values.ts";
 
-const MANIFEST = resolve(
-	import.meta.dir,
-	"../../../../../contracts/Clarinet.toml",
-);
+const MANIFEST = resolve(import.meta.dir, "../../../contracts/Clarinet.toml");
 
 describe("tuple field order", () => {
 	let simnet: Simnet;
