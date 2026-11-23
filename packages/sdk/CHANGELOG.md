@@ -1,5 +1,16 @@
 # @secondlayer/sdk
 
+## 20.1.0
+
+### Minor Changes
+
+- 9600643: Add `trigger.nestedContractCall`, `trigger.varSet`, `trigger.mapSet`, `trigger.mapInsert` and `trigger.mapDelete`, so webhooks can fire on Clarity state changes without hand-written trigger objects.
+
+### Patch Changes
+
+- Updated dependencies [9600643]
+  - @secondlayer/shared@19.1.0
+
 ## 20.0.0
 
 ### Major Changes

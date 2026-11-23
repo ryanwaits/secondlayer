@@ -163,7 +163,7 @@
 	"constants": [
 		{
 			"name": "MAINNET_CHECKPOINT",
-			"summary": "Mainnet: Stacks block 9,055,251 (`10cb4e95…c5be`) holding the cycle 144 signer set (31 signers, weight 4000), and Bitcoin block 967,680 (a retarget-period start at or below cycle 144's first burn block 968,450).",
+			"summary": "Mainnet: Stacks block 9,422,891 (`e708baba…4ff6`) holding the cycle 147 signer set (35 signers, weight 4000), and Bitcoin block 973,728 (a retarget-period start at or below cycle 147's first burn block 974,750).",
 			"type": "VerifyCheckpoint",
 			"source": {
 				"file": "packages/verify/src/checkpoint-mainnet.ts",

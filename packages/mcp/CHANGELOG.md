@@ -1,5 +1,17 @@
 # @secondlayer/mcp
 
+## 11.7.0
+
+### Minor Changes
+
+- 2d34463: `index_events` accepts the Clarity state types (`nested_contract_call`, `var_set`, `map_set`, `map_insert`, `map_delete`) with their `functionName`, `caller`, `map`, `varName` and `txId` filters, and the new `index_state_writes` tool reads the exact state writes each block committed.
+
+### Patch Changes
+
+- Updated dependencies [9600643]
+  - @secondlayer/shared@19.1.0
+  - @secondlayer/sdk@20.1.0
+
 ## 11.6.8
 
 ### Patch Changes

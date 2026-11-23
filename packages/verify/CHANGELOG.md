@@ -1,5 +1,11 @@
 # @secondlayer/verify
 
+## 0.6.5
+
+### Patch Changes
+
+- Move the built-in checkpoint to cycle 147, proven from cycle 144.
+
 ## 0.6.4
 
 ### Patch Changes
