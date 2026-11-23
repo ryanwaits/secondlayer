@@ -30,6 +30,12 @@ and attribution headers (MIT/CC0), and in published packages JSDoc on exported
 symbols and type members (openpkg + IDE hovers). Never touch tests, `scripts/`,
 generated files (e.g. `checkpoint-mainnet.ts`), or string/template contents.
 
+**Keep JSDoc on a non-exported type that an exported signature names** (e.g.
+`type Row`, `type StreamsConsumeCommon`). The script counts it, but openpkg
+publishes its summary into the reference docs, and `reference-lint.test.ts` fails CI
+without one. Label it Decision Record. Check: is the type name in a parameter,
+return, or member type of an exported symbol?
+
 ## 1. List
 
 `--count` then `--list` the target. No target: sum `baseline.json` by package, take
@@ -85,6 +91,9 @@ git diff -U0 -- <target> | grep '^+[^+]'
 bun run --filter <pkg> typecheck
 bun run --filter <pkg> test          # if under ~2 min
 bun $S/comments.ts --count <target>
+# sdk, stacks, subgraphs, verify: regenerate the reference docs, then lint them
+bun run --filter <pkg> openpkg && bun test packages/<pkg>/src/reference-lint.test.ts
+git status --short apps/web/src/generated   # changed? include it in the commit
 ```
 
 Expected added lines: code minus a trailing comment, `catch {}` / `.catch(() => {})`
