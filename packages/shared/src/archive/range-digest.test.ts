@@ -5,6 +5,7 @@ import {
 	compareRangeDigests,
 	computeRangeDigest,
 	computeRangeDigests,
+	countRangeRows,
 } from "./range-digest.ts";
 
 const HAS_DB = !!process.env.DATABASE_URL;
@@ -92,6 +93,15 @@ describe.skipIf(!HAS_DB)("SQL range digests", () => {
 		expect(a.digest).toBe(b.digest as string);
 		expect(a.row_count).toBe(10);
 		expect(a.digest).not.toBeNull();
+	});
+
+	test("row count matches the digest's row set without building the digest", async () => {
+		if (!db) throw new Error("missing db");
+		for (const dataset of ["blocks", "transactions", "events"] as const) {
+			const digest = await computeRangeDigest(db, dataset, H, TO);
+			expect(await countRangeRows(db, dataset, H, TO)).toBe(digest.row_count);
+		}
+		expect(await countRangeRows(db, "events", H + 5, H + 9)).toBe(0);
 	});
 
 	test("an empty range has no digest rather than a digest of nothing", async () => {

@@ -5,6 +5,7 @@ import {
 	type RangeDigest,
 	compareRangeDigests,
 	computeRangeDigest,
+	countRangeRows,
 } from "@secondlayer/shared/archive/range-digest";
 import type { PartitionSemanticDigest } from "@secondlayer/shared/archive/semantic-digest";
 import {
@@ -293,7 +294,7 @@ Exit codes:
 								continue;
 							if (toBlock !== undefined && partition.from_block > toBlock)
 								continue;
-							const actual = await computeRangeDigest(
+							const actualRows = await countRangeRows(
 								db,
 								partition.dataset,
 								partition.from_block,
@@ -304,13 +305,13 @@ Exit codes:
 								from_block: partition.from_block,
 								to_block: partition.to_block,
 								status:
-									actual.row_count === partition.row_count
+									actualRows === partition.row_count
 										? "match"
 										: "count-mismatch",
 								expected_digest: null,
 								actual_digest: null,
 								expected_rows: partition.row_count,
-								actual_rows: actual.row_count,
+								actual_rows: actualRows,
 							});
 						}
 					}

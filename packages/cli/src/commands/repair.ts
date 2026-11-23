@@ -16,6 +16,7 @@ import {
 	type RangeDigestDataset,
 	compareRangeDigests,
 	computeRangeDigest,
+	countRangeRows,
 } from "@secondlayer/shared/archive/range-digest";
 import { getDb, getRawClient } from "@secondlayer/shared/db";
 import type { Command } from "commander";
@@ -589,8 +590,7 @@ export async function planChildPartitionDivergence(
 		const mismatch: ChildRangeMismatch = { from_block: from, to_block: to };
 		let diverged = false;
 		for (const dataset of children) {
-			const actual = (await computeRangeDigest(db, dataset, from, to))
-				.row_count;
+			const actual = await countRangeRows(db, dataset, from, to);
 			const want = expected.get(dataset) ?? actual;
 			mismatch[dataset] = { expected: want, actual };
 			if (want !== actual) diverged = true;
@@ -811,13 +811,13 @@ async function runChildOnlyRepair(params: {
 			for (const dataset of children) {
 				const count = mismatch[dataset];
 				if (!count) continue;
-				const actual = await computeRangeDigest(
+				const actual = await countRangeRows(
 					db,
 					dataset,
 					mismatch.from_block,
 					mismatch.to_block,
 				);
-				if (actual.row_count !== count.expected) stillDiverges = true;
+				if (actual !== count.expected) stillDiverges = true;
 			}
 			if (stillDiverges) remaining++;
 		}

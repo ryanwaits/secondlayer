@@ -175,6 +175,27 @@ export async function computeRangeDigest(
 	};
 }
 
+/**
+ * Canonical row count over a height range, with the same row set as
+ * `computeRangeDigest`. Use it when only the count is compared: the digest
+ * aggregates 32 bytes per row into one string, which passes Postgres's 1 GB
+ * string limit on a busy 50k-block range of events or state writes.
+ */
+export async function countRangeRows(
+	db: Kysely<Database>,
+	dataset: RangeDigestDataset,
+	fromBlock: number,
+	toBlock: number,
+): Promise<number> {
+	const { rows } = await sql<{ row_count: string }>`
+		SELECT COUNT(*)::text AS row_count
+		${fromExpression(dataset)}
+			AND ${heightColumn(dataset)} >= ${fromBlock}
+			AND ${heightColumn(dataset)} <= ${toBlock}
+	`.execute(db);
+	return Number(rows[0]?.row_count ?? 0);
+}
+
 export async function computeRangeDigests(
 	db: Kysely<Database>,
 	fromBlock: number,
