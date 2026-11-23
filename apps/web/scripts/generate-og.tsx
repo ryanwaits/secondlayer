@@ -4,7 +4,7 @@
  * Run from apps/web:  bun run og
  *
  * Each card is a 1200×630 frame in the Primaries brand: a mono eyebrow, a
- * two-beat Geist headline whose second beat sits on the yellow highlight, flat
+ * two-beat Geist headline whose second beat sits on the inverted ink highlight, flat
  * product art on the right, and a footer strip with the logo and the page
  * path. Data-driven, so a copy change is one CARDS edit + a re-run.
  */
@@ -1119,7 +1119,8 @@ type CardSpec = {
 	/** Footer path, e.g. secondlayer.tools/streams */
 	path: string;
 	artifact: React.ReactNode;
-	/** Highlight color behind line 2 (yellow; Robin Neon on the partner card). */
+	/** Highlight color behind line 2. Default is the inverted ink block the
+	    site headlines use; a partner card may pass its own color. */
 	highlight?: string;
 	/** A status seal (the pages' yellow "live" chip) closing the headline. It
 	    carries the yellow, so line 2 goes unmarked. */
@@ -1166,12 +1167,19 @@ function Footer({ path }: { path: string }) {
 	);
 }
 
+/** Line 2's mark: inverted ink unless the card names its own color. */
+function highlightStyle(spec: CardSpec) {
+	return spec.highlight
+		? { background: spec.highlight, color: INK }
+		: { background: INK, color: PAPER };
+}
+
 function WideFrame(spec: CardSpec) {
 	const { size } = spec;
 	const [plain, marked] = spec.line2.includes("|")
 		? spec.line2.split("|")
 		: ["", spec.line2];
-	const hl = spec.highlight ?? YELLOW;
+	const hl = highlightStyle(spec);
 	const line = {
 		fontFamily: "Geist",
 		fontWeight: 500,
@@ -1219,7 +1227,7 @@ function WideFrame(spec: CardSpec) {
 						<span
 							style={{
 								...line,
-								background: hl,
+								...hl,
 								padding: "0 16px",
 								marginLeft: plain ? 0 : -16,
 							}}
@@ -1238,7 +1246,7 @@ function WideFrame(spec: CardSpec) {
 function Frame(spec: CardSpec) {
 	if (spec.wide) return <WideFrame {...spec} />;
 	const { size } = spec;
-	const hl = spec.highlight ?? YELLOW;
+	const hl = highlightStyle(spec);
 	return (
 		<div
 			style={{
@@ -1311,7 +1319,7 @@ function Frame(spec: CardSpec) {
 									alignSelf: "flex-start",
 									...(spec.seal
 										? {}
-										: { background: hl, padding: "0 14px", marginLeft: -14 }),
+										: { ...hl, padding: "0 14px", marginLeft: -14 }),
 								}}
 							>
 								{beat}
@@ -1322,7 +1330,7 @@ function Frame(spec: CardSpec) {
 									color={INK}
 									style={{
 										letterSpacing: 1.5,
-										background: hl,
+										background: spec.highlight ?? YELLOW,
 										borderRadius: 999,
 										padding: "7px 16px",
 									}}
@@ -1346,8 +1354,8 @@ const CARDS: CardSpec[] = [
 	{
 		file: "home.png",
 		eyebrow: null,
-		line1: "Instant data for apps on",
-		line2: "Bitcoin.|Proof included.",
+		line1: "Instant data for",
+		line2: "apps on Bitcoin.",
 		size: 88,
 		path: SITE,
 		wide: true,

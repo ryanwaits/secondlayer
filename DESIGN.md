@@ -361,6 +361,7 @@ black so long copy reads comfortably for `sub`.
 exception, carried by the brand mark: a product glyph may draw one part in blue, the
 part its claim is about, the way the logo's top layer is blue (see Product glyphs).
 **Yellow marks.** Yellow never signals status. It marks new, finalized, signed.
+**Headlines invert.** A headline's highlighted beat (`<Highlight>` / `.hl`, OG card line 2) is an inverted ink block: `ink` fill, `paper` text, in both themes. Never yellow.
 **Red fails.** Red appears only for failures and reorgs.
 Dashboard: attention/failing color the insight's Why link and the row's chart; values get the `.hl` / inverted mark; rows stay plain. Healthy shows nothing.
 **Neutrals carry the rest.** If it is not an action, a mark, or a failure, it is ink, sub,

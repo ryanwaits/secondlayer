@@ -34,7 +34,7 @@ export const metadata: Metadata = {
 		default: "secondlayer · Stacks indexer: decoded data, webhooks, proofs",
 		template: "%s · secondlayer",
 	},
-	description: "Instant data for apps on Bitcoin. Proof included.",
+	description: "Instant data for apps on Bitcoin.",
 	appleWebApp: {
 		capable: true,
 		title: "secondlayer",
@@ -42,7 +42,7 @@ export const metadata: Metadata = {
 	},
 	openGraph: {
 		title: "secondlayer",
-		description: "Instant data for apps on Bitcoin. Proof included.",
+		description: "Instant data for apps on Bitcoin.",
 		siteName: "secondlayer",
 		type: "website",
 		images: [
@@ -57,7 +57,7 @@ export const metadata: Metadata = {
 	twitter: {
 		card: "summary_large_image",
 		title: "secondlayer",
-		description: "Instant data for apps on Bitcoin. Proof included.",
+		description: "Instant data for apps on Bitcoin.",
 		images: [ogImage("/og/home.png")],
 	},
 };

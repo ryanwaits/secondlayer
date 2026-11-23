@@ -703,7 +703,15 @@ const META: Record<StoryId, Meta> = {
 								</span>
 							</p>
 							<p>
-								<span className="hl">Yellow marks</span>
+								<span
+									style={{
+										background: "var(--hi)",
+										color: "var(--on-hi)",
+										padding: "0 0.1em",
+									}}
+								>
+									Yellow marks
+								</span>
 								<span className="lab-note"> new, finalized, signed</span>
 							</p>
 							<p>

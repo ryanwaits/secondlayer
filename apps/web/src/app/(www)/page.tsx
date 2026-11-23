@@ -132,8 +132,8 @@ export function HomeView() {
 				<div className="shell">
 					<div className="hero-copy">
 						<h1>
-							Instant data for apps on
-							<br /> Bitcoin. <Highlight>Proof included.</Highlight>
+							Instant data for
+							<br /> <Highlight>apps on Bitcoin.</Highlight>
 						</h1>
 						<div className="hero-row">
 							<p className="sub">

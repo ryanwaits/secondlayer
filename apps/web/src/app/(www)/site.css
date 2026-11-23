@@ -134,10 +134,12 @@
 	background: var(--hi);
 	vertical-align: 0.05em;
 }
+/* Headline highlight: an inverted ink block. Yellow stays for code marks and
+   new/finalized/signed chips. */
 .site .hl {
-	color: var(--on-hi);
+	color: var(--paper);
 	padding: 0 0.1em;
-	background: linear-gradient(var(--hi), var(--hi)) 0 0.14em / 100% 1.08em
+	background: linear-gradient(var(--ink), var(--ink)) 0 0.14em / 100% 1.08em
 		no-repeat;
 	-webkit-box-decoration-break: clone;
 	box-decoration-break: clone;

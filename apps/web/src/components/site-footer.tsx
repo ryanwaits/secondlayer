@@ -62,8 +62,7 @@ export function SiteFooter() {
 							<span>secondlayer</span>
 						</IntentLink>
 						<p className="site-footer-tag">
-							Instant data for apps on Bitcoin. Proof included. Inspired by the
-							ideas behind{" "}
+							Instant data for apps on Bitcoin. Inspired by the ideas behind{" "}
 							<a
 								href="https://paragraph.com/@aulneau/project-kourier"
 								target="_blank"
