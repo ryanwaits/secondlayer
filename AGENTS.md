@@ -3,6 +3,9 @@
 Operating instructions for AI coding agents working in this repo. Read this and
 `STRATEGY.md` first, every session.
 
+In all interactions, plans, and commit messages, be extremely concise and
+sacrifice grammar for the sake of concision.
+
 ---
 
 ## Working agreements
