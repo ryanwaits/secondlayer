@@ -48,8 +48,6 @@ yarn-error.log*
 *.tmp
 *.temp
 tmp/
-# Docs are tracked, including internal working docs (audits, plans, mocks,
-# specs, runbooks, charters) under docs/internal/.
 
 # Config files (users should create their own)
 secondlayer.config.ts
@@ -57,6 +55,10 @@ secondlayer.config.js
 secondlayer.config.mjs
 .vercel
 plans/
+# Internal docs and strategy live in the private plans repo (plans/internal);
+# these local links keep their old paths working.
+/docs/internal
+/STRATEGY.md
 
 # Claude Code local state. Only .claude/skills is tracked: a link to
 # .agents/skills, the one home for repo skills.
