@@ -233,15 +233,19 @@ describe.skipIf(SKIP)("handleTableStream", () => {
 		await openReader(next).cancel();
 	});
 
-	test("maxAgeMs ends the stream with an end event and frees the slot", async () => {
+	test("maxAgeMs closes the stream after the rows with no extra frame and frees the slot", async () => {
 		const app = appWith({ ...FAST, maxAgeMs: 50, maxConnections: 1 });
-		const res = await app.request("/listings/stream");
+		const res = await app.request("/listings/stream?since=100");
 		expect(res.status).toBe(200);
 		const sse = openReader(res);
 		const frames = await sse.readUntil(() => false);
 		expect(sse.done).toBe(true);
-		const end = frames.find((f) => f.event === "end");
-		expect(end && JSON.parse(end.data)).toEqual({ reason: "max_age" });
+		const nonPing = frames.filter((f) => f.event !== "ping");
+		expect(nonPing.length).toBeGreaterThan(0);
+		for (const frame of nonPing) {
+			expect(frame.event).toBeUndefined();
+			expect(JSON.parse(frame.data)._id).toBeDefined();
+		}
 
 		const next = await connectWhenFree(app, "/listings/stream");
 		expect(next.status).toBe(200);
@@ -258,8 +262,7 @@ describe.skipIf(SKIP)("handleTableStream", () => {
 		await getRawClient().unsafe(`DROP TABLE ${PG_SCHEMA}.scratch`);
 		const frames = await sse.readUntil(() => false);
 		expect(sse.done).toBe(true);
-		const error = frames.find((f) => f.event === "error");
-		expect(error && JSON.parse(error.data)).toEqual({ error: "stream_error" });
+		expect(frames.filter((f) => f.event !== "ping")).toEqual([]);
 
 		await createScratch();
 		const next = await connectWhenFree(app, "/scratch/stream");

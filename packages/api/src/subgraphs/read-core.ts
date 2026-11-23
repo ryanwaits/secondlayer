@@ -324,10 +324,6 @@ export async function handleTableStream(
 			let lastBeat = Date.now();
 			while (!stream.aborted) {
 				if (opts.maxAgeMs != null && Date.now() - startedAt >= opts.maxAgeMs) {
-					await stream.writeSSE({
-						event: "end",
-						data: JSON.stringify({ reason: "max_age" }),
-					});
 					return;
 				}
 				const params: unknown[] = [];
@@ -361,12 +357,6 @@ export async function handleTableStream(
 				table: tableName,
 				error: err instanceof Error ? err.message : String(err),
 			});
-			await stream
-				.writeSSE({
-					event: "error",
-					data: JSON.stringify({ error: "stream_error" }),
-				})
-				.catch(() => {});
 		} finally {
 			await release();
 		}
