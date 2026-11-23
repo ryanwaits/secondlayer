@@ -10,7 +10,7 @@
 			"description": "Builds a handler-shaped event for a source, typed by that source's filter.\n\n`data` supplies the decoded, camelCased fields the runtime would have\nproduced. Transaction metadata is filled in.",
 			"source": {
 				"file": "packages/subgraphs/src/testing/harness.ts",
-				"line": 127
+				"line": 118
 			},
 			"overloads": [
 				{
@@ -58,7 +58,7 @@
 			"description": "Build a typed event payload based on the source filter type.\nReturns the payload the handler will receive.",
 			"source": {
 				"file": "packages/subgraphs/src/runtime/runner.ts",
-				"line": 179
+				"line": 162
 			},
 			"overloads": [
 				{
@@ -99,7 +99,7 @@
 			"description": "Builds an in-memory context for a subgraph's schema.\n\nIt is the real handler context with its row store swapped for memory, so\nreads see earlier writes. Use `ctx.rows(table)` to inspect what a handler\nwrote.",
 			"source": {
 				"file": "packages/subgraphs/src/testing/harness.ts",
-				"line": 83
+				"line": 74
 			},
 			"overloads": [
 				{
@@ -141,7 +141,7 @@
 			"description": "Run handlers against pre-built sample payloads in memory (no Index, no\nPostgres). Deploy uses this with print-schema dummy events to refuse\nEMPTY_MAPPING before DDL apply.",
 			"source": {
 				"file": "packages/subgraphs/src/testing/run.ts",
-				"line": 489
+				"line": 483
 			},
 			"overloads": [
 				{
@@ -176,7 +176,7 @@
 			"description": "Apply local handlers to Index rows in memory. Fail-closed: matched events\nwith zero written rows is EMPTY_MAPPING (the bns-names field-mapping shape).",
 			"source": {
 				"file": "packages/subgraphs/src/testing/run.ts",
-				"line": 301
+				"line": 295
 			},
 			"overloads": [
 				{
@@ -205,7 +205,7 @@
 			"description": "Map an Index contract-call row onto the ContractCallEvent handler shape.",
 			"source": {
 				"file": "packages/subgraphs/src/testing/run.ts",
-				"line": 204
+				"line": 199
 			},
 			"overloads": [
 				{
@@ -234,7 +234,7 @@
 			"description": "Map an Index event row onto the payload shape a handler expects.",
 			"source": {
 				"file": "packages/subgraphs/src/testing/run.ts",
-				"line": 125
+				"line": 122
 			},
 			"overloads": [
 				{

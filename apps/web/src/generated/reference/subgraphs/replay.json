@@ -10,7 +10,7 @@
 			"description": "Checks a served pin against the served bundle.\n\nThe preimage must hash to the pin, and name this handler code, this schema\nand this `startBlock`. A runtime other than this package's is only a note,\nsince rows can still match.",
 			"source": {
 				"file": "packages/subgraphs/src/verify/replay.ts",
-				"line": 158
+				"line": 157
 			},
 			"overloads": [
 				{
@@ -45,7 +45,7 @@
 			"description": "The replay loop over an injected verifier.",
 			"source": {
 				"file": "packages/subgraphs/src/verify/replay.ts",
-				"line": 236
+				"line": 234
 			},
 			"overloads": [
 				{
@@ -80,7 +80,7 @@
 			"description": "Lists the contracts a state subgraph's writes come from.\n\nIt returns an error when a source does not fix one, because completeness\nwould then need every contract's writes.",
 			"source": {
 				"file": "packages/subgraphs/src/verify/replay.ts",
-				"line": 120
+				"line": 119
 			},
 			"overloads": [
 				{
@@ -109,7 +109,7 @@
 			"description": "Verifies every block in a range and recomputes the subgraph's tables.\n\nThe range is `[from, to]`, and blocks are verified from the checkpoint.",
 			"source": {
 				"file": "packages/subgraphs/src/verify/replay.ts",
-				"line": 450
+				"line": 447
 			},
 			"overloads": [
 				{
@@ -138,7 +138,7 @@
 			"description": "Compares replayed tables with the served ones over a block range.\n\nRows are matched on `_block_height` within `[from, to]`. Keyed tables, by\ntheir first `uniqueKeys` tuple, compare row by row, and unkeyed tables\ncompare as multisets.",
 			"source": {
 				"file": "packages/subgraphs/src/verify/compare.ts",
-				"line": 126
+				"line": 123
 			},
 			"overloads": [
 				{
@@ -853,7 +853,7 @@
 		},
 		{
 			"name": "Row",
-			"summary": "A table row as a plain column-to-value record.",
+			"summary": "",
 			"definition": "Record<string, unknown>"
 		},
 		{

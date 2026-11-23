@@ -247,7 +247,7 @@
 			"description": "Lists the ancestor tries a MARF proof crosses.\n\nEach id is the backptr a descendant trie follows toward the leaf, and\n`verifyMarfProof` needs every one's header. They are read from untrusted\nproof bytes, so they are only fetch hints: the proof still fails unless each\nheader hashes to the id the trie committed. Malformed proofs yield no ids.",
 			"source": {
 				"file": "packages/verify/src/marf.ts",
-				"line": 327
+				"line": 321
 			},
 			"overloads": [
 				{
@@ -305,7 +305,7 @@
 			"description": "Verifies a MARF inclusion proof.\n\nIt is true only when `value` is stored at `path` in the MARF whose tip root\nis `root`. Inclusion only: MARF proofs cannot prove absence. Malformed proof\nbytes verify false.",
 			"source": {
 				"file": "packages/verify/src/marf.ts",
-				"line": 385
+				"line": 379
 			},
 			"overloads": [
 				{
@@ -334,7 +334,7 @@
 			"description": "Classify every leaf of block N's trie against the claimed write set.\nEach leaf must be a claimed write, a carried (unchanged) parent value, or a\nMARF-internal key; anything else is a hidden write.",
 			"source": {
 				"file": "packages/verify/src/witness.ts",
-				"line": 182
+				"line": 178
 			},
 			"overloads": [
 				{
@@ -363,7 +363,7 @@
 			"description": "Parse a v2 state witness and recompute its root. Throws on malformed input.\nThe result proves nothing until `root` equals a header's state_index_root.",
 			"source": {
 				"file": "packages/verify/src/witness.ts",
-				"line": 61
+				"line": 58
 			},
 			"overloads": [
 				{
@@ -392,7 +392,7 @@
 			"description": "Decodes a `cycle-signer-set` value from the `.signers` contract.\n\nThe value is hex or bytes, as stored in the MARF:\n`(some (list (tuple (signer principal) (weight uint) ...)))`.",
 			"source": {
 				"file": "packages/verify/src/signers.ts",
-				"line": 24
+				"line": 23
 			},
 			"overloads": [
 				{
@@ -421,7 +421,7 @@
 			"description": "Sums the weight of the signers who signed a block header.\n\nIt recovers each header signature's key over `signer_signature_hash`, maps it\nto its mainnet p2pkh principal, and sums weights from `set`. The set must be\nthe one for the reward cycle of the tenure-electing burn block.",
 			"source": {
 				"file": "packages/verify/src/signers.ts",
-				"line": 66
+				"line": 65
 			},
 			"overloads": [
 				{
@@ -691,7 +691,7 @@
 			"type": "\"SP000000000000000000002Q6VF78.signers\"",
 			"source": {
 				"file": "packages/verify/src/signers.ts",
-				"line": 13
+				"line": 12
 			}
 		},
 		{

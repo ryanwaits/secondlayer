@@ -9,7 +9,7 @@
 			"description": "Content hash over everything that shapes a subgraph's rows. Unlike\n`schema_hash`, it changes with the handler, `startBlock` and runtime, so\ntwo deploys with the same pin produce the same rows from the same chain.",
 			"source": {
 				"file": "packages/subgraphs/src/verification.ts",
-				"line": 324
+				"line": 316
 			},
 			"overloads": [
 				{
@@ -38,7 +38,7 @@
 			"description": "Derive how far a subgraph's rows can be checked. Level = the highest any\nsource or handler read needs. `reasons` lists everything standing between\nthe subgraph and checkable rows; a `state` subgraph with any reason is\nrefused at deploy, so every stored `state` row has none. Never configured,\nnever a flag.",
 			"source": {
 				"file": "packages/subgraphs/src/verification.ts",
-				"line": 206
+				"line": 201
 			},
 			"overloads": [
 				{
@@ -73,7 +73,7 @@
 			"description": "Tells whether a deploy must be refused for breaking determinism.\n\nIt is refused when the sources are provable (`state`), so the determinism\ncontract is enforced, and the scan broke it.",
 			"source": {
 				"file": "packages/subgraphs/src/verification.ts",
-				"line": 271
+				"line": 265
 			},
 			"overloads": [
 				{
@@ -102,7 +102,7 @@
 			"description": "Loads a bundled handler into a fresh deterministic realm.\n\nThe bundle is ESM, as stored in `handler_code`. The returned definition has\nevery handler wrapped to receive the `deterministicContext` facade.",
 			"source": {
 				"file": "packages/subgraphs/src/runtime/realm.ts",
-				"line": 285
+				"line": 280
 			},
 			"overloads": [
 				{

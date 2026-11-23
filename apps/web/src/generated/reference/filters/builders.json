@@ -10,7 +10,7 @@
 			"description": "Rebuilds a canonical filter from a subgraph source object.\n\nIt is the inverse of `toSubgraphSource`. It powers migration and the\nround-trip property gate: `toSubgraphSource(fromSubgraphSource(f))` must\ndeep-equal `f` for every production subgraph source.",
 			"source": {
 				"file": "packages/stacks/src/filters/factories.ts",
-				"line": 354
+				"line": 344
 			},
 			"overloads": [
 				{
@@ -39,7 +39,7 @@
 			"description": "Builds a canonical filter from a member type and its fields.\n\nIt validates the spec and attaches the projections its member supports.\nMethods are attached per member at runtime, matching the type-level gating\nexactly. `const F` preserves field literals, so a `prints` or `abi`\ndeclaration keeps its exact type through `toSubgraphSource()`, which is what\nfeeds `defineSubgraph` narrowing.",
 			"source": {
 				"file": "packages/stacks/src/filters/factories.ts",
-				"line": 322
+				"line": 312
 			},
 			"overloads": [
 				{
@@ -85,7 +85,7 @@
 			"description": "Matches STX transfers.",
 			"source": {
 				"file": "packages/stacks/src/filters/factories.ts",
-				"line": 589
+				"line": 578
 			},
 			"overloads": [
 				{
@@ -114,7 +114,7 @@
 			"description": "Matches STX mints.",
 			"source": {
 				"file": "packages/stacks/src/filters/factories.ts",
-				"line": 591
+				"line": 580
 			},
 			"overloads": [
 				{
@@ -143,7 +143,7 @@
 			"description": "Matches STX burns.",
 			"source": {
 				"file": "packages/stacks/src/filters/factories.ts",
-				"line": 593
+				"line": 582
 			},
 			"overloads": [
 				{
@@ -172,7 +172,7 @@
 			"description": "Matches STX lock events.",
 			"source": {
 				"file": "packages/stacks/src/filters/factories.ts",
-				"line": 595
+				"line": 584
 			},
 			"overloads": [
 				{
@@ -201,7 +201,7 @@
 			"description": "Matches fungible token transfers.",
 			"source": {
 				"file": "packages/stacks/src/filters/factories.ts",
-				"line": 597
+				"line": 586
 			},
 			"overloads": [
 				{
@@ -230,7 +230,7 @@
 			"description": "Matches fungible token mints.",
 			"source": {
 				"file": "packages/stacks/src/filters/factories.ts",
-				"line": 599
+				"line": 588
 			},
 			"overloads": [
 				{
@@ -259,7 +259,7 @@
 			"description": "Matches fungible token burns.",
 			"source": {
 				"file": "packages/stacks/src/filters/factories.ts",
-				"line": 601
+				"line": 590
 			},
 			"overloads": [
 				{
@@ -288,7 +288,7 @@
 			"description": "Matches NFT transfers.",
 			"source": {
 				"file": "packages/stacks/src/filters/factories.ts",
-				"line": 603
+				"line": 592
 			},
 			"overloads": [
 				{
@@ -317,7 +317,7 @@
 			"description": "Matches NFT mints.",
 			"source": {
 				"file": "packages/stacks/src/filters/factories.ts",
-				"line": 605
+				"line": 594
 			},
 			"overloads": [
 				{
@@ -346,7 +346,7 @@
 			"description": "Matches NFT burns.",
 			"source": {
 				"file": "packages/stacks/src/filters/factories.ts",
-				"line": 607
+				"line": 596
 			},
 			"overloads": [
 				{
@@ -375,7 +375,7 @@
 			"description": "Matches contract calls.\n\n`abi` literals are preserved (`const A`), so `toSubgraphSource()` keeps\ntyping `event.input` inside `defineSubgraph`.",
 			"source": {
 				"file": "packages/stacks/src/filters/factories.ts",
-				"line": 609
+				"line": 598
 			},
 			"overloads": [
 				{
@@ -404,7 +404,7 @@
 			"description": "Matches contract deployments.",
 			"source": {
 				"file": "packages/stacks/src/filters/factories.ts",
-				"line": 612
+				"line": 601
 			},
 			"overloads": [
 				{
@@ -433,7 +433,7 @@
 			"description": "Matches `print` events.\n\nThe canonical member is `print_event`, as Subgraphs and Webhooks spell it;\n`toIndexParams` and `toStreamsParams` project to `print`. `prints` literals\nare preserved (`const P`), so `event.data` narrows per topic.",
 			"source": {
 				"file": "packages/stacks/src/filters/factories.ts",
-				"line": 616
+				"line": 605
 			},
 			"overloads": [
 				{
@@ -462,7 +462,7 @@
 			"description": "Matches contract calls made from inside another contract.",
 			"source": {
 				"file": "packages/stacks/src/filters/factories.ts",
-				"line": 625
+				"line": 614
 			},
 			"overloads": [
 				{
@@ -491,7 +491,7 @@
 			"description": "Matches data variable writes.",
 			"source": {
 				"file": "packages/stacks/src/filters/factories.ts",
-				"line": 627
+				"line": 616
 			},
 			"overloads": [
 				{
@@ -520,7 +520,7 @@
 			"description": "Matches `map-set` writes.",
 			"source": {
 				"file": "packages/stacks/src/filters/factories.ts",
-				"line": 629
+				"line": 618
 			},
 			"overloads": [
 				{
@@ -549,7 +549,7 @@
 			"description": "Matches `map-insert` writes.",
 			"source": {
 				"file": "packages/stacks/src/filters/factories.ts",
-				"line": 631
+				"line": 620
 			},
 			"overloads": [
 				{
@@ -578,7 +578,7 @@
 			"description": "Matches `map-delete` writes.",
 			"source": {
 				"file": "packages/stacks/src/filters/factories.ts",
-				"line": 633
+				"line": 622
 			},
 			"overloads": [
 				{
@@ -607,7 +607,7 @@
 			"description": "Matches sBTC deposits.\n\nWebhooks only: it has no Index, Streams or subgraph projection.",
 			"source": {
 				"file": "packages/stacks/src/filters/factories.ts",
-				"line": 635
+				"line": 624
 			},
 			"overloads": [
 				{
@@ -636,7 +636,7 @@
 			"description": "Matches sBTC withdrawal requests.\n\nWebhooks only: it has no Index, Streams or subgraph projection.",
 			"source": {
 				"file": "packages/stacks/src/filters/factories.ts",
-				"line": 637
+				"line": 626
 			},
 			"overloads": [
 				{
@@ -665,7 +665,7 @@
 			"description": "Matches accepted sBTC withdrawals.\n\nWebhooks only: it has no Index, Streams or subgraph projection.",
 			"source": {
 				"file": "packages/stacks/src/filters/factories.ts",
-				"line": 639
+				"line": 628
 			},
 			"overloads": [
 				{
@@ -694,7 +694,7 @@
 			"description": "Matches rejected sBTC withdrawals.\n\nWebhooks only: it has no Index, Streams or subgraph projection.",
 			"source": {
 				"file": "packages/stacks/src/filters/factories.ts",
-				"line": 641
+				"line": 630
 			},
 			"overloads": [
 				{
@@ -723,7 +723,7 @@
 			"description": "Matches sBTC withdrawals whose sweep has confirmed.\n\nWebhooks only: it has no Index, Streams or subgraph projection.",
 			"source": {
 				"file": "packages/stacks/src/filters/factories.ts",
-				"line": 643
+				"line": 632
 			},
 			"overloads": [
 				{
@@ -1131,7 +1131,7 @@
 		},
 		{
 			"name": "Fields",
-			"summary": "The fields a filter factory takes for one event type, without `type`.",
+			"summary": "",
 			"definition": "Fields<T>"
 		},
 		{

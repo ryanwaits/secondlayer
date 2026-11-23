@@ -9,7 +9,7 @@
 			"description": "Verifies a block's state against an authenticated header.\n\nThe witness must recompute `stateRoot`, then every leaf is classified. With\nstate writes, any leaf that is not a named write, a carried parent value or\nMARF bookkeeping is a hidden write. Without them the diff is still proven,\nsince every leaf is in the block: carried leaves are told apart only through\n`parentLeaves`, and the remaining writes come back unnamed.",
 			"source": {
 				"file": "packages/verify/src/state.ts",
-				"line": 257
+				"line": 250
 			},
 			"overloads": [
 				{
@@ -137,7 +137,7 @@
 			"description": "Describes a verification as one line per link and a verdict.\n\nIt is the human view, shared by the CLI and the browser checker. Ancestry\nappears only below the checkpoint. `rows` says whether the caller asked for\nthe rows link.",
 			"source": {
 				"file": "packages/verify/src/links.ts",
-				"line": 103
+				"line": 102
 			},
 			"overloads": [
 				{
@@ -178,7 +178,7 @@
 			"description": "Verifies blocks from one checkpoint against one source.\n\nIt caches the Bitcoin header chain, proven signer sets and fetched headers\nacross calls.",
 			"source": {
 				"file": "packages/verify/src/verify-block.ts",
-				"line": 322
+				"line": 314
 			},
 			"overloads": [
 				{
@@ -233,7 +233,7 @@
 			"description": "Verify one block by id (hex) or height. Never throws for bad source data.",
 			"source": {
 				"file": "packages/verify/src/verify-block.ts",
-				"line": 366
+				"line": 358
 			},
 			"overloads": [
 				{
@@ -262,7 +262,7 @@
 			"description": "Proves a Bitcoin tx is in the checkpoint's Bitcoin chain.\n\nIt can also prove that one output pays `expect`. Pass an `SpvProof`, or a\ntxid for the source's `getBitcoinTxProof` to fetch. It never throws for bad\nsource data.",
 			"source": {
 				"file": "packages/verify/src/verify-block.ts",
-				"line": 385
+				"line": 377
 			},
 			"overloads": [
 				{
@@ -297,7 +297,7 @@
 			"description": "One-shot: verify a block from a checkpoint (MAINNET_CHECKPOINT by default).",
 			"source": {
 				"file": "packages/verify/src/verify-block.ts",
-				"line": 1336
+				"line": 1326
 			},
 			"overloads": [
 				{

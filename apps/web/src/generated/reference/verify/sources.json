@@ -9,7 +9,7 @@
 			"description": "Reads blocks, epoch 2.x headers and MARF proofs from a Stacks node.\n\nIt uses the node's RPC. Witnesses, burn preimages and Bitcoin headers need\nanother source: spread this over one.",
 			"source": {
 				"file": "packages/verify/src/source.ts",
-				"line": 417
+				"line": 414
 			},
 			"overloads": [
 				{
@@ -52,7 +52,7 @@
 			"description": "Raw block bytes, header first, by block id or height.",
 			"source": {
 				"file": "packages/verify/src/source.ts",
-				"line": 421
+				"line": 418
 			},
 			"overloads": [
 				{
@@ -81,7 +81,7 @@
 			"description": "An epoch 2.x header and its consensus hash, by index block hash.",
 			"source": {
 				"file": "packages/verify/src/source.ts",
-				"line": 423
+				"line": 420
 			},
 			"overloads": [
 				{
@@ -110,7 +110,7 @@
 			"description": "A MARF inclusion proof for a path at a tip.\n\nIt is null when the key is absent.",
 			"source": {
 				"file": "packages/verify/src/source.ts",
-				"line": 429
+				"line": 426
 			},
 			"overloads": [
 				{
@@ -145,7 +145,7 @@
 			"description": "Reads every proof input from the Secondlayer API.\n\nBlocks, epoch 2.x headers, MARF proofs, witnesses, burn preimages, Bitcoin\nheaders and each block's state writes come from `/v1/proofs/*`, which is free\nand rate limited. Indexed `vm_events` rows come from the Index API as metered\nrows, and are read only when `verifyBlock` gets `rows: true`. Methods are own\nproperties, so a partial source spreads over it:\n`{ ...new SecondlayerProofSource(o), ...new NodeRpcProofSource(n) }`.",
 			"source": {
 				"file": "packages/verify/src/source.ts",
-				"line": 283
+				"line": 280
 			},
 			"overloads": [
 				{
@@ -194,7 +194,7 @@
 			"description": "Raw block bytes, header first, by block id or height.",
 			"source": {
 				"file": "packages/verify/src/source.ts",
-				"line": 285
+				"line": 282
 			},
 			"overloads": [
 				{
@@ -223,7 +223,7 @@
 			"description": "An epoch 2.x header and its consensus hash, by index block hash.",
 			"source": {
 				"file": "packages/verify/src/source.ts",
-				"line": 287
+				"line": 284
 			},
 			"overloads": [
 				{
@@ -252,7 +252,7 @@
 			"description": "A MARF inclusion proof for a path at a tip.\n\nIt is null when the key is absent.",
 			"source": {
 				"file": "packages/verify/src/source.ts",
-				"line": 293
+				"line": 290
 			},
 			"overloads": [
 				{
@@ -287,7 +287,7 @@
 			"description": "The state witness for a block.",
 			"source": {
 				"file": "packages/verify/src/source.ts",
-				"line": 298
+				"line": 295
 			},
 			"overloads": [
 				{
@@ -316,7 +316,7 @@
 			"description": "The burn preimage behind a consensus hash.",
 			"source": {
 				"file": "packages/verify/src/source.ts",
-				"line": 300
+				"line": 297
 			},
 			"overloads": [
 				{
@@ -345,7 +345,7 @@
 			"description": "Raw 80-byte Bitcoin headers, `count` of them from height `from`.",
 			"source": {
 				"file": "packages/verify/src/source.ts",
-				"line": 302
+				"line": 299
 			},
 			"overloads": [
 				{
@@ -380,7 +380,7 @@
 			"description": "Every MARF write of a block, in ordinal order.\n\nIt is null when there are none.",
 			"source": {
 				"file": "packages/verify/src/source.ts",
-				"line": 308
+				"line": 305
 			},
 			"overloads": [
 				{
@@ -409,7 +409,7 @@
 			"description": "The indexed `vm_events` write rows of a block, from the Index API.",
 			"source": {
 				"file": "packages/verify/src/source.ts",
-				"line": 310
+				"line": 307
 			},
 			"overloads": [
 				{
@@ -438,7 +438,7 @@
 			"description": "A Bitcoin tx, its merkle branch and header, by txid.\n\nThe txid is display-order hex.",
 			"source": {
 				"file": "packages/verify/src/source.ts",
-				"line": 316
+				"line": 313
 			},
 			"overloads": [
 				{
@@ -509,7 +509,7 @@
 			"type": "\"https://api.secondlayer.tools\"",
 			"source": {
 				"file": "packages/verify/src/source.ts",
-				"line": 223
+				"line": 221
 			}
 		}
 	],

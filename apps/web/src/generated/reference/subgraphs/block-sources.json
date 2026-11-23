@@ -38,7 +38,7 @@
 			"description": "Tells whether a subgraph's sources can be read from the Streams index.\n\nEvery source must be a known event-type, `contract_call` or\n`contract_deploy` filter, and array-style sources never qualify because they\nleak the unreconstructable `_eventId`. Trait scope is allowed: trait\nresolution reads the contract registry on the platform database, which the\nprocessor always holds. Everything else stays on the database tap.",
 			"source": {
 				"file": "packages/subgraphs/src/runtime/block-source.ts",
-				"line": 450
+				"line": 446
 			},
 			"overloads": [
 				{

@@ -6145,30 +6145,6 @@
 			"route": "/docs/sdk-reference/streams",
 			"anchor": "t-StreamsConsumeBitcoinParams"
 		},
-		"StreamsConsumeCommon": {
-			"kind": "type",
-			"summary": "Cursor, batch size, and polling options shared by every consume loop.",
-			"fields": [
-				{
-					"name": "cursor",
-					"type": "string | null"
-				},
-				{
-					"name": "batchSize",
-					"type": "number"
-				},
-				{
-					"name": "intervalMs",
-					"type": "number"
-				},
-				{
-					"name": "signal",
-					"type": "AbortSignal"
-				}
-			],
-			"route": "/docs/sdk-reference/streams",
-			"anchor": "t-StreamsConsumeCommon"
-		},
 		"StreamsConsumeStacksParams": {
 			"kind": "type",
 			"summary": "chain: \"stacks\" (default, omit chain entirely).",
@@ -6518,30 +6494,6 @@
 			"route": "/docs/sdk-reference/streams",
 			"anchor": "t-StreamsEventsListParams"
 		},
-		"StreamsEventsListParamsCommon": {
-			"kind": "type",
-			"summary": "Cursor, height range, and limit shared by every list call.",
-			"fields": [
-				{
-					"name": "cursor",
-					"type": "string | null"
-				},
-				{
-					"name": "fromHeight",
-					"type": "number"
-				},
-				{
-					"name": "toHeight",
-					"type": "number"
-				},
-				{
-					"name": "limit",
-					"type": "number"
-				}
-			],
-			"route": "/docs/sdk-reference/streams",
-			"anchor": "t-StreamsEventsListParamsCommon"
-		},
 		"StreamsEventsReplayParams": {
 			"kind": "type",
 			"summary": "Options for replaying history from dump files, then tailing live.",
@@ -6664,38 +6616,6 @@
 			"more": 3,
 			"route": "/docs/sdk-reference/streams",
 			"anchor": "t-StreamsEventsStreamBitcoinParams"
-		},
-		"StreamsEventsStreamCommon": {
-			"kind": "type",
-			"summary": "Cursor, batching, and stop options shared by every event stream.",
-			"fields": [
-				{
-					"name": "fromCursor",
-					"type": "string | null"
-				},
-				{
-					"name": "batchSize",
-					"type": "number"
-				},
-				{
-					"name": "emptyBackoffMs",
-					"type": "number"
-				},
-				{
-					"name": "maxPages",
-					"type": "number"
-				},
-				{
-					"name": "maxEmptyPolls",
-					"type": "number"
-				},
-				{
-					"name": "signal",
-					"type": "AbortSignal"
-				}
-			],
-			"route": "/docs/sdk-reference/streams",
-			"anchor": "t-StreamsEventsStreamCommon"
 		},
 		"StreamsEventsStreamStacksParams": {
 			"kind": "type",
@@ -8172,12 +8092,6 @@
 			"route": "/docs/filters-reference",
 			"anchor": "t-ContractCallsParamsShape"
 		},
-		"Fields": {
-			"kind": "type",
-			"summary": "The fields a filter factory takes for one event type, without type.",
-			"route": "/docs/filters-reference",
-			"anchor": "t-Fields"
-		},
 		"fromSubgraphSource": {
 			"kind": "method",
 			"summary": "Rebuilds a canonical filter from a subgraph source object.",
@@ -9650,12 +9564,6 @@
 			"sig": "replaySubgraph(opts: ReplayOptions): Promise<ReplayResult>",
 			"route": "/docs/subgraphs-reference",
 			"anchor": "m-replaySubgraph"
-		},
-		"Row": {
-			"kind": "type",
-			"summary": "A table row as a plain column-to-value record.",
-			"route": "/docs/subgraphs-reference",
-			"anchor": "t-Row"
 		},
 		"RowComparison": {
 			"kind": "type",

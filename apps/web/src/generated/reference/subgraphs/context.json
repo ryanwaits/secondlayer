@@ -50,7 +50,7 @@
 			"description": "Queues a new row for a table.\n\nWrites are batched and applied together when the block commits.\n`_block_height` and `_tx_id` are filled in for you.",
 			"source": {
 				"file": "packages/subgraphs/src/infer.ts",
-				"line": 296
+				"line": 274
 			},
 			"overloads": [
 				{
@@ -91,7 +91,7 @@
 			"description": "Queues an update to the rows matching `where`.\n\n`set` holds only the columns to change.",
 			"source": {
 				"file": "packages/subgraphs/src/infer.ts",
-				"line": 302
+				"line": 280
 			},
 			"overloads": [
 				{
@@ -138,7 +138,7 @@
 			"description": "Inserts a row, or updates the one with the same key.\n\n`key` should match a `uniqueKeys` constraint of the table. Without one the\nwrite falls back to a lookup first and logs a warning.",
 			"source": {
 				"file": "packages/subgraphs/src/infer.ts",
-				"line": 313
+				"line": 291
 			},
 			"overloads": [
 				{
@@ -189,7 +189,7 @@
 			"description": "Queues deletion of the rows matching `where`.",
 			"source": {
 				"file": "packages/subgraphs/src/infer.ts",
-				"line": 321
+				"line": 299
 			},
 			"overloads": [
 				{
@@ -230,7 +230,7 @@
 			"description": "Adds signed deltas to a counter row, creating it if missing.\n\nIt compiles to `INSERT … ON CONFLICT (key) DO UPDATE SET col =\nCOALESCE(col,0) + delta`. Deltas commute, so it is the reorg-safe way to\nkeep running totals such as per-cycle aggregates and balances. It needs a\n`uniqueKeys` constraint matching `key`, and deltas may be `number` or\n`bigint`.",
 			"source": {
 				"file": "packages/subgraphs/src/infer.ts",
-				"line": 331
+				"line": 309
 			},
 			"overloads": [
 				{
@@ -277,7 +277,7 @@
 			"description": "Returns the first row matching `where`, or `null`.\n\nReads see the writes queued earlier in the same block, and rows come back\nin insertion order.",
 			"source": {
 				"file": "packages/subgraphs/src/infer.ts",
-				"line": 342
+				"line": 320
 			},
 			"overloads": [
 				{
@@ -318,7 +318,7 @@
 			"description": "Returns every row matching `where`, in insertion order.\n\nReads see the writes queued earlier in the same block.",
 			"source": {
 				"file": "packages/subgraphs/src/infer.ts",
-				"line": 351
+				"line": 329
 			},
 			"overloads": [
 				{
