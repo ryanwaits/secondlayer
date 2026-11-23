@@ -2,7 +2,7 @@
 
 Internal. Not a public docs page. Not a phishing SKU. Companion to [vm-events.md](./vm-events.md) and [clarity-state-protocol-use-cases.md](./clarity-state-protocol-use-cases.md). Research synthesis: `~/reports/stacks-nested-call-hacks.md`.
 
-Warning ≠ prevention. `vm_events` persist only on **committed** outer txs (caller’s batch). Inner `(err …)` that the caller swallows keeps the `nested_contract_call` and **drops** that inner `map_set`/`var_set`. Outer abort → **no rows**. `as-contract` rewrites `tx-sender` to the current contract: **`sender === caller` after as-contract**. **`sender !== caller` is the phishing/proxy warning, not the vault drain.** Index `clock=vm` for a `tx_id`; subgraph / chain webhook on **callee + function**. Cannot reconstruct these trees from today’s `"*"` archive.
+Warning ≠ prevention. `vm_events` persist only on **committed** outer txs (caller’s batch). Inner `(err …)` that the caller swallows keeps the `nested_contract_call` and **drops** that inner `map_set`/`var_set`. Outer abort → **no rows**. `as-contract` rewrites `tx-sender` to the current contract, so the vault's own outgoing call has **`sender === caller`**. The calls a malicious callee makes *with* that borrowed `tx-sender` do not: **on the drain rows, `sender` = the vault and `caller` = the fake token** (verified live 2026-11-23, ALEX tx below, rows 14/16/18/20). `sender !== caller` is therefore the vault-drain signal too, not only the phishing/proxy one. Index `clock=vm` for a `tx_id`; subgraph / chain webhook on **callee + function**. Cannot reconstruct these trees from today’s `"*"` archive.
 
 ---
 
@@ -73,7 +73,8 @@ sources: {
     functionName: "transfer",
   },
 }
-# on the drain row: sender === caller (vault as-contract). Do not expect sender !== caller.
+# on the drain rows: sender = amm-vault-v2-01, caller = the fake token (ssl-labubu-672d3).
+# Only the vault's own call into the fake token (row 21) has sender === caller.
 ```
 
 `create2` / `set-enable-farming` that **committed** are `map_set`/`var_set` on the listing helper — a separate canary, still not prevention of the later swap.
@@ -100,7 +101,7 @@ Audit: public pool create + hostile pool trait + core `as-contract` → inner `s
 
 ## Demo pick (after a collecting node exists)
 
-1. **ALEX `0xe8b2ac70…daf`** — Hiro title `swap-x-for-y` vs our inner `transfer` (confirmed theft, `sender === caller`).
+1. **ALEX `0xe8b2ac70…daf`** — Hiro title `swap-x-for-y` vs our inner `transfer` (confirmed theft, block 1,508,068: four drain rows with `sender` = vault, `caller` = fake token).
 2. **100proof `list-in-ustx`** — synthetic or live collection; `sender !== caller`; map-only (the PC miss).
 3. **Bitflow-shaped lab** — `as-contract` admin, unexploited, same vault-class signal as Charisma/ALEX without needing unpublished Charisma hashes.
 4. Charisma — tell the **propose-on-deploy / Hiro callee-history** story; do not fake a `tx_id`.
