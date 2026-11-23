@@ -190,7 +190,7 @@ export const indexPaths = {
 			summary: "Decoded events by event_type",
 			"x-nav-title": "Events",
 			description:
-				"One `event_type` per request, oldest first unless `order=desc`. Which filters and `fields` apply depends on the type; anything a type does not accept is refused. `nested_contract_call`, `var_set`, `map_set`, `map_insert` and `map_delete` are Clarity state: every inner `contract-call?` and every data-var and map write, from genesis. Their cursor's second part is the row's position among the block's state rows.",
+				"One `event_type` per request, oldest first unless `order=desc`. Which filters and `fields` apply depends on the type; anything a type does not accept is refused. `nested_contract_call`, `var_set`, `map_set`, `map_insert` and `map_delete` are contract state: what changed in a contract, when, and who changed it, from block 1. Rows exist once a transaction lands. Only stored values (state writes) are checkable against the chain. Their cursor's second part is the row's position among the block's state rows.",
 			security: READ_SECURITY,
 			parameters: [
 				{
@@ -254,7 +254,7 @@ export const indexPaths = {
 					"tx_id",
 					"string",
 					false,
-					"Transaction that made the write or inner call. Clarity state types only.",
+					"Transaction that made the write or inner call. Contract state types only.",
 				),
 				qp(
 					"tx_context",
@@ -828,7 +828,7 @@ export const indexSchemas = {
 			contract_id: {
 				type: ["string", "null"],
 				description:
-					"Contract that emitted the event, or the called or written contract on Clarity state types. `null` for STX transfers, mints, burns and locks.",
+					"Contract that emitted the event, or the called or written contract on contract state types. `null` for STX transfers, mints, burns and locks.",
 			},
 			asset_identifier: {
 				type: ["string", "null"],

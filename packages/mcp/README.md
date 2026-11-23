@@ -2,7 +2,7 @@
 
 Gives your coding agent direct access to Stacks data, on the hosted API
 (`api.secondlayer.tools`) or on your own instance:
-Index (decoded rows), Subgraphs (tables you define, served from your account or instance),
+Index (every event, already decoded, including contract state), Subgraphs (tables you define, served from your account or instance),
 and Streams (raw inputs). Exposes the golden-path tools only: Index reads, the
 subgraph lifecycle, webhooks, contract discovery/scaffolding, instance
 status, archive verify/bootstrap, and hosted credits/quote. Everything else

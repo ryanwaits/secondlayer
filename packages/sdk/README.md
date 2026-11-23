@@ -36,19 +36,19 @@ omitted; pass `apiKey: ""` to force a keyless call. Public archive dumps
 
 Everything is indexing — the question is how much of the indexer you run:
 
-- `sl.index` — decoded rows we keep indexed: query FT/NFT transfers, all event
+- `sl.index`: every Stacks event, already decoded, from block 1, including contract state: read FT/NFT transfers, all event
   types (`events`), and `contractCalls` — or build your own app index on them
   with the checkpointed `consume()` loop (automatic reorg rewind), `walk()`
   sweeps, and resumable cursors on every page.
 - `sl.subgraphs` — deploy your own indexer (one `defineSubgraph()` file via the
   CLI), then read the tables on this instance.
-- `sl.streams` — the raw ordered event firehose Index itself is built on, with
+- `sl.streams`: exactly what the Stacks node emitted, in order, the feed Index is built on, with
   a checkpointed `consume()` and dumps `replay()` for building from zero.
 - `sl.contracts` — find deployed contracts by trait (SIP-009/010/013).
 
 ## Streams
 
-Typed HTTP client for the raw event firehose. `/v1` reads need no key on loopback.
+Typed HTTP client for Streams: exactly what the node emitted, in order. `/v1` reads need no key on loopback.
 
 ```typescript
 const tip = await sl.streams.tip();

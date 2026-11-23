@@ -1,7 +1,7 @@
 {
 	"name": "@secondlayer/cli",
 	"version": "24.1.0",
-	"description": "Run a Stacks index on your own hardware — set it up, restore verified history, and keep it current.",
+	"description": "Deploy subgraphs and webhooks, and run your own Stacks instance, from one terminal.",
 	"repository": {
 		"type": "git",
 		"url": "git+https://github.com/ryanwaits/secondlayer.git",

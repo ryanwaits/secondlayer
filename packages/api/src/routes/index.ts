@@ -279,7 +279,7 @@ export function createIndexRouter(opts: IndexRouterOptions = {}) {
 					// self-hosted instance has them only from its own subscription.
 					vm_event_types: {
 						types: VM_INDEX_EVENT_TYPES,
-						note: "Clarity state. Hosted mainnet serves them from genesis. A self-hosted instance has them from the height its node subscribed to the storage / contract_calls observer keys. Cursor second component is ordinal.",
+						note: "Contract state: what changed in a contract, when, and who changed it. Hosted mainnet serves them from block 1. A self-hosted instance has them from the height its node subscribed to the storage / contract_calls observer keys. Cursor second component is ordinal.",
 					},
 					filters: EVENTS_ALLOWED,
 					// Allowed filters vary by event_type — this map is the precise,

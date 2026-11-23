@@ -22,7 +22,7 @@ import {
  * `streams/*.ts`). Rows are `StreamsEventEnvelope` (`streams/events.ts`).
  */
 
-// Classic types on the default clock, Clarity state types on `clock=vm`. One
+// Classic types on the default clock, contract state types on `clock=vm`. One
 // enum so the reference lists every type the route accepts.
 const EVENT_TYPES = [...DECODED_EVENT_TYPES, ...VM_EVENT_TYPES];
 const VM_TYPES_LIST = VM_EVENT_TYPES.join(", ");
@@ -143,7 +143,7 @@ const CLOCK_PARAM = {
 		"clock",
 		"string",
 		false,
-		`\`classic\` (default) is the chain event feed. \`vm\` is the Clarity state feed: every inner \`contract-call?\` and every data-var and map write, from genesis, as ${VM_TYPES_LIST} rows ordered by their position in the block. Cursors are prefixed \`vm:\`. \`contract_id\` matches the contract that was called or written. \`sender\`, \`recipient\`, \`asset_identifier\` and \`filters\` answer 400 with \`clock=vm\`. Stacks-only.`,
+		`\`classic\` (default) is the chain event feed. \`vm\` is the contract state feed: what changed in a contract, when, and who changed it, from block 1, as ${VM_TYPES_LIST} rows ordered by their position in the block. Cursors are prefixed \`vm:\`. \`contract_id\` matches the contract that was called or written. \`sender\`, \`recipient\`, \`asset_identifier\` and \`filters\` answer 400 with \`clock=vm\`. Stacks-only.`,
 	),
 	schema: { type: "string", enum: ["classic", "vm"], default: "classic" },
 };
@@ -537,7 +537,7 @@ export const streamsSchemas = {
 			event_index: {
 				type: "integer",
 				description:
-					"The event's position among the block's Streams events, from 0. On `clock=vm` it is the row's position among the block's Clarity state rows instead.",
+					"The event's position among the block's Streams events, from 0. On `clock=vm` it is the row's position among the block's contract state rows instead.",
 			},
 			event_type: {
 				type: "string",

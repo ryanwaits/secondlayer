@@ -285,7 +285,7 @@ export function registerIndexCommand(program: Command): void {
 
 	orderFlag(rangeFlags(index.command("events")))
 		.description(
-			"List events by type: decoded chain events, or contract state (inner calls, map and data-var writes)",
+			"List events by type, already decoded. Contract state types: what changed in a contract, when, and who changed it.",
 		)
 		.option(
 			"--event-type <type>",

@@ -2117,7 +2117,7 @@ export class Index extends BaseClient {
 		/**
 		 * Read one page of the contract-state writes each block committed.
 		 *
-		 * Rows are the exact key and value writes, in the node's write order (`ordinal`), so you can see which key a transaction changed when events alone do not show it. Filter by `blockHeight` (excludes `fromHeight` and `toHeight`) or `contractId`. `txContext: true` joins the writing transaction. Rows exist only from the height your node first subscribed to state writes.
+		 * Rows are the exact key and value writes, in the node's write order (`ordinal`), so you can see which key a transaction changed when events alone do not show it. Filter by `blockHeight` (excludes `fromHeight` and `toHeight`) or `contractId`. `txContext: true` joins the writing transaction. Hosted mainnet serves them from block 1; a self-hosted instance from the height its node first subscribed to state writes.
 		 */
 		list: (params?: StateWritesListParams) => Promise<StateWritesEnvelope>;
 		/**

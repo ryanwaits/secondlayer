@@ -296,7 +296,7 @@ export function registerStreamsCommand(program: Command): void {
 		.option("--chain <chain>", CHAIN_HELP)
 		.option(
 			"--clock <clock>",
-			"classic (default) or vm: contract state (inner calls, map and data-var writes) in block order",
+			"classic (default) or vm: contract changes in block order (what changed in a contract, when, and who changed it)",
 		)
 		.option(
 			"--types <types>",
@@ -400,7 +400,7 @@ Examples:
 		.option("--chain <chain>", CHAIN_HELP)
 		.option(
 			"--clock <clock>",
-			"classic (default) or vm: contract state (inner calls, map and data-var writes) in block order",
+			"classic (default) or vm: contract changes in block order (what changed in a contract, when, and who changed it)",
 		)
 		.option(
 			"--types <types>",

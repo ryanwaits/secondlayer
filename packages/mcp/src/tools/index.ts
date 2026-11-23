@@ -128,12 +128,12 @@ export function registerIndexTools(
 	}>(
 		server,
 		"index_events",
-		"List chain events from the Index by event type. Use this for event types without a dedicated tool (stx_*, ft_mint/burn, nft_mint/burn, print), and for trait-scoped queries: set `trait` (e.g. sip-010) to match all contracts conforming to a standard — pair with contracts_find to discover traits. For ft/nft transfers without a trait prefer index_ft_transfers / index_nft_transfers. Clarity state types (nested_contract_call, var_set, map_set, map_insert, map_delete) show what a transaction did inside contracts: every inner contract-call? and every data-var and map write, from genesis on hosted mainnet.",
+		"List chain events from the Index by event type. Use this for event types without a dedicated tool (stx_*, ft_mint/burn, nft_mint/burn, print), and for trait-scoped queries: set `trait` (e.g. sip-010) to match all contracts conforming to a standard — pair with contracts_find to discover traits. For ft/nft transfers without a trait prefer index_ft_transfers / index_nft_transfers. Contract state types (nested_contract_call, var_set, map_set, map_insert, map_delete) show what a transaction did inside contracts: every inner contract-call? and every data-var and map write, from genesis on hosted mainnet.",
 		{
 			eventType: z
 				.enum(INDEX_EVENT_TYPES)
 				.describe(
-					"Required. Event type to list: a decoded type or a Clarity state type.",
+					"Required. Event type to list: a decoded type or a contract state type.",
 				),
 			...rangeFilters,
 			...orderFilter,

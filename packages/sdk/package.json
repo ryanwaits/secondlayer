@@ -1,7 +1,7 @@
 {
 	"name": "@secondlayer/sdk",
 	"version": "20.1.0",
-	"description": "Decoded Stacks data in your own database — stream rows into your schema, or query the tables you defined.",
+	"description": "Stacks events and contract changes from block 1, in TypeScript: tables, streams, webhooks and proofs.",
 	"license": "MIT",
 	"repository": {
 		"type": "git",

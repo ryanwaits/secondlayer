@@ -25,7 +25,7 @@ curl http://127.0.0.1:3800/v1/streams/tip
 Read-only raw chain event feed. Cursors use `<block_height>:<event_index>`.
 
 ```
-GET /v1/streams/events                         # cursor-paginated raw events
+GET /v1/streams/events                         # exactly what the node emitted, in order
 GET /v1/streams/events/:tx_id                  # events emitted by one tx
 GET /v1/streams/blocks/:heightOrHash/events    # events in one block
 GET /v1/streams/canonical/:height              # canonical block hash lookup
