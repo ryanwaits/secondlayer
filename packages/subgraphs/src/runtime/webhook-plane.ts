@@ -13,6 +13,33 @@ import {
 	startTriggerEvaluatorLeader,
 } from "./webhook-leader.ts";
 
+/** Subsystems `startWebhookPlane` boots; every one defaults to the production implementation. */
+export interface WebhookPlaneDeps {
+	listActiveChainWebhooks: () => Promise<unknown[]>;
+	startStreamsReorgPoll: typeof startStreamsReorgPoll;
+	gateChainReorgOnLeader: typeof gateChainReorgOnLeader;
+	handleChainReorg: typeof handleChainReorg;
+	hasActiveRuneWebhooks: () => Promise<boolean>;
+	startTriggerEvaluatorLeader: () => () => Promise<void>;
+	startEmitter: () => Promise<() => Promise<void>>;
+	startMeterSocketReporter: typeof startMeterSocketReporter;
+	isTestnetWebhookStack: typeof isTestnetWebhookStack;
+	startInsightsLoop: () => () => Promise<void>;
+}
+
+const defaultWebhookPlaneDeps: WebhookPlaneDeps = {
+	listActiveChainWebhooks: () => listActiveChainWebhooks(getTargetDb()),
+	startStreamsReorgPoll,
+	gateChainReorgOnLeader,
+	handleChainReorg,
+	hasActiveRuneWebhooks: () => hasActiveRuneWebhooks(),
+	startTriggerEvaluatorLeader: () => startTriggerEvaluatorLeader(),
+	startEmitter: () => startEmitter(),
+	startMeterSocketReporter,
+	isTestnetWebhookStack,
+	startInsightsLoop: () => startInsightsLoop(),
+};
+
 /**
  * The real-time webhook delivery plane: the chain-trigger evaluator
  * (leader-gated), the shared-outbox emitter (competing-consumer, horizontally
@@ -24,7 +51,10 @@ import {
  * webhook delivery). The two-deploy cutover is complete: `webhook-service.ts`
  * is the sole booter; `startSubgraphProcessor` no longer boots the plane.
  */
-export async function startWebhookPlane(): Promise<() => Promise<void>> {
+export async function startWebhookPlane(
+	deps: Partial<WebhookPlaneDeps> = {},
+): Promise<() => Promise<void>> {
+	const d: WebhookPlaneDeps = { ...defaultWebhookPlaneDeps, ...deps };
 	const streamsIndex = process.env.SUBGRAPH_SOURCE === "streams-index";
 
 	// The chain-trigger evaluator only runs under streams-index (below). A
@@ -34,7 +64,7 @@ export async function startWebhookPlane(): Promise<() => Promise<void>> {
 	// per-webhook in the API's `toDetail` (create/get responses) and in
 	// `secondlayer webhooks doctor`.
 	if (!streamsIndex) {
-		const activeChainWebhooks = await listActiveChainWebhooks(getTargetDb());
+		const activeChainWebhooks = await d.listActiveChainWebhooks();
 		if (activeChainWebhooks.length > 0) {
 			logger.warn(
 				"Chain webhooks exist but this instance's chain-trigger evaluator is not running — they will never fire. Set SUBGRAPH_SOURCE=streams-index to enable it.",
@@ -50,36 +80,46 @@ export async function startWebhookPlane(): Promise<() => Promise<void>> {
 	// under the same leader gate, since both rewind columns on the one
 	// `trigger_evaluator_state` row the two evaluators advance.
 	const stopChainReorgPoll = streamsIndex
-		? startStreamsReorgPoll(
-				gateChainReorgOnLeader((forkHeight, reorg) =>
-					handleChainReorg(forkHeight, undefined, "stacks", reorgScope(reorg)),
+		? d.startStreamsReorgPoll(
+				d.gateChainReorgOnLeader((forkHeight, reorg) =>
+					d.handleChainReorg(
+						forkHeight,
+						undefined,
+						"stacks",
+						reorgScope(reorg),
+					),
 				),
 			)
 		: undefined;
 	const stopBitcoinReorgPoll = streamsIndex
-		? startStreamsReorgPoll(
-				gateChainReorgOnLeader((forkHeight, reorg) =>
-					handleChainReorg(forkHeight, undefined, "bitcoin", reorgScope(reorg)),
+		? d.startStreamsReorgPoll(
+				d.gateChainReorgOnLeader((forkHeight, reorg) =>
+					d.handleChainReorg(
+						forkHeight,
+						undefined,
+						"bitcoin",
+						reorgScope(reorg),
+					),
 				),
 				"bitcoin",
-				() => hasActiveRuneWebhooks(),
+				() => d.hasActiveRuneWebhooks(),
 			)
 		: undefined;
 
 	const stopTriggerEvaluator = streamsIndex
-		? startTriggerEvaluatorLeader()
+		? d.startTriggerEvaluatorLeader()
 		: undefined;
 
-	const stopEmitter = await startEmitter();
+	const stopEmitter = await d.startEmitter();
 
-	const stopMeterSocket = startMeterSocketReporter();
+	const stopMeterSocket = d.startMeterSocketReporter();
 
 	// Dashboard insights: webhook and subgraph rules, evaluated every minute
 	// on the elected leader. Runs on self-host too. Not on the shared testnet
 	// stack: no customer can read insights there.
-	const stopInsights = isTestnetWebhookStack()
+	const stopInsights = d.isTestnetWebhookStack()
 		? undefined
-		: startInsightsLoop();
+		: d.startInsightsLoop();
 
 	logger.info("Webhook plane ready", { streamsIndex });
 
