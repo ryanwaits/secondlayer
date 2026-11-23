@@ -1,28 +1,29 @@
 /**
  * Comment ratchet. Product code (`packages/<name>/src`, `apps/web/src`, tests
  * excluded) carries no comments: names, types and tests say what code does.
- * Fails when a file has more comment lines than `comments.baseline.json`
+ * Fails when a file has more comment lines than `baseline.json`
  * records. The baseline only shrinks; run the /delete-comment skill to cut it.
  *
  * Exempt: tool directives (biome-ignore, @ts-*, pragmas), license headers,
  * and, in published packages, JSDoc on exported symbols and on type members
  * (openpkg specs + IDE hovers read it; that is customer documentation).
  *
- *   bun scripts/ci/comments.ts                 check (CI)
- *   bun scripts/ci/comments.ts --write         rewrite the baseline
- *   bun scripts/ci/comments.ts --list <path>   print every counted comment under path
+ *   bun .agents/skills/delete-comment/comments.ts                  check
+ *   bun .agents/skills/delete-comment/comments.ts --write          rewrite the baseline
+ *   bun .agents/skills/delete-comment/comments.ts --list <path>    print every counted comment under path
+ *   bun .agents/skills/delete-comment/comments.ts --count <path>   comment lines under path
  */
 import { Glob } from "bun";
 import ts from "typescript";
 
-const ROOT = new URL("../../", import.meta.url).pathname;
-const BASELINE = `${ROOT}scripts/ci/comments.baseline.json`;
+const ROOT = new URL("../../../", import.meta.url).pathname;
+const BASELINE = `${ROOT}.agents/skills/delete-comment/baseline.json`;
 const SCOPE = ["packages/*/src/**/*.{ts,tsx}", "apps/web/src/**/*.{ts,tsx}"];
 const SKIP =
 	/(^|\/)(node_modules|dist|generated|test|tests|__tests__)\/|\.(test|spec|type-test)\.tsx?$|test-preload\.tsx?$|\.d\.ts$/;
 const DIRECTIVE =
 	/^(\/\/\/?|\/\*+)\s*(biome-ignore|@ts-|eslint-|prettier-ignore|@jsx|@vitest|#region|#endregion|<reference|@__PURE__|#__PURE__|webpackChunkName|istanbul )/;
-const LICENSE = /\b(license|copyright|spdx)\b/i;
+const LICENSE = /\b(license|copyright|spdx|MIT|CC0)\b/i;
 
 type Comment = { line: number; endLine: number; text: string };
 
@@ -125,6 +126,17 @@ const current = Object.fromEntries(
 		.sort(([a], [b]) => (a < b ? -1 : 1)),
 );
 const total = Object.values(current).reduce((a, b) => a + b, 0);
+
+const countIndex = process.argv.indexOf("--count");
+if (countIndex !== -1) {
+	const prefix = process.argv[countIndex + 1] ?? "";
+	const entries = Object.entries(current).filter(([path]) =>
+		path.startsWith(prefix),
+	);
+	const lines = entries.reduce((sum, [, count]) => sum + count, 0);
+	console.log(`${prefix || "."}: ${lines} lines in ${entries.length} files`);
+	process.exit(0);
+}
 
 const listIndex = process.argv.indexOf("--list");
 if (listIndex !== -1) {

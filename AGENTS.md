@@ -52,7 +52,7 @@ request), supported, documented.
 
 - Product code (`packages/<name>/src`, `apps/web/src`) carries no comments. Say it in names, types, tests.
 - Exempt: tool directives, license headers, JSDoc on exported symbols of published packages (openpkg + IDE hovers).
-- `scripts/ci/comments.ts` fails CI on new comment lines (baseline file; shrink it, never grow it). `/delete-comment <path>` shrinks it.
+- Not enforced in CI. `/delete-comment <path>` purges a slice and shrinks `.agents/skills/delete-comment/baseline.json` (shrink it, never grow it).
 
 ### Process
 
