@@ -105,7 +105,6 @@ async function expectRejects(
 export function sinkConformanceProbes<Tx>(
 	harness: SinkConformanceHarness<Tx>,
 ): ConformanceProbe[] {
-	// Every probe starts from a wiped store and an initialized fresh sink.
 	async function start(): Promise<ConsumerSink<Tx>> {
 		await harness.reset();
 		const sink = await harness.makeSink();
@@ -221,7 +220,6 @@ export function sinkConformanceProbes<Tx>(
 				expectRows("rollback", await harness.readRows(), [
 					{ height: 10, key: "a" },
 				]);
-				// The re-read: the new canonical chain replaces the orphaned rows.
 				await commit(sink, "12:0", [
 					[11, "b2"],
 					[12, "c2"],

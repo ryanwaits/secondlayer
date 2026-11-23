@@ -120,7 +120,6 @@ export function verifyTransactionProof(
 ): TransactionProofVerifyResult {
 	const errors: string[] = [];
 
-	// (1) recompute the txid from the raw tx bytes
 	const computedTxid = stacksTxid(bytes(proof.raw_tx));
 	const txidMatches = computedTxid === strip(proof.txid);
 	if (!txidMatches) errors.push("txid does not match raw_tx");
@@ -128,7 +127,6 @@ export function verifyTransactionProof(
 	// parse the header (so we use ITS tx_merkle_root / consensus_hash, not a field)
 	const header = parseNakamotoBlockHeader(bytes(proof.raw_header));
 
-	// (2) inclusion: fold txid up the merkle path to the header's root
 	const includedInHeader = verifyTxMerkleProof(
 		computedTxid,
 		proof.tx_merkle_path,
@@ -137,7 +135,6 @@ export function verifyTransactionProof(
 	if (!includedInHeader)
 		errors.push("merkle path does not reach tx_merkle_root");
 
-	// (3) header self-consistency: recompute block_hash + index_block_hash
 	const blockHash = nakamotoBlockHash(header);
 	const indexBlockHash = nakamotoBlockId(blockHash, header.consensusHash);
 	const headerSelfConsistent = indexBlockHash === strip(proof.index_block_hash);

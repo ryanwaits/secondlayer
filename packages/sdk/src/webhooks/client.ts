@@ -36,8 +36,6 @@ export type {
 	UpdateWebhookRequest,
 } from "@secondlayer/shared/schemas/webhooks";
 
-// `trigger.*` chain-trigger builders for chain webhooks
-// (`create({ triggers: [trigger.contractCall({ ... })] })`).
 export { trigger } from "@secondlayer/shared/schemas/webhooks";
 
 export class Webhooks extends BaseClient {

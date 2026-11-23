@@ -75,7 +75,6 @@ export function reconnectDelay(
 	return Math.max(jittered, floor);
 }
 
-/** An error the loop stops on: a retry cannot change the answer. */
 function isTerminal(err: unknown): boolean {
 	if (err instanceof StreamsSignatureError) return true;
 	return (err as { retryable?: boolean } | null)?.retryable === false;
@@ -131,15 +130,12 @@ export function subscribeStreamsEvents(opts: {
 		opts.staleAfterMs ??
 		params.staleAfterMs ??
 		SUBSCRIBE_DEFAULT_STALE_AFTER_MS;
-	// Consecutive failures since the last frame; drives the backoff exponent.
 	let attempt = 0;
 	// A throwing observer must never break the subscription it observes.
 	const emit = (state: StreamsSubscriptionState) => {
 		try {
 			params.onState?.(state);
-		} catch {
-			// observer failure is the caller's problem
-		}
+		} catch {}
 	};
 
 	const run = async (): Promise<void> => {
@@ -155,8 +151,6 @@ export function subscribeStreamsEvents(opts: {
 					sender: params.sender,
 					recipient: params.recipient,
 					asset_identifier: params.assetIdentifier,
-					// `chain: "bitcoin"` only — missing here meant a
-					// bitcoin subscribe silently ignored these filters.
 					rune: params.rune,
 					address: params.address,
 					// JSON in a query param, so SSE keeps plain GET semantics:
@@ -179,13 +173,11 @@ export function subscribeStreamsEvents(opts: {
 						try {
 							parsed = JSON.parse(frame.data);
 						} catch {
-							return; // ignore non-JSON frames
+							return;
 						}
 						if (!parsed.event) return;
 						if (opts.verify !== "off") {
 							if (!parsed.sig) {
-								// Strict requires a signed frame; lenient (default) delivers an
-								// unsigned frame (e.g. self-host with no signing key).
 								if (opts.verify === "strict") {
 									throw new StreamsSignatureError(
 										"Streams SSE frame signature is missing.",
@@ -313,8 +305,6 @@ function sleep(ms: number, signal: AbortSignal): Promise<void> {
 	});
 }
 
-/** `reader.read()` raced against an idle timer; a timeout throws a retryable
- *  error so the caller's reconnect path takes over. */
 async function readWithStaleTimer<R extends { read(): Promise<unknown> }>(
 	reader: R,
 	staleAfterMs: number | undefined,
@@ -369,9 +359,7 @@ async function* parseSseFrames(
 	} finally {
 		try {
 			await reader.cancel();
-		} catch {
-			// best-effort
-		}
+		} catch {}
 	}
 }
 

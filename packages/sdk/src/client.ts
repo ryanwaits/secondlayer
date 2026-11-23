@@ -207,8 +207,6 @@ export class SecondLayer extends BaseClient {
 			};
 		}
 
-		// In-flight ops: only probe subgraphs that report `reindexing`, so this
-		// stays cheap (usually zero extra calls) instead of N+1 over every subgraph.
 		let activeOperations: ContextField<ActiveSubgraphOperation[]> = {
 			value: null,
 			error: {

@@ -92,13 +92,6 @@ export interface DoctorReport {
 	primary: DoctorIssue | null;
 }
 
-// ── Detector thresholds ─────────────────────────────────────────────
-// Named constants, not config. Tune from real data; until then these stay
-// conservative.
-
-// Thresholds live in shared so the server-side insight rules use the same
-// numbers. `DOWN_MIN_CONSECUTIVE` is re-exported: the status pill's
-// "auto-failing" rule reuses it instead of duplicating the number.
 export { DOWN_MIN_CONSECUTIVE };
 const ERROR_SNIPPET_MAX = 200;
 
@@ -125,8 +118,6 @@ function formatShortDate(iso: string): string {
 	return `${iso.slice(0, 10)} ${iso.slice(11, 16)} UTC`;
 }
 
-/** The longest run from the start of `rows` (newest-first) matching
- *  `predicate` — the current losing (or rejecting) streak. */
 function consecutiveFromStart(
 	rows: DeliveryRow[],
 	predicate: (row: DeliveryRow) => boolean,
@@ -151,8 +142,6 @@ function summarizeStatusBreakdown(rows: DeliveryRow[]): string {
 
 const RETRY_AFTER_RE = /retry-after:?\s*(\d+)/i;
 
-/** The most recent 429's `Retry-After`, if the receiver's error text carried
- *  one — we never invent a value the rows didn't report. */
 function extractRetryAfterSeconds(rows: DeliveryRow[]): string | null {
 	for (const row of rows) {
 		if (row.statusCode !== 429 || !row.errorMessage) continue;
@@ -162,8 +151,6 @@ function extractRetryAfterSeconds(rows: DeliveryRow[]): string | null {
 	return null;
 }
 
-/** ≥10 attempts in the window, ≥50% of them 429 — the receiver is
- *  rate-limiting us, not failing. */
 function detectReceiverRateLimited(
 	webhook: WebhookDetail,
 	deliveries: DeliveryRow[],
@@ -205,8 +192,6 @@ function detectReceiverRateLimited(
 	};
 }
 
-/** ≥5 most recent attempts are 5xx or got no response at all (timeout /
- *  connection failure) — the receiver looks down, not just slow. */
 function detectReceiverDown(
 	webhook: WebhookDetail,
 	deliveries: DeliveryRow[],
@@ -238,8 +223,6 @@ function detectReceiverDown(
 	};
 }
 
-/** ≥5 most recent attempts are 4xx other than 429 — the receiver is
- *  reachable but actively rejecting us (auth, signature, bad request). */
 function detectReceiverRejects(
 	webhook: WebhookDetail,
 	deliveries: DeliveryRow[],
@@ -279,8 +262,6 @@ function detectReceiverRejects(
 	};
 }
 
-/** Median response time of the newest 20 attempts is at least half the
- *  webhook's timeout — deliveries are slow, not failing. */
 function detectReceiverSlow(
 	webhook: WebhookDetail,
 	deliveries: DeliveryRow[],
@@ -360,8 +341,6 @@ const SEVERITY_RANK: Record<DoctorSeverity, number> = {
 	calm: 2,
 };
 
-/** Tie-break within a severity tier when more than one issue fires at
- *  once — most specific / most actionable first. */
 const CODE_PRIORITY: DoctorIssueCode[] = [
 	"circuit",
 	"receiver_down",

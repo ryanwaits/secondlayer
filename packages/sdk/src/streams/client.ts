@@ -49,14 +49,12 @@ import type {
 	StreamsTip,
 } from "./types.ts";
 
-/** Parse a `<block>:<index>` cursor; null sorts before genesis. */
 function cursorTuple(cursor: string | null): [number, number] {
 	if (!cursor) return [-1, -1];
 	const { blockHeight, eventIndex } = Cursor.parse(cursor);
 	return [blockHeight, eventIndex];
 }
 
-/** The greater of two cursors (later in the stream). */
 function maxCursor(a: string | null, b: string | null): string | null {
 	const [ah, ai] = cursorTuple(a);
 	const [bh, bi] = cursorTuple(b);
@@ -174,9 +172,6 @@ export function createStreamsClient(
 	const baseUrl = normalizeBaseUrl(
 		resolveBaseUrl(options.baseUrl, options.apiKey),
 	);
-	// Same credential rule as every other client (explicit option, then the
-	// host's env key), so the same code authenticates the same way whether it
-	// enters through `new SecondLayer()` or here.
 	const apiKey = resolveApiKey(options.apiKey, baseUrl);
 	const origin = options.origin ?? "cli";
 	const authHeaders = (): Record<string, string> => ({
@@ -318,8 +313,6 @@ export function createStreamsClient(
 		if (verifyMode !== "off") {
 			const signature = response.headers.get("X-Signature");
 			if (!signature) {
-				// Strict requires a signature; lenient (default) lets an unsigned
-				// response through — e.g. self-host with no signing key configured.
 				if (verifyMode === "strict") {
 					throw new StreamsSignatureError("Response is missing X-Signature.");
 				}
@@ -335,11 +328,6 @@ export function createStreamsClient(
 		return JSON.parse(text) as T;
 	}
 
-	// StreamsEventsFetchParams was a strict subset of StreamsEventsListParams
-	// pre-059; `chain: "bitcoin"` narrows `types` to RuneEventType there, so a
-	// plain cast replaces the old structural assignment for this one generic
-	// entry point shared by consume/stream (untyped across chains — see
-	// `StreamsEventsStreamParams.chain`'s doc comment).
 	const fetchEvents: StreamsEventsFetcher = (params) =>
 		listEvents(params as StreamsEventsListParams);
 
@@ -362,8 +350,6 @@ export function createStreamsClient(
 			})}`,
 		);
 	}
-	// Idle-tip reorg detection for the consume loop (one request per empty
-	// page); the public `reorgs.list` is the same call.
 	const fetchReorgs = (params: { since: string }) => listReorgs(params);
 
 	function encodeFilters(filters: StreamsFilterMap | undefined) {
@@ -452,8 +438,6 @@ export function createStreamsClient(
 			  >
 			| undefined;
 
-		// With `decoded: true`, events arrive as the flat Index-shaped rows —
-		// decoding never appears in the handler.
 		const project = (events: StreamsEvent[]): StreamsEvent[] | IndexEvent[] =>
 			params.decoded ? events.map(decode) : events;
 
@@ -555,10 +539,6 @@ export function createStreamsClient(
 			loadKey: loadKeyFor,
 			reconnectDelayMs: params.reconnectDelayMs,
 			staleAfterMs: params.staleAfterMs,
-			// `StreamsEventsSubscribeParams` (Stacks | Bitcoin) narrows `onEvent`'s
-			// parameter type per branch; the loop below reads every field off one
-			// flat wire shape regardless of chain — see
-			// `StreamsEventsSubscribeWireParams`'s doc comment.
 			params: params as unknown as StreamsEventsSubscribeWireParams,
 		});
 	}
@@ -622,7 +602,6 @@ export function createStreamsClient(
 	return {
 		consume: consumeBatches as StreamsClient["consume"],
 		events: {
-			// One wire call; the overloads narrow the row type by `clock`/`types`.
 			list: listEvents as StreamsClient["events"]["list"],
 			byTxId: byTxId as StreamsClient["events"]["byTxId"],
 			consume: dispatchEventsConsume as StreamsClient["events"]["consume"],

@@ -353,8 +353,6 @@ export abstract class BaseClient {
 		opts: RequestOptions = {},
 	): Promise<T> {
 		return this.withRequestBudget(opts.signal, async (signal) => {
-			// Only GETs are revalidated: a write's response is never a copy of
-			// something the caller already holds.
 			const cacheKey =
 				method === "GET" && this.etagCache ? `${this.baseUrl}${path}` : null;
 			const cached = cacheKey ? await this.etagCache?.get(cacheKey) : undefined;
@@ -488,7 +486,6 @@ export abstract class BaseClient {
 				);
 			} catch (err) {
 				const detail = err instanceof Error ? err.message : String(err);
-				// Not retryable: the same body will fail to serialize again.
 				throw new ApiError(
 					0,
 					`Failed to serialize request body: ${detail}`,
@@ -509,8 +506,6 @@ export abstract class BaseClient {
 			});
 			response = signal ? await raceAbort(pending, signal) : await pending;
 		} catch (err) {
-			// An abort (caller or timeout) is not a network failure; let the
-			// budget wrapper decide what it means.
 			if (signal?.aborted) throw err;
 			throw new ApiError(
 				0,
@@ -521,7 +516,6 @@ export abstract class BaseClient {
 			);
 		}
 
-		// A 304 is an answer to our own If-None-Match, not a failure.
 		if (response.status === 304) return response;
 
 		if (!response.ok) {
@@ -543,8 +537,6 @@ export abstract class BaseClient {
 			}
 
 			if (response.status === 429) {
-				// The header is preserved as `retryAfterSeconds` (not just prose) so
-				// the consume loops can honor it.
 				const fallback = retryAfter
 					? `Rate limited. Wait ${retryAfter} seconds.`
 					: "Rate limited. Try again later.";

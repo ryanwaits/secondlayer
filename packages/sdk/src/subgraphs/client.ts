@@ -93,8 +93,6 @@ export interface BundleSubgraphResponse {
 
 const SUBSCRIBE_RECONNECT_DELAY_MS = 1000;
 
-/** Column names a `defineSubgraph()` table declares, or undefined when the
- *  schema entry is not in the `{ columns: {...} }` shape. */
 function declaredColumns(table: unknown): DeclaredColumns | undefined {
 	if (!table || typeof table !== "object") return undefined;
 	const columns = (table as { columns?: unknown }).columns;
@@ -143,8 +141,8 @@ function buildSubgraphQueryString(
 function buildAggregateQueryString(params: SubgraphAggregateParams): string {
 	return buildQuery({
 		...params.filters,
-		_count: params.count ? "true" : undefined, // emit only when truthy
-		_countDistinct: params.countDistinct, // empty array → "" → skipped
+		_count: params.count ? "true" : undefined,
+		_countDistinct: params.countDistinct,
 		_sum: params.sum,
 		_min: params.min,
 		_max: params.max,
@@ -563,7 +561,7 @@ export class Subgraphs extends BaseClient {
 									try {
 										row = JSON.parse(frame.data) as TRow;
 									} catch {
-										return; // ignore non-JSON frames (e.g. heartbeats)
+										return;
 									}
 									const height = rowBlockHeight(row);
 									if (height !== undefined) since = height;

@@ -1,6 +1,3 @@
-// AuthError / RateLimitError / ValidationError are shared across the whole SDK
-// (Index and the platform clients throw them too) and live in ../errors.ts —
-// re-exported here so `@secondlayer/sdk/streams` imports keep working.
 import { parseErrorEnvelope } from "../base.ts";
 import {
 	ApiError,

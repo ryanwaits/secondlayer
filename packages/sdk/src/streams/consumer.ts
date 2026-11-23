@@ -14,7 +14,6 @@ import type {
 	StreamsTip,
 } from "./types.ts";
 
-/** Stable identity of a reorg, for in-memory dedup across re-reported pages. */
 function reorgKey(reorg: StreamsReorg): string {
 	return `${reorg.detected_at}|${reorg.fork_point_height}|${reorg.new_canonical_tip}`;
 }
@@ -119,8 +118,6 @@ export async function applyReorgs<
 type StreamsEventsFetchParams = {
 	cursor?: string | null;
 	limit: number;
-	/** `bitcoin` reads Runes events instead of the Stacks default.
-	 *  See {@link StreamsEventsStreamParams.chain}'s untyped-events caveat. */
 	chain?: "stacks" | "bitcoin";
 	types?: readonly string[];
 	notTypes?: readonly string[];
@@ -128,11 +125,8 @@ type StreamsEventsFetchParams = {
 	sender?: StreamsFilterValue;
 	recipient?: StreamsFilterValue;
 	assetIdentifier?: string;
-	/** `chain: "bitcoin"` only — a RuneRef (id or name). */
 	rune?: string;
-	/** `chain: "bitcoin"` only — a mainnet address. */
 	address?: string;
-	/** Labelled filter groups, forwarded to the server verbatim. */
 	filters?: StreamsFilterMap;
 };
 
@@ -297,7 +291,6 @@ export async function fetchPageWithRetry<T>(
 			const delayMs = errRetryAfterMs(err) ?? retryDelay * (attempt + 1);
 			opts.onError?.(err, { attempt, retriesLeft, delayMs });
 			await opts.sleep(delayMs, opts.signal);
-			// Aborted mid-sleep: surface the original failure, not a fresh fetch.
 			if (opts.signal?.aborted) throw err;
 		}
 	}
@@ -399,8 +392,6 @@ export async function consumeStreamsEvents<TTx = never>(opts: {
 	// In-memory only: rollback is idempotent, so a crash before the rewind is
 	// re-detected and re-applied harmlessly on restart — no need to persist.
 	const handledReorgs = new Set<string>();
-	// Resume token for the idle-tip reorg list; `null` until the first idle
-	// poll with a checkpoint to seed it from.
 	let reorgSince: string | null = null;
 	let pages = 0;
 	let emptyPolls = 0;

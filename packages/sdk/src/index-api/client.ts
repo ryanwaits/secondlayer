@@ -72,7 +72,6 @@ export type FtTransfersEnvelope<TRow = FtTransfer> = {
 	events: TRow[];
 	next_cursor: string | null;
 	tip: IndexTip;
-	// Chain reorgs overlapping this page's height range; empty when none.
 	reorgs: IndexReorg[];
 };
 
@@ -135,7 +134,6 @@ export type WalkOptions = PageRetryOptions & {
 	signal?: AbortSignal;
 };
 
-/** Per-request signal the private list methods thread into `request`. */
 type RequestSignal = { signal?: AbortSignal };
 
 /** `FtTransfersListParams` without `limit`, plus walk options. */
@@ -163,7 +161,6 @@ export type NftTransfersEnvelope<TRow = NftTransfer> = {
 	events: TRow[];
 	next_cursor: string | null;
 	tip: IndexTip;
-	// Chain reorgs overlapping this page's height range; empty when none.
 	reorgs: IndexReorg[];
 };
 
@@ -196,8 +193,6 @@ export type NftTransfersListParams = {
 /** `NftTransfersListParams` without `limit`, plus walk options. */
 export type NftTransfersWalkParams = Omit<NftTransfersListParams, "limit"> &
 	WalkOptions;
-
-// ── Generic decoded events (/v1/index/events) ──────────────────────
 
 type IndexEventBase = {
 	cursor: string;
@@ -371,7 +366,6 @@ export type EventsEnvelope<
 	events: TRow[];
 	next_cursor: string | null;
 	tip: IndexTip;
-	// Chain reorgs overlapping this page's height range; empty when none.
 	reorgs: IndexReorg[];
 };
 
@@ -453,8 +447,6 @@ export type EventsConsumeParams<
 > &
 	IndexConsumeOptions<IndexEventOf<T>, EventsEnvelope<T>, TTx>;
 
-// ── Contract calls (/v1/index/contract-calls) ──────────────────────
-
 /** A decoded contract call: contract, function, sender, arguments, result. */
 export type IndexContractCall = {
 	cursor: string;
@@ -477,7 +469,6 @@ export type ContractCallsEnvelope = {
 	contract_calls: IndexContractCall[];
 	next_cursor: string | null;
 	tip: IndexTip;
-	// Chain reorgs overlapping this page's height range; empty when none.
 	reorgs: IndexReorg[];
 };
 
@@ -507,8 +498,6 @@ export type ContractCallsConsumeParams<TTx = never> = Omit<
 	"cursor" | "fromCursor" | "limit"
 > &
 	IndexConsumeOptions<IndexContractCall, ContractCallsEnvelope, TTx>;
-
-// ── Canonical block-hash map (/v1/index/canonical) ─────────────────
 
 /** One canonical block in the sync map. Lean by design — block + parent hash
  *  for chain linkage, burn anchor for Bitcoin confirmations. Use `blocks` for
@@ -542,8 +531,6 @@ export type CanonicalListParams = {
 export type CanonicalWalkParams = Omit<CanonicalListParams, "limit"> &
 	WalkOptions;
 
-// ── State writes (/v1/index/state-writes) ──────────────────────────
-
 /** One MARF write a block committed, in the node's write order. Present only
  *  from the height the instance's node subscribed to `state_writes`. */
 export type IndexStateWrite = {
@@ -573,7 +560,6 @@ export type StateWritesEnvelope = {
 	state_writes: IndexStateWrite[];
 	next_cursor: string | null;
 	tip: IndexTip;
-	// Chain reorgs overlapping this page's heights; empty when none.
 	reorgs: IndexReorg[];
 };
 
@@ -595,8 +581,6 @@ export type StateWritesListParams = {
 /** `StateWritesListParams` without `limit`, plus walk options. */
 export type StateWritesWalkParams = Omit<StateWritesListParams, "limit"> &
 	WalkOptions;
-
-// ── Blocks (/v1/index/blocks) ──────────────────────────────────────
 
 /** A block resource. Metadata is intentionally thin — only chain-linkage and
  *  burn-anchor fields are persisted (no miner / tx_count / signer). */
@@ -635,8 +619,6 @@ export type BlocksListParams = {
 
 /** `BlocksListParams` without `limit`, plus walk options. */
 export type BlocksWalkParams = Omit<BlocksListParams, "limit"> & WalkOptions;
-
-// ── Transactions (/v1/index/transactions) ──────────────────────────
 
 // Mirrors DecodedPostCondition in packages/api/src/index/transaction-decode.ts
 // (source of truth) — this type is hand-maintained, not generated, so the two
@@ -724,7 +706,6 @@ export type TransactionsEnvelope<TRow = IndexTransaction> = {
 	transactions: TRow[];
 	next_cursor: string | null;
 	tip: IndexTip;
-	// Chain reorgs overlapping this page's height range; empty when none.
 	reorgs: IndexReorg[];
 };
 
@@ -764,8 +745,6 @@ export type TransactionsListParams = {
 /** `TransactionsListParams` without `limit`, plus walk options. */
 export type TransactionsWalkParams = Omit<TransactionsListParams, "limit"> &
 	WalkOptions;
-
-// ── Mempool (/v1/index/mempool) ────────────────────────────────────
 
 /** A pending (unconfirmed) transaction. Like a transaction document but
  *  pre-chain — no block_height/tx_index/result/events — with `received_at` and
@@ -822,8 +801,6 @@ export type MempoolListParams = {
 /** `MempoolListParams` without `limit`, plus walk options. */
 export type MempoolWalkParams = Omit<MempoolListParams, "limit"> & WalkOptions;
 
-// ── Print schema (/v1/index/contracts/:contract_id/print-schema) ───
-
 /**
  * Per-topic print payload schema for a contract, inferred from sampled events.
  *
@@ -844,8 +821,6 @@ export type PrintSchemaResponse = {
 	};
 	tip: IndexTip;
 };
-
-// ── sBTC peg (/v1/index/sbtc) ──────────────────────────────────────
 
 /** The decoded `sbtc_events` topics — one source of truth in
  *  `@secondlayer/stacks/sbtc` (already a dependency), re-exported here. */
@@ -997,7 +972,6 @@ export type SbtcDepositsEnvelope<TRow = IndexSbtcDeposit> = {
 	deposits: TRow[];
 	next_cursor: string | null;
 	tip: IndexTip;
-	// Chain reorgs overlapping this page's height range; empty when none.
 	reorgs: IndexReorg[];
 	/** Present only when the sBTC decoder is disabled, explaining an empty feed. */
 	notes?: string;
@@ -1359,8 +1333,6 @@ export interface PoxResource {
 	};
 }
 
-// ── PoX-5 events (/v1/index/pox5/events) ───────────────────────────
-
 /** The decoded `pox-5` boot-contract print topics (SIP-045 Bitcoin Staking) —
  *  one source of truth in `@secondlayer/stacks/pox5` (already a dependency;
  *  the old "SDK owns its own dependency surface" rationale predated that). */
@@ -1481,8 +1453,6 @@ export interface Pox5Resource {
 		}>;
 	};
 }
-
-// ── Runes (/v1/index/runes/*) ───────────────────────────────────────
 
 /** A rune's `<block>:<tx>` id — the etch transaction's position, e.g. `840000:3`. */
 export type RuneId = `${number}:${number}`;
@@ -1784,12 +1754,6 @@ function firstWalkFromHeight(params: {
 	return 0;
 }
 
-/** The query params every Index keyset feed shares: page window, height range,
- *  column projection. Keeping the camel→snake mapping in one place means a new
- *  feed can't typo `from_cursor` into a silently-dropped filter. `buildQuery`
- *  drops undefined/null and comma-joins arrays, so a feed whose params type has
- *  no height window or `fields` contributes nothing for those keys. PoX cycles
- *  page by a numeric cursor and opt out. */
 function indexPageQuery(params: {
 	cursor?: string | null;
 	fromCursor?: string | null;
@@ -1810,8 +1774,6 @@ function indexPageQuery(params: {
 	};
 }
 
-/** Pagination overrides `keysetWalk` applies to each page request; the original
- *  filter params are merged in by the per-resource list closure. */
 type PageParams<C = string> = {
 	limit: number;
 	cursor?: C | null;
@@ -2522,7 +2484,6 @@ export class Index extends BaseClient {
 				asset_identifier: params.assetIdentifier,
 				sender: params.sender,
 				recipient: params.recipient,
-				// vm types (second clock): accepted per event_type by the server.
 				function_name: params.functionName,
 				caller: params.caller,
 				map: params.map,
@@ -2733,7 +2694,6 @@ export class Index extends BaseClient {
 	private walkMempool(
 		params: MempoolWalkParams = {},
 	): AsyncGenerator<IndexMempoolTransaction> {
-		// Mempool has no height filter; listMempool ignores the seeded fromHeight.
 		return this.keysetWalk(
 			params,
 			(page) => this.listMempool({ ...params, ...page }),

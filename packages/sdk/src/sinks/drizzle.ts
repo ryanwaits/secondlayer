@@ -12,11 +12,6 @@ import type { ConsumerSink } from "./types.ts";
 
 export type { SinkRollbackContext };
 
-/**
- * Structural slice of a drizzle database. Postgres databases expose
- * `execute`; sqlite databases expose `run`/`all` (sync drivers return
- * plainly, async drivers return promises — `await` absorbs both).
- */
 interface DrizzleDatabaseLike {
 	// biome-ignore lint/suspicious/noExplicitAny: contravariant position — must accept every concrete drizzle transaction type
 	transaction(fn: (tx: any) => Promise<unknown>): Promise<unknown>;
@@ -89,7 +84,6 @@ export function drizzleSink<TDb extends DrizzleDatabaseLike, T extends Table>(
 ): ConsumerSink<DrizzleTx<TDb>> {
 	const checkpointTable = options.checkpointTable ?? DEFAULT_CHECKPOINT_TABLE;
 	const cp = quoteIdent(checkpointTable);
-	// Postgres speaks `execute`; sqlite speaks `run`/`all`.
 	const isPg = typeof db.execute === "function";
 
 	// Resolve TS column keys to real SQL names per table (they can differ:
@@ -137,8 +131,6 @@ export function drizzleSink<TDb extends DrizzleDatabaseLike, T extends Table>(
 					fn(tx),
 				)) as Awaited<ReturnType<typeof fn>>;
 			}
-			// SQLite: manual BEGIN IMMEDIATE (see dialect notes above). The
-			// database itself is the lent transaction.
 			await db.run?.(sql`begin immediate`);
 			try {
 				const result = await fn(db as unknown as DrizzleTx<TDb>);

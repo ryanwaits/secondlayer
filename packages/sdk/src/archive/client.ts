@@ -39,7 +39,6 @@ const DEFAULT_ARCHIVE_BASE_URL = "https://archive.secondlayer.tools";
 const DEFAULT_ARCHIVE_OPS_URL = "https://api.secondlayer.tools";
 const MAX_FETCH_BATCH = 64;
 
-/** Match CLI: hosted account keys are `sk-sl_*` or `ss-sl_*`. */
 const ARCHIVE_CREDENTIAL_RE = /^s[ks]-sl_/;
 
 export type CreateArchiveClientOptions = {

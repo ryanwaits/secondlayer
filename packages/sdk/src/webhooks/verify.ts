@@ -44,7 +44,7 @@ export type WebhookHeaderInput =
 	| HeaderLookup
 	| StandardWebhooksHeaders
 	| Record<string, string | string[] | undefined>
-	| { get: (name: string) => string | null }; // e.g. Fetch `Headers`
+	| { get: (name: string) => string | null };
 
 function pickHeader(
 	headers: WebhookHeaderInput,

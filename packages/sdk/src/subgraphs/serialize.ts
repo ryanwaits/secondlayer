@@ -1,8 +1,3 @@
-/**
- * The canonical row shape names its system columns `_id`, `_blockHeight`,
- * `_txId`, `_createdAt`. These map to the snake_case DB columns the query
- * params use.
- */
 const SYSTEM_COLUMN_MAP: Record<string, string> = {
 	_blockHeight: "_block_height",
 	_txId: "_tx_id",

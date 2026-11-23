@@ -1,6 +1,3 @@
-// Canonical event primitives (StreamsEvent, payload types, event-type vocab)
-// live in @secondlayer/shared/streams-rows; re-exported here so the public
-// Streams surface is unchanged.
 import type { VmEventType } from "@secondlayer/shared";
 import {
 	RUNE_EVENT_TYPES,
@@ -178,7 +175,6 @@ export type StreamsEventForFilter<F, D extends boolean = false> = F extends {
 		? IndexEvent
 		: StreamsEvent;
 
-/** Cursor, height range, and limit shared by every list call. */
 type StreamsEventsListParamsCommon = {
 	cursor?: string | null;
 	fromHeight?: number;
@@ -231,7 +227,6 @@ export type StreamsEventsListParams =
 	| StreamsEventsStacksListParams
 	| StreamsEventsBitcoinListParams;
 
-/** Cursor, batching, and stop options shared by every event stream. */
 type StreamsEventsStreamCommon = {
 	fromCursor?: string | null;
 	batchSize?: number;
@@ -637,7 +632,6 @@ export type StreamsBatch<TEvent = StreamsEvent, TTip = StreamsTip> = {
 	reorgs: StreamsReorg[];
 };
 
-/** Cursor, batch size, and polling options shared by every consume loop. */
 type StreamsConsumeCommon = {
 	/** Resume strictly after this cursor; omit to start from the oldest seekable page. */
 	cursor?: string | null;

@@ -103,7 +103,6 @@ function statusRetryable(status: number, code?: string): boolean {
 	return status === 429 || status >= 500;
 }
 
-/** Docs page for a status/code pair, when one exists. */
 function docsFor(status: number, code?: string): string | undefined {
 	if (code === "UPGRADE_REQUIRED" || status === 402)
 		return `${DOCS_BASE}/docs/authentication#what-it-costs`;
