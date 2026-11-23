@@ -6,6 +6,8 @@
 #   2. Wait until bitcoind blocks > 666050 (Stacks genesis burn height)
 #   3. docker compose up -d stacks-node
 
+name: secondlayer
+
 services:
   bitcoind:
     image: kylemanna/bitcoind:latest@sha256:ba0034272c85962dac24962312df34c46acafa2c33161b310993c1808ff84bca

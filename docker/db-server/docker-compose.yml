@@ -12,6 +12,8 @@
 # public interface. Docker-published ports bypass ufw, so the bind address IS
 # the access control.
 
+name: db-server
+
 services:
   postgres:
     image: postgres:17-alpine@sha256:b0f9560a2de083e2cc7382e75f808c7381a32852a7ec49117deedb300e552b24

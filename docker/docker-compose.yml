@@ -1,3 +1,5 @@
+name: secondlayer
+
 services:
   # PostgreSQL database
   postgres:

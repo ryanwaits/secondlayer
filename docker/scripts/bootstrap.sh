@@ -126,7 +126,6 @@ else
   if [ ! -f "$DOCKER_DIR/.env" ]; then
     PG_PASS=$(openssl rand -base64 24 | tr -d '/+=' | head -c 32)
     cat > "$DOCKER_DIR/.env" <<ENVEOF
-COMPOSE_PROJECT_NAME=secondlayer
 POSTGRES_USER=secondlayer
 POSTGRES_PASSWORD=${PG_PASS}
 POSTGRES_DB=secondlayer

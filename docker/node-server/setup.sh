@@ -126,7 +126,6 @@ log "Generated Bitcoin RPC password"
 # Write .env
 # ---------------------------------------------------------------------------
 cat > "$SCRIPT_DIR/.env" <<EOF
-COMPOSE_PROJECT_NAME=secondlayer
 BITCOIN_DATA_DIR=${BITCOIN_DATA_DIR}
 STACKS_DATA_DIR=${STACKS_DATA_DIR}
 BITCOIN_RPC_PASSWORD=${BITCOIN_RPC_PASSWORD}
