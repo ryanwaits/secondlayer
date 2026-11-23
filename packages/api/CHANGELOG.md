@@ -1,5 +1,13 @@
 # @secondlayer/api
 
+## 1.64.20
+
+### Patch Changes
+
+- Updated dependencies [be2a69b]
+  - @secondlayer/sdk@20.1.1
+  - @secondlayer/mcp@11.7.1
+
 ## 1.64.19
 
 ### Patch Changes

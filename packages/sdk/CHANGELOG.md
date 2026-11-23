@@ -1,5 +1,11 @@
 # @secondlayer/sdk
 
+## 20.1.1
+
+### Patch Changes
+
+- be2a69b: Describe Index as decoded, Streams as exactly what the node emitted, and the five VM types as contract state.
+
 ## 20.1.0
 
 ### Minor Changes

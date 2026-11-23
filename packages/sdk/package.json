@@ -1,6 +1,6 @@
 {
 	"name": "@secondlayer/sdk",
-	"version": "20.1.0",
+	"version": "20.1.1",
 	"description": "Stacks events and contract changes from block 1, in TypeScript: tables, streams, webhooks and proofs.",
 	"license": "MIT",
 	"repository": {

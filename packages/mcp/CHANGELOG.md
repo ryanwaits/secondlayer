@@ -1,5 +1,13 @@
 # @secondlayer/mcp
 
+## 11.7.1
+
+### Patch Changes
+
+- be2a69b: Describe Index as decoded, Streams as exactly what the node emitted, and the five VM types as contract state.
+- Updated dependencies [be2a69b]
+  - @secondlayer/sdk@20.1.1
+
 ## 11.7.0
 
 ### Minor Changes
