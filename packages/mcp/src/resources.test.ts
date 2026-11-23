@@ -310,6 +310,7 @@ const GOLDEN_PATH_TOOLS = [
 	"index_ft_transfers",
 	"index_nft_transfers",
 	"index_print_schema",
+	"index_state_writes",
 	"index_transactions",
 	// contracts
 	"contracts_find",
