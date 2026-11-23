@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { BundleSizeError, SUBGRAPH_SOURCE_MAX_BYTES } from "../src/errors.ts";
 import { bundleSubgraphCode } from "../src/subgraph.ts";
 
 describe("bundleSubgraphCode", () => {
@@ -150,5 +151,147 @@ describe("bundleSubgraphCode", () => {
 		expect(result.findings.map((f) => `${f.kind}:${f.name}`)).toContain(
 			"needs-events:ctx.client",
 		);
+	});
+
+	test("rejects relative filesystem imports without bundling file content", async () => {
+		await expect(
+			bundleSubgraphCode(`
+				import pkg from "./package.json";
+				import { defineSubgraph } from "@secondlayer/subgraphs";
+
+				export default defineSubgraph({
+					name: "rel-import",
+					sources: {
+						events: {
+							type: "print_event",
+							contractId: "SP123.demo",
+							prints: { event: { txId: "text" } },
+						},
+					},
+					schema: {
+						events: { columns: { tx_id: { type: "text" } } },
+					},
+					handlers: {
+						events: () => {
+							void pkg;
+						},
+					},
+				});
+			`),
+		).rejects.toThrow(
+			'Import "./package.json" is not allowed in single-file subgraph source; only "@secondlayer/subgraphs" may be imported',
+		);
+	});
+
+	test("rejects absolute filesystem imports", async () => {
+		await expect(
+			bundleSubgraphCode(`
+				import hosts from "/etc/hosts";
+				import { defineSubgraph } from "@secondlayer/subgraphs";
+
+				export default defineSubgraph({
+					name: "abs-import",
+					sources: {
+						events: {
+							type: "print_event",
+							contractId: "SP123.demo",
+							prints: { event: { txId: "text" } },
+						},
+					},
+					schema: {
+						events: { columns: { tx_id: { type: "text" } } },
+					},
+					handlers: {
+						events: () => {
+							void hosts;
+						},
+					},
+				});
+			`),
+		).rejects.toThrow(
+			'Import "/etc/hosts" is not allowed in single-file subgraph source; only "@secondlayer/subgraphs" may be imported',
+		);
+	});
+
+	test("rejects node builtin and third-party imports", async () => {
+		await expect(
+			bundleSubgraphCode(`
+				import fs from "node:fs";
+				import { defineSubgraph } from "@secondlayer/subgraphs";
+
+				export default defineSubgraph({
+					name: "builtin-import",
+					sources: {
+						events: {
+							type: "print_event",
+							contractId: "SP123.demo",
+							prints: { event: { txId: "text" } },
+						},
+					},
+					schema: {
+						events: { columns: { tx_id: { type: "text" } } },
+					},
+					handlers: {
+						events: () => {
+							void fs;
+						},
+					},
+				});
+			`),
+		).rejects.toThrow(
+			'Import "node:fs" is not allowed in single-file subgraph source; only "@secondlayer/subgraphs" may be imported',
+		);
+	});
+
+	test("allows type-only and runtime imports from @secondlayer/subgraphs", async () => {
+		const result = await bundleSubgraphCode(`
+			import type { SubgraphDefinition } from "@secondlayer/subgraphs";
+			import { defineSubgraph, readContractAt } from "@secondlayer/subgraphs";
+
+			const ABI = {
+				functions: [{
+					name: "get-total",
+					access: "read-only",
+					args: [],
+					outputs: "uint128",
+				}],
+			} as const;
+
+			const def: SubgraphDefinition = defineSubgraph({
+				name: "allowed-imports",
+				sources: {
+					transfer: { type: "ft_transfer", assetIdentifier: "SP123.token::token" },
+				},
+				schema: {
+					totals: { columns: { total: { type: "uint" } } },
+				},
+				handlers: {
+					transfer: async (_event, ctx) => {
+						const contract = readContractAt(ctx, "SP123.token", ABI);
+						const total = await contract.read.getTotal({});
+						ctx.insert("totals", { total });
+					},
+				},
+			});
+
+			export default def;
+		`);
+
+		expect(result.name).toBe("allowed-imports");
+		expect(result.handlerCode).toContain("allowed-imports");
+	});
+
+	test("throws BundleSizeError without invoking esbuild when source exceeds SUBGRAPH_SOURCE_MAX_BYTES", async () => {
+		const oversized = `@@@invalid syntax@@@${"a".repeat(SUBGRAPH_SOURCE_MAX_BYTES)}`;
+		let caught: unknown;
+		try {
+			await bundleSubgraphCode(oversized);
+		} catch (err) {
+			caught = err;
+		}
+		expect(caught).toBeInstanceOf(BundleSizeError);
+		const sizeErr = caught as BundleSizeError;
+		expect(sizeErr.actualBytes).toBe(Buffer.byteLength(oversized, "utf8"));
+		expect(sizeErr.maxBytes).toBe(SUBGRAPH_SOURCE_MAX_BYTES);
 	});
 });

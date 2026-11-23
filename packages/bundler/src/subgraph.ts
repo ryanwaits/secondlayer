@@ -2,7 +2,11 @@ import { validateSubgraphDefinition } from "@secondlayer/subgraphs/validate";
 import type { HandlerFinding } from "@secondlayer/subgraphs/verification";
 import esbuild from "esbuild";
 import { type ScanSourceMap, scanHandlerDeterminism } from "./determinism.ts";
-import { BundleSizeError, SUBGRAPH_BUNDLE_MAX_BYTES } from "./errors.ts";
+import {
+	BundleSizeError,
+	SUBGRAPH_BUNDLE_MAX_BYTES,
+	SUBGRAPH_SOURCE_MAX_BYTES,
+} from "./errors.ts";
 import { extractSubgraphDefinition } from "./extract.ts";
 import { stubPackagesPlugin } from "./stub-plugin.ts";
 
@@ -29,10 +33,18 @@ export async function bundleSubgraphCode(
 	code: string,
 	opts: BundleSubgraphOptions = {},
 ): Promise<SubgraphBundleResult> {
+	const inputBytes = Buffer.byteLength(code, "utf8");
+	if (inputBytes > SUBGRAPH_SOURCE_MAX_BYTES) {
+		throw new BundleSizeError(inputBytes, SUBGRAPH_SOURCE_MAX_BYTES);
+	}
 	let result: esbuild.BuildResult;
 	try {
 		result = await esbuild.build({
-			stdin: { contents: code, loader: "ts", resolveDir: process.cwd() },
+			stdin: {
+				contents: code,
+				loader: "ts",
+				sourcefile: opts.fileName ?? "subgraph.ts",
+			},
 			bundle: true,
 			platform: "node",
 			format: "esm",

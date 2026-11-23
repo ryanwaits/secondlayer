@@ -22,6 +22,14 @@ export function stubPackagesPlugin(): Plugin {
 				namespace: "secondlayer-stub",
 			}));
 
+			build.onResolve({ filter: /.*/ }, (args) => ({
+				errors: [
+					{
+						text: `Import "${args.path}" is not allowed in single-file subgraph source; only "@secondlayer/subgraphs" may be imported`,
+					},
+				],
+			}));
+
 			build.onLoad({ filter: /.*/, namespace: "secondlayer-stub" }, () => ({
 				contents: [
 					"export function defineSubgraph(def) { return def; }",
