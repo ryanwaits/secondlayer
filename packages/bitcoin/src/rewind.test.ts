@@ -15,7 +15,12 @@ import { migrateToLatest } from "./db/migrate.ts";
 import { flush, loadState, openStore } from "./db/store.ts";
 import type { Database } from "./db/types.ts";
 import { computeStateHash } from "./integrity/digest.ts";
-import { DeepReorgError, UndoBlockMismatchError, rewindTo } from "./rewind.ts";
+import {
+	DeepReorgError,
+	MissingUndoDataError,
+	UndoBlockMismatchError,
+	rewindTo,
+} from "./rewind.ts";
 import { checkInvariant } from "./runes/invariant.ts";
 import {
 	type RuneState,
@@ -272,5 +277,100 @@ describe.skipIf(!testUrl)("rewindTo", () => {
 			.where("rune_id", "=", newRuneId)
 			.executeTakeFirst();
 		expect(dbEntry).toBeUndefined();
+	});
+
+	function snapshotState(state: RuneState, runeId: string) {
+		const entry = state.entries.get(runeId);
+		return {
+			height: state.height,
+			hash: state.hash,
+			mints: entry?.mints,
+			burned: entry?.burned,
+			liveSupply: state.liveSupply.get(runeId),
+			balances: [...state.balances.entries()].map(([outpoint, held]) => [
+				outpoint,
+				held instanceof Map ? [...held.entries()] : [...held],
+			]),
+			runeToId: [...state.runeToId.entries()],
+			stateHash: stateHash(state),
+		};
+	}
+
+	async function snapshotDb() {
+		return {
+			checkpoint: await db
+				.selectFrom("runes_checkpoint")
+				.selectAll()
+				.executeTakeFirst(),
+			entries: await db
+				.selectFrom("rune_entries")
+				.select(["rune_id", "mints", "burned"])
+				.orderBy("rune_id")
+				.execute(),
+			balances: await db
+				.selectFrom("rune_balances")
+				.selectAll()
+				.orderBy("txid")
+				.execute(),
+			blocks: await db
+				.selectFrom("btc_blocks")
+				.select(["height", "hash"])
+				.orderBy("height")
+				.execute(),
+			undo: await db
+				.selectFrom("rune_undo")
+				.select(["height", "block_hash"])
+				.orderBy("height")
+				.execute(),
+			events: await db
+				.selectFrom("rune_events")
+				.select("height")
+				.orderBy("height")
+				.execute(),
+			reorgs: await db.selectFrom("btc_reorgs").selectAll().execute(),
+		};
+	}
+
+	async function threeBlockState(runeId: string): Promise<RuneState> {
+		const state = createRuneState();
+		seedGenesis(state);
+		await applyAndFlushBlock(db, state, 840_000, runeId, 1n);
+		await applyAndFlushBlock(db, state, 840_001, runeId, 1n);
+		await applyAndFlushBlock(db, state, 840_002, runeId, 1n);
+		return state;
+	}
+
+	test("a 2-block rewind missing the second height's undo row leaves state and DB untouched", async () => {
+		const runeId = "1:0";
+		const state = await threeBlockState(runeId);
+		await db.deleteFrom("rune_undo").where("height", "=", 840_001).execute();
+		const stateBefore = snapshotState(state, runeId);
+		const dbBefore = await snapshotDb();
+
+		await expect(rewindTo(db, state, 840_000)).rejects.toBeInstanceOf(
+			MissingUndoDataError,
+		);
+
+		expect(snapshotState(state, runeId)).toEqual(stateBefore);
+		expect(await snapshotDb()).toEqual(dbBefore);
+	});
+
+	test("a 2-block rewind whose second height names a different block leaves state and DB untouched", async () => {
+		const runeId = "1:0";
+		const state = await threeBlockState(runeId);
+		await db
+			.updateTable("rune_undo")
+			.set({ block_hash: "f".repeat(64) })
+			.where("height", "=", 840_001)
+			.execute();
+		const stateBefore = snapshotState(state, runeId);
+		const dbBefore = await snapshotDb();
+
+		await expect(rewindTo(db, state, 840_000)).rejects.toBeInstanceOf(
+			UndoBlockMismatchError,
+		);
+
+		expect(snapshotState(state, runeId)).toEqual(stateBefore);
+		expect(await snapshotDb()).toEqual(dbBefore);
 	});
 });

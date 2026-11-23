@@ -140,14 +140,20 @@ async function reversePayloadInDb(
  * nothing if the reorg is more than `UNDO_DEPTH` blocks deep (D10, fail
  * closed) — the caller must halt, not retry or raise the depth.
  *
- * Mutates `state` in place to reflect the reversal (via
- * `runes/undo.ts`'s `applyUndoPayload`) so `checkInvariant` can run against
- * it before the transaction commits — a violation rolls the whole rewind
- * back, same as `db/store.ts`'s `flush`. Per plan design, the caller should
- * still reload `state` fully afterward (`db/store.ts`'s `loadState`) as a
- * defensive "simplest correct" step before re-applying the new branch; this
- * function's in-memory mutation exists to make that reload's precondition
- * (an invariant-clean state) provable up front, not to replace it.
+ * Every `rune_undo` row in `(forkHeight, checkpoint]`, its `btc_blocks`
+ * hash, and the fork block are loaded and validated before anything is
+ * written or `state` is touched: `MissingUndoDataError`,
+ * `UndoBlockMismatchError`, or a missing fork block leave both `state` and
+ * Postgres untouched.
+ *
+ * After validation, `state` is mutated in place (via `runes/undo.ts`'s
+ * `applyUndoPayload`) so `checkInvariant` can run against it before the
+ * transaction commits — a violation rolls the DB back, same as
+ * `db/store.ts`'s `flush`. Any throw after validation (a DB error, an
+ * invariant violation) rolls back Postgres but leaves `state` partially
+ * rewound: the caller must discard it and reload from Postgres
+ * (`db/store.ts`'s `loadState`). The caller should reload after a successful
+ * rewind too, before re-applying the new branch (`follow.ts` does both).
  */
 export async function rewindTo(
 	db: Kysely<Database>,
@@ -173,6 +179,7 @@ export async function rewindTo(
 	const affectedRuneIds = new Set<string>();
 
 	await db.transaction().execute(async (trx) => {
+		const payloads: UndoPayload[] = [];
 		for (let height = checkpoint; height > forkHeight; height--) {
 			const row = await trx
 				.selectFrom("rune_undo")
@@ -180,10 +187,6 @@ export async function rewindTo(
 				.where("height", "=", height)
 				.executeTakeFirst();
 			if (!row) throw new MissingUndoDataError(height);
-			// The journal row must describe the block `btc_blocks` holds at this
-			// height. A mismatch means the journal and the block table came from
-			// different chains (a restore, a partial repair), and reversing the
-			// journal would undo a block that was never applied here.
 			const stored = await trx
 				.selectFrom("btc_blocks")
 				.select("hash")
@@ -192,15 +195,7 @@ export async function rewindTo(
 			if (stored && stored.hash !== row.block_hash) {
 				throw new UndoBlockMismatchError(height, row.block_hash, stored.hash);
 			}
-
-			const payload = undoPayloadFromJson(height, row.payload);
-			for (const b of payload.balancesSpent) affectedRuneIds.add(b.runeId);
-			for (const b of payload.balancesCreated) affectedRuneIds.add(b.runeId);
-			for (const id of payload.entriesEtched) affectedRuneIds.add(id);
-			for (const d of payload.entryDeltas) affectedRuneIds.add(d.runeId);
-
-			await reversePayloadInDb(trx, payload);
-			applyUndoPayload(state, payload);
+			payloads.push(undoPayloadFromJson(height, row.payload));
 		}
 
 		const forkBlock = await trx
@@ -213,6 +208,17 @@ export async function rewindTo(
 				`rewindTo: no btc_blocks row at fork height ${forkHeight}`,
 			);
 		}
+
+		for (const payload of payloads) {
+			for (const b of payload.balancesSpent) affectedRuneIds.add(b.runeId);
+			for (const b of payload.balancesCreated) affectedRuneIds.add(b.runeId);
+			for (const id of payload.entriesEtched) affectedRuneIds.add(id);
+			for (const d of payload.entryDeltas) affectedRuneIds.add(d.runeId);
+
+			await reversePayloadInDb(trx, payload);
+			applyUndoPayload(state, payload);
+		}
+
 		const forkDigestRow = await trx
 			.selectFrom("rune_block_digests")
 			.select("digest")
