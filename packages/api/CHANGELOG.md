@@ -1,5 +1,14 @@
 # @secondlayer/api
 
+## 1.64.24
+
+### Patch Changes
+
+- df9b229: `GET /v1/contracts/:id?include=source` returns the Clarity source a contract was deployed with, read from its deploy transaction. `include` takes a comma list (`abi,source`). `/v1/contracts` and `/v1/contracts/:id` are now in the OpenAPI spec.
+- c789cc0: Index events accept `tx_id` on every event type, not only VM types. A `tx_id` read always reads that transaction's block; a window that misses it, or an unknown transaction, answers empty.
+- Updated dependencies [65bb039]
+  - @secondlayer/sdk@20.2.0
+
 ## 1.64.23
 
 ### Patch Changes
