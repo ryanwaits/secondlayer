@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, test } from "bun:test";
 import { getDb, sql } from "@secondlayer/shared/db";
 import { STREAMS_BLOCKS_PER_DAY } from "../streams/tiers.ts";
 import {
+	type IndexEventsResponse,
 	getIndexEventsResponse,
 	parseIndexEventsQuery,
 	readIndexEvents,
@@ -267,8 +268,13 @@ describe("Index /events query parsing", () => {
 describe("Index /events tx_id window", () => {
 	const empty = async () => ({ events: [], next_cursor: null });
 
-	async function windowFor(query: string, txHeight: number | null) {
-		let seen: { fromHeight: number; toHeight: number } | null = null;
+	type Window = { fromHeight: number; toHeight: number };
+
+	async function windowFor(
+		query: string,
+		txHeight: number | null,
+	): Promise<{ seen: Window | null; response: IndexEventsResponse }> {
+		let seen: Window | null = null;
 		const response = await getIndexEventsResponse({
 			query: params(query),
 			tip: TIP,
