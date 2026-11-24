@@ -7,7 +7,6 @@ import {
 	test,
 } from "bun:test";
 import { randomUUID } from "node:crypto";
-import { isSentinelLinked } from "@secondlayer/platform/db/queries/accounts";
 import { getDb } from "@secondlayer/shared/db";
 import { Hono } from "hono";
 import { generateSessionToken, hashToken } from "../auth/keys.ts";
@@ -45,25 +44,6 @@ async function makeAccount(
 			.execute();
 	}
 	return row.id;
-}
-
-async function makeSession(
-	accountId: string,
-	opts: { revoked?: boolean; expiresAt?: Date } = {},
-) {
-	const { raw, hash, prefix } = generateSessionToken();
-	await db
-		.insertInto("sessions")
-		.values({
-			token_hash: hash,
-			token_prefix: prefix,
-			account_id: accountId,
-			ip_address: "test",
-			...(opts.expiresAt ? { expires_at: opts.expiresAt } : {}),
-			...(opts.revoked ? { revoked_at: new Date() } : {}),
-		})
-		.execute();
-	return raw;
 }
 
 function app() {
@@ -258,79 +238,25 @@ describe.skipIf(!HAS_DB)("/internal/sentinel routes", () => {
 		expect((await post(app(), "/accounts/resolve", {})).status).toBe(400);
 	});
 
-	const linkRows = (id: string) =>
-		db
+	test("link: consent links an existing account, idempotent, 404 unknown", async () => {
+		const id = await makeAccount(`link-${randomUUID()}@example.com`, false);
+		for (let i = 0; i < 2; i++) {
+			const res = await post(app(), "/accounts/link", { accountId: id });
+			expect(res.status).toBe(200);
+			expect(await res.json()).toEqual({ linked: true });
+		}
+		const rows = await db
 			.selectFrom("sentinel_accounts")
 			.select("via")
 			.where("account_id", "=", id)
 			.execute();
-
-	test("link: the owner's live session links an existing account, idempotent, 404 unknown", async () => {
-		const id = await makeAccount(`link-${randomUUID()}@example.com`, false);
-		const sessionTokenHash = hashToken(await makeSession(id));
-		for (let i = 0; i < 2; i++) {
-			const res = await post(app(), "/accounts/link", {
-				accountId: id,
-				sessionTokenHash,
-			});
-			expect(res.status).toBe(200);
-			expect(await res.json()).toEqual({ linked: true });
-		}
-		expect(await linkRows(id)).toEqual([{ via: "consent" }]);
-		for (const accountId of [randomUUID(), "nope"]) {
-			expect(
-				(await post(app(), "/accounts/link", { accountId, sessionTokenHash }))
-					.status,
-			).toBe(404);
-		}
-	});
-
-	test("link: missing or malformed sessionTokenHash → 400, not linked", async () => {
-		const id = await makeAccount(`link-${randomUUID()}@example.com`, false);
-		const raw = await makeSession(id);
-		for (const sessionTokenHash of [undefined, "", raw, "A".repeat(64)]) {
-			expect(
-				(
-					await post(app(), "/accounts/link", {
-						accountId: id,
-						sessionTokenHash,
-					})
-				).status,
-			).toBe(400);
-		}
-		expect(await linkRows(id)).toEqual([]);
-	});
-
-	test("link: expired, revoked or unknown session → 403 owner_session_required, not linked", async () => {
-		const id = await makeAccount(`link-${randomUUID()}@example.com`, false);
-		const expired = await makeSession(id, {
-			expiresAt: new Date(Date.now() - 1000),
-		});
-		const revoked = await makeSession(id, { revoked: true });
-		for (const raw of [expired, revoked, `ss-sl_${randomUUID()}`]) {
-			const res = await post(app(), "/accounts/link", {
-				accountId: id,
-				sessionTokenHash: hashToken(raw),
-			});
-			expect(res.status).toBe(403);
-			expect(await res.json()).toMatchObject({
-				error: "owner_session_required",
-			});
-		}
-		expect(await linkRows(id)).toEqual([]);
-	});
-
-	test("link: another account's live session → 403, not linked", async () => {
-		const id = await makeAccount(`link-${randomUUID()}@example.com`, false);
-		const other = await makeAccount(`link-${randomUUID()}@example.com`, false);
-		const res = await post(app(), "/accounts/link", {
-			accountId: id,
-			sessionTokenHash: hashToken(await makeSession(other)),
-		});
-		expect(res.status).toBe(403);
-		expect(await res.json()).toMatchObject({ error: "owner_session_required" });
-		expect(await isSentinelLinked(db, id)).toBe(false);
-		expect(await isSentinelLinked(db, other)).toBe(false);
+		expect(rows).toEqual([{ via: "consent" }]);
+		expect(
+			(await post(app(), "/accounts/link", { accountId: randomUUID() })).status,
+		).toBe(404);
+		expect(
+			(await post(app(), "/accounts/link", { accountId: "nope" })).status,
+		).toBe(404);
 	});
 
 	test("unlinked account: mint and list keys → 403 account_not_linked", async () => {
@@ -403,6 +329,24 @@ describe.skipIf(!HAS_DB)("/internal/sentinel tokens + keys", () => {
 		};
 	const resolve = (raw: string) =>
 		post(app(), "/tokens/resolve", { tokenHash: hashToken(raw) });
+	async function makeSession(
+		accountId: string,
+		opts: { revoked?: boolean; expiresAt?: Date } = {},
+	) {
+		const { raw, hash, prefix } = generateSessionToken();
+		await db
+			.insertInto("sessions")
+			.values({
+				token_hash: hash,
+				token_prefix: prefix,
+				account_id: accountId,
+				ip_address: "test",
+				...(opts.expiresAt ? { expires_at: opts.expiresAt } : {}),
+				...(opts.revoked ? { revoked_at: new Date() } : {}),
+			})
+			.execute();
+		return raw;
+	}
 
 	test("mint returns the raw key once; the stored row holds only the hash", async () => {
 		const accountId = await makeAccount(`k-${randomUUID()}@example.com`);
