@@ -21,14 +21,6 @@ import {
 	search,
 } from "@/lib/docs-bm25";
 import { copyText } from "@/lib/docs-clipboard";
-import {
-	cachedNearest,
-	fuse,
-	fusedSure,
-	reorder,
-	requestNearest,
-	shouldFind,
-} from "@/lib/docs-find";
 import { buildPrompt, chipUrl } from "@/lib/docs-prompt";
 import { refreshList, useWebhooksCache } from "@/lib/webhooks-store";
 import { usePathname, useRouter } from "next/navigation";
@@ -77,8 +69,6 @@ type Row =
 	| { kind: "copy" };
 
 const MAX_HITS = 5;
-const FIND_POOL = 30;
-const FIND_DEBOUNCE_MS = 250;
 const MAX_YOURS = 3;
 const MAX_EMPTY_DOCS = 4;
 const MAX_ATTACH_DOCS = 12;
@@ -133,7 +123,6 @@ export function DocsSearch() {
 	const [dismissed, setDismissed] = useState(false);
 	const [selected, setSelected] = useState(0);
 	const [busy, setBusy] = useState(false);
-	const [answers, setAnswers] = useState(0);
 	const arrowed = useRef<{ id: string; index: number } | null>(null);
 	const [chips, setChips] = useState<CommandItem[]>([]);
 	const { account } = useAuth();
@@ -198,14 +187,11 @@ export function DocsSearch() {
 
 	const plain = !verb && !commandMode && !attachMode && !!text;
 	const results = useMemo(
-		() => (plain && ready ? search(ready.index, text, FIND_POOL) : []),
+		() => (plain && ready ? search(ready.index, text, MAX_HITS) : []),
 		[plain, ready, text],
 	);
-	const textSure = confident(results);
-	const findable = plain && !!ready && shouldFind(text, textSure);
 
 	const { hits, sure } = useMemo(() => {
-		void answers;
 		if (!plain) return { hits: [] as CommandItem[], sure: false };
 		if (!ready) {
 			return {
@@ -216,27 +202,13 @@ export function DocsSearch() {
 				sure: false,
 			};
 		}
-		const shown = results
-			.slice(0, MAX_HITS)
-			.map((r) => ready.items.get(r.id))
-			.filter((i): i is CommandItem => !!i);
-		const nearest = findable ? cachedNearest(text) : undefined;
-		if (!nearest?.length) return { hits: shown, sure: textSure };
-		const fused = fuse(
-			results.map((r) => ({ id: r.id, score: r.score })),
-			nearest,
-		);
 		return {
-			hits: reorder({
-				fused,
-				items: ready.items,
-				shown,
-				pinned: arrowed.current,
-				max: MAX_HITS,
-			}),
-			sure: fusedSure(fused),
+			hits: results
+				.map((r) => ready.items.get(r.id))
+				.filter((i): i is CommandItem => !!i),
+			sure: confident(results),
 		};
-	}, [plain, ready, text, results, textSure, findable, answers]);
+	}, [plain, ready, text, results]);
 
 	const rows = useMemo<Row[]>(() => {
 		if (attachMode) {
@@ -257,21 +229,6 @@ export function DocsSearch() {
 
 	const open = focused && !dismissed && (rows.length > 0 || manual !== null);
 	const activeId = open && !manual ? `${listId}-${selected}` : undefined;
-
-	useEffect(() => {
-		if (!findable || cachedNearest(text) !== undefined) return;
-		const ctrl = new AbortController();
-		const timer = setTimeout(() => {
-			requestNearest(text, ctrl.signal).then(
-				() => setAnswers((n) => n + 1),
-				() => {},
-			);
-		}, FIND_DEBOUNCE_MS);
-		return () => {
-			clearTimeout(timer);
-			ctrl.abort();
-		};
-	}, [findable, text]);
 
 	useEffect(() => {
 		const row = arrowed.current;

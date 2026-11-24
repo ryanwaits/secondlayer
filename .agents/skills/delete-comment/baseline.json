@@ -310,7 +310,6 @@
 	"packages/api/src/routes/proofs.ts": 49,
 	"packages/api/src/routes/public-contact.ts": 14,
 	"packages/api/src/routes/public-data.ts": 11,
-	"packages/api/src/routes/public-docs-find.ts": 8,
 	"packages/api/src/routes/public-docs-key.ts": 19,
 	"packages/api/src/routes/public-updates.ts": 19,
 	"packages/api/src/routes/public-waitlist.ts": 17,
