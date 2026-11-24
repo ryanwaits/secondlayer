@@ -81,7 +81,11 @@ export async function listWebhooks(
 	accountId: string,
 	opts?: { limit?: number; offset?: number },
 ): Promise<Webhook[]> {
-	let q = db.selectFrom("webhooks").selectAll().orderBy("created_at", "desc");
+	let q = db
+		.selectFrom("webhooks")
+		.selectAll()
+		.orderBy("created_at", "desc")
+		.orderBy("id", "desc");
 	if (isWebhookAccountScoped()) q = q.where("account_id", "=", accountId);
 	if (opts?.limit !== undefined) q = q.limit(opts.limit);
 	if (opts?.offset !== undefined) q = q.offset(opts.offset);
