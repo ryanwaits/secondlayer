@@ -51,8 +51,8 @@ declare const client: StreamsClient;
 }
 
 // events.subscribe
-// @ts-expect-error — "ft_transfer" is a Stacks type, not a RuneEventType
 client.events.subscribe({
+	// @ts-expect-error — "ft_transfer" is a Stacks type, not a RuneEventType
 	chain: "bitcoin",
 	types: ["ft_transfer"],
 	onEvent: () => {},
@@ -66,16 +66,16 @@ client.events.subscribe({
 	},
 });
 
-// @ts-expect-error — filters is Stacks-only, not part of the bitcoin branch
 client.events.subscribe({
 	filters: { a: { types: ["ft_transfer"] } },
+	// @ts-expect-error — filters is Stacks-only, not part of the bitcoin branch
 	chain: "bitcoin",
 	onEvent: () => {},
 });
 
 // events.consume
-// @ts-expect-error — "ft_transfer" is a Stacks type, not a RuneEventType
 client.events.consume({
+	// @ts-expect-error — "ft_transfer" is a Stacks type, not a RuneEventType
 	chain: "bitcoin",
 	types: ["ft_transfer"],
 	onBatch: () => {},
@@ -91,8 +91,9 @@ await client.events.consume({
 });
 
 await client.events.consume({
+	// @ts-expect-error — filters/on is Stacks-only, not part of the bitcoin branch
 	chain: "bitcoin",
-	// @ts-expect-error — filters/on is Stacks-only; the Stacks overload rejects "rune_transfer" too
+	// @ts-expect-error — the Stacks overload rejects "rune_transfer" too
 	filters: { a: { types: ["rune_transfer"] } },
 	onBatch: () => {},
 });
