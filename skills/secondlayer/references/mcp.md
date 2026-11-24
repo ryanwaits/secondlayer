@@ -67,6 +67,8 @@ Index (decoded — loopback reads need no key; history is whatever this instance
 - `index_transactions`
 - `index_discover` — the Index vocabulary (event types, filters); read before querying
 - `index_print_schema` — per-topic print payload schemas inferred from a contract's indexed history
+- `index_state_writes` — exact contract-state writes per block, in node order
+- `index_runes`, `index_rune`, `index_rune_balances`, `index_rune_activity` — Bitcoin Runes catalog, one rune, balances (by address or outpoint), activity; heights are Bitcoin heights
 - `codegen_index_schema` — an ORM schema for the Index tables, in-conversation
 - `batch_query` — up to 10 `/v1` reads in one round trip
 
@@ -75,6 +77,7 @@ Subgraphs:
 - `subgraphs_list`
 - `subgraphs_status`
 - `subgraphs_deploy` — open on any instance; no trial, quota, or visibility flag
+- `subgraphs_test` — prove a mapping writes rows against Index data before deploy
 - `subgraphs_scaffold` — generate a deploy-ready subgraph from a deployed contract
 - `subgraphs_spec` — self-describing spec: `agent` JSON schema (default), `openapi`, or `markdown`
 - `subgraphs_query`
@@ -110,6 +113,17 @@ Contracts:
 
 - `contracts_find` — discover contracts conforming to a trait
 - `contracts_get_abi` — fetch one contract's metadata + full ABI
+
+Instance and Archive:
+
+- `instance_status` — decoder health; `empty-index` means run `archive_bootstrap` next
+- `archive_latest`, `archive_quote`, `archive_verify` — signed pointer, price, free compare
+- `archive_bootstrap`, `archive_repair` — restore or repair history from a signed archive (metered)
+- `credits_balance` — prepaid credits
+
+Account (`api.secondlayer.tools`, `SECONDLAYER_API_KEY`):
+
+- `account_whoami`, `account_list_keys`, `account_create_key`, `account_rotate_key`
 
 Set `INSTANCE_TOKEN` to the token `secondlayer init` wrote for instance tools. It is required for every write, and for every read once the instance is reachable past loopback; Index, Streams, and subgraph reads on a loopback instance need none. Setting it always is safe — a token sent on a read that didn't need it is ignored, not rejected. On `api.secondlayer.tools` the MCP server uses `SECONDLAYER_API_KEY` (`sk-sl_*`) automatically instead; point `SECONDLAYER_API_URL` there and no `INSTANCE_TOKEN` is needed. Archive/credits tools use the same key.
 

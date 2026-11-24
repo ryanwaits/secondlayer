@@ -1697,9 +1697,9 @@ export interface BitcoinResource {
 }
 
 /** `index.runes` — the rune catalog, activity log, and balances. Runes is
- *  more data on the existing Index plane, not a new product. Not configured
- *  on hosted yet; every feed's `notes` says so when it isn't. Self-host with
- *  the `bitcoin` compose profile has data today. */
+ *  more data on the existing Index, not a new product. Live on hosted;
+ *  self-host needs the `bitcoin` compose profile. When Runes isn't
+ *  configured, every feed's `notes` says so. */
 export interface RunesResource {
 	/** The rune catalog. `search` prefix-matches the name; `sort` is etch
 	 *  order (default) or busiest-first. */
@@ -1936,7 +1936,8 @@ export class Index extends BaseClient {
 	 * Get the print payload schema a contract actually emits.
 	 *
 	 * Lists the topics it emits and each field's observed Clarity, TS, and
-	 * column types. Anonymous read; resolves to `null` on 404.
+	 * column types. Keyless on a loopback self-host; hosted needs your account
+	 * key. Resolves to `null` on 404.
 	 */
 	async printSchema(contractId: string): Promise<PrintSchemaResponse | null> {
 		return this.requestOrNull<PrintSchemaResponse>(
