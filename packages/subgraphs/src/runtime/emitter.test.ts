@@ -3,7 +3,12 @@ import { randomUUID } from "node:crypto";
 import { verify } from "@secondlayer/shared/crypto/standard-webhooks";
 import { getDb } from "@secondlayer/shared/db";
 import { createWebhook } from "@secondlayer/shared/db/queries/webhooks";
-import { __releaseClaimedRowsForTest, startEmitter } from "./emitter.ts";
+import {
+	__releaseClaimedRowsForTest,
+	__settleDeliveredForTest,
+	__settleFailedForTest,
+	startEmitter,
+} from "./emitter.ts";
 
 // Per-suite afterAll only cleans up its own data. Never call `closeDb()` —
 // it destroys the shared Kysely singleton and breaks sibling test files
@@ -482,5 +487,137 @@ describe("paused-webhook release fencing", () => {
 		expect(deadRow?.locked_by).toBe(claimToken);
 		expect(deadRow?.locked_until?.getTime()).toBe(lockedUntil.getTime());
 		expect(deadRow?.next_attempt_at.getTime()).toBe(lockedUntil.getTime());
+	});
+});
+
+describe("outbox settlement", () => {
+	const claimToken = `test-emitter:${randomUUID()}`;
+
+	async function seedClaimed(overrides: {
+		lockedBy?: string;
+		status?: "pending" | "dead";
+		maxRetries?: number;
+	}) {
+		await stopEmitter?.();
+		stopEmitter = null;
+		const { webhook } = await createWebhook(db, {
+			accountId,
+			name: `settle-${randomUUID().slice(0, 8)}`,
+			triggers: [{ type: "stx_transfer" }],
+			url: "http://localhost:1",
+			timeoutMs: 5_000,
+			maxRetries: overrides.maxRetries,
+		});
+		webhookIds.push(webhook.id);
+		const lockedUntil = new Date(Date.now() + 10 * 60_000);
+		const inserted = await db
+			.insertInto("webhook_outbox")
+			.values({
+				webhook_id: webhook.id,
+				block_height: 6000,
+				tx_id: `0xsettle${randomUUID().slice(0, 8)}`,
+				row_pk: { blockHeight: 6000, txId: "0xsettle", rowIndex: 0 },
+				event_type: "chain.stx_transfer.apply",
+				payload: { sender: "SP1", recipient: "SP2", amount: "1" },
+				dedup_key: `test-settle-${randomUUID().slice(0, 12)}`,
+				next_attempt_at: lockedUntil,
+				locked_until: lockedUntil,
+				locked_by: overrides.lockedBy ?? claimToken,
+				...(overrides.status === "dead"
+					? {
+							status: "dead" as const,
+							dead_reason: "orphaned" as const,
+							failed_at: new Date(),
+						}
+					: {}),
+			})
+			.returning("id")
+			.executeTakeFirstOrThrow();
+		const load = async () => ({
+			row: await db
+				.selectFrom("webhook_outbox")
+				.selectAll()
+				.where("id", "=", inserted.id)
+				.executeTakeFirstOrThrow(),
+			sub: await db
+				.selectFrom("webhooks")
+				.selectAll()
+				.where("id", "=", webhook.id)
+				.executeTakeFirstOrThrow(),
+		});
+		return { load, webhookId: webhook.id };
+	}
+
+	it("leaves a row held by another claim untouched and skips webhook bookkeeping", async () => {
+		const { load } = await seedClaimed({});
+		const { row, sub } = await load();
+		await db
+			.updateTable("webhook_outbox")
+			.set({ locked_by: `other-emitter:${randomUUID()}` })
+			.where("id", "=", row.id)
+			.execute();
+		const lockedBy = (await load()).row.locked_by;
+
+		await __settleDeliveredForTest(db, row);
+
+		const after = await load();
+		expect(after.row.status).toBe("pending");
+		expect(after.row.locked_by).toBe(lockedBy);
+		expect(after.row.attempt).toBe(row.attempt);
+		expect(after.sub.last_delivery_at).toBeNull();
+
+		await __settleFailedForTest(db, row, sub, "boom");
+		const afterFailed = await load();
+		expect(afterFailed.row.status).toBe("pending");
+		expect(afterFailed.row.locked_by).toBe(lockedBy);
+		expect(afterFailed.sub.circuit_failures).toBe(0);
+	});
+
+	it("leaves a row a reorg already marked dead as dead", async () => {
+		const { load } = await seedClaimed({ status: "dead" });
+		const { row, sub } = await load();
+
+		await __settleDeliveredForTest(db, row);
+		await __settleFailedForTest(db, row, sub, "boom");
+
+		const after = await load();
+		expect(after.row.status).toBe("dead");
+		expect(after.row.dead_reason).toBe("orphaned");
+		expect(after.row.delivered_at).toBeNull();
+	});
+
+	it("marks a delivered row, bumps attempt and clears the lock", async () => {
+		const { load } = await seedClaimed({});
+		const { row } = await load();
+
+		await __settleDeliveredForTest(db, row);
+
+		const after = await load();
+		expect(after.row.status).toBe("delivered");
+		expect(after.row.attempt).toBe(row.attempt + 1);
+		expect(after.row.delivered_at).not.toBeNull();
+		expect(after.row.locked_by).toBeNull();
+		expect(after.row.locked_until).toBeNull();
+		expect(after.sub.last_success_at).not.toBeNull();
+	});
+
+	it("retries a non-final failed attempt and kills an exhausted one", async () => {
+		const retry = await seedClaimed({ maxRetries: 3 });
+		const first = await retry.load();
+		await __settleFailedForTest(db, first.row, first.sub, "boom");
+		const afterRetry = await retry.load();
+		expect(afterRetry.row.status).toBe("pending");
+		expect(afterRetry.row.attempt).toBe(first.row.attempt + 1);
+		expect(afterRetry.row.locked_by).toBeNull();
+		expect(afterRetry.row.dead_reason).toBeNull();
+
+		const exhausted = await seedClaimed({ maxRetries: 1 });
+		const last = await exhausted.load();
+		await __settleFailedForTest(db, last.row, last.sub, "boom");
+		const afterDead = await exhausted.load();
+		expect(afterDead.row.status).toBe("dead");
+		expect(afterDead.row.dead_reason).toBe("exhausted");
+		expect(afterDead.row.failed_at).not.toBeNull();
+		expect(afterDead.row.locked_by).toBeNull();
 	});
 });

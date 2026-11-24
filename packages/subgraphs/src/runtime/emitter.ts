@@ -2,13 +2,17 @@ import { randomUUID } from "node:crypto";
 import { lookup as dnsLookup } from "node:dns/promises";
 import {
 	type Database,
+	type OutboxStatus,
 	type Webhook,
 	type WebhookOutbox,
 	describeDbUrl,
 	getTargetDb,
 } from "@secondlayer/shared/db";
 import { finalizeReplays } from "@secondlayer/shared/db/queries/webhook-replays";
-import { getWebhookSigningSecret } from "@secondlayer/shared/db/queries/webhooks";
+import {
+	getWebhookSigningSecret,
+	outboxMachine,
+} from "@secondlayer/shared/db/queries/webhooks";
 import { casTransition } from "@secondlayer/shared/db/transition";
 import { logger } from "@secondlayer/shared/logger";
 import { listen, targetListenerUrl } from "@secondlayer/shared/queue/listener";
@@ -610,26 +614,23 @@ async function settleDelivered(
 	outboxRow: WebhookOutbox,
 ): Promise<void> {
 	await db.transaction().execute(async (tx) => {
-		const result = await tx
-			.updateTable("webhook_outbox")
-			.set({
-				status: "delivered",
+		outboxMachine.assert("pending", "delivered");
+		const settled = await casTransition<OutboxStatus>(tx, {
+			table: "webhook_outbox",
+			id: outboxRow.id,
+			from: ["pending"],
+			to: "delivered",
+			set: {
 				delivered_at: new Date(),
 				attempt: outboxRow.attempt + 1,
 				locked_by: null,
 				locked_until: null,
-			})
-			// Guard against a reorg that marked this row `dead` (orphaned) while
-			// the POST was in flight — settling a delivery outcome must never
-			// resurrect a row the reorg already decided is gone. `status='pending'`
-			// is the only state a claimed row can settle from, and only the claim
-			// that dispatched it may settle it: a lapsed lock re-claimed by a newer
-			// claim stays that claim's.
-			.where("id", "=", outboxRow.id)
-			.where("status", "=", "pending")
-			.where("locked_by", "=", claimOf(outboxRow))
-			.executeTakeFirst();
-		if (Number(result.numUpdatedRows ?? 0) === 0) {
+			},
+			where: sql`locked_by = ${claimOf(outboxRow)}`,
+			stampUpdatedAt: false,
+			returning: ["id"],
+		});
+		if (settled === null) {
 			logger.info("webhook.settle.orphaned", {
 				outboxId: outboxRow.id,
 				webhookId: outboxRow.webhook_id,
@@ -670,22 +671,26 @@ async function settleFailed(
 		: new Date(Date.now() + nextDelaySeconds(outboxRow.attempt) * 1000);
 
 	await db.transaction().execute(async (tx) => {
-		const result = await tx
-			.updateTable("webhook_outbox")
-			.set({
+		const to: OutboxStatus = isDead ? "dead" : "pending";
+		outboxMachine.assert("pending", to);
+		const settled = await casTransition<OutboxStatus>(tx, {
+			table: "webhook_outbox",
+			id: outboxRow.id,
+			from: ["pending"],
+			to,
+			set: {
 				attempt,
 				next_attempt_at: nextAt ?? new Date(),
-				status: isDead ? "dead" : "pending",
 				dead_reason: isDead ? "exhausted" : null,
 				failed_at: isDead ? new Date() : null,
 				locked_by: null,
 				locked_until: null,
-			})
-			.where("id", "=", outboxRow.id)
-			.where("status", "=", "pending")
-			.where("locked_by", "=", claimOf(outboxRow))
-			.executeTakeFirst();
-		if (Number(result.numUpdatedRows ?? 0) === 0) {
+			},
+			where: sql`locked_by = ${claimOf(outboxRow)}`,
+			stampUpdatedAt: false,
+			returning: ["id"],
+		});
+		if (settled === null) {
 			logger.info("webhook.settle.orphaned", {
 				outboxId: outboxRow.id,
 				webhookId: outboxRow.webhook_id,
@@ -845,6 +850,18 @@ export const __releaseClaimedRowsForTest: (
 	ids: string[],
 	claimToken: string,
 ) => Promise<void> = releaseClaimedRows;
+
+export const __settleDeliveredForTest: (
+	db: Kysely<Database>,
+	outboxRow: WebhookOutbox,
+) => Promise<void> = settleDelivered;
+
+export const __settleFailedForTest: (
+	db: Kysely<Database>,
+	outboxRow: WebhookOutbox,
+	sub: Webhook,
+	errText: string,
+) => Promise<void> = settleFailed;
 
 /**
  * One claim pass: SELECT a batch, mark it locked, then hand each sub's slice

@@ -230,19 +230,16 @@ export async function recordLiveError(
 	blockHeight: number,
 	blockHash?: string,
 ): Promise<boolean> {
-	const result = await db
-		.updateTable("subgraphs")
-		.set({
-			status: "error",
-			last_processed_block: blockHeight,
-			...cursorHash(blockHash),
-			updated_at: new Date(),
-		})
-		.where("id", "=", subgraphId)
-		.where("status", "=", "active")
-		.where("last_processed_block", "<", blockHeight)
-		.executeTakeFirst();
-	return Number(result.numUpdatedRows ?? 0n) > 0;
+	const row = await casTransition<SubgraphStatus, Subgraph>(db, {
+		table: "subgraphs",
+		id: subgraphId,
+		from: ["active"],
+		to: "error",
+		set: { last_processed_block: blockHeight, ...cursorHash(blockHash) },
+		where: sql`last_processed_block < ${blockHeight}`,
+		returning: ["id"],
+	});
+	return row !== null;
 }
 
 export async function recordSubgraphProcessed(

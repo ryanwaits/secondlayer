@@ -12,6 +12,7 @@ import { type Machine, casTransition, defineMachine } from "../transition.ts";
 import type {
 	Database,
 	InsertWebhook,
+	OutboxStatus,
 	UpdateWebhook,
 	Webhook,
 	WebhookFormat,
@@ -188,6 +189,23 @@ export const webhookMachine: Machine<WebhookStatus> =
 		states: ["active", "paused"],
 		transitions: { active: ["active", "paused"], paused: ["active", "paused"] },
 	});
+
+export const OUTBOX_STATES = [
+	"pending",
+	"delivered",
+	"dead",
+] as const satisfies readonly OutboxStatus[];
+
+/** Outbox row machine. A failed attempt that will retry stays `pending`; requeue moves a `dead` row back. */
+export const outboxMachine: Machine<OutboxStatus> = defineMachine<OutboxStatus>(
+	{
+		states: OUTBOX_STATES,
+		transitions: {
+			pending: ["pending", "delivered", "dead"],
+			dead: ["pending"],
+		},
+	},
+);
 
 /** Pause (always as the customer: `pause_reason = 'user'`, even over a circuit
  *  pause) or resume. Either ends any circuit incident. */
