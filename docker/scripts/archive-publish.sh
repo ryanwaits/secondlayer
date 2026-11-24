@@ -25,12 +25,13 @@ set -uo pipefail
 . "$(dirname "$0")/lib/post-slack.sh"
 
 COMPOSE_DIR="${COMPOSE_DIR:-/opt/secondlayer/docker/prod}"
-INDEXER_CONTAINER="${INDEXER_CONTAINER:-secondlayer-indexer-1}"
+COMPOSE="docker compose -f docker-compose.yml -f docker-compose.hetzner.yml"
+cd "$COMPOSE_DIR" || { echo "archive-publish: cannot cd to $COMPOSE_DIR"; exit 1; }
 # Container-side path passed to the exporter.
 STAGING_DIR="${ARCHIVE_STAGING_DIR:-/data/archive/canonical-v1-staging}"
 # Host-side path for the same directory, resolved through the compose bind
-# mount. The wrapper needs this because `docker exec` has a known failure mode
-# where the exec stream doesn't cleanly close after the child process exits
+# mount. The wrapper needs this because the attached stream (an exec into the
+# indexer then, `compose run` now) can fail to close after the child process exits
 # (2026-08-13 incident: export finished in 3.3 h, the exec stream stayed open,
 # outer `timeout` killed it at the 6 h mark, wrapper flagged the whole cycle
 # as failed even though a valid signed snapshot was on disk). Confirmed
@@ -59,21 +60,25 @@ fail() {
   exit 1
 }
 
-in_container() {
-  docker exec "$INDEXER_CONTAINER" bun run "$@"
+# Each stage runs in its own `archive-job` one-off (indexer image and env,
+# profile `jobs`), so a deploy that recreates the indexer can't kill it.
+# A plain word list, not a function: `timeout` needs an executable.
+JOB="$COMPOSE --profile jobs run --rm --no-deps -T archive-job bun run"
+
+# A one-off left behind by a crashed or timed-out run.
+remove_stale_jobs() {
+  docker ps -aq --filter label=com.docker.compose.service=archive-job \
+    | xargs -r docker rm -f >/dev/null 2>&1 || true
 }
 
-if ! docker ps --format '{{.Names}}' 2>/dev/null | grep -qx "$INDEXER_CONTAINER"; then
-  fail "startup" "indexer container '$INDEXER_CONTAINER' is not running"
-fi
-
 echo "$(date -u +%FT%TZ) archive-publish starting"
+remove_stale_jobs
 
 # ── 1. Export ───────────────────────────────────────────────────────────────
 # `--to-block auto` bounds at the burn-confirmation finality boundary, so this
 # never publishes a height that could still reorg.
 #
-# Recovery guard for the docker-exec hang: we snapshot the newest manifest
+# Recovery guard for the attached-stream hang: we snapshot the newest manifest
 # file in the shared bind mount before starting, so after the exec returns
 # (cleanly, timed out, or anything else) we can ask a simpler question — did
 # a NEW signed snapshot land on disk? If yes, the export succeeded, whatever
@@ -84,17 +89,19 @@ mkdir -p "$SNAPSHOTS_HOST_DIR" 2>/dev/null || true
 pre_manifest=$(find "$SNAPSHOTS_HOST_DIR" -maxdepth 1 -name '*.json' -printf '%T@ %p\n' 2>/dev/null \
   | sort -rn | head -n1 | awk '{print $2}')
 
-export_out=$(timeout "$EXPORT_TIMEOUT" docker exec "$INDEXER_CONTAINER" \
-  bun run packages/indexer/src/archive/export-snapshot.ts \
+export_out=$(timeout "$EXPORT_TIMEOUT" $JOB \
+  packages/indexer/src/archive/export-snapshot.ts \
   --to-block auto --out "$STAGING_DIR" 2>&1)
 export_status=$?
 echo "$export_out"
+# `timeout` kills the compose client, not necessarily the container.
+[ "$export_status" -eq 0 ] || remove_stale_jobs
 
 # Preferred path: parse the summary JSON the CLI printed. This works whenever
-# `docker exec` behaved normally.
+# the attached stream behaved normally.
 MANIFEST=$(printf '%s' "$export_out" | grep -o '"manifest_path": *"[^"]*"' | sed 's/.*: *"//;s/"//')
 
-# Recovery path: if `docker exec` exited nonzero (typically 124 from `timeout`)
+# Recovery path: if the job exited nonzero (typically 124 from `timeout`)
 # but a new manifest file exists on disk, trust the file. The manifest is
 # self-signed and digest-addressed, so a corrupt or partial write cannot
 # masquerade as a valid one; downstream promotion will still catch it.
@@ -104,7 +111,7 @@ if [ -z "$MANIFEST" ] || [ "$export_status" -ne 0 ]; then
   if [ -n "$post_manifest" ] && [ "$post_manifest" != "$pre_manifest" ]; then
     # Container path is the same file via the bind mount.
     container_path="$STAGING_DIR/snapshots/$(basename "$post_manifest")"
-    echo "$(date -u +%FT%TZ) export-recovery: docker exec returned $export_status but a new manifest is on disk ($container_path); continuing"
+    echo "$(date -u +%FT%TZ) export-recovery: export job returned $export_status but a new manifest is on disk ($container_path); continuing"
     MANIFEST="$container_path"
     export_status=0
   fi
@@ -117,26 +124,27 @@ echo "manifest: $MANIFEST"
 # ── 2. Upload ───────────────────────────────────────────────────────────────
 # Resumable and idempotent: unchanged objects are skipped by size check, so a
 # cycle that produces no new partitions transfers nothing.
-upload_out=$(timeout "$UPLOAD_TIMEOUT" docker exec "$INDEXER_CONTAINER" \
-  bun run packages/indexer/src/archive/upload-snapshot.ts \
+upload_out=$(timeout "$UPLOAD_TIMEOUT" $JOB \
+  packages/indexer/src/archive/upload-snapshot.ts \
   --manifest "$MANIFEST" 2>&1)
 upload_status=$?
 echo "$upload_out"
+[ "$upload_status" -eq 0 ] || remove_stale_jobs
 [ "$upload_status" -eq 0 ] || fail "upload" "exit $upload_status"
 
 # ── 3. Promote ──────────────────────────────────────────────────────────────
 # Refuses on bad signature, non-contiguous coverage, a missing or wrong-sized
 # object, or a regression to an older tip. Those gates are the point.
-promote_out=$(docker exec "$INDEXER_CONTAINER" \
-  bun run packages/indexer/src/archive/promote-snapshot.ts \
+promote_out=$($JOB \
+  packages/indexer/src/archive/promote-snapshot.ts \
   --manifest "$MANIFEST" --apply 2>&1)
 promote_status=$?
 echo "$promote_out"
 [ "$promote_status" -eq 0 ] || fail "promote" "$(printf '%s' "$promote_out" | grep -E '^FAIL' | head -3 | tr '\n' ' ')"
 
 # ── 4. Status ───────────────────────────────────────────────────────────────
-status_out=$(docker exec "$INDEXER_CONTAINER" \
-  bun run packages/indexer/src/archive/publish-status.ts --apply 2>&1)
+status_out=$($JOB \
+  packages/indexer/src/archive/publish-status.ts --apply 2>&1)
 status_status=$?
 echo "$status_out"
 [ "$status_status" -eq 0 ] || fail "status" "exit $status_status"

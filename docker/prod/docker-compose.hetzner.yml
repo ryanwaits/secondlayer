@@ -152,7 +152,7 @@ services:
           memory: 2G
 
   indexer:
-    environment:
+    environment: &indexer-hetzner-env
       STACKS_NODE_RPC_URL: ${STACKS_NODE_RPC_URL:-http://37.27.171.220:20443}
       TIP_FOLLOWER_ENABLED: ${TIP_FOLLOWER_ENABLED:-true}
       AUTO_BACKFILL_ENABLED: ${AUTO_BACKFILL_ENABLED:-true}
@@ -161,8 +161,12 @@ services:
       # read-only at /srv/archive), so promote/status mirror their pointers here
       # as well as to the bucket. Same directory, container-side path.
       ARCHIVE_PUBLIC_DIR: /data/archive/canonical-v1-staging
-    volumes:
+    volumes: &indexer-hetzner-volumes
       - ${DATA_DIR:-/opt/secondlayer/data}/archive:/data/archive
+
+  archive-job:
+    environment: *indexer-hetzner-env
+    volumes: *indexer-hetzner-volumes
 
   decoder:
     deploy:

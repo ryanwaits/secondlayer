@@ -257,13 +257,18 @@ if ! flock -w "$DB_MAINTENANCE_LOCK_TIMEOUT_SECONDS" 9; then
 fi
 
 # An unchanged indexer (same layers, same config, no migration) is left
-# running: recreating it restarts identical code and would kill a running
-# archive export for nothing. Anything else waits for the publish as before.
+# running: recreating it restarts identical code for nothing.
 KEEP_INDEXER=false
 if [ "$MIGRATIONS_CHANGED" = "false" ] && indexer_unchanged; then
   KEEP_INDEXER=true
-  echo "✅ indexer unchanged (same image layers and config) — leaving it running; no archive-publish wait"
-else
+  echo "✅ indexer unchanged (same image layers and config) — leaving it running"
+fi
+
+# The archive publish runs in its own `archive-job` one-off, so recreating the
+# indexer no longer touches it. Only a migration waits: DDL needs ACCESS
+# EXCLUSIVE on chain tables while the export holds a repeatable-read snapshot
+# for hours, and the migration's 30 s lock_timeout would fail the deploy.
+if [ "$MIGRATIONS_CHANGED" = "true" ]; then
   wait_for_archive_publish_idle || exit 1
 fi
 
@@ -313,8 +318,14 @@ else
   echo "✅ No migration files changed between ${PREV_SHA:-unknown}..${DEPLOY_SHA} — skipping stop + migrate"
 fi
 
-# Clean up stale one-off containers (from manual `docker compose run` without --rm)
-remove_oneoffs
+# Clean up stale one-off containers (from manual `docker compose run` without
+# --rm), except a running archive publish.
+docker ps -a \
+  --filter "label=com.docker.compose.project=$COMPOSE_PROJECT" \
+  --filter "label=com.docker.compose.oneoff=True" \
+  --format '{{.ID}} {{.Label "com.docker.compose.service"}}' \
+  | awk '$2 != "archive-job" { print $1 }' \
+  | xargs -r docker rm -f 2>/dev/null || true
 
 # Restart back-end app services in bulk, then roll the api separately.
 # NEVER touch stacks-node, postgres.

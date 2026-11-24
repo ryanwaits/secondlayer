@@ -38,6 +38,7 @@ Compose project lives at `/opt/secondlayer/docker/prod` on app-server.
 | `secondlayer-walg-backup-platform-1` | Same for the control-plane DB (`/opt/secondlayer/data/wal_archive_platform` → `s3://secondlayer-db-backups/pg-platform`). |
 | `secondlayer-agent` | Log watcher → Slack alerts (the thing that pages you). No DB of its own. |
 | `secondlayer-migrate-1` | One-shot migration runner, re-run by every deploy. **`Exited (0)` is its healthy state.** |
+| `secondlayer-archive-job-run-*` | Archive publish one-off (profile `jobs`), present only while `secondlayer-archive-publish.service` runs. Deploys leave it alone and wait for it only when they carry a migration. |
 
 ## Operational rules (each one paid for in incidents)
 

@@ -22,6 +22,12 @@ keeps the public archive moving (published once, it falls ~7-9k blocks behind
 per day), and `archive-status` keeps its freshness signal honest between
 publishes.
 
+`archive-publish` runs each stage in an `archive-job` one-off (`compose run`,
+profile `jobs`: indexer image and env, own container), so recreating the
+indexer never kills an export. `deploy.sh` waits for the publish only when the
+deploy carries a migration (DDL can't take its locks under the export's
+hours-long snapshot), up to `ARCHIVE_PUBLISH_WAIT_TIMEOUT_SECONDS`.
+
 The publish cadence and the freshness thresholds in `status.json` are one
 setting in two files and must be changed together. `DEFAULT_MAX_SECONDS_SINCE_PROMOTION`
 (5 days) has to exceed the longest healthy gap between promotions (4 days, on
@@ -116,5 +122,5 @@ sudo systemctl start secondlayer-staging-health.service
 sudo systemctl start secondlayer-canonical-audit.service
 sudo systemctl start secondlayer-integrity-alert.service
 sudo systemctl start secondlayer-archive-status.service
-sudo systemctl start secondlayer-archive-publish.service   # ~3.5h, exports the full chain
+sudo systemctl start secondlayer-archive-publish.service   # ~6-7h, exports the full chain
 ```

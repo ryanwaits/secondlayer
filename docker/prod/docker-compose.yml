@@ -246,7 +246,7 @@ services:
       context: ../..
       dockerfile: docker/Dockerfile
       target: indexer
-    environment:
+    environment: &indexer-env
       INSTANCE_MODE: ${INSTANCE_MODE:-platform}
       # Overridable so split prod can BLANK it (`DATABASE_URL=` in .env) — then a
       # missing SOURCE_/TARGET_ var fails loud via DEFAULT_URL instead of silently
@@ -303,6 +303,18 @@ services:
       start_period: 10s
       retries: 3
     restart: unless-stopped
+
+  # Archive publish one-off (docker/scripts/archive-publish.sh runs each stage
+  # with `compose run --rm archive-job bun run <file>`). Same image and env as
+  # the indexer, but its own container, so a deploy that recreates the indexer
+  # no longer kills a running export. Profile-gated: `up -d` never starts it.
+  archive-job:
+    image: ghcr.io/${DEPLOY_IMAGE_OWNER:-secondlayer-labs}/secondlayer-indexer:${DEPLOY_IMAGE_TAG:-latest}
+    profiles: ["jobs"]
+    environment: *indexer-env
+    healthcheck:
+      disable: true
+    restart: "no"
 
   # Continuous L2 decoder service. Dedicated image (own Dockerfile target + tag)
   # so it deploys/rolls back independently of the indexer. Per-service tag defaults
