@@ -1,7 +1,7 @@
 /**
  * Raw status-write guard. State machines write status through `casTransition`
- * (packages/shared/src/db/transition.ts). This lists every `.set({ status:` and
- * `SET status`, including in files that already use `casTransition`, and fails
+ * (packages/shared/src/db/transition.ts). This lists every `status` key anywhere in a
+ * `.set({…})` literal and every `SET status`, including in files that already use `casTransition`, and fails
  * only when a file has more raw writes than `status-writes.baseline.json` records.
  *
  *   bun scripts/ci/status-writes.ts           check (CI)
@@ -11,7 +11,8 @@ import { Glob } from "bun";
 
 const ROOT = new URL("../../", import.meta.url).pathname;
 const BASELINE = `${ROOT}scripts/ci/status-writes.baseline.json`;
-const RAW_WRITE = /\.set\(\s*\{\s*status\s*:|\bSET\s+status\b/g;
+const RAW_WRITE =
+	/\.set\(\s*\{(?:[^{}]|\{[^{}]*\})*?\bstatus\s*:|\bSET\s+status\b/g;
 const SKIP = /(^|\/)(node_modules|dist|migrations)\/|\.test\.tsx?$/;
 
 async function scan(): Promise<Record<string, number>> {
