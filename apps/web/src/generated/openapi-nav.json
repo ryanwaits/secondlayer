@@ -69,6 +69,10 @@
 				"title": "The Transaction object"
 			},
 			{
+				"anchor": "contract-object",
+				"title": "The Contract object"
+			},
+			{
 				"anchor": "transaction-proof-object",
 				"title": "The Transaction proof object"
 			},
@@ -168,6 +172,16 @@
 				"anchor": "get-transaction",
 				"method": "GET",
 				"title": "Transaction by tx_id"
+			},
+			{
+				"anchor": "list-contracts-by-trait",
+				"method": "GET",
+				"title": "Contracts by trait"
+			},
+			{
+				"anchor": "get-contract",
+				"method": "GET",
+				"title": "Contract by id"
 			},
 			{
 				"anchor": "get-transaction-proof",

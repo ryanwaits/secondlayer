@@ -1,10 +1,19 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import type { Database } from "@secondlayer/shared/db";
+import { type Database, getDb, sql } from "@secondlayer/shared/db";
+import {
+	ClarityVersion,
+	buildContractDeploy,
+	serializeTransactionHex,
+} from "@secondlayer/stacks/transactions";
 import { Hono } from "hono";
 import type { Kysely } from "kysely";
 import { _resetRateLimitStoreForTests } from "../auth/rate-limit-store.ts";
 import { errorHandler } from "../middleware/error.ts";
-import { CONTRACTS_RATE_LIMITS, createContractsRouter } from "./contracts.ts";
+import {
+	CONTRACTS_RATE_LIMITS,
+	createContractsRouter,
+	readContractSource,
+} from "./contracts.ts";
 
 // Reproduces the prod 500 on GET /v1/contracts: the `contracts` table is a
 // SOURCE-plane table (TABLE_TO_DB.contracts === "source"), but the route read
@@ -41,6 +50,10 @@ function app() {
 			}
 			return null;
 		},
+		getContractSource: async (db, contractId) => {
+			expect(db).toBe(SOURCE_DB);
+			return contractId === "SP1.known" ? "(define-constant x u1)" : null;
+		},
 	});
 	const a = new Hono();
 	a.onError(errorHandler);
@@ -75,6 +88,123 @@ describe("GET /v1/contracts/:contractId", () => {
 	test("404 when the contract is not in the registry", async () => {
 		const res = await app().request("/v1/contracts/SP1.missing");
 		expect(res.status).toBe(404);
+	});
+
+	test("returns the deployed source when include=source", async () => {
+		const res = await app().request("/v1/contracts/SP1.known?include=source");
+		expect(res.status).toBe(200);
+		const body = (await res.json()) as {
+			contract: { source?: string; abi?: unknown };
+		};
+		expect(body.contract.source).toBe("(define-constant x u1)");
+		expect(body.contract.abi).toBeUndefined();
+	});
+
+	test("include takes a comma list, so abi and source come back together", async () => {
+		const res = await app().request(
+			"/v1/contracts/SP1.known?include=abi,source",
+		);
+		const body = (await res.json()) as {
+			contract: { source?: string; abi?: unknown };
+		};
+		expect(body.contract.source).toBe("(define-constant x u1)");
+		expect(body.contract.abi).toEqual({ functions: [{ name: "transfer" }] });
+	});
+
+	test("omits source by default", async () => {
+		const res = await app().request("/v1/contracts/SP1.known");
+		const body = (await res.json()) as { contract: { source?: string } };
+		expect(body.contract.source).toBeUndefined();
+	});
+});
+
+describe.skipIf(!process.env.DATABASE_URL)("readContractSource", () => {
+	const db = process.env.DATABASE_URL ? getDb() : null;
+	const deployer = "SP000000000000000000002Q6VF78";
+
+	async function seedDeploy(opts: {
+		name: string;
+		codeBody: string;
+		height: number;
+		canonical: boolean;
+		versioned?: boolean;
+	}) {
+		if (!db) throw new Error("missing db");
+		const rawTx = serializeTransactionHex(
+			buildContractDeploy({
+				contractName: opts.name,
+				codeBody: opts.codeBody,
+				fee: 1n,
+				nonce: 0n,
+				publicKey: `02${"11".repeat(32)}`,
+				...(opts.versioned ? { clarityVersion: ClarityVersion.Clarity6 } : {}),
+			}),
+		);
+		await db
+			.insertInto("blocks")
+			.values({
+				height: opts.height,
+				hash: `0xsrc${opts.height}`,
+				parent_hash: `0xsrc${opts.height - 1}`,
+				burn_block_height: opts.height,
+				timestamp: 1_700_000_000,
+				canonical: opts.canonical,
+			})
+			.onConflict((oc) => oc.column("height").doNothing())
+			.execute();
+		await db
+			.insertInto("transactions")
+			.values({
+				tx_id: `0xsrc-${opts.name}-${opts.height}`,
+				block_height: opts.height,
+				type: "smart_contract",
+				sender: deployer,
+				status: "success",
+				contract_id: `${deployer}.${opts.name}`,
+				function_name: null,
+				raw_tx: rawTx,
+			})
+			.execute();
+	}
+
+	beforeEach(async () => {
+		if (!db) return;
+		await sql`DELETE FROM transactions WHERE tx_id LIKE '0xsrc-%'`.execute(db);
+		await sql`DELETE FROM blocks WHERE hash LIKE '0xsrc%'`.execute(db);
+	});
+
+	test("decodes the code body from the canonical deploy transaction", async () => {
+		if (!db) throw new Error("missing db");
+		await seedDeploy({
+			name: "plain",
+			codeBody: "(define-constant a u1)",
+			height: 880_001,
+			canonical: true,
+		});
+		await seedDeploy({
+			name: "versioned",
+			codeBody: "(define-constant b u2)",
+			height: 880_002,
+			canonical: true,
+			versioned: true,
+		});
+		expect(await readContractSource(db, `${deployer}.plain`)).toBe(
+			"(define-constant a u1)",
+		);
+		expect(await readContractSource(db, `${deployer}.versioned`)).toBe(
+			"(define-constant b u2)",
+		);
+	});
+
+	test("ignores a deploy in an orphaned block", async () => {
+		if (!db) throw new Error("missing db");
+		await seedDeploy({
+			name: "orphan",
+			codeBody: "(define-constant c u3)",
+			height: 880_003,
+			canonical: false,
+		});
+		expect(await readContractSource(db, `${deployer}.orphan`)).toBeNull();
 	});
 });
 

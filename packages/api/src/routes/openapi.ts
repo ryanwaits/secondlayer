@@ -54,6 +54,8 @@ export const OPERATION_IDS: Record<string, string> = {
 	"GET /v1/index/transactions": "listTransactions",
 	"GET /v1/index/transactions/{tx_id}": "getTransaction",
 	"GET /v1/index/transactions/{tx_id}/proof": "getTransactionProof",
+	"GET /v1/contracts": "listContractsByTrait",
+	"GET /v1/contracts/{contract_id}": "getContract",
 	"GET /v1/index/pox/cycles": "listPox4Cycles",
 	"GET /v1/index/pox/cycles/{reward_cycle}": "getPox4Cycle",
 	"GET /v1/index/pox5/events": "listPox5Events",
@@ -199,6 +201,7 @@ const TAG_SCHEMAS = Object.assign({}, ...Object.values(SCHEMAS_BY_FILE));
 
 const SCHEMA_TITLES: Record<string, string> = {
 	V1Discovery: "API discovery",
+	Contract: "Contract",
 	BatchResponse: "Batch response",
 	ArchiveVerifyResult: "Archive verification",
 	IndexDiscovery: "Index discovery",

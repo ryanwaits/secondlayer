@@ -7,6 +7,10 @@ import {
 } from "@secondlayer/shared/db/queries/contracts";
 import { RateLimitError } from "@secondlayer/shared/errors";
 import { isPlatformMode } from "@secondlayer/shared/mode";
+import {
+	PayloadType,
+	deserializeTransaction,
+} from "@secondlayer/stacks/transactions";
 import { Hono, type MiddlewareHandler } from "hono";
 import { getClientIp, ipBucket } from "../auth/http.ts";
 import { getRateLimitStore } from "../auth/rate-limit-store.ts";
@@ -65,8 +69,37 @@ export type ContractsRouterOptions = {
 	getSourceDb?: typeof getSourceDb;
 	listContractsByTrait?: typeof defaultListContractsByTrait;
 	getContract?: typeof defaultGetContract;
+	getContractSource?: typeof readContractSource;
 	tokens?: IndexTokenStore;
 };
+
+/** The Clarity source a contract was deployed with, from its canonical deploy
+ *  transaction. Null when that transaction is not indexed. */
+export async function readContractSource(
+	db: ReturnType<typeof getSourceDb>,
+	contractId: string,
+): Promise<string | null> {
+	const row = await db
+		.selectFrom("transactions as t")
+		.innerJoin("blocks as b", "b.height", "t.block_height")
+		.select("t.raw_tx")
+		.where("t.contract_id", "=", contractId)
+		.where("t.type", "=", "smart_contract")
+		.where("t.status", "=", "success")
+		.where("b.canonical", "=", true)
+		.limit(1)
+		.executeTakeFirst();
+	if (!row) return null;
+	const { payload } = deserializeTransaction(row.raw_tx);
+	return payload.payloadType === PayloadType.SmartContract ||
+		payload.payloadType === PayloadType.VersionedSmartContract
+		? payload.codeBody
+		: null;
+}
+
+function parseInclude(raw: string | undefined): Set<string> {
+	return new Set((raw ?? "").split(",").map((part) => part.trim()));
+}
 
 function toSummary(c: Contract, includeAbi: boolean) {
 	return {
@@ -88,6 +121,7 @@ export function createContractsRouter(opts: ContractsRouterOptions = {}) {
 	const listContractsByTrait =
 		opts.listContractsByTrait ?? defaultListContractsByTrait;
 	const getContract = opts.getContract ?? defaultGetContract;
+	const getContractSource = opts.getContractSource ?? readContractSource;
 
 	const app = new Hono<IndexEnv>();
 	app.use(
@@ -160,12 +194,11 @@ export function createContractsRouter(opts: ContractsRouterOptions = {}) {
 		});
 	});
 
-	// Single contract by id — the prod-safe ABI source (the `/api/node/...` proxy is
-	// OSS/dedicated-only). Pass ?include=abi for the full ABI blob.
 	app.get("/:contractId", async (c) => {
 		const contractId = c.req.param("contractId");
-		const includeAbi = c.req.query("include") === "abi";
-		const row = await getContract(getDbHandle(), contractId);
+		const include = parseInclude(c.req.query("include"));
+		const db = getDbHandle();
+		const row = await getContract(db, contractId);
 		if (!row) {
 			return c.json(
 				{
@@ -175,7 +208,14 @@ export function createContractsRouter(opts: ContractsRouterOptions = {}) {
 				404,
 			);
 		}
-		return c.json({ contract: toSummary(row, includeAbi) });
+		const contract = toSummary(row, include.has("abi"));
+		if (!include.has("source")) return c.json({ contract });
+		return c.json({
+			contract: {
+				...contract,
+				source: await getContractSource(db, contractId),
+			},
+		});
 	});
 
 	return app;

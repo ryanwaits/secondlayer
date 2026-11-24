@@ -5,6 +5,7 @@ import { NFT_TRANSFER_FIELDS } from "../../index/nft-transfers.ts";
 import { TRANSACTION_FIELDS } from "../../index/transactions.ts";
 import {
 	CONTRACT_ID_PARAM,
+	ERROR_400,
 	ERROR_401,
 	ERROR_429,
 	EVENT_NEXT_CURSOR_DESCRIPTION,
@@ -74,6 +75,16 @@ const TRAIT_PARAM = {
 		"Only contracts that declare or implement this SIP standard, resolved as of the page's `to_height`. Mutually exclusive with `contract_id`.",
 	),
 	schema: { type: "string", enum: [...TRAIT_STANDARDS] },
+};
+
+const CONTRACT_EXAMPLE = {
+	contract_id: "SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4.sbtc-token",
+	deployer: "SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4",
+	block_height: 328_228,
+	declared_traits: [],
+	inferred_standards: ["sip-010"],
+	abi_status: "fetched",
+	classified_at: "2026-10-15T19:11:15.651Z",
 };
 
 const TIP_EXAMPLE = {
@@ -540,6 +551,96 @@ export const indexPaths = {
 			),
 		},
 	},
+	"/v1/contracts": {
+		get: {
+			tags: ["index"],
+			summary: "Contracts by trait",
+			"x-nav-title": "Contracts by trait",
+			description:
+				"Deployed contracts that declare or implement a SIP standard, in `contract_id` order. `include=abi` adds each ABI and lowers the page cap.",
+			security: READ_SECURITY,
+			parameters: [
+				{
+					...qp("trait", "string", true, "SIP standard to match."),
+					schema: { type: "string", enum: [...TRAIT_STANDARDS] },
+				},
+				{
+					...qp(
+						"conformance",
+						"string",
+						false,
+						"`declared` (impl-trait), `inferred` (ABI shape) or `any` (default).",
+					),
+					schema: { type: "string", enum: ["declared", "inferred", "any"] },
+				},
+				qp(
+					"classified_after",
+					"string",
+					false,
+					"ISO 8601 timestamp; only contracts classified after it.",
+				),
+				qp("include", "string", false, "`abi` adds each contract's ABI."),
+				qp(
+					"limit",
+					"integer",
+					false,
+					"Page size, max 100 (lower with `include=abi`).",
+				),
+				qp("cursor", "string", false, "`next_cursor` from the previous page."),
+			],
+			responses: {
+				"200": json200(
+					{
+						type: "object",
+						required: ["contracts", "next_cursor"],
+						properties: {
+							contracts: { type: "array", items: ref("Contract") },
+							next_cursor: { type: ["string", "null"] },
+						},
+						example: { contracts: [CONTRACT_EXAMPLE], next_cursor: null },
+					},
+					"A page of contracts",
+				),
+				"400": jsonError(ERROR_400),
+				"401": jsonError(ERROR_401),
+				"429": jsonError(ERROR_429),
+			},
+		},
+	},
+	"/v1/contracts/{contract_id}": {
+		get: {
+			tags: ["index"],
+			summary: "Contract by id",
+			"x-nav-title": "Contract",
+			description:
+				"One deployed contract: deployer, deploy height and the standards it conforms to. `include` takes a comma list: `abi` adds its ABI, `source` adds the Clarity source it was deployed with (`null` when the deploy transaction is not indexed). No Stacks node is involved.",
+			security: READ_SECURITY,
+			parameters: [
+				pp("contract_id", "Contract principal, `<address>.<name>`."),
+				qp("include", "string", false, "Comma list of `abi`, `source`."),
+			],
+			responses: {
+				"200": json200(
+					{
+						type: "object",
+						required: ["contract"],
+						properties: { contract: ref("Contract") },
+						example: {
+							contract: {
+								...CONTRACT_EXAMPLE,
+								source:
+									";; sBTC token\n(impl-trait .sip-010-trait.sip-010-trait)\n...",
+							},
+						},
+					},
+					"The contract",
+				),
+				"401": jsonError(ERROR_401),
+				"404": jsonError("Not in the contract registry (`CONTRACT_NOT_FOUND`)"),
+				"429": jsonError(ERROR_429),
+			},
+		},
+	},
 	"/v1/index/transactions/{tx_id}/proof": {
 		get: {
 			tags: ["index"],
@@ -782,6 +883,55 @@ const TX_DECODED_PROPS = {
 };
 
 export const indexSchemas = {
+	Contract: {
+		type: "object",
+		required: [
+			"contract_id",
+			"deployer",
+			"block_height",
+			"declared_traits",
+			"inferred_standards",
+			"abi_status",
+			"classified_at",
+		],
+		properties: {
+			contract_id: {
+				type: "string",
+				description: "Contract principal, `<address>.<name>`.",
+			},
+			deployer: { type: "string", description: "Address that deployed it." },
+			block_height: {
+				type: "integer",
+				description: "Height of the deploy block.",
+			},
+			declared_traits: {
+				type: "array",
+				items: { type: "string" },
+				description: "SIP standards it declares with `impl-trait`.",
+			},
+			inferred_standards: {
+				type: "array",
+				items: { type: "string" },
+				description: "SIP standards its ABI matches, declared or not.",
+			},
+			abi_status: {
+				type: "string",
+				description: "Whether the ABI has been read yet.",
+			},
+			classified_at: {
+				type: ["string", "null"],
+				format: "date-time",
+				description: "When the ABI was read and classified.",
+			},
+			abi: { description: "The contract ABI. With `include=abi`." },
+			source: {
+				type: ["string", "null"],
+				description:
+					"The Clarity source it was deployed with, from the deploy transaction. With `include=source`.",
+			},
+		},
+		example: CONTRACT_EXAMPLE,
+	},
 	IndexEvent: {
 		type: "object",
 		description:

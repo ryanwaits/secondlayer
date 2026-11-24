@@ -2102,6 +2102,80 @@
 					}
 				}
 			},
+			"Contract": {
+				"title": "Contract",
+				"type": "object",
+				"required": [
+					"contract_id",
+					"deployer",
+					"block_height",
+					"declared_traits",
+					"inferred_standards",
+					"abi_status",
+					"classified_at"
+				],
+				"properties": {
+					"contract_id": {
+						"type": "string",
+						"description": "Contract principal, `<address>.<name>`."
+					},
+					"deployer": {
+						"type": "string",
+						"description": "Address that deployed it."
+					},
+					"block_height": {
+						"type": "integer",
+						"description": "Height of the deploy block."
+					},
+					"declared_traits": {
+						"type": "array",
+						"items": {
+							"type": "string"
+						},
+						"description": "SIP standards it declares with `impl-trait`."
+					},
+					"inferred_standards": {
+						"type": "array",
+						"items": {
+							"type": "string"
+						},
+						"description": "SIP standards its ABI matches, declared or not."
+					},
+					"abi_status": {
+						"type": "string",
+						"description": "Whether the ABI has been read yet."
+					},
+					"classified_at": {
+						"type": [
+							"string",
+							"null"
+						],
+						"format": "date-time",
+						"description": "When the ABI was read and classified."
+					},
+					"abi": {
+						"description": "The contract ABI. With `include=abi`."
+					},
+					"source": {
+						"type": [
+							"string",
+							"null"
+						],
+						"description": "The Clarity source it was deployed with, from the deploy transaction. With `include=source`."
+					}
+				},
+				"example": {
+					"contract_id": "SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4.sbtc-token",
+					"deployer": "SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4",
+					"block_height": 328228,
+					"declared_traits": [],
+					"inferred_standards": [
+						"sip-010"
+					],
+					"abi_status": "fetched",
+					"classified_at": "2026-10-15T19:11:15.651Z"
+				}
+			},
 			"IndexEvent": {
 				"title": "Index event",
 				"type": "object",
@@ -12237,6 +12311,266 @@
 					},
 					"404": {
 						"description": "No canonical transaction with that id (`Transaction not found`)",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"429": {
+						"description": "Rate limited; retry after `Retry-After` seconds",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/v1/contracts": {
+			"get": {
+				"operationId": "listContractsByTrait",
+				"tags": [
+					"index"
+				],
+				"summary": "Contracts by trait",
+				"x-nav-title": "Contracts by trait",
+				"description": "Deployed contracts that declare or implement a SIP standard, in `contract_id` order. `include=abi` adds each ABI and lowers the page cap.",
+				"security": [
+					{},
+					{
+						"bearerAuth": []
+					}
+				],
+				"parameters": [
+					{
+						"name": "trait",
+						"in": "query",
+						"required": true,
+						"schema": {
+							"type": "string",
+							"enum": [
+								"sip-009",
+								"sip-010",
+								"sip-013"
+							]
+						},
+						"description": "SIP standard to match."
+					},
+					{
+						"name": "conformance",
+						"in": "query",
+						"required": false,
+						"schema": {
+							"type": "string",
+							"enum": [
+								"declared",
+								"inferred",
+								"any"
+							]
+						},
+						"description": "`declared` (impl-trait), `inferred` (ABI shape) or `any` (default)."
+					},
+					{
+						"name": "classified_after",
+						"in": "query",
+						"required": false,
+						"schema": {
+							"type": "string"
+						},
+						"description": "ISO 8601 timestamp; only contracts classified after it."
+					},
+					{
+						"name": "include",
+						"in": "query",
+						"required": false,
+						"schema": {
+							"type": "string"
+						},
+						"description": "`abi` adds each contract's ABI."
+					},
+					{
+						"name": "limit",
+						"in": "query",
+						"required": false,
+						"schema": {
+							"type": "integer"
+						},
+						"description": "Page size, max 100 (lower with `include=abi`)."
+					},
+					{
+						"name": "cursor",
+						"in": "query",
+						"required": false,
+						"schema": {
+							"type": "string"
+						},
+						"description": "`next_cursor` from the previous page."
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "A page of contracts",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"required": [
+										"contracts",
+										"next_cursor"
+									],
+									"properties": {
+										"contracts": {
+											"type": "array",
+											"items": {
+												"$ref": "#/components/schemas/Contract"
+											}
+										},
+										"next_cursor": {
+											"type": [
+												"string",
+												"null"
+											]
+										}
+									},
+									"example": {
+										"contracts": [
+											{
+												"contract_id": "SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4.sbtc-token",
+												"deployer": "SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4",
+												"block_height": 328228,
+												"declared_traits": [],
+												"inferred_standards": [
+													"sip-010"
+												],
+												"abi_status": "fetched",
+												"classified_at": "2026-10-15T19:11:15.651Z"
+											}
+										],
+										"next_cursor": null
+									}
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "A parameter, filter, cursor or body field was refused; `code` says which",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "This bind requires the instance token, and it was missing or wrong",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"429": {
+						"description": "Rate limited; retry after `Retry-After` seconds",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/v1/contracts/{contract_id}": {
+			"get": {
+				"operationId": "getContract",
+				"tags": [
+					"index"
+				],
+				"summary": "Contract by id",
+				"x-nav-title": "Contract",
+				"description": "One deployed contract: deployer, deploy height and the standards it conforms to. `include` takes a comma list: `abi` adds its ABI, `source` adds the Clarity source it was deployed with (`null` when the deploy transaction is not indexed). No Stacks node is involved.",
+				"security": [
+					{},
+					{
+						"bearerAuth": []
+					}
+				],
+				"parameters": [
+					{
+						"name": "contract_id",
+						"in": "path",
+						"required": true,
+						"schema": {
+							"type": "string"
+						},
+						"description": "Contract principal, `<address>.<name>`."
+					},
+					{
+						"name": "include",
+						"in": "query",
+						"required": false,
+						"schema": {
+							"type": "string"
+						},
+						"description": "Comma list of `abi`, `source`."
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "The contract",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"required": [
+										"contract"
+									],
+									"properties": {
+										"contract": {
+											"$ref": "#/components/schemas/Contract"
+										}
+									},
+									"example": {
+										"contract": {
+											"contract_id": "SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4.sbtc-token",
+											"deployer": "SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4",
+											"block_height": 328228,
+											"declared_traits": [],
+											"inferred_standards": [
+												"sip-010"
+											],
+											"abi_status": "fetched",
+											"classified_at": "2026-10-15T19:11:15.651Z",
+											"source": ";; sBTC token\n(impl-trait .sip-010-trait.sip-010-trait)\n..."
+										}
+									}
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "This bind requires the instance token, and it was missing or wrong",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Not in the contract registry (`CONTRACT_NOT_FOUND`)",
 						"content": {
 							"application/json": {
 								"schema": {
