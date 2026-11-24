@@ -1548,15 +1548,19 @@ describe("Index /transactions/:tx_id/proof route (fake reader)", () => {
 		expect(body.code).toBe("PROOF_TX_SET_INCOMPLETE");
 	});
 
-	test("503s with PROOF_NODE_UNAVAILABLE when the reader throws ProofNodeUnavailableError", async () => {
+	test("503s with PROOF_NODE_UNAVAILABLE and never echoes the upstream transport error", async () => {
 		const res = await proofApp({
 			readTransactionProof: async () => {
-				throw new ProofNodeUnavailableError(new Error("connect ECONNREFUSED"));
+				throw new ProofNodeUnavailableError(
+					new Error("connect ECONNREFUSED 10.77.0.2:20443"),
+				);
 			},
 		}).request("/v1/index/transactions/0xabc/proof");
 		expect(res.status).toBe(503);
-		const body = (await res.json()) as { code: string };
+		const body = (await res.json()) as { code: string; error: string };
 		expect(body.code).toBe("PROOF_NODE_UNAVAILABLE");
+		expect(body.error).not.toContain("10.77.0.2");
+		expect(body.error).not.toContain("ECONNREFUSED");
 	});
 });
 

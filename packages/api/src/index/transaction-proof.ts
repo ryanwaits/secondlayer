@@ -101,9 +101,9 @@ export class IncompleteBlockTxSetError extends Error {
 
 export class ProofNodeUnavailableError extends Error {
 	constructor(cause: unknown) {
-		super(
-			`could not reach the stacks-node to fetch the signed block header: ${cause instanceof Error ? cause.message : String(cause)}`,
-		);
+		super("could not reach the stacks-node to fetch the signed block header", {
+			cause,
+		});
 		this.name = "ProofNodeUnavailableError";
 	}
 }

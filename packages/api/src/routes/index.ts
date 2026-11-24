@@ -1,3 +1,4 @@
+import { logger } from "@secondlayer/shared";
 import { readChainReorgsForHeightRange } from "@secondlayer/shared/db/queries/chain-reorgs";
 import { isPlatformMode } from "@secondlayer/shared/mode";
 import { type Context, Hono } from "hono";
@@ -706,6 +707,10 @@ export function createIndexRouter(opts: IndexRouterOptions = {}) {
 				);
 			}
 			if (err instanceof ProofNodeUnavailableError) {
+				logger.warn("proofs.node_unreachable", {
+					error:
+						err.cause instanceof Error ? err.cause.message : String(err.cause),
+				});
 				return c.json(
 					{ error: err.message, code: "PROOF_NODE_UNAVAILABLE" },
 					503,
