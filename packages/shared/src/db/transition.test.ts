@@ -92,6 +92,33 @@ describe.skipIf(SKIP)("casTransition", () => {
 		expect(rows[0]?.status).toBe("done");
 	});
 
+	test("moves only when the extra where condition holds", async () => {
+		const id = await insert("pending");
+		await sql`UPDATE ${sql.table(TABLE)} SET note = 'a' WHERE id = ${id}`.execute(
+			db,
+		);
+		const blocked = await casTransition(db, {
+			table: TABLE,
+			id,
+			from: ["pending"],
+			to: "running",
+			where: sql`note = ${"b"}`,
+		});
+		expect(blocked).toBeNull();
+		const { rows } = await sql<{ status: string }>`
+			SELECT status FROM ${sql.table(TABLE)} WHERE id = ${id}
+		`.execute(db);
+		expect(rows[0]?.status).toBe("pending");
+		const moved = await casTransition(db, {
+			table: TABLE,
+			id,
+			from: ["pending"],
+			to: "running",
+			where: sql`note = ${"a"}`,
+		});
+		expect(moved).toMatchObject({ status: "running" });
+	});
+
 	test("of two concurrent claims only one wins", async () => {
 		const id = await insert("pending");
 		const results = await Promise.all(

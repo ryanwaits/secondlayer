@@ -1,4 +1,4 @@
-import { type Kysely, sql } from "kysely";
+import { type Kysely, type RawBuilder, sql } from "kysely";
 
 /**
  * The one convention for state machines: states are a const array (mirrored by
@@ -48,6 +48,8 @@ export interface CasTransition<S extends string> {
 	stampUpdatedAt?: boolean;
 	/** Columns to return, `*` unless the row carries a large payload (`["sequence"]`). */
 	returning?: readonly string[];
+	/** Extra condition ANDed into the WHERE, for guards beyond the status (a lease owner, a forward-only cursor). */
+	where?: RawBuilder<unknown>;
 }
 
 /**
@@ -79,7 +81,7 @@ export async function casTransition<
 	const { rows } = await sql<Row>`
 		UPDATE ${sql.table(t.table)}
 		SET ${sql.join(assignments)}
-		WHERE ${sql.id(t.key ?? "id")} = ${t.id} AND ${column} = ANY(${sql.val([...t.from])})
+		WHERE ${sql.id(t.key ?? "id")} = ${t.id} AND ${column} = ANY(${sql.val([...t.from])})${t.where ? sql` AND (${t.where})` : sql``}
 		RETURNING ${returning}
 	`.execute(db);
 	return rows[0] ?? null;
