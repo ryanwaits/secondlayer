@@ -53,8 +53,8 @@ export const API_PAGES: ApiPage[] = [
 			},
 			{
 				title: "Contracts",
-				summary: "What a contract prints.",
-				paths: ["/v1/index/contracts/*"],
+				summary: "Find contracts by standard, read one, and what it prints.",
+				paths: ["/v1/contracts", "/v1/contracts/*", "/v1/index/contracts/*"],
 			},
 			{
 				title: "State writes",

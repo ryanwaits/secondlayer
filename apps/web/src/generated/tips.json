@@ -820,7 +820,7 @@
 		"Contracts.get": {
 			"kind": "method",
 			"summary": "Get one contract from the registry by id, or null.",
-			"sig": "sl.contracts.get(contractId: string, opts?: { includeAbi?: boolean }): Promise<ContractSummary | null>",
+			"sig": "sl.contracts.get(contractId: string, opts?: …): Promise<ContractSummary | null>",
 			"route": "/docs/sdk-reference/contracts",
 			"anchor": "m-get"
 		},
@@ -904,10 +904,15 @@
 					"type": "string"
 				},
 				{
+					"name": "classified_at",
+					"type": "string | null"
+				},
+				{
 					"name": "abi",
 					"type": "unknown"
 				}
 			],
+			"more": 1,
 			"route": "/docs/sdk-reference/contracts",
 			"anchor": "t-ContractSummary"
 		},
@@ -5095,7 +5100,7 @@
 		"sl.contracts.get": {
 			"kind": "method",
 			"summary": "Get one contract from the registry by id, or null.",
-			"sig": "sl.contracts.get(contractId: string, opts?: { includeAbi?: boolean }): Promise<ContractSummary | null>",
+			"sig": "sl.contracts.get(contractId: string, opts?: …): Promise<ContractSummary | null>",
 			"route": "/docs/sdk-reference/contracts",
 			"anchor": "m-get"
 		},
@@ -5766,10 +5771,17 @@
 		},
 		"sl.webhooks.list": {
 			"kind": "method",
-			"summary": "List your webhooks.",
-			"sig": "sl.webhooks.list(): Promise<{ data: WebhookSummary[] }>",
+			"summary": "List one page of your webhooks, newest first.",
+			"sig": "sl.webhooks.list(opts?: { limit?: number; offset?: number }): Promise<{ data: WebhookSummary[] }>",
 			"route": "/docs/sdk-reference/webhooks",
 			"anchor": "m-list"
+		},
+		"sl.webhooks.listAll": {
+			"kind": "method",
+			"summary": "Every webhook on the account, newest first, read 200 at a time.",
+			"sig": "sl.webhooks.listAll(): Promise<WebhookSummary[]>",
+			"route": "/docs/sdk-reference/webhooks",
+			"anchor": "m-listAll"
 		},
 		"sl.webhooks.pause": {
 			"kind": "method",
@@ -7901,10 +7913,17 @@
 		},
 		"Webhooks.list": {
 			"kind": "method",
-			"summary": "List your webhooks.",
-			"sig": "sl.webhooks.list(): Promise<{ data: WebhookSummary[] }>",
+			"summary": "List one page of your webhooks, newest first.",
+			"sig": "sl.webhooks.list(opts?: { limit?: number; offset?: number }): Promise<{ data: WebhookSummary[] }>",
 			"route": "/docs/sdk-reference/webhooks",
 			"anchor": "m-list"
+		},
+		"Webhooks.listAll": {
+			"kind": "method",
+			"summary": "Every webhook on the account, newest first, read 200 at a time.",
+			"sig": "sl.webhooks.listAll(): Promise<WebhookSummary[]>",
+			"route": "/docs/sdk-reference/webhooks",
+			"anchor": "m-listAll"
 		},
 		"Webhooks.pause": {
 			"kind": "method",
@@ -11692,6 +11711,26 @@
 				"summary": "One transaction document, only if it sits in a canonical block.",
 				"route": "/docs/api/index",
 				"anchor": "get-transaction"
+			}
+		},
+		{
+			"path": "/v1/contracts",
+			"method": "GET",
+			"tip": {
+				"kind": "endpoint",
+				"summary": "Deployed contracts that declare or implement a SIP standard, in contract_id order.",
+				"route": "/docs/api/index",
+				"anchor": "list-contracts-by-trait"
+			}
+		},
+		{
+			"path": "/v1/contracts/{contract_id}",
+			"method": "GET",
+			"tip": {
+				"kind": "endpoint",
+				"summary": "One deployed contract: deployer, deploy height and the standards it conforms to.",
+				"route": "/docs/api/index",
+				"anchor": "get-contract"
 			}
 		},
 		{
