@@ -38,14 +38,37 @@ export type {
 
 export { trigger } from "@secondlayer/shared/schemas/webhooks";
 
+const LIST_PAGE_MAX = 200;
+
 export class Webhooks extends BaseClient {
 	/**
-	 * List your webhooks.
+	 * List one page of your webhooks, newest first.
 	 *
-	 * Each summary has the status, format, URL, last delivery and last success, and the circuit breaker state (`circuitFailures`, `circuitOpenedAt`).
+	 * `limit` is 1 to 200 (default 50); `offset` skips that many. Use
+	 * {@link Webhooks.listAll} to read every webhook. Each summary has the
+	 * status, format, URL, last delivery and last success, and the circuit
+	 * breaker state (`circuitFailures`, `circuitOpenedAt`).
 	 */
-	async list(): Promise<{ data: WebhookSummary[] }> {
-		return this.request<{ data: WebhookSummary[] }>("GET", "/api/webhooks");
+	async list(
+		opts: { limit?: number; offset?: number } = {},
+	): Promise<{ data: WebhookSummary[] }> {
+		return this.request<{ data: WebhookSummary[] }>(
+			"GET",
+			`/api/webhooks${buildQuery({ _limit: opts.limit, _offset: opts.offset })}`,
+		);
+	}
+
+	/** Every webhook on the account, newest first, read 200 at a time. */
+	async listAll(): Promise<WebhookSummary[]> {
+		const all: WebhookSummary[] = [];
+		for (;;) {
+			const { data } = await this.list({
+				limit: LIST_PAGE_MAX,
+				offset: all.length,
+			});
+			all.push(...data);
+			if (data.length < LIST_PAGE_MAX) return all;
+		}
 	}
 
 	/**

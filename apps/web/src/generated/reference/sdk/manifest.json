@@ -25,7 +25,7 @@
 			"slug": "webhooks",
 			"title": "Webhooks",
 			"root": "sl.webhooks",
-			"methodCount": 15
+			"methodCount": 16
 		},
 		{
 			"slug": "archive",
@@ -703,6 +703,7 @@
 		"sl.webhooks.delivery": "/docs/sdk-reference/webhooks#m-delivery",
 		"sl.webhooks.get": "/docs/sdk-reference/webhooks#m-get",
 		"sl.webhooks.list": "/docs/sdk-reference/webhooks#m-list",
+		"sl.webhooks.listAll": "/docs/sdk-reference/webhooks#m-listAll",
 		"sl.webhooks.pause": "/docs/sdk-reference/webhooks#m-pause",
 		"sl.webhooks.replay": "/docs/sdk-reference/webhooks#m-replay",
 		"sl.webhooks.requeue": "/docs/sdk-reference/webhooks#m-requeue",
@@ -831,6 +832,7 @@
 		"Webhooks.delivery": "/docs/sdk-reference/webhooks#m-delivery",
 		"Webhooks.get": "/docs/sdk-reference/webhooks#m-get",
 		"Webhooks.list": "/docs/sdk-reference/webhooks#m-list",
+		"Webhooks.listAll": "/docs/sdk-reference/webhooks#m-listAll",
 		"Webhooks.pause": "/docs/sdk-reference/webhooks#m-pause",
 		"Webhooks.replay": "/docs/sdk-reference/webhooks#m-replay",
 		"Webhooks.requeue": "/docs/sdk-reference/webhooks#m-requeue",

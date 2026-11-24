@@ -16,6 +16,10 @@ Four new tools read Runes: `index_runes`, `index_rune`, `index_rune_balances` an
 
 ## SDK — November 2026
 
+### Read every webhook
+
+`webhooks.list()` returns one page of 50. Pass `{ limit, offset }` for up to 200 a page, or call `webhooks.listAll()` to read them all.
+
 ### Decoded row types drop `source_cursor`
 
 The row shapes in `@secondlayer/sdk/streams/rows` no longer carry `source_cursor`. It always equalled `cursor`, and decoded rows have stopped storing it. Read `cursor` instead.

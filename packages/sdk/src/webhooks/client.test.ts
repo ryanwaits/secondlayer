@@ -42,3 +42,52 @@ describe("Webhooks deliveries and activity queries", () => {
 		);
 	});
 });
+
+describe("Webhooks list paging", () => {
+	function pagedClient(total: number) {
+		const urls: string[] = [];
+		const client = new Webhooks({
+			apiKey: "sl_test",
+			baseUrl: "https://api.example.test",
+			fetchImpl: async (input) => {
+				const url = new URL(String(input));
+				urls.push(url.search);
+				const limit = Number(url.searchParams.get("_limit") ?? 50);
+				const offset = Number(url.searchParams.get("_offset") ?? 0);
+				const count = Math.max(0, Math.min(limit, total - offset));
+				const data = Array.from({ length: count }, (_, i) => ({
+					id: `wh_${offset + i}`,
+				}));
+				return new Response(JSON.stringify({ data }), {
+					headers: { "content-type": "application/json" },
+				});
+			},
+		});
+		return { client, urls };
+	}
+
+	it("list sends no paging params unless asked", async () => {
+		const { client, urls } = pagedClient(3);
+		await client.list();
+		await client.list({ limit: 10, offset: 20 });
+		expect(urls).toEqual(["", "?_limit=10&_offset=20"]);
+	});
+
+	it("listAll reads past the first page until a short page", async () => {
+		const { client, urls } = pagedClient(450);
+		const all = await client.listAll();
+		expect(all).toHaveLength(450);
+		expect(new Set(all.map((w) => w.id)).size).toBe(450);
+		expect(urls).toEqual([
+			"?_limit=200&_offset=0",
+			"?_limit=200&_offset=200",
+			"?_limit=200&_offset=400",
+		]);
+	});
+
+	it("listAll stops after an exactly full last page with one empty read", async () => {
+		const { client, urls } = pagedClient(200);
+		expect(await client.listAll()).toHaveLength(200);
+		expect(urls).toHaveLength(2);
+	});
+});
