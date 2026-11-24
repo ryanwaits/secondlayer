@@ -14,16 +14,32 @@ const SERVER = join(ROOT, "server.json");
 const { version } = JSON.parse(await readFile(PACKAGE, "utf8")) as {
 	version: string;
 };
-const server = JSON.parse(await readFile(SERVER, "utf8")) as {
+const text = await readFile(SERVER, "utf8");
+const current = JSON.parse(text) as {
 	version: string;
 	packages: { version: string }[];
 };
+const owned = new Set([
+	current.version,
+	...current.packages.map((pkg) => pkg.version),
+]);
 
-server.version = version;
-for (const pkg of server.packages) pkg.version = version;
+const next = text.replace(
+	/("version"\s*:\s*")([^"]+)(")/g,
+	(match, open: string, value: string, close: string) =>
+		owned.has(value) ? `${open}${version}${close}` : match,
+);
 
-await writeFile(SERVER, `${JSON.stringify(server, null, "\t")}\n`);
-// JSON.stringify expands short arrays; biome is the repo's format.
-Bun.spawnSync(["bunx", "biome", "format", "--write", SERVER]);
+const synced = JSON.parse(next) as typeof current;
+for (const found of [
+	synced.version,
+	...synced.packages.map((p) => p.version),
+]) {
+	if (found !== version) {
+		throw new Error(`server.json version ${found} did not sync to ${version}`);
+	}
+}
+
+if (next !== text) await writeFile(SERVER, next);
 
 console.log(`✓ packages/mcp/server.json — version ${version}`);
