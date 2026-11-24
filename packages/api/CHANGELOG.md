@@ -1,5 +1,13 @@
 # @secondlayer/api
 
+## 1.64.23
+
+### Patch Changes
+
+- f74435b: The transaction proof route no longer echoes the stacks-node transport error when the node is unreachable; the cause is logged instead.
+- Updated dependencies [27b9b09]
+  - @secondlayer/sdk@20.1.2
+
 ## 1.64.22
 
 ### Patch Changes

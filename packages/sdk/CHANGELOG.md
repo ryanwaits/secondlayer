@@ -1,5 +1,11 @@
 # @secondlayer/sdk
 
+## 20.1.2
+
+### Patch Changes
+
+- 27b9b09: Runes and print-schema docs match hosted: Runes is live on hosted, and print-schema reads are keyless only on a loopback self-host.
+
 ## 20.1.1
 
 ### Patch Changes
