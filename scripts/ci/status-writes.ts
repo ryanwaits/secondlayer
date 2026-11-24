@@ -1,8 +1,8 @@
 /**
  * Raw status-write guard. State machines write status through `casTransition`
  * (packages/shared/src/db/transition.ts). This lists every `.set({ status:` and
- * `SET status` outside files that define a machine, and fails only when a file
- * has more raw writes than `status-writes.baseline.json` records.
+ * `SET status`, including in files that already use `casTransition`, and fails
+ * only when a file has more raw writes than `status-writes.baseline.json` records.
  *
  *   bun scripts/ci/status-writes.ts           check (CI)
  *   bun scripts/ci/status-writes.ts --write   rewrite the baseline
@@ -12,7 +12,6 @@ import { Glob } from "bun";
 const ROOT = new URL("../../", import.meta.url).pathname;
 const BASELINE = `${ROOT}scripts/ci/status-writes.baseline.json`;
 const RAW_WRITE = /\.set\(\s*\{\s*status\s*:|\bSET\s+status\b/g;
-const DEFINES_MACHINE = /\b(defineMachine|casTransition)\(/;
 const SKIP = /(^|\/)(node_modules|dist|migrations)\/|\.test\.tsx?$/;
 
 async function scan(): Promise<Record<string, number>> {
@@ -21,7 +20,6 @@ async function scan(): Promise<Record<string, number>> {
 		for await (const path of new Glob(pattern).scan({ cwd: ROOT })) {
 			if (SKIP.test(path)) continue;
 			const source = await Bun.file(ROOT + path).text();
-			if (DEFINES_MACHINE.test(source)) continue;
 			const hits = source.match(RAW_WRITE)?.length ?? 0;
 			if (hits > 0) counts[path] = hits;
 		}
