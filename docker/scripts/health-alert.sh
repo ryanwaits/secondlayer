@@ -50,6 +50,20 @@ CRITICAL_REPAGE_SECONDS=1800
 # it is our node that is stuck rather than the network.
 UPSTREAM_ESCALATE_SECONDS=3600
 
+# deploy.sh holds this flock while it restarts services. WARN pages wait while
+# it is held, for at most DEPLOY_QUIET_SECONDS from the deploy's start, so a
+# restart blip stays quiet and a hung deploy still pages. CRITICAL never waits.
+DEPLOY_LOCK_FILE="${DEPLOY_LOCK_FILE:-${DATA_DIR:-/opt/secondlayer/data}/deploy.lock}"
+DEPLOY_QUIET_SECONDS=1200
+
+deploy_in_progress() {
+  [ -f "$DEPLOY_LOCK_FILE" ] || return 1
+  local age=$(( $(date +%s) - $(stat -c %Y "$DEPLOY_LOCK_FILE" 2>/dev/null || echo 0) ))
+  [ "$age" -lt "$DEPLOY_QUIET_SECONDS" ] || return 1
+  flock -n "$DEPLOY_LOCK_FILE" true 2>/dev/null
+  [ $? -eq 1 ]
+}
+
 INDEXER_CONTAINER="${INDEXER_CONTAINER:-secondlayer-indexer-1}"
 NODE_CONTAINER="${NODE_CONTAINER:-secondlayer-stacks-node-1}"
 PG_SERVICE="${PG_SERVICE:-postgres}"
@@ -129,6 +143,8 @@ if [ ${#problems[@]} -eq 0 ]; then
     rm -f "$WARN_STATE_FILE"
     post_slack "✅ secondlayer prod recovered — status 200, all containers healthy" --recovery
   fi
+elif deploy_in_progress; then
+  echo "$(date -u +%FT%TZ) deploy in progress, not paging: $(printf '%s | ' "${problems[@]}")"
 else
   warn_exit=1
   msg="🔴 secondlayer prod health: $(printf '%s | ' "${problems[@]}")"

@@ -256,6 +256,12 @@ if ! flock -w "$DB_MAINTENANCE_LOCK_TIMEOUT_SECONDS" 9; then
   exit 1
 fi
 
+# Held until this process exits: health-alert.sh mutes its WARN pages while
+# services restart (opening the file also stamps its mtime, which bounds the
+# mute). The kernel drops the lock if the deploy dies.
+exec 8>"${DATA_DIR:-/opt/secondlayer/data}/deploy.lock"
+flock -n 8 || true
+
 # An unchanged indexer (same layers, same config, no migration) is left
 # running: recreating it restarts identical code for nothing.
 KEEP_INDEXER=false
