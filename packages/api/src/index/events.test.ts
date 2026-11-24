@@ -267,55 +267,60 @@ describe("Index /events query parsing", () => {
 describe("Index /events tx_id window", () => {
 	const empty = async () => ({ events: [], next_cursor: null });
 
-	test("a tx_id read with no window reads the transaction's own block", async () => {
-		let seen: { fromHeight?: number; toHeight?: number } = {};
-		await getIndexEventsResponse({
-			query: params("?event_type=nested_contract_call&tx_id=0xabc"),
+	async function windowFor(query: string, txHeight: number | null) {
+		let seen: { fromHeight: number; toHeight: number } | null = null;
+		const response = await getIndexEventsResponse({
+			query: params(query),
 			tip: TIP,
-			resolveTxHeight: async () => 7,
+			resolveTxHeight: async () => txHeight,
 			readEvents: async (p) => {
 				seen = { fromHeight: p.fromHeight, toHeight: p.toHeight };
 				return empty();
 			},
 		});
+		return { seen, response };
+	}
+
+	test("a tx_id read with no window reads the transaction's own block", async () => {
+		const { seen } = await windowFor(
+			"?event_type=nested_contract_call&tx_id=0xabc",
+			7,
+		);
 		expect(seen).toEqual({ fromHeight: 7, toHeight: 7 });
 	});
 
-	test("an explicit from_height keeps the caller's window", async () => {
-		let resolved = false;
-		let seenFrom: number | undefined;
-		await getIndexEventsResponse({
-			query: params("?event_type=map_set&tx_id=0xabc&from_height=3"),
-			tip: TIP,
-			resolveTxHeight: async () => {
-				resolved = true;
-				return 7;
-			},
-			readEvents: async (p) => {
-				seenFrom = p.fromHeight;
-				return empty();
-			},
-		});
-		expect(resolved).toBe(false);
-		expect(seenFrom).toBe(3);
+	test("decoded event types accept tx_id and read only its block", async () => {
+		for (const type of ["ft_mint", "ft_transfer", "print", "stx_transfer"]) {
+			const { seen } = await windowFor(`?event_type=${type}&tx_id=0xabc`, 7);
+			expect(seen).toEqual({ fromHeight: 7, toHeight: 7 });
+		}
 	});
 
-	test("an unknown tx_id keeps the default window", async () => {
-		let seenFrom: number | undefined;
-		const expected = parseIndexEventsQuery(
-			params("?event_type=map_set&tx_id=0xnone"),
-			TIP,
-		).fromHeight;
-		await getIndexEventsResponse({
-			query: params("?event_type=map_set&tx_id=0xnone"),
-			tip: TIP,
-			resolveTxHeight: async () => null,
-			readEvents: async (p) => {
-				seenFrom = p.fromHeight;
-				return empty();
-			},
-		});
-		expect(seenFrom).toBe(expected);
+	test("a caller window containing the transaction narrows to its block", async () => {
+		const { seen } = await windowFor(
+			"?event_type=ft_mint&tx_id=0xabc&from_height=3&to_height=9",
+			7,
+		);
+		expect(seen).toEqual({ fromHeight: 7, toHeight: 7 });
+	});
+
+	test("a caller window that misses the transaction answers empty without reading", async () => {
+		const { seen, response } = await windowFor(
+			"?event_type=ft_mint&tx_id=0xabc&from_height=8&to_height=9",
+			7,
+		);
+		expect(seen).toBeNull();
+		expect(response.events).toEqual([]);
+		expect(response.next_cursor).toBeNull();
+	});
+
+	test("an unknown tx_id answers empty without reading", async () => {
+		const { seen, response } = await windowFor(
+			"?event_type=map_set&tx_id=0xnone",
+			null,
+		);
+		expect(seen).toBeNull();
+		expect(response.events).toEqual([]);
 	});
 });
 
@@ -563,6 +568,28 @@ describe.skipIf(!HAS_DB)("Index /events DB reads", () => {
 
 		// All three scoped contracts, in chain order, and nothing from SP9.
 		expect(seen).toEqual(["9900:0", "9901:0", "9902:0", "9903:0"]);
+	});
+
+	test("a tx_id filter on a decoded type returns only that transaction's rows", async () => {
+		if (!db) throw new Error("missing db");
+		await db
+			.insertInto("decoded_events")
+			.values([
+				ftRow("9910:0", 9910, "SP1.a", "SP1", "SP2", "10"),
+				ftRow("9910:1", 9910, "SP1.a", "SP1", "SP2", "20"),
+			])
+			.execute();
+
+		const result = await readIndexEvents({
+			db,
+			eventType: "ft_transfer",
+			fromHeight: 9910,
+			toHeight: 9910,
+			limit: 10,
+			filters: { tx_id: "tx-9910:1" },
+		});
+
+		expect(result.events.map((e) => e.cursor)).toEqual(["9910:1"]);
 	});
 
 	test("desc pages over /events are newest first, gapless and non-overlapping", async () => {

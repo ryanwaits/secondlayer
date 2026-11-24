@@ -81,8 +81,14 @@ export const INDEX_EVENT_CONFIG = {
 		// asset_identifier mirrors nft_transfer: the column is NOT NULL for every
 		// ft row, and the unified filter union (`on.ftTransfer({ assetIdentifier })`)
 		// projects it here — rejecting it broke the union's contract.
-		equalityFilters: ["contract_id", "asset_identifier", "sender", "recipient"],
-		allowedFilters: [...INDEX_COMMON_FILTERS, "asset_identifier"],
+		equalityFilters: [
+			"contract_id",
+			"asset_identifier",
+			"sender",
+			"recipient",
+			"tx_id",
+		],
+		allowedFilters: [...INDEX_COMMON_FILTERS, "asset_identifier", "tx_id"],
 	},
 	nft_transfer: {
 		columns: ["asset_identifier", "sender", "recipient", "value"],
@@ -93,84 +99,94 @@ export const INDEX_EVENT_CONFIG = {
 			"recipient",
 			"value",
 		],
-		equalityFilters: ["contract_id", "asset_identifier", "sender", "recipient"],
-		allowedFilters: [...INDEX_COMMON_FILTERS, "asset_identifier"],
+		equalityFilters: [
+			"contract_id",
+			"asset_identifier",
+			"sender",
+			"recipient",
+			"tx_id",
+		],
+		allowedFilters: [...INDEX_COMMON_FILTERS, "asset_identifier", "tx_id"],
 	},
 	stx_transfer: {
 		columns: ["sender", "recipient", "amount", "memo"],
 		requiredNonNull: ["sender", "recipient", "amount"],
-		equalityFilters: ["sender", "recipient"],
-		allowedFilters: [...PAGINATION_FILTERS, "sender", "recipient"],
+		equalityFilters: ["sender", "recipient", "tx_id"],
+		allowedFilters: [...PAGINATION_FILTERS, "sender", "recipient", "tx_id"],
 	},
 	stx_mint: {
 		columns: ["recipient", "amount"],
 		requiredNonNull: ["recipient", "amount"],
-		equalityFilters: ["recipient"],
-		allowedFilters: [...PAGINATION_FILTERS, "recipient"],
+		equalityFilters: ["recipient", "tx_id"],
+		allowedFilters: [...PAGINATION_FILTERS, "recipient", "tx_id"],
 	},
 	stx_burn: {
 		columns: ["sender", "amount"],
 		requiredNonNull: ["sender", "amount"],
-		equalityFilters: ["sender"],
-		allowedFilters: [...PAGINATION_FILTERS, "sender"],
+		equalityFilters: ["sender", "tx_id"],
+		allowedFilters: [...PAGINATION_FILTERS, "sender", "tx_id"],
 	},
 	stx_lock: {
 		// locked_address → sender, locked_amount → amount; unlock_height rides in
 		// the jsonb payload ({ unlock_height }).
 		columns: ["sender", "amount", "payload"],
 		requiredNonNull: ["sender", "amount"],
-		equalityFilters: ["sender"],
-		allowedFilters: [...PAGINATION_FILTERS, "sender"],
+		equalityFilters: ["sender", "tx_id"],
+		allowedFilters: [...PAGINATION_FILTERS, "sender", "tx_id"],
 	},
 	ft_mint: {
 		columns: ["asset_identifier", "recipient", "amount"],
 		requiredNonNull: ["contract_id", "asset_identifier", "recipient", "amount"],
-		equalityFilters: ["contract_id", "asset_identifier", "recipient"],
+		equalityFilters: ["contract_id", "asset_identifier", "recipient", "tx_id"],
 		allowedFilters: [
 			...PAGINATION_FILTERS,
 			"contract_id",
 			"asset_identifier",
 			"recipient",
+			"tx_id",
 		],
 	},
 	ft_burn: {
 		columns: ["asset_identifier", "sender", "amount"],
 		requiredNonNull: ["contract_id", "asset_identifier", "sender", "amount"],
-		equalityFilters: ["contract_id", "asset_identifier", "sender"],
+		equalityFilters: ["contract_id", "asset_identifier", "sender", "tx_id"],
 		allowedFilters: [
 			...PAGINATION_FILTERS,
 			"contract_id",
 			"asset_identifier",
 			"sender",
+			"tx_id",
 		],
 	},
 	nft_mint: {
 		columns: ["asset_identifier", "recipient", "value"],
 		requiredNonNull: ["contract_id", "asset_identifier", "recipient", "value"],
-		equalityFilters: ["contract_id", "asset_identifier", "recipient"],
+		equalityFilters: ["contract_id", "asset_identifier", "recipient", "tx_id"],
 		allowedFilters: [
 			...PAGINATION_FILTERS,
 			"contract_id",
 			"asset_identifier",
 			"recipient",
+			"tx_id",
 		],
 	},
 	nft_burn: {
 		columns: ["asset_identifier", "sender", "value"],
 		requiredNonNull: ["contract_id", "asset_identifier", "sender", "value"],
-		equalityFilters: ["contract_id", "asset_identifier", "sender"],
+		equalityFilters: ["contract_id", "asset_identifier", "sender", "tx_id"],
 		allowedFilters: [
 			...PAGINATION_FILTERS,
 			"contract_id",
 			"asset_identifier",
 			"sender",
+			"tx_id",
 		],
 	},
 	print: {
 		columns: ["payload"],
 		requiredNonNull: ["contract_id"],
-		equalityFilters: ["contract_id"],
-		allowedFilters: [...PAGINATION_FILTERS, "contract_id"],
+		equalityFilters: ["contract_id", "tx_id"],
+		allowedFilters: [...PAGINATION_FILTERS, "contract_id", "tx_id"],
 	},
 } as const satisfies Record<string, IndexEventConfig>;
 
@@ -754,25 +770,27 @@ export async function getIndexEventsResponse(opts: {
 }): Promise<IndexEventsResponse> {
 	const parsed = parseIndexEventsQuery(opts.query, opts.tip);
 
-	// A tx_id read with no window of its own reads that transaction's block.
-	// The default window covers only recent blocks, so an older transaction
-	// would otherwise come back empty.
-	if (
-		parsed.filters.tx_id !== undefined &&
-		parsed.cursorRaw === undefined &&
-		!opts.query.has("from_height") &&
-		!opts.query.has("to_height")
-	) {
+	const tip = indexReadTip(opts.tip, parsed.eventType);
+
+	if (parsed.filters.tx_id !== undefined) {
 		const height = await (opts.resolveTxHeight ?? readCanonicalTxHeight)(
 			parsed.filters.tx_id,
 		);
-		if (height !== null && height <= parsed.toHeight) {
-			parsed.fromHeight = height;
-			parsed.toHeight = height;
+		const windowed =
+			opts.query.has("from_height") ||
+			opts.query.has("to_height") ||
+			parsed.cursorRaw !== undefined;
+		const inWindow =
+			height !== null &&
+			height <= parsed.toHeight &&
+			(!windowed || height >= parsed.fromHeight);
+		if (!inWindow) {
+			return { events: [], next_cursor: null, tip, reorgs: [] };
 		}
+		parsed.fromHeight = height;
+		parsed.toHeight = height;
 	}
 
-	const tip = indexReadTip(opts.tip, parsed.eventType);
 	const vmClock = isVmIndexEventType(parsed.eventType);
 	if (parsed.cursorPastTip) {
 		return {

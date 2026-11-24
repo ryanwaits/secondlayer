@@ -32,6 +32,10 @@ Older history used to read differently from recent blocks. Now `print` and nft e
 
 ## Index — November 2026
 
+### Filter any event by transaction
+
+`tx_id` now works on every `/v1/index/events` type, decoded or contract state, and with `txId` in the SDK. The read covers that transaction's block, so an old transaction needs no height range.
+
 ### Know what changed in any Stacks contract
 
 Know what changed in any Stacks contract, when, and who changed it, from block 1. Index, Streams, webhooks and subgraphs read the five contract state types on hosted mainnet. Rows exist once a transaction lands, so a webhook warns rather than prevents, and only stored values are checkable against the chain. [Read the guide](/docs/guides/read-contract-state).

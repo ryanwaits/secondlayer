@@ -64,18 +64,14 @@ describe("Index event vocabulary", () => {
 		}
 	});
 
-	it("tx_id is a VM-only filter in the registry", () => {
-		for (const [type, cfg] of Object.entries(INDEX_EVENT_CONFIG)) {
-			expect(
-				(cfg.allowedFilters as readonly string[]).includes("tx_id"),
-				type,
-			).toBe(false);
-		}
-		for (const [type, cfg] of Object.entries(VM_INDEX_EVENT_CONFIG)) {
-			expect(
-				(cfg.allowedFilters as readonly string[]).includes("tx_id"),
-				type,
-			).toBe(true);
+	it("tx_id is a filter on every event type in the registry", () => {
+		for (const config of [INDEX_EVENT_CONFIG, VM_INDEX_EVENT_CONFIG]) {
+			for (const [type, cfg] of Object.entries(config)) {
+				expect(
+					(cfg.allowedFilters as readonly string[]).includes("tx_id"),
+					type,
+				).toBe(true);
+			}
 		}
 	});
 });
