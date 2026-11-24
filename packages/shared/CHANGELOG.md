@@ -1,5 +1,11 @@
 # @secondlayer/shared
 
+## 19.2.1
+
+### Patch Changes
+
+- 0204a37: Webhook lists sort by creation time then id, so offset pages never repeat or skip a webhook created in the same instant.
+
 ## 19.2.0
 
 ### Minor Changes

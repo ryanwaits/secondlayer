@@ -1,5 +1,16 @@
 # @secondlayer/sdk
 
+## 20.3.0
+
+### Minor Changes
+
+- 459eef5: `webhooks.list({ limit, offset })` pages your webhooks (up to 200 a page), and `webhooks.listAll()` reads every one. `list()` alone still returns the first 50.
+
+### Patch Changes
+
+- Updated dependencies [0204a37]
+  - @secondlayer/shared@19.2.1
+
 ## 20.2.0
 
 ### Minor Changes
