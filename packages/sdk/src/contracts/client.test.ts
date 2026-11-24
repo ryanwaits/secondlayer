@@ -36,6 +36,25 @@ describe("Contracts.get", () => {
 		expect(c?.contract_id).toBe("SP1.token");
 	});
 
+	test("includeSource asks for the deployed source alongside the ABI", async () => {
+		mockResponse(200, {
+			contract: {
+				contract_id: "SP1.token",
+				abi_status: "ok",
+				source: "(define-constant x u1)",
+			},
+		});
+		const c = await new Contracts({ baseUrl: BASE_URL }).get("SP1.token", {
+			includeAbi: true,
+			includeSource: true,
+		});
+		const url = new URL(
+			(mockResponse as unknown as { lastUrl: string }).lastUrl,
+		);
+		expect(url.searchParams.get("include")).toBe("abi,source");
+		expect(c?.source).toBe("(define-constant x u1)");
+	});
+
 	test("resolves null on 404", async () => {
 		mockResponse(404, { error: "not found", code: "CONTRACT_NOT_FOUND" });
 		const c = await new Contracts({ baseUrl: BASE_URL }).get("SP1.missing");

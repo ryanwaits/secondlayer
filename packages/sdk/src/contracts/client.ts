@@ -5,8 +5,9 @@ import { BaseClient, type SecondLayerOptions, buildQuery } from "../base.ts";
  *
  * "Find all contracts conforming to a trait" — backed by the contract registry:
  * `declared` traits parsed from Clarity source, `inferred` standards from static
- * ABI shape-matching. Anonymous public read. `trait` is required; the ABI blob is
- * omitted unless `include: "abi"` is passed.
+ * ABI shape-matching. Keyless on a loopback self-host; hosted needs your
+ * account key. `trait` is required; the ABI blob is omitted unless
+ * `include: "abi"` is passed.
  */
 
 /** Whether a trait match must be declared in source, inferred from ABI, or either. */
@@ -34,8 +35,13 @@ export interface ContractSummary {
 	declared_traits: string[] | null;
 	inferred_standards: string[] | null;
 	abi_status: string;
+	/** When the ABI was read and classified, or `null`. */
+	classified_at: string | null;
 	/** Present only when `include: "abi"` was requested. */
 	abi?: unknown;
+	/** The Clarity source from the deploy transaction, present only with
+	 *  `includeSource`. `null` when the deploy transaction is not indexed. */
+	source?: string | null;
 }
 
 /** One page of contracts and the cursor for the next page. */
@@ -66,18 +72,21 @@ export class Contracts extends BaseClient {
 	/**
 	 * Get one contract from the registry by id, or `null`.
 	 *
-	 * The prod-safe ABI source. Pass `{ includeAbi: true }` for the full ABI
-	 * blob. Resolves to `null` on 404.
+	 * `includeAbi` adds the full ABI; `includeSource` adds the Clarity source
+	 * it was deployed with. Neither needs a Stacks node. Resolves to `null` on
+	 * 404.
 	 */
 	async get(
 		contractId: string,
-		opts: { includeAbi?: boolean } = {},
+		opts: { includeAbi?: boolean; includeSource?: boolean } = {},
 	): Promise<ContractSummary | null> {
+		const include = [
+			...(opts.includeAbi ? ["abi"] : []),
+			...(opts.includeSource ? ["source"] : []),
+		];
 		const result = await this.requestOrNull<{ contract: ContractSummary }>(
 			"GET",
-			`/v1/contracts/${encodeURIComponent(contractId)}${
-				opts.includeAbi ? "?include=abi" : ""
-			}`,
+			`/v1/contracts/${encodeURIComponent(contractId)}${buildQuery({ include })}`,
 		);
 		return result?.contract ?? null;
 	}

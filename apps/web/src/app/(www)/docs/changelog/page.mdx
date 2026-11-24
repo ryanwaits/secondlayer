@@ -32,6 +32,10 @@ Older history used to read differently from recent blocks. Now `print` and nft e
 
 ## Index — November 2026
 
+### Read a contract's source
+
+`GET /v1/contracts/:id?include=source` returns the Clarity source a contract was deployed with, and `contracts.get(id, { includeSource: true })` does the same in the SDK. It reads the deploy transaction, so you no longer need a Stacks node to see a contract's code.
+
 ### Filter any event by transaction
 
 `tx_id` now works on every `/v1/index/events` type, decoded or contract state, and with `txId` in the SDK. The read covers that transaction's block, so an old transaction needs no height range.

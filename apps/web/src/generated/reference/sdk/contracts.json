@@ -9,7 +9,7 @@
 			"description": "Find contracts conforming to `trait`. `trait` is required (server 400s without it).",
 			"source": {
 				"file": "packages/sdk/src/contracts/client.ts",
-				"line": 53
+				"line": 59
 			},
 			"rest": "GET /v1/contracts",
 			"overloads": [
@@ -36,11 +36,12 @@
 			"id": "get",
 			"path": "sl.contracts.get",
 			"summary": "Get one contract from the registry by id, or `null`.",
-			"description": "Get one contract from the registry by id, or `null`.\n\nThe prod-safe ABI source. Pass `{ includeAbi: true }` for the full ABI\nblob. Resolves to `null` on 404.",
+			"description": "Get one contract from the registry by id, or `null`.\n\n`includeAbi` adds the full ABI; `includeSource` adds the Clarity source\nit was deployed with. Neither needs a Stacks node. Resolves to `null` on\n404.",
 			"source": {
 				"file": "packages/sdk/src/contracts/client.ts",
-				"line": 72
+				"line": 79
 			},
+			"rest": "GET /v1/contracts/{contractId}",
 			"overloads": [
 				{
 					"label": "",
@@ -54,7 +55,7 @@
 						},
 						{
 							"name": "opts",
-							"type": "{ includeAbi?: boolean }",
+							"type": "{ includeAbi?: boolean; includeSource?: boolean }",
 							"required": false,
 							"description": ""
 						}
@@ -169,10 +170,22 @@
 					"description": ""
 				},
 				{
+					"name": "classified_at",
+					"type": "string | null",
+					"required": true,
+					"description": "When the ABI was read and classified, or `null`."
+				},
+				{
 					"name": "abi",
 					"type": "unknown",
 					"required": false,
 					"description": "Present only when `include: \"abi\"` was requested."
+				},
+				{
+					"name": "source",
+					"type": "string | null",
+					"required": false,
+					"description": "The Clarity source from the deploy transaction, present only with\n`includeSource`. `null` when the deploy transaction is not indexed."
 				}
 			]
 		}
