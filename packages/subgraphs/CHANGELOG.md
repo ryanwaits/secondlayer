@@ -1,5 +1,13 @@
 # @secondlayer/subgraphs
 
+## 8.1.18
+
+### Patch Changes
+
+- 9ae7e20: Webhook settlement writes go through `casTransition`.
+- Updated dependencies [9ae7e20]
+  - @secondlayer/shared@19.3.0
+
 ## 8.1.17
 
 ### Patch Changes

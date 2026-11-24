@@ -1,5 +1,11 @@
 # @secondlayer/shared
 
+## 19.3.0
+
+### Minor Changes
+
+- 9ae7e20: `casTransition` takes a `where` condition; `OUTBOX_STATES` and `outboxMachine`.
+
 ## 19.2.1
 
 ### Patch Changes
