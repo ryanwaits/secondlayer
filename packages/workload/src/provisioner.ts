@@ -843,32 +843,41 @@ async function teardownProvision(
 	cfg.onTenantChanged?.(accountId);
 }
 
-/** Boot sweep: a restart mid-`up()` kills the fire-and-forget provision, so
- *  every `provisioning` row found before the gateway starts is orphaned (one
- *  process owns provisioning; nothing is in flight yet). Tear each down the
- *  same way a failed `up()` does; the rows stay, so the next request retries
- *  `up()` on them (the gateway kicks it for a `provisioning` tenant). Must run
- *  before `Bun.serve`. */
+/** Boot sweep: a restart mid-`up()` kills the fire-and-forget provision, so a
+ *  `provisioning` row found at boot is orphaned. Each row is torn down inside
+ *  its account's lane after re-reading it, so a row another operation already
+ *  moved out of `provisioning` is left alone and the sweep is safe at any
+ *  point in boot. Tear down is the same as a failed `up()`'s; the rows stay,
+ *  so the next request retries `up()` on them (the gateway kicks it for a
+ *  `provisioning` tenant). Returns how many rows were torn down. */
 export async function recoverInterruptedProvisions(
 	cfg: ProvisionerConfig,
 ): Promise<number> {
 	const runCompose = cfg.runCompose ?? spawnCompose;
 	const rows = await listProvisioningTenants(cfg.db);
+	let recovered = 0;
 	for (const row of rows) {
 		const acct8 = acct8For(row.account_id);
-		await teardownProvision(
-			cfg,
-			runCompose,
-			row.account_id,
-			acct8,
-			cfg.getTargetSha(),
-		);
+		const tornDown = await inLane(row.account_id, async () => {
+			if ((await getTenant(cfg.db, row.account_id))?.state !== "provisioning")
+				return false;
+			await teardownProvision(
+				cfg,
+				runCompose,
+				row.account_id,
+				acct8,
+				cfg.getTargetSha(),
+			);
+			return true;
+		});
+		if (!tornDown) continue;
+		recovered += 1;
 		logger.warn("workload.provisioner.recovered_interrupted", {
 			accountId: row.account_id,
 			acct8,
 		});
 	}
-	return rows.length;
+	return recovered;
 }
 
 function workloadCount(

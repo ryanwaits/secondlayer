@@ -479,6 +479,32 @@ describe.skipIf(!HAS_DB)("provisioner up/stop/start/destroy", () => {
 		await deleteTenant(db, stoppedId);
 	});
 
+	test("recoverInterruptedProvisions leaves a row another lane operation moved out of provisioning", async () => {
+		secretsRoot = mkdtempSync(join(tmpdir(), "workload-secrets-"));
+		const accountId = crypto.randomUUID();
+		const acct8 = acct8For(accountId);
+		await insertProvisioningTenant(db, accountId, acct8);
+
+		let release: () => void = () => {};
+		const gate = new Promise<void>((resolve) => {
+			release = resolve;
+		});
+		const holder = inLane(accountId, async () => {
+			await gate;
+			await forceTenantState(db, accountId, "running");
+		});
+		const recovery = recoverInterruptedProvisions(cfg());
+		await new Promise((resolve) => setTimeout(resolve, 100));
+		release();
+		await Promise.all([holder, recovery]);
+
+		expect((await getTenant(db, accountId))?.state).toBe("running");
+		expect(
+			composeCalls.filter((c) => c.args.includes(`tenant-${acct8}`)),
+		).toHaveLength(0);
+		await deleteTenant(db, accountId);
+	});
+
 	test("recoverInterruptedProvisions with no resolved target skips compose and keeps the row", async () => {
 		secretsRoot = mkdtempSync(join(tmpdir(), "workload-secrets-"));
 		const accountId = crypto.randomUUID();
