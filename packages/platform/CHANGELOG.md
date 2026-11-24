@@ -1,5 +1,12 @@
 # @secondlayer/platform
 
+## 0.10.34
+
+### Patch Changes
+
+- Updated dependencies [ec129fd]
+  - @secondlayer/shared@19.2.0
+
 ## 0.10.33
 
 ### Patch Changes

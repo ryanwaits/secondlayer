@@ -1,5 +1,24 @@
 # @secondlayer/api
 
+## 1.64.22
+
+### Patch Changes
+
+- ec129fd: Archive fetch serializes allowance accounting per account. Stripe partial refunds lock credits before reading the cumulative total. Subgraph keyset cursors keep TIMESTAMPTZ microseconds. Webhook list activity reads the hourly rollup. Subgraph table streams are capped per instance and close cleanly on error. Proof and node routes no longer echo upstream transport errors.
+- Updated dependencies [ec129fd]
+- Updated dependencies [ec129fd]
+- Updated dependencies [ec129fd]
+- Updated dependencies [68e3d8c]
+- Updated dependencies [ec129fd]
+- Updated dependencies [ec129fd]
+  - @secondlayer/bitcoin@0.0.4
+  - @secondlayer/bundler@0.7.4
+  - @secondlayer/indexer@1.17.16
+  - @secondlayer/mcp@11.8.0
+  - @secondlayer/shared@19.2.0
+  - @secondlayer/subgraphs@8.1.17
+  - @secondlayer/platform@0.10.34
+
 ## 1.64.21
 
 ### Patch Changes

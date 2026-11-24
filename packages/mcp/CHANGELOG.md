@@ -1,5 +1,20 @@
 # @secondlayer/mcp
 
+## 11.8.0
+
+### Minor Changes
+
+- 68e3d8c: Add Bitcoin Runes read tools: `index_runes`, `index_rune`, `index_rune_balances`, `index_rune_activity`. Thin wrappers over `sl.index.runes`, served locally and on hosted MCP.
+
+### Patch Changes
+
+- Updated dependencies [ec129fd]
+- Updated dependencies [ec129fd]
+- Updated dependencies [ec129fd]
+  - @secondlayer/bundler@0.7.4
+  - @secondlayer/shared@19.2.0
+  - @secondlayer/subgraphs@8.1.17
+
 ## 11.7.1
 
 ### Patch Changes

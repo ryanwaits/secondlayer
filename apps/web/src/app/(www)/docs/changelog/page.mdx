@@ -2,6 +2,18 @@
 
 Notable changes to Secondlayer and its SDKs. Entries dated before August 2026 describe the hosted service as it worked then (per-row read metering, API keys, `402` past the free window); it was withdrawn in August 2026 and has since returned, with hosted Index, Streams, subgraphs and webhooks at `api.secondlayer.tools` on an account key and prepaid [credits](/docs/authentication), while on a self-hosted instance reads stay yours and unmetered and archive bootstrap, backfill and reindex draw [credits](/docs/authentication#archive-fetches).
 
+## CLI — November 2026
+
+### Create and revoke keys from the terminal
+
+`sl keys create --name <name>` makes an account key and prints its secret once. `sl keys revoke <ref>` asks before it revokes, and warns you when the key is your CLI login or your `SECONDLAYER_API_KEY`. Pass `-y` to skip the prompt in scripts.
+
+## MCP — November 2026
+
+### Read Bitcoin Runes from your agent
+
+Four new tools read Runes: `index_runes`, `index_rune`, `index_rune_balances` and `index_rune_activity`. They work on a local server and on hosted MCP, on the same account key.
+
 ## SDK — November 2026
 
 ### Decoded row types drop `source_cursor`

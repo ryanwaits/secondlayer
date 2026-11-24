@@ -1,5 +1,20 @@
 # @secondlayer/cli
 
+## 24.2.0
+
+### Minor Changes
+
+- c9c63b1: Add `keys create [--name <name>]` and `keys revoke <ref>`. `create` prints the new secret once. `revoke` asks first (`-y` skips; a non-TTY without `-y` exits 1) and warns when the key was your CLI login or `SECONDLAYER_API_KEY`.
+
+### Patch Changes
+
+- Updated dependencies [ec129fd]
+- Updated dependencies [ec129fd]
+- Updated dependencies [ec129fd]
+  - @secondlayer/bundler@0.7.4
+  - @secondlayer/shared@19.2.0
+  - @secondlayer/subgraphs@8.1.17
+
 ## 24.1.2
 
 ### Patch Changes

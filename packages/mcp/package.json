@@ -1,6 +1,6 @@
 {
 	"name": "@secondlayer/mcp",
-	"version": "11.7.1",
+	"version": "11.8.0",
 	"description": "MCP server for Stacks: events, contract changes, transfers and subgraphs, behind one key.",
 	"license": "MIT",
 	"repository": {
@@ -35,12 +35,12 @@
 	},
 	"dependencies": {
 		"@modelcontextprotocol/sdk": "^1.32.1",
-		"@secondlayer/bundler": "^0.7.3",
+		"@secondlayer/bundler": "^0.7.4",
 		"@secondlayer/scaffold": "^1.6.4",
 		"@secondlayer/sdk": "^20.1.1",
-		"@secondlayer/shared": "^19.1.0",
+		"@secondlayer/shared": "^19.2.0",
 		"@secondlayer/stacks": "^7.2.0",
-		"@secondlayer/subgraphs": "^8.1.15",
+		"@secondlayer/subgraphs": "^8.1.17",
 		"zod": "^4.6.7"
 	},
 	"devDependencies": {

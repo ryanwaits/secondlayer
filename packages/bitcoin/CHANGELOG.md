@@ -1,5 +1,11 @@
 # @secondlayer/bitcoin
 
+## 0.0.4
+
+### Patch Changes
+
+- ec129fd: Runes read indexes for the mints sort and address balances. Rewind validates every undo row and the fork block before touching state.
+
 ## 0.0.3
 
 ### Patch Changes

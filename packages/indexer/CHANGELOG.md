@@ -1,5 +1,13 @@
 # @secondlayer/indexer
 
+## 1.17.16
+
+### Patch Changes
+
+- ec129fd: An adopted fork contender stays staged until its block persists. The tip follower takes injectable dependencies.
+- Updated dependencies [ec129fd]
+  - @secondlayer/shared@19.2.0
+
 ## 1.17.15
 
 ### Patch Changes

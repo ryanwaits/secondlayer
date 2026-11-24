@@ -1,5 +1,14 @@
 # @secondlayer/worker
 
+## 1.4.64
+
+### Patch Changes
+
+- ec129fd: Account insights bound failed-request reads, load in parallel, evaluate four accounts at a time, and find duplicate reads in linear time. Feedback classification goes through `casTransition`.
+- Updated dependencies [ec129fd]
+  - @secondlayer/shared@19.2.0
+  - @secondlayer/platform@0.10.34
+
 ## 1.4.63
 
 ### Patch Changes

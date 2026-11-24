@@ -1,5 +1,13 @@
 # @secondlayer/bundler
 
+## 0.7.4
+
+### Patch Changes
+
+- ec129fd: Server-side subgraph bundling rejects every import except `@secondlayer/subgraphs` and caps source input at 1 MiB.
+- Updated dependencies [ec129fd]
+  - @secondlayer/subgraphs@8.1.17
+
 ## 0.7.3
 
 ### Patch Changes

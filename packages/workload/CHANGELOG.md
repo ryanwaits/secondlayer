@@ -1,5 +1,14 @@
 # @secondlayer/workload
 
+## 0.2.52
+
+### Patch Changes
+
+- ec129fd: Gateway rejects forward URLs off the tenant origin and strips Set-Cookie and hop-by-hop headers. Tenant memory is sampled with one docker stats call per tick. Provision, upgrade and processor reconcile run in the account lane; a provision that loses to a destroy tears its containers down.
+- Updated dependencies [ec129fd]
+  - @secondlayer/shared@19.2.0
+  - @secondlayer/platform@0.10.34
+
 ## 0.2.51
 
 ### Patch Changes
