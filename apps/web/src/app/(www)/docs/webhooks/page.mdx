@@ -591,11 +591,12 @@ await sl.webhooks.requeue(id, dead[0].id);
 
 `payload` is `null` once the event leaves the outbox, 7 days after delivery, and on test deliveries.
 
-Each matched event is its own delivery, so a swap that writes 140 map entries makes 140 attempts. To check deliveries against [Index](/docs/index), filter by `txId` or `fromHeight` and `toHeight`, and pass `next_cursor` back as `cursor` until it is `null`. `total` counts every attempt that matches; attempts are kept 30 days.
+Each matched event is its own delivery, so a swap that writes 140 map entries makes 140 attempts. To check them against [Index](/docs/index), filter by transaction or block range and follow `next_cursor` until it is `null`. Attempts are kept 30 days.
 
 ```ts
-const page = await sl.webhooks.deliveries(id, { fromHeight: 9566800, toHeight: 9566970 });
-const next = await sl.webhooks.deliveries(id, { fromHeight: 9566800, toHeight: 9566970, cursor: page.next_cursor });
+const range = { fromHeight: 9566800, toHeight: 9566970 }; // or { txId }
+const page = await sl.webhooks.deliveries(id, range); // page.total counts every match
+const next = await sl.webhooks.deliveries(id, { ...range, cursor: page.next_cursor });
 ```
 
 ## Troubleshooting
