@@ -1,5 +1,11 @@
 # @secondlayer/shared
 
+## 19.4.0
+
+### Minor Changes
+
+- bb1a0c1: Webhook deliveries page with `next_cursor` and filter by `txId`, `fromHeight` and `toHeight`; each attempt keeps its tx, block and event index for 30 days.
+
 ## 19.3.0
 
 ### Minor Changes

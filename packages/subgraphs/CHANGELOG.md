@@ -1,5 +1,13 @@
 # @secondlayer/subgraphs
 
+## 8.1.19
+
+### Patch Changes
+
+- bb1a0c1: Webhook deliveries page with `next_cursor` and filter by `txId`, `fromHeight` and `toHeight`; each attempt keeps its tx, block and event index for 30 days.
+- Updated dependencies [bb1a0c1]
+  - @secondlayer/shared@19.4.0
+
 ## 8.1.18
 
 ### Patch Changes
