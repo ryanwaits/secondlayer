@@ -1,0 +1,113 @@
+import { PostHeader } from "@/components/writing/post-header";
+import { PostFooter } from "@/components/writing/post-footer";
+import { Sidenote } from "@/components/figures";
+import { ChainLink } from "@/components/site/chain-link";
+import { postMeta } from "@/lib/writing";
+
+export const metadata = postMeta("what-changed-in-any-stacks-contract");
+
+<PostHeader slug="what-changed-in-any-stacks-contract" />
+
+You can now know what changed in any <ChainLink chain="stacks">Stacks</ChainLink> contract, when, and who changed it, from block 1. Until now no Stacks API recorded who moved a vault's tokens when the transaction called itself a swap. You had to read the contracts' code or re-run the transaction yourself.
+
+## A swap that emptied a vault
+
+On June 6, 2025, one signed swap on ALEX moved STX and four tokens out of its vault. Here is what the node reported, and what the new rows add:
+
+```text block 1,508,068 · tx 0xe8b2…9daf
+signed    amm-pool-v2-01.swap-x-for-y
+
+# the node's events, in part
+print     a swap of wSTX for LABUBU, in pool 170
+transfer  STX, aBTC, sBTC, ALEX, sUSDT  amm-vault-v2-01 → pool 170's owner
+
+# !callout[/caller/] who moved the tokens
+row  contract           caller            sender
+21   ssl-labubu-672d3   amm-vault-v2-01   amm-vault-v2-01
+# !mark[/ssl-labubu-672d3/]
+14   token-abtc         ssl-labubu-672d3  amm-vault-v2-01
+16   sbtc-token         ssl-labubu-672d3  amm-vault-v2-01
+18   token-alex         ssl-labubu-672d3  amm-vault-v2-01
+20   token-susdt        ssl-labubu-672d3  amm-vault-v2-01
+```
+
+A transfer event carries a sender and a recipient (all the node emits), so it says the vault paid out. It can't say who moved the tokens. The rows can: the vault called a token contract the pool's owner had deployed, and that contract then moved the vault's real tokens while acting as the vault. STX moves without a contract call, so it has no row of its own.
+
+The people whose money sat in that vault signed nothing in this transaction. A wallet can now show them what happened to it.
+
+## Everyone who uses your contract
+
+The same rows answer a quieter question every protocol team has: who uses us? Some of it arrives through someone else's app. At block 1,230,200, a KIKI transfer was called by ALEX's wrapper token, inside a swap that only names ALEX's pool. A protocol that lists the calls into its contracts sees those routes, with the app that made each call.
+
+In 2022 the developer of a CityCoins mining site [asked for these calls in an API](https://github.com/hirosystems/stacks-blockchain-api/issues/953). The answer was that the node would have to change first.
+
+## An attack post-conditions miss
+
+[100proof](https://100proof.org/a-questionable-design-choice.html) described a listing pattern common in Stacks NFT contracts. A malicious commission contract runs during your purchase and lists your other NFTs at a tiny price. Post-conditions don't catch it, because no NFT moved: a listing is a stored value, not a transfer.
+
+The listing function prints, but the print doesn't say which contract made the listing. Each listing now shows up with the commission contract as the caller. A collection can see every listing made by a contract it doesn't recognize.
+
+## What any value was on any day
+
+The vault in that swap keeps a `reserve` per token and never prints when it changes. You can now read what any reserve held after any transaction, and which transaction set it, without having planned for it:
+
+```ts
+for await (const write of index.events.walk({
+  eventType: "map_set",
+  contractId: "SP102V8P0F7JX67ARQ77WEA3D3CFB5XW39REDT0AM.amm-vault-v2-01",
+  map: "reserve",
+  fromHeight: 0,
+})) {
+  console.log(write.block_height, write.tx_id, write.raw_key, write.raw_value);
+}
+```
+
+A node could always read one key's value at a block<Sidenote n={1}>Through `/v2/map_entry`, at an old block on an archival node.</Sidenote>. It can't say which transaction set it, or list every key the map holds.
+
+## Find out the moment it changes
+
+A webhook fires on the same rows once the block lands, so a team hears about a change instead of checking for it:
+
+```ts
+import { trigger } from "@secondlayer/sdk";
+
+await sl.webhooks.create({
+  name: "vault-reserves",
+  url: "https://your.app/hooks/reserves",
+  triggers: [
+    trigger.mapSet({
+      contractId: "SP102V8P0F7JX67ARQ77WEA3D3CFB5XW39REDT0AM.amm-vault-v2-01",
+      map: "reserve",
+    }),
+  ],
+});
+```
+
+<ChainLink chain="sentinel" href="https://runsentinel.app">Sentinel</ChainLink> watches protocols on this data.
+
+## What it doesn't do
+
+- It records what a contract stores and the calls it makes, not every intermediate value in the code.
+- It warns, it doesn't prevent. Rows exist once a transaction lands, and a transaction that fails outright leaves none.
+- One key's current value was always readable from a node. What's new is the history, and who made each change.
+
+The node patch is [public](https://github.com/ryanwaits/stacks-core/tree/feat/vm-events-resync)<Sidenote n={2}>It started from [Kourier](https://paragraph.com/@aulneau/project-kourier), aulneau's 2022 proposal for Stacks indexing. LNow proposed contract events upstream the same year ([PR 3054](https://github.com/stacks-network/stacks-core/pull/3054), closed).</Sidenote>. What takes time is the history: a six-week replay from block 1.
+
+## Stored values check against the chain
+
+Each block commits to a hash over the chain's state, contract storage included. The CLI rebuilds that hash and checks the stored values in these rows against what the block wrote:
+
+```text
+$ sl verify block 1508068 --rows
+✓ state root  8b7999d8…d6ea9977 matches the witness
+✓ diff        16 written (16 named, 0 unnamed), 0 carried, 5 internal
+# !mark[/2 vm_events rows match the diff/]
+✓ rows        2 vm_events rows match the diff
+✓ Block 1,508,068 is proven.
+```
+
+The two reserve and pool writes from the drain are proven. The 27 calls between contracts are not, because the chain doesn't commit to calls. Read them as recorded by the node, not as proof.
+
+Start with one transaction you care about: [read contract state](/docs/guides/read-contract-state).
+
+<PostFooter slug="what-changed-in-any-stacks-contract" />

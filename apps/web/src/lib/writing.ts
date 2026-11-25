@@ -66,6 +66,23 @@ export const POSTS: WritingPost[] = [
 			{ href: "/docs/webhooks", label: "Webhooks" },
 		],
 	},
+	{
+		slug: "what-changed-in-any-stacks-contract",
+		number: 4,
+		title: "Who moved the vault's tokens: what changed in any Stacks contract",
+		dek: "Know what changed in any Stacks contract, when, and who changed it, from block 1. For protocol teams and wallets whose users' money sits in contracts.",
+		date: "2026-11-25",
+		readingTime: "4 min",
+		notes: "popover",
+		status: "published",
+		related: [
+			{
+				href: "/docs/guides/read-contract-state",
+				label: "Read contract state",
+			},
+			{ href: "/docs/webhooks", label: "Webhooks" },
+		],
+	},
 ];
 
 const SHOW_DRAFTS = process.env.NODE_ENV !== "production";
