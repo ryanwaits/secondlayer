@@ -844,20 +844,45 @@ export interface DeliveryRow {
 	/** First 512 characters; the full body is on `deliveries.get`. */
 	responseBody: string | null;
 	dispatchedAt: string;
-	/** Null for test deliveries and events already compacted out of the
-	 *  outbox. */
+	/** Block of the delivered event. Null for test deliveries. */
 	blockHeight: number | null;
-	/** ISO timestamp of the delivered event's block. `null` for test
-	 *  deliveries, events already compacted out of the outbox, and rows
-	 *  written before this column existed. */
+	/** ISO timestamp of the delivered event's block. Null for test
+	 *  deliveries. */
 	blockTime: string | null;
-	/** Null for test deliveries and events already compacted out of the
-	 *  outbox. */
+	/** Transaction of the delivered event. Null for test deliveries and
+	 *  Bitcoin events without one. */
 	txId: string | null;
-	/** The row's position within its block/tx, from the outbox's `row_pk`.
-	 *  Null for test deliveries, compacted rows, and rows with neither shape
-	 *  (a settlement or reorg outbox row). */
+	/** The event's index in its transaction. Null for test deliveries and
+	 *  transaction-level triggers. */
 	eventIndex: number | null;
+}
+
+/** Filters and paging for `GET /api/webhooks/:id/deliveries`. */
+export interface DeliveriesQuery {
+	/** Dispatch window start, ISO timestamp, inclusive. Needs `to`; at most
+	 *  31 days before it. */
+	from?: string;
+	/** Dispatch window end, ISO timestamp, exclusive. Needs `from`. */
+	to?: string;
+	/** Only attempts for events of this transaction. */
+	txId?: string;
+	/** Only attempts for events at or above this block height. */
+	fromHeight?: number;
+	/** Only attempts for events at or below this block height. */
+	toHeight?: number;
+	/** `next_cursor` from the previous page, with the same filters. */
+	cursor?: string;
+	/** Attempts per page, 1 to 100. Default 100. */
+	limit?: number;
+}
+
+/** One page of delivery attempts, newest first. */
+export interface DeliveriesPage {
+	/** Every attempt that matches the filters. */
+	total: number;
+	/** Pass as `cursor` for the next page. Null on the last page. */
+	next_cursor: string | null;
+	data: DeliveryRow[];
 }
 
 /** One hour of `webhook_outbox` activity (`GET /:id/activity`), zero-filled

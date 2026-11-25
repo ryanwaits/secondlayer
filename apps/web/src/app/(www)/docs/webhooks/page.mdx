@@ -583,13 +583,20 @@ The SDK reads the same views:
 
 ```ts
 const activity = await sl.webhooks.activity(id); // hourly counts, waiting, lastSuccessAt, byEventType
-const { data } = await sl.webhooks.deliveries(id); // last 100 attempts, newest first
+const { data } = await sl.webhooks.deliveries(id); // 100 attempts a page, newest first
 const one = await sl.webhooks.delivery(id, data[0].id); // payload, responseHeaders, outboxStatus
 const { data: dead } = await sl.webhooks.dead(id);
 await sl.webhooks.requeue(id, dead[0].id);
 ```
 
 `payload` is `null` once the event leaves the outbox, 7 days after delivery, and on test deliveries.
+
+Each matched event is its own delivery, so a swap that writes 140 map entries makes 140 attempts. To check deliveries against [Index](/docs/index), filter by `txId` or `fromHeight` and `toHeight`, and pass `next_cursor` back as `cursor` until it is `null`. `total` counts every attempt that matches; attempts are kept 30 days.
+
+```ts
+const page = await sl.webhooks.deliveries(id, { fromHeight: 9566800, toHeight: 9566970 });
+const next = await sl.webhooks.deliveries(id, { fromHeight: 9566800, toHeight: 9566970, cursor: page.next_cursor });
+```
 
 ## Troubleshooting
 

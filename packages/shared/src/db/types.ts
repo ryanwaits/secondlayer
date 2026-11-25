@@ -1560,6 +1560,12 @@ export interface WebhookDeliveriesTable {
 	error_message: string | null;
 	duration_ms: number | null;
 	dispatched_at: Generated<Date>;
+	/** The delivered event, copied from its outbox row at dispatch so it
+	 *  outlives the outbox's 7-day retention. Null for test deliveries. */
+	tx_id: string | null;
+	block_height: number | bigint | null;
+	block_time: Date | null;
+	event_index: number | null;
 }
 
 /** Attempts per UTC hour, counted by a trigger on `webhook_deliveries`. */

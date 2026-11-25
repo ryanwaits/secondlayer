@@ -97,7 +97,12 @@ describe("startEmitter end-to-end", () => {
 					webhook_id: webhook.id,
 					block_height: 1000,
 					tx_id: "0xaaa",
-					row_pk: { blockHeight: 1000, txId: "0xaaa", rowIndex: 0 },
+					row_pk: {
+						blockHeight: 1000,
+						txId: "0xaaa",
+						rowIndex: 0,
+						event_index: 4,
+					},
 					event_type: "chain.stx_transfer.apply",
 					payload: { sender: "SP1", recipient: "SP2", amount: "100" },
 					dedup_key: `test-${randomUUID().slice(0, 12)}`,
@@ -168,6 +173,8 @@ describe("startEmitter end-to-end", () => {
 				.executeTakeFirst();
 			expect(delivery?.status_code).toBe(200);
 			expect(delivery?.duration_ms).not.toBeNull();
+			expect(delivery).toMatchObject({ tx_id: "0xaaa", event_index: 4 });
+			expect(Number(delivery?.block_height)).toBe(1000);
 		} finally {
 			await receiver.stop();
 		}

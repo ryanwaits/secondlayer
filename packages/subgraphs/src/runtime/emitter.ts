@@ -468,6 +468,12 @@ export const __postToWebhookForTest: (
 	timeoutMs: number,
 ) => Promise<PostResult> = postToWebhook;
 
+function eventIndexOf(rowPk: unknown): number | null {
+	if (!rowPk || typeof rowPk !== "object") return null;
+	const eventIndex = (rowPk as Record<string, unknown>).event_index;
+	return typeof eventIndex === "number" ? eventIndex : null;
+}
+
 async function dispatchOne(
 	db: Kysely<Database>,
 	outboxRow: WebhookOutbox,
@@ -492,6 +498,10 @@ async function dispatchOne(
 			outbox_id: outboxRow.id,
 			webhook_id: outboxRow.webhook_id,
 			attempt,
+			tx_id: outboxRow.tx_id,
+			block_height: outboxRow.block_height,
+			block_time: outboxRow.block_time,
+			event_index: eventIndexOf(outboxRow.row_pk),
 			status_code: r.statusCode,
 			response_headers: r.responseHeaders,
 			response_body: r.responseBody,

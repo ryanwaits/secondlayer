@@ -1012,6 +1012,62 @@
 			"route": "/docs/sdk-reference/webhooks",
 			"anchor": "t-DeadRow"
 		},
+		"DeliveriesPage": {
+			"kind": "type",
+			"summary": "One page of delivery attempts, newest first.",
+			"fields": [
+				{
+					"name": "total",
+					"type": "number"
+				},
+				{
+					"name": "next_cursor",
+					"type": "string | null"
+				},
+				{
+					"name": "data",
+					"type": "DeliveryRow[]"
+				}
+			],
+			"route": "/docs/sdk-reference/webhooks",
+			"anchor": "t-DeliveriesPage"
+		},
+		"DeliveriesQuery": {
+			"kind": "type",
+			"summary": "Filters and paging for GET /api/webhooks/:id/deliveries.",
+			"fields": [
+				{
+					"name": "from",
+					"type": "string"
+				},
+				{
+					"name": "to",
+					"type": "string"
+				},
+				{
+					"name": "txId",
+					"type": "string"
+				},
+				{
+					"name": "fromHeight",
+					"type": "number"
+				},
+				{
+					"name": "toHeight",
+					"type": "number"
+				},
+				{
+					"name": "cursor",
+					"type": "string"
+				},
+				{
+					"name": "limit",
+					"type": "number"
+				}
+			],
+			"route": "/docs/sdk-reference/webhooks",
+			"anchor": "t-DeliveriesQuery"
+		},
 		"DeliveryRow": {
 			"kind": "type",
 			"summary": "One delivery attempt: status code, error, duration, and response.",
@@ -5750,8 +5806,8 @@
 		},
 		"sl.webhooks.deliveries": {
 			"kind": "method",
-			"summary": "The last 100 delivery attempts, newest first.",
-			"sig": "sl.webhooks.deliveries(id: string, window?: { from: string; to: string }): Promise<{ total: number; data: DeliveryRow[] }>",
+			"summary": "One page of delivery attempts, newest first, up to 100.",
+			"sig": "sl.webhooks.deliveries(id: string, query?: DeliveriesQuery): Promise<DeliveriesPage>",
 			"route": "/docs/sdk-reference/webhooks",
 			"anchor": "m-deliveries"
 		},
@@ -7892,8 +7948,8 @@
 		},
 		"Webhooks.deliveries": {
 			"kind": "method",
-			"summary": "The last 100 delivery attempts, newest first.",
-			"sig": "sl.webhooks.deliveries(id: string, window?: { from: string; to: string }): Promise<{ total: number; data: DeliveryRow[] }>",
+			"summary": "One page of delivery attempts, newest first, up to 100.",
+			"sig": "sl.webhooks.deliveries(id: string, query?: DeliveriesQuery): Promise<DeliveriesPage>",
 			"route": "/docs/sdk-reference/webhooks",
 			"anchor": "m-deliveries"
 		},
@@ -12358,7 +12414,7 @@
 			"method": "GET",
 			"tip": {
 				"kind": "endpoint",
-				"summary": "The last 100 delivery attempts, newest first, including test deliveries.",
+				"summary": "Delivery attempts, newest first, including test deliveries, up to 100 a page.",
 				"route": "/docs/api/webhooks",
 				"anchor": "list-webhook-deliveries"
 			}

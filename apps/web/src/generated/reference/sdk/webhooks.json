@@ -9,7 +9,7 @@
 			"description": "List one page of your webhooks, newest first.\n\n`limit` is 1 to 200 (default 50); `offset` skips that many. Use [`Webhooks.listAll`](/docs/sdk-reference/webhooks#m-listAll) to read every webhook. Each summary has the\nstatus, format, URL, last delivery and last success, and the circuit\nbreaker state (`circuitFailures`, `circuitOpenedAt`).",
 			"source": {
 				"file": "packages/sdk/src/webhooks/client.ts",
-				"line": 52
+				"line": 55
 			},
 			"rest": "GET /api/webhooks",
 			"overloads": [
@@ -39,7 +39,7 @@
 			"description": "Every webhook on the account, newest first, read 200 at a time.",
 			"source": {
 				"file": "packages/sdk/src/webhooks/client.ts",
-				"line": 62
+				"line": 65
 			},
 			"overloads": [
 				{
@@ -61,7 +61,7 @@
 			"description": "Get one webhook's full configuration.\n\nAdds the triggers, the receiver's auth (redacted to header names and whether a secret is set), the retry and timeout limits, `lastError`, and a `warning` when this instance's trigger evaluator is not running.",
 			"source": {
 				"file": "packages/sdk/src/webhooks/client.ts",
-				"line": 79
+				"line": 82
 			},
 			"rest": "GET /api/webhooks/{id}",
 			"overloads": [
@@ -91,7 +91,7 @@
 			"description": "Create a webhook that POSTs chain events to your URL.\n\nTakes a `name`, a `url`, and `triggers` built with `trigger.*`; each trigger is validated before anything is provisioned, and an invalid one is a 400. The signing secret comes back once in `signingSecret`, so store it. A webhook starts at the chain tip and never backfills: use `replay` for history. Hosted accounts cap `maxRetries` at 7 and `timeoutMs` at 30000.",
 			"source": {
 				"file": "packages/sdk/src/webhooks/client.ts",
-				"line": 88
+				"line": 91
 			},
 			"rest": "POST /api/webhooks",
 			"overloads": [
@@ -126,7 +126,7 @@
 			"description": "Change a webhook's name, URL, format, auth, or delivery limits.\n\nSend only the fields to change: `name`, `url`, `format`, `authConfig`, `maxRetries`, `timeoutMs`, `concurrency`. Triggers are not part of an update. Resolves to the updated webhook.",
 			"source": {
 				"file": "packages/sdk/src/webhooks/client.ts",
-				"line": 97
+				"line": 100
 			},
 			"rest": "PATCH /api/webhooks/{id}",
 			"overloads": [
@@ -162,7 +162,7 @@
 			"description": "Stop deliveries without deleting the webhook.\n\nResolves to the updated webhook. `resume` turns it back on.",
 			"source": {
 				"file": "packages/sdk/src/webhooks/client.ts",
-				"line": 113
+				"line": 116
 			},
 			"rest": "POST /api/webhooks/{id}/pause",
 			"overloads": [
@@ -192,7 +192,7 @@
 			"description": "Start delivering again after a pause.\n\nAlso clears a circuit-breaker pause, which happens after 20 straight failed deliveries. Resolves to the updated webhook.",
 			"source": {
 				"file": "packages/sdk/src/webhooks/client.ts",
-				"line": 125
+				"line": 128
 			},
 			"rest": "POST /api/webhooks/{id}/resume",
 			"overloads": [
@@ -222,7 +222,7 @@
 			"description": "Delete a webhook.\n\nResolves to `{ ok: true }`. Throws a 404 when the webhook does not exist.",
 			"source": {
 				"file": "packages/sdk/src/webhooks/client.ts",
-				"line": 137
+				"line": 140
 			},
 			"rest": "DELETE /api/webhooks/{id}",
 			"overloads": [
@@ -252,7 +252,7 @@
 			"description": "Issue a new signing secret.\n\nThe new secret comes back once in `signingSecret`. Update the receiver that calls `verifyWebhookSignature` with it: deliveries are signed with the new secret from now on.",
 			"source": {
 				"file": "packages/sdk/src/webhooks/client.ts",
-				"line": 146
+				"line": 149
 			},
 			"rest": "POST /api/webhooks/{id}/rotate-secret",
 			"overloads": [
@@ -282,7 +282,7 @@
 			"description": "Send a one-off test delivery to a webhook's URL.\n\nBuilt for the webhook's format and SSRF-guarded. Logged as a delivery\nrow, visible via `deliveries`.",
 			"source": {
 				"file": "packages/sdk/src/webhooks/client.ts",
-				"line": 157
+				"line": 160
 			},
 			"rest": "POST /api/webhooks/{id}/test",
 			"overloads": [
@@ -308,11 +308,11 @@
 		{
 			"id": "deliveries",
 			"path": "sl.webhooks.deliveries",
-			"summary": "The last 100 delivery attempts, newest first.",
-			"description": "The last 100 delivery attempts, newest first. The server caps the\nresult; there is nothing to page. Pass `window` (ISO timestamps, at most\n31 days wide) to read only the attempts dispatched in `[from, to)`, for\nexample one hour of the heat strip; `total` then counts that window.",
+			"summary": "One page of delivery attempts, newest first, up to 100.",
+			"description": "One page of delivery attempts, newest first, up to 100.\n\nPass `next_cursor` back as `cursor` for the next page. Narrow by\ndispatch window (`from`/`to`, ISO timestamps, at most 31 days), by\ntransaction (`txId`) or by block height (`fromHeight`/`toHeight`);\n`total` counts every attempt that matches. Attempts are kept 30 days.",
 			"source": {
 				"file": "packages/sdk/src/webhooks/client.ts",
-				"line": 168
+				"line": 173
 			},
 			"rest": "GET /api/webhooks/{id}/deliveries",
 			"overloads": [
@@ -327,14 +327,14 @@
 							"description": ""
 						},
 						{
-							"name": "window",
-							"type": "{ from: string; to: string }",
+							"name": "query",
+							"type": "DeliveriesQuery",
 							"required": false,
 							"description": ""
 						}
 					],
 					"returns": {
-						"type": "Promise<{ total: number; data: DeliveryRow[] }>",
+						"type": "Promise<DeliveriesPage>",
 						"description": ""
 					}
 				}
@@ -348,7 +348,7 @@
 			"description": "Get a webhook's hourly delivery counts for the last 7 days.\n\nEach hour has delivered, waiting, and gave-up counts, plus the current\nqueue depth, failed attempts per hour, the usual band, and 30 daily\ntotals. This is the events chart on the detail page. `{ days: 30 }` is\naccepted for older servers, which only send the daily totals when asked.",
 			"source": {
 				"file": "packages/sdk/src/webhooks/client.ts",
-				"line": 184
+				"line": 197
 			},
 			"rest": "GET /api/webhooks/{id}/activity",
 			"overloads": [
@@ -384,7 +384,7 @@
 			"description": "Get one delivery attempt with its payload and response.\n\nIncludes the outbox context (payload, response headers). This is the\ndelivery card on the detail page.",
 			"source": {
 				"file": "packages/sdk/src/webhooks/client.ts",
-				"line": 195
+				"line": 208
 			},
 			"rest": "GET /api/webhooks/{id}/deliveries/{deliveryId}",
 			"overloads": [
@@ -420,7 +420,7 @@
 			"description": "Re-deliver historical events over an existing webhook.\n\nPass `fromBlock` and `toBlock`; the range is capped at 100,000 blocks. A replay is historical only and never moves the live cursor. It is idempotent: the same range twice is a no-op, so pass any string as `force` to re-deliver it. Replays carry `is_replay` and use the standard `chain.{type}.apply` envelope. Resolves to `replayId`, `enqueuedCount`, and `scannedCount`. A second replay while one is running is a 409. `sbtc_withdrawal_swept_confirmed` is forward-only and never replayed. Hosted accounts get 5 replays an hour.",
 			"source": {
 				"file": "packages/sdk/src/webhooks/client.ts",
-				"line": 210
+				"line": 223
 			},
 			"rest": "POST /api/webhooks/{id}/replay",
 			"overloads": [
@@ -461,7 +461,7 @@
 			"description": "List the events a webhook gave up delivering.\n\nReturns up to 100 dead-lettered events, newest failure first. Each row's `id` is what `requeue` takes.",
 			"source": {
 				"file": "packages/sdk/src/webhooks/client.ts",
-				"line": 226
+				"line": 239
 			},
 			"rest": "GET /api/webhooks/{id}/dead",
 			"overloads": [
@@ -491,7 +491,7 @@
 			"description": "Push one dead-lettered event back onto the delivery queue. `outboxId` is\nthe `id` of a row from `dead`.",
 			"source": {
 				"file": "packages/sdk/src/webhooks/client.ts",
-				"line": 235
+				"line": 248
 			},
 			"rest": "POST /api/webhooks/{id}/dead/{outboxId}/requeue",
 			"overloads": [
@@ -659,6 +659,78 @@
 			]
 		},
 		{
+			"name": "DeliveriesPage",
+			"summary": "One page of delivery attempts, newest first.",
+			"fields": [
+				{
+					"name": "total",
+					"type": "number",
+					"required": true,
+					"description": "Every attempt that matches the filters."
+				},
+				{
+					"name": "next_cursor",
+					"type": "string | null",
+					"required": true,
+					"description": "Pass as `cursor` for the next page. Null on the last page."
+				},
+				{
+					"name": "data",
+					"type": "DeliveryRow[]",
+					"required": true,
+					"description": ""
+				}
+			]
+		},
+		{
+			"name": "DeliveriesQuery",
+			"summary": "Filters and paging for `GET /api/webhooks/:id/deliveries`.",
+			"fields": [
+				{
+					"name": "from",
+					"type": "string",
+					"required": false,
+					"description": "Dispatch window start, ISO timestamp, inclusive. Needs `to`; at most\n31 days before it."
+				},
+				{
+					"name": "to",
+					"type": "string",
+					"required": false,
+					"description": "Dispatch window end, ISO timestamp, exclusive. Needs `from`."
+				},
+				{
+					"name": "txId",
+					"type": "string",
+					"required": false,
+					"description": "Only attempts for events of this transaction."
+				},
+				{
+					"name": "fromHeight",
+					"type": "number",
+					"required": false,
+					"description": "Only attempts for events at or above this block height."
+				},
+				{
+					"name": "toHeight",
+					"type": "number",
+					"required": false,
+					"description": "Only attempts for events at or below this block height."
+				},
+				{
+					"name": "cursor",
+					"type": "string",
+					"required": false,
+					"description": "`next_cursor` from the previous page, with the same filters."
+				},
+				{
+					"name": "limit",
+					"type": "number",
+					"required": false,
+					"description": "Attempts per page, 1 to 100. Default 100."
+				}
+			]
+		},
+		{
 			"name": "DeliveryRow",
 			"summary": "One delivery attempt: status code, error, duration, and response.",
 			"fields": [
@@ -708,25 +780,25 @@
 					"name": "blockHeight",
 					"type": "number | null",
 					"required": true,
-					"description": "Null for test deliveries and events already compacted out of the\noutbox."
+					"description": "Block of the delivered event. Null for test deliveries."
 				},
 				{
 					"name": "blockTime",
 					"type": "string | null",
 					"required": true,
-					"description": "ISO timestamp of the delivered event's block. `null` for test\ndeliveries, events already compacted out of the outbox, and rows\nwritten before this column existed."
+					"description": "ISO timestamp of the delivered event's block. Null for test\ndeliveries."
 				},
 				{
 					"name": "txId",
 					"type": "string | null",
 					"required": true,
-					"description": "Null for test deliveries and events already compacted out of the\noutbox."
+					"description": "Transaction of the delivered event. Null for test deliveries and\nBitcoin events without one."
 				},
 				{
 					"name": "eventIndex",
 					"type": "number | null",
 					"required": true,
-					"description": "The row's position within its block/tx, from the outbox's `row_pk`.\nNull for test deliveries, compacted rows, and rows with neither shape\n(a settlement or reorg outbox row)."
+					"description": "The event's index in its transaction. Null for test deliveries and\ntransaction-level triggers."
 				}
 			]
 		},

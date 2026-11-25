@@ -32,6 +32,20 @@ describe("Webhooks deliveries and activity queries", () => {
 		);
 	});
 
+	it("sends tx, height and cursor filters under the route's query names", async () => {
+		const { client, urls } = recordingClient();
+		await client.deliveries("wh_1", {
+			txId: "0xabc",
+			fromHeight: 100,
+			toHeight: 200,
+			cursor: "c1",
+			limit: 50,
+		});
+		expect(urls[0]).toBe(
+			"https://api.example.test/api/webhooks/wh_1/deliveries?tx_id=0xabc&from_height=100&to_height=200&cursor=c1&_limit=50",
+		);
+	});
+
 	it("sends days=30 only when asked", async () => {
 		const { client, urls } = recordingClient();
 		await client.activity("wh_1");

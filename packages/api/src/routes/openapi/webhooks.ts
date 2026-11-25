@@ -824,7 +824,7 @@ export const webhooksPaths = {
 			summary: "List delivery attempts",
 			"x-nav-title": "Delivery attempts",
 			description:
-				"The last 100 delivery attempts, newest first, including test deliveries. `total` counts every attempt ever logged for the webhook. With `from` and `to`, only attempts dispatched in that window; `total` counts the window.",
+				"Delivery attempts, newest first, including test deliveries, up to 100 a page. Pass `next_cursor` back as `cursor` for the next page. Filter by dispatch window (`from`, `to`), transaction (`tx_id`) or block height (`from_height`, `to_height`); `total` counts every attempt that matches. Attempts are kept 30 days.",
 			security: WRITE_SECURITY,
 			parameters: [
 				ID_PARAM,
@@ -841,21 +841,50 @@ export const webhooksPaths = {
 					"Window end, exclusive, ISO 8601. Needs `from`.",
 				),
 				qp(
+					"tx_id",
+					"string",
+					false,
+					"Only attempts for events of this transaction, 0x-prefixed.",
+				),
+				qp(
+					"from_height",
+					"integer",
+					false,
+					"Only attempts for events at or above this block height.",
+				),
+				qp(
+					"to_height",
+					"integer",
+					false,
+					"Only attempts for events at or below this block height.",
+				),
+				qp(
+					"cursor",
+					"string",
+					false,
+					"`next_cursor` from the previous page, with the same filters.",
+				),
+				qp(
 					"_limit",
 					"integer",
 					false,
-					"Attempts to return, 1 to 100. Default 100.",
+					"Attempts per page, 1 to 100. Default 100.",
 				),
 			],
 			responses: apiReadResponses({
 				"200": json200(
 					{
 						type: "object",
-						required: ["total", "data"],
+						required: ["total", "next_cursor", "data"],
 						properties: {
 							total: {
 								type: "integer",
-								description: "Every attempt ever logged for this webhook.",
+								description: "Every attempt that matches the filters.",
+							},
+							next_cursor: {
+								type: ["string", "null"],
+								description:
+									"Pass as `cursor` for the next page. `null` on the last page.",
 							},
 							data: {
 								type: "array",
@@ -865,6 +894,7 @@ export const webhooksPaths = {
 						},
 						example: {
 							total: 4182,
+							next_cursor: "1f6c0a52-8e3b-4d7a-9c15-6b2e0f4d8a91",
 							data: [
 								{
 									id: "9b2e41c7-5d0a-4f3e-8c61-2a7f90d4e3b5",
@@ -877,11 +907,16 @@ export const webhooksPaths = {
 									durationMs: 142,
 									responseBody: '{"received":true}',
 									dispatchedAt: "2026-09-22T14:03:11.402Z",
+									txId: "0x6d3f1c0e9a8b47f2c5d1e0b3a9f8c7d6e5b4a3f2e1d0c9b8a7f6e5d4c3b2a190",
+									eventIndex: 2,
 								},
 							],
 						},
 					},
 					"Recent delivery attempts",
+				),
+				"400": jsonError(
+					"A malformed window (`INVALID_WINDOW`), cursor (`INVALID_CURSOR`), tx id (`INVALID_TX_ID`) or height range (`INVALID_HEIGHT_RANGE`). A cursor from another webhook, or one whose attempt has expired, is `INVALID_CURSOR`",
 				),
 				"404": NOT_FOUND,
 			}),
@@ -1471,13 +1506,15 @@ export const webhooksSchemas = {
 			"durationMs",
 			"responseBody",
 			"dispatchedAt",
+			"txId",
+			"eventIndex",
 		],
 		properties: {
 			id: { type: "string", format: "uuid", description: "Attempt id." },
 			seq: {
 				type: "integer",
 				description:
-					"Position in the webhook's lifetime log. The newest attempt equals `total`.",
+					"Position among the attempts that match the filters. The newest equals `total`.",
 			},
 			attempt: {
 				type: "integer",
@@ -1490,13 +1527,13 @@ export const webhooksSchemas = {
 			blockHeight: {
 				type: ["integer", "null"],
 				description:
-					"Block of the delivered event. `null` for test deliveries and for events already compacted out of the outbox.",
+					"Block of the delivered event. `null` for test deliveries.",
 			},
 			blockTime: {
 				type: ["string", "null"],
 				format: "date-time",
 				description:
-					"When the delivered event's block was produced. `null` for test deliveries, events already compacted out of the outbox, and rows written before this column existed.",
+					"When the delivered event's block was produced. `null` for test deliveries.",
 			},
 			errorMessage: {
 				type: ["string", "null"],
@@ -1516,6 +1553,16 @@ export const webhooksSchemas = {
 				format: "date-time",
 				description: "When the attempt was sent.",
 			},
+			txId: {
+				type: ["string", "null"],
+				description:
+					"Transaction of the delivered event. `null` for test deliveries and Bitcoin events without one.",
+			},
+			eventIndex: {
+				type: ["integer", "null"],
+				description:
+					"The event's index in its transaction. `null` for test deliveries and transaction-level triggers.",
+			},
 		},
 		example: {
 			id: "9b2e41c7-5d0a-4f3e-8c61-2a7f90d4e3b5",
@@ -1528,6 +1575,8 @@ export const webhooksSchemas = {
 			durationMs: 142,
 			responseBody: '{"received":true}',
 			dispatchedAt: "2026-09-22T14:03:11.402Z",
+			txId: "0x6d3f1c0e9a8b47f2c5d1e0b3a9f8c7d6e5b4a3f2e1d0c9b8a7f6e5d4c3b2a190",
+			eventIndex: 2,
 		},
 	},
 	WebhookDeadEvent: {

@@ -2,7 +2,8 @@ import type {
 	CreateWebhookRequest,
 	CreateWebhookResponse,
 	DeadRow,
-	DeliveryRow,
+	DeliveriesPage,
+	DeliveriesQuery,
 	ReplayResult,
 	RotateSecretResponse,
 	UpdateWebhookRequest,
@@ -20,6 +21,8 @@ export type {
 	CreateWebhookRequest,
 	CreateWebhookResponse,
 	DeadRow,
+	DeliveriesPage,
+	DeliveriesQuery,
 	DeliveryRow,
 	ReplayResult,
 	RotateSecretResponse,
@@ -161,17 +164,27 @@ export class Webhooks extends BaseClient {
 		);
 	}
 
-	/** The last 100 delivery attempts, newest first. The server caps the
-	 *  result; there is nothing to page. Pass `window` (ISO timestamps, at most
-	 *  31 days wide) to read only the attempts dispatched in `[from, to)`, for
-	 *  example one hour of the heat strip; `total` then counts that window. */
+	/** One page of delivery attempts, newest first, up to 100.
+	 *
+	 *  Pass `next_cursor` back as `cursor` for the next page. Narrow by
+	 *  dispatch window (`from`/`to`, ISO timestamps, at most 31 days), by
+	 *  transaction (`txId`) or by block height (`fromHeight`/`toHeight`);
+	 *  `total` counts every attempt that matches. Attempts are kept 30 days. */
 	async deliveries(
 		id: string,
-		window?: { from: string; to: string },
-	): Promise<{ total: number; data: DeliveryRow[] }> {
-		return this.request<{ total: number; data: DeliveryRow[] }>(
+		query: DeliveriesQuery = {},
+	): Promise<DeliveriesPage> {
+		return this.request<DeliveriesPage>(
 			"GET",
-			`/api/webhooks/${seg(id)}/deliveries${buildQuery({ from: window?.from, to: window?.to })}`,
+			`/api/webhooks/${seg(id)}/deliveries${buildQuery({
+				from: query.from,
+				to: query.to,
+				tx_id: query.txId,
+				from_height: query.fromHeight,
+				to_height: query.toHeight,
+				cursor: query.cursor,
+				_limit: query.limit,
+			})}`,
 		);
 	}
 

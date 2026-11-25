@@ -10,6 +10,8 @@ import webhooksRouter, {
 
 const SKIP = !process.env.DATABASE_URL;
 const ACCOUNT_ID = "a5e10000-0000-4000-8000-000000000009";
+const TX_A = `0x${"a".repeat(64)}`;
+const TX_B = `0x${"b".repeat(64)}`;
 type TestEnv = {
 	Variables: {
 		accountId: string;
@@ -648,50 +650,21 @@ describe.skipIf(SKIP)("Webhooks API validation", () => {
 	});
 
 	test("deliveries report the delivered event's block time, or null without one", async () => {
-		const created = await app.request("/webhooks", {
-			method: "POST",
-			body: JSON.stringify({
-				name: "deliveries-block-time",
-				triggers: [{ type: "stx_transfer" }],
-				url: "https://example.com/webhook",
-			}),
-		});
-		const body = (await created.json()) as { webhook: { id: string } };
-		const webhookId = body.webhook.id;
-
-		const db = getDb();
+		const webhookId = await createTestWebhook("deliveries-block-time");
 		const blockTime = new Date("2026-04-23T00:00:00.000Z");
-		const outbox = await db
-			.insertInto("webhook_outbox")
-			.values({
-				webhook_id: webhookId,
-				block_height: 42,
-				tx_id: "0xtimed",
-				row_pk: { tx_id: "0xtimed", event_index: 0 },
-				event_type: "chain.stx_transfer.apply",
-				payload: { amount: "1" },
-				dedup_key: "deliveries-block-time-outbox",
-				block_time: blockTime,
-			})
-			.returning("id")
-			.executeTakeFirstOrThrow();
-
-		await db
+		await getDb()
 			.insertInto("webhook_deliveries")
 			.values([
 				{
 					webhook_id: webhookId,
-					outbox_id: outbox.id,
 					attempt: 1,
 					status_code: 200,
+					tx_id: TX_A,
+					block_height: 42,
+					block_time: blockTime,
+					event_index: 0,
 				},
-				{
-					// No outbox row (e.g. a test delivery) — blockTime must be null.
-					webhook_id: webhookId,
-					outbox_id: null,
-					attempt: 1,
-					status_code: 200,
-				},
+				{ webhook_id: webhookId, attempt: 1, status_code: 200 },
 			])
 			.execute();
 
@@ -701,10 +674,10 @@ describe.skipIf(SKIP)("Webhooks API validation", () => {
 			data: Array<{ blockTime: string | null }>;
 		};
 		expect(data).toHaveLength(2);
-		const withOutbox = data.find((d) => d.blockTime !== null);
-		const withoutOutbox = data.find((d) => d.blockTime === null);
-		expect(withOutbox?.blockTime).toBe(blockTime.toISOString());
-		expect(withoutOutbox?.blockTime).toBeNull();
+		expect(data.map((d) => d.blockTime).sort()).toEqual([
+			blockTime.toISOString(),
+			null,
+		]);
 	});
 
 	test("deliveries list returns the newest _limit attempts, and up to 100 without it", async () => {
@@ -786,62 +759,162 @@ describe.skipIf(SKIP)("Webhooks API validation", () => {
 		expect(one.responseBody).toHaveLength(4096);
 	});
 
-	test("deliveries report the outbox row's tx id and its row_pk's event index", async () => {
-		const created = await app.request("/webhooks", {
-			method: "POST",
-			body: JSON.stringify({
-				name: "deliveries-event-index",
-				triggers: [{ type: "stx_transfer" }],
-				url: "https://example.com/webhook",
-			}),
-		});
-		const body = (await created.json()) as { webhook: { id: string } };
-		const webhookId = body.webhook.id;
-
+	test("deliveries keep their tx id, height and event index after the outbox row is pruned", async () => {
+		const webhookId = await createTestWebhook("deliveries-event-index");
 		const db = getDb();
 		const outbox = await db
 			.insertInto("webhook_outbox")
+			.values(
+				outboxRow({
+					webhook_id: webhookId,
+					dedup_key: "deliveries-event-index-outbox",
+					tx_id: TX_A,
+					block_height: 42,
+					row_pk: { tx_id: TX_A, event_index: 3 },
+				}),
+			)
+			.returning("id")
+			.executeTakeFirstOrThrow();
+		const delivery = await db
+			.insertInto("webhook_deliveries")
 			.values({
 				webhook_id: webhookId,
+				outbox_id: outbox.id,
+				attempt: 1,
+				status_code: 200,
+				tx_id: TX_A,
 				block_height: 42,
-				tx_id: "0xindexed",
-				row_pk: { tx_id: "0xindexed", event_index: 3 },
-				event_type: "chain.stx_transfer.apply",
-				payload: { amount: "1" },
-				dedup_key: "deliveries-event-index-outbox",
+				event_index: 3,
 			})
 			.returning("id")
 			.executeTakeFirstOrThrow();
+		await db.deleteFrom("webhook_outbox").where("id", "=", outbox.id).execute();
 
-		await db
+		const list = (await (
+			await app.request(`/webhooks/${webhookId}/deliveries`)
+		).json()) as { data: Array<Record<string, unknown>> };
+		expect(list.data[0]).toMatchObject({
+			txId: TX_A,
+			blockHeight: 42,
+			eventIndex: 3,
+		});
+		const one = (await (
+			await app.request(`/webhooks/${webhookId}/deliveries/${delivery.id}`)
+		).json()) as Record<string, unknown>;
+		expect(one).toMatchObject({ txId: TX_A, blockHeight: 42, eventIndex: 3 });
+	});
+
+	test("deliveries page newest first through next_cursor without gaps or repeats", async () => {
+		const webhookId = await createTestWebhook("deliveries-cursor");
+		const sameInstant = new Date("2026-04-23T00:00:00.000Z");
+		await getDb()
+			.insertInto("webhook_deliveries")
+			.values(
+				Array.from({ length: 250 }, (_, i) => ({
+					webhook_id: webhookId,
+					attempt: 1,
+					status_code: 200,
+					tx_id: TX_A,
+					event_index: i,
+					dispatched_at: sameInstant,
+				})),
+			)
+			.execute();
+		type Page = {
+			total: number;
+			next_cursor: string | null;
+			data: Array<{ id: string; seq: number }>;
+		};
+
+		const seen: Page["data"] = [];
+		let cursor: string | null = null;
+		let pages = 0;
+		do {
+			const query: string = cursor ? `?cursor=${cursor}` : "";
+			const page = (await (
+				await app.request(`/webhooks/${webhookId}/deliveries${query}`)
+			).json()) as Page;
+			expect(page.total).toBe(250);
+			seen.push(...page.data);
+			cursor = page.next_cursor;
+			pages++;
+		} while (cursor);
+
+		expect(pages).toBe(3);
+		expect(new Set(seen.map((d) => d.id)).size).toBe(250);
+		expect(seen.map((d) => d.seq)).toEqual(
+			Array.from({ length: 250 }, (_, i) => 250 - i),
+		);
+	});
+
+	test("deliveries filter by tx id and block height, and total counts the filtered set", async () => {
+		const webhookId = await createTestWebhook("deliveries-filters");
+		await getDb()
 			.insertInto("webhook_deliveries")
 			.values([
-				{
+				...Array.from({ length: 140 }, (_, i) => ({
 					webhook_id: webhookId,
-					outbox_id: outbox.id,
 					attempt: 1,
 					status_code: 200,
-				},
-				{
-					// No outbox row — txId and eventIndex must both be null.
+					tx_id: TX_A,
+					block_height: 100,
+					event_index: i,
+				})),
+				...Array.from({ length: 6 }, (_, i) => ({
 					webhook_id: webhookId,
-					outbox_id: null,
 					attempt: 1,
 					status_code: 200,
-				},
+					tx_id: TX_B,
+					block_height: 200,
+					event_index: i,
+				})),
 			])
 			.execute();
-
-		const res = await app.request(`/webhooks/${webhookId}/deliveries`);
-		expect(res.status).toBe(200);
-		const { data } = (await res.json()) as {
-			data: Array<{ txId: string | null; eventIndex: number | null }>;
+		type Page = {
+			total: number;
+			next_cursor: string | null;
+			data: Array<{ txId: string }>;
 		};
-		expect(data).toHaveLength(2);
-		const withOutbox = data.find((d) => d.txId !== null);
-		const withoutOutbox = data.find((d) => d.txId === null);
-		expect(withOutbox).toMatchObject({ txId: "0xindexed", eventIndex: 3 });
-		expect(withoutOutbox?.eventIndex).toBeNull();
+		const read = async (query: string) =>
+			(await (
+				await app.request(`/webhooks/${webhookId}/deliveries?${query}`)
+			).json()) as Page;
+
+		const byTx = await read(`tx_id=${TX_B.toUpperCase().replace("0X", "0x")}`);
+		expect(byTx.total).toBe(6);
+		expect(byTx.next_cursor).toBeNull();
+		expect(byTx.data.every((d) => d.txId === TX_B)).toBe(true);
+
+		const byHeight = await read("from_height=100&to_height=150");
+		expect(byHeight.total).toBe(140);
+		expect(byHeight.data).toHaveLength(100);
+		expect(byHeight.next_cursor).not.toBeNull();
+		expect(byHeight.data.every((d) => d.txId === TX_A)).toBe(true);
+	});
+
+	test("deliveries reject a malformed cursor, tx id or height range", async () => {
+		const webhookId = await createTestWebhook("deliveries-invalid");
+		const other = await createTestWebhook("deliveries-invalid-other");
+		const foreign = await getDb()
+			.insertInto("webhook_deliveries")
+			.values({ webhook_id: other, attempt: 1, status_code: 200 })
+			.returning("id")
+			.executeTakeFirstOrThrow();
+		const codeOf = async (query: string) => {
+			const res = await app.request(
+				`/webhooks/${webhookId}/deliveries?${query}`,
+			);
+			expect(res.status).toBe(400);
+			return ((await res.json()) as { code: string }).code;
+		};
+
+		expect(await codeOf("cursor=nope")).toBe("INVALID_CURSOR");
+		expect(await codeOf(`cursor=${foreign.id}`)).toBe("INVALID_CURSOR");
+		expect(await codeOf("tx_id=0xabc")).toBe("INVALID_TX_ID");
+		expect(await codeOf("from_height=-1")).toBe("INVALID_HEIGHT_RANGE");
+		expect(await codeOf("from_height=9&to_height=3")).toBe(
+			"INVALID_HEIGHT_RANGE",
+		);
 	});
 
 	async function createTestWebhook(name: string): Promise<string> {
@@ -1084,6 +1157,10 @@ describe.skipIf(SKIP)("Webhooks API validation", () => {
 				status_code: 200,
 				duration_ms: 61,
 				response_body: '{"ok":true}',
+				tx_id: "0xactivity",
+				block_height: 1,
+				block_time: blockTime,
+				event_index: 0,
 				response_headers: { "content-type": "application/json" },
 			})
 			.returning("id")
@@ -1141,38 +1218,6 @@ describe.skipIf(SKIP)("Webhooks API validation", () => {
 		);
 		const detail = (await res.json()) as { outboxStatus: string | null };
 		expect(detail.outboxStatus).toBe("dead");
-	});
-
-	test("delivery detail reads a chain-trigger row's event_index", async () => {
-		const webhookId = await createTestWebhook("delivery-detail-chain-index");
-		const db = getDb();
-		const outbox = await db
-			.insertInto("webhook_outbox")
-			.values(
-				outboxRow({
-					webhook_id: webhookId,
-					dedup_key: "delivery-detail-chain-index-outbox",
-					row_pk: { tx_id: "0xchain", event_index: 3 },
-				}),
-			)
-			.returning("id")
-			.executeTakeFirstOrThrow();
-		const delivery = await db
-			.insertInto("webhook_deliveries")
-			.values({
-				webhook_id: webhookId,
-				outbox_id: outbox.id,
-				attempt: 1,
-				status_code: 200,
-			})
-			.returning("id")
-			.executeTakeFirstOrThrow();
-
-		const res = await app.request(
-			`/webhooks/${webhookId}/deliveries/${delivery.id}`,
-		);
-		const detail = (await res.json()) as { eventIndex: number | null };
-		expect(detail.eventIndex).toBe(3);
 	});
 
 	test("delivery detail's event index is null when row_pk carries neither shape", async () => {

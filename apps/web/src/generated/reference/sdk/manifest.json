@@ -390,6 +390,8 @@
 		"CreateWebhookRequest": "/docs/sdk-reference/webhooks#t-CreateWebhookRequest",
 		"CreateWebhookResponse": "/docs/sdk-reference/webhooks#t-CreateWebhookResponse",
 		"DeadRow": "/docs/sdk-reference/webhooks#t-DeadRow",
+		"DeliveriesPage": "/docs/sdk-reference/webhooks#t-DeliveriesPage",
+		"DeliveriesQuery": "/docs/sdk-reference/webhooks#t-DeliveriesQuery",
 		"DeliveryRow": "/docs/sdk-reference/webhooks#t-DeliveryRow",
 		"DeploySubgraphRequest": "/docs/sdk-reference/subgraphs#t-DeploySubgraphRequest",
 		"DeploySubgraphResponse": "/docs/sdk-reference/subgraphs#t-DeploySubgraphResponse",

@@ -45,7 +45,7 @@ import {
 	replayWebhook,
 } from "@secondlayer/subgraphs/runtime/replay";
 import { Hono } from "hono";
-import { sql } from "kysely";
+import { type RawBuilder, type SqlBool, sql } from "kysely";
 import {
 	getBitcoinDb,
 	isBitcoinConfigured,
@@ -649,17 +649,30 @@ app.post("/:id/test", async (c) => {
 });
 
 const MAX_WINDOW_MS = 31 * 24 * 3_600_000;
+const TX_ID_RE = /^0x[0-9a-f]{64}$/i;
 
-app.get("/:id/deliveries", async (c) => {
-	const accountId = getTenantScopedAccountId(c);
-	if (accountId === null) return c.json({ error: "Unauthorized" }, 401);
-	const sub = await getWebhook(getDb(), accountId, c.req.param("id"));
-	if (!sub) return c.json({ error: "Webhook not found" }, 404);
+type DeliveriesQuery = {
+	limit: number;
+	cursor: string | null;
+	txId: string | null;
+	fromHeight: number | null;
+	toHeight: number | null;
+	window: { from: Date; to: Date } | null;
+};
 
-	const limit = clampLimit(c.req.query("_limit"), 100, 100);
-	const fromParam = c.req.query("from");
-	const toParam = c.req.query("to");
-	let window: { from: Date; to: Date } | null = null;
+type QueryError = { error: string; code: string };
+
+function parseHeight(value: string | undefined): number | null | undefined {
+	if (value === undefined) return null;
+	return /^\d+$/.test(value) ? Number(value) : undefined;
+}
+
+function parseDeliveriesQuery(
+	query: (key: string) => string | undefined,
+): DeliveriesQuery | QueryError {
+	const fromParam = query("from");
+	const toParam = query("to");
+	let window: DeliveriesQuery["window"] = null;
 	if (fromParam !== undefined || toParam !== undefined) {
 		const from = new Date(fromParam ?? Number.NaN);
 		const to = new Date(toParam ?? Number.NaN);
@@ -669,22 +682,117 @@ app.get("/:id/deliveries", async (c) => {
 			from >= to ||
 			to.getTime() - from.getTime() > MAX_WINDOW_MS
 		) {
-			return c.json(
-				{
-					error:
-						"from and to must be ISO timestamps, from < to, at most 31 days apart",
-					code: "INVALID_WINDOW",
-				},
-				400,
-			);
+			return {
+				error:
+					"from and to must be ISO timestamps, from < to, at most 31 days apart",
+				code: "INVALID_WINDOW",
+			};
 		}
 		window = { from, to };
 	}
 
+	const cursor = query("cursor") ?? null;
+	if (cursor !== null && !UUID_RE.test(cursor)) {
+		return {
+			error: "cursor must be a next_cursor from a previous page",
+			code: "INVALID_CURSOR",
+		};
+	}
+
+	const txParam = query("tx_id");
+	if (txParam !== undefined && !TX_ID_RE.test(txParam)) {
+		return {
+			error: "tx_id must be a 0x-prefixed 64-character hex transaction id",
+			code: "INVALID_TX_ID",
+		};
+	}
+
+	const fromHeight = parseHeight(query("from_height"));
+	const toHeight = parseHeight(query("to_height"));
+	if (
+		fromHeight === undefined ||
+		toHeight === undefined ||
+		(fromHeight !== null && toHeight !== null && fromHeight > toHeight)
+	) {
+		return {
+			error:
+				"from_height and to_height must be block heights, from_height <= to_height",
+			code: "INVALID_HEIGHT_RANGE",
+		};
+	}
+
+	return {
+		limit: clampLimit(query("_limit"), 100, 100),
+		cursor,
+		txId: txParam?.toLowerCase() ?? null,
+		fromHeight,
+		toHeight,
+		window,
+	};
+}
+
+function deliveriesFilter(
+	webhookId: string,
+	q: DeliveriesQuery,
+): RawBuilder<SqlBool> {
+	const conditions = [sql`d.webhook_id = ${webhookId}`];
+	if (q.window) {
+		conditions.push(sql`d.dispatched_at >= ${q.window.from}`);
+		conditions.push(sql`d.dispatched_at < ${q.window.to}`);
+	}
+	if (q.txId !== null) conditions.push(sql`d.tx_id = ${q.txId}`);
+	if (q.fromHeight !== null) {
+		conditions.push(sql`d.block_height >= ${q.fromHeight}`);
+	}
+	if (q.toHeight !== null) {
+		conditions.push(sql`d.block_height <= ${q.toHeight}`);
+	}
+	return sql<SqlBool>`${sql.join(conditions, sql` AND `)}`;
+}
+
+function cursorPosition(cursor: string) {
+	return sql`(SELECT c.dispatched_at, c.id FROM webhook_deliveries c WHERE c.id = ${cursor})`;
+}
+
+function olderThanCursor(cursor: string): RawBuilder<SqlBool> {
+	return sql<SqlBool>`(d.dispatched_at, d.id) < ${cursorPosition(cursor)}`;
+}
+
+function cursorOrNewer(cursor: string): RawBuilder<SqlBool> {
+	return sql<SqlBool>`(d.dispatched_at, d.id) >= ${cursorPosition(cursor)}`;
+}
+
+app.get("/:id/deliveries", async (c) => {
+	const accountId = getTenantScopedAccountId(c);
+	if (accountId === null) return c.json({ error: "Unauthorized" }, 401);
+	const sub = await getWebhook(getDb(), accountId, c.req.param("id"));
+	if (!sub) return c.json({ error: "Webhook not found" }, 404);
+
+	const q = parseDeliveriesQuery((key) => c.req.query(key));
+	if ("code" in q) return c.json(q, 400);
+
 	const db = getDb();
+	if (q.cursor !== null) {
+		const cursorRow = await db
+			.selectFrom("webhook_deliveries")
+			.select("id")
+			.where("id", "=", q.cursor)
+			.where("webhook_id", "=", sub.id)
+			.executeTakeFirst();
+		if (!cursorRow) {
+			return c.json(
+				{
+					error: "cursor is not a delivery of this webhook, or it expired",
+					code: "INVALID_CURSOR",
+				},
+				400,
+			);
+		}
+	}
+
+	const filter = deliveriesFilter(sub.id, q);
 	let rowsQuery = db
 		.selectFrom("webhook_deliveries as d")
-		.leftJoin("webhook_outbox as o", "o.id", "d.outbox_id")
 		.select([
 			"d.id",
 			"d.attempt",
@@ -693,36 +801,39 @@ app.get("/:id/deliveries", async (c) => {
 			"d.duration_ms",
 			sql<string | null>`left(d.response_body, 512)`.as("response_body"),
 			"d.dispatched_at",
-			"o.block_height",
-			"o.block_time",
-			"o.tx_id",
-			"o.row_pk",
+			"d.block_height",
+			"d.block_time",
+			"d.tx_id",
+			"d.event_index",
 		])
-		.where("d.webhook_id", "=", sub.id);
-	let totalQuery = db
-		.selectFrom("webhook_deliveries")
-		.select(db.fn.countAll<string>().as("n"))
-		.where("webhook_id", "=", sub.id);
-	if (window) {
-		rowsQuery = rowsQuery
-			.where("d.dispatched_at", ">=", window.from)
-			.where("d.dispatched_at", "<", window.to);
-		totalQuery = totalQuery
-			.where("dispatched_at", ">=", window.from)
-			.where("dispatched_at", "<", window.to);
-	}
-	const [rows, totalRow] = await Promise.all([
-		rowsQuery.orderBy("d.dispatched_at", "desc").limit(limit).execute(),
-		totalQuery.executeTakeFirst(),
+		.where(filter);
+	if (q.cursor !== null) rowsQuery = rowsQuery.where(olderThanCursor(q.cursor));
+	const countWhere = (extra?: RawBuilder<SqlBool>) => {
+		let query = db
+			.selectFrom("webhook_deliveries as d")
+			.select(db.fn.countAll<string>().as("n"))
+			.where(filter);
+		if (extra) query = query.where(extra);
+		return query.executeTakeFirst();
+	};
+	const [page, totalRow, aheadRow] = await Promise.all([
+		rowsQuery
+			.orderBy("d.dispatched_at", "desc")
+			.orderBy("d.id", "desc")
+			.limit(q.limit + 1)
+			.execute(),
+		countWhere(),
+		q.cursor === null ? null : countWhere(cursorOrNewer(q.cursor)),
 	]);
-	// `seq` numbers deliveries newest-first from the lifetime total, so the log
-	// reads like a ledger (#4,182 …) even though only the newest page is returned.
+	const rows = page.slice(0, q.limit);
 	const total = Number(totalRow?.n ?? rows.length);
+	const ahead = Number(aheadRow?.n ?? 0);
 	return c.json({
 		total,
+		next_cursor: page.length > q.limit ? (rows.at(-1)?.id ?? null) : null,
 		data: rows.map((r, i) => ({
 			id: r.id,
-			seq: total - i,
+			seq: total - ahead - i,
 			attempt: r.attempt,
 			statusCode: r.status_code,
 			blockHeight: r.block_height === null ? null : Number(r.block_height),
@@ -732,7 +843,7 @@ app.get("/:id/deliveries", async (c) => {
 			responseBody: r.response_body,
 			dispatchedAt: r.dispatched_at.toISOString(),
 			txId: r.tx_id,
-			eventIndex: eventIndexFromRowPk(r.row_pk),
+			eventIndex: r.event_index,
 		})),
 	});
 });
@@ -929,17 +1040,6 @@ app.get("/:id/activity", async (c) => {
 	});
 });
 
-// The delivery card's data: the delivery row plus its outbox context
-// (payload, event/tx/block info), left-joined since the outbox row may
-// already be compacted away (7-day retention on delivered rows).
-
-function eventIndexFromRowPk(rowPk: unknown): number | null {
-	if (!rowPk || typeof rowPk !== "object") return null;
-	const pk = rowPk as Record<string, unknown>;
-	if (typeof pk.event_index === "number") return pk.event_index;
-	return null;
-}
-
 app.get("/:id/deliveries/:deliveryId", async (c) => {
 	const accountId = getTenantScopedAccountId(c);
 	if (accountId === null) return c.json({ error: "Unauthorized" }, 401);
@@ -964,12 +1064,12 @@ app.get("/:id/deliveries/:deliveryId", async (c) => {
 			"d.response_body",
 			"d.response_headers",
 			"d.outbox_id",
+			"d.tx_id",
+			"d.block_height",
+			"d.block_time",
+			"d.event_index",
 			"o.status",
 			"o.event_type",
-			"o.tx_id",
-			"o.block_height",
-			"o.block_time",
-			"o.row_pk",
 			"o.payload",
 		])
 		.where("d.id", "=", deliveryId)
@@ -992,7 +1092,7 @@ app.get("/:id/deliveries/:deliveryId", async (c) => {
 		txId: row.tx_id,
 		blockHeight: row.block_height === null ? null : Number(row.block_height),
 		blockTime: row.block_time === null ? null : row.block_time.toISOString(),
-		eventIndex: eventIndexFromRowPk(row.row_pk),
+		eventIndex: row.event_index,
 		payload: row.payload ?? null,
 	});
 });

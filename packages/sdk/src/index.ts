@@ -213,6 +213,8 @@ export type {
 	ChainTrigger,
 	ChainTriggerType,
 	RotateSecretResponse,
+	DeliveriesPage,
+	DeliveriesQuery,
 	DeliveryRow,
 	ReplayResult,
 	DeadRow,
