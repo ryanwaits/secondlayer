@@ -2120,7 +2120,7 @@
 					"type": "string | null"
 				}
 			],
-			"more": 7,
+			"more": 8,
 			"route": "/docs/sdk-reference/index",
 			"anchor": "t-IndexMapDelete"
 		},
@@ -2161,7 +2161,7 @@
 					"type": "string | null"
 				}
 			],
-			"more": 8,
+			"more": 9,
 			"route": "/docs/sdk-reference/index",
 			"anchor": "t-IndexMapInsert"
 		},
@@ -2202,7 +2202,7 @@
 					"type": "string | null"
 				}
 			],
-			"more": 8,
+			"more": 9,
 			"route": "/docs/sdk-reference/index",
 			"anchor": "t-IndexMapSet"
 		},
@@ -3322,7 +3322,7 @@
 					"type": "string | null"
 				}
 			],
-			"more": 7,
+			"more": 8,
 			"route": "/docs/sdk-reference/index",
 			"anchor": "t-IndexVarSet"
 		},
