@@ -240,6 +240,7 @@ export type IndexEvent = {
 	var_name?: string | null;
 	raw_key?: string | null;
 	raw_value?: string | null;
+	decoded?: unknown;
 	/** Submitting-transaction context, present only when `tx_context=true`. The
 	 *  real tx sender — distinct from a transfer event's asset `sender`, and the
 	 *  only place a print event's sender is available. Lets the subgraph runtime

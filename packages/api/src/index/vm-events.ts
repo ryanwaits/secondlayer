@@ -1,3 +1,4 @@
+import { decodeClarityValue } from "@secondlayer/sdk";
 import { VM_EVENT_TYPES, type VmEventType } from "@secondlayer/shared";
 import { getSourceDb, sql } from "@secondlayer/shared/db";
 import { resolveTraitContractIds } from "@secondlayer/shared/db/queries/contracts";
@@ -58,7 +59,7 @@ export const VM_INDEX_EVENT_CONFIG = {
 		allowedFilters: [...VM_COMMON, "function_name", "caller", "sender"],
 	},
 	var_set: {
-		columns: ["var_name", "raw_value"],
+		columns: ["var_name", "raw_value", "decoded"],
 		requiredNonNull: ["contract_id", "var_name"],
 		equalityFilters: [
 			"contract_id",
@@ -68,7 +69,7 @@ export const VM_INDEX_EVENT_CONFIG = {
 		allowedFilters: [...VM_COMMON, "var_name"],
 	},
 	map_set: {
-		columns: ["map", "raw_key", "raw_value"],
+		columns: ["map", "raw_key", "raw_value", "decoded"],
 		requiredNonNull: ["contract_id", "map"],
 		equalityFilters: [
 			"contract_id",
@@ -78,7 +79,7 @@ export const VM_INDEX_EVENT_CONFIG = {
 		allowedFilters: [...VM_COMMON, "map"],
 	},
 	map_insert: {
-		columns: ["map", "raw_key", "raw_value"],
+		columns: ["map", "raw_key", "raw_value", "decoded"],
 		requiredNonNull: ["contract_id", "map"],
 		equalityFilters: [
 			"contract_id",
@@ -88,7 +89,7 @@ export const VM_INDEX_EVENT_CONFIG = {
 		allowedFilters: [...VM_COMMON, "map"],
 	},
 	map_delete: {
-		columns: ["map", "raw_key"],
+		columns: ["map", "raw_key", "decoded"],
 		requiredNonNull: ["contract_id", "map"],
 		equalityFilters: [
 			"contract_id",
@@ -152,6 +153,19 @@ type VmIndexRow = {
 	tx_function_name?: string | null;
 };
 
+const DECODED_SOURCE_COLUMNS = ["raw_key", "raw_value"] as const;
+
+function buildDecoded(row: VmIndexRow, config: IndexEventConfig) {
+	const decoded: { key?: unknown; value?: unknown } = {};
+	if (config.columns.includes("raw_key") && row.raw_key != null) {
+		decoded.key = decodeClarityValue(row.raw_key);
+	}
+	if (config.columns.includes("raw_value") && row.raw_value != null) {
+		decoded.value = decodeClarityValue(row.raw_value);
+	}
+	return decoded;
+}
+
 function normalizeVmRow(
 	row: VmIndexRow,
 	config: IndexEventConfig,
@@ -168,6 +182,10 @@ function normalizeVmRow(
 		contract_id: row.contract_id,
 	};
 	for (const column of config.columns) {
+		if (column === "decoded") {
+			event.decoded = buildDecoded(row, config);
+			continue;
+		}
 		(event as Record<string, unknown>)[column] = (
 			row as Record<string, unknown>
 		)[column];
@@ -188,6 +206,26 @@ function normalizeVmRow(
 		event.tx_function_name = row.tx_function_name;
 	}
 	return event;
+}
+
+function selectSqlColumns(
+	config: IndexEventConfig,
+	wanted: ReadonlySet<string> | undefined,
+): string[] {
+	const requested = wanted
+		? config.columns.filter((column) => wanted.has(column))
+		: [...config.columns];
+	const columns = new Set<string>();
+	for (const column of requested) {
+		if (column === "decoded") {
+			for (const source of DECODED_SOURCE_COLUMNS) {
+				if (config.columns.includes(source)) columns.add(source);
+			}
+		} else {
+			columns.add(column);
+		}
+	}
+	return [...columns];
 }
 
 export async function readVmIndexEvents(
@@ -254,9 +292,7 @@ export async function readVmIndexEvents(
 	}
 
 	const wanted = params.fields ? new Set(params.fields) : undefined;
-	const selectedColumns = wanted
-		? config.columns.filter((column) => wanted.has(column))
-		: [...config.columns];
+	const selectedColumns = selectSqlColumns(config, wanted);
 	const extraColumns =
 		selectedColumns.length > 0
 			? sql`, ${sql.join(

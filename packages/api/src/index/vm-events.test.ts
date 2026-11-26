@@ -121,6 +121,14 @@ describe("Index vm_events query parse", () => {
 		);
 		expect(parsed.filters.map).toBe("store");
 	});
+
+	test("decoded field is accepted for map_set", () => {
+		const parsed = parseIndexEventsQuery(
+			params("?event_type=map_set&fields=decoded"),
+			TIP,
+		);
+		expect(parsed.fields).toContain("decoded");
+	});
 });
 
 describe.skipIf(!HAS_DB)("Index vm_events read", () => {
@@ -221,6 +229,106 @@ describe.skipIf(!HAS_DB)("Index vm_events read", () => {
 		expect(maps.events).toHaveLength(1);
 		expect(maps.events[0]?.event_index).toBe(1);
 		expect(maps.events[0]?.map).toBe("store");
+	});
+
+	describe("decoded state values", () => {
+		const UINT_100 = "0x0100000000000000000000000000000064";
+		const HELLO = "0x0d0000000568656c6c6f";
+
+		async function seedState() {
+			await seed();
+			if (!db) throw new Error("missing db");
+			await db
+				.insertInto("vm_events")
+				.values([
+					{
+						tx_id: txId,
+						block_height: H,
+						ordinal: 10,
+						type: "var_set",
+						data: {
+							contract_identifier: "SP.store",
+							var_name: "counter",
+							raw_value: UINT_100,
+						},
+					},
+					{
+						tx_id: txId,
+						block_height: H,
+						ordinal: 11,
+						type: "map_set",
+						data: {
+							contract_identifier: "SP.store",
+							map_name: "names",
+							raw_key: HELLO,
+							raw_value: UINT_100,
+						},
+					},
+					{
+						tx_id: txId,
+						block_height: H,
+						ordinal: 12,
+						type: "map_delete",
+						data: {
+							contract_identifier: "SP.store",
+							map_name: "names",
+							raw_key: HELLO,
+						},
+					},
+				])
+				.execute();
+		}
+
+		function read(
+			eventType: "var_set" | "map_set" | "map_delete",
+			fields?: string[],
+		) {
+			return readIndexEvents({
+				eventType,
+				fromHeight: H,
+				toHeight: H,
+				limit: 25,
+				fields,
+				db: db ?? undefined,
+			});
+		}
+
+		test("var_set carries the decoded value beside the hex", async () => {
+			await seedState();
+			const { events } = await read("var_set");
+			expect(events[0]?.decoded).toEqual({ value: "100" });
+			expect(events[0]?.raw_value).toBe(UINT_100);
+		});
+
+		test("map_set carries the decoded key and value", async () => {
+			await seedState();
+			const { events } = await read("map_set");
+			const row = events.find((e) => e.event_index === 11);
+			expect(row?.decoded).toEqual({ key: "hello", value: "100" });
+		});
+
+		test("map_delete carries the decoded key", async () => {
+			await seedState();
+			const { events } = await read("map_delete");
+			expect(events[0]?.decoded).toEqual({ key: "hello" });
+		});
+
+		test("fields=decoded returns decoded without the raw columns", async () => {
+			await seedState();
+			const { events } = await read("map_set", ["decoded"]);
+			const row = events.find((e) => e.cursor === `${H}:11`);
+			expect(row?.decoded).toEqual({ key: "hello", value: "100" });
+			expect(row).not.toHaveProperty("raw_key");
+			expect(row).not.toHaveProperty("raw_value");
+		});
+
+		test("fields without decoded omit it", async () => {
+			await seedState();
+			const { events } = await read("map_set", ["raw_value"]);
+			const row = events.find((e) => e.cursor === `${H}:11`);
+			expect(row?.raw_value).toBe(UINT_100);
+			expect(row).not.toHaveProperty("decoded");
+		});
 	});
 
 	test("desc pages VM events newest ordinal first and resumes below the cursor", async () => {

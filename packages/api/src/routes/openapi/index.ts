@@ -1042,6 +1042,11 @@ export const indexSchemas = {
 				description:
 					"Value written as Clarity `0x` hex, on `var_set`, `map_set` and `map_insert`.",
 			},
+			decoded: {
+				type: ["object", "null"],
+				description:
+					"The written Clarity values decoded to JSON (uints as strings, buffers as 0x hex, tuples as objects): `{ value }` on `var_set`, `{ key, value }` on `map_set` and `map_insert`, `{ key }` on `map_delete`. The hex stays in `raw_key` and `raw_value`.",
+			},
 			tx_sender: {
 				type: ["string", "null"],
 				description:
