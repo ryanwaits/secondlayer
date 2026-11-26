@@ -1,5 +1,15 @@
 # @secondlayer/shared
 
+## 19.5.0
+
+### Minor Changes
+
+- a123f99: Contract state coverage: a source-plane table tracks canonical blocks that have no contract state rows.
+
+### Patch Changes
+
+- 123c278: Cross-account ledger scans and the Stripe refund lookup use indexes instead of reading the whole usage ledger.
+
 ## 19.4.0
 
 ### Minor Changes

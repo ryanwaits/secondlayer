@@ -1,5 +1,19 @@
 # @secondlayer/sdk
 
+## 20.5.0
+
+### Minor Changes
+
+- 96e8867: Contract state rows carry `decoded`: the map key and written value as JSON beside the Clarity hex.
+
+### Patch Changes
+
+- Updated dependencies [a123f99]
+- Updated dependencies [809b20e]
+- Updated dependencies [123c278]
+  - @secondlayer/shared@19.5.0
+  - @secondlayer/subgraphs@8.1.20
+
 ## 20.4.0
 
 ### Minor Changes

@@ -1,5 +1,13 @@
 # @secondlayer/platform
 
+## 0.10.38
+
+### Patch Changes
+
+- Updated dependencies [a123f99]
+- Updated dependencies [123c278]
+  - @secondlayer/shared@19.5.0
+
 ## 0.10.37
 
 ### Patch Changes

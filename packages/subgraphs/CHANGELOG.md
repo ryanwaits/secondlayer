@@ -1,5 +1,16 @@
 # @secondlayer/subgraphs
 
+## 8.1.20
+
+### Patch Changes
+
+- 809b20e: Runes webhooks advance past `btc:`-tagged Streams cursors, and Bitcoin reorgs rewind them.
+- Updated dependencies [a123f99]
+- Updated dependencies [123c278]
+- Updated dependencies [2a39600]
+  - @secondlayer/shared@19.5.0
+  - @secondlayer/verify@0.6.6
+
 ## 8.1.19
 
 ### Patch Changes
