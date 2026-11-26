@@ -70,7 +70,7 @@
 			"id": "blockTransactions",
 			"path": "blockTransactions",
 			"summary": "Hashes a block's transactions and checks them against the header.",
-			"description": "Hashes a block's transactions and checks them against the header.\n\nEach transaction is hashed to its txid and checked against the header's\n`tx_merkle_root`. The body after `header.byteLength` is a u32 count, then the\ntransactions back to back. It returns null when the bytes are the header\nalone, as a source that serves headers only does. It throws [`TransactionsError`](/docs/verify-reference#m-TransactionsError) on a malformed body, trailing bytes or a root\nmismatch.",
+			"description": "Hashes a block's transactions and checks them against the header.\n\nEach transaction is hashed to its txid and checked against the header's\n`tx_merkle_root`. The body after `header.byteLength` is a u32 count, then the\ntransactions back to back. It returns null when the bytes are the header\nalone, as a source that serves headers only does. It throws [`TransactionsError`](/docs/verify-reference#m-TransactionsError) on a malformed body, trailing bytes, a duplicate\ntxid or a root mismatch.",
 			"source": {
 				"file": "packages/verify/src/txs.ts",
 				"line": 64

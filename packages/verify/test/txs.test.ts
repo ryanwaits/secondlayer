@@ -82,6 +82,43 @@ describe("blockTransactions", () => {
 		);
 	});
 
+	test("a repeated last transaction is malformed even when the root matches", () => {
+		const good = block(8199502);
+		const header = parseNakamotoHeader(good);
+		const txs = blockTransactions(good, header) as NonNullable<
+			ReturnType<typeof blockTransactions>
+		>;
+		const t0 = (txs[0] as { raw: Uint8Array }).raw;
+		const t1 = (txs[1] as { raw: Uint8Array }).raw;
+		const id0 = unhex((txs[0] as { txid: string }).txid);
+		const id1 = unhex((txs[1] as { txid: string }).txid);
+		const count = new Uint8Array(4);
+		new DataView(count.buffer).setUint32(0, 4);
+		const head = good.subarray(0, header.byteLength);
+		const raw = new Uint8Array(head.length + 4 + t0.length + t1.length * 3);
+		let offset = 0;
+		for (const part of [head, count, t0, t1, t1, t1]) {
+			raw.set(part, offset);
+			offset += part.length;
+		}
+		const forged = {
+			...header,
+			txMerkleRoot: txMerkleRoot([id0, id1, id1]),
+		};
+		expect(hex(txMerkleRoot([id0, id1, id1, id1]))).toBe(
+			hex(forged.txMerkleRoot),
+		);
+		let thrown: unknown;
+		try {
+			blockTransactions(raw, forged);
+		} catch (err) {
+			thrown = err;
+		}
+		expect(thrown).toBeInstanceOf(TransactionsError);
+		expect((thrown as TransactionsError).code).toBe("malformed");
+		expect((thrown as TransactionsError).message).toContain("duplicate");
+	});
+
 	test("header-only bytes have nothing to check", () => {
 		const raw = block(8199502);
 		const header = parseNakamotoHeader(raw);

@@ -58,8 +58,8 @@ export class TransactionsError extends Error {
  * `tx_merkle_root`. The body after `header.byteLength` is a u32 count, then the
  * transactions back to back. It returns null when the bytes are the header
  * alone, as a source that serves headers only does. It throws
- * {@link TransactionsError} on a malformed body, trailing bytes or a root
- * mismatch.
+ * {@link TransactionsError} on a malformed body, trailing bytes, a duplicate
+ * txid or a root mismatch.
  */
 export function blockTransactions(
 	raw: Bytes,
@@ -92,6 +92,16 @@ export function blockTransactions(
 			`${body.length - used} bytes after the block's ${count} transactions`,
 		);
 	const ids = txs.map((t) => sha512_256(t));
+	const seen = new Set<string>();
+	for (const id of ids) {
+		const key = hex(id);
+		if (seen.has(key))
+			throw new TransactionsError(
+				"malformed",
+				`duplicate txid ${key} in block body`,
+			);
+		seen.add(key);
+	}
 	const root = txMerkleRoot(ids);
 	if (!bytesEqual(root, header.txMerkleRoot))
 		throw new TransactionsError(
