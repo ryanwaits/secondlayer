@@ -167,7 +167,7 @@ export const metadata = {
 export const agent = `
 - Endpoint: GET /v1/index/events with event_type one of nested_contract_call, var_set, map_set, map_insert, map_delete (SDK: index.events.list / .walk / .consume). Filters: contract_id, tx_id, from_height, to_height, plus function_name, caller, sender (nested_contract_call), var_name (var_set), map (map_*).
 - A tx_id read with no from_height/to_height/cursor reads that transaction's own block, so an old transaction needs no start height. Without tx_id, a read with no start height covers only recent blocks: pass from_height (0 for all history).
-- Rows carry Clarity values as 0x hex (function_args, raw_result, raw_key, raw_value) and, on the state types, `decoded` { key, value } as JSON.
+- Rows carry Clarity values as 0x hex (function_args, raw_result, raw_key, raw_value) and, on the state types, decoded { key, value } as JSON.
 - event_index on these types is the row's position among the block's contract state rows in node order (the cursor's second part), not a classic event index.
 - caller is Clarity's contract-caller; sender is tx-sender at the call, which as-contract replaces with the calling contract. caller != sender on a token transfer out of a vault means another contract moved the vault's tokens (ALEX drain, block 1,508,068).
 - nested_contract_call includes inner calls that failed and were handled by their caller; check raw_result. A transaction that fails outright leaves no rows.
