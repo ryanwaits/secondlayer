@@ -33,6 +33,18 @@ PREVIOUS_PATH="${DEPLOY_STATE_DIR}/previous"
 DEPLOY_IMAGE_OWNER="${DEPLOY_IMAGE_OWNER:-secondlayer-labs}"
 ROLLBACK_IMAGE_TAG="${ROLLBACK_IMAGE_TAG:-}"
 
+DB_MAINTENANCE_LOCK_FILE="${DB_MAINTENANCE_LOCK_FILE:-${DATA_DIR:-/opt/secondlayer/data}/db-maintenance.lock}"
+ROLLBACK_LOCK_TIMEOUT_SECONDS="${ROLLBACK_LOCK_TIMEOUT_SECONDS:-600}"
+mkdir -p "$(dirname "$DB_MAINTENANCE_LOCK_FILE")"
+exec 9>"$DB_MAINTENANCE_LOCK_FILE"
+echo "Waiting for the deploy host lock ${DB_MAINTENANCE_LOCK_FILE}..."
+if ! flock -w "$ROLLBACK_LOCK_TIMEOUT_SECONDS" 9; then
+	echo "ERROR: a deploy still holds ${DB_MAINTENANCE_LOCK_FILE} after ${ROLLBACK_LOCK_TIMEOUT_SECONDS}s. Rerun the rollback when it finishes, or stop the secondlayer-deploy-* unit first."
+	exit 75
+fi
+exec 8>"${DATA_DIR:-/opt/secondlayer/data}/deploy.lock"
+flock -n 8 || true
+
 if [ -z "$ROLLBACK_IMAGE_TAG" ]; then
 	if [ ! -s "$PREVIOUS_PATH" ]; then
 		echo "ERROR: no rollback image tag supplied and ${PREVIOUS_PATH} is missing or empty"

@@ -6,7 +6,7 @@ set -euo pipefail
 # Caller PATH first (tests stub systemd-run/systemctl), system dirs as fallback for bare ssh shells.
 export PATH="${PATH:+$PATH:}/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:${HOME:-/root}/.bun/bin"
 
-ROLLBACK_SCRIPT="/opt/secondlayer/docker/scripts/rollback.sh"
+ROLLBACK_SCRIPT="${ROLLBACK_SCRIPT:-/opt/secondlayer/docker/scripts/rollback.sh}"
 POLL_TIMEOUT_SECONDS="${ROLLBACK_POLL_TIMEOUT_SECONDS:-1800}"
 POLL_INTERVAL_SECONDS="${ROLLBACK_POLL_INTERVAL_SECONDS:-15}"
 

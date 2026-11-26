@@ -9,12 +9,13 @@ on:
         type: string
 
 concurrency:
-  group: deploy
+  group: rollback
   cancel-in-progress: false
 
 jobs:
   rollback:
     runs-on: ubuntu-latest
+    timeout-minutes: 40
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
       - uses: appleboy/ssh-action@0ff4204d59e8e51228ff73bce53f80d53301dee2 # v1.2.5
