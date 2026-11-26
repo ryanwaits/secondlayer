@@ -649,11 +649,12 @@ app.post("/:id/test", async (c) => {
 });
 
 const MAX_WINDOW_MS = 31 * 24 * 3_600_000;
-const TX_ID_RE = /^0x[0-9a-f]{64}$/i;
+const TX_ID_RE = /^(0x)?[0-9a-f]{64}$/i;
+const CURSOR_TIME_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{6}Z$/;
 
 type DeliveriesQuery = {
 	limit: number;
-	cursor: string | null;
+	cursor: { dispatchedAt: string; id: string } | null;
 	txId: string | null;
 	fromHeight: number | null;
 	toHeight: number | null;
@@ -664,7 +665,19 @@ type QueryError = { error: string; code: string };
 
 function parseHeight(value: string | undefined): number | null | undefined {
 	if (value === undefined) return null;
-	return /^\d+$/.test(value) ? Number(value) : undefined;
+	if (!/^\d+$/.test(value)) return undefined;
+	const height = Number(value);
+	return Number.isSafeInteger(height) ? height : undefined;
+}
+
+function decodeDeliveriesCursor(
+	raw: string,
+): { dispatchedAt: string; id: string } | null {
+	const parts = Buffer.from(raw, "base64url").toString("utf8").split("|");
+	if (parts.length !== 2) return null;
+	const [dispatchedAt, id] = parts;
+	if (!CURSOR_TIME_RE.test(dispatchedAt) || !UUID_RE.test(id)) return null;
+	return { dispatchedAt, id };
 }
 
 function parseDeliveriesQuery(
@@ -691,8 +704,10 @@ function parseDeliveriesQuery(
 		window = { from, to };
 	}
 
-	const cursor = query("cursor") ?? null;
-	if (cursor !== null && !UUID_RE.test(cursor)) {
+	const cursorParam = query("cursor");
+	const cursor =
+		cursorParam === undefined ? null : decodeDeliveriesCursor(cursorParam);
+	if (cursorParam !== undefined && cursor === null) {
 		return {
 			error: "cursor must be a next_cursor from a previous page",
 			code: "INVALID_CURSOR",
@@ -702,7 +717,8 @@ function parseDeliveriesQuery(
 	const txParam = query("tx_id");
 	if (txParam !== undefined && !TX_ID_RE.test(txParam)) {
 		return {
-			error: "tx_id must be a 0x-prefixed 64-character hex transaction id",
+			error:
+				"tx_id must be a 64-character hex transaction id, with or without 0x",
 			code: "INVALID_TX_ID",
 		};
 	}
@@ -724,7 +740,7 @@ function parseDeliveriesQuery(
 	return {
 		limit: clampLimit(query("_limit"), 100, 100),
 		cursor,
-		txId: txParam?.toLowerCase() ?? null,
+		txId: txParam?.toLowerCase().replace(/^0x/, "") ?? null,
 		fromHeight,
 		toHeight,
 		window,
@@ -740,7 +756,8 @@ function deliveriesFilter(
 		conditions.push(sql`d.dispatched_at >= ${q.window.from}`);
 		conditions.push(sql`d.dispatched_at < ${q.window.to}`);
 	}
-	if (q.txId !== null) conditions.push(sql`d.tx_id = ${q.txId}`);
+	if (q.txId !== null)
+		conditions.push(sql`d.tx_id IN (${`0x${q.txId}`}, ${q.txId})`);
 	if (q.fromHeight !== null) {
 		conditions.push(sql`d.block_height >= ${q.fromHeight}`);
 	}
@@ -750,16 +767,31 @@ function deliveriesFilter(
 	return sql<SqlBool>`${sql.join(conditions, sql` AND `)}`;
 }
 
-function cursorPosition(cursor: string) {
-	return sql`(SELECT c.dispatched_at, c.id FROM webhook_deliveries c WHERE c.id = ${cursor})`;
+function cursorPosition(cursor: { dispatchedAt: string; id: string }) {
+	return sql`((${cursor.dispatchedAt}::text)::timestamptz, (${cursor.id}::text)::uuid)`;
 }
 
-function olderThanCursor(cursor: string): RawBuilder<SqlBool> {
+function olderThanCursor(cursor: {
+	dispatchedAt: string;
+	id: string;
+}): RawBuilder<SqlBool> {
 	return sql<SqlBool>`(d.dispatched_at, d.id) < ${cursorPosition(cursor)}`;
 }
 
-function cursorOrNewer(cursor: string): RawBuilder<SqlBool> {
+function cursorOrNewer(cursor: {
+	dispatchedAt: string;
+	id: string;
+}): RawBuilder<SqlBool> {
 	return sql<SqlBool>`(d.dispatched_at, d.id) >= ${cursorPosition(cursor)}`;
+}
+
+function encodeDeliveriesCursor(
+	row: { id: string; dispatched_at_cursor: string } | undefined,
+): string | null {
+	if (!row) return null;
+	return Buffer.from(`${row.dispatched_at_cursor}|${row.id}`).toString(
+		"base64url",
+	);
 }
 
 app.get("/:id/deliveries", async (c) => {
@@ -772,24 +804,6 @@ app.get("/:id/deliveries", async (c) => {
 	if ("code" in q) return c.json(q, 400);
 
 	const db = getDb();
-	if (q.cursor !== null) {
-		const cursorRow = await db
-			.selectFrom("webhook_deliveries")
-			.select("id")
-			.where("id", "=", q.cursor)
-			.where("webhook_id", "=", sub.id)
-			.executeTakeFirst();
-		if (!cursorRow) {
-			return c.json(
-				{
-					error: "cursor is not a delivery of this webhook, or it expired",
-					code: "INVALID_CURSOR",
-				},
-				400,
-			);
-		}
-	}
-
 	const filter = deliveriesFilter(sub.id, q);
 	let rowsQuery = db
 		.selectFrom("webhook_deliveries as d")
@@ -805,6 +819,9 @@ app.get("/:id/deliveries", async (c) => {
 			"d.block_time",
 			"d.tx_id",
 			"d.event_index",
+			sql<string>`to_char(d.dispatched_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"')`.as(
+				"dispatched_at_cursor",
+			),
 		])
 		.where(filter);
 	if (q.cursor !== null) rowsQuery = rowsQuery.where(olderThanCursor(q.cursor));
@@ -830,7 +847,8 @@ app.get("/:id/deliveries", async (c) => {
 	const ahead = Number(aheadRow?.n ?? 0);
 	return c.json({
 		total,
-		next_cursor: page.length > q.limit ? (rows.at(-1)?.id ?? null) : null,
+		next_cursor:
+			page.length > q.limit ? encodeDeliveriesCursor(rows.at(-1)) : null,
 		data: rows.map((r, i) => ({
 			id: r.id,
 			seq: total - ahead - i,

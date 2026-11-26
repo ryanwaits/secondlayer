@@ -892,10 +892,136 @@ describe.skipIf(SKIP)("Webhooks API validation", () => {
 		expect(byHeight.data.every((d) => d.txId === TX_A)).toBe(true);
 	});
 
+	test("deliveries filter finds Runes txids without a 0x prefix and Stacks ids in any case", async () => {
+		const webhookId = await createTestWebhook("deliveries-runes-tx");
+		const runesTx = "c".repeat(64);
+		const stacksTx = `0x${"d".repeat(64)}`;
+		await getDb()
+			.insertInto("webhook_deliveries")
+			.values([
+				{ webhook_id: webhookId, attempt: 1, status_code: 200, tx_id: runesTx },
+				{
+					webhook_id: webhookId,
+					attempt: 1,
+					status_code: 200,
+					tx_id: stacksTx,
+				},
+			])
+			.execute();
+		const totalFor = async (txId: string) =>
+			(
+				(await (
+					await app.request(`/webhooks/${webhookId}/deliveries?tx_id=${txId}`)
+				).json()) as { total: number }
+			).total;
+
+		expect(await totalFor(runesTx)).toBe(1);
+		expect(await totalFor(`0x${runesTx}`)).toBe(1);
+		expect(await totalFor(stacksTx)).toBe(1);
+		expect(await totalFor(stacksTx.slice(2).toUpperCase())).toBe(1);
+		expect(await totalFor(`0x${stacksTx.slice(2).toUpperCase()}`)).toBe(1);
+	});
+
+	test("deliveries cursor survives deletion of the row it was taken from", async () => {
+		const webhookId = await createTestWebhook("deliveries-expired-cursor");
+		const base = Date.parse("2026-04-23T00:00:00.000Z");
+		await getDb()
+			.insertInto("webhook_deliveries")
+			.values(
+				Array.from({ length: 5 }, (_, i) => ({
+					webhook_id: webhookId,
+					attempt: 1,
+					status_code: 200,
+					event_index: i,
+					dispatched_at: new Date(base - i * 1000),
+				})),
+			)
+			.execute();
+		type Page = {
+			next_cursor: string | null;
+			data: Array<{ id: string; eventIndex: number }>;
+		};
+		const read = async (query: string) =>
+			(await (
+				await app.request(`/webhooks/${webhookId}/deliveries?${query}`)
+			).json()) as Page;
+
+		const first = await read("_limit=2");
+		expect(first.data.map((d) => d.eventIndex)).toEqual([0, 1]);
+		await getDb()
+			.deleteFrom("webhook_deliveries")
+			.where("id", "=", first.data[1].id)
+			.execute();
+		const res = await app.request(
+			`/webhooks/${webhookId}/deliveries?_limit=2&cursor=${first.next_cursor}`,
+		);
+		expect(res.status).toBe(200);
+		const second = (await res.json()) as Page;
+		expect(second.data.map((d) => d.eventIndex)).toEqual([2, 3]);
+	});
+
+	test("deliveries reject heights beyond the safe integer range", async () => {
+		const webhookId = await createTestWebhook("deliveries-huge-height");
+		const res = await app.request(
+			`/webhooks/${webhookId}/deliveries?from_height=123456789012345678901`,
+		);
+		expect(res.status).toBe(400);
+		expect(((await res.json()) as { code: string }).code).toBe(
+			"INVALID_HEIGHT_RANGE",
+		);
+	});
+
+	test("deliveries page a tx filter across cursors with continuous seq", async () => {
+		const webhookId = await createTestWebhook("deliveries-filter-cursor");
+		const base = Date.parse("2026-04-23T00:00:00.000Z");
+		await getDb()
+			.insertInto("webhook_deliveries")
+			.values([
+				...Array.from({ length: 6 }, (_, i) => ({
+					webhook_id: webhookId,
+					attempt: 1,
+					status_code: 200,
+					tx_id: TX_A,
+					event_index: i,
+					dispatched_at: new Date(base - i * 1000),
+				})),
+				...Array.from({ length: 2 }, (_, i) => ({
+					webhook_id: webhookId,
+					attempt: 1,
+					status_code: 200,
+					tx_id: TX_B,
+					event_index: i,
+					dispatched_at: new Date(base - i * 1000),
+				})),
+			])
+			.execute();
+		type Page = {
+			total: number;
+			next_cursor: string | null;
+			data: Array<{ seq: number }>;
+		};
+		const read = async (query: string) =>
+			(await (
+				await app.request(`/webhooks/${webhookId}/deliveries?${query}`)
+			).json()) as Page;
+
+		const first = await read(`tx_id=${TX_A}&_limit=4`);
+		expect(first.total).toBe(6);
+		expect(first.next_cursor).not.toBeNull();
+		const second = await read(
+			`tx_id=${TX_A}&_limit=4&cursor=${first.next_cursor}`,
+		);
+		expect(second.data).toHaveLength(2);
+		expect(second.next_cursor).toBeNull();
+		expect([...first.data, ...second.data].map((d) => d.seq)).toEqual([
+			6, 5, 4, 3, 2, 1,
+		]);
+	});
+
 	test("deliveries reject a malformed cursor, tx id or height range", async () => {
 		const webhookId = await createTestWebhook("deliveries-invalid");
 		const other = await createTestWebhook("deliveries-invalid-other");
-		const foreign = await getDb()
+		const bareRowId = await getDb()
 			.insertInto("webhook_deliveries")
 			.values({ webhook_id: other, attempt: 1, status_code: 200 })
 			.returning("id")
@@ -909,7 +1035,7 @@ describe.skipIf(SKIP)("Webhooks API validation", () => {
 		};
 
 		expect(await codeOf("cursor=nope")).toBe("INVALID_CURSOR");
-		expect(await codeOf(`cursor=${foreign.id}`)).toBe("INVALID_CURSOR");
+		expect(await codeOf(`cursor=${bareRowId.id}`)).toBe("INVALID_CURSOR");
 		expect(await codeOf("tx_id=0xabc")).toBe("INVALID_TX_ID");
 		expect(await codeOf("from_height=-1")).toBe("INVALID_HEIGHT_RANGE");
 		expect(await codeOf("from_height=9&to_height=3")).toBe(

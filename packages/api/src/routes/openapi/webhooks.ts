@@ -844,7 +844,7 @@ export const webhooksPaths = {
 					"tx_id",
 					"string",
 					false,
-					"Only attempts for events of this transaction, 0x-prefixed.",
+					"Only attempts for events of this transaction. Stacks ids with or without `0x`; Runes txids as Bitcoin prints them.",
 				),
 				qp(
 					"from_height",
@@ -894,7 +894,8 @@ export const webhooksPaths = {
 						},
 						example: {
 							total: 4182,
-							next_cursor: "1f6c0a52-8e3b-4d7a-9c15-6b2e0f4d8a91",
+							next_cursor:
+								"MjAyNi0xMS0yNVQxMDowMDowMC4xMjM0NTZafDFmNmMwYTUyLThlM2ItNGQ3YS05YzE1LTZiMmUwZjRkOGE5MQ",
 							data: [
 								{
 									id: "9b2e41c7-5d0a-4f3e-8c61-2a7f90d4e3b5",
@@ -916,7 +917,7 @@ export const webhooksPaths = {
 					"Recent delivery attempts",
 				),
 				"400": jsonError(
-					"A malformed window (`INVALID_WINDOW`), cursor (`INVALID_CURSOR`), tx id (`INVALID_TX_ID`) or height range (`INVALID_HEIGHT_RANGE`). A cursor from another webhook, or one whose attempt has expired, is `INVALID_CURSOR`",
+					"A malformed window (`INVALID_WINDOW`), cursor (`INVALID_CURSOR`), tx id (`INVALID_TX_ID`) or height range (`INVALID_HEIGHT_RANGE`). A cursor that is not a `next_cursor` is `INVALID_CURSOR`",
 				),
 				"404": NOT_FOUND,
 			}),
