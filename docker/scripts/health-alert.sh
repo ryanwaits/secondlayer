@@ -106,6 +106,16 @@ print(' '.join(s['name'] for s in b.get('services',[]) if s.get('status')=='unav
     for name in $down; do keys+=("unavailable:$name"); done
     force=1
   fi
+  gaps=$(python3 -c "
+import json,sys
+b=json.load(open(sys.argv[1]))
+c=(b.get('index') or {}).get('contract_state') or {}
+n=c.get('gap_heights') or 0
+print(n if n>0 else '')" "$status_body" 2>/dev/null || true)
+  if [ -n "$gaps" ]; then
+    problems+=("contract state: $gaps canonical blocks have no state writes (see /public/status index.contract_state)")
+    keys+=("contract-state-gaps:${#gaps}")
+  fi
 fi
 rm -f "$status_body"
 
