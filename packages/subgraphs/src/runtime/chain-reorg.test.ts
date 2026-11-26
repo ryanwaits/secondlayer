@@ -300,6 +300,15 @@ describe("handleChainReorg — chain scoping (plan 060)", () => {
 		expect(height).toBeLessThan(968_000);
 	});
 
+	it("a Bitcoin rewind reads a btc-tagged cursor and parks below the fork", async () => {
+		await makeSub();
+		await setBitcoinCursor("btc:968150:3");
+
+		await handleChainReorg(968_120, db, "bitcoin");
+
+		expect(await bitcoinCursor()).toBe("968119:2147483647");
+	});
+
 	it("a Stacks reorg does not touch Bitcoin rune apply rows, even at an overlapping height", async () => {
 		const sub = await makeSub();
 		await insertApply(sub, 100, "0xstacks", "delivered");

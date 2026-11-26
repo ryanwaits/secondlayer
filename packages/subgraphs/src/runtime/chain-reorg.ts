@@ -2,6 +2,7 @@ import type {
 	ChainReorgOrphanedEntry,
 	ChainReorgRollbackEnvelope,
 } from "@secondlayer/shared";
+import { decodeTaggedStreamsCursor } from "@secondlayer/shared";
 import type { Database, InsertWebhookOutbox } from "@secondlayer/shared/db";
 import { getTargetDb } from "@secondlayer/shared/db";
 import { REORG_ORPHANED_ERROR_PREFIX } from "@secondlayer/shared/db/queries/webhooks";
@@ -337,6 +338,9 @@ export async function handleChainReorg(
 }
 
 function bitcoinCursorHeight(cursor: string): number | null {
-	const height = Number(cursor.split(":")[0]);
-	return Number.isFinite(height) ? height : null;
+	try {
+		return decodeTaggedStreamsCursor(cursor).cursor.block_height;
+	} catch {
+		return null;
+	}
 }

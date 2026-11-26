@@ -317,6 +317,36 @@ describe("runBitcoinEvaluatorOnce", () => {
 		expect(payload.event.amount).toBe("1000");
 	});
 
+	it("advances from a bare stored cursor to a btc-tagged next cursor", async () => {
+		await makeSub([{ type: "rune_transfer" }]);
+		await setBitcoinCursor("968099:0");
+		const source = stubSource({
+			tip: 968_200,
+			events: [runeEvent()],
+			nextCursor: "btc:968100:1",
+		});
+
+		const result = await runBitcoinEvaluatorOnce(db, source);
+
+		expect(result.advanced).toBe(true);
+		expect(await bitcoinCursor()).toBe("btc:968100:1");
+	});
+
+	it("keeps advancing once the stored cursor is btc-tagged", async () => {
+		await makeSub([{ type: "rune_transfer" }]);
+		await setBitcoinCursor("btc:968100:1");
+		const source = stubSource({
+			tip: 968_200,
+			events: [runeEvent()],
+			nextCursor: "btc:968150:3",
+		});
+
+		const result = await runBitcoinEvaluatorOnce(db, source);
+
+		expect(result.advanced).toBe(true);
+		expect(await bitcoinCursor()).toBe("btc:968150:3");
+	});
+
 	it("re-processing the same page is idempotent (dedup_key unique constraint)", async () => {
 		const sub = await makeSub([{ type: "rune_etch" }]);
 		const event = runeEvent({ event_type: "rune_etch", tx_id: "0xetch" });
@@ -360,6 +390,26 @@ describe("advanceBitcoinCursor generation guard", () => {
 
 		expect(result).toEqual({ advanced: true, reorged: false });
 		expect(await bitcoinCursor()).toBe("968100:5");
+	});
+
+	it("never moves a btc-tagged cursor backward", async () => {
+		await setBitcoinCursor("btc:968150:3");
+		const gen = await readReorgGeneration(db);
+
+		const result = await advanceBitcoinCursor(db, "968100:5", gen);
+
+		expect(result).toEqual({ advanced: false, reorged: false });
+		expect(await bitcoinCursor()).toBe("btc:968150:3");
+	});
+
+	it("treats bare and btc-tagged cursors at the same position as equal", async () => {
+		await setBitcoinCursor("968100:1");
+		const gen = await readReorgGeneration(db);
+
+		const result = await advanceBitcoinCursor(db, "btc:968100:1", gen);
+
+		expect(result).toEqual({ advanced: false, reorged: false });
+		expect(await bitcoinCursor()).toBe("968100:1");
 	});
 
 	it("never moves the cursor backward", async () => {

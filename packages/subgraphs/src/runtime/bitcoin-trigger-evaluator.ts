@@ -1,5 +1,9 @@
 import type { RuneApplyEnvelope } from "@secondlayer/shared";
-import { getErrorMessage } from "@secondlayer/shared";
+import {
+	compareStreamsCursor,
+	decodeTaggedStreamsCursor,
+	getErrorMessage,
+} from "@secondlayer/shared";
 import type {
 	Database,
 	InsertWebhookOutbox,
@@ -174,16 +178,13 @@ async function clearBitcoinCursor(db: Kysely<Database>): Promise<void> {
 		.execute();
 }
 
-function parseCursorParts(cursor: string): [number, number] {
-	const [height, eventIndex] = cursor.split(":");
-	return [Number(height), Number(eventIndex ?? 0)];
-}
-
 function cursorLess(a: string, b: string): boolean {
-	const [ah, ai] = parseCursorParts(a);
-	const [bh, bi] = parseCursorParts(b);
-	if (ah !== bh) return ah < bh;
-	return ai < bi;
+	return (
+		compareStreamsCursor(
+			decodeTaggedStreamsCursor(a).cursor,
+			decodeTaggedStreamsCursor(b).cursor,
+		) < 0
+	);
 }
 
 /** Sentinel cursor meaning "past every event at `height`" — the same
