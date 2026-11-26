@@ -305,6 +305,8 @@ export type IndexVarSet = IndexEventBase & {
 	event_type: "var_set";
 	var_name: string;
 	raw_value: string;
+	/** The written value decoded to JSON. */
+	decoded: { value: unknown };
 };
 /** A contract map entry overwrite. */
 export type IndexMapSet = IndexEventBase & {
@@ -312,6 +314,8 @@ export type IndexMapSet = IndexEventBase & {
 	map: string;
 	raw_key: string;
 	raw_value: string;
+	/** The map key and written value decoded to JSON. */
+	decoded: { key: unknown; value: unknown };
 };
 /** A new contract map entry. */
 export type IndexMapInsert = IndexEventBase & {
@@ -319,12 +323,16 @@ export type IndexMapInsert = IndexEventBase & {
 	map: string;
 	raw_key: string;
 	raw_value: string;
+	/** The map key and written value decoded to JSON. */
+	decoded: { key: unknown; value: unknown };
 };
 /** A contract map entry deletion. */
 export type IndexMapDelete = IndexEventBase & {
 	event_type: "map_delete";
 	map: string;
 	raw_key: string;
+	/** The deleted map key decoded to JSON. */
+	decoded: { key: unknown };
 };
 
 /** Decoded chain event, discriminated by `event_type`. */
