@@ -260,6 +260,22 @@ describe("/public/status events total + caching", () => {
 		const total = body.index.events_total;
 		expect(total === null || typeof total === "number").toBe(true);
 	});
+
+	test("index carries contract_state coverage (object or null)", async () => {
+		const res = await statusApp.request("/public/status");
+		const body = (await res.json()) as {
+			index: { contract_state?: unknown };
+		};
+		expect("contract_state" in body.index).toBe(true);
+		const coverage = body.index.contract_state as {
+			gap_heights: number;
+			gaps: unknown[];
+		} | null;
+		if (coverage !== null) {
+			expect(typeof coverage.gap_heights).toBe("number");
+			expect(Array.isArray(coverage.gaps)).toBe(true);
+		}
+	});
 });
 
 describe("/status and /public/status subgraph_processor gating", () => {

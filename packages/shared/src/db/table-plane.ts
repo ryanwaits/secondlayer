@@ -39,6 +39,7 @@ export const TABLE_TO_DB = {
 	// blocks it pins to.
 	chain_read_cache: "source",
 	events_total_baseline: "source",
+	contract_state_coverage: "source",
 	// Staged fork contenders — raw chain data, resolved during ingest.
 	pending_fork_blocks: "source",
 	// Exact observer callback receipts — the replay authority sits with chain data.

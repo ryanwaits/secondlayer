@@ -17,6 +17,10 @@ import {
 	getBitcoinTip,
 	isBitcoinConfigured,
 } from "../bitcoin/db.ts";
+import {
+	type ContractStateCoverage,
+	contractStateCoverage,
+} from "../lib/contract-state-coverage.ts";
 import { eventsTotal } from "../lib/events-total.ts";
 import { createMemoizedReader } from "../lib/memoized-reader.ts";
 import { readNodeTip } from "../lib/node-tip.ts";
@@ -55,6 +59,7 @@ type PublicIndexStatus = {
 
 type PublicStatusIndex = PublicIndexStatus & {
 	events_total: number | null;
+	contract_state: ContractStateCoverage | null;
 };
 
 type SemanticHealthStatus = "ok" | "degraded" | "unavailable";
@@ -384,6 +389,7 @@ async function buildPublicStatus() {
 	const index: PublicStatusIndex = {
 		...publicIndexStatusFromDecoderHealth(decodersHealth),
 		events_total: eventsTotal.read(),
+		contract_state: contractStateCoverage.read(),
 	};
 	const dumps: StreamsDumpsFreshness = streamsDumpsFreshness({
 		manifest:

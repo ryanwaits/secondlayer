@@ -844,6 +844,24 @@ export interface EventsTotalBaselineTable {
 	claimed_at: Date | null;
 }
 
+export interface ContractStateCoverageTable {
+	id: Generated<boolean>;
+	from_height: ColumnType<
+		string | null,
+		string | number | null | undefined,
+		string | number | null
+	>;
+	checked_through: ColumnType<
+		string | null,
+		string | number | null | undefined,
+		string | number | null
+	>;
+	gaps: ColumnType<unknown, string | undefined, string>;
+	gap_heights: ColumnType<string, string | number | undefined, string | number>;
+	updated_at: Date | null;
+	claimed_at: Date | null;
+}
+
 export interface ChainReadCacheTable {
 	id: Generated<number>;
 	contract_id: string;
@@ -1010,6 +1028,7 @@ export interface Database {
 	service_heartbeats: ServiceHeartbeatsTable;
 	chain_read_cache: ChainReadCacheTable;
 	events_total_baseline: EventsTotalBaselineTable;
+	contract_state_coverage: ContractStateCoverageTable;
 	pending_fork_blocks: PendingForkBlocksTable;
 	observer_journal: ObserverJournalTable;
 	sync_scopes: SyncScopesTable;

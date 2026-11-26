@@ -145,6 +145,7 @@ import {
 	VM_INDEX_EVENT_TYPES,
 } from "../index/vm-events.ts";
 import { longPollIndex, parseWaitSeconds } from "../index/wait.ts";
+import { contractStateCoverage } from "../lib/contract-state-coverage.ts";
 import { validateQueryParams } from "../middleware/validation.ts";
 import {
 	DEFAULT_STREAMS_REORGS_READER,
@@ -270,7 +271,8 @@ export function createIndexRouter(opts: IndexRouterOptions = {}) {
 					// self-hosted instance has them only from its own subscription.
 					vm_event_types: {
 						types: VM_INDEX_EVENT_TYPES,
-						note: "Contract state: what changed in a contract, when, and who changed it. Hosted mainnet serves them from block 1. A self-hosted instance has them from the height its node subscribed to the storage / contract_calls observer keys. Cursor second component is ordinal.",
+						note: "Contract state: what changed in a contract, when, and who changed it. Hosted mainnet serves them from block 1. A self-hosted instance has them from the height its node subscribed to the storage / contract_calls observer keys. Cursor second component is ordinal. `coverage` lists canonical blocks without contract state rows; `gaps` empty means every block from `from_height` through `checked_through` is covered.",
+						coverage: contractStateCoverage.read(),
 					},
 					filters: EVENTS_ALLOWED,
 					event_type_filters: Object.fromEntries(
