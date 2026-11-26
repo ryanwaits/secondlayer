@@ -256,25 +256,32 @@ jobs:
         run: bash scripts/ci/post-deploy-smoke.sh
 
   notify:
-    needs: [typecheck, deploy, post-deploy-smoke]
-    if: always() && (needs.deploy.result == 'failure' || needs.post-deploy-smoke.result == 'failure')
+    needs: [typecheck, test, build-images, deploy, post-deploy-smoke]
+    if: always() && contains(needs.*.result, 'failure')
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
+      - name: Build Slack payload
+        env:
+          SUBJECT: ${{ github.event.head_commit.message }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          SHA: ${{ github.sha }}
+          TYPECHECK: ${{ needs.typecheck.result }}
+          TEST: ${{ needs.test.result }}
+          BUILD: ${{ needs.build-images.result }}
+          DEPLOY: ${{ needs.deploy.result }}
+          SMOKE: ${{ needs.post-deploy-smoke.result }}
+        run: |
+          subject="$(printf '%s' "$SUBJECT" | head -n1)"
+          summary="typecheck ${TYPECHECK} · test ${TEST} · build ${BUILD} · deploy ${DEPLOY} · smoke ${SMOKE}"
+          jq -n --arg subject "$subject" --arg summary "$summary" --arg url "$RUN_URL" --arg sha "$SHA" '{
+            text: ("❌ Deploy run failed: " + $summary + ": " + $subject),
+            blocks: [{ type: "section", text: { type: "mrkdwn",
+              text: (":x: *Deploy run failed* · " + $summary + "\n<" + $url + "|View run> · `" + $sha + "`\n" + $subject) } }]
+          }' > "$RUNNER_TEMP/slack-payload.json"
       - name: Slack notification
         uses: slackapi/slack-github-action@45a88b9581bfab2566dc881e2cd66d334e621e2c # v3.0.3
         with:
           webhook: ${{ secrets.SLACK_WEBHOOK_URL }}
           webhook-type: incoming-webhook
-          payload: |
-            {
-              "text": "${{ needs.deploy.result == 'success' && needs.post-deploy-smoke.result == 'success' && '✅' || '❌' }} Deploy ${{ needs.deploy.result }}, smoke ${{ needs.post-deploy-smoke.result }}: ${{ github.event.head_commit.message }}",
-              "blocks": [
-                {
-                  "type": "section",
-                  "text": {
-                    "type": "mrkdwn",
-                    "text": "${{ needs.deploy.result == 'success' && needs.post-deploy-smoke.result == 'success' && ':white_check_mark:' || ':x:' }} *Deploy ${{ needs.deploy.result }} · Smoke ${{ needs.post-deploy-smoke.result }}*\n<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View run> · `${{ github.sha }}`\n${{ github.event.head_commit.message }}"
-                  }
-                }
-              ]
-            }
+          payload-file-path: ${{ runner.temp }}/slack-payload.json
