@@ -579,7 +579,12 @@ export const indexPaths = {
 					false,
 					"ISO 8601 timestamp; only contracts classified after it.",
 				),
-				qp("include", "string", false, "`abi` adds each contract's ABI."),
+				qp(
+					"include",
+					"string",
+					false,
+					"Comma list; `abi` adds each contract's ABI.",
+				),
 				qp(
 					"limit",
 					"integer",

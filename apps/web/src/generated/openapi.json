@@ -12410,7 +12410,7 @@
 						"schema": {
 							"type": "string"
 						},
-						"description": "`abi` adds each contract's ABI."
+						"description": "Comma list; `abi` adds each contract's ABI."
 					},
 					{
 						"name": "limit",

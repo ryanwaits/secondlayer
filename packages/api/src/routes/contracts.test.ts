@@ -196,6 +196,36 @@ describe.skipIf(!process.env.DATABASE_URL)("readContractSource", () => {
 		);
 	});
 
+	test("returns null for a deploy transaction that cannot be decoded", async () => {
+		if (!db) throw new Error("missing db");
+		await db
+			.insertInto("blocks")
+			.values({
+				height: 880_004,
+				hash: "0xsrc880004",
+				parent_hash: "0xsrc880003",
+				burn_block_height: 880_004,
+				timestamp: 1_700_000_000,
+				canonical: true,
+			})
+			.onConflict((oc) => oc.column("height").doNothing())
+			.execute();
+		await db
+			.insertInto("transactions")
+			.values({
+				tx_id: "0xsrc-garbled-880004",
+				block_height: 880_004,
+				type: "smart_contract",
+				sender: deployer,
+				status: "success",
+				contract_id: `${deployer}.garbled`,
+				function_name: null,
+				raw_tx: "0xdeadbeef",
+			})
+			.execute();
+		expect(await readContractSource(db, `${deployer}.garbled`)).toBeNull();
+	});
+
 	test("ignores a deploy in an orphaned block", async () => {
 		if (!db) throw new Error("missing db");
 		await seedDeploy({
@@ -304,6 +334,43 @@ describe("GET /v1/contracts bounds", () => {
 		);
 		expect(res.status).toBe(200);
 		expect(seen).toEqual([101]);
+	});
+
+	test("include=abi,source caps a page at 100 rows and returns ABIs", async () => {
+		process.env.INSTANCE_MODE = "oss";
+		const seen: number[] = [];
+		const router = createContractsRouter({
+			getSourceDb: () => SOURCE_DB,
+			listContractsByTrait: async (_db, _trait, opts) => {
+				seen.push(opts?.limit ?? -1);
+				return [
+					{
+						contract_id: "SP1.known",
+						deployer: "SP1",
+						block_height: 100,
+						declared_traits: ["sip-010"],
+						inferred_standards: ["sip-010"],
+						abi_status: "ok",
+						abi: { functions: [{ name: "transfer" }] },
+						// biome-ignore lint/suspicious/noExplicitAny: test fixture row
+					} as any,
+				];
+			},
+		});
+		const a = new Hono();
+		a.onError(errorHandler);
+		a.route("/v1/contracts", router);
+		const res = await a.request(
+			"/v1/contracts?trait=sip-010&include=abi,source&limit=500",
+		);
+		expect(res.status).toBe(200);
+		const body = (await res.json()) as {
+			contracts: Array<{ abi?: unknown }>;
+		};
+		expect(seen).toEqual([101]);
+		expect(body.contracts[0].abi).toEqual({
+			functions: [{ name: "transfer" }],
+		});
 	});
 
 	test("without abi a page can still be 500", async () => {

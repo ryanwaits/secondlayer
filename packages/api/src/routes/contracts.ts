@@ -1,3 +1,4 @@
+import { logger } from "@secondlayer/shared";
 import { getSourceDb } from "@secondlayer/shared/db";
 import type { Contract } from "@secondlayer/shared/db";
 import {
@@ -12,6 +13,7 @@ import {
 	deserializeTransaction,
 } from "@secondlayer/stacks/transactions";
 import { Hono, type MiddlewareHandler } from "hono";
+import { sql } from "kysely";
 import { getClientIp, ipBucket } from "../auth/http.ts";
 import { getRateLimitStore } from "../auth/rate-limit-store.ts";
 import {
@@ -84,17 +86,25 @@ export async function readContractSource(
 		.innerJoin("blocks as b", "b.height", "t.block_height")
 		.select("t.raw_tx")
 		.where("t.contract_id", "=", contractId)
-		.where("t.type", "=", "smart_contract")
+		.where(sql<boolean>`t.type = 'smart_contract'`)
 		.where("t.status", "=", "success")
 		.where("b.canonical", "=", true)
 		.limit(1)
 		.executeTakeFirst();
 	if (!row) return null;
-	const { payload } = deserializeTransaction(row.raw_tx);
-	return payload.payloadType === PayloadType.SmartContract ||
-		payload.payloadType === PayloadType.VersionedSmartContract
-		? payload.codeBody
-		: null;
+	try {
+		const { payload } = deserializeTransaction(row.raw_tx);
+		return payload.payloadType === PayloadType.SmartContract ||
+			payload.payloadType === PayloadType.VersionedSmartContract
+			? payload.codeBody
+			: null;
+	} catch (err) {
+		logger.warn("contracts.source_undecodable", {
+			contractId,
+			error: (err as Error).message,
+		});
+		return null;
+	}
 }
 
 function parseInclude(raw: string | undefined): Set<string> {
@@ -167,7 +177,7 @@ export function createContractsRouter(opts: ContractsRouterOptions = {}) {
 				400,
 			);
 		}
-		const includeAbi = c.req.query("include") === "abi";
+		const includeAbi = parseInclude(c.req.query("include")).has("abi");
 		const limit = clampLimit(
 			c.req.query("limit"),
 			100,
