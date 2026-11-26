@@ -8,6 +8,8 @@ export const metadata = postMeta("clarity-state-from-genesis");
 
 <PostHeader slug="clarity-state-from-genesis" />
 
+*Update, November 25: the replay reached the tip and these rows are live from block 1. See [what you can know now](/blog/what-changed-in-any-stacks-contract).*
+
 We're replaying every <ChainLink chain="stacks">Stacks</ChainLink> block from genesis on a node that records each change a <ChainLink chain="clarity">Clarity</ChainLink> contract makes to its own storage, plus every call one contract makes into another<Sidenote n={1}>The replay runs on our [fork of stacks-core](https://github.com/ryanwaits/stacks-core/tree/feat/vm-events-resync), published as `ghcr.io/ryanwaits/stacks-core:6e005af`, which adds two observer events: storage writes and inner calls. LNow proposed contract events upstream in 2022 ([PR 3054](https://github.com/stacks-network/stacks-core/pull/3054), closed). The fork is built for an indexer's needs and stacks-core has its own tradeoffs to weigh, so we offer it as a working reference if these events are ever considered upstream.</Sidenote>. At the tip, every contract's maps, data vars and inner calls become rows you can query, subscribe to and check, from block 1.
 
 As of November 5 the replay is at block 7,278,709 of 9,420,376.
