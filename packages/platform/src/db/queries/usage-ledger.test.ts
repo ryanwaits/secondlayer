@@ -7,12 +7,18 @@ import {
 	test,
 } from "bun:test";
 import { getDb } from "@secondlayer/shared/db";
-import { grantCredits, meter, recordTopup } from "../../billing/meter.ts";
+import {
+	grantCredits,
+	meter,
+	recordRefund,
+	recordTopup,
+} from "../../billing/meter.ts";
 import { ROWS_DELIVERED_MONTHLY_ALLOWANCE } from "../../billing/prices.ts";
 import { upsertStackStates } from "./hosted-stack-state.ts";
 import {
 	creditsAdded,
 	hostedStackSnapshot,
+	lastCumulativeCents,
 	monthlyQuantity,
 	rowsByKeyDaily,
 	rowsDaily,
@@ -491,5 +497,43 @@ describe.skipIf(!HAS_DB)("monthly usage totals", () => {
 			.where("account_id", "=", id)
 			.execute();
 		expect(rows).toHaveLength(0);
+	});
+});
+
+describe.skipIf(!HAS_DB)("lastCumulativeCents", () => {
+	const refund = (id: string, key: string, cents: number) =>
+		recordRefund(db, {
+			accountId: id,
+			usdMicros: BigInt(cents) * 10_000n,
+			source: "stripe:refund",
+			idempotencyKey: key,
+		});
+
+	test("returns the highest cumulative refund recorded under the prefix for the account", async () => {
+		await refund(accountId, "stripe:refund:pi_A:500", 500);
+		await refund(accountId, "stripe:refund:pi_A:1200", 1200);
+		expect(
+			await lastCumulativeCents(db, accountId, "stripe:refund:pi_A:"),
+		).toBe(1200);
+	});
+
+	test("ignores another account's refund rows that share the prefix", async () => {
+		const other = await makeAccount();
+		await refund(accountId, "stripe:refund:pi_A:1200", 1200);
+		await refund(other, "stripe:refund:pi_A:9000", 9000);
+		expect(
+			await lastCumulativeCents(db, accountId, "stripe:refund:pi_A:"),
+		).toBe(1200);
+		await db
+			.deleteFrom("usage_ledger")
+			.where("account_id", "=", other)
+			.execute();
+	});
+
+	test("returns 0 when no refund matches the prefix", async () => {
+		await refund(accountId, "stripe:refund:pi_A:500", 500);
+		expect(
+			await lastCumulativeCents(db, accountId, "stripe:refund:pi_B:"),
+		).toBe(0);
 	});
 });

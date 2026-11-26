@@ -96,12 +96,13 @@ export async function accountForLedgerKey(
 
 export async function lastCumulativeCents(
 	db: Kysely<Database>,
+	accountId: string,
 	prefix: string,
 ): Promise<number> {
 	const { rows } = await sql<{ cents: string | null }>`
 		SELECT max(substr(idempotency_key, ${prefix.length + 1})::bigint) AS cents
 		FROM usage_ledger
-		WHERE starts_with(idempotency_key, ${prefix})
+		WHERE account_id = ${accountId} AND unit = 'refund' AND starts_with(idempotency_key, ${prefix})
 	`.execute(db);
 	return Number(rows[0]?.cents ?? 0);
 }

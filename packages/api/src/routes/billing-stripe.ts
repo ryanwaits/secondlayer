@@ -282,7 +282,8 @@ async function onChargeRefunded(
 	await lockAccountCredits(db, accountId);
 	const prefix = `stripe:refund:${paymentIntentId}:`;
 	const refundedCents = charge.amount_refunded;
-	const newCents = refundedCents - (await lastCumulativeCents(db, prefix));
+	const newCents =
+		refundedCents - (await lastCumulativeCents(db, accountId, prefix));
 	if (newCents <= 0) return;
 	const { takenUsdMicros } = await recordRefund(db, {
 		accountId,
