@@ -385,7 +385,7 @@ cd /opt/secondlayer/docker/hosts/node-server-testnet && docker compose -p second
 ```
 
 From app-server, `curl -s <node-server-ip>:21443/v2/info` shows `server_version`
-4.0.5, `network_id` 2147483648, `parent_network_id` 3669344250, tip near
+4.1.0, `network_id` 2147483648, `parent_network_id` 3669344250, tip near
 `api.testnet.hiro.so`, and matching `pox_consensus` at the same burn height.
 Off-host, `nc -z <node-server-ip> 21443` must fail. Catch-up is serial: about
 5,000 blocks plus 9,000 per day of snapshot age.
