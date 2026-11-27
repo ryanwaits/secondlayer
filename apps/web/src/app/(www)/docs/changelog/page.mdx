@@ -2,6 +2,14 @@
 
 Notable changes to Secondlayer and its SDKs. Entries dated before August 2026 describe the hosted service as it worked then (per-row read metering, API keys, `402` past the free window); it was withdrawn in August 2026 and has since returned, with hosted Index, Streams, subgraphs and webhooks at `api.secondlayer.tools` on an account key and prepaid [credits](/docs/authentication), while on a self-hosted instance reads stay yours and unmetered and archive bootstrap, backfill and reindex draw [credits](/docs/authentication#archive-fetches).
 
+## Self-host — November 2026
+
+### Run stacks-node 4.1.0 before epoch 4.1
+
+Epoch 4.1 activates at Bitcoin block 979,500, around December 9. A node on 4.0.x stops following the chain there, and your instance stops getting new blocks. The bundled full node in the self-host compose now pins stacks-core 4.1.0: run `docker compose pull && docker compose up -d`.
+
+If your instance reads from your own Stacks node, upgrade that node to 4.1.0. A testnet node that lists its own `[[burnchain.epochs]]` also needs the `4.1` entry from the 4.1.0 sample testnet config.
+
 ## Webhooks — November 2026
 
 ### Page through every delivery
