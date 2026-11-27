@@ -7,6 +7,7 @@ import {
 	discoverPackages,
 	orderPackages,
 	selectPackages,
+	suiteEnv,
 	templateName,
 	withDatabase,
 } from "./test-packages";
@@ -100,5 +101,29 @@ describe("database names", () => {
 		expect(withDatabase(url, "postgres")).toBe(
 			"postgresql://postgres:pw@127.0.0.1:5432/postgres?sslmode=disable",
 		);
+	});
+});
+
+describe("suiteEnv", () => {
+	const dbUrl = "postgresql://postgres:pw@127.0.0.1:5432/clone_db";
+
+	test("preserves SL_NIGHTLY while stripping machine env vars and overwriting DATABASE_URL", () => {
+		const env = suiteEnv(dbUrl, {
+			PATH: "/usr/bin",
+			SL_NIGHTLY: "1",
+			SL_API_KEY: "secret-sl",
+			SECONDLAYER_API_KEY: "sk-sl_secret",
+			INSTANCE_TOKEN: "inst-secret",
+			DATABASE_URL: "postgresql://old/db",
+		});
+
+		expect(env).toEqual({
+			PATH: "/usr/bin",
+			SL_NIGHTLY: "1",
+			DATABASE_URL: dbUrl,
+		});
+		expect(env.SL_API_KEY).toBeUndefined();
+		expect(env.SECONDLAYER_API_KEY).toBeUndefined();
+		expect(env.INSTANCE_TOKEN).toBeUndefined();
 	});
 });

@@ -24,3 +24,4 @@ jobs:
       # Dash kit mirrors apps/web css; web-only pushes skip deploy.yml, so check parity here.
       - run: bun test skills/secondlayer/dash/test
       - run: bun run --filter './apps/*' typecheck
+      - run: bun run --filter @secondlayer/web build

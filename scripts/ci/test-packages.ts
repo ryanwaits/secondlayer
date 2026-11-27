@@ -100,11 +100,15 @@ type Result = { pkg: string; ok: boolean; seconds: number };
  * `bun` reads them from its working directory.
  */
 const MACHINE_ENV = /^(SECONDLAYER_|SL_|INSTANCE_)/;
+const SUITE_ENV_ALLOW = new Set(["SL_NIGHTLY"]);
 
-function suiteEnv(databaseUrl: string): Record<string, string | undefined> {
+export function suiteEnv(
+	databaseUrl: string,
+	baseEnv: NodeJS.ProcessEnv = process.env,
+): Record<string, string | undefined> {
 	const env: Record<string, string | undefined> = {};
-	for (const [name, value] of Object.entries(process.env)) {
-		if (!MACHINE_ENV.test(name)) env[name] = value;
+	for (const [name, value] of Object.entries(baseEnv)) {
+		if (!MACHINE_ENV.test(name) || SUITE_ENV_ALLOW.has(name)) env[name] = value;
 	}
 	env.DATABASE_URL = databaseUrl;
 	return env;
