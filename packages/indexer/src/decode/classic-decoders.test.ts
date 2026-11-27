@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, test } from "bun:test";
+import { compareStreamsCursor, decodeStreamsCursor } from "@secondlayer/shared";
 import { getDb, sql } from "@secondlayer/shared/db";
 import {
 	type ClassicDecodeWakeBus,
@@ -205,6 +206,115 @@ describe.skipIf(!HAS_DB)("classic decoder in-process loop", () => {
 			.orderBy("cursor")
 			.execute();
 		expect(ftRows.map((row) => row.cursor)).toEqual(["1:0", "2:0"]);
+	});
+
+	test("multi-page cycle with staggered checkpoints keeps ahead decoder monotonic without rewound error", async () => {
+		if (!db) throw new Error("missing db");
+		const stxTransferEvent = (txId: string, amount: string) => ({
+			txId,
+			type: "stx_transfer_event" as const,
+			data: {
+				sender: "SP1",
+				recipient: "SP2",
+				amount,
+			},
+		});
+
+		await seedBlock({
+			height: 1,
+			parentHash: "0x00",
+			hash: "0x01",
+			events: [
+				stxTransferEvent("tx-stx-1", "10"),
+				stxTransferEvent("tx-stx-2", "20"),
+			],
+		});
+		await seedBlock({
+			height: 2,
+			parentHash: "0x01",
+			hash: "0x02",
+			events: [
+				stxTransferEvent("tx-stx-3", "30"),
+				stxTransferEvent("tx-stx-4", "40"),
+			],
+		});
+		await seedBlock({
+			height: 3,
+			parentHash: "0x02",
+			hash: "0x03",
+			events: [ftTransferEvent("tx-ft-3", "50")],
+		});
+		await seedBlock({
+			height: 4,
+			parentHash: "0x03",
+			hash: "0x04",
+			events: [
+				stxTransferEvent("tx-stx-5", "60"),
+				ftTransferEvent("tx-ft-4", "70"),
+			],
+		});
+
+		const initialAheadCursor = "3:2147483647";
+		await writeDecoderCheckpoint({
+			db,
+			decoderName: FT_TRANSFER_DECODER_NAME,
+			cursor: initialAheadCursor,
+		});
+
+		const observedFtCheckpoints: (string | null)[] = [];
+		const spyCommit: ClassicDecoderCommitFn = async (entries, commitOpts) => {
+			const ftEntry = entries.find(
+				(entry) => entry.decoderName === FT_TRANSFER_DECODER_NAME,
+			);
+			if (ftEntry) observedFtCheckpoints.push(ftEntry.checkpointCursor);
+			await commitClassicDecoderBatch(entries, commitOpts);
+		};
+
+		const result = await runClassicDecodeCycle({
+			db,
+			limit: 2,
+			maxPagesPerCycle: 10,
+			commit: spyCommit,
+		});
+
+		expect(result.pagesCommitted).toBeGreaterThanOrEqual(2);
+		expect(result.decodedByDecoder[STX_TRANSFER_DECODER_NAME]).toBe(5);
+		expect(result.decodedByDecoder[FT_TRANSFER_DECODER_NAME]).toBe(1);
+		expect(result.checkpoints[STX_TRANSFER_DECODER_NAME]).toBe("4:2147483647");
+		expect(result.checkpoints[FT_TRANSFER_DECODER_NAME]).toBe("4:2147483647");
+
+		let prev = initialAheadCursor;
+		for (const checkpoint of observedFtCheckpoints) {
+			expect(checkpoint).not.toBeNull();
+			expect(
+				compareStreamsCursor(
+					decodeStreamsCursor(checkpoint as string),
+					decodeStreamsCursor(prev),
+				),
+			).toBeGreaterThanOrEqual(0);
+			prev = checkpoint as string;
+		}
+
+		const stxRows = await db
+			.selectFrom("decoded_events")
+			.select("cursor")
+			.where("event_type", "=", "stx_transfer")
+			.orderBy("cursor")
+			.execute();
+		expect(stxRows.map((row) => row.cursor)).toEqual([
+			"1:0",
+			"1:1",
+			"2:0",
+			"2:1",
+			"4:0",
+		]);
+		const ftRows = await db
+			.selectFrom("decoded_events")
+			.select("cursor")
+			.where("event_type", "=", "ft_transfer")
+			.orderBy("cursor")
+			.execute();
+		expect(ftRows.map((row) => row.cursor)).toEqual(["4:1"]);
 	});
 
 	test("a poison event is skipped; other classic types in the same batch still land", async () => {

@@ -335,9 +335,19 @@ export async function runClassicDecodeCycle(opts?: {
 		const pageBoundary = page.next_cursor;
 		const pageCheckpoints = {} as Record<DecoderName, string | null>;
 		for (const name of DECODER_NAMES) {
-			pageCheckpoints[name] = shortPage
+			const current = currentCheckpoints[name];
+			const candidate = shortPage
 				? encodeStreamsCursor(blockEndCursor(toHeight))
-				: (lastMatchThisPage[name] ?? pageBoundary ?? currentCheckpoints[name]);
+				: (lastMatchThisPage[name] ?? pageBoundary ?? current);
+			pageCheckpoints[name] =
+				current !== null &&
+				(candidate === null ||
+					compareStreamsCursor(
+						decodeStreamsCursor(candidate),
+						decodeStreamsCursor(current),
+					) <= 0)
+					? current
+					: candidate;
 		}
 
 		const entries: GenericDecoderBatchEntry[] = DECODER_NAMES.map((name) => ({
