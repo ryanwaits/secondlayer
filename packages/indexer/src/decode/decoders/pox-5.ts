@@ -1,4 +1,3 @@
-import { type StreamsClient, createStreamsClient } from "@secondlayer/sdk";
 import type { Pox5EventTopic } from "@secondlayer/shared/db";
 import type { Database } from "@secondlayer/shared/db/schema";
 import { logger } from "@secondlayer/shared/logger";
@@ -17,14 +16,12 @@ import {
 	commitDecoderStageBatch,
 	failureFromFaults,
 } from "../generic-commit.ts";
-import { requireInternalStreamsApiKey } from "../internal-auth.ts";
 import { maintainPox5Cycles } from "../pox5-cycles-storage.ts";
 import {
 	POX5_DECODER_NAME,
 	type Pox5EventRow,
 	writePox5Events,
 } from "../pox5-storage.ts";
-import { readDecoderCheckpoint } from "../storage.ts";
 
 export { POX5_DECODER_NAME };
 
@@ -33,132 +30,66 @@ export { POX5_DECODER_NAME };
 // Unlike pox-2/3/4 there are NO node-synthesized events: every pox-5 event is
 // a real `(print ...)` with a `topic` key and the tuple fields flattened at
 // top level via `merge`.
-const POX5_CONTRACT = POX5_CONTRACT_ID_MAINNET;
+export const POX5_CONTRACT = POX5_CONTRACT_ID_MAINNET;
 
-const STREAM_TYPES: StreamsEventType[] = ["print"];
+export const POX5_STREAM_TYPES: StreamsEventType[] = ["print"];
 
 const VALID_TOPICS = new Set<Pox5EventTopic>(POX5_EVENT_TOPICS);
 
-export type ConsumePox5Options = {
+export async function decodePox5Page(opts: {
 	db?: Kysely<Database>;
-	streamsClient?: StreamsClient;
-	fromCursor?: string | null;
-	batchSize?: number;
-	emptyBackoffMs?: number;
-	maxPages?: number;
-	maxEmptyPolls?: number;
-	signal?: AbortSignal;
 	decoderName?: string;
-	onProgress?: (stats: {
-		decoded: number;
-		cursor: string | null;
-		lagSeconds: number;
-	}) => void | Promise<void>;
-};
-
-/**
- * PoX-5 events decoder — `print` events on the pox-5 boot contract. Writes to
- * `pox5_events`. Tracks via the `decode.pox5.v1` checkpoint.
- *
- * Uses `batchSize: 100` and a server-side `contractId` filter for the same
- * reason sBTC/BNS do: an unfiltered streams scan from a stale checkpoint
- * exceeds Bun's fetch socket timeout. Pre-activation the filter matches
- * nothing and the consumer idles at tip.
- */
-export async function consumePox5DecodedEvents(
-	opts: ConsumePox5Options = {},
-): Promise<{ cursor: string | null; pages: number; decoded: number }> {
-	const db = opts.db;
+	events: readonly StreamsEvent[];
+	checkpointCursor: string | null;
+	startedFrom: string | null;
+}): Promise<{ decoded: number }> {
 	const decoderName = opts.decoderName ?? POX5_DECODER_NAME;
-	const streamsClient = opts.streamsClient ?? createInternalStreamsClient();
-	const startCursor =
-		opts.fromCursor !== undefined
-			? opts.fromCursor
-			: await readDecoderCheckpoint({ db, decoderName });
-	let expectedCheckpoint = startCursor;
-	let decoded = 0;
-
-	const result = await streamsClient.events.consume({
-		fromCursor: startCursor,
-		batchSize: opts.batchSize ?? 100,
-		emptyBackoffMs: opts.emptyBackoffMs,
-		maxPages: opts.maxPages,
-		maxEmptyPolls: opts.maxEmptyPolls,
-		signal: opts.signal,
-		types: STREAM_TYPES,
-		contractId: POX5_CONTRACT,
-		onBatch: async (events, ctx) => {
-			const rows: Pox5EventRow[] = [];
-			const faults: {
-				cursor: string;
-				class: ReturnType<typeof classifyGenericDecodeFault>;
-				error: string;
-			}[] = [];
-			for (const event of events) {
-				try {
-					if (
-						event.event_type !== "print" ||
-						event.contract_id !== POX5_CONTRACT
-					) {
-						continue;
-					}
-					const row = decodePox5Print(event);
-					if (row) rows.push(row);
-				} catch (error) {
-					const fault = classifyGenericDecodeFault(error);
-					logger.warn("decoder.decode_skipped", {
-						decoder: decoderName,
-						cursor: event.cursor,
-						tx_id: event.tx_id,
-						event_type: event.event_type,
-						fault,
-						error: String(error),
-					});
-					faults.push({
-						cursor: event.cursor,
-						class: fault,
-						error: error instanceof Error ? error.message : String(error),
-					});
-				}
+	const rows: Pox5EventRow[] = [];
+	const faults: {
+		cursor: string;
+		class: ReturnType<typeof classifyGenericDecodeFault>;
+		error: string;
+	}[] = [];
+	for (const event of opts.events) {
+		try {
+			if (event.event_type !== "print" || event.contract_id !== POX5_CONTRACT) {
+				continue;
 			}
+			const row = decodePox5Print(event);
+			if (row) rows.push(row);
+		} catch (error) {
+			const fault = classifyGenericDecodeFault(error);
+			logger.warn("decoder.decode_skipped", {
+				decoder: decoderName,
+				cursor: event.cursor,
+				tx_id: event.tx_id,
+				event_type: event.event_type,
+				fault,
+				error: String(error),
+			});
+			faults.push({
+				cursor: event.cursor,
+				class: fault,
+				error: error instanceof Error ? error.message : String(error),
+			});
+		}
+	}
 
-			await commitDecoderStageBatch({
-				db,
-				decoderName,
-				checkpointCursor: ctx.cursor,
-				failure: failureFromFaults(faults),
-				startedFrom: expectedCheckpoint,
-				outputCount: rows.length,
-				writeOutput: async (tx) => {
-					if (rows.length > 0) {
-						await writePox5Events(rows, { db: tx });
-						// Keep the materialized per-cycle rollup (`pox5_cycles` /
-						// `pox5_cycle_signers`) in lockstep with the events it's
-						// derived from — same transaction, so a crash mid-batch
-						// never leaves them ahead of or behind `pox5_events`.
-						await maintainPox5Cycles({ db: tx });
-					}
-				},
-			});
-			expectedCheckpoint = ctx.cursor;
-			decoded += rows.length;
-			await opts.onProgress?.({
-				decoded: rows.length,
-				cursor: ctx.cursor,
-				lagSeconds: ctx.tip.lag_seconds,
-			});
-			return ctx.cursor;
+	await commitDecoderStageBatch({
+		db: opts.db,
+		decoderName,
+		checkpointCursor: opts.checkpointCursor,
+		failure: failureFromFaults(faults),
+		startedFrom: opts.startedFrom,
+		outputCount: rows.length,
+		writeOutput: async (tx) => {
+			if (rows.length > 0) {
+				await writePox5Events(rows, { db: tx });
+				await maintainPox5Cycles({ db: tx });
+			}
 		},
 	});
-
-	return { cursor: result.cursor, pages: result.pages, decoded };
-}
-
-function createInternalStreamsClient(): StreamsClient {
-	return createStreamsClient({
-		baseUrl: process.env.STREAMS_API_URL,
-		apiKey: requireInternalStreamsApiKey(),
-	});
+	return { decoded: rows.length };
 }
 
 export function decodePox5Print(event: StreamsEvent): Pox5EventRow | null {

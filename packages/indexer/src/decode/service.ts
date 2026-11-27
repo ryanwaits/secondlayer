@@ -15,10 +15,11 @@ import {
 	runClassicDecodeCycle,
 	waitForNextClassicDecodeCycle,
 } from "./classic-decoders.ts";
-import { consumeBnsDecodedEvents } from "./decoders/bns.ts";
-import { consumePox5DecodedEvents } from "./decoders/pox-5.ts";
-import { consumeSbtcRegistryDecodedEvents } from "./decoders/sbtc.ts";
 import { getDecodersHealth } from "./health.ts";
+import {
+	type ProtocolDecoderName,
+	runProtocolDecodeCycle,
+} from "./protocol-decoders.ts";
 import {
 	SETTLEMENT_CONFIRMER_NAME,
 	consumeSbtcSettlements,
@@ -307,22 +308,108 @@ async function runClassicDecoders(): Promise<void> {
 	}
 }
 
+async function runProtocolDecoders(
+	enabled: readonly ProtocolDecoderName[],
+): Promise<void> {
+	const emptyBackoffMs = Number.parseInt(
+		process.env.DECODER_EMPTY_BACKOFF_MS ?? "1000",
+		10,
+	);
+	let trigger: "wake" | "timer" | "continue" = "timer";
+	let waitStartedAt = Date.now();
+	while (!controller.signal.aborted) {
+		const waitMsBefore = Date.now() - waitStartedAt;
+		const generationAtCycleStart = wakeBus?.generation() ?? 0;
+		let progressed = false;
+		try {
+			const result = await runProtocolDecodeCycle({ enabled });
+			progressed = result.progressed;
+			for (const [decoderName, decoded] of Object.entries(
+				result.decodedByDecoder,
+			)) {
+				decodedTotals[decoderName] =
+					(decodedTotals[decoderName] ?? 0) + decoded;
+				decodedThisMinute[decoderName] =
+					(decodedThisMinute[decoderName] ?? 0) + decoded;
+			}
+			if (result.progressed) {
+				logger.info("protocol_decode_cycle", {
+					event: "protocol_decode_cycle",
+					trigger,
+					pages: result.pagesCommitted,
+					rows: result.decoded,
+					read_ms: result.readMs,
+					commit_ms: result.commitMs,
+					total_ms: result.totalMs,
+					wait_ms_before: waitMsBefore,
+				});
+			}
+			for (const failure of result.failures) {
+				if (failure.error instanceof DecoderCheckpointRewoundError) {
+					logger.warn("decoder.checkpoint_rewound", {
+						decoder: failure.decoder,
+						expected: failure.error.expected,
+						current: failure.error.current,
+					});
+				} else {
+					logger.error("decoder.error", {
+						decoder: failure.decoder,
+						error: String(failure.error),
+					});
+				}
+			}
+			if (
+				result.failures.some(
+					(f) => !(f.error instanceof DecoderCheckpointRewoundError),
+				)
+			) {
+				await sleep(5_000, controller.signal);
+			}
+		} catch (error) {
+			if (controller.signal.aborted) return;
+			logger.error("decoder.error", {
+				decoder: "protocol",
+				error: String(error),
+			});
+			await sleep(5_000, controller.signal);
+		} finally {
+			await pingLiveness(enabled);
+		}
+		if (progressed) {
+			trigger = "continue";
+			waitStartedAt = Date.now();
+			continue;
+		}
+		waitStartedAt = Date.now();
+		trigger = await waitForNextClassicDecodeCycle({
+			wakeBus,
+			generationAtCycleStart,
+			emptyBackoffMs,
+			sleep: (ms) => sleep(ms, controller.signal),
+		});
+	}
+}
+
 async function runDecoders(): Promise<void> {
 	const tasks = [runClassicDecoders()];
+	const protocolDecoders: ProtocolDecoderName[] = [];
 	if (SBTC_ENABLED) {
-		tasks.push(runDecoder("decode.sbtc.v1", consumeSbtcRegistryDecodedEvents));
+		protocolDecoders.push("decode.sbtc.v1");
 	} else {
 		logger.info("decoder.sbtc_disabled");
 	}
 	if (POX5_ENABLED) {
-		tasks.push(runDecoder("decode.pox5.v1", consumePox5DecodedEvents));
+		protocolDecoders.push("decode.pox5.v1");
 	} else {
 		logger.info("decoder.pox5_disabled");
 	}
 	if (BNS_ENABLED) {
-		tasks.push(runDecoder("decode.bns.v1", consumeBnsDecodedEvents));
+		protocolDecoders.push("decode.bns.v1");
 	} else {
 		logger.info("decoder.bns_disabled");
+	}
+	if (protocolDecoders.length > 0) {
+		tasks.push(runProtocolDecoders(protocolDecoders));
 	}
 	if (SETTLEMENT_CONFIRMER_ENABLED) {
 		tasks.push(runDecoder(SETTLEMENT_CONFIRMER_NAME, consumeSbtcSettlements));

@@ -1,4 +1,3 @@
-import { type StreamsClient, createStreamsClient } from "@secondlayer/sdk";
 import type { Database } from "@secondlayer/shared/db/schema";
 import { logger } from "@secondlayer/shared/logger";
 import type {
@@ -17,14 +16,12 @@ import {
 	commitDecoderStageBatch,
 	failureFromFaults,
 } from "../generic-commit.ts";
-import { requireInternalStreamsApiKey } from "../internal-auth.ts";
 import {
 	SBTC_DECODER_NAME,
 	SBTC_TOKEN_ASSET_IDS,
 	type SbtcEventRow,
 	writeSbtcEvents,
 } from "../sbtc-storage.ts";
-import { readDecoderCheckpoint } from "../storage.ts";
 
 export { SBTC_DECODER_NAME };
 
@@ -43,152 +40,102 @@ function pickNetwork(): "mainnet" | "testnet" {
 	return process.env.STACKS_NETWORK === "testnet" ? "testnet" : "mainnet";
 }
 
-function registryContractId(): string {
+export function registryContractId(): string {
 	const net = pickNetwork();
 	return `${SBTC_CONTRACTS[net].address}.${SBTC_CONTRACTS[net].registry}`;
 }
 
-function tokenContractId(): string {
+export function tokenContractId(): string {
 	const net = pickNetwork();
 	return `${SBTC_CONTRACTS[net].address}.${SBTC_CONTRACTS[net].token}`;
 }
 
 // `ft_mint` rides along so each `completed-deposit` print can be paired with
 // the mint that precedes it (see `depositRecipient`).
-const REGISTRY_STREAM_TYPES: StreamsEventType[] = ["print", "ft_mint"];
+export const SBTC_STREAM_TYPES: StreamsEventType[] = ["print", "ft_mint"];
 
 const VALID_TOPICS = new Set<SbtcEventTopic>(SBTC_EVENT_TOPICS);
 
-export type ConsumeSbtcOptions = {
+export type SbtcPageCarry = { lastMint: StreamsEvent | null };
+
+export async function decodeSbtcPage(opts: {
 	db?: Kysely<Database>;
-	streamsClient?: StreamsClient;
-	fromCursor?: string | null;
-	batchSize?: number;
-	emptyBackoffMs?: number;
-	maxPages?: number;
-	maxEmptyPolls?: number;
-	signal?: AbortSignal;
 	decoderName?: string;
-	onProgress?: (stats: {
-		decoded: number;
-		cursor: string | null;
-		lagSeconds: number;
-	}) => void | Promise<void>;
-};
-
-export async function consumeSbtcRegistryDecodedEvents(
-	opts: ConsumeSbtcOptions = {},
-): Promise<{ cursor: string | null; pages: number; decoded: number }> {
-	const db = opts.db;
+	events: readonly StreamsEvent[];
+	checkpointCursor: string | null;
+	startedFrom: string | null;
+	carry: SbtcPageCarry;
+	eventsByTxId: (txId: string) => Promise<readonly StreamsEvent[]>;
+}): Promise<{ decoded: number; carry: SbtcPageCarry }> {
 	const decoderName = opts.decoderName ?? SBTC_DECODER_NAME;
-	const streamsClient = opts.streamsClient ?? createInternalStreamsClient();
-	const startCursor =
-		opts.fromCursor !== undefined
-			? opts.fromCursor
-			: await readDecoderCheckpoint({ db, decoderName });
-	let expectedCheckpoint = startCursor;
-	let decoded = 0;
-	// Last sBTC mint seen, carried across pages: a deposit's mint can end one
-	// page and its print start the next.
-	let lastMint: StreamsEvent | null = null;
-
-	const result = await streamsClient.events.consume({
-		fromCursor: startCursor,
-		batchSize: opts.batchSize ?? 100,
-		emptyBackoffMs: opts.emptyBackoffMs,
-		maxPages: opts.maxPages,
-		maxEmptyPolls: opts.maxEmptyPolls,
-		signal: opts.signal,
-		types: REGISTRY_STREAM_TYPES,
-		contractId: [registryContractId(), tokenContractId()],
-		onBatch: async (events, ctx) => {
-			const rows: SbtcEventRow[] = [];
-			const unpaired: SbtcEventRow[] = [];
-			const faults: {
-				cursor: string;
-				class: ReturnType<typeof classifyGenericDecodeFault>;
-				error: string;
-			}[] = [];
-			for (const event of events) {
-				try {
-					if (event.event_type === "ft_mint" && isSbtcTokenAsset(event)) {
-						lastMint = event;
-					}
-					if (
-						event.event_type !== "print" ||
-						event.contract_id === null ||
-						!SBTC_REGISTRY_CONTRACTS.includes(event.contract_id)
-					) {
-						continue;
-					}
-					const row = decodeRegistryPrint(event);
-					if (row) {
-						if (row.topic === "completed-deposit") {
-							row.recipient = depositRecipient(row, lastMint ? [lastMint] : []);
-							if (row.recipient === null) unpaired.push(row);
-						}
-						rows.push(row);
-					}
-				} catch (error) {
-					const fault = classifyGenericDecodeFault(error);
-					logger.warn("decoder.decode_skipped", {
-						decoder: decoderName,
-						cursor: event.cursor,
-						tx_id: event.tx_id,
-						event_type: event.event_type,
-						fault,
-						error: String(error),
-					});
-					faults.push({
-						cursor: event.cursor,
-						class: fault,
-						error: error instanceof Error ? error.message : String(error),
-					});
-				}
+	let lastMint = opts.carry.lastMint;
+	const rows: SbtcEventRow[] = [];
+	const unpaired: SbtcEventRow[] = [];
+	const faults: {
+		cursor: string;
+		class: ReturnType<typeof classifyGenericDecodeFault>;
+		error: string;
+	}[] = [];
+	for (const event of opts.events) {
+		try {
+			if (event.event_type === "ft_mint" && isSbtcTokenAsset(event)) {
+				lastMint = event;
 			}
-
-			// Mint fell before this run's resume cursor: read the deposit's tx.
-			for (const row of unpaired) {
-				const tx = await streamsClient.events.byTxId(row.tx_id);
-				row.recipient = depositRecipient(row, tx.events);
-				if (row.recipient === null) {
-					logger.warn("sbtc_decoder.deposit_mint_missing", {
-						cursor: row.cursor,
-						tx_id: row.tx_id,
-					});
-				}
+			if (
+				event.event_type !== "print" ||
+				event.contract_id === null ||
+				!SBTC_REGISTRY_CONTRACTS.includes(event.contract_id)
+			) {
+				continue;
 			}
+			const row = decodeRegistryPrint(event);
+			if (row) {
+				if (row.topic === "completed-deposit") {
+					row.recipient = depositRecipient(row, lastMint ? [lastMint] : []);
+					if (row.recipient === null) unpaired.push(row);
+				}
+				rows.push(row);
+			}
+		} catch (error) {
+			const fault = classifyGenericDecodeFault(error);
+			logger.warn("decoder.decode_skipped", {
+				decoder: decoderName,
+				cursor: event.cursor,
+				tx_id: event.tx_id,
+				event_type: event.event_type,
+				fault,
+				error: String(error),
+			});
+			faults.push({
+				cursor: event.cursor,
+				class: fault,
+				error: error instanceof Error ? error.message : String(error),
+			});
+		}
+	}
 
-			await commitDecoderStageBatch({
-				db,
-				decoderName,
-				checkpointCursor: ctx.cursor,
-				failure: failureFromFaults(faults),
-				startedFrom: expectedCheckpoint,
-				outputCount: rows.length,
-				writeOutput: async (tx) => {
-					if (rows.length > 0) await writeSbtcEvents(rows, { db: tx });
-				},
+	for (const row of unpaired) {
+		row.recipient = depositRecipient(row, await opts.eventsByTxId(row.tx_id));
+		if (row.recipient === null) {
+			logger.warn("sbtc_decoder.deposit_mint_missing", {
+				cursor: row.cursor,
+				tx_id: row.tx_id,
 			});
-			expectedCheckpoint = ctx.cursor;
-			decoded += rows.length;
-			await opts.onProgress?.({
-				decoded: rows.length,
-				cursor: ctx.cursor,
-				lagSeconds: ctx.tip.lag_seconds,
-			});
-			return ctx.cursor;
+		}
+	}
+
+	await commitDecoderStageBatch({
+		db: opts.db,
+		decoderName,
+		checkpointCursor: opts.checkpointCursor,
+		failure: failureFromFaults(faults),
+		startedFrom: opts.startedFrom,
+		outputCount: rows.length,
+		writeOutput: async (tx) => {
+			if (rows.length > 0) await writeSbtcEvents(rows, { db: tx });
 		},
 	});
-
-	return { cursor: result.cursor, pages: result.pages, decoded };
-}
-
-function createInternalStreamsClient(): StreamsClient {
-	return createStreamsClient({
-		baseUrl: process.env.STREAMS_API_URL,
-		apiKey: requireInternalStreamsApiKey(),
-	});
+	return { decoded: rows.length, carry: { lastMint } };
 }
 
 function isSbtcTokenAsset(event: StreamsEvent): boolean {

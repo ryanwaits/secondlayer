@@ -1,4 +1,3 @@
-import { type StreamsClient, createStreamsClient } from "@secondlayer/sdk";
 import { getSourceDb, sql } from "@secondlayer/shared/db";
 import type {
 	BnsMarketplaceAction,
@@ -27,18 +26,12 @@ import {
 	commitDecoderStageBatch,
 	failureFromFaults,
 } from "../generic-commit.ts";
-import { requireInternalStreamsApiKey } from "../internal-auth.ts";
-import {
-	bumpDecoderCheckpoint,
-	readDecoderCheckpoint,
-	writeDecoderCheckpoint,
-} from "../storage.ts";
 
 export { BNS_DECODER_NAME };
 
 // v0 ships mainnet only; testnet kept here so the client-side filter still
 // excludes it if the upstream node ever delivers testnet events through this
-// stream. Server-side `contractId` filter (passed below in `consume`) targets
+// stream. Server-side `contractId` filter targets
 // the mainnet contract — that drives the actual fetch volume.
 export const BNS_V2_MAINNET_CONTRACT =
 	"SP2QEZ06AGJ3RKJPBV14SY1V5BBFNAW33D96YPGZF.BNS-V2";
@@ -70,182 +63,74 @@ const VALID_MARKETPLACE_ACTIONS = new Set<BnsMarketplaceAction>([
 	"buy-in-ustx",
 ]);
 
-export type ConsumeBnsOptions = {
+export async function decodeBnsPage(opts: {
 	db?: Kysely<Database>;
-	streamsClient?: StreamsClient;
-	fromCursor?: string | null;
-	batchSize?: number;
-	emptyBackoffMs?: number;
-	maxPages?: number;
-	maxEmptyPolls?: number;
-	signal?: AbortSignal;
 	decoderName?: string;
-	onProgress?: (stats: {
-		decoded: number;
-		cursor: string | null;
-		lagSeconds: number;
-	}) => void | Promise<void>;
-};
-
-export async function consumeBnsDecodedEvents(
-	opts: ConsumeBnsOptions = {},
-): Promise<{ cursor: string | null; pages: number; decoded: number }> {
-	const db = opts.db;
+	events: readonly StreamsEvent[];
+	checkpointCursor: string | null;
+	startedFrom: string | null;
+}): Promise<{ decoded: number }> {
 	const decoderName = opts.decoderName ?? BNS_DECODER_NAME;
-	const streamsClient = opts.streamsClient ?? createInternalStreamsClient();
-	let startCursor =
-		opts.fromCursor !== undefined
-			? opts.fromCursor
-			: await readDecoderCheckpoint({ db, decoderName });
-	if (startCursor === null) {
-		// First-time enable: seed checkpoint to current canonical tip so the
-		// streams subscription has a meaningful starting point and the health
-		// endpoint sees a recent checkpoint immediately. BNS-V2 prints are
-		// sparse — without seeding, the decoder can sit silent for hours
-		// before the first batch arrives.
-		startCursor = await seedCheckpointToTip();
-		if (startCursor !== null) {
-			await writeDecoderCheckpoint({ db, decoderName, cursor: startCursor });
-			logger.info("BNS decoder: seeded checkpoint to tip", {
-				cursor: startCursor,
+	const nameRows: BnsNameEventRow[] = [];
+	const namespaceRows: BnsNamespaceEventRow[] = [];
+	const marketplaceRows: BnsMarketplaceEventRow[] = [];
+	const faults: {
+		cursor: string;
+		class: ReturnType<typeof classifyGenericDecodeFault>;
+		error: string;
+	}[] = [];
+
+	for (const event of opts.events) {
+		try {
+			const decodedEvent = decodeBnsPrintEvent(event);
+			if (!decodedEvent) continue;
+			if (decodedEvent.kind === "name") nameRows.push(decodedEvent.row);
+			else if (decodedEvent.kind === "namespace")
+				namespaceRows.push(decodedEvent.row);
+			else marketplaceRows.push(decodedEvent.row);
+		} catch (error) {
+			const fault = classifyGenericDecodeFault(error);
+			logger.warn("decoder.decode_skipped", {
+				decoder: decoderName,
+				cursor: event.cursor,
+				tx_id: event.tx_id,
+				fault,
+				error: String(error),
+			});
+			faults.push({
+				cursor: event.cursor,
+				class: fault,
+				error: error instanceof Error ? error.message : String(error),
 			});
 		}
-	} else {
-		// Subsequent runs: bump updated_at so health reports checkpoint_recent
-		// immediately on container restart. Must not rewrite last_cursor — that
-		// clobbers a concurrent reorg rewind from the indexer process.
-		await bumpDecoderCheckpoint({ db, decoderNames: [decoderName] });
 	}
-	let expectedCheckpoint = startCursor;
-	let decoded = 0;
 
-	const result = await streamsClient.events.consume({
-		fromCursor: startCursor,
-		// Smaller than the FT/NFT decoders (500) because the streams print
-		// query relies on a jsonb predicate on `data->>'contract_identifier'`
-		// that is not well-indexed; limit=500 reliably hits a 5-10s response
-		// window, which exceeds Bun's fetch socket timeout. limit=100 returns
-		// in ~2s on prod for the BNS-V2 mainnet contract.
-		batchSize: opts.batchSize ?? 100,
-		emptyBackoffMs: opts.emptyBackoffMs,
-		maxPages: opts.maxPages,
-		maxEmptyPolls: opts.maxEmptyPolls,
-		signal: opts.signal,
-		types: ["print"],
-		// Server-side filter — without this the streams API scans every print
-		// event in the cursor range across all contracts, which on a backfill
-		// from a stale checkpoint causes socket timeouts.
-		contractId: BNS_V2_MAINNET_CONTRACT,
-		onBatch: async (events, ctx) => {
-			const nameRows: BnsNameEventRow[] = [];
-			const namespaceRows: BnsNamespaceEventRow[] = [];
-			const marketplaceRows: BnsMarketplaceEventRow[] = [];
-			const faults: {
-				cursor: string;
-				class: ReturnType<typeof classifyGenericDecodeFault>;
-				error: string;
-			}[] = [];
-
-			for (const event of events) {
-				try {
-					if (
-						event.event_type !== "print" ||
-						event.contract_id === null ||
-						!BNS_V2_CONTRACTS.includes(event.contract_id)
-					) {
-						continue;
-					}
-					const payload = decodeClarityPayload(event.payload);
-					if (
-						!payload ||
-						typeof payload !== "object" ||
-						Array.isArray(payload)
-					) {
-						continue;
-					}
-					const tuple = payload as Record<string, unknown>;
-
-					if (typeof tuple.topic === "string") {
-						const row = decodeNameEvent(event, tuple);
-						if (row) nameRows.push(row);
-						continue;
-					}
-					if (typeof tuple.status === "string") {
-						const row = decodeNamespaceEvent(event, tuple);
-						if (row) namespaceRows.push(row);
-						continue;
-					}
-					if (typeof tuple.a === "string") {
-						const row = decodeMarketplaceEvent(event, tuple);
-						if (row) marketplaceRows.push(row);
-					}
-				} catch (error) {
-					const fault = classifyGenericDecodeFault(error);
-					logger.warn("decoder.decode_skipped", {
-						decoder: decoderName,
-						cursor: event.cursor,
-						tx_id: event.tx_id,
-						fault,
-						error: String(error),
-					});
-					faults.push({
-						cursor: event.cursor,
-						class: fault,
-						error: error instanceof Error ? error.message : String(error),
-					});
-				}
-			}
-
-			await commitDecoderStageBatch({
-				db,
-				decoderName,
-				checkpointCursor: ctx.cursor,
-				failure: failureFromFaults(faults),
-				startedFrom: expectedCheckpoint,
-				outputCount:
-					nameRows.length + namespaceRows.length + marketplaceRows.length,
-				writeOutput: async (tx) => {
-					if (nameRows.length > 0)
-						await writeBnsNameEvents(nameRows, { db: tx });
-					if (namespaceRows.length > 0)
-						await writeBnsNamespaceEvents(namespaceRows, { db: tx });
-					if (marketplaceRows.length > 0)
-						await writeBnsMarketplaceEvents(marketplaceRows, { db: tx });
-
-					// Projections derive from the event rows, so they belong to the
-					// same commit — a crash between the two used to leave `bns_names`
-					// behind the events it is derived from.
-					for (const row of nameRows) await applyNameProjection(row, tx);
-					for (const row of namespaceRows)
-						await applyNamespaceProjection(row, tx);
-				},
-			});
-			expectedCheckpoint = ctx.cursor;
-
-			decoded +=
-				nameRows.length + namespaceRows.length + marketplaceRows.length;
-			await opts.onProgress?.({
-				decoded:
-					nameRows.length + namespaceRows.length + marketplaceRows.length,
-				cursor: ctx.cursor,
-				lagSeconds: ctx.tip.lag_seconds,
-			});
-			return ctx.cursor;
+	const decoded =
+		nameRows.length + namespaceRows.length + marketplaceRows.length;
+	await commitDecoderStageBatch({
+		db: opts.db,
+		decoderName,
+		checkpointCursor: opts.checkpointCursor,
+		failure: failureFromFaults(faults),
+		startedFrom: opts.startedFrom,
+		outputCount: decoded,
+		writeOutput: async (tx) => {
+			if (nameRows.length > 0) await writeBnsNameEvents(nameRows, { db: tx });
+			if (namespaceRows.length > 0)
+				await writeBnsNamespaceEvents(namespaceRows, { db: tx });
+			if (marketplaceRows.length > 0)
+				await writeBnsMarketplaceEvents(marketplaceRows, { db: tx });
+			for (const row of nameRows) await applyNameProjection(row, tx);
+			for (const row of namespaceRows) await applyNamespaceProjection(row, tx);
 		},
 	});
-
-	return { cursor: result.cursor, pages: result.pages, decoded };
+	return { decoded };
 }
 
-function createInternalStreamsClient(): StreamsClient {
-	return createStreamsClient({
-		baseUrl: process.env.STREAMS_API_URL,
-		apiKey: requireInternalStreamsApiKey(),
-	});
-}
-
-async function seedCheckpointToTip(): Promise<string | null> {
-	const sourceDb = getSourceDb();
+export async function seedBnsCheckpointToTip(
+	db?: Kysely<Database>,
+): Promise<string | null> {
+	const sourceDb = db ?? getSourceDb();
 	const { rows } = await sql<{ height: number; max_event: number | null }>`
 		SELECT b.height, max(e.event_index) AS max_event
 		FROM blocks b
