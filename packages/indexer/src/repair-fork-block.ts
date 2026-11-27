@@ -32,6 +32,11 @@ import { closeDb, getSourceDb, sql } from "@secondlayer/shared/db";
 import type { Database } from "@secondlayer/shared/db/schema";
 import { logger } from "@secondlayer/shared/logger";
 import type { Kysely } from "kysely";
+import {
+	type ColdS3,
+	coldS3FromEnv,
+	loadColdJournalBody,
+} from "./journal-cold.ts";
 import { applyCanonicalChange } from "./reorg.ts";
 import { persistJournalPayload } from "./repair-from-journal.ts";
 import type { NewBlockPayload } from "./types/node-events.ts";
@@ -44,9 +49,16 @@ export type ForkRepairPlan = {
 	alreadyCorrect: boolean;
 };
 
+export type ColdJournalSource = {
+	network?: string;
+	coldDir?: string;
+	s3?: () => ColdS3;
+};
+
 export async function planForkRepair(
 	db: Kysely<Database>,
 	height: number,
+	cold: ColdJournalSource = {},
 ): Promise<ForkRepairPlan> {
 	const stored = await db
 		.selectFrom("blocks")
@@ -77,12 +89,22 @@ export async function planForkRepair(
 		.orderBy("sequence", "desc")
 		.limit(1)
 		.executeTakeFirst();
-	if (!row) {
+	const body =
+		row?.raw_body ??
+		(await loadColdJournalBody({
+			db,
+			network: cold.network ?? process.env.STACKS_NETWORK ?? "mainnet",
+			height,
+			blockHash: child.parent_hash,
+			coldDir: cold.coldDir ?? process.env.JOURNAL_COLD_DIR,
+			s3: cold.s3 ?? coldS3FromEnv,
+		}));
+	if (!body) {
 		throw new Error(
 			`No journal payload for block ${child.parent_hash} at ${height} (named by ${height + 1}) — only an archive/feeder rebuild can fix this height`,
 		);
 	}
-	const payload = JSON.parse(row.raw_body.toString("utf8")) as NewBlockPayload;
+	const payload = JSON.parse(body.toString("utf8")) as NewBlockPayload;
 	if (payload.block_height !== height) {
 		throw new Error(
 			`Journal block ${child.parent_hash} is at height ${payload.block_height}, not ${height} — refusing`,

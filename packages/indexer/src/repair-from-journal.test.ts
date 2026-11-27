@@ -9,8 +9,11 @@ import {
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { generateEd25519KeyPair } from "@secondlayer/shared/crypto/ed25519";
 import { getDb, sql } from "@secondlayer/shared/db";
 import { txMerkleRoot } from "@secondlayer/shared/node/nakamoto";
+import { exportJournalRange } from "./journal-cold.ts";
+import { sha256Hex } from "./observer-journal.ts";
 import { persistBlock } from "./persist.ts";
 import {
 	diffHeightAgainstJournal,
@@ -580,7 +583,7 @@ describe.skipIf(!HAS_DB)("repair-from-journal", () => {
 			expect(await txIdsAt(H)).toEqual([TX_A]);
 		});
 
-		test("vm_events and state_writes in the file are not persisted", async () => {
+		test("vm_events and state_writes in the file are persisted", async () => {
 			if (!db) throw new Error("missing db");
 			await persistShort(H, "0xdirBlock", [TX_A]);
 			const payload = nodePayload("0xdirBlock", [TX_A, TX_B]);
@@ -618,8 +621,8 @@ describe.skipIf(!HAS_DB)("repair-from-journal", () => {
 				.select("block_height")
 				.where("block_height", "=", H)
 				.execute();
-			expect(vm).toHaveLength(0);
-			expect(sw).toHaveLength(0);
+			expect(vm).toHaveLength(1);
+			expect(sw).toHaveLength(1);
 		});
 
 		test("a missing file reports missing_journal", async () => {
@@ -631,6 +634,118 @@ describe.skipIf(!HAS_DB)("repair-from-journal", () => {
 				/no journal payload/,
 			);
 			expect(await txIdsAt(H)).toEqual([TX_A]);
+		});
+
+		test("cold source repairs a short block from a signed file and keeps vm_events and state_writes", async () => {
+			if (!db) throw new Error("missing db");
+			const low = 30_001;
+			const coldNetwork = process.env.STACKS_NETWORK ?? "mainnet";
+			const payload = nodePayload("0xcoldBlock", [TX_A, TX_B], low);
+			payload.vm_events = [
+				{
+					txid: TX_A,
+					type: "var_set_event",
+					var_set_event: {
+						contract_identifier: "SP1.c",
+						var_name: "v",
+						raw_value: "0x01",
+					},
+				},
+			];
+			payload.state_writes = [
+				{
+					ordinal: 0,
+					tx_index: 0,
+					key: "vm::SP1.c::0::var::v",
+					value_hex: "02",
+				},
+			];
+			try {
+				await persistShort(H, "0xanchorBlock", [TX_A]);
+				await persistShort(low, "0xcoldBlock", [TX_A]);
+				const body = Buffer.from(JSON.stringify(payload));
+				await db
+					.insertInto("observer_journal")
+					.values({
+						network: coldNetwork,
+						path: "/new_block",
+						source: "test",
+						raw_body: body,
+						raw_body_sha256: sha256Hex(body),
+						status: "processed",
+						semantic_sha256: null,
+						block_height: low,
+						block_hash: "0xcoldBlock",
+						burn_block_height: 1,
+						burn_block_hash: null,
+						result: null,
+						error: null,
+						processed_at: new Date(),
+					})
+					.execute();
+				await exportJournalRange({
+					db,
+					network: coldNetwork,
+					kind: "new_block",
+					from: 0,
+					to: 49_999,
+					outDir: dir,
+					hotWindowHeights: 100,
+					signingPrivateKeyPem: generateEd25519KeyPair().privateKeyPem,
+				});
+				await db
+					.deleteFrom("observer_journal")
+					.where("network", "=", coldNetwork)
+					.where("block_height", "=", low)
+					.execute();
+
+				const diff = await diffHeightAgainstJournal(db, low, undefined, dir);
+				expect(diff.status).toBe("diverged");
+				expect(diff.missingTxIds).toEqual([TX_B]);
+
+				await repairHeightFromJournal(db, low, undefined, dir);
+
+				expect(await txIdsAt(low)).toEqual([TX_A, TX_B]);
+				const vm = await db
+					.selectFrom("vm_events")
+					.select("block_height")
+					.where("block_height", "=", low)
+					.execute();
+				const sw = await db
+					.selectFrom("state_writes")
+					.select("block_height")
+					.where("block_height", "=", low)
+					.execute();
+				expect(vm).toHaveLength(1);
+				expect(sw).toHaveLength(1);
+			} finally {
+				await db
+					.deleteFrom("observer_journal")
+					.where("network", "=", coldNetwork)
+					.where("block_height", "=", low)
+					.execute();
+				await db
+					.deleteFrom("vm_events")
+					.where("block_height", "=", low)
+					.execute();
+				await db
+					.deleteFrom("state_writes")
+					.where("block_height", "=", low)
+					.execute();
+				await db.deleteFrom("events").where("block_height", "=", low).execute();
+				await db
+					.deleteFrom("transactions")
+					.where("block_height", "=", low)
+					.execute();
+				await db.deleteFrom("blocks").where("height", "=", low).execute();
+			}
+		});
+
+		test("a cold directory without the range reports missing_journal", async () => {
+			if (!db) throw new Error("missing db");
+			await persistShort(H, "0xdirBlock", [TX_A]);
+			const diff = await diffHeightAgainstJournal(db, H, undefined, dir);
+			expect(diff.status).toBe("missing_journal");
 		});
 
 		test("without the flag the journal table is used", async () => {

@@ -32,13 +32,18 @@
  *   bun run packages/indexer/src/repair-from-journal.ts --from 8777879 --to 8964808 --apply --derive
  *   bun run packages/indexer/src/repair-from-journal.ts --heights 120,57628 --apply --force
  *   bun run packages/indexer/src/repair-from-journal.ts --heights 8088745 --journal-dir /tmp/feeder-journal --apply
+ *   bun run packages/indexer/src/repair-from-journal.ts --heights 120 --journal-cold /var/tmp/journal-cold --apply
  *
  * `--journal-dir <dir>` reads each height's payload from `<dir>/<height>.json`
  * (the `raw_body` text exactly as the feeder's journal stored it) instead of
  * our own `observer_journal`, for heights older than that table. The file's
  * block hash must equal our canonical `blocks.hash` or the run fails; the
- * feeder's `vm_events` / `state_writes` are dropped so repaired blocks match
- * the rest of prod.
+ * payload is used whole, `vm_events` and `state_writes` included.
+ *
+ * `--journal-cold <dir>` reads heights that moved out of `observer_journal`
+ * from the signed cold files under `<dir>/<network>/new_block/` (see
+ * `journal-cold.ts`), matching the row whose `block_hash` is the canonical
+ * hash.
  */
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
@@ -53,6 +58,7 @@ import { logger } from "@secondlayer/shared/logger";
 import { fetchNakamotoBlock } from "@secondlayer/shared/node/nakamoto";
 import type { Kysely } from "kysely";
 import { checkTxMerkleRoot } from "./archive/node-replay-auditor.ts";
+import { readColdJournalHeight } from "./journal-cold.ts";
 import {
 	parseBlock,
 	parseEvent,
@@ -70,8 +76,8 @@ export type JournalPayload = { hash: string; payload: NewBlockPayload };
 /** Read `<dir>/<height>.json` (a feeder `raw_body`). `null` when the file is
  *  absent. The file must be the block we hold canonical at `height`: a
  *  mismatch means prod holds a different block, which a repair must never
- *  paper over, so it throws and nothing is written. `vm_events` and
- *  `state_writes` are dropped: prod has neither until the v2 cutover. */
+ *  paper over, so it throws and nothing is written. The payload is used
+ *  whole, `vm_events` and `state_writes` included. */
 async function loadDirJournalPayload(
 	dir: string,
 	height: number,
@@ -94,8 +100,6 @@ async function loadDirJournalPayload(
 			`repair-from-journal: journal file for height ${height} is block ${payload.block_hash}, but canonical is ${canonical.hash}; refusing to repair`,
 		);
 	}
-	payload.vm_events = undefined;
-	payload.state_writes = undefined;
 	return { hash: canonical.hash, payload };
 }
 
@@ -103,6 +107,7 @@ export async function loadCanonicalJournalPayload(
 	db: Kysely<Database>,
 	height: number,
 	journalDir?: string,
+	coldDir?: string,
 ): Promise<JournalPayload | null> {
 	const block = await db
 		.selectFrom("blocks")
@@ -112,6 +117,20 @@ export async function loadCanonicalJournalPayload(
 		.executeTakeFirst();
 	if (!block) return null;
 	if (journalDir) return loadDirJournalPayload(journalDir, height, block);
+	if (coldDir) {
+		const cold = await readColdJournalHeight({
+			dir: coldDir,
+			network: process.env.STACKS_NETWORK ?? "mainnet",
+			kind: "new_block",
+			height,
+			blockHash: block.hash,
+		});
+		if (!cold) return null;
+		return {
+			hash: block.hash,
+			payload: JSON.parse(cold.body.toString("utf8")) as NewBlockPayload,
+		};
+	}
 
 	const row = await db
 		.selectFrom("observer_journal")
@@ -148,6 +167,7 @@ export async function diffHeightAgainstJournal(
 	db: Kysely<Database>,
 	height: number,
 	journalDir?: string,
+	coldDir?: string,
 ): Promise<HeightDiff> {
 	const block = await db
 		.selectFrom("blocks")
@@ -173,7 +193,12 @@ export async function diffHeightAgainstJournal(
 		};
 	}
 
-	const journal = await loadCanonicalJournalPayload(db, height, journalDir);
+	const journal = await loadCanonicalJournalPayload(
+		db,
+		height,
+		journalDir,
+		coldDir,
+	);
 	if (!journal) {
 		return {
 			height,
@@ -217,8 +242,14 @@ export async function repairHeightFromJournal(
 	db: Kysely<Database>,
 	height: number,
 	journalDir?: string,
+	coldDir?: string,
 ): Promise<void> {
-	const journal = await loadCanonicalJournalPayload(db, height, journalDir);
+	const journal = await loadCanonicalJournalPayload(
+		db,
+		height,
+		journalDir,
+		coldDir,
+	);
 	if (!journal) {
 		throw new Error(
 			`repair-from-journal: no journal payload for canonical height ${height}`,
@@ -326,6 +357,7 @@ type Args = {
 	nodeUrl: string;
 	force: boolean;
 	journalDir?: string;
+	coldDir?: string;
 };
 
 function parseArgs(argv: string[]): Args {
@@ -337,6 +369,7 @@ function parseArgs(argv: string[]): Args {
 	let derive = false;
 	let force = false;
 	let journalDir: string | undefined;
+	let coldDir: string | undefined;
 	let nodeUrl = process.env.STACKS_NODE_RPC_URL ?? "http://localhost:20443";
 	for (let i = 0; i < argv.length; i++) {
 		const arg = argv[i];
@@ -348,6 +381,7 @@ function parseArgs(argv: string[]): Args {
 		else if (arg === "--derive") derive = true;
 		else if (arg === "--force") force = true;
 		else if (arg === "--journal-dir") journalDir = argv[++i];
+		else if (arg === "--journal-cold") coldDir = argv[++i];
 		else if (arg === "--node-url") nodeUrl = argv[++i] ?? nodeUrl;
 	}
 
@@ -370,7 +404,22 @@ function parseArgs(argv: string[]): Args {
 	if (journalDir !== undefined && !journalDir) {
 		throw new Error("--journal-dir needs a directory");
 	}
-	return { heights, apply, verifyNode, derive, force, nodeUrl, journalDir };
+	if (coldDir !== undefined && !coldDir) {
+		throw new Error("--journal-cold needs a directory");
+	}
+	if (journalDir && coldDir) {
+		throw new Error("--journal-dir and --journal-cold are exclusive");
+	}
+	return {
+		heights,
+		apply,
+		verifyNode,
+		derive,
+		force,
+		nodeUrl,
+		journalDir,
+		coldDir,
+	};
 }
 
 async function main(): Promise<void> {
@@ -396,13 +445,23 @@ async function main(): Promise<void> {
 	const repairedHeights: number[] = [];
 
 	for (const height of args.heights) {
-		const diff = await diffHeightAgainstJournal(db, height, args.journalDir);
+		const diff = await diffHeightAgainstJournal(
+			db,
+			height,
+			args.journalDir,
+			args.coldDir,
+		);
 		let nodeResult: NodeVerifyResult | null = null;
 
 		if (diff.status === "diverged") diverged += 1;
 		if (shouldRepair(diff.status, args.force)) {
 			if (args.apply) {
-				await repairHeightFromJournal(db, height, args.journalDir);
+				await repairHeightFromJournal(
+					db,
+					height,
+					args.journalDir,
+					args.coldDir,
+				);
 				repaired += 1;
 				repairedHeights.push(height);
 			}

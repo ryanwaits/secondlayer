@@ -1,6 +1,19 @@
-import { afterAll, beforeEach, describe, expect, test } from "bun:test";
+import {
+	afterAll,
+	afterEach,
+	beforeEach,
+	describe,
+	expect,
+	test,
+} from "bun:test";
+import { mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { generateEd25519KeyPair } from "@secondlayer/shared/crypto/ed25519";
 import { getDb } from "@secondlayer/shared/db";
 import postgres from "postgres";
+import { exportJournalRange } from "./journal-cold.ts";
+import { sha256Hex } from "./observer-journal.ts";
 import { persistBlock } from "./persist.ts";
 import { applyForkRepair, planForkRepair } from "./repair-fork-block.ts";
 import type { NewBlockPayload } from "./types/node-events.ts";
@@ -8,6 +21,7 @@ import type { NewBlockPayload } from "./types/node-events.ts";
 const HAS_DB = !!process.env.DATABASE_URL;
 // Below reorg.test.ts's 990050 and clear of repair-from-journal.test.ts.
 const H = 989321;
+const LOW = 40_001;
 const NETWORK = "repair-fork-block-test";
 const SCRIPT = new URL("./repair-fork-block.ts", import.meta.url).pathname;
 
@@ -133,7 +147,7 @@ async function seedFork(db: NonNullable<ReturnType<typeof getDb>>) {
 }
 
 async function cleanup(db: NonNullable<ReturnType<typeof getDb>>) {
-	for (const height of [H, H + 1]) {
+	for (const height of [H, H + 1, LOW, LOW + 1]) {
 		await db.deleteFrom("events").where("block_height", "=", height).execute();
 		await db
 			.deleteFrom("transactions")
@@ -322,5 +336,152 @@ describe.skipIf(!HAS_DB)("repair-fork-block", () => {
 			.where("block_height", "=", H)
 			.execute();
 		expect(archived).toEqual([]);
+	});
+	describe("heights moved to cold files", () => {
+		const coldNetwork = process.env.STACKS_NETWORK ?? "mainnet";
+		let dir = "";
+
+		beforeEach(async () => {
+			dir = await mkdtemp(join(tmpdir(), "fork-block-cold-"));
+		});
+		afterEach(async () => {
+			await rm(dir, { recursive: true, force: true });
+			if (!db) return;
+			await db
+				.deleteFrom("observer_journal")
+				.where("network", "=", coldNetwork)
+				.where("block_height", "=", LOW)
+				.execute();
+		});
+
+		async function seedColdFork(
+			db: NonNullable<ReturnType<typeof getDb>>,
+		): Promise<NewBlockPayload> {
+			await persistBlock(db, {
+				block: {
+					height: H,
+					hash: "0xanchor",
+					parent_hash: "0xparent",
+					burn_block_height: 1,
+					burn_block_hash: null,
+					timestamp: 1_700_000_000,
+					canonical: true,
+				},
+				txs: [],
+				evts: [],
+				blockHeight: H,
+				network: NETWORK,
+			});
+			await persistBlock(db, {
+				block: {
+					height: LOW,
+					hash: "0xwrong",
+					parent_hash: "0xparent",
+					burn_block_height: 1,
+					burn_block_hash: null,
+					timestamp: 1_700_000_000,
+					canonical: true,
+				},
+				txs: [],
+				evts: [],
+				blockHeight: LOW,
+				network: NETWORK,
+			});
+			await persistBlock(db, {
+				block: {
+					height: LOW + 1,
+					hash: "0xchild",
+					parent_hash: "0xcanon",
+					burn_block_height: 1,
+					burn_block_hash: null,
+					timestamp: 1_700_000_001,
+					canonical: true,
+				},
+				txs: [],
+				evts: [],
+				blockHeight: LOW + 1,
+				network: NETWORK,
+			});
+			const payload = nodePayload("0xcanon", LOW, "0xparent", CANON_TXS);
+			const body = Buffer.from(JSON.stringify(payload));
+			await db
+				.insertInto("observer_journal")
+				.values({
+					network: coldNetwork,
+					path: "/new_block",
+					source: "test",
+					raw_body: body,
+					raw_body_sha256: sha256Hex(body),
+					status: "processed",
+					semantic_sha256: null,
+					block_height: LOW,
+					block_hash: "0xcanon",
+					burn_block_height: 1,
+					burn_block_hash: null,
+					result: null,
+					error: null,
+					processed_at: new Date(),
+				})
+				.execute();
+			await exportJournalRange({
+				db,
+				network: coldNetwork,
+				kind: "new_block",
+				from: 0,
+				to: 49_999,
+				outDir: dir,
+				hotWindowHeights: 100,
+				signingPrivateKeyPem: generateEd25519KeyPair().privateKeyPem,
+			});
+			await db
+				.deleteFrom("observer_journal")
+				.where("network", "=", coldNetwork)
+				.where("block_height", "=", LOW)
+				.execute();
+			return payload;
+		}
+
+		test("plans the repair from the local cold file when the journal row is gone", async () => {
+			if (!db) throw new Error("missing db");
+			await seedColdFork(db);
+			await db
+				.insertInto("observer_journal_cold_ranges")
+				.values({
+					network: coldNetwork,
+					kind: "new_block",
+					from_height: 0,
+					to_height: 49_999,
+					rows: 1,
+					min_sequence: 1,
+					max_sequence: 1,
+					object_key: "unused",
+					file_sha256: "unused",
+					manifest_key: "unused",
+					verified_at: null,
+				})
+				.execute();
+			try {
+				const plan = await planForkRepair(db, LOW, {
+					network: coldNetwork,
+					coldDir: dir,
+				});
+				expect(plan.canonicalHash).toBe("0xcanon");
+				expect(plan.payload.transactions).toHaveLength(CANON_TXS.length);
+				expect(plan.alreadyCorrect).toBe(false);
+			} finally {
+				await db
+					.deleteFrom("observer_journal_cold_ranges")
+					.where("network", "=", coldNetwork)
+					.execute();
+			}
+		});
+
+		test("without a hot row or a ledger range the plan is refused", async () => {
+			if (!db) throw new Error("missing db");
+			await seedColdFork(db);
+			await expect(
+				planForkRepair(db, LOW, { network: coldNetwork, coldDir: dir }),
+			).rejects.toThrow(/only an archive\/feeder rebuild can fix/);
+		});
 	});
 });
