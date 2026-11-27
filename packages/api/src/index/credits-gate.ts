@@ -4,9 +4,8 @@ import {
 	GHOST_READS_BUSY_MESSAGE,
 	assertMeterableTenant,
 	beginGhostRead,
-	checkRowsAllowance,
 	meterRowsDelivered,
-	resolveCreditedAccount,
+	prepareMeteredRead,
 } from "../lib/read-credits.ts";
 import type { IndexEnv } from "./auth.ts";
 
@@ -60,18 +59,12 @@ export function indexCreditsGate(): MiddlewareHandler<IndexEnv> {
 			throw new RateLimitError(GHOST_READS_BUSY_MESSAGE);
 		}
 		try {
-			if (metered) {
-				const refusal = await checkRowsAllowance(
-					tenant?.account_id,
-					tenant?.tier,
-				);
-				if (refusal) return c.json(refusal, 402);
-			}
-
-			const credited = await resolveCreditedAccount(
+			const { refusal, credited } = await prepareMeteredRead(
 				tenant?.account_id,
 				tenant?.tier,
+				{ metered },
 			);
+			if (refusal) return c.json(refusal, 402);
 			if (credited) c.set("credited", credited);
 			return await next();
 		} finally {

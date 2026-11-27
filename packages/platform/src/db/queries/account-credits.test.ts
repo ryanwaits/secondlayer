@@ -218,6 +218,36 @@ describe.skipIf(!HAS_DB)("accountSpendState", () => {
 		expect(state.canRunStack).toBe(true);
 		expect(state.overCap).toBe(false);
 	});
+
+	test("month rollover clears prior-month spend against the cap", async () => {
+		const june = new Date("2026-06-15T12:00:00Z");
+		const july = new Date("2026-07-01T00:00:00Z");
+		await creditCredits(db, accountId, 1_000_000n);
+		await upsertCaps(db, accountId, { monthly_cap_cents: 1 });
+		await recordCreditsSpend(db, accountId, 10_000n, june);
+		const inJune = await accountSpendState(db, accountId, june);
+		expect(inJune.overCap).toBe(true);
+		expect(inJune.canRead).toBe(false);
+		expect(inJune.readBlock).toBe("cap");
+		const inJuly = await accountSpendState(db, accountId, july);
+		expect(inJuly.overCap).toBe(false);
+		expect(inJuly.canRead).toBe(true);
+		expect(inJuly.canRunStack).toBe(true);
+		expect(inJuly.readBlock).toBeNull();
+		expect(inJuly.stackBlock).toBeNull();
+	});
+
+	test("missing account returns zero balance and credits block", async () => {
+		const state = await accountSpendState(db, crypto.randomUUID());
+		expect(state).toEqual({
+			balance: 0n,
+			overCap: false,
+			canRead: false,
+			readBlock: "credits",
+			canRunStack: false,
+			stackBlock: "credits",
+		});
+	});
 });
 
 describe.skipIf(!HAS_DB)("claimRefill", () => {

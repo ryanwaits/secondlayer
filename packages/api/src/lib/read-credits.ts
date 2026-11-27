@@ -6,7 +6,10 @@ import {
 	ROWS_DELIVERED_MONTHLY_ALLOWANCE,
 	nextMonthResetLabel,
 } from "@secondlayer/platform/billing/prices";
-import { accountSpendState } from "@secondlayer/platform/db/queries/account-credits";
+import {
+	type AccountSpendState,
+	accountSpendState,
+} from "@secondlayer/platform/db/queries/account-credits";
 import {
 	lifetimeQuantity,
 	monthBounds,
@@ -56,10 +59,13 @@ export type Credited = { accountId: string; balance: bigint };
 export async function resolveCreditedAccount(
 	accountId: string | undefined,
 	tier: string | undefined,
+	state?: AccountSpendState,
 ): Promise<Credited | undefined> {
 	if (!isPlatformMode() || !accountId || tier === "internal") return undefined;
-	const state = await accountSpendState(getDb(), accountId);
-	return state.canRead ? { accountId, balance: state.balance } : undefined;
+	const resolved = state ?? (await accountSpendState(getDb(), accountId));
+	return resolved.canRead
+		? { accountId, balance: resolved.balance }
+		: undefined;
 }
 
 /**
@@ -229,12 +235,13 @@ export async function beginGhostRead(
  * if it will straddle it — the free rows and the cap are both allowance-
  * gated, not balance-gated; see `meterRowsDelivered`.
  */
-export async function checkRowsAllowance(
-	accountId: string | undefined,
-	tier: string | undefined,
-	now: Date = new Date(),
-): Promise<ReadRefusalBody | null> {
-	if (!isPlatformMode() || !accountId || tier === "internal") return null;
+async function evaluateRowsAllowance(
+	accountId: string,
+	now: Date,
+): Promise<{
+	refusal: ReadRefusalBody | null;
+	spendState?: AccountSpendState;
+}> {
 	const db = getDb();
 	const usedThisMonth = await monthlyQuantity(
 		db,
@@ -244,35 +251,84 @@ export async function checkRowsAllowance(
 	);
 	const monthJustTurned =
 		now.getTime() - monthBounds(now).start.getTime() < DOCS_KEY_TTL_MS;
-	if (usedThisMonth < GHOST_ACCOUNT_ROWS_LIMIT && !monthJustTurned) return null;
+	if (usedThisMonth < GHOST_ACCOUNT_ROWS_LIMIT && !monthJustTurned) {
+		return { refusal: null };
+	}
 
 	const account = await db
 		.selectFrom("accounts")
 		.select(["ghost", "internal"])
 		.where("id", "=", accountId)
 		.executeTakeFirst();
-	if (account?.internal) return null;
+	if (account?.internal) return { refusal: null };
 	if (account?.ghost) {
 		const used =
 			usedThisMonth >= GHOST_ACCOUNT_ROWS_LIMIT
 				? usedThisMonth
 				: await lifetimeQuantity(db, accountId, "rows.delivered");
-		return used >= GHOST_ACCOUNT_ROWS_LIMIT ? GHOST_ROWS_REFUSAL : null;
+		return {
+			refusal: used >= GHOST_ACCOUNT_ROWS_LIMIT ? GHOST_ROWS_REFUSAL : null,
+		};
 	}
-	if (usedThisMonth < ROWS_DELIVERED_MONTHLY_ALLOWANCE) return null;
+	if (usedThisMonth < ROWS_DELIVERED_MONTHLY_ALLOWANCE) {
+		return { refusal: null };
+	}
 
 	const state = await accountSpendState(db, accountId, now);
 	if (state.readBlock === "cap") {
 		return {
-			error: "spend_cap_reached",
-			message: `You reached your monthly spend cap. Reads past your free 1M rows are paused until ${nextMonthResetLabel(now)} or until you raise the cap at https://secondlayer.tools/account/credits#cap.`,
+			refusal: {
+				error: "spend_cap_reached",
+				message: `You reached your monthly spend cap. Reads past your free 1M rows are paused until ${nextMonthResetLabel(now)} or until you raise the cap at https://secondlayer.tools/account/credits#cap.`,
+			},
+			spendState: state,
 		};
 	}
-	if (state.readBlock === null) return null;
+	if (state.readBlock === null) {
+		return { refusal: null, spendState: state };
+	}
 	return {
-		error: "insufficient_credits",
-		shortfall_usd_micros: Number(MIN_CREDITED_USD_MICROS - state.balance),
-		hint: "Add usage credits to keep reading rows past the free monthly allowance.",
-		top_up_url: topUpUrl(),
+		refusal: {
+			error: "insufficient_credits",
+			shortfall_usd_micros: Number(MIN_CREDITED_USD_MICROS - state.balance),
+			hint: "Add usage credits to keep reading rows past the free monthly allowance.",
+			top_up_url: topUpUrl(),
+		},
+		spendState: state,
+	};
+}
+
+export async function checkRowsAllowance(
+	accountId: string | undefined,
+	tier: string | undefined,
+	now: Date = new Date(),
+): Promise<ReadRefusalBody | null> {
+	if (!isPlatformMode() || !accountId || tier === "internal") return null;
+	const { refusal } = await evaluateRowsAllowance(accountId, now);
+	return refusal;
+}
+
+export async function prepareMeteredRead(
+	accountId: string | undefined,
+	tier: string | undefined,
+	opts?: { metered?: boolean; now?: Date },
+): Promise<{ refusal: ReadRefusalBody | null; credited: Credited | null }> {
+	if (!isPlatformMode() || !accountId || tier === "internal") {
+		return { refusal: null, credited: null };
+	}
+	const now = opts?.now ?? new Date();
+	let spendState: AccountSpendState | undefined;
+	if (opts?.metered !== false) {
+		const allowance = await evaluateRowsAllowance(accountId, now);
+		if (allowance.refusal) {
+			return { refusal: allowance.refusal, credited: null };
+		}
+		spendState = allowance.spendState;
+	}
+	const state =
+		spendState ?? (await accountSpendState(getDb(), accountId, now));
+	return {
+		refusal: null,
+		credited: state.canRead ? { accountId, balance: state.balance } : null,
 	};
 }

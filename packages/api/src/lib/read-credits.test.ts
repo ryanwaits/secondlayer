@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import {
+	GHOST_ACCOUNT_ROWS_LIMIT,
 	ROWS_DELIVERED_MONTHLY_ALLOWANCE,
 	isOverMonthlyCreditCap,
 } from "@secondlayer/platform/billing/prices";
@@ -12,6 +13,7 @@ import { getDb } from "@secondlayer/shared/db";
 import {
 	checkRowsAllowance,
 	meterRowsDelivered,
+	prepareMeteredRead,
 	resolveCreditedAccount,
 } from "./read-credits.ts";
 
@@ -225,3 +227,118 @@ describe.skipIf(!HAS_DB)(
 		});
 	},
 );
+
+describe.skipIf(!HAS_DB)("prepareMeteredRead (DB)", () => {
+	const db = HAS_DB ? getDb() : (null as never);
+	const ids: string[] = [];
+	let prevMode: string | undefined;
+
+	beforeAll(() => {
+		prevMode = process.env.INSTANCE_MODE;
+		process.env.INSTANCE_MODE = "platform";
+	});
+
+	afterAll(async () => {
+		if (prevMode === undefined) delete process.env.INSTANCE_MODE;
+		else process.env.INSTANCE_MODE = prevMode;
+		if (ids.length === 0) return;
+		await db
+			.deleteFrom("account_spend_caps")
+			.where("account_id", "in", ids)
+			.execute();
+		await db
+			.deleteFrom("usage_ledger")
+			.where("account_id", "in", ids)
+			.execute();
+		await db
+			.deleteFrom("account_credits")
+			.where("account_id", "in", ids)
+			.execute();
+		await db.deleteFrom("accounts").where("id", "in", ids).execute();
+	});
+
+	async function makeAccount(opts?: {
+		balance?: bigint;
+		ghost?: boolean;
+	}): Promise<string> {
+		const row = await db
+			.insertInto("accounts")
+			.values(
+				opts?.ghost
+					? { email: null, ghost: true }
+					: {
+							email: `prepare-metered-${crypto.randomUUID().slice(0, 8)}@example.com`,
+						},
+			)
+			.returning("id")
+			.executeTakeFirstOrThrow();
+		ids.push(row.id);
+		if (opts?.balance && opts.balance > 0n) {
+			await creditCredits(db, row.id, opts.balance);
+		}
+		return row.id;
+	}
+
+	test("refused past allowance with no credits returns insufficient_credits and null credited", async () => {
+		const id = await makeAccount();
+		await meterRowsDelivered(id, ROWS_DELIVERED_MONTHLY_ALLOWANCE, "test");
+		const result = await prepareMeteredRead(id, "free");
+		expect(result.refusal?.error).toBe("insufficient_credits");
+		expect(result.credited).toBeNull();
+	});
+
+	test("refused past allowance over cap returns spend_cap_reached and null credited", async () => {
+		const id = await makeAccount({ balance: 1_000_000n });
+		await meterRowsDelivered(id, ROWS_DELIVERED_MONTHLY_ALLOWANCE, "test");
+		await upsertCaps(db, id, { monthly_cap_cents: 0 });
+		const result = await prepareMeteredRead(id, "free");
+		expect(result.refusal?.error).toBe("spend_cap_reached");
+		expect(result.credited).toBeNull();
+	});
+
+	test("refused ghost account past row limit returns rows_limit_reached and null credited", async () => {
+		const id = await makeAccount({ ghost: true });
+		await meterRowsDelivered(id, GHOST_ACCOUNT_ROWS_LIMIT, "test");
+		const result = await prepareMeteredRead(id, "free");
+		expect(result.refusal?.error).toBe("rows_limit_reached");
+		expect(result.credited).toBeNull();
+	});
+
+	test("allowed under allowance returns null refusal and populates credited when funded", async () => {
+		const fundedId = await makeAccount({ balance: 500_000n });
+		const unfundedId = await makeAccount();
+		expect(await prepareMeteredRead(fundedId, "free")).toEqual({
+			refusal: null,
+			credited: { accountId: fundedId, balance: 500_000n },
+		});
+		expect(await prepareMeteredRead(unfundedId, "free")).toEqual({
+			refusal: null,
+			credited: null,
+		});
+	});
+
+	test("allowed past allowance with balance returns null refusal and populated credited", async () => {
+		const id = await makeAccount({ balance: 1_000_000n });
+		await meterRowsDelivered(id, ROWS_DELIVERED_MONTHLY_ALLOWANCE, "test");
+		const result = await prepareMeteredRead(id, "free");
+		expect(result).toEqual({
+			refusal: null,
+			credited: { accountId: id, balance: 1_000_000n },
+		});
+	});
+
+	test("unmetered read skips allowance refusal while still resolving credited", async () => {
+		const id = await makeAccount({ balance: 1_000_000n });
+		await meterRowsDelivered(id, ROWS_DELIVERED_MONTHLY_ALLOWANCE, "test");
+		await upsertCaps(db, id, { monthly_cap_cents: 0 });
+		expect(await prepareMeteredRead(id, "free", { metered: false })).toEqual({
+			refusal: null,
+			credited: null,
+		});
+		await upsertCaps(db, id, { monthly_cap_cents: null });
+		expect(await prepareMeteredRead(id, "free", { metered: false })).toEqual({
+			refusal: null,
+			credited: { accountId: id, balance: 1_000_000n },
+		});
+	});
+});

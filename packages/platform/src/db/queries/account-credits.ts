@@ -5,8 +5,6 @@ import {
 	MIN_CREDITED_USD_MICROS,
 	isOverMonthlyCreditCap,
 } from "../../billing/prices.ts";
-import { getCaps } from "./account-spend-caps.ts";
-import { isInternalAccount } from "./accounts.ts";
 
 export function usdToMicros(usd: number): bigint {
 	return BigInt(Math.round(usd * 1_000_000));
@@ -184,13 +182,26 @@ export async function accountSpendState(
 	accountId: string,
 	now: Date = new Date(),
 ): Promise<AccountSpendState> {
-	const [balance, internal, caps, spent] = await Promise.all([
-		getCredits(db, accountId),
-		isInternalAccount(db, accountId),
-		getCaps(db, accountId),
-		getMonthlyCreditsSpend(db, accountId, now),
-	]);
-	if (internal) {
+	const row = await db
+		.selectFrom("accounts")
+		.leftJoin("account_credits", "account_credits.account_id", "accounts.id")
+		.leftJoin(
+			"account_spend_caps",
+			"account_spend_caps.account_id",
+			"accounts.id",
+		)
+		.select([
+			"accounts.internal",
+			"account_credits.balance_usd_micros",
+			"account_credits.spent_month",
+			"account_credits.spent_month_usd_micros",
+			"account_spend_caps.monthly_cap_cents",
+		])
+		.where("accounts.id", "=", accountId)
+		.executeTakeFirst();
+	const balance =
+		row?.balance_usd_micros != null ? BigInt(row.balance_usd_micros) : 0n;
+	if (row?.internal === true) {
 		return {
 			balance,
 			overCap: false,
@@ -200,10 +211,11 @@ export async function accountSpendState(
 			stackBlock: null,
 		};
 	}
-	const overCap = isOverMonthlyCreditCap(
-		spent,
-		caps?.monthly_cap_cents ?? null,
-	);
+	const spent =
+		row?.spent_month === monthKey(now) && row.spent_month_usd_micros != null
+			? BigInt(row.spent_month_usd_micros)
+			: 0n;
+	const overCap = isOverMonthlyCreditCap(spent, row?.monthly_cap_cents ?? null);
 	const readBlock: CreditsStopReason | null = overCap
 		? "cap"
 		: balance < MIN_CREDITED_USD_MICROS

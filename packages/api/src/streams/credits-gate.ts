@@ -4,9 +4,8 @@ import {
 	GHOST_READS_BUSY_MESSAGE,
 	assertMeterableTenant,
 	beginGhostRead,
-	checkRowsAllowance,
 	meterRowsDelivered,
-	resolveCreditedAccount,
+	prepareMeteredRead,
 } from "../lib/read-credits.ts";
 import type { StreamsEnv } from "./auth.ts";
 
@@ -34,16 +33,11 @@ export function streamsCreditsGate(): MiddlewareHandler<StreamsEnv> {
 			throw new RateLimitError(GHOST_READS_BUSY_MESSAGE);
 		}
 		try {
-			const refusal = await checkRowsAllowance(
+			const { refusal, credited } = await prepareMeteredRead(
 				tenant?.account_id,
 				tenant?.tier,
 			);
 			if (refusal) return c.json(refusal, 402);
-
-			const credited = await resolveCreditedAccount(
-				tenant?.account_id,
-				tenant?.tier,
-			);
 			if (credited) c.set("credited", credited);
 			return await next();
 		} finally {
