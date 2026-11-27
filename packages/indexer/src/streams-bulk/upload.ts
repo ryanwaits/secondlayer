@@ -1,3 +1,4 @@
+import { createReadStream } from "node:fs";
 import { readFile, stat } from "node:fs/promises";
 import {
 	GetObjectCommand,
@@ -6,6 +7,9 @@ import {
 	PutObjectCommand,
 	S3Client,
 } from "@aws-sdk/client-s3";
+import { Upload } from "@aws-sdk/lib-storage";
+
+const MULTIPART_PART_SIZE = 64 * 1024 * 1024;
 
 export type StreamsBulkR2Config = {
 	endpoint: string;
@@ -173,19 +177,31 @@ export async function putFileObject(params: {
 	path: string;
 	contentType: string;
 }): Promise<void> {
-	const [body, fileStat] = await Promise.all([
-		readFile(params.path),
-		stat(params.path),
-	]);
-	await params.client.send(
-		new PutObjectCommand({
+	const { size } = await stat(params.path);
+	if (size <= MULTIPART_PART_SIZE) {
+		await params.client.send(
+			new PutObjectCommand({
+				Bucket: params.bucket,
+				Key: params.key,
+				Body: await readFile(params.path),
+				ContentType: params.contentType,
+				ContentLength: size,
+			}),
+		);
+		return;
+	}
+	await new Upload({
+		client: params.client,
+		params: {
 			Bucket: params.bucket,
 			Key: params.key,
-			Body: body,
+			Body: createReadStream(params.path),
 			ContentType: params.contentType,
-			ContentLength: fileStat.size,
-		}),
-	);
+		},
+		partSize: MULTIPART_PART_SIZE,
+		queueSize: 4,
+		leavePartsOnError: false,
+	}).done();
 }
 
 export async function getObjectBuffer(params: {
