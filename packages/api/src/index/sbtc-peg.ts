@@ -720,25 +720,22 @@ export async function readSbtcWithdrawals(
 	}
 	const db = params.db ?? getSourceDb();
 
-	// The withdrawal-create event is the per-request spine (one per request_id;
-	// DISTINCT ON is defensive — no DB unique constraint). Each is enriched with
-	// the latest accept/reject for the same request_id to derive the current
-	// status + the committed BTC sweep_txid. Correlated LATERAL is O(page); fine
-	// at sBTC volume — deliberately no composite index added.
 	const createPredicates: RawBuilder<unknown>[] = [
-		sql`canonical = true`,
-		sql`topic = 'withdrawal-create'`,
-		sql`block_height >= ${params.fromHeight}`,
-		sql`block_height <= ${params.toHeight}`,
+		sql`c.canonical = true`,
+		sql`c.topic = 'withdrawal-create'`,
+		sql`c.block_height >= ${params.fromHeight}`,
+		sql`c.block_height <= ${params.toHeight}`,
 	];
-	if (params.sender) createPredicates.push(sql`sender = ${params.sender}`);
+	if (params.sender) createPredicates.push(sql`c.sender = ${params.sender}`);
 	if (params.requestId !== undefined) {
-		createPredicates.push(sql`request_id = ${params.requestId}`);
+		createPredicates.push(sql`c.request_id = ${params.requestId}`);
 	}
-	if (params.after) createPredicates.push(keysetPredicate(params.after));
+	if (params.after) {
+		createPredicates.push(
+			sql`(c.block_height, c.event_index) > (${params.after.block_height}, ${params.after.event_index})`,
+		);
+	}
 
-	// Status filter pushed into SQL (post-LATERAL) so LIMIT n+1 counts only
-	// matching rows and hasMore detection stays correct.
 	const statusPredicate =
 		params.status === "ACCEPTED"
 			? sql`res.resolution_topic = 'withdrawal-accept'`
@@ -748,9 +745,6 @@ export async function readSbtcWithdrawals(
 					? sql`res.resolution_topic IS NULL`
 					: sql`true`;
 
-	// Settlement filter: true → only sweeps confirmed on Bitcoin; false → not
-	// confirmed (pending sweep OR no sweep yet — `IS DISTINCT FROM true` folds the
-	// null settlement into the not-confirmed bucket).
 	const settlementPredicate =
 		params.settlementConfirmed === true
 			? sql`st.settlement_confirmed IS TRUE`
@@ -758,7 +752,6 @@ export async function readSbtcWithdrawals(
 				? sql`st.settlement_confirmed IS DISTINCT FROM true`
 				: sql`true`;
 
-	// Rides the sweep_txid PK join above, so no index on confirmed_at is needed.
 	const confirmedAfterPredicate = params.confirmedAfter
 		? sql`st.confirmed_at > ${params.confirmedAfter}`
 		: sql`true`;
@@ -784,20 +777,10 @@ export async function readSbtcWithdrawals(
 			res.resolved_at,
 			st.settlement_confirmed,
 			st.btc_confirmations,
-			-- Alias: the row already carries c.block_height, which builds next_cursor
-			-- (line ~724). A second unaliased block_height would shadow it and collapse
-			-- pagination to "0:…", so the settlement height MUST be aliased.
 			st.block_height AS btc_block_height,
 			st.confirmed_at,
 			st.seq AS settlement_seq
-		FROM (
-			SELECT DISTINCT ON (request_id)
-				cursor, block_height, event_index, block_time, request_id, amount,
-				sender, recipient_btc_version, recipient_btc_hashbytes
-			FROM sbtc_events
-			WHERE ${sql.join(createPredicates, sql` AND `)}
-			ORDER BY request_id, block_height ASC, event_index ASC
-		) c
+		FROM sbtc_events c
 		LEFT JOIN LATERAL (
 			SELECT r.topic AS resolution_topic, r.sweep_txid,
 				r.block_time AS resolved_at
@@ -809,7 +792,19 @@ export async function readSbtcWithdrawals(
 			LIMIT 1
 		) res ON true
 		LEFT JOIN sbtc_settlements st ON st.sweep_txid = res.sweep_txid
-		WHERE ${statusPredicate} AND ${settlementPredicate} AND ${confirmedAfterPredicate}
+		WHERE ${sql.join(createPredicates, sql` AND `)}
+			AND NOT EXISTS (
+				SELECT 1
+				FROM sbtc_events dup
+				WHERE dup.canonical = true
+					AND dup.topic = 'withdrawal-create'
+					AND dup.request_id = c.request_id
+					AND (
+						dup.block_height < c.block_height
+						OR (dup.block_height = c.block_height AND dup.event_index < c.event_index)
+					)
+			)
+			AND ${statusPredicate} AND ${settlementPredicate} AND ${confirmedAfterPredicate}
 			AND ${confirmedAfterSeqPredicate}
 		ORDER BY c.block_height ASC, c.event_index ASC
 		LIMIT ${params.limit + 1}
@@ -1305,11 +1300,65 @@ export async function readSbtcSummary(opts?: {
 	};
 }
 
+export const SBTC_SUMMARY_CACHE_TTL_MS = 15_000;
+
+type SbtcSummaryCacheValue = readonly [SbtcSummary, string | null];
+
+let summaryCacheEntry: {
+	value: SbtcSummaryCacheValue;
+	expiresAt: number;
+} | null = null;
+let summaryCacheInflight: Promise<SbtcSummaryCacheValue> | null = null;
+
+export function resetSbtcSummaryCache(): void {
+	summaryCacheEntry = null;
+	summaryCacheInflight = null;
+}
+
+async function loadSbtcSummaryPair(
+	reader: SbtcSummaryReader,
+	readSupply: SbtcSupplyReader,
+	useCache: boolean,
+	now: () => number,
+): Promise<SbtcSummaryCacheValue> {
+	if (!useCache) {
+		return Promise.all([reader(), readSupply()]);
+	}
+	const ts = now();
+	if (summaryCacheEntry && ts < summaryCacheEntry.expiresAt) {
+		return summaryCacheEntry.value;
+	}
+	if (!summaryCacheInflight) {
+		const pending = Promise.all([reader(), readSupply()]).then(
+			(value) => {
+				if (summaryCacheInflight === pending) {
+					summaryCacheEntry = {
+						value,
+						expiresAt: now() + SBTC_SUMMARY_CACHE_TTL_MS,
+					};
+					summaryCacheInflight = null;
+				}
+				return value;
+			},
+			(err) => {
+				if (summaryCacheInflight === pending) {
+					summaryCacheInflight = null;
+				}
+				throw err;
+			},
+		);
+		summaryCacheInflight = pending;
+	}
+	return summaryCacheInflight;
+}
+
 export async function getSbtcSummaryResponse(opts: {
 	tip: IndexTip;
 	readSbtcSummary?: SbtcSummaryReader;
 	readSbtcSupply?: SbtcSupplyReader;
 	decoderEnabled?: boolean;
+	cache?: boolean;
+	now?: () => number;
 }): Promise<SbtcSummaryResponse> {
 	const note =
 		(opts.decoderEnabled ?? isSbtcDecoderEnabled())
@@ -1317,7 +1366,15 @@ export async function getSbtcSummaryResponse(opts: {
 			: SBTC_DISABLED_NOTE;
 	const reader = opts.readSbtcSummary ?? readSbtcSummary;
 	const readSupply = opts.readSbtcSupply ?? readSbtcTokenSupply;
-	const [summary, sbtcSupply] = await Promise.all([reader(), readSupply()]);
+	const useCache =
+		opts.cache ??
+		(opts.readSbtcSummary === undefined && opts.readSbtcSupply === undefined);
+	const [summary, sbtcSupply] = await loadSbtcSummaryPair(
+		reader,
+		readSupply,
+		useCache,
+		opts.now ?? Date.now,
+	);
 	const unmatched = summary.unmatched_withdrawal_accepts;
 	const notes = [
 		note,

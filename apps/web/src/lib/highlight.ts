@@ -67,6 +67,20 @@ export function normalizeLang(lang: string): string {
 	return SUPPORTED_LANGS.has(aliased) ? aliased : "text";
 }
 
+export const MAX_HIGHLIGHT_CHARS = 32_768;
+
+const HTML_ESCAPE: Record<string, string> = {
+	"&": "&amp;",
+	"<": "&lt;",
+	">": "&gt;",
+	'"': "&quot;",
+	"'": "&#39;",
+};
+
+function escapeHtml(text: string): string {
+	return text.replace(/[&<>"']/g, (ch) => HTML_ESCAPE[ch] ?? ch);
+}
+
 export type { ThemedToken };
 
 export async function tokenize(
@@ -74,8 +88,12 @@ export async function tokenize(
 	lang = "typescript",
 ): Promise<ThemedToken[][]> {
 	const normalized = normalizeLang(lang);
-	if (normalized === "text") {
-		return code
+	if (normalized === "text" || code.length > MAX_HIGHLIGHT_CHARS) {
+		const bounded =
+			code.length > MAX_HIGHLIGHT_CHARS
+				? code.slice(0, MAX_HIGHLIGHT_CHARS)
+				: code;
+		return bounded
 			.split("\n")
 			.map((content) => [
 				{ content, offset: 0, htmlStyle: {} } satisfies ThemedToken,
@@ -93,6 +111,9 @@ export async function highlight(
 	code: string,
 	lang = "typescript",
 ): Promise<string> {
+	if (code.length > MAX_HIGHLIGHT_CHARS) {
+		return `<pre class="shiki"><code>${escapeHtml(code.slice(0, MAX_HIGHLIGHT_CHARS))}</code></pre>`;
+	}
 	const normalized = normalizeLang(lang);
 	const highlighter = await getHighlighter();
 	return highlighter.codeToHtml(code, {

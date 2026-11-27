@@ -4,6 +4,7 @@ import type { SbtcEventTopic } from "@secondlayer/shared/db";
 import { SBTC_EVENT_TOPICS } from "@secondlayer/stacks/sbtc";
 import {
 	type ReadSbtcEventsParams,
+	SBTC_SUMMARY_CACHE_TTL_MS,
 	type SbtcDepositsReader,
 	type SbtcEventsReader,
 	type SbtcSummaryReader,
@@ -20,6 +21,7 @@ import {
 	readSbtcTokenSupply,
 	readSbtcWithdrawalById,
 	readSbtcWithdrawals,
+	resetSbtcSummaryCache,
 } from "./sbtc-peg.ts";
 import type { IndexTip } from "./tip.ts";
 
@@ -294,6 +296,101 @@ describe("sBTC peg helpers", () => {
 		});
 		expect(unmatched.summary.unmatched_withdrawal_accepts).toBe(2);
 		expect(unmatched.notes).toContain("2 withdrawal-accept events have no");
+	});
+
+	test("summary: coalesces concurrent/repeated calls within TTL, refreshes after TTL, and does not cache failures", async () => {
+		resetSbtcSummaryCache();
+		let nowMs = 1_000_000;
+		let summaryCalls = 0;
+		let supplyCalls = 0;
+		let shouldFail = false;
+
+		const readSummary: SbtcSummaryReader = async () => {
+			summaryCalls++;
+			await Promise.resolve();
+			if (shouldFail) throw new Error("db down");
+			return {
+				total_deposits: summaryCalls,
+				total_withdrawals_requested: 0,
+				total_withdrawals_accepted: 0,
+				total_withdrawals_rejected: 0,
+				net_peg_flow_sats: "100",
+				total_locked_sats: "100",
+				unmatched_withdrawal_accepts: 0,
+				sbtc_supply_sats: null,
+			};
+		};
+		const readSupply = async () => {
+			supplyCalls++;
+			await Promise.resolve();
+			return String(supplyCalls * 100);
+		};
+
+		const [first, second] = await Promise.all([
+			getSbtcSummaryResponse({
+				tip: TIP,
+				readSbtcSummary: readSummary,
+				readSbtcSupply: readSupply,
+				decoderEnabled: true,
+				cache: true,
+				now: () => nowMs,
+			}),
+			getSbtcSummaryResponse({
+				tip: TIP,
+				readSbtcSummary: readSummary,
+				readSbtcSupply: readSupply,
+				decoderEnabled: true,
+				cache: true,
+				now: () => nowMs,
+			}),
+		]);
+		expect(summaryCalls).toBe(1);
+		expect(supplyCalls).toBe(1);
+		expect(first.summary.total_deposits).toBe(1);
+		expect(second.summary.sbtc_supply_sats).toBe("100");
+
+		nowMs += SBTC_SUMMARY_CACHE_TTL_MS - 1;
+		const cached = await getSbtcSummaryResponse({
+			tip: TIP,
+			readSbtcSummary: readSummary,
+			readSbtcSupply: readSupply,
+			decoderEnabled: true,
+			cache: true,
+			now: () => nowMs,
+		});
+		expect(summaryCalls).toBe(1);
+		expect(supplyCalls).toBe(1);
+		expect(cached.summary.total_deposits).toBe(1);
+
+		nowMs += 1;
+		shouldFail = true;
+		await expect(
+			getSbtcSummaryResponse({
+				tip: TIP,
+				readSbtcSummary: readSummary,
+				readSbtcSupply: readSupply,
+				decoderEnabled: true,
+				cache: true,
+				now: () => nowMs,
+			}),
+		).rejects.toThrow(/db down/);
+		expect(summaryCalls).toBe(2);
+
+		shouldFail = false;
+		const refreshed = await getSbtcSummaryResponse({
+			tip: TIP,
+			readSbtcSummary: readSummary,
+			readSbtcSupply: readSupply,
+			decoderEnabled: true,
+			cache: true,
+			now: () => nowMs,
+		});
+		expect(summaryCalls).toBe(3);
+		expect(supplyCalls).toBe(3);
+		expect(refreshed.summary.total_deposits).toBe(3);
+		expect(refreshed.summary.sbtc_supply_sats).toBe("300");
+
+		resetSbtcSummaryCache();
 	});
 
 	test("?confirmed=true clamps to_height to finalized_height", async () => {
@@ -1099,6 +1196,81 @@ describe.skipIf(!HAS_DB)("sBTC peg DB reads", () => {
 		expect(summary.net_peg_flow_sats).toBe("0");
 		expect(summary.unmatched_withdrawal_accepts).toBe(0);
 		expect(summary.sbtc_supply_sats).toBeNull();
+	});
+
+	test("withdrawals: deduplicates duplicate withdrawal-create rows keeping earliest (block_height, event_index)", async () => {
+		if (!db) throw new Error("missing db");
+		await db
+			.insertInto("sbtc_events")
+			.values([
+				seed({
+					cursor: "100:2",
+					block_height: 100,
+					tx_id: "0xdup-same-block",
+					tx_index: 1,
+					event_index: 2,
+					topic: "withdrawal-create",
+					request_id: 55,
+					amount: "8888",
+					sender: "SP_LATER_SAME_BLOCK",
+				}),
+				seed({
+					cursor: "100:1",
+					block_height: 100,
+					tx_id: "0xearliest",
+					tx_index: 0,
+					event_index: 1,
+					topic: "withdrawal-create",
+					request_id: 55,
+					amount: "1000",
+					sender: "SP_EARLIEST",
+				}),
+				seed({
+					cursor: "105:0",
+					block_height: 105,
+					tx_id: "0xdup-later-block",
+					tx_index: 0,
+					event_index: 0,
+					topic: "withdrawal-create",
+					request_id: 55,
+					amount: "9999",
+					sender: "SP_LATER_BLOCK",
+				}),
+				seed({
+					cursor: "102:0",
+					block_height: 102,
+					tx_id: "0xother",
+					tx_index: 0,
+					event_index: 0,
+					topic: "withdrawal-create",
+					request_id: 56,
+					amount: "2000",
+					sender: "SP_OTHER",
+				}),
+			])
+			.execute();
+
+		const page = await readSbtcWithdrawals({
+			db,
+			fromHeight: 0,
+			toHeight: 200,
+			limit: 50,
+		});
+		expect(
+			page.withdrawals.map((w) => [w.request_id, w.cursor, w.amount, w.sender]),
+		).toEqual([
+			[55, "100:1", "1000", "SP_EARLIEST"],
+			[56, "102:0", "2000", "SP_OTHER"],
+		]);
+
+		const afterEarliest = await readSbtcWithdrawals({
+			db,
+			fromHeight: 0,
+			toHeight: 200,
+			after: { block_height: 100, event_index: 1 },
+			limit: 50,
+		});
+		expect(afterEarliest.withdrawals.map((w) => w.request_id)).toEqual([56]);
 	});
 });
 
