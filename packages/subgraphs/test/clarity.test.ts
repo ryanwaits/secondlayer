@@ -1,9 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import {
-	decodeClarityValue,
-	decodeEventData,
-	decodeFunctionArgs,
-} from "../src/runtime/clarity.ts";
+import { decodeClarityValue, decodeEventData } from "../src/runtime/clarity.ts";
 
 describe("Clarity decoding", () => {
 	test("decodeClarityValue returns original on non-hex string", () => {
@@ -32,10 +28,5 @@ describe("Clarity decoding", () => {
 	test("decodeEventData recursively decodes arrays", () => {
 		const result = decodeEventData([1, "hello", { x: 2 }]);
 		expect(result).toEqual([1, "hello", { x: 2 }]);
-	});
-
-	test("decodeFunctionArgs maps over array", () => {
-		const result = decodeFunctionArgs(["hello", "world"]);
-		expect(result).toEqual(["hello", "world"]);
 	});
 });

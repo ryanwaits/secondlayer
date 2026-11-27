@@ -1,4 +1,4 @@
-# L2 Event Decoders
+# Event Decoders
 
 Decoder names use `decode.<event_type>.v<major>`.
 
@@ -17,4 +17,4 @@ The continuous service stores its high-water cursor in `decoder_checkpoints`.
 On cold start it resumes from that cursor. If no checkpoint exists, a classic
 or sbtc/pox5 decoder scans from genesis; BNS seeds to the current tip.
 
-The legacy `transactions` / `parseTransaction` path is indexer-internal. It is not the L2 public contract.
+The legacy `transactions` / `parseTransaction` path is indexer-internal. It is not the decoded public contract.

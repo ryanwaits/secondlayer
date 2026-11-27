@@ -4,7 +4,6 @@ import type {
 	StreamsEvent,
 	StreamsEventType,
 } from "@secondlayer/shared/streams-rows";
-import { cvToValue, deserializeCV } from "@secondlayer/stacks/clarity";
 import {
 	SBTC_CONTRACTS,
 	SBTC_EVENT_TOPICS,
@@ -22,6 +21,7 @@ import {
 	type SbtcEventRow,
 	writeSbtcEvents,
 } from "../sbtc-storage.ts";
+import { decodeClarityPayload } from "./clarity.ts";
 
 export { SBTC_DECODER_NAME };
 
@@ -296,26 +296,6 @@ export function depositRecipient(
 		return asString(payload.recipient);
 	}
 	return null;
-}
-
-function decodeClarityPayload(payload: Record<string, unknown>): unknown {
-	const hex = clarityHex(payload);
-	if (hex !== null) return cvToValue(deserializeCV(hex));
-	const value = payload.value;
-	if (value && typeof value === "object" && !Array.isArray(value)) return value;
-	return null;
-}
-
-function clarityHex(payload: Record<string, unknown>): string | null {
-	const value = payload.value;
-	const hex =
-		typeof payload.raw_value === "string"
-			? payload.raw_value
-			: value && typeof value === "object" && !Array.isArray(value)
-				? (value as Record<string, unknown>).hex
-				: value;
-	if (typeof hex !== "string") return null;
-	return hex.startsWith("0x") ? hex.slice(2) : hex;
 }
 
 function asString(value: unknown): string | null {

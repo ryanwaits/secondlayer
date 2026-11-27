@@ -12,14 +12,6 @@ const CANONICAL_ALL = [
 	"events",
 ] as const satisfies readonly CanonicalInput[];
 
-const STREAMS_API_INPUT = {
-	name: "streams-api",
-	reason:
-		"this protocol decoder reads canonical events through the Streams client rather than raw parquet — the runtime path is the same as production live-decode. (The 11 classic decoders read Streams' own reader in-process instead; this manifest only covers the protocol producers below.)",
-	source: "bundled-secondlayer-runtime",
-	rebuildable_from_archive: true,
-} as const;
-
 const CONTRACT_SOURCE_REGISTRY_INPUT = {
 	name: "contract-source-registry",
 	reason:
@@ -35,7 +27,6 @@ export const SBTC_SERVICE_MANIFEST: ServiceManifest = {
 		"sBTC registry decoder — completed-deposit, withdrawal lifecycle, key-rotation, and protocol-contract updates emitted by SBTC_REGISTRY_CONTRACTS",
 	canonical_inputs: [...CANONICAL_ALL],
 	external_inputs: [
-		STREAMS_API_INPUT,
 		{
 			...CONTRACT_SOURCE_REGISTRY_INPUT,
 			reason:
@@ -65,7 +56,6 @@ export const BNS_SERVICE_MANIFEST: ServiceManifest = {
 		"BNSx decoder — name and namespace lifecycle events plus marketplace listings, from bnsx-registry and marketplace contracts",
 	canonical_inputs: [...CANONICAL_ALL],
 	external_inputs: [
-		STREAMS_API_INPUT,
 		{
 			...CONTRACT_SOURCE_REGISTRY_INPUT,
 			reason:

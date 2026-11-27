@@ -447,11 +447,11 @@ const server = Bun.serve({
 });
 
 assertDbSplit();
-logger.info("Starting L2 decoder service", { port: PORT });
+logger.info("Starting decoder service", { port: PORT });
 void initWakeBus().then(() => void runDecoders());
 
 async function shutdown() {
-	logger.info("Shutting down L2 decoder service");
+	logger.info("Shutting down decoder service");
 	controller.abort();
 	clearInterval(progressTimer);
 	server.stop();

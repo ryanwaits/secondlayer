@@ -7,7 +7,6 @@ import type {
 import type { Database } from "@secondlayer/shared/db/schema";
 import { logger } from "@secondlayer/shared/logger";
 import type { StreamsEvent } from "@secondlayer/shared/streams-rows";
-import { cvToValue, deserializeCV } from "@secondlayer/stacks/clarity";
 import type { Kysely } from "kysely";
 import {
 	BNS_DECODER_NAME,
@@ -26,6 +25,7 @@ import {
 	commitDecoderStageBatch,
 	failureFromFaults,
 } from "../generic-commit.ts";
+import { decodeClarityPayload } from "./clarity.ts";
 
 export { BNS_DECODER_NAME };
 
@@ -378,30 +378,6 @@ async function applyNamespaceProjection(
 		},
 		{ db },
 	);
-}
-
-function decodeClarityPayload(payload: Record<string, unknown>): unknown {
-	// Prefer the canonical hex form (`raw_value`) — the streams API also
-	// returns a `value` field with a structured `{Tuple: {data_map: ...}}`
-	// shape that's tied to internal representation; consumers like the BNS
-	// decoder need a flat record to dispatch on `topic`/`status`/`a`.
-	if (typeof payload.raw_value === "string") {
-		return decodeClarityHex(payload.raw_value);
-	}
-	const value = payload.value;
-	if (value && typeof value === "object" && !Array.isArray(value)) {
-		const v = value as Record<string, unknown>;
-		if (typeof v.hex === "string") return decodeClarityHex(v.hex);
-		return v;
-	}
-	if (typeof value === "string") return decodeClarityHex(value);
-	return null;
-}
-
-function decodeClarityHex(hex: string): unknown {
-	const cleanHex = hex.startsWith("0x") ? hex.slice(2) : hex;
-	const cv = deserializeCV(cleanHex);
-	return cvToValue(cv);
 }
 
 function asRecord(value: unknown): Record<string, unknown> | null {

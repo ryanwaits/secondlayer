@@ -37,10 +37,3 @@ export function decodeEventData(data: unknown): unknown {
 
 	return data;
 }
-
-/**
- * Decode function args array (hex-encoded Clarity values).
- */
-export function decodeFunctionArgs(args: string[]): unknown[] {
-	return args.map(decodeClarityValue);
-}

@@ -12,9 +12,6 @@
 				"../indexer/src/decode/decoder.ts"
 			],
 			"@secondlayer/indexer/decode/health": ["../indexer/src/decode/health.ts"],
-			"@secondlayer/indexer/decode/internal-auth": [
-				"../indexer/src/decode/internal-auth.ts"
-			],
 			"@secondlayer/sdk": ["../sdk/src/index.ts"],
 			"@secondlayer/sdk/*": ["../sdk/src/*"],
 			"@secondlayer/shared": ["../shared/src/index.ts"],

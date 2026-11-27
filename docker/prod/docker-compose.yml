@@ -296,13 +296,6 @@ services:
       # DATABASE_URL (single DB, no behavior change). Set at cutover.
       SOURCE_DATABASE_URL: ${SOURCE_DATABASE_URL:-}
       TARGET_DATABASE_URL: ${TARGET_DATABASE_URL:-}
-      STREAMS_API_URL: http://api:3800
-      STREAMS_INTERNAL_API_KEY: ${STREAMS_INTERNAL_API_KEY:-}
-      # First-party Index reads. Unset → consumers read /v1/index anonymously,
-      # which the platform-mode free window caps at the last 24h; any seek into
-      # older history then 402s. The api seeds this key as an unmetered internal
-      # tenant (api/src/index/auth.ts), so it must be set on BOTH sides.
-      INDEX_INTERNAL_API_KEY: ${INDEX_INTERNAL_API_KEY:-}
       PORT: 3710
       LOG_LEVEL: ${LOG_LEVEL:-info}
       NODE_ENV: production
@@ -332,8 +325,6 @@ services:
     depends_on:
       migrate:
         condition: service_completed_successfully
-      api:
-        condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3710/health"]
       interval: 30s
