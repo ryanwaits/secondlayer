@@ -47,6 +47,8 @@ const VerifySchema = z.union([
 // matter how many IPs the guesses come from).
 const VERIFY_RATE_LIMIT = 10;
 const VERIFY_WINDOW_MS = 15 * 60_000;
+const MAGIC_LINK_EMAIL_LIMIT = 5;
+const MAGIC_LINK_EMAIL_WINDOW_MS = 15 * 60 * 1000;
 
 app.post("/magic-link", async (c) => {
 	const body = await c.req.json().catch(() => {
@@ -66,6 +68,17 @@ app.post("/magic-link", async (c) => {
 	const code = String(codeNum).padStart(6, "0");
 
 	const email = normalizeEmail(parsed.email);
+	const perEmail = await getRateLimitStore().check(
+		`auth:magic-link-email:${email}`,
+		MAGIC_LINK_EMAIL_LIMIT,
+		MAGIC_LINK_EMAIL_WINDOW_MS,
+		{ failClosed: true },
+	);
+	if (!perEmail.allowed) {
+		c.header("Retry-After", String(perEmail.retryAfter));
+		return c.json({ error: "Too many login requests. Try again later." }, 429);
+	}
+
 	const existing = await db
 		.selectFrom("accounts")
 		.select("id")

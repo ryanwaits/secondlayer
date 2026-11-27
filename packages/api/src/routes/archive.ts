@@ -94,6 +94,7 @@ export function resolveObjectKey(path: string): string {
 }
 
 const MAX_FETCH_BATCH = 64;
+const MAX_QUOTE_BATCH = 4096;
 
 /** Monthly free-repair allowance, in partitions (6 bundle-equivalents × 4
  *  datasets per bundle). `flow: "repair"` only. */
@@ -240,6 +241,15 @@ export function createArchiveRouter(options: ArchiveRouterOptions = {}): Hono {
 		const parsed = parseArchiveRequestBody(body);
 		if ("error" in parsed) return c.json({ error: parsed.error }, 400);
 		const { paths, flow } = parsed;
+
+		if (paths.length > MAX_QUOTE_BATCH) {
+			return c.json(
+				{
+					error: `quote of ${paths.length} exceeds max ${MAX_QUOTE_BATCH} paths per call`,
+				},
+				413,
+			);
+		}
 
 		const invalid = paths.filter((p) => deriveDatasetFromPath(p) === null);
 		if (invalid.length > 0) {

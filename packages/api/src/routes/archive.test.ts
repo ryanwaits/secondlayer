@@ -287,6 +287,23 @@ describe.skipIf(!HAS_DB)("POST /quote", () => {
 		});
 		expect(res.status).toBe(400);
 	});
+
+	test("batch of 4097 paths → 413", async () => {
+		const accountId = await makeAccount();
+		const app = buildTestApp({ accountId });
+		const paths = Array.from({ length: 4097 }, (_, i) =>
+			partitionPath(
+				"blocks",
+				i * 50_000,
+				(i + 1) * 50_000,
+				i.toString(16).padStart(16, "0"),
+			),
+		);
+		const res = await postJson(app, "/quote", { flow: "bootstrap", paths });
+		expect(res.status).toBe(413);
+		const body = (await res.json()) as { error: string };
+		expect(body.error).toContain("4096");
+	});
 });
 
 describe.skipIf(!HAS_DB)("POST /fetch", () => {
