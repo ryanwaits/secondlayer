@@ -230,20 +230,24 @@ export function createContractStateCoverage(
 		frozen: number,
 	): Promise<void> {
 		const lowered = stored !== null && fromHeight < stored.fromHeight;
-		const prior: SavedCoverage = stored ?? {
-			fromHeight,
-			checkedThrough: fromHeight - 1,
-			gaps: [],
-			gapHeights: 0,
-		};
-		const truncatedHeights = prior.gapHeights - gapHeightCount(prior.gaps);
-		let state: SavedCoverage = {
-			...prior,
-			fromHeight,
-			checkedThrough: lowered ? fromHeight - 1 : prior.checkedThrough,
-			gaps: await recheck(prior.gaps),
-		};
-		state.gapHeights = truncatedHeights + gapHeightCount(state.gaps);
+		let state: SavedCoverage;
+		if (!stored || lowered) {
+			state = {
+				fromHeight,
+				checkedThrough: fromHeight - 1,
+				gaps: [],
+				gapHeights: 0,
+			};
+		} else {
+			const truncatedHeights = stored.gapHeights - gapHeightCount(stored.gaps);
+			const gaps = await recheck(stored.gaps);
+			state = {
+				fromHeight,
+				checkedThrough: stored.checkedThrough,
+				gaps,
+				gapHeights: truncatedHeights + gapHeightCount(gaps),
+			};
+		}
 
 		for (let lo = state.checkedThrough + 1; lo <= frozen; lo += chunkBlocks) {
 			const hi = Math.min(frozen, lo + chunkBlocks - 1);
@@ -287,12 +291,13 @@ export function createContractStateCoverage(
 			return;
 		}
 		const frozen = Math.min(bounds.finalized, bounds.tip);
-		const stored = await store.load();
 		if (!(await store.claim())) {
+			const stored = await store.load();
 			if (stored) value = publish(stored);
 			return;
 		}
 		try {
+			const stored = await store.load();
 			await scan(stored, fromHeight, frozen);
 		} finally {
 			await store.release();

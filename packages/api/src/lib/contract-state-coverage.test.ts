@@ -270,6 +270,65 @@ describe("contract state coverage scanner", () => {
 		await scanner.refresh();
 		expect(scanner.read()).toBeNull();
 	});
+
+	test("loads coverage state after winning the claim", async () => {
+		const chain = fakeChain(new Set());
+		const store = memoryStore({
+			fromHeight: 1,
+			checkedThrough: 10,
+			gaps: [],
+			gapHeights: 0,
+		});
+		store.claim = async () => {
+			store.saved = {
+				fromHeight: 1,
+				checkedThrough: 20,
+				gaps: [],
+				gapHeights: 0,
+			};
+			store.claimed = true;
+			return true;
+		};
+		const scanner = createContractStateCoverage({
+			store,
+			readBounds: bounds(15),
+			readFromHeight: async () => 1,
+			findMissing: chain.findMissing,
+		});
+		await scanner.refresh();
+		expect(chain.calls).toEqual([]);
+		expect(store.saved?.checkedThrough).toBe(20);
+		expect(scanner.read()?.checked_through).toBe(20);
+	});
+
+	test("lowering fromHeight resets truncated gap counts instead of double-counting", async () => {
+		const chain = fakeChain(new Set([5, 12, 14, 16, 18]));
+		let fromHeight = 10;
+		const store = memoryStore();
+		const scanner = createContractStateCoverage({
+			store,
+			readBounds: bounds(20),
+			readFromHeight: async () => fromHeight,
+			findMissing: chain.findMissing,
+			maxStoredRanges: 2,
+			refreshMs: 0,
+		});
+		await scanner.refresh();
+		expect(scanner.read()?.gap_heights).toBe(4);
+		expect(scanner.read()?.gaps).toEqual([
+			{ from: 12, to: 12 },
+			{ from: 14, to: 14 },
+		]);
+
+		fromHeight = 1;
+		await scanner.refresh();
+		expect(scanner.read()?.from_height).toBe(1);
+		expect(scanner.read()?.gap_heights).toBe(5);
+		expect(scanner.read()?.gaps).toEqual([
+			{ from: 5, to: 5 },
+			{ from: 12, to: 12 },
+		]);
+	});
 });
 
 const HAS_DB = !!process.env.DATABASE_URL;
