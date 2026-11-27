@@ -116,60 +116,24 @@ describe.skipIf(!HAS_DB)("ingest vm_events", () => {
 		expect(vm).toHaveLength(0);
 	});
 
-	test("deleting a height's transactions cascades its vm_events (sweeps never trip the FK)", async () => {
-		// bootstrap / repair / repair-fork-block delete
-		// `events` then `transactions` by height and never name `vm_events`.
-		// The vm FK cascades so those sweeps keep working once vm rows exist.
+	test("vm_events belong to their height: deleting transactions keeps them, deleting the block removes them", async () => {
 		if (!db) throw new Error("missing db");
 		const payload = await loadFixture("new_block.vm_events.json");
 		await ingestNewBlock(payload, { network: NETWORK });
-		expect(
-			await db
+		const vmRows = () =>
+			db
 				.selectFrom("vm_events")
 				.selectAll()
 				.where("block_height", "=", H)
-				.execute(),
-		).toHaveLength(2);
+				.execute();
+		expect(await vmRows()).toHaveLength(2);
 
 		await db.deleteFrom("events").where("block_height", "=", H).execute();
 		await db.deleteFrom("transactions").where("block_height", "=", H).execute();
-		expect(
-			await db
-				.selectFrom("vm_events")
-				.selectAll()
-				.where("block_height", "=", H)
-				.execute(),
-		).toHaveLength(0);
+		expect(await vmRows()).toHaveLength(2);
 
-		// Sweeps delete events then transactions then the block. Re-ingest of a
-		// still-canonical block is a duplicate no-op — drop the leftover block
-		// so persist writes rows again, then assert they exist before deletion.
 		await db.deleteFrom("blocks").where("height", "=", H).execute();
-		await ingestNewBlock(payload, { network: NETWORK });
-		expect(
-			await db
-				.selectFrom("vm_events")
-				.selectAll()
-				.where("block_height", "=", H)
-				.execute(),
-		).toHaveLength(2);
-		await db.deleteFrom("events").where("block_height", "=", H).execute();
-		await db.deleteFrom("transactions").where("block_height", "=", H).execute();
-		await db.deleteFrom("blocks").where("height", "=", H).execute();
-		expect(
-			await db
-				.selectFrom("transactions")
-				.selectAll()
-				.where("block_height", "=", H)
-				.execute(),
-		).toHaveLength(0);
-		expect(
-			await db
-				.selectFrom("vm_events")
-				.selectAll()
-				.where("block_height", "=", H)
-				.execute(),
-		).toHaveLength(0);
+		expect(await vmRows()).toHaveLength(0);
 	});
 
 	test("all five types persist; array order is dense; sender null", async () => {

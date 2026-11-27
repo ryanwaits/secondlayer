@@ -175,9 +175,9 @@ describe.skipIf(!HAS_DB)("Index vm_events read", () => {
 			.insertInto("vm_events")
 			.values([
 				{
-					tx_id: txId,
 					block_height: H,
 					ordinal: 0,
+					tx_index: 0,
 					type: "nested_contract_call",
 					data: {
 						contract_identifier: "SP.store",
@@ -189,9 +189,9 @@ describe.skipIf(!HAS_DB)("Index vm_events read", () => {
 					},
 				},
 				{
-					tx_id: txId,
 					block_height: H,
 					ordinal: 1,
+					tx_index: 0,
 					type: "map_set",
 					data: {
 						contract_identifier: "SP.store",
@@ -242,9 +242,9 @@ describe.skipIf(!HAS_DB)("Index vm_events read", () => {
 				.insertInto("vm_events")
 				.values([
 					{
-						tx_id: txId,
 						block_height: H,
 						ordinal: 10,
+						tx_index: 0,
 						type: "var_set",
 						data: {
 							contract_identifier: "SP.store",
@@ -253,9 +253,9 @@ describe.skipIf(!HAS_DB)("Index vm_events read", () => {
 						},
 					},
 					{
-						tx_id: txId,
 						block_height: H,
 						ordinal: 11,
+						tx_index: 0,
 						type: "map_set",
 						data: {
 							contract_identifier: "SP.store",
@@ -265,9 +265,9 @@ describe.skipIf(!HAS_DB)("Index vm_events read", () => {
 						},
 					},
 					{
-						tx_id: txId,
 						block_height: H,
 						ordinal: 12,
+						tx_index: 0,
 						type: "map_delete",
 						data: {
 							contract_identifier: "SP.store",
@@ -331,15 +331,80 @@ describe.skipIf(!HAS_DB)("Index vm_events read", () => {
 		});
 	});
 
+	test("tx_id filter returns exactly that transaction's rows and the response keeps tx_id and tx_index", async () => {
+		await seed();
+		if (!db) throw new Error("missing db");
+		const otherTx = "0xvm-index-other-tx";
+		await db
+			.insertInto("transactions")
+			.values({
+				tx_id: otherTx,
+				block_height: H,
+				tx_index: 1,
+				type: "contract_call",
+				sender: "SP1",
+				status: "success",
+				raw_tx: "0x00",
+			})
+			.execute();
+		await db
+			.insertInto("vm_events")
+			.values({
+				block_height: H,
+				ordinal: 2,
+				tx_index: 1,
+				type: "map_set",
+				data: {
+					contract_identifier: "SP.store",
+					map_name: "other",
+					raw_key: "0x0c",
+					raw_value: "0x0d",
+				},
+			})
+			.execute();
+
+		const mine = await readIndexEvents({
+			eventType: "map_set",
+			fromHeight: H,
+			toHeight: H,
+			limit: 25,
+			filters: { tx_id: otherTx },
+			db,
+		});
+		const all = await readIndexEvents({
+			eventType: "map_set",
+			fromHeight: H,
+			toHeight: H,
+			limit: 25,
+			db,
+		});
+		const none = await readIndexEvents({
+			eventType: "map_set",
+			fromHeight: H,
+			toHeight: H,
+			limit: 25,
+			filters: { tx_id: "0xunknown" },
+			db,
+		});
+
+		expect(mine.events.map((e) => e.event_index)).toEqual([2]);
+		expect(mine.events[0]).toMatchObject({ tx_id: otherTx, tx_index: 1 });
+		expect(all.events.map((e) => [e.tx_id, e.tx_index])).toEqual([
+			[txId, 0],
+			[otherTx, 1],
+		]);
+		expect(none.events).toEqual([]);
+	});
+
 	test("desc pages VM events newest ordinal first and resumes below the cursor", async () => {
 		await seed();
 		if (!db) throw new Error("missing db");
 		await db
 			.insertInto("vm_events")
 			.values({
-				tx_id: txId,
 				block_height: H,
 				ordinal: 2,
+				tx_index: 0,
 				type: "map_set",
 				data: {
 					contract_identifier: "SP.store",
@@ -377,9 +442,9 @@ describe.skipIf(!HAS_DB)("Index vm_events read", () => {
 		await db
 			.insertInto("vm_events")
 			.values({
-				tx_id: txId,
 				block_height: H,
 				ordinal: 2,
+				tx_index: 0,
 				type: "map_set",
 				// Envelope-shaped garbage: no contract_identifier / map_name.
 				data: { txid: txId, committed: true, type: "map_set_event" },

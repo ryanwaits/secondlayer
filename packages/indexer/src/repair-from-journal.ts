@@ -66,6 +66,7 @@ import {
 	parseTransaction,
 	parseVmEvent,
 	stripNullBytes,
+	vmTxIndexById,
 } from "./parser.ts";
 import { persistBlock } from "./persist.ts";
 import { applyCanonicalChange } from "./reorg.ts";
@@ -281,9 +282,10 @@ export async function persistJournalPayload(
 		.map((e) => parseEvent(e, height))
 		.filter((e): e is NonNullable<typeof e> => e !== null)
 		.map((e) => stripNullBytes(e) as typeof e);
+	const txIndexById = vmTxIndexById(payload.transactions);
 	const vmEvts = Array.isArray(payload.vm_events)
 		? payload.vm_events
-				.map((e, i) => parseVmEvent(e, height, i))
+				.map((e, i) => parseVmEvent(e, height, i, txIndexById))
 				.filter((e): e is NonNullable<typeof e> => e !== null)
 				.map((e) => stripNullBytes(e) as typeof e)
 		: [];

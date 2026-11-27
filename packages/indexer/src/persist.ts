@@ -67,9 +67,19 @@ async function archiveOrphanedHeight(
 			id, tx_id, block_height, ordinal, type, data, created_at,
 			orphaned_block_hash
 		)
-		SELECT block_height::text || ':' || ordinal::text, tx_id, block_height,
-			ordinal, type, data, created_at, ${orphanedHash}
-		FROM vm_events WHERE block_height = ${blockHeight}
+		SELECT vm.block_height::text || ':' || vm.ordinal::text,
+			coalesce(t.tx_id, moved.tx_id, ''), vm.block_height, vm.ordinal, vm.type,
+			vm.data, now(), ${orphanedHash}
+		FROM vm_events vm
+		LEFT JOIN transactions t
+			ON t.block_height = vm.block_height AND t.tx_index = vm.tx_index
+		LEFT JOIN LATERAL (
+			SELECT a.tx_id FROM transactions_archive a
+			WHERE a.block_height = vm.block_height AND a.tx_index = vm.tx_index
+				AND a.orphaned_block_hash = ${orphanedHash}
+			LIMIT 1
+		) moved ON true
+		WHERE vm.block_height = ${blockHeight}
 	`.execute(tx);
 
 	await sql`
@@ -187,9 +197,6 @@ export async function persistBlock(
 		// persist now claims the tx (`excluded.block_height`), so a re-mine
 		// moves T to H+1 and replace-H no longer sees it. The tx_id-scoped
 		// events delete stays as halt-prevention for rows that never got claimed.
-		// vm_events are height-only: leftover desync at another height follows
-		// the tx via ON DELETE CASCADE, so a tx_id wipe would also drop live
-		// H+1 VM rows of a re-mined tx still listed at H.
 		//
 		// Two statements, not one OR'd predicate: an OR across block_height and
 		// tx_id defeats both indexes and seq-scans the whole events table

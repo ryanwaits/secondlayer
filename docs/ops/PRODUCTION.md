@@ -132,3 +132,30 @@ never sees that history.
 
 Canonical steps:
 [docs/internal/runbook/genesis-feeder.md](../internal/runbook/genesis-feeder.md).
+
+### Digesting vm rows
+
+`vm_events` keys a row to its transaction by `(block_height, tx_index)`; it
+has no `tx_id` column. Digest prod VM rows with the transaction joined back:
+
+```sql
+SELECT n.block_height, count(*),
+       md5(string_agg(concat_ws(chr(124), n.ordinal, t.tx_id, n.type, n.data::text), chr(10) ORDER BY n.ordinal))
+  FROM vm_events n
+  LEFT JOIN transactions t ON t.block_height = n.block_height AND t.tx_index = n.tx_index
+ WHERE n.block_height = ANY($heights)
+ GROUP BY n.block_height;
+```
+
+A database still on the old shape (a `tx_id` column, for example the R2 repair
+source or an old-DB snapshot) digests `concat_ws(chr(124), ordinal, tx_id, type,
+data::text)` straight from `vm_events`. Both forms give the same md5 per height.
+
+### Rewriting a large live table
+
+A shape change on a big live chain table runs through
+`packages/indexer/src/live-rewrite.ts --table <name>`: `prepare`, `copy`,
+`index`, `verify`, `preflight`, then a deploy whose migration calls
+`swapLiveRewrite`. Ingest never stops until the swap. The old table stays as
+`<name>_old` until dropped by hand. Rollback before the swap is
+`abort --apply`, which drops only tool-created objects.

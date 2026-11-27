@@ -1169,10 +1169,10 @@ describe.skipIf(!HAS_DB)(
 			const db = getDb();
 			// Node-only rows: the archive has no vm_events, so these exist nowhere else.
 			await sql`
-				INSERT INTO vm_events (tx_id, block_height, ordinal, type, data)
+				INSERT INTO vm_events (block_height, ordinal, tx_index, type, data)
 				VALUES
-					('tx-3', 3, 0, 'var_set', '{"k":3}'),
-					('tx-5', 5, 0, 'map_set', '{"k":5}')
+					(3, 0, 0, 'var_set', '{"k":3}'),
+					(5, 0, 0, 'map_set', '{"k":5}')
 			`.execute(db);
 			// A local-only transaction (the archive lacks it) with its own vm row.
 			await sql`
@@ -1180,8 +1180,8 @@ describe.skipIf(!HAS_DB)(
 				VALUES ('tx-local-7', 7, 1, 'coinbase', 'SP000', 'success', '00')
 			`.execute(db);
 			await sql`
-				INSERT INTO vm_events (tx_id, block_height, ordinal, type, data)
-				VALUES ('tx-local-7', 7, 0, 'var_set', '{"k":7}')
+				INSERT INTO vm_events (block_height, ordinal, tx_index, type, data)
+				VALUES (7, 0, 1, 'var_set', '{"k":7}')
 			`.execute(db);
 			// Child counts now diverge from the archive.
 			await sql`DELETE FROM events WHERE block_height = 5`.execute(db);
@@ -1197,22 +1197,22 @@ describe.skipIf(!HAS_DB)(
 
 			const rows = await sql<{
 				block_height: string;
-				tx_id: string;
+				tx_index: number;
 				ordinal: number;
 				data: unknown;
-			}>`SELECT block_height::text, tx_id, ordinal, data FROM vm_events ORDER BY block_height`.execute(
+			}>`SELECT block_height::text, tx_index, ordinal, data FROM vm_events ORDER BY block_height`.execute(
 				db,
 			);
 			expect(rows.rows).toEqual([
 				{
 					block_height: "3",
-					tx_id: "tx-3",
+					tx_index: 0,
 					ordinal: 0,
 					data: { k: 3 },
 				},
 				{
 					block_height: "5",
-					tx_id: "tx-5",
+					tx_index: 0,
 					ordinal: 0,
 					data: { k: 5 },
 				},

@@ -159,11 +159,22 @@ async function readBlockRange(
 		feed
 			? Promise.resolve([])
 			: db
-					.selectFrom("vm_events")
-					.selectAll()
-					.where("block_height", ">=", fromHeight)
-					.where("block_height", "<=", toHeight)
-					.orderBy("ordinal", "asc")
+					.selectFrom("vm_events as vm")
+					.leftJoin("transactions as t", (join) =>
+						join
+							.onRef("t.block_height", "=", "vm.block_height")
+							.onRef("t.tx_index", "=", "vm.tx_index"),
+					)
+					.select([
+						"vm.block_height",
+						"vm.ordinal",
+						"vm.type",
+						"vm.data",
+						"t.tx_id",
+					])
+					.where("vm.block_height", ">=", fromHeight)
+					.where("vm.block_height", "<=", toHeight)
+					.orderBy("vm.ordinal", "asc")
 					.execute(),
 		feed
 			? loadStateWrites(db, fromHeight, toHeight, feed)
@@ -191,14 +202,15 @@ async function readBlockRange(
 	for (const row of vmRows) {
 		const h = Number(row.block_height);
 		const list = vmByHeight.get(h) ?? [];
+		const txId = row.tx_id ?? "";
 		list.push({
-			id: vmEventId(row.tx_id, Number(row.ordinal)),
-			tx_id: row.tx_id,
+			id: vmEventId(txId, Number(row.ordinal)),
+			tx_id: txId,
 			block_height: h,
 			event_index: Number(row.ordinal),
 			type: row.type,
 			data: row.data,
-			created_at: row.created_at,
+			created_at: new Date(0),
 			clock: "vm",
 		} as RuntimeEvent);
 		vmByHeight.set(h, list);

@@ -76,8 +76,8 @@ export async function readCanonicalVmEvents(
 			vm.block_height,
 			b.hash AS block_hash,
 			b.burn_block_height,
-			vm.tx_id,
-			COALESCE(t.tx_index, 0) AS tx_index,
+			COALESCE(t.tx_id, '') AS tx_id,
+			vm.tx_index,
 			vm.ordinal,
 			vm.type AS event_type,
 			vm.data->>'contract_identifier' AS contract_id,
@@ -85,7 +85,8 @@ export async function readCanonicalVmEvents(
 			to_timestamp(b.timestamp) AT TIME ZONE 'UTC' AS ts
 		FROM vm_events vm
 		INNER JOIN blocks b ON b.height = vm.block_height
-		LEFT JOIN transactions t ON t.tx_id = vm.tx_id
+		LEFT JOIN transactions t
+			ON t.block_height = vm.block_height AND t.tx_index = vm.tx_index
 		WHERE ${sql.join(predicates, sql` AND `)}
 		ORDER BY vm.block_height ASC, vm.ordinal ASC
 		LIMIT ${params.limit + 1}

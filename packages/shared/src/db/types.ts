@@ -121,12 +121,11 @@ export interface EventsArchiveTable {
 // in `/new_block.vm_events`). Never mixed into `events.event_index`. Primary
 // key `(block_height, ordinal)` (migration 0153).
 export interface VmEventsTable {
-	tx_id: string;
 	block_height: number;
 	ordinal: number;
+	tx_index: number;
 	type: string;
 	data: unknown;
-	created_at: Generated<Date>;
 }
 
 export interface VmEventsArchiveTable {

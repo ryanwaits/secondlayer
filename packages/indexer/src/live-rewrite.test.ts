@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import {
+	LIVE_REWRITE_SPECS,
 	type LiveRewriteSpec,
 	applyDirtyHeights,
 	isLiveRewriteReady,
@@ -412,3 +413,192 @@ describe.skipIf(!HAS_DB)("live table rewrite", () => {
 		});
 	});
 });
+
+describe.skipIf(!HAS_DB)("vm_events live rewrite", () => {
+	let url = "";
+	let client: ReturnType<typeof postgres>;
+	let db: Kysely<unknown>;
+	const spec = LIVE_REWRITE_SPECS.vm_events as LiveRewriteSpec;
+	const options = { apply: true, sample: 50, print: () => {} };
+
+	beforeAll(async () => {
+		url = await createScratchDatabase();
+		client = postgres(url, { max: 4, onnotice: () => {} });
+		db = new Kysely<unknown>({
+			dialect: new PostgresJSDialect({ postgres: client }),
+		});
+		await sql`CREATE TABLE blocks (height BIGINT PRIMARY KEY)`.execute(db);
+		await sql`
+			CREATE TABLE transactions (
+				tx_id TEXT PRIMARY KEY,
+				block_height BIGINT NOT NULL,
+				tx_index INTEGER NOT NULL
+			)
+		`.execute(db);
+		await sql`
+			CREATE UNIQUE INDEX transactions_height_tx_index_uniq
+			ON transactions (block_height, tx_index)
+		`.execute(db);
+		await sql`
+			CREATE TABLE vm_events (
+				tx_id TEXT NOT NULL,
+				block_height BIGINT NOT NULL,
+				ordinal INTEGER NOT NULL,
+				type TEXT NOT NULL,
+				data JSONB NOT NULL,
+				created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+				CONSTRAINT vm_events_pkey PRIMARY KEY (block_height, ordinal),
+				CONSTRAINT vm_events_type_check CHECK (type IN ('nested_contract_call','var_set','map_set','map_insert','map_delete')),
+				CONSTRAINT vm_events_block_height_fkey FOREIGN KEY (block_height)
+					REFERENCES blocks (height) ON DELETE CASCADE,
+				CONSTRAINT vm_events_tx_id_fkey FOREIGN KEY (tx_id)
+					REFERENCES transactions (tx_id) ON DELETE CASCADE
+			)
+		`.execute(db);
+		await sql`CREATE INDEX vm_events_tx_id_idx ON vm_events (tx_id)`.execute(
+			db,
+		);
+		await sql`
+			CREATE INDEX vm_events_type_height_ordinal_idx
+			ON vm_events (type, block_height, ordinal)
+		`.execute(db);
+		await sql`
+			CREATE INDEX vm_events_contract_type_height_idx
+			ON vm_events ((data->>'contract_identifier'), type, block_height, ordinal)
+		`.execute(db);
+	});
+
+	afterAll(async () => {
+		await db.destroy();
+		await dropScratchDatabase(url);
+	});
+
+	async function seedBlock(height: number, txIds: string[]): Promise<void> {
+		await sql`INSERT INTO blocks VALUES (${height}) ON CONFLICT DO NOTHING`.execute(
+			db,
+		);
+		for (const [index, txId] of txIds.entries()) {
+			await sql`INSERT INTO transactions VALUES (${txId}, ${height}, ${index})`.execute(
+				db,
+			);
+			await sql`
+				INSERT INTO vm_events (tx_id, block_height, ordinal, type, data)
+				VALUES (${txId}, ${height}, ${index}, 'var_set',
+				        ${JSON.stringify({ contract_identifier: "SP.c", var_name: txId })}::jsonb)
+			`.execute(db);
+		}
+	}
+
+	test("copies vm rows keyed by tx_index and swaps to the new shape with identical digests", async () => {
+		await seedBlock(5, ["0xa", "0xb"]);
+		await seedBlock(10_005, ["0xc"]);
+		await seedBlock(20_005, ["0xd", "0xe"]);
+
+		await runLiveRewrite(db, spec, "prepare", options);
+		await runLiveRewrite(db, spec, "copy", options);
+		await seedBlock(20_006, ["0xf"]);
+		await runLiveRewrite(db, spec, "index", options);
+		expect(await runLiveRewrite(db, spec, "verify", options)).toBe(0);
+		expect(await runLiveRewrite(db, spec, "preflight", options)).toBe(0);
+
+		const before = await spec
+			.digestLive([5, 10_005, 20_005, 20_006])
+			.execute(db);
+
+		await swapLiveRewrite(db, spec);
+
+		const columns = await sql<{ column_name: string }>`
+			SELECT column_name FROM information_schema.columns
+			 WHERE table_name = 'vm_events' ORDER BY column_name
+		`.execute(db);
+		expect(columns.rows.map((c) => c.column_name)).toEqual([
+			"block_height",
+			"data",
+			"ordinal",
+			"tx_index",
+			"type",
+		]);
+		const constraints = await sql<{ conname: string }>`
+			SELECT conname FROM pg_constraint
+			 WHERE conrelid = 'vm_events'::regclass ORDER BY conname
+		`.execute(db);
+		expect(constraints.rows.map((c) => c.conname)).toEqual([
+			"vm_events_block_height_fkey",
+			"vm_events_pkey",
+			"vm_events_type_check",
+		]);
+		const after = await sql<{ block_height: number; n: number; md5: string }>`
+			SELECT n.block_height::int AS block_height, count(*)::int AS n,
+			       md5(string_agg(concat_ws(chr(124), n.ordinal, t.tx_id, n.type, n.data::text), chr(10) ORDER BY n.ordinal)) AS md5
+			  FROM vm_events n
+			  LEFT JOIN transactions t ON t.block_height = n.block_height AND t.tx_index = n.tx_index
+			 WHERE n.block_height IN (5, 10005, 20005, 20006)
+			 GROUP BY n.block_height ORDER BY 1
+		`.execute(db);
+		const beforeRows = before.rows as typeof after.rows;
+		expect(after.rows).toEqual(
+			[...beforeRows].sort((a, b) => a.block_height - b.block_height),
+		);
+	});
+});
+
+describe.skipIf(!HAS_DB)(
+	"vm_events live rewrite with a re-mined transaction",
+	() => {
+		let url = "";
+		let client: ReturnType<typeof postgres>;
+		let db: Kysely<unknown>;
+		const spec = LIVE_REWRITE_SPECS.vm_events as LiveRewriteSpec;
+
+		beforeAll(async () => {
+			url = await createScratchDatabase();
+			client = postgres(url, { max: 2, onnotice: () => {} });
+			db = new Kysely<unknown>({
+				dialect: new PostgresJSDialect({ postgres: client }),
+			});
+			await sql`CREATE TABLE blocks (height BIGINT PRIMARY KEY)`.execute(db);
+			await sql`
+			CREATE TABLE transactions (
+				tx_id TEXT PRIMARY KEY, block_height BIGINT NOT NULL, tx_index INTEGER NOT NULL
+			)
+		`.execute(db);
+			await sql`
+			CREATE TABLE vm_events (
+				tx_id TEXT NOT NULL, block_height BIGINT NOT NULL, ordinal INTEGER NOT NULL,
+				type TEXT NOT NULL, data JSONB NOT NULL,
+				created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+				CONSTRAINT vm_events_pkey PRIMARY KEY (block_height, ordinal)
+			)
+		`.execute(db);
+		});
+
+		afterAll(async () => {
+			await db.destroy();
+			await dropScratchDatabase(url);
+		});
+
+		test("the copy stops and names the window when a vm row's transaction sits at another height", async () => {
+			await sql`INSERT INTO blocks VALUES (10), (11)`.execute(db);
+			await sql`INSERT INTO transactions VALUES ('0xmoved', 11, 0)`.execute(db);
+			await sql`
+			INSERT INTO vm_events (tx_id, block_height, ordinal, type, data)
+			VALUES ('0xmoved', 10, 0, 'var_set', '{}')
+		`.execute(db);
+			await runLiveRewrite(db, spec, "prepare", {
+				apply: true,
+				sample: 1,
+				print: () => {},
+			});
+
+			await expect(
+				runLiveRewrite(db, spec, "copy", {
+					apply: true,
+					sample: 1,
+					print: () => {},
+				}),
+			).rejects.toThrow(
+				/vm_events heights \[0, 11\): copy carried 0 rows, source has 1/,
+			);
+		});
+	},
+);

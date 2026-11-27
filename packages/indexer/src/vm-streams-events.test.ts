@@ -49,16 +49,16 @@ describe.skipIf(!HAS_DB)("Streams clock=vm reader", () => {
 			.insertInto("vm_events")
 			.values([
 				{
-					tx_id: TX,
 					block_height: H,
 					ordinal: 0,
+					tx_index: 0,
 					type: "nested_contract_call",
 					data: { contract_identifier: "SP.store", caller: "SP.c" },
 				},
 				{
-					tx_id: TX,
 					block_height: H,
 					ordinal: 1,
+					tx_index: 0,
 					type: "map_set",
 					data: { contract_identifier: "SP.store", map_name: "store" },
 				},

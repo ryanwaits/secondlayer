@@ -106,14 +106,16 @@ export function isVmIndexEventType(value: string): value is VmEventType {
 	return (VM_EVENT_TYPES as readonly string[]).includes(value);
 }
 
-const FILTER_EXPR: Record<VmIndexEqualityFilter, RawBuilder<unknown>> = {
+const FILTER_EXPR: Record<
+	Exclude<VmIndexEqualityFilter, "tx_id">,
+	RawBuilder<unknown>
+> = {
 	contract_id: sql`vm.data->>'contract_identifier'`,
 	function_name: sql`vm.data->>'function_name'`,
 	map: sql`vm.data->>'map_name'`,
 	var_name: sql`vm.data->>'var_name'`,
 	sender: sql`vm.data->>'sender'`,
 	caller: sql`vm.data->>'caller'`,
-	tx_id: sql`vm.tx_id`,
 };
 
 const COLUMN_EXPR: Record<string, RawBuilder<unknown>> = {
@@ -249,7 +251,7 @@ export async function readVmIndexEvents(
 		sql`vm.block_height <= ${params.toHeight}`,
 		...config.requiredNonNull.map(
 			(column) =>
-				sql`${FILTER_EXPR[column as VmIndexEqualityFilter]} IS NOT NULL`,
+				sql`${FILTER_EXPR[column as keyof typeof FILTER_EXPR]} IS NOT NULL`,
 		),
 	];
 
@@ -261,10 +263,15 @@ export async function readVmIndexEvents(
 
 	for (const filter of config.equalityFilters) {
 		const value = filters[filter as keyof typeof filters];
-		if (value) {
-			const expr = FILTER_EXPR[filter as VmIndexEqualityFilter];
-			if (expr) predicates.push(sql`${expr} = ${value}`);
+		if (!value) continue;
+		if (filter === "tx_id") {
+			predicates.push(
+				sql`(vm.block_height, vm.tx_index) = (SELECT block_height, tx_index FROM transactions WHERE tx_id = ${value})`,
+			);
+			continue;
 		}
+		const expr = FILTER_EXPR[filter as keyof typeof FILTER_EXPR];
+		if (expr) predicates.push(sql`${expr} = ${value}`);
 	}
 
 	if (params.contractIds && params.contractIds.length > 0) {
@@ -316,15 +323,15 @@ export async function readVmIndexEvents(
 			vm.block_height,
 			vm.ordinal AS event_index,
 			vm.type AS event_type,
-			vm.tx_id,
-			COALESCE(t.tx_index, 0) AS tx_index,
+			COALESCE(t.tx_id, '') AS tx_id,
+			vm.tx_index,
 			vm.data->>'contract_identifier' AS contract_id
 			${blockTimeSelect}${extraColumns}${txSelect}
 		FROM vm_events vm
 		INNER JOIN blocks b
 			ON b.height = vm.block_height
 		LEFT JOIN transactions t
-			ON t.tx_id = vm.tx_id
+			ON t.block_height = vm.block_height AND t.tx_index = vm.tx_index
 		WHERE ${sql.join(predicates, sql` AND `)}
 		ORDER BY vm.block_height ${sortDirection(params.order)}, vm.ordinal ${sortDirection(params.order)}
 		LIMIT ${params.limit + 1}

@@ -126,12 +126,19 @@ export class LocalClient {
 			.execute();
 
 		const vmRows = await db
-			.selectFrom("vm_events")
-			.select(["tx_id", "ordinal", "type", "data"])
-			.where("block_height", "=", height)
-			.orderBy("ordinal", "asc")
+			.selectFrom("vm_events as vm")
+			.leftJoin("transactions as t", (join) =>
+				join
+					.onRef("t.block_height", "=", "vm.block_height")
+					.onRef("t.tx_index", "=", "vm.tx_index"),
+			)
+			.select(["t.tx_id", "vm.ordinal", "vm.type", "vm.data"])
+			.where("vm.block_height", "=", height)
+			.orderBy("vm.ordinal", "asc")
 			.execute();
-		const vm_events = reconstructVmEventsForReplay(vmRows);
+		const vm_events = reconstructVmEventsForReplay(
+			vmRows.map((row) => ({ ...row, tx_id: row.tx_id ?? "" })),
+		);
 
 		const state_writes: ReplayStateWritePayload[] = await db
 			.selectFrom("state_writes")

@@ -15,6 +15,7 @@ import {
 	parseTransaction,
 	parseVmEvent,
 	stripNullBytes,
+	vmTxIndexById,
 } from "./parser.ts";
 import { persistBlock } from "./persist.ts";
 import {
@@ -312,9 +313,12 @@ async function ingestLocked(
 		.filter((evt): evt is NonNullable<typeof evt> => evt !== null)
 		.map((evt) => stripNullBytes(evt) as typeof evt);
 
+	const txIndexById = vmTxIndexById(payload.transactions);
 	const vmEvts = Array.isArray(payload.vm_events)
 		? payload.vm_events
-				.map((evt, i) => parseVmEvent(evt, payload.block_height, i))
+				.map((evt, i) =>
+					parseVmEvent(evt, payload.block_height, i, txIndexById),
+				)
 				.filter((evt): evt is NonNullable<typeof evt> => evt !== null)
 				.map((evt) => stripNullBytes(evt) as typeof evt)
 		: [];

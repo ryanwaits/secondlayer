@@ -405,6 +405,11 @@ async function applyFixes(
 				await tx.unsafe(`DELETE FROM ${dataset} WHERE block_height = $1`, [
 					height,
 				]);
+				if (dataset === "transactions") {
+					await tx.unsafe("DELETE FROM vm_events WHERE block_height = $1", [
+						height,
+					]);
+				}
 			}
 		}
 		for (const block of targets) {
@@ -652,11 +657,14 @@ async function applyChildRangeFix(
 	const parksVmEvents = rewrite.includes("transactions");
 	await rawClient.begin(async (tx) => {
 		if (parksVmEvents) {
-			// The archive carries no `vm_events`, and `vm_events.tx_id` cascades
-			// on delete, so wiping this range's transactions would erase rows
-			// that can never be refetched. Park them for this transaction.
+			// The archive carries no `vm_events`: park this range's rows and
+			// restore only those whose transaction came back at the same index.
 			await tx.unsafe(
 				"CREATE TEMP TABLE repair_vm_events_keep ON COMMIT DROP AS SELECT * FROM vm_events WHERE block_height BETWEEN $1 AND $2",
+				[mismatch.from_block, mismatch.to_block],
+			);
+			await tx.unsafe(
+				"DELETE FROM vm_events WHERE block_height BETWEEN $1 AND $2",
 				[mismatch.from_block, mismatch.to_block],
 			);
 		}
@@ -687,7 +695,7 @@ async function applyChildRangeFix(
 		const keptCount = Number(kept[0]?.n ?? 0);
 		if (keptCount > 0) {
 			const restored = await tx.unsafe(
-				"INSERT INTO vm_events SELECT k.* FROM repair_vm_events_keep k JOIN transactions t ON t.tx_id = k.tx_id AND t.block_height = k.block_height",
+				"INSERT INTO vm_events SELECT k.* FROM repair_vm_events_keep k JOIN transactions t ON t.block_height = k.block_height AND t.tx_index = k.tx_index",
 			);
 			written.vm_events.restored = restored.count;
 			written.vm_events.dropped = keptCount - restored.count;

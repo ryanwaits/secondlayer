@@ -324,9 +324,9 @@ describe.skipIf(!process.env.DATABASE_URL)(
 			await db
 				.insertInto("vm_events")
 				.values({
-					tx_id: TXS[0]?.tx_id as string,
 					block_height: H,
 					ordinal: 0,
+					tx_index: 0,
 					type: "map_set",
 					data: {
 						contract_identifier: POOL,

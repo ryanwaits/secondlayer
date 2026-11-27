@@ -190,9 +190,9 @@ describe.skipIf(!HAS_DB)(
 			await db
 				.insertInto("vm_events")
 				.values({
-					tx_id: "0xvm-tap-tx",
 					block_height: H,
 					ordinal: 0,
+					tx_index: 0,
 					type: "var_set",
 					data: { contract_identifier: "SP.store", var_name: "n" },
 				})

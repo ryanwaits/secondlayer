@@ -5,6 +5,7 @@ import {
 	parseEvent,
 	parseTransaction,
 	parseVmEvent,
+	vmTxIndexById,
 } from "./parser";
 import type {
 	NewBlockPayload,
@@ -265,6 +266,10 @@ describe("parseTransaction", () => {
 describe("parseVmEvent", () => {
 	const TX =
 		"0x03346e2e50cdd34c253d960bde16d397c27f9c47fa47b435510a50d9f5b14378";
+	const TX_INDEX = 4;
+	const TX_INDEXES = new Map([[TX, TX_INDEX]]);
+	const parseVm = (evt: VmTraceEvent, height: number, index: number) =>
+		parseVmEvent(evt, height, index, TX_INDEXES);
 
 	test("maps node types to Secondlayer stored names", () => {
 		expect(VM_NODE_TO_STORED_TYPE.contract_call_event).toBe(
@@ -290,11 +295,11 @@ describe("parseVmEvent", () => {
 				raw_result: "0x0703",
 			},
 		};
-		const parsed = parseVmEvent(evt, 100, 0);
+		const parsed = parseVm(evt, 100, 0);
 		expect(parsed).toEqual({
-			tx_id: TX,
 			block_height: 100,
 			ordinal: 0,
+			tx_index: TX_INDEX,
 			type: "nested_contract_call",
 			data: evt.contract_call_event,
 		});
@@ -303,7 +308,7 @@ describe("parseVmEvent", () => {
 
 	test("parses map_set / map_insert / map_delete / var_set", () => {
 		expect(
-			parseVmEvent(
+			parseVm(
 				{
 					txid: TX,
 					type: "map_set_event",
@@ -319,7 +324,7 @@ describe("parseVmEvent", () => {
 			)?.type,
 		).toBe("map_set");
 		expect(
-			parseVmEvent(
+			parseVm(
 				{
 					txid: TX,
 					type: "map_insert_event",
@@ -335,7 +340,7 @@ describe("parseVmEvent", () => {
 			)?.type,
 		).toBe("map_insert");
 		expect(
-			parseVmEvent(
+			parseVm(
 				{
 					txid: TX,
 					type: "map_delete_event",
@@ -350,7 +355,7 @@ describe("parseVmEvent", () => {
 			)?.type,
 		).toBe("map_delete");
 		expect(
-			parseVmEvent(
+			parseVm(
 				{
 					txid: TX,
 					type: "var_set_event",
@@ -368,7 +373,7 @@ describe("parseVmEvent", () => {
 
 	test("skips a trace whose typed body is missing instead of storing the envelope", () => {
 		expect(
-			parseVmEvent(
+			parseVm(
 				{
 					txid: TX,
 					committed: true,
@@ -382,7 +387,7 @@ describe("parseVmEvent", () => {
 
 	test("skips truncated marker (cap dropped writes; not a stored type)", () => {
 		expect(
-			parseVmEvent(
+			parseVm(
 				{
 					txid: TX,
 					committed: true,
@@ -397,7 +402,7 @@ describe("parseVmEvent", () => {
 
 	test("skips unknown types; uses array index not a node ordinal", () => {
 		expect(
-			parseVmEvent(
+			parseVm(
 				{
 					txid: TX,
 					type: "not_a_vm_event",
@@ -406,7 +411,7 @@ describe("parseVmEvent", () => {
 				0,
 			),
 		).toBeNull();
-		const parsed = parseVmEvent(
+		const parsed = parseVm(
 			{
 				txid: TX,
 				type: "map_set_event",
@@ -424,7 +429,7 @@ describe("parseVmEvent", () => {
 	});
 
 	test("drops a trace from a rolled-back tx (committed: false)", () => {
-		const parsed = parseVmEvent(
+		const parsed = parseVm(
 			{
 				txid: TX,
 				committed: false,
@@ -440,6 +445,53 @@ describe("parseVmEvent", () => {
 			0,
 		);
 		expect(parsed).toBeNull();
+	});
+
+	test("resolves tx_index from the block's transactions by txid", () => {
+		const indexes = vmTxIndexById([
+			{ txid: "0xa", tx_index: 0 } as TransactionPayload,
+			{ txid: TX, tx_index: 9 } as TransactionPayload,
+		]);
+		const parsed = parseVmEvent(
+			{
+				txid: TX,
+				type: "var_set_event",
+				var_set_event: {
+					contract_identifier: "ST.store",
+					var_name: "count",
+					raw_value: "0x01",
+				},
+			},
+			100,
+			0,
+			indexes,
+		);
+		expect(parsed?.tx_index).toBe(9);
+	});
+
+	test("throws when the trace's tx is not in the block", () => {
+		expect(() =>
+			parseVmEvent(
+				{
+					txid: "0xmissing",
+					type: "var_set_event",
+					var_set_event: {
+						contract_identifier: "ST.store",
+						var_name: "count",
+						raw_value: "0x01",
+					},
+				},
+				100,
+				0,
+				TX_INDEXES,
+			),
+		).toThrow("vm_event for tx 0xmissing not in block 100");
+	});
+
+	test("refuses a block whose transaction has no tx_index", () => {
+		expect(() =>
+			vmTxIndexById([{ txid: "0xa" } as unknown as TransactionPayload]),
+		).toThrow(/no valid tx_index/);
 	});
 });
 

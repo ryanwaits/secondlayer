@@ -220,10 +220,21 @@ export function parseEvent(
 	};
 }
 
+export function vmTxIndexById(
+	transactions: readonly TransactionPayload[],
+): Map<string, number> {
+	const byId = new Map<string, number>();
+	for (const tx of transactions) {
+		if (tx.txid) byId.set(tx.txid, requireTxIndex(tx));
+	}
+	return byId;
+}
+
 export function parseVmEvent(
 	vmEvent: VmTraceEvent,
 	blockHeight: number,
 	arrayIndex: number,
+	txIndexById: ReadonlyMap<string, number>,
 ): InsertVmEvent | null {
 	const { txid, type } = vmEvent;
 	if (!txid || !type) return null;
@@ -264,10 +275,15 @@ export function parseVmEvent(
 		return null;
 	}
 
+	const txIndex = txIndexById.get(txid);
+	if (txIndex === undefined) {
+		throw new Error(`vm_event for tx ${txid} not in block ${blockHeight}`);
+	}
+
 	return {
-		tx_id: txid,
 		block_height: blockHeight,
 		ordinal: arrayIndex,
+		tx_index: txIndex,
 		type: storedType,
 		data: eventData,
 	};

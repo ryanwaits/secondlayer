@@ -21,6 +21,7 @@ import {
 	parseTransaction,
 	parseVmEvent,
 	stripNullBytes,
+	vmTxIndexById,
 } from "./parser.ts";
 import { persistBlock } from "./persist.ts";
 import type { NewBlockPayload } from "./types/node-events.ts";
@@ -458,9 +459,10 @@ export async function reconcileReorgedRange(
 			.map((e) => parseEvent(e, height))
 			.filter((e): e is NonNullable<typeof e> => e !== null)
 			.map((e) => stripNullBytes(e) as typeof e);
+		const txIndexById = vmTxIndexById(nodePayload.transactions);
 		const vmEvts = Array.isArray(nodePayload.vm_events)
 			? nodePayload.vm_events
-					.map((e, i) => parseVmEvent(e, height, i))
+					.map((e, i) => parseVmEvent(e, height, i, txIndexById))
 					.filter((e): e is NonNullable<typeof e> => e !== null)
 					.map((e) => stripNullBytes(e) as typeof e)
 			: [];

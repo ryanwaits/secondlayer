@@ -237,9 +237,9 @@ describe.skipIf(!HAS_DB)("persistBlock replace-per-height", () => {
 		const first = payload("0xblockA", "0xtxT", H);
 		first.vmEvts = [
 			{
-				tx_id: "0xtxT",
 				block_height: H,
 				ordinal: 0,
+				tx_index: 0,
 				type: "map_set",
 				data: { map_name: "orig" },
 			},
@@ -252,9 +252,9 @@ describe.skipIf(!HAS_DB)("persistBlock replace-per-height", () => {
 		remine.txs = [{ ...remineTx, tx_index: 3 }];
 		remine.vmEvts = [
 			{
-				tx_id: "0xtxT",
 				block_height: H + 1,
 				ordinal: 1,
+				tx_index: 3,
 				type: "map_set",
 				data: { map_name: "remine" },
 			},
@@ -316,7 +316,7 @@ describe.skipIf(!HAS_DB)("persistBlock replace-per-height", () => {
 		const vmAtHPlus1 = await db
 			.selectFrom("vm_events")
 			.select(["ordinal", "data"])
-			.where("tx_id", "=", "0xtxT")
+			.where("tx_index", "=", 3)
 			.where("block_height", "=", H + 1)
 			.execute();
 		expect(vmAtHPlus1).toHaveLength(1);
@@ -348,6 +348,34 @@ describe.skipIf(!HAS_DB)("persistBlock replace-per-height", () => {
 			.where("block_height", "=", H)
 			.execute();
 		expect(archivedTxAtH).toHaveLength(1);
+	});
+
+	test("a re-mined tx upsert succeeds while vm rows still sit at its old height", async () => {
+		if (!db) throw new Error("missing db");
+		const first = payload("0xblockA", "0xtxT", H);
+		first.vmEvts = [
+			{
+				block_height: H,
+				ordinal: 0,
+				tx_index: 0,
+				type: "var_set",
+				data: { var_name: "old" },
+			},
+		];
+		await persistBlock(db, first);
+
+		const remine = payload("0xblockC", "0xtxT", H + 1);
+		const remineTx = remine.txs[0];
+		if (!remineTx) throw new Error("payload tx");
+		remine.txs = [{ ...remineTx, tx_index: 5 }];
+		await persistBlock(db, remine);
+
+		const atOldHeight = await db
+			.selectFrom("vm_events")
+			.select(["ordinal", "tx_index"])
+			.where("block_height", "=", H)
+			.execute();
+		expect(atOldHeight).toEqual([{ ordinal: 0, tx_index: 0 }]);
 	});
 
 	test("leftover events at another height for a tx still at H do not halt ingest", async () => {
@@ -411,16 +439,16 @@ describe.skipIf(!HAS_DB)("persistBlock replace-per-height", () => {
 		const input = payload("0xblockA", "0xtxA");
 		input.vmEvts = [
 			{
-				tx_id: "0xtxA",
 				block_height: H,
 				ordinal: 0,
+				tx_index: 0,
 				type: "nested_contract_call",
 				data: { function_name: "set-value" },
 			},
 			{
-				tx_id: "0xtxA",
 				block_height: H,
 				ordinal: 1,
+				tx_index: 0,
 				type: "map_set",
 				data: { map_name: "store" },
 			},
@@ -458,9 +486,9 @@ describe.skipIf(!HAS_DB)("persistBlock replace-per-height", () => {
 		const first = payload("0xblockA", "0xtxA");
 		first.vmEvts = [
 			{
-				tx_id: "0xtxA",
 				block_height: H,
 				ordinal: 0,
+				tx_index: 0,
 				type: "map_set",
 				data: { map_name: "store" },
 			},
@@ -470,7 +498,7 @@ describe.skipIf(!HAS_DB)("persistBlock replace-per-height", () => {
 
 		const live = await db
 			.selectFrom("vm_events")
-			.select(["tx_id"])
+			.select(["ordinal"])
 			.where("block_height", "=", H)
 			.execute();
 		const archived = await db
