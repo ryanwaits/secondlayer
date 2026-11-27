@@ -698,6 +698,69 @@ export const webhooksPaths = {
 			}),
 		},
 	},
+	"/api/webhooks/activity": {
+		get: {
+			tags: ["webhooks"],
+			summary: "Hourly delivery activity across webhooks",
+			"x-nav-title": "Fleet activity",
+			description:
+				"Hourly delivered and failed attempt counts over the last 168 hours (7 days) for every webhook on this instance, aligned to UTC hour boundaries.",
+			security: WRITE_SECURITY,
+			responses: apiReadResponses({
+				"200": json200(
+					{
+						type: "object",
+						required: ["hours", "webhooks"],
+						properties: {
+							hours: {
+								type: "array",
+								items: { type: "string", format: "date-time" },
+								description:
+									"168 UTC hour timestamps, oldest first, matching each index in `delivered` and `failed`.",
+							},
+							webhooks: {
+								type: "array",
+								description:
+									"Per-webhook delivered and failed counts aligned to `hours`.",
+								items: {
+									type: "object",
+									required: ["id", "delivered", "failed"],
+									properties: {
+										id: {
+											type: "string",
+											format: "uuid",
+											description: "Webhook id.",
+										},
+										delivered: {
+											type: "array",
+											items: { type: "integer" },
+											description: "Delivered attempts per hour.",
+										},
+										failed: {
+											type: "array",
+											items: { type: "integer" },
+											description: "Failed attempts per hour.",
+										},
+									},
+								},
+							},
+						},
+						example: {
+							hours: ["2026-09-22T13:00:00.000Z", "2026-09-22T14:00:00.000Z"],
+							webhooks: [
+								{
+									id: EXAMPLE_ID,
+									delivered: [18, 24],
+									failed: [0, 1],
+								},
+							],
+						},
+					},
+					"Hourly activity across all webhooks",
+				),
+			}),
+		},
+	},
 	"/api/webhooks/{id}": {
 		get: {
 			tags: ["webhooks"],
@@ -920,6 +983,60 @@ export const webhooksPaths = {
 					"A malformed window (`INVALID_WINDOW`), cursor (`INVALID_CURSOR`), tx id (`INVALID_TX_ID`) or height range (`INVALID_HEIGHT_RANGE`). A cursor that is not a `next_cursor` is `INVALID_CURSOR`",
 				),
 				"404": NOT_FOUND,
+			}),
+		},
+	},
+	"/api/webhooks/{id}/activity": {
+		get: {
+			tags: ["webhooks"],
+			summary: "Get delivery activity for a webhook",
+			"x-nav-title": "Activity",
+			description:
+				"Hourly outbox and attempt counts over the last 7 days, 30-day daily delivery totals, pending retry count, event-type breakdown, and the 28-day usual delivery band by UTC hour of day.",
+			security: WRITE_SECURITY,
+			parameters: [
+				ID_PARAM,
+				qp(
+					"days",
+					"integer",
+					false,
+					"Optional compatibility parameter; only `30` is accepted when given. Thirty days of daily totals are always returned.",
+				),
+			],
+			responses: apiReadResponses({
+				"200": json200(
+					{ $ref: "#/components/schemas/WebhookActivity" },
+					"Delivery activity for this webhook",
+				),
+				"400": jsonError("`days` was given and is not `30` (`INVALID_DAYS`)"),
+				"404": NOT_FOUND,
+			}),
+		},
+	},
+	"/api/webhooks/{id}/deliveries/{deliveryId}": {
+		get: {
+			tags: ["webhooks"],
+			summary: "Get a delivery attempt",
+			"x-nav-title": "Get delivery",
+			description:
+				"Full record of one HTTP delivery attempt, including the complete response body, response headers, outbox status, and the delivered event payload.",
+			security: WRITE_SECURITY,
+			parameters: [
+				ID_PARAM,
+				pp(
+					"deliveryId",
+					"Delivery attempt id (UUID), from the deliveries list.",
+				),
+			],
+			responses: apiReadResponses({
+				"200": json200(
+					{ $ref: "#/components/schemas/WebhookDeliveryDetail" },
+					"The delivery attempt",
+				),
+				"400": jsonError("`deliveryId` is not a UUID"),
+				"404": jsonError(
+					"No webhook with this id, or no delivery with this id on it",
+				),
 			}),
 		},
 	},
@@ -1578,6 +1695,237 @@ export const webhooksSchemas = {
 			dispatchedAt: "2026-09-22T14:03:11.402Z",
 			txId: "0x6d3f1c0e9a8b47f2c5d1e0b3a9f8c7d6e5b4a3f2e1d0c9b8a7f6e5d4c3b2a190",
 			eventIndex: 2,
+		},
+	},
+	WebhookActivity: {
+		type: "object",
+		description:
+			"Seven days of hourly outbox and attempt counts, 30-day daily totals, pending queue state, and usual hourly band for one webhook.",
+		required: [
+			"hours",
+			"waiting",
+			"nextAttemptAt",
+			"lastSuccessAt",
+			"byEventType",
+			"usualByHourOfDay",
+			"days",
+		],
+		properties: {
+			hours: {
+				type: "array",
+				description: "168 UTC hourly buckets, oldest first.",
+				items: {
+					type: "object",
+					required: ["hour", "delivered", "waiting", "gaveUp", "failed"],
+					properties: {
+						hour: {
+							type: "string",
+							format: "date-time",
+							description: "UTC hour start.",
+						},
+						delivered: {
+							type: "integer",
+							description: "Outbox events created this hour now delivered.",
+						},
+						waiting: {
+							type: "integer",
+							description: "Outbox events created this hour still pending.",
+						},
+						gaveUp: {
+							type: "integer",
+							description: "Outbox events created this hour now dead-lettered.",
+						},
+						failed: {
+							type: "integer",
+							description:
+								"Failed delivery attempts recorded during this hour.",
+						},
+					},
+				},
+			},
+			waiting: {
+				type: "integer",
+				description: "Events currently pending delivery or retry.",
+			},
+			nextAttemptAt: {
+				type: ["string", "null"],
+				format: "date-time",
+				description:
+					"Earliest scheduled retry among pending events, or `null` when none are waiting.",
+			},
+			lastSuccessAt: {
+				type: ["string", "null"],
+				format: "date-time",
+				description: "Last delivery that received a 2xx response.",
+			},
+			byEventType: {
+				type: "object",
+				additionalProperties: { type: "integer" },
+				description: "Outbox event counts by event type over the last 7 days.",
+			},
+			usualByHourOfDay: {
+				type: ["array", "null"],
+				description:
+					"24-element 10th-to-90th percentile band of delivered attempts per UTC hour of day over the last 28 days, or `null` when traffic is too low.",
+				items: {
+					type: "object",
+					required: ["lo", "hi"],
+					properties: {
+						lo: { type: "number", description: "10th percentile." },
+						hi: { type: "number", description: "90th percentile." },
+					},
+				},
+			},
+			days: {
+				type: "array",
+				description: "30 daily attempt totals, oldest first.",
+				items: {
+					type: "object",
+					required: ["day", "delivered", "failed"],
+					properties: {
+						day: {
+							type: "string",
+							description: "UTC date (`YYYY-MM-DD`).",
+						},
+						delivered: {
+							type: "integer",
+							description: "Delivered attempts that day.",
+						},
+						failed: {
+							type: "integer",
+							description: "Failed attempts that day.",
+						},
+					},
+				},
+			},
+		},
+		example: {
+			hours: [
+				{
+					hour: "2026-09-22T14:00:00.000Z",
+					delivered: 24,
+					waiting: 0,
+					gaveUp: 0,
+					failed: 1,
+				},
+			],
+			waiting: 0,
+			nextAttemptAt: null,
+			lastSuccessAt: "2026-09-22T14:03:11.402Z",
+			byEventType: { "chain.ft_transfer.apply": 312 },
+			usualByHourOfDay: null,
+			days: [{ day: "2026-09-22", delivered: 312, failed: 3 }],
+		},
+	},
+	WebhookDeliveryDetail: {
+		type: "object",
+		description:
+			"Full detail of one HTTP delivery attempt, including response headers and event payload.",
+		required: [
+			"id",
+			"attempt",
+			"statusCode",
+			"durationMs",
+			"dispatchedAt",
+			"errorMessage",
+			"responseBody",
+			"responseHeaders",
+			"outboxId",
+			"outboxStatus",
+			"eventType",
+			"txId",
+			"blockHeight",
+			"blockTime",
+			"eventIndex",
+			"payload",
+		],
+		properties: {
+			id: { type: "string", format: "uuid", description: "Attempt id." },
+			attempt: {
+				type: "integer",
+				description: "Which try this was for its event, from 1.",
+			},
+			statusCode: {
+				type: ["integer", "null"],
+				description: "HTTP status. `null` when no response came back.",
+			},
+			durationMs: {
+				type: ["integer", "null"],
+				description: "Round trip in milliseconds.",
+			},
+			dispatchedAt: {
+				type: "string",
+				format: "date-time",
+				description: "When the attempt was sent.",
+			},
+			errorMessage: {
+				type: ["string", "null"],
+				description: "Why the attempt failed. `null` on success.",
+			},
+			responseBody: {
+				type: ["string", "null"],
+				description: "Full response body captured from the target.",
+			},
+			responseHeaders: {
+				type: ["object", "null"],
+				additionalProperties: { type: "string" },
+				description: "Response headers returned by the target.",
+			},
+			outboxId: {
+				type: ["string", "null"],
+				format: "uuid",
+				description: "Associated outbox id, or `null` for test deliveries.",
+			},
+			outboxStatus: {
+				type: ["string", "null"],
+				description:
+					"Current status of the outbox row (`pending`, `delivered`, `dead`), or `null` when pruned or for test deliveries.",
+			},
+			eventType: {
+				type: ["string", "null"],
+				description: "Delivered event type, e.g. `chain.ft_transfer.apply`.",
+			},
+			txId: {
+				type: ["string", "null"],
+				description: "Transaction of the delivered event.",
+			},
+			blockHeight: {
+				type: ["integer", "null"],
+				description: "Block height of the delivered event.",
+			},
+			blockTime: {
+				type: ["string", "null"],
+				format: "date-time",
+				description: "Block timestamp of the delivered event.",
+			},
+			eventIndex: {
+				type: ["integer", "null"],
+				description: "Event index in the transaction.",
+			},
+			payload: {
+				type: ["object", "null"],
+				additionalProperties: true,
+				description:
+					"Delivered event payload, or `null` if the outbox row was pruned.",
+			},
+		},
+		example: {
+			id: "9b2e41c7-5d0a-4f3e-8c61-2a7f90d4e3b5",
+			attempt: 1,
+			statusCode: 200,
+			durationMs: 142,
+			dispatchedAt: "2026-09-22T14:03:11.402Z",
+			errorMessage: null,
+			responseBody: '{"received":true}',
+			responseHeaders: { "content-type": "application/json" },
+			outboxId: EXAMPLE_DEAD.id,
+			outboxStatus: "delivered",
+			eventType: "chain.ft_transfer.apply",
+			txId: EXAMPLE_TX,
+			blockHeight: 8700076,
+			blockTime: "2026-09-22T14:02:58.000Z",
+			eventIndex: 45,
+			payload: EXAMPLE_DEAD.payload,
 		},
 	},
 	WebhookDeadEvent: {

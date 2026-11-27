@@ -96,7 +96,12 @@ export const API_PAGES: ApiPage[] = [
 			{
 				title: "Firehose",
 				summary: "Raw events in chain order, paged by cursor.",
-				paths: ["/v1/streams", "/v1/streams/events"],
+				paths: [
+					"/v1/streams",
+					"/v1/streams/events",
+					"/v1/streams/events/{tx_id}",
+					"/v1/streams/blocks/{heightOrHash}/events",
+				],
 			},
 			{
 				title: "Live tail",
@@ -198,6 +203,9 @@ export const API_PAGES: ApiPage[] = [
 				paths: [
 					"/api/webhooks/{id}/test",
 					"/api/webhooks/{id}/deliveries",
+					"/api/webhooks/{id}/deliveries/*",
+					"/api/webhooks/activity",
+					"/api/webhooks/{id}/activity",
 					"/api/webhooks/signing-key",
 				],
 			},

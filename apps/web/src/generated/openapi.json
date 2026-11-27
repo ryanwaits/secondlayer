@@ -8496,6 +8496,336 @@
 					"eventIndex": 2
 				}
 			},
+			"WebhookActivity": {
+				"title": "Webhook activity",
+				"type": "object",
+				"description": "Seven days of hourly outbox and attempt counts, 30-day daily totals, pending queue state, and usual hourly band for one webhook.",
+				"required": [
+					"hours",
+					"waiting",
+					"nextAttemptAt",
+					"lastSuccessAt",
+					"byEventType",
+					"usualByHourOfDay",
+					"days"
+				],
+				"properties": {
+					"hours": {
+						"type": "array",
+						"description": "168 UTC hourly buckets, oldest first.",
+						"items": {
+							"type": "object",
+							"required": [
+								"hour",
+								"delivered",
+								"waiting",
+								"gaveUp",
+								"failed"
+							],
+							"properties": {
+								"hour": {
+									"type": "string",
+									"format": "date-time",
+									"description": "UTC hour start."
+								},
+								"delivered": {
+									"type": "integer",
+									"description": "Outbox events created this hour now delivered."
+								},
+								"waiting": {
+									"type": "integer",
+									"description": "Outbox events created this hour still pending."
+								},
+								"gaveUp": {
+									"type": "integer",
+									"description": "Outbox events created this hour now dead-lettered."
+								},
+								"failed": {
+									"type": "integer",
+									"description": "Failed delivery attempts recorded during this hour."
+								}
+							}
+						}
+					},
+					"waiting": {
+						"type": "integer",
+						"description": "Events currently pending delivery or retry."
+					},
+					"nextAttemptAt": {
+						"type": [
+							"string",
+							"null"
+						],
+						"format": "date-time",
+						"description": "Earliest scheduled retry among pending events, or `null` when none are waiting."
+					},
+					"lastSuccessAt": {
+						"type": [
+							"string",
+							"null"
+						],
+						"format": "date-time",
+						"description": "Last delivery that received a 2xx response."
+					},
+					"byEventType": {
+						"type": "object",
+						"additionalProperties": {
+							"type": "integer"
+						},
+						"description": "Outbox event counts by event type over the last 7 days."
+					},
+					"usualByHourOfDay": {
+						"type": [
+							"array",
+							"null"
+						],
+						"description": "24-element 10th-to-90th percentile band of delivered attempts per UTC hour of day over the last 28 days, or `null` when traffic is too low.",
+						"items": {
+							"type": "object",
+							"required": [
+								"lo",
+								"hi"
+							],
+							"properties": {
+								"lo": {
+									"type": "number",
+									"description": "10th percentile."
+								},
+								"hi": {
+									"type": "number",
+									"description": "90th percentile."
+								}
+							}
+						}
+					},
+					"days": {
+						"type": "array",
+						"description": "30 daily attempt totals, oldest first.",
+						"items": {
+							"type": "object",
+							"required": [
+								"day",
+								"delivered",
+								"failed"
+							],
+							"properties": {
+								"day": {
+									"type": "string",
+									"description": "UTC date (`YYYY-MM-DD`)."
+								},
+								"delivered": {
+									"type": "integer",
+									"description": "Delivered attempts that day."
+								},
+								"failed": {
+									"type": "integer",
+									"description": "Failed attempts that day."
+								}
+							}
+						}
+					}
+				},
+				"example": {
+					"hours": [
+						{
+							"hour": "2026-09-22T14:00:00.000Z",
+							"delivered": 24,
+							"waiting": 0,
+							"gaveUp": 0,
+							"failed": 1
+						}
+					],
+					"waiting": 0,
+					"nextAttemptAt": null,
+					"lastSuccessAt": "2026-09-22T14:03:11.402Z",
+					"byEventType": {
+						"chain.ft_transfer.apply": 312
+					},
+					"usualByHourOfDay": null,
+					"days": [
+						{
+							"day": "2026-09-22",
+							"delivered": 312,
+							"failed": 3
+						}
+					]
+				}
+			},
+			"WebhookDeliveryDetail": {
+				"title": "Webhook delivery detail",
+				"type": "object",
+				"description": "Full detail of one HTTP delivery attempt, including response headers and event payload.",
+				"required": [
+					"id",
+					"attempt",
+					"statusCode",
+					"durationMs",
+					"dispatchedAt",
+					"errorMessage",
+					"responseBody",
+					"responseHeaders",
+					"outboxId",
+					"outboxStatus",
+					"eventType",
+					"txId",
+					"blockHeight",
+					"blockTime",
+					"eventIndex",
+					"payload"
+				],
+				"properties": {
+					"id": {
+						"type": "string",
+						"format": "uuid",
+						"description": "Attempt id."
+					},
+					"attempt": {
+						"type": "integer",
+						"description": "Which try this was for its event, from 1."
+					},
+					"statusCode": {
+						"type": [
+							"integer",
+							"null"
+						],
+						"description": "HTTP status. `null` when no response came back."
+					},
+					"durationMs": {
+						"type": [
+							"integer",
+							"null"
+						],
+						"description": "Round trip in milliseconds."
+					},
+					"dispatchedAt": {
+						"type": "string",
+						"format": "date-time",
+						"description": "When the attempt was sent."
+					},
+					"errorMessage": {
+						"type": [
+							"string",
+							"null"
+						],
+						"description": "Why the attempt failed. `null` on success."
+					},
+					"responseBody": {
+						"type": [
+							"string",
+							"null"
+						],
+						"description": "Full response body captured from the target."
+					},
+					"responseHeaders": {
+						"type": [
+							"object",
+							"null"
+						],
+						"additionalProperties": {
+							"type": "string"
+						},
+						"description": "Response headers returned by the target."
+					},
+					"outboxId": {
+						"type": [
+							"string",
+							"null"
+						],
+						"format": "uuid",
+						"description": "Associated outbox id, or `null` for test deliveries."
+					},
+					"outboxStatus": {
+						"type": [
+							"string",
+							"null"
+						],
+						"description": "Current status of the outbox row (`pending`, `delivered`, `dead`), or `null` when pruned or for test deliveries."
+					},
+					"eventType": {
+						"type": [
+							"string",
+							"null"
+						],
+						"description": "Delivered event type, e.g. `chain.ft_transfer.apply`."
+					},
+					"txId": {
+						"type": [
+							"string",
+							"null"
+						],
+						"description": "Transaction of the delivered event."
+					},
+					"blockHeight": {
+						"type": [
+							"integer",
+							"null"
+						],
+						"description": "Block height of the delivered event."
+					},
+					"blockTime": {
+						"type": [
+							"string",
+							"null"
+						],
+						"format": "date-time",
+						"description": "Block timestamp of the delivered event."
+					},
+					"eventIndex": {
+						"type": [
+							"integer",
+							"null"
+						],
+						"description": "Event index in the transaction."
+					},
+					"payload": {
+						"type": [
+							"object",
+							"null"
+						],
+						"additionalProperties": true,
+						"description": "Delivered event payload, or `null` if the outbox row was pruned."
+					}
+				},
+				"example": {
+					"id": "9b2e41c7-5d0a-4f3e-8c61-2a7f90d4e3b5",
+					"attempt": 1,
+					"statusCode": 200,
+					"durationMs": 142,
+					"dispatchedAt": "2026-09-22T14:03:11.402Z",
+					"errorMessage": null,
+					"responseBody": "{\"received\":true}",
+					"responseHeaders": {
+						"content-type": "application/json"
+					},
+					"outboxId": "5e8d3b17-a2c4-4f90-b6e1-7d0c29f4a853",
+					"outboxStatus": "delivered",
+					"eventType": "chain.ft_transfer.apply",
+					"txId": "0x839ef4720020f5aba341630e8965851f8537bc8fc99a856091093780c886a8be",
+					"blockHeight": 8700076,
+					"blockTime": "2026-09-22T14:02:58.000Z",
+					"eventIndex": 45,
+					"payload": {
+						"action": "apply",
+						"block_hash": "0xf9ff01e876f9276abc9f0fc79a4fbefc500bf2b93ed1effd0ef637ef84e10604",
+						"block_height": 8700076,
+						"block_time": "2026-05-01T11:59:48.000Z",
+						"tx_id": "0x839ef4720020f5aba341630e8965851f8537bc8fc99a856091093780c886a8be",
+						"canonical": true,
+						"trigger": "ft_transfer",
+						"event": {
+							"tx_id": "0x839ef4720020f5aba341630e8965851f8537bc8fc99a856091093780c886a8be",
+							"type": "ft_transfer_event",
+							"event_index": 45,
+							"data": {
+								"amount": "764749",
+								"sender": "SM1FKXGNZJWSTWDWXQZJNF7B5TV5ZB235JTCXYXKD.dlmm-pool-stx-sbtc-v-1-bps-15",
+								"recipient": "SP1GBRTAXY96ZDYRQY4GR0M9JTXVYD2FGFRGV60FJ",
+								"asset_identifier": "SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4.sbtc-token::sbtc-token"
+							}
+						}
+					}
+				}
+			},
 			"WebhookDeadEvent": {
 				"title": "Dead-lettered webhook event",
 				"type": "object",
@@ -15819,6 +16149,360 @@
 				}
 			}
 		},
+		"/v1/streams/events/{tx_id}": {
+			"get": {
+				"operationId": "getStreamEventsByTx",
+				"tags": [
+					"streams"
+				],
+				"summary": "Events for one transaction",
+				"x-nav-title": "Events by tx",
+				"description": "All canonical chain events emitted by a single transaction, in event order, alongside the current tip and any reorgs touching that block. With `chain=bitcoin`, returns Runes events for the Bitcoin transaction.",
+				"security": [
+					{},
+					{
+						"bearerAuth": []
+					}
+				],
+				"parameters": [
+					{
+						"name": "chain",
+						"in": "query",
+						"required": false,
+						"schema": {
+							"type": "string",
+							"enum": [
+								"stacks",
+								"bitcoin"
+							],
+							"default": "stacks"
+						},
+						"description": "`stacks` (default) is the existing Stacks feed, byte-identical to before. `bitcoin` serves Runes events (rune_etch, rune_mint, rune_transfer, rune_burn — see the RuneStreamsEvent schema) on their own cursor space: a bitcoin cursor is prefixed `btc:` and only resumes with chain=bitcoin. Stacks-only filters (contract_id, sender, recipient, asset_identifier, filters, clock) 400 on chain=bitcoin; rune and address are bitcoin-only."
+					},
+					{
+						"name": "tx_id",
+						"in": "path",
+						"required": true,
+						"schema": {
+							"type": "string",
+							"example": "0xb9edea3443a9adb603d856bfed2d1e630146bed128b07aaaa259dc97e3eae2ba"
+						},
+						"description": "Transaction id (`0x`-prefixed hex on Stacks; raw 64-char hex on Bitcoin)."
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "Events emitted by the transaction, the tip they were read against, and any reorgs touching that block",
+						"headers": {
+							"X-Signature": {
+								"description": "Base64 ed25519 signature over the exact response bytes. Sent only when the instance has a Streams signing key.",
+								"schema": {
+									"type": "string"
+								}
+							},
+							"X-Signature-KeyId": {
+								"description": "Id of the key that signed the body. Verify with the public key from `GET /public/streams/signing-key`.",
+								"schema": {
+									"type": "string"
+								}
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"required": [
+										"events",
+										"tip",
+										"reorgs"
+									],
+									"properties": {
+										"events": {
+											"type": "array",
+											"description": "Events emitted by the transaction, in order.",
+											"items": {
+												"$ref": "#/components/schemas/StreamsEvent"
+											}
+										},
+										"tip": {
+											"$ref": "#/components/schemas/StreamsTip"
+										},
+										"reorgs": {
+											"type": "array",
+											"description": "Reorgs touching this transaction's block height range.",
+											"items": {
+												"$ref": "#/components/schemas/Reorg"
+											}
+										}
+									},
+									"example": {
+										"events": [
+											{
+												"cursor": "9048876:3",
+												"block_height": 9048876,
+												"block_hash": "0xba0676b375e8d5fc1495a02847cc3cc32b5f7c2113a5e73999d94ee8d75ebde4",
+												"burn_block_height": 968284,
+												"tx_id": "0xb9edea3443a9adb603d856bfed2d1e630146bed128b07aaaa259dc97e3eae2ba",
+												"tx_index": 2,
+												"event_index": 3,
+												"event_type": "ft_transfer",
+												"contract_id": "SP3K8BC0PPEVCV7NZ6QSRWPQ2JE9E5B6N3PA0KBR9.age000-governance-token",
+												"payload": {
+													"amount": "416515709472",
+													"sender": "SP3R4NKXMGW6YXA44X2ESZPKJNV25X4ZN7DPW0RXR",
+													"recipient": "SP3K8BC0PPEVCV7NZ6QSRWPQ2JE9E5B6N3PA0KBR9.alex-vault",
+													"asset_identifier": "SP3K8BC0PPEVCV7NZ6QSRWPQ2JE9E5B6N3PA0KBR9.age000-governance-token::alex"
+												},
+												"ts": "2026-09-23T14:56:36.000Z",
+												"canonical": true,
+												"finalized": false
+											}
+										],
+										"tip": {
+											"block_height": 9048928,
+											"block_hash": "0xe79ae38b78b37ad1f5d16c7afd04b4e202efe8d983d981803b785ca64257933f",
+											"burn_block_height": 968284,
+											"finalized_height": 9048671,
+											"lag_seconds": 4,
+											"oldest_seekable_height": null,
+											"oldest_cursor": null
+										},
+										"reorgs": []
+									}
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "Unknown query parameter or invalid `chain` value",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "This bind requires the instance token, and it was missing or wrong",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "No events found for this transaction",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"429": {
+						"description": "Rate limited on the hosted API (50/s per IP without a key, 10/s on a free key). Self-hosted instances do not throttle Streams. Retry after `Retry-After` seconds",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"503": {
+						"description": "No canonical block indexed yet (`CHAIN_DATA_UNAVAILABLE`): wait for the indexer to ingest its first block. With `chain=bitcoin`, the Bitcoin database is configured but unreachable (`BITCOIN_DATA_UNAVAILABLE`): retry shortly",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/v1/streams/blocks/{heightOrHash}/events": {
+			"get": {
+				"operationId": "getStreamEventsByBlock",
+				"tags": [
+					"streams"
+				],
+				"summary": "Events for one block",
+				"x-nav-title": "Events by block",
+				"description": "All canonical chain events emitted in a single block, looked up by height or block hash, alongside the current tip and any reorgs touching that block. With `chain=bitcoin`, returns Runes events for the Bitcoin block.",
+				"security": [
+					{},
+					{
+						"bearerAuth": []
+					}
+				],
+				"parameters": [
+					{
+						"name": "chain",
+						"in": "query",
+						"required": false,
+						"schema": {
+							"type": "string",
+							"enum": [
+								"stacks",
+								"bitcoin"
+							],
+							"default": "stacks"
+						},
+						"description": "`stacks` (default) is the existing Stacks feed, byte-identical to before. `bitcoin` serves Runes events (rune_etch, rune_mint, rune_transfer, rune_burn — see the RuneStreamsEvent schema) on their own cursor space: a bitcoin cursor is prefixed `btc:` and only resumes with chain=bitcoin. Stacks-only filters (contract_id, sender, recipient, asset_identifier, filters, clock) 400 on chain=bitcoin; rune and address are bitcoin-only."
+					},
+					{
+						"name": "heightOrHash",
+						"in": "path",
+						"required": true,
+						"schema": {
+							"type": "string",
+							"example": "9048876"
+						},
+						"description": "Block height (non-negative integer) or block hash (`0x`-prefixed hex on Stacks; 64-char hex on Bitcoin)."
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "Events emitted in the block, the tip they were read against, and any reorgs touching that block",
+						"headers": {
+							"X-Signature": {
+								"description": "Base64 ed25519 signature over the exact response bytes. Sent only when the instance has a Streams signing key.",
+								"schema": {
+									"type": "string"
+								}
+							},
+							"X-Signature-KeyId": {
+								"description": "Id of the key that signed the body. Verify with the public key from `GET /public/streams/signing-key`.",
+								"schema": {
+									"type": "string"
+								}
+							}
+						},
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"required": [
+										"events",
+										"tip",
+										"reorgs"
+									],
+									"properties": {
+										"events": {
+											"type": "array",
+											"description": "Events emitted in the block, in order.",
+											"items": {
+												"$ref": "#/components/schemas/StreamsEvent"
+											}
+										},
+										"tip": {
+											"$ref": "#/components/schemas/StreamsTip"
+										},
+										"reorgs": {
+											"type": "array",
+											"description": "Reorgs touching this block.",
+											"items": {
+												"$ref": "#/components/schemas/Reorg"
+											}
+										}
+									},
+									"example": {
+										"events": [
+											{
+												"cursor": "9048876:3",
+												"block_height": 9048876,
+												"block_hash": "0xba0676b375e8d5fc1495a02847cc3cc32b5f7c2113a5e73999d94ee8d75ebde4",
+												"burn_block_height": 968284,
+												"tx_id": "0xb9edea3443a9adb603d856bfed2d1e630146bed128b07aaaa259dc97e3eae2ba",
+												"tx_index": 2,
+												"event_index": 3,
+												"event_type": "ft_transfer",
+												"contract_id": "SP3K8BC0PPEVCV7NZ6QSRWPQ2JE9E5B6N3PA0KBR9.age000-governance-token",
+												"payload": {
+													"amount": "416515709472",
+													"sender": "SP3R4NKXMGW6YXA44X2ESZPKJNV25X4ZN7DPW0RXR",
+													"recipient": "SP3K8BC0PPEVCV7NZ6QSRWPQ2JE9E5B6N3PA0KBR9.alex-vault",
+													"asset_identifier": "SP3K8BC0PPEVCV7NZ6QSRWPQ2JE9E5B6N3PA0KBR9.age000-governance-token::alex"
+												},
+												"ts": "2026-09-23T14:56:36.000Z",
+												"canonical": true,
+												"finalized": false
+											}
+										],
+										"tip": {
+											"block_height": 9048928,
+											"block_hash": "0xe79ae38b78b37ad1f5d16c7afd04b4e202efe8d983d981803b785ca64257933f",
+											"burn_block_height": 968284,
+											"finalized_height": 9048671,
+											"lag_seconds": 4,
+											"oldest_seekable_height": null,
+											"oldest_cursor": null
+										},
+										"reorgs": []
+									}
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "Invalid block height or unknown query parameter",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "This bind requires the instance token, and it was missing or wrong",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "No events found for this block",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"429": {
+						"description": "Rate limited on the hosted API (50/s per IP without a key, 10/s on a free key). Self-hosted instances do not throttle Streams. Retry after `Retry-After` seconds",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"503": {
+						"description": "No canonical block indexed yet (`CHAIN_DATA_UNAVAILABLE`): wait for the indexer to ingest its first block. With `chain=bitcoin`, the Bitcoin database is configured but unreachable (`BITCOIN_DATA_UNAVAILABLE`): retry shortly",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
 		"/v1/streams/reorgs": {
 			"get": {
 				"operationId": "listReorgs",
@@ -18915,6 +19599,110 @@
 				}
 			}
 		},
+		"/api/webhooks/activity": {
+			"get": {
+				"operationId": "getWebhooksActivity",
+				"tags": [
+					"webhooks"
+				],
+				"summary": "Hourly delivery activity across webhooks",
+				"x-nav-title": "Fleet activity",
+				"description": "Hourly delivered and failed attempt counts over the last 168 hours (7 days) for every webhook on this instance, aligned to UTC hour boundaries.",
+				"security": [
+					{
+						"bearerAuth": []
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "Hourly activity across all webhooks",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"required": [
+										"hours",
+										"webhooks"
+									],
+									"properties": {
+										"hours": {
+											"type": "array",
+											"items": {
+												"type": "string",
+												"format": "date-time"
+											},
+											"description": "168 UTC hour timestamps, oldest first, matching each index in `delivered` and `failed`."
+										},
+										"webhooks": {
+											"type": "array",
+											"description": "Per-webhook delivered and failed counts aligned to `hours`.",
+											"items": {
+												"type": "object",
+												"required": [
+													"id",
+													"delivered",
+													"failed"
+												],
+												"properties": {
+													"id": {
+														"type": "string",
+														"format": "uuid",
+														"description": "Webhook id."
+													},
+													"delivered": {
+														"type": "array",
+														"items": {
+															"type": "integer"
+														},
+														"description": "Delivered attempts per hour."
+													},
+													"failed": {
+														"type": "array",
+														"items": {
+															"type": "integer"
+														},
+														"description": "Failed attempts per hour."
+													}
+												}
+											}
+										}
+									},
+									"example": {
+										"hours": [
+											"2026-09-22T13:00:00.000Z",
+											"2026-09-22T14:00:00.000Z"
+										],
+										"webhooks": [
+											{
+												"id": "3f1c2a9e-8b7d-4c21-9a55-6e0d4b2f7c18",
+												"delivered": [
+													18,
+													24
+												],
+												"failed": [
+													0,
+													1
+												]
+											}
+										]
+									}
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "This bind requires the instance token, and it was missing or wrong",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
 		"/api/webhooks/{id}": {
 			"get": {
 				"operationId": "getWebhook",
@@ -19632,6 +20420,162 @@
 					},
 					"404": {
 						"description": "No webhook with this id",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/api/webhooks/{id}/activity": {
+			"get": {
+				"operationId": "getWebhookActivity",
+				"tags": [
+					"webhooks"
+				],
+				"summary": "Get delivery activity for a webhook",
+				"x-nav-title": "Activity",
+				"description": "Hourly outbox and attempt counts over the last 7 days, 30-day daily delivery totals, pending retry count, event-type breakdown, and the 28-day usual delivery band by UTC hour of day.",
+				"security": [
+					{
+						"bearerAuth": []
+					}
+				],
+				"parameters": [
+					{
+						"name": "id",
+						"in": "path",
+						"required": true,
+						"schema": {
+							"type": "string"
+						},
+						"description": "Webhook id (UUID), as returned by create or list."
+					},
+					{
+						"name": "days",
+						"in": "query",
+						"required": false,
+						"schema": {
+							"type": "integer"
+						},
+						"description": "Optional compatibility parameter; only `30` is accepted when given. Thirty days of daily totals are always returned."
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "Delivery activity for this webhook",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/WebhookActivity"
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "`days` was given and is not `30` (`INVALID_DAYS`)",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "This bind requires the instance token, and it was missing or wrong",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "No webhook with this id",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/api/webhooks/{id}/deliveries/{deliveryId}": {
+			"get": {
+				"operationId": "getWebhookDelivery",
+				"tags": [
+					"webhooks"
+				],
+				"summary": "Get a delivery attempt",
+				"x-nav-title": "Get delivery",
+				"description": "Full record of one HTTP delivery attempt, including the complete response body, response headers, outbox status, and the delivered event payload.",
+				"security": [
+					{
+						"bearerAuth": []
+					}
+				],
+				"parameters": [
+					{
+						"name": "id",
+						"in": "path",
+						"required": true,
+						"schema": {
+							"type": "string"
+						},
+						"description": "Webhook id (UUID), as returned by create or list."
+					},
+					{
+						"name": "deliveryId",
+						"in": "path",
+						"required": true,
+						"schema": {
+							"type": "string"
+						},
+						"description": "Delivery attempt id (UUID), from the deliveries list."
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "The delivery attempt",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/WebhookDeliveryDetail"
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "`deliveryId` is not a UUID",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "This bind requires the instance token, and it was missing or wrong",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/Error"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "No webhook with this id, or no delivery with this id on it",
 						"content": {
 							"application/json": {
 								"schema": {

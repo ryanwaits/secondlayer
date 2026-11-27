@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { createApiApp } from "../create-app.ts";
 import { OPERATION_IDS, SCHEMAS_BY_FILE, openapiSpec } from "./openapi.ts";
 
 type Schema = {
@@ -221,11 +222,71 @@ describe("component schemas", () => {
 	});
 });
 
-// Run one tag with: bun test src/routes/openapi.test.ts -t "/v1/index/"
 describe("every operation meets the reference contract (plan 041)", () => {
 	for (const [key, op] of operations(oss)) {
 		test(key, () => {
 			expect(contractViolations(oss, op)).toEqual([]);
 		});
 	}
+});
+
+describe("every platform-only operation meets the reference contract", () => {
+	const platform = specs[1] as Spec;
+	const ossKeys = new Set(operations(oss).map(([k]) => k));
+	for (const [key, op] of operations(platform)) {
+		if (ossKeys.has(key)) continue;
+		test(key, () => {
+			expect(contractViolations(platform, op)).toEqual([]);
+		});
+	}
+});
+
+describe("route-vs-OpenAPI parity", () => {
+	const PUBLIC_METHODS = new Set(["GET", "POST", "PUT", "PATCH", "DELETE"]);
+
+	const NON_PUBLIC_ROUTES = new Set([
+		"POST /api/subgraphs/{}/halt",
+		"GET /api/subgraphs/{}/openapi.json",
+		"GET /api/subgraphs/{}/schema.json",
+		"GET /api/subgraphs/{}/docs.md",
+		"GET /api/subgraphs/{}/source",
+	]);
+
+	function normalizeRoutePath(path: string): string {
+		return path
+			.replace(/:([A-Za-z0-9_]+)(?:\{[^}]+\})?/g, "{}")
+			.replace(/\{[^}]+\}/g, "{}");
+	}
+
+	test("every mounted OSS /v1/* and /api/* route is documented in OpenAPI or explicitly allowlisted", () => {
+		const app = createApiApp("oss");
+		const documented = new Set(
+			operations(oss).map(([key]) => {
+				const [method, path] = key.split(" ");
+				return `${method} ${normalizeRoutePath(path as string)}`;
+			}),
+		);
+
+		const mounted = new Set<string>();
+		const undocumented: string[] = [];
+
+		for (const route of app.routes) {
+			if (!PUBLIC_METHODS.has(route.method)) continue;
+			if (route.path === "*" || route.path.endsWith("/*")) continue;
+			if (!route.path.startsWith("/v1") && !route.path.startsWith("/api")) {
+				continue;
+			}
+			const key = `${route.method} ${normalizeRoutePath(route.path)}`;
+			mounted.add(key);
+			if (!documented.has(key) && !NON_PUBLIC_ROUTES.has(key)) {
+				undocumented.push(`${route.method} ${route.path}`);
+			}
+		}
+
+		expect(undocumented).toEqual([]);
+		const staleAllowlist = [...NON_PUBLIC_ROUTES].filter(
+			(k) => !mounted.has(k),
+		);
+		expect(staleAllowlist).toEqual([]);
+	});
 });

@@ -311,6 +311,16 @@
 				"title": "Tail the event firehose over SSE"
 			},
 			{
+				"anchor": "get-stream-events-by-tx",
+				"method": "GET",
+				"title": "Events for one transaction"
+			},
+			{
+				"anchor": "get-stream-events-by-block",
+				"method": "GET",
+				"title": "Events for one block"
+			},
+			{
 				"anchor": "list-reorgs",
 				"method": "GET",
 				"title": "Chain reorg history"
@@ -654,6 +664,14 @@
 				"title": "The Webhook delivery object"
 			},
 			{
+				"anchor": "webhook-activity-object",
+				"title": "The Webhook activity object"
+			},
+			{
+				"anchor": "webhook-delivery-detail-object",
+				"title": "The Webhook delivery detail object"
+			},
+			{
 				"anchor": "webhook-dead-event-object",
 				"title": "The Dead-lettered webhook event object"
 			},
@@ -676,6 +694,11 @@
 				"anchor": "create-webhook",
 				"method": "POST",
 				"title": "Create a webhook"
+			},
+			{
+				"anchor": "get-webhooks-activity",
+				"method": "GET",
+				"title": "Hourly delivery activity across webhooks"
 			},
 			{
 				"anchor": "get-webhook",
@@ -716,6 +739,16 @@
 				"anchor": "list-webhook-deliveries",
 				"method": "GET",
 				"title": "List delivery attempts"
+			},
+			{
+				"anchor": "get-webhook-activity",
+				"method": "GET",
+				"title": "Get delivery activity for a webhook"
+			},
+			{
+				"anchor": "get-webhook-delivery",
+				"method": "GET",
+				"title": "Get a delivery attempt"
 			},
 			{
 				"anchor": "list-dead-webhook-events",

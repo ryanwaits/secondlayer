@@ -11980,6 +11980,26 @@
 			}
 		},
 		{
+			"path": "/v1/streams/events/{tx_id}",
+			"method": "GET",
+			"tip": {
+				"kind": "endpoint",
+				"summary": "All canonical chain events emitted by a single transaction, in event order, alongside the current tip and any reorgs touching that block.",
+				"route": "/docs/api/streams",
+				"anchor": "get-stream-events-by-tx"
+			}
+		},
+		{
+			"path": "/v1/streams/blocks/{heightOrHash}/events",
+			"method": "GET",
+			"tip": {
+				"kind": "endpoint",
+				"summary": "All canonical chain events emitted in a single block, looked up by height or block hash, alongside the current tip and any reorgs touching that block.",
+				"route": "/docs/api/streams",
+				"anchor": "get-stream-events-by-block"
+			}
+		},
+		{
 			"path": "/v1/streams/reorgs",
 			"method": "GET",
 			"tip": {
@@ -12360,6 +12380,16 @@
 			}
 		},
 		{
+			"path": "/api/webhooks/activity",
+			"method": "GET",
+			"tip": {
+				"kind": "endpoint",
+				"summary": "Hourly delivered and failed attempt counts over the last 168 hours (7 days) for every webhook on this instance, aligned to UTC hour boundaries.",
+				"route": "/docs/api/webhooks",
+				"anchor": "get-webhooks-activity"
+			}
+		},
+		{
 			"path": "/api/webhooks/{id}",
 			"method": "GET",
 			"tip": {
@@ -12417,6 +12447,16 @@
 				"summary": "Delivery attempts, newest first, including test deliveries, up to 100 a page.",
 				"route": "/docs/api/webhooks",
 				"anchor": "list-webhook-deliveries"
+			}
+		},
+		{
+			"path": "/api/webhooks/{id}/deliveries/{deliveryId}",
+			"method": "GET",
+			"tip": {
+				"kind": "endpoint",
+				"summary": "Full record of one HTTP delivery attempt, including the complete response body, response headers, outbox status, and the delivered event payload.",
+				"route": "/docs/api/webhooks",
+				"anchor": "get-webhook-delivery"
 			}
 		},
 		{

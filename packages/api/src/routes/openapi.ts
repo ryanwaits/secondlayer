@@ -85,6 +85,8 @@ export const OPERATION_IDS: Record<string, string> = {
 	"GET /v1/streams": "discoverStreams",
 	"GET /v1/streams/events": "listStreamEvents",
 	"GET /v1/streams/events/stream": "tailStreamEvents",
+	"GET /v1/streams/events/{tx_id}": "getStreamEventsByTx",
+	"GET /v1/streams/blocks/{heightOrHash}/events": "getStreamEventsByBlock",
 	"GET /v1/streams/reorgs": "listReorgs",
 	"GET /v1/streams/canonical/{height}": "getStreamsCanonicalBlock",
 	"GET /v1/streams/tip": "getTip",
@@ -119,6 +121,7 @@ export const OPERATION_IDS: Record<string, string> = {
 	"GET /api/subgraphs/{name}/violations": "listDeploymentViolations",
 	"GET /api/webhooks": "listWebhooks",
 	"POST /api/webhooks": "createWebhook",
+	"GET /api/webhooks/activity": "getWebhooksActivity",
 	"GET /api/webhooks/{id}": "getWebhook",
 	"PATCH /api/webhooks/{id}": "updateWebhook",
 	"DELETE /api/webhooks/{id}": "deleteWebhook",
@@ -126,7 +129,9 @@ export const OPERATION_IDS: Record<string, string> = {
 	"POST /api/webhooks/{id}/resume": "resumeWebhook",
 	"POST /api/webhooks/{id}/rotate-secret": "rotateWebhookSecret",
 	"POST /api/webhooks/{id}/test": "testWebhook",
+	"GET /api/webhooks/{id}/activity": "getWebhookActivity",
 	"GET /api/webhooks/{id}/deliveries": "listWebhookDeliveries",
+	"GET /api/webhooks/{id}/deliveries/{deliveryId}": "getWebhookDelivery",
 	"GET /api/webhooks/{id}/dead": "listDeadWebhookEvents",
 	"POST /api/webhooks/{id}/dead/{outbox_id}/requeue": "requeueDeadWebhookEvent",
 	"POST /api/webhooks/{id}/replay": "replayWebhook",
@@ -257,7 +262,9 @@ const SCHEMA_TITLES: Record<string, string> = {
 	Webhook: "Webhook",
 	WebhookWithSecret: "Webhook with its signing secret",
 	WebhookTestResult: "Webhook test result",
+	WebhookActivity: "Webhook activity",
 	WebhookDelivery: "Webhook delivery",
+	WebhookDeliveryDetail: "Webhook delivery detail",
 	WebhookDeadEvent: "Dead-lettered webhook event",
 	WebhookReplayResult: "Webhook replay",
 	WebhookReplayProgress: "Webhook replay progress",
@@ -690,7 +697,7 @@ function platformSpec(): typeof OPENAPI_SPEC {
 		info: {
 			...OPENAPI_SPEC.info,
 			description:
-				"The metered public archive. Index, Streams, Bitcoin and Proofs reads require an account API key (`sk-sl_*`) as `Authorization: Bearer`; Proofs are never metered. Discovery GET `/v1/index` and `/v1/streams` stay open. Subgraphs, webhooks and the rest of the workload plane are self-host only and not served here.",
+				"Hosted Secondlayer API. Index, Streams, Bitcoin and Proofs are served here with an account API key (`sk-sl_*`) as `Authorization: Bearer`; Proofs are never metered. Discovery `GET /v1/index` and `/v1/streams` stay open. Hosted Subgraphs and Webhooks are routed by the gateway to each account's private tenant stack.",
 		},
 		tags: [
 			...OPENAPI_SPEC.tags.filter(
@@ -743,7 +750,12 @@ function platformSpec(): typeof OPENAPI_SPEC {
 }
 
 function platformPublicDataPaths(): Record<string, unknown> {
-	const read = (summary: string, description: string, ok200: string) => ({
+	const read = (
+		summary: string,
+		description: string,
+		ok200: string,
+		example: Record<string, unknown>,
+	) => ({
 		get: {
 			tags: ["public"],
 			summary,
@@ -751,7 +763,7 @@ function platformPublicDataPaths(): Record<string, unknown> {
 			description,
 			security: [],
 			responses: {
-				"200": json200({ type: "object" }, ok200),
+				"200": json200({ type: "object", example }, ok200),
 				"503": jsonError("The aggregate could not be read; try again"),
 			},
 		},
@@ -761,16 +773,42 @@ function platformPublicDataPaths(): Record<string, unknown> {
 			"sBTC supply and peg flow",
 			"No key. The sBTC scoreboard (supply, deposits, withdrawals) with the Stacks block it is as of. Read at most once a minute.",
 			"The scoreboard and the tip it is as of.",
+			{
+				as_of_block: 9048928,
+				supply_sats: "500000000000",
+				deposits_24h: 12,
+				withdrawals_24h: 4,
+			},
 		),
 		"/public/data/pox": read(
 			"PoX-5 cycle and signers",
 			"No key. The current and next PoX-5 cycle totals and the current cycle's signers, largest delegation first, with the Stacks block they are as of. Read at most once a minute.",
 			"Current cycle, next cycle, signers and the tip.",
+			{
+				as_of_block: 9048928,
+				current_cycle: {
+					reward_cycle: 108,
+					total_stacked_ustx: "412000000000000",
+				},
+				signers: [],
+			},
 		),
 		"/public/data/runes": read(
 			"Most-minted runes",
 			"No key. The ten most-minted runes (id, name, symbol, mints, supply) with the Bitcoin block they are as of. Read at most once a minute.",
 			"The ten most-minted runes and the Bitcoin tip.",
+			{
+				as_of_block: 968925,
+				runes: [
+					{
+						rune_id: "840000:3",
+						spaced_name: "DOG•GO•TO•THE•MOON",
+						symbol: "🐕",
+						mints: "0",
+						supply: "10000000000000000",
+					},
+				],
+			},
 		),
 	};
 }
@@ -792,6 +830,8 @@ function platformFeedbackPaths(): Record<string, unknown> {
 						name: "Idempotency-Key",
 						in: "header",
 						required: false,
+						description:
+							'Optional deduplication key. A repeat with the same key returns the original report id with `status: "duplicate"`.',
 						schema: { type: "string", maxLength: 128 },
 					},
 				],
@@ -800,18 +840,30 @@ function platformFeedbackPaths(): Record<string, unknown> {
 					required: ["intent"],
 					additionalProperties: false,
 					properties: {
-						intent: { type: "string", maxLength: 2000 },
+						intent: {
+							type: "string",
+							maxLength: 2000,
+							description: "One-line summary of what you were trying to do.",
+						},
 						request_id: {
 							type: "string",
 							pattern: "^[A-Za-z0-9._-]{8,64}$",
+							description:
+								"The `request_id` from a failed API response from the last 24 hours.",
 						},
-						kind_hint: { type: "string", enum: [...FEEDBACK_KINDS] },
+						kind_hint: {
+							type: "string",
+							enum: [...FEEDBACK_KINDS],
+							description: "Optional category for the report.",
+						},
 						expected: {
 							description: "Any JSON value: a sentence or a shape.",
 						},
 						evidence: {
 							type: "object",
 							additionalProperties: false,
+							description:
+								"Optional identifiers pointing to the affected chain or subgraph entity.",
 							properties: {
 								tx_id: { type: "string", maxLength: 128 },
 								block_height: { type: "integer", minimum: 0 },
@@ -822,14 +874,27 @@ function platformFeedbackPaths(): Record<string, unknown> {
 							},
 						},
 					},
+					example: {
+						intent: "Fetch FT transfers for sBTC at height 9048876",
+						request_id: "req_3f9a1c0b7d2e4a6f8b1c2d3e",
+					},
 				}),
 				responses: {
 					"202": json200(
 						{
 							type: "object",
 							properties: {
-								id: { type: "string", format: "uuid" },
-								status: { type: "string", enum: ["accepted", "duplicate"] },
+								id: {
+									type: "string",
+									format: "uuid",
+									description: "Stored report id.",
+								},
+								status: {
+									type: "string",
+									enum: ["accepted", "duplicate"],
+									description:
+										"`accepted` for a new report, or `duplicate` when `Idempotency-Key` matched an earlier submission.",
+								},
 								request_matched: {
 									type: "boolean",
 									description:
@@ -837,6 +902,11 @@ function platformFeedbackPaths(): Record<string, unknown> {
 								},
 							},
 							required: ["id", "status", "request_matched"],
+							example: {
+								id: "4c8e2b1a-7d3f-4e9a-b2c1-5a6f8d9e0c1b",
+								status: "accepted",
+								request_matched: true,
+							},
 						},
 						"Report stored.",
 					),
@@ -953,7 +1023,11 @@ function platformConnectedAppsPaths(): Record<string, unknown> {
 							type: "object",
 							required: ["grants"],
 							properties: {
-								grants: { type: "array", items: CONNECTED_APP },
+								grants: {
+									type: "array",
+									items: CONNECTED_APP,
+									description: "Active OAuth grants for this account.",
+								},
 							},
 							example: { grants: [CONNECTED_APP.example] },
 						},
@@ -1304,7 +1378,16 @@ function platformMeterPaths(): Record<string, unknown> {
 				description:
 					"Manifest partition paths. Dataset is derived from each path; do not send a dataset field.",
 			},
-			flow: { type: "string", enum: ["bootstrap", "repair"] },
+			flow: {
+				type: "string",
+				enum: ["bootstrap", "repair"],
+				description:
+					"Whether the fetch is an initial `bootstrap` or a targeted `repair`.",
+			},
+		},
+		example: {
+			paths: ["v1/mainnet/streams/008650000-008659999.jsonl.zst"],
+			flow: "bootstrap",
 		},
 	});
 	return {
@@ -1318,19 +1401,59 @@ function platformMeterPaths(): Record<string, unknown> {
 				security: WRITE_SECURITY,
 				requestBody: archiveBody,
 				responses: {
-					"200": json200({
-						type: "object",
-						properties: {
-							partitions: { type: "integer" },
-							bundles: { type: "number" },
-							usd_micros: { type: "integer" },
-							usd: { type: "string" },
-							free_allowance_applied_micros: { type: "integer" },
-							allowance_remaining_bundles: { type: "integer" },
-							balance_usd_micros: { type: "integer" },
-							sufficient: { type: "boolean" },
+					"200": json200(
+						{
+							type: "object",
+							properties: {
+								partitions: {
+									type: "integer",
+									description: "Number of requested partitions.",
+								},
+								bundles: {
+									type: "number",
+									description: "Equivalent bundle count priced.",
+								},
+								usd_micros: {
+									type: "integer",
+									description: "Net charge in USD micros after free allowance.",
+								},
+								usd: {
+									type: "string",
+									description: "Formatted USD string for `usd_micros`.",
+								},
+								free_allowance_applied_micros: {
+									type: "integer",
+									description:
+										"Discount in USD micros covered by the monthly free allowance.",
+								},
+								allowance_remaining_bundles: {
+									type: "integer",
+									description:
+										"Free bundles remaining on the account after this fetch.",
+								},
+								balance_usd_micros: {
+									type: "integer",
+									description: "Current prepaid balance in USD micros.",
+								},
+								sufficient: {
+									type: "boolean",
+									description:
+										"Whether current balance plus allowance covers this fetch.",
+								},
+							},
+							example: {
+								partitions: 1,
+								bundles: 1,
+								usd_micros: 0,
+								usd: "0.00",
+								free_allowance_applied_micros: 10000,
+								allowance_remaining_bundles: 9,
+								balance_usd_micros: 10000000,
+								sufficient: true,
+							},
 						},
-					}),
+						"Price quote for the requested partitions",
+					),
 					"400": jsonError(ERROR_400),
 					"401": jsonError(ERROR_401),
 					"503": jsonError("Archive gate is not configured"),
@@ -1347,25 +1470,47 @@ function platformMeterPaths(): Record<string, unknown> {
 				security: WRITE_SECURITY,
 				requestBody: archiveBody,
 				responses: {
-					"200": json200({
-						type: "object",
-						properties: {
-							urls: {
-								type: "array",
-								items: {
-									type: "object",
-									properties: {
-										path: { type: "string" },
-										url: { type: "string" },
-										expires_at: { type: "string", format: "date-time" },
-										charged_usd_micros: { type: "integer" },
+					"200": json200(
+						{
+							type: "object",
+							properties: {
+								urls: {
+									type: "array",
+									description: "Presigned download URLs for each partition.",
+									items: {
+										type: "object",
+										properties: {
+											path: { type: "string" },
+											url: { type: "string" },
+											expires_at: { type: "string", format: "date-time" },
+											charged_usd_micros: { type: "integer" },
+										},
 									},
 								},
+								charged_total_usd_micros: {
+									type: "integer",
+									description: "Total USD micros debited for this batch.",
+								},
+								balance_after_usd_micros: {
+									type: "integer",
+									description: "Remaining prepaid balance in USD micros.",
+								},
 							},
-							charged_total_usd_micros: { type: "integer" },
-							balance_after_usd_micros: { type: "integer" },
+							example: {
+								urls: [
+									{
+										path: "v1/mainnet/streams/008650000-008659999.jsonl.zst",
+										url: "https://archive.secondlayer.tools/presigned",
+										expires_at: "2026-11-02T13:00:00.000Z",
+										charged_usd_micros: 0,
+									},
+								],
+								charged_total_usd_micros: 0,
+								balance_after_usd_micros: 10000000,
+							},
 						},
-					}),
+						"Presigned partition URLs and updated balance",
+					),
 					"400": jsonError(ERROR_400),
 					"401": jsonError(ERROR_401),
 					"402": jsonError("Insufficient archive credits"),
@@ -1379,25 +1524,56 @@ function platformMeterPaths(): Record<string, unknown> {
 				tags: ["credits"],
 				summary: "Prepaid credits balance and refill config",
 				"x-nav-title": "Credits balance",
+				description:
+					"Current prepaid credit balance, month-to-date spend, and auto-refill settings for the authenticated account.",
 				security: WRITE_SECURITY,
 				responses: {
-					"200": json200({
-						type: "object",
-						properties: {
-							stripeCustomerId: { type: ["string", "null"] },
-							creditsUsdMicros: { type: "string" },
-							creditsSpentThisMonthUsdMicros: { type: "string" },
-							refill: {
-								type: "object",
-								properties: {
-									belowUsd: { type: ["number", "null"] },
-									packUsd: { type: ["integer", "null"] },
-									lastAt: { type: ["string", "null"], format: "date-time" },
+					"200": json200(
+						{
+							type: "object",
+							properties: {
+								stripeCustomerId: {
+									type: ["string", "null"],
+									description:
+										"Linked Stripe customer id, or `null` if none yet.",
+								},
+								creditsUsdMicros: {
+									type: "string",
+									description: "Current prepaid balance in USD micros.",
+								},
+								creditsSpentThisMonthUsdMicros: {
+									type: "string",
+									description:
+										"Credits spent in the current calendar month, in USD micros.",
+								},
+								refill: {
+									type: "object",
+									description: "Auto-refill threshold and pack configuration.",
+									properties: {
+										belowUsd: { type: ["number", "null"] },
+										packUsd: { type: ["integer", "null"] },
+										lastAt: { type: ["string", "null"], format: "date-time" },
+									},
+								},
+								webhook: {
+									type: "null",
+									description: "Reserved field; always `null`.",
 								},
 							},
-							webhook: { type: "null" },
+							example: {
+								stripeCustomerId: "cus_example123",
+								creditsUsdMicros: "10000000",
+								creditsSpentThisMonthUsdMicros: "250000",
+								refill: {
+									belowUsd: 5,
+									packUsd: 25,
+									lastAt: null,
+								},
+								webhook: null,
+							},
 						},
-					}),
+						"Current credit balance and auto-refill settings",
+					),
 					"401": jsonError(ERROR_401),
 					"404": jsonError(ERROR_404),
 				},
@@ -1419,18 +1595,40 @@ function platformMeterPaths(): Record<string, unknown> {
 							type: ["number", "null"],
 							description: "Trigger USD; `null` turns auto-refill off.",
 						},
-						packUsd: { type: "integer", enum: [10, 25, 50, 100] },
+						packUsd: {
+							type: "integer",
+							enum: [10, 25, 50, 100],
+							description: "Credit pack size in USD to purchase on refill.",
+						},
 					},
+					example: { belowUsd: 5, packUsd: 25 },
 				}),
 				responses: {
-					"200": json200({
-						type: "object",
-						properties: {
-							belowUsd: { type: ["number", "null"] },
-							packUsd: { type: ["integer", "null"] },
-							lastAt: { type: ["string", "null"], format: "date-time" },
+					"200": json200(
+						{
+							type: "object",
+							properties: {
+								belowUsd: {
+									type: ["number", "null"],
+									description:
+										"Configured trigger threshold in USD, or `null` when disabled.",
+								},
+								packUsd: {
+									type: ["integer", "null"],
+									description:
+										"Configured refill pack size in USD, or `null` when disabled.",
+								},
+								lastAt: {
+									type: ["string", "null"],
+									format: "date-time",
+									description:
+										"Timestamp of the last automatic refill, or `null`.",
+								},
+							},
+							example: { belowUsd: 5, packUsd: 25, lastAt: null },
 						},
-					}),
+						"Updated auto-refill configuration",
+					),
 					"400": jsonError(ERROR_400),
 					"401": jsonError(ERROR_401),
 				},
@@ -1448,15 +1646,34 @@ function platformMeterPaths(): Record<string, unknown> {
 					type: "object",
 					required: ["email", "amount"],
 					properties: {
-						email: { type: "string" },
-						amount: { type: "integer", enum: [10, 25, 50, 100] },
+						email: {
+							type: "string",
+							description: "Account email address to credit after payment.",
+						},
+						amount: {
+							type: "integer",
+							enum: [10, 25, 50, 100],
+							description: "Credit pack size in USD.",
+						},
 					},
+					example: { email: "dev@example.com", amount: 25 },
 				}),
 				responses: {
-					"200": json200({
-						type: "object",
-						properties: { url: { type: "string" } },
-					}),
+					"200": json200(
+						{
+							type: "object",
+							properties: {
+								url: {
+									type: "string",
+									description: "Stripe Checkout session URL.",
+								},
+							},
+							example: {
+								url: "https://checkout.stripe.com/c/pay/cs_test_example",
+							},
+						},
+						"Stripe Checkout URL for the requested credit pack",
+					),
 					"400": jsonError(ERROR_400),
 					"503": jsonError("Billing is not configured"),
 				},

@@ -50,10 +50,10 @@ describe("api reference pages", () => {
 		expect(seen.size).toBe(allEndpoints().length);
 		expect(counts).toEqual({
 			index: 31,
-			streams: 6,
+			streams: 8,
 			proofs: 9,
 			subgraphs: 25,
-			webhooks: 25,
+			webhooks: 28,
 			instance: 8,
 		});
 	});

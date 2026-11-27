@@ -357,6 +357,127 @@ export const streamsPaths = {
 			},
 		},
 	},
+	"/v1/streams/events/{tx_id}": {
+		get: {
+			tags: ["streams"],
+			summary: "Events for one transaction",
+			"x-nav-title": "Events by tx",
+			description:
+				"All canonical chain events emitted by a single transaction, in event order, alongside the current tip and any reorgs touching that block. With `chain=bitcoin`, returns Runes events for the Bitcoin transaction.",
+			security: READ_SECURITY,
+			parameters: [
+				CHAIN_PARAM,
+				{
+					name: "tx_id",
+					in: "path",
+					required: true,
+					schema: {
+						type: "string",
+						example: REAL_EVENT.tx_id,
+					},
+					description:
+						"Transaction id (`0x`-prefixed hex on Stacks; raw 64-char hex on Bitcoin).",
+				},
+			],
+			responses: {
+				"200": signedJson200(
+					"Events emitted by the transaction, the tip they were read against, and any reorgs touching that block",
+					{
+						type: "object",
+						required: ["events", "tip", "reorgs"],
+						properties: {
+							events: {
+								type: "array",
+								description: "Events emitted by the transaction, in order.",
+								items: { $ref: "#/components/schemas/StreamsEvent" },
+							},
+							tip: { $ref: "#/components/schemas/StreamsTip" },
+							reorgs: {
+								type: "array",
+								description:
+									"Reorgs touching this transaction's block height range.",
+								items: { $ref: "#/components/schemas/Reorg" },
+							},
+						},
+						example: {
+							events: [REAL_EVENT],
+							tip: {
+								...REAL_TIP,
+								oldest_seekable_height: null,
+								oldest_cursor: null,
+							},
+							reorgs: [],
+						},
+					},
+				),
+				"400": jsonError("Unknown query parameter or invalid `chain` value"),
+				"401": jsonError(ERROR_401),
+				"404": jsonError("No events found for this transaction"),
+				"429": jsonError(STREAMS_429),
+				"503": jsonError(STREAMS_503),
+			},
+		},
+	},
+	"/v1/streams/blocks/{heightOrHash}/events": {
+		get: {
+			tags: ["streams"],
+			summary: "Events for one block",
+			"x-nav-title": "Events by block",
+			description:
+				"All canonical chain events emitted in a single block, looked up by height or block hash, alongside the current tip and any reorgs touching that block. With `chain=bitcoin`, returns Runes events for the Bitcoin block.",
+			security: READ_SECURITY,
+			parameters: [
+				CHAIN_PARAM,
+				{
+					name: "heightOrHash",
+					in: "path",
+					required: true,
+					schema: {
+						type: "string",
+						example: "9048876",
+					},
+					description:
+						"Block height (non-negative integer) or block hash (`0x`-prefixed hex on Stacks; 64-char hex on Bitcoin).",
+				},
+			],
+			responses: {
+				"200": signedJson200(
+					"Events emitted in the block, the tip they were read against, and any reorgs touching that block",
+					{
+						type: "object",
+						required: ["events", "tip", "reorgs"],
+						properties: {
+							events: {
+								type: "array",
+								description: "Events emitted in the block, in order.",
+								items: { $ref: "#/components/schemas/StreamsEvent" },
+							},
+							tip: { $ref: "#/components/schemas/StreamsTip" },
+							reorgs: {
+								type: "array",
+								description: "Reorgs touching this block.",
+								items: { $ref: "#/components/schemas/Reorg" },
+							},
+						},
+						example: {
+							events: [REAL_EVENT],
+							tip: {
+								...REAL_TIP,
+								oldest_seekable_height: null,
+								oldest_cursor: null,
+							},
+							reorgs: [],
+						},
+					},
+				),
+				"400": jsonError("Invalid block height or unknown query parameter"),
+				"401": jsonError(ERROR_401),
+				"404": jsonError("No events found for this block"),
+				"429": jsonError(STREAMS_429),
+				"503": jsonError(STREAMS_503),
+			},
+		},
+	},
 	"/v1/streams/reorgs": {
 		get: {
 			tags: ["streams"],
