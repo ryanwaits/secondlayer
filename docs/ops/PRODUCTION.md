@@ -4,11 +4,10 @@
 
 | Host | Role | Compose dir | Notes |
 |---|---|---|---|
-| app-server | API, indexer, decoder, worker, Caddy, Postgres | `docker/prod/docker-compose.yml` + `docker-compose.hetzner.yml` | AX52. Chain DB lives here until the v2 cutover. |
+| app-server | API, indexer, decoder, worker, Caddy, Postgres | `docker/prod/docker-compose.yml` + `docker-compose.hetzner.yml` | AX52. Chain DB moved to db-server at the v2 cutover (2026-11-22). Runs the hourly sampled block proof check (`secondlayer-witness-check.timer`). |
 | node-server | stacks-node, bitcoind | `docker/hosts/node-server/` | AX162-S. |
 | workload-host | One hosted stack per account (Caddy + `packages/workload` gateway) | `docker/workload-host/` | Runbook: `docs/internal/runbook/workload-host.md`. |
-| db-server | Stacks Postgres on its own host, reached by app-server over WireGuard | `docker/hosts/db-server/docker-compose.yml` | AX162-1. Provisioned; the chain DB moves here at the v2 cutover (`docs/internal/runbook/v2-cutover.md`). |
-| stacks-feeder | Genesis sync for the v2 chain DB | `docker/hosts/feeder/docker-compose.yml` | Temporary. Stays stopped after the cutover snapshot. Never run on node-server or app-server. |
+| db-server | Stacks Postgres on its own host, reached by app-server over WireGuard | `docker/hosts/db-server/docker-compose.yml` | AX162-1. Chain DB since the v2 cutover (2026-11-22). |
 
 SSH: `ssh app-server` / `ssh node-server` — direct, no jump host. Each
 machine authenticates with its own key; add a new machine by appending its public
@@ -122,9 +121,18 @@ The previous fork image (`sl-4.0.7@sha256:772b5451…`) is a rollback only
 before epoch 4.1 activates (Bitcoin 979,500): 4.0.7 cannot follow the chain
 past it. Miners/signers never get `"storage"` / `"contract_calls"`.
 
-Every fork release (e.g. epoch 4.1) runs on the feeder first: witness checks
-(`marf-witness` built from the same fork branch) plus a stock-vs-fork diff
-of blocks/transactions/events, then node-server.
+Every fork release (e.g. epoch 4.1) runs on a temporary test node first, then
+node-server. The genesis feeder that did this until 2026-11-27 is gone; its
+chainstate (fork `sl-4.1.0`, height 9,593,360) is in R2 at
+`secondlayer-db-backups/chainstate/mainnet-sl-4.1.0-h9593360/` with a
+MANIFEST. Rent a cloud box, restore it, run `docker/hosts/feeder/` on the new
+image, let it catch up, then gate on witness checks (`marf-witness` built from
+the same fork branch) plus a stock-vs-fork diff of blocks/transactions/events
+over at least 500 new blocks. Delete the box after.
+
+In steady state, `secondlayer-witness-check.timer` on app-server proves 6
+random blocks an hour end to end with `secondlayer verify block --rows`
+(`docker/systemd/README.md`).
 
 Do not extract a Hiro chainstate tarball into a collecting node's
 `STACKS_DATA_DIR`: archive chainstate skips Clarity execution, so the hook

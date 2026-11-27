@@ -57,8 +57,7 @@ FIREWALL_NAME="workload-host"
 # app-server's public IP (docs/internal/runbook/genesis-feeder.md's Bitcoin
 # RPC allowlist entry — same host, same IP, already load-bearing elsewhere).
 APP_SERVER_IP="65.21.135.94/32"
-# Operator laptop, same value `stacks-feeder`'s firewall already allowlists
-# for SSH (`hcloud firewall describe stacks-feeder`).
+# Operator laptop, allowlisted for SSH.
 OPERATOR_IP="136.62.99.163/32"
 
 SCRIPT_DIR="$(dirname "$0")"
