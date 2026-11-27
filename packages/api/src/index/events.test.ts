@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, test } from "bun:test";
 import { getDb, sql } from "@secondlayer/shared/db";
+import { printPayloadFromStored } from "@secondlayer/shared/streams-rows";
 import { STREAMS_BLOCKS_PER_DAY } from "../streams/tiers.ts";
 import {
 	type IndexEventsResponse,
@@ -737,6 +738,91 @@ describe.skipIf(!HAS_DB)("Index /events DB reads", () => {
 			contract_id: "SP1.contract",
 			payload,
 		});
+	});
+
+	test("a print row stored as bytes serves the same JSON as the legacy string row", async () => {
+		if (!db) throw new Error("missing db");
+		const rawValue = `0x0c00000001016101${"00".repeat(15)}01`;
+		const legacy = printPayloadFromStored({
+			payload: null,
+			raw_value: Buffer.from(rawValue.slice(2), "hex"),
+		});
+		const base = {
+			tx_index: 0,
+			event_index: 0,
+			event_type: "print",
+			contract_id: "SP1.contract",
+		};
+		await db
+			.insertInto("decoded_events")
+			.values([
+				{
+					...base,
+					cursor: "9000:0",
+					block_height: 9000,
+					tx_id: "tx-legacy",
+					payload: JSON.stringify(legacy),
+				},
+				{
+					...base,
+					cursor: "9001:0",
+					block_height: 9001,
+					tx_id: "tx-bytes",
+					payload: null,
+					raw_value: Buffer.from(rawValue.slice(2), "hex"),
+				},
+			])
+			.execute();
+
+		const result = await readIndexEvents({
+			db,
+			eventType: "print",
+			fromHeight: 0,
+			toHeight: 10_000,
+			limit: 10,
+		});
+		const [old, fresh] = result.events;
+		expect(fresh?.payload).toEqual(old?.payload);
+		expect(JSON.stringify(fresh?.payload)).toBe(JSON.stringify(old?.payload));
+		expect(fresh?.payload).toEqual({
+			topic: "print",
+			value: { a: "1" },
+			raw_value: rawValue,
+		});
+	});
+
+	test("print without payload in fields reads neither payload nor raw_value", async () => {
+		if (!db) throw new Error("missing db");
+		await db
+			.insertInto("decoded_events")
+			.values([
+				{
+					cursor: "9000:0",
+					block_height: 9000,
+					tx_id: "tx-bytes",
+					tx_index: 0,
+					event_index: 0,
+					event_type: "print",
+					contract_id: "SP1.contract",
+					payload: null,
+					raw_value: Buffer.from("0c00000000", "hex"),
+				},
+			])
+			.execute();
+		const result = await readIndexEvents({
+			db,
+			eventType: "print",
+			fromHeight: 0,
+			toHeight: 10_000,
+			limit: 10,
+			fields: ["tx_id"],
+		});
+		expect(Object.keys(result.events[0] ?? {}).sort()).toEqual([
+			"block_height",
+			"cursor",
+			"event_type",
+			"tx_id",
+		]);
 	});
 
 	test("stx_transfer memo is 0x hex or null whatever era stored it", async () => {

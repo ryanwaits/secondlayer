@@ -518,6 +518,13 @@ export interface DecodedEventsTable {
 	/** Decoded payload for event types that don't fit the flat columns
 	 *  (e.g. `print`: { topic, value, raw_value }). Null for transfer types. */
 	payload: unknown | null;
+	/** Canonical Clarity serialization of a `print` value; `payload` is NULL
+	 *  for print rows that carry it. */
+	raw_value: ColumnType<
+		Buffer | null,
+		Buffer | null | undefined,
+		Buffer | null
+	>;
 	created_at: Generated<Date>;
 }
 

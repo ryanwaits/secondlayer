@@ -55,7 +55,12 @@ export {
 export type { DecodedEventColumns } from "./_payload.ts";
 export { decodeFtTransfer, isFtTransfer } from "./ft-transfer.ts";
 export { decodeNftTransfer, isNftTransfer } from "./nft-transfer.ts";
-export { decodePrint, isPrint } from "./print.ts";
+export {
+	decodePrint,
+	isPrint,
+	printPayloadFromStored,
+	printRawValueBytes,
+} from "./print.ts";
 export {
 	decodeStxBurn,
 	decodeStxLock,
@@ -122,6 +127,7 @@ export type {
 	DecodedPrint,
 	DecodedPrintPayload,
 	DecodedPrintValue,
+	StoredPrintColumns,
 } from "./print.ts";
 export type {
 	DecodedStxBurn,

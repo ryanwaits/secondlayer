@@ -6,9 +6,10 @@ import {
 import { rewindDecoderCheckpoint } from "@secondlayer/shared/coverage";
 import { getSourceDb } from "@secondlayer/shared/db";
 import type { Database } from "@secondlayer/shared/db/schema";
-import type {
-	DecodedEventColumns,
-	DecodedEventRow,
+import {
+	type DecodedEventColumns,
+	type DecodedEventRow,
+	printRawValueBytes,
 } from "@secondlayer/shared/streams-rows";
 import type { Kysely } from "kysely";
 
@@ -189,6 +190,20 @@ export async function bumpDecoderCheckpoint(opts: {
  * same reason on `events`/`transactions`. */
 const DECODED_EVENTS_CHUNK_SIZE = 1000;
 
+function storedPayloadColumns(
+	eventType: string,
+	payload: unknown,
+): { payload: unknown; raw_value: Buffer | null } {
+	if (payload == null) return { payload: null, raw_value: null };
+	if (eventType === "print") {
+		const rawValue = printRawValueBytes(
+			(payload as { raw_value?: string | null }).raw_value ?? null,
+		);
+		if (rawValue) return { payload: null, raw_value: rawValue };
+	}
+	return { payload, raw_value: null };
+}
+
 export async function writeDecodedEvents(
 	events: readonly DecodedEventRow[],
 	opts?: { db?: Kysely<Database> },
@@ -228,8 +243,7 @@ export async function writeDecodedEvents(
 						asset_identifier: payload.asset_identifier ?? null,
 						value: payload.value ?? null,
 						memo: payload.memo ?? null,
-						payload:
-							payload.payload != null ? JSON.stringify(payload.payload) : null,
+						...storedPayloadColumns(event.event_type, payload.payload),
 					};
 				}),
 			)
@@ -249,6 +263,7 @@ export async function writeDecodedEvents(
 					value: eb.ref("excluded.value"),
 					memo: eb.ref("excluded.memo"),
 					payload: eb.ref("excluded.payload"),
+					raw_value: eb.ref("excluded.raw_value"),
 				})),
 			)
 			.execute();

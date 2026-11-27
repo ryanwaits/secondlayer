@@ -4,6 +4,7 @@ import {
 	defaultInternalIndexBaseUrl,
 	requireInternalIndexApiKey,
 } from "@secondlayer/shared/index-internal-auth";
+import { printPayloadFromStored } from "@secondlayer/shared/streams-rows";
 import {
 	type InferredTopicSchema,
 	type PrintSample,
@@ -60,6 +61,7 @@ type WindowRow = {
 	cursor: string;
 	block_height: string | number;
 	payload: unknown;
+	raw_value: Uint8Array | null;
 };
 
 export async function readPrintSchemaWindows(params: {
@@ -70,14 +72,14 @@ export async function readPrintSchemaWindows(params: {
 	const where = sql`contract_id = ${params.contractId} AND event_type = 'print' AND canonical = true`;
 
 	const newest = await sql<WindowRow>`
-		SELECT cursor, block_height, payload
+		SELECT cursor, block_height, payload, raw_value
 		FROM decoded_events
 		WHERE ${where}
 		ORDER BY block_height DESC, event_index DESC
 		LIMIT ${NEWEST_WINDOW}
 	`.execute(db);
 	const oldest = await sql<WindowRow>`
-		SELECT cursor, block_height, payload
+		SELECT cursor, block_height, payload, raw_value
 		FROM decoded_events
 		WHERE ${where}
 		ORDER BY block_height ASC, event_index ASC
@@ -96,7 +98,7 @@ export async function readPrintSchemaWindows(params: {
 		rows.push({
 			cursor: row.cursor,
 			block_height: Number(row.block_height),
-			payload: row.payload,
+			payload: printPayloadFromStored(row),
 		});
 	}
 
@@ -113,8 +115,6 @@ export async function readPrintSchemaWindows(params: {
  *  topic is the node literal, useless; the real topic is value.topic. */
 type StoredPrintPayload = Record<string, unknown>;
 
-/** The payload jsonb is double-encoded (written via JSON.stringify), so the
- *  driver usually hands back a string — but parse defensively either way. */
 function parseStoredPayload(raw: unknown): StoredPrintPayload | null {
 	let value = raw;
 	if (typeof value === "string") {

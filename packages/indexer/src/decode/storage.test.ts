@@ -253,6 +253,106 @@ describe.skipIf(!HAS_DB)("L2 decoded event storage", () => {
 		});
 	});
 
+	test("writeDecodedEvents stores a print value once as bytes with a null payload", async () => {
+		if (!db) throw new Error("missing db");
+		const rawValue = `0x0c00000001016101${"00".repeat(15)}01`;
+
+		await writeDecodedEvents(
+			[
+				{
+					cursor: "13:0",
+					block_height: 13,
+					tx_id: "tx-print",
+					tx_index: 0,
+					event_index: 0,
+					event_type: "print",
+					decoded_payload: {
+						contract_id: "SP1.contract",
+						payload: {
+							topic: "print",
+							value: { a: "1" },
+							raw_value: rawValue,
+						},
+					},
+				},
+			],
+			{ db },
+		);
+
+		const inserted = await db
+			.selectFrom("decoded_events")
+			.select(["payload", "raw_value"])
+			.where("cursor", "=", "13:0")
+			.executeTakeFirstOrThrow();
+		expect(inserted.payload).toBeNull();
+		expect(Buffer.from(inserted.raw_value ?? []).toString("hex")).toBe(
+			rawValue.slice(2),
+		);
+	});
+
+	test("writeDecodedEvents keeps a print payload when its raw value is not canonical hex", async () => {
+		if (!db) throw new Error("missing db");
+
+		await writeDecodedEvents(
+			[
+				{
+					cursor: "14:0",
+					block_height: 14,
+					tx_id: "tx-print-odd",
+					tx_index: 0,
+					event_index: 0,
+					event_type: "print",
+					decoded_payload: {
+						contract_id: "SP1.contract",
+						payload: { topic: "print", value: "x", raw_value: null },
+					},
+				},
+			],
+			{ db },
+		);
+
+		const inserted = await db
+			.selectFrom("decoded_events")
+			.select(["payload", "raw_value"])
+			.where("cursor", "=", "14:0")
+			.executeTakeFirstOrThrow();
+		expect(inserted.raw_value).toBeNull();
+		expect(inserted.payload).toEqual({
+			topic: "print",
+			value: "x",
+			raw_value: null,
+		});
+	});
+
+	test("writeDecodedEvents stores stx_lock payload as a jsonb object", async () => {
+		if (!db) throw new Error("missing db");
+
+		await writeDecodedEvents(
+			[
+				{
+					cursor: "15:0",
+					block_height: 15,
+					tx_id: "tx-lock",
+					tx_index: 0,
+					event_index: 0,
+					event_type: "stx_lock",
+					decoded_payload: {
+						sender: "SP1",
+						amount: "100",
+						payload: { unlock_height: "500" },
+					},
+				},
+			],
+			{ db },
+		);
+
+		const { rows } = await sql<{ kind: string; unlock: string }>`
+			SELECT jsonb_typeof(payload) AS kind, payload->>'unlock_height' AS unlock
+			FROM decoded_events WHERE cursor = '15:0'
+		`.execute(db);
+		expect(rows).toEqual([{ kind: "object", unlock: "500" }]);
+	});
+
 	test("assertCheckpointUnmoved throws when last_cursor moved", async () => {
 		if (!db) throw new Error("missing db");
 		await writeDecoderCheckpoint({

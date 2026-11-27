@@ -51,3 +51,34 @@ export function decodePrint(event: StreamsEvent): DecodedPrint {
 		payload: { topic, value, raw_value: rawValue },
 	});
 }
+
+const CANONICAL_HEX = /^0x(?:[0-9a-f]{2})+$/;
+
+export type StoredPrintColumns = {
+	payload: unknown;
+	raw_value: Uint8Array | null;
+};
+
+export function printRawValueBytes(rawValue: string | null): Buffer | null {
+	if (!rawValue || !CANONICAL_HEX.test(rawValue)) return null;
+	return Buffer.from(rawValue.slice(2), "hex");
+}
+
+export function printPayloadFromStored(
+	stored: StoredPrintColumns,
+): DecodedPrintValue | null {
+	if (stored.raw_value) {
+		const hex = `0x${Buffer.from(stored.raw_value).toString("hex")}`;
+		return { topic: "print", value: decodeClarityValue(hex), raw_value: hex };
+	}
+	const legacy = stored.payload;
+	if (typeof legacy === "string") {
+		try {
+			return JSON.parse(legacy) as DecodedPrintValue;
+		} catch {
+			return null;
+		}
+	}
+	if (legacy && typeof legacy === "object") return legacy as DecodedPrintValue;
+	return null;
+}

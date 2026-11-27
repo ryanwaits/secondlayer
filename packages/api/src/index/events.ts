@@ -3,7 +3,10 @@ import { getSourceDb, sql } from "@secondlayer/shared/db";
 import { resolveTraitContractIds } from "@secondlayer/shared/db/queries/contracts";
 import type { Database } from "@secondlayer/shared/db/schema";
 import { ValidationError } from "@secondlayer/shared/errors";
-import { normalizeMemoHex } from "@secondlayer/shared/streams-rows";
+import {
+	normalizeMemoHex,
+	printPayloadFromStored,
+} from "@secondlayer/shared/streams-rows";
 import type { Kysely, RawBuilder } from "kysely";
 import { validateQueryParams } from "../middleware/validation.ts";
 import type { StreamsReorg, StreamsReorgsReader } from "../streams/reorgs.ts";
@@ -268,6 +271,7 @@ type IndexEventRow = {
 	value?: string | null;
 	memo?: string | null;
 	payload?: unknown;
+	raw_value?: Uint8Array | null;
 	tx_sender?: string | null;
 	tx_type?: string | null;
 	tx_status?: string | null;
@@ -367,16 +371,19 @@ function normalizeIndexRow(
 		contract_id: row.contract_id,
 	};
 	for (const column of config.columns) {
+		if (fields && !fields.has(column)) continue;
 		const raw = (row as Record<string, unknown>)[column];
-		// jsonb columns (print's payload) arrive as objects from postgres.js, but
-		// parse defensively in case a driver hands back the raw string. Stored
-		// memos vary by ingestion era (`0x…`, bare hex, `""`); serve one spelling.
 		(event as Record<string, unknown>)[column] =
-			column === "payload" && typeof raw === "string"
-				? parseJsonColumn(raw)
-				: column === "memo"
-					? normalizeMemoHex(raw)
-					: raw;
+			column === "payload" && row.event_type === "print"
+				? printPayloadFromStored({
+						payload: raw,
+						raw_value: row.raw_value ?? null,
+					})
+				: column === "payload" && typeof raw === "string"
+					? parseJsonColumn(raw)
+					: column === "memo"
+						? normalizeMemoHex(raw)
+						: raw;
 	}
 	if (fields) {
 		for (const key of Object.keys(event)) {
@@ -493,10 +500,14 @@ export async function readIndexEvents(
 	const selectedColumns = wanted
 		? config.columns.filter((column) => wanted.has(column))
 		: [...config.columns];
+	const storedColumns =
+		params.eventType === "print" && selectedColumns.includes("payload")
+			? [...selectedColumns, "raw_value"]
+			: selectedColumns;
 	const extraColumns =
-		selectedColumns.length > 0
+		storedColumns.length > 0
 			? sql`, ${sql.join(
-					selectedColumns.map((column) => sql.ref(column)),
+					storedColumns.map((column) => sql.ref(column)),
 					sql`, `,
 				)}`
 			: sql``;
