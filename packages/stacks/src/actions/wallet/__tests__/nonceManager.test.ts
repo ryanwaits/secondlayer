@@ -14,6 +14,7 @@ import {
 	broadcastWithNonceReset,
 	createNonceManager,
 	isNonceConflictError,
+	memoryStore,
 	resolveNonce,
 	startNonceReconciler,
 } from "../nonceManager.ts";
@@ -118,6 +119,34 @@ describe("createNonceManager", () => {
 		expect(await manager.consume({ client: fakeClient, address: addr })).toBe(
 			10n,
 		);
+	});
+});
+
+describe("memoryStore", () => {
+	it("serializes reset behind an in-flight cold reserve", async () => {
+		const store = memoryStore();
+		const key = "stacks:SP_RACE";
+
+		let resolveFloor!: (value: bigint) => void;
+		const firstFloor = new Promise<bigint>((resolve) => {
+			resolveFloor = resolve;
+		});
+
+		const firstReserve = store.reserve(key, () => firstFloor);
+		const resetPromise = store.reset(key);
+
+		resolveFloor(10n);
+		expect(await firstReserve).toBe(10n);
+		await resetPromise;
+
+		let fetches = 0;
+		const nextNonce = await store.reserve(key, async () => {
+			fetches++;
+			return 42n;
+		});
+
+		expect(fetches).toBe(1);
+		expect(nextNonce).toBe(42n);
 	});
 });
 

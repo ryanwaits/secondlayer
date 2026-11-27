@@ -1,4 +1,5 @@
 import { SerializationError } from "../errors/transaction.ts";
+import { isClarityName } from "../utils/address.ts";
 import { BytesReader } from "../utils/bytes-reader.ts";
 import { c32address } from "../utils/c32.ts";
 import {
@@ -35,7 +36,7 @@ export function readAddress(reader: BytesReader): string {
 export function readLPString(reader: BytesReader, prefixBytes = 1): string {
 	let length = 0;
 	for (let i = 0; i < prefixBytes; i++) {
-		length = (length << 8) | reader.readUInt8();
+		length = ((length << 8) | reader.readUInt8()) >>> 0;
 	}
 	return bytesToUtf8(reader.readBytes(length));
 }
@@ -130,7 +131,15 @@ export function readCV(reader: BytesReader, depth = 0): ClarityValue {
 			const data: Record<string, ClarityValue> = {};
 			for (let i = 0; i < len; i++) {
 				const key = readLPString(reader);
-				data[key] = readCV(reader, depth + 1);
+				if (!isClarityName(key)) {
+					throw new Error(`"${key}" is not a valid Clarity name`);
+				}
+				Object.defineProperty(data, key, {
+					value: readCV(reader, depth + 1),
+					enumerable: true,
+					writable: true,
+					configurable: true,
+				});
 			}
 			return tupleCV(data);
 		}

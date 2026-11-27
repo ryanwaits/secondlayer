@@ -115,7 +115,9 @@ export function memoryStore(): NonceStore {
 			});
 		},
 		reset(key) {
-			next.delete(key);
+			return withLock(key, async () => {
+				next.delete(key);
+			});
 		},
 		release(key, nonce) {
 			return withLock(key, async () => {

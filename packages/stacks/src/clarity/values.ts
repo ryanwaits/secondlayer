@@ -107,7 +107,7 @@ export function listCV(values: ClarityValue[]): ListCV {
 }
 
 export function tupleCV(data: TupleData): TupleCV {
-	for (const key in data) {
+	for (const key of Object.keys(data)) {
 		if (!isClarityName(key)) {
 			throw new Error(`"${key}" is not a valid Clarity name`);
 		}

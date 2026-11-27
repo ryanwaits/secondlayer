@@ -15,7 +15,11 @@ export class BytesReader {
 	}
 
 	private ensure(length: number): void {
-		if (this.offset + length > this.data.length) {
+		if (
+			length < 0 ||
+			!Number.isInteger(length) ||
+			this.offset + length > this.data.length
+		) {
 			throw new SerializationError(
 				`Buffer underflow: need ${length} bytes at offset ${this.offset}, have ${this.data.length}`,
 			);

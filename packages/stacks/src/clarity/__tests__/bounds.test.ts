@@ -1,5 +1,7 @@
 import { describe, expect, test } from "bun:test";
-import { deserializeCV } from "../deserialize.ts";
+import { SerializationError } from "../../errors/transaction.ts";
+import { BytesReader } from "../../utils/bytes-reader.ts";
+import { deserializeCV, readLPString } from "../deserialize.ts";
 import { serializeCV, serializeCVBytes } from "../serialize.ts";
 import type { ClarityValue } from "../types.ts";
 import { Cl, stringAsciiCV } from "../values.ts";
@@ -60,5 +62,33 @@ describe("string-ascii", () => {
 	test("serializing a hand-built non-ASCII string throws instead of masking bytes", () => {
 		const value = { type: "ascii", value: "Ł" } as ClarityValue;
 		expect(() => serializeCVBytes(value)).toThrow();
+	});
+});
+
+describe("BytesReader and wire parser bounds", () => {
+	test("readLPString rejects high-bit 4-byte length without rewinding", () => {
+		const reader = new BytesReader(new Uint8Array([0x80, 0x00, 0x00, 0x00]));
+		expect(() => readLPString(reader, 4)).toThrow(SerializationError);
+	});
+
+	test("BytesReader.readBytes rejects negative lengths", () => {
+		const reader = new BytesReader(new Uint8Array(8));
+		expect(() => reader.readBytes(-1)).toThrow(SerializationError);
+	});
+
+	test("deserializeCV rejects tuple key __proto__ instead of mutating prototype", () => {
+		const protoKey = new TextEncoder().encode("__proto__");
+		const raw = new Uint8Array([
+			0x0c,
+			0x00,
+			0x00,
+			0x00,
+			0x01,
+			protoKey.length,
+			...protoKey,
+			0x01,
+			...new Uint8Array(16),
+		]);
+		expect(() => deserializeCV(raw)).toThrow(/not a valid Clarity name/);
 	});
 });
