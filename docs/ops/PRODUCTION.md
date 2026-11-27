@@ -26,7 +26,7 @@ Compose project lives at `/opt/secondlayer/docker/prod` on app-server.
 
 | Container | Role |
 |---|---|
-| `secondlayer-postgres-1` | **Chain DB** — blocks, transactions, raw events, `decoded_events`. Bind mount `/opt/secondlayer/data/postgres` (~200GB, genesis→tip). |
+| (none) | **Chain DB** is Postgres on db-server, reached via `SOURCE_DATABASE_URL` and backed up by WAL-G on db-server. Query from the app-server host: `cd /opt/secondlayer/docker; set -a; . ./.env; set +a; psql "$SOURCE_DATABASE_URL"` (never print the env file). |
 | `secondlayer-postgres-platform-1` | **Control-plane DB** (`secondlayer_platform`) — accounts, api_keys, subgraph registry + tenant schemas, sessions. Bind mount `/opt/secondlayer/data/postgres-platform`. |
 | `secondlayer-api-<N>` ×2 | The two API replicas behind Caddy (`api.secondlayer.tools`). `<N>` is Compose's instance counter and **increments every rolling deploy** (e.g. 94/95 → 98/99). Always exactly two; the suffix means nothing. |
 | `secondlayer-caddy-1` | Load balancer + TLS in front of the api replicas. |
@@ -34,7 +34,6 @@ Compose project lives at `/opt/secondlayer/docker/prod` on app-server.
 | `secondlayer-decoder-1` | Decodes raw events → `decoded_events` (the Index plane). Backfills via `packages/indexer/src/decode/BACKFILL.md`. |
 | `secondlayer-worker-1` | Crons: credits refill, spend-cap alerts. |
 | `secondlayer-redis-1` | Rate limits. |
-| `secondlayer-walg-backup-1` | WAL-G postgres backups (chain DB WAL archiving → `/opt/secondlayer/data/wal_archive`). |
 | `secondlayer-walg-backup-platform-1` | Same for the control-plane DB (`/opt/secondlayer/data/wal_archive_platform` → `s3://secondlayer-db-backups/pg-platform`). |
 | `secondlayer-agent` | Log watcher → Slack alerts (the thing that pages you). No DB of its own. |
 | `secondlayer-migrate-1` | One-shot migration runner, re-run by every deploy. **`Exited (0)` is its healthy state.** |
@@ -54,16 +53,15 @@ Compose project lives at `/opt/secondlayer/docker/prod` on app-server.
    `wal_level=replica`, WAL-archive mount); the base file alone declares named
    volumes — running without the overlay once attached an empty volume and
    prod silently served a 1,032-block husk (2026-05-02 and 2026-06-11).
-3. **Husk canaries**: both postgres healthchecks fail against a
-   freshly-initialized data dir (`CHAIN_MIN_BLOCK` / `PLATFORM_MIN_ACCOUNTS`
-   floors in the server `.env`), so dependents refuse to start on an empty DB.
-   `scripts/preflight-data.sh` (wired into deploy.sh) additionally refuses to
-   deploy against a husk.
-4. **Never recreate both postgres containers in one command.** Docker can
-   reassign their network IPs swapped; service pools with cached DNS then
-   query the wrong database ("database secondlayer_platform does not exist"
-   FATALs on the chain DB and vice versa). Stagger recreates, then
-   `docker restart` all dependents — including `walg-backup`.
+3. **Husk canaries**: the platform postgres healthcheck fails against a
+   freshly-initialized data dir (`PLATFORM_MIN_ACCOUNTS` floor in the server
+   `.env`), so dependents refuse to start on an empty DB.
+   `scripts/preflight-data.sh` (wired into deploy.sh) checks db-server's
+   `blocks` count and the platform accounts count, and refuses to deploy
+   against a husk.
+4. **Recreate `postgres-platform` deliberately.** Service pools with cached DNS
+   can hold stale connections; `docker restart` all dependents afterwards,
+   including `walg-backup-platform`.
 5. **Verify data coverage with `count(*)` + `EXISTS` probes at sample
    heights, never `min`/`max` alone** — a sparse husk produces plausible
    min/max ranges.
@@ -79,15 +77,15 @@ Compose project lives at `/opt/secondlayer/docker/prod` on app-server.
 docker ps -a --format '{{.Names}} {{.Status}}'
 
 # Chain DB is the real cluster, not a husk
-docker exec secondlayer-postgres-1 psql -U secondlayer -d secondlayer \
+psql "$SOURCE_DATABASE_URL" \
   -tAc 'SELECT count(*), max(height) FROM blocks'
 
 # Decoder lags (tens of seconds = at tip)
 docker exec secondlayer-decoder-1 curl -s localhost:3710/health | \
   python3 -c "import sys,json; [print(x['decoder'], x['lag_seconds']) for x in json.load(sys.stdin)['decoders']]"
 
-# Connection headroom (limit is 200)
-docker exec secondlayer-postgres-1 psql -U secondlayer -d secondlayer \
+# Connection count
+psql "$SOURCE_DATABASE_URL" \
   -tAc 'SELECT count(*) FROM pg_stat_activity'
 ```
 

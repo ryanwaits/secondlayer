@@ -116,7 +116,7 @@ docker exec secondlayer-bitcoind-1 bitcoin-cli -rpcuser=stacks -rpcpassword=$RPC
 ssh app-server
 cd /opt/secondlayer/docker/prod
 # Truncate DB for clean genesis sync
-docker exec secondlayer-postgres-1 psql -U secondlayer -d secondlayer \
+psql "$SOURCE_DATABASE_URL" \
   -c "TRUNCATE blocks, transactions, events, jobs, deliveries, index_progress CASCADE;"
 TIP_FOLLOWER_ENABLED=false $COMPOSE up -d
 ```
@@ -152,7 +152,7 @@ ssh app-server
 cd /opt/secondlayer/docker/prod
 
 # Check for placeholder transactions (excluding burnchain ops which legitimately have raw_tx = '0x00')
-docker exec secondlayer-postgres-1 psql -U secondlayer -d secondlayer \
+psql "$SOURCE_DATABASE_URL" \
   -c "SELECT COUNT(*) FROM transactions WHERE raw_tx = '0x00' AND type_id NOT IN (1,2,3,4,5);"
 # Should be 0. ~700 burnchain operations (PoX stacking, STX transfers via BTC) have raw_tx = '0x00' by design.
 
@@ -168,8 +168,8 @@ ssh node-server "source /opt/secondlayer/docker/hosts/node-server/.env && rm -rf
 ssh node-server "cd /opt/secondlayer/docker/hosts/node-server && docker compose stop stacks-node && docker compose start stacks-node"
 
 # App server: truncate DB
-ssh app-server "docker exec secondlayer-postgres-1 psql -U secondlayer -d secondlayer \
-  -c 'TRUNCATE blocks, transactions, events, jobs, deliveries, index_progress CASCADE;'"
+ssh app-server 'cd /opt/secondlayer/docker; set -a; . ./.env; set +a; psql "$SOURCE_DATABASE_URL" \
+  -c "TRUNCATE blocks, transactions, events, jobs, deliveries, index_progress CASCADE;"'
 ```
 
 ---
@@ -211,11 +211,11 @@ echo "node:" && ssh node-server "curl -s localhost:20443/v2/info | jq .stacks_ti
 echo "indexer:" && curl -s localhost:3700/health | jq .lastSeenHeight
 
 # DB stats
-docker exec secondlayer-postgres-1 psql -U secondlayer \
+psql "$SOURCE_DATABASE_URL" \
   -c "SELECT MIN(height), MAX(height), COUNT(*) FROM blocks;"
-docker exec secondlayer-postgres-1 psql -U secondlayer \
+psql "$SOURCE_DATABASE_URL" \
   -c "SELECT (MAX(height)-MIN(height)+1)-COUNT(*) AS missing FROM blocks WHERE canonical=true;"
-docker exec secondlayer-postgres-1 psql -U secondlayer \
+psql "$SOURCE_DATABASE_URL" \
   -c "SELECT pg_size_pretty(pg_database_size('secondlayer'));"
 
 # Bitcoin sync (node server)
@@ -229,15 +229,15 @@ docker exec secondlayer-bitcoind-1 bitcoin-cli -rpcuser=stacks -rpcpassword=$RPC
 
 ```bash
 # Total indexed contracts
-docker exec secondlayer-postgres-1 psql -U secondlayer -d secondlayer \
+psql "$SOURCE_DATABASE_URL" \
   -c "SELECT count(*) FROM contracts;"
 
 # Top contracts by call count
-docker exec secondlayer-postgres-1 psql -U secondlayer -d secondlayer \
+psql "$SOURCE_DATABASE_URL" \
   -c "SELECT name, contract_id, call_count FROM contracts ORDER BY call_count DESC LIMIT 10;"
 
 # ABI cache stats
-docker exec secondlayer-postgres-1 psql -U secondlayer -d secondlayer \
+psql "$SOURCE_DATABASE_URL" \
   -c "SELECT count(*) FILTER (WHERE abi IS NOT NULL) AS cached, count(*) AS total FROM contracts;"
 
 # Test API endpoint
@@ -493,11 +493,14 @@ Run from a laptop with `TARGET_DATABASE_URL` pointing at the control-plane datab
 
 ### Connect & Inspect
 
+The chain DB is Postgres on db-server. Examples below assume `SOURCE_DATABASE_URL`
+is loaded: `cd /opt/secondlayer/docker; set -a; . ./.env; set +a` (never print the env file).
+
 ```bash
-docker exec -it secondlayer-postgres-1 psql -U secondlayer -d secondlayer
+psql "$SOURCE_DATABASE_URL"
 
 # Check gaps
-docker exec secondlayer-postgres-1 psql -U secondlayer -d secondlayer \
+psql "$SOURCE_DATABASE_URL" \
   -c "SELECT * FROM index_progress;"
 
 # Run the CLI against prod (published release, in a container on the compose
@@ -507,79 +510,28 @@ docker/scripts/sl.sh verify raw --against https://archive.secondlayer.tools/late
 
 ### Backup Strategy
 
-Three-layer backup system with ~5-minute RPO:
+| DB | Where | Backup |
+|----|-------|--------|
+| Chain DB | db-server Postgres (`SOURCE_DATABASE_URL`) | WAL-G on db-server |
+| Control-plane DB | `secondlayer-postgres-platform-1` | `secondlayer-walg-backup-platform-1` (WAL-G to R2, prefix `pg-platform`) |
 
-| Schedule | Script | What | Retention |
-|----------|--------|------|-----------|
-| Every 5 min | `sync-wal.sh` | WAL segments → Storage Box | 24h local, synced offsite |
-| Daily 3 AM | `backup-postgres.sh` | `pg_dump \| gzip` (~15GB) | 7 days |
-| Weekly Sun 4 AM | `backup-basebackup.sh` | `pg_basebackup` (physical) | 14 days |
-| Daily 5 AM | `upload-snapshot.sh` | rsync all backups → Storage Box | mirrors local |
-
-**WAL archiving** is configured in `docker-compose.hetzner.yml` via postgres `command:` flags:
-- `wal_level=replica` — enables WAL archiving
-- `archive_mode=on` — archives completed WAL segments
-- `archive_command` — copies segments to `/wal_archive/` (mounted at `$DATA_DIR/wal_archive`)
-- `archive_timeout=300` — forces archive every 5 min even if segment not full
-
-WAL archive dir must be owned by the postgres user (UID 70 in Alpine):
+Platform WAL archiving is configured in `docker-compose.hetzner.yml` via the
+`postgres-platform` `command:` flags (`wal_level=replica`, `archive_mode=on`,
+`archive_timeout=300`). The archive dir must be owned by the postgres user (UID 70
+in Alpine):
 ```bash
-chown 70:70 $DATA_DIR/wal_archive
+chown 70:70 $DATA_DIR/wal_archive_platform
 ```
 
 ```bash
-# Verify WAL archiving is active
-docker exec secondlayer-postgres-1 psql -U secondlayer -c "SELECT * FROM pg_stat_archiver;"
+# Verify platform WAL archiving is active
+docker exec secondlayer-postgres-platform-1 psql -U secondlayer -d secondlayer_platform -c "SELECT * FROM pg_stat_archiver;"
 
-# Manual pg_dump
-docker exec secondlayer-postgres-1 pg_dump -U secondlayer secondlayer | gzip > backup-$(date +%F).sql.gz
+# Platform backups
+docker exec secondlayer-walg-backup-platform-1 wal-g backup-list
 ```
 
-**Cron jobs (app server):**
-```bash
-# WAL sync (every 5 min)
-*/5 * * * * /opt/secondlayer/docker/scripts/sync-wal.sh >> /opt/secondlayer/data/backups/sync-wal.log 2>&1
-
-# Daily pg_dump (3 AM)
-0 3 * * * /opt/secondlayer/docker/scripts/backup-postgres.sh >> /opt/secondlayer/data/backups/backup-postgres.log 2>&1
-
-# Weekly pg_basebackup (Sunday 4 AM)
-0 4 * * 0 /opt/secondlayer/docker/scripts/backup-basebackup.sh >> /opt/secondlayer/data/backups/backup-basebackup.log 2>&1
-
-# Upload all backups to Storage Box (5 AM)
-0 5 * * * /opt/secondlayer/docker/scripts/upload-snapshot.sh >> /opt/secondlayer/data/backups/upload-snapshot.log 2>&1
-```
-
-### Offsite (Storage Box)
-
-```bash
-/opt/secondlayer/docker/scripts/upload-snapshot.sh
-/opt/secondlayer/docker/scripts/upload-snapshot.sh --dry-run
-ssh -p 23 $STORAGEBOX_USER@$STORAGEBOX_HOST ls -lh /backups/postgres/
-ssh -p 23 $STORAGEBOX_USER@$STORAGEBOX_HOST ls -lh /backups/wal/
-```
-
-### Restore
-
-**From pg_dump (logical restore):**
-```bash
-zcat backup.sql.gz | docker exec -i secondlayer-postgres-1 psql -U secondlayer -d secondlayer
-```
-
-**From pg_basebackup + WAL (point-in-time recovery):**
-1. Stop postgres
-2. Replace `$DATA_DIR/postgres` with extracted base backup
-3. Copy WAL files from Storage Box to `$DATA_DIR/wal_archive/`
-4. Create `recovery.signal` in postgres data dir
-5. Set `restore_command` in postgres config
-6. Start postgres — it replays WAL to recover
-
-**Automated restore from Storage Box:**
-```bash
-/opt/secondlayer/docker/scripts/restore-from-snapshot.sh --verify-only
-/opt/secondlayer/docker/scripts/restore-from-snapshot.sh --dry-run
-/opt/secondlayer/docker/scripts/restore-from-snapshot.sh
-```
+Restore procedures: `docs/internal/runbook/db-backup-restore.md`.
 
 ### Tuning for Large Restores
 

@@ -6,11 +6,12 @@
 # Phases:
 #   0. Provision (system packages, Docker, UFW, fail2ban, systemd)
 #   1. Pre-flight checks
-#   2. Core services (postgres, migrate, api, indexer, worker)
+#   2. Core services (postgres-platform, migrate, api, indexer, worker)
 #   3. Caddy
 #   4. Print status
 #
-# Note: stacks-node + bitcoind run on a separate node server.
+# Note: the chain DB is external (SOURCE_DATABASE_URL, db-server); the only
+# local DB is postgres-platform. stacks-node + bitcoind run on a separate node server.
 # See docker/hosts/node-server/setup.sh for node provisioning.
 
 set -euo pipefail
@@ -194,8 +195,8 @@ log "DATA_DIR=$DATA_DIR (${AVAIL_GB}GB free)"
 # ---------------------------------------------------------------------------
 log "Phase 2: Starting core services"
 
-$COMPOSE up -d postgres
-wait_healthy postgres
+$COMPOSE up -d postgres-platform
+wait_healthy postgres-platform
 
 $COMPOSE up migrate
 $COMPOSE up -d api indexer worker

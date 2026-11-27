@@ -41,12 +41,6 @@ RSYNC_OPTS=(
 log "Uploading backups to ${STORAGEBOX_USER}@${STORAGEBOX_HOST}:${STORAGEBOX_PATH}"
 [[ -n "$DRY_RUN" ]] && log "DRY RUN — no files will be transferred"
 
-# Upload postgres backups
-if [ -d "${BACKUP_DIR}/postgres" ]; then
-  log "Syncing postgres backups..."
-  rsync "${RSYNC_OPTS[@]}" "${BACKUP_DIR}/postgres/" "${STORAGEBOX_USER}@${STORAGEBOX_HOST}:${STORAGEBOX_PATH}/postgres/"
-fi
-
 # Upload chainstate backups
 if [ -d "${BACKUP_DIR}/chainstate" ]; then
   log "Syncing chainstate backups..."

@@ -1,38 +1,6 @@
 name: secondlayer
 
 services:
-  # PostgreSQL database
-  postgres:
-    image: postgres:17-alpine
-    environment:
-      POSTGRES_USER: ${POSTGRES_USER:-secondlayer}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
-      POSTGRES_DB: ${POSTGRES_DB:-secondlayer}
-    volumes:
-      # The chain data (100s of GB) lives here. FOOTGUN: do NOT `docker compose
-      # run` a service with `depends_on: postgres` — it recreates this container
-      # and can surface a wrong/empty data dir. Use `docker exec` on the running
-      # container (or direct psql) for one-off DB tasks. Backstop: the indexer's
-      # startup guard + /public/status `chainIntegrity` alarm on an empty volume.
-      # Local/OSS default. PROD DATA LIVES IN docker-compose.hetzner.yml BIND
-      # MOUNTS — raw `docker compose up` without that overlay attaches a fresh
-      # empty volume (bit prod twice, 2026-05/06). The server pins COMPOSE_FILE
-      # in .env so the overlay is always loaded; the healthcheck floor below is
-      # the backstop.
-      - postgres_data:/var/lib/postgresql/data
-    ports:
-      - "${POSTGRES_PORT:-127.0.0.1:5432}:5432"
-    healthcheck:
-      # Husk canary: a freshly-initdb'd volume (the bind-vs-named-volume drift
-      # class) can never pass the floor check, so dependents refuse to start
-      # against an empty "chain". CHAIN_MIN_BLOCK=0 (default) skips for fresh
-      # local/OSS installs; prod pins a high floor in .env.
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-secondlayer} -d ${POSTGRES_DB:-secondlayer} && { [ \"${CHAIN_MIN_BLOCK:-0}\" = \"0\" ] || psql -U ${POSTGRES_USER:-secondlayer} -d ${POSTGRES_DB:-secondlayer} -tAc \"SELECT 1 FROM blocks WHERE height >= ${CHAIN_MIN_BLOCK:-0} LIMIT 1\" | grep -q 1; }"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    restart: unless-stopped
-
   # Control-plane Postgres for the source/target split (see SCHEMA_SPLIT.md).
   # Default-on so it's part of the standard topology (an empty, idle DB until
   # cutover — single-DB deploys keep `SOURCE_/TARGET_DATABASE_URL` unset and
@@ -85,14 +53,12 @@ services:
       # collapsing back to one DB. The LISTEN/NOTIFY listener is split-aware (binds
       # SOURCE/TARGET per channel via queue/listener.ts), so blanking is safe.
       # `-` (not `:-`) keeps an explicit empty value; unset → single-DB default.
-      DATABASE_URL: ${DATABASE_URL-postgres://${POSTGRES_USER:-secondlayer}:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-secondlayer}}
+      DATABASE_URL: ${DATABASE_URL:-}
       # Source/target split (see docs/ops/SCHEMA_SPLIT.md): unset → both resolve to
       # DATABASE_URL (single DB, no behavior change). Set at cutover.
       SOURCE_DATABASE_URL: ${SOURCE_DATABASE_URL:-}
       TARGET_DATABASE_URL: ${TARGET_DATABASE_URL:-}
     depends_on:
-      postgres:
-        condition: service_healthy
       postgres-platform:
         condition: service_healthy
     restart: "no"
@@ -107,7 +73,7 @@ services:
     # Host gateway, for a bitcoin plane published on the docker bridge (see
     # BITCOIN_DATABASE_URL). Not a shared docker network: compose aliases a
     # service by its name on every network it joins, so the bitcoin project's
-    # `postgres` would shadow this stack's own `postgres`.
+    # `postgres` would shadow `postgres-platform`'s alias.
     extra_hosts:
       - "host.docker.internal:host-gateway"
     environment:
@@ -117,7 +83,7 @@ services:
       # collapsing back to one DB. The LISTEN/NOTIFY listener is split-aware (binds
       # SOURCE/TARGET per channel via queue/listener.ts), so blanking is safe.
       # `-` (not `:-`) keeps an explicit empty value; unset → single-DB default.
-      DATABASE_URL: ${DATABASE_URL-postgres://${POSTGRES_USER:-secondlayer}:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-secondlayer}}
+      DATABASE_URL: ${DATABASE_URL:-}
       # Source/target split (see docs/ops/SCHEMA_SPLIT.md): unset → both resolve to
       # DATABASE_URL (single DB, no behavior change). Set at cutover.
       SOURCE_DATABASE_URL: ${SOURCE_DATABASE_URL:-}
@@ -218,8 +184,6 @@ services:
     depends_on:
       migrate:
         condition: service_completed_successfully
-      postgres:
-        condition: service_healthy
       postgres-platform:
         condition: service_healthy
       redis:
@@ -250,7 +214,7 @@ services:
       # collapsing back to one DB. The LISTEN/NOTIFY listener is split-aware (binds
       # SOURCE/TARGET per channel via queue/listener.ts), so blanking is safe.
       # `-` (not `:-`) keeps an explicit empty value; unset → single-DB default.
-      DATABASE_URL: ${DATABASE_URL-postgres://${POSTGRES_USER:-secondlayer}:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-secondlayer}}
+      DATABASE_URL: ${DATABASE_URL:-}
       # Source/target split (see docs/ops/SCHEMA_SPLIT.md): unset → both resolve to
       # DATABASE_URL (single DB, no behavior change). Set at cutover.
       SOURCE_DATABASE_URL: ${SOURCE_DATABASE_URL:-}
@@ -291,8 +255,6 @@ services:
     depends_on:
       migrate:
         condition: service_completed_successfully
-      postgres:
-        condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3700/health"]
       interval: 30s
@@ -329,7 +291,7 @@ services:
       # collapsing back to one DB. The LISTEN/NOTIFY listener is split-aware (binds
       # SOURCE/TARGET per channel via queue/listener.ts), so blanking is safe.
       # `-` (not `:-`) keeps an explicit empty value; unset → single-DB default.
-      DATABASE_URL: ${DATABASE_URL-postgres://${POSTGRES_USER:-secondlayer}:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-secondlayer}}
+      DATABASE_URL: ${DATABASE_URL:-}
       # Source/target split (see docs/ops/SCHEMA_SPLIT.md): unset → both resolve to
       # DATABASE_URL (single DB, no behavior change). Set at cutover.
       SOURCE_DATABASE_URL: ${SOURCE_DATABASE_URL:-}
@@ -370,8 +332,6 @@ services:
     depends_on:
       migrate:
         condition: service_completed_successfully
-      postgres:
-        condition: service_healthy
       api:
         condition: service_healthy
     healthcheck:
@@ -400,7 +360,7 @@ services:
       # collapsing back to one DB. The LISTEN/NOTIFY listener is split-aware (binds
       # SOURCE/TARGET per channel via queue/listener.ts), so blanking is safe.
       # `-` (not `:-`) keeps an explicit empty value; unset → single-DB default.
-      DATABASE_URL: ${DATABASE_URL-postgres://${POSTGRES_USER:-secondlayer}:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-secondlayer}}
+      DATABASE_URL: ${DATABASE_URL:-}
       # Source/target split (see docs/ops/SCHEMA_SPLIT.md): unset → both resolve to
       # DATABASE_URL (single DB, no behavior change). Set at cutover.
       SOURCE_DATABASE_URL: ${SOURCE_DATABASE_URL:-}
@@ -431,12 +391,9 @@ services:
     depends_on:
       migrate:
         condition: service_completed_successfully
-      postgres:
-        condition: service_healthy
       postgres-platform:
         condition: service_healthy
     restart: unless-stopped
 
 volumes:
-  postgres_data:
   postgres_platform_data:
