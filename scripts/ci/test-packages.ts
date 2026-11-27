@@ -111,6 +111,7 @@ export function suiteEnv(
 		if (!MACHINE_ENV.test(name) || SUITE_ENV_ALLOW.has(name)) env[name] = value;
 	}
 	env.DATABASE_URL = databaseUrl;
+	env.REQUIRE_DB = "1";
 	return env;
 }
 

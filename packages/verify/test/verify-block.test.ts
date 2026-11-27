@@ -9,6 +9,7 @@ import {
 	SIGNERS_CONTRACT,
 	type VerifyCheckpoint,
 	type VerifyStep,
+	type VmEventRow,
 	blockId,
 	cycleStart,
 	decodeSignerSet,
@@ -18,6 +19,7 @@ import {
 	marfPath,
 	marfProofAncestors,
 	marfValue,
+	parseEpoch2Header,
 	parseNakamotoHeader,
 	parseWitness,
 	rewardCycle,
@@ -28,6 +30,7 @@ import {
 	verifyMarfProof,
 	verifySignerSignatures,
 } from "../src/index.ts";
+import { heightToHashKey } from "../src/marf.ts";
 import { findAnchor } from "../src/verify-block.ts";
 import {
 	FakeSource,
@@ -39,9 +42,11 @@ import {
 	type BurnFixture,
 	CHECKPOINT_143,
 	type WitnessFixture,
+	epoch2File,
 	headerFile,
 	readJson,
 } from "./fixtures.ts";
+import { buildHeightProof } from "./marf-builder.ts";
 
 const B = signerChain.checkpoint; // 8,956,304: holds set 143
 const A = signerChain.a; // 9,055,250: cycle 143 prepare phase, holds set 144
@@ -664,5 +669,157 @@ describe("onStep reports each link as it passes", () => {
 			"signer-set",
 			"signatures",
 		]);
+	});
+});
+
+describe("verifyBlock with rows: true proves non-empty vm_events and rejects tampered rows", () => {
+	const MAINNET_1230200 =
+		"68df6083cbf08375d57a27aed303e9bb95c101ce9b08813aa519ba6887a730f2";
+	const witnessDir = join(import.meta.dir, "fixtures", "witness-rust");
+	const meta1230200 = JSON.parse(
+		readFileSync(join(witnessDir, `${MAINNET_1230200}.json`), "utf8"),
+	) as { root_hex: string };
+	const witness1230200 = new Uint8Array(
+		readFileSync(join(witnessDir, `${MAINNET_1230200}.witness`)),
+	);
+	const baseEpoch2 = epoch2File(
+		"7172a926a42a9356074c71facea8c6450398c97d717fd900884af2bb9102ffa1",
+	);
+
+	interface FeederRow {
+		ordinal: number;
+		type: VmEventRow["event_type"];
+		tx_id: string;
+		data: {
+			contract_identifier: string;
+			map_name: string;
+			raw_key: string;
+			raw_value: string;
+		};
+	}
+
+	const validRows1230200: VmEventRow[] = readFileSync(
+		join(witnessDir, "vm-1230200-rows.jsonl"),
+		"utf8",
+	)
+		.split("\n")
+		.filter(Boolean)
+		.map((l) => JSON.parse(l) as FeederRow)
+		.map((r) => ({
+			event_type: r.type,
+			event_index: r.ordinal,
+			tx_id: r.tx_id,
+			contract_id: r.data.contract_identifier,
+			map: r.data.map_name,
+			raw_key:
+				r.ordinal === 19
+					? "0x0616402da2c079e5d31d58b9cfc7286d1b1eb2f7834e0b746f6b656e2d776b696b69"
+					: r.data.raw_key,
+			raw_value: r.data.raw_value,
+		}));
+
+	function sourceFor1230200(vmEvents: VmEventRow[]) {
+		const rawHeader = unhex(baseEpoch2.header).slice();
+		new DataView(rawHeader.buffer, rawHeader.byteOffset).setBigUint64(
+			9,
+			1230200n,
+		);
+		rawHeader.set(unhex(meta1230200.root_hex), 195);
+		const ch = unhex(baseEpoch2.consensus_hash);
+		const targetId = hex(blockId(parseEpoch2Header(rawHeader, ch)));
+		const p = buildHeightProof({
+			height: 1230200,
+			id: targetId,
+			tipBytes: unhex(CHECKPOINT_143.stacks.header),
+			ancestorBytes: unhex(baseEpoch2.header),
+			ancestorCh: ch,
+		});
+		const tipId = hex(blockId(p.tipHeader));
+		const source = Object.assign(new FakeSource(), {
+			getVmEvents: async () => vmEvents,
+		});
+		source.marf.set(`${hex(marfPath(heightToHashKey(1230200)))}@${tipId}`, {
+			data: "",
+			proof: p.proof,
+		});
+		source.epoch2.set(p.ancestorId, p.ancestor);
+		source.epoch2.set(targetId, { header: rawHeader, consensusHash: ch });
+		source.witnesses.set(targetId, witness1230200);
+		const checkpoint: VerifyCheckpoint = {
+			...CHECKPOINT_143,
+			stacks: { ...CHECKPOINT_143.stacks, header: hex(p.tip) },
+		};
+		return { source, checkpoint };
+	}
+
+	test("matching non-empty vm_events pass rows: true with rowsChecked > 0 and onStep('rows')", async () => {
+		const { source, checkpoint } = sourceFor1230200(validRows1230200);
+		const steps: VerifyStep[] = [];
+		const r = await verifyBlock(1230200, {
+			checkpoint,
+			source,
+			rows: true,
+			onStep: (s) => steps.push(s),
+		});
+		expect(r.ok).toBe(true);
+		expect(r.rowsChecked).toBe(2);
+		expect(r.failures).toEqual([]);
+		expect(steps).toContain("rows");
+	});
+
+	test("tampered vm_events value fails verifyBlock at the rows step", async () => {
+		const tampered = validRows1230200.map((r) =>
+			r.event_index === 22 ? { ...r, raw_value: `${r.raw_value}00` } : r,
+		);
+		const { source, checkpoint } = sourceFor1230200(tampered);
+		const steps: VerifyStep[] = [];
+		const r = await verifyBlock(1230200, {
+			checkpoint,
+			source,
+			rows: true,
+			onStep: (s) => steps.push(s),
+		});
+		expect(r.ok).toBe(false);
+		expect(r.rowsChecked).toBe(2);
+		expect(r.failures).toEqual([
+			expect.objectContaining({
+				step: "rows",
+				code: "value-mismatch",
+				ordinal: 22,
+			}),
+		]);
+		expect(steps).not.toContain("rows");
+	});
+
+	test("tampered vm_events key on block H fails verifyBlock at the rows step", async () => {
+		const source = Object.assign(new FakeSource({ heights: [B, A, H] }), {
+			getVmEvents: async (): Promise<VmEventRow[]> => [
+				{
+					event_type: "var_set",
+					event_index: 0,
+					tx_id: "0x00",
+					contract_id: "SP000000000000000000002Q6VF78.pox-4",
+					var_name: "forged-var",
+					raw_value: "0x0100000000000000000000000000000001",
+				},
+			],
+		});
+		const steps: VerifyStep[] = [];
+		const r = await verifyBlock(H, {
+			checkpoint: CHECKPOINT_143,
+			source,
+			rows: true,
+			onStep: (s) => steps.push(s),
+		});
+		expect(r.ok).toBe(false);
+		expect(r.rowsChecked).toBe(1);
+		expect(r.failures).toEqual([
+			expect.objectContaining({
+				step: "rows",
+				code: "key-not-written",
+				ordinal: 0,
+			}),
+		]);
+		expect(steps).not.toContain("rows");
 	});
 });

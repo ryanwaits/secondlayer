@@ -115,7 +115,7 @@ jobs:
       - name: Raw status writes (no new sites outside casTransition)
         run: bun scripts/ci/status-writes.ts
       - name: Scripts tests
-        run: bun test scripts/ci/indexnow.test.ts scripts/ci/remote-deploy-systemd.test.ts scripts/ci/remote-rollback-systemd.test.ts scripts/ci/test-packages.test.ts scripts/ops skills/secondlayer/dash/test
+        run: bun test docker/scripts/witness-check-alert.test.ts scripts/ci/indexnow.test.ts scripts/ci/remote-deploy-systemd.test.ts scripts/ci/remote-rollback-systemd.test.ts scripts/ci/test-packages.test.ts scripts/ops skills/secondlayer/dash/test
 
   build-images:
     needs: [typecheck, test]

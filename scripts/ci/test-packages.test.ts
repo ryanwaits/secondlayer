@@ -121,6 +121,7 @@ describe("suiteEnv", () => {
 			PATH: "/usr/bin",
 			SL_NIGHTLY: "1",
 			DATABASE_URL: dbUrl,
+			REQUIRE_DB: "1",
 		});
 		expect(env.SL_API_KEY).toBeUndefined();
 		expect(env.SECONDLAYER_API_KEY).toBeUndefined();
