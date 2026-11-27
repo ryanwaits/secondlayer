@@ -488,6 +488,47 @@ describe.skipIf(!HAS_DB)("state_writes read", () => {
 		expect(page.state_writes.map((r) => r.ordinal)).toEqual([0, 2]);
 	});
 
+	test("contract_id query emits indexable split_part + starts_with predicates and returns exact rows", async () => {
+		if (!db) throw new Error("missing db");
+		const compiled = stateWritesQuery({
+			fromHeight: H,
+			toHeight: H + 2,
+			limit: 100,
+			contractId: VAULT,
+		}).compile(db);
+		expect(compiled.sql).toContain("starts_with(sw.key, 'vm::')");
+		expect(compiled.sql).toContain("split_part(sw.key, '::', 2) =");
+		expect(compiled.parameters).toContain(VAULT);
+
+		const plan = await db.transaction().execute(async (trx) => {
+			await sql`SET LOCAL enable_seqscan = off`.execute(trx);
+			const query = stateWritesQuery({
+				fromHeight: 0,
+				toHeight: H + 2,
+				limit: 100,
+				contractId: VAULT,
+			});
+			const { rows } = await sql<{
+				"QUERY PLAN": string;
+			}>`EXPLAIN ${query}`.execute(trx);
+			return rows.map((r) => r["QUERY PLAN"]).join("\n");
+		});
+		expect(plan).toMatch(
+			/Index (Only )?Scan using state_writes_contract_height_idx on state_writes|Bitmap Index Scan on state_writes_contract_height_idx/,
+		);
+
+		await seedBlocks();
+		await seedKeyed([
+			[0, 0, `vm::${VAULT}::0::reserve::0100`],
+			[1, 0, `vm::${VAULT}`],
+			[2, 0, `vm::${LOOKALIKE}::0::reserve::0100`],
+			[3, null, `vm::${VAULT}::1::paused`],
+			[4, 0, `other::${VAULT}::0::reserve::0100`],
+		]);
+		const page = await read({ contractId: VAULT });
+		expect(page.state_writes.map((r) => r.ordinal)).toEqual([0, 3]);
+	});
+
 	test("tx_context joins the writing tx; a block-level write gets null tx fields", async () => {
 		await seedBlocks();
 		await seedTx(0, "0xsw-tx-0");

@@ -70,7 +70,7 @@
 	"devDependencies": {
 		"@antfu/ni": "^24.4.0",
 		"@stacks/clarinet-sdk": "3.21.1",
-		"@types/bun": "^1.1.14",
+		"@types/bun": "latest",
 		"chalk": "^5.3.0",
 		"commander": "^14.0.0",
 		"execa": "^9.5.3",

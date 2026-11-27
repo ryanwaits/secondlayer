@@ -360,8 +360,9 @@ for await (const e of sl.index.runes.activity.walk({ fromHeight: 900_000 })) {
 
 `RuneRef` (the type every `rune` field/param takes) is an id (`` `${number}:${number}` ``)
 or any name form, spacers and case ignored — typing all 178k+ rune names would
-be huge and stale, so `list({ search })` covers discovery instead. Self-host
-with the `bitcoin` compose profile has data today; hosted follows. Full guide:
+be huge and stale, so `list({ search })` covers discovery instead. Live on
+`api.secondlayer.tools` and on self-hosted instances with the `bitcoin` compose
+profile. Full guide:
 [docs/index#runes](https://www.secondlayer.tools/docs/index#runes).
 
 ## Transaction-inclusion proofs

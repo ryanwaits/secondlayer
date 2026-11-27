@@ -9,8 +9,8 @@ silently loses or corrupts data.
 The key follows the host. On `https://api.secondlayer.tools` the client sends
 `SECONDLAYER_API_KEY` (`sk-sl_*`) automatically and `INSTANCE_TOKEN` is not
 used. Hosted subgraph sources are event filters and `contract_call` /
-`contract_deploy` only (`422 SOURCE_NOT_HOSTABLE`), and subgraph webhooks are
-self-host only. What follows describes a self-hosted instance.
+`contract_deploy` only (`422 SOURCE_NOT_HOSTABLE`). What follows describes a
+self-hosted instance.
 
 `sl.index.*`, `sl.streams.*`, `sl.subgraphs.rows`, and the typed `subscribe`
 read `/v1`, open on loopback. Construct the client with no credentials and start reading:
@@ -22,7 +22,7 @@ const sl = new SecondLayer();
 const { events } = await sl.index.events.list({ eventType: "ft_transfer" });
 ```
 
-Everything else under `sl.subgraphs.*` and all of `sl.subscriptions.*` calls
+Everything else under `sl.subgraphs.*` and all of `sl.webhooks.*` calls
 `/api`, which needs `INSTANCE_TOKEN` as soon as one is configured, loopback
 included, and `secondlayer init` always configures one. `/v1` needs it too once
 the API is bound beyond loopback. Every client reads `INSTANCE_TOKEN` from the

@@ -126,6 +126,8 @@ export function stateWritesQuery(
 	}
 	if (params.contractId) {
 		predicates.push(
+			sql`starts_with(sw.key, 'vm::')`,
+			sql`split_part(sw.key, '::', 2) = ${params.contractId}`,
 			sql`starts_with(sw.key, ${contractKeyPrefix(params.contractId)})`,
 		);
 	}
