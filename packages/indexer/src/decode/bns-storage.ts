@@ -1,3 +1,4 @@
+import { blockEndCursor, encodeStreamsCursor } from "@secondlayer/shared";
 import { getSourceDb } from "@secondlayer/shared/db";
 import type {
 	BnsMarketplaceAction,
@@ -89,6 +90,8 @@ export type BnsNamespaceUpsert = {
 	last_event_at: Date;
 };
 
+const INSERT_CHUNK_SIZE = 1000;
+
 function db(client?: Kysely<Database>): Kysely<Database> {
 	return client ?? getSourceDb();
 }
@@ -98,35 +101,39 @@ export async function writeBnsNameEvents(
 	opts?: { db?: Kysely<Database> },
 ): Promise<void> {
 	if (rows.length === 0) return;
-	await db(opts?.db)
-		.insertInto("bns_name_events")
-		.values(rows)
-		.onConflict((oc) =>
-			oc.column("cursor").doUpdateSet((eb) => ({
-				block_height: eb.ref("excluded.block_height"),
-				block_time: eb.ref("excluded.block_time"),
-				tx_id: eb.ref("excluded.tx_id"),
-				tx_index: eb.ref("excluded.tx_index"),
-				event_index: eb.ref("excluded.event_index"),
-				topic: eb.ref("excluded.topic"),
-				namespace: eb.ref("excluded.namespace"),
-				name: eb.ref("excluded.name"),
-				fqn: eb.ref("excluded.fqn"),
-				owner: eb.ref("excluded.owner"),
-				bns_id: eb.ref("excluded.bns_id"),
-				registered_at: eb.ref("excluded.registered_at"),
-				imported_at: eb.ref("excluded.imported_at"),
-				renewal_height: eb.ref("excluded.renewal_height"),
-				stx_burn: eb.ref("excluded.stx_burn"),
-				preordered_by: eb.ref("excluded.preordered_by"),
-				hashed_salted_fqn_preorder: eb.ref(
-					"excluded.hashed_salted_fqn_preorder",
-				),
-				canonical: true,
-				source_cursor: eb.ref("excluded.source_cursor"),
-			})),
-		)
-		.execute();
+	const client = db(opts?.db);
+	for (let i = 0; i < rows.length; i += INSERT_CHUNK_SIZE) {
+		const chunk = rows.slice(i, i + INSERT_CHUNK_SIZE);
+		await client
+			.insertInto("bns_name_events")
+			.values(chunk)
+			.onConflict((oc) =>
+				oc.column("cursor").doUpdateSet((eb) => ({
+					block_height: eb.ref("excluded.block_height"),
+					block_time: eb.ref("excluded.block_time"),
+					tx_id: eb.ref("excluded.tx_id"),
+					tx_index: eb.ref("excluded.tx_index"),
+					event_index: eb.ref("excluded.event_index"),
+					topic: eb.ref("excluded.topic"),
+					namespace: eb.ref("excluded.namespace"),
+					name: eb.ref("excluded.name"),
+					fqn: eb.ref("excluded.fqn"),
+					owner: eb.ref("excluded.owner"),
+					bns_id: eb.ref("excluded.bns_id"),
+					registered_at: eb.ref("excluded.registered_at"),
+					imported_at: eb.ref("excluded.imported_at"),
+					renewal_height: eb.ref("excluded.renewal_height"),
+					stx_burn: eb.ref("excluded.stx_burn"),
+					preordered_by: eb.ref("excluded.preordered_by"),
+					hashed_salted_fqn_preorder: eb.ref(
+						"excluded.hashed_salted_fqn_preorder",
+					),
+					canonical: true,
+					source_cursor: eb.ref("excluded.source_cursor"),
+				})),
+			)
+			.execute();
+	}
 }
 
 export async function writeBnsNamespaceEvents(
@@ -134,33 +141,37 @@ export async function writeBnsNamespaceEvents(
 	opts?: { db?: Kysely<Database> },
 ): Promise<void> {
 	if (rows.length === 0) return;
-	await db(opts?.db)
-		.insertInto("bns_namespace_events")
-		.values(rows)
-		.onConflict((oc) =>
-			oc.column("cursor").doUpdateSet((eb) => ({
-				block_height: eb.ref("excluded.block_height"),
-				block_time: eb.ref("excluded.block_time"),
-				tx_id: eb.ref("excluded.tx_id"),
-				tx_index: eb.ref("excluded.tx_index"),
-				event_index: eb.ref("excluded.event_index"),
-				status: eb.ref("excluded.status"),
-				namespace: eb.ref("excluded.namespace"),
-				manager: eb.ref("excluded.manager"),
-				manager_frozen: eb.ref("excluded.manager_frozen"),
-				manager_transfers_disabled: eb.ref(
-					"excluded.manager_transfers_disabled",
-				),
-				price_function: eb.ref("excluded.price_function"),
-				price_frozen: eb.ref("excluded.price_frozen"),
-				lifetime: eb.ref("excluded.lifetime"),
-				revealed_at: eb.ref("excluded.revealed_at"),
-				launched_at: eb.ref("excluded.launched_at"),
-				canonical: true,
-				source_cursor: eb.ref("excluded.source_cursor"),
-			})),
-		)
-		.execute();
+	const client = db(opts?.db);
+	for (let i = 0; i < rows.length; i += INSERT_CHUNK_SIZE) {
+		const chunk = rows.slice(i, i + INSERT_CHUNK_SIZE);
+		await client
+			.insertInto("bns_namespace_events")
+			.values(chunk)
+			.onConflict((oc) =>
+				oc.column("cursor").doUpdateSet((eb) => ({
+					block_height: eb.ref("excluded.block_height"),
+					block_time: eb.ref("excluded.block_time"),
+					tx_id: eb.ref("excluded.tx_id"),
+					tx_index: eb.ref("excluded.tx_index"),
+					event_index: eb.ref("excluded.event_index"),
+					status: eb.ref("excluded.status"),
+					namespace: eb.ref("excluded.namespace"),
+					manager: eb.ref("excluded.manager"),
+					manager_frozen: eb.ref("excluded.manager_frozen"),
+					manager_transfers_disabled: eb.ref(
+						"excluded.manager_transfers_disabled",
+					),
+					price_function: eb.ref("excluded.price_function"),
+					price_frozen: eb.ref("excluded.price_frozen"),
+					lifetime: eb.ref("excluded.lifetime"),
+					revealed_at: eb.ref("excluded.revealed_at"),
+					launched_at: eb.ref("excluded.launched_at"),
+					canonical: true,
+					source_cursor: eb.ref("excluded.source_cursor"),
+				})),
+			)
+			.execute();
+	}
 }
 
 /**
@@ -213,25 +224,29 @@ export async function writeBnsMarketplaceEvents(
 ): Promise<void> {
 	if (rows.length === 0) return;
 	await fillBuyListings(rows, opts);
-	await db(opts?.db)
-		.insertInto("bns_marketplace_events")
-		.values(rows)
-		.onConflict((oc) =>
-			oc.column("cursor").doUpdateSet((eb) => ({
-				block_height: eb.ref("excluded.block_height"),
-				block_time: eb.ref("excluded.block_time"),
-				tx_id: eb.ref("excluded.tx_id"),
-				tx_index: eb.ref("excluded.tx_index"),
-				event_index: eb.ref("excluded.event_index"),
-				action: eb.ref("excluded.action"),
-				bns_id: eb.ref("excluded.bns_id"),
-				price_ustx: eb.ref("excluded.price_ustx"),
-				commission: eb.ref("excluded.commission"),
-				canonical: true,
-				source_cursor: eb.ref("excluded.source_cursor"),
-			})),
-		)
-		.execute();
+	const client = db(opts?.db);
+	for (let i = 0; i < rows.length; i += INSERT_CHUNK_SIZE) {
+		const chunk = rows.slice(i, i + INSERT_CHUNK_SIZE);
+		await client
+			.insertInto("bns_marketplace_events")
+			.values(chunk)
+			.onConflict((oc) =>
+				oc.column("cursor").doUpdateSet((eb) => ({
+					block_height: eb.ref("excluded.block_height"),
+					block_time: eb.ref("excluded.block_time"),
+					tx_id: eb.ref("excluded.tx_id"),
+					tx_index: eb.ref("excluded.tx_index"),
+					event_index: eb.ref("excluded.event_index"),
+					action: eb.ref("excluded.action"),
+					bns_id: eb.ref("excluded.bns_id"),
+					price_ustx: eb.ref("excluded.price_ustx"),
+					commission: eb.ref("excluded.commission"),
+					canonical: true,
+					source_cursor: eb.ref("excluded.source_cursor"),
+				})),
+			)
+			.execute();
+	}
 }
 
 export async function upsertBnsName(
@@ -403,7 +418,10 @@ export async function handleBnsReorg(
 				.orderBy("event_index", "desc")
 				.limit(1)
 				.executeTakeFirst()
-		)?.source_cursor ?? null;
+		)?.source_cursor ??
+		(blockHeight > 0
+			? encodeStreamsCursor(blockEndCursor(blockHeight - 1))
+			: null);
 	await writeDecoderCheckpoint({
 		cursor: checkpoint,
 		db: opts?.db,

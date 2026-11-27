@@ -17,6 +17,7 @@ import {
 	readCanonicalStreamsEvents,
 	readCanonicalStreamsEventsByTxId,
 } from "../streams-events.ts";
+import { handleBnsReorg } from "./bns-storage.ts";
 import {
 	BNS_DECODER_NAME,
 	BNS_V2_MAINNET_CONTRACT,
@@ -36,10 +37,12 @@ import {
 	registryContractId,
 	tokenContractId,
 } from "./decoders/sbtc.ts";
+import { type Pox5EventRow, writePox5Events } from "./pox5-storage.ts";
 import {
 	type ProtocolDecoderName,
 	runProtocolDecodeCycle,
 } from "./protocol-decoders.ts";
+import { type SbtcEventRow, writeSbtcEvents } from "./sbtc-storage.ts";
 import {
 	DecoderCheckpointRewoundError,
 	readDecoderCheckpoint,
@@ -177,6 +180,7 @@ describe.skipIf(!HAS_DB)("protocol decoders in-process loop", () => {
 	beforeEach(async () => {
 		if (!db) return;
 		await clearDecoded();
+		await sql`DELETE FROM index_progress`.execute(db);
 		await sql`DELETE FROM events`.execute(db);
 		await sql`DELETE FROM transactions`.execute(db);
 		await sql`DELETE FROM blocks`.execute(db);
@@ -450,6 +454,146 @@ describe.skipIf(!HAS_DB)("protocol decoders in-process loop", () => {
 				startedFrom: "1:0",
 			}),
 		).rejects.toBeInstanceOf(DecoderCheckpointRewoundError);
+	});
+
+	test("decodeSbtcPage rejects with DecoderCheckpointRewoundError when checkpoint moved", async () => {
+		await seedMixedChain();
+		const events = (
+			await readCanonicalStreamsEvents({
+				db: db ?? undefined,
+				toHeight: 3,
+				types: SBTC_STREAM_TYPES,
+				contractId: [registryContractId(), tokenContractId()],
+				limit: 100,
+			})
+		).events as StreamsEvent[];
+		await writeDecoderCheckpoint({
+			db: db ?? undefined,
+			decoderName: SBTC_DECODER_NAME,
+			cursor: "5:0",
+		});
+
+		await expect(
+			decodeSbtcPage({
+				db: db ?? undefined,
+				events,
+				checkpointCursor: SENTINEL(9),
+				startedFrom: "1:0",
+				carry: { lastMint: null },
+				eventsByTxId: async (txId) =>
+					(
+						await readCanonicalStreamsEventsByTxId({
+							txId,
+							db: db ?? undefined,
+						})
+					).events as StreamsEvent[],
+			}),
+		).rejects.toBeInstanceOf(DecoderCheckpointRewoundError);
+	});
+
+	test("writeSbtcEvents and writePox5Events chunk batches above Postgres bind-parameter limit", async () => {
+		if (!db) throw new Error("missing db");
+		const blockTime = new Date(1_800_000_000_000);
+		const sbtcRows: SbtcEventRow[] = Array.from({ length: 2500 }, (_, i) => ({
+			cursor: `100:${i}`,
+			block_height: 100,
+			block_time: blockTime,
+			tx_id: `0xsbtc${i}`,
+			tx_index: 0,
+			event_index: i,
+			topic: "withdrawal-reject",
+			request_id: i,
+			amount: null,
+			sender: null,
+			recipient: null,
+			recipient_btc_version: null,
+			recipient_btc_hashbytes: null,
+			bitcoin_txid: null,
+			output_index: null,
+			sweep_txid: null,
+			burn_hash: null,
+			burn_height: null,
+			signer_bitmap: "3",
+			max_fee: null,
+			fee: null,
+			block_height_at_request: null,
+			governance_contract_type: null,
+			governance_new_contract: null,
+			signer_aggregate_pubkey: null,
+			signer_threshold: null,
+			signer_address: null,
+			signer_keys_count: null,
+			source_cursor: `100:${i}`,
+		}));
+		const pox5Rows: Pox5EventRow[] = Array.from({ length: 3300 }, (_, i) => ({
+			cursor: `100:${i}`,
+			block_height: 100,
+			block_time: blockTime,
+			tx_id: `0xpox5${i}`,
+			tx_index: 0,
+			event_index: i,
+			topic: "stake",
+			staker: STAKER,
+			signer: OWNER,
+			signer_manager: null,
+			bond_index: null,
+			amount_ustx: "5000000000",
+			amount_sats: null,
+			reward_cycle: null,
+			first_reward_cycle: 140,
+			unlock_cycle: 152,
+			unlock_burn_height: 987_530,
+			is_l1_lock: null,
+			signer_key: null,
+			data: { topic: "stake" },
+			source_cursor: `100:${i}`,
+		}));
+
+		await writeSbtcEvents(sbtcRows, { db });
+		await writePox5Events(pox5Rows, { db });
+
+		const [sbtcCount, pox5Count] = await Promise.all([
+			db
+				.selectFrom("sbtc_events")
+				.select((eb) => eb.fn.countAll<number>().as("count"))
+				.executeTakeFirstOrThrow(),
+			db
+				.selectFrom("pox5_events")
+				.select((eb) => eb.fn.countAll<number>().as("count"))
+				.executeTakeFirstOrThrow(),
+		]);
+		expect(Number(sbtcCount.count)).toBe(2500);
+		expect(Number(pox5Count.count)).toBe(3300);
+	});
+
+	test("handleBnsReorg with no prior BNS events rewinds to blockEndCursor(blockHeight - 1) and replays replacement fork", async () => {
+		if (!db) throw new Error("missing db");
+		await seedBlock(1, [unrelatedPrint("tx-1")]);
+		await seedBlock(2, [unrelatedPrint("tx-2")]);
+		await seedBlock(3, [bnsNewName("tx-bns-old", "oldname", 10n)]);
+		await seedBnsCheckpointAtGenesis();
+
+		await cycle([BNS_DECODER_NAME]);
+		expect((await snapshot()).names.map((row) => row.fqn)).toEqual([
+			"oldname.btc",
+		]);
+
+		const reorg = await handleBnsReorg(3, { db });
+		expect(reorg.checkpoint).toBe(SENTINEL(2));
+		expect(
+			await readDecoderCheckpoint({ db, decoderName: BNS_DECODER_NAME }),
+		).toBe(SENTINEL(2));
+
+		await sql`DELETE FROM events WHERE block_height >= 3`.execute(db);
+		await sql`DELETE FROM transactions WHERE block_height >= 3`.execute(db);
+		await sql`DELETE FROM blocks WHERE height >= 3`.execute(db);
+		await seedBlock(3, [bnsNewName("tx-bns-new", "newname", 11n)]);
+
+		const replay = await cycle([BNS_DECODER_NAME]);
+		expect(replay.decodedByDecoder[BNS_DECODER_NAME]).toBe(1);
+		const snap = await snapshot();
+		expect(snap.names.map((row) => row.fqn)).toEqual(["newname.btc"]);
+		expect(snap.projection.map((row) => row.fqn)).toEqual(["newname.btc"]);
 	});
 
 	describe("parity with the paged Streams consumer", () => {

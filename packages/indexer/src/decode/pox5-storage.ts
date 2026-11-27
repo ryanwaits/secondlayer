@@ -31,6 +31,8 @@ export type Pox5EventRow = {
 	source_cursor: string;
 };
 
+const INSERT_CHUNK_SIZE = 1000;
+
 function db(client?: Kysely<Database>): Kysely<Database> {
 	return client ?? getSourceDb();
 }
@@ -40,35 +42,39 @@ export async function writePox5Events(
 	opts?: { db?: Kysely<Database> },
 ): Promise<void> {
 	if (rows.length === 0) return;
-	await db(opts?.db)
-		.insertInto("pox5_events")
-		.values(rows.map((row) => ({ ...row, data: jsonb(row.data) })))
-		.onConflict((oc) =>
-			oc.column("cursor").doUpdateSet((eb) => ({
-				block_height: eb.ref("excluded.block_height"),
-				block_time: eb.ref("excluded.block_time"),
-				tx_id: eb.ref("excluded.tx_id"),
-				tx_index: eb.ref("excluded.tx_index"),
-				event_index: eb.ref("excluded.event_index"),
-				topic: eb.ref("excluded.topic"),
-				staker: eb.ref("excluded.staker"),
-				signer: eb.ref("excluded.signer"),
-				signer_manager: eb.ref("excluded.signer_manager"),
-				bond_index: eb.ref("excluded.bond_index"),
-				amount_ustx: eb.ref("excluded.amount_ustx"),
-				amount_sats: eb.ref("excluded.amount_sats"),
-				reward_cycle: eb.ref("excluded.reward_cycle"),
-				first_reward_cycle: eb.ref("excluded.first_reward_cycle"),
-				unlock_cycle: eb.ref("excluded.unlock_cycle"),
-				unlock_burn_height: eb.ref("excluded.unlock_burn_height"),
-				is_l1_lock: eb.ref("excluded.is_l1_lock"),
-				signer_key: eb.ref("excluded.signer_key"),
-				data: eb.ref("excluded.data"),
-				canonical: true,
-				source_cursor: eb.ref("excluded.source_cursor"),
-			})),
-		)
-		.execute();
+	const client = db(opts?.db);
+	for (let i = 0; i < rows.length; i += INSERT_CHUNK_SIZE) {
+		const chunk = rows.slice(i, i + INSERT_CHUNK_SIZE);
+		await client
+			.insertInto("pox5_events")
+			.values(chunk.map((row) => ({ ...row, data: jsonb(row.data) })))
+			.onConflict((oc) =>
+				oc.column("cursor").doUpdateSet((eb) => ({
+					block_height: eb.ref("excluded.block_height"),
+					block_time: eb.ref("excluded.block_time"),
+					tx_id: eb.ref("excluded.tx_id"),
+					tx_index: eb.ref("excluded.tx_index"),
+					event_index: eb.ref("excluded.event_index"),
+					topic: eb.ref("excluded.topic"),
+					staker: eb.ref("excluded.staker"),
+					signer: eb.ref("excluded.signer"),
+					signer_manager: eb.ref("excluded.signer_manager"),
+					bond_index: eb.ref("excluded.bond_index"),
+					amount_ustx: eb.ref("excluded.amount_ustx"),
+					amount_sats: eb.ref("excluded.amount_sats"),
+					reward_cycle: eb.ref("excluded.reward_cycle"),
+					first_reward_cycle: eb.ref("excluded.first_reward_cycle"),
+					unlock_cycle: eb.ref("excluded.unlock_cycle"),
+					unlock_burn_height: eb.ref("excluded.unlock_burn_height"),
+					is_l1_lock: eb.ref("excluded.is_l1_lock"),
+					signer_key: eb.ref("excluded.signer_key"),
+					data: eb.ref("excluded.data"),
+					canonical: true,
+					source_cursor: eb.ref("excluded.source_cursor"),
+				})),
+			)
+			.execute();
+	}
 }
 
 /**

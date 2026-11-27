@@ -48,6 +48,8 @@ export type SbtcEventRow = {
 	source_cursor: string;
 };
 
+const INSERT_CHUNK_SIZE = 1000;
+
 function db(client?: Kysely<Database>): Kysely<Database> {
 	return client ?? getSourceDb();
 }
@@ -57,47 +59,49 @@ export async function writeSbtcEvents(
 	opts?: { db?: Kysely<Database> },
 ): Promise<void> {
 	if (rows.length === 0) return;
-	await db(opts?.db)
-		.insertInto("sbtc_events")
-		.values(rows)
-		.onConflict((oc) =>
-			oc.column("cursor").doUpdateSet((eb) => ({
-				block_height: eb.ref("excluded.block_height"),
-				block_time: eb.ref("excluded.block_time"),
-				tx_id: eb.ref("excluded.tx_id"),
-				tx_index: eb.ref("excluded.tx_index"),
-				event_index: eb.ref("excluded.event_index"),
-				topic: eb.ref("excluded.topic"),
-				request_id: eb.ref("excluded.request_id"),
-				amount: eb.ref("excluded.amount"),
-				sender: eb.ref("excluded.sender"),
-				recipient: eb.ref("excluded.recipient"),
-				recipient_btc_version: eb.ref("excluded.recipient_btc_version"),
-				recipient_btc_hashbytes: eb.ref("excluded.recipient_btc_hashbytes"),
-				bitcoin_txid: eb.ref("excluded.bitcoin_txid"),
-				output_index: eb.ref("excluded.output_index"),
-				sweep_txid: eb.ref("excluded.sweep_txid"),
-				burn_hash: eb.ref("excluded.burn_hash"),
-				burn_height: eb.ref("excluded.burn_height"),
-				signer_bitmap: eb.ref("excluded.signer_bitmap"),
-				// Deposit fees are filled after decode from Bitcoin (settlement.ts);
-				// a re-decode must not erase them.
-				max_fee: sql<
-					string | null
-				>`COALESCE(excluded.max_fee, sbtc_events.max_fee)`,
-				fee: sql<string | null>`COALESCE(excluded.fee, sbtc_events.fee)`,
-				block_height_at_request: eb.ref("excluded.block_height_at_request"),
-				governance_contract_type: eb.ref("excluded.governance_contract_type"),
-				governance_new_contract: eb.ref("excluded.governance_new_contract"),
-				signer_aggregate_pubkey: eb.ref("excluded.signer_aggregate_pubkey"),
-				signer_threshold: eb.ref("excluded.signer_threshold"),
-				signer_address: eb.ref("excluded.signer_address"),
-				signer_keys_count: eb.ref("excluded.signer_keys_count"),
-				canonical: true,
-				source_cursor: eb.ref("excluded.source_cursor"),
-			})),
-		)
-		.execute();
+	const client = db(opts?.db);
+	for (let i = 0; i < rows.length; i += INSERT_CHUNK_SIZE) {
+		const chunk = rows.slice(i, i + INSERT_CHUNK_SIZE);
+		await client
+			.insertInto("sbtc_events")
+			.values(chunk)
+			.onConflict((oc) =>
+				oc.column("cursor").doUpdateSet((eb) => ({
+					block_height: eb.ref("excluded.block_height"),
+					block_time: eb.ref("excluded.block_time"),
+					tx_id: eb.ref("excluded.tx_id"),
+					tx_index: eb.ref("excluded.tx_index"),
+					event_index: eb.ref("excluded.event_index"),
+					topic: eb.ref("excluded.topic"),
+					request_id: eb.ref("excluded.request_id"),
+					amount: eb.ref("excluded.amount"),
+					sender: eb.ref("excluded.sender"),
+					recipient: eb.ref("excluded.recipient"),
+					recipient_btc_version: eb.ref("excluded.recipient_btc_version"),
+					recipient_btc_hashbytes: eb.ref("excluded.recipient_btc_hashbytes"),
+					bitcoin_txid: eb.ref("excluded.bitcoin_txid"),
+					output_index: eb.ref("excluded.output_index"),
+					sweep_txid: eb.ref("excluded.sweep_txid"),
+					burn_hash: eb.ref("excluded.burn_hash"),
+					burn_height: eb.ref("excluded.burn_height"),
+					signer_bitmap: eb.ref("excluded.signer_bitmap"),
+					max_fee: sql<
+						string | null
+					>`COALESCE(excluded.max_fee, sbtc_events.max_fee)`,
+					fee: sql<string | null>`COALESCE(excluded.fee, sbtc_events.fee)`,
+					block_height_at_request: eb.ref("excluded.block_height_at_request"),
+					governance_contract_type: eb.ref("excluded.governance_contract_type"),
+					governance_new_contract: eb.ref("excluded.governance_new_contract"),
+					signer_aggregate_pubkey: eb.ref("excluded.signer_aggregate_pubkey"),
+					signer_threshold: eb.ref("excluded.signer_threshold"),
+					signer_address: eb.ref("excluded.signer_address"),
+					signer_keys_count: eb.ref("excluded.signer_keys_count"),
+					canonical: true,
+					source_cursor: eb.ref("excluded.source_cursor"),
+				})),
+			)
+			.execute();
+	}
 }
 
 /**
