@@ -1425,8 +1425,8 @@ describe.skipIf(!HAS_DB)("state_writes in the archive", () => {
 		await sql`UPDATE state_writes SET key = 'fork-key' WHERE block_height = 5 AND ordinal = 1`.execute(
 			db,
 		);
-		await sql`INSERT INTO state_writes (block_height, ordinal, tx_index, key, value_hex)
-			VALUES (5, 2, 0, 'fork-only', '0xff')`.execute(db);
+		await sql`INSERT INTO state_writes (block_height, ordinal, tx_index, key, value)
+			VALUES (5, 2, 0, 'fork-only', decode('ff', 'hex'))`.execute(db);
 
 		const res = runCli(
 			"repair",
@@ -1492,7 +1492,7 @@ describe.skipIf(!HAS_DB)("state_writes in the archive", () => {
 	});
 
 	test("verify keeps a divergent state_writes range at range level", async () => {
-		await sql`UPDATE state_writes SET value_hex = '0xee' WHERE block_height = 7 AND ordinal = 1`.execute(
+		await sql`UPDATE state_writes SET value = decode('ee', 'hex') WHERE block_height = 7 AND ordinal = 1`.execute(
 			getDb(),
 		);
 		const res = runCli(

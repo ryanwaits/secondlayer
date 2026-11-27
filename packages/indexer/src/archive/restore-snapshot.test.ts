@@ -164,9 +164,9 @@ describe.skipIf(!HAS_DB)("canonical snapshot restore proof", () => {
 	test("restore round-trips state_writes", async () => {
 		if (!db) throw new Error("missing db");
 		for (let height = 1; height <= 9; height++) {
-			await sql`INSERT INTO state_writes (block_height, ordinal, tx_index, key, value_hex)
-				VALUES (${height}, 0, NULL, ${`vm-metadata::${height}`}, '0x00'),
-				       (${height}, 1, 0, ${`vm::SP1.c::1::"k,${height}"`}, ${`0x0${height}`})`.execute(
+			await sql`INSERT INTO state_writes (block_height, ordinal, tx_index, key, value)
+				VALUES (${height}, 0, NULL, ${`vm-metadata::${height}`}, decode('00', 'hex')),
+				       (${height}, 1, 0, ${`vm::SP1.c::1::"k,${height}"`}, decode(${`0${height}`}, 'hex'))`.execute(
 				db,
 			);
 		}

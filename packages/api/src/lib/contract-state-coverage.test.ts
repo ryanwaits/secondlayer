@@ -370,8 +370,8 @@ describe.skipIf(!HAS_DB)("contract state coverage against postgres", () => {
 				.execute();
 			if (i !== 3) {
 				await sql`
-					INSERT INTO state_writes (block_height, ordinal, key, value_hex)
-					VALUES (${height}, 0, 'k', '00')
+					INSERT INTO state_writes (block_height, ordinal, key, value)
+					VALUES (${height}, 0, 'k', decode('00', 'hex'))
 				`.execute(db);
 			}
 		}

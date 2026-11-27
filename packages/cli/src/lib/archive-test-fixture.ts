@@ -126,14 +126,14 @@ export function fixtureChain(
 				ordinal: 0,
 				tx_index: null,
 				key: `vm-metadata::${h}::burn`,
-				value_hex: "0x00",
+				value_hex: "00",
 			},
 			{
 				block_height: h,
 				ordinal: 1,
 				tx_index: 0,
 				key: `vm::SP000.c::1::k${h}`,
-				value_hex: `0x${h.toString(16).padStart(2, "0")}`,
+				value_hex: h.toString(16).padStart(4, "0"),
 			},
 		);
 	}
@@ -286,8 +286,8 @@ export async function seedChain(
 		);
 	}
 	for (const w of chain.state_writes) {
-		await sql`INSERT INTO state_writes (block_height, ordinal, tx_index, key, value_hex)
-			VALUES (${w.block_height}, ${w.ordinal}, ${w.tx_index}, ${w.key}, ${w.value_hex})`.execute(
+		await sql`INSERT INTO state_writes (block_height, ordinal, tx_index, key, value)
+			VALUES (${w.block_height}, ${w.ordinal}, ${w.tx_index}, ${w.key}, decode(${w.value_hex}, 'hex'))`.execute(
 			db,
 		);
 	}

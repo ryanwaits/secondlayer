@@ -1,5 +1,6 @@
 import { afterAll, beforeEach, describe, expect, test } from "bun:test";
 import { getSourceDb } from "@secondlayer/shared/db";
+import { sql } from "kysely";
 import { ingestNewBlock } from "./ingest.ts";
 import type { NewBlockPayload } from "./types/node-events.ts";
 
@@ -33,7 +34,12 @@ async function loadFixture(file: string): Promise<NewBlockPayload> {
 async function stateWritesAtH() {
 	return getSourceDb()
 		.selectFrom("state_writes")
-		.select(["ordinal", "tx_index", "key", "value_hex"])
+		.select([
+			"ordinal",
+			"tx_index",
+			"key",
+			sql<string>`encode(value, 'hex')`.as("value_hex"),
+		])
 		.where("block_height", "=", H)
 		.orderBy("ordinal", "asc")
 		.execute();

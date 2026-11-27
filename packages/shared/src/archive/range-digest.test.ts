@@ -193,8 +193,8 @@ describe.skipIf(!HAS_DB)("SQL range digests", () => {
 
 	test("range digest of state_writes ignores non-canonical blocks", async () => {
 		if (!db) throw new Error("missing db");
-		await sql`INSERT INTO state_writes (block_height, ordinal, tx_index, key, value_hex)
-			VALUES (${H + 2}, 0, NULL, 'k-block', '0x00'), (${H + 2}, 1, 0, 'k-tx', '0x01')`.execute(
+		await sql`INSERT INTO state_writes (block_height, ordinal, tx_index, key, value)
+			VALUES (${H + 2}, 0, NULL, 'k-block', decode('00', 'hex')), (${H + 2}, 1, 0, 'k-tx', decode('01', 'hex'))`.execute(
 			db,
 		);
 		const before = await computeRangeDigest(db, "state_writes", H, TO);
@@ -203,8 +203,8 @@ describe.skipIf(!HAS_DB)("SQL range digests", () => {
 
 		// A fork contender's writes at another height leave the digest alone
 		// once that block is no longer canonical.
-		await sql`INSERT INTO state_writes (block_height, ordinal, tx_index, key, value_hex)
-			VALUES (${H + 3}, 0, NULL, 'k-fork', '0xff')`.execute(db);
+		await sql`INSERT INTO state_writes (block_height, ordinal, tx_index, key, value)
+			VALUES (${H + 3}, 0, NULL, 'k-fork', decode('ff', 'hex'))`.execute(db);
 		await sql`UPDATE blocks SET canonical = false WHERE height = ${H + 3}`.execute(
 			db,
 		);
@@ -213,12 +213,37 @@ describe.skipIf(!HAS_DB)("SQL range digests", () => {
 		expect(after.digest).toBe(before.digest as string);
 
 		// A changed value moves the digest even though the key is unchanged.
-		await sql`UPDATE state_writes SET value_hex = '0x02' WHERE block_height = ${H + 2} AND ordinal = 1`.execute(
+		await sql`UPDATE state_writes SET value = decode('02', 'hex') WHERE block_height = ${H + 2} AND ordinal = 1`.execute(
 			db,
 		);
 		const changed = await computeRangeDigest(db, "state_writes", H, TO);
 		expect(changed.row_count).toBe(2);
 		expect(changed.digest).not.toBe(before.digest as string);
+	});
+
+	test("range digest of state_writes equals the digest the hex text column produced", async () => {
+		if (!db) throw new Error("missing db");
+		await sql`INSERT INTO state_writes (block_height, ordinal, tx_index, key, value)
+			VALUES (${H + 2}, 0, NULL, 'k-block', decode('3031', 'hex')),
+			       (${H + 2}, 1, 0, 'k-tx', decode('00ff00', 'hex'))`.execute(db);
+
+		const digest = await computeRangeDigest(db, "state_writes", H, TO);
+
+		const { rows } = await sql<{ digest: string }>`
+			SELECT md5(string_agg(row_digest, '' ORDER BY ord)) AS digest
+			FROM (
+				SELECT md5(
+					block_height::text || '|' || ordinal::text || '|' ||
+					coalesce(tx_index::text, '~') || '|' || key || '|' || md5(value_hex)
+				) AS row_digest, ordinal AS ord
+				FROM (VALUES
+					(${H + 2}::bigint, 0, NULL::int, 'k-block', '3031'),
+					(${H + 2}::bigint, 1, 0, 'k-tx', '00ff00')
+				) AS legacy(block_height, ordinal, tx_index, key, value_hex)
+			) AS legacy_rows
+		`.execute(db);
+		expect(digest.row_count).toBe(2);
+		expect(digest.digest).toBe(rows[0]?.digest ?? null);
 	});
 
 	test("reports a range the local database does not have at all", () => {

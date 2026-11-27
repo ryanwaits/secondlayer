@@ -286,7 +286,7 @@ async function loadStateWrites(
 		key: string;
 		value_hex: string;
 	}>`
-		SELECT block_height, ordinal, tx_index, key, value_hex
+		SELECT block_height, ordinal, tx_index, key, encode(value, 'hex') AS value_hex
 		FROM state_writes
 		WHERE block_height >= ${fromHeight} AND block_height <= ${toHeight} ${scope}
 		ORDER BY block_height, ordinal

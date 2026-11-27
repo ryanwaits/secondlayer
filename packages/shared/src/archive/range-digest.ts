@@ -87,7 +87,7 @@ function identityExpression(dataset: RangeDigestDataset) {
 				ordinal::text || '|' ||
 				coalesce(tx_index::text, '~') || '|' ||
 				key || '|' ||
-				md5(value_hex)
+				md5(encode(value, 'hex'))
 			)`;
 		default:
 			return assertNeverDataset(dataset);

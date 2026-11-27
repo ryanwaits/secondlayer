@@ -957,7 +957,7 @@ async function* streamStateWriteRows(
 	let cursor: { height: number; ordinal: number } | null = null;
 	while (true) {
 		const result = await sql<StateWriteRow>`
-			SELECT w.block_height, w.ordinal, w.tx_index, w.key, w.value_hex
+			SELECT w.block_height, w.ordinal, w.tx_index, w.key, encode(w.value, 'hex') AS value_hex
 			  FROM state_writes w
 			  JOIN blocks b ON b.height = w.block_height AND b.canonical = true
 			 WHERE w.block_height >= ${fromBlock} AND w.block_height <= ${toBlock}

@@ -18,14 +18,28 @@ describe("state_writes CSV encoding", () => {
 				ordinal: 0,
 				tx_index: null,
 				key: "vm-metadata::9::contract",
-				value_hex: "0x00",
+				value_hex: "00",
 			}),
-		).toBe('"7","0",\\N,"vm-metadata::9::contract","0x00"');
+		).toBe('"7","0",\\N,"vm-metadata::9::contract","\\x00"');
+	});
+
+	test("a state_writes value_hex that is not lowercase even-length hex is refused", () => {
+		const row = {
+			block_height: 7n,
+			ordinal: 0,
+			tx_index: null,
+			key: "vm::k",
+		};
+		for (const value_hex of ["0x00", "0A", "abc"]) {
+			expect(() => toCsvLine("state_writes", { ...row, value_hex })).toThrow(
+				/lowercase even-length hex/,
+			);
+		}
 	});
 
 	test("COPY names the state_writes columns in Parquet order", () => {
 		expect(copyStatement("state_writes")).toBe(
-			"COPY state_writes (block_height, ordinal, tx_index, key, value_hex) FROM STDIN WITH (FORMAT csv, NULL '\\N')",
+			"COPY state_writes (block_height, ordinal, tx_index, key, value) FROM STDIN WITH (FORMAT csv, NULL '\\N')",
 		);
 	});
 });
@@ -61,14 +75,14 @@ describe.skipIf(!HAS_DB)("state_writes COPY round-trip", () => {
 				ordinal: 0,
 				tx_index: null,
 				key: "vm-metadata::9::contract",
-				value_hex: "0x00",
+				value_hex: "00",
 			},
 			{
 				block_height: BigInt(H),
 				ordinal: 1,
 				tx_index: 0,
 				key: 'vm::SP1.c::1::"quoted"',
-				value_hex: "0x0100",
+				value_hex: "0100",
 			},
 		];
 		async function* source() {
@@ -89,20 +103,20 @@ describe.skipIf(!HAS_DB)("state_writes COPY round-trip", () => {
 			tx_index: number | null;
 			key: string;
 			value_hex: string;
-		}>`SELECT ordinal, tx_index, key, value_hex FROM state_writes
+		}>`SELECT ordinal, tx_index, key, encode(value, 'hex') AS value_hex FROM state_writes
 			WHERE block_height = ${H} ORDER BY ordinal`.execute(db);
 		expect(stored).toEqual([
 			{
 				ordinal: 0,
 				tx_index: null,
 				key: "vm-metadata::9::contract",
-				value_hex: "0x00",
+				value_hex: "00",
 			},
 			{
 				ordinal: 1,
 				tx_index: 0,
 				key: 'vm::SP1.c::1::"quoted"',
-				value_hex: "0x0100",
+				value_hex: "0100",
 			},
 		]);
 	});

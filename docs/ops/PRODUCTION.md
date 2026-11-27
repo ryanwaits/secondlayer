@@ -167,3 +167,15 @@ A shape change on a big live chain table runs through
 `swapLiveRewrite`. Ingest never stops until the swap. The old table stays as
 `<name>_old` until dropped by hand. Rollback before the swap is
 `abort --apply`, which drops only tool-created objects.
+
+### state_writes digest
+
+`state_writes` stores each value as bytes (`value BYTEA`); `value_hex` is
+`encode(value,'hex')` everywhere it is served. Compare two databases, or one
+before and after the rewrite, with the per-height digest below. A database
+still on the old shape (`value_hex TEXT`) swaps `encode(value,'hex')` for
+`value_hex`; both shapes give the same md5.
+
+```sql
+select 'sw'||chr(9)||block_height||chr(9)||count(*)||chr(9)||md5(string_agg(concat_ws(chr(124),ordinal,tx_index,key,encode(value,'hex')),chr(10) order by ordinal)) from state_writes where block_height between LO and HI group by block_height order by block_height;
+```

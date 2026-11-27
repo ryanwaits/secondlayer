@@ -88,7 +88,7 @@ async function archiveOrphanedHeight(
 			orphaned_block_hash
 		)
 		SELECT block_height::text || ':' || ordinal::text, block_height, ordinal,
-			tx_index, key, value_hex, ${orphanedHash}
+			tx_index, key, encode(value, 'hex'), ${orphanedHash}
 		FROM state_writes WHERE block_height = ${blockHeight}
 	`.execute(tx);
 }

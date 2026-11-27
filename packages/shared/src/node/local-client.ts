@@ -1,4 +1,4 @@
-import type { Kysely } from "kysely";
+import { type Kysely, sql } from "kysely";
 import type { Database } from "../db/types.ts";
 import {
 	VM_STORED_TO_NODE_TYPE,
@@ -142,7 +142,12 @@ export class LocalClient {
 
 		const state_writes: ReplayStateWritePayload[] = await db
 			.selectFrom("state_writes")
-			.select(["tx_index", "ordinal", "key", "value_hex"])
+			.select([
+				"tx_index",
+				"ordinal",
+				"key",
+				sql<string>`encode(value, 'hex')`.as("value_hex"),
+			])
 			.where("block_height", "=", height)
 			.orderBy("ordinal", "asc")
 			.execute();

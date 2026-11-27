@@ -290,6 +290,7 @@ export function parseVmEvent(
 }
 
 const PG_INT4_MAX = 2_147_483_647;
+const CANONICAL_HEX = /^([0-9a-f]{2})*$/;
 
 function isInt4(value: unknown): value is number {
 	return (
@@ -322,10 +323,10 @@ export function parseStateWrites(
 			typeof write.key === "string" &&
 			write.key.length > 0 &&
 			typeof write.value_hex === "string" &&
+			CANONICAL_HEX.test(write.value_hex) &&
 			// Postgres TEXT rejects \0. Skip rather than strip: a rewritten key
 			// would name a MARF leaf the block never wrote.
-			!write.key.includes("\0") &&
-			!write.value_hex.includes("\0");
+			!write.key.includes("\0");
 		if (!valid) {
 			logger.warn("Malformed state_write, skipping", {
 				blockHeight,
@@ -338,7 +339,7 @@ export function parseStateWrites(
 			ordinal: write.ordinal,
 			tx_index: write.tx_index,
 			key: write.key,
-			value_hex: write.value_hex,
+			value: Buffer.from(write.value_hex, "hex"),
 		});
 	}
 	return out;

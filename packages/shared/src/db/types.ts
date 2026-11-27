@@ -147,7 +147,7 @@ export interface StateWritesTable {
 	ordinal: number;
 	tx_index: number | null;
 	key: string;
-	value_hex: string;
+	value: ColumnType<Buffer, Buffer, Buffer>;
 }
 
 export interface StateWritesArchiveTable {

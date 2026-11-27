@@ -34,6 +34,15 @@ export function csvField(value: string | number | null | undefined): string {
 	return `"${text.replace(/"/g, '""')}"`;
 }
 
+const CANONICAL_HEX = /^([0-9a-f]{2})*$/;
+
+function byteaHex(valueHex: string): string {
+	if (!CANONICAL_HEX.test(valueHex)) {
+		throw new Error("state_writes value_hex is not lowercase even-length hex");
+	}
+	return `\\x${valueHex}`;
+}
+
 function asNumber(value: unknown): number {
 	return typeof value === "bigint" ? Number(value) : Number(value as number);
 }
@@ -90,7 +99,7 @@ export function toCsvLine(dataset: ArchiveDataset, row: ArchiveRow): string {
 				csvField(asNumber(row.ordinal)),
 				csvField(asOptionalNumber(row.tx_index)),
 				csvField(asText(row.key)),
-				csvField(asText(row.value_hex)),
+				csvField(byteaHex(asText(row.value_hex))),
 			].join(",");
 		default:
 			return assertNeverDataset(dataset);
@@ -111,7 +120,7 @@ export function copyStatement(dataset: ArchiveDataset): string {
 		case "events":
 			return "COPY events (tx_id, block_height, event_index, type, data) FROM STDIN WITH (FORMAT csv, NULL '\\N')";
 		case "state_writes":
-			return "COPY state_writes (block_height, ordinal, tx_index, key, value_hex) FROM STDIN WITH (FORMAT csv, NULL '\\N')";
+			return "COPY state_writes (block_height, ordinal, tx_index, key, value) FROM STDIN WITH (FORMAT csv, NULL '\\N')";
 		default:
 			return assertNeverDataset(dataset);
 	}

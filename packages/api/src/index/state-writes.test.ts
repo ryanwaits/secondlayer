@@ -46,7 +46,7 @@ function write(
 		ordinal,
 		tx_index,
 		key: `vm::SP.store::1::k${ordinal}`,
-		value_hex: "0x0100",
+		value_hex: "0100",
 	};
 }
 
@@ -300,7 +300,7 @@ describe.skipIf(!HAS_DB)("state_writes read", () => {
 					ordinal,
 					tx_index,
 					key: `vm::SP.store::1::k${ordinal}`,
-					value_hex: "0x0100",
+					value: Buffer.from("0100", "hex"),
 				})),
 			)
 			.execute();
@@ -345,7 +345,7 @@ describe.skipIf(!HAS_DB)("state_writes read", () => {
 			ordinal: 2,
 			tx_index: null,
 			key: "vm::SP.store::1::k2",
-			value_hex: "0x0100",
+			value_hex: "0100",
 		});
 	});
 
@@ -452,7 +452,7 @@ describe.skipIf(!HAS_DB)("state_writes read", () => {
 					ordinal,
 					tx_index,
 					key,
-					value_hex: "3031",
+					value: Buffer.from("3031", "hex"),
 				})),
 			)
 			.execute();

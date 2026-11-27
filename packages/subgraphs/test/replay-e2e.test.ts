@@ -203,7 +203,13 @@ describe.skipIf(!process.env.DATABASE_URL)(
 					.execute();
 				await source
 					.insertInto("state_writes")
-					.values(b.writes.map((w) => ({ ...w, block_height: b.height })))
+					.values(
+						b.writes.map(({ value_hex, ...w }) => ({
+							...w,
+							block_height: b.height,
+							value: Buffer.from(value_hex, "hex"),
+						})),
+					)
 					.execute();
 			}
 

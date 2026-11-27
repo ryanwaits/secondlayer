@@ -319,7 +319,15 @@ describe.skipIf(!process.env.DATABASE_URL)(
 					})),
 				)
 				.execute();
-			await db.insertInto("state_writes").values(WRITES).execute();
+			await db
+				.insertInto("state_writes")
+				.values(
+					WRITES.map(({ value_hex, ...w }) => ({
+						...w,
+						value: Buffer.from(value_hex, "hex"),
+					})),
+				)
+				.execute();
 			// A vm_events row the state feed must never read.
 			await db
 				.insertInto("vm_events")

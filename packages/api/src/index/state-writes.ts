@@ -132,7 +132,7 @@ export function stateWritesQuery(
 		);
 	}
 	return sql<StateWriteRow>`
-		SELECT sw.block_height, sw.ordinal, sw.tx_index, sw.key, sw.value_hex
+		SELECT sw.block_height, sw.ordinal, sw.tx_index, sw.key, encode(sw.value, 'hex') AS value_hex
 			${params.txContext ? TX_CONTEXT_COLUMNS : sql``}
 		FROM state_writes sw
 		INNER JOIN blocks b ON b.height = sw.block_height
@@ -188,7 +188,7 @@ export async function readBlockStateWrites(
 	db: Kysely<Database> = getSourceDb(),
 ): Promise<Omit<IndexStateWrite, "cursor" | "block_height">[]> {
 	const { rows } = await sql<StateWriteRow>`
-		SELECT sw.ordinal, sw.tx_index, sw.key, sw.value_hex
+		SELECT sw.ordinal, sw.tx_index, sw.key, encode(sw.value, 'hex') AS value_hex
 		FROM state_writes sw
 		INNER JOIN blocks b ON b.height = sw.block_height
 		WHERE sw.block_height = ${height} AND b.canonical = true

@@ -528,14 +528,14 @@ describe.skipIf(!HAS_DB)("persistBlock replace-per-height", () => {
 				ordinal: 0,
 				tx_index: null,
 				key: "vm-account::SP1::19",
-				value_hex: "3031",
+				value: Buffer.from("3031", "hex"),
 			},
 			{
 				block_height: H,
 				ordinal: 1,
 				tx_index: 0,
 				key: "vm::SP1.c::0::map::0a",
-				value_hex: "3062",
+				value: Buffer.from("3062", "hex"),
 			},
 		];
 		await persistBlock(db, first);
@@ -546,7 +546,7 @@ describe.skipIf(!HAS_DB)("persistBlock replace-per-height", () => {
 				ordinal: 0,
 				tx_index: 0,
 				key: "vm::SP1.c::0::map::0b",
-				value_hex: "3063",
+				value: Buffer.from("3063", "hex"),
 			},
 		];
 		await persistBlock(db, second);
@@ -558,7 +558,14 @@ describe.skipIf(!HAS_DB)("persistBlock replace-per-height", () => {
 			.execute();
 		const archived = await db
 			.selectFrom("state_writes_archive")
-			.select(["id", "ordinal", "tx_index", "key", "orphaned_block_hash"])
+			.select([
+				"id",
+				"ordinal",
+				"tx_index",
+				"key",
+				"value_hex",
+				"orphaned_block_hash",
+			])
 			.where("block_height", "=", H)
 			.orderBy("ordinal", "asc")
 			.execute();
@@ -573,6 +580,7 @@ describe.skipIf(!HAS_DB)("persistBlock replace-per-height", () => {
 				ordinal: 0,
 				tx_index: null,
 				key: "vm-account::SP1::19",
+				value_hex: "3031",
 				orphaned_block_hash: "0xblockA",
 			},
 			{
@@ -580,6 +588,7 @@ describe.skipIf(!HAS_DB)("persistBlock replace-per-height", () => {
 				ordinal: 1,
 				tx_index: 0,
 				key: "vm::SP1.c::0::map::0a",
+				value_hex: "3062",
 				orphaned_block_hash: "0xblockA",
 			},
 		]);
@@ -596,7 +605,7 @@ describe.skipIf(!HAS_DB)("persistBlock replace-per-height", () => {
 			ordinal,
 			tx_index: ordinal % 7 === 0 ? null : 0,
 			key: `vm::SP1.c::0::map::${ordinal.toString(16).padStart(8, "0")}`,
-			value_hex: "3031",
+			value: Buffer.from("3031", "hex"),
 		}));
 		await persistBlock(db, input);
 

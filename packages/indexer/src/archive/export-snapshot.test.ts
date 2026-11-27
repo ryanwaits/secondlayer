@@ -164,9 +164,9 @@ describe.skipIf(!HAS_DB)("canonical snapshot export", () => {
 	async function seedStateWrites(fromHeight: number, toHeight = 7) {
 		if (!db) throw new Error("missing db");
 		for (let height = fromHeight; height <= toHeight; height++) {
-			await sql`INSERT INTO state_writes (block_height, ordinal, tx_index, key, value_hex)
-				VALUES (${height}, 0, NULL, ${`vm-metadata::${height}`}, '0x00'),
-				       (${height}, 1, 0, ${`vm::SP1.c::1::k${height}`}, ${`0x0${height}`})`.execute(
+			await sql`INSERT INTO state_writes (block_height, ordinal, tx_index, key, value)
+				VALUES (${height}, 0, NULL, ${`vm-metadata::${height}`}, decode('00', 'hex')),
+				       (${height}, 1, 0, ${`vm::SP1.c::1::k${height}`}, decode(${`0${height}`}, 'hex'))`.execute(
 				db,
 			);
 		}
@@ -288,7 +288,7 @@ describe.skipIf(!HAS_DB)("canonical snapshot export", () => {
 			]);
 			expect(rows[0]?.tx_index ?? null).toBeNull();
 			expect(Number(rows[1]?.tx_index)).toBe(0);
-			expect(rows[1]?.value_hex).toBe("0x01");
+			expect(rows[1]?.value_hex).toBe("01");
 		} finally {
 			await reader.close();
 		}

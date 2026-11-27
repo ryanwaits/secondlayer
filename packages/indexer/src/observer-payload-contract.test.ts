@@ -117,7 +117,7 @@ describe("observer payload contract", () => {
 				ordinal: w.ordinal,
 				tx_index: w.tx_index,
 				key: w.key,
-				value_hex: w.value_hex,
+				value: Buffer.from(w.value_hex, "hex"),
 			})),
 		);
 		expect(rows[0]?.tx_index).toBeNull();
@@ -140,6 +140,40 @@ describe("observer payload contract", () => {
 			7,
 		);
 		expect(rows.map((r) => r.ordinal)).toEqual([0, 6]);
+	});
+
+	test("state_writes values are stored as the bytes the hex names", () => {
+		const rows = parseStateWrites(
+			[
+				{ tx_index: null, ordinal: 0, key: "vm::a", value_hex: "3031" },
+				{ tx_index: null, ordinal: 1, key: "vm::b", value_hex: "313030" },
+				{ tx_index: null, ordinal: 2, key: "vm::c", value_hex: "" },
+				{ tx_index: null, ordinal: 3, key: "vm::d", value_hex: "00ff00" },
+			],
+			7,
+		);
+		expect(rows.map((r) => Buffer.from(r.value).toString("hex"))).toEqual([
+			"3031",
+			"313030",
+			"",
+			"00ff00",
+		]);
+		expect(Buffer.from(rows[0]?.value ?? []).toString("utf8")).toBe("01");
+		expect(Buffer.from(rows[1]?.value ?? []).toString("utf8")).toBe("100");
+	});
+
+	test("state_writes with uppercase, odd-length or non-hex values are skipped", () => {
+		const rows = parseStateWrites(
+			[
+				{ tx_index: null, ordinal: 0, key: "vm::a", value_hex: "3A" },
+				{ tx_index: null, ordinal: 1, key: "vm::b", value_hex: "303" },
+				{ tx_index: null, ordinal: 2, key: "vm::c", value_hex: "0x00" },
+				{ tx_index: null, ordinal: 3, key: "vm::d", value_hex: "zz" },
+				{ tx_index: null, ordinal: 4, key: "vm::e", value_hex: "3a" },
+			],
+			7,
+		);
+		expect(rows.map((r) => r.ordinal)).toEqual([4]);
 	});
 
 	test("opt-in body has vm_events with no event_index on traces", async () => {
