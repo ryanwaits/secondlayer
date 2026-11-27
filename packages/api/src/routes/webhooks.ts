@@ -18,10 +18,12 @@ import {
 	listWebhooks,
 	notReorgOrphaned,
 	notifyWebhooksChanged,
+	outboxMachine,
 	rotateWebhookSecret,
 	toggleWebhookStatus,
 	updateWebhook,
 } from "@secondlayer/shared/db/queries/webhooks";
+import { casTransition } from "@secondlayer/shared/db/transition";
 import { ValidationError } from "@secondlayer/shared/errors";
 import { isTestnetWebhookStack } from "@secondlayer/shared/mode";
 import {
@@ -74,15 +76,12 @@ const REPLAY_RANGE_TOO_LARGE_RE = /^replay range exceeds \d+k? blocks$/;
 const UUID_RE =
 	/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-const REQUEUE_SET = {
-	status: "pending",
+const REQUEUE_FIELDS = {
 	dead_reason: null,
 	attempt: 0,
 	failed_at: null,
 	locked_by: null,
 	locked_until: null,
-	// Clear replay flag so a manual requeue drains at live priority,
-	// not throttled through the 10% replay share.
 	is_replay: false,
 } as const;
 
@@ -1163,16 +1162,17 @@ app.post("/:id/dead/:outboxId/requeue", async (c) => {
 	const sub = await getWebhook(getDb(), accountId, c.req.param("id"));
 	if (!sub) return c.json({ error: "Webhook not found" }, 404);
 
-	const res = await getDb()
-		.updateTable("webhook_outbox")
-		.set({ ...REQUEUE_SET, next_attempt_at: new Date() })
-		.where("id", "=", c.req.param("outboxId"))
-		.where("webhook_id", "=", sub.id)
-		.where("status", "=", "dead")
-		.where(notReorgOrphaned)
-		.executeTakeFirst();
-	const ok = Number(res.numUpdatedRows ?? 0) > 0;
-	if (!ok) return c.json({ error: "Dead row not found" }, 404);
+	const updated = await casTransition<OutboxStatus, { id: string }>(getDb(), {
+		table: "webhook_outbox",
+		id: c.req.param("outboxId"),
+		from: ["dead"],
+		to: "pending",
+		stampUpdatedAt: false,
+		set: { ...REQUEUE_FIELDS, next_attempt_at: new Date() },
+		where: sql`webhook_id = ${sub.id} AND (dead_reason IS NULL OR dead_reason != 'orphaned')`,
+		returning: ["id"],
+	});
+	if (!updated) return c.json({ error: "Dead row not found" }, 404);
 	return c.json({ ok: true });
 });
 
@@ -1200,9 +1200,10 @@ app.post("/:id/dead/requeue", async (c) => {
 	const sub = await getWebhook(db, accountId, c.req.param("id"));
 	if (!sub) return c.json({ error: "Webhook not found" }, 404);
 
+	outboxMachine.assert("dead", "pending");
 	let q = db
 		.updateTable("webhook_outbox")
-		.set({ ...REQUEUE_SET, next_attempt_at: new Date() })
+		.set({ status: "pending", ...REQUEUE_FIELDS, next_attempt_at: new Date() })
 		.where("webhook_id", "=", sub.id)
 		.where("status", "=", "dead")
 		.where(notReorgOrphaned);
