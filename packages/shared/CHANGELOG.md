@@ -1,5 +1,21 @@
 # @secondlayer/shared
 
+## 20.0.0
+
+### Major Changes
+
+- 2d0d724: `decoded_events` stores a `print` value once, as the canonical Clarity bytes in the new `raw_value` BYTEA column. New print rows have `payload` NULL; other event types keep `payload` as a jsonb object instead of a double-encoded string. Self-hosters reading `decoded_events.payload` directly for print events must read `raw_value` instead, or use `printPayloadFromStored` from `@secondlayer/shared/streams-rows`. REST responses are unchanged.
+
+### Minor Changes
+
+- b8f416c: Add `@secondlayer/shared/db/live-rewrite`: helpers to rewrite a large live chain table into a new shape with a dirty-height log and a swap migration.
+
+### Patch Changes
+
+- 489bc9e: Add the `observer_journal_cold_ranges` ledger table type and its migration.
+- Updated dependencies [3861f9b]
+  - @secondlayer/stacks@7.2.2
+
 ## 19.5.0
 
 ### Minor Changes

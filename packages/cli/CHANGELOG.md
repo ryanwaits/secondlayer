@@ -1,5 +1,20 @@
 # @secondlayer/cli
 
+## 24.2.1
+
+### Patch Changes
+
+- cf37cd2: Restrict browser launch URLs to `https:` (or loopback `http:`) and avoid `cmd.exe` shell parsing on Windows.
+- Updated dependencies [489bc9e]
+- Updated dependencies [b8f416c]
+- Updated dependencies [2d0d724]
+- Updated dependencies [3861f9b]
+- Updated dependencies
+  - @secondlayer/shared@20.0.0
+  - @secondlayer/stacks@7.2.2
+  - @secondlayer/subgraphs@8.1.21
+  - @secondlayer/sdk@20.5.1
+
 ## 24.2.0
 
 ### Minor Changes

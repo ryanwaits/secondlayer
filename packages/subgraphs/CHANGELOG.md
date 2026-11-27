@@ -1,5 +1,17 @@
 # @secondlayer/subgraphs
 
+## 8.1.21
+
+### Patch Changes
+
+- Remove unused internal `decodeFunctionArgs` export from subgraph runtime Clarity helpers.
+- Updated dependencies [489bc9e]
+- Updated dependencies [b8f416c]
+- Updated dependencies [2d0d724]
+- Updated dependencies [3861f9b]
+  - @secondlayer/shared@20.0.0
+  - @secondlayer/stacks@7.2.2
+
 ## 8.1.20
 
 ### Patch Changes

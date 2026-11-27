@@ -1,5 +1,11 @@
 # @secondlayer/stacks
 
+## 7.2.2
+
+### Patch Changes
+
+- 3861f9b: Harden Clarity tuple and length-prefixed string deserialization bounds and serialize `memoryStore().reset()` with in-flight reservations.
+
 ## 7.2.1
 
 ### Patch Changes

@@ -4,6 +4,10 @@ Notable changes to Secondlayer and its SDKs. Entries dated before August 2026 de
 
 ## Self-host — November 2026
 
+### Print events store canonical bytes in `decoded_events.raw_value`
+
+New `print` rows in `decoded_events` store the canonical Clarity bytes in the `raw_value` column and leave `payload` null. REST responses on `/v1/index` and `/v1/streams` are unchanged. If you query `decoded_events` directly on a self-hosted Postgres, read `raw_value` or decode with `printPayloadFromStored` from `@secondlayer/shared/streams-rows`.
+
 ### Run stacks-node 4.1.0 before epoch 4.1
 
 Epoch 4.1 activates at Bitcoin block 979,500, around December 9. A node on 4.0.x stops following the chain there, and your instance stops getting new blocks. The bundled full node in the self-host compose now pins stacks-core 4.1.0: run `docker compose pull && docker compose up -d`.
