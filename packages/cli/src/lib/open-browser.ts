@@ -1,16 +1,29 @@
 import { spawn } from "node:child_process";
 
+const LOOPBACK_HOSTS = new Set(["localhost", "127.0.0.1", "[::1]", "::1"]);
+
+function validateBrowserUrl(url: string): string {
+	const parsed = new URL(url);
+	if (parsed.protocol === "https:") return parsed.toString();
+	if (parsed.protocol === "http:" && LOOPBACK_HOSTS.has(parsed.hostname)) {
+		return parsed.toString();
+	}
+	throw new Error(
+		`Refusing to open unsupported browser URL: ${parsed.protocol}`,
+	);
+}
+
 /** The command that opens `url` in the default browser on this platform. */
 export function browserCommand(
 	url: string,
 	platform: NodeJS.Platform = process.platform,
 ): { cmd: string; args: string[] } {
-	if (platform === "darwin") return { cmd: "open", args: [url] };
+	const safeUrl = validateBrowserUrl(url);
+	if (platform === "darwin") return { cmd: "open", args: [safeUrl] };
 	if (platform === "win32") {
-		// The empty title keeps `start` from taking the URL as the window title.
-		return { cmd: "cmd", args: ["/c", "start", "", url] };
+		return { cmd: "rundll32", args: ["url.dll,FileProtocolHandler", safeUrl] };
 	}
-	return { cmd: "xdg-open", args: [url] };
+	return { cmd: "xdg-open", args: [safeUrl] };
 }
 
 /**

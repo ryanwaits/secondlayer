@@ -134,9 +134,46 @@ describe("pollDeviceToken", () => {
 describe("browserCommand", () => {
 	test("picks the opener for each platform", () => {
 		const url = "https://secondlayer.tools/cli/login?code=WDJB-MJHT";
-		expect(browserCommand(url, "darwin").cmd).toBe("open");
-		expect(browserCommand(url, "linux").cmd).toBe("xdg-open");
-		expect(browserCommand(url, "win32").cmd).toBe("cmd");
+		expect(browserCommand(url, "darwin")).toEqual({ cmd: "open", args: [url] });
+		expect(browserCommand(url, "linux")).toEqual({
+			cmd: "xdg-open",
+			args: [url],
+		});
+		expect(browserCommand(url, "win32")).toEqual({
+			cmd: "rundll32",
+			args: ["url.dll,FileProtocolHandler", url],
+		});
+	});
+
+	test("accepts https URLs with query params and loopback http URLs", () => {
+		const httpsWithAmp =
+			"https://secondlayer.tools/cli/login?code=WDJB-MJHT&next=/dashboard";
+		expect(browserCommand(httpsWithAmp, "win32")).toEqual({
+			cmd: "rundll32",
+			args: ["url.dll,FileProtocolHandler", httpsWithAmp],
+		});
+		expect(browserCommand("http://127.0.0.1:3000/login", "linux").args).toEqual(
+			["http://127.0.0.1:3000/login"],
+		);
+		expect(
+			browserCommand("http://localhost:3000/login", "darwin").args,
+		).toEqual(["http://localhost:3000/login"]);
+		expect(browserCommand("http://[::1]:3000/login", "linux").args).toEqual([
+			"http://[::1]:3000/login",
+		]);
+	});
+
+	test("rejects unsupported schemes, non-loopback http, and invalid URLs", () => {
+		expect(() => browserCommand("file:///etc/passwd", "darwin")).toThrow(
+			"Refusing to open unsupported browser URL",
+		);
+		expect(() => browserCommand("javascript:alert(1)", "linux")).toThrow(
+			"Refusing to open unsupported browser URL",
+		);
+		expect(() => browserCommand("http://example.com/login", "win32")).toThrow(
+			"Refusing to open unsupported browser URL",
+		);
+		expect(() => browserCommand("not a url", "darwin")).toThrow();
 	});
 });
 
