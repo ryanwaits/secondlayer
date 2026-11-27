@@ -255,7 +255,14 @@ export function createApiApp(mode: InstanceMode): Hono {
 	app.route("/", publicDataRouter);
 	app.route("/v1/instance", createInstanceCatalogRouter());
 	if (mode === "oss") {
-		app.get("/console", (c) => c.html(renderLocalConsole()));
+		app.get("/console", (c) => {
+			c.header("X-Frame-Options", "DENY");
+			c.header(
+				"Content-Security-Policy",
+				"default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'self'; frame-ancestors 'none'",
+			);
+			return c.html(renderLocalConsole());
+		});
 	}
 	app.route("/v1", v1IndexRouter);
 	app.route("/v1/openapi.json", openApiRouter);

@@ -195,16 +195,61 @@ export function renderLocalConsole(): string {
   <script>
     fetch("/v1/instance").then(r => r.json()).then(data => {
       const el = document.getElementById("root");
-      const rows = (items, cols) => items.length
-        ? "<table><thead><tr>" + cols.map(c => "<th>" + c + "</th>").join("") + "</tr></thead><tbody>" +
-          items.map(item => "<tr>" + cols.map(c => "<td><code>" + (item[c] ?? "") + "</code></td>").join("") + "</tr>").join("") +
-          "</tbody></table>"
-        : "<p class=\\"muted\\">None yet.</p>";
-      el.innerHTML =
-        "<p>Network <code>" + data.network + "</code> · mode <code>" + data.mode + "</code></p>" +
-        "<h2>Subgraphs</h2>" + rows(data.subgraphs, ["name", "status", "last_processed_block"]) +
-        "<h2>Webhooks</h2>" + rows(data.webhooks, ["name", "status", "kind"]) +
-        "<p class=\\"muted\\">JSON: <a href=\\"/v1/instance\\"><code>/v1/instance</code></a></p>";
+      const code = (text) => {
+        const node = document.createElement("code");
+        node.textContent = String(text ?? "");
+        return node;
+      };
+      const heading = (text) => {
+        const h2 = document.createElement("h2");
+        h2.textContent = text;
+        return h2;
+      };
+      const rows = (items, cols) => {
+        if (!items || !items.length) {
+          const empty = document.createElement("p");
+          empty.className = "muted";
+          empty.textContent = "None yet.";
+          return empty;
+        }
+        const table = document.createElement("table");
+        const thead = document.createElement("thead");
+        const headRow = document.createElement("tr");
+        for (const c of cols) {
+          const th = document.createElement("th");
+          th.textContent = c;
+          headRow.append(th);
+        }
+        thead.append(headRow);
+        const tbody = document.createElement("tbody");
+        for (const item of items) {
+          const tr = document.createElement("tr");
+          for (const c of cols) {
+            const td = document.createElement("td");
+            td.append(code(item[c]));
+            tr.append(td);
+          }
+          tbody.append(tr);
+        }
+        table.append(thead, tbody);
+        return table;
+      };
+      const summary = document.createElement("p");
+      summary.append("Network ", code(data.network), " · mode ", code(data.mode));
+      const footer = document.createElement("p");
+      footer.className = "muted";
+      const link = document.createElement("a");
+      link.href = "/v1/instance";
+      link.append(code("/v1/instance"));
+      footer.append("JSON: ", link);
+      el.replaceChildren(
+        summary,
+        heading("Subgraphs"),
+        rows(data.subgraphs, ["name", "status", "last_processed_block"]),
+        heading("Webhooks"),
+        rows(data.webhooks, ["name", "status", "kind"]),
+        footer,
+      );
     }).catch(err => {
       document.getElementById("root").textContent = String(err);
     });
