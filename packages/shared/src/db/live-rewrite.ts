@@ -60,8 +60,50 @@ const vmEventsSpec: LiveRewriteSpec = {
 	`,
 };
 
+const CANONICAL_HEX = "^([0-9a-f]{2})*$";
+
+function stateWritesDigest(table: string, valueHex: RawBuilder<unknown>) {
+	return (heights: readonly number[]) => sql`
+		SELECT block_height::int AS block_height, count(*)::int AS n,
+		       md5(string_agg(concat_ws(chr(124), ordinal, tx_index, key, ${valueHex}), chr(10) ORDER BY ordinal)) AS md5
+		  FROM ${sql.table(table)}
+		 WHERE block_height = ANY(ARRAY[${sql.join(heights)}]::bigint[])
+		 GROUP BY block_height
+	`;
+}
+
+const stateWritesSpec: LiveRewriteSpec = {
+	table: "state_writes",
+	createNext: sql`
+		CREATE TABLE IF NOT EXISTS state_writes_next (
+			block_height BIGINT NOT NULL,
+			ordinal INTEGER NOT NULL,
+			tx_index INTEGER NULL,
+			key TEXT NOT NULL,
+			value BYTEA NOT NULL,
+			CONSTRAINT state_writes_pkey_next PRIMARY KEY (block_height, ordinal)
+		)
+	`,
+	copyRange: (fromHeight, toHeight) => sql`
+		INSERT INTO state_writes_next (block_height, ordinal, tx_index, key, value)
+		SELECT block_height, ordinal, tx_index, key, decode(value_hex, 'hex')
+		  FROM state_writes
+		 WHERE block_height >= ${fromHeight} AND block_height < ${toHeight}
+		   AND value_hex ~ ${CANONICAL_HEX}
+	`,
+	sourceRowsInRange: (fromHeight, toHeight) => sql`
+		SELECT count(*) FROM state_writes
+		 WHERE block_height >= ${fromHeight} AND block_height < ${toHeight}
+	`,
+	skipIndexes: [],
+	skipConstraints: [],
+	digestLive: stateWritesDigest("state_writes", sql`value_hex`),
+	digestNext: stateWritesDigest("state_writes_next", sql`encode(value, 'hex')`),
+};
+
 export const LIVE_REWRITE_SPECS: Record<string, LiveRewriteSpec> = {
 	vm_events: vmEventsSpec,
+	state_writes: stateWritesSpec,
 };
 
 export const LIVE_REWRITE_WINDOW_HEIGHTS = 10_000;

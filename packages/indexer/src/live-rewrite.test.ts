@@ -401,6 +401,114 @@ describe.skipIf(!HAS_DB)("live table rewrite", () => {
 		await run(spec, "abort");
 	});
 
+	async function createStateWrites(): Promise<void> {
+		await sql`DROP TABLE IF EXISTS state_writes, state_writes_old, state_writes_next, blocks CASCADE`.execute(
+			db,
+		);
+		await sql`CREATE TABLE blocks (height BIGINT PRIMARY KEY)`.execute(db);
+		await sql`
+			CREATE TABLE state_writes (
+				block_height BIGINT NOT NULL REFERENCES blocks(height) ON DELETE CASCADE,
+				ordinal INTEGER NOT NULL,
+				tx_index INTEGER NULL,
+				key TEXT NOT NULL,
+				value_hex TEXT NOT NULL,
+				PRIMARY KEY (block_height, ordinal)
+			)
+		`.execute(db);
+	}
+
+	async function insertStateWrites(
+		rows: [number, number, number | null, string, string][],
+	): Promise<void> {
+		for (const [height, ordinal, txIndex, key, valueHex] of rows) {
+			await sql`INSERT INTO blocks VALUES (${height}) ON CONFLICT DO NOTHING`.execute(
+				db,
+			);
+			await sql`INSERT INTO state_writes VALUES (${height}, ${ordinal}, ${txIndex}, ${key}, ${valueHex})`.execute(
+				db,
+			);
+		}
+	}
+
+	test("state_writes rewrite keeps every value_hex byte-identical through encode and swaps to bytea", async () => {
+		const spec = LIVE_REWRITE_SPECS.state_writes as LiveRewriteSpec;
+		await createStateWrites();
+		await insertStateWrites([
+			[5, 0, null, "vm-metadata::5", "00"],
+			[5, 1, 0, "vm::SP1.c::1::k", "3031"],
+			[10_005, 0, 2, "vm::SP1.c::1::z", ""],
+			[10_005, 1, 2, "vm::SP1.c::1::nul", "00ff00"],
+			[20_005, 0, null, "vm::SP1.c::1::long", "30".repeat(5_000)],
+		]);
+
+		await run(spec, "prepare");
+		await run(spec, "copy");
+		await insertStateWrites([[20_006, 0, 1, "vm::SP1.c::1::late", "3132"]]);
+		await run(spec, "catchup");
+		await run(spec, "index");
+		expect(await run(spec, "verify")).toBe(0);
+		expect(await run(spec, "preflight")).toBe(0);
+
+		const heights = [5, 10_005, 20_005, 20_006];
+		const live = await spec.digestLive(heights).execute(db);
+		const next = await spec.digestNext(heights).execute(db);
+		const byHeight = (rows: object[]) =>
+			[...rows].sort(
+				(a, b) =>
+					(a as { block_height: number }).block_height -
+					(b as { block_height: number }).block_height,
+			);
+		expect(byHeight(next.rows as object[])).toEqual(
+			byHeight(live.rows as object[]),
+		);
+		expect(live.rows).toHaveLength(4);
+
+		await swapLiveRewrite(db, spec);
+
+		const swapped = await sql<{ h: number; o: number; hex: string }>`
+			SELECT block_height::int AS h, ordinal AS o, encode(value, 'hex') AS hex
+			  FROM state_writes ORDER BY 1, 2
+		`.execute(db);
+		expect(swapped.rows.map((r) => [r.h, r.o, r.hex.length])).toEqual([
+			[5, 0, 2],
+			[5, 1, 4],
+			[10_005, 0, 0],
+			[10_005, 1, 6],
+			[20_005, 0, 10_000],
+			[20_006, 0, 4],
+		]);
+		expect(swapped.rows[3]?.hex).toBe("00ff00");
+		const after = await sql`
+			SELECT block_height::int AS block_height, count(*)::int AS n,
+			       md5(string_agg(concat_ws(chr(124), ordinal, tx_index, key, encode(value, 'hex')), chr(10) ORDER BY ordinal)) AS md5
+			  FROM state_writes
+			 WHERE block_height = ANY(ARRAY[${sql.join(heights)}]::bigint[])
+			 GROUP BY block_height
+		`.execute(db);
+		expect(byHeight(after.rows as object[])).toEqual(
+			byHeight(live.rows as object[]),
+		);
+	});
+
+	test("state_writes rewrite aborts the window on a value_hex that is not canonical lowercase hex", async () => {
+		const spec = LIVE_REWRITE_SPECS.state_writes as LiveRewriteSpec;
+		await createStateWrites();
+		await insertStateWrites([
+			[5, 0, null, "vm::SP1.c::1::a", "3031"],
+			[5, 1, 0, "vm::SP1.c::1::b", "30A1"],
+		]);
+		await run(spec, "prepare");
+
+		await expect(run(spec, "copy")).rejects.toThrow(/copy carried 1 rows/);
+
+		const copied = await sql<{ n: number }>`
+			SELECT count(*)::int AS n FROM state_writes_next
+		`.execute(db);
+		expect(copied.rows[0]?.n).toBe(0);
+		await run(spec, "abort");
+	});
+
 	test("rejects an unknown command and a missing table", () => {
 		expect(() => parseArgs(["--table", "t", "explode"])).toThrow(
 			/unknown argument/,
