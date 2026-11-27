@@ -18,7 +18,7 @@ Compose project lives at `/opt/secondlayer/docker/prod` on app-server.
 - **app-server** — everything below.
 - **node-server** — the stacks-node. Pushes the event-observer
   firehose to `indexer`; also serves RPC (`:20443`) for tx-proof endpoints.
-  Runs the eval-hook fork image (`sl-4.0.7`) with
+  Runs the eval-hook fork image (`sl-4.1.0`) with
   `events_keys = ["*", "storage", "contract_calls", "state_writes"]` since
   2026-11-23, so `vm_events` / `state_writes` land for every new block.
 
@@ -116,10 +116,13 @@ transaction as their rows; a resumed/requeued op starts at `cursor_block + 1`.
 
 node-server runs the fork image with the VM keys on. History from genesis
 came from the feeder's re-sync (the v2 DB); new blocks come from this node.
-Unknown keys panic on a stock image, so a rollback to stock
-`stacks-core:4.0.7` must also set `events_keys = ["*"]`. Both images share
+Image `sl-4.1.0` (`@sha256:99837f90…`) since 2026-11-27, swapped at
+height 9,591,377. Unknown keys panic on a stock image, so a rollback to stock
+`stacks-core:4.1.0` must also set `events_keys = ["*"]`. Both images share
 the same chainstate format, so the rollback is image + config only.
-Miners/signers never get `"storage"` / `"contract_calls"`.
+The previous fork image (`sl-4.0.7@sha256:772b5451…`) is a rollback only
+before epoch 4.1 activates (Bitcoin 979,500): 4.0.7 cannot follow the chain
+past it. Miners/signers never get `"storage"` / `"contract_calls"`.
 
 Every fork release (e.g. epoch 4.1) runs on the feeder first: witness checks
 (`marf-witness` built from the same fork branch) plus a stock-vs-fork diff
