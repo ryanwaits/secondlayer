@@ -44,6 +44,7 @@ export const TABLE_TO_DB = {
 	pending_fork_blocks: "source",
 	// Exact observer callback receipts — the replay authority sits with chain data.
 	observer_journal: "source",
+	observer_journal_cold_ranges: "source",
 	// Declared scope — belongs with the chain whose start it declares.
 	sync_scopes: "source",
 	// Coverage kernel — attests the chain it sits next to.

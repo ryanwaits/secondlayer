@@ -546,3 +546,56 @@ describe.skipIf(!HAS_DB)("row invariants audit", () => {
 		expect(invariants.burn_height_regression_count).toBeGreaterThanOrEqual(1);
 	});
 });
+
+describe.skipIf(!HAS_DB)("observer journal cold coverage", () => {
+	const db = HAS_DB ? getSourceDb() : (null as never);
+	const network = "audit-cold-test";
+
+	afterEach(async () => {
+		await db
+			.deleteFrom("observer_journal_cold_ranges")
+			.where("network", "=", network)
+			.execute();
+	});
+
+	test("ledger ranges are counted with their verified state and height span", async () => {
+		const range = (from: number, verified: boolean) => ({
+			network,
+			kind: "new_block" as const,
+			from_height: from,
+			to_height: from + 49_999,
+			rows: 10,
+			min_sequence: from + 1,
+			max_sequence: from + 10,
+			object_key: `k-${from}`,
+			file_sha256: "sha",
+			manifest_key: `m-${from}`,
+			verified_at: verified ? new Date() : null,
+		});
+		await db
+			.insertInto("observer_journal_cold_ranges")
+			.values([range(0, true), range(50_000, false)])
+			.execute();
+
+		const report = await auditCanonicalCoverage({ network, db });
+
+		expect(report.observer_journal).toMatchObject({
+			cold_ranges: 2,
+			cold_rows: 20,
+			cold_verified_ranges: 1,
+			cold_from_height: 0,
+			cold_to_height: 99_999,
+		});
+	});
+
+	test("a network without ledger rows reports no cold coverage", async () => {
+		const report = await auditCanonicalCoverage({ network, db });
+		expect(report.observer_journal).toMatchObject({
+			cold_ranges: 0,
+			cold_rows: 0,
+			cold_verified_ranges: 0,
+			cold_from_height: null,
+			cold_to_height: null,
+		});
+	});
+});

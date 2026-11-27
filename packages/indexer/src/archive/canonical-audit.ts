@@ -48,6 +48,11 @@ export type CanonicalCoverageAudit = {
 		received: number;
 		failed: number;
 		paths: string[];
+		cold_ranges: number;
+		cold_rows: number;
+		cold_verified_ranges: number;
+		cold_from_height: number | null;
+		cold_to_height: number | null;
 	};
 };
 
@@ -558,6 +563,7 @@ async function readObserverJournal(
 			received: 0,
 			failed: 0,
 			paths: [],
+			...EMPTY_COLD_COVERAGE,
 		};
 	}
 
@@ -580,6 +586,7 @@ async function readObserverJournal(
 		WHERE network = ${network}
 		`.execute(db);
 	const row = rows[0];
+	const cold = await readColdCoverage(db, network);
 	return {
 		available: true,
 		sequence_from: row?.sequence_from ?? null,
@@ -588,6 +595,59 @@ async function readObserverJournal(
 		received: Number(row?.received ?? 0),
 		failed: Number(row?.failed ?? 0),
 		paths: row?.paths ?? [],
+		...cold,
+	};
+}
+
+type ColdCoverage = Pick<
+	CanonicalCoverageAudit["observer_journal"],
+	| "cold_ranges"
+	| "cold_rows"
+	| "cold_verified_ranges"
+	| "cold_from_height"
+	| "cold_to_height"
+>;
+
+const EMPTY_COLD_COVERAGE: ColdCoverage = {
+	cold_ranges: 0,
+	cold_rows: 0,
+	cold_verified_ranges: 0,
+	cold_from_height: null,
+	cold_to_height: null,
+};
+
+async function readColdCoverage(
+	db: Kysely<Database>,
+	network: string,
+): Promise<ColdCoverage> {
+	const relation = await sql<{ relation: string | null }>`
+		SELECT to_regclass('public.observer_journal_cold_ranges') AS relation
+		`.execute(db);
+	if (!relation.rows[0]?.relation) return EMPTY_COLD_COVERAGE;
+
+	const { rows } = await sql<{
+		cold_ranges: string | number;
+		cold_rows: string | number | null;
+		cold_verified_ranges: string | number;
+		cold_from_height: string | number | null;
+		cold_to_height: string | number | null;
+	}>`
+		SELECT
+			COUNT(*) AS cold_ranges,
+			SUM(rows) AS cold_rows,
+			COUNT(*) FILTER (WHERE verified_at IS NOT NULL) AS cold_verified_ranges,
+			MIN(from_height) FILTER (WHERE kind = 'new_block') AS cold_from_height,
+			MAX(to_height) FILTER (WHERE kind = 'new_block') AS cold_to_height
+		FROM observer_journal_cold_ranges
+		WHERE network = ${network}
+		`.execute(db);
+	const row = rows[0];
+	return {
+		cold_ranges: Number(row?.cold_ranges ?? 0),
+		cold_rows: Number(row?.cold_rows ?? 0),
+		cold_verified_ranges: Number(row?.cold_verified_ranges ?? 0),
+		cold_from_height: nullableNumber(row?.cold_from_height),
+		cold_to_height: nullableNumber(row?.cold_to_height),
 	};
 }
 

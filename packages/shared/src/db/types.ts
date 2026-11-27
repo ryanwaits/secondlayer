@@ -862,6 +862,28 @@ export interface ContractStateCoverageTable {
 	claimed_at: Date | null;
 }
 
+export const OBSERVER_JOURNAL_COLD_KINDS = [
+	"new_block",
+	"new_burn_block",
+] as const;
+export type ObserverJournalColdKind =
+	(typeof OBSERVER_JOURNAL_COLD_KINDS)[number];
+
+/** Mirrored by the CHECK on `observer_journal_cold_ranges.kind`. */
+export interface ObserverJournalColdRangesTable {
+	network: string;
+	kind: ObserverJournalColdKind;
+	from_height: ColumnType<string, string | number, string | number>;
+	to_height: ColumnType<string, string | number, string | number>;
+	rows: ColumnType<string, string | number, string | number>;
+	min_sequence: ColumnType<string, string | number, string | number>;
+	max_sequence: ColumnType<string, string | number, string | number>;
+	object_key: string;
+	file_sha256: string;
+	manifest_key: string;
+	verified_at: ColumnType<Date | null, Date | null | undefined, Date | null>;
+}
+
 export interface ChainReadCacheTable {
 	id: Generated<number>;
 	contract_id: string;
@@ -1031,6 +1053,7 @@ export interface Database {
 	contract_state_coverage: ContractStateCoverageTable;
 	pending_fork_blocks: PendingForkBlocksTable;
 	observer_journal: ObserverJournalTable;
+	observer_journal_cold_ranges: ObserverJournalColdRangesTable;
 	sync_scopes: SyncScopesTable;
 	stage_registry: StageRegistryTable;
 	stage_failures: StageFailuresTable;
