@@ -1,0 +1,11 @@
+[Unit]
+Description=Secondlayer sampled block proof check (state witness, writes, rows) with Slack paging
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+EnvironmentFile=-/opt/secondlayer/docker/prod/.env
+ExecStart=/opt/secondlayer/docker/scripts/witness-check-alert.sh
+StandardOutput=append:/var/log/secondlayer-witness-check.log
+StandardError=append:/var/log/secondlayer-witness-check.log

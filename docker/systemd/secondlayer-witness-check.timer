@@ -1,0 +1,11 @@
+[Unit]
+Description=Run the Secondlayer sampled block proof check hourly
+
+[Timer]
+OnCalendar=*-*-* *:20:00
+AccuracySec=1m
+Persistent=true
+Unit=secondlayer-witness-check.service
+
+[Install]
+WantedBy=timers.target
