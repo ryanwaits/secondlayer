@@ -17,7 +17,52 @@ export type LiveRewriteSpec = {
 	digestNext: (heights: readonly number[]) => RawBuilder<unknown>;
 };
 
-export const LIVE_REWRITE_SPECS: Record<string, LiveRewriteSpec> = {};
+const vmEventsSpec: LiveRewriteSpec = {
+	table: "vm_events",
+	createNext: sql`
+		CREATE TABLE IF NOT EXISTS vm_events_next (
+		  block_height BIGINT NOT NULL,
+		  ordinal INTEGER NOT NULL,
+		  tx_index INTEGER NOT NULL,
+		  type TEXT NOT NULL,
+		  data JSONB NOT NULL,
+		  CONSTRAINT vm_events_pkey_next PRIMARY KEY (block_height, ordinal),
+		  CONSTRAINT vm_events_type_check_next CHECK (type IN ('nested_contract_call','var_set','map_set','map_insert','map_delete'))
+		)
+	`,
+	copyRange: (fromHeight, toHeight) => sql`
+		INSERT INTO vm_events_next (block_height, ordinal, tx_index, type, data)
+		SELECT src.block_height, src.ordinal, t.tx_index, src.type, src.data
+		  FROM vm_events src
+		  JOIN transactions t ON t.tx_id = src.tx_id AND t.block_height = src.block_height
+		 WHERE src.block_height >= ${fromHeight} AND src.block_height < ${toHeight}
+	`,
+	sourceRowsInRange: (fromHeight, toHeight) => sql`
+		SELECT count(*) FROM vm_events
+		 WHERE block_height >= ${fromHeight} AND block_height < ${toHeight}
+	`,
+	skipIndexes: ["vm_events_tx_id_idx"],
+	skipConstraints: ["vm_events_tx_id_fkey"],
+	digestLive: (heights) => sql`
+		SELECT block_height::int AS block_height, count(*)::int AS n,
+		       md5(string_agg(concat_ws(chr(124), ordinal, tx_id, type, data::text), chr(10) ORDER BY ordinal)) AS md5
+		  FROM vm_events
+		 WHERE block_height = ANY(ARRAY[${sql.join(heights)}]::bigint[])
+		 GROUP BY block_height
+	`,
+	digestNext: (heights) => sql`
+		SELECT n.block_height::int AS block_height, count(*)::int AS n,
+		       md5(string_agg(concat_ws(chr(124), n.ordinal, t.tx_id, n.type, n.data::text), chr(10) ORDER BY n.ordinal)) AS md5
+		  FROM vm_events_next n
+		  LEFT JOIN transactions t ON t.block_height = n.block_height AND t.tx_index = n.tx_index
+		 WHERE n.block_height = ANY(ARRAY[${sql.join(heights)}]::bigint[])
+		 GROUP BY n.block_height
+	`,
+};
+
+export const LIVE_REWRITE_SPECS: Record<string, LiveRewriteSpec> = {
+	vm_events: vmEventsSpec,
+};
 
 export const LIVE_REWRITE_WINDOW_HEIGHTS = 10_000;
 export const LIVE_REWRITE_MAX_PENDING_HEIGHTS = 10_000;
