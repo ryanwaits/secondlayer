@@ -409,7 +409,7 @@ describe("route manifest", () => {
 		const subscriptions = Object.keys(spec.paths).filter((p) =>
 			p.startsWith("/api/subscriptions"),
 		);
-		expect(webhooks.length).toBe(15);
+		expect(webhooks.length).toBe(18);
 		expect(subscriptions).toEqual([]);
 		const platform = openapiSpec("platform");
 		expect(
