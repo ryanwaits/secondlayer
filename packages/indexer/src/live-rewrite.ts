@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { closeDb, getSourceDb, sql } from "@secondlayer/shared/db";
+import { closeDbOrTimeout, getSourceDb, sql } from "@secondlayer/shared/db";
 /**
  * Rewrite a big live chain table into a new shape without stopping ingest.
  *
@@ -535,7 +535,7 @@ async function main(): Promise<number> {
 		...options,
 		print: (line) => console.log(line),
 	});
-	await closeDb();
+	await closeDbOrTimeout();
 	return code;
 }
 
@@ -547,7 +547,7 @@ if (import.meta.main) {
 				"live-rewrite failed:",
 				err instanceof Error ? (err.stack ?? err.message) : err,
 			);
-			await closeDb().catch(() => {});
+			await closeDbOrTimeout().catch(() => {});
 			process.exit(1);
 		});
 }
