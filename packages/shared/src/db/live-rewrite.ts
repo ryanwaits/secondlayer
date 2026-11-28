@@ -101,9 +101,109 @@ const stateWritesSpec: LiveRewriteSpec = {
 	digestNext: stateWritesDigest("state_writes_next", sql`encode(value, 'hex')`),
 };
 
+const DECODED_EVENT_COLUMNS = [
+	"cursor",
+	"block_height",
+	"tx_id",
+	"tx_index",
+	"event_index",
+	"event_type",
+	"created_at",
+	"canonical",
+	"contract_id",
+	"sender",
+	"recipient",
+	"amount",
+	"asset_identifier",
+	"value",
+	"memo",
+	"payload",
+	"raw_value",
+] as const;
+
+const CANONICAL_HEX_PATTERN = "^0x([0-9a-f]{2})+$";
+
+function decodedEventsDigest(
+	table: string,
+	heights: readonly number[],
+): RawBuilder<unknown> {
+	return sql`
+		SELECT block_height::int AS block_height, count(*)::int AS n,
+		       md5(string_agg(concat_ws('|', cursor, tx_id, tx_index, event_index, event_type,
+		         canonical, contract_id, sender, recipient, amount, asset_identifier, value, memo,
+		         hex_part, CASE WHEN event_type = 'print' AND hex_part ~ ${CANONICAL_HEX_PATTERN}
+		                        THEN NULL ELSE parsed::text END), ',' ORDER BY cursor)) AS md5
+		  FROM (
+		    SELECT *,
+		           coalesce('0x' || encode(raw_value, 'hex'), parsed ->> 'raw_value') AS hex_part
+		      FROM (
+		        SELECT *,
+		               CASE WHEN jsonb_typeof(payload) = 'string'
+		                    THEN (payload #>> '{}')::jsonb ELSE payload END AS parsed
+		          FROM ${sql.table(table)}
+		         WHERE block_height = ANY(ARRAY[${sql.join(heights)}]::bigint[])
+		      ) p
+		  ) d
+		 GROUP BY block_height
+	`;
+}
+
+const decodedEventsSpec: LiveRewriteSpec = {
+	table: "decoded_events",
+	createNext: sql`
+		CREATE TABLE IF NOT EXISTS decoded_events_next (
+			cursor TEXT NOT NULL,
+			block_height BIGINT NOT NULL,
+			tx_id TEXT NOT NULL,
+			tx_index INTEGER NOT NULL,
+			event_index INTEGER NOT NULL,
+			event_type TEXT NOT NULL,
+			created_at TIMESTAMP NOT NULL DEFAULT now(),
+			canonical BOOLEAN NOT NULL DEFAULT true,
+			contract_id TEXT,
+			sender TEXT,
+			recipient TEXT,
+			amount TEXT,
+			asset_identifier TEXT,
+			value TEXT,
+			memo TEXT,
+			payload JSONB COMPRESSION lz4,
+			raw_value BYTEA,
+			CONSTRAINT decoded_events_pkey_next PRIMARY KEY (cursor)
+		)
+	`,
+	copyRange: (fromHeight, toHeight) => {
+		const legacyPrint = sql`event_type = 'print' AND raw_value IS NULL
+			AND jsonb_typeof(payload) = 'string'
+			AND (payload #>> '{}')::jsonb ->> 'raw_value' ~ ${CANONICAL_HEX_PATTERN}`;
+		return sql`
+			INSERT INTO decoded_events_next (${sql.join(DECODED_EVENT_COLUMNS.map((c) => sql.id(c)))})
+			SELECT cursor, block_height, tx_id, tx_index, event_index, event_type, created_at,
+			       canonical, contract_id, sender, recipient, amount, asset_identifier, value, memo,
+			       CASE WHEN ${legacyPrint} THEN NULL
+			            WHEN jsonb_typeof(payload) = 'string' THEN (payload #>> '{}')::jsonb
+			            ELSE payload END,
+			       CASE WHEN ${legacyPrint}
+			            THEN decode(substr((payload #>> '{}')::jsonb ->> 'raw_value', 3), 'hex')
+			            ELSE raw_value END
+			  FROM decoded_events
+			 WHERE block_height >= ${fromHeight} AND block_height < ${toHeight}
+		`;
+	},
+	sourceRowsInRange: (fromHeight, toHeight) => sql`
+		SELECT count(*) FROM decoded_events
+		 WHERE block_height >= ${fromHeight} AND block_height < ${toHeight}
+	`,
+	skipIndexes: [],
+	skipConstraints: [],
+	digestLive: (heights) => decodedEventsDigest("decoded_events", heights),
+	digestNext: (heights) => decodedEventsDigest("decoded_events_next", heights),
+};
+
 export const LIVE_REWRITE_SPECS: Record<string, LiveRewriteSpec> = {
 	vm_events: vmEventsSpec,
 	state_writes: stateWritesSpec,
+	decoded_events: decodedEventsSpec,
 };
 
 export const LIVE_REWRITE_WINDOW_HEIGHTS = 10_000;
