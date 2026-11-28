@@ -1,5 +1,20 @@
 # @secondlayer/api
 
+## 1.64.30
+
+### Patch Changes
+
+- Updated dependencies
+- Updated dependencies [61f2a1b]
+- Updated dependencies [61f2a1b]
+- Updated dependencies [4d936ab]
+  - @secondlayer/shared@21.0.0
+  - @secondlayer/subgraphs@8.1.22
+  - @secondlayer/indexer@1.17.18
+  - @secondlayer/mcp@11.8.2
+  - @secondlayer/platform@0.10.40
+  - @secondlayer/sdk@20.5.2
+
 ## 1.64.29
 
 ### Patch Changes

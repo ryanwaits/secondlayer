@@ -1,5 +1,18 @@
 # @secondlayer/cli
 
+## 24.2.2
+
+### Patch Changes
+
+- 4d936ab: `vm_events` rows are keyed to their transaction by `(block_height, tx_index)`. `VmEventsTable` drops `tx_id` and `created_at` and gains `tx_index`; public Index and Streams rows still return `tx_id` and `tx_index`.
+- Updated dependencies
+- Updated dependencies [61f2a1b]
+- Updated dependencies [61f2a1b]
+- Updated dependencies [4d936ab]
+  - @secondlayer/shared@21.0.0
+  - @secondlayer/subgraphs@8.1.22
+  - @secondlayer/sdk@20.5.2
+
 ## 24.2.1
 
 ### Patch Changes

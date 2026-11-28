@@ -4,6 +4,18 @@ Notable changes to Secondlayer and its SDKs. Entries dated before August 2026 de
 
 ## Self-host — November 2026
 
+### Rewrite large chain tables before you upgrade
+
+Three tables move to a smaller layout: `vm_events` keys rows by transaction index, `state_writes` stores values as bytes, and `decoded_events` stores print values as bytes. REST responses are unchanged. On a database where any of these tables holds more than a million rows, the upgrade stops at its migration until you rewrite that table.
+
+Stop the instance, then run the rewrite for each table in the error, from the new image:
+
+```bash
+docker compose run --rm --entrypoint bun secondlayer run packages/indexer/src/live-rewrite.ts --table vm_events prepare --apply
+```
+
+Repeat with `copy`, `index` and `verify` in place of `prepare`, then `docker compose up -d`. Each rewrite needs free disk about the size of its table. The old table stays as `<table>_old` until you drop it.
+
 ### Print events store canonical bytes in `decoded_events.raw_value`
 
 New `print` rows in `decoded_events` store the canonical Clarity bytes in the `raw_value` column and leave `payload` null. REST responses on `/v1/index` and `/v1/streams` are unchanged. If you query `decoded_events` directly on a self-hosted Postgres, read `raw_value` or decode with `printPayloadFromStored` from `@secondlayer/shared/streams-rows`.

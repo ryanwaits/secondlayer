@@ -1,5 +1,16 @@
 # @secondlayer/sdk
 
+## 20.5.2
+
+### Patch Changes
+
+- Updated dependencies
+- Updated dependencies [61f2a1b]
+- Updated dependencies [61f2a1b]
+- Updated dependencies [4d936ab]
+  - @secondlayer/shared@21.0.0
+  - @secondlayer/subgraphs@8.1.22
+
 ## 20.5.1
 
 ### Patch Changes

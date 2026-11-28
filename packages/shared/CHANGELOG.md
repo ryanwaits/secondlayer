@@ -1,5 +1,13 @@
 # @secondlayer/shared
 
+## 21.0.0
+
+### Major Changes
+
+- Legacy `decoded_events` rows move to the bytes layout: print rows keep the Clarity value in `raw_value` and other rows store `payload` as a JSON object, not a JSON string. The `decoded_events` migration needs the live rewrite tool on a large database. Served events are unchanged.
+- 61f2a1b: `StateWritesTable.value_hex` is now `value` (bytea). Served `value_hex` fields are unchanged. The state_writes migration needs the live rewrite tool on a large database.
+- 4d936ab: `vm_events` rows are keyed to their transaction by `(block_height, tx_index)`. `VmEventsTable` drops `tx_id` and `created_at` and gains `tx_index`; public Index and Streams rows still return `tx_id` and `tx_index`.
+
 ## 20.0.0
 
 ### Major Changes
